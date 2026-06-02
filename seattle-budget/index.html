@@ -7,6 +7,7 @@
   <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png">
   <link rel="stylesheet" href="../site.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
   </head>
 <body>
 
@@ -83,6 +84,23 @@
     </div>
   </div>
 
+</div>
+
+<!-- ── SANKEY DRAWER ── -->
+<div id="sankeyModal" class="sankey-modal">
+  <div class="sankey-panel">
+    <div class="sankey-modal-inner">
+      <div class="sankey-modal-header">
+        <div>
+          <div class="section-label">Service Area Breakdown</div>
+          <h2 id="sankeyTitle" class="sankey-title"></h2>
+          <div id="sankeyMeta" class="sankey-meta"></div>
+        </div>
+        <button class="sankey-close" id="sankeyClose">&#x2715; close</button>
+      </div>
+      <div id="sankeyChart"></div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -189,12 +207,14 @@ function renderDogCards() {
     const card = document.createElement("div");
     card.className = "dog-card";
     card.style.background = svc.color;
+    card.style.cursor = "pointer";
     card.innerHTML = `
       <img src="${svc.dog}" alt="${svc.name}">
       <div class="dog-service">${svc.name}</div>
       <div class="dog-total">${fmt(total)}</div>
       <div class="dog-count">${count} program${count!==1?"s":""}</div>
     `;
+    card.addEventListener("click", () => openSankey(svc.name));
     grid.appendChild(card);
   });
 }
@@ -302,6 +322,152 @@ document.getElementById("nextBtn").addEventListener("click", () => { currentPage
 document.getElementById("searchBox").addEventListener("input", applyFilters);
 
 applyFilters();
+
+// ── SANKEY MODAL ──
+function openSankey(svcName) {
+  const yr = activeYear === "all" ? null : parseInt(activeYear);
+
+  // service area totals
+  const svcTotals = {};
+  SERVICES.forEach(s => svcTotals[s.name] = 0);
+  for (const r of RAW_DATA) {
+    if (yr !== null && r.year !== yr) continue;
+    if (svcTotals[r.service] !== undefined) svcTotals[r.service] += r.amount;
+  }
+
+  // top 20 programs for selected service
+  const progAgg = {};
+  for (const r of RAW_DATA) {
+    if (r.service !== svcName) continue;
+    if (yr !== null && r.year !== yr) continue;
+    progAgg[r.program] = (progAgg[r.program] || 0) + r.amount;
+  }
+  const allProgs = Object.entries(progAgg).map(([name, amount]) => ({ name, amount }))
+    .sort((a, b) => b.amount - a.amount);
+  const programs = allProgs.slice(0, 20);
+  const othersTotal = allProgs.slice(20).reduce((s, p) => s + p.amount, 0);
+  if (othersTotal > 0) programs.push({ name: `+ ${allProgs.length - 20} other programs`, amount: othersTotal, isOther: true });
+
+  const svcTotal = svcTotals[svcName];
+  const yrLabel = activeYear === "all" ? "all years" : "FY" + activeYear;
+
+  document.getElementById("sankeyTitle").textContent = svcName;
+  document.getElementById("sankeyMeta").textContent =
+    `${fmt(svcTotal)} total · ${allProgs.length} programs · ${yrLabel}`;
+
+  document.getElementById("sankeyModal").classList.add("open");
+  renderSankey(svcName, svcTotals, programs);
+}
+
+function closeSankey() {
+  document.getElementById("sankeyModal").classList.remove("open");
+}
+
+document.getElementById("sankeyClose").addEventListener("click", closeSankey);
+document.getElementById("sankeyModal").addEventListener("click", function(e) {
+  if (e.target === this) closeSankey();
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeSankey(); });
+
+function renderSankey(selectedName, svcTotals, programs) {
+  const container = document.getElementById("sankeyChart");
+  container.innerHTML = "";
+
+  const W = container.clientWidth || 900;
+  const PROG_GAP = 4;
+  const NODE_W = 16;
+  const LABEL_LEFT = 20;
+  const LABEL_RIGHT = 300;
+  const margin = { top: 24, right: LABEL_RIGHT, bottom: 24, left: LABEL_LEFT };
+  const innerW = W - margin.left - margin.right;
+
+  const svc = SERVICES.find(s => s.name === selectedName);
+
+  // ── selected service node: fixed height spanning programs ──
+  const PROG_MIN_H = 5;
+  const innerH = Math.max(400, programs.length * 22);
+  const progTotalAmt = programs.reduce((s, p) => s + p.amount, 0);
+  const progScale = (innerH - PROG_GAP * (programs.length - 1)) / progTotalAmt;
+
+  // build program nodes first to know total height
+  let progOff = 0;
+  const progNodes = programs.map(p => {
+    const h = Math.max(PROG_MIN_H, p.amount * progScale);
+    const node = { name: p.name, amount: p.amount, y: progOff, h, isOther: p.isOther };
+    progOff += h + PROG_GAP;
+    return node;
+  });
+
+  const svcH = progOff - PROG_GAP; // service node spans full program stack height
+  const svcY = 0;
+
+  const H = svcH + margin.top + margin.bottom;
+
+  const svg = d3.select(container).append("svg")
+    .attr("width", "100%")
+    .attr("viewBox", `0 0 ${W} ${H}`)
+    .style("font-family", "'DM Mono', monospace")
+    .style("overflow", "visible");
+
+  const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+  // ── flows ──
+  let srcY = svcY;
+  progNodes.forEach(prog => {
+    const srcY1 = srcY;
+    const srcY2 = srcY + prog.h;
+    srcY += prog.h;
+
+    const x0 = NODE_W;
+    const x1 = innerW - NODE_W;
+    const cx = x0 + (x1 - x0) * 0.45;
+
+    const path = `M${x0},${srcY1} C${cx},${srcY1} ${cx},${prog.y} ${x1},${prog.y}
+                  L${x1},${prog.y + prog.h} C${cx},${prog.y + prog.h} ${cx},${srcY2} ${x0},${srcY2} Z`;
+
+    g.append("path")
+      .attr("d", path)
+      .attr("fill", svc.dot)
+      .attr("opacity", prog.isOther ? 0.10 : 0.22);
+  });
+
+  // ── selected service node (single bar on left) ──
+  g.append("rect")
+    .attr("x", 0).attr("y", svcY)
+    .attr("width", NODE_W).attr("height", svcH)
+    .attr("fill", svc.dot);
+
+  g.append("text")
+    .attr("x", NODE_W + 10).attr("y", svcY + svcH / 2 - 7)
+    .attr("text-anchor", "start").attr("dominant-baseline", "middle")
+    .attr("font-size", "12px").attr("font-weight", "500")
+    .attr("fill", "#2c2e25")
+    .text(selectedName);
+
+  g.append("text")
+    .attr("x", NODE_W + 10).attr("y", svcY + svcH / 2 + 10)
+    .attr("text-anchor", "start").attr("dominant-baseline", "middle")
+    .attr("font-size", "11px")
+    .attr("fill", "#595b4a")
+    .text(fmt(svcTotals[selectedName]));
+
+  // ── program nodes ──
+  const progX = innerW - NODE_W;
+  progNodes.forEach(prog => {
+    g.append("rect")
+      .attr("x", progX).attr("y", prog.y)
+      .attr("width", NODE_W).attr("height", prog.h)
+      .attr("fill", prog.isOther ? "#aaa" : svc.dot)
+      .attr("opacity", prog.isOther ? 0.4 : 0.85);
+
+    g.append("text")
+      .attr("x", progX + NODE_W + 10).attr("y", prog.y + prog.h / 2)
+      .attr("dominant-baseline", "middle")
+      .attr("font-size", "10.5px")
+      .attr("fill", prog.isOther ? "#888" : "#2c2e25")
+      .text(`${prog.name.length > 40 ? prog.name.slice(0, 38) + "…" : prog.name}  ${fmt(prog.amount)}`);
+  });
+}
 </script>
 </body>
 </html>

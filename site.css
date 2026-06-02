@@ -238,6 +238,78 @@ tbody td { padding: 8px 14px; }
 
 .no-data { text-align: center; padding: 32px; color: var(--mid); font-size: 0.78rem; }
 
+/* ── SANKEY DRAWER ── */
+.sankey-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(44, 46, 37, 0.18);
+  pointer-events: none;
+}
+.sankey-modal.open {
+  display: block;
+  pointer-events: auto;
+}
+
+.sankey-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 62vw;
+  min-width: 560px;
+  background: var(--bg);
+  border-left: var(--border);
+  overflow-y: auto;
+  overflow-x: hidden;
+  transform: translateX(100%);
+  transition: transform 0.22s ease;
+}
+.sankey-modal.open .sankey-panel {
+  transform: translateX(0);
+}
+
+.sankey-modal-inner {
+  padding: 28px 32px 40px 28px;
+}
+
+.sankey-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  border-bottom: var(--border);
+  padding-bottom: 14px;
+  margin-bottom: 24px;
+}
+
+.sankey-title {
+  font-size: 1.05rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+
+.sankey-meta {
+  font-size: 0.65rem;
+  color: var(--mid);
+}
+
+.sankey-close {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.7rem;
+  padding: 6px 14px;
+  border: var(--border);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: 16px;
+}
+.sankey-close:hover { background: var(--hover); }
+
 /* ── RESPONSIVE ── */
 @media (max-width: 700px) {
   .dog-grid { grid-template-columns: repeat(2, 1fr); }
