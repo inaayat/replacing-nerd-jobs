@@ -1,29 +1,42 @@
-# replacing-nerd-jobs
+# replacing nerd jobs
 
-Personal project portfolio — static HTML projects served via Vercel.
+beep boop.
 
-## Structure
+a collection of static dashboards and data tools — built by a human, for now — served at whatever subdomain makes sense.
+
+## the dogs
+
+six ugly dogs live in `/ugly-dog-images/`. they are used as icons, decorations, favicons, and general emotional support throughout the site. do not remove them. they are load-bearing.
+
+```
+ugly-dog-images/
+├── dog-1.png  ← also an icon
+├── dog-2.png  ← also an icon
+├── dog-3.png  ← favicon (the chosen one)
+├── dog-4.png  ← also an icon
+├── dog-5.png  ← also an icon
+└── dog-6.png  ← also an icon
+```
+
+## structure
 
 ```
 /
-├── index.html          # Portfolio homepage
-├── seattle-budget/     # Seattle Open Budget dashboard
-│   └── index.html
-├── <next-project>/     # Add new projects as subdirectories
+├── index.html           ← main site (from inaayat.xyz, hydrated here)
+├── site.css             ← shared styles for all sub-pages
+├── _template.html       ← copy this to start a new page
+├── ugly-dog-images/     ← the dogs
+├── seattle-budget/      ← seattle open budget dashboard
 │   └── index.html
 └── vercel.json
 ```
 
-Each project lives at its own path (e.g. `/seattle-budget`). The root `index.html` is the portfolio landing page.
+## adding a new page
 
-## Adding a new project
+1. `cp _template.html my-project/index.html`
+2. link it somewhere from the main sidebar
+3. `git push` — vercel redeploys automatically, no build step
 
-1. Create a new directory: `mkdir my-project`
-2. Add an `index.html` inside it
-3. Add a card to the root `index.html` pointing to `/my-project`
-4. Commit and push — Vercel redeploys automatically
+## deploy
 
-## Deploy
-
-Connected to Vercel. Push to `main` triggers a new deployment.
-No build step required — Vercel serves static files directly.
+connected to vercel. push to `main`. done. beep boop.
