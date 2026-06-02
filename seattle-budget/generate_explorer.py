@@ -379,8 +379,8 @@ html = f"""<!DOCTYPE html>
   <div class="sidebar-block">
     <div class="section-label">Navigate</div>
     <nav class="sidebar-links">
-      <a href="index.html">&#8592; Budget Overview</a>
-      <a href="fund-explorer.html">Fund Explorer &#8594;</a>
+      <a href="/seattle-budget/">&#8592; Budget Overview</a>
+      <a href="/seattle-budget/fund-explorer.html">Fund Explorer &#8594;</a>
     </nav>
   </div>
 
