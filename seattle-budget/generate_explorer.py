@@ -181,6 +181,37 @@ html = f"""<!DOCTYPE html>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../site.css">
 <style>
+/* ── Sidebar (matches index.html) ── */
+.sidebar {{
+  width: 210px; flex-shrink: 0;
+  border-right: var(--border);
+  position: sticky; top: 0;
+  height: 100vh; overflow-y: auto;
+}}
+.sidebar-block {{
+  padding: 16px;
+  border-bottom: var(--border);
+}}
+.sidebar-block .section-label {{ margin-bottom: 10px; }}
+.sidebar-links {{
+  display: flex; flex-direction: column; gap: 10px;
+}}
+.sidebar-links a,
+.sidebar-links label {{
+  font-size: 0.65rem; color: var(--mid);
+  text-decoration: none; line-height: 1.4;
+  cursor: pointer; display: flex; align-items: center; gap: 6px;
+}}
+.sidebar-links a:hover,
+.sidebar-links label:hover {{ color: var(--ink); text-decoration: underline; }}
+.sidebar-links input[type="radio"] {{
+  accent-color: var(--ink); cursor: pointer; margin: 0; flex-shrink: 0;
+}}
+@media (max-width: 768px) {{
+  .page-layout {{ flex-direction: column; }}
+  .sidebar {{ width: 100%; height: auto; position: static; border-right: none; border-bottom: var(--border); }}
+}}
+
 /* ── Explorer-specific overrides ── */
 .main {{ padding: 24px 28px; }}
 
@@ -337,17 +368,6 @@ html = f"""<!DOCTYPE html>
 .labor-bar-fill  {{ height: 100%; background: var(--ink); position: absolute; left: 0; top: 0; transition: width .3s; }}
 .labor-bar-labels {{ display: flex; justify-content: space-between; font-size: 0.6rem; color: var(--mid); margin-top: 3px; }}
 
-/* ── Sidebar radio groups ── */
-.radio-group {{ display: flex; flex-direction: column; gap: 2px; padding: 2px 0; }}
-.radio-item  {{
-  display: flex; align-items: center; gap: 7px;
-  font-size: 0.72rem; cursor: pointer; padding: 2px 0;
-}}
-.radio-item input {{ accent-color: var(--ink); cursor: pointer; margin: 0; }}
-.filter-divider {{
-  font-size: 0.58rem; text-transform: uppercase; letter-spacing: 1.5px;
-  color: var(--mid); margin: 8px 0 3px;
-}}
 
 /* ── No-data state ── */
 .empty-state {{
@@ -371,24 +391,27 @@ html = f"""<!DOCTYPE html>
 <!-- ── Sidebar ── -->
 <aside class="sidebar">
   <div class="sidebar-block">
-    <a href="index.html" style="font-size:0.7rem;color:var(--mid);text-decoration:none;display:flex;align-items:center;gap:4px;">
-      &#8592; Budget Overview
-    </a>
+    <div class="section-label">Navigate</div>
+    <nav class="sidebar-links">
+      <a href="index.html">&#8592; Budget Overview</a>
+    </nav>
   </div>
 
   <div class="sidebar-block">
-    <div class="section-label">Filters</div>
-    <div class="filter-divider">Fund</div>
-    <div class="radio-group">
-      <label class="radio-item"><input type="radio" name="fund" value="all" checked> All funds</label>
-      <label class="radio-item"><input type="radio" name="fund" value="gf"> General Fund only</label>
-    </div>
-    <div class="filter-divider">Spending</div>
-    <div class="radio-group">
-      <label class="radio-item"><input type="radio" name="labor" value="all" checked> Total</label>
-      <label class="radio-item"><input type="radio" name="labor" value="labor"> Labor only</label>
-      <label class="radio-item"><input type="radio" name="labor" value="nonlabor"> Non-labor only</label>
-    </div>
+    <div class="section-label">Fund</div>
+    <nav class="sidebar-links">
+      <label><input type="radio" name="fund" value="all" checked> All funds</label>
+      <label><input type="radio" name="fund" value="gf"> General Fund only</label>
+    </nav>
+  </div>
+
+  <div class="sidebar-block">
+    <div class="section-label">Spending</div>
+    <nav class="sidebar-links">
+      <label><input type="radio" name="labor" value="all" checked> Total</label>
+      <label><input type="radio" name="labor" value="labor"> Labor only</label>
+      <label><input type="radio" name="labor" value="nonlabor"> Non-labor only</label>
+    </nav>
   </div>
 </aside>
 
