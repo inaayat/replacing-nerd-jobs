@@ -16,6 +16,7 @@ except ImportError:
 HERE      = Path(__file__).parent
 CSV_PATH  = Path.home() / 'Downloads/seattle-data/City_of_Seattle_Operating_Budget_20260602.csv'
 XLSX_PATH = HERE / 'seattle_budget_by_program.xlsx'
+FUND_DESC_CSV = Path.home() / 'Downloads/seattle-data/fund_descriptions.csv'
 OUT_PATH  = HERE / 'fund-explorer.html'
 
 # ── Fund category rules (checked in order, first match wins) ─────────────────
@@ -47,59 +48,16 @@ CAT_COLORS = {
     'Bonds & Reserves':      ('#d4e4c8', '#6a9e5a'),
 }
 
-# Brief descriptions for the most-used funds
-FUND_DESCRIPTIONS = {
-    'General Fund':
-        'The City\'s primary operating fund, supporting general government services: public safety, courts, parks, human services, libraries, and administration. Funded mainly by property taxes, sales taxes, utility taxes, and other general revenues.',
-    'Light Fund':
-        'Self-sustaining enterprise fund for Seattle City Light, the publicly-owned electric utility. Funded by ratepayer revenue. Covers generation, transmission, distribution, customer service, conservation, and debt service.',
-    'Drainage and Wastewater Fund':
-        'Enterprise fund for Seattle Public Utilities drainage and wastewater operations. Funded by utility rates. Covers stormwater management, sewer infrastructure, combined sewer overflow (CSO) control, and environmental compliance.',
-    'Payroll Expense Tax':
-        'Revenue fund sourced from the payroll expense tax on businesses with employees earning over $150k. Supports affordable housing, homelessness services, and economic recovery programs across multiple departments.',
-    'Health Care Fund':
-        'Internal service fund covering employee and retiree health insurance costs citywide. Funded by contributions from all City departments based on headcount and benefits elections.',
-    'Water Fund':
-        'Enterprise fund for Seattle Public Utilities water operations. Funded by water utility rates. Covers drinking water treatment, distribution infrastructure, watershed stewardship, and customer service.',
-    'Information Technology Fund':
-        'Internal service fund for Seattle IT (SCI). Funded by charges to City departments for technology services including infrastructure, cybersecurity, applications development, and digital equity programs.',
-    'Solid Waste Fund':
-        'Enterprise fund for Seattle Public Utilities solid waste operations. Funded by collection rates. Covers garbage, recycling, composting, transfer stations, and zero-waste initiatives.',
-    'Finance and Administrative Services Fund':
-        'Internal service fund for FASD providing citywide services: purchasing, fleet management, facilities, risk management, financial services, and regulatory licensing.',
-    'Low Income Housing Fund':
-        'Special revenue fund for the Office of Housing. Sources include linkage fees, the Mandatory Housing Affordability program, short-term rental taxes, and federal grants. Supports affordable housing development and preservation.',
-    'Transportation Fund':
-        'Special revenue fund for SDOT transportation operations. Funded by a mix of general fund transfer, gas taxes, parking revenue, and federal/state grants. Covers street maintenance, signals, bridges, and multimodal programs.',
-    'FEPP Levy 2025':
-        'Families, Education, Preschool, and Promise Levy fund for 2025 (renewed by voters Nov 2025 for 2026–2031). Supports early learning, K-12 programs, college promise scholarships, and out-of-school youth services.',
-    'Construction and Inspections':
-        'Enterprise fund for the Seattle Department of Construction and Inspections. Funded by permit fees and inspection charges. Covers land use permits, building inspections, code enforcement, and tenant services.',
-    'Human Services Fund':
-        'Special revenue fund for the Human Services Department. Funded by federal grants (CDBG, ESG), state contracts, and other sources. Supports food security, youth development, homelessness, and community safety programs.',
-    'Seattle Park District Fund':
-        'Special levy district fund created by voter approval in 2014. Property tax revenue dedicated to parks maintenance, recreation affordability, park development, and community events.',
-    'Transportation Benefit District Fund':
-        'Voter-approved levy fund supporting transit access. Funded by the Seattle Transportation Benefit District property tax. Covers Metro bus service hours, reduced-fare ORCA cards, and accessibility programs.',
-    'Library Fund':
-        'Operating fund for The Seattle Public Library. Funded by General Fund support plus fines and fees. Covers branch operations, collections, digital services, and community programming.',
-    'Families Education Preschool Promise Levy':
-        'Families, Education, Preschool, and Promise (FEPP) Levy fund. Voter-approved property tax levy supporting DEEL\'s education programs, preschool subsidies, and college promise scholarships.',
-    'Industrial Insurance Fund':
-        'Internal service fund covering workers\' compensation claims and industrial insurance costs for all City employees. Funded by charges to departments based on payroll and claims experience.',
-    'Park And Recreation Fund':
-        'Enterprise-style fund for Seattle Parks and Recreation supporting self-sustaining operations such as golf courses, community centers, aquatics, and partnerships. Revenue from user fees and program charges.',
-    'Judgment/Claims Fund':
-        'Citywide reserve fund that pays legal judgments and settlements against the City. Funded by contributions from all departments based on actuarial risk.',
-    'Sweetened Beverage Tax Fund':
-        'Revenue from the Seattle sweetened beverage tax. Dedicated to food access programs, healthy development initiatives in communities of color, and nutrition education.',
-    'Short-Term Rental Tax Fund':
-        'Revenue from the short-term rental tax (e.g., Airbnb). Directed to affordable housing programs through the Office of Housing.',
-    'Automated Traffic Safety Camera Fund':
-        'Revenue from automated speed and school-zone safety cameras. Restricted to transportation safety improvements and pedestrian/cyclist safety programs.',
-    'Arts and Culture Fund':
-        'Special revenue fund for the Office of Arts & Culture. Funded by the Admission Tax and other sources. Supports arts grants, public art, Langston Hughes Performing Arts Institute, and cultural programs.',
-}
+# Load fund descriptions scraped from the 2026 Adopted Budget PDF
+FUND_DESCRIPTIONS = {}
+if FUND_DESC_CSV.exists():
+    import csv as _csv
+    with open(FUND_DESC_CSV, encoding='utf-8') as _f:
+        for _row in _csv.DictReader(_f):
+            FUND_DESCRIPTIONS[_row['fund_name']] = _row['description']
+    print(f'Loaded {len(FUND_DESCRIPTIONS)} fund descriptions from PDF scrape')
+else:
+    print(f'WARNING: {FUND_DESC_CSV} not found — fund descriptions will be empty')
 
 # ── 1. Load Excel enrichment ─────────────────────────────────────────────────
 enrichment = {}
