@@ -9,6 +9,10 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../site.css">
 <style>
+/* ── Layout (overrides site.css .main which has max-width/margin:auto) ── */
+.page-layout { display: flex; align-items: flex-start; }
+.page-layout .main { flex: 1; min-width: 0; max-width: none; margin: 0; }
+
 /* ── Sidebar (matches index.html) ── */
 .sidebar {
   width: 210px; flex-shrink: 0;
