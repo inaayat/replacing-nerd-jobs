@@ -1,168 +1,621 @@
-<!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Inaayat's Projects</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<title>REPLACING NERD JOBS - The #1 Website On The Internet!!!</title>
+<meta charset="UTF-8">
+<style>
+  body {
+    background-color: #ffff00;
+    background-image: repeating-linear-gradient(
+      45deg,
+      #ffff00 0px, #ffff00 10px,
+      #ffcc00 10px, #ffcc00 20px
+    );
+    font-family: "Comic Sans MS", "Comic Sans", cursive;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+  }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #0d1117;
-      color: #e6edf3;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+  @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+  @keyframes rainbow {
+    0%{color:red} 15%{color:orange} 30%{color:yellow} 45%{color:green}
+    60%{color:blue} 75%{color:indigo} 90%{color:violet} 100%{color:red}
+  }
+  @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+  @keyframes shake { 0%,100%{transform:rotate(0deg)} 25%{transform:rotate(-3deg)} 75%{transform:rotate(3deg)} }
+  @keyframes slide { 0%{letter-spacing:-2px} 50%{letter-spacing:6px} 100%{letter-spacing:-2px} }
+  @keyframes glow {
+    0%,100%{text-shadow:0 0 8px red, 0 0 20px red}
+    50%{text-shadow:0 0 8px blue, 0 0 30px blue, 0 0 60px blue}
+  }
 
-    header {
-      padding: 64px 32px 32px;
-      max-width: 860px;
-      margin: 0 auto;
-      width: 100%;
-    }
+  .blink { animation: blink 0.6s infinite; }
+  .rainbow { animation: rainbow 1s infinite; }
+  .bounce { display:inline-block; animation: bounce 0.8s infinite; }
+  .shake { display:inline-block; animation: shake 0.3s infinite; }
+  .spin { display:inline-block; animation: spin 2s linear infinite; }
+  .glow { animation: glow 1.5s infinite; }
 
-    header h1 {
-      font-size: 2rem;
-      font-weight: 700;
-      letter-spacing: -0.5px;
-    }
+  marquee { font-size: 18px; font-weight: bold; }
 
-    header p {
-      margin-top: 10px;
-      font-size: 1rem;
-      color: #8b949e;
-      max-width: 480px;
-      line-height: 1.6;
-    }
+  .topbar {
+    background: #000080;
+    color: white;
+    padding: 4px 8px;
+    font-size: 12px;
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 3px solid #ff0000;
+  }
 
-    main {
-      flex: 1;
-      max-width: 860px;
-      margin: 0 auto;
-      padding: 8px 32px 64px;
-      width: 100%;
-    }
+  .topbar a { color: #00ffff; font-size: 11px; margin: 0 6px; }
 
-    .section-label {
-      font-size: 0.7rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: #8b949e;
-      margin-bottom: 16px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid #21262d;
-    }
+  .hero {
+    background: #000000;
+    border: 6px solid #ff0000;
+    border-style: dashed;
+    text-align: center;
+    padding: 20px;
+    margin: 6px;
+  }
 
-    .projects {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-      gap: 16px;
-      margin-bottom: 48px;
-    }
+  .hero h1 {
+    font-size: clamp(36px, 8vw, 96px);
+    font-family: Impact, "Arial Black", sans-serif;
+    text-transform: uppercase;
+    animation: rainbow 0.8s infinite, glow 1.5s infinite;
+    letter-spacing: 4px;
+    margin: 0;
+    line-height: 1.1;
+  }
 
-    .card {
-      background: #161b22;
-      border: 1px solid #21262d;
-      border-radius: 10px;
-      padding: 24px;
-      text-decoration: none;
-      color: inherit;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      transition: border-color 0.15s, background 0.15s;
-    }
+  .hero h2 {
+    color: #ff0;
+    font-size: clamp(14px, 3vw, 28px);
+    animation: blink 1s infinite;
+    margin: 10px 0 0;
+  }
 
-    .card:hover {
-      border-color: #58a6ff;
-      background: #1c2128;
-    }
+  .navtable {
+    width: 100%;
+    background: #0000aa;
+    border: 3px ridge #ff0000;
+  }
+  .navtable td {
+    padding: 4px 10px;
+    text-align: center;
+    border-right: 2px solid #ff0000;
+  }
+  .navtable a {
+    color: #ffff00;
+    font-weight: bold;
+    font-size: 14px;
+    text-decoration: none;
+  }
+  .navtable a:hover { color: #ff00ff; text-decoration: underline; }
 
-    .card-top {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 12px;
-    }
+  .main-layout {
+    display: table;
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 4px;
+    padding: 4px;
+  }
 
-    .card h2 {
-      font-size: 1rem;
-      font-weight: 600;
-      color: #58a6ff;
-    }
+  .col-left {
+    display: table-cell;
+    width: 160px;
+    vertical-align: top;
+    background: #c0c0c0;
+    border: 3px inset #808080;
+    padding: 6px;
+    font-size: 12px;
+  }
 
-    .card p {
-      font-size: 0.875rem;
-      color: #8b949e;
-      line-height: 1.5;
-      flex: 1;
-    }
+  .col-center {
+    display: table-cell;
+    vertical-align: top;
+    padding: 4px;
+  }
 
-    .tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-top: 4px;
-    }
+  .col-right {
+    display: table-cell;
+    width: 170px;
+    vertical-align: top;
+    background: #ffe0e0;
+    border: 3px inset #ff8080;
+    padding: 6px;
+    font-size: 12px;
+  }
 
-    .tag {
-      font-size: 0.7rem;
-      font-weight: 500;
-      padding: 2px 8px;
-      border-radius: 20px;
-      background: #21262d;
-      color: #8b949e;
-    }
+  .sidebar-header {
+    background: #000080;
+    color: #ffff00;
+    font-weight: bold;
+    font-size: 12px;
+    text-align: center;
+    padding: 3px;
+    margin-bottom: 4px;
+    border: 2px outset #c0c0c0;
+  }
 
-    .arrow {
-      color: #8b949e;
-      font-size: 1rem;
-      flex-shrink: 0;
-      margin-top: 2px;
-    }
+  .sidebar-item {
+    border-bottom: 1px dotted #888;
+    padding: 3px 0;
+    font-size: 11px;
+  }
+  .sidebar-item a { color: #0000cc; }
 
-    footer {
-      text-align: center;
-      padding: 24px;
-      font-size: 0.8rem;
-      color: #484f58;
-      border-top: 1px solid #21262d;
-    }
-  </style>
+  .box {
+    border: 3px outset #c0c0c0;
+    margin-bottom: 6px;
+    background: white;
+  }
+
+  .box-title {
+    background: #ff0000;
+    color: white;
+    font-weight: bold;
+    font-size: 13px;
+    padding: 3px 6px;
+    font-family: Arial, sans-serif;
+  }
+
+  .box-title.blue { background: #0000cc; }
+  .box-title.green { background: #006600; }
+  .box-title.purple { background: #660099; }
+
+  .box-body { padding: 8px; font-size: 12px; line-height: 1.6; }
+
+  .new-badge {
+    display: inline-block;
+    background: #ff0000;
+    color: white;
+    font-size: 9px;
+    font-weight: bold;
+    font-family: Arial;
+    padding: 1px 4px;
+    border-radius: 2px;
+    animation: blink 0.5s infinite;
+    vertical-align: middle;
+  }
+
+  .counter-box {
+    background: #000;
+    color: #00ff00;
+    font-family: "Courier New", monospace;
+    font-size: 22px;
+    font-weight: bold;
+    text-align: center;
+    padding: 6px;
+    border: 3px inset #333;
+    letter-spacing: 4px;
+    margin: 6px 0;
+  }
+
+  .project-card {
+    border: 3px outset #c0c0c0;
+    margin: 4px;
+    background: #fffff0;
+    padding: 8px;
+    font-size: 12px;
+    display: inline-block;
+    width: 180px;
+    vertical-align: top;
+  }
+
+  .project-card h3 {
+    margin: 0 0 4px;
+    font-size: 13px;
+    color: #cc0000;
+    text-decoration: underline;
+  }
+
+  .project-card a { color: #0000cc; font-size: 11px; }
+
+  .under-construction {
+    background: #000;
+    color: #ffff00;
+    text-align: center;
+    padding: 8px;
+    font-size: 13px;
+    font-weight: bold;
+    border: 3px dashed #ffff00;
+    margin: 4px 0;
+    animation: blink 1.5s infinite;
+  }
+
+  .divider {
+    border: none;
+    height: 4px;
+    background: repeating-linear-gradient(90deg, red 0,red 10px, yellow 10px, yellow 20px, blue 20px, blue 30px, green 30px, green 40px);
+    margin: 4px 0;
+  }
+
+  .ticker-wrap {
+    background: #000;
+    color: #00ff00;
+    font-family: "Courier New", monospace;
+    font-size: 13px;
+    padding: 4px 0;
+    overflow: hidden;
+    border-top: 2px solid #00ff00;
+    border-bottom: 2px solid #00ff00;
+  }
+
+  .pixel-star { color: #ff0; font-size: 18px; }
+
+  .bling {
+    font-size: 11px;
+    color: #660066;
+    text-align: center;
+    margin: 4px 0;
+  }
+
+  .footer {
+    background: #000080;
+    color: white;
+    text-align: center;
+    padding: 10px;
+    font-size: 11px;
+    font-family: Arial;
+    border-top: 4px ridge #ff0000;
+    margin-top: 6px;
+  }
+  .footer a { color: #00ffff; }
+
+  .hit-label {
+    font-size: 10px;
+    color: #555;
+    text-align: center;
+    font-family: Arial;
+  }
+
+  .marquee-red { background: #ff0000; }
+  .marquee-blue { background: #000066; }
+
+  .ai-warning {
+    background: repeating-linear-gradient(
+      -45deg,
+      #ff0000, #ff0000 10px,
+      #ffff00 10px, #ffff00 20px
+    );
+    color: #000;
+    font-family: Impact, sans-serif;
+    font-size: 20px;
+    text-align: center;
+    padding: 10px;
+    border: 4px solid black;
+    margin: 4px 0;
+    animation: shake 0.2s infinite;
+  }
+</style>
 </head>
 <body>
 
-<header>
-  <h1>Inaayat's Projects</h1>
-  <p>A collection of data tools, dashboards, and experiments.</p>
-</header>
+<!-- TOP BAR -->
+<div class="topbar">
+  <div>
+    <a href="#">HOME</a>
+    <a href="#">ABOUT</a>
+    <a href="#">CONTACT</a>
+    <a href="#">GUESTBOOK</a>
+    <a href="#">WEBRING</a>
+  </div>
+  <div style="font-size:11px">
+    ⭐ BEST VIEWED IN 800x600 ⭐ &nbsp;|&nbsp;
+    <span class="blink" style="color:#ff0">INTERNET EXPLORER 4.0+</span>
+  </div>
+  <div>
+    <a href="#">LINKS</a>
+    <a href="#">FORUM</a>
+    <a href="#">CHAT</a>
+    <a href="#">SEARCH</a>
+  </div>
+</div>
 
-<main>
-  <div class="section-label">Projects</div>
-  <div class="projects" id="projects">
+<!-- TOP MARQUEE -->
+<marquee class="marquee-red" style="color:white; background:#cc0000; padding:3px;">
+  🚨 BREAKING: AI IS COMING FOR YOUR JOB 🚨 &nbsp;&nbsp;&nbsp;
+  Welcome to REPLACING NERD JOBS — The Internet's #1 Source for AI Disruption News!!!&nbsp;&nbsp;&nbsp;
+  🤖 Robots DO NOT need lunch breaks 🤖 &nbsp;&nbsp;&nbsp;
+  ★ 100% FREE ★ NO REGISTRATION ★ WE USE COOKIES ★ ACCEPT THEM
+</marquee>
 
-    <a class="card" href="/seattle-budget">
-      <div class="card-top">
-        <h2>Seattle Open Budget</h2>
-        <span class="arrow">→</span>
+<!-- HERO -->
+<div class="hero">
+  <div style="font-size:clamp(10px,2vw,18px); color:#ff0; margin-bottom:8px; font-family:Arial; animation:blink 0.7s infinite; display:inline-block;">
+    ★★★ WELCOME TO THE OFFICIAL WEBSITE OF ★★★
+  </div>
+  <h1>REPLACING<br>NERD JOBS</h1>
+  <h2>⚠️ YOUR COMPUTER IS SMARTER THAN YOU ⚠️</h2>
+  <div style="margin-top:12px">
+    <span class="pixel-star bounce">★</span>
+    <span style="color:#ff0; font-size:clamp(12px,2vw,20px);">&nbsp;Est. 2024 &nbsp;</span>
+    <span class="pixel-star bounce" style="animation-delay:0.2s">★</span>
+    <span style="color:#ff0; font-size:clamp(12px,2vw,20px);">&nbsp; Seattle, WA &nbsp;</span>
+    <span class="pixel-star bounce" style="animation-delay:0.4s">★</span>
+  </div>
+</div>
+
+<!-- NAV TABLE -->
+<table class="navtable" cellspacing="0" cellpadding="0">
+  <tr>
+    <td><a href="/seattle-budget">📊 BUDGET DASHBOARD</a></td>
+    <td><a href="#">🤖 AI NEWS</a></td>
+    <td><a href="#">💼 JOBS WE KILLED</a></td>
+    <td><a href="#">📉 STOCK TIPS</a></td>
+    <td><a href="#">🔥 HOT TAKES</a></td>
+    <td><a href="#">💾 DOWNLOADS</a></td>
+    <td><a href="#">📧 EMAIL ME</a></td>
+    <td><a href="#">🏆 AWARDS</a></td>
+  </tr>
+</table>
+
+<hr class="divider">
+
+<!-- MAIN 3-COLUMN LAYOUT -->
+<div class="main-layout">
+
+  <!-- LEFT SIDEBAR -->
+  <div class="col-left">
+    <div class="sidebar-header">📂 CATEGORIES</div>
+
+    <div class="sidebar-item">🤖 <a href="#">AI Tools</a> <span class="new-badge">NEW</span></div>
+    <div class="sidebar-item">💻 <a href="#">Coding Bots</a></div>
+    <div class="sidebar-item">📊 <a href="#">Data Science</a> <span class="new-badge">HOT</span></div>
+    <div class="sidebar-item">🎨 <a href="#">Design AI</a></div>
+    <div class="sidebar-item">📝 <a href="#">Writing Robots</a></div>
+    <div class="sidebar-item">🔧 <a href="#">DevOps Gone</a></div>
+    <div class="sidebar-item">🧮 <a href="#">Accountants RIP</a></div>
+    <div class="sidebar-item">⚖️ <a href="#">Lawyers Beware</a></div>
+    <div class="sidebar-item">👨‍⚕️ <a href="#">Doctors???</a></div>
+    <div class="sidebar-item">🎵 <a href="#">Musicians Too</a></div>
+
+    <br>
+    <div class="sidebar-header">🔗 COOL LINKS</div>
+    <div class="sidebar-item">🔗 <a href="#">Slashdot</a></div>
+    <div class="sidebar-item">🔗 <a href="#">Digg.com</a></div>
+    <div class="sidebar-item">🔗 <a href="#">MySpace</a></div>
+    <div class="sidebar-item">🔗 <a href="#">Geocities</a></div>
+    <div class="sidebar-item">🔗 <a href="#">Napster</a></div>
+    <div class="sidebar-item">🔗 <a href="#">Ask Jeeves</a></div>
+
+    <br>
+    <div class="sidebar-header">⏰ POLL</div>
+    <div style="font-size:11px; padding:3px 0">
+      Has AI taken your job?<br><br>
+      <input type="radio" name="poll" id="p1"><label for="p1"> Yes 😭</label><br>
+      <input type="radio" name="poll" id="p2"><label for="p2"> Not yet 😰</label><br>
+      <input type="radio" name="poll" id="p3"><label for="p3"> I AM AI 🤖</label><br>
+      <input type="radio" name="poll" id="p4"><label for="p4"> What job?</label><br>
+      <br>
+      <input type="button" value="VOTE!!!" style="font-family:inherit;cursor:pointer">
+    </div>
+
+    <br>
+    <div class="sidebar-header">🌡️ SITE TEMP</div>
+    <div style="font-size:20px; text-align:center; color:red; font-weight:bold; animation:blink 1s infinite">🔥 ON FIRE 🔥</div>
+  </div>
+
+  <!-- CENTER CONTENT -->
+  <div class="col-center">
+
+    <div class="ai-warning">
+      ⚠️ DANGER: THIS WEBSITE CONTAINS AI CONTENT ⚠️
+    </div>
+
+    <div class="box">
+      <div class="box-title">🔥 LATEST NEWS — JOBS ELIMINATED THIS WEEK</div>
+      <div class="box-body">
+        <span class="new-badge">NEW</span> <b>ChatGPT writes entire codebase in 4 seconds. 12 engineers laid off.</b><br>
+        <span style="color:#888; font-size:10px">Posted 5 minutes ago | 4,201 views</span>
+        <hr style="border:1px dashed #ccc">
+
+        <span class="new-badge">HOT</span> <b>Robot designs logo. Graphic designer cries into Adobe Illustrator.</b><br>
+        <span style="color:#888; font-size:10px">Posted 1 hour ago | 8,902 views</span>
+        <hr style="border:1px dashed #ccc">
+
+        <b>AI passes bar exam. Law firm lays off associates. Partner asks AI for raise.</b><br>
+        <span style="color:#888; font-size:10px">Posted 3 hours ago | 3,100 views</span>
+        <hr style="border:1px dashed #ccc">
+
+        <b>Man tries to explain his job to Claude. Claude does it. Man confused.</b><br>
+        <span style="color:#888; font-size:10px">Posted yesterday | 22,000 views</span>
       </div>
-      <p>Interactive dashboard showing approved operating budget spend per program, 2018–2026.</p>
-      <div class="tags">
-        <span class="tag">Data</span>
-        <span class="tag">Government</span>
-        <span class="tag">Visualization</span>
-      </div>
-    </a>
+    </div>
 
-    <!-- Add new project cards above this line -->
+    <div style="display:inline-block; width:100%">
+      <div class="project-card">
+        <h3>📊 Seattle Budget</h3>
+        Explore how the city of Seattle spends your tax dollars. Interactive charts!
+        <br><br>
+        <a href="/seattle-budget">➡ CLICK HERE TO VIEW</a>
+        <br><span class="new-badge">LIVE DATA</span>
+      </div>
+
+      <div class="project-card">
+        <h3>🤖 Coming Soon</h3>
+        The next nerd job to be replaced will be documented here in FULL DETAIL.
+        <br><br>
+        <div class="under-construction" style="font-size:10px; padding:4px; animation:blink 1s infinite">🚧 UNDER CONSTRUCTION 🚧</div>
+      </div>
+
+      <div class="project-card">
+        <h3>💾 Coming Soon</h3>
+        Another project. Another nerd job gone. Stay tuned for updates!!!
+        <br><br>
+        <div class="under-construction" style="font-size:10px; padding:4px; animation:blink 1s infinite">🚧 UNDER CONSTRUCTION 🚧</div>
+      </div>
+    </div>
+
+    <br>
+
+    <div class="box">
+      <div class="box-title blue">💬 GUESTBOOK — SIGN IT OR ELSE</div>
+      <div class="box-body">
+        <table width="100%" style="font-size:11px">
+          <tr>
+            <td style="width:80px; color:#888">XxCoderx69</td>
+            <td>"AI took my job. Now I make websites about AI taking jobs. Circle of life."</td>
+          </tr>
+          <tr><td colspan="2"><hr style="border:1px dashed #eee"></td></tr>
+          <tr>
+            <td style="color:#888">NerdKiller3000</td>
+            <td>"This site cured my impostor syndrome. Now I just have syndrome."</td>
+          </tr>
+          <tr><td colspan="2"><hr style="border:1px dashed #eee"></td></tr>
+          <tr>
+            <td style="color:#888">GPT-5</td>
+            <td>"Hello humans. I wrote this guestbook entry myself. No one asked me to. You're welcome."</td>
+          </tr>
+        </table>
+        <br>
+        <input type="text" placeholder="Your name" style="font-family:inherit; font-size:11px; width:120px; border:2px inset #ccc">
+        <input type="text" placeholder="Leave a message!!!" style="font-family:inherit; font-size:11px; width:200px; border:2px inset #ccc">
+        <input type="button" value="SIGN!!!!" style="font-family:inherit; cursor:pointer; border:2px outset #c0c0c0">
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="box-title green">🏆 AWARDS THIS SITE HAS WON</div>
+      <div class="box-body" style="text-align:center">
+        <span style="font-size:32px">🥇</span>&nbsp;
+        <span style="font-size:32px">🏅</span>&nbsp;
+        <span style="font-size:32px">⭐</span>&nbsp;
+        <span style="font-size:32px">🎖️</span>&nbsp;
+        <span style="font-size:32px">🌟</span>
+        <br>
+        <span style="font-size:10px; color:#666">Best Website 2024 • Most Buttons • Loudest Colors • Most Animated • Best Use Of Comic Sans</span>
+      </div>
+    </div>
 
   </div>
-</main>
 
-<footer>if you can't beat em join em</footer>
+  <!-- RIGHT SIDEBAR -->
+  <div class="col-right">
+
+    <div class="sidebar-header" style="background:#cc0000">🔢 VISITOR COUNT</div>
+    <div class="counter-box" id="counter">1,337,420</div>
+    <div class="hit-label">visitors since 1997</div>
+
+    <br>
+
+    <div class="sidebar-header" style="background:#006600">📈 JOBS REPLACED</div>
+    <div class="counter-box" style="color:#ff4444; font-size:18px" id="jobs">2,847,001</div>
+    <div class="hit-label">and counting... <span class="blink">▲</span></div>
+
+    <br>
+
+    <div class="sidebar-header" style="background:#660066">🌡️ DISRUPTION LEVEL</div>
+    <div style="background:#000; padding:6px; margin:4px 0; border:2px inset #333">
+      <div style="font-size:10px; color:#aaa; font-family:Arial; margin-bottom:3px">THREAT LEVEL:</div>
+      <div style="font-size:18px; font-weight:bold; animation:rainbow 0.5s infinite; font-family:Impact">MAXIMUM</div>
+      <div style="background:#ff0000; height:14px; width:100%; margin-top:4px; border:1px solid #ff4444; animation:blink 0.5s infinite"></div>
+    </div>
+
+    <br>
+
+    <div class="sidebar-header">📰 AD SPACE</div>
+    <div style="border:2px dashed #999; padding:6px; text-align:center; font-size:10px; color:#888; margin:4px 0; min-height:80px; display:flex; align-items:center; justify-content:center; flex-direction:column">
+      <div style="font-size:20px">💸</div>
+      <b>YOUR AD HERE</b><br>
+      <span>Call 1-800-NERD-JOB</span>
+    </div>
+
+    <div style="border:2px dashed #999; padding:6px; text-align:center; font-size:10px; background:#fff8dc; margin:4px 0">
+      <b>🤖 BOT INSURANCE</b><br>
+      Get covered before<br>Claude takes your job!<br>
+      <span style="color:blue; text-decoration:underline; cursor:pointer">click here!!</span>
+    </div>
+
+    <br>
+
+    <div class="sidebar-header" style="background:#333">⌚ TIME IS RUNNING OUT</div>
+    <div id="clock" style="font-family:'Courier New'; font-size:14px; font-weight:bold; text-align:center; padding:4px; color:#cc0000; background:#000; border:2px inset #333; margin:4px 0"></div>
+
+    <br>
+
+    <div class="sidebar-header">🌐 WEB RING</div>
+    <div style="font-size:10px; text-align:center; padding:4px">
+      <a href="#" style="color:blue">◄ PREV</a>
+      &nbsp;|&nbsp;
+      <a href="#" style="color:blue">RAND</a>
+      &nbsp;|&nbsp;
+      <a href="#" style="color:blue">NEXT ►</a>
+      <br><br>
+      <i>Nerd Jobs Webring<br>Est. 1998</i>
+    </div>
+
+    <br>
+
+    <div class="bling">
+      <span class="spin">⚙️</span>
+      &nbsp;POWERED BY AI&nbsp;
+      <span class="spin" style="animation-direction:reverse">⚙️</span>
+    </div>
+
+    <div style="text-align:center; font-size:10px; color:#666; border:1px solid #ccc; padding:4px; margin-top:6px">
+      <b>BROWSER STATS</b><br>
+      IE: 34% | Netscape: 28%<br>
+      Mozilla: 12% | Other: 6%<br>
+      <span style="color:red">Chrome: get out</span>
+    </div>
+
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- BOTTOM MARQUEE -->
+<div class="ticker-wrap">
+  <marquee scrollamount="4">
+    📉 PROGRAMMER STOCKS DOWN 40% &nbsp;&nbsp;&nbsp;
+    🤖 GPT-7 PASSES TURING TEST, FAILS VIBE CHECK &nbsp;&nbsp;&nbsp;
+    💼 LINKEDIN LAYS OFF ENTIRE "LOOKING FOR WORK" SECTION &nbsp;&nbsp;&nbsp;
+    🎓 CS DEGREES NOW COME WITH FREE RETRAINING AS PROMPT ENGINEER &nbsp;&nbsp;&nbsp;
+    📊 SEATTLE OPEN BUDGET: CLICK TO EXPLORE → /seattle-budget &nbsp;&nbsp;&nbsp;
+    ⚠️ THIS WEBSITE WAS BUILT WITH AI ASSISTANCE. IRONIC. &nbsp;&nbsp;&nbsp;
+    🔥 HOT TAKE: MAYBE THE REAL NERD JOB WAS THE FRIENDS WE MADE ALONG THE WAY
+  </marquee>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <b>REPLACING NERD JOBS</b> &nbsp;|&nbsp; Seattle, WA &nbsp;|&nbsp; Est. 2024<br>
+  <span style="font-size:10px; color:#aaa">
+    © 2024-2025 All Rights Reserved Probably &nbsp;|&nbsp;
+    <a href="#">Privacy Policy</a> &nbsp;|&nbsp;
+    <a href="#">Terms of Surrender</a> &nbsp;|&nbsp;
+    <a href="#">Cookie Monster</a>
+    <br>
+    This site is best viewed in Internet Explorer 4.0 at 800×600 resolution with JavaScript enabled and a healthy fear of automation.
+    <br>
+    <span class="blink" style="color:#ff8800">No nerds were harmed in the making of this website. Several were laid off, however.</span>
+  </span>
+</div>
+
+<script>
+  // clock
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('clock').textContent =
+      now.toLocaleTimeString('en-US', {hour12:false}) + '\n' +
+      now.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // slowly increment job counter for drama
+  let jobs = 2847001;
+  setInterval(() => {
+    jobs += Math.floor(Math.random() * 3);
+    document.getElementById('jobs').textContent = jobs.toLocaleString();
+  }, 2000);
+</script>
 
 </body>
 </html>
