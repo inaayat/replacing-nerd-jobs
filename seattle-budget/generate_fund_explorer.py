@@ -416,6 +416,15 @@ html = f"""<!DOCTYPE html>
   <div class="explorer-grid">
     <div class="explorer-col">
       <div class="col-header">
+        <div class="section-label">Detail</div>
+        <div class="col-context" id="ctxDetail">&nbsp;</div>
+      </div>
+      <div class="col-body" id="bodyDetail">
+        <div class="detail-placeholder">Select a fund to see what it funds, then drill into departments and programs.</div>
+      </div>
+    </div>
+    <div class="explorer-col">
+      <div class="col-header">
         <div class="section-label">Fund</div>
         <div class="col-context" id="ctxFund">All funds</div>
       </div>
@@ -434,15 +443,6 @@ html = f"""<!DOCTYPE html>
         <div class="col-context" id="ctxProg">Select a department</div>
       </div>
       <div class="col-body" id="bodyProg"></div>
-    </div>
-    <div class="explorer-col">
-      <div class="col-header">
-        <div class="section-label">Detail</div>
-        <div class="col-context" id="ctxDetail">&nbsp;</div>
-      </div>
-      <div class="col-body" id="bodyDetail">
-        <div class="detail-placeholder">Select a fund to see what it funds, then drill into departments and programs.</div>
-      </div>
     </div>
   </div>
 </div>
