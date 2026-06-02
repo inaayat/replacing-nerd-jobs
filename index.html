@@ -1,344 +1,524 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Replacing Nerd Jobs</title>
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Replacing Nerd Jobs</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  body {
-    background-color: #1c1812;
-    font-family: Georgia, 'Times New Roman', serif;
-    overflow-x: hidden;
-  }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: #fff;
+      color: #1a1a1a;
+      line-height: 1.5;
+    }
 
-  /* ── COLLAGE CONTAINERS ── */
-  .collage {
-    position: relative;
-    width: 100%;
-  }
-  .collage-top    { height: 620px; }
-  .collage-bottom { height: 520px; }
+    a { text-decoration: none; color: inherit; }
+    img { display: block; max-width: 100%; }
 
-  /* ── BLACK BAR ── */
-  .nameplate {
-    background: #000;
-    width: 100%;
-    padding: 20px 40px;
-    text-align: center;
-    position: relative;
-    z-index: 10;
-  }
-  .nameplate h1 {
-    font-family: 'Palatino Linotype', Palatino, 'Book Antiqua', serif;
-    font-size: clamp(22px, 4.5vw, 68px);
-    color: #fff;
-    font-weight: normal;
-    letter-spacing: 0.14em;
-  }
+    /* ── HEADER ──────────────────────────────── */
+    .site-header {
+      border-bottom: 1px solid #e2e2e2;
+    }
 
-  /* ── BASE CLIPPING ── */
-  .clip {
-    position: absolute;
-    background: #faf7ef;
-    box-shadow: 2px 4px 16px rgba(0,0,0,0.65), 0 0 0 1px rgba(0,0,0,0.12);
-    padding: 11px 13px;
-  }
+    .header-top {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 18px 24px 14px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+    }
 
-  .clip.aged      { background: #ece0c0; }
-  .clip.very-aged { background: #dfd0a0; }
-  .clip.fresh     { background: #fdfcf8; }
+    .logo {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 30px;
+      font-weight: 700;
+      color: #111;
+      letter-spacing: -0.4px;
+      line-height: 1;
+    }
 
-  /* tape strip */
-  .clip.tape::before {
-    content: '';
-    position: absolute;
-    top: -13px;
-    left: 50%;
-    transform: translateX(-50%) rotate(-1deg);
-    width: 54px;
-    height: 24px;
-    background: rgba(255, 238, 140, 0.38);
-    border: 1px solid rgba(190, 165, 55, 0.22);
-    z-index: 5;
-  }
-  .clip.tape-left::before {
-    content: '';
-    position: absolute;
-    top: 18px;
-    left: -14px;
-    width: 28px;
-    height: 55px;
-    background: rgba(255, 238, 140, 0.38);
-    border: 1px solid rgba(190, 165, 55, 0.22);
-    z-index: 5;
-    transform: rotate(1deg);
-  }
+    .logo em {
+      font-style: normal;
+      color: #d0021b;
+    }
 
-  /* ── TYPOGRAPHY ── */
-  .pub {
-    font-size: 8px;
-    text-transform: uppercase;
-    letter-spacing: 2.5px;
-    color: #222;
-    font-family: Arial, Helvetica, sans-serif;
-    border-bottom: 1.5px solid #111;
-    padding-bottom: 3px;
-    margin-bottom: 6px;
-  }
+    .header-tagline {
+      font-size: 12px;
+      color: #888;
+      margin-top: 4px;
+      letter-spacing: 0.2px;
+    }
 
-  .hed { font-weight: 700; color: #080808; line-height: 1.12; margin-bottom: 5px; font-family: Georgia, serif; }
-  .hed.xl { font-size: 26px; }
-  .hed.lg { font-size: 20px; }
-  .hed.md { font-size: 15px; }
-  .hed.sm { font-size: 12px; font-weight: 700; }
+    .cat-nav {
+      border-top: 1px solid #f2f2f2;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
 
-  .byline {
-    font-size: 9px;
-    font-style: italic;
-    color: #555;
-    margin-bottom: 6px;
-  }
+    .cat-nav ul {
+      display: flex;
+      list-style: none;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+      gap: 0;
+    }
 
-  .body {
-    font-size: 10.5px;
-    line-height: 1.56;
-    color: #1a1a1a;
-  }
-  .body.two-col {
-    column-count: 2;
-    column-gap: 10px;
-  }
+    .cat-nav li a {
+      display: block;
+      padding: 12px 16px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.9px;
+      color: #555;
+      border-bottom: 3px solid transparent;
+      white-space: nowrap;
+      transition: color 0.15s, border-color 0.15s;
+    }
 
-  .rule {
-    border: none;
-    border-top: 1px solid #444;
-    margin: 6px 0;
-  }
-  .rule.double {
-    border-top: 3px double #222;
-  }
+    .cat-nav li a:hover { color: #111; }
+    .cat-nav li.active a { color: #d0021b; border-bottom-color: #d0021b; }
 
-  .dateline { font-weight: bold; text-transform: uppercase; font-size: 9.5px; letter-spacing: 0.5px; }
+    /* ── LAYOUT WRAPPER ──────────────────────── */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
 
-  /* classified column */
-  .classified-hd {
-    font-size: 11px;
-    font-weight: bold;
-    text-transform: uppercase;
-    letter-spacing: 1.2px;
-    text-align: center;
-    border-top: 2.5px solid #000;
-    border-bottom: 2.5px solid #000;
-    padding: 2px 0;
-    margin-bottom: 7px;
-    font-family: Arial;
-  }
-  .ci {
-    font-size: 10px;
-    line-height: 1.45;
-    margin-bottom: 5px;
-    padding-bottom: 4px;
-    border-bottom: 1px dotted #bbb;
-  }
-  .ci:last-child { border-bottom: none; }
+    /* ── HERO ────────────────────────────────── */
+    .hero {
+      padding: 40px 0 36px;
+      border-bottom: 1px solid #ebebeb;
+      margin-bottom: 44px;
+    }
 
-  /* market table */
-  .mkt {
-    width: 100%;
-    border-collapse: collapse;
-    font-family: 'Courier New', monospace;
-    font-size: 9.5px;
-  }
-  .mkt th { border-bottom: 1px solid #333; padding: 2px 3px; font-size: 8.5px; font-family: Arial; }
-  .mkt td { padding: 2px 3px; }
-  .dn { color: #bb0000; }
-  .up { color: #005500; }
+    .hero-inner {
+      display: grid;
+      grid-template-columns: 1fr 400px;
+      gap: 48px;
+      align-items: center;
+    }
 
-  /* pull stat */
-  .big-stat { font-size: 52px; font-weight: 700; text-align: center; color: #0a0a0a; line-height: 1; }
+    /* hero image: gradient placeholder */
+    .hero-img {
+      aspect-ratio: 16 / 9;
+      border-radius: 4px;
+      overflow: hidden;
+      background: linear-gradient(140deg, #0d2d6b 0%, #1455b0 55%, #1d7dd4 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
 
-  /* photo placeholder */
-  .photo {
-    background: #bab0a0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid #9a9080;
-    font-size: 9px;
-    color: #555;
-    font-style: italic;
-    text-align: center;
-    font-family: Arial;
-    margin-bottom: 5px;
-  }
+    .hero-img::after {
+      content: "📊";
+      font-size: 80px;
+      opacity: 0.18;
+      position: absolute;
+      bottom: 16px;
+      right: 24px;
+    }
 
-  /* pull quote */
-  .pq {
-    font-size: 17px;
-    font-style: italic;
-    line-height: 1.3;
-    border-top: 3px solid #111;
-    border-bottom: 3px solid #111;
-    padding: 10px 4px;
-    text-align: center;
-    color: #111;
-  }
-</style>
+    .hero-img .img-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.55);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .hero-eyebrow {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.3px;
+      color: #1a7a3c;
+      margin-bottom: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .hero-eyebrow::before {
+      content: '';
+      display: inline-block;
+      width: 20px;
+      height: 2px;
+      background: #1a7a3c;
+      flex-shrink: 0;
+    }
+
+    .hero-headline {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 36px;
+      font-weight: 700;
+      line-height: 1.15;
+      color: #0f0f0f;
+      margin-bottom: 14px;
+    }
+
+    .hero-dek {
+      font-size: 16px;
+      color: #555;
+      line-height: 1.65;
+      margin-bottom: 22px;
+    }
+
+    .btn {
+      display: inline-block;
+      background: #111;
+      color: #fff;
+      padding: 11px 24px;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.4px;
+      border-radius: 3px;
+    }
+
+    .btn:hover { background: #333; }
+
+    /* ── SECTION HEADER ──────────────────────── */
+    .section-hd {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .section-hd h2 {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.3px;
+      color: #111;
+      white-space: nowrap;
+    }
+
+    .section-hd .rule {
+      flex: 1;
+      height: 1px;
+      background: #e2e2e2;
+    }
+
+    /* ── CARD GRID ───────────────────────────── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 36px 24px;
+      margin-bottom: 64px;
+    }
+
+    /* card image placeholders */
+    .card-img {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 13px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card-img .emoji {
+      font-size: 38px;
+      opacity: 0.22;
+    }
+
+    /* individual gradient themes */
+    .grad-blue   { background: linear-gradient(140deg, #0d2d6b 0%, #1d7dd4 100%); }
+    .grad-navy   { background: linear-gradient(140deg, #0a1f3d 0%, #1a4070 100%); }
+    .grad-red    { background: linear-gradient(140deg, #7a1500 0%, #d03010 100%); }
+    .grad-teal   { background: linear-gradient(140deg, #083a2c 0%, #1a7a58 100%); }
+    .grad-purple { background: linear-gradient(140deg, #2a0a50 0%, #6a1a9a 100%); }
+    .grad-green  { background: linear-gradient(140deg, #083a18 0%, #1a6a38 100%); }
+    .grad-slate  { background: linear-gradient(140deg, #1a2030 0%, #3a4a60 100%); }
+
+    .card-img.muted {
+      filter: saturate(0.25) brightness(0.8);
+    }
+
+    /* coming soon badge */
+    .cs-badge {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(255,255,255,0.95);
+      color: #444;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.1px;
+      padding: 4px 9px;
+      border-radius: 2px;
+    }
+
+    /* card category label */
+    .card-cat {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.1px;
+      margin-bottom: 7px;
+    }
+
+    .cat-data     { color: #1a7a3c; }
+    .cat-ai       { color: #b02010; }
+    .cat-analysis { color: #1a3a8c; }
+    .cat-tools    { color: #7a4a00; }
+
+    .card-hl {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 19px;
+      font-weight: 700;
+      line-height: 1.25;
+      color: #111;
+      margin-bottom: 7px;
+    }
+
+    .card.cs .card-hl { color: #777; }
+
+    .card-dek {
+      font-size: 13px;
+      color: #666;
+      line-height: 1.58;
+    }
+
+    .card.cs .card-dek { color: #aaa; }
+
+    .card-link {
+      display: inline-block;
+      margin-top: 10px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #d0021b;
+      letter-spacing: 0.2px;
+    }
+
+    .card-link:hover { text-decoration: underline; }
+
+    /* ── FOOTER ──────────────────────────────── */
+    .site-footer {
+      background: #111;
+      color: #aaa;
+      padding: 48px 24px 28px;
+    }
+
+    .footer-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1.6fr 1fr 1fr 1fr;
+      gap: 40px;
+    }
+
+    .footer-brand .logo { color: #fff; font-size: 22px; }
+
+    .footer-brand p {
+      font-size: 13px;
+      color: #666;
+      margin-top: 10px;
+      line-height: 1.6;
+      max-width: 240px;
+    }
+
+    .footer-col h4 {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.3px;
+      color: #666;
+      margin-bottom: 14px;
+    }
+
+    .footer-col ul { list-style: none; }
+    .footer-col li { margin-bottom: 9px; font-size: 13px; }
+    .footer-col a { color: #aaa; }
+    .footer-col a:hover { color: #fff; }
+
+    .footer-bottom {
+      max-width: 1200px;
+      margin: 32px auto 0;
+      padding-top: 20px;
+      border-top: 1px solid #222;
+      font-size: 12px;
+      color: #555;
+    }
+
+    /* ── RESPONSIVE ──────────────────────────── */
+    @media (max-width: 960px) {
+      .hero-inner { grid-template-columns: 1fr; }
+      .hero-headline { font-size: 28px; }
+      .grid { grid-template-columns: repeat(2, 1fr); }
+      .footer-inner { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 600px) {
+      .grid { grid-template-columns: 1fr; }
+      .footer-inner { grid-template-columns: 1fr; }
+      .logo { font-size: 24px; }
+    }
+  </style>
 </head>
 <body>
 
-<!-- ════════════ TOP COLLAGE ════════════ -->
-<section class="collage collage-top">
-
-  <!-- Large lead article -->
-  <div class="clip tape" style="width:295px; left:3.5%; top:50px; transform:rotate(-2.4deg); z-index:3">
-    <div class="pub">The Daily Dispatch — Technology</div>
-    <div class="hed xl">VALLEY LAYOFFS HIT RECORD AS AI ADOPTION ACCELERATES</div>
-    <div class="byline">By Staff Reporter &ensp;·&ensp; April 14, 2024</div>
-    <hr class="rule">
-    <div class="body two-col">
-      <span class="dateline">San Francisco —</span> Tech industry layoffs reached a third consecutive record quarter as major firms cited expanded AI coding tools and automated testing suites. Executives praised efficiency gains while declining to address affected workers. Several companies simultaneously announced record profits. Stocks rose.
+<!-- ══════════ HEADER ══════════ -->
+<header class="site-header">
+  <div class="header-top">
+    <div>
+      <div class="logo">Replacing <em>Nerd</em> Jobs</div>
+      <div class="header-tagline">Data tools and dashboards for a world in flux</div>
     </div>
   </div>
+  <nav class="cat-nav">
+    <ul>
+      <li class="active"><a href="#">All Projects</a></li>
+      <li><a href="#">Data</a></li>
+      <li><a href="#">AI &amp; Work</a></li>
+      <li><a href="#">Analysis</a></li>
+      <li><a href="#">Tools</a></li>
+    </ul>
+  </nav>
+</header>
 
-  <!-- Classified column -->
-  <div class="clip aged tape" style="width:178px; left:38%; top:30px; transform:rotate(3.1deg); z-index:2">
-    <div class="classified-hd">Help Wanted</div>
-    <div class="ci"><b>PROMPT ENGINEER.</b> Must tolerate irony. No experience possible. $180K + equity.</div>
-    <div class="ci"><b>AI WRANGLER.</b> Argue with model until it works. Patience required. Degree preferred but futile.</div>
-    <div class="ci"><b>VIBE CODER.</b> Describe software in English. Try not to think about what you used to do.</div>
-    <div class="ci"><b>HUMAN OVERSIGHT OFFICER.</b> Rubber-stamp decisions. Largely ceremonial. Excellent benefits.</div>
-  </div>
-
-  <!-- Small news article -->
-  <div class="clip fresh" style="width:225px; right:4%; top:28px; transform:rotate(-1.8deg); z-index:3">
-    <div class="pub">The Register · Web Desk</div>
-    <div class="hed lg">SENIOR DEV INSISTS HE COULD HAVE WRITTEN THAT</div>
-    <div class="byline">J. Hartwell &ensp;·&ensp; 14th consecutive month</div>
-    <hr class="rule">
-    <div class="body">
-      Local senior developer Marcus Tillman, 38, confirmed again Monday that he "could have absolutely done that" in reference to code produced by an AI in under two seconds. Tillman, who has not shipped a feature since Q2 2022, remains confident in his assessment. His manager did not respond to requests for comment.
+<!-- ══════════ HERO ══════════ -->
+<div class="container">
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="hero-img grad-blue">
+        <span class="img-label">Seattle Open Budget</span>
+      </div>
+      <div class="hero-text">
+        <div class="hero-eyebrow">Live Project &nbsp;·&nbsp; Data</div>
+        <h1 class="hero-headline">Seattle Open Budget Dashboard</h1>
+        <p class="hero-dek">Explore how the City of Seattle spends your tax dollars. Interactive charts and tables showing approved operating budget per program across six service areas — from 2018 through 2026.</p>
+        <a href="/seattle-budget" class="btn">Explore the Dashboard &rarr;</a>
+      </div>
     </div>
+  </section>
+
+  <!-- ══════════ COMING SOON GRID ══════════ -->
+  <div class="section-hd">
+    <h2>Coming Soon</h2>
+    <div class="rule"></div>
   </div>
 
-  <!-- Pull quote -->
-  <div class="clip very-aged" style="width:215px; left:21%; top:262px; transform:rotate(-4.2deg); z-index:4">
-    <div class="pq">"The model just understands me better than my manager ever did."</div>
-    <div class="byline" style="text-align:center; margin-top:6px; margin-bottom:0">— Anonymous, LinkedIn comment, 2024</div>
+  <div class="grid">
+
+    <!-- Card 1 -->
+    <div class="card cs">
+      <div class="card-img muted grad-navy">
+        <span class="emoji">🏛️</span>
+        <span class="cs-badge">Coming Soon</span>
+      </div>
+      <div class="card-cat cat-data">Data</div>
+      <div class="card-hl">Federal Budget Breakdown</div>
+      <div class="card-dek">Visualizing where $6 trillion goes — agency by agency, program by program, year by year.</div>
+    </div>
+
+    <!-- Card 2 -->
+    <div class="card cs">
+      <div class="card-img muted grad-red">
+        <span class="emoji">🤖</span>
+        <span class="cs-badge">Coming Soon</span>
+      </div>
+      <div class="card-cat cat-ai">AI &amp; Work</div>
+      <div class="card-hl">AI Job Displacement Index</div>
+      <div class="card-dek">Tracking automation's real-world labor market impact sector by sector, with data updated quarterly.</div>
+    </div>
+
+    <!-- Card 3 -->
+    <div class="card cs">
+      <div class="card-img muted grad-teal">
+        <span class="emoji">🗳️</span>
+        <span class="cs-badge">Coming Soon</span>
+      </div>
+      <div class="card-cat cat-analysis">Analysis</div>
+      <div class="card-hl">Congressional Voting Patterns</div>
+      <div class="card-dek">How your representatives vote versus how they talk — mapped against donor data and reelection cycles.</div>
+    </div>
+
+    <!-- Card 4 -->
+    <div class="card cs">
+      <div class="card-img muted grad-purple">
+        <span class="emoji">📍</span>
+        <span class="cs-badge">Coming Soon</span>
+      </div>
+      <div class="card-cat cat-tools">Tools</div>
+      <div class="card-hl">SF Crime Map</div>
+      <div class="card-dek">A neighborhood-level view of reported incidents over time, layered with housing and income data.</div>
+    </div>
+
+    <!-- Card 5 -->
+    <div class="card cs">
+      <div class="card-img muted grad-green">
+        <span class="emoji">🏥</span>
+        <span class="cs-badge">Coming Soon</span>
+      </div>
+      <div class="card-cat cat-data">Data</div>
+      <div class="card-hl">Healthcare Cost Explorer</div>
+      <div class="card-dek">Why the same procedure costs 10× more across zip codes — a searchable database of billed vs. paid rates.</div>
+    </div>
+
+    <!-- Card 6 -->
+    <div class="card cs">
+      <div class="card-img muted grad-slate">
+        <span class="emoji">📰</span>
+        <span class="cs-badge">Coming Soon</span>
+      </div>
+      <div class="card-cat cat-analysis">Analysis</div>
+      <div class="card-hl">Media Bias Tracker</div>
+      <div class="card-dek">Quantifying slant across 200+ outlets using NLP — how coverage of the same event diverges by publication.</div>
+    </div>
+
   </div>
-
-  <!-- Market table -->
-  <div class="clip fresh tape-left" style="width:198px; right:5%; top:248px; transform:rotate(1.9deg); z-index:3">
-    <div class="pub">Markets &amp; Technology Quarterly</div>
-    <div class="hed sm" style="margin-bottom:7px">NERD FUTURES — WEEKLY CLOSE</div>
-    <table class="mkt">
-      <tr><th>INDEX</th><th>CLOSE</th><th>CHG</th></tr>
-      <tr><td>Programmer</td><td>41.02</td><td class="dn">▼ 8.3%</td></tr>
-      <tr><td>QA Engineer</td><td>12.44</td><td class="dn">▼ 22.1%</td></tr>
-      <tr><td>Data Entry</td><td>0.31</td><td class="dn">▼ 91.2%</td></tr>
-      <tr><td>Prompt Eng.</td><td>188.00</td><td class="up">▲ 4.1%</td></tr>
-      <tr><td>AI (itself)</td><td>∞</td><td class="up">▲ —</td></tr>
-    </table>
-    <div class="byline" style="margin-top:5px; margin-bottom:0">Figures hypothetical. Probably.</div>
-  </div>
-
-  <!-- Headline-only -->
-  <div class="clip aged" style="width:240px; left:40%; top:335px; transform:rotate(1.6deg); z-index:2">
-    <div class="pub">The Oregonian · Business</div>
-    <div class="hed lg">CHATBOT PASSES SENIOR DEV INTERVIEW; NEGOTIATES $10K SIGNING BONUS VIA API</div>
-    <div class="byline" style="margin-bottom:0">Hiring manager "impressed by communication style"</div>
-  </div>
-
-  <!-- Photo clipping -->
-  <div class="clip tape" style="width:175px; left:4.5%; top:320px; transform:rotate(3.8deg); z-index:2">
-    <div class="pub">SF Chronicle</div>
-    <div class="photo" style="height:88px">[Photo withheld<br>at subject's request]</div>
-    <div class="body" style="font-size:9.5px; text-align:center; font-style:italic; margin-bottom:0">A software engineer contemplates his next move. Tuesday.</div>
-  </div>
-
-</section>
-
-
-<!-- ════════════ NAMEPLATE ════════════ -->
-<div class="nameplate">
-  <h1>REPLACING NERD JOBS</h1>
 </div>
 
-
-<!-- ════════════ BOTTOM COLLAGE ════════════ -->
-<section class="collage collage-bottom">
-
-  <!-- Obituaries -->
-  <div class="clip very-aged tape" style="width:228px; left:2.5%; top:42px; transform:rotate(2.1deg); z-index:3">
-    <div class="classified-hd">Obituaries</div>
-    <div class="body">
-      <b>JAVA DEVELOPER, 2004–2024.</b> Survived by several legacy codebases and a LinkedIn profile last updated in 2021. Memorial service will not be held — the calendar invite failed to send. In lieu of flowers, please star an archived GitHub repo.
+<!-- ══════════ FOOTER ══════════ -->
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <div class="logo">Replacing <em style="color:#d0021b">Nerd</em> Jobs</div>
+      <p>Independent data tools and dashboards. Built in Seattle. No ads, no paywalls.</p>
     </div>
-    <hr class="rule">
-    <div class="body">
-      <b>THE STACK OVERFLOW ANSWER, 2009–2024.</b> Deprecated. Predeceased by its upvotes. Cause of death: GPT-4.
+    <div class="footer-col">
+      <h4>Projects</h4>
+      <ul>
+        <li><a href="/seattle-budget">Seattle Open Budget</a></li>
+        <li><a href="#">Federal Budget <span style="color:#555; font-size:11px">(soon)</span></a></li>
+        <li><a href="#">AI Job Index <span style="color:#555; font-size:11px">(soon)</span></a></li>
+        <li><a href="#">Congressional Votes <span style="color:#555; font-size:11px">(soon)</span></a></li>
+      </ul>
     </div>
-  </div>
-
-  <!-- Letters to the editor -->
-  <div class="clip fresh" style="width:260px; left:27%; top:24px; transform:rotate(-2.8deg); z-index:2">
-    <div class="pub">The Times · Letters to the Editor</div>
-    <div class="hed sm">READER CORRESPONDENCE</div>
-    <hr class="rule">
-    <div class="body">
-      <i>"I asked the AI to fix one bug. It rewrote my entire codebase and sent a resignation letter to my manager on my behalf. I have never felt more seen."</i>
-      <br><span class="byline" style="display:block; margin-top:3px; margin-bottom:0">— D.H., Former SWE, Portland</span>
+    <div class="footer-col">
+      <h4>Topics</h4>
+      <ul>
+        <li><a href="#">Data</a></li>
+        <li><a href="#">AI &amp; Work</a></li>
+        <li><a href="#">Analysis</a></li>
+        <li><a href="#">Tools</a></li>
+      </ul>
     </div>
-    <hr class="rule">
-    <div class="body">
-      <i>"My son spent $140,000 on a computer science degree. He now explains to the AI what he wants and watches it work. He seems happy, I think."</i>
-      <br><span class="byline" style="display:block; margin-top:3px; margin-bottom:0">— Concerned Mother, Bellevue WA</span>
-    </div>
-  </div>
-
-  <!-- Opinion -->
-  <div class="clip aged tape" style="width:218px; right:3.5%; top:32px; transform:rotate(2.9deg); z-index:3">
-    <div class="pub">Opinion — The Tech Review</div>
-    <div class="hed lg">I SPENT $200,000 ON A CS DEGREE TO DO THIS</div>
-    <div class="byline">Anonymous &ensp;·&ensp; Published reluctantly</div>
-    <hr class="rule">
-    <div class="body">
-      Every morning I open my laptop, type a sentence into a text box, and review the results. My title is Engineer. My job is to agree or disagree. Last quarter I disagreed twice. My performance review was excellent.
+    <div class="footer-col">
+      <h4>About</h4>
+      <ul>
+        <li><a href="#">About this site</a></li>
+        <li><a href="https://github.com/inaayat/replacing-nerd-jobs">GitHub</a></li>
+      </ul>
     </div>
   </div>
-
-  <!-- Big stat -->
-  <div class="clip tape" style="width:185px; left:4%; top:305px; transform:rotate(-2.2deg); z-index:2">
-    <div class="pub">Economic Policy Institute</div>
-    <div class="big-stat">40%</div>
-    <hr class="rule" style="margin-top:6px">
-    <div class="body" style="text-align:center; font-size:11px">of white-collar tasks automatable by current AI tools, per analysis no one asked for</div>
-    <div class="byline" style="text-align:center; margin-bottom:0; margin-top:4px">McKinsey, probably</div>
+  <div class="footer-bottom">
+    &copy; 2026 Replacing Nerd Jobs &nbsp;&middot;&nbsp; Built in Seattle
   </div>
-
-  <!-- Notices classified -->
-  <div class="clip very-aged" style="width:170px; left:44%; top:300px; transform:rotate(-1.7deg); z-index:2">
-    <div class="classified-hd">Notices</div>
-    <div class="ci"><b>LOST:</b> One sense of professional identity. Last seen at 2022 company all-hands. Reward offered.</div>
-    <div class="ci"><b>FOR SALE:</b> Standing desk. Ergonomic chair. Sense of purpose. Make offer.</div>
-    <div class="ci"><b>FREE:</b> Copies of <i>Clean Code.</i> Box on curb. No questions asked.</div>
-  </div>
-
-  <!-- Rejection letter -->
-  <div class="clip fresh tape-left" style="width:218px; right:4%; top:272px; transform:rotate(-3.4deg); z-index:3">
-    <div class="pub">Employment — Pacific NW Weekly</div>
-    <div class="hed md">POSITION FILLED BY AUTOMATION</div>
-    <hr class="rule">
-    <div class="body">
-      Thank you to all 847 applicants for the Software Engineer II role. After careful deliberation, we have elected to expand our AI tooling budget. Your resumes were reviewed by an AI and declined by an AI. We wish you well.
-    </div>
-    <hr class="rule">
-    <div class="byline" style="margin-bottom:0">— Human Resources Dept. <i>(also automated)</i></div>
-  </div>
-
-</section>
+</footer>
 
 </body>
 </html>
