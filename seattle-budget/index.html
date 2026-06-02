@@ -8,6 +8,64 @@
   <link rel="stylesheet" href="../site.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+  <style>
+/* ── SIDEBAR LAYOUT (seattle-budget) ── */
+.page-layout {
+  display: flex;
+  align-items: flex-start;
+}
+.sidebar {
+  width: 210px;
+  flex-shrink: 0;
+  border-right: var(--border);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+.sidebar-block {
+  padding: 16px;
+  border-bottom: var(--border);
+}
+.sidebar-block .section-label { margin-bottom: 10px; }
+.sidebar .year-tabs {
+  flex-direction: column;
+  border-bottom: none;
+  overflow-x: unset;
+}
+.sidebar .year-tab {
+  border-right: none;
+  border-bottom: 1.5px solid var(--ink);
+  text-align: left;
+  padding: 8px 0;
+}
+.sidebar .year-tab:last-child { border-bottom: none; }
+.sidebar-links {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sidebar-links a {
+  font-size: 0.65rem;
+  color: var(--mid);
+  text-decoration: none;
+  line-height: 1.4;
+}
+.sidebar-links a:hover { color: var(--ink); text-decoration: underline; }
+.page-layout .main {
+  flex: 1;
+  min-width: 0;
+  max-width: none;
+  margin: 0;
+}
+@media (max-width: 768px) {
+  .page-layout { flex-direction: column; }
+  .sidebar { width: 100%; height: auto; position: static; border-right: none; border-bottom: var(--border); }
+  .sidebar .year-tabs { flex-direction: row; overflow-x: auto; }
+  .sidebar .year-tab { border-right: 1.5px solid var(--ink); border-bottom: none; }
+  .sidebar .year-tab:last-child { border-right: none; }
+}
+  </style>
   </head>
 <body>
 
@@ -19,11 +77,28 @@
   <a class="back-link" href="/">&#8592; home</a>
 </header>
 
-<div class="year-tabs" id="yearTabs"></div>
+<div class="page-layout">
+  <aside class="sidebar">
+    <div class="sidebar-block">
+      <div class="section-label">Year</div>
+      <div class="year-tabs" id="yearTabs"></div>
+    </div>
+    <div class="sidebar-block">
+      <div class="section-label">Resources</div>
+      <nav class="sidebar-links">
+        <a href="https://data.seattle.gov/Finance/City-of-Seattle-Operating-Budget/8u2f-rqhx" target="_blank" rel="noopener">City of Seattle Operating Budget</a>
+        <a href="https://seattle.gov/finance/operating-budget" target="_blank" rel="noopener">Office of Management &amp; Budget</a>
+        <a href="https://seattle.gov/finance/operating-budget/2025-2026-proposed-budget" target="_blank" rel="noopener">2025–2026 Budget Documents</a>
+        <a href="https://legistar.seattle.gov/" target="_blank" rel="noopener">City Council (Legistar)</a>
+        <a href="https://openbudget.seattle.gov/" target="_blank" rel="noopener">Open Budget Explorer</a>
+      </nav>
+    </div>
+  </aside>
 
-<div class="main">
+  <div class="main">
 
-  <div class="section-label">Spending by Service Area</div>
+  <div id="totalBudget" style="margin-bottom:6px"></div>
+  <div class="section-label" style="margin-bottom:14px">Spending by Service Area</div>
   <div class="dog-grid" id="dogGrid"></div>
 
   <div class="panel">
@@ -84,6 +159,8 @@
     </div>
   </div>
 
+
+  </div>
 </div>
 
 <!-- ── SANKEY DRAWER ── -->
@@ -191,6 +268,12 @@ function applyFilters() {
 
 // ── DOG CARDS ──
 function renderDogCards() {
+  const total = filtered.reduce((s, r) => s + r.amount, 0);
+  const yrLabel = activeYear === "all" ? "all years" : "FY" + activeYear;
+  document.getElementById("totalBudget").innerHTML =
+    `<span style="font-size:2rem;font-weight:500;letter-spacing:0.02em">${fmtFull(total)}</span>` +
+    `<span style="font-size:0.65rem;color:var(--mid);margin-left:10px;text-transform:uppercase;letter-spacing:1.5px">total approved · ${yrLabel}</span>`;
+
   const grid = document.getElementById("dogGrid");
   grid.innerHTML = "";
 
