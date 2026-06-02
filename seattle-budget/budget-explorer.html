@@ -103,12 +103,12 @@
 .detail-card {
   border: var(--border);
   border-top: 3px solid var(--ink);
-  margin-top: 20px;
+  margin-bottom: 20px;
   display: none;
-  animation: slideUp 0.18s ease;
+  animation: slideDown 0.18s ease;
 }
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(8px); }
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 .detail-card.open { display: block; }
@@ -166,20 +166,16 @@
 .labor-bar-labels { display: flex; justify-content: space-between; font-size: 0.6rem; color: var(--mid); margin-top: 3px; }
 
 /* ── Sidebar radio groups ── */
-.radio-group { display: flex; flex-direction: column; gap: 4px; padding: 2px 0; }
+.radio-group { display: flex; flex-direction: column; gap: 2px; padding: 2px 0; }
 .radio-item  {
   display: flex; align-items: center; gap: 7px;
-  font-size: 0.72rem; cursor: pointer; padding: 3px 0;
+  font-size: 0.72rem; cursor: pointer; padding: 2px 0;
 }
 .radio-item input { accent-color: var(--ink); cursor: pointer; margin: 0; }
-
-/* ── Service legend in sidebar ── */
-.svc-legend { display: flex; flex-direction: column; gap: 5px; padding: 4px 0; }
-.svc-legend-item {
-  display: flex; align-items: center; gap: 7px;
-  font-size: 0.68rem; cursor: pointer; padding: 2px 0;
+.filter-divider {
+  font-size: 0.58rem; text-transform: uppercase; letter-spacing: 1.5px;
+  color: var(--mid); margin: 8px 0 3px;
 }
-.svc-legend-item:hover { text-decoration: underline; }
 
 /* ── No-data state ── */
 .empty-state {
@@ -202,32 +198,25 @@
 
 <!-- ── Sidebar ── -->
 <aside class="sidebar">
-  <div class="sidebar-block" style="padding-bottom:10px">
+  <div class="sidebar-block">
     <a href="index.html" style="font-size:0.7rem;color:var(--mid);text-decoration:none;display:flex;align-items:center;gap:4px;">
       &#8592; Budget Overview
     </a>
   </div>
 
   <div class="sidebar-block">
-    <div class="section-label">Fund type</div>
+    <div class="section-label">Filters</div>
+    <div class="filter-divider">Fund</div>
     <div class="radio-group">
       <label class="radio-item"><input type="radio" name="fund" value="all" checked> All funds</label>
       <label class="radio-item"><input type="radio" name="fund" value="gf"> General Fund only</label>
     </div>
-  </div>
-
-  <div class="sidebar-block">
-    <div class="section-label">Spending</div>
+    <div class="filter-divider">Spending</div>
     <div class="radio-group">
       <label class="radio-item"><input type="radio" name="labor" value="all" checked> Total</label>
       <label class="radio-item"><input type="radio" name="labor" value="labor"> Labor only</label>
       <label class="radio-item"><input type="radio" name="labor" value="nonlabor"> Non-labor only</label>
     </div>
-  </div>
-
-  <div class="sidebar-block">
-    <div class="section-label">Service area</div>
-    <div class="svc-legend" id="svcLegend"></div>
   </div>
 </aside>
 
@@ -237,6 +226,28 @@
   <div class="page-header">
     <h1>2026 Seattle Operating Budget</h1>
     <div class="total-banner" id="totalBanner"></div>
+  </div>
+
+  <!-- Detail card (shown above explorer when a program is selected) -->
+  <div class="detail-card" id="detailCard">
+    <div class="detail-head">
+      <span class="detail-prog-name" id="dProgName"></span>
+      <span class="detail-breadcrumb" id="dBreadcrumb"></span>
+      <button class="detail-close" id="detailClose">&#x2715;</button>
+    </div>
+    <div class="detail-body">
+      <div class="detail-section">
+        <div class="detail-meta-grid" id="dMetaGrid"></div>
+        <div class="labor-bar-wrap" id="dLaborBar"></div>
+        <div class="detail-bsl" id="dBsl"></div>
+        <div class="detail-funds" id="dFunds"></div>
+      </div>
+      <div class="detail-section">
+        <div class="detail-section-label">Program description</div>
+        <div class="detail-desc" id="dDesc"></div>
+        <div class="detail-bsl" id="dBslDesc" style="margin-top:12px"></div>
+      </div>
+    </div>
   </div>
 
   <!-- Summary strip -->
@@ -264,28 +275,6 @@
         <div class="col-context" id="ctxProg">All programs</div>
       </div>
       <div class="col-body" id="bodyProg"></div>
-    </div>
-  </div>
-
-  <!-- Detail card -->
-  <div class="detail-card" id="detailCard">
-    <div class="detail-head">
-      <span class="detail-prog-name" id="dProgName"></span>
-      <span class="detail-breadcrumb" id="dBreadcrumb"></span>
-      <button class="detail-close" id="detailClose">&#x2715;</button>
-    </div>
-    <div class="detail-body">
-      <div class="detail-section">
-        <div class="detail-meta-grid" id="dMetaGrid"></div>
-        <div class="labor-bar-wrap" id="dLaborBar"></div>
-        <div class="detail-bsl" id="dBsl"></div>
-        <div class="detail-funds" id="dFunds"></div>
-      </div>
-      <div class="detail-section">
-        <div class="detail-section-label">Program description</div>
-        <div class="detail-desc" id="dDesc"></div>
-        <div class="detail-bsl" id="dBslDesc" style="margin-top:12px"></div>
-      </div>
     </div>
   </div>
 
@@ -570,7 +559,6 @@ function showDetail(prog) {
     : '';
 
   card.classList.add('open');
-  card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function hideDetail() {
@@ -597,7 +585,6 @@ document.querySelectorAll('input[name="labor"]').forEach(el => {
 $('detailClose').addEventListener('click', hideDetail);
 
 // ── Init ─────────────────────────────────────────────────────────────────────
-renderSvcLegend();
 renderAll();
 </script>
 </body>
