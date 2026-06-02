@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Page Title — Replacing Nerd Jobs</title>
+
+  <!--
+    Link site.css from the correct relative path:
+      root-level page  →  href="./site.css"
+      one level deep   →  href="../site.css"
+  -->
+  <link rel="stylesheet" href="../site.css">
+
+  <!-- Add page-specific scripts or extra styles below -->
+</head>
+<body>
+
+<!-- ══ HEADER ══════════════════════════════════════════════════════════ -->
+<header class="site-header">
+  <div>
+    <h1>Page Title</h1>
+    <p>short description of what this page does</p>
+  </div>
+  <a class="back-link" href="/">&#8592; home</a>
+</header>
+
+
+<!-- ══ OPTIONAL: YEAR / PILL TABS ══════════════════════════════════════
+     Remove if not needed. Populate with JS or hardcode buttons.
+<div class="year-tabs">
+  <button class="year-tab active">2026</button>
+  <button class="year-tab">2025</button>
+</div>
+══════════════════════════════════════════════════════════════════════ -->
+
+
+<!-- ══ MAIN CONTENT ════════════════════════════════════════════════════ -->
+<div class="main">
+
+  <!-- Section label -->
+  <div class="section-label">Section Name</div>
+
+
+  <!-- ── DOG CARD GRID ──────────────────────────────────────────────
+       6 cards, one per service area. Backgrounds use --svc-N-bg vars.
+       Dog images live at /ugly-dog-images/dog-N.png
+
+  <div class="dog-grid">
+    <div class="dog-card" style="background:var(--svc-1-bg)">
+      <img src="../ugly-dog-images/dog-1.png" alt="Administration">
+      <div class="dog-service">Administration</div>
+      <div class="dog-total">$0.0B</div>
+      <div class="dog-count">0 programs</div>
+    </div>
+    ... repeat for dog-2 through dog-6 with --svc-2-bg … --svc-6-bg ...
+  </div>
+  ──────────────────────────────────────────────────────────────────── -->
+
+
+  <!-- ── PANEL (chart, table, any content block) ──────────────────── -->
+  <div class="panel">
+    <div class="panel-head">
+      <h2>Panel Title</h2>
+
+      <!-- Optional controls in the header bar -->
+      <div class="controls">
+        <div class="filter-group">
+          <span class="filter-label">Filter by</span>
+          <select>
+            <option>Option A</option>
+            <option>Option B</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">Search</span>
+          <input type="text" placeholder="type to filter…">
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-body">
+      <!-- chart canvas, text, whatever goes here -->
+      <p>Content goes here.</p>
+    </div>
+  </div>
+
+
+  <!-- ── TABLE PANEL ──────────────────────────────────────────────── -->
+  <div class="panel">
+    <div class="panel-head">
+      <h2>Table Title</h2>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th data-col="col1">Column 1</th>
+          <th data-col="col2">Column 2</th>
+          <th data-col="amount" class="sorted-desc">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Row value</td>
+          <td>
+            <!-- colour dot for categories -->
+            <span class="dot" style="background:var(--svc-1-dot)"></span>
+            Category Name
+          </td>
+          <td class="amount-cell">$1,234,567</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="no-data" style="display:none">No results.</div>
+    <div class="pager">
+      <span id="pagerInfo">1–25 of 100</span>
+      <div style="display:flex;gap:8px">
+        <button disabled>&#8592; prev</button>
+        <button>next &#8594;</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /.main -->
+
+<script>
+  // Page-specific JavaScript goes here.
+  // Reference the service area config if needed:
+  const SERVICES = [
+    { name:"Administration",                          dog:"../ugly-dog-images/dog-1.png", color:"var(--svc-1-bg)", dot:"var(--svc-1-dot)" },
+    { name:"Arts, Culture & Recreation",              dog:"../ugly-dog-images/dog-2.png", color:"var(--svc-2-bg)", dot:"var(--svc-2-dot)" },
+    { name:"Education & Human Services",              dog:"../ugly-dog-images/dog-3.png", color:"var(--svc-3-bg)", dot:"var(--svc-3-dot)" },
+    { name:"Livable & Inclusive Communities",         dog:"../ugly-dog-images/dog-4.png", color:"var(--svc-4-bg)", dot:"var(--svc-4-dot)" },
+    { name:"Public Safety",                           dog:"../ugly-dog-images/dog-5.png", color:"var(--svc-5-bg)", dot:"var(--svc-5-dot)" },
+    { name:"Utilities, Transportation & Environment", dog:"../ugly-dog-images/dog-6.png", color:"var(--svc-6-bg)", dot:"var(--svc-6-dot)" },
+  ];
+</script>
+
+</body>
+</html>
