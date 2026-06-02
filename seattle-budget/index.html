@@ -4,20 +4,34 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Seattle Open Budget — Program Spend by Year</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
+    :root {
+      --primary-color-backlight-on: #c9dae1;
+      --secondary-color-backlight-on: #495383;
+      --primary-color-backlight-off: #595b4a;
+      --secondary-color-backlight-off: #2c2e25;
+      --label-color: #8b8b8e;
+      --bg: #fff8dc;
+      --accent: var(--primary-color-backlight-off);
+      --accent-dark: var(--secondary-color-backlight-off);
+    }
+
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #f4f6f9;
-      color: #1a2332;
+      font-family: 'DM Mono', monospace;
+      background: var(--bg);
+      color: var(--accent-dark);
       min-height: 100vh;
     }
 
     header {
-      background: #00457c;
-      color: #fff;
+      background: var(--accent-dark);
+      color: var(--primary-color-backlight-on);
       padding: 24px 32px;
     }
 
@@ -59,23 +73,23 @@
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      color: #5a6a7a;
+      color: var(--label-color);
     }
 
     select, input[type="text"] {
       padding: 8px 12px;
-      border: 1px solid #c8d4e0;
+      border: 1px solid #c8c0a0;
       border-radius: 6px;
       font-size: 0.9rem;
-      background: #fff;
-      color: #1a2332;
+      background: #fffef5;
+      color: var(--accent-dark);
       outline: none;
       min-width: 180px;
     }
 
     select:focus, input:focus {
-      border-color: #00457c;
-      box-shadow: 0 0 0 3px rgba(0,69,124,0.12);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(89,91,74,0.15);
     }
 
     input[type="text"] {
@@ -97,11 +111,11 @@
     }
 
     .card {
-      background: #fff;
+      background: #fffef5;
       border-radius: 10px;
       padding: 20px;
       box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-      border-left: 4px solid #00457c;
+      border-left: 4px solid var(--accent);
     }
 
     .card.green { border-color: #27ae60; }
@@ -113,25 +127,25 @@
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      color: #5a6a7a;
+      color: var(--label-color);
       margin-bottom: 6px;
     }
 
     .card .value {
       font-size: 1.5rem;
       font-weight: 700;
-      color: #1a2332;
+      color: var(--accent-dark);
     }
 
     .card .sub {
       font-size: 0.8rem;
-      color: #5a6a7a;
+      color: var(--label-color);
       margin-top: 2px;
     }
 
     /* Chart */
     .chart-panel {
-      background: #fff;
+      background: #fffef5;
       border-radius: 10px;
       padding: 24px;
       box-shadow: 0 1px 4px rgba(0,0,0,0.08);
@@ -142,7 +156,7 @@
       font-size: 1rem;
       font-weight: 600;
       margin-bottom: 16px;
-      color: #1a2332;
+      color: var(--accent-dark);
     }
 
     .chart-wrapper {
@@ -152,7 +166,7 @@
 
     /* Table */
     .table-panel {
-      background: #fff;
+      background: #fffef5;
       border-radius: 10px;
       padding: 24px;
       box-shadow: 0 1px 4px rgba(0,0,0,0.08);
@@ -162,7 +176,7 @@
       font-size: 1rem;
       font-weight: 600;
       margin-bottom: 16px;
-      color: #1a2332;
+      color: var(--accent-dark);
     }
 
     .table-scroll {
@@ -176,31 +190,31 @@
     }
 
     thead th {
-      background: #f4f6f9;
+      background: var(--bg);
       padding: 10px 14px;
       text-align: left;
       font-weight: 600;
       font-size: 0.75rem;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      color: #5a6a7a;
-      border-bottom: 2px solid #e0e8f0;
+      color: var(--label-color);
+      border-bottom: 2px solid #d8d0b8;
       cursor: pointer;
       user-select: none;
       white-space: nowrap;
     }
 
-    thead th:hover { background: #e8eef5; }
+    thead th:hover { background: #e8e0c8; }
 
     thead th.sorted-asc::after { content: " ↑"; }
     thead th.sorted-desc::after { content: " ↓"; }
 
     tbody tr {
-      border-bottom: 1px solid #f0f4f8;
+      border-bottom: 1px solid #ede8d5;
       transition: background 0.1s;
     }
 
-    tbody tr:hover { background: #f8fafc; }
+    tbody tr:hover { background: #f5f0e0; }
 
     tbody td {
       padding: 10px 14px;
@@ -227,14 +241,14 @@
       align-items: center;
       margin-top: 16px;
       font-size: 0.85rem;
-      color: #5a6a7a;
+      color: var(--label-color);
     }
 
     .pager button {
       padding: 6px 14px;
-      border: 1px solid #c8d4e0;
+      border: 1px solid #c8c0a0;
       border-radius: 6px;
-      background: #fff;
+      background: #fffef5;
       cursor: pointer;
       font-size: 0.85rem;
     }
@@ -250,7 +264,7 @@
     .no-data {
       text-align: center;
       padding: 40px;
-      color: #5a6a7a;
+      color: var(--label-color);
       font-size: 0.9rem;
     }
   </style>
