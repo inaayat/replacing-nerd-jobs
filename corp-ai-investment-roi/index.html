@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Corporate AI Investment &amp; ROI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="/ugly-dog-images/dog-2.png">
+<link rel="stylesheet" href="../site.css">
+<style>
+.page-layout { display: flex; align-items: flex-start; }
+.page-layout .main { flex: 1; min-width: 0; max-width: none; margin: 0; padding: 16px 24px 40px; }
+
+.sidebar {
+  width: 220px; flex-shrink: 0;
+  border-right: var(--border);
+  position: sticky; top: 0;
+  height: 100vh; overflow-y: auto;
+}
+.sidebar-block { padding: 14px 16px; border-bottom: var(--border); }
+.sidebar-block .section-label { margin-bottom: 10px; }
+.sidebar-links { display: flex; flex-direction: column; gap: 8px; }
+.sidebar-links a { font-size: 0.65rem; color: var(--mid); text-decoration: none; line-height: 1.4; }
+.sidebar-links a:hover { color: var(--ink); text-decoration: underline; }
+
+.stat-block { margin-bottom: 6px; }
+.stat-val { font-size: 1.1rem; font-weight: 500; color: var(--ink); line-height: 1.1; }
+.stat-label { font-size: 0.58rem; color: var(--mid); text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+.stat-sub { font-size: 0.6rem; color: var(--mid); margin-top: 1px; }
+
+.insight-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.insight-list li { font-size: 0.63rem; color: var(--mid); line-height: 1.5; padding-left: 10px; border-left: 2px solid var(--faint); }
+.insight-list li strong { color: var(--ink); }
+
+/* ── Stat strip ── */
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border: var(--border);
+  margin-bottom: 20px;
+}
+.stat-chip {
+  padding: 12px 14px;
+  border-right: var(--border);
+}
+.stat-chip:last-child { border-right: none; }
+.stat-chip-val { font-size: 1.3rem; font-weight: 500; color: var(--ink); margin-bottom: 2px; }
+.stat-chip-label { font-size: 0.58rem; color: var(--mid); text-transform: uppercase; letter-spacing: 1px; line-height: 1.4; }
+.stat-chip-sub { font-size: 0.6rem; color: var(--mid); margin-top: 3px; }
+
+/* ── Chart grid ── */
+.chart-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.chart-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.chart-panel { border: var(--border); }
+.chart-panel.full { grid-column: 1 / -1; }
+.chart-panel-head {
+  padding: 10px 14px 8px;
+  border-bottom: var(--border);
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+}
+.chart-panel-head h2 { font-size: 0.75rem; font-weight: 500; margin: 0; }
+.chart-panel-head .sub { font-size: 0.6rem; color: var(--mid); }
+.chart-panel-body { padding: 14px; position: relative; }
+.chart-panel-body canvas { display: block; }
+
+/* ── Section divider ── */
+.section-divider { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--mid); margin: 24px 0 12px; border-bottom: var(--border); padding-bottom: 6px; }
+
+@media (max-width: 1100px) {
+  .chart-grid-2 { grid-template-columns: 1fr; }
+  .chart-grid-3 { grid-template-columns: 1fr; }
+  .stat-strip { grid-template-columns: repeat(2,1fr); }
+  .stat-chip:nth-child(2) { border-right: none; }
+  .stat-chip:nth-child(3) { border-top: var(--border); }
+}
+@media (max-width: 768px) {
+  .page-layout { flex-direction: column; }
+  .sidebar { width: 100%; height: auto; position: static; border-right: none; border-bottom: var(--border); }
+  .stat-strip { grid-template-columns: repeat(2,1fr); }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div>
+    <h1>Corporate AI Investment &amp; ROI</h1>
+    <p>200,000 companies &middot; 10 industries &middot; 15 countries &middot; 2015–2035</p>
+  </div>
+  <a class="back-link" href="/">&#8592; home</a>
+</header>
+
+<div class="page-layout">
+
+<aside class="sidebar">
+  <div class="sidebar-block">
+    <nav class="sidebar-links">
+      <a href="/">&#8592; Home</a>
+    </nav>
+  </div>
+
+  <div class="sidebar-block">
+    <div class="section-label">Dataset</div>
+    <div class="stat-block">
+      <div class="stat-val">200k</div>
+      <div class="stat-label">Company records</div>
+    </div>
+    <div class="stat-block" style="margin-top:10px">
+      <div class="stat-val">10</div>
+      <div class="stat-label">Industries</div>
+    </div>
+    <div class="stat-block" style="margin-top:10px">
+      <div class="stat-val">15</div>
+      <div class="stat-label">Countries</div>
+    </div>
+    <div class="stat-block" style="margin-top:10px">
+      <div class="stat-val">21 yrs</div>
+      <div class="stat-label">2015 – 2035</div>
+    </div>
+  </div>
+
+  <div class="sidebar-block">
+    <div class="section-label">Key Findings</div>
+    <ul class="insight-list">
+      <li><strong>Technology</strong> leads ROI at 147.8% — nearly 2× the next sector.</li>
+      <li><strong>Retail</strong> achieves 93.5% ROI at the lowest average investment ($2.5M), best value play.</li>
+      <li>AI adoption <strong>quadrupled</strong> from 19% in 2015 to 86% by 2035.</li>
+      <li>Revenue impact <strong>outpaced cost savings</strong> as the primary driver post-2022.</li>
+      <li><strong>Sweden</strong> leads globally on ROI (99.2%) despite modest adoption.</li>
+      <li><strong>Manufacturing</strong> tops productivity gain (0.44) despite mid-tier ROI.</li>
+    </ul>
+  </div>
+
+  <div class="sidebar-block" style="border-bottom:none; text-align:center; padding:12px 16px;">
+    <img src="/ugly-dog-images/dog-3.png" alt="" style="width:52px; opacity:0.65; margin-right:6px;">
+    <img src="/ugly-dog-images/dog-5.png" alt="" style="width:52px; opacity:0.65;">
+  </div>
+</aside>
+
+<div class="main">
+
+  <!-- Stat strip -->
+  <div class="stat-strip">
+    <div class="stat-chip">
+      <div class="stat-chip-val">147.8%</div>
+      <div class="stat-chip-label">Highest ROI</div>
+      <div class="stat-chip-sub">Technology sector</div>
+    </div>
+    <div class="stat-chip">
+      <div class="stat-chip-val">4.5×</div>
+      <div class="stat-chip-label">Adoption growth</div>
+      <div class="stat-chip-sub">2015 → 2035 (19% → 86%)</div>
+    </div>
+    <div class="stat-chip">
+      <div class="stat-chip-val">$4.6M</div>
+      <div class="stat-chip-label">Avg AI investment</div>
+      <div class="stat-chip-sub">Across all companies</div>
+    </div>
+    <div class="stat-chip">
+      <div class="stat-chip-val">7.5×</div>
+      <div class="stat-chip-label">Revenue impact growth</div>
+      <div class="stat-chip-sub">2015 → 2035</div>
+    </div>
+  </div>
+
+  <!-- Row 1 -->
+  <div class="section-divider">Returns by Industry</div>
+  <div class="chart-grid-2">
+    <div class="chart-panel">
+      <div class="chart-panel-head">
+        <h2>ROI by Industry</h2>
+        <span class="sub">avg (cost savings + revenue) ÷ investment</span>
+      </div>
+      <div class="chart-panel-body">
+        <canvas id="chartROI" height="240"></canvas>
+      </div>
+    </div>
+    <div class="chart-panel">
+      <div class="chart-panel-head">
+        <h2>Avg Investment vs Returns</h2>
+        <span class="sub">per company — savings + revenue vs investment</span>
+      </div>
+      <div class="chart-panel-body">
+        <canvas id="chartInvRet" height="240"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 2 -->
+  <div class="section-divider">Growth Over Time (2015–2035)</div>
+  <div class="chart-grid-2">
+    <div class="chart-panel">
+      <div class="chart-panel-head">
+        <h2>AI Adoption Rate</h2>
+        <span class="sub">avg adoption level (0–1) by year</span>
+      </div>
+      <div class="chart-panel-body">
+        <canvas id="chartAdoption" height="200"></canvas>
+      </div>
+    </div>
+    <div class="chart-panel">
+      <div class="chart-panel-head">
+        <h2>Investment &amp; Returns Trend</h2>
+        <span class="sub">avg per company ($M)</span>
+      </div>
+      <div class="chart-panel-body">
+        <canvas id="chartTrend" height="200"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 3 -->
+  <div class="section-divider">Country &amp; Productivity</div>
+  <div class="chart-grid-2">
+    <div class="chart-panel">
+      <div class="chart-panel-head">
+        <h2>ROI by Country</h2>
+        <span class="sub">avg total return ÷ investment</span>
+      </div>
+      <div class="chart-panel-body">
+        <canvas id="chartCountry" height="280"></canvas>
+      </div>
+    </div>
+    <div class="chart-panel">
+      <div class="chart-panel-head">
+        <h2>Productivity Gain by Industry</h2>
+        <span class="sub">avg productivity gain (0–1 scale)</span>
+      </div>
+      <div class="chart-panel-body">
+        <canvas id="chartProd" height="280"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 4 full width -->
+  <div class="section-divider">Adoption Trends by Industry</div>
+  <div class="chart-panel">
+    <div class="chart-panel-head">
+      <h2>AI Adoption by Industry Over Time</h2>
+      <span class="sub">avg adoption rate per year, all industries</span>
+    </div>
+    <div class="chart-panel-body">
+      <canvas id="chartIndTrend" height="140"></canvas>
+    </div>
+  </div>
+
+</div><!-- /main -->
+</div><!-- /page-layout -->
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+const IND = [{"name":"Technology","count":35994,"avg_inv":6488823,"avg_savings":4061684,"avg_revenue":5527864,"avg_prod":0.3847,"avg_maturity":6.25,"roi":147.8},{"name":"Retail","count":20048,"avg_inv":2451390,"avg_savings":1005702,"avg_revenue":1285910,"avg_prod":0.3677,"avg_maturity":6.27,"roi":93.5},{"name":"Financial Services","count":27927,"avg_inv":8206724,"avg_savings":3383839,"avg_revenue":3863966,"avg_prod":0.4063,"avg_maturity":6.28,"roi":88.3},{"name":"Telecom","count":14128,"avg_inv":4875045,"avg_savings":1917114,"avg_revenue":2264975,"avg_prod":0.3855,"avg_maturity":6.27,"roi":85.8},{"name":"Logistics","count":16021,"avg_inv":3270042,"avg_savings":1297772,"avg_revenue":1358749,"avg_prod":0.4334,"avg_maturity":6.26,"roi":81.2},{"name":"Energy","count":14080,"avg_inv":5783329,"avg_savings":2130234,"avg_revenue":2267110,"avg_prod":0.4266,"avg_maturity":6.3,"roi":76.0},{"name":"Healthcare","count":24026,"avg_inv":4921771,"avg_savings":1578794,"avg_revenue":2059374,"avg_prod":0.3493,"avg_maturity":6.28,"roi":73.9},{"name":"Manufacturing","count":29884,"avg_inv":4075209,"avg_savings":1461593,"avg_revenue":1476649,"avg_prod":0.4425,"avg_maturity":6.28,"roi":72.1},{"name":"Agriculture","count":9934,"avg_inv":1315642,"avg_savings":406225,"avg_revenue":445679,"avg_prod":0.4064,"avg_maturity":6.29,"roi":64.8},{"name":"Education","count":7958,"avg_inv":806923,"avg_savings":176984,"avg_revenue":253324,"avg_prod":0.3071,"avg_maturity":6.22,"roi":53.3}];
+
+const CTY = [{"name":"Sweden","avg_inv":4741028,"avg_savings":2088903,"avg_revenue":2612580,"avg_adoption":0.529,"roi":99.2},{"name":"United States","avg_inv":6085048,"avg_savings":2701534,"avg_revenue":3275057,"avg_adoption":0.5469,"roi":98.2},{"name":"United Kingdom","avg_inv":4818030,"avg_savings":2110285,"avg_revenue":2621816,"avg_adoption":0.5342,"roi":98.2},{"name":"Singapore","avg_inv":5226936,"avg_savings":2291830,"avg_revenue":2804311,"avg_adoption":0.5354,"roi":97.5},{"name":"China","avg_inv":5182407,"avg_savings":2271083,"avg_revenue":2767177,"avg_adoption":0.5293,"roi":97.2},{"name":"South Korea","avg_inv":4299823,"avg_savings":1868957,"avg_revenue":2287404,"avg_adoption":0.5168,"roi":96.7},{"name":"France","avg_inv":4349165,"avg_savings":1873984,"avg_revenue":2313178,"avg_adoption":0.5157,"roi":96.3},{"name":"UAE","avg_inv":3723832,"avg_savings":1597924,"avg_revenue":1985693,"avg_adoption":0.5036,"roi":96.2},{"name":"Canada","avg_inv":4781970,"avg_savings":2076580,"avg_revenue":2516732,"avg_adoption":0.5305,"roi":96.1},{"name":"Australia","avg_inv":4264635,"avg_savings":1847461,"avg_revenue":2230041,"avg_adoption":0.5182,"roi":95.6},{"name":"Germany","avg_inv":4709741,"avg_savings":2038145,"avg_revenue":2449625,"avg_adoption":0.522,"roi":95.3},{"name":"Netherlands","avg_inv":4235845,"avg_savings":1842426,"avg_revenue":2192754,"avg_adoption":0.5166,"roi":95.3},{"name":"Japan","avg_inv":4309015,"avg_savings":1844974,"avg_revenue":2249944,"avg_adoption":0.5163,"roi":95.0},{"name":"India","avg_inv":3083856,"avg_savings":1321681,"avg_revenue":1601002,"avg_adoption":0.511,"roi":94.8},{"name":"Brazil","avg_inv":2634353,"avg_savings":1083810,"avg_revenue":1329623,"avg_adoption":0.4874,"roi":91.6}];
+
+const YR = [{"year":2015,"avg_inv":2499624,"avg_savings":709649,"avg_revenue":672432,"avg_adoption":0.1915,"avg_prod":0.1512},{"year":2016,"avg_inv":2707529,"avg_savings":797693,"avg_revenue":786198,"avg_adoption":0.2201,"avg_prod":0.1727},{"year":2017,"avg_inv":2948807,"avg_savings":912538,"avg_revenue":962200,"avg_adoption":0.2523,"avg_prod":0.1961},{"year":2018,"avg_inv":3195548,"avg_savings":1032260,"avg_revenue":1088796,"avg_adoption":0.288,"avg_prod":0.2211},{"year":2019,"avg_inv":3423513,"avg_savings":1138562,"avg_revenue":1220449,"avg_adoption":0.3204,"avg_prod":0.2445},{"year":2020,"avg_inv":3675163,"avg_savings":1284059,"avg_revenue":1387452,"avg_adoption":0.3539,"avg_prod":0.2686},{"year":2021,"avg_inv":3903267,"avg_savings":1419756,"avg_revenue":1594469,"avg_adoption":0.3909,"avg_prod":0.2948},{"year":2022,"avg_inv":4156508,"avg_savings":1554397,"avg_revenue":1758137,"avg_adoption":0.4265,"avg_prod":0.3218},{"year":2023,"avg_inv":4368365,"avg_savings":1686376,"avg_revenue":1926351,"avg_adoption":0.4559,"avg_prod":0.3426},{"year":2024,"avg_inv":4591793,"avg_savings":1847108,"avg_revenue":2174107,"avg_adoption":0.495,"avg_prod":0.371},{"year":2025,"avg_inv":4875927,"avg_savings":2023856,"avg_revenue":2400838,"avg_adoption":0.5295,"avg_prod":0.3963},{"year":2026,"avg_inv":5183919,"avg_savings":2226459,"avg_revenue":2678843,"avg_adoption":0.5666,"avg_prod":0.4231},{"year":2027,"avg_inv":5397523,"avg_savings":2375619,"avg_revenue":2897269,"avg_adoption":0.5978,"avg_prod":0.4475},{"year":2028,"avg_inv":5547354,"avg_savings":2502892,"avg_revenue":3055883,"avg_adoption":0.6311,"avg_prod":0.4699},{"year":2029,"avg_inv":5880239,"avg_savings":2752543,"avg_revenue":3368284,"avg_adoption":0.6689,"avg_prod":0.4991},{"year":2030,"avg_inv":6092121,"avg_savings":2951280,"avg_revenue":3676806,"avg_adoption":0.7007,"avg_prod":0.521},{"year":2031,"avg_inv":6332523,"avg_savings":3122594,"avg_revenue":3946910,"avg_adoption":0.7377,"avg_prod":0.5484},{"year":2032,"avg_inv":6534751,"avg_savings":3314688,"avg_revenue":4248469,"avg_adoption":0.7689,"avg_prod":0.5707},{"year":2033,"avg_inv":6820266,"avg_savings":3534900,"avg_revenue":4675221,"avg_adoption":0.8021,"avg_prod":0.5943},{"year":2034,"avg_inv":7020970,"avg_savings":3704571,"avg_revenue":4931008,"avg_adoption":0.8337,"avg_prod":0.6158},{"year":2035,"avg_inv":7168347,"avg_savings":3846261,"avg_revenue":5022530,"avg_adoption":0.8578,"avg_prod":0.6351}];
+
+const IND_TREND = {"Agriculture":[0.1831,0.227,0.2461,0.2907,0.3345,0.3647,0.399,0.4221,0.4533,0.4917,0.5376,0.5694,0.5877,0.6276,0.6701,0.7028,0.7359,0.7679,0.8076,0.8519,0.855],"Education":[0.1941,0.2181,0.2393,0.2838,0.3193,0.3634,0.3911,0.4303,0.4529,0.4849,0.5334,0.5621,0.6031,0.6316,0.6613,0.701,0.7428,0.7612,0.7916,0.8381,0.8648],"Energy":[0.2001,0.2205,0.25,0.2895,0.3196,0.3488,0.3835,0.4364,0.4515,0.4913,0.5262,0.5639,0.602,0.6367,0.676,0.7064,0.7404,0.7709,0.8038,0.8312,0.8651],"Financial Services":[0.1952,0.223,0.2543,0.287,0.3248,0.352,0.3942,0.4296,0.451,0.4949,0.5296,0.5688,0.5974,0.6302,0.6639,0.7008,0.735,0.7646,0.8059,0.832,0.8545],"Healthcare":[0.191,0.2126,0.2557,0.289,0.3143,0.3502,0.3856,0.4248,0.457,0.4992,0.5237,0.5687,0.6003,0.6295,0.6738,0.6972,0.7433,0.7668,0.8007,0.8356,0.8598],"Logistics":[0.1952,0.2164,0.251,0.2873,0.3235,0.3562,0.3915,0.4258,0.4573,0.4919,0.5319,0.5577,0.5984,0.6319,0.6698,0.7053,0.7322,0.7701,0.8196,0.8329,0.853],"Manufacturing":[0.1858,0.2216,0.2463,0.2872,0.3242,0.3528,0.3854,0.4254,0.4572,0.4954,0.5287,0.5681,0.5971,0.6274,0.6647,0.6981,0.7418,0.7742,0.7968,0.8315,0.8602],"Retail":[0.1941,0.2207,0.2586,0.2868,0.316,0.3534,0.3936,0.4296,0.4615,0.4947,0.5313,0.5623,0.6027,0.6345,0.6754,0.6995,0.7269,0.7704,0.7972,0.8398,0.8605],"Technology":[0.1947,0.2206,0.2519,0.2903,0.3162,0.3538,0.3957,0.4227,0.4579,0.4978,0.5312,0.5665,0.5995,0.6286,0.6708,0.7016,0.7401,0.7664,0.799,0.8294,0.8546],"Telecom":[0.1763,0.2216,0.2634,0.2853,0.3195,0.3567,0.3898,0.4234,0.4553,0.495,0.5265,0.5746,0.5844,0.64,0.6615,0.699,0.7355,0.7746,0.8031,0.8268,0.8559]};
+
+const INK = '#2c2e25';
+const MID = '#595b4a';
+const FAINT = 'rgba(44,46,37,0.1)';
+
+const IND_COLORS = {
+  'Technology':         '#7bafd4',
+  'Financial Services': '#8bc4a0',
+  'Retail':             '#e8b87a',
+  'Telecom':            '#c4a0b8',
+  'Logistics':          '#a0b8c4',
+  'Energy':             '#d4a87c',
+  'Healthcare':         '#b8a0c4',
+  'Manufacturing':      '#a8c4b4',
+  'Agriculture':        '#c4c49e',
+  'Education':          '#c4b0a0',
+};
+
+const DEFAULTS = {
+  plugins: { legend: { display: false }, tooltip: { bodyFont: { family: 'DM Mono', size: 11 }, titleFont: { family: 'DM Mono', size: 11 } } },
+  scales: {
+    x: { ticks: { font: { family: 'DM Mono', size: 10 }, color: MID }, grid: { color: FAINT } },
+    y: { ticks: { font: { family: 'DM Mono', size: 10 }, color: MID }, grid: { color: FAINT } }
+  }
+};
+
+function fmtM(v) { return '$' + (v/1e6).toFixed(1) + 'M'; }
+
+// ── ROI by Industry ──
+new Chart(document.getElementById('chartROI'), {
+  type: 'bar',
+  data: {
+    labels: IND.map(d => d.name),
+    datasets: [{
+      data: IND.map(d => d.roi),
+      backgroundColor: IND.map(d => IND_COLORS[d.name]),
+      borderColor: IND.map(d => IND_COLORS[d.name]),
+      borderWidth: 1,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    plugins: {
+      ...DEFAULTS.plugins,
+      tooltip: { ...DEFAULTS.plugins.tooltip, callbacks: { label: ctx => ` ${ctx.parsed.x.toFixed(1)}% ROI` } }
+    },
+    scales: {
+      x: { ...DEFAULTS.scales.x, title: { display: true, text: 'ROI %', font: { family: 'DM Mono', size: 10 }, color: MID } },
+      y: { ...DEFAULTS.scales.y, grid: { display: false } }
+    }
+  }
+});
+
+// ── Avg Investment vs Returns (by industry) ──
+new Chart(document.getElementById('chartInvRet'), {
+  type: 'bar',
+  data: {
+    labels: IND.map(d => d.name),
+    datasets: [
+      { label: 'Avg Investment', data: IND.map(d => d.avg_inv/1e6), backgroundColor: 'rgba(44,46,37,0.15)', borderColor: INK, borderWidth: 1 },
+      { label: 'Cost Savings',   data: IND.map(d => d.avg_savings/1e6), backgroundColor: '#8bc4a0cc', borderColor: '#5a9e7a', borderWidth: 1 },
+      { label: 'Revenue Impact', data: IND.map(d => d.avg_revenue/1e6), backgroundColor: '#7bafd4cc', borderColor: '#4a7fa4', borderWidth: 1 },
+    ]
+  },
+  options: {
+    plugins: {
+      legend: { display: true, position: 'bottom', labels: { font: { family: 'DM Mono', size: 10 }, color: MID, boxWidth: 12 } },
+      tooltip: { ...DEFAULTS.plugins.tooltip, callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmtM(ctx.parsed.y*1e6)}` } }
+    },
+    scales: {
+      x: { ...DEFAULTS.scales.x, ticks: { ...DEFAULTS.scales.x.ticks, maxRotation: 35 } },
+      y: { ...DEFAULTS.scales.y, title: { display: true, text: '$M avg per company', font: { family: 'DM Mono', size: 10 }, color: MID } }
+    }
+  }
+});
+
+// ── AI Adoption trend (overall) ──
+const years = YR.map(d => d.year);
+new Chart(document.getElementById('chartAdoption'), {
+  type: 'line',
+  data: {
+    labels: years,
+    datasets: [{
+      data: YR.map(d => +(d.avg_adoption * 100).toFixed(1)),
+      borderColor: INK, borderWidth: 2,
+      pointRadius: 2, fill: true,
+      backgroundColor: 'rgba(44,46,37,0.06)',
+      tension: 0.35
+    }]
+  },
+  options: {
+    plugins: {
+      ...DEFAULTS.plugins,
+      tooltip: { ...DEFAULTS.plugins.tooltip, callbacks: { label: ctx => ` ${ctx.parsed.y.toFixed(1)}% adoption` } }
+    },
+    scales: {
+      x: { ...DEFAULTS.scales.x },
+      y: { ...DEFAULTS.scales.y, min: 0, max: 100, title: { display: true, text: 'Adoption %', font: { family: 'DM Mono', size: 10 }, color: MID } }
+    }
+  }
+});
+
+// ── Investment & Returns trend ──
+new Chart(document.getElementById('chartTrend'), {
+  type: 'line',
+  data: {
+    labels: years,
+    datasets: [
+      { label: 'Avg Investment', data: YR.map(d => +(d.avg_inv/1e6).toFixed(2)), borderColor: 'rgba(44,46,37,0.5)', borderWidth: 1.5, pointRadius: 1.5, tension: 0.35, borderDash: [4,3] },
+      { label: 'Cost Savings',   data: YR.map(d => +(d.avg_savings/1e6).toFixed(2)), borderColor: '#5a9e7a', borderWidth: 2, pointRadius: 1.5, tension: 0.35 },
+      { label: 'Revenue Impact', data: YR.map(d => +(d.avg_revenue/1e6).toFixed(2)), borderColor: '#4a7fa4', borderWidth: 2, pointRadius: 1.5, tension: 0.35 },
+    ]
+  },
+  options: {
+    plugins: {
+      legend: { display: true, position: 'bottom', labels: { font: { family: 'DM Mono', size: 10 }, color: MID, boxWidth: 12 } },
+      tooltip: { ...DEFAULTS.plugins.tooltip, callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmtM(ctx.parsed.y*1e6)}` } }
+    },
+    scales: {
+      x: { ...DEFAULTS.scales.x },
+      y: { ...DEFAULTS.scales.y, title: { display: true, text: '$M avg per company', font: { family: 'DM Mono', size: 10 }, color: MID } }
+    }
+  }
+});
+
+// ── ROI by Country ──
+const ctySorted = [...CTY].sort((a,b) => a.roi - b.roi);
+new Chart(document.getElementById('chartCountry'), {
+  type: 'bar',
+  data: {
+    labels: ctySorted.map(d => d.name),
+    datasets: [{
+      data: ctySorted.map(d => d.roi),
+      backgroundColor: ctySorted.map((_, i) => `hsla(${160 + i*5}, 35%, ${55 + i*1.2}%, 0.75)`),
+      borderWidth: 0,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    plugins: {
+      ...DEFAULTS.plugins,
+      tooltip: { ...DEFAULTS.plugins.tooltip, callbacks: { label: ctx => ` ${ctx.parsed.x.toFixed(1)}% ROI` } }
+    },
+    scales: {
+      x: { ...DEFAULTS.scales.x, min: 88, title: { display: true, text: 'ROI %', font: { family: 'DM Mono', size: 10 }, color: MID } },
+      y: { ...DEFAULTS.scales.y, grid: { display: false } }
+    }
+  }
+});
+
+// ── Productivity by Industry ──
+const prodSorted = [...IND].sort((a,b) => a.avg_prod - b.avg_prod);
+new Chart(document.getElementById('chartProd'), {
+  type: 'bar',
+  data: {
+    labels: prodSorted.map(d => d.name),
+    datasets: [{
+      data: prodSorted.map(d => d.avg_prod),
+      backgroundColor: prodSorted.map(d => IND_COLORS[d.name]),
+      borderWidth: 0,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    plugins: {
+      ...DEFAULTS.plugins,
+      tooltip: { ...DEFAULTS.plugins.tooltip, callbacks: { label: ctx => ` ${(ctx.parsed.x*100).toFixed(1)}% productivity gain` } }
+    },
+    scales: {
+      x: { ...DEFAULTS.scales.x, title: { display: true, text: 'Avg productivity gain', font: { family: 'DM Mono', size: 10 }, color: MID } },
+      y: { ...DEFAULTS.scales.y, grid: { display: false } }
+    }
+  }
+});
+
+// ── Adoption by Industry trend ──
+const indNames = Object.keys(IND_TREND);
+new Chart(document.getElementById('chartIndTrend'), {
+  type: 'line',
+  data: {
+    labels: years,
+    datasets: indNames.map(name => ({
+      label: name,
+      data: IND_TREND[name].map(v => +(v*100).toFixed(1)),
+      borderColor: IND_COLORS[name],
+      borderWidth: 1.5,
+      pointRadius: 0,
+      tension: 0.35
+    }))
+  },
+  options: {
+    plugins: {
+      legend: { display: true, position: 'bottom', labels: { font: { family: 'DM Mono', size: 9 }, color: MID, boxWidth: 10, padding: 10 } },
+      tooltip: { ...DEFAULTS.plugins.tooltip, mode: 'index', intersect: false, callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}%` } }
+    },
+    scales: {
+      x: { ...DEFAULTS.scales.x },
+      y: { ...DEFAULTS.scales.y, min: 0, max: 100, title: { display: true, text: 'Adoption %', font: { family: 'DM Mono', size: 10 }, color: MID } }
+    }
+  }
+});
+</script>
+</body>
+</html>
