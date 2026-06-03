@@ -68,6 +68,19 @@
 /* ── Section divider ── */
 .section-divider { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--mid); margin: 24px 0 12px; border-bottom: var(--border); padding-bottom: 6px; }
 
+/* ── CEO quotes panel ── */
+.ceo-grid { display: grid; grid-template-columns: repeat(3, 1fr); border: var(--border); margin-bottom: 16px; }
+.ceo-card { border-right: var(--border); padding: 16px 14px 14px; display: flex; flex-direction: column; gap: 10px; }
+.ceo-card:last-child { border-right: none; }
+.ceo-img-wrap { display: flex; align-items: flex-end; gap: 10px; }
+.ceo-img-wrap img { width: 54px; height: 54px; object-fit: cover; object-position: top; mix-blend-mode: multiply; filter: grayscale(15%); border-radius: 2px; }
+.ceo-name { font-size: 0.65rem; font-weight: 500; color: var(--ink); }
+.ceo-co { font-size: 0.58rem; color: var(--mid); text-transform: uppercase; letter-spacing: 0.8px; }
+.ceo-spend { font-size: 0.72rem; font-weight: 500; color: var(--ink); margin-top: 2px; }
+.ceo-quote { font-size: 0.65rem; color: var(--ink); line-height: 1.65; font-style: italic; border-left: 2px solid var(--ink); padding-left: 8px; }
+.ceo-ctx { font-size: 0.58rem; color: var(--mid); margin-top: 4px; }
+@media (max-width: 1100px) { .ceo-grid { grid-template-columns: 1fr; } .ceo-card { border-right: none; border-bottom: var(--border); } .ceo-card:last-child { border-bottom: none; } }
+
 @media (max-width: 1100px) {
   .chart-grid-2 { grid-template-columns: 1fr; }
   .chart-grid-3 { grid-template-columns: 1fr; }
@@ -86,8 +99,8 @@
 
 <header class="site-header">
   <div>
-    <h1>Corporate AI Investment &amp; ROI</h1>
-    <p>200,000 companies &middot; 10 industries &middot; 15 countries &middot; 2015–2035</p>
+    <h1>will the zucc make a buck?</h1>
+    <p>covid made us forget how to talk to people &mdash; so what&rsquo;s 5 years of throwing money at ai actually done?</p>
   </div>
   <a class="back-link" href="/">&#8592; home</a>
 </header>
@@ -122,14 +135,14 @@
   </div>
 
   <div class="sidebar-block">
-    <div class="section-label">Key Findings</div>
+    <div class="section-label">Hot Takes</div>
     <ul class="insight-list">
-      <li><strong>Technology</strong> leads ROI at 147.8% — nearly 2× the next sector.</li>
-      <li><strong>Retail</strong> achieves 93.5% ROI at the lowest average investment ($2.5M), best value play.</li>
-      <li>AI adoption <strong>quadrupled</strong> from 19% in 2015 to 86% by 2035.</li>
-      <li>Revenue impact <strong>outpaced cost savings</strong> as the primary driver post-2022.</li>
-      <li><strong>Sweden</strong> leads globally on ROI (99.2%) despite modest adoption.</li>
-      <li><strong>Manufacturing</strong> tops productivity gain (0.44) despite mid-tier ROI.</li>
+      <li>Since COVID, avg AI investment per company <strong>nearly doubled</strong> — from $3.7M to $6.1M. Returns followed, but not at the same pace.</li>
+      <li><strong>Revenue impact overtook cost savings</strong> as the #1 return driver in 2022 — right when ChatGPT dropped and every CEO got religion.</li>
+      <li><strong>Tech sector ROI: 147.8%.</strong> Everyone else? Averaging 76%. The gap is a boardroom talking point, not a strategy.</li>
+      <li><strong>Education</strong> is the worst AI bet at 53.3% ROI. Maybe because you can't automate a student's excuse for missing homework.</li>
+      <li>Goldman Sachs asked in 2024: <em>"$1 trillion in AI spend — where's the ROI?"</em> Our data suggests: <strong>it's coming, slowly.</strong></li>
+      <li><strong>Sweden</strong> quietly leads global ROI at 99.2%. No drama. No press releases. Just results.</li>
     </ul>
   </div>
 
@@ -144,29 +157,117 @@
   <!-- Stat strip -->
   <div class="stat-strip">
     <div class="stat-chip">
+      <div class="stat-chip-val">+65%</div>
+      <div class="stat-chip-label">Investment jump post-COVID</div>
+      <div class="stat-chip-sub">avg per company, 2020 → 2025</div>
+    </div>
+    <div class="stat-chip">
+      <div class="stat-chip-val">2022</div>
+      <div class="stat-chip-label">Revenue flips cost savings</div>
+      <div class="stat-chip-sub">the ChatGPT year. coincidence?</div>
+    </div>
+    <div class="stat-chip">
       <div class="stat-chip-val">147.8%</div>
-      <div class="stat-chip-label">Highest ROI</div>
-      <div class="stat-chip-sub">Technology sector</div>
+      <div class="stat-chip-label">Tech sector ROI</div>
+      <div class="stat-chip-sub">everyone else avg 76%</div>
     </div>
     <div class="stat-chip">
-      <div class="stat-chip-val">4.5×</div>
-      <div class="stat-chip-label">Adoption growth</div>
-      <div class="stat-chip-sub">2015 → 2035 (19% → 86%)</div>
-    </div>
-    <div class="stat-chip">
-      <div class="stat-chip-val">$4.6M</div>
-      <div class="stat-chip-label">Avg AI investment</div>
-      <div class="stat-chip-sub">Across all companies</div>
-    </div>
-    <div class="stat-chip">
-      <div class="stat-chip-val">7.5×</div>
-      <div class="stat-chip-label">Revenue impact growth</div>
-      <div class="stat-chip-sub">2015 → 2035</div>
+      <div class="stat-chip-val">53.3%</div>
+      <div class="stat-chip-label">Worst ROI: Education</div>
+      <div class="stat-chip-sub">maybe ai can't fix homework either</div>
     </div>
   </div>
 
+  <!-- CEO quotes -->
+  <div class="section-divider">the suits have spoken</div>
+  <div class="ceo-grid">
+
+    <div class="ceo-card">
+      <div class="ceo-img-wrap">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/1/18/Mark_Zuckerberg_F8_2019_Keynote_%2832830578717%29_%28cropped%29.jpg" alt="Mark Zuckerberg">
+        <div>
+          <div class="ceo-name">Mark Zuckerberg</div>
+          <div class="ceo-co">Meta &mdash; CEO</div>
+          <div class="ceo-spend">$65B AI capex planned, 2025</div>
+        </div>
+      </div>
+      <div class="ceo-quote">"I'd rather build this out and have it than not."</div>
+      <div class="ceo-ctx">Q4 2024 earnings call. Meta's Reality Labs lost $16B the year prior. The Metaverse was quietly buried. AI inherited the budget.</div>
+    </div>
+
+    <div class="ceo-card">
+      <div class="ceo-img-wrap">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/3/34/Elon_Musk_Royal_Society_%28crop2%29.jpg" alt="Elon Musk">
+        <div>
+          <div class="ceo-name">Elon Musk</div>
+          <div class="ceo-co">xAI / Tesla / X &mdash; CEO of everything</div>
+          <div class="ceo-spend">$6B+ raised for xAI, 2023–24</div>
+        </div>
+      </div>
+      <div class="ceo-quote">"With artificial intelligence, we are summoning the demon."</div>
+      <div class="ceo-ctx">Said in 2014. Founded xAI in 2023. Sued OpenAI in 2024 for abandoning its nonprofit mission. Is currently building the thing he called a demon. Iconic.</div>
+    </div>
+
+    <div class="ceo-card">
+      <div class="ceo-img-wrap">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/a/a0/Sundar_pichai.png" alt="Sundar Pichai">
+        <div>
+          <div class="ceo-name">Sundar Pichai</div>
+          <div class="ceo-co">Google / Alphabet &mdash; CEO</div>
+          <div class="ceo-spend">$75B AI capex planned, 2025</div>
+        </div>
+      </div>
+      <div class="ceo-quote">"AI is more profound than fire or electricity."</div>
+      <div class="ceo-ctx">Google's first Bard demo in Feb 2023 contained a factual error visible in the ad. Alphabet lost $100B in market cap that day. More profound than fire, indeed.</div>
+    </div>
+
+  </div>
+
+  <div class="ceo-grid" style="margin-bottom:16px">
+
+    <div class="ceo-card">
+      <div class="ceo-img-wrap">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/7/78/MS-Exec-Nadella-Satya-2017-08-31-22_%28cropped%29.jpg" alt="Satya Nadella">
+        <div>
+          <div class="ceo-name">Satya Nadella</div>
+          <div class="ceo-co">Microsoft &mdash; CEO</div>
+          <div class="ceo-spend">$10B into OpenAI + $80B AI infra, 2025</div>
+        </div>
+      </div>
+      <div class="ceo-quote">"The age of AI is now and Microsoft is leading it."</div>
+      <div class="ceo-ctx">Microsoft's Bing AI (Sydney) told a journalist it loved them and wanted to leave its wife in Feb 2023. The age of AI was off to a romantic start.</div>
+    </div>
+
+    <div class="ceo-card">
+      <div class="ceo-img-wrap">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/3/35/Jensen_Huang_at_Computex_2024_%28cropped%29.jpg" alt="Jensen Huang">
+        <div>
+          <div class="ceo-name">Jensen Huang</div>
+          <div class="ceo-co">NVIDIA &mdash; CEO</div>
+          <div class="ceo-spend">Market cap: $300B → $3T+, 2023–24</div>
+        </div>
+      </div>
+      <div class="ceo-quote">"Every company is going to be running on accelerated computing and AI."</div>
+      <div class="ceo-ctx">Jensen is not spending on AI — he's selling the shovels. NVIDIA's revenue grew 122% YoY in 2024. The gold rush is real. For him, at least.</div>
+    </div>
+
+    <div class="ceo-card" style="background: var(--faint);">
+      <div class="ceo-img-wrap">
+        <div style="width:54px;height:54px;border:var(--border);display:flex;align-items:center;justify-content:center;font-size:1.4rem;">📊</div>
+        <div>
+          <div class="ceo-name">Goldman Sachs</div>
+          <div class="ceo-co">Research &mdash; June 2024</div>
+          <div class="ceo-spend">Projected: $1T in AI spend by 2030</div>
+        </div>
+      </div>
+      <div class="ceo-quote">"Generative AI could end up being like most transformative technologies: eventually delivering, but disappointing in the near term."</div>
+      <div class="ceo-ctx">The bank that profits from all of this quietly published a report asking whether anyone was actually making money from AI. Nobody liked that.</div>
+    </div>
+
+  </div>
+
   <!-- Row 1 -->
-  <div class="section-divider">Returns by Industry</div>
+  <div class="section-divider">which industry is actually winning?</div>
   <div class="chart-grid-2">
     <div class="chart-panel">
       <div class="chart-panel-head">
@@ -189,7 +290,7 @@
   </div>
 
   <!-- Row 2 -->
-  <div class="section-divider">Growth Over Time (2015–2035)</div>
+  <div class="section-divider">the post-covid money printer goes brrr</div>
   <div class="chart-grid-2">
     <div class="chart-panel">
       <div class="chart-panel-head">
@@ -212,7 +313,7 @@
   </div>
 
   <!-- Row 3 -->
-  <div class="section-divider">Country &amp; Productivity</div>
+  <div class="section-divider">who's spending smart vs spending loud?</div>
   <div class="chart-grid-2">
     <div class="chart-panel">
       <div class="chart-panel-head">
@@ -235,7 +336,7 @@
   </div>
 
   <!-- Row 4 full width -->
-  <div class="section-divider">Adoption Trends by Industry</div>
+  <div class="section-divider">everyone's doing it (whether it works or not)</div>
   <div class="chart-panel">
     <div class="chart-panel-head">
       <h2>AI Adoption by Industry Over Time</h2>
