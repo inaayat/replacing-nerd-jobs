@@ -14,7 +14,7 @@
 .page-layout .main { flex: 1; min-width: 0; max-width: none; margin: 0; padding: 16px 24px 40px; }
 
 .sidebar {
-  width: 220px; flex-shrink: 0;
+  width: 270px; flex-shrink: 0;
   border-right: var(--border);
   position: sticky; top: 0;
   height: 100vh; overflow-y: auto;
@@ -68,6 +68,20 @@
 /* ── Section divider ── */
 .section-divider { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--mid); margin: 24px 0 12px; border-bottom: var(--border); padding-bottom: 6px; }
 
+/* ── Explainer panels ── */
+.explainer-panel { border: var(--border); padding: 16px 18px; font-size: 0.67rem; line-height: 1.75; color: var(--ink); }
+.explainer-panel h3 { font-size: 0.72rem; font-weight: 500; margin: 0 0 10px; letter-spacing: 0.3px; }
+.explainer-big { font-size: 1.5rem; font-weight: 500; line-height: 1.1; margin: 6px 0 4px; }
+.explainer-sub { font-size: 0.6rem; color: var(--mid); text-transform: uppercase; letter-spacing: 1px; }
+.explainer-list { list-style: none; padding: 0; margin: 10px 0 0; display: flex; flex-direction: column; gap: 8px; }
+.explainer-list li { padding-left: 10px; border-left: 2px solid var(--faint); font-size: 0.63rem; color: var(--mid); line-height: 1.55; }
+.explainer-list li strong { color: var(--ink); }
+.country-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.country-group { border: var(--border); padding: 10px 12px; }
+.country-group-title { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 1px; color: var(--mid); margin-bottom: 6px; }
+.country-group-names { font-size: 0.68rem; font-weight: 500; color: var(--ink); margin-bottom: 4px; }
+.country-group-why { font-size: 0.6rem; color: var(--mid); line-height: 1.5; }
+
 /* ── CEO quotes panel ── */
 .ceo-grid { display: grid; grid-template-columns: repeat(3, 1fr); border: var(--border); margin-bottom: 16px; }
 .ceo-card { border-right: var(--border); padding: 16px 14px 14px; display: flex; flex-direction: column; gap: 10px; }
@@ -82,6 +96,45 @@
 .ceo-quote { font-size: 0.65rem; color: var(--ink); line-height: 1.65; font-style: italic; border-left: 2px solid var(--ink); padding-left: 8px; }
 .ceo-ctx { font-size: 0.58rem; color: var(--mid); margin-top: 4px; }
 @media (max-width: 1100px) { .ceo-grid { grid-template-columns: 1fr; } .ceo-card { border-right: none; border-bottom: var(--border); } .ceo-card:last-child { border-bottom: none; } }
+
+
+/* ── Collapsible main sections ── */
+details.collapsible { margin-bottom: 0; }
+details.collapsible > summary {
+  font-size: 0.58rem; text-transform: uppercase; letter-spacing: 1.5px;
+  color: var(--mid); border-bottom: var(--border); padding: 10px 0 8px;
+  margin-bottom: 0; cursor: pointer; list-style: none;
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 24px;
+}
+details.collapsible > summary::-webkit-details-marker { display: none; }
+details.collapsible > summary::after { content: '+'; font-size: 0.8rem; flex-shrink: 0; }
+details.collapsible[open] > summary::after { content: '−'; }
+details.collapsible > summary:hover { color: var(--ink); }
+details.collapsible > summary + * { margin-top: 12px; }
+
+/* ── Sidebar CEO accordion ── */
+details.ceo-item { border-bottom: var(--border); }
+details.ceo-item:last-child { border-bottom: none; }
+details.ceo-item > summary {
+  padding: 9px 16px; cursor: pointer; list-style: none;
+  display: flex; align-items: center; gap: 9px;
+}
+details.ceo-item > summary::-webkit-details-marker { display: none; }
+details.ceo-item > summary:hover { background: var(--hover); }
+.ceo-sum-face { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; object-position: top center; border: 1.5px solid var(--ink); flex-shrink: 0; mix-blend-mode: multiply; }
+.ceo-sum-face-svg { width: 30px; height: 30px; border-radius: 50%; background: var(--ink); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ceo-sum-info { flex: 1; min-width: 0; }
+.ceo-sum-name { font-size: 0.63rem; font-weight: 500; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ceo-sum-co { font-size: 0.56rem; color: var(--mid); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ceo-sum-toggle { font-size: 0.7rem; color: var(--mid); flex-shrink: 0; }
+details.ceo-item[open] .ceo-sum-toggle::before { content: '−'; }
+details.ceo-item:not([open]) .ceo-sum-toggle::before { content: '+'; }
+.ceo-detail-body { padding: 8px 16px 14px; border-top: var(--border); }
+.ceo-detail-avatar { display: flex; justify-content: center; margin-bottom: 10px; }
+.ceo-detail-quote { font-size: 0.63rem; font-style: italic; color: var(--ink); line-height: 1.65; border-left: 2px solid var(--ink); padding-left: 8px; margin-bottom: 7px; }
+.ceo-detail-ctx { font-size: 0.58rem; color: var(--mid); line-height: 1.55; }
+.ceo-detail-spend { font-size: 0.6rem; font-weight: 500; color: var(--ink); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
 
 @media (max-width: 1100px) {
   .chart-grid-2 { grid-template-columns: 1fr; }
@@ -136,21 +189,183 @@
     </div>
   </div>
 
-  <div class="sidebar-block">
-    <div class="section-label">Hot Takes</div>
-    <ul class="insight-list">
-      <li>Since COVID, avg AI investment per company <strong>nearly doubled</strong> — from $3.7M to $6.1M. Returns followed, but not at the same pace.</li>
-      <li><strong>Revenue impact overtook cost savings</strong> as the #1 return driver in 2022 — right when ChatGPT dropped and every CEO got religion.</li>
-      <li><strong>Tech sector ROI: 147.8%.</strong> Everyone else? Averaging 76%. The gap is a boardroom talking point, not a strategy.</li>
-      <li><strong>Education</strong> is the worst AI bet at 53.3% ROI. Maybe because you can't automate a student's excuse for missing homework.</li>
-      <li>Goldman Sachs asked in 2024: <em>"$1 trillion in AI spend — where's the ROI?"</em> Our data suggests: <strong>it's coming, slowly.</strong></li>
-      <li><strong>Sweden</strong> quietly leads global ROI at 99.2%. No drama. No press releases. Just results.</li>
-    </ul>
+  <div class="sidebar-block" style="padding:0; border-bottom:var(--border)">
+    <div class="section-label" style="padding:12px 16px 8px; margin:0">The Suits Have Spoken</div>
+
+    <details class="ceo-item">
+      <summary>
+        <img class="ceo-sum-face" src="https://upload.wikimedia.org/wikipedia/commons/1/18/Mark_Zuckerberg_F8_2019_Keynote_%2832830578717%29_%28cropped%29.jpg" alt="">
+        <div class="ceo-sum-info"><div class="ceo-sum-name">Mark Zuckerberg</div><div class="ceo-sum-co">Meta &mdash; $65B AI capex, 2025</div></div>
+        <span class="ceo-sum-toggle"></span>
+      </summary>
+      <div class="ceo-detail-body">
+        <div class="ceo-detail-avatar">
+          <div style="position:relative;width:90px;height:130px;">
+            <svg viewBox="0 0 90 130" width="90" height="130" fill="none">
+              <rect x="22" y="96" width="46" height="6" rx="2" fill="#2c2e25"/>
+              <rect x="30" y="102" width="30" height="22" rx="1" fill="#2c2e25"/>
+              <rect x="28" y="54" width="34" height="42" rx="3" fill="#2c2e25"/>
+              <line x1="28" y1="64" x2="10" y2="74" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
+              <line x1="62" y1="64" x2="80" y2="74" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
+              <polygon points="45,56 48,56 47,72 45,72 43,56" fill="#fff8dc"/>
+              <rect x="40" y="48" width="10" height="8" rx="2" fill="#2c2e25"/>
+            </svg>
+            <img class="ceo-face" src="https://upload.wikimedia.org/wikipedia/commons/1/18/Mark_Zuckerberg_F8_2019_Keynote_%2832830578717%29_%28cropped%29.jpg" alt="">
+          </div>
+        </div>
+        <div class="ceo-detail-quote">"I'd rather build this out and have it than not."</div>
+        <div class="ceo-detail-ctx">Q4 2024 earnings. Reality Labs lost $16B the year prior. The Metaverse was quietly buried. AI inherited the budget. The robot marches on.</div>
+      </div>
+    </details>
+
+    <details class="ceo-item">
+      <summary>
+        <img class="ceo-sum-face" src="https://upload.wikimedia.org/wikipedia/commons/3/34/Elon_Musk_Royal_Society_%28crop2%29.jpg" alt="">
+        <div class="ceo-sum-info"><div class="ceo-sum-name">Elon Musk</div><div class="ceo-sum-co">xAI / Tesla / X &mdash; $6B+ for xAI</div></div>
+        <span class="ceo-sum-toggle"></span>
+      </summary>
+      <div class="ceo-detail-body">
+        <div class="ceo-detail-avatar">
+          <div style="position:relative;width:90px;height:130px;">
+            <svg viewBox="0 0 90 130" width="90" height="130" fill="none">
+              <path d="M28 58 Q5 75 8 115 Q20 105 28 95 Q45 108 62 95 Q70 105 82 115 Q85 75 62 58 Z" fill="#2c2e25" opacity="0.85"/>
+              <rect x="32" y="54" width="26" height="40" rx="3" fill="#2c2e25"/>
+              <line x1="32" y1="62" x2="8" y2="38" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
+              <line x1="58" y1="62" x2="82" y2="38" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
+              <polyline points="8,38 4,30 10,28 6,20" stroke="#2c2e25" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <polyline points="82,38 86,30 80,28 84,20" stroke="#2c2e25" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <rect x="40" y="48" width="10" height="8" rx="2" fill="#2c2e25"/>
+            </svg>
+            <img class="ceo-face" src="https://upload.wikimedia.org/wikipedia/commons/3/34/Elon_Musk_Royal_Society_%28crop2%29.jpg" alt="">
+          </div>
+        </div>
+        <div class="ceo-detail-quote">"With artificial intelligence, we are summoning the demon."</div>
+        <div class="ceo-detail-ctx">Said in 2014. Founded xAI in 2023. Sued OpenAI in 2024. Currently building the demon. His words, not ours.</div>
+      </div>
+    </details>
+
+    <details class="ceo-item">
+      <summary>
+        <img class="ceo-sum-face" src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Sundar_Pichai_-_2023_%28cropped%29.jpg/250px-Sundar_Pichai_-_2023_%28cropped%29.jpg" alt="">
+        <div class="ceo-sum-info"><div class="ceo-sum-name">Sundar Pichai</div><div class="ceo-sum-co">Google / Alphabet &mdash; $75B capex</div></div>
+        <span class="ceo-sum-toggle"></span>
+      </summary>
+      <div class="ceo-detail-body">
+        <div class="ceo-detail-avatar">
+          <div style="position:relative;width:90px;height:130px;">
+            <svg viewBox="0 0 90 130" width="90" height="130" fill="none">
+              <g transform="rotate(-15 45 75)">
+                <rect x="28" y="54" width="34" height="40" rx="3" fill="#2c2e25"/>
+                <line x1="28" y1="62" x2="6" y2="52" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
+                <line x1="62" y1="62" x2="82" y2="48" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
+                <line x1="38" y1="94" x2="24" y2="120" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
+                <line x1="52" y1="94" x2="70" y2="118" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
+                <rect x="40" y="48" width="10" height="8" rx="2" fill="#2c2e25"/>
+              </g>
+              <rect x="60" y="20" width="14" height="10" rx="1" fill="#2c2e25" opacity="0.3" transform="rotate(20 67 25)"/>
+              <rect x="12" y="30" width="12" height="9" rx="1" fill="#2c2e25" opacity="0.3" transform="rotate(-15 18 34)"/>
+            </svg>
+            <img class="ceo-face" src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Sundar_Pichai_-_2023_%28cropped%29.jpg/250px-Sundar_Pichai_-_2023_%28cropped%29.jpg" alt="">
+          </div>
+        </div>
+        <div class="ceo-detail-quote">"AI is more profound than fire or electricity."</div>
+        <div class="ceo-detail-ctx">Google's first Bard demo had a factual error in the promo video. Alphabet dropped $100B in market cap in one day. More profound than electricity, indeed.</div>
+      </div>
+    </details>
+
+    <details class="ceo-item">
+      <summary>
+        <img class="ceo-sum-face" src="https://upload.wikimedia.org/wikipedia/commons/7/78/MS-Exec-Nadella-Satya-2017-08-31-22_%28cropped%29.jpg" alt="">
+        <div class="ceo-sum-info"><div class="ceo-sum-name">Satya Nadella</div><div class="ceo-sum-co">Microsoft &mdash; $90B AI spend</div></div>
+        <span class="ceo-sum-toggle"></span>
+      </summary>
+      <div class="ceo-detail-body">
+        <div class="ceo-detail-avatar">
+          <div style="position:relative;width:90px;height:130px;">
+            <svg viewBox="0 0 90 130" width="90" height="130" fill="none">
+              <rect x="28" y="54" width="34" height="42" rx="3" fill="#2c2e25"/>
+              <line x1="28" y1="64" x2="14" y2="90" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
+              <line x1="62" y1="64" x2="74" y2="50" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
+              <rect x="70" y="40" width="10" height="14" rx="3" fill="#2c2e25"/>
+              <rect x="68" y="36" width="6" height="10" rx="3" fill="#2c2e25"/>
+              <line x1="38" y1="96" x2="32" y2="124" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
+              <line x1="52" y1="96" x2="58" y2="124" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
+              <rect x="38" y="64" width="6" height="6" rx="1" fill="#fff8dc" opacity="0.6"/>
+              <rect x="45" y="64" width="6" height="6" rx="1" fill="#fff8dc" opacity="0.4"/>
+              <rect x="38" y="71" width="6" height="6" rx="1" fill="#fff8dc" opacity="0.4"/>
+              <rect x="45" y="71" width="6" height="6" rx="1" fill="#fff8dc" opacity="0.6"/>
+              <rect x="40" y="48" width="10" height="8" rx="2" fill="#2c2e25"/>
+            </svg>
+            <img class="ceo-face" src="https://upload.wikimedia.org/wikipedia/commons/7/78/MS-Exec-Nadella-Satya-2017-08-31-22_%28cropped%29.jpg" alt="">
+          </div>
+        </div>
+        <div class="ceo-detail-quote">"The age of AI is now and Microsoft is leading it."</div>
+        <div class="ceo-detail-ctx">Bing AI (Sydney) told a journalist it loved them and wanted to leave its wife — Feb 2023. The age of AI was off to a very romantic start.</div>
+      </div>
+    </details>
+
+    <details class="ceo-item">
+      <summary>
+        <img class="ceo-sum-face" src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Jen-Hsun_Huang_2025.jpg/250px-Jen-Hsun_Huang_2025.jpg" alt="">
+        <div class="ceo-sum-info"><div class="ceo-sum-name">Jensen Huang</div><div class="ceo-sum-co">NVIDIA &mdash; $300B → $3T market cap</div></div>
+        <span class="ceo-sum-toggle"></span>
+      </summary>
+      <div class="ceo-detail-body">
+        <div class="ceo-detail-avatar">
+          <div style="position:relative;width:90px;height:130px;">
+            <svg viewBox="0 0 90 130" width="90" height="130" fill="none">
+              <path d="M26 54 L32 54 L35 68 L45 62 L55 68 L58 54 L64 54 L64 96 L26 96 Z" fill="#2c2e25"/>
+              <path d="M32 54 L40 66 L45 62" stroke="#fff8dc" stroke-width="1.5" fill="none" opacity="0.5"/>
+              <path d="M58 54 L50 66 L45 62" stroke="#fff8dc" stroke-width="1.5" fill="none" opacity="0.5"/>
+              <line x1="26" y1="64" x2="10" y2="80" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
+              <line x1="64" y1="64" x2="78" y2="44" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
+              <rect x="72" y="30" width="18" height="14" rx="2" fill="#2c2e25"/>
+              <rect x="74" y="32" width="14" height="10" rx="1" fill="#fff8dc" opacity="0.3"/>
+              <line x1="36" y1="96" x2="30" y2="124" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
+              <line x1="54" y1="96" x2="60" y2="124" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
+              <rect x="40" y="48" width="10" height="8" rx="2" fill="#2c2e25"/>
+            </svg>
+            <img class="ceo-face" src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Jen-Hsun_Huang_2025.jpg/250px-Jen-Hsun_Huang_2025.jpg" alt="">
+          </div>
+        </div>
+        <div class="ceo-detail-quote">"Every company is going to be running on accelerated computing and AI."</div>
+        <div class="ceo-detail-ctx">Jensen isn't spending on AI — he's selling the shovels. NVIDIA revenue up 122% YoY in 2024. The gold rush is real. For him, at least.</div>
+      </div>
+    </details>
+
+    <details class="ceo-item">
+      <summary>
+        <div class="ceo-sum-face-svg"><svg viewBox="0 0 30 30" width="30" height="30"><circle cx="15" cy="15" r="15" fill="#2c2e25"/><text x="4" y="20" font-size="13" fill="#fff8dc" font-family="monospace" font-weight="bold">$?</text></svg></div>
+        <div class="ceo-sum-info"><div class="ceo-sum-name">Goldman Sachs</div><div class="ceo-sum-co">Research &mdash; $1T projected spend</div></div>
+        <span class="ceo-sum-toggle"></span>
+      </summary>
+      <div class="ceo-detail-body">
+        <div class="ceo-detail-avatar">
+          <div style="position:relative;width:90px;height:130px;">
+            <svg viewBox="0 0 90 130" width="90" height="130" fill="none">
+              <rect x="28" y="54" width="34" height="42" rx="3" fill="#2c2e25"/>
+              <line x1="28" y1="70" x2="10" y2="88" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
+              <rect x="2" y="86" width="16" height="12" rx="2" fill="#2c2e25"/>
+              <rect x="7" y="83" width="6" height="5" rx="1" fill="#2c2e25"/>
+              <line x1="62" y1="64" x2="80" y2="58" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
+              <line x1="80" y1="58" x2="88" y2="52" stroke="#2c2e25" stroke-width="3" stroke-linecap="round"/>
+              <line x1="38" y1="96" x2="32" y2="124" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
+              <line x1="52" y1="96" x2="58" y2="124" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
+              <text x="41" y="80" font-size="14" fill="#fff8dc" opacity="0.7" font-family="monospace">?</text>
+              <circle cx="45" cy="28" r="22" fill="#2c2e25"/>
+              <text x="36" y="35" font-size="18" fill="#fff8dc" font-family="monospace" font-weight="bold">$?</text>
+            </svg>
+          </div>
+        </div>
+        <div class="ceo-detail-quote">"Generative AI could end up like most transformative technologies: eventually delivering, but disappointing in the near term."</div>
+        <div class="ceo-detail-ctx">The bank that profits from all of it quietly asked if anyone was making money from AI. Nobody liked that. The report was 31 pages long.</div>
+      </div>
+    </details>
   </div>
 
-  <div class="sidebar-block" style="border-bottom:none; text-align:center; padding:12px 16px;">
-    <img src="/ugly-dog-images/dog-3.png" alt="" style="width:52px; opacity:0.65; margin-right:6px;">
-    <img src="/ugly-dog-images/dog-5.png" alt="" style="width:52px; opacity:0.65;">
+  <div style="text-align:center; padding:12px 16px;">
+    <img src="/ugly-dog-images/dog-3.png" alt="" style="width:46px; opacity:0.65; margin-right:6px;">
+    <img src="/ugly-dog-images/dog-5.png" alt="" style="width:46px; opacity:0.65;">
   </div>
 </aside>
 
@@ -180,292 +395,115 @@
     </div>
   </div>
 
-  <!-- CEO quotes -->
-  <div class="section-divider">the suits have spoken</div>
-  <div class="ceo-grid">
-
-    <!-- Zuckerberg: stiff robot arms, standing at podium -->
-    <div class="ceo-card">
-      <div class="ceo-header">
-        <div class="ceo-avatar">
-          <svg viewBox="0 0 90 130" width="90" height="130" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <!-- podium -->
-            <rect x="22" y="96" width="46" height="6" rx="2" fill="#2c2e25"/>
-            <rect x="30" y="102" width="30" height="22" rx="1" fill="#2c2e25"/>
-            <!-- body: boxy suit -->
-            <rect x="28" y="54" width="34" height="42" rx="3" fill="#2c2e25"/>
-            <!-- stiff arms pointing forward at podium -->
-            <line x1="28" y1="64" x2="10" y2="74" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
-            <line x1="62" y1="64" x2="80" y2="74" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
-            <!-- tiny tie -->
-            <polygon points="45,56 48,56 47,72 45,72 43,56" fill="#fff8dc"/>
-            <!-- neck -->
-            <rect x="40" y="48" width="10" height="8" rx="2" fill="#2c2e25"/>
-          </svg>
-          <img class="ceo-face" src="https://upload.wikimedia.org/wikipedia/commons/1/18/Mark_Zuckerberg_F8_2019_Keynote_%2832830578717%29_%28cropped%29.jpg" alt="Mark Zuckerberg">
-        </div>
-        <div>
-          <div class="ceo-name">Mark Zuckerberg</div>
-          <div class="ceo-co">Meta &mdash; CEO</div>
-          <div class="ceo-spend">$65B AI capex, 2025</div>
-        </div>
-      </div>
-      <div class="ceo-quote">"I'd rather build this out and have it than not."</div>
-      <div class="ceo-ctx">Q4 2024 earnings. Reality Labs lost $16B the year prior. The Metaverse was quietly buried. AI inherited the budget. The robot marches on.</div>
+  <details class="collapsible">
+  <summary>for every $1 you put in, how much do you get back?</summary>
+  <div class="chart-grid-2">
+    <div class="explainer-panel">
+      <h3>what does "ROI" actually mean here?</h3>
+      <p>ROI (return on investment) measures how much money came back compared to what was spent. An ROI of 100% means you got your money back and doubled it. Simple.</p>
+      <p style="margin-top:10px">In this dataset, returns come from two places: <strong>cost savings</strong> (AI cuts your costs — fewer staff, less waste, faster processes) and <strong>revenue impact</strong> (AI helps you earn more — better products, smarter pricing, new services).</p>
+      <p style="margin-top:10px"><strong>Why is Tech winning so hard?</strong> Most industries use AI to <em>cut costs</em>. Tech companies use AI to <em>make money</em>. Their average revenue impact ($5.5M per company) is 36% higher than their cost savings ($4.1M). They're not just automating — they're selling AI as a product. Everyone else is still figuring that part out.</p>
+      <ul class="explainer-list">
+        <li><strong>Education (53¢ back per $1):</strong> Can't charge students more because a chatbot grades essays. Cost savings are real but modest.</li>
+        <li><strong>Retail (94¢ back per $1):</strong> Best value in the dataset — lowest average investment, solid returns. Small bet, decent payoff.</li>
+        <li><strong>Financial Services (88¢ back per $1):</strong> Spends the most ($8.2M avg) but returns are strong. Risk modelling and fraud detection are genuinely valuable.</li>
+      </ul>
     </div>
-
-    <!-- Musk: cape, arms raised summoning demon -->
-    <div class="ceo-card">
-      <div class="ceo-header">
-        <div class="ceo-avatar">
-          <svg viewBox="0 0 90 130" width="90" height="130" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <!-- cape billowing -->
-            <path d="M28 58 Q5 75 8 115 Q20 105 28 95 Q45 108 62 95 Q70 105 82 115 Q85 75 62 58 Z" fill="#2c2e25" opacity="0.85"/>
-            <!-- body under cape -->
-            <rect x="32" y="54" width="26" height="40" rx="3" fill="#2c2e25"/>
-            <!-- arms up summoning -->
-            <line x1="32" y1="62" x2="8" y2="38" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
-            <line x1="58" y1="62" x2="82" y2="38" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
-            <!-- lightning bolts from hands -->
-            <polyline points="8,38 4,30 10,28 6,20" stroke="#2c2e25" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <polyline points="82,38 86,30 80,28 84,20" stroke="#2c2e25" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <!-- neck -->
-            <rect x="40" y="48" width="10" height="8" rx="2" fill="#2c2e25"/>
-          </svg>
-          <img class="ceo-face" src="https://upload.wikimedia.org/wikipedia/commons/3/34/Elon_Musk_Royal_Society_%28crop2%29.jpg" alt="Elon Musk">
-        </div>
-        <div>
-          <div class="ceo-name">Elon Musk</div>
-          <div class="ceo-co">xAI / Tesla / X &mdash; CEO of everything</div>
-          <div class="ceo-spend">$6B+ raised for xAI, 2023–24</div>
-        </div>
+    <div class="chart-panel">
+      <div class="chart-panel-head">
+        <h2>Return per $1 Invested, by Industry</h2>
+        <span class="sub">cost savings + revenue impact ÷ investment — break-even = $1.00</span>
       </div>
-      <div class="ceo-quote">"With artificial intelligence, we are summoning the demon."</div>
-      <div class="ceo-ctx">Said in 2014. Founded xAI in 2023. Sued OpenAI in 2024. Currently building the demon. His words, not ours.</div>
-    </div>
-
-    <!-- Sundar: tripping, papers flying -->
-    <div class="ceo-card">
-      <div class="ceo-header">
-        <div class="ceo-avatar">
-          <svg viewBox="0 0 90 130" width="90" height="130" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <!-- body tilted (tripping) -->
-            <g transform="rotate(-15 45 75)">
-              <rect x="28" y="54" width="34" height="40" rx="3" fill="#2c2e25"/>
-              <!-- arms flailing -->
-              <line x1="28" y1="62" x2="6" y2="52" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
-              <line x1="62" y1="62" x2="82" y2="48" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
-              <!-- legs scrambling -->
-              <line x1="38" y1="94" x2="24" y2="120" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
-              <line x1="52" y1="94" x2="70" y2="118" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
-              <rect x="40" y="48" width="10" height="8" rx="2" fill="#2c2e25"/>
-            </g>
-            <!-- flying papers -->
-            <rect x="60" y="20" width="14" height="10" rx="1" fill="#2c2e25" opacity="0.3" transform="rotate(20 67 25)"/>
-            <rect x="12" y="30" width="12" height="9" rx="1" fill="#2c2e25" opacity="0.3" transform="rotate(-15 18 34)"/>
-            <rect x="68" y="40" width="10" height="8" rx="1" fill="#2c2e25" opacity="0.2" transform="rotate(35 73 44)"/>
-          </svg>
-          <img class="ceo-face" src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Sundar_Pichai_-_2023_%28cropped%29.jpg/250px-Sundar_Pichai_-_2023_%28cropped%29.jpg" alt="Sundar Pichai">
-        </div>
-        <div>
-          <div class="ceo-name">Sundar Pichai</div>
-          <div class="ceo-co">Google / Alphabet &mdash; CEO</div>
-          <div class="ceo-spend">$75B AI capex, 2025</div>
-        </div>
+      <div class="chart-panel-body">
+        <canvas id="chartDollar" height="260"></canvas>
       </div>
-      <div class="ceo-quote">"AI is more profound than fire or electricity."</div>
-      <div class="ceo-ctx">Google's first Bard demo had a factual error in the promo video. Alphabet dropped $100B in market cap in one day. More profound than electricity, indeed.</div>
     </div>
-
   </div>
 
-  <div class="ceo-grid" style="margin-bottom:16px">
-
-    <!-- Nadella: thumbs up, business formal -->
-    <div class="ceo-card">
-      <div class="ceo-header">
-        <div class="ceo-avatar">
-          <svg viewBox="0 0 90 130" width="90" height="130" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <!-- body: neat suit -->
-            <rect x="28" y="54" width="34" height="42" rx="3" fill="#2c2e25"/>
-            <!-- left arm down -->
-            <line x1="28" y1="64" x2="14" y2="90" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
-            <!-- right arm: thumbs up -->
-            <line x1="62" y1="64" x2="74" y2="50" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
-            <!-- thumb up fist -->
-            <rect x="70" y="40" width="10" height="14" rx="3" fill="#2c2e25"/>
-            <rect x="68" y="36" width="6" height="10" rx="3" fill="#2c2e25"/>
-            <!-- legs -->
-            <line x1="38" y1="96" x2="32" y2="124" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
-            <line x1="52" y1="96" x2="58" y2="124" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
-            <!-- Windows logo on chest -->
-            <rect x="38" y="64" width="6" height="6" rx="1" fill="#fff8dc" opacity="0.6"/>
-            <rect x="45" y="64" width="6" height="6" rx="1" fill="#fff8dc" opacity="0.4"/>
-            <rect x="38" y="71" width="6" height="6" rx="1" fill="#fff8dc" opacity="0.4"/>
-            <rect x="45" y="71" width="6" height="6" rx="1" fill="#fff8dc" opacity="0.6"/>
-            <rect x="40" y="48" width="10" height="8" rx="2" fill="#2c2e25"/>
-          </svg>
-          <img class="ceo-face" src="https://upload.wikimedia.org/wikipedia/commons/7/78/MS-Exec-Nadella-Satya-2017-08-31-22_%28cropped%29.jpg" alt="Satya Nadella">
-        </div>
-        <div>
-          <div class="ceo-name">Satya Nadella</div>
-          <div class="ceo-co">Microsoft &mdash; CEO</div>
-          <div class="ceo-spend">$10B OpenAI + $80B infra, 2025</div>
-        </div>
-      </div>
-      <div class="ceo-quote">"The age of AI is now and Microsoft is leading it."</div>
-      <div class="ceo-ctx">Bing AI (Sydney) told a journalist it loved them and wanted to leave its wife — Feb 2023. The age of AI was off to a very romantic start.</div>
-    </div>
-
-    <!-- Jensen: leather jacket, cool pose, holding GPU -->
-    <div class="ceo-card">
-      <div class="ceo-header">
-        <div class="ceo-avatar">
-          <svg viewBox="0 0 90 130" width="90" height="130" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <!-- leather jacket body (slightly wider, lapels) -->
-            <path d="M26 54 L32 54 L35 68 L45 62 L55 68 L58 54 L64 54 L64 96 L26 96 Z" fill="#2c2e25"/>
-            <!-- jacket lapels -->
-            <path d="M32 54 L40 66 L45 62" stroke="#fff8dc" stroke-width="1.5" fill="none" opacity="0.5"/>
-            <path d="M58 54 L50 66 L45 62" stroke="#fff8dc" stroke-width="1.5" fill="none" opacity="0.5"/>
-            <!-- arms: one hand holding up GPU chip -->
-            <line x1="26" y1="64" x2="10" y2="80" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
-            <line x1="64" y1="64" x2="78" y2="44" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
-            <!-- GPU chip in raised hand -->
-            <rect x="72" y="30" width="18" height="14" rx="2" fill="#2c2e25"/>
-            <rect x="74" y="32" width="14" height="10" rx="1" fill="#fff8dc" opacity="0.3"/>
-            <!-- legs -->
-            <line x1="36" y1="96" x2="30" y2="124" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
-            <line x1="54" y1="96" x2="60" y2="124" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
-            <rect x="40" y="48" width="10" height="8" rx="2" fill="#2c2e25"/>
-          </svg>
-          <img class="ceo-face" src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Jen-Hsun_Huang_2025.jpg/250px-Jen-Hsun_Huang_2025.jpg" alt="Jensen Huang">
-        </div>
-        <div>
-          <div class="ceo-name">Jensen Huang</div>
-          <div class="ceo-co">NVIDIA &mdash; CEO</div>
-          <div class="ceo-spend">Market cap: $300B → $3T+</div>
-        </div>
-      </div>
-      <div class="ceo-quote">"Every company is going to be running on accelerated computing and AI."</div>
-      <div class="ceo-ctx">Jensen isn't spending on AI — he's selling the shovels. NVIDIA revenue up 122% YoY in 2024. The gold rush is real. For him, at least.</div>
-    </div>
-
-    <!-- Goldman Sachs: suited figure, briefcase, side-eye -->
-    <div class="ceo-card" style="background: var(--faint);">
-      <div class="ceo-header">
-        <div class="ceo-avatar">
-          <svg viewBox="0 0 90 130" width="90" height="130" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <!-- body: sharp suit -->
-            <rect x="28" y="54" width="34" height="42" rx="3" fill="#2c2e25"/>
-            <!-- left arm holding briefcase -->
-            <line x1="28" y1="70" x2="10" y2="88" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
-            <rect x="2" y="86" width="16" height="12" rx="2" fill="#2c2e25"/>
-            <rect x="7" y="83" width="6" height="5" rx="1" fill="#2c2e25"/>
-            <!-- right arm: pointing finger skeptically -->
-            <line x1="62" y1="64" x2="80" y2="58" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
-            <line x1="80" y1="58" x2="88" y2="52" stroke="#2c2e25" stroke-width="3" stroke-linecap="round"/>
-            <!-- legs -->
-            <line x1="38" y1="96" x2="32" y2="124" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
-            <line x1="52" y1="96" x2="58" y2="124" stroke="#2c2e25" stroke-width="5" stroke-linecap="round"/>
-            <!-- question mark on chest -->
-            <text x="41" y="80" font-size="14" fill="#fff8dc" opacity="0.7" font-family="monospace">?</text>
-            <!-- head: dollar sign face -->
-            <circle cx="45" cy="28" r="22" fill="#2c2e25"/>
-            <text x="36" y="35" font-size="18" fill="#fff8dc" font-family="monospace" font-weight="bold">$?</text>
-          </svg>
-        </div>
-        <div>
-          <div class="ceo-name">Goldman Sachs</div>
-          <div class="ceo-co">Research &mdash; June 2024</div>
-          <div class="ceo-spend">$1T projected AI spend by 2030</div>
-        </div>
-      </div>
-      <div class="ceo-quote">"Generative AI could end up like most transformative technologies: eventually delivering, but disappointing in the near term."</div>
-      <div class="ceo-ctx">The bank that profits from all of it quietly asked if anyone was making money from AI. Nobody liked that. The report was 31 pages long.</div>
-    </div>
-
-  </div>
-
-  <!-- Row 1 -->
-  <div class="section-divider">which industry is actually winning?</div>
+  <!-- Row 2: invest → productivity → return bubble -->
+  <details class="collapsible">
+  <summary>spend more → work smarter → earn more (usually)</summary>
   <div class="chart-grid-2">
     <div class="chart-panel">
       <div class="chart-panel-head">
-        <h2>ROI by Industry</h2>
-        <span class="sub">avg (cost savings + revenue) ÷ investment</span>
+        <h2>Investment vs Return — bubble size = productivity gain</h2>
+        <span class="sub">does spending more actually work? (spoiler: it depends on your industry)</span>
       </div>
       <div class="chart-panel-body">
-        <canvas id="chartROI" height="240"></canvas>
+        <canvas id="chartBubble" height="260"></canvas>
       </div>
     </div>
-    <div class="chart-panel">
-      <div class="chart-panel-head">
-        <h2>Avg Investment vs Returns</h2>
-        <span class="sub">per company — savings + revenue vs investment</span>
-      </div>
-      <div class="chart-panel-body">
-        <canvas id="chartInvRet" height="240"></canvas>
-      </div>
-    </div>
-  </div>
-
-  <!-- Row 2 -->
-  <div class="section-divider">the post-covid money printer goes brrr</div>
-  <div class="chart-grid-2">
-    <div class="chart-panel">
-      <div class="chart-panel-head">
-        <h2>AI Adoption Rate</h2>
-        <span class="sub">avg adoption level (0–1) by year</span>
-      </div>
-      <div class="chart-panel-body">
-        <canvas id="chartAdoption" height="200"></canvas>
-      </div>
-    </div>
-    <div class="chart-panel">
-      <div class="chart-panel-head">
-        <h2>Investment &amp; Returns Trend</h2>
-        <span class="sub">avg per company ($M)</span>
-      </div>
-      <div class="chart-panel-body">
-        <canvas id="chartTrend" height="200"></canvas>
-      </div>
+    <div class="explainer-panel">
+      <h3>the investment → productivity → return chain</h3>
+      <p>More money in doesn't automatically mean more money out. The missing link is <strong>productivity</strong> — how efficiently your workforce actually uses AI.</p>
+      <p style="margin-top:10px">The bubble chart shows each industry's average investment (x-axis) against its total return (y-axis). The <strong>bigger the bubble, the higher the productivity gain</strong>. Look for bubbles above the diagonal — those industries are punching above their weight.</p>
+      <ul class="explainer-list" style="margin-top:14px">
+        <li><strong>Manufacturing (large bubble, mid-ROI):</strong> Highest productivity gain of any sector (44%) but mid-tier ROI. They're working more efficiently — they just can't charge more for a bolt.</li>
+        <li><strong>Technology (large return, mid-sized bubble):</strong> Revenue impact drives ROI, not just productivity. They monetize AI directly.</li>
+        <li><strong>Agriculture (small investment, small bubble):</strong> Modest everything — but their ROI per dollar isn't bad for how little they spend.</li>
+        <li><strong>Education (bottom-left):</strong> Low spend, low productivity gain, lowest ROI. AI hasn't cracked this one yet.</li>
+      </ul>
     </div>
   </div>
 
-  <!-- Row 3 -->
-  <div class="section-divider">who's spending smart vs spending loud?</div>
+  <!-- Row 3: trend -->
+  <details class="collapsible">
+  <summary>the post-covid money printer goes brrr</summary>
+  <div class="chart-panel" style="margin-bottom:16px">
+    <div class="chart-panel-head">
+      <h2>Investment &amp; Returns Trend, 2015–2035</h2>
+      <span class="sub">avg per company ($M) — notice revenue impact overtakes cost savings around 2022</span>
+    </div>
+    <div class="chart-panel-body">
+      <canvas id="chartTrend" height="180"></canvas>
+    </div>
+  </div>
+
+  <!-- Row 4: country -->
+  <details class="collapsible">
+  <summary>who's spending smart vs spending loud?</summary>
   <div class="chart-grid-2">
     <div class="chart-panel">
       <div class="chart-panel-head">
         <h2>ROI by Country</h2>
-        <span class="sub">avg total return ÷ investment</span>
+        <span class="sub">avg (cost savings + revenue impact) ÷ investment</span>
       </div>
       <div class="chart-panel-body">
         <canvas id="chartCountry" height="280"></canvas>
       </div>
     </div>
-    <div class="chart-panel">
-      <div class="chart-panel-head">
-        <h2>Productivity Gain by Industry</h2>
-        <span class="sub">avg productivity gain (0–1 scale)</span>
-      </div>
-      <div class="chart-panel-body">
-        <canvas id="chartProd" height="280"></canvas>
+    <div class="explainer-panel">
+      <h3>why do some countries see better returns?</h3>
+      <p>The range is tighter than you'd expect — from Brazil at 91.6% to Sweden at 99.2%. Nobody is getting crushed. But the gap matters at scale.</p>
+      <p style="margin-top:10px">The main driver isn't culture or work ethic — it's <strong>industry mix</strong>. Countries with more Tech and Financial Services companies in their sample score higher, because those sectors have higher ROI. Countries with more Agriculture and Education drag the average down.</p>
+      <div class="country-grid">
+        <div class="country-group">
+          <div class="country-group-title">Top tier (98–99%)</div>
+          <div class="country-group-names">Sweden, US, UK</div>
+          <div class="country-group-why">Heavy tech &amp; finance representation. Strong enterprise AI culture. Revenue-generating AI deployments, not just cost-cutting.</div>
+        </div>
+        <div class="country-group">
+          <div class="country-group-title">Strong (96–97%)</div>
+          <div class="country-group-names">Singapore, China, S. Korea</div>
+          <div class="country-group-why">Government-backed AI mandates. Export-oriented tech sectors. Singapore punches far above its size.</div>
+        </div>
+        <div class="country-group">
+          <div class="country-group-title">Solid (95%)</div>
+          <div class="country-group-names">Germany, France, Japan, Netherlands</div>
+          <div class="country-group-why">Manufacturing-heavy — great productivity gains but harder to monetize. Strong adoption, slower revenue conversion.</div>
+        </div>
+        <div class="country-group">
+          <div class="country-group-title">Earlier stage (91–95%)</div>
+          <div class="country-group-names">India, Brazil</div>
+          <div class="country-group-why">Lower avg investment = smaller scale effects. More service &amp; agriculture industries. Still profitable — just earlier in the curve.</div>
+        </div>
       </div>
     </div>
   </div>
-
-  <!-- Row 4 full width -->
-  <div class="section-divider">everyone's doing it (whether it works or not)</div>
-  <div class="chart-panel">
-    <div class="chart-panel-head">
-      <h2>AI Adoption by Industry Over Time</h2>
-      <span class="sub">avg adoption rate per year, all industries</span>
-    </div>
-    <div class="chart-panel-body">
-      <canvas id="chartIndTrend" height="140"></canvas>
-    </div>
-  </div>
+  </details>
+  </details>
+  </details>
+  </details>
 
 </div><!-- /main -->
 </div><!-- /page-layout -->
@@ -507,81 +545,111 @@ const DEFAULTS = {
 
 function fmtM(v) { return '$' + (v/1e6).toFixed(1) + 'M'; }
 
-// ── ROI by Industry ──
-new Chart(document.getElementById('chartROI'), {
+// ── Dollar stretch: return per $1 invested, by industry (sorted low→high) ──
+const dollarSorted = [...IND].sort((a,b) => a.roi - b.roi);
+new Chart(document.getElementById('chartDollar'), {
   type: 'bar',
   data: {
-    labels: IND.map(d => d.name),
-    datasets: [{
-      data: IND.map(d => d.roi),
-      backgroundColor: IND.map(d => IND_COLORS[d.name]),
-      borderColor: IND.map(d => IND_COLORS[d.name]),
-      borderWidth: 1,
-    }]
+    labels: dollarSorted.map(d => d.name),
+    datasets: [
+      {
+        label: 'Cost savings per $1',
+        data: dollarSorted.map(d => +(d.avg_savings / d.avg_inv).toFixed(3)),
+        backgroundColor: '#8bc4a0cc', borderColor: '#5a9e7a', borderWidth: 1,
+      },
+      {
+        label: 'Revenue impact per $1',
+        data: dollarSorted.map(d => +(d.avg_revenue / d.avg_inv).toFixed(3)),
+        backgroundColor: '#7bafd4cc', borderColor: '#4a7fa4', borderWidth: 1,
+      }
+    ]
   },
   options: {
     indexAxis: 'y',
     plugins: {
-      ...DEFAULTS.plugins,
-      tooltip: { ...DEFAULTS.plugins.tooltip, callbacks: { label: ctx => ` ${ctx.parsed.x.toFixed(1)}% ROI` } }
-    },
-    scales: {
-      x: { ...DEFAULTS.scales.x, title: { display: true, text: 'ROI %', font: { family: 'DM Mono', size: 10 }, color: MID } },
-      y: { ...DEFAULTS.scales.y, grid: { display: false } }
-    }
-  }
-});
-
-// ── Avg Investment vs Returns (by industry) ──
-new Chart(document.getElementById('chartInvRet'), {
-  type: 'bar',
-  data: {
-    labels: IND.map(d => d.name),
-    datasets: [
-      { label: 'Avg Investment', data: IND.map(d => d.avg_inv/1e6), backgroundColor: 'rgba(44,46,37,0.15)', borderColor: INK, borderWidth: 1 },
-      { label: 'Cost Savings',   data: IND.map(d => d.avg_savings/1e6), backgroundColor: '#8bc4a0cc', borderColor: '#5a9e7a', borderWidth: 1 },
-      { label: 'Revenue Impact', data: IND.map(d => d.avg_revenue/1e6), backgroundColor: '#7bafd4cc', borderColor: '#4a7fa4', borderWidth: 1 },
-    ]
-  },
-  options: {
-    plugins: {
       legend: { display: true, position: 'bottom', labels: { font: { family: 'DM Mono', size: 10 }, color: MID, boxWidth: 12 } },
-      tooltip: { ...DEFAULTS.plugins.tooltip, callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmtM(ctx.parsed.y*1e6)}` } }
+      tooltip: { ...DEFAULTS.plugins.tooltip, callbacks: {
+        label: ctx => ` ${ctx.dataset.label}: $${ctx.parsed.x.toFixed(2)} per $1 invested`
+      }},
+      annotation: {
+        annotations: {
+          breakeven: {
+            type: 'line', xMin: 1, xMax: 1,
+            borderColor: INK, borderWidth: 1.5, borderDash: [4,3],
+            label: { content: 'break-even', display: true, position: 'start', font: { family: 'DM Mono', size: 9 }, color: INK, backgroundColor: 'transparent' }
+          }
+        }
+      }
     },
     scales: {
-      x: { ...DEFAULTS.scales.x, ticks: { ...DEFAULTS.scales.x.ticks, maxRotation: 35 } },
-      y: { ...DEFAULTS.scales.y, title: { display: true, text: '$M avg per company', font: { family: 'DM Mono', size: 10 }, color: MID } }
+      x: { ...DEFAULTS.scales.x, stacked: true, title: { display: true, text: '$ returned per $1 invested', font: { family: 'DM Mono', size: 10 }, color: MID } },
+      y: { ...DEFAULTS.scales.y, stacked: true, grid: { display: false } }
     }
   }
 });
 
-// ── AI Adoption trend (overall) ──
-const years = YR.map(d => d.year);
-new Chart(document.getElementById('chartAdoption'), {
-  type: 'line',
+// ── Bubble: investment (x) vs total return (y), bubble = productivity ──
+new Chart(document.getElementById('chartBubble'), {
+  type: 'bubble',
   data: {
-    labels: years,
-    datasets: [{
-      data: YR.map(d => +(d.avg_adoption * 100).toFixed(1)),
-      borderColor: INK, borderWidth: 2,
-      pointRadius: 2, fill: true,
-      backgroundColor: 'rgba(44,46,37,0.06)',
-      tension: 0.35
-    }]
+    datasets: IND.map(d => ({
+      label: d.name,
+      data: [{
+        x: +(d.avg_inv / 1e6).toFixed(2),
+        y: +((d.avg_savings + d.avg_revenue) / 1e6).toFixed(2),
+        r: Math.max(6, d.avg_prod * 55)
+      }],
+      backgroundColor: IND_COLORS[d.name] + 'bb',
+      borderColor: IND_COLORS[d.name],
+      borderWidth: 1.5,
+    }))
   },
   options: {
     plugins: {
-      ...DEFAULTS.plugins,
-      tooltip: { ...DEFAULTS.plugins.tooltip, callbacks: { label: ctx => ` ${ctx.parsed.y.toFixed(1)}% adoption` } }
+      legend: { display: false },
+      tooltip: { ...DEFAULTS.plugins.tooltip, callbacks: {
+        label: ctx => {
+          const d = IND.find(x => x.name === ctx.dataset.label);
+          return [
+            ` ${ctx.dataset.label}`,
+            ` invest: ${fmtM(ctx.parsed.x*1e6)}`,
+            ` return: ${fmtM(ctx.parsed.y*1e6)}`,
+            ` productivity: ${(d.avg_prod*100).toFixed(1)}%`
+          ];
+        }
+      }},
+      datalabels: { display: false }
     },
     scales: {
-      x: { ...DEFAULTS.scales.x },
-      y: { ...DEFAULTS.scales.y, min: 0, max: 100, title: { display: true, text: 'Adoption %', font: { family: 'DM Mono', size: 10 }, color: MID } }
+      x: { ...DEFAULTS.scales.x, title: { display: true, text: 'avg investment ($M)', font: { family: 'DM Mono', size: 10 }, color: MID } },
+      y: { ...DEFAULTS.scales.y, title: { display: true, text: 'avg total return ($M)', font: { family: 'DM Mono', size: 10 }, color: MID } }
     }
+  }
+});
+
+// ── Industry name labels on bubble chart ──
+Chart.register({
+  id: 'bubbleLabels',
+  afterDatasetsDraw(chart) {
+    if (chart.canvas.id !== 'chartBubble') return;
+    const ctx2 = chart.ctx;
+    chart.data.datasets.forEach((ds, i) => {
+      const meta = chart.getDatasetMeta(i);
+      if (!meta.hidden && meta.data[0]) {
+        const pt = meta.data[0];
+        ctx2.save();
+        ctx2.font = '9px DM Mono, monospace';
+        ctx2.fillStyle = '#595b4a';
+        ctx2.textAlign = 'center';
+        ctx2.fillText(ds.label, pt.x, pt.y - pt.options.radius - 4);
+        ctx2.restore();
+      }
+    });
   }
 });
 
 // ── Investment & Returns trend ──
+const years = YR.map(d => d.year);
 new Chart(document.getElementById('chartTrend'), {
   type: 'line',
   data: {
@@ -654,32 +722,6 @@ new Chart(document.getElementById('chartProd'), {
   }
 });
 
-// ── Adoption by Industry trend ──
-const indNames = Object.keys(IND_TREND);
-new Chart(document.getElementById('chartIndTrend'), {
-  type: 'line',
-  data: {
-    labels: years,
-    datasets: indNames.map(name => ({
-      label: name,
-      data: IND_TREND[name].map(v => +(v*100).toFixed(1)),
-      borderColor: IND_COLORS[name],
-      borderWidth: 1.5,
-      pointRadius: 0,
-      tension: 0.35
-    }))
-  },
-  options: {
-    plugins: {
-      legend: { display: true, position: 'bottom', labels: { font: { family: 'DM Mono', size: 9 }, color: MID, boxWidth: 10, padding: 10 } },
-      tooltip: { ...DEFAULTS.plugins.tooltip, mode: 'index', intersect: false, callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}%` } }
-    },
-    scales: {
-      x: { ...DEFAULTS.scales.x },
-      y: { ...DEFAULTS.scales.y, min: 0, max: 100, title: { display: true, text: 'Adoption %', font: { family: 'DM Mono', size: 10 }, color: MID } }
-    }
-  }
-});
 </script>
 </body>
 </html>
