@@ -45,6 +45,7 @@
   padding: 12px 14px;
   border-right: var(--border);
 }
+.stat-chip:nth-child(1){background:#e8f4e8}.stat-chip:nth-child(2){background:#fef9e2}.stat-chip:nth-child(3){background:#e8f0fe}.stat-chip:nth-child(4){background:#fce8e6}
 .stat-chip:last-child { border-right: none; }
 .stat-chip-val { font-size: 1.3rem; font-weight: 500; color: var(--ink); margin-bottom: 2px; }
 .stat-chip-label { font-size: 0.58rem; color: var(--mid); text-transform: uppercase; letter-spacing: 1px; line-height: 1.4; }
@@ -98,7 +99,7 @@
 .calc-result:last-child { border-right: none; }
 .calc-result-val { font-size: 1.05rem; font-weight: 500; color: var(--ink); }
 .calc-result-label { font-size: 0.57rem; text-transform: uppercase; letter-spacing: 1px; color: var(--mid); margin-top: 3px; }
-.calc-result.best { background: var(--faint); }
+.calc-result:nth-child(1){background:#e8f4e8}.calc-result:nth-child(2){background:#e8f0fe}.calc-result:nth-child(3){background:#fef9e2;font-weight:500}.calc-result:nth-child(4){background:#fce8e6}
 .calc-note { font-size: 0.6rem; color: var(--mid); margin-top: 10px; font-style: italic; }
 @media (max-width: 900px) { .calc-results { grid-template-columns: 1fr 1fr; } }
 /* ── Industry filter chips ── */
@@ -107,12 +108,17 @@
 .ind-chip { font-family: "DM Mono", monospace; font-size: 0.6rem; padding: 3px 9px; border: var(--border); cursor: pointer; background: transparent; color: var(--mid); transition: background 0.12s, color 0.12s; }
 .ind-chip:hover { color: var(--ink); border-color: var(--ink); }
 .ind-chip.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.ind-chip:not([data-ind="all"]) { border-left-width: 3px; }
 /* ── Year range buttons ── */
 .year-btns { display: flex; width: fit-content; border: var(--border); margin-bottom: 12px; }
 .year-btn { font-family: "DM Mono", monospace; font-size: 0.6rem; padding: 5px 12px; border-right: var(--border); cursor: pointer; background: transparent; color: var(--mid); transition: background 0.12s, color 0.12s; }
 .year-btn:last-child { border-right: none; }
 .year-btn:hover { background: var(--hover); color: var(--ink); }
 .year-btn.active { background: var(--ink); color: var(--bg); }
+.year-btn:nth-child(1).active{background:#4285F4;border-color:#4285F4;color:#fff}
+.year-btn:nth-child(2).active{background:#EA4335;border-color:#EA4335;color:#fff}
+.year-btn:nth-child(3).active{background:#FBBC04;border-color:#FBBC04;color:#2c2e25}
+.year-btn:nth-child(4).active{background:#34A853;border-color:#34A853;color:#fff}
 /* ── Country click card ── */
 .country-click-card { border: var(--border); padding: 12px 14px; margin-top: 12px; display: none; }
 .country-click-card.visible { display: block; }
@@ -152,6 +158,10 @@ details.collapsible > summary::-webkit-details-marker { display: none; }
 details.collapsible > summary::after { content: '+'; font-size: 0.8rem; flex-shrink: 0; }
 details.collapsible[open] > summary::after { content: '−'; }
 details.collapsible > summary:hover { color: var(--ink); }
+details.collapsible:nth-of-type(1)>summary{border-left:3px solid #4285F4;padding-left:8px}
+details.collapsible:nth-of-type(2)>summary{border-left:3px solid #34A853;padding-left:8px}
+details.collapsible:nth-of-type(3)>summary{border-left:3px solid #FBBC04;padding-left:8px}
+details.collapsible:nth-of-type(4)>summary{border-left:3px solid #EA4335;padding-left:8px}
 details.collapsible > summary + * { margin-top: 12px; }
 
 /* ── Sidebar CEO accordion ── */
@@ -404,9 +414,43 @@ details.ceo-item:not([open]) .ceo-sum-toggle::before { content: '+'; }
     </details>
   </div>
 
-  <div style="text-align:center; padding:12px 16px;">
-    <img src="/ugly-dog-images/dog-3.png" alt="" style="width:46px; opacity:0.65; margin-right:6px;">
-    <img src="/ugly-dog-images/dog-5.png" alt="" style="width:46px; opacity:0.65;">
+  <div style="text-align:center; padding:14px 16px; display:flex; justify-content:center; gap:10px;">
+    <div style="position:relative;display:inline-block;width:46px;margin-top:14px;">
+      <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);width:40px;"><svg viewBox="0 0 40 32" width="40" height="32" xmlns="http://www.w3.org/2000/svg">
+  <!-- propeller blades — slim crossing ovals -->
+  <ellipse cx="20" cy="6" rx="11" ry="3.5" fill="#4285F4" transform="rotate(35 20 6)"/>
+  <ellipse cx="20" cy="6" rx="11" ry="3.5" fill="#EA4335" transform="rotate(-35 20 6)"/>
+  <!-- propeller center hub -->
+  <circle cx="20" cy="6" r="3" fill="#EA4335"/>
+  <circle cx="20" cy="6" r="1.5" fill="#fff" opacity="0.8"/>
+  <!-- dome: blue left, green right, yellow center stripe -->
+  <path d="M6 24 Q4 12 20 9 Z" fill="#4285F4"/>
+  <path d="M6 24 Q13 10 20 9 Q14 16 6 24 Z" fill="#FBBC04"/>
+  <path d="M20 9 Q27 10 34 24 Q26 16 20 9 Z" fill="#FBBC04"/>
+  <path d="M34 24 Q36 12 20 9 Z" fill="#34A853"/>
+  <!-- brim -->
+  <rect x="4" y="22" width="32" height="6" rx="3" fill="#2c2e25"/>
+</svg></div>
+      <img src="/ugly-dog-images/dog-3.png" alt="" style="width:46px; display:block;">
+    </div>
+    <div style="position:relative;display:inline-block;width:46px;margin-top:14px;">
+      <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);width:40px;"><svg viewBox="0 0 40 32" width="40" height="32" xmlns="http://www.w3.org/2000/svg">
+  <!-- propeller blades — slim crossing ovals -->
+  <ellipse cx="20" cy="6" rx="11" ry="3.5" fill="#4285F4" transform="rotate(35 20 6)"/>
+  <ellipse cx="20" cy="6" rx="11" ry="3.5" fill="#EA4335" transform="rotate(-35 20 6)"/>
+  <!-- propeller center hub -->
+  <circle cx="20" cy="6" r="3" fill="#EA4335"/>
+  <circle cx="20" cy="6" r="1.5" fill="#fff" opacity="0.8"/>
+  <!-- dome: blue left, green right, yellow center stripe -->
+  <path d="M6 24 Q4 12 20 9 Z" fill="#4285F4"/>
+  <path d="M6 24 Q13 10 20 9 Q14 16 6 24 Z" fill="#FBBC04"/>
+  <path d="M20 9 Q27 10 34 24 Q26 16 20 9 Z" fill="#FBBC04"/>
+  <path d="M34 24 Q36 12 20 9 Z" fill="#34A853"/>
+  <!-- brim -->
+  <rect x="4" y="22" width="32" height="6" rx="3" fill="#2c2e25"/>
+</svg></div>
+      <img src="/ugly-dog-images/dog-5.png" alt="" style="width:46px; display:block;">
+    </div>
   </div>
 </aside>
 
@@ -455,7 +499,25 @@ details.ceo-item:not([open]) .ceo-sum-toggle::before { content: '+'; }
       <div class="calc-result best"><div class="calc-result-val" id="crTotal">—</div><div class="calc-result-label">Total Return</div></div>
       <div class="calc-result best"><div class="calc-result-val" id="crROI">—</div><div class="calc-result-label">ROI</div></div>
     </div>
-    <div class="calc-note" id="calcNote"></div>
+    <div style="display:flex;align-items:flex-end;gap:12px;margin-top:10px;">
+      <div style="position:relative;display:inline-block;width:36px;flex-shrink:0;margin-top:12px;">
+        <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);width:34px;">
+          <svg viewBox="0 0 40 32" width="34" height="27" xmlns="http://www.w3.org/2000/svg">
+            <ellipse cx="20" cy="6" rx="11" ry="3.5" fill="#4285F4" transform="rotate(35 20 6)"/>
+            <ellipse cx="20" cy="6" rx="11" ry="3.5" fill="#EA4335" transform="rotate(-35 20 6)"/>
+            <circle cx="20" cy="6" r="3" fill="#EA4335"/>
+            <circle cx="20" cy="6" r="1.5" fill="#fff" opacity="0.8"/>
+            <path d="M6 24 Q4 12 20 9 Z" fill="#4285F4"/>
+            <path d="M6 24 Q13 10 20 9 Q14 16 6 24 Z" fill="#FBBC04"/>
+            <path d="M20 9 Q27 10 34 24 Q26 16 20 9 Z" fill="#FBBC04"/>
+            <path d="M34 24 Q36 12 20 9 Z" fill="#34A853"/>
+            <rect x="4" y="22" width="32" height="6" rx="3" fill="#2c2e25"/>
+          </svg>
+        </div>
+        <img src="/ugly-dog-images/dog-1.png" alt="" style="width:36px;display:block;">
+      </div>
+      <div class="calc-note" id="calcNote" style="flex:1"></div>
+    </div>
   </div>
 
   <!-- Industry filter -->
@@ -489,6 +551,8 @@ details.ceo-item:not([open]) .ceo-sum-toggle::before { content: '+'; }
     </div>
   </div>
 
+  </details>
+
   <!-- Row 2: invest → productivity → return bubble -->
   <details class="collapsible">
   <summary>spend more → work smarter → earn more (usually)</summary>
@@ -515,6 +579,8 @@ details.ceo-item:not([open]) .ceo-sum-toggle::before { content: '+'; }
     </div>
   </div>
 
+  </details>
+
   <!-- Row 3: trend -->
   <details class="collapsible">
   <summary>the post-covid money printer goes brrr</summary>
@@ -535,6 +601,8 @@ details.ceo-item:not([open]) .ceo-sum-toggle::before { content: '+'; }
       <canvas id="chartTrend" height="180"></canvas>
     </div>
   </div>
+
+  </details>
 
   <!-- Row 4: country -->
   <details class="collapsible">
@@ -585,9 +653,6 @@ details.ceo-item:not([open]) .ceo-sum-toggle::before { content: '+'; }
       </div>
     </div>
   </div>
-  </details>
-  </details>
-  </details>
   </details>
 
 </div><!-- /main -->
