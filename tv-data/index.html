@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TV Series Explorer</title>
+<link rel="stylesheet" href="../site.css">
+<link rel="icon" type="image/png" href="../ugly-dog-images/dog-3.png">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+/* loading */
+#loading { position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100; }
+#loading img { width:64px;height:64px;object-fit:contain;animation:spin 1.2s linear infinite;margin-bottom:14px; }
+@keyframes spin { to{transform:rotate(360deg);} }
+#loading p { font-size:0.7rem;color:var(--mid);font-family:'DM Mono',monospace; }
+
+/* nav */
+nav { border-bottom:2px solid var(--ink);display:flex;align-items:stretch; }
+.nav-logo { font-family:'DM Mono',monospace;font-size:0.85rem;font-weight:500;padding:10px 20px;border-right:1.5px solid var(--ink);display:flex;align-items:center;gap:8px;white-space:nowrap; }
+.nav-logo img { width:22px;height:22px;object-fit:contain; }
+.nav-tab { font-family:'DM Mono',monospace;font-size:0.72rem;padding:10px 18px;border:none;border-right:1.5px solid var(--ink);background:transparent;color:var(--mid);cursor:pointer;white-space:nowrap;transition:background 0.1s; }
+.nav-tab:hover  { background:var(--hover);color:var(--ink); }
+.nav-tab.active { background:var(--ink);color:var(--bg); }
+
+.section { display:none; }
+.section.visible { display:block; }
+
+/* ── Sidebar layout ───────────────────────────── */
+.insights-layout { display:flex;min-height:calc(100vh - 44px); }
+
+.insight-sidebar {
+  width:256px;min-width:256px;border-right:2px solid var(--ink);
+  display:flex;flex-direction:column;
+  position:sticky;top:0;height:calc(100vh - 44px);overflow-y:auto;
+}
+
+.sidebar-top { padding:20px 18px 16px;border-bottom:var(--border); }
+.sidebar-top h1 { font-size:0.95rem;font-weight:500;letter-spacing:0.01em;line-height:1.2; }
+.sidebar-top p  { font-size:0.62rem;color:var(--mid);margin-top:4px;line-height:1.5; }
+.sidebar-dogs { display:flex;margin-top:12px;border-top:1px solid var(--faint);padding-top:10px; }
+.sidebar-dogs img { width:30px;height:30px;object-fit:contain;object-position:bottom;border-right:1px solid var(--faint);padding:2px 4px; }
+.sidebar-dogs img:last-child { border-right:none; }
+
+.sidebar-stats { display:grid;grid-template-columns:1fr 1fr;border-bottom:var(--border); }
+.sidebar-stat { padding:9px 13px;border-right:1px solid var(--faint);border-bottom:1px solid var(--faint); }
+.sidebar-stat:nth-child(even) { border-right:none; }
+.sidebar-stat:nth-last-child(-n+2) { border-bottom:none; }
+.ss-val { font-size:0.88rem;font-weight:500;line-height:1; }
+.ss-lbl { font-size:0.5rem;text-transform:uppercase;letter-spacing:1.2px;color:var(--mid);margin-top:3px; }
+
+.sidebar-section-label { padding:9px 18px 5px;font-size:0.5rem;text-transform:uppercase;letter-spacing:1.6px;color:var(--mid);border-bottom:1px solid var(--faint); }
+
+.ii-item {
+  display:flex;align-items:flex-start;gap:9px;padding:11px 18px;cursor:pointer;
+  font-size:0.68rem;color:var(--mid);border-bottom:1px solid var(--faint);
+  transition:background 0.1s,color 0.1s;line-height:1.35;
+}
+.ii-item:hover { background:var(--hover);color:var(--ink); }
+.ii-item.active { background:var(--ink);color:var(--bg); }
+.ii-dog { width:17px;height:17px;object-fit:contain;flex-shrink:0;margin-top:1px; }
+.ii-item.active .ii-dog { filter:invert(1); }
+.ii-num { font-size:0.5rem;min-width:14px;color:var(--mid);flex-shrink:0;padding-top:2px; }
+.ii-item.active .ii-num { color:rgba(255,255,255,0.4); }
+.ii-label { flex:1; }
+
+/* ── Main panel area ──────────────────────────── */
+.insight-main { flex:1;min-width:0;position:relative;overflow:hidden; }
+
+.ipw { /* insight panel wrapper */
+  position:absolute;top:0;left:0;width:100%;
+  padding:22px;box-sizing:border-box;
+  transition:transform 0.34s cubic-bezier(0.4,0,0.2,1),opacity 0.22s ease;
+  will-change:transform,opacity;
+}
+.ipw.state-active  { transform:translateX(0);   opacity:1;pointer-events:auto;position:relative; }
+.ipw.state-left    { transform:translateX(-100%);opacity:0;pointer-events:none; }
+.ipw.state-right   { transform:translateX(100%); opacity:0;pointer-events:none; }
+
+/* ── Panel chrome ─────────────────────────────── */
+.panel { border:var(--border);margin-bottom:18px; }
+.panel-head {
+  padding:9px 18px;background:var(--ink);color:var(--bg);border-bottom:var(--border);
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;
+}
+.panel-head h2 { font-size:0.63rem;font-weight:400;text-transform:uppercase;letter-spacing:1.4px; }
+.ph-right { display:flex;align-items:center;gap:8px; }
+.pill { font-size:0.57rem;text-transform:uppercase;letter-spacing:0.8px;background:rgba(255,255,255,0.13);color:var(--bg);padding:2px 8px;border:1px solid rgba(255,255,255,0.22); }
+
+.metric-btns { display:flex; }
+.metric-btn { font-family:'DM Mono',monospace;font-size:0.59rem;padding:4px 10px;border:1px solid rgba(255,255,255,0.28);background:transparent;color:rgba(255,255,255,0.55);cursor:pointer;transition:all 0.1s; }
+.metric-btn.active { background:rgba(255,255,255,0.14);color:var(--bg); }
+.metric-btn:hover { color:var(--bg); }
+
+/* chart area */
+.chart-area { padding:20px; }
+.chart-area canvas { width:100%;max-height:360px; }
+.insight-note { font-size:0.61rem;color:var(--mid);padding:12px 0 2px;border-top:1px solid var(--faint);line-height:1.65; }
+
+/* dual chart (company panel) */
+.dual-viz { display:flex;border-bottom:none; }
+.dual-viz .chart-area { flex:1;border-right:var(--border); }
+.dual-viz .chart-area:last-child { border-right:none; }
+.dual-sub { font-size:0.56rem;text-transform:uppercase;letter-spacing:1px;color:var(--mid);margin-bottom:8px; }
+
+/* callouts */
+.callout-row { display:flex;flex-wrap:wrap;gap:8px;padding:12px 18px;border-top:1px solid var(--faint);background:rgba(44,46,37,0.02); }
+.callout { border:1px solid var(--ink);padding:7px 12px;font-size:0.6rem;line-height:1.4; }
+.co-label { font-size:0.5rem;text-transform:uppercase;letter-spacing:0.8px;color:var(--mid);margin-bottom:2px; }
+.co-val   { font-weight:500; }
+.co-sub   { font-size:0.55rem;color:var(--mid);margin-top:2px; }
+
+/* ── Browse ───────────────────────────────────── */
+#section-browse { max-width:1280px;margin:0 auto;padding:28px; }
+#section-glossary { max-width:1280px;margin:0 auto;padding:28px; }
+
+.show-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));border-top:var(--border);border-left:var(--border); }
+.show-card { border-right:var(--border);border-bottom:var(--border);display:flex;flex-direction:column;cursor:pointer;transition:background 0.12s; }
+.show-card:hover { background:var(--hover); }
+.show-card img { width:100%;aspect-ratio:2/3;object-fit:cover;background:var(--faint);display:block;border-bottom:1px solid var(--faint); }
+.show-card .no-poster { width:100%;aspect-ratio:2/3;background:var(--faint);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border-bottom:1px solid var(--faint); }
+.show-card .no-poster img { width:36px;height:36px;object-fit:contain; }
+.show-card .no-poster span { font-size:0.56rem;color:var(--mid); }
+.card-info { padding:9px 11px; }
+.card-name { font-size:0.7rem;font-weight:500;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.card-meta { font-size:0.59rem;color:var(--mid);margin-top:3px;display:flex;gap:5px;flex-wrap:wrap;align-items:center; }
+.card-rating { color:var(--ink);font-weight:500; }
+.card-badge { font-size:0.52rem;text-transform:uppercase;border:1px solid var(--mid);padding:1px 4px;color:var(--mid); }
+.card-badge.live { border-color:#4a8a4a;color:#4a8a4a; }
+
+.filter-bar { display:flex;flex-wrap:wrap;border-bottom:var(--border); }
+.filter-bar input,.filter-bar select { font-family:'DM Mono',monospace;font-size:0.7rem;padding:7px 12px;border:none;border-right:1.5px solid var(--ink);background:var(--bg);color:var(--ink);outline:none;transition:background 0.1s; }
+.filter-bar input:focus,.filter-bar select:focus { background:var(--hover); }
+.filter-bar input { flex:1;min-width:160px; }
+#result-count { padding:7px 14px;font-size:0.62rem;color:var(--mid);margin-left:auto;align-self:center;white-space:nowrap; }
+#load-more-btn { display:block;width:100%;padding:10px;border:none;border-top:var(--border);font-family:'DM Mono',monospace;font-size:0.64rem;text-transform:uppercase;letter-spacing:1px;background:transparent;color:var(--mid);cursor:pointer;transition:background 0.1s; }
+#load-more-btn:hover { background:var(--hover);color:var(--ink); }
+#load-more-btn.hidden { display:none; }
+
+/* glossary */
+.glossary-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));border-top:var(--border);border-left:var(--border); }
+.glossary-item { border-right:var(--border);border-bottom:var(--border);padding:14px; }
+.field-name { font-size:0.7rem;font-weight:500;margin-bottom:5px; }
+.field-desc { font-size:0.65rem;color:var(--mid);line-height:1.6; }
+.field-example { margin-top:7px;font-size:0.58rem;background:var(--faint);padding:4px 8px;color:var(--mid); }
+
+/* modal */
+#modal-overlay { position:fixed;inset:0;background:rgba(44,46,37,0.5);z-index:200;display:none;align-items:flex-start;justify-content:flex-end; }
+#modal-overlay.open { display:flex; }
+#modal { background:var(--bg);border-left:2px solid var(--ink);width:100%;max-width:500px;height:100vh;overflow-y:auto;animation:slideIn 0.2s ease; }
+@keyframes slideIn { from{transform:translateX(40px);opacity:0}to{transform:translateX(0);opacity:1} }
+.modal-topbar { background:var(--ink);color:var(--bg);padding:10px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:var(--border);position:sticky;top:0;z-index:1; }
+.modal-topbar span { font-size:0.6rem;text-transform:uppercase;letter-spacing:1.4px; }
+.modal-close { font-family:'DM Mono',monospace;font-size:0.65rem;padding:3px 10px;border:1px solid rgba(255,255,255,0.4);background:transparent;color:var(--bg);cursor:pointer; }
+.modal-close:hover { background:rgba(255,255,255,0.12); }
+.modal-header { display:flex;gap:16px;padding:18px;border-bottom:var(--border); }
+.modal-header img { width:96px;min-width:96px;aspect-ratio:2/3;object-fit:cover;border:var(--border); }
+.modal-header .no-poster-lg { width:96px;min-width:96px;aspect-ratio:2/3;background:var(--faint);border:var(--border);display:flex;align-items:center;justify-content:center; }
+.modal-header .no-poster-lg img { width:40px;height:40px;object-fit:contain; }
+.modal-title { font-size:0.9rem;font-weight:500;line-height:1.25;margin-bottom:4px; }
+.modal-original { font-size:0.64rem;color:var(--mid);margin-bottom:6px; }
+.modal-badges { display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px; }
+.badge { font-size:0.56rem;text-transform:uppercase;border:1px solid var(--ink);padding:2px 5px; }
+.badge-genre { border-color:var(--mid);color:var(--mid); }
+.badge-live { border-color:#4a8a4a;color:#4a8a4a; }
+.modal-tagline { font-size:0.68rem;color:var(--mid);font-style:italic;margin-bottom:6px; }
+.modal-rating { font-size:0.76rem;font-weight:500; }
+.modal-body { padding:18px; }
+.modal-body p { font-size:0.68rem;line-height:1.7;color:var(--mid);margin-bottom:14px; }
+.detail-grid { display:grid;grid-template-columns:1fr 1fr;border-top:var(--border);border-left:var(--border); }
+.detail-row { border-right:var(--border);border-bottom:var(--border);padding:8px 12px; }
+.dr-label { font-size:0.54rem;text-transform:uppercase;letter-spacing:1px;color:var(--mid);margin-bottom:2px; }
+.dr-value { font-size:0.74rem;font-weight:500; }
+
+/* ── Genre card grid ──────────────────────────── */
+.genre-grid-wrap { padding:16px 18px 0; }
+.genre-bar-legend {
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  font-size:0.56rem;text-transform:uppercase;letter-spacing:0.9px;color:var(--mid);
+  margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--faint);
+}
+.gbl-cut   { color:#b05858; }
+.gbl-ended { color:#8a8060; }
+.gbl-live  { color:#4a8a4a; }
+.gbl-hint  { margin-left:auto;font-style:italic;text-transform:none;letter-spacing:0; }
+
+.genre-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(190px,1fr));
+  gap:0;
+  border-top:var(--border);border-left:var(--border);
+  margin-bottom:16px;
+}
+
+.genre-card {
+  border-right:var(--border);border-bottom:var(--border);
+  padding:16px 14px 12px;
+  position:relative;
+  transition:background 0.15s;
+  cursor:default;
+}
+.genre-card:hover { background:var(--hover); }
+
+.gc-top { display:flex;align-items:center;gap:10px;margin-bottom:13px; }
+.gc-icon { font-size:1.9rem;line-height:1;flex-shrink:0; }
+.gc-name { font-size:0.72rem;font-weight:500;text-transform:uppercase;letter-spacing:0.7px;line-height:1.2; }
+
+/* 3-part survival bar */
+.gc-bar-wrap { margin-bottom:8px; }
+.gc-bar { height:9px;display:flex;margin-bottom:5px;overflow:hidden; }
+.gcb-seg { height:100%;transition:width 0.4s ease; }
+.gcb-cut   { background:#b05858; }
+.gcb-ended { background:#c8b898; }
+.gcb-live  { background:#4a8a4a; }
+
+.gc-stats { display:flex;justify-content:space-between;font-size:0.52rem;color:var(--mid);gap:4px; }
+.gc-stat-cut  { color:#b05858; }
+.gc-stat-live { color:#4a8a4a; }
+
+.gc-total { font-size:0.54rem;color:var(--mid);margin-top:7px; }
+.gc-cancel-days { font-size:0.54rem;color:var(--mid); }
+
+/* Hover tooltip */
+.gc-tooltip {
+  display:none;
+  position:absolute;
+  bottom:calc(100% + 4px);left:0;right:0;
+  background:var(--ink);color:var(--bg);
+  padding:11px 13px;z-index:20;
+  box-shadow:0 4px 16px rgba(44,46,37,0.35);
+}
+.genre-card:hover .gc-tooltip { display:block; }
+.gct-header { font-size:0.5rem;text-transform:uppercase;letter-spacing:1.2px;opacity:0.55;margin-bottom:8px; }
+.gct-row { display:flex;justify-content:space-between;align-items:baseline;font-size:0.63rem;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.09); }
+.gct-row:last-child { border-bottom:none; }
+.gct-show { flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:8px; }
+.gct-yrs { font-weight:500;white-space:nowrap;color:rgba(255,255,255,0.7);font-size:0.58rem; }
+.gct-status { font-size:0.5rem;margin-left:5px;opacity:0.55; }
+
+/* ── Creator table ────────────────────────────── */
+.creator-table { width:100%;border-collapse:collapse;font-size:0.68rem; }
+.creator-table th { background:var(--ink);color:var(--bg);padding:7px 14px;text-align:left;font-weight:400;font-size:0.57rem;text-transform:uppercase;letter-spacing:1px;white-space:nowrap;border-right:1px solid #3a3c30; }
+.creator-table th:last-child { border-right:none; }
+.creator-table td { padding:7px 14px;border-bottom:1px solid var(--faint);white-space:nowrap; }
+.creator-table tr:hover td { background:var(--hover); }
+.ct-rate { font-weight:500; }
+.ct-rate-low  { color:#4a8a4a; }
+.ct-rate-mid  { color:var(--mid); }
+.ct-rate-high { color:#b05858; }
+.ct-rank { color:var(--mid);font-size:0.56rem; }
+.ct-rate-bar { display:inline-block;height:7px;background:currentColor;min-width:2px;margin-left:6px;vertical-align:middle; }
+
+/* responsive */
+@media(max-width:900px) {
+  .insights-layout { flex-direction:column; }
+  .insight-sidebar { width:100%;min-width:0;position:static;height:auto;border-right:none;border-bottom:2px solid var(--ink); }
+  .sidebar-stats { grid-template-columns:repeat(4,1fr); }
+  .ii-items-scroll { display:flex;overflow-x:auto; }
+  .ii-item { border-right:1px solid var(--faint);border-bottom:none;min-width:fit-content; }
+  .dual-viz { flex-direction:column; }
+  .dual-viz .chart-area { border-right:none;border-bottom:var(--border); }
+}
+@media(max-width:600px) {
+  .show-grid { grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); }
+  .detail-grid { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <img src="../ugly-dog-images/dog-3.png" alt="">
+  <p>loading…</p>
+</div>
+
+<nav>
+  <div class="nav-logo"><img src="../ugly-dog-images/dog-5.png" alt="">TV Explorer</div>
+  <button class="nav-tab active" onclick="showSection('insights',this)">Insights</button>
+  <button class="nav-tab"        onclick="showSection('browse',this)">Browse</button>
+  <button class="nav-tab"        onclick="showSection('glossary',this)">Field Guide</button>
+</nav>
+
+<!-- ═══════════  INSIGHTS  ═══════════ -->
+<section class="section visible" id="section-insights">
+<div class="insights-layout">
+
+  <!-- sidebar -->
+  <aside class="insight-sidebar">
+    <div class="sidebar-top">
+      <h1>TV Series Explorer</h1>
+      <p>A data story about how television lives and dies — across 150,000+ shows.</p>
+      <div class="sidebar-dogs">
+        <img src="../ugly-dog-images/dog-1.png" alt="">
+        <img src="../ugly-dog-images/dog-2.png" alt="">
+        <img src="../ugly-dog-images/dog-4.png" alt="">
+        <img src="../ugly-dog-images/dog-6.png" alt="">
+        <img src="../ugly-dog-images/dog-5.png" alt="">
+        <img src="../ugly-dog-images/dog-3.png" alt="">
+      </div>
+    </div>
+
+    <div class="sidebar-stats" id="sidebar-stats"></div>
+
+    <div class="sidebar-section-label">The Anatomy of Cancellation</div>
+    <div class="ii-items-scroll">
+      <div class="ii-item active" onclick="selectInsight(0,this)">
+        <img class="ii-dog" src="../ugly-dog-images/dog-1.png" alt="">
+        <span class="ii-num">01</span>
+        <span class="ii-label">Cancellations are accelerating</span>
+      </div>
+      <div class="ii-item" onclick="selectInsight(1,this)">
+        <img class="ii-dog" src="../ugly-dog-images/dog-2.png" alt="">
+        <span class="ii-num">02</span>
+        <span class="ii-label">Which genres survive?</span>
+      </div>
+      <div class="ii-item" onclick="selectInsight(2,this)">
+        <img class="ii-dog" src="../ugly-dog-images/dog-3.png" alt="">
+        <span class="ii-num">03</span>
+        <span class="ii-label">Which companies cancel fastest?</span>
+      </div>
+      <div class="ii-item" onclick="selectInsight(3,this)">
+        <img class="ii-dog" src="../ugly-dog-images/dog-4.png" alt="">
+        <span class="ii-num">04</span>
+        <span class="ii-label">Which creators survive?</span>
+      </div>
+      <div class="ii-item" onclick="selectInsight(4,this)">
+        <img class="ii-dog" src="../ugly-dog-images/dog-5.png" alt="">
+        <span class="ii-num">05</span>
+        <span class="ii-label">Does country size matter?</span>
+      </div>
+      <div class="ii-item" onclick="selectInsight(5,this)">
+        <img class="ii-dog" src="../ugly-dog-images/dog-6.png" alt="">
+        <span class="ii-num">06</span>
+        <span class="ii-label">The extremes — fastest &amp; longest</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- sliding panels -->
+  <div class="insight-main" id="insight-main">
+
+    <!-- 0: Cancellations accelerating -->
+    <div class="ipw state-active" id="wrap-0">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Cancellations are accelerating</h2>
+          <div class="ph-right">
+            <img src="../ugly-dog-images/dog-1.png" style="width:20px;height:20px;object-fit:contain;filter:invert(1)" alt="">
+            <span class="pill">median days to cancellation · 1980–2024</span>
+          </div>
+        </div>
+        <div class="chart-area">
+          <canvas id="chart-cancel-trend"></canvas>
+          <div class="insight-note">
+            Median days between a show's first and last air date, for cancelled shows only. The shaded band shows the interquartile range (middle 50% of shows). Post-2013 — when Netflix launched original programming — cancellation timelines collapsed dramatically. By the 2020s the median had fallen to <strong>42 days</strong>, down from over <strong>300 days</strong> in the early 2000s. Red dots mark years in the streaming era.
+          </div>
+        </div>
+        <div class="callout-row" id="callouts-cancel"></div>
+      </div>
+    </div>
+
+    <!-- 1: Genre survival -->
+    <div class="ipw state-right" id="wrap-1">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Which genres survive — and which get cut?</h2>
+          <div class="ph-right">
+            <div class="metric-btns">
+              <button class="metric-btn active" onclick="sortGenreCards('cancel_rate',this)">Most cancelled</button>
+              <button class="metric-btn" onclick="sortGenreCards('avg_cancel_days',this)">Fastest cut</button>
+              <button class="metric-btn" onclick="sortGenreCards('live_pct',this)">Most live</button>
+              <button class="metric-btn" onclick="sortGenreCards('total',this)">Most shows</button>
+            </div>
+          </div>
+        </div>
+        <div class="genre-grid-wrap">
+          <div class="genre-bar-legend">
+            <span class="gbl-cut">▇ Cancelled</span>
+            <span class="gbl-ended">▇ Ended</span>
+            <span class="gbl-live">▇ Still live</span>
+            <span class="gbl-hint">Hover a card to see the longest-running shows in that genre</span>
+          </div>
+          <div class="genre-grid" id="genre-grid"></div>
+        </div>
+        <div class="chart-area" style="padding-top:0;border-top:var(--border)">
+          <div class="insight-note">
+            Each card shows the survival breakdown for that genre. The bar is split into <span style="color:#b05858;font-weight:500">cancelled</span>, <span style="color:var(--mid);font-weight:500">ended</span>, and <span style="color:#4a8a4a;font-weight:500">still live</span> portions. <strong>Reality and Talk</strong> shows are cut most aggressively. <strong>Soap and Animation</strong> survive longest once established. Hover any card to see the top 3 longest-running shows in that genre.
+          </div>
+        </div>
+        <div class="callout-row" id="callouts-genre"></div>
+      </div>
+    </div>
+
+    <!-- 2: Company profiles -->
+    <div class="ipw state-right" id="wrap-2">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Production company profiles — genre &amp; cancellation speed</h2>
+          <div class="ph-right">
+            <img src="../ugly-dog-images/dog-3.png" style="width:20px;height:20px;object-fit:contain;filter:invert(1)" alt="">
+            <span class="pill">top 10 companies by cancellation count</span>
+          </div>
+        </div>
+        <div class="dual-viz">
+          <div class="chart-area">
+            <div class="dual-sub">Genre DNA — share of shows per genre (%)</div>
+            <canvas id="chart-company-genres" style="max-height:300px"></canvas>
+          </div>
+          <div class="chart-area">
+            <div class="dual-sub">Median days to cancellation — fastest cancellers at top</div>
+            <canvas id="chart-company-cancel" style="max-height:300px"></canvas>
+          </div>
+        </div>
+        <div class="chart-area" style="padding-top:0">
+          <div class="insight-note">
+            Left: the genre makeup of each company's slate. Most major studios lean heavily on Drama. Right: how quickly each company cancels shows. <strong>Universal Television</strong> has the shortest median (84 days), while <strong>Zone3</strong> is the most patient at 526 days. Warner Bros. Television has the highest raw count of cancellations — 96 shows — reflecting the sheer volume of their output.
+          </div>
+        </div>
+        <div class="callout-row" id="callouts-company"></div>
+      </div>
+    </div>
+
+    <!-- 3: Creator track records -->
+    <div class="ipw state-right" id="wrap-3">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Which creators' shows survive cancellation?</h2>
+          <div class="ph-right">
+            <span class="pill">top 100 creators by show count · career data from TMDB</span>
+            <img src="../ugly-dog-images/dog-4.png" style="width:20px;height:20px;object-fit:contain;filter:invert(1)" alt="">
+          </div>
+        </div>
+
+        <!-- data note -->
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 18px;background:rgba(44,46,37,0.04);border-bottom:var(--border)">
+          <img src="../ugly-dog-images/dog-2.png" style="width:26px;height:26px;object-fit:contain;flex-shrink:0;opacity:0.6" alt="">
+          <div style="font-size:0.61rem;color:var(--mid);line-height:1.6">
+            <strong style="color:var(--ink)">Data note:</strong> TMDB (the source dataset) does not include demographic information such as race, ethnicity, religion, or personal age for show creators. The analysis below uses career profile data derived from show records: genres, networks, countries, career start year, and survival rates. For full biographies see each creator's TMDB or Wikipedia page.
+          </div>
+        </div>
+
+        <!-- bubble overview -->
+        <div class="chart-area">
+          <div class="dual-sub">Overview — cancel rate vs total shows (bubble size = avg popularity)</div>
+          <canvas id="chart-creators" style="max-height:280px"></canvas>
+        </div>
+
+        <!-- three breakdown charts -->
+        <div class="dual-viz" style="border-top:var(--border)">
+          <div class="chart-area">
+            <div class="dual-sub">Avg cancel rate by primary genre</div>
+            <canvas id="chart-creator-genre" style="max-height:200px"></canvas>
+          </div>
+          <div class="chart-area">
+            <div class="dual-sub">Avg cancel rate by decade started</div>
+            <canvas id="chart-creator-decade" style="max-height:200px"></canvas>
+          </div>
+          <div class="chart-area">
+            <div class="dual-sub">Avg cancel rate by primary country</div>
+            <canvas id="chart-creator-country" style="max-height:200px"></canvas>
+          </div>
+        </div>
+
+        <!-- leaderboard -->
+        <div style="border-top:var(--border)">
+          <div style="padding:10px 18px;background:rgba(44,46,37,0.04);border-bottom:1px solid var(--faint)">
+            <div class="dual-sub" style="margin:0">Top creators by survival — lowest cancel rate (min 5 shows)</div>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="creator-table" id="creator-table"></table>
+          </div>
+        </div>
+
+        <div class="callout-row" id="callouts-creator"></div>
+      </div>
+    </div>
+
+    <!-- 4: Geography -->
+    <div class="ipw state-right" id="wrap-4">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Does a country's population size affect cancellation speed?</h2>
+          <div class="ph-right">
+            <span class="pill">21 countries · log population vs median cancel days</span>
+          </div>
+        </div>
+        <div class="chart-area">
+          <canvas id="chart-country"></canvas>
+          <div class="insight-note">
+            Each point is a country. X-axis is population (log scale); Y-axis is the median number of days a cancelled show ran before being cut. Bubble size reflects total number of cancellations. There is <strong>no strong positive correlation</strong> between population and show longevity — larger markets don't protect shows more. Germany (DE) is a striking outlier: a large country with relatively long cancellation windows. Japan (JP) and Brazil (BR) are cut fast despite large populations.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5: Extremes -->
+    <div class="ipw state-right" id="wrap-5">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>The extremes — fastest cancellations &amp; longest runs</h2>
+          <div class="ph-right">
+            <img src="../ugly-dog-images/dog-6.png" style="width:20px;height:20px;object-fit:contain;filter:invert(1)" alt="">
+            <span class="pill">cancelled shows vs ended/returning shows</span>
+          </div>
+        </div>
+        <div class="dual-viz">
+          <div class="chart-area">
+            <div class="dual-sub" style="color:#b05858">Fastest cancelled — days before axed</div>
+            <canvas id="chart-shame" style="max-height:380px"></canvas>
+          </div>
+          <div class="chart-area">
+            <div class="dual-sub" style="color:#4a8a4a">Longest running — years on air</div>
+            <canvas id="chart-fame" style="max-height:380px"></canvas>
+          </div>
+        </div>
+        <div class="chart-area" style="padding-top:0">
+          <div class="insight-note">
+            Left: the fastest-cancelled shows in the dataset (minimum 5 votes, at least 1 day between air and cancellation). Right: the longest-running shows by total days between first and last air date. The contrast is stark — the fastest-cancelled shows lasted days; the longest-running have been on air for decades.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /insight-main -->
+</div><!-- /insights-layout -->
+</section>
+
+<!-- ═══════════  BROWSE  ═══════════ -->
+<section class="section" id="section-browse">
+  <div style="max-width:1280px;margin:0 auto;padding:28px">
+    <div class="panel">
+      <div class="panel-head"><h2>Browse Shows</h2><span class="pill">top 2000 by popularity</span></div>
+      <div class="filter-bar">
+        <input type="text" id="search-input" placeholder="Search by title…" oninput="applyFilters()">
+        <select id="filter-genre" onchange="applyFilters()"><option value="">All Genres</option></select>
+        <select id="filter-status" onchange="applyFilters()">
+          <option value="">All Statuses</option>
+          <option>Ended</option><option>Returning Series</option><option>Canceled</option>
+          <option>In Production</option><option>Planned</option>
+        </select>
+        <select id="filter-lang" onchange="applyFilters()"><option value="">All Languages</option></select>
+        <span id="result-count"></span>
+      </div>
+      <div class="show-grid" id="grid-browse"></div>
+      <button id="load-more-btn" onclick="loadMore()">Load more</button>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════  GLOSSARY  ═══════════ -->
+<section class="section" id="section-glossary">
+  <div style="max-width:1280px;margin:0 auto;padding:28px">
+    <div class="panel">
+      <div class="panel-head"><h2>Field Guide</h2><span class="pill">all 20 fields explained</span></div>
+      <div class="glossary-grid" id="glossary-grid"></div>
+    </div>
+  </div>
+</section>
+
+<!-- modal -->
+<div id="modal-overlay" onclick="closeModal(event)">
+  <div id="modal">
+    <div class="modal-topbar"><span>Show Detail</span><button class="modal-close" onclick="closeModalDirect()">✕ close</button></div>
+    <div class="modal-header" id="modal-header"></div>
+    <div class="modal-body"   id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+const INK='#2c2e25',MID='#595b4a',FAINT='#e8e0c0';
+const DOGS=['../ugly-dog-images/dog-1.png','../ugly-dog-images/dog-2.png','../ugly-dog-images/dog-3.png',
+            '../ugly-dog-images/dog-4.png','../ugly-dog-images/dog-5.png','../ugly-dog-images/dog-6.png'];
+const PAL=['#2c2e25','#6a9e5a','#c07aa8','#5a8a9e','#a89030','#b05858','#5a9e7a',
+           '#8a7a5a','#7a5a8a','#9e6a5a','#6a8a9e','#8a9e6a','#4a7a8a','#9e8a6a'];
+
+let I=null,D=null,activeInsight=0;
+let genreChart=null;
+let browseFiltered=[],browseShown=0;
+const PAGE_SIZE=80;
+
+Chart.defaults.font={family:"'DM Mono', monospace",size:11};
+Chart.defaults.color=MID;
+
+Promise.all([
+  fetch('insights.json').then(r=>r.json()),
+  fetch('data.json').then(r=>r.json()),
+]).then(([ins,dat])=>{
+  I=ins;D=dat;
+  document.getElementById('loading').style.display='none';
+  buildSidebarStats();
+  buildInsights();
+  buildBrowse();
+  buildGlossary();
+  updateMainHeight();
+}).catch(err=>{
+  document.getElementById('loading').innerHTML=`<p style="font-family:monospace;font-size:.8rem;color:#b05858">${err.message}</p>`;
+});
+
+// ── nav ───────────────────────────────────────────────────
+function showSection(name,btn){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('visible'));
+  document.querySelectorAll('.nav-tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('section-'+name).classList.add('visible');
+  btn.classList.add('active');
+}
+
+// ── sidebar stats ─────────────────────────────────────────
+function buildSidebarStats(){
+  const m=D.meta;
+  const items=[
+    {v:m.total_shows.toLocaleString(),l:'Total Shows'},
+    {v:m.in_production.toLocaleString(),l:'In Production'},
+    {v:(m.total_episodes/1e6).toFixed(1)+'M',l:'Episodes'},
+    {v:m.unique_languages,l:'Languages'},
+    {v:m.unique_countries,l:'Countries'},
+    {v:m.avg_rating.toFixed(2)+'★',l:'Avg Rating'},
+    {v:m.year_range[0]+'–'+m.year_range[1],l:'Year Range'},
+  ];
+  document.getElementById('sidebar-stats').innerHTML=items.map(i=>
+    `<div class="sidebar-stat"><div class="ss-val">${i.v}</div><div class="ss-lbl">${i.l}</div></div>`
+  ).join('');
+}
+
+// ── panel switching ───────────────────────────────────────
+function selectInsight(n,el){
+  if(n===activeInsight)return;
+  document.querySelectorAll('.ipw').forEach((p,i)=>{
+    p.className='ipw';
+    if(i===n)p.classList.add('state-active');
+    else if(i<n)p.classList.add('state-left');
+    else p.classList.add('state-right');
+  });
+  document.querySelectorAll('.ii-item').forEach((e,i)=>e.classList.toggle('active',i===n));
+  activeInsight=n;
+  setTimeout(updateMainHeight,20);
+}
+function updateMainHeight(){
+  const a=document.querySelector('.ipw.state-active');
+  const m=document.getElementById('insight-main');
+  if(a&&m)m.style.minHeight=a.scrollHeight+'px';
+}
+
+// ── build all charts ──────────────────────────────────────
+function buildInsights(){
+  buildCancelTrend();
+  buildGenreChart();
+  buildCompanyCharts();
+  buildCreatorChart();
+  buildCountryChart();
+  buildExtremesCharts();
+}
+
+// 0. Cancel trend
+function buildCancelTrend(){
+  const ct=I.cancel_trend;
+  const yrs=Object.keys(ct).sort().filter(y=>+y>=1980);
+  const med=yrs.map(y=>ct[y].median);
+  const q1=yrs.map(y=>ct[y].q1);
+  const q3=yrs.map(y=>ct[y].q3);
+
+  new Chart(document.getElementById('chart-cancel-trend'),{
+    type:'line',
+    data:{labels:yrs,datasets:[
+      {data:q1,fill:'+1',backgroundColor:'rgba(44,46,37,0.07)',borderWidth:0,pointRadius:0,label:'band'},
+      {data:q3,fill:'-1',backgroundColor:'rgba(44,46,37,0.07)',borderWidth:0,pointRadius:0,label:'band'},
+      {data:med,borderColor:INK,backgroundColor:'transparent',borderWidth:2,tension:0.3,
+       pointRadius:4,pointHoverRadius:6,
+       pointBackgroundColor:yrs.map(y=>+y>=2013?'#b05858':INK),label:'Median'},
+    ]},
+    options:{
+      interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},tooltip:{
+        filter:i=>i.datasetIndex===2,
+        callbacks:{label:c=>` ${c.raw} days median · ${ct[c.label]?.n} shows`,
+                   afterBody:items=>{const y=items[0]?.label;return y&&ct[y]?['',`Q1: ${ct[y].q1}d   Q3: ${ct[y].q3}d`]:[];}},
+      }},
+      scales:{
+        x:{ticks:{maxTicksLimit:15,color:MID},grid:{color:FAINT}},
+        y:{title:{display:true,text:'Days until cancellation',color:MID,font:{size:10}},ticks:{color:MID},grid:{color:FAINT}},
+      },
+    },
+  });
+
+  const s=yrs.map(y=>({y,m:ct[y].median,n:ct[y].n})).sort((a,b)=>a.m-b.m);
+  document.getElementById('callouts-cancel').innerHTML=[
+    mkC('Fastest median year', s[0].y, `${s[0].m} days · ${s[0].n} cancellations`),
+    mkC('Slowest median year', s[s.length-1].y, `${s[s.length-1].m} days · ${s[s.length-1].n} cancellations`),
+    mkC('Streaming era begins', '2013', 'Netflix first original; median cancel time begins sharp decline'),
+    mkC('2020s median', '42 days', 'The floor — down from 304 days in 2000'),
+    mkC('Red dots', '2013–2024', 'Post-streaming era data points'),
+  ].join('');
+}
+
+// 1. Genre cards
+const GENRE_ICONS={
+  'Drama':'🎭','Comedy':'🎉','Documentary':'🎬','Animation':'✏️','Reality':'📡',
+  'Action & Adventure':'⚡','Crime':'🔍','Sci-Fi & Fantasy':'🚀','Family':'🏠',
+  'Mystery':'🔮','Kids':'🧸','Romance':'🌹','Horror':'💀','Talk':'🎙','Soap':'🌊',
+};
+
+function buildGenreChart(){
+  renderGenreCards('cancel_rate');
+  const gs=I.genre_stats;
+  const topCancel=Object.entries(gs).sort((a,b)=>b[1].cancel_rate-a[1].cancel_rate)[0];
+  const bottomCancel=Object.entries(gs).sort((a,b)=>a[1].cancel_rate-b[1].cancel_rate)[0];
+  const mostLive=Object.entries(gs).sort((a,b)=>b[1].live_pct-a[1].live_pct)[0];
+  const fastestCut=Object.entries(gs).filter(([,v])=>v.avg_cancel_days).sort((a,b)=>a[1].avg_cancel_days-b[1].avg_cancel_days)[0];
+  document.getElementById('callouts-genre').innerHTML=[
+    mkC('Highest cancel rate', topCancel[0], `${topCancel[1].cancel_rate}% of shows cancelled`),
+    mkC('Lowest cancel rate', bottomCancel[0], `${bottomCancel[1].cancel_rate}% of shows cancelled`),
+    mostLive?mkC('Most shows still live', mostLive[0], `${mostLive[1].live_pct}% in active production`):'',
+    fastestCut?mkC('Fastest to cut', fastestCut[0], `Median ${fastestCut[1].avg_cancel_days} days to cancellation`):'',
+  ].join('');
+}
+
+function sortGenreCards(metric, btn){
+  document.querySelectorAll('.metric-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderGenreCards(metric);
+  updateMainHeight();
+}
+
+function renderGenreCards(sortMetric){
+  const gs=I.genre_stats;
+  const sorted=Object.keys(gs).sort((a,b)=>{
+    const av=gs[a][sortMetric]||0, bv=gs[b][sortMetric]||0;
+    return sortMetric==='avg_cancel_days'||sortMetric==='live_pct'
+      ? (sortMetric==='live_pct' ? bv-av : av-bv)  // live_pct: most first; days: fastest first
+      : bv-av; // cancel_rate, total: most first
+  });
+  const grid=document.getElementById('genre-grid');
+  grid.innerHTML=sorted.map(g=>{
+    const d=gs[g];
+    const total=d.total;
+    const cutPct=d.cancel_rate||0;
+    const livePct=d.live_pct||0;
+    const endedPct=d.ended_pct||0;
+    // normalise to 100%
+    const rawSum=cutPct+livePct+endedPct;
+    const scale=rawSum>0?100/rawSum:1;
+    const cutW=(cutPct*scale).toFixed(1);
+    const endedW=(endedPct*scale).toFixed(1);
+    const liveW=(livePct*scale).toFixed(1);
+    const icon=GENRE_ICONS[g]||'📺';
+    const days=d.avg_cancel_days?`${d.avg_cancel_days}d avg to cut`:'';
+    const longest=(d.top_3_longest||[]);
+    const tooltipRows=longest.length
+      ? longest.map(s=>`<div class="gct-row"><span class="gct-show">${escHtml(s.n)}</span><span class="gct-yrs">${s.yrs}yr</span><span class="gct-status">${s.s==='Returning Series'?'live':s.s==='Ended'?'ended':''}</span></div>`).join('')
+      : '<div style="font-size:0.6rem;opacity:0.55">No data</div>';
+    return `<div class="genre-card">
+      <div class="gc-top">
+        <span class="gc-icon">${icon}</span>
+        <span class="gc-name">${escHtml(g)}</span>
+      </div>
+      <div class="gc-bar-wrap">
+        <div class="gc-bar">
+          <div class="gcb-seg gcb-cut"    style="width:${cutW}%"></div>
+          <div class="gcb-seg gcb-ended"  style="width:${endedW}%"></div>
+          <div class="gcb-seg gcb-live"   style="width:${liveW}%"></div>
+        </div>
+        <div class="gc-stats">
+          <span class="gc-stat-cut">${cutPct.toFixed(1)}% cut</span>
+          <span>${endedPct.toFixed(1)}% ended</span>
+          <span class="gc-stat-live">${livePct.toFixed(1)}% live</span>
+        </div>
+      </div>
+      <div class="gc-total">${total.toLocaleString()} shows${days?'  ·  '+days:''}</div>
+      <div class="gc-tooltip">
+        <div class="gct-header">Longest running in ${escHtml(g)}</div>
+        ${tooltipRows}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// 2. Company charts
+function buildCompanyCharts(){
+  const cs=I.company_stats;
+  const cos=Object.keys(cs).slice(0,10);
+  const topGenres=['Drama','Comedy','Documentary','Animation','Reality','Crime'];
+  const sortedByCancel=[...cos].sort((a,b)=>(cs[a].avg_cancel_days||9999)-(cs[b].avg_cancel_days||9999));
+
+  new Chart(document.getElementById('chart-company-genres'),{
+    type:'bar',
+    data:{
+      labels:cos.map(shortName),
+      datasets:topGenres.map((g,i)=>({
+        label:g,
+        data:cos.map(c=>{const t=Object.values(cs[c].top_genres).reduce((a,b)=>a+b,0);return t>0?Math.round((cs[c].top_genres[g]||0)/t*100):0;}),
+        backgroundColor:PAL[i],borderWidth:0,
+      })),
+    },
+    options:{
+      indexAxis:'y',
+      plugins:{legend:{display:true,position:'bottom',labels:{font:{size:10},boxWidth:11,padding:7,color:MID}},
+               tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${c.raw}%`}}},
+      scales:{x:{stacked:true,ticks:{color:MID,callback:v=>v+'%'},grid:{color:FAINT},max:100},
+              y:{stacked:true,ticks:{color:INK,font:{size:10}},grid:{color:'transparent'}}},
+    },
+  });
+
+  new Chart(document.getElementById('chart-company-cancel'),{
+    type:'bar',
+    data:{
+      labels:sortedByCancel.map(shortName),
+      datasets:[{data:sortedByCancel.map(c=>cs[c].avg_cancel_days||0),backgroundColor:sortedByCancel.map((_,i)=>PAL[i%PAL.length]),borderWidth:0}],
+    },
+    options:{
+      indexAxis:'y',
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.raw} days median to cancellation`}}},
+      scales:{x:{title:{display:true,text:'Median days',color:MID,font:{size:10}},ticks:{color:MID},grid:{color:FAINT}},
+              y:{ticks:{color:INK,font:{size:10}},grid:{color:'transparent'}}},
+    },
+  });
+
+  const fastest=sortedByCancel[0],slowest=sortedByCancel[sortedByCancel.length-1];
+  document.getElementById('callouts-company').innerHTML=[
+    mkC('Fastest canceller',shortName(fastest),`Median ${cs[fastest].avg_cancel_days}d · ${cs[fastest].cancelled} cancelled shows`),
+    mkC('Most patient',shortName(slowest),`Median ${cs[slowest].avg_cancel_days}d · ${cs[slowest].cancelled} cancelled shows`),
+    mkC('Most cancellations total',shortName(cos[0]),`${cs[cos[0]].cancelled} cancelled shows in dataset`),
+    mkC('Cancel rate (fastest)',shortName(fastest),`${cs[fastest].cancel_rate}% of all their shows cancelled`),
+  ].join('');
+}
+
+// 3. Creator — bubble + breakdowns + leaderboard
+function buildCreatorChart(){
+  const creators=I.creator_stats;
+  const ci=I.creator_insights||{};
+  const maxPop=Math.max(...creators.map(c=>c.avg_pop));
+  const bd=creators.map(c=>({
+    x:c.total,y:Math.round(c.cancel_rate*100),
+    r:Math.max(4,Math.sqrt(c.avg_pop/maxPop)*22),
+    creator:c,
+  }));
+
+  new Chart(document.getElementById('chart-creators'),{
+    type:'bubble',
+    data:{datasets:[{
+      data:bd,
+      backgroundColor:bd.map(d=>d.creator.cancel_rate<0.1?'rgba(90,158,90,0.55)':d.creator.cancel_rate>0.65?'rgba(176,88,88,0.55)':'rgba(44,46,37,0.32)'),
+      borderColor:bd.map(d=>d.creator.cancel_rate<0.1?'#4a8a4a':d.creator.cancel_rate>0.65?'#b05858':INK),borderWidth:1,
+    }]},
+    options:{
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>{
+        const c=ctx.raw.creator;
+        return[` ${c.name}`,` ${c.total} shows · ${Math.round(c.cancel_rate*100)}% cancelled`,
+               ` Genre: ${c.primary_genre||'—'}  Country: ${c.primary_country||'—'}`,
+               ` Career: ${c.decade_started||'?'} · ${c.career_span}yr span`];
+      }}}},
+      scales:{
+        x:{title:{display:true,text:'Total shows created',color:MID,font:{size:10}},ticks:{color:MID},grid:{color:FAINT},min:2},
+        y:{title:{display:true,text:'Cancellation rate (%)',color:MID,font:{size:10}},ticks:{color:MID,callback:v=>v+'%'},grid:{color:FAINT},min:-5,max:105},
+      },
+    },
+  });
+
+  const gData=Object.entries(ci.by_genre||{}).sort((a,b)=>a[1]-b[1]).slice(0,8);
+  if(gData.length) new Chart(document.getElementById('chart-creator-genre'),{
+    type:'bar',
+    data:{labels:gData.map(d=>d[0]),datasets:[{data:gData.map(d=>d[1]),backgroundColor:gData.map((_,i)=>PAL[i%PAL.length]),borderWidth:0}]},
+    options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.raw}% avg cancel rate`}}},
+      scales:{x:{ticks:{color:MID,callback:v=>v+'%'},grid:{color:FAINT}},y:{ticks:{color:INK,font:{size:10}},grid:{color:'transparent'}}},
+    },
+  });
+
+  const dData=Object.entries(ci.by_decade||{}).sort((a,b)=>a[0].localeCompare(b[0]));
+  if(dData.length) new Chart(document.getElementById('chart-creator-decade'),{
+    type:'bar',
+    data:{labels:dData.map(d=>d[0]),datasets:[{data:dData.map(d=>d[1]),backgroundColor:dData.map((_,i)=>PAL[i%PAL.length]),borderWidth:0}]},
+    options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.raw}% avg cancel rate`}}},
+      scales:{x:{ticks:{color:MID,callback:v=>v+'%'},grid:{color:FAINT}},y:{ticks:{color:INK,font:{size:10}},grid:{color:'transparent'}}},
+    },
+  });
+
+  const cData=Object.entries(ci.by_country||{}).filter(([k])=>k.length>2).sort((a,b)=>a[1]-b[1]).slice(0,8);
+  if(cData.length) new Chart(document.getElementById('chart-creator-country'),{
+    type:'bar',
+    data:{labels:cData.map(d=>d[0]),datasets:[{data:cData.map(d=>d[1]),backgroundColor:cData.map((_,i)=>PAL[i%PAL.length]),borderWidth:0}]},
+    options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.raw}% avg cancel rate`}}},
+      scales:{x:{ticks:{color:MID,callback:v=>v+'%'},grid:{color:FAINT}},y:{ticks:{color:INK,font:{size:10}},grid:{color:'transparent'}}},
+    },
+  });
+
+  const survivors=creators.filter(c=>c.total>=5).sort((a,b)=>a.cancel_rate-b.cancel_rate||b.total-a.total).slice(0,20);
+  const tbl=document.getElementById('creator-table');
+  tbl.innerHTML=`<thead><tr>
+    <th>#</th><th>Creator</th><th>Shows</th><th>Cancel rate</th>
+    <th>Primary genre</th><th>Main company</th><th>Country</th><th>Started</th><th>Career span</th>
+  </tr></thead><tbody>${survivors.map((c,i)=>{
+    const rClass=c.cancel_rate<0.05?'ct-rate-low':c.cancel_rate>0.3?'ct-rate-high':'ct-rate-mid';
+    const rPct=Math.round(c.cancel_rate*100);
+    const co=c.top_company?shortName(c.top_company).slice(0,22):'—';
+    return `<tr>
+      <td class="ct-rank">${i+1}</td>
+      <td style="font-weight:500">${escHtml(c.name)}</td>
+      <td>${c.total}</td>
+      <td class="ct-rate ${rClass}">${rPct}%<span class="ct-rate-bar" style="width:${Math.max(2,rPct)}px"></span></td>
+      <td>${escHtml(c.primary_genre||'—')}</td>
+      <td style="color:var(--mid);font-size:0.62rem">${escHtml(co)}</td>
+      <td style="color:var(--mid)">${escHtml(c.primary_country||'—')}</td>
+      <td style="color:var(--mid)">${c.career_start||'—'}</td>
+      <td style="color:var(--mid)">${c.career_span>0?c.career_span+'yr':'—'}</td>
+    </tr>`;
+  }).join('')}</tbody>`;
+
+  const safest=survivors.find(c=>c.cancel_rate===0&&c.total>=5);
+  const risky=creators.filter(c=>c.total>=5).sort((a,b)=>b.cancel_rate-a.cancel_rate)[0];
+  const byDecade=Object.entries(ci.by_decade||{}).sort((a,b)=>a[1]-b[1]);
+  document.getElementById('callouts-creator').innerHTML=[
+    safest?mkC('Best survival record',safest.name,`${safest.total} shows · 0% ever cancelled`):'',
+    risky?mkC('Highest cancel rate',risky.name,`${Math.round(risky.cancel_rate*100)}% of ${risky.total} shows cancelled`):'',
+    byDecade.length?mkC('Safest decade to start','Creators from the '+byDecade[0][0],`avg ${byDecade[0][1]}% cancel rate`):'',
+    mkC('Colour key','Green < 10% · Red > 65%','Bubble size = avg show popularity'),
+  ].join('');
+}
+
+// 4. Country scatter
+function buildCountryChart(){
+  const cc=I.country_cancel;
+  const CNAMES={US:'United States',GB:'United Kingdom',JP:'Japan',CN:'China',DE:'Germany',KR:'South Korea',CA:'Canada',FR:'France',AU:'Australia',NL:'Netherlands',IT:'Italy',ES:'Spain',BR:'Brazil',IN:'India',SE:'Sweden',DK:'Denmark',NO:'Norway',MX:'Mexico',RU:'Russia',TR:'Turkey',PL:'Poland'};
+  const pts=cc.map((c,i)=>({x:Math.log10(c.population),y:c.median_cancel_days,r:Math.max(5,Math.sqrt(c.cancelled)*1.5),country:c}));
+
+  new Chart(document.getElementById('chart-country'),{
+    type:'bubble',
+    data:{datasets:[{
+      data:pts,
+      backgroundColor:pts.map((_,i)=>{const h=PAL[i%PAL.length];const r=parseInt(h.slice(1,3),16),g=parseInt(h.slice(3,5),16),b=parseInt(h.slice(5,7),16);return`rgba(${r},${g},${b},0.55)`;}),
+      borderColor:pts.map((_,i)=>PAL[i%PAL.length]),borderWidth:1.5,
+    }]},
+    plugins:[{id:'lbl',afterDatasetsDraw(chart){
+      const ctx2=chart.ctx;
+      chart.data.datasets[0].data.forEach((pt,i)=>{
+        const el=chart.getDatasetMeta(0).data[i];if(!el)return;
+        ctx2.save();ctx2.font="9px 'DM Mono',monospace";ctx2.fillStyle=INK;ctx2.textAlign='center';
+        ctx2.fillText(pt.country.code,el.x,el.y-el.options.radius-4);ctx2.restore();
+      });
+    }}],
+    options:{
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>{const c=ctx.raw.country;return[` ${CNAMES[c.code]||c.code}`,` Pop: ${(c.population/1e6).toFixed(0)}M`,` Median cancel: ${c.median_cancel_days} days`,` ${c.cancelled} cancelled shows · ${c.cancel_rate}% rate`];}}}},
+      scales:{
+        x:{title:{display:true,text:'Population (log scale)',color:MID,font:{size:10}},grid:{color:FAINT},
+           ticks:{color:MID,callback:v=>{const p=Math.pow(10,v);return p>=1e9?(p/1e9).toFixed(1)+'B':p>=1e6?(p/1e6).toFixed(0)+'M':(p/1e3).toFixed(0)+'K';}}},
+        y:{title:{display:true,text:'Median days to cancellation',color:MID,font:{size:10}},ticks:{color:MID},grid:{color:FAINT}},
+      },
+    },
+  });
+}
+
+// 5. Extremes — bar charts
+function buildExtremesCharts(){
+  const shame=I.fastest_ever.slice(0,15);
+  const fame=I.longest_running.slice(0,15);
+  const trunc=s=>s.length>24?s.slice(0,23)+'…':s;
+
+  new Chart(document.getElementById('chart-shame'),{
+    type:'bar',
+    data:{
+      labels:shame.map(s=>trunc(s.n)),
+      datasets:[{data:shame.map(s=>s.days),backgroundColor:'rgba(176,88,88,0.75)',borderColor:'#b05858',borderWidth:1}],
+    },
+    options:{
+      indexAxis:'y',
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.raw} days until cancelled`}}},
+      scales:{
+        x:{title:{display:true,text:'Days running',color:MID,font:{size:10}},ticks:{color:MID},grid:{color:FAINT}},
+        y:{ticks:{color:INK,font:{size:10}},grid:{color:'transparent'}},
+      },
+    },
+  });
+
+  new Chart(document.getElementById('chart-fame'),{
+    type:'bar',
+    data:{
+      labels:fame.map(s=>trunc(s.n)),
+      datasets:[{data:fame.map(s=>parseFloat((s.days/365).toFixed(1))),backgroundColor:'rgba(74,138,74,0.65)',borderColor:'#4a8a4a',borderWidth:1}],
+    },
+    options:{
+      indexAxis:'y',
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.raw} years on air`}}},
+      scales:{
+        x:{title:{display:true,text:'Years on air',color:MID,font:{size:10}},ticks:{color:MID},grid:{color:FAINT}},
+        y:{ticks:{color:INK,font:{size:10}},grid:{color:'transparent'}},
+      },
+    },
+  });
+}
+
+// ── Browse ────────────────────────────────────────────────
+function buildBrowse(){
+  const ag=new Set();
+  D.top_popular.forEach(s=>s.genres.forEach(g=>ag.add(g)));
+  const gs=document.getElementById('filter-genre');
+  [...ag].sort().forEach(g=>{const o=document.createElement('option');o.value=g;o.textContent=g;gs.appendChild(o);});
+  const ls=document.getElementById('filter-lang');
+  Object.entries(D.languages).forEach(([c,info])=>{const o=document.createElement('option');o.value=c;o.textContent=`${info.name} (${c})`;ls.appendChild(o);});
+  browseFiltered=D.top_popular;browseShown=0;renderBrowse(true);
+}
+function applyFilters(){
+  const q=document.getElementById('search-input').value.trim().toLowerCase();
+  const genre=document.getElementById('filter-genre').value;
+  const status=document.getElementById('filter-status').value;
+  const lang=document.getElementById('filter-lang').value;
+  browseFiltered=D.top_popular.filter(s=>{
+    if(q&&!s.name.toLowerCase().includes(q)&&!(s.original_name||'').toLowerCase().includes(q))return false;
+    if(genre&&!s.genres.includes(genre))return false;
+    if(status&&s.status!==status)return false;
+    if(lang&&s.original_language!==lang)return false;
+    return true;
+  });
+  browseShown=0;renderBrowse(true);
+}
+function renderBrowse(reset){
+  const grid=document.getElementById('grid-browse');
+  const slice=browseFiltered.slice(browseShown,browseShown+PAGE_SIZE);
+  const html=slice.map((s,i)=>showCard(s,browseShown+i)).join('');
+  if(reset)grid.innerHTML=html;else grid.insertAdjacentHTML('beforeend',html);
+  browseShown+=PAGE_SIZE;
+  document.getElementById('result-count').textContent=browseFiltered.length.toLocaleString()+' results';
+  document.getElementById('load-more-btn').classList.toggle('hidden',browseShown>=browseFiltered.length);
+}
+function loadMore(){renderBrowse(false);}
+function showCard(show,idx){
+  const dog=DOGS[idx%DOGS.length];
+  const poster=show.poster_path
+    ?`<img src="${show.poster_path}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=no-poster><img src=\\'${dog}\\'><span>no poster</span></div>'">`
+    :`<div class="no-poster"><img src="${dog}"><span>no poster</span></div>`;
+  const live=show.in_production?`<span class="card-badge live">live</span>`:'';
+  const year=show.first_air_date?show.first_air_date.slice(0,4):'';
+  const rating=show.vote_average>0?`<span class="card-rating">★ ${show.vote_average.toFixed(1)}</span>`:'';
+  const payload=JSON.stringify(show).replace(/&/g,'\\u0026').replace(/</g,'\\u003c').replace(/>/g,'\\u003e').replace(/"/g,'&quot;');
+  return `<div class="show-card" onclick="openModal(${payload})">
+    ${poster}
+    <div class="card-info"><div class="card-name">${escHtml(show.name)}</div>
+    <div class="card-meta">${rating}<span>${year}</span>${live}</div></div>
+  </div>`;
+}
+
+// ── Glossary ──────────────────────────────────────────────
+const FIELDS=[
+  {name:'id',desc:'Unique identifier on TMDB.',example:'1399'},
+  {name:'name',desc:'English title of the TV series.',example:'Game of Thrones'},
+  {name:'original_name',desc:'Title in its native language.',example:'권력'},
+  {name:'overview',desc:'Brief plot summary.',example:'Seven noble families fight…'},
+  {name:'tagline',desc:'Memorable catchphrase for the series.',example:'Winter Is Coming'},
+  {name:'in_production',desc:'Whether actively in production (true/false).',example:'true'},
+  {name:'status',desc:'Ended, Returning Series, Canceled, In Production, Planned, or Pilot.',example:'Ended'},
+  {name:'original_language',desc:'ISO 639-1 language code.',example:'en, ja, ko'},
+  {name:'origin_country',desc:'ISO 3166-1 country code(s).',example:'US, GB, JP'},
+  {name:'created_by',desc:'Creator name(s).',example:'David Benioff, D.B. Weiss'},
+  {name:'first_air_date',desc:'Date of first episode (YYYY-MM-DD).',example:'2011-04-17'},
+  {name:'last_air_date',desc:'Date of most recent episode (YYYY-MM-DD).',example:'2019-05-19'},
+  {name:'number_of_episodes',desc:'Total episodes across all seasons.',example:'73'},
+  {name:'number_of_seasons',desc:'Total seasons produced.',example:'8'},
+  {name:'production_companies',desc:'Companies that produced the series.',example:'HBO'},
+  {name:'poster_path',desc:'TMDB poster path. Prefix with https://www.themoviedb.org/t/p/w600_and_h900_bestv2/',example:'/u3bZg….jpg'},
+  {name:'genres',desc:'Genre categories: Drama, Comedy, Documentary, Animation, Reality, Crime, Sci-Fi & Fantasy…',example:'Drama, Crime'},
+  {name:'vote_average',desc:'Average viewer rating, 0–10.',example:'8.4'},
+  {name:'vote_count',desc:'Total votes cast.',example:'22,491'},
+  {name:'popularity',desc:'TMDB daily popularity score based on views, votes, and watchlists.',example:'369.2'},
+];
+function buildGlossary(){
+  document.getElementById('glossary-grid').innerHTML=FIELDS.map(f=>
+    `<div class="glossary-item"><div class="field-name">${f.name}</div><div class="field-desc">${f.desc}</div><div class="field-example">e.g. ${escHtml(f.example)}</div></div>`
+  ).join('');
+}
+
+// ── Modal ─────────────────────────────────────────────────
+function openModal(show){
+  const dog=DOGS[0];
+  const poster=show.poster_path?`<img src="${show.poster_path}" onerror="this.outerHTML='<div class=no-poster-lg><img src=\\'${dog}\\'></div>'">`:`<div class="no-poster-lg"><img src="${dog}"></div>`;
+  const badges=[show.in_production?`<span class="badge badge-live">● live</span>`:`<span class="badge">${escHtml(show.status||'')}</span>`,...(show.genres||[]).map(g=>`<span class="badge badge-genre">${escHtml(g)}</span>`)].join('');
+  const orig=(show.original_name&&show.original_name!==show.name)?`<div class="modal-original">${escHtml(show.original_name)}</div>`:'';
+  const tag=show.tagline?`<div class="modal-tagline">"${escHtml(show.tagline)}"</div>`:'';
+  const rat=show.vote_average>0?`<div class="modal-rating">★ ${show.vote_average.toFixed(1)} <span style="font-size:.6rem;color:var(--mid)">(${show.vote_count.toLocaleString()} votes)</span></div>`:'';
+  document.getElementById('modal-header').innerHTML=`${poster}<div style="flex:1;min-width:0"><div class="modal-title">${escHtml(show.name)}</div>${orig}<div class="modal-badges">${badges}</div>${tag}${rat}</div>`;
+  const det=[['First Aired',show.first_air_date||'—'],['Last Aired',show.last_air_date||'—'],['Episodes',show.number_of_episodes>0?show.number_of_episodes.toLocaleString():'—'],['Seasons',show.number_of_seasons>0?show.number_of_seasons:'—'],['Language',show.original_language||'—'],['Country',(show.origin_country||[]).join(', ')||'—'],['Popularity',show.popularity>0?show.popularity.toFixed(1):'—'],['TMDB ID',show.id||'—']];
+  document.getElementById('modal-body').innerHTML=(show.overview?`<p>${escHtml(show.overview)}${show.overview.length>=300?'…':''}</p>`:'')+`<div class="detail-grid">${det.map(([l,v])=>`<div class="detail-row"><div class="dr-label">${l}</div><div class="dr-value">${escHtml(String(v))}</div></div>`).join('')}</div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeModal(e){if(e.target===document.getElementById('modal-overlay'))closeModalDirect();}
+function closeModalDirect(){document.getElementById('modal-overlay').classList.remove('open');document.body.style.overflow='';}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModalDirect();});
+
+// ── utils ─────────────────────────────────────────────────
+function escHtml(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function mkC(label,val,sub){return `<div class="callout"><div class="co-label">${label}</div><div class="co-val">${escHtml(String(val))}</div><div class="co-sub">${escHtml(sub)}</div></div>`;}
+function shortName(s){return s.replace(/ Television/,'').replace(/ Studios?/,'').replace(/ Pictures/,'').replace(/ Productions?/,'').replace(/ Entertainment/,'');}
+</script>
+</body>
+</html>
