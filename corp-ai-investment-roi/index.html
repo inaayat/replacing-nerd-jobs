@@ -82,6 +82,47 @@
 .country-group-names { font-size: 0.68rem; font-weight: 500; color: var(--ink); margin-bottom: 4px; }
 .country-group-why { font-size: 0.6rem; color: var(--mid); line-height: 1.5; }
 
+/* ── ROI Calculator ── */
+.calc-panel { border: var(--border); padding: 16px 18px; margin-bottom: 20px; }
+.calc-head { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--mid); margin-bottom: 14px; padding-bottom: 8px; border-bottom: var(--border); }
+.calc-controls { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
+.calc-field { display: flex; flex-direction: column; gap: 5px; }
+.calc-field label { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 1px; color: var(--mid); }
+.calc-input-wrap { display: flex; align-items: center; gap: 4px; border: var(--border); padding: 6px 10px; }
+.calc-input-wrap span { font-size: 0.75rem; color: var(--mid); }
+.calc-input-wrap input, .calc-input-wrap select { font-family: "DM Mono", monospace; font-size: 0.78rem; color: var(--ink); background: transparent; border: none; outline: none; }
+.calc-input-wrap input { width: 130px; }
+.calc-input-wrap select { cursor: pointer; }
+.calc-results { display: grid; grid-template-columns: repeat(4, 1fr); border: var(--border); border-top: none; margin-top: 14px; }
+.calc-result { padding: 10px 14px; border-right: var(--border); }
+.calc-result:last-child { border-right: none; }
+.calc-result-val { font-size: 1.05rem; font-weight: 500; color: var(--ink); }
+.calc-result-label { font-size: 0.57rem; text-transform: uppercase; letter-spacing: 1px; color: var(--mid); margin-top: 3px; }
+.calc-result.best { background: var(--faint); }
+.calc-note { font-size: 0.6rem; color: var(--mid); margin-top: 10px; font-style: italic; }
+@media (max-width: 900px) { .calc-results { grid-template-columns: 1fr 1fr; } }
+/* ── Industry filter chips ── */
+.filter-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.filter-row-label { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 1px; color: var(--mid); margin-right: 2px; flex-shrink: 0; }
+.ind-chip { font-family: "DM Mono", monospace; font-size: 0.6rem; padding: 3px 9px; border: var(--border); cursor: pointer; background: transparent; color: var(--mid); transition: background 0.12s, color 0.12s; }
+.ind-chip:hover { color: var(--ink); border-color: var(--ink); }
+.ind-chip.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+/* ── Year range buttons ── */
+.year-btns { display: flex; width: fit-content; border: var(--border); margin-bottom: 12px; }
+.year-btn { font-family: "DM Mono", monospace; font-size: 0.6rem; padding: 5px 12px; border-right: var(--border); cursor: pointer; background: transparent; color: var(--mid); transition: background 0.12s, color 0.12s; }
+.year-btn:last-child { border-right: none; }
+.year-btn:hover { background: var(--hover); color: var(--ink); }
+.year-btn.active { background: var(--ink); color: var(--bg); }
+/* ── Country click card ── */
+.country-click-card { border: var(--border); padding: 12px 14px; margin-top: 12px; display: none; }
+.country-click-card.visible { display: block; }
+.country-click-name { font-size: 0.85rem; font-weight: 500; color: var(--ink); margin-bottom: 8px; }
+.country-click-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 0; border: var(--border); }
+.country-click-stat { padding: 8px 12px; border-right: var(--border); }
+.country-click-stat:last-child { border-right: none; }
+.country-click-stat-val { font-size: 0.9rem; font-weight: 500; color: var(--ink); }
+.country-click-stat-label { font-size: 0.57rem; text-transform: uppercase; letter-spacing: 1px; color: var(--mid); margin-top: 2px; }
+
 /* ── CEO quotes panel ── */
 .ceo-grid { display: grid; grid-template-columns: repeat(3, 1fr); border: var(--border); margin-bottom: 16px; }
 .ceo-card { border-right: var(--border); padding: 16px 14px 14px; display: flex; flex-direction: column; gap: 10px; }
@@ -395,6 +436,34 @@ details.ceo-item:not([open]) .ceo-sum-toggle::before { content: '+'; }
     </div>
   </div>
 
+  <!-- Calculator -->
+  <div class="calc-panel">
+    <div class="calc-head">run the numbers — what would your company expect?</div>
+    <div class="calc-controls">
+      <div class="calc-field">
+        <label>your AI investment</label>
+        <div class="calc-input-wrap"><span>$</span><input type="number" id="calcAmount" value="1000000" min="1000" step="50000"></div>
+      </div>
+      <div class="calc-field">
+        <label>your industry</label>
+        <div class="calc-input-wrap"><select id="calcIndustry"></select></div>
+      </div>
+    </div>
+    <div class="calc-results" id="calcResults">
+      <div class="calc-result"><div class="calc-result-val" id="crSavings">—</div><div class="calc-result-label">Expected Cost Savings</div></div>
+      <div class="calc-result"><div class="calc-result-val" id="crRevenue">—</div><div class="calc-result-label">Expected Revenue Impact</div></div>
+      <div class="calc-result best"><div class="calc-result-val" id="crTotal">—</div><div class="calc-result-label">Total Return</div></div>
+      <div class="calc-result best"><div class="calc-result-val" id="crROI">—</div><div class="calc-result-label">ROI</div></div>
+    </div>
+    <div class="calc-note" id="calcNote"></div>
+  </div>
+
+  <!-- Industry filter -->
+  <div class="filter-row" id="filterRow">
+    <span class="filter-row-label">highlight industry:</span>
+    <button class="ind-chip active" data-ind="all">all</button>
+  </div>
+
   <details class="collapsible">
   <summary>for every $1 you put in, how much do you get back?</summary>
   <div class="chart-grid-2">
@@ -450,8 +519,16 @@ details.ceo-item:not([open]) .ceo-sum-toggle::before { content: '+'; }
   <details class="collapsible">
   <summary>the post-covid money printer goes brrr</summary>
   <div class="chart-panel" style="margin-bottom:16px">
+    <div style="padding:10px 14px 0">
+      <div class="year-btns" id="yearBtns">
+        <button class="year-btn active" data-range="all">all years</button>
+        <button class="year-btn" data-range="precovid">pre-covid (2015–19)</button>
+        <button class="year-btn" data-range="covid">covid era (2020–22)</button>
+        <button class="year-btn" data-range="postgpt">post-chatgpt (2023+)</button>
+      </div>
+    </div>
     <div class="chart-panel-head">
-      <h2>Investment &amp; Returns Trend, 2015–2035</h2>
+      <h2>Investment &amp; Returns Trend</h2>
       <span class="sub">avg per company ($M) — notice revenue impact overtakes cost savings around 2022</span>
     </div>
     <div class="chart-panel-body">
@@ -470,6 +547,14 @@ details.ceo-item:not([open]) .ceo-sum-toggle::before { content: '+'; }
       </div>
       <div class="chart-panel-body">
         <canvas id="chartCountry" height="280"></canvas>
+        <div class="country-click-card" id="countryCard">
+          <div class="country-click-name" id="countryCardName"></div>
+          <div class="country-click-stats">
+            <div class="country-click-stat"><div class="country-click-stat-val" id="ccROI"></div><div class="country-click-stat-label">ROI</div></div>
+            <div class="country-click-stat"><div class="country-click-stat-val" id="ccInv"></div><div class="country-click-stat-label">Avg Investment</div></div>
+            <div class="country-click-stat"><div class="country-click-stat-val" id="ccAdoption"></div><div class="country-click-stat-label">Avg AI Adoption</div></div>
+          </div>
+        </div>
       </div>
     </div>
     <div class="explainer-panel">
@@ -511,217 +596,212 @@ details.ceo-item:not([open]) .ceo-sum-toggle::before { content: '+'; }
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 const IND = [{"name":"Technology","count":35994,"avg_inv":6488823,"avg_savings":4061684,"avg_revenue":5527864,"avg_prod":0.3847,"avg_maturity":6.25,"roi":147.8},{"name":"Retail","count":20048,"avg_inv":2451390,"avg_savings":1005702,"avg_revenue":1285910,"avg_prod":0.3677,"avg_maturity":6.27,"roi":93.5},{"name":"Financial Services","count":27927,"avg_inv":8206724,"avg_savings":3383839,"avg_revenue":3863966,"avg_prod":0.4063,"avg_maturity":6.28,"roi":88.3},{"name":"Telecom","count":14128,"avg_inv":4875045,"avg_savings":1917114,"avg_revenue":2264975,"avg_prod":0.3855,"avg_maturity":6.27,"roi":85.8},{"name":"Logistics","count":16021,"avg_inv":3270042,"avg_savings":1297772,"avg_revenue":1358749,"avg_prod":0.4334,"avg_maturity":6.26,"roi":81.2},{"name":"Energy","count":14080,"avg_inv":5783329,"avg_savings":2130234,"avg_revenue":2267110,"avg_prod":0.4266,"avg_maturity":6.3,"roi":76.0},{"name":"Healthcare","count":24026,"avg_inv":4921771,"avg_savings":1578794,"avg_revenue":2059374,"avg_prod":0.3493,"avg_maturity":6.28,"roi":73.9},{"name":"Manufacturing","count":29884,"avg_inv":4075209,"avg_savings":1461593,"avg_revenue":1476649,"avg_prod":0.4425,"avg_maturity":6.28,"roi":72.1},{"name":"Agriculture","count":9934,"avg_inv":1315642,"avg_savings":406225,"avg_revenue":445679,"avg_prod":0.4064,"avg_maturity":6.29,"roi":64.8},{"name":"Education","count":7958,"avg_inv":806923,"avg_savings":176984,"avg_revenue":253324,"avg_prod":0.3071,"avg_maturity":6.22,"roi":53.3}];
-
 const CTY = [{"name":"Sweden","avg_inv":4741028,"avg_savings":2088903,"avg_revenue":2612580,"avg_adoption":0.529,"roi":99.2},{"name":"United States","avg_inv":6085048,"avg_savings":2701534,"avg_revenue":3275057,"avg_adoption":0.5469,"roi":98.2},{"name":"United Kingdom","avg_inv":4818030,"avg_savings":2110285,"avg_revenue":2621816,"avg_adoption":0.5342,"roi":98.2},{"name":"Singapore","avg_inv":5226936,"avg_savings":2291830,"avg_revenue":2804311,"avg_adoption":0.5354,"roi":97.5},{"name":"China","avg_inv":5182407,"avg_savings":2271083,"avg_revenue":2767177,"avg_adoption":0.5293,"roi":97.2},{"name":"South Korea","avg_inv":4299823,"avg_savings":1868957,"avg_revenue":2287404,"avg_adoption":0.5168,"roi":96.7},{"name":"France","avg_inv":4349165,"avg_savings":1873984,"avg_revenue":2313178,"avg_adoption":0.5157,"roi":96.3},{"name":"UAE","avg_inv":3723832,"avg_savings":1597924,"avg_revenue":1985693,"avg_adoption":0.5036,"roi":96.2},{"name":"Canada","avg_inv":4781970,"avg_savings":2076580,"avg_revenue":2516732,"avg_adoption":0.5305,"roi":96.1},{"name":"Australia","avg_inv":4264635,"avg_savings":1847461,"avg_revenue":2230041,"avg_adoption":0.5182,"roi":95.6},{"name":"Germany","avg_inv":4709741,"avg_savings":2038145,"avg_revenue":2449625,"avg_adoption":0.522,"roi":95.3},{"name":"Netherlands","avg_inv":4235845,"avg_savings":1842426,"avg_revenue":2192754,"avg_adoption":0.5166,"roi":95.3},{"name":"Japan","avg_inv":4309015,"avg_savings":1844974,"avg_revenue":2249944,"avg_adoption":0.5163,"roi":95.0},{"name":"India","avg_inv":3083856,"avg_savings":1321681,"avg_revenue":1601002,"avg_adoption":0.511,"roi":94.8},{"name":"Brazil","avg_inv":2634353,"avg_savings":1083810,"avg_revenue":1329623,"avg_adoption":0.4874,"roi":91.6}];
+const YR = [{"year":2015,"avg_inv":2499624,"avg_savings":709649,"avg_revenue":672432,"avg_adoption":0.1915},{"year":2016,"avg_inv":2707529,"avg_savings":797693,"avg_revenue":786198,"avg_adoption":0.2201},{"year":2017,"avg_inv":2948807,"avg_savings":912538,"avg_revenue":962200,"avg_adoption":0.2523},{"year":2018,"avg_inv":3195548,"avg_savings":1032260,"avg_revenue":1088796,"avg_adoption":0.288},{"year":2019,"avg_inv":3423513,"avg_savings":1138562,"avg_revenue":1220449,"avg_adoption":0.3204},{"year":2020,"avg_inv":3675163,"avg_savings":1284059,"avg_revenue":1387452,"avg_adoption":0.3539},{"year":2021,"avg_inv":3903267,"avg_savings":1419756,"avg_revenue":1594469,"avg_adoption":0.3909},{"year":2022,"avg_inv":4156508,"avg_savings":1554397,"avg_revenue":1758137,"avg_adoption":0.4265},{"year":2023,"avg_inv":4368365,"avg_savings":1686376,"avg_revenue":1926351,"avg_adoption":0.4559},{"year":2024,"avg_inv":4591793,"avg_savings":1847108,"avg_revenue":2174107,"avg_adoption":0.495},{"year":2025,"avg_inv":4875927,"avg_savings":2023856,"avg_revenue":2400838,"avg_adoption":0.5295},{"year":2026,"avg_inv":5183919,"avg_savings":2226459,"avg_revenue":2678843,"avg_adoption":0.5666},{"year":2027,"avg_inv":5397523,"avg_savings":2375619,"avg_revenue":2897269,"avg_adoption":0.5978},{"year":2028,"avg_inv":5547354,"avg_savings":2502892,"avg_revenue":3055883,"avg_adoption":0.6311},{"year":2029,"avg_inv":5880239,"avg_savings":2752543,"avg_revenue":3368284,"avg_adoption":0.6689},{"year":2030,"avg_inv":6092121,"avg_savings":2951280,"avg_revenue":3676806,"avg_adoption":0.7007},{"year":2031,"avg_inv":6332523,"avg_savings":3122594,"avg_revenue":3946910,"avg_adoption":0.7377},{"year":2032,"avg_inv":6534751,"avg_savings":3314688,"avg_revenue":4248469,"avg_adoption":0.7689},{"year":2033,"avg_inv":6820266,"avg_savings":3534900,"avg_revenue":4675221,"avg_adoption":0.8021},{"year":2034,"avg_inv":7020970,"avg_savings":3704571,"avg_revenue":4931008,"avg_adoption":0.8337},{"year":2035,"avg_inv":7168347,"avg_savings":3846261,"avg_revenue":5022530,"avg_adoption":0.8578}];
 
-const YR = [{"year":2015,"avg_inv":2499624,"avg_savings":709649,"avg_revenue":672432,"avg_adoption":0.1915,"avg_prod":0.1512},{"year":2016,"avg_inv":2707529,"avg_savings":797693,"avg_revenue":786198,"avg_adoption":0.2201,"avg_prod":0.1727},{"year":2017,"avg_inv":2948807,"avg_savings":912538,"avg_revenue":962200,"avg_adoption":0.2523,"avg_prod":0.1961},{"year":2018,"avg_inv":3195548,"avg_savings":1032260,"avg_revenue":1088796,"avg_adoption":0.288,"avg_prod":0.2211},{"year":2019,"avg_inv":3423513,"avg_savings":1138562,"avg_revenue":1220449,"avg_adoption":0.3204,"avg_prod":0.2445},{"year":2020,"avg_inv":3675163,"avg_savings":1284059,"avg_revenue":1387452,"avg_adoption":0.3539,"avg_prod":0.2686},{"year":2021,"avg_inv":3903267,"avg_savings":1419756,"avg_revenue":1594469,"avg_adoption":0.3909,"avg_prod":0.2948},{"year":2022,"avg_inv":4156508,"avg_savings":1554397,"avg_revenue":1758137,"avg_adoption":0.4265,"avg_prod":0.3218},{"year":2023,"avg_inv":4368365,"avg_savings":1686376,"avg_revenue":1926351,"avg_adoption":0.4559,"avg_prod":0.3426},{"year":2024,"avg_inv":4591793,"avg_savings":1847108,"avg_revenue":2174107,"avg_adoption":0.495,"avg_prod":0.371},{"year":2025,"avg_inv":4875927,"avg_savings":2023856,"avg_revenue":2400838,"avg_adoption":0.5295,"avg_prod":0.3963},{"year":2026,"avg_inv":5183919,"avg_savings":2226459,"avg_revenue":2678843,"avg_adoption":0.5666,"avg_prod":0.4231},{"year":2027,"avg_inv":5397523,"avg_savings":2375619,"avg_revenue":2897269,"avg_adoption":0.5978,"avg_prod":0.4475},{"year":2028,"avg_inv":5547354,"avg_savings":2502892,"avg_revenue":3055883,"avg_adoption":0.6311,"avg_prod":0.4699},{"year":2029,"avg_inv":5880239,"avg_savings":2752543,"avg_revenue":3368284,"avg_adoption":0.6689,"avg_prod":0.4991},{"year":2030,"avg_inv":6092121,"avg_savings":2951280,"avg_revenue":3676806,"avg_adoption":0.7007,"avg_prod":0.521},{"year":2031,"avg_inv":6332523,"avg_savings":3122594,"avg_revenue":3946910,"avg_adoption":0.7377,"avg_prod":0.5484},{"year":2032,"avg_inv":6534751,"avg_savings":3314688,"avg_revenue":4248469,"avg_adoption":0.7689,"avg_prod":0.5707},{"year":2033,"avg_inv":6820266,"avg_savings":3534900,"avg_revenue":4675221,"avg_adoption":0.8021,"avg_prod":0.5943},{"year":2034,"avg_inv":7020970,"avg_savings":3704571,"avg_revenue":4931008,"avg_adoption":0.8337,"avg_prod":0.6158},{"year":2035,"avg_inv":7168347,"avg_savings":3846261,"avg_revenue":5022530,"avg_adoption":0.8578,"avg_prod":0.6351}];
+const INK='#2c2e25', MID='#595b4a', BG='#fff8dc', FAINT='rgba(44,46,37,0.1)';
+const IND_COLORS={'Technology':'#7bafd4','Financial Services':'#8bc4a0','Retail':'#e8b87a','Telecom':'#c4a0b8','Logistics':'#a0b8c4','Energy':'#d4a87c','Healthcare':'#b8a0c4','Manufacturing':'#a8c4b4','Agriculture':'#c4c49e','Education':'#c4b0a0'};
+const TICK = { font:{family:'DM Mono',size:10}, color:MID };
+const GRID = { color:FAINT };
+const TTIP = { bodyFont:{family:'DM Mono',size:11}, titleFont:{family:'DM Mono',size:11} };
+function fmtM(v){return '$'+(v/1e6).toFixed(1)+'M';}
+function fmtK(v){return v>=1e6?'$'+(v/1e6).toFixed(1)+'M':v>=1e3?'$'+(v/1e3).toFixed(0)+'K':'$'+v.toFixed(0);}
 
-const IND_TREND = {"Agriculture":[0.1831,0.227,0.2461,0.2907,0.3345,0.3647,0.399,0.4221,0.4533,0.4917,0.5376,0.5694,0.5877,0.6276,0.6701,0.7028,0.7359,0.7679,0.8076,0.8519,0.855],"Education":[0.1941,0.2181,0.2393,0.2838,0.3193,0.3634,0.3911,0.4303,0.4529,0.4849,0.5334,0.5621,0.6031,0.6316,0.6613,0.701,0.7428,0.7612,0.7916,0.8381,0.8648],"Energy":[0.2001,0.2205,0.25,0.2895,0.3196,0.3488,0.3835,0.4364,0.4515,0.4913,0.5262,0.5639,0.602,0.6367,0.676,0.7064,0.7404,0.7709,0.8038,0.8312,0.8651],"Financial Services":[0.1952,0.223,0.2543,0.287,0.3248,0.352,0.3942,0.4296,0.451,0.4949,0.5296,0.5688,0.5974,0.6302,0.6639,0.7008,0.735,0.7646,0.8059,0.832,0.8545],"Healthcare":[0.191,0.2126,0.2557,0.289,0.3143,0.3502,0.3856,0.4248,0.457,0.4992,0.5237,0.5687,0.6003,0.6295,0.6738,0.6972,0.7433,0.7668,0.8007,0.8356,0.8598],"Logistics":[0.1952,0.2164,0.251,0.2873,0.3235,0.3562,0.3915,0.4258,0.4573,0.4919,0.5319,0.5577,0.5984,0.6319,0.6698,0.7053,0.7322,0.7701,0.8196,0.8329,0.853],"Manufacturing":[0.1858,0.2216,0.2463,0.2872,0.3242,0.3528,0.3854,0.4254,0.4572,0.4954,0.5287,0.5681,0.5971,0.6274,0.6647,0.6981,0.7418,0.7742,0.7968,0.8315,0.8602],"Retail":[0.1941,0.2207,0.2586,0.2868,0.316,0.3534,0.3936,0.4296,0.4615,0.4947,0.5313,0.5623,0.6027,0.6345,0.6754,0.6995,0.7269,0.7704,0.7972,0.8398,0.8605],"Technology":[0.1947,0.2206,0.2519,0.2903,0.3162,0.3538,0.3957,0.4227,0.4579,0.4978,0.5312,0.5665,0.5995,0.6286,0.6708,0.7016,0.7401,0.7664,0.799,0.8294,0.8546],"Telecom":[0.1763,0.2216,0.2634,0.2853,0.3195,0.3567,0.3898,0.4234,0.4553,0.495,0.5265,0.5746,0.5844,0.64,0.6615,0.699,0.7355,0.7746,0.8031,0.8268,0.8559]};
+// ── Active industry state ──
+let activeInd = 'all';
+function indColor(name, alpha){ return IND_COLORS[name]+(alpha||''); }
+function barColors(labels, alpha){ return labels.map(n => activeInd==='all'||activeInd===n ? indColor(n)+'cc' : 'rgba(44,46,37,0.1)'); }
+function bubbleColors(){ return IND.map(d => activeInd==='all'||activeInd===d.name ? indColor(d.name)+'bb' : 'rgba(44,46,37,0.08)'); }
 
-const INK = '#2c2e25';
-const MID = '#595b4a';
-const FAINT = 'rgba(44,46,37,0.1)';
-
-const IND_COLORS = {
-  'Technology':         '#7bafd4',
-  'Financial Services': '#8bc4a0',
-  'Retail':             '#e8b87a',
-  'Telecom':            '#c4a0b8',
-  'Logistics':          '#a0b8c4',
-  'Energy':             '#d4a87c',
-  'Healthcare':         '#b8a0c4',
-  'Manufacturing':      '#a8c4b4',
-  'Agriculture':        '#c4c49e',
-  'Education':          '#c4b0a0',
-};
-
-const DEFAULTS = {
-  plugins: { legend: { display: false }, tooltip: { bodyFont: { family: 'DM Mono', size: 11 }, titleFont: { family: 'DM Mono', size: 11 } } },
-  scales: {
-    x: { ticks: { font: { family: 'DM Mono', size: 10 }, color: MID }, grid: { color: FAINT } },
-    y: { ticks: { font: { family: 'DM Mono', size: 10 }, color: MID }, grid: { color: FAINT } }
-  }
-};
-
-function fmtM(v) { return '$' + (v/1e6).toFixed(1) + 'M'; }
-
-// ── Dollar stretch: return per $1 invested, by industry (sorted low→high) ──
-const dollarSorted = [...IND].sort((a,b) => a.roi - b.roi);
-new Chart(document.getElementById('chartDollar'), {
-  type: 'bar',
-  data: {
-    labels: dollarSorted.map(d => d.name),
-    datasets: [
-      {
-        label: 'Cost savings per $1',
-        data: dollarSorted.map(d => +(d.avg_savings / d.avg_inv).toFixed(3)),
-        backgroundColor: '#8bc4a0cc', borderColor: '#5a9e7a', borderWidth: 1,
-      },
-      {
-        label: 'Revenue impact per $1',
-        data: dollarSorted.map(d => +(d.avg_revenue / d.avg_inv).toFixed(3)),
-        backgroundColor: '#7bafd4cc', borderColor: '#4a7fa4', borderWidth: 1,
-      }
+// ── Dollar chart ──
+const dollarSorted = [...IND].sort((a,b)=>a.roi-b.roi);
+const chartDollar = new Chart(document.getElementById('chartDollar'),{
+  type:'bar',
+  data:{
+    labels: dollarSorted.map(d=>d.name),
+    datasets:[
+      {label:'Cost savings per $1', data:dollarSorted.map(d=>+(d.avg_savings/d.avg_inv).toFixed(3)), backgroundColor:dollarSorted.map(d=>activeInd==='all'||activeInd===d.name?'#8bc4a0cc':'rgba(44,46,37,0.08)'), borderColor:'#5a9e7a', borderWidth:1},
+      {label:'Revenue impact per $1', data:dollarSorted.map(d=>+(d.avg_revenue/d.avg_inv).toFixed(3)), backgroundColor:dollarSorted.map(d=>activeInd==='all'||activeInd===d.name?'#7bafd4cc':'rgba(44,46,37,0.08)'), borderColor:'#4a7fa4', borderWidth:1}
     ]
   },
-  options: {
-    indexAxis: 'y',
-    plugins: {
-      legend: { display: true, position: 'bottom', labels: { font: { family: 'DM Mono', size: 10 }, color: MID, boxWidth: 12 } },
-      tooltip: { ...DEFAULTS.plugins.tooltip, callbacks: {
-        label: ctx => ` ${ctx.dataset.label}: $${ctx.parsed.x.toFixed(2)} per $1 invested`
-      }},
-      annotation: {
-        annotations: {
-          breakeven: {
-            type: 'line', xMin: 1, xMax: 1,
-            borderColor: INK, borderWidth: 1.5, borderDash: [4,3],
-            label: { content: 'break-even', display: true, position: 'start', font: { family: 'DM Mono', size: 9 }, color: INK, backgroundColor: 'transparent' }
-          }
-        }
-      }
+  options:{
+    indexAxis:'y',
+    plugins:{
+      legend:{display:true,position:'bottom',labels:{font:{family:'DM Mono',size:10},color:MID,boxWidth:12}},
+      tooltip:{...TTIP,callbacks:{label:ctx=>` ${ctx.dataset.label}: $${ctx.parsed.x.toFixed(2)} per $1 invested`}}
     },
-    scales: {
-      x: { ...DEFAULTS.scales.x, stacked: true, title: { display: true, text: '$ returned per $1 invested', font: { family: 'DM Mono', size: 10 }, color: MID } },
-      y: { ...DEFAULTS.scales.y, stacked: true, grid: { display: false } }
+    scales:{
+      x:{ticks:TICK,grid:GRID,stacked:true,title:{display:true,text:'$ returned per $1 invested',font:{family:'DM Mono',size:10},color:MID}},
+      y:{ticks:TICK,grid:{display:false},stacked:true}
     }
   }
 });
 
-// ── Bubble: investment (x) vs total return (y), bubble = productivity ──
-new Chart(document.getElementById('chartBubble'), {
-  type: 'bubble',
-  data: {
-    datasets: IND.map(d => ({
-      label: d.name,
-      data: [{
-        x: +(d.avg_inv / 1e6).toFixed(2),
-        y: +((d.avg_savings + d.avg_revenue) / 1e6).toFixed(2),
-        r: Math.max(6, d.avg_prod * 55)
-      }],
-      backgroundColor: IND_COLORS[d.name] + 'bb',
-      borderColor: IND_COLORS[d.name],
-      borderWidth: 1.5,
-    }))
-  },
-  options: {
-    plugins: {
-      legend: { display: false },
-      tooltip: { ...DEFAULTS.plugins.tooltip, callbacks: {
-        label: ctx => {
-          const d = IND.find(x => x.name === ctx.dataset.label);
-          return [
-            ` ${ctx.dataset.label}`,
-            ` invest: ${fmtM(ctx.parsed.x*1e6)}`,
-            ` return: ${fmtM(ctx.parsed.y*1e6)}`,
-            ` productivity: ${(d.avg_prod*100).toFixed(1)}%`
-          ];
-        }
-      }},
-      datalabels: { display: false }
+// ── Bubble chart ──
+const chartBubble = new Chart(document.getElementById('chartBubble'),{
+  type:'bubble',
+  data:{datasets:IND.map(d=>({
+    label:d.name,
+    data:[{x:+(d.avg_inv/1e6).toFixed(2),y:+((d.avg_savings+d.avg_revenue)/1e6).toFixed(2),r:Math.max(6,d.avg_prod*55)}],
+    backgroundColor:indColor(d.name)+'bb', borderColor:indColor(d.name), borderWidth:1.5
+  }))},
+  options:{
+    plugins:{
+      legend:{display:false},
+      tooltip:{...TTIP,callbacks:{label:ctx=>{const d=IND.find(x=>x.name===ctx.dataset.label);return[` ${ctx.dataset.label}`,` invest: ${fmtM(ctx.parsed.x*1e6)}`,` return: ${fmtM(ctx.parsed.y*1e6)}`,` productivity: ${(d.avg_prod*100).toFixed(1)}%`];}}}
     },
-    scales: {
-      x: { ...DEFAULTS.scales.x, title: { display: true, text: 'avg investment ($M)', font: { family: 'DM Mono', size: 10 }, color: MID } },
-      y: { ...DEFAULTS.scales.y, title: { display: true, text: 'avg total return ($M)', font: { family: 'DM Mono', size: 10 }, color: MID } }
+    scales:{
+      x:{ticks:TICK,grid:GRID,title:{display:true,text:'avg investment ($M)',font:{family:'DM Mono',size:10},color:MID}},
+      y:{ticks:TICK,grid:GRID,title:{display:true,text:'avg total return ($M)',font:{family:'DM Mono',size:10},color:MID}}
     }
   }
 });
 
-// ── Industry name labels on bubble chart ──
-Chart.register({
-  id: 'bubbleLabels',
-  afterDatasetsDraw(chart) {
-    if (chart.canvas.id !== 'chartBubble') return;
-    const ctx2 = chart.ctx;
-    chart.data.datasets.forEach((ds, i) => {
-      const meta = chart.getDatasetMeta(i);
-      if (!meta.hidden && meta.data[0]) {
-        const pt = meta.data[0];
-        ctx2.save();
-        ctx2.font = '9px DM Mono, monospace';
-        ctx2.fillStyle = '#595b4a';
-        ctx2.textAlign = 'center';
-        ctx2.fillText(ds.label, pt.x, pt.y - pt.options.radius - 4);
-        ctx2.restore();
-      }
-    });
-  }
-});
+// Bubble labels plugin
+Chart.register({id:'bubbleLabels',afterDatasetsDraw(chart){
+  if(chart.canvas.id!=='chartBubble')return;
+  const c=chart.ctx;
+  chart.data.datasets.forEach((ds,i)=>{
+    const meta=chart.getDatasetMeta(i);
+    if(!meta.hidden&&meta.data[0]){
+      const pt=meta.data[0];
+      const isActive=activeInd==='all'||activeInd===ds.label;
+      c.save();c.font=isActive?'bold 9px DM Mono,monospace':'9px DM Mono,monospace';
+      c.fillStyle=isActive?INK:MID;c.globalAlpha=isActive?1:0.35;
+      c.textAlign='center';c.fillText(ds.label,pt.x,pt.y-pt.options.radius-4);
+      c.restore();
+    }
+  });
+}});
 
-// ── Investment & Returns trend ──
-const years = YR.map(d => d.year);
-new Chart(document.getElementById('chartTrend'), {
-  type: 'line',
-  data: {
-    labels: years,
-    datasets: [
-      { label: 'Avg Investment', data: YR.map(d => +(d.avg_inv/1e6).toFixed(2)), borderColor: 'rgba(44,46,37,0.5)', borderWidth: 1.5, pointRadius: 1.5, tension: 0.35, borderDash: [4,3] },
-      { label: 'Cost Savings',   data: YR.map(d => +(d.avg_savings/1e6).toFixed(2)), borderColor: '#5a9e7a', borderWidth: 2, pointRadius: 1.5, tension: 0.35 },
-      { label: 'Revenue Impact', data: YR.map(d => +(d.avg_revenue/1e6).toFixed(2)), borderColor: '#4a7fa4', borderWidth: 2, pointRadius: 1.5, tension: 0.35 },
+// ── Trend chart ──
+let trendRange='all';
+function getTrendData(range){
+  const ranges={all:YR,'precovid':YR.filter(d=>d.year<=2019),'covid':YR.filter(d=>d.year>=2020&&d.year<=2022),'postgpt':YR.filter(d=>d.year>=2023)};
+  return ranges[range]||YR;
+}
+const years = YR.map(d=>d.year);
+const chartTrend = new Chart(document.getElementById('chartTrend'),{
+  type:'line',
+  data:{
+    labels:years,
+    datasets:[
+      {label:'Avg Investment',data:YR.map(d=>+(d.avg_inv/1e6).toFixed(2)),borderColor:'rgba(44,46,37,0.5)',borderWidth:1.5,pointRadius:2,tension:0.35,borderDash:[4,3]},
+      {label:'Cost Savings',data:YR.map(d=>+(d.avg_savings/1e6).toFixed(2)),borderColor:'#5a9e7a',borderWidth:2,pointRadius:2,tension:0.35,fill:false},
+      {label:'Revenue Impact',data:YR.map(d=>+(d.avg_revenue/1e6).toFixed(2)),borderColor:'#4a7fa4',borderWidth:2,pointRadius:2,tension:0.35,fill:false}
     ]
   },
-  options: {
-    plugins: {
-      legend: { display: true, position: 'bottom', labels: { font: { family: 'DM Mono', size: 10 }, color: MID, boxWidth: 12 } },
-      tooltip: { ...DEFAULTS.plugins.tooltip, callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmtM(ctx.parsed.y*1e6)}` } }
+  options:{
+    plugins:{
+      legend:{display:true,position:'bottom',labels:{font:{family:'DM Mono',size:10},color:MID,boxWidth:12}},
+      tooltip:{...TTIP,callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmtM(ctx.parsed.y*1e6)}`}}
     },
-    scales: {
-      x: { ...DEFAULTS.scales.x },
-      y: { ...DEFAULTS.scales.y, title: { display: true, text: '$M avg per company', font: { family: 'DM Mono', size: 10 }, color: MID } }
+    scales:{
+      x:{ticks:TICK,grid:GRID},
+      y:{ticks:TICK,grid:GRID,title:{display:true,text:'$M avg per company',font:{family:'DM Mono',size:10},color:MID}}
     }
   }
 });
 
-// ── ROI by Country ──
-const ctySorted = [...CTY].sort((a,b) => a.roi - b.roi);
-new Chart(document.getElementById('chartCountry'), {
-  type: 'bar',
-  data: {
-    labels: ctySorted.map(d => d.name),
-    datasets: [{
-      data: ctySorted.map(d => d.roi),
-      backgroundColor: ctySorted.map((_, i) => `hsla(${160 + i*5}, 35%, ${55 + i*1.2}%, 0.75)`),
-      borderWidth: 0,
-    }]
+// Year range buttons
+document.getElementById('yearBtns').addEventListener('click',e=>{
+  const btn=e.target.closest('.year-btn'); if(!btn)return;
+  document.querySelectorAll('.year-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const data=getTrendData(btn.dataset.range);
+  chartTrend.data.labels=data.map(d=>d.year);
+  chartTrend.data.datasets[0].data=data.map(d=>+(d.avg_inv/1e6).toFixed(2));
+  chartTrend.data.datasets[1].data=data.map(d=>+(d.avg_savings/1e6).toFixed(2));
+  chartTrend.data.datasets[2].data=data.map(d=>+(d.avg_revenue/1e6).toFixed(2));
+  chartTrend.update();
+});
+
+// ── Country chart ──
+const ctySorted=[...CTY].sort((a,b)=>a.roi-b.roi);
+const chartCountry=new Chart(document.getElementById('chartCountry'),{
+  type:'bar',
+  data:{
+    labels:ctySorted.map(d=>d.name),
+    datasets:[{data:ctySorted.map(d=>d.roi),backgroundColor:ctySorted.map((_,i)=>`hsla(${160+i*5},35%,${55+i*1.2}%,0.75)`),borderWidth:0}]
   },
-  options: {
-    indexAxis: 'y',
-    plugins: {
-      ...DEFAULTS.plugins,
-      tooltip: { ...DEFAULTS.plugins.tooltip, callbacks: { label: ctx => ` ${ctx.parsed.x.toFixed(1)}% ROI` } }
+  options:{
+    indexAxis:'y',
+    onClick(evt,els){
+      if(!els.length){document.getElementById('countryCard').classList.remove('visible');return;}
+      const c=ctySorted[els[0].index];
+      document.getElementById('countryCardName').textContent=c.name;
+      document.getElementById('ccROI').textContent=c.roi.toFixed(1)+'%';
+      document.getElementById('ccInv').textContent=fmtM(c.avg_inv);
+      document.getElementById('ccAdoption').textContent=(c.avg_adoption*100).toFixed(1)+'%';
+      document.getElementById('countryCard').classList.add('visible');
     },
-    scales: {
-      x: { ...DEFAULTS.scales.x, min: 88, title: { display: true, text: 'ROI %', font: { family: 'DM Mono', size: 10 }, color: MID } },
-      y: { ...DEFAULTS.scales.y, grid: { display: false } }
+    plugins:{
+      ...{legend:{display:false}},
+      tooltip:{...TTIP,callbacks:{label:ctx=>` ${ctx.parsed.x.toFixed(1)}% ROI — click for details`}}
+    },
+    scales:{
+      x:{ticks:TICK,grid:GRID,min:88,title:{display:true,text:'ROI %',font:{family:'DM Mono',size:10},color:MID}},
+      y:{ticks:TICK,grid:{display:false}}
     }
   }
 });
 
-// ── Productivity by Industry ──
-const prodSorted = [...IND].sort((a,b) => a.avg_prod - b.avg_prod);
-new Chart(document.getElementById('chartProd'), {
-  type: 'bar',
-  data: {
-    labels: prodSorted.map(d => d.name),
-    datasets: [{
-      data: prodSorted.map(d => d.avg_prod),
-      backgroundColor: prodSorted.map(d => IND_COLORS[d.name]),
-      borderWidth: 0,
-    }]
-  },
-  options: {
-    indexAxis: 'y',
-    plugins: {
-      ...DEFAULTS.plugins,
-      tooltip: { ...DEFAULTS.plugins.tooltip, callbacks: { label: ctx => ` ${(ctx.parsed.x*100).toFixed(1)}% productivity gain` } }
-    },
-    scales: {
-      x: { ...DEFAULTS.scales.x, title: { display: true, text: 'Avg productivity gain', font: { family: 'DM Mono', size: 10 }, color: MID } },
-      y: { ...DEFAULTS.scales.y, grid: { display: false } }
-    }
-  }
+// ── Industry filter chips ──
+const filterRow=document.getElementById('filterRow');
+IND.forEach(d=>{
+  const btn=document.createElement('button');
+  btn.className='ind-chip'; btn.dataset.ind=d.name;
+  btn.style.borderLeftColor=IND_COLORS[d.name];
+  btn.textContent=d.name.toLowerCase();
+  filterRow.appendChild(btn);
+});
+filterRow.addEventListener('click',e=>{
+  const chip=e.target.closest('.ind-chip'); if(!chip)return;
+  activeInd=chip.dataset.ind;
+  document.querySelectorAll('.ind-chip').forEach(c=>c.classList.toggle('active',c.dataset.ind===activeInd));
+  // Update dollar chart colors
+  const dLabels=dollarSorted.map(d=>d.name);
+  chartDollar.data.datasets[0].backgroundColor=dLabels.map(n=>activeInd==='all'||activeInd===n?'#8bc4a0cc':'rgba(44,46,37,0.07)');
+  chartDollar.data.datasets[1].backgroundColor=dLabels.map(n=>activeInd==='all'||activeInd===n?'#7bafd4cc':'rgba(44,46,37,0.07)');
+  chartDollar.update('none');
+  // Update bubble chart colors
+  chartBubble.data.datasets.forEach(ds=>{
+    const active=activeInd==='all'||activeInd===ds.label;
+    ds.backgroundColor=IND_COLORS[ds.label]+(active?'bb':'15');
+    ds.borderColor=active?IND_COLORS[ds.label]:'rgba(44,46,37,0.1)';
+    ds.data[0].r=active?Math.max(6,IND.find(d=>d.name===ds.label).avg_prod*55):4;
+  });
+  chartBubble.update('none');
+  // Scroll $1 chart into view if filtering
+  if(activeInd!=='all') document.getElementById('chartDollar').closest('details').open=true;
 });
 
+// ── ROI Calculator ──
+const calcIndustry=document.getElementById('calcIndustry');
+IND.forEach(d=>{ const o=document.createElement('option'); o.value=d.name; o.textContent=d.name; calcIndustry.appendChild(o); });
+
+function runCalc(){
+  const amt=parseFloat(document.getElementById('calcAmount').value)||0;
+  const name=calcIndustry.value;
+  const d=IND.find(x=>x.name===name);
+  if(!d||amt<=0){['crSavings','crRevenue','crTotal','crROI'].forEach(id=>document.getElementById(id).textContent='—');return;}
+  const savings=amt*(d.avg_savings/d.avg_inv);
+  const revenue=amt*(d.avg_revenue/d.avg_inv);
+  const total=savings+revenue;
+  const roi=(total/amt)*100;
+  document.getElementById('crSavings').textContent=fmtK(savings);
+  document.getElementById('crRevenue').textContent=fmtK(revenue);
+  document.getElementById('crTotal').textContent=fmtK(total);
+  document.getElementById('crROI').textContent=roi.toFixed(1)+'%';
+  const best=IND.reduce((a,b)=>b.roi>a.roi?b:a);
+  const worst=IND.reduce((a,b)=>b.roi<a.roi?b:a);
+  const vsAvg=roi-IND.reduce((s,x)=>s+x.roi,0)/IND.length;
+  document.getElementById('calcNote').textContent=
+    `${name} sits ${Math.abs(vsAvg).toFixed(1)}% ${vsAvg>=0?'above':'below'} the industry average. Best sector: ${best.name} (${best.roi}%). Worst: ${worst.name} (${worst.roi}%).`;
+}
+document.getElementById('calcAmount').addEventListener('input',runCalc);
+calcIndustry.addEventListener('change',runCalc);
+runCalc();
 </script>
 </body>
 </html>
