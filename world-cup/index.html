@@ -13,7 +13,7 @@
     .wc-layout {
       display: flex;
       flex-direction: column;
-      height: calc(100vh - 57px);
+      height: calc(100vh - 97px);
     }
 
     /* ── controls bar ── */
@@ -221,6 +221,67 @@
       .schedule-panel { width: 100%; border-right: none; border-bottom: 2px solid var(--ink); max-height: 45vh; }
       .map-panel { height: 420px; }
     }
+
+    /* ── tab bar ── */
+    .wc-tab-bar { display:flex; border-bottom:2px solid var(--ink); flex-shrink:0; }
+    .wc-tab {
+      font-family:'DM Mono',monospace; font-size:0.72rem; padding:9px 20px;
+      border:none; border-right:1.5px solid var(--ink); background:transparent;
+      color:var(--mid); cursor:pointer; white-space:nowrap; transition:background 0.1s;
+    }
+    .wc-tab:hover  { background:var(--hover); color:var(--ink); }
+    .wc-tab.active { background:var(--ink);   color:var(--bg); }
+
+    /* ── rankings tab ── */
+    .rankings-layout { height:calc(100vh - 97px); overflow-y:auto; background:var(--bg); }
+    .rank-inner { padding:28px 32px 52px; max-width:1440px; }
+
+    .rank-cards { display:grid; grid-template-columns:repeat(4,1fr); border:var(--border); margin-bottom:28px; }
+    .rank-card { padding:18px 20px; border-right:var(--border); }
+    .rank-card:last-child { border-right:none; }
+    .rank-card.easy   { border-top:3px solid #5a9e6a; }
+    .rank-card.hard   { border-top:3px solid #b05050; }
+    .rank-card.swing  { border-top:3px solid #c8900a; }
+    .rank-card.steady { border-top:3px solid #5a8aae; }
+    .rank-card-label { font-size:0.52rem; text-transform:uppercase; letter-spacing:1.4px; color:var(--mid); margin-bottom:6px; }
+    .rank-card-team  { font-size:0.85rem; font-weight:500; margin-bottom:2px; }
+    .rank-card-val   { font-size:1.1rem; font-weight:500; line-height:1; margin-bottom:4px; }
+    .rank-card-sub   { font-size:0.58rem; color:var(--mid); line-height:1.5; }
+
+    .rank-panel { border:var(--border); }
+    .rank-panel-head {
+      background:var(--ink); color:var(--bg); padding:10px 20px;
+      display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+    }
+    .rank-panel-head-left { display:flex; align-items:center; gap:10px; }
+    .rank-panel-head h2 { font-size:0.65rem; font-weight:400; text-transform:uppercase; letter-spacing:1.2px; }
+    .rank-sort-row { display:flex; }
+    .rank-sort-btn {
+      font-family:'DM Mono',monospace; font-size:0.62rem; padding:4px 10px;
+      border:1px solid rgba(255,248,220,0.3); border-right:none;
+      background:transparent; color:rgba(255,248,220,0.6); cursor:pointer;
+    }
+    .rank-sort-btn:last-child { border-right:1px solid rgba(255,248,220,0.3); }
+    .rank-sort-btn:hover, .rank-sort-btn.active { background:rgba(255,248,220,0.15); color:var(--bg); }
+    .rank-legend {
+      display:flex; gap:16px; align-items:center; padding:10px 20px;
+      font-size:0.6rem; color:var(--mid); border-bottom:1px solid var(--faint); flex-wrap:wrap;
+    }
+    .rank-legend-item { display:flex; align-items:center; gap:5px; }
+    .rank-chart-inner { padding:8px 20px 16px; overflow-x:auto; }
+    .rank-footer {
+      display:flex; gap:20px; padding:10px 20px; font-size:0.6rem;
+      color:var(--mid); border-top:1px solid var(--faint); flex-wrap:wrap;
+    }
+    .outlier-pill { display:inline-block; padding:1px 7px; border-radius:2px; margin-right:4px; font-size:0.58rem; }
+    .outlier-pill.easy { background:#d4e4c8; color:#3a6a2a; }
+    .outlier-pill.hard { background:#f5d8d8; color:#7a2a2a; }
+
+    @media (max-width:768px) {
+      .rank-cards { grid-template-columns:1fr 1fr; }
+      .rank-inner  { padding:16px 16px 40px; }
+      .rankings-layout { height:auto; }
+    }
   </style>
 </head>
 <body>
@@ -236,7 +297,12 @@
   <a class="back-link" href="/">&#8592; home</a>
 </header>
 
-<div class="wc-layout">
+<div class="wc-tab-bar">
+  <button class="wc-tab active" data-tab="paths">flight paths</button>
+  <button class="wc-tab" data-tab="rankings">path to the final</button>
+</div>
+
+<div class="wc-layout" id="tabPaths">
 
   <div class="wc-controls">
     <div class="ctrl-group">
@@ -289,6 +355,44 @@
         <div class="legend-item"><div class="legend-swatch" style="background:#b860a0"></div>Quarterfinals</div>
         <div class="legend-item"><div class="legend-swatch" style="background:#b05050"></div>Semifinals</div>
         <div class="legend-item"><div class="legend-swatch" style="background:#c8900a"></div>Final</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── PATH TO THE FINAL rankings tab ── -->
+<div class="rankings-layout" id="tabRankings" style="display:none">
+  <div class="rank-inner">
+    <div class="rank-cards" id="rankCards"></div>
+    <div class="rank-panel">
+      <div class="rank-panel-head">
+        <div class="rank-panel-head-left">
+          <img src="../ugly-dog-images/dog-2.png" alt="" width="24" height="24" style="object-fit:contain;object-position:bottom;opacity:0.85;flex-shrink:0">
+          <h2>flight time to the final — all 42 teams, 3 group scenarios each</h2>
+        </div>
+        <div class="rank-sort-row">
+          <button class="rank-sort-btn active" data-sort="best">best case ↑</button>
+          <button class="rank-sort-btn" data-sort="worst">worst case ↑</button>
+          <button class="rank-sort-btn" data-sort="avg">average ↑</button>
+          <button class="rank-sort-btn" data-sort="swing">biggest swing ↑</button>
+        </div>
+      </div>
+      <div class="rank-legend">
+        <div class="rank-legend-item">
+          <svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="#5a9e6a"/></svg>1st in group
+        </div>
+        <div class="rank-legend-item">
+          <svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="#5a8aae"/></svg>2nd in group
+        </div>
+        <div class="rank-legend-item">
+          <svg width="12" height="12"><circle cx="6" cy="6" r="4" fill="#a89030"/></svg>3rd (qualified)
+        </div>
+        <span style="margin-left:auto;font-size:0.55rem">hover dots for details</span>
+      </div>
+      <div class="rank-chart-inner" id="rankChartInner"></div>
+      <div class="rank-footer">
+        <span><span class="outlier-pill easy">easy draw</span> significantly below median best-case travel (IQR method)</span>
+        <span><span class="outlier-pill hard">tough road</span> significantly above median best-case travel</span>
       </div>
     </div>
   </div>
@@ -838,6 +942,207 @@ document.querySelectorAll('#scenBtns button').forEach(btn => {
     state.scenario = btn.dataset.sc;
     renderAll();
   });
+});
+
+// ═══════════════════════════════════════
+// PATH TO THE FINAL — RANKINGS
+// ═══════════════════════════════════════
+
+function fmtMins(m) {
+  const h = Math.floor(m/60), mn = m%60;
+  return mn ? `${h}h ${mn}m` : `${h}h`;
+}
+
+function pathStats(teamName, pos) {
+  const matches = buildMatches(teamName, pos, 'final');
+  let distKm=0, flightMins=0, flights=0;
+  for (let i=1; i<matches.length; i++) {
+    if (matches[i].venue !== matches[i-1].venue) {
+      const a=STADIUMS[matches[i-1].venue], b=STADIUMS[matches[i].venue];
+      if (a&&b) distKm += haversine(a.lat,a.lng,b.lat,b.lng);
+      const m = legFlightMins(matches[i-1].venue, matches[i].venue);
+      if (m!==null) { flightMins+=m; flights++; }
+    }
+  }
+  return {
+    pos, posLabel:['','1st','2nd','3rd (q)'][pos],
+    distMi:Math.round(distKm*0.621371), flightMins, flights,
+  };
+}
+
+function computeRankings() {
+  return Object.keys(TEAMS).sort().map(name => {
+    const td = TEAMS[name];
+    const sc = [1,2,3].map(p => pathStats(name,p));
+    const ms = sc.map(s=>s.flightMins);
+    return {
+      team:name, grp:td.grp, scenarios:sc,
+      minMins:Math.min(...ms), maxMins:Math.max(...ms),
+      avgMins:Math.round(ms.reduce((a,b)=>a+b)/3),
+      swingMins:Math.max(...ms)-Math.min(...ms),
+    };
+  });
+}
+
+let _rankData=null, _rankSort='best';
+function getRankData() { if (!_rankData) _rankData=computeRankings(); return _rankData; }
+
+function getSortedRanks() {
+  const d=[...getRankData()];
+  if (_rankSort==='best')  d.sort((a,b)=>a.minMins-b.minMins);
+  if (_rankSort==='worst') d.sort((a,b)=>a.maxMins-b.maxMins);
+  if (_rankSort==='avg')   d.sort((a,b)=>a.avgMins-b.avgMins);
+  if (_rankSort==='swing') d.sort((a,b)=>b.swingMins-a.swingMins);
+  return d;
+}
+
+function renderRankCards() {
+  const rd=getRankData();
+  const byBest  =[...rd].sort((a,b)=>a.minMins-b.minMins);
+  const byWorst =[...rd].sort((a,b)=>b.minMins-a.minMins);
+  const bySwing =[...rd].sort((a,b)=>b.swingMins-a.swingMins);
+  const bySteady=[...rd].sort((a,b)=>a.swingMins-b.swingMins);
+  const [easy,hard,swing,steady]=[byBest[0],byWorst[0],bySwing[0],bySteady[0]];
+  document.getElementById('rankCards').innerHTML=`
+    <div class="rank-card easy">
+      <div class="rank-card-label">most favorable draw</div>
+      <div class="rank-card-team">${easy.team}</div>
+      <div class="rank-card-val">${fmtMins(easy.minMins)}</div>
+      <div class="rank-card-sub">shortest possible path to the final · Group ${easy.grp}</div>
+    </div>
+    <div class="rank-card hard">
+      <div class="rank-card-label">toughest bracket position</div>
+      <div class="rank-card-team">${hard.team}</div>
+      <div class="rank-card-val">${fmtMins(hard.minMins)}</div>
+      <div class="rank-card-sub">even winning the group, it's a long road · Group ${hard.grp}</div>
+    </div>
+    <div class="rank-card swing">
+      <div class="rank-card-label">most to gain from winning group</div>
+      <div class="rank-card-team">${swing.team}</div>
+      <div class="rank-card-val">−${fmtMins(swing.swingMins)}</div>
+      <div class="rank-card-sub">saved by finishing 1st vs 2nd/3rd · Group ${swing.grp}</div>
+    </div>
+    <div class="rank-card steady">
+      <div class="rank-card-label">most consistent journey</div>
+      <div class="rank-card-team">${steady.team}</div>
+      <div class="rank-card-val">Δ${fmtMins(steady.swingMins)}</div>
+      <div class="rank-card-sub">group finish barely changes the travel · Group ${steady.grp}</div>
+    </div>`;
+}
+
+function renderRankChart() {
+  const sorted=getSortedRanks();
+
+  // IQR outliers on minMins
+  const mins=[...sorted].map(d=>d.minMins).sort((a,b)=>a-b);
+  const q1=mins[Math.floor(mins.length*.25)], q3=mins[Math.floor(mins.length*.75)], iqr=q3-q1;
+  sorted.forEach(d=>{ d.isEasy=d.minMins<q1-1.5*iqr; d.isHard=d.minMins>q3+1.5*iqr; });
+
+  const el=document.getElementById('rankChartInner');
+  const W=Math.max(el.clientWidth-4,700);
+  const LW=178, VW=108, CW=W-LW-VW;
+  const RH=30, PT=28, PB=28;
+  const H=sorted.length*RH+PT+PB;
+
+  const allM=sorted.flatMap(d=>d.scenarios.map(s=>s.flightMins));
+  const SMIN=Math.min(...allM)-40, SMAX=Math.max(...allM)+40;
+  const tx=m=>LW+((m-SMIN)/(SMAX-SMIN))*CW;
+
+  const SC=['#5a9e6a','#5a8aae','#a89030'];
+  const SR=[6,5,4];
+
+  let s=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" style="font-family:'DM Mono',monospace;display:block">`;
+
+  // hour gridlines
+  for (let h=8;h<=26;h++) {
+    const m=h*60; if (m<SMIN||m>SMAX) continue;
+    const x=tx(m).toFixed(1);
+    s+=`<line x1="${x}" y1="${PT}" x2="${x}" y2="${H-PB}" stroke="#e8e0c0" stroke-width="1"/>`;
+    s+=`<text x="${x}" y="${PT-9}" text-anchor="middle" font-size="9" fill="#8b8b8e">${h}h</text>`;
+    s+=`<text x="${x}" y="${H-PB+17}" text-anchor="middle" font-size="9" fill="#8b8b8e">${h}h</text>`;
+  }
+
+  sorted.forEach((d,i)=>{
+    const y=PT+i*RH, cy=(y+RH/2).toFixed(1);
+    const bg=d.isEasy?'#d4e4c8':d.isHard?'#f5d8d8':i%2?'#f0e8c8':'none';
+    if (bg!=='none') s+=`<rect x="0" y="${y}" width="${W}" height="${RH}" fill="${bg}" opacity="0.5"/>`;
+
+    // rank + name + group
+    s+=`<text x="6" y="${+cy+4}" font-size="9" fill="#8b8b8e">${i+1}</text>`;
+    const fw=d.isEasy||d.isHard?'500':'400';
+    s+=`<text x="22" y="${+cy+4}" font-size="11" font-weight="${fw}" fill="#2c2e25">${d.team}</text>`;
+    s+=`<text x="${LW-8}" y="${+cy+4}" font-size="9" fill="#8b8b8e" text-anchor="end">${d.grp}</text>`;
+
+    // range span
+    const x1=tx(d.minMins).toFixed(1), x2=tx(d.maxMins).toFixed(1);
+    s+=`<line x1="${x1}" y1="${cy}" x2="${x2}" y2="${cy}" stroke="#2c2e25" stroke-width="1.5" opacity="0.12"/>`;
+
+    // scenario dots
+    d.scenarios.forEach((sc,si)=>{
+      const sx=tx(sc.flightMins).toFixed(1);
+      s+=`<circle cx="${sx}" cy="${cy}" r="${SR[si]}" fill="${SC[si]}" stroke="white" stroke-width="1.5" style="cursor:pointer"
+        data-tip="${d.team} · ${sc.posLabel} place · ${fmtMins(sc.flightMins)} · ${sc.distMi.toLocaleString()} mi · ${sc.flights} flights"/>`;
+    });
+
+    // outlier badge on the right edge of the chart (before value labels)
+    if (d.isEasy||d.isHard) {
+      const tag=d.isEasy?'easy draw':'tough road';
+      const tc=d.isEasy?'#3a6a2a':'#7a2a2a';
+      const bw=d.isEasy?56:64, bx=W-VW-bw-6;
+      s+=`<rect x="${bx}" y="${y+7}" width="${bw}" height="15" rx="2" fill="${d.isEasy?'#d4e4c8':'#f5d8d8'}"/>`;
+      s+=`<text x="${bx+bw/2}" y="${y+17}" font-size="8" fill="${tc}" text-anchor="middle">${tag}</text>`;
+    }
+
+    // right value labels
+    const vx=W-VW+6;
+    s+=`<text x="${vx}" y="${+cy-1}" font-size="9" fill="${SC[0]}">${d.scenarios[0].posLabel}: ${fmtMins(d.scenarios[0].flightMins)}</text>`;
+    s+=`<text x="${vx}" y="${+cy+10}" font-size="9" fill="${SC[1]}">${d.scenarios[1].posLabel}: ${fmtMins(d.scenarios[1].flightMins)}</text>`;
+  });
+
+  s+='</svg>';
+  el.innerHTML=s;
+
+  // custom tooltip
+  let tip=document.getElementById('rankTip');
+  if (!tip) {
+    tip=document.createElement('div');
+    tip.id='rankTip';
+    tip.style.cssText='position:fixed;background:#2c2e25;color:#fff8dc;padding:6px 11px;font-family:"DM Mono",monospace;font-size:11px;pointer-events:none;display:none;z-index:9999;border:1.5px solid #2c2e25;white-space:nowrap;line-height:1.6';
+    document.body.appendChild(tip);
+  }
+  el.querySelectorAll('circle[data-tip]').forEach(c=>{
+    c.addEventListener('mouseenter', ()=>{ tip.textContent=c.dataset.tip; tip.style.display='block'; });
+    c.addEventListener('mousemove', e=>{ tip.style.left=(e.clientX+14)+'px'; tip.style.top=(e.clientY-10)+'px'; });
+    c.addEventListener('mouseleave', ()=>{ tip.style.display='none'; });
+  });
+}
+
+function initRankings() { renderRankCards(); renderRankChart(); }
+
+// tab switching
+document.querySelectorAll('.wc-tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.wc-tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    const t=tab.dataset.tab;
+    document.getElementById('tabPaths').style.display    = t==='paths'    ? 'flex'  : 'none';
+    document.getElementById('tabRankings').style.display = t==='rankings' ? 'block' : 'none';
+    if (t==='rankings') initRankings();
+  });
+});
+
+// rankings sort buttons
+document.querySelectorAll('.rank-sort-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.rank-sort-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    _rankSort=btn.dataset.sort;
+    renderRankChart();
+  });
+});
+
+window.addEventListener('resize', ()=>{
+  if (document.getElementById('tabRankings').style.display!=='none') renderRankChart();
 });
 </script>
 </body>
