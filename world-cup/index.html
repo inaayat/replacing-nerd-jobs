@@ -612,6 +612,81 @@ function buildMatches(teamName, pos, scenario) {
 }
 
 // ═══════════════════════════════════════
+// FLIGHT TIMES
+// Block times (gate-to-gate, minutes) for every city pair in the tournament.
+// Keyed by sorted IATA-style city codes joined with '|'.
+// ═══════════════════════════════════════
+const CITY = {
+  "Estadio Azteca":          "MEX",
+  "Estadio Akron":           "GDL",
+  "Estadio BBVA":            "MTY",
+  "SoFi Stadium":            "LAX",
+  "Levi's Stadium":          "SFO",
+  "Lumen Field":             "SEA",
+  "BC Place":                "YVR",
+  "NRG Stadium":             "IAH",
+  "AT&T Stadium":            "DFW",
+  "Arrowhead Stadium":       "MCI",
+  "BMO Field":               "YYZ",
+  "MetLife Stadium":         "EWR",
+  "Gillette Stadium":        "BOS",
+  "Lincoln Financial Field": "PHL",
+  "Hard Rock Stadium":       "MIA",
+  "Mercedes-Benz Stadium":   "ATL",
+};
+
+// minutes, sorted pair keys
+const FLIGHT_MINS = {
+  "GDL|MEX":55,  "GDL|MTY":75,  "GDL|LAX":210, "GDL|SFO":225, "GDL|SEA":270,
+  "GDL|YVR":285, "GDL|IAH":150, "GDL|DFW":150, "GDL|MCI":190, "GDL|YYZ":315,
+  "GDL|EWR":315, "GDL|BOS":330, "GDL|PHL":315, "GDL|MIA":270, "GDL|ATL":255,
+  "MEX|MTY":80,  "LAX|MEX":220, "MEX|SFO":240, "MEX|SEA":285, "MEX|YVR":300,
+  "IAH|MEX":165, "DFW|MEX":160, "MCI|MEX":200, "MEX|YYZ":315, "EWR|MEX":330,
+  "BOS|MEX":345, "MEX|PHL":330, "MEX|MIA":285, "ATL|MEX":270,
+  "LAX|MTY":210, "MTY|SFO":225, "MTY|SEA":255, "MTY|YVR":270, "IAH|MTY":105,
+  "DFW|MTY":105, "MCI|MTY":165, "MTY|YYZ":255, "EWR|MTY":270, "BOS|MTY":285,
+  "MTY|PHL":270, "MIA|MTY":225, "ATL|MTY":210,
+  "LAX|SFO":80,  "LAX|SEA":155, "LAX|YVR":165, "IAH|LAX":190, "DFW|LAX":185,
+  "LAX|MCI":210, "LAX|YYZ":310, "EWR|LAX":330, "BOS|LAX":345, "LAX|PHL":330,
+  "LAX|MIA":325, "ATL|LAX":270,
+  "SFO|SEA":150, "SFO|YVR":160, "IAH|SFO":215, "DFW|SFO":210, "MCI|SFO":225,
+  "SFO|YYZ":320, "EWR|SFO":335, "BOS|SFO":350, "PHL|SFO":335, "MIA|SFO":345,
+  "ATL|SFO":290,
+  "SEA|YVR":45,  "IAH|SEA":245, "DFW|SEA":235, "MCI|SEA":210, "SEA|YYZ":295,
+  "EWR|SEA":330, "BOS|SEA":340, "PHL|SEA":330, "MIA|SEA":335, "ATL|SEA":295,
+  "IAH|YVR":260, "DFW|YVR":250, "MCI|YVR":220, "YVR|YYZ":300, "EWR|YVR":340,
+  "BOS|YVR":350, "PHL|YVR":340, "MIA|YVR":350, "ATL|YVR":310,
+  "DFW|IAH":70,  "IAH|MCI":130, "IAH|YYZ":195, "EWR|IAH":210, "BOS|IAH":220,
+  "IAH|PHL":205, "IAH|MIA":180, "ATL|IAH":120,
+  "DFW|MCI":105, "DFW|YYZ":200, "DFW|EWR":210, "BOS|DFW":225, "DFW|PHL":210,
+  "DFW|MIA":195, "ATL|DFW":135,
+  "MCI|YYZ":165, "EWR|MCI":180, "BOS|MCI":195, "MCI|PHL":175, "MCI|MIA":210,
+  "ATL|MCI":150,
+  "EWR|YYZ":90,  "BOS|YYZ":90,  "PHL|YYZ":90,  "MIA|YYZ":210, "ATL|YYZ":135,
+  "BOS|EWR":85,  "EWR|PHL":75,  "EWR|MIA":195, "ATL|EWR":150,
+  "BOS|PHL":80,  "BOS|MIA":210, "ATL|BOS":165,
+  "MIA|PHL":180, "ATL|PHL":135,
+  "ATL|MIA":120,
+};
+
+function legFlightMins(v1, v2) {
+  if (v1 === v2) return 0;
+  const c1 = CITY[v1], c2 = CITY[v2];
+  if (!c1 || !c2) return null;
+  const key = [c1, c2].sort().join('|');
+  return FLIGHT_MINS[key] ?? null;
+}
+
+function totalFlightMins(matches) {
+  let total = 0;
+  for (let i = 1; i < matches.length; i++) {
+    const mins = legFlightMins(matches[i-1].venue, matches[i].venue);
+    if (mins !== null) total += mins;
+  }
+  return total;
+}
+
+// ═══════════════════════════════════════
 // RENDER
 // ═══════════════════════════════════════
 let state = { team:'', pos:1, scenario:'group' };
@@ -634,8 +709,8 @@ function renderAll() {
   const el = document.getElementById('distStat');
   if (team && matches.length) {
     const miles = Math.round(dist * 0.621371);
-    const hrs = dist / 900; // ~900 km/h cruising speed
-    const h = Math.floor(hrs), m = Math.round((hrs - h) * 60);
+    const totalMins = totalFlightMins(matches);
+    const h = Math.floor(totalMins / 60), m = totalMins % 60;
     const timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
     el.innerHTML = `<span>${miles.toLocaleString()} mi</span> · <span>~${timeStr} in the air</span>`;
   } else {
