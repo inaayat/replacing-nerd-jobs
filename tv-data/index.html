@@ -109,22 +109,7 @@ nav { border-bottom:2px solid var(--ink);display:flex;align-items:stretch; }
 .co-val   { font-weight:500; }
 .co-sub   { font-size:0.55rem;color:var(--mid);margin-top:2px; }
 
-/* ── Browse ───────────────────────────────────── */
-#section-browse { max-width:1280px;margin:0 auto;padding:28px; }
 #section-glossary { max-width:1280px;margin:0 auto;padding:28px; }
-
-.show-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));border-top:var(--border);border-left:var(--border); }
-.show-card { border-right:var(--border);border-bottom:var(--border);display:flex;flex-direction:column;cursor:pointer;transition:background 0.12s; }
-.show-card:hover { background:var(--hover); }
-.show-card img { width:100%;aspect-ratio:2/3;object-fit:cover;background:var(--faint);display:block;border-bottom:1px solid var(--faint); }
-.show-card .no-poster { width:100%;aspect-ratio:2/3;background:var(--faint);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border-bottom:1px solid var(--faint); }
-.show-card .no-poster img { width:36px;height:36px;object-fit:contain; }
-.show-card .no-poster span { font-size:0.56rem;color:var(--mid); }
-.card-info { padding:9px 11px; }
-.card-name { font-size:0.7rem;font-weight:500;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
-.card-meta { font-size:0.59rem;color:var(--mid);margin-top:3px;display:flex;gap:5px;flex-wrap:wrap;align-items:center; }
-.card-rating { color:var(--ink);font-weight:500; }
-.card-badge { font-size:0.52rem;text-transform:uppercase;border:1px solid var(--mid);padding:1px 4px;color:var(--mid); }
 .card-badge.live { border-color:#4a8a4a;color:#4a8a4a; }
 
 .filter-bar { display:flex;flex-wrap:wrap;border-bottom:var(--border); }
@@ -275,7 +260,6 @@ nav { border-bottom:2px solid var(--ink);display:flex;align-items:stretch; }
 <nav>
   <div class="nav-logo"><img src="../ugly-dog-images/dog-5.png" alt="">TV Explorer</div>
   <button class="nav-tab active" onclick="showSection('insights',this)">Insights</button>
-  <button class="nav-tab"        onclick="showSection('browse',this)">Browse</button>
   <button class="nav-tab"        onclick="showSection('glossary',this)">Field Guide</button>
 </nav>
 
@@ -525,27 +509,6 @@ nav { border-bottom:2px solid var(--ink);display:flex;align-items:stretch; }
 </section>
 
 <!-- ═══════════  BROWSE  ═══════════ -->
-<section class="section" id="section-browse">
-  <div style="max-width:1280px;margin:0 auto;padding:28px">
-    <div class="panel">
-      <div class="panel-head"><h2>Browse Shows</h2><span class="pill">top 2000 by popularity</span></div>
-      <div class="filter-bar">
-        <input type="text" id="search-input" placeholder="Search by title…" oninput="applyFilters()">
-        <select id="filter-genre" onchange="applyFilters()"><option value="">All Genres</option></select>
-        <select id="filter-status" onchange="applyFilters()">
-          <option value="">All Statuses</option>
-          <option>Ended</option><option>Returning Series</option><option>Canceled</option>
-          <option>In Production</option><option>Planned</option>
-        </select>
-        <select id="filter-lang" onchange="applyFilters()"><option value="">All Languages</option></select>
-        <span id="result-count"></span>
-      </div>
-      <div class="show-grid" id="grid-browse"></div>
-      <button id="load-more-btn" onclick="loadMore()">Load more</button>
-    </div>
-  </div>
-</section>
-
 <!-- ═══════════  GLOSSARY  ═══════════ -->
 <section class="section" id="section-glossary">
   <div style="max-width:1280px;margin:0 auto;padding:28px">
@@ -574,7 +537,6 @@ const PAL=['#2c2e25','#6a9e5a','#c07aa8','#5a8a9e','#a89030','#b05858','#5a9e7a'
 
 let I=null,D=null,activeInsight=0;
 let genreChart=null;
-let browseFiltered=[],browseShown=0;
 const PAGE_SIZE=80;
 
 Chart.defaults.font={family:"'DM Mono', monospace",size:11};
@@ -588,7 +550,6 @@ Promise.all([
   document.getElementById('loading').style.display='none';
   buildSidebarStats();
   buildInsights();
-  buildBrowse();
   buildGlossary();
   updateMainHeight();
 }).catch(err=>{
@@ -982,56 +943,6 @@ function buildExtremesCharts(){
       },
     },
   });
-}
-
-// ── Browse ────────────────────────────────────────────────
-function buildBrowse(){
-  const ag=new Set();
-  D.top_popular.forEach(s=>s.genres.forEach(g=>ag.add(g)));
-  const gs=document.getElementById('filter-genre');
-  [...ag].sort().forEach(g=>{const o=document.createElement('option');o.value=g;o.textContent=g;gs.appendChild(o);});
-  const ls=document.getElementById('filter-lang');
-  Object.entries(D.languages).forEach(([c,info])=>{const o=document.createElement('option');o.value=c;o.textContent=`${info.name} (${c})`;ls.appendChild(o);});
-  browseFiltered=D.top_popular;browseShown=0;renderBrowse(true);
-}
-function applyFilters(){
-  const q=document.getElementById('search-input').value.trim().toLowerCase();
-  const genre=document.getElementById('filter-genre').value;
-  const status=document.getElementById('filter-status').value;
-  const lang=document.getElementById('filter-lang').value;
-  browseFiltered=D.top_popular.filter(s=>{
-    if(q&&!s.name.toLowerCase().includes(q)&&!(s.original_name||'').toLowerCase().includes(q))return false;
-    if(genre&&!s.genres.includes(genre))return false;
-    if(status&&s.status!==status)return false;
-    if(lang&&s.original_language!==lang)return false;
-    return true;
-  });
-  browseShown=0;renderBrowse(true);
-}
-function renderBrowse(reset){
-  const grid=document.getElementById('grid-browse');
-  const slice=browseFiltered.slice(browseShown,browseShown+PAGE_SIZE);
-  const html=slice.map((s,i)=>showCard(s,browseShown+i)).join('');
-  if(reset)grid.innerHTML=html;else grid.insertAdjacentHTML('beforeend',html);
-  browseShown+=PAGE_SIZE;
-  document.getElementById('result-count').textContent=browseFiltered.length.toLocaleString()+' results';
-  document.getElementById('load-more-btn').classList.toggle('hidden',browseShown>=browseFiltered.length);
-}
-function loadMore(){renderBrowse(false);}
-function showCard(show,idx){
-  const dog=DOGS[idx%DOGS.length];
-  const poster=show.poster_path
-    ?`<img src="${show.poster_path}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=no-poster><img src=\\'${dog}\\'><span>no poster</span></div>'">`
-    :`<div class="no-poster"><img src="${dog}"><span>no poster</span></div>`;
-  const live=show.in_production?`<span class="card-badge live">live</span>`:'';
-  const year=show.first_air_date?show.first_air_date.slice(0,4):'';
-  const rating=show.vote_average>0?`<span class="card-rating">★ ${show.vote_average.toFixed(1)}</span>`:'';
-  const payload=JSON.stringify(show).replace(/&/g,'\\u0026').replace(/</g,'\\u003c').replace(/>/g,'\\u003e').replace(/"/g,'&quot;');
-  return `<div class="show-card" onclick="openModal(${payload})">
-    ${poster}
-    <div class="card-info"><div class="card-name">${escHtml(show.name)}</div>
-    <div class="card-meta">${rating}<span>${year}</span>${live}</div></div>
-  </div>`;
 }
 
 // ── Glossary ──────────────────────────────────────────────
