@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>World Cup 2026 — Team Flight Paths</title>
+  <link rel="icon" type="image/png" href="../ugly-dog-images/dog-3.png">
+  <link rel="stylesheet" href="../site.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    html, body { height: 100%; overflow: hidden; }
+
+    .wc-layout {
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 57px);
+    }
+
+    /* ── controls bar ── */
+    .wc-controls {
+      background: var(--ink);
+      color: var(--bg);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+      border-bottom: 2px solid var(--ink);
+      flex-shrink: 0;
+    }
+    .ctrl-group { display: flex; flex-direction: column; gap: 3px; }
+    .ctrl-label {
+      font-size: 0.52rem;
+      text-transform: uppercase;
+      letter-spacing: 1.4px;
+      color: var(--bg);
+      opacity: 0.5;
+    }
+    #teamSelect {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      padding: 5px 10px;
+      border: 1px solid rgba(255,248,220,0.35);
+      background: rgba(255,248,220,0.07);
+      color: var(--bg);
+      min-width: 190px;
+      cursor: pointer;
+      outline: none;
+    }
+    #teamSelect option { background: var(--ink); color: var(--bg); }
+
+    .btn-row { display: flex; }
+    .btn-row button {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem;
+      padding: 5px 11px;
+      border: 1px solid rgba(255,248,220,0.28);
+      border-right: none;
+      background: transparent;
+      color: rgba(255,248,220,0.7);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.1s, color 0.1s;
+    }
+    .btn-row button:last-child { border-right: 1px solid rgba(255,248,220,0.28); }
+    .btn-row button:hover { background: rgba(255,248,220,0.1); color: var(--bg); }
+    .btn-row button.active { background: var(--bg); color: var(--ink); }
+
+    .wc-dist {
+      margin-left: auto;
+      font-size: 0.62rem;
+      color: rgba(255,248,220,0.5);
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+    .wc-dist span { color: var(--bg); font-weight: 500; }
+
+    /* ── split screen ── */
+    .wc-split {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── schedule panel ── */
+    .schedule-panel {
+      width: 340px;
+      flex-shrink: 0;
+      border-right: 2px solid var(--ink);
+      overflow-y: auto;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+    }
+    .sched-head {
+      background: var(--ink);
+      color: var(--bg);
+      padding: 10px 16px;
+      flex-shrink: 0;
+    }
+    .sched-head-name {
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+    }
+    .sched-head-sub {
+      font-size: 0.55rem;
+      opacity: 0.5;
+      margin-top: 2px;
+      letter-spacing: 0.5px;
+    }
+    .sched-empty {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--mid);
+      font-size: 0.7rem;
+      padding: 32px;
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    .match-item {
+      padding: 11px 16px 11px 14px;
+      border-bottom: 1px solid var(--faint);
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      position: relative;
+    }
+    .match-item:hover { background: var(--hover); }
+    .match-spine {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex-shrink: 0;
+      padding-top: 1px;
+    }
+    .match-dot {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.58rem;
+      font-weight: 500;
+      color: #fff;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 1;
+    }
+    .match-line {
+      width: 2px;
+      flex: 1;
+      min-height: 10px;
+      margin-top: 2px;
+    }
+    .match-item:last-child .match-line { display: none; }
+    .match-body { flex: 1; min-width: 0; }
+    .match-stage {
+      font-size: 0.52rem;
+      text-transform: uppercase;
+      letter-spacing: 1.1px;
+      color: var(--mid);
+      margin-bottom: 2px;
+    }
+    .match-teams {
+      font-size: 0.78rem;
+      font-weight: 500;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .match-meta { font-size: 0.58rem; color: var(--mid); margin-bottom: 1px; }
+    .match-venue { font-size: 0.58rem; color: var(--mid); font-style: italic; }
+
+    /* ── map panel ── */
+    .map-panel { flex: 1; position: relative; }
+    #map { width: 100%; height: 100%; }
+
+    .map-legend {
+      position: absolute;
+      bottom: 28px;
+      right: 12px;
+      background: rgba(255,248,220,0.96);
+      border: var(--border);
+      padding: 10px 14px;
+      font-size: 0.58rem;
+      z-index: 1000;
+      pointer-events: none;
+    }
+    .legend-title {
+      font-size: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--mid);
+      margin-bottom: 7px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 4px;
+      color: var(--ink);
+    }
+    .legend-swatch {
+      width: 22px; height: 3px;
+      flex-shrink: 0;
+      border-radius: 1px;
+    }
+
+    @media (max-width: 768px) {
+      html, body { overflow: auto; }
+      .wc-layout { height: auto; }
+      .wc-split { flex-direction: column; }
+      .schedule-panel { width: 100%; border-right: none; border-bottom: 2px solid var(--ink); max-height: 45vh; }
+      .map-panel { height: 420px; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <div>
+    <h1>FIFA World Cup 2026 — Team Flight Paths</h1>
+    <p>select a team and scenario to trace their journey across North America</p>
+  </div>
+  <a class="back-link" href="/">&#8592; home</a>
+</header>
+
+<div class="wc-layout">
+
+  <div class="wc-controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">Team</span>
+      <select id="teamSelect">
+        <option value="">— pick a team —</option>
+      </select>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">Group Finish</span>
+      <div class="btn-row" id="posBtns">
+        <button class="active" data-pos="1">1st</button>
+        <button data-pos="2">2nd</button>
+        <button data-pos="3">3rd (q)</button>
+        <button data-pos="0">Eliminated</button>
+      </div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">Progress</span>
+      <div class="btn-row" id="scenBtns">
+        <button class="active" data-sc="group">Group Stage</button>
+        <button data-sc="r32">Round of 32</button>
+        <button data-sc="r16">Round of 16</button>
+        <button data-sc="qf">Quarterfinals</button>
+        <button data-sc="sf">Semifinals</button>
+        <button data-sc="final">Champions</button>
+      </div>
+    </div>
+    <div class="wc-dist" id="distStat"></div>
+  </div>
+
+  <div class="wc-split">
+    <div class="schedule-panel" id="schedPanel">
+      <div class="sched-head"><div class="sched-head-name">Match Schedule</div></div>
+      <div class="sched-empty">Select a team above to see<br>their schedule and flight path.</div>
+    </div>
+    <div class="map-panel">
+      <div id="map"></div>
+      <div class="map-legend" id="mapLegend" style="display:none">
+        <div class="legend-title">Tournament Stage</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#5a9e6a"></div>Group Stage</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#5a8aae"></div>Round of 32</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#a89030"></div>Round of 16</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#b860a0"></div>Quarterfinals</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#b05050"></div>Semifinals</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#c8900a"></div>Final</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ═══════════════════════════════════════
+// STADIUMS
+// ═══════════════════════════════════════
+const STADIUMS = {
+  "Estadio Azteca":          { lat: 19.3029, lng: -99.1505,  city: "Mexico City, MX" },
+  "Estadio Akron":           { lat: 20.6897, lng: -103.4682, city: "Zapopan, MX" },
+  "Estadio BBVA":            { lat: 25.6694, lng: -100.3009, city: "Monterrey, MX" },
+  "SoFi Stadium":            { lat: 33.9535, lng: -118.3392, city: "Inglewood, CA" },
+  "Levi's Stadium":          { lat: 37.4034, lng: -121.9700, city: "Santa Clara, CA" },
+  "Lumen Field":             { lat: 47.5952, lng: -122.3316, city: "Seattle, WA" },
+  "BC Place":                { lat: 49.2768, lng: -123.1118, city: "Vancouver, BC" },
+  "NRG Stadium":             { lat: 29.6847, lng:  -95.4107, city: "Houston, TX" },
+  "AT&T Stadium":            { lat: 32.7480, lng:  -97.0928, city: "Arlington, TX" },
+  "Arrowhead Stadium":       { lat: 39.0489, lng:  -94.4839, city: "Kansas City, MO" },
+  "BMO Field":               { lat: 43.6332, lng:  -79.4187, city: "Toronto, ON" },
+  "MetLife Stadium":         { lat: 40.8135, lng:  -74.0745, city: "East Rutherford, NJ" },
+  "Gillette Stadium":        { lat: 42.0909, lng:  -71.2643, city: "Foxborough, MA" },
+  "Lincoln Financial Field": { lat: 39.9008, lng:  -75.1675, city: "Philadelphia, PA" },
+  "Hard Rock Stadium":       { lat: 25.9580, lng:  -80.2389, city: "Miami Gardens, FL" },
+  "Mercedes-Benz Stadium":   { lat: 33.7554, lng:  -84.4009, city: "Atlanta, GA" },
+};
+
+// ═══════════════════════════════════════
+// STAGE COLORS
+// ═══════════════════════════════════════
+const COLORS = {
+  group: "#5a9e6a",
+  r32:   "#5a8aae",
+  r16:   "#a89030",
+  qf:    "#b860a0",
+  sf:    "#b05050",
+  final: "#c8900a",
+};
+
+// ═══════════════════════════════════════
+// GROUP STAGE MATCHES
+// ═══════════════════════════════════════
+const GROUP_MATCHES = [
+  {num:1,  grp:"A",date:"Thu Jun 11",time:"3:00 PM", t1:"Mexico",        t2:"South Africa",  venue:"Estadio Azteca"},
+  {num:2,  grp:"A",date:"Thu Jun 11",time:"10:00 PM",t1:"South Korea",   t2:"UEFA D",        venue:"Estadio Akron"},
+  {num:3,  grp:"B",date:"Fri Jun 12",time:"3:00 PM", t1:"Canada",        t2:"UEFA A",        venue:"BMO Field"},
+  {num:4,  grp:"D",date:"Fri Jun 12",time:"9:00 PM", t1:"United States", t2:"Paraguay",      venue:"SoFi Stadium"},
+  {num:5,  grp:"C",date:"Sat Jun 13",time:"9:00 PM", t1:"Haiti",         t2:"Scotland",      venue:"Gillette Stadium"},
+  {num:6,  grp:"D",date:"Sat Jun 13",time:"11:59 PM",t1:"Australia",     t2:"UEFA C",        venue:"BC Place"},
+  {num:7,  grp:"C",date:"Sat Jun 13",time:"6:00 PM", t1:"Brazil",        t2:"Morocco",       venue:"MetLife Stadium"},
+  {num:8,  grp:"B",date:"Sat Jun 13",time:"3:00 PM", t1:"Qatar",         t2:"Switzerland",   venue:"Levi's Stadium"},
+  {num:9,  grp:"E",date:"Sun Jun 14",time:"7:00 PM", t1:"Ivory Coast",   t2:"Ecuador",       venue:"Lincoln Financial Field"},
+  {num:10, grp:"E",date:"Sun Jun 14",time:"1:00 PM", t1:"Germany",       t2:"Curacao",       venue:"NRG Stadium"},
+  {num:11, grp:"F",date:"Sun Jun 14",time:"4:00 PM", t1:"Netherlands",   t2:"Japan",         venue:"AT&T Stadium"},
+  {num:12, grp:"F",date:"Sun Jun 14",time:"10:00 PM",t1:"UEFA B",        t2:"Tunisia",       venue:"Estadio BBVA"},
+  {num:13, grp:"H",date:"Mon Jun 15",time:"6:00 PM", t1:"Saudi Arabia",  t2:"Uruguay",       venue:"Hard Rock Stadium"},
+  {num:14, grp:"H",date:"Mon Jun 15",time:"12:00 PM",t1:"Spain",         t2:"Cape Verde",    venue:"Mercedes-Benz Stadium"},
+  {num:15, grp:"G",date:"Mon Jun 15",time:"9:00 PM", t1:"Iran",          t2:"New Zealand",   venue:"SoFi Stadium"},
+  {num:16, grp:"G",date:"Mon Jun 15",time:"3:00 PM", t1:"Belgium",       t2:"Egypt",         venue:"Lumen Field"},
+  {num:17, grp:"I",date:"Tue Jun 16",time:"3:00 PM", t1:"France",        t2:"Senegal",       venue:"MetLife Stadium"},
+  {num:18, grp:"I",date:"Tue Jun 16",time:"6:00 PM", t1:"FIFA 2",        t2:"Norway",        venue:"Gillette Stadium"},
+  {num:19, grp:"J",date:"Tue Jun 16",time:"9:00 PM", t1:"Argentina",     t2:"Algeria",       venue:"Arrowhead Stadium"},
+  {num:20, grp:"J",date:"Tue Jun 16",time:"11:59 PM",t1:"Austria",       t2:"Jordan",        venue:"Levi's Stadium"},
+  {num:21, grp:"L",date:"Wed Jun 17",time:"4:00 PM", t1:"England",       t2:"Croatia",       venue:"AT&T Stadium"},
+  {num:22, grp:"L",date:"Wed Jun 17",time:"7:00 PM", t1:"Ghana",         t2:"Panama",        venue:"BMO Field"},
+  {num:23, grp:"K",date:"Wed Jun 17",time:"1:00 PM", t1:"Portugal",      t2:"FIFA 1",        venue:"NRG Stadium"},
+  {num:24, grp:"K",date:"Wed Jun 17",time:"10:00 PM",t1:"Uzbekistan",    t2:"Colombia",      venue:"Estadio Azteca"},
+  {num:25, grp:"A",date:"Thu Jun 18",time:"12:00 PM",t1:"UEFA D",        t2:"South Africa",  venue:"Mercedes-Benz Stadium"},
+  {num:26, grp:"B",date:"Thu Jun 18",time:"3:00 PM", t1:"Switzerland",   t2:"UEFA A",        venue:"SoFi Stadium"},
+  {num:27, grp:"B",date:"Thu Jun 18",time:"6:00 PM", t1:"Canada",        t2:"Qatar",         venue:"BC Place"},
+  {num:28, grp:"A",date:"Thu Jun 18",time:"9:00 PM", t1:"Mexico",        t2:"South Korea",   venue:"Estadio Akron"},
+  {num:29, grp:"C",date:"Fri Jun 19",time:"9:00 PM", t1:"Brazil",        t2:"Haiti",         venue:"Lincoln Financial Field"},
+  {num:30, grp:"C",date:"Fri Jun 19",time:"6:00 PM", t1:"Scotland",      t2:"Morocco",       venue:"Gillette Stadium"},
+  {num:31, grp:"D",date:"Fri Jun 19",time:"11:59 PM",t1:"UEFA C",        t2:"Paraguay",      venue:"Levi's Stadium"},
+  {num:32, grp:"D",date:"Fri Jun 19",time:"3:00 PM", t1:"United States", t2:"Australia",     venue:"Lumen Field"},
+  {num:33, grp:"E",date:"Sat Jun 20",time:"4:00 PM", t1:"Germany",       t2:"Ivory Coast",   venue:"BMO Field"},
+  {num:34, grp:"E",date:"Sat Jun 20",time:"8:00 PM", t1:"Ecuador",       t2:"Curacao",       venue:"Arrowhead Stadium"},
+  {num:35, grp:"F",date:"Sat Jun 20",time:"1:00 PM", t1:"Netherlands",   t2:"UEFA B",        venue:"NRG Stadium"},
+  {num:36, grp:"F",date:"Sat Jun 20",time:"11:59 PM",t1:"Tunisia",       t2:"Japan",         venue:"Estadio BBVA"},
+  {num:37, grp:"H",date:"Sun Jun 21",time:"6:00 PM", t1:"Uruguay",       t2:"Cape Verde",    venue:"Hard Rock Stadium"},
+  {num:38, grp:"H",date:"Sun Jun 21",time:"12:00 PM",t1:"Spain",         t2:"Saudi Arabia",  venue:"Mercedes-Benz Stadium"},
+  {num:39, grp:"G",date:"Sun Jun 21",time:"3:00 PM", t1:"Belgium",       t2:"Iran",          venue:"SoFi Stadium"},
+  {num:40, grp:"G",date:"Sun Jun 21",time:"9:00 PM", t1:"New Zealand",   t2:"Egypt",         venue:"BC Place"},
+  {num:41, grp:"I",date:"Mon Jun 22",time:"8:00 PM", t1:"Norway",        t2:"Senegal",       venue:"MetLife Stadium"},
+  {num:42, grp:"I",date:"Mon Jun 22",time:"5:00 PM", t1:"France",        t2:"FIFA 2",        venue:"Lincoln Financial Field"},
+  {num:43, grp:"J",date:"Mon Jun 22",time:"1:00 PM", t1:"Argentina",     t2:"Austria",       venue:"AT&T Stadium"},
+  {num:44, grp:"J",date:"Mon Jun 22",time:"11:00 PM",t1:"Jordan",        t2:"Algeria",       venue:"Levi's Stadium"},
+  {num:45, grp:"L",date:"Tue Jun 23",time:"4:00 PM", t1:"England",       t2:"Ghana",         venue:"Gillette Stadium"},
+  {num:46, grp:"L",date:"Tue Jun 23",time:"7:00 PM", t1:"Panama",        t2:"Croatia",       venue:"BMO Field"},
+  {num:47, grp:"K",date:"Tue Jun 23",time:"1:00 PM", t1:"Portugal",      t2:"Uzbekistan",    venue:"NRG Stadium"},
+  {num:48, grp:"K",date:"Tue Jun 23",time:"10:00 PM",t1:"Colombia",      t2:"FIFA 1",        venue:"Estadio Akron"},
+  {num:49, grp:"C",date:"Wed Jun 24",time:"6:00 PM", t1:"Scotland",      t2:"Brazil",        venue:"Hard Rock Stadium"},
+  {num:50, grp:"C",date:"Wed Jun 24",time:"6:00 PM", t1:"Morocco",       t2:"Haiti",         venue:"Mercedes-Benz Stadium"},
+  {num:51, grp:"B",date:"Wed Jun 24",time:"3:00 PM", t1:"Switzerland",   t2:"Canada",        venue:"BC Place"},
+  {num:52, grp:"B",date:"Wed Jun 24",time:"3:00 PM", t1:"UEFA A",        t2:"Qatar",         venue:"Lumen Field"},
+  {num:53, grp:"A",date:"Wed Jun 24",time:"9:00 PM", t1:"UEFA D",        t2:"Mexico",        venue:"Estadio Azteca"},
+  {num:54, grp:"A",date:"Wed Jun 24",time:"9:00 PM", t1:"South Africa",  t2:"South Korea",   venue:"Estadio BBVA"},
+  {num:55, grp:"E",date:"Thu Jun 25",time:"4:00 PM", t1:"Curacao",       t2:"Ivory Coast",   venue:"Lincoln Financial Field"},
+  {num:56, grp:"E",date:"Thu Jun 25",time:"4:00 PM", t1:"Ecuador",       t2:"Germany",       venue:"MetLife Stadium"},
+  {num:57, grp:"F",date:"Thu Jun 25",time:"7:00 PM", t1:"Japan",         t2:"UEFA B",        venue:"AT&T Stadium"},
+  {num:58, grp:"F",date:"Thu Jun 25",time:"7:00 PM", t1:"Tunisia",       t2:"Netherlands",   venue:"Arrowhead Stadium"},
+  {num:59, grp:"D",date:"Thu Jun 25",time:"10:00 PM",t1:"UEFA C",        t2:"United States", venue:"SoFi Stadium"},
+  {num:60, grp:"D",date:"Thu Jun 25",time:"10:00 PM",t1:"Paraguay",      t2:"Australia",     venue:"Levi's Stadium"},
+  {num:61, grp:"I",date:"Fri Jun 26",time:"3:00 PM", t1:"Norway",        t2:"France",        venue:"Gillette Stadium"},
+  {num:62, grp:"I",date:"Fri Jun 26",time:"3:00 PM", t1:"Senegal",       t2:"FIFA 2",        venue:"BMO Field"},
+  {num:63, grp:"G",date:"Fri Jun 26",time:"11:00 PM",t1:"Egypt",         t2:"Iran",          venue:"Lumen Field"},
+  {num:64, grp:"G",date:"Fri Jun 26",time:"11:00 PM",t1:"New Zealand",   t2:"Belgium",       venue:"BC Place"},
+  {num:65, grp:"H",date:"Fri Jun 26",time:"8:00 PM", t1:"Cape Verde",    t2:"Saudi Arabia",  venue:"NRG Stadium"},
+  {num:66, grp:"H",date:"Fri Jun 26",time:"8:00 PM", t1:"Uruguay",       t2:"Spain",         venue:"Estadio Akron"},
+  {num:67, grp:"L",date:"Sat Jun 27",time:"5:00 PM", t1:"Panama",        t2:"England",       venue:"MetLife Stadium"},
+  {num:68, grp:"L",date:"Sat Jun 27",time:"5:00 PM", t1:"Croatia",       t2:"Ghana",         venue:"Lincoln Financial Field"},
+  {num:69, grp:"J",date:"Sat Jun 27",time:"10:00 PM",t1:"Algeria",       t2:"Austria",       venue:"Arrowhead Stadium"},
+  {num:70, grp:"J",date:"Sat Jun 27",time:"10:00 PM",t1:"Jordan",        t2:"Argentina",     venue:"AT&T Stadium"},
+  {num:71, grp:"K",date:"Sat Jun 27",time:"7:30 PM", t1:"Colombia",      t2:"Portugal",      venue:"Hard Rock Stadium"},
+  {num:72, grp:"K",date:"Sat Jun 27",time:"7:30 PM", t1:"FIFA 1",        t2:"Uzbekistan",    venue:"Mercedes-Benz Stadium"},
+];
+
+// ═══════════════════════════════════════
+// KNOCKOUT MATCHES
+// ═══════════════════════════════════════
+const KO = {
+  73: {stage:"Round of 32",  sk:"r32",  date:"Sun Jun 28",time:"3:00 PM", venue:"SoFi Stadium"},
+  74: {stage:"Round of 32",  sk:"r32",  date:"Mon Jun 29",time:"1:00 PM", venue:"Gillette Stadium"},
+  75: {stage:"Round of 32",  sk:"r32",  date:"Mon Jun 29",time:"9:00 PM", venue:"Estadio BBVA"},
+  76: {stage:"Round of 32",  sk:"r32",  date:"Mon Jun 29",time:"4:30 PM", venue:"NRG Stadium"},
+  77: {stage:"Round of 32",  sk:"r32",  date:"Tue Jun 30",time:"5:00 PM", venue:"MetLife Stadium"},
+  78: {stage:"Round of 32",  sk:"r32",  date:"Tue Jun 30",time:"2:00 PM", venue:"AT&T Stadium"},
+  79: {stage:"Round of 32",  sk:"r32",  date:"Tue Jun 30",time:"9:00 PM", venue:"Estadio Azteca"},
+  80: {stage:"Round of 32",  sk:"r32",  date:"Wed Jul 1", time:"12:00 PM",venue:"Mercedes-Benz Stadium"},
+  81: {stage:"Round of 32",  sk:"r32",  date:"Wed Jul 1", time:"8:00 PM", venue:"Levi's Stadium"},
+  82: {stage:"Round of 32",  sk:"r32",  date:"Wed Jul 1", time:"4:00 PM", venue:"Lumen Field"},
+  83: {stage:"Round of 32",  sk:"r32",  date:"Thu Jul 2", time:"7:00 PM", venue:"BMO Field"},
+  84: {stage:"Round of 32",  sk:"r32",  date:"Thu Jul 2", time:"3:00 PM", venue:"SoFi Stadium"},
+  85: {stage:"Round of 32",  sk:"r32",  date:"Thu Jul 2", time:"11:00 PM",venue:"BC Place"},
+  86: {stage:"Round of 32",  sk:"r32",  date:"Fri Jul 3", time:"6:00 PM", venue:"Hard Rock Stadium"},
+  87: {stage:"Round of 32",  sk:"r32",  date:"Fri Jul 3", time:"9:30 PM", venue:"Arrowhead Stadium"},
+  88: {stage:"Round of 32",  sk:"r32",  date:"Fri Jul 3", time:"2:00 PM", venue:"AT&T Stadium"},
+  89: {stage:"Round of 16",  sk:"r16",  date:"Sat Jul 4", time:"5:00 PM", venue:"Lincoln Financial Field"},
+  90: {stage:"Round of 16",  sk:"r16",  date:"Sat Jul 4", time:"1:00 PM", venue:"NRG Stadium"},
+  91: {stage:"Round of 16",  sk:"r16",  date:"Sun Jul 5", time:"4:00 PM", venue:"MetLife Stadium"},
+  92: {stage:"Round of 16",  sk:"r16",  date:"Sun Jul 5", time:"8:00 PM", venue:"Estadio Azteca"},
+  93: {stage:"Round of 16",  sk:"r16",  date:"Mon Jul 6", time:"3:00 PM", venue:"AT&T Stadium"},
+  94: {stage:"Round of 16",  sk:"r16",  date:"Mon Jul 6", time:"8:00 PM", venue:"Lumen Field"},
+  95: {stage:"Round of 16",  sk:"r16",  date:"Tue Jul 7", time:"4:00 PM", venue:"Mercedes-Benz Stadium"},
+  96: {stage:"Round of 16",  sk:"r16",  date:"Tue Jul 7", time:"12:00 PM",venue:"BC Place"},
+  97: {stage:"Quarterfinals",sk:"qf",   date:"Thu Jul 9", time:"4:00 PM", venue:"Gillette Stadium"},
+  98: {stage:"Quarterfinals",sk:"qf",   date:"Fri Jul 10",time:"3:00 PM", venue:"SoFi Stadium"},
+  99: {stage:"Quarterfinals",sk:"qf",   date:"Sat Jul 11",time:"5:00 PM", venue:"Hard Rock Stadium"},
+ 100: {stage:"Quarterfinals",sk:"qf",   date:"Sat Jul 11",time:"9:00 PM", venue:"Arrowhead Stadium"},
+ 101: {stage:"Semifinals",   sk:"sf",   date:"Tue Jul 14",time:"3:00 PM", venue:"AT&T Stadium"},
+ 102: {stage:"Semifinals",   sk:"sf",   date:"Wed Jul 15",time:"3:00 PM", venue:"Mercedes-Benz Stadium"},
+ 103: {stage:"3rd Place",    sk:"sf",   date:"Sat Jul 18",time:"5:00 PM", venue:"Hard Rock Stadium"},
+ 104: {stage:"Final",        sk:"final",date:"Sun Jul 19",time:"3:00 PM", venue:"MetLife Stadium"},
+};
+
+// ═══════════════════════════════════════
+// TEAMS
+// chain = [r32, r16, qf, sf, final]
+// for SF scenario the team plays sf match + 3rd place; for final they skip 3rd and play 104
+// ═══════════════════════════════════════
+const TEAMS = {
+  // Group A
+  "Mexico":        {grp:"A", c1:[79,92,99,102,104], c2:[73,90,97,101,104], c3:[74,89,97,101,104]},
+  "South Africa":  {grp:"A", c1:[79,92,99,102,104], c2:[73,90,97,101,104], c3:[74,89,97,101,104]},
+  "South Korea":   {grp:"A", c1:[79,92,99,102,104], c2:[73,90,97,101,104], c3:[74,89,97,101,104]},
+  // Group B
+  "Canada":        {grp:"B", c1:[85,96,100,102,104], c2:[73,90,97,101,104], c3:[74,89,97,101,104]},
+  "Qatar":         {grp:"B", c1:[85,96,100,102,104], c2:[73,90,97,101,104], c3:[74,89,97,101,104]},
+  "Switzerland":   {grp:"B", c1:[85,96,100,102,104], c2:[73,90,97,101,104], c3:[74,89,97,101,104]},
+  // Group C
+  "Brazil":        {grp:"C", c1:[76,91,99,102,104], c2:[75,90,97,101,104], c3:[74,89,97,101,104]},
+  "Haiti":         {grp:"C", c1:[76,91,99,102,104], c2:[75,90,97,101,104], c3:[74,89,97,101,104]},
+  "Scotland":      {grp:"C", c1:[76,91,99,102,104], c2:[75,90,97,101,104], c3:[74,89,97,101,104]},
+  "Morocco":       {grp:"C", c1:[76,91,99,102,104], c2:[75,90,97,101,104], c3:[74,89,97,101,104]},
+  // Group D
+  "United States": {grp:"D", c1:[81,94,98,101,104], c2:[88,95,100,102,104], c3:[74,89,97,101,104]},
+  "Australia":     {grp:"D", c1:[81,94,98,101,104], c2:[88,95,100,102,104], c3:[74,89,97,101,104]},
+  "Paraguay":      {grp:"D", c1:[81,94,98,101,104], c2:[88,95,100,102,104], c3:[74,89,97,101,104]},
+  // Group E
+  "Germany":       {grp:"E", c1:[74,89,97,101,104], c2:[78,91,99,102,104], c3:[79,92,99,102,104]},
+  "Curacao":       {grp:"E", c1:[74,89,97,101,104], c2:[78,91,99,102,104], c3:[79,92,99,102,104]},
+  "Ivory Coast":   {grp:"E", c1:[74,89,97,101,104], c2:[78,91,99,102,104], c3:[79,92,99,102,104]},
+  "Ecuador":       {grp:"E", c1:[74,89,97,101,104], c2:[78,91,99,102,104], c3:[79,92,99,102,104]},
+  // Group F
+  "Netherlands":   {grp:"F", c1:[75,90,97,101,104], c2:[76,91,99,102,104], c3:[74,89,97,101,104]},
+  "Japan":         {grp:"F", c1:[75,90,97,101,104], c2:[76,91,99,102,104], c3:[74,89,97,101,104]},
+  "Tunisia":       {grp:"F", c1:[75,90,97,101,104], c2:[76,91,99,102,104], c3:[74,89,97,101,104]},
+  // Group G
+  "Belgium":       {grp:"G", c1:[82,94,98,101,104], c2:[88,95,100,102,104], c3:[85,96,100,102,104]},
+  "Egypt":         {grp:"G", c1:[82,94,98,101,104], c2:[88,95,100,102,104], c3:[85,96,100,102,104]},
+  "Iran":          {grp:"G", c1:[82,94,98,101,104], c2:[88,95,100,102,104], c3:[85,96,100,102,104]},
+  "New Zealand":   {grp:"G", c1:[82,94,98,101,104], c2:[88,95,100,102,104], c3:[85,96,100,102,104]},
+  // Group H
+  "Spain":         {grp:"H", c1:[84,93,98,101,104], c2:[86,95,100,102,104], c3:[77,89,97,101,104]},
+  "Cape Verde":    {grp:"H", c1:[84,93,98,101,104], c2:[86,95,100,102,104], c3:[77,89,97,101,104]},
+  "Saudi Arabia":  {grp:"H", c1:[84,93,98,101,104], c2:[86,95,100,102,104], c3:[77,89,97,101,104]},
+  "Uruguay":       {grp:"H", c1:[84,93,98,101,104], c2:[86,95,100,102,104], c3:[77,89,97,101,104]},
+  // Group I
+  "France":        {grp:"I", c1:[77,89,97,101,104], c2:[78,91,99,102,104], c3:[79,92,99,102,104]},
+  "Norway":        {grp:"I", c1:[77,89,97,101,104], c2:[78,91,99,102,104], c3:[79,92,99,102,104]},
+  "Senegal":       {grp:"I", c1:[77,89,97,101,104], c2:[78,91,99,102,104], c3:[79,92,99,102,104]},
+  // Group J
+  "Argentina":     {grp:"J", c1:[86,95,100,102,104], c2:[84,93,98,101,104], c3:[82,94,98,101,104]},
+  "Algeria":       {grp:"J", c1:[86,95,100,102,104], c2:[84,93,98,101,104], c3:[82,94,98,101,104]},
+  "Austria":       {grp:"J", c1:[86,95,100,102,104], c2:[84,93,98,101,104], c3:[82,94,98,101,104]},
+  "Jordan":        {grp:"J", c1:[86,95,100,102,104], c2:[84,93,98,101,104], c3:[82,94,98,101,104]},
+  // Group K
+  "Portugal":      {grp:"K", c1:[87,96,100,102,104], c2:[83,93,98,101,104], c3:[80,92,99,102,104]},
+  "Uzbekistan":    {grp:"K", c1:[87,96,100,102,104], c2:[83,93,98,101,104], c3:[80,92,99,102,104]},
+  "Colombia":      {grp:"K", c1:[87,96,100,102,104], c2:[83,93,98,101,104], c3:[80,92,99,102,104]},
+  // Group L
+  "England":       {grp:"L", c1:[80,92,99,102,104], c2:[83,93,98,101,104], c3:[87,96,100,102,104]},
+  "Croatia":       {grp:"L", c1:[80,92,99,102,104], c2:[83,93,98,101,104], c3:[87,96,100,102,104]},
+  "Ghana":         {grp:"L", c1:[80,92,99,102,104], c2:[83,93,98,101,104], c3:[87,96,100,102,104]},
+  "Panama":        {grp:"L", c1:[80,92,99,102,104], c2:[83,93,98,101,104], c3:[87,96,100,102,104]},
+};
+
+// ═══════════════════════════════════════
+// MAP INIT
+// ═══════════════════════════════════════
+const map = L.map('map', { center:[37,-97], zoom:4, zoomControl:true });
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution:'&copy; OpenStreetMap &copy; CARTO', maxZoom:12
+}).addTo(map);
+
+let layers = [];
+function clearMap() { layers.forEach(l => map.removeLayer(l)); layers = []; }
+
+// Haversine distance (km)
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371, r = Math.PI/180;
+  const dLat = (lat2-lat1)*r, dLng = (lng2-lng1)*r;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*r)*Math.cos(lat2*r)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// Great-circle arc points
+function gcArc(lat1, lng1, lat2, lng2, n=60) {
+  const r = Math.PI/180, d = x => x*180/Math.PI;
+  const φ1=lat1*r, λ1=lng1*r, φ2=lat2*r, λ2=lng2*r;
+  const dist = 2*Math.asin(Math.sqrt(
+    Math.sin((φ2-φ1)/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin((λ2-λ1)/2)**2
+  ));
+  if (dist < 0.001) return [[lat1,lng1],[lat2,lng2]];
+  const pts = [];
+  for (let i=0; i<=n; i++) {
+    const f=i/n, A=Math.sin((1-f)*dist)/Math.sin(dist), B=Math.sin(f*dist)/Math.sin(dist);
+    const x = A*Math.cos(φ1)*Math.cos(λ1)+B*Math.cos(φ2)*Math.cos(λ2);
+    const y = A*Math.cos(φ1)*Math.sin(λ1)+B*Math.cos(φ2)*Math.sin(λ2);
+    const z = A*Math.sin(φ1)+B*Math.sin(φ2);
+    pts.push([d(Math.atan2(z,Math.sqrt(x*x+y*y))), d(Math.atan2(y,x))]);
+  }
+  return pts;
+}
+
+function drawArc(v1, v2, color) {
+  const s1=STADIUMS[v1], s2=STADIUMS[v2];
+  if (!s1||!s2||v1===v2) return;
+  const poly = L.polyline(gcArc(s1.lat,s1.lng,s2.lat,s2.lng), {
+    color, weight:2.5, opacity:0.82, dashArray:'7 4'
+  }).addTo(map);
+  layers.push(poly);
+}
+
+function drawMarker(venue, stopNum, color, stageLabel) {
+  const s = STADIUMS[venue];
+  if (!s) return;
+  const icon = L.divIcon({
+    html:`<div style="width:24px;height:24px;border-radius:50%;background:${color};
+      border:2px solid #2c2e25;display:flex;align-items:center;justify-content:center;
+      font-family:'DM Mono',monospace;font-size:9px;font-weight:500;color:#fff;
+      box-shadow:0 1px 4px rgba(0,0,0,0.3)">${stopNum}</div>`,
+    className:'', iconSize:[24,24], iconAnchor:[12,12]
+  });
+  const m = L.marker([s.lat,s.lng],{icon}).addTo(map);
+  m.bindTooltip(`<b style="font-family:'DM Mono',monospace;font-size:11px">${venue}</b><br>
+    <span style="font-size:10px;color:#666">${s.city}</span><br>
+    <span style="font-size:10px">${stageLabel}</span>`,
+    {direction:'top', offset:[0,-14]});
+  layers.push(m);
+}
+
+// ═══════════════════════════════════════
+// MATCH BUILDER
+// ═══════════════════════════════════════
+function buildMatches(teamName, pos, scenario) {
+  const td = TEAMS[teamName];
+  if (!td) return [];
+  const grp = td.grp;
+
+  // group stage: all 3 of this team's group matches
+  const gms = GROUP_MATCHES
+    .filter(m => m.grp===grp && (m.t1===teamName||m.t2===teamName))
+    .map(m => ({
+      num: m.num, stage:`Group ${grp}`, sk:'group',
+      date:m.date, time:m.time, venue:m.venue,
+      opponent: m.t1===teamName ? m.t2 : m.t1,
+    }));
+
+  if (pos===0 || scenario==='group') return gms;
+
+  const chain = pos===1 ? td.c1 : pos===2 ? td.c2 : td.c3;
+  const depth = {r32:1, r16:2, qf:3, sf:4, final:5}[scenario] ?? 0;
+
+  const kos = [];
+  for (let i=0; i<Math.min(depth, chain.length); i++) {
+    const mn = chain[i];
+    const k = KO[mn];
+    if (!k) continue;
+    kos.push({ num:mn, stage:k.stage, sk:k.sk, date:k.date, time:k.time, venue:k.venue, opponent:'TBD' });
+  }
+
+  // SF scenario: add 3rd place match after semifinal (as separate entry)
+  if (scenario==='sf' && kos.length===4) {
+    kos.push({ num:103, stage:'3rd Place Match', sk:'sf', date:KO[103].date, time:KO[103].time, venue:KO[103].venue, opponent:'TBD' });
+  }
+
+  return [...gms, ...kos];
+}
+
+// ═══════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════
+let state = { team:'', pos:1, scenario:'group' };
+
+function totalDist(matches) {
+  let d=0;
+  for (let i=1;i<matches.length;i++) {
+    const a=STADIUMS[matches[i-1].venue], b=STADIUMS[matches[i].venue];
+    if (a&&b&&matches[i-1].venue!==matches[i].venue) d+=haversine(a.lat,a.lng,b.lat,b.lng);
+  }
+  return Math.round(d);
+}
+
+function renderAll() {
+  const {team, pos, scenario} = state;
+  const matches = buildMatches(team, pos, scenario);
+  renderSchedule(team, pos, scenario, matches);
+  renderMap(matches);
+  const dist = totalDist(matches);
+  const el = document.getElementById('distStat');
+  if (team && matches.length) {
+    el.innerHTML = `total flight distance: <span>${dist.toLocaleString()} km</span>`;
+  } else {
+    el.innerHTML = '';
+  }
+}
+
+function renderSchedule(team, pos, scenario, matches) {
+  const panel = document.getElementById('schedPanel');
+  if (!team) {
+    panel.innerHTML = `<div class="sched-head"><div class="sched-head-name">Match Schedule</div></div>
+      <div class="sched-empty">Select a team above to see<br>their schedule and flight path.</div>`;
+    return;
+  }
+  const posLabel = ['Eliminated','Group Winner','Runner-up','3rd (Qualified)'][pos] ?? '';
+  const scLabel  = {group:'Group Stage',r32:'Round of 32',r16:'Round of 16',qf:'Quarterfinals',sf:'Semifinals',final:'Champions'}[scenario];
+  const td = TEAMS[team];
+  const grpNote = pos===3 ? ' · estimated path' : '';
+
+  let html = `<div class="sched-head">
+    <div class="sched-head-name">${team}</div>
+    <div class="sched-head-sub">Group ${td.grp} · ${posLabel} · ${scLabel}${grpNote}</div>
+  </div>`;
+
+  if (pos===0) {
+    html += `<div style="padding:14px 16px;font-size:0.62rem;color:var(--mid);border-bottom:1px solid var(--faint);background:var(--hover)">
+      Eliminated in group stage — showing group fixtures only.</div>`;
+  } else if (pos===3) {
+    html += `<div style="padding:10px 16px;font-size:0.6rem;color:var(--mid);border-bottom:1px solid var(--faint);background:var(--hover)">
+      3rd-place knockout path depends on final group standings. Showing one possible route.</div>`;
+  }
+
+  matches.forEach((m, i) => {
+    const col = COLORS[m.sk] || '#888';
+    const opp = m.opponent === 'TBD'
+      ? `<em style="color:var(--mid)">TBD</em>`
+      : m.opponent;
+    const isLast = i === matches.length-1;
+    html += `<div class="match-item">
+      <div class="match-spine">
+        <div class="match-dot" style="background:${col}">${i+1}</div>
+        ${!isLast ? `<div class="match-line" style="background:${col}44"></div>` : ''}
+      </div>
+      <div class="match-body">
+        <div class="match-stage">${m.stage}</div>
+        <div class="match-teams">vs ${opp}</div>
+        <div class="match-meta">${m.date} · ${m.time}</div>
+        <div class="match-venue">${m.venue}</div>
+      </div>
+    </div>`;
+  });
+
+  panel.innerHTML = html;
+}
+
+function renderMap(matches) {
+  clearMap();
+  document.getElementById('mapLegend').style.display = matches.length ? 'block' : 'none';
+  if (!matches.length) return;
+
+  const venues   = matches.map(m => m.venue);
+  const stageKeys= matches.map(m => m.sk);
+
+  // arcs between consecutive venues
+  for (let i=1; i<venues.length; i++) {
+    drawArc(venues[i-1], venues[i], COLORS[stageKeys[i]]);
+  }
+
+  // markers — number by first visit, update label if revisited
+  const seen = {};
+  venues.forEach((v, i) => {
+    if (!seen[v]) {
+      seen[v] = i+1;
+      drawMarker(v, i+1, COLORS[stageKeys[i]], matches[i].stage);
+    }
+  });
+
+  // fit bounds
+  const coords = [...new Set(venues)].map(v => STADIUMS[v]).filter(Boolean).map(s=>[s.lat,s.lng]);
+  if (coords.length > 1) map.fitBounds(coords, {padding:[50,50]});
+  else if (coords.length===1) map.setView(coords[0], 6);
+}
+
+// ═══════════════════════════════════════
+// UI WIRING
+// ═══════════════════════════════════════
+
+// Populate team select
+const sel = document.getElementById('teamSelect');
+Object.keys(TEAMS).sort().forEach(name => {
+  const o = document.createElement('option');
+  o.value = name; o.textContent = name;
+  sel.appendChild(o);
+});
+sel.addEventListener('change', e => { state.team = e.target.value; renderAll(); });
+
+// Position buttons
+document.querySelectorAll('#posBtns button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#posBtns button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.pos = +btn.dataset.pos;
+    if (state.pos===0) {
+      state.scenario='group';
+      document.querySelectorAll('#scenBtns button').forEach(b=>b.classList.remove('active'));
+      document.querySelector('#scenBtns button[data-sc="group"]').classList.add('active');
+    }
+    renderAll();
+  });
+});
+
+// Scenario buttons
+document.querySelectorAll('#scenBtns button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (state.pos===0 && btn.dataset.sc!=='group') return;
+    document.querySelectorAll('#scenBtns button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.scenario = btn.dataset.sc;
+    renderAll();
+  });
+});
+</script>
+</body>
+</html>
