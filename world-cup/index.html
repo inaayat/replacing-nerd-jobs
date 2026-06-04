@@ -112,14 +112,17 @@
     .sched-empty {
       flex: 1;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
+      gap: 14px;
       color: var(--mid);
       font-size: 0.7rem;
       padding: 32px;
       text-align: center;
       line-height: 1.6;
     }
+    .sched-empty img { opacity: 0.45; }
 
     .match-item {
       padding: 11px 16px 11px 14px;
@@ -223,9 +226,12 @@
 <body>
 
 <header class="site-header">
-  <div>
-    <h1>FIFA World Cup 2026 — Team Flight Paths</h1>
-    <p>select a team and scenario to trace their journey across North America</p>
+  <div style="display:flex;align-items:center;gap:12px">
+    <img src="../ugly-dog-images/dog-3.png" alt="" style="width:36px;height:36px;object-fit:contain;object-position:bottom;flex-shrink:0">
+    <div>
+      <h1>FIFA World Cup 2026 — Team Flight Paths</h1>
+      <p>select a team and scenario to trace their journey across North America</p>
+    </div>
   </div>
   <a class="back-link" href="/">&#8592; home</a>
 </header>
@@ -265,12 +271,18 @@
   <div class="wc-split">
     <div class="schedule-panel" id="schedPanel">
       <div class="sched-head"><div class="sched-head-name">Match Schedule</div></div>
-      <div class="sched-empty">Select a team above to see<br>their schedule and flight path.</div>
+      <div class="sched-empty">
+        <img src="../ugly-dog-images/dog-5.png" alt="" width="72" height="72" style="object-fit:contain;object-position:bottom">
+        Select a team above to see<br>their schedule and flight path.
+      </div>
     </div>
     <div class="map-panel">
       <div id="map"></div>
       <div class="map-legend" id="mapLegend" style="display:none">
-        <div class="legend-title">Tournament Stage</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+          <img src="../ugly-dog-images/dog-4.png" alt="" width="18" height="18" style="object-fit:contain;object-position:bottom;opacity:0.7">
+          <div class="legend-title" style="margin-bottom:0">Tournament Stage</div>
+        </div>
         <div class="legend-item"><div class="legend-swatch" style="background:#5a9e6a"></div>Group Stage</div>
         <div class="legend-item"><div class="legend-swatch" style="background:#5a8aae"></div>Round of 32</div>
         <div class="legend-item"><div class="legend-swatch" style="background:#a89030"></div>Round of 16</div>
@@ -621,7 +633,11 @@ function renderAll() {
   const dist = totalDist(matches);
   const el = document.getElementById('distStat');
   if (team && matches.length) {
-    el.innerHTML = `total flight distance: <span>${dist.toLocaleString()} km</span>`;
+    const miles = Math.round(dist * 0.621371);
+    const hrs = dist / 900; // ~900 km/h cruising speed
+    const h = Math.floor(hrs), m = Math.round((hrs - h) * 60);
+    const timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
+    el.innerHTML = `<span>${dist.toLocaleString()} km</span> · <span>${miles.toLocaleString()} mi</span> · <span>~${timeStr} in the air</span>`;
   } else {
     el.innerHTML = '';
   }
@@ -631,17 +647,24 @@ function renderSchedule(team, pos, scenario, matches) {
   const panel = document.getElementById('schedPanel');
   if (!team) {
     panel.innerHTML = `<div class="sched-head"><div class="sched-head-name">Match Schedule</div></div>
-      <div class="sched-empty">Select a team above to see<br>their schedule and flight path.</div>`;
+      <div class="sched-empty">
+        <img src="../ugly-dog-images/dog-5.png" alt="" width="72" height="72" style="object-fit:contain;object-position:bottom">
+        Select a team above to see<br>their schedule and flight path.
+      </div>`;
     return;
   }
   const posLabel = ['Eliminated','Group Winner','Runner-up','3rd (Qualified)'][pos] ?? '';
   const scLabel  = {group:'Group Stage',r32:'Round of 32',r16:'Round of 16',qf:'Quarterfinals',sf:'Semifinals',final:'Champions'}[scenario];
   const td = TEAMS[team];
   const grpNote = pos===3 ? ' · estimated path' : '';
+  const dogIdx = (td.grp.charCodeAt(0) - 65) % 6 + 1;
 
-  let html = `<div class="sched-head">
-    <div class="sched-head-name">${team}</div>
-    <div class="sched-head-sub">Group ${td.grp} · ${posLabel} · ${scLabel}${grpNote}</div>
+  let html = `<div class="sched-head" style="display:flex;align-items:center;gap:10px">
+    <img src="../ugly-dog-images/dog-${dogIdx}.png" alt="" width="30" height="30" style="object-fit:contain;object-position:bottom;flex-shrink:0">
+    <div>
+      <div class="sched-head-name">${team}</div>
+      <div class="sched-head-sub">Group ${td.grp} · ${posLabel} · ${scLabel}${grpNote}</div>
+    </div>
   </div>`;
 
   if (pos===0) {
