@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FP&A Crash Course</title>
+<link rel="stylesheet" href="../site.css">
+<link rel="icon" type="image/png" href="../ugly-dog-images/dog-2.png">
+<style>
+  .page-hero {
+    border-bottom: 2px solid var(--ink);
+    padding: 40px 32px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: relative;
+    overflow: hidden;
+  }
+  .page-hero::after {
+    content: '';
+    position: absolute;
+    right: -20px;
+    top: -20px;
+    width: 180px;
+    height: 180px;
+    background: url('../ugly-dog-images/dog-2.png') center/contain no-repeat;
+    opacity: 0.15;
+    pointer-events: none;
+  }
+  .page-hero h1 {
+    font-size: 1.6rem;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    line-height: 1.15;
+  }
+  .page-hero p {
+    font-size: 0.78rem;
+    color: var(--mid);
+    max-width: 520px;
+    line-height: 1.6;
+  }
+
+  .course-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    border-top: 2px solid var(--ink);
+    border-left: 2px solid var(--ink);
+    margin: 32px;
+  }
+  .course-card {
+    border-right: 2px solid var(--ink);
+    border-bottom: 2px solid var(--ink);
+    padding: 24px 20px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: relative;
+    transition: background 0.15s;
+  }
+  .course-card.available {
+    cursor: pointer;
+    text-decoration: none;
+    color: inherit;
+  }
+  .course-card.available:hover {
+    background: var(--hover);
+  }
+  .course-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .course-card-header img {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+  }
+  .course-card-title {
+    font-size: 0.88rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+  }
+  .course-card-desc {
+    font-size: 0.65rem;
+    color: var(--mid);
+    line-height: 1.55;
+  }
+  .course-badge {
+    display: inline-block;
+    font-size: 0.55rem;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    padding: 3px 8px;
+    border: 1.5px solid var(--ink);
+    margin-top: auto;
+    align-self: flex-start;
+  }
+  .course-badge.live {
+    background: var(--ink);
+    color: var(--bg);
+  }
+  .course-badge.soon {
+    color: var(--mid);
+    border-color: var(--mid);
+  }
+
+  .section-intro {
+    padding: 24px 32px 0;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 1.8px;
+    color: var(--mid);
+  }
+
+  @media (max-width: 600px) {
+    .page-hero { padding: 24px 16px 20px; }
+    .course-grid { margin: 16px; }
+    .section-intro { padding: 16px 16px 0; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <img src="../ugly-dog-images/dog-2.png" alt="dog" style="width:28px;height:28px;object-fit:contain;">
+    <h1>FP&amp;A Crash Course</h1>
+  </div>
+  <a class="back-link" href="/">← home</a>
+</header>
+
+<div class="page-hero">
+  <h1>fp&amp;a crash course</h1>
+  <p>Financial modeling bootcamp for building quick-and-dirty models in real time. Pick your industry, learn the core formulas, and start forecasting like a nerd.</p>
+</div>
+
+<div class="section-intro">modules</div>
+
+<div class="course-grid">
+
+  <a class="course-card available" href="/fpa-crash-course/financial-model-faq/">
+    <div class="course-card-header">
+      <img src="../ugly-dog-images/dog-1.png" alt="dog">
+      <span class="course-card-title">retail &amp; e-commerce 🛒</span>
+    </div>
+    <p class="course-card-desc">Target financial statements walkthrough — same-store sales, shrink rates, inventory turns. The full retail model from revenue to free cash flow.</p>
+    <span class="course-badge live">Live ↗</span>
+  </a>
+
+  <a class="course-card available" href="/fpa-crash-course/financial-model-faq/">
+    <div class="course-card-header">
+      <img src="../ugly-dog-images/dog-2.png" alt="dog">
+      <span class="course-card-title">SaaS &amp; subscription 💻</span>
+    </div>
+    <p class="course-card-desc">ARR waterfall, churn cohorts, CAC payback. Build a SaaS model from scratch including net revenue retention and rule of 40.</p>
+    <span class="course-badge live">Live ↗</span>
+  </a>
+
+  <div class="course-card">
+    <div class="course-card-header">
+      <img src="../ugly-dog-images/dog-3.png" alt="dog">
+      <span class="course-card-title">manufacturing &amp; industrial ⚙️</span>
+    </div>
+    <p class="course-card-desc">Capacity utilization, COGS build-up, capex intensity. Model a factory from raw materials to shipped product.</p>
+    <span class="course-badge soon">Coming soon</span>
+  </div>
+
+  <div class="course-card">
+    <div class="course-card-header">
+      <img src="../ugly-dog-images/dog-4.png" alt="dog">
+      <span class="course-card-title">financial services &amp; banking 🏦</span>
+    </div>
+    <p class="course-card-desc">Net interest margin, loan loss reserves, regulatory capital. Navigate the unique accounting of banks and credit unions.</p>
+    <span class="course-badge soon">Coming soon</span>
+  </div>
+
+  <div class="course-card">
+    <div class="course-card-header">
+      <img src="../ugly-dog-images/dog-5.png" alt="dog">
+      <span class="course-card-title">healthcare &amp; hospitals 🏥</span>
+    </div>
+    <p class="course-card-desc">Payor mix, reimbursement rates, DSRIP adjustments. Model a health system from patient volume to operating margin.</p>
+    <span class="course-badge soon">Coming soon</span>
+  </div>
+
+  <div class="course-card">
+    <div class="course-card-header">
+      <img src="../ugly-dog-images/dog-6.png" alt="dog">
+      <span class="course-card-title">energy, utilities &amp; infrastructure 🔌</span>
+    </div>
+    <p class="course-card-desc">Regulated vs. merchant generation, rate cases, capex recovery. Build a utility model that survives a rate hearing.</p>
+    <span class="course-badge soon">Coming soon</span>
+  </div>
+
+  <div class="course-card">
+    <div class="course-card-header">
+      <img src="../ugly-dog-images/dog-1.png" alt="dog">
+      <span class="course-card-title">startups &amp; early-stage 🚀</span>
+    </div>
+    <p class="course-card-desc">Burn rate, runway, unit economics. The pre-revenue model that keeps you alive long enough to find product-market fit.</p>
+    <span class="course-badge soon">Coming soon</span>
+  </div>
+
+</div>
+
+<div style="padding: 0 32px 48px; font-size: 0.62rem; color: var(--mid);">
+  <p>more industries dropping soon. all models are opinionated, quick-and-dirty, and built for FP&amp;A practitioners — not bankers.</p>
+</div>
+
+</body>
+</html>
