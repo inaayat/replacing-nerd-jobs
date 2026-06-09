@@ -356,6 +356,10 @@
       #dark-mode-toggle:hover {
         opacity: 1;
       }
+      @media (max-width: 639px) {
+        section.flex { flex-direction: column !important; }
+        section.flex > div.shrink-0 { width: 100% !important; }
+      }
       /* Sidebar section block structure */
       section.text-xs {
         padding-top: 0;
@@ -1113,7 +1117,7 @@
           <section
             class="flex flex-row gap-4 w-full px-4 py-4 sm:flex-col sm:gap-6 sm:w-[20vw] sm:min-w-[280px] sm:min-h-screen sm:max-h-screen sm:overflow-y-auto sm:px-6 sm:py-4"
           >
-            <div class="w-full border-b border-current pb-3 mb-1 hidden sm:block">
+            <div class="w-full border-b border-current pb-3 mb-1">
               <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
                 <h1 style="font-family: 'DM Mono', monospace; font-size: 1rem; font-weight: 700; letter-spacing: 0.01em; line-height: 1.2;">
                   Replacing Nerd Jobs
