@@ -800,6 +800,20 @@ LINE 3 — Internal Audit (3rd line):
             <p>Run adversarial prompting tests on GenAI systems. Perform boundary/stress tests on model performance edge cases. Conduct data-lineage tracing to verify documented provenance. Use data analytics for full-population testing of AI outputs for statistical bias signals. Deloitte recommends this as table-stakes for mature IA functions.</p>
           </div>
         </div>
+        <div class="step">
+          <div class="step-num">2.11</div>
+          <div class="step-content">
+            <h4>GenAI Acceptable Use &amp; Employee Policy Compliance</h4>
+            <p>Verify a GenAI acceptable use policy exists and covers: data classification rules (which data can enter which tools), prohibited uses (client data, regulated data, credentials), output verification requirements, and consequences for policy violations. Sample GenAI tool usage logs or conduct anonymous employee surveys to assess actual compliance — not assumed compliance. Test whether the policy is actively enforced. Evidence of non-compliance should be escalated as a control failure, not simply an awareness gap. Acceptable use gaps are now a regulatory exposure under EU AI Act GPAI obligations (live August 2025).</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2.12</div>
+          <div class="step-content">
+            <h4>Agentic AI &amp; Autonomous System Governance</h4>
+            <p>For any AI system that takes multi-step autonomous actions (code execution, email sending, data retrieval, API calls) without per-step human approval: verify goal constraints and guardrails are formally defined and documented. Confirm all agent actions are logged with sufficient detail to reconstruct full decision chains post-incident. Test that human approval checkpoints exist for high-consequence actions. Assess the "blast radius" of each agentic system — what is the maximum damage a misaligned or compromised agent could cause? Verify leadership is aware of this exposure. Reference NIST Agentic AI Guidance (2025) and OWASP LLM Top 10 v2.0 — standard checklists do not yet adequately cover this domain.</p>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1178,7 +1192,7 @@ LINE 3 — Internal Audit (3rd line):
 <!-- ══════════════════════════════════════════════
      SECTION 6: KEY RESOURCES
      ══════════════════════════════════════════════ -->
-<p class="section-label">key resources — all verified 2024–2025</p>
+<p class="section-label">key resources — updated june 2025</p>
 <div class="resource-grid">
   <a class="resource-card" href="https://www.theiia.org/en/content/tools/professional/2023/the-iias-updated-ai-auditing-framework/" target="_blank">
     <div class="rc-org">IIA</div>
@@ -1240,7 +1254,379 @@ LINE 3 — Internal Audit (3rd line):
     <div class="rc-name">Closing Internal Audit's AI Gap</div>
     <div class="rc-desc">Honest assessment of where IA functions are and aren't on AI readiness. Required reading for CAEs.</div>
   </a>
+  <a class="resource-card" href="https://digital-strategy.ec.europa.eu/en/policies/ai-code-practice" target="_blank">
+    <div class="rc-org">EU AI Office</div>
+    <div class="rc-name">GPAI Code of Practice — Final (Jun 2025)</div>
+    <div class="rc-desc">Binding compliance standard for general-purpose AI model providers under the EU AI Act. Covers transparency, copyright, and systemic risk obligations. Compliance creates presumption of conformity with the Act.</div>
+  </a>
+  <a class="resource-card" href="https://genai.owasp.org/" target="_blank">
+    <div class="rc-org">OWASP</div>
+    <div class="rc-name">LLM Top 10 v2.0 (2025)</div>
+    <div class="rc-desc">Updated adversarial risk reference for LLM applications. Adds agentic AI attack vectors, AI supply-chain attacks, and expanded prompt injection guidance. Essential for AI security testing workstreams.</div>
+  </a>
+  <a class="resource-card" href="https://www.whitehouse.gov/omb/information-for-agencies/memoranda/" target="_blank">
+    <div class="rc-org">OMB / White House</div>
+    <div class="rc-name">OMB M-25-21: Federal AI Governance (Apr 2025)</div>
+    <div class="rc-desc">Replaces M-24-10. Sets minimum AI risk management practices, inventory requirements, and governance expectations for federal agencies. Useful enterprise governance benchmark regardless of sector.</div>
+  </a>
+  <a class="resource-card" href="https://iapp.org/resources/article/ai-governance-in-practice-report/" target="_blank">
+    <div class="rc-org">IAPP</div>
+    <div class="rc-name">AI Governance in Practice Report 2025</div>
+    <div class="rc-desc">Survey of 1,000+ privacy and AI governance professionals. Key finding: only 18% of organisations have a governance council with real authority. Benchmark data for governance maturity assessment.</div>
+  </a>
+  <a class="resource-card" href="https://airc.nist.gov/" target="_blank">
+    <div class="rc-org">NIST</div>
+    <div class="rc-name">NIST Agentic AI Safety Guidance (2025)</div>
+    <div class="rc-desc">Supplemental guidance extending AI RMF 1.0 for autonomous and multi-agent AI systems. Covers goal alignment, tool-use governance, and traceability requirements for agentic AI.</div>
+  </a>
+  <a class="resource-card" href="https://coag.gov/resources/artificial-intelligence/" target="_blank">
+    <div class="rc-org">Colorado AG</div>
+    <div class="rc-name">Colorado SB 205 Implementation Guidance (2025)</div>
+    <div class="rc-desc">Algorithmic fairness obligations for high-risk AI in employment, insurance, credit, and housing. Effective February 1, 2026. Colorado AG issuing compliance guidance — monitor if operating in Colorado.</div>
+  </a>
+  <a class="resource-card" href="https://atlas.mitre.org/" target="_blank">
+    <div class="rc-org">MITRE</div>
+    <div class="rc-name">MITRE ATLAS — Adversarial ML Threat Matrix (2025)</div>
+    <div class="rc-desc">Updated adversarial threat landscape for AI/ML systems. Covers model poisoning, model extraction, prompt injection, and agentic AI attack chains. Essential reference for AI red-team and security testing.</div>
+  </a>
 </div>
+
+
+<!-- ══════════════════════════════════════════════
+     WHAT'S NEW — 2025 GUIDANCE UPDATES
+     ══════════════════════════════════════════════ -->
+<p class="section-label">what's new — key guidance since may 2025</p>
+<div style="margin: 0 32px 32px;">
+  <div class="two-col">
+    <div class="info-block">
+      <h3>EU AI Act — GPAI obligations live (Aug 2025)</h3>
+      <ul>
+        <li>General-Purpose AI model providers must now comply with transparency, copyright, and systemic-risk obligations</li>
+        <li>GPAI Code of Practice (final, Jun 2025) is the compliance standard — adherence creates presumption of conformity</li>
+        <li>Next major deadline: high-risk AI system enforcement — August 2, 2026</li>
+        <li>Prohibited AI practices ban (Feb 2025) is active — verify your portfolio is clean</li>
+      </ul>
+    </div>
+    <div class="info-block">
+      <h3>Agentic AI — new audit frontier (2025)</h3>
+      <ul>
+        <li>NIST AI Safety Institute released agentic AI guidance extending AI RMF 1.0</li>
+        <li>OWASP LLM Top 10 v2.0 adds agentic AI and AI supply-chain attack vectors</li>
+        <li>MITRE ATLAS updated with agentic AI attack chains</li>
+        <li>Standard audit checklists do not yet adequately cover autonomous AI systems</li>
+      </ul>
+    </div>
+  </div>
+  <div class="two-col">
+    <div class="info-block">
+      <h3>US federal AI governance shift (Jan–Apr 2025)</h3>
+      <ul>
+        <li>EO 14179 (Jan 2025) rescinded Biden AI EO — agencies revising policies with innovation-first framing</li>
+        <li>OMB M-25-21 (Apr 2025) replaces M-24-10 with updated federal AI governance requirements</li>
+        <li>FFIEC joint AI risk management guidance for financial institutions in development</li>
+        <li>EEOC and DOL updated guidance on AI use in employment decisions</li>
+      </ul>
+    </div>
+    <div class="info-block">
+      <h3>State AI laws — enforcement approaching (2025–2026)</h3>
+      <ul>
+        <li>Colorado SB 205: algorithmic fairness obligations effective February 1, 2026</li>
+        <li>NYC Local Law 144: employment AI bias audit requirement — enforcement active now</li>
+        <li>15+ states introduced AI governance bills in 2025 legislative sessions</li>
+        <li>Texas, Illinois, Virginia bills advancing — monitor for applicability to your operations</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SECTION 7: QUESTIONS TO ASK YOUR ORGANISATION
+     ══════════════════════════════════════════════ -->
+<p class="section-label">questions to ask your organisation — internal AI governance audit</p>
+<div class="accordion">
+
+  <div class="acc-item mod-dog1" id="q-1">
+    <div class="acc-header" onclick="toggle(this)">
+      <span class="acc-num">Q1</span>
+      <img src="../ugly-dog-images/dog-1.png" alt="dog">
+      <div class="acc-header-text">
+        <div class="acc-title">Governance &amp; Strategy</div>
+        <div class="acc-subtitle">board ownership · AI risk appetite · ethics operationalisation · oversight structures</div>
+      </div>
+      <span class="acc-toggle">▾</span>
+    </div>
+    <div class="acc-body">
+      <div class="dog-says"><img src="../ugly-dog-images/dog-1.png" alt="dog"><p><strong>Dog #1 says:</strong> "If governance questions get blank stares, you already have your first finding. The absence of an answer is the answer."</p></div>
+      <div class="info-block">
+        <h3>ask your organisation</h3>
+        <ul>
+          <li>Has the board formally approved an AI risk appetite statement — and can anyone produce it on request?</li>
+          <li>Who is the named executive accountable for AI governance (CAIO, CDO, CRO) — and what authority do they actually have over AI deployment decisions?</li>
+          <li>Does an AI governance committee exist with defined membership, a regular meeting cadence, and documented decision rights?</li>
+          <li>Are AI ethics principles documented AND operationalised — is there evidence of their application in real decisions, not just on a website?</li>
+          <li>Is there a formal intake and approval process for new AI use cases before deployment — not retrospectively after go-live?</li>
+          <li>Has the board or audit committee received a substantive AI risk briefing in the last 12 months?</li>
+          <li>Are all employees aware an AI policy exists, trained on its requirements, and able to articulate what is and isn't permitted?</li>
+          <li>How does the organisation define "AI system" — and is that definition consistently applied across all functions and business units?</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="acc-item mod-dog2" id="q-2">
+    <div class="acc-header" onclick="toggle(this)">
+      <span class="acc-num">Q2</span>
+      <img src="../ugly-dog-images/dog-2.png" alt="dog">
+      <div class="acc-header-text">
+        <div class="acc-title">AI Inventory &amp; Shadow AI</div>
+        <div class="acc-subtitle">completeness · SaaS-embedded AI · intake process · employee usage</div>
+      </div>
+      <span class="acc-toggle">▾</span>
+    </div>
+    <div class="acc-body">
+      <div class="dog-says"><img src="../ugly-dog-images/dog-2.png" alt="dog"><p><strong>Dog #2 says:</strong> "Ask for the inventory first. Then go find what's not in it. The gap between those two lists is your audit."</p></div>
+      <div class="info-block">
+        <h3>ask your organisation</h3>
+        <ul>
+          <li>Can you produce a complete, current AI system inventory — right now, not after two weeks of data collection?</li>
+          <li>Does the inventory include AI features embedded in SaaS platforms already in daily use (Microsoft Copilot, Salesforce Einstein, Workday AI, ServiceNow, Slack AI, Zoom AI)?</li>
+          <li>Does it include AI used in pilots, proofs of concept, and team-level experiments — not just production systems?</li>
+          <li>Does it capture AI used by third-party vendors who process your data on your behalf?</li>
+          <li>When was the inventory last actively reviewed for completeness — and by what method?</li>
+          <li>Is there an approved intake process for evaluating new AI tools before employee adoption?</li>
+          <li>Have you conducted a shadow AI discovery exercise (network logs, SaaS subscription audit, expense reports, employee survey) in the last 12 months?</li>
+          <li>What is the consequence for an employee who adopts an unauthorised AI tool — and has it ever been enforced?</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="acc-item mod-dog3" id="q-3">
+    <div class="acc-header" onclick="toggle(this)">
+      <span class="acc-num">Q3</span>
+      <img src="../ugly-dog-images/dog-3.png" alt="dog">
+      <div class="acc-header-text">
+        <div class="acc-title">Data Governance &amp; Quality</div>
+        <div class="acc-subtitle">training data lineage · consent for AI use · bias at source · retention · cross-border transfers</div>
+      </div>
+      <span class="acc-toggle">▾</span>
+    </div>
+    <div class="acc-body">
+      <div class="dog-says"><img src="../ugly-dog-images/dog-3.png" alt="dog"><p><strong>Dog #3 says:</strong> "The question nobody thinks to ask: was this personal data collected with consent for AI training specifically — not just 'we had it and needed it'?"</p></div>
+      <div class="info-block">
+        <h3>ask your organisation</h3>
+        <ul>
+          <li>Is training data lineage documented to source — for each production AI system individually, not just in aggregate?</li>
+          <li>Was personal data used for AI training collected under consent that explicitly covers that specific AI/ML use?</li>
+          <li>Are data quality controls applied before data enters AI training or inference pipelines — not just assumed from upstream systems?</li>
+          <li>Are training datasets reviewed for demographic representation and potential bias before use?</li>
+          <li>Are retention schedules specific to AI training data, model weights, and inference logs — distinct from general data retention policy?</li>
+          <li>If a data subject exercises a right of deletion, does that obligation extend to their data in training sets and model outputs?</li>
+          <li>Are cross-border transfers of data used in AI training or inference assessed under GDPR Chapter V or equivalent transfer frameworks?</li>
+          <li>Has a data protection impact assessment (DPIA) been completed for every AI system that processes personal data?</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="acc-item mod-dog4" id="q-4">
+    <div class="acc-header" onclick="toggle(this)">
+      <span class="acc-num">Q4</span>
+      <img src="../ugly-dog-images/dog-4.png" alt="dog">
+      <div class="acc-header-text">
+        <div class="acc-title">Model Risk &amp; Validation</div>
+        <div class="acc-subtitle">independent validation · performance metrics · fairness testing · model drift · model registry</div>
+      </div>
+      <span class="acc-toggle">▾</span>
+    </div>
+    <div class="acc-body">
+      <div class="dog-says"><img src="../ugly-dog-images/dog-4.png" alt="dog"><p><strong>Dog #4 says:</strong> "The question that exposes everything: who validated this model before it went live — and were they on the same team that built it?"</p></div>
+      <div class="info-block">
+        <h3>ask your organisation</h3>
+        <ul>
+          <li>Are AI models validated independently before deployment — by someone demonstrably independent of the development team?</li>
+          <li>Is there a documented AI/ML development lifecycle with mandatory approval gates before production deployment?</li>
+          <li>Are performance metrics (accuracy, precision, recall, F1) formally defined, baselined, and monitored in production for each model?</li>
+          <li>Are models tested for fairness across relevant demographic groups — before deployment and on an ongoing basis post-deployment?</li>
+          <li>Are model cards or technical documentation files maintained and current for each production AI system?</li>
+          <li>What triggers a mandatory model revalidation — and is that criteria documented in policy, not left to developer discretion?</li>
+          <li>Is there an AI model registry tracking the version, status, owner, review date, and risk classification of every production model?</li>
+          <li>How would you know if a deployed model's performance had meaningfully degraded — today, right now?</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="acc-item mod-dog5" id="q-5">
+    <div class="acc-header" onclick="toggle(this)">
+      <span class="acc-num">Q5</span>
+      <img src="../ugly-dog-images/dog-5.png" alt="dog">
+      <div class="acc-header-text">
+        <div class="acc-title">Regulatory Compliance Readiness</div>
+        <div class="acc-subtitle">EU AI Act tiers · prohibited practices · sector-specific rules · conformity assessments</div>
+      </div>
+      <span class="acc-toggle">▾</span>
+    </div>
+    <div class="acc-body">
+      <div class="dog-says"><img src="../ugly-dog-images/dog-5.png" alt="dog"><p><strong>Dog #5 says:</strong> "August 2, 2026 is not a vague future date — it is 14 months away. No conformity assessment plan means you have a regulatory exposure finding right now, today."</p></div>
+      <div class="info-block">
+        <h3>ask your organisation</h3>
+        <ul>
+          <li>Have all AI systems been formally classified under the EU AI Act risk tiers — prohibited, high-risk, limited, minimal — with documented rationale?</li>
+          <li>Have prohibited AI practices (banned February 2, 2025) been positively verified as absent from the AI portfolio?</li>
+          <li>Is there a conformity assessment plan for each high-risk AI system — with a named owner, timeline, budget, and milestone tracking?</li>
+          <li>Are sector-specific AI regulations tracked and mapped to your AI inventory (SR 11-7 for financial services, FDA AI guidance for medical devices, EEOC guidance for employment AI)?</li>
+          <li>Is there a regulatory change management process to track new AI laws globally and update policies and controls accordingly?</li>
+          <li>For employment-related AI: are mandatory bias audits being conducted per NYC Local Law 144? Has Colorado SB 205 applicability been assessed ahead of the February 2026 effective date?</li>
+          <li>Is an ISO 42001 certification roadmap in place — and if not, is NIST AI RMF alignment being tracked against a maturity target?</li>
+          <li>Does legal counsel have full visibility into the AI system portfolio and its regulatory exposure across all applicable jurisdictions?</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="acc-item mod-dog6" id="q-6">
+    <div class="acc-header" onclick="toggle(this)">
+      <span class="acc-num">Q6</span>
+      <img src="../ugly-dog-images/dog-6.png" alt="dog">
+      <div class="acc-header-text">
+        <div class="acc-title">Human Oversight &amp; Automation Bias</div>
+        <div class="acc-subtitle">substantive review · override rates · halt mechanisms · operator training</div>
+      </div>
+      <span class="acc-toggle">▾</span>
+    </div>
+    <div class="acc-body">
+      <div class="dog-says"><img src="../ugly-dog-images/dog-6.png" alt="dog"><p><strong>Dog #6 says:</strong> "Are your human reviewers actually reviewing — or just approving? One of these is compliance. The other is theatre."</p></div>
+      <div class="info-block">
+        <h3>ask your organisation</h3>
+        <ul>
+          <li>For each high-stakes AI decision (credit, hiring, healthcare, benefits): can you describe specifically what human review looks like in practice — not in policy documentation?</li>
+          <li>What is the AI output override rate across high-risk systems — is it tracked and reviewed for automation bias patterns?</li>
+          <li>Have halt and override mechanisms for high-risk AI systems been actually tested — not just designed and documented?</li>
+          <li>Are human reviewers trained on the specific failure modes and limitations of the AI systems they are accountable for reviewing?</li>
+          <li>Has automation bias (reviewers defaulting to AI recommendations without independent scrutiny) been identified and treated as a formal operational risk?</li>
+          <li>Can the organisation produce evidence of substantive human review through logs, recordings, or sampling — not just process documentation?</li>
+          <li>What is the escalation path when a human reviewer disagrees with an AI output — and is it actually used?</li>
+          <li>For EU AI Act-scoped high-risk systems: is Article 14 compliance documented, evidenced, and tested — not just asserted?</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="acc-item mod-dog1" id="q-7">
+    <div class="acc-header" onclick="toggle(this)">
+      <span class="acc-num">Q7</span>
+      <img src="../ugly-dog-images/dog-1.png" alt="dog">
+      <div class="acc-header-text">
+        <div class="acc-title">Third-Party &amp; Vendor AI Risk</div>
+        <div class="acc-subtitle">contract audit rights · sub-processor chains · SaaS AI features · ongoing monitoring</div>
+      </div>
+      <span class="acc-toggle">▾</span>
+    </div>
+    <div class="acc-body">
+      <div class="dog-says"><img src="../ugly-dog-images/dog-1.png" alt="dog"><p><strong>Dog #1 says:</strong> "'We bought it from a vendor' is not a control. It's a statement that the work hasn't been done yet."</p></div>
+      <div class="info-block">
+        <h3>ask your organisation</h3>
+        <ul>
+          <li>Is there a vendor AI risk classification process — and does contract review include AI-specific due diligence before signature?</li>
+          <li>Do vendor contracts explicitly include: audit rights, data use restrictions, model change notifications, breach notification obligations, and deletion rights?</li>
+          <li>Do you know who your key AI vendors' sub-processors are — and have those sub-processors been assessed?</li>
+          <li>Are AI features embedded in existing approved SaaS platforms (Copilot, Gemini Workspace, Slack AI) captured in the AI inventory and subject to the same risk assessment as standalone tools?</li>
+          <li>Is vendor AI performance monitored on an ongoing basis — not just assessed at contract signature?</li>
+          <li>Is vendor concentration risk for AI dependencies assessed — what is the business impact if a key AI provider becomes unavailable?</li>
+          <li>When a vendor updates their AI model or changes data processing practices, how does your organisation find out — and is there a contractual notification requirement?</li>
+          <li>Has any vendor used your organisation's data to train their AI models without explicit authorisation?</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="acc-item mod-dog2" id="q-8">
+    <div class="acc-header" onclick="toggle(this)">
+      <span class="acc-num">Q8</span>
+      <img src="../ugly-dog-images/dog-2.png" alt="dog">
+      <div class="acc-header-text">
+        <div class="acc-title">Cybersecurity &amp; AI-Enabled Fraud</div>
+        <div class="acc-subtitle">pen testing scope · prompt injection · IR plans · deepfake and voice cloning risk</div>
+      </div>
+      <span class="acc-toggle">▾</span>
+    </div>
+    <div class="acc-body">
+      <div class="dog-says"><img src="../ugly-dog-images/dog-2.png" alt="dog"><p><strong>Dog #2 says:</strong> "AI-enabled fraud is not a future scenario — voice cloning BEC and AI-generated phishing are live threats right now. Has your SOC run a tabletop on this yet?"</p></div>
+      <div class="info-block">
+        <h3>ask your organisation</h3>
+        <ul>
+          <li>Are AI systems explicitly included in the scope of the vulnerability management program and penetration testing — not treated as out-of-scope applications?</li>
+          <li>Is red-team testing (adversarial prompting, boundary testing, jailbreak attempts) conducted for GenAI-facing systems?</li>
+          <li>Is there an AI-specific incident response plan — or are AI security incidents handled through a generic IR plan not designed for AI attack vectors?</li>
+          <li>Have AI-enabled fraud scenarios (deepfake voice/video for BEC, synthetic identity fraud, AI-generated spear phishing) been added to tabletop exercises in the last 12 months?</li>
+          <li>Are model weights, training pipelines, and inference APIs protected with appropriate access controls and monitored for unauthorised access?</li>
+          <li>Are prompt injection controls in place and tested for any GenAI system that processes external user input?</li>
+          <li>Does the SOC have specific playbooks for AI security incidents — model poisoning, LLM data exfiltration, prompt injection attacks?</li>
+          <li>Has AI-enabled fraud risk been quantified, reported to senior leadership, and included in the enterprise risk register?</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="acc-item mod-dog3" id="q-9">
+    <div class="acc-header" onclick="toggle(this)">
+      <span class="acc-num">Q9</span>
+      <img src="../ugly-dog-images/dog-3.png" alt="dog">
+      <div class="acc-header-text">
+        <div class="acc-title">GenAI Acceptable Use &amp; Agentic AI</div>
+        <div class="acc-subtitle">acceptable use policy · hallucination risk · agent guardrails · blast radius</div>
+      </div>
+      <span class="acc-toggle">▾</span>
+    </div>
+    <div class="acc-body">
+      <div class="dog-says"><img src="../ugly-dog-images/dog-3.png" alt="dog"><p><strong>Dog #3 says:</strong> "The most dangerous question in AI governance right now: what is the maximum autonomous action your AI can take without human approval — and does leadership know the answer?"</p></div>
+      <div class="info-block">
+        <h3>ask your organisation</h3>
+        <ul>
+          <li>Is there a GenAI acceptable use policy covering: which data classifications are permitted in which tools, prohibited uses (regulated data, client data, credentials), output verification requirements, and policy violation consequences?</li>
+          <li>Are employees trained on GenAI hallucination risk and their personal responsibility to verify AI-generated content before acting on it or distributing it?</li>
+          <li>For AI systems that take autonomous multi-step actions (code execution, emails, API calls, data writes) without per-step human approval: are goal constraints and guardrails formally documented and tested?</li>
+          <li>Are all agentic AI actions logged with sufficient detail to reconstruct full decision chains for incident investigation and audit purposes?</li>
+          <li>What is the largest consequential autonomous action any AI system in your environment can take without human approval — and is that level of autonomy explicitly sanctioned by leadership?</li>
+          <li>Is there a formal process for defining and approving the scope of authority granted to AI agents before deployment?</li>
+          <li>Have LLM-integrated systems been tested for prompt injection, jailbreaking, and data exfiltration risks?</li>
+          <li>Does the organisation have a definition of "agentic AI" — and is there a complete inventory of systems meeting that definition?</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="acc-item mod-dog4" id="q-10">
+    <div class="acc-header" onclick="toggle(this)">
+      <span class="acc-num">Q10</span>
+      <img src="../ugly-dog-images/dog-4.png" alt="dog">
+      <div class="acc-header-text">
+        <div class="acc-title">Internal Audit Function Readiness</div>
+        <div class="acc-subtitle">AI literacy · audit universe coverage · IA's own AI use · audit committee reporting</div>
+      </div>
+      <span class="acc-toggle">▾</span>
+    </div>
+    <div class="acc-body">
+      <div class="dog-says"><img src="../ugly-dog-images/dog-4.png" alt="dog"><p><strong>Dog #4 says:</strong> "You're auditing AI while AI is being used to audit. The function that ignores its own AI governance gap is the least credible auditor in the room."</p></div>
+      <div class="info-block">
+        <h3>ask your organisation</h3>
+        <ul>
+          <li>Does the IA function have members with sufficient AI technical literacy to conduct credible AI audits — or is external SME engagement required and budgeted?</li>
+          <li>Is AI risk formally included in the annual risk assessment and IA audit universe — with appropriate risk ratings and audit frequency?</li>
+          <li>Does the IA charter explicitly address AI audit responsibilities, authority, and access rights to AI systems and model documentation?</li>
+          <li>Is the IA function using AI tools in audit work — and if so, are those tools subject to the same governance standards being audited elsewhere in the organisation?</li>
+          <li>Is AI risk formally escalated to the audit committee at least annually — with specific findings, management responses, and remediation tracking?</li>
+          <li>Has the IA function assessed itself against the IIA AI Auditing Framework — and documented the gaps?</li>
+          <li>Is continuous monitoring or data analytics being used to provide ongoing assurance over AI system outputs — beyond point-in-time audits?</li>
+          <li>Is the IA budget, staffing plan, and skills development roadmap adequate for the AI audit workload coming in FY2026 — EU AI Act enforcement, state AI laws, GenAI proliferation, agentic AI expansion?</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /accordion questions -->
 
 
 <!-- ══════════════════════════════════════════════
