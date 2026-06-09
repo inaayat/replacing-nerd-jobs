@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TGT Statements — Replacing Nerd Jobs</title>
+  <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png">
+  <link rel="stylesheet" href="../../site.css">
+  <style>
+.section-header { display:flex; align-items:center; gap:12px; padding:10px 14px; margin-top:32px; margin-bottom:14px; border:var(--border); position:relative; }
+.section-header.blue { background:#c9dae1; }
+.section-header.pink { background:#f5d8e8; }
+.section-header.yellow { background:#f0e8c0; }
+.section-header.green { background:#d4e4c8; }
+.section-header img { width:28px; height:28px; object-fit:contain; }
+.section-header h2 { font-size:0.76rem; font-weight:500; color:var(--ink); }
+.section-header .section-dog { position:absolute; right:14px; top:50%; transform:translateY(-50%); width:32px; height:32px; opacity:0.4; }
+.section-header .header-download { position:absolute; right:56px; top:50%; transform:translateY(-50%); font-size:0.58rem; padding:4px 10px; background:var(--ink); color:var(--bg); text-decoration:none; border:1px solid var(--ink); font-family:'DM Mono',monospace; }
+.section-header .header-download:hover { background:var(--mid); }
+.statement-table { width:100%; border-collapse:collapse; font-size:0.65rem; margin-top:8px; }
+.statement-table th, .statement-table td { text-align:left; padding:8px 12px; border-bottom:1px solid var(--faint); }
+.statement-table th { font-size:0.6rem; text-transform:uppercase; letter-spacing:1px; color:var(--mid); border-bottom-color:var(--ink); }
+.statement-table tr:hover td { background:var(--hover); }
+.statement-table a { color:var(--ink); text-decoration:none; border-bottom:1px solid var(--mid); }
+.statement-table a:hover { border-color:var(--ink); }
+.filing-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px; margin-top:14px; }
+.filing-card { border:var(--border); padding:16px 18px; background:#f0e8c0; }
+.filing-card h3 { font-size:0.76rem; font-weight:500; margin-bottom:6px; }
+.filing-card .filing-meta { font-size:0.6rem; color:var(--mid); margin-bottom:10px; }
+.filing-card .filing-links { display:flex; flex-direction:column; gap:6px; }
+.filing-card .filing-links a { font-size:0.65rem; color:var(--ink); text-decoration:none; border-bottom:1px solid var(--mid); }
+.filing-card .filing-links a:hover { border-color:var(--ink); }
+.exercise-list { list-style:none; display:flex; flex-direction:column; gap:6px; }
+.exercise-item { border:var(--border); background:rgba(255,255,255,0.6); }
+.exercise-item summary { display:flex; align-items:center; gap:10px; padding:10px 14px; font-size:0.68rem; cursor:pointer; list-style:none; border-left:3px solid #6a9e5a; line-height:1.5; user-select:none; }
+.exercise-item summary::-webkit-details-marker { display:none; }
+.exercise-item summary::before { content:"▸"; font-size:0.7rem; color:var(--mid); transition:transform 0.15s; }
+.exercise-item[open] summary::before { transform:rotate(90deg); }
+.exercise-item[open] summary { border-bottom:1px solid var(--faint); }
+.exercise-title { flex:1; }
+.exercise-title strong { color:var(--mid); margin-right:6px; }
+.status-badge { font-size:0.55rem; text-transform:uppercase; letter-spacing:0.8px; padding:2px 8px; border-radius:2px; white-space:nowrap; font-weight:500; }
+.status-badge.not-started { background:var(--faint); color:var(--mid); }
+.status-badge.in-progress { background:#f0e8c0; color:#a89030; }
+.status-badge.complete { background:#d4e4c8; color:#4a7a3a; }
+.exercise-body { padding:14px 18px 14px 30px; font-size:0.65rem; line-height:1.7; color:var(--mid); }
+.exercise-body .learnings { margin-top:10px; padding-top:10px; border-top:1px solid var(--faint); font-style:italic; }
+.download-btn { display:inline-block; padding:12px 24px; border:var(--border); background:var(--ink); color:var(--bg); font-family:'DM Mono',monospace; font-size:0.72rem; font-weight:500; text-decoration:none; cursor:pointer; margin-top:20px; margin-bottom:8px; }
+.download-btn:hover { background:var(--mid); }
+.download-note { font-size:0.58rem; color:var(--mid); font-style:italic; }
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <div>
+    <h1>TGT Statements</h1>
+    <p>Target Corporation public financial filings for FP&A practice</p>
+  </div>
+  <a class="back-link" href="/how-to-be-a-finance-nerd/">&#8592; crash course</a>
+</header>
+
+<div class="main">
+
+  <p style="font-size:0.68rem; max-width:680px; line-height:1.6; margin-bottom:16px;">
+    Target Corporation (NYSE: TGT) — CIK 0000027419. General merchandise retailer.
+    Fiscal year ends late January/early February (e.g., FY2024 ended Feb 1, 2025). ~1,960 stores across the US.
+  </p>
+
+  <!-- ═══ PRACTICE EXERCISES ═══ -->
+  <div class="section-header green" style="margin-top:24px;">
+    <img src="/ugly-dog-images/dog-1.png" alt="" />
+    <h2>Practice Exercises</h2>
+    <img src="/ugly-dog-images/dog-1.png" alt="" class="section-dog" />
+  </div>
+  <div class="exercise-list">
+    <details class="exercise-item">
+      <summary>
+        <span class="exercise-title"><strong>1.</strong> Revenue Forecasting — Build a top-line growth model using one or more approaches</span>
+        <span class="status-badge not-started">Not Started</span>
+      </summary>
+      <div class="exercise-body">
+        Choose a model type below, pull the last 5 years of data, and forecast FY2026–2028. Try multiple approaches and compare outputs.
+
+        <details style="margin-top:12px; border:1px solid var(--faint); padding:0;">
+          <summary style="padding:8px 12px; font-size:0.63rem; cursor:pointer; background:var(--hover); font-weight:500;">1a. Top-Down Growth Rate Model</summary>
+          <div style="padding:10px 12px; font-size:0.62rem; line-height:1.6;">
+            <strong>Method:</strong> Apply historical YoY growth rates to total revenue. Calculate CAGR, moving averages, and trend inflection points.<br>
+            <strong>When to use:</strong> Quick directional estimate, sanity-checking other models, communicating the "simple story" to leadership.<br>
+            <strong>Target context:</strong> Revenue surged FY2020–2021 (COVID stay-at-home demand), then flattened/declined FY2022–2025. Is this mean-reversion or structural decline?<br><br>
+            <strong>Step-by-step using the Annual Data export:</strong><br>
+            1. Open "Income Statement" sheet. Find "Revenue from Contract with Customer" — this is total net sales.<br>
+            2. Create a new sheet. Row 1 = Revenue ($M) for FY2020–FY2025. Copy the values.<br>
+            3. Row 2 = YoY Growth. Formula: =(B1-A1)/A1. You'll see: +20%, +13%, +3%, -2%, -1%, -2%.<br>
+            4. Row 3 = 3-year moving average. Post-COVID, the average is ~0% — flat business.<br>
+            5. Key question: Is FY2019's $78B the "true" base, meaning FY2020–21 was a temporary COVID bump that's now reverting? Or is $105B the new normal?<br>
+            6. Build scenarios: Bear (continues declining 1-2%/year), Base (flat at ~$105B), Bull (modest recovery 2-3% as comps normalize).<br>
+            7. Forecast FY2026–2028 using =Prior Year × (1 + Rate).<br>
+            8. Sanity check: compare to total US retail market growth (~3-4%/year). If your bull case exceeds market growth, Target must be GAINING share — is that realistic?
+          </div>
+        </details>
+
+        <details style="margin-top:4px; border:1px solid var(--faint); padding:0;">
+          <summary style="padding:8px 12px; font-size:0.63rem; cursor:pointer; background:var(--hover); font-weight:500;">1b. Comp-Store Sales + New Store Model</summary>
+          <div style="padding:10px 12px; font-size:0.62rem; line-height:1.6;">
+            <strong>Method:</strong> Total Revenue = (Existing Stores × Prior Year Rev/Store × (1 + Comp Growth)) + (Net New Stores × Avg New Store Revenue).<br>
+            <strong>When to use:</strong> THE standard retail forecasting model. Separates organic growth from expansion.<br>
+            <strong>Target context:</strong> ~1,960 stores. Comp-store growth was +20% in FY2021, then -1% to -4% in FY2023-24. Net new stores ~20/year.<br><br>
+            <strong>Step-by-step using the Annual Data export:</strong><br>
+            1. From the data export, pull total revenue. Store count comes from the 10-K (search "number of stores" in MD&A section) — Target had 1,956 stores at end of FY2024.<br>
+            2. Calculate Revenue per Store: Total Revenue / Store Count. Should be ~$54M/store.<br>
+            3. Build assumptions table: Beginning store count, new stores opened (+20-25/yr), stores closed (-2-5/yr), ending store count.<br>
+            4. Comp-store growth assumption: this is the HARDEST input. Pull historical comps from earnings releases. Model: -1% (bear), +1% (base), +3% (bull).<br>
+            5. Formula: Revenue = (Prior Store Count × Rev/Store × (1+Comp%)) + (Net New Stores × 0.8 × Rev/Store). New stores ramp to 80% of mature store volume in year 1.<br>
+            6. Extend for FY2026–2028. Note: new stores add &lt;1% to growth — comp growth is what matters.<br>
+            7. Sensitivity: show revenue at -2%, 0%, +2%, +4% comp — the range is wide ($100B to $113B by FY2028).
+          </div>
+        </details>
+
+        <details style="margin-top:4px; border:1px solid var(--faint); padding:0;">
+          <summary style="padding:8px 12px; font-size:0.63rem; cursor:pointer; background:var(--hover); font-weight:500;">1c. Traffic × Basket Size Model</summary>
+          <div style="padding:10px 12px; font-size:0.62rem; line-height:1.6;">
+            <strong>Method:</strong> Revenue = Transactions × Average Transaction Value (ATV). Decompose comp growth into volume vs. price.<br>
+            <strong>When to use:</strong> When you need to understand WHETHER growth comes from more customers or higher spend per visit.<br>
+            <strong>Target context:</strong> Post-COVID traffic declined while basket size grew (inflation + mix). Which is more sustainable?<br><br>
+            <strong>Step-by-step using the Annual Data export:</strong><br>
+            1. Target discloses traffic and ATV trends on earnings calls (not in XBRL). From recent calls: traffic -2% to +1%, ATV +2% to +4%.<br>
+            2. From your data export, pull total revenue. Estimate transactions: Revenue / ATV. Target's ATV is ~$40-45 per trip.<br>
+            3. Calculate implied transactions: ~$105B / $42 = ~2.5B transactions/year across all stores.<br>
+            4. Per-store: 2.5B / 1,960 = ~1.3M transactions/store/year, or ~3,500/store/day.<br>
+            5. Model traffic growth: is it recovering post-COVID? Target has invested heavily in Drive Up and same-day services to win back trips.<br>
+            6. Model ATV growth: inflation drives ATV up, but consumers trading down to private label offsets. Assume +2%/year.<br>
+            7. Forecast: Revenue[t] = Transactions[t-1] × (1+Traffic Growth) × ATV[t-1] × (1+ATV Growth).<br>
+            8. Key insight: if traffic is flat and ATV grows 2%, you get 2% revenue growth. That's barely above inflation — is this a "growth" company?
+          </div>
+        </details>
+
+        <details style="margin-top:4px; border:1px solid var(--faint); padding:0;">
+          <summary style="padding:8px 12px; font-size:0.63rem; cursor:pointer; background:var(--hover); font-weight:500;">1d. Category Mix Model</summary>
+          <div style="padding:10px 12px; font-size:0.62rem; line-height:1.6;">
+            <strong>Method:</strong> Forecast revenue by merchandise category, each with its own growth rate and margin profile.<br>
+            <strong>When to use:</strong> When category mix is shifting and different categories have very different margins.<br>
+            <strong>Target context:</strong> Discretionary (Home, Apparel) crushed post-COVID. Essentials/Food steady. Beauty outperforming.<br><br>
+            <strong>Step-by-step using the Annual Data export:</strong><br>
+            1. Category mix isn't in XBRL. Pull from the 10-K segment discussion. Target's categories: Apparel &amp; Accessories (~17%), Beauty (~6%), Food &amp; Beverage (~23%), Hardlines (~15%), Home (~18%), Essentials &amp; Household (~21%).<br>
+            2. Calculate each category's revenue: Total Revenue × Category Mix %.<br>
+            3. Research category trends: Beauty growing +8-10%/year (market tailwind). Food flat (low margin but traffic driver). Discretionary categories (Home, Hardlines) declining -3-5%.<br>
+            4. Set growth rates per category for FY2026–2028. Consider: are consumers still pulling back on discretionary? Is the "nesting" trend over?<br>
+            5. Forecast each category, then sum → Total Revenue.<br>
+            6. CRITICAL: also model gross margin by category. Food is ~20% margin, Apparel is ~40%, Beauty is ~35%. As mix shifts toward Food/Essentials, TOTAL gross margin compresses even if revenue grows.<br>
+            7. Build a "mix shift impact" row: show how margin changes at different category-growth assumptions.
+          </div>
+        </details>
+
+        <details style="margin-top:4px; border:1px solid var(--faint); padding:0;">
+          <summary style="padding:8px 12px; font-size:0.63rem; cursor:pointer; background:var(--hover); font-weight:500;">1e. Digital vs. In-Store Channel Model</summary>
+          <div style="padding:10px 12px; font-size:0.62rem; line-height:1.6;">
+            <strong>Method:</strong> Total Revenue = In-Store Revenue + Digital Revenue. Model digital penetration over time.<br>
+            <strong>When to use:</strong> Omnichannel retailers where digital has different economics.<br>
+            <strong>Target context:</strong> Digital ~18% of sales. Same-day services (Drive Up, Order Pickup, Shipt) are Target's edge vs. Amazon.<br><br>
+            <strong>Step-by-step using the Annual Data export:</strong><br>
+            1. Digital penetration data is on earnings calls: ~18% of sales in FY2024, up from ~9% pre-COVID.<br>
+            2. Calculate: Digital Revenue = $105B × 18% = ~$19B. In-Store = $105B × 82% = ~$86B.<br>
+            3. Model digital growth: was growing 20-30%/year during COVID, now ~5-8%. Assume digital penetration reaches 22-25% by FY2028.<br>
+            4. Model in-store: flat to slightly declining as digital cannibalizes some trips.<br>
+            5. Formula: Total Rev = In-Store[t-1] × (1+In-Store Growth) + Digital[t-1] × (1+Digital Growth).<br>
+            6. Key question: does digital growth ADD revenue (new occasions) or SHIFT revenue (same sale, different channel)? If it's mostly shift, total growth is still flat.<br>
+            7. Model the margin impact: same-day fulfillment from stores is cheaper than shipping from a DC, but requires labor. Does higher digital = higher or lower EBIT margin? (Target claims it's accretive — verify with the numbers.)
+          </div>
+        </details>
+
+        <details style="margin-top:4px; border:1px solid var(--faint); padding:0;">
+          <summary style="padding:8px 12px; font-size:0.63rem; cursor:pointer; background:var(--hover); font-weight:500;">1f. Macro-Linked Consumer Spending Model</summary>
+          <div style="padding:10px 12px; font-size:0.62rem; line-height:1.6;">
+            <strong>Method:</strong> Regress Target revenue growth against macro indicators to scenario-plan with external data.<br>
+            <strong>When to use:</strong> When the business is highly correlated with macro cycles (mass retail is).<br>
+            <strong>Target context:</strong> Target's core customer is middle-income. They trade down in recessions, trade up in expansions.<br><br>
+            <strong>Step-by-step using the Annual Data export:</strong><br>
+            1. Pull Target's YoY revenue growth from your data export for FY2018–FY2025.<br>
+            2. Pull macro data (free from FRED — fred.stlouisfed.org): Real Personal Consumption Expenditures growth, Consumer Confidence Index, Unemployment Rate.<br>
+            3. In Excel, create a scatter plot: X = Real PCE growth, Y = Target revenue growth. Add a trendline. What's the R²?<br>
+            4. If R² > 0.5, you have a useful relationship. The slope tells you Target's "beta" to consumer spending.<br>
+            5. For your forecast, use economist consensus for PCE/GDP growth (available from Fed dot plot, Conference Board).<br>
+            6. Scenario: Recession (PCE -1%) → plug into your regression → implied Target growth. Expansion (PCE +3%) → implied growth.<br>
+            7. This gives EXTERNALLY-justified scenarios rather than arbitrary growth rates. In an FP&A presentation, leadership trusts "based on consensus GDP" more than "I think 3% feels right."<br>
+            8. Caveat: COVID broke the relationship (stimulus checks + stay-at-home = spike). Consider using pre-COVID data (FY2015–2019) for the regression and treating FY2020-21 as outliers.
+          </div>
+        </details>
+
+        <div class="learnings">Learnings: —</div>
+      </div>
+    </details>
+    <details class="exercise-item">
+      <summary>
+        <span class="exercise-title"><strong>2.</strong> Build a 3-statement model linking income statement → balance sheet → cash flow</span>
+        <span class="status-badge not-started">Not Started</span>
+      </summary>
+      <div class="exercise-body">
+        Target is capital-intensive (stores, DCs, supply chain). Focus on how CapEx flows to PP&E on the balance sheet, and how inventory changes hit working capital in the cash flow statement. Inventory management is critical for retail margins.
+        <div class="learnings">Learnings: —</div>
+      </div>
+    </details>
+    <details class="exercise-item">
+      <summary>
+        <span class="exercise-title"><strong>3.</strong> Take Q1–Q3 actuals and forecast Q4 + full year — then compare to the actual 10-K</span>
+        <span class="status-badge not-started">Not Started</span>
+      </summary>
+      <div class="exercise-body">
+        Target's Q4 (Nov–Jan) includes Black Friday, Cyber Monday, and the full holiday season — it's ~30% of annual revenue. Use historical Q4/full-year ratios and holiday retail trends to forecast. Compare to actual.
+        <div class="learnings">Learnings: —</div>
+      </div>
+    </details>
+    <details class="exercise-item">
+      <summary>
+        <span class="exercise-title"><strong>4.</strong> Do a variance analysis: compare your forecast to actuals and explain the gaps</span>
+        <span class="status-badge not-started">Not Started</span>
+      </summary>
+      <div class="exercise-body">
+        Key retail drivers to decompose: traffic (transactions), average basket size, digital vs. in-store mix, gross margin (COGS pressure from theft/shrink, freight, markdowns). Target's margin compression in FY2022 is a great case study.
+        <div class="learnings">Learnings: —</div>
+      </div>
+    </details>
+    <details class="exercise-item">
+      <summary>
+        <span class="exercise-title"><strong>5.</strong> Build a waterfall chart showing revenue bridges (traffic × basket × digital mix)</span>
+        <span class="status-badge not-started">Not Started</span>
+      </summary>
+      <div class="exercise-body">
+        Decompose YoY revenue change into: transaction count change, average transaction amount change, digital fulfillment growth (same-day services, Drive Up, Shipt). Which is the primary growth lever now?
+        <div class="learnings">Learnings: —</div>
+      </div>
+    </details>
+    <details class="exercise-item">
+      <summary>
+        <span class="exercise-title"><strong>6.</strong> Calculate key metrics: comp-store sales, gross margin %, inventory turns, ROIC, dividend payout ratio</span>
+        <span class="status-badge not-started">Not Started</span>
+      </summary>
+      <div class="exercise-body">
+        Retail-specific metrics: inventory turnover (COGS / avg inventory), days sales of inventory, ROIC (NOPAT / invested capital), shrink as % of revenue, SG&A leverage (SG&A growth vs. revenue growth). Compare to Walmart and Costco benchmarks.
+        <div class="learnings">Learnings: —</div>
+      </div>
+    </details>
+  </div>
+
+  <!-- ═══ ANNUAL REPORTS ═══ -->
+  <div class="section-header blue">
+    <img src="/ugly-dog-images/dog-2.png" alt="" />
+    <h2>Annual Reports (10-K)</h2>
+    <a class="header-download" href="/how-to-be-a-finance-nerd/target-statements/tgt-annual-data.xlsx" download>Download xlsx</a>
+    <img src="/ugly-dog-images/dog-2.png" alt="" class="section-dog" />
+  </div>
+  <p style="font-size:0.62rem; color:var(--mid); margin-bottom:8px;">
+    Full annual financial statements. Target's FY ends in late January/early February (FY2024 = Feb 2024 – Feb 2025).
+  </p>
+  <table class="statement-table">
+    <thead><tr><th>Year</th><th>Filing</th><th>Interactive</th><th>Filed</th></tr></thead>
+    <tbody>
+      <tr><td>FY 2025</td><td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000027419&type=10-K&dateb=&owner=include&count=1" target="_blank">SEC Filing</a></td><td><a href="https://investors.target.com/sec-filings" target="_blank">Investor Page</a></td><td>Mar 2026</td></tr>
+      <tr><td>FY 2024</td><td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000027419&type=10-K&dateb=20260101&owner=include&count=1" target="_blank">SEC Filing</a></td><td><a href="https://investors.target.com/sec-filings" target="_blank">Investor Page</a></td><td>Mar 2025</td></tr>
+      <tr><td>FY 2023</td><td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000027419&type=10-K&dateb=20250101&owner=include&count=1" target="_blank">SEC Filing</a></td><td><a href="https://investors.target.com/sec-filings" target="_blank">Investor Page</a></td><td>Mar 2024</td></tr>
+      <tr><td>FY 2022</td><td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000027419&type=10-K&dateb=20240101&owner=include&count=1" target="_blank">SEC Filing</a></td><td><a href="https://investors.target.com/sec-filings" target="_blank">Investor Page</a></td><td>Mar 2023</td></tr>
+      <tr><td>FY 2021</td><td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000027419&type=10-K&dateb=20230101&owner=include&count=1" target="_blank">SEC Filing</a></td><td><a href="https://investors.target.com/sec-filings" target="_blank">Investor Page</a></td><td>Mar 2022</td></tr>
+      <tr><td>FY 2020</td><td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000027419&type=10-K&dateb=20220101&owner=include&count=1" target="_blank">SEC Filing</a></td><td><a href="https://investors.target.com/sec-filings" target="_blank">Investor Page</a></td><td>Mar 2021</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ═══ QUARTERLY REPORTS ═══ -->
+  <div class="section-header pink">
+    <img src="/ugly-dog-images/dog-3.png" alt="" />
+    <h2>Quarterly Reports (10-Q)</h2>
+    <a class="header-download" href="/how-to-be-a-finance-nerd/target-statements/tgt-quarterly-data.xlsx" download>Download xlsx</a>
+    <img src="/ugly-dog-images/dog-3.png" alt="" class="section-dog" />
+  </div>
+  <p style="font-size:0.62rem; color:var(--mid); margin-bottom:8px;">
+    Quarterly financials. Target's quarters end in May (Q1), Aug (Q2), Nov (Q3). Q4 is in the 10-K (holiday season).
+  </p>
+  <table class="statement-table">
+    <thead><tr><th>Period</th><th>Filing</th><th>Interactive</th><th>Filed</th></tr></thead>
+    <tbody>
+      <tr><td>Q1 FY2025 (May 2025)</td><td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000027419&type=10-Q&dateb=20250801&owner=include&count=1" target="_blank">SEC Filing</a></td><td><a href="https://investors.target.com/sec-filings" target="_blank">Investor Page</a></td><td>Jun 2025</td></tr>
+      <tr><td>Q3 FY2024 (Nov 2024)</td><td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000027419&type=10-Q&dateb=20250101&owner=include&count=1" target="_blank">SEC Filing</a></td><td><a href="https://investors.target.com/sec-filings" target="_blank">Investor Page</a></td><td>Dec 2024</td></tr>
+      <tr><td>Q2 FY2024 (Aug 2024)</td><td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000027419&type=10-Q&dateb=20241001&owner=include&count=1" target="_blank">SEC Filing</a></td><td><a href="https://investors.target.com/sec-filings" target="_blank">Investor Page</a></td><td>Sep 2024</td></tr>
+      <tr><td>Q1 FY2024 (May 2024)</td><td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000027419&type=10-Q&dateb=20240801&owner=include&count=1" target="_blank">SEC Filing</a></td><td><a href="https://investors.target.com/sec-filings" target="_blank">Investor Page</a></td><td>Jun 2024</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ═══ KEY RESOURCES ═══ -->
+  <div class="section-header yellow">
+    <img src="/ugly-dog-images/dog-4.png" alt="" />
+    <h2>Key Resources</h2>
+    <img src="/ugly-dog-images/dog-4.png" alt="" class="section-dog" />
+  </div>
+  <div class="filing-grid">
+    <div class="filing-card">
+      <h3>Target Investor Relations</h3>
+      <div class="filing-meta">Primary source — earnings, SEC filings, presentations</div>
+      <div class="filing-links">
+        <a href="https://investors.target.com/" target="_blank">investors.target.com</a>
+        <a href="https://investors.target.com/sec-filings" target="_blank">All SEC Filings</a>
+      </div>
+    </div>
+    <div class="filing-card">
+      <h3>SEC EDGAR — TGT</h3>
+      <div class="filing-meta">CIK: 0000027419</div>
+      <div class="filing-links">
+        <a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000027419&type=10-K&dateb=&owner=include&count=10" target="_blank">10-K Filings</a>
+        <a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000027419&type=10-Q&dateb=&owner=include&count=10" target="_blank">10-Q Filings</a>
+      </div>
+    </div>
+    <div class="filing-card">
+      <h3>Supplemental Data</h3>
+      <div class="filing-meta">Pre-formatted financials for modeling</div>
+      <div class="filing-links">
+        <a href="https://stockanalysis.com/stocks/tgt/financials/" target="_blank">StockAnalysis — TGT Financials</a>
+        <a href="https://www.macrotrends.net/stocks/charts/TGT/target/revenue" target="_blank">Macrotrends — TGT Revenue</a>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

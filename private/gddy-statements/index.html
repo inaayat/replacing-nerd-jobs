@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GDDY Statements — Replacing Nerd Jobs</title>
+  <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png">
+  <link rel="stylesheet" href="../../site.css">
+  <style>
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  margin-top: 32px;
+  margin-bottom: 14px;
+  border: var(--border);
+  position: relative;
+}
+.section-header.green  { background: #d4e4c8; }
+.section-header.blue   { background: #c9dae1; }
+.section-header.pink   { background: #f5d8e8; }
+.section-header.yellow { background: #f0e8c0; }
+.section-header.red    { background: #e8cccc; }
+.section-header img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+.section-header h2 {
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: var(--ink);
+}
+.section-header .section-dog {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  opacity: 0.4;
+}
+.section-header .header-download {
+  position: absolute;
+  right: 56px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.58rem;
+  padding: 4px 10px;
+  background: var(--ink);
+  color: var(--bg);
+  text-decoration: none;
+  border: 1px solid var(--ink);
+  font-family: 'DM Mono', monospace;
+}
+.section-header .header-download:hover {
+  background: var(--mid);
+}
+.filing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+  margin-top: 14px;
+}
+.filing-card {
+  border: var(--border);
+  padding: 16px 18px;
+  background: #f0e8c0;
+}
+.filing-card h3 {
+  font-size: 0.76rem;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+.filing-card .filing-meta {
+  font-size: 0.6rem;
+  color: var(--mid);
+  margin-bottom: 10px;
+}
+.filing-card .filing-links {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.filing-card .filing-links a {
+  font-size: 0.65rem;
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--mid);
+}
+.filing-card .filing-links a:hover {
+  border-color: var(--ink);
+}
+.statement-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.65rem;
+  margin-top: 8px;
+}
+.statement-table th,
+.statement-table td {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--faint);
+}
+.statement-table th {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--mid);
+  border-bottom-color: var(--ink);
+}
+.statement-table tr:hover td {
+  background: var(--hover);
+}
+.statement-table a {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--mid);
+}
+.statement-table a:hover { border-color: var(--ink); }
+.logout-link {
+  font-size: 0.62rem;
+  color: var(--mid);
+  text-decoration: none;
+  border-bottom: 1px solid var(--faint);
+}
+.logout-link:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+.download-btn {
+  display: inline-block;
+  padding: 12px 24px;
+  border: var(--border);
+  background: var(--ink);
+  color: var(--bg);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  margin-top: 20px;
+  margin-bottom: 8px;
+}
+.download-btn:hover {
+  background: var(--mid);
+}
+.download-note {
+  font-size: 0.58rem;
+  color: var(--mid);
+  font-style: italic;
+}
+.exercise-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.exercise-item {
+  border: var(--border);
+  background: rgba(255,255,255,0.6);
+}
+.exercise-item summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  font-size: 0.68rem;
+  cursor: pointer;
+  list-style: none;
+  border-left: 3px solid #6a9e5a;
+  line-height: 1.5;
+  user-select: none;
+}
+.exercise-item summary::-webkit-details-marker { display: none; }
+.exercise-item summary::before {
+  content: "▸";
+  font-size: 0.7rem;
+  color: var(--mid);
+  transition: transform 0.15s;
+}
+.exercise-item[open] summary::before {
+  transform: rotate(90deg);
+}
+.exercise-item[open] summary {
+  border-bottom: 1px solid var(--faint);
+}
+.exercise-title {
+  flex: 1;
+}
+.exercise-title strong {
+  color: var(--mid);
+  margin-right: 6px;
+}
+.status-badge {
+  font-size: 0.55rem;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  padding: 2px 8px;
+  border-radius: 2px;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.status-badge.not-started { background: var(--faint); color: var(--mid); }
+.status-badge.in-progress { background: #f0e8c0; color: #a89030; }
+.status-badge.complete { background: #d4e4c8; color: #4a7a3a; }
+.exercise-body {
+  padding: 14px 18px 14px 30px;
+  font-size: 0.65rem;
+  line-height: 1.7;
+  color: var(--mid);
+}
+.exercise-body .learnings {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--faint);
+  font-style: italic;
+}
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <div>
+    <h1>GDDY Statements</h1>
+    <p>GoDaddy Inc. public financial filings for FP&A practice</p>
+  </div>
+  <div style="display:flex; gap:16px; align-items:baseline;">
+    <a class="logout-link" href="/api/logout">logout</a>
+    <a class="back-link" href="/how-to-be-a-finance-nerd/">&#8592; crash course</a>
+  </div>
+</header>
+
+<div class="main">
+
+  <p style="font-size:0.68rem; max-width:680px; line-height:1.6; margin-bottom:16px;">
+    GoDaddy Inc. (NYSE: GDDY) — CIK 0001609711. Internet domain registrar and web hosting company.
+    Revenue segments: Applications & Commerce, Core Platform. All filings below are from SEC EDGAR and are publicly accessible.
+  </p>
+
+  <!-- ═══ PRACTICE EXERCISES ═══ -->
+  <div class="section-header green" style="margin-top:24px;">
+    <img src="/ugly-dog-images/dog-1.png" alt="" />
+    <h2>Practice Exercises</h2>
+    <img src="/ugly-dog-images/dog-1.png" alt="" class="section-dog" />
+  </div>
+  <div class="exercise-list">
+
+    <details class="exercise-item">
+      <summary>
+        <span class="exercise-title"><strong>1.</strong> Pull the last 5 years of income statements and build a revenue forecast (top-line growth model)</span>
+        <span class="status-badge in-progress">In Progress</span>
+      </summary>
+      <div class="exercise-body">
+        Use the Full Data download below. Pull Total Revenue for FY2020–FY2025, calculate YoY growth rates, and build a simple top-line forecast for FY2026–FY2028. Consider: is growth accelerating or decelerating? What ARPU and customer count assumptions drive your estimate?
+        <div class="learnings">Learnings: —</div>
+      </div>
+    </details>
+
+    <details class="exercise-item">
+      <summary>
+        <span class="exercise-title"><strong>2.</strong> Build a 3-statement model linking income statement → balance sheet → cash flow</span>
+        <span class="status-badge not-started">Not Started</span>
+      </summary>
+      <div class="exercise-body">
+        Start with the income statement, flow net income into retained earnings on the balance sheet, then build the cash flow statement from changes in BS line items. The model should balance: Assets = Liabilities + Equity, and ending cash should tie to the BS.
+        <div class="learnings">Learnings: —</div>
+      </div>
+    </details>
+
+    <details class="exercise-item">
+      <summary>
+        <span class="exercise-title"><strong>3.</strong> Take Q1–Q3 actuals and forecast Q4 + full year — then compare to the actual 10-K</span>
+        <span class="status-badge not-started">Not Started</span>
+      </summary>
+      <div class="exercise-body">
+        Use FY2024 quarterly reports (10-Q) for Q1–Q3. Forecast Q4 based on seasonality patterns and guidance. Then compare your full-year estimate to the actual FY2024 10-K. How far off were you? Why?
+        <div class="learnings">Learnings: —</div>
+      </div>
+    </details>
+
+    <details class="exercise-item">
+      <summary>
+        <span class="exercise-title"><strong>4.</strong> Do a variance analysis: compare your forecast to actuals and explain the gaps</span>
+        <span class="status-badge not-started">Not Started</span>
+      </summary>
+      <div class="exercise-body">
+        After exercise 3, quantify each variance (revenue, COGS, OpEx line items). Categorize as: volume, price/mix, timing, or one-time. Build a bridge from your forecast to actuals and write a 1-page executive summary explaining the deltas.
+        <div class="learnings">Learnings: —</div>
+      </div>
+    </details>
+
+    <details class="exercise-item">
+      <summary>
+        <span class="exercise-title"><strong>5.</strong> Build a waterfall chart showing revenue bridges (price vs. volume vs. mix)</span>
+        <span class="status-badge not-started">Not Started</span>
+      </summary>
+      <div class="exercise-body">
+        Decompose YoY revenue growth into: customer count change (volume), ARPU change (price), and segment mix shift (Applications & Commerce vs. Core Platform). Visualize as a waterfall chart in Excel. Which driver matters most?
+        <div class="learnings">Learnings: —</div>
+      </div>
+    </details>
+
+    <details class="exercise-item">
+      <summary>
+        <span class="exercise-title"><strong>6.</strong> Calculate key metrics: ARPU, customer count growth, retention/churn, free cash flow conversion</span>
+        <span class="status-badge not-started">Not Started</span>
+      </summary>
+      <div class="exercise-body">
+        From the filings, calculate: ARPU (revenue / customers), implied churn (if customer count is flat but bookings grow, what does that mean?), FCF conversion (FCF / Net Income), and Rule of 40 (revenue growth % + FCF margin %). How does GDDY score vs. SaaS benchmarks?
+        <div class="learnings">Learnings: —</div>
+      </div>
+    </details>
+
+  </div>
+
+
+  <!-- ═══ ANNUAL REPORTS ═══ -->
+  <div class="section-header blue">
+    <img src="/ugly-dog-images/dog-2.png" alt="" />
+    <h2>Annual Reports (10-K)</h2>
+    <a class="header-download" href="/private/gddy-statements/gddy-full-xbrl-data.xlsx" download>Download xlsx</a>
+    <img src="/ugly-dog-images/dog-2.png" alt="" class="section-dog" />
+  </div>
+  <p style="font-size:0.62rem; color:var(--mid); margin-bottom:8px;">
+    Full annual financial statements including income statement, balance sheet, cash flow, and management discussion & analysis.
+  </p>
+  <table class="statement-table">
+    <thead>
+      <tr>
+        <th>Year</th>
+        <th>Filing</th>
+        <th>Interactive</th>
+        <th>Filed</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>FY 2025</td>
+        <td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001609711&type=10-K&dateb=&owner=include&count=1&search_text=&action=getcompany" target="_blank">SEC Filing</a></td>
+        <td><a href="https://aboutus.godaddy.net/investor-relations/sec-filings" target="_blank">Investor Page</a></td>
+        <td>Feb 2026</td>
+      </tr>
+      <tr>
+        <td>FY 2024</td>
+        <td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001609711&type=10-K&dateb=20260101&owner=include&count=1" target="_blank">SEC Filing</a></td>
+        <td><a href="https://aboutus.godaddy.net/investor-relations/sec-filings" target="_blank">Investor Page</a></td>
+        <td>Feb 2025</td>
+      </tr>
+      <tr>
+        <td>FY 2023</td>
+        <td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001609711&type=10-K&dateb=20240301&owner=include&count=1" target="_blank">SEC Filing</a></td>
+        <td><a href="https://aboutus.godaddy.net/investor-relations/sec-filings" target="_blank">Investor Page</a></td>
+        <td>Feb 2024</td>
+      </tr>
+      <tr>
+        <td>FY 2022</td>
+        <td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001609711&type=10-K&dateb=20230301&owner=include&count=1" target="_blank">SEC Filing</a></td>
+        <td><a href="https://aboutus.godaddy.net/investor-relations/sec-filings" target="_blank">Investor Page</a></td>
+        <td>Feb 2023</td>
+      </tr>
+      <tr>
+        <td>FY 2021</td>
+        <td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001609711&type=10-K&dateb=20220301&owner=include&count=1" target="_blank">SEC Filing</a></td>
+        <td><a href="https://aboutus.godaddy.net/investor-relations/sec-filings" target="_blank">Investor Page</a></td>
+        <td>Feb 2022</td>
+      </tr>
+      <tr>
+        <td>FY 2020</td>
+        <td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001609711&type=10-K&dateb=20210301&owner=include&count=1" target="_blank">SEC Filing</a></td>
+        <td><a href="https://aboutus.godaddy.net/investor-relations/sec-filings" target="_blank">Investor Page</a></td>
+        <td>Feb 2021</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ═══ QUARTERLY REPORTS ═══ -->
+  <div class="section-header pink">
+    <img src="/ugly-dog-images/dog-3.png" alt="" />
+    <h2>Quarterly Reports (10-Q)</h2>
+    <a class="header-download" href="/private/gddy-statements/gddy-quarterly-data.xlsx" download>Download xlsx</a>
+    <img src="/ugly-dog-images/dog-3.png" alt="" class="section-dog" />
+  </div>
+  <p style="font-size:0.62rem; color:var(--mid); margin-bottom:8px;">
+    Quarterly financials — use these for rolling forecast practice and variance analysis against full-year actuals.
+  </p>
+  <table class="statement-table">
+    <thead>
+      <tr>
+        <th>Period</th>
+        <th>Filing</th>
+        <th>Interactive</th>
+        <th>Filed</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Q1 2025</td>
+        <td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001609711&type=10-Q&dateb=20250601&owner=include&count=1" target="_blank">SEC Filing</a></td>
+        <td><a href="https://aboutus.godaddy.net/investor-relations/sec-filings" target="_blank">Investor Page</a></td>
+        <td>May 2025</td>
+      </tr>
+      <tr>
+        <td>Q3 2024</td>
+        <td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001609711&type=10-Q&dateb=20241201&owner=include&count=1" target="_blank">SEC Filing</a></td>
+        <td><a href="https://aboutus.godaddy.net/investor-relations/sec-filings" target="_blank">Investor Page</a></td>
+        <td>Nov 2024</td>
+      </tr>
+      <tr>
+        <td>Q2 2024</td>
+        <td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001609711&type=10-Q&dateb=20240901&owner=include&count=1" target="_blank">SEC Filing</a></td>
+        <td><a href="https://aboutus.godaddy.net/investor-relations/sec-filings" target="_blank">Investor Page</a></td>
+        <td>Aug 2024</td>
+      </tr>
+      <tr>
+        <td>Q1 2024</td>
+        <td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001609711&type=10-Q&dateb=20240601&owner=include&count=1" target="_blank">SEC Filing</a></td>
+        <td><a href="https://aboutus.godaddy.net/investor-relations/sec-filings" target="_blank">Investor Page</a></td>
+        <td>May 2024</td>
+      </tr>
+      <tr>
+        <td>Q3 2023</td>
+        <td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001609711&type=10-Q&dateb=20231201&owner=include&count=1" target="_blank">SEC Filing</a></td>
+        <td><a href="https://aboutus.godaddy.net/investor-relations/sec-filings" target="_blank">Investor Page</a></td>
+        <td>Nov 2023</td>
+      </tr>
+      <tr>
+        <td>Q2 2023</td>
+        <td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001609711&type=10-Q&dateb=20230901&owner=include&count=1" target="_blank">SEC Filing</a></td>
+        <td><a href="https://aboutus.godaddy.net/investor-relations/sec-filings" target="_blank">Investor Page</a></td>
+        <td>Aug 2023</td>
+      </tr>
+      <tr>
+        <td>Q1 2023</td>
+        <td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001609711&type=10-Q&dateb=20230601&owner=include&count=1" target="_blank">SEC Filing</a></td>
+        <td><a href="https://aboutus.godaddy.net/investor-relations/sec-filings" target="_blank">Investor Page</a></td>
+        <td>May 2023</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ═══ KEY RESOURCES ═══ -->
+  <div class="section-header yellow">
+    <img src="/ugly-dog-images/dog-4.png" alt="" />
+    <h2>Key Resources</h2>
+    <img src="/ugly-dog-images/dog-4.png" alt="" class="section-dog" />
+  </div>
+  <div class="filing-grid">
+    <div class="filing-card">
+      <h3>GoDaddy Investor Relations</h3>
+      <div class="filing-meta">Primary source — earnings, presentations, SEC filings</div>
+      <div class="filing-links">
+        <a href="https://aboutus.godaddy.net/investor-relations/overview" target="_blank">aboutus.godaddy.net/investor-relations</a>
+        <a href="https://aboutus.godaddy.net/investor-relations/sec-filings" target="_blank">All SEC Filings</a>
+        <a href="https://aboutus.godaddy.net/investor-relations/financial-information" target="_blank">Financial Information & Earnings</a>
+      </div>
+    </div>
+    <div class="filing-card">
+      <h3>SEC EDGAR — GDDY</h3>
+      <div class="filing-meta">CIK: 0001609711 — all filings in one place</div>
+      <div class="filing-links">
+        <a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001609711&type=&dateb=&owner=include&count=40" target="_blank">All GDDY Filings</a>
+        <a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001609711&type=10-K&dateb=&owner=include&count=10" target="_blank">10-K Filings Only</a>
+        <a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001609711&type=10-Q&dateb=&owner=include&count=10" target="_blank">10-Q Filings Only</a>
+        <a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001609711&type=DEF+14A&dateb=&owner=include&count=10" target="_blank">Proxy Statements (DEF 14A)</a>
+      </div>
+    </div>
+    <div class="filing-card">
+      <h3>Earnings Transcripts</h3>
+      <div class="filing-meta">Free earnings call transcripts for context on guidance</div>
+      <div class="filing-links">
+        <a href="https://seekingalpha.com/symbol/GDDY/earnings/transcripts" target="_blank">Seeking Alpha — GDDY Transcripts (free with account)</a>
+        <a href="https://www.fool.com/quote/nyse/gddy/#earnings-transcripts" target="_blank">Motley Fool — GDDY Transcripts</a>
+      </div>
+    </div>
+    <div class="filing-card">
+      <h3>Supplemental Data</h3>
+      <div class="filing-meta">Additional data for building models</div>
+      <div class="filing-links">
+        <a href="https://stockanalysis.com/stocks/gddy/financials/" target="_blank">StockAnalysis — GDDY Financials (free)</a>
+        <a href="https://www.macrotrends.net/stocks/charts/GDDY/godaddy/revenue" target="_blank">Macrotrends — GDDY Revenue History</a>
+        <a href="https://www.macrotrends.net/stocks/charts/GDDY/godaddy/financial-statements" target="_blank">Macrotrends — Full Statements</a>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

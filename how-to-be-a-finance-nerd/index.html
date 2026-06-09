@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Financial Forecasting & Budgeting — Replacing Nerd Jobs</title>
+  <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png">
+  <link rel="stylesheet" href="../site.css">
+  <style>
+:root {
+  --phase-1: #d4e4c8;  --phase-1-accent: #6a9e5a;
+  --phase-2: #c9dae1;  --phase-2-accent: #5a8a9e;
+  --phase-3: #f5d8e8;  --phase-3-accent: #c07aa8;
+  --phase-4: #f0e8c0;  --phase-4-accent: #a89030;
+  --phase-5: #e8cccc;  --phase-5-accent: #b05858;
+  --phase-6: #c8e0d4;  --phase-6-accent: #5a9e7a;
+}
+.roadmap {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  margin-top: 24px;
+}
+.phase {
+  border: var(--border);
+  padding: 20px 24px;
+  position: relative;
+  overflow: hidden;
+}
+.phase-1 { background: var(--phase-1); }
+.phase-2 { background: var(--phase-2); }
+.phase-3 { background: var(--phase-3); }
+.phase-4 { background: var(--phase-4); }
+.phase-5 { background: var(--phase-5); }
+.phase-6 { background: var(--phase-6); }
+.phase-1 .resource-list li { border-left-color: var(--phase-1-accent); }
+.phase-2 .resource-list li { border-left-color: var(--phase-2-accent); }
+.phase-3 .resource-list li { border-left-color: var(--phase-3-accent); }
+.phase-4 .resource-list li { border-left-color: var(--phase-4-accent); }
+.phase-5 .resource-list li { border-left-color: var(--phase-5-accent); }
+.phase-6 .resource-list li { border-left-color: var(--phase-6-accent); }
+.phase-dog {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  width: 48px;
+  height: 48px;
+  opacity: 0.35;
+  pointer-events: none;
+}
+.phase-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.phase-number {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.phase-1 .phase-number { color: var(--phase-1-accent); }
+.phase-2 .phase-number { color: var(--phase-2-accent); }
+.phase-3 .phase-number { color: var(--phase-3-accent); }
+.phase-4 .phase-number { color: var(--phase-4-accent); }
+.phase-5 .phase-number { color: var(--phase-5-accent); }
+.phase-6 .phase-number { color: var(--phase-6-accent); }
+.phase-title {
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+.resource-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+.resource-list li {
+  font-size: 0.68rem;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.6);
+  border-left: 3px solid var(--ink);
+}
+.resource-list li a {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--mid);
+}
+.resource-list li a:hover {
+  border-color: var(--ink);
+}
+.resource-type {
+  font-size: 0.58rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--mid);
+  margin-right: 8px;
+}
+.resource-desc {
+  display: block;
+  color: var(--mid);
+  margin-top: 3px;
+  font-size: 0.62rem;
+}
+.skills-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+.skill-card {
+  border: var(--border);
+  padding: 12px 14px;
+  font-size: 0.65rem;
+}
+.skill-card strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.7rem;
+}
+.note {
+  font-size: 0.62rem;
+  color: var(--mid);
+  margin-top: 8px;
+  font-style: italic;
+}
+/* ── SIDEBAR ── */
+.page-layout {
+  display: flex;
+  align-items: flex-start;
+}
+.sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  border-right: var(--border);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+.sidebar-block {
+  padding: 16px;
+  border-bottom: var(--border);
+}
+.sidebar-block .section-label { margin-bottom: 10px; }
+.sidebar-links {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sidebar-links a {
+  display: block;
+  padding: 8px 10px;
+  border: var(--border);
+  font-size: 0.68rem;
+  color: var(--ink);
+  text-decoration: none;
+  background: var(--phase-4);
+}
+.sidebar-links a:hover {
+  background: var(--phase-4-accent);
+  color: var(--bg);
+}
+.page-layout .main {
+  flex: 1;
+  min-width: 0;
+  max-width: none;
+  margin: 0;
+}
+@media (max-width: 768px) {
+  .page-layout { flex-direction: column; }
+  .sidebar { width: 100%; height: auto; position: static; border-right: none; border-bottom: var(--border); }
+}
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <div>
+    <h1>Financial Forecasting & Budgeting</h1>
+    <p>a crash course for joining an FP&A team</p>
+  </div>
+  <a class="back-link" href="/">&#8592; home</a>
+</header>
+
+<div class="page-layout">
+  <aside class="sidebar">
+    <div class="sidebar-block">
+      <div class="section-label">Practice</div>
+      <nav class="sidebar-links">
+        <a href="/how-to-be-a-finance-nerd/apple-statements/">AAPL Statements &#8594;</a>
+        <a href="/how-to-be-a-finance-nerd/target-statements/">TGT Statements &#8594;</a>
+        <a href="/private/gddy-statements/">&#128274; GDDY Statements &#8594;</a>
+      </nav>
+    </div>
+  </aside>
+
+  <div class="main">
+
+  <div class="section-label">What is FP&A?</div>
+  <p style="font-size:0.72rem; max-width:680px; line-height:1.6; margin-bottom:32px;">
+    Financial Planning & Analysis (FP&A) is the team inside a company that builds budgets,
+    forecasts revenue/expenses, does variance analysis (actual vs. plan), and tells leadership
+    what the numbers mean. Think of it as the bridge between accounting (what happened) and
+    strategy (what should happen next).
+  </p>
+
+  <div class="section-label">Core Skills You Need</div>
+  <div class="skills-grid">
+    <div class="skill-card">
+      <strong>Financial Statements</strong>
+      Income statement, balance sheet, cash flow statement — reading and building them
+    </div>
+    <div class="skill-card">
+      <strong>Budgeting</strong>
+      Zero-based, incremental, rolling forecasts, top-down vs. bottom-up approaches
+    </div>
+    <div class="skill-card">
+      <strong>Forecasting</strong>
+      Revenue modeling, expense projections, scenario analysis (best/base/worst case)
+    </div>
+    <div class="skill-card">
+      <strong>Variance Analysis</strong>
+      Actual vs. budget, actual vs. forecast, identifying and explaining the "why"
+    </div>
+    <div class="skill-card">
+      <strong>Excel / Sheets</strong>
+      Financial models, pivot tables, XLOOKUP, INDEX/MATCH, dynamic arrays, data tables
+    </div>
+    <div class="skill-card">
+      <strong>Business Partnering</strong>
+      Translating numbers into stories, presenting to non-finance stakeholders
+    </div>
+  </div>
+
+  <div class="section-label" style="margin-top:40px;">Learning Roadmap</div>
+  <p class="note">All resources below are free (no paywall, no credit card required). Ordered from foundational to advanced.</p>
+
+  <div class="roadmap">
+
+    <div class="phase phase-1">
+      <img src="../ugly-dog-images/dog-1.png" alt="" class="phase-dog" />
+      <div class="phase-header">
+        <span class="phase-number">Phase 1</span>
+        <span class="phase-title">Accounting & Financial Statements Foundations</span>
+      </div>
+      <p style="font-size:0.65rem; color:var(--mid); margin-bottom:10px;">
+        Before you can forecast, you need to read and understand financial statements fluently.
+      </p>
+      <ul class="resource-list">
+        <li>
+          <span class="resource-type">youtube</span>
+          <a href="https://www.youtube.com/playlist?list=PLUkh9m2BorqlJsEfix7R9jtSXClFZhGvC" target="_blank">Accounting Stuff — Accounting Basics Playlist</a>
+          <span class="resource-desc">James covers debits/credits, the accounting equation, and all three financial statements in beginner-friendly 10-15 min videos. ~750K subscribers, completely free.</span>
+        </li>
+        <li>
+          <span class="resource-type">youtube</span>
+          <a href="https://www.youtube.com/@TheFinanceStoryteller" target="_blank">The Finance Storyteller (Philip de Vroe)</a>
+          <span class="resource-desc">Ex-Philips corporate finance director. Deep dives on P&L, balance sheet analysis, cash flow, and how FP&A teams actually use these statements. All free.</span>
+        </li>
+        <li>
+          <span class="resource-type">course</span>
+          <a href="https://www.khanacademy.org/economics-finance-domain/core-finance" target="_blank">Khan Academy — Finance & Capital Markets</a>
+          <span class="resource-desc">Free structured course covering interest, present value, stocks, bonds, and financial statements. Self-paced with practice exercises.</span>
+        </li>
+        <li>
+          <span class="resource-type">course</span>
+          <a href="https://ocw.mit.edu/courses/15-501-introduction-to-financial-and-managerial-accounting-spring-2004/" target="_blank">MIT OpenCourseWare — Intro to Financial & Managerial Accounting</a>
+          <span class="resource-desc">Full MIT course with lecture notes, assignments, and exams. Free, no login required.</span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="phase phase-2">
+      <img src="../ugly-dog-images/dog-2.png" alt="" class="phase-dog" />
+      <div class="phase-header">
+        <span class="phase-number">Phase 2</span>
+        <span class="phase-title">Excel for Finance</span>
+      </div>
+      <p style="font-size:0.65rem; color:var(--mid); margin-bottom:10px;">
+        Excel is the daily tool for FP&A. You need to be fast and fluent with formulas, models, and data manipulation.
+      </p>
+      <ul class="resource-list">
+        <li>
+          <span class="resource-type">youtube</span>
+          <a href="https://www.youtube.com/@LeilaGharani" target="_blank">Leila Gharani — Excel for Finance</a>
+          <span class="resource-desc">2M+ subscribers. Practical Excel tutorials focused on business/finance use cases. Covers dynamic arrays, XLOOKUP, pivot tables, Power Query. All free on YouTube.</span>
+        </li>
+        <li>
+          <span class="resource-type">youtube</span>
+          <a href="https://www.youtube.com/@ExcelCampus" target="_blank">Excel Campus (Jon Acampora)</a>
+          <span class="resource-desc">Focuses on making Excel work faster — keyboard shortcuts, VBA basics, pivot table techniques. Free YouTube content.</span>
+        </li>
+        <li>
+          <span class="resource-type">course</span>
+          <a href="https://support.microsoft.com/en-us/office/excel-video-training-9bc05390-e94c-46af-a5b3-d7c22f6990bb" target="_blank">Microsoft — Free Excel Training</a>
+          <span class="resource-desc">Official Microsoft Excel training videos. Covers beginner through advanced features. Completely free, no account needed.</span>
+        </li>
+        <li>
+          <span class="resource-type">practice</span>
+          <a href="https://chandoo.org/wp/excel-formulas/" target="_blank">Chandoo.org — Excel Formula Guide</a>
+          <span class="resource-desc">Comprehensive free formula reference with examples. The blog also has free financial modeling walkthroughs.</span>
+        </li>
+        <li>
+          <span class="resource-type">youtube</span>
+          <a href="https://www.youtube.com/@TeachExcel" target="_blank">TeachExcel</a>
+          <span class="resource-desc">1000+ free Excel tutorial videos organized by topic. Good for looking up specific functions when building models.</span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="phase phase-3">
+      <img src="../ugly-dog-images/dog-3.png" alt="" class="phase-dog" />
+      <div class="phase-header">
+        <span class="phase-number">Phase 3</span>
+        <span class="phase-title">Budgeting & Forecasting</span>
+      </div>
+      <p style="font-size:0.65rem; color:var(--mid); margin-bottom:10px;">
+        The core FP&A skill. Learn how companies build annual budgets and rolling forecasts.
+      </p>
+      <ul class="resource-list">
+        <li>
+          <span class="resource-type">youtube</span>
+          <a href="https://www.youtube.com/results?search_query=carl+seidman+fp%26a" target="_blank">Carl Seidman — FP&A videos</a>
+          <span class="resource-desc">FP&A consultant with videos on budgeting processes, forecasting techniques, variance analysis, and what the actual job looks like day-to-day. Free on YouTube.</span>
+        </li>
+        <li>
+          <span class="resource-type">youtube</span>
+          <a href="https://www.youtube.com/@JoshAharonoff" target="_blank">Josh Aharonoff</a>
+          <span class="resource-desc">Startup CFO sharing practical FP&A templates, financial models, and forecasting approaches in Google Sheets/Excel. Free templates on his channel.</span>
+        </li>
+        <li>
+          <span class="resource-type">youtube</span>
+          <a href="https://www.youtube.com/@KenjiExplains" target="_blank">Kenji Explains</a>
+          <span class="resource-desc">FP&A career content — what the role actually involves, interview prep, day-in-the-life, and technical skill breakdowns. All free.</span>
+        </li>
+        <li>
+          <span class="resource-type">course</span>
+          <a href="https://ocw.mit.edu/courses/15-515-financial-accounting-fall-2003/" target="_blank">MIT OpenCourseWare — Financial Accounting</a>
+          <span class="resource-desc">Deeper dive into financial accounting that feeds into budgeting/forecasting work. Free lectures, problem sets, and exams.</span>
+        </li>
+        <li>
+          <span class="resource-type">youtube</span>
+          <a href="https://www.youtube.com/@TheFinancialController" target="_blank">The Financial Controller</a>
+          <span class="resource-desc">Practical corporate finance tutorials covering budgeting, month-end close, management reporting. UK-based but universally applicable.</span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="phase phase-4">
+      <img src="../ugly-dog-images/dog-4.png" alt="" class="phase-dog" />
+      <div class="phase-header">
+        <span class="phase-number">Phase 4</span>
+        <span class="phase-title">Financial Modeling</span>
+      </div>
+      <p style="font-size:0.65rem; color:var(--mid); margin-bottom:10px;">
+        Building 3-statement models, DCF models, and scenario planning tools from scratch.
+      </p>
+      <ul class="resource-list">
+        <li>
+          <span class="resource-type">youtube</span>
+          <a href="https://www.youtube.com/@TheFinanceStoryteller" target="_blank">The Finance Storyteller — Modeling Series</a>
+          <span class="resource-desc">Philip walks through building financial models step by step, with the "why" behind every assumption. Free.</span>
+        </li>
+        <li>
+          <span class="resource-type">youtube</span>
+          <a href="https://www.youtube.com/@AswathDamodaranonValuation" target="_blank">Aswath Damodaran (NYU Stern)</a>
+          <span class="resource-desc">The "Dean of Valuation" at NYU posts his entire MBA-level valuation course on YouTube for free — including all Excel models to download.</span>
+        </li>
+        <li>
+          <span class="resource-type">course</span>
+          <a href="https://pages.stern.nyu.edu/~adamodar/" target="_blank">Damodaran Online — NYU Stern</a>
+          <span class="resource-desc">Full course materials, datasets, and Excel spreadsheets for corporate finance and valuation. Everything is free to download.</span>
+        </li>
+        <li>
+          <span class="resource-type">github</span>
+          <a href="https://github.com/topics/financial-modeling" target="_blank">GitHub — Financial Modeling repos</a>
+          <span class="resource-desc">Open-source financial model templates in Python and Excel. Good for seeing how others structure models programmatically.</span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="phase phase-5">
+      <img src="../ugly-dog-images/dog-5.png" alt="" class="phase-dog" />
+      <div class="phase-header">
+        <span class="phase-number">Phase 5</span>
+        <span class="phase-title">Variance Analysis & Business Storytelling</span>
+      </div>
+      <p style="font-size:0.65rem; color:var(--mid); margin-bottom:10px;">
+        The skill that separates a "number cruncher" from a strategic FP&A partner: explaining the WHY behind variances.
+      </p>
+      <ul class="resource-list">
+        <li>
+          <span class="resource-type">youtube</span>
+          <a href="https://www.youtube.com/results?search_query=carl+seidman+variance+analysis" target="_blank">Carl Seidman — Variance Analysis Deep Dives</a>
+          <span class="resource-desc">Videos on building variance bridges, waterfall charts, and presenting to leadership. Free on YouTube.</span>
+        </li>
+        <li>
+          <span class="resource-type">youtube</span>
+          <a href="https://www.youtube.com/@storytellingwithdata" target="_blank">Storytelling with Data (Cole Nussbaumer Knaflic)</a>
+          <span class="resource-desc">How to present financial data clearly — chart selection, decluttering, crafting a narrative. Free YouTube channel with exercises.</span>
+        </li>
+        <li>
+          <span class="resource-type">course</span>
+          <a href="https://ocw.mit.edu/courses/15-501-introduction-to-financial-and-managerial-accounting-spring-2004/" target="_blank">MIT OCW — Managerial Accounting sections</a>
+          <span class="resource-desc">The managerial accounting portion covers cost behavior, variance analysis, and decision-making frameworks used in FP&A.</span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="phase phase-6">
+      <img src="../ugly-dog-images/dog-6.png" alt="" class="phase-dog" />
+      <div class="phase-header">
+        <span class="phase-number">Phase 6</span>
+        <span class="phase-title">FP&A Career Prep & Tools</span>
+      </div>
+      <p style="font-size:0.65rem; color:var(--mid); margin-bottom:10px;">
+        Getting hired, interview prep, and modern FP&A tools beyond Excel.
+      </p>
+      <ul class="resource-list">
+        <li>
+          <span class="resource-type">youtube</span>
+          <a href="https://www.youtube.com/@KenjiExplains" target="_blank">Kenji Explains — FP&A Interview Series</a>
+          <span class="resource-desc">Common FP&A interview questions, case studies, and how to talk about your experience. Free.</span>
+        </li>
+        <li>
+          <span class="resource-type">youtube</span>
+          <a href="https://www.youtube.com/results?search_query=carl+seidman+fp%26a+career+path" target="_blank">Carl Seidman — FP&A Career Path</a>
+          <span class="resource-desc">Videos on analyst → senior analyst → manager → director progression, salary ranges, and what each level actually does.</span>
+        </li>
+        <li>
+          <span class="resource-type">community</span>
+          <a href="https://www.reddit.com/r/FPandA/" target="_blank">r/FPandA (Reddit)</a>
+          <span class="resource-desc">Active community of FP&A professionals sharing career advice, templates, and real talk about the job. Free to browse.</span>
+        </li>
+        <li>
+          <span class="resource-type">tool</span>
+          <a href="https://www.google.com/sheets/about/" target="_blank">Google Sheets (free alternative to Excel)</a>
+          <span class="resource-desc">If you don't have Excel, Google Sheets covers 90% of FP&A modeling needs. Many Josh Aharonoff templates are in Sheets.</span>
+        </li>
+        <li>
+          <span class="resource-type">certification</span>
+          <a href="https://www.afponline.org/" target="_blank">AFP — Certified Corporate FP&A Professional (FPAC)</a>
+          <span class="resource-desc">The main FP&A certification body. Study materials and exam are paid, but the syllabus/outline on their site is free and serves as a learning checklist of what you need to know.</span>
+        </li>
+      </ul>
+    </div>
+
+  </div>
+
+  <div class="section-label" style="margin-top:40px;">Suggested Weekly Study Plan</div>
+  <div style="font-size:0.68rem; max-width:680px; line-height:1.7;">
+    <p style="margin-bottom:12px;"><strong>Weeks 1–2:</strong> Financial statements fundamentals (Khan Academy + Accounting Stuff)</p>
+    <p style="margin-bottom:12px;"><strong>Weeks 3–4:</strong> Excel fluency (Leila Gharani + Microsoft training, practice daily)</p>
+    <p style="margin-bottom:12px;"><strong>Weeks 5–6:</strong> Budgeting & forecasting concepts (Carl Seidman + Josh Aharonoff)</p>
+    <p style="margin-bottom:12px;"><strong>Weeks 7–8:</strong> Build a 3-statement model from scratch (Damodaran + Finance Storyteller)</p>
+    <p style="margin-bottom:12px;"><strong>Weeks 9–10:</strong> Variance analysis & presentation (Storytelling with Data + practice on real company 10-K filings from SEC EDGAR)</p>
+    <p style="margin-bottom:12px;"><strong>Weeks 11–12:</strong> Mock interviews + build a portfolio model (Kenji Explains + r/FPandA for feedback)</p>
+  </div>
+
+  <div class="section-label" style="margin-top:40px;">Free Practice Data</div>
+  <ul class="resource-list" style="max-width:680px;">
+    <li>
+      <span class="resource-type">data</span>
+      <a href="https://www.sec.gov/edgar/searchedgar/companysearch.htm" target="_blank">SEC EDGAR — Public Company 10-K Filings</a>
+      <span class="resource-desc">Search any public company's financial statements (10-K annual reports). Practice reading, forecasting from, and building models off actual data. Free, no login.</span>
+    </li>
+    <li>
+      <span class="resource-type">data</span>
+      <a href="https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datacurrent.html" target="_blank">Damodaran Data Sets</a>
+      <span class="resource-desc">Industry averages for margins, growth rates, cost of capital — essential inputs for forecasting models. Updated annually, free.</span>
+    </li>
+  </ul>
+
+</div>
+
+</div><!-- /page-layout -->
+
+</body>
+</html>

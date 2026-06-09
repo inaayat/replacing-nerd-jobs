@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AAPL Statements — Replacing Nerd Jobs</title>
+  <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png">
+  <link rel="stylesheet" href="../../site.css">
+  <style>
+.section-header { display:flex; align-items:center; gap:12px; padding:10px 14px; margin-top:32px; margin-bottom:14px; border:var(--border); position:relative; }
+.section-header.blue { background:#c9dae1; }
+.section-header.pink { background:#f5d8e8; }
+.section-header.yellow { background:#f0e8c0; }
+.section-header.green { background:#d4e4c8; }
+.section-header img { width:28px; height:28px; object-fit:contain; }
+.section-header h2 { font-size:0.76rem; font-weight:500; color:var(--ink); }
+.section-header .section-dog { position:absolute; right:14px; top:50%; transform:translateY(-50%); width:32px; height:32px; opacity:0.4; }
+.section-header .header-download { position:absolute; right:56px; top:50%; transform:translateY(-50%); font-size:0.58rem; padding:4px 10px; background:var(--ink); color:var(--bg); text-decoration:none; border:1px solid var(--ink); font-family:'DM Mono',monospace; }
+.section-header .header-download:hover { background:var(--mid); }
+.statement-table { width:100%; border-collapse:collapse; font-size:0.65rem; margin-top:8px; }
+.statement-table th, .statement-table td { text-align:left; padding:8px 12px; border-bottom:1px solid var(--faint); }
+.statement-table th { font-size:0.6rem; text-transform:uppercase; letter-spacing:1px; color:var(--mid); border-bottom-color:var(--ink); }
+.statement-table tr:hover td { background:var(--hover); }
+.statement-table a { color:var(--ink); text-decoration:none; border-bottom:1px solid var(--mid); }
+.statement-table a:hover { border-color:var(--ink); }
+.filing-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:16px; margin-top:14px; }
+.filing-card { border:var(--border); padding:16px 18px; background:#f0e8c0; }
+.filing-card h3 { font-size:0.76rem; font-weight:500; margin-bottom:6px; }
+.filing-card .filing-meta { font-size:0.6rem; color:var(--mid); margin-bottom:10px; }
+.filing-card .filing-links { display:flex; flex-direction:column; gap:6px; }
+.filing-card .filing-links a { font-size:0.65rem; color:var(--ink); text-decoration:none; border-bottom:1px solid var(--mid); }
+.filing-card .filing-links a:hover { border-color:var(--ink); }
+.exercise-list { list-style:none; display:flex; flex-direction:column; gap:6px; }
+.exercise-item { border:var(--border); background:rgba(255,255,255,0.6); }
+.exercise-item summary { display:flex; align-items:center; gap:10px; padding:10px 14px; font-size:0.68rem; cursor:pointer; list-style:none; border-left:3px solid #6a9e5a; line-height:1.5; user-select:none; }
+.exercise-item summary::-webkit-details-marker { display:none; }
+.exercise-item summary::before { content:"▸"; font-size:0.7rem; color:var(--mid); transition:transform 0.15s; }
+.exercise-item[open] summary::before { transform:rotate(90deg); }
+.exercise-item[open] summary { border-bottom:1px solid var(--faint); }
+.exercise-title { flex:1; }
+.exercise-title strong { color:var(--mid); margin-right:6px; }
+.status-badge { font-size:0.55rem; text-transform:uppercase; letter-spacing:0.8px; padding:2px 8px; border-radius:2px; white-space:nowrap; font-weight:500; }
+.status-badge.not-started { background:var(--faint); color:var(--mid); }
+.status-badge.in-progress { background:#f0e8c0; color:#a89030; }
+.status-badge.complete { background:#d4e4c8; color:#4a7a3a; }
+.exercise-body { padding:14px 18px 14px 30px; font-size:0.65rem; line-height:1.7; color:var(--mid); }
+.exercise-body .learnings { margin-top:10px; padding-top:10px; border-top:1px solid var(--faint); font-style:italic; }
+.download-btn { display:inline-block; padding:12px 24px; border:var(--border); background:var(--ink); color:var(--bg); font-family:'DM Mono',monospace; font-size:0.72rem; font-weight:500; text-decoration:none; cursor:pointer; margin-top:20px; margin-bottom:8px; }
+.download-btn:hover { background:var(--mid); }
+.download-note { font-size:0.58rem; color:var(--mid); font-style:italic; }
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <div>
+    <h1>AAPL Statements</h1>
+    <p>Apple Inc. public financial filings for FP&A practice</p>
+  </div>
+  <a class="back-link" href="/how-to-be-a-finance-nerd/">&#8592; crash course</a>
+</header>
+
+<div class="main">
+
+  <p style="font-size:0.68rem; max-width:680px; line-height:1.6; margin-bottom:16px;">
+    Apple Inc. (NASDAQ: AAPL) — CIK 0000320193. Consumer electronics, software, and services.
+    Fiscal year ends last Saturday of September. Segments: iPhone, Mac, iPad, Wearables/Home/Accessories, Services.
+  </p>
+
+  <!-- ═══ PRACTICE EXERCISES ═══ -->
+  <div class="section-header green" style="margin-top:24px;">
+    <img src="/ugly-dog-images/dog-1.png" alt="" />
+    <h2>Practice Exercises</h2>
+    <img src="/ugly-dog-images/dog-1.png" alt="" class="section-dog" />
+  </div>
+  <div class="exercise-list">
+    <details class="exercise-item">
+      <summary>
+        <span class="exercise-title"><strong>1.</strong> Revenue Forecasting — Build a top-line growth model using one or more approaches</span>
+        <span class="status-badge not-started">Not Started</span>
+      </summary>
+      <div class="exercise-body">
+        Choose a model type below, pull the last 5 years of data, and forecast FY2026–2028. Try multiple approaches and compare outputs.
+
+        <details style="margin-top:12px; border:1px solid var(--faint); padding:0;">
+          <summary style="padding:8px 12px; font-size:0.63rem; cursor:pointer; background:var(--hover); font-weight:500;">1a. Top-Down Growth Rate Model</summary>
+          <div style="padding:10px 12px; font-size:0.62rem; line-height:1.6;">
+            <strong>Method:</strong> Apply historical YoY growth rates to total revenue. Calculate CAGR, 3-year average, and trend direction.<br>
+            <strong>When to use:</strong> Quick directional estimate, early-stage analysis, when segment detail isn't available.<br>
+            <strong>Apple context:</strong> Revenue grew from $274B (FY2020) to $416B (FY2024). Growth was flat FY2022–2023 then re-accelerated. Why?<br><br>
+            <strong>Step-by-step using the Annual Data export:</strong><br>
+            1. Open the "Income Statement" sheet. Find the row labeled "Revenue from Contract with Customer Excluding Assessed Tax" — this is total revenue.<br>
+            2. In a new sheet, create a table: columns = FY2020–FY2025, row 1 = Revenue ($M).<br>
+            3. Row 2 = YoY Growth. Formula: =(B1-A1)/A1. Drag across.<br>
+            4. Row 3 = CAGR. Formula: =(FY2025/FY2020)^(1/5)-1.<br>
+            5. Row 4 = 3-Year Average Growth. Formula: =AVERAGE(last 3 growth cells).<br>
+            6. Create 3 scenarios: Bear (use minimum historical growth), Base (use 3-year avg), Bull (use CAGR or max).<br>
+            7. Row 5+ = Forecast. Formula: =Prior Year × (1 + Growth Rate). Extend to FY2028.<br>
+            8. Sanity check: does your FY2028 number imply a market share that makes sense? Compare to total smartphone/PC TAM.
+          </div>
+        </details>
+
+        <details style="margin-top:4px; border:1px solid var(--faint); padding:0;">
+          <summary style="padding:8px 12px; font-size:0.63rem; cursor:pointer; background:var(--hover); font-weight:500;">1b. Bottom-Up Segment Model</summary>
+          <div style="padding:10px 12px; font-size:0.62rem; line-height:1.6;">
+            <strong>Method:</strong> Forecast each product segment independently, then sum to total. Each segment gets its own growth rate based on its lifecycle.<br>
+            <strong>When to use:</strong> When segments have materially different growth profiles (Apple's Services grows ~15% while iPhone grows ~2%).<br>
+            <strong>Apple context:</strong> Segments: iPhone (~52% of rev), Services (~22%), Mac (~8%), iPad (~7%), Wearables (~10%). Services has 2x the growth rate of hardware — mix shift matters.<br><br>
+            <strong>Step-by-step using the Annual Data export:</strong><br>
+            1. Open "Income Statement" sheet. Apple doesn't tag segments in XBRL — pull segment data from the 10-K filing (search "Products and Services Performance Obligation" or the segment table in the MD&A).<br>
+            2. Create a sheet with rows: iPhone, Mac, iPad, Wearables, Services. Columns = FY2020–FY2025.<br>
+            3. Calculate YoY growth for EACH segment. You'll see Services growing 12-16%/year vs. iPhone at -2% to +6%.<br>
+            4. For each segment, set a forward growth rate. Ask: is this segment in growth phase, maturity, or decline?<br>
+            5. Forecast each segment independently for FY2026–2028.<br>
+            6. Sum all segments → Total Revenue. This should differ from your 1a model — WHY? (Segment composition tells a richer story).<br>
+            7. Calculate "mix shift" — what % of revenue is Services in FY2028E vs FY2025A? This matters because Services has ~70% gross margin vs ~36% for Products.
+          </div>
+        </details>
+
+        <details style="margin-top:4px; border:1px solid var(--faint); padding:0;">
+          <summary style="padding:8px 12px; font-size:0.63rem; cursor:pointer; background:var(--hover); font-weight:500;">1c. Installed Base × ARPU Model</summary>
+          <div style="padding:10px 12px; font-size:0.62rem; line-height:1.6;">
+            <strong>Method:</strong> Revenue = Active Installed Base × Revenue per Device. Separate hardware (replacement cycles) from Services (recurring per device).<br>
+            <strong>When to use:</strong> For subscription/recurring revenue businesses or platform companies where per-user monetization is the growth lever.<br>
+            <strong>Apple context:</strong> Installed base ~2.2B devices. Services ARPU ~$30/device/year and growing. Hardware ARPU declining as upgrade cycles lengthen (3→4 years). Model each independently.<br><br>
+            <strong>Step-by-step using the Annual Data export:</strong><br>
+            1. Apple discloses installed base on earnings calls (~2.2B active devices as of early 2025). Note this in your model as an assumption row.<br>
+            2. Calculate implied ARPU: Total Revenue / Installed Base = ~$189/device/year (all-in). Services ARPU = Services Rev / Installed Base = ~$42/device/year.<br>
+            3. Model installed base growth: new devices sold – devices retired. Apple sells ~220M iPhones/year; devices retire after ~5-6 years. Net growth ~3-5%/year.<br>
+            4. Model ARPU growth: Services ARPU growing ~10%/year (price increases + more subscriptions per user). Hardware ARPU flat/declining.<br>
+            5. Forecast: Revenue[t] = Installed Base[t] × (Hardware ARPU[t] + Services ARPU[t]).<br>
+            6. Sensitivity table: What if installed base grows 2% vs 5%? What if Services ARPU grows 8% vs 12%? Show the revenue range.<br>
+            7. Cross-check: does your total revenue match your 1a/1b models? If not, which assumption is wrong?
+          </div>
+        </details>
+
+        <details style="margin-top:4px; border:1px solid var(--faint); padding:0;">
+          <summary style="padding:8px 12px; font-size:0.63rem; cursor:pointer; background:var(--hover); font-weight:500;">1d. Product Cycle / Replacement Model</summary>
+          <div style="padding:10px 12px; font-size:0.62rem; line-height:1.6;">
+            <strong>Method:</strong> Estimate iPhone units = (installed base / replacement cycle length) + new-to-platform switchers. Multiply by ASP.<br>
+            <strong>When to use:</strong> For hardware companies with predictable upgrade cycles (phones, PCs, cars).<br>
+            <strong>Apple context:</strong> iPhone ASP ~$900. Replacement cycle ~4 years. If 2.2B devices, ~550M replacements/year at steady state. But cycles compress during major redesigns (folding iPhone?) and elongate during iterative years.<br><br>
+            <strong>Step-by-step using the Annual Data export:</strong><br>
+            1. From the annual data, note Apple doesn't disclose unit sales since FY2018. Use third-party estimates (IDC, Counterpoint) or back-calculate: iPhone Revenue / ASP = Units.<br>
+            2. Build an assumptions table: iPhone installed base (~1.2B), replacement cycle (4 years), ASP ($900), switchers from Android (~15M/year).<br>
+            3. Formula: iPhone Units = (Installed Base / Cycle Length) + Switchers = (1.2B / 4) + 15M = ~315M units.<br>
+            4. iPhone Revenue = Units × ASP. If ASP grows 2%/year (mix shift to Pro): 315M × $918 = $289B in FY2026E.<br>
+            5. Add other products: Mac (cycle: 4-5yr, base: ~100M), iPad (cycle: 5yr, base: ~200M), Wearables (cycle: 3yr, base: ~300M).<br>
+            6. Layer in: what happens in a "super cycle" year (major redesign)? Model a +10% unit lift in that year, then reversion.<br>
+            7. Total Hardware Revenue + Services (from 1c model) = Total Revenue.
+          </div>
+        </details>
+
+        <details style="margin-top:4px; border:1px solid var(--faint); padding:0;">
+          <summary style="padding:8px 12px; font-size:0.63rem; cursor:pointer; background:var(--hover); font-weight:500;">1e. Geographic Decomposition Model</summary>
+          <div style="padding:10px 12px; font-size:0.62rem; line-height:1.6;">
+            <strong>Method:</strong> Forecast revenue by region (Americas, Europe, Greater China, Japan, Rest of Asia Pacific), each with its own growth rate + FX assumptions.<br>
+            <strong>When to use:</strong> When geographic mix is shifting or when FX is a material headwind/tailwind (Apple reports ~60% international).<br>
+            <strong>Apple context:</strong> China is the swing factor — it's ~18% of revenue but volatile (Huawei competition, geopolitics). Americas is steady. Model China separately with bear/base/bull.<br><br>
+            <strong>Step-by-step using the Annual Data export:</strong><br>
+            1. Geographic revenue is in the 10-K segment footnotes (not always tagged in XBRL). Pull from the filing: Americas (~42%), Europe (~26%), China (~18%), Japan (~7%), Rest of Asia Pacific (~7%).<br>
+            2. Create a table: rows = regions, columns = FY2020–FY2025 revenue in USD.<br>
+            3. Calculate YoY growth by region. You'll see China is volatile (-5% some years, +12% others) while Americas is steady (+5-8%).<br>
+            4. For each region, set assumptions: Americas (stable, tied to US consumer), Europe (moderate + FX risk), China (wide bear/bull range due to Huawei + geopolitics).<br>
+            5. Add an FX row: if USD strengthens 5%, international revenue is worth 5% less in reported USD. Apple hedges but not fully.<br>
+            6. Forecast each region × (1 + local growth) × (1 + FX impact) for FY2026–2028.<br>
+            7. Sum regions = Total Revenue. Compare to your 1a model — if they diverge, your regional assumptions are inconsistent with total growth.
+          </div>
+        </details>
+
+        <div class="learnings">Learnings: —</div>
+      </div>
+    </details>
+    <details class="exercise-item">
+      <summary>
+        <span class="exercise-title"><strong>2.</strong> Build a 3-statement model linking income statement → balance sheet → cash flow</span>
+        <span class="status-badge not-started">Not Started</span>
+      </summary>
+      <div class="exercise-body">
+        Apple generates massive FCF (~$100B+/yr). The model should show how net income flows to cash and how share buybacks reduce equity. Note: Apple has negative stockholders' equity — understand why.
+
+        <details style="margin-top:12px; border:1px solid var(--faint); padding:0;">
+          <summary style="padding:8px 12px; font-size:0.63rem; cursor:pointer; background:var(--hover); font-weight:500;">2a. Income Statement Setup</summary>
+          <div style="padding:10px 12px; font-size:0.62rem; line-height:1.6;">
+            <strong>Method:</strong> Build the P&L from revenue through net income. This is the foundation the other two statements link to.<br>
+            <strong>When to use:</strong> Always the starting point for a 3-statement model.<br>
+            <strong>Apple context:</strong> Cost of Sales is split Products vs. Services (very different margins). Operating expenses are just R&D + SG&A — Apple's structure is unusually clean. Watch the effective tax rate (~15-16%), well below the US statutory rate due to international structure.<br><br>
+            <strong>Step-by-step using the Annual Data export:</strong><br>
+            1. Open the Annual Data export, "Income Statement" sheet. Pull into a new "3-Statement Model" workbook: Revenue, COGS, Gross Profit, R&D, SG&A, Operating Income, Interest Income, Other Income, Pre-tax Income, Tax Provision, Net Income.<br>
+            2. Calculate Gross Margin % = Gross Profit / Revenue. Apple runs ~46% blended (up from ~43% in FY2020 — Services mix shift is the reason).<br>
+            3. Calculate Operating Margin % = Operating Income / Revenue. Apple runs ~30-31%.<br>
+            4. For a forecast year, project each line as % of revenue. Example: R&D ≈ 8% of revenue; SG&A ≈ 6-7%. These ratios have been stable for years.<br>
+            5. COGS = Revenue × (1 - assumed gross margin %). Apple's Product gross margin is ~36-38%; Services is ~73-74%. Blend based on your segment mix assumptions.<br>
+            6. Tax rate = Tax Provision / Pre-tax Income. Calculate Apple's effective rate for each of the last 5 years — it's typically 15-16%, reflecting significant foreign earnings taxed at lower rates.<br>
+            7. Net Income is the output that flows into both the cash flow statement (starting line) and retained earnings on the balance sheet. These two links are the backbone of the 3-statement model.
+          </div>
+        </details>
+
+        <details style="margin-top:4px; border:1px solid var(--faint); padding:0;">
+          <summary style="padding:8px 12px; font-size:0.63rem; cursor:pointer; background:var(--hover); font-weight:500;">2b. Cash Flow Statement</summary>
+          <div style="padding:10px 12px; font-size:0.62rem; line-height:1.6;">
+            <strong>Method:</strong> Start with net income, add back non-cash items (D&A, stock-based comp), adjust for working capital changes, then show investing and financing activities.<br>
+            <strong>When to use:</strong> To understand the difference between GAAP earnings and actual cash generation — and where cash is being deployed.<br>
+            <strong>Apple context:</strong> Apple's operating cash flow (~$110B) consistently exceeds net income (~$94B). The gap is mainly D&A and SBC. Investing activities are dominated by securities purchases/sales (Apple runs a large internal treasury). Financing is almost entirely buybacks ($80-100B/yr) and dividends (~$15B/yr).<br><br>
+            <strong>Step-by-step using the Annual Data export:</strong><br>
+            1. Open the "Cash Flow Statement" sheet. Build three sections: Operating, Investing, Financing.<br>
+            2. Operating: Start with Net Income. Add D&A (~$11B/yr). Add SBC (~$11B/yr). Adjust working capital: an increase in receivables is a use of cash (subtract); an increase in payables is a source of cash (add).<br>
+            3. Free Cash Flow = Operating Cash Flow – CapEx. Apple's CapEx is surprisingly low (~$9-10B/yr) for a company its size. FCF ≈ $100-110B/yr.<br>
+            4. Investing: Purchases and maturities of marketable securities dominate. These are large but don't affect "economic" FCF — Apple is shuffling money between cash and securities within its treasury.<br>
+            5. Financing: Share repurchases ($80-100B/yr) plus dividends (~$15B/yr). This is why Apple can return more cash than it earns in a given year — it draws down its securities portfolio to fund the difference.<br>
+            6. Check: Beginning Cash + Net Change in Cash = Ending Cash. This ending cash must tie exactly to the Cash line on the balance sheet — it's one of your two critical CF→BS links.<br>
+            7. Calculate FCF Conversion: FCF / Net Income. A ratio above 100% means Apple generates more cash than it books as GAAP profit. Apple's is ~105-115% — this is why the stock deserves a premium to GAAP multiples.
+          </div>
+        </details>
+
+        <details style="margin-top:4px; border:1px solid var(--faint); padding:0;">
+          <summary style="padding:8px 12px; font-size:0.63rem; cursor:pointer; background:var(--hover); font-weight:500;">2c. Balance Sheet</summary>
+          <div style="padding:10px 12px; font-size:0.62rem; line-height:1.6;">
+            <strong>Method:</strong> Build assets, liabilities, and equity. Roll cash forward using the CF statement; roll equity forward using net income, dividends, and buybacks.<br>
+            <strong>When to use:</strong> To understand financial position, capital structure, and — in Apple's case — one of the most counterintuitive results in large-cap finance.<br>
+            <strong>Apple context:</strong> Apple has NEGATIVE stockholders' equity (~-$19B in FY2024). This sounds alarming but it's not financial distress — it's because Apple has repurchased far more stock than it has ever earned in cumulative retained earnings. The buyback program has literally consumed the equity base. Apple funds this with cheap debt (~$90B gross debt at low fixed rates) — the net cash position is still positive (~$55B).<br><br>
+            <strong>Step-by-step using the Annual Data export:</strong><br>
+            1. Open the "Balance Sheet" sheet. Key items: Cash + Securities (the "war chest"), Accounts Receivable, Inventory, PPE, Total Assets; then AP, Deferred Revenue, Debt, Total Liabilities, Stockholders' Equity.<br>
+            2. Roll forward Cash: Prior Year Cash + Operating CF – CapEx – Net Securities Changes – Financing Outflows = Current Year Cash. Verify this ties to the CF ending cash balance.<br>
+            3. Roll forward Retained Earnings: Prior Year RE + Net Income – Dividends Paid = Current Year RE. Note: Apple's RE went deeply negative — the accumulated buybacks exceeded cumulative lifetime earnings.<br>
+            4. Roll forward Common Stock + APIC: Prior Year Balance + SBC Issuance – Buybacks at Cost = Current Year. Buybacks are reducing this balance by $80-100B per year.<br>
+            5. Total Equity = Common Stock + APIC + Retained Earnings + Accumulated Other Comprehensive Income. Verify this matches the reported figure in the filing.<br>
+            6. Error check: Total Assets – Total Liabilities – Stockholders' Equity must equal exactly zero. Any non-zero balance means a link is broken — hunt it down before moving forward.<br>
+            7. Calculate Net Debt = Total Debt – Cash – Marketable Securities. Apple is net cash positive (~$55B) despite $90B+ gross debt — an intentional capital structure: borrow cheaply, buy back stock aggressively, keep just enough treasury.
+          </div>
+        </details>
+
+        <details style="margin-top:4px; border:1px solid var(--faint); padding:0;">
+          <summary style="padding:8px 12px; font-size:0.63rem; cursor:pointer; background:var(--hover); font-weight:500;">2d. Linking the Three Statements</summary>
+          <div style="padding:10px 12px; font-size:0.62rem; line-height:1.6;">
+            <strong>Method:</strong> Wire the statements so changes flow automatically via cell references. A fully-linked model means changing one assumption — say, revenue growth — updates all three statements without manual intervention.<br>
+            <strong>When to use:</strong> Always — a 3-statement model that isn't linked is just three separate spreadsheets.<br>
+            <strong>Apple context:</strong> The critical links: Net Income → CF (starting line) and → Retained Earnings roll; D&A → CF add-back; Ending Cash on CF → Cash on BS; Debt issuances/repayments → CF Financing section and → BS Debt balance; Buybacks → CF Financing and → APIC/Treasury Stock on BS.<br><br>
+            <strong>Step-by-step:</strong><br>
+            1. IS → CF: Cell-reference Net Income as the first line of CF Operating section. Never hardcode this — if you change a revenue assumption, it must flow automatically.<br>
+            2. IS → BS: Net Income flows to Retained Earnings. Formula: =RE_prior_year + NI_current_year - Dividends_current_year.<br>
+            3. CF → BS: Ending cash on CF statement = Cash on balance sheet. Formula: =CF_EndingCash. These must be the same cell value.<br>
+            4. Debt roll: Debt[t] = Debt[t-1] + New Issuances[t] – Repayments[t]. Plug the net change into the CF Financing section.<br>
+            5. Build a CHECK row at the bottom of your BS: =Total Assets - Total Liabilities - Total Equity. Color it red if non-zero. A green zero means your model balances.<br>
+            6. Test: change Revenue by +5%. Trace: → Gross Profit → Net Income → Retained Earnings → Total Equity → BS balance. Everything should cascade automatically. If the BS breaks, find the disconnected link.<br>
+            7. Test again: change the buyback assumption by +$10B. Trace: → CF Financing (larger outflow) → Cash on BS decreases → APIC/Treasury Stock decreases → Equity becomes more negative. Verify the BS still balances at zero.
+          </div>
+        </details>
+
+        <div class="learnings">Learnings: —</div>
+      </div>
+    </details>
+    <details class="exercise-item">
+      <summary>
+        <span class="exercise-title"><strong>3.</strong> Take Q1–Q3 actuals and forecast Q4 + full year — then compare to the actual 10-K</span>
+        <span class="status-badge not-started">Not Started</span>
+      </summary>
+      <div class="exercise-body">
+        Apple's Q1 (holiday quarter, ends Dec) is the biggest — represents ~35% of annual revenue. Use quarterly seasonality patterns to forecast Q4 (Jul–Sep). Compare to the 10-K when filed.
+
+        <details style="margin-top:12px; border:1px solid var(--faint); padding:0;">
+          <summary style="padding:8px 12px; font-size:0.63rem; cursor:pointer; background:var(--hover); font-weight:500;">3a. Seasonality Ratio Method</summary>
+          <div style="padding:10px 12px; font-size:0.62rem; line-height:1.6;">
+            <strong>Method:</strong> Calculate what % of full-year revenue each quarter historically represents. Apply those ratios to your full-year estimate to derive quarterly forecasts.<br>
+            <strong>When to use:</strong> For companies with stable, predictable seasonality. Apple's quarterly pattern is remarkably consistent year-over-year — it's the right starting point.<br>
+            <strong>Apple context:</strong> Apple's Q1 (Oct–Dec, holiday) is typically 35-36% of full-year revenue. Q2 (Jan–Mar): ~23%. Q3 (Apr–Jun): ~22%. Q4 (Jul–Sep): ~20-21%. This ratio has held stable across multiple product cycles.<br><br>
+            <strong>Step-by-step using the Quarterly Data export:</strong><br>
+            1. Open the Quarterly Data export. Pull 4 years of quarterly revenue (FY2021–FY2024, all 4 quarters each = 16 data points).<br>
+            2. For each fiscal year, calculate each quarter's share: Q1 % = Q1 Revenue / Full Year Revenue. Do this for Q1–Q4 for each of the 4 years. Each row must sum to 100%.<br>
+            3. Calculate the 4-year average % for each quarter. These are your seasonality ratios.<br>
+            4. Note the standard deviation of each quarter's ratio. Low deviation = reliable ratio. Apple's Q1 ratio is very stable (±0.5pp). Q4 is the most variable because product launch timing can shift revenue between Q4 and Q1.<br>
+            5. Apply to your full-year FY2025 forecast (from Exercise 1): Q1E = Full Year × Q1 ratio, and so on. You now have quarterly estimates from a single annual estimate.<br>
+            6. Cross-check: Q1 FY2025 (Dec 2024) and Q2 FY2025 (Mar 2025) actuals are in the 10-Qs. Do your ratio-derived estimates match actual? If you're 3%+ off, understand why — did something structural shift (e.g., India manufacturing ramp changed geographic seasonality).<br>
+            7. When actual Q4 FY2025 is reported (Oct/Nov 2025), record your estimate vs. actual. Was your seasonality ratio stable this year?
+          </div>
+        </details>
+
+        <details style="margin-top:4px; border:1px solid var(--faint); padding:0;">
+          <summary style="padding:8px 12px; font-size:0.63rem; cursor:pointer; background:var(--hover); font-weight:500;">3b. YoY Growth Analogue Method</summary>
+          <div style="padding:10px 12px; font-size:0.62rem; line-height:1.6;">
+            <strong>Method:</strong> Apply each prior quarter's YoY growth rate to estimate the corresponding current-year quarter. Adjusts for comp difficulty — easy comps in quarters where the prior year was weak.<br>
+            <strong>When to use:</strong> When you believe recent growth trends will continue and you want to capture product-cycle-specific dynamics that pure seasonality ratios miss.<br>
+            <strong>Apple context:</strong> Apple's quarterly growth rates are driven heavily by the iPhone product cycle and China. Q2 FY2024 was -4% (China trough + macro). Q3-Q4 FY2024 re-accelerated. FY2025 is comping against that weak Q2 — the "easy comp" should inflate the reported Q2 FY2025 growth rate.<br><br>
+            <strong>Step-by-step using the Quarterly Data export:</strong><br>
+            1. Pull quarterly revenue for FY2023 and FY2024 side by side (8 quarters, 2 columns).<br>
+            2. Calculate YoY growth for each quarter: Q1 FY2024 / Q1 FY2023 – 1. Do all 4 quarters.<br>
+            3. Note the trend: did quarterly growth accelerate or decelerate? In FY2024 it went negative in Q2 then recovered. This is the "China trough" narrative.<br>
+            4. For FY2025 forecast: start with FY2024 actuals. Apply an assumed FY2025 growth rate to each quarter. Build a comp table — columns: FY2024 actual growth, Comp characterization (easy/hard), FY2025 assumed growth, FY2025 estimated revenue.<br>
+            5. Q2 FY2025 is an easy comp (comping against -4%). Q1 FY2025 is a harder comp (comping against a strong holiday quarter). Adjust growth assumptions accordingly.<br>
+            6. Sum your 4 quarterly estimates. Does it reconcile to your full-year forecast from Exercise 1? If not, which quarter's growth assumption needs adjusting?<br>
+            7. After Q3 FY2025 is reported, back-solve: what Q4 does your full-year estimate require? Is the implied Q4 growth rate plausible given product cycle context?
+          </div>
+        </details>
+
+        <details style="margin-top:4px; border:1px solid var(--faint); padding:0;">
+          <summary style="padding:8px 12px; font-size:0.63rem; cursor:pointer; background:var(--hover); font-weight:500;">3c. Back-Solve / Residual Method</summary>
+          <div style="padding:10px 12px; font-size:0.62rem; line-height:1.6;">
+            <strong>Method:</strong> Use 3 quarters of actuals and back-solve for the Q4 implied by your full-year estimate. Then assess whether that implied Q4 is achievable given seasonality and product context.<br>
+            <strong>When to use:</strong> Mid-year in a real FP&A role — you have 3 quarters of actuals and need to assess whether the annual target is still achievable. This is the most commonly used method in practice.<br>
+            <strong>Apple context:</strong> This is exactly what equity analysts do after Apple's Q3 earnings (reported in late July/early August). They know Q1+Q2+Q3 actuals. They estimate Q4 and that gives the full-year EPS, which drives the price target. The "implied Q4 number" becomes the central debate heading into Apple's fiscal year-end.<br><br>
+            <strong>Step-by-step:</strong><br>
+            1. Start with your full-year FY2025 revenue forecast from Exercise 1.<br>
+            2. Subtract actuals: Q1 FY2025 (reported Jan 2025) + Q2 FY2025 (reported May 2025) + Q3 FY2025 (reported Aug 2025). The residual = implied Q4 needed to hit your annual estimate.<br>
+            3. Implied Q4 check: what YoY growth does this imply vs. Q4 FY2024? Is that growth rate consistent with your seasonality model (3a) and YoY analogue (3b)? If all three agree, you have conviction.<br>
+            4. Product cycle sanity check: Q4 FY2025 (Jul–Sep) does not include the new iPhone (launches in September, ships mostly October). Q4 is structurally the trough quarter. Be skeptical of any implied Q4 that shows significant acceleration vs. Q3.<br>
+            5. Build a sensitivity: what if full-year revenue is $5B above/below your estimate? Show the implied Q4 range. Format it as a table — this is what analysts publish as their "Q4 scenario range."<br>
+            6. Write one paragraph: "With $X.XB achieved through Q3, Q4 needs to deliver $X.XB (+X% YoY) to hit our full-year estimate. This is [above/below/in-line with] the historical Q4 seasonality ratio of ~20-21%. Key upside risk: [one factor]. Key downside risk: [one factor]."<br>
+            7. After the 10-K is filed, compare your implied Q4 to the actual. Diagnose the source of error — was it product demand, Services outperformance, or geographic mix (China)?
+          </div>
+        </details>
+
+        <div class="learnings">Learnings: —</div>
+      </div>
+    </details>
+    <details class="exercise-item">
+      <summary>
+        <span class="exercise-title"><strong>4.</strong> Do a variance analysis: compare your forecast to actuals and explain the gaps</span>
+        <span class="status-badge not-started">Not Started</span>
+      </summary>
+      <div class="exercise-body">
+        Decompose variance by product segment. Was iPhone above/below? Did Services outperform? Build a bridge chart and write a 1-page executive summary. Consider: FX impact, China demand, product cycle timing.
+
+        <details style="margin-top:12px; border:1px solid var(--faint); padding:0;">
+          <summary style="padding:8px 12px; font-size:0.63rem; cursor:pointer; background:var(--hover); font-weight:500;">4a. Segment Revenue Bridge</summary>
+          <div style="padding:10px 12px; font-size:0.62rem; line-height:1.6;">
+            <strong>Method:</strong> Decompose the change in total revenue into segment-level contributions. Each segment's contribution = its $ change / prior year total revenue. All contributions sum to total revenue % growth.<br>
+            <strong>When to use:</strong> When you want to explain WHY revenue changed — which product lines drove the delta — not just the headline number.<br>
+            <strong>Apple context:</strong> FY2023→FY2024: total revenue grew +2% ($383B → $391B). But Services grew +13% while iPhone was essentially flat. The headline understates the structural shift happening underneath — the mix story is far more important than the total growth rate.<br><br>
+            <strong>Step-by-step:</strong><br>
+            1. Pull FY2023 and FY2024 segment revenue from the 10-K: iPhone, Mac, iPad, Wearables, Services. Record in a table: columns = FY2023, FY2024, $ Change, % Change.<br>
+            2. Calculate each segment's Contribution to Total Growth: = Segment $ Change / Prior Year Total Revenue. These percentages must sum to the total revenue % growth.<br>
+            3. Build a bridge table: FY2023 Total → [each segment's + or - contribution] → FY2024 Total. Verify: start + all segment changes = end value exactly.<br>
+            4. Rank by $ contribution. In FY2024: Services +$9B, iPhone ~+$1B, Mac -$1B, Wearables -$1B, iPad roughly flat. Services was the entire net growth engine.<br>
+            5. Add a Revenue Mix row for each year: Services went from ~21% → ~24% of revenue in one year. That's a major structural shift worth highlighting — it drives margin expansion (see 4b).<br>
+            6. Write 3 sentences interpreting the bridge: which segment drove growth, which was the drag, and what this implies for profitability going forward.<br>
+            7. Compare to your Exercise 1 forecasts: which segment surprised you most? Was your iPhone forecast too optimistic? Did you underestimate Services growth?
+          </div>
+        </details>
+
+        <details style="margin-top:4px; border:1px solid var(--faint); padding:0;">
+          <summary style="padding:8px 12px; font-size:0.63rem; cursor:pointer; background:var(--hover); font-weight:500;">4b. Gross Margin Bridge</summary>
+          <div style="padding:10px 12px; font-size:0.62rem; line-height:1.6;">
+            <strong>Method:</strong> Decompose the change in gross profit dollars into three effects: Volume (more revenue at constant margins), Mix (shift toward higher/lower margin segments), and Rate (margin % changed within a segment).<br>
+            <strong>When to use:</strong> When revenue grew but you want to understand if profitability improved proportionally. Mix shifts make gross profit more nuanced than the top-line story — you need all three effects to explain the full delta.<br>
+            <strong>Apple context:</strong> Apple's blended gross margin expanded from ~43% (FY2022) to ~46% (FY2024). Why? Services (73-74% gross margin) is growing faster than Products (~36-38%). This mix effect is structural and compounding — every year Services grows its revenue share, blended margins expand without any fundamental improvement in either segment.<br><br>
+            <strong>Step-by-step:</strong><br>
+            1. Pull the Products and Services gross profit split from the 10-K (Apple discloses this explicitly). Calculate GM% for each segment and for the blended total for FY2023 and FY2024.<br>
+            2. Volume effect: Revenue growth × Prior Year blended GM% = gross profit growth you'd expect with zero margin change. This is the "how much more volume" effect.<br>
+            3. Mix effect: Calculate the shift in Services % of revenue year-over-year. Mix effect = (Services GM% – Products GM%) × (Revenue shifted to Services). A shift toward higher-margin Services is a pure tailwind.<br>
+            4. Rate effect: Did either segment's GM% expand or contract? Apple's Products margin has been pressured by tariffs and component costs; Services has been expanding on pricing power. Calculate each: Rate Effect = Segment Revenue × Change in Segment GM%.<br>
+            5. Sum: Volume + Mix + Rate = Total GP $ change. Cross-check against the actual reported change in gross profit dollars. If it doesn't tie, you've double-counted or missed something.<br>
+            6. Build this as a bridge table matching the structure of your revenue bridge (4a). Color: volume green, mix effect green, rate compression red.<br>
+            7. Narrative: "Of the $X increase in gross profit, $Y came from Services mix shift, $Z from volume growth, and ($A) from Product margin compression driven by [tariffs/component costs/FX]. The structural tailwind from Services mix should persist as long as Services grows faster than hardware."
+          </div>
+        </details>
+
+        <details style="margin-top:4px; border:1px solid var(--faint); padding:0;">
+          <summary style="padding:8px 12px; font-size:0.63rem; cursor:pointer; background:var(--hover); font-weight:500;">4c. FX and Geographic Decomposition</summary>
+          <div style="padding:10px 12px; font-size:0.62rem; line-height:1.6;">
+            <strong>Method:</strong> Separate revenue growth into organic (constant currency) and FX translation impact. Layer in geographic mix to show where volume demand came from vs. where it didn't.<br>
+            <strong>When to use:</strong> When a company has significant international revenue (~60% for Apple) and FX is moving — which it almost always is. Reported growth includes FX noise; organic growth is the true demand signal.<br>
+            <strong>Apple context:</strong> The dollar strengthened significantly in FY2022-2023, masking underlying demand growth internationally. In FY2024, slight dollar weakening became a modest tailwind. Japan is especially volatile — a 10% Yen decline vs. USD cuts Japan's reported USD revenue by 10% even if local-currency demand is healthy. China ($67-72B) is the highest-variance geography by far.<br><br>
+            <strong>Step-by-step:</strong><br>
+            1. Pull geographic revenue from the 10-K for FY2023 and FY2024: Americas, Europe, Greater China, Japan, Rest of Asia Pacific. Calculate $ and % change by region.<br>
+            2. For FX estimation: look up the average USD/EUR, USD/CNY, USD/JPY exchange rates for Apple's FY2023 (Oct 2022–Sep 2023) and FY2024 (Oct 2023–Sep 2024). These are fiscal-year averages, not spot rates.<br>
+            3. Constant-currency restatement: for each region, restate prior-year revenue at current-year FX rates. The difference = FX impact. Organic growth = Reported growth – FX impact.<br>
+            4. Japan exercise: the Yen weakened ~10% vs. USD from FY2022 to FY2024. If Japan reported flat USD revenue, what does that imply about actual local-currency demand growth? (Answer: it grew ~10% in Yen terms but that was erased by FX translation.)<br>
+            5. China deep-dive: FY2024 China revenue was $66.9B vs $72.6B in FY2023 (-$5.7B). Estimate how much was FX vs. real demand: CNY weakened ~2% vs. USD in that period → FX explains maybe -$1.5B. The remaining -$4.2B is real volume and ASP pressure — Huawei's Mate series returning to market in late 2023 is the primary culprit.<br>
+            6. Organic growth table: for each region, show Reported Growth, FX Impact (pp), and Organic Growth. This reframes the narrative — Americas organic and reported are similar (~40% international); Japan's organic growth likely looks much better than reported.<br>
+            7. Forward implication: which geographies look better on organic vs. reported? If the USD weakens going forward, which regions offer the most FX tailwind? (Europe and Japan — large revenue base, significant FX sensitivity.)
+          </div>
+        </details>
+
+        <details style="margin-top:4px; border:1px solid var(--faint); padding:0;">
+          <summary style="padding:8px 12px; font-size:0.63rem; cursor:pointer; background:var(--hover); font-weight:500;">4d. Executive Summary Write-Up</summary>
+          <div style="padding:10px 12px; font-size:0.62rem; line-height:1.6;">
+            <strong>Method:</strong> Synthesize your segment bridge, margin bridge, and geographic decomposition into a 1-page memo: headline, key drivers, variance vs. your forecast, risks realized vs. missed, and a revised forward outlook.<br>
+            <strong>When to use:</strong> In any real FP&A role — the bridges are the analytical work; the executive summary is the deliverable. Most stakeholders will only read this page.<br>
+            <strong>Apple context:</strong> Real sell-side Apple notes follow a consistent structure: results vs. consensus (beat/miss by segment), FCF, guidance vs. expectations, and 2-3 forward takeaways. The format is tight and numbers-driven. No vague language.<br><br>
+            <strong>Step-by-step:</strong><br>
+            1. Headline (1 sentence): State the result relative to consensus and your own estimate. "Apple FY2024 revenue of $391.0B grew 2% YoY, in-line with consensus, with Services the primary growth engine (+13% YoY) offsetting flat iPhone and Wearables contraction."<br>
+            2. Key drivers (3 bullets max): Each bullet = segment or factor + dollar magnitude + 1-sentence explanation. No vague language. Specific numbers only: "Services: +$9.0B (+13% YoY) — App Store, subscriptions, and licensing all expanded; ARPU grew to ~$44/device."<br>
+            3. Variance vs. your forecast: be explicit about where you were wrong. "iPhone came in $X below our estimate, primarily due to greater China softness (-$5.7B YoY) — we underestimated Huawei competition impact. Services beat our estimate by $Z, driven by faster-than-modeled subscription ARPU expansion." Identifying your own errors is a core FP&A competency.<br>
+            4. Risks realized vs. risks missed: which risks you flagged beforehand actually materialized? Which ones you worried about didn't? This builds long-run forecast calibration — the habit of tracking which concerns were right matters as much as the forecast itself.<br>
+            5. Forward revision: "We revise our FY2025 estimate from $X.XB to $Y.YB. Changes: [+$A from Services re-acceleration on easy comps, -$B on continued China caution, +$C from gross margin expansion driven by Services mix]." Quantify every revision.<br>
+            6. Format rules: one page, hard limit. Numbers in $B with one decimal. Bullet structure for drivers, not prose. Active voice ("Services outperformed" not "Services was observed to outperform"). No hedging language without a number attached.
+          </div>
+        </details>
+
+        <div class="learnings">Learnings: —</div>
+      </div>
+    </details>
+    <details class="exercise-item">
+      <summary>
+        <span class="exercise-title"><strong>5.</strong> Build a waterfall chart showing revenue bridges (product mix + geographic)</span>
+        <span class="status-badge not-started">Not Started</span>
+      </summary>
+      <div class="exercise-body">
+        Apple reports revenue by product AND by geography (Americas, Europe, Greater China, Japan, Rest of Asia Pacific). Build two waterfalls: one by product contribution to growth, one by region.
+
+        <details style="margin-top:12px; border:1px solid var(--faint); padding:0;">
+          <summary style="padding:8px 12px; font-size:0.63rem; cursor:pointer; background:var(--hover); font-weight:500;">5a. Product Contribution Waterfall</summary>
+          <div style="padding:10px 12px; font-size:0.62rem; line-height:1.6;">
+            <strong>Method:</strong> Build a floating-bar chart where each bar represents a product segment's $ contribution to the year-over-year change in total revenue. Positive contributors extend upward, negative contributors extend downward. Start = prior year total, End = current year total.<br>
+            <strong>When to use:</strong> For any bridge/walk analysis. Waterfall charts are the standard visualization for decomposing changes — used in virtually every FP&A deck at public companies. A table of numbers tells you what; a waterfall shows you the shape.<br>
+            <strong>Apple context:</strong> FY2023→FY2024: Services +$9.0B, iPhone ~+$1B, Mac -$1B, Wearables -$1B, iPad ~flat. Total change +$8B. The waterfall makes instantly visible that Services drove essentially all the growth — something the headline +2% completely hides.<br><br>
+            <strong>Step-by-step (Excel / Google Sheets):</strong><br>
+            1. Set up a data table with these columns: Category | Base (invisible spacer) | Value (visible bar). Rows: FY2023 Total, iPhone, Mac, iPad, Wearables, Services, FY2024 Total.<br>
+            2. FY2023 Total: Base = 0, Value = $383B (the full starting bar).<br>
+            3. For each segment change row: Base = running cumulative sum of all prior values (this is what "floats" the bar at the right height). Value = the segment's $ change. Use a negative value for segments that contracted.<br>
+            4. FY2024 Total: Base = 0, Value = $391B (the full ending bar, same as start + all changes).<br>
+            5. In Excel: select data → Insert Stacked Bar chart. Select the Base series → Format → No Fill, No Border. It disappears, leaving each Value bar floating at the correct position.<br>
+            6. Formatting: FY2023/FY2024 total bars = dark grey. Positive change bars = green (#6a9e5a matches the site). Negative = warm red. Add data labels on each floating bar showing the $ change (e.g., "+$9.0B" on Services).<br>
+            7. Title: "FY2024 vs. FY2023 Revenue Bridge by Product ($B)". Y-axis in $B. Remove gridlines. Keep it clean — the floating bars are the story; decoration competes with them.
+          </div>
+        </details>
+
+        <details style="margin-top:4px; border:1px solid var(--faint); padding:0;">
+          <summary style="padding:8px 12px; font-size:0.63rem; cursor:pointer; background:var(--hover); font-weight:500;">5b. Geographic Revenue Waterfall</summary>
+          <div style="padding:10px 12px; font-size:0.62rem; line-height:1.6;">
+            <strong>Method:</strong> Same floating-bar waterfall technique, but decompose revenue change by region: Americas, Europe, Greater China, Japan, Rest of Asia Pacific.<br>
+            <strong>When to use:</strong> To show where demand is growing vs. contracting geographically — critical for any company with China exposure. A number in a table (-$5.7B, China) is easy to gloss over; a large red bar is not.<br>
+            <strong>Apple context:</strong> FY2023→FY2024: Americas grew ~+$5B, Europe ~+$3B, Greater China -$5.7B, Japan ~flat, Rest of Asia Pacific ~+$1.5B. Net = +$8B total. China's contraction stands out starkly — the waterfall makes the geopolitical risk visually undeniable.<br><br>
+            <strong>Step-by-step:</strong><br>
+            1. Pull geographic revenue for FY2023 and FY2024 from the 10-K. Build the same bridge table structure as 5a: Base (spacer) + Value ($ change) for each region.<br>
+            2. Calculate $ change per region. The running base column accumulates: Americas base = 0; Europe base = FY2023 total + Americas change; China base = prior cumulative; and so on.<br>
+            3. China bar: this will be a large negative (red) floating bar. Make it visually distinctive — it's the most important part of the chart. Consider making it a brighter red than minor contracting segments.<br>
+            4. Add text annotations directly on the chart: on China bar → "Huawei competition + weak consumer spending." On Americas bar → "Services + holiday hardware." These annotations are what make a chart into a communication tool rather than just a visualization.<br>
+            5. Limitation note: geographic revenue includes all products and services sold in each region — you cannot cleanly separate iPhone from Services revenue by geography using public filings. Add a small footnote: "Geographic segments include both Products and Services; breakout not disclosed."<br>
+            6. Place the two waterfalls (5a product, 5b geographic) side by side on the same slide/page. Write 2 sentences comparing the two views: "By product, Services drove essentially all of the net revenue growth. By geography, Americas expansion offset a significant China contraction — the same underlying demand story viewed through a different lens."<br>
+            7. Advanced challenge: what's the relationship between the two waterfalls? iPhone weakness is concentrated in China; Services growth is concentrated in Americas. Can you estimate an implied "China Services vs. China Hardware" split? What assumptions would you need?
+          </div>
+        </details>
+
+        <div class="learnings">Learnings: —</div>
+      </div>
+    </details>
+    <details class="exercise-item">
+      <summary>
+        <span class="exercise-title"><strong>6.</strong> Calculate key metrics: installed base growth, Services ARPU, gross margin by segment, FCF yield</span>
+        <span class="status-badge not-started">Not Started</span>
+      </summary>
+      <div class="exercise-body">
+        Estimate: Services revenue per device (installed base ~2.2B), hardware vs. Services gross margin split, FCF yield (FCF / market cap), buyback pace (shares retired / year), and Rule of 40 equivalent for a hardware+services hybrid.
+
+        <details style="margin-top:12px; border:1px solid var(--faint); padding:0;">
+          <summary style="padding:8px 12px; font-size:0.63rem; cursor:pointer; background:var(--hover); font-weight:500;">6a. Installed Base &amp; Services ARPU</summary>
+          <div style="padding:10px 12px; font-size:0.62rem; line-height:1.6;">
+            <strong>Method:</strong> Calculate Services revenue per active device (ARPU) and track it over time. ARPU growth measures how effectively Apple is monetizing its installed base — a more important long-run signal than total revenue growth.<br>
+            <strong>When to use:</strong> For platform companies where the installed base is the primary asset. ARPU growth compounds on a large, sticky base — this is what makes Apple's Services business structurally different from a traditional software subscription company.<br>
+            <strong>Apple context:</strong> Apple discloses active installed base ~2.2B devices on earnings calls (not in the 10-K). Services revenue FY2024 ≈ $96B. Implied Services ARPU ≈ $44/device/year. This was ~$25/device in FY2019 — nearly 2x growth in 5 years, on a base that itself grew ~50%.<br><br>
+            <strong>Step-by-step:</strong><br>
+            1. From Apple's earnings call transcripts (investor.apple.com → Events & Presentations), record the installed base disclosures by year. Apple began disclosing this ~2019: ~1.5B (2019), ~1.8B (2021), ~2.0B (2023), ~2.2B (2025).<br>
+            2. From the Annual Data export, pull Services revenue for FY2019–FY2024.<br>
+            3. Calculate Services ARPU = Services Revenue / Installed Base for each available year. Plot the trend — ARPU compounding at ~10%/year on a growing base explains why Services is the fastest-growing and highest-margin part of Apple's business.<br>
+            4. Calculate ARPU CAGR over the period. Compare to Services revenue CAGR — the difference is installed base growth. (Services revenue CAGR ≈ ARPU CAGR + Installed Base CAGR.)<br>
+            5. Build a forward ARPU model: if installed base grows 3%/year and ARPU grows 10%/year, Services revenue grows ~13%/year. At what ARPU does Services become a $150B business? A $200B business? How many years?<br>
+            6. Calculate blended ARPU (all revenue / installed base): ~$189/device/year in FY2024. The gap between blended ARPU and Services ARPU (~$145) represents hardware revenue per device — which is flat to declining as upgrade cycles lengthen. This gap tells the mix story.<br>
+            7. Sensitivity: what if installed base plateaus (zero growth) but ARPU grows 12%/year? What if installed base grows 5% but ARPU growth slows to 7%? These are the two key variables — which matters more for Services revenue in FY2027?
+          </div>
+        </details>
+
+        <details style="margin-top:4px; border:1px solid var(--faint); padding:0;">
+          <summary style="padding:8px 12px; font-size:0.63rem; cursor:pointer; background:var(--hover); font-weight:500;">6b. Gross Margin by Segment</summary>
+          <div style="padding:10px 12px; font-size:0.62rem; line-height:1.6;">
+            <strong>Method:</strong> Calculate gross margin % separately for Products and Services. Track both over time and model how mix shift between them drives blended margin expansion — even if neither segment's margin individually improves.<br>
+            <strong>When to use:</strong> For companies with two business models carrying structurally different economics. The blended margin tells you little; the component margins tell you everything.<br>
+            <strong>Apple context:</strong> Products GM% ~36-38%. Services GM% ~73-74%. Blended ~46%. The blended rate rises every year because Services is growing faster than Products. By FY2026, Services at 28%+ of revenue could push blended GM toward 48-49% — meaningful gross profit dollar expansion even with modest revenue growth.<br><br>
+            <strong>Step-by-step:</strong><br>
+            1. From the Annual Data export, find "Gross Margin - Products" and "Gross Margin - Services" (Apple discloses this explicitly in the income statement). Calculate GM% for each segment and for the blended total across FY2020–FY2024.<br>
+            2. Products GM% analysis: trace the trend. FY2022 saw compression from supply chain disruptions and component costs. FY2024 showed recovery. What are the structural drivers — ASP mix (Pro models carry higher margins), component costs, and regional pricing differences?<br>
+            3. Services GM% analysis: consistently ~73-74% with slight expansion year-over-year. Why so high? Digital services delivery has near-zero marginal cost — App Store, Apple Music, iCloud, licensing — once the platform exists, each incremental subscriber adds almost pure gross profit.<br>
+            4. Mix shift model: for each year, calculate Services % of revenue. Build the formula: Blended GM% = (Products Rev / Total Rev × Products GM%) + (Services Rev / Total Rev × Services GM%). Verify this matches reported blended GM exactly.<br>
+            5. Forward projection: if Services reaches 30% of revenue at 74% margin and Products is 70% at 37%, the implied blended GM = (0.70 × 37%) + (0.30 × 74%) = 48.1%. How many gross profit dollars does that represent at your FY2027 revenue forecast?<br>
+            6. Margin sensitivity table: rows = Services share of revenue (20%, 25%, 30%, 35%), columns = Products GM% (35%, 37%, 39%). Show the implied blended GM% at each intersection. This is the kind of sensitivity executives ask for.<br>
+            7. Peer comparison: Samsung blended GM ~30% (mostly hardware), Microsoft ~70% (mostly software). Apple at ~46% occupies a unique middle position. If Services keeps growing, where does Apple's margin profile sit in 5 years — closer to Samsung or Microsoft?
+          </div>
+        </details>
+
+        <details style="margin-top:4px; border:1px solid var(--faint); padding:0;">
+          <summary style="padding:8px 12px; font-size:0.63rem; cursor:pointer; background:var(--hover); font-weight:500;">6c. FCF Yield &amp; Buyback Pace</summary>
+          <div style="padding:10px 12px; font-size:0.62rem; line-height:1.6;">
+            <strong>Method:</strong> FCF yield = FCF / market cap, measuring cash return relative to what you pay for the stock. Buyback pace = shares retired per year as % of total shares outstanding, which mechanically drives EPS growth independent of earnings growth.<br>
+            <strong>When to use:</strong> To evaluate capital return programs and understand how buybacks create EPS growth even in years when net income is flat. This is one of the most misunderstood mechanics in large-cap equity analysis.<br>
+            <strong>Apple context:</strong> Apple has repurchased $600B+ in stock since 2012 — the largest buyback program in corporate history. In FY2024, Apple repurchased ~$95B of stock against ~15.4B diluted shares. That's roughly 6% of shares retired per year. EPS grows faster than net income because the denominator shrinks by 6% annually.<br><br>
+            <strong>Step-by-step:</strong><br>
+            1. Pull Operating Cash Flow, CapEx, and diluted shares outstanding from the Annual Data export for FY2020–FY2024.<br>
+            2. Calculate FCF = Operating Cash Flow – CapEx for each year. Verify your number is in the $95-110B range for FY2024.<br>
+            3. FCF Yield = FCF / Market Cap. Pull Apple's market cap at each fiscal year-end (late September) from historical price data. FY2024 market cap ≈ $3.5T. FCF yield ≈ $110B / $3.5T ≈ 3.1%.<br>
+            4. Context: 3.1% FCF yield vs. a 10-year Treasury at ~4% means Apple is not cheap on a static yield basis. But if FCF grows 10%/year, the forward yield improves rapidly — calculate the "year-3 forward FCF yield" assuming 10% annual FCF growth. That's the number buyers are paying for.<br>
+            5. Buyback pace: Shares repurchased ($) ÷ Average share price = shares retired in the period. Then: shares retired / prior year shares outstanding = buyback %. Track this for FY2020–FY2024 — Apple retires 5-7% of shares annually.<br>
+            6. EPS accretion model: with zero earnings growth and 6% annual buybacks, EPS still grows ~6% purely from denominator shrinkage. Calculate: EPS[t] = Net Income / Shares[t-1] × (1 – buyback%). Over 5 years at 6%/yr buybacks, you'd reduce shares by ~27% — that's 27% EPS growth from buybacks alone, before any earnings improvement.<br>
+            7. Sustainability check: Apple needs ~$95B/yr in buybacks at current prices. Its FCF is ~$110B and it pays ~$15B in dividends — that's tight. Model: if the stock price rises from $220 → $280 over 3 years, how many shares does $95B/yr retire each year? At what share count does the buyback program become a smaller % of remaining float, slowing the EPS accretion effect?
+          </div>
+        </details>
+
+        <details style="margin-top:4px; border:1px solid var(--faint); padding:0;">
+          <summary style="padding:8px 12px; font-size:0.63rem; cursor:pointer; background:var(--hover); font-weight:500;">6d. Rule of 40 Equivalent</summary>
+          <div style="padding:10px 12px; font-size:0.62rem; line-height:1.6;">
+            <strong>Method:</strong> The Rule of 40 (Revenue Growth % + Profit Margin %) is the standard SaaS health benchmark. Adapt it for Apple by calculating it two ways: (1) total company, (2) Services segment only. Then use the segmented result to build a valuation argument.<br>
+            <strong>When to use:</strong> When making the case that a hardware+services company deserves a software-like valuation multiple — or when stress-testing that argument. This is one of the core debates in Apple valuation.<br>
+            <strong>Apple context:</strong> Apple bulls argue the stock should be partly valued as software because of Services. The Rule of 40 analysis gives this a quantitative foundation. Apple's Services segment alone would score among the top software businesses in the world if valued independently.<br><br>
+            <strong>Step-by-step:</strong><br>
+            1. Total company Rule of 40: Revenue Growth % + FCF Margin % (use FCF margin, not operating margin — more comparable to SaaS metrics). FY2024: revenue growth ~+2%, FCF margin ~27% → Rule of 40 score ≈ 29. Below the 40 benchmark — typical for a large, mature hardware company.<br>
+            2. Services-only Rule of 40: Services revenue growth ~+13%. For Services operating margin, estimate from gross margin minus an allocated share of R&D and SG&A (Apple doesn't disclose segment operating income). A reasonable estimate is 30-35% operating margin → Services Rule of 40 score ≈ 43-48. This is solidly in premium SaaS territory.<br>
+            3. Hardware-implied back-solve: if the blended company score is 29 and Services (22% of revenue) scores 45, what must the Hardware business score? Using weighted average: (0.22 × 45) + (0.78 × Hardware score) = 29 → Hardware score ≈ 24. Reasonable for a large-cap hardware company.<br>
+            4. Multi-year trend: calculate Rule of 40 for FY2021–FY2024. Is the total company score improving as Services grows its share? It should be — plot the trend and verify.<br>
+            5. "Crossover" calculation: at what Services revenue share does Apple's blended Rule of 40 score reach 40? Assuming Services scores 45 and Hardware scores 24: 40 = Services% × 45 + (1 – Services%) × 24 → Services% ≈ 76%. That implies Services needs to be 76% of revenue — it's currently ~24%. This is why the "Apple as software company" re-rating thesis is a long-term story, not imminent.<br>
+            6. Sum-of-the-parts valuation: value Services at a software multiple (e.g., 25x revenue) and Hardware at a hardware multiple (e.g., 3x revenue). Apply your FY2025 revenue estimates to each. Does the implied SOTP total match, exceed, or fall short of Apple's current market cap? What does the gap tell you about how the market is pricing the business?<br>
+            7. Investment thesis paragraph: "Apple's blended Rule of 40 score of ~29 reflects its hardware-heavy revenue mix, but the Services segment scores ~45 — above most premium SaaS benchmarks. The bull case is Services reaches 35%+ of revenue within 5 years, driving blended margin expansion and multiple re-rating. The bear case is Services growth decelerates as the installed base saturates and regulatory pressure compresses App Store take rates." Keep this to 5 sentences.
+          </div>
+        </details>
+
+        <div class="learnings">Learnings: —</div>
+      </div>
+    </details>
+  </div>
+
+  <!-- ═══ ANNUAL REPORTS ═══ -->
+  <div class="section-header blue">
+    <img src="/ugly-dog-images/dog-2.png" alt="" />
+    <h2>Annual Reports (10-K)</h2>
+    <a class="header-download" href="/how-to-be-a-finance-nerd/apple-statements/aapl-annual-data.xlsx" download>Download xlsx</a>
+    <img src="/ugly-dog-images/dog-2.png" alt="" class="section-dog" />
+  </div>
+  <p style="font-size:0.62rem; color:var(--mid); margin-bottom:8px;">
+    Full annual financial statements. Apple's FY ends in late September (e.g., FY2024 ended Sep 28, 2024).
+  </p>
+  <table class="statement-table">
+    <thead><tr><th>Year</th><th>Filing</th><th>Interactive</th><th>Filed</th></tr></thead>
+    <tbody>
+      <tr><td>FY 2025</td><td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000320193&type=10-K&dateb=&owner=include&count=1" target="_blank">SEC Filing</a></td><td><a href="https://investor.apple.com/sec-filings/default.aspx" target="_blank">Investor Page</a></td><td>Oct 2025</td></tr>
+      <tr><td>FY 2024</td><td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000320193&type=10-K&dateb=20250901&owner=include&count=1" target="_blank">SEC Filing</a></td><td><a href="https://investor.apple.com/sec-filings/default.aspx" target="_blank">Investor Page</a></td><td>Nov 2024</td></tr>
+      <tr><td>FY 2023</td><td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000320193&type=10-K&dateb=20240101&owner=include&count=1" target="_blank">SEC Filing</a></td><td><a href="https://investor.apple.com/sec-filings/default.aspx" target="_blank">Investor Page</a></td><td>Nov 2023</td></tr>
+      <tr><td>FY 2022</td><td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000320193&type=10-K&dateb=20230101&owner=include&count=1" target="_blank">SEC Filing</a></td><td><a href="https://investor.apple.com/sec-filings/default.aspx" target="_blank">Investor Page</a></td><td>Oct 2022</td></tr>
+      <tr><td>FY 2021</td><td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000320193&type=10-K&dateb=20220101&owner=include&count=1" target="_blank">SEC Filing</a></td><td><a href="https://investor.apple.com/sec-filings/default.aspx" target="_blank">Investor Page</a></td><td>Oct 2021</td></tr>
+      <tr><td>FY 2020</td><td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000320193&type=10-K&dateb=20210101&owner=include&count=1" target="_blank">SEC Filing</a></td><td><a href="https://investor.apple.com/sec-filings/default.aspx" target="_blank">Investor Page</a></td><td>Oct 2020</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ═══ QUARTERLY REPORTS ═══ -->
+  <div class="section-header pink">
+    <img src="/ugly-dog-images/dog-3.png" alt="" />
+    <h2>Quarterly Reports (10-Q)</h2>
+    <a class="header-download" href="/how-to-be-a-finance-nerd/apple-statements/aapl-quarterly-data.xlsx" download>Download xlsx</a>
+    <img src="/ugly-dog-images/dog-3.png" alt="" class="section-dog" />
+  </div>
+  <p style="font-size:0.62rem; color:var(--mid); margin-bottom:8px;">
+    Quarterly financials. Apple's quarters end in Dec (Q1), Mar (Q2), Jun (Q3). Q4 is in the 10-K.
+  </p>
+  <table class="statement-table">
+    <thead><tr><th>Period</th><th>Filing</th><th>Interactive</th><th>Filed</th></tr></thead>
+    <tbody>
+      <tr><td>Q2 FY2025 (Mar 2025)</td><td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000320193&type=10-Q&dateb=20250601&owner=include&count=1" target="_blank">SEC Filing</a></td><td><a href="https://investor.apple.com/sec-filings/default.aspx" target="_blank">Investor Page</a></td><td>May 2025</td></tr>
+      <tr><td>Q1 FY2025 (Dec 2024)</td><td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000320193&type=10-Q&dateb=20250301&owner=include&count=1" target="_blank">SEC Filing</a></td><td><a href="https://investor.apple.com/sec-filings/default.aspx" target="_blank">Investor Page</a></td><td>Jan 2025</td></tr>
+      <tr><td>Q3 FY2024 (Jun 2024)</td><td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000320193&type=10-Q&dateb=20240901&owner=include&count=1" target="_blank">SEC Filing</a></td><td><a href="https://investor.apple.com/sec-filings/default.aspx" target="_blank">Investor Page</a></td><td>Aug 2024</td></tr>
+      <tr><td>Q2 FY2024 (Mar 2024)</td><td><a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000320193&type=10-Q&dateb=20240601&owner=include&count=1" target="_blank">SEC Filing</a></td><td><a href="https://investor.apple.com/sec-filings/default.aspx" target="_blank">Investor Page</a></td><td>May 2024</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ═══ KEY RESOURCES ═══ -->
+  <div class="section-header yellow">
+    <img src="/ugly-dog-images/dog-4.png" alt="" />
+    <h2>Key Resources</h2>
+    <img src="/ugly-dog-images/dog-4.png" alt="" class="section-dog" />
+  </div>
+  <div class="filing-grid">
+    <div class="filing-card">
+      <h3>Apple Investor Relations</h3>
+      <div class="filing-meta">Primary source — earnings, SEC filings, press releases</div>
+      <div class="filing-links">
+        <a href="https://investor.apple.com/" target="_blank">investor.apple.com</a>
+        <a href="https://investor.apple.com/sec-filings/default.aspx" target="_blank">All SEC Filings</a>
+      </div>
+    </div>
+    <div class="filing-card">
+      <h3>SEC EDGAR — AAPL</h3>
+      <div class="filing-meta">CIK: 0000320193</div>
+      <div class="filing-links">
+        <a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000320193&type=10-K&dateb=&owner=include&count=10" target="_blank">10-K Filings</a>
+        <a href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000320193&type=10-Q&dateb=&owner=include&count=10" target="_blank">10-Q Filings</a>
+      </div>
+    </div>
+    <div class="filing-card">
+      <h3>Supplemental Data</h3>
+      <div class="filing-meta">Pre-formatted financials for modeling</div>
+      <div class="filing-links">
+        <a href="https://stockanalysis.com/stocks/aapl/financials/" target="_blank">StockAnalysis — AAPL Financials</a>
+        <a href="https://www.macrotrends.net/stocks/charts/AAPL/apple/revenue" target="_blank">Macrotrends — AAPL Revenue</a>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Private — Replacing Nerd Jobs</title>
+  <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png">
+  <link rel="stylesheet" href="../site.css">
+  <style>
+    .private-nav {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .private-nav li a {
+      font-size: 0.72rem;
+      color: var(--ink);
+      text-decoration: none;
+      border-bottom: 1px solid var(--mid);
+    }
+    .private-nav li a:hover {
+      border-color: var(--ink);
+    }
+    .logout-link {
+      font-size: 0.62rem;
+      color: var(--mid);
+      text-decoration: none;
+      border-bottom: 1px solid var(--faint);
+    }
+    .logout-link:hover {
+      color: var(--ink);
+      border-color: var(--ink);
+    }
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <div>
+    <h1>Private</h1>
+    <p>password-protected section</p>
+  </div>
+  <div style="display:flex; gap:16px; align-items:baseline;">
+    <a class="logout-link" href="/api/logout">logout</a>
+    <a class="back-link" href="/">&#8592; home</a>
+  </div>
+</header>
+
+<div class="main">
+  <div class="section-label">Private Pages</div>
+  <p style="font-size:0.68rem; color:var(--mid); margin-bottom:20px;">
+    Content here is only visible after entering the site password.
+  </p>
+  <ul class="private-nav">
+    <li><a href="/private/">— nothing here yet, add pages to /private/</a></li>
+  </ul>
+</div>
+
+</body>
+</html>
