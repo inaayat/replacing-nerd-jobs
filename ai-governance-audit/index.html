@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rules for Artificially Intelligent Nerds — AI Governance Internal Audit</title>
+<link rel="stylesheet" href="../site.css">
+<link rel="icon" type="image/png" href="../ugly-dog-images/dog-3.png">
+<style>
+:root {
+  --dog1: #f5d4d4;
+  --dog2: #d4e8f5;
+  --dog3: #f0e8c0;
+  --dog4: #d4f5d4;
+  --dog5: #e8d4f5;
+  --dog6: #f5e8d4;
+}
+
+/* ── Hero ── */
+.page-hero {
+  border-bottom: 2px solid var(--ink);
+  padding: 40px 32px 28px;
+  position: relative;
+  overflow: hidden;
+}
+.page-hero::after {
+  content: '';
+  position: absolute;
+  right: -20px; top: -20px;
+  width: 180px; height: 180px;
+  background: url('../ugly-dog-images/dog-3.png') center/contain no-repeat;
+  opacity: 0.14;
+  pointer-events: none;
+}
+.page-hero h1 { font-size: 1.5rem; font-weight: 500; line-height: 1.15; margin-bottom: 8px; letter-spacing: 0.02em; }
+.page-hero p  { font-size: 0.75rem; color: var(--mid); max-width: 600px; line-height: 1.65; }
+
+/* ── Quick stats ── */
+.stats-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  border-top: 2px solid var(--ink);
+  border-left: 2px solid var(--ink);
+  margin: 28px 32px;
+}
+.stat-box {
+  border-right: 2px solid var(--ink);
+  border-bottom: 2px solid var(--ink);
+  padding: 16px 18px;
+}
+.stat-num  { font-size: 1.4rem; font-weight: 500; line-height: 1; margin-bottom: 5px; }
+.stat-desc { font-size: 0.6rem; color: var(--mid); line-height: 1.45; text-transform: uppercase; letter-spacing: 0.8px; }
+
+/* ── Section labels ── */
+.section-label {
+  padding: 0 32px;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 1.8px;
+  color: var(--mid);
+  margin-bottom: 14px;
+}
+
+/* ── Generic accordion ── */
+.accordion { margin: 0 32px 32px; border: 2px solid var(--ink); }
+.acc-item   { border-bottom: 2px solid var(--ink); position: relative; overflow: hidden; }
+.acc-item:last-child { border-bottom: none; }
+
+.mod-dog1 { background: var(--dog1); }
+.mod-dog2 { background: var(--dog2); }
+.mod-dog3 { background: var(--dog3); }
+.mod-dog4 { background: var(--dog4); }
+.mod-dog5 { background: var(--dog5); }
+.mod-dog6 { background: var(--dog6); }
+
+.acc-item::before {
+  content: '';
+  position: absolute;
+  right: -20px; bottom: -20px;
+  width: 140px; height: 140px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  opacity: 0.16;
+  pointer-events: none;
+  z-index: 0;
+}
+.mod-dog1::before { background-image: url('../ugly-dog-images/dog-1.png'); }
+.mod-dog2::before { background-image: url('../ugly-dog-images/dog-2.png'); }
+.mod-dog3::before { background-image: url('../ugly-dog-images/dog-3.png'); }
+.mod-dog4::before { background-image: url('../ugly-dog-images/dog-4.png'); }
+.mod-dog5::before { background-image: url('../ugly-dog-images/dog-5.png'); }
+.mod-dog6::before { background-image: url('../ugly-dog-images/dog-6.png'); }
+
+.acc-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 20px;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  z-index: 1;
+}
+.acc-header img { width: 26px; height: 26px; object-fit: contain; flex-shrink: 0; }
+.acc-header-text { flex: 1; }
+.acc-title    { font-size: 0.88rem; font-weight: 500; line-height: 1.2; }
+.acc-subtitle { font-size: 0.6rem; color: var(--mid); margin-top: 3px; }
+.acc-num      { font-size: 0.5rem; text-transform: uppercase; letter-spacing: 1.4px; color: var(--mid); min-width: 22px; }
+.acc-toggle   { font-size: 0.72rem; color: var(--mid); flex-shrink: 0; transition: transform 0.2s; }
+.acc-item.open .acc-toggle { transform: rotate(180deg); }
+
+.acc-body { display: none; padding: 0 20px 20px; position: relative; z-index: 1; }
+.acc-item.open .acc-body { display: block; }
+
+/* ── Content blocks ── */
+.dog-says {
+  display: flex; align-items: flex-start; gap: 12px;
+  margin-bottom: 14px; padding: 12px 14px;
+  background: rgba(255,255,255,0.55);
+  border: 1px solid rgba(44,46,37,0.15);
+}
+.dog-says img { width: 30px; height: 30px; object-fit: contain; flex-shrink: 0; }
+.dog-says p   { font-size: 0.66rem; line-height: 1.55; font-style: italic; }
+.dog-says strong { font-style: normal; }
+
+.acc-intro { font-size: 0.69rem; line-height: 1.65; margin-bottom: 14px; color: var(--ink); }
+
+.formula-box {
+  background: var(--ink); color: var(--bg);
+  padding: 13px 16px; margin-bottom: 14px;
+}
+.formula-label { font-size: 0.5rem; text-transform: uppercase; letter-spacing: 1.5px; color: rgba(255,255,255,0.4); margin-bottom: 5px; }
+.formula-box code { font-family: 'DM Mono', monospace; font-size: 0.7rem; color: #b8f0b8; line-height: 1.7; display: block; white-space: pre-wrap; }
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+@media (max-width: 580px) { .two-col { grid-template-columns: 1fr; } }
+
+.info-block { background: rgba(255,255,255,0.5); border: 1px solid rgba(44,46,37,0.2); padding: 12px 14px; }
+.info-block h3 { font-size: 0.53rem; text-transform: uppercase; letter-spacing: 1.4px; color: var(--mid); margin-bottom: 7px; }
+.info-block ul { list-style: none; padding: 0; margin: 0; }
+.info-block ul li { font-size: 0.65rem; padding: 3px 0; border-bottom: 1px solid rgba(44,46,37,0.07); line-height: 1.4; }
+.info-block ul li:last-child { border-bottom: none; }
+.info-block ul li::before { content: '→ '; color: var(--mid); }
+
+.tag-strip { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(44,46,37,0.14); }
+.tag-strip h3 { font-size: 0.53rem; text-transform: uppercase; letter-spacing: 1.4px; color: var(--mid); margin-bottom: 7px; }
+.tag {
+  display: inline-block; font-size: 0.57rem; padding: 2px 9px;
+  border: 1.5px solid rgba(44,46,37,0.28); margin: 2px 3px 2px 0;
+  background: rgba(255,255,255,0.45);
+}
+
+/* ── Phase steps (methodology) ── */
+.phase-steps { display: flex; flex-direction: column; gap: 10px; }
+.step {
+  display: flex; gap: 14px; align-items: flex-start;
+  background: rgba(255,255,255,0.5);
+  border: 1px solid rgba(44,46,37,0.18);
+  padding: 13px 14px;
+}
+.step-num {
+  font-size: 0.58rem; font-weight: 500;
+  min-width: 28px; color: var(--mid);
+  text-transform: uppercase; letter-spacing: 1px;
+  padding-top: 2px;
+}
+.step-content h4 { font-size: 0.72rem; font-weight: 500; margin-bottom: 5px; }
+.step-content p  { font-size: 0.64rem; line-height: 1.55; color: var(--mid); }
+.step-content ul { list-style: none; padding: 0; margin: 5px 0 0; }
+.step-content ul li { font-size: 0.63rem; padding: 2px 0; color: var(--mid); }
+.step-content ul li::before { content: '· '; }
+
+/* ── Findings table ── */
+.findings-list {
+  margin: 0 32px 32px;
+  border: 2px solid var(--ink);
+}
+.finding-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--faint);
+  font-size: 0.68rem;
+  line-height: 1.45;
+}
+.finding-row:last-child { border-bottom: none; }
+.finding-row:hover { background: var(--hover); }
+.finding-sev {
+  font-size: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 2px 8px;
+  border: 1.5px solid;
+  white-space: nowrap;
+  flex-shrink: 0;
+  align-self: center;
+  min-width: 52px;
+  text-align: center;
+}
+.sev-critical { color: #8a2020; border-color: #8a2020; background: #f5d4d4; }
+.sev-high     { color: #7a4a10; border-color: #c07820; background: var(--dog3); }
+.sev-medium   { color: #3a5a20; border-color: #6a9a40; background: var(--dog4); }
+.finding-text { flex: 1; }
+.finding-stat { font-size: 0.58rem; color: var(--mid); margin-top: 3px; }
+
+/* ── Timeline ── */
+.timeline {
+  margin: 0 32px 32px;
+  border: 2px solid var(--ink);
+}
+.tl-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  border-bottom: 1px solid var(--faint);
+}
+.tl-row:last-child { border-bottom: none; }
+.tl-date {
+  font-size: 0.65rem;
+  font-weight: 500;
+  min-width: 130px;
+  padding: 12px 14px;
+  border-right: 2px solid var(--ink);
+  background: var(--faint);
+  flex-shrink: 0;
+}
+.tl-date.deadline { background: var(--ink); color: var(--bg); }
+.tl-content { padding: 12px 16px; font-size: 0.67rem; line-height: 1.5; }
+.tl-content strong { display: block; margin-bottom: 2px; }
+
+/* ── Resources grid ── */
+.resource-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  border-top: 2px solid var(--ink);
+  border-left: 2px solid var(--ink);
+  margin: 0 32px 32px;
+}
+.resource-card {
+  border-right: 2px solid var(--ink);
+  border-bottom: 2px solid var(--ink);
+  padding: 16px;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  transition: background 0.12s;
+}
+.resource-card:hover { background: var(--hover); }
+.rc-org  { font-size: 0.52rem; text-transform: uppercase; letter-spacing: 1.2px; color: var(--mid); }
+.rc-name { font-size: 0.75rem; font-weight: 500; line-height: 1.25; }
+.rc-desc { font-size: 0.6rem; color: var(--mid); line-height: 1.45; margin-top: 2px; }
+
+/* ── Golden rules ── */
+.golden-rules {
+  margin: 0 32px 48px;
+  border: 2px solid var(--ink);
+  padding: 26px 28px;
+  background: var(--ink);
+  color: var(--bg);
+  position: relative;
+  overflow: hidden;
+}
+.golden-rules::after {
+  content: '';
+  position: absolute;
+  right: -20px; bottom: -20px;
+  width: 130px; height: 130px;
+  background: url('../ugly-dog-images/dog-3.png') center/contain no-repeat;
+  opacity: 0.12;
+}
+.golden-rules h2 {
+  font-size: 0.72rem; font-weight: 500; text-transform: uppercase;
+  letter-spacing: 1.4px; margin-bottom: 16px;
+  display: flex; align-items: center; gap: 10px;
+}
+.golden-rules h2 img { width: 22px; height: 22px; object-fit: contain; filter: invert(1); }
+.golden-rules ol { padding-left: 20px; display: flex; flex-direction: column; gap: 7px; }
+.golden-rules ol li { font-size: 0.7rem; line-height: 1.55; color: rgba(255,248,220,0.9); }
+
+@media (max-width: 600px) {
+  .accordion, .findings-list, .timeline, .resource-grid, .golden-rules, .stats-strip { margin-left: 16px; margin-right: 16px; }
+  .section-label { padding-left: 16px; }
+  .page-hero { padding: 24px 16px 20px; }
+  .tl-date { min-width: 90px; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <img src="../ugly-dog-images/dog-3.png" alt="dog" style="width:28px;height:28px;object-fit:contain;">
+    <h1>rules for artificially intelligent nerds</h1>
+  </div>
+  <a class="back-link" href="/">← home</a>
+</header>
+
+<div class="page-hero">
+  <h1>rules for artificially intelligent nerds</h1>
+  <p>A practical field guide to AI governance internal audits — gold-standard frameworks, step-by-step methodology across 3 phases, 11 risk domains, common enterprise findings, and every resource you actually need. Based on IIA, NIST, ISO 42001, EU AI Act, ISACA, and Big 4 guidance through 2025.</p>
+</div>
+
+<!-- ── QUICK STATS ── -->
+<div class="stats-strip">
+  <div class="stat-box">
+    <div class="stat-num">83%</div>
+    <div class="stat-desc">of organizations have no enterprise-wide AI policy (IIA / Wolters Kluwer 2024)</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-num">Aug 2026</div>
+    <div class="stat-desc">EU AI Act high-risk system obligations become enforceable — the clock is ticking</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-num">60%+</div>
+    <div class="stat-desc">of Chief Audit Executives cite insufficient AI skills within their audit teams</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-num">56–80%</div>
+    <div class="stat-desc">of employees use unauthorized AI tools — shadow AI is the #1 inventory gap</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SECTION 1: GOLD-STANDARD FRAMEWORKS
+     ══════════════════════════════════════════════ -->
+<p class="section-label">gold-standard frameworks — 6 to know</p>
+<div class="accordion">
+
+  <!-- NIST AI RMF -->
+  <div class="acc-item mod-dog1 open" id="fw-1">
+    <div class="acc-header" onclick="toggle(this)">
+      <span class="acc-num">01</span>
+      <img src="../ugly-dog-images/dog-1.png" alt="dog">
+      <div class="acc-header-text">
+        <div class="acc-title">NIST AI Risk Management Framework (AI RMF 1.0)</div>
+        <div class="acc-subtitle">voluntary, U.S.-origin, globally adopted — the practitioner's map</div>
+      </div>
+      <span class="acc-toggle">▾</span>
+    </div>
+    <div class="acc-body">
+      <div class="dog-says"><img src="../ugly-dog-images/dog-1.png" alt="dog"><p><strong>Dog #1 says:</strong> "NIST AI RMF is the skeleton key. It doesn't tell you what to do — it tells you what questions to ask. Master the four functions and you can audit any AI system in any sector."</p></div>
+      <p class="acc-intro">Published January 2023 by NIST (AI 100-1). Voluntary, technology-neutral, sector-agnostic. Not certifiable — organizations self-attest. Updated in July 2024 with AI 600-1, a Generative AI Profile adding 200+ actions across 12 GenAI-specific risk categories. The closest thing to a universal AI audit scaffold that exists.</p>
+      <div class="formula-box">
+        <div class="formula-label">four core functions</div>
+        <code>GOVERN → Cross-cutting: AI policy, risk tolerance, accountability, third-party risk, incident response
+MAP    → Context: system boundaries, stakeholder impact, risk categorisation, AI inventory
+MEASURE → Assessment: bias tests, red-teaming, performance drift, third-party evaluations
+MANAGE  → Treatment: risk response plans, escalation paths, decommissioning, post-incident reviews</code>
+      </div>
+      <div class="two-col">
+        <div class="info-block">
+          <h3>key audit uses</h3>
+          <ul>
+            <li>GOVERN GV-1: Does an AI risk policy exist?</li>
+            <li>GOVERN GV-2.3: Has leadership declared risk tolerances?</li>
+            <li>GOVERN GV-5: Third-party / vendor AI risk management</li>
+            <li>MAP: Is every AI system catalogued with purpose + limitations?</li>
+            <li>MEASURE: Evidence of bias testing, red-teaming, drift monitoring</li>
+            <li>MANAGE: Documented risk treatment decisions and escalation paths</li>
+          </ul>
+        </div>
+        <div class="info-block">
+          <h3>2024–2025 updates</h3>
+          <ul>
+            <li>AI 600-1 (Jul 2024): GenAI Profile — 12 risk categories</li>
+            <li>12 categories incl. hallucination, prompt injection, IP, privacy</li>
+            <li>Agentic AI Profile in development (CSA Lab Space 2025)</li>
+            <li>58-control audit checklist available (AIGL)</li>
+            <li>Maps well to ISO 42001 PDCA — use together</li>
+          </ul>
+        </div>
+      </div>
+      <div class="tag-strip"><h3>official resources</h3>
+        <span class="tag">nist.gov/itl/ai-risk-management-framework</span>
+        <span class="tag">airc.nist.gov/airmf-resources/playbook</span>
+        <span class="tag">NIST AI 600-1 GenAI Profile PDF</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ISO 42001 -->
+  <div class="acc-item mod-dog2" id="fw-2">
+    <div class="acc-header" onclick="toggle(this)">
+      <span class="acc-num">02</span>
+      <img src="../ugly-dog-images/dog-2.png" alt="dog">
+      <div class="acc-header-text">
+        <div class="acc-title">ISO/IEC 42001:2023 — AI Management System Standard</div>
+        <div class="acc-subtitle">certifiable, international, PDCA-based — the gold standard for proof</div>
+      </div>
+      <span class="acc-toggle">▾</span>
+    </div>
+    <div class="acc-body">
+      <div class="dog-says"><img src="../ugly-dog-images/dog-2.png" alt="dog"><p><strong>Dog #2 says:</strong> "ISO 42001 is the ISO 27001 of AI. If you want a certificate to show your board, your customers, or your regulator, this is the one. The 38 Annex A controls are your audit checklist."</p></div>
+      <p class="acc-intro">Published December 2023. World's first certifiable AI management system standard. Organizations undergo a two-stage external audit by an accredited Conformity Assessment Body (CAB) and receive a 3-year certificate with annual surveillance audits. KPMG was first Big 4 firm to achieve certification.</p>
+      <div class="formula-box">
+        <div class="formula-label">10 clauses + 38 annex A controls</div>
+        <code>Clause 4:  Context (AI use cases, interested parties, scope)
+Clause 5:  Leadership (AI policy — Clause 5.2 specific requirement)
+Clause 6:  Planning (risk assessment 6.1.2, impact assessment 6.1.4)
+Clause 8:  Operations (AI lifecycle, Annex A control implementation)
+Clause 9:  Performance evaluation (internal audit, management review)
+Annex A:   38 controls across 9 objectives — A.5 Lifecycle, A.6 Data,
+           A.7 Transparency, A.8 Responsible Use, A.9 Third-Party</code>
+      </div>
+      <div class="two-col">
+        <div class="info-block">
+          <h3>Stage 1 audit (documentation)</h3>
+          <ul>
+            <li>Scope definition and AI policy (5.2)</li>
+            <li>Risk assessment methodology</li>
+            <li>AI impact assessments (6.1.4)</li>
+            <li>Statement of Applicability (SoA)</li>
+            <li>Internal audit records</li>
+            <li>Management review documentation</li>
+          </ul>
+        </div>
+        <div class="info-block">
+          <h3>most common audit gaps</h3>
+          <ul>
+            <li>Documentation written after deployment (not before)</li>
+            <li>No fairness testing records across demographics</li>
+            <li>Weak third-party AI vendor controls</li>
+            <li>Human oversight checkpoints not evidenced</li>
+            <li>Impact assessments not updated when models change</li>
+          </ul>
+        </div>
+      </div>
+      <div class="tag-strip"><h3>official resources</h3>
+        <span class="tag">iso.org/standard/42001</span>
+        <span class="tag">ISO 42001 Annex A 38 Controls Guide (ISAuditr)</span>
+        <span class="tag">Cloud Security Alliance lessons learned (May 2025)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- EU AI Act -->
+  <div class="acc-item mod-dog3" id="fw-3">
+    <div class="acc-header" onclick="toggle(this)">
+      <span class="acc-num">03</span>
+      <img src="../ugly-dog-images/dog-3.png" alt="dog">
+      <div class="acc-header-text">
+        <div class="acc-title">EU AI Act (2024) — world's first binding AI regulation</div>
+        <div class="acc-subtitle">risk-tiered, enforceable, fines up to 7% of global revenue</div>
+      </div>
+      <span class="acc-toggle">▾</span>
+    </div>
+    <div class="acc-body">
+      <div class="dog-says"><img src="../ugly-dog-images/dog-3.png" alt="dog"><p><strong>Dog #3 says:</strong> "The EU AI Act is GDPR for AI, but with sharper teeth. If your system makes decisions in employment, credit, education, or healthcare — and it affects EU persons — you're in scope. August 2026 is not optional."</p></div>
+      <p class="acc-intro">Formally adopted May 2024, entered into force August 2024. Built on the OECD AI Principles and explicitly adopts the OECD definition of an AI system. Four risk tiers: Prohibited, High-Risk, Limited, Minimal. Penalties for high-risk violations: up to €15M or 3% of global turnover. For prohibited practices: up to €35M or 7%.</p>
+      <div class="formula-box">
+        <div class="formula-label">high-risk AI — articles 9–17 checklist</div>
+        <code>Art. 9:  Risk management system — continuous, documented lifecycle process
+Art. 10: Data governance — representative, bias-free, documented datasets
+Art. 11: Technical documentation — full specs before market placement
+Art. 12: Logging — automatic event logs retained for regulatory review
+Art. 13: Transparency — instructions, capabilities, limitations to deployers
+Art. 14: Human oversight — monitor, intervene, override, halt mechanisms
+Art. 16: Provider obligations — QMS, EU database registration, CE marking</code>
+      </div>
+      <div class="two-col">
+        <div class="info-block">
+          <h3>high-risk AI categories (Annex III)</h3>
+          <ul>
+            <li>Biometric identification &amp; categorisation</li>
+            <li>Critical infrastructure (energy, water, transport)</li>
+            <li>Education &amp; vocational training</li>
+            <li>Employment, recruitment, promotion decisions</li>
+            <li>Credit scoring, insurance, essential services access</li>
+            <li>Law enforcement &amp; border control</li>
+            <li>Administration of justice</li>
+          </ul>
+        </div>
+        <div class="info-block">
+          <h3>internal auditor checklist</h3>
+          <ul>
+            <li>AI system inventory with risk tier classification</li>
+            <li>Prohibited practice check (Feb 2025 obligation live)</li>
+            <li>Conformity assessment track determined (self vs. notified body)</li>
+            <li>Training data bias documentation in place</li>
+            <li>Human-in-the-loop mechanisms designed and tested</li>
+            <li>Post-market monitoring plan documented</li>
+            <li>EU AI database registration completed</li>
+          </ul>
+        </div>
+      </div>
+      <div class="tag-strip"><h3>key dates</h3>
+        <span class="tag">Feb 2025: Prohibited practices banned</span>
+        <span class="tag">Aug 2025: GPAI model obligations</span>
+        <span class="tag">Aug 2026: High-risk system enforcement</span>
+        <span class="tag">artificialintelligenceact.eu</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- IIA Framework -->
+  <div class="acc-item mod-dog4" id="fw-4">
+    <div class="acc-header" onclick="toggle(this)">
+      <span class="acc-num">04</span>
+      <img src="../ugly-dog-images/dog-4.png" alt="dog">
+      <div class="acc-header-text">
+        <div class="acc-title">IIA AI Auditing Framework (Sept 2024 Update)</div>
+        <div class="acc-subtitle">the internal auditor's primary reference — three lines model, practitioner checklist</div>
+      </div>
+      <span class="acc-toggle">▾</span>
+    </div>
+    <div class="acc-body">
+      <div class="dog-says"><img src="../ugly-dog-images/dog-4.png" alt="dog"><p><strong>Dog #4 says:</strong> "The IIA AI Framework is what you take into the audit room. It won't make you a data scientist. But it will tell you what questions a non-data-scientist can credibly ask — and that's most of the job."</p></div>
+      <p class="acc-intro">The IIA's authoritative AI audit guidance. Updated September 2024 to incorporate NIST AI RMF alignment, LLM risks, and generative AI considerations. Aligned to the 2024 Global Internal Audit Standards (effective Jan 2025). Organized around the IIA Three Lines Model — the closest thing to a GTAG for AI that exists.</p>
+      <div class="formula-box">
+        <div class="formula-label">three lines model for AI</div>
+        <code>LINE 1 — Governance (Board / Audit Committee):
+  Set AI risk appetite, ethical boundaries, oversight expectations
+
+LINE 2 — Management (1st &amp; 2nd line):
+  Build/use AI responsibly; own risk management, model inventory,
+  responsible AI procedures, incident response
+
+LINE 3 — Internal Audit (3rd line):
+  Independent assurance &amp; advisory over AI governance, risk, controls</code>
+      </div>
+      <div class="two-col">
+        <div class="info-block">
+          <h3>framework structure (4 parts)</h3>
+          <ul>
+            <li>Part 1: AI overview (history, types, GenAI landscape)</li>
+            <li>Part 2: Getting started (scope, skills, planning)</li>
+            <li>Part 3: Detailed AI auditing framework by three lines</li>
+            <li>Part 4: Practitioner's guide, checklist, glossary</li>
+          </ul>
+        </div>
+        <div class="info-block">
+          <h3>IIA 2025 data points</h3>
+          <ul>
+            <li>Digital disruption: top-5 risk for 48% of CAEs (up 9pts YoY)</li>
+            <li>GenAI use in IA: doubled 15% → 40% in one year</li>
+            <li>4 in 10 IA functions not prepared for AI-enabled fraud</li>
+            <li>Only 4% of CAEs report substantial AI progress in IA itself</li>
+            <li>60%+ of CAEs cite AI skills gap</li>
+          </ul>
+        </div>
+      </div>
+      <div class="tag-strip"><h3>official resources</h3>
+        <span class="tag">IIA AI Auditing Framework PDF (Sept 2024)</span>
+        <span class="tag">theiia.org AI Knowledge Center</span>
+        <span class="tag">IIA "Auditing AI" Hands-On Course</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ISACA / COBIT -->
+  <div class="acc-item mod-dog5" id="fw-5">
+    <div class="acc-header" onclick="toggle(this)">
+      <span class="acc-num">05</span>
+      <img src="../ugly-dog-images/dog-5.png" alt="dog">
+      <div class="acc-header-text">
+        <div class="acc-title">ISACA / COBIT for AI Governance (2025)</div>
+        <div class="acc-subtitle">40 control objectives, 127 control activities, 5 risk categories, 7 governance enablers</div>
+      </div>
+      <span class="acc-toggle">▾</span>
+    </div>
+    <div class="acc-body">
+      <div class="dog-says"><img src="../ugly-dog-images/dog-5.png" alt="dog"><p><strong>Dog #5 says:</strong> "ISACA's toolkit is the most granular thing on the market. 127 control activities across 40 control objectives. If the IIA framework is a map, the ISACA toolkit is turn-by-turn navigation."</p></div>
+      <p class="acc-intro">ISACA released a major 2025 white paper mapping COBIT to AI governance. The AI Audit and Risk Management Toolkit (40 control objectives, 127 control activities across bias, privacy, human-AI interaction, secure AI development) is available at $49/members, $99/non-members. ISACA's Journal published a proposed high-level AI audit approach in Volume 2, 2024.</p>
+      <div class="formula-box">
+        <div class="formula-label">COBIT for AI — 5 risk categories × 7 enablers</div>
+        <code>5 AI Risk Categories:
+  Ethical Usage | Policy &amp; Governance | Technology &amp; Infrastructure
+  Operational &amp; Organizational | Emerging &amp; Strategic Risk
+
+7 Governance Enablers:
+  Processes | Organizational Structures | Policies &amp; Procedures
+  People / Skills / Competencies | Culture / Ethics / Behavior
+  Information Flows | Services / Infrastructure / Applications</code>
+      </div>
+      <div class="two-col">
+        <div class="info-block">
+          <h3>ISACA AI toolkit coverage</h3>
+          <ul>
+            <li>Algorithm audits: key control considerations (2024)</li>
+            <li>Shadow AI auditing guide (2025)</li>
+            <li>Third-party AI risk: 6-step framework (2025)</li>
+            <li>Adversarial ML threat guidance (2025)</li>
+            <li>Agentic AI auditing challenge (2025)</li>
+            <li>XAI assurance: new era guidance (2025)</li>
+          </ul>
+        </div>
+        <div class="info-block">
+          <h3>key ISACA resources</h3>
+          <ul>
+            <li>COBIT for AI Governance white paper (2025)</li>
+            <li>AI Algorithm Audits: Key Controls (ISACA Journal 2024)</li>
+            <li>DTEF (Digital Trust Ecosystem Framework) for bias/XAI</li>
+            <li>ISACA Now Blog: 5 Ways IT Auditors Can Use AI</li>
+            <li>AI Audit and Risk Toolkit ($49 / $99)</li>
+          </ul>
+        </div>
+      </div>
+      <div class="tag-strip"><h3>official resources</h3>
+        <span class="tag">isaca.org AI Audit Toolkit</span>
+        <span class="tag">ISACA COBIT AI Governance white paper (2025)</span>
+        <span class="tag">ISACA Journal Volume 2 2024</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Big 4 -->
+  <div class="acc-item mod-dog6" id="fw-6">
+    <div class="acc-header" onclick="toggle(this)">
+      <span class="acc-num">06</span>
+      <img src="../ugly-dog-images/dog-6.png" alt="dog">
+      <div class="acc-header-text">
+        <div class="acc-title">Big 4 AI Audit Frameworks</div>
+        <div class="acc-subtitle">Deloitte Trustworthy AI · PwC Assurance for AI · EY IA Adaptation · KPMG Trusted AI</div>
+      </div>
+      <span class="acc-toggle">▾</span>
+    </div>
+    <div class="acc-body">
+      <div class="dog-says"><img src="../ugly-dog-images/dog-6.png" alt="dog"><p><strong>Dog #6 says:</strong> "The Big 4 frameworks are where theory meets billable hours. Useful as benchmark documents — they're written for clients, so they're plain-English. Download their public guides before starting your audit planning."</p></div>
+      <p class="acc-intro">All four major audit firms have published substantive AI governance guidance aligned to NIST AI RMF and ISO 42001. PwC launched the first independent AI assurance service (June 2025, AICPA standards). KPMG achieved ISO 42001 certification — the first Big 4 firm to do so.</p>
+      <div class="two-col">
+        <div class="info-block">
+          <h3>Deloitte Trustworthy AI</h3>
+          <ul>
+            <li>5 pillars: transparency, fairness, privacy, reliability, accountability</li>
+            <li>Audit techniques: adversarial prompting, boundary/stress tests, data-lineage tracing</li>
+            <li>Hot Topics 2025: inventory + agentic AI = top governance gaps</li>
+            <li>Free public guide: "Internal Audit's Role in Strengthening AI Governance"</li>
+          </ul>
+        </div>
+        <div class="info-block">
+          <h3>KPMG Trusted AI Framework</h3>
+          <ul>
+            <li>4 integrated enablers: Control Framework, Responsible AI Toolkit, Compliance Heatmap, AI Governance Blueprint</li>
+            <li>Heatmap covers: EU AI Act + ISO 42001 + NIST AI RMF cross-mapping</li>
+            <li>Published "Illustrative AI Risk and Controls Guide" (free download)</li>
+            <li>ISO 42001 certified — world's first Big 4 certification</li>
+          </ul>
+        </div>
+      </div>
+      <div class="two-col">
+        <div class="info-block">
+          <h3>PwC Assurance for AI (Jun 2025)</h3>
+          <ul>
+            <li>First independent AI assurance service under AICPA standards</li>
+            <li>Aligned to NIST AI RMF + ISO 42001</li>
+            <li>Responsible AI Toolkit: readiness assessments + controls design</li>
+            <li>2025 survey: "Responsible AI — From Policy to Practice"</li>
+          </ul>
+        </div>
+        <div class="info-block">
+          <h3>EY Internal Audit Adaptation</h3>
+          <ul>
+            <li>"How Internal Audit Can Adapt to AI" — public guidance</li>
+            <li>Covers: AI strategy maturity, model risk, bias, data integrity</li>
+            <li>Frames IAF role in ongoing AI governance</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /accordion frameworks -->
+
+
+<!-- ══════════════════════════════════════════════
+     SECTION 2: STEP-BY-STEP METHODOLOGY
+     ══════════════════════════════════════════════ -->
+<p class="section-label">step-by-step audit methodology — 3 phases</p>
+<div class="accordion">
+
+  <!-- Phase 1 -->
+  <div class="acc-item mod-dog1 open" id="phase-1">
+    <div class="acc-header" onclick="toggle(this)">
+      <span class="acc-num">P1</span>
+      <img src="../ugly-dog-images/dog-1.png" alt="dog">
+      <div class="acc-header-text">
+        <div class="acc-title">Phase 1 — Pre-Engagement Planning</div>
+        <div class="acc-subtitle">risk assessment · scoping · capability check · audit program</div>
+      </div>
+      <span class="acc-toggle">▾</span>
+    </div>
+    <div class="acc-body">
+      <div class="phase-steps">
+        <div class="step">
+          <div class="step-num">1.1</div>
+          <div class="step-content">
+            <h4>Risk Assessment &amp; Scoping</h4>
+            <p>Obtain and review the organizational AI inventory from management. Identify shadow AI using IT asset scans, SaaS subscription audits, expense report reviews, and business unit interviews. Apply risk-tiering criteria: complexity, autonomy, decision impact, volume of affected individuals, regulatory exposure. Select audit universe — prioritize high-risk, high-impact systems.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">1.2</div>
+          <div class="step-content">
+            <h4>Capability Assessment</h4>
+            <p>Determine whether the audit team has sufficient AI technical literacy (data science, ML fundamentals, statistics). Engage subject matter experts (data scientists, ML engineers, ethicists) if needed. Identify applicable external standards for the audit scope: EU AI Act tier, NIST AI RMF profile, ISO 42001 clauses.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">1.3</div>
+          <div class="step-content">
+            <h4>Audit Objectives &amp; Program Development</h4>
+            <p>Define audit objectives across all 11 risk domains. Map objectives to the IIA AI Framework checklist and applicable regulatory requirements. Develop procedures for each objective: document review, interviews, technical testing, data analytics. Establish criteria for control design adequacy and operating effectiveness.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">1.4</div>
+          <div class="step-content">
+            <h4>Establish the Audit Criteria Baseline</h4>
+            <p>Determine which framework(s) apply (NIST AI RMF, ISO 42001, EU AI Act, sector-specific regulation such as SR 11-7 for financial services). Define what "adequate" looks like for each control — before you start fieldwork, not after. Document the criteria formally so findings can be rated against them.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phase 2 -->
+  <div class="acc-item mod-dog2" id="phase-2">
+    <div class="acc-header" onclick="toggle(this)">
+      <span class="acc-num">P2</span>
+      <img src="../ugly-dog-images/dog-2.png" alt="dog">
+      <div class="acc-header-text">
+        <div class="acc-title">Phase 2 — Fieldwork &amp; Control Testing</div>
+        <div class="acc-subtitle">10 testing workstreams across all AI risk domains</div>
+      </div>
+      <span class="acc-toggle">▾</span>
+    </div>
+    <div class="acc-body">
+      <div class="phase-steps">
+        <div class="step">
+          <div class="step-num">2.1</div>
+          <div class="step-content">
+            <h4>Governance Review</h4>
+            <p>Obtain AI policy, standards, and ethics principles documentation. Interview AI governance committee members or AI program office. Verify AI risk appetite is documented and approved at board/executive level. Assess AI strategy alignment to business objectives. No governance body = immediate finding.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2.2</div>
+          <div class="step-content">
+            <h4>AI Inventory Validation</h4>
+            <p>Request the complete AI system inventory. Test completeness: cross-reference with IT asset management, vendor contracts, SaaS subscriptions, and business unit interviews. Verify each system has a documented owner, risk classification, and last review date. Identify any unregistered or shadow AI instances.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2.3</div>
+          <div class="step-content">
+            <h4>Data Governance Testing</h4>
+            <p>Review data lineage documentation for training datasets. Test data quality controls (completeness, accuracy, timeliness). Assess bias testing at data collection and labeling stages. Verify data privacy impact assessments were conducted before using personal data for training. EU AI Act Article 10 compliance check.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2.4</div>
+          <div class="step-content">
+            <h4>Model Development &amp; Validation Lifecycle</h4>
+            <p>Review model development documentation: requirements, design, testing, validation, approval-to-deploy. Assess independence of model validation — was it done by the same team that built the model? Test that performance metrics are defined, measured, and within acceptable thresholds. Review fairness testing results across demographic groups. Model cards present and complete?</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2.5</div>
+          <div class="step-content">
+            <h4>Explainability &amp; Transparency Testing</h4>
+            <p>For high-stakes decisions (credit, hiring, healthcare, benefits): verify explanations can be generated for individual decisions. Test that human review mechanisms exist and are functioning — not rubber-stamping. Interview business users on their understanding of AI model limitations. Assess regulatory disclosure compliance (GDPR Art. 22, ECOA, EU AI Act Art. 13).</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2.6</div>
+          <div class="step-content">
+            <h4>Human Oversight Mechanisms</h4>
+            <p>Verify human-in-the-loop procedures are documented and tested. Confirm operators can monitor, override, and halt the system (EU AI Act Art. 14 requirement). Test that operators are trained on the system's limitations. Check for automation bias — are humans actually interrogating outputs, or rubber-stamping?</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2.7</div>
+          <div class="step-content">
+            <h4>Cybersecurity &amp; Adversarial Risk</h4>
+            <p>Review AI system within the broader cybersecurity framework (penetration testing scope, vulnerability scanning). Test access controls on model weights, training pipelines, and inference APIs. Assess prompt injection protections for GenAI systems. Review model poisoning and adversarial input controls. Confirm AI-specific attack scenarios are included in IR playbooks.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2.8</div>
+          <div class="step-content">
+            <h4>Third-Party AI Vendor Risk</h4>
+            <p>Obtain vendor AI risk assessment documentation. Review AI-specific contract clauses: data use, model change notification, audit rights, sub-processor management. Test that vendor AI models are subject to equivalent governance as internal models. Map the full sub-processor chain — hidden AI services are a common gap.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2.9</div>
+          <div class="step-content">
+            <h4>Monitoring &amp; Incident Management</h4>
+            <p>Test model performance dashboards and alerting for model drift and data drift. Review AI incident log (past 12 months) for patterns and remediation quality. Assess incident response plan completeness. Review model retraining triggers and approval processes. Is there a decommissioning process for retired models?</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2.10</div>
+          <div class="step-content">
+            <h4>Technical Testing (where capability exists)</h4>
+            <p>Run adversarial prompting tests on GenAI systems. Perform boundary/stress tests on model performance edge cases. Conduct data-lineage tracing to verify documented provenance. Use data analytics for full-population testing of AI outputs for statistical bias signals. Deloitte recommends this as table-stakes for mature IA functions.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phase 3 -->
+  <div class="acc-item mod-dog3" id="phase-3">
+    <div class="acc-header" onclick="toggle(this)">
+      <span class="acc-num">P3</span>
+      <img src="../ugly-dog-images/dog-3.png" alt="dog">
+      <div class="acc-header-text">
+        <div class="acc-title">Phase 3 — Reporting &amp; Follow-Up</div>
+        <div class="acc-subtitle">rating findings · communicating results · tracking remediation</div>
+      </div>
+      <span class="acc-toggle">▾</span>
+    </div>
+    <div class="acc-body">
+      <div class="phase-steps">
+        <div class="step">
+          <div class="step-num">3.1</div>
+          <div class="step-content">
+            <h4>Rating &amp; Criteria</h4>
+            <p>Rate findings against pre-defined criteria (control design adequacy vs. operating effectiveness). Use risk-based severity: Critical / High / Medium / Low. Map each finding to a risk domain. The absence of governance structures is itself a Critical finding — do not soften it. Present maturity ratings across domains, not just a list of issues.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3.2</div>
+          <div class="step-content">
+            <h4>Communicating Results</h4>
+            <p>Present findings to AI system owners, AI governance committee, CAE, and Audit Committee. Include a heat map of risk domain coverage and maturity ratings. Recommend remediation with target dates and responsible parties. Frame regulatory exposure concretely — "this gap is a potential EU AI Act non-conformance ahead of the August 2026 deadline" lands differently than abstract risk language.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3.3</div>
+          <div class="step-content">
+            <h4>Follow-Up &amp; Validation</h4>
+            <p>Track remediation of high/critical findings within 90 days. Validate corrective actions through evidence review or re-testing — do not close based on management representation alone. For EU AI Act gaps: track progress against the August 2026 deadline explicitly in the follow-up register.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /accordion methodology -->
+
+
+<!-- ══════════════════════════════════════════════
+     SECTION 3: 11 RISK DOMAINS
+     ══════════════════════════════════════════════ -->
+<p class="section-label">11 AI audit risk domains</p>
+<div class="accordion">
+
+  <div class="acc-item mod-dog1" id="rd-1">
+    <div class="acc-header" onclick="toggle(this)">
+      <span class="acc-num">01</span>
+      <img src="../ugly-dog-images/dog-1.png" alt="dog">
+      <div class="acc-header-text">
+        <div class="acc-title">AI Strategy &amp; Governance</div>
+        <div class="acc-subtitle">policy, risk appetite, ethics, accountability structures</div>
+      </div>
+      <span class="acc-toggle">▾</span>
+    </div>
+    <div class="acc-body">
+      <p class="acc-intro">The foundation. If there's no AI strategy, no governance body, and no ethics principles, everything downstream is built on air. This domain is often the first finding — and often the most significant.</p>
+      <div class="two-col">
+        <div class="info-block"><h3>audit questions</h3><ul><li>Is there a formal AI strategy aligned to business objectives?</li><li>Is there a board-level or executive AI governance body / CAIO?</li><li>Are AI ethical principles documented and operationalized (not just posted on a website)?</li><li>Is there an AI risk appetite statement?</li><li>Are AI policies formally approved and communicated to all staff?</li></ul></div>
+        <div class="info-block"><h3>red flags</h3><ul><li>No AI governance body with defined authority</li><li>Ethics principles exist only on paper — no evidence of application</li><li>AI risk appetite not formally set by leadership</li><li>Policy exists but has not been communicated or trained</li><li>No one owns AI governance enterprise-wide</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="acc-item mod-dog2" id="rd-2">
+    <div class="acc-header" onclick="toggle(this)">
+      <span class="acc-num">02</span>
+      <img src="../ugly-dog-images/dog-2.png" alt="dog">
+      <div class="acc-header-text">
+        <div class="acc-title">AI Inventory &amp; Classification</div>
+        <div class="acc-subtitle">shadow AI, risk tiering, ownership assignment</div>
+      </div>
+      <span class="acc-toggle">▾</span>
+    </div>
+    <div class="acc-body">
+      <p class="acc-intro">You can't govern what you can't see. An incomplete AI inventory is the most common and consequential gap — shadow AI (unauthorized tools used by employees) and AI embedded in SaaS platforms create invisible risk. 56–80% of employees use unauthorized AI tools.</p>
+      <div class="two-col">
+        <div class="info-block"><h3>audit questions</h3><ul><li>Does a comprehensive AI model inventory exist covering all deployed models?</li><li>Does it include SaaS-embedded AI, RPA bots with LLM components, and pilots?</li><li>Are systems classified by risk tier?</li><li>Is ownership and accountability assigned to each AI system?</li><li>When was the inventory last audited for completeness?</li></ul></div>
+        <div class="info-block"><h3>discovery techniques</h3><ul><li>Network traffic analysis and DLP log review</li><li>Browser history audits and expense report review</li><li>Employee surveys (anonymous)</li><li>SaaS subscription audit — scan for AI-enabled tools</li><li>Cross-reference IT asset list vs. AI inventory</li><li>Interview every business unit lead</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="acc-item mod-dog3" id="rd-3">
+    <div class="acc-header" onclick="toggle(this)">
+      <span class="acc-num">03</span>
+      <img src="../ugly-dog-images/dog-3.png" alt="dog">
+      <div class="acc-header-text">
+        <div class="acc-title">Data Governance &amp; Quality</div>
+        <div class="acc-subtitle">lineage, bias at source, consent, retention, cross-border transfers</div>
+      </div>
+      <span class="acc-toggle">▾</span>
+    </div>
+    <div class="acc-body">
+      <p class="acc-intro">Bad data makes bad models. The EU AI Act Article 10 and ISO 42001 Annex A.6 both require documented, representative, bias-free training datasets. Data governance for AI extends beyond the model — it includes consent for training use, retention of training data vs. model weights, and cross-border transfer controls.</p>
+      <div class="two-col">
+        <div class="info-block"><h3>audit questions</h3><ul><li>Is training data lineage documented to source?</li><li>Are data quality controls in place before data enters AI pipelines?</li><li>Was training data collected with appropriate consent for AI use?</li><li>Are data retention schedules specific to AI training data and model weights?</li><li>Are cross-border data transfers for AI training/inference assessed?</li></ul></div>
+        <div class="info-block"><h3>benchmark frameworks</h3><ul><li>DAMA DMBOK for data governance structure</li><li>EU AI Act Art. 10 — data representativeness requirement</li><li>ISO 8000 — data quality standard</li><li>ARMA GARP — retention policy governance</li><li>GDPR Art. 5 — purpose limitation for training data</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="acc-item mod-dog4" id="rd-4">
+    <div class="acc-header" onclick="toggle(this)">
+      <span class="acc-num">04</span>
+      <img src="../ugly-dog-images/dog-4.png" alt="dog">
+      <div class="acc-header-text">
+        <div class="acc-title">Model Development &amp; Validation</div>
+        <div class="acc-subtitle">lifecycle controls, independent validation, bias testing, model drift</div>
+      </div>
+      <span class="acc-toggle">▾</span>
+    </div>
+    <div class="acc-body">
+      <p class="acc-intro">SR 11-7 (Federal Reserve / OCC model risk guidance) applies to AI/ML models in financial services — but the principles are sound for any sector. Independent validation, documented conceptual soundness, and ongoing performance monitoring are the three pillars. Black-box models deployed without independent validation are a critical finding.</p>
+      <div class="two-col">
+        <div class="info-block"><h3>audit questions</h3><ul><li>Is there a documented AI/ML development lifecycle?</li><li>Are models validated independently before deployment?</li><li>Are performance metrics (accuracy, precision, recall, F1) defined and measured?</li><li>Are models tested for bias across demographic groups?</li><li>Are model cards / technical documentation complete?</li><li>Is there a model drift detection process?</li></ul></div>
+        <div class="info-block"><h3>fairness metrics to check</h3><ul><li>Demographic parity: equal outcomes across groups?</li><li>Equalized odds: equal false positive/negative rates?</li><li>Predictive parity: equal accuracy rates across groups?</li><li>Individual fairness: similar inputs → similar outputs?</li><li>Counterfactual fairness: would outcome change if group attribute changed?</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="acc-item mod-dog5" id="rd-5">
+    <div class="acc-header" onclick="toggle(this)">
+      <span class="acc-num">05</span>
+      <img src="../ugly-dog-images/dog-5.png" alt="dog">
+      <div class="acc-header-text">
+        <div class="acc-title">Explainability &amp; Transparency</div>
+        <div class="acc-subtitle">XAI techniques, adverse action notices, regulatory disclosure obligations</div>
+      </div>
+      <span class="acc-toggle">▾</span>
+    </div>
+    <div class="acc-body">
+      <p class="acc-intro">Explainability is transitioning from best practice to legal requirement. ECOA/FCRA (US), GDPR Art. 22 (EU), and EU AI Act Art. 13 all require meaningful explanations for automated decisions affecting individuals. Adverse action notices generated by black-box models are a major regulatory exposure.</p>
+      <div class="two-col">
+        <div class="info-block"><h3>audit questions</h3><ul><li>Can individual AI decisions be explained to affected parties?</li><li>Are XAI techniques (SHAP, LIME, attention maps) used appropriately?</li><li>Do adverse action notices meet regulatory specificity standards?</li><li>Are human reviewers actually interrogating model outputs — or rubber-stamping?</li><li>Can internal audit and regulators access model logic and decision traces?</li></ul></div>
+        <div class="info-block"><h3>regulatory requirements</h3><ul><li>ECOA / FCRA: specific reasons for adverse credit action</li><li>GDPR Art. 22: right to explanation for automated decisions</li><li>EU AI Act Art. 13: instructions, capabilities, limitations to deployers</li><li>NYC Local Law 144: annual bias audit requirement (hiring)</li><li>Colorado SB 205: algorithmic fairness (effective Feb 2026)</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="acc-item mod-dog6" id="rd-6">
+    <div class="acc-header" onclick="toggle(this)">
+      <span class="acc-num">06</span>
+      <img src="../ugly-dog-images/dog-6.png" alt="dog">
+      <div class="acc-header-text">
+        <div class="acc-title">Human Oversight &amp; Controls</div>
+        <div class="acc-subtitle">human-in-the-loop, automation bias, override mechanisms</div>
+      </div>
+      <span class="acc-toggle">▾</span>
+    </div>
+    <div class="acc-body">
+      <p class="acc-intro">EU AI Act Article 14 requires that high-risk AI systems be designed so humans can monitor, intervene, override, and halt them. "Human oversight" that exists on paper but consists of rubber-stamping AI outputs is not compliance. Test whether human reviewers actually exercise judgment.</p>
+      <div class="two-col">
+        <div class="info-block"><h3>audit questions</h3><ul><li>Are human-in-the-loop controls designed and operating for high-risk decisions?</li><li>Is there protection against automation bias?</li><li>Are override mechanisms documented, tested, and actually used?</li><li>Are AI-generated outputs reviewed before consequential actions?</li><li>Are operators trained on the system's specific limitations?</li></ul></div>
+        <div class="info-block"><h3>testing approach</h3><ul><li>Sample high-stakes AI decisions: what did human review look like?</li><li>Review override logs: how often are overrides exercised?</li><li>Interview reviewers: can they explain what they're reviewing and why?</li><li>Test the halt mechanism: does it actually work?</li><li>Check training completion records for operator AI literacy</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="acc-item mod-dog1" id="rd-7">
+    <div class="acc-header" onclick="toggle(this)">
+      <span class="acc-num">07</span>
+      <img src="../ugly-dog-images/dog-1.png" alt="dog">
+      <div class="acc-header-text">
+        <div class="acc-title">Cybersecurity &amp; AI-Specific Security Risk</div>
+        <div class="acc-subtitle">adversarial attacks, prompt injection, model extraction, data poisoning</div>
+      </div>
+      <span class="acc-toggle">▾</span>
+    </div>
+    <div class="acc-body">
+      <p class="acc-intro">AI systems face attack vectors that traditional cybersecurity frameworks don't fully cover. AI-related security incidents surged 56.4% in 2024–2025. Prompt injection attacks exploited legitimate GenAI tools at 90+ organizations to steal credentials. OWASP Top 10 for LLMs (2025 edition) is the practitioner reference.</p>
+      <div class="two-col">
+        <div class="info-block"><h3>attack vectors to assess</h3><ul><li>Adversarial examples: crafted inputs that fool the model</li><li>Data poisoning: malicious manipulation of training data</li><li>Model inversion / extraction: extracting training data or IP</li><li>Prompt injection: hijacking LLM behavior via malicious input</li><li>Model theft: replicating proprietary models via repeated querying</li></ul></div>
+        <div class="info-block"><h3>audit questions</h3><ul><li>Are AI systems in scope for vulnerability management and pen testing?</li><li>Is red-team testing conducted using adversarial inputs?</li><li>Are model weights, training pipelines, and inference APIs access-controlled?</li><li>Are prompt injection controls in place for GenAI systems?</li><li>Are AI-enabled fraud scenarios in the incident response playbook?</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="acc-item mod-dog2" id="rd-8">
+    <div class="acc-header" onclick="toggle(this)">
+      <span class="acc-num">08</span>
+      <img src="../ugly-dog-images/dog-2.png" alt="dog">
+      <div class="acc-header-text">
+        <div class="acc-title">Third-Party &amp; Vendor AI Risk</div>
+        <div class="acc-subtitle">due diligence, contract audit rights, sub-processor chains, embedded SaaS AI</div>
+      </div>
+      <span class="acc-toggle">▾</span>
+    </div>
+    <div class="acc-body">
+      <p class="acc-intro">Most organizations use more AI from vendors than they build themselves — but vendor AI often receives far less scrutiny than internal models. Sub-processor chains (vendor uses another AI provider) create hidden risk. AI features embedded in approved SaaS tools (Slack, Salesforce, Microsoft 365) frequently bypass the AI intake process entirely.</p>
+      <div class="two-col">
+        <div class="info-block"><h3>ISACA 6-step vendor framework</h3><ul><li>1. Classify vendors by AI risk tier (I–III)</li><li>2. Pre-contract due diligence: data use, retention, opt-out rights</li><li>3. Contract review: audit rights, breach notification, deletion obligations</li><li>4. Ongoing monitoring: accuracy, drift, bias — not just uptime</li><li>5. Incident response integration: vendor AI incidents in your IR process</li><li>6. Sub-processor mapping: assess the full chain</li></ul></div>
+        <div class="info-block"><h3>key audit questions</h3><ul><li>Are AI vendors classified by risk tier with proportionate scrutiny?</li><li>Do vendor contracts include audit rights?</li><li>Are SaaS embedded AI features inventoried and assessed?</li><li>Is training data used by vendors without authorization?</li><li>Are model change notifications required contractually?</li><li>Is vendor concentration risk assessed?</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="acc-item mod-dog3" id="rd-9">
+    <div class="acc-header" onclick="toggle(this)">
+      <span class="acc-num">09</span>
+      <img src="../ugly-dog-images/dog-3.png" alt="dog">
+      <div class="acc-header-text">
+        <div class="acc-title">Regulatory Compliance</div>
+        <div class="acc-subtitle">EU AI Act readiness, sector-specific rules, conformity assessment</div>
+      </div>
+      <span class="acc-toggle">▾</span>
+    </div>
+    <div class="acc-body">
+      <p class="acc-intro">The regulatory landscape is accelerating. EU AI Act high-risk obligations are live for enforcement August 2, 2026. Prohibited practices have been banned since February 2025. Sector-specific rules (SR 11-7 for financial services, FDA AI guidance for medical devices, EEOC for employment) layer on top of cross-cutting frameworks.</p>
+      <div class="two-col">
+        <div class="info-block"><h3>audit questions</h3><ul><li>Is the org tracking EU AI Act obligations by tier?</li><li>Is there a conformity assessment plan for high-risk AI systems?</li><li>Are prohibited practices actively monitored for inadvertent use?</li><li>Is ISO 42001 or NIST AI RMF adoption tracked against a roadmap?</li><li>Are sector-specific AI regulations tracked (SR 11-7, FDA, EEOC)?</li><li>Is there a regulatory change management process for AI law?</li></ul></div>
+        <div class="info-block"><h3>self-assessment vs. notified body</h3><ul><li>Self-assessment: available for most Annex III systems</li><li>Notified body required: biometrics, safety-critical product AI</li><li>Self-assessment is rigorous — not a lighter path</li><li>Notified body capacity is thin — engage early</li><li>EU Declaration of Conformity must be signed and supported by a technical file</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="acc-item mod-dog4" id="rd-10">
+    <div class="acc-header" onclick="toggle(this)">
+      <span class="acc-num">10</span>
+      <img src="../ugly-dog-images/dog-4.png" alt="dog">
+      <div class="acc-header-text">
+        <div class="acc-title">Monitoring, Incident Response &amp; Model Lifecycle</div>
+        <div class="acc-subtitle">drift detection, IR plans, retraining triggers, decommissioning</div>
+      </div>
+      <span class="acc-toggle">▾</span>
+    </div>
+    <div class="acc-body">
+      <p class="acc-intro">AI systems degrade over time as real-world data drifts away from training data. Model drift monitoring is not optional — it's how you detect performance degradation before it becomes a customer harm event or a regulatory incident. The absence of drift monitoring in production is a High finding.</p>
+      <div class="two-col">
+        <div class="info-block"><h3>audit questions</h3><ul><li>Is ongoing performance monitoring in place for deployed models?</li><li>Are alerting thresholds set for accuracy degradation, data drift, bias drift?</li><li>Is there an AI incident response plan (with defined escalation paths)?</li><li>Are retraining triggers and approval processes documented?</li><li>Is there a model decommissioning process?</li><li>Are post-incident reviews documented?</li></ul></div>
+        <div class="info-block"><h3>monitoring components</h3><ul><li>Data drift: are input distributions shifting vs. training data?</li><li>Model drift: is predictive performance degrading over time?</li><li>Bias drift: are fairness metrics moving as data composition changes?</li><li>Infrastructure monitoring: latency, availability, API error rates</li><li>Output auditing: sampling AI outputs for quality review</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="acc-item mod-dog5" id="rd-11">
+    <div class="acc-header" onclick="toggle(this)">
+      <span class="acc-num">11</span>
+      <img src="../ugly-dog-images/dog-5.png" alt="dog">
+      <div class="acc-header-text">
+        <div class="acc-title">Agentic AI &amp; GenAI-Specific Risks (Emerging)</div>
+        <div class="acc-subtitle">autonomous agents, goal constraints, prompt injection, GenAI use policy</div>
+      </div>
+      <span class="acc-toggle">▾</span>
+    </div>
+    <div class="acc-body">
+      <p class="acc-intro">Agentic AI (autonomous multi-step AI systems that take actions in the world) is the fastest-evolving audit frontier in 2025. These systems can make sequences of decisions and take real-world actions without per-step human review. The audit challenges are traceability, goal alignment, and guardrail governance. Standard audit techniques don't yet cover this domain adequately.</p>
+      <div class="two-col">
+        <div class="info-block"><h3>audit questions</h3><ul><li>Are AI agents governed with defined goal constraints and guardrails?</li><li>Are agent actions logged with traceability to reconstruct decision chains?</li><li>Are human-in-the-loop overrides in place for autonomous AI actions?</li><li>Is prompt injection risk assessed for GenAI systems?</li><li>Is there a GenAI acceptable use policy preventing data exfiltration?</li></ul></div>
+        <div class="info-block"><h3>GenAI-specific risks (NIST AI 600-1)</h3><ul><li>Hallucination / confabulation</li><li>Prompt injection and jailbreaking</li><li>Training data memorization and extraction</li><li>Intellectual property in training data and outputs</li><li>Information integrity (deepfakes, synthetic content)</li><li>Human-AI configuration / automation over-reliance</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /accordion risk domains -->
+
+
+<!-- ══════════════════════════════════════════════
+     SECTION 4: COMMON FINDINGS
+     ══════════════════════════════════════════════ -->
+<p class="section-label">top findings from enterprise AI audits</p>
+<div class="findings-list">
+  <div class="finding-row">
+    <span class="finding-sev sev-critical">Critical</span>
+    <div class="finding-text">No enterprise-wide AI policy or acceptable use policy
+      <div class="finding-stat">83% of organizations affected — IIA / Wolters Kluwer 2024 Pulse Survey</div>
+    </div>
+  </div>
+  <div class="finding-row">
+    <span class="finding-sev sev-critical">Critical</span>
+    <div class="finding-text">AI system inventory incomplete — shadow AI projects (marketing GenAI tools, SaaS-embedded AI) running without inventory tracking or approval
+      <div class="finding-stat">Deloitte 2025 Hot Topics #1 governance gap; 56–80% employee shadow AI usage rate</div>
+    </div>
+  </div>
+  <div class="finding-row">
+    <span class="finding-sev sev-critical">Critical</span>
+    <div class="finding-text">No AI governance body with defined authority — only 18% of organizations have an enterprise-wide council with actual decision authority over AI
+      <div class="finding-stat">IAPP AI Governance Profession Report 2025</div>
+    </div>
+  </div>
+  <div class="finding-row">
+    <span class="finding-sev sev-high">High</span>
+    <div class="finding-text">No independent model validation before deployment — model developed and validated by the same team, no conceptual soundness challenge
+      <div class="finding-stat">Common in non-financial-services organizations; SR 11-7 requirement for banks</div>
+    </div>
+  </div>
+  <div class="finding-row">
+    <span class="finding-sev sev-high">High</span>
+    <div class="finding-text">Bias testing absent or ad hoc — training data not reviewed for representativeness across demographic groups; no documented remediation process when bias detected
+      <div class="finding-stat">EU AI Act Art. 10 requirement; NYC LL 144, Colorado SB 205, Illinois AI law</div>
+    </div>
+  </div>
+  <div class="finding-row">
+    <span class="finding-sev sev-high">High</span>
+    <div class="finding-text">Explainability and transparency failures — inability to explain model outputs; inadequate logging; adverse action notices legally insufficient
+      <div class="finding-stat">ECOA / FCRA requirement; GDPR Art. 22; EU AI Act Art. 13</div>
+    </div>
+  </div>
+  <div class="finding-row">
+    <span class="finding-sev sev-high">High</span>
+    <div class="finding-text">Human oversight nominal, not substantive — human-in-the-loop procedures exist on paper but operators rubber-stamp AI outputs without meaningful review
+      <div class="finding-stat">EU AI Act Art. 14 material compliance requirement</div>
+    </div>
+  </div>
+  <div class="finding-row">
+    <span class="finding-sev sev-high">High</span>
+    <div class="finding-text">Third-party vendor AI not assessed — no visibility into what external AI vendors log, retain, or share with sub-processors; vendor contracts lack audit rights
+      <div class="finding-stat">ISACA 2025; Deloitte agentic AI guidance</div>
+    </div>
+  </div>
+  <div class="finding-row">
+    <span class="finding-sev sev-high">High</span>
+    <div class="finding-text">Model drift monitoring absent — no production performance monitoring; no alerting thresholds for accuracy degradation or bias drift
+      <div class="finding-stat">ISACA algorithm audit guidance 2024</div>
+    </div>
+  </div>
+  <div class="finding-row">
+    <span class="finding-sev sev-high">High</span>
+    <div class="finding-text">No AI incident response plan — AI-specific attack scenarios not included in IR playbooks; no tabletop exercises run
+      <div class="finding-stat">Widely noted gap; NIST AI RMF MANAGE function requirement</div>
+    </div>
+  </div>
+  <div class="finding-row">
+    <span class="finding-sev sev-medium">Medium</span>
+    <div class="finding-text">EU AI Act gap — no conformity assessment plan for high-risk AI systems ahead of August 2, 2026 enforcement deadline
+      <div class="finding-stat">Wolters Kluwer; Trilateral Research 2024</div>
+    </div>
+  </div>
+  <div class="finding-row">
+    <span class="finding-sev sev-medium">Medium</span>
+    <div class="finding-text">Internal audit function itself lacks AI skills — 60%+ of CAEs cite skills gap; only 4% report substantial AI progress within the IA function itself
+      <div class="finding-stat">AuditBoard 2025; IIA Vision 2035 survey</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SECTION 5: EU AI ACT TIMELINE
+     ══════════════════════════════════════════════ -->
+<p class="section-label">EU AI Act compliance timeline</p>
+<div class="timeline">
+  <div class="tl-row">
+    <div class="tl-date">Aug 2024</div>
+    <div class="tl-content"><strong>Act enters into force</strong>EU AI Act officially in effect. Organisations should begin AI inventory and risk tiering immediately.</div>
+  </div>
+  <div class="tl-row">
+    <div class="tl-date deadline">Feb 2, 2025</div>
+    <div class="tl-content"><strong>Prohibited AI practices banned — NOW</strong>Social scoring by public authorities, subliminal manipulation, real-time remote biometric surveillance in public spaces (with narrow exceptions). Check your AI portfolio now.</div>
+  </div>
+  <div class="tl-row">
+    <div class="tl-date">Aug 2, 2025</div>
+    <div class="tl-content"><strong>GPAI model obligations apply</strong>General-purpose AI model providers (foundation model providers) must comply with transparency and governance codes of practice.</div>
+  </div>
+  <div class="tl-row">
+    <div class="tl-date deadline">Aug 2, 2026</div>
+    <div class="tl-content"><strong>High-risk AI system enforcement — the main deadline</strong>Articles 9–17 fully mandatory for most Annex III systems. Conformity assessments must be complete. Fines: up to €15M or 3% of global annual turnover. This is the critical milestone for most internal auditors.</div>
+  </div>
+  <div class="tl-row">
+    <div class="tl-date">Dec 2, 2027</div>
+    <div class="tl-content"><strong>Extended deadline</strong>Some Annex III categories (biometrics, critical infrastructure, education, employment, migration) get extra runway.</div>
+  </div>
+  <div class="tl-row">
+    <div class="tl-date">Aug 2, 2028</div>
+    <div class="tl-content"><strong>AI in regulated products</strong>AI embedded in regulated products (medical devices, machinery, toys, lifts, etc.) must comply.</div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     SECTION 6: KEY RESOURCES
+     ══════════════════════════════════════════════ -->
+<p class="section-label">key resources — all verified 2024–2025</p>
+<div class="resource-grid">
+  <a class="resource-card" href="https://www.theiia.org/en/content/tools/professional/2023/the-iias-updated-ai-auditing-framework/" target="_blank">
+    <div class="rc-org">IIA</div>
+    <div class="rc-name">IIA AI Auditing Framework (Sept 2024)</div>
+    <div class="rc-desc">The primary practitioner reference. Four-part structure, three lines model, checklist. Download the PDF.</div>
+  </a>
+  <a class="resource-card" href="https://www.nist.gov/itl/ai-risk-management-framework" target="_blank">
+    <div class="rc-org">NIST</div>
+    <div class="rc-name">NIST AI RMF 1.0 + Playbook</div>
+    <div class="rc-desc">72 subcategories across GOVERN / MAP / MEASURE / MANAGE. The playbook has action-level templates per subcategory.</div>
+  </a>
+  <a class="resource-card" href="https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.600-1.pdf" target="_blank">
+    <div class="rc-org">NIST</div>
+    <div class="rc-name">NIST AI 600-1 — Generative AI Profile (Jul 2024)</div>
+    <div class="rc-desc">200+ suggested actions across 12 GenAI risk categories. Extends AI RMF 1.0 for LLMs and GenAI systems.</div>
+  </a>
+  <a class="resource-card" href="https://artificialintelligenceact.eu/high-level-summary/" target="_blank">
+    <div class="rc-org">EU</div>
+    <div class="rc-name">EU AI Act — High-Level Summary &amp; Full Text</div>
+    <div class="rc-desc">Article-by-article reference. Key: Arts. 6, 9, 10, 13, 14, 16, 43. Aug 2, 2026 is the enforcement date.</div>
+  </a>
+  <a class="resource-card" href="https://www.isaca.org/resources/white-papers/2025/leveraging-cobit-for-effective-ai-system-governance" target="_blank">
+    <div class="rc-org">ISACA</div>
+    <div class="rc-name">Leveraging COBIT for AI Governance (2025)</div>
+    <div class="rc-desc">ISACA white paper mapping COBIT to 5 AI risk categories and 7 governance enablers. Free download.</div>
+  </a>
+  <a class="resource-card" href="https://kpmg.com/us/en/articles/2025/auditing-artificial-intelligence.html" target="_blank">
+    <div class="rc-org">KPMG</div>
+    <div class="rc-name">Auditing Artificial Intelligence (KPMG 2025)</div>
+    <div class="rc-desc">Illustrative AI Risk and Controls Guide + Trusted AI Framework covering EU AI Act, ISO 42001, NIST AI RMF.</div>
+  </a>
+  <a class="resource-card" href="https://www.deloitte.com/us/en/services/audit-assurance/blogs/accounting-finance/audit-ai-risk-management.html" target="_blank">
+    <div class="rc-org">Deloitte</div>
+    <div class="rc-name">Internal Audit's Role in Strengthening AI Governance</div>
+    <div class="rc-desc">Deloitte's practitioner guide. Covers Trustworthy AI pillars, adversarial testing, agentic AI governance.</div>
+  </a>
+  <a class="resource-card" href="https://www.pwc.com/us/en/services/audit-assurance/digital-assurance-transparency/assurance-ai.html" target="_blank">
+    <div class="rc-org">PwC</div>
+    <div class="rc-name">Assurance for AI (Jun 2025)</div>
+    <div class="rc-desc">First independent AI assurance service under AICPA standards, aligned to NIST AI RMF + ISO 42001.</div>
+  </a>
+  <a class="resource-card" href="https://www.aigl.blog/ai-rmf-1-0-controls-checklist/" target="_blank">
+    <div class="rc-org">AIGL</div>
+    <div class="rc-name">AI RMF 1.0 Controls Checklist (214 pages)</div>
+    <div class="rc-desc">Maps AI RMF 1.0 to 58 auditable compliance controls with indicators, frequency definitions, and templates.</div>
+  </a>
+  <a class="resource-card" href="https://www.isaca.org/resources/isaca-journal/issues/2024/volume-2/a-proposed-high-level-approach-to-ai-audit" target="_blank">
+    <div class="rc-org">ISACA Journal</div>
+    <div class="rc-name">A Proposed High-Level Approach to AI Audit (2024)</div>
+    <div class="rc-desc">Practitioner-focused audit approach from ISACA's journal. Free to read for ISACA members.</div>
+  </a>
+  <a class="resource-card" href="https://www.wolterskluwer.com/en/expert-insights/innovation-regulation-how-internal-audit-must-respond-eu-ai-act" target="_blank">
+    <div class="rc-org">Wolters Kluwer</div>
+    <div class="rc-name">How Internal Audit Must Respond to the EU AI Act</div>
+    <div class="rc-desc">Practical guide for IA functions preparing for EU AI Act obligations. Covers checklist, governance, and readiness.</div>
+  </a>
+  <a class="resource-card" href="https://auditboard.com/blog/closing-internal-audits-ai-gap-requires-facing-our-challenges-head-on" target="_blank">
+    <div class="rc-org">AuditBoard</div>
+    <div class="rc-name">Closing Internal Audit's AI Gap</div>
+    <div class="rc-desc">Honest assessment of where IA functions are and aren't on AI readiness. Required reading for CAEs.</div>
+  </a>
+</div>
+
+
+<!-- ══════════════════════════════════════════════
+     GOLDEN RULES
+     ══════════════════════════════════════════════ -->
+<div class="golden-rules">
+  <h2><img src="../ugly-dog-images/dog-3.png" alt="dog"> golden rules for auditing artificially intelligent nerds</h2>
+  <ol>
+    <li><strong>Start with the inventory.</strong> You cannot govern, audit, or regulate what you cannot see. An incomplete AI inventory is both the most common finding and the root cause of most others. Spend at least 30% of your planning phase on shadow AI discovery.</li>
+    <li><strong>Absence of governance is a Critical finding.</strong> No AI policy, no governance body, no ethics principles — these are not "opportunities for improvement." They are the absence of the control environment. Rate them accordingly.</li>
+    <li><strong>Test human oversight; don't just document it.</strong> "Human-in-the-loop" that consists of rubber-stamping is not human oversight. Sample high-stakes decisions. Interview reviewers. Check override logs. The ghost of human review is not the same as human review.</li>
+    <li><strong>The August 2026 EU AI Act deadline is not hypothetical.</strong> Fines up to 3% of global revenue for high-risk AI non-compliance. If your organization has high-risk AI systems affecting EU persons and no conformity assessment plan, that is a regulatory exposure finding today.</li>
+    <li><strong>Bias audits are now legal compliance, not ethics aspirations.</strong> NYC LL 144 is live. Colorado SB 205 is coming. EU AI Act Art. 10 is coming. The demographic breakdown of model outputs is now a legal artifact, not a social good.</li>
+    <li><strong>Vendor AI gets the same scrutiny as internal AI.</strong> "We bought it from a vendor" is not a control. Vendor contracts without audit rights, data use restrictions, and model change notifications are gaps, not just best practices.</li>
+    <li><strong>Build your AI audit skills before AI audits you.</strong> IIA data: GenAI use in internal audit doubled to 40% in one year. You will be auditing AI while AI is being used to audit. Close your own function's AI skills gap before it closes you.</li>
+    <li><strong>Pat the dogs.</strong> Take a break. The finding you keep missing is usually in the process you understand best — precisely because you stopped questioning it.</li>
+  </ol>
+</div>
+
+<script>
+function toggle(header) {
+  header.parentElement.classList.toggle('open');
+}
+document.getElementById('fw-1').classList.add('open');
+document.getElementById('phase-1').classList.add('open');
+</script>
+
+</body>
+</html>
