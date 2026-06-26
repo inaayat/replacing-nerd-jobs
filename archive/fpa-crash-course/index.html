@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FP&A Crash Course</title>
-<link rel="stylesheet" href="../site.css">
-<link rel="icon" type="image/png" href="../ugly-dog-images/dog-2.png">
+<link rel="stylesheet" href="/site.css">
+<link rel="icon" type="image/png" href="/ugly-dog-images/dog-2.png">
 <style>
 :root {
   --dog1: #f5d4d4;
@@ -28,7 +28,7 @@
   position: absolute;
   right: -20px; top: -20px;
   width: 180px; height: 180px;
-  background: url('../ugly-dog-images/dog-2.png') center/contain no-repeat;
+  background: url('/ugly-dog-images/dog-2.png') center/contain no-repeat;
   opacity: 0.15;
   pointer-events: none;
 }
@@ -103,12 +103,12 @@
   pointer-events: none;
   z-index: 0;
 }
-.mod-dog1::before { background-image: url('../ugly-dog-images/dog-1.png'); }
-.mod-dog2::before { background-image: url('../ugly-dog-images/dog-2.png'); }
-.mod-dog3::before { background-image: url('../ugly-dog-images/dog-3.png'); }
-.mod-dog4::before { background-image: url('../ugly-dog-images/dog-4.png'); }
-.mod-dog5::before { background-image: url('../ugly-dog-images/dog-5.png'); }
-.mod-dog6::before { background-image: url('../ugly-dog-images/dog-6.png'); }
+.mod-dog1::before { background-image: url('/ugly-dog-images/dog-1.png'); }
+.mod-dog2::before { background-image: url('/ugly-dog-images/dog-2.png'); }
+.mod-dog3::before { background-image: url('/ugly-dog-images/dog-3.png'); }
+.mod-dog4::before { background-image: url('/ugly-dog-images/dog-4.png'); }
+.mod-dog5::before { background-image: url('/ugly-dog-images/dog-5.png'); }
+.mod-dog6::before { background-image: url('/ugly-dog-images/dog-6.png'); }
 
 .module-header {
   display: flex;
@@ -223,7 +223,7 @@
   position: absolute;
   right: -20px; bottom: -20px;
   width: 130px; height: 130px;
-  background: url('../ugly-dog-images/dog-3.png') center/contain no-repeat;
+  background: url('/ugly-dog-images/dog-3.png') center/contain no-repeat;
   opacity: 0.13;
 }
 .golden-rules h2 {
@@ -251,10 +251,10 @@
 
 <header class="site-header">
   <div style="display:flex;align-items:center;gap:12px;">
-    <img src="../ugly-dog-images/dog-2.png" alt="dog" style="width:28px;height:28px;object-fit:contain;">
+    <img src="/ugly-dog-images/dog-2.png" alt="dog" style="width:28px;height:28px;object-fit:contain;">
     <h1>FP&amp;A Crash Course</h1>
   </div>
-  <a class="back-link" href="/">← home</a>
+  <a class="back-link" href="/archive/">← home</a>
 </header>
 
 <div class="page-hero">
@@ -264,7 +264,7 @@
 
 <!-- ── DECISION TREE ── -->
 <div class="decision-tree">
-  <h2><img src="../ugly-dog-images/dog-1.png" alt="dog"> quick decision tree — 4 questions</h2>
+  <h2><img src="/ugly-dog-images/dog-1.png" alt="dog"> quick decision tree — 4 questions</h2>
   <div class="dt-steps">
     <div class="dt-step">
       <div class="dt-q">Q1: Does the business earn recurring revenue on a subscription or contract?</div>
@@ -297,7 +297,7 @@
   <div class="module mod-dog1 open" id="mod-1">
     <div class="module-header" onclick="toggleMod(this)">
       <span class="module-num">01</span>
-      <img src="../ugly-dog-images/dog-1.png" alt="dog">
+      <img src="/ugly-dog-images/dog-1.png" alt="dog">
       <div class="module-header-text">
         <div class="module-title">retail &amp; e-commerce 🛒</div>
         <div class="module-subtitle">volume × margin — same-store sales, inventory turns, shrink</div>
@@ -305,7 +305,7 @@
       <span class="module-toggle">▾</span>
     </div>
     <div class="module-body">
-      <div class="dog-says"><img src="../ugly-dog-images/dog-1.png" alt="dog"><p><strong>Dog #1 says:</strong> "Retail is simple until you count inventory twice. Same-store sales growth is the number that actually matters — everything else is noise."</p></div>
+      <div class="dog-says"><img src="/ugly-dog-images/dog-1.png" alt="dog"><p><strong>Dog #1 says:</strong> "Retail is simple until you count inventory twice. Same-store sales growth is the number that actually matters — everything else is noise."</p></div>
       <p class="module-intro">Retail models live and die by traffic × conversion × basket size. The key insight is separating growth from existing stores (comparable sales) versus new store openings — a 10% revenue increase looks very different if it's all new locations burning cash vs. existing stores improving productivity.</p>
       <div class="formula-box">
         <div class="formula-label">core formula</div>
@@ -326,7 +326,7 @@ EBITDA = Gross Margin − Opex (occupancy + labor + marketing)</code>
   <div class="module mod-dog2" id="mod-2">
     <div class="module-header" onclick="toggleMod(this)">
       <span class="module-num">02</span>
-      <img src="../ugly-dog-images/dog-2.png" alt="dog">
+      <img src="/ugly-dog-images/dog-2.png" alt="dog">
       <div class="module-header-text">
         <div class="module-title">hospitality &amp; hotels 🏨</div>
         <div class="module-subtitle">RevPAR × rooms — ADR, occupancy, GOP margin</div>
@@ -334,7 +334,7 @@ EBITDA = Gross Margin − Opex (occupancy + labor + marketing)</code>
       <span class="module-toggle">▾</span>
     </div>
     <div class="module-body">
-      <div class="dog-says"><img src="../ugly-dog-images/dog-2.png" alt="dog"><p><strong>Dog #2 says:</strong> "RevPAR is the heartbeat of a hotel model. If RevPAR is growing, everything else can be fixed. If RevPAR is declining, no cost cut saves you."</p></div>
+      <div class="dog-says"><img src="/ugly-dog-images/dog-2.png" alt="dog"><p><strong>Dog #2 says:</strong> "RevPAR is the heartbeat of a hotel model. If RevPAR is growing, everything else can be fixed. If RevPAR is declining, no cost cut saves you."</p></div>
       <p class="module-intro">Hotel models center on rooms as the fixed-cost base and revenue per available room (RevPAR) as the top-line driver. Once you've paid for the building, the marginal cost of filling a room is tiny — so occupancy rate swings dramatically impact profitability.</p>
       <div class="formula-box">
         <div class="formula-label">core formula</div>
@@ -355,7 +355,7 @@ NOI = GOP − Fixed Charges (mgmt fees, insurance, taxes)</code>
   <div class="module mod-dog3" id="mod-3">
     <div class="module-header" onclick="toggleMod(this)">
       <span class="module-num">03</span>
-      <img src="../ugly-dog-images/dog-3.png" alt="dog">
+      <img src="/ugly-dog-images/dog-3.png" alt="dog">
       <div class="module-header-text">
         <div class="module-title">food &amp; beverage / restaurants 🍔</div>
         <div class="module-subtitle">unit economics × store count — prime cost, AUV, 4-wall EBITDA</div>
@@ -363,7 +363,7 @@ NOI = GOP − Fixed Charges (mgmt fees, insurance, taxes)</code>
       <span class="module-toggle">▾</span>
     </div>
     <div class="module-body">
-      <div class="dog-says"><img src="../ugly-dog-images/dog-3.png" alt="dog"><p><strong>Dog #3 says:</strong> "Restaurant economics are brutal. The four-wall EBITDA is your only real signal — strip out corporate overhead and see if the actual restaurant makes money."</p></div>
+      <div class="dog-says"><img src="/ugly-dog-images/dog-3.png" alt="dog"><p><strong>Dog #3 says:</strong> "Restaurant economics are brutal. The four-wall EBITDA is your only real signal — strip out corporate overhead and see if the actual restaurant makes money."</p></div>
       <p class="module-intro">Restaurant models are unit economics at heart. Build one store P&amp;L perfectly, then layer in new unit opening timelines. Prime costs (food + labor) as a combined percentage is the survival metric — it needs to stay below 65% to leave room for occupancy and overhead.</p>
       <div class="formula-box">
         <div class="formula-label">core formula</div>
@@ -384,7 +384,7 @@ System Revenue = AUV × Number of Units</code>
   <div class="module mod-dog4" id="mod-4">
     <div class="module-header" onclick="toggleMod(this)">
       <span class="module-num">04</span>
-      <img src="../ugly-dog-images/dog-4.png" alt="dog">
+      <img src="/ugly-dog-images/dog-4.png" alt="dog">
       <div class="module-header-text">
         <div class="module-title">SaaS &amp; subscription 💻</div>
         <div class="module-subtitle">ARR waterfall — churn cohorts, NRR, CAC payback, rule of 40</div>
@@ -392,7 +392,7 @@ System Revenue = AUV × Number of Units</code>
       <span class="module-toggle">▾</span>
     </div>
     <div class="module-body">
-      <div class="dog-says"><img src="../ugly-dog-images/dog-4.png" alt="dog"><p><strong>Dog #4 says:</strong> "SaaS models are ARR waterfall models. New ARR − Churned ARR = Net New ARR. Simple. Until your churn cohorts mature and you realize your retention is terrible."</p></div>
+      <div class="dog-says"><img src="/ugly-dog-images/dog-4.png" alt="dog"><p><strong>Dog #4 says:</strong> "SaaS models are ARR waterfall models. New ARR − Churned ARR = Net New ARR. Simple. Until your churn cohorts mature and you realize your retention is terrible."</p></div>
       <p class="module-intro">SaaS models are driven by the ARR waterfall: opening ARR + new bookings + expansion − contraction − churn = ending ARR. The unit economics (LTV / CAC) determine whether it's worth spending on growth. Rule of 40 is the summary metric that tells investors whether growth + profitability balance.</p>
       <div class="formula-box">
         <div class="formula-label">core formula</div>
@@ -413,7 +413,7 @@ Rule of 40 = Revenue Growth % + FCF Margin %</code>
   <div class="module mod-dog5" id="mod-5">
     <div class="module-header" onclick="toggleMod(this)">
       <span class="module-num">05</span>
-      <img src="../ugly-dog-images/dog-5.png" alt="dog">
+      <img src="/ugly-dog-images/dog-5.png" alt="dog">
       <div class="module-header-text">
         <div class="module-title">manufacturing &amp; industrial ⚙️</div>
         <div class="module-subtitle">volume × overhead absorption — utilization, capex intensity, ROCE</div>
@@ -421,7 +421,7 @@ Rule of 40 = Revenue Growth % + FCF Margin %</code>
       <span class="module-toggle">▾</span>
     </div>
     <div class="module-body">
-      <div class="dog-says"><img src="../ugly-dog-images/dog-5.png" alt="dog"><p><strong>Dog #5 says:</strong> "Capacity utilization is everything. A plant running at 60% is burning cash. The same plant at 85% prints money. That's the non-linearity of manufacturing."</p></div>
+      <div class="dog-says"><img src="/ugly-dog-images/dog-5.png" alt="dog"><p><strong>Dog #5 says:</strong> "Capacity utilization is everything. A plant running at 60% is burning cash. The same plant at 85% prints money. That's the non-linearity of manufacturing."</p></div>
       <p class="module-intro">Manufacturing models start with volume × price, then build COGS from the ground up: raw materials + direct labor + overhead absorption. Fixed overhead gets allocated to units — so volume swings create enormous margin volatility even if prices hold steady. A 10% volume drop can cut gross margin in half.</p>
       <div class="formula-box">
         <div class="formula-label">core formula</div>
@@ -443,7 +443,7 @@ ROCE = EBIT / Capital Employed</code>
   <div class="module mod-dog6" id="mod-6">
     <div class="module-header" onclick="toggleMod(this)">
       <span class="module-num">06</span>
-      <img src="../ugly-dog-images/dog-6.png" alt="dog">
+      <img src="/ugly-dog-images/dog-6.png" alt="dog">
       <div class="module-header-text">
         <div class="module-title">financial services &amp; banking 🏦</div>
         <div class="module-subtitle">balance sheet NIM model — loan growth, deposit beta, credit losses, CET1</div>
@@ -451,7 +451,7 @@ ROCE = EBIT / Capital Employed</code>
       <span class="module-toggle">▾</span>
     </div>
     <div class="module-body">
-      <div class="dog-says"><img src="../ugly-dog-images/dog-6.png" alt="dog"><p><strong>Dog #6 says:</strong> "Banks are not normal companies. Revenue is net interest income — a spread. The model inverts: assets generate revenue, liabilities fund them. Get the balance sheet right first."</p></div>
+      <div class="dog-says"><img src="/ugly-dog-images/dog-6.png" alt="dog"><p><strong>Dog #6 says:</strong> "Banks are not normal companies. Revenue is net interest income — a spread. The model inverts: assets generate revenue, liabilities fund them. Get the balance sheet right first."</p></div>
       <p class="module-intro">Banking models start with the balance sheet, not the income statement. Loans and investments earn interest (assets); deposits and debt cost interest (liabilities) — the spread is NIM. Add fee income, subtract credit losses and operating expenses, apply tax. Every assumption has a regulatory constraint attached.</p>
       <div class="formula-box">
         <div class="formula-label">core formula</div>
@@ -473,7 +473,7 @@ CET1 Ratio = Common Equity Tier 1 / Risk-Weighted Assets</code>
   <div class="module mod-dog1" id="mod-7">
     <div class="module-header" onclick="toggleMod(this)">
       <span class="module-num">07</span>
-      <img src="../ugly-dog-images/dog-1.png" alt="dog">
+      <img src="/ugly-dog-images/dog-1.png" alt="dog">
       <div class="module-header-text">
         <div class="module-title">healthcare &amp; hospitals 🏥</div>
         <div class="module-subtitle">payor mix × volume — contractual adjustments, CMI, labor intensity</div>
@@ -481,7 +481,7 @@ CET1 Ratio = Common Equity Tier 1 / Risk-Weighted Assets</code>
       <span class="module-toggle">▾</span>
     </div>
     <div class="module-body">
-      <div class="dog-says"><img src="../ugly-dog-images/dog-1.png" alt="dog"><p><strong>Dog #1 says:</strong> "Healthcare models are payor mix models in disguise. Medicare pays 80 cents on the dollar, Medicaid pays 60, commercial pays 110. Who's in your waiting room determines your margin."</p></div>
+      <div class="dog-says"><img src="/ugly-dog-images/dog-1.png" alt="dog"><p><strong>Dog #1 says:</strong> "Healthcare models are payor mix models in disguise. Medicare pays 80 cents on the dollar, Medicaid pays 60, commercial pays 110. Who's in your waiting room determines your margin."</p></div>
       <p class="module-intro">Hospital models build revenue from patient volume × payor mix × reimbursement rates. Gross charges are fictional — net revenue depends entirely on the payer contract and bad debt / charity care write-offs. Always model net patient revenue, never gross.</p>
       <div class="formula-box">
         <div class="formula-label">core formula</div>
@@ -502,7 +502,7 @@ Days Cash on Hand = Cash / (Operating Expenses / 365)</code>
   <div class="module mod-dog2" id="mod-8">
     <div class="module-header" onclick="toggleMod(this)">
       <span class="module-num">08</span>
-      <img src="../ugly-dog-images/dog-2.png" alt="dog">
+      <img src="/ugly-dog-images/dog-2.png" alt="dog">
       <div class="module-header-text">
         <div class="module-title">energy, utilities &amp; infrastructure 🔌</div>
         <div class="module-subtitle">rate base × ROE — regulated vs. merchant, capex recovery, FFO/debt</div>
@@ -510,7 +510,7 @@ Days Cash on Hand = Cash / (Operating Expenses / 365)</code>
       <span class="module-toggle">▾</span>
     </div>
     <div class="module-body">
-      <div class="dog-says"><img src="../ugly-dog-images/dog-2.png" alt="dog"><p><strong>Dog #2 says:</strong> "Regulated utilities are bond-like — predictable, boring, capex-heavy. The model is: rate base × allowed ROE = net income. Simple once you accept the regulator is your silent partner."</p></div>
+      <div class="dog-says"><img src="/ugly-dog-images/dog-2.png" alt="dog"><p><strong>Dog #2 says:</strong> "Regulated utilities are bond-like — predictable, boring, capex-heavy. The model is: rate base × allowed ROE = net income. Simple once you accept the regulator is your silent partner."</p></div>
       <p class="module-intro">Utility models split between regulated (rate-of-return) and merchant (market-price). Regulated utilities earn a set return on their capital base — model capital spending and rate cases. Merchant generation models commodity prices, spark spreads, and capacity market revenues. They look like completely different businesses because they are.</p>
       <div class="formula-box">
         <div class="formula-label">core formula</div>
@@ -532,7 +532,7 @@ FFO/Debt = (Net Income + D&amp;A + Deferred Tax) / Total Debt</code>
   <div class="module mod-dog3" id="mod-9">
     <div class="module-header" onclick="toggleMod(this)">
       <span class="module-num">09</span>
-      <img src="../ugly-dog-images/dog-3.png" alt="dog">
+      <img src="/ugly-dog-images/dog-3.png" alt="dog">
       <div class="module-header-text">
         <div class="module-title">pharmaceuticals &amp; biotech 💊</div>
         <div class="module-subtitle">probability-weighted NPV pipeline — patent cliffs, gross-to-net, R&amp;D spend</div>
@@ -540,7 +540,7 @@ FFO/Debt = (Net Income + D&amp;A + Deferred Tax) / Total Debt</code>
       <span class="module-toggle">▾</span>
     </div>
     <div class="module-body">
-      <div class="dog-says"><img src="../ugly-dog-images/dog-3.png" alt="dog"><p><strong>Dog #3 says:</strong> "Pharma models are probability-weighted NPV models. Your pipeline is worth the sum of (peak sales × probability of approval × NPV factor) for each drug. The rest is details."</p></div>
+      <div class="dog-says"><img src="/ugly-dog-images/dog-3.png" alt="dog"><p><strong>Dog #3 says:</strong> "Pharma models are probability-weighted NPV models. Your pipeline is worth the sum of (peak sales × probability of approval × NPV factor) for each drug. The rest is details."</p></div>
       <p class="module-intro">Pharma models combine two very different businesses: the cash-cow marketed portfolio and the binary-outcome R&amp;D pipeline. Modelers must probability-weight pipeline assets and sensitize against patent cliffs and generic entry timing. Gross-to-net adjustments (rebates, chargebacks) can reduce sticker price by 30–50%.</p>
       <div class="formula-box">
         <div class="formula-label">core formula</div>
@@ -561,7 +561,7 @@ EPS = (Revenue − COGS − SG&amp;A − R&amp;D ± Other) × (1 − Tax Rate) /
   <div class="module mod-dog4" id="mod-10">
     <div class="module-header" onclick="toggleMod(this)">
       <span class="module-num">10</span>
-      <img src="../ugly-dog-images/dog-4.png" alt="dog">
+      <img src="/ugly-dog-images/dog-4.png" alt="dog">
       <div class="module-header-text">
         <div class="module-title">telecommunications 📱</div>
         <div class="module-subtitle">subscriber × ARPU — churn, capex intensity, net debt / EBITDA</div>
@@ -569,7 +569,7 @@ EPS = (Revenue − COGS − SG&amp;A − R&amp;D ± Other) × (1 − Tax Rate) /
       <span class="module-toggle">▾</span>
     </div>
     <div class="module-body">
-      <div class="dog-says"><img src="../ugly-dog-images/dog-4.png" alt="dog"><p><strong>Dog #4 says:</strong> "Telecom models are subscriber cohort models with big capex hangovers. The question is always: is ARPU growing faster than churn? If yes, build the towers. If no, you're just a declining annuity."</p></div>
+      <div class="dog-says"><img src="/ugly-dog-images/dog-4.png" alt="dog"><p><strong>Dog #4 says:</strong> "Telecom models are subscriber cohort models with big capex hangovers. The question is always: is ARPU growing faster than churn? If yes, build the towers. If no, you're just a declining annuity."</p></div>
       <p class="module-intro">Telecom models track subscriber counts × ARPU minus churn-driven losses. The capital intensity of network buildout (spectrum, towers, fiber) makes FCF timing critical — EBITDA looks great, but capex devours it for years before the network fully monetizes.</p>
       <div class="formula-box">
         <div class="formula-label">core formula</div>
@@ -591,7 +591,7 @@ Churn Rate = Churned Subs / Opening Subs</code>
   <div class="module mod-dog5" id="mod-11">
     <div class="module-header" onclick="toggleMod(this)">
       <span class="module-num">11</span>
-      <img src="../ugly-dog-images/dog-5.png" alt="dog">
+      <img src="/ugly-dog-images/dog-5.png" alt="dog">
       <div class="module-header-text">
         <div class="module-title">marketplaces &amp; platforms 🛵</div>
         <div class="module-subtitle">GMV × take rate — liquidity, buyer LTV, contribution margin</div>
@@ -599,7 +599,7 @@ Churn Rate = Churned Subs / Opening Subs</code>
       <span class="module-toggle">▾</span>
     </div>
     <div class="module-body">
-      <div class="dog-says"><img src="../ugly-dog-images/dog-5.png" alt="dog"><p><strong>Dog #5 says:</strong> "Marketplace models are GMV × take rate. The hard part is that your take rate compresses as you scale — buyers and sellers get leverage. Model the take rate as a declining function of GMV."</p></div>
+      <div class="dog-says"><img src="/ugly-dog-images/dog-5.png" alt="dog"><p><strong>Dog #5 says:</strong> "Marketplace models are GMV × take rate. The hard part is that your take rate compresses as you scale — buyers and sellers get leverage. Model the take rate as a declining function of GMV."</p></div>
       <p class="module-intro">Marketplace models track gross merchandise value (GMV) — the total value of transactions — then apply the platform's take rate to get revenue. The classic tension is between growing GMV (requires low prices / subsidies) and improving take rate (requires more value-add services).</p>
       <div class="formula-box">
         <div class="formula-label">core formula</div>
@@ -620,7 +620,7 @@ Liquidity = Supply × Demand Conversion Rate</code>
   <div class="module mod-dog6" id="mod-12">
     <div class="module-header" onclick="toggleMod(this)">
       <span class="module-num">12</span>
-      <img src="../ugly-dog-images/dog-6.png" alt="dog">
+      <img src="/ugly-dog-images/dog-6.png" alt="dog">
       <div class="module-header-text">
         <div class="module-title">insurance 🛡️</div>
         <div class="module-subtitle">combined ratio + float — loss ratio, expense ratio, investment income</div>
@@ -628,7 +628,7 @@ Liquidity = Supply × Demand Conversion Rate</code>
       <span class="module-toggle">▾</span>
     </div>
     <div class="module-body">
-      <div class="dog-says"><img src="../ugly-dog-images/dog-6.png" alt="dog"><p><strong>Dog #6 says:</strong> "Insurance is a float business. You collect premiums today, pay claims later. The underwriting result tells you if you're profitable on the insurance side. The investment income tells you if you're profitable on the float."</p></div>
+      <div class="dog-says"><img src="/ugly-dog-images/dog-6.png" alt="dog"><p><strong>Dog #6 says:</strong> "Insurance is a float business. You collect premiums today, pay claims later. The underwriting result tells you if you're profitable on the insurance side. The investment income tells you if you're profitable on the float."</p></div>
       <p class="module-intro">Insurance models separate underwriting (premiums vs. claims + expenses) from investment income (float). Combined ratio is the core metric — above 100% means you're losing money on underwriting and need investment income to compensate. Below 100% means you get paid to hold other people's money.</p>
       <div class="formula-box">
         <div class="formula-label">core formula</div>
@@ -649,7 +649,7 @@ Investment Income = Float × Investment Yield</code>
   <div class="module mod-dog1" id="mod-13">
     <div class="module-header" onclick="toggleMod(this)">
       <span class="module-num">13</span>
-      <img src="../ugly-dog-images/dog-1.png" alt="dog">
+      <img src="/ugly-dog-images/dog-1.png" alt="dog">
       <div class="module-header-text">
         <div class="module-title">media &amp; advertising 📺</div>
         <div class="module-subtitle">audience × monetization rate — CPM, subscriber ARPU, content cost</div>
@@ -657,7 +657,7 @@ Investment Income = Float × Investment Yield</code>
       <span class="module-toggle">▾</span>
     </div>
     <div class="module-body">
-      <div class="dog-says"><img src="../ugly-dog-images/dog-1.png" alt="dog"><p><strong>Dog #1 says:</strong> "Media models are audience × monetization rate. Whether it's CPM, CPC, or subscription, you need to model the audience first — and audiences are the hardest thing to forecast."</p></div>
+      <div class="dog-says"><img src="/ugly-dog-images/dog-1.png" alt="dog"><p><strong>Dog #1 says:</strong> "Media models are audience × monetization rate. Whether it's CPM, CPC, or subscription, you need to model the audience first — and audiences are the hardest thing to forecast."</p></div>
       <p class="module-intro">Media models bifurcate into advertising revenue (impressions × CPM or clicks × CPC) and subscription / licensing. The secular shift from ad-based to subscription revenue is the dominant trend — model both tracks and the mix shift over time. Content cost is the swing variable that can destroy an otherwise-healthy margin profile.</p>
       <div class="formula-box">
         <div class="formula-label">core formula</div>
@@ -678,7 +678,7 @@ Licensing = Content Hours × License Rate per Hour</code>
   <div class="module mod-dog2" id="mod-14">
     <div class="module-header" onclick="toggleMod(this)">
       <span class="module-num">14</span>
-      <img src="../ugly-dog-images/dog-2.png" alt="dog">
+      <img src="/ugly-dog-images/dog-2.png" alt="dog">
       <div class="module-header-text">
         <div class="module-title">professional services &amp; consulting 👔</div>
         <div class="module-subtitle">headcount × utilization — bill rate, pyramid leverage, DSO</div>
@@ -686,7 +686,7 @@ Licensing = Content Hours × License Rate per Hour</code>
       <span class="module-toggle">▾</span>
     </div>
     <div class="module-body">
-      <div class="dog-says"><img src="../ugly-dog-images/dog-2.png" alt="dog"><p><strong>Dog #2 says:</strong> "Professional services is a people model. Headcount × bill rate × utilization = revenue. If utilization drops below 70%, you're burning cash. If it's above 85%, your people are burning out."</p></div>
+      <div class="dog-says"><img src="/ugly-dog-images/dog-2.png" alt="dog"><p><strong>Dog #2 says:</strong> "Professional services is a people model. Headcount × bill rate × utilization = revenue. If utilization drops below 70%, you're burning cash. If it's above 85%, your people are burning out."</p></div>
       <p class="module-intro">Services firms model billable headcount × utilization rate × average bill rate. The pyramid structure (partners leverage juniors) determines margin — model partner-to-staff ratios and their respective comp as the key COGS driver. Attrition is an operating risk, not just an HR metric.</p>
       <div class="formula-box">
         <div class="formula-label">core formula</div>
@@ -707,7 +707,7 @@ EBITDA = Gross Margin − Overhead (facilities, G&amp;A, BD)</code>
   <div class="module mod-dog3" id="mod-15">
     <div class="module-header" onclick="toggleMod(this)">
       <span class="module-num">15</span>
-      <img src="../ugly-dog-images/dog-3.png" alt="dog">
+      <img src="/ugly-dog-images/dog-3.png" alt="dog">
       <div class="module-header-text">
         <div class="module-title">edtech &amp; online education 🎓</div>
         <div class="module-subtitle">learner cohort × ARPU — completion rate, CAC, B2B ARR</div>
@@ -715,7 +715,7 @@ EBITDA = Gross Margin − Overhead (facilities, G&amp;A, BD)</code>
       <span class="module-toggle">▾</span>
     </div>
     <div class="module-body">
-      <div class="dog-says"><img src="../ugly-dog-images/dog-3.png" alt="dog"><p><strong>Dog #3 says:</strong> "EdTech models look like SaaS but aren't. Content has high upfront cost and low marginal cost. CAC is high (education is a grudge purchase). Completion rates tell you if you'll get word-of-mouth."</p></div>
+      <div class="dog-says"><img src="/ugly-dog-images/dog-3.png" alt="dog"><p><strong>Dog #3 says:</strong> "EdTech models look like SaaS but aren't. Content has high upfront cost and low marginal cost. CAC is high (education is a grudge purchase). Completion rates tell you if you'll get word-of-mouth."</p></div>
       <p class="module-intro">EdTech models blend subscription, course-by-course, and B2B enterprise sales. Content is a depreciating asset — a course launched in 2020 needs refresh spend by 2025. Model content library value alongside subscriber growth and treat content amortization as a real cost, not a non-cash afterthought.</p>
       <div class="formula-box">
         <div class="formula-label">core formula</div>
@@ -736,7 +736,7 @@ LTV = ARPU × Avg Subscription Duration × Gross Margin %</code>
   <div class="module mod-dog4" id="mod-16">
     <div class="module-header" onclick="toggleMod(this)">
       <span class="module-num">16</span>
-      <img src="../ugly-dog-images/dog-4.png" alt="dog">
+      <img src="/ugly-dog-images/dog-4.png" alt="dog">
       <div class="module-header-text">
         <div class="module-title">gaming 🎮</div>
         <div class="module-subtitle">DAU × ARPDAU — retention curves, payer conversion, LTV:CPI</div>
@@ -744,7 +744,7 @@ LTV = ARPU × Avg Subscription Duration × Gross Margin %</code>
       <span class="module-toggle">▾</span>
     </div>
     <div class="module-body">
-      <div class="dog-says"><img src="../ugly-dog-images/dog-4.png" alt="dog"><p><strong>Dog #4 says:</strong> "Gaming models are live-service economics: you launch a game and it's a platform. DAU × ARPDAU is the engine. The question is how many of your DAUs are paying players — and how much."</p></div>
+      <div class="dog-says"><img src="/ugly-dog-images/dog-4.png" alt="dog"><p><strong>Dog #4 says:</strong> "Gaming models are live-service economics: you launch a game and it's a platform. DAU × ARPDAU is the engine. The question is how many of your DAUs are paying players — and how much."</p></div>
       <p class="module-intro">Mobile gaming models use ARPDAU × DAU for live-service titles. The economics pivot on conversion from free to paying — top spenders ("whales") generate the majority of IAP revenue, so whale retention is existential. D1 / D7 / D30 retention curves compound fast: a 1% improvement in D30 retention can double LTV.</p>
       <div class="formula-box">
         <div class="formula-label">core formula</div>
@@ -766,7 +766,7 @@ Payback = CPI / D30 LTV</code>
   <div class="module mod-dog5" id="mod-17">
     <div class="module-header" onclick="toggleMod(this)">
       <span class="module-num">17</span>
-      <img src="../ugly-dog-images/dog-5.png" alt="dog">
+      <img src="/ugly-dog-images/dog-5.png" alt="dog">
       <div class="module-header-text">
         <div class="module-title">real estate &amp; property development 🏢</div>
         <div class="module-subtitle">NOI / cap rate — IRR, DSCR, equity multiple, FFO</div>
@@ -774,7 +774,7 @@ Payback = CPI / D30 LTV</code>
       <span class="module-toggle">▾</span>
     </div>
     <div class="module-body">
-      <div class="dog-says"><img src="../ugly-dog-images/dog-5.png" alt="dog"><p><strong>Dog #5 says:</strong> "Real estate is a cap rate model. NOI / Cap Rate = Value. If cap rates expand by 50bps and your NOI doesn't grow, you just lost 5–8% of asset value. That's the rate risk nobody talks about at the pitch."</p></div>
+      <div class="dog-says"><img src="/ugly-dog-images/dog-5.png" alt="dog"><p><strong>Dog #5 says:</strong> "Real estate is a cap rate model. NOI / Cap Rate = Value. If cap rates expand by 50bps and your NOI doesn't grow, you just lost 5–8% of asset value. That's the rate risk nobody talks about at the pitch."</p></div>
       <p class="module-intro">Real estate models layer three analyses: the property-level NOI model, the project-level development return, and the portfolio / REIT model. The discount rate and cap rate assumptions drive valuation far more than operating assumptions — sensitivity tables on cap rates are mandatory, not optional.</p>
       <div class="formula-box">
         <div class="formula-label">core formula</div>
@@ -796,7 +796,7 @@ Equity Multiple = Total Distributions / Total Equity Invested</code>
   <div class="module mod-dog6" id="mod-18">
     <div class="module-header" onclick="toggleMod(this)">
       <span class="module-num">18</span>
-      <img src="../ugly-dog-images/dog-6.png" alt="dog">
+      <img src="/ugly-dog-images/dog-6.png" alt="dog">
       <div class="module-header-text">
         <div class="module-title">startups &amp; early-stage 🚀</div>
         <div class="module-subtitle">burn rate × runway — headcount-driven, scenario planning, unit economics</div>
@@ -804,7 +804,7 @@ Equity Multiple = Total Distributions / Total Equity Invested</code>
       <span class="module-toggle">▾</span>
     </div>
     <div class="module-body">
-      <div class="dog-says"><img src="../ugly-dog-images/dog-6.png" alt="dog"><p><strong>Dog #6 says:</strong> "A startup model has one job: show how long until you die, and what it takes to not die. Runway × burn rate × milestones. Everything else is fiction dressed up as planning."</p></div>
+      <div class="dog-says"><img src="/ugly-dog-images/dog-6.png" alt="dog"><p><strong>Dog #6 says:</strong> "A startup model has one job: show how long until you die, and what it takes to not die. Runway × burn rate × milestones. Everything else is fiction dressed up as planning."</p></div>
       <p class="module-intro">Startup models are burn-rate models with aspirational upside. Build the bottoms-up cost structure honestly — headcount drives 60–80% of costs. Then layer in revenue scenarios. The key deliverable is a runway analysis showing how different revenue outcomes change your cash-out date and next fundraise timing.</p>
       <div class="formula-box">
         <div class="formula-label">core formula</div>
@@ -827,7 +827,7 @@ CAC Payback = CAC / (ARPU × Gross Margin %)</code>
 
 <!-- ── GOLDEN RULES ── -->
 <div class="golden-rules">
-  <h2><img src="../ugly-dog-images/dog-3.png" alt="dog"> golden rules of financial modeling</h2>
+  <h2><img src="/ugly-dog-images/dog-3.png" alt="dog"> golden rules of financial modeling</h2>
   <ol>
     <li><strong>Build the unit first.</strong> One store, one subscriber, one loan — make unit economics work before scaling to a portfolio. Garbage units make garbage models.</li>
     <li><strong>Separate volume from price.</strong> Revenue surprises are almost always volume × price mix problems. Don't let them hide in a single revenue line.</li>
