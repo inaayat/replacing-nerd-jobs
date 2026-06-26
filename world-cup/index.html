@@ -35,6 +35,15 @@
     /* Position badge in bracket */
     .pos-badge { font-size:9px;font-weight:700;padding:1px 4px;border-radius:3px;white-space:nowrap;flex-shrink:0; }
 
+    /* Pick buttons */
+    .pick-btn { width:100%;padding:5px 8px;display:flex;align-items:center;gap:6px;border:none;background:transparent;cursor:pointer;text-align:left;transition:background .12s; }
+    .pick-btn:hover { background:rgba(42,57,141,.07); }
+    .pick-btn.picked { background:rgba(60,172,59,.15);font-weight:700; }
+    .pick-btn .pick-dot { width:10px;height:10px;border-radius:50%;border:2px solid var(--lgray);flex-shrink:0;transition:all .12s; }
+    .pick-btn.picked .pick-dot { background:var(--green);border-color:var(--green); }
+    .pick-projected { background:rgba(60,172,59,.08);border-left:3px solid var(--green) !important; }
+    .pick-projected .bkt-team { opacity:.75; }
+
     /* Bracket */
     .bkt-col { display:flex;flex-direction:column;flex-shrink:0;padding:0 4px; }
     .bkt-lbl { background:var(--dgray);color:#fff;font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;padding:3px 8px;border-radius:3px;text-align:center;margin-bottom:10px; }
@@ -123,7 +132,10 @@
 
 <!-- Knockout Bracket -->
 <div id="bracket" class="px-8 pb-12">
-  <h2 class="sec-hd mb-3">Knockout Rounds <span style="font-size:11px;font-weight:400;text-transform:none;color:#999;letter-spacing:0">— 1st/2nd position shown as badge</span></h2>
+  <div class="flex items-center justify-between flex-wrap gap-3 mb-3">
+    <h2 class="sec-hd">Knockout Rounds <span style="font-size:11px;font-weight:400;text-transform:none;color:#999;letter-spacing:0">— tap a team to pick winner</span></h2>
+    <button onclick="resetPicks()" class="text-xs font-bold px-3 py-1 rounded border-2 hover:opacity-70 transition-opacity" style="color:var(--red);border-color:var(--red)">✕ Reset picks</button>
+  </div>
   <div class="overflow-x-auto pb-4">
     <div id="bw" style="display:flex;align-items:stretch;min-width:max-content;gap:2px"></div>
   </div>
@@ -245,56 +257,153 @@ function renderGroups() {
   }).join('');
 }
 
+// ── Picks (sample bracket) ────────────────────────────────────────
+let PICKS = JSON.parse(localStorage.getItem('wc26picks') || '{}');
+function savePicks() { localStorage.setItem('wc26picks', JSON.stringify(PICKS)); }
+
+function pick(matchId, team) {
+  if (PICKS[matchId] === team) {
+    delete PICKS[matchId]; // toggle off
+  } else {
+    PICKS[matchId] = team;
+  }
+  savePicks();
+  renderBracket();
+}
+
+function resetPicks() {
+  PICKS = {};
+  savePicks();
+  renderBracket();
+}
+
+// Build projected winner map: matchId → team (from real result or user pick)
+function buildWinnerMap(matches) {
+  const w = {};
+  matches.forEach(m => {
+    if (m.homeGoals !== null && m.awayGoals !== null && m.status === 'FT') {
+      w[m.id] = m.homeGoals > m.awayGoals ? m.home : m.awayGoals > m.homeGoals ? m.away : null;
+    } else if (PICKS[m.id]) {
+      w[m.id] = PICKS[m.id];
+    }
+  });
+  return w;
+}
+
+// Propagate projected teams into unplayed bracket slots
+// matches sorted by date, paired: [0,1]→next[0], [2,3]→next[1], etc.
+function propagate(stageMatches, nextStageMatches, winnerMap) {
+  const sorted = [...stageMatches].sort((a,b)=>new Date(a.date)-new Date(b.date));
+  const nextSorted = [...nextStageMatches].sort((a,b)=>new Date(a.date)-new Date(b.date));
+  sorted.forEach((m, i) => {
+    const winner = winnerMap[m.id];
+    if (!winner) return;
+    const nextIdx = Math.floor(i / 2);
+    const nextM = nextSorted[nextIdx];
+    if (!nextM) return;
+    const slot = i % 2 === 0 ? 'projHome' : 'projAway';
+    if (!nextM.home) nextM[slot] = winner;
+    else if (!nextM.away) nextM[slot] = nextM[slot] || winner;
+    else nextM[slot] = winner; // override projection
+  });
+}
+
 // ── Bracket ───────────────────────────────────────────────────────
 const STAGE_ORDER = ['LAST_32','LAST_16','QUARTER_FINALS','SEMI_FINALS','FINAL'];
 const STAGE_LABEL = {LAST_32:'Round of 32',LAST_16:'Round of 16',QUARTER_FINALS:'Quarterfinals',SEMI_FINALS:'Semifinals',FINAL:'Final',THIRD_PLACE:'3rd Place'};
+const STAGE_SHORT = {LAST_32:'R32',LAST_16:'R16',QUARTER_FINALS:'QF',SEMI_FINALS:'SF',FINAL:'FINAL',THIRD_PLACE:'3rd'};
 
 function renderBracket() {
   const posMap = buildPositionMap();
   const w = document.getElementById('bw');
 
-  function matchCard(m) {
-    const has = m.homeGoals !== null && m.awayGoals !== null;
-    const isL = m.status === 'LIVE' || m.status === 'HT';
-    const isFt = m.status === 'FT';
-    const t1w = has && m.homeGoals > m.awayGoals;
-    const t2w = has && m.awayGoals > m.homeGoals;
-    const bd = isL ? '<span class="badge-lv" style="font-size:7px">LIVE</span>'
-                   : isFt ? '<span class="badge-ft" style="font-size:7px">FT</span>' : '';
-    const stageLbl = STAGE_LABEL[m.stage] || m.stage;
-    const date = fmtDate(m.date);
+  // Deep-clone koFixtures so propagation doesn't mutate originals
+  const ko = koFixtures.map(m => ({...m}));
 
-    function teamRow(name, score, win) {
-      const pos = name && posMap[name] ? `<span class="pos-badge" style="background:rgba(42,57,141,.12);color:var(--navy)">${posMap[name]}</span>` : '';
-      const tbd = !name;
-      return `<div class="bkt-team${win?' win':''}${tbd?' tbd':''}">
+  // Build winner map and propagate projected teams stage by stage
+  const allWinners = buildWinnerMap(ko);
+  const stageList = [...STAGE_ORDER, 'THIRD_PLACE'];
+  stageList.forEach((stage, si) => {
+    const nextStage = stageList[si+1];
+    if (!nextStage) return;
+    const cur = ko.filter(m => m.stage === stage);
+    const next = ko.filter(m => m.stage === nextStage);
+    propagate(cur, next, allWinners);
+  });
+  // Also propagate SF losers into 3rd place
+  const sfMatches = ko.filter(m => m.stage === 'SEMI_FINALS').sort((a,b)=>new Date(a.date)-new Date(b.date));
+  const tpMatch = ko.find(m => m.stage === 'THIRD_PLACE');
+  if (tpMatch) {
+    sfMatches.forEach((m,i) => {
+      const sfW = allWinners[m.id];
+      const sfPicked = PICKS[m.id];
+      const sfTeams = [m.home, m.away].filter(Boolean);
+      const loser = sfW ? sfTeams.find(t => t !== sfW) : (sfPicked ? sfTeams.find(t => t !== sfPicked) : null);
+      if (loser) { if (i===0) tpMatch.projHome=loser; else tpMatch.projAway=loser; }
+    });
+  }
+
+  function matchCard(m) {
+    const has = m.homeGoals !== null && m.awayGoals !== null && m.status === 'FT';
+    const isL = m.status === 'LIVE' || m.status === 'HT';
+    const realT1w = has && m.homeGoals > m.awayGoals;
+    const realT2w = has && m.awayGoals > m.homeGoals;
+    const unplayed = !has && !isL;
+    const picked1 = unplayed && PICKS[m.id] === m.home;
+    const picked2 = unplayed && PICKS[m.id] === m.away;
+    const bd = isL ? '<span class="badge-lv" style="font-size:7px">LIVE</span>'
+                   : has ? '<span class="badge-ft" style="font-size:7px">FT</span>' : '';
+    const lbl = STAGE_SHORT[m.stage] || m.stage;
+    const date = fmtDate(m.date);
+    const isProjected = !m.home && m.projHome;
+
+    function teamRow(name, projName, score, realWin, isPicked, isOtherPicked, slot) {
+      const displayName = name || projName;
+      const isProj = !name && projName;
+      const pos = displayName && posMap[displayName]
+        ? `<span class="pos-badge" style="background:rgba(42,57,141,.12);color:var(--navy)">${posMap[displayName]}</span>` : '';
+      const winCls = realWin ? ' win' : '';
+      const tbd = !displayName;
+
+      if (unplayed && displayName) {
+        // Clickable pick button
+        return `<button class="pick-btn${isPicked?' picked':''}" onclick="pick(${m.id},'${displayName.replace(/'/g,"\\'")}')">
+          <span class="pick-dot"></span>
+          ${fl(displayName,false)}
+          <span style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${displayName}${isProj?' <em style="font-size:9px;color:#999">(proj.)</em>':''}</span>
+          ${pos}
+        </button>`;
+      }
+      return `<div class="bkt-team${winCls}${tbd?' tbd':''}">
         <div style="display:flex;align-items:center;gap:5px;overflow:hidden;min-width:0;flex:1">
-          ${name?fl(name,false):''}
-          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px">${name||'TBD'}</span>
+          ${displayName?fl(displayName,false):''}
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px">${displayName||'TBD'}</span>
           ${pos}
         </div>
         ${has?`<span class="bscore">${score}</span>`:''}
       </div>`;
     }
-    return `<div class="bkt-match">
-      <div class="bkt-date"><span>${stageLbl.replace('Round of ','R').replace('Quarter','QF').replace('Semi','SF').replace('inals','').replace('Rinals','') } · ${date}</span>${bd}</div>
-      ${teamRow(m.home, has?m.homeGoals:'', t1w)}
-      ${teamRow(m.away, has?m.awayGoals:'', t2w)}
+
+    const projCls = isProjected ? ' pick-projected' : '';
+    return `<div class="bkt-match${projCls}" style="border:2px solid var(--lgray);border-radius:6px;overflow:hidden;background:#fff">
+      <div class="bkt-date"><span>${lbl} · ${date}</span>${bd}</div>
+      ${teamRow(m.home, m.projHome, has?m.homeGoals:'', realT1w, picked1, picked2, 'home')}
+      <div style="border-bottom:1px solid var(--lgray)"></div>
+      ${teamRow(m.away, m.projAway, has?m.awayGoals:'', realT2w, picked2, picked1, 'away')}
     </div>`;
   }
 
   const cols = STAGE_ORDER.map(stage => {
-    const ms = koFixtures.filter(m => m.stage === stage);
+    const ms = ko.filter(m => m.stage === stage).sort((a,b)=>new Date(a.date)-new Date(b.date));
     if (!ms.length) return '';
-    return `<div class="bkt-col" style="width:195px">
+    return `<div class="bkt-col" style="width:200px">
       <div class="bkt-lbl">${STAGE_LABEL[stage]}</div>
       <div class="bkt-matches">${ms.map(matchCard).join('')}</div>
     </div>`;
   }).join('');
 
-  // 3rd place
-  const tp = koFixtures.find(m => m.stage === 'THIRD_PLACE');
-  const tpCol = tp ? `<div class="bkt-col" style="width:195px">
+  const tp = ko.find(m => m.stage === 'THIRD_PLACE');
+  const tpCol = tp ? `<div class="bkt-col" style="width:200px">
     <div class="bkt-lbl">3rd Place</div>
     <div style="margin-top:auto">${matchCard(tp)}</div>
   </div>` : '';
