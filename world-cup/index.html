@@ -681,15 +681,14 @@ function renderBracket() {
     if (!ms.length) return '';
     const isFinal = stage === 'FINAL';
     const tpHtml = isFinal && tp
-      ? `<div style="margin-top:10px">
+      ? `<div style="margin-top:10px;padding-top:10px;border-top:2px dashed var(--lgray)">
            <div class="bkt-lbl" style="background:rgba(71,74,74,.6);margin-bottom:6px">3rd Place</div>
            ${matchCard(tp)}
          </div>`
       : '';
     return `<div class="bkt-col" style="flex:1;min-width:0">
       <div class="bkt-lbl">${STAGE_LABEL[stage]}</div>
-      <div class="bkt-matches">${ms.map(matchCard).join('')}</div>
-      ${tpHtml}
+      <div class="bkt-matches">${ms.map(matchCard).join('')}${tpHtml}</div>
     </div>`;
   }).join('');
 
