@@ -401,6 +401,10 @@ function getSlotCandidates(slotDef, alreadyPlaced) {
 
 // ── Slot fills: user places a team into a TBD slot from "who?" panel ──
 let SLOT_FILLS = JSON.parse(localStorage.getItem('wc26fills') || '{}');
+// Migrate old format (string values) to new format ({home,away} objects)
+Object.keys(SLOT_FILLS).forEach(k => {
+  if (typeof SLOT_FILLS[k] === 'string') delete SLOT_FILLS[k];
+});
 function saveSlotFills() { localStorage.setItem('wc26fills', JSON.stringify(SLOT_FILLS)); }
 
 // slot: 'home' | 'away'
@@ -797,9 +801,9 @@ let lastFetched = 0;
 const CACHE_MS = 30 * 60 * 1000;
 
 function renderAll() {
-  renderGroups();
-  renderBracket();
-  renderSummary();
+  try { renderGroups(); } catch(e) { console.error('renderGroups', e); }
+  try { renderBracket(); } catch(e) { console.error('renderBracket', e); }
+  try { renderSummary(); } catch(e) { console.error('renderSummary', e); }
 }
 
 async function loadData(force = false) {
