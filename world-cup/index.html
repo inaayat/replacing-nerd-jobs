@@ -541,12 +541,9 @@ async function loadData(force = false) {
   renderBracket();
 }
 
-// Render with empty data on first load — user hits Refresh to pull live data
-renderGroups();
-renderBracket();
-document.getElementById('lu').textContent = 'Hit ↻ Refresh to load live data';
-// Background re-fetch every 30 min if data has already been loaded once
-setInterval(() => { if (lastFetched > 0) loadData(false); }, 30 * 60 * 1000);
+// Load immediately on page open, then every 30 min
+loadData(true);
+setInterval(() => loadData(false), 30 * 60 * 1000);
 </script>
 </body>
 </html>
