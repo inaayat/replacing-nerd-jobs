@@ -48,7 +48,7 @@ const KO_VENUES = {
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Cache-Control', 'public, max-age=1800');
+  res.setHeader('Cache-Control', 'no-store');
 
   if (!process.env.FOOTBALL_DATA_KEY) {
     return res.status(503).json({ error: 'FOOTBALL_DATA_KEY not configured' });
