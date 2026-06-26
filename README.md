@@ -70,11 +70,14 @@ ugly-cat-images/
 
 `middleware.js` intercepts requests to `/private/*` and `/api/gddy-statements/*`. Login/logout are handled by the serverless functions in `/api/`.
 
-## website inspo & resources
+## website inspo
 
 - [zachjordan.io](https://www.zachjordan.io/#extras)
 - [sumanthsamala.com](https://sumanthsamala.com/)
-- [Free Icons Reddit Listing](https://www.reddit.com/r/web_design/comments/16pa3v6/websites_for_free_icon_sets/)
+
+## website resources
+- [Free Icons](https://www.reddit.com/r/web_design/comments/16pa3v6/websites_for_free_icon_sets/)
+- [Website Color Schemes](https://visme.co/blog/website-color-schemes/)
 
 ## deploy
 
