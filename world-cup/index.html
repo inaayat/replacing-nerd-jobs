@@ -7,32 +7,324 @@
   <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png" />
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #F0EBF4; }
+    :root { --green:#3CAC3B; --navy:#2A398D; --red:#E61D25; --lgray:#D1D4D1; --dgray:#474A4A; }
+    body { font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:#f5f5f4; }
+    .fi { height:13px; width:auto; border-radius:2px; border:1px solid #ddd; flex-shrink:0; }
+    .fi-sm { height:11px; width:auto; border-radius:1px; border:1px solid #ddd; flex-shrink:0; }
+    .grp-card { background:#fff; border:2px solid var(--lgray); border-radius:8px; overflow:hidden; }
+    .grp-head { background:var(--navy); color:#fff; padding:6px 12px; font-weight:800; font-size:13px; letter-spacing:.5px; }
+    .grp-table { width:100%; border-collapse:collapse; }
+    .grp-table th { background:var(--lgray); color:var(--dgray); padding:3px 6px; font-weight:700; text-align:center; font-size:10px; white-space:nowrap; }
+    .grp-table th:first-child { text-align:left; }
+    .grp-table td { padding:3px 6px; text-align:center; border-bottom:1px solid #f0f0f0; font-size:11px; }
+    .grp-table td:first-child { text-align:left; font-weight:600; }
+    .grp-table tr.q1 td, .grp-table tr.q2 td { border-left:3px solid var(--green); }
+    .grp-table tr.q3 td { border-left:3px solid #f59e0b; }
+    .mrow { display:flex; justify-content:space-between; align-items:center; padding:3px 8px; font-size:11px; border-top:1px solid #f5f5f5; gap:4px; }
+    .tn { font-weight:600; color:var(--dgray); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:76px; }
+    .tn.win { color:var(--green); }
+    .sc { background:var(--navy); color:#fff; padding:1px 5px; border-radius:3px; font-weight:700; font-size:11px; white-space:nowrap; }
+    .sc.lv { background:var(--red); }
+    .blive { background:var(--red); color:#fff; font-size:8px; font-weight:700; padding:1px 3px; border-radius:2px; }
+    .bft   { background:var(--lgray); color:var(--dgray); font-size:8px; font-weight:700; padding:1px 3px; border-radius:2px; }
+    .bm { background:#fff; border:2px solid var(--lgray); border-radius:6px; overflow:hidden; }
+    .bmhd { background:rgba(42,57,141,.08); padding:2px 7px; font-size:9px; font-weight:700; color:var(--dgray); display:flex; justify-content:space-between; align-items:center; }
+    .bmt { padding:4px 7px; display:flex; justify-content:space-between; align-items:center; gap:5px; border-bottom:1px solid var(--lgray); }
+    .bmt:last-child { border-bottom:none; }
+    .bmt.win { background:var(--green); color:#fff; font-weight:700; }
+    .bmt.tbd { color:#bbb; font-style:italic; }
+    .bmt .bs { background:var(--navy); color:#fff; padding:1px 5px; border-radius:3px; font-weight:700; font-size:10px; min-width:16px; text-align:center; }
+    .bmt.win .bs { background:rgba(0,0,0,.22); }
+    .rcol { display:flex; flex-direction:column; flex-shrink:0; padding:0 5px; }
+    .rlbl { background:var(--dgray); color:#fff; font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:3px 8px; border-radius:3px; text-align:center; margin-bottom:8px; white-space:nowrap; }
+    .rms { display:flex; flex-direction:column; justify-content:space-around; flex:1; gap:6px; }
   </style>
 </head>
 <body class="text-gray-900 min-h-screen flex flex-col">
 
-  <!-- Nav -->
-  <nav class="px-8 py-4 flex items-center justify-between sticky top-0 z-10" style="background:#f267a0;">
-    <a href="/" class="font-extrabold text-2xl rounded-md border-4 border-white text-white select-none p-2 no-underline">Beep boop</a>
-    <div class="flex items-center gap-8">
-      <a href="#projects" class="text-xl font-extrabold text-white no-underline opacity-80 hover:opacity-100">Projects</a>
-      <a href="/archive/" class="text-xl font-extrabold text-white no-underline opacity-80 hover:opacity-100">Archive</a>
-    </div>
-  </nav>
-
-  <!-- Content -->
-  <div class="flex-grow flex flex-col items-center justify-center text-center px-8 gap-6">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="64" height="64" class="opacity-30">
-      <path d="M451 292.3C446.6 289.5 443.4 285.3 441.8 280.4C440.2 275.5 440.4 270.2 442.3 265.4L475.6 182C455.7 159.6 431 141.5 403.2 129.3L334.1 186.9C330.1 190.2 325.1 192 320 192C314.9 192 309.8 190.2 305.9 186.9L236.8 129.3C209 141.5 184.3 159.6 164.4 182L197.8 265.4C199.7 270.2 199.9 275.5 198.3 280.4C196.7 285.3 193.4 289.5 189.1 292.3L113 340.2C116 371.1 125.7 399.9 140.6 425.4L230.3 419.4C235.5 419.1 240.6 420.5 244.8 423.6C249 426.7 252 431 253.2 436.1L275.2 523.3C289.6 526.5 304.6 528.1 320 528.1C335.4 528.1 350.3 526.4 364.8 523.3L386.8 436.1C388.1 431.1 391 426.7 395.2 423.6C399.4 420.5 404.5 419.1 409.7 419.4L499.4 425.4C514.4 400 524.1 371.1 527 340.3L451 292.3zM320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576C178.6 576 64 461.4 64 320C64 178.6 178.6 64 320 64zM382 285C390.4 291.1 393.9 301.9 390.7 311.8L372.4 368.1C369.2 378 360 384.7 349.6 384.7L290.4 384.7C280 384.7 270.8 378 267.6 368.1L249.3 311.8C246.1 301.9 249.6 291.1 258 285L305.9 250.2C314.3 244.1 325.7 244.1 334.1 250.2L382 285z"/>
-    </svg>
-    <h1 class="text-4xl font-extrabold text-gray-900">World Cup 2026</h1>
-    <p class="text-lg text-gray-500 font-medium">Coming soon.</p>
-    <a href="https://www.inaayat.xyz/archive/world-cup/" target="_blank"
-       class="inline-flex items-center gap-2 px-5 py-3 rounded-lg border-4 border-gray-900 bg-white font-extrabold text-gray-900 no-underline hover:bg-gray-100 transition-colors">
-      Check out my first try →
-    </a>
+<nav class="px-8 py-4 flex items-center justify-between sticky top-0 z-10" style="background:#f267a0;">
+  <a href="/" class="font-extrabold text-2xl rounded-md border-4 border-white text-white select-none p-2 no-underline">Beep boop</a>
+  <div class="flex items-center gap-6">
+    <a href="#groups" class="text-lg font-extrabold text-white no-underline opacity-80 hover:opacity-100">Groups</a>
+    <a href="#bracket" class="text-lg font-extrabold text-white no-underline opacity-80 hover:opacity-100">Bracket</a>
   </div>
+</nav>
 
+<div class="px-8 pt-8 pb-4">
+  <div class="flex items-center gap-4 flex-wrap">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="34" height="34" style="fill:var(--navy)"><path d="M451 292.3C446.6 289.5 443.4 285.3 441.8 280.4C440.2 275.5 440.4 270.2 442.3 265.4L475.6 182C455.7 159.6 431 141.5 403.2 129.3L334.1 186.9C330.1 190.2 325.1 192 320 192C314.9 192 309.8 190.2 305.9 186.9L236.8 129.3C209 141.5 184.3 159.6 164.4 182L197.8 265.4C199.7 270.2 199.9 275.5 198.3 280.4C196.7 285.3 193.4 289.5 189.1 292.3L113 340.2C116 371.1 125.7 399.9 140.6 425.4L230.3 419.4C235.5 419.1 240.6 420.5 244.8 423.6C249 426.7 252 431 253.2 436.1L275.2 523.3C289.6 526.5 304.6 528.1 320 528.1C335.4 528.1 350.3 526.4 364.8 523.3L386.8 436.1C388.1 431.1 391 426.7 395.2 423.6C399.4 420.5 404.5 419.1 409.7 419.4L499.4 425.4C514.4 400 524.1 371.1 527 340.3L451 292.3zM320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576C178.6 576 64 461.4 64 320C64 178.6 178.6 64 320 64zM382 285C390.4 291.1 393.9 301.9 390.7 311.8L372.4 368.1C369.2 378 360 384.7 349.6 384.7L290.4 384.7C280 384.7 270.8 378 267.6 368.1L249.3 311.8C246.1 301.9 249.6 291.1 258 285L305.9 250.2C314.3 244.1 325.7 244.1 334.1 250.2L382 285z"/></svg>
+    <div>
+      <h1 class="text-4xl font-extrabold" style="color:var(--navy)">World Cup 2026</h1>
+      <p class="text-sm font-medium" style="color:var(--dgray)">48 teams · Jun 11 – Jul 19 · USA, Canada &amp; Mexico</p>
+    </div>
+    <div class="ml-auto flex items-center gap-3">
+      <span id="lu" class="text-xs" style="color:#999"></span>
+      <button onclick="go()" class="text-xs font-bold px-3 py-1 rounded border-2 hover:opacity-70 transition-opacity" style="color:var(--navy);border-color:var(--navy)">↻ Refresh</button>
+    </div>
+  </div>
+  <div class="flex gap-5 mt-3 flex-wrap text-xs font-semibold" style="color:var(--dgray)">
+    <span class="flex items-center gap-1"><span class="inline-block w-2.5 h-2.5 rounded-sm" style="background:var(--green)"></span>Qualified (top 2)</span>
+    <span class="flex items-center gap-1"><span class="inline-block w-2.5 h-2.5 rounded-sm" style="background:#f59e0b"></span>Potential best 3rd</span>
+    <span class="flex items-center gap-1"><span class="blive">LIVE</span>In progress</span>
+    <span class="flex items-center gap-1"><span class="bft">FT</span>Final score</span>
+  </div>
+</div>
+
+<div id="groups" class="px-8 pt-6 pb-2">
+  <h2 class="text-lg font-extrabold mb-3" style="color:var(--dgray)">Group Stage</h2>
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3" id="gg"></div>
+</div>
+
+<div id="bracket" class="px-8 pt-8 pb-12">
+  <h2 class="text-lg font-extrabold mb-3" style="color:var(--dgray)">Knockout Rounds</h2>
+  <div class="overflow-x-auto pb-4">
+    <div id="bw" style="display:flex;align-items:stretch;min-width:max-content"></div>
+  </div>
+</div>
+
+<script>
+const F={
+  "Mexico":"mx","South Africa":"za","South Korea":"kr","Canada":"ca","Qatar":"qa",
+  "Switzerland":"ch","Brazil":"br","Haiti":"ht","Scotland":"gb-sct","Morocco":"ma",
+  "United States":"us","Australia":"au","Paraguay":"py","Germany":"de","Curacao":"cw",
+  "Ivory Coast":"ci","Ecuador":"ec","Netherlands":"nl","Japan":"jp","Tunisia":"tn",
+  "Belgium":"be","Iran":"ir","New Zealand":"nz","Egypt":"eg","Spain":"es",
+  "Uruguay":"uy","Saudi Arabia":"sa","Cape Verde":"cv","France":"fr","Norway":"no",
+  "Senegal":"sn","Argentina":"ar","Algeria":"dz","Austria":"at","Jordan":"jo",
+  "Portugal":"pt","Colombia":"co","Uzbekistan":"uz","England":"gb-eng","Croatia":"hr",
+  "Ghana":"gh","Panama":"pa",
+};
+const fi=(n,sm)=>{const c=F[n];return c?`<img class="${sm?'fi-sm':'fi'}" src="https://flagcdn.com/w40/${c}.png" alt="${n}" loading="lazy">`:'';};
+
+const GM=[
+  {n:1,g:"A",d:"Jun 11",t1:"Mexico",        t2:"South Africa"},
+  {n:2,g:"A",d:"Jun 11",t1:"South Korea",   t2:"UEFA D"},
+  {n:3,g:"B",d:"Jun 12",t1:"Canada",        t2:"UEFA A"},
+  {n:4,g:"D",d:"Jun 12",t1:"United States", t2:"Paraguay"},
+  {n:5,g:"C",d:"Jun 13",t1:"Haiti",         t2:"Scotland"},
+  {n:6,g:"D",d:"Jun 13",t1:"Australia",     t2:"UEFA C"},
+  {n:7,g:"C",d:"Jun 13",t1:"Brazil",        t2:"Morocco"},
+  {n:8,g:"B",d:"Jun 13",t1:"Qatar",         t2:"Switzerland"},
+  {n:9,g:"E",d:"Jun 14",t1:"Ivory Coast",   t2:"Ecuador"},
+  {n:10,g:"E",d:"Jun 14",t1:"Germany",      t2:"Curacao"},
+  {n:11,g:"F",d:"Jun 14",t1:"Netherlands",  t2:"Japan"},
+  {n:12,g:"F",d:"Jun 14",t1:"UEFA B",       t2:"Tunisia"},
+  {n:13,g:"H",d:"Jun 15",t1:"Saudi Arabia", t2:"Uruguay"},
+  {n:14,g:"H",d:"Jun 15",t1:"Spain",        t2:"Cape Verde"},
+  {n:15,g:"G",d:"Jun 15",t1:"Iran",         t2:"New Zealand"},
+  {n:16,g:"G",d:"Jun 15",t1:"Belgium",      t2:"Egypt"},
+  {n:17,g:"I",d:"Jun 16",t1:"France",       t2:"Senegal"},
+  {n:18,g:"I",d:"Jun 16",t1:"FIFA 2",       t2:"Norway"},
+  {n:19,g:"J",d:"Jun 16",t1:"Argentina",    t2:"Algeria"},
+  {n:20,g:"J",d:"Jun 16",t1:"Austria",      t2:"Jordan"},
+  {n:21,g:"L",d:"Jun 17",t1:"England",      t2:"Croatia"},
+  {n:22,g:"L",d:"Jun 17",t1:"Ghana",        t2:"Panama"},
+  {n:23,g:"K",d:"Jun 17",t1:"Portugal",     t2:"FIFA 1"},
+  {n:24,g:"K",d:"Jun 17",t1:"Uzbekistan",   t2:"Colombia"},
+  {n:25,g:"A",d:"Jun 18",t1:"UEFA D",       t2:"South Africa"},
+  {n:26,g:"B",d:"Jun 18",t1:"Switzerland",  t2:"UEFA A"},
+  {n:27,g:"B",d:"Jun 18",t1:"Canada",       t2:"Qatar"},
+  {n:28,g:"A",d:"Jun 18",t1:"Mexico",       t2:"South Korea"},
+  {n:29,g:"C",d:"Jun 19",t1:"Brazil",       t2:"Haiti"},
+  {n:30,g:"C",d:"Jun 19",t1:"Scotland",     t2:"Morocco"},
+  {n:31,g:"D",d:"Jun 19",t1:"UEFA C",       t2:"Paraguay"},
+  {n:32,g:"D",d:"Jun 19",t1:"United States",t2:"Australia"},
+  {n:33,g:"E",d:"Jun 20",t1:"Germany",      t2:"Ivory Coast"},
+  {n:34,g:"E",d:"Jun 20",t1:"Ecuador",      t2:"Curacao"},
+  {n:35,g:"F",d:"Jun 20",t1:"Netherlands",  t2:"UEFA B"},
+  {n:36,g:"F",d:"Jun 20",t1:"Tunisia",      t2:"Japan"},
+  {n:37,g:"H",d:"Jun 21",t1:"Uruguay",      t2:"Cape Verde"},
+  {n:38,g:"H",d:"Jun 21",t1:"Spain",        t2:"Saudi Arabia"},
+  {n:39,g:"G",d:"Jun 21",t1:"Belgium",      t2:"Iran"},
+  {n:40,g:"G",d:"Jun 21",t1:"New Zealand",  t2:"Egypt"},
+  {n:41,g:"I",d:"Jun 22",t1:"Norway",       t2:"Senegal"},
+  {n:42,g:"I",d:"Jun 22",t1:"France",       t2:"FIFA 2"},
+  {n:43,g:"J",d:"Jun 22",t1:"Argentina",    t2:"Austria"},
+  {n:44,g:"J",d:"Jun 22",t1:"Jordan",       t2:"Algeria"},
+  {n:45,g:"L",d:"Jun 23",t1:"England",      t2:"Ghana"},
+  {n:46,g:"L",d:"Jun 23",t1:"Panama",       t2:"Croatia"},
+  {n:47,g:"K",d:"Jun 23",t1:"Portugal",     t2:"Uzbekistan"},
+  {n:48,g:"K",d:"Jun 23",t1:"Colombia",     t2:"FIFA 1"},
+  {n:49,g:"C",d:"Jun 24",t1:"Scotland",     t2:"Brazil"},
+  {n:50,g:"C",d:"Jun 24",t1:"Morocco",      t2:"Haiti"},
+  {n:51,g:"B",d:"Jun 24",t1:"Switzerland",  t2:"Canada"},
+  {n:52,g:"B",d:"Jun 24",t1:"UEFA A",       t2:"Qatar"},
+  {n:53,g:"A",d:"Jun 24",t1:"UEFA D",       t2:"Mexico"},
+  {n:54,g:"A",d:"Jun 24",t1:"South Africa", t2:"South Korea"},
+  {n:55,g:"E",d:"Jun 25",t1:"Curacao",      t2:"Ivory Coast"},
+  {n:56,g:"E",d:"Jun 25",t1:"Ecuador",      t2:"Germany"},
+  {n:57,g:"F",d:"Jun 25",t1:"Japan",        t2:"UEFA B"},
+  {n:58,g:"F",d:"Jun 25",t1:"Tunisia",      t2:"Netherlands"},
+  {n:59,g:"D",d:"Jun 25",t1:"UEFA C",       t2:"United States"},
+  {n:60,g:"D",d:"Jun 25",t1:"Paraguay",     t2:"Australia"},
+  {n:61,g:"I",d:"Jun 26",t1:"Norway",       t2:"France"},
+  {n:62,g:"I",d:"Jun 26",t1:"Senegal",      t2:"FIFA 2"},
+  {n:63,g:"G",d:"Jun 26",t1:"Egypt",        t2:"Iran"},
+  {n:64,g:"G",d:"Jun 26",t1:"New Zealand",  t2:"Belgium"},
+  {n:65,g:"H",d:"Jun 26",t1:"Cape Verde",   t2:"Saudi Arabia"},
+  {n:66,g:"H",d:"Jun 26",t1:"Uruguay",      t2:"Spain"},
+  {n:67,g:"L",d:"Jun 27",t1:"Panama",       t2:"England"},
+  {n:68,g:"L",d:"Jun 27",t1:"Croatia",      t2:"Ghana"},
+  {n:69,g:"J",d:"Jun 27",t1:"Algeria",      t2:"Austria"},
+  {n:70,g:"J",d:"Jun 27",t1:"Jordan",       t2:"Argentina"},
+  {n:71,g:"K",d:"Jun 27",t1:"Colombia",     t2:"Portugal"},
+  {n:72,g:"K",d:"Jun 27",t1:"FIFA 1",       t2:"Uzbekistan"},
+];
+
+const GRP={
+  A:["Mexico","South Korea","South Africa","UEFA D"],
+  B:["Canada","Qatar","Switzerland","UEFA A"],
+  C:["Brazil","Haiti","Scotland","Morocco"],
+  D:["United States","Australia","Paraguay","UEFA C"],
+  E:["Germany","Ivory Coast","Ecuador","Curacao"],
+  F:["Netherlands","Japan","Tunisia","UEFA B"],
+  G:["Belgium","Iran","New Zealand","Egypt"],
+  H:["Spain","Uruguay","Saudi Arabia","Cape Verde"],
+  I:["France","Norway","Senegal","FIFA 2"],
+  J:["Argentina","Algeria","Austria","Jordan"],
+  K:["Portugal","Colombia","Uzbekistan","FIFA 1"],
+  L:["England","Croatia","Ghana","Panama"],
+};
+
+const KO=[
+  {n:73,s:"R32",d:"Jun 28",t1:"1A",  t2:"3C/D/E"},
+  {n:74,s:"R32",d:"Jun 29",t1:"1E",  t2:"3A/B/C"},
+  {n:75,s:"R32",d:"Jun 29",t1:"1F",  t2:"2J"},
+  {n:76,s:"R32",d:"Jun 29",t1:"1C",  t2:"3G/H/I"},
+  {n:77,s:"R32",d:"Jun 30",t1:"1I",  t2:"3D/E/F"},
+  {n:78,s:"R32",d:"Jun 30",t1:"1D",  t2:"2C"},
+  {n:79,s:"R32",d:"Jun 30",t1:"1A",  t2:"2B"},
+  {n:80,s:"R32",d:"Jul 1", t1:"1L",  t2:"3A/B/L"},
+  {n:81,s:"R32",d:"Jul 1", t1:"1D",  t2:"2G"},
+  {n:82,s:"R32",d:"Jul 1", t1:"1G",  t2:"3B/C/F"},
+  {n:83,s:"R32",d:"Jul 2", t1:"1K",  t2:"2L"},
+  {n:84,s:"R32",d:"Jul 2", t1:"1H",  t2:"2A"},
+  {n:85,s:"R32",d:"Jul 2", t1:"1B",  t2:"2K"},
+  {n:86,s:"R32",d:"Jul 3", t1:"1J",  t2:"2H"},
+  {n:87,s:"R32",d:"Jul 3", t1:"1K",  t2:"2I"},
+  {n:88,s:"R32",d:"Jul 3", t1:"1G",  t2:"2D"},
+  {n:89,s:"R16",d:"Jul 4", t1:"W74", t2:"W73"},
+  {n:90,s:"R16",d:"Jul 4", t1:"W75", t2:"W76"},
+  {n:91,s:"R16",d:"Jul 5", t1:"W78", t2:"W77"},
+  {n:92,s:"R16",d:"Jul 5", t1:"W79", t2:"W80"},
+  {n:93,s:"R16",d:"Jul 6", t1:"W84", t2:"W81"},
+  {n:94,s:"R16",d:"Jul 6", t1:"W82", t2:"W83"},
+  {n:95,s:"R16",d:"Jul 7", t1:"W88", t2:"W87"},
+  {n:96,s:"R16",d:"Jul 7", t1:"W85", t2:"W86"},
+  {n:97,s:"QF", d:"Jul 9", t1:"W89", t2:"W90"},
+  {n:98,s:"QF", d:"Jul 10",t1:"W93", t2:"W94"},
+  {n:99,s:"QF", d:"Jul 11",t1:"W91", t2:"W92"},
+  {n:100,s:"QF",d:"Jul 11",t1:"W95", t2:"W96"},
+  {n:101,s:"SF",d:"Jul 14",t1:"W97", t2:"W98"},
+  {n:102,s:"SF",d:"Jul 15",t1:"W99", t2:"W100"},
+  {n:103,s:"3P",d:"Jul 18",t1:"L101",t2:"L102"},
+  {n:104,s:"F", d:"Jul 19",t1:"W101",t2:"W102"},
+];
+
+const LV={};
+
+function stand(grp){
+  const s={};GRP[grp].forEach(t=>s[t]={p:0,w:0,d:0,l:0,gf:0,ga:0,gd:0,pts:0});
+  GM.filter(m=>m.g===grp).forEach(m=>{
+    const v=LV[m.n];if(!v||v.g1===null||v.g1===''||v.g2===null||v.g2==='')return;
+    const a=+v.g1,b=+v.g2;if(isNaN(a)||isNaN(b)||!s[m.t1]||!s[m.t2])return;
+    s[m.t1].p++;s[m.t2].p++;s[m.t1].gf+=a;s[m.t1].ga+=b;s[m.t1].gd+=a-b;
+    s[m.t2].gf+=b;s[m.t2].ga+=a;s[m.t2].gd+=b-a;
+    if(a>b){s[m.t1].w++;s[m.t1].pts+=3;s[m.t2].l++;}
+    else if(a<b){s[m.t2].w++;s[m.t2].pts+=3;s[m.t1].l++;}
+    else{s[m.t1].d++;s[m.t1].pts++;s[m.t2].d++;s[m.t2].pts++;}
+  });
+  return Object.entries(s).map(([nm,v])=>({nm,...v}))
+    .sort((a,b)=>b.pts-a.pts||b.gd-a.gd||b.gf-a.gf||a.nm.localeCompare(b.nm));
+}
+
+function rGrps(){
+  document.getElementById('gg').innerHTML=Object.keys(GRP).map(grp=>{
+    const st=stand(grp);
+    const rows=st.map((t,i)=>{
+      const cl=i<2?'q'+(i+1):i===2?'q3':'';
+      const gd=t.p?(t.gd>0?'+'+t.gd:String(t.gd)):'—';
+      const gc=t.gd>0?'var(--green)':t.gd<0?'var(--red)':'inherit';
+      return `<tr class="${cl}"><td><div style="display:flex;align-items:center;gap:5px">${fi(t.nm,true)}<span>${t.nm}</span></div></td>
+        <td>${t.p}</td><td>${t.w}</td><td>${t.d}</td><td>${t.l}</td><td>${t.gf}</td><td>${t.ga}</td>
+        <td style="font-weight:700;color:${gc}">${gd}</td><td style="font-weight:800">${t.pts}</td></tr>`;
+    }).join('');
+    const ms=GM.filter(m=>m.g===grp).map(m=>{
+      const v=LV[m.n];
+      const has=v&&v.g1!==null&&v.g1!==''&&v.g2!==null&&v.g2!=='';
+      const isL=v&&v.st==='live',isF=v&&v.st==='FT';
+      const t1w=has&&+v.g1>+v.g2,t2w=has&&+v.g2>+v.g1;
+      const bd=isL?'<span class="blive">LIVE</span>':isF?'<span class="bft">FT</span>':'';
+      const sc=has?`<span class="sc${isL?' lv':''}">${v.g1}–${v.g2}</span>`:`<span style="font-size:10px;color:#bbb">${m.d}</span>`;
+      return `<div class="mrow">
+        <div style="display:flex;align-items:center;gap:4px;flex:1;overflow:hidden;min-width:0">
+          ${fi(m.t1,true)}<span class="tn${t1w?' win':''}">${m.t1}</span>
+          <span style="color:#ccc;font-size:10px;flex-shrink:0">vs</span>
+          ${fi(m.t2,true)}<span class="tn${t2w?' win':''}">${m.t2}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:3px;flex-shrink:0">${bd}${sc}</div>
+      </div>`;
+    }).join('');
+    return `<div class="grp-card">
+      <div class="grp-head">Group ${grp}</div>
+      <table class="grp-table"><thead><tr>
+        <th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th>
+      </tr></thead><tbody>${rows}</tbody></table>
+      <div style="padding:2px 0">${ms}</div>
+    </div>`;
+  }).join('');
+}
+
+function bm(m){
+  const v=LV[m.n];
+  const has=v&&v.g1!==null&&v.g1!==''&&v.g2!==null&&v.g2!=='';
+  const isL=v&&v.st==='live',isF=v&&v.st==='FT';
+  const t1w=has&&+v.g1>+v.g2,t2w=has&&+v.g2>+v.g1;
+  const sl={R32:'R32',R16:'R16',QF:'QF',SF:'SF','3P':'3rd',F:'⚽ FINAL'}[m.s]||m.s;
+  const bd=isL?'<span class="blive" style="font-size:7px">LIVE</span>':isF?'<span class="bft" style="font-size:7px">FT</span>':'';
+  const tr=(t,sc,win)=>`<div class="bmt${win?' win':''}${!t1w&&!t2w&&!has?' tbd':''}">
+    <div style="display:flex;align-items:center;gap:5px;overflow:hidden;min-width:0">
+      ${fi(t,false)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px">${t}</span>
+    </div>${has?`<span class="bs">${sc}</span>`:''}
+  </div>`;
+  return `<div class="bm"><div class="bmhd"><span>${sl} · ${m.d}</span>${bd}</div>${tr(m.t1,has?v.g1:'',t1w)}${tr(m.t2,has?v.g2:'',t2w)}</div>`;
+}
+
+function rKo(){
+  const w=document.getElementById('bw');
+  const rounds=[
+    {l:'Round of 32',ms:KO.filter(m=>m.s==='R32')},
+    {l:'Round of 16',ms:KO.filter(m=>m.s==='R16')},
+    {l:'Quarterfinals',ms:KO.filter(m=>m.s==='QF')},
+    {l:'Semifinals',ms:KO.filter(m=>m.s==='SF')},
+    {l:'Final',ms:KO.filter(m=>m.s==='F')},
+  ];
+  const cols=rounds.map(r=>`<div class="rcol" style="width:182px"><div class="rlbl">${r.l}</div><div class="rms">${r.ms.map(bm).join('')}</div></div>`).join('');
+  const tp=KO.find(m=>m.s==='3P');
+  w.innerHTML=cols+`<div class="rcol" style="width:182px"><div class="rlbl">3rd Place</div><div style="margin-top:auto">${bm(tp)}</div></div>`;
+}
+
+const AM={"USA":"United States","Korea Republic":"South Korea","Côte d'Ivoire":"Ivory Coast","Cote d'Ivoire":"Ivory Coast","Curaçao":"Curacao"};
+const nm=n=>AM[n]||n;
+
+async function fetch_data(){
+  try{
+    const r=await fetch('/api/football?action=fixtures');
+    if(!r.ok)throw 0;
+    const{fixtures:fx}=await r.json();
+    if(!fx)return;
+    fx.forEach(f=>{
+      const h=nm(f.home),a=nm(f.away),st=f.status;
+      const fin=['FT','AET','PEN'].includes(st),lv=['1H','HT','2H','ET'].includes(st);
+      const m=GM.find(m=>(m.t1===h&&m.t2===a)||(m.t1===a&&m.t2===h));
+      if(m){const sw=m.t1!==h;LV[m.n]={st:fin?'FT':lv?'live':st,g1:sw?f.awayGoals:f.homeGoals,g2:sw?f.homeGoals:f.awayGoals};}
+    });
+    document.getElementById('lu').textContent='Updated '+new Date().toLocaleTimeString();
+  }catch{document.getElementById('lu').textContent='Live data unavailable';}
+}
+
+async function go(){await fetch_data();rGrps();rKo();}
+go();setInterval(go,5*60*1000);
+</script>
 </body>
 </html>
