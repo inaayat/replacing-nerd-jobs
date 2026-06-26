@@ -133,14 +133,19 @@
 </div>
 
 <!-- Knockout Bracket -->
-<div id="bracket" class="px-8 pb-12">
-  <div class="flex items-center justify-between flex-wrap gap-3 mb-3">
-    <h2 class="sec-hd">Knockout Rounds <span style="font-size:11px;font-weight:400;text-transform:none;color:#999;letter-spacing:0">— tap a team to pick winner</span></h2>
-    <button onclick="resetPicks()" class="text-xs font-bold px-3 py-1 rounded border-2 hover:opacity-70 transition-opacity" style="color:var(--red);border-color:var(--red)">✕ Reset picks</button>
-  </div>
-  <div class="overflow-x-auto pb-4">
-    <div id="bw" style="display:flex;align-items:stretch;min-width:max-content;gap:2px"></div>
-  </div>
+<div id="bracket" class="px-8 pb-6">
+  <details open>
+    <summary style="cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--navy);color:#fff;border-radius:8px;margin-bottom:12px">
+      <span class="sec-hd" style="color:#fff">Knockout Rounds <span style="font-size:10px;font-weight:400;text-transform:none;opacity:.7">— tap a team to pick winner</span></span>
+      <div class="flex items-center gap-3">
+        <button onclick="event.stopPropagation();resetPicks()" style="font-size:10px;font-weight:700;color:var(--red);background:rgba(255,255,255,.1);border:1px solid rgba(230,29,37,.5);padding:2px 7px;border-radius:3px;cursor:pointer">✕ Reset picks</button>
+        <span style="font-size:10px;opacity:.6;font-weight:400;text-transform:none">click to collapse</span>
+      </div>
+    </summary>
+    <div class="overflow-x-auto pb-4">
+      <div id="bw" style="display:flex;align-items:stretch;min-width:max-content;gap:2px"></div>
+    </div>
+  </details>
 </div>
 
 <!-- Group Stage (bottom, always collapsed) -->
