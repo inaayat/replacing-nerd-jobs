@@ -74,7 +74,7 @@ ugly-cat-images/
 
 - [zachjordan.io](https://www.zachjordan.io/#extras)
 - [sumanthsamala.com](https://sumanthsamala.com/)
-- [Free Icons Reddit Listing] (https://www.reddit.com/r/web_design/comments/16pa3v6/websites_for_free_icon_sets/)
+- [Free Icons Reddit Listing](https://www.reddit.com/r/web_design/comments/16pa3v6/websites_for_free_icon_sets/)
 
 ## deploy
 
