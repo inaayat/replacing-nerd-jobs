@@ -149,7 +149,7 @@
 
 
 <!-- Tournament Summary -->
-<div class="px-8 pb-4">
+<div class="px-8 pt-5 pb-4">
   <details open>
     <summary style="cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;padding:8px 14px;background:var(--dgray);color:#fff;border-radius:8px;margin-bottom:10px">
       <span style="font-weight:800;font-size:13px;letter-spacing:.5px;text-transform:uppercase">Tournament Tracker</span>
@@ -333,23 +333,75 @@ function toggleCand(matchId) {
   renderBracket();
 }
 
+// ── Official R32 bracket slot definitions (from 2026 WC draw) ─────
+// For each match with a known team, defines what fills the TBD opponent slot.
+// pos: 'w'=group winner, 'r'=runner-up, 't'=best-3rd from listed groups
+const R32_TBD_BY_TEAM = {
+  'Germany':           {label:'Best 3rd (A/B/C/D/F)',  grps:['A','B','C','D','F'], pos:'t'},
+  'Ivory Coast':       {label:'2nd Place — Group I',    grp:'I',                    pos:'r'},
+  'Mexico':            {label:'Best 3rd (C/E/F/H/I)',  grps:['C','E','F','H','I'], pos:'t'},
+  'Argentina':         {label:'2nd Place — Group H',    grp:'H',                    pos:'r'},
+  'Australia':         {label:'2nd Place — Group G',    grp:'G',                    pos:'r'},
+  'Switzerland':       {label:'Best 3rd (E/F/G/I/J)',  grps:['E','F','G','I','J'], pos:'t'},
+};
+// Fully TBD matches: sorted by date order in API (index 0-based among fully-TBD LAST_32 matches)
+const R32_FULL_TBD = [
+  {home:{label:'Winner — Group I',    grp:'I', pos:'w'},  away:{label:'Best 3rd (C/D/F/G/H)', grps:['C','D','F','G','H'], pos:'t'}},
+  {home:{label:'Runner-up — Group K', grp:'K', pos:'r'},  away:{label:'2nd Place — Group L',   grp:'L',                    pos:'r'}},
+  {home:{label:'Winner — Group H',    grp:'H', pos:'w'},  away:{label:'2nd Place — Group J',   grp:'J',                    pos:'r'}},
+  {home:{label:'Winner — Group G',    grp:'G', pos:'w'},  away:{label:'Best 3rd (A/E/H/I/J)', grps:['A','E','H','I','J'], pos:'t'}},
+  {home:{label:'Winner — Group L',    grp:'L', pos:'w'},  away:{label:'Best 3rd (E/H/I/J/K)', grps:['E','H','I','J','K'], pos:'t'}},
+  {home:{label:'Winner — Group K',    grp:'K', pos:'w'},  away:{label:'Best 3rd (D/E/I/J/L)', grps:['D','E','I','J','L'], pos:'t'}},
+];
+
+function getSlotCandidates(slotDef, alreadyPlaced) {
+  // Returns [{nm, pts, gd, gf, confirmed}] for teams eligible for this slot
+  if (!slotDef) return [];
+  if (slotDef.pos === 'w') {
+    const st = calcStandings(slotDef.grp);
+    return st.slice(0,2).map((t,i) => ({...t, isTop: i===0})).filter(t => !alreadyPlaced.has(t.nm) || t.isTop);
+  }
+  if (slotDef.pos === 'r') {
+    const st = calcStandings(slotDef.grp);
+    return st.slice(0,3).map((t,i) => ({...t, isTop: i===1})).filter(t => !alreadyPlaced.has(t.nm) || t.isTop);
+  }
+  if (slotDef.pos === 't') {
+    // 3rd-place teams from specified groups, sorted — exclude placed teams
+    return (slotDef.grps || [])
+      .map(g => calcStandings(g)[2]).filter(Boolean)
+      .filter(t => !alreadyPlaced.has(t.nm))
+      .sort((a,b)=>b.pts-a.pts||b.gd-a.gd||b.gf-a.gf);
+  }
+  return [];
+}
+
+// ── Slot fills: user places a team into a TBD slot from "who?" panel ──
+let SLOT_FILLS = JSON.parse(localStorage.getItem('wc26fills') || '{}');
+function saveSlotFills() { localStorage.setItem('wc26fills', JSON.stringify(SLOT_FILLS)); }
+function fillSlot(matchId, team) {
+  if (SLOT_FILLS[matchId] === team) delete SLOT_FILLS[matchId];
+  else SLOT_FILLS[matchId] = team;
+  openCandMatch = null;
+  saveSlotFills();
+  renderBracket();
+}
+
 // ── Picks (sample bracket) ────────────────────────────────────────
 let PICKS = JSON.parse(localStorage.getItem('wc26picks') || '{}');
 function savePicks() { localStorage.setItem('wc26picks', JSON.stringify(PICKS)); }
 
 function pick(matchId, team) {
-  if (PICKS[matchId] === team) {
-    delete PICKS[matchId]; // toggle off
-  } else {
-    PICKS[matchId] = team;
-  }
+  if (PICKS[matchId] === team) delete PICKS[matchId];
+  else PICKS[matchId] = team;
   savePicks();
   renderBracket();
 }
 
 function resetPicks() {
   PICKS = {};
+  SLOT_FILLS = {};
   savePicks();
+  saveSlotFills();
   renderBracket();
 }
 
@@ -421,89 +473,98 @@ function renderBracket() {
 
   const teamGroupMap = buildTeamGroupMap();
 
-  // All teams already locked into R32 slots
+  // Apply user's slot fills to TBD slots in ko clone
+  const r32Matches = ko.filter(k=>k.stage==='LAST_32').sort((a,b)=>new Date(a.date)-new Date(b.date));
+  let tbdMatchIdx = 0;
+  r32Matches.forEach(m => {
+    if (SLOT_FILLS[m.id]) {
+      if (!m.home) m.home = SLOT_FILLS[m.id];
+      else if (!m.away) m.away = SLOT_FILLS[m.id];
+    }
+  });
+
+  // All teams already locked into R32 slots (real or user-filled)
   const r32Locked = new Set(ko.filter(k=>k.stage==='LAST_32').flatMap(k=>[k.home,k.away]).filter(Boolean));
+
+  // Index of fully-TBD R32 matches (both slots null) by date order
+  const r32FullTbd = ko.filter(k=>k.stage==='LAST_32'&&!k.home&&!k.away).sort((a,b)=>new Date(a.date)-new Date(b.date));
+
+  function candTeamRow(t, slotDef, matchId, isFilled) {
+    const placed = r32Locked.has(t.nm);
+    const fillBtn = !placed
+      ? `<button onclick="fillSlot(${matchId},'${t.nm.replace(/'/g,"\\'")}')" style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:3px;border:1px solid var(--navy);background:${isFilled===t.nm?'var(--navy)':'transparent'};color:${isFilled===t.nm?'#fff':'var(--navy)'};cursor:pointer">${isFilled===t.nm?'✓ picked':'+ pick'}</button>`
+      : `<span style="color:var(--green);font-size:9px;font-weight:700">✓ placed</span>`;
+    return `<div class="cand-row" style="gap:6px">
+      ${fl(t.nm,true)}
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px">${t.nm}</span>
+      <span style="color:#aaa;font-size:9px;white-space:nowrap">${t.pts}pts</span>
+      ${fillBtn}
+    </div>`;
+  }
 
   function candPanel(m) {
     if (openCandMatch !== m.id) return '';
-
-    const PREV = {LAST_16:'LAST_32', QUARTER_FINALS:'LAST_16', SEMI_FINALS:'QUARTER_FINALS', FINAL:'SEMI_FINALS', THIRD_PLACE:'SEMI_FINALS'};
+    const PREV = {LAST_16:'LAST_32',QUARTER_FINALS:'LAST_16',SEMI_FINALS:'QUARTER_FINALS',FINAL:'SEMI_FINALS',THIRD_PLACE:'SEMI_FINALS'};
+    const filled = SLOT_FILLS[m.id];
 
     if (m.stage === 'LAST_32') {
-      // Show every group whose top-2 isn't fully locked into R32 yet — these are the potential occupants
-      const homeTbd = !m.home, awayTbd = !m.away;
-
-      // Both teams confirmed — just show their group positions
-      if (!homeTbd && !awayTbd) {
-        const grps = [...new Set([teamGroupMap[m.home], teamGroupMap[m.away]].filter(Boolean))];
-        const blocks = grps.map(grp => {
-          const st = calcStandings(grp);
-          const rows = st.slice(0,2).map((t,i) => {
-            const isThis = m.home===t.nm||m.away===t.nm;
-            return `<div class="cand-row${isThis?' leader':''}">
-              <span class="cand-pos ${['p1','p2'][i]}">${i+1}</span>
-              ${fl(t.nm,true)}<span style="flex:1">${t.nm}</span>
-              <span style="color:#aaa;font-size:9px">${t.pts}pts</span>
-              ${isThis?'<span style="color:var(--green);font-size:9px;font-weight:700">✓ this match</span>':''}
-            </div>`;
-          }).join('');
-          return `<div style="margin-bottom:8px"><div class="cand-grp-hd">Group ${grp}</div>${rows}</div>`;
+      // Both teams confirmed from API — just confirm their source
+      if (m.home && m.away) {
+        const rows = [m.home, m.away].map(nm => {
+          const grp = teamGroupMap[nm]; if (!grp) return '';
+          const st = calcStandings(grp); const pos = st.findIndex(t=>t.nm===nm)+1;
+          return `<div class="cand-row"><span class="cand-pos p${Math.min(pos,3)}">${pos}</span>${fl(nm,true)}<span style="flex:1">${nm}</span><span style="color:var(--green);font-size:9px;font-weight:700">✓ Group ${grp}</span></div>`;
         }).join('');
-        return `<div class="cand-panel"><p style="font-size:9px;color:#aaa;margin-bottom:6px">Both teams confirmed from group stage</p>${blocks}</div>`;
+        return `<div class="cand-panel"><p style="font-size:9px;color:#aaa;margin-bottom:6px">Teams confirmed</p>${rows}</div>`;
       }
 
-      // One or both TBD — show only groups whose top-2 isn't fully placed yet
-      const unresGrps = Object.keys(GROUPS).filter(grp => {
-        const top2 = calcStandings(grp).slice(0,2).map(t=>t.nm);
-        return top2.some(t => !r32Locked.has(t));
-      });
-      // Show known team's group first, then unresolved
-      const knownGrps = [m.home, m.away].filter(Boolean).map(t=>teamGroupMap[t]).filter(Boolean);
-      const show = [...new Set([...knownGrps, ...unresGrps])];
-      if (!show.length) return `<div class="cand-panel" style="color:#888;font-size:11px">All groups resolved.</div>`;
+      // Find which slot is TBD and its slot definition
+      let slotDef = null;
+      const knownTeam = m.home || m.away;
+      if (knownTeam && R32_TBD_BY_TEAM[knownTeam]) {
+        slotDef = R32_TBD_BY_TEAM[knownTeam];
+      } else if (!knownTeam) {
+        // Fully TBD — find position in sorted TBD list
+        const idx = r32FullTbd.findIndex(k=>k.id===m.id);
+        const entry = R32_FULL_TBD[idx];
+        if (!entry) return `<div class="cand-panel" style="color:#888;font-size:11px">Pending group results.</div>`;
+        // Show both slots
+        const mkBlock = (sd, isHomeSlot) => {
+          if (!sd) return '';
+          const cands = getSlotCandidates(sd, r32Locked);
+          if (!cands.length) return `<div style="font-size:10px;color:#888;margin-bottom:6px">${sd.label}: TBD</div>`;
+          return `<div style="margin-bottom:10px"><div class="cand-grp-hd">${isHomeSlot?'Home':'Away'} slot — ${sd.label}</div>${cands.map(t=>candTeamRow(t,sd,m.id,filled)).join('')}</div>`;
+        };
+        return `<div class="cand-panel">${mkBlock(entry.home,true)}${mkBlock(entry.away,false)}</div>`;
+      }
 
-      const blocks = show.map(grp => {
-        const st = calcStandings(grp);
-        const rows = st.slice(0,3).map((t,i) => {
-          const locked = r32Locked.has(t.nm);
-          const isThis = m.home===t.nm||m.away===t.nm;
-          return `<div class="cand-row${isThis?' leader':''}">
-            <span class="cand-pos ${['p1','p2','p3'][i]}">${i+1}</span>
-            ${fl(t.nm,true)}<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.nm}</span>
-            <span style="color:#aaa;font-size:9px">${t.pts}pts</span>
-            ${locked?'<span style="color:var(--green);font-size:9px;font-weight:700">✓ placed</span>':(i<2?'<span style="color:var(--navy);font-size:9px;font-weight:700">potential</span>':'')}
-          </div>`;
-        }).join('');
-        return `<div style="margin-bottom:8px"><div class="cand-grp-hd">Group ${grp}</div>${rows}</div>`;
-      }).join('');
-      return `<div class="cand-panel"><p style="font-size:9px;color:#aaa;margin-bottom:6px">Groups that could fill the open slot</p>${blocks}</div>`;
+      if (!slotDef) return `<div class="cand-panel" style="color:#888;font-size:11px">Source pending.</div>`;
+      const cands = getSlotCandidates(slotDef, r32Locked);
+      if (!cands.length) return `<div class="cand-panel" style="color:#888;font-size:11px">No eligible teams yet — group stage in progress.</div>`;
+      const label = knownTeam ? `Open slot — ${slotDef.label}` : slotDef.label;
+      return `<div class="cand-panel">
+        <p style="font-size:9px;color:#aaa;margin-bottom:6px">${label} — tap + pick to place in bracket</p>
+        ${cands.map(t=>candTeamRow(t,slotDef,m.id,filled)).join('')}
+      </div>`;
     }
 
-    // For R16/QF/SF/Final: show only the 2 prev-round matches that feed THIS specific slot
-    // Matches pair up by sorted index: slot[i] comes from prev[i*2] and prev[i*2+1]
+    // R16/QF/SF/Final: show the 2 feeder matches (index-paired)
     const prevStage = PREV[m.stage];
     if (!prevStage) return '';
     const prevAll = ko.filter(k=>k.stage===prevStage).sort((a,b)=>new Date(a.date)-new Date(b.date));
     const thisAll = ko.filter(k=>k.stage===m.stage).sort((a,b)=>new Date(a.date)-new Date(b.date));
     const slotIdx = thisAll.findIndex(k=>k.id===m.id);
-    const feeder1 = prevAll[slotIdx*2];
-    const feeder2 = prevAll[slotIdx*2+1];
-    const feeders = [feeder1, feeder2].filter(Boolean);
-    if (!feeders.length) return `<div class="cand-panel" style="color:#888;font-size:11px">Source matches not yet determined.</div>`;
-
-    const blocks = feeders.map(p => {
-      const t1 = p.home||p.projHome||'TBD', t2 = p.away||p.projAway||'TBD';
-      const sl = STAGE_SHORT[p.stage]||p.stage;
-      const isDone = p.status==='FT';
-      const win = isDone && p.homeGoals!=null ? (p.homeGoals>p.awayGoals?t1:t2) : null;
+    const feeders = [prevAll[slotIdx*2], prevAll[slotIdx*2+1]].filter(Boolean);
+    if (!feeders.length) return `<div class="cand-panel" style="color:#888;font-size:11px">Source matches TBD.</div>`;
+    const rows = feeders.map(p => {
+      const t1=p.home||p.projHome||'TBD', t2=p.away||p.projAway||'TBD';
+      const done=p.status==='FT', win=done&&p.homeGoals!=null?(p.homeGoals>p.awayGoals?t1:t2):null;
       return `<div style="margin-bottom:6px">
-        <div class="cand-grp-hd">${sl} · ${fmtDate(p.date)}${isDone?' · FT':''}</div>
-        <div class="cand-row">${fl(t1,true)}<span style="flex:1${win===t1?';color:var(--green);font-weight:700':''}">${t1}</span>
-        <span style="color:#bbb;font-size:9px">vs</span>
-        <span style="flex:1;text-align:right${win===t2?';color:var(--green);font-weight:700':''}">${t2}</span>${fl(t2,true)}</div>
+        <div class="cand-grp-hd">${STAGE_SHORT[p.stage]||p.stage} · ${fmtDate(p.date)}</div>
+        <div class="cand-row">${fl(t1,true)}<span style="flex:1;font-size:11px;${win===t1?'color:var(--green);font-weight:700':''}">${t1}</span><span style="color:#bbb;font-size:9px;padding:0 4px">vs</span><span style="font-size:11px;${win===t2?'color:var(--green);font-weight:700':''}">${t2}</span>${fl(t2,true)}</div>
       </div>`;
     }).join('');
-    return `<div class="cand-panel"><p style="font-size:9px;color:#aaa;margin-bottom:6px">Winner of these 2 matches advances here</p>${blocks}</div>`;
+    return `<div class="cand-panel"><p style="font-size:9px;color:#aaa;margin-bottom:4px">Winner of these matches fills this slot</p>${rows}</div>`;
   }
 
   function matchCard(m) {
