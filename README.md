@@ -25,52 +25,39 @@ ugly-cat-images/
 
 ```
 /
-├── index.html                  ← main landing page (inaayat.xyz)
-├── site.css                    ← shared styles for all sub-pages
+├── index.html                  ← v2 landing page (inaayat.xyz)
 ├── _template.html              ← copy this to start a new page
 ├── middleware.js               ← auth middleware (protects /private)
 ├── package.json
 ├── vercel.json
 │
 ├── fonts/                      ← Atkinson Hyperlegible (regular + bold woff)
-├── index support files/        ← build artifacts for the index page
+├── index support files/        ← legacy Astro build artifacts (unused)
 │
 ├── api/                        ← serverless functions (Vercel)
 │   ├── login.js
 │   ├── logout.js
-│   ├── gddy-statements/        ← GoDaddy financial statements endpoint
-│   └── index.html
+│   └── football.js
 │
 ├── private/                    ← auth-gated section
-│   └── index.html
+│   └── gddy-statements/
 │
 ├── ugly-dog-images/            ← the dogs
 ├── ugly-cat-images/            ← the cats
 │
-├── seattle-budget/             ← Seattle open budget dashboard
-│   └── index.html
-│
-├── corp-ai-investment-roi/     ← corporate AI adoption & ROI explorer
-│   ├── index.html
-│   └── corporate_ai_adoption_dataset.csv
-│
-├── fpa-crash-course/           ← FP&A crash course
-│   ├── index.html
-│   ├── apple-statements/
-│   └── target-statements/
-│
-├── how-to-be-a-finance-nerd/   ← finance nerd guide
-│   └── index.html
-│
-├── tv-data/                    ← TV market data explorer
-│   ├── index.html
-│   ├── data.json
-│   ├── insights.json
-│   └── tvs.csv
-│
-└── world-cup/                  ← FIFA Men's World Cup 2026 schedule
+└── archive/                    ← retired v1 site (inaayat.xyz/archive)
     ├── index.html
-    └── FIFA Men's World Cup 2026 Sortable Schedule.csv
+    ├── assets/
+    │   └── global.css
+    ├── seattle-budget/
+    ├── corp-ai-investment-roi/
+    ├── fpa-crash-course/
+    ├── how-to-be-a-finance-nerd/
+    │   ├── apple-statements/
+    │   └── target-statements/
+    ├── tv-data/
+    ├── world-cup/
+    └── ai-governance-audit/
 ```
 
 ## adding a new page
