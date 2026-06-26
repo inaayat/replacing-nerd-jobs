@@ -1,23 +1,30 @@
-const BASE = 'https://v3.football.api-sports.io';
-const LEAGUE = 1;    // FIFA World Cup
+const BASE = 'https://api.football-data.org/v4';
+const COMPETITION = 'WC';
 const SEASON = 2026;
 
-// simple in-memory cache
 const cache = new Map();
 const TTL = 5 * 60 * 1000; // 5 minutes
 
-async function fetchFootball(path) {
-  const key = path;
-  const cached = cache.get(key);
+async function fetchFDB(path) {
+  const cached = cache.get(path);
   if (cached && Date.now() - cached.ts < TTL) return cached.data;
 
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'x-apisports-key': process.env.API_FOOTBALL_KEY || '' },
+    headers: { 'X-Auth-Token': process.env.FOOTBALL_DATA_KEY || '' },
   });
-  if (!res.ok) throw new Error(`api-football ${res.status}`);
+  if (!res.ok) throw new Error(`football-data.org ${res.status}: ${await res.text()}`);
   const data = await res.json();
-  cache.set(key, { ts: Date.now(), data });
+  cache.set(path, { ts: Date.now(), data });
   return data;
+}
+
+// Map football-data.org status → short codes the client expects
+function mapStatus(s) {
+  if (s === 'FINISHED' || s === 'AWARDED') return 'FT';
+  if (s === 'IN_PLAY') return '1H';
+  if (s === 'PAUSED') return 'HT';
+  if (s === 'SCHEDULED' || s === 'TIMED') return 'NS';
+  return s;
 }
 
 export default async function handler(req, res) {
@@ -26,33 +33,46 @@ export default async function handler(req, res) {
 
   const { action } = req.query;
 
-  if (!process.env.API_FOOTBALL_KEY) {
-    return res.status(503).json({ error: 'API_FOOTBALL_KEY not configured' });
+  if (!process.env.FOOTBALL_DATA_KEY) {
+    return res.status(503).json({ error: 'FOOTBALL_DATA_KEY not configured' });
   }
 
   try {
     if (action === 'fixtures') {
-      const data = await fetchFootball(`/fixtures?league=${LEAGUE}&season=${SEASON}`);
-      // Return only what the client needs: fixture id, match number (referee field has it),
-      // teams, goals, status
-      const fixtures = (data.response || []).map(f => ({
-        id: f.fixture.id,
-        // api-football uses fixture.referee for arbitrary string; match number is in name
-        date: f.fixture.date,
-        status: f.fixture.status?.short,   // NS, 1H, HT, 2H, FT, AET, PEN
-        home: f.teams.home.name,
-        away: f.teams.away.name,
-        homeGoals: f.goals.home,
-        awayGoals: f.goals.away,
-        round: f.league.round,             // e.g. "Group Stage - 1", "Round of 32"
-        venue: f.fixture.venue?.name,
+      const data = await fetchFDB(`/competitions/${COMPETITION}/matches?season=${SEASON}`);
+      const fixtures = (data.matches || []).map(m => ({
+        id: m.id,
+        date: m.utcDate,
+        status: mapStatus(m.status),
+        home: m.homeTeam.name,
+        away: m.awayTeam.name,
+        homeGoals: m.score?.fullTime?.home ?? null,
+        awayGoals: m.score?.fullTime?.away ?? null,
+        round: m.stage, // GROUP_STAGE, ROUND_OF_32, ROUND_OF_16, etc.
       }));
       return res.status(200).json({ fixtures });
     }
 
     if (action === 'standings') {
-      const data = await fetchFootball(`/standings?league=${LEAGUE}&season=${SEASON}`);
-      return res.status(200).json({ standings: data.response || [] });
+      const data = await fetchFDB(`/competitions/${COMPETITION}/standings?season=${SEASON}`);
+      // Transform football-data.org format → same shape the client already parses
+      // Client expects: [{ league: { standings: [ [group_A_rows], [group_B_rows], ... ] } }]
+      const groups = (data.standings || [])
+        .filter(s => s.type === 'TOTAL')
+        .map(s => s.table.map(row => ({
+          rank: row.position,
+          team: { name: row.team.name },
+          points: row.points,
+          goalsDiff: row.goalDifference,
+          all: {
+            played: row.playedGames,
+            win: row.won,
+            draw: row.draw,
+            lose: row.lost,
+            goals: { for: row.goalsFor, against: row.goalsAgainst },
+          },
+        })));
+      return res.status(200).json({ standings: [{ league: { standings: groups } }] });
     }
 
     return res.status(400).json({ error: 'unknown action' });
