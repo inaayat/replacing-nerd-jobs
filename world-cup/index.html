@@ -9,8 +9,8 @@
   <style>
     :root { --green:#3CAC3B; --navy:#2A398D; --red:#E61D25; --lgray:#D1D4D1; --dgray:#474A4A; }
     body { font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:#f5f5f4; }
-    .fi { height:13px; width:auto; border-radius:2px; border:1px solid #ddd; flex-shrink:0; }
-    .fi-sm { height:11px; width:auto; border-radius:1px; border:1px solid #ddd; flex-shrink:0; }
+    .fi { width:18px; height:18px; border-radius:50%; flex-shrink:0; object-fit:cover; }
+    .fi-sm { width:15px; height:15px; border-radius:50%; flex-shrink:0; object-fit:cover; }
     .grp-card { background:#fff; border:2px solid var(--lgray); border-radius:8px; overflow:hidden; }
     .grp-head { background:var(--navy); color:#fff; padding:6px 12px; font-weight:800; font-size:13px; letter-spacing:.5px; }
     .grp-table { width:100%; border-collapse:collapse; }
@@ -94,7 +94,7 @@ const F={
   "Portugal":"pt","Colombia":"co","Uzbekistan":"uz","England":"gb-eng","Croatia":"hr",
   "Ghana":"gh","Panama":"pa",
 };
-const fi=(n,sm)=>{const c=F[n];return c?`<img class="${sm?'fi-sm':'fi'}" src="https://flagcdn.com/w40/${c}.png" alt="${n}" loading="lazy">`:'';};
+const fi=(n,sm)=>{const c=F[n];return c?`<img class="${sm?'fi-sm':'fi'}" src="https://kapowaz.github.io/circle-flags/flags/${c}.svg" alt="${n}" loading="lazy">`:'';};
 
 const GM=[
   {n:1,g:"A",d:"Jun 11",t1:"Mexico",        t2:"South Africa"},
@@ -222,8 +222,21 @@ const KO=[
 ];
 
 const LV={};
+// API standings override: grp → [{nm, p, w, d, l, gf, ga, gd, pts}]
+const API_STAND={};
+
+// Build group→R32 destination map from KO data
+const GROUP_R32={};
+KO.filter(m=>m.s==='R32').forEach(m=>{
+  [m.t1,m.t2].forEach(slot=>{
+    const x=slot.match(/^([12])([A-L])$/);
+    if(x){const[,pos,grp]=x;if(!GROUP_R32[grp])GROUP_R32[grp]={};GROUP_R32[grp][pos]=m.n;}
+  });
+});
 
 function stand(grp){
+  // Prefer API standings when available
+  if(API_STAND[grp]&&API_STAND[grp].length) return API_STAND[grp];
   const s={};GRP[grp].forEach(t=>s[t]={p:0,w:0,d:0,l:0,gf:0,ga:0,gd:0,pts:0});
   GM.filter(m=>m.g===grp).forEach(m=>{
     const v=LV[m.n];if(!v||v.g1===null||v.g1===''||v.g2===null||v.g2==='')return;
@@ -265,12 +278,19 @@ function rGrps(){
         <div style="display:flex;align-items:center;gap:3px;flex-shrink:0">${bd}${sc}</div>
       </div>`;
     }).join('');
+    // Advances-to footer
+    const r32 = GROUP_R32[grp]||{};
+    const adv1 = r32[1]?`<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(42,57,141,.08);border:1px solid rgba(42,57,141,.2);padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700;color:var(--navy)">🥇 1st → R32 #${r32[1]}</span>`:'';
+    const adv2 = r32[2]?`<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(42,57,141,.05);border:1px solid rgba(42,57,141,.15);padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;color:var(--navy)">🥈 2nd → R32 #${r32[2]}</span>`:'';
+    const advRow = (adv1||adv2)?`<div style="padding:6px 8px;display:flex;gap:6px;flex-wrap:wrap;border-top:1px solid var(--lgray);background:#fafafa">${adv1}${adv2}</div>`:'';
+
     return `<div class="grp-card">
       <div class="grp-head">Group ${grp}</div>
       <table class="grp-table"><thead><tr>
         <th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th>
       </tr></thead><tbody>${rows}</tbody></table>
       <div style="padding:2px 0">${ms}</div>
+      ${advRow}
     </div>`;
   }).join('');
 }
@@ -309,18 +329,51 @@ const nm=n=>AM[n]||n;
 
 async function fetch_data(){
   try{
-    const r=await fetch('/api/football?action=fixtures');
-    if(!r.ok)throw 0;
-    const{fixtures:fx}=await r.json();
-    if(!fx)return;
-    fx.forEach(f=>{
-      const h=nm(f.home),a=nm(f.away),st=f.status;
-      const fin=['FT','AET','PEN'].includes(st),lv=['1H','HT','2H','ET'].includes(st);
-      const m=GM.find(m=>(m.t1===h&&m.t2===a)||(m.t1===a&&m.t2===h));
-      if(m){const sw=m.t1!==h;LV[m.n]={st:fin?'FT':lv?'live':st,g1:sw?f.awayGoals:f.homeGoals,g2:sw?f.homeGoals:f.awayGoals};}
-    });
+    // Fixtures → match scores
+    const rf=await fetch('/api/football?action=fixtures');
+    if(rf.ok){
+      const{fixtures:fx}=await rf.json();
+      (fx||[]).forEach(f=>{
+        const h=nm(f.home),a=nm(f.away),st=f.status;
+        const fin=['FT','AET','PEN'].includes(st),lv=['1H','HT','2H','ET'].includes(st);
+        const m=GM.find(m=>(m.t1===h&&m.t2===a)||(m.t1===a&&m.t2===h));
+        if(m){const sw=m.t1!==h;LV[m.n]={st:fin?'FT':lv?'live':st,g1:sw?f.awayGoals:f.homeGoals,g2:sw?f.homeGoals:f.awayGoals};}
+        // Try to resolve knockout teams from live data
+        if(!m){
+          KO.filter(k=>k.s!=='R32').forEach(k=>{
+            if((k.t1===h||k.t1===a||k.t2===h||k.t2===a)&&(fin||lv)){
+              if(!LV[k.n]){const sw2=k.t1!==h;LV[k.n]={st:fin?'FT':lv?'live':st,g1:sw2?f.awayGoals:f.homeGoals,g2:sw2?f.homeGoals:f.awayGoals};}
+            }
+          });
+        }
+      });
+    }
+
+    // Standings → real group compositions and standing tables
+    const rs=await fetch('/api/football?action=standings');
+    if(rs.ok){
+      const{standings}=await rs.json();
+      (standings||[]).forEach(entry=>{
+        const groups=(entry.league?.standings||[]);
+        groups.forEach((grpArr,gi)=>{
+          const grpKey=String.fromCharCode(65+gi); // A, B, C...
+          if(!grpKey||gi>=12) return;
+          // Update team names in GRP
+          const names=grpArr.map(t=>nm(t.team?.name||''));
+          if(names.length) GRP[grpKey]=names;
+          // Store standings
+          API_STAND[grpKey]=grpArr.map(t=>({
+            nm:nm(t.team?.name||''),
+            p:t.all?.played||0, w:t.all?.win||0, d:t.all?.draw||0, l:t.all?.lose||0,
+            gf:t.all?.goals?.for||0, ga:t.all?.goals?.against||0,
+            gd:t.goalsDiff||0, pts:t.points||0
+          }));
+        });
+      });
+    }
+
     document.getElementById('lu').textContent='Updated '+new Date().toLocaleTimeString();
-  }catch{document.getElementById('lu').textContent='Live data unavailable';}
+  }catch(e){document.getElementById('lu').textContent='Live data unavailable';}
 }
 
 async function go(){await fetch_data();rGrps();rKo();}
