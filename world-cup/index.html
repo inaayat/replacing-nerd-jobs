@@ -336,13 +336,37 @@ function toggleCand(matchId) {
 // ── Official R32 bracket slot definitions (from 2026 WC draw) ─────
 // For each match with a known team, defines what fills the TBD opponent slot.
 // pos: 'w'=group winner, 'r'=runner-up, 't'=best-3rd from listed groups
+// Slot definitions keyed by GROUP+POSITION (e.g. "I2") — works for ANY team
+const R32_POS_SLOTS = {
+  A1:{label:'Best 3rd (C/E/F/H/I)', grps:['C','E','F','H','I'],pos:'t'},
+  B1:{label:'Best 3rd (E/F/G/I/J)', grps:['E','F','G','I','J'],pos:'t'},
+  C1:{label:'F runner-up',          grp:'F',pos:'r'},
+  D1:{label:'B runner-up',          grp:'B',pos:'r'},
+  E1:{label:'Best 3rd (A/B/C/D/F)', grps:['A','B','C','D','F'],pos:'t'},
+  E2:{label:'I runner-up',          grp:'I',pos:'r'},
+  F1:{label:'C runner-up',          grp:'C',pos:'r'},
+  F2:{label:'C winner',             grp:'C',pos:'w'},
+  G1:{label:'Best 3rd (A/E/H/I/J)', grps:['A','E','H','I','J'],pos:'t'},
+  G2:{label:'D runner-up',          grp:'D',pos:'r'},
+  H1:{label:'J runner-up',          grp:'J',pos:'r'},
+  H2:{label:'J winner',             grp:'J',pos:'w'},
+  I1:{label:'Best 3rd (C/D/F/G/H)', grps:['C','D','F','G','H'],pos:'t'},
+  I2:{label:'E runner-up',          grp:'E',pos:'r'},
+  J1:{label:'H runner-up',          grp:'H',pos:'r'},
+  J2:{label:'H winner',             grp:'H',pos:'w'},
+  K1:{label:'Best 3rd (D/E/I/J/L)', grps:['D','E','I','J','L'],pos:'t'},
+  K2:{label:'L runner-up',          grp:'L',pos:'r'},
+  L1:{label:'Best 3rd (E/H/I/J/K)', grps:['E','H','I','J','K'],pos:'t'},
+  L2:{label:'K runner-up',          grp:'K',pos:'r'},
+};
+// Keep team-name overrides for when API assigns home/away differently from bracket seedings
 const R32_TBD_BY_TEAM = {
-  'Germany':           {label:'Best 3rd (A/B/C/D/F)',  grps:['A','B','C','D','F'], pos:'t'},
-  'Ivory Coast':       {label:'2nd Place — Group I',    grp:'I',                    pos:'r'},
-  'Mexico':            {label:'Best 3rd (C/E/F/H/I)',  grps:['C','E','F','H','I'], pos:'t'},
-  'Argentina':         {label:'2nd Place — Group H',    grp:'H',                    pos:'r'},
-  'Australia':         {label:'2nd Place — Group G',    grp:'G',                    pos:'r'},
-  'Switzerland':       {label:'Best 3rd (E/F/G/I/J)',  grps:['E','F','G','I','J'], pos:'t'},
+  'Germany':     R32_POS_SLOTS.E1,
+  'Ivory Coast': R32_POS_SLOTS.E2,
+  'Mexico':      R32_POS_SLOTS.A1,
+  'Argentina':   R32_POS_SLOTS.J1,
+  'Australia':   R32_POS_SLOTS.G2,
+  'Switzerland': R32_POS_SLOTS.B1,
 };
 // Fully TBD matches: sorted by date order in API (index 0-based among fully-TBD LAST_32 matches)
 const R32_FULL_TBD = [
@@ -528,9 +552,16 @@ function renderBracket() {
       // Find which slot is TBD and its slot definition
       let slotDef = null;
       const knownTeam = m.home || m.away;
-      if (knownTeam && R32_TBD_BY_TEAM[knownTeam]) {
+      if (knownTeam) {
+        // Try name override first, then fall back to position-based lookup
         slotDef = R32_TBD_BY_TEAM[knownTeam];
-      } else if (!knownTeam) {
+        if (!slotDef) {
+          const grp = teamGroupMap[knownTeam];
+          const st = calcStandings(grp||'');
+          const posIdx = st.findIndex(t=>t.nm===knownTeam);
+          if (grp && posIdx >= 0) slotDef = R32_POS_SLOTS[grp+(posIdx+1)];
+        }
+      } else {
         // Fully TBD — find position in sorted TBD list
         const idx = r32FullTbd.findIndex(k=>k.id===m.id);
         const entry = R32_FULL_TBD[idx];
