@@ -44,6 +44,20 @@
     .pick-projected { background:rgba(60,172,59,.08);border-left:3px solid var(--green) !important; }
     .pick-projected .bkt-team { opacity:.75; }
 
+    /* Candidates panel */
+    .cand-panel { background:#f8f8f8;border-top:2px solid var(--lgray);padding:8px 10px;font-size:10px; }
+    .cand-grp-hd { font-weight:800;color:var(--navy);letter-spacing:.3px;margin-bottom:3px;text-transform:uppercase;font-size:9px; }
+    .cand-row { display:flex;align-items:center;gap:5px;padding:2px 0; }
+    .cand-row.leader { font-weight:700;color:var(--green); }
+    .cand-pos { width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;flex-shrink:0; }
+    .cand-pos.p1 { background:var(--green);color:#fff; }
+    .cand-pos.p2 { background:var(--navy);color:#fff; }
+    .cand-pos.p3 { background:#f59e0b;color:#fff; }
+    .cand-pos.p4 { background:var(--lgray);color:var(--dgray); }
+    .info-btn { background:rgba(42,57,141,.1);border:none;border-radius:3px;padding:1px 5px;font-size:9px;font-weight:700;color:var(--navy);cursor:pointer;flex-shrink:0; }
+    .info-btn:hover { background:rgba(42,57,141,.2); }
+    .info-btn.active { background:var(--navy);color:#fff; }
+
     /* Bracket */
     .bkt-col { display:flex;flex-direction:column;flex-shrink:0;padding:0 4px; }
     .bkt-lbl { background:var(--dgray);color:#fff;font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;padding:3px 8px;border-radius:3px;text-align:center;margin-bottom:10px; }
@@ -257,6 +271,37 @@ function renderGroups() {
   }).join('');
 }
 
+// ── Candidates: which groups feed each bracket slot ───────────────
+// Build team→group map from groupFixtures
+function buildTeamGroupMap() {
+  const m = {};
+  groupFixtures.forEach(f => {
+    if (f.group) { if (f.home) m[f.home] = f.group; if (f.away) m[f.away] = f.group; }
+  });
+  return m;
+}
+
+// For a given bracket match, infer which groups feed each slot
+// Strategy: use known teams' groups; fall back to showing all unresolved groups
+function getMatchGroups(m, teamGroupMap) {
+  const homeGrp = m.home ? teamGroupMap[m.home] : null;
+  const awayGrp = m.away ? teamGroupMap[m.away] : null;
+  return { homeGrp, awayGrp };
+}
+
+// Return group standings as candidates for a bracket slot
+function getCandidates(grp) {
+  if (!grp || !GROUPS[grp]) return null;
+  return calcStandings(grp);
+}
+
+// State: which match's candidates panel is open
+let openCandMatch = null;
+function toggleCand(matchId) {
+  openCandMatch = openCandMatch === matchId ? null : matchId;
+  renderBracket();
+}
+
 // ── Picks (sample bracket) ────────────────────────────────────────
 let PICKS = JSON.parse(localStorage.getItem('wc26picks') || '{}');
 function savePicks() { localStorage.setItem('wc26picks', JSON.stringify(PICKS)); }
@@ -343,6 +388,46 @@ function renderBracket() {
     });
   }
 
+  const teamGroupMap = buildTeamGroupMap();
+
+  function candPanel(m) {
+    if (openCandMatch !== m.id) return '';
+    const { homeGrp, awayGrp } = getMatchGroups(m, teamGroupMap);
+    const grpsToShow = [...new Set([homeGrp, awayGrp].filter(Boolean))];
+
+    // For LAST_32 with fully TBD teams, show all groups not yet confirmed
+    const confirmedGroups = new Set();
+    ko.filter(k => k.stage === 'LAST_32' && (k.home || k.away)).forEach(k => {
+      if (k.home) confirmedGroups.add(teamGroupMap[k.home]);
+      if (k.away) confirmedGroups.add(teamGroupMap[k.away]);
+    });
+    const showGrps = grpsToShow.length ? grpsToShow
+      : Object.keys(GROUPS).filter(g => !confirmedGroups.has(g));
+
+    if (!showGrps.length) return `<div class="cand-panel" style="color:#888;font-size:11px">Determined by remaining group games.</div>`;
+
+    const groupBlocks = showGrps.map(grp => {
+      const st = calcStandings(grp);
+      const rows = st.map((t, i) => {
+        const posCls = i===0?'p1':i===1?'p2':i===2?'p3':'p4';
+        const isConf = m.home===t.nm || m.away===t.nm || m.projHome===t.nm || m.projAway===t.nm;
+        return `<div class="cand-row${isConf?' leader':''}">
+          <span class="cand-pos ${posCls}">${i+1}</span>
+          ${fl(t.nm, true)}
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${t.nm}</span>
+          <span style="color:#888;white-space:nowrap">${t.pts}pts ${t.gd>0?'+'+t.gd:t.gd}GD</span>
+          ${isConf?'<span style="color:var(--green);font-size:9px;font-weight:700">✓ confirmed</span>':''}
+        </div>`;
+      }).join('');
+      return `<div style="margin-bottom:8px">
+        <div class="cand-grp-hd">Group ${grp}</div>
+        ${rows}
+      </div>`;
+    }).join('');
+
+    return `<div class="cand-panel">${groupBlocks}</div>`;
+  }
+
   function matchCard(m) {
     const has = m.homeGoals !== null && m.awayGoals !== null && m.status === 'FT';
     const isL = m.status === 'LIVE' || m.status === 'HT';
@@ -356,17 +441,16 @@ function renderBracket() {
     const lbl = STAGE_SHORT[m.stage] || m.stage;
     const date = fmtDate(m.date);
     const isProjected = !m.home && m.projHome;
+    const candOpen = openCandMatch === m.id;
 
-    function teamRow(name, projName, score, realWin, isPicked, isOtherPicked, slot) {
+    function teamRow(name, projName, score, realWin, isPicked) {
       const displayName = name || projName;
       const isProj = !name && projName;
       const pos = displayName && posMap[displayName]
         ? `<span class="pos-badge" style="background:rgba(42,57,141,.12);color:var(--navy)">${posMap[displayName]}</span>` : '';
       const winCls = realWin ? ' win' : '';
       const tbd = !displayName;
-
       if (unplayed && displayName) {
-        // Clickable pick button
         return `<button class="pick-btn${isPicked?' picked':''}" onclick="pick(${m.id},'${displayName.replace(/'/g,"\\'")}')">
           <span class="pick-dot"></span>
           ${fl(displayName,false)}
@@ -386,10 +470,17 @@ function renderBracket() {
 
     const projCls = isProjected ? ' pick-projected' : '';
     return `<div class="bkt-match${projCls}" style="border:2px solid var(--lgray);border-radius:6px;overflow:hidden;background:#fff">
-      <div class="bkt-date"><span>${lbl} · ${date}</span>${bd}</div>
-      ${teamRow(m.home, m.projHome, has?m.homeGoals:'', realT1w, picked1, picked2, 'home')}
+      <div class="bkt-date">
+        <span>${lbl} · ${date}</span>
+        <div style="display:flex;align-items:center;gap:4px">
+          ${bd}
+          <button class="info-btn${candOpen?' active':''}" onclick="toggleCand(${m.id})">👥 who?</button>
+        </div>
+      </div>
+      ${teamRow(m.home, m.projHome, has?m.homeGoals:'', realT1w, picked1)}
       <div style="border-bottom:1px solid var(--lgray)"></div>
-      ${teamRow(m.away, m.projAway, has?m.awayGoals:'', realT2w, picked2, picked1, 'away')}
+      ${teamRow(m.away, m.projAway, has?m.awayGoals:'', realT2w, picked2)}
+      ${candPanel(m)}
     </div>`;
   }
 
