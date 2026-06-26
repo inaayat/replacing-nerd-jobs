@@ -431,34 +431,52 @@ function renderBracket() {
 
     if (m.stage === 'LAST_32') {
       // Show every group whose top-2 isn't fully locked into R32 yet — these are the potential occupants
+      const homeTbd = !m.home, awayTbd = !m.away;
+
+      // Both teams confirmed — just show their group positions
+      if (!homeTbd && !awayTbd) {
+        const grps = [...new Set([teamGroupMap[m.home], teamGroupMap[m.away]].filter(Boolean))];
+        const blocks = grps.map(grp => {
+          const st = calcStandings(grp);
+          const rows = st.slice(0,2).map((t,i) => {
+            const isThis = m.home===t.nm||m.away===t.nm;
+            return `<div class="cand-row${isThis?' leader':''}">
+              <span class="cand-pos ${['p1','p2'][i]}">${i+1}</span>
+              ${fl(t.nm,true)}<span style="flex:1">${t.nm}</span>
+              <span style="color:#aaa;font-size:9px">${t.pts}pts</span>
+              ${isThis?'<span style="color:var(--green);font-size:9px;font-weight:700">✓ this match</span>':''}
+            </div>`;
+          }).join('');
+          return `<div style="margin-bottom:8px"><div class="cand-grp-hd">Group ${grp}</div>${rows}</div>`;
+        }).join('');
+        return `<div class="cand-panel"><p style="font-size:9px;color:#aaa;margin-bottom:6px">Both teams confirmed from group stage</p>${blocks}</div>`;
+      }
+
+      // One or both TBD — show only groups whose top-2 isn't fully placed yet
       const unresGrps = Object.keys(GROUPS).filter(grp => {
-        const st = calcStandings(grp);
-        const top2 = st.slice(0,2).map(t=>t.nm);
+        const top2 = calcStandings(grp).slice(0,2).map(t=>t.nm);
         return top2.some(t => !r32Locked.has(t));
       });
-      // If one team is already known, prioritise their group + any other unresolved
+      // Show known team's group first, then unresolved
       const knownGrps = [m.home, m.away].filter(Boolean).map(t=>teamGroupMap[t]).filter(Boolean);
       const show = [...new Set([...knownGrps, ...unresGrps])];
-
       if (!show.length) return `<div class="cand-panel" style="color:#888;font-size:11px">All groups resolved.</div>`;
 
       const blocks = show.map(grp => {
         const st = calcStandings(grp);
         const rows = st.slice(0,3).map((t,i) => {
-          const pc = ['p1','p2','p3'][i];
           const locked = r32Locked.has(t.nm);
           const isThis = m.home===t.nm||m.away===t.nm;
           return `<div class="cand-row${isThis?' leader':''}">
-            <span class="cand-pos ${pc}">${i+1}</span>
-            ${fl(t.nm,true)}
-            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.nm}</span>
-            <span style="color:#aaa;font-size:9px;white-space:nowrap">${t.pts}pts</span>
-            ${locked ? '<span style="color:var(--green);font-size:9px;font-weight:700">✓ placed</span>' : (i<2?'<span style="color:var(--navy);font-size:9px;font-weight:700">potential</span>':'')}
+            <span class="cand-pos ${['p1','p2','p3'][i]}">${i+1}</span>
+            ${fl(t.nm,true)}<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.nm}</span>
+            <span style="color:#aaa;font-size:9px">${t.pts}pts</span>
+            ${locked?'<span style="color:var(--green);font-size:9px;font-weight:700">✓ placed</span>':(i<2?'<span style="color:var(--navy);font-size:9px;font-weight:700">potential</span>':'')}
           </div>`;
         }).join('');
         return `<div style="margin-bottom:8px"><div class="cand-grp-hd">Group ${grp}</div>${rows}</div>`;
       }).join('');
-      return `<div class="cand-panel"><p style="font-size:9px;color:#aaa;margin-bottom:6px">Groups with open slots — top 2 qualify</p>${blocks}</div>`;
+      return `<div class="cand-panel"><p style="font-size:9px;color:#aaa;margin-bottom:6px">Groups that could fill the open slot</p>${blocks}</div>`;
     }
 
     // For R16/QF/SF/Final: show only the 2 prev-round matches that feed THIS specific slot
