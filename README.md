@@ -1,16 +1,17 @@
-# replacing nerd jobs
+## beep boop
 
-beep boop.
-
-a collection of static dashboards and data tools — built by a human, for now — served at [inaayat.xyz](https://inaayat.xyz).
+served at [inaayat.xyz](https://inaayat.xyz).
 
 ## website inspo
 
 - [zachjordan.io](https://www.zachjordan.io/#extras)
 - [sumanthsamala.com](https://sumanthsamala.com/)
 
-## website resources
+## free icons
 - [Free Icons](https://www.reddit.com/r/web_design/comments/16pa3v6/websites_for_free_icon_sets/)
+- [Flag Icons](https://flagpedia.net/download/api)
+
+## website color schemes
 - [Website Color Schemes](https://visme.co/blog/website-color-schemes/)
 
 ## color scheme
