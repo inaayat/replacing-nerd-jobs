@@ -378,10 +378,15 @@ function getSlotCandidates(slotDef, alreadyPlaced) {
 // ── Slot fills: user places a team into a TBD slot from "who?" panel ──
 let SLOT_FILLS = JSON.parse(localStorage.getItem('wc26fills') || '{}');
 function saveSlotFills() { localStorage.setItem('wc26fills', JSON.stringify(SLOT_FILLS)); }
-function fillSlot(matchId, team) {
-  if (SLOT_FILLS[matchId] === team) delete SLOT_FILLS[matchId];
-  else SLOT_FILLS[matchId] = team;
-  openCandMatch = null;
+
+// slot: 'home' | 'away'
+function fillSlot(matchId, team, slot) {
+  if (!SLOT_FILLS[matchId]) SLOT_FILLS[matchId] = {};
+  const cur = SLOT_FILLS[matchId][slot];
+  if (cur === team) delete SLOT_FILLS[matchId][slot]; // deselect
+  else SLOT_FILLS[matchId][slot] = team;
+  if (!Object.keys(SLOT_FILLS[matchId]).length) delete SLOT_FILLS[matchId];
+  // Keep panel open so user can pick the second slot
   saveSlotFills();
   renderBracket();
 }
@@ -474,13 +479,11 @@ function renderBracket() {
   const teamGroupMap = buildTeamGroupMap();
 
   // Apply user's slot fills to TBD slots in ko clone
-  const r32Matches = ko.filter(k=>k.stage==='LAST_32').sort((a,b)=>new Date(a.date)-new Date(b.date));
-  let tbdMatchIdx = 0;
-  r32Matches.forEach(m => {
-    if (SLOT_FILLS[m.id]) {
-      if (!m.home) m.home = SLOT_FILLS[m.id];
-      else if (!m.away) m.away = SLOT_FILLS[m.id];
-    }
+  ko.filter(k=>k.stage==='LAST_32').forEach(m => {
+    const fills = SLOT_FILLS[m.id];
+    if (!fills) return;
+    if (fills.home && !m.home) m.home = fills.home;
+    if (fills.away && !m.away) m.away = fills.away;
   });
 
   // All teams already locked into R32 slots (real or user-filled)
@@ -489,10 +492,12 @@ function renderBracket() {
   // Index of fully-TBD R32 matches (both slots null) by date order
   const r32FullTbd = ko.filter(k=>k.stage==='LAST_32'&&!k.home&&!k.away).sort((a,b)=>new Date(a.date)-new Date(b.date));
 
-  function candTeamRow(t, slotDef, matchId, isFilled) {
+  function candTeamRow(t, matchId, slot, currentFill) {
     const placed = r32Locked.has(t.nm);
+    const isPicked = currentFill === t.nm;
+    const safeNm = t.nm.replace(/'/g,"\\'");
     const fillBtn = !placed
-      ? `<button onclick="fillSlot(${matchId},'${t.nm.replace(/'/g,"\\'")}')" style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:3px;border:1px solid var(--navy);background:${isFilled===t.nm?'var(--navy)':'transparent'};color:${isFilled===t.nm?'#fff':'var(--navy)'};cursor:pointer">${isFilled===t.nm?'✓ picked':'+ pick'}</button>`
+      ? `<button onclick="event.stopPropagation();fillSlot(${matchId},'${safeNm}','${slot}')" style="font-size:9px;font-weight:700;padding:1px 7px;border-radius:3px;border:1.5px solid var(--navy);background:${isPicked?'var(--navy)':'transparent'};color:${isPicked?'#fff':'var(--navy)'};cursor:pointer">${isPicked?'✓ picked':'+ pick'}</button>`
       : `<span style="color:var(--green);font-size:9px;font-weight:700">✓ placed</span>`;
     return `<div class="cand-row" style="gap:6px">
       ${fl(t.nm,true)}
@@ -505,7 +510,9 @@ function renderBracket() {
   function candPanel(m) {
     if (openCandMatch !== m.id) return '';
     const PREV = {LAST_16:'LAST_32',QUARTER_FINALS:'LAST_16',SEMI_FINALS:'QUARTER_FINALS',FINAL:'SEMI_FINALS',THIRD_PLACE:'SEMI_FINALS'};
-    const filled = SLOT_FILLS[m.id];
+    const fills = SLOT_FILLS[m.id] || {};
+    // Determine which slot is TBD in this match
+    const homeIsTbd = !m.home, awayIsTbd = !m.away;
 
     if (m.stage === 'LAST_32') {
       // Both teams confirmed from API — just confirm their source
@@ -529,22 +536,25 @@ function renderBracket() {
         const entry = R32_FULL_TBD[idx];
         if (!entry) return `<div class="cand-panel" style="color:#888;font-size:11px">Pending group results.</div>`;
         // Show both slots
-        const mkBlock = (sd, isHomeSlot) => {
+        const mkBlock = (sd, slot) => {
           if (!sd) return '';
           const cands = getSlotCandidates(sd, r32Locked);
           if (!cands.length) return `<div style="font-size:10px;color:#888;margin-bottom:6px">${sd.label}: TBD</div>`;
-          return `<div style="margin-bottom:10px"><div class="cand-grp-hd">${isHomeSlot?'Home':'Away'} slot — ${sd.label}</div>${cands.map(t=>candTeamRow(t,sd,m.id,filled)).join('')}</div>`;
+          const currentFill = fills[slot];
+          const hdr = slot==='home'?'Home slot':'Away slot';
+          return `<div style="margin-bottom:10px"><div class="cand-grp-hd">${hdr} — ${sd.label}</div>${cands.map(t=>candTeamRow(t,m.id,slot,currentFill)).join('')}</div>`;
         };
-        return `<div class="cand-panel">${mkBlock(entry.home,true)}${mkBlock(entry.away,false)}</div>`;
+        return `<div class="cand-panel"><p style="font-size:9px;color:#aaa;margin-bottom:6px">Pick one team per slot</p>${mkBlock(entry.home,'home')}${mkBlock(entry.away,'away')}</div>`;
       }
 
       if (!slotDef) return `<div class="cand-panel" style="color:#888;font-size:11px">Source pending.</div>`;
       const cands = getSlotCandidates(slotDef, r32Locked);
-      if (!cands.length) return `<div class="cand-panel" style="color:#888;font-size:11px">No eligible teams yet — group stage in progress.</div>`;
-      const label = knownTeam ? `Open slot — ${slotDef.label}` : slotDef.label;
+      if (!cands.length) return `<div class="cand-panel" style="color:#888;font-size:11px">No eligible teams yet.</div>`;
+      const tbdSlot = homeIsTbd ? 'home' : 'away';
+      const currentFill = fills[tbdSlot];
       return `<div class="cand-panel">
-        <p style="font-size:9px;color:#aaa;margin-bottom:6px">${label} — tap + pick to place in bracket</p>
-        ${cands.map(t=>candTeamRow(t,slotDef,m.id,filled)).join('')}
+        <p style="font-size:9px;color:#aaa;margin-bottom:6px">Eligible for open slot — ${slotDef.label}</p>
+        ${cands.map(t=>candTeamRow(t,m.id,tbdSlot,currentFill)).join('')}
       </div>`;
     }
 
