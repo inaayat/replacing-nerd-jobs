@@ -2,17 +2,18 @@
 
 served at [inaayat.xyz](https://inaayat.xyz).
 
-## website inspo
+## resources
+### website inspo
 
 - [zachjordan.io](https://www.zachjordan.io/#extras)
 - [sumanthsamala.com](https://sumanthsamala.com/)
 
-## free icons
+### free icons
 - [Free Icons](https://www.reddit.com/r/web_design/comments/16pa3v6/websites_for_free_icon_sets/)
 - [Flag Icons](https://flagpedia.net/download/api)
 - [Circle Flags](https://kapowaz.github.io/circle-flags/)
 
-## website color schemes
+### website color schemes
 - [Website Color Schemes](https://visme.co/blog/website-color-schemes/)
 
 ## color scheme
