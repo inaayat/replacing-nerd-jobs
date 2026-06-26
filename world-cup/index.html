@@ -76,32 +76,80 @@
 
     /* Details summary arrow */
     details summary::-webkit-details-marker { display:none; }
+
+    /* Tiebreaker sidebar */
+    .tb-overlay { position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:40;opacity:0;pointer-events:none;transition:opacity .25s; }
+    .tb-overlay.open { opacity:1;pointer-events:all; }
+    .tb-sidebar { position:fixed;top:0;right:0;height:100vh;width:min(420px,95vw);background:#fff;z-index:50;transform:translateX(100%);transition:transform .25s;overflow-y:auto;box-shadow:-4px 0 24px rgba(0,0,0,.2); }
+    .tb-sidebar.open { transform:translateX(0); }
+
+    /* Summary section */
+    .summ-stage { display:flex;flex-direction:column;gap:6px; }
+    .summ-label { font-size:10px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;margin-bottom:2px; }
+    .summ-chips { display:flex;flex-wrap:wrap;gap:4px; }
+    .summ-chip { display:flex;align-items:center;gap:4px;padding:2px 7px 2px 4px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap; }
+    .summ-chip.alive { background:#fff;border:1.5px solid var(--lgray); }
+    .summ-chip.out { background:#f5f5f5;border:1.5px solid #e0e0e0;color:#aaa;text-decoration:line-through; }
   </style>
 </head>
 <body class="min-h-screen flex flex-col">
 
 <!-- Nav -->
-<nav class="px-6 py-3 flex items-center justify-between sticky top-0 z-10" style="background:var(--navy);">
-  <div class="flex items-center gap-4">
-    <a href="/" class="font-extrabold text-xl rounded-md border-4 border-white text-white select-none px-2 py-1 no-underline" style="white-space:nowrap">Beep boop</a>
-    <div style="border-left:2px solid rgba(255,255,255,0.25);height:36px"></div>
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="26" height="26" style="fill:#fff;opacity:.9;flex-shrink:0"><path d="M451 292.3C446.6 289.5 443.4 285.3 441.8 280.4C440.2 275.5 440.4 270.2 442.3 265.4L475.6 182C455.7 159.6 431 141.5 403.2 129.3L334.1 186.9C330.1 190.2 325.1 192 320 192C314.9 192 309.8 190.2 305.9 186.9L236.8 129.3C209 141.5 184.3 159.6 164.4 182L197.8 265.4C199.7 270.2 199.9 275.5 198.3 280.4C196.7 285.3 193.4 289.5 189.1 292.3L113 340.2C116 371.1 125.7 399.9 140.6 425.4L230.3 419.4C235.5 419.1 240.6 420.5 244.8 423.6C249 426.7 252 431 253.2 436.1L275.2 523.3C289.6 526.5 304.6 528.1 320 528.1C335.4 528.1 350.3 526.4 364.8 523.3L386.8 436.1C388.1 431.1 391 426.7 395.2 423.6C399.4 420.5 404.5 419.1 409.7 419.4L499.4 425.4C514.4 400 524.1 371.1 527 340.3L451 292.3zM320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576C178.6 576 64 461.4 64 320C64 178.6 178.6 64 320 64zM382 285C390.4 291.1 393.9 301.9 390.7 311.8L372.4 368.1C369.2 378 360 384.7 349.6 384.7L290.4 384.7C280 384.7 270.8 378 267.6 368.1L249.3 311.8C246.1 301.9 249.6 291.1 258 285L305.9 250.2C314.3 244.1 325.7 244.1 334.1 250.2L382 285z"/></svg>
-    <div>
-      <div class="font-extrabold text-white" style="font-size:1rem;line-height:1.2">World Cup 2026</div>
-      <div class="text-white" style="font-size:10px;opacity:.65;font-style:italic">48 teams · Jun 11–Jul 19 · USA, Canada &amp; Mexico</div>
+<!-- Tiebreaker sidebar overlay -->
+<div class="tb-overlay" id="tbOverlay" onclick="closeSidebar()"></div>
+<aside class="tb-sidebar" id="tbSidebar">
+  <div style="background:var(--navy);color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0">
+    <span style="font-weight:800;font-size:15px;letter-spacing:.5px">ⓘ Tournament Guide</span>
+    <button onclick="closeSidebar()" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">×</button>
+  </div>
+  <div style="padding:16px">
+    <!-- Qualification rules -->
+    <div style="margin-bottom:20px">
+      <p style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--navy);margin-bottom:8px">Who Qualifies</p>
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--dgray)">
+        <div style="display:flex;gap:8px;align-items:flex-start"><span style="width:10px;height:10px;border-radius:2px;background:var(--green);flex-shrink:0;margin-top:2px"></span><span><strong>Top 2</strong> from each group (24 teams) automatically advance to the Round of 32</span></div>
+        <div style="display:flex;gap:8px;align-items:flex-start"><span style="width:10px;height:10px;border-radius:2px;background:#f59e0b;flex-shrink:0;margin-top:2px"></span><span><strong>Best 8</strong> third-place teams across all 12 groups also advance (ranked by points → GD → goals scored)</span></div>
+        <div style="display:flex;gap:8px;align-items:flex-start"><span style="width:10px;height:10px;border-radius:2px;background:var(--lgray);flex-shrink:0;margin-top:2px"></span><span><strong>4th place</strong> teams and the worst 4 third-place teams are eliminated</span></div>
+      </div>
+    </div>
+    <!-- Tiebreakers -->
+    <p style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--navy);margin-bottom:8px">⚖️ Group Stage Tiebreakers</p>
+    <p style="font-size:11px;color:var(--dgray);margin-bottom:10px">When teams are equal on points, FIFA separates them in this order:</p>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;gap:10px;align-items:flex-start"><span style="background:var(--navy);color:#fff;font-size:10px;font-weight:800;min-width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</span><div><p style="font-size:12px;font-weight:700;color:var(--dgray);margin:0">Head-to-head points</p><p style="font-size:11px;color:#888;margin:0">Points in matches only between the tied teams</p></div></div>
+      <div style="display:flex;gap:10px;align-items:flex-start"><span style="background:var(--navy);color:#fff;font-size:10px;font-weight:800;min-width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</span><div><p style="font-size:12px;font-weight:700;color:var(--dgray);margin:0">Head-to-head goal difference</p><p style="font-size:11px;color:#888;margin:0">GD only in matches between tied teams</p></div></div>
+      <div style="display:flex;gap:10px;align-items:flex-start"><span style="background:var(--navy);color:#fff;font-size:10px;font-weight:800;min-width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</span><div><p style="font-size:12px;font-weight:700;color:var(--dgray);margin:0">Head-to-head goals scored</p><p style="font-size:11px;color:#888;margin:0">Total goals in matches between tied teams</p></div></div>
+      <div style="display:flex;gap:10px;align-items:flex-start"><span style="background:var(--navy);color:#fff;font-size:10px;font-weight:800;min-width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</span><div><p style="font-size:12px;font-weight:700;color:var(--dgray);margin:0">Overall goal difference</p><p style="font-size:11px;color:#888;margin:0">GD across all group stage matches</p></div></div>
+      <div style="display:flex;gap:10px;align-items:flex-start"><span style="background:var(--navy);color:#fff;font-size:10px;font-weight:800;min-width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">5</span><div><p style="font-size:12px;font-weight:700;color:var(--dgray);margin:0">Overall goals scored</p><p style="font-size:11px;color:#888;margin:0">Total goals in all group matches</p></div></div>
+      <div style="display:flex;gap:10px;align-items:flex-start"><span style="background:var(--navy);color:#fff;font-size:10px;font-weight:800;min-width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">6</span><div><p style="font-size:12px;font-weight:700;color:var(--dgray);margin:0">Fair play points</p><p style="font-size:11px;color:#888;margin:0">Yellow=−1 · Direct red=−3 · YR=−4</p></div></div>
+      <div style="display:flex;gap:10px;align-items:flex-start"><span style="background:var(--red);color:#fff;font-size:10px;font-weight:800;min-width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">7</span><div><p style="font-size:12px;font-weight:700;color:var(--dgray);margin:0">Drawing of lots</p><p style="font-size:11px;color:#888;margin:0">Random FIFA draw if all criteria are equal</p></div></div>
     </div>
   </div>
+</aside>
+
+<!-- Nav -->
+<nav class="px-6 py-3 flex items-center justify-between sticky top-0 z-10" style="background:var(--navy);font-family:inherit">
   <div class="flex items-center gap-4">
-    <span id="lu" class="text-white" style="font-size:10px;opacity:.6"></span>
-    <button onclick="loadData(true)" class="font-bold text-white px-2 py-1 rounded border-2 border-white border-opacity-50 hover:opacity-70 transition-opacity" style="font-size:11px;white-space:nowrap">↻ Refresh</button>
-    <a href="#bracket" class="font-extrabold text-white no-underline opacity-80 hover:opacity-100" style="font-size:14px">Bracket</a>
-    <a href="#groups" class="font-extrabold text-white no-underline opacity-80 hover:opacity-100" style="font-size:14px">Groups</a>
+    <a href="/" style="font-weight:800;font-size:1.2rem;border-radius:6px;border:3px solid #fff;color:#fff;padding:3px 10px;text-decoration:none;white-space:nowrap;font-family:inherit">Beep boop</a>
+    <div style="border-left:2px solid rgba(255,255,255,0.25);height:32px"></div>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="22" height="22" style="fill:#fff;opacity:.85;flex-shrink:0"><path d="M451 292.3C446.6 289.5 443.4 285.3 441.8 280.4C440.2 275.5 440.4 270.2 442.3 265.4L475.6 182C455.7 159.6 431 141.5 403.2 129.3L334.1 186.9C330.1 190.2 325.1 192 320 192C314.9 192 309.8 190.2 305.9 186.9L236.8 129.3C209 141.5 184.3 159.6 164.4 182L197.8 265.4C199.7 270.2 199.9 275.5 198.3 280.4C196.7 285.3 193.4 289.5 189.1 292.3L113 340.2C116 371.1 125.7 399.9 140.6 425.4L230.3 419.4C235.5 419.1 240.6 420.5 244.8 423.6C249 426.7 252 431 253.2 436.1L275.2 523.3C289.6 526.5 304.6 528.1 320 528.1C335.4 528.1 350.3 526.4 364.8 523.3L386.8 436.1C388.1 431.1 391 426.7 395.2 423.6C399.4 420.5 404.5 419.1 409.7 419.4L499.4 425.4C514.4 400 524.1 371.1 527 340.3L451 292.3zM320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576C178.6 576 64 461.4 64 320C64 178.6 178.6 64 320 64zM382 285C390.4 291.1 393.9 301.9 390.7 311.8L372.4 368.1C369.2 378 360 384.7 349.6 384.7L290.4 384.7C280 384.7 270.8 378 267.6 368.1L249.3 311.8C246.1 301.9 249.6 291.1 258 285L305.9 250.2C314.3 244.1 325.7 244.1 334.1 250.2L382 285z"/></svg>
+    <div>
+      <div style="font-weight:800;color:#fff;font-size:.95rem;line-height:1.2;font-family:inherit">World Cup 2026</div>
+      <div style="color:#fff;font-size:10px;opacity:.65;font-style:italic;font-family:inherit">48 teams · Jun 11–Jul 19 · USA, Canada &amp; Mexico</div>
+    </div>
+  </div>
+  <div class="flex items-center gap-3">
+    <span id="lu" style="color:#fff;font-size:10px;opacity:.6;font-family:inherit"></span>
+    <button onclick="loadData(true)" style="font-weight:700;color:#fff;padding:3px 8px;border-radius:4px;border:2px solid rgba(255,255,255,.5);font-size:11px;background:transparent;cursor:pointer;font-family:inherit;white-space:nowrap">↻ Refresh</button>
+    <button onclick="openSidebar()" style="font-weight:700;color:#fff;padding:3px 8px;border-radius:4px;border:2px solid rgba(255,255,255,.5);font-size:11px;background:transparent;cursor:pointer;font-family:inherit;white-space:nowrap">ⓘ Guide</button>
+    <a href="#bracket" style="font-weight:700;color:#fff;text-decoration:none;opacity:.8;font-size:13px;font-family:inherit">Bracket</a>
+    <a href="#groups" style="font-weight:700;color:#fff;text-decoration:none;opacity:.8;font-size:13px;font-family:inherit">Groups</a>
   </div>
 </nav>
 
-<!-- Legend -->
+<!-- Legend + Summary -->
 <div class="px-8 pt-4 pb-2">
-  <div class="flex gap-5 flex-wrap text-xs font-semibold" style="color:var(--dgray)">
+  <div class="flex gap-5 flex-wrap text-xs font-semibold mb-3" style="color:var(--dgray)">
     <span class="flex items-center gap-1"><span class="inline-block w-2.5 h-2.5 rounded-sm" style="background:var(--green)"></span>Top 2 qualify</span>
     <span class="flex items-center gap-1"><span class="inline-block w-2.5 h-2.5 rounded-sm" style="background:#f59e0b"></span>Best 3rd (may qualify)</span>
     <span class="flex items-center gap-1"><span class="badge-lv">LIVE</span>In progress</span>
@@ -109,26 +157,14 @@
   </div>
 </div>
 
-<!-- Tiebreakers -->
+<!-- Tournament Summary -->
 <div class="px-8 pb-4">
-  <details class="grp-card" style="border-color:var(--navy)">
-    <summary style="cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--navy);color:#fff">
-      <span class="font-extrabold" style="font-size:15px;letter-spacing:.5px;text-transform:uppercase">⚖️ Tiebreakers</span>
-      <span style="font-size:10px;opacity:.6;font-weight:400;text-transform:none">click to expand</span>
+  <details open>
+    <summary style="cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;padding:8px 14px;background:var(--dgray);color:#fff;border-radius:8px;margin-bottom:10px">
+      <span style="font-weight:800;font-size:13px;letter-spacing:.5px;text-transform:uppercase">Tournament Tracker</span>
+      <span style="font-size:10px;opacity:.6;font-weight:400;text-transform:none">click to collapse</span>
     </summary>
-    <div style="padding:14px 16px">
-      <p style="font-size:12px;color:var(--dgray);margin-bottom:10px">When teams are equal on points, FIFA separates them in this order:</p>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px">
-        <div class="flex gap-2"><span style="background:var(--navy);color:#fff;font-size:11px;font-weight:800;min-width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</span><div><p style="font-size:12px;font-weight:700;color:var(--dgray);margin:0">Head-to-head points</p><p style="font-size:11px;color:#888;margin:0">Points in matches between tied teams</p></div></div>
-        <div class="flex gap-2"><span style="background:var(--navy);color:#fff;font-size:11px;font-weight:800;min-width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</span><div><p style="font-size:12px;font-weight:700;color:var(--dgray);margin:0">Head-to-head goal difference</p><p style="font-size:11px;color:#888;margin:0">GD only in matches between tied teams</p></div></div>
-        <div class="flex gap-2"><span style="background:var(--navy);color:#fff;font-size:11px;font-weight:800;min-width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</span><div><p style="font-size:12px;font-weight:700;color:var(--dgray);margin:0">Head-to-head goals scored</p><p style="font-size:11px;color:#888;margin:0">Goals scored between tied teams</p></div></div>
-        <div class="flex gap-2"><span style="background:var(--navy);color:#fff;font-size:11px;font-weight:800;min-width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</span><div><p style="font-size:12px;font-weight:700;color:var(--dgray);margin:0">Overall goal difference</p><p style="font-size:11px;color:#888;margin:0">GD across all group matches</p></div></div>
-        <div class="flex gap-2"><span style="background:var(--navy);color:#fff;font-size:11px;font-weight:800;min-width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">5</span><div><p style="font-size:12px;font-weight:700;color:var(--dgray);margin:0">Overall goals scored</p><p style="font-size:11px;color:#888;margin:0">Total goals in all group matches</p></div></div>
-        <div class="flex gap-2"><span style="background:var(--navy);color:#fff;font-size:11px;font-weight:800;min-width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">6</span><div><p style="font-size:12px;font-weight:700;color:var(--dgray);margin:0">Fair play (yellow/red cards)</p><p style="font-size:11px;color:#888;margin:0">Yellow=−1, Direct red=−3, YR=−4</p></div></div>
-        <div class="flex gap-2"><span style="background:var(--red);color:#fff;font-size:11px;font-weight:800;min-width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">7</span><div><p style="font-size:12px;font-weight:700;color:var(--dgray);margin:0">Drawing of lots</p><p style="font-size:11px;color:#888;margin:0">Random FIFA draw if all else equal</p></div></div>
-      </div>
-      <p style="font-size:11px;color:var(--dgray);margin-top:10px;padding:6px 10px;background:rgba(42,57,141,.06);border-left:3px solid var(--navy);border-radius:0 4px 4px 0"><strong>Best 3rd place:</strong> 8 of 12 third-place teams advance. Ranked by points → GD → goals scored.</p>
-    </div>
+    <div id="summary" style="display:flex;flex-direction:column;gap:10px"></div>
   </details>
 </div>
 
@@ -516,14 +552,97 @@ function fmtDate(iso) {
   return d.toLocaleDateString('en-US', {month:'short',day:'numeric'});
 }
 
-// ── Data loading (30 min cache, manual override) ──────────────────
+// ── Sidebar ───────────────────────────────────────────────────────
+function openSidebar() {
+  document.getElementById('tbSidebar').classList.add('open');
+  document.getElementById('tbOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeSidebar() {
+  document.getElementById('tbSidebar').classList.remove('open');
+  document.getElementById('tbOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// ── Tournament Summary ────────────────────────────────────────────
+function renderSummary() {
+  const el = document.getElementById('summary');
+  if (!el) return;
+
+  // Group stage: who's in/out
+  const grpTop2 = [], grpThird = [], grpElim = [];
+  Object.keys(GROUPS).forEach(grp => {
+    const st = calcStandings(grp);
+    st.forEach((t, i) => {
+      if (i < 2) grpTop2.push(t.nm);
+      else if (i === 2) grpThird.push({...t, grp});
+      else if (i === 3 && t.p >= 2) grpElim.push(t.nm);
+    });
+  });
+  const sortedThird = [...grpThird].sort((a,b)=>b.pts-a.pts||b.gd-a.gd||b.gf-a.gf);
+  const best8Third = sortedThird.slice(0,8).map(t=>t.nm);
+  const elim3rd    = sortedThird.slice(8).map(t=>t.nm);
+  const r32In      = [...grpTop2, ...best8Third];
+  const groupOut   = [...grpElim, ...elim3rd];
+
+  // Knockout stage
+  const r16In=[], qfIn=[], sfIn=[], finalIn=[];
+  const r32Out=[], r16Out=[], qfOut=[], sfOut=[];
+  const NEXT_IN  = {LAST_32:r16In, LAST_16:qfIn, QUARTER_FINALS:sfIn, SEMI_FINALS:finalIn};
+  const ELIM_OUT = {LAST_32:r32Out, LAST_16:r16Out, QUARTER_FINALS:qfOut, SEMI_FINALS:sfOut};
+
+  koFixtures.forEach(m => {
+    if (m.status!=='FT'||m.homeGoals===null||m.awayGoals===null) return;
+    const win  = m.homeGoals>m.awayGoals ? m.home : m.homeGoals<m.awayGoals ? m.away : null;
+    const lose = m.homeGoals>m.awayGoals ? m.away : m.homeGoals<m.awayGoals ? m.home : null;
+    if (win  && NEXT_IN[m.stage])  NEXT_IN[m.stage].push(win);
+    if (lose && ELIM_OUT[m.stage]) ELIM_OUT[m.stage].push(lose);
+  });
+
+  function chip(name, alive) {
+    const code = FC[name];
+    const img  = code ? `<img style="width:14px;height:14px;border-radius:50%;object-fit:cover" src="https://kapowaz.github.io/circle-flags/flags/${code}.svg" loading="lazy">` : '';
+    return `<span class="summ-chip ${alive?'alive':'out'}">${img}${name}</span>`;
+  }
+
+  function row(label, color, teams, alive) {
+    if (!teams.length) return '';
+    return `<div class="summ-stage">
+      <div class="summ-label" style="color:${color}">${label} <span style="font-weight:400;opacity:.6">(${teams.length})</span></div>
+      <div class="summ-chips">${teams.map(t=>chip(t,alive)).join('')}</div>
+    </div>`;
+  }
+
+  const html = [
+    finalIn.length  ? row('🏆 In Final',   'var(--red)',   finalIn, true) : '',
+    sfIn.length     ? row('In Semifinals', 'var(--navy)',  sfIn,    true) : '',
+    qfIn.length     ? row('In Quarterfinals','var(--navy)',qfIn,   true) : '',
+    r16In.length    ? row('In Round of 16','var(--navy)',  r16In,   true) : '',
+    r32In.length    ? row('Qualified for R32','var(--green)', r32In,true) : '',
+    '<div style="border-top:2px solid var(--lgray);margin:4px 0"></div>',
+    sfOut.length    ? row('❌ Out — 3rd Place Match', '#aaa', sfOut,  false) : '',
+    qfOut.length    ? row('❌ Out — Quarterfinals',   '#aaa', qfOut,  false) : '',
+    r16Out.length   ? row('❌ Out — Round of 16',     '#aaa', r16Out, false) : '',
+    r32Out.length   ? row('❌ Out — Round of 32',     '#aaa', r32Out, false) : '',
+    groupOut.length ? row('❌ Out — Group Stage',     '#aaa', groupOut,false) : '',
+  ].filter(Boolean).join('');
+
+  el.innerHTML = html || '<p style="color:#999;font-size:12px">Hit ↻ Refresh to load live standings.</p>';
+}
+
+// ── Data loading: cache-first, no auto-fetch on page open ─────────
 let lastFetched = 0;
 const CACHE_MS = 30 * 60 * 1000;
+
+function renderAll() {
+  renderGroups();
+  renderBracket();
+  renderSummary();
+}
 
 async function loadData(force = false) {
   const now = Date.now();
   if (!force && now - lastFetched < CACHE_MS) return;
-
   const lu = document.getElementById('lu');
   lu.textContent = 'Loading…';
   try {
@@ -533,17 +652,29 @@ async function loadData(force = false) {
     groupFixtures = data.groupFixtures || [];
     koFixtures    = data.koFixtures    || [];
     lastFetched   = now;
+    localStorage.setItem('wc26data', JSON.stringify({groupFixtures, koFixtures, ts: now}));
     lu.textContent = 'Updated ' + new Date().toLocaleTimeString();
   } catch (e) {
-    lu.textContent = 'Live data unavailable';
+    lu.textContent = 'Unavailable';
   }
-  renderGroups();
-  renderBracket();
+  renderAll();
 }
 
-// Load immediately on page open, then every 30 min
-loadData(true);
-setInterval(() => loadData(false), 30 * 60 * 1000);
+// On page load: use cached data, no API call
+const cached = localStorage.getItem('wc26data');
+if (cached) {
+  try {
+    const d = JSON.parse(cached);
+    groupFixtures = d.groupFixtures || [];
+    koFixtures    = d.koFixtures    || [];
+    lastFetched   = d.ts || 0;
+    document.getElementById('lu').textContent = 'Cached · ' + new Date(d.ts).toLocaleTimeString();
+  } catch(e) {}
+}
+renderAll();
+
+// Auto-refresh every 30 min (only if data is stale)
+setInterval(() => loadData(false), CACHE_MS);
 </script>
 </body>
 </html>
