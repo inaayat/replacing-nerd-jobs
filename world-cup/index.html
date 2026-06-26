@@ -8,40 +8,56 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     :root { --green:#3CAC3B; --navy:#2A398D; --red:#E61D25; --lgray:#D1D4D1; --dgray:#474A4A; }
-    body { font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:#f5f5f4; }
-    .fi { width:18px; height:18px; border-radius:50%; flex-shrink:0; object-fit:cover; }
-    .fi-sm { width:15px; height:15px; border-radius:50%; flex-shrink:0; object-fit:cover; }
-    .grp-card { background:#fff; border:2px solid var(--lgray); border-radius:8px; overflow:hidden; }
-    .grp-head { background:var(--navy); color:#fff; padding:6px 12px; font-weight:800; font-size:13px; letter-spacing:.5px; }
-    .grp-table { width:100%; border-collapse:collapse; }
-    .grp-table th { background:var(--lgray); color:var(--dgray); padding:3px 6px; font-weight:700; text-align:center; font-size:10px; white-space:nowrap; }
-    .grp-table th:first-child { text-align:left; }
-    .grp-table td { padding:3px 6px; text-align:center; border-bottom:1px solid #f0f0f0; font-size:11px; }
-    .grp-table td:first-child { text-align:left; font-weight:600; }
+    body { font-family:ui-sans-serif,system-ui,-apple-system,sans-serif; background:#f0f0ee; }
+
+    /* Flags */
+    .fl { width:18px;height:18px;border-radius:50%;flex-shrink:0;object-fit:cover; }
+    .fl-sm { width:14px;height:14px;border-radius:50%;flex-shrink:0;object-fit:cover; }
+
+    /* Group cards */
+    .grp-card { background:#fff;border:2px solid var(--lgray);border-radius:8px;overflow:hidden; }
+    .grp-head { background:var(--navy);color:#fff;padding:7px 12px;font-weight:800;font-size:13px;letter-spacing:.5px;text-transform:uppercase; }
+    .grp-table { width:100%;border-collapse:collapse; }
+    .grp-table th { background:var(--lgray);color:var(--dgray);padding:3px 6px;font-weight:700;text-align:center;font-size:10px;white-space:nowrap; }
+    .grp-table th:first-child { text-align:left;padding-left:8px; }
+    .grp-table td { padding:3px 6px;text-align:center;border-bottom:1px solid #f0f0f0;font-size:11px; }
+    .grp-table td:first-child { text-align:left;font-weight:600;padding-left:8px; }
     .grp-table tr.q1 td, .grp-table tr.q2 td { border-left:3px solid var(--green); }
     .grp-table tr.q3 td { border-left:3px solid #f59e0b; }
-    .mrow { display:flex; justify-content:space-between; align-items:center; padding:3px 8px; font-size:11px; border-top:1px solid #f5f5f5; gap:4px; }
-    .tn { font-weight:600; color:var(--dgray); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:76px; }
+    .mrow { display:flex;justify-content:space-between;align-items:center;padding:3px 8px;font-size:11px;border-top:1px solid #f5f5f5;gap:4px; }
+    .tn { font-weight:600;color:var(--dgray);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:76px; }
     .tn.win { color:var(--green); }
-    .sc { background:var(--navy); color:#fff; padding:1px 5px; border-radius:3px; font-weight:700; font-size:11px; white-space:nowrap; }
+    .sc { background:var(--navy);color:#fff;padding:1px 5px;border-radius:3px;font-weight:700;font-size:11px;white-space:nowrap; }
     .sc.lv { background:var(--red); }
-    .blive { background:var(--red); color:#fff; font-size:8px; font-weight:700; padding:1px 3px; border-radius:2px; }
-    .bft   { background:var(--lgray); color:var(--dgray); font-size:8px; font-weight:700; padding:1px 3px; border-radius:2px; }
-    .bm { background:#fff; border:2px solid var(--lgray); border-radius:6px; overflow:hidden; }
-    .bmhd { background:rgba(42,57,141,.08); padding:2px 7px; font-size:9px; font-weight:700; color:var(--dgray); display:flex; justify-content:space-between; align-items:center; }
-    .bmt { padding:4px 7px; display:flex; justify-content:space-between; align-items:center; gap:5px; border-bottom:1px solid var(--lgray); }
-    .bmt:last-child { border-bottom:none; }
-    .bmt.win { background:var(--green); color:#fff; font-weight:700; }
-    .bmt.tbd { color:#bbb; font-style:italic; }
-    .bmt .bs { background:var(--navy); color:#fff; padding:1px 5px; border-radius:3px; font-weight:700; font-size:10px; min-width:16px; text-align:center; }
-    .bmt.win .bs { background:rgba(0,0,0,.22); }
-    .rcol { display:flex; flex-direction:column; flex-shrink:0; padding:0 5px; }
-    .rlbl { background:var(--dgray); color:#fff; font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:3px 8px; border-radius:3px; text-align:center; margin-bottom:8px; white-space:nowrap; }
-    .rms { display:flex; flex-direction:column; justify-content:space-around; flex:1; gap:6px; }
+    .badge-ft { background:var(--lgray);color:var(--dgray);font-size:8px;font-weight:700;padding:1px 3px;border-radius:2px; }
+    .badge-lv { background:var(--red);color:#fff;font-size:8px;font-weight:700;padding:1px 3px;border-radius:2px; }
+
+    /* Position badge in bracket */
+    .pos-badge { font-size:9px;font-weight:700;padding:1px 4px;border-radius:3px;white-space:nowrap;flex-shrink:0; }
+
+    /* Bracket */
+    .bkt-col { display:flex;flex-direction:column;flex-shrink:0;padding:0 4px; }
+    .bkt-lbl { background:var(--dgray);color:#fff;font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;padding:3px 8px;border-radius:3px;text-align:center;margin-bottom:10px; }
+    .bkt-matches { display:flex;flex-direction:column;justify-content:space-around;flex:1;gap:8px; }
+    .bkt-match { background:#fff;border:2px solid var(--lgray);border-radius:6px;overflow:hidden; }
+    .bkt-date { background:rgba(42,57,141,.07);padding:2px 8px;font-size:9px;font-weight:700;color:var(--dgray);display:flex;justify-content:space-between;align-items:center; }
+    .bkt-team { padding:4px 8px;display:flex;justify-content:space-between;align-items:center;gap:6px;border-bottom:1px solid var(--lgray); }
+    .bkt-team:last-child { border-bottom:none; }
+    .bkt-team.win { background:var(--green);color:#fff;font-weight:700; }
+    .bkt-team.tbd { color:#bbb;font-style:italic; }
+    .bkt-team .bscore { background:var(--navy);color:#fff;padding:1px 5px;border-radius:3px;font-weight:700;font-size:10px;min-width:16px;text-align:center; }
+    .bkt-team.win .bscore { background:rgba(0,0,0,.2); }
+
+    /* Section headers */
+    .sec-hd { font-size:15px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--dgray); }
+
+    /* Details summary arrow */
+    details summary::-webkit-details-marker { display:none; }
   </style>
 </head>
-<body class="text-gray-900 min-h-screen flex flex-col">
+<body class="min-h-screen flex flex-col">
 
+<!-- Nav -->
 <nav class="px-8 py-4 flex items-center justify-between sticky top-0 z-10" style="background:#f267a0;">
   <a href="/" class="font-extrabold text-2xl rounded-md border-4 border-white text-white select-none p-2 no-underline">Beep boop</a>
   <div class="flex items-center gap-6">
@@ -50,385 +66,277 @@
   </div>
 </nav>
 
+<!-- Header -->
 <div class="px-8 pt-8 pb-4">
   <div class="flex items-center gap-4 flex-wrap">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="34" height="34" style="fill:var(--navy)"><path d="M451 292.3C446.6 289.5 443.4 285.3 441.8 280.4C440.2 275.5 440.4 270.2 442.3 265.4L475.6 182C455.7 159.6 431 141.5 403.2 129.3L334.1 186.9C330.1 190.2 325.1 192 320 192C314.9 192 309.8 190.2 305.9 186.9L236.8 129.3C209 141.5 184.3 159.6 164.4 182L197.8 265.4C199.7 270.2 199.9 275.5 198.3 280.4C196.7 285.3 193.4 289.5 189.1 292.3L113 340.2C116 371.1 125.7 399.9 140.6 425.4L230.3 419.4C235.5 419.1 240.6 420.5 244.8 423.6C249 426.7 252 431 253.2 436.1L275.2 523.3C289.6 526.5 304.6 528.1 320 528.1C335.4 528.1 350.3 526.4 364.8 523.3L386.8 436.1C388.1 431.1 391 426.7 395.2 423.6C399.4 420.5 404.5 419.1 409.7 419.4L499.4 425.4C514.4 400 524.1 371.1 527 340.3L451 292.3zM320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576C178.6 576 64 461.4 64 320C64 178.6 178.6 64 320 64zM382 285C390.4 291.1 393.9 301.9 390.7 311.8L372.4 368.1C369.2 378 360 384.7 349.6 384.7L290.4 384.7C280 384.7 270.8 378 267.6 368.1L249.3 311.8C246.1 301.9 249.6 291.1 258 285L305.9 250.2C314.3 244.1 325.7 244.1 334.1 250.2L382 285z"/></svg>
     <div>
-      <h1 class="text-4xl font-extrabold" style="color:var(--navy)">World Cup 2026</h1>
+      <h1 class="font-extrabold" style="font-size:2rem;color:var(--navy)">World Cup 2026</h1>
       <p class="text-sm font-medium" style="color:var(--dgray)">48 teams · Jun 11 – Jul 19 · USA, Canada &amp; Mexico</p>
     </div>
-    <div class="ml-auto flex items-center gap-3">
+    <div class="ml-auto flex items-center gap-3 flex-wrap">
       <span id="lu" class="text-xs" style="color:#999"></span>
-      <button onclick="go()" class="text-xs font-bold px-3 py-1 rounded border-2 hover:opacity-70 transition-opacity" style="color:var(--navy);border-color:var(--navy)">↻ Refresh</button>
+      <button onclick="loadData(true)" class="text-xs font-bold px-3 py-1 rounded border-2 hover:opacity-70 transition-opacity" style="color:var(--navy);border-color:var(--navy)">↻ Refresh</button>
     </div>
   </div>
   <div class="flex gap-5 mt-3 flex-wrap text-xs font-semibold" style="color:var(--dgray)">
-    <span class="flex items-center gap-1"><span class="inline-block w-2.5 h-2.5 rounded-sm" style="background:var(--green)"></span>Qualified (top 2)</span>
-    <span class="flex items-center gap-1"><span class="inline-block w-2.5 h-2.5 rounded-sm" style="background:#f59e0b"></span>Potential best 3rd</span>
-    <span class="flex items-center gap-1"><span class="blive">LIVE</span>In progress</span>
-    <span class="flex items-center gap-1"><span class="bft">FT</span>Final score</span>
+    <span class="flex items-center gap-1"><span class="inline-block w-2.5 h-2.5 rounded-sm" style="background:var(--green)"></span>Top 2 qualify</span>
+    <span class="flex items-center gap-1"><span class="inline-block w-2.5 h-2.5 rounded-sm" style="background:#f59e0b"></span>Best 3rd (may qualify)</span>
+    <span class="flex items-center gap-1"><span class="badge-lv">LIVE</span>In progress</span>
+    <span class="flex items-center gap-1"><span class="badge-ft">FT</span>Final score</span>
   </div>
 </div>
 
 <!-- Tiebreakers -->
-<div class="px-8 pt-4 pb-2">
+<div class="px-8 pb-4">
   <details class="grp-card" style="border-color:var(--navy)">
-    <summary style="background:var(--navy);color:#fff;padding:10px 14px;font-weight:800;font-size:16px;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center">
-      <span>⚖️ Tiebreakers</span>
-      <span style="font-size:10px;opacity:.7;font-weight:400;text-transform:none">Click to expand</span>
+    <summary style="cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--navy);color:#fff">
+      <span class="font-extrabold" style="font-size:15px;letter-spacing:.5px;text-transform:uppercase">⚖️ Tiebreakers</span>
+      <span style="font-size:10px;opacity:.6;font-weight:400;text-transform:none">click to expand</span>
     </summary>
     <div style="padding:14px 16px">
-      <p style="font-size:12px;color:var(--dgray);margin-bottom:10px">When two or more teams are <strong>equal on points</strong>, FIFA applies these criteria <strong>in order</strong> until separated:</p>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px">
-        <div style="display:flex;gap:10px;align-items:flex-start">
-          <span style="background:var(--navy);color:#fff;font-size:11px;font-weight:800;min-width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</span>
-          <div><p style="font-size:12px;font-weight:700;color:var(--dgray);margin:0">Head-to-head points</p><p style="font-size:11px;color:#888;margin:0">Points from matches played directly between the tied teams</p></div>
-        </div>
-        <div style="display:flex;gap:10px;align-items:flex-start">
-          <span style="background:var(--navy);color:#fff;font-size:11px;font-weight:800;min-width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</span>
-          <div><p style="font-size:12px;font-weight:700;color:var(--dgray);margin:0">Head-to-head goal difference</p><p style="font-size:11px;color:#888;margin:0">GD in matches between the tied teams only</p></div>
-        </div>
-        <div style="display:flex;gap:10px;align-items:flex-start">
-          <span style="background:var(--navy);color:#fff;font-size:11px;font-weight:800;min-width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</span>
-          <div><p style="font-size:12px;font-weight:700;color:var(--dgray);margin:0">Head-to-head goals scored</p><p style="font-size:11px;color:#888;margin:0">Total goals scored in matches between the tied teams</p></div>
-        </div>
-        <div style="display:flex;gap:10px;align-items:flex-start">
-          <span style="background:var(--navy);color:#fff;font-size:11px;font-weight:800;min-width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</span>
-          <div><p style="font-size:12px;font-weight:700;color:var(--dgray);margin:0">Overall goal difference</p><p style="font-size:11px;color:#888;margin:0">GD across all group stage matches</p></div>
-        </div>
-        <div style="display:flex;gap:10px;align-items:flex-start">
-          <span style="background:var(--navy);color:#fff;font-size:11px;font-weight:800;min-width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">5</span>
-          <div><p style="font-size:12px;font-weight:700;color:var(--dgray);margin:0">Overall goals scored</p><p style="font-size:11px;color:#888;margin:0">Total goals scored in all group matches</p></div>
-        </div>
-        <div style="display:flex;gap:10px;align-items:flex-start">
-          <span style="background:var(--navy);color:#fff;font-size:11px;font-weight:800;min-width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">6</span>
-          <div><p style="font-size:12px;font-weight:700;color:var(--dgray);margin:0">Fair play points</p><p style="font-size:11px;color:#888;margin:0">Yellow = −1, Red after yellow = −3, Direct red = −3, Yellow + red = −4</p></div>
-        </div>
-        <div style="display:flex;gap:10px;align-items:flex-start">
-          <span style="background:var(--red);color:#fff;font-size:11px;font-weight:800;min-width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">7</span>
-          <div><p style="font-size:12px;font-weight:700;color:var(--dgray);margin:0">Drawing of lots</p><p style="font-size:11px;color:#888;margin:0">Random draw by FIFA if all above criteria are equal</p></div>
-        </div>
+      <p style="font-size:12px;color:var(--dgray);margin-bottom:10px">When teams are equal on points, FIFA separates them in this order:</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px">
+        <div class="flex gap-2"><span style="background:var(--navy);color:#fff;font-size:11px;font-weight:800;min-width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</span><div><p style="font-size:12px;font-weight:700;color:var(--dgray);margin:0">Head-to-head points</p><p style="font-size:11px;color:#888;margin:0">Points in matches between tied teams</p></div></div>
+        <div class="flex gap-2"><span style="background:var(--navy);color:#fff;font-size:11px;font-weight:800;min-width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</span><div><p style="font-size:12px;font-weight:700;color:var(--dgray);margin:0">Head-to-head goal difference</p><p style="font-size:11px;color:#888;margin:0">GD only in matches between tied teams</p></div></div>
+        <div class="flex gap-2"><span style="background:var(--navy);color:#fff;font-size:11px;font-weight:800;min-width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</span><div><p style="font-size:12px;font-weight:700;color:var(--dgray);margin:0">Head-to-head goals scored</p><p style="font-size:11px;color:#888;margin:0">Goals scored between tied teams</p></div></div>
+        <div class="flex gap-2"><span style="background:var(--navy);color:#fff;font-size:11px;font-weight:800;min-width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</span><div><p style="font-size:12px;font-weight:700;color:var(--dgray);margin:0">Overall goal difference</p><p style="font-size:11px;color:#888;margin:0">GD across all group matches</p></div></div>
+        <div class="flex gap-2"><span style="background:var(--navy);color:#fff;font-size:11px;font-weight:800;min-width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">5</span><div><p style="font-size:12px;font-weight:700;color:var(--dgray);margin:0">Overall goals scored</p><p style="font-size:11px;color:#888;margin:0">Total goals in all group matches</p></div></div>
+        <div class="flex gap-2"><span style="background:var(--navy);color:#fff;font-size:11px;font-weight:800;min-width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">6</span><div><p style="font-size:12px;font-weight:700;color:var(--dgray);margin:0">Fair play (yellow/red cards)</p><p style="font-size:11px;color:#888;margin:0">Yellow=−1, Direct red=−3, YR=−4</p></div></div>
+        <div class="flex gap-2"><span style="background:var(--red);color:#fff;font-size:11px;font-weight:800;min-width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">7</span><div><p style="font-size:12px;font-weight:700;color:var(--dgray);margin:0">Drawing of lots</p><p style="font-size:11px;color:#888;margin:0">Random FIFA draw if all else equal</p></div></div>
       </div>
-      <div style="margin-top:12px;padding:8px 12px;background:rgba(42,57,141,.06);border-left:3px solid var(--navy);border-radius:0 4px 4px 0">
-        <p style="font-size:11px;color:var(--dgray);margin:0"><strong>Best 3rd place:</strong> 8 of the 12 group 3rd-place finishers advance to the Round of 32. They are ranked by points, then goal difference, then goals scored across all groups.</p>
-      </div>
+      <p style="font-size:11px;color:var(--dgray);margin-top:10px;padding:6px 10px;background:rgba(42,57,141,.06);border-left:3px solid var(--navy);border-radius:0 4px 4px 0"><strong>Best 3rd place:</strong> 8 of 12 third-place teams advance. Ranked by points → GD → goals scored.</p>
     </div>
   </details>
 </div>
 
-<div id="groups" class="px-8 pt-6 pb-2">
+<!-- Group Stage -->
+<div id="groups" class="px-8 pb-4">
   <details open>
-    <summary style="cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--dgray);color:#fff;border-radius:8px;margin-bottom:12px;user-select:none">
-      <span class="font-extrabold" style="font-size:16px;letter-spacing:.5px;text-transform:uppercase">Group Stage</span>
-      <span style="font-size:10px;opacity:.6;font-weight:400">Click to collapse</span>
+    <summary style="cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--dgray);color:#fff;border-radius:8px;margin-bottom:12px">
+      <span class="sec-hd" style="color:#fff">Group Stage</span>
+      <span id="grp-toggle" style="font-size:10px;opacity:.6;font-weight:400;text-transform:none">click to collapse</span>
     </summary>
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3" id="gg"></div>
   </details>
 </div>
 
-<div id="bracket" class="px-8 pt-8 pb-12">
-  <h2 class="font-extrabold mb-3" style="font-size:16px;letter-spacing:.5px;text-transform:uppercase;color:var(--dgray)">Knockout Rounds</h2>
+<!-- Knockout Bracket -->
+<div id="bracket" class="px-8 pb-12">
+  <h2 class="sec-hd mb-3">Knockout Rounds <span style="font-size:11px;font-weight:400;text-transform:none;color:#999;letter-spacing:0">— 1st/2nd position shown as badge</span></h2>
   <div class="overflow-x-auto pb-4">
-    <div id="bw" style="display:flex;align-items:stretch;min-width:max-content"></div>
+    <div id="bw" style="display:flex;align-items:stretch;min-width:max-content;gap:2px"></div>
   </div>
 </div>
 
 <script>
-const F={
-  "Mexico":"mx","South Africa":"za","South Korea":"kr","Canada":"ca","Qatar":"qa",
-  "Switzerland":"ch","Brazil":"br","Haiti":"ht","Scotland":"gb-sct","Morocco":"ma",
-  "United States":"us","Australia":"au","Paraguay":"py","Germany":"de","Curacao":"cw",
-  "Ivory Coast":"ci","Ecuador":"ec","Netherlands":"nl","Japan":"jp","Tunisia":"tn",
-  "Belgium":"be","Iran":"ir","New Zealand":"nz","Egypt":"eg","Spain":"es",
-  "Uruguay":"uy","Saudi Arabia":"sa","Cape Verde":"cv","France":"fr","Norway":"no",
-  "Senegal":"sn","Argentina":"ar","Algeria":"dz","Austria":"at","Jordan":"jo",
-  "Portugal":"pt","Colombia":"co","Uzbekistan":"uz","England":"gb-eng","Croatia":"hr",
-  "Ghana":"gh","Panama":"pa",
+// ── Flag helper ───────────────────────────────────────────────────
+const FC = {
+  "Mexico":"mx","South Africa":"za","South Korea":"kr","Czechia":"cz",
+  "Canada":"ca","Qatar":"qa","Switzerland":"ch","Bosnia-Herzegovina":"ba",
+  "Brazil":"br","Haiti":"ht","Scotland":"gb-sct","Morocco":"ma",
+  "United States":"us","Australia":"au","Paraguay":"py","Turkey":"tr",
+  "Germany":"de","Curaçao":"cw","Ivory Coast":"ci","Ecuador":"ec",
+  "Netherlands":"nl","Japan":"jp","Tunisia":"tn","Sweden":"se",
+  "Belgium":"be","Iran":"ir","New Zealand":"nz","Egypt":"eg",
+  "Spain":"es","Uruguay":"uy","Saudi Arabia":"sa","Cape Verde Islands":"cv",
+  "France":"fr","Norway":"no","Senegal":"sn","Iraq":"iq",
+  "Argentina":"ar","Algeria":"dz","Austria":"at","Jordan":"jo",
+  "Portugal":"pt","Colombia":"co","Uzbekistan":"uz","Congo DR":"cd",
+  "England":"gb-eng","Croatia":"hr","Ghana":"gh","Panama":"pa",
 };
-const fi=(n,sm)=>{const c=F[n];return c?`<img class="${sm?'fi-sm':'fi'}" src="https://kapowaz.github.io/circle-flags/flags/${c}.svg" alt="${n}" loading="lazy">`:'';};
+const fl=(n,sm)=>{const c=FC[n];return c?`<img class="${sm?'fl-sm':'fl'}" src="https://kapowaz.github.io/circle-flags/flags/${c}.svg" alt="${n}" loading="lazy">`:'<span style="width:${sm?14:18}px;display:inline-block"></span>';};
 
-const GM=[
-  {n:1,g:"A",d:"Jun 11",t1:"Mexico",        t2:"South Africa"},
-  {n:2,g:"A",d:"Jun 11",t1:"South Korea",   t2:"UEFA D"},
-  {n:3,g:"B",d:"Jun 12",t1:"Canada",        t2:"UEFA A"},
-  {n:4,g:"D",d:"Jun 12",t1:"United States", t2:"Paraguay"},
-  {n:5,g:"C",d:"Jun 13",t1:"Haiti",         t2:"Scotland"},
-  {n:6,g:"D",d:"Jun 13",t1:"Australia",     t2:"UEFA C"},
-  {n:7,g:"C",d:"Jun 13",t1:"Brazil",        t2:"Morocco"},
-  {n:8,g:"B",d:"Jun 13",t1:"Qatar",         t2:"Switzerland"},
-  {n:9,g:"E",d:"Jun 14",t1:"Ivory Coast",   t2:"Ecuador"},
-  {n:10,g:"E",d:"Jun 14",t1:"Germany",      t2:"Curacao"},
-  {n:11,g:"F",d:"Jun 14",t1:"Netherlands",  t2:"Japan"},
-  {n:12,g:"F",d:"Jun 14",t1:"UEFA B",       t2:"Tunisia"},
-  {n:13,g:"H",d:"Jun 15",t1:"Saudi Arabia", t2:"Uruguay"},
-  {n:14,g:"H",d:"Jun 15",t1:"Spain",        t2:"Cape Verde"},
-  {n:15,g:"G",d:"Jun 15",t1:"Iran",         t2:"New Zealand"},
-  {n:16,g:"G",d:"Jun 15",t1:"Belgium",      t2:"Egypt"},
-  {n:17,g:"I",d:"Jun 16",t1:"France",       t2:"Senegal"},
-  {n:18,g:"I",d:"Jun 16",t1:"FIFA 2",       t2:"Norway"},
-  {n:19,g:"J",d:"Jun 16",t1:"Argentina",    t2:"Algeria"},
-  {n:20,g:"J",d:"Jun 16",t1:"Austria",      t2:"Jordan"},
-  {n:21,g:"L",d:"Jun 17",t1:"England",      t2:"Croatia"},
-  {n:22,g:"L",d:"Jun 17",t1:"Ghana",        t2:"Panama"},
-  {n:23,g:"K",d:"Jun 17",t1:"Portugal",     t2:"FIFA 1"},
-  {n:24,g:"K",d:"Jun 17",t1:"Uzbekistan",   t2:"Colombia"},
-  {n:25,g:"A",d:"Jun 18",t1:"UEFA D",       t2:"South Africa"},
-  {n:26,g:"B",d:"Jun 18",t1:"Switzerland",  t2:"UEFA A"},
-  {n:27,g:"B",d:"Jun 18",t1:"Canada",       t2:"Qatar"},
-  {n:28,g:"A",d:"Jun 18",t1:"Mexico",       t2:"South Korea"},
-  {n:29,g:"C",d:"Jun 19",t1:"Brazil",       t2:"Haiti"},
-  {n:30,g:"C",d:"Jun 19",t1:"Scotland",     t2:"Morocco"},
-  {n:31,g:"D",d:"Jun 19",t1:"UEFA C",       t2:"Paraguay"},
-  {n:32,g:"D",d:"Jun 19",t1:"United States",t2:"Australia"},
-  {n:33,g:"E",d:"Jun 20",t1:"Germany",      t2:"Ivory Coast"},
-  {n:34,g:"E",d:"Jun 20",t1:"Ecuador",      t2:"Curacao"},
-  {n:35,g:"F",d:"Jun 20",t1:"Netherlands",  t2:"UEFA B"},
-  {n:36,g:"F",d:"Jun 20",t1:"Tunisia",      t2:"Japan"},
-  {n:37,g:"H",d:"Jun 21",t1:"Uruguay",      t2:"Cape Verde"},
-  {n:38,g:"H",d:"Jun 21",t1:"Spain",        t2:"Saudi Arabia"},
-  {n:39,g:"G",d:"Jun 21",t1:"Belgium",      t2:"Iran"},
-  {n:40,g:"G",d:"Jun 21",t1:"New Zealand",  t2:"Egypt"},
-  {n:41,g:"I",d:"Jun 22",t1:"Norway",       t2:"Senegal"},
-  {n:42,g:"I",d:"Jun 22",t1:"France",       t2:"FIFA 2"},
-  {n:43,g:"J",d:"Jun 22",t1:"Argentina",    t2:"Austria"},
-  {n:44,g:"J",d:"Jun 22",t1:"Jordan",       t2:"Algeria"},
-  {n:45,g:"L",d:"Jun 23",t1:"England",      t2:"Ghana"},
-  {n:46,g:"L",d:"Jun 23",t1:"Panama",       t2:"Croatia"},
-  {n:47,g:"K",d:"Jun 23",t1:"Portugal",     t2:"Uzbekistan"},
-  {n:48,g:"K",d:"Jun 23",t1:"Colombia",     t2:"FIFA 1"},
-  {n:49,g:"C",d:"Jun 24",t1:"Scotland",     t2:"Brazil"},
-  {n:50,g:"C",d:"Jun 24",t1:"Morocco",      t2:"Haiti"},
-  {n:51,g:"B",d:"Jun 24",t1:"Switzerland",  t2:"Canada"},
-  {n:52,g:"B",d:"Jun 24",t1:"UEFA A",       t2:"Qatar"},
-  {n:53,g:"A",d:"Jun 24",t1:"UEFA D",       t2:"Mexico"},
-  {n:54,g:"A",d:"Jun 24",t1:"South Africa", t2:"South Korea"},
-  {n:55,g:"E",d:"Jun 25",t1:"Curacao",      t2:"Ivory Coast"},
-  {n:56,g:"E",d:"Jun 25",t1:"Ecuador",      t2:"Germany"},
-  {n:57,g:"F",d:"Jun 25",t1:"Japan",        t2:"UEFA B"},
-  {n:58,g:"F",d:"Jun 25",t1:"Tunisia",      t2:"Netherlands"},
-  {n:59,g:"D",d:"Jun 25",t1:"UEFA C",       t2:"United States"},
-  {n:60,g:"D",d:"Jun 25",t1:"Paraguay",     t2:"Australia"},
-  {n:61,g:"I",d:"Jun 26",t1:"Norway",       t2:"France"},
-  {n:62,g:"I",d:"Jun 26",t1:"Senegal",      t2:"FIFA 2"},
-  {n:63,g:"G",d:"Jun 26",t1:"Egypt",        t2:"Iran"},
-  {n:64,g:"G",d:"Jun 26",t1:"New Zealand",  t2:"Belgium"},
-  {n:65,g:"H",d:"Jun 26",t1:"Cape Verde",   t2:"Saudi Arabia"},
-  {n:66,g:"H",d:"Jun 26",t1:"Uruguay",      t2:"Spain"},
-  {n:67,g:"L",d:"Jun 27",t1:"Panama",       t2:"England"},
-  {n:68,g:"L",d:"Jun 27",t1:"Croatia",      t2:"Ghana"},
-  {n:69,g:"J",d:"Jun 27",t1:"Algeria",      t2:"Austria"},
-  {n:70,g:"J",d:"Jun 27",t1:"Jordan",       t2:"Argentina"},
-  {n:71,g:"K",d:"Jun 27",t1:"Colombia",     t2:"Portugal"},
-  {n:72,g:"K",d:"Jun 27",t1:"FIFA 1",       t2:"Uzbekistan"},
-];
-
-const GRP={
-  A:["Mexico","South Korea","South Africa","UEFA D"],
-  B:["Canada","Qatar","Switzerland","UEFA A"],
+// ── Group data (authoritative, from API confirmed) ────────────────
+const GROUPS = {
+  A:["Mexico","South Africa","South Korea","Czechia"],
+  B:["Canada","Qatar","Switzerland","Bosnia-Herzegovina"],
   C:["Brazil","Haiti","Scotland","Morocco"],
-  D:["United States","Australia","Paraguay","UEFA C"],
-  E:["Germany","Ivory Coast","Ecuador","Curacao"],
-  F:["Netherlands","Japan","Tunisia","UEFA B"],
+  D:["United States","Australia","Paraguay","Turkey"],
+  E:["Germany","Ivory Coast","Ecuador","Curaçao"],
+  F:["Netherlands","Japan","Tunisia","Sweden"],
   G:["Belgium","Iran","New Zealand","Egypt"],
-  H:["Spain","Uruguay","Saudi Arabia","Cape Verde"],
-  I:["France","Norway","Senegal","FIFA 2"],
+  H:["Spain","Uruguay","Saudi Arabia","Cape Verde Islands"],
+  I:["France","Norway","Senegal","Iraq"],
   J:["Argentina","Algeria","Austria","Jordan"],
-  K:["Portugal","Colombia","Uzbekistan","FIFA 1"],
+  K:["Portugal","Colombia","Uzbekistan","Congo DR"],
   L:["England","Croatia","Ghana","Panama"],
 };
 
-const KO=[
-  {n:73,s:"R32",d:"Jun 28",t1:"1A",  t2:"3C/D/E"},
-  {n:74,s:"R32",d:"Jun 29",t1:"1E",  t2:"3A/B/C"},
-  {n:75,s:"R32",d:"Jun 29",t1:"1F",  t2:"2J"},
-  {n:76,s:"R32",d:"Jun 29",t1:"1C",  t2:"3G/H/I"},
-  {n:77,s:"R32",d:"Jun 30",t1:"1I",  t2:"3D/E/F"},
-  {n:78,s:"R32",d:"Jun 30",t1:"1D",  t2:"2C"},
-  {n:79,s:"R32",d:"Jun 30",t1:"1A",  t2:"2B"},
-  {n:80,s:"R32",d:"Jul 1", t1:"1L",  t2:"3A/B/L"},
-  {n:81,s:"R32",d:"Jul 1", t1:"1D",  t2:"2G"},
-  {n:82,s:"R32",d:"Jul 1", t1:"1G",  t2:"3B/C/F"},
-  {n:83,s:"R32",d:"Jul 2", t1:"1K",  t2:"2L"},
-  {n:84,s:"R32",d:"Jul 2", t1:"1H",  t2:"2A"},
-  {n:85,s:"R32",d:"Jul 2", t1:"1B",  t2:"2K"},
-  {n:86,s:"R32",d:"Jul 3", t1:"1J",  t2:"2H"},
-  {n:87,s:"R32",d:"Jul 3", t1:"1K",  t2:"2I"},
-  {n:88,s:"R32",d:"Jul 3", t1:"1G",  t2:"2D"},
-  {n:89,s:"R16",d:"Jul 4", t1:"W74", t2:"W73"},
-  {n:90,s:"R16",d:"Jul 4", t1:"W75", t2:"W76"},
-  {n:91,s:"R16",d:"Jul 5", t1:"W78", t2:"W77"},
-  {n:92,s:"R16",d:"Jul 5", t1:"W79", t2:"W80"},
-  {n:93,s:"R16",d:"Jul 6", t1:"W84", t2:"W81"},
-  {n:94,s:"R16",d:"Jul 6", t1:"W82", t2:"W83"},
-  {n:95,s:"R16",d:"Jul 7", t1:"W88", t2:"W87"},
-  {n:96,s:"R16",d:"Jul 7", t1:"W85", t2:"W86"},
-  {n:97,s:"QF", d:"Jul 9", t1:"W89", t2:"W90"},
-  {n:98,s:"QF", d:"Jul 10",t1:"W93", t2:"W94"},
-  {n:99,s:"QF", d:"Jul 11",t1:"W91", t2:"W92"},
-  {n:100,s:"QF",d:"Jul 11",t1:"W95", t2:"W96"},
-  {n:101,s:"SF",d:"Jul 14",t1:"W97", t2:"W98"},
-  {n:102,s:"SF",d:"Jul 15",t1:"W99", t2:"W100"},
-  {n:103,s:"3P",d:"Jul 18",t1:"L101",t2:"L102"},
-  {n:104,s:"F", d:"Jul 19",t1:"W101",t2:"W102"},
-];
+// ── Live data ─────────────────────────────────────────────────────
+let groupFixtures = [];  // from API
+let koFixtures    = [];  // from API
+const LIVE = {};         // matchKey → {status,g1,g2}
 
-const LV={};
-// API standings override: grp → [{nm, p, w, d, l, gf, ga, gd, pts}]
-const API_STAND={};
-
-// Build group→R32 destination map from KO data
-const GROUP_R32={};
-KO.filter(m=>m.s==='R32').forEach(m=>{
-  [m.t1,m.t2].forEach(slot=>{
-    const x=slot.match(/^([12])([A-L])$/);
-    if(x){const[,pos,grp]=x;if(!GROUP_R32[grp])GROUP_R32[grp]={};GROUP_R32[grp][pos]=m.n;}
-  });
-});
-
-function stand(grp){
-  // Prefer API standings when available
-  if(API_STAND[grp]&&API_STAND[grp].length) return API_STAND[grp];
-  const s={};GRP[grp].forEach(t=>s[t]={p:0,w:0,d:0,l:0,gf:0,ga:0,gd:0,pts:0});
-  GM.filter(m=>m.g===grp).forEach(m=>{
-    const v=LV[m.n];if(!v||v.g1===null||v.g1===''||v.g2===null||v.g2==='')return;
-    const a=+v.g1,b=+v.g2;if(isNaN(a)||isNaN(b)||!s[m.t1]||!s[m.t2])return;
-    s[m.t1].p++;s[m.t2].p++;s[m.t1].gf+=a;s[m.t1].ga+=b;s[m.t1].gd+=a-b;
-    s[m.t2].gf+=b;s[m.t2].ga+=a;s[m.t2].gd+=b-a;
-    if(a>b){s[m.t1].w++;s[m.t1].pts+=3;s[m.t2].l++;}
-    else if(a<b){s[m.t2].w++;s[m.t2].pts+=3;s[m.t1].l++;}
-    else{s[m.t1].d++;s[m.t1].pts++;s[m.t2].d++;s[m.t2].pts++;}
+// ── Standings calculator ──────────────────────────────────────────
+function calcStandings(grp) {
+  const s = {};
+  GROUPS[grp].forEach(t => s[t] = {p:0,w:0,d:0,l:0,gf:0,ga:0,gd:0,pts:0});
+  groupFixtures.filter(m => m.group === grp).forEach(m => {
+    if (m.homeGoals === null || m.awayGoals === null) return;
+    const g1 = m.homeGoals, g2 = m.awayGoals;
+    const t1 = m.home, t2 = m.away;
+    if (!s[t1] || !s[t2]) return;
+    s[t1].p++; s[t2].p++;
+    s[t1].gf+=g1; s[t1].ga+=g2; s[t1].gd+=g1-g2;
+    s[t2].gf+=g2; s[t2].ga+=g1; s[t2].gd+=g2-g1;
+    if (g1>g2)      { s[t1].w++; s[t1].pts+=3; s[t2].l++; }
+    else if (g1<g2) { s[t2].w++; s[t2].pts+=3; s[t1].l++; }
+    else            { s[t1].d++; s[t1].pts++; s[t2].d++; s[t2].pts++; }
   });
   return Object.entries(s).map(([nm,v])=>({nm,...v}))
-    .sort((a,b)=>b.pts-a.pts||b.gd-a.gd||b.gf-a.gf||a.nm.localeCompare(b.nm));
+    .sort((a,b) => b.pts-a.pts || b.gd-a.gd || b.gf-a.gf || a.nm.localeCompare(b.nm));
 }
 
-function rGrps(){
-  document.getElementById('gg').innerHTML=Object.keys(GRP).map(grp=>{
-    const st=stand(grp);
-    const rows=st.map((t,i)=>{
-      const cl=i<2?'q'+(i+1):i===2?'q3':'';
-      const gd=t.p?(t.gd>0?'+'+t.gd:String(t.gd)):'—';
-      const gc=t.gd>0?'var(--green)':t.gd<0?'var(--red)':'inherit';
-      return `<tr class="${cl}"><td><div style="display:flex;align-items:center;gap:5px">${fi(t.nm,true)}<span>${t.nm}</span></div></td>
-        <td>${t.p}</td><td>${t.w}</td><td>${t.d}</td><td>${t.l}</td><td>${t.gf}</td><td>${t.ga}</td>
-        <td style="font-weight:700;color:${gc}">${gd}</td><td style="font-weight:800">${t.pts}</td></tr>`;
+// Build team→group-position map from standings (used for bracket badges)
+function buildPositionMap() {
+  const map = {}; // teamName → "A1", "B2", etc.
+  Object.keys(GROUPS).forEach(grp => {
+    calcStandings(grp).forEach((t, i) => {
+      map[t.nm] = grp + (i+1);
+    });
+  });
+  return map;
+}
+
+// ── Render groups ─────────────────────────────────────────────────
+function renderGroups() {
+  document.getElementById('gg').innerHTML = Object.keys(GROUPS).map(grp => {
+    const st = calcStandings(grp);
+    const rows = st.map((t,i) => {
+      const cl = i<2 ? 'q'+(i+1) : i===2 ? 'q3' : '';
+      const gd = t.p ? (t.gd>0?'+'+t.gd:String(t.gd)) : '—';
+      const gc = t.gd>0?'var(--green)':t.gd<0?'var(--red)':'inherit';
+      return `<tr class="${cl}">
+        <td><div style="display:flex;align-items:center;gap:5px">${fl(t.nm,true)}<span>${t.nm}</span></div></td>
+        <td>${t.p}</td><td>${t.w}</td><td>${t.d}</td><td>${t.l}</td>
+        <td>${t.gf}</td><td>${t.ga}</td>
+        <td style="font-weight:700;color:${gc}">${gd}</td>
+        <td style="font-weight:800">${t.pts}</td>
+      </tr>`;
     }).join('');
-    const ms=GM.filter(m=>m.g===grp).map(m=>{
-      const v=LV[m.n];
-      const has=v&&v.g1!==null&&v.g1!==''&&v.g2!==null&&v.g2!=='';
-      const isL=v&&v.st==='live',isF=v&&v.st==='FT';
-      const t1w=has&&+v.g1>+v.g2,t2w=has&&+v.g2>+v.g1;
-      const bd=isL?'<span class="blive">LIVE</span>':isF?'<span class="bft">FT</span>':'';
-      const sc=has?`<span class="sc${isL?' lv':''}">${v.g1}–${v.g2}</span>`:`<span style="font-size:10px;color:#bbb">${m.d}</span>`;
+
+    const matches = groupFixtures.filter(m => m.group === grp).map(m => {
+      const has = m.homeGoals !== null && m.awayGoals !== null;
+      const isL = m.status === 'LIVE' || m.status === 'HT';
+      const isFt = m.status === 'FT';
+      const t1w = has && m.homeGoals > m.awayGoals;
+      const t2w = has && m.awayGoals > m.homeGoals;
+      const bd = isL ? '<span class="badge-lv">LIVE</span>' : isFt ? '<span class="badge-ft">FT</span>' : '';
+      const sc = has ? `<span class="sc${isL?' lv':''}">${m.homeGoals}–${m.awayGoals}</span>`
+                     : `<span style="font-size:10px;color:#bbb">${fmtDate(m.date)}</span>`;
       return `<div class="mrow">
         <div style="display:flex;align-items:center;gap:4px;flex:1;overflow:hidden;min-width:0">
-          ${fi(m.t1,true)}<span class="tn${t1w?' win':''}">${m.t1}</span>
+          ${fl(m.home,true)}<span class="tn${t1w?' win':''}">${m.home}</span>
           <span style="color:#ccc;font-size:10px;flex-shrink:0">vs</span>
-          ${fi(m.t2,true)}<span class="tn${t2w?' win':''}">${m.t2}</span>
+          ${fl(m.away,true)}<span class="tn${t2w?' win':''}">${m.away}</span>
         </div>
         <div style="display:flex;align-items:center;gap:3px;flex-shrink:0">${bd}${sc}</div>
       </div>`;
     }).join('');
-    // Advances-to footer
-    const r32 = GROUP_R32[grp]||{};
-    const adv1 = r32[1]?`<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(42,57,141,.08);border:1px solid rgba(42,57,141,.2);padding:2px 6px;border-radius:4px;font-size:10px;font-weight:700;color:var(--navy)">🥇 1st → R32 #${r32[1]}</span>`:'';
-    const adv2 = r32[2]?`<span style="display:inline-flex;align-items:center;gap:3px;background:rgba(42,57,141,.05);border:1px solid rgba(42,57,141,.15);padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;color:var(--navy)">🥈 2nd → R32 #${r32[2]}</span>`:'';
-    const advRow = (adv1||adv2)?`<div style="padding:6px 8px;display:flex;gap:6px;flex-wrap:wrap;border-top:1px solid var(--lgray);background:#fafafa">${adv1}${adv2}</div>`:'';
 
     return `<div class="grp-card">
       <div class="grp-head">Group ${grp}</div>
       <table class="grp-table"><thead><tr>
         <th>Team</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Pts</th>
       </tr></thead><tbody>${rows}</tbody></table>
-      <div style="padding:2px 0">${ms}</div>
-      ${advRow}
+      <div style="padding:2px 0">${matches}</div>
     </div>`;
   }).join('');
 }
 
-function bm(m){
-  const v=LV[m.n];
-  const has=v&&v.g1!==null&&v.g1!==''&&v.g2!==null&&v.g2!=='';
-  const isL=v&&v.st==='live',isF=v&&v.st==='FT';
-  const t1w=has&&+v.g1>+v.g2,t2w=has&&+v.g2>+v.g1;
-  const sl={R32:'R32',R16:'R16',QF:'QF',SF:'SF','3P':'3rd',F:'⚽ FINAL'}[m.s]||m.s;
-  const bd=isL?'<span class="blive" style="font-size:7px">LIVE</span>':isF?'<span class="bft" style="font-size:7px">FT</span>':'';
-  const tr=(t,sc,win)=>`<div class="bmt${win?' win':''}${!t1w&&!t2w&&!has?' tbd':''}">
-    <div style="display:flex;align-items:center;gap:5px;overflow:hidden;min-width:0">
-      ${fi(t,false)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px">${t}</span>
-    </div>${has?`<span class="bs">${sc}</span>`:''}
-  </div>`;
-  return `<div class="bm"><div class="bmhd"><span>${sl} · ${m.d}</span>${bd}</div>${tr(m.t1,has?v.g1:'',t1w)}${tr(m.t2,has?v.g2:'',t2w)}</div>`;
-}
+// ── Bracket ───────────────────────────────────────────────────────
+const STAGE_ORDER = ['LAST_32','LAST_16','QUARTER_FINALS','SEMI_FINALS','FINAL'];
+const STAGE_LABEL = {LAST_32:'Round of 32',LAST_16:'Round of 16',QUARTER_FINALS:'Quarterfinals',SEMI_FINALS:'Semifinals',FINAL:'Final',THIRD_PLACE:'3rd Place'};
 
-function rKo(){
-  const w=document.getElementById('bw');
-  const rounds=[
-    {l:'Round of 32',ms:KO.filter(m=>m.s==='R32')},
-    {l:'Round of 16',ms:KO.filter(m=>m.s==='R16')},
-    {l:'Quarterfinals',ms:KO.filter(m=>m.s==='QF')},
-    {l:'Semifinals',ms:KO.filter(m=>m.s==='SF')},
-    {l:'Final',ms:KO.filter(m=>m.s==='F')},
-  ];
-  const cols=rounds.map(r=>`<div class="rcol" style="width:182px"><div class="rlbl">${r.l}</div><div class="rms">${r.ms.map(bm).join('')}</div></div>`).join('');
-  const tp=KO.find(m=>m.s==='3P');
-  w.innerHTML=cols+`<div class="rcol" style="width:182px"><div class="rlbl">3rd Place</div><div style="margin-top:auto">${bm(tp)}</div></div>`;
-}
+function renderBracket() {
+  const posMap = buildPositionMap();
+  const w = document.getElementById('bw');
 
-const AM={"USA":"United States","Korea Republic":"South Korea","Côte d'Ivoire":"Ivory Coast","Cote d'Ivoire":"Ivory Coast","Curaçao":"Curacao"};
-const nm=n=>AM[n]||n;
+  function matchCard(m) {
+    const has = m.homeGoals !== null && m.awayGoals !== null;
+    const isL = m.status === 'LIVE' || m.status === 'HT';
+    const isFt = m.status === 'FT';
+    const t1w = has && m.homeGoals > m.awayGoals;
+    const t2w = has && m.awayGoals > m.homeGoals;
+    const bd = isL ? '<span class="badge-lv" style="font-size:7px">LIVE</span>'
+                   : isFt ? '<span class="badge-ft" style="font-size:7px">FT</span>' : '';
+    const stageLbl = STAGE_LABEL[m.stage] || m.stage;
+    const date = fmtDate(m.date);
 
-async function fetch_data(){
-  try{
-    // Fixtures → match scores
-    const rf=await fetch('/api/football?action=fixtures');
-    if(rf.ok){
-      const{fixtures:fx}=await rf.json();
-      (fx||[]).forEach(f=>{
-        const h=nm(f.home),a=nm(f.away),st=f.status;
-        const fin=['FT','AET','PEN'].includes(st),lv=['1H','HT','2H','ET'].includes(st);
-        const m=GM.find(m=>(m.t1===h&&m.t2===a)||(m.t1===a&&m.t2===h));
-        if(m){const sw=m.t1!==h;LV[m.n]={st:fin?'FT':lv?'live':st,g1:sw?f.awayGoals:f.homeGoals,g2:sw?f.homeGoals:f.awayGoals};}
-        // Try to resolve knockout teams from live data
-        if(!m){
-          KO.filter(k=>k.s!=='R32').forEach(k=>{
-            if((k.t1===h||k.t1===a||k.t2===h||k.t2===a)&&(fin||lv)){
-              if(!LV[k.n]){const sw2=k.t1!==h;LV[k.n]={st:fin?'FT':lv?'live':st,g1:sw2?f.awayGoals:f.homeGoals,g2:sw2?f.homeGoals:f.awayGoals};}
-            }
-          });
-        }
-      });
+    function teamRow(name, score, win) {
+      const pos = name && posMap[name] ? `<span class="pos-badge" style="background:rgba(42,57,141,.12);color:var(--navy)">${posMap[name]}</span>` : '';
+      const tbd = !name;
+      return `<div class="bkt-team${win?' win':''}${tbd?' tbd':''}">
+        <div style="display:flex;align-items:center;gap:5px;overflow:hidden;min-width:0;flex:1">
+          ${name?fl(name,false):''}
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px">${name||'TBD'}</span>
+          ${pos}
+        </div>
+        ${has?`<span class="bscore">${score}</span>`:''}
+      </div>`;
     }
+    return `<div class="bkt-match">
+      <div class="bkt-date"><span>${stageLbl.replace('Round of ','R').replace('Quarter','QF').replace('Semi','SF').replace('inals','').replace('Rinals','') } · ${date}</span>${bd}</div>
+      ${teamRow(m.home, has?m.homeGoals:'', t1w)}
+      ${teamRow(m.away, has?m.awayGoals:'', t2w)}
+    </div>`;
+  }
 
-    // Standings → real group compositions and standing tables
-    const rs=await fetch('/api/football?action=standings');
-    if(rs.ok){
-      const{standings}=await rs.json();
-      (standings||[]).forEach(entry=>{
-        const groups=(entry.league?.standings||[]);
-        groups.forEach((grpArr,gi)=>{
-          const grpKey=String.fromCharCode(65+gi); // A, B, C...
-          if(!grpKey||gi>=12) return;
-          // Update team names in GRP
-          const names=grpArr.map(t=>nm(t.team?.name||''));
-          if(names.length) GRP[grpKey]=names;
-          // Store standings
-          API_STAND[grpKey]=grpArr.map(t=>({
-            nm:nm(t.team?.name||''),
-            p:t.all?.played||0, w:t.all?.win||0, d:t.all?.draw||0, l:t.all?.lose||0,
-            gf:t.all?.goals?.for||0, ga:t.all?.goals?.against||0,
-            gd:t.goalsDiff||0, pts:t.points||0
-          }));
-        });
-      });
-    }
+  const cols = STAGE_ORDER.map(stage => {
+    const ms = koFixtures.filter(m => m.stage === stage);
+    if (!ms.length) return '';
+    return `<div class="bkt-col" style="width:195px">
+      <div class="bkt-lbl">${STAGE_LABEL[stage]}</div>
+      <div class="bkt-matches">${ms.map(matchCard).join('')}</div>
+    </div>`;
+  }).join('');
 
-    document.getElementById('lu').textContent='Updated '+new Date().toLocaleTimeString();
-  }catch(e){document.getElementById('lu').textContent='Live data unavailable';}
+  // 3rd place
+  const tp = koFixtures.find(m => m.stage === 'THIRD_PLACE');
+  const tpCol = tp ? `<div class="bkt-col" style="width:195px">
+    <div class="bkt-lbl">3rd Place</div>
+    <div style="margin-top:auto">${matchCard(tp)}</div>
+  </div>` : '';
+
+  w.innerHTML = cols + tpCol;
 }
 
-async function go(){await fetch_data();rGrps();rKo();}
-go();setInterval(go,5*60*1000);
+// ── Utils ─────────────────────────────────────────────────────────
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', {month:'short',day:'numeric'});
+}
+
+// ── Data loading (30 min cache, manual override) ──────────────────
+let lastFetched = 0;
+const CACHE_MS = 30 * 60 * 1000;
+
+async function loadData(force = false) {
+  const now = Date.now();
+  if (!force && now - lastFetched < CACHE_MS) return;
+
+  const lu = document.getElementById('lu');
+  lu.textContent = 'Loading…';
+  try {
+    const r = await fetch('/api/football?action=all');
+    if (!r.ok) throw new Error(r.status);
+    const data = await r.json();
+    groupFixtures = data.groupFixtures || [];
+    koFixtures    = data.koFixtures    || [];
+    lastFetched   = now;
+    lu.textContent = 'Updated ' + new Date().toLocaleTimeString();
+  } catch (e) {
+    lu.textContent = 'Live data unavailable';
+  }
+  renderGroups();
+  renderBracket();
+}
+
+loadData(true);
+// Re-check every 30 min (only fetches if cache expired)
+setInterval(() => loadData(false), 30 * 60 * 1000);
 </script>
 </body>
 </html>
