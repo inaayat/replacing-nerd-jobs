@@ -1655,6 +1655,7 @@ function buildBracketHTML() {
     <span class="bracket-section-title">Group Stage</span>
     <div style="display:flex;align-items:center;gap:12px">
       <span class="bracket-status">${statusText}</span>
+      <button class="reset-btn" id="bktRefresh">refresh live data</button>
       <button class="reset-btn" id="bktReset">reset predictions</button>
     </div>
   </div>
@@ -1855,6 +1856,18 @@ function wireBracketInputs() {
     });
   });
 
+  const refreshBtn = document.getElementById('bktRefresh');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', async () => {
+      refreshBtn.textContent = 'refreshing...';
+      refreshBtn.disabled = true;
+      await fetchLiveData();
+      renderBracket();
+      refreshBtn.textContent = 'refresh live data';
+      refreshBtn.disabled = false;
+    });
+  }
+
   const resetBtn = document.getElementById('bktReset');
   if (resetBtn) {
     resetBtn.addEventListener('click', () => {
@@ -1993,13 +2006,13 @@ async function initBracket() {
   bktLoad();
   await fetchLiveData();
   renderBracket();
-  // refresh live data every 60s
+  // refresh live data once a day
   setInterval(async () => {
     await fetchLiveData();
     if (document.getElementById('tabBracket').style.display !== 'none') {
       renderBracket();
     }
-  }, 60000);
+  }, 86400000);
 }
 </script>
 </body>
