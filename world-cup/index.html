@@ -81,11 +81,14 @@
 <body class="min-h-screen flex flex-col">
 
 <!-- Nav -->
-<nav class="px-8 py-4 flex items-center justify-between sticky top-0 z-10" style="background:#f267a0;">
-  <a href="/" class="font-extrabold text-2xl rounded-md border-4 border-white text-white select-none p-2 no-underline">Beep boop</a>
+<nav class="px-8 py-4 flex items-center justify-between sticky top-0 z-10" style="background:var(--navy);">
+  <div class="flex items-center gap-4">
+    <a href="/" class="font-extrabold text-2xl rounded-md border-4 border-white text-white select-none p-2 no-underline" style="white-space:nowrap">Beep boop</a>
+    <span class="font-extrabold text-white" style="font-size:1.1rem;opacity:.9;white-space:nowrap">World Cup 2026</span>
+  </div>
   <div class="flex items-center gap-6">
-    <a href="#groups" class="text-lg font-extrabold text-white no-underline opacity-80 hover:opacity-100">Groups</a>
     <a href="#bracket" class="text-lg font-extrabold text-white no-underline opacity-80 hover:opacity-100">Bracket</a>
+    <a href="#groups" class="text-lg font-extrabold text-white no-underline opacity-80 hover:opacity-100">Groups</a>
   </div>
 </nav>
 
@@ -133,17 +136,6 @@
   </details>
 </div>
 
-<!-- Group Stage -->
-<div id="groups" class="px-8 pb-4">
-  <details open>
-    <summary style="cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--dgray);color:#fff;border-radius:8px;margin-bottom:12px">
-      <span class="sec-hd" style="color:#fff">Group Stage</span>
-      <span id="grp-toggle" style="font-size:10px;opacity:.6;font-weight:400;text-transform:none">click to collapse</span>
-    </summary>
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3" id="gg"></div>
-  </details>
-</div>
-
 <!-- Knockout Bracket -->
 <div id="bracket" class="px-8 pb-12">
   <div class="flex items-center justify-between flex-wrap gap-3 mb-3">
@@ -153,6 +145,17 @@
   <div class="overflow-x-auto pb-4">
     <div id="bw" style="display:flex;align-items:stretch;min-width:max-content;gap:2px"></div>
   </div>
+</div>
+
+<!-- Group Stage (bottom, always collapsed) -->
+<div id="groups" class="px-8 pb-12">
+  <details>
+    <summary style="cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--dgray);color:#fff;border-radius:8px;margin-bottom:12px">
+      <span class="sec-hd" style="color:#fff">Group Stage Details</span>
+      <span style="font-size:10px;opacity:.6;font-weight:400;text-transform:none">click to expand</span>
+    </summary>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3" id="gg"></div>
+  </details>
 </div>
 
 <script>
