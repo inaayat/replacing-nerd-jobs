@@ -83,6 +83,10 @@ ugly-cat-images/
 
 `middleware.js` intercepts requests to `/private/*` and `/api/gddy-statements/*`. Login/logout are handled by the serverless functions in `/api/`.
 
+## inspiration
+
+- [zachjordan.io](https://www.zachjordan.io/#extras) — design reference for the v2 index page
+
 ## deploy
 
 connected to Vercel. push to `main`. done. beep boop.
