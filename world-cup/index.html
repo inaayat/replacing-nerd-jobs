@@ -506,16 +506,16 @@ function renderBracket() {
 
   const teamGroupMap = buildTeamGroupMap();
 
-  // Apply user's slot fills to TBD slots in ko clone
+  // Apply user's slot fills to TBD slots as projections (show "proj." tag)
   ko.filter(k=>k.stage==='LAST_32').forEach(m => {
     const fills = SLOT_FILLS[m.id];
     if (!fills) return;
-    if (fills.home && !m.home) m.home = fills.home;
-    if (fills.away && !m.away) m.away = fills.away;
+    if (fills.home && !m.home) m.projHome = fills.home;
+    if (fills.away && !m.away) m.projAway = fills.away;
   });
 
   // All teams already locked into R32 slots (real or user-filled)
-  const r32Locked = new Set(ko.filter(k=>k.stage==='LAST_32').flatMap(k=>[k.home,k.away]).filter(Boolean));
+  const r32Locked = new Set(ko.filter(k=>k.stage==='LAST_32').flatMap(k=>[k.home,k.away,k.projHome,k.projAway]).filter(Boolean));
 
   // Index of fully-TBD R32 matches (both slots null) by date order
   const r32FullTbd = ko.filter(k=>k.stage==='LAST_32'&&!k.home&&!k.away).sort((a,b)=>new Date(a.date)-new Date(b.date));
