@@ -45,7 +45,7 @@
       })();
     </script>
     <link
-      href="/index%20support%20files/global.CgcT098u.css"
+      href="/archive/assets/global.css"
       rel="stylesheet"
     />
     <script data-astro-exec="">
@@ -5405,7 +5405,9 @@
         var KEEP = ["/world-cup/", "/seattle-budget", "/tv-data/", "/corp-ai-investment-roi/", "/how-to-be-a-finance-nerd/", "/fpa-crash-course/", "/ai-governance-audit/"];
         document.querySelectorAll("section.text-xs ul li").forEach(function (li) {
           var a = li.querySelector("a[href]");
-          if (!a || KEEP.indexOf(a.getAttribute("href")) === -1) {
+          if (!a) { li.style.display = "none"; return; }
+          var h = a.getAttribute("href");
+          if (!KEEP.some(function(k){ return h === k || h.endsWith(k); })) {
             li.style.display = "none";
           }
         });
