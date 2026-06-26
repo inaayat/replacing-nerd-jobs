@@ -13,6 +13,15 @@ a collection of static dashboards and data tools â€” built by a human, for now â
 - [Free Icons](https://www.reddit.com/r/web_design/comments/16pa3v6/websites_for_free_icon_sets/)
 - [Website Color Schemes](https://visme.co/blog/website-color-schemes/)
 
+## color scheme
+
+| element | hex |
+|---|---|
+| background | `#F0EBF4` |
+| cards | `#f9fafb` |
+| nav | `#f267a0` |
+| footer | `#1b1464` |
+
 ## structure
 
 ```
