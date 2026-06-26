@@ -147,15 +147,6 @@
   </div>
 </nav>
 
-<!-- Legend + Summary -->
-<div class="px-8 pt-4 pb-2">
-  <div class="flex gap-5 flex-wrap text-xs font-semibold mb-3" style="color:var(--dgray)">
-    <span class="flex items-center gap-1"><span class="inline-block w-2.5 h-2.5 rounded-sm" style="background:var(--green)"></span>Top 2 qualify</span>
-    <span class="flex items-center gap-1"><span class="inline-block w-2.5 h-2.5 rounded-sm" style="background:#f59e0b"></span>Best 3rd (may qualify)</span>
-    <span class="flex items-center gap-1"><span class="badge-lv">LIVE</span>In progress</span>
-    <span class="flex items-center gap-1"><span class="badge-ft">FT</span>Final score</span>
-  </div>
-</div>
 
 <!-- Tournament Summary -->
 <div class="px-8 pb-4">
@@ -178,8 +169,8 @@
         <span style="font-size:10px;opacity:.6;font-weight:400;text-transform:none">click to collapse</span>
       </div>
     </summary>
-    <div class="overflow-x-auto pb-4">
-      <div id="bw" style="display:flex;align-items:stretch;min-width:max-content;gap:2px"></div>
+    <div style="overflow-x:auto;padding-bottom:8px">
+      <div id="bw" style="display:flex;align-items:stretch;gap:4px;width:100%;min-width:900px"></div>
     </div>
   </details>
 </div>
@@ -470,21 +461,31 @@ function renderBracket() {
       return `<div class="cand-panel"><p style="font-size:9px;color:#aaa;margin-bottom:6px">Groups with open slots — top 2 qualify</p>${blocks}</div>`;
     }
 
-    // For R16/QF/SF/Final: show unresolved previous-round matches as potential feeders
+    // For R16/QF/SF/Final: show only the 2 prev-round matches that feed THIS specific slot
+    // Matches pair up by sorted index: slot[i] comes from prev[i*2] and prev[i*2+1]
     const prevStage = PREV[m.stage];
     if (!prevStage) return '';
-    const prevUnresolved = ko.filter(k => k.stage===prevStage && k.status!=='FT');
-    if (!prevUnresolved.length) return `<div class="cand-panel" style="color:#888;font-size:11px">Waiting on completed matches.</div>`;
+    const prevAll = ko.filter(k=>k.stage===prevStage).sort((a,b)=>new Date(a.date)-new Date(b.date));
+    const thisAll = ko.filter(k=>k.stage===m.stage).sort((a,b)=>new Date(a.date)-new Date(b.date));
+    const slotIdx = thisAll.findIndex(k=>k.id===m.id);
+    const feeder1 = prevAll[slotIdx*2];
+    const feeder2 = prevAll[slotIdx*2+1];
+    const feeders = [feeder1, feeder2].filter(Boolean);
+    if (!feeders.length) return `<div class="cand-panel" style="color:#888;font-size:11px">Source matches not yet determined.</div>`;
 
-    const blocks = prevUnresolved.map(p => {
+    const blocks = feeders.map(p => {
       const t1 = p.home||p.projHome||'TBD', t2 = p.away||p.projAway||'TBD';
       const sl = STAGE_SHORT[p.stage]||p.stage;
+      const isDone = p.status==='FT';
+      const win = isDone && p.homeGoals!=null ? (p.homeGoals>p.awayGoals?t1:t2) : null;
       return `<div style="margin-bottom:6px">
-        <div class="cand-grp-hd">${sl} · ${fmtDate(p.date)}</div>
-        <div class="cand-row">${fl(t1,true)}<span style="flex:1">${t1}</span><span style="color:#bbb;font-size:9px">vs</span><span style="flex:1;text-align:right">${t2}</span>${fl(t2,true)}</div>
+        <div class="cand-grp-hd">${sl} · ${fmtDate(p.date)}${isDone?' · FT':''}</div>
+        <div class="cand-row">${fl(t1,true)}<span style="flex:1${win===t1?';color:var(--green);font-weight:700':''}">${t1}</span>
+        <span style="color:#bbb;font-size:9px">vs</span>
+        <span style="flex:1;text-align:right${win===t2?';color:var(--green);font-weight:700':''}">${t2}</span>${fl(t2,true)}</div>
       </div>`;
     }).join('');
-    return `<div class="cand-panel"><p style="font-size:9px;color:#aaa;margin-bottom:6px">Winner of these matches could fill this slot</p>${blocks}</div>`;
+    return `<div class="cand-panel"><p style="font-size:9px;color:#aaa;margin-bottom:6px">Winner of these 2 matches advances here</p>${blocks}</div>`;
   }
 
   function matchCard(m) {
@@ -549,14 +550,14 @@ function renderBracket() {
   const cols = STAGE_ORDER.map(stage => {
     const ms = ko.filter(m => m.stage === stage).sort((a,b)=>new Date(a.date)-new Date(b.date));
     if (!ms.length) return '';
-    return `<div class="bkt-col" style="width:200px">
+    return `<div class="bkt-col" style="flex:1;min-width:0">
       <div class="bkt-lbl">${STAGE_LABEL[stage]}</div>
       <div class="bkt-matches">${ms.map(matchCard).join('')}</div>
     </div>`;
   }).join('');
 
   const tp = ko.find(m => m.stage === 'THIRD_PLACE');
-  const tpCol = tp ? `<div class="bkt-col" style="width:200px">
+  const tpCol = tp ? `<div class="bkt-col" style="flex:1;min-width:0">
     <div class="bkt-lbl">3rd Place</div>
     <div style="margin-top:auto">${matchCard(tp)}</div>
   </div>` : '';
@@ -588,112 +589,87 @@ function renderSummary() {
   const el = document.getElementById('summary');
   if (!el) return;
 
-  // ── Group stage analysis ──────────────────────────────────────
-  const confirmed_r32 = [], confirmed_elim = [], tbd_group = [];
-  const allThirdRows = [];
+  // Each team gets exactly ONE bucket — process in priority order
+  const teamStatus = {}; // name → {bucket, label}
+
+  // Helper — only assign if not already assigned
+  const assign = (name, bucket, label) => { if (name && !teamStatus[name]) teamStatus[name] = {bucket, label}; };
+
+  // 1. Knockout results first (highest priority — overrides group stage)
+  const STAGE_NEXT = {LAST_32:'r16',LAST_16:'qf',QUARTER_FINALS:'sf',SEMI_FINALS:'final'};
+  koFixtures.forEach(m => {
+    const done = m.status==='FT' && m.homeGoals!==null;
+    if (!done) return;
+    const win  = m.homeGoals>m.awayGoals ? m.home : m.homeGoals<m.awayGoals ? m.away : null;
+    const lose = m.homeGoals>m.awayGoals ? m.away : m.homeGoals<m.awayGoals ? m.home : null;
+    const next = STAGE_NEXT[m.stage];
+    if (win)  { teamStatus[win]  = {bucket:`in_${next}`,  label:{r16:'In R16',qf:'In QF',sf:'In SF',final:'In Final'}[next]||next}; }
+    if (lose) {
+      if (m.stage==='SEMI_FINALS') teamStatus[lose] = {bucket:'in_3p', label:'3rd Place Match'};
+      else teamStatus[lose] = {bucket:`out_${m.stage}`, label:`Out — ${STAGE_SHORT[m.stage]||m.stage}`};
+    }
+  });
+
+  // 2. Group stage analysis
+  const allThirds = [];
+  const allGroupsDone = Object.keys(GROUPS).every(g => calcStandings(g).every(t => t.p === 3));
 
   Object.keys(GROUPS).forEach(grp => {
     const st = calcStandings(grp);
-    const groupDone = st.every(t => t.p === 3);
-
+    const done = st.every(t => t.p === 3);
     st.forEach((t, i) => {
-      if (groupDone) {
-        if (i < 2) confirmed_r32.push(t.nm);            // top 2: confirmed qualified
-        else if (i === 2) allThirdRows.push({...t, grp}); // 3rd: TBD until all groups done
-        else confirmed_elim.push(t.nm);                  // 4th: confirmed eliminated
+      if (done) {
+        if (i < 2)     assign(t.nm, 'in_r32', 'Qualified — Round of 32');
+        else if (i===2) allThirds.push(t);
+        else            assign(t.nm, 'out_group', 'Out — Group Stage');
       } else {
-        // Still playing — everyone is TBD
-        tbd_group.push(t.nm);
+        assign(t.nm, 'tbd_group', 'TBD — Group Stage');
       }
     });
   });
 
-  // Best-3rd determination: only confirmed once ALL 12 groups are done
-  const allGroupsDone = Object.keys(GROUPS).every(grp => calcStandings(grp).every(t => t.p === 3));
-  const sortedThird = [...allThirdRows].sort((a,b)=>b.pts-a.pts||b.gd-a.gd||b.gf-a.gf);
+  // 3. Best-3rd: only decided when ALL groups done
+  const sorted3rd = [...allThirds].sort((a,b)=>b.pts-a.pts||b.gd-a.gd||b.gf-a.gf);
   if (allGroupsDone) {
-    sortedThird.slice(0,8).forEach(t => confirmed_r32.push(t.nm));  // best 8 confirmed in
-    sortedThird.slice(8).forEach(t => confirmed_elim.push(t.nm));   // worst 4 confirmed out
+    sorted3rd.slice(0,8).forEach(t => assign(t.nm, 'in_r32',    'Qualified — Round of 32'));
+    sorted3rd.slice(8).forEach(t  => assign(t.nm, 'out_group',  'Out — Group Stage'));
   } else {
-    sortedThird.forEach(t => tbd_group.push(t.nm));                  // all 3rd still TBD
+    sorted3rd.forEach(t => assign(t.nm, 'tbd_group', 'TBD — Group Stage'));
   }
 
-  // ── Knockout stage analysis ───────────────────────────────────
-  const ko_qualified = {}, ko_elim = {}, ko_tbd = {};
-  const STAGE_NEXT = {LAST_32:'R16',LAST_16:'QF',QUARTER_FINALS:'SF',SEMI_FINALS:'Final'};
-
-  koFixtures.forEach(m => {
-    const label = STAGE_NEXT[m.stage] || m.stage;
-    const isDone = m.status==='FT' && m.homeGoals!==null && m.awayGoals!==null;
-    const win  = isDone ? (m.homeGoals>m.awayGoals ? m.home : m.homeGoals<m.awayGoals ? m.away : null) : null;
-    const lose = isDone ? (m.homeGoals>m.awayGoals ? m.away : m.homeGoals<m.awayGoals ? m.home : null) : null;
-
-    if (win) { ko_qualified[label] = ko_qualified[label]||[]; ko_qualified[label].push(win); }
-    if (lose && m.stage!=='SEMI_FINALS') { ko_elim[m.stage] = ko_elim[m.stage]||[]; ko_elim[m.stage].push(lose); }
-    // SF losers → 3rd place match (not eliminated yet)
-    if (lose && m.stage==='SEMI_FINALS') { ko_tbd['3P'] = ko_tbd['3P']||[]; ko_tbd['3P'].push(lose); }
-
-    // TBD: matches not yet played with known teams
-    if (!isDone) {
-      [m.home, m.away].filter(Boolean).forEach(t => {
-        ko_tbd[m.stage] = ko_tbd[m.stage]||[]; ko_tbd[m.stage].push(t);
-      });
-    }
+  // Collect into ordered buckets
+  const buckets = {};
+  Object.entries(teamStatus).forEach(([nm, {bucket, label}]) => {
+    buckets[bucket] = buckets[bucket] || {label, teams:[]};
+    buckets[bucket].teams.push(nm);
   });
 
-  // ── Render ────────────────────────────────────────────────────
-  function chip(name, status) {
+  function chip(name, isOut) {
     const code = FC[name];
     const img = code ? `<img style="width:14px;height:14px;border-radius:50%;object-fit:cover" src="https://kapowaz.github.io/circle-flags/flags/${code}.svg" loading="lazy">` : '';
-    const cls = status==='in'?'alive':status==='out'?'out':'';
-    return `<span class="summ-chip ${cls}">${img}${name}</span>`;
+    return `<span class="summ-chip ${isOut?'out':'alive'}">${img}${name}</span>`;
   }
-
-  function block(label, color, teams, status) {
-    if (!teams.length) return '';
+  function block(bucket) {
+    const b = buckets[bucket]; if (!b||!b.teams.length) return '';
+    const isOut = bucket.startsWith('out_');
+    const colors = {in_final:'var(--red)',in_sf:'var(--navy)',in_3p:'#f59e0b',in_qf:'var(--navy)',in_r16:'var(--navy)',in_r32:'var(--green)',tbd_group:'#888',out_group:'#bbb'};
+    const col = colors[bucket] || (isOut?'#bbb':'var(--navy)');
+    const emoji = bucket.startsWith('in_')?'✅':bucket.startsWith('tbd')?'🔄':'❌';
     return `<div class="summ-stage">
-      <div class="summ-label" style="color:${color}">${label} <span style="font-weight:400;opacity:.55">(${teams.length})</span></div>
-      <div class="summ-chips">${teams.map(t=>chip(t,status)).join('')}</div>
+      <div class="summ-label" style="color:${col}">${emoji} ${b.label} <span style="font-weight:400;opacity:.55">(${b.teams.length})</span></div>
+      <div class="summ-chips">${b.teams.map(t=>chip(t,isOut)).join('')}</div>
     </div>`;
   }
 
-  const KO_STAGE_LBL = {LAST_32:'R32',LAST_16:'R16',QUARTER_FINALS:'QF',SEMI_FINALS:'SF'};
-  const sections = [
-    // Confirmed qualified
-    block('✅ In Final',                      'var(--red)',   ko_qualified['Final']||[], 'in'),
-    block('✅ In Semifinals',                 'var(--navy)',  ko_qualified['SF']||[], 'in'),
-    block('✅ In Quarterfinals',              'var(--navy)',  ko_qualified['QF']||[], 'in'),
-    block('✅ In Round of 16',               'var(--navy)',  ko_qualified['R16']||[], 'in'),
-    block('✅ Qualified for Round of 32',    'var(--green)', confirmed_r32, 'in'),
-    // TBD
-    ...Object.entries(ko_tbd).map(([stage,teams]) =>
-      block(`🔄 TBD — ${stage==='3P'?'3rd Place Match':KO_STAGE_LBL[stage]||stage}`, '#888', [...new Set(teams)], '')
-    ),
-    tbd_group.length ? block('🔄 TBD — Group Stage still in play', '#888', [...new Set(tbd_group)], '') : '',
-    allGroupsDone && !Object.keys(ko_tbd).length && !tbd_group.length ? '' : '',
-    // Separator
-    '<div style="border-top:2px solid var(--lgray);margin:4px 0"></div>',
-    // Confirmed eliminated
-    block('❌ Eliminated — 3rd Place Match', '#ccc', ko_tbd['3P']&&ko_elim['SEMI_FINALS'] ? [] : (ko_elim['SEMI_FINALS']||[]), 'out'),
-    block('❌ Eliminated — Semifinals',     '#ccc', ko_elim['QUARTER_FINALS']||[], 'out'),
-    block('❌ Eliminated — Quarterfinals',  '#ccc', ko_elim['LAST_16']||[], 'out'),
-    block('❌ Eliminated — Round of 16',    '#ccc', ko_elim['LAST_32']||[], 'out'),
-    block('❌ Eliminated — Group Stage',    '#ccc', confirmed_elim, 'out'),
-  ].filter(s => s && s !== '<div style="border-top:2px solid var(--lgray);margin:4px 0"></div>');
+  const ORDER_IN  = ['in_final','in_3p','in_sf','in_qf','in_r16','in_r32','tbd_group'];
+  const ORDER_OUT = Object.keys(buckets).filter(b=>b.startsWith('out_'));
+  const inHtml  = ORDER_IN.map(block).filter(Boolean).join('');
+  const outHtml = ORDER_OUT.map(block).filter(Boolean).join('');
+  const sep = inHtml && outHtml ? '<div style="border-top:2px solid var(--lgray);margin:4px 0"></div>' : '';
 
-  if (!sections.length) {
-    el.innerHTML = '<p style="color:#999;font-size:12px;padding:4px 0">Hit ↻ Refresh to load live standings.</p>';
-    return;
-  }
-
-  // Re-add separator between qualified and eliminated
-  const qualIdx = sections.findLastIndex(s => s.includes('✅'));
-  const elimIdx = sections.findIndex(s => s.includes('❌'));
-  if (qualIdx >= 0 && elimIdx > qualIdx) {
-    sections.splice(elimIdx, 0, '<div style="border-top:2px solid var(--lgray);margin:4px 0"></div>');
-  }
-
-  el.innerHTML = sections.join('');
+  el.innerHTML = inHtml || outHtml
+    ? inHtml + sep + outHtml
+    : '<p style="color:#999;font-size:12px;padding:4px 0">Hit ↻ Refresh to load live standings.</p>';
 }
 
 // ── Data loading: cache-first, no auto-fetch on page open ─────────

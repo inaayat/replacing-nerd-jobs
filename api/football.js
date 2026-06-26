@@ -25,24 +25,25 @@ function mapStatus(s) {
 }
 
 // Knockout venues by date (official 2026 schedule), ordered by kick-off time within each day
+// City, State only (no stadium name)
 const KO_VENUES = {
-  '2026-06-28': ['SoFi Stadium, Inglewood CA'],
-  '2026-06-29': ['Gillette Stadium, Foxborough MA', 'Estadio BBVA, Monterrey MX', 'NRG Stadium, Houston TX'],
-  '2026-06-30': ['MetLife Stadium, East Rutherford NJ', 'AT&T Stadium, Arlington TX', 'Estadio Azteca, Mexico City MX'],
-  '2026-07-01': ['Mercedes-Benz Stadium, Atlanta GA', "Levi's Stadium, Santa Clara CA", 'Lumen Field, Seattle WA'],
-  '2026-07-02': ['BMO Field, Toronto ON', 'SoFi Stadium, Inglewood CA', 'BC Place, Vancouver BC'],
-  '2026-07-03': ['Hard Rock Stadium, Miami Gardens FL', 'Arrowhead Stadium, Kansas City MO', 'AT&T Stadium, Arlington TX'],
-  '2026-07-04': ['Lincoln Financial Field, Philadelphia PA', 'NRG Stadium, Houston TX'],
-  '2026-07-05': ['MetLife Stadium, East Rutherford NJ', 'Estadio Azteca, Mexico City MX'],
-  '2026-07-06': ['AT&T Stadium, Arlington TX', 'Lumen Field, Seattle WA'],
-  '2026-07-07': ['Mercedes-Benz Stadium, Atlanta GA', 'BC Place, Vancouver BC'],
-  '2026-07-09': ['Gillette Stadium, Foxborough MA'],
-  '2026-07-10': ['SoFi Stadium, Inglewood CA'],
-  '2026-07-11': ['Hard Rock Stadium, Miami Gardens FL', 'Arrowhead Stadium, Kansas City MO'],
-  '2026-07-14': ['AT&T Stadium, Arlington TX'],
-  '2026-07-15': ['Mercedes-Benz Stadium, Atlanta GA'],
-  '2026-07-18': ['Hard Rock Stadium, Miami Gardens FL'],
-  '2026-07-19': ['MetLife Stadium, East Rutherford NJ'],
+  '2026-06-28': ['Inglewood, CA'],
+  '2026-06-29': ['Foxborough, MA', 'Monterrey, MX', 'Houston, TX'],
+  '2026-06-30': ['East Rutherford, NJ', 'Arlington, TX', 'Mexico City, MX'],
+  '2026-07-01': ['Atlanta, GA', 'Santa Clara, CA', 'Seattle, WA'],
+  '2026-07-02': ['Toronto, ON', 'Inglewood, CA', 'Vancouver, BC'],
+  '2026-07-03': ['Miami Gardens, FL', 'Kansas City, MO', 'Arlington, TX'],
+  '2026-07-04': ['Philadelphia, PA', 'Houston, TX'],
+  '2026-07-05': ['East Rutherford, NJ', 'Mexico City, MX'],
+  '2026-07-06': ['Arlington, TX', 'Seattle, WA'],
+  '2026-07-07': ['Atlanta, GA', 'Vancouver, BC'],
+  '2026-07-09': ['Foxborough, MA'],
+  '2026-07-10': ['Inglewood, CA'],
+  '2026-07-11': ['Miami Gardens, FL', 'Kansas City, MO'],
+  '2026-07-14': ['Arlington, TX'],
+  '2026-07-15': ['Atlanta, GA'],
+  '2026-07-18': ['Miami Gardens, FL'],
+  '2026-07-19': ['East Rutherford, NJ'],
 };
 
 export default async function handler(req, res) {
