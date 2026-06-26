@@ -171,7 +171,7 @@
       </div>
     </summary>
     <div style="overflow-x:auto;padding-bottom:8px">
-      <div id="bw" style="display:flex;align-items:stretch;gap:4px;width:100%;min-width:900px"></div>
+      <div id="bw" style="display:flex;align-items:stretch;gap:6px;width:100%"></div>
     </div>
   </details>
 </div>
@@ -674,22 +674,26 @@ function renderBracket() {
     </div>`;
   }
 
+  const tp = ko.find(m => m.stage === 'THIRD_PLACE');
+
   const cols = STAGE_ORDER.map(stage => {
     const ms = ko.filter(m => m.stage === stage).sort((a,b)=>new Date(a.date)-new Date(b.date));
     if (!ms.length) return '';
+    const isFinal = stage === 'FINAL';
+    const tpHtml = isFinal && tp
+      ? `<div style="margin-top:10px">
+           <div class="bkt-lbl" style="background:rgba(71,74,74,.6);margin-bottom:6px">3rd Place</div>
+           ${matchCard(tp)}
+         </div>`
+      : '';
     return `<div class="bkt-col" style="flex:1;min-width:0">
       <div class="bkt-lbl">${STAGE_LABEL[stage]}</div>
       <div class="bkt-matches">${ms.map(matchCard).join('')}</div>
+      ${tpHtml}
     </div>`;
   }).join('');
 
-  const tp = ko.find(m => m.stage === 'THIRD_PLACE');
-  const tpCol = tp ? `<div class="bkt-col" style="flex:1;min-width:0">
-    <div class="bkt-lbl">3rd Place</div>
-    <div style="margin-top:auto">${matchCard(tp)}</div>
-  </div>` : '';
-
-  w.innerHTML = cols + tpCol;
+  w.innerHTML = cols;
 }
 
 // ── Utils ─────────────────────────────────────────────────────────
