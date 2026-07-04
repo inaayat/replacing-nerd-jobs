@@ -38,11 +38,11 @@ function etDateKey(utcIso) {
 // City, State only (no stadium name)
 const KO_VENUES = {
   '2026-06-28': ['Inglewood, CA'],
-  '2026-06-29': ['Foxborough, MA', 'Monterrey, MX', 'Houston, TX'],
-  '2026-06-30': ['East Rutherford, NJ', 'Arlington, TX', 'Mexico City, MX'],
-  '2026-07-01': ['Atlanta, GA', 'Santa Clara, CA', 'Seattle, WA'],
-  '2026-07-02': ['Toronto, ON', 'Inglewood, CA', 'Vancouver, BC'],
-  '2026-07-03': ['Miami Gardens, FL', 'Kansas City, MO', 'Arlington, TX'],
+  '2026-06-29': ['Houston, TX', 'Foxborough, MA', 'Monterrey, MX'],
+  '2026-06-30': ['Arlington, TX', 'East Rutherford, NJ', 'Mexico City, MX'],
+  '2026-07-01': ['Atlanta, GA', 'Seattle, WA', 'Santa Clara, CA'],
+  '2026-07-02': ['Inglewood, CA', 'Toronto, ON', 'Vancouver, BC'],
+  '2026-07-03': ['Arlington, TX', 'Miami Gardens, FL', 'Kansas City, MO'],
   '2026-07-04': ['Houston, TX', 'Philadelphia, PA'],
   '2026-07-05': ['East Rutherford, NJ', 'Mexico City, MX'],
   '2026-07-06': ['Arlington, TX', 'Seattle, WA'],
