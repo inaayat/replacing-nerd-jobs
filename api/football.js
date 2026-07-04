@@ -34,18 +34,6 @@ function etDateKey(utcIso) {
   }).format(new Date(utcIso));
 }
 
-function teamPairKey(a, b) {
-  return [a, b].filter(Boolean).sort().join(' | ');
-}
-
-// Confirmed venues for specific matchups, verified against the official schedule.
-// Takes precedence over the positional KO_VENUES lookup, which can still misfire
-// when several matches share a day (e.g. simultaneous kickoffs in different
-// cities/timezones don't have a well-defined "position" to sort by).
-const VENUE_OVERRIDES = {
-  [teamPairKey('Switzerland', 'Colombia')]: 'Vancouver, BC',
-};
-
 // Knockout venues by date (official 2026 schedule), ordered by kick-off time within each day
 // City, State only (no stadium name)
 const KO_VENUES = {
@@ -55,7 +43,7 @@ const KO_VENUES = {
   '2026-07-01': ['Atlanta, GA', 'Santa Clara, CA', 'Seattle, WA'],
   '2026-07-02': ['Toronto, ON', 'Inglewood, CA', 'Vancouver, BC'],
   '2026-07-03': ['Miami Gardens, FL', 'Kansas City, MO', 'Arlington, TX'],
-  '2026-07-04': ['Philadelphia, PA', 'Houston, TX'],
+  '2026-07-04': ['Houston, TX', 'Philadelphia, PA'],
   '2026-07-05': ['East Rutherford, NJ', 'Mexico City, MX'],
   '2026-07-06': ['Arlington, TX', 'Seattle, WA'],
   '2026-07-07': ['Atlanta, GA', 'Vancouver, BC'],
@@ -105,8 +93,7 @@ export default async function handler(req, res) {
           const dateKey = etDateKey(m.utcDate);
           const idx = dateCounters[dateKey] ?? 0;
           dateCounters[dateKey] = idx + 1;
-          const pairKey = teamPairKey(m.homeTeam?.name, m.awayTeam?.name);
-          const venue = VENUE_OVERRIDES[pairKey] || (KO_VENUES[dateKey] || [])[idx] || null;
+          const venue = (KO_VENUES[dateKey] || [])[idx] || null;
           return {
             id: m.id,
             stage: m.stage,
