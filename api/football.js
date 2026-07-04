@@ -24,16 +24,26 @@ function mapStatus(s) {
   return 'NS';
 }
 
+// The official schedule (and this file's date keys) are published in US Eastern
+// time. Bucketing by raw UTC date instead misfiles evening ET kickoffs (already
+// past midnight UTC) into the next day, throwing off the positional venue lookup
+// below for every match that shares a UTC day with one of those late games.
+function etDateKey(utcIso) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date(utcIso));
+}
+
 // Knockout venues by date (official 2026 schedule), ordered by kick-off time within each day
 // City, State only (no stadium name)
 const KO_VENUES = {
   '2026-06-28': ['Inglewood, CA'],
-  '2026-06-29': ['Foxborough, MA', 'Monterrey, MX', 'Houston, TX'],
-  '2026-06-30': ['East Rutherford, NJ', 'Arlington, TX', 'Mexico City, MX'],
-  '2026-07-01': ['Atlanta, GA', 'Santa Clara, CA', 'Seattle, WA'],
-  '2026-07-02': ['Toronto, ON', 'Inglewood, CA', 'Vancouver, BC'],
-  '2026-07-03': ['Miami Gardens, FL', 'Kansas City, MO', 'Arlington, TX'],
-  '2026-07-04': ['Philadelphia, PA', 'Houston, TX'],
+  '2026-06-29': ['Houston, TX', 'Foxborough, MA', 'Monterrey, MX'],
+  '2026-06-30': ['Arlington, TX', 'East Rutherford, NJ', 'Mexico City, MX'],
+  '2026-07-01': ['Atlanta, GA', 'Seattle, WA', 'Santa Clara, CA'],
+  '2026-07-02': ['Inglewood, CA', 'Toronto, ON', 'Vancouver, BC'],
+  '2026-07-03': ['Arlington, TX', 'Miami Gardens, FL', 'Kansas City, MO'],
+  '2026-07-04': ['Houston, TX', 'Philadelphia, PA'],
   '2026-07-05': ['East Rutherford, NJ', 'Mexico City, MX'],
   '2026-07-06': ['Arlington, TX', 'Seattle, WA'],
   '2026-07-07': ['Atlanta, GA', 'Vancouver, BC'],
@@ -80,7 +90,7 @@ export default async function handler(req, res) {
         .filter(m => m.stage !== 'GROUP_STAGE')
         .sort((a, b) => new Date(a.utcDate) - new Date(b.utcDate))
         .map(m => {
-          const dateKey = m.utcDate.substring(0, 10);
+          const dateKey = etDateKey(m.utcDate);
           const idx = dateCounters[dateKey] ?? 0;
           dateCounters[dateKey] = idx + 1;
           const venue = (KO_VENUES[dateKey] || [])[idx] || null;
