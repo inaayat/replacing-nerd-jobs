@@ -24,6 +24,28 @@ function mapStatus(s) {
   return 'NS';
 }
 
+// The official schedule (and this file's date keys) are published in US Eastern
+// time. Bucketing by raw UTC date instead misfiles evening ET kickoffs (already
+// past midnight UTC) into the next day, throwing off the positional venue lookup
+// below for every match that shares a UTC day with one of those late games.
+function etDateKey(utcIso) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date(utcIso));
+}
+
+function teamPairKey(a, b) {
+  return [a, b].filter(Boolean).sort().join(' | ');
+}
+
+// Confirmed venues for specific matchups, verified against the official schedule.
+// Takes precedence over the positional KO_VENUES lookup, which can still misfire
+// when several matches share a day (e.g. simultaneous kickoffs in different
+// cities/timezones don't have a well-defined "position" to sort by).
+const VENUE_OVERRIDES = {
+  [teamPairKey('Switzerland', 'Colombia')]: 'Vancouver, BC',
+};
+
 // Knockout venues by date (official 2026 schedule), ordered by kick-off time within each day
 // City, State only (no stadium name)
 const KO_VENUES = {
@@ -80,10 +102,11 @@ export default async function handler(req, res) {
         .filter(m => m.stage !== 'GROUP_STAGE')
         .sort((a, b) => new Date(a.utcDate) - new Date(b.utcDate))
         .map(m => {
-          const dateKey = m.utcDate.substring(0, 10);
+          const dateKey = etDateKey(m.utcDate);
           const idx = dateCounters[dateKey] ?? 0;
           dateCounters[dateKey] = idx + 1;
-          const venue = (KO_VENUES[dateKey] || [])[idx] || null;
+          const pairKey = teamPairKey(m.homeTeam?.name, m.awayTeam?.name);
+          const venue = VENUE_OVERRIDES[pairKey] || (KO_VENUES[dateKey] || [])[idx] || null;
           return {
             id: m.id,
             stage: m.stage,
