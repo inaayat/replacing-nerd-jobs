@@ -24,36 +24,32 @@ function mapStatus(s) {
   return 'NS';
 }
 
-// The official schedule (and this file's date keys) are published in US Eastern
-// time. Bucketing by raw UTC date instead misfiles evening ET kickoffs (already
-// past midnight UTC) into the next day, throwing off the positional venue lookup
-// below for every match that shares a UTC day with one of those late games.
-function etDateKey(utcIso) {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).format(new Date(utcIso));
-}
-
-// Knockout venues by date (official 2026 schedule), ordered by kick-off time within each day
-// City, State only (no stadium name)
-const KO_VENUES = {
-  '2026-06-28': ['Inglewood, CA'],
-  '2026-06-29': ['Houston, TX', 'Foxborough, MA', 'Monterrey, MX'],
-  '2026-06-30': ['Arlington, TX', 'East Rutherford, NJ', 'Mexico City, MX'],
-  '2026-07-01': ['Atlanta, GA', 'Seattle, WA', 'Santa Clara, CA'],
-  '2026-07-02': ['Inglewood, CA', 'Toronto, ON', 'Vancouver, BC'],
-  '2026-07-03': ['Arlington, TX', 'Miami Gardens, FL', 'Kansas City, MO'],
-  '2026-07-04': ['Houston, TX', 'Philadelphia, PA'],
-  '2026-07-05': ['East Rutherford, NJ', 'Mexico City, MX'],
-  '2026-07-06': ['Arlington, TX', 'Seattle, WA'],
-  '2026-07-07': ['Atlanta, GA', 'Vancouver, BC'],
-  '2026-07-09': ['Foxborough, MA'],
-  '2026-07-10': ['Inglewood, CA'],
-  '2026-07-11': ['Miami Gardens, FL', 'Kansas City, MO'],
-  '2026-07-14': ['Arlington, TX'],
-  '2026-07-15': ['Atlanta, GA'],
-  '2026-07-18': ['Miami Gardens, FL'],
-  '2026-07-19': ['East Rutherford, NJ'],
+// Official 2026 knockout venues (DirecTV broadcast schedule), one entry per
+// bracket slot in kickoff order. FIFA fixes venues/dates to a bracket slot
+// months in advance, independent of which teams end up filling it — so each
+// stage's real matches are assigned a venue by their chronological position
+// within that stage, not by reconstructing a calendar day from the API's own
+// timestamp. (An earlier version bucketed by calendar date instead, which
+// broke whenever the live API's date for a match didn't land on the day this
+// venue list assumed.) Stage names match what football-data.org returns.
+const STAGE_VENUES = {
+  LAST_32: [
+    'Inglewood, CA', 'Houston, TX', 'Foxborough, MA', 'Monterrey, MX',
+    'Arlington, TX', 'East Rutherford, NJ', 'Mexico City, MX',
+    'Atlanta, GA', 'Seattle, WA', 'Santa Clara, CA',
+    'Inglewood, CA', 'Toronto, ON', 'Vancouver, BC',
+    'Arlington, TX', 'Miami Gardens, FL', 'Kansas City, MO',
+  ],
+  LAST_16: [
+    'Houston, TX', 'Philadelphia, PA',
+    'East Rutherford, NJ', 'Mexico City, MX',
+    'Arlington, TX', 'Seattle, WA',
+    'Atlanta, GA', 'Vancouver, BC',
+  ],
+  QUARTER_FINALS: ['Foxborough, MA', 'Inglewood, CA', 'Miami Gardens, FL', 'Kansas City, MO'],
+  SEMI_FINALS: ['Arlington, TX', 'Atlanta, GA'],
+  THIRD_PLACE: ['Miami Gardens, FL'],
+  FINAL: ['East Rutherford, NJ'],
 };
 
 export default async function handler(req, res) {
@@ -84,28 +80,32 @@ export default async function handler(req, res) {
           date: m.utcDate,
         }));
 
-      // Track position within each date for venue lookup
-      const dateCounters = {};
-      const koFixtures = all
-        .filter(m => m.stage !== 'GROUP_STAGE')
-        .sort((a, b) => new Date(a.utcDate) - new Date(b.utcDate))
-        .map(m => {
-          const dateKey = etDateKey(m.utcDate);
-          const idx = dateCounters[dateKey] ?? 0;
-          dateCounters[dateKey] = idx + 1;
-          const venue = (KO_VENUES[dateKey] || [])[idx] || null;
-          return {
-            id: m.id,
-            stage: m.stage,
-            home: m.homeTeam?.name || null,
-            away: m.awayTeam?.name || null,
-            homeGoals: m.score?.fullTime?.home ?? null,
-            awayGoals: m.score?.fullTime?.away ?? null,
-            status: mapStatus(m.status),
-            date: m.utcDate,
-            venue,
-          };
-        });
+      // Group knockout matches by stage, then assign venues by chronological
+      // position within that stage (see STAGE_VENUES comment above).
+      const byStage = {};
+      all.filter(m => m.stage !== 'GROUP_STAGE').forEach(m => {
+        (byStage[m.stage] ??= []).push(m);
+      });
+
+      const koFixtures = [];
+      Object.entries(byStage).forEach(([stage, matches]) => {
+        const venues = STAGE_VENUES[stage] || [];
+        matches
+          .sort((a, b) => new Date(a.utcDate) - new Date(b.utcDate))
+          .forEach((m, idx) => {
+            koFixtures.push({
+              id: m.id,
+              stage: m.stage,
+              home: m.homeTeam?.name || null,
+              away: m.awayTeam?.name || null,
+              homeGoals: m.score?.fullTime?.home ?? null,
+              awayGoals: m.score?.fullTime?.away ?? null,
+              status: mapStatus(m.status),
+              date: m.utcDate,
+              venue: venues[idx] || null,
+            });
+          });
+      });
 
       return res.status(200).json({ groupFixtures, koFixtures });
     }
