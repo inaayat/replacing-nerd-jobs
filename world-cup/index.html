@@ -61,6 +61,7 @@
 
     /* Bracket */
     .bkt-col { display:flex;flex-direction:column;flex-shrink:0;padding:0 4px; }
+    .bkt-tabs { display:none; }
     .bkt-lbl { background:var(--dgray);color:#fff;font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;padding:4px 10px;border-radius:4px;text-align:center;margin-bottom:10px; }
     .bkt-matches { display:flex;flex-direction:column;justify-content:flex-start;flex:1;gap:10px; }
     .bkt-match { background:#fff;border:1px solid #ddd;border-radius:10px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.06); }
@@ -91,6 +92,34 @@
     .summ-chip { display:flex;align-items:center;gap:4px;padding:2px 7px 2px 4px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap; }
     .summ-chip.alive { background:#fff;border:1.5px solid var(--lgray); }
     .summ-chip.out { background:#f5f5f5;border:1.5px solid #e0e0e0;color:#aaa;text-decoration:line-through; }
+
+    /* Mobile: one bracket round per screen, swipe/tab between rounds */
+    @media (max-width:640px) {
+      .hide-sm { display:none !important; }
+
+      nav.px-6 { padding-left:.75rem;padding-right:.75rem;flex-wrap:wrap;row-gap:6px; }
+      nav.px-6 > div.flex.items-center.gap-3 { flex-wrap:wrap;gap:8px; }
+
+      #bracket { padding-left:.5rem;padding-right:.5rem; }
+
+      .bkt-tabs {
+        display:flex;gap:6px;overflow-x:auto;padding:8px 2px 10px;
+        position:sticky;top:var(--nav-h, 56px);background:#f0f0ee;z-index:4;
+      }
+      .bkt-tabs button {
+        flex:1 0 auto;border:1.5px solid var(--lgray);background:#fff;color:var(--dgray);
+        font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;
+        padding:6px 10px;border-radius:20px;cursor:pointer;white-space:nowrap;transition:all .15s;
+      }
+      .bkt-tabs button.active { background:var(--navy);border-color:var(--navy);color:#fff; }
+
+      #bktScroll { scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scroll-behavior:smooth; }
+
+      #bw .bkt-col {
+        flex:0 0 88% !important;min-width:88% !important;
+        scroll-snap-align:center;padding:0 3px;
+      }
+    }
   </style>
 </head>
 <body class="min-h-screen flex flex-col">
@@ -132,15 +161,15 @@
 <nav class="px-6 py-3 flex items-center justify-between sticky top-0 z-10" style="background:var(--navy);font-family:inherit">
   <div class="flex items-center gap-4">
     <a href="/" style="font-weight:800;font-size:1.2rem;border-radius:6px;border:3px solid #fff;color:#fff;padding:3px 10px;text-decoration:none;white-space:nowrap;font-family:inherit">Beep boop</a>
-    <div style="border-left:2px solid rgba(255,255,255,0.25);height:32px"></div>
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="22" height="22" style="fill:#fff;opacity:.85;flex-shrink:0"><path d="M451 292.3C446.6 289.5 443.4 285.3 441.8 280.4C440.2 275.5 440.4 270.2 442.3 265.4L475.6 182C455.7 159.6 431 141.5 403.2 129.3L334.1 186.9C330.1 190.2 325.1 192 320 192C314.9 192 309.8 190.2 305.9 186.9L236.8 129.3C209 141.5 184.3 159.6 164.4 182L197.8 265.4C199.7 270.2 199.9 275.5 198.3 280.4C196.7 285.3 193.4 289.5 189.1 292.3L113 340.2C116 371.1 125.7 399.9 140.6 425.4L230.3 419.4C235.5 419.1 240.6 420.5 244.8 423.6C249 426.7 252 431 253.2 436.1L275.2 523.3C289.6 526.5 304.6 528.1 320 528.1C335.4 528.1 350.3 526.4 364.8 523.3L386.8 436.1C388.1 431.1 391 426.7 395.2 423.6C399.4 420.5 404.5 419.1 409.7 419.4L499.4 425.4C514.4 400 524.1 371.1 527 340.3L451 292.3zM320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576C178.6 576 64 461.4 64 320C64 178.6 178.6 64 320 64zM382 285C390.4 291.1 393.9 301.9 390.7 311.8L372.4 368.1C369.2 378 360 384.7 349.6 384.7L290.4 384.7C280 384.7 270.8 378 267.6 368.1L249.3 311.8C246.1 301.9 249.6 291.1 258 285L305.9 250.2C314.3 244.1 325.7 244.1 334.1 250.2L382 285z"/></svg>
+    <div class="hide-sm" style="border-left:2px solid rgba(255,255,255,0.25);height:32px"></div>
+    <svg class="hide-sm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="22" height="22" style="fill:#fff;opacity:.85;flex-shrink:0"><path d="M451 292.3C446.6 289.5 443.4 285.3 441.8 280.4C440.2 275.5 440.4 270.2 442.3 265.4L475.6 182C455.7 159.6 431 141.5 403.2 129.3L334.1 186.9C330.1 190.2 325.1 192 320 192C314.9 192 309.8 190.2 305.9 186.9L236.8 129.3C209 141.5 184.3 159.6 164.4 182L197.8 265.4C199.7 270.2 199.9 275.5 198.3 280.4C196.7 285.3 193.4 289.5 189.1 292.3L113 340.2C116 371.1 125.7 399.9 140.6 425.4L230.3 419.4C235.5 419.1 240.6 420.5 244.8 423.6C249 426.7 252 431 253.2 436.1L275.2 523.3C289.6 526.5 304.6 528.1 320 528.1C335.4 528.1 350.3 526.4 364.8 523.3L386.8 436.1C388.1 431.1 391 426.7 395.2 423.6C399.4 420.5 404.5 419.1 409.7 419.4L499.4 425.4C514.4 400 524.1 371.1 527 340.3L451 292.3zM320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576C178.6 576 64 461.4 64 320C64 178.6 178.6 64 320 64zM382 285C390.4 291.1 393.9 301.9 390.7 311.8L372.4 368.1C369.2 378 360 384.7 349.6 384.7L290.4 384.7C280 384.7 270.8 378 267.6 368.1L249.3 311.8C246.1 301.9 249.6 291.1 258 285L305.9 250.2C314.3 244.1 325.7 244.1 334.1 250.2L382 285z"/></svg>
     <div>
       <div style="font-weight:800;color:#fff;font-size:.95rem;line-height:1.2;font-family:inherit">World Cup 2026</div>
-      <div style="color:#fff;font-size:10px;opacity:.65;font-style:italic;font-family:inherit">48 teams · Jun 11–Jul 19 · USA, Canada &amp; Mexico</div>
+      <div class="hide-sm" style="color:#fff;font-size:10px;opacity:.65;font-style:italic;font-family:inherit">48 teams · Jun 11–Jul 19 · USA, Canada &amp; Mexico</div>
     </div>
   </div>
   <div class="flex items-center gap-3">
-    <span id="lu" style="color:#fff;font-size:10px;opacity:.6;font-family:inherit"></span>
+    <span id="lu" class="hide-sm" style="color:#fff;font-size:10px;opacity:.6;font-family:inherit"></span>
     <button onclick="loadData(true)" style="font-weight:700;color:#fff;padding:3px 8px;border-radius:4px;border:2px solid rgba(255,255,255,.5);font-size:11px;background:transparent;cursor:pointer;font-family:inherit;white-space:nowrap">↻ Refresh</button>
     <button onclick="openSidebar()" style="font-weight:700;color:#fff;padding:3px 8px;border-radius:4px;border:2px solid rgba(255,255,255,.5);font-size:11px;background:transparent;cursor:pointer;font-family:inherit;white-space:nowrap">ⓘ Guide</button>
     <a href="#bracket" style="font-weight:700;color:#fff;text-decoration:none;opacity:.8;font-size:13px;font-family:inherit">Bracket</a>
@@ -170,7 +199,14 @@
         <span style="font-size:10px;opacity:.6;font-weight:400;text-transform:none">click to collapse</span>
       </div>
     </summary>
-    <div style="overflow-x:auto;padding-bottom:8px">
+    <div class="bkt-tabs" id="bktTabs">
+      <button data-tab="LAST_32" class="active">R32</button>
+      <button data-tab="LAST_16">R16</button>
+      <button data-tab="QUARTER_FINALS">QF</button>
+      <button data-tab="SEMI_FINALS">SF</button>
+      <button data-tab="FINAL">Final</button>
+    </div>
+    <div id="bktScroll" style="overflow-x:auto;padding-bottom:8px">
       <div id="bw" style="display:flex;align-items:stretch;gap:6px;width:100%"></div>
     </div>
   </details>
@@ -686,7 +722,7 @@ function renderBracket() {
            ${matchCard(tp)}
          </div>`
       : '';
-    return `<div class="bkt-col" style="flex:1;min-width:0">
+    return `<div class="bkt-col" data-stage="${stage}" style="flex:1;min-width:0">
       <div class="bkt-lbl">${STAGE_LABEL[stage]}</div>
       <div class="bkt-matches">${ms.map(matchCard).join('')}${tpHtml}</div>
     </div>`;
@@ -713,6 +749,58 @@ function closeSidebar() {
   document.getElementById('tbOverlay').classList.remove('open');
   document.body.style.overflow = '';
 }
+
+// ── Mobile bracket tabs: jump to round, sync active tab on scroll ──
+const bktMq = window.matchMedia('(max-width:640px)');
+
+// Keep the tab bar stuck just below the (variable-height) nav, not under it
+const navEl = document.querySelector('nav');
+function syncNavHeight() {
+  document.documentElement.style.setProperty('--nav-h', navEl.offsetHeight + 'px');
+}
+new ResizeObserver(syncNavHeight).observe(navEl);
+syncNavHeight();
+
+function scrollToStage(stage) {
+  const scroller = document.getElementById('bktScroll');
+  const col = scroller && scroller.querySelector(`.bkt-col[data-stage="${stage}"]`);
+  if (col) col.scrollIntoView({ behavior:'smooth', inline:'center', block:'nearest' });
+}
+
+function setActiveTab(stage) {
+  document.querySelectorAll('#bktTabs button').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === stage);
+  });
+}
+
+document.getElementById('bktTabs').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-tab]');
+  if (!btn) return;
+  setActiveTab(btn.dataset.tab);
+  scrollToStage(btn.dataset.tab);
+});
+
+let bktScrollTicking = false;
+function syncActiveTabFromScroll() {
+  bktScrollTicking = false;
+  if (!bktMq.matches) return;
+  const scroller = document.getElementById('bktScroll');
+  const cols = scroller.querySelectorAll('.bkt-col[data-stage]');
+  if (!cols.length) return;
+  const center = scroller.getBoundingClientRect().left + scroller.clientWidth / 2;
+  let closest = null, closestDist = Infinity;
+  cols.forEach(col => {
+    const r = col.getBoundingClientRect();
+    const dist = Math.abs((r.left + r.width / 2) - center);
+    if (dist < closestDist) { closestDist = dist; closest = col; }
+  });
+  if (closest) setActiveTab(closest.dataset.stage);
+}
+document.getElementById('bktScroll').addEventListener('scroll', () => {
+  if (bktScrollTicking) return;
+  bktScrollTicking = true;
+  requestAnimationFrame(syncActiveTabFromScroll);
+}, { passive:true });
 
 // ── Tournament Summary ────────────────────────────────────────────
 function renderSummary() {
