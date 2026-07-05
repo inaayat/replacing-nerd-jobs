@@ -73,14 +73,10 @@
             ...TYPE_ORDER.filter((t) => byType.has(t)),
             ...[...byType.keys()].filter((t) => !TYPE_ORDER.includes(t)),
           ];
-          // Group into 3 columns of 2 categories each.
-          const columns = [];
-          for (let i = 0; i < types.length; i += 2) columns.push(types.slice(i, i + 2));
+          // Real grid cells (not nested flex columns) so row 2's headings
+          // align across columns regardless of how tall row 1 is.
           const sections = document.getElementById('quiz-sections');
-          sections.innerHTML = columns.map((pair) => `
-            <div class="flex flex-col gap-6">
-              ${pair.map((type) => typeBlockHtml(type, byType.get(type))).join('')}
-            </div>`).join('');
+          sections.innerHTML = types.map((type) => typeBlockHtml(type, byType.get(type))).join('');
         })
         .catch(() => {
           document.getElementById('quiz-sections').innerHTML = '<p class="text-gray-500 font-bold">Couldn\'t load the quiz catalog.</p>';
