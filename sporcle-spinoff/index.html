@@ -29,37 +29,53 @@
       <p class="mt-4 text-xl font-bold text-gray-500">Quick trivia quizzes. Pick one and see how you do.</p>
     </div>
 
-    <div id="quiz-grid" class="px-16 pb-16 md:px-24 flex-grow">
-      <div class="grid grid-cols-12" id="quiz-grid-inner"></div>
-    </div>
+    <div id="quiz-sections" class="px-16 pb-16 md:px-24 flex-grow"></div>
 
     <script>
+      // Fixed display order; only types with at least one quiz get a section.
+      const TYPE_ORDER = ['text-entry', 'multiple-choice', 'image', 'matching', 'ranking', 'map'];
       const TYPE_LABELS = {
-        'text-entry': 'Type the answer',
-        'multiple-choice': 'Multiple choice',
-        image: 'Picture round',
+        'text-entry': 'Type the Answer',
+        'multiple-choice': 'Multiple Choice',
+        image: 'Picture Round',
         matching: 'Matching',
-        ranking: 'Put in order',
-        map: 'Click the map',
+        ranking: 'Put in Order',
+        map: 'Click the Map',
       };
+
+      function cardHtml(q) {
+        return `
+          <div class="col-span-12 md:col-span-6 lg:col-span-4 p-2">
+            <a href="./play.html?quiz=${encodeURIComponent(q.id)}" class="no-underline">
+              <div class="move-up cursor-pointer text-center bg-[#f9fafb] shadow-md hover:shadow-xl p-4 w-full border-4 border-gray-900 rounded-lg">
+                <div class="mt-1 text-sm font-extrabold text-gray-900 leading-tight">${q.title}</div>
+                <div class="mt-1 text-xs font-bold text-gray-500">${q.blurb || ''}</div>
+              </div>
+            </a>
+          </div>`;
+      }
 
       fetch('./quizzes/index.json')
         .then((r) => r.json())
         .then((quizzes) => {
-          const grid = document.getElementById('quiz-grid-inner');
-          grid.innerHTML = quizzes.map((q) => `
-            <div class="col-span-12 md:col-span-6 lg:col-span-4 p-2">
-              <a href="./play.html?quiz=${encodeURIComponent(q.id)}" class="no-underline">
-                <div class="move-up cursor-pointer text-center bg-[#f9fafb] shadow-md hover:shadow-xl p-4 w-full border-4 border-gray-900 rounded-lg">
-                  <div class="mt-1 text-sm font-extrabold text-gray-900 leading-tight">${q.title}</div>
-                  <div class="mt-1 text-xs font-bold text-gray-500">${q.blurb || ''}</div>
-                  <div class="mt-2 inline-block text-[10px] font-extrabold uppercase tracking-wide text-white rounded px-2 py-1" style="background:#f267a0;">${TYPE_LABELS[q.type] || q.type}</div>
-                </div>
-              </a>
-            </div>`).join('');
+          const byType = new Map();
+          quizzes.forEach((q) => {
+            if (!byType.has(q.type)) byType.set(q.type, []);
+            byType.get(q.type).push(q);
+          });
+          const types = [
+            ...TYPE_ORDER.filter((t) => byType.has(t)),
+            ...[...byType.keys()].filter((t) => !TYPE_ORDER.includes(t)),
+          ];
+          const sections = document.getElementById('quiz-sections');
+          sections.innerHTML = types.map((type) => `
+            <section class="mb-10">
+              <h2 class="text-2xl font-extrabold text-gray-900 mb-2">${TYPE_LABELS[type] || type}</h2>
+              <div class="grid grid-cols-12">${byType.get(type).map(cardHtml).join('')}</div>
+            </section>`).join('');
         })
         .catch(() => {
-          document.getElementById('quiz-grid-inner').innerHTML = '<p class="col-span-12 text-gray-500 font-bold">Couldn\'t load the quiz catalog.</p>';
+          document.getElementById('quiz-sections').innerHTML = '<p class="text-gray-500 font-bold">Couldn\'t load the quiz catalog.</p>';
         });
     </script>
 

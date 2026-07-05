@@ -1,58 +1,61 @@
-// Multiple-choice / true-false. One question at a time; pick an option.
-// items: { q, options:[...], answer, media? }  where answer is the index or
-// the exact option string. media (optional) is an image URL shown above.
+// Multiple-choice / true-false. All questions render at once; answer them
+// in any order. items: { q, options:[...], answer, media? } where answer is
+// the index or the exact option string. media (optional) is an image URL
+// shown above the question.
 export default {
   render(root, quiz, engine) {
     const items = quiz.shuffle ? shuffle(quiz.items.slice()) : quiz.items.slice();
-    let i = 0;
-
-    const stage = document.createElement('div');
-    root.appendChild(stage);
+    const answered = new Array(items.length).fill(false);
 
     function answerIndex(it) {
       if (typeof it.answer === 'number') return it.answer;
-      return it.options.findIndex(o => o === it.answer);
+      return it.options.findIndex((o) => o === it.answer);
     }
 
-    function show() {
-      const it = items[i];
-      const ans = answerIndex(it);
-      stage.innerHTML = '';
-      if (it.media) {
-        const w = document.createElement('div'); w.className = 'q-image-wrap';
-        w.innerHTML = `<img src="${it.media}" alt="">`;
-        stage.appendChild(w);
-      }
-      const q = document.createElement('div'); q.className = 'q-question'; q.textContent = it.q;
-      stage.appendChild(q);
-      const opts = document.createElement('div'); opts.className = 'q-options';
-      it.options.forEach((opt, idx) => {
-        const b = document.createElement('button');
-        b.className = 'q-opt'; b.textContent = opt;
-        b.addEventListener('click', () => pick(idx, ans, opts));
-        opts.appendChild(b);
-      });
-      stage.appendChild(opts);
-    }
-
-    function pick(idx, ans, opts) {
+    function lockIn(opts, ans, picked) {
       [...opts.children].forEach((b, k) => {
         b.disabled = true;
         if (k === ans) b.classList.add('correct');
-        else if (k === idx) b.classList.add('wrong');
+        else if (k === picked) b.classList.add('wrong');
       });
-      if (idx === ans) engine.correct(); else engine.advance();
-      i++;
-      if (i < items.length) setTimeout(show, 750);
-      // when i reaches length, engine auto-finishes via correct/advance
     }
 
-    engine.registerReveal(() => {
-      // reveal remaining answers instantly by fast-forwarding progress
-      while (i < items.length) { engine.advance(); i++; }
+    items.forEach((it, idx) => {
+      const ans = answerIndex(it);
+      const block = document.createElement('div');
+      block.className = 'q-mc-block';
+      if (it.media) {
+        const w = document.createElement('div'); w.className = 'q-image-wrap';
+        w.innerHTML = `<img src="${it.media}" alt="">`;
+        block.appendChild(w);
+      }
+      const q = document.createElement('div'); q.className = 'q-question'; q.textContent = `${idx + 1}. ${it.q}`;
+      block.appendChild(q);
+      const opts = document.createElement('div'); opts.className = 'q-options';
+      it.options.forEach((opt, oi) => {
+        const b = document.createElement('button');
+        b.className = 'q-opt'; b.textContent = opt;
+        b.addEventListener('click', () => {
+          if (answered[idx]) return;
+          answered[idx] = true;
+          lockIn(opts, ans, oi);
+          if (oi === ans) engine.correct(); else engine.advance();
+        });
+        opts.appendChild(b);
+      });
+      block.appendChild(opts);
+      root.appendChild(block);
     });
 
-    show();
+    engine.registerReveal(() => {
+      items.forEach((it, idx) => {
+        if (answered[idx]) return;
+        answered[idx] = true;
+        const opts = root.children[idx].querySelector('.q-options');
+        lockIn(opts, answerIndex(it), -1);
+        engine.advance();
+      });
+    });
   },
 };
 

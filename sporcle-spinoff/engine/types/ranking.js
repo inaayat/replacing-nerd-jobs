@@ -1,6 +1,7 @@
-// Ranking. Reorder a shuffled list into the correct sequence using up/down
-// move buttons, then submit for scoring (partial credit per correct slot).
-// items: [{label}, ...] or [string, ...] already given in correct order.
+// Ranking. Reorder a shuffled list into the correct sequence — drag a row by
+// its handle, or use the up/down buttons — then submit for scoring (partial
+// credit per correct slot). items: [{label}, ...] or [string, ...] already
+// given in correct order.
 export default {
   render(root, quiz, engine) {
     const correctOrder = quiz.items.map((it) => (typeof it === 'string' ? it : it.label));
@@ -21,11 +22,54 @@ export default {
       renderList();
     }
 
+    let dragEl = null, dragIndex = null, startY = 0, rowHeight = 0;
+
+    function onPointerDown(e, idx) {
+      if (submitted) return;
+      e.preventDefault();
+      dragIndex = idx;
+      startY = e.clientY;
+      dragEl = list.children[idx];
+      rowHeight = dragEl.getBoundingClientRect().height;
+      dragEl.classList.add('dragging');
+      dragEl.style.zIndex = 10;
+      try { e.target.setPointerCapture(e.pointerId); } catch (err) { /* noop */ }
+      window.addEventListener('pointermove', onPointerMove);
+      window.addEventListener('pointerup', onPointerUp);
+    }
+
+    function onPointerMove(e) {
+      if (!dragEl) return;
+      const deltaY = e.clientY - startY;
+      dragEl.style.transform = `translateY(${deltaY}px)`;
+      if (Math.abs(deltaY) > rowHeight / 2) {
+        const dir = deltaY > 0 ? 1 : -1;
+        const newIndex = dragIndex + dir;
+        if (newIndex >= 0 && newIndex < order.length) {
+          const [moved] = order.splice(dragIndex, 1);
+          order.splice(newIndex, 0, moved);
+          dragIndex = newIndex;
+          startY = e.clientY;
+          renderList();
+          dragEl = list.children[dragIndex];
+          dragEl.classList.add('dragging');
+          dragEl.style.zIndex = 10;
+        }
+      }
+    }
+
+    function onPointerUp() {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      dragEl = null; dragIndex = null;
+      renderList();
+    }
+
     function renderList() {
       list.innerHTML = '';
       order.forEach((it, i) => {
         const row = document.createElement('div'); row.className = 'q-rank-item';
-        row.innerHTML = `<div class="q-rank-num">${i + 1}</div><div class="q-rank-label"></div>`;
+        row.innerHTML = `<div class="q-rank-num">${i + 1}</div><div class="q-rank-label"></div><div class="q-rank-handle" title="Drag to reorder">⠿⠿</div>`;
         row.querySelector('.q-rank-label').textContent = it.label;
         const moveBox = document.createElement('div'); moveBox.className = 'q-rank-move';
         const up = document.createElement('button'); up.type = 'button'; up.textContent = '▲'; up.disabled = submitted || i === 0;
@@ -34,6 +78,9 @@ export default {
         down.addEventListener('click', () => move(i, 1));
         moveBox.appendChild(up); moveBox.appendChild(down);
         row.appendChild(moveBox);
+        const handle = row.querySelector('.q-rank-handle');
+        if (submitted) handle.style.visibility = 'hidden';
+        else handle.addEventListener('pointerdown', (e) => onPointerDown(e, i));
         list.appendChild(row);
       });
     }
