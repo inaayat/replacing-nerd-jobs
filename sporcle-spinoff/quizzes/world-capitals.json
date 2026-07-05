@@ -1,0 +1,25 @@
+{
+  "id": "world-capitals",
+  "title": "World Capitals",
+  "type": "text-entry",
+  "blurb": "Type each country's capital city before time runs out.",
+  "timeLimitSec": 180,
+  "prompt": "Type a capital city…",
+  "items": [
+    { "accept": ["paris"], "clue": "France", "display": "France — Paris" },
+    { "accept": ["tokyo"], "clue": "Japan", "display": "Japan — Tokyo" },
+    { "accept": ["cairo"], "clue": "Egypt", "display": "Egypt — Cairo" },
+    { "accept": ["canberra"], "clue": "Australia", "display": "Australia — Canberra" },
+    { "accept": ["ottawa"], "clue": "Canada", "display": "Canada — Ottawa" },
+    { "accept": ["brasilia"], "clue": "Brazil", "display": "Brazil — Brasília" },
+    { "accept": ["moscow"], "clue": "Russia", "display": "Russia — Moscow" },
+    { "accept": ["berlin"], "clue": "Germany", "display": "Germany — Berlin" },
+    { "accept": ["madrid"], "clue": "Spain", "display": "Spain — Madrid" },
+    { "accept": ["rome"], "clue": "Italy", "display": "Italy — Rome" },
+    { "accept": ["beijing", "peking"], "clue": "China", "display": "China — Beijing" },
+    { "accept": ["new delhi", "delhi"], "clue": "India", "display": "India — New Delhi" },
+    { "accept": ["mexico city"], "clue": "Mexico", "display": "Mexico — Mexico City" },
+    { "accept": ["seoul"], "clue": "South Korea", "display": "South Korea — Seoul" },
+    { "accept": ["ankara"], "clue": "Turkey", "display": "Turkey — Ankara" }
+  ]
+}

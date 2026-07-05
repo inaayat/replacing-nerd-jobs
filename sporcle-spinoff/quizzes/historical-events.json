@@ -1,0 +1,18 @@
+{
+  "id": "historical-events",
+  "title": "Historical Events in Order",
+  "type": "ranking",
+  "blurb": "Reorder these events from earliest to most recent.",
+  "items": [
+    { "label": "Fall of the Western Roman Empire (476 AD)" },
+    { "label": "Signing of the Magna Carta (1215)" },
+    { "label": "Gutenberg's printing press (1440)" },
+    { "label": "Columbus reaches the Americas (1492)" },
+    { "label": "US Declaration of Independence (1776)" },
+    { "label": "French Revolution begins (1789)" },
+    { "label": "World War I begins (1914)" },
+    { "label": "Moon landing (1969)" },
+    { "label": "Fall of the Berlin Wall (1989)" },
+    { "label": "World Wide Web goes public (1991)" }
+  ]
+}

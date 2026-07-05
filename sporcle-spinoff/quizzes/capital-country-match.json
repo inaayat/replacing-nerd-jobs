@@ -1,0 +1,17 @@
+{
+  "id": "capital-country-match",
+  "title": "Match Country to Capital",
+  "type": "matching",
+  "blurb": "Click a country, then its capital, to lock in a match.",
+  "timeLimitSec": 90,
+  "items": [
+    { "left": "France", "right": "Paris" },
+    { "left": "Japan", "right": "Tokyo" },
+    { "left": "Egypt", "right": "Cairo" },
+    { "left": "Canada", "right": "Ottawa" },
+    { "left": "Brazil", "right": "Brasília" },
+    { "left": "Germany", "right": "Berlin" },
+    { "left": "Spain", "right": "Madrid" },
+    { "left": "South Korea", "right": "Seoul" }
+  ]
+}

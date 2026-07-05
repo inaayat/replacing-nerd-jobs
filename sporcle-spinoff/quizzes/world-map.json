@@ -1,0 +1,20 @@
+{
+  "id": "world-map",
+  "title": "Find It on the Map",
+  "type": "map",
+  "region": "world",
+  "blurb": "Click each country on the map before time runs out.",
+  "timeLimitSec": 120,
+  "items": [
+    { "regionId": "US" },
+    { "regionId": "BR" },
+    { "regionId": "FR" },
+    { "regionId": "EG" },
+    { "regionId": "JP" },
+    { "regionId": "AU" },
+    { "regionId": "IN" },
+    { "regionId": "ZA" },
+    { "regionId": "CA" },
+    { "regionId": "AR" }
+  ]
+}

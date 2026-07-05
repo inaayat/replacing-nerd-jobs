@@ -1,0 +1,20 @@
+{
+  "id": "flags",
+  "title": "Flags of the World",
+  "type": "image",
+  "blurb": "Identify each country from its flag.",
+  "timeLimitSec": 90,
+  "shuffle": true,
+  "items": [
+    { "img": "https://flagcdn.com/w320/us.png", "options": ["United States", "United Kingdom", "Australia", "Liberia"], "answer": "United States" },
+    { "img": "https://flagcdn.com/w320/jp.png", "options": ["China", "South Korea", "Japan", "Bangladesh"], "answer": "Japan" },
+    { "img": "https://flagcdn.com/w320/br.png", "options": ["Brazil", "Jamaica", "South Africa", "Colombia"], "answer": "Brazil" },
+    { "img": "https://flagcdn.com/w320/de.png", "options": ["Belgium", "Germany", "Netherlands", "Ethiopia"], "answer": "Germany" },
+    { "img": "https://flagcdn.com/w320/ca.png", "options": ["Canada", "Peru", "Austria", "Denmark"], "answer": "Canada" },
+    { "img": "https://flagcdn.com/w320/za.png", "options": ["Kenya", "South Africa", "Guyana", "Gabon"], "answer": "South Africa" },
+    { "img": "https://flagcdn.com/w320/in.png", "options": ["Niger", "Ireland", "India", "Ivory Coast"], "answer": "India" },
+    { "img": "https://flagcdn.com/w320/mx.png", "options": ["Italy", "Mexico", "Hungary", "Bulgaria"], "answer": "Mexico" },
+    { "img": "https://flagcdn.com/w320/eg.png", "options": ["Egypt", "Syria", "Iraq", "Yemen"], "answer": "Egypt" },
+    { "img": "https://flagcdn.com/w320/gr.png", "options": ["Greece", "Israel", "Argentina", "Uruguay"], "answer": "Greece" }
+  ]
+}

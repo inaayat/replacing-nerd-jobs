@@ -1,0 +1,9 @@
+[
+  { "id": "world-capitals", "title": "World Capitals", "type": "text-entry", "blurb": "Type each country's capital city before time runs out." },
+  { "id": "us-states", "title": "Name All 50 US States", "type": "text-entry", "blurb": "Type as many states as you can remember. No clues." },
+  { "id": "general-knowledge", "title": "General Knowledge", "type": "multiple-choice", "blurb": "Ten questions, one at a time." },
+  { "id": "flags", "title": "Flags of the World", "type": "image", "blurb": "Identify each country from its flag." },
+  { "id": "capital-country-match", "title": "Match Country to Capital", "type": "matching", "blurb": "Click a country, then its capital, to lock in a match." },
+  { "id": "historical-events", "title": "Historical Events in Order", "type": "ranking", "blurb": "Reorder these events from earliest to most recent." },
+  { "id": "world-map", "title": "Find It on the Map", "type": "map", "blurb": "Click each country on the map before time runs out." }
+]

@@ -1,0 +1,20 @@
+{
+  "id": "general-knowledge",
+  "title": "General Knowledge",
+  "type": "multiple-choice",
+  "blurb": "Ten questions, one at a time. How many can you get right?",
+  "timeLimitSec": 120,
+  "shuffle": true,
+  "items": [
+    { "q": "What is the largest planet in our solar system?", "options": ["Earth", "Jupiter", "Saturn", "Neptune"], "answer": "Jupiter" },
+    { "q": "Which ocean is the largest by surface area?", "options": ["Atlantic", "Indian", "Arctic", "Pacific"], "answer": "Pacific" },
+    { "q": "Who wrote 'Romeo and Juliet'?", "options": ["Charles Dickens", "William Shakespeare", "Mark Twain", "Jane Austen"], "answer": "William Shakespeare" },
+    { "q": "What is the chemical symbol for gold?", "options": ["Go", "Gd", "Au", "Ag"], "answer": "Au" },
+    { "q": "How many continents are there?", "options": ["5", "6", "7", "8"], "answer": "7" },
+    { "q": "What is the smallest prime number?", "options": ["0", "1", "2", "3"], "answer": "2" },
+    { "q": "Which country is home to the Great Barrier Reef?", "options": ["Brazil", "Australia", "Indonesia", "Mexico"], "answer": "Australia" },
+    { "q": "What is the hardest natural substance on Earth?", "options": ["Gold", "Quartz", "Diamond", "Iron"], "answer": "Diamond" },
+    { "q": "In what year did World War II end?", "options": ["1943", "1945", "1947", "1950"], "answer": "1945" },
+    { "q": "What gas do plants primarily absorb for photosynthesis?", "options": ["Oxygen", "Nitrogen", "Carbon dioxide", "Hydrogen"], "answer": "Carbon dioxide" }
+  ]
+}
