@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quiz — Sporcle Spinoff</title>
+    <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="./engine/quiz.css" />
+    <style>
+      body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #F0EBF4; }
+    </style>
+  </head>
+  <body class="text-gray-900 min-h-screen flex flex-col">
+
+    <!-- Nav -->
+    <nav class="px-8 py-4 flex items-center justify-between sticky top-0 z-10" style="background:#f267a0;">
+      <a href="/" class="font-extrabold text-2xl rounded-md border-4 border-white text-white select-none p-2 no-underline">Beep boop</a>
+      <div class="flex items-center gap-8">
+        <a href="/sporcle-spinoff/" class="text-xl font-extrabold text-white no-underline opacity-80 hover:opacity-100">Quizzes</a>
+        <a href="/#projects" class="text-xl font-extrabold text-white no-underline opacity-80 hover:opacity-100">Projects</a>
+      </div>
+    </nav>
+
+    <!-- Quiz mounts here -->
+    <div class="flex-grow">
+      <div class="q-wrap" id="quiz-root"></div>
+    </div>
+
+    <script type="module" src="./engine/engine.js"></script>
+  </body>
+</html>
