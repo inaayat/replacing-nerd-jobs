@@ -55,9 +55,9 @@
 
       function typeBlockHtml(type, quizzes) {
         return `
-          <div>
-            <h2 class="text-xs font-extrabold text-gray-900 mb-1 uppercase tracking-wide">${TYPE_LABELS[type] || type}</h2>
-            <div class="flex flex-col gap-1.5">${quizzes.map(cardHtml).join('')}</div>
+          <div class="h-72 flex flex-col bg-white border-2 border-gray-900 rounded-lg p-3">
+            <h2 class="text-xs font-extrabold text-gray-900 mb-2 uppercase tracking-wide flex-shrink-0">${TYPE_LABELS[type] || type}</h2>
+            <div class="flex-1 min-h-0 overflow-y-auto flex flex-col gap-1.5 pr-1">${quizzes.map(cardHtml).join('')}</div>
           </div>`;
       }
 
