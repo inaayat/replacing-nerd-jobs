@@ -1,0 +1,25 @@
+{
+  "title": "test?",
+  "blurb": "",
+  "shuffle": false,
+  "type": "text-entry",
+  "items": [
+    {
+      "clue": "Is this working?",
+      "accept": [
+        "Yes",
+        "Yeah"
+      ],
+      "display": ""
+    },
+    {
+      "clue": "Is this not working?",
+      "accept": [
+        "No",
+        "Nah"
+      ],
+      "display": ""
+    }
+  ],
+  "id": "test"
+}
