@@ -16,20 +16,20 @@
   <body class="text-gray-900 min-h-screen flex flex-col">
 
     <!-- Nav -->
-    <nav class="px-8 py-4 flex items-center justify-between sticky top-0 z-10" style="background:#f267a0;">
-      <a href="/" class="font-extrabold text-2xl rounded-md border-4 border-white text-white select-none p-2 no-underline">Beep boop</a>
-      <div class="flex items-center gap-8">
-        <a href="/#projects" class="text-xl font-extrabold text-white no-underline opacity-80 hover:opacity-100">Projects</a>
-        <a href="/archive/" class="text-xl font-extrabold text-white no-underline opacity-80 hover:opacity-100">Archive</a>
+    <nav class="px-4 sm:px-8 py-3 sm:py-4 flex items-center justify-between sticky top-0 z-10" style="background:#f267a0;">
+      <a href="/" class="font-extrabold text-sm sm:text-2xl rounded-md border-2 sm:border-4 border-white text-white select-none px-2 py-1 sm:p-2 no-underline whitespace-nowrap">Beep boop</a>
+      <div class="flex items-center gap-3 sm:gap-8">
+        <a href="/#projects" class="text-xs sm:text-xl font-extrabold text-white no-underline opacity-80 hover:opacity-100 whitespace-nowrap">Projects</a>
+        <a href="/archive/" class="text-xs sm:text-xl font-extrabold text-white no-underline opacity-80 hover:opacity-100 whitespace-nowrap">Archive</a>
       </div>
     </nav>
 
-    <div class="px-10 pt-5 pb-2 md:px-16">
+    <div class="px-4 pt-5 pb-2 sm:px-10 md:px-16">
       <h1 class="text-xl md:text-2xl font-extrabold text-gray-900">Sporcle Spinoff</h1>
       <p class="mt-0.5 text-xs font-bold text-gray-500">Quick trivia quizzes. Pick one and see how you do.</p>
     </div>
 
-    <div id="quiz-sections" class="px-10 pb-10 md:px-16 flex-grow grid grid-cols-1 lg:grid-cols-3 gap-x-6 gap-y-6"></div>
+    <div id="quiz-sections" class="px-4 pb-10 sm:px-10 md:px-16 flex-grow grid grid-cols-1 lg:grid-cols-3 gap-x-6 gap-y-6"></div>
 
     <script>
       // Fixed display order; only types with at least one quiz get a section.
