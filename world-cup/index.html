@@ -167,6 +167,16 @@
   </div>
 </aside>
 
+<!-- Team detail sidebar -->
+<div class="tb-overlay" id="teamOverlay" onclick="closeTeamPanel()"></div>
+<aside class="tb-sidebar" id="teamSidebar">
+  <div id="teamPanelHead" style="background:var(--navy);color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:1">
+    <span style="font-weight:800;font-size:15px;letter-spacing:.5px">Team</span>
+    <button onclick="closeTeamPanel()" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">×</button>
+  </div>
+  <div id="teamPanelBody" style="padding:16px"></div>
+</aside>
+
 <!-- Nav -->
 <nav class="px-6 py-3 flex items-center justify-between sticky top-0 z-10" style="background:var(--navy);font-family:inherit">
   <div class="flex items-center gap-4">
@@ -779,6 +789,86 @@ function closeSidebar() {
   document.body.style.overflow = '';
 }
 
+// ── Team detail panel ─────────────────────────────────────────────
+function closeTeamPanel() {
+  document.getElementById('teamSidebar').classList.remove('open');
+  document.getElementById('teamOverlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function openTeamPanel(team) {
+  // All played games for this team (group + knockout), chronological
+  const games = groupFixtures.concat(koFixtures)
+    .filter(m => (m.home === team || m.away === team)
+                 && m.homeGoals !== null && m.awayGoals !== null)
+    .sort((a,b) => new Date(a.date) - new Date(b.date));
+
+  // Header: flag + name
+  const head = document.getElementById('teamPanelHead');
+  head.querySelector('span').innerHTML =
+    `<span style="display:flex;align-items:center;gap:8px">${fl(team,false)}${team}</span>`;
+
+  const body = document.getElementById('teamPanelBody');
+
+  if (!games.length) {
+    body.innerHTML = `<p style="color:#999;font-size:12px">No completed games yet for ${team}.</p>`;
+  } else {
+    // Record summary
+    let w=0,d=0,l=0,gf=0,ga=0;
+    games.forEach(m => {
+      const isHome = m.home === team;
+      const own = isHome ? m.homeGoals : m.awayGoals;
+      const opp = isHome ? m.awayGoals : m.homeGoals;
+      gf += own; ga += opp;
+      if (own > opp) w++; else if (own < opp) l++; else d++;
+    });
+    const gd = gf - ga;
+    const summ = `<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:14px;font-size:12px;color:var(--dgray)">
+      <span style="font-weight:800">${games.length} game${games.length>1?'s':''}</span>
+      <span style="color:#ccc">·</span>
+      <span><strong style="color:var(--green)">${w}W</strong> <strong>${d}D</strong> <strong style="color:var(--red)">${l}L</strong></span>
+      <span style="color:#ccc">·</span>
+      <span>GF ${gf} / GA ${ga} <span style="color:${gd>0?'var(--green)':gd<0?'var(--red)':'#888'};font-weight:700">(${gd>0?'+':''}${gd})</span></span>
+    </div>`;
+
+    const rows = games.map(m => {
+      const isHome = m.home === team;
+      const opp = isHome ? m.away : m.home;
+      const own = isHome ? m.homeGoals : m.awayGoals;
+      const oppG = isHome ? m.awayGoals : m.homeGoals;
+      const res = own > oppG ? 'W' : own < oppG ? 'L' : 'D';
+      const resCol = res==='W' ? 'var(--green)' : res==='L' ? 'var(--red)' : '#999';
+      const stageLbl = m.stage ? (STAGE_LABEL[m.stage] || m.stage) : (m.group ? 'Group ' + m.group : '');
+      const isLive = m.status === 'LIVE' || m.status === 'HT';
+      return `<div style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid #f0f0f0">
+        <div style="width:20px;height:20px;border-radius:50%;background:${resCol};color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0">${res}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:5px;font-size:13px;font-weight:600;color:var(--dgray)">
+            <span style="opacity:.55;font-size:11px">${isHome?'vs':'@'}</span>${fl(opp,true)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${opp}</span>
+          </div>
+          <div style="font-size:10px;color:#999;margin-top:1px">${stageLbl}${stageLbl?' · ':''}${fmtDate(m.date)}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:5px;flex-shrink:0">
+          ${isLive?'<span style="background:var(--red);color:#fff;font-size:8px;font-weight:700;padding:1px 4px;border-radius:3px">LIVE</span>':''}
+          <span style="font-weight:800;font-size:14px;color:var(--dgray)">${own}–${oppG}</span>
+        </div>
+      </div>`;
+    }).join('');
+
+    body.innerHTML = summ + rows;
+  }
+
+  document.getElementById('teamSidebar').classList.add('open');
+  document.getElementById('teamOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+// Delegated: click a tracker chip → open that team's panel
+document.getElementById('summary').addEventListener('click', e => {
+  const chipEl = e.target.closest('[data-team]');
+  if (chipEl) openTeamPanel(chipEl.getAttribute('data-team'));
+});
+
 // ── Mobile bracket tabs: jump to round, sync active tab on scroll ──
 const bktMq = window.matchMedia('(max-width:640px)');
 
@@ -894,7 +984,8 @@ function renderSummary() {
   function chip(name, isOut) {
     const code = FC[name];
     const img = code ? `<img style="width:14px;height:14px;border-radius:50%;object-fit:cover" src="https://kapowaz.github.io/circle-flags/flags/${code}.svg" loading="lazy">` : '';
-    return `<span class="summ-chip ${isOut?'out':'alive'}">${img}${name}</span>`;
+    const nm = name.replace(/"/g,'&quot;');
+    return `<span class="summ-chip ${isOut?'out':'alive'}" data-team="${nm}" style="cursor:pointer">${img}${name}</span>`;
   }
   function block(bucket) {
     const b = buckets[bucket]; if (!b||!b.teams.length) return '';
