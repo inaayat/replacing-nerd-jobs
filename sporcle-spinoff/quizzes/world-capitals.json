@@ -5,6 +5,9 @@
   "blurb": "Type each country's capital city before time runs out.",
   "timeLimitSec": 180,
   "prompt": "Type a capital city…",
+  "layout": "table",
+  "columns": [{ "key": "clue", "label": "Country" }],
+  "answerLabel": "Capital",
   "items": [
     { "accept": ["paris"], "clue": "France", "display": "France — Paris" },
     { "accept": ["tokyo"], "clue": "Japan", "display": "Japan — Tokyo" },

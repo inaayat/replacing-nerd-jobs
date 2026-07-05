@@ -24,12 +24,12 @@
       </div>
     </nav>
 
-    <div class="px-16 pt-16 pb-8 md:px-24">
-      <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900">Sporcle Spinoff</h1>
-      <p class="mt-4 text-xl font-bold text-gray-500">Quick trivia quizzes. Pick one and see how you do.</p>
+    <div class="px-10 pt-5 pb-2 md:px-16">
+      <h1 class="text-xl md:text-2xl font-extrabold text-gray-900">Sporcle Spinoff</h1>
+      <p class="mt-0.5 text-xs font-bold text-gray-500">Quick trivia quizzes. Pick one and see how you do.</p>
     </div>
 
-    <div id="quiz-sections" class="px-16 pb-16 md:px-24 flex-grow"></div>
+    <div id="quiz-sections" class="px-10 pb-10 md:px-16 flex-grow grid grid-cols-1 lg:grid-cols-6 gap-3"></div>
 
     <script>
       // Fixed display order; only types with at least one quiz get a section.
@@ -45,14 +45,12 @@
 
       function cardHtml(q) {
         return `
-          <div class="col-span-12 md:col-span-6 lg:col-span-4 p-2">
-            <a href="./play.html?quiz=${encodeURIComponent(q.id)}" class="no-underline">
-              <div class="move-up cursor-pointer text-center bg-[#f9fafb] shadow-md hover:shadow-xl p-4 w-full border-4 border-gray-900 rounded-lg">
-                <div class="mt-1 text-sm font-extrabold text-gray-900 leading-tight">${q.title}</div>
-                <div class="mt-1 text-xs font-bold text-gray-500">${q.blurb || ''}</div>
-              </div>
-            </a>
-          </div>`;
+          <a href="./play.html?quiz=${encodeURIComponent(q.id)}" class="no-underline">
+            <div class="move-up cursor-pointer text-center bg-[#f9fafb] shadow-sm hover:shadow-lg py-1.5 px-2 w-full border-2 border-gray-900 rounded-md">
+              <div class="text-[11px] font-extrabold text-gray-900 leading-tight">${q.title}</div>
+              <div class="mt-0.5 text-[10px] font-semibold text-gray-500 leading-snug line-clamp-2">${q.blurb || ''}</div>
+            </div>
+          </a>`;
       }
 
       fetch('./quizzes/index.json')
@@ -69,10 +67,10 @@
           ];
           const sections = document.getElementById('quiz-sections');
           sections.innerHTML = types.map((type) => `
-            <section class="mb-10">
-              <h2 class="text-2xl font-extrabold text-gray-900 mb-2">${TYPE_LABELS[type] || type}</h2>
-              <div class="grid grid-cols-12">${byType.get(type).map(cardHtml).join('')}</div>
-            </section>`).join('');
+            <div>
+              <h2 class="text-xs font-extrabold text-gray-900 mb-1 uppercase tracking-wide">${TYPE_LABELS[type] || type}</h2>
+              <div class="flex flex-col gap-1.5">${byType.get(type).map(cardHtml).join('')}</div>
+            </div>`).join('');
         })
         .catch(() => {
           document.getElementById('quiz-sections').innerHTML = '<p class="text-gray-500 font-bold">Couldn\'t load the quiz catalog.</p>';
