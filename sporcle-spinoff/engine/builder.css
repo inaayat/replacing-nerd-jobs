@@ -12,6 +12,10 @@
 
 .b-tpl-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
 @media (max-width: 640px) { .b-tpl-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 480px) {
+  .b-tpl-grid { grid-template-columns: repeat(2, 1fr); }
+  .b-field-row { grid-template-columns: 1fr; }
+}
 .b-tpl-card {
   background: var(--card); border: 2px solid var(--lgray); border-radius: 8px; padding: 10px 4px;
   text-align: center; cursor: pointer; font: inherit; font-weight: 800; font-size: 11px; color: var(--navy);
