@@ -50,6 +50,11 @@
 .b-mini-row .b-mini-input { flex: 1; }
 .b-correct-flag { display: flex; align-items: center; gap: 3px; font-size: 10.5px; font-weight: 700; color: var(--gray); white-space: nowrap; }
 
+.b-coming-soon {
+  border: 1.5px dashed var(--lgray); border-radius: 8px; padding: 20px 14px; text-align: center;
+  font-size: 12px; font-weight: 700; color: var(--gray);
+}
+
 .b-add-row-btn {
   display: inline-flex; align-items: center; gap: 6px; font-weight: 800; font-size: 11.5px; cursor: pointer;
   border: 1.5px dashed var(--lgray); border-radius: 6px; padding: 6px 10px; background: transparent; color: var(--navy);

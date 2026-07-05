@@ -97,6 +97,11 @@ async function selectTemplate(typeId) {
   document.querySelectorAll('.b-tpl-card').forEach((c) => c.classList.toggle('selected', c.dataset.tpl === typeId));
   const mount = document.getElementById('editor-mount');
   mount.innerHTML = '';
+  if (typeId === 'map') {
+    mount.innerHTML = '<div class="b-coming-soon">Map quizzes can\'t be built here yet — coming soon. Pick another template for now.</div>';
+    updatePreview();
+    return;
+  }
   const mod = await import(`./editors/${typeId}.js`);
   mod.default.render(mount, quiz, updatePreview);
   updatePreview();
