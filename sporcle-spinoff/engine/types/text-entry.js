@@ -91,10 +91,18 @@ function renderTable(root, quiz, engine) {
         input.disabled = true;
         tr.classList.add('correct');
         engine.correct();
+        focusNextUnsolved(idx);
       }
     });
     return tr;
   });
+
+  function focusNextUnsolved(fromIdx) {
+    for (let k = 1; k <= items.length; k++) {
+      const idx = (fromIdx + k) % items.length;
+      if (!solved[idx]) { rows[idx].querySelector('input').focus(); return; }
+    }
+  }
 
   engine.registerReveal(() => {
     items.forEach((it, idx) => {

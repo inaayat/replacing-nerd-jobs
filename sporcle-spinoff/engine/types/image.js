@@ -25,10 +25,18 @@ export default {
           input.disabled = true;
           cell.classList.add('correct');
           engine.correct();
+          focusNextUnsolved(idx);
         }
       });
       return cell;
     });
+
+    function focusNextUnsolved(fromIdx) {
+      for (let k = 1; k <= items.length; k++) {
+        const idx = (fromIdx + k) % items.length;
+        if (!solved[idx]) { cells[idx].querySelector('input').focus(); return; }
+      }
+    }
 
     engine.registerReveal(() => {
       items.forEach((it, idx) => {
