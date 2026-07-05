@@ -1,0 +1,55 @@
+// Editor for the text-entry player type. Supports both layouts it renders:
+// fill-in-the-blank (one shared input) and table (dedicated input per row).
+// Row shape matches the player's item shape directly: { accept, clue, display }.
+export default {
+  render(container, quiz, onChange) {
+    const layoutRow = document.createElement('div');
+    layoutRow.className = 'b-radio-choice';
+    layoutRow.innerHTML = `
+      <label><input type="radio" name="te-layout" value="fill-in" checked> Fill-in-the-blank (one shared box)</label>
+      <label><input type="radio" name="te-layout" value="table"> Table (a box per row, clue always visible)</label>`;
+    container.appendChild(layoutRow);
+    layoutRow.addEventListener('change', (e) => {
+      const val = e.target.value;
+      quiz.layout = val === 'table' ? 'table' : undefined;
+      quiz.columns = val === 'table' ? [{ key: 'clue', label: 'Clue' }] : undefined;
+      onChange();
+    });
+
+    const list = document.createElement('div');
+    container.appendChild(list);
+
+    function syncItems() {
+      quiz.items = [...list.children].map((row) => ({
+        clue: row.querySelector('.f-clue').value,
+        accept: row.querySelector('.f-accept').value.split(',').map((s) => s.trim()).filter(Boolean),
+        display: row.querySelector('.f-display').value,
+      }));
+      onChange();
+    }
+
+    function addRow(data) {
+      const row = document.createElement('div'); row.className = 'b-item-row';
+      const fields = document.createElement('div'); fields.className = 'b-item-fields';
+      fields.innerHTML = `
+        <div class="b-mini-row"><input class="b-mini-input f-clue" placeholder="Clue (shown before solved)" value="${data ? data.clue || '' : ''}"></div>
+        <div class="b-mini-row"><input class="b-mini-input f-accept" placeholder="Accepted answers, comma-separated" value="${data ? (data.accept || []).join(', ') : ''}"></div>
+        <div class="b-mini-row"><input class="b-mini-input f-display" placeholder="Display text once solved" value="${data ? data.display || '' : ''}"></div>`;
+      row.appendChild(fields);
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'b-remove-btn'; removeBtn.type = 'button'; removeBtn.textContent = '✕';
+      removeBtn.addEventListener('click', () => { row.remove(); syncItems(); });
+      row.appendChild(removeBtn);
+      fields.querySelectorAll('input').forEach((inp) => inp.addEventListener('input', syncItems));
+      list.appendChild(row);
+    }
+
+    (quiz.items.length ? quiz.items : [null, null]).forEach(addRow);
+    syncItems();
+
+    const addBtn = document.createElement('button');
+    addBtn.className = 'b-add-row-btn'; addBtn.type = 'button'; addBtn.textContent = '+ Add row';
+    addBtn.addEventListener('click', () => { addRow(); syncItems(); });
+    container.appendChild(addBtn);
+  },
+};

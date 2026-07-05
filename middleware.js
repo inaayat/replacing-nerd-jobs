@@ -1,16 +1,8 @@
-export const config = {
-  matcher: '/private/:path*',
-};
+import { isAuthed } from './lib/auth.js';
 
-async function sha256(str) {
-  const buf = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(str)
-  );
-  return Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-}
+export const config = {
+  matcher: ['/private/:path*', '/sporcle-spinoff/builder.html'],
+};
 
 function loginPage(error, returnTo) {
   return `<!DOCTYPE html>
@@ -107,13 +99,9 @@ function loginPage(error, returnTo) {
 export default async function middleware(request) {
   const url = new URL(request.url);
   const cookie = request.headers.get('cookie') || '';
-  const authMatch = cookie.match(/__auth=([^;]+)/);
 
-  if (authMatch) {
-    const expected = await sha256(process.env.SITE_PASSWORD || '');
-    if (authMatch[1] === expected) {
-      return;
-    }
+  if (await isAuthed(cookie)) {
+    return;
   }
 
   const error = url.searchParams.has('error');
