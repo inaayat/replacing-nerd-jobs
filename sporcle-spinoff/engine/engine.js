@@ -18,9 +18,24 @@ const setBest = (id, v) => { if (v > getBest(id)) localStorage.setItem(bestKey(i
 function el(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; }
 
 async function boot() {
-  const id = new URLSearchParams(location.search).get('quiz');
-  if (!id) { root.innerHTML = '<div class="q-card"><h1>No quiz selected</h1><p class="blurb">Pick one from the catalog.</p><div class="q-actions"><a class="q-btn primary" href="./">Browse quizzes</a></div></div>'; return; }
+  const params = new URLSearchParams(location.search);
   let quiz;
+
+  if (params.get('preview') === '1') {
+    try {
+      quiz = JSON.parse(sessionStorage.getItem('sporcle:preview'));
+      if (!quiz) throw new Error('no draft found');
+    } catch (e) {
+      root.innerHTML = '<div class="q-card"><h1>No preview available</h1><p class="blurb">Go back to the builder and try again.</p></div>';
+      return;
+    }
+    document.title = `${quiz.title || 'Preview'} — Sporcle Spinoff (preview)`;
+    showStart(quiz);
+    return;
+  }
+
+  const id = params.get('quiz');
+  if (!id) { root.innerHTML = '<div class="q-card"><h1>No quiz selected</h1><p class="blurb">Pick one from the catalog.</p><div class="q-actions"><a class="q-btn primary" href="./">Browse quizzes</a></div></div>'; return; }
   try {
     const r = await fetch(`./quizzes/${id}.json`);
     if (!r.ok) throw new Error(r.status);
