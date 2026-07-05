@@ -29,7 +29,7 @@
       <p class="mt-0.5 text-xs font-bold text-gray-500">Quick trivia quizzes. Pick one and see how you do.</p>
     </div>
 
-    <div id="quiz-sections" class="px-10 pb-10 md:px-16 flex-grow grid grid-cols-1 lg:grid-cols-6 gap-3"></div>
+    <div id="quiz-sections" class="px-10 pb-10 md:px-16 flex-grow grid grid-cols-1 lg:grid-cols-3 gap-x-6 gap-y-6"></div>
 
     <script>
       // Fixed display order; only types with at least one quiz get a section.
@@ -46,11 +46,19 @@
       function cardHtml(q) {
         return `
           <a href="./play.html?quiz=${encodeURIComponent(q.id)}" class="no-underline">
-            <div class="move-up cursor-pointer text-center bg-[#f9fafb] shadow-sm hover:shadow-lg py-1.5 px-2 w-full border-2 border-gray-900 rounded-md">
-              <div class="text-[11px] font-extrabold text-gray-900 leading-tight">${q.title}</div>
+            <div class="move-up cursor-pointer h-16 flex flex-col items-center justify-center text-center bg-[#f9fafb] shadow-sm hover:shadow-lg px-2 w-full border-2 border-gray-900 rounded-md overflow-hidden">
+              <div class="text-[11px] font-extrabold text-gray-900 leading-tight line-clamp-1">${q.title}</div>
               <div class="mt-0.5 text-[10px] font-semibold text-gray-500 leading-snug line-clamp-2">${q.blurb || ''}</div>
             </div>
           </a>`;
+      }
+
+      function typeBlockHtml(type, quizzes) {
+        return `
+          <div>
+            <h2 class="text-xs font-extrabold text-gray-900 mb-1 uppercase tracking-wide">${TYPE_LABELS[type] || type}</h2>
+            <div class="flex flex-col gap-1.5">${quizzes.map(cardHtml).join('')}</div>
+          </div>`;
       }
 
       fetch('./quizzes/index.json')
@@ -65,11 +73,13 @@
             ...TYPE_ORDER.filter((t) => byType.has(t)),
             ...[...byType.keys()].filter((t) => !TYPE_ORDER.includes(t)),
           ];
+          // Group into 3 columns of 2 categories each.
+          const columns = [];
+          for (let i = 0; i < types.length; i += 2) columns.push(types.slice(i, i + 2));
           const sections = document.getElementById('quiz-sections');
-          sections.innerHTML = types.map((type) => `
-            <div>
-              <h2 class="text-xs font-extrabold text-gray-900 mb-1 uppercase tracking-wide">${TYPE_LABELS[type] || type}</h2>
-              <div class="flex flex-col gap-1.5">${byType.get(type).map(cardHtml).join('')}</div>
+          sections.innerHTML = columns.map((pair) => `
+            <div class="flex flex-col gap-6">
+              ${pair.map((type) => typeBlockHtml(type, byType.get(type))).join('')}
             </div>`).join('');
         })
         .catch(() => {
