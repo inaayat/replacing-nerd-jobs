@@ -40,11 +40,5 @@
     "title": "Find It on the Map",
     "type": "map",
     "blurb": "Click each country on the map before time runs out."
-  },
-  {
-    "id": "test",
-    "title": "test?",
-    "type": "text-entry",
-    "blurb": ""
   }
 ]
