@@ -46,7 +46,7 @@
       function cardHtml(q) {
         return `
           <a href="./play.html?quiz=${encodeURIComponent(q.id)}" class="no-underline">
-            <div class="move-up cursor-pointer h-16 flex flex-col items-center justify-center text-center bg-[#f9fafb] shadow-sm hover:shadow-lg px-2 w-full border-2 border-gray-900 rounded-md overflow-hidden">
+            <div class="move-up cursor-pointer h-14 flex flex-col items-start justify-center text-left bg-[#f9fafb] shadow-sm hover:shadow-lg px-2 w-full border-2 border-gray-900 rounded-md overflow-hidden">
               <div class="text-[11px] font-extrabold text-gray-900 leading-tight line-clamp-1">${q.title}</div>
               <div class="mt-0.5 text-[10px] font-semibold text-gray-500 leading-snug line-clamp-2">${q.blurb || ''}</div>
             </div>
@@ -55,9 +55,9 @@
 
       function typeBlockHtml(type, quizzes) {
         return `
-          <div class="h-72 flex flex-col bg-white border-2 border-gray-900 rounded-lg p-3">
-            <h2 class="text-xs font-extrabold text-gray-900 mb-2 uppercase tracking-wide flex-shrink-0">${TYPE_LABELS[type] || type}</h2>
-            <div class="flex-1 min-h-0 overflow-y-auto flex flex-col gap-1.5 pr-1">${quizzes.map(cardHtml).join('')}</div>
+          <div class="h-64 flex flex-col bg-white border-2 border-gray-900 rounded-lg p-2">
+            <h2 class="text-xs font-extrabold text-gray-900 mb-1.5 uppercase tracking-wide flex-shrink-0">${TYPE_LABELS[type] || type}</h2>
+            <div class="flex-1 min-h-0 overflow-y-auto flex flex-col gap-1 pr-1">${quizzes.map(cardHtml).join('')}</div>
           </div>`;
       }
 
