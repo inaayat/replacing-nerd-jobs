@@ -46,5 +46,11 @@
     "title": "Name the Highlighted State",
     "type": "map-highlight",
     "blurb": "A state lights up — type its name. All 50, in a random order every time."
+  },
+  {
+    "id": "love-island-usa-season-6-og-cast",
+    "title": "Love Island USA Season 6 Cast",
+    "type": "image",
+    "blurb": "Original cast only, no bombshells"
   }
 ]
