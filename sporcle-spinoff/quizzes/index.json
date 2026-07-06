@@ -28,10 +28,10 @@
     "tags": ["Geography"]
   },
   {
-    "id": "oscars-best-picture-2021-2025",
-    "title": "Name All Oscar Best Pic Nominees 2021-2025",
+    "id": "oscars-best-picture-2020-2024",
+    "title": "Name All Oscar Best Pic Nominees 2020-2024",
     "type": "text-entry",
-    "blurb": "Type as many Oscar Best Picture Nominees from 2021-2025.",
+    "blurb": "Type as many Oscar Best Picture Nominees from 2020-2024 movie seasons.",
     "tags": ["Pop Culture", "Movies"]
   },
   {
