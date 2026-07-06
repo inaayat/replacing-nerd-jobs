@@ -3,6 +3,7 @@
   "title": "Love Island USA Season 7 Superfan Trivia",
   "type": "text-entry",
   "blurb": "Answer these Season 7 superfan questions before time runs out.",
+  "tags": ["Pop Culture", "Reality TV"],
   "timeLimitSec": 600,
   "prompt": "Type your answer…",
   "layout": "table",

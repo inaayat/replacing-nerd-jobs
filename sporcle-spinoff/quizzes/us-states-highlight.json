@@ -4,6 +4,7 @@
   "type": "map-highlight",
   "region": "usaLow",
   "blurb": "A state lights up \u2014 type its name. All 50, in a random order every time.",
+  "tags": ["Geography"],
   "timeLimitSec": 480,
   "shuffle": true,
   "prompt": "Which state is highlighted?",

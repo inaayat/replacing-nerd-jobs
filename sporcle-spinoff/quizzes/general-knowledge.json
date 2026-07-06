@@ -3,6 +3,7 @@
   "title": "General Knowledge",
   "type": "multiple-choice",
   "blurb": "Ten questions, one at a time. How many can you get right?",
+  "tags": ["General Knowledge"],
   "timeLimitSec": 120,
   "shuffle": true,
   "items": [

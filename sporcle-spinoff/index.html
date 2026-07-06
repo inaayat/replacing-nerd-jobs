@@ -54,7 +54,14 @@
       Prefer GitHub? Add a new file under <code class="text-[10px] bg-gray-100 px-1 rounded">sporcle-spinoff/quizzes/</code> plus an entry in <code class="text-[10px] bg-gray-100 px-1 rounded">quizzes/index.json</code>, then open a pull request.
     </div>
 
+    <div class="px-4 pb-3 sm:px-10 md:px-16">
+      <input type="text" id="quiz-search" placeholder="Search by title or tag (e.g. Geography, Matching)…"
+        class="w-full text-sm font-semibold px-3 py-2 border-2 border-[#2c2e25] rounded outline-none focus:border-[#f267a0]"
+        style="background:#fffdf3">
+    </div>
+
     <div id="quiz-sections" class="px-4 pb-10 sm:px-10 md:px-16 flex-grow grid grid-cols-1 lg:grid-cols-3 gap-x-6 gap-y-6"></div>
+    <p id="quiz-no-results" class="hidden px-4 pb-10 sm:px-10 md:px-16 text-gray-500 font-bold"></p>
 
     <script>
       const infoBtn = document.getElementById('info-btn');
@@ -112,22 +119,54 @@
           </div>`;
       }
 
+      // Groups the given (already-filtered) quiz list by type and renders it
+      // into the grid — reused for both the initial load and every search
+      // keystroke, so filtering never re-fetches.
+      function renderQuizzes(quizzes) {
+        const sections = document.getElementById('quiz-sections');
+        const noResults = document.getElementById('quiz-no-results');
+        if (!quizzes.length) {
+          sections.classList.add('hidden');
+          noResults.textContent = `No quizzes match "${document.getElementById('quiz-search').value}".`;
+          noResults.classList.remove('hidden');
+          return;
+        }
+        sections.classList.remove('hidden');
+        noResults.classList.add('hidden');
+
+        const byType = new Map();
+        quizzes.forEach((q) => {
+          if (!byType.has(q.type)) byType.set(q.type, []);
+          byType.get(q.type).push(q);
+        });
+        const types = [
+          ...TYPE_ORDER.filter((t) => byType.has(t)),
+          ...[...byType.keys()].filter((t) => !TYPE_ORDER.includes(t)),
+        ];
+        // Real grid cells (not nested flex columns) so row 2's headings
+        // align across columns regardless of how tall row 1 is.
+        sections.innerHTML = types.map((type, i) => typeBlockHtml(type, byType.get(type), (i % 6) + 1)).join('');
+      }
+
+      // Matches against title, blurb, tags, and the friendly type label, so
+      // searching "Geography", a title word, or "Matching" all work.
+      function matchesQuery(q, query) {
+        const haystack = [q.title, q.blurb, ...(q.tags || []), TYPE_LABELS[q.type] || q.type]
+          .join(' ').toLowerCase();
+        return haystack.includes(query);
+      }
+
+      let allQuizzes = [];
+      document.getElementById('quiz-search').addEventListener('input', (e) => {
+        const query = e.target.value.trim().toLowerCase();
+        renderQuizzes(query ? allQuizzes.filter((q) => matchesQuery(q, query)) : allQuizzes);
+      });
+
       fetch('./quizzes/index.json')
         .then((r) => r.json())
         .then((quizzes) => {
-          const byType = new Map();
-          quizzes.forEach((q) => {
-            if (!byType.has(q.type)) byType.set(q.type, []);
-            byType.get(q.type).push(q);
-          });
-          const types = [
-            ...TYPE_ORDER.filter((t) => byType.has(t)),
-            ...[...byType.keys()].filter((t) => !TYPE_ORDER.includes(t)),
-          ];
-          // Real grid cells (not nested flex columns) so row 2's headings
-          // align across columns regardless of how tall row 1 is.
-          const sections = document.getElementById('quiz-sections');
-          sections.innerHTML = types.map((type, i) => typeBlockHtml(type, byType.get(type), (i % 6) + 1)).join('');
+          allQuizzes = quizzes;
+          renderQuizzes(allQuizzes);
         })
         .catch(() => {
           document.getElementById('quiz-sections').innerHTML = '<p class="text-gray-500 font-bold">Couldn\'t load the quiz catalog.</p>';

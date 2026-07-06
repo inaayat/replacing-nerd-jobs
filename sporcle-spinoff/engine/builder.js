@@ -15,12 +15,23 @@ const TEMPLATES = [
   { id: 'map-highlight', label: 'Name the Highlight' },
 ];
 
-let quiz = { title: '', blurb: '', timeLimitSec: undefined, shuffle: true, type: 'text-entry', items: [] };
+let quiz = { title: '', blurb: '', tags: [], timeLimitSec: undefined, shuffle: true, type: 'text-entry', items: [] };
 let idManuallyEdited = false;
 let isOwner = false;
 
 function el(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; }
 function slugify(s) { return (s || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); }
+// Case-insensitive dedup, keeping the first-typed casing — matches the merge
+// logic api/save-quiz.js applies when a tag is suggested for an existing quiz.
+function dedupeTags(tags) {
+  const seen = new Set();
+  return tags.filter((t) => {
+    const key = t.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
 function render() {
   root.innerHTML = '';
@@ -38,6 +49,9 @@ function render() {
         <div class="b-field-row">
           <div class="b-field"><label>Title</label><input id="f-title" type="text"></div>
           <div class="b-field"><label>Blurb</label><input id="f-blurb" type="text"></div>
+        </div>
+        <div class="b-field-row">
+          <div class="b-field"><label>Tags (comma-separated, optional)</label><input id="f-tags" type="text" placeholder="e.g. Geography, Pop Culture"></div>
         </div>
         <div class="b-field-row">
           <div class="b-field"><label>Time limit (seconds, optional)</label><input id="f-time" type="number"></div>
@@ -80,7 +94,7 @@ function render() {
     if (btn) selectTemplate(btn.dataset.tpl);
   });
 
-  ['f-title', 'f-blurb', 'f-time'].forEach((id) => document.getElementById(id).addEventListener('input', onFieldsChange));
+  ['f-title', 'f-blurb', 'f-tags', 'f-time'].forEach((id) => document.getElementById(id).addEventListener('input', onFieldsChange));
   document.getElementById('f-shuffle').addEventListener('change', onFieldsChange);
   document.getElementById('f-id').addEventListener('input', () => { idManuallyEdited = true; updatePreview(); });
   document.getElementById('preview-btn').addEventListener('click', openPreview);
@@ -106,6 +120,7 @@ function applyOwnerState() {
 function onFieldsChange() {
   quiz.title = document.getElementById('f-title').value;
   quiz.blurb = document.getElementById('f-blurb').value;
+  quiz.tags = dedupeTags(document.getElementById('f-tags').value.split(',').map((s) => s.trim()).filter(Boolean));
   const t = document.getElementById('f-time').value;
   quiz.timeLimitSec = t ? Number(t) : undefined;
   quiz.shuffle = document.getElementById('f-shuffle').checked;

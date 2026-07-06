@@ -3,6 +3,7 @@
   "title": "US State Capitals",
   "type": "text-entry",
   "blurb": "Type each state's capital city before time runs out.",
+  "tags": ["Geography"],
   "timeLimitSec": 600,
   "prompt": "Type a state capital…",
   "layout": "table",
