@@ -1,0 +1,55 @@
+{
+  "id": "rank-highest-grossing-movies-2010s",
+  "title": "Rank the Highest-Grossing Movies of the 2010s",
+  "type": "ranking",
+  "blurb": "Put these movies in order from highest to lowest worldwide box office gross. The grosses reveal at the end.",
+  "tags": [
+    "Movies",
+    "Box Office",
+    "2010s"
+  ],
+  "valueLabel": "Worldwide Gross",
+  "items": [
+    {
+      "label": "Frozen II",
+      "value": "$1.45B"
+    },
+    {
+      "label": "Avengers: Endgame",
+      "value": "$2.80B"
+    },
+    {
+      "label": "The Lion King (2019)",
+      "value": "$1.66B"
+    },
+    {
+      "label": "Jurassic World",
+      "value": "$1.67B"
+    },
+    {
+      "label": "Avengers: Infinity War",
+      "value": "$2.05B"
+    },
+    {
+      "label": "Star Wars: The Force Awakens",
+      "value": "$2.07B"
+    },
+    {
+      "label": "Furious 7",
+      "value": "$1.52B"
+    },
+    {
+      "label": "Frozen",
+      "value": "$1.29B"
+    },
+    {
+      "label": "The Avengers",
+      "value": "$1.52B"
+    },
+    {
+      "label": "Jurassic World: Fallen Kingdom",
+      "value": "$1.31B"
+    }
+  ],
+  "shuffle": true
+}
