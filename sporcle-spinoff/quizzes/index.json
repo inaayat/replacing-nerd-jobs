@@ -198,5 +198,17 @@
       "World Events"
     ],
     "submitted": true
+  },
+  {
+    "id": "rank-highest-grossing-movies-2010s",
+    "title": "Rank the Highest-Grossing Movies of the 2010s",
+    "type": "ranking",
+    "blurb": "Put these movies in order from highest to lowest worldwide box office gross. The grosses reveal at the end.",
+    "tags": [
+      "Movies",
+      "Box Office",
+      "2010s"
+    ],
+    "submitted": true
   }
 ]
