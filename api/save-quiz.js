@@ -92,7 +92,7 @@ function validateQuiz(quiz) {
 // Write the quiz file + updated catalog entry onto `branch`. File shas are
 // read from main; for submission branches (freshly forked from main) those
 // shas are identical, so the same update applies cleanly on either.
-async function writeQuizFiles(finalQuiz, branch) {
+async function writeQuizFiles(finalQuiz, branch, submitted) {
   const quizPath = `${QUIZZES_DIR}/${finalQuiz.id}.json`;
   const existingQuiz = await getJsonFile(quizPath);
   await putJsonFile(
@@ -105,7 +105,10 @@ async function writeQuizFiles(finalQuiz, branch) {
 
   const indexPath = `${QUIZZES_DIR}/index.json`;
   const indexFile = await getJsonFile(indexPath);
-  const catalogEntry = { id: finalQuiz.id, title: finalQuiz.title, type: finalQuiz.type, blurb: finalQuiz.blurb || '' };
+  const catalogEntry = {
+    id: finalQuiz.id, title: finalQuiz.title, type: finalQuiz.type, blurb: finalQuiz.blurb || '',
+    ...(submitted ? { submitted: true } : {}),
+  };
   const currentIndex = indexFile ? indexFile.json : [];
   const newIndex = [...currentIndex.filter((q) => q.id !== finalQuiz.id), catalogEntry];
   await putJsonFile(
@@ -150,7 +153,7 @@ export default async function handler(req, res) {
         res.status(401).json({ error: 'Publishing directly is owner-only — use "Submit for review" instead.' });
         return;
       }
-      await writeQuizFiles(finalQuiz, BRANCH);
+      await writeQuizFiles(finalQuiz, BRANCH, false);
       res.status(200).json({ id, url: `/sporcle-spinoff/play.html?quiz=${encodeURIComponent(id)}` });
       return;
     }
@@ -158,7 +161,7 @@ export default async function handler(req, res) {
     if (mode === 'submit') {
       const branch = `quiz-submissions/${id}-${Date.now().toString(36)}`;
       await createBranch(branch);
-      await writeQuizFiles(finalQuiz, branch);
+      await writeQuizFiles(finalQuiz, branch, true);
       const who = (submitter || '').toString().slice(0, 80).trim();
       const pr = await openPullRequest(
         branch,

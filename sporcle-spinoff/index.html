@@ -59,11 +59,18 @@
         'map-highlight': 'Name the Highlight',
       };
 
+      const SUBMITTED_ICON = `<span title="User submitted" style="flex-shrink:0;display:inline-flex;">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4 4-6 8-6s8 2 8 6"></path></svg>
+      </span>`;
+
       function cardHtml(q) {
         return `
           <a href="./play.html?quiz=${encodeURIComponent(q.id)}" class="no-underline">
             <div class="move-up cursor-pointer h-14 flex flex-col items-start justify-center text-left bg-[#fffdf3] shadow-sm hover:shadow-lg px-2 w-full border-2 border-[#2c2e25] rounded overflow-hidden">
-              <div class="text-[11px] font-extrabold text-gray-900 leading-tight line-clamp-1">${q.title}</div>
+              <div class="w-full flex items-center gap-1">
+                <span class="text-[11px] font-extrabold text-gray-900 leading-tight line-clamp-1">${q.title}</span>
+                ${q.submitted ? SUBMITTED_ICON : ''}
+              </div>
               <div class="mt-0.5 text-[10px] font-semibold text-gray-500 leading-snug line-clamp-2">${q.blurb || ''}</div>
             </div>
           </a>`;
