@@ -6,7 +6,7 @@
     "blurb": "Type each country's capital city before time runs out."
   },
   {
-    "id": "us-state-capitals",
+    "id": "us-states-capitals",
     "title": "US State Capitals",
     "type": "text-entry",
     "blurb": "Type each state's capital city before time runs out."
