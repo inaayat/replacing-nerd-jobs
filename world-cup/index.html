@@ -535,21 +535,39 @@ function buildWinnerMap(matches) {
   return w;
 }
 
-// Propagate projected teams into unplayed bracket slots
-// matches sorted by date, paired: [0,1]→next[0], [2,3]→next[1], etc.
-function propagate(stageMatches, nextStageMatches, winnerMap) {
-  const sorted = [...stageMatches].sort((a,b)=>new Date(a.date)-new Date(b.date));
-  const nextSorted = [...nextStageMatches].sort((a,b)=>new Date(a.date)-new Date(b.date));
-  sorted.forEach((m, i) => {
-    const winner = winnerMap[m.id];
-    if (!winner) return;
-    const nextIdx = Math.floor(i / 2);
-    const nextM = nextSorted[nextIdx];
-    if (!nextM) return;
-    const slot = i % 2 === 0 ? 'projHome' : 'projAway';
-    if (!nextM.home) nextM[slot] = winner;
-    else if (!nextM.away) nextM[slot] = nextM[slot] || winner;
-    else nextM[slot] = winner; // override projection
+// Explicit knockout bracket wiring (2026 WC). Maps each match id to its two
+// feeder match ids [home-feeder, away-feeder] — i.e. the winner of the first
+// feeder becomes the home team, the winner of the second becomes the away team.
+//
+// This replaces the old "sort matches by date and pair by index" heuristic,
+// which was wrong: the real bracket uses the standard semifinal "cross" (QF at
+// index 1 draws from the R16 pair at index 2, not index 1), so date-order (or
+// id-order) index pairing mis-assigned winners — projecting the same matchup
+// into two QFs and hiding others. Wiring is derived from the official FIFA
+// bracket and verified against the API's own pre-seeded QF matchups
+// (537383 = France+Morocco, 537385 = Norway+England both check out).
+const KO_FEEDERS = {
+  // Quarterfinals ← Round of 16 winners
+  537383: [537375, 537376], // Foxborough
+  537384: [537379, 537380], // Inglewood     (Spain + winner USA/Belgium)
+  537385: [537377, 537378], // Miami Gardens (Norway + England)
+  537386: [537381, 537382], // Kansas City
+  // Semifinals ← Quarterfinal winners
+  537387: [537383, 537384], // Arlington
+  537388: [537385, 537386], // Atlanta
+  // Final ← Semifinal winners
+  537390: [537387, 537388], // East Rutherford
+};
+
+// Project winners forward into unplayed slots using the explicit wiring above.
+// Only fills a slot the API hasn't already seeded (real home/away win).
+function propagateFeeders(matches, winnerMap) {
+  matches.forEach(m => {
+    const feeders = KO_FEEDERS[m.id];
+    if (!feeders) return;
+    const hw = winnerMap[feeders[0]], aw = winnerMap[feeders[1]];
+    if (hw && !m.home) m.projHome = hw;
+    if (aw && !m.away) m.projAway = aw;
   });
 }
 
@@ -565,25 +583,18 @@ function renderBracket() {
   // Deep-clone koFixtures so propagation doesn't mutate originals
   const ko = koFixtures.map(m => ({...m}));
 
-  // Build winner map and propagate projected teams stage by stage
+  // Build winner map (real results + user picks) and project teams forward
+  // through the bracket using the explicit feeder wiring.
   const allWinners = buildWinnerMap(ko);
-  const stageList = [...STAGE_ORDER, 'THIRD_PLACE'];
-  stageList.forEach((stage, si) => {
-    const nextStage = stageList[si+1];
-    if (!nextStage) return;
-    const cur = ko.filter(m => m.stage === stage);
-    const next = ko.filter(m => m.stage === nextStage);
-    propagate(cur, next, allWinners);
-  });
-  // Also propagate SF losers into 3rd place
+  propagateFeeders(ko, allWinners);
+  // Propagate SF losers into 3rd place (SF #1 loser → home, SF #2 loser → away)
   const sfMatches = ko.filter(m => m.stage === 'SEMI_FINALS').sort((a,b)=>new Date(a.date)-new Date(b.date));
   const tpMatch = ko.find(m => m.stage === 'THIRD_PLACE');
   if (tpMatch) {
     sfMatches.forEach((m,i) => {
-      const sfW = allWinners[m.id];
-      const sfPicked = PICKS[m.id];
-      const sfTeams = [m.home, m.away].filter(Boolean);
-      const loser = sfW ? sfTeams.find(t => t !== sfW) : (sfPicked ? sfTeams.find(t => t !== sfPicked) : null);
+      const sfW = allWinners[m.id] || PICKS[m.id];
+      const sfTeams = [m.home || m.projHome, m.away || m.projAway].filter(Boolean);
+      const loser = sfW ? sfTeams.find(t => t !== sfW) : null;
       if (loser) { if (i===0) tpMatch.projHome=loser; else tpMatch.projAway=loser; }
     });
   }
@@ -677,13 +688,20 @@ function renderBracket() {
       </div>`;
     }
 
-    // R16/QF/SF/Final: show the 2 feeder matches (index-paired)
-    const prevStage = PREV[m.stage];
-    if (!prevStage) return '';
-    const prevAll = ko.filter(k=>k.stage===prevStage).sort((a,b)=>new Date(a.date)-new Date(b.date));
-    const thisAll = ko.filter(k=>k.stage===m.stage).sort((a,b)=>new Date(a.date)-new Date(b.date));
-    const slotIdx = thisAll.findIndex(k=>k.id===m.id);
-    const feeders = [prevAll[slotIdx*2], prevAll[slotIdx*2+1]].filter(Boolean);
+    // R16/QF/SF/Final: show the 2 feeder matches. Use the explicit wiring when
+    // available; fall back to date-index pairing for stages without a map entry.
+    let feeders;
+    const fdIds = KO_FEEDERS[m.id];
+    if (fdIds) {
+      feeders = fdIds.map(id => ko.find(k=>k.id===id)).filter(Boolean);
+    } else {
+      const prevStage = PREV[m.stage];
+      if (!prevStage) return '';
+      const prevAll = ko.filter(k=>k.stage===prevStage).sort((a,b)=>new Date(a.date)-new Date(b.date));
+      const thisAll = ko.filter(k=>k.stage===m.stage).sort((a,b)=>new Date(a.date)-new Date(b.date));
+      const slotIdx = thisAll.findIndex(k=>k.id===m.id);
+      feeders = [prevAll[slotIdx*2], prevAll[slotIdx*2+1]].filter(Boolean);
+    }
     if (!feeders.length) return `<div class="cand-panel" style="color:#888;font-size:11px">Source matches TBD.</div>`;
     const rows = feeders.map(p => {
       const t1=p.home||p.projHome||'TBD', t2=p.away||p.projAway||'TBD';
