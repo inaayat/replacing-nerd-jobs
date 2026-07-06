@@ -2,52 +2,53 @@
   "id": "the-2010s-in-order-world-events",
   "title": "The 2010s in Order-World Events",
   "type": "ranking",
-  "blurb": "Put these major world events in chronological order by year (2010–2019). The year is revealed at the end.",
+  "blurb": "Put these major world events in chronological order. The dates reveal at the end.",
   "tags": [
     "History",
     "2010s",
     "World Events"
   ],
+  "valueLabel": "Date",
   "items": [
     {
-      "label": "Brexit referendum passes in the United Kingdom",
-      "date": "2016"
-    },
-    {
       "label": "Arab Spring protests begin across the Middle East and North Africa",
-      "date": "2010"
-    },
-    {
-      "label": "Donald Trump elected President of the United States",
-      "date": "2016"
-    },
-    {
-      "label": "First image of a black hole released to the public",
-      "date": "2019"
-    },
-    {
-      "label": "London Summer Olympics",
-      "date": "2012"
-    },
-    {
-      "label": "Paris Climate Agreement adopted",
-      "date": "2015"
-    },
-    {
-      "label": "Fukushima nuclear disaster in Japan",
-      "date": "2011"
-    },
-    {
-      "label": "Russia annexes Crimea",
-      "date": "2014"
+      "value": "December 2010"
     },
     {
       "label": "Death of Osama bin Laden",
-      "date": "2011"
+      "value": "May 2011"
     },
     {
-      "label": "COVID-19 first identified in Wuhan, China",
-      "date": "2019"
+      "label": "London Summer Olympics",
+      "value": "July 2012"
+    },
+    {
+      "label": "Edward Snowden leaks classified NSA surveillance documents",
+      "value": "June 2013"
+    },
+    {
+      "label": "Russia annexes Crimea",
+      "value": "March 2014"
+    },
+    {
+      "label": "Paris Climate Agreement adopted",
+      "value": "December 2015"
+    },
+    {
+      "label": "Brexit referendum passes in the United Kingdom",
+      "value": "June 2016"
+    },
+    {
+      "label": "Donald Trump inaugurated as President of the United States",
+      "value": "January 2017"
+    },
+    {
+      "label": "Thai cave rescue captures worldwide attention",
+      "value": "July 2018"
+    },
+    {
+      "label": "First image of a black hole released to the public",
+      "value": "April 2019"
     }
   ],
   "shuffle": true
