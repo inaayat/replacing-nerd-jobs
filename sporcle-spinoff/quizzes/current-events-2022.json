@@ -1,0 +1,59 @@
+{
+  "id": "current-events-2022",
+  "title": "2022 Current Events",
+  "type": "text-entry",
+  "blurb": "10 questions on the biggest headlines of 2022.",
+  "tags": ["Current Events"],
+  "timeLimitSec": 240,
+  "prompt": "Type your answer…",
+  "layout": "table",
+  "columns": [
+    {
+      "key": "clue",
+      "label": "Question"
+    }
+  ],
+  "answerLabel": "Answer",
+  "items": [
+    {
+      "clue": "Which country did Russia invade in February 2022?",
+      "accept": ["Ukraine"]
+    },
+    {
+      "clue": "Which British monarch died after serving for 70 years?",
+      "accept": ["Queen Elizabeth II", "Elizabeth II", "Queen Elizabeth"]
+    },
+    {
+      "clue": "Who became the new monarch of the United Kingdom after Queen Elizabeth II's death?",
+      "accept": ["King Charles III", "Charles III", "King Charles", "Charles"]
+    },
+    {
+      "clue": "Which award show featured Will Smith slapping Chris Rock?",
+      "accept": ["The Academy Awards", "Academy Awards", "Oscars", "The Oscars"]
+    },
+    {
+      "clue": "Which U.S. Supreme Court decision overturned Roe v. Wade?",
+      "accept": ["Dobbs v. Jackson Women's Health Organization", "Dobbs v Jackson", "Dobbs", "The Dobbs decision"]
+    },
+    {
+      "clue": "Which billionaire completed the acquisition of Twitter in October 2022?",
+      "accept": ["Elon Musk", "Musk"]
+    },
+    {
+      "clue": "Which inflation-fighting strategy became common among central banks worldwide during 2022?",
+      "accept": ["Raising interest rates", "Interest rate hikes", "Rate hikes", "Raising rates"]
+    },
+    {
+      "clue": "What was the name of NASA's mission that successfully impacted an asteroid to test planetary defense?",
+      "accept": ["DART"]
+    },
+    {
+      "clue": "Which country won the 2022 FIFA World Cup?",
+      "accept": ["Argentina"]
+    },
+    {
+      "clue": "Lionel Messi defeated which country in the World Cup Final?",
+      "accept": ["France"]
+    }
+  ]
+}

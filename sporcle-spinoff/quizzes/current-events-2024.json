@@ -1,0 +1,59 @@
+{
+  "id": "current-events-2024",
+  "title": "2024 Current Events",
+  "type": "text-entry",
+  "blurb": "10 questions on the biggest headlines of 2024.",
+  "tags": ["Current Events"],
+  "timeLimitSec": 240,
+  "prompt": "Type your answer…",
+  "layout": "table",
+  "columns": [
+    {
+      "key": "clue",
+      "label": "Question"
+    }
+  ],
+  "answerLabel": "Answer",
+  "items": [
+    {
+      "clue": "Which city hosted the 2024 Summer Olympics?",
+      "accept": ["Paris"]
+    },
+    {
+      "clue": "Which bridge collapsed after being struck by a cargo ship in March 2024?",
+      "accept": ["Francis Scott Key Bridge", "Key Bridge", "The Key Bridge"]
+    },
+    {
+      "clue": "Which spacecraft successfully returned samples from the asteroid Bennu to Earth in 2024?",
+      "accept": ["OSIRIS-REx", "OSIRIS REx", "Osiris Rex"]
+    },
+    {
+      "clue": "Which social media platform faced a U.S. law requiring its parent company to sell it or face a ban?",
+      "accept": ["TikTok", "Tik Tok"]
+    },
+    {
+      "clue": "Which AI company unveiled GPT-4o in 2024?",
+      "accept": ["OpenAI", "Open AI"]
+    },
+    {
+      "clue": "Which European country won the Eurovision Song Contest in 2024?",
+      "accept": ["Switzerland"]
+    },
+    {
+      "clue": "Which sporting event featured surfing competitions held in Tahiti rather than the host city?",
+      "accept": ["The Paris Olympics", "Paris Olympics", "2024 Olympics", "The Olympics", "Summer Olympics"]
+    },
+    {
+      "clue": "Which U.S. presidential candidate survived an assassination attempt during a campaign rally in Pennsylvania?",
+      "accept": ["Donald Trump", "Trump"]
+    },
+    {
+      "clue": "Which animated film became one of the year's biggest global box-office successes?",
+      "accept": ["Inside Out 2", "Inside Out II"]
+    },
+    {
+      "clue": "Which music rivalry dominated headlines in 2024 with the release of the hit diss track \"Not Like Us\"?",
+      "accept": ["Kendrick Lamar vs. Drake", "Kendrick Lamar vs Drake", "Kendrick vs Drake", "Kendrick vs. Drake", "Drake vs Kendrick", "Kendrick Lamar", "Kendrick", "Drake"]
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "id": "current-events-2020",
+  "title": "2020 Current Events",
+  "type": "text-entry",
+  "blurb": "10 questions on the biggest headlines of 2020.",
+  "tags": ["Current Events"],
+  "timeLimitSec": 240,
+  "prompt": "Type your answer…",
+  "layout": "table",
+  "columns": [
+    {
+      "key": "clue",
+      "label": "Question"
+    }
+  ],
+  "answerLabel": "Answer",
+  "items": [
+    {
+      "clue": "Which organization officially declared COVID-19 a global pandemic in March 2020?",
+      "accept": ["World Health Organization", "WHO"]
+    },
+    {
+      "clue": "Which U.S. city became the center of worldwide protests following the death of George Floyd?",
+      "accept": ["Minneapolis"]
+    },
+    {
+      "clue": "What video conferencing platform became synonymous with remote work and online classes during the pandemic?",
+      "accept": ["Zoom"]
+    },
+    {
+      "clue": "Which private company launched astronauts to the International Space Station for the first time?",
+      "accept": ["SpaceX", "Space X"]
+    },
+    {
+      "clue": "Which country first approved the Pfizer-BioNTech COVID-19 vaccine for widespread public use?",
+      "accept": ["United Kingdom", "UK", "Britain", "Great Britain"]
+    },
+    {
+      "clue": "What major international sporting event scheduled for 2020 was postponed until 2021?",
+      "accept": ["Tokyo Olympics", "The Olympics", "Olympics", "Summer Olympics"]
+    },
+    {
+      "clue": "Which candidate defeated Donald Trump in the 2020 U.S. presidential election?",
+      "accept": ["Joe Biden", "Biden", "Joseph Biden"]
+    },
+    {
+      "clue": "Which app faced possible bans in the U.S. over national security concerns involving China?",
+      "accept": ["TikTok", "Tik Tok"]
+    },
+    {
+      "clue": "Which online game became a worldwide social phenomenon during lockdowns?",
+      "accept": ["Among Us"]
+    },
+    {
+      "clue": "In 2020, what Australian natural disaster dominated headlines early in the year?",
+      "accept": ["Australian bushfires", "Bushfires", "Australia bushfires", "The bushfires"]
+    }
+  ]
+}
