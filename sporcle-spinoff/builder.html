@@ -16,10 +16,17 @@
 
     <!-- Nav -->
     <nav class="px-4 sm:px-8 py-3 sm:py-4 flex items-center justify-between sticky top-0 z-10" style="background:#f267a0;">
-      <a href="/" class="q-brand-mono font-extrabold text-sm sm:text-2xl rounded-md border-2 sm:border-4 border-white text-white select-none px-2 py-1 sm:p-2 no-underline whitespace-nowrap flex items-center gap-1.5">
-        <img src="/ugly-dog-images/dog-3.png" alt="" width="20" height="20" style="object-fit:contain;flex-shrink:0;" />
-        Beep boop
-      </a>
+      <div class="flex items-center gap-2 sm:gap-3">
+        <a href="/" class="q-brand-mono font-extrabold text-sm sm:text-2xl rounded-md border-2 sm:border-4 border-white text-white select-none px-2 py-1 sm:p-2 no-underline whitespace-nowrap flex items-center gap-1.5">
+          <img src="/ugly-dog-images/dog-3.png" alt="" width="20" height="20" style="object-fit:contain;flex-shrink:0;" />
+          Beep boop
+        </a>
+        <div class="hidden md:block" style="width:2px;height:26px;background:rgba(255,255,255,.4);"></div>
+        <a href="/sporcle-spinoff/" class="hidden md:flex items-center gap-2 no-underline">
+          <img src="/sporcle-spinoff/icon.png" alt="" width="22" height="22" style="object-fit:contain;flex-shrink:0;">
+          <span class="q-brand-mono font-extrabold text-white text-lg whitespace-nowrap">Sporcle Spinoff</span>
+        </a>
+      </div>
       <div class="flex items-center gap-3 sm:gap-8">
         <a href="/sporcle-spinoff/" class="text-xs sm:text-xl font-extrabold text-white no-underline opacity-80 hover:opacity-100 whitespace-nowrap">Quizzes</a>
         <a href="/api/logout" class="text-xs sm:text-xl font-extrabold text-white no-underline opacity-80 hover:opacity-100 whitespace-nowrap">Log out</a>
