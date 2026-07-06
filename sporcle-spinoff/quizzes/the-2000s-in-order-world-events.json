@@ -1,0 +1,54 @@
+{
+  "id": "the-2000s-in-order-world-events",
+  "title": "The 2000s in Order",
+  "type": "ranking",
+  "blurb": "Put these major world events in chronological order by year (2000–2009). The year is revealed at the end.",
+  "tags": [
+    "History",
+    "2000s",
+    "World Events"
+  ],
+  "items": [
+    {
+      "label": "Facebook launches to the public",
+      "date": "2004"
+    },
+    {
+      "label": "September 11 terrorist attacks in the United States",
+      "date": "2001"
+    },
+    {
+      "label": "Barack Obama elected President of the United States",
+      "date": "2008"
+    },
+    {
+      "label": "Indian Ocean tsunami devastates countries across Asia",
+      "date": "2004"
+    },
+    {
+      "label": "Global financial crisis begins after collapse of Lehman Brothers",
+      "date": "2008"
+    },
+    {
+      "label": "Iraq War begins",
+      "date": "2003"
+    },
+    {
+      "label": "Euro becomes official currency in much of Europe",
+      "date": "2002"
+    },
+    {
+      "label": "H1N1 ('Swine Flu') pandemic spreads worldwide",
+      "date": "2009"
+    },
+    {
+      "label": "China hosts the Beijing Summer Olympics",
+      "date": "2008"
+    },
+    {
+      "label": "Wikipedia launches",
+      "date": "2001"
+    }
+  ],
+  "shuffle": true
+}
