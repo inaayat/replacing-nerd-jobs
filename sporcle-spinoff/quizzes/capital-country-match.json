@@ -3,6 +3,7 @@
   "title": "Match Country to Capital",
   "type": "matching",
   "blurb": "Click a country, then its capital, to lock in a match.",
+  "tags": ["Geography"],
   "timeLimitSec": 90,
   "items": [
     { "left": "France", "right": "Paris" },

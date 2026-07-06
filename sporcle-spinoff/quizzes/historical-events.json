@@ -3,6 +3,7 @@
   "title": "Historical Events in Order",
   "type": "ranking",
   "blurb": "Put these events in order, earliest to latest. The dates reveal at the end.",
+  "tags": ["History"],
   "items": [
     { "label": "Fall of the Western Roman Empire", "date": "476 AD" },
     { "label": "Signing of the Magna Carta", "date": "1215" },

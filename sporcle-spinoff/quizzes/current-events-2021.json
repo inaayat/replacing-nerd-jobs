@@ -1,0 +1,59 @@
+{
+  "id": "current-events-2021",
+  "title": "2021 Current Events",
+  "type": "text-entry",
+  "blurb": "10 questions on the biggest headlines of 2021.",
+  "tags": ["Current Events"],
+  "timeLimitSec": 240,
+  "prompt": "Type your answer…",
+  "layout": "table",
+  "columns": [
+    {
+      "key": "clue",
+      "label": "Question"
+    }
+  ],
+  "answerLabel": "Answer",
+  "items": [
+    {
+      "clue": "On what date did supporters of Donald Trump storm the U.S. Capitol?",
+      "accept": ["January 6, 2021", "January 6", "Jan 6", "1/6", "January 6th"]
+    },
+    {
+      "clue": "Which cargo ship blocked the Suez Canal for nearly a week?",
+      "accept": ["Ever Given"]
+    },
+    {
+      "clue": "Which country fell to the Taliban after the withdrawal of U.S. troops?",
+      "accept": ["Afghanistan"]
+    },
+    {
+      "clue": "Which billionaire flew to space aboard his company Blue Origin's first crewed flight?",
+      "accept": ["Jeff Bezos", "Bezos", "Jeffrey Bezos"]
+    },
+    {
+      "clue": "Which country hosted the delayed 2020 Summer Olympics?",
+      "accept": ["Japan"]
+    },
+    {
+      "clue": "Which social media platform rebranded itself as \"Meta\"?",
+      "accept": ["Facebook", "Meta"]
+    },
+    {
+      "clue": "Which cryptocurrency reached record popularity alongside the NFT boom?",
+      "accept": ["Bitcoin", "BTC"]
+    },
+    {
+      "clue": "Which rover successfully landed on Mars carrying the Ingenuity helicopter?",
+      "accept": ["Perseverance", "Perseverance rover"]
+    },
+    {
+      "clue": "Which tennis player won his 20th Grand Slam title at Wimbledon in 2021?",
+      "accept": ["Novak Djokovic", "Djokovic"]
+    },
+    {
+      "clue": "Which TV series became Netflix's most-watched show of 2021?",
+      "accept": ["Squid Game"]
+    }
+  ]
+}

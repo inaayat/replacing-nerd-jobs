@@ -41,6 +41,31 @@ async function putJsonFile(path, json, sha, message, branch = BRANCH) {
   return res.json();
 }
 
+// Same as getJsonFile but returns the raw text un-parsed, so a caller can
+// surgically edit one field via string/regex ops instead of round-tripping
+// the whole file through JSON.stringify (which reformats every array).
+async function getTextFile(path, ref = BRANCH) {
+  const res = await gh(`/contents/${path}?ref=${ref}`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`);
+  const data = await res.json();
+  return { sha: data.sha, text: Buffer.from(data.content, 'base64').toString('utf-8') };
+}
+
+async function putTextFile(path, text, sha, message, branch = BRANCH) {
+  const content = Buffer.from(text, 'utf-8').toString('base64');
+  const res = await gh(`/contents/${path}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message, content, branch, ...(sha ? { sha } : {}) }),
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`PUT ${path} failed: ${res.status} ${body}`);
+  }
+  return res.json();
+}
+
 async function createBranch(name) {
   const refRes = await gh(`/git/ref/heads/${BRANCH}`);
   if (!refRes.ok) throw new Error(`Could not read ${BRANCH} ref: ${refRes.status}`);
@@ -71,6 +96,85 @@ async function openPullRequest(head, title, body) {
 
 function slugify(s) {
   return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
+// ── Tag-suggestion helpers: surgical single-line text patches ──────────
+// Reused for both a quiz file (the whole file is one object) and a single
+// entry's { ... } substring within index.json's array — never re-stringifies
+// a whole file, so unrelated content/formatting is untouched.
+
+function extractField(text, field) {
+  const m = text.match(new RegExp(`"${field}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"`));
+  if (!m) return null;
+  try { return JSON.parse(`"${m[1]}"`); } catch { return null; }
+}
+
+function extractTags(block) {
+  const m = block.match(/"tags"\s*:\s*(\[[^\]]*\])/);
+  if (!m) return [];
+  try { return JSON.parse(m[1]); } catch { return []; }
+}
+
+function mergeTags(existing, suggested) {
+  const out = [...existing];
+  const lowerSet = new Set(existing.map((t) => t.toLowerCase()));
+  for (const t of suggested) {
+    const trimmed = t.trim();
+    if (!trimmed || lowerSet.has(trimmed.toLowerCase())) continue;
+    out.push(trimmed);
+    lowerSet.add(trimmed.toLowerCase());
+  }
+  return out;
+}
+
+// Replaces an existing "tags": [...] line, or inserts a new one right after
+// the "blurb" line (matching its indentation) if the object has none yet.
+function patchTagsLine(text, newTags) {
+  const tagsJson = JSON.stringify(newTags);
+  const tagsRe = /"tags"\s*:\s*\[[^\]]*\]/;
+  if (tagsRe.test(text)) return text.replace(tagsRe, `"tags": ${tagsJson}`);
+
+  const blurbLineRe = /^([ \t]*)"blurb"\s*:\s*(?:"(?:[^"\\]|\\.)*")(,?)[ \t]*$/m;
+  const m = text.match(blurbLineRe);
+  if (!m) throw new Error('Could not find a spot to add tags to this quiz.');
+  const [full, indent, hadComma] = m;
+  const newBlurbLine = hadComma ? full : `${full},`;
+  const insertLine = `\n${indent}"tags": ${tagsJson}${hadComma ? ',' : ''}`;
+  return text.slice(0, m.index) + newBlurbLine + insertLine + text.slice(m.index + full.length);
+}
+
+// Finds the single { ... } block within index.json's array whose "id" field
+// matches, by scanning non-nested object literals (catalog entries never
+// nest objects, so this is safe and avoids fragile whole-array regexes).
+function findIndexEntryBlock(text, id) {
+  const re = /\{[^{}]*\}/g;
+  const needle = `"id": "${id}"`;
+  let m;
+  while ((m = re.exec(text))) {
+    if (m[0].includes(needle)) return { start: m.index, end: m.index + m[0].length, block: m[0] };
+  }
+  return null;
+}
+
+function patchIndexEntryTags(indexText, id, newTags) {
+  const found = findIndexEntryBlock(indexText, id);
+  if (!found) throw new Error(`No catalog entry found for "${id}".`);
+  const patchedBlock = patchTagsLine(found.block, newTags);
+  return indexText.slice(0, found.start) + patchedBlock + indexText.slice(found.end);
+}
+
+const MAX_TAG_LENGTH = 40;
+const MAX_TAGS_PER_SUGGESTION = 10;
+
+function validateSuggestedTags(id, tags) {
+  if (!id || typeof id !== 'string' || !id.trim()) return 'Missing quiz id.';
+  if (!Array.isArray(tags) || !tags.length) return 'Add at least one tag.';
+  if (tags.length > MAX_TAGS_PER_SUGGESTION) return `Suggest at most ${MAX_TAGS_PER_SUGGESTION} tags at once.`;
+  for (const t of tags) {
+    if (typeof t !== 'string' || !t.trim()) return 'Tags cannot be blank.';
+    if (t.trim().length > MAX_TAG_LENGTH) return `Each tag must be under ${MAX_TAG_LENGTH} characters.`;
+  }
+  return null;
 }
 
 const REQUIRED_ITEM_COUNT = 2;
@@ -107,6 +211,7 @@ async function writeQuizFiles(finalQuiz, branch, submitted) {
   const indexFile = await getJsonFile(indexPath);
   const catalogEntry = {
     id: finalQuiz.id, title: finalQuiz.title, type: finalQuiz.type, blurb: finalQuiz.blurb || '',
+    tags: Array.isArray(finalQuiz.tags) ? finalQuiz.tags : [],
     ...(submitted ? { submitted: true } : {}),
   };
   const currentIndex = indexFile ? indexFile.json : [];
@@ -118,6 +223,31 @@ async function writeQuizFiles(finalQuiz, branch, submitted) {
     `Add "${finalQuiz.title}" to quiz catalog`,
     branch
   );
+}
+
+// Patches the quiz file + its catalog entry with merged tags on `branch`.
+// No-ops (returns changed:false) if every suggested tag already exists
+// (case-insensitively), so callers can skip opening an empty PR/commit.
+async function writeTagSuggestion(id, suggestedTags, branch) {
+  const quizPath = `${QUIZZES_DIR}/${id}.json`;
+  const quizFile = await getTextFile(quizPath);
+  if (!quizFile) throw new Error(`Quiz "${id}" not found.`);
+
+  const currentTags = extractTags(quizFile.text);
+  const mergedTags = mergeTags(currentTags, suggestedTags);
+  const title = extractField(quizFile.text, 'title') || id;
+  if (mergedTags.length === currentTags.length) return { title, mergedTags, changed: false };
+
+  const patchedQuizText = patchTagsLine(quizFile.text, mergedTags);
+  await putTextFile(quizPath, patchedQuizText, quizFile.sha, `Add tag(s) to "${title}"`, branch);
+
+  const indexPath = `${QUIZZES_DIR}/index.json`;
+  const indexFile = await getTextFile(indexPath);
+  if (!indexFile) throw new Error('quizzes/index.json not found.');
+  const patchedIndexText = patchIndexEntryTags(indexFile.text, id, mergedTags);
+  await putTextFile(indexPath, patchedIndexText, indexFile.sha, `Add tag(s) to "${title}" in catalog`, branch);
+
+  return { title, mergedTags, changed: true };
 }
 
 export default async function handler(req, res) {
@@ -136,7 +266,52 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { quiz, mode, submitter } = req.body || {};
+  const { quiz, mode, submitter, id: suggestId, tags: suggestedTags } = req.body || {};
+
+  if (mode === 'suggest-tags' || mode === 'suggest-tags-publish') {
+    const validationError = validateSuggestedTags(suggestId, suggestedTags);
+    if (validationError) {
+      res.status(400).json({ error: validationError });
+      return;
+    }
+    const id = slugify(suggestId);
+    try {
+      if (mode === 'suggest-tags-publish') {
+        if (!(await isAuthed(req.headers.cookie))) {
+          res.status(401).json({ error: 'Publishing directly is owner-only — use "Suggest" instead.' });
+          return;
+        }
+        const { mergedTags, changed } = await writeTagSuggestion(id, suggestedTags, BRANCH);
+        res.status(200).json({ id, tags: mergedTags, changed, published: true });
+        return;
+      }
+
+      // Public path: dry-run the merge first so we never open an empty PR
+      // when every suggested tag already exists on the quiz.
+      const branch = `tag-suggestions/${id}-${Date.now().toString(36)}`;
+      await createBranch(branch);
+      const { title, mergedTags, changed } = await writeTagSuggestion(id, suggestedTags, branch);
+      if (!changed) {
+        res.status(200).json({ id, tags: mergedTags, changed: false });
+        return;
+      }
+      const who = (submitter || '').toString().slice(0, 80).trim();
+      const pr = await openPullRequest(
+        branch,
+        `Suggest tag(s) for: ${title}`,
+        [
+          `New tag(s) suggested for **${title}**: ${suggestedTags.map((t) => `\`${t.trim()}\``).join(', ')}.`,
+          who ? `Suggested by: ${who}` : 'Suggested anonymously.',
+          '',
+          'Merging this PR adds the tag(s) to the catalog and the quiz page.',
+        ].join('\n')
+      );
+      res.status(200).json({ id, tags: mergedTags, changed: true, prUrl: pr.html_url });
+    } catch (err) {
+      res.status(502).json({ error: err.message });
+    }
+    return;
+  }
 
   const validationError = validateQuiz(quiz);
   if (validationError) {

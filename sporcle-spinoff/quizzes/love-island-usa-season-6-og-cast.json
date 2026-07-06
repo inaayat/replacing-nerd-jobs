@@ -1,0 +1,72 @@
+{
+  "title": "Love Island USA Season 6 Cast",
+  "blurb": "Original cast only, no bombshells",
+  "tags": ["Pop Culture", "Reality TV"],
+  "timeLimitSec": 120,
+  "shuffle": true,
+  "type": "image",
+  "items": [
+    {
+      "img": "https://www.peacocktv.com/sites/peacock/files/styles/scale_862/public/2024/06/aaron.png",
+      "accept": [
+        "Aaron"
+      ]
+    },
+    {
+      "img": "https://www.peacocktv.com/sites/peacock/files/styles/scale_862/public/2024/06/coye.png",
+      "accept": [
+        "Coye"
+      ]
+    },
+    {
+      "img": "https://www.peacocktv.com/sites/peacock/files/styles/scale_862/public/2024/06/hannah.png",
+      "accept": [
+        "Hannah"
+      ]
+    },
+    {
+      "img": "https://www.peacocktv.com/sites/peacock/files/styles/scale_862/public/2024/06/jana.png",
+      "accept": [
+        "JaNa",
+        "Janae"
+      ]
+    },
+    {
+      "img": "https://www.peacocktv.com/sites/peacock/files/styles/scale_862/public/2024/06/kaylor.png",
+      "accept": [
+        "Kaylor"
+      ]
+    },
+    {
+      "img": "https://www.peacocktv.com/sites/peacock/files/styles/scale_862/public/2024/06/kendall.png",
+      "accept": [
+        "Kendall"
+      ]
+    },
+    {
+      "img": "https://www.peacocktv.com/sites/peacock/files/styles/scale_862/public/2024/06/kordell.png",
+      "accept": [
+        "Kordell"
+      ]
+    },
+    {
+      "img": "https://www.peacocktv.com/sites/peacock/files/styles/scale_862/public/2024/06/leah.png",
+      "accept": [
+        "Leah"
+      ]
+    },
+    {
+      "img": "https://www.peacocktv.com/sites/peacock/files/styles/scale_862/public/2024/06/rob.png",
+      "accept": [
+        "Rob"
+      ]
+    },
+    {
+      "img": "https://www.peacocktv.com/sites/peacock/files/styles/scale_862/public/2024/06/serena.jpg",
+      "accept": [
+        "Serena"
+      ]
+    }
+  ],
+  "id": "love-island-usa-season-6-og-cast"
+}

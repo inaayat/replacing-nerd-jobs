@@ -1,0 +1,59 @@
+{
+  "title": "Love Island USA Season 8 Cast",
+  "blurb": "Original cast only, no bombshells",
+  "tags": ["Pop Culture", "Reality TV"],
+  "timeLimitSec": 120,
+  "shuffle": true,
+  "type": "image",
+  "items": [
+    {
+      "img": "https://www.peacocktv.com/sites/peacock/files/styles/scale_862/public/2026/05/peacock_loveisland_s8_characterportrait_titlesocial_textless_1920x1080_aniya_0.jpg",
+      "accept": [
+        "Aniya"
+      ]
+    },
+    {
+      "img": "https://www.peacocktv.com/sites/peacock/files/styles/scale_862/public/2026/05/peacock_loveisland_s8_characterportrait_titlesocial_textless_1920x1080_bryce_0.jpg",
+      "accept": [
+        "Bryce"
+      ]
+    },
+    {
+      "img": "https://www.peacocktv.com/sites/peacock/files/styles/scale_862/public/2026/05/peacock_loveisland_s8_characterportrait_titlesocial_textless_1920x1080_kc_0.jpg",
+      "accept": [
+        "KC"
+      ]
+    },
+    {
+      "img": "https://www.peacocktv.com/sites/peacock/files/styles/scale_862/public/2026/05/peacock_loveisland_s8_characterportrait_titlesocial_textless_1920x1080_kenzie_0.jpg",
+      "accept": [
+        "Kenzie"
+      ]
+    },
+    {
+      "img": "https://www.peacocktv.com/sites/peacock/files/styles/scale_862/public/2026/05/peacock_loveisland_s8_characterportrait_titlesocial_textless_1920x1080_melanie_0.jpg",
+      "accept": [
+        "Melanie"
+      ]
+    },
+    {
+      "img": "https://www.peacocktv.com/sites/peacock/files/styles/scale_862/public/2026/05/peacock_loveisland_s8_characterportrait_titlesocial_textless_1920x1080_sincere_0.jpg",
+      "accept": [
+        "Sincere"
+      ]
+    },
+    {
+      "img": "https://www.peacocktv.com/sites/peacock/files/styles/scale_862/public/2026/05/peacock_loveisland_s8_characterportrait_titlesocial_textless_1920x1080_trinity_0.jpg",
+      "accept": [
+        "Trinity"
+      ]
+    },
+    {
+      "img": "https://www.peacocktv.com/sites/peacock/files/styles/scale_862/public/2026/05/peacock_loveisland_s8_characterportrait_titlesocial_textless_1920x1080_zach_0.jpg",
+      "accept": [
+        "Zach"
+      ]
+    }
+  ],
+  "id": "love-island-usa-season-8-og-cast"
+}

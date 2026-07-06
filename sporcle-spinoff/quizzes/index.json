@@ -3,48 +3,134 @@
     "id": "world-capitals",
     "title": "World Capitals",
     "type": "text-entry",
-    "blurb": "Type each country's capital city before time runs out."
+    "blurb": "Type each country's capital city before time runs out.",
+    "tags": ["Geography"]
+  },
+  {
+    "id": "us-states-capitals",
+    "title": "US State Capitals",
+    "type": "text-entry",
+    "blurb": "Type each state's capital city before time runs out.",
+    "tags": ["Geography"]
+  },
+  {
+    "id": "2010s-pop-culture",
+    "title": "2010s Pop Culture",
+    "type": "text-entry",
+    "blurb": "2010 pop culture questions across all categories.",
+    "tags": ["Pop Culture"]
   },
   {
     "id": "us-states",
     "title": "Name All 50 US States",
     "type": "text-entry",
-    "blurb": "Type as many states as you can remember. No clues."
+    "blurb": "Type as many states as you can remember. No clues.",
+    "tags": ["Geography"]
+  },
+  {
+    "id": "oscars-best-picture-2021-2025",
+    "title": "Name All Oscar Best Pic Nominees 2021-2025",
+    "type": "text-entry",
+    "blurb": "Type as many Oscar Best Picture Nominees from 2021-2025.",
+    "tags": ["Pop Culture", "Movies"]
+  },
+  {
+    "id": "love-island-usa-season-7-superfan",
+    "title": "Love Island USA Season 7 (Superfan Edition)",
+    "type": "text-entry",
+    "blurb": "LIUSA Season 7 Quiz. Experts only.",
+    "tags": ["Pop Culture", "Reality TV"]
   },
   {
     "id": "general-knowledge",
     "title": "General Knowledge",
     "type": "multiple-choice",
-    "blurb": "Ten questions, one at a time."
+    "blurb": "Ten questions, one at a time.",
+    "tags": ["General Knowledge"]
   },
   {
     "id": "flags",
     "title": "Flags of the World",
     "type": "image",
-    "blurb": "Identify each country from its flag."
+    "blurb": "Identify each country from its flag.",
+    "tags": ["Geography"]
   },
   {
     "id": "capital-country-match",
     "title": "Match Country to Capital",
     "type": "matching",
-    "blurb": "Click a country, then its capital, to lock in a match."
+    "blurb": "Click a country, then its capital, to lock in a match.",
+    "tags": ["Geography"]
   },
   {
     "id": "historical-events",
     "title": "Historical Events in Order",
     "type": "ranking",
-    "blurb": "Reorder these events from earliest to most recent."
+    "blurb": "Reorder these events from earliest to most recent.",
+    "tags": ["History"]
   },
   {
     "id": "world-map",
     "title": "Find It on the Map",
     "type": "map",
-    "blurb": "Click each country on the map before time runs out."
+    "blurb": "Click each country on the map before time runs out.",
+    "tags": ["Geography"]
   },
   {
     "id": "us-states-highlight",
     "title": "Name the Highlighted State",
     "type": "map-highlight",
-    "blurb": "A state lights up — type its name. All 50, in a random order every time."
+    "blurb": "A state lights up — type its name. All 50, in a random order every time.",
+    "tags": ["Geography"]
+  },
+  {
+    "id": "love-island-usa-season-6-og-cast",
+    "title": "Love Island USA Season 6 Cast",
+    "type": "image",
+    "blurb": "Original cast only, no bombshells",
+    "tags": ["Pop Culture", "Reality TV"]
+  },
+  {
+    "id": "love-island-usa-season-8-og-cast",
+    "title": "Love Island USA Season 8 Cast",
+    "type": "image",
+    "blurb": "Original cast only, no bombshells",
+    "tags": ["Pop Culture", "Reality TV"],
+    "submitted": true
+  },
+  {
+    "id": "current-events-2020",
+    "title": "2020 Current Events",
+    "type": "text-entry",
+    "blurb": "10 questions on the biggest headlines of 2020.",
+    "tags": ["Current Events"]
+  },
+  {
+    "id": "current-events-2021",
+    "title": "2021 Current Events",
+    "type": "text-entry",
+    "blurb": "10 questions on the biggest headlines of 2021.",
+    "tags": ["Current Events"]
+  },
+  {
+    "id": "current-events-2022",
+    "title": "2022 Current Events",
+    "type": "text-entry",
+    "blurb": "10 questions on the biggest headlines of 2022.",
+    "tags": ["Current Events"]
+  },
+  {
+    "id": "current-events-2023",
+    "title": "2023 Current Events",
+    "type": "text-entry",
+    "blurb": "10 questions on the biggest headlines of 2023.",
+    "tags": ["Current Events"]
+  },
+  {
+    "id": "current-events-2024",
+    "title": "2024 Current Events",
+    "type": "text-entry",
+    "blurb": "10 questions on the biggest headlines of 2024.",
+    "tags": ["Current Events"]
   }
 ]
