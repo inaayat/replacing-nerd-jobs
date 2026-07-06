@@ -1,7 +1,7 @@
 // Free-response / fill-in / "name all N" completionist, or a table of
-// dedicated per-row inputs. items: { accept:[...], display, clue? }
-//   accept  = strings that count as correct (aliases ok)
-//   display = what shows once solved
+// dedicated per-row inputs. items: { accept:[...], clue? }
+//   accept  = strings that count as correct (aliases ok); accept[0] is
+//             shown as the solved/revealed answer
 //   clue    = hint text (shown in the slot before solved, or as a table column)
 //
 // Default layout: one shared input; each correct typed answer fills its slot.
@@ -14,6 +14,12 @@ export default {
     return renderFillIn(root, quiz, engine);
   },
 };
+
+// accept[] is authored lowercase for matching; title-case it when shown as
+// the solved/revealed answer so it doesn't look like a typo.
+function titleCase(s) {
+  return s.replace(/\w\S*/g, (w) => w[0].toUpperCase() + w.slice(1));
+}
 
 function renderFillIn(root, quiz, engine) {
   const items = quiz.items.slice();
@@ -35,7 +41,7 @@ function renderFillIn(root, quiz, engine) {
 
   function fill(idx, missed) {
     solved[idx] = true;
-    slots[idx].textContent = items[idx].display;
+    slots[idx].textContent = titleCase(items[idx].accept[0]);
     slots[idx].classList.add(missed ? 'missed' : 'filled');
   }
 
@@ -87,7 +93,7 @@ function renderTable(root, quiz, engine) {
       if (solved[idx]) return;
       if (engine.matchAccept(input.value, it.accept)) {
         solved[idx] = true;
-        input.value = it.display || it.accept[0];
+        input.value = titleCase(it.accept[0]);
         input.disabled = true;
         tr.classList.add('correct');
         engine.correct();
@@ -109,7 +115,7 @@ function renderTable(root, quiz, engine) {
       if (solved[idx]) return;
       solved[idx] = true;
       const input = rows[idx].querySelector('input');
-      input.value = it.display || it.accept[0];
+      input.value = titleCase(it.accept[0]);
       input.disabled = true;
       rows[idx].classList.add('missed');
       engine.advance();

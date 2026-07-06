@@ -1,6 +1,8 @@
 // Editor for the text-entry player type. Supports both layouts it renders:
 // fill-in-the-blank (one shared input) and table (dedicated input per row).
-// Row shape matches the player's item shape directly: { accept, clue, display }.
+// Row shape matches the player's item shape directly: { accept, clue }.
+// The solved/revealed display is always the first accepted answer — there's
+// no separate "display text" to author.
 export default {
   render(container, quiz, onChange) {
     const layoutRow = document.createElement('div');
@@ -23,7 +25,6 @@ export default {
       quiz.items = [...list.children].map((row) => ({
         clue: row.querySelector('.f-clue').value,
         accept: row.querySelector('.f-accept').value.split(',').map((s) => s.trim()).filter(Boolean),
-        display: row.querySelector('.f-display').value,
       }));
       onChange();
     }
@@ -33,8 +34,7 @@ export default {
       const fields = document.createElement('div'); fields.className = 'b-item-fields';
       fields.innerHTML = `
         <div class="b-mini-row"><input class="b-mini-input f-clue" placeholder="Clue (shown before solved)" value="${data ? data.clue || '' : ''}"></div>
-        <div class="b-mini-row"><input class="b-mini-input f-accept" placeholder="Accepted answers, comma-separated" value="${data ? (data.accept || []).join(', ') : ''}"></div>
-        <div class="b-mini-row"><input class="b-mini-input f-display" placeholder="Display text once solved" value="${data ? data.display || '' : ''}"></div>`;
+        <div class="b-mini-row"><input class="b-mini-input f-accept" placeholder="Accepted answers, comma-separated (first = shown when solved)" value="${data ? (data.accept || []).join(', ') : ''}"></div>`;
       row.appendChild(fields);
       const removeBtn = document.createElement('button');
       removeBtn.className = 'b-remove-btn'; removeBtn.type = 'button'; removeBtn.textContent = '✕';

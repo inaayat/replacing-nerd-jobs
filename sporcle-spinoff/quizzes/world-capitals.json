@@ -6,23 +6,1210 @@
   "timeLimitSec": 180,
   "prompt": "Type a capital city…",
   "layout": "table",
-  "columns": [{ "key": "clue", "label": "Country" }],
+  "columns": [
+    {
+      "key": "clue",
+      "label": "Country"
+    }
+  ],
   "answerLabel": "Capital",
   "items": [
-    { "accept": ["paris"], "clue": "France", "display": "France — Paris" },
-    { "accept": ["tokyo"], "clue": "Japan", "display": "Japan — Tokyo" },
-    { "accept": ["cairo"], "clue": "Egypt", "display": "Egypt — Cairo" },
-    { "accept": ["canberra"], "clue": "Australia", "display": "Australia — Canberra" },
-    { "accept": ["ottawa"], "clue": "Canada", "display": "Canada — Ottawa" },
-    { "accept": ["brasilia"], "clue": "Brazil", "display": "Brazil — Brasília" },
-    { "accept": ["moscow"], "clue": "Russia", "display": "Russia — Moscow" },
-    { "accept": ["berlin"], "clue": "Germany", "display": "Germany — Berlin" },
-    { "accept": ["madrid"], "clue": "Spain", "display": "Spain — Madrid" },
-    { "accept": ["rome"], "clue": "Italy", "display": "Italy — Rome" },
-    { "accept": ["beijing", "peking"], "clue": "China", "display": "China — Beijing" },
-    { "accept": ["new delhi", "delhi"], "clue": "India", "display": "India — New Delhi" },
-    { "accept": ["mexico city"], "clue": "Mexico", "display": "Mexico — Mexico City" },
-    { "accept": ["seoul"], "clue": "South Korea", "display": "South Korea — Seoul" },
-    { "accept": ["ankara"], "clue": "Turkey", "display": "Turkey — Ankara" }
+    {
+      "accept": [
+        "kabul"
+      ],
+      "clue": "Afghanistan"
+    },
+    {
+      "accept": [
+        "tirana"
+      ],
+      "clue": "Albania"
+    },
+    {
+      "accept": [
+        "algiers"
+      ],
+      "clue": "Algeria"
+    },
+    {
+      "accept": [
+        "andorra la vella"
+      ],
+      "clue": "Andorra"
+    },
+    {
+      "accept": [
+        "luanda"
+      ],
+      "clue": "Angola"
+    },
+    {
+      "accept": [
+        "saint john's"
+      ],
+      "clue": "Antigua and Barbuda"
+    },
+    {
+      "accept": [
+        "buenos aires"
+      ],
+      "clue": "Argentina"
+    },
+    {
+      "accept": [
+        "yerevan"
+      ],
+      "clue": "Armenia"
+    },
+    {
+      "accept": [
+        "canberra"
+      ],
+      "clue": "Australia"
+    },
+    {
+      "accept": [
+        "vienna"
+      ],
+      "clue": "Austria"
+    },
+    {
+      "accept": [
+        "baku"
+      ],
+      "clue": "Azerbaijan"
+    },
+    {
+      "accept": [
+        "nassau"
+      ],
+      "clue": "Bahamas"
+    },
+    {
+      "accept": [
+        "manama"
+      ],
+      "clue": "Bahrain"
+    },
+    {
+      "accept": [
+        "dhaka"
+      ],
+      "clue": "Bangladesh"
+    },
+    {
+      "accept": [
+        "bridgetown"
+      ],
+      "clue": "Barbados"
+    },
+    {
+      "accept": [
+        "minsk"
+      ],
+      "clue": "Belarus"
+    },
+    {
+      "accept": [
+        "brussels"
+      ],
+      "clue": "Belgium"
+    },
+    {
+      "accept": [
+        "belmopan"
+      ],
+      "clue": "Belize"
+    },
+    {
+      "accept": [
+        "porto-novo",
+        "cotonou"
+      ],
+      "clue": "Benin"
+    },
+    {
+      "accept": [
+        "thimphu"
+      ],
+      "clue": "Bhutan"
+    },
+    {
+      "accept": [
+        "sucre",
+        "la paz"
+      ],
+      "clue": "Bolivia"
+    },
+    {
+      "accept": [
+        "sarajevo"
+      ],
+      "clue": "Bosnia and Herzegovina"
+    },
+    {
+      "accept": [
+        "gaborone"
+      ],
+      "clue": "Botswana"
+    },
+    {
+      "accept": [
+        "brasília",
+        "brasilia"
+      ],
+      "clue": "Brazil"
+    },
+    {
+      "accept": [
+        "bandar seri begawan"
+      ],
+      "clue": "Brunei"
+    },
+    {
+      "accept": [
+        "sofia"
+      ],
+      "clue": "Bulgaria"
+    },
+    {
+      "accept": [
+        "ouagadougou"
+      ],
+      "clue": "Burkina Faso"
+    },
+    {
+      "accept": [
+        "gitega",
+        "bujumbura"
+      ],
+      "clue": "Burundi"
+    },
+    {
+      "accept": [
+        "praia"
+      ],
+      "clue": "Cabo Verde"
+    },
+    {
+      "accept": [
+        "phnom penh"
+      ],
+      "clue": "Cambodia"
+    },
+    {
+      "accept": [
+        "yaoundé",
+        "yaounde"
+      ],
+      "clue": "Cameroon"
+    },
+    {
+      "accept": [
+        "ottawa"
+      ],
+      "clue": "Canada"
+    },
+    {
+      "accept": [
+        "bangui"
+      ],
+      "clue": "Central African Republic"
+    },
+    {
+      "accept": [
+        "n'djamena",
+        "ndjamena"
+      ],
+      "clue": "Chad"
+    },
+    {
+      "accept": [
+        "santiago"
+      ],
+      "clue": "Chile"
+    },
+    {
+      "accept": [
+        "beijing",
+        "peking"
+      ],
+      "clue": "China"
+    },
+    {
+      "accept": [
+        "bogotá",
+        "bogota"
+      ],
+      "clue": "Colombia"
+    },
+    {
+      "accept": [
+        "moroni"
+      ],
+      "clue": "Comoros"
+    },
+    {
+      "accept": [
+        "san josé",
+        "san jose"
+      ],
+      "clue": "Costa Rica"
+    },
+    {
+      "accept": [
+        "zagreb"
+      ],
+      "clue": "Croatia"
+    },
+    {
+      "accept": [
+        "havana"
+      ],
+      "clue": "Cuba"
+    },
+    {
+      "accept": [
+        "nicosia"
+      ],
+      "clue": "Cyprus"
+    },
+    {
+      "accept": [
+        "prague"
+      ],
+      "clue": "Czechia"
+    },
+    {
+      "accept": [
+        "kinshasa"
+      ],
+      "clue": "Democratic Republic of the Congo"
+    },
+    {
+      "accept": [
+        "copenhagen"
+      ],
+      "clue": "Denmark"
+    },
+    {
+      "accept": [
+        "djibouti"
+      ],
+      "clue": "Djibouti"
+    },
+    {
+      "accept": [
+        "roseau"
+      ],
+      "clue": "Dominica"
+    },
+    {
+      "accept": [
+        "santo domingo"
+      ],
+      "clue": "Dominican Republic"
+    },
+    {
+      "accept": [
+        "quito"
+      ],
+      "clue": "Ecuador"
+    },
+    {
+      "accept": [
+        "cairo"
+      ],
+      "clue": "Egypt"
+    },
+    {
+      "accept": [
+        "san salvador"
+      ],
+      "clue": "El Salvador"
+    },
+    {
+      "accept": [
+        "malabo"
+      ],
+      "clue": "Equatorial Guinea"
+    },
+    {
+      "accept": [
+        "asmara"
+      ],
+      "clue": "Eritrea"
+    },
+    {
+      "accept": [
+        "tallinn"
+      ],
+      "clue": "Estonia"
+    },
+    {
+      "accept": [
+        "mbabane"
+      ],
+      "clue": "Eswatini"
+    },
+    {
+      "accept": [
+        "addis ababa"
+      ],
+      "clue": "Ethiopia"
+    },
+    {
+      "accept": [
+        "suva"
+      ],
+      "clue": "Fiji"
+    },
+    {
+      "accept": [
+        "helsinki"
+      ],
+      "clue": "Finland"
+    },
+    {
+      "accept": [
+        "paris"
+      ],
+      "clue": "France"
+    },
+    {
+      "accept": [
+        "libreville"
+      ],
+      "clue": "Gabon"
+    },
+    {
+      "accept": [
+        "banjul"
+      ],
+      "clue": "Gambia"
+    },
+    {
+      "accept": [
+        "tbilisi"
+      ],
+      "clue": "Georgia"
+    },
+    {
+      "accept": [
+        "berlin"
+      ],
+      "clue": "Germany"
+    },
+    {
+      "accept": [
+        "accra"
+      ],
+      "clue": "Ghana"
+    },
+    {
+      "accept": [
+        "athens"
+      ],
+      "clue": "Greece"
+    },
+    {
+      "accept": [
+        "saint george's"
+      ],
+      "clue": "Grenada"
+    },
+    {
+      "accept": [
+        "guatemala city"
+      ],
+      "clue": "Guatemala"
+    },
+    {
+      "accept": [
+        "conakry"
+      ],
+      "clue": "Guinea"
+    },
+    {
+      "accept": [
+        "bissau"
+      ],
+      "clue": "Guinea-Bissau"
+    },
+    {
+      "accept": [
+        "georgetown"
+      ],
+      "clue": "Guyana"
+    },
+    {
+      "accept": [
+        "port-au-prince"
+      ],
+      "clue": "Haiti"
+    },
+    {
+      "accept": [
+        "vatican city"
+      ],
+      "clue": "Holy See"
+    },
+    {
+      "accept": [
+        "tegucigalpa"
+      ],
+      "clue": "Honduras"
+    },
+    {
+      "accept": [
+        "budapest"
+      ],
+      "clue": "Hungary"
+    },
+    {
+      "accept": [
+        "reykjavik"
+      ],
+      "clue": "Iceland"
+    },
+    {
+      "accept": [
+        "new delhi",
+        "delhi"
+      ],
+      "clue": "India"
+    },
+    {
+      "accept": [
+        "jakarta"
+      ],
+      "clue": "Indonesia"
+    },
+    {
+      "accept": [
+        "tehran"
+      ],
+      "clue": "Iran"
+    },
+    {
+      "accept": [
+        "baghdad"
+      ],
+      "clue": "Iraq"
+    },
+    {
+      "accept": [
+        "dublin"
+      ],
+      "clue": "Ireland"
+    },
+    {
+      "accept": [
+        "jerusalem"
+      ],
+      "clue": "Israel"
+    },
+    {
+      "accept": [
+        "rome"
+      ],
+      "clue": "Italy"
+    },
+    {
+      "accept": [
+        "yamoussoukro",
+        "abidjan"
+      ],
+      "clue": "Ivory Coast"
+    },
+    {
+      "accept": [
+        "kingston"
+      ],
+      "clue": "Jamaica"
+    },
+    {
+      "accept": [
+        "tokyo"
+      ],
+      "clue": "Japan"
+    },
+    {
+      "accept": [
+        "amman"
+      ],
+      "clue": "Jordan"
+    },
+    {
+      "accept": [
+        "astana"
+      ],
+      "clue": "Kazakhstan"
+    },
+    {
+      "accept": [
+        "nairobi"
+      ],
+      "clue": "Kenya"
+    },
+    {
+      "accept": [
+        "tarawa",
+        "south tarawa"
+      ],
+      "clue": "Kiribati"
+    },
+    {
+      "accept": [
+        "kuwait city"
+      ],
+      "clue": "Kuwait"
+    },
+    {
+      "accept": [
+        "bishkek"
+      ],
+      "clue": "Kyrgyzstan"
+    },
+    {
+      "accept": [
+        "vientiane"
+      ],
+      "clue": "Laos"
+    },
+    {
+      "accept": [
+        "riga"
+      ],
+      "clue": "Latvia"
+    },
+    {
+      "accept": [
+        "beirut"
+      ],
+      "clue": "Lebanon"
+    },
+    {
+      "accept": [
+        "maseru"
+      ],
+      "clue": "Lesotho"
+    },
+    {
+      "accept": [
+        "monrovia"
+      ],
+      "clue": "Liberia"
+    },
+    {
+      "accept": [
+        "tripoli"
+      ],
+      "clue": "Libya"
+    },
+    {
+      "accept": [
+        "vaduz"
+      ],
+      "clue": "Liechtenstein"
+    },
+    {
+      "accept": [
+        "vilnius"
+      ],
+      "clue": "Lithuania"
+    },
+    {
+      "accept": [
+        "luxembourg city",
+        "luxembourg"
+      ],
+      "clue": "Luxembourg"
+    },
+    {
+      "accept": [
+        "antananarivo"
+      ],
+      "clue": "Madagascar"
+    },
+    {
+      "accept": [
+        "lilongwe"
+      ],
+      "clue": "Malawi"
+    },
+    {
+      "accept": [
+        "kuala lumpur"
+      ],
+      "clue": "Malaysia"
+    },
+    {
+      "accept": [
+        "malé",
+        "male"
+      ],
+      "clue": "Maldives"
+    },
+    {
+      "accept": [
+        "bamako"
+      ],
+      "clue": "Mali"
+    },
+    {
+      "accept": [
+        "valletta"
+      ],
+      "clue": "Malta"
+    },
+    {
+      "accept": [
+        "majuro"
+      ],
+      "clue": "Marshall Islands"
+    },
+    {
+      "accept": [
+        "nouakchott"
+      ],
+      "clue": "Mauritania"
+    },
+    {
+      "accept": [
+        "port louis"
+      ],
+      "clue": "Mauritius"
+    },
+    {
+      "accept": [
+        "mexico city"
+      ],
+      "clue": "Mexico"
+    },
+    {
+      "accept": [
+        "palikir"
+      ],
+      "clue": "Micronesia"
+    },
+    {
+      "accept": [
+        "chișinău",
+        "chisinau"
+      ],
+      "clue": "Moldova"
+    },
+    {
+      "accept": [
+        "monaco"
+      ],
+      "clue": "Monaco"
+    },
+    {
+      "accept": [
+        "ulaanbaatar"
+      ],
+      "clue": "Mongolia"
+    },
+    {
+      "accept": [
+        "podgorica"
+      ],
+      "clue": "Montenegro"
+    },
+    {
+      "accept": [
+        "rabat"
+      ],
+      "clue": "Morocco"
+    },
+    {
+      "accept": [
+        "maputo"
+      ],
+      "clue": "Mozambique"
+    },
+    {
+      "accept": [
+        "naypyidaw"
+      ],
+      "clue": "Myanmar"
+    },
+    {
+      "accept": [
+        "windhoek"
+      ],
+      "clue": "Namibia"
+    },
+    {
+      "accept": [
+        "yaren"
+      ],
+      "clue": "Nauru"
+    },
+    {
+      "accept": [
+        "kathmandu"
+      ],
+      "clue": "Nepal"
+    },
+    {
+      "accept": [
+        "amsterdam"
+      ],
+      "clue": "Netherlands"
+    },
+    {
+      "accept": [
+        "wellington"
+      ],
+      "clue": "New Zealand"
+    },
+    {
+      "accept": [
+        "managua"
+      ],
+      "clue": "Nicaragua"
+    },
+    {
+      "accept": [
+        "niamey"
+      ],
+      "clue": "Niger"
+    },
+    {
+      "accept": [
+        "abuja"
+      ],
+      "clue": "Nigeria"
+    },
+    {
+      "accept": [
+        "pyongyang"
+      ],
+      "clue": "North Korea"
+    },
+    {
+      "accept": [
+        "skopje"
+      ],
+      "clue": "North Macedonia"
+    },
+    {
+      "accept": [
+        "oslo"
+      ],
+      "clue": "Norway"
+    },
+    {
+      "accept": [
+        "muscat"
+      ],
+      "clue": "Oman"
+    },
+    {
+      "accept": [
+        "islamabad"
+      ],
+      "clue": "Pakistan"
+    },
+    {
+      "accept": [
+        "ngerulmud"
+      ],
+      "clue": "Palau"
+    },
+    {
+      "accept": [
+        "ramallah"
+      ],
+      "clue": "Palestine"
+    },
+    {
+      "accept": [
+        "panama city"
+      ],
+      "clue": "Panama"
+    },
+    {
+      "accept": [
+        "port moresby"
+      ],
+      "clue": "Papua New Guinea"
+    },
+    {
+      "accept": [
+        "asunción",
+        "asuncion"
+      ],
+      "clue": "Paraguay"
+    },
+    {
+      "accept": [
+        "lima"
+      ],
+      "clue": "Peru"
+    },
+    {
+      "accept": [
+        "manila"
+      ],
+      "clue": "Philippines"
+    },
+    {
+      "accept": [
+        "warsaw"
+      ],
+      "clue": "Poland"
+    },
+    {
+      "accept": [
+        "lisbon"
+      ],
+      "clue": "Portugal"
+    },
+    {
+      "accept": [
+        "doha"
+      ],
+      "clue": "Qatar"
+    },
+    {
+      "accept": [
+        "brazzaville"
+      ],
+      "clue": "Republic of the Congo"
+    },
+    {
+      "accept": [
+        "bucharest"
+      ],
+      "clue": "Romania"
+    },
+    {
+      "accept": [
+        "moscow"
+      ],
+      "clue": "Russia"
+    },
+    {
+      "accept": [
+        "kigali"
+      ],
+      "clue": "Rwanda"
+    },
+    {
+      "accept": [
+        "basseterre"
+      ],
+      "clue": "Saint Kitts and Nevis"
+    },
+    {
+      "accept": [
+        "castries"
+      ],
+      "clue": "Saint Lucia"
+    },
+    {
+      "accept": [
+        "kingstown"
+      ],
+      "clue": "Saint Vincent and the Grenadines"
+    },
+    {
+      "accept": [
+        "apia"
+      ],
+      "clue": "Samoa"
+    },
+    {
+      "accept": [
+        "san marino"
+      ],
+      "clue": "San Marino"
+    },
+    {
+      "accept": [
+        "são tomé",
+        "sao tome"
+      ],
+      "clue": "São Tomé and Príncipe"
+    },
+    {
+      "accept": [
+        "riyadh"
+      ],
+      "clue": "Saudi Arabia"
+    },
+    {
+      "accept": [
+        "dakar"
+      ],
+      "clue": "Senegal"
+    },
+    {
+      "accept": [
+        "belgrade"
+      ],
+      "clue": "Serbia"
+    },
+    {
+      "accept": [
+        "victoria"
+      ],
+      "clue": "Seychelles"
+    },
+    {
+      "accept": [
+        "freetown"
+      ],
+      "clue": "Sierra Leone"
+    },
+    {
+      "accept": [
+        "singapore"
+      ],
+      "clue": "Singapore"
+    },
+    {
+      "accept": [
+        "bratislava"
+      ],
+      "clue": "Slovakia"
+    },
+    {
+      "accept": [
+        "ljubljana"
+      ],
+      "clue": "Slovenia"
+    },
+    {
+      "accept": [
+        "honiara"
+      ],
+      "clue": "Solomon Islands"
+    },
+    {
+      "accept": [
+        "mogadishu"
+      ],
+      "clue": "Somalia"
+    },
+    {
+      "accept": [
+        "pretoria",
+        "cape town",
+        "bloemfontein"
+      ],
+      "clue": "South Africa"
+    },
+    {
+      "accept": [
+        "seoul"
+      ],
+      "clue": "South Korea"
+    },
+    {
+      "accept": [
+        "juba"
+      ],
+      "clue": "South Sudan"
+    },
+    {
+      "accept": [
+        "madrid"
+      ],
+      "clue": "Spain"
+    },
+    {
+      "accept": [
+        "sri jayawardenepura kotte",
+        "colombo"
+      ],
+      "clue": "Sri Lanka"
+    },
+    {
+      "accept": [
+        "khartoum"
+      ],
+      "clue": "Sudan"
+    },
+    {
+      "accept": [
+        "paramaribo"
+      ],
+      "clue": "Suriname"
+    },
+    {
+      "accept": [
+        "stockholm"
+      ],
+      "clue": "Sweden"
+    },
+    {
+      "accept": [
+        "bern"
+      ],
+      "clue": "Switzerland"
+    },
+    {
+      "accept": [
+        "damascus"
+      ],
+      "clue": "Syria"
+    },
+    {
+      "accept": [
+        "dushanbe"
+      ],
+      "clue": "Tajikistan"
+    },
+    {
+      "accept": [
+        "dodoma",
+        "dar es salaam"
+      ],
+      "clue": "Tanzania"
+    },
+    {
+      "accept": [
+        "bangkok"
+      ],
+      "clue": "Thailand"
+    },
+    {
+      "accept": [
+        "dili"
+      ],
+      "clue": "Timor-Leste"
+    },
+    {
+      "accept": [
+        "lomé",
+        "lome"
+      ],
+      "clue": "Togo"
+    },
+    {
+      "accept": [
+        "nuku'alofa",
+        "nukualofa"
+      ],
+      "clue": "Tonga"
+    },
+    {
+      "accept": [
+        "port of spain"
+      ],
+      "clue": "Trinidad and Tobago"
+    },
+    {
+      "accept": [
+        "tunis"
+      ],
+      "clue": "Tunisia"
+    },
+    {
+      "accept": [
+        "ankara"
+      ],
+      "clue": "Turkey"
+    },
+    {
+      "accept": [
+        "ashgabat"
+      ],
+      "clue": "Turkmenistan"
+    },
+    {
+      "accept": [
+        "funafuti"
+      ],
+      "clue": "Tuvalu"
+    },
+    {
+      "accept": [
+        "kampala"
+      ],
+      "clue": "Uganda"
+    },
+    {
+      "accept": [
+        "kyiv",
+        "kiev"
+      ],
+      "clue": "Ukraine"
+    },
+    {
+      "accept": [
+        "abu dhabi"
+      ],
+      "clue": "United Arab Emirates"
+    },
+    {
+      "accept": [
+        "london"
+      ],
+      "clue": "United Kingdom"
+    },
+    {
+      "accept": [
+        "washington, d.c.",
+        "washington dc",
+        "washington"
+      ],
+      "clue": "United States"
+    },
+    {
+      "accept": [
+        "montevideo"
+      ],
+      "clue": "Uruguay"
+    },
+    {
+      "accept": [
+        "tashkent"
+      ],
+      "clue": "Uzbekistan"
+    },
+    {
+      "accept": [
+        "port vila"
+      ],
+      "clue": "Vanuatu"
+    },
+    {
+      "accept": [
+        "caracas"
+      ],
+      "clue": "Venezuela"
+    },
+    {
+      "accept": [
+        "hanoi"
+      ],
+      "clue": "Vietnam"
+    },
+    {
+      "accept": [
+        "sana'a",
+        "sanaa"
+      ],
+      "clue": "Yemen"
+    },
+    {
+      "accept": [
+        "lusaka"
+      ],
+      "clue": "Zambia"
+    },
+    {
+      "accept": [
+        "harare"
+      ],
+      "clue": "Zimbabwe"
+    }
   ]
 }
