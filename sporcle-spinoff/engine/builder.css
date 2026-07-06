@@ -1,6 +1,6 @@
 /* Quiz builder — slim/dense chrome, layered on top of quiz.css tokens. */
 .b-wrap { max-width: 820px; margin: 0 auto; padding: 20px 16px 80px; }
-.b-h1 { font-size: 22px; font-weight: 800; color: var(--navy); margin: 4px 0 18px; }
+.b-h1 { font-size: 22px; font-weight: 800; color: var(--navy); margin: 4px 0 18px; font-family: 'DM Mono', monospace; }
 
 .b-step { margin-bottom: 26px; }
 .b-step-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
