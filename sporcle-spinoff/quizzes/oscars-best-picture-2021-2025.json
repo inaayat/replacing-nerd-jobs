@@ -3,6 +3,7 @@
   "title": "Best Picture Nominees (2021–2025 Oscars)",
   "type": "text-entry",
   "blurb": "Type all Best Picture nominees from the Oscars 2021–2025. Include film titles only.",
+  "tags": ["Pop Culture", "Movies"],
   "timeLimitSec": 600,
   "prompt": "Type a Best Picture nominee…",
   "items": [

@@ -3,6 +3,7 @@
   "title": "2010s Pop Culture",
   "type": "text-entry",
   "blurb": "Answer these 50 easy-to-medium 2010s pop culture trivia questions before time runs out.",
+  "tags": ["Pop Culture"],
   "timeLimitSec": 900,
   "prompt": "Type your answer…",
   "layout": "table",

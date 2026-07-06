@@ -3,6 +3,7 @@
   "title": "World Capitals",
   "type": "text-entry",
   "blurb": "Type each country's capital city before time runs out.",
+  "tags": ["Geography"],
   "timeLimitSec": 180,
   "prompt": "Type a capital city…",
   "layout": "table",

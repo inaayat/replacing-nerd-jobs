@@ -41,7 +41,10 @@ served at [inaayat.xyz](https://inaayat.xyz).
 ├── api/                        ← serverless functions (Vercel)
 │   ├── login.js
 │   ├── logout.js
-│   └── football.js
+│   ├── football.js
+│   └── save-quiz.js            ← publish/submit-for-review for Sporcle Spinoff
+│
+├── sporcle-spinoff/            ← trivia quiz platform (see below)
 │
 ├── private/                    ← auth-gated section
 │   └── gddy-statements/
@@ -69,6 +72,34 @@ served at [inaayat.xyz](https://inaayat.xyz).
 1. `cp _template.html my-project/index.html`
 2. link it from the main sidebar in `index.html`
 3. `git push` — Vercel redeploys automatically, no build step
+
+## sporcle spinoff
+
+trivia quiz platform at [inaayat.xyz/sporcle-spinoff](https://inaayat.xyz/sporcle-spinoff). One shared engine, one renderer module per interaction type, everything driven by JSON — adding a quiz never requires new code.
+
+**quiz types:** multiple-choice, text-entry (fill-in-the-blank / "name all N" completionist mode), image, matching, ranking, map (click a region), map-highlight (name the highlighted region).
+
+**adding a quiz:**
+- via the builder (`/sporcle-spinoff/builder.html`) — pick a template, fill in questions and optional tags, then publish (site owner) or submit for review, which opens a GitHub PR (`api/save-quiz.js`)
+- by hand — add `sporcle-spinoff/quizzes/<id>.json` plus a matching entry in `quizzes/index.json`, then open a PR
+
+**tags:** freeform, comma-separated (e.g. `"tags": ["Geography", "Pop Culture"]`), searchable from the catalog's search bar. Anyone can suggest a tag straight from a quiz's page ("+ suggest a tag") — same publish/PR-review duality as adding a quiz, but as a small surgical patch rather than a full quiz rewrite.
+
+```
+sporcle-spinoff/
+├── index.html          ← catalog: search bar + quizzes grouped by type
+├── play.html            ← generic quiz player shell
+├── builder.html           ← quiz creation form
+├── engine/
+│   ├── engine.js            ← player: start screen, HUD, timer, score, results
+│   ├── builder.js             ← builder logic (template picker, publish/submit)
+│   ├── normalize.js             ← typed-answer matching (accents/punctuation-insensitive)
+│   ├── types/*.js                ← one player-side renderer per quiz type
+│   └── editors/*.js               ← one builder-side editor per quiz type
+└── quizzes/
+    ├── index.json                 ← catalog manifest (id/title/type/blurb/tags)
+    └── <id>.json                  ← one full quiz per file
+```
 
 ## deploy
 

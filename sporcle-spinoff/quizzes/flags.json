@@ -3,6 +3,7 @@
   "title": "Flags of the World",
   "type": "image",
   "blurb": "Identify every country in the world from its flag.",
+  "tags": ["Geography"],
   "timeLimitSec": 2340,
   "prompt": "Country…",
   "items": [

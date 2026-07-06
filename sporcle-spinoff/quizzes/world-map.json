@@ -4,6 +4,7 @@
   "type": "map",
   "region": "world",
   "blurb": "Click each country on the map before time runs out.",
+  "tags": ["Geography"],
   "timeLimitSec": 120,
   "items": [
     { "regionId": "US" },

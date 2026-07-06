@@ -3,6 +3,7 @@
   "title": "Name All 50 US States",
   "type": "text-entry",
   "blurb": "Type as many states as you can remember. No clues — you're on your own.",
+  "tags": ["Geography"],
   "timeLimitSec": 600,
   "prompt": "Type a state…",
   "items": [
