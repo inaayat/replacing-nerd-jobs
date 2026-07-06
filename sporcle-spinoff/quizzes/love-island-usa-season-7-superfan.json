@@ -1,0 +1,48 @@
+{
+  "id": "love-island-usa-season-7-superfan",
+  "title": "Love Island USA Season 7 Superfan Trivia",
+  "type": "text-entry",
+  "blurb": "Answer these Season 7 superfan questions before time runs out.",
+  "timeLimitSec": 600,
+  "prompt": "Type your answer…",
+  "layout": "table",
+  "columns": [
+    {
+      "key": "clue",
+      "label": "Question"
+    }
+  ],
+  "answerLabel": "Answer",
+  "items": [
+    { "accept": ["ariana"], "clue": "Who hosted Love Island USA Season 7?" },
+    { "accept": ["iain"], "clue": "Who narrated Love Island USA Season 7?" },
+    { "accept": ["fiji"], "clue": "What country was Season 7 filmed in?" },
+    { "accept": ["casa amor"], "clue": "What is the name of the second villa twist?" },
+    { "accept": ["hideaway"], "clue": "What is the name of the private room for couples?" },
+    { "accept": ["ace"], "clue": "Which original male Islander was known for saying 'Beep Beep Boop Boop'?" },
+    { "accept": ["huda"], "clue": "Which original female Islander was first coupled up with Jeremiah?" },
+    { "accept": ["jeremiah"], "clue": "Who was Huda's original partner?" },
+    { "accept": ["charlie"], "clue": "Who was the first male bombshell?" },
+    { "accept": ["cierra"], "clue": "Which female bombshell entered alongside Charlie?" },
+    { "accept": ["iris"], "clue": "Which female bombshell entered with Jalen and Pepe?" },
+    { "accept": ["jalen"], "clue": "Which male bombshell entered alongside Iris and Pepe?" },
+    { "accept": ["pepe"], "clue": "Which bombshell shares a nickname with a famous cartoon frog?" },
+    { "accept": ["andreina"], "clue": "Which female bombshell entered alongside TJ?" },
+    { "accept": ["tj"], "clue": "Which male bombshell entered alongside Andreina?" },
+    { "accept": ["amaya"], "clue": "Which Casa Amor woman went on to win the season?" },
+    { "accept": ["bryan"], "clue": "Which Casa Amor man won the season?" },
+    { "accept": ["nic"], "clue": "Which original male Islander finished runner-up with Olandria?" },
+    { "accept": ["olandria"], "clue": "Who finished runner-up with Nic?" },
+    { "accept": ["chelley"], "clue": "Which original female Islander is from Orlando, Florida?" },
+    { "accept": ["austin"], "clue": "Which original male Islander shares his name with the capital of Texas?" },
+    { "accept": ["taylor"], "clue": "Which original male Islander shares his first name with a famous pop superstar?" },
+    { "accept": ["belle-a", "belle"], "clue": "Which original female Islander has a hyphenated first name?" },
+    { "accept": ["yulissa"], "clue": "Which original Islander left the villa after only a couple of episodes?" },
+    { "accept": ["clarke"], "clue": "Which Casa Amor woman has the last name Carraway?" },
+    { "accept": ["coco"], "clue": "Which Casa Amor woman shares her name with a Disney/Pixar movie?" },
+    { "accept": ["gracyn"], "clue": "Which Casa Amor woman has a uniquely spelled version of the name Grayson?" },
+    { "accept": ["vanna"], "clue": "Which Casa Amor woman shares a first name with Wheel of Fortune's longtime co-host?" },
+    { "accept": ["zac"], "clue": "Which Casa Amor man spells his name without a 'k'?" },
+    { "accept": ["elan"], "clue": "Which Casa Amor man shares his first name with the French word for enthusiasm?" }
+  ]
+}
