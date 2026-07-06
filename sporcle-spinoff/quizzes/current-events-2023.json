@@ -1,0 +1,59 @@
+{
+  "id": "current-events-2023",
+  "title": "2023 Current Events",
+  "type": "text-entry",
+  "blurb": "10 questions on the biggest headlines of 2023.",
+  "tags": ["Current Events"],
+  "timeLimitSec": 240,
+  "prompt": "Type your answer…",
+  "layout": "table",
+  "columns": [
+    {
+      "key": "clue",
+      "label": "Question"
+    }
+  ],
+  "answerLabel": "Answer",
+  "items": [
+    {
+      "clue": "Which AI chatbot became one of the fastest-growing consumer applications in history?",
+      "accept": ["ChatGPT", "Chat GPT"]
+    },
+    {
+      "clue": "Which private submersible imploded during a voyage to the Titanic wreck?",
+      "accept": ["Titan", "Titan submersible"]
+    },
+    {
+      "clue": "Which group launched a surprise attack on Israel on October 7, 2023?",
+      "accept": ["Hamas"]
+    },
+    {
+      "clue": "Which country became the first to land a spacecraft near the Moon's south pole?",
+      "accept": ["India"]
+    },
+    {
+      "clue": "Which banking crisis led to the collapse of Silicon Valley Bank?",
+      "accept": ["Silicon Valley Bank", "SVB", "The SVB collapse", "Banking crisis", "The banking crisis"]
+    },
+    {
+      "clue": "Which city hosted the 2023 G20 Summit?",
+      "accept": ["New Delhi", "Delhi"]
+    },
+    {
+      "clue": "Which movie earned over $1 billion worldwide and inspired the term \"Barbenheimer\"?",
+      "accept": ["Barbie"]
+    },
+    {
+      "clue": "Which biographical film about the creator of the atomic bomb was released alongside Barbie?",
+      "accept": ["Oppenheimer"]
+    },
+    {
+      "clue": "Which social media platform, launched by Meta, was introduced as a competitor to X (formerly Twitter)?",
+      "accept": ["Threads"]
+    },
+    {
+      "clue": "Which country successfully hosted the FIFA Women's World Cup alongside New Zealand?",
+      "accept": ["Australia"]
+    }
+  ]
+}

@@ -97,5 +97,40 @@
     "blurb": "Original cast only, no bombshells",
     "tags": ["Pop Culture", "Reality TV"],
     "submitted": true
+  },
+  {
+    "id": "current-events-2020",
+    "title": "2020 Current Events",
+    "type": "text-entry",
+    "blurb": "10 questions on the biggest headlines of 2020.",
+    "tags": ["Current Events"]
+  },
+  {
+    "id": "current-events-2021",
+    "title": "2021 Current Events",
+    "type": "text-entry",
+    "blurb": "10 questions on the biggest headlines of 2021.",
+    "tags": ["Current Events"]
+  },
+  {
+    "id": "current-events-2022",
+    "title": "2022 Current Events",
+    "type": "text-entry",
+    "blurb": "10 questions on the biggest headlines of 2022.",
+    "tags": ["Current Events"]
+  },
+  {
+    "id": "current-events-2023",
+    "title": "2023 Current Events",
+    "type": "text-entry",
+    "blurb": "10 questions on the biggest headlines of 2023.",
+    "tags": ["Current Events"]
+  },
+  {
+    "id": "current-events-2024",
+    "title": "2024 Current Events",
+    "type": "text-entry",
+    "blurb": "10 questions on the biggest headlines of 2024.",
+    "tags": ["Current Events"]
   }
 ]
