@@ -1,0 +1,55 @@
+{
+  "id": "rank-highest-grossing-movies-2000s",
+  "title": "Highest-Grossing Movies of the 2000s",
+  "type": "ranking",
+  "blurb": "Put these movies in order from highest to lowest worldwide box office gross. The grosses reveal at the end.",
+  "tags": [
+    "Movies",
+    "Box Office",
+    "2000s"
+  ],
+  "valueLabel": "Worldwide Gross",
+  "items": [
+    {
+      "label": "The Dark Knight",
+      "value": "$1.01B"
+    },
+    {
+      "label": "Pirates of the Caribbean: Dead Man's Chest",
+      "value": "$1.07B"
+    },
+    {
+      "label": "Harry Potter and the Sorcerer's Stone",
+      "value": "$1.03B"
+    },
+    {
+      "label": "Avatar",
+      "value": "$2.92B"
+    },
+    {
+      "label": "The Lord of the Rings: The Return of the King",
+      "value": "$1.15B"
+    },
+    {
+      "label": "Alice in Wonderland",
+      "value": "$1.03B"
+    },
+    {
+      "label": "Pirates of the Caribbean: At World's End",
+      "value": "$962M"
+    },
+    {
+      "label": "Harry Potter and the Order of the Phoenix",
+      "value": "$942M"
+    },
+    {
+      "label": "Harry Potter and the Half-Blood Prince",
+      "value": "$934M"
+    },
+    {
+      "label": "The Lord of the Rings: The Two Towers",
+      "value": "$948M"
+    }
+  ],
+  "shuffle": true
+}
