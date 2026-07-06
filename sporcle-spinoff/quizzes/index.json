@@ -198,5 +198,17 @@
       "World Events"
     ],
     "submitted": true
+  },
+  {
+    "id": "rank-highest-grossing-movies-2000s",
+    "title": "Highest-Grossing Movies of the 2000s",
+    "type": "ranking",
+    "blurb": "Put these movies in order from highest to lowest worldwide box office gross. The grosses reveal at the end.",
+    "tags": [
+      "Movies",
+      "Box Office",
+      "2000s"
+    ],
+    "submitted": true
   }
 ]
