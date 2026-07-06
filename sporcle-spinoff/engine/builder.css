@@ -55,6 +55,14 @@
   font-size: 12px; font-weight: 700; color: var(--gray);
 }
 
+.b-map-hint { font-size: 11px; font-weight: 700; color: var(--gray); margin-bottom: 6px; }
+.b-chip-list { display: flex; flex-wrap: wrap; gap: 5px; min-height: 24px; }
+.b-chip {
+  display: inline-flex; align-items: center; gap: 4px; background: #f0fdf4; color: #14532d;
+  border: 1px solid var(--green); border-radius: 99px; padding: 3px 5px 3px 10px; font-size: 11px; font-weight: 700;
+}
+.b-chip button { border: none; background: transparent; color: inherit; cursor: pointer; font-size: 12px; line-height: 1; padding: 1px 4px; }
+
 .b-add-row-btn {
   display: inline-flex; align-items: center; gap: 6px; font-weight: 800; font-size: 11.5px; cursor: pointer;
   border: 1.5px dashed var(--lgray); border-radius: 6px; padding: 6px 10px; background: transparent; color: var(--navy);

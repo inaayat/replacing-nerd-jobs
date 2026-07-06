@@ -48,7 +48,7 @@
 
     <script>
       // Fixed display order; only types with at least one quiz get a section.
-      const TYPE_ORDER = ['text-entry', 'multiple-choice', 'image', 'matching', 'ranking', 'map'];
+      const TYPE_ORDER = ['text-entry', 'multiple-choice', 'image', 'matching', 'ranking', 'map', 'map-highlight'];
       const TYPE_LABELS = {
         'text-entry': 'Type the Answer',
         'multiple-choice': 'Multiple Choice',
@@ -56,6 +56,7 @@
         matching: 'Matching',
         ranking: 'Put in Order',
         map: 'Click the Map',
+        'map-highlight': 'Name the Highlight',
       };
 
       function cardHtml(q) {

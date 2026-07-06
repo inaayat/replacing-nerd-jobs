@@ -1,0 +1,162 @@
+{
+  "id": "us-states-highlight",
+  "title": "Name the Highlighted State",
+  "type": "map-highlight",
+  "region": "usaLow",
+  "blurb": "A state lights up \u2014 type its name. All 50, in a random order every time.",
+  "timeLimitSec": 480,
+  "shuffle": true,
+  "prompt": "Which state is highlighted?",
+  "items": [
+    {
+      "regionId": "US-AL"
+    },
+    {
+      "regionId": "US-AK"
+    },
+    {
+      "regionId": "US-AZ"
+    },
+    {
+      "regionId": "US-AR"
+    },
+    {
+      "regionId": "US-CA"
+    },
+    {
+      "regionId": "US-CO"
+    },
+    {
+      "regionId": "US-CT"
+    },
+    {
+      "regionId": "US-DE"
+    },
+    {
+      "regionId": "US-FL"
+    },
+    {
+      "regionId": "US-GA"
+    },
+    {
+      "regionId": "US-HI"
+    },
+    {
+      "regionId": "US-ID"
+    },
+    {
+      "regionId": "US-IL"
+    },
+    {
+      "regionId": "US-IN"
+    },
+    {
+      "regionId": "US-IA"
+    },
+    {
+      "regionId": "US-KS"
+    },
+    {
+      "regionId": "US-KY"
+    },
+    {
+      "regionId": "US-LA"
+    },
+    {
+      "regionId": "US-ME"
+    },
+    {
+      "regionId": "US-MD"
+    },
+    {
+      "regionId": "US-MA"
+    },
+    {
+      "regionId": "US-MI"
+    },
+    {
+      "regionId": "US-MN"
+    },
+    {
+      "regionId": "US-MS"
+    },
+    {
+      "regionId": "US-MO"
+    },
+    {
+      "regionId": "US-MT"
+    },
+    {
+      "regionId": "US-NE"
+    },
+    {
+      "regionId": "US-NV"
+    },
+    {
+      "regionId": "US-NH"
+    },
+    {
+      "regionId": "US-NJ"
+    },
+    {
+      "regionId": "US-NM"
+    },
+    {
+      "regionId": "US-NY"
+    },
+    {
+      "regionId": "US-NC"
+    },
+    {
+      "regionId": "US-ND"
+    },
+    {
+      "regionId": "US-OH"
+    },
+    {
+      "regionId": "US-OK"
+    },
+    {
+      "regionId": "US-OR"
+    },
+    {
+      "regionId": "US-PA"
+    },
+    {
+      "regionId": "US-RI"
+    },
+    {
+      "regionId": "US-SC"
+    },
+    {
+      "regionId": "US-SD"
+    },
+    {
+      "regionId": "US-TN"
+    },
+    {
+      "regionId": "US-TX"
+    },
+    {
+      "regionId": "US-UT"
+    },
+    {
+      "regionId": "US-VT"
+    },
+    {
+      "regionId": "US-VA"
+    },
+    {
+      "regionId": "US-WA"
+    },
+    {
+      "regionId": "US-WV"
+    },
+    {
+      "regionId": "US-WI"
+    },
+    {
+      "regionId": "US-WY"
+    }
+  ]
+}

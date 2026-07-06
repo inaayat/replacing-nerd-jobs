@@ -1,7 +1,10 @@
 import { isAuthed } from './lib/auth.js';
 
+// The quiz builder page is intentionally public: publishing directly is
+// still owner-only (api/save-quiz.js checks the auth cookie per-request),
+// while anyone can submit a quiz for review.
 export const config = {
-  matcher: ['/private/:path*', '/sporcle-spinoff/builder.html'],
+  matcher: '/private/:path*',
 };
 
 function loginPage(error, returnTo) {

@@ -17,9 +17,9 @@ function gh(path, options = {}) {
   });
 }
 
-// Returns { sha, json } for an existing JSON file, or null if it doesn't exist yet.
-async function getJsonFile(path) {
-  const res = await gh(`/contents/${path}?ref=${BRANCH}`);
+// Returns { sha, json } for an existing JSON file, or null if it doesn't exist.
+async function getJsonFile(path, ref = BRANCH) {
+  const res = await gh(`/contents/${path}?ref=${ref}`);
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`);
   const data = await res.json();
@@ -27,16 +27,44 @@ async function getJsonFile(path) {
   return { sha: data.sha, json: JSON.parse(content) };
 }
 
-async function putJsonFile(path, json, sha, message) {
+async function putJsonFile(path, json, sha, message, branch = BRANCH) {
   const content = Buffer.from(JSON.stringify(json, null, 2) + '\n', 'utf-8').toString('base64');
   const res = await gh(`/contents/${path}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message, content, branch: BRANCH, ...(sha ? { sha } : {}) }),
+    body: JSON.stringify({ message, content, branch, ...(sha ? { sha } : {}) }),
   });
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`PUT ${path} failed: ${res.status} ${body}`);
+  }
+  return res.json();
+}
+
+async function createBranch(name) {
+  const refRes = await gh(`/git/ref/heads/${BRANCH}`);
+  if (!refRes.ok) throw new Error(`Could not read ${BRANCH} ref: ${refRes.status}`);
+  const { object } = await refRes.json();
+  const res = await gh('/git/refs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ref: `refs/heads/${name}`, sha: object.sha }),
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Creating branch failed: ${res.status} ${body}`);
+  }
+}
+
+async function openPullRequest(head, title, body) {
+  const res = await gh('/pulls', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, head, base: BRANCH, body }),
+  });
+  if (!res.ok) {
+    const errBody = await res.text();
+    throw new Error(`Opening the review request failed: ${res.status} ${errBody}`);
   }
   return res.json();
 }
@@ -46,25 +74,57 @@ function slugify(s) {
 }
 
 const REQUIRED_ITEM_COUNT = 2;
+const MAX_ITEMS = 500;
+const MAX_TITLE = 120;
 
 function validateQuiz(quiz) {
   if (!quiz || typeof quiz !== 'object') return 'Missing quiz object.';
   if (!quiz.title || !quiz.title.trim()) return 'Title is required.';
+  if (quiz.title.length > MAX_TITLE) return `Title must be under ${MAX_TITLE} characters.`;
   if (!quiz.type) return 'Quiz type is required.';
   if (!Array.isArray(quiz.items) || quiz.items.length < REQUIRED_ITEM_COUNT) {
     return `Add at least ${REQUIRED_ITEM_COUNT} questions before publishing.`;
   }
+  if (quiz.items.length > MAX_ITEMS) return `Quizzes are capped at ${MAX_ITEMS} questions.`;
   return null;
 }
 
+// Write the quiz file + updated catalog entry onto `branch`. File shas are
+// read from main; for submission branches (freshly forked from main) those
+// shas are identical, so the same update applies cleanly on either.
+async function writeQuizFiles(finalQuiz, branch) {
+  const quizPath = `${QUIZZES_DIR}/${finalQuiz.id}.json`;
+  const existingQuiz = await getJsonFile(quizPath);
+  await putJsonFile(
+    quizPath,
+    finalQuiz,
+    existingQuiz ? existingQuiz.sha : undefined,
+    `${existingQuiz ? 'Update' : 'Add'} quiz: ${finalQuiz.title}`,
+    branch
+  );
+
+  const indexPath = `${QUIZZES_DIR}/index.json`;
+  const indexFile = await getJsonFile(indexPath);
+  const catalogEntry = { id: finalQuiz.id, title: finalQuiz.title, type: finalQuiz.type, blurb: finalQuiz.blurb || '' };
+  const currentIndex = indexFile ? indexFile.json : [];
+  const newIndex = [...currentIndex.filter((q) => q.id !== finalQuiz.id), catalogEntry];
+  await putJsonFile(
+    indexPath,
+    newIndex,
+    indexFile ? indexFile.sha : undefined,
+    `Add "${finalQuiz.title}" to quiz catalog`,
+    branch
+  );
+}
+
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Use POST.' });
+  if (req.method === 'GET') {
+    res.status(200).json({ authed: await isAuthed(req.headers.cookie) });
     return;
   }
 
-  if (!(await isAuthed(req.headers.cookie))) {
-    res.status(401).json({ error: 'Not authorized.' });
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Use POST.' });
     return;
   }
 
@@ -73,11 +133,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { quiz, mode } = req.body || {};
-  if (mode !== 'publish') {
-    res.status(400).json({ error: `Unsupported mode "${mode}". Only "publish" is supported right now.` });
-    return;
-  }
+  const { quiz, mode, submitter } = req.body || {};
 
   const validationError = validateQuiz(quiz);
   if (validationError) {
@@ -87,31 +143,38 @@ export default async function handler(req, res) {
 
   const id = quiz.id && quiz.id.trim() ? slugify(quiz.id) : slugify(quiz.title);
   const finalQuiz = { ...quiz, id };
-  const quizPath = `${QUIZZES_DIR}/${id}.json`;
 
   try {
-    const existingQuiz = await getJsonFile(quizPath);
-    await putJsonFile(
-      quizPath,
-      finalQuiz,
-      existingQuiz ? existingQuiz.sha : undefined,
-      `${existingQuiz ? 'Update' : 'Add'} quiz: ${finalQuiz.title}`
-    );
+    if (mode === 'publish') {
+      if (!(await isAuthed(req.headers.cookie))) {
+        res.status(401).json({ error: 'Publishing directly is owner-only — use "Submit for review" instead.' });
+        return;
+      }
+      await writeQuizFiles(finalQuiz, BRANCH);
+      res.status(200).json({ id, url: `/sporcle-spinoff/play.html?quiz=${encodeURIComponent(id)}` });
+      return;
+    }
 
-    const indexPath = `${QUIZZES_DIR}/index.json`;
-    const indexFile = await getJsonFile(indexPath);
-    const catalogEntry = { id, title: finalQuiz.title, type: finalQuiz.type, blurb: finalQuiz.blurb || '' };
-    const currentIndex = indexFile ? indexFile.json : [];
-    const withoutThisId = currentIndex.filter((q) => q.id !== id);
-    const newIndex = [...withoutThisId, catalogEntry];
-    await putJsonFile(
-      indexPath,
-      newIndex,
-      indexFile ? indexFile.sha : undefined,
-      `Add "${finalQuiz.title}" to quiz catalog`
-    );
+    if (mode === 'submit') {
+      const branch = `quiz-submissions/${id}-${Date.now().toString(36)}`;
+      await createBranch(branch);
+      await writeQuizFiles(finalQuiz, branch);
+      const who = (submitter || '').toString().slice(0, 80).trim();
+      const pr = await openPullRequest(
+        branch,
+        `Quiz submission: ${finalQuiz.title}`,
+        [
+          `New **${finalQuiz.type}** quiz submitted from the builder: **${finalQuiz.title}** (${finalQuiz.items.length} questions).`,
+          who ? `Submitted by: ${who}` : 'Submitted anonymously.',
+          '',
+          'Merging this PR publishes the quiz to the catalog.',
+        ].join('\n')
+      );
+      res.status(200).json({ id, prUrl: pr.html_url });
+      return;
+    }
 
-    res.status(200).json({ id, url: `/sporcle-spinoff/play.html?quiz=${encodeURIComponent(id)}` });
+    res.status(400).json({ error: `Unsupported mode "${mode}".` });
   } catch (err) {
     res.status(502).json({ error: err.message });
   }
