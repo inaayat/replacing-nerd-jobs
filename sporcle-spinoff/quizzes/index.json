@@ -6,6 +6,12 @@
     "blurb": "Type each country's capital city before time runs out."
   },
   {
+    "id": "us-state-capitals",
+    "title": "US State Capitals",
+    "type": "text-entry",
+    "blurb": "Type each state's capital city before time runs out."
+  },
+  {
     "id": "us-states",
     "title": "Name All 50 US States",
     "type": "text-entry",
