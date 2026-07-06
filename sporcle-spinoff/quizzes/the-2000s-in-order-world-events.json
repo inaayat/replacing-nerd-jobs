@@ -11,6 +11,10 @@
   "valueLabel": "Date",
   "items": [
     {
+      "label": "Y2K arrives with fears of widespread computer failures",
+      "value": "January 2000"
+    },
+    {
       "label": "Wikipedia launches",
       "value": "January 2001"
     },
