@@ -12,6 +12,12 @@
     "blurb": "Type each state's capital city before time runs out."
   },
   {
+    "id": "2010s-pop-culture",
+    "title": "2010s Pop Culture",
+    "type": "text-entry",
+    "blurb": "2010 pop culture questions across all categories."
+  },
+  {
     "id": "us-states",
     "title": "Name All 50 US States",
     "type": "text-entry",
