@@ -1,0 +1,158 @@
+{
+  "id": "oscars-best-picture-2021-2025",
+  "title": "Best Picture Nominees (2021–2025 Oscars)",
+  "type": "text-entry",
+  "blurb": "Type all Best Picture nominees from the Oscars 2021–2025. Include film titles only.",
+  "timeLimitSec": 600,
+  "prompt": "Type a Best Picture nominee…",
+  "items": [
+    {
+      "accept": ["the father"]
+    },
+    {
+      "accept": ["judas and the black messiah"]
+    },
+    {
+      "accept": ["mank"]
+    },
+    {
+      "accept": ["minari"]
+    },
+    {
+      "accept": ["nomadland"]
+    },
+    {
+      "accept": ["promising young woman"]
+    },
+    {
+      "accept": ["sound of metal"]
+    },
+    {
+      "accept": ["the trial of the chicago 7"]
+    },
+
+    {
+      "accept": ["belfast"]
+    },
+    {
+      "accept": ["coda"]
+    },
+    {
+      "accept": ["dont look up", "don't look up"]
+    },
+    {
+      "accept": ["drive my car"]
+    },
+    {
+      "accept": ["dune"]
+    },
+    {
+      "accept": ["king richard"]
+    },
+    {
+      "accept": ["licorice pizza"]
+    },
+    {
+      "accept": ["nightmare alley"]
+    },
+    {
+      "accept": ["the power of the dog"]
+    },
+    {
+      "accept": ["west side story"]
+    },
+
+    {
+      "accept": ["all quiet on the western front"]
+    },
+    {
+      "accept": ["avatar the way of water", "avatar: the way of water"]
+    },
+    {
+      "accept": ["the banshees of inisherin"]
+    },
+    {
+      "accept": ["elvis"]
+    },
+    {
+      "accept": ["everything everywhere all at once"]
+    },
+    {
+      "accept": ["the fabelmans"]
+    },
+    {
+      "accept": ["tar", "tár"]
+    },
+    {
+      "accept": ["top gun maverick", "top gun: maverick"]
+    },
+    {
+      "accept": ["triangle of sadness"]
+    },
+    {
+      "accept": ["women talking"]
+    },
+
+    {
+      "accept": ["american fiction"]
+    },
+    {
+      "accept": ["anatomy of a fall"]
+    },
+    {
+      "accept": ["barbie"]
+    },
+    {
+      "accept": ["the holdovers"]
+    },
+    {
+      "accept": ["killers of the flower moon"]
+    },
+    {
+      "accept": ["maestro"]
+    },
+    {
+      "accept": ["oppenheimer"]
+    },
+    {
+      "accept": ["past lives"]
+    },
+    {
+      "accept": ["poor things"]
+    },
+    {
+      "accept": ["the zone of interest"]
+    },
+
+    {
+      "accept": ["the brutalist"]
+    },
+    {
+      "accept": ["a complete unknown"]
+    },
+    {
+      "accept": ["conclave"]
+    },
+    {
+      "accept": ["dune part two", "dune: part two"]
+    },
+    {
+      "accept": ["emilia perez", "emilia pérez"]
+    },
+    {
+      "accept": ["im still here", "i'm still here"]
+    },
+    {
+      "accept": ["nickel boys"]
+    },
+    {
+      "accept": ["the substance"]
+    },
+    {
+      "accept": ["wicked"]
+    },
+    {
+      "accept": ["anora"]
+    }
+  ]
+}
