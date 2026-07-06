@@ -76,7 +76,7 @@ export default {
     }));
     const polygonSeries = chart.series.push(am5map.MapPolygonSeries.new(root5, { geoJSON }));
     polygonSeries.mapPolygons.template.setAll({
-      tooltipText: '{name}', interactive: true,
+      interactive: true,
       fill: am5.color(0xcdd3e0), stroke: am5.color(0xffffff), strokeWidth: 0.5,
     });
     polygonSeries.mapPolygons.template.states.create('hover', { fill: am5.color(0xf267a0) });
