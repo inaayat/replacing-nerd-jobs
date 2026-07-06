@@ -135,6 +135,17 @@ tr.missed .q-table-input { border-color: var(--red); background: #fef2f2; color:
 .q-match-item.badmatch { animation: qshake .35s; }
 @keyframes qshake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
 
+/* Drag-to-match: right tiles are draggable, left prompts are drop targets. */
+.q-match-drag { cursor: grab; touch-action: none; }
+.q-match-drag.matched { cursor: default; }
+.q-match-target { cursor: default; }
+.q-match-item.dragging-src { opacity: .35; }
+.q-match-target.drop-hover { border-color: var(--pink); background: #faf0f6; }
+.q-match-clone {
+  position: fixed; z-index: 1000; margin: 0; pointer-events: none;
+  box-shadow: 0 10px 24px rgba(0,0,0,.28); opacity: .96; cursor: grabbing;
+}
+
 /* ── Ranking ────────────────────────────────────────────────────── */
 .q-rank { display: flex; flex-direction: column; gap: 8px; }
 .q-rank-item {
