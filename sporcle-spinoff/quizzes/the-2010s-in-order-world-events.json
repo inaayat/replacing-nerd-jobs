@@ -1,0 +1,54 @@
+{
+  "id": "the-2010s-in-order-world-events",
+  "title": "The 2010s in Order-World Events",
+  "type": "ranking",
+  "blurb": "Put these major world events in chronological order by year (2010–2019). The year is revealed at the end.",
+  "tags": [
+    "History",
+    "2010s",
+    "World Events"
+  ],
+  "items": [
+    {
+      "label": "Brexit referendum passes in the United Kingdom",
+      "date": "2016"
+    },
+    {
+      "label": "Arab Spring protests begin across the Middle East and North Africa",
+      "date": "2010"
+    },
+    {
+      "label": "Donald Trump elected President of the United States",
+      "date": "2016"
+    },
+    {
+      "label": "First image of a black hole released to the public",
+      "date": "2019"
+    },
+    {
+      "label": "London Summer Olympics",
+      "date": "2012"
+    },
+    {
+      "label": "Paris Climate Agreement adopted",
+      "date": "2015"
+    },
+    {
+      "label": "Fukushima nuclear disaster in Japan",
+      "date": "2011"
+    },
+    {
+      "label": "Russia annexes Crimea",
+      "date": "2014"
+    },
+    {
+      "label": "Death of Osama bin Laden",
+      "date": "2011"
+    },
+    {
+      "label": "COVID-19 first identified in Wuhan, China",
+      "date": "2019"
+    }
+  ],
+  "shuffle": true
+}
