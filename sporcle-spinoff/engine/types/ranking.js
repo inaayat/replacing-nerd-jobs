@@ -1,12 +1,24 @@
 // Ranking. Reorder a shuffled list into the correct sequence — drag a row by
 // its handle, or use the up/down buttons — then submit for scoring (partial
-// credit per correct slot). items: [{label}, ...] or [string, ...] already
-// given in correct order.
+// credit per correct slot). On completion the list is re-shown in the correct
+// order with each item's date revealed.
+// items: [{ label, date? }, ...] or [string, ...], given in correct order.
+// The date is hidden during play (it's the answer key) and revealed at the end.
 export default {
   render(root, quiz, engine) {
-    const correctOrder = quiz.items.map((it) => (typeof it === 'string' ? it : it.label));
-    let order = shuffle(correctOrder.map((label, origIdx) => ({ label, origIdx })));
+    const canonical = quiz.items.map((it, i) => ({
+      label: typeof it === 'string' ? it : (it.label || ''),
+      date: typeof it === 'string' ? '' : (it.date || ''),
+      origIdx: i,
+    }));
+    let order = shuffle(canonical.slice());
     let submitted = false;
+
+    const caption = document.createElement('div');
+    caption.className = 'q-rank-caption';
+    caption.textContent = 'Correct order';
+    caption.style.display = 'none';
+    root.appendChild(caption);
 
     const list = document.createElement('div'); list.className = 'q-rank';
     root.appendChild(list);
@@ -65,6 +77,7 @@ export default {
       renderList();
     }
 
+    // Play-time render: labels only, no dates (they'd give the order away).
     function renderList() {
       list.innerHTML = '';
       order.forEach((it, i) => {
@@ -72,39 +85,47 @@ export default {
         row.innerHTML = `<div class="q-rank-num">${i + 1}</div><div class="q-rank-label"></div><div class="q-rank-handle" title="Drag to reorder">⠿⠿</div>`;
         row.querySelector('.q-rank-label').textContent = it.label;
         const moveBox = document.createElement('div'); moveBox.className = 'q-rank-move';
-        const up = document.createElement('button'); up.type = 'button'; up.textContent = '▲'; up.disabled = submitted || i === 0;
-        const down = document.createElement('button'); down.type = 'button'; down.textContent = '▼'; down.disabled = submitted || i === order.length - 1;
+        const up = document.createElement('button'); up.type = 'button'; up.textContent = '▲'; up.disabled = i === 0;
+        const down = document.createElement('button'); down.type = 'button'; down.textContent = '▼'; down.disabled = i === order.length - 1;
         up.addEventListener('click', () => move(i, -1));
         down.addEventListener('click', () => move(i, 1));
         moveBox.appendChild(up); moveBox.appendChild(down);
         row.appendChild(moveBox);
-        const handle = row.querySelector('.q-rank-handle');
-        if (submitted) handle.style.visibility = 'hidden';
-        else handle.addEventListener('pointerdown', (e) => onPointerDown(e, i));
+        row.querySelector('.q-rank-handle').addEventListener('pointerdown', (e) => onPointerDown(e, i));
         list.appendChild(row);
       });
+    }
+
+    // End-of-quiz render: correct chronological order, dates revealed, each row
+    // marked by whether the player had placed that item in its right slot.
+    function renderAnswer(credit) {
+      const rightByOrig = {};
+      order.forEach((it, i) => { rightByOrig[it.origIdx] = it.origIdx === i; });
+      const correct = [...order].sort((a, b) => a.origIdx - b.origIdx);
+      list.innerHTML = '';
+      correct.forEach((it, i) => {
+        const state = credit ? (rightByOrig[it.origIdx] ? 'correct' : 'incorrect') : 'revealed';
+        const row = document.createElement('div'); row.className = `q-rank-item ${state}`;
+        row.innerHTML = `<div class="q-rank-num">${i + 1}</div><div class="q-rank-label"></div><div class="q-rank-date"></div>`;
+        row.querySelector('.q-rank-label').textContent = it.label;
+        row.querySelector('.q-rank-date').textContent = it.date || '';
+        list.appendChild(row);
+      });
+      caption.style.display = '';
+      actions.style.display = 'none';
     }
 
     function scoreAndLock(credit) {
       if (submitted) return;
       submitted = true;
-      renderList();
-      [...list.children].forEach((row, i) => {
-        const isRight = order[i].origIdx === i;
-        row.classList.add(credit && isRight ? 'correct' : 'incorrect');
-      });
+      renderAnswer(credit);
       order.forEach((it, i) => {
         if (credit && it.origIdx === i) engine.correct(); else engine.advance();
       });
-      submitBtn.disabled = true;
     }
 
     submitBtn.addEventListener('click', () => scoreAndLock(true));
-    engine.registerReveal(() => {
-      if (submitted) return;
-      order = correctOrder.map((label, origIdx) => ({ label, origIdx }));
-      scoreAndLock(false);
-    });
+    engine.registerReveal(() => scoreAndLock(false));
 
     renderList();
   },

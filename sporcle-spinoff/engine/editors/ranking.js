@@ -1,21 +1,23 @@
 // Editor for the ranking player type. Rows are listed top-to-bottom in the
 // correct order — drag the handle to reorder, same pointer-based drag as
-// the live player renderer. items: [{ label }, ...]
+// the live player renderer. items: [{ label, date? }, ...]
+// The date is hidden while playing and revealed, in order, once the quiz ends.
 export default {
   render(container, quiz, onChange) {
     const hint = document.createElement('div');
     hint.className = 'b-step-hint';
     hint.style.cssText = 'font-size:11px;color:var(--gray);font-weight:600;margin:0 0 8px;';
-    hint.textContent = 'List these top-to-bottom in the correct order — drag the handle to reorder.';
+    hint.textContent = 'List these top-to-bottom in the correct order — drag the handle to reorder. The date is hidden during play and revealed at the end.';
     container.appendChild(hint);
 
     const list = document.createElement('div');
     container.appendChild(list);
 
-    let items = (quiz.items.length ? quiz.items : [{ label: '' }, { label: '' }]).map((it) => ({ label: it.label || '' }));
+    let items = (quiz.items.length ? quiz.items : [{ label: '' }, { label: '' }])
+      .map((it) => ({ label: it.label || '', date: it.date || '' }));
 
     function syncItems() {
-      quiz.items = items.map((it) => ({ label: it.label }));
+      quiz.items = items.map((it) => (it.date ? { label: it.label, date: it.date } : { label: it.label }));
       onChange();
     }
 
@@ -62,11 +64,14 @@ export default {
         row.innerHTML = `
           <div style="display:flex;align-items:center;gap:8px;width:100%;">
             <div class="q-rank-num" style="flex-shrink:0;">${i + 1}</div>
-            <input class="b-mini-input f-label" value="${it.label}" placeholder="Item text" style="flex:1;">
+            <input class="b-mini-input f-label" value="${it.label}" placeholder="Item (e.g. Moon landing)" style="flex:1;">
+            <input class="b-mini-input f-date" value="${it.date}" placeholder="Date (e.g. 1969)" style="flex:0 0 120px;">
             <div class="q-rank-handle" title="Drag to reorder">⠿⠿</div>
           </div>`;
-        const input = row.querySelector('.f-label');
-        input.addEventListener('input', () => { items[i].label = input.value; syncItems(); });
+        const labelInput = row.querySelector('.f-label');
+        const dateInput = row.querySelector('.f-date');
+        labelInput.addEventListener('input', () => { items[i].label = labelInput.value; syncItems(); });
+        dateInput.addEventListener('input', () => { items[i].date = dateInput.value; syncItems(); });
         const removeBtn = document.createElement('button');
         removeBtn.className = 'b-remove-btn'; removeBtn.type = 'button'; removeBtn.textContent = '✕';
         removeBtn.addEventListener('click', () => { items.splice(i, 1); renderRows(); syncItems(); });
@@ -81,7 +86,7 @@ export default {
 
     const addBtn = document.createElement('button');
     addBtn.className = 'b-add-row-btn'; addBtn.type = 'button'; addBtn.textContent = '+ Add item';
-    addBtn.addEventListener('click', () => { items.push({ label: '' }); renderRows(); syncItems(); });
+    addBtn.addEventListener('click', () => { items.push({ label: '', date: '' }); renderRows(); syncItems(); });
     container.appendChild(addBtn);
   },
 };
