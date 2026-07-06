@@ -162,9 +162,9 @@ tr.missed .q-table-input { border-color: var(--red); background: #fef2f2; color:
 .q-rank-item.correct { border-color: var(--green); background: #f0fdf4; }
 .q-rank-item.incorrect { border-color: var(--red); background: #fef2f2; }
 .q-rank-item.revealed { border-color: var(--gray); background: #f9fafb; }
-.q-rank-item .q-rank-date { flex-shrink: 0; font-size: 13px; font-weight: 800; color: var(--gray); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.q-rank-item.correct .q-rank-date { color: #14532d; }
-.q-rank-item.incorrect .q-rank-date { color: #7f1d1d; }
+.q-rank-item .q-rank-value { flex-shrink: 0; font-size: 13px; font-weight: 800; color: var(--gray); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.q-rank-item.correct .q-rank-value { color: #14532d; }
+.q-rank-item.incorrect .q-rank-value { color: #7f1d1d; }
 .q-rank-caption { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--gray); margin: 4px 0 6px; }
 
 /* ── Image ──────────────────────────────────────────────────────── */

@@ -1,14 +1,17 @@
 // Ranking. Reorder a shuffled list into the correct sequence — drag a row by
 // its handle, or use the up/down buttons — then submit for scoring (partial
 // credit per correct slot). On completion the list is re-shown in the correct
-// order with each item's date revealed.
-// items: [{ label, date? }, ...] or [string, ...], given in correct order.
-// The date is hidden during play (it's the answer key) and revealed at the end.
+// order with each item's value revealed.
+// items: [{ label, value? }, ...] or [string, ...], given in correct order.
+// value is any string (a year, "$4.2B", "#1", "8.3M"…), hidden during play
+// (it's the answer key) and revealed at the end. quiz.valueLabel optionally
+// names what the value is (e.g. "Box office"). "date" is accepted as a legacy
+// alias for value.
 export default {
   render(root, quiz, engine) {
     const canonical = quiz.items.map((it, i) => ({
       label: typeof it === 'string' ? it : (it.label || ''),
-      date: typeof it === 'string' ? '' : (it.date || ''),
+      value: typeof it === 'string' ? '' : (it.value != null ? it.value : (it.date != null ? it.date : '')),
       origIdx: i,
     }));
     let order = shuffle(canonical.slice());
@@ -96,8 +99,8 @@ export default {
       });
     }
 
-    // End-of-quiz render: correct chronological order, dates revealed, each row
-    // marked by whether the player had placed that item in its right slot.
+    // End-of-quiz render: correct order, values revealed, each row marked by
+    // whether the player had placed that item in its right slot.
     function renderAnswer(credit) {
       const rightByOrig = {};
       order.forEach((it, i) => { rightByOrig[it.origIdx] = it.origIdx === i; });
@@ -106,11 +109,12 @@ export default {
       correct.forEach((it, i) => {
         const state = credit ? (rightByOrig[it.origIdx] ? 'correct' : 'incorrect') : 'revealed';
         const row = document.createElement('div'); row.className = `q-rank-item ${state}`;
-        row.innerHTML = `<div class="q-rank-num">${i + 1}</div><div class="q-rank-label"></div><div class="q-rank-date"></div>`;
+        row.innerHTML = `<div class="q-rank-num">${i + 1}</div><div class="q-rank-label"></div><div class="q-rank-value"></div>`;
         row.querySelector('.q-rank-label').textContent = it.label;
-        row.querySelector('.q-rank-date').textContent = it.date || '';
+        row.querySelector('.q-rank-value').textContent = it.value != null ? it.value : '';
         list.appendChild(row);
       });
+      caption.textContent = quiz.valueLabel ? `Correct order · ${quiz.valueLabel}` : 'Correct order';
       caption.style.display = '';
       actions.style.display = 'none';
     }
