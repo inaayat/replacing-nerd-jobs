@@ -1,134 +1,12 @@
 [
   {
-    "id": "world-capitals",
-    "title": "World Capitals",
-    "type": "text-entry",
-    "blurb": "Type each country's capital city before time runs out.",
-    "tags": [
-      "Geography"
-    ]
-  },
-  {
-    "id": "us-states-capitals",
-    "title": "US State Capitals",
-    "type": "text-entry",
-    "blurb": "Type each state's capital city before time runs out.",
-    "tags": [
-      "Geography"
-    ]
-  },
-  {
     "id": "2010s-pop-culture",
     "title": "2010s Pop Culture",
     "type": "text-entry",
-    "blurb": "2010 pop culture questions across all categories.",
+    "blurb": "Answer these 50 easy-to-medium 2010s pop culture trivia questions before time runs out.",
     "tags": [
       "Pop Culture"
     ]
-  },
-  {
-    "id": "us-states",
-    "title": "Name All 50 US States",
-    "type": "text-entry",
-    "blurb": "Type as many states as you can remember. No clues.",
-    "tags": [
-      "Geography"
-    ]
-  },
-  {
-    "id": "oscars-best-picture-2020-2024",
-    "title": "Name All Oscar Best Pic Nominees 2020-2024",
-    "type": "text-entry",
-    "blurb": "Type as many Oscar Best Picture Nominees from 2020-2024 movie seasons.",
-    "tags": [
-      "Pop Culture",
-      "Movies"
-    ]
-  },
-  {
-    "id": "love-island-usa-season-7-superfan",
-    "title": "Love Island USA Season 7 (Superfan Edition)",
-    "type": "text-entry",
-    "blurb": "LIUSA Season 7 Quiz. Experts only.",
-    "tags": [
-      "Pop Culture",
-      "Reality TV"
-    ]
-  },
-  {
-    "id": "general-knowledge",
-    "title": "General Knowledge",
-    "type": "multiple-choice",
-    "blurb": "Ten questions, one at a time.",
-    "tags": [
-      "General Knowledge"
-    ]
-  },
-  {
-    "id": "flags",
-    "title": "Flags of the World",
-    "type": "image",
-    "blurb": "Identify each country from its flag.",
-    "tags": [
-      "Geography"
-    ]
-  },
-  {
-    "id": "capital-country-match",
-    "title": "Match Country to Capital",
-    "type": "matching",
-    "blurb": "Click a country, then its capital, to lock in a match.",
-    "tags": [
-      "Geography"
-    ]
-  },
-  {
-    "id": "historical-events",
-    "title": "Historical Events in Order",
-    "type": "ranking",
-    "blurb": "Reorder these events from earliest to most recent.",
-    "tags": [
-      "History"
-    ]
-  },
-  {
-    "id": "world-map",
-    "title": "Find It on the Map",
-    "type": "map",
-    "blurb": "Click each country on the map before time runs out.",
-    "tags": [
-      "Geography"
-    ]
-  },
-  {
-    "id": "us-states-highlight",
-    "title": "Name the Highlighted State",
-    "type": "map-highlight",
-    "blurb": "A state lights up — type its name. All 50, in a random order every time.",
-    "tags": [
-      "Geography"
-    ]
-  },
-  {
-    "id": "love-island-usa-season-6-og-cast",
-    "title": "Love Island USA Season 6 Cast",
-    "type": "image",
-    "blurb": "Original cast only, no bombshells",
-    "tags": [
-      "Pop Culture",
-      "Reality TV"
-    ]
-  },
-  {
-    "id": "love-island-usa-season-8-og-cast",
-    "title": "Love Island USA Season 8 Cast",
-    "type": "image",
-    "blurb": "Original cast only, no bombshells",
-    "tags": [
-      "Pop Culture",
-      "Reality TV"
-    ],
-    "submitted": true
   },
   {
     "id": "current-events-2020",
@@ -176,28 +54,41 @@
     ]
   },
   {
-    "id": "the-2000s-in-order-world-events",
-    "title": "The 2000s in Order",
-    "type": "ranking",
-    "blurb": "Put these major world events in chronological order by year (2000–2009). The year is revealed at the end.",
+    "id": "oscars-best-picture-2020-2024",
+    "title": "Best Picture Nominees (2020–2024 Oscars)",
+    "type": "text-entry",
+    "blurb": "Type all Best Picture nominees from the Oscars 2020–2024. Include film titles only.",
     "tags": [
-      "History",
-      "2000s",
-      "World Events"
-    ],
-    "submitted": true
+      "Pop Culture",
+      "Movies"
+    ]
   },
   {
-    "id": "the-2010s-in-order-world-events",
-    "title": "The 2010s in Order",
-    "type": "ranking",
-    "blurb": "Put these major world events in chronological order by year (2010–2019). The year is revealed at the end.",
+    "id": "world-map",
+    "title": "Find It on the Map",
+    "type": "map",
+    "blurb": "Click each country on the map before time runs out.",
     "tags": [
-      "History",
-      "2010s",
-      "World Events"
-    ],
-    "submitted": true
+      "Geography"
+    ]
+  },
+  {
+    "id": "flags",
+    "title": "Flags of the World",
+    "type": "image",
+    "blurb": "Identify every country in the world from its flag.",
+    "tags": [
+      "Geography"
+    ]
+  },
+  {
+    "id": "general-knowledge",
+    "title": "General Knowledge",
+    "type": "multiple-choice",
+    "blurb": "Ten questions, one at a time. How many can you get right?",
+    "tags": [
+      "General Knowledge"
+    ]
   },
   {
     "id": "rank-highest-grossing-movies-2000s",
@@ -208,7 +99,115 @@
       "Movies",
       "Box Office",
       "2000s"
+    ]
+  },
+  {
+    "id": "historical-events",
+    "title": "Historical Events in Order",
+    "type": "ranking",
+    "blurb": "Put these events in order, earliest to latest. The years reveal at the end.",
+    "tags": [
+      "History"
+    ]
+  },
+  {
+    "id": "love-island-usa-season-6-og-cast",
+    "title": "Love Island USA Season 6 Cast",
+    "type": "image",
+    "blurb": "Original cast only, no bombshells",
+    "tags": [
+      "Pop Culture",
+      "Reality TV"
+    ]
+  },
+  {
+    "id": "love-island-usa-season-7-superfan",
+    "title": "Love Island USA Season 7 Superfan Trivia",
+    "type": "text-entry",
+    "blurb": "Answer these Season 7 superfan questions before time runs out.",
+    "tags": [
+      "Pop Culture",
+      "Reality TV"
+    ]
+  },
+  {
+    "id": "love-island-usa-season-8-og-cast",
+    "title": "Love Island USA Season 8 Cast",
+    "type": "image",
+    "blurb": "Original cast only, no bombshells",
+    "tags": [
+      "Pop Culture",
+      "Reality TV"
     ],
     "submitted": true
+  },
+  {
+    "id": "capital-country-match",
+    "title": "Match Country to Capital",
+    "type": "matching",
+    "blurb": "Click a country, then its capital, to lock in a match.",
+    "tags": [
+      "Geography"
+    ]
+  },
+  {
+    "id": "us-states",
+    "title": "Name All 50 US States",
+    "type": "text-entry",
+    "blurb": "Type as many states as you can remember. No clues — you're on your own.",
+    "tags": [
+      "Geography"
+    ]
+  },
+  {
+    "id": "us-states-highlight",
+    "title": "Name the Highlighted State",
+    "type": "map-highlight",
+    "blurb": "A state lights up — type its name. All 50, in a random order every time.",
+    "tags": [
+      "Geography"
+    ]
+  },
+  {
+    "id": "the-2000s-in-order-world-events",
+    "title": "The 2000s in Order-World Events",
+    "type": "ranking",
+    "blurb": "Put these major world events in chronological order. The dates reveal at the end.",
+    "tags": [
+      "History",
+      "2000s",
+      "World Events"
+    ],
+    "submitted": true
+  },
+  {
+    "id": "the-2010s-in-order-world-events",
+    "title": "The 2010s in Order-World Events",
+    "type": "ranking",
+    "blurb": "Put these major world events in chronological order. The dates reveal at the end.",
+    "tags": [
+      "History",
+      "2010s",
+      "World Events"
+    ],
+    "submitted": true
+  },
+  {
+    "id": "us-states-capitals",
+    "title": "US State Capitals",
+    "type": "text-entry",
+    "blurb": "Type each state's capital city before time runs out.",
+    "tags": [
+      "Geography"
+    ]
+  },
+  {
+    "id": "world-capitals",
+    "title": "World Capitals",
+    "type": "text-entry",
+    "blurb": "Type each country's capital city before time runs out.",
+    "tags": [
+      "Geography"
+    ]
   }
 ]

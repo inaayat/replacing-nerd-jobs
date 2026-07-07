@@ -193,39 +193,27 @@ function validateQuiz(quiz) {
   return null;
 }
 
-// Write the quiz file + updated catalog entry onto `branch`. File shas are
-// read from main; for submission branches (freshly forked from main) those
-// shas are identical, so the same update applies cleanly on either.
+// Writes only the quiz's own file onto `branch`. The shared catalog
+// (quizzes/index.json) is intentionally NOT touched here — it's regenerated
+// from the quiz files by the build-quiz-index GitHub Action whenever main
+// changes. That's what lets many submissions land without colliding: each
+// only ever creates/updates its own uniquely-named file.
 async function writeQuizFiles(finalQuiz, branch, submitted) {
   const quizPath = `${QUIZZES_DIR}/${finalQuiz.id}.json`;
+  // Bake the submitted flag into the file so the generator can surface it.
+  const fileQuiz = submitted ? { ...finalQuiz, submitted: true } : finalQuiz;
   const existingQuiz = await getJsonFile(quizPath);
   await putJsonFile(
     quizPath,
-    finalQuiz,
+    fileQuiz,
     existingQuiz ? existingQuiz.sha : undefined,
     `${existingQuiz ? 'Update' : 'Add'} quiz: ${finalQuiz.title}`,
     branch
   );
-
-  const indexPath = `${QUIZZES_DIR}/index.json`;
-  const indexFile = await getJsonFile(indexPath);
-  const catalogEntry = {
-    id: finalQuiz.id, title: finalQuiz.title, type: finalQuiz.type, blurb: finalQuiz.blurb || '',
-    tags: Array.isArray(finalQuiz.tags) ? finalQuiz.tags : [],
-    ...(submitted ? { submitted: true } : {}),
-  };
-  const currentIndex = indexFile ? indexFile.json : [];
-  const newIndex = [...currentIndex.filter((q) => q.id !== finalQuiz.id), catalogEntry];
-  await putJsonFile(
-    indexPath,
-    newIndex,
-    indexFile ? indexFile.sha : undefined,
-    `Add "${finalQuiz.title}" to quiz catalog`,
-    branch
-  );
 }
 
-// Patches the quiz file + its catalog entry with merged tags on `branch`.
+// Patches only the quiz file's tags on `branch`. The catalog index is
+// regenerated from the files by the GitHub Action, so it isn't touched here.
 // No-ops (returns changed:false) if every suggested tag already exists
 // (case-insensitively), so callers can skip opening an empty PR/commit.
 async function writeTagSuggestion(id, suggestedTags, branch) {
@@ -240,12 +228,6 @@ async function writeTagSuggestion(id, suggestedTags, branch) {
 
   const patchedQuizText = patchTagsLine(quizFile.text, mergedTags);
   await putTextFile(quizPath, patchedQuizText, quizFile.sha, `Add tag(s) to "${title}"`, branch);
-
-  const indexPath = `${QUIZZES_DIR}/index.json`;
-  const indexFile = await getTextFile(indexPath);
-  if (!indexFile) throw new Error('quizzes/index.json not found.');
-  const patchedIndexText = patchIndexEntryTags(indexFile.text, id, mergedTags);
-  await putTextFile(indexPath, patchedIndexText, indexFile.sha, `Add tag(s) to "${title}" in catalog`, branch);
 
   return { title, mergedTags, changed: true };
 }

@@ -1,9 +1,11 @@
 {
-  "id": "us-state-capitals",
+  "id": "us-states-capitals",
   "title": "US State Capitals",
   "type": "text-entry",
   "blurb": "Type each state's capital city before time runs out.",
-  "tags": ["Geography"],
+  "tags": [
+    "Geography"
+  ],
   "timeLimitSec": 600,
   "prompt": "Type a state capital…",
   "layout": "table",
@@ -15,55 +17,307 @@
   ],
   "answerLabel": "Capital",
   "items": [
-    { "accept": ["montgomery"], "clue": "Alabama" },
-    { "accept": ["juneau"], "clue": "Alaska" },
-    { "accept": ["phoenix"], "clue": "Arizona" },
-    { "accept": ["little rock"], "clue": "Arkansas" },
-    { "accept": ["sacramento"], "clue": "California" },
-    { "accept": ["denver"], "clue": "Colorado" },
-    { "accept": ["hartford"], "clue": "Connecticut" },
-    { "accept": ["dover"], "clue": "Delaware" },
-    { "accept": ["tallahassee"], "clue": "Florida" },
-    { "accept": ["atlanta"], "clue": "Georgia" },
-    { "accept": ["honolulu"], "clue": "Hawaii" },
-    { "accept": ["boise"], "clue": "Idaho" },
-    { "accept": ["springfield"], "clue": "Illinois" },
-    { "accept": ["indianapolis"], "clue": "Indiana" },
-    { "accept": ["des moines"], "clue": "Iowa" },
-    { "accept": ["topeka"], "clue": "Kansas" },
-    { "accept": ["frankfort"], "clue": "Kentucky" },
-    { "accept": ["baton rouge"], "clue": "Louisiana" },
-    { "accept": ["augusta"], "clue": "Maine" },
-    { "accept": ["annapolis"], "clue": "Maryland" },
-    { "accept": ["boston"], "clue": "Massachusetts" },
-    { "accept": ["lansing"], "clue": "Michigan" },
-    { "accept": ["saint paul", "st paul", "st. paul"], "clue": "Minnesota" },
-    { "accept": ["jackson"], "clue": "Mississippi" },
-    { "accept": ["jefferson city"], "clue": "Missouri" },
-    { "accept": ["helena"], "clue": "Montana" },
-    { "accept": ["lincoln"], "clue": "Nebraska" },
-    { "accept": ["carson city"], "clue": "Nevada" },
-    { "accept": ["concord"], "clue": "New Hampshire" },
-    { "accept": ["trenton"], "clue": "New Jersey" },
-    { "accept": ["santa fe"], "clue": "New Mexico" },
-    { "accept": ["albany"], "clue": "New York" },
-    { "accept": ["raleigh"], "clue": "North Carolina" },
-    { "accept": ["bismarck"], "clue": "North Dakota" },
-    { "accept": ["columbus"], "clue": "Ohio" },
-    { "accept": ["oklahoma city"], "clue": "Oklahoma" },
-    { "accept": ["salem"], "clue": "Oregon" },
-    { "accept": ["harrisburg"], "clue": "Pennsylvania" },
-    { "accept": ["providence"], "clue": "Rhode Island" },
-    { "accept": ["columbia"], "clue": "South Carolina" },
-    { "accept": ["pierre"], "clue": "South Dakota" },
-    { "accept": ["nashville"], "clue": "Tennessee" },
-    { "accept": ["austin"], "clue": "Texas" },
-    { "accept": ["salt lake city"], "clue": "Utah" },
-    { "accept": ["montpelier"], "clue": "Vermont" },
-    { "accept": ["richmond"], "clue": "Virginia" },
-    { "accept": ["olympia"], "clue": "Washington" },
-    { "accept": ["charleston"], "clue": "West Virginia" },
-    { "accept": ["madison"], "clue": "Wisconsin" },
-    { "accept": ["cheyenne"], "clue": "Wyoming" }
+    {
+      "accept": [
+        "montgomery"
+      ],
+      "clue": "Alabama"
+    },
+    {
+      "accept": [
+        "juneau"
+      ],
+      "clue": "Alaska"
+    },
+    {
+      "accept": [
+        "phoenix"
+      ],
+      "clue": "Arizona"
+    },
+    {
+      "accept": [
+        "little rock"
+      ],
+      "clue": "Arkansas"
+    },
+    {
+      "accept": [
+        "sacramento"
+      ],
+      "clue": "California"
+    },
+    {
+      "accept": [
+        "denver"
+      ],
+      "clue": "Colorado"
+    },
+    {
+      "accept": [
+        "hartford"
+      ],
+      "clue": "Connecticut"
+    },
+    {
+      "accept": [
+        "dover"
+      ],
+      "clue": "Delaware"
+    },
+    {
+      "accept": [
+        "tallahassee"
+      ],
+      "clue": "Florida"
+    },
+    {
+      "accept": [
+        "atlanta"
+      ],
+      "clue": "Georgia"
+    },
+    {
+      "accept": [
+        "honolulu"
+      ],
+      "clue": "Hawaii"
+    },
+    {
+      "accept": [
+        "boise"
+      ],
+      "clue": "Idaho"
+    },
+    {
+      "accept": [
+        "springfield"
+      ],
+      "clue": "Illinois"
+    },
+    {
+      "accept": [
+        "indianapolis"
+      ],
+      "clue": "Indiana"
+    },
+    {
+      "accept": [
+        "des moines"
+      ],
+      "clue": "Iowa"
+    },
+    {
+      "accept": [
+        "topeka"
+      ],
+      "clue": "Kansas"
+    },
+    {
+      "accept": [
+        "frankfort"
+      ],
+      "clue": "Kentucky"
+    },
+    {
+      "accept": [
+        "baton rouge"
+      ],
+      "clue": "Louisiana"
+    },
+    {
+      "accept": [
+        "augusta"
+      ],
+      "clue": "Maine"
+    },
+    {
+      "accept": [
+        "annapolis"
+      ],
+      "clue": "Maryland"
+    },
+    {
+      "accept": [
+        "boston"
+      ],
+      "clue": "Massachusetts"
+    },
+    {
+      "accept": [
+        "lansing"
+      ],
+      "clue": "Michigan"
+    },
+    {
+      "accept": [
+        "saint paul",
+        "st paul",
+        "st. paul"
+      ],
+      "clue": "Minnesota"
+    },
+    {
+      "accept": [
+        "jackson"
+      ],
+      "clue": "Mississippi"
+    },
+    {
+      "accept": [
+        "jefferson city"
+      ],
+      "clue": "Missouri"
+    },
+    {
+      "accept": [
+        "helena"
+      ],
+      "clue": "Montana"
+    },
+    {
+      "accept": [
+        "lincoln"
+      ],
+      "clue": "Nebraska"
+    },
+    {
+      "accept": [
+        "carson city"
+      ],
+      "clue": "Nevada"
+    },
+    {
+      "accept": [
+        "concord"
+      ],
+      "clue": "New Hampshire"
+    },
+    {
+      "accept": [
+        "trenton"
+      ],
+      "clue": "New Jersey"
+    },
+    {
+      "accept": [
+        "santa fe"
+      ],
+      "clue": "New Mexico"
+    },
+    {
+      "accept": [
+        "albany"
+      ],
+      "clue": "New York"
+    },
+    {
+      "accept": [
+        "raleigh"
+      ],
+      "clue": "North Carolina"
+    },
+    {
+      "accept": [
+        "bismarck"
+      ],
+      "clue": "North Dakota"
+    },
+    {
+      "accept": [
+        "columbus"
+      ],
+      "clue": "Ohio"
+    },
+    {
+      "accept": [
+        "oklahoma city"
+      ],
+      "clue": "Oklahoma"
+    },
+    {
+      "accept": [
+        "salem"
+      ],
+      "clue": "Oregon"
+    },
+    {
+      "accept": [
+        "harrisburg"
+      ],
+      "clue": "Pennsylvania"
+    },
+    {
+      "accept": [
+        "providence"
+      ],
+      "clue": "Rhode Island"
+    },
+    {
+      "accept": [
+        "columbia"
+      ],
+      "clue": "South Carolina"
+    },
+    {
+      "accept": [
+        "pierre"
+      ],
+      "clue": "South Dakota"
+    },
+    {
+      "accept": [
+        "nashville"
+      ],
+      "clue": "Tennessee"
+    },
+    {
+      "accept": [
+        "austin"
+      ],
+      "clue": "Texas"
+    },
+    {
+      "accept": [
+        "salt lake city"
+      ],
+      "clue": "Utah"
+    },
+    {
+      "accept": [
+        "montpelier"
+      ],
+      "clue": "Vermont"
+    },
+    {
+      "accept": [
+        "richmond"
+      ],
+      "clue": "Virginia"
+    },
+    {
+      "accept": [
+        "olympia"
+      ],
+      "clue": "Washington"
+    },
+    {
+      "accept": [
+        "charleston"
+      ],
+      "clue": "West Virginia"
+    },
+    {
+      "accept": [
+        "madison"
+      ],
+      "clue": "Wisconsin"
+    },
+    {
+      "accept": [
+        "cheyenne"
+      ],
+      "clue": "Wyoming"
+    }
   ]
 }
