@@ -64,6 +64,16 @@
     ]
   },
   {
+    "id": "biology-quiz",
+    "title": "Biology Quiz",
+    "type": "multiple-choice",
+    "blurb": "For the science geeks who are bad with maps",
+    "tags": [
+      "science",
+      "biology"
+    ]
+  },
+  {
     "id": "world-map",
     "title": "Find It on the Map",
     "type": "map",
