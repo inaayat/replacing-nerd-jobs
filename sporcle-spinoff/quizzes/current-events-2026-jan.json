@@ -1,0 +1,89 @@
+{
+  "id": "current-events-2026-jan",
+  "title": "January 2026 Current Events",
+  "type": "text-entry",
+  "blurb": "10 questions on the biggest headlines from January 2026.",
+  "tags": [
+    "Current Events"
+  ],
+  "timeLimitSec": 240,
+  "prompt": "Type your answer…",
+  "layout": "table",
+  "columns": [
+    {
+      "key": "clue",
+      "label": "Question"
+    }
+  ],
+  "answerLabel": "Answer",
+  "items": [
+    {
+      "clue": "Which country officially adopted the euro as its currency on January 1, 2026?",
+      "accept": [
+        "Bulgaria"
+      ]
+    },
+    {
+      "clue": "Which international health organization did the United States officially leave at the beginning of January 2026?",
+      "accept": [
+        "World Health Organization",
+        "WHO"
+      ]
+    },
+    {
+      "clue": "Which major climate agreement did the United States withdraw from in January 2026?",
+      "accept": [
+        "Paris Agreement",
+        "The Paris Agreement"
+      ]
+    },
+    {
+      "clue": "Which Swiss town hosts the annual World Economic Forum each January?",
+      "accept": [
+        "Davos"
+      ]
+    },
+    {
+      "clue": "Which African country held a presidential election in January 2026 with longtime leader Yoweri Museveni seeking another term?",
+      "accept": [
+        "Uganda"
+      ]
+    },
+    {
+      "clue": "Which country officially moved its capital from Malabo to Ciudad de la Paz in January 2026?",
+      "accept": [
+        "Equatorial Guinea",
+        "Republic of Equatorial Guinea"
+      ]
+    },
+    {
+      "clue": "What type of severe weather caused widespread travel disruptions across North America in late January 2026?",
+      "accept": [
+        "Winter storm",
+        "Snowstorm",
+        "Blizzard"
+      ]
+    },
+    {
+      "clue": "What currency did Bulgaria replace when it joined the eurozone?",
+      "accept": [
+        "Lev",
+        "Bulgarian lev"
+      ]
+    },
+    {
+      "clue": "Which annual meeting of world political and business leaders took place in Davos during January 2026?",
+      "accept": [
+        "World Economic Forum",
+        "WEF"
+      ]
+    },
+    {
+      "clue": "Which currency began circulating in Bulgaria for the first time on January 1, 2026?",
+      "accept": [
+        "Euro"
+      ]
+    }
+  ],
+  "shuffle": true
+}
