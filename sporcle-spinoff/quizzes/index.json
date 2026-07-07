@@ -230,5 +230,15 @@
     "tags": [
       "Geography"
     ]
+  },
+  {
+    "id": "us-popular-cities",
+    "title": "Click the State for These Popular U.S. Cities",
+    "type": "map",
+    "blurb": "Given a city, click the state it's located in.",
+    "tags": [
+      "Geography",
+      "United States"
+    ]
   }
 ]

@@ -47,7 +47,12 @@ export default {
     polygonSeries.mapPolygons.template.states.create('hover', { fill: am5.color(0xf267a0) });
 
     function showTarget() {
-      targetEl.textContent = `Click: ${nameById.get(items[cur].regionId) || items[cur].regionId}`;
+      // Use custom prompt if provided (e.g., for city->state quizzes), otherwise show region name
+      if (items[cur].prompt) {
+        targetEl.textContent = items[cur].prompt;
+      } else {
+        targetEl.textContent = `Click: ${nameById.get(items[cur].regionId) || items[cur].regionId}`;
+      }
     }
     showTarget();
 
