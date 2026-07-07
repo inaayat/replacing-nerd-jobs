@@ -179,6 +179,15 @@
     "submitted": true
   },
   {
+    "id": "current-events-2025-mar",
+    "title": "March 2025 Current Events",
+    "type": "text-entry",
+    "blurb": "10 questions on the biggest headlines from March 2025.",
+    "tags": [
+      "Current Events"
+    ]
+  },
+  {
     "id": "capital-country-match",
     "title": "Match Country to Capital",
     "type": "matching",
