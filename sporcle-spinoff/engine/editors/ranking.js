@@ -8,20 +8,41 @@ export default {
     const hint = document.createElement('div');
     hint.className = 'b-step-hint';
     hint.style.cssText = 'font-size:11px;color:var(--gray);font-weight:600;margin:0 0 8px;';
-    hint.textContent = 'List these top-to-bottom in the correct order — drag the handle to reorder. The value is hidden during play and revealed at the end.';
     container.appendChild(hint);
+    function updateHint() {
+      hint.textContent = quiz.sortBy === 'value-desc' || quiz.sortBy === 'value-asc'
+        ? 'Rows are ranked automatically by their value — the order you list them in doesn\'t matter. The value is hidden during play and revealed at the end.'
+        : 'List these top-to-bottom in the correct order — drag the handle to reorder. The value is hidden during play and revealed at the end.';
+    }
 
-    const labelField = document.createElement('div');
-    labelField.className = 'b-field'; labelField.style.marginBottom = '8px'; labelField.style.maxWidth = '260px';
-    labelField.innerHTML = `<label>What the value is (optional)</label>
-      <input class="b-mini-input" id="f-value-label" placeholder="e.g. Year, Box office, Population">`;
-    container.appendChild(labelField);
-    const valueLabelInput = labelField.querySelector('#f-value-label');
+    const optRow = document.createElement('div');
+    optRow.className = 'b-field-row'; optRow.style.maxWidth = '540px';
+    optRow.innerHTML = `
+      <div class="b-field"><label>What the value is (optional)</label>
+        <input class="b-mini-input" id="f-value-label" placeholder="e.g. Year, Box office, Population"></div>
+      <div class="b-field"><label>Correct order</label>
+        <select class="b-mini-input" id="f-sortby">
+          <option value="author">Author's order (rows as listed)</option>
+          <option value="value-desc">Highest value first</option>
+          <option value="value-asc">Lowest value first</option>
+        </select></div>`;
+    container.appendChild(optRow);
+
+    const valueLabelInput = optRow.querySelector('#f-value-label');
     valueLabelInput.value = quiz.valueLabel || '';
     valueLabelInput.addEventListener('input', () => {
       quiz.valueLabel = valueLabelInput.value.trim() || undefined;
       onChange();
     });
+
+    const sortByInput = optRow.querySelector('#f-sortby');
+    sortByInput.value = quiz.sortBy || 'author';
+    sortByInput.addEventListener('change', () => {
+      quiz.sortBy = sortByInput.value === 'author' ? undefined : sortByInput.value;
+      updateHint();
+      onChange();
+    });
+    updateHint();
 
     const list = document.createElement('div');
     container.appendChild(list);

@@ -7,14 +7,39 @@
 // (it's the answer key) and revealed at the end. quiz.valueLabel optionally
 // names what the value is (e.g. "Box office"). "date" is accepted as a legacy
 // alias for value.
+//
+// quiz.sortBy sets what the correct order is:
+//   undefined / "author"  → the order the items are listed in (default)
+//   "value-desc"          → sorted by value, highest first
+//   "value-asc"           → sorted by value, lowest first
+// With a value-sort the item order in the file doesn't matter — the engine
+// parses each value ($2.92B, #1, 476 AD…) into a number and ranks by it.
 export default {
   render(root, quiz, engine) {
-    const canonical = quiz.items.map((it, i) => ({
+    const raw = quiz.items.map((it, i) => ({
       label: typeof it === 'string' ? it : (it.label || ''),
       value: typeof it === 'string' ? '' : (it.value != null ? it.value : (it.date != null ? it.date : '')),
-      origIdx: i,
+      srcIdx: i,
     }));
-    let order = shuffle(canonical.slice());
+
+    // Assign each item its correct position (correctPos).
+    if (quiz.sortBy === 'value-desc' || quiz.sortBy === 'value-asc') {
+      const dir = quiz.sortBy === 'value-asc' ? 1 : -1;
+      [...raw]
+        .sort((a, b) => {
+          const na = parseValue(a.value), nb = parseValue(b.value);
+          if (na == null && nb == null) return a.srcIdx - b.srcIdx;
+          if (na == null) return 1;   // unparseable sinks to the bottom
+          if (nb == null) return -1;
+          if (na === nb) return a.srcIdx - b.srcIdx;
+          return (na - nb) * dir;
+        })
+        .forEach((it, pos) => { it.correctPos = pos; });
+    } else {
+      raw.forEach((it, pos) => { it.correctPos = pos; });
+    }
+
+    let order = shuffle(raw.slice());
     let submitted = false;
 
     const caption = document.createElement('div');
@@ -102,12 +127,12 @@ export default {
     // End-of-quiz render: correct order, values revealed, each row marked by
     // whether the player had placed that item in its right slot.
     function renderAnswer(credit) {
-      const rightByOrig = {};
-      order.forEach((it, i) => { rightByOrig[it.origIdx] = it.origIdx === i; });
-      const correct = [...order].sort((a, b) => a.origIdx - b.origIdx);
+      const rightByPos = {};
+      order.forEach((it, i) => { rightByPos[it.correctPos] = it.correctPos === i; });
+      const correct = [...order].sort((a, b) => a.correctPos - b.correctPos);
       list.innerHTML = '';
       correct.forEach((it, i) => {
-        const state = credit ? (rightByOrig[it.origIdx] ? 'correct' : 'incorrect') : 'revealed';
+        const state = credit ? (rightByPos[it.correctPos] ? 'correct' : 'incorrect') : 'revealed';
         const row = document.createElement('div'); row.className = `q-rank-item ${state}`;
         row.innerHTML = `<div class="q-rank-num">${i + 1}</div><div class="q-rank-label"></div><div class="q-rank-value"></div>`;
         row.querySelector('.q-rank-label').textContent = it.label;
@@ -124,7 +149,7 @@ export default {
       submitted = true;
       renderAnswer(credit);
       order.forEach((it, i) => {
-        if (credit && it.origIdx === i) engine.correct(); else engine.advance();
+        if (credit && it.correctPos === i) engine.correct(); else engine.advance();
       });
     }
 
@@ -136,3 +161,22 @@ export default {
 };
 
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+// Pull a comparable number out of a formatted value string. Handles money
+// ($/€/£, thousands commas), K/M/B/T magnitude suffixes, ranks (#1, No. 3),
+// percentages, and years incl. BC (negative). Returns null if there's no
+// number to read, so unparseable items can be sorted to the end.
+function parseValue(v) {
+  if (v == null) return null;
+  const s = String(v).trim();
+  if (!s) return null;
+  const cleaned = s.replace(/,/g, '');
+  const m = cleaned.match(/-?\d+(?:\.\d+)?/);
+  if (!m) return null;
+  let n = parseFloat(m[0]);
+  const after = cleaned.slice(cleaned.indexOf(m[0]) + m[0].length);
+  const suffix = (after.match(/^\s*([kmbt])/i) || [])[1];
+  if (suffix) n *= { k: 1e3, m: 1e6, b: 1e9, t: 1e12 }[suffix.toLowerCase()];
+  if (/\bB\.?C\.?(?:E)?\b/i.test(s) && n > 0) n = -n;
+  return n;
+}

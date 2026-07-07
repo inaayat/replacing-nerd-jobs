@@ -9,6 +9,7 @@
     "2000s"
   ],
   "valueLabel": "Worldwide Gross",
+  "sortBy": "value-desc",
   "items": [
     {
       "label": "The Dark Knight",

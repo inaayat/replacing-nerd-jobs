@@ -9,6 +9,7 @@
     "2010s"
   ],
   "valueLabel": "Worldwide Gross",
+  "sortBy": "value-desc",
   "items": [
     {
       "label": "Frozen II",
