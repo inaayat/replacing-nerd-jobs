@@ -1,0 +1,91 @@
+{
+  "id": "current-events-2025-feb",
+  "title": "February 2025 Current Events",
+  "type": "text-entry",
+  "blurb": "10 questions on the biggest headlines from February 2025.",
+  "tags": [
+    "Current Events"
+  ],
+  "timeLimitSec": 240,
+  "prompt": "Type your answer…",
+  "layout": "table",
+  "columns": [
+    {
+      "key": "clue",
+      "label": "Question"
+    }
+  ],
+  "answerLabel": "Answer",
+  "items": [
+    {
+      "clue": "Which NFL team won Super Bowl LIX in February 2025?",
+      "accept": [
+        "Philadelphia Eagles",
+        "Eagles"
+      ]
+    },
+    {
+      "clue": "Which team did the Philadelphia Eagles defeat to win Super Bowl LIX?",
+      "accept": [
+        "Kansas City Chiefs",
+        "Chiefs"
+      ]
+    },
+    {
+      "clue": "Which singer performed the halftime show at Super Bowl LIX?",
+      "accept": [
+        "Kendrick Lamar",
+        "Kendrick"
+      ]
+    },
+    {
+      "clue": "Which German political party won the most seats in the country's federal election held in February 2025?",
+      "accept": [
+        "CDU",
+        "Christian Democratic Union",
+        "CDU/CSU"
+      ]
+    },
+    {
+      "clue": "Which country hosted the 2025 ICC Champions Trophy, which began in February?",
+      "accept": [
+        "Pakistan"
+      ]
+    },
+    {
+      "clue": "Which Christian holiday fell on February 14, 2025, for many Western churches?",
+      "accept": [
+        "Ash Wednesday"
+      ]
+    },
+    {
+      "clue": "Which AI company released its GPT-4.5 research preview in February 2025?",
+      "accept": [
+        "OpenAI"
+      ]
+    },
+    {
+      "clue": "Which annual awards ceremony celebrated the best films of 2024 and took place in late February 2025?",
+      "accept": [
+        "Academy Awards",
+        "Oscars",
+        "The Oscars"
+      ]
+    },
+    {
+      "clue": "Which country defeated India to win the 2025 ICC Under-19 Women's T20 World Cup in February?",
+      "accept": [
+        "South Africa"
+      ]
+    },
+    {
+      "clue": "Which annual holiday celebrating love and romance is observed on February 14?",
+      "accept": [
+        "Valentine's Day",
+        "Saint Valentine's Day",
+        "St. Valentine's Day"
+      ]
+    }
+  ],
+  "shuffle": true
+}
