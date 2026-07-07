@@ -121,6 +121,15 @@
     ]
   },
   {
+    "id": "current-events-2025-jan",
+    "title": "January 2025 Current Events",
+    "type": "text-entry",
+    "blurb": "10 questions on the biggest headlines from January 2025.",
+    "tags": [
+      "Current Events"
+    ]
+  },
+  {
     "id": "current-events-2026-jan",
     "title": "January 2026 Current Events",
     "type": "text-entry",
