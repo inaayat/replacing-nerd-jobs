@@ -1,0 +1,86 @@
+{
+  "id": "current-events-2025-jan",
+  "title": "January 2025 Current Events",
+  "type": "text-entry",
+  "blurb": "10 questions on the biggest headlines from January 2025.",
+  "tags": [
+    "Current Events"
+  ],
+  "timeLimitSec": 240,
+  "prompt": "Type your answer…",
+  "layout": "table",
+  "columns": [
+    {
+      "key": "clue",
+      "label": "Question"
+    }
+  ],
+  "answerLabel": "Answer",
+  "items": [
+    {
+      "clue": "Which U.S. president was inaugurated for a second, non-consecutive term on January 20, 2025?",
+      "accept": [
+        "Donald Trump",
+        "Trump",
+        "Donald J. Trump"
+      ]
+    },
+    {
+      "clue": "Which social media app briefly went offline in the United States before returning in January 2025?",
+      "accept": [
+        "TikTok"
+      ]
+    },
+    {
+      "clue": "What was the name of the powerful wind-driven wildfire that caused widespread destruction in the Los Angeles area in January 2025?",
+      "accept": [
+        "Palisades Fire"
+      ]
+    },
+    {
+      "clue": "Which country and Hamas agreed to a ceasefire deal in January 2025?",
+      "accept": [
+        "Israel"
+      ]
+    },
+    {
+      "clue": "Which city hosted the 2025 World Economic Forum in January?",
+      "accept": [
+        "Davos"
+      ]
+    },
+    {
+      "clue": "Which billionaire became head of the newly created U.S. Department of Government Efficiency (DOGE)?",
+      "accept": [
+        "Elon Musk",
+        "Musk"
+      ]
+    },
+    {
+      "clue": "Which AI company launched the 'Operator' AI agent in January 2025?",
+      "accept": [
+        "OpenAI"
+      ]
+    },
+    {
+      "clue": "Which state was most affected by the devastating wildfires in January 2025?",
+      "accept": [
+        "California"
+      ]
+    },
+    {
+      "clue": "Which messaging app announced it would stop working on some older smartphones in January 2025?",
+      "accept": [
+        "WhatsApp"
+      ]
+    },
+    {
+      "clue": "What major sporting event was held in Melbourne, Australia, during January 2025?",
+      "accept": [
+        "Australian Open",
+        "The Australian Open"
+      ]
+    }
+  ],
+  "shuffle": true
+}
