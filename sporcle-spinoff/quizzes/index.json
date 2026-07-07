@@ -74,6 +74,15 @@
     ]
   },
   {
+    "id": "current-events-2025-feb",
+    "title": "February 2025 Current Events",
+    "type": "text-entry",
+    "blurb": "10 questions on the biggest headlines from February 2025.",
+    "tags": [
+      "Current Events"
+    ]
+  },
+  {
     "id": "world-map",
     "title": "Find It on the Map",
     "type": "map",
