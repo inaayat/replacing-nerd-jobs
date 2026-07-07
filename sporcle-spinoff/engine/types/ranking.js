@@ -39,14 +39,36 @@ export default {
       raw.forEach((it, pos) => { it.correctPos = pos; });
     }
 
+    // The value that belongs at each rank (used by the optional hint), and
+    // whether there are any values to hint with at all.
+    const valuesByPos = [];
+    raw.forEach((it) => { valuesByPos[it.correctPos] = it.value; });
+    const hasValues = raw.some((it) => it.value !== '' && it.value != null);
+    const hintNoun = quiz.valueLabel || 'value';
+
     let order = shuffle(raw.slice());
     let submitted = false;
+    let hintOn = false;
 
     const caption = document.createElement('div');
     caption.className = 'q-rank-caption';
     caption.textContent = 'Correct order';
     caption.style.display = 'none';
     root.appendChild(caption);
+
+    // Optional hint: show the value that belongs at each rank, so the player
+    // places items to match. Off by default (harder); the player toggles it.
+    const hintBar = document.createElement('div');
+    hintBar.className = 'q-rank-hintbar';
+    if (hasValues) {
+      hintBar.innerHTML = `<button class="q-btn" id="q-rank-hint" type="button">💡 Show ${hintNoun} hints</button>`;
+      root.appendChild(hintBar);
+      hintBar.querySelector('#q-rank-hint').addEventListener('click', (e) => {
+        hintOn = !hintOn;
+        e.target.textContent = hintOn ? `Hide ${hintNoun} hints` : `💡 Show ${hintNoun} hints`;
+        renderList();
+      });
+    }
 
     const list = document.createElement('div'); list.className = 'q-rank';
     root.appendChild(list);
@@ -110,7 +132,12 @@ export default {
       list.innerHTML = '';
       order.forEach((it, i) => {
         const row = document.createElement('div'); row.className = 'q-rank-item';
-        row.innerHTML = `<div class="q-rank-num">${i + 1}</div><div class="q-rank-label"></div><div class="q-rank-handle" title="Drag to reorder">⠿⠿</div>`;
+        // When the hint is on, show the value that belongs at THIS rank (fixed
+        // to the position, not the item) so the player can match items to it.
+        const hintHtml = hintOn
+          ? `<div class="q-rank-value q-rank-hint">${valuesByPos[i] != null ? valuesByPos[i] : ''}</div>`
+          : '';
+        row.innerHTML = `<div class="q-rank-num">${i + 1}</div><div class="q-rank-label"></div>${hintHtml}<div class="q-rank-handle" title="Drag to reorder">⠿⠿</div>`;
         row.querySelector('.q-rank-label').textContent = it.label;
         const moveBox = document.createElement('div'); moveBox.className = 'q-rank-move';
         const up = document.createElement('button'); up.type = 'button'; up.textContent = '▲'; up.disabled = i === 0;
@@ -142,6 +169,7 @@ export default {
       caption.textContent = quiz.valueLabel ? `Correct order · ${quiz.valueLabel}` : 'Correct order';
       caption.style.display = '';
       actions.style.display = 'none';
+      hintBar.style.display = 'none';
     }
 
     function scoreAndLock(credit) {
