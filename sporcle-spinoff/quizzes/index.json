@@ -121,6 +121,15 @@
     ]
   },
   {
+    "id": "current-events-2026-jan",
+    "title": "January 2026 Current Events",
+    "type": "text-entry",
+    "blurb": "10 questions on the biggest headlines from January 2026.",
+    "tags": [
+      "Current Events"
+    ]
+  },
+  {
     "id": "love-island-usa-season-6-og-cast",
     "title": "Love Island USA Season 6 Cast",
     "type": "image",
