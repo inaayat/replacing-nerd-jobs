@@ -1,0 +1,152 @@
+{
+  "id": "celebrity-scandals-guess-who",
+  "title": "Celebrity Scandals: Guess Who?",
+  "type": "text-entry",
+  "blurb": "20 questions about famous celebrity scandals and controversies.",
+  "tags": [
+    "Pop Culture",
+    "Scandals"
+  ],
+  "timeLimitSec": 420,
+  "prompt": "Type your answer…",
+  "layout": "table",
+  "columns": [
+    {
+      "key": "clue",
+      "label": "Question"
+    }
+  ],
+  "answerLabel": "Answer",
+  "items": [
+    {
+      "clue": "Talk show queen accused of being a nightmare boss. Who am I?",
+      "accept": [
+        "Ellen DeGeneres",
+        "Ellen"
+      ]
+    },
+    {
+      "clue": "Rapper who called out a president on live TV. Who am I?",
+      "accept": [
+        "Kanye West",
+        "Kanye"
+      ]
+    },
+    {
+      "clue": "Pop icon with a very questionable balcony moment. Who am I?",
+      "accept": [
+        "Michael Jackson"
+      ]
+    },
+    {
+      "clue": "Rapper who feuded with a political family. Who am I?",
+      "accept": [
+        "Eminem"
+      ]
+    },
+    {
+      "clue": "Actress caught in the college admissions scandal. Who am I?",
+      "accept": [
+        "Felicity Huffman",
+        "Lori Loughlin"
+      ]
+    },
+    {
+      "clue": "Singer whose halftime show revealed too much. Who am I?",
+      "accept": [
+        "Janet Jackson"
+      ]
+    },
+    {
+      "clue": "Rapper who stole the mic at an awards show. Who am I?",
+      "accept": [
+        "Kanye West",
+        "Kanye"
+      ]
+    },
+    {
+      "clue": "Actor accused of faking a hate crime. Who am I?",
+      "accept": [
+        "Jussie Smollett"
+      ]
+    },
+    {
+      "clue": "Royal who stepped away from palace life. Who am I?",
+      "accept": [
+        "Prince Harry",
+        "Harry"
+      ]
+    },
+    {
+      "clue": "Lifestyle icon caught in an insider trading scandal. Who am I?",
+      "accept": [
+        "Martha Stewart"
+      ]
+    },
+    {
+      "clue": "Pop star at the center of a famous conservatorship battle. Who am I?",
+      "accept": [
+        "Britney Spears",
+        "Britney"
+      ]
+    },
+    {
+      "clue": "Movie star with a controversial leaked video about my beliefs. Who am I?",
+      "accept": [
+        "Tom Cruise"
+      ]
+    },
+    {
+      "clue": "Cycling legend stripped of his titles. Who am I?",
+      "accept": [
+        "Lance Armstrong"
+      ]
+    },
+    {
+      "clue": "Golf superstar whose cheating scandal made headlines. Who am I?",
+      "accept": [
+        "Tiger Woods"
+      ]
+    },
+    {
+      "clue": "R&B singer facing serious abuse allegations. Who am I?",
+      "accept": [
+        "R. Kelly",
+        "R Kelly"
+      ]
+    },
+    {
+      "clue": "Actress linked to a controversial secret society. Who am I?",
+      "accept": [
+        "Allison Mack"
+      ]
+    },
+    {
+      "clue": "Celebrity whose private photos were hacked and leaked. Who am I?",
+      "accept": [
+        "Jennifer Lawrence",
+        "Jennifer Lawrence photo hack"
+      ]
+    },
+    {
+      "clue": "Comedy legend accused of sexual misconduct. Who am I?",
+      "accept": [
+        "Bill Cosby"
+      ]
+    },
+    {
+      "clue": "Royal linked to the Jeffrey Epstein controversy. Who am I?",
+      "accept": [
+        "Prince Andrew",
+        "Andrew"
+      ]
+    },
+    {
+      "clue": "Hollywood producer at the center of the #MeToo movement. Who am I?",
+      "accept": [
+        "Harvey Weinstein"
+      ]
+    }
+  ],
+  "shuffle": true
+}
