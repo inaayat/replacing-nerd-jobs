@@ -63,6 +63,7 @@ function showStart(quiz, isPreview = false) {
       <p class="blurb"></p>
       <div class="q-tags" id="q-tags"></div>
       <div class="q-tag-suggest" id="q-tag-suggest"></div>
+      <div class="q-issue-report" id="q-issue-report"></div>
       <div class="q-meta">${meta}</div>
       <div class="q-actions">
         <button class="q-btn primary" id="q-start">Start quiz</button>
@@ -74,8 +75,10 @@ function showStart(quiz, isPreview = false) {
   renderTagPills(card.querySelector('#q-tags'), quiz.tags);
   if (isPreview) {
     card.querySelector('#q-tag-suggest').remove();
+    card.querySelector('#q-issue-report').remove();
   } else {
     setupTagSuggest(card.querySelector('#q-tag-suggest'), quiz);
+    setupIssueReport(card.querySelector('#q-issue-report'), quiz);
   }
   root.appendChild(card);
   card.querySelector('#q-start').addEventListener('click', () => runQuiz(quiz));
@@ -95,7 +98,7 @@ function renderTagPills(container, tags) {
 // owners write straight to main, everyone else opens a PR (api/save-quiz.js
 // mode: 'suggest-tags'/'suggest-tags-publish').
 function setupTagSuggest(container, quiz) {
-  container.innerHTML = '<button type="button" class="q-tag-suggest-link" id="q-tag-suggest-btn">+ suggest a tag</button>';
+  container.innerHTML = '<button type="button" class="q-inline-link" id="q-tag-suggest-btn">+ suggest a tag</button>';
   container.querySelector('#q-tag-suggest-btn').addEventListener('click', () => openTagSuggestForm(container, quiz), { once: true });
 }
 
@@ -107,21 +110,21 @@ async function openTagSuggestForm(container, quiz) {
   } catch (e) { /* treat as anonymous */ }
 
   container.innerHTML = `
-    <div class="q-tag-form">
+    <div class="q-inline-form">
       <input type="text" id="q-tag-input" placeholder="e.g. Sports, History">
       ${isOwner ? '' : '<input type="text" id="q-tag-submitter" placeholder="Your name (optional)">'}
       <button type="button" class="q-btn primary" id="q-tag-submit">${isOwner ? 'Add' : 'Suggest'}</button>
     </div>
-    <div class="q-tag-toast" id="q-tag-toast"></div>`;
+    <div class="q-inline-toast" id="q-tag-toast"></div>`;
 
   container.querySelector('#q-tag-submit').addEventListener('click', async () => {
     const tags = container.querySelector('#q-tag-input').value.split(',').map((s) => s.trim()).filter(Boolean);
     const toast = container.querySelector('#q-tag-toast');
-    if (!tags.length) { toast.textContent = 'Type at least one tag.'; toast.className = 'q-tag-toast err'; return; }
+    if (!tags.length) { toast.textContent = 'Type at least one tag.'; toast.className = 'q-inline-toast err'; return; }
 
     const btn = container.querySelector('#q-tag-submit');
     btn.disabled = true;
-    toast.textContent = ''; toast.className = 'q-tag-toast';
+    toast.textContent = ''; toast.className = 'q-inline-toast';
     try {
       const body = { id: quiz.id, tags, mode: isOwner ? 'suggest-tags-publish' : 'suggest-tags' };
       if (!isOwner) body.submitter = container.querySelector('#q-tag-submitter').value.trim();
@@ -133,7 +136,7 @@ async function openTagSuggestForm(container, quiz) {
 
       if (data.changed === false) {
         toast.textContent = 'This quiz already has that tag.';
-        toast.className = 'q-tag-toast err';
+        toast.className = 'q-inline-toast err';
         btn.disabled = false;
         return;
       }
@@ -144,10 +147,55 @@ async function openTagSuggestForm(container, quiz) {
       } else {
         toast.textContent = 'Submitted for review — thanks!';
       }
-      toast.className = 'q-tag-toast ok';
+      toast.className = 'q-inline-toast ok';
     } catch (err) {
       toast.textContent = err.message;
-      toast.className = 'q-tag-toast err';
+      toast.className = 'q-inline-toast err';
+      btn.disabled = false;
+    }
+  });
+}
+
+// "🚩 report an issue" — always opens a GitHub Issue directly (api/report-issue.js).
+// No owner/public duality needed: a bug report isn't "applied" to content like
+// a tag or a quiz submission, so there's nothing for an owner to instant-publish.
+function setupIssueReport(container, quiz) {
+  container.innerHTML = '<button type="button" class="q-inline-link" id="q-issue-btn">🚩 report an issue</button>';
+  container.querySelector('#q-issue-btn').addEventListener('click', () => openIssueReportForm(container, quiz), { once: true });
+}
+
+function openIssueReportForm(container, quiz) {
+  container.innerHTML = `
+    <div class="q-inline-form">
+      <textarea id="q-issue-desc" placeholder="What's wrong with this quiz?"></textarea>
+      <input type="text" id="q-issue-reporter" placeholder="Your name (optional)">
+      <button type="button" class="q-btn primary" id="q-issue-submit">Report</button>
+    </div>
+    <div class="q-inline-toast" id="q-issue-toast"></div>`;
+
+  container.querySelector('#q-issue-submit').addEventListener('click', async () => {
+    const description = container.querySelector('#q-issue-desc').value.trim();
+    const toast = container.querySelector('#q-issue-toast');
+    if (!description) { toast.textContent = 'Describe the issue first.'; toast.className = 'q-inline-toast err'; return; }
+
+    const btn = container.querySelector('#q-issue-submit');
+    btn.disabled = true;
+    toast.textContent = ''; toast.className = 'q-inline-toast';
+    try {
+      const body = {
+        id: quiz.id, title: quiz.title, description,
+        reporter: container.querySelector('#q-issue-reporter').value.trim(),
+      };
+      const res = await fetch('/api/report-issue', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+      toast.innerHTML = `Thanks — <a href="${data.issueUrl}" target="_blank" rel="noopener">reported</a>!`;
+      toast.className = 'q-inline-toast ok';
+    } catch (err) {
+      toast.textContent = err.message;
+      toast.className = 'q-inline-toast err';
       btn.disabled = false;
     }
   });
@@ -246,11 +294,18 @@ function showResults(quiz, state, reason, elapsed) {
       <h1>${headline}</h1>
       <div class="q-result-score">${state.score} / ${state.total}</div>
       <div class="q-result-best">${pct}% · ${fmtTime(elapsed)} · best ${getBest(quiz.id)}/${state.total}</div>
+      <div class="q-issue-report" id="q-issue-report-results"></div>
       <div class="q-actions">
         <button class="q-btn primary" id="q-again">Play again</button>
         <a class="q-btn" href="./">Back to quizzes</a>
       </div>
     </div>`);
+  const issueContainer = results.querySelector('#q-issue-report-results');
+  if (new URLSearchParams(location.search).get('preview') === '1') {
+    issueContainer.remove();
+  } else {
+    setupIssueReport(issueContainer, quiz);
+  }
   root.appendChild(results);
   results.scrollIntoView({ behavior: 'smooth', block: 'center' });
   results.querySelector('#q-again').addEventListener('click', () => showStart(quiz));
