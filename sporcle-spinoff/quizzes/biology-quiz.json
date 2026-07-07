@@ -1,0 +1,54 @@
+{
+  "title": "Biology Quiz",
+  "blurb": "For the science geeks who are bad with maps",
+  "tags": [
+    "science",
+    "biology"
+  ],
+  "timeLimitSec": 180,
+  "shuffle": true,
+  "type": "multiple-choice",
+  "items": [
+    {
+      "q": "What is often termed the \"powerhouse of the cell\"?",
+      "options": [
+        "the ribosome",
+        "the DNA ",
+        "the chromosome",
+        "the mitochondria"
+      ],
+      "answer": 3
+    },
+    {
+      "q": "What is protein made of?",
+      "options": [
+        "amino acids",
+        "nucelotides ",
+        "ganglion ",
+        "azalaleic acid"
+      ],
+      "answer": 0
+    },
+    {
+      "q": "What kind of virus is called the common cold?",
+      "options": [
+        "rhinovirus ",
+        "NYC virus ",
+        "pneumoniae ",
+        "staphyloccous "
+      ],
+      "answer": 0
+    },
+    {
+      "q": "Why is it important to go to the dentist?",
+      "options": [
+        "because your mouth is connected to your body duh",
+        "because aditi told me to ",
+        "because it's fun ",
+        "because it tastes good"
+      ],
+      "answer": 0
+    }
+  ],
+  "id": "biology-quiz"
+}
