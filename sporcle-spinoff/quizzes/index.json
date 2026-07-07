@@ -64,6 +64,16 @@
     ]
   },
   {
+    "id": "bill-of-rights-match",
+    "title": "Bill of Rights",
+    "type": "matching",
+    "blurb": "Click a Bill of Rights amendment, then its protection, to lock in a match.",
+    "tags": [
+      "U.S. History",
+      "Civics"
+    ]
+  },
+  {
     "id": "biology-quiz",
     "title": "Biology Quiz",
     "type": "multiple-choice",
