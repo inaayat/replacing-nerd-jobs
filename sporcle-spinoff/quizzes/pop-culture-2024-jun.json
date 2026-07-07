@@ -1,0 +1,89 @@
+{
+  "id": "pop-culture-2024-jun",
+  "title": "June 2024 Pop Culture",
+  "type": "text-entry",
+  "blurb": "10 questions on the biggest pop culture moments from June 2024, including movies, TV, music, and celebrity news.",
+  "tags": [
+    "Pop Culture"
+  ],
+  "timeLimitSec": 240,
+  "prompt": "Type your answer…",
+  "layout": "table",
+  "columns": [
+    {
+      "key": "clue",
+      "label": "Question"
+    }
+  ],
+  "answerLabel": "Answer",
+  "items": [
+    {
+      "clue": "Which Pixar sequel became the highest-grossing film released during June 2024?",
+      "accept": [
+        "Inside Out 2"
+      ]
+    },
+    {
+      "clue": "Which Netflix period romance returned with the second half of its third season in June 2024?",
+      "accept": [
+        "Bridgerton"
+      ]
+    },
+    {
+      "clue": "Which HBO fantasy series premiered its second season in June 2024?",
+      "accept": [
+        "House of the Dragon"
+      ]
+    },
+    {
+      "clue": "Which actor starred as an undercover fake hitman in Netflix's June 2024 film 'Hit Man'?",
+      "accept": [
+        "Glen Powell",
+        "Powell"
+      ]
+    },
+    {
+      "clue": "Which reality dating series became one of the biggest streaming hits of the summer after its sixth U.S. season premiered in June 2024?",
+      "accept": [
+        "Love Island USA",
+        "Love Island"
+      ]
+    },
+    {
+      "clue": "Which singer announced in June 2024 that she was expecting her first child with Justin Bieber?",
+      "accept": [
+        "Hailey Bieber",
+        "Hailey Baldwin",
+        "Hailey Baldwin Bieber"
+      ]
+    },
+    {
+      "clue": "Which actor was widely reported to be dating actress Molly Gordon in June 2024?",
+      "accept": [
+        "Jeremy Allen White",
+        "Jeremy White"
+      ]
+    },
+    {
+      "clue": "Which pop star brought The Eras Tour to the United Kingdom during June 2024?",
+      "accept": [
+        "Taylor Swift",
+        "Swift"
+      ]
+    },
+    {
+      "clue": "Which rapper released the surprise single 'Houdini' in June 2024 as the lead-up to his next album?",
+      "accept": [
+        "Eminem"
+      ]
+    },
+    {
+      "clue": "Which comedian released the Netflix stand-up special 'Your Friend, Nate Bargatze' in June 2024?",
+      "accept": [
+        "Nate Bargatze",
+        "Bargatze"
+      ]
+    }
+  ],
+  "shuffle": true
+}
