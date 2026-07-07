@@ -1,0 +1,48 @@
+name: Build quiz index
+
+# Rebuilds sporcle-spinoff/quizzes/index.json from the individual quiz files
+# whenever a quiz is added/changed on main. Because the manifest is generated
+# — never hand-edited in a PR — two quiz submissions can never collide on it.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'sporcle-spinoff/quizzes/**'
+      - 'scripts/build-quiz-index.mjs'
+
+# Serialize runs so two quick merges don't race each other's index commit.
+concurrency:
+  group: build-quiz-index
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build-index:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Regenerate and commit index.json
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3; do
+            node scripts/build-quiz-index.mjs
+            if git diff --quiet -- sporcle-spinoff/quizzes/index.json; then
+              echo "index.json already up to date"
+              exit 0
+            fi
+            git add sporcle-spinoff/quizzes/index.json
+            git commit -m "Rebuild quiz catalog index [skip ci]"
+            if git push; then exit 0; fi
+            echo "push rejected (main moved) — syncing and retrying"
+            git reset --soft HEAD~1
+            git pull --rebase --autostash origin main
+          done
+          echo "Could not push index.json after retries" >&2
+          exit 1
