@@ -74,6 +74,16 @@
     ]
   },
   {
+    "id": "us-popular-cities",
+    "title": "Click the State for These Popular U.S. Cities",
+    "type": "map",
+    "blurb": "Given a city, click the state it's located in.",
+    "tags": [
+      "Geography",
+      "United States"
+    ]
+  },
+  {
     "id": "current-events-2025-feb",
     "title": "February 2025 Current Events",
     "type": "text-entry",
@@ -265,16 +275,6 @@
     "blurb": "Type each country's capital city before time runs out.",
     "tags": [
       "Geography"
-    ]
-  },
-  {
-    "id": "us-popular-cities",
-    "title": "Click the State for These Popular U.S. Cities",
-    "type": "map",
-    "blurb": "Given a city, click the state it's located in.",
-    "tags": [
-      "Geography",
-      "United States"
     ]
   }
 ]
