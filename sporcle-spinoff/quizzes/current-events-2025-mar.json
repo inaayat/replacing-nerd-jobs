@@ -1,0 +1,88 @@
+{
+  "id": "current-events-2025-mar",
+  "title": "March 2025 Current Events",
+  "type": "text-entry",
+  "blurb": "10 questions on the biggest headlines from March 2025.",
+  "tags": [
+    "Current Events"
+  ],
+  "timeLimitSec": 240,
+  "prompt": "Type your answer…",
+  "layout": "table",
+  "columns": [
+    {
+      "key": "clue",
+      "label": "Question"
+    }
+  ],
+  "answerLabel": "Answer",
+  "items": [
+    {
+      "clue": "Which film won Best Picture at the 2025 Academy Awards?",
+      "accept": [
+        "Anora"
+      ]
+    },
+    {
+      "clue": "Who hosted the 2025 Academy Awards ceremony?",
+      "accept": [
+        "Conan O'Brien",
+        "Conan OBrien",
+        "Conan"
+      ]
+    },
+    {
+      "clue": "Which company became the first commercial company to successfully land a spacecraft on the Moon without major technical issues in March 2025?",
+      "accept": [
+        "Firefly Aerospace",
+        "Firefly"
+      ]
+    },
+    {
+      "clue": "Which country did the United States pause military aid to in early March 2025?",
+      "accept": [
+        "Ukraine"
+      ]
+    },
+    {
+      "clue": "Who became the new Prime Minister of Canada in March 2025?",
+      "accept": [
+        "Mark Carney",
+        "Carney"
+      ]
+    },
+    {
+      "clue": "Which cybersecurity company did Google announce it would acquire in March 2025?",
+      "accept": [
+        "Wiz"
+      ]
+    },
+    {
+      "clue": "Which language did President Donald Trump declare the official language of the United States by executive order in March 2025?",
+      "accept": [
+        "English"
+      ]
+    },
+    {
+      "clue": "Which U.S. state declared a state of emergency because of widespread wildfires in early March 2025?",
+      "accept": [
+        "South Carolina"
+      ]
+    },
+    {
+      "clue": "Which actor won the Academy Award for Best Actor for his performance in 'The Brutalist'?",
+      "accept": [
+        "Adrien Brody",
+        "Brody"
+      ]
+    },
+    {
+      "clue": "Which actress won the Academy Award for Best Actress for her role in 'Anora'?",
+      "accept": [
+        "Mikey Madison",
+        "Madison"
+      ]
+    }
+  ],
+  "shuffle": true
+}
