@@ -158,6 +158,15 @@
     ]
   },
   {
+    "id": "pop-culture-2024-jun",
+    "title": "June 2024 Pop Culture",
+    "type": "text-entry",
+    "blurb": "10 questions on the biggest pop culture moments from June 2024, including movies, TV, music, and celebrity news.",
+    "tags": [
+      "Pop Culture"
+    ]
+  },
+  {
     "id": "love-island-usa-season-6-og-cast",
     "title": "Love Island USA Season 6 Cast",
     "type": "image",
