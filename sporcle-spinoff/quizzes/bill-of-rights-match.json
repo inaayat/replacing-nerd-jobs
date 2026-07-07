@@ -1,0 +1,54 @@
+{
+  "id": "bill-of-rights-match",
+  "title": "Bill of Rights",
+  "type": "matching",
+  "blurb": "Click a Bill of Rights amendment, then its protection, to lock in a match.",
+  "tags": [
+    "U.S. History",
+    "Civics"
+  ],
+  "timeLimitSec": 90,
+  "items": [
+    {
+      "left": "First Amendment",
+      "right": "Freedom of speech, religion, press, assembly, and petition"
+    },
+    {
+      "left": "Second Amendment",
+      "right": "Right to keep and bear arms"
+    },
+    {
+      "left": "Third Amendment",
+      "right": "Protection from being forced to house soldiers"
+    },
+    {
+      "left": "Fourth Amendment",
+      "right": "Protection from unreasonable searches and seizures"
+    },
+    {
+      "left": "Fifth Amendment",
+      "right": "Rights of due process, protection from self-incrimination, and double jeopardy"
+    },
+    {
+      "left": "Sixth Amendment",
+      "right": "Right to a speedy public trial, lawyer, and impartial jury"
+    },
+    {
+      "left": "Seventh Amendment",
+      "right": "Right to a jury trial in certain civil cases"
+    },
+    {
+      "left": "Eighth Amendment",
+      "right": "Protection from excessive bail, fines, and cruel punishment"
+    },
+    {
+      "left": "Ninth Amendment",
+      "right": "Rights exist beyond those specifically listed in the Constitution"
+    },
+    {
+      "left": "Tenth Amendment",
+      "right": "Powers not given to the federal government belong to states or the people"
+    }
+  ],
+  "shuffle": true
+}
