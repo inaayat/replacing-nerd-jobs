@@ -84,6 +84,16 @@
     ]
   },
   {
+    "id": "celebrity-scandals-guess-who",
+    "title": "Celebrity Scandals: Guess Who?",
+    "type": "text-entry",
+    "blurb": "20 questions about famous celebrity scandals and controversies.",
+    "tags": [
+      "Pop Culture",
+      "Scandals"
+    ]
+  },
+  {
     "id": "us-popular-cities",
     "title": "Click the State for These Popular U.S. Cities",
     "type": "map",
