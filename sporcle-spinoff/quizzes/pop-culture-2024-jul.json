@@ -1,0 +1,94 @@
+{
+  "id": "pop-culture-2024-jul",
+  "title": "July 2024 Pop Culture",
+  "type": "text-entry",
+  "blurb": "10 questions on the biggest pop culture moments from July 2024, including movies, TV, music, and celebrity news.",
+  "tags": [
+    "Pop Culture"
+  ],
+  "timeLimitSec": 240,
+  "prompt": "Type your answer…",
+  "layout": "table",
+  "columns": [
+    {
+      "key": "clue",
+      "label": "Question"
+    }
+  ],
+  "answerLabel": "Answer",
+  "items": [
+    {
+      "clue": "Which Marvel superhero film starring Ryan Reynolds and Hugh Jackman became a major box office hit in July 2024?",
+      "accept": [
+        "Deadpool & Wolverine",
+        "Deadpool and Wolverine",
+        "Deadpool 3"
+      ]
+    },
+    {
+      "clue": "Which singer performed at the opening ceremony of the 2024 Summer Olympics in Paris?",
+      "accept": [
+        "Lady Gaga",
+        "Gaga"
+      ]
+    },
+    {
+      "clue": "Which animated film about emotions remained a box office sensation throughout July 2024?",
+      "accept": [
+        "Inside Out 2"
+      ]
+    },
+    {
+      "clue": "Which singer released the album 'Brat' in 2024, inspiring the viral 'brat summer' trend?",
+      "accept": [
+        "Charli XCX",
+        "Charli"
+      ]
+    },
+    {
+      "clue": "Which actor played the lead role in the disaster movie 'Twisters' released in July 2024?",
+      "accept": [
+        "Glen Powell",
+        "Powell"
+      ]
+    },
+    {
+      "clue": "Which streaming service released the second season of the fantasy series 'The Lord of the Rings: The Rings of Power' trailer in July 2024?",
+      "accept": [
+        "Amazon Prime Video",
+        "Prime Video",
+        "Amazon"
+      ]
+    },
+    {
+      "clue": "Which pop star announced her engagement to actor Orlando Bloom had ended in July 2024?",
+      "accept": [
+        "Katy Perry",
+        "Perry"
+      ]
+    },
+    {
+      "clue": "Which country music singer released the album 'One Thing at a Time' and was one of the biggest names in country music during 2024?",
+      "accept": [
+        "Morgan Wallen",
+        "Wallen"
+      ]
+    },
+    {
+      "clue": "Which long-running animated TV series celebrated its 35th anniversary in July 2024?",
+      "accept": [
+        "The Simpsons",
+        "Simpsons"
+      ]
+    },
+    {
+      "clue": "Which celebrity couple welcomed their first child together in July 2024, with the baby named Jack Blues?",
+      "accept": [
+        "Justin Bieber and Hailey Bieber",
+        "Justin Bieber and Hailey Baldwin",
+        "Justin and Hailey Bieber"
+      ]
+    }
+  ],
+  "shuffle": true
+}
