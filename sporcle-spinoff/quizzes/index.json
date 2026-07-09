@@ -196,6 +196,16 @@
     ]
   },
   {
+    "id": "long-easy-geography-trivia",
+    "title": "Long & East Geography Trivia",
+    "type": "text-entry",
+    "blurb": "Test your geography knowledge with questions about countries, cities, landmarks, and natural features.",
+    "tags": [
+      "Geography"
+    ],
+    "submitted": true
+  },
+  {
     "id": "love-island-usa-season-6-og-cast",
     "title": "Love Island USA Season 6 Cast",
     "type": "image",
