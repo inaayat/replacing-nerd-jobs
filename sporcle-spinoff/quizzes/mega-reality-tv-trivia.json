@@ -1,0 +1,935 @@
+{
+  "id": "mega-reality-tv-trivia",
+  "title": "Mega Reality TV Trivia-Easy to Extra Hard",
+  "type": "text-entry",
+  "blurb": "150 questions on reality television shows, hosts, and stars.",
+  "tags": [
+    "Reality TV",
+    "Television"
+  ],
+  "timeLimitSec": 1500,
+  "prompt": "Type your answer…",
+  "layout": "table",
+  "columns": [
+    {
+      "key": "clue",
+      "label": "Question"
+    }
+  ],
+  "answerLabel": "Answer",
+  "items": [
+    {
+      "clue": "Fox reality series formerly judged by Nigel Lythgoe and Mary Murphy is called \"So You Think You Can\" what?",
+      "accept": [
+        "Dance"
+      ]
+    },
+    {
+      "clue": "On \"The Bachelor,\" the Bachelor gives what flower to contestants whom he wants to stick around for the next episode?",
+      "accept": [
+        "Rose"
+      ]
+    },
+    {
+      "clue": "In 1990, Rock the Vote started encouraging young people to vote on what cable network?",
+      "accept": [
+        "MTV"
+      ]
+    },
+    {
+      "clue": "What popular Bravo TV show, started in 2006, features cast members such as Tamra Judge and Kelly Dodd from Orange County?",
+      "accept": [
+        "Real Housewives Of Orange County",
+        "The Real Housewives of Orange County"
+      ]
+    },
+    {
+      "clue": "After 20 seasons of \"Keeping Up With the Kardashians\" on E!, in 2022 the clan moved to what streaming service for their show \"The Kardashians?\"",
+      "accept": [
+        "Hulu"
+      ]
+    },
+    {
+      "clue": "Immunity Idols are coveted items that save players from elimination on what long-running reality series?",
+      "accept": [
+        "Survivor"
+      ]
+    },
+    {
+      "clue": "Alana Thompson, formerly known by what three-word nickname, starred on the TLC spinoff that first aired in 2012?",
+      "accept": [
+        "Honey Boo Boo"
+      ]
+    },
+    {
+      "clue": "Four chefs prepare a three-course meal using unlikely ingredients in what Food Network reality show?",
+      "accept": [
+        "Chopped"
+      ]
+    },
+    {
+      "clue": "Gizelle Bryant and Ashley Darby are stars of a Bravo reality show starting in 2016 set in what Maryland city?",
+      "accept": [
+        "Potomac"
+      ]
+    },
+    {
+      "clue": "What's the name of the famously angry British host on \"Hell's Kitchen?\"",
+      "accept": [
+        "Gordon Ramsay"
+      ]
+    },
+    {
+      "clue": "Which TV network airs \"90 Day Fiancé\", \"Sister Wives\", and \"Long Island Medium?\"",
+      "accept": [
+        "TLC"
+      ]
+    },
+    {
+      "clue": "Debuting in spring 2022, \"Kandi & the Gang\" is a spinoff starring Kandi Burruss from the Real Housewives of what state capital city?",
+      "accept": [
+        "Atlanta"
+      ]
+    },
+    {
+      "clue": "Contestants book hotel stays using the Expedia app on season 34 of what CBS reality TV series?",
+      "accept": [
+        "The Amazing Race"
+      ]
+    },
+    {
+      "clue": "What MTV reality show that premiered in 2009 made Snooki a household name?",
+      "accept": [
+        "Jersey Shore"
+      ]
+    },
+    {
+      "clue": "For three seasons beginning in 2009, a new clothing boutique by two Kardashian sisters was the focus of \"Kourtney and Kim Take\" what Florida city?",
+      "accept": [
+        "Miami"
+      ]
+    },
+    {
+      "clue": "An ITV Hub reality show launching in 2021 features matched couples living together in what type of log structures?",
+      "accept": [
+        "Cabins",
+        "The Cabins"
+      ]
+    },
+    {
+      "clue": "What former Public Enemy member was the bachelor choosing from twenty bachelorettes on \"Flavor of Love?\"",
+      "accept": [
+        "Flavor Flav"
+      ]
+    },
+    {
+      "clue": "Adrianne Curry won cycle 1 of what long-running competition reality show hosted by Tyra Banks?",
+      "accept": [
+        "America's Next Top Model"
+      ]
+    },
+    {
+      "clue": "Natasha Scott and Justine Kay discuss racism in what popular reality show on their podcast \"2 Black Girls, 1 Rose?\"",
+      "accept": [
+        "The Bachelor"
+      ]
+    },
+    {
+      "clue": "Which reality show premiered on VH1 in 2011 and followed the lives of women from Staten Island with connections to the American mafia?",
+      "accept": [
+        "Mob Wives"
+      ]
+    },
+    {
+      "clue": "Rapper Xzibit hosted what MTV show that ran for six seasons until 2007, restoring customized cars?",
+      "accept": [
+        "Pimp My Ride"
+      ]
+    },
+    {
+      "clue": "Which spinoff of \"The Real Housewives of Beverly Hills\" is \"ruled\" by Lisa and her restaurant?",
+      "accept": [
+        "Vanderpump Rules"
+      ]
+    },
+    {
+      "clue": "Through the first 10 seasons of Shark Tank, what Dallas Mavericks owner made the highest number of deals totaling 151?",
+      "accept": [
+        "Mark Cuban"
+      ]
+    },
+    {
+      "clue": "Fitness instructors Bob Harper and Jillian Michaels are best known for their work on which TV series which ran on NBC from 2004 to 2016?",
+      "accept": [
+        "The Biggest Loser"
+      ]
+    },
+    {
+      "clue": "What MTV show debuted in 2012 and is named for a \"watery\" internet term referring to fake personal profiles?",
+      "accept": [
+        "Catfish"
+      ]
+    },
+    {
+      "clue": "Premiering on Fox in 2003, what reality series featured Paris Hilton and Nicole Richie in low-paying jobs?",
+      "accept": [
+        "The Simple Life"
+      ]
+    },
+    {
+      "clue": "\"Austin Lee Russell\" is the real name of what reality TV star on the History Channel show Pawn Stars?",
+      "accept": [
+        "Chumlee"
+      ]
+    },
+    {
+      "clue": "What Food Network reality competition starting in 2011 features teams designing displays for what fall holiday with celebrities as guest judges?",
+      "accept": [
+        "Halloween Wars"
+      ]
+    },
+    {
+      "clue": "Host Anne Robinson told you \"goodbye\" if you were the lowest performer on your team on which 2000 British game show?",
+      "accept": [
+        "Weakest Link"
+      ]
+    },
+    {
+      "clue": "For six seasons in the mid-2000s, what reality show followed young people in LA as a spin-off to Laguna Beach?",
+      "accept": [
+        "The Hills"
+      ]
+    },
+    {
+      "clue": "What Netflix reality series focuses on college football players at East Mississippi Community College hoping to make it to the NFL?",
+      "accept": [
+        "Last Chance U"
+      ]
+    },
+    {
+      "clue": "The \"Real Housewives\" reality TV franchise began with the \"Real Housewives\" of what California county?",
+      "accept": [
+        "Orange County"
+      ]
+    },
+    {
+      "clue": "What popular reality competition, back on Bravo after 11 years on Lifetime, features judges such as Nina Garcia and Michael Kors?",
+      "accept": [
+        "Project Runway"
+      ]
+    },
+    {
+      "clue": "Running from 2005 to 2017, an MTV reality TV show known for showing spoiled teenage girls was named after which ordinal birthday?",
+      "accept": [
+        "Sixteenth"
+      ]
+    },
+    {
+      "clue": "The life of polygamist Kody Brown and his four spouses is the focus of what TLC show whose 17th season premiered in September 2022?",
+      "accept": [
+        "Sister Wives"
+      ]
+    },
+    {
+      "clue": "\"Status and strategy collide\" is how Netflix describes what geometrically-named reality show with a $100,000 prize?",
+      "accept": [
+        "The Circle"
+      ]
+    },
+    {
+      "clue": "Which Discovery Channel reality show from the mid-2000s had host Mike Rowe undertaking the grossest employment opportunities?",
+      "accept": [
+        "Dirty Jobs"
+      ]
+    },
+    {
+      "clue": "Starting with Season 41, host Jeff Probst stopped saying \"Come on in,\" what gendered word to Survivor contestants?",
+      "accept": [
+        "Guys"
+      ]
+    },
+    {
+      "clue": "Alex Boyland and Chris Luca won the first $1 million jackpot after traveling over 52,000 miles on what show?",
+      "accept": [
+        "The Amazing Race"
+      ]
+    },
+    {
+      "clue": "What Colombian-born star of \"Modern Family\" joined the panel of judges on \"America's Got Talent\" starting in season 15?",
+      "accept": [
+        "Sofia Vergara"
+      ]
+    },
+    {
+      "clue": "Featuring Guerdy Abraira and Alexia Echevarria, RHOM is an abbreviation for \"The Real Housewives of\" what city?",
+      "accept": [
+        "Miami"
+      ]
+    },
+    {
+      "clue": "What ABC reality show running from 2001-2008 had fourteen contestants undergo challenges with a secret saboteur hidden amongst the group?",
+      "accept": [
+        "The Mole"
+      ]
+    },
+    {
+      "clue": "Partnered with pro hoofer Cheryl Burke, Apple co-founder Steve Wozniak famously did \"the worm\" on what reality TV series?",
+      "accept": [
+        "Dancing With the Stars"
+      ]
+    },
+    {
+      "clue": "She featured in the films \"Trainwreck,\" \"I Feel Pretty,\" and \"Snatched\" and was on season 5 of \"Last Comic Standing.\" Who is this blonde comedian?",
+      "accept": [
+        "Amy Schumer"
+      ]
+    },
+    {
+      "clue": "On America's Next Top Model, host Tyra Banks invented what word that means \"to smile with your eyes?\"",
+      "accept": [
+        "Smize"
+      ]
+    },
+    {
+      "clue": "Before he became an item with Taylor Swift, what Kansas City Chiefs tight end had his own reality dating show?",
+      "accept": [
+        "Travis Kelce"
+      ]
+    },
+    {
+      "clue": "What reality television show chronicles the lives of crab fishermen in the Bering Sea off the Alaskan Coast?",
+      "accept": [
+        "Deadliest Catch"
+      ]
+    },
+    {
+      "clue": "What two-word phrase, which also titles a 2023-2024 Netflix reality series, is the official nickname of the Dallas Cowboys cheerleaders?",
+      "accept": [
+        "America's Sweethearts"
+      ]
+    },
+    {
+      "clue": "The highly successful reality show \"Pawn Stars\" focuses on The World Famous Gold & Silver Pawn shop based in what American city?",
+      "accept": [
+        "Las Vegas"
+      ]
+    },
+    {
+      "clue": "Airing on Bravo since 2013, what reality series chronicles the lives of workers on luxury superyachts?",
+      "accept": [
+        "Below Deck"
+      ]
+    },
+    {
+      "clue": "In 2021, which teen TikTok dancing queen got her own reality show on Hulu that follows her family?",
+      "accept": [
+        "Charli D'Amelio"
+      ]
+    },
+    {
+      "clue": "What MTV reality show was spun off from \"The Real World\" and \"Road Rules\" and debuted in 1998?",
+      "accept": [
+        "The Challenge"
+      ]
+    },
+    {
+      "clue": "Bricklayer Craig Phillips was the first winner of what British reality show in 2000 named after a concept in George Orwell's \"1984?\"",
+      "accept": [
+        "Big Brother"
+      ]
+    },
+    {
+      "clue": "What CBS reality show from 2007 featured kids aged 8 to 15 who were tasked with building a functioning society?",
+      "accept": [
+        "Kid Nation"
+      ]
+    },
+    {
+      "clue": "Which canine trainer helped people with their problem pets on National Geographic's \"Dog Whisperer\" from 2004 to 2012?",
+      "accept": [
+        "Cesar Millan"
+      ]
+    },
+    {
+      "clue": "A group of young people are put into a house and win money by figuring out which were paired by a secret algorithm on what MTV reality show?",
+      "accept": [
+        "Are You the One?"
+      ]
+    },
+    {
+      "clue": "Debuting in March 2023 on TLC, a new reality show featuring Kenya Stevens, who has two spouses, is called \"Seeking Brother\" what?",
+      "accept": [
+        "Husband"
+      ]
+    },
+    {
+      "clue": "The breakup of the marriage of Kyle Richards and Mauricio Umansky provides drama for which location of the \"Real Housewives\" franchise?",
+      "accept": [
+        "Beverly Hills"
+      ]
+    },
+    {
+      "clue": "Indian author Vikas Swarup wrote a 2005 novel titled \"Q & A\" which was adapted into a 2008 British film that won the Academy Award for Best Picture. What was the adaptation called?",
+      "accept": [
+        "Slumdog Millionaire"
+      ]
+    },
+    {
+      "clue": "Named 2015's Best Drag Performer in Pittsburgh, Sharon Needles gained worldwide fame lip synchin' for life on season four of what Logo competition series?",
+      "accept": [
+        "RuPaul's Drag Race"
+      ]
+    },
+    {
+      "clue": "In 2007's debut episode of \"Keeping up with the Kardashians,\" which family member appears on the Tyra Banks Show?",
+      "accept": [
+        "Kim"
+      ]
+    },
+    {
+      "clue": "The first season of the U.S. version of \"The Amazing Race\" ended at the Unisphere in Flushing Meadows Park in what state?",
+      "accept": [
+        "New York"
+      ]
+    },
+    {
+      "clue": "Richard Hatch, Tina Wesson, Ethan Zohn, and Vecepia Towery were the first four winners of what reality TV show that premiered on CBS in 2000?",
+      "accept": [
+        "Survivor"
+      ]
+    },
+    {
+      "clue": "Natalie Bassingthwaighte and Carrie Bickmore were the two hosts of an English-language international version of \"So You Think You Can Dance\" filmed in Sydney. What country's version was this?",
+      "accept": [
+        "Australia"
+      ]
+    },
+    {
+      "clue": "Before joining CNN in 2001, what journalist was the host of the first two seasons of the ABC reality competition The Mole?",
+      "accept": [
+        "Anderson Cooper"
+      ]
+    },
+    {
+      "clue": "Bethenny Frankel, founder of Skinnygirl and former daytime talk show host, is a main cast member of what series in the Real Housewives franchise?",
+      "accept": [
+        "The Real Housewives of New York City"
+      ]
+    },
+    {
+      "clue": "Who did Brigitte Nielsen have an on-screen romance with in season three of VH1's \"Surreal Life\" that resulted in a spin-off show?",
+      "accept": [
+        "Flavor Flav",
+        "Flava Flav"
+      ]
+    },
+    {
+      "clue": "Instead of \"seasons,\" what \"recurring\" word is used to describe sets of episodes of \"America's Next Top Model?\"",
+      "accept": [
+        "Cycles"
+      ]
+    },
+    {
+      "clue": "The Wahlburgers TV series was based on the burger restaurant chain. Name any family member featured prominently with the last name Wahlberg.",
+      "accept": [
+        "Donnie",
+        "Paul",
+        "Alma",
+        "Brandon",
+        "Bob"
+      ]
+    },
+    {
+      "clue": "What Lifetime TV show features couples bound to be wed despite never meeting, deciding after the ceremony if they want to stay together?",
+      "accept": [
+        "Married At First Sight"
+      ]
+    },
+    {
+      "clue": "As of Season 11, what three judges sit on the panel of the Fox reality cooking competition series \"MasterChef?\"",
+      "accept": [
+        "Gordon Ramsay",
+        "Aaron Sanchez",
+        "Joe Bastianich"
+      ]
+    },
+    {
+      "clue": "What competition-based reality television show dominated the U.S. Nielsen ratings for eight consecutive years from 2003-2004 to 2010-2011?",
+      "accept": [
+        "American Idol"
+      ]
+    },
+    {
+      "clue": "It is known as \"The Tigers of Money\" in Japan and Dragon's Den in the UK. What is the American version of this reality TV show called?",
+      "accept": [
+        "Shark Tank"
+      ]
+    },
+    {
+      "clue": "Competitive eater Joey Chestnut, YouTube personality Tyler Oakley, and Survivor winners have appeared as contestants on what reality TV show?",
+      "accept": [
+        "The Amazing Race"
+      ]
+    },
+    {
+      "clue": "Legend has it that after every season of \"Survivor,\" who got to keep one of the snuffers used when someone got voted off the island?",
+      "accept": [
+        "Jeff Probst"
+      ]
+    },
+    {
+      "clue": "What is the surname of Michelle and Jim Bob, the parents of the titular family in the former TLC show \"19 Kids and Counting?\"",
+      "accept": [
+        "Duggar"
+      ]
+    },
+    {
+      "clue": "Joining the cast of \"Real Housewives of New York\" for season 14, Jenna Lyons is best known as the former creative director of what preppy fashion brand?",
+      "accept": [
+        "J.Crew"
+      ]
+    },
+    {
+      "clue": "Which 2014 reality show on Bravo follows generations of high society in Charleston, South Carolina?",
+      "accept": [
+        "Southern Charm"
+      ]
+    },
+    {
+      "clue": "Next in Fashion (NIF) is a reality show hosted by fashion designer Tan France and what model?",
+      "accept": [
+        "Gigi Hadid"
+      ]
+    },
+    {
+      "clue": "What Discovery Channel series follows placer gold miners, mostly in the Yukon Territory?",
+      "accept": [
+        "Gold Rush"
+      ]
+    },
+    {
+      "clue": "In 2007, Earl Cole became the first winner of what reality TV show to receive all the votes in the final?",
+      "accept": [
+        "Survivor"
+      ]
+    },
+    {
+      "clue": "What four-letter show is generally regarded as the longest-running reality show, running from 1989 to 2020?",
+      "accept": [
+        "Cops"
+      ]
+    },
+    {
+      "clue": "Body Jac, Element Bars, and Grill Charms have been companies featured on what reality TV franchise produced by Mark Burnett?",
+      "accept": [
+        "Shark Tank"
+      ]
+    },
+    {
+      "clue": "First airing in 2007, the reality show \"Rock of Love\" was a dating game in which contestants vied for the affections of what lead singer of Poison?",
+      "accept": [
+        "Bret Michaels"
+      ]
+    },
+    {
+      "clue": "In \"Top Chef\", Tom Colicchio has been very vocal about his abhorrence of what warm-season vegetable popular in American Southern cuisine?",
+      "accept": [
+        "Okra"
+      ]
+    },
+    {
+      "clue": "Maci, Catelynn, Amber, and Farrah are some of the OG adolescents in what semi-nurturing MTV reality series?",
+      "accept": [
+        "Teen Mom"
+      ]
+    },
+    {
+      "clue": "Modeled after \"Jersey Shore,\" what MTV reality series set in the Florida Panhandle premiered on November 27, 2017?",
+      "accept": [
+        "Floribama Shore"
+      ]
+    },
+    {
+      "clue": "Heidi Klum and Tim Gunn move to the Amazon series \"Making the Cut\" after their 16 seasons on what fashion reality show that first aired on Bravo in 2004?",
+      "accept": [
+        "Project Runway"
+      ]
+    },
+    {
+      "clue": "The first season (2006) of what reality TV show took place in Orange County, and the 2022 season took place in Dubai?",
+      "accept": [
+        "The Real Housewives"
+      ]
+    },
+    {
+      "clue": "Doug Marcaida, David Baker, and J. Neilson judge the items produced by contestants on \"Forged in Fire\", with which craft being the focus?",
+      "accept": [
+        "Bladesmithing"
+      ]
+    },
+    {
+      "clue": "A 2014 Reality TV show featured American women thinking they were competing to marry which member of the British royal family who married an American woman in 2018?",
+      "accept": [
+        "Prince Harry"
+      ]
+    },
+    {
+      "clue": "Season 25 of \"The Bachelor\" premiered in 2021 with Matt James. Before that, James had played what sport at collegiate and professional levels?",
+      "accept": [
+        "Football"
+      ]
+    },
+    {
+      "clue": "Across editions of \"RuPaul's Drag Race\" in multiple countries, the Library Challenge opens by declaring that \"reading is\" what 11-letter adjective?",
+      "accept": [
+        "Fundamental"
+      ]
+    },
+    {
+      "clue": "What 2020 Netflix-produced reality television show was inspired in part by the famous Seinfeld episode \"The Contest?\"",
+      "accept": [
+        "Too Hot to Handle"
+      ]
+    },
+    {
+      "clue": "What CBS reality show debuting in 2019 and based on a UK show features singles in exotic locales who form couples and compete for $100,000?",
+      "accept": [
+        "Love Island"
+      ]
+    },
+    {
+      "clue": "Which Australian reality show on Netflix followed a group of autistic adults navigating the world of dating?",
+      "accept": [
+        "Love on the Spectrum"
+      ]
+    },
+    {
+      "clue": "If you \"dropped in\" to MTV in the 2000s, maybe you caught a few episodes of Life of Ryan (2007), following which pro skateboarder?",
+      "accept": [
+        "Ryan Sheckler"
+      ]
+    },
+    {
+      "clue": "Now divorced, pop singers Nick Lachey and Jessica Simpson were the titular married couple in what MTV reality series that aired for three seasons starting in 2003?",
+      "accept": [
+        "Newlyweds"
+      ]
+    },
+    {
+      "clue": "Next Level Chef had its second season premiere in the coveted post-Super Bowl time slot. The culinary reality competition features what celebrity chef as host?",
+      "accept": [
+        "Gordon Ramsay"
+      ]
+    },
+    {
+      "clue": "\"Chrissy's Court,\" in which Chrissy Teigen played a Judge Judy-like role, was a reality series on what short-lived mobile-only streaming service?",
+      "accept": [
+        "Quibi"
+      ]
+    },
+    {
+      "clue": "Actor and politico Arnold Schwarzenegger was tapped as a replacement host for what show in 2015?",
+      "accept": [
+        "The Apprentice"
+      ]
+    },
+    {
+      "clue": "In 2020, Netflix released which reality show with a geometric name that's an American version of the original UK show?",
+      "accept": [
+        "The Circle"
+      ]
+    },
+    {
+      "clue": "The hit reality show \"Survivor\" has been around for over 20 years. Which first season winner from Rhode Island went to prison for 51 months for tax evasion?",
+      "accept": [
+        "Richard Hatch"
+      ]
+    },
+    {
+      "clue": "Joanna Krupa hosts Poland's version, and Heidi Klum hosts Germany's. In the US, Rita Ora took the reins for one season in 2017, but which model hosted the other 23 seasons?",
+      "accept": [
+        "Tyra Banks"
+      ]
+    },
+    {
+      "clue": "Adrianne Curry, Yoanna House, Eva Pigford, and Naima Mora were the winners of the first four seasons of what fashionable reality show that debuted in 2003?",
+      "accept": [
+        "America's Next Top Model"
+      ]
+    },
+    {
+      "clue": "What television news personality has been host of the CBS reality show \"Big Brother\" since its premiere on July 5, 2000?",
+      "accept": [
+        "Julie Chen"
+      ]
+    },
+    {
+      "clue": "Generally named after the cities where they're set, the \"Real Housewives\" series starring Melissa Gorga and Dolores Catania is named for what state?",
+      "accept": [
+        "New Jersey"
+      ]
+    },
+    {
+      "clue": "What chef won \"Top Chef: Chicago\" and is a co-owner of Chi-town restaurants The Girl and the Goat and Little Goat?",
+      "accept": [
+        "Stephanie Izard"
+      ]
+    },
+    {
+      "clue": "Which Netflix reality TV show follows the glamorous real estate agents working at The Oppenheim Group in California?",
+      "accept": [
+        "Selling Sunset"
+      ]
+    },
+    {
+      "clue": "Daniel Powter's song spent five weeks atop the Billboard charts in 2005 and was featured in American Idol elimination montages. What was Powter's two-word smash hit?",
+      "accept": [
+        "Bad Day"
+      ]
+    },
+    {
+      "clue": "With a name that references a neighborhood in New York City, what drag queen is the head judge of \"Canada's Drag Race?\"",
+      "accept": [
+        "Brooke Lynn Hytes"
+      ]
+    },
+    {
+      "clue": "On what NBC reality competition do celebrity judges listen to singers with their chairs turned around?",
+      "accept": [
+        "The Voice"
+      ]
+    },
+    {
+      "clue": "Premiering in 2009 on the G4 network before moving to NBC in 2012, what reality show features competitors attempting to complete difficult obstacle courses?",
+      "accept": [
+        "American Ninja Warrior"
+      ]
+    },
+    {
+      "clue": "Also called a talisman in earlier seasons, what piece of jewelry awarded to the winner of an immunity challenge means a \"Survivor\" contestant cannot be eliminated that week?",
+      "accept": [
+        "Necklace"
+      ]
+    },
+    {
+      "clue": "Which reality show on The Discovery Channel has two people survive for 21 days in a remote location?",
+      "accept": [
+        "Naked and Afraid"
+      ]
+    },
+    {
+      "clue": "In September 2022, the show \"Watch Out for the Big Grrrls\" won the Outstanding Competition Program Emmy. What one-named singer hosts the show?",
+      "accept": [
+        "Lizzo"
+      ]
+    },
+    {
+      "clue": "Which MTV show that first aired during Spring Break 2005 had the family of a young female contestant eliminate a lineup of potential boyfriends?",
+      "accept": [
+        "Parental Control"
+      ]
+    },
+    {
+      "clue": "\"GBBO\" is the nickname for which UK reality show that features cookers competing in a culinary contest?",
+      "accept": [
+        "Great British Bake Off",
+        "The Great British Bake Off"
+      ]
+    },
+    {
+      "clue": "\"The Girls Next Door\" (2005) followed the girlfriends of which Playboy with whom they all cohabitated?",
+      "accept": [
+        "Hugh Hefner"
+      ]
+    },
+    {
+      "clue": "Which TLC show that followed parents-to-be through pregnancy and childbirth started airing in 1998 and was one of the first examples of reality TV?",
+      "accept": [
+        "A Baby Story"
+      ]
+    },
+    {
+      "clue": "Starvation and rigged weigh-ins are among accusations leveled at what reality series that aired on NBC from 2004 to 2016?",
+      "accept": [
+        "The Biggest Loser"
+      ]
+    },
+    {
+      "clue": "The logo for CBS's hit reality show \"Survivor\" includes \"outwit,\" \"outplay,\" and what other \"out\" verb?",
+      "accept": [
+        "Outlast"
+      ]
+    },
+    {
+      "clue": "Orange County, New York City, Beverly Hills, Salt Lake City, and Potomac are all installments of what reality television franchise?",
+      "accept": [
+        "The Real Housewives"
+      ]
+    },
+    {
+      "clue": "Kelly Clarkson, the first winner of \"American Idol,\" serves as a coach on what hit NBC singing competition series?",
+      "accept": [
+        "The Voice"
+      ]
+    },
+    {
+      "clue": "What country music legend, whose hits include \"What If\" and \"Turn On The Radio,\" is set to replace Blake Shelton on \"The Voice\" starting with Season 24?",
+      "accept": [
+        "Reba McEntire"
+      ]
+    },
+    {
+      "clue": "What network, which has had better luck with its Real Housewives franchises, canceled its 2019 reality show about Mexico City families after one season?",
+      "accept": [
+        "Bravo"
+      ]
+    },
+    {
+      "clue": "Based on a term from George Orwell's book \"Nineteen Eighty Four\", the reality show Big Brother first went to air in 1999 in which European country?",
+      "accept": [
+        "The Netherlands"
+      ]
+    },
+    {
+      "clue": "You could say that what show on TLC in the early 2000s \"birthed\" reality TV, since cameras followed parents-to-be from pregnancy to delivery?",
+      "accept": [
+        "A Baby Story"
+      ]
+    },
+    {
+      "clue": "Amazon Prime's reality competition \"Watch Out for the Big Grrrls\" gives people a chance to become a backup dancer for what flute-playing sensation?",
+      "accept": [
+        "Lizzo"
+      ]
+    },
+    {
+      "clue": "What 2023 reality show starring Brian Cox takes players to iconic locations from Bond films in their quest for a huge cash prize?",
+      "accept": [
+        "007's Road to a Million"
+      ]
+    },
+    {
+      "clue": "Described as \"a charming 72-year-old patriarch from Indiana,\" Gerry Turner is the titular love interest in what hit ABC reality series that began airing in September 2023?",
+      "accept": [
+        "The Golden Bachelor"
+      ]
+    },
+    {
+      "clue": "According to the Guinness World Records, what was the first reality television show, debuting in 1948?",
+      "accept": [
+        "Candid Camera"
+      ]
+    },
+    {
+      "clue": "Featuring both his nickname and profession, what reality TV show is named after its star Duane Chapman?",
+      "accept": [
+        "Dog the Bounty Hunter"
+      ]
+    },
+    {
+      "clue": "Which heavy metal rocker starred along with his family in a show that documented their lives, arguably the first reality show to follow a celebrity family, premiering in 2002?",
+      "accept": [
+        "Ozzy Osbourne"
+      ]
+    },
+    {
+      "clue": "In 2008, \"My New BFF\" was a competition reality show in which what famously hot heiress searched for a new best friend?",
+      "accept": [
+        "Paris Hilton"
+      ]
+    },
+    {
+      "clue": "Who was the first chef to win two seasons of the Food Network competition show \"Tournament of Champions?\"",
+      "accept": [
+        "Maneet Chauhan"
+      ]
+    },
+    {
+      "clue": "Based on a film of the same name starring Josh Duhamel, what reality show in a summer camp-like setting involves six groups of four friends competing in challenges?",
+      "accept": [
+        "Buddy Games"
+      ]
+    },
+    {
+      "clue": "Initially considered a response to ABC's \"Survivor\" success, what American stunt game show aired on NBC from 2001 to 2006?",
+      "accept": [
+        "Fear Factor"
+      ]
+    },
+    {
+      "clue": "What reality show running from 2006-2009 followed California high schoolers and created stars like Lauren Conrad and Kristin Cavallari?",
+      "accept": [
+        "Laguna Beach"
+      ]
+    },
+    {
+      "clue": "In addition to being an occasional guest host, what position did Steve Wilkos hold on \"The Jerry Springer Show?\"",
+      "accept": [
+        "Head of Security"
+      ]
+    },
+    {
+      "clue": "A home telephone in the physical shape of a mallard duck was a key piece of furniture in the house from what reality television series?",
+      "accept": [
+        "Jersey Shore"
+      ]
+    },
+    {
+      "clue": "What HGTV reality show featured Waco couple Chip and Joanna Gaines and their home renovation business from 2013 to 2017?",
+      "accept": [
+        "Fixer Upper"
+      ]
+    },
+    {
+      "clue": "The metaphoric feeling marathoners get when their glycogen stores deplete around mile 20 shares what name with a Chris Harwick-hosted trivia show?",
+      "accept": [
+        "The Wall"
+      ]
+    },
+    {
+      "clue": "Where was the first season of \"Survivor\" filmed? It is the third-largest island in the world with a six-letter \"B\" name.",
+      "accept": [
+        "Borneo"
+      ]
+    },
+    {
+      "clue": "What retired NFL player and Season 5 Bachelor returned to \"The Bachelor\" in 2022 as host, replacing Chris Harrison?",
+      "accept": [
+        "Jesse Palmer"
+      ]
+    },
+    {
+      "clue": "How many days have most editions of the U.S. reality TV show \"Survivor\" lasted?",
+      "accept": [
+        "39 Days",
+        "39"
+      ]
+    },
+    {
+      "clue": "One of the featured big cat trainers in \"Tiger King\" had been on stage with Britney Spears at the 2001 MTV Video Music Awards. Who is he?",
+      "accept": [
+        "Doc Antle"
+      ]
+    },
+    {
+      "clue": "Since Season 33 in 2016, every season of \"Survivor\" has been filmed in the Mamanuca Islands of what South Pacific nation?",
+      "accept": [
+        "Fiji"
+      ]
+    },
+    {
+      "clue": "Farrah Abraham and Jordan Cashmyer were among the stars of what 2010s MTV documentary series showcasing problems teenagers face with children?",
+      "accept": [
+        "16 And Pregnant"
+      ]
+    },
+    {
+      "clue": "September 19, 2007 marked the series premiere of what Fox reality show featuring chef Gordon Ramsay helping failing restaurant owners?",
+      "accept": [
+        "Kitchen Nightmares"
+      ]
+    }
+  ],
+  "shuffle": true,
+  "submitted": true
+}
