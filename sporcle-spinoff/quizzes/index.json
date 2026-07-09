@@ -245,6 +245,18 @@
     ]
   },
   {
+    "id": "mega-movie-challenge",
+    "title": "Mega Movie Challenge",
+    "type": "text-entry",
+    "blurb": "See how you'd do on Extra Medium Stuff's 11 People vs. Movie Quiz with 70 questions spanning 9 rounds of movie trivia",
+    "tags": [
+      "Movies",
+      "Film",
+      "Entertainment"
+    ],
+    "submitted": true
+  },
+  {
     "id": "us-states",
     "title": "Name All 50 US States",
     "type": "text-entry",
