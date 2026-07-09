@@ -1,0 +1,345 @@
+{
+  "id": "long-easy-geography-trivia",
+  "title": "Long & East Geography Trivia",
+  "type": "text-entry",
+  "blurb": "Test your geography knowledge with questions about countries, cities, landmarks, and natural features.",
+  "tags": [
+    "Geography"
+  ],
+  "timeLimitSec": 900,
+  "prompt": "Type your answer…",
+  "layout": "table",
+  "columns": [
+    {
+      "key": "clue",
+      "label": "Question"
+    }
+  ],
+  "answerLabel": "Answer",
+  "items": [
+    {
+      "clue": "Which state is the Grand Canyon located in?",
+      "accept": [
+        "Arizona"
+      ]
+    },
+    {
+      "clue": "What is the smallest country in the world?",
+      "accept": [
+        "Vatican City"
+      ]
+    },
+    {
+      "clue": "What is the longest river in the world?",
+      "accept": [
+        "Nile",
+        "Nile River"
+      ]
+    },
+    {
+      "clue": "What is the capital of Tennessee?",
+      "accept": [
+        "Nashville"
+      ]
+    },
+    {
+      "clue": "On which continent is Malta located?",
+      "accept": [
+        "Europe"
+      ]
+    },
+    {
+      "clue": "Which country has the most natural lakes?",
+      "accept": [
+        "Canada"
+      ]
+    },
+    {
+      "clue": "Which African country has the largest population?",
+      "accept": [
+        "Nigeria"
+      ]
+    },
+    {
+      "clue": "What is the smallest continent by area?",
+      "accept": [
+        "Australia"
+      ]
+    },
+    {
+      "clue": "What is the capital of Spain?",
+      "accept": [
+        "Madrid"
+      ]
+    },
+    {
+      "clue": "Over which river was the Hoover Dam built?",
+      "accept": [
+        "Colorado River",
+        "Colorado"
+      ]
+    },
+    {
+      "clue": "Where is Machu Picchu located?",
+      "accept": [
+        "Peru"
+      ]
+    },
+    {
+      "clue": "Which city is nicknamed the 'eternal city'?",
+      "accept": [
+        "Rome"
+      ]
+    },
+    {
+      "clue": "What is the capital of Montana?",
+      "accept": [
+        "Helena"
+      ]
+    },
+    {
+      "clue": "Which country is shaped like a boot?",
+      "accept": [
+        "Italy"
+      ]
+    },
+    {
+      "clue": "Which U.S. airport has the largest passenger volume?",
+      "accept": [
+        "Atlanta",
+        "Hartsfield-Jackson Atlanta International Airport"
+      ]
+    },
+    {
+      "clue": "How many time zones are there in the 50 U.S. states?",
+      "accept": [
+        "6",
+        "six"
+      ]
+    },
+    {
+      "clue": "Which is the most populous city in the United States?",
+      "accept": [
+        "New York City",
+        "New York",
+        "NYC"
+      ]
+    },
+    {
+      "clue": "Which is the largest country in South America?",
+      "accept": [
+        "Brazil"
+      ]
+    },
+    {
+      "clue": "Which ocean is on the eastern side of the United States?",
+      "accept": [
+        "Atlantic Ocean",
+        "Atlantic"
+      ]
+    },
+    {
+      "clue": "Which South American country is closest to Antarctica?",
+      "accept": [
+        "Chile"
+      ]
+    },
+    {
+      "clue": "Between which two states is Washington, D.C. located?",
+      "accept": [
+        "Maryland and Virginia",
+        "Maryland & Virginia",
+        "Virginia and Maryland"
+      ]
+    },
+    {
+      "clue": "Which American city is closest to the Bahamas?",
+      "accept": [
+        "Miami"
+      ]
+    },
+    {
+      "clue": "On which continent is Chad located?",
+      "accept": [
+        "Africa"
+      ]
+    },
+    {
+      "clue": "Which river forms the border between the United States and Mexico?",
+      "accept": [
+        "Rio Grande",
+        "Rio Grande River"
+      ]
+    },
+    {
+      "clue": "What is the capital of Thailand?",
+      "accept": [
+        "Bangkok"
+      ]
+    },
+    {
+      "clue": "What type of leaf appears on the Canadian flag?",
+      "accept": [
+        "Maple Leaf",
+        "Maple",
+        "maple leaf"
+      ]
+    },
+    {
+      "clue": "Which country has the highest population in the world?",
+      "accept": [
+        "India"
+      ]
+    },
+    {
+      "clue": "Which U.S. state has the most national parks?",
+      "accept": [
+        "California"
+      ]
+    },
+    {
+      "clue": "Which country has the most islands?",
+      "accept": [
+        "Sweden"
+      ]
+    },
+    {
+      "clue": "Which country has the longest coastline in the world?",
+      "accept": [
+        "Canada"
+      ]
+    },
+    {
+      "clue": "Which of these lakes is located in Canada: Tahoe, Juno, Louise, Victoria, or Eloise?",
+      "accept": [
+        "Lake Louise",
+        "Louise"
+      ]
+    },
+    {
+      "clue": "Which country formerly ruled Iceland?",
+      "accept": [
+        "Denmark"
+      ]
+    },
+    {
+      "clue": "What is the tallest mountain in the United States?",
+      "accept": [
+        "Mount McKinley",
+        "Denali",
+        "Mount Denali"
+      ]
+    },
+    {
+      "clue": "What is the largest railway station in the world?",
+      "accept": [
+        "Grand Central Terminal",
+        "Nagoya Station"
+      ]
+    },
+    {
+      "clue": "Within which city is Vatican City contained?",
+      "accept": [
+        "Rome"
+      ]
+    },
+    {
+      "clue": "What is the southernmost country in Africa called?",
+      "accept": [
+        "South Africa"
+      ]
+    },
+    {
+      "clue": "Which U.S. state's northernmost point is the northernmost point in continental United States?",
+      "accept": [
+        "Minnesota"
+      ]
+    },
+    {
+      "clue": "In which country is Stonehenge located?",
+      "accept": [
+        "England",
+        "United Kingdom",
+        "UK"
+      ]
+    },
+    {
+      "clue": "Which country is nicknamed the 'Land of Smiles'?",
+      "accept": [
+        "Thailand"
+      ]
+    },
+    {
+      "clue": "Which volcano destroyed Pompeii?",
+      "accept": [
+        "Mount Vesuvius",
+        "Vesuvius"
+      ]
+    },
+    {
+      "clue": "What is the currency used in India?",
+      "accept": [
+        "Rupee",
+        "Indian Rupee",
+        "Rupees"
+      ]
+    },
+    {
+      "clue": "Into which body of water does the Mississippi River flow?",
+      "accept": [
+        "Gulf of Mexico"
+      ]
+    },
+    {
+      "clue": "Which country or countries were the homeland of the Vikings?",
+      "accept": [
+        "Denmark",
+        "Sweden",
+        "Norway",
+        "Scandinavia"
+      ]
+    },
+    {
+      "clue": "Which river flows through Brazil's rainforest?",
+      "accept": [
+        "Amazon River",
+        "Amazon"
+      ]
+    },
+    {
+      "clue": "What is the southernmost point in continental United States?",
+      "accept": [
+        "Key West",
+        "Key West, Florida"
+      ]
+    },
+    {
+      "clue": "Where is the Christ the Redeemer statue located?",
+      "accept": [
+        "Rio de Janeiro",
+        "Rio"
+      ]
+    },
+    {
+      "clue": "What is the largest island in the Mediterranean Sea?",
+      "accept": [
+        "Sicily"
+      ]
+    },
+    {
+      "clue": "Which U.S. state is closest to Africa?",
+      "accept": [
+        "Maine"
+      ]
+    },
+    {
+      "clue": "Which river flows through the Grand Canyon?",
+      "accept": [
+        "Colorado River",
+        "Colorado"
+      ]
+    }
+  ],
+  "shuffle": true,
+  "submitted": true
+}
