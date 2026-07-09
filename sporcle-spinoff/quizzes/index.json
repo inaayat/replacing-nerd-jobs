@@ -267,6 +267,17 @@
     "submitted": true
   },
   {
+    "id": "mega-reality-tv-trivia",
+    "title": "Mega Reality TV Trivia-Easy to Extra Hard",
+    "type": "text-entry",
+    "blurb": "150 questions on reality television shows, hosts, and stars.",
+    "tags": [
+      "Reality TV",
+      "Television"
+    ],
+    "submitted": true
+  },
+  {
     "id": "mega-sports-trivia-challenge",
     "title": "Mega Sports Trivia Challenge",
     "type": "text-entry",
