@@ -1,0 +1,609 @@
+{
+  "id": "mega-sports-trivia-challenge",
+  "title": "Mega Sports Trivia Challenge",
+  "type": "text-entry",
+  "blurb": "80+ questions covering athletes, records, events, and sports history.",
+  "tags": [
+    "Sports",
+    "Trivia"
+  ],
+  "timeLimitSec": 1200,
+  "prompt": "Type your answer…",
+  "layout": "table",
+  "columns": [
+    {
+      "key": "clue",
+      "label": "Question"
+    }
+  ],
+  "answerLabel": "Answer",
+  "items": [
+    {
+      "clue": "What must you win at the Olympics to be considered the world's greatest athlete?",
+      "accept": [
+        "Decathlon gold medal",
+        "Decathlon gold",
+        "Gold medal in decathlon"
+      ]
+    },
+    {
+      "clue": "Retired MLB pitcher who played for the Red Sox?",
+      "accept": [
+        "Pedro Martinez",
+        "Pedro"
+      ]
+    },
+    {
+      "clue": "NFL player known as 'The Refrigerator'?",
+      "accept": [
+        "William Perry",
+        "Perry"
+      ]
+    },
+    {
+      "clue": "International team competition in men's tennis?",
+      "accept": [
+        "Davis Cup"
+      ]
+    },
+    {
+      "clue": "First golfer to win Masters four times?",
+      "accept": [
+        "Tiger Woods",
+        "Woods"
+      ]
+    },
+    {
+      "clue": "Second boxer to beat Muhammad Ali and assumed heavyweight title in 1978?",
+      "accept": [
+        "Leon Spinks",
+        "Spinks"
+      ]
+    },
+    {
+      "clue": "Location of the Miracle on Ice Winter Olympics?",
+      "accept": [
+        "Lake Placid"
+      ]
+    },
+    {
+      "clue": "How many players on a cricket team?",
+      "accept": [
+        "11"
+      ]
+    },
+    {
+      "clue": "After the US, which country produces the most MLB players?",
+      "accept": [
+        "Dominican Republic"
+      ]
+    },
+    {
+      "clue": "City where NBA Warriors play?",
+      "accept": [
+        "Golden State",
+        "San Francisco",
+        "Bay Area"
+      ]
+    },
+    {
+      "clue": "Country with most Winter Olympics medals?",
+      "accept": [
+        "Norway"
+      ]
+    },
+    {
+      "clue": "MLB contact hitter who played 20 seasons with San Diego?",
+      "accept": [
+        "Tony Gwynn",
+        "Gwynn"
+      ]
+    },
+    {
+      "clue": "Before moving to LA, which state did Lakers franchise start in?",
+      "accept": [
+        "Minnesota"
+      ]
+    },
+    {
+      "clue": "NHL team with most points in a single season (modern)?",
+      "accept": [
+        "Boston Bruins",
+        "Bruins"
+      ]
+    },
+    {
+      "clue": "Term in golf for scoring three under par?",
+      "accept": [
+        "Albatross"
+      ]
+    },
+    {
+      "clue": "First player to win Ballon d'Or and Golden Boot twice?",
+      "accept": [
+        "Gerd Müller",
+        "Gerd Muller",
+        "Müller",
+        "Muller"
+      ]
+    },
+    {
+      "clue": "Sport Sergey Bubka broke world record 35 times in?",
+      "accept": [
+        "Pole Vault",
+        "Pole vaulting"
+      ]
+    },
+    {
+      "clue": "Race involving water jumps and hurdles?",
+      "accept": [
+        "Steeplechase"
+      ]
+    },
+    {
+      "clue": "Neil Diamond song played in 8th inning at every Red Sox game?",
+      "accept": [
+        "Sweet Caroline",
+        "Caroline"
+      ]
+    },
+    {
+      "clue": "Boxer whose five sons all share the same first name?",
+      "accept": [
+        "George Foreman",
+        "Foreman"
+      ]
+    },
+    {
+      "clue": "Country with most Rugby World Cup titles?",
+      "accept": [
+        "South Africa"
+      ]
+    },
+    {
+      "clue": "Team with most Stanley Cup titles?",
+      "accept": [
+        "Montreal Canadiens",
+        "Canadiens"
+      ]
+    },
+    {
+      "clue": "Basketball player known as the Greek Freak?",
+      "accept": [
+        "Giannis Antetokounmpo",
+        "Giannis"
+      ]
+    },
+    {
+      "clue": "What do Olympic rings represent?",
+      "accept": [
+        "The five continents",
+        "Five continents"
+      ]
+    },
+    {
+      "clue": "NFL team with longest regular-season winning streak?",
+      "accept": [
+        "New England Patriots",
+        "Patriots"
+      ]
+    },
+    {
+      "clue": "College Patrick Mahomes played for?",
+      "accept": [
+        "Texas Tech"
+      ]
+    },
+    {
+      "clue": "NBA venue in US called 'Mecca of Basketball'?",
+      "accept": [
+        "Madison Square Garden",
+        "MSG"
+      ]
+    },
+    {
+      "clue": "National sport of Canada besides ice hockey?",
+      "accept": [
+        "Lacrosse"
+      ]
+    },
+    {
+      "clue": "Top 3 women's Olympic soccer goalscorer?",
+      "accept": [
+        "Mia Hamm",
+        "Hamm"
+      ]
+    },
+    {
+      "clue": "Manny Pacquiao's professional nickname?",
+      "accept": [
+        "Pac-Man",
+        "Pacman"
+      ]
+    },
+    {
+      "clue": "Professional swimmer Katie...?",
+      "accept": [
+        "Katie Ledecky",
+        "Ledecky"
+      ]
+    },
+    {
+      "clue": "Only player to be an All-Star in two different pro sports?",
+      "accept": [
+        "Bo Jackson",
+        "Jackson"
+      ]
+    },
+    {
+      "clue": "Nickname of college basketball tournament?",
+      "accept": [
+        "March Madness"
+      ]
+    },
+    {
+      "clue": "Bowling three strikes in a row is called?",
+      "accept": [
+        "Turkey"
+      ]
+    },
+    {
+      "clue": "Sport where America's Cup is awarded?",
+      "accept": [
+        "Sailing",
+        "Yacht racing",
+        "Yachting"
+      ]
+    },
+    {
+      "clue": "Track and field athlete who set 3 world records and tied another in 1935?",
+      "accept": [
+        "Jesse Owens",
+        "Owens"
+      ]
+    },
+    {
+      "clue": "Current #1 ranked men's tennis player?",
+      "accept": [
+        "Carlos Alcaraz",
+        "Alcaraz"
+      ]
+    },
+    {
+      "clue": "2012 MLB knuckleball pitcher who won Cy Young?",
+      "accept": [
+        "R.A. Dickey",
+        "RA Dickey",
+        "Dickey"
+      ]
+    },
+    {
+      "clue": "Who scored the 'Hand of God' goal in soccer?",
+      "accept": [
+        "Diego Maradona",
+        "Maradona"
+      ]
+    },
+    {
+      "clue": "Most ICC Cricket World Cup titles won by which country?",
+      "accept": [
+        "Australia"
+      ]
+    },
+    {
+      "clue": "Tennis event with a digital Rolex clock?",
+      "accept": [
+        "Wimbledon"
+      ]
+    },
+    {
+      "clue": "Sport featuring Ryan Sheckler?",
+      "accept": [
+        "Skateboarding"
+      ]
+    },
+    {
+      "clue": "Usain Bolt's record time for 100m?",
+      "accept": [
+        "9.58 seconds",
+        "9.58"
+      ]
+    },
+    {
+      "clue": "Laila Ali's retired boxer father?",
+      "accept": [
+        "Muhammad Ali",
+        "Ali"
+      ]
+    },
+    {
+      "clue": "Holds record for most career passing TD in NFL?",
+      "accept": [
+        "Tom Brady",
+        "Brady"
+      ]
+    },
+    {
+      "clue": "Trophy awarded to NHL MVP?",
+      "accept": [
+        "Hart Memorial Trophy",
+        "Hart Trophy"
+      ]
+    },
+    {
+      "clue": "Sport using penhold grip?",
+      "accept": [
+        "Ping Pong",
+        "Table Tennis"
+      ]
+    },
+    {
+      "clue": "PGA tournament with party atmosphere?",
+      "accept": [
+        "Waste Management Phoenix Open",
+        "WM Phoenix Open"
+      ]
+    },
+    {
+      "clue": "Field sport term: illegal pitcher motion?",
+      "accept": [
+        "Balk"
+      ]
+    },
+    {
+      "clue": "Boat used for competitive rowing?",
+      "accept": [
+        "Shell",
+        "Skull"
+      ]
+    },
+    {
+      "clue": "NFL team originally called the Titans?",
+      "accept": [
+        "Tennessee Titans",
+        "Titans"
+      ]
+    },
+    {
+      "clue": "Marathon with most finishers in 2024/25?",
+      "accept": [
+        "New York City Marathon",
+        "NYC Marathon"
+      ]
+    },
+    {
+      "clue": "Term used in fencing for scoring a valid touch?",
+      "accept": [
+        "Touché"
+      ]
+    },
+    {
+      "clue": "All-time leading scorer at Division 1 NCAA basketball?",
+      "accept": [
+        "Caitlin Clark",
+        "Caitlyn Clark",
+        "Clark"
+      ]
+    },
+    {
+      "clue": "MLB pitcher with career strikeout record?",
+      "accept": [
+        "Nolan Ryan",
+        "Ryan"
+      ]
+    },
+    {
+      "clue": "Men's college basketball team with most national championships?",
+      "accept": [
+        "UCLA"
+      ]
+    },
+    {
+      "clue": "Where is The Masters held?",
+      "accept": [
+        "Augusta National",
+        "Augusta, Georgia",
+        "Augusta"
+      ]
+    },
+    {
+      "clue": "QB whose first NFL pass was an interception returned for a TD?",
+      "accept": [
+        "Brett Favre",
+        "Aaron Rodgers"
+      ]
+    },
+    {
+      "clue": "First ever modern Olympics (1896), medals awarded to winners were...?",
+      "accept": [
+        "Silver"
+      ]
+    },
+    {
+      "clue": "Soccer move going through opponent's legs?",
+      "accept": [
+        "Nutmeg"
+      ]
+    },
+    {
+      "clue": "First female to climb Mount Everest?",
+      "accept": [
+        "Junko Tabei",
+        "Tabei"
+      ]
+    },
+    {
+      "clue": "Nadia Comăneci was from which country?",
+      "accept": [
+        "Romania"
+      ]
+    },
+    {
+      "clue": "What does BMX stand for?",
+      "accept": [
+        "Bicycle Motocross",
+        "Bike Motocross"
+      ]
+    },
+    {
+      "clue": "MLB record holder for most runs scored of all time?",
+      "accept": [
+        "Rickey Henderson",
+        "Henderson"
+      ]
+    },
+    {
+      "clue": "Outside US, most common name for a soccer field?",
+      "accept": [
+        "Pitch"
+      ]
+    },
+    {
+      "clue": "WNBA team with most championships?",
+      "accept": [
+        "Los Angeles Sparks",
+        "Connecticut Sun"
+      ]
+    },
+    {
+      "clue": "Tennis term when receiver is 1 point from breaking serve?",
+      "accept": [
+        "Break point"
+      ]
+    },
+    {
+      "clue": "First recorded 100 mph fastball pitcher?",
+      "accept": [
+        "Nolan Ryan",
+        "Ryan"
+      ]
+    },
+    {
+      "clue": "Part of golf course where golfer uses putter?",
+      "accept": [
+        "Green"
+      ]
+    },
+    {
+      "clue": "Sports terms: bobsled, breakfast, ton, leg, double tap belong to?",
+      "accept": [
+        "Darts"
+      ]
+    },
+    {
+      "clue": "Hockey achievement: recording a goal in consecutive games?",
+      "accept": [
+        "Hat trick",
+        "Hatrick"
+      ]
+    },
+    {
+      "clue": "Stadium home to Manchester United?",
+      "accept": [
+        "Old Trafford"
+      ]
+    },
+    {
+      "clue": "NFL team with logo only on one side of helmet?",
+      "accept": [
+        "Pittsburgh Steelers",
+        "Steelers"
+      ]
+    },
+    {
+      "clue": "Known as the King of Clay in tennis?",
+      "accept": [
+        "Rafael Nadal",
+        "Nadal"
+      ]
+    },
+    {
+      "clue": "Detroit Red Wings fans throw...?",
+      "accept": [
+        "Pucks",
+        "Octopi"
+      ]
+    },
+    {
+      "clue": "Biathlon events: Cross country skiing and what?",
+      "accept": [
+        "Shooting",
+        "Rifle shooting"
+      ]
+    },
+    {
+      "clue": "MVP of 2021 NBA Finals?",
+      "accept": [
+        "Nikola Jokić",
+        "Nikola Jokic",
+        "Jokic"
+      ]
+    },
+    {
+      "clue": "Dick Butkus played for which NFL team?",
+      "accept": [
+        "Chicago Bears",
+        "Bears"
+      ]
+    },
+    {
+      "clue": "Rockies home ballpark famous for high altitude?",
+      "accept": [
+        "Coors Field"
+      ]
+    },
+    {
+      "clue": "Race course where Kentucky Derby is run?",
+      "accept": [
+        "Churchill Downs"
+      ]
+    },
+    {
+      "clue": "Dodgers baseball broadcaster Vin...?",
+      "accept": [
+        "Vin Scully",
+        "Scully"
+      ]
+    },
+    {
+      "clue": "Max number of golf clubs allowed in a pro bag?",
+      "accept": [
+        "14"
+      ]
+    },
+    {
+      "clue": "Area between a hockey goalie's legs?",
+      "accept": [
+        "Five holes",
+        "The slot"
+      ]
+    },
+    {
+      "clue": "Game played back and forth across net with rackets and shuttlecock?",
+      "accept": [
+        "Badminton"
+      ]
+    },
+    {
+      "clue": "World's largest sporting EVENT by attendance that lasts multiple days?",
+      "accept": [
+        "Tour de France"
+      ]
+    },
+    {
+      "clue": "Who has most career international goals?",
+      "accept": [
+        "Cristiano Ronaldo",
+        "Ronaldo"
+      ]
+    },
+    {
+      "clue": "Cricket runs needed for a century in one inning?",
+      "accept": [
+        "100"
+      ]
+    }
+  ],
+  "shuffle": true,
+  "submitted": true
+}
