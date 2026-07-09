@@ -1,0 +1,517 @@
+{
+  "id": "mega-movie-challenge",
+  "title": "Mega Movie Challenge",
+  "type": "text-entry",
+  "blurb": "See how you'd do on Extra Medium Stuff's 11 People vs. Movie Quiz with 70 questions spanning 9 rounds of movie trivia",
+  "tags": [
+    "Movies",
+    "Film",
+    "Entertainment"
+  ],
+  "timeLimitSec": 900,
+  "prompt": "Type your answer…",
+  "layout": "table",
+  "columns": [
+    {
+      "key": "clue",
+      "label": "Question"
+    }
+  ],
+  "answerLabel": "Answer",
+  "items": [
+    {
+      "clue": "What is the last name of the family in Home Alone?",
+      "accept": [
+        "McCallister",
+        "Mccallister"
+      ]
+    },
+    {
+      "clue": "What movie involves a thief entering people's dreams to steal their secrets?",
+      "accept": [
+        "Inception"
+      ]
+    },
+    {
+      "clue": "What is Rachel Chu's profession in Crazy Rich Asians?",
+      "accept": [
+        "Economics professor",
+        "Professor",
+        "Economist",
+        "Econ professor"
+      ]
+    },
+    {
+      "clue": "What district is Katniss from in the Hunger Games?",
+      "accept": [
+        "12",
+        "District 12"
+      ]
+    },
+    {
+      "clue": "What is Indiana Jones' weapon of choice?",
+      "accept": [
+        "Whip",
+        "A whip"
+      ]
+    },
+    {
+      "clue": "What 1978 musical features two star-crossed high schoolers who fall in love?",
+      "accept": [
+        "Grease"
+      ]
+    },
+    {
+      "clue": "What was the highest-grossing movie of the 1990s?",
+      "accept": [
+        "Titanic"
+      ]
+    },
+    {
+      "clue": "What prop can be found in almost every scene of Fight Club?",
+      "accept": [
+        "Starbucks cup",
+        "Coffee cup",
+        "A Starbucks cup"
+      ]
+    },
+    {
+      "clue": "Which actor voices Rocket Raccoon in Guardians of the Galaxy?",
+      "accept": [
+        "Bradley Cooper",
+        "Cooper"
+      ]
+    },
+    {
+      "clue": "What movie franchise parodies horror films?",
+      "accept": [
+        "Scary Movie"
+      ]
+    },
+    {
+      "clue": "What is Rachel McAdams' character name in The Notebook?",
+      "accept": [
+        "Allie Hamilton",
+        "Allie"
+      ]
+    },
+    {
+      "clue": "In The Proposal, which actor plays Andrew Paxton?",
+      "accept": [
+        "Ryan Reynolds",
+        "Reynolds"
+      ]
+    },
+    {
+      "clue": "Where do the students spend their Saturday in The Breakfast Club?",
+      "accept": [
+        "Detention"
+      ]
+    },
+    {
+      "clue": "What is the first superhero film to be nominated for Best Picture?",
+      "accept": [
+        "Black Panther"
+      ]
+    },
+    {
+      "clue": "What city do Ferris and his friends explore in Ferris Bueller's Day Off?",
+      "accept": [
+        "Chicago"
+      ]
+    },
+    {
+      "clue": "In what movie does the character say \"My name is Enigo Montoya. You killed my father\"?",
+      "accept": [
+        "The Princess Bride"
+      ]
+    },
+    {
+      "clue": "What character in Star Wars can speak 6 million languages?",
+      "accept": [
+        "C-3PO",
+        "C3PO",
+        "See-Threepio"
+      ]
+    },
+    {
+      "clue": "What movie involves a shipwreck where a boy survives 227 days on a life raft?",
+      "accept": [
+        "Life of Pi"
+      ]
+    },
+    {
+      "clue": "What movie won an Oscar for the best original song \"I've Had the Time of My Life\"?",
+      "accept": [
+        "Dirty Dancing"
+      ]
+    },
+    {
+      "clue": "In Iron Man, what is Tony Stark's full name?",
+      "accept": [
+        "Tony Stark",
+        "Anthony Stark"
+      ]
+    },
+    {
+      "clue": "What is the name of the ocean current in Finding Nemo?",
+      "accept": [
+        "East Australian Current",
+        "Australian Current"
+      ]
+    },
+    {
+      "clue": "In The Fast and the Furious, what state does the movie take place in?",
+      "accept": [
+        "Florida"
+      ]
+    },
+    {
+      "clue": "What movie features the famous line \"Yo, Adrian\"?",
+      "accept": [
+        "Rocky"
+      ]
+    },
+    {
+      "clue": "In 8 Mile, what is Eminem's character nickname?",
+      "accept": [
+        "Rabbit",
+        "B Rabbit"
+      ]
+    },
+    {
+      "clue": "How many Infinity Stones does Thanos collect?",
+      "accept": [
+        "6",
+        "Six"
+      ]
+    },
+    {
+      "clue": "What 2012 James Bond film stars Daniel Craig?",
+      "accept": [
+        "Skyfall"
+      ]
+    },
+    {
+      "clue": "What movie features the famous line \"You're going to need a bigger boat\"?",
+      "accept": [
+        "Jaws"
+      ]
+    },
+    {
+      "clue": "In Castaway, what is the volleyball's name?",
+      "accept": [
+        "Wilson"
+      ]
+    },
+    {
+      "clue": "In the original Jumanji, who is the lead actor?",
+      "accept": [
+        "Robin Williams",
+        "Williams"
+      ]
+    },
+    {
+      "clue": "In A Beautiful Mind, what was John Nash's profession?",
+      "accept": [
+        "Mathematician",
+        "Mathematics professor"
+      ]
+    },
+    {
+      "clue": "What is the name of the movie where the main character ages backwards?",
+      "accept": [
+        "The Curious Case of Benjamin Button",
+        "Benjamin Button"
+      ]
+    },
+    {
+      "clue": "In what movie does Robert De Niro say \"You talking to me\"?",
+      "accept": [
+        "Taxi Driver"
+      ]
+    },
+    {
+      "clue": "What movie features a man eating maple syrup on spaghetti?",
+      "accept": [
+        "Elf"
+      ]
+    },
+    {
+      "clue": "Who is the first person to appear in Scream and dies within 10 minutes?",
+      "accept": [
+        "Drew Barrymore",
+        "Barrymore"
+      ]
+    },
+    {
+      "clue": "What movie features a pair of underachieving cops sent back to high school undercover?",
+      "accept": [
+        "21 Jump Street"
+      ]
+    },
+    {
+      "clue": "What movie's tagline is \"They're young, they're in love, and they kill people\"?",
+      "accept": [
+        "Bonnie and Clyde"
+      ]
+    },
+    {
+      "clue": "What movie features a giant metal machine that befriends a 9-year-old boy?",
+      "accept": [
+        "Iron Giant",
+        "The Iron Giant"
+      ]
+    },
+    {
+      "clue": "In The Wolf of Wall Street, what type of stocks are they mainly selling?",
+      "accept": [
+        "Penny stocks",
+        "Penny"
+      ]
+    },
+    {
+      "clue": "In Jurassic Park, where is the DNA found to recreate the dinosaurs?",
+      "accept": [
+        "Amber",
+        "In amber",
+        "Mosquito in amber"
+      ]
+    },
+    {
+      "clue": "What fictional country is Mia Thermopolis expected to rule in The Princess Diaries?",
+      "accept": [
+        "Genoveia",
+        "Govia"
+      ]
+    },
+    {
+      "clue": "What kind of flower was enchanted and dying in Beauty and the Beast?",
+      "accept": [
+        "Rose",
+        "A rose"
+      ]
+    },
+    {
+      "clue": "What movie is about a Scottish warrior named William Wallace?",
+      "accept": [
+        "Braveheart"
+      ]
+    },
+    {
+      "clue": "What movie involves womanizers who sneak into weddings?",
+      "accept": [
+        "Wedding Crashers"
+      ]
+    },
+    {
+      "clue": "What is the name of the talking alien tree in Guardians of the Galaxy?",
+      "accept": [
+        "Groot"
+      ]
+    },
+    {
+      "clue": "In what 2000 movie does Kirsten Dunst play a high school cheerleader?",
+      "accept": [
+        "Bring It On"
+      ]
+    },
+    {
+      "clue": "What type of animal is killed in Fatal Attraction?",
+      "accept": [
+        "Rabbit",
+        "A rabbit"
+      ]
+    },
+    {
+      "clue": "What is Batman's real name?",
+      "accept": [
+        "Bruce Wayne",
+        "Wayne"
+      ]
+    },
+    {
+      "clue": "What brand of underwear does Marty McFly wear in Back to the Future?",
+      "accept": [
+        "Calvin Klein",
+        "Klein"
+      ]
+    },
+    {
+      "clue": "Kate Hudson tries to ditch her love interest with crazy stunts in what movie?",
+      "accept": [
+        "How to Lose a Guy in 10 Days"
+      ]
+    },
+    {
+      "clue": "What movie features the Griswold family's cross-country road trip?",
+      "accept": [
+        "National Lampoon's Vacation",
+        "National Lampoon Vacation"
+      ]
+    },
+    {
+      "clue": "What movie features a group of zoo animals that end up in Madagascar?",
+      "accept": [
+        "Madagascar"
+      ]
+    },
+    {
+      "clue": "What is the highest-grossing horror film of all time?",
+      "accept": [
+        "It"
+      ]
+    },
+    {
+      "clue": "What Steven Spielberg drama was released in 1993 alongside Jurassic Park?",
+      "accept": [
+        "Schindler's List",
+        "Schindlers List"
+      ]
+    },
+    {
+      "clue": "Name one film that has won all Big Five Academy Awards (picture, director, actor, actress, screenplay).",
+      "accept": [
+        "One Flew Over the Cuckoo's Nest",
+        "Silence of the Lambs",
+        "It Happened One Night"
+      ]
+    },
+    {
+      "clue": "In what movie does Arnold Schwarzenegger say \"Hasta La Vista, baby\"?",
+      "accept": [
+        "The Terminator",
+        "Terminator 2",
+        "Terminator"
+      ]
+    },
+    {
+      "clue": "What 2007 thriller starring Shia Labeouf shares a name with a Rihanna song?",
+      "accept": [
+        "Disturbia"
+      ]
+    },
+    {
+      "clue": "In Napoleon Dynamite, what is Napoleon's favorite food?",
+      "accept": [
+        "Tater tots",
+        "Tots"
+      ]
+    },
+    {
+      "clue": "In what movie does Bill Murray play himself in Zombieland?",
+      "accept": [
+        "Zombieland"
+      ]
+    },
+    {
+      "clue": "What movie features the famous line \"Honey, where's my super suit\"?",
+      "accept": [
+        "The Incredibles",
+        "Incredibles"
+      ]
+    },
+    {
+      "clue": "What movie features the famous line \"Toto, I have a feeling we're not in Kansas anymore\"?",
+      "accept": [
+        "The Wizard of Oz",
+        "Wizard of Oz"
+      ]
+    },
+    {
+      "clue": "What movie features the famous line \"My mama always said life is like a box of chocolates\"?",
+      "accept": [
+        "Forrest Gump"
+      ]
+    },
+    {
+      "clue": "What is the name of the restaurant in Ratatouille?",
+      "accept": [
+        "Gusteau's",
+        "Gusteaus"
+      ]
+    },
+    {
+      "clue": "What movie features two men who become stay-at-home fathers and open a daycare?",
+      "accept": [
+        "Daddy Day Care"
+      ]
+    },
+    {
+      "clue": "What is the name of the amulet Doctor Strange wears to contain time?",
+      "accept": [
+        "Eye of Agamotto",
+        "The Eye of Agamotto"
+      ]
+    },
+    {
+      "clue": "Which actress starred as the lead in Breakfast at Tiffany's?",
+      "accept": [
+        "Audrey Hepburn",
+        "Hepburn"
+      ]
+    },
+    {
+      "clue": "Name one of the two burglars in Home Alone.",
+      "accept": [
+        "Harry",
+        "Marv"
+      ]
+    },
+    {
+      "clue": "In Ice Age, what is the fourth main animal besides the mammoth, tiger, and sloth?",
+      "accept": [
+        "Scrat",
+        "Squirrel"
+      ]
+    },
+    {
+      "clue": "What movie features the famous line \"Carpe diem, seize the day, boys, make your lives extraordinary\"?",
+      "accept": [
+        "Dead Poets Society"
+      ]
+    },
+    {
+      "clue": "In what 2012 Mission Impossible film does Tom Cruise encounter a genetically created disease?",
+      "accept": [
+        "Mission Impossible 2",
+        "Mission: Impossible 2"
+      ]
+    },
+    {
+      "clue": "What is the name of the creepy doll character in Child's Play?",
+      "accept": [
+        "Chucky"
+      ]
+    },
+    {
+      "clue": "In Walk the Line, which musician did Timothy Chalamay portray?",
+      "accept": [
+        "Bob Dylan",
+        "Dylan"
+      ]
+    },
+    {
+      "clue": "In what movie does Denzel Washington play a high school football coach?",
+      "accept": [
+        "Remember the Titans"
+      ]
+    },
+    {
+      "clue": "On what planet does Avatar take place?",
+      "accept": [
+        "Pandora"
+      ]
+    },
+    {
+      "clue": "In I Am Legend, what is the setting where the sole survivor struggles to survive?",
+      "accept": [
+        "New York City",
+        "NYC",
+        "New York"
+      ]
+    }
+  ],
+  "shuffle": true,
+  "submitted": true
+}
