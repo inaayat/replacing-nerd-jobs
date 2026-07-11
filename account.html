@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Account — Beep boop</title>
+    <meta name="description" content="Sign in to inaayat.xyz." />
+    <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap" />
+    <script src="/auth-config.js"></script>
+    <style>
+      body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #fff8dc; }
+      h1, .card-title, .brand-mono { font-family: 'DM Mono', monospace; }
+      /* auth states toggle via this class; don't depend on the Tailwind CDN for it */
+      .hidden { display: none; }
+    </style>
+  </head>
+  <body class="text-gray-900 min-h-screen flex flex-col">
+
+    <!-- Nav -->
+    <nav class="px-4 sm:px-8 py-3 sm:py-4 flex items-center justify-between sticky top-0 z-10" style="background:#f267a0;">
+      <a href="/" class="brand-mono font-extrabold text-sm sm:text-2xl rounded-md border-2 sm:border-4 border-white text-white select-none px-2 py-1 sm:p-2 no-underline flex items-center gap-1 sm:gap-2 whitespace-nowrap">
+        <img src="/ugly-dog-images/dog-3.png" alt="" width="30" height="30" style="object-fit:contain;flex-shrink:0;" />
+        Beep boop
+      </a>
+      <div class="flex items-center gap-3 sm:gap-8">
+        <a href="/#projects" class="text-xs sm:text-xl font-extrabold text-white no-underline opacity-80 hover:opacity-100 whitespace-nowrap">Projects</a>
+        <a href="/archive/" class="text-xs sm:text-xl font-extrabold text-white no-underline opacity-80 hover:opacity-100 whitespace-nowrap">Archive</a>
+        <div id="user-button" class="flex items-center"></div>
+      </div>
+    </nav>
+
+    <!-- Content -->
+    <div class="px-6 pt-12 pb-16 md:px-24 flex-grow flex flex-col items-center">
+      <h1 class="text-3xl md:text-4xl font-extrabold mb-8">Account</h1>
+
+      <!-- Clerk not configured yet -->
+      <div id="not-configured" class="hidden max-w-lg w-full bg-[#f9fafb] border-4 border-[#2c2e25] rounded shadow-md p-6 text-sm">
+        <p class="font-extrabold mb-2">Sign-in isn't set up yet.</p>
+        <p class="text-gray-600">Add your Clerk publishable key to <code class="brand-mono">auth-config.js</code> — see the "auth &amp; database" section of the README for the full setup.</p>
+      </div>
+
+      <!-- Something went wrong loading Clerk -->
+      <div id="load-error" class="hidden max-w-lg w-full bg-[#f9fafb] border-4 border-[#2c2e25] rounded shadow-md p-6 text-sm">
+        <p class="font-extrabold mb-2">Couldn't load sign-in.</p>
+        <p class="text-gray-600">Check that the publishable key in <code class="brand-mono">auth-config.js</code> is correct, then refresh.</p>
+      </div>
+
+      <!-- Clerk's <SignIn /> mounts here when signed out -->
+      <div id="sign-in"></div>
+
+      <!-- Profile card when signed in -->
+      <div id="profile" class="hidden max-w-lg w-full bg-[#f9fafb] border-4 border-[#2c2e25] rounded shadow-md p-6">
+        <div class="card-title text-lg font-extrabold mb-4">You're signed in 🎉</div>
+        <dl id="profile-fields" class="text-sm grid grid-cols-[auto_1fr] gap-x-4 gap-y-2"></dl>
+        <p id="profile-note" class="mt-4 text-xs text-gray-500"></p>
+      </div>
+    </div>
+
+    <footer class="px-16 py-4 md:px-24 text-sm font-bold text-white flex items-center gap-3" style="background:#1b1464;">
+      <a href="https://github.com/inaayat" target="_blank" class="text-white opacity-80 hover:opacity-100 flex items-center gap-2 no-underline">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-github" viewBox="0 0 16 16">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8"/>
+        </svg>
+        github.com/inaayat
+      </a>
+    </footer>
+
+    <script>
+      const show = (id) => document.getElementById(id).classList.remove('hidden');
+
+      // ClerkJS is served from the app's own frontend-API domain, which is
+      // base64-encoded inside the publishable key — so pasting the key into
+      // auth-config.js is the only setup the frontend needs.
+      function frontendApiFromKey(pk) {
+        return atob(pk.split('_')[2]).replace(/\$$/, '');
+      }
+
+      async function renderSignedIn() {
+        const Clerk = window.Clerk;
+        Clerk.mountUserButton(document.getElementById('user-button'), { afterSignOutUrl: '/account.html' });
+        show('profile');
+
+        const fields = document.getElementById('profile-fields');
+        const note = document.getElementById('profile-note');
+        try {
+          const token = await Clerk.session.getToken();
+          const res = await fetch('/api/me', { headers: { Authorization: `Bearer ${token}` } });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+          const u = data.user;
+          const rows = [
+            ['name', u.name || '—'],
+            ['email', u.email || '—'],
+            ['user id', u.id],
+            ['first seen', new Date(u.created_at).toLocaleString()],
+          ];
+          fields.innerHTML = rows
+            .map(([k, v]) => `<dt class="font-extrabold text-gray-500">${k}</dt><dd class="break-all">${v}</dd>`)
+            .join('');
+          note.textContent = 'This profile is stored in the Neon database and refreshed each visit.';
+        } catch (err) {
+          // Signed in via Clerk but the database round-trip failed — still a
+          // useful state to show (e.g. DATABASE_URL not configured yet).
+          fields.innerHTML = `<dt class="font-extrabold text-gray-500">name</dt><dd>${Clerk.user.fullName || '—'}</dd>`;
+          note.textContent = `Profile database unavailable: ${err.message}`;
+        }
+      }
+
+      function render() {
+        if (window.Clerk.user) {
+          renderSignedIn();
+        } else {
+          window.Clerk.mountSignIn(document.getElementById('sign-in'));
+        }
+      }
+
+      const pk = window.CLERK_PUBLISHABLE_KEY;
+      if (!pk) {
+        show('not-configured');
+      } else {
+        const script = document.createElement('script');
+        script.src = `https://${frontendApiFromKey(pk)}/npm/@clerk/clerk-js@5/dist/clerk.browser.js`;
+        script.async = true;
+        script.crossOrigin = 'anonymous';
+        script.setAttribute('data-clerk-publishable-key', pk);
+        script.onload = async () => {
+          try {
+            await window.Clerk.load();
+          } catch {
+            show('load-error');
+            return;
+          }
+          let wasSignedIn = !!window.Clerk.user;
+          render();
+          // Reload on sign-in/out so the page never shows a stale state.
+          window.Clerk.addListener(({ user }) => {
+            if (!!user !== wasSignedIn) location.reload();
+          });
+        };
+        script.onerror = () => show('load-error');
+        document.head.appendChild(script);
+      }
+    </script>
+  </body>
+</html>

@@ -101,6 +101,42 @@ sporcle-spinoff/
     └── <id>.json                  ← one full quiz per file
 ```
 
+## auth & database
+
+user accounts run on [Clerk](https://clerk.com) (sign-in/sign-up/sessions) and
+structured user data lives in [Neon](https://neon.tech) Postgres. this is
+separate from the `SITE_PASSWORD` gate on `/private/` — that stays as the
+owner-only lock, while Clerk is real multi-user login for visitor-facing
+features.
+
+pieces:
+
+```
+account.html          ← sign-in / account page (linked from the main nav)
+auth-config.js        ← holds the Clerk publishable key (public, committed)
+lib/clerk.js          ← verifies `Authorization: Bearer <token>` in api routes
+lib/db.js             ← Neon client + schema (CREATE TABLE IF NOT EXISTS)
+api/me.js             ← example authed route: upserts + returns the user's row
+```
+
+one-time setup:
+
+1. **Clerk** — create an app at [dashboard.clerk.com](https://dashboard.clerk.com)
+   (enable whichever sign-in methods you like). from **API Keys**:
+   - paste the **publishable key** (`pk_...`) into `auth-config.js`
+   - add the **secret key** as `CLERK_SECRET_KEY` in Vercel → Settings →
+     Environment Variables
+2. **Neon** — create a database (easiest: Vercel → Storage → Create → Neon,
+   which sets `DATABASE_URL` automatically; or create at neon.tech and add
+   `DATABASE_URL` yourself). no migration step — tables create themselves on
+   first request (see `ensureSchema()` in `lib/db.js`).
+3. redeploy. `/account.html` now signs users in, and each visit upserts the
+   user into the `users` table.
+
+adding logged-in features later: put new tables in `ensureSchema()`, key them
+on `users.id` (the Clerk user id), and copy the `getAuth(req)` check from
+`api/me.js` into any new api route.
+
 ## deploy
 
 connected to Vercel. push to `main`. done. beep boop.

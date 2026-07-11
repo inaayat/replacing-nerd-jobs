@@ -1,5 +1,9 @@
 {
   "name": "replacing-nerd-jobs",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "@clerk/backend": "^3.11.4",
+    "@neondatabase/serverless": "^1.1.0"
+  }
 }
