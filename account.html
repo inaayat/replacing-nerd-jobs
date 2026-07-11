@@ -15,6 +15,15 @@
       h1, .card-title, .brand-mono { font-family: 'DM Mono', monospace; }
       /* auth states toggle via this class; don't depend on the Tailwind CDN for it */
       .hidden { display: none; }
+      .auth-input {
+        width: 100%; font-size: 0.85rem; padding: 8px 10px; margin-bottom: 10px;
+        border: 2px solid #2c2e25; border-radius: 4px; background: #fff;
+      }
+      .auth-tab {
+        font-weight: 800; font-size: 0.8rem; padding: 6px 14px; border: 2px solid #2c2e25;
+        background: #fff; cursor: pointer; border-radius: 4px;
+      }
+      .auth-tab.active { background: #f267a0; color: #fff; }
     </style>
   </head>
   <body class="text-gray-900 min-h-screen flex flex-col">
@@ -28,7 +37,7 @@
       <div class="flex items-center gap-3 sm:gap-8">
         <a href="/#projects" class="text-xs sm:text-xl font-extrabold text-white no-underline opacity-80 hover:opacity-100 whitespace-nowrap">Projects</a>
         <a href="/archive/" class="text-xs sm:text-xl font-extrabold text-white no-underline opacity-80 hover:opacity-100 whitespace-nowrap">Archive</a>
-        <div id="user-button" class="flex items-center"></div>
+        <span id="user-email" class="hidden text-xs sm:text-base font-extrabold text-white whitespace-nowrap"></span>
       </div>
     </nav>
 
@@ -36,26 +45,38 @@
     <div class="px-6 pt-12 pb-16 md:px-24 flex-grow flex flex-col items-center">
       <h1 class="text-3xl md:text-4xl font-extrabold mb-8">Account</h1>
 
-      <!-- Clerk not configured yet -->
+      <!-- Neon Auth not configured yet -->
       <div id="not-configured" class="hidden max-w-lg w-full bg-[#f9fafb] border-4 border-[#2c2e25] rounded shadow-md p-6 text-sm">
         <p class="font-extrabold mb-2">Sign-in isn't set up yet.</p>
-        <p class="text-gray-600">Add your Clerk publishable key to <code class="brand-mono">auth-config.js</code> — see the "auth &amp; database" section of the README for the full setup.</p>
+        <p class="text-gray-600">Add the Neon Auth base URL to <code class="brand-mono">auth-config.js</code> — see the "auth &amp; database" section of the README.</p>
       </div>
 
-      <!-- Something went wrong loading Clerk -->
-      <div id="load-error" class="hidden max-w-lg w-full bg-[#f9fafb] border-4 border-[#2c2e25] rounded shadow-md p-6 text-sm">
-        <p class="font-extrabold mb-2">Couldn't load sign-in.</p>
-        <p class="text-gray-600">Check that the publishable key in <code class="brand-mono">auth-config.js</code> is correct, then refresh.</p>
+      <!-- Sign in / sign up forms -->
+      <div id="auth-forms" class="hidden max-w-sm w-full bg-[#f9fafb] border-4 border-[#2c2e25] rounded shadow-md p-6">
+        <div class="flex gap-2 mb-4">
+          <button type="button" class="auth-tab active" id="tab-signin">Sign in</button>
+          <button type="button" class="auth-tab" id="tab-signup">Sign up</button>
+        </div>
+        <form id="form-signin">
+          <input class="auth-input" type="email" id="signin-email" placeholder="email" autocomplete="email" required />
+          <input class="auth-input" type="password" id="signin-password" placeholder="password" autocomplete="current-password" required />
+          <button type="submit" class="w-full font-extrabold text-sm py-2 rounded text-white" style="background:#f267a0;">Sign in</button>
+        </form>
+        <form id="form-signup" class="hidden">
+          <input class="auth-input" type="text" id="signup-name" placeholder="name" autocomplete="name" required />
+          <input class="auth-input" type="email" id="signup-email" placeholder="email" autocomplete="email" required />
+          <input class="auth-input" type="password" id="signup-password" placeholder="password (8+ characters)" autocomplete="new-password" required minlength="8" />
+          <button type="submit" class="w-full font-extrabold text-sm py-2 rounded text-white" style="background:#f267a0;">Sign up</button>
+        </form>
+        <p id="auth-error" class="hidden text-xs font-bold mt-3" style="color:#b05858;"></p>
       </div>
-
-      <!-- Clerk's <SignIn /> mounts here when signed out -->
-      <div id="sign-in"></div>
 
       <!-- Profile card when signed in -->
       <div id="profile" class="hidden max-w-lg w-full bg-[#f9fafb] border-4 border-[#2c2e25] rounded shadow-md p-6">
         <div class="card-title text-lg font-extrabold mb-4">You're signed in 🎉</div>
         <dl id="profile-fields" class="text-sm grid grid-cols-[auto_1fr] gap-x-4 gap-y-2"></dl>
         <p id="profile-note" class="mt-4 text-xs text-gray-500"></p>
+        <button type="button" id="sign-out-btn" class="mt-4 font-extrabold text-xs py-2 px-4 rounded border-2 border-[#2c2e25]">Sign out</button>
       </div>
     </div>
 
@@ -68,25 +89,87 @@
       </a>
     </footer>
 
-    <script>
+    <script type="module">
       const show = (id) => document.getElementById(id).classList.remove('hidden');
+      const hide = (id) => document.getElementById(id).classList.add('hidden');
 
-      // ClerkJS is served from the app's own frontend-API domain, which is
-      // base64-encoded inside the publishable key — so pasting the key into
-      // auth-config.js is the only setup the frontend needs.
-      function frontendApiFromKey(pk) {
-        return atob(pk.split('_')[2]).replace(/\$$/, '');
+      const url = window.NEON_AUTH_URL;
+      if (!url) {
+        show('not-configured');
+      } else {
+        run(url);
       }
 
-      async function renderSignedIn() {
-        const Clerk = window.Clerk;
-        Clerk.mountUserButton(document.getElementById('user-button'), { afterSignOutUrl: '/account.html' });
+      async function run(authUrl) {
+        const { createInternalNeonAuth } = await import('https://esm.sh/@neondatabase/auth@0.4.2-beta');
+        const neonAuth = createInternalNeonAuth(authUrl);
+        const client = neonAuth.adapter;
+
+        wireAuthForms(client);
+        document.getElementById('sign-out-btn').addEventListener('click', async () => {
+          await client.signOut();
+          location.reload();
+        });
+
+        const { data } = await client.getSession();
+        if (data?.user) {
+          renderSignedIn(data.user, neonAuth);
+        } else {
+          show('auth-forms');
+        }
+      }
+
+      function wireAuthForms(client) {
+        const tabIn = document.getElementById('tab-signin');
+        const tabUp = document.getElementById('tab-signup');
+        const formIn = document.getElementById('form-signin');
+        const formUp = document.getElementById('form-signup');
+        tabIn.addEventListener('click', () => {
+          tabIn.classList.add('active'); tabUp.classList.remove('active');
+          formIn.classList.remove('hidden'); formUp.classList.add('hidden');
+        });
+        tabUp.addEventListener('click', () => {
+          tabUp.classList.add('active'); tabIn.classList.remove('active');
+          formUp.classList.remove('hidden'); formIn.classList.add('hidden');
+        });
+
+        const errEl = document.getElementById('auth-error');
+        const showError = (message) => { errEl.textContent = message; errEl.classList.remove('hidden'); };
+
+        formIn.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          errEl.classList.add('hidden');
+          const { error } = await client.signIn.email({
+            email: document.getElementById('signin-email').value,
+            password: document.getElementById('signin-password').value,
+          });
+          if (error) showError(error.message || 'Sign-in failed.');
+          else location.reload();
+        });
+
+        formUp.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          errEl.classList.add('hidden');
+          const { error } = await client.signUp.email({
+            name: document.getElementById('signup-name').value,
+            email: document.getElementById('signup-email').value,
+            password: document.getElementById('signup-password').value,
+          });
+          if (error) showError(error.message || 'Sign-up failed.');
+          else location.reload();
+        });
+      }
+
+      async function renderSignedIn(user, neonAuth) {
         show('profile');
+        const emailBadge = document.getElementById('user-email');
+        emailBadge.textContent = user.email || user.name || '';
+        emailBadge.classList.remove('hidden');
 
         const fields = document.getElementById('profile-fields');
         const note = document.getElementById('profile-note');
         try {
-          const token = await Clerk.session.getToken();
+          const token = await neonAuth.getJWTToken();
           const res = await fetch('/api/me', { headers: { Authorization: `Bearer ${token}` } });
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
@@ -102,46 +185,9 @@
             .join('');
           note.textContent = 'This profile is stored in the Neon database and refreshed each visit.';
         } catch (err) {
-          // Signed in via Clerk but the database round-trip failed — still a
-          // useful state to show (e.g. DATABASE_URL not configured yet).
-          fields.innerHTML = `<dt class="font-extrabold text-gray-500">name</dt><dd>${Clerk.user.fullName || '—'}</dd>`;
+          fields.innerHTML = `<dt class="font-extrabold text-gray-500">name</dt><dd>${user.name || '—'}</dd>`;
           note.textContent = `Profile database unavailable: ${err.message}`;
         }
-      }
-
-      function render() {
-        if (window.Clerk.user) {
-          renderSignedIn();
-        } else {
-          window.Clerk.mountSignIn(document.getElementById('sign-in'));
-        }
-      }
-
-      const pk = window.CLERK_PUBLISHABLE_KEY;
-      if (!pk) {
-        show('not-configured');
-      } else {
-        const script = document.createElement('script');
-        script.src = `https://${frontendApiFromKey(pk)}/npm/@clerk/clerk-js@5/dist/clerk.browser.js`;
-        script.async = true;
-        script.crossOrigin = 'anonymous';
-        script.setAttribute('data-clerk-publishable-key', pk);
-        script.onload = async () => {
-          try {
-            await window.Clerk.load();
-          } catch {
-            show('load-error');
-            return;
-          }
-          let wasSignedIn = !!window.Clerk.user;
-          render();
-          // Reload on sign-in/out so the page never shows a stale state.
-          window.Clerk.addListener(({ user }) => {
-            if (!!user !== wasSignedIn) location.reload();
-          });
-        };
-        script.onerror = () => show('load-error');
-        document.head.appendChild(script);
       }
     </script>
   </body>

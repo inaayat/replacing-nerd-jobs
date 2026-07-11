@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@clerk/backend": "^3.11.4",
-    "@neondatabase/serverless": "^1.1.0"
+    "@neondatabase/auth": "^0.4.2-beta",
+    "@neondatabase/serverless": "^1.1.0",
+    "jose": "^6.2.3"
   }
 }

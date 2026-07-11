@@ -103,39 +103,47 @@ sporcle-spinoff/
 
 ## auth & database
 
-user accounts run on [Clerk](https://clerk.com) (sign-in/sign-up/sessions) and
-structured user data lives in [Neon](https://neon.tech) Postgres. this is
-separate from the `SITE_PASSWORD` gate on `/private/` — that stays as the
-owner-only lock, while Clerk is real multi-user login for visitor-facing
-features.
+user accounts run on [Neon Auth](https://neon.com/docs/auth/overview)
+(email/password sign-in, built on Better Auth) and structured user data lives
+in the same [Neon](https://neon.tech) Postgres database. this is separate
+from the `SITE_PASSWORD` gate on `/private/` — that stays as the owner-only
+lock, while Neon Auth is real multi-user login for visitor-facing features.
+
+both come from one Vercel integration: Vercel → project → Storage → the Neon
+integration provisions the database *and* a Neon Auth instance together, and
+sets all the env vars below automatically.
 
 pieces:
 
 ```
-account.html          ← sign-in / account page (linked from the main nav)
-auth-config.js        ← holds the Clerk publishable key (public, committed)
-lib/clerk.js          ← verifies `Authorization: Bearer <token>` in api routes
-lib/db.js             ← Neon client + schema (CREATE TABLE IF NOT EXISTS)
-api/me.js             ← example authed route: upserts + returns the user's row
+account.html          ← sign-in / sign-up / account page (linked from the main nav)
+auth-config.js         ← holds the Neon Auth base URL (public, committed)
+lib/neon-auth.js        ← verifies `Authorization: Bearer <token>` (a JWT) in api routes
+lib/db.js                ← Neon client + schema (CREATE TABLE IF NOT EXISTS)
+api/me.js                 ← example authed route: upserts + returns the user's row
 ```
 
-one-time setup:
+the browser talks to Neon Auth directly (`@neondatabase/auth`, loaded from
+esm.sh since this site has no build step) for sign-in/sign-up/sign-out and to
+fetch a session JWT; that JWT is sent to our own `/api/*` routes as a Bearer
+token and verified statelessly against Neon Auth's public JWKS — no server
+round-trip to Neon Auth per request, and no extra API call needed for
+email/name since the JWT payload already carries the full user record.
 
-1. **Clerk** — create an app at [dashboard.clerk.com](https://dashboard.clerk.com)
-   (enable whichever sign-in methods you like). from **API Keys**:
-   - paste the **publishable key** (`pk_...`) into `auth-config.js`
-   - add the **secret key** as `CLERK_SECRET_KEY` in Vercel → Settings →
-     Environment Variables
-2. **Neon** — create a database (easiest: Vercel → Storage → Create → Neon,
-   which sets `DATABASE_URL` automatically; or create at neon.tech and add
-   `DATABASE_URL` yourself). no migration step — tables create themselves on
-   first request (see `ensureSchema()` in `lib/db.js`).
-3. redeploy. `/account.html` now signs users in, and each visit upserts the
-   user into the `users` table.
+one-time setup (usually already done — the Vercel integration sets these):
+
+1. confirm `NEON_AUTH_BASE_URL` (server) and `VITE_NEON_AUTH_URL` (same
+   value) exist in Vercel → Settings → Environment Variables, alongside
+   `DATABASE_URL`.
+2. copy that URL into `auth-config.js` (`window.NEON_AUTH_URL = '...'`) — this
+   is the one manual step, since a static site can't read Vercel env vars
+   into the browser on its own.
+3. redeploy. `/account.html` now signs users up/in, and each visit upserts
+   the user into the `users` table.
 
 adding logged-in features later: put new tables in `ensureSchema()`, key them
-on `users.id` (the Clerk user id), and copy the `getAuth(req)` check from
-`api/me.js` into any new api route.
+on `users.id` (the Neon Auth user id, the JWT's `sub` claim), and copy the
+`getAuth(req)` check from `api/me.js` into any new api route.
 
 ## deploy
 
