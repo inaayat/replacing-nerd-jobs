@@ -101,6 +101,45 @@ sporcle-spinoff/
     └── <id>.json                  ← one full quiz per file
 ```
 
+## auth & database
+
+user accounts run on [Neon Auth](https://neon.com/docs/auth/overview)
+(email/password sign-in, built on Better Auth) and structured user data lives
+in the same [Neon](https://neon.tech) Postgres database. this is separate
+from the `SITE_PASSWORD` gate on `/private/` — that stays as the owner-only
+lock, while Neon Auth is real multi-user login for visitor-facing features.
+
+both come from one Vercel integration: Vercel → project → Storage → the Neon
+integration provisions the database *and* a Neon Auth instance together, and
+sets all the env vars below automatically.
+
+pieces:
+
+```
+account.html           ← sign-in / sign-up / account page (linked from the main nav)
+api/auth-config.js      ← hands the Neon Auth base URL to the browser at request time
+lib/neon-auth.js          ← verifies `Authorization: Bearer <token>` (a JWT) in api routes
+lib/db.js                   ← Neon client + schema (CREATE TABLE IF NOT EXISTS)
+api/me.js                    ← example authed route: upserts + returns the user's row
+```
+
+the browser talks to Neon Auth directly (`@neondatabase/auth`, loaded from
+esm.sh since this site has no build step) for sign-in/sign-up/sign-out and to
+fetch a session JWT; that JWT is sent to our own `/api/*` routes as a Bearer
+token and verified statelessly against Neon Auth's public JWKS — no server
+round-trip to Neon Auth per request, and no extra API call needed for
+email/name since the JWT payload already carries the full user record.
+
+there is no setup step. Vercel's Neon integration already provisions the
+database and a Neon Auth instance together and sets `NEON_AUTH_BASE_URL` /
+`DATABASE_URL` — `api/auth-config.js` reads that env var and hands it to
+`account.html` at request time, so nothing needs to be pasted into a
+committed file. `/account.html` works as soon as those env vars exist.
+
+adding logged-in features later: put new tables in `ensureSchema()`, key them
+on `users.id` (the Neon Auth user id, the JWT's `sub` claim), and copy the
+`getAuth(req)` check from `api/me.js` into any new api route.
+
 ## deploy
 
 connected to Vercel. push to `main`. done. beep boop.
