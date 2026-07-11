@@ -116,11 +116,11 @@ sets all the env vars below automatically.
 pieces:
 
 ```
-account.html          ← sign-in / sign-up / account page (linked from the main nav)
-auth-config.js         ← holds the Neon Auth base URL (public, committed)
-lib/neon-auth.js        ← verifies `Authorization: Bearer <token>` (a JWT) in api routes
-lib/db.js                ← Neon client + schema (CREATE TABLE IF NOT EXISTS)
-api/me.js                 ← example authed route: upserts + returns the user's row
+account.html           ← sign-in / sign-up / account page (linked from the main nav)
+api/auth-config.js      ← hands the Neon Auth base URL to the browser at request time
+lib/neon-auth.js          ← verifies `Authorization: Bearer <token>` (a JWT) in api routes
+lib/db.js                   ← Neon client + schema (CREATE TABLE IF NOT EXISTS)
+api/me.js                    ← example authed route: upserts + returns the user's row
 ```
 
 the browser talks to Neon Auth directly (`@neondatabase/auth`, loaded from
@@ -130,16 +130,11 @@ token and verified statelessly against Neon Auth's public JWKS — no server
 round-trip to Neon Auth per request, and no extra API call needed for
 email/name since the JWT payload already carries the full user record.
 
-one-time setup (usually already done — the Vercel integration sets these):
-
-1. confirm `NEON_AUTH_BASE_URL` (server) and `VITE_NEON_AUTH_URL` (same
-   value) exist in Vercel → Settings → Environment Variables, alongside
-   `DATABASE_URL`.
-2. copy that URL into `auth-config.js` (`window.NEON_AUTH_URL = '...'`) — this
-   is the one manual step, since a static site can't read Vercel env vars
-   into the browser on its own.
-3. redeploy. `/account.html` now signs users up/in, and each visit upserts
-   the user into the `users` table.
+there is no setup step. Vercel's Neon integration already provisions the
+database and a Neon Auth instance together and sets `NEON_AUTH_BASE_URL` /
+`DATABASE_URL` — `api/auth-config.js` reads that env var and hands it to
+`account.html` at request time, so nothing needs to be pasted into a
+committed file. `/account.html` works as soon as those env vars exist.
 
 adding logged-in features later: put new tables in `ensureSchema()`, key them
 on `users.id` (the Neon Auth user id, the JWT's `sub` claim), and copy the

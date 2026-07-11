@@ -9,7 +9,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap" />
-    <script src="/auth-config.js"></script>
     <style>
       body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #fff8dc; }
       h1, .card-title, .brand-mono { font-family: 'DM Mono', monospace; }
@@ -93,11 +92,18 @@
       const show = (id) => document.getElementById(id).classList.remove('hidden');
       const hide = (id) => document.getElementById(id).classList.add('hidden');
 
-      const url = window.NEON_AUTH_URL;
-      if (!url) {
-        show('not-configured');
-      } else {
-        run(url);
+      init();
+
+      async function init() {
+        let url = null;
+        try {
+          const res = await fetch('/api/auth-config');
+          url = (await res.json()).url;
+        } catch {
+          // treated as "not configured" below
+        }
+        if (!url) show('not-configured');
+        else run(url);
       }
 
       async function run(authUrl) {
