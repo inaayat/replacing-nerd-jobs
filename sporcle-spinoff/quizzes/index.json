@@ -357,5 +357,16 @@
     "tags": [
       "Geography"
     ]
+  },
+  {
+    "id": "us-senators-2026",
+    "title": "US Senators by State (2026)",
+    "type": "text-entry",
+    "blurb": "Name both U.S. Senators from every state as of July 2026 — type them in any order, no need to know who's senior or junior.",
+    "tags": [
+      "Government",
+      "US Politics",
+      "Current Events"
+    ]
   }
 ]

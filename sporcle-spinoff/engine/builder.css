@@ -104,3 +104,8 @@ textarea.b-mini-input { resize: vertical; font-family: ui-monospace, SFMono-Regu
 }
 .b-toast.ok { display: block; background: var(--green-bg); border: 1.5px solid var(--green); color: #14532d; }
 .b-toast.err { display: block; background: #fee2e2; border: 1.5px solid var(--red); color: #7f1d1d; }
+
+/* Generic utility — kept last so it always wins the cascade over other
+   single-class display rules (e.g. .b-mini-row's display:flex) at equal
+   specificity. */
+.hidden { display: none; }
