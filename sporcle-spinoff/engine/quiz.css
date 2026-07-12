@@ -101,6 +101,12 @@
 .q-slot.filled { color: var(--navy); border-color: var(--green); background: #f0fdf4; }
 .q-slot.missed { color: var(--red); border-color: var(--red); background: #fef2f2; }
 
+/* ── Grouped fill-in sub-boxes (shared input, labeled buckets) ───── */
+.q-group + .q-group { margin-top: 20px; }
+.q-group-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; border-bottom: 2px solid var(--navy); padding-bottom: 4px; }
+.q-group-label { font-size: 14px; font-weight: 800; color: var(--navy); }
+.q-group-count { font-size: 12px; font-weight: 700; color: var(--gray); }
+
 /* ── Text-entry table mode ───────────────────────────────────────── */
 .q-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .q-table th { background: var(--navy); color: #fff; font-size: 11px; text-transform: uppercase; letter-spacing: .03em; padding: 8px 10px; text-align: left; }

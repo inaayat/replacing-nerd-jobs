@@ -1,0 +1,411 @@
+{
+  "id": "us-senators-2026",
+  "title": "US Senators by State (2026)",
+  "type": "text-entry",
+  "blurb": "Name both U.S. Senators from every state as of July 2026 — type them in any order, no need to know who's senior or junior.",
+  "tags": ["Government", "US Politics", "Current Events"],
+  "timeLimitSec": 600,
+  "prompt": "Type a senator's name…",
+  "items": [
+    {
+      "group": "Alabama",
+      "accept": ["Richard Shelby", "Shelby"]
+    },
+    {
+      "group": "Alabama",
+      "accept": ["Tommy Tuberville", "Tuberville"]
+    },
+    {
+      "group": "Alaska",
+      "accept": ["Dan Sullivan", "Sullivan"]
+    },
+    {
+      "group": "Alaska",
+      "accept": ["Lisa Murkowski", "Murkowski"]
+    },
+    {
+      "group": "Arizona",
+      "accept": ["Kyrsten Sinema", "Sinema"]
+    },
+    {
+      "group": "Arizona",
+      "accept": ["Ruben Gallego", "Gallego"]
+    },
+    {
+      "group": "Arkansas",
+      "accept": ["Tom Cotton", "Cotton"]
+    },
+    {
+      "group": "Arkansas",
+      "accept": ["Eric Schmidt", "Schmidt"]
+    },
+    {
+      "group": "California",
+      "accept": ["Dianne Feinstein", "Feinstein"]
+    },
+    {
+      "group": "California",
+      "accept": ["Laphonza Butler", "Butler"]
+    },
+    {
+      "group": "Colorado",
+      "accept": ["Michael Bennet", "Bennet"]
+    },
+    {
+      "group": "Colorado",
+      "accept": ["John Hickenlooper", "Hickenlooper"]
+    },
+    {
+      "group": "Connecticut",
+      "accept": ["Richard Blumenthal", "Blumenthal"]
+    },
+    {
+      "group": "Connecticut",
+      "accept": ["Chris Murphy", "Murphy"]
+    },
+    {
+      "group": "Delaware",
+      "accept": ["Tom Carper", "Carper"]
+    },
+    {
+      "group": "Delaware",
+      "accept": ["Lisa Washington", "Washington"]
+    },
+    {
+      "group": "Florida",
+      "accept": ["Rick Scott", "Scott"]
+    },
+    {
+      "group": "Florida",
+      "accept": ["Tanya Rubio", "Rubio"]
+    },
+    {
+      "group": "Georgia",
+      "accept": ["Jon Ossoff", "Ossoff"]
+    },
+    {
+      "group": "Georgia",
+      "accept": ["Raphael Warnock", "Warnock"]
+    },
+    {
+      "group": "Hawaii",
+      "accept": ["Mazie Hirono", "Hirono"]
+    },
+    {
+      "group": "Hawaii",
+      "accept": ["Brian Schatz", "Schatz"]
+    },
+    {
+      "group": "Idaho",
+      "accept": ["Mike Crapo", "Crapo"]
+    },
+    {
+      "group": "Idaho",
+      "accept": ["Jim Risch", "Risch"]
+    },
+    {
+      "group": "Illinois",
+      "accept": ["Dick Durbin", "Durbin"]
+    },
+    {
+      "group": "Illinois",
+      "accept": ["Tammy Duckworth", "Duckworth"]
+    },
+    {
+      "group": "Indiana",
+      "accept": ["Todd Young", "Young"]
+    },
+    {
+      "group": "Indiana",
+      "accept": ["James Banks", "Banks"]
+    },
+    {
+      "group": "Iowa",
+      "accept": ["Chuck Grassley", "Grassley"]
+    },
+    {
+      "group": "Iowa",
+      "accept": ["Joni Ernst", "Ernst"]
+    },
+    {
+      "group": "Kansas",
+      "accept": ["Jerry Moran", "Moran"]
+    },
+    {
+      "group": "Kansas",
+      "accept": ["Roger Marshall", "Marshall"]
+    },
+    {
+      "group": "Kentucky",
+      "accept": ["Mitch McConnell", "McConnell"]
+    },
+    {
+      "group": "Kentucky",
+      "accept": ["Rand Paul", "Paul"]
+    },
+    {
+      "group": "Louisiana",
+      "accept": ["Bill Cassidy", "Cassidy"]
+    },
+    {
+      "group": "Louisiana",
+      "accept": ["John Kennedy", "Kennedy"]
+    },
+    {
+      "group": "Maine",
+      "accept": ["Susan Collins", "Collins"]
+    },
+    {
+      "group": "Maine",
+      "accept": ["Angus King", "King"]
+    },
+    {
+      "group": "Maryland",
+      "accept": ["Ben Cardin", "Cardin"]
+    },
+    {
+      "group": "Maryland",
+      "accept": ["Angela Alsobrooks", "Alsobrooks"]
+    },
+    {
+      "group": "Massachusetts",
+      "accept": ["Elizabeth Warren", "Warren"]
+    },
+    {
+      "group": "Massachusetts",
+      "accept": ["Ed Markey", "Markey"]
+    },
+    {
+      "group": "Michigan",
+      "accept": ["Debbie Stabenow", "Stabenow"]
+    },
+    {
+      "group": "Michigan",
+      "accept": ["Elissa Slotkin", "Slotkin"]
+    },
+    {
+      "group": "Minnesota",
+      "accept": ["Amy Klobuchar", "Klobuchar"]
+    },
+    {
+      "group": "Minnesota",
+      "accept": ["Tina Smith", "Smith"]
+    },
+    {
+      "group": "Mississippi",
+      "accept": ["Roger Wicker", "Wicker"]
+    },
+    {
+      "group": "Mississippi",
+      "accept": ["Cindy Hyde-Smith", "Hyde-Smith"]
+    },
+    {
+      "group": "Missouri",
+      "accept": ["Josh Hawley", "Hawley"]
+    },
+    {
+      "group": "Missouri",
+      "accept": ["Eric Schmidt", "Schmidt"]
+    },
+    {
+      "group": "Montana",
+      "accept": ["Jon Tester", "Tester"]
+    },
+    {
+      "group": "Montana",
+      "accept": ["Tim Sheehy", "Sheehy"]
+    },
+    {
+      "group": "Nebraska",
+      "accept": ["Deb Fischer", "Fischer"]
+    },
+    {
+      "group": "Nebraska",
+      "accept": ["Pete Ricketts", "Ricketts"]
+    },
+    {
+      "group": "Nevada",
+      "accept": ["Catherine Cortez Masto", "Cortez Masto"]
+    },
+    {
+      "group": "Nevada",
+      "accept": ["Jacky Rosen", "Rosen"]
+    },
+    {
+      "group": "New Hampshire",
+      "accept": ["Jeanne Shaheen", "Shaheen"]
+    },
+    {
+      "group": "New Hampshire",
+      "accept": ["Maggie Hassan", "Hassan"]
+    },
+    {
+      "group": "New Jersey",
+      "accept": ["Bob Menendez", "Menendez"]
+    },
+    {
+      "group": "New Jersey",
+      "accept": ["Andy Kim", "Kim"]
+    },
+    {
+      "group": "New Mexico",
+      "accept": ["Tom Udall", "Udall"]
+    },
+    {
+      "group": "New Mexico",
+      "accept": ["Martin Heinrich", "Heinrich"]
+    },
+    {
+      "group": "New York",
+      "accept": ["Chuck Schumer", "Schumer"]
+    },
+    {
+      "group": "New York",
+      "accept": ["Kirsten Gillibrand", "Gillibrand"]
+    },
+    {
+      "group": "North Carolina",
+      "accept": ["Thom Tillis", "Tillis"]
+    },
+    {
+      "group": "North Carolina",
+      "accept": ["Ted Budd", "Budd"]
+    },
+    {
+      "group": "North Dakota",
+      "accept": ["John Hoeven", "Hoeven"]
+    },
+    {
+      "group": "North Dakota",
+      "accept": ["Kevin Cramer", "Cramer"]
+    },
+    {
+      "group": "Ohio",
+      "accept": ["JD Vance", "Vance"]
+    },
+    {
+      "group": "Ohio",
+      "accept": ["Bernie Moreno", "Moreno"]
+    },
+    {
+      "group": "Oklahoma",
+      "accept": ["James Lankford", "Lankford"]
+    },
+    {
+      "group": "Oklahoma",
+      "accept": ["Alan Armstrong", "Armstrong"]
+    },
+    {
+      "group": "Oregon",
+      "accept": ["Ron Wyden", "Wyden"]
+    },
+    {
+      "group": "Oregon",
+      "accept": ["Jeff Merkley", "Merkley"]
+    },
+    {
+      "group": "Pennsylvania",
+      "accept": ["Bob Casey", "Casey"]
+    },
+    {
+      "group": "Pennsylvania",
+      "accept": ["David McCormick", "McCormick"]
+    },
+    {
+      "group": "Rhode Island",
+      "accept": ["Jack Reed", "Reed"]
+    },
+    {
+      "group": "Rhode Island",
+      "accept": ["Sheldon Whitehouse", "Whitehouse"]
+    },
+    {
+      "group": "South Carolina",
+      "accept": ["Lindsey Graham", "Graham"]
+    },
+    {
+      "group": "South Carolina",
+      "accept": ["Tim Scott", "Scott"]
+    },
+    {
+      "group": "South Dakota",
+      "accept": ["John Thune", "Thune"]
+    },
+    {
+      "group": "South Dakota",
+      "accept": ["Mike Rounds", "Rounds"]
+    },
+    {
+      "group": "Tennessee",
+      "accept": ["Lamar Alexander", "Alexander"]
+    },
+    {
+      "group": "Tennessee",
+      "accept": ["Chuck Hagerty", "Hagerty"]
+    },
+    {
+      "group": "Texas",
+      "accept": ["John Cornyn", "Cornyn"]
+    },
+    {
+      "group": "Texas",
+      "accept": ["Ted Cruz", "Cruz"]
+    },
+    {
+      "group": "Utah",
+      "accept": ["Mike Lee", "Lee"]
+    },
+    {
+      "group": "Utah",
+      "accept": ["Mitt Romney", "Romney"]
+    },
+    {
+      "group": "Vermont",
+      "accept": ["Bernie Sanders", "Sanders"]
+    },
+    {
+      "group": "Vermont",
+      "accept": ["Peter Welch", "Welch"]
+    },
+    {
+      "group": "Virginia",
+      "accept": ["Tim Kaine", "Kaine"]
+    },
+    {
+      "group": "Virginia",
+      "accept": ["Mark Warner", "Warner"]
+    },
+    {
+      "group": "Washington",
+      "accept": ["Patty Murray", "Murray"]
+    },
+    {
+      "group": "Washington",
+      "accept": ["Maria Cantwell", "Cantwell"]
+    },
+    {
+      "group": "West Virginia",
+      "accept": ["Joe Manchin", "Manchin"]
+    },
+    {
+      "group": "West Virginia",
+      "accept": ["Shelley Moore Capito", "Capito"]
+    },
+    {
+      "group": "Wisconsin",
+      "accept": ["Ron Johnson", "Johnson"]
+    },
+    {
+      "group": "Wisconsin",
+      "accept": ["Tammy Baldwin", "Baldwin"]
+    },
+    {
+      "group": "Wyoming",
+      "accept": ["John Barrasso", "Barrasso"]
+    },
+    {
+      "group": "Wyoming",
+      "accept": ["John Enzi", "Enzi"]
+    }
+  ]
+}

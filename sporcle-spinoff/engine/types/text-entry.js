@@ -1,8 +1,16 @@
 // Free-response / fill-in / "name all N" completionist, or a table of
-// dedicated per-row inputs. items: { accept:[...], clue? }
+// dedicated per-row inputs. items: { accept:[...], clue?, group? }
 //   accept  = strings that count as correct (aliases ok); accept[0] is
 //             shown as the solved/revealed answer
 //   clue    = hint text (shown in the slot before solved, or as a table column)
+//   group   = (fill-in layout only) buckets this item under a labeled
+//             sub-box instead of the flat slot list; items sharing a group
+//             name fill into the same box, each with its own "found/total"
+//             counter, while a single input still serves every group at
+//             once — a correct guess routes to whichever group it belongs
+//             to. Sections render in order of each group's first
+//             appearance in items[]; ungrouped items keep rendering in one
+//             flat, unlabeled section exactly as before.
 //
 // Default layout: one shared input; each correct typed answer fills its slot.
 // layout: "table" — every row gets its own always-visible input, with
@@ -27,22 +35,56 @@ function renderFillIn(root, quiz, engine) {
 
   root.innerHTML = `
     <input class="q-input" id="te-input" placeholder="${quiz.prompt || 'Type an answer…'}" autocomplete="off" autocapitalize="off" spellcheck="false" />
-    <div class="q-slots" id="te-slots"></div>`;
+    <div id="te-groups"></div>`;
   const input = root.querySelector('#te-input');
-  const slotsEl = root.querySelector('#te-slots');
+  const groupsEl = root.querySelector('#te-groups');
 
-  const slots = items.map((it) => {
-    const d = document.createElement('div');
-    d.className = 'q-slot';
-    d.textContent = it.clue || ' ';
-    slotsEl.appendChild(d);
-    return d;
+  // Bucket items by group (in order of first appearance); ungrouped items
+  // ('' key) render in one flat, unlabeled section — identical markup to
+  // before grouping existed, so untagged quizzes are unaffected.
+  const order = [];
+  const bucket = new Map();
+  items.forEach((it, idx) => {
+    const key = it.group || '';
+    if (!bucket.has(key)) { bucket.set(key, []); order.push(key); }
+    bucket.get(key).push(idx);
+  });
+
+  const slots = new Array(items.length);
+  const counters = new Map(); // group key -> { el, found, total }
+
+  order.forEach((key) => {
+    const idxs = bucket.get(key);
+    const section = document.createElement('div');
+    section.className = 'q-group';
+    if (key) {
+      section.innerHTML = `<div class="q-group-head"><span class="q-group-label">${key}</span><span class="q-group-count">0/${idxs.length}</span></div>`;
+      counters.set(key, { el: section.querySelector('.q-group-count'), found: 0, total: idxs.length });
+    }
+    const slotsEl = document.createElement('div');
+    slotsEl.className = 'q-slots';
+    section.appendChild(slotsEl);
+    groupsEl.appendChild(section);
+
+    idxs.forEach((idx) => {
+      const d = document.createElement('div');
+      d.className = 'q-slot';
+      d.textContent = items[idx].clue || ' ';
+      slotsEl.appendChild(d);
+      slots[idx] = d;
+    });
   });
 
   function fill(idx, missed) {
     solved[idx] = true;
     slots[idx].textContent = titleCase(items[idx].accept[0]);
     slots[idx].classList.add(missed ? 'missed' : 'filled');
+    const key = items[idx].group;
+    if (!missed && key && counters.has(key)) {
+      const c = counters.get(key);
+      c.found += 1;
+      c.el.textContent = `${c.found}/${c.total}`;
+    }
   }
 
   function tryAnswer() {
