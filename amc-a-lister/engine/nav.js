@@ -1,4 +1,4 @@
-import { initAuth, wireAuthLink } from './auth.js';
+import { initAuth, wireAuthLink, refreshToken } from './auth.js';
 
 const NAV_ACTIVE = document.body.dataset.page || '';
 
@@ -37,25 +37,41 @@ export async function bootPage(renderFn) {
   const root = document.getElementById('app-root');
   const auth = await initAuth();
 
+  if (auth.configured && auth.user && !auth.token) {
+    await refreshToken(auth);
+  }
+
   try {
     await renderFn({ root, auth });
     wireAuthLink(auth);
   } catch (err) {
     console.error(err);
+    if (err.status === 401 && auth.configured) {
+      auth.signedIn = false;
+      auth.needsReauth = !!auth.user;
+      if (!requireSignIn(auth, root)) return;
+    }
     root.innerHTML = `<div class="al-panel"><p class="al-error">${err.message || 'Something went wrong.'}</p></div>`;
   }
 }
 
 export function requireSignIn(auth, root) {
-  if (auth.signedIn) return true;
+  if (auth.signedIn && auth.token) return true;
+
+  const loginHref = `/account.html?next=${encodeURIComponent(location.pathname)}`;
+  const reauthNote = auth.needsReauth
+    ? '<p class="al-error">Your session expired. Sign in again to load your log.</p>'
+    : '';
+
   root.innerHTML = `
     ${renderShell({
       title: 'A-Lister',
       subtitle: 'Track every screening. Know if A-List is paying for itself.',
-      actions: `<a class="al-btn al-btn-primary" href="/account.html?next=${encodeURIComponent(location.pathname)}">Sign in to your log</a>`,
+      actions: `<a class="al-btn al-btn-primary" href="${loginHref}">Sign in to your log</a>`,
     })}
     <main class="al-main">
       <section class="al-panel al-marketing">
+        ${reauthNote}
         <h2 class="serif">Your watch diary, minus the spreadsheet</h2>
         <ul class="al-bullets">
           <li>Log a screening in under 30 seconds</li>

@@ -91,6 +91,16 @@
     <script type="module">
       const show = (id) => document.getElementById(id).classList.remove('hidden');
       const hide = (id) => document.getElementById(id).classList.add('hidden');
+      const nextUrl = () => {
+        const next = new URLSearchParams(location.search).get('next');
+        if (!next || !next.startsWith('/')) return null;
+        return next;
+      };
+      const goAfterAuth = () => {
+        const next = nextUrl();
+        if (next) location.href = next;
+        else location.reload();
+      };
 
       init();
 
@@ -119,6 +129,10 @@
 
         const { data } = await client.getSession();
         if (data?.user) {
+          if (nextUrl()) {
+            goAfterAuth();
+            return;
+          }
           renderSignedIn(data.user, neonAuth);
         } else {
           show('auth-forms');
@@ -150,7 +164,7 @@
             password: document.getElementById('signin-password').value,
           });
           if (error) showError(error.message || 'Sign-in failed.');
-          else location.reload();
+          else goAfterAuth();
         });
 
         formUp.addEventListener('submit', async (e) => {
@@ -162,7 +176,7 @@
             password: document.getElementById('signup-password').value,
           });
           if (error) showError(error.message || 'Sign-up failed.');
-          else location.reload();
+          else goAfterAuth();
         });
       }
 
