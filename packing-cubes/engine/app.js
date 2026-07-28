@@ -216,12 +216,14 @@ function render() {
           <h1 class="pc-app-title">Packing Cubes</h1>
           <p class="pc-app-subtitle">Mix cubes into your suitcase. Basics start included — remove any you don't need.</p>
         </div>
-        <a href="/packing-cubes/builder.html" class="pc-btn primary sm">+ Create a cube</a>
       </header>
 
       <aside class="pc-cubes-panel">
         <div class="pc-panel-head">
-          <h2>Available Cubes</h2>
+          <div class="pc-panel-head-row">
+            <h2>Available Cubes</h2>
+            <a href="/packing-cubes/builder.html" class="pc-btn primary sm">+ Create a cube</a>
+          </div>
           <label class="pc-sr-only" for="cube-search">Search cubes</label>
           <input type="search" class="pc-search-input" id="cube-search"
             placeholder="Search cubes…" value="${escapeAttr(searchQuery)}" autocomplete="off">
@@ -371,6 +373,7 @@ async function openPreview(cubeId) {
       </label>
     </div>
     <button type="button" class="pc-btn primary" id="preview-commit" style="width:100%;margin-top:12px"></button>
+    ${isOwner ? `<button type="button" class="pc-delete-cube-btn" id="delete-cube-btn">Delete this cube</button>` : ''}
   `;
 
   document.getElementById('preview-close').addEventListener('click', closePreview);
@@ -379,6 +382,8 @@ async function openPreview(cubeId) {
     if (e.key === 'Enter') { e.preventDefault(); addStagedItem(cubeId); }
   });
   document.getElementById('preview-commit').addEventListener('click', () => commitPreview(cubeId));
+  const deleteBtn = document.getElementById('delete-cube-btn');
+  if (deleteBtn) deleteBtn.addEventListener('click', () => deleteCubeEverywhere(cubeId, cube.title));
 
   renderStagedList(cubeId);
 }
@@ -510,8 +515,31 @@ async function refreshCatalog() {
     catalog = await res.json();
     cubeCache.clear();
     renderCubeList();
-    renderPackList();
+    renderSuitcase();
   } catch { /* ignore */ }
+}
+
+async function deleteCubeEverywhere(cubeId, title) {
+  if (!confirm(`Delete "${title}"? This removes it from the catalog for everyone and can't be undone.`)) return;
+  try {
+    const res = await fetch('/api/save-cube', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: cubeId }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+    for (const s of state.suitcases) {
+      s.cubeIds = s.cubeIds.filter((id) => id !== cubeId);
+    }
+    saveState();
+    cubeCache.delete(cubeId);
+    closePreview();
+    await refreshCatalog();
+    showToast(`Deleted "${title}"`);
+  } catch (err) {
+    showToast(`Couldn't delete: ${err.message}`);
+  }
 }
 
 function renderSuitcase() {

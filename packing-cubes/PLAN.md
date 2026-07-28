@@ -127,6 +127,16 @@ implementing (color direction, click-to-expand vs. instant toggle, add-item scop
   still a valid deep link) *or* inline in a modal on the main page. "+ Create a cube" and each cube
   card's edit pencil now open that modal in place — no navigation away from the split view. A
   successful owner publish refreshes the catalog in place so the new/edited cube shows up immediately.
+- The "+ Create a cube" button itself moved from the page header into the "Available Cubes" panel
+  head, next to the search box, since that's the panel it actually acts on.
+
+### Delete a cube
+- Owner-only. `/api/save-cube` now handles `DELETE` (body `{ id }`) — checks the same auth cookie,
+  fetches the file's current SHA, and deletes it via the GitHub contents API (no PR path for
+  visitors; deletion is destructive enough that it stays owner-only, unlike edits). The button lives
+  inside the cube preview modal as a small muted text link below "Add to suitcase", with a
+  `confirm()` guard. On success, the cube id is scrubbed from every saved suitcase's `cubeIds` (so it
+  doesn't linger as a dangling reference) and the catalog refreshes in place.
 - `index.html` needed to load `builder.css` too, since the inline modal renders builder-specific
   markup (`.b-step`, `.b-mode-toggle`, etc.) that previously only `builder.html` loaded.
 

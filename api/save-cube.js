@@ -40,6 +40,19 @@ async function putJsonFile(path, json, sha, message, branch = BRANCH) {
   return res.json();
 }
 
+async function deleteJsonFile(path, sha, message, branch = BRANCH) {
+  const res = await gh(`/contents/${path}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message, sha, branch }),
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`DELETE ${path} failed: ${res.status} ${body}`);
+  }
+  return res.json();
+}
+
 async function createBranch(name) {
   const refRes = await gh(`/git/ref/heads/${BRANCH}`);
   if (!refRes.ok) throw new Error(`Could not read ${BRANCH} ref: ${refRes.status}`);
@@ -124,8 +137,38 @@ export default async function handler(req, res) {
     return;
   }
 
+  if (req.method === 'DELETE') {
+    if (!(await isAuthed(req.headers.cookie))) {
+      res.status(401).json({ error: 'Deleting a cube is owner-only.' });
+      return;
+    }
+    if (!process.env.GITHUB_TOKEN) {
+      res.status(503).json({ error: 'GITHUB_TOKEN not configured.' });
+      return;
+    }
+    const { id } = req.body || {};
+    if (!id || typeof id !== 'string' || !id.trim()) {
+      res.status(400).json({ error: 'Missing cube id.' });
+      return;
+    }
+    const cubeId = slugify(id);
+    const cubePath = `${CUBES_DIR}/${cubeId}.json`;
+    try {
+      const existing = await getJsonFile(cubePath);
+      if (!existing) {
+        res.status(404).json({ error: 'Cube not found.' });
+        return;
+      }
+      await deleteJsonFile(cubePath, existing.sha, `Delete cube: ${existing.json.title || cubeId}`);
+      res.status(200).json({ id: cubeId });
+    } catch (err) {
+      res.status(502).json({ error: err.message });
+    }
+    return;
+  }
+
   if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Use POST.' });
+    res.status(405).json({ error: 'Use POST, DELETE, or GET.' });
     return;
   }
 
