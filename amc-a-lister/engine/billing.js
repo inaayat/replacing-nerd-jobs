@@ -1,0 +1,144 @@
+/** Calendar-month billing helpers (period starts on the 1st). */
+
+export function chargeMonth(dateInput) {
+  const d = parseDate(dateInput);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  return `${y}-${m}-01`;
+}
+
+export function monthlyBillForMonth(chargeMonthStr, membership, sortedChargeMonths) {
+  const months = sortedChargeMonths.length
+    ? sortedChargeMonths
+    : [chargeMonthStr];
+  const isFirst = months[0] === chargeMonthStr;
+  if (isFirst) return membership.promo_cents;
+
+  const bump = membership.price_bump_on
+    ? String(membership.price_bump_on).slice(0, 10)
+    : null;
+  if (bump && chargeMonthStr < bump) return membership.standard_cents;
+  return membership.current_cents;
+}
+
+export function distinctChargeMonths(watches) {
+  const set = new Set(watches.map((w) => chargeMonth(w.watched_on)));
+  return [...set].sort();
+}
+
+export function computeSummary(watches, membership) {
+  const months = distinctChargeMonths(watches);
+  const totalBilled = months.reduce(
+    (sum, m) => sum + monthlyBillForMonth(m, membership, months),
+    0,
+  );
+  const totalCharged = watches.reduce((sum, w) => sum + (w.ticket_cents || 0), 0);
+  const totalSeen = watches.length;
+  const totalSavings = totalCharged - totalBilled;
+  const costPerMovie = totalSeen ? totalBilled / totalSeen : 0;
+  const avgTicket = totalSeen ? totalCharged / totalSeen : 0;
+
+  const byMonthMap = new Map();
+  for (const w of watches) {
+    const m = chargeMonth(w.watched_on);
+    if (!byMonthMap.has(m)) {
+      byMonthMap.set(m, { month: m, movies: 0, charged: 0 });
+    }
+    const row = byMonthMap.get(m);
+    row.movies += 1;
+    row.charged += w.ticket_cents || 0;
+  }
+
+  const byMonth = [...byMonthMap.entries()]
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([, row]) => {
+      const bill = monthlyBillForMonth(row.month, membership, months);
+      return {
+        month: row.month,
+        movies: row.movies,
+        charged: row.charged,
+        bill,
+        savings: row.charged - bill,
+      };
+    });
+
+  const currentMonth = chargeMonth(new Date().toISOString().slice(0, 10));
+  const currentWatches = watches.filter((w) => chargeMonth(w.watched_on) === currentMonth);
+  const currentCharged = currentWatches.reduce((s, w) => s + (w.ticket_cents || 0), 0);
+  const currentBill = monthlyBillForMonth(currentMonth, membership, months);
+  const breakEvenTickets = Math.max(0, Math.ceil((currentBill - currentCharged) / 15));
+
+  return {
+    totalBilled,
+    totalCharged,
+    totalSavings,
+    totalSeen,
+    costPerMovie,
+    avgTicket,
+    byMonth,
+    currentPeriod: {
+      month: currentMonth,
+      movies: currentWatches.length,
+      charged: currentCharged,
+      bill: currentBill,
+      savings: currentCharged - currentBill,
+      breakEvenTickets,
+    },
+  };
+}
+
+export function theaterStats(watches) {
+  const map = new Map();
+  for (const w of watches) {
+    const loc = (w.location || 'Unknown').trim() || 'Unknown';
+    if (!map.has(loc)) map.set(loc, { location: loc, count: 0, charged: 0 });
+    const row = map.get(loc);
+    row.count += 1;
+    row.charged += w.ticket_cents || 0;
+  }
+  return [...map.values()].sort((a, b) => b.count - a.count);
+}
+
+export function formatStats(watches) {
+  const map = new Map();
+  for (const w of watches) {
+    const fmt = (w.format || 'Standard').trim() || 'Standard';
+    if (!map.has(fmt)) map.set(fmt, { format: fmt, count: 0, charged: 0 });
+    const row = map.get(fmt);
+    row.count += 1;
+    row.charged += w.ticket_cents || 0;
+  }
+  return [...map.values()].sort((a, b) => b.charged - a.charged);
+}
+
+export function rewatchList(watches) {
+  const byKey = new Map();
+  for (const w of watches) {
+    const key = w.tmdb_id ? `tmdb:${w.tmdb_id}` : `title:${w.title.toLowerCase()}`;
+    if (!byKey.has(key)) byKey.set(key, { title: w.title, tmdb_id: w.tmdb_id, count: 0, dates: [] });
+    const row = byKey.get(key);
+    row.count += 1;
+    row.dates.push(w.watched_on);
+  }
+  return [...byKey.values()]
+    .filter((r) => r.count > 1)
+    .sort((a, b) => b.count - a.count);
+}
+
+export function ratingDistribution(watches) {
+  const rated = watches.filter((w) => !w.dnf && w.rating != null);
+  const dnfCount = watches.filter((w) => w.dnf).length;
+  const buckets = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  for (const w of rated) {
+    const bucket = Math.min(5, Math.max(1, Math.round(w.rating)));
+    buckets[bucket] += 1;
+  }
+  return { buckets, rated: rated.length, dnf: dnfCount, total: watches.length };
+}
+
+function parseDate(input) {
+  if (input instanceof Date) return input;
+  const s = String(input).slice(0, 10);
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
+}
