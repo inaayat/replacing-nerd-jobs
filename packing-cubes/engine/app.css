@@ -347,7 +347,7 @@
 }
 
 .pc-suitcase-body {
-  padding: 12px 16px 16px;
+  padding: 10px 14px 14px;
 }
 
 .pc-checklist-toolbar {
@@ -385,10 +385,10 @@
 
 /* Grouped checklist */
 #pack-list-groups {
-  margin-top: 8px;
+  margin-top: 6px;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 10px;
+  gap: 6px;
 }
 
 @media (min-width: 900px) {
@@ -416,8 +416,8 @@
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
+  gap: 6px;
+  padding: 5px 8px;
   background: var(--card);
   border: none;
   border-bottom: 1px solid var(--grey-soft);
@@ -463,12 +463,12 @@
 
 .pc-item-hide {
   flex-shrink: 0;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   border: none;
   background: transparent;
   color: var(--brown);
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   line-height: 1;
   cursor: pointer;
   border-radius: 4px;
@@ -483,10 +483,10 @@
 .pc-item-hidden-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 10px;
+  gap: 6px;
+  padding: 3px 8px;
   border-bottom: 1px solid var(--grey-soft);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 600;
   color: var(--grey);
   font-style: italic;
