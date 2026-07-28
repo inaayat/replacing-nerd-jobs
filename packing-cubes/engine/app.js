@@ -1,4 +1,6 @@
 // Unified packing app: catalog (left) + suitcase builder (right)
+import { catalogUrl, cubeJsonUrl } from './paths.js';
+
 const STORAGE_KEY = 'packing-cubes:suitcases';
 
 const root = document.getElementById('app-root');
@@ -84,7 +86,7 @@ function itemKey(cubeId, label) {
 }
 
 async function fetchCube(id) {
-  const res = await fetch(`./cubes/${encodeURIComponent(id)}.json`);
+  const res = await fetch(cubeJsonUrl(id));
   if (!res.ok) throw new Error(`Could not load cube "${id}"`);
   return res.json();
 }
@@ -433,8 +435,11 @@ function escapeAttr(s) {
   return escapeHtml(s).replace(/"/g, '&quot;');
 }
 
-fetch('./cubes/index.json')
-  .then((r) => r.json())
+fetch(catalogUrl)
+  .then((r) => {
+    if (!r.ok) throw new Error(`Catalog request failed (${r.status})`);
+    return r.json();
+  })
   .then((cubes) => {
     catalog = cubes;
     ensureSuitcase();
@@ -444,10 +449,13 @@ fetch('./cubes/index.json')
         suitcase.cubeIds.push(addCubeId);
         saveState();
       }
-      history.replaceState(null, '', './');
+      const url = new URL(location.href);
+      url.searchParams.delete('add');
+      history.replaceState(null, '', url.pathname + url.search + url.hash);
     }
     render();
   })
-  .catch(() => {
+  .catch((err) => {
+    console.error('Packing cubes catalog error:', err);
     root.innerHTML = '<p style="padding:40px;text-align:center;font-weight:700;color:var(--brown)">Could not load the cube catalog.</p>';
   });

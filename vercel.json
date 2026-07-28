@@ -1,4 +1,8 @@
 {
   "framework": null,
-  "outputDirectory": "."
+  "outputDirectory": ".",
+  "trailingSlash": false,
+  "redirects": [
+    { "source": "/packing-cubes", "destination": "/packing-cubes/", "permanent": true }
+  ]
 }

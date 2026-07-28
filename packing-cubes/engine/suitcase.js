@@ -1,3 +1,5 @@
+import { catalogUrl, cubeJsonUrl } from './paths.js';
+
 const STORAGE_KEY = 'packing-cubes:suitcases';
 
 const root = document.getElementById('suitcase-root');
@@ -42,7 +44,7 @@ function itemKey(cubeId, label) {
 }
 
 async function fetchCube(id) {
-  const res = await fetch(`./cubes/${encodeURIComponent(id)}.json`);
+  const res = await fetch(cubeJsonUrl(id));
   if (!res.ok) throw new Error(`Could not load cube "${id}"`);
   return res.json();
 }
@@ -253,8 +255,11 @@ function escapeAttr(s) {
   return escapeHtml(s).replace(/"/g, '&quot;');
 }
 
-fetch('./cubes/index.json')
-  .then((r) => r.json())
+fetch(catalogUrl)
+  .then((r) => {
+    if (!r.ok) throw new Error(`Catalog request failed (${r.status})`);
+    return r.json();
+  })
   .then((cubes) => {
     catalog = cubes;
     ensureSuitcase();
