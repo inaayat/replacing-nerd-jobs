@@ -1,4 +1,4 @@
-import { getAuth } from '../../lib/neon-auth.js';
+import { randomUUID } from 'node:crypto';
 import { db } from '../../lib/db.js';
 import { upsertUser, listWatches, getMembership, watchFromRow } from '../../lib/a-list.js';
 
@@ -70,7 +70,7 @@ export default async function handler(req, res) {
       res.status(400).json({ error: 'watched_on and title are required.' });
       return;
     }
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     try {
       const rows = await db()`
         INSERT INTO alist_watches (

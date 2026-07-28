@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { getAuth } from '../../lib/neon-auth.js';
 import { upsertUser, getMembership } from '../../lib/a-list.js';
 import { db } from '../../lib/db.js';
@@ -76,7 +77,7 @@ export default async function handler(req, res) {
           id, user_id, watched_on, title, tmdb_id, location, format,
           saw_alone, auditorium, seat, ticket_cents, rating, dnf, notes
         ) VALUES (
-          ${crypto.randomUUID()}, ${userId}, ${data.watched_on}, ${data.title},
+          ${randomUUID()}, ${userId}, ${data.watched_on}, ${data.title},
           ${data.tmdb_id}, ${data.location}, ${data.format}, ${data.saw_alone},
           ${data.auditorium}, ${data.seat}, ${data.ticket_cents}, ${data.rating},
           ${data.dnf}, ${data.notes}

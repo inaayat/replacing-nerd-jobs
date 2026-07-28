@@ -3,7 +3,7 @@ import {
   chargeMonth,
   monthlyBillForMonth,
   computeSummary,
-} from '../amc-a-lister/engine/billing.js';
+} from '../lib/a-list-billing.js';
 
 const membership = {
   promo_cents: 99,
