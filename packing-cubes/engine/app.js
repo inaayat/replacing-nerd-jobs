@@ -519,8 +519,28 @@ async function refreshCatalog() {
   } catch { /* ignore */ }
 }
 
+async function labelsCoveredByCubes(cubeIds) {
+  const labels = new Set();
+  for (const id of cubeIds) {
+    let cube;
+    try { cube = await fetchCube(id); } catch { continue; }
+    for (const item of cube.items || []) {
+      const label = (item.label || '').trim();
+      if (label) labels.add(label.toLowerCase());
+    }
+  }
+  return labels;
+}
+
 async function deleteCubeEverywhere(cubeId, title) {
-  if (!confirm(`Delete "${title}"? This removes it from the catalog for everyone and can't be undone.`)) return;
+  if (!confirm(`Delete "${title}"? It's removed from the catalog for everyone and can't be undone. Its items already in your saved suitcases will be kept as custom items.`)) return;
+
+  let cubeItems = [];
+  try {
+    const cube = await fetchCube(cubeId);
+    cubeItems = cube.items || [];
+  } catch { /* nothing to preserve if we can't read it */ }
+
   try {
     const res = await fetch('/api/save-cube', {
       method: 'DELETE',
@@ -529,14 +549,27 @@ async function deleteCubeEverywhere(cubeId, title) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+
     for (const s of state.suitcases) {
-      s.cubeIds = s.cubeIds.filter((id) => id !== cubeId);
+      if (!s.cubeIds.includes(cubeId)) continue;
+      const remainingCubeIds = s.cubeIds.filter((id) => id !== cubeId);
+      const covered = await labelsCoveredByCubes(remainingCubeIds);
+      const existingCustomLabels = new Set((s.customItems || []).map((i) => i.label.trim().toLowerCase()));
+      for (const item of cubeItems) {
+        const label = (item.label || '').trim();
+        if (!label) continue;
+        const lower = label.toLowerCase();
+        if (covered.has(lower) || existingCustomLabels.has(lower)) continue;
+        s.customItems.push({ label });
+        existingCustomLabels.add(lower);
+      }
+      s.cubeIds = remainingCubeIds;
     }
     saveState();
     cubeCache.delete(cubeId);
     closePreview();
     await refreshCatalog();
-    showToast(`Deleted "${title}"`);
+    showToast(`Deleted "${title}" — its items were kept as custom items`);
   } catch (err) {
     showToast(`Couldn't delete: ${err.message}`);
   }

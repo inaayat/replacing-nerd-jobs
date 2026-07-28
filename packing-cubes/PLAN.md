@@ -135,8 +135,11 @@ implementing (color direction, click-to-expand vs. instant toggle, add-item scop
   fetches the file's current SHA, and deletes it via the GitHub contents API (no PR path for
   visitors; deletion is destructive enough that it stays owner-only, unlike edits). The button lives
   inside the cube preview modal as a small muted text link below "Add to suitcase", with a
-  `confirm()` guard. On success, the cube id is scrubbed from every saved suitcase's `cubeIds` (so it
-  doesn't linger as a dangling reference) and the catalog refreshes in place.
+  `confirm()` guard. The catalog refreshes in place afterward.
+- Deleting a cube doesn't drop its items from suitcases that had it added — each affected suitcase
+  gets those items converted into plain custom items first (same label, so packed/hidden state
+  carries over via the label-based `itemKey`), skipping any label already covered by another cube
+  still in that suitcase or already present as a custom item, so nothing shows up twice.
 - `index.html` needed to load `builder.css` too, since the inline modal renders builder-specific
   markup (`.b-step`, `.b-mode-toggle`, etc.) that previously only `builder.html` loaded.
 
