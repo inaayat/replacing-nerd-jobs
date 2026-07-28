@@ -1,0 +1,13 @@
+{
+  "id": "basics-undergarments",
+  "title": "Basics: Undergarments",
+  "blurb": "Underlayers and sleepwear for any trip.",
+  "tags": ["basics", "clothing"],
+  "items": [
+    { "label": "Underwear (1 per day + 1 extra)" },
+    { "label": "Socks (1 per day + 1 extra)" },
+    { "label": "Bras / sports bras" },
+    { "label": "Sleepwear" },
+    { "label": "Slippers or flip-flops" }
+  ]
+}
