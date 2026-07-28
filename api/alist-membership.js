@@ -1,6 +1,6 @@
-import { getAuth } from '../../lib/neon-auth.js';
-import { upsertUser, getMembership } from '../../lib/a-list.js';
-import { db } from '../../lib/db.js';
+import { getAuth } from '../lib/neon-auth.js';
+import { upsertUser, getMembership } from '../lib/a-list.js';
+import { db } from '../lib/db.js';
 
 export default async function handler(req, res) {
   if (!process.env.DATABASE_URL || !process.env.NEON_AUTH_BASE_URL) {

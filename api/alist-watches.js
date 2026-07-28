@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { db } from '../../lib/db.js';
-import { upsertUser, listWatches, getMembership, watchFromRow } from '../../lib/a-list.js';
+import { getAuth } from '../lib/neon-auth.js';
+import { db } from '../lib/db.js';
+import { upsertUser, listWatches, getMembership, watchFromRow } from '../lib/a-list.js';
 
 function requireDb(res) {
   if (!process.env.DATABASE_URL) {

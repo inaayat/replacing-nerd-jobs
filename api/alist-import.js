@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { getAuth } from '../../lib/neon-auth.js';
-import { upsertUser, getMembership } from '../../lib/a-list.js';
-import { db } from '../../lib/db.js';
+import { getAuth } from '../lib/neon-auth.js';
+import { upsertUser, getMembership } from '../lib/a-list.js';
+import { db } from '../lib/db.js';
 
 function watchKey(w) {
   return `${w.watched_on}|${(w.title || '').toLowerCase()}|${(w.location || '').toLowerCase()}`;

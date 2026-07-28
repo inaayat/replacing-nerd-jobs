@@ -1,5 +1,5 @@
-import { getAuth } from '../../lib/neon-auth.js';
-import { db, ensureSchema } from '../../lib/db.js';
+import { getAuth } from '../lib/neon-auth.js';
+import { db, ensureSchema } from '../lib/db.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {

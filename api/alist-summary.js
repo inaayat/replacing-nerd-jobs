@@ -1,12 +1,12 @@
-import { getAuth } from '../../lib/neon-auth.js';
-import { upsertUser, listWatches, getMembership } from '../../lib/a-list.js';
+import { getAuth } from '../lib/neon-auth.js';
+import { upsertUser, listWatches, getMembership } from '../lib/a-list.js';
 import {
   computeSummary,
   theaterStats,
   formatStats,
   rewatchList,
   ratingDistribution,
-} from '../../lib/a-list-billing.js';
+} from '../lib/a-list-billing.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {

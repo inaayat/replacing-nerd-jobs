@@ -18,25 +18,25 @@ export async function apiFetch(path, { method = 'GET', body, token } = {}) {
 }
 
 export const watchesApi = {
-  list: (token) => apiFetch('/api/a-list/watches', { token }),
-  create: (token, watch) => apiFetch('/api/a-list/watches', { method: 'POST', body: watch, token }),
-  update: (token, watch) => apiFetch('/api/a-list/watches', { method: 'PATCH', body: watch, token }),
-  remove: (token, id) => apiFetch('/api/a-list/watches', { method: 'DELETE', body: { id }, token }),
+  list: (token) => apiFetch('/api/alist-watches', { token }),
+  create: (token, watch) => apiFetch('/api/alist-watches', { method: 'POST', body: watch, token }),
+  update: (token, watch) => apiFetch('/api/alist-watches', { method: 'PATCH', body: watch, token }),
+  remove: (token, id) => apiFetch('/api/alist-watches', { method: 'DELETE', body: { id }, token }),
 };
 
 export const summaryApi = {
-  get: (token) => apiFetch('/api/a-list/summary', { token }),
+  get: (token) => apiFetch('/api/alist-summary', { token }),
 };
 
 export const membershipApi = {
-  get: (token) => apiFetch('/api/a-list/membership', { token }),
-  update: (token, membership) => apiFetch('/api/a-list/membership', { method: 'PUT', body: membership, token }),
+  get: (token) => apiFetch('/api/alist-membership', { token }),
+  update: (token, membership) => apiFetch('/api/alist-membership', { method: 'PUT', body: membership, token }),
 };
 
 export const importApi = {
-  run: (token, watches) => apiFetch('/api/a-list/import', { method: 'POST', body: { watches }, token }),
+  run: (token, watches) => apiFetch('/api/alist-import', { method: 'POST', body: { watches }, token }),
 };
 
 export const movieApi = {
-  search: (token, q) => apiFetch(`/api/a-list/movie-lookup?q=${encodeURIComponent(q)}`, { token }),
+  search: (token, q) => apiFetch(`/api/alist-movie-lookup?q=${encodeURIComponent(q)}`, { token }),
 };
