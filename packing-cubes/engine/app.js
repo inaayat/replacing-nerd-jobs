@@ -64,7 +64,7 @@ function ensureSuitcase() {
   }
   if (!state.activeSuitcaseId) state.activeSuitcaseId = state.suitcases[0].id;
 
-  const suitcase = activeSuitcase();
+  const suitcase = state.suitcases.find((s) => s.id === state.activeSuitcaseId) || state.suitcases[0];
   const basics = basicCubeIds();
   let changed = false;
   for (const id of basics) {
@@ -441,6 +441,7 @@ fetch(catalogUrl)
     return r.json();
   })
   .then((cubes) => {
+    if (!Array.isArray(cubes)) throw new Error('Catalog is not an array');
     catalog = cubes;
     ensureSuitcase();
     if (addCubeId) {
@@ -453,7 +454,12 @@ fetch(catalogUrl)
       url.searchParams.delete('add');
       history.replaceState(null, '', url.pathname + url.search + url.hash);
     }
-    render();
+    try {
+      render();
+    } catch (err) {
+      console.error('Packing cubes render error:', err);
+      root.innerHTML = '<p style="padding:40px;text-align:center;font-weight:700;color:var(--brown)">Something went wrong loading the app.</p>';
+    }
   })
   .catch((err) => {
     console.error('Packing cubes catalog error:', err);
