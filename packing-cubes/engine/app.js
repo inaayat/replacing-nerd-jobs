@@ -1,5 +1,6 @@
 // Unified packing app: catalog (left) + suitcase builder (right)
 import { catalogUrl, cubeJsonUrl } from './paths.js';
+import { initBuilder } from './builder.js';
 
 const STORAGE_KEY = 'packing-cubes:suitcases';
 const DENSE_CHECKLIST_THRESHOLD = 7;
@@ -16,6 +17,10 @@ let checklistFilter = '';
 let hidePacked = false;
 let showHiddenItems = false;
 let isOwner = false;
+const collapsedGroups = new Set();
+
+// Preview-modal-local staging state (reset each time a preview opens)
+let stagedItems = [];
 
 const cubeCache = new Map();
 const cubeFetches = new Map();
@@ -34,8 +39,9 @@ const TAG_COLORS = {
 };
 
 const BAG_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="3"/><path d="M8 8V6a4 4 0 0 1 8 0v2"/><line x1="12" y1="12" x2="12" y2="16"/></svg>`;
-const EYE_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>`;
 const EDIT_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
+const CHECK_SVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+const CHEVRON_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
 
 function loadState() {
   try {
@@ -111,31 +117,60 @@ async function fetchCube(id) {
   return promise;
 }
 
-async function mergeItems(suitcase) {
+// Groups the suitcase's merged items by the cube they came from, so the
+// checklist doesn't repeat the same cube name on every row. Shared items
+// (present in more than one selected cube) are placed under the first
+// cube (in suitcase order) that contains them; their other sources are
+// still recorded for a small "also in ..." note.
+async function mergeItemsGrouped(suitcase) {
   const merged = new Map();
+  const cubeTitles = new Map();
+
   for (const cubeId of suitcase.cubeIds) {
     let cube;
     try { cube = await fetchCube(cubeId); } catch { continue; }
+    cubeTitles.set(cubeId, cube.title);
     for (const item of cube.items || []) {
       const label = item.label.trim();
       if (!label) continue;
       const key = itemKey(label);
       if (!merged.has(key)) {
-        merged.set(key, { label, sources: [cube.title], itemKey: key });
-      } else if (!merged.get(key).sources.includes(cube.title)) {
-        merged.get(key).sources.push(cube.title);
+        merged.set(key, { label, sources: [cube.title], itemKey: key, cubeId });
+      } else {
+        const existing = merged.get(key);
+        if (!existing.sources.includes(cube.title)) existing.sources.push(cube.title);
       }
     }
   }
+
   for (const item of suitcase.customItems || []) {
     const label = item.label.trim();
     if (!label) continue;
     const key = itemKey(label);
     if (!merged.has(key)) {
-      merged.set(key, { label, sources: ['Custom'], itemKey: key });
+      merged.set(key, { label, sources: ['Custom'], itemKey: key, cubeId: item.cubeId || null });
     }
   }
-  return [...merged.values()].sort((a, b) => a.label.localeCompare(b.label));
+
+  const groupByKey = new Map();
+  const groups = [];
+  function ensureGroup(key, title) {
+    if (!groupByKey.has(key)) {
+      const g = { key, title, items: [] };
+      groupByKey.set(key, g);
+      groups.push(g);
+    }
+    return groupByKey.get(key);
+  }
+
+  for (const item of merged.values()) {
+    const key = item.cubeId && cubeTitles.has(item.cubeId) ? item.cubeId : '__custom__';
+    const title = key === '__custom__' ? 'Custom items' : cubeTitles.get(key);
+    ensureGroup(key, title).items.push(item);
+  }
+
+  for (const g of groups) g.items.sort((a, b) => a.label.localeCompare(b.label));
+  return groups;
 }
 
 function packedCount(suitcase, items) {
@@ -170,20 +205,18 @@ function showToast(msg) {
   toastEl.textContent = msg;
   toastEl.classList.add('show');
   clearTimeout(showToast._t);
-  showToast._t = setTimeout(() => toastEl.classList.remove('show'), 2200);
+  showToast._t = setTimeout(() => toastEl.classList.remove('show'), 2600);
 }
 
 function render() {
   root.innerHTML = `
-    <div class="pc-blob pc-blob-1"></div>
-    <div class="pc-blob pc-blob-2"></div>
     <div class="pc-app-inner">
       <header class="pc-app-header">
         <div>
           <h1 class="pc-app-title">Packing Cubes</h1>
           <p class="pc-app-subtitle">Mix cubes into your suitcase. Basics start included — remove any you don't need.</p>
         </div>
-        <a href="/packing-cubes/builder.html" class="pc-btn green sm">+ Create a cube</a>
+        <a href="/packing-cubes/builder.html" class="pc-btn primary sm">+ Create a cube</a>
       </header>
 
       <aside class="pc-cubes-panel">
@@ -197,14 +230,16 @@ function render() {
       </aside>
 
       <main class="pc-suitcase-panel" id="suitcase-panel">
-        <div class="pc-suitcase-handle" aria-hidden="true"></div>
-        <div class="pc-suitcase-stripes" aria-hidden="true"></div>
         <div id="suitcase-content"></div>
       </main>
     </div>
 
     <div class="pc-preview-overlay hidden" id="preview-overlay">
       <div class="pc-preview-modal" id="preview-modal" role="dialog" aria-modal="true"></div>
+    </div>
+
+    <div class="pc-preview-overlay hidden" id="builder-overlay">
+      <div class="pc-preview-modal pc-builder-modal" id="builder-modal-root" role="dialog" aria-modal="true"></div>
     </div>
   `;
 
@@ -216,8 +251,13 @@ function render() {
   document.getElementById('preview-overlay').addEventListener('click', (e) => {
     if (e.target.id === 'preview-overlay') closePreview();
   });
+  document.getElementById('builder-overlay').addEventListener('click', (e) => {
+    if (e.target.id === 'builder-overlay') closeBuilderModal();
+  });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closePreview();
+    if (e.key !== 'Escape') return;
+    closePreview();
+    closeBuilderModal();
   });
 
   renderCubeList();
@@ -243,7 +283,7 @@ function renderCubeList() {
     return `
       <div class="pc-cube-card ${inSuitcase ? 'in-suitcase' : ''} ${basic ? 'is-basic' : ''}"
            data-color="${color}" data-cube-id="${c.id}" role="button" tabindex="0"
-           aria-pressed="${inSuitcase}">
+           aria-haspopup="dialog" aria-label="View ${escapeAttr(c.title)}">
         <div class="pc-cube-icon">${BAG_SVG}</div>
         <div class="pc-cube-info">
           <div class="title">
@@ -252,48 +292,40 @@ function renderCubeList() {
           </div>
           <div class="blurb">${escapeHtml(c.blurb || '')}</div>
         </div>
-        <button type="button" class="pc-cube-peek" data-peek-id="${c.id}" title="Preview cube" aria-label="Preview ${escapeAttr(c.title)}">${EYE_SVG}</button>
         ${isOwner ? `<button type="button" class="pc-cube-edit" data-edit-id="${c.id}" title="Edit cube" aria-label="Edit ${escapeAttr(c.title)}">${EDIT_SVG}</button>` : ''}
-        <span class="pc-cube-toggle" aria-hidden="true">${inSuitcase ? '✓' : '+'}</span>
+        ${inSuitcase ? `<span class="pc-cube-status" title="In your suitcase" aria-label="In your suitcase">${CHECK_SVG}</span>` : ''}
       </div>`;
   }).join('');
 
   mount.querySelectorAll('.pc-cube-card').forEach((card) => {
-    const toggle = () => toggleCube(card.dataset.cubeId);
-    card.addEventListener('click', toggle);
+    const open = () => openPreview(card.dataset.cubeId);
+    card.addEventListener('click', open);
     card.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        toggle();
+        open();
       }
-    });
-  });
-
-  mount.querySelectorAll('.pc-cube-peek').forEach((btn) => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      openPreview(btn.dataset.peekId);
     });
   });
 
   mount.querySelectorAll('.pc-cube-edit').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      location.href = `/packing-cubes/builder.html?edit=${encodeURIComponent(btn.dataset.editId)}`;
+      openBuilderModal(btn.dataset.editId);
     });
   });
 }
 
-function toggleCube(cubeId) {
+function addCubeToSuitcase(cubeId) {
   const suitcase = activeSuitcase();
-  if (suitcase.cubeIds.includes(cubeId)) {
-    suitcase.cubeIds = suitcase.cubeIds.filter((x) => x !== cubeId);
-  } else {
-    suitcase.cubeIds.push(cubeId);
-  }
+  if (!suitcase.cubeIds.includes(cubeId)) suitcase.cubeIds.push(cubeId);
   saveState();
-  renderCubeList();
-  renderPackList();
+}
+
+function removeCubeFromSuitcase(cubeId) {
+  const suitcase = activeSuitcase();
+  suitcase.cubeIds = suitcase.cubeIds.filter((x) => x !== cubeId);
+  saveState();
 }
 
 async function openPreview(cubeId) {
@@ -301,6 +333,7 @@ async function openPreview(cubeId) {
   const modal = document.getElementById('preview-modal');
   if (!overlay || !modal) return;
 
+  stagedItems = [];
   const catalogEntry = catalog.find((c) => c.id === cubeId);
   modal.innerHTML = `<p class="pc-preview-loading">Loading…</p>`;
   overlay.classList.remove('hidden');
@@ -315,8 +348,6 @@ async function openPreview(cubeId) {
     return;
   }
 
-  const suitcase = activeSuitcase();
-  const inSuitcase = suitcase.cubeIds.includes(cubeId);
   const tags = (catalogEntry?.tags || cube.tags || []).map((t) => `<span class="pc-tag">${escapeHtml(t)}</span>`).join('');
 
   modal.innerHTML = `
@@ -327,21 +358,160 @@ async function openPreview(cubeId) {
     <ul class="pc-preview-items">
       ${(cube.items || []).map((item) => `<li>${escapeHtml(item.label)}</li>`).join('')}
     </ul>
-    <button type="button" class="pc-btn primary" id="preview-add" style="width:100%">
-      ${inSuitcase ? 'Remove from suitcase' : 'Add to suitcase'}
-    </button>
+    <div class="pc-stage-section">
+      <div class="pc-stage-label">Add an item</div>
+      <div class="pc-stage-row">
+        <input type="text" id="stage-input" class="b-mini-input" placeholder="e.g. Travel pillow">
+        <button type="button" class="pc-btn sm" id="stage-add-btn">+ Add</button>
+      </div>
+      <ul class="pc-stage-list" id="stage-list"></ul>
+      <label class="pc-toggle-chip" id="stage-permanent-row">
+        <input type="checkbox" id="stage-permanent" disabled>
+        ${isOwner ? 'Also publish this to the cube for everyone' : 'Also suggest this as a permanent addition (opens a PR)'}
+      </label>
+    </div>
+    <button type="button" class="pc-btn primary" id="preview-commit" style="width:100%;margin-top:12px"></button>
   `;
 
   document.getElementById('preview-close').addEventListener('click', closePreview);
-  document.getElementById('preview-add').addEventListener('click', () => {
-    toggleCube(cubeId);
-    closePreview();
+  document.getElementById('stage-add-btn').addEventListener('click', () => addStagedItem(cubeId));
+  document.getElementById('stage-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); addStagedItem(cubeId); }
   });
+  document.getElementById('preview-commit').addEventListener('click', () => commitPreview(cubeId));
+
+  renderStagedList(cubeId);
+}
+
+function addStagedItem(cubeId) {
+  const input = document.getElementById('stage-input');
+  const label = input.value.trim();
+  if (!label) return;
+  stagedItems.push(label);
+  input.value = '';
+  input.focus();
+  renderStagedList(cubeId);
+}
+
+function renderStagedList(cubeId) {
+  const list = document.getElementById('stage-list');
+  const permanentCheckbox = document.getElementById('stage-permanent');
+  const commitBtn = document.getElementById('preview-commit');
+  if (!list || !commitBtn) return;
+
+  list.innerHTML = stagedItems.map((label, i) => `
+    <li class="pc-stage-item" data-idx="${i}">
+      <span>${escapeHtml(label)}</span>
+      <button type="button" class="pc-item-hide" title="Remove">&times;</button>
+    </li>`).join('');
+
+  list.querySelectorAll('.pc-item-hide').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const idx = Number(btn.closest('.pc-stage-item').dataset.idx);
+      stagedItems.splice(idx, 1);
+      renderStagedList(cubeId);
+    });
+  });
+
+  permanentCheckbox.disabled = stagedItems.length === 0;
+  if (stagedItems.length === 0) permanentCheckbox.checked = false;
+
+  const suitcase = activeSuitcase();
+  const inSuitcase = suitcase.cubeIds.includes(cubeId);
+  if (!inSuitcase) {
+    commitBtn.textContent = 'Add to suitcase';
+  } else if (stagedItems.length) {
+    commitBtn.textContent = `Add item${stagedItems.length > 1 ? 's' : ''} to suitcase`;
+  } else {
+    commitBtn.textContent = 'Remove from suitcase';
+  }
+}
+
+async function publishItemsToCube(cubeId, newLabels) {
+  const cube = await fetchCube(cubeId);
+  const updatedCube = {
+    id: cubeId,
+    title: cube.title,
+    blurb: cube.blurb || '',
+    tags: cube.tags || [],
+    items: [...(cube.items || []), ...newLabels.map((label) => ({ label }))],
+  };
+  const res = await fetch('/api/save-cube', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cube: updatedCube, mode: isOwner ? 'publish' : 'submit' }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+  if (isOwner) cubeCache.set(cubeId, updatedCube);
+  return data;
+}
+
+async function commitPreview(cubeId) {
+  const suitcase = activeSuitcase();
+  const wasInSuitcase = suitcase.cubeIds.includes(cubeId);
+  const permanentCheckbox = document.getElementById('stage-permanent');
+  const makePermanent = !!permanentCheckbox && permanentCheckbox.checked && stagedItems.length > 0;
+  const itemsToStage = [...stagedItems];
+
+  if (!wasInSuitcase) {
+    addCubeToSuitcase(cubeId);
+    for (const label of itemsToStage) suitcase.customItems.push({ label, cubeId });
+  } else if (itemsToStage.length) {
+    for (const label of itemsToStage) suitcase.customItems.push({ label, cubeId });
+  } else {
+    removeCubeFromSuitcase(cubeId);
+  }
+  saveState();
+
+  closePreview();
+  renderCubeList();
+  renderPackList();
+
+  if (makePermanent) {
+    try {
+      const data = await publishItemsToCube(cubeId, itemsToStage);
+      showToast(isOwner ? 'Added to the cube for everyone' : 'Suggested as a permanent addition — check the PR');
+      if (!isOwner && data.prUrl) console.info('Edit PR:', data.prUrl);
+    } catch (err) {
+      showToast(`Couldn't make it permanent: ${err.message}`);
+    }
+  }
 }
 
 function closePreview() {
   const overlay = document.getElementById('preview-overlay');
   if (overlay) overlay.classList.add('hidden');
+}
+
+function openBuilderModal(editId) {
+  const overlay = document.getElementById('builder-overlay');
+  const builderRoot = document.getElementById('builder-modal-root');
+  if (!overlay || !builderRoot) return;
+  builderRoot.innerHTML = '';
+  overlay.classList.remove('hidden');
+  initBuilder({
+    root: builderRoot,
+    editId: editId || null,
+    onClose: closeBuilderModal,
+    onPublished: refreshCatalog,
+  });
+}
+
+function closeBuilderModal() {
+  const overlay = document.getElementById('builder-overlay');
+  if (overlay) overlay.classList.add('hidden');
+}
+
+async function refreshCatalog() {
+  try {
+    const res = await fetch(catalogUrl, { cache: 'no-store' });
+    if (!res.ok) return;
+    catalog = await res.json();
+    cubeCache.clear();
+    renderCubeList();
+    renderPackList();
+  } catch { /* ignore */ }
 }
 
 function renderSuitcase() {
@@ -353,7 +523,7 @@ function renderSuitcase() {
     <div class="pc-suitcase-head">
       <h2>Your Suitcase</h2>
       <div class="pc-suitcase-controls">
-        <input type="text" id="trip-name" class="b-mini-input" style="border-radius:var(--radius-sm);width:auto;min-width:130px"
+        <input type="text" id="trip-name" class="b-mini-input" style="width:auto;min-width:130px"
           value="${escapeAttr(suitcase.name)}" placeholder="Trip name" aria-label="Trip name">
         <select id="suitcase-select" aria-label="Load a saved suitcase">
           ${state.suitcases.map((s) => `<option value="${s.id}" ${s.id === suitcase.id ? 'selected' : ''}>${escapeHtml(s.name || 'Untitled')}</option>`).join('')}
@@ -367,7 +537,7 @@ function renderSuitcase() {
         <div class="pc-stat"><b id="packed-num">0</b><span>packed</span></div>
         <div class="pc-stat"><b id="total-num">0</b><span>total</span></div>
         <div class="pc-spacer"></div>
-        <span style="font-size:0.75rem;font-weight:800;color:var(--brown)">${suitcase.cubeIds.length} cube${suitcase.cubeIds.length === 1 ? '' : 's'}</span>
+        <span style="font-size:0.75rem;font-weight:700;color:var(--brown)">${suitcase.cubeIds.length} cube${suitcase.cubeIds.length === 1 ? '' : 's'}</span>
       </div>
       <div class="pc-progress-bar"><i id="progress-bar"></i></div>
 
@@ -375,14 +545,9 @@ function renderSuitcase() {
         <input type="search" id="checklist-filter" class="pc-search-input sm" placeholder="Filter items…" aria-label="Filter packing checklist" value="${escapeAttr(checklistFilter)}">
         <label class="pc-toggle-chip"><input type="checkbox" id="hide-packed-toggle" ${hidePacked ? 'checked' : ''}> Hide packed</label>
       </div>
-      <div class="pc-checklist-wrap">
-        <ul class="pc-checklist" id="pack-list"></ul>
-      </div>
+      <div id="pack-list-groups"></div>
       <button type="button" class="pc-hidden-toggle hidden" id="hidden-items-toggle"></button>
-
-      <div class="pc-section-label">Custom items</div>
-      <div id="custom-items"></div>
-      <button type="button" class="b-add-row-btn" id="add-custom-btn" style="margin-top:6px">+ Add custom item</button>
+      <div id="hidden-items-wrap"></div>
     </div>
     <p class="pc-footer-note">Saved automatically in this browser — won't sync to other devices.</p>
   `;
@@ -422,13 +587,6 @@ function renderSuitcase() {
     showToast('Suitcase deleted');
   });
 
-  document.getElementById('add-custom-btn').addEventListener('click', () => {
-    suitcase.customItems.push({ label: '' });
-    saveState();
-    renderCustomItems();
-    renderPackList();
-  });
-
   document.getElementById('checklist-filter').addEventListener('input', (e) => {
     checklistFilter = e.target.value;
     renderPackList();
@@ -439,41 +597,7 @@ function renderSuitcase() {
     renderPackList();
   });
 
-  renderCustomItems();
   renderPackList();
-}
-
-function renderCustomItems() {
-  const suitcase = activeSuitcase();
-  const mount = document.getElementById('custom-items');
-  if (!mount) return;
-
-  mount.innerHTML = (suitcase.customItems || []).map((item, i) => `
-    <div class="b-item-row" data-idx="${i}">
-      <input type="text" class="b-mini-input custom-label" style="border-radius:var(--radius-sm)"
-        value="${escapeAttr(item.label)}" placeholder="One-off item">
-      <button type="button" class="b-remove-btn custom-remove" title="Remove">&times;</button>
-    </div>
-  `).join('');
-
-  mount.querySelectorAll('.custom-label').forEach((input) => {
-    input.addEventListener('input', (e) => {
-      const idx = Number(e.target.closest('.b-item-row').dataset.idx);
-      suitcase.customItems[idx].label = e.target.value;
-      saveState();
-      renderPackList();
-    });
-  });
-
-  mount.querySelectorAll('.custom-remove').forEach((btn) => {
-    btn.addEventListener('click', (e) => {
-      const idx = Number(e.target.closest('.b-item-row').dataset.idx);
-      suitcase.customItems.splice(idx, 1);
-      saveState();
-      renderCustomItems();
-      renderPackList();
-    });
-  });
 }
 
 function updateHud(suitcase, items) {
@@ -489,13 +613,14 @@ function updateHud(suitcase, items) {
   }
 }
 
-function itemRowHtml(item, isPacked) {
+function itemRowHtml(item, groupTitle, isPacked) {
+  const otherSources = item.sources.filter((s) => s !== groupTitle);
   return `
     <li class="${isPacked ? 'packed' : ''}" data-key="${escapeAttr(item.itemKey)}">
       <input type="checkbox" data-key="${escapeAttr(item.itemKey)}" ${isPacked ? 'checked' : ''}
         aria-label="Mark ${escapeAttr(item.label)} as packed">
       <span>${escapeHtml(item.label)}</span>
-      <span class="pc-source">${escapeHtml(item.sources.join(', '))}</span>
+      ${otherSources.length ? `<span class="pc-source">also in ${escapeHtml(otherSources.join(', '))}</span>` : ''}
       <button type="button" class="pc-item-hide" title="Hide item" aria-label="Hide ${escapeAttr(item.label)}">&times;</button>
     </li>`;
 }
@@ -522,10 +647,11 @@ function bindItemRow(li, suitcase) {
 
 async function renderPackList(hudOnly) {
   const suitcase = activeSuitcase();
-  const list = document.getElementById('pack-list');
-  if (!list) return;
+  const groupsMount = document.getElementById('pack-list-groups');
+  if (!groupsMount) return;
 
-  const allItems = await mergeItems(suitcase);
+  const groups = await mergeItemsGrouped(suitcase);
+  const allItems = groups.flatMap((g) => g.items);
   const visibleItems = allItems.filter((i) => !suitcase.excludedItems.includes(i.itemKey));
 
   if (hudOnly) {
@@ -537,6 +663,7 @@ async function renderPackList(hudOnly) {
 
   const hiddenCount = allItems.length - visibleItems.length;
   const hiddenToggle = document.getElementById('hidden-items-toggle');
+  const hiddenWrap = document.getElementById('hidden-items-wrap');
   if (hiddenToggle) {
     if (hiddenCount > 0) {
       hiddenToggle.classList.remove('hidden');
@@ -549,43 +676,134 @@ async function renderPackList(hudOnly) {
   }
 
   const q = checklistFilter.trim().toLowerCase();
-  let displayItems = visibleItems.filter((i) => !q || i.label.toLowerCase().includes(q));
-  if (hidePacked) displayItems = displayItems.filter((i) => !suitcase.packed[i.itemKey]);
-
-  const hiddenItems = showHiddenItems
-    ? allItems.filter((i) => suitcase.excludedItems.includes(i.itemKey) && (!q || i.label.toLowerCase().includes(q)))
-    : [];
 
   if (!allItems.length) {
-    list.innerHTML = '<li class="pc-checklist-empty">Add cubes from the left to build your packing list.</li>';
-    list.classList.remove('two-col');
+    groupsMount.innerHTML = '<p class="pc-checklist-empty">Add cubes from the left to build your packing list.</p>';
+    if (hiddenWrap) hiddenWrap.innerHTML = '';
     return;
   }
 
-  if (!displayItems.length && !hiddenItems.length) {
-    list.innerHTML = `<li class="pc-checklist-empty">${q || hidePacked ? 'No items match.' : 'Nothing here yet.'}</li>`;
-    list.classList.remove('two-col');
-    return;
+  let anyVisible = false;
+  groupsMount.innerHTML = groups.map((group) => {
+    let items = group.items.filter((i) => !suitcase.excludedItems.includes(i.itemKey));
+    items = items.filter((i) => !q || i.label.toLowerCase().includes(q));
+    if (hidePacked) items = items.filter((i) => !suitcase.packed[i.itemKey]);
+    if (!items.length) return '';
+    anyVisible = true;
+    const collapsed = collapsedGroups.has(group.key);
+    return `
+      <div class="pc-item-group ${collapsed ? 'collapsed' : ''}" data-group-key="${escapeAttr(group.key)}">
+        <button type="button" class="pc-group-header">
+          <span class="chevron">${CHEVRON_SVG}</span>
+          <span class="pc-group-title">${escapeHtml(group.title)}</span>
+          <span class="pc-group-count">${items.length}</span>
+        </button>
+        <ul class="pc-checklist">
+          ${items.map((item) => itemRowHtml(item, group.title, !!suitcase.packed[item.itemKey])).join('')}
+        </ul>
+      </div>`;
+  }).join('');
+
+  if (!anyVisible) {
+    groupsMount.innerHTML = `<p class="pc-checklist-empty">${q || hidePacked ? 'No items match.' : 'Nothing here yet.'}</p>`;
   }
 
-  list.classList.toggle('two-col', displayItems.length > DENSE_CHECKLIST_THRESHOLD);
-
-  list.innerHTML =
-    displayItems.map((item) => itemRowHtml(item, !!suitcase.packed[item.itemKey])).join('') +
-    hiddenItems.map((item) => `
-      <li class="pc-item-hidden-row" data-key="${escapeAttr(item.itemKey)}">
-        <span>${escapeHtml(item.label)}</span>
-        <span class="pc-source">${escapeHtml(item.sources.join(', '))}</span>
-        <button type="button" class="pc-item-restore" data-restore-key="${escapeAttr(item.itemKey)}">Restore</button>
-      </li>`).join('');
-
-  list.querySelectorAll('li[data-key]:not(.pc-item-hidden-row)').forEach((li) => bindItemRow(li, suitcase));
-
-  list.querySelectorAll('.pc-item-restore').forEach((btn) => {
+  groupsMount.querySelectorAll('.pc-group-header').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const key = btn.dataset.restoreKey;
-      suitcase.excludedItems = suitcase.excludedItems.filter((k) => k !== key);
+      const groupEl = btn.closest('.pc-item-group');
+      const key = groupEl.dataset.groupKey;
+      if (collapsedGroups.has(key)) collapsedGroups.delete(key);
+      else collapsedGroups.add(key);
+      groupEl.classList.toggle('collapsed');
+    });
+  });
+
+  groupsMount.querySelectorAll('li[data-key]').forEach((li) => bindItemRow(li, suitcase));
+
+  if (hiddenWrap) {
+    const hiddenItems = showHiddenItems
+      ? allItems.filter((i) => suitcase.excludedItems.includes(i.itemKey) && (!q || i.label.toLowerCase().includes(q)))
+      : [];
+    hiddenWrap.innerHTML = hiddenItems.length ? `
+      <div class="pc-item-group">
+        <ul class="pc-checklist">
+          ${hiddenItems.map((item) => `
+            <li class="pc-item-hidden-row" data-key="${escapeAttr(item.itemKey)}">
+              <span>${escapeHtml(item.label)}</span>
+              <span class="pc-source">${escapeHtml(item.sources.join(', '))}</span>
+              <button type="button" class="pc-item-restore" data-restore-key="${escapeAttr(item.itemKey)}">Restore</button>
+            </li>`).join('')}
+        </ul>
+      </div>` : '';
+
+    hiddenWrap.querySelectorAll('.pc-item-restore').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const key = btn.dataset.restoreKey;
+        suitcase.excludedItems = suitcase.excludedItems.filter((k) => k !== key);
+        saveState();
+        renderPackList();
+      });
+    });
+  }
+
+  renderCustomItemsEditor();
+}
+
+function renderCustomItemsEditor() {
+  let mount = document.getElementById('custom-items-editor');
+  const body = document.querySelector('.pc-suitcase-body');
+  if (!mount && body) {
+    mount = document.createElement('div');
+    mount.id = 'custom-items-editor';
+    body.appendChild(mount);
+  }
+  if (!mount) return;
+
+  const suitcase = activeSuitcase();
+  mount.innerHTML = `
+    <div class="pc-section-label">Custom items</div>
+    <div id="custom-items"></div>
+    <button type="button" class="b-add-row-btn" id="add-custom-btn" style="margin-top:6px">+ Add custom item</button>
+  `;
+
+  document.getElementById('add-custom-btn').addEventListener('click', () => {
+    suitcase.customItems.push({ label: '' });
+    saveState();
+    renderCustomItemRows();
+    renderPackList();
+  });
+
+  renderCustomItemRows();
+}
+
+function renderCustomItemRows() {
+  const suitcase = activeSuitcase();
+  const mount = document.getElementById('custom-items');
+  if (!mount) return;
+
+  mount.innerHTML = (suitcase.customItems || []).map((item, i) => `
+    <div class="b-item-row" data-idx="${i}">
+      <input type="text" class="b-mini-input custom-label"
+        value="${escapeAttr(item.label)}" placeholder="One-off item">
+      <button type="button" class="b-remove-btn custom-remove" title="Remove">&times;</button>
+    </div>
+  `).join('');
+
+  mount.querySelectorAll('.custom-label').forEach((input) => {
+    input.addEventListener('input', (e) => {
+      const idx = Number(e.target.closest('.b-item-row').dataset.idx);
+      suitcase.customItems[idx].label = e.target.value;
       saveState();
+      renderPackList();
+    });
+  });
+
+  mount.querySelectorAll('.custom-remove').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      const idx = Number(e.target.closest('.b-item-row').dataset.idx);
+      suitcase.customItems.splice(idx, 1);
+      saveState();
+      renderCustomItemRows();
       renderPackList();
     });
   });
@@ -599,11 +817,29 @@ function escapeAttr(s) {
   return escapeHtml(s).replace(/"/g, '&quot;');
 }
 
+function updateAuthLink() {
+  const link = document.getElementById('nav-auth-link');
+  if (!link) return;
+  link.textContent = isOwner ? 'Log out' : 'Log in';
+  link.href = isOwner ? '/api/logout' : '/private/';
+}
+
+// Open the inline "create a cube" modal instead of navigating away, for
+// any link that points at the standalone builder page (nav bar + header
+// button both use this href).
+document.addEventListener('click', (e) => {
+  const link = e.target.closest('a[href="/packing-cubes/builder.html"]');
+  if (!link) return;
+  e.preventDefault();
+  openBuilderModal(null);
+});
+
 fetch('/api/save-cube')
   .then((r) => r.json())
   .then((d) => { isOwner = !!d.authed; })
   .catch(() => { isOwner = false; })
   .finally(() => {
+    updateAuthLink();
     if (catalog.length) renderCubeList();
   });
 
