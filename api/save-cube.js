@@ -75,11 +75,23 @@ function slugify(s) {
 const REQUIRED_ITEM_COUNT = 2;
 const MAX_ITEMS = 200;
 const MAX_TITLE = 120;
+const MAX_BLURB = 300;
+const MAX_TAGS = 10;
+const MAX_TAG_LEN = 30;
+const MAX_ITEM_LABEL = 200;
 
 function validateCube(cube) {
   if (!cube || typeof cube !== 'object') return 'Missing cube object.';
   if (!cube.title || !cube.title.trim()) return 'Title is required.';
   if (cube.title.length > MAX_TITLE) return `Title must be under ${MAX_TITLE} characters.`;
+  if (cube.blurb && cube.blurb.length > MAX_BLURB) return `Blurb must be under ${MAX_BLURB} characters.`;
+  if (cube.tags) {
+    if (!Array.isArray(cube.tags)) return 'Tags must be a list.';
+    if (cube.tags.length > MAX_TAGS) return `Cubes are capped at ${MAX_TAGS} tags.`;
+    for (const tag of cube.tags) {
+      if (typeof tag !== 'string' || tag.length > MAX_TAG_LEN) return `Each tag must be under ${MAX_TAG_LEN} characters.`;
+    }
+  }
   if (!Array.isArray(cube.items) || cube.items.length < REQUIRED_ITEM_COUNT) {
     return `Add at least ${REQUIRED_ITEM_COUNT} items before publishing.`;
   }
@@ -88,6 +100,7 @@ function validateCube(cube) {
     if (!item || typeof item.label !== 'string' || !item.label.trim()) {
       return 'Every item needs a label.';
     }
+    if (item.label.length > MAX_ITEM_LABEL) return `Item labels must be under ${MAX_ITEM_LABEL} characters.`;
   }
   return null;
 }

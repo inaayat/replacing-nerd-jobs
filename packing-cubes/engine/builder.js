@@ -1,12 +1,17 @@
 // Cube builder: form + JSON upload, preview, publish/submit for review.
+import { cubeJsonUrl } from './paths.js';
+
 const root = document.getElementById('builder-root');
 
+const editId = new URLSearchParams(location.search).get('edit');
+const isEditing = !!editId;
+
 let cube = { title: '', blurb: '', tags: [], items: [{ label: '' }, { label: '' }] };
-let idManuallyEdited = false;
+let idManuallyEdited = isEditing;
 let isOwner = false;
 let buildMode = 'form';
 
-function el(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; }
+function el(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content; }
 function slugify(s) { return (s || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); }
 
 function dedupeTags(tags) {
@@ -22,7 +27,7 @@ function dedupeTags(tags) {
 function render() {
   root.innerHTML = '';
   root.appendChild(el(`
-    <h1 class="b-h1">Create a packing cube</h1>
+    <h1 class="b-h1">${isEditing ? 'Edit packing cube' : 'Create a packing cube'}</h1>
 
     <div class="b-step">
       <div class="b-step-head"><span class="b-step-num">1</span><span class="b-step-title">Cube details</span></div>
@@ -65,7 +70,7 @@ function render() {
     <div class="b-step">
       <div class="b-step-head"><span class="b-step-num">4</span><span id="publish-step-title" class="b-step-title">Submit for review</span></div>
       <div class="b-publish-card">
-        <div class="b-field" id="id-field"><label>Cube ID (auto, editable)</label><input type="text" id="f-id"></div>
+        <div class="b-field" id="id-field"><label>${isEditing ? 'Cube ID (fixed while editing)' : 'Cube ID (auto, editable)'}</label><input type="text" id="f-id" ${isEditing ? 'disabled' : ''}></div>
         <div class="b-id-preview" id="id-preview"></div>
         <div class="b-field" id="submitter-field" style="margin-top:8px"><label>Your name (optional)</label><input type="text" id="f-submitter" placeholder="How should we credit you?"></div>
         <div class="b-validation hidden" id="validation-hint"></div>
@@ -73,7 +78,7 @@ function render() {
         <div class="b-toast" id="publish-toast"></div>
       </div>
     </div>
-  `);
+  `));
 
   ['f-title', 'f-blurb', 'f-tags'].forEach((id) => document.getElementById(id).addEventListener('input', onFieldsChange));
   document.getElementById('f-id').addEventListener('input', () => { idManuallyEdited = true; updatePreview(); });
@@ -100,12 +105,12 @@ function applyOwnerState() {
   const stepTitle = document.getElementById('publish-step-title');
   const submitterField = document.getElementById('submitter-field');
   if (isOwner) {
-    btn.textContent = 'Publish cube';
-    stepTitle.textContent = 'Publish';
+    btn.textContent = isEditing ? 'Save changes' : 'Publish cube';
+    stepTitle.textContent = isEditing ? 'Save changes' : 'Publish';
     submitterField.style.display = 'none';
   } else {
-    btn.textContent = 'Submit for review';
-    stepTitle.textContent = 'Submit for review';
+    btn.textContent = isEditing ? 'Submit edit for review' : 'Submit for review';
+    stepTitle.textContent = isEditing ? 'Submit edit for review' : 'Submit for review';
     submitterField.style.display = '';
   }
   updatePreview();
@@ -221,8 +226,9 @@ function updatePreview() {
   metaEl.textContent = `${count} item${count === 1 ? '' : 's'}`;
 
   if (!idManuallyEdited) idInput.value = slugify(cube.title);
-  document.getElementById('id-preview').innerHTML =
-    `Will appear at <code>/packing-cubes/cube.html?cube=${slugify(idInput.value)}</code>, filed ${filedNote}`;
+  document.getElementById('id-preview').innerHTML = isEditing
+    ? `Updating <code>/packing-cubes/cube.html?cube=${slugify(idInput.value)}</code>, filed ${filedNote}`
+    : `Will appear at <code>/packing-cubes/cube.html?cube=${slugify(idInput.value)}</code>, filed ${filedNote}`;
 
   if (!cube.title.trim()) {
     hint.textContent = 'Add a title first.'; hint.classList.remove('hidden'); btn.disabled = true;
@@ -257,8 +263,8 @@ async function publish() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
     toast.textContent = isOwner
-      ? `Published — now live at ${data.url}`
-      : `Submitted! Your cube is waiting for review.${data.prUrl ? ` Track it on GitHub.` : ''}`;
+      ? `${isEditing ? 'Updated' : 'Published'} — now live at ${data.url}`
+      : `Submitted! Your ${isEditing ? 'edit is' : 'cube is'} waiting for review.${data.prUrl ? ` Track it on GitHub.` : ''}`;
     toast.className = 'b-toast ok';
     if (data.prUrl) {
       const link = document.createElement('a');
@@ -277,7 +283,27 @@ async function publish() {
 }
 
 render();
-fetch('/api/save-cube')
+
+const ownerReady = fetch('/api/save-cube')
   .then((r) => r.json())
-  .then((d) => { isOwner = !!d.authed; applyOwnerState(); })
-  .catch(() => applyOwnerState());
+  .then((d) => { isOwner = !!d.authed; })
+  .catch(() => { isOwner = false; });
+
+if (isEditing) {
+  const btn = document.getElementById('publish-btn');
+  btn.disabled = true;
+  btn.textContent = 'Loading…';
+  fetch(cubeJsonUrl(editId))
+    .then((r) => { if (!r.ok) throw new Error('not found'); return r.json(); })
+    .then((loaded) => {
+      cube = normalizeLoaded(loaded);
+      document.getElementById('f-id').value = editId;
+      fillFormFromCube();
+      ownerReady.then(applyOwnerState);
+    })
+    .catch(() => {
+      root.innerHTML = '<p style="font-weight:700;color:var(--brown);padding:24px 0">Could not load that cube to edit.</p>';
+    });
+} else {
+  ownerReady.then(applyOwnerState);
+}
