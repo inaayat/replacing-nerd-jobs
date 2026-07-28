@@ -1,0 +1,16 @@
+{
+  "id": "business-travel",
+  "title": "Business Travel",
+  "blurb": "Professional attire and meeting essentials.",
+  "tags": ["business", "work"],
+  "items": [
+    { "label": "Blazer or suit jacket" },
+    { "label": "Dress shirts / blouses" },
+    { "label": "Dress pants / skirt" },
+    { "label": "Dress shoes" },
+    { "label": "Belt" },
+    { "label": "Laptop bag" },
+    { "label": "Business cards" },
+    { "label": "Notebook and pen" }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "id": "basics-electronics",
+  "title": "Basics: Electronics",
+  "blurb": "Chargers and gadgets for any trip.",
+  "tags": ["basics", "electronics"],
+  "items": [
+    { "label": "Phone charger" },
+    { "label": "Portable battery pack" },
+    { "label": "Headphones / earbuds" },
+    { "label": "Laptop + charger" },
+    { "label": "Universal power adapter" },
+    { "label": "Charging cables" }
+  ]
+}

@@ -1,0 +1,56 @@
+[
+  {
+    "id": "basics-electronics",
+    "title": "Basics: Electronics",
+    "blurb": "Chargers and gadgets for any trip.",
+    "tags": [
+      "basics",
+      "electronics"
+    ]
+  },
+  {
+    "id": "basics-hygiene",
+    "title": "Basics: Hygiene",
+    "blurb": "Toiletries you pack on every trip.",
+    "tags": [
+      "basics",
+      "hygiene"
+    ]
+  },
+  {
+    "id": "basics-undergarments",
+    "title": "Basics: Undergarments",
+    "blurb": "Underlayers and sleepwear for any trip.",
+    "tags": [
+      "basics",
+      "clothing"
+    ]
+  },
+  {
+    "id": "business-travel",
+    "title": "Business Travel",
+    "blurb": "Professional attire and meeting essentials.",
+    "tags": [
+      "business",
+      "work"
+    ]
+  },
+  {
+    "id": "summer-warm",
+    "title": "Summer",
+    "blurb": "Hot-weather clothes and sun protection.",
+    "tags": [
+      "summer",
+      "season"
+    ]
+  },
+  {
+    "id": "winter-layers",
+    "title": "Winter",
+    "blurb": "Cold-weather layers and accessories.",
+    "tags": [
+      "winter",
+      "season"
+    ]
+  }
+]

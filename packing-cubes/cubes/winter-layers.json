@@ -1,0 +1,16 @@
+{
+  "id": "winter-layers",
+  "title": "Winter",
+  "blurb": "Cold-weather layers and accessories.",
+  "tags": ["winter", "season"],
+  "items": [
+    { "label": "Heavy coat" },
+    { "label": "Warm sweater" },
+    { "label": "Thermal base layers" },
+    { "label": "Gloves" },
+    { "label": "Scarf" },
+    { "label": "Beanie / warm hat" },
+    { "label": "Waterproof boots" },
+    { "label": "Lip balm" }
+  ]
+}
