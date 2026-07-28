@@ -5,41 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Cube — Packing Cubes</title>
     <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png" />
-    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="./engine/cube.css" />
-    <style>
-      body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #fff8dc; }
-    </style>
   </head>
-  <body class="text-gray-900 min-h-screen flex flex-col">
+  <body class="pc-body">
 
-    <nav class="px-4 sm:px-8 py-3 sm:py-4 flex items-center justify-between sticky top-0 z-10" style="background:#6b9e78;">
-      <div class="flex items-center gap-2 sm:gap-3">
-        <a href="/" class="pc-brand-mono font-extrabold text-sm sm:text-2xl rounded-md border-2 sm:border-4 border-white text-white select-none px-2 py-1 sm:p-2 no-underline whitespace-nowrap flex items-center gap-1.5">
+    <nav class="pc-nav">
+      <div class="pc-nav-brand">
+        <a href="/" class="pc-nav-logo">
           <img src="/ugly-dog-images/dog-3.png" alt="" width="20" height="20" style="object-fit:contain;flex-shrink:0;" />
           Beep boop
         </a>
-        <div class="hidden md:block" style="width:2px;height:26px;background:rgba(255,255,255,.4);"></div>
-        <a href="/packing-cubes/" class="hidden md:flex items-center gap-2 no-underline">
+        <a href="/packing-cubes/" class="pc-nav-section">
           <img src="/packing-cubes/icon.svg" alt="" width="22" height="22" style="object-fit:contain;flex-shrink:0;filter:brightness(0) invert(1);">
-          <span class="pc-brand-mono font-extrabold text-white text-lg whitespace-nowrap">Packing Cubes</span>
+          <span>Packing Cubes</span>
         </a>
       </div>
-      <div class="flex items-center gap-3 sm:gap-8">
-        <a href="/packing-cubes/" class="text-xs sm:text-xl font-extrabold text-white no-underline opacity-80 hover:opacity-100 whitespace-nowrap">Cubes</a>
-        <a href="./suitcase.html" class="text-xs sm:text-xl font-extrabold text-white no-underline opacity-80 hover:opacity-100 whitespace-nowrap">My suitcase</a>
+      <div class="pc-nav-links">
+        <a href="/packing-cubes/">All cubes</a>
       </div>
     </nav>
 
-    <div class="flex-grow pc-wrap" id="cube-root">
-      <p class="text-gray-500 font-bold">Loading cube…</p>
+    <div class="pc-wrap flex-grow" id="cube-root" style="padding-top:32px;padding-bottom:48px">
+      <p style="font-weight:700;color:var(--brown)">Loading cube…</p>
     </div>
 
     <script type="module">
       const root = document.getElementById('cube-root');
       const id = new URLSearchParams(location.search).get('cube');
       if (!id) {
-        root.innerHTML = '<p class="text-gray-500 font-bold">No cube specified.</p>';
+        root.innerHTML = '<p style="font-weight:700;color:var(--brown)">No cube specified.</p>';
       } else {
         fetch(`./cubes/${encodeURIComponent(id)}.json`)
           .then((r) => { if (!r.ok) throw new Error('not found'); return r.json(); })
@@ -47,22 +41,22 @@
             document.title = `${cube.title} — Packing Cubes`;
             const tags = (cube.tags || []).map((t) => `<span class="pc-tag">${t}</span>`).join('');
             root.innerHTML = `
-              <div class="pc-card" style="text-align:center">
+              <div class="pc-card" style="text-align:center;max-width:480px;margin:0 auto">
                 <h1>${escapeHtml(cube.title)}</h1>
                 <p class="blurb">${escapeHtml(cube.blurb || '')}</p>
                 <div class="pc-tags">${tags}</div>
                 <p class="pc-meta">${cube.items.length} item${cube.items.length === 1 ? '' : 's'}</p>
                 <div class="pc-actions">
-                  <a class="pc-btn primary" href="./suitcase.html?add=${encodeURIComponent(id)}">Add to my suitcase</a>
-                  <a class="pc-btn" href="/packing-cubes/">Back to catalog</a>
+                  <a class="pc-btn primary" href="./?add=${encodeURIComponent(id)}">Add to my suitcase</a>
+                  <a class="pc-btn" href="/packing-cubes/">Back to app</a>
                 </div>
               </div>
-              <ul class="pc-checklist pc-card" style="padding:0;margin-top:16px">
+              <ul class="pc-checklist pc-card" style="padding:0;margin-top:16px;max-width:480px;margin-left:auto;margin-right:auto">
                 ${cube.items.map((item) => `<li><span>${escapeHtml(item.label)}</span></li>`).join('')}
               </ul>`;
           })
           .catch(() => {
-            root.innerHTML = '<p class="text-gray-500 font-bold">Could not find that cube.</p>';
+            root.innerHTML = '<p style="font-weight:700;color:var(--brown)">Could not find that cube.</p>';
           });
       }
 

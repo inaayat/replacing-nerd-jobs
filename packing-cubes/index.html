@@ -6,180 +6,34 @@
     <title>Packing Cubes — Beep boop</title>
     <meta name="description" content="Reusable packing checklists for every trip." />
     <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png" />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap" />
-    <style>
-      body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #fff8dc; }
-      h1, .brand-mono { font-family: 'DM Mono', monospace; }
-      .move-up { transition: transform 0.2s ease, box-shadow 0.2s ease; }
-      .move-up:hover { transform: translateY(-4px); }
-      .cube-watermark {
-        position: absolute; right: -10px; top: -14px; width: 130px; height: 130px;
-        background: url('./icon.svg') center/contain no-repeat;
-        opacity: 0.12; pointer-events: none;
-      }
-    </style>
+    <link rel="stylesheet" href="./engine/cube.css" />
+    <link rel="stylesheet" href="./engine/app.css" />
   </head>
-  <body class="text-gray-900 min-h-screen flex flex-col">
+  <body class="pc-body">
 
-    <nav class="px-4 sm:px-8 py-3 sm:py-4 flex items-center justify-between sticky top-0 z-10" style="background:#6b9e78;">
-      <div class="flex items-center gap-2 sm:gap-3">
-        <a href="/" class="brand-mono font-extrabold text-sm sm:text-2xl rounded-md border-2 sm:border-4 border-white text-white select-none px-2 py-1 sm:p-2 no-underline whitespace-nowrap flex items-center gap-1.5">
+    <nav class="pc-nav">
+      <div class="pc-nav-brand">
+        <a href="/" class="pc-nav-logo">
           <img src="/ugly-dog-images/dog-3.png" alt="" width="20" height="20" style="object-fit:contain;flex-shrink:0;" />
           Beep boop
         </a>
-        <div class="hidden md:block" style="width:2px;height:26px;background:rgba(255,255,255,.4);"></div>
-        <a href="/packing-cubes/" class="hidden md:flex items-center gap-2 no-underline">
+        <a href="/packing-cubes/" class="pc-nav-section">
           <img src="/packing-cubes/icon.svg" alt="" width="22" height="22" style="object-fit:contain;flex-shrink:0;filter:brightness(0) invert(1);">
-          <span class="brand-mono font-extrabold text-white text-lg whitespace-nowrap">Packing Cubes</span>
+          <span>Packing Cubes</span>
         </a>
       </div>
-      <div class="flex items-center gap-3 sm:gap-8">
-        <a href="./suitcase.html" class="text-xs sm:text-xl font-extrabold text-white no-underline opacity-80 hover:opacity-100 whitespace-nowrap">My suitcase</a>
-        <a href="/#projects" class="text-xs sm:text-xl font-extrabold text-white no-underline opacity-80 hover:opacity-100 whitespace-nowrap">Projects</a>
+      <div class="pc-nav-links">
+        <a href="./builder.html">+ Create a cube</a>
+        <a href="/#projects">Projects</a>
       </div>
     </nav>
 
-    <div class="px-4 pt-5 pb-2 sm:px-10 md:px-16 flex items-start justify-between gap-4 relative overflow-hidden">
-      <div class="cube-watermark"></div>
-      <div class="relative">
-        <div class="flex items-center gap-1.5">
-          <h1 class="text-xl md:text-2xl font-extrabold text-gray-900">Packing Cubes</h1>
-          <button type="button" id="info-btn" aria-label="How to add a cube" title="How to add a cube"
-            class="flex-shrink-0 w-4 h-4 rounded-full border border-gray-400 text-gray-400 hover:border-gray-900 hover:text-gray-900 text-[10px] font-bold leading-none flex items-center justify-center">i</button>
-        </div>
-        <p class="mt-0.5 text-xs font-bold text-gray-500">Reusable packing checklists. Mix cubes into your suitcase.</p>
-      </div>
-      <a href="./builder.html" class="relative flex-shrink-0 text-[11px] font-extrabold text-white no-underline border-2 border-[#6b9e78] bg-[#6b9e78] hover:brightness-95 shadow-sm rounded-md px-2.5 py-1.5 whitespace-nowrap">+ Create a cube</a>
+    <div class="pc-app" id="app-root">
+      <p style="padding:40px;text-align:center;font-weight:700;color:var(--brown)">Loading…</p>
     </div>
 
-    <div id="info-popover" class="hidden fixed z-20 w-72 max-w-[calc(100vw-32px)] bg-white border-2 border-[#2c2e25] rounded p-3 text-xs font-semibold text-gray-700 leading-relaxed shadow-lg">
-      Want to add a cube? Click <b>+ Create a cube</b> and submit it for review — once approved, it shows up here automatically.
-      <br><br>
-      Prefer GitHub? Add a new file under <code class="text-[10px] bg-gray-100 px-1 rounded">packing-cubes/cubes/</code>, then open a pull request.
-    </div>
+    <div class="pc-toast" id="toast" role="status" aria-live="polite"></div>
 
-    <div class="px-4 pb-3 sm:px-10 md:px-16">
-      <input type="text" id="cube-search" placeholder="Search by title or tag (e.g. basics, winter, business)…"
-        class="w-full text-sm font-semibold px-3 py-2 border-2 border-[#2c2e25] rounded outline-none focus:border-[#6b9e78]"
-        style="background:#fffdf3">
-    </div>
-
-    <div id="cube-sections" class="px-4 pb-10 sm:px-10 md:px-16 flex-grow grid grid-cols-1 lg:grid-cols-3 gap-x-6 gap-y-6"></div>
-    <p id="cube-no-results" class="hidden px-4 pb-10 sm:px-10 md:px-16 text-gray-500 font-bold"></p>
-
-    <script>
-      const infoBtn = document.getElementById('info-btn');
-      const infoPopover = document.getElementById('info-popover');
-      infoBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const rect = infoBtn.getBoundingClientRect();
-        infoPopover.style.top = `${rect.bottom + 6}px`;
-        infoPopover.style.left = `${Math.max(8, rect.left)}px`;
-        infoPopover.classList.toggle('hidden');
-      });
-      document.addEventListener('click', (e) => {
-        if (!infoPopover.classList.contains('hidden') && !infoPopover.contains(e.target)) {
-          infoPopover.classList.add('hidden');
-        }
-      });
-
-      const TAG_ORDER = ['basics', 'summer', 'winter', 'business', 'season', 'work', 'clothing', 'electronics', 'hygiene'];
-      const TAG_LABELS = {
-        basics: 'Basics',
-        summer: 'Summer',
-        winter: 'Winter',
-        business: 'Business',
-        season: 'Seasonal',
-        work: 'Work',
-        clothing: 'Clothing',
-        electronics: 'Electronics',
-        hygiene: 'Hygiene',
-      };
-
-      const SUBMITTED_ICON = `<span title="Community submitted" style="flex-shrink:0;display:inline-flex;">
-        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4 4-6 8-6s8 2 8 6"></path></svg>
-      </span>`;
-
-      function primaryTag(cube) {
-        const tags = cube.tags || [];
-        for (const t of TAG_ORDER) {
-          if (tags.includes(t)) return t;
-        }
-        return tags[0] || 'other';
-      }
-
-      function cardHtml(c) {
-        return `
-          <a href="./cube.html?cube=${encodeURIComponent(c.id)}" class="no-underline">
-            <div class="move-up cursor-pointer h-14 flex flex-col items-start justify-center text-left bg-[#fffdf3] shadow-sm hover:shadow-lg px-2 w-full border-2 border-[#2c2e25] rounded overflow-hidden">
-              <div class="w-full flex items-center gap-1">
-                <span class="text-[11px] font-extrabold text-gray-900 leading-tight line-clamp-1">${c.title}</span>
-                ${c.submitted ? SUBMITTED_ICON : ''}
-              </div>
-              <div class="mt-0.5 text-[10px] font-semibold text-gray-500 leading-snug line-clamp-2">${c.blurb || ''}</div>
-            </div>
-          </a>`;
-      }
-
-      function tagBlockHtml(tag, cubes, dogNum) {
-        return `
-          <div class="h-64 flex flex-col bg-white border-2 border-[#2c2e25] rounded p-2">
-            <h2 class="text-xs font-extrabold text-gray-900 mb-1.5 uppercase tracking-wide flex-shrink-0 flex items-center gap-1.5">
-              <img src="/ugly-dog-images/dog-${dogNum}.png" alt="" width="16" height="16" style="object-fit:contain;flex-shrink:0;">
-              ${TAG_LABELS[tag] || tag}
-            </h2>
-            <div class="flex-1 min-h-0 overflow-y-auto flex flex-col gap-1 pr-1">${cubes.map(cardHtml).join('')}</div>
-          </div>`;
-      }
-
-      function renderCubes(cubes) {
-        const sections = document.getElementById('cube-sections');
-        const noResults = document.getElementById('cube-no-results');
-        if (!cubes.length) {
-          sections.classList.add('hidden');
-          noResults.textContent = `No cubes match "${document.getElementById('cube-search').value}".`;
-          noResults.classList.remove('hidden');
-          return;
-        }
-        sections.classList.remove('hidden');
-        noResults.classList.add('hidden');
-
-        const byTag = new Map();
-        cubes.forEach((c) => {
-          const tag = primaryTag(c);
-          if (!byTag.has(tag)) byTag.set(tag, []);
-          byTag.get(tag).push(c);
-        });
-        const tags = [
-          ...TAG_ORDER.filter((t) => byTag.has(t)),
-          ...[...byTag.keys()].filter((t) => !TAG_ORDER.includes(t)),
-        ];
-        sections.innerHTML = tags.map((tag, i) => tagBlockHtml(tag, byTag.get(tag), (i % 6) + 1)).join('');
-      }
-
-      function matchesQuery(c, query) {
-        const haystack = [c.title, c.blurb, ...(c.tags || []), TAG_LABELS[primaryTag(c)] || '']
-          .join(' ').toLowerCase();
-        return haystack.includes(query);
-      }
-
-      let allCubes = [];
-      document.getElementById('cube-search').addEventListener('input', (e) => {
-        const query = e.target.value.trim().toLowerCase();
-        renderCubes(query ? allCubes.filter((c) => matchesQuery(c, query)) : allCubes);
-      });
-
-      fetch('./cubes/index.json')
-        .then((r) => r.json())
-        .then((cubes) => {
-          allCubes = cubes;
-          renderCubes(allCubes);
-        })
-        .catch(() => {
-          document.getElementById('cube-sections').innerHTML = '<p class="text-gray-500 font-bold">Couldn\'t load the cube catalog.</p>';
-        });
-    </script>
+    <script type="module" src="./engine/app.js"></script>
   </body>
 </html>
