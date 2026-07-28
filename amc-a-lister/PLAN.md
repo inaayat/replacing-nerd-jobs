@@ -22,7 +22,7 @@ Per screening:
 | Field | Notes |
 |---|---|
 | Date | When it was seen |
-| Charge Month | Derived: billing period rolls on the **28th** (`DATE(YEAR, MONTH+(DAY>=28), 1)`) |
+| Charge Month | Derived in the sheet: billing period rolled on the **28th**. **A-Lister decision: calendar month — billing starts on the 1st.** |
 | Monthly Bill | Derived: first period `$0.99` promo, then `$24.95`, later `$27.99` |
 | Movie | Title (free text today) |
 | Location | Theater name (`AMC Lincoln Square 13`, `N/A - India`, …) |
@@ -105,13 +105,13 @@ proves the pattern first.
 ├── add.html                ← add/edit screening (also modal from index)
 ├── oscars.html             ← season picker + seen bingo
 ├── insights.html           ← cool new data / charts
-├── settings.html           ← membership price, billing day, import
+├── settings.html           ← membership price tiers, import
 ├── icon.svg
 └── engine/
     ├── app.css             ← tokens + layout (own visual system)
     ├── auth.js             ← shared Neon session helper
     ├── api.js              ← fetch wrappers with Bearer token
-    ├── billing.js          ← charge-month + bill amount math (port of sheet)
+    ├── billing.js          ← charge-month + bill amount math (calendar month)
     ├── format.js           ← money/date/rating helpers
     └── views/*.js          ← page renderers
 ```
@@ -122,7 +122,7 @@ API (Vercel serverless, next to existing routes):
 api/a-list/
 ├── watches.js              ← GET list / POST create / PATCH update / DELETE
 ├── summary.js              ← GET aggregates (totals, by month, by theater)
-├── membership.js           ← GET/PUT plan settings (price tiers, roll day)
+├── membership.js           ← GET/PUT plan settings (price tiers)
 ├── import.js               ← POST spreadsheet JSON dump (one-shot migration)
 └── movie-lookup.js         ← GET title search + metadata enrich (TMDB proxy)
 ```
@@ -134,7 +134,7 @@ Schema additions in `lib/db.js` → `ensureSchema()`:
 
 CREATE TABLE IF NOT EXISTS alist_membership (
   user_id          TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-  roll_day         INT  NOT NULL DEFAULT 28,          -- sheet used 28
+  -- Billing period = calendar month (starts on the 1st). No roll-day.
   promo_cents      INT  NOT NULL DEFAULT 99,           -- first period
   standard_cents   INT  NOT NULL DEFAULT 2495,        -- early A-List
   current_cents    INT  NOT NULL DEFAULT 2799,        -- after price bump
@@ -190,7 +190,7 @@ DB until seasons are user-editable.
 - **Add / edit / delete watch** (logged-in only).
 - Fields match `Movies` columns; rating supports half-stars + DNF.
 - **Charge month** and **monthly bill** computed in `billing.js` from membership
-  settings + `watched_on` — same 28th-roll rule as the sheet.
+  settings + `watched_on` — **calendar month (1st–end)**, not the sheet’s 28th-roll.
 - Dashboard HUD: Total Billed, Total Charged, Total Savings, Total Seen,
   Cost/Movie, Avg. Ticket Price.
 - Monthly rollup table (Month · Movies · Charged · Bill · Net savings).
@@ -252,34 +252,36 @@ Nav pattern (like packing-cubes): brand · Log · Oscars · Insights · Account 
 
 ---
 
-## Billing logic (port carefully)
+## Billing logic
 
-From the sheet formulas:
+**Decision:** billing periods start on the **1st of the month** (calendar month).
+The spreadsheet rolled on the 28th; A-Lister does not.
 
 ```
-chargeMonth(d) =
-  first of month(d), but if day(d) >= rollDay (28), bump to next month
+chargeMonth(d) = first calendar day of month(d)
+                 // e.g. 2025-07-28 → 2025-07-01
 
 monthlyBill(chargeMonth) =
   if first-ever charge month for user → promo_cents
   else if chargeMonth < price_bump_on → standard_cents
   else → current_cents
 
-totalBilled   = sum of distinct chargeMonth bills (max bill per month)
+totalBilled   = sum of distinct chargeMonth bills (one bill per calendar month)
 totalCharged  = sum(ticket_cents)
 totalSavings  = totalCharged - totalBilled
 costPerMovie  = totalBilled / count(watches)
 ```
 
-Edge cases to preserve from the sheet:
+Edge cases:
 
 - Non-AMC / free / India trips with `ticket_cents = 0` still count as Seen.
 - DNF still counts as a screening (and a charge) unless user opts out later.
 - Price bump date is user-configurable (sheet hard-coded around mid-2025).
+- Imported sheet rows keep their watch dates; charge months are **recomputed**
+  under the 1st-of-month rule (HUD totals may differ slightly from Excel).
 
-Unit-test `billing.js` with fixtures taken from real rows (Challengers promo
-month, first $24.95 month, first $27.99 month).
-
+Unit-test `billing.js` with calendar-month fixtures (promo month, first
+$24.95 month, first $27.99 month).
 ---
 
 ## Implementation phases
@@ -338,8 +340,8 @@ month, first $24.95 month, first $27.99 month).
 ## Success criteria
 
 - Logged-in user can replace day-to-day use of the Excel file.
-- HUD numbers for an imported `Movies` sheet match the spreadsheet within cents
-  (same roll-day and price tiers).
+- HUD numbers for an imported `Movies` sheet match under **1st-of-month** billing
+  and the configured price tiers (may diverge from Excel’s 28th-roll totals).
 - Adding a watch is gated on Neon Auth; signed-out users cannot mutate.
 - Oscars page reflects watches without manual Seen toggling for exact title hits.
 - At least three "cool data" insights live on Insights that the sheet did not
