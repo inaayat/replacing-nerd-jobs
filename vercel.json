@@ -1,4 +1,11 @@
 {
   "framework": null,
-  "outputDirectory": "."
+  "outputDirectory": ".",
+  "rewrites": [
+    { "source": "/api/alist-watches", "destination": "/api/alist?route=watches" },
+    { "source": "/api/alist-summary", "destination": "/api/alist?route=summary" },
+    { "source": "/api/alist-membership", "destination": "/api/alist?route=membership" },
+    { "source": "/api/alist-import", "destination": "/api/alist?route=import" },
+    { "source": "/api/alist-movie-lookup", "destination": "/api/alist?route=movie-lookup" }
+  ]
 }
