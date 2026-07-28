@@ -1,0 +1,1630 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Packing Cubes — Beep boop</title>
+  <meta name="description" content="Fit every cube into the box. A cozy spatial packing puzzle." />
+  <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap" />
+  <style>
+    :root {
+      --ink: #2c2e25;
+      --bg: #fff8dc;
+      --box-bg: #e8e0c0;
+      --cube-size: 44px;
+    }
+    body { font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--ink); }
+    h1, .brand-mono, .mono { font-family: 'DM Mono', monospace; }
+
+    .cube-cell {
+      width: var(--cube-size);
+      height: var(--cube-size);
+      position: relative;
+      flex-shrink: 0;
+    }
+    .cube {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform: scale(0.92);
+      transform-origin: center;
+    }
+    .cube-face {
+      position: absolute;
+      box-sizing: border-box;
+      border: 2px solid rgba(44, 46, 25, 0.35);
+    }
+    .cube-top {
+      width: 70%;
+      height: 35%;
+      left: 15%;
+      top: 8%;
+      transform: skewX(-30deg) scaleY(0.86);
+      border-radius: 2px;
+    }
+    .cube-left {
+      width: 42%;
+      height: 58%;
+      left: 8%;
+      bottom: 6%;
+      transform: skewY(-30deg);
+      border-radius: 2px;
+      filter: brightness(0.82);
+    }
+    .cube-right {
+      width: 42%;
+      height: 58%;
+      right: 8%;
+      bottom: 6%;
+      transform: skewY(30deg);
+      border-radius: 2px;
+      filter: brightness(0.68);
+    }
+
+    .grid-board {
+      display: grid;
+      gap: 4px;
+      padding: 14px;
+      background: var(--box-bg);
+      border: 4px solid var(--ink);
+      border-radius: 8px;
+      box-shadow: 6px 6px 0 rgba(44, 46, 25, 0.15);
+    }
+    .grid-slot {
+      width: var(--cube-size);
+      height: var(--cube-size);
+      border: 1.5px dashed rgba(44, 46, 25, 0.18);
+      border-radius: 4px;
+      position: relative;
+    }
+    .grid-slot.valid { background: rgba(60, 172, 59, 0.2); border-color: #3cac3b; }
+    .grid-slot.invalid { background: rgba(230, 61, 37, 0.15); border-color: #e63d25; }
+
+    .piece-tray {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .tray-piece {
+      padding: 10px;
+      background: #f9fafb;
+      border: 3px solid var(--ink);
+      border-radius: 8px;
+      cursor: grab;
+      touch-action: none;
+      transition: transform 0.12s, box-shadow 0.12s;
+      user-select: none;
+    }
+    .tray-piece:hover { transform: translateY(-2px); box-shadow: 4px 4px 0 rgba(44, 46, 25, 0.12); }
+    .tray-piece.selected { outline: 3px solid #f267a0; outline-offset: 2px; }
+    .tray-piece.placed { opacity: 0.35; pointer-events: none; }
+    .tray-piece.dragging { opacity: 0.5; cursor: grabbing; }
+
+    .piece-shape {
+      display: grid;
+      gap: 3px;
+    }
+
+    .btn {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 8px 14px;
+      border: 2.5px solid var(--ink);
+      background: #f9fafb;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.1s, transform 0.1s;
+    }
+    .btn:hover { background: #f0e8c8; transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .btn.primary { background: var(--ink); color: var(--bg); }
+    .btn.primary:hover { background: #3d3f36; }
+
+    .level-pill {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 6px 10px;
+      border: 2px solid var(--ink);
+      border-radius: 999px;
+      background: transparent;
+      cursor: pointer;
+    }
+    .level-pill.active { background: var(--ink); color: var(--bg); }
+    .level-pill.done { border-color: #3cac3b; color: #3cac3b; }
+
+    .win-banner {
+      position: fixed;
+      inset: 0;
+      background: rgba(44, 46, 25, 0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      padding: 20px;
+    }
+    .win-card {
+      background: #f9fafb;
+      border: 4px solid var(--ink);
+      border-radius: 12px;
+      padding: 28px 32px;
+      max-width: 360px;
+      text-align: center;
+      box-shadow: 8px 8px 0 rgba(44, 46, 25, 0.2);
+    }
+
+    @media (max-width: 640px) {
+      :root { --cube-size: 36px; }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <nav class="px-4 sm:px-8 py-3 sm:py-4 flex items-center justify-between sticky top-0 z-20" style="background:#f267a0;">
+    <a href="/" class="brand-mono font-extrabold text-sm sm:text-xl rounded-md border-2 sm:border-4 border-white text-white no-underline px-2 py-1 sm:p-2 flex items-center gap-1.5">
+      <img src="/ugly-dog-images/dog-3.png" alt="" width="22" height="22" style="object-fit:contain;" />
+      Beep boop
+    </a>
+    <div class="flex items-center gap-3 sm:gap-6">
+      <span class="brand-mono font-extrabold text-white text-xs sm:text-lg hidden sm:inline">Packing Cubes</span>
+      <a href="/#projects" class="text-xs sm:text-base font-extrabold text-white no-underline opacity-80 hover:opacity-100">Projects</a>
+    </div>
+  </nav>
+
+  <header class="px-4 sm:px-10 md:px-16 pt-6 pb-2">
+    <h1 class="text-2xl md:text-3xl font-extrabold">Packing Cubes</h1>
+    <p class="mono text-xs sm:text-sm text-gray-600 mt-1 max-w-xl">Drag polycube pieces into the crate. Rotate with <kbd class="px-1 border border-gray-400 rounded text-[10px]">R</kbd> or the rotate button. Fill every cell to win.</p>
+  </header>
+
+  <main class="px-4 sm:px-10 md:px-16 pb-10 flex-grow">
+    <div class="flex flex-wrap gap-2 mb-4" id="level-tabs"></div>
+
+    <div class="flex flex-col lg:flex-row gap-8 items-start">
+      <section class="flex-shrink-0">
+        <div class="mono text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Crate</div>
+        <div id="board-wrap" class="inline-block"></div>
+        <div class="flex flex-wrap gap-2 mt-4">
+          <button type="button" class="btn" id="btn-rotate">Rotate ↻</button>
+          <button type="button" class="btn" id="btn-reset">Reset</button>
+          <button type="button" class="btn" id="btn-hint">Hint</button>
+        </div>
+      </section>
+
+      <section class="flex-grow min-w-0">
+        <div class="mono text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Pieces</div>
+        <div class="piece-tray" id="tray"></div>
+        <p class="mono text-[11px] text-gray-500 mt-4 max-w-md">Tip: tap a piece to select it, then tap the crate. On desktop, drag pieces directly into the box.</p>
+      </section>
+    </div>
+  </main>
+
+  <footer class="px-4 sm:px-10 md:px-16 py-4 text-sm font-bold text-white flex items-center gap-3" style="background:#1b1464;">
+    <a href="https://github.com/inaayat/replacing-nerd-jobs" target="_blank" rel="noopener" class="text-white opacity-80 hover:opacity-100 no-underline mono text-xs">inaayat/replacing-nerd-jobs</a>
+  </footer>
+
+  <div id="win-modal" class="win-banner hidden" role="dialog" aria-modal="true" aria-labelledby="win-title">
+    <div class="win-card">
+      <div class="text-4xl mb-2">📦</div>
+      <h2 id="win-title" class="text-xl font-extrabold mb-1">Perfect pack!</h2>
+      <p class="mono text-sm text-gray-600 mb-5">Every cube fits. The crate is full.</p>
+      <div class="flex flex-wrap gap-2 justify-center">
+        <button type="button" class="btn primary" id="btn-next">Next level</button>
+        <button type="button" class="btn" id="btn-close-win">Keep playing</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const LEVELS = [
+      {
+        "id": 1,
+        "name": "Starter",
+        "w": 4,
+        "h": 4,
+        "hint": {
+          "x": 0,
+          "y": 0
+        },
+        "pieces": [
+          {
+            "id": "a",
+            "color": "#5a9e7a",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ],
+              [
+                2,
+                0
+              ]
+            ]
+          },
+          {
+            "id": "b",
+            "color": "#c07aa8",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                0,
+                1
+              ],
+              [
+                0,
+                2
+              ]
+            ]
+          },
+          {
+            "id": "c",
+            "color": "#5a8a9e",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "id": "d",
+            "color": "#a89030",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "id": "e",
+            "color": "#e85d75",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "id": "f",
+            "color": "#6a9e5a",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "id": "g",
+            "color": "#b05858",
+            "cells": [
+              [
+                0,
+                0
+              ]
+            ]
+          },
+          {
+            "id": "h",
+            "color": "#8a6a9e",
+            "cells": [
+              [
+                0,
+                0
+              ]
+            ]
+          }
+        ],
+        "solutions": [
+          {
+            "id": "a",
+            "x": 0,
+            "y": 0,
+            "rot": 0
+          },
+          {
+            "id": "b",
+            "x": 3,
+            "y": 0,
+            "rot": 0
+          },
+          {
+            "id": "c",
+            "x": 0,
+            "y": 1,
+            "rot": 0
+          },
+          {
+            "id": "d",
+            "x": 0,
+            "y": 2,
+            "rot": 0
+          },
+          {
+            "id": "e",
+            "x": 0,
+            "y": 3,
+            "rot": 0
+          },
+          {
+            "id": "f",
+            "x": 2,
+            "y": 3,
+            "rot": 0
+          },
+          {
+            "id": "g",
+            "x": 2,
+            "y": 1,
+            "rot": 0
+          },
+          {
+            "id": "h",
+            "x": 2,
+            "y": 2,
+            "rot": 0
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "name": "Corner L",
+        "w": 4,
+        "h": 4,
+        "hint": {
+          "x": 0,
+          "y": 0
+        },
+        "pieces": [
+          {
+            "id": "a",
+            "color": "#5a9e7a",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ],
+              [
+                0,
+                1
+              ]
+            ]
+          },
+          {
+            "id": "b",
+            "color": "#c07aa8",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ],
+              [
+                1,
+                1
+              ]
+            ]
+          },
+          {
+            "id": "c",
+            "color": "#5a8a9e",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                0,
+                1
+              ],
+              [
+                1,
+                1
+              ]
+            ]
+          },
+          {
+            "id": "d",
+            "color": "#a89030",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ],
+              [
+                2,
+                0
+              ],
+              [
+                0,
+                1
+              ]
+            ]
+          },
+          {
+            "id": "e",
+            "color": "#e85d75",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "id": "f",
+            "color": "#6a9e5a",
+            "cells": [
+              [
+                0,
+                0
+              ]
+            ]
+          }
+        ],
+        "solutions": [
+          {
+            "id": "a",
+            "x": 0,
+            "y": 0,
+            "rot": 0
+          },
+          {
+            "id": "b",
+            "x": 2,
+            "y": 0,
+            "rot": 0
+          },
+          {
+            "id": "c",
+            "x": 1,
+            "y": 1,
+            "rot": 0
+          },
+          {
+            "id": "d",
+            "x": 1,
+            "y": 2,
+            "rot": 2
+          },
+          {
+            "id": "e",
+            "x": 0,
+            "y": 2,
+            "rot": 1
+          },
+          {
+            "id": "f",
+            "x": 2,
+            "y": 1,
+            "rot": 0
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "name": "Suitcase",
+        "w": 5,
+        "h": 3,
+        "hint": {
+          "x": 0,
+          "y": 0
+        },
+        "pieces": [
+          {
+            "id": "a",
+            "color": "#5a9e7a",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ],
+              [
+                2,
+                0
+              ],
+              [
+                3,
+                0
+              ]
+            ]
+          },
+          {
+            "id": "b",
+            "color": "#c07aa8",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                0,
+                1
+              ],
+              [
+                1,
+                1
+              ]
+            ]
+          },
+          {
+            "id": "c",
+            "color": "#5a8a9e",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ],
+              [
+                0,
+                1
+              ]
+            ]
+          },
+          {
+            "id": "d",
+            "color": "#a89030",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "id": "e",
+            "color": "#e85d75",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "id": "f",
+            "color": "#6a9e5a",
+            "cells": [
+              [
+                0,
+                0
+              ]
+            ]
+          }
+        ],
+        "solutions": [
+          {
+            "id": "a",
+            "x": 0,
+            "y": 0,
+            "rot": 0
+          },
+          {
+            "id": "b",
+            "x": 0,
+            "y": 1,
+            "rot": 0
+          },
+          {
+            "id": "c",
+            "x": 2,
+            "y": 1,
+            "rot": 0
+          },
+          {
+            "id": "d",
+            "x": 3,
+            "y": 2,
+            "rot": 0
+          },
+          {
+            "id": "e",
+            "x": 4,
+            "y": 0,
+            "rot": 1
+          },
+          {
+            "id": "f",
+            "x": 1,
+            "y": 1,
+            "rot": 0
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "name": "Wide crate",
+        "w": 5,
+        "h": 4,
+        "hint": {
+          "x": 0,
+          "y": 0
+        },
+        "pieces": [
+          {
+            "id": "a",
+            "color": "#5a9e7a",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ],
+              [
+                2,
+                0
+              ],
+              [
+                3,
+                0
+              ]
+            ]
+          },
+          {
+            "id": "b",
+            "color": "#c07aa8",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ],
+              [
+                2,
+                0
+              ]
+            ]
+          },
+          {
+            "id": "c",
+            "color": "#5a8a9e",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ],
+              [
+                0,
+                1
+              ]
+            ]
+          },
+          {
+            "id": "d",
+            "color": "#a89030",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ],
+              [
+                1,
+                1
+              ]
+            ]
+          },
+          {
+            "id": "e",
+            "color": "#e85d75",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "id": "f",
+            "color": "#6a9e5a",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "id": "g",
+            "color": "#b05858",
+            "cells": [
+              [
+                0,
+                0
+              ]
+            ]
+          },
+          {
+            "id": "h",
+            "color": "#8a6a9e",
+            "cells": [
+              [
+                0,
+                0
+              ]
+            ]
+          },
+          {
+            "id": "i",
+            "color": "#9e7a5a",
+            "cells": [
+              [
+                0,
+                0
+              ]
+            ]
+          }
+        ],
+        "solutions": [
+          {
+            "id": "a",
+            "x": 0,
+            "y": 0,
+            "rot": 0
+          },
+          {
+            "id": "b",
+            "x": 0,
+            "y": 1,
+            "rot": 0
+          },
+          {
+            "id": "c",
+            "x": 3,
+            "y": 1,
+            "rot": 0
+          },
+          {
+            "id": "d",
+            "x": 0,
+            "y": 2,
+            "rot": 0
+          },
+          {
+            "id": "e",
+            "x": 2,
+            "y": 3,
+            "rot": 0
+          },
+          {
+            "id": "f",
+            "x": 4,
+            "y": 2,
+            "rot": 1
+          },
+          {
+            "id": "g",
+            "x": 4,
+            "y": 0,
+            "rot": 0
+          },
+          {
+            "id": "h",
+            "x": 2,
+            "y": 2,
+            "rot": 0
+          },
+          {
+            "id": "i",
+            "x": 0,
+            "y": 3,
+            "rot": 0
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "name": "Crossroads",
+        "w": 4,
+        "h": 5,
+        "hint": {
+          "x": 0,
+          "y": 0
+        },
+        "pieces": [
+          {
+            "id": "a",
+            "color": "#5a9e7a",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ],
+              [
+                2,
+                0
+              ],
+              [
+                1,
+                1
+              ],
+              [
+                1,
+                2
+              ]
+            ]
+          },
+          {
+            "id": "b",
+            "color": "#c07aa8",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                0,
+                1
+              ],
+              [
+                0,
+                2
+              ],
+              [
+                1,
+                2
+              ]
+            ]
+          },
+          {
+            "id": "c",
+            "color": "#5a8a9e",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ],
+              [
+                1,
+                1
+              ],
+              [
+                1,
+                2
+              ]
+            ]
+          },
+          {
+            "id": "d",
+            "color": "#a89030",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ],
+              [
+                2,
+                0
+              ]
+            ]
+          },
+          {
+            "id": "e",
+            "color": "#e85d75",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "id": "f",
+            "color": "#6a9e5a",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          }
+        ],
+        "solutions": [
+          {
+            "id": "a",
+            "x": 0,
+            "y": 0,
+            "rot": 0
+          },
+          {
+            "id": "b",
+            "x": 0,
+            "y": 1,
+            "rot": 0
+          },
+          {
+            "id": "c",
+            "x": 2,
+            "y": 1,
+            "rot": 2
+          },
+          {
+            "id": "d",
+            "x": 3,
+            "y": 0,
+            "rot": 1
+          },
+          {
+            "id": "e",
+            "x": 0,
+            "y": 4,
+            "rot": 0
+          },
+          {
+            "id": "f",
+            "x": 2,
+            "y": 4,
+            "rot": 0
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "name": "Overnight bag",
+        "w": 6,
+        "h": 4,
+        "hint": {
+          "x": 0,
+          "y": 0
+        },
+        "pieces": [
+          {
+            "id": "a",
+            "color": "#5a9e7a",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ],
+              [
+                2,
+                0
+              ],
+              [
+                3,
+                0
+              ],
+              [
+                4,
+                0
+              ]
+            ]
+          },
+          {
+            "id": "b",
+            "color": "#c07aa8",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                0,
+                1
+              ],
+              [
+                1,
+                1
+              ],
+              [
+                2,
+                1
+              ]
+            ]
+          },
+          {
+            "id": "c",
+            "color": "#5a8a9e",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ],
+              [
+                2,
+                0
+              ]
+            ]
+          },
+          {
+            "id": "d",
+            "color": "#a89030",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ],
+              [
+                0,
+                1
+              ]
+            ]
+          },
+          {
+            "id": "e",
+            "color": "#e85d75",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ],
+              [
+                1,
+                1
+              ]
+            ]
+          },
+          {
+            "id": "f",
+            "color": "#6a9e5a",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "id": "g",
+            "color": "#b05858",
+            "cells": [
+              [
+                0,
+                0
+              ],
+              [
+                1,
+                0
+              ]
+            ]
+          },
+          {
+            "id": "h",
+            "color": "#8a6a9e",
+            "cells": [
+              [
+                0,
+                0
+              ]
+            ]
+          },
+          {
+            "id": "i",
+            "color": "#9e7a5a",
+            "cells": [
+              [
+                0,
+                0
+              ]
+            ]
+          }
+        ],
+        "solutions": [
+          {
+            "id": "a",
+            "x": 0,
+            "y": 0,
+            "rot": 0
+          },
+          {
+            "id": "b",
+            "x": 0,
+            "y": 1,
+            "rot": 0
+          },
+          {
+            "id": "c",
+            "x": 1,
+            "y": 1,
+            "rot": 0
+          },
+          {
+            "id": "d",
+            "x": 4,
+            "y": 1,
+            "rot": 0
+          },
+          {
+            "id": "e",
+            "x": 3,
+            "y": 2,
+            "rot": 2
+          },
+          {
+            "id": "f",
+            "x": 0,
+            "y": 3,
+            "rot": 0
+          },
+          {
+            "id": "g",
+            "x": 5,
+            "y": 2,
+            "rot": 1
+          },
+          {
+            "id": "h",
+            "x": 5,
+            "y": 0,
+            "rot": 0
+          },
+          {
+            "id": "i",
+            "x": 2,
+            "y": 3,
+            "rot": 0
+          }
+        ]
+      }
+    ];
+
+    const STORAGE_KEY = 'packing-cubes-progress';
+
+    let levelIndex = 0;
+    let selectedId = null;
+    let rotations = {};
+    let placements = {};
+    let dragState = null;
+
+    function loadProgress() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      } catch {
+        return {};
+      }
+    }
+
+    function saveProgress() {
+      const p = loadProgress();
+      p[LEVELS[levelIndex].id] = true;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
+    }
+
+    function normalizeCells(cells) {
+      const minX = Math.min(...cells.map(c => c[0]));
+      const minY = Math.min(...cells.map(c => c[1]));
+      return cells.map(([x, y]) => [x - minX, y - minY]);
+    }
+
+    function rotateCells(cells, times) {
+      let c = cells.map(([x, y]) => [x, y]);
+      for (let i = 0; i < times; i++) {
+        c = c.map(([x, y]) => [y, -x]);
+        c = normalizeCells(c);
+      }
+      return c;
+    }
+
+    function getRotatedCells(piece, rot) {
+      return rotateCells(piece.cells, rot % 4);
+    }
+
+    function pieceFootprint(piece, rot) {
+      const cells = getRotatedCells(piece, rot);
+      const w = Math.max(...cells.map(c => c[0])) + 1;
+      const h = Math.max(...cells.map(c => c[1])) + 1;
+      return { cells, w, h };
+    }
+
+    function absCells(piece, x, y, rot) {
+      const { cells } = pieceFootprint(piece, rot);
+      return cells.map(([cx, cy]) => [x + cx, y + cy]);
+    }
+
+    function canPlace(level, piece, x, y, rot, ignoreId) {
+      const occupied = new Set();
+      Object.entries(placements).forEach(([pid, pl]) => {
+        if (pid === ignoreId) return;
+        const p = level.pieces.find(q => q.id === pid);
+        absCells(p, pl.x, pl.y, pl.rot).forEach(([ax, ay]) => occupied.add(`${ax},${ay}`));
+      });
+      const target = absCells(piece, x, y, rot);
+      for (const [ax, ay] of target) {
+        if (ax < 0 || ay < 0 || ax >= level.w || ay >= level.h) return false;
+        if (occupied.has(`${ax},${ay}`)) return false;
+      }
+      return true;
+    }
+
+    function isComplete(level) {
+      const total = level.w * level.h;
+      let filled = 0;
+      Object.entries(placements).forEach(([pid, pl]) => {
+        const p = level.pieces.find(q => q.id === pid);
+        filled += getRotatedCells(p, pl.rot).length;
+      });
+      return filled === total && Object.keys(placements).length === level.pieces.length;
+    }
+
+    function cubeHtml(color) {
+      return `<div class="cube-cell"><div class="cube">
+        <div class="cube-face cube-top" style="background:${color}"></div>
+        <div class="cube-face cube-left" style="background:${color}"></div>
+        <div class="cube-face cube-right" style="background:${color}"></div>
+      </div></div>`;
+    }
+
+    function shapeGridHtml(piece, rot, cellClass) {
+      const { cells, w, h } = pieceFootprint(piece, rot);
+      const set = new Set(cells.map(([x, y]) => `${x},${y}`));
+      let html = `<div class="piece-shape" style="grid-template-columns:repeat(${w},var(--cube-size));grid-template-rows:repeat(${h},var(--cube-size))">`;
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          if (set.has(`${x},${y}`)) {
+            html += cubeHtml(piece.color);
+          } else {
+            html += `<div style="width:var(--cube-size);height:var(--cube-size)"></div>`;
+          }
+        }
+      }
+      html += '</div>';
+      return html;
+    }
+
+    function renderLevelTabs() {
+      const progress = loadProgress();
+      const el = document.getElementById('level-tabs');
+      el.innerHTML = LEVELS.map((lv, i) => {
+        const done = progress[lv.id];
+        const active = i === levelIndex;
+        return `<button type="button" class="level-pill${active ? ' active' : ''}${done ? ' done' : ''}" data-idx="${i}">${lv.id}. ${lv.name}${done ? ' ✓' : ''}</button>`;
+      }).join('');
+      el.querySelectorAll('.level-pill').forEach(btn => {
+        btn.addEventListener('click', () => {
+          levelIndex = Number(btn.dataset.idx);
+          resetLevelState();
+          render();
+        });
+      });
+    }
+
+    function resetLevelState() {
+      selectedId = null;
+      rotations = {};
+      placements = {};
+      LEVELS[levelIndex].pieces.forEach(p => { rotations[p.id] = 0; });
+    }
+
+    function renderBoard() {
+      const level = LEVELS[levelIndex];
+      const wrap = document.getElementById('board-wrap');
+      const gridMap = {};
+      Object.entries(placements).forEach(([pid, pl]) => {
+        const p = level.pieces.find(q => q.id === pid);
+        absCells(p, pl.x, pl.y, pl.rot).forEach(([ax, ay]) => {
+          gridMap[`${ax},${ay}`] = p.color;
+        });
+      });
+
+      let html = `<div class="grid-board" style="grid-template-columns:repeat(${level.w},var(--cube-size));grid-template-rows:repeat(${level.h},var(--cube-size))" id="game-board">`;
+      for (let y = 0; y < level.h; y++) {
+        for (let x = 0; x < level.w; x++) {
+          const key = `${x},${y}`;
+          const color = gridMap[key];
+          html += `<div class="grid-slot" data-x="${x}" data-y="${y}">`;
+          if (color) html += cubeHtml(color);
+          html += '</div>';
+        }
+      }
+      html += '</div>';
+      wrap.innerHTML = html;
+
+      const board = document.getElementById('game-board');
+      board.querySelectorAll('.grid-slot').forEach(slot => {
+        slot.addEventListener('click', () => onSlotClick(Number(slot.dataset.x), Number(slot.dataset.y)));
+        slot.addEventListener('pointerenter', () => onSlotHover(Number(slot.dataset.x), Number(slot.dataset.y)));
+        slot.addEventListener('pointerleave', clearHover);
+      });
+    }
+
+    function renderTray() {
+      const level = LEVELS[levelIndex];
+      const tray = document.getElementById('tray');
+      tray.innerHTML = level.pieces.map(p => {
+        const placed = placements[p.id];
+        const rot = rotations[p.id] || 0;
+        const sel = selectedId === p.id;
+        return `<div class="tray-piece${placed ? ' placed' : ''}${sel ? ' selected' : ''}" data-id="${p.id}" draggable="${placed ? 'false' : 'true'}">${shapeGridHtml(p, rot)}</div>`;
+      }).join('');
+
+      tray.querySelectorAll('.tray-piece:not(.placed)').forEach(el => {
+        const id = el.dataset.id;
+        el.addEventListener('click', e => {
+          e.stopPropagation();
+          selectedId = selectedId === id ? null : id;
+          renderTray();
+        });
+        el.addEventListener('dragstart', e => {
+          selectedId = id;
+          el.classList.add('dragging');
+          e.dataTransfer.setData('text/plain', id);
+          e.dataTransfer.effectAllowed = 'move';
+        });
+        el.addEventListener('dragend', () => el.classList.remove('dragging'));
+        el.addEventListener('pointerdown', e => startPointerDrag(e, id, el));
+      });
+    }
+
+    function clearHover() {
+      document.querySelectorAll('.grid-slot').forEach(s => s.classList.remove('valid', 'invalid'));
+    }
+
+    function onSlotHover(x, y) {
+      clearHover();
+      if (!selectedId) return;
+      const level = LEVELS[levelIndex];
+      const piece = level.pieces.find(p => p.id === selectedId);
+      const rot = rotations[selectedId] || 0;
+      const ok = canPlace(level, piece, x, y, rot, selectedId);
+      absCells(piece, x, y, rot).forEach(([ax, ay]) => {
+        const slot = document.querySelector(`.grid-slot[data-x="${ax}"][data-y="${ay}"]`);
+        if (slot) slot.classList.add(ok ? 'valid' : 'invalid');
+      });
+    }
+
+    function onSlotClick(x, y) {
+      const level = LEVELS[levelIndex];
+      const existing = Object.entries(placements).find(([, pl]) => pl.x === x && pl.y === y);
+      if (existing && !selectedId) {
+        const [pid] = existing;
+        delete placements[pid];
+        selectedId = pid;
+        render();
+        return;
+      }
+      if (!selectedId) return;
+      const piece = level.pieces.find(p => p.id === selectedId);
+      const rot = rotations[selectedId] || 0;
+      if (!canPlace(level, piece, x, y, rot, selectedId)) return;
+      placements[selectedId] = { x, y, rot };
+      selectedId = null;
+      render();
+      checkWin();
+    }
+
+    function tryPlaceAt(x, y, pieceId) {
+      const level = LEVELS[levelIndex];
+      const piece = level.pieces.find(p => p.id === pieceId);
+      if (!piece || placements[pieceId]) return;
+      const rot = rotations[pieceId] || 0;
+      if (!canPlace(level, piece, x, y, rot, pieceId)) return false;
+      placements[pieceId] = { x, y, rot };
+      selectedId = null;
+      render();
+      checkWin();
+      return true;
+    }
+
+    function startPointerDrag(e, id, el) {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      e.preventDefault();
+      selectedId = id;
+      dragState = { id, el, pointerId: e.pointerId };
+      el.setPointerCapture(e.pointerId);
+      el.addEventListener('pointermove', onPointerMove);
+      el.addEventListener('pointerup', onPointerUp);
+      el.addEventListener('pointercancel', onPointerUp);
+      renderTray();
+    }
+
+    function onPointerMove(e) {
+      if (!dragState) return;
+      const slot = document.elementFromPoint(e.clientX, e.clientY)?.closest('.grid-slot');
+      clearHover();
+      if (slot) onSlotHover(Number(slot.dataset.x), Number(slot.dataset.y));
+    }
+
+    function onPointerUp(e) {
+      if (!dragState) return;
+      const { id, el, pointerId } = dragState;
+      el.releasePointerCapture(pointerId);
+      el.removeEventListener('pointermove', onPointerMove);
+      el.removeEventListener('pointerup', onPointerUp);
+      el.removeEventListener('pointercancel', onPointerUp);
+      const slot = document.elementFromPoint(e.clientX, e.clientY)?.closest('.grid-slot');
+      if (slot) tryPlaceAt(Number(slot.dataset.x), Number(slot.dataset.y), id);
+      dragState = null;
+      clearHover();
+    }
+
+    function checkWin() {
+      const level = LEVELS[levelIndex];
+      if (!isComplete(level)) return;
+      saveProgress();
+      renderLevelTabs();
+      document.getElementById('win-modal').classList.remove('hidden');
+    }
+
+    function render() {
+      renderBoard();
+      renderTray();
+    }
+
+    document.getElementById('btn-rotate').addEventListener('click', () => {
+      if (!selectedId) return;
+      rotations[selectedId] = ((rotations[selectedId] || 0) + 1) % 4;
+      renderTray();
+    });
+
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      resetLevelState();
+      render();
+    });
+
+    document.getElementById('btn-hint').addEventListener('click', () => {
+      const level = LEVELS[levelIndex];
+      if (!level.solutions) return;
+      resetLevelState();
+      level.solutions.forEach(sol => {
+        placements[sol.id] = { x: sol.x, y: sol.y, rot: sol.rot };
+        rotations[sol.id] = sol.rot;
+      });
+      render();
+      if (level.hint) onSlotHover(level.hint.x, level.hint.y);
+    });
+
+    document.getElementById('btn-next').addEventListener('click', () => {
+      document.getElementById('win-modal').classList.add('hidden');
+      if (levelIndex < LEVELS.length - 1) {
+        levelIndex++;
+        resetLevelState();
+        renderLevelTabs();
+        render();
+      }
+    });
+
+    document.getElementById('btn-close-win').addEventListener('click', () => {
+      document.getElementById('win-modal').classList.add('hidden');
+    });
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'r' || e.key === 'R') {
+        if (!selectedId) return;
+        rotations[selectedId] = ((rotations[selectedId] || 0) + 1) % 4;
+        renderTray();
+      }
+    });
+
+    document.addEventListener('dragover', e => {
+      if (!e.target.closest('#game-board')) return;
+      e.preventDefault();
+      const slot = e.target.closest('.grid-slot');
+      if (slot) onSlotHover(Number(slot.dataset.x), Number(slot.dataset.y));
+    });
+
+    document.addEventListener('drop', e => {
+      const slot = e.target.closest('.grid-slot');
+      if (!slot) return;
+      e.preventDefault();
+      const id = e.dataTransfer.getData('text/plain') || selectedId;
+      if (id) tryPlaceAt(Number(slot.dataset.x), Number(slot.dataset.y), id);
+      clearHover();
+    });
+
+    resetLevelState();
+    renderLevelTabs();
+    render();
+  </script>
+</body>
+</html>
