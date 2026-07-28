@@ -3,6 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <base href="/packing-cubes/" />
     <title>Cube — Packing Cubes</title>
     <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png" />
     <link rel="stylesheet" href="./engine/cube.css" />
@@ -49,7 +50,7 @@
                 <div class="pc-tags">${tags}</div>
                 <p class="pc-meta">${cube.items.length} item${cube.items.length === 1 ? '' : 's'}</p>
                 <div class="pc-actions">
-                  <a class="pc-btn primary" href="./?add=${encodeURIComponent(id)}">Add to my suitcase</a>
+                  <a class="pc-btn primary" href="/packing-cubes/?add=${encodeURIComponent(id)}">Add to my suitcase</a>
                   <a class="pc-btn" href="/packing-cubes/">Back to app</a>
                 </div>
               </div>

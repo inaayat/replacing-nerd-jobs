@@ -163,7 +163,7 @@ function render() {
           <h1 class="pc-app-title">Packing Cubes</h1>
           <p class="pc-app-subtitle">Mix cubes into your suitcase. Basics are included by default.</p>
         </div>
-        <a href="./builder.html" class="pc-btn green sm">+ Create a cube</a>
+        <a href="/packing-cubes/builder.html" class="pc-btn green sm">+ Create a cube</a>
       </header>
 
       <aside class="pc-cubes-panel">

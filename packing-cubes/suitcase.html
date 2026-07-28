@@ -3,12 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <base href="/packing-cubes/" />
     <title>My suitcase — Packing Cubes</title>
     <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png" />
     <script>
       const params = new URLSearchParams(location.search);
       const add = params.get('add');
-      location.replace('./' + (add ? `?add=${encodeURIComponent(add)}` : ''));
+      location.replace('/packing-cubes/' + (add ? `?add=${encodeURIComponent(add)}` : ''));
     </script>
   </head>
   <body>
