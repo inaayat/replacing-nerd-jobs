@@ -398,9 +398,9 @@ body.pc-body {
 .b-mini-input,
 .pc-search-input {
   font: inherit;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  padding: 8px 12px;
+  padding: 6px 10px;
   border: var(--outline);
   border-radius: var(--radius-sm);
   background: var(--card);
@@ -429,13 +429,13 @@ body.pc-body {
 .b-item-row {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
   background: var(--card);
   border: var(--outline);
   border-radius: var(--radius-sm);
-  padding: 8px;
-  margin-bottom: 6px;
+  padding: 5px 6px;
+  margin-bottom: 4px;
 }
 
 .b-remove-btn {
@@ -443,11 +443,11 @@ body.pc-body {
   background: var(--card);
   color: var(--pink);
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 0.9rem;
   line-height: 1;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
   font-weight: 700;
 }
 
@@ -458,13 +458,13 @@ body.pc-body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 4px;
   font-weight: 700;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   cursor: pointer;
   border: var(--outline);
   border-radius: var(--radius-sm);
-  padding: 8px 12px;
+  padding: 5px 10px;
   background: var(--card);
   color: var(--ink);
   width: 100%;

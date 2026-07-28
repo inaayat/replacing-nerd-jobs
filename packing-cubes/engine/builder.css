@@ -1,36 +1,36 @@
 /* Cube builder — layered on cube.css tokens. */
-.b-wrap { max-width: 820px; margin: 0 auto; padding: 24px 16px 80px; }
+.b-wrap { max-width: 820px; margin: 0 auto; padding: 16px 16px 40px; }
 
 .b-head-row {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
 }
 
 .b-h1 {
   font-family: 'Nunito', sans-serif;
-  font-size: 1.35rem;
+  font-size: 1.2rem;
   font-weight: 800;
   color: var(--ink);
-  margin: 4px 0 20px;
+  margin: 0 0 12px;
 }
 
-.b-step { margin-bottom: 28px; }
-.b-step-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+.b-step { margin-bottom: 16px; }
+.b-step-head { display: flex; align-items: baseline; gap: 6px; margin-bottom: 6px; }
 .b-step-num {
-  width: 22px; height: 22px; border-radius: 50%;
+  width: 18px; height: 18px; border-radius: 50%;
   background: var(--ink); color: #fff;
   display: flex; align-items: center; justify-content: center;
-  font-size: 0.68rem; font-weight: 700; flex-shrink: 0;
+  font-size: 0.62rem; font-weight: 700; flex-shrink: 0;
 }
 .b-step-title {
   font-family: 'Nunito', sans-serif;
-  font-size: 0.8rem; font-weight: 800;
+  font-size: 0.72rem; font-weight: 800;
   color: var(--ink); text-transform: uppercase; letter-spacing: 0.03em;
 }
 
-.b-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px; }
+.b-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 4px; }
 @media (max-width: 480px) { .b-field-row { grid-template-columns: 1fr; } }
 
 .b-mode-toggle {
@@ -38,11 +38,11 @@
   border: var(--outline);
   border-radius: var(--radius-sm);
   overflow: hidden;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 .b-mode-btn {
-  font: inherit; font-size: 0.75rem; font-weight: 700;
-  padding: 8px 14px; border: none; background: transparent;
+  font: inherit; font-size: 0.72rem; font-weight: 700;
+  padding: 5px 10px; border: none; background: transparent;
   color: var(--brown); cursor: pointer;
 }
 .b-mode-btn.selected { background: var(--ink); color: #fff; }
@@ -59,25 +59,25 @@ textarea.b-mini-input { resize: vertical; font-family: ui-monospace, SFMono-Regu
 .b-preview-frame {
   background: var(--cream);
   border: var(--outline);
-  border-radius: var(--radius);
-  padding: 20px;
-  text-align: center;
-  max-width: 300px;
-  margin: 0 auto;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  text-align: left;
+  max-width: none;
+  margin: 0;
 }
 .b-preview-frame h2 {
   font-family: 'Nunito', sans-serif;
-  font-size: 1.05rem; font-weight: 800;
-  color: var(--ink); margin: 0 0 4px;
+  font-size: 0.9rem; font-weight: 800;
+  color: var(--ink); margin: 0 0 2px;
 }
-.b-preview-frame p { color: var(--brown); font-weight: 600; font-size: 0.75rem; margin: 0 0 8px; }
-.b-meta { font-size: 0.65rem; color: var(--brown); font-weight: 700; margin-bottom: 10px; }
+.b-preview-frame p { color: var(--brown); font-weight: 600; font-size: 0.72rem; margin: 0 0 2px; }
+.b-meta { font-size: 0.65rem; color: var(--brown); font-weight: 700; margin-bottom: 0; }
 
 .b-publish-card {
   background: var(--card);
   border: var(--outline);
-  border-radius: var(--radius);
-  padding: 16px;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
 }
 .b-id-preview { font-size: 0.7rem; color: var(--brown); font-weight: 700; margin-top: 3px; }
 .b-id-preview code { background: var(--grey-soft); padding: 1px 5px; border-radius: 4px; }
@@ -89,5 +89,56 @@ textarea.b-mini-input { resize: vertical; font-family: ui-monospace, SFMono-Regu
 }
 .b-toast.ok { display: block; background: #e9f0e8; color: var(--ink); border-color: var(--green); }
 .b-toast.err { display: block; background: var(--pink-soft); color: var(--ink); border-color: var(--pink); }
+
+/* Inline modal — even tighter */
+.pc-builder-modal .b-h1 {
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.pc-builder-modal .b-head-row {
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.pc-builder-modal .b-step {
+  margin-bottom: 12px;
+}
+
+.pc-builder-modal .b-step:last-child {
+  margin-bottom: 0;
+}
+
+.pc-builder-modal .pc-preview-close {
+  position: static;
+  width: 24px;
+  height: 24px;
+  font-size: 1rem;
+}
+
+.pc-builder-modal .pc-toggle-chip {
+  font-size: 0.7rem;
+}
+
+.pc-builder-modal .b-field input,
+.pc-builder-modal .b-mini-input,
+.pc-builder-modal textarea.b-mini-input {
+  padding: 5px 8px;
+  font-size: 0.78rem;
+}
+
+.pc-builder-modal .b-item-row {
+  padding: 4px 6px;
+  margin-bottom: 4px;
+}
+
+.pc-builder-modal .b-add-row-btn {
+  padding: 5px 10px;
+  font-size: 0.75rem;
+}
+
+.pc-builder-modal #json-paste {
+  min-height: 120px;
+}
 
 .hidden { display: none; }

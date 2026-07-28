@@ -580,9 +580,9 @@
 }
 
 .pc-builder-modal {
-  max-width: 720px;
+  max-width: 560px;
   text-align: left;
-  padding: 20px 24px 24px;
+  padding: 12px 14px 14px;
 }
 
 .pc-preview-close {
