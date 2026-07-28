@@ -19,12 +19,22 @@ let showHiddenItems = false;
 let isOwner = false;
 const collapsedGroups = new Set();
 
-// Accordion: which cube (if any) is currently expanded inline, and the
-// item(s) staged for it (reset whenever the expanded cube changes).
-let expandedCubeId = null;
-let stagedItems = [];
+// Accordion: which cubes are expanded inline, and staged items per cube.
+let expandedCubeIds = new Set();
+const stagedItemsByCube = new Map();
 
-const cubeCache = new Map();
+function stagedItemsFor(cubeId) {
+  if (!stagedItemsByCube.has(cubeId)) stagedItemsByCube.set(cubeId, []);
+  return stagedItemsByCube.get(cubeId);
+}
+
+function expandCubesInSuitcase() {
+  const suitcase = activeSuitcase();
+  for (const cubeId of suitcase.cubeIds) {
+    expandedCubeIds.add(cubeId);
+    fetchCube(cubeId).catch(() => {});
+  }
+}
 const cubeFetches = new Map();
 
 const CUBE_COLORS = ['green', 'purple', 'pink', 'blue', 'gold', 'grey'];
@@ -254,9 +264,9 @@ function render() {
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     closeBuilderModal();
-    if (expandedCubeId) {
-      expandedCubeId = null;
-      stagedItems = [];
+    if (expandedCubeIds.size) {
+      expandedCubeIds.clear();
+      stagedItemsByCube.clear();
       renderCubeList();
     }
   });
@@ -281,7 +291,7 @@ function renderCubeList() {
     const inSuitcase = suitcase.cubeIds.includes(c.id);
     const basic = isBasicCube(c);
     const color = cubeColor(c, i);
-    const expanded = c.id === expandedCubeId;
+    const expanded = expandedCubeIds.has(c.id);
     return `
       <div class="pc-cube-card ${inSuitcase ? 'in-suitcase' : ''} ${basic ? 'is-basic' : ''} ${expanded ? 'expanded' : ''}"
            data-color="${color}" data-cube-id="${c.id}">
@@ -300,7 +310,7 @@ function renderCubeList() {
             title="${inSuitcase ? 'Remove from suitcase' : 'Add to suitcase'}" aria-label="${inSuitcase ? 'Remove' : 'Add'} ${escapeAttr(c.title)}">${inSuitcase ? CHECK_SVG : '+'}</button>
           <span class="pc-cube-chevron">${CHEVRON_SVG}</span>
         </div>
-        ${expanded ? `<div class="pc-cube-expand" id="cube-expand">${expandBodyHtml(c.id)}</div>` : ''}
+        ${expanded ? `<div class="pc-cube-expand" id="cube-expand-${c.id}">${expandBodyHtml(c.id)}</div>` : ''}
       </div>`;
   }).join('');
 
@@ -329,7 +339,7 @@ function renderCubeList() {
     });
   });
 
-  if (expandedCubeId) bindExpandInteractions(expandedCubeId);
+  for (const cubeId of expandedCubeIds) bindExpandInteractions(cubeId);
 }
 
 function addCubeToSuitcase(cubeId) {
@@ -348,16 +358,23 @@ function quickToggleCube(cubeId) {
   const suitcase = activeSuitcase();
   if (suitcase.cubeIds.includes(cubeId)) {
     removeCubeFromSuitcase(cubeId);
+    expandedCubeIds.delete(cubeId);
+    stagedItemsByCube.delete(cubeId);
   } else {
     addCubeToSuitcase(cubeId);
+    expandedCubeIds.add(cubeId);
   }
   renderCubeList();
   renderPackList();
 }
 
 function toggleCubeExpand(cubeId) {
-  expandedCubeId = expandedCubeId === cubeId ? null : cubeId;
-  stagedItems = [];
+  if (expandedCubeIds.has(cubeId)) {
+    expandedCubeIds.delete(cubeId);
+    stagedItemsByCube.delete(cubeId);
+  } else {
+    expandedCubeIds.add(cubeId);
+  }
   renderCubeList();
 }
 
@@ -379,34 +396,34 @@ function buildExpandContent(cubeId, cube) {
     <div class="pc-stage-section">
       <div class="pc-stage-label">Add an item</div>
       <div class="pc-stage-row">
-        <input type="text" id="stage-input" class="b-mini-input" placeholder="e.g. Travel pillow">
-        <button type="button" class="pc-btn sm" id="stage-add-btn">+ Add</button>
+        <input type="text" id="stage-input-${cubeId}" class="b-mini-input" placeholder="e.g. Travel pillow">
+        <button type="button" class="pc-btn sm" id="stage-add-btn-${cubeId}">+ Add</button>
       </div>
-      <ul class="pc-stage-list" id="stage-list"></ul>
-      <label class="pc-toggle-chip" id="stage-permanent-row">
-        <input type="checkbox" id="stage-permanent" disabled>
+      <ul class="pc-stage-list" id="stage-list-${cubeId}"></ul>
+      <label class="pc-toggle-chip" id="stage-permanent-row-${cubeId}">
+        <input type="checkbox" id="stage-permanent-${cubeId}" disabled>
         ${isOwner ? 'Also publish this to the cube for everyone' : 'Also suggest this as a permanent addition (opens a PR)'}
       </label>
     </div>
     <div class="pc-expand-actions">
-      <button type="button" class="pc-btn primary" id="preview-commit" style="width:100%"></button>
+      <button type="button" class="pc-btn primary" id="preview-commit-${cubeId}" style="width:100%"></button>
       ${isOwner ? `
-        <button type="button" class="pc-expand-link" id="edit-cube-link">Edit this cube</button>
-        <button type="button" class="pc-delete-cube-btn" id="delete-cube-btn">Delete this cube</button>
+        <button type="button" class="pc-expand-link" id="edit-cube-link-${cubeId}">Edit this cube</button>
+        <button type="button" class="pc-delete-cube-btn" id="delete-cube-btn-${cubeId}">Delete this cube</button>
       ` : ''}
     </div>
   `;
 }
 
 function bindExpandInteractions(cubeId) {
-  const container = document.getElementById('cube-expand');
+  const container = document.getElementById(`cube-expand-${cubeId}`);
   if (!container) return;
 
   const cube = cubeCache.get(cubeId);
   if (!cube) {
     fetchCube(cubeId)
       .then(() => {
-        if (expandedCubeId !== cubeId) return;
+        if (!expandedCubeIds.has(cubeId)) return;
         container.innerHTML = expandBodyHtml(cubeId);
         bindExpandInteractions(cubeId);
       })
@@ -416,33 +433,34 @@ function bindExpandInteractions(cubeId) {
     return;
   }
 
-  document.getElementById('stage-add-btn').addEventListener('click', () => addStagedItem(cubeId));
-  document.getElementById('stage-input').addEventListener('keydown', (e) => {
+  document.getElementById(`stage-add-btn-${cubeId}`).addEventListener('click', () => addStagedItem(cubeId));
+  document.getElementById(`stage-input-${cubeId}`).addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); addStagedItem(cubeId); }
   });
-  document.getElementById('preview-commit').addEventListener('click', () => commitExpand(cubeId));
-  const editLink = document.getElementById('edit-cube-link');
+  document.getElementById(`preview-commit-${cubeId}`).addEventListener('click', () => commitExpand(cubeId));
+  const editLink = document.getElementById(`edit-cube-link-${cubeId}`);
   if (editLink) editLink.addEventListener('click', () => openBuilderModal(cubeId));
-  const deleteBtn = document.getElementById('delete-cube-btn');
+  const deleteBtn = document.getElementById(`delete-cube-btn-${cubeId}`);
   if (deleteBtn) deleteBtn.addEventListener('click', () => deleteCubeEverywhere(cubeId, cube.title));
 
   renderStagedList(cubeId);
 }
 
 function addStagedItem(cubeId) {
-  const input = document.getElementById('stage-input');
+  const input = document.getElementById(`stage-input-${cubeId}`);
   const label = input.value.trim();
   if (!label) return;
-  stagedItems.push(label);
+  stagedItemsFor(cubeId).push(label);
   input.value = '';
   input.focus();
   renderStagedList(cubeId);
 }
 
 function renderStagedList(cubeId) {
-  const list = document.getElementById('stage-list');
-  const permanentCheckbox = document.getElementById('stage-permanent');
-  const commitBtn = document.getElementById('preview-commit');
+  const stagedItems = stagedItemsFor(cubeId);
+  const list = document.getElementById(`stage-list-${cubeId}`);
+  const permanentCheckbox = document.getElementById(`stage-permanent-${cubeId}`);
+  const commitBtn = document.getElementById(`preview-commit-${cubeId}`);
   if (!list || !commitBtn) return;
 
   list.innerHTML = stagedItems.map((label, i) => `
@@ -496,22 +514,23 @@ async function publishItemsToCube(cubeId, newLabels) {
 async function commitExpand(cubeId) {
   const suitcase = activeSuitcase();
   const wasInSuitcase = suitcase.cubeIds.includes(cubeId);
-  const permanentCheckbox = document.getElementById('stage-permanent');
-  const makePermanent = !!permanentCheckbox && permanentCheckbox.checked && stagedItems.length > 0;
-  const itemsToStage = [...stagedItems];
+  const permanentCheckbox = document.getElementById(`stage-permanent-${cubeId}`);
+  const makePermanent = !!permanentCheckbox && permanentCheckbox.checked && stagedItemsFor(cubeId).length > 0;
+  const itemsToStage = [...stagedItemsFor(cubeId)];
 
   if (!wasInSuitcase) {
     addCubeToSuitcase(cubeId);
+    expandedCubeIds.add(cubeId);
     for (const label of itemsToStage) suitcase.customItems.push({ label, cubeId });
   } else if (itemsToStage.length) {
     for (const label of itemsToStage) suitcase.customItems.push({ label, cubeId });
   } else {
     removeCubeFromSuitcase(cubeId);
+    expandedCubeIds.delete(cubeId);
   }
   saveState();
 
-  expandedCubeId = null;
-  stagedItems = [];
+  stagedItemsByCube.delete(cubeId);
   renderCubeList();
   renderPackList();
 
@@ -604,8 +623,8 @@ async function deleteCubeEverywhere(cubeId, title) {
     }
     saveState();
     cubeCache.delete(cubeId);
-    expandedCubeId = null;
-    stagedItems = [];
+    expandedCubeIds.delete(cubeId);
+    stagedItemsByCube.delete(cubeId);
     await refreshCatalog();
     showToast(`Deleted "${title}" — its items were kept as custom items`);
   } catch (err) {
@@ -657,6 +676,9 @@ function renderSuitcase() {
   document.getElementById('suitcase-select').addEventListener('change', (e) => {
     state.activeSuitcaseId = e.target.value;
     saveState();
+    expandedCubeIds.clear();
+    stagedItemsByCube.clear();
+    expandCubesInSuitcase();
     renderCubeList();
     renderSuitcase();
   });
@@ -673,6 +695,9 @@ function renderSuitcase() {
     state.suitcases.push(suitcase);
     state.activeSuitcaseId = suitcase.id;
     saveState();
+    expandedCubeIds.clear();
+    stagedItemsByCube.clear();
+    expandCubesInSuitcase();
     renderCubeList();
     renderSuitcase();
     showToast('New suitcase created');
@@ -977,12 +1002,15 @@ fetch(catalogUrl)
     if (!Array.isArray(cubes)) throw new Error('Catalog is not an array');
     catalog = cubes;
     ensureSuitcase();
+    expandCubesInSuitcase();
     if (addCubeId) {
       const suitcase = activeSuitcase();
       if (!suitcase.cubeIds.includes(addCubeId)) {
         suitcase.cubeIds.push(addCubeId);
         saveState();
       }
+      expandedCubeIds.add(addCubeId);
+      fetchCube(addCubeId).catch(() => {});
       const url = new URL(location.href);
       url.searchParams.delete('add');
       history.replaceState(null, '', url.pathname + url.search + url.hash);
