@@ -35,6 +35,8 @@ function expandCubesInSuitcase() {
     fetchCube(cubeId).catch(() => {});
   }
 }
+
+const cubeCache = new Map();
 const cubeFetches = new Map();
 
 const CUBE_COLORS = ['green', 'purple', 'pink', 'blue', 'gold', 'grey'];
