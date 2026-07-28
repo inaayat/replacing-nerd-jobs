@@ -1,5 +1,6 @@
 import { bootPage, renderShell, requireSignIn } from './nav.js';
 import { membershipApi, importApi } from './api.js';
+import { parseXlsxFile } from './import-xlsx.js';
 import { escapeHtml } from './format.js';
 
 bootPage(async ({ root, auth }) => {
@@ -10,7 +11,7 @@ bootPage(async ({ root, auth }) => {
   root.innerHTML = `
     ${renderShell({
       title: 'Settings',
-      subtitle: 'Membership pricing and one-time import.',
+      subtitle: 'Membership pricing and spreadsheet import.',
     })}
     <main class="al-main">
       <form class="al-panel al-form-grid" id="membership-form">
@@ -41,16 +42,27 @@ bootPage(async ({ root, auth }) => {
       </form>
 
       <section class="al-panel">
-        <h2 class="serif">Import from spreadsheet JSON</h2>
-        <p class="al-muted">Paste a JSON array of watches (from an xlsx export script). Duplicates by date + title + location are skipped.</p>
-        <textarea class="al-textarea" id="import-json" rows="6" placeholder='[{"watched_on":"2025-01-15","title":"Dune: Part Two","location":"AMC Lincoln Square 13","ticket_cents":2495}]'></textarea>
+        <h2 class="serif">Import from A-List Tracking.xlsx</h2>
+        <p class="al-muted">Upload your spreadsheet (Movies sheet). Duplicates by date + title + location are skipped.</p>
+        <div class="al-toolbar">
+          <input type="file" id="xlsx-file" accept=".xlsx,.xls" />
+          <button class="al-btn al-btn-primary" type="button" id="xlsx-import-btn">Upload spreadsheet</button>
+          <button class="al-btn" type="button" id="seed-import-btn">Re-import bundled log</button>
+        </div>
+        <p class="al-muted" id="import-status"></p>
+      </section>
+
+      <section class="al-panel">
+        <h2 class="serif">Import from JSON</h2>
+        <textarea class="al-textarea" id="import-json" rows="5" placeholder='[{"watched_on":"2025-01-15","title":"Dune: Part Two","ticket_cents":2495}]'></textarea>
         <div class="al-toolbar" style="margin-top:8px">
-          <button class="al-btn" type="button" id="import-btn">Import</button>
-          <span class="al-muted" id="import-status"></span>
+          <button class="al-btn" type="button" id="import-btn">Import JSON</button>
         </div>
       </section>
     </main>
   `;
+
+  const setStatus = (msg) => { document.getElementById('import-status').textContent = msg; };
 
   document.getElementById('membership-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -71,15 +83,41 @@ bootPage(async ({ root, auth }) => {
     }
   });
 
+  document.getElementById('xlsx-import-btn').addEventListener('click', async () => {
+    const file = document.getElementById('xlsx-file').files?.[0];
+    if (!file) {
+      setStatus('Choose an .xlsx file first.');
+      return;
+    }
+    setStatus('Reading spreadsheet…');
+    try {
+      const watches = await parseXlsxFile(file);
+      const result = await importApi.run(auth.token, watches);
+      setStatus(`Imported ${result.inserted} screenings (${result.skipped} duplicates skipped).`);
+    } catch (err) {
+      setStatus(err.message);
+    }
+  });
+
+  document.getElementById('seed-import-btn').addEventListener('click', async () => {
+    setStatus('Importing bundled log…');
+    try {
+      const seed = await fetch('/amc-a-lister/data/movies-bill.json').then((r) => r.json());
+      const result = await importApi.run(auth.token, seed);
+      setStatus(`Bundled log: inserted ${result.inserted}, skipped ${result.skipped}.`);
+    } catch (err) {
+      setStatus(err.message);
+    }
+  });
+
   document.getElementById('import-btn').addEventListener('click', async () => {
-    const status = document.getElementById('import-status');
-    status.textContent = 'Importing…';
+    setStatus('Importing JSON…');
     try {
       const watches = JSON.parse(document.getElementById('import-json').value);
       const result = await importApi.run(auth.token, watches);
-      status.textContent = `Inserted ${result.inserted}, skipped ${result.skipped}.`;
+      setStatus(`Inserted ${result.inserted}, skipped ${result.skipped}.`);
     } catch (err) {
-      status.textContent = err.message;
+      setStatus(err.message);
     }
   });
 });

@@ -1,5 +1,5 @@
 import { bootPage, renderShell, requireSignIn, countUp } from './nav.js';
-import { watchesApi, summaryApi } from './api.js';
+import { watchesApi, summaryApi, importApi } from './api.js';
 import { money, shortDate, monthLabel, ratingLabel, escapeHtml } from './format.js';
 
 bootPage(async ({ root, auth }) => {
@@ -17,10 +17,21 @@ bootPage(async ({ root, auth }) => {
   `;
 
   const main = document.getElementById('dash-main');
-  const [watchesRes, summaryRes] = await Promise.all([
-    watchesApi.list(auth.token),
-    summaryApi.get(auth.token),
-  ]);
+
+  let watchesRes = await watchesApi.list(auth.token);
+  if (!watchesRes.watches?.length) {
+    try {
+      const seed = await fetch('/amc-a-lister/data/movies-bill.json').then((r) => r.json());
+      if (Array.isArray(seed) && seed.length) {
+        await importApi.run(auth.token, seed);
+        watchesRes = await watchesApi.list(auth.token);
+      }
+    } catch {
+      // seed import is best-effort on first visit
+    }
+  }
+
+  const summaryRes = await summaryApi.get(auth.token);
 
   const watches = watchesRes.watches || [];
   const { summary } = summaryRes;

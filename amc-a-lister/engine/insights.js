@@ -28,7 +28,7 @@ bootPage(async ({ root, auth }) => {
         <div class="al-meter"><span style="width:${summary.currentPeriod.bill ? Math.min(100, (summary.currentPeriod.charged / summary.currentPeriod.bill) * 100) : 0}%"></span></div>
         <p style="margin:8px 0 0;font-size:0.88rem">
           ${summary.currentPeriod.savings >= 0
-    ? `<strong style="color:#7dffb0">+${money(summary.currentPeriod.savings)}</strong> ahead this period.`
+    ? `<strong style="color:#0d7a42">+${money(summary.currentPeriod.savings)}</strong> ahead this period.`
     : `Need ~<strong>${summary.currentPeriod.breakEvenTickets}</strong> more ~$15 tickets to break even.`}
         </p>
       </section>

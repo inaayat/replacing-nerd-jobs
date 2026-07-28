@@ -17,7 +17,6 @@ export function renderShell({ title, subtitle, actions = '' } = {}) {
 
   return `
     <header class="al-hero">
-      <div class="al-hero-glow" aria-hidden="true"></div>
       <div class="al-hero-inner">
         <div class="al-hero-copy">
           <p class="al-kicker brand-mono">AMC Stubs A-List</p>
