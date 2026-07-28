@@ -10,14 +10,15 @@
   max-width: 1680px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: minmax(300px, 400px) 1fr;
+  grid-template-columns: minmax(300px, 400px) minmax(0, 1fr);
   gap: 20px;
   align-items: start;
+  min-width: 0;
 }
 
 @media (max-width: 900px) {
   .pc-app-inner {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -383,20 +384,20 @@
 #pack-list-groups {
   margin-top: 8px;
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
 }
 
 @media (min-width: 900px) {
   #pack-list-groups {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     align-items: start;
   }
 }
 
 @media (min-width: 1500px) {
   #pack-list-groups {
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
   }
 }
 

@@ -192,6 +192,23 @@ inline accordion over a slide-out side panel when shown both as mockups.
   tags text field to match); typing `basics` into the tags field manually still checks the box too,
   since the array is the single source of truth either way.
 
+### Mobile overflow fix
+- On phones the page rendered zoomed out to fit content wider than the screen, and the nav header
+  wrapped text mid-word instead of reflowing cleanly. Root cause: `.pc-app-inner`'s CSS Grid columns
+  used bare `1fr`, which has an implicit content-based minimum width — any non-wrapping descendant
+  (cube titles truncated with `white-space: nowrap`, etc.) silently forced the whole grid track (and
+  therefore the page) wider than the viewport. Changed every bare `1fr` grid track (`.pc-app-inner`,
+  `#pack-list-groups` at all three breakpoints) to `minmax(0, 1fr)`, which is the standard fix — it
+  caps the track's minimum size at 0 instead of "however wide my content wants to be," so overflowing
+  children scroll/clip/ellipsis within their track instead of blowing out the layout. Verified with
+  `document.documentElement.scrollWidth` at a 375px viewport: 535px (overflowing) before, 375px
+  (exact match, no overflow) after.
+- Separately, `.pc-nav` didn't wrap as a unit, so on narrow screens the browser broke individual nav
+  labels mid-phrase ("Packing" / "Cubes" on two lines) trying to fit everything on one row. Added
+  `flex-wrap: wrap` to `.pc-nav` and `.pc-nav-links`, plus `white-space: nowrap` on the nav labels
+  themselves, so instead the brand row and links row now drop onto their own line as whole groups
+  when they don't fit.
+
 ## Explicitly out of scope (for now)
 
 - Cloud-synced suitcases / accounts (spec already marks this as a later phase; auth infra exists in
