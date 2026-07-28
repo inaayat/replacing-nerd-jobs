@@ -37,8 +37,8 @@
       }
       .item-card:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(0,0,0,0.14); }
       .item-card .icon { position: absolute; top: 10px; left: 12px; opacity: 0.55; }
-      .item-card .title { font-size: 1.15rem; line-height: 1.15; }
-      .item-card .subtitle { font-size: 0.72rem; opacity: 0.65; margin-top: 2px; }
+      .item-card .title { font-size: 1.35rem; line-height: 1.15; }
+      .item-card .subtitle { font-size: 0.85rem; opacity: 0.65; margin-top: 2px; }
 
       /* Vivid palette — use only these for live projects */
       .card-orange { background: var(--orange); }
@@ -101,30 +101,41 @@
       }
       @media (min-width: 1024px) { .sidebar { width: 420px; } }
 
-      .grid-scroll { flex: 1 1 auto; min-height: 0; padding: 16px; }
+      /* No top padding here — the grid-scroll box shares the same top edge as the sidebar
+         (both are stretched flex siblings in .page-main), so zero inset keeps the first row
+         of cards flush with the sidebar's top border instead of sitting lower. */
+      .grid-scroll { flex: 1 1 auto; min-height: 0; padding: 0 16px 16px 16px; }
       @media (min-width: 768px) { .grid-scroll { overflow-y: auto; height: 100%; } }
+
+      .sidebar-link {
+        font-size: 0.72rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: #1c1c1c;
+        opacity: 0.55;
+        text-decoration: none;
+      }
+      .sidebar-link:hover { opacity: 1; }
     </style>
   </head>
   <body class="text-gray-900 flex flex-col">
 
-    <!-- Nav -->
-    <nav class="px-4 sm:px-8 py-3 sm:py-4 flex items-center justify-between border-b" style="background:var(--cream); border-color:#1c1c1c22;">
-      <a href="/" class="serif font-semibold text-lg sm:text-2xl text-gray-900 select-none no-underline flex items-center gap-2 whitespace-nowrap">
-        <img src="/ugly-dog-images/dog-3.png" alt="" width="26" height="26" style="object-fit:contain;flex-shrink:0;" />
-        Beep boop
-      </a>
-      <div class="flex items-center gap-3 sm:gap-8 brand-mono">
-        <a href="#projects" class="text-xs sm:text-sm font-medium text-gray-900 no-underline opacity-70 hover:opacity-100 uppercase tracking-wide whitespace-nowrap">Projects</a>
-        <a href="/archive/" class="text-xs sm:text-sm font-medium text-gray-900 no-underline opacity-70 hover:opacity-100 uppercase tracking-wide whitespace-nowrap">Archive</a>
-        <a href="/account.html" class="text-xs sm:text-sm font-medium text-gray-900 no-underline opacity-70 hover:opacity-100 uppercase tracking-wide whitespace-nowrap">Account</a>
-      </div>
-    </nav>
-
     <div class="page-main px-4 sm:px-8 md:px-10 py-4 gap-4">
 
-      <!-- Sidebar: fixed full-height panel, like the inspo's left column -->
+      <!-- Sidebar: fixed full-height panel, like the inspo's left column.
+           Brand + nav links live here now instead of a separate header bar. -->
       <aside class="sidebar card-cream">
-        <div class="serif font-semibold text-2xl md:text-3xl">My Projects</div>
+        <div>
+          <a href="/" class="serif font-semibold text-2xl md:text-3xl text-gray-900 no-underline flex items-center gap-2">
+            <img src="/ugly-dog-images/dog-3.png" alt="" width="28" height="28" style="object-fit:contain;flex-shrink:0;" />
+            Beep boop
+          </a>
+          <div class="flex flex-col gap-2 mt-6 brand-mono">
+            <a href="#projects" class="sidebar-link">Projects</a>
+            <a href="/archive/" class="sidebar-link">Archive</a>
+            <a href="/account.html" class="sidebar-link">Account</a>
+          </div>
+        </div>
         <div class="subtitle brand-mono !text-xs max-w-[26ch] opacity-80">
           Tools and experiments to see if AI can replace the spreadsheet nerds.
         </div>
