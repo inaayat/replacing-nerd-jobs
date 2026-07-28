@@ -143,6 +143,20 @@ implementing (color direction, click-to-expand vs. instant toggle, add-item scop
 - `index.html` needed to load `builder.css` too, since the inline modal renders builder-specific
   markup (`.b-step`, `.b-mode-toggle`, etc.) that previously only `builder.html` loaded.
 
+### Submit a suitcase via PR
+- Since suitcases only ever live in `localStorage` (no accounts yet), added a way to back one up
+  through the repo the same way an anonymous visitor submits a cube: a new `api/save-suitcase.js`
+  endpoint takes the full suitcase object, opens a `suitcase-submissions/<slug>-<timestamp>` branch,
+  writes it to `packing-cubes/suitcases/<slug>-<timestamp>.json`, and opens a PR — no owner
+  direct-publish shortcut, since a suitcase isn't part of a curated catalog the way cubes are, so
+  every submission goes through review regardless of login state.
+- A "Submit via PR" button sits next to the "saved automatically" footer note. Clicking it prompts
+  for an optional attribution name (mirroring the cube builder's "Your name" field) and POSTs the
+  active suitcase as-is (trip name, cube list, custom items, packed state, hidden items) — a literal
+  snapshot, not a re-usable template with personal progress stripped out.
+- No read-back/import UI was built (browsing or restoring a submitted suitcase) — out of scope for
+  what was asked; this is a one-way backup/save mechanism for now.
+
 ## Explicitly out of scope (for now)
 
 - Cloud-synced suitcases / accounts (spec already marks this as a later phase; auth infra exists in

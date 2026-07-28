@@ -610,7 +610,10 @@ function renderSuitcase() {
       <button type="button" class="pc-hidden-toggle hidden" id="hidden-items-toggle"></button>
       <div id="hidden-items-wrap"></div>
     </div>
-    <p class="pc-footer-note">Saved automatically in this browser — won't sync to other devices.</p>
+    <div class="pc-suitcase-footer">
+      <p class="pc-footer-note">Saved automatically in this browser — won't sync to other devices.</p>
+      <button type="button" class="pc-btn sm" id="submit-suitcase-btn">Submit via PR</button>
+    </div>
   `;
 
   document.getElementById('suitcase-select').addEventListener('change', (e) => {
@@ -658,7 +661,30 @@ function renderSuitcase() {
     renderPackList();
   });
 
+  document.getElementById('submit-suitcase-btn').addEventListener('click', () => submitSuitcasePR(suitcase));
+
   renderPackList();
+}
+
+async function submitSuitcasePR(suitcase) {
+  const submitter = (prompt('Optional: how should we credit you? (leave blank to submit anonymously)') || '').trim();
+  const btn = document.getElementById('submit-suitcase-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
+  try {
+    const res = await fetch('/api/save-suitcase', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ suitcase, submitter }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+    showToast('Submitted! Your suitcase is waiting for review.');
+    if (data.prUrl) console.info('Suitcase PR:', data.prUrl);
+  } catch (err) {
+    showToast(`Couldn't submit: ${err.message}`);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Submit via PR'; }
+  }
 }
 
 function updateHud(suitcase, items) {

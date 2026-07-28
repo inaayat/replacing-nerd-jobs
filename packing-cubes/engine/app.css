@@ -445,13 +445,22 @@
   font-size: 0.9rem;
 }
 
+.pc-suitcase-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 20px 20px;
+}
+
 .pc-footer-note {
   text-align: center;
   font-size: 0.7rem;
   font-weight: 600;
   color: var(--brown);
-  padding: 12px 20px 20px;
   opacity: 0.7;
+  margin: 0;
 }
 
 .pc-cube-card[data-color="green"] .pc-cube-icon { background: var(--blue-soft); }
