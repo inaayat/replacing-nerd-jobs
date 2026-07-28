@@ -131,6 +131,20 @@ async function writeCubeFiles(finalCube, branch, submitted) {
   );
 }
 
+async function removeFromCatalogIndex(cubeId) {
+  const indexPath = `${CUBES_DIR}/index.json`;
+  const existing = await getJsonFile(indexPath);
+  if (!existing || !Array.isArray(existing.json)) return;
+  const updated = existing.json.filter((entry) => entry.id !== cubeId);
+  if (updated.length === existing.json.length) return;
+  await putJsonFile(
+    indexPath,
+    updated,
+    existing.sha,
+    `Remove ${cubeId} from cube catalog index`
+  );
+}
+
 export default async function handler(req, res) {
   if (req.method === 'GET') {
     res.status(200).json({ authed: await isAuthed(req.headers.cookie) });
@@ -160,6 +174,7 @@ export default async function handler(req, res) {
         return;
       }
       await deleteJsonFile(cubePath, existing.sha, `Delete cube: ${existing.json.title || cubeId}`);
+      await removeFromCatalogIndex(cubeId);
       res.status(200).json({ id: cubeId });
     } catch (err) {
       res.status(502).json({ error: err.message });

@@ -627,6 +627,7 @@ async function deleteCubeEverywhere(cubeId, title) {
     cubeCache.delete(cubeId);
     expandedCubeIds.delete(cubeId);
     stagedItemsByCube.delete(cubeId);
+    catalog = catalog.filter((c) => c.id !== cubeId);
     await refreshCatalog();
     showToast(`Deleted "${title}" — its items were kept as custom items`);
   } catch (err) {
