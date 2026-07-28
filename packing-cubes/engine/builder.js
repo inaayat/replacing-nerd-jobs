@@ -59,8 +59,8 @@ export function initBuilder({ root, editId = null, onPublished, onClose } = {}) 
           <p class="b-upload-hint">Upload or paste a complete cube JSON. It must include <code>title</code> and an <code>items</code> array with at least 2 entries. See examples on <a href="https://github.com/inaayat/replacing-nerd-jobs/tree/main/packing-cubes/cubes" target="_blank" rel="noopener">GitHub</a>.</p>
           <input type="file" id="json-file" accept=".json,application/json">
           <div class="b-upload-or">— or paste it below —</div>
-          <textarea class="b-mini-input" id="json-paste" rows="10" placeholder='{ "title": "...", "items": [...] }'></textarea>
-          <button type="button" class="pc-btn primary" id="json-load" style="margin-top:8px">Load this JSON</button>
+          <textarea class="b-mini-input" id="json-paste" rows="6" placeholder='{ "title": "...", "items": [...] }'></textarea>
+          <button type="button" class="pc-btn primary" id="json-load" style="margin-top:6px">Load this JSON</button>
           <div class="b-upload-status" id="json-status"></div>
         </div>
       </div>
@@ -79,9 +79,9 @@ export function initBuilder({ root, editId = null, onPublished, onClose } = {}) 
         <div class="b-publish-card">
           <div class="b-field" id="id-field"><label>${isEditing ? 'Cube ID (fixed while editing)' : 'Cube ID (auto, editable)'}</label><input type="text" id="f-id" ${isEditing ? 'disabled' : ''}></div>
           <div class="b-id-preview" id="id-preview"></div>
-          <div class="b-field" id="submitter-field" style="margin-top:8px"><label>Your name (optional)</label><input type="text" id="f-submitter" placeholder="How should we credit you?"></div>
+          <div class="b-field" id="submitter-field" style="margin-top:6px"><label>Your name (optional)</label><input type="text" id="f-submitter" placeholder="How should we credit you?"></div>
           <div class="b-validation hidden" id="validation-hint"></div>
-          <button type="button" class="pc-btn primary" id="publish-btn" style="margin-top:10px;width:100%">Submit for review</button>
+          <button type="button" class="pc-btn primary" id="publish-btn" style="margin-top:8px;width:100%">Submit for review</button>
           <div class="b-toast" id="publish-toast"></div>
         </div>
       </div>
