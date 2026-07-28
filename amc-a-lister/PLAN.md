@@ -2,19 +2,23 @@
 
 Replace the personal **A-List Tracking.xlsx** workbook with a site at
 `/amc-a-lister/` on inaayat.xyz. Same job as the spreadsheet (log every A-List
-screening, bill vs. ticket savings, Oscar bingo), plus richer movie metadata and
-a proper **logged-in** watch log — using the same Neon Auth pattern the site
-already documents for visitor features (`account.html` → JWT → `/api/*` → Neon).
+screening, bill vs. ticket savings), plus richer movie metadata and a proper
+**logged-in** watch log — using the same Neon Auth pattern the site already
+documents for visitor features (`account.html` → JWT → `/api/*` → Neon).
 
 This file is the build record. Decisions already made from the spreadsheet audit
 are marked; open questions that need a product call before coding are listed at
 the bottom.
 
+**Out for now:** Oscars tracking / bingo (present in the sheet as `Oscars 2025`
+/ `Oscars 2026`) is deferred — do not build pages, data files, or insights for
+it in this plan’s scope.
+
 ---
 
 ## What the spreadsheet already does
 
-Source: `A-List Tracking.xlsx` (5 sheets).
+Source: `A-List Tracking.xlsx` (relevant sheets below; Oscars sheets ignored).
 
 ### `Movies` (canonical log — ~99 rows)
 Per screening:
@@ -47,11 +51,6 @@ Treat as historical import source only — not a live UI mode.
 Second person's log (same schema, fewer detail columns). Confirms the app needs
 **multi-profile / multi-user** support, not a single hard-coded diary.
 
-### `Oscars 2025` / `Oscars 2026`
-Category × nominee × **Seen?** checklist, plus (2025) a deduped "all nominated
-films" list and a US weekend #1 box-office column. Seen flags are currently
-manual; the site should auto-derive them from the watch log when titles match.
-
 ---
 
 ## Product goal
@@ -65,8 +64,7 @@ Core jobs:
 
 1. Log a screening in under 30 seconds.
 2. See whether A-List is paying for itself this billing period.
-3. Chase Oscars / "must-see" lists against what's already watched.
-4. Enjoy richer data the spreadsheet never had (posters, genres, runtime,
+3. Enjoy richer data the spreadsheet never had (posters, genres, runtime,
    rewatch count, theater habits, value forecasts).
 
 ---
@@ -103,7 +101,6 @@ proves the pattern first.
 ├── index.html              ← dashboard (HUD + recent + add CTA)
 ├── log.html                ← full watch history (filter/sort)
 ├── add.html                ← add/edit screening (also modal from index)
-├── oscars.html             ← season picker + seen bingo
 ├── insights.html           ← cool new data / charts
 ├── settings.html           ← membership price tiers, import
 ├── icon.svg
@@ -164,7 +161,7 @@ CREATE TABLE IF NOT EXISTS alist_watches (
 CREATE INDEX IF NOT EXISTS alist_watches_user_date
   ON alist_watches (user_id, watched_on DESC);
 
--- Optional cache so Oscar pages don't hammer TMDB
+-- Optional cache so lookups don't hammer TMDB
 CREATE TABLE IF NOT EXISTS alist_movie_cache (
   tmdb_id          INT PRIMARY KEY,
   title            TEXT NOT NULL,
@@ -176,10 +173,6 @@ CREATE TABLE IF NOT EXISTS alist_movie_cache (
   fetched_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ```
-
-Oscar nominee lists can start as static JSON under `amc-a-lister/data/oscars-2025.json`
-(seeded from the sheet) and grow via owner edits or a later scrape — no need for
-DB until seasons are user-editable.
 
 ---
 
@@ -197,8 +190,6 @@ DB until seasons are user-editable.
 - History table with search, theater filter, format filter, alone-only, DNF-only.
 - **Import**: paste/upload a JSON export of the sheet (script converts xlsx → JSON
   once; import endpoint upserts by `(user_id, watched_on, title, location)`).
-- **Oscars bingo**: load season JSON; mark Seen from watch titles (fuzzy match
-  + manual override); show % of Best Picture / all nominees seen.
 
 ### 2. Cool new data (post-MVP, ship in the same app shell)
 
@@ -214,15 +205,13 @@ These are the upgrades the spreadsheet can't do well:
 | **Rewatch detector** | Same `tmdb_id` seen twice (Wicked, Sinners, …) | Group by tmdb_id |
 | **Rating distribution & DNF rate** | Taste profile | ratings + dnf |
 | **Genre / runtime mix** | "Am I only watching 2.5h event movies?" | TMDB cache |
-| **Oscar completion radar** | Category coverage vs peers | Oscars JSON ∩ watches |
-| **Weekend #1 chase** | Did I see the #1 film that week? | Seed box-office list from sheet; optional future BO API |
 | **Companion compare** (Bill ↔ Karan) | Side-by-side if both accounts opt in to a shared "household" link | Later: `alist_household` join table — **out of MVP** |
-| **Now playing vs unseen Oscars** | "What's in theaters that I still need for Oscar bingo?" | TMDB now_playing ∩ unseen nominees |
 
-Ship cool-data features behind the **Insights** page so the log stay snappy.
+Ship cool-data features behind the **Insights** page so the log stays snappy.
 
 ### 3. Explicitly out of scope (v1)
 
+- Oscars tracking / nominee bingo (deferred; may return later).
 - Scraping AMC.com reservations / auto-import from A-List account.
 - Payments or real AMC account OAuth.
 - Public social feed / followers.
@@ -245,10 +234,10 @@ Proposed direction (tokens in `engine/app.css`):
   (avoid Inter/Roboto/system defaults; pick a distinct pairing).
 - **Hero:** full-bleed theater atmosphere; brand is hero-level; one CTA group.
 - **Motion (2–3 intentional):** HUD number count-up on load; add-form slide;
-  Oscar "Seen" stamp.
+  savings meter ease-in.
 - **No card-soup dashboard** in the first viewport; tables/lists below.
 
-Nav pattern (like packing-cubes): brand · Log · Oscars · Insights · Account link.
+Nav pattern (like packing-cubes): brand · Log · Insights · Account link.
 
 ---
 
@@ -282,6 +271,7 @@ Edge cases:
 
 Unit-test `billing.js` with calendar-month fixtures (promo month, first
 $24.95 month, first $27.99 month).
+
 ---
 
 ## Implementation phases
@@ -297,16 +287,14 @@ $24.95 month, first $27.99 month).
 - Add/edit form; history table; billing HUD + monthly rollup.
 - Seed default membership settings on first login.
 
-### Phase 2 — Import + Oscars
+### Phase 2 — Import
 - One-time xlsx→JSON converter script in `scripts/`; import API.
 - Import owner's `Movies` (and optionally `Karan Movies` into Karan's account).
-- `oscars.html` with 2025/2026 data files + auto Seen matching.
 
 ### Phase 3 — Cool data
 - TMDB proxy lookup + poster UI on add form.
 - Insights page: value meter, theater ranking, format premiums, rating chart,
-  rewatch list, Oscar radar.
-- Optional: now-playing ∩ unseen nominees widget.
+  rewatch list.
 
 ### Phase 4 — Polish
 - Mobile pass, empty states, a11y labels, README blurb, favicon.
@@ -339,10 +327,9 @@ $24.95 month, first $27.99 month).
 
 ## Success criteria
 
-- Logged-in user can replace day-to-day use of the Excel file.
+- Logged-in user can replace day-to-day use of the Excel file (watch log + billing).
 - HUD numbers for an imported `Movies` sheet match under **1st-of-month** billing
   and the configured price tiers (may diverge from Excel’s 28th-roll totals).
 - Adding a watch is gated on Neon Auth; signed-out users cannot mutate.
-- Oscars page reflects watches without manual Seen toggling for exact title hits.
 - At least three "cool data" insights live on Insights that the sheet did not
   surface visually.
