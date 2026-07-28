@@ -97,11 +97,11 @@ implementing (color direction, click-to-expand vs. instant toggle, add-item scop
   user's choice) and widened the left panel's column range. The checklist grid also now goes to
   three columns above 1500px viewport width, since there's room to use.
 
-### Expand-first cube cards
-- Clicking a cube card no longer instantly toggles it in/out of the suitcase — it always opens the
-  expanded preview first (the old separate "peek" eye icon is gone; the card *is* the preview
-  trigger now). Adding/removing only happens via the explicit button inside that view. Cards show a
-  small non-interactive checkmark badge when already in the suitcase, instead of a clickable +/✓ toggle.
+### Expand-first cube cards (superseded by inline accordion — see Round 3)
+- Clicking a cube card no longer instantly toggles it in/out of the suitcase — it opens the expanded
+  preview first (the old separate "peek" eye icon is gone; the card *is* the preview trigger now).
+  Cards show a small non-interactive checkmark badge when already in the suitcase. (Round 3 replaced
+  the centered popup with an inline accordion and brought back a quick-add control — see below.)
 
 ### Add an item while previewing (both scopes)
 - Inside the expanded cube view you can stage one or more extra items before committing. A checkbox
@@ -156,6 +156,41 @@ implementing (color direction, click-to-expand vs. instant toggle, add-item scop
   snapshot, not a re-usable template with personal progress stripped out.
 - No read-back/import UI was built (browsing or restoring a submitted suitcase) — out of scope for
   what was asked; this is a one-way backup/save mechanism for now.
+
+## Round 3 — inline accordion instead of a popup, quick-add, "mark as Basic"
+
+The centered preview modal read as a heavier interruption than intended, and the user picked an
+inline accordion over a slide-out side panel when shown both as mockups.
+
+### Inline accordion (replaces the preview modal)
+- Clicking a cube card's header now expands it in place — the card grows taller within the
+  "Available Cubes" list, pushing other cards down, instead of opening a centered popup. Only one
+  cube is expanded at a time; clicking its header again (or a different card's header, or Escape)
+  collapses it. The `#preview-overlay`/`#preview-modal` markup is gone entirely; the builder's
+  create/edit popup (`#builder-overlay`) is untouched, since that one wasn't part of this ask.
+- Since only one cube can be expanded at once, the expanded body's internal controls
+  (`#stage-input`, `#preview-commit`, etc.) keep the same static ids they had in the modal — there's
+  never a second copy in the DOM to collide with.
+- The expanded body carries over everything the modal had: item list, stage-an-item input with the
+  "also publish/suggest permanently" checkbox, and the dynamic primary button (Add to
+  suitcase / Add item(s) to suitcase / Remove from suitcase).
+- Owner-only "Edit this cube" and "Delete this cube" links now live inside the expanded body too
+  (previously delete was modal-only and edit was header-pencil-only), so both actions are reachable
+  once you've expanded a cube, not just from the collapsed row.
+
+### Quick-add without expanding
+- Each collapsed card header has its own small "+" / checkmark button (separate from the pencil
+  edit icon and from clicking the header to expand) that adds or removes the cube from the suitcase
+  immediately, no expansion needed — the fast path for someone who already knows what's in a cube.
+  You can still add/remove after expanding via the button described above; both paths write through
+  the same `addCubeToSuitcase`/`removeCubeFromSuitcase` functions.
+
+### Mark a cube as "Basic" from the builder
+- The builder form's "Cube details" step has a "Mark as a Basic" checkbox now, instead of requiring
+  someone to type the literal word `basics` into the freeform tags field. It's just a friendly view
+  onto the same `tags` array — checking it adds `"basics"` to `cube.tags` (and updates the visible
+  tags text field to match); typing `basics` into the tags field manually still checks the box too,
+  since the array is the single source of truth either way.
 
 ## Explicitly out of scope (for now)
 

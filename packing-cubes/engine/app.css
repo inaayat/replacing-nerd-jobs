@@ -101,20 +101,15 @@
 }
 
 .pc-cube-card {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
   background: var(--card);
   border: var(--outline);
   border-radius: var(--radius-sm);
-  cursor: pointer;
   transition: background 0.12s ease, border-color 0.12s ease;
   text-align: left;
+  overflow: hidden;
 }
 
 .pc-cube-card:hover {
-  background: var(--cream);
   border-color: var(--grey);
 }
 
@@ -125,6 +120,35 @@
 
 .pc-cube-card.is-basic {
   border-color: var(--purple);
+}
+
+.pc-cube-card.expanded {
+  border-color: var(--ink);
+}
+
+.pc-cube-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+
+.pc-cube-chevron {
+  flex-shrink: 0;
+  display: flex;
+  color: var(--brown);
+  transition: transform 0.15s ease;
+}
+
+.pc-cube-card.expanded .pc-cube-chevron {
+  transform: rotate(180deg);
+}
+
+.pc-cube-expand {
+  padding: 4px 12px 14px;
+  border-top: 1px dashed var(--grey-soft);
+  text-align: left;
 }
 
 .pc-cube-icon {
@@ -201,16 +225,67 @@
   color: var(--ink);
 }
 
-.pc-cube-status {
+.pc-cube-quick-add {
   flex-shrink: 0;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
+  border: var(--outline);
   border-radius: 50%;
-  background: var(--gold);
-  color: #fff;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.pc-cube-quick-add:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+.pc-cube-quick-add.added {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #fff;
+}
+
+.pc-cube-quick-add.added:hover {
+  background: #e8892f;
+  border-color: #e8892f;
+  color: #fff;
+}
+
+.pc-cube-expand .pc-tags {
+  justify-content: flex-start;
+}
+
+.pc-expand-actions {
+  margin-top: 12px;
+}
+
+.pc-expand-link {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 4px;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--brown);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: underline;
+}
+
+.pc-expand-link:hover {
+  color: var(--ink);
 }
 
 .pc-no-results {

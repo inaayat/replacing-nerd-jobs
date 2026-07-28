@@ -19,7 +19,9 @@ let showHiddenItems = false;
 let isOwner = false;
 const collapsedGroups = new Set();
 
-// Preview-modal-local staging state (reset each time a preview opens)
+// Accordion: which cube (if any) is currently expanded inline, and the
+// item(s) staged for it (reset whenever the expanded cube changes).
+let expandedCubeId = null;
 let stagedItems = [];
 
 const cubeCache = new Map();
@@ -236,10 +238,6 @@ function render() {
       </main>
     </div>
 
-    <div class="pc-preview-overlay hidden" id="preview-overlay">
-      <div class="pc-preview-modal" id="preview-modal" role="dialog" aria-modal="true"></div>
-    </div>
-
     <div class="pc-preview-overlay hidden" id="builder-overlay">
       <div class="pc-preview-modal pc-builder-modal" id="builder-modal-root" role="dialog" aria-modal="true"></div>
     </div>
@@ -250,16 +248,17 @@ function render() {
     renderCubeList();
   });
 
-  document.getElementById('preview-overlay').addEventListener('click', (e) => {
-    if (e.target.id === 'preview-overlay') closePreview();
-  });
   document.getElementById('builder-overlay').addEventListener('click', (e) => {
     if (e.target.id === 'builder-overlay') closeBuilderModal();
   });
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
-    closePreview();
     closeBuilderModal();
+    if (expandedCubeId) {
+      expandedCubeId = null;
+      stagedItems = [];
+      renderCubeList();
+    }
   });
 
   renderCubeList();
@@ -282,30 +281,36 @@ function renderCubeList() {
     const inSuitcase = suitcase.cubeIds.includes(c.id);
     const basic = isBasicCube(c);
     const color = cubeColor(c, i);
+    const expanded = c.id === expandedCubeId;
     return `
-      <div class="pc-cube-card ${inSuitcase ? 'in-suitcase' : ''} ${basic ? 'is-basic' : ''}"
-           data-color="${color}" data-cube-id="${c.id}" role="button" tabindex="0"
-           aria-haspopup="dialog" aria-label="View ${escapeAttr(c.title)}">
-        <div class="pc-cube-icon">${BAG_SVG}</div>
-        <div class="pc-cube-info">
-          <div class="title">
-            ${escapeHtml(c.title)}
-            ${basic ? '<span class="pc-cube-badge">Basic</span>' : ''}
+      <div class="pc-cube-card ${inSuitcase ? 'in-suitcase' : ''} ${basic ? 'is-basic' : ''} ${expanded ? 'expanded' : ''}"
+           data-color="${color}" data-cube-id="${c.id}">
+        <div class="pc-cube-card-header" role="button" tabindex="0" aria-expanded="${expanded}"
+             aria-label="${expanded ? 'Collapse' : 'Expand'} ${escapeAttr(c.title)}">
+          <div class="pc-cube-icon">${BAG_SVG}</div>
+          <div class="pc-cube-info">
+            <div class="title">
+              ${escapeHtml(c.title)}
+              ${basic ? '<span class="pc-cube-badge">Basic</span>' : ''}
+            </div>
+            <div class="blurb">${escapeHtml(c.blurb || '')}</div>
           </div>
-          <div class="blurb">${escapeHtml(c.blurb || '')}</div>
+          ${isOwner ? `<button type="button" class="pc-cube-edit" data-edit-id="${c.id}" title="Edit cube" aria-label="Edit ${escapeAttr(c.title)}">${EDIT_SVG}</button>` : ''}
+          <button type="button" class="pc-cube-quick-add ${inSuitcase ? 'added' : ''}" data-quick-id="${c.id}"
+            title="${inSuitcase ? 'Remove from suitcase' : 'Add to suitcase'}" aria-label="${inSuitcase ? 'Remove' : 'Add'} ${escapeAttr(c.title)}">${inSuitcase ? CHECK_SVG : '+'}</button>
+          <span class="pc-cube-chevron">${CHEVRON_SVG}</span>
         </div>
-        ${isOwner ? `<button type="button" class="pc-cube-edit" data-edit-id="${c.id}" title="Edit cube" aria-label="Edit ${escapeAttr(c.title)}">${EDIT_SVG}</button>` : ''}
-        ${inSuitcase ? `<span class="pc-cube-status" title="In your suitcase" aria-label="In your suitcase">${CHECK_SVG}</span>` : ''}
+        ${expanded ? `<div class="pc-cube-expand" id="cube-expand">${expandBodyHtml(c.id)}</div>` : ''}
       </div>`;
   }).join('');
 
-  mount.querySelectorAll('.pc-cube-card').forEach((card) => {
-    const open = () => openPreview(card.dataset.cubeId);
-    card.addEventListener('click', open);
-    card.addEventListener('keydown', (e) => {
+  mount.querySelectorAll('.pc-cube-card-header').forEach((header) => {
+    const toggle = () => toggleCubeExpand(header.closest('.pc-cube-card').dataset.cubeId);
+    header.addEventListener('click', toggle);
+    header.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        open();
+        toggle();
       }
     });
   });
@@ -316,6 +321,15 @@ function renderCubeList() {
       openBuilderModal(btn.dataset.editId);
     });
   });
+
+  mount.querySelectorAll('.pc-cube-quick-add').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      quickToggleCube(btn.dataset.quickId);
+    });
+  });
+
+  if (expandedCubeId) bindExpandInteractions(expandedCubeId);
 }
 
 function addCubeToSuitcase(cubeId) {
@@ -330,31 +344,33 @@ function removeCubeFromSuitcase(cubeId) {
   saveState();
 }
 
-async function openPreview(cubeId) {
-  const overlay = document.getElementById('preview-overlay');
-  const modal = document.getElementById('preview-modal');
-  if (!overlay || !modal) return;
-
-  stagedItems = [];
-  const catalogEntry = catalog.find((c) => c.id === cubeId);
-  modal.innerHTML = `<p class="pc-preview-loading">Loading…</p>`;
-  overlay.classList.remove('hidden');
-
-  let cube;
-  try {
-    cube = await fetchCube(cubeId);
-  } catch {
-    modal.innerHTML = `<p class="pc-preview-loading">Could not load that cube.</p>
-      <button type="button" class="pc-btn sm" id="preview-close">Close</button>`;
-    document.getElementById('preview-close').addEventListener('click', closePreview);
-    return;
+function quickToggleCube(cubeId) {
+  const suitcase = activeSuitcase();
+  if (suitcase.cubeIds.includes(cubeId)) {
+    removeCubeFromSuitcase(cubeId);
+  } else {
+    addCubeToSuitcase(cubeId);
   }
+  renderCubeList();
+  renderPackList();
+}
 
+function toggleCubeExpand(cubeId) {
+  expandedCubeId = expandedCubeId === cubeId ? null : cubeId;
+  stagedItems = [];
+  renderCubeList();
+}
+
+function expandBodyHtml(cubeId) {
+  const cube = cubeCache.get(cubeId);
+  if (!cube) return `<p class="pc-preview-loading">Loading…</p>`;
+  return buildExpandContent(cubeId, cube);
+}
+
+function buildExpandContent(cubeId, cube) {
+  const catalogEntry = catalog.find((c) => c.id === cubeId);
   const tags = (catalogEntry?.tags || cube.tags || []).map((t) => `<span class="pc-tag">${escapeHtml(t)}</span>`).join('');
-
-  modal.innerHTML = `
-    <button type="button" class="pc-preview-close" id="preview-close" aria-label="Close preview">&times;</button>
-    <h2 class="pc-preview-title">${escapeHtml(cube.title)}</h2>
+  return `
     <p class="pc-preview-blurb">${escapeHtml(cube.blurb || '')}</p>
     <div class="pc-tags">${tags}</div>
     <ul class="pc-preview-items">
@@ -372,16 +388,41 @@ async function openPreview(cubeId) {
         ${isOwner ? 'Also publish this to the cube for everyone' : 'Also suggest this as a permanent addition (opens a PR)'}
       </label>
     </div>
-    <button type="button" class="pc-btn primary" id="preview-commit" style="width:100%;margin-top:12px"></button>
-    ${isOwner ? `<button type="button" class="pc-delete-cube-btn" id="delete-cube-btn">Delete this cube</button>` : ''}
+    <div class="pc-expand-actions">
+      <button type="button" class="pc-btn primary" id="preview-commit" style="width:100%"></button>
+      ${isOwner ? `
+        <button type="button" class="pc-expand-link" id="edit-cube-link">Edit this cube</button>
+        <button type="button" class="pc-delete-cube-btn" id="delete-cube-btn">Delete this cube</button>
+      ` : ''}
+    </div>
   `;
+}
 
-  document.getElementById('preview-close').addEventListener('click', closePreview);
+function bindExpandInteractions(cubeId) {
+  const container = document.getElementById('cube-expand');
+  if (!container) return;
+
+  const cube = cubeCache.get(cubeId);
+  if (!cube) {
+    fetchCube(cubeId)
+      .then(() => {
+        if (expandedCubeId !== cubeId) return;
+        container.innerHTML = expandBodyHtml(cubeId);
+        bindExpandInteractions(cubeId);
+      })
+      .catch(() => {
+        container.innerHTML = `<p class="pc-preview-loading">Could not load that cube.</p>`;
+      });
+    return;
+  }
+
   document.getElementById('stage-add-btn').addEventListener('click', () => addStagedItem(cubeId));
   document.getElementById('stage-input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); addStagedItem(cubeId); }
   });
-  document.getElementById('preview-commit').addEventListener('click', () => commitPreview(cubeId));
+  document.getElementById('preview-commit').addEventListener('click', () => commitExpand(cubeId));
+  const editLink = document.getElementById('edit-cube-link');
+  if (editLink) editLink.addEventListener('click', () => openBuilderModal(cubeId));
   const deleteBtn = document.getElementById('delete-cube-btn');
   if (deleteBtn) deleteBtn.addEventListener('click', () => deleteCubeEverywhere(cubeId, cube.title));
 
@@ -452,7 +493,7 @@ async function publishItemsToCube(cubeId, newLabels) {
   return data;
 }
 
-async function commitPreview(cubeId) {
+async function commitExpand(cubeId) {
   const suitcase = activeSuitcase();
   const wasInSuitcase = suitcase.cubeIds.includes(cubeId);
   const permanentCheckbox = document.getElementById('stage-permanent');
@@ -469,7 +510,8 @@ async function commitPreview(cubeId) {
   }
   saveState();
 
-  closePreview();
+  expandedCubeId = null;
+  stagedItems = [];
   renderCubeList();
   renderPackList();
 
@@ -482,11 +524,6 @@ async function commitPreview(cubeId) {
       showToast(`Couldn't make it permanent: ${err.message}`);
     }
   }
-}
-
-function closePreview() {
-  const overlay = document.getElementById('preview-overlay');
-  if (overlay) overlay.classList.add('hidden');
 }
 
 function openBuilderModal(editId) {
@@ -567,7 +604,8 @@ async function deleteCubeEverywhere(cubeId, title) {
     }
     saveState();
     cubeCache.delete(cubeId);
-    closePreview();
+    expandedCubeId = null;
+    stagedItems = [];
     await refreshCatalog();
     showToast(`Deleted "${title}" — its items were kept as custom items`);
   } catch (err) {

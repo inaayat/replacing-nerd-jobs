@@ -38,6 +38,10 @@ export function initBuilder({ root, editId = null, onPublished, onClose } = {}) 
           <div class="b-field" style="grid-column:1/-1"><label>Title</label><input type="text" id="f-title" placeholder="e.g. Summer beach essentials"></div>
           <div class="b-field" style="grid-column:1/-1"><label>Blurb</label><input type="text" id="f-blurb" placeholder="Short description"></div>
           <div class="b-field" style="grid-column:1/-1"><label>Tags (comma-separated)</label><input type="text" id="f-tags" placeholder="basics, summer, beach"></div>
+          <label class="pc-toggle-chip" style="grid-column:1/-1">
+            <input type="checkbox" id="f-basic">
+            Mark as a Basic (included in every new suitcase by default)
+          </label>
         </div>
       </div>
 
@@ -84,6 +88,13 @@ export function initBuilder({ root, editId = null, onPublished, onClose } = {}) 
     `));
 
     ['f-title', 'f-blurb', 'f-tags'].forEach((id) => root.querySelector('#' + id).addEventListener('input', onFieldsChange));
+    root.querySelector('#f-basic').addEventListener('change', (e) => {
+      const tags = new Set(cube.tags.map((t) => t.toLowerCase()));
+      if (e.target.checked) tags.add('basics'); else tags.delete('basics');
+      cube.tags = [...tags];
+      root.querySelector('#f-tags').value = cube.tags.join(', ');
+      updatePreview();
+    });
     root.querySelector('#f-id').addEventListener('input', () => { idManuallyEdited = true; updatePreview(); });
     root.querySelector('#publish-btn').addEventListener('click', publish);
     root.querySelector('#add-item-btn').addEventListener('click', () => { cube.items.push({ label: '' }); renderEditor(); });
@@ -130,6 +141,7 @@ export function initBuilder({ root, editId = null, onPublished, onClose } = {}) 
     cube.title = root.querySelector('#f-title').value;
     cube.blurb = root.querySelector('#f-blurb').value;
     cube.tags = dedupeTags(root.querySelector('#f-tags').value.split(',').map((s) => s.trim()).filter(Boolean));
+    root.querySelector('#f-basic').checked = cube.tags.some((t) => t.toLowerCase() === 'basics');
     updatePreview();
   }
 
