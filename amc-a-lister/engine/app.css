@@ -630,54 +630,39 @@ table.al-table {
   margin-top: 16px;
 }
 
-.al-compare-header {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px 24px;
-  justify-content: space-between;
+.al-compare-lead {
+  margin: -4px 0 12px;
+}
+
+.al-compare-toolbar {
+  margin-bottom: 0;
   align-items: flex-end;
-  margin-bottom: 18px;
 }
 
-.al-compare-header h2 {
-  margin: 0 0 4px;
-  font-size: 1.35rem;
-}
-
-.al-compare-form {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: min(100%, 320px);
-}
-
-.al-compare-label {
-  font-size: 0.72rem;
-  color: var(--al-muted);
-}
-
-.al-compare-controls {
-  display: flex;
-  gap: 8px;
-}
-
-.al-compare-select {
-  flex: 1;
-  min-width: 0;
-}
-
-.al-compare-placeholder {
+.al-compare-field {
+  flex: 1 1 220px;
+  max-width: 280px;
   margin: 0;
 }
 
-.al-compare-summary {
-  margin-bottom: 18px;
+.al-compare-select {
+  width: 100%;
+}
+
+.al-compare-status {
+  margin: 10px 0 0;
+}
+
+.al-compare-results {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--al-line);
 }
 
 .al-compare-section + .al-compare-section {
-  margin-top: 22px;
-  padding-top: 18px;
-  border-top: 1px solid var(--al-line);
+  margin-top: 18px;
+  padding-top: 0;
+  border-top: 0;
 }
 
 .al-compare-section-head {
@@ -689,7 +674,13 @@ table.al-table {
 
 .al-compare-section-head h3 {
   margin: 0;
-  font-size: 1.05rem;
+  font-family: var(--al-font-display);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.al-compare-section > .al-muted {
+  margin: 2px 0 10px;
 }
 
 .al-compare-count {

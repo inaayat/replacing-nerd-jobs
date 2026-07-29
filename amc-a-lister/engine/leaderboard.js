@@ -88,7 +88,7 @@ function renderComparePanel(others, currentUserId) {
   if (!others.length) {
     return `
       <section class="al-panel al-compare-panel">
-        <h2 class="serif">Compare your stats</h2>
+        <h2>Compare your stats</h2>
         <p class="al-muted">You need at least one other account to compare watch logs.</p>
       </section>
     `;
@@ -99,26 +99,22 @@ function renderComparePanel(others, currentUserId) {
 
   return `
     <section class="al-panel al-compare-panel" id="al-compare-panel">
-      <div class="al-compare-header">
-        <div>
-          <h2 class="serif">Compare your stats</h2>
-          <p class="al-muted">See shared movies, gaps, disagreements, and mutual favorites.</p>
+      <h2>Compare your stats</h2>
+      <p class="al-muted al-compare-lead">See shared movies, gaps, disagreements, and mutual favorites.</p>
+      <form class="al-toolbar al-compare-toolbar" id="al-compare-form">
+        <div class="al-field al-compare-field">
+          <label for="al-compare-select">Compare with</label>
+          <select class="al-input al-compare-select" id="al-compare-select" name="with">
+            <option value="">Choose a member…</option>
+            ${others.map((entry) => `
+              <option value="${escapeHtml(entry.userId)}"${entry.userId === selected ? ' selected' : ''}>
+                ${escapeHtml(entry.displayName)}
+              </option>
+            `).join('')}
+          </select>
         </div>
-        <form class="al-compare-form" id="al-compare-form">
-          <label class="al-compare-label" for="al-compare-select">Compare with</label>
-          <div class="al-compare-controls">
-            <select class="al-input al-compare-select" id="al-compare-select" name="with">
-              <option value="">Choose a member…</option>
-              ${others.map((entry) => `
-                <option value="${escapeHtml(entry.userId)}"${entry.userId === selected ? ' selected' : ''}>
-                  ${escapeHtml(entry.displayName)}
-                </option>
-              `).join('')}
-            </select>
-            <button type="submit" class="al-btn al-btn-primary" ${selected ? '' : 'disabled'}>Compare</button>
-          </div>
-        </form>
-      </div>
+        <button type="submit" class="al-btn al-btn-primary" ${selected ? '' : 'disabled'}>Compare</button>
+      </form>
       ${renderCompareBody(them)}
     </section>
   `;
@@ -126,33 +122,32 @@ function renderComparePanel(others, currentUserId) {
 
 function renderCompareBody(them) {
   if (!pageState.compareUserId) {
-    return '<p class="al-muted al-compare-placeholder">Pick someone from the table or dropdown to compare watch logs.</p>';
+    return '<p class="al-muted al-compare-status">Pick someone from the table or dropdown to compare watch logs.</p>';
   }
 
   if (pageState.compareLoading) {
-    return '<p class="al-muted al-compare-placeholder">Loading comparison…</p>';
+    return '<p class="al-muted al-compare-status">Loading comparison…</p>';
   }
 
   if (pageState.compareError) {
-    return `<p class="al-error al-compare-placeholder">${escapeHtml(pageState.compareError)}</p>`;
+    return `<p class="al-error al-compare-status">${escapeHtml(pageState.compareError)}</p>`;
   }
 
   const comparison = pageState.comparison;
   if (!comparison) {
-    return '<p class="al-muted al-compare-placeholder">Pick someone to compare.</p>';
+    return '<p class="al-muted al-compare-status">Pick someone to compare.</p>';
   }
 
   const themName = them?.displayName || comparison.them.displayName;
 
   return `
-    <div class="al-compare-summary">
-      <p class="al-muted">
-        You vs ${escapeHtml(themName)} ·
-        ${comparison.bothSeen.length} shared ·
-        ${comparison.onlyYou.length} only you ·
-        ${comparison.onlyThem.length} only them
-      </p>
-    </div>
+    <p class="al-muted al-compare-status">
+      You vs ${escapeHtml(themName)} ·
+      ${comparison.bothSeen.length} shared ·
+      ${comparison.onlyYou.length} only you ·
+      ${comparison.onlyThem.length} only them
+    </p>
+    <div class="al-compare-results">
     ${renderCompareSection('Both seen', comparison.bothSeen, {
       hint: 'Movies you have both logged at least once.',
       labelFn: (movie) => compareRatingLabel(movie),
@@ -173,6 +168,7 @@ function renderCompareBody(them) {
       hint: 'Shared movies you both rated 4 stars or higher.',
       labelFn: (movie) => `${formatRating(movie.yourRating)} · ${formatRating(movie.theirRating)}`,
     })}
+    </div>
   `;
 }
 
@@ -180,7 +176,7 @@ function renderCompareSection(title, movies, { hint, labelFn }) {
   return `
     <section class="al-compare-section">
       <div class="al-compare-section-head">
-        <h3 class="serif">${escapeHtml(title)}</h3>
+        <h3>${escapeHtml(title)}</h3>
         <span class="al-compare-count">${movies.length}</span>
       </div>
       <p class="al-muted">${escapeHtml(hint)}</p>
