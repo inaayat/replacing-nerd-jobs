@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { getAuth } from '../lib/neon-auth.js';
 import { db, ensureSchema } from '../lib/db.js';
-import { upsertUser, listWatches, getMembership, watchFromRow } from '../lib/a-list.js';
+import { upsertUser, listWatches, getMembership, watchFromRow, getLeaderboard } from '../lib/a-list.js';
 import {
   computeSummary,
   theaterStats,
@@ -27,6 +27,8 @@ export default async function handler(req, res) {
       return handleMovieLookup(req, res);
     case 'movie-details':
       return handleMovieDetails(req, res);
+    case 'leaderboard':
+      return handleLeaderboard(req, res);
     default:
       res.status(404).json({ error: 'Unknown A-List route.' });
   }
@@ -439,6 +441,28 @@ async function getCastMapForTmdbIds(tmdbIds) {
   }
 
   return castMap;
+}
+
+async function handleLeaderboard(req, res) {
+  if (req.method !== 'GET') {
+    res.status(405).json({ error: 'Use GET.' });
+    return;
+  }
+  if (!requireDb(res)) return;
+
+  const auth = await getAuth(req);
+  if (!auth) {
+    res.status(401).json({ error: 'Not signed in.' });
+    return;
+  }
+
+  try {
+    await upsertUser(auth);
+    const entries = await getLeaderboard();
+    res.status(200).json({ entries, currentUserId: auth.sub });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
 }
 
 async function handleSummary(req, res) {

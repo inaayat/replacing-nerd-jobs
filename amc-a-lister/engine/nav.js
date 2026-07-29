@@ -7,6 +7,7 @@ const NAV_ACTIVE = document.body.dataset.page || '';
 const PAGES = [
   { href: '/amc-a-lister/', label: 'Log', id: 'log' },
   { href: '/amc-a-lister/insights.html', label: 'Insights', id: 'insights' },
+  { href: '/amc-a-lister/leaderboard.html', label: 'Leaderboard', id: 'leaderboard' },
   { href: '/amc-a-lister/settings.html', label: 'Settings', id: 'settings' },
 ];
 
