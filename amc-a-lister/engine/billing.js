@@ -222,11 +222,24 @@ export function ratingDistribution(watches) {
 }
 
 export function actorStats(watches, castByTmdbId) {
-  const map = new Map();
+  const movies = new Map();
   for (const watch of watches) {
     if (!watch.tmdb_id) continue;
-    const cast = castByTmdbId.get(watch.tmdb_id) || castByTmdbId.get(Number(watch.tmdb_id)) || [];
-    const rated = !watch.dnf && watch.rating != null;
+    const key = watch.tmdb_id;
+    if (!movies.has(key)) {
+      movies.set(key, { tmdb_id: key, ratings: [] });
+    }
+    if (!watch.dnf && watch.rating != null) {
+      movies.get(key).ratings.push(watch.rating);
+    }
+  }
+
+  const map = new Map();
+  for (const movie of movies.values()) {
+    const cast = castByTmdbId.get(movie.tmdb_id) || castByTmdbId.get(Number(movie.tmdb_id)) || [];
+    const movieRating = movie.ratings.length
+      ? movie.ratings.reduce((sum, rating) => sum + rating, 0) / movie.ratings.length
+      : null;
 
     for (const actor of cast) {
       const name = String(actor || '').trim();
@@ -236,8 +249,8 @@ export function actorStats(watches, castByTmdbId) {
       }
       const row = map.get(name);
       row.count += 1;
-      if (rated) {
-        row.ratingSum += watch.rating;
+      if (movieRating != null) {
+        row.ratingSum += movieRating;
         row.ratedCount += 1;
       }
     }

@@ -102,10 +102,10 @@ const actorWatches = [
   { tmdb_id: 3, title: 'Three again', rating: 5, dnf: false },
 ];
 const actors = actorStats(actorWatches, castByTmdbId);
-assert.equal(actors[0].actor, 'Actor C');
-assert.equal(actors[0].count, 4);
-assert.equal(actors.find((actor) => actor.actor === 'Actor A').avgRating, 5);
-assert.equal(topActorsByRating(actors)[0].actor, 'Actor C');
+assert.equal(actors.find((actor) => actor.actor === 'Actor A').count, 2);
+assert.equal(actors.find((actor) => actor.actor === 'Actor C').count, 2);
+assert.equal(actors.find((actor) => actor.actor === 'Actor B').count, 1);
+assert.equal(topActorsByRating(actors).length, 2);
 assert.equal(topActorsByRating(actors)[0].avgRating, 5);
 
 console.log('billing tests passed');

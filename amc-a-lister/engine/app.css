@@ -403,6 +403,62 @@ a { color: var(--al-burgundy); }
   font-weight: 600;
 }
 
+.al-insight .al-insight-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 0;
+}
+
+.al-insight.is-expanded .al-insight-header {
+  margin-bottom: 10px;
+}
+
+.al-insight-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.al-insight-toggle h2 {
+  margin: 0;
+}
+
+.al-insight-chevron {
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--al-muted);
+  border-bottom: 2px solid var(--al-muted);
+  transform: rotate(-45deg);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.al-insight.is-expanded .al-insight-chevron {
+  transform: rotate(45deg);
+}
+
+.al-insight-body {
+  display: none;
+}
+
+.al-insight.is-expanded .al-insight-body {
+  display: block;
+}
+
+.al-insight-actions {
+  flex-shrink: 0;
+}
+
 .al-hud {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

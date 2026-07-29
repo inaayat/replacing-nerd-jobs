@@ -25,10 +25,35 @@ bootPage(async ({ root, auth }) => {
 
   main.innerHTML = `
     ${renderByMonthSection(summary.byMonth, moviesByMonth)}
+    ${renderInsightGrid(summary, theaters, formats, ratings, maxTheater, maxFormat, maxRating)}
+    ${renderByActorSection(actors)}
+    ${renderRewatchesSection(rewatches)}
+  `;
 
+  wireInsightSections(main);
+  const byActorSection = main.querySelector('.al-by-actor');
+  if (byActorSection) wireSegmentToggle(byActorSection);
+}, { quickLogOnSuccess: (auth) => populateSidebarStats(auth) });
+
+function insightSection(title, body, { className = '', expanded = true, actions = '' } = {}) {
+  return `
+    <section class="al-panel al-insight ${className} ${expanded ? 'is-expanded' : ''}">
+      <div class="al-insight-header">
+        <button type="button" class="al-insight-toggle" aria-expanded="${expanded ? 'true' : 'false'}">
+          <span class="al-insight-chevron" aria-hidden="true"></span>
+          <h2 class="serif">${escapeHtml(title)}</h2>
+        </button>
+        ${actions}
+      </div>
+      <div class="al-insight-body"${expanded ? '' : ' hidden'}>${body}</div>
+    </section>
+  `;
+}
+
+function renderInsightGrid(summary, theaters, formats, ratings, maxTheater, maxFormat, maxRating) {
+  return `
     <div class="al-insight-grid">
-      <section class="al-panel">
-        <h2 class="serif">A-List value meter</h2>
+      ${insightSection('A-List value meter', `
         <p class="al-muted">${monthLabel(summary.currentPeriod.month)}: ${money(summary.currentPeriod.charged)} ticket value vs ${money(summary.currentPeriod.bill)} billed.</p>
         <div class="al-meter"><span style="width:${summary.currentPeriod.bill ? Math.min(100, (summary.currentPeriod.charged / summary.currentPeriod.bill) * 100) : 0}%"></span></div>
         <p style="margin:8px 0 0;font-size:0.88rem">
@@ -36,34 +61,63 @@ bootPage(async ({ root, auth }) => {
     ? `<strong style="color:#0d7a42">+${money(summary.currentPeriod.savings)}</strong> ahead this period.`
     : `Need ~<strong>${summary.currentPeriod.breakEvenTickets}</strong> more ~$15 tickets to break even.`}
         </p>
-      </section>
-
-      <section class="al-panel">
-        <h2 class="serif">Rating profile</h2>
+      `)}
+      ${insightSection('Rating profile', `
         <p class="al-muted">${ratings.rated} rated · ${ratings.dnf} DNF · ${(ratings.dnf / Math.max(1, ratings.total) * 100).toFixed(0)}% walk-out rate</p>
         ${[5, 4, 3, 2, 1].map((n) => barRow(`${n}★`, ratings.buckets[n], maxRating)).join('')}
-      </section>
-
-      <section class="al-panel">
-        <h2 class="serif">Theater ranking</h2>
-        ${theaters.length
+      `)}
+      ${insightSection('Theater ranking', theaters.length
     ? theaters.slice(0, 6).map((t) => barRow(t.location, t.count, maxTheater, `${t.count} · ${money(t.charged)}`)).join('')
-    : '<div class="al-empty">No theater data yet.</div>'}
-      </section>
-
-      <section class="al-panel">
-        <h2 class="serif">Format premiums</h2>
-        ${formats.length
+    : '<div class="al-empty">No theater data yet.</div>')}
+      ${insightSection('Format premiums', formats.length
     ? formats.map((f) => barRow(f.format, f.charged, maxFormat, `${f.count} · ${money(f.charged)}`)).join('')
-    : '<div class="al-empty">No format data yet.</div>'}
-      </section>
+    : '<div class="al-empty">No format data yet.</div>')}
     </div>
+  `;
+}
 
-    ${renderByActorSection(actors)}
+function renderByActorSection(actors) {
+  if (!actors.length) {
+    return insightSection('By actor', `
+      <div class="al-empty">No actor data yet — link movies to TMDB when logging or expand a row in your log.</div>
+    `, { className: 'al-by-actor' });
+  }
 
-    <section class="al-panel">
-      <h2 class="serif">Rewatches</h2>
-      ${rewatches.length
+  const mostSeen = actors.slice(0, 10);
+  const highestRated = topActorsByRating(actors, { minRated: 2, limit: 10 });
+  const maxCount = mostSeen[0]?.count || 1;
+  const segment = `
+    <div class="al-segment al-insight-actions" role="tablist" aria-label="By actor view">
+      <button type="button" class="al-segment-btn is-active" role="tab" aria-selected="true" data-view="most">Most seen</button>
+      <button type="button" class="al-segment-btn" role="tab" aria-selected="false" data-view="rated">Highest rated</button>
+    </div>
+  `;
+
+  return insightSection('By actor', `
+    <p class="al-muted al-by-actor-hint">Top 10 unique films per actor from TMDB-matched titles.</p>
+    <div class="al-view-panel" data-panel="most">
+      ${mostSeen.map((actor) => barRow(
+    actor.actor,
+    actor.count,
+    maxCount,
+    actorRightLabel(actor),
+  )).join('')}
+    </div>
+    <div class="al-view-panel is-hidden" data-panel="rated" hidden>
+      ${highestRated.length
+    ? highestRated.map((actor) => barRow(
+      actor.actor,
+      actor.avgRating,
+      5,
+      `${actor.avgRating}★ · ${actor.count} films`,
+    )).join('')
+    : '<div class="al-empty">Rate at least two films per actor to rank them here.</div>'}
+    </div>
+  `, { className: 'al-by-actor', actions: segment });
+}
+
+function renderRewatchesSection(rewatches) {
+  return insightSection('Rewatches', rewatches.length
     ? `<div class="al-table-wrap"><table class="al-table"><thead><tr><th>Title</th><th class="num">Times</th><th>Dates</th></tr></thead><tbody>
         ${rewatches.map((r) => `
           <tr>
@@ -73,58 +127,37 @@ bootPage(async ({ root, auth }) => {
           </tr>
         `).join('')}
       </tbody></table></div>`
-    : '<div class="al-empty">No rewatches logged yet.</div>'}
-    </section>
-  `;
+    : '<div class="al-empty">No rewatches logged yet.</div>');
+}
 
-  const byActorSection = main.querySelector('.al-by-actor');
-  if (byActorSection) wireSegmentToggle(byActorSection);
-}, { quickLogOnSuccess: (auth) => populateSidebarStats(auth) });
-
-function renderByActorSection(actors) {
-  if (!actors.length) {
-    return `
-      <section class="al-panel al-by-actor">
-        <h2 class="serif">By actor</h2>
-        <div class="al-empty">No actor data yet — link movies to TMDB when logging or expand a row in your log.</div>
-      </section>
-    `;
+function renderByMonthSection(byMonth, moviesByMonth) {
+  if (!byMonth.length) {
+    return insightSection('By month', `
+      <div class="al-empty">No monthly data yet — log a screening to get started.</div>
+    `, { className: 'al-by-month' });
   }
 
-  const mostSeen = actors.slice(0, 10);
-  const highestRated = topActorsByRating(actors, { minRated: 2, limit: 10 });
-  const maxCount = mostSeen[0]?.count || 1;
+  return insightSection('By month', `
+    <p class="al-muted al-by-month-hint">
+      <span class="al-hint-hover">Hover a month to see what you watched.</span>
+      <span class="al-hint-touch">Tap a month to see what you watched.</span>
+    </p>
+    ${renderMonthTable(byMonth, moviesByMonth)}
+  `, { className: 'al-by-month' });
+}
 
-  return `
-    <section class="al-panel al-by-actor">
-      <div class="al-panel-head">
-        <h2 class="serif">By actor</h2>
-        <div class="al-segment" role="tablist" aria-label="By actor view">
-          <button type="button" class="al-segment-btn is-active" role="tab" aria-selected="true" data-view="most">Most seen</button>
-          <button type="button" class="al-segment-btn" role="tab" aria-selected="false" data-view="rated">Highest rated</button>
-        </div>
-      </div>
-      <p class="al-muted al-by-actor-hint">Top 10 from billed cast on TMDB-matched titles.</p>
-      <div class="al-view-panel" data-panel="most">
-        ${mostSeen.map((actor) => barRow(
-    actor.actor,
-    actor.count,
-    maxCount,
-    actorRightLabel(actor),
-  )).join('')}
-      </div>
-      <div class="al-view-panel is-hidden" data-panel="rated" hidden>
-        ${highestRated.length
-    ? highestRated.map((actor) => barRow(
-      actor.actor,
-      actor.avgRating,
-      5,
-      `${actor.avgRating}★ · ${actor.count} films`,
-    )).join('')
-    : '<div class="al-empty">Rate at least two films per actor to rank them here.</div>'}
-      </div>
-    </section>
-  `;
+function wireInsightSections(root) {
+  root.querySelectorAll('.al-insight').forEach((section) => {
+    const btn = section.querySelector('.al-insight-toggle');
+    const body = section.querySelector('.al-insight-body');
+    if (!btn || !body) return;
+
+    btn.addEventListener('click', () => {
+      const open = section.classList.toggle('is-expanded');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      body.hidden = !open;
+    });
+  });
 }
 
 function actorRightLabel(actor) {
@@ -137,7 +170,8 @@ function wireSegmentToggle(section) {
   const panels = [...section.querySelectorAll('[data-panel]')];
 
   buttons.forEach((btn) => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
       const view = btn.dataset.view;
       buttons.forEach((b) => {
         const active = b === btn;
@@ -167,28 +201,6 @@ function groupMoviesByMonth(watches) {
     movies.sort((a, b) => b.watched_on.localeCompare(a.watched_on));
   }
   return map;
-}
-
-function renderByMonthSection(byMonth, moviesByMonth) {
-  if (!byMonth.length) {
-    return `
-      <section class="al-panel al-by-month">
-        <h2 class="serif">By month</h2>
-        <div class="al-empty">No monthly data yet — log a screening to get started.</div>
-      </section>
-    `;
-  }
-
-  return `
-    <section class="al-panel al-by-month">
-      <h2 class="serif">By month</h2>
-      <p class="al-muted al-by-month-hint">
-        <span class="al-hint-hover">Hover a month to see what you watched.</span>
-        <span class="al-hint-touch">Tap a month to see what you watched.</span>
-      </p>
-      ${renderMonthTable(byMonth, moviesByMonth)}
-    </section>
-  `;
 }
 
 function renderMonthTable(byMonth, moviesByMonth) {
