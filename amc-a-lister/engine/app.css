@@ -925,6 +925,22 @@ table.al-table {
   }
 }
 
+.al-rank-table .al-rank-num {
+  width: 1.75rem;
+  color: var(--al-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.al-rank-table td,
+.al-rank-table th {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.al-insight .al-rank-table {
+  margin-top: 4px;
+}
+
 .al-bar-row {
   display: grid;
   grid-template-columns: 1fr auto;
