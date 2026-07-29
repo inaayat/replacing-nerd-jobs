@@ -1,6 +1,6 @@
 import { bootPage, renderShell, requireSignIn, countUp, populateSidebarStats } from './nav.js';
 import { watchesApi, summaryApi } from './api.js';
-import { money, shortDate, monthLabel, ratingLabel, escapeHtml } from './format.js';
+import { money, shortDate, monthLabel, ratingLabel, escapeHtml, posterHtml } from './format.js';
 
 bootPage(async ({ root, auth }) => {
   if (!requireSignIn(auth, root)) return;
@@ -51,6 +51,7 @@ async function loadDashboard(auth) {
         <h2 style="margin:0;flex:1">Recent</h2>
         <a class="al-btn" href="/amc-a-lister/log.html">Full log</a>
       </div>
+      ${recent.length ? posterStrip(recent) : ''}
       ${recent.length ? recentTable(recent) : '<div class="al-empty">No screenings yet — use the form above to log your first.</div>'}
     </section>
 
@@ -119,12 +120,29 @@ function animatePeriodHud(period) {
   });
 }
 
+function posterStrip(watches) {
+  const withPosters = watches.filter((w) => w.poster_path);
+  if (!withPosters.length) return '';
+
+  return `
+    <div class="al-poster-strip" aria-label="Recent movie posters">
+      ${withPosters.map((w) => `
+        <a class="al-poster-strip-item" href="/amc-a-lister/add.html?id=${encodeURIComponent(w.id)}" title="${escapeHtml(w.title)}">
+          ${posterHtml(w, { size: 'w154', width: 72, height: 108, className: 'al-poster al-poster--strip' })}
+          <span class="al-poster-strip-label">${escapeHtml(w.title)}</span>
+        </a>
+      `).join('')}
+    </div>
+  `;
+}
+
 function recentTable(watches) {
   return `
     <div class="al-table-wrap">
       <table class="al-table">
         <thead>
           <tr>
+            <th class="al-col-poster" aria-label="Poster"></th>
             <th>Date</th>
             <th>Title</th>
             <th>Location</th>
@@ -136,6 +154,7 @@ function recentTable(watches) {
         <tbody>
           ${watches.map((w) => `
             <tr>
+              <td class="al-col-poster">${posterHtml(w)}</td>
               <td>${shortDate(w.watched_on)}</td>
               <td><a href="/amc-a-lister/add.html?id=${encodeURIComponent(w.id)}">${escapeHtml(w.title)}</a></td>
               <td class="al-muted">${escapeHtml(w.location || '—')}</td>

@@ -33,6 +33,21 @@ export function escapeHtml(s) {
     .replace(/"/g, '&quot;');
 }
 
+const TMDB_IMG_BASE = 'https://image.tmdb.org/t/p';
+
+export function posterUrl(posterPath, size = 'w92') {
+  if (!posterPath) return null;
+  return `${TMDB_IMG_BASE}/${size}${posterPath}`;
+}
+
+export function posterHtml(watch, { size = 'w92', width = 28, height = 42, className = 'al-poster' } = {}) {
+  const url = posterUrl(watch.poster_path, size);
+  if (url) {
+    return `<img class="${className}" src="${url}" alt="" width="${width}" height="${height}" loading="lazy">`;
+  }
+  return `<span class="${className} al-poster--empty" style="width:${width}px;height:${height}px" aria-hidden="true"></span>`;
+}
+
 export function parseMoneyInput(value) {
   if (value == null || value === '') return null;
   const n = Number(String(value).replace(/[^0-9.]/g, ''));
