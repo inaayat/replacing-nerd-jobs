@@ -114,13 +114,14 @@ function tableHtml(state) {
 }
 
 function mobileLogMeta(w) {
-  return [
+  const primary = [
     shortDate(w.watched_on),
-    w.location || '—',
     w.format || 'Standard',
     money(w.ticket_cents),
     ratingLabel(w),
   ].map((part) => escapeHtml(String(part))).join(' · ');
+  const location = escapeHtml(w.location || '—');
+  return `<span class="al-log-meta-primary">${primary}</span><span class="al-log-meta-location">${location}</span>`;
 }
 
 function viewEntryHtml(w, state) {
