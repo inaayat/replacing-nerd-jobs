@@ -1,6 +1,9 @@
 import { bootPage, renderShell, requireSignIn, populateSidebarStats } from './nav.js';
 import { watchesApi } from './api.js';
 import { money, shortDate, ratingLabel, escapeHtml, posterHtml } from './format.js';
+import { renderWatchEditForm, wireWatchEditForm } from './watch-form.js';
+
+let reloadLog;
 
 bootPage(async ({ root, auth }) => {
   if (!requireSignIn(auth, root)) return;
@@ -11,10 +14,10 @@ bootPage(async ({ root, auth }) => {
     body: `<main class="al-main" id="log-main"><p class="al-muted">Loading…</p></main>`,
   });
 
+  reloadLog = () => loadLog(auth);
   await loadLog(auth);
 }, { quickLogOnSuccess: async (auth) => {
-  await populateSidebarStats(auth);
-  location.reload();
+  await Promise.all([reloadLog?.(), populateSidebarStats(auth)]);
 }});
 
 async function loadLog(auth) {
@@ -45,11 +48,11 @@ async function loadLog(auth) {
     </section>
   `;
 
-  const state = { watches, filtered: watches };
+  const state = { watches, filtered: watches, editingId: null };
   const render = () => {
-    document.getElementById('log-count').textContent = `${state.filtered.length} of ${watches.length}`;
-    document.getElementById('log-table').innerHTML = tableHtml(state.filtered, auth.token);
-    wireRowActions(auth.token, render);
+    document.getElementById('log-count').textContent = `${state.filtered.length} of ${state.watches.length}`;
+    document.getElementById('log-table').innerHTML = tableHtml(state.filtered, state.editingId);
+    wireRowActions(auth, state, render);
   };
 
   const applyFilters = () => {
@@ -59,7 +62,7 @@ async function loadLog(auth) {
     const alone = document.getElementById('log-alone').checked;
     const dnfOnly = document.getElementById('log-dnf').checked;
 
-    state.filtered = watches.filter((w) => {
+    state.filtered = state.watches.filter((w) => {
       if (q && !`${w.title} ${w.location || ''}`.toLowerCase().includes(q)) return false;
       if (theater && w.location !== theater) return false;
       if (format && w.format !== format) return false;
@@ -78,7 +81,7 @@ async function loadLog(auth) {
   render();
 }
 
-function tableHtml(watches, token) {
+function tableHtml(watches, editingId) {
   if (!watches.length) return '<div class="al-empty">No matches.</div>';
   return `
     <div class="al-log-list">
@@ -93,32 +96,85 @@ function tableHtml(watches, token) {
         <span class="al-log-col">Rating</span>
         <span class="al-log-col">Actions</span>
       </div>
-      ${watches.map((w) => `
-        <article class="al-log-row" data-id="${w.id}">
-          <div class="al-log-col al-col-poster">${posterHtml(w)}</div>
-          <div class="al-log-col">${shortDate(w.watched_on)}</div>
-          <div class="al-log-col al-log-col--title">${escapeHtml(w.title)}</div>
-          <div class="al-log-col al-muted">${escapeHtml(w.location || '—')}</div>
-          <div class="al-log-col">${w.format ? escapeHtml(w.format) : '—'}</div>
-          <div class="al-log-col al-muted">${escapeHtml([w.auditorium, w.seat].filter(Boolean).join(' · ') || '—')}</div>
-          <div class="al-log-col al-log-col--num">${money(w.ticket_cents)}</div>
-          <div class="al-log-col">${ratingLabel(w)}</div>
-          <div class="al-log-col al-row-actions">
-            <a class="al-link-btn" href="/amc-a-lister/add.html?id=${encodeURIComponent(w.id)}">Edit</a>
-            <button type="button" class="al-link-btn" data-delete="${w.id}">Delete</button>
-          </div>
-        </article>
-      `).join('')}
+      ${watches.map((w) => (
+        w.id === editingId ? editRowHtml(w) : viewRowHtml(w)
+      )).join('')}
     </div>
   `;
 }
 
-function wireRowActions(token, rerender) {
+function viewRowHtml(w) {
+  return `
+    <article class="al-log-row" data-id="${w.id}">
+      <div class="al-log-col al-col-poster">${posterHtml(w)}</div>
+      <div class="al-log-col">${shortDate(w.watched_on)}</div>
+      <div class="al-log-col al-log-col--title">${escapeHtml(w.title)}</div>
+      <div class="al-log-col al-muted">${escapeHtml(w.location || '—')}</div>
+      <div class="al-log-col">${w.format ? escapeHtml(w.format) : '—'}</div>
+      <div class="al-log-col al-muted">${escapeHtml([w.auditorium, w.seat].filter(Boolean).join(' · ') || '—')}</div>
+      <div class="al-log-col al-log-col--num">${money(w.ticket_cents)}</div>
+      <div class="al-log-col">${ratingLabel(w)}</div>
+      <div class="al-log-col al-row-actions">
+        <button type="button" class="al-link-btn" data-edit="${w.id}">Edit</button>
+        <button type="button" class="al-link-btn" data-delete="${w.id}">Delete</button>
+      </div>
+    </article>
+  `;
+}
+
+function editRowHtml(w) {
+  return `
+    <article class="al-log-row al-log-row--editing" data-id="${w.id}">
+      ${renderWatchEditForm(w, `edit-${w.id}`)}
+    </article>
+  `;
+}
+
+function wireRowActions(auth, state, render) {
+  document.querySelectorAll('[data-edit]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.editingId = btn.dataset.edit;
+      render();
+    });
+  });
+
   document.querySelectorAll('[data-delete]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       if (!confirm('Delete this screening?')) return;
-      await watchesApi.remove(token, btn.dataset.delete);
-      location.reload();
+      await watchesApi.remove(auth.token, btn.dataset.delete);
+      state.watches = state.watches.filter((w) => w.id !== btn.dataset.delete);
+      if (state.editingId === btn.dataset.delete) state.editingId = null;
+      state.filtered = state.filtered.filter((w) => w.id !== btn.dataset.delete);
+      populateSidebarStats(auth);
+      render();
     });
+  });
+
+  if (!state.editingId) return;
+
+  const watch = state.watches.find((w) => w.id === state.editingId);
+  if (!watch) {
+    state.editingId = null;
+    return;
+  }
+
+  const prefix = `edit-${watch.id}`;
+  wireWatchEditForm(auth, watch, prefix, {
+    onCancel: () => {
+      state.editingId = null;
+      render();
+    },
+    onSave: async (payload) => {
+      const { watch: updated } = await watchesApi.update(auth.token, { id: watch.id, ...payload });
+      const merged = {
+        ...updated,
+        poster_path: updated.tmdb_id === watch.tmdb_id ? watch.poster_path : null,
+      };
+      state.watches = state.watches.map((w) => (w.id === watch.id ? merged : w));
+      state.filtered = state.filtered.map((w) => (w.id === watch.id ? merged : w));
+      state.editingId = null;
+      populateSidebarStats(auth);
+      render();
+    },
   });
 }

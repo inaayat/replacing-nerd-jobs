@@ -716,6 +716,16 @@ table.al-table {
   justify-content: flex-start;
 }
 
+.al-log-row--editing {
+  display: block;
+  grid-column: 1 / -1;
+  padding: 14px;
+}
+
+.al-log-edit-form {
+  margin: 0;
+}
+
 .al-insight-grid {
   display: grid;
   gap: 10px;
