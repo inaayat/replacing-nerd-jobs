@@ -41,7 +41,7 @@ async function loadLog(auth) {
         <label class="al-check"><input type="checkbox" id="log-dnf" /> DNF only</label>
         <span class="al-muted" id="log-count"></span>
       </div>
-      <div class="al-table-wrap" id="log-table"></div>
+      <div class="al-log-list-wrap" id="log-table"></div>
     </section>
   `;
 
@@ -81,39 +81,37 @@ async function loadLog(auth) {
 function tableHtml(watches, token) {
   if (!watches.length) return '<div class="al-empty">No matches.</div>';
   return `
-    <table class="al-table">
-      <thead>
-        <tr>
-          <th class="al-col-poster" aria-label="Poster"></th>
-          <th>Date</th>
-          <th>Title</th>
-          <th>Location</th>
-          <th>Format</th>
-          <th>Seat</th>
-          <th class="num">Charge</th>
-          <th>Rating</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
+    <div class="al-log-list">
+      <div class="al-log-head" aria-hidden="true">
+        <span class="al-log-col al-col-poster"></span>
+        <span class="al-log-col">Date</span>
+        <span class="al-log-col">Title</span>
+        <span class="al-log-col">Location</span>
+        <span class="al-log-col">Format</span>
+        <span class="al-log-col">Seat</span>
+        <span class="al-log-col al-log-col--num">Charge</span>
+        <span class="al-log-col">Rating</span>
+        <span class="al-log-col al-log-col--actions"></span>
+      </div>
+      <div class="al-log-rows">
         ${watches.map((w) => `
-          <tr data-id="${w.id}">
-            <td class="al-col-poster">${posterHtml(w)}</td>
-            <td>${shortDate(w.watched_on)}</td>
-            <td>${escapeHtml(w.title)}</td>
-            <td class="al-muted">${escapeHtml(w.location || '—')}</td>
-            <td>${w.format ? escapeHtml(w.format) : '—'}</td>
-            <td class="al-muted">${escapeHtml([w.auditorium, w.seat].filter(Boolean).join(' · ') || '—')}</td>
-            <td class="num">${money(w.ticket_cents)}</td>
-            <td>${ratingLabel(w)}</td>
-            <td class="al-row-actions">
+          <article class="al-log-row" data-id="${w.id}">
+            <div class="al-log-col al-col-poster">${posterHtml(w)}</div>
+            <div class="al-log-col">${shortDate(w.watched_on)}</div>
+            <div class="al-log-col al-log-col--title">${escapeHtml(w.title)}</div>
+            <div class="al-log-col al-muted">${escapeHtml(w.location || '—')}</div>
+            <div class="al-log-col">${w.format ? escapeHtml(w.format) : '—'}</div>
+            <div class="al-log-col al-muted">${escapeHtml([w.auditorium, w.seat].filter(Boolean).join(' · ') || '—')}</div>
+            <div class="al-log-col al-log-col--num">${money(w.ticket_cents)}</div>
+            <div class="al-log-col">${ratingLabel(w)}</div>
+            <div class="al-log-col al-log-col--actions al-row-actions">
               <a class="al-link-btn" href="/amc-a-lister/add.html?id=${encodeURIComponent(w.id)}">Edit</a>
               <button type="button" class="al-link-btn" data-delete="${w.id}">Delete</button>
-            </td>
-          </tr>
+            </div>
+          </article>
         `).join('')}
-      </tbody>
-    </table>
+      </div>
+    </div>
   `;
 }
 
