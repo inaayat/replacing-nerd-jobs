@@ -46,11 +46,13 @@ a { color: var(--al-burgundy); }
   border: 0;
 }
 
-/* Layout: full-height fixed sidebar + scrollable right panel */
+/* Layout: floating rounded sidebar + scrollable right panel (mirrors index.html) */
 .page-main {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  padding: 16px;
+  gap: 16px;
 }
 
 @media (min-width: 768px) {
@@ -59,6 +61,8 @@ a { color: var(--al-burgundy); }
     flex-direction: row;
     height: 100vh;
     min-height: 100vh;
+    padding: 16px 40px 16px 16px;
+    gap: 16px;
   }
 }
 
@@ -66,6 +70,7 @@ a { color: var(--al-burgundy); }
   flex-shrink: 0;
   background: var(--al-burgundy);
   color: var(--al-white);
+  border-radius: var(--al-radius);
   padding: 24px 20px;
   display: flex;
   flex-direction: column;
@@ -74,16 +79,15 @@ a { color: var(--al-burgundy); }
 
 @media (min-width: 768px) {
   .al-sidebar {
-    width: 280px;
-    height: 100vh;
-    min-height: 100vh;
+    width: 300px;
+    height: 100%;
     overflow-y: auto;
-    border-radius: 0;
+    justify-content: space-between;
   }
 }
 
 @media (min-width: 1024px) {
-  .al-sidebar { width: 300px; }
+  .al-sidebar { width: 340px; }
 }
 
 .al-sidebar-brand {
@@ -207,14 +211,13 @@ a { color: var(--al-burgundy); }
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 16px;
 }
 
 @media (min-width: 768px) {
   .al-content-scroll {
     overflow-y: auto;
-    height: 100vh;
-    padding: 20px 28px 28px;
+    height: 100%;
+    padding: 0 0 16px;
   }
 }
 
