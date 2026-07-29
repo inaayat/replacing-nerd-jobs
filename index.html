@@ -29,16 +29,16 @@
         display: flex;
         flex-direction: column;
         justify-content: flex-end;
-        padding: 10px;
+        padding: 12px;
         overflow: hidden;
-        border-radius: 14px;
+        border-radius: 16px;
         transition: transform 0.2s ease, box-shadow 0.2s ease;
         color: #1c1c1c;
       }
-      .item-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.12); }
-      .item-card .icon { position: absolute; top: 8px; left: 10px; opacity: 0.55; }
-      .item-card .title { font-size: 1.05rem; line-height: 1.15; }
-      .item-card .subtitle { font-size: 0.72rem; opacity: 0.65; margin-top: 2px; }
+      .item-card:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(0,0,0,0.14); }
+      .item-card .icon { position: absolute; top: 10px; left: 12px; opacity: 0.55; }
+      .item-card .title { font-size: 1.2rem; line-height: 1.15; }
+      .item-card .subtitle { font-size: 0.8rem; opacity: 0.65; margin-top: 2px; }
 
       /* Vivid palette — use only these for live projects */
       .card-orange { background: var(--orange); }
@@ -67,12 +67,12 @@
       .project-grid {
         display: grid;
         grid-auto-flow: dense;
-        grid-template-columns: repeat(3, 1fr);
-        grid-auto-rows: 130px;
-        gap: 10px;
+        grid-template-columns: repeat(2, 1fr);
+        grid-auto-rows: 175px;
+        gap: 12px;
       }
-      @media (min-width: 640px) { .project-grid { grid-template-columns: repeat(4, 1fr); grid-auto-rows: 145px; } }
-      @media (min-width: 1024px) { .project-grid { grid-template-columns: repeat(5, 1fr); grid-auto-rows: 155px; } }
+      @media (min-width: 640px) { .project-grid { grid-template-columns: repeat(3, 1fr); grid-auto-rows: 190px; } }
+      @media (min-width: 1024px) { .project-grid { grid-template-columns: repeat(4, 1fr); grid-auto-rows: 205px; } }
 
       /* Layout: sidebar runs the full height of the viewport (fixed, non-scrolling), like the
          inspo's left panel; the card grid is a separate scroll region so new cards never push
@@ -153,42 +153,78 @@
              Grid auto-flow is dense, so cards reflow to fill gaps automatically — no manual repositioning needed
              when adding, removing, or resizing tiles. Delete a "TBD" placeholder as each real project takes its place. -->
 
-        <a href="/packing-cubes/" class="no-underline item-card card-gold">
-          <div class="icon"><img src="/packing-cubes/icon.svg" alt="" width="18" height="18"></div>
+        <a href="/packing-cubes/" class="no-underline item-card card-gold span-wide">
+          <div class="icon"><img src="/packing-cubes/icon.svg" alt="" width="20" height="20"></div>
           <div class="title serif font-semibold">Packing Cubes</div>
           <div class="subtitle brand-mono">Reusable travel checklists</div>
         </a>
 
         <a href="https://github.com/inaayat/dumpsteriOS" target="_blank" class="no-underline item-card card-peach">
-          <div class="icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="18" height="18" fill="#1c1c1c"><path d="M164.3 128L138.7 256L56 256C42.7 256 32 245.3 32 232L32 227.9C32 225.3 32.4 222.8 33.2 220.3L58.5 144.4C61.8 134.6 71 128 81.3 128L164.3 128zM187.7 256L213.3 128L296 128L296 256L187.7 256zM344 128L426.7 128L452.3 256L344 256L344 128zM475.7 128L558.7 128C569 128 578.2 134.6 581.5 144.4L606.8 220.3C607.6 222.7 608 225.3 608 227.9L608 232C608 245.3 597.3 256 584 256L501.3 256L475.7 128zM57.7 304L582.4 304C582 306.1 569.1 377.4 543.5 517.7C540.5 534 525.6 545.3 509.1 543.8C492.6 542.3 480 528.6 480 512L480 496L160 496L160 512C160 528.6 147.4 542.4 130.9 543.9C114.4 545.4 99.5 534 96.5 517.7C71 377.3 58 306.1 57.7 304z"/></svg></div>
+          <div class="icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="#1c1c1c"><path d="M164.3 128L138.7 256L56 256C42.7 256 32 245.3 32 232L32 227.9C32 225.3 32.4 222.8 33.2 220.3L58.5 144.4C61.8 134.6 71 128 81.3 128L164.3 128zM187.7 256L213.3 128L296 128L296 256L187.7 256zM344 128L426.7 128L452.3 256L344 256L344 128zM475.7 128L558.7 128C569 128 578.2 134.6 581.5 144.4L606.8 220.3C607.6 222.7 608 225.3 608 227.9L608 232C608 245.3 597.3 256 584 256L501.3 256L475.7 128zM57.7 304L582.4 304C582 306.1 569.1 377.4 543.5 517.7C540.5 534 525.6 545.3 509.1 543.8C492.6 542.3 480 528.6 480 512L480 496L160 496L160 512C160 528.6 147.4 542.4 130.9 543.9C114.4 545.4 99.5 534 96.5 517.7C71 377.3 58 306.1 57.7 304z"/></svg></div>
           <div class="title serif font-semibold">DumpsteriOS</div>
           <div class="subtitle brand-mono">iOS Brain Vomit App</div>
         </a>
 
         <a href="/sporcle-spinoff/" class="no-underline item-card card-red">
-          <div class="icon"><img src="/sporcle-spinoff/icon.png" alt="" width="18" height="18"></div>
+          <div class="icon"><img src="/sporcle-spinoff/icon.png" alt="" width="20" height="20"></div>
           <div class="title serif font-semibold">Sporcle Spinoff</div>
           <div class="subtitle brand-mono">Quick trivia quizzes</div>
         </a>
 
-        <a href="/amc-a-lister/" class="no-underline item-card card-red">
-          <div class="icon"><img src="/amc-a-lister/icon.svg" alt="" width="18" height="18"></div>
+        <a href="/amc-a-lister/" class="no-underline item-card card-red span-tall">
+          <div class="icon"><img src="/amc-a-lister/icon.svg" alt="" width="20" height="20"></div>
           <div class="title serif font-semibold">AMC A-Lister</div>
           <div class="subtitle brand-mono">Watch log &amp; savings tracker</div>
         </a>
 
-        <a href="/world-cup/" class="no-underline item-card card-teal">
-          <div class="icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="18" height="18" fill="#f7f2e7"><path d="M451 292.3C446.6 289.5 443.4 285.3 441.8 280.4C440.2 275.5 440.4 270.2 442.3 265.4L475.6 182C455.7 159.6 431 141.5 403.2 129.3L334.1 186.9C330.1 190.2 325.1 192 320 192C314.9 192 309.8 190.2 305.9 186.9L236.8 129.3C209 141.5 184.3 159.6 164.4 182L197.8 265.4C199.7 270.2 199.9 275.5 198.3 280.4C196.7 285.3 193.4 289.5 189.1 292.3L113 340.2C116 371.1 125.7 399.9 140.6 425.4L230.3 419.4C235.5 419.1 240.6 420.5 244.8 423.6C249 426.7 252 431 253.2 436.1L275.2 523.3C289.6 526.5 304.6 528.1 320 528.1C335.4 528.1 350.3 526.4 364.8 523.3L386.8 436.1C388.1 431.1 391 426.7 395.2 423.6C399.4 420.5 404.5 419.1 409.7 419.4L499.4 425.4C514.4 400 524.1 371.1 527 340.3L451 292.3zM320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576C178.6 576 64 461.4 64 320C64 178.6 178.6 64 320 64zM382 285C390.4 291.1 393.9 301.9 390.7 311.8L372.4 368.1C369.2 378 360 384.7 349.6 384.7L290.4 384.7C280 384.7 270.8 378 267.6 368.1L249.3 311.8C246.1 301.9 249.6 291.1 258 285L305.9 250.2C314.3 244.1 325.7 244.1 334.1 250.2L382 285z"/></svg></div>
+        <a href="/world-cup/" class="no-underline item-card card-teal span-wide">
+          <div class="icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="#f7f2e7"><path d="M451 292.3C446.6 289.5 443.4 285.3 441.8 280.4C440.2 275.5 440.4 270.2 442.3 265.4L475.6 182C455.7 159.6 431 141.5 403.2 129.3L334.1 186.9C330.1 190.2 325.1 192 320 192C314.9 192 309.8 190.2 305.9 186.9L236.8 129.3C209 141.5 184.3 159.6 164.4 182L197.8 265.4C199.7 270.2 199.9 275.5 198.3 280.4C196.7 285.3 193.4 289.5 189.1 292.3L113 340.2C116 371.1 125.7 399.9 140.6 425.4L230.3 419.4C235.5 419.1 240.6 420.5 244.8 423.6C249 426.7 252 431 253.2 436.1L275.2 523.3C289.6 526.5 304.6 528.1 320 528.1C335.4 528.1 350.3 526.4 364.8 523.3L386.8 436.1C388.1 431.1 391 426.7 395.2 423.6C399.4 420.5 404.5 419.1 409.7 419.4L499.4 425.4C514.4 400 524.1 371.1 527 340.3L451 292.3zM320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576C178.6 576 64 461.4 64 320C64 178.6 178.6 64 320 64zM382 285C390.4 291.1 393.9 301.9 390.7 311.8L372.4 368.1C369.2 378 360 384.7 349.6 384.7L290.4 384.7C280 384.7 270.8 378 267.6 368.1L249.3 311.8C246.1 301.9 249.6 291.1 258 285L305.9 250.2C314.3 244.1 325.7 244.1 334.1 250.2L382 285z"/></svg></div>
           <div class="title serif font-semibold">World Cup 2026</div>
           <div class="subtitle brand-mono">FIFA World Cup 2026</div>
         </a>
 
-        <a href="https://github.com/inaayat/dumpster" target="_blank" class="no-underline item-card card-orange">
-          <div class="icon"><svg width="18" height="19" viewBox="0 0 24 25" fill="none" xmlns="http://www.w3.org/2000/svg"><path opacity="0.4" d="M4.9751 10.957L5.54071 20.384C5.612 21.5721 6.59637 22.4992 7.78667 22.4992H16.2113C17.4016 22.4992 18.3859 21.5721 18.4572 20.384L19.0229 10.957C18.852 10.9848 18.6767 10.9992 18.498 10.9992H5.49995C5.32127 10.9992 5.14595 10.9848 4.9751 10.957ZM10.7739 13.933L10.9981 18.4897C11.0185 18.9034 10.6996 19.2553 10.2859 19.2756C9.87215 19.296 9.52027 18.9771 9.49992 18.5634L9.27576 14.0067C9.25541 13.593 9.57429 13.2412 9.988 13.2208C10.4017 13.2004 10.7536 13.5193 10.7739 13.933ZM14.01 13.2208C14.4237 13.2412 14.7426 13.593 14.7223 14.0067L14.4981 18.5634C14.4778 18.9771 14.1259 19.296 13.7122 19.2756C13.2984 19.2553 12.9796 18.9034 12.9999 18.4897L13.2241 13.933C13.2444 13.5193 13.5963 13.2004 14.01 13.2208Z" fill="#1c1c1c"/><path d="M7.99902 4.75C7.99902 3.50736 9.00638 2.5 10.249 2.5H13.749C14.9917 2.5 15.999 3.50736 15.999 4.75V5.5H18.498C19.7407 5.5 20.748 6.50736 20.748 7.75C20.748 8.78958 20.043 9.66449 19.085 9.92267C18.8979 9.9731 18.7011 10 18.498 10H5.5C5.29694 10 5.10016 9.9731 4.91303 9.92267C3.95503 9.66449 3.25 8.78958 3.25 7.75C3.25 6.50736 4.25736 5.5 5.5 5.5H7.99902V4.75ZM14.499 5.5V4.75C14.499 4.33579 14.1632 4 13.749 4H10.249C9.83481 4 9.49902 4.33579 9.49902 4.75V5.5H14.499Z" fill="#1c1c1c"/></svg></div>
+        <a href="https://github.com/inaayat/dumpster" target="_blank" class="no-underline item-card card-orange span-tall">
+          <div class="icon"><svg width="20" height="21" viewBox="0 0 24 25" fill="none" xmlns="http://www.w3.org/2000/svg"><path opacity="0.4" d="M4.9751 10.957L5.54071 20.384C5.612 21.5721 6.59637 22.4992 7.78667 22.4992H16.2113C17.4016 22.4992 18.3859 21.5721 18.4572 20.384L19.0229 10.957C18.852 10.9848 18.6767 10.9992 18.498 10.9992H5.49995C5.32127 10.9992 5.14595 10.9848 4.9751 10.957ZM10.7739 13.933L10.9981 18.4897C11.0185 18.9034 10.6996 19.2553 10.2859 19.2756C9.87215 19.296 9.52027 18.9771 9.49992 18.5634L9.27576 14.0067C9.25541 13.593 9.57429 13.2412 9.988 13.2208C10.4017 13.2004 10.7536 13.5193 10.7739 13.933ZM14.01 13.2208C14.4237 13.2412 14.7426 13.593 14.7223 14.0067L14.4981 18.5634C14.4778 18.9771 14.1259 19.296 13.7122 19.2756C13.2984 19.2553 12.9796 18.9034 12.9999 18.4897L13.2241 13.933C13.2444 13.5193 13.5963 13.2004 14.01 13.2208Z" fill="#1c1c1c"/><path d="M7.99902 4.75C7.99902 3.50736 9.00638 2.5 10.249 2.5H13.749C14.9917 2.5 15.999 3.50736 15.999 4.75V5.5H18.498C19.7407 5.5 20.748 6.50736 20.748 7.75C20.748 8.78958 20.043 9.66449 19.085 9.92267C18.8979 9.9731 18.7011 10 18.498 10H5.5C5.29694 10 5.10016 9.9731 4.91303 9.92267C3.95503 9.66449 3.25 8.78958 3.25 7.75C3.25 6.50736 4.25736 5.5 5.5 5.5H7.99902V4.75ZM14.499 5.5V4.75C14.499 4.33579 14.1632 4 13.749 4H10.249C9.83481 4 9.49902 4.33579 9.49902 4.75V5.5H14.499Z" fill="#1c1c1c"/></svg></div>
           <div class="title serif font-semibold">Dumpster</div>
           <div class="subtitle brand-mono">MacOS Productivity App</div>
         </a>
         <div class="item-card card-gray">
+          <div class="title serif font-semibold">TBD</div>
+          <div class="subtitle brand-mono">coming soon</div>
+        </div>
+        <div class="item-card card-gray span-wide">
+          <div class="title serif font-semibold">TBD</div>
+          <div class="subtitle brand-mono">coming soon</div>
+        </div>
+        <div class="item-card card-gray">
+          <div class="title serif font-semibold">TBD</div>
+          <div class="subtitle brand-mono">coming soon</div>
+        </div>
+        <div class="item-card card-gray span-tall">
+          <div class="title serif font-semibold">TBD</div>
+          <div class="subtitle brand-mono">coming soon</div>
+        </div>
+        <div class="item-card card-gray">
+          <div class="title serif font-semibold">TBD</div>
+          <div class="subtitle brand-mono">coming soon</div>
+        </div>
+        <div class="item-card card-gray span-big">
+          <div class="title serif font-semibold">TBD</div>
+          <div class="subtitle brand-mono">coming soon</div>
+        </div>
+        <div class="item-card card-gray">
+          <div class="title serif font-semibold">TBD</div>
+          <div class="subtitle brand-mono">coming soon</div>
+        </div>
+        <div class="item-card card-gray span-wide">
+          <div class="title serif font-semibold">TBD</div>
+          <div class="subtitle brand-mono">coming soon</div>
+        </div>
+        <div class="item-card card-gray">
+          <div class="title serif font-semibold">TBD</div>
+          <div class="subtitle brand-mono">coming soon</div>
+        </div>
+        <div class="item-card card-gray span-tall">
           <div class="title serif font-semibold">TBD</div>
           <div class="subtitle brand-mono">coming soon</div>
         </div>
@@ -208,19 +244,15 @@
           <div class="title serif font-semibold">TBD</div>
           <div class="subtitle brand-mono">coming soon</div>
         </div>
-        <div class="item-card card-gray">
-          <div class="title serif font-semibold">TBD</div>
-          <div class="subtitle brand-mono">coming soon</div>
-        </div>
-        <div class="item-card card-gray">
-          <div class="title serif font-semibold">TBD</div>
-          <div class="subtitle brand-mono">coming soon</div>
-        </div>
         <div class="item-card card-gray span-tall">
           <div class="title serif font-semibold">TBD</div>
           <div class="subtitle brand-mono">coming soon</div>
         </div>
         <div class="item-card card-gray">
+          <div class="title serif font-semibold">TBD</div>
+          <div class="subtitle brand-mono">coming soon</div>
+        </div>
+        <div class="item-card card-gray span-big">
           <div class="title serif font-semibold">TBD</div>
           <div class="subtitle brand-mono">coming soon</div>
         </div>
