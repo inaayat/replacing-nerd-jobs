@@ -647,20 +647,29 @@ table.al-table {
 .al-log-list-wrap { overflow-x: auto; }
 
 .al-log-list {
-  --al-log-cols: 36px 6.5rem minmax(7rem, 1.4fr) minmax(6rem, 1.1fr) 4.5rem 5.5rem 4.5rem 3.25rem auto;
-  min-width: 720px;
-}
-
-.al-log-head,
-.al-log-row {
   display: grid;
-  grid-template-columns: var(--al-log-cols);
-  gap: 8px 12px;
+  grid-template-columns:
+    36px
+    6.75rem
+    minmax(7rem, 1.15fr)
+    minmax(8rem, 1.2fr)
+    4.75rem
+    6.25rem
+    4.75rem
+    3.25rem
+    6.25rem;
+  column-gap: 12px;
+  row-gap: 8px;
   align-items: center;
+  width: 100%;
+  min-width: 0;
 }
 
 .al-log-head {
-  padding: 0 14px 6px;
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  padding: 0 14px 4px;
   font-size: 0.72rem;
   font-weight: 500;
   color: var(--al-muted);
@@ -668,13 +677,11 @@ table.al-table {
   letter-spacing: 0.03em;
 }
 
-.al-log-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
 .al-log-row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
   padding: 10px 14px;
   background: var(--al-panel-2);
   border: 1px solid var(--al-line);
@@ -690,6 +697,7 @@ table.al-table {
 
 .al-log-col {
   text-align: left;
+  justify-self: start;
   min-width: 0;
   line-height: 1.35;
 }
@@ -699,15 +707,13 @@ table.al-table {
 }
 
 .al-log-col--num {
-  text-align: right;
   font-family: var(--al-font-mono);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-.al-log-col--actions {
-  display: flex;
-  justify-content: flex-end;
+.al-log-row .al-row-actions {
+  justify-content: flex-start;
 }
 
 .al-insight-grid {

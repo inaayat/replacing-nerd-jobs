@@ -89,28 +89,26 @@ function tableHtml(watches, token) {
         <span class="al-log-col">Location</span>
         <span class="al-log-col">Format</span>
         <span class="al-log-col">Seat</span>
-        <span class="al-log-col al-log-col--num">Charge</span>
+        <span class="al-log-col">Charge</span>
         <span class="al-log-col">Rating</span>
-        <span class="al-log-col al-log-col--actions"></span>
+        <span class="al-log-col">Actions</span>
       </div>
-      <div class="al-log-rows">
-        ${watches.map((w) => `
-          <article class="al-log-row" data-id="${w.id}">
-            <div class="al-log-col al-col-poster">${posterHtml(w)}</div>
-            <div class="al-log-col">${shortDate(w.watched_on)}</div>
-            <div class="al-log-col al-log-col--title">${escapeHtml(w.title)}</div>
-            <div class="al-log-col al-muted">${escapeHtml(w.location || '—')}</div>
-            <div class="al-log-col">${w.format ? escapeHtml(w.format) : '—'}</div>
-            <div class="al-log-col al-muted">${escapeHtml([w.auditorium, w.seat].filter(Boolean).join(' · ') || '—')}</div>
-            <div class="al-log-col al-log-col--num">${money(w.ticket_cents)}</div>
-            <div class="al-log-col">${ratingLabel(w)}</div>
-            <div class="al-log-col al-log-col--actions al-row-actions">
-              <a class="al-link-btn" href="/amc-a-lister/add.html?id=${encodeURIComponent(w.id)}">Edit</a>
-              <button type="button" class="al-link-btn" data-delete="${w.id}">Delete</button>
-            </div>
-          </article>
-        `).join('')}
-      </div>
+      ${watches.map((w) => `
+        <article class="al-log-row" data-id="${w.id}">
+          <div class="al-log-col al-col-poster">${posterHtml(w)}</div>
+          <div class="al-log-col">${shortDate(w.watched_on)}</div>
+          <div class="al-log-col al-log-col--title">${escapeHtml(w.title)}</div>
+          <div class="al-log-col al-muted">${escapeHtml(w.location || '—')}</div>
+          <div class="al-log-col">${w.format ? escapeHtml(w.format) : '—'}</div>
+          <div class="al-log-col al-muted">${escapeHtml([w.auditorium, w.seat].filter(Boolean).join(' · ') || '—')}</div>
+          <div class="al-log-col al-log-col--num">${money(w.ticket_cents)}</div>
+          <div class="al-log-col">${ratingLabel(w)}</div>
+          <div class="al-log-col al-row-actions">
+            <a class="al-link-btn" href="/amc-a-lister/add.html?id=${encodeURIComponent(w.id)}">Edit</a>
+            <button type="button" class="al-link-btn" data-delete="${w.id}">Delete</button>
+          </div>
+        </article>
+      `).join('')}
     </div>
   `;
 }
