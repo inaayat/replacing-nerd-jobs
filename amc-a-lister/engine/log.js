@@ -131,13 +131,15 @@ function viewEntryHtml(w, state) {
       <article class="al-log-row al-log-row--clickable ${expanded ? 'is-expanded' : ''}" data-expand-row tabindex="0" role="button" aria-expanded="${expanded}">
         <div class="al-log-col al-col-poster">${posterHtml(w)}</div>
         <div class="al-log-col al-log-col--desktop">${shortDate(w.watched_on)}</div>
-        <div class="al-log-col al-log-col--title">${escapeHtml(w.title)}</div>
+        <div class="al-log-col--body">
+          <div class="al-log-col al-log-col--title">${escapeHtml(w.title)}</div>
+          <div class="al-log-col al-log-col--mobile-meta al-only-mobile">${mobileLogMeta(w)}</div>
+        </div>
         <div class="al-log-col al-log-col--desktop al-muted">${escapeHtml(w.location || '—')}</div>
         <div class="al-log-col al-log-col--desktop">${w.format ? escapeHtml(w.format) : '—'}</div>
         <div class="al-log-col al-log-col--desktop al-muted">${escapeHtml([w.auditorium, w.seat].filter(Boolean).join(' · ') || '—')}</div>
         <div class="al-log-col al-log-col--desktop al-log-col--num">${money(w.ticket_cents)}</div>
         <div class="al-log-col al-log-col--desktop">${ratingLabel(w)}</div>
-        <div class="al-log-col al-log-col--mobile-meta al-only-mobile">${mobileLogMeta(w)}</div>
         <div class="al-log-col al-row-actions">
           <button type="button" class="al-link-btn" data-edit="${w.id}">Edit</button>
           <button type="button" class="al-link-btn" data-delete="${w.id}">Delete</button>
