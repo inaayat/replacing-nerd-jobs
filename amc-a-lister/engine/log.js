@@ -29,7 +29,7 @@ async function loadLog(auth) {
   const formats = [...new Set(watches.map((w) => w.format).filter(Boolean))].sort();
 
   main.innerHTML = `
-    <section class="al-panel">
+    <section class="al-panel al-panel--log">
       <div class="al-toolbar al-toolbar--log">
         <input class="al-input al-toolbar-search" id="log-search" type="search" placeholder="Search title or theater…" />
         <select class="al-select al-toolbar-filter" id="log-theater">

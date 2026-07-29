@@ -1336,9 +1336,9 @@ table.al-table {
 /* Mobile layout */
 @media (max-width: 767px) {
   .page-main {
-    padding: 12px;
+    padding: 8px;
     padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
-    gap: 12px;
+    gap: 10px;
   }
 
   .al-content-scroll {
@@ -1468,8 +1468,8 @@ table.al-table {
   .al-mobile-nav {
     display: flex;
     position: fixed;
-    left: 12px;
-    right: 12px;
+    left: 8px;
+    right: 8px;
     bottom: calc(10px + env(safe-area-inset-bottom, 0px));
     z-index: 40;
     padding: 4px;
@@ -1499,14 +1499,34 @@ table.al-table {
 
   .al-only-mobile { display: block; }
 
+  .al-panel--log {
+    width: 100%;
+    padding: 0;
+    margin-bottom: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  .al-panel--log .al-toolbar {
+    margin-bottom: 10px;
+  }
+
+  .al-main {
+    width: 100%;
+    min-width: 0;
+    padding-bottom: 0;
+  }
+
   .al-log-list-wrap {
     overflow-x: visible;
+    width: 100%;
   }
 
   .al-log-list {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    width: 100%;
     min-width: 0;
   }
 
@@ -1517,28 +1537,35 @@ table.al-table {
 
   .al-log-entry {
     display: block;
+    width: 100%;
   }
 
   .al-log-row {
     display: grid;
-    grid-template-columns: 28px minmax(0, 1fr) auto;
+    width: 100%;
+    box-sizing: border-box;
+    grid-template-columns: 28px minmax(0, 1fr) 2.75rem;
+    grid-template-rows: calc(0.92rem * 1.3 * 2) calc(0.72rem * 1.35 * 2 + 2px);
     grid-template-areas:
       "poster title actions"
       "poster meta actions";
     gap: 4px 10px;
-    align-items: start;
-    padding: 12px;
+    align-items: center;
+    height: calc(20px + 0.92rem * 1.3 * 2 + 4px + 0.72rem * 1.35 * 2 + 2px);
+    padding: 10px;
   }
 
   .al-log-col.al-col-poster {
     grid-area: poster;
-    align-self: start;
-    width: auto;
+    align-self: center;
+    width: 28px;
     padding-right: 0 !important;
   }
 
   .al-log-col--title {
     grid-area: title;
+    align-self: end;
+    height: calc(0.92rem * 1.3 * 2);
     font-size: 0.92rem;
     line-height: 1.3;
     display: -webkit-box;
@@ -1549,15 +1576,19 @@ table.al-table {
 
   .al-log-col--mobile-meta {
     grid-area: meta;
+    align-self: start;
     display: flex;
     flex-direction: column;
+    justify-content: flex-start;
     gap: 2px;
+    height: calc(0.72rem * 1.35 * 2 + 2px);
     min-width: 0;
     font-size: 0.72rem;
     color: var(--al-muted);
     line-height: 1.35;
   }
 
+  .al-log-meta-primary,
   .al-log-meta-location {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1569,6 +1600,8 @@ table.al-table {
     flex-direction: column;
     align-items: flex-end;
     align-self: center;
+    justify-self: end;
+    flex-shrink: 0;
     gap: 4px;
   }
 
@@ -1579,7 +1612,9 @@ table.al-table {
   }
 
   .al-log-detail {
-    padding: 0 12px 12px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0;
     margin-top: -4px;
   }
 
@@ -1596,6 +1631,8 @@ table.al-table {
   }
 
   .al-log-row--editing {
-    padding: 12px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px;
   }
 }
