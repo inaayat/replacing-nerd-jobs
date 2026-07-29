@@ -36,6 +36,7 @@ export function renderShell({ title, subtitle, body = '', hideLogBar = false } =
         <div class="al-sidebar-footer">
           <a href="/">← Beep boop</a>
           <a href="/account.html" id="nav-auth-link">Log in</a>
+          <p class="al-tmdb-credit">Movie data &amp; posters by <a href="https://www.themoviedb.org/" target="_blank" rel="noopener">TMDB</a></p>
         </div>
       </aside>
       <div class="al-content-scroll">

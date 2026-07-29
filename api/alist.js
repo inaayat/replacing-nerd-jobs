@@ -74,6 +74,54 @@ function normalizeBody(body) {
   };
 }
 
+async function enrichMissingPosters(watches) {
+  const apiKey = process.env.TMDB_API_KEY;
+  if (!apiKey || !process.env.DATABASE_URL) return watches;
+
+  const missingIds = [...new Set(
+    watches.filter((w) => w.tmdb_id && !w.poster_path).map((w) => w.tmdb_id),
+  )];
+  if (!missingIds.length) return watches;
+
+  await ensureSchema();
+  const posterById = new Map();
+
+  for (const tmdbId of missingIds.slice(0, 12)) {
+    try {
+      const url = new URL(`https://api.themoviedb.org/3/movie/${tmdbId}`);
+      url.searchParams.set('api_key', apiKey);
+      const tmdbRes = await fetch(url);
+      if (!tmdbRes.ok) continue;
+      const m = await tmdbRes.json();
+      const posterPath = m.poster_path || null;
+      const year = m.release_date ? Number(m.release_date.slice(0, 4)) : null;
+      await db()`
+        INSERT INTO alist_movie_cache (tmdb_id, title, year, poster_path, raw)
+        VALUES (${tmdbId}, ${m.title || null}, ${year}, ${posterPath}, ${JSON.stringify({
+          tmdb_id: tmdbId,
+          title: m.title,
+          year,
+          poster_path: posterPath,
+        })})
+        ON CONFLICT (tmdb_id) DO UPDATE SET
+          title = EXCLUDED.title,
+          year = EXCLUDED.year,
+          poster_path = EXCLUDED.poster_path,
+          fetched_at = now()
+      `;
+      if (posterPath) posterById.set(tmdbId, posterPath);
+    } catch {
+      // Skip failed lookups; list still works without posters.
+    }
+  }
+
+  if (!posterById.size) return watches;
+  return watches.map((w) => ({
+    ...w,
+    poster_path: w.poster_path || posterById.get(w.tmdb_id) || null,
+  }));
+}
+
 async function handleWatches(req, res) {
   if (!requireDb(res)) return;
   const session = await requireUser(req, res);
@@ -82,8 +130,10 @@ async function handleWatches(req, res) {
 
   if (req.method === 'GET') {
     try {
-      const rows = await listWatches(userId);
-      res.status(200).json({ watches: rows.map(watchFromRow) });
+      let rows = await listWatches(userId);
+      let watches = rows.map(watchFromRow);
+      watches = await enrichMissingPosters(watches);
+      res.status(200).json({ watches });
     } catch (err) {
       res.status(502).json({ error: err.message });
     }

@@ -1,6 +1,6 @@
 import { bootPage, renderShell, requireSignIn, populateSidebarStats } from './nav.js';
 import { watchesApi } from './api.js';
-import { money, shortDate, ratingLabel, escapeHtml } from './format.js';
+import { money, shortDate, ratingLabel, escapeHtml, posterHtml } from './format.js';
 
 bootPage(async ({ root, auth }) => {
   if (!requireSignIn(auth, root)) return;
@@ -84,6 +84,7 @@ function tableHtml(watches, token) {
     <table class="al-table">
       <thead>
         <tr>
+          <th class="al-col-poster" aria-label="Poster"></th>
           <th>Date</th>
           <th>Title</th>
           <th>Location</th>
@@ -97,6 +98,7 @@ function tableHtml(watches, token) {
       <tbody>
         ${watches.map((w) => `
           <tr data-id="${w.id}">
+            <td class="al-col-poster">${posterHtml(w)}</td>
             <td>${shortDate(w.watched_on)}</td>
             <td>${escapeHtml(w.title)}</td>
             <td class="al-muted">${escapeHtml(w.location || '—')}</td>
