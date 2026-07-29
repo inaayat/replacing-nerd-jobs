@@ -6,6 +6,8 @@ import {
   computeSummary,
   membershipPriceTiers,
   billingChargeMonths,
+  actorStats,
+  topActorsByRating,
 } from '../lib/a-list-billing.js';
 
 const legacyMembership = {
@@ -86,5 +88,24 @@ const runtimeSummary = computeSummary(runtimeWatches, legacyMembership);
 assert.equal(runtimeSummary.avgRuntimeMin, 135);
 
 assert.equal(membershipPriceTiers(legacyMembership).length, 2);
+
+const castByTmdbId = new Map([
+  [1, ['Actor A', 'Actor B']],
+  [2, ['Actor A', 'Actor C']],
+  [3, ['Actor C']],
+]);
+const actorWatches = [
+  { tmdb_id: 1, title: 'One', rating: 5, dnf: false },
+  { tmdb_id: 2, title: 'Two', rating: 5, dnf: false },
+  { tmdb_id: 2, title: 'Two again', rating: 5, dnf: false },
+  { tmdb_id: 3, title: 'Three', rating: 5, dnf: false },
+  { tmdb_id: 3, title: 'Three again', rating: 5, dnf: false },
+];
+const actors = actorStats(actorWatches, castByTmdbId);
+assert.equal(actors[0].actor, 'Actor C');
+assert.equal(actors[0].count, 4);
+assert.equal(actors.find((actor) => actor.actor === 'Actor A').avgRating, 5);
+assert.equal(topActorsByRating(actors)[0].actor, 'Actor C');
+assert.equal(topActorsByRating(actors)[0].avgRating, 5);
 
 console.log('billing tests passed');

@@ -1,6 +1,6 @@
 import { bootPage, renderShell, requireSignIn, populateSidebarStats } from './nav.js';
 import { summaryApi, watchesApi } from './api.js';
-import { chargeMonth } from './billing.js';
+import { chargeMonth, topActorsByRating } from './billing.js';
 import { money, escapeHtml, monthLabel, shortDate } from './format.js';
 
 bootPage(async ({ root, auth }) => {
@@ -17,7 +17,7 @@ bootPage(async ({ root, auth }) => {
     summaryApi.get(auth.token),
     watchesApi.list(auth.token),
   ]);
-  const { summary, theaters, formats, rewatches, ratings } = data;
+  const { summary, theaters, formats, rewatches, ratings, actors = [] } = data;
   const moviesByMonth = groupMoviesByMonth(watches);
   const maxTheater = theaters[0]?.count || 1;
   const maxFormat = formats[0]?.charged || 1;
@@ -59,6 +59,8 @@ bootPage(async ({ root, auth }) => {
       </section>
     </div>
 
+    ${renderByActorSection(actors)}
+
     <section class="al-panel">
       <h2 class="serif">Rewatches</h2>
       ${rewatches.length
@@ -74,7 +76,82 @@ bootPage(async ({ root, auth }) => {
     : '<div class="al-empty">No rewatches logged yet.</div>'}
     </section>
   `;
+
+  const byActorSection = main.querySelector('.al-by-actor');
+  if (byActorSection) wireSegmentToggle(byActorSection);
 }, { quickLogOnSuccess: (auth) => populateSidebarStats(auth) });
+
+function renderByActorSection(actors) {
+  if (!actors.length) {
+    return `
+      <section class="al-panel al-by-actor">
+        <h2 class="serif">By actor</h2>
+        <div class="al-empty">No actor data yet — link movies to TMDB when logging or expand a row in your log.</div>
+      </section>
+    `;
+  }
+
+  const mostSeen = actors.slice(0, 10);
+  const highestRated = topActorsByRating(actors, { minRated: 2, limit: 10 });
+  const maxCount = mostSeen[0]?.count || 1;
+
+  return `
+    <section class="al-panel al-by-actor">
+      <div class="al-panel-head">
+        <h2 class="serif">By actor</h2>
+        <div class="al-segment" role="tablist" aria-label="By actor view">
+          <button type="button" class="al-segment-btn is-active" role="tab" aria-selected="true" data-view="most">Most seen</button>
+          <button type="button" class="al-segment-btn" role="tab" aria-selected="false" data-view="rated">Highest rated</button>
+        </div>
+      </div>
+      <p class="al-muted al-by-actor-hint">Top 10 from billed cast on TMDB-matched titles.</p>
+      <div class="al-view-panel" data-panel="most">
+        ${mostSeen.map((actor) => barRow(
+    actor.actor,
+    actor.count,
+    maxCount,
+    actorRightLabel(actor),
+  )).join('')}
+      </div>
+      <div class="al-view-panel is-hidden" data-panel="rated" hidden>
+        ${highestRated.length
+    ? highestRated.map((actor) => barRow(
+      actor.actor,
+      actor.avgRating,
+      5,
+      `${actor.avgRating}★ · ${actor.count} films`,
+    )).join('')
+    : '<div class="al-empty">Rate at least two films per actor to rank them here.</div>'}
+      </div>
+    </section>
+  `;
+}
+
+function actorRightLabel(actor) {
+  const rating = actor.avgRating != null ? `${actor.avgRating}★ avg` : '— avg';
+  return `${actor.count} films · ${rating}`;
+}
+
+function wireSegmentToggle(section) {
+  const buttons = [...section.querySelectorAll('[data-view]')];
+  const panels = [...section.querySelectorAll('[data-panel]')];
+
+  buttons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const view = btn.dataset.view;
+      buttons.forEach((b) => {
+        const active = b === btn;
+        b.classList.toggle('is-active', active);
+        b.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+      panels.forEach((panel) => {
+        const show = panel.dataset.panel === view;
+        panel.classList.toggle('is-hidden', !show);
+        panel.hidden = !show;
+      });
+    });
+  });
+}
 
 function groupMoviesByMonth(watches) {
   const map = new Map();

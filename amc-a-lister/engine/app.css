@@ -939,6 +939,10 @@ table.al-table {
   margin: -4px 0 10px;
 }
 
+.al-by-actor-hint {
+  margin: -4px 0 10px;
+}
+
 .al-hint-touch { display: none; }
 
 @media (hover: none) {
@@ -1246,8 +1250,23 @@ table.al-table {
   }
 
   .al-quicklog-submit,
+  .al-segment-btn,
   .al-mobile-nav-link {
     min-height: 44px;
+  }
+
+  .al-panel-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .al-segment {
+    width: 100%;
+  }
+
+  .al-segment-btn {
+    flex: 1;
+    text-align: center;
   }
 
   .al-toolbar--log .al-toolbar-search,

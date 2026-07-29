@@ -8,6 +8,7 @@ import {
   formatStats,
   rewatchList,
   ratingDistribution,
+  actorStats,
   normalizePriceTiers,
 } from '../lib/a-list-billing.js';
 
@@ -409,6 +410,37 @@ async function handleWatches(req, res) {
   res.status(405).json({ error: 'Method not allowed.' });
 }
 
+async function getCastMapForTmdbIds(tmdbIds) {
+  const castMap = new Map();
+  const uniqueIds = [...new Set(tmdbIds.filter(Boolean).map(Number))];
+  if (!uniqueIds.length) return castMap;
+
+  if (process.env.DATABASE_URL) {
+    await ensureSchema();
+    const rows = await db()`
+      SELECT tmdb_id, raw
+      FROM alist_movie_cache
+      WHERE tmdb_id = ANY(${uniqueIds})
+    `;
+    for (const row of rows) {
+      const raw = row.raw && typeof row.raw === 'object' ? row.raw : {};
+      if (raw.cast?.length) castMap.set(Number(row.tmdb_id), raw.cast);
+    }
+  }
+
+  const missing = uniqueIds.filter((id) => !castMap.has(id));
+  for (const id of missing.slice(0, 20)) {
+    try {
+      const movie = await getMovieDetails(id);
+      if (movie?.cast?.length) castMap.set(id, movie.cast);
+    } catch {
+      // Skip failed cast lookups; insight still works for cached titles.
+    }
+  }
+
+  return castMap;
+}
+
 async function handleSummary(req, res) {
   if (req.method !== 'GET') {
     res.status(405).json({ error: 'Use GET.' });
@@ -442,12 +474,15 @@ async function handleSummary(req, res) {
     }));
 
     const summary = computeSummary(normalized, membership);
+    const tmdbIds = normalized.map((w) => w.tmdb_id).filter(Boolean);
+    const castByTmdbId = await getCastMapForTmdbIds(tmdbIds);
     res.status(200).json({
       summary,
       theaters: theaterStats(normalized),
       formats: formatStats(normalized),
       rewatches: rewatchList(normalized),
       ratings: ratingDistribution(normalized),
+      actors: actorStats(normalized, castByTmdbId),
     });
   } catch (err) {
     res.status(502).json({ error: err.message });
