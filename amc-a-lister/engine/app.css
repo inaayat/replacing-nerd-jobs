@@ -559,6 +559,14 @@ table.al-table {
   color: var(--al-muted);
 }
 
+.al-leaderboard-table .num {
+  text-align: left;
+}
+
+.al-leaderboard-table .al-sort-btn {
+  text-align: left;
+}
+
 .al-leaderboard-name {
   font-weight: 500;
   white-space: nowrap;
@@ -602,10 +610,6 @@ table.al-table {
 .al-sort-btn:hover,
 .al-sortable.is-active .al-sort-btn {
   color: var(--al-ink);
-}
-
-.al-sortable:first-of-type .al-sort-btn {
-  text-align: left;
 }
 
 .al-leaderboard-actions {
