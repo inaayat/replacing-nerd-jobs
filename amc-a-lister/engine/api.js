@@ -28,6 +28,10 @@ export const summaryApi = {
   get: (token) => apiFetch('/api/alist-summary', { token }),
 };
 
+export const leaderboardApi = {
+  get: (token) => apiFetch('/api/alist-leaderboard', { token }),
+};
+
 export const membershipApi = {
   get: (token) => apiFetch('/api/alist-membership', { token }),
   update: (token, membership) => apiFetch('/api/alist-membership', { method: 'PUT', body: membership, token }),

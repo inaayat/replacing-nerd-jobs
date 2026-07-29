@@ -554,6 +554,60 @@ table.al-table {
   white-space: nowrap;
 }
 
+.al-leaderboard-table .al-leaderboard-rank {
+  width: 2rem;
+  color: var(--al-muted);
+}
+
+.al-leaderboard-name {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.al-leaderboard-table tr.is-you td {
+  background: rgba(218, 0, 0, 0.04);
+}
+
+.al-you-badge {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background: rgba(218, 0, 0, 0.1);
+  color: var(--al-burgundy);
+  vertical-align: middle;
+}
+
+.al-sortable {
+  padding: 0;
+}
+
+.al-sort-btn {
+  display: block;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: right;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.al-sort-btn:hover,
+.al-sortable.is-active .al-sort-btn {
+  color: var(--al-ink);
+}
+
+.al-sortable:first-of-type .al-sort-btn {
+  text-align: left;
+}
+
 .al-tag {
   display: inline-block;
   padding: 1px 6px;
