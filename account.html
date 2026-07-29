@@ -117,8 +117,8 @@
       }
 
       async function run(authUrl) {
-        const { createInternalNeonAuth } = await import('https://esm.sh/@neondatabase/auth@0.4.2-beta');
-        const neonAuth = createInternalNeonAuth(authUrl);
+        const { loadNeonAuth, resolveNeonJwt } = await import('/engine/neon-browser-auth.js');
+        const neonAuth = await loadNeonAuth(authUrl);
         const client = neonAuth.adapter;
 
         wireAuthForms(client);
@@ -189,7 +189,8 @@
         const fields = document.getElementById('profile-fields');
         const note = document.getElementById('profile-note');
         try {
-          const token = await neonAuth.getJWTToken();
+          const token = await resolveNeonJwt(neonAuth, client);
+          if (!token) throw new Error('Could not get session token. Try signing out and back in.');
           const res = await fetch('/api/me', { headers: { Authorization: `Bearer ${token}` } });
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
