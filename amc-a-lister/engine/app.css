@@ -1718,10 +1718,22 @@ table.al-table {
 
   .al-log-detail-facts {
     grid-template-columns: 1fr;
+    gap: 6px;
   }
 
   .al-log-detail-body {
-    flex-direction: column;
+    flex-direction: row;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  .al-log-detail-fact {
+    padding: 8px 10px;
+  }
+
+  .al-poster--detail {
+    width: 72px;
+    height: auto;
   }
 
   .al-log-row--editing {
