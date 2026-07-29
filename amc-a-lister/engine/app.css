@@ -608,6 +608,100 @@ table.al-table {
   text-align: left;
 }
 
+.al-leaderboard-actions {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.al-leaderboard-table tr.is-compare-target td {
+  background: rgba(218, 0, 0, 0.06);
+}
+
+.al-compare-row-btn {
+  padding: 4px 10px;
+  font-size: 0.72rem;
+}
+
+.al-compare-panel {
+  margin-top: 16px;
+}
+
+.al-compare-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 18px;
+}
+
+.al-compare-header h2 {
+  margin: 0 0 4px;
+  font-size: 1.35rem;
+}
+
+.al-compare-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: min(100%, 320px);
+}
+
+.al-compare-label {
+  font-size: 0.72rem;
+  color: var(--al-muted);
+}
+
+.al-compare-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.al-compare-select {
+  flex: 1;
+  min-width: 0;
+}
+
+.al-compare-placeholder {
+  margin: 0;
+}
+
+.al-compare-summary {
+  margin-bottom: 18px;
+}
+
+.al-compare-section + .al-compare-section {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--al-line);
+}
+
+.al-compare-section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.al-compare-section-head h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.al-compare-count {
+  font-family: var(--al-font-mono);
+  font-size: 0.72rem;
+  color: var(--al-muted);
+}
+
+.al-poster-strip-meta {
+  font-family: var(--al-font-mono);
+  font-size: 0.62rem;
+  line-height: 1.2;
+  text-align: center;
+  color: var(--al-burgundy);
+}
+
 .al-tag {
   display: inline-block;
   padding: 1px 6px;

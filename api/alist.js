@@ -1,7 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { getAuth } from '../lib/neon-auth.js';
 import { db, ensureSchema } from '../lib/db.js';
-import { upsertUser, listWatches, getMembership, watchFromRow, getLeaderboard } from '../lib/a-list.js';
+import {
+  upsertUser,
+  listWatches,
+  getMembership,
+  watchFromRow,
+  getLeaderboard,
+  compareUsers,
+} from '../lib/a-list.js';
 import {
   computeSummary,
   theaterStats,
@@ -29,6 +36,8 @@ export default async function handler(req, res) {
       return handleMovieDetails(req, res);
     case 'leaderboard':
       return handleLeaderboard(req, res);
+    case 'leaderboard-compare':
+      return handleLeaderboardCompare(req, res);
     default:
       res.status(404).json({ error: 'Unknown A-List route.' });
   }
@@ -441,6 +450,35 @@ async function getCastMapForTmdbIds(tmdbIds) {
   }
 
   return castMap;
+}
+
+async function handleLeaderboardCompare(req, res) {
+  if (req.method !== 'GET') {
+    res.status(405).json({ error: 'Use GET.' });
+    return;
+  }
+  if (!requireDb(res)) return;
+
+  const auth = await getAuth(req);
+  if (!auth) {
+    res.status(401).json({ error: 'Not signed in.' });
+    return;
+  }
+
+  const withUserId = String(req.query?.with || '').trim();
+  if (!withUserId) {
+    res.status(400).json({ error: 'with user id is required.' });
+    return;
+  }
+
+  try {
+    const userId = await upsertUser(auth);
+    const comparison = await compareUsers(userId, withUserId);
+    res.status(200).json(comparison);
+  } catch (err) {
+    const status = err.message === 'User not found.' ? 404 : 400;
+    res.status(status).json({ error: err.message });
+  }
 }
 
 async function handleLeaderboard(req, res) {
