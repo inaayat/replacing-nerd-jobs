@@ -1021,6 +1021,10 @@ table.al-table {
   overflow: visible;
 }
 
+.al-insight .al-table-wrap {
+  overflow: visible;
+}
+
 .al-hover-target {
   position: relative;
   display: inline-block;
@@ -1131,8 +1135,7 @@ table.al-table {
 }
 
 .al-insight-hint {
-  margin-top: -2px;
-  margin-bottom: 8px;
+  margin: -4px 0 10px;
   font-size: 0.82rem;
 }
 
