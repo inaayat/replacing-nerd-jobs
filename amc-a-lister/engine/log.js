@@ -30,13 +30,13 @@ async function loadLog(auth) {
 
   main.innerHTML = `
     <section class="al-panel">
-      <div class="al-toolbar">
-        <input class="al-input" id="log-search" type="search" placeholder="Search title or theater…" style="max-width:240px" />
-        <select class="al-select" id="log-theater" style="max-width:180px">
+      <div class="al-toolbar al-toolbar--log">
+        <input class="al-input al-toolbar-search" id="log-search" type="search" placeholder="Search title or theater…" />
+        <select class="al-select al-toolbar-filter" id="log-theater">
           <option value="">All theaters</option>
           ${theaters.map((t) => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('')}
         </select>
-        <select class="al-select" id="log-format" style="max-width:140px">
+        <select class="al-select al-toolbar-filter al-toolbar-filter--format" id="log-format">
           <option value="">All formats</option>
           ${formats.map((f) => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('')}
         </select>
@@ -113,19 +113,30 @@ function tableHtml(state) {
   `;
 }
 
+function mobileLogMeta(w) {
+  return [
+    shortDate(w.watched_on),
+    w.location || '—',
+    w.format || 'Standard',
+    money(w.ticket_cents),
+    ratingLabel(w),
+  ].map((part) => escapeHtml(String(part))).join(' · ');
+}
+
 function viewEntryHtml(w, state) {
   const expanded = w.id === state.expandedId;
   return `
     <div class="al-log-entry ${expanded ? 'is-expanded' : ''}" data-entry-id="${w.id}">
       <article class="al-log-row al-log-row--clickable ${expanded ? 'is-expanded' : ''}" data-expand-row tabindex="0" role="button" aria-expanded="${expanded}">
         <div class="al-log-col al-col-poster">${posterHtml(w)}</div>
-        <div class="al-log-col">${shortDate(w.watched_on)}</div>
+        <div class="al-log-col al-log-col--desktop">${shortDate(w.watched_on)}</div>
         <div class="al-log-col al-log-col--title">${escapeHtml(w.title)}</div>
-        <div class="al-log-col al-muted">${escapeHtml(w.location || '—')}</div>
-        <div class="al-log-col">${w.format ? escapeHtml(w.format) : '—'}</div>
-        <div class="al-log-col al-muted">${escapeHtml([w.auditorium, w.seat].filter(Boolean).join(' · ') || '—')}</div>
-        <div class="al-log-col al-log-col--num">${money(w.ticket_cents)}</div>
-        <div class="al-log-col">${ratingLabel(w)}</div>
+        <div class="al-log-col al-log-col--desktop al-muted">${escapeHtml(w.location || '—')}</div>
+        <div class="al-log-col al-log-col--desktop">${w.format ? escapeHtml(w.format) : '—'}</div>
+        <div class="al-log-col al-log-col--desktop al-muted">${escapeHtml([w.auditorium, w.seat].filter(Boolean).join(' · ') || '—')}</div>
+        <div class="al-log-col al-log-col--desktop al-log-col--num">${money(w.ticket_cents)}</div>
+        <div class="al-log-col al-log-col--desktop">${ratingLabel(w)}</div>
+        <div class="al-log-col al-log-col--mobile-meta al-only-mobile">${mobileLogMeta(w)}</div>
         <div class="al-log-col al-row-actions">
           <button type="button" class="al-link-btn" data-edit="${w.id}">Edit</button>
           <button type="button" class="al-link-btn" data-delete="${w.id}">Delete</button>

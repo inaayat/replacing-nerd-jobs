@@ -104,9 +104,9 @@ function renderMonthGraph(byMonth) {
   const maxMovies = Math.max(1, ...rows.map((r) => r.movies));
   const maxMoney = Math.max(1, ...rows.map((r) => Math.max(r.charged, r.bill)));
 
-  const width = 720;
   const height = 240;
-  const pad = { top: 16, right: 52, bottom: 40, left: 40 };
+  const pad = { top: 16, right: 44, bottom: 40, left: 36 };
+  const width = Math.max(320, rows.length * 56 + pad.left + pad.right);
   const chartW = width - pad.left - pad.right;
   const chartH = height - pad.top - pad.bottom;
   const groupW = chartW / rows.length;
@@ -158,7 +158,7 @@ function renderMonthGraph(byMonth) {
 
   return `
     <div class="al-month-chart-wrap">
-      <svg class="al-month-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Monthly movies watched, charged, and billed">
+      <svg class="al-month-chart" style="min-width:${width}px" viewBox="0 0 ${width} ${height}" role="img" aria-label="Monthly movies watched, charged, and billed">
         <line class="al-month-axis" x1="${pad.left}" y1="${pad.top + chartH}" x2="${pad.left + chartW}" y2="${pad.top + chartH}" />
         ${yTicksMovies}
         ${bars}

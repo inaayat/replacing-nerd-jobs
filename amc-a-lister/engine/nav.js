@@ -16,6 +16,11 @@ export function renderShell({ title, subtitle, body = '', hideLogBar = false } =
     return `<a href="${p.href}" class="al-nav-link${active}">${p.label}</a>`;
   }).join('');
 
+  const mobileLinks = PAGES.map((p) => {
+    const active = p.id === NAV_ACTIVE ? ' is-active' : '';
+    return `<a href="${p.href}" class="al-mobile-nav-link${active}">${p.label}</a>`;
+  }).join('');
+
   const isAddPage = NAV_ACTIVE === 'add';
   const showQuickLog = !hideLogBar && !isAddPage;
 
@@ -48,6 +53,7 @@ export function renderShell({ title, subtitle, body = '', hideLogBar = false } =
         ` : ''}
         ${body}
       </div>
+      <nav class="al-mobile-nav" aria-label="A-Lister pages">${mobileLinks}</nav>
     </div>
   `;
 }
