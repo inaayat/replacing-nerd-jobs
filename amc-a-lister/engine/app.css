@@ -717,9 +717,7 @@ table.al-table {
 }
 
 .al-log-entry {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-direction: column;
+  display: contents;
 }
 
 .al-log-row--clickable {
@@ -734,9 +732,11 @@ table.al-table {
 .al-log-entry.is-expanded .al-log-row {
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
+  margin-bottom: 0;
 }
 
 .al-log-detail {
+  grid-column: 1 / -1;
   padding: 12px 14px 14px;
   background: var(--al-white);
   border: 1px solid var(--al-line);
