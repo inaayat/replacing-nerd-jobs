@@ -25,8 +25,10 @@ bootPage(async ({ root, auth }) => {
 
   main.innerHTML = `
     ${renderByMonthSection(summary.byMonth, moviesByMonth)}
-    ${renderInsightGrid(summary, theaters, formats, ratings, maxTheater, maxFormat, maxRating)}
-    ${renderByActorSection(actors)}
+    <div class="al-insight-grid">
+      ${renderByActorSection(actors)}
+      ${renderInsightGrid(theaters, formats, ratings, maxTheater, maxFormat, maxRating)}
+    </div>
     ${renderRewatchesSection(rewatches)}
   `;
 
