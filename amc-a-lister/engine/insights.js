@@ -1,6 +1,7 @@
 import { bootPage, renderShell, requireSignIn, populateSidebarStats } from './nav.js';
-import { summaryApi } from './api.js';
-import { money, escapeHtml, monthLabel } from './format.js';
+import { summaryApi, watchesApi } from './api.js';
+import { chargeMonth } from './billing.js';
+import { money, escapeHtml, monthLabel, shortDate } from './format.js';
 
 bootPage(async ({ root, auth }) => {
   if (!requireSignIn(auth, root)) return;
@@ -12,14 +13,18 @@ bootPage(async ({ root, auth }) => {
   });
 
   const main = document.getElementById('insights-main');
-  const data = await summaryApi.get(auth.token);
+  const [data, { watches }] = await Promise.all([
+    summaryApi.get(auth.token),
+    watchesApi.list(auth.token),
+  ]);
   const { summary, theaters, formats, rewatches, ratings } = data;
+  const moviesByMonth = groupMoviesByMonth(watches);
   const maxTheater = theaters[0]?.count || 1;
   const maxFormat = formats[0]?.charged || 1;
   const maxRating = Math.max(1, ...Object.values(ratings.buckets));
 
   main.innerHTML = `
-    ${renderByMonthSection(summary.byMonth)}
+    ${renderByMonthSection(summary.byMonth, moviesByMonth)}
 
     <div class="al-insight-grid">
       <section class="al-panel">
@@ -69,12 +74,25 @@ bootPage(async ({ root, auth }) => {
     : '<div class="al-empty">No rewatches logged yet.</div>'}
     </section>
   `;
-
-  const byMonthSection = main.querySelector('.al-by-month');
-  if (byMonthSection) wireByMonthToggle(byMonthSection);
 }, { quickLogOnSuccess: (auth) => populateSidebarStats(auth) });
 
-function renderByMonthSection(byMonth) {
+function groupMoviesByMonth(watches) {
+  const map = new Map();
+  for (const watch of watches) {
+    const month = chargeMonth(watch.watched_on);
+    if (!map.has(month)) map.set(month, []);
+    map.get(month).push({
+      title: watch.title,
+      watched_on: watch.watched_on,
+    });
+  }
+  for (const movies of map.values()) {
+    movies.sort((a, b) => b.watched_on.localeCompare(a.watched_on));
+  }
+  return map;
+}
+
+function renderByMonthSection(byMonth, moviesByMonth) {
   if (!byMonth.length) {
     return `
       <section class="al-panel al-by-month">
@@ -86,94 +104,17 @@ function renderByMonthSection(byMonth) {
 
   return `
     <section class="al-panel al-by-month">
-      <div class="al-panel-head">
-        <h2 class="serif">By month</h2>
-        <div class="al-segment" role="tablist" aria-label="By month view">
-          <button type="button" class="al-segment-btn is-active" role="tab" aria-selected="true" data-view="graph">Graph</button>
-          <button type="button" class="al-segment-btn" role="tab" aria-selected="false" data-view="table">Table</button>
-        </div>
-      </div>
-      <div class="al-view-panel" data-panel="graph">${renderMonthGraph(byMonth)}</div>
-      <div class="al-view-panel is-hidden" data-panel="table" hidden>${renderMonthTable(byMonth)}</div>
+      <h2 class="serif">By month</h2>
+      <p class="al-muted al-by-month-hint">
+        <span class="al-hint-hover">Hover a month to see what you watched.</span>
+        <span class="al-hint-touch">Tap a month to see what you watched.</span>
+      </p>
+      ${renderMonthTable(byMonth, moviesByMonth)}
     </section>
   `;
 }
 
-function renderMonthGraph(byMonth) {
-  const rows = [...byMonth].sort((a, b) => a.month.localeCompare(b.month));
-  const maxMovies = Math.max(1, ...rows.map((r) => r.movies));
-  const maxMoney = Math.max(1, ...rows.map((r) => Math.max(r.charged, r.bill)));
-
-  const height = 240;
-  const pad = { top: 16, right: 44, bottom: 40, left: 36 };
-  const width = Math.max(320, rows.length * 56 + pad.left + pad.right);
-  const chartW = width - pad.left - pad.right;
-  const chartH = height - pad.top - pad.bottom;
-  const groupW = chartW / rows.length;
-  const barGap = 3;
-  const barW = Math.min(16, Math.max(6, (groupW - barGap * 4) / 3));
-
-  const movieScale = (n) => pad.top + chartH - (n / maxMovies) * chartH;
-  const moneyScale = (cents) => pad.top + chartH - (cents / maxMoney) * chartH;
-
-  const bars = rows.map((row, i) => {
-    const cx = pad.left + groupW * i + groupW / 2;
-    const x0 = cx - (barW * 3 + barGap * 2) / 2;
-    const month = shortMonthLabel(row.month);
-    const moviesH = chartH - (movieScale(row.movies) - pad.top);
-    const chargedH = chartH - (moneyScale(row.charged) - pad.top);
-    const billH = chartH - (moneyScale(row.bill) - pad.top);
-    const yBase = pad.top + chartH;
-
-    return `
-      <g class="al-month-group">
-        <rect class="al-month-bar al-month-bar--movies" x="${x0}" y="${movieScale(row.movies)}" width="${barW}" height="${moviesH}" rx="2">
-          <title>${month}: ${row.movies} movie${row.movies === 1 ? '' : 's'}</title>
-        </rect>
-        <rect class="al-month-bar al-month-bar--charged" x="${x0 + barW + barGap}" y="${moneyScale(row.charged)}" width="${barW}" height="${chargedH}" rx="2">
-          <title>${month}: ${money(row.charged)} charged</title>
-        </rect>
-        <rect class="al-month-bar al-month-bar--billed" x="${x0 + (barW + barGap) * 2}" y="${moneyScale(row.bill)}" width="${barW}" height="${billH}" rx="2">
-          <title>${month}: ${money(row.bill)} billed</title>
-        </rect>
-        <text class="al-month-label" x="${cx}" y="${yBase + 16}" text-anchor="middle">${escapeHtml(month)}</text>
-      </g>
-    `;
-  }).join('');
-
-  const yTicksMovies = tickValues(maxMovies, 4).map((v) => {
-    const y = movieScale(v);
-    return `
-      <g class="al-month-tick">
-        <line x1="${pad.left}" y1="${y}" x2="${pad.left + chartW}" y2="${y}" />
-        <text x="${pad.left - 8}" y="${y + 4}" text-anchor="end">${v}</text>
-      </g>
-    `;
-  }).join('');
-
-  const yTicksMoney = tickValues(maxMoney, 4).map((cents) => {
-    const y = moneyScale(cents);
-    return `<text class="al-month-tick-money" x="${pad.left + chartW + 8}" y="${y + 4}" text-anchor="start">${money(cents)}</text>`;
-  }).join('');
-
-  return `
-    <div class="al-month-chart-wrap">
-      <svg class="al-month-chart" style="min-width:${width}px" viewBox="0 0 ${width} ${height}" role="img" aria-label="Monthly movies watched, charged, and billed">
-        <line class="al-month-axis" x1="${pad.left}" y1="${pad.top + chartH}" x2="${pad.left + chartW}" y2="${pad.top + chartH}" />
-        ${yTicksMovies}
-        ${bars}
-        ${yTicksMoney}
-      </svg>
-      <ul class="al-month-legend" aria-hidden="true">
-        <li><span class="al-month-swatch al-month-swatch--movies"></span>Movies watched</li>
-        <li><span class="al-month-swatch al-month-swatch--charged"></span>Total charged</li>
-        <li><span class="al-month-swatch al-month-swatch--billed"></span>Total billed</li>
-      </ul>
-    </div>
-  `;
-}
-
-function renderMonthTable(byMonth) {
+function renderMonthTable(byMonth, moviesByMonth) {
   const totals = byMonth.reduce(
     (acc, row) => ({
       movies: acc.movies + row.movies,
@@ -196,17 +137,7 @@ function renderMonthTable(byMonth) {
             <th class="num">Savings</th>
           </tr>
         </thead>
-        <tbody>
-          ${byMonth.map((row) => `
-            <tr>
-              <td>${escapeHtml(monthLabel(row.month))}</td>
-              <td class="num">${row.movies}</td>
-              <td class="num">${money(row.charged)}</td>
-              <td class="num">${money(row.bill)}</td>
-              <td class="num ${savingsClass(row.savings)}">${formatSavings(row.savings)}</td>
-            </tr>
-          `).join('')}
-        </tbody>
+        ${byMonth.map((row) => renderMonthGroup(row, moviesByMonth.get(row.month) || [])).join('')}
         <tfoot>
           <tr>
             <th>Total</th>
@@ -221,39 +152,30 @@ function renderMonthTable(byMonth) {
   `;
 }
 
-function wireByMonthToggle(section) {
-  const buttons = [...section.querySelectorAll('[data-view]')];
-  const panels = [...section.querySelectorAll('[data-panel]')];
+function renderMonthGroup(row, movies) {
+  const moviesHtml = movies.length
+    ? `<ul class="al-month-movies">${movies.map((movie) => `
+        <li>
+          <span class="al-month-movie-title">${escapeHtml(movie.title)}</span>
+          <span class="al-month-movie-date">${escapeHtml(shortDate(movie.watched_on))}</span>
+        </li>
+      `).join('')}</ul>`
+    : '<p class="al-muted al-month-movies-empty">No titles for this month.</p>';
 
-  buttons.forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const view = btn.dataset.view;
-      buttons.forEach((b) => {
-        const active = b === btn;
-        b.classList.toggle('is-active', active);
-        b.setAttribute('aria-selected', active ? 'true' : 'false');
-      });
-      panels.forEach((panel) => {
-        const show = panel.dataset.panel === view;
-        panel.classList.toggle('is-hidden', !show);
-        panel.hidden = !show;
-      });
-    });
-  });
-}
-
-function shortMonthLabel(iso) {
-  const d = new Date(`${iso.slice(0, 10)}T12:00:00`);
-  return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-}
-
-function tickValues(max, count) {
-  if (max <= count) return [...Array(max + 1)].map((_, i) => i);
-  const step = Math.ceil(max / count);
-  const ticks = [];
-  for (let v = 0; v <= max; v += step) ticks.push(v);
-  if (ticks[ticks.length - 1] !== max) ticks.push(max);
-  return ticks;
+  return `
+    <tbody class="al-month-group">
+      <tr class="al-month-row" tabindex="0">
+        <td>${escapeHtml(monthLabel(row.month))}</td>
+        <td class="num">${row.movies}</td>
+        <td class="num">${money(row.charged)}</td>
+        <td class="num">${money(row.bill)}</td>
+        <td class="num ${savingsClass(row.savings)}">${formatSavings(row.savings)}</td>
+      </tr>
+      <tr class="al-month-detail" aria-hidden="true">
+        <td colspan="5">${moviesHtml}</td>
+      </tr>
+    </tbody>
+  `;
 }
 
 function savingsClass(cents) {

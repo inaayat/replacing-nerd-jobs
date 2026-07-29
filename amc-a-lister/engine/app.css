@@ -935,70 +935,73 @@ table.al-table {
   display: none;
 }
 
-.al-month-chart-wrap {
-  margin-top: 4px;
+.al-by-month-hint {
+  margin: -4px 0 10px;
 }
 
-.al-month-chart {
-  display: block;
-  width: 100%;
-  height: auto;
+.al-hint-touch { display: none; }
+
+@media (hover: none) {
+  .al-hint-hover { display: none; }
+  .al-hint-touch { display: inline; }
 }
 
-.al-month-axis {
-  stroke: var(--al-line);
-  stroke-width: 1;
+.al-month-group .al-month-row {
+  cursor: default;
 }
 
-.al-month-tick line {
-  stroke: rgba(0, 0, 0, 0.04);
-  stroke-width: 1;
+.al-month-group:hover .al-month-row td,
+.al-month-group:focus-within .al-month-row td {
+  background: rgba(218, 0, 0, 0.04);
 }
 
-.al-month-tick text,
-.al-month-tick-money {
-  fill: var(--al-muted);
-  font-family: var(--al-font-mono);
-  font-size: 10px;
+.al-month-detail {
+  display: none;
 }
 
-.al-month-label {
-  fill: var(--al-muted);
-  font-family: var(--al-font-body);
-  font-size: 10px;
+.al-month-group:hover .al-month-detail,
+.al-month-group:focus-within .al-month-detail {
+  display: table-row;
 }
 
-.al-month-bar--movies { fill: var(--al-burgundy); }
-.al-month-bar--charged { fill: var(--al-red); }
-.al-month-bar--billed { fill: var(--al-charcoal); }
+.al-month-detail td {
+  padding-top: 0;
+  padding-bottom: 10px;
+  background: rgba(218, 0, 0, 0.03);
+  border-bottom: 1px solid var(--al-line);
+}
 
-.al-month-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px 18px;
-  margin: 10px 0 0;
+.al-month-movies {
+  margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 0.78rem;
-  color: var(--al-muted);
-}
-
-.al-month-legend li {
-  display: inline-flex;
-  align-items: center;
+  display: grid;
   gap: 6px;
 }
 
-.al-month-swatch {
-  width: 10px;
-  height: 10px;
-  border-radius: 2px;
-  flex-shrink: 0;
+.al-month-movies li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.8rem;
 }
 
-.al-month-swatch--movies { background: var(--al-burgundy); }
-.al-month-swatch--charged { background: var(--al-red); }
-.al-month-swatch--billed { background: var(--al-charcoal); }
+.al-month-movie-title {
+  min-width: 0;
+  font-weight: 500;
+}
+
+.al-month-movie-date {
+  flex-shrink: 0;
+  color: var(--al-muted);
+  font-family: var(--al-font-mono);
+  font-size: 0.72rem;
+}
+
+.al-month-movies-empty {
+  margin: 0;
+  font-size: 0.8rem;
+}
 
 .al-month-table tfoot th {
   border-top: 2px solid var(--al-line);
@@ -1243,39 +1246,8 @@ table.al-table {
   }
 
   .al-quicklog-submit,
-  .al-segment-btn,
   .al-mobile-nav-link {
     min-height: 44px;
-  }
-
-  .al-panel-head {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .al-segment {
-    width: 100%;
-  }
-
-  .al-segment-btn {
-    flex: 1;
-    text-align: center;
-  }
-
-  .al-month-chart-wrap {
-    margin-left: -4px;
-    margin-right: -4px;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .al-month-chart {
-    min-width: 100%;
-  }
-
-  .al-month-legend {
-    gap: 8px 12px;
-    font-size: 0.72rem;
   }
 
   .al-toolbar--log .al-toolbar-search,
