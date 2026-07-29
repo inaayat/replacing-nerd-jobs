@@ -1,4 +1,4 @@
-import { bootPage, renderShell, requireSignIn } from './nav.js';
+import { bootPage, renderShell, requireSignIn, populateSidebarStats } from './nav.js';
 import { summaryApi } from './api.js';
 import { money, escapeHtml, monthLabel } from './format.js';
 
@@ -67,7 +67,7 @@ bootPage(async ({ root, auth }) => {
     : '<div class="al-empty">No rewatches logged yet.</div>'}
     </section>
   `;
-});
+}, { quickLogOnSuccess: (auth) => populateSidebarStats(auth) });
 
 function barRow(label, value, max, right = value) {
   const pct = Math.round((value / max) * 100);

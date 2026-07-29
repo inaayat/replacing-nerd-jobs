@@ -1,4 +1,4 @@
-import { bootPage, renderShell, requireSignIn } from './nav.js';
+import { bootPage, renderShell, requireSignIn, populateSidebarStats } from './nav.js';
 import { membershipApi, importApi } from './api.js';
 import { parseXlsxFile } from './import-xlsx.js';
 import { escapeHtml } from './format.js';
@@ -120,4 +120,4 @@ bootPage(async ({ root, auth }) => {
       setStatus(err.message);
     }
   });
-});
+}, { quickLogOnSuccess: (auth) => populateSidebarStats(auth) });

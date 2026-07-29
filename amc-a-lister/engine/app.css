@@ -31,16 +31,26 @@ html, body {
 
 a { color: var(--al-burgundy); }
 
-.serif { font-family: var(--al-font-display); font-weight: 600; }
-.brand-mono { font-family: var(--al-font-mono); letter-spacing: 0.02em; }
+.serif { font-family: var(--al-font-display); font-weight: 500; }
+.brand-mono { font-family: var(--al-font-mono); }
 
-/* Layout: fixed dark-red sidebar + scrollable right panel (mirrors inaayat.xyz) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Layout: full-height fixed sidebar + scrollable right panel */
 .page-main {
   display: flex;
   flex-direction: column;
-  min-height: 100%;
-  padding: 16px;
-  gap: 16px;
+  min-height: 100vh;
 }
 
 @media (min-width: 768px) {
@@ -48,8 +58,7 @@ a { color: var(--al-burgundy); }
   .page-main {
     flex-direction: row;
     height: 100vh;
-    padding: 16px 24px 16px 16px;
-    gap: 16px;
+    min-height: 100vh;
   }
 }
 
@@ -57,23 +66,24 @@ a { color: var(--al-burgundy); }
   flex-shrink: 0;
   background: var(--al-burgundy);
   color: var(--al-white);
-  border-radius: var(--al-radius);
-  padding: 20px;
+  padding: 24px 20px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
 }
 
 @media (min-width: 768px) {
   .al-sidebar {
-    width: 300px;
-    height: 100%;
+    width: 280px;
+    height: 100vh;
+    min-height: 100vh;
     overflow-y: auto;
+    border-radius: 0;
   }
 }
 
 @media (min-width: 1024px) {
-  .al-sidebar { width: 340px; }
+  .al-sidebar { width: 300px; }
 }
 
 .al-sidebar-icons {
@@ -86,19 +96,20 @@ a { color: var(--al-burgundy); }
 
 .al-sidebar-tagline {
   margin: 0;
-  font-size: clamp(1.05rem, 2.5vw, 1.35rem);
-  line-height: 1.2;
+  font-family: var(--al-font-display);
+  font-size: 1.1rem;
+  font-weight: 500;
   font-style: italic;
-  color: var(--al-white);
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .al-sidebar-title {
   display: inline-block;
-  margin-top: 10px;
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: rgba(255, 255, 255, 0.7);
+  margin-top: 8px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.55);
   text-decoration: none;
 }
 
@@ -119,11 +130,10 @@ a { color: var(--al-burgundy); }
 
 .al-sidebar-stats-heading {
   grid-column: 1 / -1;
-  margin: 0 0 2px;
-  font-size: 0.62rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.55);
+  margin: 0 0 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .al-sidebar-stat {
@@ -134,18 +144,18 @@ a { color: var(--al-burgundy); }
 }
 
 .al-sidebar-stat-label {
-  font-size: 0.58rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.7rem;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.55);
 }
 
 .al-sidebar-stat-value {
   margin-top: 2px;
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: 1.1rem;
+  font-weight: 600;
   font-family: var(--al-font-mono);
   color: var(--al-white);
+  font-variant-numeric: tabular-nums;
 }
 
 .al-sidebar-stat-value.is-savings { color: #8fe8b8; }
@@ -159,35 +169,32 @@ a { color: var(--al-burgundy); }
 
 .al-nav-link {
   display: block;
-  padding: 8px 10px;
-  font-size: 0.68rem;
-  text-transform: uppercase;
+  padding: 7px 10px;
+  font-size: 0.9rem;
+  font-weight: 500;
   text-decoration: none;
-  color: rgba(255, 255, 255, 0.65);
+  color: rgba(255, 255, 255, 0.7);
   border-radius: 8px;
-  letter-spacing: 0.05em;
 }
 
 .al-nav-link:hover {
   color: var(--al-white);
-  background: rgba(0, 0, 0, 0.15);
+  background: rgba(0, 0, 0, 0.12);
 }
 
 .al-nav-link.is-active {
   color: var(--al-white);
-  background: rgba(0, 0, 0, 0.25);
-  font-weight: 700;
+  background: rgba(0, 0, 0, 0.22);
+  font-weight: 600;
 }
 
 .al-sidebar-footer {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  font-size: 0.8rem;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .al-sidebar-footer a {
@@ -202,71 +209,105 @@ a { color: var(--al-burgundy); }
   min-height: 0;
   display: flex;
   flex-direction: column;
+  padding: 16px;
 }
 
 @media (min-width: 768px) {
   .al-content-scroll {
     overflow-y: auto;
-    height: 100%;
+    height: 100vh;
+    padding: 20px 28px 28px;
   }
 }
 
-.al-topbar {
+/* Quick-log bar: always-visible inline form */
+.al-quicklog {
   flex-shrink: 0;
-  margin-bottom: 12px;
+  margin-bottom: 20px;
+  background: var(--al-panel);
+  border: 1px solid var(--al-line);
+  border-radius: var(--al-radius);
+  padding: 12px 14px;
 }
 
-.al-log-movie-bar {
+.al-quicklog-form {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
-  gap: 10px;
+  gap: 8px;
+}
+
+.al-quicklog-field {
+  flex: 1 1 140px;
+  min-width: 0;
+  position: relative;
+}
+
+.al-quicklog-field--narrow {
+  flex: 0 1 110px;
+}
+
+.al-quicklog-input {
   width: 100%;
-  padding: 14px 18px;
-  border-radius: var(--al-radius);
+  padding: 9px 11px;
+  border-radius: 10px;
+  border: 1px solid var(--al-line);
+  background: var(--al-panel-2);
+  color: var(--al-text);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.al-quicklog-input:focus {
+  outline: 2px solid rgba(218, 0, 0, 0.2);
+  border-color: var(--al-red);
+  background: var(--al-white);
+}
+
+.al-quicklog-submit {
+  flex: 0 0 auto;
+  padding: 9px 18px;
+  border: 0;
+  border-radius: 10px;
   background: var(--al-red);
   color: var(--al-white);
-  text-decoration: none;
-  font-size: 0.92rem;
-  font-weight: 700;
-  font-family: var(--al-font-mono);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
 }
 
-.al-log-movie-bar:hover {
+.al-quicklog-submit:hover {
   background: var(--al-burgundy);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(131, 15, 16, 0.25);
-  color: var(--al-white);
 }
 
-.al-log-movie-bar.is-current {
-  background: var(--al-burgundy);
-  pointer-events: none;
-  opacity: 0.85;
+.al-quicklog-status {
+  margin: 6px 0 0;
+  font-size: 0.82rem;
+  color: var(--al-muted);
+  min-height: 1.2em;
 }
 
-.al-log-movie-icon {
-  font-size: 1.15rem;
-  line-height: 1;
-}
+.al-quicklog-status.is-success { color: #0d7a42; }
+.al-quicklog-status.is-error { color: var(--al-red); }
 
 .al-page-header {
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .al-page-title {
   margin: 0;
-  font-size: clamp(1.5rem, 3.5vw, 2rem);
-  line-height: 1.1;
+  font-family: var(--al-font-display);
+  font-size: clamp(1.6rem, 3vw, 2rem);
+  font-weight: 600;
+  line-height: 1.15;
   color: var(--al-black);
 }
 
 .al-page-sub {
   margin: 6px 0 0;
-  font-size: 0.88rem;
+  font-size: 0.95rem;
   color: var(--al-muted);
   max-width: 48ch;
 }
@@ -285,8 +326,10 @@ a { color: var(--al-burgundy); }
 }
 
 .al-panel h2 {
-  margin: 0 0 8px;
-  font-size: 1rem;
+  margin: 0 0 10px;
+  font-family: var(--al-font-display);
+  font-size: 1.05rem;
+  font-weight: 600;
 }
 
 .al-hud {
@@ -310,18 +353,18 @@ a { color: var(--al-burgundy); }
 }
 
 .al-stat-label {
-  font-size: 0.62rem;
-  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 400;
   color: var(--al-muted);
-  letter-spacing: 0.06em;
 }
 
 .al-stat-value {
   margin-top: 2px;
-  font-size: 1.05rem;
-  font-weight: 700;
+  font-size: 1.1rem;
+  font-weight: 600;
   color: var(--al-black);
   font-family: var(--al-font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .al-stat-value.is-savings { color: #0d7a42; }
@@ -369,11 +412,10 @@ table.al-table {
 }
 
 .al-table th {
-  font-size: 0.62rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: 0.72rem;
+  font-weight: 500;
   color: var(--al-muted);
-  font-family: var(--al-font-mono);
+  font-family: var(--al-font-body);
   white-space: nowrap;
 }
 
@@ -441,12 +483,10 @@ table.al-table {
 
 .al-field label {
   display: block;
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-size: 0.78rem;
+  font-weight: 500;
   color: var(--al-muted);
   margin-bottom: 4px;
-  font-family: var(--al-font-mono);
 }
 
 .al-check {

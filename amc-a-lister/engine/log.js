@@ -1,4 +1,4 @@
-import { bootPage, renderShell, requireSignIn } from './nav.js';
+import { bootPage, renderShell, requireSignIn, populateSidebarStats } from './nav.js';
 import { watchesApi } from './api.js';
 import { money, shortDate, ratingLabel, escapeHtml } from './format.js';
 
@@ -11,7 +11,16 @@ bootPage(async ({ root, auth }) => {
     body: `<main class="al-main" id="log-main"><p class="al-muted">Loading…</p></main>`,
   });
 
+  await loadLog(auth);
+}, { quickLogOnSuccess: async (auth) => {
+  await populateSidebarStats(auth);
+  location.reload();
+}});
+
+async function loadLog(auth) {
   const main = document.getElementById('log-main');
+  if (!main) return;
+
   const { watches } = await watchesApi.list(auth.token);
   const theaters = [...new Set(watches.map((w) => w.location).filter(Boolean))].sort();
   const formats = [...new Set(watches.map((w) => w.format).filter(Boolean))].sort();
@@ -67,7 +76,7 @@ bootPage(async ({ root, auth }) => {
   });
 
   render();
-});
+}
 
 function tableHtml(watches, token) {
   if (!watches.length) return '<div class="al-empty">No matches.</div>';

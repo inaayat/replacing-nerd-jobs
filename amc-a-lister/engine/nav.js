@@ -1,5 +1,6 @@
 import { initAuth, wireAuthLink, refreshToken } from './auth.js';
 import { summaryApi } from './api.js';
+import { renderQuickLogBar, wireQuickLog } from './quick-log.js';
 
 const NAV_ACTIVE = document.body.dataset.page || '';
 
@@ -21,39 +22,32 @@ export function renderShell({ title, subtitle, body = '', hideLogBar = false } =
   }).join('');
 
   const isAddPage = NAV_ACTIVE === 'add';
-  const logBarClass = isAddPage ? ' al-log-movie-bar is-current' : ' al-log-movie-bar';
+  const showQuickLog = !hideLogBar && !isAddPage;
 
   return `
     <div class="page-main">
       <aside class="al-sidebar">
         <div class="al-sidebar-brand">
           <div class="al-sidebar-icons">${POPCORN_SVG}${THEATER_SVG}</div>
-          <p class="al-sidebar-tagline serif">heartbreak feels good in a place like this..</p>
-          <a href="/amc-a-lister/" class="al-sidebar-title brand-mono">AMC A-Lister</a>
+          <p class="al-sidebar-tagline">heartbreak feels good in a place like this..</p>
+          <a href="/amc-a-lister/" class="al-sidebar-title">AMC A-Lister</a>
         </div>
         <div class="al-sidebar-stats" id="al-sidebar-stats">
           ${sidebarStatsPlaceholder()}
         </div>
-        <nav class="al-sidebar-nav brand-mono" aria-label="A-Lister pages">
+        <nav class="al-sidebar-nav" aria-label="A-Lister pages">
           ${links}
         </nav>
-        <div class="al-sidebar-footer brand-mono">
+        <div class="al-sidebar-footer">
           <a href="/">← Beep boop</a>
           <a href="/account.html" id="nav-auth-link">Log in</a>
         </div>
       </aside>
       <div class="al-content-scroll">
-        ${hideLogBar ? '' : `
-          <header class="al-topbar">
-            <a href="/amc-a-lister/add.html" class="${logBarClass.trim()}">
-              <span class="al-log-movie-icon" aria-hidden="true">🍿</span>
-              Log a new movie
-            </a>
-          </header>
-        `}
+        ${showQuickLog ? renderQuickLogBar() : ''}
         ${title ? `
           <div class="al-page-header">
-            <h1 class="al-page-title serif">${title}</h1>
+            <h1 class="al-page-title">${title}</h1>
             ${subtitle ? `<p class="al-page-sub">${subtitle}</p>` : ''}
           </div>
         ` : ''}
@@ -66,14 +60,14 @@ export function renderShell({ title, subtitle, body = '', hideLogBar = false } =
 function sidebarStatsPlaceholder() {
   return `
     <div class="al-sidebar-stats-block">
-      <p class="al-sidebar-stats-heading brand-mono">All time</p>
+      <p class="al-sidebar-stats-heading">All time</p>
       ${sidebarStat('Seen', 'seen')}
       ${sidebarStat('Savings', 'savings', 'is-savings')}
       ${sidebarStat('Billed', 'billed', 'is-cost')}
       ${sidebarStat('Cost / movie', 'cost')}
     </div>
     <div class="al-sidebar-stats-block">
-      <p class="al-sidebar-stats-heading brand-mono" id="al-period-label">This period</p>
+      <p class="al-sidebar-stats-heading" id="al-period-label">This period</p>
       ${sidebarStat('Movies', 'period-movies')}
       ${sidebarStat('Net', 'period-net', 'is-savings')}
     </div>
@@ -127,7 +121,7 @@ export async function populateSidebarStats(auth) {
   }
 }
 
-export async function bootPage(renderFn) {
+export async function bootPage(renderFn, { quickLogOnSuccess } = {}) {
   const root = document.getElementById('app-root');
   const auth = await initAuth();
 
@@ -138,7 +132,10 @@ export async function bootPage(renderFn) {
   try {
     await renderFn({ root, auth });
     wireAuthLink(auth);
-    populateSidebarStats(auth);
+    if (auth.signedIn && auth.token) {
+      wireQuickLog(auth, { onSuccess: () => quickLogOnSuccess?.(auth) });
+      populateSidebarStats(auth);
+    }
   } catch (err) {
     console.error(err);
     if (err.status === 401 && auth.configured) {
@@ -168,7 +165,7 @@ export function requireSignIn(auth, root) {
       <main class="al-main">
         <section class="al-panel al-marketing">
           ${reauthNote}
-          <h2 class="serif">Your watch diary, minus the spreadsheet</h2>
+          <h2>Your watch diary, minus the spreadsheet</h2>
           <ul class="al-bullets">
             <li>Log a screening in under 30 seconds</li>
             <li>See billed vs. ticket savings each month</li>

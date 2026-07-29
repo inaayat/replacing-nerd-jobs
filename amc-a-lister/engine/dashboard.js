@@ -1,4 +1,4 @@
-import { bootPage, renderShell, requireSignIn, countUp } from './nav.js';
+import { bootPage, renderShell, requireSignIn, countUp, populateSidebarStats } from './nav.js';
 import { watchesApi, summaryApi, importApi } from './api.js';
 import { money, shortDate, monthLabel, ratingLabel, escapeHtml } from './format.js';
 
@@ -11,7 +11,14 @@ bootPage(async ({ root, auth }) => {
     body: `<main class="al-main" id="dash-main"><p class="al-muted">Loading…</p></main>`,
   });
 
+  await loadDashboard(auth);
+}, { quickLogOnSuccess: async (auth) => {
+  await Promise.all([loadDashboard(auth), populateSidebarStats(auth)]);
+}});
+
+async function loadDashboard(auth) {
   const main = document.getElementById('dash-main');
+  if (!main) return;
 
   let watchesRes = await watchesApi.list(auth.token);
   try {
@@ -34,7 +41,7 @@ bootPage(async ({ root, auth }) => {
 
   main.innerHTML = `
     <section class="al-panel">
-      <h2 class="serif">${monthLabel(period.month)} · this period</h2>
+      <h2>${monthLabel(period.month)} · this period</h2>
       <div class="al-hud" style="margin-bottom:0">
         ${hudStat('Movies', period.movies, 'count')}
         ${hudStat('Ticket value', period.charged, 'money')}
@@ -51,14 +58,14 @@ bootPage(async ({ root, auth }) => {
 
     <section class="al-panel">
       <div class="al-toolbar">
-        <h2 class="serif" style="margin:0;flex:1">Recent</h2>
+        <h2 style="margin:0;flex:1">Recent</h2>
         <a class="al-btn" href="/amc-a-lister/log.html">Full log</a>
       </div>
-      ${recent.length ? recentTable(recent) : '<div class="al-empty">No screenings yet. <a href="/amc-a-lister/add.html">Log your first</a>.</div>'}
+      ${recent.length ? recentTable(recent) : '<div class="al-empty">No screenings yet — use the form above to log your first.</div>'}
     </section>
 
     <section class="al-panel">
-      <h2 class="serif">By month</h2>
+      <h2>By month</h2>
       <div class="al-table-wrap">
         <table class="al-table">
           <thead>
@@ -92,7 +99,7 @@ bootPage(async ({ root, auth }) => {
     const meter = document.getElementById('value-meter');
     if (meter) meter.style.width = `${pct}%`;
   });
-});
+}
 
 function hudStat(label, value, kind, extraClass = '') {
   return `
