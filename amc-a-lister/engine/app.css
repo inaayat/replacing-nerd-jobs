@@ -916,6 +916,22 @@ table.al-table {
   }
 }
 
+.al-rank-table .al-rank-num {
+  width: 1.75rem;
+  color: var(--al-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.al-rank-table td,
+.al-rank-table th {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.al-insight .al-rank-table {
+  margin-top: 4px;
+}
+
 .al-bar-row {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -1019,7 +1035,12 @@ table.al-table {
   display: table-row;
 }
 
-.al-month-row.al-hover-target td:first-child {
+.al-rank-row.al-hover-target {
+  display: table-row;
+}
+
+.al-month-row.al-hover-target td:first-child,
+.al-rank-row.al-hover-target td:first-child {
   position: relative;
 }
 
@@ -1049,14 +1070,18 @@ table.al-table {
 .al-hover-target:hover .al-hover-popup,
 .al-hover-target:focus-within .al-hover-popup,
 .al-month-row.al-hover-target:hover .al-hover-popup,
-.al-month-row.al-hover-target:focus-within .al-hover-popup {
+.al-month-row.al-hover-target:focus-within .al-hover-popup,
+.al-rank-row.al-hover-target:hover .al-hover-popup,
+.al-rank-row.al-hover-target:focus-within .al-hover-popup {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
 }
 
 .al-month-row.al-hover-target:hover td,
-.al-month-row.al-hover-target:focus-within td {
+.al-month-row.al-hover-target:focus-within td,
+.al-rank-row.al-hover-target:hover td,
+.al-rank-row.al-hover-target:focus-within td {
   background: rgba(218, 0, 0, 0.04);
 }
 
@@ -1096,6 +1121,19 @@ table.al-table {
   color: var(--al-muted);
   font-family: var(--al-font-mono);
   font-size: 0.72rem;
+}
+
+.al-hover-popup--scroll .al-hover-popup-list {
+  max-height: min(280px, 50vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 2px;
+}
+
+.al-insight-hint {
+  margin-top: -2px;
+  margin-bottom: 8px;
+  font-size: 0.82rem;
 }
 
 .al-month-table tfoot th {

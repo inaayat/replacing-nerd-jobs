@@ -19,17 +19,19 @@ bootPage(async ({ root, auth }) => {
   ]);
   const { summary = {}, theaters = [], formats = [], rewatches = [], ratings = {}, actors = [] } = data;
   const byMonth = summary.byMonth || [];
-  const moviesByMonth = groupMoviesByMonth(watches || []);
-  const maxTheater = theaters[0]?.count || 1;
-  const maxFormat = formats[0]?.charged || 1;
+  const watchList = watches || [];
+  const moviesByMonth = groupMoviesByMonth(watchList);
+  const moviesByRating = groupMoviesByRating(watchList);
+  const moviesByTheater = groupMoviesByTheater(watchList);
   const ratingBuckets = ratings.buckets || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-  const maxRating = Math.max(1, ...Object.values(ratingBuckets));
 
   main.innerHTML = `
     ${renderByMonthSection(byMonth, moviesByMonth)}
     <div class="al-insight-grid">
+      ${renderRatingProfileSection(ratings, ratingBuckets, moviesByRating)}
+      ${renderTheaterRankingSection(theaters, moviesByTheater)}
       ${renderByActorSection(actors)}
-      ${renderInsightGrid(theaters, formats, ratings, ratingBuckets, maxTheater, maxFormat, maxRating)}
+      ${renderFormatPremiumsSection(formats)}
     </div>
     ${renderRewatchesSection(rewatches)}
   `;
@@ -54,19 +56,80 @@ function insightSection(title, body, { className = '', expanded = false, actions
   `;
 }
 
-function renderInsightGrid(theaters, formats, ratings, maxTheater, maxFormat, maxRating) {
-  return `
-    ${insightSection('Rating profile', `
-      <p class="al-muted">${ratings.rated} rated · ${ratings.dnf} DNF · ${(ratings.dnf / Math.max(1, ratings.total) * 100).toFixed(0)}% walk-out rate</p>
-      ${[5, 4, 3, 2, 1].map((n) => barRow(`${n}★`, ratings.buckets[n], maxRating)).join('')}
-    `)}
-    ${insightSection('Theater ranking', theaters.length
-    ? theaters.slice(0, 6).map((t) => barRow(t.location, t.count, maxTheater, `${t.count} · ${money(t.charged)}`)).join('')
-    : '<div class="al-empty">No theater data yet.</div>')}
-    ${insightSection('Format premiums', formats.length
-    ? formats.map((f) => barRow(f.format, f.charged, maxFormat, `${f.count} · ${money(f.charged)}`)).join('')
-    : '<div class="al-empty">No format data yet.</div>')}
-  `;
+function renderRatingProfileSection(ratings, ratingBuckets, moviesByRating) {
+  return insightSection('Rating profile', `
+    <p class="al-muted">${ratings.rated || 0} rated · ${ratings.dnf || 0} DNF · ${((ratings.dnf || 0) / Math.max(1, ratings.total || 0) * 100).toFixed(0)}% walk-out rate</p>
+    <p class="al-muted al-insight-hint">
+      <span class="al-hint-hover">Hover a rating to see films.</span>
+      <span class="al-hint-touch">Tap a rating to see films.</span>
+    </p>
+    ${rankTable({
+    headers: [
+      { label: 'Rating' },
+      { label: 'Count', className: 'num' },
+    ],
+    rows: [5, 4, 3, 2, 1].map((n) => `
+          <tr class="al-rank-row al-hover-target" tabindex="0">
+            <td>
+              ${n}★
+              ${renderMoviesPopup(moviesByRating.get(n) || [], { empty: 'No films at this rating.', scrollable: true })}
+            </td>
+            <td class="num">${ratingBuckets[n] || 0}</td>
+          </tr>
+        `),
+  })}
+  `);
+}
+
+function renderTheaterRankingSection(theaters, moviesByTheater) {
+  return insightSection('Theater ranking', theaters.length
+    ? `
+      <p class="al-muted al-insight-hint">
+        <span class="al-hint-hover">Hover a theater to see films.</span>
+        <span class="al-hint-touch">Tap a theater to see films.</span>
+      </p>
+      ${rankTable({
+      headers: [
+        { label: '#', className: 'num' },
+        { label: 'Theater' },
+        { label: 'Visits', className: 'num' },
+        { label: 'Charged', className: 'num' },
+      ],
+      rows: theaters.slice(0, 6).map((t, i) => `
+          <tr>
+            <td class="num al-rank-num">${i + 1}</td>
+            <td>
+              <span class="al-hover-target al-hover-target--label" tabindex="0">
+                ${escapeHtml(t.location)}
+                ${renderMoviesPopup(moviesByTheater.get(t.location) || [], { empty: 'No films at this theater.', scrollable: true })}
+              </span>
+            </td>
+            <td class="num">${t.count}</td>
+            <td class="num">${money(t.charged)}</td>
+          </tr>
+        `),
+    })}
+    `
+    : '<div class="al-empty">No theater data yet.</div>');
+}
+
+function renderFormatPremiumsSection(formats) {
+  return insightSection('Format premiums', formats.length
+    ? rankTable({
+      headers: [
+        { label: 'Format' },
+        { label: 'Visits', className: 'num' },
+        { label: 'Charged', className: 'num' },
+      ],
+      rows: formats.map((f) => `
+          <tr>
+            <td>${escapeHtml(f.format)}</td>
+            <td class="num">${f.count}</td>
+            <td class="num">${money(f.charged)}</td>
+          </tr>
+        `),
+    })
+    : '<div class="al-empty">No format data yet.</div>');
 }
 
 function renderByActorSection(actors) {
@@ -78,7 +141,6 @@ function renderByActorSection(actors) {
 
   const mostSeen = actors.slice(0, 10);
   const highestRated = topActorsByRating(actors, { minRated: 2, limit: 10 });
-  const maxCount = mostSeen[0]?.count || 1;
   const segment = `
     <div class="al-segment al-insight-actions" role="tablist" aria-label="By actor view">
       <button type="button" class="al-segment-btn is-active" role="tab" aria-selected="true" data-view="most">Most seen</button>
@@ -89,23 +151,11 @@ function renderByActorSection(actors) {
   return insightSection('By actor', `
     <p class="al-muted al-by-actor-hint">Top 10 unique films per actor. Hover a name to see titles.</p>
     <div class="al-view-panel" data-panel="most">
-      ${mostSeen.map((actor) => barRow(
-    actor.actor,
-    actor.count,
-    maxCount,
-    actorRightLabel(actor),
-    renderMoviesPopup(actor.films, { empty: 'No films found.' }),
-  )).join('')}
+      ${actorRankTable(mostSeen)}
     </div>
     <div class="al-view-panel is-hidden" data-panel="rated" hidden>
       ${highestRated.length
-    ? highestRated.map((actor) => barRow(
-      actor.actor,
-      actor.avgRating,
-      5,
-      `${actor.avgRating}★ · ${actor.count} films`,
-      renderMoviesPopup(actor.films, { empty: 'No films found.' }),
-    )).join('')
+    ? actorRankTable(highestRated, { sortByRating: true })
     : '<div class="al-empty">Rate at least two films per actor to rank them here.</div>'}
     </div>
   `, { className: 'al-by-actor', actions: segment });
@@ -126,7 +176,8 @@ function renderRewatchesSection(rewatches) {
 }
 
 function renderByMonthSection(byMonth, moviesByMonth) {
-  if (!byMonth.length) {
+  const rows = byMonth || [];
+  if (!rows.length) {
     return insightSection('By month', `
       <div class="al-empty">No monthly data yet — log a screening to get started.</div>
     `, { className: 'al-by-month' });
@@ -137,7 +188,7 @@ function renderByMonthSection(byMonth, moviesByMonth) {
       <span class="al-hint-hover">Hover a month to see what you watched.</span>
       <span class="al-hint-touch">Tap a month to see what you watched.</span>
     </p>
-    ${renderMonthTable(byMonth, moviesByMonth)}
+    ${renderMonthTable(rows, moviesByMonth)}
   `, { className: 'al-by-month' });
 }
 
@@ -155,9 +206,45 @@ function wireInsightSections(root) {
   });
 }
 
-function actorRightLabel(actor) {
-  const rating = actor.avgRating != null ? `${actor.avgRating}★ avg` : '— avg';
-  return `${actor.count} films · ${rating}`;
+function actorRankTable(actors, { sortByRating = false } = {}) {
+  return rankTable({
+    headers: [
+      { label: '#', className: 'num' },
+      { label: 'Actor' },
+      { label: 'Films', className: 'num' },
+      { label: sortByRating ? 'Avg rating' : 'Avg', className: 'num' },
+    ],
+    rows: actors.map((actor, i) => `
+      <tr>
+        <td class="num al-rank-num">${i + 1}</td>
+        <td>
+          <span class="al-hover-target al-hover-target--label" tabindex="0">
+            ${escapeHtml(actor.actor)}
+            ${renderMoviesPopup(actor.films, { empty: 'No films found.' })}
+          </span>
+        </td>
+        <td class="num">${actor.count}</td>
+        <td class="num">${actor.avgRating != null ? `${actor.avgRating}★` : '—'}</td>
+      </tr>
+    `),
+  });
+}
+
+function rankTable({ headers, rows }) {
+  return `
+    <div class="al-table-wrap">
+      <table class="al-table al-rank-table">
+        <thead>
+          <tr>
+            ${headers.map((header) => `
+              <th${header.className ? ` class="${header.className}"` : ''}>${header.label}</th>
+            `).join('')}
+          </tr>
+        </thead>
+        <tbody>${rows.join('')}</tbody>
+      </table>
+    </div>
+  `;
 }
 
 function wireSegmentToggle(section) {
@@ -188,6 +275,38 @@ function groupMoviesByMonth(watches) {
     const month = chargeMonth(watch.watched_on);
     if (!map.has(month)) map.set(month, []);
     map.get(month).push({
+      title: watch.title,
+      watched_on: watch.watched_on,
+    });
+  }
+  for (const movies of map.values()) {
+    movies.sort((a, b) => b.watched_on.localeCompare(a.watched_on));
+  }
+  return map;
+}
+
+function groupMoviesByRating(watches) {
+  const map = new Map([[1, []], [2, []], [3, []], [4, []], [5, []]]);
+  for (const watch of watches) {
+    if (watch.dnf || watch.rating == null) continue;
+    const bucket = Math.min(5, Math.max(1, Math.round(watch.rating)));
+    map.get(bucket).push({
+      title: watch.title,
+      watched_on: watch.watched_on,
+    });
+  }
+  for (const movies of map.values()) {
+    movies.sort((a, b) => b.watched_on.localeCompare(a.watched_on));
+  }
+  return map;
+}
+
+function groupMoviesByTheater(watches) {
+  const map = new Map();
+  for (const watch of watches) {
+    const location = (watch.location || 'Unknown').trim() || 'Unknown';
+    if (!map.has(location)) map.set(location, []);
+    map.get(location).push({
       title: watch.title,
       watched_on: watch.watched_on,
     });
@@ -253,13 +372,14 @@ function renderMonthRow(row, movies) {
   `;
 }
 
-function renderMoviesPopup(items, { empty = 'No movies.' } = {}) {
+function renderMoviesPopup(items, { empty = 'No movies.', scrollable = false } = {}) {
+  const popupClass = `al-hover-popup${scrollable ? ' al-hover-popup--scroll' : ''}`;
   if (!items.length) {
-    return `<span class="al-hover-popup" role="tooltip">${escapeHtml(empty)}</span>`;
+    return `<span class="${popupClass}" role="tooltip">${escapeHtml(empty)}</span>`;
   }
 
   return `
-    <span class="al-hover-popup" role="tooltip">
+    <span class="${popupClass}" role="tooltip">
       <span class="al-hover-popup-title">Movies</span>
       <ul class="al-hover-popup-list">
         ${items.map((item) => `
@@ -282,18 +402,4 @@ function savingsClass(cents) {
 function formatSavings(cents) {
   if (cents > 0) return `+${money(cents)}`;
   return money(cents);
-}
-
-function barRow(label, value, max, right = value, popupHtml = '') {
-  const pct = Math.round((value / max) * 100);
-  const labelHtml = popupHtml
-    ? `<span class="al-hover-target al-hover-target--label" tabindex="0">${escapeHtml(String(label))}${popupHtml}</span>`
-    : escapeHtml(String(label));
-  return `
-    <div class="al-bar-row">
-      <span>${labelHtml}</span>
-      <span class="al-muted brand-mono">${right}</span>
-      <div class="al-bar"><i style="width:${pct}%"></i></div>
-    </div>
-  `;
 }
