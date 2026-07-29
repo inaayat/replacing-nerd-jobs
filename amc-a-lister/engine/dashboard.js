@@ -19,16 +19,15 @@ bootPage(async ({ root, auth }) => {
   const main = document.getElementById('dash-main');
 
   let watchesRes = await watchesApi.list(auth.token);
-  if (!watchesRes.watches?.length) {
-    try {
-      const seed = await fetch('/amc-a-lister/data/movies-bill.json').then((r) => r.json());
-      if (Array.isArray(seed) && seed.length) {
-        await importApi.run(auth.token, seed);
-        watchesRes = await watchesApi.list(auth.token);
-      }
-    } catch {
-      // seed import is best-effort on first visit
+  try {
+    const seed = await fetch('/amc-a-lister/data/movies-bill.json').then((r) => r.json());
+    const have = watchesRes.watches?.length || 0;
+    if (Array.isArray(seed) && seed.length && have < seed.length) {
+      await importApi.run(auth.token, seed);
+      watchesRes = await watchesApi.list(auth.token);
     }
+  } catch {
+    // bundled log sync is best-effort
   }
 
   const summaryRes = await summaryApi.get(auth.token);
