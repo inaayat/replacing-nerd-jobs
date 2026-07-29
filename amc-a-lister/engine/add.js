@@ -153,6 +153,10 @@ bootPage(async ({ root, auth }) => {
       tmdb_id: tmdbInput.value ? Number(tmdbInput.value) : null,
     };
 
+    if (!payload.tmdb_id && payload.title) {
+      payload.tmdb_id = await movieApi.resolve(auth.token, payload.title);
+    }
+
     try {
       if (existing) {
         await watchesApi.update(auth.token, { id: existing.id, ...payload });

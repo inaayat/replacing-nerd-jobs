@@ -180,6 +180,10 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
       tmdb_id: tmdbInput.value ? Number(tmdbInput.value) : null,
     };
 
+    if (!payload.tmdb_id && payload.title) {
+      payload.tmdb_id = await movieApi.resolve(auth.token, payload.title);
+    }
+
     try {
       await watchesApi.create(auth.token, payload);
       statusEl.textContent = `Logged ${payload.title}`;

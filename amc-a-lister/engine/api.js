@@ -39,4 +39,21 @@ export const importApi = {
 
 export const movieApi = {
   search: (token, q) => apiFetch(`/api/alist-movie-lookup?q=${encodeURIComponent(q)}`, { token }),
+  resolve: async (token, title) => {
+    if (!title || title.trim().length < 2) return null;
+    try {
+      const { results } = await movieApi.search(token, title.trim());
+      const norm = title.trim().toLowerCase();
+      const exact = results.find((r) => r.title.toLowerCase() === norm);
+      if (exact) return exact.tmdb_id;
+      const partial = results.find((r) => {
+        const rt = r.title.toLowerCase();
+        return rt.includes(norm) || norm.includes(rt);
+      });
+      if (partial) return partial.tmdb_id;
+      return results.length === 1 ? results[0].tmdb_id : null;
+    } catch {
+      return null;
+    }
+  },
 };

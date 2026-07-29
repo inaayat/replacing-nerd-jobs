@@ -74,52 +74,142 @@ function normalizeBody(body) {
   };
 }
 
-async function enrichMissingPosters(watches) {
+function normalizeTitle(title) {
+  return String(title || '').toLowerCase().trim();
+}
+
+function movieFromTmdbResult(m) {
+  return {
+    tmdb_id: m.id,
+    title: m.title,
+    year: m.release_date ? Number(m.release_date.slice(0, 4)) : null,
+    poster_path: m.poster_path || null,
+    overview: m.overview,
+  };
+}
+
+function pickBestMatch(results, title) {
+  if (!results?.length) return null;
+  const norm = normalizeTitle(title);
+  const exact = results.find((r) => normalizeTitle(r.title) === norm);
+  if (exact) return exact;
+  const partial = results.find((r) => {
+    const rt = normalizeTitle(r.title);
+    return rt.includes(norm) || norm.includes(rt);
+  });
+  if (partial) return partial;
+  return results.length === 1 ? results[0] : null;
+}
+
+async function cacheMovieRecord(movie) {
+  await db()`
+    INSERT INTO alist_movie_cache (tmdb_id, title, year, poster_path, raw)
+    VALUES (${movie.tmdb_id}, ${movie.title}, ${movie.year}, ${movie.poster_path}, ${JSON.stringify(movie)})
+    ON CONFLICT (tmdb_id) DO UPDATE SET
+      title = EXCLUDED.title,
+      year = EXCLUDED.year,
+      poster_path = EXCLUDED.poster_path,
+      fetched_at = now()
+  `;
+}
+
+async function fetchMovieById(apiKey, tmdbId) {
+  const url = new URL(`https://api.themoviedb.org/3/movie/${tmdbId}`);
+  url.searchParams.set('api_key', apiKey);
+  const tmdbRes = await fetch(url);
+  if (!tmdbRes.ok) return null;
+  const m = await tmdbRes.json();
+  return movieFromTmdbResult(m);
+}
+
+async function searchMovies(apiKey, query) {
+  const url = new URL('https://api.themoviedb.org/3/search/movie');
+  url.searchParams.set('api_key', apiKey);
+  url.searchParams.set('query', query);
+  url.searchParams.set('include_adult', 'false');
+  const tmdbRes = await fetch(url);
+  if (!tmdbRes.ok) return [];
+  const data = await tmdbRes.json();
+  return (data.results || []).slice(0, 8).map(movieFromTmdbResult);
+}
+
+async function enrichMissingPosters(userId, watches) {
   const apiKey = process.env.TMDB_API_KEY;
   if (!apiKey || !process.env.DATABASE_URL) return watches;
 
-  const missingIds = [...new Set(
-    watches.filter((w) => w.tmdb_id && !w.poster_path).map((w) => w.tmdb_id),
-  )];
-  if (!missingIds.length) return watches;
-
   await ensureSchema();
+  let updated = watches.map((w) => ({ ...w }));
   const posterById = new Map();
 
+  const missingIds = [...new Set(
+    updated.filter((w) => w.tmdb_id && !w.poster_path).map((w) => w.tmdb_id),
+  )];
   for (const tmdbId of missingIds.slice(0, 12)) {
     try {
-      const url = new URL(`https://api.themoviedb.org/3/movie/${tmdbId}`);
-      url.searchParams.set('api_key', apiKey);
-      const tmdbRes = await fetch(url);
-      if (!tmdbRes.ok) continue;
-      const m = await tmdbRes.json();
-      const posterPath = m.poster_path || null;
-      const year = m.release_date ? Number(m.release_date.slice(0, 4)) : null;
-      await db()`
-        INSERT INTO alist_movie_cache (tmdb_id, title, year, poster_path, raw)
-        VALUES (${tmdbId}, ${m.title || null}, ${year}, ${posterPath}, ${JSON.stringify({
-          tmdb_id: tmdbId,
-          title: m.title,
-          year,
-          poster_path: posterPath,
-        })})
-        ON CONFLICT (tmdb_id) DO UPDATE SET
-          title = EXCLUDED.title,
-          year = EXCLUDED.year,
-          poster_path = EXCLUDED.poster_path,
-          fetched_at = now()
-      `;
-      if (posterPath) posterById.set(tmdbId, posterPath);
+      const movie = await fetchMovieById(apiKey, tmdbId);
+      if (!movie) continue;
+      await cacheMovieRecord(movie);
+      if (movie.poster_path) posterById.set(tmdbId, movie.poster_path);
     } catch {
       // Skip failed lookups; list still works without posters.
     }
   }
 
-  if (!posterById.size) return watches;
-  return watches.map((w) => ({
+  updated = updated.map((w) => ({
     ...w,
-    poster_path: w.poster_path || posterById.get(w.tmdb_id) || null,
+    poster_path: w.poster_path || (w.tmdb_id ? posterById.get(w.tmdb_id) : null) || null,
   }));
+
+  const needsTitleLookup = updated.filter((w) => !w.poster_path && w.title);
+  const titleToWatches = new Map();
+  for (const w of needsTitleLookup) {
+    const key = normalizeTitle(w.title);
+    if (!titleToWatches.has(key)) titleToWatches.set(key, []);
+    titleToWatches.get(key).push(w);
+  }
+
+  const titleMatches = new Map();
+  let titleLookups = 0;
+
+  for (const [titleKey, group] of titleToWatches) {
+    if (titleLookups >= 10) break;
+    const sampleTitle = group[0].title;
+    try {
+      const results = await searchMovies(apiKey, sampleTitle);
+      const match = pickBestMatch(results, sampleTitle);
+      if (!match?.poster_path) continue;
+      await cacheMovieRecord(match);
+      titleMatches.set(titleKey, match);
+      titleLookups += 1;
+
+      for (const w of group) {
+        if (!w.tmdb_id) {
+          await db()`
+            UPDATE alist_watches
+            SET tmdb_id = ${match.tmdb_id}, updated_at = now()
+            WHERE id = ${w.id} AND user_id = ${userId} AND tmdb_id IS NULL
+          `;
+        }
+      }
+    } catch {
+      // Skip failed title lookups.
+    }
+  }
+
+  return updated.map((w) => {
+    const match = titleMatches.get(normalizeTitle(w.title));
+    if (!match) {
+      return {
+        ...w,
+        poster_path: w.poster_path || (w.tmdb_id ? posterById.get(w.tmdb_id) : null) || null,
+      };
+    }
+    return {
+      ...w,
+      tmdb_id: w.tmdb_id || match.tmdb_id,
+      poster_path: w.poster_path || match.poster_path || null,
+    };
+  });
 }
 
 async function handleWatches(req, res) {
@@ -132,7 +222,7 @@ async function handleWatches(req, res) {
     try {
       let rows = await listWatches(userId);
       let watches = rows.map(watchFromRow);
-      watches = await enrichMissingPosters(watches);
+      watches = await enrichMissingPosters(userId, watches);
       res.status(200).json({ watches });
     } catch (err) {
       res.status(502).json({ error: err.message });
@@ -451,34 +541,12 @@ async function handleMovieLookup(req, res) {
   }
 
   try {
-    const url = new URL('https://api.themoviedb.org/3/search/movie');
-    url.searchParams.set('api_key', apiKey);
-    url.searchParams.set('query', q);
-    url.searchParams.set('include_adult', 'false');
-
-    const tmdbRes = await fetch(url);
-    if (!tmdbRes.ok) throw new Error(`TMDB request failed (${tmdbRes.status})`);
-    const data = await tmdbRes.json();
-    const results = (data.results || []).slice(0, 8).map((m) => ({
-      tmdb_id: m.id,
-      title: m.title,
-      year: m.release_date ? Number(m.release_date.slice(0, 4)) : null,
-      poster_path: m.poster_path,
-      overview: m.overview,
-    }));
+    const results = await searchMovies(apiKey, q);
 
     if (process.env.DATABASE_URL) {
       await ensureSchema();
       for (const m of results) {
-        await db()`
-          INSERT INTO alist_movie_cache (tmdb_id, title, year, poster_path, raw)
-          VALUES (${m.tmdb_id}, ${m.title}, ${m.year}, ${m.poster_path}, ${JSON.stringify(m)})
-          ON CONFLICT (tmdb_id) DO UPDATE SET
-            title = EXCLUDED.title,
-            year = EXCLUDED.year,
-            poster_path = EXCLUDED.poster_path,
-            fetched_at = now()
-        `;
+        await cacheMovieRecord(m);
       }
     }
 
