@@ -19,14 +19,19 @@ bootPage(async ({ root, auth }) => {
   ]);
   const { summary = {}, theaters = [], formats = [], rewatches = [], ratings = {}, actors = [] } = data;
   const byMonth = summary.byMonth || [];
-  const moviesByMonth = groupMoviesByMonth(watches || []);
+  const watchList = watches || [];
+  const moviesByMonth = groupMoviesByMonth(watchList);
+  const moviesByRating = groupMoviesByRating(watchList);
+  const moviesByTheater = groupMoviesByTheater(watchList);
   const ratingBuckets = ratings.buckets || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
 
   main.innerHTML = `
     ${renderByMonthSection(byMonth, moviesByMonth)}
     <div class="al-insight-grid">
+      ${renderRatingProfileSection(ratings, ratingBuckets, moviesByRating)}
+      ${renderTheaterRankingSection(theaters, moviesByTheater)}
       ${renderByActorSection(actors)}
-      ${renderInsightGrid(theaters, formats, ratings, ratingBuckets)}
+      ${renderFormatPremiumsSection(formats)}
     </div>
     ${renderRewatchesSection(rewatches)}
   `;
@@ -51,25 +56,39 @@ function insightSection(title, body, { className = '', expanded = false, actions
   `;
 }
 
-function renderInsightGrid(theaters, formats, ratings, ratingBuckets) {
-  return `
-    ${insightSection('Rating profile', `
-      <p class="al-muted">${ratings.rated || 0} rated · ${ratings.dnf || 0} DNF · ${((ratings.dnf || 0) / Math.max(1, ratings.total || 0) * 100).toFixed(0)}% walk-out rate</p>
-      ${rankTable({
+function renderRatingProfileSection(ratings, ratingBuckets, moviesByRating) {
+  return insightSection('Rating profile', `
+    <p class="al-muted">${ratings.rated || 0} rated · ${ratings.dnf || 0} DNF · ${((ratings.dnf || 0) / Math.max(1, ratings.total || 0) * 100).toFixed(0)}% walk-out rate</p>
+    <p class="al-muted al-insight-hint">
+      <span class="al-hint-hover">Hover a rating to see films.</span>
+      <span class="al-hint-touch">Tap a rating to see films.</span>
+    </p>
+    ${rankTable({
     headers: [
       { label: 'Rating' },
       { label: 'Count', className: 'num' },
     ],
     rows: [5, 4, 3, 2, 1].map((n) => `
-          <tr>
-            <td>${n}★</td>
+          <tr class="al-rank-row al-hover-target" tabindex="0">
+            <td>
+              ${n}★
+              ${renderMoviesPopup(moviesByRating.get(n) || [], { empty: 'No films at this rating.', scrollable: true })}
+            </td>
             <td class="num">${ratingBuckets[n] || 0}</td>
           </tr>
         `),
   })}
-    `)}
-    ${insightSection('Theater ranking', theaters.length
-    ? rankTable({
+  `);
+}
+
+function renderTheaterRankingSection(theaters, moviesByTheater) {
+  return insightSection('Theater ranking', theaters.length
+    ? `
+      <p class="al-muted al-insight-hint">
+        <span class="al-hint-hover">Hover a theater to see films.</span>
+        <span class="al-hint-touch">Tap a theater to see films.</span>
+      </p>
+      ${rankTable({
       headers: [
         { label: '#', className: 'num' },
         { label: 'Theater' },
@@ -79,14 +98,23 @@ function renderInsightGrid(theaters, formats, ratings, ratingBuckets) {
       rows: theaters.slice(0, 6).map((t, i) => `
           <tr>
             <td class="num al-rank-num">${i + 1}</td>
-            <td>${escapeHtml(t.location)}</td>
+            <td>
+              <span class="al-hover-target al-hover-target--label" tabindex="0">
+                ${escapeHtml(t.location)}
+                ${renderMoviesPopup(moviesByTheater.get(t.location) || [], { empty: 'No films at this theater.', scrollable: true })}
+              </span>
+            </td>
             <td class="num">${t.count}</td>
             <td class="num">${money(t.charged)}</td>
           </tr>
         `),
-    })
-    : '<div class="al-empty">No theater data yet.</div>')}
-    ${insightSection('Format premiums', formats.length
+    })}
+    `
+    : '<div class="al-empty">No theater data yet.</div>');
+}
+
+function renderFormatPremiumsSection(formats) {
+  return insightSection('Format premiums', formats.length
     ? rankTable({
       headers: [
         { label: 'Format' },
@@ -101,8 +129,7 @@ function renderInsightGrid(theaters, formats, ratings, ratingBuckets) {
           </tr>
         `),
     })
-    : '<div class="al-empty">No format data yet.</div>')}
-  `;
+    : '<div class="al-empty">No format data yet.</div>');
 }
 
 function renderByActorSection(actors) {
@@ -258,6 +285,38 @@ function groupMoviesByMonth(watches) {
   return map;
 }
 
+function groupMoviesByRating(watches) {
+  const map = new Map([[1, []], [2, []], [3, []], [4, []], [5, []]]);
+  for (const watch of watches) {
+    if (watch.dnf || watch.rating == null) continue;
+    const bucket = Math.min(5, Math.max(1, Math.round(watch.rating)));
+    map.get(bucket).push({
+      title: watch.title,
+      watched_on: watch.watched_on,
+    });
+  }
+  for (const movies of map.values()) {
+    movies.sort((a, b) => b.watched_on.localeCompare(a.watched_on));
+  }
+  return map;
+}
+
+function groupMoviesByTheater(watches) {
+  const map = new Map();
+  for (const watch of watches) {
+    const location = (watch.location || 'Unknown').trim() || 'Unknown';
+    if (!map.has(location)) map.set(location, []);
+    map.get(location).push({
+      title: watch.title,
+      watched_on: watch.watched_on,
+    });
+  }
+  for (const movies of map.values()) {
+    movies.sort((a, b) => b.watched_on.localeCompare(a.watched_on));
+  }
+  return map;
+}
+
 function renderMonthTable(byMonth, moviesByMonth) {
   const totals = byMonth.reduce(
     (acc, row) => ({
@@ -313,13 +372,14 @@ function renderMonthRow(row, movies) {
   `;
 }
 
-function renderMoviesPopup(items, { empty = 'No movies.' } = {}) {
+function renderMoviesPopup(items, { empty = 'No movies.', scrollable = false } = {}) {
+  const popupClass = `al-hover-popup${scrollable ? ' al-hover-popup--scroll' : ''}`;
   if (!items.length) {
-    return `<span class="al-hover-popup" role="tooltip">${escapeHtml(empty)}</span>`;
+    return `<span class="${popupClass}" role="tooltip">${escapeHtml(empty)}</span>`;
   }
 
   return `
-    <span class="al-hover-popup" role="tooltip">
+    <span class="${popupClass}" role="tooltip">
       <span class="al-hover-popup-title">Movies</span>
       <ul class="al-hover-popup-list">
         ${items.map((item) => `

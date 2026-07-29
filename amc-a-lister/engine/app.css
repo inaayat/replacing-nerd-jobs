@@ -1044,7 +1044,12 @@ table.al-table {
   display: table-row;
 }
 
-.al-month-row.al-hover-target td:first-child {
+.al-rank-row.al-hover-target {
+  display: table-row;
+}
+
+.al-month-row.al-hover-target td:first-child,
+.al-rank-row.al-hover-target td:first-child {
   position: relative;
 }
 
@@ -1074,14 +1079,18 @@ table.al-table {
 .al-hover-target:hover .al-hover-popup,
 .al-hover-target:focus-within .al-hover-popup,
 .al-month-row.al-hover-target:hover .al-hover-popup,
-.al-month-row.al-hover-target:focus-within .al-hover-popup {
+.al-month-row.al-hover-target:focus-within .al-hover-popup,
+.al-rank-row.al-hover-target:hover .al-hover-popup,
+.al-rank-row.al-hover-target:focus-within .al-hover-popup {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
 }
 
 .al-month-row.al-hover-target:hover td,
-.al-month-row.al-hover-target:focus-within td {
+.al-month-row.al-hover-target:focus-within td,
+.al-rank-row.al-hover-target:hover td,
+.al-rank-row.al-hover-target:focus-within td {
   background: rgba(218, 0, 0, 0.04);
 }
 
@@ -1121,6 +1130,19 @@ table.al-table {
   color: var(--al-muted);
   font-family: var(--al-font-mono);
   font-size: 0.72rem;
+}
+
+.al-hover-popup--scroll .al-hover-popup-list {
+  max-height: min(280px, 50vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 2px;
+}
+
+.al-insight-hint {
+  margin-top: -2px;
+  margin-bottom: 8px;
+  font-size: 0.82rem;
 }
 
 .al-month-table tfoot th {
