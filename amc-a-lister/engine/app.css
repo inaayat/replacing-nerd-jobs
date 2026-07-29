@@ -1006,32 +1006,76 @@ table.al-table {
   .al-hint-touch { display: inline; }
 }
 
-.al-month-group .al-month-row {
+.al-by-month .al-table-wrap {
+  overflow: visible;
+}
+
+.al-hover-target {
+  position: relative;
+  display: inline-block;
   cursor: default;
 }
 
-.al-month-group:hover .al-month-row td,
-.al-month-group:focus-within .al-month-row td {
-  background: rgba(218, 0, 0, 0.04);
+.al-hover-target--label {
+  border-bottom: 1px dotted rgba(28, 28, 28, 0.22);
 }
 
-.al-month-detail {
-  display: none;
-}
-
-.al-month-group:hover .al-month-detail,
-.al-month-group:focus-within .al-month-detail {
+.al-month-row.al-hover-target {
   display: table-row;
 }
 
-.al-month-detail td {
-  padding-top: 0;
-  padding-bottom: 10px;
-  background: rgba(218, 0, 0, 0.03);
-  border-bottom: 1px solid var(--al-line);
+.al-month-row.al-hover-target td:first-child {
+  position: relative;
 }
 
-.al-month-movies {
+.al-hover-popup {
+  position: absolute;
+  z-index: 30;
+  left: 0;
+  top: calc(100% + 8px);
+  min-width: 220px;
+  max-width: 300px;
+  padding: 10px 12px;
+  background: var(--al-panel);
+  border: 1px solid var(--al-line);
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(28, 28, 28, 0.14);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+  text-align: left;
+}
+
+.al-hover-target--label .al-hover-popup {
+  left: 0;
+}
+
+.al-hover-target:hover .al-hover-popup,
+.al-hover-target:focus-within .al-hover-popup,
+.al-month-row.al-hover-target:hover .al-hover-popup,
+.al-month-row.al-hover-target:focus-within .al-hover-popup {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.al-month-row.al-hover-target:hover td,
+.al-month-row.al-hover-target:focus-within td {
+  background: rgba(218, 0, 0, 0.04);
+}
+
+.al-hover-popup-title {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--al-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.al-hover-popup-list {
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1039,28 +1083,24 @@ table.al-table {
   gap: 6px;
 }
 
-.al-month-movies li {
+.al-hover-popup-list li {
   display: flex;
   justify-content: space-between;
   gap: 12px;
   font-size: 0.8rem;
+  line-height: 1.35;
 }
 
-.al-month-movie-title {
+.al-hover-popup-item-title {
   min-width: 0;
   font-weight: 500;
 }
 
-.al-month-movie-date {
+.al-hover-popup-item-date {
   flex-shrink: 0;
   color: var(--al-muted);
   font-family: var(--al-font-mono);
   font-size: 0.72rem;
-}
-
-.al-month-movies-empty {
-  margin: 0;
-  font-size: 0.8rem;
 }
 
 .al-month-table tfoot th {

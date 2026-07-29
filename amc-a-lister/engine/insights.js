@@ -94,13 +94,14 @@ function renderByActorSection(actors) {
   `;
 
   return insightSection('By actor', `
-    <p class="al-muted al-by-actor-hint">Top 10 unique films per actor from TMDB-matched titles.</p>
+    <p class="al-muted al-by-actor-hint">Top 10 unique films per actor. Hover a name to see titles.</p>
     <div class="al-view-panel" data-panel="most">
       ${mostSeen.map((actor) => barRow(
     actor.actor,
     actor.count,
     maxCount,
     actorRightLabel(actor),
+    renderMoviesPopup(actor.films, { empty: 'No films found.' }),
   )).join('')}
     </div>
     <div class="al-view-panel is-hidden" data-panel="rated" hidden>
@@ -110,6 +111,7 @@ function renderByActorSection(actors) {
       actor.avgRating,
       5,
       `${actor.avgRating}★ · ${actor.count} films`,
+      renderMoviesPopup(actor.films, { empty: 'No films found.' }),
     )).join('')
     : '<div class="al-empty">Rate at least two films per actor to rank them here.</div>'}
     </div>
@@ -226,7 +228,9 @@ function renderMonthTable(byMonth, moviesByMonth) {
             <th class="num">Savings</th>
           </tr>
         </thead>
-        ${byMonth.map((row) => renderMonthGroup(row, moviesByMonth.get(row.month) || [])).join('')}
+        <tbody>
+          ${byMonth.map((row) => renderMonthRow(row, moviesByMonth.get(row.month) || [])).join('')}
+        </tbody>
         <tfoot>
           <tr>
             <th>Total</th>
@@ -241,29 +245,38 @@ function renderMonthTable(byMonth, moviesByMonth) {
   `;
 }
 
-function renderMonthGroup(row, movies) {
-  const moviesHtml = movies.length
-    ? `<ul class="al-month-movies">${movies.map((movie) => `
-        <li>
-          <span class="al-month-movie-title">${escapeHtml(movie.title)}</span>
-          <span class="al-month-movie-date">${escapeHtml(shortDate(movie.watched_on))}</span>
-        </li>
-      `).join('')}</ul>`
-    : '<p class="al-muted al-month-movies-empty">No movies this month.</p>';
+function renderMonthRow(row, movies) {
+  return `
+    <tr class="al-month-row al-hover-target" tabindex="0">
+      <td>
+        ${escapeHtml(monthLabel(row.month))}
+        ${renderMoviesPopup(movies, { empty: 'No movies this month.' })}
+      </td>
+      <td class="num">${row.movies}</td>
+      <td class="num">${money(row.charged)}</td>
+      <td class="num">${money(row.bill)}</td>
+      <td class="num ${savingsClass(row.savings)}">${formatSavings(row.savings)}</td>
+    </tr>
+  `;
+}
+
+function renderMoviesPopup(items, { empty = 'No movies.' } = {}) {
+  if (!items.length) {
+    return `<span class="al-hover-popup" role="tooltip">${escapeHtml(empty)}</span>`;
+  }
 
   return `
-    <tbody class="al-month-group">
-      <tr class="al-month-row" tabindex="0">
-        <td>${escapeHtml(monthLabel(row.month))}</td>
-        <td class="num">${row.movies}</td>
-        <td class="num">${money(row.charged)}</td>
-        <td class="num">${money(row.bill)}</td>
-        <td class="num ${savingsClass(row.savings)}">${formatSavings(row.savings)}</td>
-      </tr>
-      <tr class="al-month-detail" aria-hidden="true">
-        <td colspan="5">${moviesHtml}</td>
-      </tr>
-    </tbody>
+    <span class="al-hover-popup" role="tooltip">
+      <span class="al-hover-popup-title">Movies</span>
+      <ul class="al-hover-popup-list">
+        ${items.map((item) => `
+          <li>
+            <span class="al-hover-popup-item-title">${escapeHtml(item.title)}</span>
+            <span class="al-hover-popup-item-date">${escapeHtml(shortDate(item.watched_on))}</span>
+          </li>
+        `).join('')}
+      </ul>
+    </span>
   `;
 }
 
@@ -278,11 +291,14 @@ function formatSavings(cents) {
   return money(cents);
 }
 
-function barRow(label, value, max, right = value) {
+function barRow(label, value, max, right = value, popupHtml = '') {
   const pct = Math.round((value / max) * 100);
+  const labelHtml = popupHtml
+    ? `<span class="al-hover-target al-hover-target--label" tabindex="0">${escapeHtml(String(label))}${popupHtml}</span>`
+    : escapeHtml(String(label));
   return `
     <div class="al-bar-row">
-      <span>${escapeHtml(String(label))}</span>
+      <span>${labelHtml}</span>
       <span class="al-muted brand-mono">${right}</span>
       <div class="al-bar"><i style="width:${pct}%"></i></div>
     </div>

@@ -95,14 +95,15 @@ const castByTmdbId = new Map([
   [3, ['Actor C']],
 ]);
 const actorWatches = [
-  { tmdb_id: 1, title: 'One', rating: 5, dnf: false },
-  { tmdb_id: 2, title: 'Two', rating: 5, dnf: false },
-  { tmdb_id: 2, title: 'Two again', rating: 5, dnf: false },
-  { tmdb_id: 3, title: 'Three', rating: 5, dnf: false },
-  { tmdb_id: 3, title: 'Three again', rating: 5, dnf: false },
+  { tmdb_id: 1, title: 'One', watched_on: '2025-01-10', rating: 5, dnf: false },
+  { tmdb_id: 2, title: 'Two', watched_on: '2025-02-05', rating: 5, dnf: false },
+  { tmdb_id: 2, title: 'Two again', watched_on: '2025-02-20', rating: 5, dnf: false },
+  { tmdb_id: 3, title: 'Three', watched_on: '2025-03-01', rating: 5, dnf: false },
+  { tmdb_id: 3, title: 'Three again', watched_on: '2025-03-15', rating: 5, dnf: false },
 ];
 const actors = actorStats(actorWatches, castByTmdbId);
 assert.equal(actors.find((actor) => actor.actor === 'Actor A').count, 2);
+assert.equal(actors.find((actor) => actor.actor === 'Actor A').films.length, 2);
 assert.equal(actors.find((actor) => actor.actor === 'Actor C').count, 2);
 assert.equal(actors.find((actor) => actor.actor === 'Actor B').count, 1);
 assert.equal(topActorsByRating(actors).length, 2);
