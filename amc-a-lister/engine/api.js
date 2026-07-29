@@ -39,6 +39,7 @@ export const importApi = {
 
 export const movieApi = {
   search: (token, q) => apiFetch(`/api/alist-movie-lookup?q=${encodeURIComponent(q)}`, { token }),
+  details: (token, tmdbId) => apiFetch(`/api/alist-movie-details?tmdb_id=${encodeURIComponent(tmdbId)}`, { token }),
   resolve: async (token, title) => {
     if (!title || title.trim().length < 2) return null;
     try {

@@ -7,6 +7,7 @@
     { "source": "/api/alist-membership", "destination": "/api/alist?route=membership" },
     { "source": "/api/alist-import", "destination": "/api/alist?route=import" },
     { "source": "/api/alist-movie-lookup", "destination": "/api/alist?route=movie-lookup" },
+    { "source": "/api/alist-movie-details", "destination": "/api/alist?route=movie-details" },
     { "source": "/api/pc-cubes", "destination": "/api/packing-cubes?route=cubes" },
     { "source": "/api/pc-publish", "destination": "/api/packing-cubes?route=publish" },
     { "source": "/api/pc-suitcases", "destination": "/api/packing-cubes?route=suitcases" }

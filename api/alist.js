@@ -24,6 +24,8 @@ export default async function handler(req, res) {
       return handleImport(req, res);
     case 'movie-lookup':
       return handleMovieLookup(req, res);
+    case 'movie-details':
+      return handleMovieDetails(req, res);
     default:
       res.status(404).json({ error: 'Unknown A-List route.' });
   }
@@ -84,8 +86,50 @@ function movieFromTmdbResult(m) {
     title: m.title,
     year: m.release_date ? Number(m.release_date.slice(0, 4)) : null,
     poster_path: m.poster_path || null,
-    overview: m.overview,
+    overview: m.overview || null,
+    runtime_min: m.runtime || null,
+    genres: (m.genres || []).map((g) => g.name),
+    director: null,
+    cast: [],
   };
+}
+
+function movieDetailsFromTmdb(m) {
+  const crew = m.credits?.crew || [];
+  const cast = m.credits?.cast || [];
+  const directors = crew.filter((c) => c.job === 'Director').map((c) => c.name);
+
+  return {
+    tmdb_id: m.id,
+    title: m.title,
+    year: m.release_date ? Number(m.release_date.slice(0, 4)) : null,
+    poster_path: m.poster_path || null,
+    overview: m.overview || null,
+    runtime_min: m.runtime || null,
+    genres: (m.genres || []).map((g) => g.name),
+    director: directors.length ? directors.join(', ') : null,
+    cast: cast.slice(0, 8).map((c) => c.name),
+  };
+}
+
+function movieDetailsFromCacheRow(row) {
+  const raw = row.raw && typeof row.raw === 'object' ? row.raw : {};
+  return {
+    tmdb_id: row.tmdb_id,
+    title: row.title,
+    year: row.year,
+    poster_path: row.poster_path || null,
+    overview: raw.overview || null,
+    runtime_min: row.runtime_min ?? raw.runtime_min ?? null,
+    genres: row.genres?.length ? row.genres : (raw.genres || []),
+    director: raw.director || null,
+    cast: raw.cast?.length ? raw.cast : [],
+  };
+}
+
+function cacheHasFullDetails(row) {
+  const raw = row.raw && typeof row.raw === 'object' ? row.raw : {};
+  return !!(raw.director || raw.cast?.length);
 }
 
 function pickBestMatch(results, title) {
@@ -102,24 +146,61 @@ function pickBestMatch(results, title) {
 }
 
 async function cacheMovieRecord(movie) {
+  const genres = movie.genres?.length ? movie.genres : null;
   await db()`
-    INSERT INTO alist_movie_cache (tmdb_id, title, year, poster_path, raw)
-    VALUES (${movie.tmdb_id}, ${movie.title}, ${movie.year}, ${movie.poster_path}, ${JSON.stringify(movie)})
+    INSERT INTO alist_movie_cache (tmdb_id, title, year, poster_path, runtime_min, genres, raw)
+    VALUES (
+      ${movie.tmdb_id}, ${movie.title}, ${movie.year}, ${movie.poster_path},
+      ${movie.runtime_min ?? null}, ${genres}, ${JSON.stringify(movie)}
+    )
     ON CONFLICT (tmdb_id) DO UPDATE SET
       title = EXCLUDED.title,
       year = EXCLUDED.year,
       poster_path = EXCLUDED.poster_path,
+      runtime_min = EXCLUDED.runtime_min,
+      genres = EXCLUDED.genres,
+      raw = EXCLUDED.raw,
       fetched_at = now()
   `;
 }
 
-async function fetchMovieById(apiKey, tmdbId) {
+async function fetchMovieDetails(apiKey, tmdbId) {
   const url = new URL(`https://api.themoviedb.org/3/movie/${tmdbId}`);
   url.searchParams.set('api_key', apiKey);
+  url.searchParams.set('append_to_response', 'credits');
   const tmdbRes = await fetch(url);
   if (!tmdbRes.ok) return null;
   const m = await tmdbRes.json();
-  return movieFromTmdbResult(m);
+  return movieDetailsFromTmdb(m);
+}
+
+async function getMovieDetails(tmdbId) {
+  if (process.env.DATABASE_URL) {
+    await ensureSchema();
+    const rows = await db()`
+      SELECT tmdb_id, title, year, poster_path, runtime_min, genres, raw
+      FROM alist_movie_cache
+      WHERE tmdb_id = ${tmdbId}
+    `;
+    if (rows.length && cacheHasFullDetails(rows[0])) {
+      return movieDetailsFromCacheRow(rows[0]);
+    }
+  }
+
+  const apiKey = process.env.TMDB_API_KEY;
+  if (!apiKey) return null;
+
+  const movie = await fetchMovieDetails(apiKey, tmdbId);
+  if (!movie) return null;
+
+  if (process.env.DATABASE_URL) {
+    await cacheMovieRecord(movie);
+  }
+  return movie;
+}
+
+async function fetchMovieById(apiKey, tmdbId) {
+  return fetchMovieDetails(apiKey, tmdbId);
 }
 
 async function searchMovies(apiKey, query) {
@@ -511,6 +592,41 @@ async function handleImport(req, res) {
     }
 
     res.status(200).json({ inserted, skipped, total: watches.length });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+}
+
+async function handleMovieDetails(req, res) {
+  if (req.method !== 'GET') {
+    res.status(405).json({ error: 'Use GET.' });
+    return;
+  }
+
+  const auth = await getAuth(req);
+  if (!auth) {
+    res.status(401).json({ error: 'Not signed in.' });
+    return;
+  }
+
+  const tmdbId = Number(req.query?.tmdb_id);
+  if (!tmdbId) {
+    res.status(400).json({ error: 'tmdb_id is required.' });
+    return;
+  }
+
+  if (!process.env.TMDB_API_KEY) {
+    res.status(503).json({ error: 'TMDB_API_KEY not configured.' });
+    return;
+  }
+
+  try {
+    const movie = await getMovieDetails(tmdbId);
+    if (!movie) {
+      res.status(404).json({ error: 'Movie not found on TMDB.' });
+      return;
+    }
+    res.status(200).json({ movie });
   } catch (err) {
     res.status(502).json({ error: err.message });
   }

@@ -716,6 +716,94 @@ table.al-table {
   justify-content: flex-start;
 }
 
+.al-log-entry {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+}
+
+.al-log-row--clickable {
+  cursor: pointer;
+}
+
+.al-log-row--clickable:focus-visible {
+  outline: 2px solid var(--al-burgundy);
+  outline-offset: 2px;
+}
+
+.al-log-entry.is-expanded .al-log-row {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.al-log-detail {
+  padding: 12px 14px 14px;
+  background: var(--al-white);
+  border: 1px solid var(--al-line);
+  border-top: 0;
+  border-radius: 0 0 12px 12px;
+  margin-top: -8px;
+  box-shadow: 0 2px 8px rgba(28, 28, 28, 0.05);
+}
+
+.al-log-detail-body {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.al-log-detail-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.al-log-detail-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+  margin: 0 0 12px;
+}
+
+.al-log-detail-facts > div {
+  min-width: 0;
+}
+
+.al-log-detail-facts dt {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--al-muted);
+}
+
+.al-log-detail-facts dd {
+  margin: 2px 0 0;
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+
+.al-log-detail-overview {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: var(--al-charcoal);
+}
+
+.al-poster--detail {
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .al-log-detail-facts {
+    grid-template-columns: 1fr;
+  }
+
+  .al-log-detail-body {
+    flex-direction: column;
+  }
+}
+
 .al-log-row--editing {
   display: block;
   grid-column: 1 / -1;

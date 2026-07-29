@@ -1,5 +1,5 @@
 import { bootPage, renderShell, requireSignIn, populateSidebarStats } from './nav.js';
-import { watchesApi } from './api.js';
+import { watchesApi, movieApi } from './api.js';
 import { money, shortDate, ratingLabel, escapeHtml, posterHtml } from './format.js';
 import { renderWatchEditForm, wireWatchEditForm } from './watch-form.js';
 
@@ -48,10 +48,19 @@ async function loadLog(auth) {
     </section>
   `;
 
-  const state = { watches, filtered: watches, editingId: null };
+  const state = {
+    watches,
+    filtered: watches,
+    editingId: null,
+    expandedId: null,
+    detailsCache: new Map(),
+    detailsLoading: null,
+    detailsError: null,
+  };
+
   const render = () => {
     document.getElementById('log-count').textContent = `${state.filtered.length} of ${state.watches.length}`;
-    document.getElementById('log-table').innerHTML = tableHtml(state.filtered, state.editingId);
+    document.getElementById('log-table').innerHTML = tableHtml(state);
     wireRowActions(auth, state, render);
   };
 
@@ -81,8 +90,9 @@ async function loadLog(auth) {
   render();
 }
 
-function tableHtml(watches, editingId) {
-  if (!watches.length) return '<div class="al-empty">No matches.</div>';
+function tableHtml(state) {
+  const { filtered, editingId, expandedId } = state;
+  if (!filtered.length) return '<div class="al-empty">No matches.</div>';
   return `
     <div class="al-log-list">
       <div class="al-log-head" aria-hidden="true">
@@ -96,54 +106,171 @@ function tableHtml(watches, editingId) {
         <span class="al-log-col">Rating</span>
         <span class="al-log-col">Actions</span>
       </div>
-      ${watches.map((w) => (
-        w.id === editingId ? editRowHtml(w) : viewRowHtml(w)
+      ${filtered.map((w) => (
+        w.id === editingId ? editRowHtml(w) : viewEntryHtml(w, state)
       )).join('')}
     </div>
   `;
 }
 
-function viewRowHtml(w) {
+function viewEntryHtml(w, state) {
+  const expanded = w.id === state.expandedId;
   return `
-    <article class="al-log-row" data-id="${w.id}">
-      <div class="al-log-col al-col-poster">${posterHtml(w)}</div>
-      <div class="al-log-col">${shortDate(w.watched_on)}</div>
-      <div class="al-log-col al-log-col--title">${escapeHtml(w.title)}</div>
-      <div class="al-log-col al-muted">${escapeHtml(w.location || '—')}</div>
-      <div class="al-log-col">${w.format ? escapeHtml(w.format) : '—'}</div>
-      <div class="al-log-col al-muted">${escapeHtml([w.auditorium, w.seat].filter(Boolean).join(' · ') || '—')}</div>
-      <div class="al-log-col al-log-col--num">${money(w.ticket_cents)}</div>
-      <div class="al-log-col">${ratingLabel(w)}</div>
-      <div class="al-log-col al-row-actions">
-        <button type="button" class="al-link-btn" data-edit="${w.id}">Edit</button>
-        <button type="button" class="al-link-btn" data-delete="${w.id}">Delete</button>
+    <div class="al-log-entry ${expanded ? 'is-expanded' : ''}" data-entry-id="${w.id}">
+      <article class="al-log-row al-log-row--clickable" data-expand-row tabindex="0" role="button" aria-expanded="${expanded}">
+        <div class="al-log-col al-col-poster">${posterHtml(w)}</div>
+        <div class="al-log-col">${shortDate(w.watched_on)}</div>
+        <div class="al-log-col al-log-col--title">${escapeHtml(w.title)}</div>
+        <div class="al-log-col al-muted">${escapeHtml(w.location || '—')}</div>
+        <div class="al-log-col">${w.format ? escapeHtml(w.format) : '—'}</div>
+        <div class="al-log-col al-muted">${escapeHtml([w.auditorium, w.seat].filter(Boolean).join(' · ') || '—')}</div>
+        <div class="al-log-col al-log-col--num">${money(w.ticket_cents)}</div>
+        <div class="al-log-col">${ratingLabel(w)}</div>
+        <div class="al-log-col al-row-actions">
+          <button type="button" class="al-link-btn" data-edit="${w.id}">Edit</button>
+          <button type="button" class="al-link-btn" data-delete="${w.id}">Delete</button>
+        </div>
+      </article>
+      ${expanded ? detailPanelHtml(w, state) : ''}
+    </div>
+  `;
+}
+
+function detailPanelHtml(watch, state) {
+  if (!watch.tmdb_id) {
+    return `
+      <div class="al-log-detail">
+        <p class="al-muted">No TMDB match for this title. Use <strong>Edit</strong> and pick the movie from search to load details.</p>
       </div>
-    </article>
+    `;
+  }
+
+  if (state.detailsLoading === watch.id) {
+    return `<div class="al-log-detail"><p class="al-muted">Loading movie details…</p></div>`;
+  }
+
+  if (state.detailsError && state.expandedId === watch.id) {
+    return `<div class="al-log-detail"><p class="al-error">${escapeHtml(state.detailsError)}</p></div>`;
+  }
+
+  const movie = state.detailsCache.get(watch.id);
+  if (!movie) {
+    return `<div class="al-log-detail"><p class="al-muted">Loading movie details…</p></div>`;
+  }
+
+  const genres = movie.genres?.length ? movie.genres.join(', ') : '—';
+  const runtime = movie.runtime_min ? `${movie.runtime_min} min` : '—';
+  const director = movie.director || '—';
+  const cast = movie.cast?.length ? movie.cast.join(', ') : '—';
+
+  return `
+    <div class="al-log-detail">
+      <div class="al-log-detail-body">
+        ${movie.poster_path ? posterHtml(movie, { size: 'w154', width: 72, height: 108, className: 'al-poster al-poster--detail' }) : ''}
+        <div class="al-log-detail-meta">
+          <dl class="al-log-detail-facts">
+            <div><dt>Runtime</dt><dd>${escapeHtml(runtime)}</dd></div>
+            <div><dt>Genre</dt><dd>${escapeHtml(genres)}</dd></div>
+            <div><dt>Director</dt><dd>${escapeHtml(director)}</dd></div>
+            <div><dt>Cast</dt><dd>${escapeHtml(cast)}</dd></div>
+          </dl>
+          ${movie.overview ? `<p class="al-log-detail-overview">${escapeHtml(movie.overview)}</p>` : '<p class="al-muted">No overview available.</p>'}
+        </div>
+      </div>
+    </div>
   `;
 }
 
 function editRowHtml(w) {
   return `
-    <article class="al-log-row al-log-row--editing" data-id="${w.id}">
-      ${renderWatchEditForm(w, `edit-${w.id}`)}
-    </article>
+    <div class="al-log-entry al-log-entry--editing" data-entry-id="${w.id}">
+      <article class="al-log-row al-log-row--editing" data-id="${w.id}">
+        ${renderWatchEditForm(w, `edit-${w.id}`)}
+      </article>
+    </div>
   `;
 }
 
+async function loadMovieDetails(auth, state, watchId, render) {
+  const watch = state.watches.find((w) => w.id === watchId);
+  if (!watch?.tmdb_id) return;
+
+  if (state.detailsCache.has(watchId)) return;
+
+  state.detailsLoading = watchId;
+  state.detailsError = null;
+  render();
+
+  try {
+    const { movie } = await movieApi.details(auth.token, watch.tmdb_id);
+    state.detailsCache.set(watchId, movie);
+    if (movie.poster_path && !watch.poster_path) {
+      const withPoster = { ...watch, poster_path: movie.poster_path };
+      state.watches = state.watches.map((w) => (w.id === watchId ? withPoster : w));
+      state.filtered = state.filtered.map((w) => (w.id === watchId ? withPoster : w));
+    }
+  } catch (err) {
+    state.detailsError = err.message || 'Could not load movie details.';
+  } finally {
+    state.detailsLoading = null;
+    render();
+  }
+}
+
 function wireRowActions(auth, state, render) {
+  document.querySelectorAll('[data-expand-row]').forEach((row) => {
+    const toggle = (e) => {
+      if (e.target.closest('.al-row-actions')) return;
+      const entry = row.closest('.al-log-entry');
+      const id = entry?.dataset.entryId;
+      if (!id) return;
+
+      if (state.expandedId === id) {
+        state.expandedId = null;
+        state.detailsError = null;
+        render();
+        return;
+      }
+
+      state.expandedId = id;
+      state.editingId = null;
+      state.detailsError = null;
+
+      const watch = state.watches.find((w) => w.id === id);
+      if (watch?.tmdb_id && !state.detailsCache.has(id)) {
+        loadMovieDetails(auth, state, id, render);
+      } else {
+        render();
+      }
+    };
+
+    row.addEventListener('click', toggle);
+    row.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggle(e);
+      }
+    });
+  });
+
   document.querySelectorAll('[data-edit]').forEach((btn) => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
       state.editingId = btn.dataset.edit;
+      state.expandedId = null;
       render();
     });
   });
 
   document.querySelectorAll('[data-delete]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
       if (!confirm('Delete this screening?')) return;
       await watchesApi.remove(auth.token, btn.dataset.delete);
       state.watches = state.watches.filter((w) => w.id !== btn.dataset.delete);
       if (state.editingId === btn.dataset.delete) state.editingId = null;
+      if (state.expandedId === btn.dataset.delete) state.expandedId = null;
+      state.detailsCache.delete(btn.dataset.delete);
       state.filtered = state.filtered.filter((w) => w.id !== btn.dataset.delete);
       populateSidebarStats(auth);
       render();
@@ -172,6 +299,9 @@ function wireRowActions(auth, state, render) {
       };
       state.watches = state.watches.map((w) => (w.id === watch.id ? merged : w));
       state.filtered = state.filtered.map((w) => (w.id === watch.id ? merged : w));
+      if (updated.tmdb_id !== watch.tmdb_id) {
+        state.detailsCache.delete(watch.id);
+      }
       state.editingId = null;
       populateSidebarStats(auth);
       render();
