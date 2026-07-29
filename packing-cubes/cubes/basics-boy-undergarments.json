@@ -1,0 +1,23 @@
+{
+  "id": "basics-boy-undergarments",
+  "title": "Basics: Boy Undergarments",
+  "blurb": "",
+  "tags": [
+    "basics",
+    "karan"
+  ],
+  "items": [
+    {
+      "label": "Boxer briefs"
+    },
+    {
+      "label": "Short socks"
+    },
+    {
+      "label": "Long socks"
+    },
+    {
+      "label": "Tank tops"
+    }
+  ]
+}
