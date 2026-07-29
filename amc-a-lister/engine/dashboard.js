@@ -1,5 +1,5 @@
 import { bootPage, renderShell, requireSignIn, countUp, populateSidebarStats } from './nav.js';
-import { watchesApi, summaryApi, importApi } from './api.js';
+import { watchesApi, summaryApi } from './api.js';
 import { money, shortDate, monthLabel, ratingLabel, escapeHtml } from './format.js';
 
 bootPage(async ({ root, auth }) => {
@@ -21,16 +21,6 @@ async function loadDashboard(auth) {
   if (!main) return;
 
   let watchesRes = await watchesApi.list(auth.token);
-  try {
-    const seed = await fetch('/amc-a-lister/data/movies-bill.json').then((r) => r.json());
-    const have = watchesRes.watches?.length || 0;
-    if (Array.isArray(seed) && seed.length && have < seed.length) {
-      await importApi.run(auth.token, seed);
-      watchesRes = await watchesApi.list(auth.token);
-    }
-  } catch {
-    // bundled log sync is best-effort
-  }
 
   const summaryRes = await summaryApi.get(auth.token);
 

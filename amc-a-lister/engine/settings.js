@@ -60,7 +60,6 @@ bootPage(async ({ root, auth }) => {
         <div class="al-toolbar">
           <input type="file" id="xlsx-file" accept=".xlsx,.xls" />
           <button class="al-btn al-btn-primary" type="button" id="xlsx-import-btn">Upload spreadsheet</button>
-          <button class="al-btn" type="button" id="seed-import-btn">Re-import bundled log</button>
         </div>
         <p class="al-muted" id="import-status"></p>
       </section>
@@ -124,17 +123,6 @@ bootPage(async ({ root, auth }) => {
       const watches = await parseXlsxFile(file);
       const result = await importApi.run(auth.token, watches);
       setStatus(`Imported ${result.inserted} screenings (${result.skipped} duplicates skipped).`);
-    } catch (err) {
-      setStatus(err.message);
-    }
-  });
-
-  document.getElementById('seed-import-btn').addEventListener('click', async () => {
-    setStatus('Importing bundled log…');
-    try {
-      const seed = await fetch('/amc-a-lister/data/movies-bill.json').then((r) => r.json());
-      const result = await importApi.run(auth.token, seed);
-      setStatus(`Bundled log: inserted ${result.inserted}, skipped ${result.skipped}.`);
     } catch (err) {
       setStatus(err.message);
     }

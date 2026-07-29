@@ -3,7 +3,7 @@
 
 Usage:
   pip install openpyxl
-  python3 scripts/convert-alist-xlsx.py path/to/A-List\\ Tracking.xlsx > amc-a-lister/data/movies-bill.json
+  python3 scripts/convert-alist-xlsx.py path/to/A-List\\ Tracking.xlsx > scripts/data/movies-bill.json
 """
 import json
 import re
