@@ -30,6 +30,10 @@ export const summaryApi = {
 
 export const leaderboardApi = {
   get: (token) => apiFetch('/api/alist-leaderboard', { token }),
+  compare: (token, userId) => apiFetch(
+    `/api/alist-leaderboard-compare?with=${encodeURIComponent(userId)}`,
+    { token },
+  ),
 };
 
 export const membershipApi = {
