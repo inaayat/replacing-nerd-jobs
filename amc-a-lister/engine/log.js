@@ -5,14 +5,11 @@ import { money, shortDate, ratingLabel, escapeHtml } from './format.js';
 bootPage(async ({ root, auth }) => {
   if (!requireSignIn(auth, root)) return;
 
-  root.innerHTML = `
-    ${renderShell({
-      title: 'Watch log',
-      subtitle: 'Search and filter every screening.',
-      actions: `<a class="al-btn al-btn-primary" href="/amc-a-lister/add.html">+ Log movie</a>`,
-    })}
-    <main class="al-main" id="log-main"><p class="al-muted">Loading…</p></main>
-  `;
+  root.innerHTML = renderShell({
+    title: 'Watch log',
+    subtitle: 'Search and filter every screening.',
+    body: `<main class="al-main" id="log-main"><p class="al-muted">Loading…</p></main>`,
+  });
 
   const main = document.getElementById('log-main');
   const { watches } = await watchesApi.list(auth.token);

@@ -5,13 +5,11 @@ import { money, escapeHtml, monthLabel } from './format.js';
 bootPage(async ({ root, auth }) => {
   if (!requireSignIn(auth, root)) return;
 
-  root.innerHTML = `
-    ${renderShell({
-      title: 'Insights',
-      subtitle: 'Data the spreadsheet never surfaced.',
-    })}
-    <main class="al-main" id="insights-main"><p class="al-muted">Loading…</p></main>
-  `;
+  root.innerHTML = renderShell({
+    title: 'Insights',
+    subtitle: 'Data the spreadsheet never surfaced.',
+    body: `<main class="al-main" id="insights-main"><p class="al-muted">Loading…</p></main>`,
+  });
 
   const main = document.getElementById('insights-main');
   const data = await summaryApi.get(auth.token);

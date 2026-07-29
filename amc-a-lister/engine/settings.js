@@ -8,11 +8,10 @@ bootPage(async ({ root, auth }) => {
 
   const { membership } = await membershipApi.get(auth.token);
 
-  root.innerHTML = `
-    ${renderShell({
-      title: 'Settings',
-      subtitle: 'Membership pricing and spreadsheet import.',
-    })}
+  root.innerHTML = renderShell({
+    title: 'Settings',
+    subtitle: 'Membership pricing and spreadsheet import.',
+    body: `
     <main class="al-main">
       <form class="al-panel al-form-grid" id="membership-form">
         <div class="al-field">
@@ -60,7 +59,8 @@ bootPage(async ({ root, auth }) => {
         </div>
       </section>
     </main>
-  `;
+    `,
+  });
 
   const setStatus = (msg) => { document.getElementById('import-status').textContent = msg; };
 

@@ -5,16 +5,11 @@ import { money, shortDate, monthLabel, ratingLabel, escapeHtml } from './format.
 bootPage(async ({ root, auth }) => {
   if (!requireSignIn(auth, root)) return;
 
-  root.innerHTML = `
-    ${renderShell({
-      title: 'Command center',
-      subtitle: 'This billing period at a glance.',
-      actions: `<a class="al-btn al-btn-primary" href="/amc-a-lister/add.html">+ Log movie</a>`,
-    })}
-    <main class="al-main" id="dash-main">
-      <p class="al-muted">Loading…</p>
-    </main>
-  `;
+  root.innerHTML = renderShell({
+    title: 'Command center',
+    subtitle: 'This billing period at a glance.',
+    body: `<main class="al-main" id="dash-main"><p class="al-muted">Loading…</p></main>`,
+  });
 
   const main = document.getElementById('dash-main');
 
@@ -38,15 +33,6 @@ bootPage(async ({ root, auth }) => {
   const period = summary.currentPeriod;
 
   main.innerHTML = `
-    <section class="al-hud al-hud-6" aria-label="Totals">
-      ${hudStat('Billed', summary.totalBilled, 'money')}
-      ${hudStat('Charged', summary.totalCharged, 'money')}
-      ${hudStat('Savings', summary.totalSavings, 'money', 'is-savings')}
-      ${hudStat('Seen', summary.totalSeen, 'count')}
-      ${hudStat('Cost / movie', summary.costPerMovie, 'money', 'is-cost')}
-      ${hudStat('Avg ticket', summary.avgTicket, 'money')}
-    </section>
-
     <section class="al-panel">
       <h2 class="serif">${monthLabel(period.month)} · this period</h2>
       <div class="al-hud" style="margin-bottom:0">
@@ -100,7 +86,7 @@ bootPage(async ({ root, auth }) => {
     </section>
   `;
 
-  animateHud(summary);
+  animatePeriodHud(period);
   const pct = period.bill > 0 ? Math.min(100, (period.charged / period.bill) * 100) : 0;
   requestAnimationFrame(() => {
     const meter = document.getElementById('value-meter');
@@ -117,18 +103,12 @@ function hudStat(label, value, kind, extraClass = '') {
   `;
 }
 
-function animateHud(summary) {
+function animatePeriodHud(period) {
   const map = {
-    Billed: { v: summary.totalBilled, kind: 'money' },
-    Charged: { v: summary.totalCharged, kind: 'money' },
-    Savings: { v: summary.totalSavings, kind: 'money' },
-    Seen: { v: summary.totalSeen, kind: 'count' },
-    'Cost / movie': { v: summary.costPerMovie, kind: 'money' },
-    'Avg ticket': { v: summary.avgTicket, kind: 'money' },
-    Movies: { v: summary.currentPeriod.movies, kind: 'count' },
-    'Ticket value': { v: summary.currentPeriod.charged, kind: 'money' },
-    Bill: { v: summary.currentPeriod.bill, kind: 'money' },
-    Net: { v: summary.currentPeriod.savings, kind: 'money' },
+    Movies: { v: period.movies, kind: 'count' },
+    'Ticket value': { v: period.charged, kind: 'money' },
+    Bill: { v: period.bill, kind: 'money' },
+    Net: { v: period.savings, kind: 'money' },
   };
 
   document.querySelectorAll('[data-hud]').forEach((el) => {

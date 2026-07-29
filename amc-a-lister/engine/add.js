@@ -16,12 +16,10 @@ bootPage(async ({ root, auth }) => {
     existing = watches.find((w) => w.id === editId) || null;
   }
 
-  root.innerHTML = `
-    ${renderShell({
-      title: existing ? 'Edit screening' : 'Log a movie',
-      subtitle: 'Under 30 seconds — title, date, ticket value.',
-      actions: `<a class="al-btn" href="/amc-a-lister/log.html">← Back</a>`,
-    })}
+  root.innerHTML = renderShell({
+    title: existing ? 'Edit screening' : 'Log a movie',
+    subtitle: 'Under 30 seconds — title, date, ticket value.',
+    body: `
     <main class="al-main">
       <form class="al-panel al-form-grid" id="watch-form">
         <div class="al-field span-2 al-search-wrap">
@@ -82,7 +80,8 @@ bootPage(async ({ root, auth }) => {
       </form>
     </main>
     <div class="al-toast" id="toast" role="status"></div>
-  `;
+    `,
+  });
 
   const form = document.getElementById('watch-form');
   const titleInput = document.getElementById('title');
