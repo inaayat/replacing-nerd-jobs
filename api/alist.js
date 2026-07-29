@@ -8,6 +8,7 @@ import {
   formatStats,
   rewatchList,
   ratingDistribution,
+  normalizePriceTiers,
 } from '../lib/a-list-billing.js';
 
 export default async function handler(req, res) {
@@ -252,23 +253,32 @@ async function handleMembership(req, res) {
     if (req.method === 'PUT') {
       const body = req.body || {};
       const promo = body.promo_cents != null ? Number(body.promo_cents) : undefined;
-      const standard = body.standard_cents != null ? Number(body.standard_cents) : undefined;
-      const current = body.current_cents != null ? Number(body.current_cents) : undefined;
-      const bump = body.price_bump_on != null ? String(body.price_bump_on).slice(0, 10) : undefined;
       const display = body.display_name != null ? String(body.display_name).trim() : undefined;
-
       const existing = await getMembership(userId);
+
+      let priceTiers = existing.price_tiers;
+      if (body.price_tiers != null) {
+        const normalized = normalizePriceTiers(body.price_tiers);
+        if (!normalized?.length) {
+          res.status(400).json({ error: 'At least one price tier is required.' });
+          return;
+        }
+        priceTiers = normalized;
+      }
+
+      const latest = priceTiers?.length ? priceTiers[priceTiers.length - 1] : null;
       const rows = await db()`
         UPDATE alist_membership SET
           promo_cents = ${promo ?? existing.promo_cents},
-          standard_cents = ${standard ?? existing.standard_cents},
-          current_cents = ${current ?? existing.current_cents},
-          price_bump_on = ${bump ?? existing.price_bump_on},
+          price_tiers = ${JSON.stringify(priceTiers)},
+          standard_cents = ${priceTiers?.[0]?.cents ?? existing.standard_cents},
+          current_cents = ${latest?.cents ?? existing.current_cents},
+          price_bump_on = ${latest?.effective_on ?? existing.price_bump_on},
           display_name = ${display ?? existing.display_name},
           updated_at = now()
         WHERE user_id = ${userId}
         RETURNING user_id, promo_cents, standard_cents, current_cents,
-                  price_bump_on::text AS price_bump_on, display_name, updated_at
+                  price_bump_on::text AS price_bump_on, price_tiers, display_name, updated_at
       `;
       res.status(200).json({ membership: rows[0] });
       return;

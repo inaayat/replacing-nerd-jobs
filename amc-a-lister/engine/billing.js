@@ -1,10 +1,62 @@
 /** Calendar-month billing helpers (period starts on the 1st). */
 
+export const DEFAULT_PRICE_TIERS = [
+  { effective_on: '2018-06-01', cents: 2495 },
+  { effective_on: '2025-05-01', cents: 2799 },
+  { effective_on: '2026-07-15', cents: 2999 },
+];
+
 export function chargeMonth(dateInput) {
   const d = parseDate(dateInput);
   const y = d.getUTCFullYear();
   const m = String(d.getUTCMonth() + 1).padStart(2, '0');
   return `${y}-${m}-01`;
+}
+
+export function lastDayOfChargeMonth(chargeMonthStr) {
+  const year = Number(chargeMonthStr.slice(0, 4));
+  const month = Number(chargeMonthStr.slice(5, 7));
+  return new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
+}
+
+export function normalizePriceTiers(raw) {
+  if (!Array.isArray(raw) || !raw.length) return null;
+  return raw
+    .map((tier) => ({
+      effective_on: String(tier.effective_on || '').slice(0, 10),
+      cents: Math.round(Number(tier.cents)),
+    }))
+    .filter((tier) => tier.effective_on && tier.cents > 0)
+    .sort((a, b) => a.effective_on.localeCompare(b.effective_on));
+}
+
+export function tiersFromLegacy(membership) {
+  const tiers = [{ effective_on: '2018-06-01', cents: membership.standard_cents || 2495 }];
+  if (membership.price_bump_on) {
+    tiers.push({
+      effective_on: String(membership.price_bump_on).slice(0, 10),
+      cents: membership.current_cents || 2799,
+    });
+  }
+  return tiers.sort((a, b) => a.effective_on.localeCompare(b.effective_on));
+}
+
+export function membershipPriceTiers(membership) {
+  const normalized = normalizePriceTiers(membership?.price_tiers);
+  if (normalized?.length) return normalized;
+  if (membership?.standard_cents != null) return tiersFromLegacy(membership);
+  return DEFAULT_PRICE_TIERS;
+}
+
+export function monthlyRateForMonth(chargeMonthStr, membership) {
+  const tiers = membershipPriceTiers(membership);
+  const monthEnd = lastDayOfChargeMonth(chargeMonthStr);
+  let chosen = tiers[0];
+  for (const tier of tiers) {
+    if (tier.effective_on <= monthEnd) chosen = tier;
+    else break;
+  }
+  return chosen.cents;
 }
 
 export function monthlyBillForMonth(chargeMonthStr, membership, sortedChargeMonths) {
@@ -13,12 +65,7 @@ export function monthlyBillForMonth(chargeMonthStr, membership, sortedChargeMont
     : [chargeMonthStr];
   const isFirst = months[0] === chargeMonthStr;
   if (isFirst) return membership.promo_cents;
-
-  const bump = membership.price_bump_on
-    ? String(membership.price_bump_on).slice(0, 10)
-    : null;
-  if (bump && chargeMonthStr < bump) return membership.standard_cents;
-  return membership.current_cents;
+  return monthlyRateForMonth(chargeMonthStr, membership);
 }
 
 export function distinctChargeMonths(watches) {

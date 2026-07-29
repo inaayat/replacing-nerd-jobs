@@ -3,45 +3,59 @@ import { membershipApi, importApi } from './api.js';
 import { parseXlsxFile } from './import-xlsx.js';
 import { escapeHtml } from './format.js';
 
+const DEFAULT_TIERS = [
+  { effective_on: '2018-06-01', cents: 2495 },
+  { effective_on: '2025-05-01', cents: 2799 },
+  { effective_on: '2026-07-15', cents: 2999 },
+];
+
 bootPage(async ({ root, auth }) => {
   if (!requireSignIn(auth, root)) return;
 
   const { membership } = await membershipApi.get(auth.token);
+  const tiers = resolveTiers(membership);
 
   root.innerHTML = renderShell({
     title: 'Settings',
     subtitle: 'Membership pricing and spreadsheet import.',
     body: `
     <main class="al-main">
-      <form class="al-panel al-form-grid" id="membership-form">
-        <div class="al-field">
-          <label for="display_name">Display name</label>
-          <input class="al-input" id="display_name" value="${escapeHtml(membership.display_name || '')}" />
+      <form class="al-panel" id="membership-form">
+        <div class="al-form-grid">
+          <div class="al-field">
+            <label for="display_name">Display name</label>
+            <input class="al-input" id="display_name" value="${escapeHtml(membership.display_name || '')}" />
+          </div>
+          <div class="al-field">
+            <label for="promo_cents">Promo month ($)</label>
+            <input class="al-input" id="promo_cents" inputmode="decimal" value="${(membership.promo_cents / 100).toFixed(2)}" />
+          </div>
         </div>
-        <div class="al-field">
-          <label for="price_bump_on">Price bump date</label>
-          <input class="al-input" id="price_bump_on" type="date" value="${(membership.price_bump_on || '').slice(0, 10)}" />
+
+        <div class="al-tier-section">
+          <div class="al-tier-header">
+            <h2>Monthly rates</h2>
+            <p class="al-muted">One A-List charge per calendar month you see a movie. Add a row for each price increase.</p>
+          </div>
+          <div class="al-tier-table" id="price-tiers">
+            <div class="al-tier-row al-tier-row--head">
+              <span>Effective date</span>
+              <span>Monthly price</span>
+              <span></span>
+            </div>
+            ${tiers.map((tier, index) => tierRowHtml(tier, index)).join('')}
+          </div>
+          <button class="al-btn" type="button" id="add-tier">+ Add price change</button>
         </div>
-        <div class="al-field">
-          <label for="promo_cents">Promo month ($)</label>
-          <input class="al-input" id="promo_cents" inputmode="decimal" value="${(membership.promo_cents / 100).toFixed(2)}" />
-        </div>
-        <div class="al-field">
-          <label for="standard_cents">Standard ($)</label>
-          <input class="al-input" id="standard_cents" inputmode="decimal" value="${(membership.standard_cents / 100).toFixed(2)}" />
-        </div>
-        <div class="al-field">
-          <label for="current_cents">Current ($)</label>
-          <input class="al-input" id="current_cents" inputmode="decimal" value="${(membership.current_cents / 100).toFixed(2)}" />
-        </div>
-        <div class="al-field" style="display:flex;align-items:end">
+
+        <div class="al-toolbar" style="margin-top:12px">
           <button class="al-btn al-btn-primary" type="submit">Save membership</button>
+          <p class="al-muted" id="membership-status" style="margin:0"></p>
         </div>
-        <p class="span-2 al-muted" id="membership-status"></p>
       </form>
 
       <section class="al-panel">
-        <h2 class="serif">Import from A-List Tracking.xlsx</h2>
+        <h2>Import from A-List Tracking.xlsx</h2>
         <p class="al-muted">Upload your spreadsheet (Movies sheet). Duplicates by date + title + location are skipped.</p>
         <div class="al-toolbar">
           <input type="file" id="xlsx-file" accept=".xlsx,.xls" />
@@ -52,7 +66,7 @@ bootPage(async ({ root, auth }) => {
       </section>
 
       <section class="al-panel">
-        <h2 class="serif">Import from JSON</h2>
+        <h2>Import from JSON</h2>
         <textarea class="al-textarea" id="import-json" rows="5" placeholder='[{"watched_on":"2025-01-15","title":"Dune: Part Two","ticket_cents":2495}]'></textarea>
         <div class="al-toolbar" style="margin-top:8px">
           <button class="al-btn" type="button" id="import-btn">Import JSON</button>
@@ -60,6 +74,19 @@ bootPage(async ({ root, auth }) => {
       </section>
     </main>
     `,
+  });
+
+  const tiersEl = document.getElementById('price-tiers');
+  document.getElementById('add-tier').addEventListener('click', () => {
+    const row = document.createElement('div');
+    row.innerHTML = tierRowHtml({ effective_on: new Date().toISOString().slice(0, 10), cents: 2999 }, 99);
+    tiersEl.appendChild(row.firstElementChild);
+  });
+
+  tiersEl.addEventListener('click', (e) => {
+    if (e.target.matches('.tier-remove')) {
+      e.target.closest('[data-tier-row]')?.remove();
+    }
   });
 
   const setStatus = (msg) => { document.getElementById('import-status').textContent = msg; };
@@ -70,12 +97,15 @@ bootPage(async ({ root, auth }) => {
     status.textContent = 'Saving…';
     try {
       const dollars = (id) => Math.round(Number(document.getElementById(id).value) * 100);
+      const price_tiers = collectTiers();
+      if (!price_tiers.length) {
+        status.textContent = 'Add at least one monthly rate.';
+        return;
+      }
       await membershipApi.update(auth.token, {
         display_name: document.getElementById('display_name').value.trim() || null,
-        price_bump_on: document.getElementById('price_bump_on').value,
         promo_cents: dollars('promo_cents'),
-        standard_cents: dollars('standard_cents'),
-        current_cents: dollars('current_cents'),
+        price_tiers,
       });
       status.textContent = 'Saved.';
     } catch (err) {
@@ -121,3 +151,36 @@ bootPage(async ({ root, auth }) => {
     }
   });
 }, { quickLogOnSuccess: (auth) => populateSidebarStats(auth) });
+
+function resolveTiers(membership) {
+  if (Array.isArray(membership.price_tiers) && membership.price_tiers.length) {
+    return [...membership.price_tiers].sort((a, b) => a.effective_on.localeCompare(b.effective_on));
+  }
+  if (membership.price_bump_on) {
+    return [
+      { effective_on: '2018-06-01', cents: membership.standard_cents || 2495 },
+      { effective_on: membership.price_bump_on.slice(0, 10), cents: membership.current_cents || 2799 },
+    ];
+  }
+  return DEFAULT_TIERS;
+}
+
+function tierRowHtml(tier, index) {
+  return `
+    <div class="al-tier-row" data-tier-row>
+      <input class="al-input tier-effective" type="date" value="${tier.effective_on}" required />
+      <input class="al-input tier-cents" type="text" inputmode="decimal" value="${(tier.cents / 100).toFixed(2)}" required />
+      ${index > 0 ? '<button type="button" class="al-link-btn tier-remove">Remove</button>' : '<span></span>'}
+    </div>
+  `;
+}
+
+function collectTiers() {
+  return [...document.querySelectorAll('[data-tier-row]')]
+    .map((row) => ({
+      effective_on: row.querySelector('.tier-effective').value,
+      cents: Math.round(Number(row.querySelector('.tier-cents').value) * 100),
+    }))
+    .filter((tier) => tier.effective_on && tier.cents > 0)
+    .sort((a, b) => a.effective_on.localeCompare(b.effective_on));
+}
