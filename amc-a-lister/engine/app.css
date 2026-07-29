@@ -86,34 +86,32 @@ a { color: var(--al-burgundy); }
   .al-sidebar { width: 300px; }
 }
 
-.al-sidebar-icons {
+.al-sidebar-brand {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
-  opacity: 0.9;
-}
-
-.al-sidebar-tagline {
-  margin: 0;
-  font-family: var(--al-font-display);
-  font-size: 1.1rem;
-  font-weight: 500;
-  font-style: italic;
-  line-height: 1.35;
-  color: rgba(255, 255, 255, 0.92);
+  flex-direction: column;
+  gap: 4px;
 }
 
 .al-sidebar-title {
-  display: inline-block;
-  margin-top: 8px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.55);
+  display: block;
+  font-family: var(--al-font-display);
+  font-size: 1.35rem;
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--al-white);
   text-decoration: none;
 }
 
-.al-sidebar-title:hover { color: var(--al-white); }
+.al-sidebar-title:hover { color: var(--al-white); opacity: 0.9; }
+
+.al-sidebar-tagline {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 400;
+  font-style: italic;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.6);
+}
 
 .al-sidebar-stats {
   display: flex;

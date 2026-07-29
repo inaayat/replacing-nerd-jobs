@@ -11,10 +11,6 @@ const PAGES = [
   { href: '/amc-a-lister/settings.html', label: 'Settings', id: 'settings' },
 ];
 
-const POPCORN_SVG = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 3L6 8h12l-2-5H8z" fill="rgba(255,255,255,0.85)"/><path d="M5 9h14l-1 12H6L5 9z" fill="rgba(255,255,255,0.7)"/><circle cx="9" cy="13" r="1" fill="#830f10"/><circle cx="14" cy="15" r="1" fill="#830f10"/><circle cx="11" cy="17" r="1" fill="#830f10"/></svg>`;
-
-const THEATER_SVG = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 10V8a2 2 0 012-2h14a2 2 0 012 2v2" stroke="rgba(255,255,255,0.85)" stroke-width="1.5" stroke-linecap="round"/><path d="M5 10v8M9 10v8M13 10v8M17 10v8M21 10v8" stroke="rgba(255,255,255,0.55)" stroke-width="1.5" stroke-linecap="round"/><path d="M2 18h20" stroke="rgba(255,255,255,0.85)" stroke-width="1.5" stroke-linecap="round"/></svg>`;
-
 export function renderShell({ title, subtitle, body = '', hideLogBar = false } = {}) {
   const links = PAGES.map((p) => {
     const active = p.id === NAV_ACTIVE ? ' is-active' : '';
@@ -28,9 +24,8 @@ export function renderShell({ title, subtitle, body = '', hideLogBar = false } =
     <div class="page-main">
       <aside class="al-sidebar">
         <div class="al-sidebar-brand">
-          <div class="al-sidebar-icons">${POPCORN_SVG}${THEATER_SVG}</div>
-          <p class="al-sidebar-tagline">heartbreak feels good in a place like this..</p>
           <a href="/amc-a-lister/" class="al-sidebar-title">AMC A-Lister</a>
+          <p class="al-sidebar-tagline">heartbreak feels good in a place like this..</p>
         </div>
         <div class="al-sidebar-stats" id="al-sidebar-stats">
           ${sidebarStatsPlaceholder()}
