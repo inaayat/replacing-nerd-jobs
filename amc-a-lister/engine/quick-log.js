@@ -10,24 +10,55 @@ export function renderQuickLogBar() {
   return `
     <header class="al-quicklog">
       <form class="al-quicklog-form" id="quick-log-form" autocomplete="off">
-        <div class="al-quicklog-field al-search-wrap">
-          <label class="sr-only" for="ql-title">Movie</label>
-          <input class="al-quicklog-input" id="ql-title" name="title" type="text" placeholder="Movie title" required />
+        <div class="al-quicklog-field al-quicklog-field--title al-search-wrap">
+          <label for="ql-title">Movie</label>
+          <input class="al-quicklog-input" id="ql-title" name="title" type="text" placeholder="Title" required />
           <div class="al-search-results" id="ql-title-results" hidden></div>
         </div>
         <div class="al-quicklog-field">
-          <label class="sr-only" for="ql-date">Date</label>
+          <label for="ql-date">Date seen</label>
           <input class="al-quicklog-input" id="ql-date" name="watched_on" type="date" value="${today}" required />
         </div>
-        <div class="al-quicklog-field al-quicklog-field--narrow">
-          <label class="sr-only" for="ql-ticket">Ticket</label>
-          <input class="al-quicklog-input" id="ql-ticket" name="ticket" type="text" inputmode="decimal" placeholder="$24.95" />
+        <div class="al-quicklog-field">
+          <label for="ql-ticket">Ticket ($)</label>
+          <input class="al-quicklog-input" id="ql-ticket" name="ticket" type="text" inputmode="decimal" placeholder="24.95" />
         </div>
-        <div class="al-quicklog-field al-quicklog-field--narrow">
-          <label class="sr-only" for="ql-format">Format</label>
+        <div class="al-quicklog-field">
+          <label for="ql-location">Theater</label>
+          <input class="al-quicklog-input" id="ql-location" name="location" list="ql-theater-list" placeholder="AMC Lincoln Square 13" />
+          <datalist id="ql-theater-list">
+            <option value="AMC Lincoln Square 13"></option>
+            <option value="AMC Empire 25"></option>
+            <option value="N/A - India"></option>
+          </datalist>
+        </div>
+        <div class="al-quicklog-field">
+          <label for="ql-format">Format</label>
           <select class="al-quicklog-input" id="ql-format" name="format">${formatOptions}</select>
         </div>
-        <button class="al-quicklog-submit" type="submit">Log it</button>
+        <div class="al-quicklog-field">
+          <label for="ql-auditorium">Auditorium</label>
+          <input class="al-quicklog-input" id="ql-auditorium" name="auditorium" type="text" />
+        </div>
+        <div class="al-quicklog-field">
+          <label for="ql-seat">Seat</label>
+          <input class="al-quicklog-input" id="ql-seat" name="seat" type="text" />
+        </div>
+        <div class="al-quicklog-field">
+          <label for="ql-rating">Rating</label>
+          <input class="al-quicklog-input" id="ql-rating" name="rating" type="number" min="1" max="5" step="0.5" placeholder="1–5" />
+        </div>
+        <div class="al-quicklog-field al-quicklog-field--checks">
+          <label class="al-check"><input type="checkbox" id="ql-dnf" name="dnf" /> DNF</label>
+          <label class="al-check"><input type="checkbox" id="ql-saw_alone" name="saw_alone" /> Saw alone</label>
+        </div>
+        <div class="al-quicklog-field al-quicklog-field--notes">
+          <label for="ql-notes">Notes</label>
+          <textarea class="al-quicklog-input al-quicklog-textarea" id="ql-notes" name="notes" rows="2" placeholder="Optional"></textarea>
+        </div>
+        <div class="al-quicklog-field al-quicklog-field--submit">
+          <button class="al-quicklog-submit" type="submit">Log it</button>
+        </div>
         <input type="hidden" id="ql-tmdb_id" value="" />
       </form>
       <p class="al-quicklog-status" id="ql-status" aria-live="polite"></p>
@@ -43,7 +74,14 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
   const resultsEl = document.getElementById('ql-title-results');
   const tmdbInput = document.getElementById('ql-tmdb_id');
   const statusEl = document.getElementById('ql-status');
+  const dnfInput = document.getElementById('ql-dnf');
+  const ratingInput = document.getElementById('ql-rating');
   let searchTimer = null;
+
+  dnfInput.addEventListener('change', () => {
+    ratingInput.disabled = dnfInput.checked;
+    if (dnfInput.checked) ratingInput.value = '';
+  });
 
   titleInput.addEventListener('input', () => {
     clearTimeout(searchTimer);
@@ -91,15 +129,15 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
     const payload = {
       watched_on: form.watched_on.value,
       title: form.title.value.trim(),
+      location: form.location.value.trim() || null,
       format: form.format.value,
+      auditorium: form.auditorium.value.trim() || null,
+      seat: form.seat.value.trim() || null,
       ticket_cents: parseMoneyInput(form.ticket.value),
-      location: null,
-      auditorium: null,
-      seat: null,
-      rating: null,
-      dnf: false,
-      saw_alone: false,
-      notes: null,
+      rating: dnfInput.checked ? null : (form.rating.value ? Number(form.rating.value) : null),
+      dnf: dnfInput.checked,
+      saw_alone: form.saw_alone.checked,
+      notes: form.notes.value.trim() || null,
       tmdb_id: tmdbInput.value ? Number(tmdbInput.value) : null,
     };
 
@@ -110,6 +148,7 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
       form.reset();
       form.watched_on.value = new Date().toISOString().slice(0, 10);
       tmdbInput.value = '';
+      ratingInput.disabled = false;
       titleInput.focus();
       if (onSuccess) await onSuccess();
       setTimeout(() => { statusEl.textContent = ''; statusEl.classList.remove('is-success'); }, 2500);
