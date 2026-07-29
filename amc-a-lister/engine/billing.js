@@ -73,8 +73,40 @@ export function distinctChargeMonths(watches) {
   return [...set].sort();
 }
 
-export function computeSummary(watches, membership) {
-  const months = distinctChargeMonths(watches);
+export function billingChargeMonths(watches, asOfInput = new Date()) {
+  const watchMonths = distinctChargeMonths(watches);
+  if (!watchMonths.length) return [];
+
+  const asOfIso = asOfInput instanceof Date
+    ? asOfInput.toISOString().slice(0, 10)
+    : String(asOfInput).slice(0, 10);
+  const endMonth = chargeMonth(asOfIso);
+  const firstMonth = watchMonths[0];
+  if (endMonth.localeCompare(firstMonth) < 0) return [...watchMonths];
+
+  return enumerateChargeMonths(firstMonth, endMonth);
+}
+
+function enumerateChargeMonths(startMonth, endMonth) {
+  const months = [];
+  let year = Number(startMonth.slice(0, 4));
+  let month = Number(startMonth.slice(5, 7));
+  const endYear = Number(endMonth.slice(0, 4));
+  const endMonthNum = Number(endMonth.slice(5, 7));
+
+  while (year < endYear || (year === endYear && month <= endMonthNum)) {
+    months.push(`${year}-${String(month).padStart(2, '0')}-01`);
+    month += 1;
+    if (month > 12) {
+      month = 1;
+      year += 1;
+    }
+  }
+  return months;
+}
+
+export function computeSummary(watches, membership, options = {}) {
+  const months = billingChargeMonths(watches, options.asOf);
   const totalBilled = months.reduce(
     (sum, m) => sum + monthlyBillForMonth(m, membership, months),
     0,
@@ -90,11 +122,12 @@ export function computeSummary(watches, membership) {
     : 0;
 
   const byMonthMap = new Map();
+  for (const m of months) {
+    byMonthMap.set(m, { month: m, movies: 0, charged: 0 });
+  }
   for (const w of watches) {
     const m = chargeMonth(w.watched_on);
-    if (!byMonthMap.has(m)) {
-      byMonthMap.set(m, { month: m, movies: 0, charged: 0 });
-    }
+    if (!byMonthMap.has(m)) continue;
     const row = byMonthMap.get(m);
     row.movies += 1;
     row.charged += w.ticket_cents || 0;

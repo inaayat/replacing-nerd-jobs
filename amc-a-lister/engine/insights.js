@@ -160,7 +160,7 @@ function renderMonthGroup(row, movies) {
           <span class="al-month-movie-date">${escapeHtml(shortDate(movie.watched_on))}</span>
         </li>
       `).join('')}</ul>`
-    : '<p class="al-muted al-month-movies-empty">No titles for this month.</p>';
+    : '<p class="al-muted al-month-movies-empty">No movies this month.</p>';
 
   return `
     <tbody class="al-month-group">

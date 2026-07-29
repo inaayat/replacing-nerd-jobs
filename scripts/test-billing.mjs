@@ -5,6 +5,7 @@ import {
   monthlyRateForMonth,
   computeSummary,
   membershipPriceTiers,
+  billingChargeMonths,
 } from '../lib/a-list-billing.js';
 
 const legacyMembership = {
@@ -49,14 +50,33 @@ const watches = [
   { watched_on: '2025-07-15', ticket_cents: 3000, title: 'D' },
 ];
 
-const summary = computeSummary(watches, legacyMembership);
+const summary = computeSummary(watches, legacyMembership, { asOf: '2025-07-31' });
 assert.equal(summary.totalCharged, 1800 + 2200 + 2495 + 3000);
-assert.equal(summary.totalBilled, 99 + 2495 + 2799);
+assert.equal(summary.totalBilled, 99 + (2495 * 5) + 2799);
 assert.equal(summary.totalSeen, 4);
 assert.equal(summary.totalSavings, summary.totalCharged - summary.totalBilled);
 assert.equal(summary.avgTicket, summary.totalCharged / summary.totalSeen);
 assert.equal(summary.avgRuntimeMin, 0);
-assert.equal(summary.byMonth.length, 3);
+assert.equal(summary.byMonth.length, 7);
+
+const june = summary.byMonth.find((row) => row.month === '2025-06-01');
+assert.equal(june.movies, 0);
+assert.equal(june.charged, 0);
+assert.equal(june.bill, 2495);
+assert.equal(june.savings, -2495);
+
+assert.deepEqual(
+  billingChargeMonths(watches, '2025-07-31'),
+  [
+    '2025-01-01',
+    '2025-02-01',
+    '2025-03-01',
+    '2025-04-01',
+    '2025-05-01',
+    '2025-06-01',
+    '2025-07-01',
+  ],
+);
 
 const runtimeWatches = [
   { watched_on: '2025-01-10', ticket_cents: 1800, runtime_min: 120 },
