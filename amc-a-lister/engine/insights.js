@@ -17,17 +17,19 @@ bootPage(async ({ root, auth }) => {
     summaryApi.get(auth.token),
     watchesApi.list(auth.token),
   ]);
-  const { summary, theaters, formats, rewatches, ratings, actors = [] } = data;
-  const moviesByMonth = groupMoviesByMonth(watches);
+  const { summary = {}, theaters = [], formats = [], rewatches = [], ratings = {}, actors = [] } = data;
+  const byMonth = summary.byMonth || [];
+  const moviesByMonth = groupMoviesByMonth(watches || []);
   const maxTheater = theaters[0]?.count || 1;
   const maxFormat = formats[0]?.charged || 1;
-  const maxRating = Math.max(1, ...Object.values(ratings.buckets));
+  const ratingBuckets = ratings.buckets || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  const maxRating = Math.max(1, ...Object.values(ratingBuckets));
 
   main.innerHTML = `
-    ${renderByMonthSection(summary.byMonth, moviesByMonth)}
+    ${renderByMonthSection(byMonth, moviesByMonth)}
     <div class="al-insight-grid">
       ${renderByActorSection(actors)}
-      ${renderInsightGrid(theaters, formats, ratings, maxTheater, maxFormat, maxRating)}
+      ${renderInsightGrid(theaters, formats, ratings, ratingBuckets, maxTheater, maxFormat, maxRating)}
     </div>
     ${renderRewatchesSection(rewatches)}
   `;
@@ -37,7 +39,7 @@ bootPage(async ({ root, auth }) => {
   if (byActorSection) wireSegmentToggle(byActorSection);
 }, { quickLogOnSuccess: (auth) => populateSidebarStats(auth) });
 
-function insightSection(title, body, { className = '', expanded = true, actions = '' } = {}) {
+function insightSection(title, body, { className = '', expanded = false, actions = '' } = {}) {
   return `
     <section class="al-panel al-insight ${className} ${expanded ? 'is-expanded' : ''}">
       <div class="al-insight-header">
@@ -52,29 +54,18 @@ function insightSection(title, body, { className = '', expanded = true, actions 
   `;
 }
 
-function renderInsightGrid(summary, theaters, formats, ratings, maxTheater, maxFormat, maxRating) {
+function renderInsightGrid(theaters, formats, ratings, maxTheater, maxFormat, maxRating) {
   return `
-    <div class="al-insight-grid">
-      ${insightSection('A-List value meter', `
-        <p class="al-muted">${monthLabel(summary.currentPeriod.month)}: ${money(summary.currentPeriod.charged)} ticket value vs ${money(summary.currentPeriod.bill)} billed.</p>
-        <div class="al-meter"><span style="width:${summary.currentPeriod.bill ? Math.min(100, (summary.currentPeriod.charged / summary.currentPeriod.bill) * 100) : 0}%"></span></div>
-        <p style="margin:8px 0 0;font-size:0.88rem">
-          ${summary.currentPeriod.savings >= 0
-    ? `<strong style="color:#0d7a42">+${money(summary.currentPeriod.savings)}</strong> ahead this period.`
-    : `Need ~<strong>${summary.currentPeriod.breakEvenTickets}</strong> more ~$15 tickets to break even.`}
-        </p>
-      `)}
-      ${insightSection('Rating profile', `
-        <p class="al-muted">${ratings.rated} rated · ${ratings.dnf} DNF · ${(ratings.dnf / Math.max(1, ratings.total) * 100).toFixed(0)}% walk-out rate</p>
-        ${[5, 4, 3, 2, 1].map((n) => barRow(`${n}★`, ratings.buckets[n], maxRating)).join('')}
-      `)}
-      ${insightSection('Theater ranking', theaters.length
+    ${insightSection('Rating profile', `
+      <p class="al-muted">${ratings.rated} rated · ${ratings.dnf} DNF · ${(ratings.dnf / Math.max(1, ratings.total) * 100).toFixed(0)}% walk-out rate</p>
+      ${[5, 4, 3, 2, 1].map((n) => barRow(`${n}★`, ratings.buckets[n], maxRating)).join('')}
+    `)}
+    ${insightSection('Theater ranking', theaters.length
     ? theaters.slice(0, 6).map((t) => barRow(t.location, t.count, maxTheater, `${t.count} · ${money(t.charged)}`)).join('')
     : '<div class="al-empty">No theater data yet.</div>')}
-      ${insightSection('Format premiums', formats.length
+    ${insightSection('Format premiums', formats.length
     ? formats.map((f) => barRow(f.format, f.charged, maxFormat, `${f.count} · ${money(f.charged)}`)).join('')
     : '<div class="al-empty">No format data yet.</div>')}
-    </div>
   `;
 }
 

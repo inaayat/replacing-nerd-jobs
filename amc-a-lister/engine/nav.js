@@ -91,18 +91,18 @@ export async function populateSidebarStats(auth) {
 
   try {
     const data = await summaryApi.get(auth.token);
-    const { summary } = data;
-    const period = summary.currentPeriod;
+    const summary = data?.summary || {};
+    const period = summary.currentPeriod || {};
 
     const values = {
-      seen: { v: summary.totalSeen, kind: 'count' },
-      savings: { v: summary.totalSavings, kind: 'money' },
-      billed: { v: summary.totalBilled, kind: 'money' },
-      cost: { v: summary.costPerMovie, kind: 'money' },
-      'avg-ticket': { v: summary.avgTicket, kind: 'money' },
-      'avg-runtime': { v: summary.avgRuntimeMin, kind: 'runtime' },
-      'period-movies': { v: period.movies, kind: 'count' },
-      'period-net': { v: period.savings, kind: 'money' },
+      seen: { v: summary.totalSeen ?? 0, kind: 'count' },
+      savings: { v: summary.totalSavings ?? 0, kind: 'money' },
+      billed: { v: summary.totalBilled ?? 0, kind: 'money' },
+      cost: { v: summary.costPerMovie ?? 0, kind: 'money' },
+      'avg-ticket': { v: summary.avgTicket ?? 0, kind: 'money' },
+      'avg-runtime': { v: summary.avgRuntimeMin ?? 0, kind: 'runtime' },
+      'period-movies': { v: period.movies ?? 0, kind: 'count' },
+      'period-net': { v: period.savings ?? 0, kind: 'money' },
     };
 
     const periodLabel = document.getElementById('al-period-label');
