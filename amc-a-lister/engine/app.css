@@ -729,21 +729,41 @@ table.al-table {
   outline-offset: 2px;
 }
 
-.al-log-entry.is-expanded .al-log-row {
+.al-log-row.is-expanded {
+  border-bottom: 0;
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
-  margin-bottom: 0;
+  box-shadow: none;
+}
+
+.al-log-row.is-expanded:hover {
+  box-shadow: none;
 }
 
 .al-log-detail {
   grid-column: 1 / -1;
-  padding: 12px 14px 14px;
-  background: var(--al-white);
+  padding: 0 14px 14px;
+  background: var(--al-panel-2);
   border: 1px solid var(--al-line);
   border-top: 0;
   border-radius: 0 0 12px 12px;
   margin-top: -8px;
-  box-shadow: 0 2px 8px rgba(28, 28, 28, 0.05);
+  box-shadow: 0 4px 14px rgba(28, 28, 28, 0.08);
+}
+
+.al-log-detail-inner {
+  background: var(--al-panel);
+  border: 1px solid var(--al-line);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.al-log-detail-title {
+  margin: 0 0 14px;
+  font-family: var(--al-font-display);
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.25;
 }
 
 .al-log-detail-body {
@@ -760,38 +780,56 @@ table.al-table {
 .al-log-detail-facts {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px 16px;
-  margin: 0 0 12px;
+  gap: 8px;
+  margin: 0;
 }
 
-.al-log-detail-facts > div {
+.al-log-detail-fact {
+  background: var(--al-panel-2);
+  border: 1px solid var(--al-line);
+  border-radius: 8px;
+  padding: 10px 12px;
   min-width: 0;
 }
 
 .al-log-detail-facts dt {
   margin: 0;
-  font-size: 0.68rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  font-size: 0.75rem;
+  font-weight: 400;
   color: var(--al-muted);
 }
 
 .al-log-detail-facts dd {
-  margin: 2px 0 0;
+  margin: 4px 0 0;
   font-size: 0.84rem;
-  line-height: 1.35;
+  line-height: 1.4;
+  color: var(--al-text);
+}
+
+.al-log-detail-overview-wrap {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--al-line);
+}
+
+.al-log-detail-subhead {
+  margin: 0 0 8px;
+  font-family: var(--al-font-display);
+  font-size: 0.92rem;
+  font-weight: 600;
 }
 
 .al-log-detail-overview {
   margin: 0;
-  font-size: 0.86rem;
-  line-height: 1.5;
+  font-size: 0.88rem;
+  line-height: 1.55;
   color: var(--al-charcoal);
 }
 
 .al-poster--detail {
   flex-shrink: 0;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(28, 28, 28, 0.1);
 }
 
 @media (max-width: 640px) {

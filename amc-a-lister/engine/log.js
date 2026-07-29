@@ -117,7 +117,7 @@ function viewEntryHtml(w, state) {
   const expanded = w.id === state.expandedId;
   return `
     <div class="al-log-entry ${expanded ? 'is-expanded' : ''}" data-entry-id="${w.id}">
-      <article class="al-log-row al-log-row--clickable" data-expand-row tabindex="0" role="button" aria-expanded="${expanded}">
+      <article class="al-log-row al-log-row--clickable ${expanded ? 'is-expanded' : ''}" data-expand-row tabindex="0" role="button" aria-expanded="${expanded}">
         <div class="al-log-col al-col-poster">${posterHtml(w)}</div>
         <div class="al-log-col">${shortDate(w.watched_on)}</div>
         <div class="al-log-col al-log-col--title">${escapeHtml(w.title)}</div>
@@ -137,48 +137,55 @@ function viewEntryHtml(w, state) {
 }
 
 function detailPanelHtml(watch, state) {
+  const wrap = (content) => `
+    <div class="al-log-detail">
+      <div class="al-log-detail-inner">${content}</div>
+    </div>
+  `;
+
   if (!watch.tmdb_id) {
-    return `
-      <div class="al-log-detail">
-        <p class="al-muted">No TMDB match for this title. Use <strong>Edit</strong> and pick the movie from search to load details.</p>
-      </div>
-    `;
+    return wrap('<p class="al-muted">No TMDB match for this title. Use <strong>Edit</strong> and pick the movie from search to load details.</p>');
   }
 
   if (state.detailsLoading === watch.id) {
-    return `<div class="al-log-detail"><p class="al-muted">Loading movie details…</p></div>`;
+    return wrap('<p class="al-muted">Loading movie details…</p>');
   }
 
   if (state.detailsError && state.expandedId === watch.id) {
-    return `<div class="al-log-detail"><p class="al-error">${escapeHtml(state.detailsError)}</p></div>`;
+    return wrap(`<p class="al-error">${escapeHtml(state.detailsError)}</p>`);
   }
 
   const movie = state.detailsCache.get(watch.id);
   if (!movie) {
-    return `<div class="al-log-detail"><p class="al-muted">Loading movie details…</p></div>`;
+    return wrap('<p class="al-muted">Loading movie details…</p>');
   }
 
   const genres = movie.genres?.length ? movie.genres.join(', ') : '—';
   const runtime = movie.runtime_min ? `${movie.runtime_min} min` : '—';
   const director = movie.director || '—';
   const cast = movie.cast?.length ? movie.cast.join(', ') : '—';
+  const titleLine = `${escapeHtml(movie.title)}${movie.year ? ` <span class="al-muted">(${movie.year})</span>` : ''}`;
 
-  return `
-    <div class="al-log-detail">
-      <div class="al-log-detail-body">
-        ${movie.poster_path ? posterHtml(movie, { size: 'w154', width: 72, height: 108, className: 'al-poster al-poster--detail' }) : ''}
-        <div class="al-log-detail-meta">
-          <dl class="al-log-detail-facts">
-            <div><dt>Runtime</dt><dd>${escapeHtml(runtime)}</dd></div>
-            <div><dt>Genre</dt><dd>${escapeHtml(genres)}</dd></div>
-            <div><dt>Director</dt><dd>${escapeHtml(director)}</dd></div>
-            <div><dt>Cast</dt><dd>${escapeHtml(cast)}</dd></div>
-          </dl>
-          ${movie.overview ? `<p class="al-log-detail-overview">${escapeHtml(movie.overview)}</p>` : '<p class="al-muted">No overview available.</p>'}
-        </div>
+  return wrap(`
+    <h3 class="al-log-detail-title serif">${titleLine}</h3>
+    <div class="al-log-detail-body">
+      ${movie.poster_path ? posterHtml(movie, { size: 'w185', width: 88, height: 132, className: 'al-poster al-poster--detail' }) : ''}
+      <div class="al-log-detail-meta">
+        <dl class="al-log-detail-facts">
+          <div class="al-log-detail-fact"><dt>Runtime</dt><dd>${escapeHtml(runtime)}</dd></div>
+          <div class="al-log-detail-fact"><dt>Genre</dt><dd>${escapeHtml(genres)}</dd></div>
+          <div class="al-log-detail-fact"><dt>Director</dt><dd>${escapeHtml(director)}</dd></div>
+          <div class="al-log-detail-fact"><dt>Cast</dt><dd>${escapeHtml(cast)}</dd></div>
+        </dl>
       </div>
     </div>
-  `;
+    <section class="al-log-detail-overview-wrap">
+      <h4 class="al-log-detail-subhead">Overview</h4>
+      ${movie.overview
+    ? `<p class="al-log-detail-overview">${escapeHtml(movie.overview)}</p>`
+    : '<p class="al-muted">No overview available.</p>'}
+    </section>
+  `);
 }
 
 function editRowHtml(w) {
