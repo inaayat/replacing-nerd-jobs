@@ -15,15 +15,19 @@ export function renderQuickLogBar() {
           <input class="al-quicklog-input" id="ql-title" name="title" type="text" placeholder="Title" required />
           <div class="al-search-results" id="ql-title-results" hidden></div>
         </div>
-        <div class="al-quicklog-field">
-          <label for="ql-date">Date seen</label>
+        <div class="al-quicklog-field al-quicklog-field--date">
+          <label for="ql-date">Date</label>
           <input class="al-quicklog-input" id="ql-date" name="watched_on" type="date" value="${today}" required />
         </div>
-        <div class="al-quicklog-field">
-          <label for="ql-ticket">Ticket ($)</label>
+        <div class="al-quicklog-field al-quicklog-field--ticket">
+          <label for="ql-ticket">Ticket</label>
           <input class="al-quicklog-input" id="ql-ticket" name="ticket" type="text" inputmode="decimal" placeholder="24.95" />
         </div>
-        <div class="al-quicklog-field">
+        <div class="al-quicklog-field al-quicklog-field--format">
+          <label for="ql-format">Format</label>
+          <select class="al-quicklog-input" id="ql-format" name="format">${formatOptions}</select>
+        </div>
+        <div class="al-quicklog-field al-quicklog-field--location">
           <label for="ql-location">Theater</label>
           <input class="al-quicklog-input" id="ql-location" name="location" list="ql-theater-list" placeholder="AMC Lincoln Square 13" />
           <datalist id="ql-theater-list">
@@ -32,29 +36,25 @@ export function renderQuickLogBar() {
             <option value="N/A - India"></option>
           </datalist>
         </div>
-        <div class="al-quicklog-field">
-          <label for="ql-format">Format</label>
-          <select class="al-quicklog-input" id="ql-format" name="format">${formatOptions}</select>
-        </div>
-        <div class="al-quicklog-field">
-          <label for="ql-auditorium">Auditorium</label>
+        <div class="al-quicklog-field al-quicklog-field--aud">
+          <label for="ql-auditorium">Aud</label>
           <input class="al-quicklog-input" id="ql-auditorium" name="auditorium" type="text" />
         </div>
-        <div class="al-quicklog-field">
+        <div class="al-quicklog-field al-quicklog-field--seat">
           <label for="ql-seat">Seat</label>
           <input class="al-quicklog-input" id="ql-seat" name="seat" type="text" />
         </div>
-        <div class="al-quicklog-field">
+        <div class="al-quicklog-field al-quicklog-field--rating">
           <label for="ql-rating">Rating</label>
           <input class="al-quicklog-input" id="ql-rating" name="rating" type="number" min="1" max="5" step="0.5" placeholder="1–5" />
         </div>
         <div class="al-quicklog-field al-quicklog-field--checks">
           <label class="al-check"><input type="checkbox" id="ql-dnf" name="dnf" /> DNF</label>
-          <label class="al-check"><input type="checkbox" id="ql-saw_alone" name="saw_alone" /> Saw alone</label>
+          <label class="al-check"><input type="checkbox" id="ql-saw_alone" name="saw_alone" /> Alone</label>
         </div>
         <div class="al-quicklog-field al-quicklog-field--notes">
           <label for="ql-notes">Notes</label>
-          <textarea class="al-quicklog-input al-quicklog-textarea" id="ql-notes" name="notes" rows="2" placeholder="Optional"></textarea>
+          <input class="al-quicklog-input" id="ql-notes" name="notes" type="text" placeholder="Optional" />
         </div>
         <div class="al-quicklog-field al-quicklog-field--submit">
           <button class="al-quicklog-submit" type="submit">Log it</button>
