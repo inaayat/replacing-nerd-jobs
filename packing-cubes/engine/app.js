@@ -1,6 +1,8 @@
 // Unified packing app: catalog (left) + suitcase builder (right)
 import { catalogUrl, cubeJsonUrl } from './paths.js';
 import { initBuilder } from './builder.js';
+import { initAuth, wireAuthLink, refreshToken } from './auth.js';
+import { cubesApi, suitcasesApi } from './api.js';
 
 const STORAGE_KEY = 'packing-cubes:suitcases';
 const DENSE_CHECKLIST_THRESHOLD = 7;
@@ -11,12 +13,13 @@ const params = new URLSearchParams(location.search);
 const addCubeId = params.get('add');
 
 let catalog = [];
-let state = loadState();
+let state = { activeSuitcaseId: null, suitcases: [] };
+let auth = null;
 let searchQuery = '';
 let checklistFilter = '';
 let hidePacked = false;
 let showHiddenItems = false;
-let isOwner = false;
+let saveTimer = null;
 const collapsedGroups = new Set();
 
 // Accordion: which cubes are expanded inline, and staged items per cube.
@@ -57,7 +60,7 @@ const EDIT_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" st
 const CHECK_SVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
 const CHEVRON_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
 
-function loadState() {
+function loadLocalState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return JSON.parse(raw);
@@ -66,7 +69,27 @@ function loadState() {
 }
 
 function saveState() {
+  // Keep a local cache for instant UI, and debounce cloud sync.
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  scheduleCloudSave();
+}
+
+function scheduleCloudSave() {
+  if (!auth?.signedIn || !auth.token) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    suitcasesApi.put(auth.token, state).catch((err) => {
+      console.warn('Suitcase sync failed:', err);
+      showToast(`Couldn't sync suitcase: ${err.message}`);
+    });
+  }, 450);
+}
+
+function canEditCube(cubeOrId) {
+  const cube = typeof cubeOrId === 'string'
+    ? (catalog.find((c) => c.id === cubeOrId) || cubeCache.get(cubeOrId))
+    : cubeOrId;
+  return !!(cube && cube.mine);
 }
 
 function isBasicCube(cube) {
@@ -113,13 +136,30 @@ function itemKey(label) {
 async function fetchCube(id) {
   if (cubeCache.has(id)) return cubeCache.get(id);
   if (cubeFetches.has(id)) return cubeFetches.get(id);
-  const promise = fetch(cubeJsonUrl(id))
-    .then((res) => {
-      if (!res.ok) throw new Error(`Could not load cube "${id}"`);
-      return res.json();
-    })
+
+  const promise = (async () => {
+    const listed = catalog.find((c) => c.id === id);
+    if (listed?.items) {
+      cubeCache.set(id, listed);
+      return listed;
+    }
+    if (auth?.token) {
+      try {
+        const { cube } = await cubesApi.get(auth.token, id);
+        cubeCache.set(id, cube);
+        return cube;
+      } catch (err) {
+        if (err.status !== 404) throw err;
+      }
+    }
+    const res = await fetch(cubeJsonUrl(id));
+    if (!res.ok) throw new Error(`Could not load cube "${id}"`);
+    const cube = await res.json();
+    cube.source = cube.source || 'static';
+    cubeCache.set(id, cube);
+    return cube;
+  })()
     .then((cube) => {
-      cubeCache.set(id, cube);
       cubeFetches.delete(id);
       return cube;
     })
@@ -127,6 +167,7 @@ async function fetchCube(id) {
       cubeFetches.delete(id);
       throw err;
     });
+
   cubeFetches.set(id, promise);
   return promise;
 }
@@ -304,10 +345,12 @@ function renderCubeList() {
             <div class="title">
               ${escapeHtml(c.title)}
               ${basic ? '<span class="pc-cube-badge">Basic</span>' : ''}
+              ${c.mine && !c.is_public && c.source === 'db' ? '<span class="pc-cube-badge">Private</span>' : ''}
+              ${c.mine && c.is_public ? '<span class="pc-cube-badge">Public</span>' : ''}
             </div>
             <div class="blurb">${escapeHtml(c.blurb || '')}</div>
           </div>
-          ${isOwner ? `<button type="button" class="pc-cube-edit" data-edit-id="${c.id}" title="Edit cube" aria-label="Edit ${escapeAttr(c.title)}">${EDIT_SVG}</button>` : ''}
+          ${canEditCube(c) ? `<button type="button" class="pc-cube-edit" data-edit-id="${c.id}" title="Edit cube" aria-label="Edit ${escapeAttr(c.title)}">${EDIT_SVG}</button>` : ''}
           <button type="button" class="pc-cube-quick-add ${inSuitcase ? 'added' : ''}" data-quick-id="${c.id}"
             title="${inSuitcase ? 'Remove from suitcase' : 'Add to suitcase'}" aria-label="${inSuitcase ? 'Remove' : 'Add'} ${escapeAttr(c.title)}">${inSuitcase ? CHECK_SVG : '+'}</button>
           <span class="pc-cube-chevron">${CHEVRON_SVG}</span>
@@ -388,9 +431,13 @@ function expandBodyHtml(cubeId) {
 
 function buildExpandContent(cubeId, cube) {
   const catalogEntry = catalog.find((c) => c.id === cubeId);
+  const mine = canEditCube(catalogEntry || cube);
   const tags = (catalogEntry?.tags || cube.tags || []).map((t) => `<span class="pc-tag">${escapeHtml(t)}</span>`).join('');
+  const visibility = (catalogEntry?.is_public || cube.is_public)
+    ? '<span class="pc-cube-badge">Public</span>'
+    : (mine ? '<span class="pc-cube-badge">Private</span>' : '');
   return `
-    <p class="pc-preview-blurb">${escapeHtml(cube.blurb || '')}</p>
+    <p class="pc-preview-blurb">${escapeHtml(cube.blurb || '')} ${visibility}</p>
     <div class="pc-tags">${tags}</div>
     <ul class="pc-preview-items">
       ${(cube.items || []).map((item) => `<li>${escapeHtml(item.label)}</li>`).join('')}
@@ -402,15 +449,18 @@ function buildExpandContent(cubeId, cube) {
         <button type="button" class="pc-btn sm" id="stage-add-btn-${cubeId}">+ Add</button>
       </div>
       <ul class="pc-stage-list" id="stage-list-${cubeId}"></ul>
-      <label class="pc-toggle-chip" id="stage-permanent-row-${cubeId}">
-        <input type="checkbox" id="stage-permanent-${cubeId}" disabled>
-        ${isOwner ? 'Also publish this to the cube for everyone' : 'Also suggest this as a permanent addition (opens a PR)'}
-      </label>
+      ${mine ? `
+        <label class="pc-toggle-chip" id="stage-permanent-row-${cubeId}">
+          <input type="checkbox" id="stage-permanent-${cubeId}" disabled>
+          Also save this item on the cube itself
+        </label>
+      ` : `<input type="checkbox" id="stage-permanent-${cubeId}" class="hidden" disabled>`}
     </div>
     <div class="pc-expand-actions">
       <button type="button" class="pc-btn primary" id="preview-commit-${cubeId}" style="width:100%"></button>
-      ${isOwner ? `
+      ${mine ? `
         <button type="button" class="pc-expand-link" id="edit-cube-link-${cubeId}">Edit this cube</button>
+        ${!(catalogEntry?.is_public || cube.is_public) ? `<button type="button" class="pc-expand-link" id="publish-cube-btn-${cubeId}">Make public</button>` : ''}
         <button type="button" class="pc-delete-cube-btn" id="delete-cube-btn-${cubeId}">Delete this cube</button>
       ` : ''}
     </div>
@@ -442,6 +492,8 @@ function bindExpandInteractions(cubeId) {
   document.getElementById(`preview-commit-${cubeId}`).addEventListener('click', () => commitExpand(cubeId));
   const editLink = document.getElementById(`edit-cube-link-${cubeId}`);
   if (editLink) editLink.addEventListener('click', () => openBuilderModal(cubeId));
+  const publishBtn = document.getElementById(`publish-cube-btn-${cubeId}`);
+  if (publishBtn) publishBtn.addEventListener('click', () => makeCubePublic(cubeId));
   const deleteBtn = document.getElementById(`delete-cube-btn-${cubeId}`);
   if (deleteBtn) deleteBtn.addEventListener('click', () => deleteCubeEverywhere(cubeId, cube.title));
 
@@ -502,15 +554,26 @@ async function publishItemsToCube(cubeId, newLabels) {
     tags: cube.tags || [],
     items: [...(cube.items || []), ...newLabels.map((label) => ({ label }))],
   };
-  const res = await fetch('/api/save-cube', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ cube: updatedCube, mode: isOwner ? 'publish' : 'submit' }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
-  if (isOwner) cubeCache.set(cubeId, updatedCube);
+  const data = await cubesApi.update(auth.token, updatedCube);
+  cubeCache.set(cubeId, data.cube);
+  const idx = catalog.findIndex((c) => c.id === cubeId);
+  if (idx >= 0) catalog[idx] = { ...catalog[idx], ...data.cube };
   return data;
+}
+
+async function makeCubePublic(cubeId) {
+  if (!confirm('Make this cube public? It will be added to the site catalog (GitHub PR auto-merged).')) return;
+  try {
+    const data = await cubesApi.publish(auth.token, cubeId);
+    cubeCache.set(cubeId, data.cube);
+    const idx = catalog.findIndex((c) => c.id === cubeId);
+    if (idx >= 0) catalog[idx] = { ...catalog[idx], ...data.cube };
+    renderCubeList();
+    showToast('Published — live for everyone after deploy');
+    if (data.prUrl) console.info('Published via', data.prUrl);
+  } catch (err) {
+    showToast(`Couldn't publish: ${err.message}`);
+  }
 }
 
 async function commitExpand(cubeId) {
@@ -538,11 +601,10 @@ async function commitExpand(cubeId) {
 
   if (makePermanent) {
     try {
-      const data = await publishItemsToCube(cubeId, itemsToStage);
-      showToast(isOwner ? 'Added to the cube for everyone' : 'Suggested as a permanent addition — check the PR');
-      if (!isOwner && data.prUrl) console.info('Edit PR:', data.prUrl);
+      await publishItemsToCube(cubeId, itemsToStage);
+      showToast('Saved on the cube');
     } catch (err) {
-      showToast(`Couldn't make it permanent: ${err.message}`);
+      showToast(`Couldn't update cube: ${err.message}`);
     }
   }
 }
@@ -556,6 +618,7 @@ function openBuilderModal(editId) {
   initBuilder({
     root: builderRoot,
     editId: editId || null,
+    auth,
     onClose: closeBuilderModal,
     onPublished: refreshCatalog,
   });
@@ -568,9 +631,7 @@ function closeBuilderModal() {
 
 async function refreshCatalog() {
   try {
-    const res = await fetch(catalogUrl, { cache: 'no-store' });
-    if (!res.ok) return;
-    catalog = await res.json();
+    catalog = await loadMergedCatalog();
     cubeCache.clear();
     renderCubeList();
     renderSuitcase();
@@ -591,7 +652,7 @@ async function labelsCoveredByCubes(cubeIds) {
 }
 
 async function deleteCubeEverywhere(cubeId, title) {
-  if (!confirm(`Delete "${title}"? It's removed from the catalog for everyone and can't be undone. Its items already in your saved suitcases will be kept as custom items.`)) return;
+  if (!confirm(`Delete "${title}"? This removes it from your account${catalog.find((c) => c.id === cubeId)?.is_public ? ' and the public catalog' : ''}. Items already in your suitcases will be kept as custom items.`)) return;
 
   let cubeItems = [];
   try {
@@ -600,13 +661,7 @@ async function deleteCubeEverywhere(cubeId, title) {
   } catch { /* nothing to preserve if we can't read it */ }
 
   try {
-    const res = await fetch('/api/save-cube', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: cubeId }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+    await cubesApi.remove(auth.token, cubeId);
 
     for (const s of state.suitcases) {
       if (!s.cubeIds.includes(cubeId)) continue;
@@ -671,8 +726,7 @@ function renderSuitcase() {
       <div id="hidden-items-wrap"></div>
     </div>
     <div class="pc-suitcase-footer">
-      <p class="pc-footer-note">Saved automatically in this browser — won't sync to other devices.</p>
-      <button type="button" class="pc-btn sm" id="submit-suitcase-btn">Submit via PR</button>
+      <p class="pc-footer-note">Saved to your account — available on any device after you sign in.</p>
     </div>
   `;
 
@@ -727,30 +781,7 @@ function renderSuitcase() {
     renderPackList();
   });
 
-  document.getElementById('submit-suitcase-btn').addEventListener('click', () => submitSuitcasePR(suitcase));
-
   renderPackList();
-}
-
-async function submitSuitcasePR(suitcase) {
-  const submitter = (prompt('Optional: how should we credit you? (leave blank to submit anonymously)') || '').trim();
-  const btn = document.getElementById('submit-suitcase-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Submitting…'; }
-  try {
-    const res = await fetch('/api/save-suitcase', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ suitcase, submitter }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
-    showToast('Submitted! Your suitcase is waiting for review.');
-    if (data.prUrl) console.info('Suitcase PR:', data.prUrl);
-  } catch (err) {
-    showToast(`Couldn't submit: ${err.message}`);
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Submit via PR'; }
-  }
 }
 
 function updateHud(suitcase, items) {
@@ -970,11 +1001,63 @@ function escapeAttr(s) {
   return escapeHtml(s).replace(/"/g, '&quot;');
 }
 
-function updateAuthLink() {
-  const link = document.getElementById('nav-auth-link');
-  if (!link) return;
-  link.textContent = isOwner ? 'Log out' : 'Log in';
-  link.href = isOwner ? '/api/logout' : '/private/';
+function renderSignInGate() {
+  const loginHref = `/account.html?next=${encodeURIComponent(location.pathname + location.search)}`;
+  const reauth = auth?.needsReauth
+    ? '<p style="color:#cf4520;font-weight:700;margin-bottom:10px">Your session expired. Sign in again.</p>'
+    : '';
+  root.innerHTML = `
+    <div class="pc-app-inner" style="display:block;max-width:560px;margin:40px auto;padding:24px">
+      <h1 class="pc-app-title">Packing Cubes</h1>
+      <p class="pc-app-subtitle" style="margin:12px 0 20px">Sign in to keep private cubes and suitcases synced to your account. Make any cube public to share it with the whole site.</p>
+      ${reauth}
+      <a class="pc-btn primary" href="${loginHref}">Sign in to Packing Cubes</a>
+    </div>
+  `;
+  wireAuthLink(auth || { configured: true, signedIn: false });
+}
+
+async function loadStaticCatalog() {
+  try {
+    const res = await fetch(catalogUrl, { cache: 'no-store' });
+    if (!res.ok) return [];
+    const list = await res.json();
+    if (!Array.isArray(list)) return [];
+    return list.map((c) => ({ ...c, source: 'static', mine: false, is_public: true }));
+  } catch {
+    return [];
+  }
+}
+
+async function loadMergedCatalog() {
+  const [staticCubes, dbPayload] = await Promise.all([
+    loadStaticCatalog(),
+    cubesApi.list(auth.token),
+  ]);
+  const byId = new Map();
+  for (const cube of staticCubes) byId.set(cube.id, cube);
+  for (const cube of dbPayload.cubes || []) {
+    byId.set(cube.id, cube);
+    if (cube.items) cubeCache.set(cube.id, cube);
+  }
+  return [...byId.values()];
+}
+
+async function hydrateSuitcases() {
+  const remote = await suitcasesApi.get(auth.token);
+  const local = loadLocalState();
+  if (remote.suitcases?.length) {
+    state = {
+      activeSuitcaseId: remote.activeSuitcaseId || remote.suitcases[0].id,
+      suitcases: remote.suitcases,
+    };
+  } else if (local.suitcases?.length) {
+    state = local;
+    await suitcasesApi.put(auth.token, state);
+  } else {
+    state = { activeSuitcaseId: null, suitcases: [] };
+  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
 // Open the inline "create a cube" modal instead of navigating away, for
@@ -984,26 +1067,37 @@ document.addEventListener('click', (e) => {
   const link = e.target.closest('a[href="/packing-cubes/builder.html"]');
   if (!link) return;
   e.preventDefault();
+  if (!auth?.signedIn) {
+    location.href = `/account.html?next=${encodeURIComponent('/packing-cubes/')}`;
+    return;
+  }
   openBuilderModal(null);
 });
 
-fetch('/api/save-cube')
-  .then((r) => r.json())
-  .then((d) => { isOwner = !!d.authed; })
-  .catch(() => { isOwner = false; })
-  .finally(() => {
-    updateAuthLink();
-    if (catalog.length) renderCubeList();
-  });
+boot();
 
-fetch(catalogUrl)
-  .then((r) => {
-    if (!r.ok) throw new Error(`Catalog request failed (${r.status})`);
-    return r.json();
-  })
-  .then((cubes) => {
-    if (!Array.isArray(cubes)) throw new Error('Catalog is not an array');
-    catalog = cubes;
+async function boot() {
+  auth = await initAuth();
+  if (auth.configured && auth.user && !auth.token) {
+    await refreshToken(auth);
+  }
+
+  if (!auth.configured) {
+    root.innerHTML = `<p style="padding:40px;text-align:center;font-weight:700;color:var(--brown)">Sign-in isn't configured yet.</p>`;
+    wireAuthLink(auth);
+    return;
+  }
+
+  if (!auth.signedIn || !auth.token) {
+    renderSignInGate();
+    return;
+  }
+
+  wireAuthLink(auth);
+
+  try {
+    await hydrateSuitcases();
+    catalog = await loadMergedCatalog();
     ensureSuitcase();
     expandCubesInSuitcase();
     if (addCubeId) {
@@ -1018,18 +1112,19 @@ fetch(catalogUrl)
       url.searchParams.delete('add');
       history.replaceState(null, '', url.pathname + url.search + url.hash);
     }
-    try {
-      render();
-      if (addCubeId) {
-        const added = catalog.find((c) => c.id === addCubeId);
-        if (added) showToast(`Added "${added.title}" to your suitcase`);
-      }
-    } catch (err) {
-      console.error('Packing cubes render error:', err);
-      root.innerHTML = '<p style="padding:40px;text-align:center;font-weight:700;color:var(--brown)">Something went wrong loading the app.</p>';
+    render();
+    if (addCubeId) {
+      const added = catalog.find((c) => c.id === addCubeId);
+      if (added) showToast(`Added "${added.title}" to your suitcase`);
     }
-  })
-  .catch((err) => {
-    console.error('Packing cubes catalog error:', err);
-    root.innerHTML = '<p style="padding:40px;text-align:center;font-weight:700;color:var(--brown)">Could not load the cube catalog.</p>';
-  });
+  } catch (err) {
+    console.error('Packing cubes boot error:', err);
+    if (err.status === 401) {
+      auth.signedIn = false;
+      auth.needsReauth = true;
+      renderSignInGate();
+      return;
+    }
+    root.innerHTML = `<p style="padding:40px;text-align:center;font-weight:700;color:var(--brown)">Could not load Packing Cubes: ${escapeHtml(err.message)}</p>`;
+  }
+}

@@ -211,8 +211,13 @@ inline accordion over a slide-out side panel when shown both as mockups.
 
 ## Explicitly out of scope (for now)
 
-- Cloud-synced suitcases / accounts (spec already marks this as a later phase; auth infra exists in
-  `lib/neon-auth.js` but suitcases still live in `localStorage`).
-- Rate-limiting visitor cube submissions — the human-reviewed PR step is the actual control today;
-  adding a rate limiter would need a persistent store disproportionate to current traffic.
+- Rate-limiting public cube publishes — GitHub write quotas + Neon Auth sign-in are the controls today.
 - Collapsible per-source-cube grouping in the checklist (see Decisions above).
+
+## Round 5 — Neon Auth + per-user cubes/suitcases
+
+- Packing Cubes requires the shared Neon Auth login (`/account.html`). Suitcases sync to
+  `pc_suitcase_state` instead of browser-only storage (localStorage still used as a cache / migration source).
+- Cubes are private per user in `pc_cubes` by default. "Make public" opens a GitHub PR that is
+  auto-merged into `packing-cubes/cubes/` so the static site catalog picks it up on deploy.
+- Legacy static catalog cubes remain available to everyone; owned DB cubes overlay them by id.

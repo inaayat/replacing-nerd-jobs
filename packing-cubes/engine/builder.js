@@ -1,15 +1,18 @@
-// Cube builder: form + JSON upload, preview, publish/submit for review.
+// Cube builder: form + JSON upload, preview, save private / make public.
 // Exported as initBuilder() so it can run standalone on builder.html or
 // inline inside a modal on the main packing-cubes page.
 import { cubeJsonUrl } from './paths.js';
+import { initAuth, wireAuthLink, refreshToken } from './auth.js';
+import { cubesApi } from './api.js';
 
-export function initBuilder({ root, editId = null, onPublished, onClose } = {}) {
+export function initBuilder({ root, editId = null, auth: passedAuth = null, onPublished, onClose } = {}) {
   const isEditing = !!editId;
 
-  let cube = { title: '', blurb: '', tags: [], items: [{ label: '' }, { label: '' }] };
+  let cube = { title: '', blurb: '', tags: [], items: [{ label: '' }, { label: '' }], is_public: false };
   let idManuallyEdited = isEditing;
-  let isOwner = false;
+  let auth = passedAuth;
   let buildMode = 'form';
+  let existingPublic = false;
 
   function el(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content; }
   function slugify(s) { return (s || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''); }
@@ -56,7 +59,7 @@ export function initBuilder({ root, editId = null, onPublished, onClose } = {}) 
           <button type="button" class="b-add-row-btn" id="add-item-btn">+ Add item</button>
         </div>
         <div id="upload-mode" class="hidden">
-          <p class="b-upload-hint">Upload or paste a complete cube JSON. It must include <code>title</code> and an <code>items</code> array with at least 2 entries. See examples on <a href="https://github.com/inaayat/replacing-nerd-jobs/tree/main/packing-cubes/cubes" target="_blank" rel="noopener">GitHub</a>.</p>
+          <p class="b-upload-hint">Upload or paste a complete cube JSON. It must include <code>title</code> and an <code>items</code> array with at least 2 entries.</p>
           <input type="file" id="json-file" accept=".json,application/json">
           <div class="b-upload-or">— or paste it below —</div>
           <textarea class="b-mini-input" id="json-paste" rows="6" placeholder='{ "title": "...", "items": [...] }'></textarea>
@@ -75,13 +78,16 @@ export function initBuilder({ root, editId = null, onPublished, onClose } = {}) 
       </div>
 
       <div class="b-step">
-        <div class="b-step-head"><span class="b-step-num">4</span><span id="publish-step-title" class="b-step-title">Submit for review</span></div>
+        <div class="b-step-head"><span class="b-step-num">4</span><span id="publish-step-title" class="b-step-title">Save</span></div>
         <div class="b-publish-card">
           <div class="b-field" id="id-field"><label>${isEditing ? 'Cube ID (fixed while editing)' : 'Cube ID (auto, editable)'}</label><input type="text" id="f-id" ${isEditing ? 'disabled' : ''}></div>
           <div class="b-id-preview" id="id-preview"></div>
-          <div class="b-field" id="submitter-field" style="margin-top:6px"><label>Your name (optional)</label><input type="text" id="f-submitter" placeholder="How should we credit you?"></div>
+          <label class="pc-toggle-chip" id="make-public-row" style="margin-top:10px">
+            <input type="checkbox" id="f-public">
+            Make public (share with the whole site — auto-merges a GitHub PR)
+          </label>
           <div class="b-validation hidden" id="validation-hint"></div>
-          <button type="button" class="pc-btn primary" id="publish-btn" style="margin-top:8px;width:100%">Submit for review</button>
+          <button type="button" class="pc-btn primary" id="publish-btn" style="margin-top:8px;width:100%">Save private cube</button>
           <div class="b-toast" id="publish-toast"></div>
         </div>
       </div>
@@ -96,7 +102,8 @@ export function initBuilder({ root, editId = null, onPublished, onClose } = {}) 
       updatePreview();
     });
     root.querySelector('#f-id').addEventListener('input', () => { idManuallyEdited = true; updatePreview(); });
-    root.querySelector('#publish-btn').addEventListener('click', publish);
+    root.querySelector('#f-public').addEventListener('change', updatePreview);
+    root.querySelector('#publish-btn').addEventListener('click', save);
     root.querySelector('#add-item-btn').addEventListener('click', () => { cube.items.push({ label: '' }); renderEditor(); });
     root.querySelector('#build-mode').addEventListener('click', (e) => {
       const b = e.target.closest('.b-mode-btn');
@@ -113,26 +120,19 @@ export function initBuilder({ root, editId = null, onPublished, onClose } = {}) 
     if (onClose) root.querySelector('#b-close').addEventListener('click', onClose);
 
     renderEditor();
+    applyAuthUi();
   }
 
-  function applyOwnerState() {
-    const authLink = document.getElementById('nav-auth-link');
-    if (authLink) {
-      authLink.textContent = isOwner ? 'Log out' : 'Log in';
-      authLink.href = isOwner ? '/api/logout' : '/private/';
-    }
-
-    const btn = root.querySelector('#publish-btn');
-    const stepTitle = root.querySelector('#publish-step-title');
-    const submitterField = root.querySelector('#submitter-field');
-    if (isOwner) {
-      btn.textContent = isEditing ? 'Save changes' : 'Publish cube';
-      stepTitle.textContent = isEditing ? 'Save changes' : 'Publish';
-      submitterField.style.display = 'none';
-    } else {
-      btn.textContent = isEditing ? 'Submit edit for review' : 'Submit for review';
-      stepTitle.textContent = isEditing ? 'Submit edit for review' : 'Submit for review';
-      submitterField.style.display = '';
+  function applyAuthUi() {
+    if (auth) wireAuthLink(auth);
+    const publicRow = root.querySelector('#make-public-row');
+    const publicBox = root.querySelector('#f-public');
+    if (existingPublic && publicRow && publicBox) {
+      publicRow.innerHTML = '';
+      publicBox.checked = true;
+      publicBox.disabled = true;
+      publicRow.appendChild(publicBox);
+      publicRow.appendChild(document.createTextNode(' Already public — saving updates the site catalog'));
     }
     updatePreview();
   }
@@ -188,6 +188,7 @@ export function initBuilder({ root, editId = null, onPublished, onClose } = {}) 
     root.querySelector('#f-title').value = cube.title || '';
     root.querySelector('#f-blurb').value = cube.blurb || '';
     root.querySelector('#f-tags').value = (cube.tags || []).join(', ');
+    root.querySelector('#f-basic').checked = (cube.tags || []).some((t) => t.toLowerCase() === 'basics');
     renderEditor();
   }
 
@@ -214,6 +215,7 @@ export function initBuilder({ root, editId = null, onPublished, onClose } = {}) 
       blurb: parsed.blurb || '',
       tags: Array.isArray(parsed.tags) ? dedupeTags(parsed.tags) : [],
       items: parsed.items.map((item) => ({ label: String(item.label).trim() })),
+      is_public: !!parsed.is_public,
     };
   }
 
@@ -231,6 +233,11 @@ export function initBuilder({ root, editId = null, onPublished, onClose } = {}) 
     updatePreview();
   }
 
+  function wantsPublic() {
+    const box = root.querySelector('#f-public');
+    return !!(box && box.checked);
+  }
+
   function updatePreview() {
     const titleEl = root.querySelector('#prev-title');
     const blurbEl = root.querySelector('#prev-blurb');
@@ -238,24 +245,34 @@ export function initBuilder({ root, editId = null, onPublished, onClose } = {}) 
     const idInput = root.querySelector('#f-id');
     const hint = root.querySelector('#validation-hint');
     const btn = root.querySelector('#publish-btn');
+    const stepTitle = root.querySelector('#publish-step-title');
     if (!titleEl) return;
 
     const count = cube.items.filter((i) => i.label.trim()).length;
-    const filedNote = isOwner ? 'on the catalog page.' : "on the catalog page once it's reviewed and approved.";
+    const makePublic = wantsPublic();
 
     titleEl.textContent = cube.title || 'Untitled cube';
     blurbEl.textContent = cube.blurb || '';
-    metaEl.textContent = `${count} item${count === 1 ? '' : 's'}`;
+    metaEl.textContent = `${count} item${count === 1 ? '' : 's'}${makePublic || existingPublic ? ' · public' : ' · private'}`;
 
     if (!idManuallyEdited) idInput.value = slugify(cube.title);
-    root.querySelector('#id-preview').innerHTML = isEditing
-      ? `Updating <code>/packing-cubes/cube.html?cube=${slugify(idInput.value)}</code>, filed ${filedNote}`
-      : `Will appear at <code>/packing-cubes/cube.html?cube=${slugify(idInput.value)}</code>, filed ${filedNote}`;
+    root.querySelector('#id-preview').innerHTML = makePublic || existingPublic
+      ? `Will be available site-wide at <code>/packing-cubes/cube.html?cube=${slugify(idInput.value)}</code>`
+      : `Saved privately to your account (only you can see it until you make it public).`;
+
+    stepTitle.textContent = isEditing ? 'Save changes' : 'Save';
+    btn.textContent = existingPublic
+      ? 'Save public cube'
+      : (makePublic
+        ? (isEditing ? 'Save & make public' : 'Save as public cube')
+        : (isEditing ? 'Save private cube' : 'Save private cube'));
 
     if (!cube.title.trim()) {
       hint.textContent = 'Add a title first.'; hint.classList.remove('hidden'); btn.disabled = true;
     } else if (count < 2) {
       hint.textContent = 'Add at least 2 items first.'; hint.classList.remove('hidden'); btn.disabled = true;
+    } else if (!auth?.signedIn || !auth.token) {
+      hint.textContent = 'Sign in to save cubes.'; hint.classList.remove('hidden'); btn.disabled = true;
     } else {
       hint.classList.add('hidden'); btn.disabled = false;
     }
@@ -264,42 +281,62 @@ export function initBuilder({ root, editId = null, onPublished, onClose } = {}) 
   function currentCubeObject() {
     const id = slugify(root.querySelector('#f-id').value) || slugify(cube.title);
     return {
-      ...cube,
       id,
+      title: cube.title.trim(),
+      blurb: (cube.blurb || '').trim(),
+      tags: cube.tags || [],
       items: cube.items.filter((i) => i.label.trim()).map((i) => ({ label: i.label.trim() })),
     };
   }
 
-  async function publish() {
+  async function save() {
     const btn = root.querySelector('#publish-btn');
     const toast = root.querySelector('#publish-toast');
     btn.disabled = true;
     toast.className = 'b-toast';
-    const submitter = !isOwner ? root.querySelector('#f-submitter').value.trim() : undefined;
+    toast.textContent = 'Saving…';
     try {
-      const res = await fetch('/api/save-cube', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cube: currentCubeObject(), mode: isOwner ? 'publish' : 'submit', submitter }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
-      toast.textContent = isOwner
-        ? `${isEditing ? 'Updated' : 'Published'} — now live at ${data.url}`
-        : `Submitted! Your ${isEditing ? 'edit is' : 'cube is'} waiting for review.${data.prUrl ? ` Track it on GitHub.` : ''}`;
-      toast.className = 'b-toast ok';
-      if (data.prUrl) {
-        const link = document.createElement('a');
-        link.href = data.prUrl;
-        link.target = '_blank';
-        link.rel = 'noopener';
-        link.textContent = ' View pull request';
-        link.style.color = 'inherit';
-        toast.appendChild(link);
+      const payload = currentCubeObject();
+      let saved;
+      if (isEditing) {
+        const data = await cubesApi.update(auth.token, payload);
+        saved = data.cube;
+        if (data.warning) toast.textContent = data.warning;
+      } else {
+        const data = await cubesApi.create(auth.token, payload);
+        saved = data.cube;
       }
-      if (isOwner && onPublished) onPublished({ id: data.id, isEditing });
+
+      if (wantsPublic() && !saved.is_public) {
+        toast.textContent = 'Publishing to the site catalog…';
+        const published = await cubesApi.publish(auth.token, saved.id);
+        saved = published.cube;
+        toast.textContent = `Public — live after deploy.${published.prUrl ? ' PR auto-merged.' : ''}`;
+        if (published.prUrl) {
+          const link = document.createElement('a');
+          link.href = published.prUrl;
+          link.target = '_blank';
+          link.rel = 'noopener';
+          link.textContent = ' View PR';
+          link.style.color = 'inherit';
+          toast.appendChild(link);
+        }
+      } else if (!toast.textContent || toast.textContent === 'Saving…') {
+        toast.textContent = saved.is_public
+          ? 'Saved public cube.'
+          : 'Saved private cube to your account.';
+      }
+      toast.className = 'b-toast ok';
+      if (onPublished) onPublished({ id: saved.id, isEditing, cube: saved });
+      if (!isEditing) {
+        // After create, treat further clicks as edits of the new id.
+        root.querySelector('#f-id').value = saved.id;
+        root.querySelector('#f-id').disabled = true;
+      }
+      existingPublic = !!saved.is_public;
+      applyAuthUi();
     } catch (err) {
-      toast.textContent = `Couldn't ${isOwner ? 'publish' : 'submit'}: ${err.message}`;
+      toast.textContent = `Couldn't save: ${err.message}`;
       toast.className = 'b-toast err';
       btn.disabled = false;
     }
@@ -307,29 +344,44 @@ export function initBuilder({ root, editId = null, onPublished, onClose } = {}) 
 
   render();
 
-  const ownerReady = fetch('/api/save-cube')
-    .then((r) => r.json())
-    .then((d) => { isOwner = !!d.authed; })
-    .catch(() => { isOwner = false; });
+  (async () => {
+    if (!auth) {
+      auth = await initAuth();
+      if (auth.configured && auth.user && !auth.token) await refreshToken(auth);
+    }
+    if (!auth.signedIn || !auth.token) {
+      const loginHref = `/account.html?next=${encodeURIComponent(location.pathname + location.search)}`;
+      root.innerHTML = `<p style="font-weight:700;color:var(--brown);padding:24px 0">Sign in to create or edit cubes. <a href="${loginHref}">Log in</a></p>`;
+      wireAuthLink(auth);
+      return;
+    }
+    wireAuthLink(auth);
+    updatePreview();
 
-  if (isEditing) {
-    const btn = root.querySelector('#publish-btn');
-    btn.disabled = true;
-    btn.textContent = 'Loading…';
-    fetch(cubeJsonUrl(editId))
-      .then((r) => { if (!r.ok) throw new Error('not found'); return r.json(); })
-      .then((loaded) => {
-        cube = normalizeLoaded(loaded);
+    if (isEditing) {
+      const btn = root.querySelector('#publish-btn');
+      btn.disabled = true;
+      btn.textContent = 'Loading…';
+      try {
+        const data = await cubesApi.get(auth.token, editId);
+        if (!data.cube.mine) throw new Error('You can only edit cubes you own.');
+        cube = normalizeLoaded(data.cube);
+        existingPublic = !!data.cube.is_public;
         root.querySelector('#f-id').value = editId;
         fillFormFromCube();
-        ownerReady.then(applyOwnerState);
-      })
-      .catch(() => {
-        root.innerHTML = '<p style="font-weight:700;color:var(--brown);padding:24px 0">Could not load that cube to edit.</p>';
-      });
-  } else {
-    ownerReady.then(applyOwnerState);
-  }
+        applyAuthUi();
+      } catch (err) {
+        // Fall back to static file for legacy public cubes the user doesn't own — show read-only error.
+        try {
+          const res = await fetch(cubeJsonUrl(editId));
+          if (!res.ok) throw err;
+          root.innerHTML = `<p style="font-weight:700;color:var(--brown);padding:24px 0">You can only edit cubes you own. This catalog cube is read-only.</p>`;
+        } catch {
+          root.innerHTML = `<p style="font-weight:700;color:var(--brown);padding:24px 0">Could not load that cube to edit: ${escapeAttr(err.message)}</p>`;
+        }
+      }
+    }
+  })();
 }
 
 // Standalone bootstrap for builder.html, which has its own dedicated
