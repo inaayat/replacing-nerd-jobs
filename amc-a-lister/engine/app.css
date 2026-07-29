@@ -221,38 +221,30 @@ a { color: var(--al-burgundy); }
   }
 }
 
-/* Quick-log bar: compact always-visible form */
+/* Quick-log bar: compact primary row + smooth expandable extras */
 .al-quicklog {
   flex-shrink: 0;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
   background: var(--al-panel);
   border: 1px solid var(--al-line);
-  border-radius: 12px;
-  padding: 8px 10px;
+  border-radius: var(--al-radius);
+  padding: 10px 12px;
 }
 
-.al-quicklog-form {
+.al-quicklog-primary {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 5px 6px;
+  grid-template-columns: minmax(0, 130px) minmax(0, 2fr) minmax(0, 1.4fr) minmax(0, 88px) auto;
+  gap: 8px;
+  align-items: end;
 }
 
-@media (min-width: 720px) {
-  .al-quicklog-form {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+@media (max-width: 720px) {
+  .al-quicklog-primary {
+    grid-template-columns: 1fr 1fr;
   }
-
-  .al-quicklog-field--title { grid-column: span 3; }
-  .al-quicklog-field--date { grid-column: span 1; }
-  .al-quicklog-field--ticket { grid-column: span 1; }
-  .al-quicklog-field--format { grid-column: span 1; }
-  .al-quicklog-field--location { grid-column: span 2; }
-  .al-quicklog-field--aud { grid-column: span 1; }
-  .al-quicklog-field--seat { grid-column: span 1; }
-  .al-quicklog-field--rating { grid-column: span 1; }
-  .al-quicklog-field--checks { grid-column: span 1; }
-  .al-quicklog-field--notes { grid-column: span 4; }
-  .al-quicklog-field--submit { grid-column: span 1; }
+  .al-quicklog-field--title { grid-column: 1 / -1; }
+  .al-quicklog-field--location { grid-column: 1 / -1; }
+  .al-quicklog-field--submit { grid-column: 1 / -1; }
 }
 
 .al-quicklog-field {
@@ -260,31 +252,13 @@ a { color: var(--al-burgundy); }
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 4px;
 }
 
 .al-quicklog-field label {
-  font-size: 0.62rem;
+  font-size: 0.72rem;
   font-weight: 500;
   color: var(--al-muted);
-  line-height: 1.1;
-}
-
-.al-quicklog-field--title {
-  grid-column: 1 / -1;
-}
-
-.al-quicklog-field--checks {
-  flex-direction: row;
-  align-items: flex-end;
-  gap: 8px;
-  flex-wrap: wrap;
-  padding-bottom: 1px;
-}
-
-.al-quicklog-field--checks .al-check {
-  font-size: 0.72rem;
-  gap: 4px;
 }
 
 .al-quicklog-field--submit {
@@ -293,14 +267,13 @@ a { color: var(--al-burgundy); }
 
 .al-quicklog-input {
   width: 100%;
-  padding: 5px 7px;
-  border-radius: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
   border: 1px solid var(--al-line);
   background: var(--al-panel-2);
   color: var(--al-text);
   font: inherit;
-  font-size: 0.82rem;
-  line-height: 1.25;
+  font-size: 0.88rem;
 }
 
 .al-quicklog-input:focus {
@@ -309,18 +282,71 @@ a { color: var(--al-burgundy); }
   background: var(--al-white);
 }
 
+.al-quicklog-expand {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.35s ease, margin-top 0.35s ease;
+  margin-top: 0;
+}
+
+.al-quicklog.is-expanded .al-quicklog-expand {
+  grid-template-rows: 1fr;
+  margin-top: 10px;
+}
+
+.al-quicklog-expand-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.al-quicklog-extra {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--al-line);
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 0.3s ease 0.05s, transform 0.35s ease;
+}
+
+.al-quicklog.is-expanded .al-quicklog-extra {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (min-width: 720px) {
+  .al-quicklog-extra {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+  .al-quicklog-field--notes { grid-column: span 3; }
+  .al-quicklog-field--checks { grid-column: span 2; }
+}
+
+.al-quicklog-field--checks {
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-bottom: 2px;
+}
+
+.al-quicklog-field--checks .al-check {
+  font-size: 0.82rem;
+}
+
 .al-quicklog-submit {
-  width: 100%;
-  padding: 6px 10px;
+  padding: 8px 16px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--al-red);
   color: var(--al-white);
   font: inherit;
-  font-size: 0.82rem;
+  font-size: 0.88rem;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  height: 38px;
 }
 
 .al-quicklog-submit:hover {
@@ -328,10 +354,10 @@ a { color: var(--al-burgundy); }
 }
 
 .al-quicklog-status {
-  margin: 4px 0 0;
-  font-size: 0.75rem;
+  margin: 6px 0 0;
+  font-size: 0.8rem;
   color: var(--al-muted);
-  min-height: 1.1em;
+  min-height: 1.2em;
 }
 
 .al-quicklog-status.is-success { color: #0d7a42; }
