@@ -3,90 +3,330 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Account — Beep boop</title>
+    <title>Log in — Beep boop</title>
     <meta name="description" content="Sign in to inaayat.xyz." />
     <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Fraunces:ital,wght@0,500;0,600;0,700;1,500&display=swap" />
     <style>
-      body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #fff8dc; }
-      h1, .card-title, .brand-mono { font-family: 'DM Mono', monospace; }
-      /* auth states toggle via this class; don't depend on the Tailwind CDN for it */
+      :root {
+        --cream: #faf3e3;
+        --orange: #f2a154;
+        --peach: #f6a98a;
+        --teal: #123a39;
+        --red: #cf4520;
+        --gold: #e3a72e;
+        --gray: #d8d3c6;
+        --ink: #1c1c1c;
+        /* irregular blob palette (fun accents) */
+        --blob-peach: #f4a882;
+        --blob-teal: #2a9d8f;
+        --blob-purple: #5c4b8a;
+        --blob-slate: #6b7bb5;
+        --blob-lime: #a8c93a;
+        --blob-orange: #f2a154;
+        --blob-navy: #1e3a5f;
+        --blob-rose: #c47a8a;
+        --blob-sage: #8fa88a;
+      }
+      body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--cream); }
+      .serif { font-family: 'Fraunces', serif; }
+      .brand-mono { font-family: 'DM Mono', monospace; }
       .hidden { display: none; }
-      .auth-input {
-        width: 100%; font-size: 0.85rem; padding: 8px 10px; margin-bottom: 10px;
-        border: 2px solid #2c2e25; border-radius: 4px; background: #fff;
+
+      html, body { height: 100%; }
+      body { margin: 0; }
+      .page-main { flex: 1 1 auto; display: flex; flex-direction: column; min-height: 0; }
+      @media (min-width: 768px) {
+        body { height: 100vh; overflow: hidden; }
+        .page-main { flex-direction: row; }
       }
+
+      .sidebar {
+        flex-shrink: 0;
+        border-radius: 18px;
+        padding: 20px;
+        background: var(--cream);
+        border: 1.5px solid #1c1c1c22;
+      }
+      @media (min-width: 768px) {
+        .sidebar {
+          width: 340px;
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+        }
+      }
+      @media (min-width: 1024px) { .sidebar { width: 420px; } }
+
+      .sidebar-link {
+        font-size: 0.72rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: #1c1c1c;
+        opacity: 0.55;
+        text-decoration: none;
+      }
+      .sidebar-link:hover { opacity: 1; }
+
+      .content-scroll {
+        flex: 1 1 auto;
+        min-height: 0;
+        padding: 8px 16px 24px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+      }
+      @media (min-width: 768px) {
+        .content-scroll { overflow-y: auto; height: 100%; }
+      }
+
+      /* Decorative floating blobs */
+      .decor-blob {
+        position: absolute;
+        pointer-events: none;
+        z-index: 0;
+        opacity: 0.55;
+      }
+      .decor-blob-a {
+        width: 120px; height: 110px;
+        background: var(--blob-lime);
+        border-radius: 60% 40% 55% 45% / 55% 45% 60% 40%;
+        top: 8%; left: 6%;
+        animation: drift 9s ease-in-out infinite alternate;
+      }
+      .decor-blob-b {
+        width: 90px; height: 100px;
+        background: var(--blob-slate);
+        border-radius: 45% 55% 40% 60% / 50% 35% 65% 50%;
+        top: 12%; right: 10%;
+        animation: drift 11s ease-in-out infinite alternate-reverse;
+      }
+      .decor-blob-c {
+        width: 70px; height: 80px;
+        background: var(--blob-rose);
+        border-radius: 70% 30% 55% 45% / 40% 60% 35% 65%;
+        bottom: 14%; left: 12%;
+        animation: drift 10s ease-in-out infinite alternate;
+      }
+      .decor-blob-d {
+        width: 100px; height: 85px;
+        background: var(--blob-sage);
+        border-radius: 40% 60% 50% 50% / 60% 30% 70% 40%;
+        bottom: 10%; right: 8%;
+        animation: drift 12s ease-in-out infinite alternate-reverse;
+      }
+      @keyframes drift {
+        from { transform: translate(0, 0) rotate(0deg); }
+        to { transform: translate(8px, -10px) rotate(4deg); }
+      }
+
+      .login-hero {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: min(280px, 70vw);
+        height: min(180px, 42vw);
+        margin-bottom: 28px;
+      }
+      .login-blob {
+        position: absolute;
+        inset: 0;
+        background: var(--blob-peach);
+        border-radius: 58% 42% 48% 52% / 52% 38% 62% 48%;
+        animation: blobMorph 8s ease-in-out infinite;
+      }
+      .login-blob::before {
+        content: "";
+        position: absolute;
+        inset: 12% 18% auto auto;
+        width: 38%;
+        height: 42%;
+        background: var(--blob-orange);
+        border-radius: 45% 55% 60% 40% / 55% 45% 55% 45%;
+        opacity: 0.85;
+      }
+      .login-blob::after {
+        content: "";
+        position: absolute;
+        inset: auto auto 8% 10%;
+        width: 28%;
+        height: 32%;
+        background: var(--blob-teal);
+        border-radius: 60% 40% 35% 65% / 45% 55% 40% 60%;
+        opacity: 0.7;
+      }
+      @keyframes blobMorph {
+        0%, 100% { border-radius: 58% 42% 48% 52% / 52% 38% 62% 48%; }
+        33% { border-radius: 42% 58% 55% 45% / 45% 55% 40% 60%; }
+        66% { border-radius: 50% 50% 40% 60% / 60% 40% 55% 45%; }
+      }
+      .login-title {
+        position: relative;
+        z-index: 1;
+        font-size: clamp(2rem, 5vw, 2.75rem);
+        font-weight: 600;
+        color: var(--ink);
+        letter-spacing: -0.02em;
+        text-align: center;
+        line-height: 1;
+      }
+
+      .auth-panel {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        max-width: 360px;
+        background: #fffdf8;
+        border-radius: 18px;
+        padding: 24px;
+        border: 1.5px solid #1c1c1c14;
+      }
+
       .auth-tab {
-        font-weight: 800; font-size: 0.8rem; padding: 6px 14px; border: 2px solid #2c2e25;
-        background: #fff; cursor: pointer; border-radius: 4px;
+        font-family: 'DM Mono', monospace;
+        font-weight: 500;
+        font-size: 0.72rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        padding: 8px 14px;
+        border: none;
+        background: transparent;
+        color: var(--ink);
+        opacity: 0.45;
+        cursor: pointer;
+        border-radius: 999px;
       }
-      .auth-tab.active { background: #f267a0; color: #fff; }
+      .auth-tab.active {
+        background: var(--teal);
+        color: #f7f2e7;
+        opacity: 1;
+      }
+
+      .auth-input {
+        width: 100%;
+        font-family: inherit;
+        font-size: 0.9rem;
+        padding: 10px 12px;
+        margin-bottom: 10px;
+        border: 1.5px solid #1c1c1c22;
+        border-radius: 12px;
+        background: var(--cream);
+        color: var(--ink);
+        outline: none;
+      }
+      .auth-input:focus {
+        border-color: var(--teal);
+        background: #fff;
+      }
+
+      .auth-submit {
+        width: 100%;
+        font-family: 'Fraunces', serif;
+        font-weight: 600;
+        font-size: 1rem;
+        padding: 11px 14px;
+        border: none;
+        border-radius: 12px;
+        background: var(--orange);
+        color: var(--ink);
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+      .auth-submit:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 18px rgba(0,0,0,0.1);
+      }
+
+      .sign-out-btn {
+        font-family: 'DM Mono', monospace;
+        font-size: 0.72rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        padding: 8px 14px;
+        border-radius: 999px;
+        border: 1.5px solid #1c1c1c33;
+        background: transparent;
+        color: var(--ink);
+        cursor: pointer;
+      }
+      .sign-out-btn:hover { background: var(--gray); }
     </style>
   </head>
-  <body class="text-gray-900 min-h-screen flex flex-col">
+  <body class="text-gray-900 flex flex-col">
 
-    <!-- Nav -->
-    <nav class="px-4 sm:px-8 py-3 sm:py-4 flex items-center justify-between sticky top-0 z-10" style="background:#f267a0;">
-      <a href="/" class="brand-mono font-extrabold text-sm sm:text-2xl rounded-md border-2 sm:border-4 border-white text-white select-none px-2 py-1 sm:p-2 no-underline flex items-center gap-1 sm:gap-2 whitespace-nowrap">
-        <img src="/ugly-dog-images/dog-3.png" alt="" width="30" height="30" style="object-fit:contain;flex-shrink:0;" />
-        Beep boop
-      </a>
-      <div class="flex items-center gap-3 sm:gap-8">
-        <a href="/#projects" class="text-xs sm:text-xl font-extrabold text-white no-underline opacity-80 hover:opacity-100 whitespace-nowrap">Projects</a>
-        <a href="/archive/" class="text-xs sm:text-xl font-extrabold text-white no-underline opacity-80 hover:opacity-100 whitespace-nowrap">Archive</a>
-        <span id="user-email" class="hidden text-xs sm:text-base font-extrabold text-white whitespace-nowrap"></span>
-      </div>
-    </nav>
+    <div class="page-main px-4 sm:px-8 md:px-10 py-4 gap-4">
 
-    <!-- Content -->
-    <div class="px-6 pt-12 pb-16 md:px-24 flex-grow flex flex-col items-center">
-      <h1 class="text-3xl md:text-4xl font-extrabold mb-8">Account</h1>
-
-      <!-- Neon Auth not configured yet -->
-      <div id="not-configured" class="hidden max-w-lg w-full bg-[#f9fafb] border-4 border-[#2c2e25] rounded shadow-md p-6 text-sm">
-        <p class="font-extrabold mb-2">Sign-in isn't set up yet.</p>
-        <p class="text-gray-600">Add the Neon Auth base URL to <code class="brand-mono">auth-config.js</code> — see the "auth &amp; database" section of the README.</p>
-      </div>
-
-      <!-- Sign in / sign up forms -->
-      <div id="auth-forms" class="hidden max-w-sm w-full bg-[#f9fafb] border-4 border-[#2c2e25] rounded shadow-md p-6">
-        <div class="flex gap-2 mb-4">
-          <button type="button" class="auth-tab active" id="tab-signin">Sign in</button>
-          <button type="button" class="auth-tab" id="tab-signup">Sign up</button>
+      <aside class="sidebar">
+        <div>
+          <a href="/" class="serif font-semibold text-2xl md:text-3xl text-gray-900 no-underline flex items-center gap-2">
+            <img src="/ugly-dog-images/dog-3.png" alt="" width="28" height="28" style="object-fit:contain;flex-shrink:0;" />
+            Beep boop
+          </a>
+          <div class="flex flex-col gap-2 mt-6 brand-mono">
+            <a href="/#projects" class="sidebar-link">Projects</a>
+            <a href="/archive/" class="sidebar-link">Archive</a>
+            <a href="/account.html" class="sidebar-link" style="opacity:1;">Account</a>
+          </div>
         </div>
-        <form id="form-signin">
-          <input class="auth-input" type="email" id="signin-email" placeholder="email" autocomplete="email" required />
-          <input class="auth-input" type="password" id="signin-password" placeholder="password" autocomplete="current-password" required />
-          <button type="submit" class="w-full font-extrabold text-sm py-2 rounded text-white" style="background:#f267a0;">Sign in</button>
-        </form>
-        <form id="form-signup" class="hidden">
-          <input class="auth-input" type="text" id="signup-name" placeholder="name" autocomplete="name" required />
-          <input class="auth-input" type="email" id="signup-email" placeholder="email" autocomplete="email" required />
-          <input class="auth-input" type="password" id="signup-password" placeholder="password (8+ characters)" autocomplete="new-password" required minlength="8" />
-          <button type="submit" class="w-full font-extrabold text-sm py-2 rounded text-white" style="background:#f267a0;">Sign up</button>
-        </form>
-        <p id="auth-error" class="hidden text-xs font-bold mt-3" style="color:#b05858;"></p>
+        <div class="brand-mono text-xs max-w-[26ch] opacity-60 mt-6 md:mt-0">
+          Sign in to save progress across tools and experiments.
+        </div>
+      </aside>
+
+      <div class="content-scroll">
+        <div class="decor-blob decor-blob-a" aria-hidden="true"></div>
+        <div class="decor-blob decor-blob-b" aria-hidden="true"></div>
+        <div class="decor-blob decor-blob-c" aria-hidden="true"></div>
+        <div class="decor-blob decor-blob-d" aria-hidden="true"></div>
+
+        <div id="login-hero" class="login-hero">
+          <div class="login-blob" aria-hidden="true"></div>
+          <h1 id="login-heading" class="login-title serif">Log in</h1>
+        </div>
+
+        <!-- Neon Auth not configured yet -->
+        <div id="not-configured" class="hidden auth-panel text-sm">
+          <p class="serif font-semibold text-lg mb-2">Sign-in isn't set up yet.</p>
+          <p class="brand-mono text-xs opacity-60">Add the Neon Auth base URL to <code>auth-config.js</code> — see the "auth &amp; database" section of the README.</p>
+        </div>
+
+        <!-- Sign in / sign up forms -->
+        <div id="auth-forms" class="hidden auth-panel">
+          <div class="flex gap-2 mb-5">
+            <button type="button" class="auth-tab active" id="tab-signin">Sign in</button>
+            <button type="button" class="auth-tab" id="tab-signup">Sign up</button>
+          </div>
+          <form id="form-signin">
+            <input class="auth-input" type="email" id="signin-email" placeholder="email" autocomplete="email" required />
+            <input class="auth-input" type="password" id="signin-password" placeholder="password" autocomplete="current-password" required />
+            <button type="submit" class="auth-submit">Sign in</button>
+          </form>
+          <form id="form-signup" class="hidden">
+            <input class="auth-input" type="text" id="signup-name" placeholder="name" autocomplete="name" required />
+            <input class="auth-input" type="email" id="signup-email" placeholder="email" autocomplete="email" required />
+            <input class="auth-input" type="password" id="signup-password" placeholder="password (8+ characters)" autocomplete="new-password" required minlength="8" />
+            <button type="submit" class="auth-submit">Sign up</button>
+          </form>
+          <p id="auth-error" class="hidden brand-mono text-xs font-medium mt-3" style="color:#cf4520;"></p>
+        </div>
+
+        <!-- Profile card when signed in -->
+        <div id="profile" class="hidden auth-panel">
+          <div class="serif font-semibold text-xl mb-4">You're signed in</div>
+          <dl id="profile-fields" class="brand-mono text-xs grid grid-cols-[auto_1fr] gap-x-4 gap-y-2"></dl>
+          <p id="profile-note" class="mt-4 brand-mono text-xs opacity-50"></p>
+          <button type="button" id="sign-out-btn" class="sign-out-btn mt-5">Sign out</button>
+        </div>
       </div>
 
-      <!-- Profile card when signed in -->
-      <div id="profile" class="hidden max-w-lg w-full bg-[#f9fafb] border-4 border-[#2c2e25] rounded shadow-md p-6">
-        <div class="card-title text-lg font-extrabold mb-4">You're signed in 🎉</div>
-        <dl id="profile-fields" class="text-sm grid grid-cols-[auto_1fr] gap-x-4 gap-y-2"></dl>
-        <p id="profile-note" class="mt-4 text-xs text-gray-500"></p>
-        <button type="button" id="sign-out-btn" class="mt-4 font-extrabold text-xs py-2 px-4 rounded border-2 border-[#2c2e25]">Sign out</button>
-      </div>
     </div>
-
-    <footer class="px-16 py-4 md:px-24 text-sm font-bold text-white flex items-center gap-3" style="background:#1b1464;">
-      <a href="https://github.com/inaayat" target="_blank" class="text-white opacity-80 hover:opacity-100 flex items-center gap-2 no-underline">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-github" viewBox="0 0 16 16">
-          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8"/>
-        </svg>
-        github.com/inaayat
-      </a>
-    </footer>
 
     <script type="module">
       const show = (id) => document.getElementById(id).classList.remove('hidden');
@@ -112,8 +352,10 @@
         } catch {
           // treated as "not configured" below
         }
-        if (!url) show('not-configured');
-        else run(url);
+        if (!url) {
+          show('not-configured');
+          setHero('Log in');
+        } else run(url);
       }
 
       async function run(authUrl) {
@@ -133,10 +375,23 @@
             goAfterAuth();
             return;
           }
-          renderSignedIn(data.user, neonAuth);
+          setHero('Account');
+          renderSignedIn(data.user, neonAuth, client);
         } else {
+          setHero('Log in');
           show('auth-forms');
         }
+      }
+
+      function setHero(label) {
+        const hero = document.getElementById('login-hero');
+        const heading = document.getElementById('login-heading');
+        if (!label) {
+          hero.classList.add('hidden');
+          return;
+        }
+        heading.textContent = label;
+        hero.classList.remove('hidden');
       }
 
       function wireAuthForms(client) {
@@ -180,12 +435,8 @@
         });
       }
 
-      async function renderSignedIn(user, neonAuth) {
+      async function renderSignedIn(user, neonAuth, client) {
         show('profile');
-        const emailBadge = document.getElementById('user-email');
-        emailBadge.textContent = user.email || user.name || '';
-        emailBadge.classList.remove('hidden');
-
         const fields = document.getElementById('profile-fields');
         const note = document.getElementById('profile-note');
         try {
@@ -202,11 +453,11 @@
             ['first seen', new Date(u.created_at).toLocaleString()],
           ];
           fields.innerHTML = rows
-            .map(([k, v]) => `<dt class="font-extrabold text-gray-500">${k}</dt><dd class="break-all">${v}</dd>`)
+            .map(([k, v]) => `<dt class="opacity-45">${k}</dt><dd class="break-all">${v}</dd>`)
             .join('');
           note.textContent = 'This profile is stored in the Neon database and refreshed each visit.';
         } catch (err) {
-          fields.innerHTML = `<dt class="font-extrabold text-gray-500">name</dt><dd>${user.name || '—'}</dd>`;
+          fields.innerHTML = `<dt class="opacity-45">name</dt><dd>${user.name || '—'}</dd>`;
           note.textContent = `Profile database unavailable: ${err.message}`;
         }
       }
