@@ -436,6 +436,7 @@ async function handleSummary(req, res) {
       format: w.format || '',
       saw_alone: !!w.saw_alone,
       ticket_cents: w.ticket_cents,
+      runtime_min: w.runtime_min != null ? Number(w.runtime_min) : null,
       rating: w.rating != null ? Number(w.rating) : null,
       dnf: !!w.dnf,
     }));

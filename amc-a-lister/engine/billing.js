@@ -84,6 +84,10 @@ export function computeSummary(watches, membership) {
   const totalSavings = totalCharged - totalBilled;
   const costPerMovie = totalSeen ? totalBilled / totalSeen : 0;
   const avgTicket = totalSeen ? totalCharged / totalSeen : 0;
+  const withRuntime = watches.filter((w) => w.runtime_min > 0);
+  const avgRuntimeMin = withRuntime.length
+    ? Math.round(withRuntime.reduce((sum, w) => sum + w.runtime_min, 0) / withRuntime.length)
+    : 0;
 
   const byMonthMap = new Map();
   for (const w of watches) {
@@ -122,6 +126,7 @@ export function computeSummary(watches, membership) {
     totalSeen,
     costPerMovie,
     avgTicket,
+    avgRuntimeMin,
     byMonth,
     currentPeriod: {
       month: currentMonth,

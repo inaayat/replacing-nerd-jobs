@@ -60,6 +60,8 @@ function sidebarStatsPlaceholder() {
       ${sidebarStat('Savings', 'savings', 'is-savings')}
       ${sidebarStat('Billed', 'billed', 'is-cost')}
       ${sidebarStat('Cost / movie', 'cost')}
+      ${sidebarStat('Avg ticket', 'avg-ticket')}
+      ${sidebarStat('Avg runtime', 'avg-runtime')}
     </div>
     <div class="al-sidebar-stats-block">
       <p class="al-sidebar-stats-heading" id="al-period-label">This period</p>
@@ -91,6 +93,8 @@ export async function populateSidebarStats(auth) {
       savings: { v: summary.totalSavings, kind: 'money' },
       billed: { v: summary.totalBilled, kind: 'money' },
       cost: { v: summary.costPerMovie, kind: 'money' },
+      'avg-ticket': { v: summary.avgTicket, kind: 'money' },
+      'avg-runtime': { v: summary.avgRuntimeMin, kind: 'runtime' },
       'period-movies': { v: period.movies, kind: 'count' },
       'period-net': { v: period.savings, kind: 'money' },
     };
@@ -107,6 +111,9 @@ export async function populateSidebarStats(auth) {
       if (!cfg) return;
       if (cfg.kind === 'money') {
         countUp(el, cfg.v / 100, { prefix: '$' });
+      } else if (cfg.kind === 'runtime') {
+        if (cfg.v > 0) countUp(el, cfg.v, { suffix: ' min' });
+        else el.textContent = '—';
       } else {
         countUp(el, cfg.v);
       }

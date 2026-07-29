@@ -54,7 +54,16 @@ assert.equal(summary.totalCharged, 1800 + 2200 + 2495 + 3000);
 assert.equal(summary.totalBilled, 99 + 2495 + 2799);
 assert.equal(summary.totalSeen, 4);
 assert.equal(summary.totalSavings, summary.totalCharged - summary.totalBilled);
+assert.equal(summary.avgTicket, summary.totalCharged / summary.totalSeen);
+assert.equal(summary.avgRuntimeMin, 0);
 assert.equal(summary.byMonth.length, 3);
+
+const runtimeWatches = [
+  { watched_on: '2025-01-10', ticket_cents: 1800, runtime_min: 120 },
+  { watched_on: '2025-01-20', ticket_cents: 2200, runtime_min: 150 },
+];
+const runtimeSummary = computeSummary(runtimeWatches, legacyMembership);
+assert.equal(runtimeSummary.avgRuntimeMin, 135);
 
 assert.equal(membershipPriceTiers(legacyMembership).length, 2);
 
