@@ -55,6 +55,23 @@ function requireDb(res) {
   return true;
 }
 
+function requireDbRead(res) {
+  if (!process.env.DATABASE_URL) {
+    res.status(503).json({ error: 'DATABASE_URL not configured.' });
+    return false;
+  }
+  return true;
+}
+
+async function optionalAuthUserId(req) {
+  try {
+    const auth = await getAuth(req);
+    return auth?.sub || null;
+  } catch {
+    return null;
+  }
+}
+
 async function requireUser(req, res) {
   const auth = await getAuth(req);
   if (!auth) {
@@ -457,13 +474,7 @@ async function handleLeaderboardCompare(req, res) {
     res.status(405).json({ error: 'Use GET.' });
     return;
   }
-  if (!requireDb(res)) return;
-
-  const auth = await getAuth(req);
-  if (!auth) {
-    res.status(401).json({ error: 'Not signed in.' });
-    return;
-  }
+  if (!requireDbRead(res)) return;
 
   const withUserId = String(req.query?.with || '').trim();
   if (!withUserId) {
@@ -471,10 +482,19 @@ async function handleLeaderboardCompare(req, res) {
     return;
   }
 
+  let youId = String(req.query?.you || '').trim();
+  if (!youId) {
+    youId = await optionalAuthUserId(req);
+  }
+  if (!youId) {
+    res.status(400).json({ error: 'you user id is required when not signed in.' });
+    return;
+  }
+
   try {
-    const userId = await upsertUser(auth);
-    const comparison = await compareUsers(userId, withUserId);
-    res.status(200).json(comparison);
+    const currentUserId = await optionalAuthUserId(req);
+    const comparison = await compareUsers(youId, withUserId);
+    res.status(200).json({ ...comparison, currentUserId });
   } catch (err) {
     const status = err.message === 'User not found.' ? 404 : 400;
     res.status(status).json({ error: err.message });
@@ -486,18 +506,12 @@ async function handleLeaderboard(req, res) {
     res.status(405).json({ error: 'Use GET.' });
     return;
   }
-  if (!requireDb(res)) return;
-
-  const auth = await getAuth(req);
-  if (!auth) {
-    res.status(401).json({ error: 'Not signed in.' });
-    return;
-  }
+  if (!requireDbRead(res)) return;
 
   try {
-    await upsertUser(auth);
     const entries = await getLeaderboard();
-    res.status(200).json({ entries, currentUserId: auth.sub });
+    const currentUserId = await optionalAuthUserId(req);
+    res.status(200).json({ entries, currentUserId });
   } catch (err) {
     res.status(502).json({ error: err.message });
   }
