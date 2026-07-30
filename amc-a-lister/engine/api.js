@@ -37,6 +37,10 @@ export const summaryApi = {
 
 export const leaderboardApi = {
   get: (token) => apiFetch('/api/alist-leaderboard', { token }),
+  profile: (userId, token) => {
+    const params = new URLSearchParams({ user: userId });
+    return apiFetch(`/api/alist-user-profile?${params}`, { token });
+  },
   compare: ({ token, youId, withUserId }) => {
     const params = new URLSearchParams({ with: withUserId });
     if (youId) params.set('you', youId);

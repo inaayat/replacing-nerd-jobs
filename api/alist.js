@@ -11,6 +11,7 @@ import {
   theaterWatches,
   getLeaderboard,
   compareUsers,
+  getUserPublicProfile,
 } from '../lib/a-list.js';
 import {
   computeSummary,
@@ -41,6 +42,8 @@ export default async function handler(req, res) {
       return handleLeaderboard(req, res);
     case 'leaderboard-compare':
       return handleLeaderboardCompare(req, res);
+    case 'user-profile':
+      return handleUserProfile(req, res);
     case 'watchlist':
       return handleWatchlist(req, res);
     default:
@@ -578,6 +581,32 @@ async function getCastMapForTmdbIds(tmdbIds) {
   }
 
   return castMap;
+}
+
+async function handleUserProfile(req, res) {
+  if (req.method !== 'GET') {
+    res.status(405).json({ error: 'Use GET.' });
+    return;
+  }
+  if (!requireDbRead(res)) return;
+
+  const userId = String(req.query?.user || '').trim();
+  if (!userId) {
+    res.status(400).json({ error: 'user id is required.' });
+    return;
+  }
+
+  try {
+    const profile = await getUserPublicProfile(userId);
+    if (!profile) {
+      res.status(404).json({ error: 'User not found.' });
+      return;
+    }
+    const currentUserId = await optionalAuthUserId(req);
+    res.status(200).json({ profile, currentUserId });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
 }
 
 async function handleLeaderboardCompare(req, res) {

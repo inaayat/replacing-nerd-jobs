@@ -44,7 +44,16 @@ bootPage(async ({ root, auth }) => {
   if (currentUserId && !pageState.compareYouId) {
     pageState.compareYouId = currentUserId;
   }
+  const compareParam = new URLSearchParams(location.search).get('compare')?.trim();
+  if (compareParam && entries.some((entry) => entry.userId === compareParam)) {
+    pageState.compareWithId = compareParam;
+    if (currentUserId) pageState.compareYouId = currentUserId;
+  }
   renderPage(main);
+  if (compareParam && (currentUserId || pageState.compareYouId)) {
+    await loadComparison(main);
+    document.getElementById('al-compare-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 }, { quickLogOnSuccess: (auth) => populateSidebarStats(auth) });
 
 function renderPage(main) {
@@ -72,7 +81,7 @@ function renderPage(main) {
               <th class="num al-leaderboard-rank">#</th>
               <th>Member</th>
               ${SORT_COLUMNS.map((c) => sortHeader(c)).join('')}
-              <th class="al-leaderboard-actions">Compare</th>
+              <th class="al-leaderboard-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -222,6 +231,10 @@ function renderPosterItem(movie, label) {
   `;
 }
 
+function memberProfileUrl(userId) {
+  return `/amc-a-lister/member.html?user=${encodeURIComponent(userId)}`;
+}
+
 function renderRow(entry, rank, currentUserId) {
   const isYou = entry.userId === currentUserId;
   const isSelected = entry.userId === pageState.compareWithId
@@ -230,7 +243,9 @@ function renderRow(entry, rank, currentUserId) {
     <tr class="${isYou ? 'is-you' : ''}${isSelected ? ' is-compare-target' : ''}">
       <td class="num al-leaderboard-rank">${rank}</td>
       <td class="al-leaderboard-name">
-        ${escapeHtml(entry.displayName)}${isYou ? ' <span class="al-you-badge">you</span>' : ''}
+        <a class="al-leaderboard-member-link" href="${memberProfileUrl(entry.userId)}">
+          ${escapeHtml(entry.displayName)}${isYou ? ' <span class="al-you-badge">you</span>' : ''}
+        </a>
       </td>
       <td class="num">${entry.totalSeen}</td>
       <td class="num ${savingsClass(entry.totalSavings)}">${formatSignedMoney(entry.totalSavings)}</td>
@@ -243,9 +258,12 @@ function renderRow(entry, rank, currentUserId) {
       <td class="num">${entry.periodMovies}</td>
       <td class="num ${savingsClass(entry.periodSavings)}">${formatSignedMoney(entry.periodSavings)}</td>
       <td class="al-leaderboard-actions">
-        ${isYou
-    ? '<span class="al-muted">—</span>'
+        <div class="al-leaderboard-row-actions">
+          <a class="al-btn al-compare-row-btn" href="${memberProfileUrl(entry.userId)}">View</a>
+          ${isYou
+    ? ''
     : `<button type="button" class="al-btn al-compare-row-btn" data-compare-with="${escapeHtml(entry.userId)}">Compare</button>`}
+        </div>
       </td>
     </tr>
   `;
