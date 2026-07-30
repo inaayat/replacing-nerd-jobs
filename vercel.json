@@ -16,6 +16,7 @@
     { "source": "/api/pc-publish", "destination": "/api/packing-cubes?route=publish" },
     { "source": "/api/pc-suitcases", "destination": "/api/packing-cubes?route=suitcases" },
     { "source": "/one-more-column", "destination": "https://one-more-column.vercel.app/one-more-column" },
+    { "source": "/one-more-column/", "destination": "https://one-more-column.vercel.app/one-more-column/" },
     { "source": "/one-more-column/:path*", "destination": "https://one-more-column.vercel.app/one-more-column/:path*" },
     { "source": "/api/omc-:route", "destination": "https://one-more-column.vercel.app/api/omc-:route" }
   ]
