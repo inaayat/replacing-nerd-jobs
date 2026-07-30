@@ -19,7 +19,7 @@ bootPage(async ({ root, auth }) => {
   ]);
   const { summary = {}, theaters = [], formats = [], rewatches = [], ratings = {}, actors = [] } = data;
   const byMonth = summary.byMonth || [];
-  const watchList = watches || [];
+  const watchList = (watches || []).filter((w) => w.in_theaters !== false);
   const moviesByMonth = groupMoviesByMonth(watchList);
   const moviesByRating = groupMoviesByRating(watchList);
   const moviesByTheater = groupMoviesByTheater(watchList);
