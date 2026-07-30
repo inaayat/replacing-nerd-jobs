@@ -2,6 +2,7 @@ import { bootPage, renderShell, requireSignIn, populateSidebarStats } from './na
 import { watchesApi, watchlistApi, movieApi } from './api.js';
 import { money, shortDate, ratingLabel, escapeHtml, posterHtml } from './format.js';
 import { renderWatchEditForm, wireWatchEditForm } from './watch-form.js';
+import { prefillQuickLog } from './quick-log.js';
 
 let reloadLog;
 
@@ -128,7 +129,10 @@ function watchlistGridHtml(items) {
       <div class="al-watchlist-card-body">
         <h3 class="al-watchlist-card-title">${escapeHtml(item.title)}${item.year ? ` <span class="al-muted">(${item.year})</span>` : ''}</h3>
         ${item.notes ? `<p class="al-watchlist-card-notes al-muted">${escapeHtml(item.notes)}</p>` : ''}
-        <button type="button" class="al-link-btn" data-remove-watchlist="${item.id}">Remove</button>
+        <div class="al-watchlist-card-actions">
+          <button type="button" class="al-link-btn" data-log-watchlist="${item.id}">Log screening</button>
+          <button type="button" class="al-link-btn" data-remove-watchlist="${item.id}">Remove</button>
+        </div>
       </div>
     </article>
   `).join('');
@@ -147,6 +151,13 @@ function wireWatchlist(auth, state) {
   const renderWatchlist = () => {
     gridEl.innerHTML = watchlistGridHtml(state.watchlist);
     countEl.textContent = String(state.watchlist.length);
+    gridEl.querySelectorAll('[data-log-watchlist]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const item = state.watchlist.find((w) => w.id === btn.dataset.logWatchlist);
+        if (!item) return;
+        prefillQuickLog({ title: item.title, tmdbId: item.tmdb_id, mode: 'theater' });
+      });
+    });
     gridEl.querySelectorAll('[data-remove-watchlist]').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const id = btn.dataset.removeWatchlist;

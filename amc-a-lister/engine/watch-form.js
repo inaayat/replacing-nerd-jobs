@@ -49,7 +49,7 @@ export function renderWatchEditForm(watch, prefix = 'edit') {
         <label for="${prefix}-rating">Rating (1–5)</label>
         <input class="al-input" id="${prefix}-rating" type="number" min="1" max="5" step="0.5" value="${watch.rating ?? ''}" ${watch.dnf ? 'disabled' : ''} />
       </div>
-      <div class="al-field" style="display:flex;align-items:end">
+      <div class="al-field" style="display:flex;align-items:end" data-theater-only>
         <label class="al-check"><input type="checkbox" id="${prefix}-dnf" ${watch.dnf ? 'checked' : ''} /> DNF</label>
       </div>
       <div class="al-field" style="display:flex;align-items:end" data-theater-only>
@@ -58,7 +58,7 @@ export function renderWatchEditForm(watch, prefix = 'edit') {
       <div class="al-field" style="display:flex;align-items:end">
         <label class="al-check"><input type="checkbox" id="${prefix}-in_theaters" ${watch.in_theaters !== false ? 'checked' : ''} /> In theaters</label>
       </div>
-      <div class="al-field span-2">
+      <div class="al-field span-2" data-theater-only>
         <label for="${prefix}-notes">Notes</label>
         <textarea class="al-textarea" id="${prefix}-notes" rows="2">${escapeHtml(watch.notes || '')}</textarea>
       </div>
@@ -90,6 +90,10 @@ export function wireWatchEditForm(auth, watch, prefix, { onSave, onCancel }) {
     form.querySelectorAll('[data-theater-only]').forEach((el) => {
       el.style.display = inTheaters ? '' : 'none';
     });
+    if (!inTheaters) {
+      dnfInput.checked = false;
+      ratingInput.disabled = false;
+    }
   };
 
   inTheatersInput.addEventListener('change', syncTheaterFields);
@@ -153,10 +157,10 @@ export function wireWatchEditForm(auth, watch, prefix, { onSave, onCancel }) {
       auditorium: inTheaters ? (document.getElementById(`${prefix}-auditorium`).value.trim() || null) : null,
       seat: inTheaters ? (document.getElementById(`${prefix}-seat`).value.trim() || null) : null,
       ticket_cents: inTheaters ? parseMoneyInput(document.getElementById(`${prefix}-ticket`).value) : null,
-      rating: dnfInput.checked ? null : (ratingInput.value ? Number(ratingInput.value) : null),
-      dnf: dnfInput.checked,
+      rating: inTheaters && dnfInput.checked ? null : (ratingInput.value ? Number(ratingInput.value) : null),
+      dnf: inTheaters ? dnfInput.checked : false,
       saw_alone: inTheaters ? document.getElementById(`${prefix}-saw_alone`).checked : false,
-      notes: document.getElementById(`${prefix}-notes`).value.trim() || null,
+      notes: inTheaters ? (document.getElementById(`${prefix}-notes`).value.trim() || null) : null,
       tmdb_id: tmdbInput.value ? Number(tmdbInput.value) : null,
       in_theaters: inTheaters,
     };

@@ -461,6 +461,12 @@ a { color: var(--al-burgundy); }
   font-size: 0.8rem;
 }
 
+.al-watchlist-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .al-badge {
   display: inline-block;
   margin-left: 6px;
