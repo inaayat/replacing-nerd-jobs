@@ -10,6 +10,7 @@
     { "source": "/api/alist-movie-details", "destination": "/api/alist?route=movie-details" },
     { "source": "/api/alist-leaderboard", "destination": "/api/alist?route=leaderboard" },
     { "source": "/api/alist-leaderboard-compare", "destination": "/api/alist?route=leaderboard-compare" },
+    { "source": "/api/alist-user-profile", "destination": "/api/alist?route=user-profile" },
     { "source": "/api/pc-cubes", "destination": "/api/packing-cubes?route=cubes" },
     { "source": "/api/pc-publish", "destination": "/api/packing-cubes?route=publish" },
     { "source": "/api/pc-suitcases", "destination": "/api/packing-cubes?route=suitcases" }
