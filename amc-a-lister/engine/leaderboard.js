@@ -1,4 +1,4 @@
-import { bootPage, renderShell, requireSignIn, populateSidebarStats } from './nav.js';
+import { bootPage, renderShell, populateSidebarStats } from './nav.js';
 import { leaderboardApi } from './api.js';
 import { money, escapeHtml, posterHtml } from './format.js';
 
@@ -20,26 +20,30 @@ let pageState = {
   auth: null,
   entries: [],
   currentUserId: null,
-  compareUserId: null,
+  compareYouId: null,
+  compareWithId: null,
   comparison: null,
   compareLoading: false,
   compareError: null,
 };
 
 bootPage(async ({ root, auth }) => {
-  if (!requireSignIn(auth, root)) return;
-
   pageState.auth = auth;
   root.innerHTML = renderShell({
     title: 'Leaderboard',
     subtitle: 'How every A-Lister stacks up.',
+    hideLogBar: !auth.signedIn,
     body: `<main class="al-main" id="leaderboard-main"><p class="al-muted">Loading…</p></main>`,
   });
 
   const main = document.getElementById('leaderboard-main');
-  const { entries = [], currentUserId } = await leaderboardApi.get(auth.token);
+  const token = auth.signedIn ? auth.token : undefined;
+  const { entries = [], currentUserId = null } = await leaderboardApi.get(token);
   pageState.entries = entries;
   pageState.currentUserId = currentUserId;
+  if (currentUserId && !pageState.compareYouId) {
+    pageState.compareYouId = currentUserId;
+  }
   renderPage(main);
 }, { quickLogOnSuccess: (auth) => populateSidebarStats(auth) });
 
@@ -48,7 +52,7 @@ function renderPage(main) {
   if (!entries.length) {
     main.innerHTML = `
       <section class="al-panel">
-        <div class="al-empty">No accounts yet — sign in to start the leaderboard.</div>
+        <div class="al-empty">No accounts yet.</div>
       </section>
     `;
     return;
@@ -56,7 +60,7 @@ function renderPage(main) {
 
   const sorted = sortEntries(entries, sortState.key, sortState.dir);
   const col = SORT_COLUMNS.find((c) => c.key === sortState.key);
-  const others = entries.filter((entry) => entry.userId !== currentUserId);
+  const signedIn = !!currentUserId;
 
   main.innerHTML = `
     <section class="al-panel al-leaderboard">
@@ -77,52 +81,72 @@ function renderPage(main) {
         </table>
       </div>
     </section>
-    ${renderComparePanel(others, currentUserId)}
+    ${renderComparePanel(entries, signedIn)}
   `;
 
   wireSort(main);
-  wireCompare(main, others);
+  wireCompare(main);
 }
 
-function renderComparePanel(others, currentUserId) {
-  if (!others.length) {
+function renderComparePanel(entries, signedIn) {
+  if (entries.length < 2) {
     return `
       <section class="al-panel al-compare-panel">
-        <h2>Compare your stats</h2>
-        <p class="al-muted">You need at least one other account to compare watch logs.</p>
+        <h2>Compare stats</h2>
+        <p class="al-muted">You need at least two accounts to compare watch logs.</p>
       </section>
     `;
   }
 
-  const selected = pageState.compareUserId || '';
-  const them = others.find((entry) => entry.userId === selected);
+  const youId = pageState.compareYouId || '';
+  const withId = pageState.compareWithId || '';
+  const youEntry = entries.find((entry) => entry.userId === youId);
+  const withEntry = entries.find((entry) => entry.userId === withId);
+  const canCompare = signedIn
+    ? !!withId && withId !== pageState.currentUserId
+    : !!youId && !!withId && youId !== withId;
 
   return `
     <section class="al-panel al-compare-panel" id="al-compare-panel">
-      <h2>Compare your stats</h2>
+      <h2>${signedIn ? 'Compare your stats' : 'Compare stats'}</h2>
       <p class="al-muted al-compare-lead">See shared movies, gaps, disagreements, and mutual favorites.</p>
       <form class="al-toolbar al-compare-toolbar" id="al-compare-form">
+        ${signedIn ? '' : `
+          <div class="al-field al-compare-field">
+            <label for="al-compare-you">Member</label>
+            <select class="al-input al-compare-select" id="al-compare-you" name="you">
+              <option value="">Choose a member…</option>
+              ${entries.map((entry) => `
+                <option value="${escapeHtml(entry.userId)}"${entry.userId === youId ? ' selected' : ''}>
+                  ${escapeHtml(entry.displayName)}
+                </option>
+              `).join('')}
+            </select>
+          </div>
+        `}
         <div class="al-field al-compare-field">
-          <label for="al-compare-select">Compare with</label>
-          <select class="al-input al-compare-select" id="al-compare-select" name="with">
+          <label for="al-compare-with">${signedIn ? 'Compare with' : 'Compare with'}</label>
+          <select class="al-input al-compare-select" id="al-compare-with" name="with">
             <option value="">Choose a member…</option>
-            ${others.map((entry) => `
-              <option value="${escapeHtml(entry.userId)}"${entry.userId === selected ? ' selected' : ''}>
+            ${entries
+    .filter((entry) => !signedIn || entry.userId !== pageState.currentUserId)
+    .map((entry) => `
+              <option value="${escapeHtml(entry.userId)}"${entry.userId === withId ? ' selected' : ''}>
                 ${escapeHtml(entry.displayName)}
               </option>
             `).join('')}
           </select>
         </div>
-        <button type="submit" class="al-btn al-btn-primary" ${selected ? '' : 'disabled'}>Compare</button>
+        <button type="submit" class="al-btn al-btn-primary" ${canCompare ? '' : 'disabled'}>Compare</button>
       </form>
-      ${renderCompareBody(them)}
+      ${renderCompareBody(youEntry, withEntry)}
     </section>
   `;
 }
 
-function renderCompareBody(them) {
-  if (!pageState.compareUserId) {
-    return '<p class="al-muted al-compare-status">Pick someone from the table or dropdown to compare watch logs.</p>';
+function renderCompareBody(youEntry, withEntry) {
+  if (!pageState.compareWithId || (!pageState.currentUserId && !pageState.compareYouId)) {
+    return '<p class="al-muted al-compare-status">Pick members from the table or dropdowns to compare watch logs.</p>';
   }
 
   if (pageState.compareLoading) {
@@ -135,37 +159,38 @@ function renderCompareBody(them) {
 
   const comparison = pageState.comparison;
   if (!comparison) {
-    return '<p class="al-muted al-compare-status">Pick someone to compare.</p>';
+    return '<p class="al-muted al-compare-status">Pick members to compare.</p>';
   }
 
-  const themName = them?.displayName || comparison.them.displayName;
+  const youName = youEntry?.displayName || comparison.you.displayName;
+  const themName = withEntry?.displayName || comparison.them.displayName;
 
   return `
     <p class="al-muted al-compare-status">
-      You vs ${escapeHtml(themName)} ·
+      ${escapeHtml(youName)} vs ${escapeHtml(themName)} ·
       ${comparison.bothSeen.length} shared ·
-      ${comparison.onlyYou.length} only you ·
-      ${comparison.onlyThem.length} only them
+      ${comparison.onlyYou.length} only ${escapeHtml(youName)} ·
+      ${comparison.onlyThem.length} only ${escapeHtml(themName)}
     </p>
     <div class="al-compare-results">
     ${renderCompareSection('Both seen', comparison.bothSeen, {
-      hint: 'Movies you have both logged at least once.',
-      labelFn: (movie) => compareRatingLabel(movie),
+      hint: 'Movies both members have logged at least once.',
+      labelFn: (movie) => compareRatingLabel(movie, youName, themName),
     })}
-    ${renderCompareSection(`Only you${themName ? ` (not ${escapeHtml(themName)})` : ''}`, comparison.onlyYou, {
-      hint: 'Movies in your log that they have not seen.',
+    ${renderCompareSection(`Only ${youName}`, comparison.onlyYou, {
+      hint: `Movies in ${youName}'s log that ${themName} has not seen.`,
       labelFn: (movie) => singleRatingLabel(movie.rating),
     })}
-    ${renderCompareSection(`Only ${escapeHtml(themName)} (not you)`, comparison.onlyThem, {
-      hint: 'Movies in their log that you have not seen.',
+    ${renderCompareSection(`Only ${themName}`, comparison.onlyThem, {
+      hint: `Movies in ${themName}'s log that ${youName} has not seen.`,
       labelFn: (movie) => singleRatingLabel(movie.rating),
     })}
     ${renderCompareSection('Disagreed (1★+ apart)', comparison.disagreed, {
-      hint: 'Shared movies where your ratings differ by at least one star.',
+      hint: 'Shared movies where ratings differ by at least one star.',
       labelFn: (movie) => `${formatRating(movie.yourRating)} vs ${formatRating(movie.theirRating)}`,
     })}
     ${renderCompareSection('Both loved (4★+)', comparison.bothLoved, {
-      hint: 'Shared movies you both rated 4 stars or higher.',
+      hint: 'Shared movies both rated 4 stars or higher.',
       labelFn: (movie) => `${formatRating(movie.yourRating)} · ${formatRating(movie.theirRating)}`,
     })}
     </div>
@@ -199,7 +224,8 @@ function renderPosterItem(movie, label) {
 
 function renderRow(entry, rank, currentUserId) {
   const isYou = entry.userId === currentUserId;
-  const isSelected = entry.userId === pageState.compareUserId;
+  const isSelected = entry.userId === pageState.compareWithId
+    || (!currentUserId && entry.userId === pageState.compareYouId);
   return `
     <tr class="${isYou ? 'is-you' : ''}${isSelected ? ' is-compare-target' : ''}">
       <td class="num al-leaderboard-rank">${rank}</td>
@@ -239,45 +265,69 @@ function wireSort(main) {
   });
 }
 
-function wireCompare(main, others) {
+function wireCompare(main) {
   const form = main.querySelector('#al-compare-form');
-  const select = main.querySelector('#al-compare-select');
+  const youSelect = main.querySelector('#al-compare-you');
+  const withSelect = main.querySelector('#al-compare-with');
+  const submit = form?.querySelector('button[type="submit"]');
 
-  select?.addEventListener('change', () => {
-    const submit = form?.querySelector('button[type="submit"]');
-    if (submit) submit.disabled = !select.value;
-  });
+  const syncSubmit = () => {
+    if (!submit) return;
+    const signedIn = !!pageState.currentUserId;
+    const youId = signedIn ? pageState.currentUserId : youSelect?.value;
+    const withId = withSelect?.value;
+    submit.disabled = !youId || !withId || youId === withId;
+  };
+
+  youSelect?.addEventListener('change', syncSubmit);
+  withSelect?.addEventListener('change', syncSubmit);
 
   form?.addEventListener('submit', async (event) => {
     event.preventDefault();
-    const userId = select?.value;
-    if (!userId) return;
-    await loadComparison(main, userId);
+    const signedIn = !!pageState.currentUserId;
+    const youId = signedIn ? pageState.currentUserId : youSelect?.value;
+    const withId = withSelect?.value;
+    if (!youId || !withId || youId === withId) return;
+    pageState.compareYouId = youId;
+    pageState.compareWithId = withId;
+    await loadComparison(main);
   });
 
   main.querySelectorAll('[data-compare-with]').forEach((button) => {
     button.addEventListener('click', async () => {
-      const userId = button.dataset.compareWith;
-      if (!userId) return;
-      pageState.compareUserId = userId;
+      const withId = button.dataset.compareWith;
+      if (!withId) return;
+      pageState.compareWithId = withId;
+      if (pageState.currentUserId) {
+        pageState.compareYouId = pageState.currentUserId;
+      }
       renderPage(main);
-      const nextSelect = main.querySelector('#al-compare-select');
-      if (nextSelect) nextSelect.value = userId;
-      await loadComparison(main, userId);
+      const nextWith = main.querySelector('#al-compare-with');
+      if (nextWith) nextWith.value = withId;
+      if (!pageState.currentUserId) {
+        syncSubmit();
+        document.getElementById('al-compare-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+      await loadComparison(main);
       document.getElementById('al-compare-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   });
 }
 
-async function loadComparison(main, userId) {
-  pageState.compareUserId = userId;
+async function loadComparison(main) {
   pageState.compareLoading = true;
   pageState.compareError = null;
   pageState.comparison = null;
   renderPage(main);
 
   try {
-    pageState.comparison = await leaderboardApi.compare(pageState.auth.token, userId);
+    const token = pageState.auth?.signedIn ? pageState.auth.token : undefined;
+    pageState.comparison = await leaderboardApi.compare({
+      token,
+      youId: pageState.compareYouId,
+      withUserId: pageState.compareWithId,
+    });
     pageState.compareError = null;
   } catch (err) {
     pageState.comparison = null;
@@ -308,11 +358,11 @@ function sortHeader(column) {
   `;
 }
 
-function compareRatingLabel(movie) {
+function compareRatingLabel(movie, youName, themName) {
   const yours = formatRating(movie.yourRating);
   const theirs = formatRating(movie.theirRating);
   if (yours === '—' && theirs === '—') return 'No ratings';
-  return `You ${yours} · Them ${theirs}`;
+  return `${youName} ${yours} · ${themName} ${theirs}`;
 }
 
 function singleRatingLabel(rating) {
