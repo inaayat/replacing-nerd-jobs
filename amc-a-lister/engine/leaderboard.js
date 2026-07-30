@@ -3,16 +3,23 @@ import { leaderboardApi } from './api.js';
 import { money, escapeHtml, posterHtml } from './format.js';
 
 const SORT_COLUMNS = [
-  { key: 'totalSeen', label: 'Seen', kind: 'count' },
+  { key: 'totalSeen', label: 'Movies seen', kind: 'count' },
   { key: 'totalSavings', label: 'Savings', kind: 'money', signed: true },
-  { key: 'totalCharged', label: 'Charged', kind: 'money' },
+  { key: 'totalCharged', label: 'Ticket value', kind: 'money' },
   { key: 'totalBilled', label: 'Billed', kind: 'money' },
-  { key: 'costPerMovie', label: 'Cost / movie', kind: 'money' },
+  { key: 'costPerMovie', label: 'Cost per movie', kind: 'money' },
   { key: 'avgTicket', label: 'Avg ticket', kind: 'money' },
   { key: 'avgRuntimeMin', label: 'Avg runtime', kind: 'runtime' },
   { key: 'avgRating', label: 'Avg rating', kind: 'rating' },
   { key: 'periodMovies', label: 'This month', kind: 'count' },
   { key: 'periodSavings', label: 'Month net', kind: 'money', signed: true },
+];
+
+const CARD_STATS = [
+  { key: 'totalSeen', label: 'Seen', kind: 'count' },
+  { key: 'totalSavings', label: 'Savings', kind: 'money', signed: true },
+  { key: 'avgRating', label: 'Avg rating', kind: 'rating' },
+  { key: 'periodMovies', label: 'This month', kind: 'count' },
 ];
 
 let sortState = { key: 'totalSeen', dir: 'desc' };
@@ -31,7 +38,7 @@ bootPage(async ({ root, auth }) => {
   pageState.auth = auth;
   root.innerHTML = renderShell({
     title: 'Leaderboard',
-    subtitle: 'How every A-Lister stacks up.',
+    subtitle: 'Every A-Lister profile, stats, and watch logs.',
     hideLogBar: !auth.signedIn,
     body: `<main class="al-main" id="leaderboard-main"><p class="al-muted">Loading…</p></main>`,
   });
@@ -72,29 +79,63 @@ function renderPage(main) {
   const signedIn = !!currentUserId;
 
   main.innerHTML = `
-    <section class="al-panel al-leaderboard">
-      <p class="al-muted">Stats for everyone with an account. Sorted by ${escapeHtml(col?.label || 'Seen')}.</p>
-      <div class="al-table-wrap">
-        <table class="al-table al-leaderboard-table">
-          <thead>
-            <tr>
-              <th class="num al-leaderboard-rank">#</th>
-              <th>Member</th>
-              ${SORT_COLUMNS.map((c) => sortHeader(c)).join('')}
-              <th class="al-leaderboard-actions">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${sorted.map((entry, index) => renderRow(entry, index + 1, currentUserId)).join('')}
-          </tbody>
-        </table>
+    <section class="al-panel al-profiles-panel">
+      <div class="al-profile-toolbar">
+        <div>
+          <h2>User profiles</h2>
+          <p class="al-muted">Sorted by ${escapeHtml(col?.label || 'Movies seen')}.</p>
+        </div>
+        <div class="al-field al-profile-sort-field">
+          <label for="profile-sort">Sort by</label>
+          <select class="al-input al-profile-sort" id="profile-sort">
+            ${SORT_COLUMNS.map((column) => `
+              <option value="${column.key}"${sortState.key === column.key ? ' selected' : ''}>
+                ${escapeHtml(column.label)}
+              </option>
+            `).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="al-profile-grid">
+        ${sorted.map((entry, index) => renderProfileCard(entry, index + 1, currentUserId)).join('')}
       </div>
     </section>
     ${renderComparePanel(entries, signedIn)}
   `;
 
-  wireSort(main);
+  wireProfileControls(main);
   wireCompare(main);
+}
+
+function memberProfileUrl(userId) {
+  return `/amc-a-lister/member.html?user=${encodeURIComponent(userId)}`;
+}
+
+function renderProfileCard(entry, rank, currentUserId) {
+  const isYou = entry.userId === currentUserId;
+
+  return `
+    <article class="al-profile-card${isYou ? ' is-you' : ''}">
+      <div class="al-profile-card-head">
+        <span class="al-profile-rank">#${rank}</span>
+        <h3 class="al-profile-name">
+          <a href="${memberProfileUrl(entry.userId)}">${escapeHtml(entry.displayName)}</a>
+        </h3>
+        ${isYou ? '<span class="al-you-badge">you</span>' : ''}
+      </div>
+      <dl class="al-profile-stats">
+        ${CARD_STATS.map((stat) => `
+          <div class="al-profile-stat">
+            <dt>${stat.label}</dt>
+            <dd class="${stat.kind === 'money' && stat.signed ? savingsClass(entry[stat.key]) : ''}">
+              ${formatStat(entry, stat)}
+            </dd>
+          </div>
+        `).join('')}
+      </dl>
+      <a class="al-profile-view" href="${memberProfileUrl(entry.userId)}">View log →</a>
+    </article>
+  `;
 }
 
 function renderComparePanel(entries, signedIn) {
@@ -134,7 +175,7 @@ function renderComparePanel(entries, signedIn) {
           </div>
         `}
         <div class="al-field al-compare-field">
-          <label for="al-compare-with">${signedIn ? 'Compare with' : 'Compare with'}</label>
+          <label for="al-compare-with">Compare with</label>
           <select class="al-input al-compare-select" id="al-compare-with" name="with">
             <option value="">Choose a member…</option>
             ${entries
@@ -155,7 +196,7 @@ function renderComparePanel(entries, signedIn) {
 
 function renderCompareBody(youEntry, withEntry) {
   if (!pageState.compareWithId || (!pageState.currentUserId && !pageState.compareYouId)) {
-    return '<p class="al-muted al-compare-status">Pick members from the table or dropdowns to compare watch logs.</p>';
+    return '<p class="al-muted al-compare-status">Pick two members above to compare watch logs.</p>';
   }
 
   if (pageState.compareLoading) {
@@ -231,55 +272,10 @@ function renderPosterItem(movie, label) {
   `;
 }
 
-function memberProfileUrl(userId) {
-  return `/amc-a-lister/member.html?user=${encodeURIComponent(userId)}`;
-}
-
-function renderRow(entry, rank, currentUserId) {
-  const isYou = entry.userId === currentUserId;
-  const isSelected = entry.userId === pageState.compareWithId
-    || (!currentUserId && entry.userId === pageState.compareYouId);
-  return `
-    <tr class="${isYou ? 'is-you' : ''}${isSelected ? ' is-compare-target' : ''}">
-      <td class="num al-leaderboard-rank">${rank}</td>
-      <td class="al-leaderboard-name">
-        <a class="al-leaderboard-member-link" href="${memberProfileUrl(entry.userId)}">
-          ${escapeHtml(entry.displayName)}${isYou ? ' <span class="al-you-badge">you</span>' : ''}
-        </a>
-      </td>
-      <td class="num">${entry.totalSeen}</td>
-      <td class="num ${savingsClass(entry.totalSavings)}">${formatSignedMoney(entry.totalSavings)}</td>
-      <td class="num">${money(entry.totalCharged)}</td>
-      <td class="num">${money(entry.totalBilled)}</td>
-      <td class="num">${money(entry.costPerMovie)}</td>
-      <td class="num">${money(entry.avgTicket)}</td>
-      <td class="num">${entry.avgRuntimeMin > 0 ? `${entry.avgRuntimeMin} min` : '—'}</td>
-      <td class="num">${entry.avgRating != null ? `${entry.avgRating}★` : '—'}</td>
-      <td class="num">${entry.periodMovies}</td>
-      <td class="num ${savingsClass(entry.periodSavings)}">${formatSignedMoney(entry.periodSavings)}</td>
-      <td class="al-leaderboard-actions">
-        <div class="al-leaderboard-row-actions">
-          <a class="al-btn al-compare-row-btn" href="${memberProfileUrl(entry.userId)}">View</a>
-          ${isYou
-    ? ''
-    : `<button type="button" class="al-btn al-compare-row-btn" data-compare-with="${escapeHtml(entry.userId)}">Compare</button>`}
-        </div>
-      </td>
-    </tr>
-  `;
-}
-
-function wireSort(main) {
-  main.querySelectorAll('[data-sort]').forEach((th) => {
-    th.querySelector('.al-sort-btn')?.addEventListener('click', () => {
-      const key = th.dataset.sort;
-      if (sortState.key === key) {
-        sortState = { key, dir: sortState.dir === 'desc' ? 'asc' : 'desc' };
-      } else {
-        sortState = { key, dir: 'desc' };
-      }
-      renderPage(main);
-    });
+function wireProfileControls(main) {
+  main.querySelector('#profile-sort')?.addEventListener('change', (event) => {
+    sortState = { key: event.target.value, dir: 'desc' };
+    renderPage(main);
   });
 }
 
@@ -309,27 +305,6 @@ function wireCompare(main) {
     pageState.compareYouId = youId;
     pageState.compareWithId = withId;
     await loadComparison(main);
-  });
-
-  main.querySelectorAll('[data-compare-with]').forEach((button) => {
-    button.addEventListener('click', async () => {
-      const withId = button.dataset.compareWith;
-      if (!withId) return;
-      pageState.compareWithId = withId;
-      if (pageState.currentUserId) {
-        pageState.compareYouId = pageState.currentUserId;
-      }
-      renderPage(main);
-      const nextWith = main.querySelector('#al-compare-with');
-      if (nextWith) nextWith.value = withId;
-      if (!pageState.currentUserId) {
-        syncSubmit();
-        document.getElementById('al-compare-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        return;
-      }
-      await loadComparison(main);
-      document.getElementById('al-compare-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
   });
 }
 
@@ -366,14 +341,18 @@ function sortEntries(entries, key, dir) {
   });
 }
 
-function sortHeader(column) {
-  const active = sortState.key === column.key;
-  const arrow = active ? (sortState.dir === 'desc' ? ' ↓' : ' ↑') : '';
-  return `
-    <th class="num al-sortable${active ? ' is-active' : ''}" data-sort="${column.key}" scope="col">
-      <button type="button" class="al-sort-btn">${escapeHtml(column.label)}${arrow}</button>
-    </th>
-  `;
+function formatStat(entry, stat) {
+  const value = entry[stat.key];
+  if (stat.kind === 'money') {
+    return stat.signed ? formatSignedMoney(value) : money(value);
+  }
+  if (stat.kind === 'rating') {
+    return value != null ? `${value}★` : '—';
+  }
+  if (stat.key === 'avgRuntimeMin') {
+    return value > 0 ? `${value} min` : '—';
+  }
+  return value ?? 0;
 }
 
 function compareRatingLabel(movie, youName, themName) {
