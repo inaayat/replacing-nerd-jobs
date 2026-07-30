@@ -17,6 +17,13 @@ export async function apiFetch(path, { method = 'GET', body, token } = {}) {
   return data;
 }
 
+export const watchlistApi = {
+  list: (token) => apiFetch('/api/alist-watchlist', { token }),
+  create: (token, item) => apiFetch('/api/alist-watchlist', { method: 'POST', body: item, token }),
+  update: (token, item) => apiFetch('/api/alist-watchlist', { method: 'PATCH', body: item, token }),
+  remove: (token, id) => apiFetch('/api/alist-watchlist', { method: 'DELETE', body: { id }, token }),
+};
+
 export const watchesApi = {
   list: (token) => apiFetch('/api/alist-watches', { token }),
   create: (token, watch) => apiFetch('/api/alist-watches', { method: 'POST', body: watch, token }),

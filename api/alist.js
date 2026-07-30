@@ -4,8 +4,11 @@ import { db, ensureSchema } from '../lib/db.js';
 import {
   upsertUser,
   listWatches,
+  listWatchlist,
   getMembership,
   watchFromRow,
+  watchlistFromRow,
+  theaterWatches,
   getLeaderboard,
   compareUsers,
   getUserPublicProfile,
@@ -41,6 +44,8 @@ export default async function handler(req, res) {
       return handleLeaderboardCompare(req, res);
     case 'user-profile':
       return handleUserProfile(req, res);
+    case 'watchlist':
+      return handleWatchlist(req, res);
     default:
       res.status(404).json({ error: 'Unknown A-List route.' });
   }
@@ -92,6 +97,7 @@ async function requireUser(req, res) {
 
 function normalizeBody(body) {
   const rating = body.dnf ? null : (body.rating != null ? Number(body.rating) : null);
+  const inTheaters = body.in_theaters !== false;
   return {
     watched_on: body.watched_on,
     title: String(body.title || '').trim(),
@@ -101,10 +107,11 @@ function normalizeBody(body) {
     saw_alone: !!body.saw_alone,
     auditorium: body.auditorium ? String(body.auditorium).trim() : null,
     seat: body.seat ? String(body.seat).trim() : null,
-    ticket_cents: body.ticket_cents != null ? Number(body.ticket_cents) : null,
+    ticket_cents: inTheaters && body.ticket_cents != null ? Number(body.ticket_cents) : null,
     rating,
     dnf: !!body.dnf,
     notes: body.notes ? String(body.notes).trim() : null,
+    in_theaters: inTheaters,
   };
 }
 
@@ -354,15 +361,16 @@ async function handleWatches(req, res) {
       const rows = await db()`
         INSERT INTO alist_watches (
           id, user_id, watched_on, title, tmdb_id, location, format,
-          saw_alone, auditorium, seat, ticket_cents, rating, dnf, notes
+          saw_alone, auditorium, seat, ticket_cents, rating, dnf, notes, in_theaters
         ) VALUES (
           ${id}, ${userId}, ${data.watched_on}, ${data.title}, ${data.tmdb_id},
           ${data.location}, ${data.format}, ${data.saw_alone}, ${data.auditorium},
-          ${data.seat}, ${data.ticket_cents}, ${data.rating}, ${data.dnf}, ${data.notes}
+          ${data.seat}, ${data.ticket_cents}, ${data.rating}, ${data.dnf}, ${data.notes},
+          ${data.in_theaters}
         )
         RETURNING id, watched_on::text AS watched_on, title, tmdb_id, location, format,
                   saw_alone, auditorium, seat, ticket_cents, rating::float AS rating,
-                  dnf, notes, created_at, updated_at
+                  dnf, notes, in_theaters, created_at, updated_at
       `;
       await getMembership(userId);
       res.status(201).json({ watch: watchFromRow(rows[0]) });
@@ -398,11 +406,12 @@ async function handleWatches(req, res) {
           rating = ${data.rating},
           dnf = ${data.dnf},
           notes = ${data.notes},
+          in_theaters = ${data.in_theaters},
           updated_at = now()
         WHERE id = ${id} AND user_id = ${userId}
         RETURNING id, watched_on::text AS watched_on, title, tmdb_id, location, format,
                   saw_alone, auditorium, seat, ticket_cents, rating::float AS rating,
-                  dnf, notes, created_at, updated_at
+                  dnf, notes, in_theaters, created_at, updated_at
       `;
       if (!rows.length) {
         res.status(404).json({ error: 'Watch not found.' });
@@ -429,6 +438,108 @@ async function handleWatches(req, res) {
       `;
       if (!rows.length) {
         res.status(404).json({ error: 'Watch not found.' });
+        return;
+      }
+      res.status(200).json({ ok: true });
+    } catch (err) {
+      res.status(502).json({ error: err.message });
+    }
+    return;
+  }
+
+  res.status(405).json({ error: 'Method not allowed.' });
+}
+
+async function handleWatchlist(req, res) {
+  if (!requireDb(res)) return;
+  const session = await requireUser(req, res);
+  if (!session) return;
+  const { userId } = session;
+
+  if (req.method === 'GET') {
+    try {
+      const rows = await listWatchlist(userId);
+      res.status(200).json({ items: rows.map(watchlistFromRow) });
+    } catch (err) {
+      res.status(502).json({ error: err.message });
+    }
+    return;
+  }
+
+  if (req.method === 'POST') {
+    const title = String(req.body?.title || '').trim();
+    if (!title) {
+      res.status(400).json({ error: 'title is required.' });
+      return;
+    }
+    const tmdbId = req.body?.tmdb_id != null ? Number(req.body.tmdb_id) : null;
+    const notes = req.body?.notes ? String(req.body.notes).trim() : null;
+    const id = randomUUID();
+
+    try {
+      const rows = await db()`
+        INSERT INTO alist_watchlist (id, user_id, title, tmdb_id, notes)
+        VALUES (${id}, ${userId}, ${title}, ${tmdbId}, ${notes})
+        RETURNING id, title, tmdb_id, notes, created_at, updated_at
+      `;
+      res.status(201).json({ item: watchlistFromRow(rows[0]) });
+    } catch (err) {
+      res.status(502).json({ error: err.message });
+    }
+    return;
+  }
+
+  if (req.method === 'PATCH') {
+    const id = req.body?.id;
+    if (!id) {
+      res.status(400).json({ error: 'id is required.' });
+      return;
+    }
+    const title = req.body?.title != null ? String(req.body.title).trim() : undefined;
+    const tmdbId = req.body?.tmdb_id != null ? Number(req.body.tmdb_id) : undefined;
+    const notes = req.body?.notes != null ? String(req.body.notes).trim() || null : undefined;
+
+    try {
+      const existing = await db()`
+        SELECT id, title, tmdb_id, notes
+        FROM alist_watchlist
+        WHERE id = ${id} AND user_id = ${userId}
+      `;
+      if (!existing.length) {
+        res.status(404).json({ error: 'Watchlist item not found.' });
+        return;
+      }
+      const row = existing[0];
+      const rows = await db()`
+        UPDATE alist_watchlist SET
+          title = ${title ?? row.title},
+          tmdb_id = ${tmdbId !== undefined ? tmdbId : row.tmdb_id},
+          notes = ${notes !== undefined ? notes : row.notes},
+          updated_at = now()
+        WHERE id = ${id} AND user_id = ${userId}
+        RETURNING id, title, tmdb_id, notes, created_at, updated_at
+      `;
+      res.status(200).json({ item: watchlistFromRow(rows[0]) });
+    } catch (err) {
+      res.status(502).json({ error: err.message });
+    }
+    return;
+  }
+
+  if (req.method === 'DELETE') {
+    const id = req.body?.id || req.query?.id;
+    if (!id) {
+      res.status(400).json({ error: 'id is required.' });
+      return;
+    }
+    try {
+      const rows = await db()`
+        DELETE FROM alist_watchlist
+        WHERE id = ${id} AND user_id = ${userId}
+        RETURNING id
+      `;
+      if (!rows.length) {
+        res.status(404).json({ error: 'Watchlist item not found.' });
         return;
       }
       res.status(200).json({ ok: true });
@@ -565,7 +676,7 @@ async function handleSummary(req, res) {
       listWatches(userId),
       getMembership(userId),
     ]);
-    const normalized = watches.map((w) => ({
+    const normalized = theaterWatches(watches).map((w) => ({
       watched_on: w.watched_on,
       title: w.title,
       tmdb_id: w.tmdb_id,

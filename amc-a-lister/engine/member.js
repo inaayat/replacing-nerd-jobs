@@ -195,13 +195,16 @@ function viewRowHtml(w) {
         <div class="al-log-col al-col-poster">${posterHtml(w)}</div>
         <div class="al-log-col al-log-col--desktop">${shortDate(w.watched_on)}</div>
         <div class="al-log-col--body">
-          <div class="al-log-col al-log-col--title">${escapeHtml(w.title)}</div>
+          <div class="al-log-col al-log-col--title">
+            ${escapeHtml(w.title)}
+            ${w.in_theaters === false ? '<span class="al-badge al-badge--muted">Off-theater</span>' : ''}
+          </div>
           <div class="al-log-col al-log-col--mobile-meta al-only-mobile">${mobileLogMeta(w)}</div>
         </div>
-        <div class="al-log-col al-log-col--desktop al-muted">${escapeHtml(w.location || '—')}</div>
-        <div class="al-log-col al-log-col--desktop">${w.format ? escapeHtml(w.format) : '—'}</div>
-        <div class="al-log-col al-log-col--desktop al-muted">${escapeHtml([w.auditorium, w.seat].filter(Boolean).join(' · ') || '—')}</div>
-        <div class="al-log-col al-log-col--desktop al-log-col--num">${money(w.ticket_cents)}</div>
+        <div class="al-log-col al-log-col--desktop al-muted">${escapeHtml(w.in_theaters === false ? 'Not in theaters' : (w.location || '—'))}</div>
+        <div class="al-log-col al-log-col--desktop">${w.in_theaters === false ? '—' : (w.format ? escapeHtml(w.format) : '—')}</div>
+        <div class="al-log-col al-log-col--desktop al-muted">${w.in_theaters === false ? '—' : escapeHtml([w.auditorium, w.seat].filter(Boolean).join(' · ') || '—')}</div>
+        <div class="al-log-col al-log-col--desktop al-log-col--num">${w.in_theaters === false ? '—' : money(w.ticket_cents)}</div>
         <div class="al-log-col al-log-col--desktop">${ratingLabel(w)}</div>
       </article>
     </div>
