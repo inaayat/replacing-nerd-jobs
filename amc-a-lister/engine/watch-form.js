@@ -22,9 +22,9 @@ export function renderWatchEditForm(watch, prefix = 'edit') {
       </div>
       <div class="al-field">
         <label for="${prefix}-ticket">Ticket value ($)</label>
-        <input class="al-input" id="${prefix}-ticket" inputmode="decimal" value="${ticketVal}" />
+        <input class="al-input" id="${prefix}-ticket" inputmode="decimal" value="${ticketVal}" data-theater-only />
       </div>
-      <div class="al-field">
+      <div class="al-field" data-theater-only>
         <label for="${prefix}-location">Theater</label>
         <input class="al-input" id="${prefix}-location" list="${prefix}-theater-list" value="${escapeHtml(watch.location || '')}" />
         <datalist id="${prefix}-theater-list">
@@ -33,15 +33,15 @@ export function renderWatchEditForm(watch, prefix = 'edit') {
           <option value="N/A - India"></option>
         </datalist>
       </div>
-      <div class="al-field">
+      <div class="al-field" data-theater-only>
         <label for="${prefix}-format">Format</label>
         <select class="al-select" id="${prefix}-format">${formatOptions}</select>
       </div>
-      <div class="al-field">
+      <div class="al-field" data-theater-only>
         <label for="${prefix}-auditorium">Auditorium</label>
         <input class="al-input" id="${prefix}-auditorium" value="${escapeHtml(watch.auditorium || '')}" />
       </div>
-      <div class="al-field">
+      <div class="al-field" data-theater-only>
         <label for="${prefix}-seat">Seat</label>
         <input class="al-input" id="${prefix}-seat" value="${escapeHtml(watch.seat || '')}" />
       </div>
@@ -52,8 +52,11 @@ export function renderWatchEditForm(watch, prefix = 'edit') {
       <div class="al-field" style="display:flex;align-items:end">
         <label class="al-check"><input type="checkbox" id="${prefix}-dnf" ${watch.dnf ? 'checked' : ''} /> DNF</label>
       </div>
-      <div class="al-field" style="display:flex;align-items:end">
+      <div class="al-field" style="display:flex;align-items:end" data-theater-only>
         <label class="al-check"><input type="checkbox" id="${prefix}-saw_alone" ${watch.saw_alone ? 'checked' : ''} /> Saw alone</label>
+      </div>
+      <div class="al-field" style="display:flex;align-items:end">
+        <label class="al-check"><input type="checkbox" id="${prefix}-in_theaters" ${watch.in_theaters !== false ? 'checked' : ''} /> In theaters</label>
       </div>
       <div class="al-field span-2">
         <label for="${prefix}-notes">Notes</label>
@@ -78,8 +81,19 @@ export function wireWatchEditForm(auth, watch, prefix, { onSave, onCancel }) {
   const tmdbInput = document.getElementById(`${prefix}-tmdb_id`);
   const dnfInput = document.getElementById(`${prefix}-dnf`);
   const ratingInput = document.getElementById(`${prefix}-rating`);
+  const inTheatersInput = document.getElementById(`${prefix}-in_theaters`);
   const statusEl = document.getElementById(`${prefix}-status`);
   let searchTimer = null;
+
+  const syncTheaterFields = () => {
+    const inTheaters = inTheatersInput.checked;
+    form.querySelectorAll('[data-theater-only]').forEach((el) => {
+      el.style.display = inTheaters ? '' : 'none';
+    });
+  };
+
+  inTheatersInput.addEventListener('change', syncTheaterFields);
+  syncTheaterFields();
 
   dnfInput.addEventListener('change', () => {
     ratingInput.disabled = dnfInput.checked;
@@ -130,19 +144,21 @@ export function wireWatchEditForm(auth, watch, prefix, { onSave, onCancel }) {
     e.preventDefault();
     statusEl.textContent = 'Saving…';
 
+    const inTheaters = inTheatersInput.checked;
     const payload = {
       watched_on: document.getElementById(`${prefix}-watched_on`).value,
       title: titleInput.value.trim(),
-      location: document.getElementById(`${prefix}-location`).value.trim() || null,
-      format: document.getElementById(`${prefix}-format`).value,
-      auditorium: document.getElementById(`${prefix}-auditorium`).value.trim() || null,
-      seat: document.getElementById(`${prefix}-seat`).value.trim() || null,
-      ticket_cents: parseMoneyInput(document.getElementById(`${prefix}-ticket`).value),
+      location: inTheaters ? (document.getElementById(`${prefix}-location`).value.trim() || null) : 'Not in theaters',
+      format: inTheaters ? document.getElementById(`${prefix}-format`).value : '',
+      auditorium: inTheaters ? (document.getElementById(`${prefix}-auditorium`).value.trim() || null) : null,
+      seat: inTheaters ? (document.getElementById(`${prefix}-seat`).value.trim() || null) : null,
+      ticket_cents: inTheaters ? parseMoneyInput(document.getElementById(`${prefix}-ticket`).value) : null,
       rating: dnfInput.checked ? null : (ratingInput.value ? Number(ratingInput.value) : null),
       dnf: dnfInput.checked,
-      saw_alone: document.getElementById(`${prefix}-saw_alone`).checked,
+      saw_alone: inTheaters ? document.getElementById(`${prefix}-saw_alone`).checked : false,
       notes: document.getElementById(`${prefix}-notes`).value.trim() || null,
       tmdb_id: tmdbInput.value ? Number(tmdbInput.value) : null,
+      in_theaters: inTheaters,
     };
 
     if (!payload.tmdb_id && payload.title) {

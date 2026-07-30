@@ -9,6 +9,10 @@ export function renderQuickLogBar() {
 
   return `
     <header class="al-quicklog" id="al-quicklog">
+      <div class="al-quicklog-mode" role="tablist" aria-label="Log type">
+        <button type="button" class="al-quicklog-mode-btn is-active" data-log-mode="theater" role="tab" aria-selected="true">In theaters</button>
+        <button type="button" class="al-quicklog-mode-btn" data-log-mode="off-theater" role="tab" aria-selected="false">Not in theaters</button>
+      </div>
       <form class="al-quicklog-form" id="quick-log-form" autocomplete="off">
         <div class="al-quicklog-primary">
           <div class="al-quicklog-field al-quicklog-field--date">
@@ -20,7 +24,7 @@ export function renderQuickLogBar() {
             <input class="al-quicklog-input" id="ql-title" name="title" type="text" placeholder="Title" required />
             <div class="al-search-results" id="ql-title-results" hidden></div>
           </div>
-          <div class="al-quicklog-field al-quicklog-field--location">
+          <div class="al-quicklog-field al-quicklog-field--location" data-theater-only>
             <label for="ql-location">Theater</label>
             <input class="al-quicklog-input" id="ql-location" name="location" list="ql-theater-list" placeholder="AMC Lincoln Square 13" />
             <datalist id="ql-theater-list">
@@ -29,7 +33,7 @@ export function renderQuickLogBar() {
               <option value="N/A - India"></option>
             </datalist>
           </div>
-          <div class="al-quicklog-field al-quicklog-field--ticket">
+          <div class="al-quicklog-field al-quicklog-field--ticket" data-theater-only>
             <label for="ql-ticket">Price</label>
             <input class="al-quicklog-input" id="ql-ticket" name="ticket" type="text" inputmode="decimal" placeholder="24.95" />
           </div>
@@ -41,15 +45,15 @@ export function renderQuickLogBar() {
         <div class="al-quicklog-expand" id="ql-expand" aria-hidden="true">
           <div class="al-quicklog-expand-inner">
             <div class="al-quicklog-extra">
-              <div class="al-quicklog-field">
+              <div class="al-quicklog-field" data-theater-only>
                 <label for="ql-format">Format</label>
                 <select class="al-quicklog-input" id="ql-format" name="format">${formatOptions}</select>
               </div>
-              <div class="al-quicklog-field">
+              <div class="al-quicklog-field" data-theater-only>
                 <label for="ql-auditorium">Auditorium</label>
                 <input class="al-quicklog-input" id="ql-auditorium" name="auditorium" type="text" />
               </div>
-              <div class="al-quicklog-field">
+              <div class="al-quicklog-field" data-theater-only>
                 <label for="ql-seat">Seat</label>
                 <input class="al-quicklog-input" id="ql-seat" name="seat" type="text" />
               </div>
@@ -59,7 +63,7 @@ export function renderQuickLogBar() {
               </div>
               <div class="al-quicklog-field al-quicklog-field--checks">
                 <label class="al-check"><input type="checkbox" id="ql-dnf" name="dnf" /> DNF</label>
-                <label class="al-check"><input type="checkbox" id="ql-saw_alone" name="saw_alone" /> Saw alone</label>
+                <label class="al-check" data-theater-only><input type="checkbox" id="ql-saw_alone" name="saw_alone" /> Saw alone</label>
               </div>
               <div class="al-quicklog-field al-quicklog-field--notes">
                 <label for="ql-notes">Notes</label>
@@ -70,7 +74,9 @@ export function renderQuickLogBar() {
         </div>
 
         <input type="hidden" id="ql-tmdb_id" value="" />
+        <input type="hidden" id="ql-in_theaters" value="true" />
       </form>
+      <p class="al-quicklog-hint al-muted" id="ql-hint" hidden>Off-theater watches stay in your log but are excluded from savings and leaderboard stats.</p>
       <p class="al-quicklog-status" id="ql-status" aria-live="polite"></p>
     </header>
   `;
@@ -88,10 +94,39 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
   const dnfInput = document.getElementById('ql-dnf');
   const ratingInput = document.getElementById('ql-rating');
   const expandEl = document.getElementById('ql-expand');
+  const inTheatersInput = document.getElementById('ql-in_theaters');
+  const hintEl = document.getElementById('ql-hint');
   const initialDate = form.watched_on.value;
   let baselineDate = initialDate;
   let searchTimer = null;
   let expanded = false;
+  let logMode = 'theater';
+
+  const setLogMode = (mode) => {
+    logMode = mode;
+    const inTheaters = mode === 'theater';
+    inTheatersInput.value = inTheaters ? 'true' : 'false';
+    shell.classList.toggle('is-off-theater', !inTheaters);
+    hintEl.hidden = inTheaters;
+    shell.querySelectorAll('[data-log-mode]').forEach((btn) => {
+      const active = btn.dataset.logMode === mode;
+      btn.classList.toggle('is-active', active);
+      btn.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    if (!inTheaters) {
+      form.location.value = '';
+      form.ticket.value = '';
+      form.format.value = '';
+      form.auditorium.value = '';
+      form.seat.value = '';
+      form.saw_alone.checked = false;
+    }
+    checkExpand();
+  };
+
+  shell.querySelectorAll('[data-log-mode]').forEach((btn) => {
+    btn.addEventListener('click', () => setLogMode(btn.dataset.logMode));
+  });
 
   const setExpanded = (on) => {
     if (expanded === on) return;
@@ -103,14 +138,17 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
   const checkExpand = () => {
     const active = Boolean(
       titleInput.value.trim()
-      || form.location.value.trim()
-      || form.ticket.value.trim()
-      || form.watched_on.value !== baselineDate,
+      || (logMode === 'theater' && form.location.value.trim())
+      || (logMode === 'theater' && form.ticket.value.trim())
+      || form.watched_on.value !== baselineDate
+      || form.rating.value
+      || form.notes.value.trim()
+      || dnfInput.checked
     );
     setExpanded(active);
   };
 
-  ['ql-date', 'ql-title', 'ql-location', 'ql-ticket'].forEach((id) => {
+  ['ql-date', 'ql-title', 'ql-location', 'ql-ticket', 'ql-rating', 'ql-notes'].forEach((id) => {
     const el = document.getElementById(id);
     el.addEventListener('input', checkExpand);
     el.addEventListener('change', checkExpand);
@@ -119,6 +157,7 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
   dnfInput.addEventListener('change', () => {
     ratingInput.disabled = dnfInput.checked;
     if (dnfInput.checked) ratingInput.value = '';
+    checkExpand();
   });
 
   titleInput.addEventListener('input', () => {
@@ -165,19 +204,21 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
     statusEl.textContent = 'Saving…';
     statusEl.classList.remove('is-error', 'is-success');
 
+    const inTheaters = inTheatersInput.value !== 'false';
     const payload = {
       watched_on: form.watched_on.value,
       title: form.title.value.trim(),
-      location: form.location.value.trim() || null,
-      format: form.format.value,
-      auditorium: form.auditorium.value.trim() || null,
-      seat: form.seat.value.trim() || null,
-      ticket_cents: parseMoneyInput(form.ticket.value),
+      location: inTheaters ? (form.location.value.trim() || null) : 'Not in theaters',
+      format: inTheaters ? form.format.value : '',
+      auditorium: inTheaters ? (form.auditorium.value.trim() || null) : null,
+      seat: inTheaters ? (form.seat.value.trim() || null) : null,
+      ticket_cents: inTheaters ? parseMoneyInput(form.ticket.value) : null,
       rating: dnfInput.checked ? null : (form.rating.value ? Number(form.rating.value) : null),
       dnf: dnfInput.checked,
-      saw_alone: form.saw_alone.checked,
+      saw_alone: inTheaters ? form.saw_alone.checked : false,
       notes: form.notes.value.trim() || null,
       tmdb_id: tmdbInput.value ? Number(tmdbInput.value) : null,
+      in_theaters: inTheaters,
     };
 
     if (!payload.tmdb_id && payload.title) {
@@ -186,14 +227,14 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
 
     try {
       await watchesApi.create(auth.token, payload);
-      statusEl.textContent = `Logged ${payload.title}`;
+      statusEl.textContent = `Logged ${payload.title}${inTheaters ? '' : ' (off-theater)'}`;
       statusEl.classList.add('is-success');
       form.reset();
       form.watched_on.value = new Date().toISOString().slice(0, 10);
       baselineDate = form.watched_on.value;
       tmdbInput.value = '';
       ratingInput.disabled = false;
-      setExpanded(false);
+      setLogMode('theater');
       titleInput.focus();
       if (onSuccess) await onSuccess();
       setTimeout(() => { statusEl.textContent = ''; statusEl.classList.remove('is-success'); }, 2500);

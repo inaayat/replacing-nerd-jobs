@@ -363,6 +363,119 @@ a { color: var(--al-burgundy); }
 .al-quicklog-status.is-success { color: #0d7a42; }
 .al-quicklog-status.is-error { color: var(--al-red); }
 
+.al-quicklog-mode {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.al-quicklog-mode-btn {
+  border: 1px solid var(--al-line);
+  background: transparent;
+  color: var(--al-muted);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.al-quicklog-mode-btn.is-active {
+  background: var(--al-black);
+  border-color: var(--al-black);
+  color: #fff;
+}
+
+.al-quicklog.is-off-theater [data-theater-only] {
+  display: none !important;
+}
+
+.al-quicklog-hint {
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+}
+
+.al-section-title {
+  margin: 0;
+  font-family: var(--al-font-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.al-panel--watchlist {
+  margin-bottom: 14px;
+}
+
+.al-watchlist-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.al-watchlist-add {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.al-watchlist-add-field {
+  position: relative;
+}
+
+.al-watchlist-status {
+  min-height: 1.2em;
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+}
+
+.al-watchlist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.al-watchlist-empty {
+  margin: 0;
+  grid-column: 1 / -1;
+}
+
+.al-watchlist-card {
+  display: flex;
+  gap: 10px;
+  padding: 8px;
+  border: 1px solid var(--al-line);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.al-watchlist-card-title {
+  margin: 0 0 4px;
+  font-size: 0.92rem;
+  line-height: 1.25;
+}
+
+.al-watchlist-card-notes {
+  margin: 0 0 6px;
+  font-size: 0.8rem;
+}
+
+.al-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.al-badge--muted {
+  background: #f0ece8;
+  color: var(--al-muted);
+}
+
 .al-page-header {
   margin-bottom: 16px;
 }

@@ -1,5 +1,5 @@
 import { bootPage, renderShell, requireSignIn, populateSidebarStats } from './nav.js';
-import { watchesApi, movieApi } from './api.js';
+import { watchesApi, watchlistApi, movieApi } from './api.js';
 import { money, shortDate, ratingLabel, escapeHtml, posterHtml } from './format.js';
 import { renderWatchEditForm, wireWatchEditForm } from './watch-form.js';
 
@@ -24,11 +24,34 @@ async function loadLog(auth) {
   const main = document.getElementById('log-main');
   if (!main) return;
 
-  const { watches } = await watchesApi.list(auth.token);
+  const [{ watches }, { items: watchlist }] = await Promise.all([
+    watchesApi.list(auth.token),
+    watchlistApi.list(auth.token),
+  ]);
   const theaters = [...new Set(watches.map((w) => w.location).filter(Boolean))].sort();
   const formats = [...new Set(watches.map((w) => w.format).filter(Boolean))].sort();
 
   main.innerHTML = `
+    <section class="al-panel al-panel--watchlist" id="watchlist-panel">
+      <div class="al-watchlist-header">
+        <div>
+          <h2 class="al-section-title">Want to watch</h2>
+          <p class="al-muted">Movies you're planning to catch in theaters.</p>
+        </div>
+        <span class="al-muted" id="watchlist-count">${watchlist.length}</span>
+      </div>
+      <form class="al-watchlist-add" id="watchlist-add-form" autocomplete="off">
+        <div class="al-watchlist-add-field al-search-wrap">
+          <input class="al-input" id="watchlist-title" type="text" placeholder="Search for a movie…" required />
+          <div class="al-search-results" id="watchlist-title-results" hidden></div>
+        </div>
+        <button class="al-btn al-btn-primary" type="submit">Add</button>
+        <input type="hidden" id="watchlist-tmdb_id" value="" />
+      </form>
+      <p class="al-muted al-watchlist-status" id="watchlist-status" aria-live="polite"></p>
+      <div class="al-watchlist-grid" id="watchlist-grid">${watchlistGridHtml(watchlist)}</div>
+    </section>
+
     <section class="al-panel al-panel--log">
       <div class="al-toolbar al-toolbar--log">
         <input class="al-input al-toolbar-search" id="log-search" type="search" placeholder="Search title or theater…" />
@@ -42,6 +65,7 @@ async function loadLog(auth) {
         </select>
         <label class="al-check"><input type="checkbox" id="log-alone" /> Alone</label>
         <label class="al-check"><input type="checkbox" id="log-dnf" /> DNF only</label>
+        <label class="al-check"><input type="checkbox" id="log-off-theater" /> Off-theater only</label>
         <span class="al-muted" id="log-count"></span>
       </div>
       <div class="al-log-list-wrap" id="log-table"></div>
@@ -50,6 +74,7 @@ async function loadLog(auth) {
 
   const state = {
     watches,
+    watchlist,
     filtered: watches,
     editingId: null,
     expandedId: null,
@@ -70,6 +95,7 @@ async function loadLog(auth) {
     const format = document.getElementById('log-format').value;
     const alone = document.getElementById('log-alone').checked;
     const dnfOnly = document.getElementById('log-dnf').checked;
+    const offTheaterOnly = document.getElementById('log-off-theater').checked;
 
     state.filtered = state.watches.filter((w) => {
       if (q && !`${w.title} ${w.location || ''}`.toLowerCase().includes(q)) return false;
@@ -77,17 +103,125 @@ async function loadLog(auth) {
       if (format && w.format !== format) return false;
       if (alone && !w.saw_alone) return false;
       if (dnfOnly && !w.dnf) return false;
+      if (offTheaterOnly && w.in_theaters !== false) return false;
       return true;
     });
     render();
   };
 
-  ['log-search', 'log-theater', 'log-format', 'log-alone', 'log-dnf'].forEach((id) => {
+  ['log-search', 'log-theater', 'log-format', 'log-alone', 'log-dnf', 'log-off-theater'].forEach((id) => {
     document.getElementById(id).addEventListener('input', applyFilters);
     document.getElementById(id).addEventListener('change', applyFilters);
   });
 
+  wireWatchlist(auth, state);
   render();
+}
+
+function watchlistGridHtml(items) {
+  if (!items.length) {
+    return '<p class="al-muted al-watchlist-empty">Nothing on your list yet. Search above to add a title.</p>';
+  }
+  return items.map((item) => `
+    <article class="al-watchlist-card" data-watchlist-id="${item.id}">
+      ${posterHtml(item, { size: 'w154', width: 72, height: 108, className: 'al-poster al-poster--watchlist' })}
+      <div class="al-watchlist-card-body">
+        <h3 class="al-watchlist-card-title">${escapeHtml(item.title)}${item.year ? ` <span class="al-muted">(${item.year})</span>` : ''}</h3>
+        ${item.notes ? `<p class="al-watchlist-card-notes al-muted">${escapeHtml(item.notes)}</p>` : ''}
+        <button type="button" class="al-link-btn" data-remove-watchlist="${item.id}">Remove</button>
+      </div>
+    </article>
+  `).join('');
+}
+
+function wireWatchlist(auth, state) {
+  const form = document.getElementById('watchlist-add-form');
+  const titleInput = document.getElementById('watchlist-title');
+  const resultsEl = document.getElementById('watchlist-title-results');
+  const tmdbInput = document.getElementById('watchlist-tmdb_id');
+  const statusEl = document.getElementById('watchlist-status');
+  const gridEl = document.getElementById('watchlist-grid');
+  const countEl = document.getElementById('watchlist-count');
+  let searchTimer = null;
+
+  const renderWatchlist = () => {
+    gridEl.innerHTML = watchlistGridHtml(state.watchlist);
+    countEl.textContent = String(state.watchlist.length);
+    gridEl.querySelectorAll('[data-remove-watchlist]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.removeWatchlist;
+        if (!confirm('Remove from want to watch?')) return;
+        try {
+          await watchlistApi.remove(auth.token, id);
+          state.watchlist = state.watchlist.filter((item) => item.id !== id);
+          renderWatchlist();
+        } catch (err) {
+          statusEl.textContent = err.message || 'Could not remove.';
+        }
+      });
+    });
+  };
+
+  titleInput.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    const q = titleInput.value.trim();
+    if (q.length < 2) {
+      resultsEl.hidden = true;
+      return;
+    }
+    searchTimer = setTimeout(async () => {
+      try {
+        const { results } = await movieApi.search(auth.token, q);
+        if (!results.length) {
+          resultsEl.hidden = true;
+          return;
+        }
+        resultsEl.hidden = false;
+        resultsEl.innerHTML = results.map((m) => `
+          <button type="button" data-id="${m.tmdb_id}" data-title="${escapeHtml(m.title)}">
+            ${m.poster_path ? `<img src="https://image.tmdb.org/t/p/w92${m.poster_path}" alt="" width="28" height="42" style="border-radius:4px;object-fit:cover">` : '<span style="width:28px"></span>'}
+            <span>${escapeHtml(m.title)}${m.year ? ` <span class="al-muted">(${m.year})</span>` : ''}</span>
+          </button>
+        `).join('');
+        resultsEl.querySelectorAll('button').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            titleInput.value = btn.dataset.title;
+            tmdbInput.value = btn.dataset.id;
+            resultsEl.hidden = true;
+          });
+        });
+      } catch {
+        resultsEl.hidden = true;
+      }
+    }, 300);
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#watchlist-add-form .al-search-wrap')) resultsEl.hidden = true;
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    statusEl.textContent = 'Adding…';
+    const title = titleInput.value.trim();
+    let tmdbId = tmdbInput.value ? Number(tmdbInput.value) : null;
+    if (!tmdbId && title) {
+      tmdbId = await movieApi.resolve(auth.token, title);
+    }
+    try {
+      const { item } = await watchlistApi.create(auth.token, { title, tmdb_id: tmdbId });
+      state.watchlist = [item, ...state.watchlist];
+      form.reset();
+      tmdbInput.value = '';
+      statusEl.textContent = `Added ${title}`;
+      renderWatchlist();
+      setTimeout(() => { statusEl.textContent = ''; }, 2000);
+    } catch (err) {
+      statusEl.textContent = err.message || 'Could not add.';
+    }
+  });
+
+  renderWatchlist();
 }
 
 function tableHtml(state) {
@@ -116,11 +250,11 @@ function tableHtml(state) {
 function mobileLogMeta(w) {
   const primary = [
     shortDate(w.watched_on),
-    w.format || 'Standard',
-    money(w.ticket_cents),
+    w.in_theaters === false ? 'Off-theater' : (w.format || 'Standard'),
+    w.in_theaters === false ? null : money(w.ticket_cents),
     ratingLabel(w),
-  ].map((part) => escapeHtml(String(part))).join(' · ');
-  const location = escapeHtml(w.location || '—');
+  ].filter(Boolean).map((part) => escapeHtml(String(part))).join(' · ');
+  const location = escapeHtml(w.in_theaters === false ? 'Not in theaters' : (w.location || '—'));
   return `<span class="al-log-meta-primary">${primary}</span><span class="al-log-meta-location">${location}</span>`;
 }
 
@@ -132,13 +266,16 @@ function viewEntryHtml(w, state) {
         <div class="al-log-col al-col-poster">${posterHtml(w)}</div>
         <div class="al-log-col al-log-col--desktop">${shortDate(w.watched_on)}</div>
         <div class="al-log-col--body">
-          <div class="al-log-col al-log-col--title">${escapeHtml(w.title)}</div>
+          <div class="al-log-col al-log-col--title">
+            ${escapeHtml(w.title)}
+            ${w.in_theaters === false ? '<span class="al-badge al-badge--muted">Off-theater</span>' : ''}
+          </div>
           <div class="al-log-col al-log-col--mobile-meta al-only-mobile">${mobileLogMeta(w)}</div>
         </div>
-        <div class="al-log-col al-log-col--desktop al-muted">${escapeHtml(w.location || '—')}</div>
-        <div class="al-log-col al-log-col--desktop">${w.format ? escapeHtml(w.format) : '—'}</div>
-        <div class="al-log-col al-log-col--desktop al-muted">${escapeHtml([w.auditorium, w.seat].filter(Boolean).join(' · ') || '—')}</div>
-        <div class="al-log-col al-log-col--desktop al-log-col--num">${money(w.ticket_cents)}</div>
+        <div class="al-log-col al-log-col--desktop al-muted">${escapeHtml(w.in_theaters === false ? 'Not in theaters' : (w.location || '—'))}</div>
+        <div class="al-log-col al-log-col--desktop">${w.in_theaters === false ? '—' : (w.format ? escapeHtml(w.format) : '—')}</div>
+        <div class="al-log-col al-log-col--desktop al-muted">${w.in_theaters === false ? '—' : escapeHtml([w.auditorium, w.seat].filter(Boolean).join(' · ') || '—')}</div>
+        <div class="al-log-col al-log-col--desktop al-log-col--num">${w.in_theaters === false ? '—' : money(w.ticket_cents)}</div>
         <div class="al-log-col al-log-col--desktop">${ratingLabel(w)}</div>
         <div class="al-log-col al-row-actions">
           <button type="button" class="al-link-btn" data-edit="${w.id}">Edit</button>
