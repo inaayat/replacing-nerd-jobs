@@ -616,25 +616,18 @@ a { color: var(--al-burgundy); }
 
 .al-watchlist-popup {
   position: absolute;
-  left: 50%;
-  top: calc(100% + 8px);
-  z-index: 60;
+  z-index: 80;
   min-width: 220px;
-  max-width: 280px;
+  max-width: min(280px, calc(100vw - 24px));
   padding: 12px 14px;
   background: var(--al-panel);
   border: 1px solid var(--al-line);
   border-radius: 10px;
   box-shadow: 0 14px 36px rgba(28, 28, 28, 0.2);
-  transform: translateX(-50%) scale(0.94);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
   display: none;
-  transition:
-    opacity 0.18s ease,
-    transform 0.2s cubic-bezier(0.34, 1.4, 0.64, 1),
-    visibility 0.18s;
 }
 
 .al-watchlist-popup-title {
@@ -659,7 +652,6 @@ a { color: var(--al-burgundy); }
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
-  transform: translateX(-50%) scale(1);
 }
 
 .al-watchlist-popup-notes {

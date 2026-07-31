@@ -1,13 +1,7 @@
 import { bootPage, renderShell, requireSignIn, populateSidebarStats } from './nav.js';
-import { watchesApi, watchlistApi, movieApi } from './api.js';
+import { watchesApi, movieApi } from './api.js';
 import { money, shortDate, ratingLabel, escapeHtml, posterHtml } from './format.js';
 import { renderWatchEditForm, wireWatchEditForm } from './watch-form.js';
-import {
-  sortComingSoon,
-  sortAlreadyOut,
-  wireWatchlistList,
-  wireWatchlistAddForm,
-} from './watchlist-ui.js';
 
 let reloadLog;
 
@@ -30,48 +24,11 @@ async function loadLog(auth) {
   const main = document.getElementById('log-main');
   if (!main) return;
 
-  const [{ watches }, { items: watchlist }] = await Promise.all([
-    watchesApi.list(auth.token),
-    watchlistApi.list(auth.token),
-  ]);
+  const { watches } = await watchesApi.list(auth.token);
   const theaters = [...new Set(watches.map((w) => w.location).filter(Boolean))].sort();
   const formats = [...new Set(watches.map((w) => w.format).filter(Boolean))].sort();
-  const comingSoon = sortComingSoon(watchlist);
-  const alreadyOut = sortAlreadyOut(watchlist);
 
   main.innerHTML = `
-    <section class="al-panel al-panel--watchlist" id="watchlist-panel">
-      <div class="al-watchlist-header al-watchlist-header--compact">
-        <h2 class="al-section-title">Want to watch</h2>
-        <div class="al-watchlist-header-actions">
-          ${alreadyOut.length ? `
-            <a class="al-already-out-btn" href="/amc-a-lister/what-to-watch.html?view=out">
-              Already out <span class="al-already-out-count">${alreadyOut.length}</span>
-            </a>
-          ` : `
-            <a class="al-already-out-btn al-already-out-btn--empty" href="/amc-a-lister/what-to-watch.html">What to watch</a>
-          `}
-          <span class="al-muted" id="watchlist-count">${comingSoon.length}</span>
-        </div>
-      </div>
-      <form class="al-watchlist-add" id="watchlist-add-form" autocomplete="off">
-        <div class="al-watchlist-add-field al-search-wrap">
-          <input class="al-input" id="watchlist-title" type="text" placeholder="Add upcoming…" required />
-          <div class="al-search-results" id="watchlist-title-results" hidden></div>
-        </div>
-        <button class="al-btn al-btn-primary" type="submit">Add</button>
-        <input type="hidden" id="watchlist-tmdb_id" value="" />
-      </form>
-      <p class="al-muted al-watchlist-status" id="watchlist-status" aria-live="polite"></p>
-      <p class="al-muted al-watchlist-scroll-hint">
-        <span class="al-hint-hover">Hover or click a poster for details.</span>
-        <span class="al-hint-touch">Tap a poster for details.</span>
-      </p>
-      <div class="al-watchlist-strip-wrap">
-        <div class="al-watchlist-list" id="watchlist-list"></div>
-      </div>
-    </section>
-
     <section class="al-panel al-panel--log">
       <div class="al-toolbar al-toolbar--log">
         <input class="al-input al-toolbar-search" id="log-search" type="search" placeholder="Search title or theater…" />
@@ -94,7 +51,6 @@ async function loadLog(auth) {
 
   const state = {
     watches,
-    watchlist,
     filtered: watches,
     editingId: null,
     expandedId: null,
@@ -134,48 +90,7 @@ async function loadLog(auth) {
     document.getElementById(id).addEventListener('change', applyFilters);
   });
 
-  wireWatchlistPanel(auth, state);
   render();
-}
-
-function wireWatchlistPanel(auth, state) {
-  const form = document.getElementById('watchlist-add-form');
-  const titleInput = document.getElementById('watchlist-title');
-  const resultsEl = document.getElementById('watchlist-title-results');
-  const tmdbInput = document.getElementById('watchlist-tmdb_id');
-  const statusEl = document.getElementById('watchlist-status');
-  const listEl = document.getElementById('watchlist-list');
-  const headerActions = document.querySelector('.al-watchlist-header-actions');
-
-  const refreshHeader = () => {
-    if (!headerActions) return;
-    const comingSoon = sortComingSoon(state.watchlist);
-    const alreadyOut = sortAlreadyOut(state.watchlist);
-    const linkHtml = alreadyOut.length
-      ? `<a class="al-already-out-btn" href="/amc-a-lister/what-to-watch.html?view=out">Already out <span class="al-already-out-count">${alreadyOut.length}</span></a>`
-      : `<a class="al-already-out-btn al-already-out-btn--empty" href="/amc-a-lister/what-to-watch.html">What to watch</a>`;
-    headerActions.innerHTML = `${linkHtml}<span class="al-muted" id="watchlist-count">${comingSoon.length}</span>`;
-    const hintEl = document.querySelector('.al-watchlist-scroll-hint');
-    if (hintEl) hintEl.hidden = comingSoon.length === 0;
-  };
-
-  const renderList = wireWatchlistList(auth, state, {
-    listEl,
-    statusEl,
-    layout: 'strip',
-    getItems: () => sortComingSoon(state.watchlist),
-    emptyMessage: 'No upcoming titles. Add one above, or check Already out.',
-    onChange: refreshHeader,
-  });
-
-  wireWatchlistAddForm(auth, state, {
-    form,
-    titleInput,
-    resultsEl,
-    tmdbInput,
-    statusEl,
-    onAdded: renderList,
-  });
 }
 
 function tableHtml(state) {

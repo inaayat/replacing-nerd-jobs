@@ -105,6 +105,54 @@ function renderWatchlistHtml(items, { layout = 'strip', emptyMessage, showReleas
   return watchlistRowsHtml(items, { emptyMessage, showRelease });
 }
 
+function positionWatchlistPopup(item) {
+  const popup = item.querySelector('.al-watchlist-popup');
+  const poster = item.querySelector('.al-watchlist-strip-poster');
+  if (!popup || !poster) return;
+
+  popup.style.left = '0';
+  popup.style.right = 'auto';
+  popup.style.top = '0';
+  popup.style.transform = 'none';
+  popup.style.position = 'fixed';
+  popup.style.visibility = 'hidden';
+  popup.style.display = 'block';
+  popup.style.opacity = '0';
+
+  const rect = poster.getBoundingClientRect();
+  const popupRect = popup.getBoundingClientRect();
+  const gap = 8;
+  const pad = 12;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  let left = rect.left + (rect.width / 2) - (popupRect.width / 2);
+  left = Math.max(pad, Math.min(left, vw - popupRect.width - pad));
+
+  let top = rect.bottom + gap;
+  if (top + popupRect.height > vh - pad) {
+    top = Math.max(pad, rect.top - popupRect.height - gap);
+  }
+
+  popup.style.left = `${Math.round(left)}px`;
+  popup.style.top = `${Math.round(top)}px`;
+  popup.style.visibility = '';
+  popup.style.opacity = '';
+}
+
+function clearWatchlistPopupPosition(item) {
+  const popup = item.querySelector('.al-watchlist-popup');
+  if (!popup) return;
+  popup.style.position = '';
+  popup.style.left = '';
+  popup.style.right = '';
+  popup.style.top = '';
+  popup.style.transform = '';
+  popup.style.display = '';
+  popup.style.visibility = '';
+  popup.style.opacity = '';
+}
+
 export function wireWatchlistList(auth, state, {
   listEl,
   countEl,
@@ -115,6 +163,13 @@ export function wireWatchlistList(auth, state, {
   layout = 'strip',
   onChange,
 }) {
+  const closeOpenItems = () => {
+    listEl.querySelectorAll('.al-watchlist-strip-item.is-open').forEach((el) => {
+      el.classList.remove('is-open');
+      clearWatchlistPopupPosition(el);
+    });
+  };
+
   const render = () => {
     const items = getItems();
     listEl.classList.toggle('al-watchlist-strip', layout === 'strip');
@@ -150,11 +205,23 @@ export function wireWatchlistList(auth, state, {
 
     if (layout === 'strip') {
       listEl.querySelectorAll('.al-watchlist-strip-item').forEach((item) => {
+        item.addEventListener('mouseenter', () => positionWatchlistPopup(item));
+        item.addEventListener('mouseleave', () => {
+          if (!item.classList.contains('is-open')) clearWatchlistPopupPosition(item);
+        });
+        item.addEventListener('focusin', () => positionWatchlistPopup(item));
+        item.addEventListener('focusout', (e) => {
+          if (item.contains(e.relatedTarget)) return;
+          if (!item.classList.contains('is-open')) clearWatchlistPopupPosition(item);
+        });
         item.addEventListener('click', (e) => {
           if (e.target.closest('[data-log-watchlist], [data-remove-watchlist]')) return;
           const wasOpen = item.classList.contains('is-open');
-          listEl.querySelectorAll('.al-watchlist-strip-item.is-open').forEach((el) => el.classList.remove('is-open'));
-          if (!wasOpen) item.classList.add('is-open');
+          closeOpenItems();
+          if (!wasOpen) {
+            item.classList.add('is-open');
+            positionWatchlistPopup(item);
+          }
         });
       });
 
@@ -162,8 +229,10 @@ export function wireWatchlistList(auth, state, {
         listEl.dataset.stripDismissWired = '1';
         document.addEventListener('click', (e) => {
           if (e.target.closest(`#${listEl.id}`)) return;
-          listEl.querySelectorAll('.al-watchlist-strip-item.is-open').forEach((el) => el.classList.remove('is-open'));
+          closeOpenItems();
         });
+        window.addEventListener('scroll', closeOpenItems, true);
+        window.addEventListener('resize', closeOpenItems);
       }
     }
   };
