@@ -224,17 +224,17 @@ a { color: var(--al-burgundy); }
 /* Quick-log bar: compact primary row + smooth expandable extras */
 .al-quicklog {
   flex-shrink: 0;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   background: var(--al-panel);
   border: 1px solid var(--al-line);
   border-radius: var(--al-radius);
-  padding: 10px 12px;
+  padding: 8px 10px;
 }
 
 .al-quicklog-primary {
   display: grid;
-  grid-template-columns: minmax(0, 130px) minmax(0, 2fr) minmax(0, 1.4fr) minmax(0, 88px) auto;
-  gap: 8px;
+  grid-template-columns: minmax(0, 120px) minmax(0, 2fr) minmax(0, 1.4fr) minmax(0, 80px);
+  gap: 6px;
   align-items: end;
 }
 
@@ -244,7 +244,6 @@ a { color: var(--al-burgundy); }
   }
   .al-quicklog-field--title { grid-column: 1 / -1; }
   .al-quicklog-field--location { grid-column: 1 / -1; }
-  .al-quicklog-field--submit { grid-column: 1 / -1; }
 }
 
 .al-quicklog-field {
@@ -252,28 +251,32 @@ a { color: var(--al-burgundy); }
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .al-quicklog-field label {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 500;
   color: var(--al-muted);
+  line-height: 1.2;
 }
 
-.al-quicklog-field--submit {
+.al-quicklog-actions {
+  display: flex;
   justify-content: flex-end;
+  margin-top: 8px;
 }
 
 .al-quicklog-input {
   width: 100%;
-  padding: 8px 10px;
-  border-radius: 8px;
+  padding: 6px 8px;
+  border-radius: 7px;
   border: 1px solid var(--al-line);
   background: var(--al-panel-2);
   color: var(--al-text);
   font: inherit;
-  font-size: 0.88rem;
+  font-size: 0.86rem;
+  min-height: 34px;
 }
 
 .al-quicklog-input:focus {
@@ -291,7 +294,7 @@ a { color: var(--al-burgundy); }
 
 .al-quicklog.is-expanded .al-quicklog-expand {
   grid-template-rows: 1fr;
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 .al-quicklog-expand-inner {
@@ -302,8 +305,8 @@ a { color: var(--al-burgundy); }
 .al-quicklog-extra {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  padding-top: 10px;
+  gap: 6px;
+  padding-top: 8px;
   border-top: 1px solid var(--al-line);
   opacity: 0;
   transform: translateY(-6px);
@@ -326,27 +329,28 @@ a { color: var(--al-burgundy); }
 .al-quicklog-field--checks {
   flex-direction: row;
   align-items: flex-end;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
   padding-bottom: 2px;
 }
 
 .al-quicklog-field--checks .al-check {
-  font-size: 0.82rem;
+  font-size: 0.8rem;
 }
 
 .al-quicklog-submit {
-  padding: 8px 16px;
+  padding: 7px 16px;
   border: 0;
   border-radius: 8px;
   background: var(--al-red);
   color: var(--al-white);
   font: inherit;
-  font-size: 0.88rem;
+  font-size: 0.86rem;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-  height: 38px;
+  height: 34px;
+  min-width: 88px;
 }
 
 .al-quicklog-submit:hover {
@@ -354,10 +358,10 @@ a { color: var(--al-burgundy); }
 }
 
 .al-quicklog-status {
-  margin: 6px 0 0;
-  font-size: 0.8rem;
+  margin: 4px 0 0;
+  font-size: 0.78rem;
   color: var(--al-muted);
-  min-height: 1.2em;
+  min-height: 1.1em;
 }
 
 .al-quicklog-status.is-success { color: #0d7a42; }
@@ -365,8 +369,8 @@ a { color: var(--al-burgundy); }
 
 .al-quicklog-mode {
   display: flex;
-  gap: 6px;
-  margin-bottom: 10px;
+  gap: 4px;
+  margin-bottom: 6px;
 }
 
 .al-quicklog-mode-btn {
@@ -374,8 +378,8 @@ a { color: var(--al-burgundy); }
   background: transparent;
   color: var(--al-muted);
   border-radius: 999px;
-  padding: 4px 12px;
-  font-size: 0.78rem;
+  padding: 3px 10px;
+  font-size: 0.72rem;
   cursor: pointer;
 }
 
@@ -390,34 +394,96 @@ a { color: var(--al-burgundy); }
 }
 
 .al-quicklog-hint {
-  margin: 6px 0 0;
-  font-size: 0.78rem;
+  margin: 4px 0 0;
+  font-size: 0.74rem;
 }
 
 .al-section-title {
   margin: 0;
   font-family: var(--al-font-display);
-  font-size: 1.15rem;
+  font-size: 1.05rem;
   font-weight: 600;
 }
 
 .al-panel--watchlist {
-  margin-bottom: 14px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
 }
 
 .al-watchlist-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.al-watchlist-header--compact {
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.al-watchlist-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.al-already-out-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--al-line);
+  background: var(--al-panel-2);
+  color: var(--al-text);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.al-already-out-btn:hover {
+  border-color: var(--al-red);
+  color: var(--al-red);
+}
+
+.al-already-out-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.2em;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--al-red);
+  color: #fff;
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.al-already-out-btn--empty .al-already-out-count {
+  background: var(--al-muted);
 }
 
 .al-watchlist-add {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.al-watchlist-add .al-input {
+  padding: 6px 8px;
+  font-size: 0.86rem;
+  min-height: 34px;
+}
+
+.al-watchlist-add .al-btn {
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  min-height: 34px;
 }
 
 .al-watchlist-add-field {
@@ -425,20 +491,75 @@ a { color: var(--al-burgundy); }
 }
 
 .al-watchlist-status {
-  min-height: 1.2em;
-  margin: 0 0 8px;
-  font-size: 0.8rem;
+  min-height: 1em;
+  margin: 0 0 4px;
+  font-size: 0.76rem;
 }
 
-.al-watchlist-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 10px;
+.al-watchlist-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .al-watchlist-empty {
   margin: 0;
-  grid-column: 1 / -1;
+  font-size: 0.82rem;
+}
+
+.al-watchlist-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 2px;
+  border-bottom: 1px solid var(--al-line);
+}
+
+.al-watchlist-row:last-child {
+  border-bottom: 0;
+}
+
+.al-poster--watchlist-sm {
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.al-watchlist-row-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.al-watchlist-row-title {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.al-watchlist-row-meta {
+  margin: 1px 0 0;
+  font-size: 0.72rem;
+}
+
+.al-watchlist-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.al-watchlist-row-actions .al-link-btn {
+  font-size: 0.76rem;
+}
+
+/* Legacy card styles kept for any residual markup */
+.al-watchlist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
 }
 
 .al-watchlist-card {
@@ -466,6 +587,12 @@ a { color: var(--al-burgundy); }
   flex-wrap: wrap;
   gap: 8px;
 }
+
+/* Mobile key-stats top bar (content area) */
+.al-mobile-stats {
+  display: none;
+}
+
 
 .al-badge {
   display: inline-block;
@@ -1731,6 +1858,10 @@ table.al-table {
     display: none;
   }
 
+  .al-sidebar-stats {
+    display: none;
+  }
+
   .al-sidebar-footer {
     flex-direction: row;
     flex-wrap: wrap;
@@ -1743,36 +1874,49 @@ table.al-table {
     font-size: 1.15rem;
   }
 
-  .al-sidebar-stats {
-    gap: 10px;
+  .al-mobile-stats:not([hidden]) {
+    display: block;
+    flex-shrink: 0;
+    margin-bottom: 8px;
   }
 
-  .al-sidebar-stats-block {
+  .al-mobile-stats-inner {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    padding: 6px 8px;
+    border-radius: 10px;
+    background: var(--al-burgundy);
+    color: #fff;
+  }
+
+  .al-mobile-stat {
     display: flex;
-    flex-wrap: nowrap;
-    gap: 8px;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scroll-snap-type: x proximity;
-    padding-bottom: 2px;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    min-width: 0;
+    text-align: center;
   }
 
-  .al-sidebar-stats-heading {
-    flex: 0 0 auto;
-    align-self: center;
-    margin: 0 4px 0 0;
+  .al-mobile-stat-label {
+    font-size: 0.62rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    opacity: 0.72;
     white-space: nowrap;
   }
 
-  .al-sidebar-stat {
-    flex: 0 0 96px;
-    scroll-snap-align: start;
-    padding: 8px;
+  .al-mobile-stat-value {
+    font-family: var(--al-font-mono);
+    font-size: 0.82rem;
+    font-weight: 500;
+    line-height: 1.2;
+    white-space: nowrap;
   }
 
-  .al-sidebar-stat-value {
-    font-size: 0.95rem;
-  }
+  .al-mobile-stat-value.is-savings { color: #8fe8b8; }
+  .al-mobile-stat-value.is-cost { color: #ffb4b4; }
 
   .al-page-header {
     margin-bottom: 12px;
@@ -1792,8 +1936,24 @@ table.al-table {
   }
 
   .al-quicklog {
-    padding: 10px;
-    border-radius: 14px;
+    padding: 8px;
+    border-radius: 12px;
+    margin-bottom: 10px;
+  }
+
+  .al-quicklog-primary {
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+  }
+
+  .al-quicklog-actions {
+    margin-top: 6px;
+  }
+
+  .al-quicklog-submit {
+    width: 100%;
+    height: 40px;
+    min-height: 40px;
   }
 
   .al-quicklog-extra {
@@ -1811,8 +1971,18 @@ table.al-table {
   .al-quicklog-submit,
   .al-segment-btn,
   .al-mobile-nav-link {
-    min-height: 44px;
+    min-height: 40px;
   }
+
+  .al-panel--watchlist {
+    padding: 8px 10px;
+  }
+
+  .al-already-out-btn {
+    font-size: 0.68rem;
+    padding: 3px 8px;
+  }
+
 
   .al-panel-head {
     flex-direction: column;
@@ -1857,12 +2027,14 @@ table.al-table {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 10px 8px;
+    padding: 8px 4px;
     border-radius: 10px;
-    font-size: 0.82rem;
+    font-size: 0.72rem;
     font-weight: 600;
     text-decoration: none;
     color: rgba(255, 255, 255, 0.72);
+    text-align: center;
+    line-height: 1.15;
   }
 
   .al-mobile-nav-link.is-active {

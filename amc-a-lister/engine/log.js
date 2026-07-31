@@ -2,7 +2,12 @@ import { bootPage, renderShell, requireSignIn, populateSidebarStats } from './na
 import { watchesApi, watchlistApi, movieApi } from './api.js';
 import { money, shortDate, ratingLabel, escapeHtml, posterHtml } from './format.js';
 import { renderWatchEditForm, wireWatchEditForm } from './watch-form.js';
-import { prefillQuickLog } from './quick-log.js';
+import {
+  sortComingSoon,
+  sortAlreadyOut,
+  wireWatchlistList,
+  wireWatchlistAddForm,
+} from './watchlist-ui.js';
 
 let reloadLog;
 
@@ -31,26 +36,34 @@ async function loadLog(auth) {
   ]);
   const theaters = [...new Set(watches.map((w) => w.location).filter(Boolean))].sort();
   const formats = [...new Set(watches.map((w) => w.format).filter(Boolean))].sort();
+  const comingSoon = sortComingSoon(watchlist);
+  const alreadyOut = sortAlreadyOut(watchlist);
 
   main.innerHTML = `
     <section class="al-panel al-panel--watchlist" id="watchlist-panel">
-      <div class="al-watchlist-header">
-        <div>
-          <h2 class="al-section-title">Want to watch</h2>
-          <p class="al-muted">Movies you're planning to catch in theaters.</p>
+      <div class="al-watchlist-header al-watchlist-header--compact">
+        <h2 class="al-section-title">Want to watch</h2>
+        <div class="al-watchlist-header-actions">
+          ${alreadyOut.length ? `
+            <a class="al-already-out-btn" href="/amc-a-lister/what-to-watch.html">
+              Already out <span class="al-already-out-count">${alreadyOut.length}</span>
+            </a>
+          ` : `
+            <a class="al-already-out-btn al-already-out-btn--empty" href="/amc-a-lister/what-to-watch.html">What to watch</a>
+          `}
+          <span class="al-muted" id="watchlist-count">${comingSoon.length}</span>
         </div>
-        <span class="al-muted" id="watchlist-count">${watchlist.length}</span>
       </div>
       <form class="al-watchlist-add" id="watchlist-add-form" autocomplete="off">
         <div class="al-watchlist-add-field al-search-wrap">
-          <input class="al-input" id="watchlist-title" type="text" placeholder="Search for a movie…" required />
+          <input class="al-input" id="watchlist-title" type="text" placeholder="Add upcoming…" required />
           <div class="al-search-results" id="watchlist-title-results" hidden></div>
         </div>
         <button class="al-btn al-btn-primary" type="submit">Add</button>
         <input type="hidden" id="watchlist-tmdb_id" value="" />
       </form>
       <p class="al-muted al-watchlist-status" id="watchlist-status" aria-live="polite"></p>
-      <div class="al-watchlist-grid" id="watchlist-grid">${watchlistGridHtml(watchlist)}</div>
+      <div class="al-watchlist-list" id="watchlist-list"></div>
     </section>
 
     <section class="al-panel al-panel--log">
@@ -115,124 +128,45 @@ async function loadLog(auth) {
     document.getElementById(id).addEventListener('change', applyFilters);
   });
 
-  wireWatchlist(auth, state);
+  wireWatchlistPanel(auth, state);
   render();
 }
 
-function watchlistGridHtml(items) {
-  if (!items.length) {
-    return '<p class="al-muted al-watchlist-empty">Nothing on your list yet. Search above to add a title.</p>';
-  }
-  return items.map((item) => `
-    <article class="al-watchlist-card" data-watchlist-id="${item.id}">
-      ${posterHtml(item, { size: 'w154', width: 72, height: 108, className: 'al-poster al-poster--watchlist' })}
-      <div class="al-watchlist-card-body">
-        <h3 class="al-watchlist-card-title">${escapeHtml(item.title)}${item.year ? ` <span class="al-muted">(${item.year})</span>` : ''}</h3>
-        ${item.notes ? `<p class="al-watchlist-card-notes al-muted">${escapeHtml(item.notes)}</p>` : ''}
-        <div class="al-watchlist-card-actions">
-          <button type="button" class="al-link-btn" data-log-watchlist="${item.id}">Log screening</button>
-          <button type="button" class="al-link-btn" data-remove-watchlist="${item.id}">Remove</button>
-        </div>
-      </div>
-    </article>
-  `).join('');
-}
-
-function wireWatchlist(auth, state) {
+function wireWatchlistPanel(auth, state) {
   const form = document.getElementById('watchlist-add-form');
   const titleInput = document.getElementById('watchlist-title');
   const resultsEl = document.getElementById('watchlist-title-results');
   const tmdbInput = document.getElementById('watchlist-tmdb_id');
   const statusEl = document.getElementById('watchlist-status');
-  const gridEl = document.getElementById('watchlist-grid');
-  const countEl = document.getElementById('watchlist-count');
-  let searchTimer = null;
+  const listEl = document.getElementById('watchlist-list');
+  const headerActions = document.querySelector('.al-watchlist-header-actions');
 
-  const renderWatchlist = () => {
-    gridEl.innerHTML = watchlistGridHtml(state.watchlist);
-    countEl.textContent = String(state.watchlist.length);
-    gridEl.querySelectorAll('[data-log-watchlist]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const item = state.watchlist.find((w) => w.id === btn.dataset.logWatchlist);
-        if (!item) return;
-        prefillQuickLog({ title: item.title, tmdbId: item.tmdb_id, mode: 'theater' });
-      });
-    });
-    gridEl.querySelectorAll('[data-remove-watchlist]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const id = btn.dataset.removeWatchlist;
-        if (!confirm('Remove from want to watch?')) return;
-        try {
-          await watchlistApi.remove(auth.token, id);
-          state.watchlist = state.watchlist.filter((item) => item.id !== id);
-          renderWatchlist();
-        } catch (err) {
-          statusEl.textContent = err.message || 'Could not remove.';
-        }
-      });
-    });
+  const refreshHeader = () => {
+    if (!headerActions) return;
+    const comingSoon = sortComingSoon(state.watchlist);
+    const alreadyOut = sortAlreadyOut(state.watchlist);
+    const linkHtml = alreadyOut.length
+      ? `<a class="al-already-out-btn" href="/amc-a-lister/what-to-watch.html">Already out <span class="al-already-out-count">${alreadyOut.length}</span></a>`
+      : `<a class="al-already-out-btn al-already-out-btn--empty" href="/amc-a-lister/what-to-watch.html">What to watch</a>`;
+    headerActions.innerHTML = `${linkHtml}<span class="al-muted" id="watchlist-count">${comingSoon.length}</span>`;
   };
 
-  titleInput.addEventListener('input', () => {
-    clearTimeout(searchTimer);
-    const q = titleInput.value.trim();
-    if (q.length < 2) {
-      resultsEl.hidden = true;
-      return;
-    }
-    searchTimer = setTimeout(async () => {
-      try {
-        const { results } = await movieApi.search(auth.token, q);
-        if (!results.length) {
-          resultsEl.hidden = true;
-          return;
-        }
-        resultsEl.hidden = false;
-        resultsEl.innerHTML = results.map((m) => `
-          <button type="button" data-id="${m.tmdb_id}" data-title="${escapeHtml(m.title)}">
-            ${m.poster_path ? `<img src="https://image.tmdb.org/t/p/w92${m.poster_path}" alt="" width="28" height="42" style="border-radius:4px;object-fit:cover">` : '<span style="width:28px"></span>'}
-            <span>${escapeHtml(m.title)}${m.year ? ` <span class="al-muted">(${m.year})</span>` : ''}</span>
-          </button>
-        `).join('');
-        resultsEl.querySelectorAll('button').forEach((btn) => {
-          btn.addEventListener('click', () => {
-            titleInput.value = btn.dataset.title;
-            tmdbInput.value = btn.dataset.id;
-            resultsEl.hidden = true;
-          });
-        });
-      } catch {
-        resultsEl.hidden = true;
-      }
-    }, 300);
+  const renderList = wireWatchlistList(auth, state, {
+    listEl,
+    statusEl,
+    getItems: () => sortComingSoon(state.watchlist),
+    emptyMessage: 'No upcoming titles. Add one above, or check Already out.',
+    onChange: refreshHeader,
   });
 
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('#watchlist-add-form .al-search-wrap')) resultsEl.hidden = true;
+  wireWatchlistAddForm(auth, state, {
+    form,
+    titleInput,
+    resultsEl,
+    tmdbInput,
+    statusEl,
+    onAdded: renderList,
   });
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    statusEl.textContent = 'Adding…';
-    const title = titleInput.value.trim();
-    let tmdbId = tmdbInput.value ? Number(tmdbInput.value) : null;
-    if (!tmdbId && title) {
-      tmdbId = await movieApi.resolve(auth.token, title);
-    }
-    try {
-      const { item } = await watchlistApi.create(auth.token, { title, tmdb_id: tmdbId });
-      state.watchlist = [item, ...state.watchlist];
-      form.reset();
-      tmdbInput.value = '';
-      statusEl.textContent = `Added ${title}`;
-      renderWatchlist();
-      setTimeout(() => { statusEl.textContent = ''; }, 2000);
-    } catch (err) {
-      statusEl.textContent = err.message || 'Could not add.';
-    }
-  });
-
-  renderWatchlist();
 }
 
 function tableHtml(state) {

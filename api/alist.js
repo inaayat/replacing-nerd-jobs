@@ -120,10 +120,14 @@ function normalizeTitle(title) {
 }
 
 function movieFromTmdbResult(m) {
+  const releaseDate = m.release_date && /^\d{4}-\d{2}-\d{2}$/.test(m.release_date)
+    ? m.release_date
+    : null;
   return {
     tmdb_id: m.id,
     title: m.title,
-    year: m.release_date ? Number(m.release_date.slice(0, 4)) : null,
+    year: releaseDate ? Number(releaseDate.slice(0, 4)) : null,
+    release_date: releaseDate,
     poster_path: m.poster_path || null,
     overview: m.overview || null,
     runtime_min: m.runtime || null,
@@ -137,11 +141,15 @@ function movieDetailsFromTmdb(m) {
   const crew = m.credits?.crew || [];
   const cast = m.credits?.cast || [];
   const directors = crew.filter((c) => c.job === 'Director').map((c) => c.name);
+  const releaseDate = m.release_date && /^\d{4}-\d{2}-\d{2}$/.test(m.release_date)
+    ? m.release_date
+    : null;
 
   return {
     tmdb_id: m.id,
     title: m.title,
-    year: m.release_date ? Number(m.release_date.slice(0, 4)) : null,
+    year: releaseDate ? Number(releaseDate.slice(0, 4)) : null,
+    release_date: releaseDate,
     poster_path: m.poster_path || null,
     overview: m.overview || null,
     runtime_min: m.runtime || null,
@@ -153,10 +161,15 @@ function movieDetailsFromTmdb(m) {
 
 function movieDetailsFromCacheRow(row) {
   const raw = row.raw && typeof row.raw === 'object' ? row.raw : {};
+  const releaseDate = row.release_date
+    || (raw.release_date && /^\d{4}-\d{2}-\d{2}$/.test(String(raw.release_date).slice(0, 10))
+      ? String(raw.release_date).slice(0, 10)
+      : null);
   return {
     tmdb_id: row.tmdb_id,
     title: row.title,
     year: row.year,
+    release_date: releaseDate,
     poster_path: row.poster_path || null,
     overview: raw.overview || null,
     runtime_min: row.runtime_min ?? raw.runtime_min ?? null,
@@ -186,11 +199,14 @@ function pickBestMatch(results, title) {
 
 async function cacheMovieRecord(movie) {
   const genres = movie.genres?.length ? movie.genres : null;
+  const releaseDate = movie.release_date && /^\d{4}-\d{2}-\d{2}$/.test(movie.release_date)
+    ? movie.release_date
+    : null;
   await db()`
-    INSERT INTO alist_movie_cache (tmdb_id, title, year, poster_path, runtime_min, genres, raw)
+    INSERT INTO alist_movie_cache (tmdb_id, title, year, poster_path, runtime_min, genres, raw, release_date)
     VALUES (
       ${movie.tmdb_id}, ${movie.title}, ${movie.year}, ${movie.poster_path},
-      ${movie.runtime_min ?? null}, ${genres}, ${JSON.stringify(movie)}
+      ${movie.runtime_min ?? null}, ${genres}, ${JSON.stringify(movie)}, ${releaseDate}
     )
     ON CONFLICT (tmdb_id) DO UPDATE SET
       title = EXCLUDED.title,
@@ -199,6 +215,7 @@ async function cacheMovieRecord(movie) {
       runtime_min = EXCLUDED.runtime_min,
       genres = EXCLUDED.genres,
       raw = EXCLUDED.raw,
+      release_date = COALESCE(EXCLUDED.release_date, alist_movie_cache.release_date),
       fetched_at = now()
   `;
 }
@@ -217,7 +234,7 @@ async function getMovieDetails(tmdbId) {
   if (process.env.DATABASE_URL) {
     await ensureSchema();
     const rows = await db()`
-      SELECT tmdb_id, title, year, poster_path, runtime_min, genres, raw
+      SELECT tmdb_id, title, year, poster_path, runtime_min, genres, raw, release_date
       FROM alist_movie_cache
       WHERE tmdb_id = ${tmdbId}
     `;
@@ -477,10 +494,18 @@ async function handleWatchlist(req, res) {
     const id = randomUUID();
 
     try {
-      const rows = await db()`
+      await db()`
         INSERT INTO alist_watchlist (id, user_id, title, tmdb_id, notes)
         VALUES (${id}, ${userId}, ${title}, ${tmdbId}, ${notes})
-        RETURNING id, title, tmdb_id, notes, created_at, updated_at
+      `;
+      const rows = await db()`
+        SELECT
+          w.id, w.title, w.tmdb_id, w.notes, w.created_at, w.updated_at,
+          c.poster_path, c.year, c.release_date,
+          COALESCE(c.release_date::text, c.raw->>'release_date') AS release_date_raw
+        FROM alist_watchlist w
+        LEFT JOIN alist_movie_cache c ON c.tmdb_id = w.tmdb_id
+        WHERE w.id = ${id} AND w.user_id = ${userId}
       `;
       res.status(201).json({ item: watchlistFromRow(rows[0]) });
     } catch (err) {

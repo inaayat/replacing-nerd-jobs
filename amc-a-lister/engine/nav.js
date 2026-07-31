@@ -6,6 +6,7 @@ const NAV_ACTIVE = document.body.dataset.page || '';
 
 const PAGES = [
   { href: '/amc-a-lister/', label: 'Log', id: 'log' },
+  { href: '/amc-a-lister/what-to-watch.html', label: 'Watch', id: 'what-to-watch' },
   { href: '/amc-a-lister/insights.html', label: 'Insights', id: 'insights' },
   { href: '/amc-a-lister/leaderboard.html', label: 'Leaderboard', id: 'leaderboard' },
   { href: '/amc-a-lister/settings.html', label: 'Settings', id: 'settings' },
@@ -45,6 +46,9 @@ export function renderShell({ title, subtitle, body = '', hideLogBar = false } =
         </div>
       </aside>
       <div class="al-content-scroll">
+        <div class="al-mobile-stats" id="al-mobile-stats" hidden>
+          ${mobileStatsPlaceholder()}
+        </div>
         ${showQuickLog ? renderQuickLogBar() : ''}
         ${title ? `
           <div class="al-page-header">
@@ -70,10 +74,16 @@ function sidebarStatsPlaceholder() {
       ${sidebarStat('Avg ticket', 'avg-ticket')}
       ${sidebarStat('Avg runtime', 'avg-runtime')}
     </div>
-    <div class="al-sidebar-stats-block">
-      <p class="al-sidebar-stats-heading" id="al-period-label">This period</p>
-      ${sidebarStat('Movies', 'period-movies')}
-      ${sidebarStat('Net', 'period-net', 'is-savings')}
+  `;
+}
+
+function mobileStatsPlaceholder() {
+  return `
+    <div class="al-mobile-stats-inner">
+      ${mobileStat('Seen', 'seen')}
+      ${mobileStat('Savings', 'savings', 'is-savings')}
+      ${mobileStat('Billed', 'billed', 'is-cost')}
+      ${mobileStat('$/movie', 'cost')}
     </div>
   `;
 }
@@ -87,13 +97,24 @@ function sidebarStat(label, key, extraClass = '') {
   `;
 }
 
+function mobileStat(label, key, extraClass = '') {
+  return `
+    <div class="al-mobile-stat">
+      <span class="al-mobile-stat-label">${label}</span>
+      <span class="al-mobile-stat-value ${extraClass}" data-sidebar="${key}">—</span>
+    </div>
+  `;
+}
+
 export async function populateSidebarStats(auth) {
   if (!auth.signedIn || !auth.token) return;
+
+  const mobileBar = document.getElementById('al-mobile-stats');
+  if (mobileBar) mobileBar.hidden = false;
 
   try {
     const data = await summaryApi.get(auth.token);
     const summary = data?.summary || {};
-    const period = summary.currentPeriod || {};
 
     const values = {
       seen: { v: summary.totalSeen ?? 0, kind: 'count' },
@@ -102,16 +123,7 @@ export async function populateSidebarStats(auth) {
       cost: { v: summary.costPerMovie ?? 0, kind: 'money' },
       'avg-ticket': { v: summary.avgTicket ?? 0, kind: 'money' },
       'avg-runtime': { v: summary.avgRuntimeMin ?? 0, kind: 'runtime' },
-      'period-movies': { v: period.movies ?? 0, kind: 'count' },
-      'period-net': { v: period.savings ?? 0, kind: 'money' },
     };
-
-    const periodLabel = document.getElementById('al-period-label');
-    if (periodLabel && period.month) {
-      const [y, m] = period.month.split('-');
-      const d = new Date(Number(y), Number(m) - 1, 1);
-      periodLabel.textContent = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-    }
 
     document.querySelectorAll('[data-sidebar]').forEach((el) => {
       const cfg = values[el.dataset.sidebar];
