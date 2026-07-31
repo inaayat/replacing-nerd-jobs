@@ -64,8 +64,8 @@ async function loadLog(auth) {
       </form>
       <p class="al-muted al-watchlist-status" id="watchlist-status" aria-live="polite"></p>
       <p class="al-muted al-watchlist-scroll-hint">
-        <span class="al-hint-hover">Hover a poster for details.</span>
-        <span class="al-hint-touch">Tap a poster for details.</span>
+        <span class="al-hint-hover">Hover a poster to log or remove.</span>
+        <span class="al-hint-touch">Tap a poster to log or remove.</span>
       </p>
       <div class="al-watchlist-list" id="watchlist-list"></div>
     </section>

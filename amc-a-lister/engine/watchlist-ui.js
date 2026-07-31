@@ -43,11 +43,17 @@ export function releaseLabel(item) {
   return 'Release TBA';
 }
 
+/** Compact date for the always-visible strip label under posters. */
+export function releaseStripLabel(item) {
+  if (item.release_date) return shortDate(item.release_date);
+  if (item.year) return String(item.year);
+  return 'TBA';
+}
+
 function watchlistPopupHtml(item) {
   return `
     <span class="al-hover-popup al-hover-popup--watchlist" role="tooltip">
       <span class="al-watchlist-popup-title">${escapeHtml(item.title)}</span>
-      <span class="al-hover-popup-item-date al-watchlist-popup-date">${escapeHtml(releaseLabel(item))}</span>
       ${item.notes ? `<p class="al-watchlist-popup-notes al-muted">${escapeHtml(item.notes)}</p>` : ''}
       <span class="al-watchlist-popup-actions">
         <button type="button" class="al-link-btn" data-log-watchlist="${item.id}">Log screening</button>
@@ -63,8 +69,11 @@ export function watchlistStripHtml(items, { emptyMessage } = {}) {
   }
   return items.map((item) => `
     <article class="al-watchlist-strip-item al-hover-target" data-watchlist-id="${item.id}" tabindex="0" aria-label="${escapeHtml(item.title)}">
-      ${posterHtml(item, { size: 'w154', width: 56, height: 84, className: 'al-poster al-poster--strip' })}
-      ${watchlistPopupHtml(item)}
+      <div class="al-watchlist-strip-poster">
+        ${posterHtml(item, { size: 'w154', width: 56, height: 84, className: 'al-poster al-poster--strip' })}
+        ${watchlistPopupHtml(item)}
+      </div>
+      <span class="al-watchlist-strip-date">${escapeHtml(releaseStripLabel(item))}</span>
     </article>
   `).join('');
 }
