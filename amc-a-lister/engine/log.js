@@ -153,6 +153,8 @@ function wireWatchlistPanel(auth, state) {
       ? `<a class="al-already-out-btn" href="/amc-a-lister/what-to-watch.html">Already out <span class="al-already-out-count">${alreadyOut.length}</span></a>`
       : `<a class="al-already-out-btn al-already-out-btn--empty" href="/amc-a-lister/what-to-watch.html">What to watch</a>`;
     headerActions.innerHTML = `${linkHtml}<span class="al-muted" id="watchlist-count">${comingSoon.length}</span>`;
+    const hintEl = document.querySelector('.al-watchlist-scroll-hint');
+    if (hintEl) hintEl.hidden = comingSoon.length === 0;
   };
 
   const renderList = wireWatchlistList(auth, state, {
