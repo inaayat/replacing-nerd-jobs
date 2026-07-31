@@ -425,7 +425,7 @@ a { color: var(--al-burgundy); }
 }
 
 .al-watchlist-segment {
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   width: 100%;
 }
 
@@ -523,13 +523,21 @@ a { color: var(--al-burgundy); }
 
 .al-watchlist-status {
   min-height: 1em;
-  margin: 0 0 4px;
+  margin: 0 0 6px;
   font-size: 0.76rem;
 }
 
 .al-watchlist-scroll-hint {
-  margin: 0 0 4px;
+  margin: 2px 0 12px;
   font-size: 0.7rem;
+}
+
+.al-watchlist-strip-wrap {
+  overflow-x: auto;
+  overflow-y: visible;
+  margin: 0 -2px;
+  padding: 0 2px 8px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .al-watchlist-list {
@@ -540,80 +548,92 @@ a { color: var(--al-burgundy); }
 
 .al-watchlist-strip {
   display: flex;
-  gap: 10px;
-  overflow-x: auto;
-  overflow-y: visible;
-  padding: 6px 2px 4px;
-  margin: 0 -2px;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 12px;
+  overflow: visible;
+  padding: 4px 0 10px;
+  margin: 0;
+  align-items: flex-start;
   scroll-snap-type: x proximity;
-  -webkit-overflow-scrolling: touch;
 }
 
 .al-watchlist-strip-item {
   flex: 0 0 auto;
   position: relative;
-  scroll-snap-align: start;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  width: 68px;
+  gap: 6px;
+  width: 76px;
+  padding: 0;
+  margin: 0;
   border: 0;
   background: none;
-  padding: 0;
-  cursor: default;
   outline: none;
+  cursor: default;
+  scroll-snap-align: start;
 }
 
 .al-watchlist-strip-poster {
   position: relative;
-  width: 56px;
+  width: 64px;
+  height: 96px;
+  flex-shrink: 0;
 }
 
-.al-watchlist-strip-item .al-poster--strip {
+.al-watchlist-strip-item .al-poster--watchlist-strip,
+.al-watchlist-strip-item .al-poster--empty {
   display: block;
-  width: 56px;
-  height: 84px;
+  width: 64px;
+  height: 96px;
+  max-width: none;
   border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
-.al-watchlist-strip-item:hover .al-poster--strip,
-.al-watchlist-strip-item:focus-within .al-poster--strip {
-  transform: translateY(-3px) scale(1.03);
-  box-shadow: 0 8px 20px rgba(28, 28, 28, 0.18);
+.al-watchlist-strip-item:hover .al-poster--watchlist-strip,
+.al-watchlist-strip-item:focus-within .al-poster--watchlist-strip,
+.al-watchlist-strip-item.is-open .al-poster--watchlist-strip {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(28, 28, 28, 0.16);
 }
 
 .al-watchlist-strip-date {
   display: block;
   width: 100%;
+  min-height: 2.3em;
   font-family: var(--al-font-mono);
-  font-size: 0.62rem;
-  line-height: 1.2;
+  font-size: 0.6rem;
+  line-height: 1.25;
   text-align: center;
   color: var(--al-muted);
-  white-space: nowrap;
+  white-space: normal;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.al-hover-popup--watchlist {
+.al-watchlist-popup {
+  position: absolute;
   left: 50%;
-  right: auto;
-  z-index: 50;
-  transform: translateX(-50%) scale(0.88);
-  bottom: calc(100% + 10px);
-  top: auto;
-  min-width: 210px;
+  top: calc(100% + 8px);
+  z-index: 60;
+  min-width: 220px;
   max-width: 280px;
   padding: 12px 14px;
+  background: var(--al-panel);
+  border: 1px solid var(--al-line);
+  border-radius: 10px;
+  box-shadow: 0 14px 36px rgba(28, 28, 28, 0.2);
+  transform: translateX(-50%) scale(0.94);
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  box-shadow: 0 14px 36px rgba(28, 28, 28, 0.2);
+  display: none;
   transition:
     opacity 0.18s ease,
-    transform 0.22s cubic-bezier(0.34, 1.4, 0.64, 1),
+    transform 0.2s cubic-bezier(0.34, 1.4, 0.64, 1),
     visibility 0.18s;
 }
 
@@ -623,8 +643,6 @@ a { color: var(--al-burgundy); }
   font-size: 0.92rem;
   font-weight: 600;
   line-height: 1.25;
-  text-transform: none;
-  letter-spacing: normal;
   color: var(--al-text);
 }
 
@@ -634,9 +652,10 @@ a { color: var(--al-burgundy); }
   font-size: 0.76rem;
 }
 
-.al-watchlist-strip-item:hover .al-hover-popup--watchlist,
-.al-watchlist-strip-item:focus-within .al-hover-popup--watchlist,
-.al-watchlist-strip-item.is-open .al-hover-popup--watchlist {
+.al-watchlist-strip-item:hover .al-watchlist-popup,
+.al-watchlist-strip-item:focus-within .al-watchlist-popup,
+.al-watchlist-strip-item.is-open .al-watchlist-popup {
+  display: block;
   opacity: 1;
   visibility: visible;
   pointer-events: auto;

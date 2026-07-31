@@ -67,7 +67,9 @@ async function loadLog(auth) {
         <span class="al-hint-hover">Hover or click a poster for details.</span>
         <span class="al-hint-touch">Tap a poster for details.</span>
       </p>
-      <div class="al-watchlist-list" id="watchlist-list"></div>
+      <div class="al-watchlist-strip-wrap">
+        <div class="al-watchlist-list" id="watchlist-list"></div>
+      </div>
     </section>
 
     <section class="al-panel al-panel--log">
