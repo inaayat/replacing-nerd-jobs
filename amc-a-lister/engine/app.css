@@ -408,6 +408,7 @@ a { color: var(--al-burgundy); }
 .al-panel--watchlist {
   margin-bottom: 12px;
   padding: 10px 12px;
+  overflow: visible;
 }
 
 .al-watchlist-header {
@@ -496,10 +497,103 @@ a { color: var(--al-burgundy); }
   font-size: 0.76rem;
 }
 
+.al-watchlist-scroll-hint {
+  margin: 0 0 4px;
+  font-size: 0.7rem;
+}
+
 .al-watchlist-list {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.al-watchlist-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 2px 6px;
+  margin: 0 -2px;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+
+.al-watchlist-strip-item {
+  flex: 0 0 auto;
+  position: relative;
+  scroll-snap-align: start;
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: default;
+  outline: none;
+}
+
+.al-watchlist-strip-item .al-poster--strip {
+  display: block;
+  border-radius: 6px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.al-watchlist-strip-item:hover .al-poster--strip,
+.al-watchlist-strip-item:focus-within .al-poster--strip {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(28, 28, 28, 0.14);
+}
+
+.al-hover-popup--watchlist {
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%) translateY(4px);
+  bottom: calc(100% + 8px);
+  top: auto;
+  min-width: 200px;
+  max-width: 260px;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+}
+
+.al-watchlist-popup-title {
+  display: block;
+  margin: 0 0 4px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--al-text);
+}
+
+.al-watchlist-popup-date {
+  display: block;
+  font-size: 0.76rem;
+}
+
+.al-watchlist-strip-item:hover .al-hover-popup--watchlist,
+.al-watchlist-strip-item:focus-within .al-hover-popup--watchlist {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+
+.al-watchlist-popup-notes {
+  margin: 6px 0 0;
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.al-watchlist-popup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.al-watchlist-popup-actions .al-link-btn {
+  font-size: 0.78rem;
 }
 
 .al-watchlist-empty {

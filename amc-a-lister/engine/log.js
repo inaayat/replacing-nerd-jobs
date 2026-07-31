@@ -63,6 +63,10 @@ async function loadLog(auth) {
         <input type="hidden" id="watchlist-tmdb_id" value="" />
       </form>
       <p class="al-muted al-watchlist-status" id="watchlist-status" aria-live="polite"></p>
+      <p class="al-muted al-watchlist-scroll-hint">
+        <span class="al-hint-hover">Hover a poster for details.</span>
+        <span class="al-hint-touch">Tap a poster for details.</span>
+      </p>
       <div class="al-watchlist-list" id="watchlist-list"></div>
     </section>
 
@@ -154,6 +158,7 @@ function wireWatchlistPanel(auth, state) {
   const renderList = wireWatchlistList(auth, state, {
     listEl,
     statusEl,
+    layout: 'strip',
     getItems: () => sortComingSoon(state.watchlist),
     emptyMessage: 'No upcoming titles. Add one above, or check Already out.',
     onChange: refreshHeader,

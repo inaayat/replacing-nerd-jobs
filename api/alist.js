@@ -467,6 +467,42 @@ async function handleWatches(req, res) {
   res.status(405).json({ error: 'Method not allowed.' });
 }
 
+async function enrichWatchlistRows(rows) {
+  const apiKey = process.env.TMDB_API_KEY;
+  if (!apiKey || !process.env.DATABASE_URL || !rows?.length) return rows;
+
+  await ensureSchema();
+  let lookups = 0;
+  const updated = [];
+
+  for (const row of rows) {
+    const hasDate = row.release_date || row.release_date_raw;
+    if (hasDate || !row.tmdb_id || lookups >= 12) {
+      updated.push(row);
+      continue;
+    }
+    try {
+      const movie = await getMovieDetails(row.tmdb_id);
+      lookups += 1;
+      if (movie?.release_date) {
+        updated.push({
+          ...row,
+          release_date: movie.release_date,
+          release_date_raw: movie.release_date,
+          poster_path: row.poster_path || movie.poster_path || null,
+          year: row.year ?? movie.year ?? null,
+        });
+      } else {
+        updated.push(row);
+      }
+    } catch {
+      updated.push(row);
+    }
+  }
+
+  return updated;
+}
+
 async function handleWatchlist(req, res) {
   if (!requireDb(res)) return;
   const session = await requireUser(req, res);
@@ -475,7 +511,7 @@ async function handleWatchlist(req, res) {
 
   if (req.method === 'GET') {
     try {
-      const rows = await listWatchlist(userId);
+      const rows = await enrichWatchlistRows(await listWatchlist(userId));
       res.status(200).json({ items: rows.map(watchlistFromRow) });
     } catch (err) {
       res.status(502).json({ error: err.message });
@@ -494,11 +530,14 @@ async function handleWatchlist(req, res) {
     const id = randomUUID();
 
     try {
+      if (tmdbId && process.env.TMDB_API_KEY) {
+        await getMovieDetails(tmdbId);
+      }
       await db()`
         INSERT INTO alist_watchlist (id, user_id, title, tmdb_id, notes)
         VALUES (${id}, ${userId}, ${title}, ${tmdbId}, ${notes})
       `;
-      const rows = await db()`
+      const rows = await enrichWatchlistRows(await db()`
         SELECT
           w.id, w.title, w.tmdb_id, w.notes, w.created_at, w.updated_at,
           c.poster_path, c.year, c.release_date,
@@ -506,7 +545,7 @@ async function handleWatchlist(req, res) {
         FROM alist_watchlist w
         LEFT JOIN alist_movie_cache c ON c.tmdb_id = w.tmdb_id
         WHERE w.id = ${id} AND w.user_id = ${userId}
-      `;
+      `);
       res.status(201).json({ item: watchlistFromRow(rows[0]) });
     } catch (err) {
       res.status(502).json({ error: err.message });

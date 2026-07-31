@@ -69,6 +69,7 @@ async function loadPage(auth) {
   const renderList = wireWatchlistList(auth, state, {
     listEl: document.getElementById('watchlist-list'),
     statusEl: document.getElementById('watchlist-status'),
+    layout: 'list',
     getItems: () => sortAlreadyOut(state.watchlist),
     emptyMessage: 'Nothing already out on your list. Add a title, or check Coming soon on the log.',
     onChange: refreshHeader,

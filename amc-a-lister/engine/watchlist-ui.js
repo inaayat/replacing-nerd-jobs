@@ -39,8 +39,34 @@ export function sortAlreadyOut(items, today = todayISO()) {
 
 export function releaseLabel(item) {
   if (item.release_date) return shortDate(item.release_date);
-  if (item.year) return String(item.year);
-  return 'TBA';
+  if (item.year) return `${item.year} · date TBA`;
+  return 'Release TBA';
+}
+
+function watchlistPopupHtml(item) {
+  return `
+    <span class="al-hover-popup al-hover-popup--watchlist" role="tooltip">
+      <span class="al-watchlist-popup-title">${escapeHtml(item.title)}</span>
+      <span class="al-hover-popup-item-date al-watchlist-popup-date">${escapeHtml(releaseLabel(item))}</span>
+      ${item.notes ? `<p class="al-watchlist-popup-notes al-muted">${escapeHtml(item.notes)}</p>` : ''}
+      <span class="al-watchlist-popup-actions">
+        <button type="button" class="al-link-btn" data-log-watchlist="${item.id}">Log screening</button>
+        <button type="button" class="al-link-btn" data-remove-watchlist="${item.id}">Remove</button>
+      </span>
+    </span>
+  `;
+}
+
+export function watchlistStripHtml(items, { emptyMessage } = {}) {
+  if (!items.length) {
+    return `<p class="al-muted al-watchlist-empty">${emptyMessage || 'Nothing here yet.'}</p>`;
+  }
+  return items.map((item) => `
+    <article class="al-watchlist-strip-item al-hover-target" data-watchlist-id="${item.id}" tabindex="0" aria-label="${escapeHtml(item.title)}">
+      ${posterHtml(item, { size: 'w154', width: 56, height: 84, className: 'al-poster al-poster--strip' })}
+      ${watchlistPopupHtml(item)}
+    </article>
+  `).join('');
 }
 
 export function watchlistRowsHtml(items, { emptyMessage, showRelease = true } = {}) {
@@ -62,6 +88,13 @@ export function watchlistRowsHtml(items, { emptyMessage, showRelease = true } = 
   `).join('');
 }
 
+function renderWatchlistHtml(items, { layout = 'strip', emptyMessage, showRelease = true } = {}) {
+  if (layout === 'strip') {
+    return watchlistStripHtml(items, { emptyMessage });
+  }
+  return watchlistRowsHtml(items, { emptyMessage, showRelease });
+}
+
 export function wireWatchlistList(auth, state, {
   listEl,
   countEl,
@@ -69,16 +102,20 @@ export function wireWatchlistList(auth, state, {
   getItems,
   emptyMessage,
   showRelease = true,
+  layout = 'strip',
   onChange,
 }) {
   const render = () => {
     const items = getItems();
-    listEl.innerHTML = watchlistRowsHtml(items, { emptyMessage, showRelease });
+    listEl.classList.toggle('al-watchlist-strip', layout === 'strip');
+    listEl.classList.toggle('al-watchlist-list', layout === 'list');
+    listEl.innerHTML = renderWatchlistHtml(items, { layout, emptyMessage, showRelease });
     if (countEl) countEl.textContent = String(items.length);
     onChange?.();
 
     listEl.querySelectorAll('[data-log-watchlist]').forEach((btn) => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
         const item = state.watchlist.find((w) => w.id === btn.dataset.logWatchlist);
         if (!item) return;
         prefillQuickLog({ title: item.title, tmdbId: item.tmdb_id, mode: 'theater' });
@@ -86,7 +123,8 @@ export function wireWatchlistList(auth, state, {
     });
 
     listEl.querySelectorAll('[data-remove-watchlist]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
         const id = btn.dataset.removeWatchlist;
         if (!confirm('Remove from want to watch?')) return;
         try {
