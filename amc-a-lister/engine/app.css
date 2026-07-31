@@ -1622,10 +1622,6 @@ table.al-table {
 
 @media (min-width: 720px) {
   .al-insight-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .al-insight.al-by-actor {
-    grid-column: span 1;
-    max-width: 100%;
-  }
 }
 
 .al-rank-table .al-rank-num {

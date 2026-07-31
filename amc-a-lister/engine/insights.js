@@ -30,15 +30,14 @@ bootPage(async ({ root, auth }) => {
     <div class="al-insight-grid">
       ${renderRatingProfileSection(ratings, ratingBuckets, moviesByRating)}
       ${renderTheaterRankingSection(theaters, moviesByTheater)}
-      ${renderByActorSection(actors)}
+      ${renderActorsMostSeenSection(actors)}
+      ${renderActorsBestRatedSection(actors)}
       ${renderFormatPremiumsSection(formats)}
     </div>
     ${renderRewatchesSection(rewatches)}
   `;
 
   wireInsightSections(main);
-  const byActorSection = main.querySelector('.al-by-actor');
-  if (byActorSection) wireSegmentToggle(byActorSection);
 }, { quickLogOnSuccess: (auth) => populateSidebarStats(auth) });
 
 function insightSection(title, body, { className = '', expanded = false, actions = '' } = {}) {
@@ -132,33 +131,35 @@ function renderFormatPremiumsSection(formats) {
     : '<div class="al-empty">No format data yet.</div>');
 }
 
-function renderByActorSection(actors) {
+function renderActorsMostSeenSection(actors) {
   if (!actors.length) {
-    return insightSection('By actor', `
+    return insightSection('Most seen', `
       <div class="al-empty">No actor data yet — link movies to TMDB when logging or expand a row in your log.</div>
-    `, { className: 'al-by-actor' });
+    `, { className: 'al-actors-most-seen' });
   }
 
-  const mostSeen = actors.slice(0, 10);
-  const highestRated = topActorsByRating(actors, { minRated: 2, limit: 10 });
-  const segment = `
-    <div class="al-segment al-insight-actions" role="tablist" aria-label="By actor view">
-      <button type="button" class="al-segment-btn is-active" role="tab" aria-selected="true" data-view="most">Most seen</button>
-      <button type="button" class="al-segment-btn" role="tab" aria-selected="false" data-view="rated">Highest rated</button>
-    </div>
-  `;
+  return insightSection('Most seen', `
+    <p class="al-muted al-by-actor-hint">Top 10 by unique films. Hover a name to see titles.</p>
+    ${actorRankTable(actors.slice(0, 10))}
+  `, { className: 'al-actors-most-seen' });
+}
 
-  return insightSection('By actor', `
-    <p class="al-muted al-by-actor-hint">Top 10 unique films per actor. Hover a name to see titles.</p>
-    <div class="al-view-panel" data-panel="most">
-      ${actorRankTable(mostSeen)}
-    </div>
-    <div class="al-view-panel is-hidden" data-panel="rated" hidden>
-      ${highestRated.length
-    ? actorRankTable(highestRated, { sortByRating: true })
-    : '<div class="al-empty">Rate at least two films per actor to rank them here.</div>'}
-    </div>
-  `, { className: 'al-by-actor', actions: segment });
+function renderActorsBestRatedSection(actors) {
+  if (!actors.length) {
+    return insightSection('Best rated', `
+      <div class="al-empty">No actor data yet — link movies to TMDB when logging or expand a row in your log.</div>
+    `, { className: 'al-actors-best-rated' });
+  }
+
+  const highestRated = topActorsByRating(actors, { minRated: 2, limit: 10 });
+
+  return insightSection('Best rated', highestRated.length
+    ? `
+      <p class="al-muted al-by-actor-hint">Top 10 with at least 2 rated films. Hover a name to see titles.</p>
+      ${actorRankTable(highestRated, { sortByRating: true })}
+    `
+    : '<div class="al-empty">Rate at least two films per actor to rank them here.</div>',
+  { className: 'al-actors-best-rated' });
 }
 
 function renderRewatchesSection(rewatches) {
@@ -245,28 +246,6 @@ function rankTable({ headers, rows }) {
       </table>
     </div>
   `;
-}
-
-function wireSegmentToggle(section) {
-  const buttons = [...section.querySelectorAll('[data-view]')];
-  const panels = [...section.querySelectorAll('[data-panel]')];
-
-  buttons.forEach((btn) => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const view = btn.dataset.view;
-      buttons.forEach((b) => {
-        const active = b === btn;
-        b.classList.toggle('is-active', active);
-        b.setAttribute('aria-selected', active ? 'true' : 'false');
-      });
-      panels.forEach((panel) => {
-        const show = panel.dataset.panel === view;
-        panel.classList.toggle('is-hidden', !show);
-        panel.hidden = !show;
-      });
-    });
-  });
 }
 
 function groupMoviesByMonth(watches) {
