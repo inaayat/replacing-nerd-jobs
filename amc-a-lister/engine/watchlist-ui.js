@@ -54,6 +54,7 @@ function watchlistPopupHtml(item) {
   return `
     <span class="al-hover-popup al-hover-popup--watchlist" role="tooltip">
       <span class="al-watchlist-popup-title">${escapeHtml(item.title)}</span>
+      <span class="al-watchlist-popup-date al-muted">${escapeHtml(releaseLabel(item))}</span>
       ${item.notes ? `<p class="al-watchlist-popup-notes al-muted">${escapeHtml(item.notes)}</p>` : ''}
       <span class="al-watchlist-popup-actions">
         <button type="button" class="al-link-btn" data-log-watchlist="${item.id}">Log screening</button>
@@ -118,7 +119,8 @@ export function wireWatchlistList(auth, state, {
     const items = getItems();
     listEl.classList.toggle('al-watchlist-strip', layout === 'strip');
     listEl.classList.toggle('al-watchlist-list', layout === 'list');
-    listEl.innerHTML = renderWatchlistHtml(items, { layout, emptyMessage, showRelease });
+    const message = typeof emptyMessage === 'function' ? emptyMessage() : emptyMessage;
+    listEl.innerHTML = renderWatchlistHtml(items, { layout, emptyMessage: message, showRelease });
     if (countEl) countEl.textContent = String(items.length);
     onChange?.();
 
@@ -145,6 +147,25 @@ export function wireWatchlistList(auth, state, {
         }
       });
     });
+
+    if (layout === 'strip') {
+      listEl.querySelectorAll('.al-watchlist-strip-item').forEach((item) => {
+        item.addEventListener('click', (e) => {
+          if (e.target.closest('[data-log-watchlist], [data-remove-watchlist]')) return;
+          const wasOpen = item.classList.contains('is-open');
+          listEl.querySelectorAll('.al-watchlist-strip-item.is-open').forEach((el) => el.classList.remove('is-open'));
+          if (!wasOpen) item.classList.add('is-open');
+        });
+      });
+
+      if (!listEl.dataset.stripDismissWired) {
+        listEl.dataset.stripDismissWired = '1';
+        document.addEventListener('click', (e) => {
+          if (e.target.closest(`#${listEl.id}`)) return;
+          listEl.querySelectorAll('.al-watchlist-strip-item.is-open').forEach((el) => el.classList.remove('is-open'));
+        });
+      }
+    }
   };
 
   render();

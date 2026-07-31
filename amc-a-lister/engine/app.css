@@ -424,6 +424,36 @@ a { color: var(--al-burgundy); }
   margin-bottom: 6px;
 }
 
+.al-watchlist-segment {
+  margin-bottom: 8px;
+  width: 100%;
+}
+
+.al-watchlist-segment .al-segment-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.al-segment-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.2em;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.08);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+.al-segment-btn.is-active .al-segment-count {
+  background: rgba(218, 0, 0, 0.12);
+  color: var(--al-red);
+}
+
 .al-watchlist-header-actions {
   display: flex;
   align-items: center;
@@ -589,7 +619,7 @@ a { color: var(--al-burgundy); }
 
 .al-watchlist-popup-title {
   display: block;
-  margin: 0 0 6px;
+  margin: 0 0 4px;
   font-size: 0.92rem;
   font-weight: 600;
   line-height: 1.25;
@@ -598,8 +628,15 @@ a { color: var(--al-burgundy); }
   color: var(--al-text);
 }
 
+.al-watchlist-popup-date {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.76rem;
+}
+
 .al-watchlist-strip-item:hover .al-hover-popup--watchlist,
-.al-watchlist-strip-item:focus-within .al-hover-popup--watchlist {
+.al-watchlist-strip-item:focus-within .al-hover-popup--watchlist,
+.al-watchlist-strip-item.is-open .al-hover-popup--watchlist {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;

@@ -45,7 +45,7 @@ async function loadLog(auth) {
         <h2 class="al-section-title">Want to watch</h2>
         <div class="al-watchlist-header-actions">
           ${alreadyOut.length ? `
-            <a class="al-already-out-btn" href="/amc-a-lister/what-to-watch.html">
+            <a class="al-already-out-btn" href="/amc-a-lister/what-to-watch.html?view=out">
               Already out <span class="al-already-out-count">${alreadyOut.length}</span>
             </a>
           ` : `
@@ -64,8 +64,8 @@ async function loadLog(auth) {
       </form>
       <p class="al-muted al-watchlist-status" id="watchlist-status" aria-live="polite"></p>
       <p class="al-muted al-watchlist-scroll-hint">
-        <span class="al-hint-hover">Hover a poster to log or remove.</span>
-        <span class="al-hint-touch">Tap a poster to log or remove.</span>
+        <span class="al-hint-hover">Hover or click a poster for details.</span>
+        <span class="al-hint-touch">Tap a poster for details.</span>
       </p>
       <div class="al-watchlist-list" id="watchlist-list"></div>
     </section>
@@ -150,7 +150,7 @@ function wireWatchlistPanel(auth, state) {
     const comingSoon = sortComingSoon(state.watchlist);
     const alreadyOut = sortAlreadyOut(state.watchlist);
     const linkHtml = alreadyOut.length
-      ? `<a class="al-already-out-btn" href="/amc-a-lister/what-to-watch.html">Already out <span class="al-already-out-count">${alreadyOut.length}</span></a>`
+      ? `<a class="al-already-out-btn" href="/amc-a-lister/what-to-watch.html?view=out">Already out <span class="al-already-out-count">${alreadyOut.length}</span></a>`
       : `<a class="al-already-out-btn al-already-out-btn--empty" href="/amc-a-lister/what-to-watch.html">What to watch</a>`;
     headerActions.innerHTML = `${linkHtml}<span class="al-muted" id="watchlist-count">${comingSoon.length}</span>`;
     const hintEl = document.querySelector('.al-watchlist-scroll-hint');
