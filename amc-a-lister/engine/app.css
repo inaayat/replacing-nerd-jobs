@@ -2027,12 +2027,14 @@ table.al-table {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 10px 8px;
+    padding: 8px 4px;
     border-radius: 10px;
-    font-size: 0.82rem;
+    font-size: 0.72rem;
     font-weight: 600;
     text-decoration: none;
     color: rgba(255, 255, 255, 0.72);
+    text-align: center;
+    line-height: 1.15;
   }
 
   .al-mobile-nav-link.is-active {
