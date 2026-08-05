@@ -2042,7 +2042,10 @@ table.al-table {
   .al-input,
   .al-select,
   .al-textarea,
-  .al-quicklog-input {
+  .al-quicklog-input,
+  .al-watchlist-add .al-input,
+  .al-toolbar-search,
+  .al-toolbar-filter {
     font-size: 16px;
   }
 
@@ -2239,7 +2242,18 @@ table.al-table {
 
   .al-segment-btn {
     flex: 1;
+    min-width: 0;
     text-align: center;
+    padding: 5px 6px;
+    font-size: 0.7rem;
+  }
+
+  .al-segment-count {
+    font-size: 0.65rem;
+  }
+
+  .al-panel--tv {
+    padding: 10px;
   }
 
   .al-toolbar--log .al-toolbar-search,
