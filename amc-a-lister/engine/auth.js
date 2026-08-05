@@ -31,27 +31,30 @@ export async function initAuth() {
 }
 
 export function wireAuthLink(state) {
-  const link = document.getElementById('nav-auth-link');
-  if (!link) return;
+  const links = document.querySelectorAll('[data-nav-auth]');
+  if (!links.length) return;
 
-  if (!state.configured) {
-    link.textContent = 'Account';
-    link.href = '/account.html';
-    return;
-  }
+  links.forEach((link) => {
+    if (!state.configured) {
+      link.textContent = 'Account';
+      link.href = '/account.html';
+      return;
+    }
 
-  if (state.signedIn) {
-    link.textContent = 'Log out';
-    link.href = '#';
-    link.addEventListener('click', async (e) => {
-      e.preventDefault();
-      await state.client.signOut();
-      location.href = '/amc-a-lister/';
-    });
-  } else {
-    link.textContent = 'Log in';
-    link.href = `/account.html?next=${encodeURIComponent(location.pathname)}`;
-  }
+    if (state.signedIn) {
+      link.textContent = 'Log out';
+      link.href = '#';
+      link.onclick = async (e) => {
+        e.preventDefault();
+        await state.client.signOut();
+        location.href = '/amc-a-lister/';
+      };
+    } else {
+      link.textContent = 'Log in';
+      link.href = `/account.html?next=${encodeURIComponent(location.pathname)}`;
+      link.onclick = null;
+    }
+  });
 }
 
 export async function refreshToken(state) {

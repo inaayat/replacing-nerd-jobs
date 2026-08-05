@@ -766,7 +766,11 @@ a { color: var(--al-burgundy); }
   gap: 8px;
 }
 
-/* Mobile key-stats top bar (content area) */
+/* Mobile key-stats header (title + home + stats at top) */
+.al-mobile-header {
+  display: none;
+}
+
 .al-mobile-stats {
   display: none;
 }
@@ -2012,7 +2016,63 @@ table.al-table {
   .page-main {
     padding: 8px;
     padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+    gap: 8px;
+  }
+
+  .al-mobile-header {
+    display: block;
+    flex-shrink: 0;
+    order: 0;
+  }
+
+  .al-mobile-header-card {
+    background: var(--al-burgundy);
+    color: #fff;
+    border-radius: 12px;
+    padding: 8px 10px;
+  }
+
+  .al-mobile-header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     gap: 10px;
+    min-height: 28px;
+  }
+
+  .al-mobile-header-title {
+    font-family: var(--al-font-display);
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #fff;
+    text-decoration: none;
+    line-height: 1.2;
+    min-width: 0;
+  }
+
+  .al-mobile-header-title:hover {
+    color: #fff;
+    opacity: 0.9;
+  }
+
+  .al-mobile-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .al-mobile-home-link,
+  .al-mobile-auth-link {
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.72);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .al-mobile-home-link:hover,
+  .al-mobile-auth-link:hover {
+    color: #fff;
   }
 
   .al-content-scroll {
@@ -2021,47 +2081,20 @@ table.al-table {
   }
 
   .al-sidebar {
-    order: 2;
-    padding: 14px;
-    gap: 12px;
-  }
-
-  .al-sidebar-tagline,
-  .al-sidebar-nav,
-  .al-tmdb-credit {
     display: none;
-  }
-
-  .al-sidebar-stats {
-    display: none;
-  }
-
-  .al-sidebar-footer {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 10px 14px;
-    padding-top: 0;
-    border-top: 0;
-  }
-
-  .al-sidebar-title {
-    font-size: 1.15rem;
   }
 
   .al-mobile-stats:not([hidden]) {
     display: block;
-    flex-shrink: 0;
-    margin-bottom: 8px;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
   }
 
   .al-mobile-stats-inner {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 4px;
-    padding: 6px 8px;
-    border-radius: 10px;
-    background: var(--al-burgundy);
-    color: #fff;
   }
 
   .al-mobile-stat {
@@ -2074,7 +2107,7 @@ table.al-table {
   }
 
   .al-mobile-stat-label {
-    font-size: 0.62rem;
+    font-size: 0.6rem;
     letter-spacing: 0.02em;
     text-transform: uppercase;
     opacity: 0.72;
@@ -2083,7 +2116,7 @@ table.al-table {
 
   .al-mobile-stat-value {
     font-family: var(--al-font-mono);
-    font-size: 0.82rem;
+    font-size: 0.78rem;
     font-weight: 500;
     line-height: 1.2;
     white-space: nowrap;

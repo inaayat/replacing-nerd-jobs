@@ -29,6 +29,20 @@ export function renderShell({ title, subtitle, body = '', hideLogBar = false } =
 
   return `
     <div class="page-main">
+      <header class="al-mobile-header" aria-label="AMC A-Lister">
+        <div class="al-mobile-header-card">
+          <div class="al-mobile-header-top">
+            <a href="/amc-a-lister/" class="al-mobile-header-title">AMC A-Lister</a>
+            <div class="al-mobile-header-actions">
+              <a href="/" class="al-mobile-home-link">← Home</a>
+              <a href="/account.html" class="al-mobile-auth-link" data-nav-auth>Log in</a>
+            </div>
+          </div>
+          <div class="al-mobile-stats" id="al-mobile-stats" hidden>
+            ${mobileStatsPlaceholder()}
+          </div>
+        </div>
+      </header>
       <aside class="al-sidebar">
         <div class="al-sidebar-brand">
           <a href="/amc-a-lister/" class="al-sidebar-title">AMC A-Lister</a>
@@ -42,14 +56,11 @@ export function renderShell({ title, subtitle, body = '', hideLogBar = false } =
         </nav>
         <div class="al-sidebar-footer">
           <a href="/">← Beep boop</a>
-          <a href="/account.html" id="nav-auth-link">Log in</a>
+          <a href="/account.html" id="nav-auth-link" data-nav-auth>Log in</a>
           <p class="al-tmdb-credit">Movie &amp; TV data by <a href="https://www.themoviedb.org/" target="_blank" rel="noopener">TMDB</a></p>
         </div>
       </aside>
       <div class="al-content-scroll">
-        <div class="al-mobile-stats" id="al-mobile-stats" hidden>
-          ${mobileStatsPlaceholder()}
-        </div>
         ${showQuickLog ? renderQuickLogBar() : ''}
         ${title ? `
           <div class="al-page-header">
