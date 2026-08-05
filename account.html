@@ -294,7 +294,7 @@
         <!-- Neon Auth not configured yet -->
         <div id="not-configured" class="hidden auth-panel text-sm">
           <p class="serif font-semibold text-lg mb-2">Sign-in isn't set up yet.</p>
-          <p class="brand-mono text-xs opacity-60">Add the Neon Auth base URL to <code>auth-config.js</code> — see the "auth &amp; database" section of the README.</p>
+          <p class="brand-mono text-xs opacity-60">Neon Auth needs <code>NEON_AUTH_BASE_URL</code> and <code>DATABASE_URL</code> configured on the server. See the "auth &amp; database" section of the README.</p>
         </div>
 
         <!-- Sign in / sign up forms -->
@@ -333,13 +333,24 @@
       const hide = (id) => document.getElementById(id).classList.add('hidden');
       const nextUrl = () => {
         const next = new URLSearchParams(location.search).get('next');
-        if (!next || !next.startsWith('/')) return null;
+        if (!next || !next.startsWith('/') || next.startsWith('//')) return null;
         return next;
       };
-      const goAfterAuth = () => {
+      const goAfterAuth = async (neonAuth, client) => {
         const next = nextUrl();
-        if (next) location.href = next;
-        else location.reload();
+        if (!next) {
+          location.reload();
+          return;
+        }
+        if (next.startsWith('/amc-a-lister')) {
+          const { resolveNeonJwt } = await import('/engine/neon-browser-auth.js');
+          for (let attempt = 0; attempt < 6; attempt += 1) {
+            const token = await resolveNeonJwt(neonAuth, client);
+            if (token) break;
+            await new Promise((resolve) => setTimeout(resolve, 200));
+          }
+        }
+        location.href = next;
       };
 
       init();
@@ -363,7 +374,7 @@
         const neonAuth = await loadNeonAuth(authUrl);
         const client = neonAuth.adapter;
 
-        wireAuthForms(client);
+        wireAuthForms(client, neonAuth);
         document.getElementById('sign-out-btn').addEventListener('click', async () => {
           await client.signOut();
           location.reload();
@@ -372,7 +383,7 @@
         const { data } = await client.getSession();
         if (data?.user) {
           if (nextUrl()) {
-            goAfterAuth();
+            await goAfterAuth(neonAuth, client);
             return;
           }
           setHero('Account');
@@ -394,7 +405,7 @@
         hero.classList.remove('hidden');
       }
 
-      function wireAuthForms(client) {
+      function wireAuthForms(client, neonAuth) {
         const tabIn = document.getElementById('tab-signin');
         const tabUp = document.getElementById('tab-signup');
         const formIn = document.getElementById('form-signin');
@@ -419,7 +430,7 @@
             password: document.getElementById('signin-password').value,
           });
           if (error) showError(error.message || 'Sign-in failed.');
-          else goAfterAuth();
+          else await goAfterAuth(neonAuth, client);
         });
 
         formUp.addEventListener('submit', async (e) => {
@@ -431,7 +442,7 @@
             password: document.getElementById('signup-password').value,
           });
           if (error) showError(error.message || 'Sign-up failed.');
-          else goAfterAuth();
+          else await goAfterAuth(neonAuth, client);
         });
       }
 

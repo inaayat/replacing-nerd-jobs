@@ -3,6 +3,11 @@ import { loadNeonAuth, resolveNeonJwt } from '../../engine/neon-browser-auth.js'
 let _neonAuth = null;
 let _client = null;
 
+/** Full return path after sign-in (pathname + query string). */
+export function authReturnUrl() {
+  return `${location.pathname}${location.search}`;
+}
+
 export async function initAuth() {
   let url = null;
   try {
@@ -51,7 +56,7 @@ export function wireAuthLink(state) {
       };
     } else {
       link.textContent = 'Log in';
-      link.href = `/account.html?next=${encodeURIComponent(location.pathname)}`;
+      link.href = `/account.html?next=${encodeURIComponent(authReturnUrl())}`;
       link.onclick = null;
     }
   });

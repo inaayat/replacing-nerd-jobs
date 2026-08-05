@@ -1,0 +1,32 @@
+{
+  "name": "AMC A-Lister",
+  "short_name": "A-Lister",
+  "description": "Track every A-List screening, savings, and theater habits.",
+  "start_url": "/amc-a-lister/",
+  "scope": "/amc-a-lister/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#faf3e3",
+  "theme_color": "#830f10",
+  "categories": ["entertainment", "lifestyle", "productivity"],
+  "icons": [
+    {
+      "src": "/amc-a-lister/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/amc-a-lister/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/amc-a-lister/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

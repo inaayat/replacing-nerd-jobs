@@ -1,4 +1,5 @@
-import { initAuth, wireAuthLink, refreshToken } from './auth.js';
+import './pwa.js';
+import { initAuth, wireAuthLink, refreshToken, authReturnUrl } from './auth.js';
 import { summaryApi } from './api.js';
 import { renderQuickLogBar, wireQuickLog } from './quick-log.js';
 
@@ -154,6 +155,16 @@ export async function populateSidebarStats(auth) {
   }
 }
 
+async function runBootPage(renderFn, auth, { quickLogOnSuccess } = {}) {
+  const root = document.getElementById('app-root');
+  await renderFn({ root, auth });
+  wireAuthLink(auth);
+  if (auth.signedIn && auth.token) {
+    wireQuickLog(auth, { onSuccess: () => quickLogOnSuccess?.(auth) });
+    populateSidebarStats(auth);
+  }
+}
+
 export async function bootPage(renderFn, { quickLogOnSuccess } = {}) {
   const root = document.getElementById('app-root');
   const auth = await initAuth();
@@ -163,18 +174,32 @@ export async function bootPage(renderFn, { quickLogOnSuccess } = {}) {
   }
 
   try {
-    await renderFn({ root, auth });
-    wireAuthLink(auth);
-    if (auth.signedIn && auth.token) {
-      wireQuickLog(auth, { onSuccess: () => quickLogOnSuccess?.(auth) });
-      populateSidebarStats(auth);
-    }
+    await runBootPage(renderFn, auth, { quickLogOnSuccess });
   } catch (err) {
     console.error(err);
     if (err.status === 401 && auth.configured) {
+      const refreshed = await refreshToken(auth);
+      if (refreshed) {
+        auth.signedIn = true;
+        auth.needsReauth = false;
+        try {
+          await runBootPage(renderFn, auth, { quickLogOnSuccess });
+          return;
+        } catch (retryErr) {
+          console.error(retryErr);
+          if (retryErr.status !== 401) {
+            root.innerHTML = renderShell({
+              title: 'Error',
+              body: `<main class="al-main"><div class="al-panel"><p class="al-error">${retryErr.message || 'Something went wrong.'}</p></div></main>`,
+            });
+            return;
+          }
+        }
+      }
       auth.signedIn = false;
       auth.needsReauth = !!auth.user;
       if (!requireSignIn(auth, root)) return;
+      return;
     }
     root.innerHTML = renderShell({
       title: 'Error',
@@ -186,7 +211,7 @@ export async function bootPage(renderFn, { quickLogOnSuccess } = {}) {
 export function requireSignIn(auth, root) {
   if (auth.signedIn && auth.token) return true;
 
-  const loginHref = `/account.html?next=${encodeURIComponent(location.pathname)}`;
+  const loginHref = `/account.html?next=${encodeURIComponent(authReturnUrl())}`;
   const reauthNote = auth.needsReauth
     ? '<p class="al-error">Your session expired. Sign in again to load your log.</p>'
     : '';
