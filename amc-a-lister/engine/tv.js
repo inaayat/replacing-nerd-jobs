@@ -60,8 +60,8 @@ async function loadPage(auth) {
               <div class="al-search-results" id="tv-add-results" hidden></div>
             </div>
             <input class="al-input al-tv-add-date" id="tv-add-date" type="date" required value="${todayISO()}" />
-            <input class="al-input al-tv-add-ep" id="tv-add-season" type="number" min="1" placeholder="S" title="Season" />
-            <input class="al-input al-tv-add-ep" id="tv-add-episode" type="number" min="1" placeholder="E" title="Episode" />
+            <input class="al-input al-tv-add-season" id="tv-add-season" type="number" min="1" placeholder="Season" inputmode="numeric" />
+            <input class="al-input al-tv-add-episode" id="tv-add-episode" type="number" min="1" placeholder="Episode" inputmode="numeric" />
             <select class="al-select al-tv-add-rating" id="tv-add-rating" aria-label="Rating">
               <option value="">Rating</option>
               <option value="5">5★</option>
@@ -289,8 +289,8 @@ function tvEditRowHtml(w) {
         <div class="al-tv-add-row">
           <input class="al-input" name="title" type="text" value="${escapeHtml(w.title)}" required />
           <input class="al-input al-tv-add-date" name="watched_on" type="date" value="${w.watched_on}" required />
-          <input class="al-input al-tv-add-ep" name="season" type="number" min="1" placeholder="S" value="${w.season ?? ''}" />
-          <input class="al-input al-tv-add-ep" name="episode" type="number" min="1" placeholder="E" value="${w.episode ?? ''}" />
+          <input class="al-input al-tv-add-season" name="season" type="number" min="1" placeholder="Season" value="${w.season ?? ''}" inputmode="numeric" />
+          <input class="al-input al-tv-add-episode" name="episode" type="number" min="1" placeholder="Episode" value="${w.episode ?? ''}" inputmode="numeric" />
           <select class="al-select al-tv-add-rating" name="rating">
             <option value="">Rating</option>
             <option value="5" ${ratingVal === '5' ? 'selected' : ''}>5★</option>

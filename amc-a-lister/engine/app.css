@@ -2454,6 +2454,13 @@ table.al-table {
   width: 9.5rem;
 }
 
+.al-tv-add-season,
+.al-tv-add-episode {
+  flex: 0 0 auto;
+  width: 3.25rem;
+  text-align: center;
+}
+
 .al-tv-add-ep {
   flex: 0 0 auto;
   width: 3.25rem;
@@ -2485,43 +2492,42 @@ table.al-table {
 @media (max-width: 720px) {
   .al-tv-add-row {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
     align-items: stretch;
   }
 
-  .al-tv-add-field {
+  .al-tv-add-field,
+  .al-tv-add-date,
+  .al-tv-add-row .al-btn {
     grid-column: 1 / -1;
-    flex: none;
     width: 100%;
+    flex: none;
     min-width: 0;
   }
 
-  .al-tv-add-date,
-  .al-tv-add-ep,
+  .al-tv-add-season,
+  .al-tv-add-episode,
   .al-tv-add-rating {
     width: 100%;
     flex: none;
     min-width: 0;
   }
 
-  .al-tv-add-row .al-btn {
-    grid-column: 1 / -1;
-    width: 100%;
-  }
-
   .al-tv-edit-form .al-tv-add-row {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
   }
 
-  .al-tv-edit-form .al-tv-add-row > .al-input:first-child {
+  .al-tv-edit-form .al-tv-add-row > .al-input:first-child,
+  .al-tv-edit-form .al-tv-add-row .al-tv-add-date,
+  .al-tv-edit-form .al-tv-add-row .al-btn-primary {
     grid-column: 1 / -1;
   }
 
   .al-tv-edit-form .al-tv-add-row .al-btn[type="button"] {
-    grid-column: span 2;
+    grid-column: 1 / -1;
   }
 
   .al-log-head--tv,
