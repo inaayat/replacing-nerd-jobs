@@ -1,4 +1,4 @@
-import { loadNeonAuth, resolveNeonJwt } from '../../engine/neon-browser-auth.js';
+import { loadNeonAuth, resolveNeonJwt, tokenFromAuthResult } from '../../engine/neon-browser-auth.js';
 import { storeAuthToken } from './auth.js';
 
 function nextUrl() {
@@ -14,6 +14,11 @@ function showError(message) {
   errEl.hidden = false;
 }
 
+function hideError() {
+  const errEl = document.getElementById('signin-error');
+  if (errEl) errEl.hidden = true;
+}
+
 async function waitForToken(neonAuth, client) {
   for (let attempt = 0; attempt < 8; attempt += 1) {
     const token = await resolveNeonJwt(neonAuth, client);
@@ -23,14 +28,26 @@ async function waitForToken(neonAuth, client) {
   return null;
 }
 
-async function goAfterAuth(neonAuth, client) {
-  const token = await waitForToken(neonAuth, client);
+async function finishAuth(neonAuth, client, authResult) {
+  let token = authResult ? tokenFromAuthResult(authResult) : null;
+  if (!token) token = await waitForToken(neonAuth, client);
   if (!token) {
     showError('Signed in, but could not start a session. Try again.');
     return;
   }
   storeAuthToken(token);
   location.replace(nextUrl());
+}
+
+function setAuthMode(mode) {
+  const isSignIn = mode === 'signin';
+  document.getElementById('tab-signin').classList.toggle('is-active', isSignIn);
+  document.getElementById('tab-signup').classList.toggle('is-active', !isSignIn);
+  document.getElementById('tab-signin').setAttribute('aria-selected', String(isSignIn));
+  document.getElementById('tab-signup').setAttribute('aria-selected', String(!isSignIn));
+  document.getElementById('form-signin').classList.toggle('is-hidden', !isSignIn);
+  document.getElementById('form-signup').classList.toggle('is-hidden', isSignIn);
+  hideError();
 }
 
 async function init() {
@@ -62,7 +79,7 @@ async function init() {
   const { data } = await client.getSession();
 
   if (data?.user) {
-    await goAfterAuth(neonAuth, client);
+    await finishAuth(neonAuth, client);
     return;
   }
 
@@ -87,7 +104,7 @@ async function init() {
           </label>
           <button type="submit" class="al-btn al-btn-primary al-signin-submit">Sign in</button>
         </form>
-        <form id="form-signup" class="al-signin-form" hidden>
+        <form id="form-signup" class="al-signin-form is-hidden">
           <label class="al-field">
             <span>Name</span>
             <input class="al-input" id="signup-name" type="text" autocomplete="name" required />
@@ -108,50 +125,42 @@ async function init() {
     </main>
   `;
 
-  const tabIn = document.getElementById('tab-signin');
-  const tabUp = document.getElementById('tab-signup');
-  const formIn = document.getElementById('form-signin');
-  const formUp = document.getElementById('form-signup');
+  document.getElementById('tab-signin').addEventListener('click', () => setAuthMode('signin'));
+  document.getElementById('tab-signup').addEventListener('click', () => setAuthMode('signup'));
 
-  tabIn.addEventListener('click', () => {
-    tabIn.classList.add('is-active');
-    tabUp.classList.remove('is-active');
-    tabIn.setAttribute('aria-selected', 'true');
-    tabUp.setAttribute('aria-selected', 'false');
-    formIn.hidden = false;
-    formUp.hidden = true;
-  });
-
-  tabUp.addEventListener('click', () => {
-    tabUp.classList.add('is-active');
-    tabIn.classList.remove('is-active');
-    tabUp.setAttribute('aria-selected', 'true');
-    tabIn.setAttribute('aria-selected', 'false');
-    formUp.hidden = false;
-    formIn.hidden = true;
-  });
-
-  formIn.addEventListener('submit', async (e) => {
+  document.getElementById('form-signin').addEventListener('submit', async (e) => {
     e.preventDefault();
-    document.getElementById('signin-error').hidden = true;
-    const { error } = await client.signIn.email({
-      email: document.getElementById('signin-email').value,
-      password: document.getElementById('signin-password').value,
-    });
-    if (error) showError(error.message || 'Sign-in failed.');
-    else await goAfterAuth(neonAuth, client);
+    hideError();
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    try {
+      const result = await client.signIn.email({
+        email: document.getElementById('signin-email').value,
+        password: document.getElementById('signin-password').value,
+      });
+      if (result.error) showError(result.error.message || 'Sign-in failed.');
+      else await finishAuth(neonAuth, client, result);
+    } finally {
+      submitBtn.disabled = false;
+    }
   });
 
-  formUp.addEventListener('submit', async (e) => {
+  document.getElementById('form-signup').addEventListener('submit', async (e) => {
     e.preventDefault();
-    document.getElementById('signin-error').hidden = true;
-    const { error } = await client.signUp.email({
-      name: document.getElementById('signup-name').value,
-      email: document.getElementById('signup-email').value,
-      password: document.getElementById('signup-password').value,
-    });
-    if (error) showError(error.message || 'Sign-up failed.');
-    else await goAfterAuth(neonAuth, client);
+    hideError();
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    try {
+      const result = await client.signUp.email({
+        name: document.getElementById('signup-name').value,
+        email: document.getElementById('signup-email').value,
+        password: document.getElementById('signup-password').value,
+      });
+      if (result.error) showError(result.error.message || 'Sign-up failed.');
+      else await finishAuth(neonAuth, client, result);
+    } finally {
+      submitBtn.disabled = false;
+    }
   });
 }
 

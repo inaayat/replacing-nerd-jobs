@@ -53,3 +53,17 @@ export async function resolveNeonJwt(neonAuth, client) {
 
   return null;
 }
+
+/** Pull a bearer JWT from a sign-in/sign-up response before cookies are available. */
+export function tokenFromAuthResult(result) {
+  const candidates = [
+    result?.data?.token,
+    result?.data?.session?.token,
+    result?.data?.session?.access_token,
+    result?.token,
+  ];
+  for (const value of candidates) {
+    if (value && String(value).split('.').length === 3) return String(value);
+  }
+  return null;
+}

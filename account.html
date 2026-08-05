@@ -336,14 +336,16 @@
         if (!next || !next.startsWith('/') || next.startsWith('//')) return null;
         return next;
       };
-      const goAfterAuth = async (neonAuth, client) => {
+      const goAfterAuth = async (neonAuth, client, authResult) => {
         const next = nextUrl();
-        const { resolveNeonJwt, storeAuthToken } = await import('/engine/neon-browser-auth.js');
-        let token = null;
-        for (let attempt = 0; attempt < 8; attempt += 1) {
-          token = await resolveNeonJwt(neonAuth, client);
-          if (token) break;
-          await new Promise((resolve) => setTimeout(resolve, 200));
+        const { resolveNeonJwt, storeAuthToken, tokenFromAuthResult } = await import('/engine/neon-browser-auth.js');
+        let token = authResult ? tokenFromAuthResult(authResult) : null;
+        if (!token) {
+          for (let attempt = 0; attempt < 8; attempt += 1) {
+            token = await resolveNeonJwt(neonAuth, client);
+            if (token) break;
+            await new Promise((resolve) => setTimeout(resolve, 200));
+          }
         }
         if (!token) {
           const errEl = document.getElementById('auth-error');
@@ -435,24 +437,24 @@
         formIn.addEventListener('submit', async (e) => {
           e.preventDefault();
           errEl.classList.add('hidden');
-          const { error } = await client.signIn.email({
+          const result = await client.signIn.email({
             email: document.getElementById('signin-email').value,
             password: document.getElementById('signin-password').value,
           });
-          if (error) showError(error.message || 'Sign-in failed.');
-          else await goAfterAuth(neonAuth, client);
+          if (result.error) showError(result.error.message || 'Sign-in failed.');
+          else await goAfterAuth(neonAuth, client, result);
         });
 
         formUp.addEventListener('submit', async (e) => {
           e.preventDefault();
           errEl.classList.add('hidden');
-          const { error } = await client.signUp.email({
+          const result = await client.signUp.email({
             name: document.getElementById('signup-name').value,
             email: document.getElementById('signup-email').value,
             password: document.getElementById('signup-password').value,
           });
-          if (error) showError(error.message || 'Sign-up failed.');
-          else await goAfterAuth(neonAuth, client);
+          if (result.error) showError(result.error.message || 'Sign-up failed.');
+          else await goAfterAuth(neonAuth, client, result);
         });
       }
 

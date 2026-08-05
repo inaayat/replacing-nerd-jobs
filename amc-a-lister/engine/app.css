@@ -2627,6 +2627,11 @@ table.al-table {
   gap: 12px;
 }
 
+.al-signin-form.is-hidden,
+.al-signin-error[hidden] {
+  display: none !important;
+}
+
 .al-signin-form .al-field span {
   display: block;
   margin-bottom: 4px;
