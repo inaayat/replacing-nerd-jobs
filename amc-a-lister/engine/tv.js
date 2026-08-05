@@ -19,7 +19,7 @@ bootPage(async ({ root, auth }) => {
 
   root.innerHTML = renderShell({
     title: 'TV shows',
-    subtitle: 'Track series you have watched and shows you want to catch. TV is kept separate from A-List savings, insights, and leaderboard stats.',
+    subtitle: 'Track watched and want-to-watch series.',
     body: `<main class="al-main" id="tv-main"><p class="al-muted">Loading…</p></main>`,
     hideLogBar: true,
   });

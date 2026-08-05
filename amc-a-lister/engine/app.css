@@ -2046,6 +2046,16 @@ table.al-table {
     font-size: 16px;
   }
 
+  html,
+  body {
+    overflow-x: hidden;
+    max-width: 100%;
+  }
+
+  .al-page-sub {
+    max-width: 100%;
+  }
+
   .al-mobile-header {
     display: block;
     flex-shrink: 0;
