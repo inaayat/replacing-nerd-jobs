@@ -5,6 +5,38 @@
 // the JWT back to the client for sessionStorage + API calls.
 const AUTH_BASE = () => process.env.NEON_AUTH_BASE_URL?.replace(/\/$/, '') || '';
 
+function siteOrigin(req) {
+  if (req.headers.origin) return req.headers.origin;
+  const referer = req.headers.referer || req.headers.referrer;
+  if (referer) {
+    try {
+      return new URL(referer).origin;
+    } catch {
+      // fall through
+    }
+  }
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return 'https://www.inaayat.xyz';
+}
+
+function authHeaders(req) {
+  const origin = siteOrigin(req);
+  return {
+    'Content-Type': 'application/json',
+    Origin: origin,
+    Referer: `${origin}/`,
+  };
+}
+
+function authGetHeaders(req, cookies) {
+  const origin = siteOrigin(req);
+  return {
+    ...(cookies ? { Cookie: cookies } : {}),
+    Origin: origin,
+    Referer: `${origin}/`,
+  };
+}
+
 function cookieHeader(response) {
   if (typeof response.headers.getSetCookie === 'function') {
     return response.headers.getSetCookie()
@@ -18,9 +50,9 @@ function isJwt(value) {
   return typeof value === 'string' && value.split('.').length === 3;
 }
 
-async function fetchJwt(base, cookies) {
+async function fetchJwt(base, cookies, req) {
   const tokenRes = await fetch(`${base}/token`, {
-    headers: cookies ? { Cookie: cookies } : undefined,
+    headers: authGetHeaders(req, cookies),
   });
   if (tokenRes.ok) {
     const data = await tokenRes.json().catch(() => ({}));
@@ -28,7 +60,7 @@ async function fetchJwt(base, cookies) {
   }
 
   const sessionRes = await fetch(`${base}/get-session`, {
-    headers: cookies ? { Cookie: cookies } : undefined,
+    headers: authGetHeaders(req, cookies),
   });
   const headerJwt = sessionRes.headers.get('set-auth-jwt');
   if (isJwt(headerJwt)) return headerJwt;
@@ -69,7 +101,7 @@ export default async function handler(req, res) {
   try {
     signRes = await fetch(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(req),
       body: JSON.stringify(payload),
     });
   } catch (err) {
@@ -87,7 +119,7 @@ export default async function handler(req, res) {
 
   let token = signRes.headers.get('set-auth-jwt');
   if (!isJwt(token)) token = isJwt(body.token) ? body.token : null;
-  if (!isJwt(token)) token = await fetchJwt(base, cookies);
+  if (!isJwt(token)) token = await fetchJwt(base, cookies, req);
 
   if (!isJwt(token)) {
     res.status(502).json({ error: 'Signed in, but could not start a session. Try again.' });
