@@ -67,3 +67,17 @@ export function tokenFromAuthResult(result) {
   }
   return null;
 }
+
+/** Sign in/up via our API so PWAs get a JWT without third-party auth cookies. */
+export async function loginViaApi({ email, password, name, mode = 'signin' }) {
+  const res = await fetch('/api/auth-login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password, name, mode }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    return { error: { message: data.error || `Authentication failed (${res.status})` }, token: null };
+  }
+  return { error: null, token: data.token || null, user: data.user || null };
+}

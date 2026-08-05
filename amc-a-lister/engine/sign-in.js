@@ -1,4 +1,4 @@
-import { loadNeonAuth, resolveNeonJwt, tokenFromAuthResult } from '../../engine/neon-browser-auth.js';
+import { loadNeonAuth, resolveNeonJwt, loginViaApi } from '../../engine/neon-browser-auth.js';
 import { storeAuthToken } from './auth.js';
 
 function nextUrl() {
@@ -19,35 +19,13 @@ function hideError() {
   if (errEl) errEl.hidden = true;
 }
 
-async function waitForToken(neonAuth, client) {
-  for (let attempt = 0; attempt < 8; attempt += 1) {
-    const token = await resolveNeonJwt(neonAuth, client);
-    if (token) return token;
-    await new Promise((resolve) => setTimeout(resolve, 200));
-  }
-  return null;
-}
-
-async function finishAuth(neonAuth, client, authResult) {
-  let token = authResult ? tokenFromAuthResult(authResult) : null;
-  if (!token) token = await waitForToken(neonAuth, client);
+async function finishWithToken(token) {
   if (!token) {
     showError('Signed in, but could not start a session. Try again.');
     return;
   }
   storeAuthToken(token);
   location.replace(nextUrl());
-}
-
-function setAuthMode(mode) {
-  const isSignIn = mode === 'signin';
-  document.getElementById('tab-signin').classList.toggle('is-active', isSignIn);
-  document.getElementById('tab-signup').classList.toggle('is-active', !isSignIn);
-  document.getElementById('tab-signin').setAttribute('aria-selected', String(isSignIn));
-  document.getElementById('tab-signup').setAttribute('aria-selected', String(!isSignIn));
-  document.getElementById('form-signin').classList.toggle('is-hidden', !isSignIn);
-  document.getElementById('form-signup').classList.toggle('is-hidden', isSignIn);
-  hideError();
 }
 
 async function init() {
@@ -79,8 +57,12 @@ async function init() {
   const { data } = await client.getSession();
 
   if (data?.user) {
-    await finishAuth(neonAuth, client);
-    return;
+    const token = await resolveNeonJwt(neonAuth, client) || null;
+    if (token) {
+      storeAuthToken(token);
+      location.replace(nextUrl());
+      return;
+    }
   }
 
   root.innerHTML = `
@@ -134,12 +116,13 @@ async function init() {
     const submitBtn = e.target.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
     try {
-      const result = await client.signIn.email({
+      const { error, token } = await loginViaApi({
         email: document.getElementById('signin-email').value,
         password: document.getElementById('signin-password').value,
+        mode: 'signin',
       });
-      if (result.error) showError(result.error.message || 'Sign-in failed.');
-      else await finishAuth(neonAuth, client, result);
+      if (error) showError(error.message || 'Sign-in failed.');
+      else await finishWithToken(token);
     } finally {
       submitBtn.disabled = false;
     }
@@ -151,17 +134,29 @@ async function init() {
     const submitBtn = e.target.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
     try {
-      const result = await client.signUp.email({
+      const { error, token } = await loginViaApi({
         name: document.getElementById('signup-name').value,
         email: document.getElementById('signup-email').value,
         password: document.getElementById('signup-password').value,
+        mode: 'signup',
       });
-      if (result.error) showError(result.error.message || 'Sign-up failed.');
-      else await finishAuth(neonAuth, client, result);
+      if (error) showError(error.message || 'Sign-up failed.');
+      else await finishWithToken(token);
     } finally {
       submitBtn.disabled = false;
     }
   });
+}
+
+function setAuthMode(mode) {
+  const isSignIn = mode === 'signin';
+  document.getElementById('tab-signin').classList.toggle('is-active', isSignIn);
+  document.getElementById('tab-signup').classList.toggle('is-active', !isSignIn);
+  document.getElementById('tab-signin').setAttribute('aria-selected', String(isSignIn));
+  document.getElementById('tab-signup').setAttribute('aria-selected', String(!isSignIn));
+  document.getElementById('form-signin').classList.toggle('is-hidden', !isSignIn);
+  document.getElementById('form-signup').classList.toggle('is-hidden', isSignIn);
+  hideError();
 }
 
 init().catch((err) => {
