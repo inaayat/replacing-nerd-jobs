@@ -233,9 +233,18 @@ a { color: var(--al-burgundy); }
 
 .al-quicklog-primary {
   display: grid;
-  grid-template-columns: minmax(0, 120px) minmax(0, 2fr) minmax(0, 1.4fr) minmax(0, 80px);
+  grid-template-columns: minmax(0, 120px) minmax(0, 1fr);
   gap: 6px;
   align-items: end;
+}
+
+.al-quicklog:not(.has-title) .al-quicklog-field--location,
+.al-quicklog:not(.has-title) .al-quicklog-field--ticket {
+  display: none;
+}
+
+.al-quicklog.has-title:not(.is-off-theater) .al-quicklog-primary {
+  grid-template-columns: minmax(0, 120px) minmax(0, 2fr) minmax(0, 1.4fr) minmax(0, 80px);
 }
 
 @media (max-width: 720px) {
