@@ -6,34 +6,43 @@
     <title>Create a quiz — Sporcle Spinoff</title>
     <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png" />
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Fraunces:ital,wght@0,500;0,600;0,700;1,500&display=swap" />
+    <link rel="stylesheet" href="./engine/shell.css" />
     <link rel="stylesheet" href="./engine/quiz.css" />
     <link rel="stylesheet" href="./engine/builder.css" />
-    <style>
-      body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #fff8dc; }
-    </style>
   </head>
-  <body class="text-gray-900 min-h-screen flex flex-col">
+  <body class="text-gray-900 flex flex-col">
 
-    <!-- Nav -->
-    <nav class="px-4 sm:px-8 py-3 sm:py-4 flex items-center justify-between sticky top-0 z-10" style="background:#f267a0;">
-      <div class="flex items-center gap-2 sm:gap-3">
-        <a href="/" class="q-brand-mono font-extrabold text-sm sm:text-2xl rounded-md border-2 sm:border-4 border-white text-white select-none px-2 py-1 sm:p-2 no-underline whitespace-nowrap flex items-center gap-1.5">
-          <img src="/ugly-dog-images/dog-3.png" alt="" width="20" height="20" style="object-fit:contain;flex-shrink:0;" />
-          Beep boop
-        </a>
-        <div class="hidden md:block" style="width:2px;height:26px;background:rgba(255,255,255,.4);"></div>
-        <a href="/sporcle-spinoff/" class="hidden md:flex items-center gap-2 no-underline">
-          <img src="/sporcle-spinoff/icon.png" alt="" width="22" height="22" style="object-fit:contain;flex-shrink:0;filter:brightness(0) invert(1);">
-          <span class="q-brand-mono font-extrabold text-white text-lg whitespace-nowrap">Sporcle Spinoff</span>
-        </a>
-      </div>
-      <div class="flex items-center gap-3 sm:gap-8">
-        <a href="/sporcle-spinoff/" class="text-xs sm:text-xl font-extrabold text-white no-underline opacity-80 hover:opacity-100 whitespace-nowrap">Quizzes</a>
-        <a href="/api/logout" class="text-xs sm:text-xl font-extrabold text-white no-underline opacity-80 hover:opacity-100 whitespace-nowrap">Log out</a>
-      </div>
-    </nav>
+    <div class="page-main">
 
-    <div class="b-wrap" id="builder-root"></div>
+      <aside class="sidebar">
+        <div>
+          <a href="/" class="serif font-semibold text-2xl md:text-3xl text-gray-900 no-underline flex items-center gap-2">
+            <img src="/ugly-dog-images/dog-3.png" alt="" width="28" height="28" style="object-fit:contain;flex-shrink:0;" />
+            Beep boop
+          </a>
+          <div class="flex flex-col gap-2 mt-6 brand-mono">
+            <a href="/sporcle-spinoff/" class="sidebar-link">Quizzes</a>
+            <a href="./builder.html" class="sidebar-link is-active">Create a quiz</a>
+            <a href="/#projects" class="sidebar-link">Projects</a>
+            <a href="/account.html" class="sidebar-link">Account</a>
+          </div>
+          <div class="sidebar-project">
+            <img src="/sporcle-spinoff/icon.png" alt="" width="22" height="22" style="object-fit:contain;flex-shrink:0;">
+            <span class="sidebar-project-title">Sporcle Spinoff</span>
+          </div>
+        </div>
+        <div class="sidebar-tagline mt-6 md:mt-0">
+          Build a quiz and submit it for review.
+        </div>
+      </aside>
+
+      <div class="content-scroll">
+        <div class="b-wrap" id="builder-root"></div>
+      </div>
+
+    </div>
 
     <script type="module" src="./engine/builder.js"></script>
   </body>

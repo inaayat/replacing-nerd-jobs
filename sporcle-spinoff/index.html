@@ -8,69 +8,63 @@
     <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap" />
-    <style>
-      body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #fff8dc; }
-      h1, .brand-mono { font-family: 'DM Mono', monospace; }
-      .move-up { transition: transform 0.2s ease, box-shadow 0.2s ease; }
-      .move-up:hover { transform: translateY(-4px); }
-      .dog-watermark {
-        position: absolute; right: -10px; top: -14px; width: 130px; height: 130px;
-        background: url('/ugly-dog-images/dog-3.png') center/contain no-repeat;
-        opacity: 0.14; pointer-events: none;
-      }
-    </style>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Fraunces:ital,wght@0,500;0,600;0,700;1,500&display=swap" />
+    <link rel="stylesheet" href="./engine/shell.css" />
   </head>
-  <body class="text-gray-900 min-h-screen flex flex-col">
+  <body class="text-gray-900 flex flex-col">
 
-    <!-- Nav -->
-    <nav class="px-4 sm:px-8 py-3 sm:py-4 flex items-center justify-between sticky top-0 z-10" style="background:#f267a0;">
-      <div class="flex items-center gap-2 sm:gap-3">
-        <a href="/" class="brand-mono font-extrabold text-sm sm:text-2xl rounded-md border-2 sm:border-4 border-white text-white select-none px-2 py-1 sm:p-2 no-underline whitespace-nowrap flex items-center gap-1.5">
-          <img src="/ugly-dog-images/dog-3.png" alt="" width="20" height="20" style="object-fit:contain;flex-shrink:0;" />
-          Beep boop
-        </a>
-        <div class="hidden md:block" style="width:2px;height:26px;background:rgba(255,255,255,.4);"></div>
-        <a href="/sporcle-spinoff/" class="hidden md:flex items-center gap-2 no-underline">
-          <img src="/sporcle-spinoff/icon.png" alt="" width="22" height="22" style="object-fit:contain;flex-shrink:0;filter:brightness(0) invert(1);">
-          <span class="brand-mono font-extrabold text-white text-lg whitespace-nowrap">Sporcle Spinoff</span>
-        </a>
-      </div>
-      <div class="flex items-center gap-3 sm:gap-8">
-        <a href="/#projects" class="text-xs sm:text-xl font-extrabold text-white no-underline opacity-80 hover:opacity-100 whitespace-nowrap">Projects</a>
-        <a href="/archive/" class="text-xs sm:text-xl font-extrabold text-white no-underline opacity-80 hover:opacity-100 whitespace-nowrap">Archive</a>
-      </div>
-    </nav>
+    <div class="page-main">
 
-    <div class="px-4 pt-5 pb-2 sm:px-10 md:px-16 flex items-start justify-between gap-4 relative overflow-hidden">
-      <div class="dog-watermark"></div>
-      <div class="relative">
-        <div class="flex items-center gap-1.5">
-          <h1 class="text-xl md:text-2xl font-extrabold text-gray-900">Sporcle Spinoff</h1>
-          <button type="button" id="info-btn" aria-label="How to add a quiz" title="How to add a quiz"
-            class="flex-shrink-0 w-4 h-4 rounded-full border border-gray-400 text-gray-400 hover:border-gray-900 hover:text-gray-900 text-[10px] font-bold leading-none flex items-center justify-center">i</button>
+      <aside class="sidebar">
+        <div>
+          <a href="/" class="serif font-semibold text-2xl md:text-3xl text-gray-900 no-underline flex items-center gap-2">
+            <img src="/ugly-dog-images/dog-3.png" alt="" width="28" height="28" style="object-fit:contain;flex-shrink:0;" />
+            Beep boop
+          </a>
+          <div class="flex flex-col gap-2 mt-6 brand-mono">
+            <a href="/sporcle-spinoff/" class="sidebar-link is-active">Quizzes</a>
+            <a href="./builder.html" class="sidebar-link">Create a quiz</a>
+            <a href="/#projects" class="sidebar-link">Projects</a>
+            <a href="/account.html" class="sidebar-link">Account</a>
+          </div>
+          <div class="sidebar-project">
+            <img src="/sporcle-spinoff/icon.png" alt="" width="22" height="22" style="object-fit:contain;flex-shrink:0;">
+            <span class="sidebar-project-title">Sporcle Spinoff</span>
+          </div>
         </div>
-        <p class="mt-0.5 text-xs font-bold text-gray-500">Quick trivia quizzes. Pick one and see how you do.</p>
+        <div class="sidebar-tagline mt-6 md:mt-0">
+          Quick trivia quizzes. Pick one and see how you do.
+        </div>
+      </aside>
+
+      <div class="content-scroll">
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">
+              Quizzes
+              <button type="button" id="info-btn" class="info-btn" aria-label="How to add a quiz" title="How to add a quiz">i</button>
+            </h1>
+            <p class="page-sub">Browse by quiz type, or search by title and tag.</p>
+          </div>
+          <a href="./builder.html" class="ss-btn">+ Create a quiz</a>
+        </div>
+
+        <div id="info-popover" class="hidden info-popover">
+          Want to add a quiz? Click <b>+ Create a quiz</b> and submit it for review — once approved, it shows up here automatically.
+          <br><br>
+          Prefer GitHub? Add a new file under <code>sporcle-spinoff/quizzes/</code> plus an entry in <code>quizzes/index.json</code>, then open a pull request.
+        </div>
+
+        <input type="text" id="quiz-search" class="ss-input" placeholder="Search by title or tag (e.g. Geography, Matching)…" style="margin-bottom: 20px;" />
+
+        <div id="quiz-sections" class="quiz-sections"></div>
+        <p id="quiz-no-results" class="hidden no-results"></p>
       </div>
-      <a href="./builder.html" class="relative flex-shrink-0 text-[11px] font-extrabold text-white no-underline border-2 border-[#f267a0] bg-[#f267a0] hover:brightness-95 shadow-sm rounded-md px-2.5 py-1.5 whitespace-nowrap">+ Create a quiz</a>
-    </div>
 
-    <div id="info-popover" class="hidden fixed z-20 w-72 max-w-[calc(100vw-32px)] bg-white border-2 border-[#2c2e25] rounded p-3 text-xs font-semibold text-gray-700 leading-relaxed shadow-lg">
-      Want to add a quiz? Click <b>+ Create a quiz</b> and submit it for review — once approved, it shows up here automatically.
-      <br><br>
-      Prefer GitHub? Add a new file under <code class="text-[10px] bg-gray-100 px-1 rounded">sporcle-spinoff/quizzes/</code> plus an entry in <code class="text-[10px] bg-gray-100 px-1 rounded">quizzes/index.json</code>, then open a pull request.
     </div>
-
-    <div class="px-4 pb-3 sm:px-10 md:px-16">
-      <input type="text" id="quiz-search" placeholder="Search by title or tag (e.g. Geography, Matching)…"
-        class="w-full text-sm font-semibold px-3 py-2 border-2 border-[#2c2e25] rounded outline-none focus:border-[#f267a0]"
-        style="background:#fffdf3">
-    </div>
-
-    <div id="quiz-sections" class="px-4 pb-10 sm:px-10 md:px-16 flex-grow grid grid-cols-1 lg:grid-cols-3 gap-x-6 gap-y-6"></div>
-    <p id="quiz-no-results" class="hidden px-4 pb-10 sm:px-10 md:px-16 text-gray-500 font-bold"></p>
 
     <script>
+      const CARD_COLORS = ['card-red', 'card-orange', 'card-peach', 'card-teal', 'card-gold'];
       const infoBtn = document.getElementById('info-btn');
       const infoPopover = document.getElementById('info-popover');
       infoBtn.addEventListener('click', (e) => {
@@ -81,12 +75,11 @@
         infoPopover.classList.toggle('hidden');
       });
       document.addEventListener('click', (e) => {
-        if (!infoPopover.classList.contains('hidden') && !infoPopover.contains(e.target)) {
+        if (!infoPopover.classList.contains('hidden') && !infoPopover.contains(e.target) && e.target !== infoBtn) {
           infoPopover.classList.add('hidden');
         }
       });
 
-      // Fixed display order; only types with at least one quiz get a section.
       const TYPE_ORDER = ['text-entry', 'multiple-choice', 'image', 'matching', 'ranking', 'map', 'map-highlight'];
       const TYPE_LABELS = {
         'text-entry': 'Type the Answer',
@@ -99,36 +92,31 @@
       };
 
       const SUBMITTED_ICON = `<span title="User submitted" style="flex-shrink:0;display:inline-flex;">
-        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4 4-6 8-6s8 2 8 6"></path></svg>
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.55"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4 4-6 8-6s8 2 8 6"></path></svg>
       </span>`;
 
-      function cardHtml(q) {
+      function cardHtml(q, colorClass) {
         return `
-          <a href="./play.html?quiz=${encodeURIComponent(q.id)}" class="no-underline">
-            <div class="move-up cursor-pointer h-14 flex flex-col items-start justify-center text-left bg-[#fffdf3] shadow-sm hover:shadow-lg px-2 w-full border-2 border-[#2c2e25] rounded overflow-hidden">
-              <div class="w-full flex items-center gap-1">
-                <span class="text-[11px] font-extrabold text-gray-900 leading-tight line-clamp-1">${q.title}</span>
-                ${q.submitted ? SUBMITTED_ICON : ''}
-              </div>
-              <div class="mt-0.5 text-[10px] font-semibold text-gray-500 leading-snug line-clamp-2">${q.blurb || ''}</div>
+          <a href="./play.html?quiz=${encodeURIComponent(q.id)}" class="quiz-card ${colorClass}">
+            <div class="quiz-card-title">
+              <span>${q.title}</span>
+              ${q.submitted ? SUBMITTED_ICON : ''}
             </div>
+            ${q.blurb ? `<div class="quiz-card-blurb">${q.blurb}</div>` : ''}
           </a>`;
       }
 
       function typeBlockHtml(type, quizzes, dogNum) {
         return `
-          <div class="h-64 flex flex-col bg-white border-2 border-[#2c2e25] rounded p-2">
-            <h2 class="text-xs font-extrabold text-gray-900 mb-1.5 uppercase tracking-wide flex-shrink-0 flex items-center gap-1.5">
+          <div class="type-block">
+            <h2 class="type-block-title">
               <img src="/ugly-dog-images/dog-${dogNum}.png" alt="" width="16" height="16" style="object-fit:contain;flex-shrink:0;">
               ${TYPE_LABELS[type] || type}
             </h2>
-            <div class="flex-1 min-h-0 overflow-y-auto flex flex-col gap-1 pr-1">${quizzes.map(cardHtml).join('')}</div>
+            <div class="type-block-list">${quizzes.map((q, i) => cardHtml(q, CARD_COLORS[i % CARD_COLORS.length])).join('')}</div>
           </div>`;
       }
 
-      // Groups the given (already-filtered) quiz list by type and renders it
-      // into the grid — reused for both the initial load and every search
-      // keystroke, so filtering never re-fetches.
       function renderQuizzes(quizzes) {
         const sections = document.getElementById('quiz-sections');
         const noResults = document.getElementById('quiz-no-results');
@@ -150,13 +138,9 @@
           ...TYPE_ORDER.filter((t) => byType.has(t)),
           ...[...byType.keys()].filter((t) => !TYPE_ORDER.includes(t)),
         ];
-        // Real grid cells (not nested flex columns) so row 2's headings
-        // align across columns regardless of how tall row 1 is.
         sections.innerHTML = types.map((type, i) => typeBlockHtml(type, byType.get(type), (i % 6) + 1)).join('');
       }
 
-      // Matches against title, blurb, tags, and the friendly type label, so
-      // searching "Geography", a title word, or "Matching" all work.
       function matchesQuery(q, query) {
         const haystack = [q.title, q.blurb, ...(q.tags || []), TYPE_LABELS[q.type] || q.type]
           .join(' ').toLowerCase();
@@ -176,7 +160,7 @@
           renderQuizzes(allQuizzes);
         })
         .catch(() => {
-          document.getElementById('quiz-sections').innerHTML = '<p class="text-gray-500 font-bold">Couldn\'t load the quiz catalog.</p>';
+          document.getElementById('quiz-sections').innerHTML = '<p class="no-results">Couldn\'t load the quiz catalog.</p>';
         });
     </script>
 

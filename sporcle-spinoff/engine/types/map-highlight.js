@@ -4,7 +4,7 @@
 // quiz.region picks the geodata map, same as the click type.
 import { loadAmChartsCore, loadGeodata } from '../map-loader.js';
 
-const HIGHLIGHT = 0xf267a0; // pink accent
+const HIGHLIGHT = 0xcf4520; // red accent (matches site palette)
 const SOLVED = 0x16a34a;    // green
 const MISSED = 0xf59e0b;    // orange (skipped / revealed)
 const BASE = 0xcdd3e0;

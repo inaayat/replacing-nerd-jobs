@@ -88,7 +88,7 @@ export default {
         tooltipText: '{name}', interactive: true,
         fill: am5.color(BASE), stroke: am5.color(0xffffff), strokeWidth: 0.5,
       });
-      polygonSeries.mapPolygons.template.states.create('hover', { fill: am5.color(0xf267a0) });
+      polygonSeries.mapPolygons.template.states.create('hover', { fill: am5.color(0xcf4520) });
       polygonSeries.mapPolygons.template.events.on('click', (ev) => {
         const id = ev.target.dataItem && ev.target.dataItem.get('id');
         if (id) toggleRegion(id);

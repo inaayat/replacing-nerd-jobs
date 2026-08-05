@@ -44,7 +44,7 @@ export default {
       interactive: true,
       fill: am5.color(0xcdd3e0), stroke: am5.color(0xffffff), strokeWidth: 0.5,
     });
-    polygonSeries.mapPolygons.template.states.create('hover', { fill: am5.color(0xf267a0) });
+    polygonSeries.mapPolygons.template.states.create('hover', { fill: am5.color(0xcf4520) });
 
     function showTarget() {
       // Use custom prompt if provided (e.g., for city->state quizzes), otherwise show region name
