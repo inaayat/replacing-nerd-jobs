@@ -50,21 +50,21 @@ export function releaseStripLabel(item) {
   return 'TBA';
 }
 
-function watchlistPopupHtml(item) {
+function watchlistPopupHtml(item, logLabel = 'Log screening') {
   return `
     <div class="al-watchlist-popup" role="tooltip">
       <span class="al-watchlist-popup-title">${escapeHtml(item.title)}</span>
       <span class="al-watchlist-popup-date al-muted">${escapeHtml(releaseLabel(item))}</span>
       ${item.notes ? `<p class="al-watchlist-popup-notes al-muted">${escapeHtml(item.notes)}</p>` : ''}
       <div class="al-watchlist-popup-actions">
-        <button type="button" class="al-link-btn" data-log-watchlist="${item.id}">Log screening</button>
+        <button type="button" class="al-link-btn" data-log-watchlist="${item.id}">${escapeHtml(logLabel)}</button>
         <button type="button" class="al-link-btn" data-remove-watchlist="${item.id}">Remove</button>
       </div>
     </div>
   `;
 }
 
-export function watchlistStripHtml(items, { emptyMessage } = {}) {
+export function watchlistStripHtml(items, { emptyMessage, logLabel } = {}) {
   if (!items.length) {
     return `<p class="al-muted al-watchlist-empty">${emptyMessage || 'Nothing here yet.'}</p>`;
   }
@@ -72,14 +72,14 @@ export function watchlistStripHtml(items, { emptyMessage } = {}) {
     <article class="al-watchlist-strip-item" data-watchlist-id="${item.id}" tabindex="0" aria-label="${escapeHtml(item.title)}">
       <div class="al-watchlist-strip-poster">
         ${posterHtml(item, { size: 'w154', width: 64, height: 96, className: 'al-poster al-poster--watchlist-strip' })}
-        ${watchlistPopupHtml(item)}
+        ${watchlistPopupHtml(item, logLabel)}
       </div>
       <span class="al-watchlist-strip-date">${escapeHtml(releaseStripLabel(item))}</span>
     </article>
   `).join('');
 }
 
-export function watchlistRowsHtml(items, { emptyMessage, showRelease = true } = {}) {
+export function watchlistRowsHtml(items, { emptyMessage, showRelease = true, logLabel } = {}) {
   if (!items.length) {
     return `<p class="al-muted al-watchlist-empty">${emptyMessage || 'Nothing here yet.'}</p>`;
   }
@@ -91,18 +91,18 @@ export function watchlistRowsHtml(items, { emptyMessage, showRelease = true } = 
         ${showRelease ? `<p class="al-watchlist-row-meta al-muted">${escapeHtml(releaseLabel(item))}</p>` : ''}
       </div>
       <div class="al-watchlist-row-actions">
-        <button type="button" class="al-link-btn" data-log-watchlist="${item.id}">Log</button>
+        <button type="button" class="al-link-btn" data-log-watchlist="${item.id}">${escapeHtml(logLabel || 'Log')}</button>
         <button type="button" class="al-link-btn" data-remove-watchlist="${item.id}">✕</button>
       </div>
     </article>
   `).join('');
 }
 
-function renderWatchlistHtml(items, { layout = 'strip', emptyMessage, showRelease = true } = {}) {
+function renderWatchlistHtml(items, { layout = 'strip', emptyMessage, showRelease = true, logLabel } = {}) {
   if (layout === 'strip') {
-    return watchlistStripHtml(items, { emptyMessage });
+    return watchlistStripHtml(items, { emptyMessage, logLabel });
   }
-  return watchlistRowsHtml(items, { emptyMessage, showRelease });
+  return watchlistRowsHtml(items, { emptyMessage, showRelease, logLabel });
 }
 
 function positionWatchlistPopup(item) {
@@ -162,6 +162,9 @@ export function wireWatchlistList(auth, state, {
   showRelease = true,
   layout = 'strip',
   onChange,
+  watchlistApi: api = watchlistApi,
+  onLogItem,
+  logLabel = 'Log screening',
 }) {
   const closeOpenItems = () => {
     listEl.querySelectorAll('.al-watchlist-strip-item.is-open').forEach((el) => {
@@ -175,7 +178,7 @@ export function wireWatchlistList(auth, state, {
     listEl.classList.toggle('al-watchlist-strip', layout === 'strip');
     listEl.classList.toggle('al-watchlist-list', layout === 'list');
     const message = typeof emptyMessage === 'function' ? emptyMessage() : emptyMessage;
-    listEl.innerHTML = renderWatchlistHtml(items, { layout, emptyMessage: message, showRelease });
+    listEl.innerHTML = renderWatchlistHtml(items, { layout, emptyMessage: message, showRelease, logLabel });
     if (countEl) countEl.textContent = String(items.length);
     onChange?.();
 
@@ -184,7 +187,11 @@ export function wireWatchlistList(auth, state, {
         e.stopPropagation();
         const item = state.watchlist.find((w) => w.id === btn.dataset.logWatchlist);
         if (!item) return;
-        prefillQuickLog({ title: item.title, tmdbId: item.tmdb_id, mode: 'theater' });
+        if (onLogItem) {
+          onLogItem(item);
+        } else {
+          prefillQuickLog({ title: item.title, tmdbId: item.tmdb_id, mode: 'theater' });
+        }
       });
     });
 
@@ -194,7 +201,7 @@ export function wireWatchlistList(auth, state, {
         const id = btn.dataset.removeWatchlist;
         if (!confirm('Remove from want to watch?')) return;
         try {
-          await watchlistApi.remove(auth.token, id);
+          await api.remove(auth.token, id);
           state.watchlist = state.watchlist.filter((item) => item.id !== id);
           render();
         } catch (err) {
@@ -248,6 +255,8 @@ export function wireWatchlistAddForm(auth, state, {
   tmdbInput,
   statusEl,
   onAdded,
+  searchApi = movieApi,
+  watchlistApi: api = watchlistApi,
 }) {
   let searchTimer = null;
 
@@ -260,7 +269,7 @@ export function wireWatchlistAddForm(auth, state, {
     }
     searchTimer = setTimeout(async () => {
       try {
-        const { results } = await movieApi.search(auth.token, q);
+        const { results } = await searchApi.search(auth.token, q);
         if (!results.length) {
           resultsEl.hidden = true;
           return;
@@ -295,10 +304,10 @@ export function wireWatchlistAddForm(auth, state, {
     const title = titleInput.value.trim();
     let tmdbId = tmdbInput.value ? Number(tmdbInput.value) : null;
     if (!tmdbId && title) {
-      tmdbId = await movieApi.resolve(auth.token, title);
+      tmdbId = await searchApi.resolve(auth.token, title);
     }
     try {
-      const { item } = await watchlistApi.create(auth.token, { title, tmdb_id: tmdbId });
+      const { item } = await api.create(auth.token, { title, tmdb_id: tmdbId });
       state.watchlist = [item, ...state.watchlist];
       form.reset();
       tmdbInput.value = '';

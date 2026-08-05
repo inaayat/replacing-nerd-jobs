@@ -78,3 +78,39 @@ export const movieApi = {
     }
   },
 };
+
+export const tvWatchesApi = {
+  list: (token) => apiFetch('/api/alist-tv-watches', { token }),
+  create: (token, watch) => apiFetch('/api/alist-tv-watches', { method: 'POST', body: watch, token }),
+  update: (token, watch) => apiFetch('/api/alist-tv-watches', { method: 'PATCH', body: watch, token }),
+  remove: (token, id) => apiFetch('/api/alist-tv-watches', { method: 'DELETE', body: { id }, token }),
+};
+
+export const tvWatchlistApi = {
+  list: (token) => apiFetch('/api/alist-tv-watchlist', { token }),
+  create: (token, item) => apiFetch('/api/alist-tv-watchlist', { method: 'POST', body: item, token }),
+  update: (token, item) => apiFetch('/api/alist-tv-watchlist', { method: 'PATCH', body: item, token }),
+  remove: (token, id) => apiFetch('/api/alist-tv-watchlist', { method: 'DELETE', body: { id }, token }),
+};
+
+export const tvApi = {
+  search: (token, q) => apiFetch(`/api/alist-tv-lookup?q=${encodeURIComponent(q)}`, { token }),
+  details: (token, tmdbId) => apiFetch(`/api/alist-tv-details?tmdb_id=${encodeURIComponent(tmdbId)}`, { token }),
+  resolve: async (token, title) => {
+    if (!title || title.trim().length < 2) return null;
+    try {
+      const { results } = await tvApi.search(token, title.trim());
+      const norm = title.trim().toLowerCase();
+      const exact = results.find((r) => r.title.toLowerCase() === norm);
+      if (exact) return exact.tmdb_id;
+      const partial = results.find((r) => {
+        const rt = r.title.toLowerCase();
+        return rt.includes(norm) || norm.includes(rt);
+      });
+      if (partial) return partial.tmdb_id;
+      return results.length === 1 ? results[0].tmdb_id : null;
+    } catch {
+      return null;
+    }
+  },
+};

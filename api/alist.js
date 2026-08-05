@@ -5,9 +5,13 @@ import {
   upsertUser,
   listWatches,
   listWatchlist,
+  listTvWatches,
+  listTvWatchlist,
   getMembership,
   watchFromRow,
   watchlistFromRow,
+  tvWatchFromRow,
+  tvWatchlistFromRow,
   theaterWatches,
   getLeaderboard,
   compareUsers,
@@ -46,6 +50,14 @@ export default async function handler(req, res) {
       return handleUserProfile(req, res);
     case 'watchlist':
       return handleWatchlist(req, res);
+    case 'tv-watches':
+      return handleTvWatches(req, res);
+    case 'tv-watchlist':
+      return handleTvWatchlist(req, res);
+    case 'tv-lookup':
+      return handleTvLookup(req, res);
+    case 'tv-details':
+      return handleTvDetails(req, res);
     default:
       res.status(404).json({ error: 'Unknown A-List route.' });
   }
@@ -979,6 +991,517 @@ async function handleMovieLookup(req, res) {
       await ensureSchema();
       for (const m of results) {
         await cacheMovieRecord(m);
+      }
+    }
+
+    res.status(200).json({ results });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+}
+
+function tvFromTmdbResult(s) {
+  const firstAirDate = s.first_air_date && /^\d{4}-\d{2}-\d{2}$/.test(s.first_air_date)
+    ? s.first_air_date
+    : null;
+  return {
+    tmdb_id: s.id,
+    title: s.name,
+    year: firstAirDate ? Number(firstAirDate.slice(0, 4)) : null,
+    first_air_date: firstAirDate,
+    poster_path: s.poster_path || null,
+    overview: s.overview || null,
+    genres: (s.genres || []).map((g) => g.name),
+    status: s.status || null,
+    creator: null,
+    cast: [],
+  };
+}
+
+function tvDetailsFromTmdb(s) {
+  const crew = s.credits?.crew || [];
+  const cast = s.credits?.cast || [];
+  const creators = crew.filter((c) => c.job === 'Creator' || c.department === 'Creator').map((c) => c.name);
+  const firstAirDate = s.first_air_date && /^\d{4}-\d{2}-\d{2}$/.test(s.first_air_date)
+    ? s.first_air_date
+    : null;
+
+  return {
+    tmdb_id: s.id,
+    title: s.name,
+    year: firstAirDate ? Number(firstAirDate.slice(0, 4)) : null,
+    first_air_date: firstAirDate,
+    poster_path: s.poster_path || null,
+    overview: s.overview || null,
+    genres: (s.genres || []).map((g) => g.name),
+    status: s.status || null,
+    number_of_seasons: s.number_of_seasons ?? null,
+    number_of_episodes: s.number_of_episodes ?? null,
+    creator: creators.length ? creators.join(', ') : null,
+    cast: cast.slice(0, 8).map((c) => c.name),
+  };
+}
+
+function tvDetailsFromCacheRow(row) {
+  const raw = row.raw && typeof row.raw === 'object' ? row.raw : {};
+  const firstAirDate = row.first_air_date
+    || (raw.first_air_date && /^\d{4}-\d{2}-\d{2}$/.test(String(raw.first_air_date).slice(0, 10))
+      ? String(raw.first_air_date).slice(0, 10)
+      : null);
+  return {
+    tmdb_id: row.tmdb_id,
+    title: row.title,
+    year: row.year,
+    first_air_date: firstAirDate,
+    poster_path: row.poster_path || null,
+    overview: raw.overview || null,
+    genres: row.genres?.length ? row.genres : (raw.genres || []),
+    status: row.status || raw.status || null,
+    number_of_seasons: raw.number_of_seasons ?? null,
+    number_of_episodes: raw.number_of_episodes ?? null,
+    creator: raw.creator || null,
+    cast: raw.cast?.length ? raw.cast : [],
+  };
+}
+
+function tvCacheHasFullDetails(row) {
+  const raw = row.raw && typeof row.raw === 'object' ? row.raw : {};
+  return !!(raw.creator || raw.cast?.length);
+}
+
+async function cacheTvRecord(show) {
+  const genres = show.genres?.length ? show.genres : null;
+  const firstAirDate = show.first_air_date && /^\d{4}-\d{2}-\d{2}$/.test(show.first_air_date)
+    ? show.first_air_date
+    : null;
+  await db()`
+    INSERT INTO alist_tv_cache (tmdb_id, title, year, poster_path, genres, first_air_date, status, raw)
+    VALUES (
+      ${show.tmdb_id}, ${show.title}, ${show.year}, ${show.poster_path},
+      ${genres}, ${firstAirDate}, ${show.status || null}, ${JSON.stringify(show)}
+    )
+    ON CONFLICT (tmdb_id) DO UPDATE SET
+      title = EXCLUDED.title,
+      year = EXCLUDED.year,
+      poster_path = EXCLUDED.poster_path,
+      genres = EXCLUDED.genres,
+      first_air_date = COALESCE(EXCLUDED.first_air_date, alist_tv_cache.first_air_date),
+      status = EXCLUDED.status,
+      raw = EXCLUDED.raw,
+      fetched_at = now()
+  `;
+}
+
+async function fetchTvDetails(apiKey, tmdbId) {
+  const url = new URL(`https://api.themoviedb.org/3/tv/${tmdbId}`);
+  url.searchParams.set('api_key', apiKey);
+  url.searchParams.set('append_to_response', 'credits');
+  const tmdbRes = await fetch(url);
+  if (!tmdbRes.ok) return null;
+  const s = await tmdbRes.json();
+  return tvDetailsFromTmdb(s);
+}
+
+async function getTvDetails(tmdbId) {
+  if (process.env.DATABASE_URL) {
+    await ensureSchema();
+    const rows = await db()`
+      SELECT tmdb_id, title, year, poster_path, genres, first_air_date, status, raw
+      FROM alist_tv_cache
+      WHERE tmdb_id = ${tmdbId}
+    `;
+    if (rows.length && tvCacheHasFullDetails(rows[0])) {
+      return tvDetailsFromCacheRow(rows[0]);
+    }
+  }
+
+  const apiKey = process.env.TMDB_API_KEY;
+  if (!apiKey) return null;
+
+  const show = await fetchTvDetails(apiKey, tmdbId);
+  if (!show) return null;
+
+  if (process.env.DATABASE_URL) {
+    await cacheTvRecord(show);
+  }
+  return show;
+}
+
+async function searchTvShows(apiKey, query) {
+  const url = new URL('https://api.themoviedb.org/3/search/tv');
+  url.searchParams.set('api_key', apiKey);
+  url.searchParams.set('query', query);
+  url.searchParams.set('include_adult', 'false');
+  const tmdbRes = await fetch(url);
+  if (!tmdbRes.ok) return [];
+  const data = await tmdbRes.json();
+  return (data.results || []).slice(0, 8).map(tvFromTmdbResult);
+}
+
+function normalizeTvBody(body) {
+  const rating = body.dnf ? null : (body.rating != null ? Number(body.rating) : null);
+  return {
+    watched_on: body.watched_on,
+    title: String(body.title || '').trim(),
+    tmdb_id: body.tmdb_id != null ? Number(body.tmdb_id) : null,
+    season: body.season != null && body.season !== '' ? Number(body.season) : null,
+    episode: body.episode != null && body.episode !== '' ? Number(body.episode) : null,
+    rating,
+    dnf: !!body.dnf,
+    notes: body.notes ? String(body.notes).trim() : null,
+  };
+}
+
+async function enrichTvMissingPosters(userId, watches) {
+  const apiKey = process.env.TMDB_API_KEY;
+  if (!apiKey || !process.env.DATABASE_URL) return watches;
+
+  await ensureSchema();
+  let updated = watches.map((w) => ({ ...w }));
+  const posterById = new Map();
+
+  const missingIds = [...new Set(
+    updated.filter((w) => w.tmdb_id && !w.poster_path).map((w) => w.tmdb_id),
+  )];
+  for (const tmdbId of missingIds.slice(0, 12)) {
+    try {
+      const show = await fetchTvDetails(apiKey, tmdbId);
+      if (!show) continue;
+      await cacheTvRecord(show);
+      if (show.poster_path) posterById.set(tmdbId, show.poster_path);
+    } catch {
+      // Skip failed lookups.
+    }
+  }
+
+  return updated.map((w) => ({
+    ...w,
+    poster_path: w.poster_path || (w.tmdb_id ? posterById.get(w.tmdb_id) : null) || null,
+  }));
+}
+
+async function enrichTvWatchlistRows(rows) {
+  const apiKey = process.env.TMDB_API_KEY;
+  if (!apiKey || !process.env.DATABASE_URL || !rows?.length) return rows;
+
+  await ensureSchema();
+  let lookups = 0;
+  const updated = [];
+
+  for (const row of rows) {
+    const hasDate = row.first_air_date || row.first_air_date_raw;
+    if (hasDate || !row.tmdb_id || lookups >= 12) {
+      updated.push(row);
+      continue;
+    }
+    try {
+      const show = await getTvDetails(row.tmdb_id);
+      lookups += 1;
+      if (show?.first_air_date) {
+        updated.push({
+          ...row,
+          first_air_date: show.first_air_date,
+          first_air_date_raw: show.first_air_date,
+          poster_path: row.poster_path || show.poster_path || null,
+          year: row.year ?? show.year ?? null,
+        });
+      } else {
+        updated.push(row);
+      }
+    } catch {
+      updated.push(row);
+    }
+  }
+
+  return updated;
+}
+
+async function handleTvWatches(req, res) {
+  if (!requireDb(res)) return;
+  const session = await requireUser(req, res);
+  if (!session) return;
+  const { userId } = session;
+
+  if (req.method === 'GET') {
+    try {
+      let rows = await listTvWatches(userId);
+      let watches = rows.map(tvWatchFromRow);
+      watches = await enrichTvMissingPosters(userId, watches);
+      res.status(200).json({ watches });
+    } catch (err) {
+      res.status(502).json({ error: err.message });
+    }
+    return;
+  }
+
+  if (req.method === 'POST') {
+    const data = normalizeTvBody(req.body || {});
+    if (!data.watched_on || !data.title) {
+      res.status(400).json({ error: 'watched_on and title are required.' });
+      return;
+    }
+    const id = randomUUID();
+    try {
+      const rows = await db()`
+        INSERT INTO alist_tv_watches (
+          id, user_id, watched_on, title, tmdb_id, season, episode, rating, dnf, notes
+        ) VALUES (
+          ${id}, ${userId}, ${data.watched_on}, ${data.title}, ${data.tmdb_id},
+          ${data.season}, ${data.episode}, ${data.rating}, ${data.dnf}, ${data.notes}
+        )
+        RETURNING id, watched_on::text AS watched_on, title, tmdb_id, season, episode,
+                  rating::float AS rating, dnf, notes, created_at, updated_at
+      `;
+      res.status(201).json({ watch: tvWatchFromRow(rows[0]) });
+    } catch (err) {
+      res.status(502).json({ error: err.message });
+    }
+    return;
+  }
+
+  if (req.method === 'PATCH') {
+    const id = req.body?.id;
+    if (!id) {
+      res.status(400).json({ error: 'id is required.' });
+      return;
+    }
+    const data = normalizeTvBody(req.body || {});
+    if (!data.watched_on || !data.title) {
+      res.status(400).json({ error: 'watched_on and title are required.' });
+      return;
+    }
+    try {
+      const rows = await db()`
+        UPDATE alist_tv_watches SET
+          watched_on = ${data.watched_on},
+          title = ${data.title},
+          tmdb_id = ${data.tmdb_id},
+          season = ${data.season},
+          episode = ${data.episode},
+          rating = ${data.rating},
+          dnf = ${data.dnf},
+          notes = ${data.notes},
+          updated_at = now()
+        WHERE id = ${id} AND user_id = ${userId}
+        RETURNING id, watched_on::text AS watched_on, title, tmdb_id, season, episode,
+                  rating::float AS rating, dnf, notes, created_at, updated_at
+      `;
+      if (!rows.length) {
+        res.status(404).json({ error: 'Watch not found.' });
+        return;
+      }
+      res.status(200).json({ watch: tvWatchFromRow(rows[0]) });
+    } catch (err) {
+      res.status(502).json({ error: err.message });
+    }
+    return;
+  }
+
+  if (req.method === 'DELETE') {
+    const id = req.body?.id || req.query?.id;
+    if (!id) {
+      res.status(400).json({ error: 'id is required.' });
+      return;
+    }
+    try {
+      const rows = await db()`
+        DELETE FROM alist_tv_watches
+        WHERE id = ${id} AND user_id = ${userId}
+        RETURNING id
+      `;
+      if (!rows.length) {
+        res.status(404).json({ error: 'Watch not found.' });
+        return;
+      }
+      res.status(200).json({ ok: true });
+    } catch (err) {
+      res.status(502).json({ error: err.message });
+    }
+    return;
+  }
+
+  res.status(405).json({ error: 'Method not allowed.' });
+}
+
+async function handleTvWatchlist(req, res) {
+  if (!requireDb(res)) return;
+  const session = await requireUser(req, res);
+  if (!session) return;
+  const { userId } = session;
+
+  if (req.method === 'GET') {
+    try {
+      const rows = await enrichTvWatchlistRows(await listTvWatchlist(userId));
+      res.status(200).json({ items: rows.map(tvWatchlistFromRow) });
+    } catch (err) {
+      res.status(502).json({ error: err.message });
+    }
+    return;
+  }
+
+  if (req.method === 'POST') {
+    const title = String(req.body?.title || '').trim();
+    if (!title) {
+      res.status(400).json({ error: 'title is required.' });
+      return;
+    }
+    const tmdbId = req.body?.tmdb_id != null ? Number(req.body.tmdb_id) : null;
+    const notes = req.body?.notes ? String(req.body.notes).trim() : null;
+    const id = randomUUID();
+
+    try {
+      if (tmdbId && process.env.TMDB_API_KEY) {
+        await getTvDetails(tmdbId);
+      }
+      await db()`
+        INSERT INTO alist_tv_watchlist (id, user_id, title, tmdb_id, notes)
+        VALUES (${id}, ${userId}, ${title}, ${tmdbId}, ${notes})
+      `;
+      const rows = await enrichTvWatchlistRows(await db()`
+        SELECT
+          w.id, w.title, w.tmdb_id, w.notes, w.created_at, w.updated_at,
+          c.poster_path, c.year, c.first_air_date,
+          COALESCE(c.first_air_date::text, c.raw->>'first_air_date') AS first_air_date_raw
+        FROM alist_tv_watchlist w
+        LEFT JOIN alist_tv_cache c ON c.tmdb_id = w.tmdb_id
+        WHERE w.id = ${id} AND w.user_id = ${userId}
+      `);
+      res.status(201).json({ item: tvWatchlistFromRow(rows[0]) });
+    } catch (err) {
+      res.status(502).json({ error: err.message });
+    }
+    return;
+  }
+
+  if (req.method === 'PATCH') {
+    const id = req.body?.id;
+    if (!id) {
+      res.status(400).json({ error: 'id is required.' });
+      return;
+    }
+    const title = req.body?.title != null ? String(req.body.title).trim() : undefined;
+    const tmdbId = req.body?.tmdb_id != null ? Number(req.body.tmdb_id) : undefined;
+    const notes = req.body?.notes != null ? String(req.body.notes).trim() || null : undefined;
+
+    try {
+      const existing = await db()`
+        SELECT id, title, tmdb_id, notes
+        FROM alist_tv_watchlist
+        WHERE id = ${id} AND user_id = ${userId}
+      `;
+      if (!existing.length) {
+        res.status(404).json({ error: 'Watchlist item not found.' });
+        return;
+      }
+      const row = existing[0];
+      const rows = await db()`
+        UPDATE alist_tv_watchlist SET
+          title = ${title ?? row.title},
+          tmdb_id = ${tmdbId !== undefined ? tmdbId : row.tmdb_id},
+          notes = ${notes !== undefined ? notes : row.notes},
+          updated_at = now()
+        WHERE id = ${id} AND user_id = ${userId}
+        RETURNING id, title, tmdb_id, notes, created_at, updated_at
+      `;
+      res.status(200).json({ item: tvWatchlistFromRow(rows[0]) });
+    } catch (err) {
+      res.status(502).json({ error: err.message });
+    }
+    return;
+  }
+
+  if (req.method === 'DELETE') {
+    const id = req.body?.id || req.query?.id;
+    if (!id) {
+      res.status(400).json({ error: 'id is required.' });
+      return;
+    }
+    try {
+      const rows = await db()`
+        DELETE FROM alist_tv_watchlist
+        WHERE id = ${id} AND user_id = ${userId}
+        RETURNING id
+      `;
+      if (!rows.length) {
+        res.status(404).json({ error: 'Watchlist item not found.' });
+        return;
+      }
+      res.status(200).json({ ok: true });
+    } catch (err) {
+      res.status(502).json({ error: err.message });
+    }
+    return;
+  }
+
+  res.status(405).json({ error: 'Method not allowed.' });
+}
+
+async function handleTvDetails(req, res) {
+  if (req.method !== 'GET') {
+    res.status(405).json({ error: 'Use GET.' });
+    return;
+  }
+
+  const auth = await getAuth(req);
+  if (!auth) {
+    res.status(401).json({ error: 'Not signed in.' });
+    return;
+  }
+
+  const tmdbId = Number(req.query?.tmdb_id);
+  if (!tmdbId) {
+    res.status(400).json({ error: 'tmdb_id is required.' });
+    return;
+  }
+
+  if (!process.env.TMDB_API_KEY) {
+    res.status(503).json({ error: 'TMDB_API_KEY not configured.' });
+    return;
+  }
+
+  try {
+    const show = await getTvDetails(tmdbId);
+    if (!show) {
+      res.status(404).json({ error: 'TV show not found on TMDB.' });
+      return;
+    }
+    res.status(200).json({ show });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+}
+
+async function handleTvLookup(req, res) {
+  if (req.method !== 'GET') {
+    res.status(405).json({ error: 'Use GET.' });
+    return;
+  }
+
+  const auth = await getAuth(req);
+  if (!auth) {
+    res.status(401).json({ error: 'Not signed in.' });
+    return;
+  }
+
+  const q = String(req.query?.q || '').trim();
+  if (q.length < 2) {
+    res.status(400).json({ error: 'Query q must be at least 2 characters.' });
+    return;
+  }
+
+  const apiKey = process.env.TMDB_API_KEY;
+  if (!apiKey) {
+    res.status(503).json({ error: 'TMDB_API_KEY not configured.' });
+    return;
+  }
+
+  try {
+    const results = await searchTvShows(apiKey, q);
+
+    if (process.env.DATABASE_URL) {
+      await ensureSchema();
+      for (const s of results) {
+        await cacheTvRecord(s);
       }
     }
 

@@ -5,12 +5,14 @@ import { renderWatchEditForm, wireWatchEditForm } from './watch-form.js';
 
 let reloadLog;
 
+const INCLUDE_HOME_KEY = 'alist-log-include-home';
+
 bootPage(async ({ root, auth }) => {
   if (!requireSignIn(auth, root)) return;
 
   root.innerHTML = renderShell({
     title: 'Watch log',
-    subtitle: 'Search and filter every screening.',
+    subtitle: 'A-List theater screenings by default — toggle home watches when you want them.',
     body: `<main class="al-main" id="log-main"><p class="al-muted">Loading…</p></main>`,
   });
 
@@ -42,12 +44,15 @@ async function loadLog(auth) {
         </select>
         <label class="al-check"><input type="checkbox" id="log-alone" /> Alone</label>
         <label class="al-check"><input type="checkbox" id="log-dnf" /> DNF only</label>
-        <label class="al-check"><input type="checkbox" id="log-off-theater" /> Off-theater only</label>
+        <label class="al-check"><input type="checkbox" id="log-include-home" /> Watched at home</label>
         <span class="al-muted" id="log-count"></span>
       </div>
       <div class="al-log-list-wrap" id="log-table"></div>
     </section>
   `;
+
+  const includeHomeEl = document.getElementById('log-include-home');
+  includeHomeEl.checked = localStorage.getItem(INCLUDE_HOME_KEY) === '1';
 
   const state = {
     watches,
@@ -71,26 +76,28 @@ async function loadLog(auth) {
     const format = document.getElementById('log-format').value;
     const alone = document.getElementById('log-alone').checked;
     const dnfOnly = document.getElementById('log-dnf').checked;
-    const offTheaterOnly = document.getElementById('log-off-theater').checked;
+    const includeHome = includeHomeEl.checked;
+
+    localStorage.setItem(INCLUDE_HOME_KEY, includeHome ? '1' : '0');
 
     state.filtered = state.watches.filter((w) => {
+      if (!includeHome && w.in_theaters === false) return false;
       if (q && !`${w.title} ${w.location || ''}`.toLowerCase().includes(q)) return false;
       if (theater && w.location !== theater) return false;
       if (format && w.format !== format) return false;
       if (alone && !w.saw_alone) return false;
       if (dnfOnly && !w.dnf) return false;
-      if (offTheaterOnly && w.in_theaters !== false) return false;
       return true;
     });
     render();
   };
 
-  ['log-search', 'log-theater', 'log-format', 'log-alone', 'log-dnf', 'log-off-theater'].forEach((id) => {
+  ['log-search', 'log-theater', 'log-format', 'log-alone', 'log-dnf', 'log-include-home'].forEach((id) => {
     document.getElementById(id).addEventListener('input', applyFilters);
     document.getElementById(id).addEventListener('change', applyFilters);
   });
 
-  render();
+  applyFilters();
 }
 
 function tableHtml(state) {
