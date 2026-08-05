@@ -2398,6 +2398,11 @@ table.al-table {
   margin-top: 12px;
 }
 
+.al-tv-stats-note {
+  margin: 0 0 12px;
+  font-size: 0.86rem;
+}
+
 @media (max-width: 720px) {
   .al-tv-add-row .al-btn {
     flex: 1 1 100%;

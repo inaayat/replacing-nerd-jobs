@@ -1000,6 +1000,10 @@ async function handleMovieLookup(req, res) {
   }
 }
 
+// --- TV routes (watched + want-to-watch) ---
+// TV data lives in alist_tv_* tables and is never mixed into summary,
+// leaderboard, insights, or billing — those only read alist_watches.
+
 function tvFromTmdbResult(s) {
   const firstAirDate = s.first_air_date && /^\d{4}-\d{2}-\d{2}$/.test(s.first_air_date)
     ? s.first_air_date

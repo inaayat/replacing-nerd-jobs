@@ -19,7 +19,7 @@ bootPage(async ({ root, auth }) => {
 
   root.innerHTML = renderShell({
     title: 'TV shows',
-    subtitle: 'Track series you have watched and shows you want to catch.',
+    subtitle: 'Track series you have watched and shows you want to catch. TV is kept separate from A-List savings, insights, and leaderboard stats.',
     body: `<main class="al-main" id="tv-main"><p class="al-muted">Loading…</p></main>`,
     hideLogBar: true,
   });
@@ -38,6 +38,7 @@ async function loadPage(auth) {
 
   main.innerHTML = `
     <section class="al-panel al-panel--tv">
+      <p class="al-muted al-tv-stats-note">TV shows are not counted in A-List savings, insights, or leaderboard — only theater movie screenings are.</p>
       <div class="al-watchlist-header al-watchlist-header--compact">
         <h2 class="al-section-title" id="tv-section-title">${VIEWS.watched.label}</h2>
         <span class="al-muted" id="tv-count"></span>
