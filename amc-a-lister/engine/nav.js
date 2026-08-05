@@ -7,6 +7,7 @@ const NAV_ACTIVE = document.body.dataset.page || '';
 const PAGES = [
   { href: '/amc-a-lister/', label: 'Log', id: 'log' },
   { href: '/amc-a-lister/what-to-watch.html', label: 'Watch', id: 'what-to-watch' },
+  { href: '/amc-a-lister/tv.html', label: 'TV', id: 'tv' },
   { href: '/amc-a-lister/insights.html', label: 'Insights', id: 'insights' },
   { href: '/amc-a-lister/leaderboard.html', label: 'Leaderboard', id: 'leaderboard' },
   { href: '/amc-a-lister/settings.html', label: 'Settings', id: 'settings' },
@@ -42,7 +43,7 @@ export function renderShell({ title, subtitle, body = '', hideLogBar = false } =
         <div class="al-sidebar-footer">
           <a href="/">← Beep boop</a>
           <a href="/account.html" id="nav-auth-link">Log in</a>
-          <p class="al-tmdb-credit">Movie data &amp; posters by <a href="https://www.themoviedb.org/" target="_blank" rel="noopener">TMDB</a></p>
+          <p class="al-tmdb-credit">Movie &amp; TV data by <a href="https://www.themoviedb.org/" target="_blank" rel="noopener">TMDB</a></p>
         </div>
       </aside>
       <div class="al-content-scroll">

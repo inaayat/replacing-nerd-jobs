@@ -124,6 +124,7 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
       dnfInput.checked = false;
       ratingInput.disabled = false;
       form.notes.value = '';
+      shell.classList.remove('has-title');
     }
     checkExpand();
   };
@@ -140,10 +141,11 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
   };
 
   const checkExpand = () => {
+    const hasTitle = Boolean(titleInput.value.trim());
+    shell.classList.toggle('has-title', hasTitle && logMode === 'theater');
+
     const active = Boolean(
-      titleInput.value.trim()
-      || (logMode === 'theater' && form.location.value.trim())
-      || (logMode === 'theater' && form.ticket.value.trim())
+      hasTitle
       || form.watched_on.value !== baselineDate
       || form.rating.value
       || (logMode === 'theater' && form.notes.value.trim())
@@ -152,7 +154,7 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
     setExpanded(active);
   };
 
-  ['ql-date', 'ql-title', 'ql-location', 'ql-ticket', 'ql-rating', 'ql-notes'].forEach((id) => {
+  ['ql-date', 'ql-title', 'ql-rating', 'ql-notes'].forEach((id) => {
     const el = document.getElementById(id);
     el.addEventListener('input', checkExpand);
     el.addEventListener('change', checkExpand);

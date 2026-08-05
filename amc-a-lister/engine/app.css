@@ -233,9 +233,18 @@ a { color: var(--al-burgundy); }
 
 .al-quicklog-primary {
   display: grid;
-  grid-template-columns: minmax(0, 120px) minmax(0, 2fr) minmax(0, 1.4fr) minmax(0, 80px);
+  grid-template-columns: minmax(0, 120px) minmax(0, 1fr);
   gap: 6px;
   align-items: end;
+}
+
+.al-quicklog:not(.has-title) .al-quicklog-field--location,
+.al-quicklog:not(.has-title) .al-quicklog-field--ticket {
+  display: none;
+}
+
+.al-quicklog.has-title:not(.is-off-theater) .al-quicklog-primary {
+  grid-template-columns: minmax(0, 120px) minmax(0, 2fr) minmax(0, 1.4fr) minmax(0, 80px);
 }
 
 @media (max-width: 720px) {
@@ -2354,5 +2363,66 @@ table.al-table {
     width: 100%;
     box-sizing: border-box;
     padding: 10px;
+  }
+}
+
+.al-tv-add-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.al-tv-add-field {
+  flex: 1 1 180px;
+  min-width: 0;
+  position: relative;
+}
+
+.al-tv-add-date {
+  flex: 0 0 auto;
+  width: 9.5rem;
+}
+
+.al-tv-add-ep {
+  flex: 0 0 auto;
+  width: 3.25rem;
+  text-align: center;
+}
+
+.al-tv-add-rating {
+  flex: 0 0 auto;
+  width: 5.5rem;
+}
+
+.al-log-head--tv {
+  grid-template-columns: 28px 5.5rem minmax(0, 1fr) 5rem 4rem auto;
+}
+
+.al-log-row--tv {
+  grid-template-columns: 28px 5.5rem minmax(0, 1fr) 5rem 4rem auto;
+}
+
+.al-tv-airing-segment {
+  margin-top: 12px;
+}
+
+.al-tv-stats-note {
+  margin: 0 0 12px;
+  font-size: 0.86rem;
+}
+
+@media (max-width: 720px) {
+  .al-tv-add-row .al-btn {
+    flex: 1 1 100%;
+  }
+
+  .al-log-head--tv,
+  .al-log-row--tv {
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+  }
+
+  .al-log-row--tv .al-log-col--desktop {
+    display: none;
   }
 }
