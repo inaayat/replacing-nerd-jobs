@@ -10,6 +10,7 @@ bootPage(async ({ root, auth }) => {
     title: 'Member profile',
     subtitle: 'Loading…',
     hideLogBar: !auth.signedIn,
+    signedIn: auth.signedIn,
     body: `<main class="al-main" id="member-main"><p class="al-muted">Loading…</p></main>`,
   });
 

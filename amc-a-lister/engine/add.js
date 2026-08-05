@@ -19,6 +19,7 @@ bootPage(async ({ root, auth }) => {
   root.innerHTML = renderShell({
     title: existing ? 'Edit screening' : 'Log a movie',
     subtitle: 'Under 30 seconds — title, date, ticket value.',
+    signedIn: true,
     body: `
     <main class="al-main">
       <form class="al-panel al-form-grid" id="watch-form">

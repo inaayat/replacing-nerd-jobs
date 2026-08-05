@@ -1,7 +1,25 @@
 /** Shared Neon Auth browser setup for static pages (account, A-Lister, etc.). */
 const AUTH_IMPORT = 'https://esm.sh/@neondatabase/auth@0.4.2-beta';
+const AUTH_TOKEN_KEY = 'alist-auth-jwt';
 
 export const NEON_AUTH_FETCH_OPTIONS = { credentials: 'include' };
+
+export function readStoredToken() {
+  try {
+    return sessionStorage.getItem(AUTH_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function storeAuthToken(token) {
+  try {
+    if (token) sessionStorage.setItem(AUTH_TOKEN_KEY, token);
+    else sessionStorage.removeItem(AUTH_TOKEN_KEY);
+  } catch {
+    // sessionStorage may be unavailable in some embedded contexts
+  }
+}
 
 export async function loadNeonAuth(authUrl) {
   const { createInternalNeonAuth } = await import(AUTH_IMPORT);

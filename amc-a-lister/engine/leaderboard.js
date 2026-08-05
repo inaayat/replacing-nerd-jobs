@@ -40,6 +40,7 @@ bootPage(async ({ root, auth }) => {
     title: 'Leaderboard',
     subtitle: 'Every A-Lister profile, stats, and watch logs.',
     hideLogBar: !auth.signedIn,
+    signedIn: auth.signedIn,
     body: `<main class="al-main" id="leaderboard-main"><p class="al-muted">Loading…</p></main>`,
   });
 

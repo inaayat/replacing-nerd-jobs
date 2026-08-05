@@ -18,6 +18,7 @@ bootPage(async ({ root, auth }) => {
   root.innerHTML = renderShell({
     title: 'Settings',
     subtitle: 'Membership pricing and spreadsheet import.',
+    signedIn: true,
     body: `
     <main class="al-main">
       <form class="al-panel" id="membership-form">

@@ -1,4 +1,4 @@
-const CACHE = 'amc-a-lister-v1';
+const CACHE = 'amc-a-lister-v2';
 
 const PRECACHE = [
   '/amc-a-lister/',
@@ -20,6 +20,8 @@ const PRECACHE = [
   '/amc-a-lister/settings.html',
   '/amc-a-lister/add.html',
   '/amc-a-lister/member.html',
+  '/amc-a-lister/sign-in.html',
+  '/amc-a-lister/engine/sign-in.js',
 ];
 
 self.addEventListener('install', (event) => {

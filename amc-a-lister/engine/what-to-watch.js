@@ -27,6 +27,7 @@ bootPage(async ({ root, auth }) => {
     title: 'Watch',
     subtitle: 'Coming soon and already in theaters.',
     body: `<main class="al-main" id="wtw-main"><p class="al-muted">Loading…</p></main>`,
+    signedIn: true,
   });
 
   await loadPage(auth);

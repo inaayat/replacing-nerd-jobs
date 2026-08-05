@@ -1,5 +1,5 @@
 import './pwa.js';
-import { initAuth, wireAuthLink, refreshToken, authReturnUrl } from './auth.js';
+import { initAuth, wireAuthLink, refreshToken, authReturnUrl, loginUrl } from './auth.js';
 import { summaryApi } from './api.js';
 import { renderQuickLogBar, wireQuickLog } from './quick-log.js';
 
@@ -14,7 +14,7 @@ const PAGES = [
   { href: '/amc-a-lister/settings.html', label: 'Settings', id: 'settings' },
 ];
 
-export function renderShell({ title, subtitle, body = '', hideLogBar = false } = {}) {
+export function renderShell({ title, subtitle, body = '', hideLogBar = false, signedIn = false } = {}) {
   const links = PAGES.map((p) => {
     const active = p.id === NAV_ACTIVE ? ' is-active' : '';
     return `<a href="${p.href}" class="al-nav-link${active}">${p.label}</a>`;
@@ -26,7 +26,7 @@ export function renderShell({ title, subtitle, body = '', hideLogBar = false } =
   }).join('');
 
   const isAddPage = NAV_ACTIVE === 'add';
-  const showQuickLog = !hideLogBar && !isAddPage;
+  const showQuickLog = signedIn && !hideLogBar && !isAddPage;
 
   return `
     <div class="page-main">
@@ -211,18 +211,24 @@ export async function bootPage(renderFn, { quickLogOnSuccess } = {}) {
 export function requireSignIn(auth, root) {
   if (auth.signedIn && auth.token) return true;
 
-  const loginHref = `/account.html?next=${encodeURIComponent(authReturnUrl())}`;
+  const loginHref = loginUrl();
   const reauthNote = auth.needsReauth
     ? '<p class="al-error">Your session expired. Sign in again to load your log.</p>'
+    : '';
+  const setupNote = !auth.configured
+    ? '<p class="al-muted">Sign-in is not available in this environment yet. Deploy with Neon Auth configured to use your log.</p>'
     : '';
 
   root.innerHTML = renderShell({
     title: 'A-Lister',
     subtitle: 'Track every screening. Know if A-List is paying for itself.',
+    hideLogBar: true,
+    signedIn: false,
     body: `
       <main class="al-main">
         <section class="al-panel al-marketing">
           ${reauthNote}
+          ${setupNote}
           <h2>Your watch diary, minus the spreadsheet</h2>
           <ul class="al-bullets">
             <li>Log a screening in under 30 seconds</li>
@@ -230,7 +236,7 @@ export function requireSignIn(auth, root) {
             <li>Theater habits, format premiums, and rewatch stats on Insights</li>
           </ul>
           <p class="al-muted">Billing uses calendar months (1st–end), not the old sheet's 28th roll.</p>
-          <p style="margin-top:12px"><a class="al-btn al-btn-primary" href="${loginHref}">Sign in to your log</a></p>
+          ${auth.configured ? `<p style="margin-top:12px"><a class="al-btn al-btn-primary" href="${loginHref}">Sign in to your log</a></p>` : ''}
         </section>
       </main>
     `,

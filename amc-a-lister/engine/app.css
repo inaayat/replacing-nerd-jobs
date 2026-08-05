@@ -2023,6 +2023,7 @@ table.al-table {
 @media (max-width: 767px) {
   .page-main {
     padding: 8px;
+    padding-top: calc(8px + env(safe-area-inset-top, 0px));
     padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
     gap: 8px;
     max-width: 100%;
@@ -2076,18 +2077,23 @@ table.al-table {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
+    gap: 8px;
     min-height: 28px;
+    flex-wrap: wrap;
   }
 
   .al-mobile-header-title {
     font-family: var(--al-font-display);
-    font-size: 1.05rem;
+    font-size: 1rem;
     font-weight: 600;
     color: #fff;
     text-decoration: none;
     line-height: 1.2;
+    flex: 1 1 auto;
     min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .al-mobile-header-title:hover {
@@ -2098,16 +2104,18 @@ table.al-table {
   .al-mobile-header-actions {
     display: flex;
     align-items: center;
-    gap: 10px;
-    flex-shrink: 0;
+    gap: 8px;
+    flex: 0 0 auto;
+    max-width: 100%;
   }
 
   .al-mobile-home-link,
   .al-mobile-auth-link {
-    font-size: 0.72rem;
-    color: rgba(255, 255, 255, 0.72);
+    font-size: 0.68rem;
+    color: rgba(255, 255, 255, 0.85);
     text-decoration: none;
     white-space: nowrap;
+    padding: 4px 0;
   }
 
   .al-mobile-home-link:hover,
@@ -2552,4 +2560,90 @@ table.al-table {
   .al-log-row--tv .al-log-col--desktop {
     display: none;
   }
+}
+
+.al-signin-body {
+  min-height: 100%;
+}
+
+.al-signin-page {
+  min-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px));
+}
+
+.al-signin-panel {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.al-signin-kicker {
+  margin: 0 0 8px;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--al-muted);
+}
+
+.al-signin-title {
+  margin: 0 0 8px;
+  font-size: clamp(1.8rem, 5vw, 2.2rem);
+}
+
+.al-signin-sub {
+  margin: 0 0 18px;
+}
+
+.al-signin-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.al-signin-tab {
+  border: 1px solid var(--al-line);
+  background: var(--al-panel-2);
+  color: var(--al-text);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-family: var(--al-font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.al-signin-tab.is-active {
+  background: var(--al-burgundy);
+  border-color: var(--al-burgundy);
+  color: #fff;
+}
+
+.al-signin-form {
+  display: grid;
+  gap: 12px;
+}
+
+.al-signin-form .al-field span {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.8rem;
+  color: var(--al-muted);
+}
+
+.al-signin-submit {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.al-signin-error {
+  margin: 12px 0 0;
+}
+
+.al-signin-back {
+  margin: 16px 0 0;
+  font-size: 0.85rem;
 }

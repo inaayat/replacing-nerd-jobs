@@ -10,6 +10,7 @@ bootPage(async ({ root, auth }) => {
     title: 'Insights',
     subtitle: 'Data the spreadsheet never surfaced.',
     body: `<main class="al-main" id="insights-main"><p class="al-muted">Loading…</p></main>`,
+    signedIn: true,
   });
 
   const main = document.getElementById('insights-main');

@@ -338,17 +338,25 @@
       };
       const goAfterAuth = async (neonAuth, client) => {
         const next = nextUrl();
+        const { resolveNeonJwt, storeAuthToken } = await import('/engine/neon-browser-auth.js');
+        let token = null;
+        for (let attempt = 0; attempt < 8; attempt += 1) {
+          token = await resolveNeonJwt(neonAuth, client);
+          if (token) break;
+          await new Promise((resolve) => setTimeout(resolve, 200));
+        }
+        if (!token) {
+          const errEl = document.getElementById('auth-error');
+          if (errEl) {
+            errEl.textContent = 'Signed in, but could not start a session. Try again.';
+            errEl.classList.remove('hidden');
+          }
+          return;
+        }
+        storeAuthToken(token);
         if (!next) {
           location.reload();
           return;
-        }
-        if (next.startsWith('/amc-a-lister')) {
-          const { resolveNeonJwt } = await import('/engine/neon-browser-auth.js');
-          for (let attempt = 0; attempt < 6; attempt += 1) {
-            const token = await resolveNeonJwt(neonAuth, client);
-            if (token) break;
-            await new Promise((resolve) => setTimeout(resolve, 200));
-          }
         }
         location.href = next;
       };
@@ -376,6 +384,8 @@
 
         wireAuthForms(client, neonAuth);
         document.getElementById('sign-out-btn').addEventListener('click', async () => {
+          const { storeAuthToken } = await import('/engine/neon-browser-auth.js');
+          storeAuthToken(null);
           await client.signOut();
           location.reload();
         });

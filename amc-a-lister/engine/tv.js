@@ -22,6 +22,7 @@ bootPage(async ({ root, auth }) => {
     subtitle: 'Track watched and want-to-watch series.',
     body: `<main class="al-main" id="tv-main"><p class="al-muted">Loading…</p></main>`,
     hideLogBar: true,
+    signedIn: true,
   });
 
   await loadPage(auth);

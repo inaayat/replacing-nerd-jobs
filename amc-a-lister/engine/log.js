@@ -13,6 +13,7 @@ bootPage(async ({ root, auth }) => {
   root.innerHTML = renderShell({
     title: 'Watch log',
     subtitle: 'A-List theater screenings by default — toggle home watches when you want them.',
+    signedIn: true,
     body: `<main class="al-main" id="log-main"><p class="al-muted">Loading…</p></main>`,
   });
 
