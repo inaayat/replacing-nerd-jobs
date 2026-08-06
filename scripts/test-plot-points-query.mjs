@@ -7,9 +7,11 @@ import {
   entitiesForMovie,
   formatMetric,
   groupByNeedsCredits,
+  metricLabel,
   movieMatchesFilters,
   normalizeSpec,
   runQuery,
+  specToHeadline,
 } from '../lib/plot-points-query.js';
 
 /* ── Fixtures ──────────────────────────────────────────────────── */
@@ -253,10 +255,29 @@ assert.equal(formatMetric(7.46, normalizeSpec({ metric: { agg: 'avg', field: 'vo
 /* ── Catalog sanity ────────────────────────────────────────────── */
 
 assert.ok(Object.keys(GROUP_BY).length >= 10);
-assert.ok(NUMERIC_FIELDS.vote_average);
 for (const [key, meta] of Object.entries(GROUP_BY)) {
   assert.ok(meta.label, `${key} needs a label`);
   assert.ok(meta.entityLabel, `${key} needs an entityLabel`);
+  assert.ok(meta.plural, `${key} needs a plural for prose`);
+  assert.equal(meta.plural, meta.plural.toLowerCase(), `${key} plural should be lowercase`);
 }
+for (const [key, meta] of Object.entries(NUMERIC_FIELDS)) {
+  assert.ok(meta.short, `${key} needs a short prose label`);
+  assert.ok(!/[()]/.test(meta.short), `${key} short label should not carry units in parens`);
+}
+
+// Prose must not naively pluralize labels ("Studio / companys") or lowercase acronyms.
+const studioSpec = normalizeSpec({
+  group_by: 'company',
+  metric: { agg: 'avg', field: 'vote_average' },
+});
+assert.ok(describeSpec(studioSpec).startsWith('Studios ranked by'), describeSpec(studioSpec));
+assert.ok(describeSpec(studioSpec).includes('TMDB rating'), describeSpec(studioSpec));
+assert.ok(specToHeadline(studioSpec).startsWith('Studios with the highest'), specToHeadline(studioSpec));
+
+const countrySpec = normalizeSpec({ group_by: 'country', metric: { agg: 'count' } });
+assert.ok(describeSpec(countrySpec).startsWith('Countries ranked by'), describeSpec(countrySpec));
+
+assert.equal(metricLabel(normalizeSpec({ metric: { agg: 'avg', field: 'runtime' } })), 'avg runtime');
 
 console.log('plot-points query engine tests passed');
