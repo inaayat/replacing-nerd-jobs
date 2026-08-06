@@ -387,8 +387,8 @@
         const { data } = await client.getSession();
         if (data?.user) {
           if (nextUrl()) {
-            const { resolveNeonJwt, storeAuthToken } = await import('/engine/neon-browser-auth.js');
-            const token = await resolveNeonJwt(neonAuth, client) || null;
+            const { resolveNeonJwt, storeAuthToken, readStoredToken } = await import('/engine/neon-browser-auth.js');
+            const token = (await resolveNeonJwt(neonAuth, client)) || readStoredToken() || null;
             if (token) {
               storeAuthToken(token);
               location.href = nextUrl();
@@ -398,6 +398,24 @@
           setHero('Account');
           renderSignedIn(data.user, neonAuth, client);
         } else {
+          const next = nextUrl();
+          if (next) {
+            const { readStoredToken, storeAuthToken } = await import('/engine/neon-browser-auth.js');
+            const stored = readStoredToken();
+            if (stored) {
+              try {
+                const res = await fetch('/api/me', { headers: { Authorization: `Bearer ${stored}` } });
+                if (res.ok) {
+                  storeAuthToken(stored);
+                  location.href = next;
+                  return;
+                }
+                storeAuthToken(null);
+              } catch {
+                storeAuthToken(null);
+              }
+            }
+          }
           setHero('Log in');
           show('auth-forms');
         }

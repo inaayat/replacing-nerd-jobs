@@ -1,7 +1,9 @@
-import { loadNeonAuth, resolveNeonJwt } from '../../engine/neon-browser-auth.js';
+import { loadNeonAuth, resolveNeonJwt, readStoredToken, storeAuthToken } from '../../engine/neon-browser-auth.js';
 
 let _neonAuth = null;
 let _client = null;
+
+export { storeAuthToken } from '../../engine/neon-browser-auth.js';
 
 export async function initAuth() {
   let url = null;
@@ -17,8 +19,29 @@ export async function initAuth() {
   _client = _neonAuth.adapter;
 
   const { data } = await clientSession();
-  const user = data?.user || null;
-  const token = user ? await resolveNeonJwt(_neonAuth, _client) : null;
+  let user = data?.user || null;
+  let token = user ? await resolveNeonJwt(_neonAuth, _client) : null;
+  if (!token && user) token = readStoredToken();
+
+  if (!user) {
+    const stored = readStoredToken();
+    if (stored) {
+      try {
+        const res = await fetch('/api/me', { headers: { Authorization: `Bearer ${stored}` } });
+        if (res.ok) {
+          const { user: profile } = await res.json();
+          user = { id: profile.id, email: profile.email, name: profile.name };
+          token = stored;
+        } else {
+          storeAuthToken(null);
+        }
+      } catch {
+        storeAuthToken(null);
+      }
+    }
+  }
+
+  if (token) storeAuthToken(token);
 
   return {
     configured: true,
@@ -49,6 +72,7 @@ export function wireAuthLink(state) {
     link.href = '#';
     link.addEventListener('click', async (e) => {
       e.preventDefault();
+      storeAuthToken(null);
       await state.client.signOut();
       location.href = '/packing-cubes/';
     });
@@ -61,6 +85,9 @@ export function wireAuthLink(state) {
 export async function refreshToken(state) {
   if (!_neonAuth || !state.user) return null;
   state.token = await resolveNeonJwt(_neonAuth, _client);
+  if (!state.token) state.token = readStoredToken();
   state.signedIn = !!state.user && !!state.token;
+  state.needsReauth = !!state.user && !state.token;
+  storeAuthToken(state.token);
   return state.token;
 }

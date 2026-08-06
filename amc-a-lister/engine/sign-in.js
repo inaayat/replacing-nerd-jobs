@@ -1,4 +1,4 @@
-import { loadNeonAuth, resolveNeonJwt, loginViaApi } from '../../engine/neon-browser-auth.js';
+import { loadNeonAuth, resolveNeonJwt, loginViaApi, readStoredToken } from '../../engine/neon-browser-auth.js';
 import { storeAuthToken } from './auth.js';
 
 function nextUrl() {
@@ -57,11 +57,26 @@ async function init() {
   const { data } = await client.getSession();
 
   if (data?.user) {
-    const token = await resolveNeonJwt(neonAuth, client) || null;
+    const token = await resolveNeonJwt(neonAuth, client) || readStoredToken() || null;
     if (token) {
       storeAuthToken(token);
       location.replace(nextUrl());
       return;
+    }
+  } else {
+    const stored = readStoredToken();
+    if (stored) {
+      try {
+        const res = await fetch('/api/me', { headers: { Authorization: `Bearer ${stored}` } });
+        if (res.ok) {
+          storeAuthToken(stored);
+          location.replace(nextUrl());
+          return;
+        }
+        storeAuthToken(null);
+      } catch {
+        storeAuthToken(null);
+      }
     }
   }
 
