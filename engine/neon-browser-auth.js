@@ -6,7 +6,16 @@ export const NEON_AUTH_FETCH_OPTIONS = { credentials: 'include' };
 
 export function readStoredToken() {
   try {
-    return sessionStorage.getItem(AUTH_TOKEN_KEY);
+    const fromLocal = localStorage.getItem(AUTH_TOKEN_KEY);
+    if (fromLocal) return fromLocal;
+    // One-time migration from sessionStorage (pre-persistent-login).
+    const fromSession = sessionStorage.getItem(AUTH_TOKEN_KEY);
+    if (fromSession) {
+      localStorage.setItem(AUTH_TOKEN_KEY, fromSession);
+      sessionStorage.removeItem(AUTH_TOKEN_KEY);
+      return fromSession;
+    }
+    return null;
   } catch {
     return null;
   }
@@ -14,10 +23,14 @@ export function readStoredToken() {
 
 export function storeAuthToken(token) {
   try {
-    if (token) sessionStorage.setItem(AUTH_TOKEN_KEY, token);
-    else sessionStorage.removeItem(AUTH_TOKEN_KEY);
+    if (token) {
+      localStorage.setItem(AUTH_TOKEN_KEY, token);
+    } else {
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+      sessionStorage.removeItem(AUTH_TOKEN_KEY);
+    }
   } catch {
-    // sessionStorage may be unavailable in some embedded contexts
+    // localStorage may be unavailable in some embedded contexts
   }
 }
 

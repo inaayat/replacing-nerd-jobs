@@ -2,7 +2,7 @@
 // Mobile PWAs often block third-party auth cookies, so client-side sign-in can
 // succeed without ever yielding a usable Bearer token. This route performs the
 // Neon Auth exchange on the server (where Set-Cookie → /token works) and hands
-// the JWT back to the client for sessionStorage + API calls.
+// the JWT back to the client for localStorage + API calls.
 const AUTH_BASE = () => process.env.NEON_AUTH_BASE_URL?.replace(/\/$/, '') || '';
 
 function siteOrigin(req) {
