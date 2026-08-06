@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <base href="/plot-points/" />
+    <title>Plot Points — Beep boop</title>
+    <meta name="description" content="Query TMDB to build cinema lists — frequent collaborators, highest-rated costars, and cast reuse." />
+    <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap" />
+    <link rel="stylesheet" href="./app.css" />
+  </head>
+  <body>
+    <nav class="pp-nav">
+      <div class="pp-nav-brand">
+        <a href="/" class="pp-nav-logo">
+          <img src="/ugly-dog-images/dog-3.png" alt="" width="18" height="18" style="object-fit:contain" />
+          Beep boop
+        </a>
+        <a href="/plot-points/" class="pp-nav-section">
+          <img src="/plot-points/icon.svg" alt="" width="22" height="22" />
+          Plot Points
+        </a>
+      </div>
+      <div class="pp-nav-links">
+        <a href="#explorer">Explorer</a>
+        <a href="/#projects">Projects</a>
+      </div>
+    </nav>
+
+    <main class="pp-shell">
+      <section class="pp-strip pp-hero" aria-label="Plot Points">
+        <p class="pp-kicker">Movies · TMDB · lists with receipts</p>
+        <h1 class="pp-brand">Plot Points</h1>
+        <p class="pp-lede">
+          Ask cinema data questions and get ranked lists with the exact query spelled out —
+          who shows up most in a director’s films, who rides the highest-rated titles, and who gets cast again.
+        </p>
+        <div class="pp-cta-row">
+          <a class="pp-btn" href="#explorer" id="cta-explorer">Open the explorer</a>
+          <a class="pp-btn pp-btn--ghost" href="#featured">Browse featured</a>
+        </div>
+      </section>
+
+      <section class="pp-section" id="featured" aria-labelledby="featured-title">
+        <div class="pp-section-head">
+          <h2 id="featured-title">Featured queries</h2>
+          <p>Published starters you can re-run live. More will land here over time.</p>
+        </div>
+        <div class="pp-featured" id="featured-grid"></div>
+      </section>
+
+      <section class="pp-section" id="explorer" aria-labelledby="explorer-title">
+        <div class="pp-section-head">
+          <h2 id="explorer-title">Query explorer</h2>
+          <p>Public &amp; anonymous — generate now, saving comes later.</p>
+        </div>
+
+        <div class="pp-strip pp-explorer">
+          <div class="pp-explorer-grid">
+            <aside>
+              <div class="pp-field">
+                <label for="query-type">Query type</label>
+                <select id="query-type">
+                  <option value="cast-count">Most frequent collaborators</option>
+                  <option value="cast-rating">Highest-rated collaborators</option>
+                  <option value="reuse">Cast reuse</option>
+                </select>
+              </div>
+
+              <div class="pp-field">
+                <label for="person-search">Director</label>
+                <div class="pp-search-wrap">
+                  <input id="person-search" type="search" placeholder="e.g. Christopher Nolan" autocomplete="off" />
+                  <div class="pp-suggest" id="person-suggest" role="listbox"></div>
+                </div>
+              </div>
+
+              <div id="selected-person" class="pp-selected empty">No director selected yet — search above.</div>
+
+              <div class="pp-field">
+                <label for="min-films">Minimum shared films</label>
+                <select id="min-films">
+                  <option value="1">1</option>
+                  <option value="2" selected>2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                </select>
+              </div>
+
+              <button type="button" class="pp-btn" id="run-query" disabled>Generate list</button>
+              <p class="pp-run-note">
+                Movies only for now. Uses the same TMDB key and movie cache as AMC A-Lister.
+                Each run scans a director’s filmography and top-billed cast, then ranks actors.
+              </p>
+            </aside>
+
+            <div class="pp-results-pane" id="results-pane">
+              <p class="pp-status">Choose a featured query or search for a director to generate a list.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer class="pp-footer">
+        <span>This product uses the TMDB API but is not endorsed or certified by TMDB.</span>
+        <a href="https://www.themoviedb.org/" target="_blank" rel="noopener">themoviedb.org</a>
+      </footer>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

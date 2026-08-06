@@ -1,0 +1,52 @@
+{
+  "featured": [
+    {
+      "id": "nolan-cast-count",
+      "title": "Actors in the most Christopher Nolan films",
+      "blurb": "Who keeps turning up across Batman, Inception, Dunkirk, Oppenheimer…",
+      "accent": "orange",
+      "query": {
+        "type": "cast-count",
+        "person_id": 525,
+        "person_name": "Christopher Nolan",
+        "min_films": 2
+      }
+    },
+    {
+      "id": "nolan-cast-rating",
+      "title": "Highest-rated Nolan collaborators",
+      "blurb": "Same filmography, ranked by average TMDB score of the shared films.",
+      "accent": "teal",
+      "query": {
+        "type": "cast-rating",
+        "person_id": 525,
+        "person_name": "Christopher Nolan",
+        "min_films": 2
+      }
+    },
+    {
+      "id": "villeneuve-reuse",
+      "title": "Denis Villeneuve’s repeat cast",
+      "blurb": "Who gets called back — from Sicario through Dune.",
+      "accent": "red",
+      "query": {
+        "type": "reuse",
+        "person_id": 137427,
+        "person_name": "Denis Villeneuve",
+        "min_films": 2
+      }
+    },
+    {
+      "id": "gerwig-cast-count",
+      "title": "Actors in the most Greta Gerwig films",
+      "blurb": "A shorter filmography — every repeat collaborator stands out.",
+      "accent": "peach",
+      "query": {
+        "type": "cast-count",
+        "person_id": 1217975,
+        "person_name": "Greta Gerwig",
+        "min_films": 2
+      }
+    }
+  ]
+}

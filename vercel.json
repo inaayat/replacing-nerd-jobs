@@ -19,6 +19,8 @@
     { "source": "/api/pc-cubes", "destination": "/api/packing-cubes?route=cubes" },
     { "source": "/api/pc-publish", "destination": "/api/packing-cubes?route=publish" },
     { "source": "/api/pc-suitcases", "destination": "/api/packing-cubes?route=suitcases" },
+    { "source": "/api/plot-points-person-search", "destination": "/api/plot-points?route=person-search" },
+    { "source": "/api/plot-points-query", "destination": "/api/plot-points?route=query" },
     { "source": "/one-more-column", "destination": "https://one-more-column.vercel.app/one-more-column" },
     { "source": "/one-more-column/", "destination": "https://one-more-column.vercel.app/one-more-column/" },
     { "source": "/one-more-column/:path*", "destination": "https://one-more-column.vercel.app/one-more-column/:path*" },
