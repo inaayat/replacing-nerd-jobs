@@ -129,6 +129,71 @@ assert.deepEqual(genres.map((g) => g.label), ['Thriller', 'Drama']);
 const decades = entitiesForMovie(decorateMovie(movies[2]), 'decade');
 assert.deepEqual(decades.map((d) => d.label), ['2020s']);
 
+/* ── Real lib/tmdb.js payload shape ────────────────────────────── */
+
+// Regression guard: lib/tmdb.js emits `cast_members`/`crew_members` and keeps
+// `cast` as a plain name array for A-Lister. Reading `cast`/`crew` directly
+// silently produced zero groups for every query.
+const tmdbShaped = [
+  {
+    tmdb_id: 101,
+    title: 'Shaped One',
+    release_date: '2017-01-01',
+    runtime_min: 110,
+    vote_average: 8,
+    genres: ['Drama'],
+    cast: ['Ada Lovelace', 'Bea Smith'],
+    cast_members: [
+      { id: 10, name: 'Ada Lovelace', profile_path: null, order: 0 },
+      { id: 11, name: 'Bea Smith', profile_path: null, order: 1 },
+    ],
+    crew_members: [
+      { id: 90, name: 'A Director', job: 'Director', department: 'Directing' },
+      { id: 91, name: 'A Composer', job: 'Original Music Composer', department: 'Sound' },
+    ],
+  },
+  {
+    tmdb_id: 102,
+    title: 'Shaped Two',
+    release_date: '2019-01-01',
+    runtime_min: 90,
+    vote_average: 6,
+    genres: ['Drama'],
+    cast: ['Ada Lovelace'],
+    cast_members: [{ id: 10, name: 'Ada Lovelace', profile_path: null, order: 0 }],
+    crew_members: [{ id: 90, name: 'A Director', job: 'Director', department: 'Directing' }],
+  },
+];
+
+const shapedDecorated = decorateMovie(tmdbShaped[0]);
+assert.equal(shapedDecorated.cast.length, 2, 'cast_members should populate cast');
+assert.equal(shapedDecorated.crew.length, 2, 'crew_members should populate crew');
+assert.equal(shapedDecorated.cast_size, 2);
+assert.equal(shapedDecorated.runtime, 110, 'runtime should fall back to runtime_min');
+
+const shapedActors = runQuery(tmdbShaped, { group_by: 'actor', metric: { agg: 'count' }, min_films: 1 });
+assert.equal(shapedActors.stats.groups_found, 2);
+assert.equal(shapedActors.results[0].label, 'Ada Lovelace');
+assert.equal(shapedActors.results[0].film_count, 2);
+
+const shapedComposers = runQuery(tmdbShaped, { group_by: 'composer', metric: { agg: 'count' }, min_films: 1 });
+assert.equal(shapedComposers.results.length, 1);
+assert.equal(shapedComposers.results[0].label, 'A Composer');
+
+const shapedRuntime = runQuery(tmdbShaped, {
+  group_by: 'director',
+  metric: { agg: 'avg', field: 'runtime' },
+  min_films: 1,
+});
+assert.equal(shapedRuntime.results[0].metric, 100, 'mean of runtime_min 110 and 90');
+
+// A name-only cast array carries no TMDB ids, so it must not fabricate groups.
+const namesOnly = runQuery(
+  [{ tmdb_id: 1, title: 'Names', release_date: '2020-01-01', cast: ['Someone'] }],
+  { group_by: 'actor', metric: { agg: 'count' }, min_films: 1 },
+);
+assert.equal(namesOnly.stats.groups_found, 0);
+
 /* ── Filters ───────────────────────────────────────────────────── */
 
 assert.equal(

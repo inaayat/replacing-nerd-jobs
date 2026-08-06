@@ -43,7 +43,10 @@ const MAX_FILMS = 60;
 const DISCOVER_PAGES = 3;
 const FETCH_CONCURRENCY = 8;
 const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
-const CACHE_VERSION = 3; // bumped when the generic query engine landed
+// Bump to invalidate cached payloads whenever the engine's output changes.
+// v4 discards the empty results cached while the engine read the wrong
+// credit fields (`cast`/`crew` instead of `cast_members`/`crew_members`).
+const CACHE_VERSION = 4;
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=86400');
