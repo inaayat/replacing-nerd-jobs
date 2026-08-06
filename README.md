@@ -44,6 +44,7 @@ served at [inaayat.xyz](https://inaayat.xyz).
 │   ├── football.js
 │   └── save-quiz.js            ← publish/submit-for-review for Sporcle Spinoff
 │
+├── plot-points/                ← TMDB cinema query explorer (lists + provenance)
 ├── sporcle-spinoff/            ← trivia quiz platform (see below)
 │
 ├── private/                    ← auth-gated section
