@@ -1,6 +1,10 @@
 /**
  * Plot Points — public TMDB query explorer API (no auth).
  *
+ * Uses the shared A-Lister TMDB client (`lib/tmdb.js`) and movie cache
+ * (`alist_movie_cache`) for cast lookups, plus a small result cache for
+ * full query payloads.
+ *
  * Routes (via vercel.json rewrite → ?route=):
  *   GET person-search?q=           → director-leaning person search
  *   GET query?type=&person_id=     → cast-count | cast-rating | reuse
@@ -13,12 +17,19 @@ import {
   directorMoviesFromCredits,
   normalizeMinFilms,
 } from '../lib/plot-points.js';
+import {
+  getTmdbApiKey,
+  searchPeople,
+  getPerson,
+  getPersonMovieCredits,
+  getMovieCastMembers,
+} from '../lib/tmdb.js';
 
-const TMDB_BASE = 'https://api.themoviedb.org/3';
 const MAX_FILMS = 40;
 const TOP_CAST = 15;
 const CAST_CONCURRENCY = 5;
 const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
+const CACHE_VERSION = 2; // bumped when shared cast_members cache shape landed
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=86400');
@@ -39,27 +50,12 @@ export default async function handler(req, res) {
 }
 
 function requireTmdb(res) {
-  const apiKey = process.env.TMDB_API_KEY;
+  const apiKey = getTmdbApiKey();
   if (!apiKey) {
     res.status(503).json({ error: 'TMDB_API_KEY not configured.' });
     return null;
   }
   return apiKey;
-}
-
-async function tmdbFetch(apiKey, path, params = {}) {
-  const url = new URL(`${TMDB_BASE}${path}`);
-  url.searchParams.set('api_key', apiKey);
-  for (const [key, value] of Object.entries(params)) {
-    if (value != null) url.searchParams.set(key, String(value));
-  }
-  const response = await fetch(url);
-  if (!response.ok) {
-    const err = new Error(`TMDB ${path} failed (${response.status})`);
-    err.status = response.status;
-    throw err;
-  }
-  return response.json();
 }
 
 async function handlePersonSearch(req, res) {
@@ -73,32 +69,10 @@ async function handlePersonSearch(req, res) {
   }
 
   try {
-    const data = await tmdbFetch(apiKey, '/search/person', {
-      query: q,
-      include_adult: 'false',
-    });
-    const results = (data.results || [])
-      .slice(0, 12)
-      .map((p) => ({
-        tmdb_id: p.id,
-        name: p.name,
-        profile_path: p.profile_path || null,
-        known_for_department: p.known_for_department || null,
-        known_for: (p.known_for || [])
-          .filter((k) => k.media_type === 'movie')
-          .slice(0, 3)
-          .map((k) => k.title)
-          .filter(Boolean),
-      }))
-      .sort((a, b) => {
-        const aDir = a.known_for_department === 'Directing' ? 0 : 1;
-        const bDir = b.known_for_department === 'Directing' ? 0 : 1;
-        return aDir - bDir || a.name.localeCompare(b.name);
-      });
-
+    const results = await searchPeople(q, { apiKey, limit: 12 });
     res.status(200).json({ results });
   } catch (err) {
-    res.status(502).json({ error: err.message });
+    res.status(err.status === 503 ? 503 : 502).json({ error: err.message });
   }
 }
 
@@ -165,18 +139,17 @@ async function mapPool(items, concurrency, fn) {
 }
 
 async function loadDirectorFilmography(apiKey, personId) {
-  const credits = await tmdbFetch(apiKey, `/person/${personId}/movie_credits`);
+  const credits = await getPersonMovieCredits(personId, { apiKey });
+  if (!credits) return [];
   const movies = directorMoviesFromCredits(credits.crew || []).slice(0, MAX_FILMS);
 
   const withCast = await mapPool(movies, CAST_CONCURRENCY, async (movie) => {
     try {
-      const creditData = await tmdbFetch(apiKey, `/movie/${movie.tmdb_id}/credits`);
-      const cast = (creditData.cast || []).slice(0, TOP_CAST).map((c) => ({
-        id: c.id,
-        name: c.name,
-        profile_path: c.profile_path || null,
-        order: c.order,
-      }));
+      // Prefers alist_movie_cache.raw.cast_members; fetches + upgrades cache on miss.
+      const cast = await getMovieCastMembers(movie.tmdb_id, {
+        apiKey,
+        limit: TOP_CAST,
+      });
       return { ...movie, cast };
     } catch {
       return { ...movie, cast: [] };
@@ -206,7 +179,9 @@ async function handleQuery(req, res) {
 
   const minFilms = normalizeMinFilms(req.query?.min_films, 2);
   const cacheKey = createHash('sha256')
-    .update(JSON.stringify({ type, personId, minFilms, MAX_FILMS, TOP_CAST, v: 1 }))
+    .update(JSON.stringify({
+      type, personId, minFilms, MAX_FILMS, TOP_CAST, v: CACHE_VERSION,
+    }))
     .digest('hex');
 
   try {
@@ -216,7 +191,12 @@ async function handleQuery(req, res) {
       return;
     }
 
-    const person = await tmdbFetch(apiKey, `/person/${personId}`);
+    const person = await getPerson(personId, { apiKey });
+    if (!person) {
+      res.status(404).json({ error: 'Person not found on TMDB.' });
+      return;
+    }
+
     const movies = await loadDirectorFilmography(apiKey, personId);
     if (!movies.length) {
       res.status(404).json({
@@ -227,21 +207,20 @@ async function handleQuery(req, res) {
 
     const payload = buildQueryResult({
       type,
-      person: {
-        tmdb_id: person.id,
-        name: person.name,
-        profile_path: person.profile_path || null,
-      },
+      person,
       movies,
       minFilms,
       topCastPerFilm: TOP_CAST,
       source: 'live',
     });
 
+    // Note shared movie-cache reuse in provenance for transparency.
+    payload.query.source = 'live+alist_movie_cache';
+
     await writeCache(cacheKey, payload);
     res.status(200).json({ ...payload, cache: 'miss' });
   } catch (err) {
-    const status = err.status === 404 ? 404 : 502;
+    const status = err.status === 404 ? 404 : err.status === 503 ? 503 : 502;
     res.status(status).json({ error: err.message });
   }
 }

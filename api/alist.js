@@ -26,6 +26,14 @@ import {
   actorStats,
   normalizePriceTiers,
 } from '../lib/a-list-billing.js';
+import {
+  getTmdbApiKey,
+  getMovieDetails,
+  searchMovies,
+  cacheMovieRecord,
+  normalizeTitle,
+  pickBestMatch,
+} from '../lib/tmdb.js';
 
 export default async function handler(req, res) {
   const route = String(req.query?.route || '').trim();
@@ -127,163 +135,8 @@ function normalizeBody(body) {
   };
 }
 
-function normalizeTitle(title) {
-  return String(title || '').toLowerCase().trim();
-}
-
-function movieFromTmdbResult(m) {
-  const releaseDate = m.release_date && /^\d{4}-\d{2}-\d{2}$/.test(m.release_date)
-    ? m.release_date
-    : null;
-  return {
-    tmdb_id: m.id,
-    title: m.title,
-    year: releaseDate ? Number(releaseDate.slice(0, 4)) : null,
-    release_date: releaseDate,
-    poster_path: m.poster_path || null,
-    overview: m.overview || null,
-    runtime_min: m.runtime || null,
-    genres: (m.genres || []).map((g) => g.name),
-    director: null,
-    cast: [],
-  };
-}
-
-function movieDetailsFromTmdb(m) {
-  const crew = m.credits?.crew || [];
-  const cast = m.credits?.cast || [];
-  const directors = crew.filter((c) => c.job === 'Director').map((c) => c.name);
-  const releaseDate = m.release_date && /^\d{4}-\d{2}-\d{2}$/.test(m.release_date)
-    ? m.release_date
-    : null;
-
-  return {
-    tmdb_id: m.id,
-    title: m.title,
-    year: releaseDate ? Number(releaseDate.slice(0, 4)) : null,
-    release_date: releaseDate,
-    poster_path: m.poster_path || null,
-    overview: m.overview || null,
-    runtime_min: m.runtime || null,
-    genres: (m.genres || []).map((g) => g.name),
-    director: directors.length ? directors.join(', ') : null,
-    cast: cast.slice(0, 8).map((c) => c.name),
-  };
-}
-
-function movieDetailsFromCacheRow(row) {
-  const raw = row.raw && typeof row.raw === 'object' ? row.raw : {};
-  const releaseDate = row.release_date
-    || (raw.release_date && /^\d{4}-\d{2}-\d{2}$/.test(String(raw.release_date).slice(0, 10))
-      ? String(raw.release_date).slice(0, 10)
-      : null);
-  return {
-    tmdb_id: row.tmdb_id,
-    title: row.title,
-    year: row.year,
-    release_date: releaseDate,
-    poster_path: row.poster_path || null,
-    overview: raw.overview || null,
-    runtime_min: row.runtime_min ?? raw.runtime_min ?? null,
-    genres: row.genres?.length ? row.genres : (raw.genres || []),
-    director: raw.director || null,
-    cast: raw.cast?.length ? raw.cast : [],
-  };
-}
-
-function cacheHasFullDetails(row) {
-  const raw = row.raw && typeof row.raw === 'object' ? row.raw : {};
-  return !!(raw.director || raw.cast?.length);
-}
-
-function pickBestMatch(results, title) {
-  if (!results?.length) return null;
-  const norm = normalizeTitle(title);
-  const exact = results.find((r) => normalizeTitle(r.title) === norm);
-  if (exact) return exact;
-  const partial = results.find((r) => {
-    const rt = normalizeTitle(r.title);
-    return rt.includes(norm) || norm.includes(rt);
-  });
-  if (partial) return partial;
-  return results.length === 1 ? results[0] : null;
-}
-
-async function cacheMovieRecord(movie) {
-  const genres = movie.genres?.length ? movie.genres : null;
-  const releaseDate = movie.release_date && /^\d{4}-\d{2}-\d{2}$/.test(movie.release_date)
-    ? movie.release_date
-    : null;
-  await db()`
-    INSERT INTO alist_movie_cache (tmdb_id, title, year, poster_path, runtime_min, genres, raw, release_date)
-    VALUES (
-      ${movie.tmdb_id}, ${movie.title}, ${movie.year}, ${movie.poster_path},
-      ${movie.runtime_min ?? null}, ${genres}, ${JSON.stringify(movie)}, ${releaseDate}
-    )
-    ON CONFLICT (tmdb_id) DO UPDATE SET
-      title = EXCLUDED.title,
-      year = EXCLUDED.year,
-      poster_path = EXCLUDED.poster_path,
-      runtime_min = EXCLUDED.runtime_min,
-      genres = EXCLUDED.genres,
-      raw = EXCLUDED.raw,
-      release_date = COALESCE(EXCLUDED.release_date, alist_movie_cache.release_date),
-      fetched_at = now()
-  `;
-}
-
-async function fetchMovieDetails(apiKey, tmdbId) {
-  const url = new URL(`https://api.themoviedb.org/3/movie/${tmdbId}`);
-  url.searchParams.set('api_key', apiKey);
-  url.searchParams.set('append_to_response', 'credits');
-  const tmdbRes = await fetch(url);
-  if (!tmdbRes.ok) return null;
-  const m = await tmdbRes.json();
-  return movieDetailsFromTmdb(m);
-}
-
-async function getMovieDetails(tmdbId) {
-  if (process.env.DATABASE_URL) {
-    await ensureSchema();
-    const rows = await db()`
-      SELECT tmdb_id, title, year, poster_path, runtime_min, genres, raw, release_date
-      FROM alist_movie_cache
-      WHERE tmdb_id = ${tmdbId}
-    `;
-    if (rows.length && cacheHasFullDetails(rows[0])) {
-      return movieDetailsFromCacheRow(rows[0]);
-    }
-  }
-
-  const apiKey = process.env.TMDB_API_KEY;
-  if (!apiKey) return null;
-
-  const movie = await fetchMovieDetails(apiKey, tmdbId);
-  if (!movie) return null;
-
-  if (process.env.DATABASE_URL) {
-    await cacheMovieRecord(movie);
-  }
-  return movie;
-}
-
-async function fetchMovieById(apiKey, tmdbId) {
-  return fetchMovieDetails(apiKey, tmdbId);
-}
-
-async function searchMovies(apiKey, query) {
-  const url = new URL('https://api.themoviedb.org/3/search/movie');
-  url.searchParams.set('api_key', apiKey);
-  url.searchParams.set('query', query);
-  url.searchParams.set('include_adult', 'false');
-  const tmdbRes = await fetch(url);
-  if (!tmdbRes.ok) return [];
-  const data = await tmdbRes.json();
-  return (data.results || []).slice(0, 8).map(movieFromTmdbResult);
-}
-
 async function enrichMissingPosters(userId, watches) {
-  const apiKey = process.env.TMDB_API_KEY;
+  const apiKey = getTmdbApiKey();
   if (!apiKey || !process.env.DATABASE_URL) return watches;
 
   await ensureSchema();
@@ -295,9 +148,8 @@ async function enrichMissingPosters(userId, watches) {
   )];
   for (const tmdbId of missingIds.slice(0, 12)) {
     try {
-      const movie = await fetchMovieById(apiKey, tmdbId);
+      const movie = await getMovieDetails(tmdbId, { apiKey });
       if (!movie) continue;
-      await cacheMovieRecord(movie);
       if (movie.poster_path) posterById.set(tmdbId, movie.poster_path);
     } catch {
       // Skip failed lookups; list still works without posters.
@@ -324,7 +176,7 @@ async function enrichMissingPosters(userId, watches) {
     if (titleLookups >= 10) break;
     const sampleTitle = group[0].title;
     try {
-      const results = await searchMovies(apiKey, sampleTitle);
+      const results = await searchMovies(sampleTitle, { apiKey });
       const match = pickBestMatch(results, sampleTitle);
       if (!match?.poster_path) continue;
       await cacheMovieRecord(match);
@@ -480,7 +332,7 @@ async function handleWatches(req, res) {
 }
 
 async function enrichWatchlistRows(rows) {
-  const apiKey = process.env.TMDB_API_KEY;
+  const apiKey = getTmdbApiKey();
   if (!apiKey || !process.env.DATABASE_URL || !rows?.length) return rows;
 
   await ensureSchema();
@@ -542,7 +394,7 @@ async function handleWatchlist(req, res) {
     const id = randomUUID();
 
     try {
-      if (tmdbId && process.env.TMDB_API_KEY) {
+      if (tmdbId && getTmdbApiKey()) {
         await getMovieDetails(tmdbId);
       }
       await db()`
@@ -943,7 +795,7 @@ async function handleMovieDetails(req, res) {
     return;
   }
 
-  if (!process.env.TMDB_API_KEY) {
+  if (!getTmdbApiKey()) {
     res.status(503).json({ error: 'TMDB_API_KEY not configured.' });
     return;
   }
@@ -978,14 +830,14 @@ async function handleMovieLookup(req, res) {
     return;
   }
 
-  const apiKey = process.env.TMDB_API_KEY;
+  const apiKey = getTmdbApiKey();
   if (!apiKey) {
     res.status(503).json({ error: 'TMDB_API_KEY not configured.' });
     return;
   }
 
   try {
-    const results = await searchMovies(apiKey, q);
+    const results = await searchMovies(q, { apiKey });
 
     if (process.env.DATABASE_URL) {
       await ensureSchema();
