@@ -189,15 +189,15 @@ function renderResults(payload) {
         <li class="pp-rank-item">
           <div class="pp-rank-num">${row.rank}</div>
           ${profileHtml(row.profile_path, row.name)}
-          <div>
+          <div class="pp-rank-body">
             <p class="pp-rank-name">${escapeHtml(row.name)}</p>
             <div class="pp-rank-meta">${row.film_count} shared · avg TMDB ${row.avg_rating.toFixed(1)}</div>
-            ${filmStrip(row.films)}
           </div>
           <div class="pp-metric">
             ${query.type === 'cast-rating' ? row.avg_rating.toFixed(1) : row.film_count}
             <span>${metricLabel}</span>
           </div>
+          ${filmStrip(row.films)}
         </li>
       `).join('')}
     </ol>
