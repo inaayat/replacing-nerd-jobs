@@ -1,6 +1,9 @@
 {
   "framework": null,
   "outputDirectory": ".",
+  "functions": {
+    "api/plot-points.js": { "maxDuration": 60 }
+  },
   "rewrites": [
     { "source": "/api/alist-watches", "destination": "/api/alist?route=watches" },
     { "source": "/api/alist-summary", "destination": "/api/alist?route=summary" },
@@ -20,6 +23,9 @@
     { "source": "/api/pc-publish", "destination": "/api/packing-cubes?route=publish" },
     { "source": "/api/pc-suitcases", "destination": "/api/packing-cubes?route=suitcases" },
     { "source": "/api/plot-points-person-search", "destination": "/api/plot-points?route=person-search" },
+    { "source": "/api/plot-points-collection-search", "destination": "/api/plot-points?route=collection-search" },
+    { "source": "/api/plot-points-genres", "destination": "/api/plot-points?route=genres" },
+    { "source": "/api/plot-points-build", "destination": "/api/plot-points?route=build" },
     { "source": "/api/plot-points-query", "destination": "/api/plot-points?route=query" },
     { "source": "/one-more-column", "destination": "https://one-more-column.vercel.app/one-more-column" },
     { "source": "/one-more-column/", "destination": "https://one-more-column.vercel.app/one-more-column/" },

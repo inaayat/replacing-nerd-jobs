@@ -5,23 +5,27 @@
       "title": "Actors in the most Christopher Nolan films",
       "blurb": "Who keeps turning up across Batman, Inception, Dunkirk, Oppenheimer…",
       "accent": "orange",
-      "query": {
-        "type": "cast-count",
-        "person_id": 525,
-        "person_name": "Christopher Nolan",
-        "min_films": 2
+      "spec": {
+        "scope": { "type": "person-directed", "person_id": 525, "person_name": "Christopher Nolan" },
+        "group_by": "actor",
+        "metric": { "agg": "count" },
+        "min_films": 2,
+        "sort": "desc",
+        "limit": 25
       }
     },
     {
-      "id": "nolan-cast-rating",
-      "title": "Highest-rated Nolan collaborators",
-      "blurb": "Same filmography, ranked by average TMDB score of the shared films.",
+      "id": "nolan-composer-rating",
+      "title": "Nolan’s composers by average rating",
+      "blurb": "Same filmography, different lens — swap the row entity to any crew role.",
       "accent": "teal",
-      "query": {
-        "type": "cast-rating",
-        "person_id": 525,
-        "person_name": "Christopher Nolan",
-        "min_films": 2
+      "spec": {
+        "scope": { "type": "person-directed", "person_id": 525, "person_name": "Christopher Nolan" },
+        "group_by": "composer",
+        "metric": { "agg": "avg", "field": "vote_average" },
+        "min_films": 1,
+        "sort": "desc",
+        "limit": 25
       }
     },
     {
@@ -29,23 +33,62 @@
       "title": "Denis Villeneuve’s repeat cast",
       "blurb": "Who gets called back — from Sicario through Dune.",
       "accent": "red",
-      "query": {
-        "type": "reuse",
-        "person_id": 137427,
-        "person_name": "Denis Villeneuve",
-        "min_films": 2
+      "spec": {
+        "scope": { "type": "person-directed", "person_id": 137427, "person_name": "Denis Villeneuve" },
+        "group_by": "actor",
+        "metric": { "agg": "count" },
+        "min_films": 2,
+        "sort": "desc",
+        "limit": 25
       }
     },
     {
-      "id": "gerwig-cast-count",
-      "title": "Actors in the most Greta Gerwig films",
-      "blurb": "A shorter filmography — every repeat collaborator stands out.",
+      "id": "hanks-directors-rating",
+      "title": "Directors who get the most out of Tom Hanks",
+      "blurb": "Flip the scope to an actor’s filmography and group by director instead.",
       "accent": "peach",
-      "query": {
-        "type": "cast-count",
-        "person_id": 1217975,
-        "person_name": "Greta Gerwig",
-        "min_films": 2
+      "spec": {
+        "scope": { "type": "person-acted", "person_id": 31, "person_name": "Tom Hanks" },
+        "group_by": "director",
+        "metric": { "agg": "avg", "field": "vote_average" },
+        "min_films": 2,
+        "sort": "desc",
+        "limit": 25
+      }
+    },
+    {
+      "id": "scorsese-decades-runtime",
+      "title": "Scorsese’s runtime by decade",
+      "blurb": "Rows don’t have to be people — group by decade, genre, studio or country.",
+      "accent": "teal",
+      "spec": {
+        "scope": { "type": "person-directed", "person_id": 1032, "person_name": "Martin Scorsese" },
+        "group_by": "decade",
+        "metric": { "agg": "avg", "field": "runtime" },
+        "min_films": 1,
+        "sort": "desc",
+        "limit": 25
+      }
+    },
+    {
+      "id": "modern-scifi-roi",
+      "title": "Sci-fi studios by return on budget",
+      "blurb": "A Discover-based film set: 2010s sci-fi, grouped by studio, ranked on ROI.",
+      "accent": "orange",
+      "spec": {
+        "scope": {
+          "type": "discover",
+          "genre_id": 878,
+          "genre_name": "Science Fiction",
+          "year_from": 2010,
+          "year_to": 2024,
+          "min_votes": 500
+        },
+        "group_by": "company",
+        "metric": { "agg": "avg", "field": "roi" },
+        "min_films": 3,
+        "sort": "desc",
+        "limit": 25
       }
     }
   ]

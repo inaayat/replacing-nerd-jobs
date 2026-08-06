@@ -309,6 +309,137 @@ a { color: var(--pp-red); }
 }
 
 
+/* ── Builder form ──────────────────────────────────────── */
+
+.pp-builder { min-width: 0; }
+
+.pp-fieldset {
+  border: 1.5px solid var(--pp-line);
+  border-radius: 14px;
+  padding: 14px;
+  margin: 0 0 14px;
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.pp-fieldset legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--pp-mono);
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0 6px;
+  color: var(--pp-ink);
+}
+
+.pp-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--pp-ink);
+  color: var(--pp-cream);
+  font-size: 0.6rem;
+}
+
+.pp-optional {
+  font-size: 0.58rem;
+  color: var(--pp-muted);
+  letter-spacing: 0.06em;
+}
+
+.pp-fieldset .pp-field:last-child { margin-bottom: 0; }
+
+.pp-field-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.pp-filter-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.pp-filter-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr) minmax(0, 0.9fr) 36px;
+  gap: 6px;
+  align-items: center;
+}
+
+.pp-filter-row select,
+.pp-filter-row input {
+  width: 100%;
+  min-width: 0;
+  border: 1.5px solid var(--pp-line);
+  border-radius: 10px;
+  background: #fff;
+  padding: 8px;
+  min-height: 44px;
+  font: inherit;
+  font-size: 16px;
+  color: var(--pp-ink);
+}
+
+.pp-filter-row [data-role="remove"] {
+  border: 1.5px solid var(--pp-line);
+  border-radius: 10px;
+  background: #fff;
+  min-height: 44px;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--pp-red);
+}
+
+.pp-filter-empty {
+  margin: 0 0 10px;
+  font-family: var(--pp-mono);
+  font-size: 0.66rem;
+  color: var(--pp-muted);
+}
+
+.pp-btn--sm {
+  font-size: 0.64rem;
+  padding: 8px 12px;
+  min-height: 40px;
+}
+
+.pp-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+#spec-preview {
+  border-left: 2px solid var(--pp-orange);
+  padding-left: 10px;
+  color: var(--pp-ink);
+}
+
+.pp-provenance-note {
+  margin: 10px 0 0;
+  font-family: var(--pp-mono);
+  font-size: 0.64rem;
+  line-height: 1.5;
+  color: var(--pp-muted);
+  border-top: 1px solid var(--pp-line);
+  padding-top: 10px;
+}
+
+.pp-prov-actions {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .pp-field { margin-bottom: 14px; }
 .pp-field label {
   display: block;
@@ -732,6 +863,30 @@ a { color: var(--pp-red); }
   .pp-run-note { font-size: 0.68rem; }
 
   .pp-selected.empty { font-size: 0.78rem; }
+
+  .pp-fieldset { padding: 12px 12px 14px; }
+  .pp-fieldset legend { font-size: 0.68rem; }
+
+  /* Stacked so the three filter controls stay tappable on narrow screens. */
+  .pp-filter-row {
+    grid-template-columns: minmax(0, 1fr) 40px;
+    grid-template-areas:
+      "field remove"
+      "op    op"
+      "value value";
+    gap: 6px;
+    padding: 10px;
+    border: 1.5px solid var(--pp-line);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.6);
+  }
+
+  .pp-filter-row [data-role="field"] { grid-area: field; }
+  .pp-filter-row [data-role="op"] { grid-area: op; }
+  .pp-filter-row [data-role="value"] { grid-area: value; }
+  .pp-filter-row [data-role="remove"] { grid-area: remove; }
+
+  .pp-filter-empty { font-size: 0.72rem; }
 
   #run-query { width: 100%; margin-top: 2px; }
 
