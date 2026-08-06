@@ -384,11 +384,15 @@ function filmStrip(films = [], spec) {
 
 function provenanceHtml(payload) {
   const { query, spec, stats, scope, cache } = payload;
+  const filmsScanned = scope?.sampled
+    ? `${stats.films_scanned} (sample)`
+    : `${stats.films_scanned}${scope?.truncated ? ` of ${scope.films_available} (capped)` : ''}`;
+
   const rows = [
     ['Rows are', query.group_label],
     ['Ranked by', query.metric_label],
     ['Film set', scope?.label || '—'],
-    ['Films scanned', `${stats.films_scanned}${scope?.truncated ? ` of ${scope.films_available} (capped)` : ''}`],
+    ['Films scanned', filmsScanned],
     ['Films after filters', String(stats.films_matched)],
     ['Min films per row', String(stats.min_films)],
     ['Groups found', String(stats.groups_found)],
@@ -415,6 +419,16 @@ function provenanceHtml(payload) {
         <p class="pp-provenance-note">
           Heads up: TMDB reports this field for only some films. Rows are averaged over the
           films that actually have a value, and rows with none are omitted.
+        </p>` : ''}
+      ${scope?.sampled ? `
+        <p class="pp-provenance-note">
+          ${escapeHtml(scope.sampled.note)} This ran on the top
+          ${stats.films_scanned} by ${escapeHtml(scope.sampled.order.replace('.desc', '').replace('.asc', ''))}.
+        </p>` : ''}
+      ${scope?.truncated && !scope?.sampled ? `
+        <p class="pp-provenance-note">
+          This film set has ${scope.films_available} films; the query used the first
+          ${scope.films_used} to keep the request fast.
         </p>` : ''}
       <div class="pp-prov-actions">
         <button type="button" class="pp-btn pp-btn--ghost pp-btn--sm" id="copy-link">Copy link to this query</button>

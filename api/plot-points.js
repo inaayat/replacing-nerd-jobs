@@ -198,7 +198,7 @@ async function resolveScope(spec, apiKey) {
       throw err;
     }
     const ids = await getPersonFilmIds(personId, scope.type, { apiKey });
-    return { ids, subject: person, label: person.name };
+    return { ids, subject: person, label: person.name, resolvedName: person.name };
   }
 
   if (scope.type === 'collection') {
@@ -222,7 +222,41 @@ async function resolveScope(spec, apiKey) {
     sort_by: scope.sort_by,
   }, { apiKey, pages: DISCOVER_PAGES });
 
-  return { ids, subject: null, label: SCOPES.discover.describe(scope) };
+  return {
+    ids,
+    subject: null,
+    label: SCOPES.discover.describe(scope),
+    // Discover returns a ranked page of an open-ended set, so this is a sample
+    // of the matching films rather than all of them. Say so in the provenance.
+    sampled: {
+      order: scope.sort_by || 'popularity.desc',
+      note: 'Discover scopes sample the highest-ranked matching films, not every match.',
+    },
+  };
+}
+
+/** Key order varies by client, so hash a canonical form. */
+function stableStringify(value) {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value).sort()
+      .map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(value ?? null);
+}
+
+/**
+ * Display-only labels (a person's name, a genre's name) don't change the
+ * result, so they're stripped to stop them fragmenting the cache.
+ */
+function cacheKeyForSpec(spec) {
+  const {
+    person_name, collection_name, genre_name, company_name, ...scope
+  } = spec.scope;
+  return createHash('sha256')
+    .update(stableStringify({ ...spec, scope, films: MAX_FILMS, v: CACHE_VERSION }))
+    .digest('hex');
 }
 
 function parseSpecParam(raw) {
@@ -238,13 +272,19 @@ function parseSpecParam(raw) {
 
 /* ── Generic query ─────────────────────────────────────────────── */
 
-async function runSpec(spec, apiKey) {
-  const { ids, subject, label } = await resolveScope(spec, apiKey);
+async function runSpec(inputSpec, apiKey) {
+  const { ids, subject, label, resolvedName, sampled } = await resolveScope(inputSpec, apiKey);
   if (!ids.length) {
     const err = new Error('No films found for this scope. Try widening the filters.');
     err.status = 404;
     throw err;
   }
+
+  // Legacy links carry only a person id, so backfill the authoritative TMDB
+  // name before building headlines — otherwise provenance reads "a person".
+  const spec = resolvedName
+    ? { ...inputSpec, scope: { ...inputSpec.scope, person_name: resolvedName } }
+    : inputSpec;
 
   const capped = ids.slice(0, MAX_FILMS);
   const movies = await getMoviesForQuery(capped, { apiKey, concurrency: FETCH_CONCURRENCY });
@@ -261,6 +301,7 @@ async function runSpec(spec, apiKey) {
     films_available: ids.length,
     films_used: capped.length,
     truncated: ids.length > capped.length,
+    sampled: sampled || null,
   };
   payload.query.source = 'TMDB (shared movie cache)';
   payload.query.generated_at = new Date().toISOString();
@@ -274,9 +315,7 @@ async function handleBuild(req, res) {
 
   try {
     const spec = normalizeSpec(parseSpecParam(req.query?.spec));
-    const cacheKey = createHash('sha256')
-      .update(JSON.stringify({ spec, MAX_FILMS, v: CACHE_VERSION }))
-      .digest('hex');
+    const cacheKey = cacheKeyForSpec(spec);
 
     const cached = await readCache(cacheKey);
     if (cached) {
@@ -333,9 +372,7 @@ async function handleLegacyQuery(req, res) {
 
   try {
     const spec = normalizeSpec(specFromLegacyType(type, personId, minFilms));
-    const cacheKey = createHash('sha256')
-      .update(JSON.stringify({ spec, MAX_FILMS, v: CACHE_VERSION }))
-      .digest('hex');
+    const cacheKey = cacheKeyForSpec(spec);
 
     const cached = await readCache(cacheKey);
     if (cached) {
