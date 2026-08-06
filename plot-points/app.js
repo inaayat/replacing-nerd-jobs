@@ -56,7 +56,15 @@ function profileHtml(path, alt = '') {
 async function apiGet(path) {
   const res = await fetch(path);
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+  if (!res.ok) {
+    if (res.status === 503 && /TMDB_API_KEY/i.test(data.error || '')) {
+      throw new Error('TMDB_API_KEY is not configured on the server yet.');
+    }
+    if (res.status === 404 && !data.error) {
+      throw new Error('Plot Points API is not available on this server (needs Vercel + TMDB_API_KEY).');
+    }
+    throw new Error(data.error || `Request failed (${res.status})`);
+  }
   return data;
 }
 
