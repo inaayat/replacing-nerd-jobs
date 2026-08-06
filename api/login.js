@@ -1,6 +1,15 @@
 import { sha256 } from '../lib/auth.js';
 
 export default async function handler(request, response) {
+  if (request.method === 'GET') {
+    response.setHeader(
+      'Set-Cookie',
+      '__auth=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0',
+    );
+    response.redirect(302, '/');
+    return;
+  }
+
   if (request.method !== 'POST') {
     response.status(405).end();
     return;
@@ -31,7 +40,7 @@ export default async function handler(request, response) {
     const hash = await sha256(password);
     response.setHeader(
       'Set-Cookie',
-      `__auth=${hash}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`
+      `__auth=${hash}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`,
     );
     response.redirect(302, redirect);
   } else {
