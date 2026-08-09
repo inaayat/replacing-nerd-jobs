@@ -407,6 +407,40 @@ a { color: var(--al-burgundy); }
   font-size: 0.74rem;
 }
 
+.al-watchlist-mode {
+  margin-bottom: 6px;
+}
+
+.al-watchlist-mode .al-segment-count {
+  display: inline;
+  min-width: 0;
+  margin-left: 2px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  opacity: 0.75;
+}
+
+.al-quicklog-mode-btn.is-active .al-segment-count {
+  color: inherit;
+  opacity: 0.9;
+}
+
+.al-watchlist-add-bar {
+  margin-bottom: 8px;
+}
+
+.al-log-list--watchlist {
+  grid-template-columns:
+    36px
+    6.75rem
+    minmax(7rem, 1fr)
+    6.25rem;
+}
+
 .al-section-title {
   margin: 0;
   font-family: var(--al-font-display);

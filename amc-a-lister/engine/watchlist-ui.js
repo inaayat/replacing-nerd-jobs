@@ -98,9 +98,110 @@ export function watchlistRowsHtml(items, { emptyMessage, showRelease = true, log
   `).join('');
 }
 
-function renderWatchlistHtml(items, { layout = 'strip', emptyMessage, showRelease = true, logLabel } = {}) {
+function watchlistMobileMeta(item) {
+  return `<span class="al-log-meta-primary">${escapeHtml(releaseLabel(item))}</span>`;
+}
+
+export function watchlistLogListHtml(items, { emptyMessage, logLabel, releaseColumn = 'Release' } = {}) {
+  if (!items.length) {
+    return `<div class="al-empty">${emptyMessage || 'Nothing here yet.'}</div>`;
+  }
+  return `
+    <div class="al-log-list al-log-list--watchlist">
+      <div class="al-log-head" aria-hidden="true">
+        <span class="al-log-col al-col-poster"></span>
+        <span class="al-log-col">${escapeHtml(releaseColumn)}</span>
+        <span class="al-log-col">Title</span>
+        <span class="al-log-col">Actions</span>
+      </div>
+      ${items.map((item) => `
+        <article class="al-log-row" data-watchlist-id="${item.id}">
+          <div class="al-log-col al-col-poster">${posterHtml(item, { size: 'w92', width: 28, height: 42 })}</div>
+          <div class="al-log-col al-log-col--desktop">${escapeHtml(releaseLabel(item))}</div>
+          <div class="al-log-col--body">
+            <div class="al-log-col al-log-col--title">${escapeHtml(item.title)}</div>
+            <div class="al-log-col al-log-col--mobile-meta al-only-mobile">${watchlistMobileMeta(item)}</div>
+          </div>
+          <div class="al-log-col al-row-actions">
+            <button type="button" class="al-link-btn" data-log-watchlist="${item.id}">${escapeHtml(logLabel || 'Log screening')}</button>
+            <button type="button" class="al-link-btn" data-remove-watchlist="${item.id}">Remove</button>
+          </div>
+        </article>
+      `).join('')}
+    </div>
+  `;
+}
+
+export function renderWatchlistAddBar({
+  idPrefix = 'watchlist',
+  submitLabel = 'Add it',
+  titleLabel = 'Movie',
+  titlePlaceholder = 'Title',
+} = {}) {
+  return `
+    <div class="al-quicklog al-watchlist-add-bar" id="${idPrefix}-add-bar">
+      <form class="al-quicklog-form" id="${idPrefix}-add-form" autocomplete="off">
+        <div class="al-quicklog-primary">
+          <div class="al-quicklog-field al-quicklog-field--date">
+            <label for="${idPrefix}-release">Release</label>
+            <input class="al-quicklog-input" id="${idPrefix}-release" type="date" />
+          </div>
+          <div class="al-quicklog-field al-quicklog-field--title al-search-wrap">
+            <label for="${idPrefix}-title">${escapeHtml(titleLabel)}</label>
+            <input class="al-quicklog-input" id="${idPrefix}-title" type="text" placeholder="${escapeHtml(titlePlaceholder)}" required />
+            <div class="al-search-results" id="${idPrefix}-title-results" hidden></div>
+          </div>
+        </div>
+        <div class="al-quicklog-expand" id="${idPrefix}-expand" aria-hidden="true">
+          <div class="al-quicklog-expand-inner">
+            <div class="al-quicklog-extra">
+              <div class="al-quicklog-field al-quicklog-field--notes">
+                <label for="${idPrefix}-notes">Notes</label>
+                <input class="al-quicklog-input" id="${idPrefix}-notes" type="text" placeholder="Optional" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="al-quicklog-actions">
+          <button class="al-quicklog-submit" type="submit">${escapeHtml(submitLabel)}</button>
+        </div>
+        <input type="hidden" id="${idPrefix}-tmdb_id" value="" />
+      </form>
+      <p class="al-quicklog-status" id="${idPrefix}-status" aria-live="polite"></p>
+    </div>
+  `;
+}
+
+export function renderWatchlistViewTabs({
+  soonCount,
+  outCount,
+  soonLabel = 'Coming soon',
+  outLabel = 'Already out',
+  viewAttr = 'data-watchlist-view',
+  activeView = 'soon',
+} = {}) {
+  const tab = (view, label, count) => {
+    const active = view === activeView;
+    return `
+      <button type="button" class="al-quicklog-mode-btn${active ? ' is-active' : ''}" ${viewAttr}="${view}" role="tab" aria-selected="${active ? 'true' : 'false'}">
+        ${label} <span class="al-segment-count">${count}</span>
+      </button>
+    `;
+  };
+  return `
+    <div class="al-quicklog-mode al-watchlist-mode" role="tablist" aria-label="Watchlist view">
+      ${tab('soon', soonLabel, soonCount)}
+      ${tab('out', outLabel, outCount)}
+    </div>
+  `;
+}
+
+function renderWatchlistHtml(items, { layout = 'strip', emptyMessage, showRelease = true, logLabel, releaseColumn } = {}) {
   if (layout === 'strip') {
     return watchlistStripHtml(items, { emptyMessage, logLabel });
+  }
+  if (layout === 'log') {
+    return watchlistLogListHtml(items, { emptyMessage, logLabel, releaseColumn });
   }
   return watchlistRowsHtml(items, { emptyMessage, showRelease, logLabel });
 }
@@ -178,7 +279,13 @@ export function wireWatchlistList(auth, state, {
     listEl.classList.toggle('al-watchlist-strip', layout === 'strip');
     listEl.classList.toggle('al-watchlist-list', layout === 'list');
     const message = typeof emptyMessage === 'function' ? emptyMessage() : emptyMessage;
-    listEl.innerHTML = renderWatchlistHtml(items, { layout, emptyMessage: message, showRelease, logLabel });
+    listEl.innerHTML = renderWatchlistHtml(items, {
+      layout,
+      emptyMessage: message,
+      showRelease,
+      logLabel,
+      releaseColumn: layout === 'log' && showRelease === false ? 'Airs' : 'Release',
+    });
     if (countEl) countEl.textContent = String(items.length);
     onChange?.();
 
@@ -254,11 +361,44 @@ export function wireWatchlistAddForm(auth, state, {
   resultsEl,
   tmdbInput,
   statusEl,
+  releaseInput,
+  notesInput,
+  shell,
+  expandEl,
   onAdded,
   searchApi = movieApi,
   watchlistApi: api = watchlistApi,
 }) {
   let searchTimer = null;
+  let expanded = false;
+
+  const setExpanded = (on) => {
+    if (!expandEl || !shell) return;
+    if (expanded === on) return;
+    expanded = on;
+    shell.classList.toggle('is-expanded', on);
+    expandEl.setAttribute('aria-hidden', on ? 'false' : 'true');
+  };
+
+  const checkExpand = () => {
+    if (!shell) return;
+    const hasTitle = Boolean(titleInput.value.trim());
+    shell.classList.toggle('has-title', hasTitle);
+    const active = Boolean(
+      hasTitle
+      || (releaseInput?.value)
+      || (notesInput?.value.trim())
+    );
+    setExpanded(active);
+  };
+
+  if (shell) {
+    ['input', 'change'].forEach((eventName) => {
+      titleInput.addEventListener(eventName, checkExpand);
+      releaseInput?.addEventListener(eventName, checkExpand);
+      notesInput?.addEventListener(eventName, checkExpand);
+    });
+  }
 
   titleInput.addEventListener('input', () => {
     clearTimeout(searchTimer);
@@ -276,7 +416,7 @@ export function wireWatchlistAddForm(auth, state, {
         }
         resultsEl.hidden = false;
         resultsEl.innerHTML = results.map((m) => `
-          <button type="button" data-id="${m.tmdb_id}" data-title="${escapeHtml(m.title)}">
+          <button type="button" data-id="${m.tmdb_id}" data-title="${escapeHtml(m.title)}" data-release="${escapeHtml(m.release_date || m.first_air_date || '')}">
             ${m.poster_path ? `<img src="https://image.tmdb.org/t/p/w92${m.poster_path}" alt="" width="28" height="42" style="border-radius:4px;object-fit:cover">` : '<span style="width:28px"></span>'}
             <span>${escapeHtml(m.title)}${m.year ? ` <span class="al-muted">(${m.year})</span>` : ''}</span>
           </button>
@@ -285,7 +425,11 @@ export function wireWatchlistAddForm(auth, state, {
           btn.addEventListener('click', () => {
             titleInput.value = btn.dataset.title;
             tmdbInput.value = btn.dataset.id;
+            if (releaseInput && btn.dataset.release) {
+              releaseInput.value = btn.dataset.release;
+            }
             resultsEl.hidden = true;
+            checkExpand();
           });
         });
       } catch {
@@ -301,21 +445,34 @@ export function wireWatchlistAddForm(auth, state, {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     statusEl.textContent = 'Adding…';
+    statusEl.classList.remove('is-error', 'is-success');
     const title = titleInput.value.trim();
     let tmdbId = tmdbInput.value ? Number(tmdbInput.value) : null;
     if (!tmdbId && title) {
       tmdbId = await searchApi.resolve(auth.token, title);
     }
+    const notes = notesInput?.value.trim() || null;
     try {
-      const { item } = await api.create(auth.token, { title, tmdb_id: tmdbId });
+      const { item } = await api.create(auth.token, { title, tmdb_id: tmdbId, notes });
       state.watchlist = [item, ...state.watchlist];
       form.reset();
       tmdbInput.value = '';
+      if (shell) {
+        shell.classList.remove('has-title', 'is-expanded');
+        if (expandEl) expandEl.setAttribute('aria-hidden', 'true');
+        expanded = false;
+      }
       statusEl.textContent = `Added ${title}`;
+      statusEl.classList.add('is-success');
       onAdded?.();
-      setTimeout(() => { statusEl.textContent = ''; }, 2000);
+      titleInput.focus();
+      setTimeout(() => {
+        statusEl.textContent = '';
+        statusEl.classList.remove('is-success');
+      }, 2500);
     } catch (err) {
       statusEl.textContent = err.message || 'Could not add.';
+      statusEl.classList.add('is-error');
     }
   });
 }
