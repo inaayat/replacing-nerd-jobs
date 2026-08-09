@@ -248,6 +248,331 @@ export function wireWatchlistList(auth, state, {
   return render;
 }
 
+function mobileWatchlistMeta(item) {
+  const primary = [releaseLabel(item), item.notes ? 'Has notes' : null]
+    .filter(Boolean)
+    .map((part) => escapeHtml(String(part)))
+    .join(' · ');
+  return `<span class="al-log-meta-primary">${primary}</span>`;
+}
+
+function watchlistEditRowHtml(item) {
+  return `
+    <div class="al-log-entry al-log-entry--editing" data-entry-id="${item.id}">
+      <article class="al-log-row al-log-row--watchlist al-log-row--editing" data-id="${item.id}">
+        <form class="al-watchlist-edit-form" data-watchlist-edit-form="${item.id}">
+          <div class="al-watchlist-edit-fields">
+            <input class="al-input" name="title" type="text" value="${escapeHtml(item.title)}" required />
+            <input class="al-input" name="notes" type="text" value="${escapeHtml(item.notes || '')}" placeholder="Notes (optional)" />
+            <button class="al-btn al-btn-primary" type="submit">Save</button>
+            <button class="al-btn" type="button" data-cancel-watchlist="${item.id}">Cancel</button>
+          </div>
+        </form>
+      </article>
+    </div>
+  `;
+}
+
+function watchlistDetailPanelHtml(item, state, { detailsKind = 'movie' } = {}) {
+  const wrap = (content) => `
+    <div class="al-log-detail">
+      <div class="al-log-detail-inner">${content}</div>
+    </div>
+  `;
+
+  if (!item.tmdb_id) {
+    return wrap('<p class="al-muted">No TMDB match for this title. Use <strong>Edit</strong> to pick the title from search.</p>');
+  }
+
+  if (state.detailsLoading === item.id) {
+    return wrap('<p class="al-muted">Loading details…</p>');
+  }
+
+  if (state.detailsError && state.expandedId === item.id) {
+    return wrap(`<p class="al-error">${escapeHtml(state.detailsError)}</p>`);
+  }
+
+  const details = state.detailsCache.get(item.id);
+  if (!details) {
+    return wrap('<p class="al-muted">Loading details…</p>');
+  }
+
+  if (detailsKind === 'tv') {
+    const genres = details.genres?.length ? details.genres.join(', ') : '—';
+    const seasons = details.number_of_seasons != null ? `${details.number_of_seasons} season${details.number_of_seasons === 1 ? '' : 's'}` : '—';
+    const episodes = details.number_of_episodes != null ? `${details.number_of_episodes} episodes` : '—';
+    const creator = details.creator || '—';
+    const cast = details.cast?.length ? details.cast.join(', ') : '—';
+    const titleLine = `${escapeHtml(details.title)}${details.year ? ` <span class="al-muted">(${details.year})</span>` : ''}`;
+
+    return wrap(`
+      <h3 class="al-log-detail-title serif">${titleLine}</h3>
+      <div class="al-log-detail-body">
+        ${details.poster_path ? posterHtml(details, { size: 'w185', width: 88, height: 132, className: 'al-poster al-poster--detail' }) : ''}
+        <div class="al-log-detail-meta">
+          <dl class="al-log-detail-facts">
+            <div class="al-log-detail-fact"><dt>Seasons</dt><dd>${escapeHtml(seasons)}</dd></div>
+            <div class="al-log-detail-fact"><dt>Episodes</dt><dd>${escapeHtml(episodes)}</dd></div>
+            <div class="al-log-detail-fact"><dt>Genre</dt><dd>${escapeHtml(genres)}</dd></div>
+            <div class="al-log-detail-fact"><dt>Creator</dt><dd>${escapeHtml(creator)}</dd></div>
+            <div class="al-log-detail-fact"><dt>Cast</dt><dd>${escapeHtml(cast)}</dd></div>
+            <div class="al-log-detail-fact"><dt>Status</dt><dd>${escapeHtml(details.status || '—')}</dd></div>
+          </dl>
+        </div>
+      </div>
+      <section class="al-log-detail-overview-wrap">
+        <h4 class="al-log-detail-subhead">Overview</h4>
+        ${details.overview
+    ? `<p class="al-log-detail-overview">${escapeHtml(details.overview)}</p>`
+    : '<p class="al-muted">No overview available.</p>'}
+      </section>
+    `);
+  }
+
+  const genres = details.genres?.length ? details.genres.join(', ') : '—';
+  const runtime = details.runtime_min ? `${details.runtime_min} min` : '—';
+  const director = details.director || '—';
+  const cast = details.cast?.length ? details.cast.join(', ') : '—';
+  const titleLine = `${escapeHtml(details.title)}${details.year ? ` <span class="al-muted">(${details.year})</span>` : ''}`;
+
+  return wrap(`
+    <h3 class="al-log-detail-title serif">${titleLine}</h3>
+    <div class="al-log-detail-body">
+      ${details.poster_path ? posterHtml(details, { size: 'w185', width: 88, height: 132, className: 'al-poster al-poster--detail' }) : ''}
+      <div class="al-log-detail-meta">
+        <dl class="al-log-detail-facts">
+          <div class="al-log-detail-fact"><dt>Runtime</dt><dd>${escapeHtml(runtime)}</dd></div>
+          <div class="al-log-detail-fact"><dt>Genre</dt><dd>${escapeHtml(genres)}</dd></div>
+          <div class="al-log-detail-fact"><dt>Director</dt><dd>${escapeHtml(director)}</dd></div>
+          <div class="al-log-detail-fact"><dt>Cast</dt><dd>${escapeHtml(cast)}</dd></div>
+        </dl>
+      </div>
+    </div>
+    <section class="al-log-detail-overview-wrap">
+      <h4 class="al-log-detail-subhead">Overview</h4>
+      ${details.overview
+    ? `<p class="al-log-detail-overview">${escapeHtml(details.overview)}</p>`
+    : '<p class="al-muted">No overview available.</p>'}
+    </section>
+  `);
+}
+
+function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detailsKind = 'movie' } = {}) {
+  const expanded = item.id === state.expandedId;
+  return `
+    <div class="al-log-entry ${expanded ? 'is-expanded' : ''}" data-entry-id="${item.id}">
+      <article class="al-log-row al-log-row--watchlist al-log-row--clickable ${expanded ? 'is-expanded' : ''}" data-expand-row tabindex="0" role="button" aria-expanded="${expanded}">
+        <div class="al-log-col al-col-poster">${posterHtml(item, { size: 'w92', width: 28, height: 42 })}</div>
+        <div class="al-log-col al-log-col--desktop">${escapeHtml(releaseLabel(item))}</div>
+        <div class="al-log-col--body">
+          <div class="al-log-col al-log-col--title">${escapeHtml(item.title)}</div>
+          <div class="al-log-col al-log-col--mobile-meta al-only-mobile">${mobileWatchlistMeta(item)}</div>
+        </div>
+        <div class="al-log-col al-log-col--desktop al-muted">${escapeHtml(item.notes || '—')}</div>
+        <div class="al-log-col al-row-actions">
+          <button type="button" class="al-link-btn" data-log-watchlist="${item.id}">${escapeHtml(logLabel)}</button>
+          <button type="button" class="al-link-btn" data-edit-watchlist="${item.id}">Edit</button>
+          <button type="button" class="al-link-btn" data-remove-watchlist="${item.id}">Remove</button>
+        </div>
+      </article>
+      ${expanded ? watchlistDetailPanelHtml(item, state, { detailsKind }) : ''}
+    </div>
+  `;
+}
+
+export function watchlistLogTableHtml(items, state, { emptyMessage, logLabel, detailsKind } = {}) {
+  if (!items.length) {
+    return `<div class="al-empty">${emptyMessage || 'Nothing here yet.'}</div>`;
+  }
+  return `
+    <div class="al-log-list al-log-list--watchlist">
+      <div class="al-log-head al-log-head--watchlist" aria-hidden="true">
+        <span class="al-log-col al-col-poster"></span>
+        <span class="al-log-col">Release</span>
+        <span class="al-log-col">Title</span>
+        <span class="al-log-col">Notes</span>
+        <span class="al-log-col">Actions</span>
+      </div>
+      ${items.map((item) => (
+        item.id === state.editingId
+          ? watchlistEditRowHtml(item)
+          : watchlistViewEntryHtml(item, state, { logLabel, detailsKind })
+      )).join('')}
+    </div>
+  `;
+}
+
+async function loadWatchlistDetails(auth, state, itemId, render, { detailsApi, detailsKind = 'movie' } = {}) {
+  const item = state.watchlist.find((w) => w.id === itemId);
+  if (!item?.tmdb_id) return;
+
+  if (state.detailsCache.has(itemId)) return;
+
+  state.detailsLoading = itemId;
+  state.detailsError = null;
+  render();
+
+  try {
+    const data = await detailsApi.details(auth.token, item.tmdb_id);
+    const details = detailsKind === 'tv' ? data.show : data.movie;
+    state.detailsCache.set(itemId, details);
+    if (details?.poster_path && !item.poster_path) {
+      const withPoster = { ...item, poster_path: details.poster_path };
+      state.watchlist = state.watchlist.map((w) => (w.id === itemId ? withPoster : w));
+    }
+  } catch (err) {
+    state.detailsError = err.message || 'Could not load details.';
+  } finally {
+    state.detailsLoading = null;
+    render();
+  }
+}
+
+export function wireWatchlistLogList(auth, state, {
+  listEl,
+  statusEl,
+  getItems,
+  emptyMessage,
+  onChange,
+  watchlistApi: api = watchlistApi,
+  detailsApi = movieApi,
+  detailsKind = 'movie',
+  onLogItem,
+  logLabel = 'Log screening',
+}) {
+  if (!state.detailsCache) state.detailsCache = new Map();
+
+  const render = () => {
+    const items = getItems();
+    const message = typeof emptyMessage === 'function' ? emptyMessage() : emptyMessage;
+    listEl.innerHTML = watchlistLogTableHtml(items, state, { emptyMessage: message, logLabel, detailsKind });
+    onChange?.();
+    wireWatchlistLogActions(auth, state, render, {
+      api,
+      detailsApi,
+      detailsKind,
+      onLogItem,
+      logLabel,
+      statusEl,
+    });
+  };
+
+  render();
+  return render;
+}
+
+function wireWatchlistLogActions(auth, state, render, {
+  api,
+  detailsApi,
+  detailsKind,
+  onLogItem,
+  statusEl,
+}) {
+  document.querySelectorAll('[data-expand-row]').forEach((row) => {
+    const toggle = (e) => {
+      if (e.target.closest('.al-row-actions')) return;
+      const entry = row.closest('.al-log-entry');
+      const id = entry?.dataset.entryId;
+      if (!id) return;
+
+      if (state.expandedId === id) {
+        state.expandedId = null;
+        state.detailsError = null;
+        render();
+        return;
+      }
+
+      state.expandedId = id;
+      state.editingId = null;
+      state.detailsError = null;
+
+      const item = state.watchlist.find((w) => w.id === id);
+      if (item?.tmdb_id && !state.detailsCache.has(id)) {
+        loadWatchlistDetails(auth, state, id, render, { detailsApi, detailsKind });
+      } else {
+        render();
+      }
+    };
+
+    row.addEventListener('click', toggle);
+    row.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggle(e);
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-log-watchlist]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const item = state.watchlist.find((w) => w.id === btn.dataset.logWatchlist);
+      if (!item) return;
+      if (onLogItem) {
+        onLogItem(item);
+      } else {
+        prefillQuickLog({ title: item.title, tmdbId: item.tmdb_id, mode: 'theater' });
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-edit-watchlist]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      state.editingId = btn.dataset.editWatchlist;
+      state.expandedId = null;
+      render();
+    });
+  });
+
+  document.querySelectorAll('[data-remove-watchlist]').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.removeWatchlist;
+      if (!confirm('Remove from want to watch?')) return;
+      try {
+        await api.remove(auth.token, id);
+        state.watchlist = state.watchlist.filter((item) => item.id !== id);
+        if (state.editingId === id) state.editingId = null;
+        if (state.expandedId === id) state.expandedId = null;
+        state.detailsCache.delete(id);
+        render();
+      } catch (err) {
+        if (statusEl) statusEl.textContent = err.message || 'Could not remove.';
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-cancel-watchlist]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.editingId = null;
+      render();
+    });
+  });
+
+  document.querySelectorAll('[data-watchlist-edit-form]').forEach((form) => {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = form.dataset.watchlistEditForm;
+      const fd = new FormData(form);
+      const payload = {
+        id,
+        title: String(fd.get('title') || '').trim(),
+        notes: String(fd.get('notes') || '').trim() || null,
+      };
+      try {
+        const { item } = await api.update(auth.token, payload);
+        const prev = state.watchlist.find((w) => w.id === id);
+        state.watchlist = state.watchlist.map((w) => (w.id === id ? { ...item, poster_path: prev?.poster_path, release_date: prev?.release_date, year: prev?.year } : w));
+        state.editingId = null;
+        render();
+      } catch (err) {
+        if (statusEl) statusEl.textContent = err.message || 'Could not save.';
+      }
+    });
+  });
+}
+
 export function wireWatchlistAddForm(auth, state, {
   form,
   titleInput,

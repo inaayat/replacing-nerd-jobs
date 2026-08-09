@@ -3,7 +3,7 @@ import { watchlistApi } from './api.js';
 import {
   sortAlreadyOut,
   sortComingSoon,
-  wireWatchlistList,
+  wireWatchlistLogList,
   wireWatchlistAddForm,
 } from './watchlist-ui.js';
 
@@ -40,7 +40,7 @@ async function loadPage(auth) {
   const { items: watchlist } = await watchlistApi.list(auth.token);
 
   main.innerHTML = `
-    <section class="al-panel al-panel--watchlist" id="watchlist-panel">
+    <section class="al-panel al-panel--log al-panel--watchlist" id="watchlist-panel">
       <div class="al-watchlist-header al-watchlist-header--compact">
         <h2 class="al-section-title" id="wtw-section-title">${VIEWS.soon.label}</h2>
         <span class="al-muted" id="wtw-count">${sortComingSoon(watchlist).length}</span>
@@ -62,48 +62,67 @@ async function loadPage(auth) {
         <input type="hidden" id="watchlist-tmdb_id" value="" />
       </form>
       <p class="al-muted al-watchlist-status" id="watchlist-status" aria-live="polite"></p>
-      <p class="al-muted al-watchlist-scroll-hint">
-        <span class="al-hint-hover">Hover or click a poster for details.</span>
-        <span class="al-hint-touch">Tap a poster for details.</span>
-      </p>
-      <div class="al-watchlist-strip-wrap">
-        <div class="al-watchlist-list" id="watchlist-list"></div>
+      <div class="al-toolbar al-toolbar--log">
+        <input class="al-input al-toolbar-search" id="wtw-search" type="search" placeholder="Search title or notes…" />
+        <span class="al-muted" id="wtw-filter-count"></span>
       </div>
+      <div class="al-log-list-wrap" id="watchlist-list"></div>
     </section>
   `;
 
   const state = {
     watchlist,
     view: new URLSearchParams(location.search).get('view') === 'out' ? 'out' : 'soon',
+    search: '',
+    expandedId: null,
+    editingId: null,
+    detailsCache: new Map(),
+    detailsLoading: null,
+    detailsError: null,
   };
 
   const sectionTitle = document.getElementById('wtw-section-title');
   const countEl = document.getElementById('wtw-count');
   const soonCountEl = document.getElementById('wtw-soon-count');
   const outCountEl = document.getElementById('wtw-out-count');
-  const hintEl = document.querySelector('.al-watchlist-scroll-hint');
+  const filterCountEl = document.getElementById('wtw-filter-count');
+
+  const getViewItems = () => (state.view === 'soon'
+    ? sortComingSoon(state.watchlist)
+    : sortAlreadyOut(state.watchlist));
+
+  const getFilteredItems = () => {
+    const q = state.search.trim().toLowerCase();
+    const items = getViewItems();
+    if (!q) return items;
+    return items.filter((item) => `${item.title} ${item.notes || ''}`.toLowerCase().includes(q));
+  };
 
   const refreshHeader = () => {
     const soon = sortComingSoon(state.watchlist);
     const out = sortAlreadyOut(state.watchlist);
     const cfg = VIEWS[state.view];
-    const items = state.view === 'soon' ? soon : out;
+    const filtered = getFilteredItems();
 
     if (sectionTitle) sectionTitle.textContent = cfg.label;
-    if (countEl) countEl.textContent = String(items.length);
+    if (countEl) countEl.textContent = String(getViewItems().length);
     if (soonCountEl) soonCountEl.textContent = String(soon.length);
     if (outCountEl) outCountEl.textContent = String(out.length);
-    if (hintEl) hintEl.hidden = items.length === 0;
+    if (filterCountEl) {
+      const total = getViewItems().length;
+      filterCountEl.textContent = filtered.length === total
+        ? `${total} title${total === 1 ? '' : 's'}`
+        : `${filtered.length} of ${total}`;
+    }
   };
 
-  const renderList = wireWatchlistList(auth, state, {
+  const renderList = wireWatchlistLogList(auth, state, {
     listEl: document.getElementById('watchlist-list'),
     statusEl: document.getElementById('watchlist-status'),
-    layout: 'strip',
-    getItems: () => (state.view === 'soon'
-      ? sortComingSoon(state.watchlist)
-      : sortAlreadyOut(state.watchlist)),
-    emptyMessage: () => VIEWS[state.view].emptyMessage,
+    getItems: getFilteredItems,
+    emptyMessage: () => (state.search.trim()
+      ? 'No matches.'
+      : VIEWS[state.view].emptyMessage),
     onChange: refreshHeader,
   });
 
@@ -116,12 +135,19 @@ async function loadPage(auth) {
     onAdded: renderList,
   });
 
+  document.getElementById('wtw-search').addEventListener('input', (e) => {
+    state.search = e.target.value;
+    renderList();
+  });
+
   document.querySelectorAll('[data-watchlist-view]').forEach((btn) => {
     const active = btn.dataset.watchlistView === state.view;
     btn.classList.toggle('is-active', active);
     btn.setAttribute('aria-selected', active ? 'true' : 'false');
     btn.addEventListener('click', () => {
       state.view = btn.dataset.watchlistView;
+      state.expandedId = null;
+      state.editingId = null;
       document.querySelectorAll('[data-watchlist-view]').forEach((b) => {
         const isActive = b.dataset.watchlistView === state.view;
         b.classList.toggle('is-active', isActive);
