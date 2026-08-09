@@ -2502,6 +2502,34 @@ table.al-table {
   grid-template-columns: 28px 5.5rem minmax(0, 1fr) 5rem 4rem auto;
 }
 
+.al-log-list--watchlist {
+  grid-template-columns:
+    36px
+    6.75rem
+    minmax(7rem, 1.15fr)
+    minmax(5rem, 1fr)
+    6.25rem;
+}
+
+.al-log-head--watchlist,
+.al-log-row--watchlist {
+  grid-template-columns: subgrid;
+}
+
+.al-watchlist-edit-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.al-watchlist-edit-fields .al-input {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
 .al-tv-airing-segment {
   margin-top: 12px;
 }
@@ -2559,6 +2587,31 @@ table.al-table {
 
   .al-log-row--tv .al-log-col--desktop {
     display: none;
+  }
+
+  .al-log-list--watchlist {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .al-log-head--watchlist {
+    display: none;
+  }
+
+  .al-log-row--watchlist .al-log-col--desktop {
+    display: none;
+  }
+
+  .al-watchlist-edit-fields {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .al-watchlist-edit-fields .al-input,
+  .al-watchlist-edit-fields .al-btn {
+    width: 100%;
+    flex: none;
   }
 }
 

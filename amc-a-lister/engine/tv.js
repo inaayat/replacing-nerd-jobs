@@ -4,7 +4,7 @@ import {
   sortAlreadyOut,
   sortComingSoon,
   todayISO,
-  wireWatchlistList,
+  wireWatchlistLogList,
   wireWatchlistAddForm,
 } from './watchlist-ui.js';
 import { escapeHtml, posterHtml, shortDate, ratingLabel } from './format.js';
@@ -90,10 +90,6 @@ async function loadPage(auth) {
           <input type="hidden" id="tv-watchlist-tmdb_id" value="" />
         </form>
         <p class="al-muted al-watchlist-status" id="tv-watchlist-status" aria-live="polite"></p>
-        <p class="al-muted al-watchlist-scroll-hint">
-          <span class="al-hint-hover">Hover or click a poster for details.</span>
-          <span class="al-hint-touch">Tap a poster for details.</span>
-        </p>
         <div class="al-segment al-watchlist-segment al-tv-airing-segment" role="tablist" aria-label="TV watchlist view">
           <button type="button" class="al-segment-btn is-active" data-tv-watchlist-view="soon" role="tab" aria-selected="true">
             Coming soon <span class="al-segment-count" id="tv-soon-count">0</span>
@@ -102,9 +98,11 @@ async function loadPage(auth) {
             Already aired <span class="al-segment-count" id="tv-out-count">0</span>
           </button>
         </div>
-        <div class="al-watchlist-strip-wrap">
-          <div class="al-watchlist-list" id="tv-watchlist-list"></div>
+        <div class="al-toolbar al-toolbar--log">
+          <input class="al-input al-toolbar-search" id="tv-watchlist-search" type="search" placeholder="Search title or notes…" />
+          <span class="al-muted" id="tv-watchlist-filter-count"></span>
         </div>
+        <div class="al-log-list-wrap" id="tv-watchlist-list"></div>
       </div>
     </section>
   `;
@@ -114,7 +112,13 @@ async function loadPage(auth) {
     watchlist,
     view: 'watched',
     watchlistView: 'soon',
+    watchlistSearch: '',
+    watchedEditingId: null,
     editingId: null,
+    expandedId: null,
+    detailsCache: new Map(),
+    detailsLoading: null,
+    detailsError: null,
   };
 
   const watchedPanel = document.getElementById('tv-watched-panel');
@@ -126,6 +130,18 @@ async function loadPage(auth) {
   const watchedStatusEl = document.getElementById('tv-watched-status');
   const soonCountEl = document.getElementById('tv-soon-count');
   const outCountEl = document.getElementById('tv-out-count');
+  const watchlistFilterCountEl = document.getElementById('tv-watchlist-filter-count');
+
+  const getWatchlistViewItems = () => (state.watchlistView === 'soon'
+    ? sortComingSoon(state.watchlist)
+    : sortAlreadyOut(state.watchlist));
+
+  const getFilteredWatchlistItems = () => {
+    const q = state.watchlistSearch.trim().toLowerCase();
+    const items = getWatchlistViewItems();
+    if (!q) return items;
+    return items.filter((item) => `${item.title} ${item.notes || ''}`.toLowerCase().includes(q));
+  };
 
   const refreshHeader = () => {
     const cfg = VIEWS[state.view];
@@ -143,10 +159,16 @@ async function loadPage(auth) {
       watchedPanel.hidden = false;
       wantPanel.hidden = true;
     } else {
-      const items = state.watchlistView === 'soon' ? soon : out;
+      const items = getWatchlistViewItems();
       if (countEl) countEl.textContent = String(items.length);
       watchedPanel.hidden = true;
       wantPanel.hidden = false;
+      if (watchlistFilterCountEl) {
+        const filtered = getFilteredWatchlistItems();
+        watchlistFilterCountEl.textContent = filtered.length === items.length
+          ? `${items.length} show${items.length === 1 ? '' : 's'}`
+          : `${filtered.length} of ${items.length}`;
+      }
     }
   };
 
@@ -169,7 +191,7 @@ async function loadPage(auth) {
           <span class="al-log-col">Actions</span>
         </div>
         ${state.watches.map((w) => (
-          w.id === state.editingId ? tvEditRowHtml(w) : tvViewRowHtml(w)
+          w.id === state.watchedEditingId ? tvEditRowHtml(w) : tvViewRowHtml(w)
         )).join('')}
       </div>
     `;
@@ -178,20 +200,23 @@ async function loadPage(auth) {
     refreshHeader();
   };
 
-  const renderWatchlist = wireWatchlistList(auth, state, {
+  const renderWatchlist = wireWatchlistLogList(auth, state, {
     listEl: document.getElementById('tv-watchlist-list'),
     statusEl: document.getElementById('tv-watchlist-status'),
-    layout: 'strip',
     watchlistApi: tvWatchlistApi,
+    detailsApi: tvApi,
+    detailsKind: 'tv',
     logLabel: 'Log watched',
-    getItems: () => (state.watchlistView === 'soon'
-      ? sortComingSoon(state.watchlist)
-      : sortAlreadyOut(state.watchlist)),
-    emptyMessage: () => (state.watchlistView === 'soon'
-      ? 'No upcoming shows. Add one above.'
-      : 'Nothing already aired on your list. Add a show above.'),
+    getItems: getFilteredWatchlistItems,
+    emptyMessage: () => (state.watchlistSearch.trim()
+      ? 'No matches.'
+      : (state.watchlistView === 'soon'
+        ? 'No upcoming shows. Add one above.'
+        : 'Nothing already aired on your list. Add a show above.')),
     onLogItem: (item) => {
       state.view = 'watched';
+      state.expandedId = null;
+      state.editingId = null;
       document.querySelectorAll('[data-tv-view]').forEach((b) => {
         const active = b.dataset.tvView === 'watched';
         b.classList.toggle('is-active', active);
@@ -204,6 +229,11 @@ async function loadPage(auth) {
       renderWatchedList();
     },
     onChange: refreshHeader,
+  });
+
+  document.getElementById('tv-watchlist-search').addEventListener('input', (e) => {
+    state.watchlistSearch = e.target.value;
+    renderWatchlist();
   });
 
   wireWatchlistAddForm(auth, state, {
@@ -233,6 +263,12 @@ async function loadPage(auth) {
   document.querySelectorAll('[data-tv-view]').forEach((btn) => {
     btn.addEventListener('click', () => {
       state.view = btn.dataset.tvView;
+      if (state.view === 'watched') {
+        state.expandedId = null;
+        state.editingId = null;
+      } else {
+        state.watchedEditingId = null;
+      }
       document.querySelectorAll('[data-tv-view]').forEach((b) => {
         const active = b.dataset.tvView === state.view;
         b.classList.toggle('is-active', active);
@@ -247,6 +283,8 @@ async function loadPage(auth) {
   document.querySelectorAll('[data-tv-watchlist-view]').forEach((btn) => {
     btn.addEventListener('click', () => {
       state.watchlistView = btn.dataset.tvWatchlistView;
+      state.expandedId = null;
+      state.editingId = null;
       document.querySelectorAll('[data-tv-watchlist-view]').forEach((b) => {
         const active = b.dataset.tvWatchlistView === state.watchlistView;
         b.classList.toggle('is-active', active);
@@ -313,14 +351,14 @@ function tvEditRowHtml(w) {
 function wireWatchedActions(auth, state, render) {
   document.querySelectorAll('[data-tv-edit]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      state.editingId = btn.dataset.tvEdit;
+      state.watchedEditingId = btn.dataset.tvEdit;
       render();
     });
   });
 
   document.querySelectorAll('[data-tv-cancel]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      state.editingId = null;
+      state.watchedEditingId = null;
       render();
     });
   });
@@ -330,7 +368,7 @@ function wireWatchedActions(auth, state, render) {
       if (!confirm('Delete this entry?')) return;
       await tvWatchesApi.remove(auth.token, btn.dataset.tvDelete);
       state.watches = state.watches.filter((w) => w.id !== btn.dataset.tvDelete);
-      if (state.editingId === btn.dataset.tvDelete) state.editingId = null;
+      if (state.watchedEditingId === btn.dataset.tvDelete) state.watchedEditingId = null;
       render();
     });
   });
@@ -355,7 +393,7 @@ function wireWatchedActions(auth, state, render) {
       const { watch } = await tvWatchesApi.update(auth.token, payload);
       const prev = state.watches.find((w) => w.id === id);
       state.watches = state.watches.map((w) => (w.id === id ? { ...watch, poster_path: watch.poster_path || prev?.poster_path } : w));
-      state.editingId = null;
+      state.watchedEditingId = null;
       render();
     });
   });
