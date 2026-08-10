@@ -5,6 +5,7 @@ import {
   sortComingSoon,
   wireWatchlistLogList,
   wireWatchlistAddForm,
+  removeLocalWatchlistMatches,
 } from './watchlist-ui.js';
 
 const VIEWS = {
@@ -137,6 +138,11 @@ async function loadPage(auth) {
 
   document.getElementById('wtw-search').addEventListener('input', (e) => {
     state.search = e.target.value;
+    renderList();
+  });
+
+  document.addEventListener('alist-watch-logged', (e) => {
+    removeLocalWatchlistMatches(state, e.detail || {});
     renderList();
   });
 

@@ -50,6 +50,21 @@ export function releaseStripLabel(item) {
   return 'TBA';
 }
 
+function normalizeTitleKey(title) {
+  return String(title || '').trim().toLowerCase();
+}
+
+/** Drop local watchlist rows that match a logged title or TMDB id. */
+export function removeLocalWatchlistMatches(state, { tmdb_id, title }) {
+  const tmdbId = tmdb_id != null && Number.isFinite(Number(tmdb_id)) ? Number(tmdb_id) : null;
+  const titleKey = normalizeTitleKey(title);
+  state.watchlist = state.watchlist.filter((item) => {
+    if (tmdbId != null && item.tmdb_id === tmdbId) return false;
+    if (titleKey && normalizeTitleKey(item.title) === titleKey) return false;
+    return true;
+  });
+}
+
 function watchlistPopupHtml(item, logLabel = 'Log screening') {
   return `
     <div class="al-watchlist-popup" role="tooltip">
@@ -632,11 +647,13 @@ export function wireWatchlistAddForm(auth, state, {
       tmdbId = await searchApi.resolve(auth.token, title);
     }
     try {
-      const { item } = await api.create(auth.token, { title, tmdb_id: tmdbId });
-      state.watchlist = [item, ...state.watchlist];
+      const { item, duplicate } = await api.create(auth.token, { title, tmdb_id: tmdbId });
+      if (!state.watchlist.some((w) => w.id === item.id)) {
+        state.watchlist = [item, ...state.watchlist];
+      }
       form.reset();
       tmdbInput.value = '';
-      statusEl.textContent = `Added ${title}`;
+      statusEl.textContent = duplicate ? `${title} is already on your list` : `Added ${title}`;
       onAdded?.();
       setTimeout(() => { statusEl.textContent = ''; }, 2000);
     } catch (err) {

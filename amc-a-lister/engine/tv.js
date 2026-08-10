@@ -6,6 +6,7 @@ import {
   todayISO,
   wireWatchlistLogList,
   wireWatchlistAddForm,
+  removeLocalWatchlistMatches,
 } from './watchlist-ui.js';
 import { escapeHtml, posterHtml, shortDate, ratingLabel } from './format.js';
 
@@ -257,7 +258,10 @@ async function loadPage(auth) {
     episodeInput: document.getElementById('tv-add-episode'),
     ratingInput: document.getElementById('tv-add-rating'),
     statusEl: watchedStatusEl,
-    onAdded: renderWatchedList,
+    onAdded: () => {
+      renderWatchedList();
+      renderWatchlist();
+    },
   });
 
   document.querySelectorAll('[data-tv-view]').forEach((btn) => {
@@ -473,6 +477,7 @@ function wireTvAddForm(auth, state, {
     try {
       const { watch } = await tvWatchesApi.create(auth.token, payload);
       state.watches = [watch, ...state.watches];
+      removeLocalWatchlistMatches(state, { tmdb_id: tmdbId, title });
       form.reset();
       tmdbInput.value = '';
       dateInput.value = todayISO();

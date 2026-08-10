@@ -16,6 +16,10 @@ import {
   getLeaderboard,
   compareUsers,
   getUserPublicProfile,
+  findMovieWatchlistDuplicate,
+  findTvWatchlistDuplicate,
+  removeMovieWatchlistMatches,
+  removeTvWatchlistMatches,
 } from '../lib/a-list.js';
 import {
   computeSummary,
@@ -254,6 +258,7 @@ async function handleWatches(req, res) {
                   dnf, notes, in_theaters, created_at, updated_at
       `;
       await getMembership(userId);
+      await removeMovieWatchlistMatches(userId, { tmdb_id: data.tmdb_id, title: data.title });
       res.status(201).json({ watch: watchFromRow(rows[0]) });
     } catch (err) {
       res.status(502).json({ error: err.message });
@@ -391,9 +396,16 @@ async function handleWatchlist(req, res) {
     }
     const tmdbId = req.body?.tmdb_id != null ? Number(req.body.tmdb_id) : null;
     const notes = req.body?.notes ? String(req.body.notes).trim() : null;
-    const id = randomUUID();
 
     try {
+      const existing = await findMovieWatchlistDuplicate(userId, { tmdb_id: tmdbId, title });
+      if (existing) {
+        const [enriched] = await enrichWatchlistRows([existing]);
+        res.status(200).json({ item: watchlistFromRow(enriched), duplicate: true });
+        return;
+      }
+
+      const id = randomUUID();
       if (tmdbId && getTmdbApiKey()) {
         await getMovieDetails(tmdbId);
       }
@@ -769,6 +781,7 @@ async function handleImport(req, res) {
         )
       `;
       inserted += 1;
+      await removeMovieWatchlistMatches(userId, { tmdb_id: data.tmdb_id, title: data.title });
     }
 
     res.status(200).json({ inserted, skipped, total: watches.length });
@@ -1108,6 +1121,7 @@ async function handleTvWatches(req, res) {
         RETURNING id, watched_on::text AS watched_on, title, tmdb_id, season, episode,
                   rating::float AS rating, dnf, notes, created_at, updated_at
       `;
+      await removeTvWatchlistMatches(userId, { tmdb_id: data.tmdb_id, title: data.title });
       res.status(201).json({ watch: tvWatchFromRow(rows[0]) });
     } catch (err) {
       res.status(502).json({ error: err.message });
@@ -1203,9 +1217,16 @@ async function handleTvWatchlist(req, res) {
     }
     const tmdbId = req.body?.tmdb_id != null ? Number(req.body.tmdb_id) : null;
     const notes = req.body?.notes ? String(req.body.notes).trim() : null;
-    const id = randomUUID();
 
     try {
+      const existing = await findTvWatchlistDuplicate(userId, { tmdb_id: tmdbId, title });
+      if (existing) {
+        const [enriched] = await enrichTvWatchlistRows([existing]);
+        res.status(200).json({ item: tvWatchlistFromRow(enriched), duplicate: true });
+        return;
+      }
+
+      const id = randomUUID();
       if (tmdbId && process.env.TMDB_API_KEY) {
         await getTvDetails(tmdbId);
       }

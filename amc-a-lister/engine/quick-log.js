@@ -243,6 +243,9 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
       setLogMode('theater');
       titleInput.focus();
       if (onSuccess) await onSuccess();
+      document.dispatchEvent(new CustomEvent('alist-watch-logged', {
+        detail: { tmdb_id: payload.tmdb_id, title: payload.title },
+      }));
       setTimeout(() => { statusEl.textContent = ''; statusEl.classList.remove('is-success'); }, 2500);
     } catch (err) {
       statusEl.textContent = err.message || 'Could not save.';
