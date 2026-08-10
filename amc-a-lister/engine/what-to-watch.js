@@ -3,22 +3,10 @@ import { watchlistApi } from './api.js';
 import {
   sortAlreadyOut,
   sortComingSoon,
+  combinedWatchlistItems,
   wireWatchlistLogList,
   wireWatchlistAddForm,
 } from './watchlist-ui.js';
-
-const VIEWS = {
-  soon: {
-    label: 'Want to watch',
-    segment: 'Coming soon',
-    emptyMessage: 'No upcoming titles. Add one above.',
-  },
-  out: {
-    label: 'What to watch',
-    segment: 'Already out',
-    emptyMessage: 'Nothing already out on your list. Add a title above.',
-  },
-};
 
 bootPage(async ({ root, auth }) => {
   if (!requireSignIn(auth, root)) return;
@@ -42,17 +30,10 @@ async function loadPage(auth) {
   main.innerHTML = `
     <section class="al-panel al-panel--log al-panel--watchlist" id="watchlist-panel">
       <div class="al-watchlist-header al-watchlist-header--compact">
-        <h2 class="al-section-title" id="wtw-section-title">${VIEWS.soon.label}</h2>
-        <span class="al-muted" id="wtw-count">${sortComingSoon(watchlist).length}</span>
+        <h2 class="al-section-title">Want to watch</h2>
+        <span class="al-muted" id="wtw-count">${watchlist.length}</span>
       </div>
-      <div class="al-segment al-watchlist-segment" role="tablist" aria-label="Watchlist view">
-        <button type="button" class="al-segment-btn is-active" data-watchlist-view="soon" role="tab" aria-selected="true">
-          Coming soon <span class="al-segment-count" id="wtw-soon-count">${sortComingSoon(watchlist).length}</span>
-        </button>
-        <button type="button" class="al-segment-btn" data-watchlist-view="out" role="tab" aria-selected="false">
-          Already out <span class="al-segment-count" id="wtw-out-count">${sortAlreadyOut(watchlist).length}</span>
-        </button>
-      </div>
+      <p class="al-muted al-watchlist-summary" id="wtw-summary"></p>
       <form class="al-watchlist-add" id="watchlist-add-form" autocomplete="off">
         <div class="al-watchlist-add-field al-search-wrap">
           <input class="al-input" id="watchlist-title" type="text" placeholder="Add a title…" required />
@@ -72,7 +53,6 @@ async function loadPage(auth) {
 
   const state = {
     watchlist,
-    view: new URLSearchParams(location.search).get('view') === 'out' ? 'out' : 'soon',
     search: '',
     expandedId: null,
     editingId: null,
@@ -81,35 +61,33 @@ async function loadPage(auth) {
     detailsError: null,
   };
 
-  const sectionTitle = document.getElementById('wtw-section-title');
   const countEl = document.getElementById('wtw-count');
-  const soonCountEl = document.getElementById('wtw-soon-count');
-  const outCountEl = document.getElementById('wtw-out-count');
+  const summaryEl = document.getElementById('wtw-summary');
   const filterCountEl = document.getElementById('wtw-filter-count');
 
-  const getViewItems = () => (state.view === 'soon'
-    ? sortComingSoon(state.watchlist)
-    : sortAlreadyOut(state.watchlist));
+  const getAllItems = () => combinedWatchlistItems(state.watchlist);
 
   const getFilteredItems = () => {
     const q = state.search.trim().toLowerCase();
-    const items = getViewItems();
+    const items = getAllItems();
     if (!q) return items;
     return items.filter((item) => `${item.title} ${item.notes || ''}`.toLowerCase().includes(q));
   };
 
   const refreshHeader = () => {
-    const soon = sortComingSoon(state.watchlist);
     const out = sortAlreadyOut(state.watchlist);
-    const cfg = VIEWS[state.view];
+    const soon = sortComingSoon(state.watchlist);
     const filtered = getFilteredItems();
+    const total = state.watchlist.length;
 
-    if (sectionTitle) sectionTitle.textContent = cfg.label;
-    if (countEl) countEl.textContent = String(getViewItems().length);
-    if (soonCountEl) soonCountEl.textContent = String(soon.length);
-    if (outCountEl) outCountEl.textContent = String(out.length);
+    if (countEl) countEl.textContent = String(total);
+    if (summaryEl) {
+      const parts = [];
+      if (out.length) parts.push(`${out.length} already out`);
+      if (soon.length) parts.push(`${soon.length} coming soon`);
+      summaryEl.textContent = parts.join(' · ') || 'Nothing on your list yet.';
+    }
     if (filterCountEl) {
-      const total = getViewItems().length;
       filterCountEl.textContent = filtered.length === total
         ? `${total} title${total === 1 ? '' : 's'}`
         : `${filtered.length} of ${total}`;
@@ -120,9 +98,10 @@ async function loadPage(auth) {
     listEl: document.getElementById('watchlist-list'),
     statusEl: document.getElementById('watchlist-status'),
     getItems: getFilteredItems,
+    shadeComingSoon: true,
     emptyMessage: () => (state.search.trim()
       ? 'No matches.'
-      : VIEWS[state.view].emptyMessage),
+      : 'Nothing on your list yet. Add a title above.'),
     onChange: refreshHeader,
   });
 
@@ -140,20 +119,5 @@ async function loadPage(auth) {
     renderList();
   });
 
-  document.querySelectorAll('[data-watchlist-view]').forEach((btn) => {
-    const active = btn.dataset.watchlistView === state.view;
-    btn.classList.toggle('is-active', active);
-    btn.setAttribute('aria-selected', active ? 'true' : 'false');
-    btn.addEventListener('click', () => {
-      state.view = btn.dataset.watchlistView;
-      state.expandedId = null;
-      state.editingId = null;
-      document.querySelectorAll('[data-watchlist-view]').forEach((b) => {
-        const isActive = b.dataset.watchlistView === state.view;
-        b.classList.toggle('is-active', isActive);
-        b.setAttribute('aria-selected', isActive ? 'true' : 'false');
-      });
-      renderList();
-    });
-  });
+  refreshHeader();
 }

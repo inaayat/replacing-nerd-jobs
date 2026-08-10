@@ -2502,6 +2502,29 @@ table.al-table {
   grid-template-columns: 28px 5.5rem minmax(0, 1fr) 5rem 4rem auto;
 }
 
+.al-watchlist-summary {
+  margin: -2px 0 10px;
+  font-size: 0.78rem;
+}
+
+.al-log-row--coming-soon {
+  background: #f0ece6;
+  border-color: rgba(28, 28, 28, 0.1);
+}
+
+.al-log-row--coming-soon:hover {
+  background: #ebe6df;
+  border-color: rgba(28, 28, 28, 0.14);
+}
+
+.al-log-entry.is-coming-soon .al-log-detail--coming-soon {
+  background: #f0ece6;
+}
+
+.al-log-entry.is-coming-soon .al-log-detail--coming-soon .al-log-detail-inner {
+  background: #f7f4ef;
+}
+
 .al-log-list--watchlist {
   grid-template-columns:
     36px
