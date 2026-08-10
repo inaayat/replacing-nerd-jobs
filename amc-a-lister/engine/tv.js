@@ -3,6 +3,7 @@ import { tvWatchesApi, tvWatchlistApi, tvApi } from './api.js';
 import {
   sortAlreadyOut,
   sortComingSoon,
+  combinedWatchlistItems,
   todayISO,
   wireWatchlistLogList,
   wireWatchlistAddForm,
@@ -90,14 +91,7 @@ async function loadPage(auth) {
           <input type="hidden" id="tv-watchlist-tmdb_id" value="" />
         </form>
         <p class="al-muted al-watchlist-status" id="tv-watchlist-status" aria-live="polite"></p>
-        <div class="al-segment al-watchlist-segment al-tv-airing-segment" role="tablist" aria-label="TV watchlist view">
-          <button type="button" class="al-segment-btn is-active" data-tv-watchlist-view="soon" role="tab" aria-selected="true">
-            Coming soon <span class="al-segment-count" id="tv-soon-count">0</span>
-          </button>
-          <button type="button" class="al-segment-btn" data-tv-watchlist-view="out" role="tab" aria-selected="false">
-            Already aired <span class="al-segment-count" id="tv-out-count">0</span>
-          </button>
-        </div>
+        <p class="al-muted al-watchlist-summary" id="tv-watchlist-summary"></p>
         <div class="al-toolbar al-toolbar--log">
           <input class="al-input al-toolbar-search" id="tv-watchlist-search" type="search" placeholder="Search title or notes…" />
           <span class="al-muted" id="tv-watchlist-filter-count"></span>
@@ -111,7 +105,6 @@ async function loadPage(auth) {
     watches,
     watchlist,
     view: 'watched',
-    watchlistView: 'soon',
     watchlistSearch: '',
     watchedEditingId: null,
     editingId: null,
@@ -128,17 +121,14 @@ async function loadPage(auth) {
   const watchedCountEl = document.getElementById('tv-watched-count');
   const wantCountEl = document.getElementById('tv-want-count');
   const watchedStatusEl = document.getElementById('tv-watched-status');
-  const soonCountEl = document.getElementById('tv-soon-count');
-  const outCountEl = document.getElementById('tv-out-count');
+  const watchlistSummaryEl = document.getElementById('tv-watchlist-summary');
   const watchlistFilterCountEl = document.getElementById('tv-watchlist-filter-count');
 
-  const getWatchlistViewItems = () => (state.watchlistView === 'soon'
-    ? sortComingSoon(state.watchlist)
-    : sortAlreadyOut(state.watchlist));
+  const getAllWatchlistItems = () => combinedWatchlistItems(state.watchlist);
 
   const getFilteredWatchlistItems = () => {
     const q = state.watchlistSearch.trim().toLowerCase();
-    const items = getWatchlistViewItems();
+    const items = getAllWatchlistItems();
     if (!q) return items;
     return items.filter((item) => `${item.title} ${item.notes || ''}`.toLowerCase().includes(q));
   };
@@ -151,23 +141,28 @@ async function loadPage(auth) {
 
     const soon = sortComingSoon(state.watchlist);
     const out = sortAlreadyOut(state.watchlist);
-    if (soonCountEl) soonCountEl.textContent = String(soon.length);
-    if (outCountEl) outCountEl.textContent = String(out.length);
+    if (watchlistSummaryEl) {
+      const parts = [];
+      if (out.length) parts.push(`${out.length} already aired`);
+      if (soon.length) parts.push(`${soon.length} coming soon`);
+      watchlistSummaryEl.textContent = parts.join(' · ');
+      watchlistSummaryEl.hidden = state.view !== 'want';
+    }
 
     if (state.view === 'watched') {
       if (countEl) countEl.textContent = String(state.watches.length);
       watchedPanel.hidden = false;
       wantPanel.hidden = true;
     } else {
-      const items = getWatchlistViewItems();
-      if (countEl) countEl.textContent = String(items.length);
+      if (countEl) countEl.textContent = String(state.watchlist.length);
       watchedPanel.hidden = true;
       wantPanel.hidden = false;
       if (watchlistFilterCountEl) {
         const filtered = getFilteredWatchlistItems();
-        watchlistFilterCountEl.textContent = filtered.length === items.length
-          ? `${items.length} show${items.length === 1 ? '' : 's'}`
-          : `${filtered.length} of ${items.length}`;
+        const total = state.watchlist.length;
+        watchlistFilterCountEl.textContent = filtered.length === total
+          ? `${total} show${total === 1 ? '' : 's'}`
+          : `${filtered.length} of ${total}`;
       }
     }
   };
@@ -207,12 +202,11 @@ async function loadPage(auth) {
     detailsApi: tvApi,
     detailsKind: 'tv',
     logLabel: 'Log watched',
+    shadeComingSoon: true,
     getItems: getFilteredWatchlistItems,
     emptyMessage: () => (state.watchlistSearch.trim()
       ? 'No matches.'
-      : (state.watchlistView === 'soon'
-        ? 'No upcoming shows. Add one above.'
-        : 'Nothing already aired on your list. Add a show above.')),
+      : 'Nothing on your list yet. Add a show above.'),
     onLogItem: (item) => {
       state.view = 'watched';
       state.expandedId = null;
@@ -277,20 +271,6 @@ async function loadPage(auth) {
       refreshHeader();
       if (state.view === 'watched') renderWatchedList();
       else renderWatchlist();
-    });
-  });
-
-  document.querySelectorAll('[data-tv-watchlist-view]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      state.watchlistView = btn.dataset.tvWatchlistView;
-      state.expandedId = null;
-      state.editingId = null;
-      document.querySelectorAll('[data-tv-watchlist-view]').forEach((b) => {
-        const active = b.dataset.tvWatchlistView === state.watchlistView;
-        b.classList.toggle('is-active', active);
-        b.setAttribute('aria-selected', active ? 'true' : 'false');
-      });
-      renderWatchlist();
     });
   });
 

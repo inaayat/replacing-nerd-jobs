@@ -37,6 +37,11 @@ export function sortAlreadyOut(items, today = todayISO()) {
     });
 }
 
+/** Already-out titles first, then coming soon (soonest first). */
+export function combinedWatchlistItems(items, today = todayISO()) {
+  return [...sortAlreadyOut(items, today), ...sortComingSoon(items, today)];
+}
+
 export function releaseLabel(item) {
   if (item.release_date) return shortDate(item.release_date);
   if (item.year) return `${item.year} · date TBA`;
@@ -273,9 +278,9 @@ function watchlistEditRowHtml(item) {
   `;
 }
 
-function watchlistDetailPanelHtml(item, state, { detailsKind = 'movie' } = {}) {
+function watchlistDetailPanelHtml(item, state, { detailsKind = 'movie', detailClass = '' } = {}) {
   const wrap = (content) => `
-    <div class="al-log-detail">
+    <div class="al-log-detail${detailClass}">
       <div class="al-log-detail-inner">${content}</div>
     </div>
   `;
@@ -357,11 +362,14 @@ function watchlistDetailPanelHtml(item, state, { detailsKind = 'movie' } = {}) {
   `);
 }
 
-function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detailsKind = 'movie' } = {}) {
+function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detailsKind = 'movie', shadeComingSoon = false } = {}) {
   const expanded = item.id === state.expandedId;
+  const comingSoon = shadeComingSoon && !isAlreadyOut(item);
+  const soonClass = comingSoon ? ' al-log-row--coming-soon' : '';
+  const detailSoonClass = comingSoon ? ' al-log-detail--coming-soon' : '';
   return `
-    <div class="al-log-entry ${expanded ? 'is-expanded' : ''}" data-entry-id="${item.id}">
-      <article class="al-log-row al-log-row--watchlist al-log-row--clickable ${expanded ? 'is-expanded' : ''}" data-expand-row tabindex="0" role="button" aria-expanded="${expanded}">
+    <div class="al-log-entry ${expanded ? 'is-expanded' : ''}${comingSoon ? ' is-coming-soon' : ''}" data-entry-id="${item.id}">
+      <article class="al-log-row al-log-row--watchlist al-log-row--clickable${soonClass} ${expanded ? 'is-expanded' : ''}" data-expand-row tabindex="0" role="button" aria-expanded="${expanded}">
         <div class="al-log-col al-col-poster">${posterHtml(item, { size: 'w92', width: 28, height: 42 })}</div>
         <div class="al-log-col al-log-col--desktop">${escapeHtml(releaseLabel(item))}</div>
         <div class="al-log-col--body">
@@ -375,12 +383,12 @@ function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detai
           <button type="button" class="al-link-btn" data-remove-watchlist="${item.id}">Remove</button>
         </div>
       </article>
-      ${expanded ? watchlistDetailPanelHtml(item, state, { detailsKind }) : ''}
+      ${expanded ? watchlistDetailPanelHtml(item, state, { detailsKind, detailClass: detailSoonClass }) : ''}
     </div>
   `;
 }
 
-export function watchlistLogTableHtml(items, state, { emptyMessage, logLabel, detailsKind } = {}) {
+export function watchlistLogTableHtml(items, state, { emptyMessage, logLabel, detailsKind, shadeComingSoon = false } = {}) {
   if (!items.length) {
     return `<div class="al-empty">${emptyMessage || 'Nothing here yet.'}</div>`;
   }
@@ -396,7 +404,7 @@ export function watchlistLogTableHtml(items, state, { emptyMessage, logLabel, de
       ${items.map((item) => (
         item.id === state.editingId
           ? watchlistEditRowHtml(item)
-          : watchlistViewEntryHtml(item, state, { logLabel, detailsKind })
+          : watchlistViewEntryHtml(item, state, { logLabel, detailsKind, shadeComingSoon })
       )).join('')}
     </div>
   `;
@@ -439,13 +447,14 @@ export function wireWatchlistLogList(auth, state, {
   detailsKind = 'movie',
   onLogItem,
   logLabel = 'Log screening',
+  shadeComingSoon = false,
 }) {
   if (!state.detailsCache) state.detailsCache = new Map();
 
   const render = () => {
     const items = getItems();
     const message = typeof emptyMessage === 'function' ? emptyMessage() : emptyMessage;
-    listEl.innerHTML = watchlistLogTableHtml(items, state, { emptyMessage: message, logLabel, detailsKind });
+    listEl.innerHTML = watchlistLogTableHtml(items, state, { emptyMessage: message, logLabel, detailsKind, shadeComingSoon });
     onChange?.();
     wireWatchlistLogActions(auth, state, render, {
       api,
