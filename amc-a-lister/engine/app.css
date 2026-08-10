@@ -2318,6 +2318,12 @@ table.al-table {
     background: transparent;
   }
 
+  .al-panel--tv.al-panel--log {
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
   .al-panel--log .al-toolbar {
     margin-bottom: 10px;
   }
@@ -2494,12 +2500,19 @@ table.al-table {
   width: 5.5rem;
 }
 
-.al-log-head--tv {
-  grid-template-columns: 28px 5.5rem minmax(0, 1fr) 5rem 4rem auto;
+.al-log-head--tv,
+.al-log-row--tv {
+  grid-template-columns: subgrid;
 }
 
-.al-log-row--tv {
-  grid-template-columns: 28px 5.5rem minmax(0, 1fr) 5rem 4rem auto;
+.al-log-list--tv {
+  grid-template-columns:
+    36px
+    6.75rem
+    minmax(7rem, 1.15fr)
+    5rem
+    4rem
+    6.25rem;
 }
 
 .al-watchlist-summary {
@@ -2603,9 +2616,14 @@ table.al-table {
     grid-column: 1 / -1;
   }
 
-  .al-log-head--tv,
-  .al-log-row--tv {
-    grid-template-columns: 28px minmax(0, 1fr) auto;
+  .al-log-list--tv {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .al-log-head--tv {
+    display: none;
   }
 
   .al-log-row--tv .al-log-col--desktop {

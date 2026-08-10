@@ -39,7 +39,7 @@ async function loadPage(auth) {
   ]);
 
   main.innerHTML = `
-    <section class="al-panel al-panel--tv">
+    <section class="al-panel al-panel--log al-panel--tv">
       <p class="al-muted al-tv-stats-note">TV shows are not counted in A-List savings, insights, or leaderboard — only theater movie screenings are.</p>
       <div class="al-watchlist-header al-watchlist-header--compact">
         <h2 class="al-section-title" id="tv-section-title">${VIEWS.watched.label}</h2>
@@ -78,6 +78,10 @@ async function loadPage(auth) {
           <input type="hidden" id="tv-add-tmdb_id" value="" />
         </form>
         <p class="al-muted al-watchlist-status" id="tv-watched-status" aria-live="polite"></p>
+        <div class="al-toolbar al-toolbar--log">
+          <input class="al-input al-toolbar-search" id="tv-watched-search" type="search" placeholder="Search title…" />
+          <span class="al-muted" id="tv-watched-filter-count"></span>
+        </div>
         <div class="al-log-list-wrap" id="tv-watched-list"></div>
       </div>
 
@@ -106,7 +110,12 @@ async function loadPage(auth) {
     watchlist,
     view: 'watched',
     watchlistSearch: '',
+    watchedSearch: '',
     watchedEditingId: null,
+    watchedExpandedId: null,
+    watchedDetailsCache: new Map(),
+    watchedDetailsLoading: null,
+    watchedDetailsError: null,
     editingId: null,
     expandedId: null,
     detailsCache: new Map(),
@@ -121,8 +130,15 @@ async function loadPage(auth) {
   const watchedCountEl = document.getElementById('tv-watched-count');
   const wantCountEl = document.getElementById('tv-want-count');
   const watchedStatusEl = document.getElementById('tv-watched-status');
+  const watchedFilterCountEl = document.getElementById('tv-watched-filter-count');
   const watchlistSummaryEl = document.getElementById('tv-watchlist-summary');
   const watchlistFilterCountEl = document.getElementById('tv-watchlist-filter-count');
+
+  const getFilteredWatches = () => {
+    const q = state.watchedSearch.trim().toLowerCase();
+    if (!q) return state.watches;
+    return state.watches.filter((w) => `${w.title} ${episodeLabel(w)}`.toLowerCase().includes(q));
+  };
 
   const getAllWatchlistItems = () => combinedWatchlistItems(state.watchlist);
 
@@ -169,14 +185,25 @@ async function loadPage(auth) {
 
   const renderWatchedList = () => {
     const listEl = document.getElementById('tv-watched-list');
-    if (!state.watches.length) {
-      listEl.innerHTML = '<div class="al-empty">No shows logged yet. Add one above.</div>';
+    const filtered = getFilteredWatches();
+    const total = state.watches.length;
+
+    if (watchedFilterCountEl) {
+      watchedFilterCountEl.textContent = filtered.length === total
+        ? `${total} show${total === 1 ? '' : 's'}`
+        : `${filtered.length} of ${total}`;
+    }
+
+    if (!filtered.length) {
+      listEl.innerHTML = state.watchedSearch.trim()
+        ? '<div class="al-empty">No matches.</div>'
+        : '<div class="al-empty">No shows logged yet. Add one above.</div>';
       refreshHeader();
       return;
     }
 
     listEl.innerHTML = `
-      <div class="al-log-list">
+      <div class="al-log-list al-log-list--tv">
         <div class="al-log-head al-log-head--tv" aria-hidden="true">
           <span class="al-log-col al-col-poster"></span>
           <span class="al-log-col">Date</span>
@@ -185,8 +212,8 @@ async function loadPage(auth) {
           <span class="al-log-col">Rating</span>
           <span class="al-log-col">Actions</span>
         </div>
-        ${state.watches.map((w) => (
-          w.id === state.watchedEditingId ? tvEditRowHtml(w) : tvViewRowHtml(w)
+        ${filtered.map((w) => (
+          w.id === state.watchedEditingId ? tvEditRowHtml(w) : tvViewRowHtml(w, state)
         )).join('')}
       </div>
     `;
@@ -230,6 +257,11 @@ async function loadPage(auth) {
     renderWatchlist();
   });
 
+  document.getElementById('tv-watched-search').addEventListener('input', (e) => {
+    state.watchedSearch = e.target.value;
+    renderWatchedList();
+  });
+
   wireWatchlistAddForm(auth, state, {
     form: document.getElementById('tv-watchlist-add-form'),
     titleInput: document.getElementById('tv-watchlist-title'),
@@ -262,6 +294,8 @@ async function loadPage(auth) {
         state.editingId = null;
       } else {
         state.watchedEditingId = null;
+        state.watchedExpandedId = null;
+        state.watchedDetailsError = null;
       }
       document.querySelectorAll('[data-tv-view]').forEach((b) => {
         const active = b.dataset.tvView === state.view;
@@ -284,54 +318,189 @@ function episodeLabel(w) {
   return '—';
 }
 
-function tvViewRowHtml(w) {
-  return `
-    <article class="al-log-row al-log-row--tv" data-tv-id="${w.id}">
-      <div class="al-log-col al-col-poster">${posterHtml(w, { size: 'w92', width: 28, height: 42 })}</div>
-      <div class="al-log-col al-log-col--desktop">${shortDate(w.watched_on)}</div>
-      <div class="al-log-col al-log-col--title">${escapeHtml(w.title)}</div>
-      <div class="al-log-col al-log-col--desktop al-muted">${escapeHtml(episodeLabel(w))}</div>
-      <div class="al-log-col al-log-col--desktop">${ratingLabel(w)}</div>
-      <div class="al-log-col al-row-actions">
-        <button type="button" class="al-link-btn" data-tv-edit="${w.id}">Edit</button>
-        <button type="button" class="al-link-btn" data-tv-delete="${w.id}">Delete</button>
+function mobileTvMeta(w) {
+  const primary = [
+    shortDate(w.watched_on),
+    episodeLabel(w) !== '—' ? episodeLabel(w) : null,
+    ratingLabel(w),
+  ].filter(Boolean).map((part) => escapeHtml(String(part))).join(' · ');
+  return `<span class="al-log-meta-primary">${primary}</span>`;
+}
+
+function tvDetailPanelHtml(watch, state) {
+  const wrap = (content) => `
+    <div class="al-log-detail">
+      <div class="al-log-detail-inner">${content}</div>
+    </div>
+  `;
+
+  if (!watch.tmdb_id) {
+    return wrap('<p class="al-muted">No TMDB match for this title.</p>');
+  }
+
+  if (state.watchedDetailsLoading === watch.id) {
+    return wrap('<p class="al-muted">Loading show details…</p>');
+  }
+
+  if (state.watchedDetailsError && state.watchedExpandedId === watch.id) {
+    return wrap(`<p class="al-error">${escapeHtml(state.watchedDetailsError)}</p>`);
+  }
+
+  const show = state.watchedDetailsCache.get(watch.id);
+  if (!show) {
+    return wrap('<p class="al-muted">Loading show details…</p>');
+  }
+
+  const genres = show.genres?.length ? show.genres.join(', ') : '—';
+  const seasons = show.number_of_seasons != null ? `${show.number_of_seasons} season${show.number_of_seasons === 1 ? '' : 's'}` : '—';
+  const episodes = show.number_of_episodes != null ? `${show.number_of_episodes} episodes` : '—';
+  const creator = show.creator || '—';
+  const cast = show.cast?.length ? show.cast.join(', ') : '—';
+  const titleLine = `${escapeHtml(show.title)}${show.year ? ` <span class="al-muted">(${show.year})</span>` : ''}`;
+
+  return wrap(`
+    <h3 class="al-log-detail-title serif">${titleLine}</h3>
+    <div class="al-log-detail-body">
+      ${show.poster_path ? posterHtml(show, { size: 'w185', width: 88, height: 132, className: 'al-poster al-poster--detail' }) : ''}
+      <div class="al-log-detail-meta">
+        <dl class="al-log-detail-facts">
+          <div class="al-log-detail-fact"><dt>Seasons</dt><dd>${escapeHtml(seasons)}</dd></div>
+          <div class="al-log-detail-fact"><dt>Episodes</dt><dd>${escapeHtml(episodes)}</dd></div>
+          <div class="al-log-detail-fact"><dt>Genre</dt><dd>${escapeHtml(genres)}</dd></div>
+          <div class="al-log-detail-fact"><dt>Creator</dt><dd>${escapeHtml(creator)}</dd></div>
+          <div class="al-log-detail-fact"><dt>Cast</dt><dd>${escapeHtml(cast)}</dd></div>
+          <div class="al-log-detail-fact"><dt>Status</dt><dd>${escapeHtml(show.status || '—')}</dd></div>
+        </dl>
       </div>
-    </article>
+    </div>
+    <section class="al-log-detail-overview-wrap">
+      <h4 class="al-log-detail-subhead">Overview</h4>
+      ${show.overview
+    ? `<p class="al-log-detail-overview">${escapeHtml(show.overview)}</p>`
+    : '<p class="al-muted">No overview available.</p>'}
+    </section>
+  `);
+}
+
+function tvViewRowHtml(w, state) {
+  const expanded = w.id === state.watchedExpandedId;
+  return `
+    <div class="al-log-entry ${expanded ? 'is-expanded' : ''}" data-entry-id="${w.id}">
+      <article class="al-log-row al-log-row--tv al-log-row--clickable ${expanded ? 'is-expanded' : ''}" data-tv-expand-row tabindex="0" role="button" aria-expanded="${expanded}">
+        <div class="al-log-col al-col-poster">${posterHtml(w, { size: 'w92', width: 28, height: 42 })}</div>
+        <div class="al-log-col al-log-col--desktop">${shortDate(w.watched_on)}</div>
+        <div class="al-log-col--body">
+          <div class="al-log-col al-log-col--title">${escapeHtml(w.title)}</div>
+          <div class="al-log-col al-log-col--mobile-meta al-only-mobile">${mobileTvMeta(w)}</div>
+        </div>
+        <div class="al-log-col al-log-col--desktop al-muted">${escapeHtml(episodeLabel(w))}</div>
+        <div class="al-log-col al-log-col--desktop">${ratingLabel(w)}</div>
+        <div class="al-log-col al-row-actions">
+          <button type="button" class="al-link-btn" data-tv-edit="${w.id}">Edit</button>
+          <button type="button" class="al-link-btn" data-tv-delete="${w.id}">Delete</button>
+        </div>
+      </article>
+      ${expanded ? tvDetailPanelHtml(w, state) : ''}
+    </div>
   `;
 }
 
 function tvEditRowHtml(w) {
   const ratingVal = w.dnf ? 'dnf' : (w.rating != null ? String(w.rating) : '');
   return `
-    <article class="al-log-row al-log-row--tv al-log-row--editing" data-tv-id="${w.id}">
-      <form class="al-tv-edit-form" data-tv-edit-form="${w.id}">
-        <div class="al-tv-add-row">
-          <input class="al-input" name="title" type="text" value="${escapeHtml(w.title)}" required />
-          <input class="al-input al-tv-add-date" name="watched_on" type="date" value="${w.watched_on}" required />
-          <input class="al-input al-tv-add-season" name="season" type="number" min="1" placeholder="Season" value="${w.season ?? ''}" inputmode="numeric" />
-          <input class="al-input al-tv-add-episode" name="episode" type="number" min="1" placeholder="Episode" value="${w.episode ?? ''}" inputmode="numeric" />
-          <select class="al-select al-tv-add-rating" name="rating">
-            <option value="">Rating</option>
-            <option value="5" ${ratingVal === '5' ? 'selected' : ''}>5★</option>
-            <option value="4" ${ratingVal === '4' ? 'selected' : ''}>4★</option>
-            <option value="3" ${ratingVal === '3' ? 'selected' : ''}>3★</option>
-            <option value="2" ${ratingVal === '2' ? 'selected' : ''}>2★</option>
-            <option value="1" ${ratingVal === '1' ? 'selected' : ''}>1★</option>
-            <option value="dnf" ${ratingVal === 'dnf' ? 'selected' : ''}>DNF</option>
-          </select>
-          <button class="al-btn al-btn-primary" type="submit">Save</button>
-          <button class="al-btn" type="button" data-tv-cancel="${w.id}">Cancel</button>
-        </div>
-        <input type="hidden" name="tmdb_id" value="${w.tmdb_id ?? ''}" />
-      </form>
-    </article>
+    <div class="al-log-entry al-log-entry--editing" data-entry-id="${w.id}">
+      <article class="al-log-row al-log-row--tv al-log-row--editing" data-tv-id="${w.id}">
+        <form class="al-tv-edit-form" data-tv-edit-form="${w.id}">
+          <div class="al-tv-add-row">
+            <input class="al-input" name="title" type="text" value="${escapeHtml(w.title)}" required />
+            <input class="al-input al-tv-add-date" name="watched_on" type="date" value="${w.watched_on}" required />
+            <input class="al-input al-tv-add-season" name="season" type="number" min="1" placeholder="Season" value="${w.season ?? ''}" inputmode="numeric" />
+            <input class="al-input al-tv-add-episode" name="episode" type="number" min="1" placeholder="Episode" value="${w.episode ?? ''}" inputmode="numeric" />
+            <select class="al-select al-tv-add-rating" name="rating">
+              <option value="">Rating</option>
+              <option value="5" ${ratingVal === '5' ? 'selected' : ''}>5★</option>
+              <option value="4" ${ratingVal === '4' ? 'selected' : ''}>4★</option>
+              <option value="3" ${ratingVal === '3' ? 'selected' : ''}>3★</option>
+              <option value="2" ${ratingVal === '2' ? 'selected' : ''}>2★</option>
+              <option value="1" ${ratingVal === '1' ? 'selected' : ''}>1★</option>
+              <option value="dnf" ${ratingVal === 'dnf' ? 'selected' : ''}>DNF</option>
+            </select>
+            <button class="al-btn al-btn-primary" type="submit">Save</button>
+            <button class="al-btn" type="button" data-tv-cancel="${w.id}">Cancel</button>
+          </div>
+          <input type="hidden" name="tmdb_id" value="${w.tmdb_id ?? ''}" />
+        </form>
+      </article>
+    </div>
   `;
 }
 
+async function loadTvWatchDetails(auth, state, watchId, render) {
+  const watch = state.watches.find((w) => w.id === watchId);
+  if (!watch?.tmdb_id) return;
+
+  if (state.watchedDetailsCache.has(watchId)) return;
+
+  state.watchedDetailsLoading = watchId;
+  state.watchedDetailsError = null;
+  render();
+
+  try {
+    const { show } = await tvApi.details(auth.token, watch.tmdb_id);
+    state.watchedDetailsCache.set(watchId, show);
+    if (show?.poster_path && !watch.poster_path) {
+      const withPoster = { ...watch, poster_path: show.poster_path };
+      state.watches = state.watches.map((w) => (w.id === watchId ? withPoster : w));
+    }
+  } catch (err) {
+    state.watchedDetailsError = err.message || 'Could not load show details.';
+  } finally {
+    state.watchedDetailsLoading = null;
+    render();
+  }
+}
+
 function wireWatchedActions(auth, state, render) {
+  document.querySelectorAll('[data-tv-expand-row]').forEach((row) => {
+    const toggle = (e) => {
+      if (e.target.closest('.al-row-actions')) return;
+      const entry = row.closest('.al-log-entry');
+      const id = entry?.dataset.entryId;
+      if (!id) return;
+
+      if (state.watchedExpandedId === id) {
+        state.watchedExpandedId = null;
+        state.watchedDetailsError = null;
+        render();
+        return;
+      }
+
+      state.watchedExpandedId = id;
+      state.watchedEditingId = null;
+      state.watchedDetailsError = null;
+
+      const watch = state.watches.find((w) => w.id === id);
+      if (watch?.tmdb_id && !state.watchedDetailsCache.has(id)) {
+        loadTvWatchDetails(auth, state, id, render);
+      } else {
+        render();
+      }
+    };
+
+    row.addEventListener('click', toggle);
+    row.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggle(e);
+      }
+    });
+  });
+
   document.querySelectorAll('[data-tv-edit]').forEach((btn) => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
       state.watchedEditingId = btn.dataset.tvEdit;
+      state.watchedExpandedId = null;
       render();
     });
   });
@@ -344,11 +513,14 @@ function wireWatchedActions(auth, state, render) {
   });
 
   document.querySelectorAll('[data-tv-delete]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
       if (!confirm('Delete this entry?')) return;
       await tvWatchesApi.remove(auth.token, btn.dataset.tvDelete);
       state.watches = state.watches.filter((w) => w.id !== btn.dataset.tvDelete);
       if (state.watchedEditingId === btn.dataset.tvDelete) state.watchedEditingId = null;
+      if (state.watchedExpandedId === btn.dataset.tvDelete) state.watchedExpandedId = null;
+      state.watchedDetailsCache.delete(btn.dataset.tvDelete);
       render();
     });
   });
