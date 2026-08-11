@@ -2,6 +2,7 @@ import { bootPage, renderShell, populateSidebarStats } from './nav.js';
 import { loginUrl } from './auth.js';
 import { leaderboardApi } from './api.js';
 import { money, shortDate, ratingLabel, escapeHtml, posterHtml, monthLabel } from './format.js';
+import { ratingStarBucket } from './billing.js';
 
 bootPage(async ({ root, auth }) => {
   const params = new URLSearchParams(location.search);
@@ -102,7 +103,19 @@ function renderProfile(main, profile, { currentUserId, auth }) {
           <option value="">All formats</option>
           ${formats.map((f) => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('')}
         </select>
-        <label class="al-check"><input type="checkbox" id="member-dnf" /> DNF only</label>
+        <select class="al-select al-toolbar-filter" id="member-rating">
+          <option value="">All ratings</option>
+          <option value="5">5★</option>
+          <option value="4">4★</option>
+          <option value="3">3★</option>
+          <option value="2">2★</option>
+          <option value="1">1★</option>
+          <option value="dnf">DNF</option>
+          <option value="unrated">Unrated</option>
+        </select>
+        ${isYou ? `
+          <button type="button" class="al-toggle-btn" id="member-include-home" aria-pressed="false">Include watched at home</button>
+        ` : ''}
         <span class="al-muted" id="member-count"></span>
       </div>
       <div class="al-log-list-wrap" id="member-table"></div>
@@ -128,22 +141,46 @@ function renderProfile(main, profile, { currentUserId, auth }) {
     const q = document.getElementById('member-search').value.trim().toLowerCase();
     const theater = document.getElementById('member-theater')?.value || '';
     const format = document.getElementById('member-format').value;
-    const dnfOnly = document.getElementById('member-dnf').checked;
+    const rating = document.getElementById('member-rating').value;
+    const includeHomeEl = document.getElementById('member-include-home');
+    const includeHome = includeHomeEl?.getAttribute('aria-pressed') === 'true';
 
     state.filtered = state.watches.filter((w) => {
+      if (!includeHome && w.in_theaters === false) return false;
       if (q && !`${w.title} ${w.location || ''}`.toLowerCase().includes(q)) return false;
       if (theater && w.location !== theater) return false;
       if (format && w.format !== format) return false;
-      if (dnfOnly && !w.dnf) return false;
+      if (rating === 'dnf') {
+        if (!w.dnf) return false;
+      } else if (rating === 'unrated') {
+        if (w.dnf || w.rating != null) return false;
+      } else if (rating) {
+        if (w.dnf || w.rating == null) return false;
+        if (String(ratingStarBucket(w.rating)) !== rating) return false;
+      }
       return true;
     });
     render();
   };
 
-  ['member-search', 'member-theater', 'member-format', 'member-dnf'].forEach((id) => {
+  const includeHomeEl = document.getElementById('member-include-home');
+  includeHomeEl?.addEventListener('click', () => {
+    const next = includeHomeEl.getAttribute('aria-pressed') !== 'true';
+    includeHomeEl.setAttribute('aria-pressed', next ? 'true' : 'false');
+    includeHomeEl.classList.toggle('is-active', next);
+    applyFilters();
+  });
+
+  let searchTimer = null;
+  const debouncedFilters = () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(applyFilters, 120);
+  };
+
+  document.getElementById('member-search').addEventListener('input', debouncedFilters);
+  ['member-theater', 'member-format', 'member-rating'].forEach((id) => {
     const el = document.getElementById(id);
     if (!el) return;
-    el.addEventListener('input', applyFilters);
     el.addEventListener('change', applyFilters);
   });
 
@@ -195,11 +232,11 @@ function tableHtml(watches) {
 function mobileLogMeta(w) {
   const primary = [
     shortDate(w.watched_on),
-    w.format || 'Standard',
-    money(w.ticket_cents),
+    w.in_theaters === false ? 'Off-theater' : (w.format || 'Standard'),
+    w.in_theaters === false ? null : money(w.ticket_cents),
     ratingLabel(w),
   ].filter(Boolean).map((part) => escapeHtml(String(part))).join(' · ');
-  const location = escapeHtml(w.location || '—');
+  const location = escapeHtml(w.in_theaters === false ? 'Not in theaters' : (w.location || '—'));
   return `<span class="al-log-meta-primary">${primary}</span><span class="al-log-meta-location">${location}</span>`;
 }
 
@@ -212,12 +249,13 @@ function viewRowHtml(w) {
         <div class="al-log-col--body">
           <div class="al-log-col al-log-col--title">
             ${escapeHtml(w.title)}
+            ${w.in_theaters === false ? '<span class="al-badge al-badge--muted">Off-theater</span>' : ''}
           </div>
           <div class="al-log-col al-log-col--mobile-meta al-only-mobile">${mobileLogMeta(w)}</div>
         </div>
-        <div class="al-log-col al-log-col--desktop al-muted">${escapeHtml(w.location || '—')}</div>
-        <div class="al-log-col al-log-col--desktop">${w.format ? escapeHtml(w.format) : '—'}</div>
-        <div class="al-log-col al-log-col--desktop al-log-col--num">${money(w.ticket_cents)}</div>
+        <div class="al-log-col al-log-col--desktop al-muted">${escapeHtml(w.in_theaters === false ? 'Not in theaters' : (w.location || '—'))}</div>
+        <div class="al-log-col al-log-col--desktop">${w.in_theaters === false ? '—' : (w.format ? escapeHtml(w.format) : '—')}</div>
+        <div class="al-log-col al-log-col--desktop al-log-col--num">${w.in_theaters === false ? '—' : money(w.ticket_cents)}</div>
         <div class="al-log-col al-log-col--desktop">${ratingLabel(w)}</div>
       </article>
     </div>
