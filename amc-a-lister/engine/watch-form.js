@@ -1,5 +1,6 @@
 import { movieApi } from './api.js';
 import { parseMoneyInput, escapeHtml } from './format.js';
+import { wireTheaterAutocomplete } from './theater-suggestions.js';
 
 export const WATCH_FORMATS = ['', 'IMAX', 'Dolby', 'IMAX 3D', '70MM', 'Q&A'];
 
@@ -24,14 +25,10 @@ export function renderWatchEditForm(watch, prefix = 'edit') {
         <label for="${prefix}-ticket">Ticket value ($)</label>
         <input class="al-input" id="${prefix}-ticket" inputmode="decimal" value="${ticketVal}" data-theater-only />
       </div>
-      <div class="al-field" data-theater-only>
+      <div class="al-field al-search-wrap" data-theater-only>
         <label for="${prefix}-location">Theater</label>
-        <input class="al-input" id="${prefix}-location" list="${prefix}-theater-list" value="${escapeHtml(watch.location || '')}" />
-        <datalist id="${prefix}-theater-list">
-          <option value="AMC Lincoln Square 13"></option>
-          <option value="AMC Empire 25"></option>
-          <option value="N/A - India"></option>
-        </datalist>
+        <input class="al-input" id="${prefix}-location" type="text" autocomplete="off" value="${escapeHtml(watch.location || '')}" />
+        <div class="al-search-results" id="${prefix}-location-results" hidden></div>
       </div>
       <div class="al-field" data-theater-only>
         <label for="${prefix}-format">Format</label>
@@ -72,12 +69,14 @@ export function renderWatchEditForm(watch, prefix = 'edit') {
   `;
 }
 
-export function wireWatchEditForm(auth, watch, prefix, { onSave, onCancel }) {
+export function wireWatchEditForm(auth, watch, prefix, { onSave, onCancel, getTheaters } = {}) {
   const form = document.getElementById(`${prefix}-form`);
   if (!form) return;
 
   const titleInput = document.getElementById(`${prefix}-title`);
   const resultsEl = document.getElementById(`${prefix}-title-results`);
+  const locationInput = document.getElementById(`${prefix}-location`);
+  const locationResultsEl = document.getElementById(`${prefix}-location-results`);
   const tmdbInput = document.getElementById(`${prefix}-tmdb_id`);
   const dnfInput = document.getElementById(`${prefix}-dnf`);
   const ratingInput = document.getElementById(`${prefix}-rating`);
@@ -98,6 +97,14 @@ export function wireWatchEditForm(auth, watch, prefix, { onSave, onCancel }) {
 
   inTheatersInput.addEventListener('change', syncTheaterFields);
   syncTheaterFields();
+
+  if (getTheaters) {
+    wireTheaterAutocomplete({
+      input: locationInput,
+      resultsEl: locationResultsEl,
+      getTheaters,
+    });
+  }
 
   dnfInput.addEventListener('change', () => {
     ratingInput.disabled = dnfInput.checked;
@@ -138,8 +145,9 @@ export function wireWatchEditForm(auth, watch, prefix, { onSave, onCancel }) {
     }, 300);
   });
 
+  const titleWrap = titleInput.closest('.al-search-wrap');
   form.addEventListener('click', (e) => {
-    if (!e.target.closest('.al-search-wrap')) resultsEl.hidden = true;
+    if (!titleWrap?.contains(e.target)) resultsEl.hidden = true;
   });
 
   form.querySelector('[data-cancel-edit]')?.addEventListener('click', () => onCancel?.());

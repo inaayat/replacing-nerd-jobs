@@ -2,6 +2,7 @@ import { bootPage, renderShell, requireSignIn, populateSidebarStats } from './na
 import { watchesApi, movieApi } from './api.js';
 import { money, shortDate, ratingLabel, escapeHtml, posterHtml } from './format.js';
 import { renderWatchEditForm, wireWatchEditForm } from './watch-form.js';
+import { mergeTheaterLists, theatersFromWatches, rememberTheater } from './theater-suggestions.js';
 
 let reloadLog;
 
@@ -28,7 +29,8 @@ async function loadLog(auth) {
   if (!main) return;
 
   const { watches } = await watchesApi.list(auth.token);
-  const theaters = [...new Set(watches.map((w) => w.location).filter(Boolean))].sort();
+  let theaterList = mergeTheaterLists(theatersFromWatches(watches));
+  const theaterFilters = [...new Set(watches.map((w) => w.location).filter(Boolean))].sort();
   const formats = [...new Set(watches.map((w) => w.format).filter(Boolean))].sort();
 
   main.innerHTML = `
@@ -37,7 +39,7 @@ async function loadLog(auth) {
         <input class="al-input al-toolbar-search" id="log-search" type="search" placeholder="Search title or theater…" />
         <select class="al-select al-toolbar-filter" id="log-theater">
           <option value="">All theaters</option>
-          ${theaters.map((t) => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('')}
+          ${theaterFilters.map((t) => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('')}
         </select>
         <select class="al-select al-toolbar-filter al-toolbar-filter--format" id="log-format">
           <option value="">All formats</option>
@@ -322,6 +324,7 @@ function wireRowActions(auth, state, render) {
 
   const prefix = `edit-${watch.id}`;
   wireWatchEditForm(auth, watch, prefix, {
+    getTheaters: () => theaterList,
     onCancel: () => {
       state.editingId = null;
       render();
@@ -334,6 +337,9 @@ function wireRowActions(auth, state, render) {
       };
       state.watches = state.watches.map((w) => (w.id === watch.id ? merged : w));
       state.filtered = state.filtered.map((w) => (w.id === watch.id ? merged : w));
+      if (updated.in_theaters !== false && updated.location) {
+        theaterList = rememberTheater(theaterList, updated.location);
+      }
       if (updated.tmdb_id !== watch.tmdb_id) {
         state.detailsCache.delete(watch.id);
       }

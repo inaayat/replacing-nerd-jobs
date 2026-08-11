@@ -1,6 +1,11 @@
 import { bootPage, renderShell, requireSignIn } from './nav.js';
 import { watchesApi, movieApi } from './api.js';
 import { parseMoneyInput, escapeHtml } from './format.js';
+import {
+  mergeTheaterLists,
+  theatersFromWatches,
+  wireTheaterAutocomplete,
+} from './theater-suggestions.js';
 
 const FORMATS = ['', 'IMAX', 'Dolby', 'IMAX 3D', '70MM', 'Q&A'];
 
@@ -10,9 +15,11 @@ bootPage(async ({ root, auth }) => {
   const params = new URLSearchParams(location.search);
   const editId = params.get('id');
   let existing = null;
+  let theaterList = mergeTheaterLists([]);
 
+  const { watches } = await watchesApi.list(auth.token);
+  theaterList = mergeTheaterLists(theatersFromWatches(watches));
   if (editId) {
-    const { watches } = await watchesApi.list(auth.token);
     existing = watches.find((w) => w.id === editId) || null;
   }
 
@@ -36,14 +43,10 @@ bootPage(async ({ root, auth }) => {
           <label for="ticket">Ticket value ($)</label>
           <input class="al-input" id="ticket" name="ticket" inputmode="decimal" placeholder="24.95" value="${existing?.ticket_cents != null ? (existing.ticket_cents / 100).toFixed(2) : ''}" />
         </div>
-        <div class="al-field">
+        <div class="al-field al-search-wrap">
           <label for="location">Theater</label>
-          <input class="al-input" id="location" name="location" list="theater-list" value="${escapeHtml(existing?.location || '')}" />
-          <datalist id="theater-list">
-            <option value="AMC Lincoln Square 13"></option>
-            <option value="AMC Empire 25"></option>
-            <option value="N/A - India"></option>
-          </datalist>
+          <input class="al-input" id="location" name="location" type="text" autocomplete="off" value="${escapeHtml(existing?.location || '')}" />
+          <div class="al-search-results" id="location-results" hidden></div>
         </div>
         <div class="al-field">
           <label for="format">Format</label>
@@ -87,8 +90,16 @@ bootPage(async ({ root, auth }) => {
   const form = document.getElementById('watch-form');
   const titleInput = document.getElementById('title');
   const resultsEl = document.getElementById('title-results');
+  const locationInput = document.getElementById('location');
+  const locationResultsEl = document.getElementById('location-results');
   const tmdbInput = document.getElementById('tmdb_id');
   let searchTimer = null;
+
+  wireTheaterAutocomplete({
+    input: locationInput,
+    resultsEl: locationResultsEl,
+    getTheaters: () => theaterList,
+  });
 
   document.getElementById('dnf').addEventListener('change', (e) => {
     const rating = document.getElementById('rating');
@@ -131,7 +142,7 @@ bootPage(async ({ root, auth }) => {
   });
 
   document.addEventListener('click', (e) => {
-    if (!e.target.closest('.al-search-wrap')) resultsEl.hidden = true;
+    if (!titleInput.closest('.al-search-wrap')?.contains(e.target)) resultsEl.hidden = true;
   });
 
   form.addEventListener('submit', async (e) => {
