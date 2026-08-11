@@ -8,6 +8,7 @@ import {
   cacheHasCastMembers,
   pickBestMatch,
   normalizeTitle,
+  usTheatricalReleaseDate,
 } from '../lib/tmdb.js';
 
 const mapped = mapCastMembers([
@@ -82,5 +83,38 @@ assert.deepEqual(movieDetailsFromCacheRow(legacyRow).cast, ['A', 'B']);
 
 assert.equal(normalizeTitle('  Hello '), 'hello');
 assert.equal(pickBestMatch([{ title: 'Inception' }], 'inception').title, 'Inception');
+
+const usTheatrical = usTheatricalReleaseDate({
+  results: [{
+    iso_3166_1: 'US',
+    release_dates: [
+      { type: 4, release_date: '2020-06-01T00:00:00.000Z' },
+      { type: 2, release_date: '2020-05-15T00:00:00.000Z' },
+      { type: 3, release_date: '2020-05-22T00:00:00.000Z' },
+    ],
+  }],
+});
+assert.equal(usTheatrical, '2020-05-15');
+
+assert.equal(
+  usTheatricalReleaseDate({ results: [] }, { fallback: '2018-07-04' }),
+  '2018-07-04',
+);
+
+const usDetails = movieDetailsFromTmdb({
+  id: 42,
+  title: 'Wide Release',
+  release_date: '2019-01-01',
+  release_dates: {
+    results: [{
+      iso_3166_1: 'US',
+      release_dates: [{ type: 3, release_date: '2019-03-01T00:00:00.000Z' }],
+    }],
+  },
+  genres: [],
+  credits: { crew: [], cast: [] },
+});
+assert.equal(usDetails.release_date, '2019-03-01');
+assert.equal(usDetails.year, 2019);
 
 console.log('tmdb helper tests passed');
