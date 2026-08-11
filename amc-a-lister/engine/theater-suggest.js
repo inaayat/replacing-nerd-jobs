@@ -1,6 +1,9 @@
 import { watchesApi } from './api.js';
 import { escapeHtml } from './format.js';
 
+const AMC_THEATERS_URL = './data/amc-theaters.json';
+const SUGGEST_LIMIT = 50;
+
 function isRealTheater(name) {
   const n = String(name || '').trim();
   if (!n) return false;
@@ -31,6 +34,52 @@ export async function loadUserTheaters(token) {
   }
 }
 
+let amcTheatersPromise = null;
+
+/** Full AMC theater catalog (names only), fetched once per page load. */
+export function loadAmcTheaters() {
+  if (!amcTheatersPromise) {
+    amcTheatersPromise = fetch(AMC_THEATERS_URL)
+      .then((res) => (res.ok ? res.json() : []))
+      .catch(() => []);
+  }
+  return amcTheatersPromise;
+}
+
+/**
+ * Merge user history with the AMC catalog for autocomplete.
+ * Empty query shows only past theaters; typed queries search both (user first).
+ */
+export function filterTheaterSuggestions(userTheaters = [], amcTheaters = [], query = '', limit = SUGGEST_LIMIT) {
+  const needle = String(query || '').trim().toLowerCase();
+  const user = userTheaters.filter(Boolean);
+  const amc = amcTheaters.filter(Boolean);
+
+  if (!needle) return user.slice(0, limit);
+
+  const seen = new Set();
+  const matches = [];
+
+  const add = (name) => {
+    const key = name.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    matches.push(name);
+  };
+
+  for (const name of user) {
+    if (name.toLowerCase().includes(needle)) add(name);
+    if (matches.length >= limit) return matches;
+  }
+
+  for (const name of amc) {
+    if (name.toLowerCase().includes(needle)) add(name);
+    if (matches.length >= limit) return matches;
+  }
+
+  return matches;
+}
+
 /**
  * Wire a text input + results panel as a theater autocomplete.
  * @param {HTMLInputElement} input
@@ -40,12 +89,15 @@ export async function loadUserTheaters(token) {
 export function wireTheaterSuggest(input, resultsEl, { getTheaters, onSelect } = {}) {
   if (!input || !resultsEl || typeof getTheaters !== 'function') return;
 
+  let amcTheaters = [];
+
+  loadAmcTheaters().then((list) => {
+    amcTheaters = list;
+    if (document.activeElement === input) render(input.value);
+  });
+
   const render = (q = '') => {
-    const needle = q.trim().toLowerCase();
-    const theaters = getTheaters().filter(Boolean);
-    const matches = needle
-      ? theaters.filter((t) => t.toLowerCase().includes(needle))
-      : theaters;
+    const matches = filterTheaterSuggestions(getTheaters(), amcTheaters, q);
 
     if (!matches.length) {
       resultsEl.hidden = true;
