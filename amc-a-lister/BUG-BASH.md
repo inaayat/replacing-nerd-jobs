@@ -648,3 +648,46 @@ day early at a month boundary. A proper fix sends the browser's timezone.
 every commit on every branch, including one that added only a markdown file to a
 repo with no build step. Production deploys fine. Likely the Neon preview-branch
 integration. It meant this change reached production with no runtime validation.
+
+
+---
+
+## Post-deploy check of the live site
+
+Run against production after merge. Verified working: all 9 HTML pages and all
+23 JS modules load (no broken import from the new `dates.js` / `combobox.js` or
+the deleted files); every `/api/alist-*` rewrite resolves; the `/private/`
+password gate still 401s after the middleware matcher change; and the other
+projects (`/packing-cubes/`, `/sporcle-spinoff/`, `/world-cup/`,
+`/one-more-column/`) still route after `vercel.json` was reformatted.
+`/api/alist-leaderboard` returning `{"entries":[]}` rather than a 502 confirms
+`ensureSchema()` applied the three new columns.
+
+Issues found:
+
+**47. The service worker's BUILD_ID is still hand-edited.** The comment claimed
+it was "rewritten on deploy"; nothing does that, since there is no build step —
+so the fix reintroduced the manual-versioning problem it was meant to remove.
+The consequence is much smaller than before, because HTML and JS are now
+network-first and cannot go stale between bumps; only the five precached static
+assets depend on the string. Comment corrected to say so.
+
+**48. Logging from the Log page doesn't clear the Coming Soon entry.** The
+quick-log bar appears on every page, but only `what-to-watch.js` wires
+`clearLoggedFromList`. Log a title from the Log page and it stays on Coming Soon.
+Finding 21 is therefore only fixed on the page where the list is visible. Fixing
+it properly means the Log page also holding the watchlist, or moving the clearing
+into the shared quick-log success path.
+
+**49. Dead code: the watchlist "strip" layout.** `wireWatchlistList` and its
+helpers (`watchlistStripHtml`, `watchlistRowsHtml`, `renderWatchlistHtml`,
+`positionWatchlistPopup`, `clearWatchlistPopupPosition`, `watchlistPopupHtml`) —
+roughly 150 lines — are exported and never imported. Confirmed dead *before* this
+branch, so pre-existing rather than introduced.
+
+**50. `leaderboard-compare` returns 400 before 401.** A missing `with` parameter
+is reported before the auth check, so an unauthenticated caller sees 400 rather
+than 401. Discloses nothing; just inconsistent with the other routes.
+
+Not verifiable without a session: Settings save, username uniqueness (409), the
+opt-in round trip, import, backfill, and the batched-insert SQL.

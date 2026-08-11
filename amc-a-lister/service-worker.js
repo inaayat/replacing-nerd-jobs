@@ -7,8 +7,10 @@
  * omitted most engine modules, so those were runtime-cached on their own
  * schedule and could mix old and new module versions against each other.
  *
- * BUILD_ID is rewritten on deploy (or falls back to the date below), so a new
- * deploy always lands in a fresh cache.
+ * BUILD_ID is still hand-edited — there is no build step to stamp it. That is
+ * fine now in a way it was not before: HTML and JS are network-first, so they
+ * cannot go stale between bumps. Only the handful of precached static assets
+ * below depend on this string, so bump it when an icon or the manifest changes.
  */
 const BUILD_ID = '2026-08-11a';
 const CACHE = `amc-a-lister-${BUILD_ID}`;
