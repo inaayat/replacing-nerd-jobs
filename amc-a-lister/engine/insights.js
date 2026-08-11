@@ -211,24 +211,23 @@ function renderTheaterRankingSection(theaters, moviesByTheater) {
       </p>
       ${rankTable({
       headers: [
-        { label: '#', className: 'num' },
         { label: 'Theater' },
         { label: 'Visits', className: 'num' },
         { label: 'Avg', className: 'num' },
         { label: 'Charged', className: 'num' },
       ],
       rows: theaters.slice(0, 6).map((t, i) => `
-          <tr>
-            <td class="num al-rank-num">${i + 1}</td>
-            <td>
+          <tr class="al-rank-row">
+            <td class="al-card-primary">
+              <span class="al-card-rank">${i + 1}</span>
               <span class="al-hover-target al-hover-target--label" tabindex="0">
                 ${escapeHtml(t.location)}
                 ${renderMoviesPopup(moviesByTheater.get(t.location) || [], { empty: 'No films at this theater.', scrollable: true })}
               </span>
             </td>
-            <td class="num">${t.count}</td>
-            <td class="num">${t.avgRating != null ? `${t.avgRating}★` : '—'}</td>
-            <td class="num">${money(t.charged)}</td>
+            <td class="num" data-label="Visits">${t.count}</td>
+            <td class="num" data-label="Avg">${t.avgRating != null ? `${t.avgRating}★` : '—'}</td>
+            <td class="num" data-label="Charged">${money(t.charged)}</td>
           </tr>
         `),
     })}
@@ -296,12 +295,12 @@ function renderActorsBestRatedSection(actors) {
 
 function renderRewatchesSection(rewatches) {
   return insightSection('Rewatches', rewatches.length
-    ? `<div class="al-table-wrap"><table class="al-table"><thead><tr><th>Title</th><th class="num">Times</th><th>Dates</th></tr></thead><tbody>
+    ? `<div class="al-table-wrap al-table-wrap--cards"><table class="al-table al-card-table al-rewatch-table"><thead><tr><th>Title</th><th class="num">Times</th><th>Dates</th></tr></thead><tbody>
         ${rewatches.map((r) => `
           <tr>
-            <td>${escapeHtml(r.title)}</td>
-            <td class="num">${r.count}</td>
-            <td class="al-muted">${r.dates.map((d) => d.slice(5)).join(', ')}</td>
+            <td class="al-card-primary">${escapeHtml(r.title)}</td>
+            <td class="num" data-label="Times">${r.count}</td>
+            <td class="al-muted al-card-span" data-label="Dates">${r.dates.map((d) => d.slice(5)).join(', ')}</td>
           </tr>
         `).join('')}
       </tbody></table></div>`
@@ -341,24 +340,24 @@ function wireInsightSections(root) {
 }
 
 function actorRankTable(actors, { sortByRating = false } = {}) {
+  const ratingLabel = sortByRating ? 'Avg rating' : 'Avg';
   return rankTable({
     headers: [
-      { label: '#', className: 'num' },
       { label: 'Actor' },
       { label: 'Films', className: 'num' },
-      { label: sortByRating ? 'Avg rating' : 'Avg', className: 'num' },
+      { label: ratingLabel, className: 'num' },
     ],
     rows: actors.map((actor, i) => `
-      <tr>
-        <td class="num al-rank-num">${i + 1}</td>
-        <td>
+      <tr class="al-rank-row">
+        <td class="al-card-primary">
+          <span class="al-card-rank">${i + 1}</span>
           <span class="al-hover-target al-hover-target--label" tabindex="0">
             ${escapeHtml(actor.actor)}
             ${renderMoviesPopup(actor.films, { empty: 'No films found.' })}
           </span>
         </td>
-        <td class="num">${actor.count}</td>
-        <td class="num">${actor.avgRating != null ? `${actor.avgRating}★` : '—'}</td>
+        <td class="num" data-label="Films">${actor.count}</td>
+        <td class="num" data-label="${escapeHtml(ratingLabel)}">${actor.avgRating != null ? `${actor.avgRating}★` : '—'}</td>
       </tr>
     `),
   });
@@ -366,8 +365,8 @@ function actorRankTable(actors, { sortByRating = false } = {}) {
 
 function rankTable({ headers, rows }) {
   return `
-    <div class="al-table-wrap">
-      <table class="al-table al-rank-table">
+    <div class="al-table-wrap al-table-wrap--cards">
+      <table class="al-table al-rank-table al-card-table">
         <thead>
           <tr>
             ${headers.map((header) => `
@@ -441,8 +440,8 @@ function renderMonthTable(byMonth, moviesByMonth) {
   );
 
   return `
-    <div class="al-table-wrap al-table-wrap--month">
-      <table class="al-table al-month-table">
+    <div class="al-table-wrap al-table-wrap--cards al-table-wrap--month">
+      <table class="al-table al-month-table al-card-table">
         <thead>
           <tr>
             <th>Month</th>
@@ -457,7 +456,7 @@ function renderMonthTable(byMonth, moviesByMonth) {
         </tbody>
         <tfoot>
           <tr class="al-month-total">
-            <th scope="row">Total</th>
+            <th class="al-card-primary" scope="row">Total</th>
             <th class="num" data-label="Watched">${totals.movies}</th>
             <th class="num" data-label="Charged">${money(totals.charged)}</th>
             <th class="num" data-label="Billed">${money(totals.bill)}</th>
@@ -472,7 +471,7 @@ function renderMonthTable(byMonth, moviesByMonth) {
 function renderMonthRow(row, movies) {
   return `
     <tr class="al-month-row al-hover-target" tabindex="0">
-      <td data-label="Month">
+      <td class="al-card-primary" data-label="Month">
         ${escapeHtml(monthLabel(row.month))}
         ${renderMoviesPopup(movies, { empty: 'No movies this month.' })}
       </td>

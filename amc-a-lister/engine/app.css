@@ -2218,37 +2218,55 @@ table.al-table {
   -webkit-overflow-scrolling: touch;
 }
 
-.al-insight .al-rank-table {
-  min-width: 0;
+.al-insight .al-table-wrap--cards {
+  overflow: visible;
+}
+
+.al-insight .al-card-table {
   width: 100%;
+  min-width: 0;
+}
+
+.al-card-primary {
+  min-width: 0;
+}
+
+.al-card-rank {
+  display: inline-block;
+  min-width: 1.25rem;
+  margin-right: 6px;
+  font-family: var(--al-font-mono);
+  font-size: 0.78rem;
+  color: var(--al-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 @media (max-width: 767px) {
-  .al-insight .al-table-wrap--month {
+  .al-insight .al-table-wrap--cards {
     overflow: visible;
   }
 
-  .al-by-month .al-month-table {
+  .al-insight .al-card-table {
     width: 100%;
     min-width: 0;
     border-collapse: separate;
     border-spacing: 0;
   }
 
-  .al-by-month .al-month-table thead {
+  .al-insight .al-card-table thead {
     display: none;
   }
 
-  .al-by-month .al-month-table tbody,
-  .al-by-month .al-month-table tfoot {
+  .al-insight .al-card-table tbody,
+  .al-insight .al-card-table tfoot {
     display: flex;
     flex-direction: column;
     gap: 8px;
     width: 100%;
   }
 
-  .al-by-month .al-month-table tr.al-month-row,
-  .al-by-month .al-month-table tr.al-month-total {
+  .al-insight .al-card-table tbody tr,
+  .al-insight .al-card-table tfoot tr {
     display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px 12px;
@@ -2261,13 +2279,13 @@ table.al-table {
     box-shadow: none;
   }
 
-  .al-by-month .al-month-table tr.al-month-total {
+  .al-insight .al-card-table tr.al-month-total {
     background: rgba(131, 15, 16, 0.04);
     border-color: rgba(131, 15, 16, 0.14);
   }
 
-  .al-by-month .al-month-table td,
-  .al-by-month .al-month-table tfoot th {
+  .al-insight .al-card-table td,
+  .al-insight .al-card-table tfoot th {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
@@ -2283,8 +2301,7 @@ table.al-table {
     line-height: 1.3;
   }
 
-  .al-by-month .al-month-table td:first-child,
-  .al-by-month .al-month-table tfoot th:first-child {
+  .al-insight .al-card-table .al-card-primary {
     grid-column: 1 / -1;
     flex-direction: row;
     flex-wrap: wrap;
@@ -2298,8 +2315,12 @@ table.al-table {
     font-weight: 600;
   }
 
-  .al-by-month .al-month-table td::before,
-  .al-by-month .al-month-table tfoot th[data-label]::before {
+  .al-insight .al-card-table .al-card-span {
+    grid-column: 1 / -1;
+  }
+
+  .al-insight .al-card-table td[data-label]::before,
+  .al-insight .al-card-table tfoot th[data-label]::before {
     content: attr(data-label);
     font-family: var(--al-font-body);
     font-size: 0.66rem;
@@ -2309,27 +2330,34 @@ table.al-table {
     color: var(--al-muted);
   }
 
-  .al-by-month .al-month-table td:first-child::before,
-  .al-by-month .al-month-table tfoot th:first-child::before {
+  .al-insight .al-card-table .al-card-primary::before {
     content: none;
   }
 
-  .al-by-month .al-month-table .num {
+  .al-insight .al-card-table .num {
     font-variant-numeric: tabular-nums;
   }
 
+  .al-insight .al-card-table .al-card-rank {
+    min-width: 1.1rem;
+    margin-right: 2px;
+    font-size: 0.8rem;
+  }
+
   .al-month-row.al-hover-target:hover td,
-  .al-month-row.al-hover-target:focus-within td {
+  .al-month-row.al-hover-target:focus-within td,
+  .al-rank-row.al-hover-target:hover td,
+  .al-rank-row.al-hover-target:focus-within td {
     background: transparent;
   }
 
-  .al-by-month .al-month-row:hover,
-  .al-by-month .al-month-row:focus-within {
+  .al-insight .al-card-table tbody tr:hover,
+  .al-insight .al-card-table tbody tr:focus-within {
     border-color: rgba(218, 0, 0, 0.22);
   }
 
-  /* Keep month film lists on-screen as a bottom sheet */
-  .al-by-month .al-hover-popup {
+  /* Keep film popups on-screen as a bottom sheet */
+  .al-insight .al-hover-popup {
     position: fixed;
     left: 12px;
     right: 12px;
@@ -2342,24 +2370,6 @@ table.al-table {
     overflow: auto;
     z-index: 60;
     box-shadow: 0 12px 36px rgba(28, 28, 28, 0.22);
-  }
-
-  .al-insight .al-rank-table {
-    min-width: 0;
-    width: 100%;
-    table-layout: fixed;
-    font-size: 0.78rem;
-  }
-
-  .al-insight .al-rank-table th,
-  .al-insight .al-rank-table td {
-    padding: 6px 4px;
-    vertical-align: top;
-    overflow-wrap: anywhere;
-  }
-
-  .al-insight .al-rank-table .al-rank-num {
-    width: 1.4rem;
   }
 }
 
