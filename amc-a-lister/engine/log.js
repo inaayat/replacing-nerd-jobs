@@ -46,6 +46,7 @@ async function loadLog(auth) {
         <label class="al-check"><input type="checkbox" id="log-alone" /> Alone</label>
         <label class="al-check"><input type="checkbox" id="log-dnf" /> DNF only</label>
         <label class="al-check"><input type="checkbox" id="log-include-home" /> Watched at home</label>
+        <a href="/amc-a-lister/bulk-ratings.html" class="al-btn">Bulk edit ratings</a>
         <span class="al-muted" id="log-count"></span>
       </div>
       <div class="al-log-list-wrap" id="log-table"></div>

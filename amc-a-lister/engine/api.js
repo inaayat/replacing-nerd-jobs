@@ -28,6 +28,7 @@ export const watchesApi = {
   list: (token) => apiFetch('/api/alist-watches', { token }),
   create: (token, watch) => apiFetch('/api/alist-watches', { method: 'POST', body: watch, token }),
   update: (token, watch) => apiFetch('/api/alist-watches', { method: 'PATCH', body: watch, token }),
+  bulkUpdateRatings: (token, rating_updates) => apiFetch('/api/alist-watches', { method: 'PATCH', body: { rating_updates }, token }),
   remove: (token, id) => apiFetch('/api/alist-watches', { method: 'DELETE', body: { id }, token }),
 };
 
