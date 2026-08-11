@@ -3,6 +3,7 @@ import { membershipApi, importApi, backfillApi } from './api.js';
 import { parseXlsxFile } from './import-xlsx.js';
 import { escapeHtml, parseMoneyInput } from './format.js';
 import { todayISO } from './dates.js';
+import { renderHowToUseSection } from './how-to-use.js';
 
 const DEFAULT_TIERS = [
   { effective_on: '2018-06-01', cents: 2495 },
@@ -22,11 +23,13 @@ bootPage(async ({ root, auth }) => {
   root.innerHTML = renderShell({
     title: 'Settings',
     subtitle: needsRateSetup
-      ? 'Set your A-List monthly rate to finish account setup.'
+      ? 'Welcome — learn the basics below, then set your monthly rate to finish setup.'
       : 'Membership pricing, beta features, and spreadsheet import.',
     signedIn: true,
     body: `
     <main class="al-main">
+      ${renderHowToUseSection({ setup: needsRateSetup })}
+
       ${needsRateSetup ? `
         <section class="al-panel al-panel--setup">
           <h2 class="serif">Set your monthly rate</h2>
