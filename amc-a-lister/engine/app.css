@@ -859,13 +859,13 @@ a { color: var(--al-burgundy); }
 }
 
 .al-insight.is-expanded .al-insight-header {
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .al-insight-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -875,8 +875,24 @@ a { color: var(--al-burgundy); }
   text-align: left;
 }
 
+.al-insight-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.al-insight-kicker {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--al-muted);
+}
+
 .al-insight-toggle h2 {
   margin: 0;
+  font-size: 1.12rem;
 }
 
 .al-insight-chevron {
@@ -903,6 +919,232 @@ a { color: var(--al-burgundy); }
 
 .al-insight-actions {
   flex-shrink: 0;
+}
+
+.al-main--insights {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.al-main--insights > .al-panel {
+  margin-bottom: 0;
+}
+
+.al-insights-spotlight {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+@media (min-width: 720px) {
+  .al-insights-spotlight {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+  }
+}
+
+.al-insights-spot {
+  position: relative;
+  overflow: hidden;
+  padding: 14px 14px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--al-line);
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.92), rgba(250, 246, 239, 0.96)),
+    var(--al-panel);
+}
+
+.al-insights-spot::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--al-burgundy);
+  opacity: 0.55;
+}
+
+.al-insights-spot.is-accent::before { background: var(--al-red); opacity: 0.85; }
+.al-insights-spot.is-good::before { background: #0d7a42; opacity: 0.8; }
+.al-insights-spot.is-warn::before { background: #a85b00; opacity: 0.8; }
+
+.al-insights-spot-label {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--al-muted);
+}
+
+.al-insights-spot-value {
+  margin: 6px 0 4px;
+  font-size: clamp(1.15rem, 2vw, 1.35rem);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--al-black);
+}
+
+.al-insights-spot-note {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--al-muted);
+  line-height: 1.3;
+}
+
+.al-insight {
+  border-color: rgba(28, 28, 28, 0.08);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.65) inset;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.al-insight.is-expanded {
+  border-color: rgba(131, 15, 16, 0.18);
+  box-shadow: 0 8px 24px rgba(28, 28, 28, 0.05);
+}
+
+.al-insight-lede {
+  margin: 0 0 8px;
+}
+
+.al-rating-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.al-rating-bar-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr) 2rem;
+  gap: 10px;
+  align-items: center;
+  padding: 4px 2px;
+  border-radius: 8px;
+  cursor: default;
+}
+
+.al-rating-bar-row.al-hover-target {
+  display: grid;
+}
+
+.al-rating-bar-row:hover,
+.al-rating-bar-row:focus-within {
+  background: rgba(218, 0, 0, 0.04);
+}
+
+.al-rating-bar-label {
+  font-family: var(--al-font-mono);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.al-rating-bar-track {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(28, 28, 28, 0.06);
+  overflow: hidden;
+}
+
+.al-rating-bar-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--al-burgundy), var(--al-red));
+  transition: width 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.al-rating-bar-count {
+  font-family: var(--al-font-mono);
+  font-size: 0.78rem;
+  text-align: right;
+  color: var(--al-muted);
+}
+
+.al-theater-rating-list,
+.al-format-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.al-theater-rating-row {
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.al-theater-rating-rank {
+  font-family: var(--al-font-mono);
+  font-size: 0.78rem;
+  color: var(--al-muted);
+  padding-top: 2px;
+}
+
+.al-theater-rating-body,
+.al-format-row {
+  min-width: 0;
+}
+
+.al-theater-rating-top,
+.al-format-row-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.al-theater-rating-score,
+.al-format-charged {
+  flex-shrink: 0;
+  font-family: var(--al-font-mono);
+  font-size: 0.92rem;
+  font-weight: 500;
+}
+
+.al-theater-rating-score {
+  color: var(--al-burgundy);
+}
+
+.al-theater-rating-meta,
+.al-format-meta {
+  margin: 2px 0 6px;
+  font-size: 0.74rem;
+}
+
+.al-format-name {
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+
+.al-meter--theater,
+.al-meter--format {
+  height: 7px;
+  margin-top: 0;
+}
+
+.al-meter-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: var(--al-red);
+  transition: width 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.al-meter--theater .al-meter-fill {
+  background: linear-gradient(90deg, #a31214, var(--al-red));
+}
+
+.al-meter--format .al-meter-fill {
+  background: linear-gradient(90deg, var(--al-charcoal), var(--al-burgundy));
 }
 
 .al-hud {
@@ -1831,11 +2073,15 @@ table.al-table {
 
 .al-insight-grid {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 @media (min-width: 720px) {
   .al-insight-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.al-insight-grid > .al-insight {
+  height: fit-content;
 }
 
 .al-rank-table .al-rank-num {
@@ -1998,7 +2244,9 @@ table.al-table {
 .al-month-row.al-hover-target:hover .al-hover-popup,
 .al-month-row.al-hover-target:focus-within .al-hover-popup,
 .al-rank-row.al-hover-target:hover .al-hover-popup,
-.al-rank-row.al-hover-target:focus-within .al-hover-popup {
+.al-rank-row.al-hover-target:focus-within .al-hover-popup,
+.al-rating-bar-row.al-hover-target:hover .al-hover-popup,
+.al-rating-bar-row.al-hover-target:focus-within .al-hover-popup {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
