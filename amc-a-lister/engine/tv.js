@@ -61,9 +61,9 @@ async function loadPage(auth) {
               <input class="al-input" id="tv-add-title" type="text" placeholder="Show title…" required />
               <div class="al-search-results" id="tv-add-results" hidden></div>
             </div>
-            <input class="al-input al-tv-add-date" id="tv-add-date" type="date" required value="${todayISO()}" />
-            <input class="al-input al-tv-add-season" id="tv-add-season" type="number" min="1" placeholder="Season" inputmode="numeric" />
-            <input class="al-input al-tv-add-episode" id="tv-add-episode" type="number" min="1" placeholder="Episode" inputmode="numeric" />
+            <input class="al-input al-tv-add-date" id="tv-add-date" type="date" required value="${todayISO()}" aria-label="Date watched" />
+            <input class="al-input al-tv-add-season" id="tv-add-season" type="number" min="1" placeholder="S" aria-label="Season" inputmode="numeric" />
+            <input class="al-input al-tv-add-episode" id="tv-add-episode" type="number" min="1" placeholder="E" aria-label="Episode" inputmode="numeric" />
             <select class="al-select al-tv-add-rating" id="tv-add-rating" aria-label="Rating">
               <option value="">Rating</option>
               <option value="5">5★</option>
@@ -176,7 +176,7 @@ async function loadPage(auth) {
     }
 
     listEl.innerHTML = `
-      <div class="al-log-list">
+      <div class="al-log-list al-log-list--tv">
         <div class="al-log-head al-log-head--tv" aria-hidden="true">
           <span class="al-log-col al-col-poster"></span>
           <span class="al-log-col">Date</span>
@@ -307,10 +307,10 @@ function tvEditRowHtml(w) {
       <form class="al-tv-edit-form" data-tv-edit-form="${w.id}">
         <div class="al-tv-add-row">
           <input class="al-input" name="title" type="text" value="${escapeHtml(w.title)}" required />
-          <input class="al-input al-tv-add-date" name="watched_on" type="date" value="${w.watched_on}" required />
-          <input class="al-input al-tv-add-season" name="season" type="number" min="1" placeholder="Season" value="${w.season ?? ''}" inputmode="numeric" />
-          <input class="al-input al-tv-add-episode" name="episode" type="number" min="1" placeholder="Episode" value="${w.episode ?? ''}" inputmode="numeric" />
-          <select class="al-select al-tv-add-rating" name="rating">
+          <input class="al-input al-tv-add-date" name="watched_on" type="date" value="${w.watched_on}" required aria-label="Date watched" />
+          <input class="al-input al-tv-add-season" name="season" type="number" min="1" placeholder="S" value="${w.season ?? ''}" inputmode="numeric" aria-label="Season" />
+          <input class="al-input al-tv-add-episode" name="episode" type="number" min="1" placeholder="E" value="${w.episode ?? ''}" inputmode="numeric" aria-label="Episode" />
+          <select class="al-select al-tv-add-rating" name="rating" aria-label="Rating">
             <option value="">Rating</option>
             <option value="5" ${ratingVal === '5' ? 'selected' : ''}>5★</option>
             <option value="4" ${ratingVal === '4' ? 'selected' : ''}>4★</option>

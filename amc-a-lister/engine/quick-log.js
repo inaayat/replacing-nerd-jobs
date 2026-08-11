@@ -37,6 +37,10 @@ export function renderQuickLogBar() {
             <label for="ql-ticket">Price</label>
             <input class="al-quicklog-input" id="ql-ticket" name="ticket" type="text" inputmode="decimal" placeholder="24.95" />
           </div>
+          <div class="al-quicklog-field al-quicklog-field--submit">
+            <label for="ql-submit">Submit</label>
+            <button class="al-quicklog-submit" id="ql-submit" type="submit">Log it</button>
+          </div>
         </div>
 
         <div class="al-quicklog-expand" id="ql-expand" aria-hidden="true">
@@ -67,10 +71,6 @@ export function renderQuickLogBar() {
               </div>
             </div>
           </div>
-        </div>
-
-        <div class="al-quicklog-actions">
-          <button class="al-quicklog-submit" type="submit">Log it</button>
         </div>
 
         <input type="hidden" id="ql-tmdb_id" value="" />
