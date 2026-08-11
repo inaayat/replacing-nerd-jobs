@@ -72,7 +72,6 @@ export function renderShell({ title, subtitle, body = '', hideLogBar = false, si
           <div class="al-mobile-header-top">
             <a href="/amc-a-lister/" class="al-mobile-header-title">AMC A-Lister</a>
             <div class="al-mobile-header-actions">
-              <a href="/" class="al-mobile-home-link">← Home</a>
               <a href="/account.html" class="al-mobile-auth-link" data-nav-auth>Log in</a>
             </div>
           </div>
@@ -93,7 +92,6 @@ export function renderShell({ title, subtitle, body = '', hideLogBar = false, si
           ${links}
         </nav>
         <div class="al-sidebar-footer">
-          <a href="/">← Beep boop</a>
           <a href="/account.html" id="nav-auth-link" data-nav-auth>Log in</a>
           <p class="al-tmdb-credit">Movie &amp; TV data by <a href="https://www.themoviedb.org/" target="_blank" rel="noopener">TMDB</a></p>
         </div>
