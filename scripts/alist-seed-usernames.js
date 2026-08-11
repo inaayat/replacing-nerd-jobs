@@ -3,10 +3,14 @@
  * Opt the three founding members back into the public leaderboard.
  *
  * The privacy work defaults public_profile to false, so everyone drops off the
- * leaderboard until they choose a handle. These three accounts were already
- * fully public before that change, so this restores the previous state — but on
- * the new terms: a username instead of a real name, and no seat, auditorium or
- * at-home watches in the public payload.
+ * leaderboard until they opt in. These three accounts were already fully public
+ * before that change, so this restores the previous state — on better terms:
+ * no seat, auditorium or at-home watches in the public payload, and a handle
+ * rather than the full name the old code published.
+ *
+ * The username is optional (blank falls back to the member's first name), so
+ * setting public_profile alone would be enough. Handles are set anyway because
+ * these accounts previously showed full real names.
  *
  * Idempotent. Skips any account that has already set its own username, so
  * re-running can't clobber a member's later choice.

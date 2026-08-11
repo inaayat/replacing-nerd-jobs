@@ -364,14 +364,16 @@ names, each with one job:
 | `alist_membership.display_name` | Settings | Private. How the app greets you. |
 | `alist_membership.username` | Settings / onboarding | **The only thing shown publicly.** |
 
-Rules: 3–24 chars, `[a-z0-9_]`, case-insensitively unique, optional until you
-opt in and required after. Validated on the server in `handleMembership`
+Rules: 3–24 chars, `[a-z0-9_]`, case-insensitively unique, and **optional** —
+leaving it blank shows an opted-in member as their **first name only**. Validated on the server in `handleMembership`
 (`api/alist.js:699`) — a unique-violation returns 409 with "That username is
 taken", not the current 502-with-driver-text.
 
 `displayNameForUser` (`lib/a-list.js:106-114`) is replaced for all public paths
-by a function that returns `username` and nothing else. No fallback chain — a
-user without a username cannot be public, so there is nothing to fall back to.
+by `publicDisplayName()`: username, else first name, else `Member`. The old chain
+ended at the **email local-part** and included surnames; neither can now reach a
+public response by any route (an email sitting in the name field is rejected
+too). The opt-in — not the handle — is what protects people.
 **Existing `display_name` values are deliberately not copied into `username`**:
 today's leaderboard shows "Inaayat Gill" / "Karan Narula", which is exactly the
 real-name exposure this is meant to end. Each user picks a handle explicitly.

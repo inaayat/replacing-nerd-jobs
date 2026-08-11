@@ -2,7 +2,7 @@
  * Pure-function tests for the A-Lister public-identity rules.
  * Run: node scripts/test-alist-privacy.mjs
  */
-import { publicDisplayName, isPublicProfile, normalizeUsername } from '../lib/a-list-identity.js';
+import { publicDisplayName, isPublicProfile, normalizeUsername, firstNameOf } from '../lib/a-list-identity.js';
 import { todayISO, toLocalISO, currentMonthISO } from '../amc-a-lister/engine/dates.js';
 
 let passed = 0;
@@ -24,30 +24,56 @@ function assertEqual(actual, expected, msg) {
   );
 }
 
-// --- public display name: username only, never a real name or an email -------
+// --- public display name: username, else first name, never email ------------
 
-assertEqual(publicDisplayName({ username: 'reel_lurker' }), 'reel_lurker', 'username is used');
+assertEqual(publicDisplayName({ username: 'reel_lurker' }), 'reel_lurker', 'username wins');
 assertEqual(publicDisplayName({ username: '  spaced  ' }), 'spaced', 'username is trimmed');
-assertEqual(publicDisplayName({ username: null }), null, 'no username means no public name');
+
+// Username is optional: an opted-in member with no handle shows as their first
+// name. The opt-in is the gate; the handle is a nicety.
 assertEqual(
-  publicDisplayName({ username: null, display_name: 'Inaayat Gill', name: 'Inaayat Gill', email: 'me@example.com' }),
-  null,
-  'never falls back to display_name, real name or email',
+  publicDisplayName({ username: null }, { name: 'Inaayat Gill' }),
+  'Inaayat',
+  'falls back to first name only',
 );
+assertEqual(
+  publicDisplayName({ username: 'handle' }, { name: 'Inaayat Gill' }),
+  'handle',
+  'a set username still beats the real name',
+);
+
+// Email must never reach the public name by any route.
+assertEqual(
+  publicDisplayName({ username: null }, { name: null, email: 'me@example.com' }),
+  'Member',
+  'no name at all yields Member, never the email',
+);
+assertEqual(
+  publicDisplayName({ username: null }, { name: 'me@example.com' }),
+  'Member',
+  'an email sitting in the name field is not published',
+);
+assertEqual(publicDisplayName({}, {}), 'Member', 'empty everything yields Member');
+
+assertEqual(firstNameOf('Inaayat Gill'), 'Inaayat', 'surname is dropped');
+assertEqual(firstNameOf('  Karan  Narula '), 'Karan', 'extra whitespace handled');
+assertEqual(firstNameOf('Aditi'), 'Aditi', 'single-word name works');
+assertEqual(firstNameOf(''), null, 'empty name has no first name');
+assertEqual(firstNameOf('a@b.com'), null, 'an email is never a first name');
 
 // --- opt-in gate -------------------------------------------------------------
 
-assert(isPublicProfile({ public_profile: true, username: 'someone' }), 'opted in with a handle is public');
+assert(isPublicProfile({ public_profile: true, username: 'someone' }), 'opted in is public');
+assert(isPublicProfile({ public_profile: true, username: null }), 'opted in without a handle is still public');
 assert(!isPublicProfile({ public_profile: false, username: 'someone' }), 'opted out is private');
-assert(!isPublicProfile({ public_profile: true, username: null }), 'opted in without a handle is not public');
 assert(!isPublicProfile({}), 'default (no membership row) is private');
-assert(!isPublicProfile({ public_profile: 'true', username: 'x' }), 'only a real boolean counts as opted in');
+assert(!isPublicProfile({ public_profile: 'true' }), 'only a real boolean counts as opted in');
 
 // --- username validation -----------------------------------------------------
 
 assertEqual(normalizeUsername('ReelLurker').username, 'reellurker', 'usernames casefold');
 assertEqual(normalizeUsername('  Spaced  ').username, 'spaced', 'usernames trim');
-assertEqual(normalizeUsername('').username, null, 'empty clears the username');
+assertEqual(normalizeUsername('').username, null, 'empty is valid and clears the username');
 assert(normalizeUsername('ab').error, 'too short is rejected');
 assert(normalizeUsername('a'.repeat(25)).error, 'too long is rejected');
 assert(normalizeUsername('has space').error, 'spaces are rejected');

@@ -18,6 +18,7 @@ import {
   getUserPublicProfile,
   getOwnProfile,
   normalizeUsername,
+  publicDisplayName,
 } from '../lib/a-list.js';
 import {
   computeSummary,
@@ -803,7 +804,14 @@ async function handleMembership(req, res) {
 
     if (req.method === 'GET') {
       const membership = await getMembership(userId);
-      res.status(200).json({ membership });
+      // What the member would be shown as with no username set. Resolved here
+      // because only the server sees users.name.
+      res.status(200).json({
+        membership: {
+          ...membership,
+          public_name_without_username: publicDisplayName({}, { name: auth.name }),
+        },
+      });
       return;
     }
 
@@ -828,13 +836,6 @@ async function handleMembership(req, res) {
       const hideTheaters = body.public_hide_theaters !== undefined
         ? body.public_hide_theaters === true
         : existing.public_hide_theaters === true;
-
-      // A public profile with no handle would have to fall back to a real name
-      // or an email, which is exactly what this model exists to prevent.
-      if (publicProfile && !username) {
-        res.status(400).json({ error: 'Pick a username before joining the leaderboard.' });
-        return;
-      }
 
       let priceTiers = existing.price_tiers;
       if (body.price_tiers != null) {

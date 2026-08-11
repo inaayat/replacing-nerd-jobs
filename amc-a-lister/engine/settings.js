@@ -72,15 +72,18 @@ bootPage(async ({ root, auth }) => {
           </label>
           <div class="al-privacy-detail" id="public-profile-detail">
             <p class="al-muted">
-              Other people see your username, how many films you've seen, your savings and
-              your average rating. They never see your email, your real name, your seat or
+              Other people see your name, how many films you've seen, your savings and
+              your average rating. They never see your email, your surname, your seat or
               auditorium numbers, or anything you watched at home.
             </p>
             <div class="al-field">
-              <label for="username">Username</label>
+              <label for="username">Username <span class="al-muted">(optional)</span></label>
               <input class="al-input" id="username" maxlength="24" placeholder="letterboxd_lurker"
                      value="${escapeHtml(membership.username || '')}" />
-              <p class="al-muted al-field-hint">3–24 characters, letters, numbers and underscores. This is the only name other people see.</p>
+              <p class="al-muted al-field-hint">
+                3–24 characters, letters, numbers and underscores. Leave it blank and
+                you'll show as <strong>${escapeHtml(membership.public_name_without_username || 'Member')}</strong> instead.
+              </p>
             </div>
             <label class="al-check al-check--block">
               <input type="checkbox" id="public_hide_theaters" ${membership.public_hide_theaters ? 'checked' : ''} />
@@ -202,12 +205,6 @@ bootPage(async ({ root, auth }) => {
       status.textContent = `Two rates start on ${duplicate.effective_on}. Give each a different date.`;
       return;
     }
-    if (publicToggle.checked && !usernameInput.value.trim()) {
-      status.textContent = 'Pick a username before joining the leaderboard.';
-      usernameInput.focus();
-      return;
-    }
-
     status.textContent = 'Saving…';
     membershipSubmit.disabled = true;
     try {
