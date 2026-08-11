@@ -1,5 +1,6 @@
 import { watchesApi, movieApi } from './api.js';
 import { parseMoneyInput, escapeHtml } from './format.js';
+import { loadUserTheaters, rememberTheater, wireTheaterSuggest } from './theater-suggest.js';
 
 const FORMATS = ['', 'IMAX', 'Dolby', 'IMAX 3D', '70MM', 'Q&A'];
 
@@ -21,17 +22,13 @@ export function renderQuickLogBar() {
           </div>
           <div class="al-quicklog-field al-quicklog-field--title al-search-wrap">
             <label for="ql-title">Movie</label>
-            <input class="al-quicklog-input" id="ql-title" name="title" type="text" placeholder="Title" required />
+            <input class="al-quicklog-input" id="ql-title" name="title" type="text" placeholder="Title" required autocomplete="off" />
             <div class="al-search-results" id="ql-title-results" hidden></div>
           </div>
-          <div class="al-quicklog-field al-quicklog-field--location" data-theater-only>
+          <div class="al-quicklog-field al-quicklog-field--location al-search-wrap" data-theater-only>
             <label for="ql-location">Theater</label>
-            <input class="al-quicklog-input" id="ql-location" name="location" list="ql-theater-list" placeholder="AMC Lincoln Square 13" />
-            <datalist id="ql-theater-list">
-              <option value="AMC Lincoln Square 13"></option>
-              <option value="AMC Empire 25"></option>
-              <option value="N/A - India"></option>
-            </datalist>
+            <input class="al-quicklog-input" id="ql-location" name="location" type="text" placeholder="AMC Lincoln Square 13" autocomplete="off" />
+            <div class="al-search-results" id="ql-theater-results" hidden></div>
           </div>
           <div class="al-quicklog-field al-quicklog-field--ticket" data-theater-only>
             <label for="ql-ticket">Price</label>
@@ -89,6 +86,8 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
   const shell = document.getElementById('al-quicklog');
   const titleInput = document.getElementById('ql-title');
   const resultsEl = document.getElementById('ql-title-results');
+  const locationInput = document.getElementById('ql-location');
+  const theaterResultsEl = document.getElementById('ql-theater-results');
   const tmdbInput = document.getElementById('ql-tmdb_id');
   const statusEl = document.getElementById('ql-status');
   const dnfInput = document.getElementById('ql-dnf');
@@ -101,6 +100,12 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
   let searchTimer = null;
   let expanded = false;
   let logMode = 'theater';
+  let theaters = [];
+
+  loadUserTheaters(auth.token).then((list) => { theaters = list; });
+  wireTheaterSuggest(locationInput, theaterResultsEl, {
+    getTheaters: () => theaters,
+  });
 
   const setLogMode = (mode) => {
     logMode = mode;
@@ -232,6 +237,9 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
       await watchesApi.create(auth.token, payload);
       statusEl.textContent = `Logged ${payload.title}${inTheaters ? '' : ' (off-theater)'}`;
       statusEl.classList.add('is-success');
+      if (inTheaters && payload.location) {
+        theaters = rememberTheater(theaters, payload.location);
+      }
       form.reset();
       form.watched_on.value = new Date().toISOString().slice(0, 10);
       baselineDate = form.watched_on.value;

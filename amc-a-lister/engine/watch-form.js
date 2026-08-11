@@ -1,5 +1,6 @@
 import { movieApi } from './api.js';
 import { parseMoneyInput, escapeHtml } from './format.js';
+import { loadUserTheaters, wireTheaterSuggest } from './theater-suggest.js';
 
 export const WATCH_FORMATS = ['', 'IMAX', 'Dolby', 'IMAX 3D', '70MM', 'Q&A'];
 
@@ -26,12 +27,10 @@ export function renderWatchEditForm(watch, prefix = 'edit') {
       </div>
       <div class="al-field" data-theater-only>
         <label for="${prefix}-location">Theater</label>
-        <input class="al-input" id="${prefix}-location" list="${prefix}-theater-list" value="${escapeHtml(watch.location || '')}" />
-        <datalist id="${prefix}-theater-list">
-          <option value="AMC Lincoln Square 13"></option>
-          <option value="AMC Empire 25"></option>
-          <option value="N/A - India"></option>
-        </datalist>
+        <div class="al-search-wrap">
+          <input class="al-input" id="${prefix}-location" type="text" autocomplete="off" value="${escapeHtml(watch.location || '')}" />
+          <div class="al-search-results" id="${prefix}-theater-results" hidden></div>
+        </div>
       </div>
       <div class="al-field" data-theater-only>
         <label for="${prefix}-format">Format</label>
@@ -75,12 +74,20 @@ export function wireWatchEditForm(auth, watch, prefix, { onSave, onCancel }) {
 
   const titleInput = document.getElementById(`${prefix}-title`);
   const resultsEl = document.getElementById(`${prefix}-title-results`);
+  const locationInput = document.getElementById(`${prefix}-location`);
+  const theaterResultsEl = document.getElementById(`${prefix}-theater-results`);
   const tmdbInput = document.getElementById(`${prefix}-tmdb_id`);
   const dnfInput = document.getElementById(`${prefix}-dnf`);
   const ratingInput = document.getElementById(`${prefix}-rating`);
   const inTheatersInput = document.getElementById(`${prefix}-in_theaters`);
   const statusEl = document.getElementById(`${prefix}-status`);
   let searchTimer = null;
+  let theaters = [];
+
+  loadUserTheaters(auth.token).then((list) => { theaters = list; });
+  wireTheaterSuggest(locationInput, theaterResultsEl, {
+    getTheaters: () => theaters,
+  });
 
   const syncTheaterFields = () => {
     const inTheaters = inTheatersInput.checked;

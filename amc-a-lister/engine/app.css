@@ -1521,6 +1521,10 @@ table.al-table {
   box-shadow: 0 8px 24px rgba(0,0,0,0.08);
 }
 
+.al-quicklog .al-search-results {
+  z-index: 40;
+}
+
 .al-search-results button {
   display: flex;
   gap: 8px;
