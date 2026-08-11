@@ -8,6 +8,8 @@ import {
   billingChargeMonths,
   actorStats,
   topActorsByRating,
+  theaterStats,
+  topTheatersByRating,
 } from '../lib/a-list-billing.js';
 
 const legacyMembership = {
@@ -108,5 +110,20 @@ assert.equal(actors.find((actor) => actor.actor === 'Actor C').count, 2);
 assert.equal(actors.find((actor) => actor.actor === 'Actor B').count, 1);
 assert.equal(topActorsByRating(actors).length, 2);
 assert.equal(topActorsByRating(actors)[0].avgRating, 5);
+
+const theaterWatches = [
+  { location: 'AMC Lincoln Square 13', ticket_cents: 2495, rating: 5, dnf: false },
+  { location: 'AMC Lincoln Square 13', ticket_cents: 2495, rating: 4, dnf: false },
+  { location: 'AMC Lincoln Square 13', ticket_cents: 2495, rating: 5, dnf: false },
+  { location: 'AMC Empire 25', ticket_cents: 1995, rating: 3, dnf: false },
+  { location: 'AMC Empire 25', ticket_cents: 1995, rating: 2, dnf: false },
+  { location: 'N/A - India', ticket_cents: 800, rating: 5, dnf: false },
+];
+const theaters = theaterStats(theaterWatches);
+assert.equal(theaters.find((t) => t.location === 'AMC Lincoln Square 13').avgRating, 4.7);
+assert.equal(theaters.find((t) => t.location === 'AMC Empire 25').avgRating, 2.5);
+assert.equal(theaters.find((t) => t.location === 'N/A - India').ratedCount, 1);
+assert.equal(topTheatersByRating(theaters)[0].location, 'AMC Lincoln Square 13');
+assert.equal(topTheatersByRating(theaters).length, 2);
 
 console.log('billing tests passed');

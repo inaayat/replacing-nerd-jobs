@@ -1,4 +1,4 @@
-const CACHE = 'amc-a-lister-v7';
+const CACHE = 'amc-a-lister-v9';
 
 const PRECACHE = [
   '/amc-a-lister/',
@@ -13,6 +13,7 @@ const PRECACHE = [
   '/amc-a-lister/engine/api.js',
   '/amc-a-lister/engine/format.js',
   '/amc-a-lister/engine/billing.js',
+  '/amc-a-lister/engine/insights.js',
   '/amc-a-lister/what-to-watch.html',
   '/amc-a-lister/tv.html',
   '/amc-a-lister/insights.html',
