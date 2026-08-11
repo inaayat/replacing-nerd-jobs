@@ -1,4 +1,4 @@
-const CACHE = 'amc-a-lister-v8';
+const CACHE = 'amc-a-lister-v9';
 
 const PRECACHE = [
   '/amc-a-lister/',
