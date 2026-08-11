@@ -1461,6 +1461,34 @@ table.al-table {
   font-size: 0.85rem;
 }
 
+.al-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--al-line);
+  background: transparent;
+  color: var(--al-muted);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.al-toggle-btn:hover {
+  color: var(--al-text);
+  border-color: var(--al-charcoal);
+}
+
+.al-toggle-btn.is-active,
+.al-toggle-btn[aria-pressed="true"] {
+  background: var(--al-black);
+  border-color: var(--al-black);
+  color: #fff;
+}
+
 .al-meter {
   height: 8px;
   border-radius: 999px;
@@ -2366,7 +2394,8 @@ table.al-table {
     min-width: 0;
   }
 
-  .al-toolbar--log .al-check {
+  .al-toolbar--log .al-check,
+  .al-toolbar--log .al-toggle-btn {
     flex: 1 1 auto;
   }
 

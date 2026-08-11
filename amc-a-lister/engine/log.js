@@ -5,8 +5,6 @@ import { renderWatchEditForm, wireWatchEditForm } from './watch-form.js';
 
 let reloadLog;
 
-const INCLUDE_HOME_KEY = 'alist-log-include-home';
-
 bootPage(async ({ root, auth }) => {
   if (!requireSignIn(auth, root)) return;
 
@@ -44,7 +42,7 @@ async function loadLog(auth) {
           ${formats.map((f) => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('')}
         </select>
         <label class="al-check"><input type="checkbox" id="log-dnf" /> DNF only</label>
-        <label class="al-check"><input type="checkbox" id="log-include-home" /> Watched at home</label>
+        <button type="button" class="al-toggle-btn" id="log-include-home" aria-pressed="false">Watched at home</button>
         <a href="/amc-a-lister/bulk-ratings.html" class="al-btn">Bulk edit ratings</a>
         <span class="al-muted" id="log-count"></span>
       </div>
@@ -53,7 +51,6 @@ async function loadLog(auth) {
   `;
 
   const includeHomeEl = document.getElementById('log-include-home');
-  includeHomeEl.checked = localStorage.getItem(INCLUDE_HOME_KEY) === '1';
 
   const state = {
     watches,
@@ -71,14 +68,14 @@ async function loadLog(auth) {
     wireRowActions(auth, state, render);
   };
 
+  const includeHomeOn = () => includeHomeEl.getAttribute('aria-pressed') === 'true';
+
   const applyFilters = () => {
     const q = document.getElementById('log-search').value.trim().toLowerCase();
     const theater = document.getElementById('log-theater').value;
     const format = document.getElementById('log-format').value;
     const dnfOnly = document.getElementById('log-dnf').checked;
-    const includeHome = includeHomeEl.checked;
-
-    localStorage.setItem(INCLUDE_HOME_KEY, includeHome ? '1' : '0');
+    const includeHome = includeHomeOn();
 
     state.filtered = state.watches.filter((w) => {
       if (!includeHome && w.in_theaters === false) return false;
@@ -91,7 +88,14 @@ async function loadLog(auth) {
     render();
   };
 
-  ['log-search', 'log-theater', 'log-format', 'log-dnf', 'log-include-home'].forEach((id) => {
+  includeHomeEl.addEventListener('click', () => {
+    const next = !includeHomeOn();
+    includeHomeEl.setAttribute('aria-pressed', next ? 'true' : 'false');
+    includeHomeEl.classList.toggle('is-active', next);
+    applyFilters();
+  });
+
+  ['log-search', 'log-theater', 'log-format', 'log-dnf'].forEach((id) => {
     document.getElementById(id).addEventListener('input', applyFilters);
     document.getElementById(id).addEventListener('change', applyFilters);
   });
