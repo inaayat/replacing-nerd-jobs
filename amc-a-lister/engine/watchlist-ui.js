@@ -25,19 +25,19 @@ export function sortComingSoon(items, today = todayISO()) {
     });
 }
 
-/** Already released, newest release first. */
+/** Already released, oldest release first (chronological). */
 export function sortAlreadyOut(items, today = todayISO()) {
   return items
     .filter((item) => isAlreadyOut(item, today))
     .sort((a, b) => {
       const aDate = a.release_date || (a.year != null ? `${a.year}-01-01` : '0000-01-01');
       const bDate = b.release_date || (b.year != null ? `${b.year}-01-01` : '0000-01-01');
-      if (aDate !== bDate) return bDate.localeCompare(aDate);
+      if (aDate !== bDate) return aDate.localeCompare(bDate);
       return String(a.title || '').localeCompare(String(b.title || ''));
     });
 }
 
-/** Already-out titles first, then coming soon (soonest first). */
+/** Already-out titles first (chronological), then coming soon (soonest first). */
 export function combinedWatchlistItems(items, today = todayISO()) {
   return [...sortAlreadyOut(items, today), ...sortComingSoon(items, today)];
 }
