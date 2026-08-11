@@ -118,8 +118,8 @@ async function init() {
         </form>
         <p id="signin-error" class="al-error al-signin-error" hidden></p>
         <p class="al-signin-help al-muted">
-          Forgotten your password? Reset it from your
-          <a href="/account.html">account page</a>.
+          Forgotten your password? There's no self-serve reset yet — get in touch
+          and it can be changed for you.
         </p>
         <p class="al-signin-back"><a href="/amc-a-lister/">← Back without signing in</a></p>
       </section>

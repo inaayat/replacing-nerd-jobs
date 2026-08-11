@@ -598,3 +598,53 @@ sending the browser's timezone with the request; not done.
 has a year filter. The other panels are still all-time, because their numbers
 come from the server's `summary` payload rather than being recomputed client
 side.
+
+
+---
+
+## Outstanding after the build
+
+Everything else in the plan shipped. These did not, or shipped partially.
+
+**27. Password reset — NOT DONE.** The first attempt linked to `/account.html`,
+but that page has no reset flow, and neither `engine/neon-browser-auth.js` nor
+`api/auth-login.js` exposes one — the auth layer only does signin/signup via
+`loginViaApi`. The link was removed rather than left pointing somewhere useless;
+the sign-in page now says plainly that there is no self-serve reset. Building one
+means adding a Neon Auth reset flow (send email → token → set new password).
+
+**43. Status codes — PARTIAL.** The paths a user actually hits now return real
+codes (400 validation, 401 auth, 409 duplicate, 413 oversized import), but 28
+`catch` blocks in `api/alist.js` still collapse everything to 502 with the raw
+driver message. Untidy rather than dangerous, since validation now runs first.
+
+**44. Request validation — PARTIAL.** `normalizeBody` (movie watches) validates
+dates, rating range, ticket bounds and field lengths. `normalizeTvBody` and the
+watchlist handlers still don't, so the TV beta can push a malformed date or an
+out-of-range rating straight to Postgres and get a 502 back.
+
+**26. Import undo — PARTIAL.** Import now previews and confirms, but there is
+still no bulk delete, so a bad import is only reversible row by row.
+
+**39. Destructive actions — NOT DONE.** Five `confirm()` calls remain and there
+is no undo anywhere. Deliberately left: doing it properly means an undo affordance
+plus soft deletes, which is its own piece of work.
+
+**32. Statistics year filter — PARTIAL.** The "By month" ledger filters by year;
+the other panels are still all-time, because their numbers come from the server's
+`summary` payload rather than being recomputed client-side.
+
+**41. xlsx — DEVIATION.** Pinned to `xlsx-0.20.3` from `cdn.sheetjs.com`, which
+clears the known advisories, but it is still a runtime CDN import rather than a
+vendored file, so the offline-PWA caveat stands. SheetJS left npm after 0.18.5,
+so there is no newer npm build for esm.sh to serve.
+
+**5. Server-side "now" — PARTIAL.** All client date handling is local via
+`engine/dates.js`. `computeSummary`'s notion of the current month still comes
+from the server clock (UTC on Vercel), so the current-period figure can flip a
+day early at a month boundary. A proper fix sends the browser's timezone.
+
+**Infrastructure, outside this plan:** Vercel *preview* deployments fail for
+every commit on every branch, including one that added only a markdown file to a
+repo with no build step. Production deploys fine. Likely the Neon preview-branch
+integration. It meant this change reached production with no runtime validation.
