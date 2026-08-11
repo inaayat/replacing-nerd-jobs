@@ -1,4 +1,5 @@
 import { bootPage, renderShell, populateSidebarStats } from './nav.js';
+import { loginUrl } from './auth.js';
 import { leaderboardApi } from './api.js';
 import { money, escapeHtml, posterHtml } from './format.js';
 
@@ -27,7 +28,6 @@ let pageState = {
   auth: null,
   entries: [],
   currentUserId: null,
-  compareYouId: null,
   compareWithId: null,
   comparison: null,
   compareLoading: false,
@@ -49,16 +49,12 @@ bootPage(async ({ root, auth }) => {
   const { entries = [], currentUserId = null } = await leaderboardApi.get(token);
   pageState.entries = entries;
   pageState.currentUserId = currentUserId;
-  if (currentUserId && !pageState.compareYouId) {
-    pageState.compareYouId = currentUserId;
-  }
   const compareParam = new URLSearchParams(location.search).get('compare')?.trim();
   if (compareParam && entries.some((entry) => entry.userId === compareParam)) {
     pageState.compareWithId = compareParam;
-    if (currentUserId) pageState.compareYouId = currentUserId;
   }
   renderPage(main);
-  if (compareParam && (currentUserId || pageState.compareYouId)) {
+  if (compareParam && currentUserId) {
     await loadComparison(main);
     document.getElementById('al-compare-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -149,38 +145,38 @@ function renderComparePanel(entries, signedIn) {
     `;
   }
 
-  const youId = pageState.compareYouId || '';
+  // Comparison is always "you vs. one other member" now: the server takes the
+  // first side from the session rather than a query param, so an anonymous
+  // visitor can no longer diff two arbitrary people.
+  if (!signedIn) {
+    return `
+      <section class="al-panel al-compare-panel">
+        <h2>Compare stats</h2>
+        <p class="al-muted">Sign in to compare your log against another member's.</p>
+        <p style="margin-top:12px">
+          <a class="al-btn al-btn-primary" href="${loginUrl()}">Sign in to compare</a>
+        </p>
+      </section>
+    `;
+  }
+
+  const youId = pageState.currentUserId || '';
   const withId = pageState.compareWithId || '';
   const youEntry = entries.find((entry) => entry.userId === youId);
   const withEntry = entries.find((entry) => entry.userId === withId);
-  const canCompare = signedIn
-    ? !!withId && withId !== pageState.currentUserId
-    : !!youId && !!withId && youId !== withId;
+  const canCompare = !!withId && withId !== pageState.currentUserId;
 
   return `
     <section class="al-panel al-compare-panel" id="al-compare-panel">
-      <h2>${signedIn ? 'Compare your stats' : 'Compare stats'}</h2>
+      <h2>Compare your stats</h2>
       <p class="al-muted al-compare-lead">See shared movies, gaps, disagreements, and mutual favorites.</p>
       <form class="al-toolbar al-compare-toolbar" id="al-compare-form">
-        ${signedIn ? '' : `
-          <div class="al-field al-compare-field">
-            <label for="al-compare-you">Member</label>
-            <select class="al-input al-compare-select" id="al-compare-you" name="you">
-              <option value="">Choose a member…</option>
-              ${entries.map((entry) => `
-                <option value="${escapeHtml(entry.userId)}"${entry.userId === youId ? ' selected' : ''}>
-                  ${escapeHtml(entry.displayName)}
-                </option>
-              `).join('')}
-            </select>
-          </div>
-        `}
         <div class="al-field al-compare-field">
           <label for="al-compare-with">Compare with</label>
           <select class="al-input al-compare-select" id="al-compare-with" name="with">
             <option value="">Choose a member…</option>
             ${entries
-    .filter((entry) => !signedIn || entry.userId !== pageState.currentUserId)
+    .filter((entry) => entry.userId !== pageState.currentUserId)
     .map((entry) => `
               <option value="${escapeHtml(entry.userId)}"${entry.userId === withId ? ' selected' : ''}>
                 ${escapeHtml(entry.displayName)}
@@ -196,8 +192,8 @@ function renderComparePanel(entries, signedIn) {
 }
 
 function renderCompareBody(youEntry, withEntry) {
-  if (!pageState.compareWithId || (!pageState.currentUserId && !pageState.compareYouId)) {
-    return '<p class="al-muted al-compare-status">Pick two members above to compare watch logs.</p>';
+  if (!pageState.compareWithId || !pageState.currentUserId) {
+    return '<p class="al-muted al-compare-status">Pick a member above to compare watch logs.</p>';
   }
 
   if (pageState.compareLoading) {
@@ -282,28 +278,23 @@ function wireProfileControls(main) {
 
 function wireCompare(main) {
   const form = main.querySelector('#al-compare-form');
-  const youSelect = main.querySelector('#al-compare-you');
   const withSelect = main.querySelector('#al-compare-with');
   const submit = form?.querySelector('button[type="submit"]');
 
   const syncSubmit = () => {
     if (!submit) return;
-    const signedIn = !!pageState.currentUserId;
-    const youId = signedIn ? pageState.currentUserId : youSelect?.value;
+    const youId = pageState.currentUserId;
     const withId = withSelect?.value;
     submit.disabled = !youId || !withId || youId === withId;
   };
 
-  youSelect?.addEventListener('change', syncSubmit);
   withSelect?.addEventListener('change', syncSubmit);
 
   form?.addEventListener('submit', async (event) => {
     event.preventDefault();
-    const signedIn = !!pageState.currentUserId;
-    const youId = signedIn ? pageState.currentUserId : youSelect?.value;
+    const youId = pageState.currentUserId;
     const withId = withSelect?.value;
     if (!youId || !withId || youId === withId) return;
-    pageState.compareYouId = youId;
     pageState.compareWithId = withId;
     await loadComparison(main);
   });
@@ -319,7 +310,6 @@ async function loadComparison(main) {
     const token = pageState.auth?.signedIn ? pageState.auth.token : undefined;
     pageState.comparison = await leaderboardApi.compare({
       token,
-      youId: pageState.compareYouId,
       withUserId: pageState.compareWithId,
     });
     pageState.compareError = null;

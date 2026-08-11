@@ -3639,3 +3639,71 @@ table.al-table {
   margin: 16px 0 0;
   font-size: 0.85rem;
 }
+
+/* ---------------------------------------------------------------------------
+   Reduced motion
+   The app animates HUD count-ups, meter/rating bar widths, the quick-log
+   expand, poster hovers and smooth scrolling. None of it carries meaning, so
+   honour the OS setting and cut it all.
+   --------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Public profile panel in Settings. */
+.al-privacy-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--al-rule, rgba(0, 0, 0, 0.12));
+}
+
+.al-privacy-detail {
+  margin-top: 10px;
+  padding-left: 26px;
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
+}
+
+.al-privacy-detail.is-active {
+  opacity: 1;
+}
+
+.al-field-hint {
+  margin-top: 4px;
+  font-size: 0.72em;
+}
+
+/* Keyboard-highlighted option in the movie/theater search dropdowns. */
+.al-search-results button.is-active,
+.al-search-results button:hover {
+  background: var(--al-hover, rgba(0, 0, 0, 0.06));
+}
+
+.al-empty--first-run {
+  text-align: left;
+  line-height: 1.6;
+}
+
+.al-empty--first-run p + p {
+  margin-top: 8px;
+}
+
+.al-by-month-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.al-by-month-year {
+  flex: 0 0 auto;
+  width: auto;
+}

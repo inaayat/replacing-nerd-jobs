@@ -2,34 +2,121 @@
   "framework": null,
   "outputDirectory": ".",
   "functions": {
-    "api/plot-points.js": { "maxDuration": 60 }
+    "api/plot-points.js": {
+      "maxDuration": 60
+    },
+    "api/alist.js": {
+      "maxDuration": 60
+    }
   },
   "rewrites": [
-    { "source": "/api/alist-watches", "destination": "/api/alist?route=watches" },
-    { "source": "/api/alist-summary", "destination": "/api/alist?route=summary" },
-    { "source": "/api/alist-membership", "destination": "/api/alist?route=membership" },
-    { "source": "/api/alist-import", "destination": "/api/alist?route=import" },
-    { "source": "/api/alist-movie-lookup", "destination": "/api/alist?route=movie-lookup" },
-    { "source": "/api/alist-movie-details", "destination": "/api/alist?route=movie-details" },
-    { "source": "/api/alist-leaderboard", "destination": "/api/alist?route=leaderboard" },
-    { "source": "/api/alist-leaderboard-compare", "destination": "/api/alist?route=leaderboard-compare" },
-    { "source": "/api/alist-user-profile", "destination": "/api/alist?route=user-profile" },
-    { "source": "/api/alist-watchlist", "destination": "/api/alist?route=watchlist" },
-    { "source": "/api/alist-tv-watches", "destination": "/api/alist?route=tv-watches" },
-    { "source": "/api/alist-tv-watchlist", "destination": "/api/alist?route=tv-watchlist" },
-    { "source": "/api/alist-tv-lookup", "destination": "/api/alist?route=tv-lookup" },
-    { "source": "/api/alist-tv-details", "destination": "/api/alist?route=tv-details" },
-    { "source": "/api/pc-cubes", "destination": "/api/packing-cubes?route=cubes" },
-    { "source": "/api/pc-publish", "destination": "/api/packing-cubes?route=publish" },
-    { "source": "/api/pc-suitcases", "destination": "/api/packing-cubes?route=suitcases" },
-    { "source": "/api/plot-points-person-search", "destination": "/api/plot-points?route=person-search" },
-    { "source": "/api/plot-points-collection-search", "destination": "/api/plot-points?route=collection-search" },
-    { "source": "/api/plot-points-genres", "destination": "/api/plot-points?route=genres" },
-    { "source": "/api/plot-points-build", "destination": "/api/plot-points?route=build" },
-    { "source": "/api/plot-points-query", "destination": "/api/plot-points?route=query" },
-    { "source": "/one-more-column", "destination": "https://one-more-column.vercel.app/one-more-column" },
-    { "source": "/one-more-column/", "destination": "https://one-more-column.vercel.app/one-more-column/" },
-    { "source": "/one-more-column/:path*", "destination": "https://one-more-column.vercel.app/one-more-column/:path*" },
-    { "source": "/api/omc-:route", "destination": "https://one-more-column.vercel.app/api/omc-:route" }
+    {
+      "source": "/api/alist-watches",
+      "destination": "/api/alist?route=watches"
+    },
+    {
+      "source": "/api/alist-summary",
+      "destination": "/api/alist?route=summary"
+    },
+    {
+      "source": "/api/alist-membership",
+      "destination": "/api/alist?route=membership"
+    },
+    {
+      "source": "/api/alist-import",
+      "destination": "/api/alist?route=import"
+    },
+    {
+      "source": "/api/alist-backfill-posters",
+      "destination": "/api/alist?route=backfill-posters"
+    },
+    {
+      "source": "/api/alist-movie-lookup",
+      "destination": "/api/alist?route=movie-lookup"
+    },
+    {
+      "source": "/api/alist-movie-details",
+      "destination": "/api/alist?route=movie-details"
+    },
+    {
+      "source": "/api/alist-leaderboard",
+      "destination": "/api/alist?route=leaderboard"
+    },
+    {
+      "source": "/api/alist-leaderboard-compare",
+      "destination": "/api/alist?route=leaderboard-compare"
+    },
+    {
+      "source": "/api/alist-user-profile",
+      "destination": "/api/alist?route=user-profile"
+    },
+    {
+      "source": "/api/alist-watchlist",
+      "destination": "/api/alist?route=watchlist"
+    },
+    {
+      "source": "/api/alist-tv-watches",
+      "destination": "/api/alist?route=tv-watches"
+    },
+    {
+      "source": "/api/alist-tv-watchlist",
+      "destination": "/api/alist?route=tv-watchlist"
+    },
+    {
+      "source": "/api/alist-tv-lookup",
+      "destination": "/api/alist?route=tv-lookup"
+    },
+    {
+      "source": "/api/alist-tv-details",
+      "destination": "/api/alist?route=tv-details"
+    },
+    {
+      "source": "/api/pc-cubes",
+      "destination": "/api/packing-cubes?route=cubes"
+    },
+    {
+      "source": "/api/pc-publish",
+      "destination": "/api/packing-cubes?route=publish"
+    },
+    {
+      "source": "/api/pc-suitcases",
+      "destination": "/api/packing-cubes?route=suitcases"
+    },
+    {
+      "source": "/api/plot-points-person-search",
+      "destination": "/api/plot-points?route=person-search"
+    },
+    {
+      "source": "/api/plot-points-collection-search",
+      "destination": "/api/plot-points?route=collection-search"
+    },
+    {
+      "source": "/api/plot-points-genres",
+      "destination": "/api/plot-points?route=genres"
+    },
+    {
+      "source": "/api/plot-points-build",
+      "destination": "/api/plot-points?route=build"
+    },
+    {
+      "source": "/api/plot-points-query",
+      "destination": "/api/plot-points?route=query"
+    },
+    {
+      "source": "/one-more-column",
+      "destination": "https://one-more-column.vercel.app/one-more-column"
+    },
+    {
+      "source": "/one-more-column/",
+      "destination": "https://one-more-column.vercel.app/one-more-column/"
+    },
+    {
+      "source": "/one-more-column/:path*",
+      "destination": "https://one-more-column.vercel.app/one-more-column/:path*"
+    },
+    {
+      "source": "/api/omc-:route",
+      "destination": "https://one-more-column.vercel.app/api/omc-:route"
+    }
   ]
 }

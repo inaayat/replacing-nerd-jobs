@@ -1,4 +1,5 @@
 import { bootPage, renderShell, populateSidebarStats } from './nav.js';
+import { loginUrl } from './auth.js';
 import { leaderboardApi } from './api.js';
 import { money, shortDate, ratingLabel, escapeHtml, posterHtml, monthLabel } from './format.js';
 
@@ -15,6 +16,15 @@ bootPage(async ({ root, auth }) => {
   });
 
   const main = document.getElementById('member-main');
+  if (!auth.signedIn) {
+    main.innerHTML = `
+      <section class="al-panel">
+        <p class="al-muted">Member profiles are visible to signed-in A-Listers.</p>
+        <p style="margin-top:12px"><a class="al-btn al-btn-primary" href="${loginUrl()}">Sign in</a></p>
+      </section>
+    `;
+    return;
+  }
   if (!userId) {
     main.innerHTML = `
       <section class="al-panel">
@@ -26,11 +36,13 @@ bootPage(async ({ root, auth }) => {
   }
 
   try {
-    const token = auth.signedIn ? auth.token : undefined;
-    const { profile, currentUserId } = await leaderboardApi.profile(userId, token);
+    const { profile, currentUserId } = await leaderboardApi.profile(userId, auth.token);
+    const isSelf = currentUserId === profile.userId;
     document.querySelector('.al-page-title').textContent = profile.displayName;
-    document.querySelector('.al-page-sub').textContent = currentUserId === profile.userId
-      ? 'Your public watch log and A-List stats.'
+    document.querySelector('.al-page-sub').textContent = isSelf
+      ? (profile.isPublic
+        ? 'This is exactly what other members see.'
+        : 'Private — only you can see this. Turn on your public profile in Settings.')
       : 'Public watch log and A-List stats.';
     document.title = `${profile.displayName} — AMC A-Lister`;
     renderProfile(main, profile, { currentUserId, auth });
@@ -46,7 +58,9 @@ bootPage(async ({ root, auth }) => {
 
 function renderProfile(main, profile, { currentUserId, auth }) {
   const { stats, watches } = profile;
+  // Absent when the member chose to withhold theaters — drop the filter too.
   const theaters = [...new Set(watches.map((w) => w.location).filter(Boolean))].sort();
+  const showTheaters = theaters.length > 0;
   const formats = [...new Set(watches.map((w) => w.format).filter(Boolean))].sort();
   const periodLabel = stats.periodMonth ? monthLabel(`${stats.periodMonth}-01`) : 'This month';
   const isYou = currentUserId === profile.userId;
@@ -78,10 +92,12 @@ function renderProfile(main, profile, { currentUserId, auth }) {
     <section class="al-panel al-panel--log al-member-log">
       <div class="al-toolbar al-toolbar--log">
         <input class="al-input al-toolbar-search" id="member-search" type="search" placeholder="Search title or theater…" />
-        <select class="al-select al-toolbar-filter" id="member-theater">
-          <option value="">All theaters</option>
-          ${theaters.map((t) => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('')}
-        </select>
+        ${showTheaters ? `
+          <select class="al-select al-toolbar-filter" id="member-theater">
+            <option value="">All theaters</option>
+            ${theaters.map((t) => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('')}
+          </select>
+        ` : ''}
         <select class="al-select al-toolbar-filter al-toolbar-filter--format" id="member-format">
           <option value="">All formats</option>
           ${formats.map((f) => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('')}
@@ -110,7 +126,7 @@ function renderProfile(main, profile, { currentUserId, auth }) {
 
   const applyFilters = () => {
     const q = document.getElementById('member-search').value.trim().toLowerCase();
-    const theater = document.getElementById('member-theater').value;
+    const theater = document.getElementById('member-theater')?.value || '';
     const format = document.getElementById('member-format').value;
     const dnfOnly = document.getElementById('member-dnf').checked;
 
@@ -125,8 +141,10 @@ function renderProfile(main, profile, { currentUserId, auth }) {
   };
 
   ['member-search', 'member-theater', 'member-format', 'member-dnf'].forEach((id) => {
-    document.getElementById(id).addEventListener('input', applyFilters);
-    document.getElementById(id).addEventListener('change', applyFilters);
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', applyFilters);
+    el.addEventListener('change', applyFilters);
   });
 
   render();
@@ -160,13 +178,12 @@ function tableHtml(watches) {
   if (!watches.length) return '<div class="al-empty">No screenings logged yet.</div>';
   return `
     <div class="al-log-list al-log-list--readonly">
-      <div class="al-log-head" aria-hidden="true">
+      <div class="al-log-head" role="row">
         <span class="al-log-col al-col-poster"></span>
         <span class="al-log-col">Date</span>
         <span class="al-log-col">Title</span>
         <span class="al-log-col">Location</span>
         <span class="al-log-col">Format</span>
-        <span class="al-log-col">Seat</span>
         <span class="al-log-col">Charge</span>
         <span class="al-log-col">Rating</span>
       </div>
@@ -195,14 +212,12 @@ function viewRowHtml(w) {
         <div class="al-log-col--body">
           <div class="al-log-col al-log-col--title">
             ${escapeHtml(w.title)}
-            ${w.in_theaters === false ? '<span class="al-badge al-badge--muted">Off-theater</span>' : ''}
           </div>
           <div class="al-log-col al-log-col--mobile-meta al-only-mobile">${mobileLogMeta(w)}</div>
         </div>
-        <div class="al-log-col al-log-col--desktop al-muted">${escapeHtml(w.in_theaters === false ? 'Not in theaters' : (w.location || '—'))}</div>
-        <div class="al-log-col al-log-col--desktop">${w.in_theaters === false ? '—' : (w.format ? escapeHtml(w.format) : '—')}</div>
-        <div class="al-log-col al-log-col--desktop al-muted">${w.in_theaters === false ? '—' : escapeHtml([w.auditorium, w.seat].filter(Boolean).join(' · ') || '—')}</div>
-        <div class="al-log-col al-log-col--desktop al-log-col--num">${w.in_theaters === false ? '—' : money(w.ticket_cents)}</div>
+        <div class="al-log-col al-log-col--desktop al-muted">${escapeHtml(w.location || '—')}</div>
+        <div class="al-log-col al-log-col--desktop">${w.format ? escapeHtml(w.format) : '—'}</div>
+        <div class="al-log-col al-log-col--desktop al-log-col--num">${money(w.ticket_cents)}</div>
         <div class="al-log-col al-log-col--desktop">${ratingLabel(w)}</div>
       </article>
     </div>

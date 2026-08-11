@@ -1,12 +1,14 @@
 import { watchesApi, movieApi } from './api.js';
 import { parseMoneyInput, escapeHtml } from './format.js';
 import { loadUserTheaters, rememberTheater, wireTheaterSuggest } from './theater-suggest.js';
+import { todayISO } from './dates.js';
+import { wireComboboxKeys } from './combobox.js';
 
 const FORMATS = ['', 'IMAX', 'Dolby', 'IMAX 3D', '70MM', 'Q&A'];
 
 export function renderQuickLogBar() {
   const formatOptions = FORMATS.map((f) => `<option value="${f}">${f || 'Standard'}</option>`).join('');
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayISO();
 
   return `
     <header class="al-quicklog" id="al-quicklog">
@@ -40,7 +42,7 @@ export function renderQuickLogBar() {
           </div>
         </div>
 
-        <div class="al-quicklog-expand" id="ql-expand" aria-hidden="true">
+        <div class="al-quicklog-expand" id="ql-expand" inert>
           <div class="al-quicklog-expand-inner">
             <div class="al-quicklog-extra">
               <div class="al-quicklog-field" data-theater-only>
@@ -106,6 +108,8 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
   wireTheaterSuggest(locationInput, theaterResultsEl, {
     getTheaters: () => theaters,
   });
+  wireComboboxKeys(titleInput, resultsEl);
+  wireComboboxKeys(locationInput, theaterResultsEl);
 
   const setLogMode = (mode) => {
     logMode = mode;
@@ -140,7 +144,10 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
     if (expanded === on) return;
     expanded = on;
     shell.classList.toggle('is-expanded', on);
-    expandEl.setAttribute('aria-hidden', on ? 'false' : 'true');
+    // `inert`, not aria-hidden: the panel collapses with grid-template-rows
+    // rather than display:none, so its inputs stayed in the tab order while
+    // being announced as hidden.
+    expandEl.toggleAttribute('inert', !on);
   };
 
   const checkExpand = () => {
@@ -208,8 +215,16 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
     if (!e.target.closest('.al-search-wrap')) resultsEl.hidden = true;
   });
 
+  const submitBtn = document.getElementById('ql-submit');
+  let saving = false;
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    // The resolve() round trip below leaves a ~1s window in which a second
+    // click would log the same screening twice.
+    if (saving) return;
+    saving = true;
+    submitBtn.disabled = true;
     statusEl.textContent = 'Saving…';
     statusEl.classList.remove('is-error', 'is-success');
 
@@ -241,27 +256,45 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
         theaters = rememberTheater(theaters, payload.location);
       }
       form.reset();
-      form.watched_on.value = new Date().toISOString().slice(0, 10);
+      form.watched_on.value = todayISO();
       baselineDate = form.watched_on.value;
       tmdbInput.value = '';
       ratingInput.disabled = false;
       setLogMode('theater');
       titleInput.focus();
-      if (onSuccess) await onSuccess();
+      // Hand the caller what was logged (and which list row it came from) so a
+      // watchlist entry can be cleared once it's been seen.
+      const source = pendingSource;
+      pendingSource = null;
+      if (onSuccess) {
+        await onSuccess({
+          title: payload.title,
+          tmdb_id: payload.tmdb_id,
+          watchlistId: source?.watchlistId ?? null,
+        });
+      }
       setTimeout(() => { statusEl.textContent = ''; statusEl.classList.remove('is-success'); }, 2500);
     } catch (err) {
       statusEl.textContent = err.message || 'Could not save.';
       statusEl.classList.add('is-error');
+    } finally {
+      saving = false;
+      submitBtn.disabled = false;
     }
   });
 }
 
-/** Pre-fill the sticky quick-log bar (e.g. from want-to-watch). */
-export function prefillQuickLog({ title, tmdbId, mode = 'theater' } = {}) {
+/** Which list row, if any, seeded the bar — reported back on a successful log. */
+let pendingSource = null;
+
+/** Pre-fill the sticky quick-log bar (e.g. from the Coming Soon list). */
+export function prefillQuickLog({ title, tmdbId, mode = 'theater', watchlistId = null } = {}) {
   const shell = document.getElementById('al-quicklog');
   const titleInput = document.getElementById('ql-title');
   const tmdbInput = document.getElementById('ql-tmdb_id');
   if (!shell || !titleInput) return;
+
+  pendingSource = watchlistId ? { watchlistId } : null;
 
   if (mode === 'off-theater') {
     shell.querySelector('[data-log-mode="off-theater"]')?.click();
@@ -273,7 +306,9 @@ export function prefillQuickLog({ title, tmdbId, mode = 'theater' } = {}) {
   if (tmdbId != null) tmdbInput.value = String(tmdbId);
   else tmdbInput.value = '';
 
-  titleInput.dispatchEvent(new Event('input', { bubbles: true }));
+  // Expand the extra fields without firing a TMDB search we don't need: the
+  // tmdb_id is already known when this comes from a list row.
+  titleInput.dispatchEvent(new Event('change', { bubbles: true }));
   shell.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   titleInput.focus();
 }

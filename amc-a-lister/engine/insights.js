@@ -1,6 +1,6 @@
 import { bootPage, renderShell, requireSignIn, populateSidebarStats } from './nav.js';
 import { summaryApi, watchesApi } from './api.js';
-import { chargeMonth, topActorsByRating, topTheatersByRating, ratingStarBucket, isExcludedTheaterLocation } from './billing.js';
+import { chargeMonth, topActorsByRating, topTheatersByRating, ratingStarBucket, isExcludedTheaterLocation, theaterKey } from './billing.js';
 import { money, escapeHtml, monthLabel, shortDate } from './format.js';
 
 bootPage(async ({ root, auth }) => {
@@ -28,7 +28,7 @@ bootPage(async ({ root, auth }) => {
   const theatersByRating = topTheatersByRating(theaters, { minRated: 2, limit: 8 });
 
   main.innerHTML = `
-    ${renderSpotlight({ summary, ratings, theaters, theatersByRating })}
+    ${renderSpotlight({ summary, ratings, theaters, theatersByRating, watchList })}
     ${renderByMonthSection(byMonth, moviesByMonth)}
     <div class="al-insight-grid">
       ${renderRatingProfileSection(ratings, ratingBuckets, moviesByRating)}
@@ -42,6 +42,7 @@ bootPage(async ({ root, auth }) => {
   `;
 
   wireInsightSections(main);
+  wireByMonthYear(byMonth, moviesByMonth);
   requestAnimationFrame(() => {
     main.querySelectorAll('.al-meter-fill, .al-rating-bar-fill').forEach((el) => {
       const width = el.dataset.width || '0';
@@ -73,8 +74,8 @@ function insightSection(title, body, {
   `;
 }
 
-function renderSpotlight({ summary, ratings, theaters, theatersByRating }) {
-  const avgRating = averageWatchRating(ratings);
+function renderSpotlight({ summary, ratings, theaters, theatersByRating, watchList }) {
+  const avgRating = averageWatchRating(watchList);
   const walkout = ratings.total
     ? Math.round(((ratings.dnf || 0) / ratings.total) * 100)
     : 0;
@@ -182,7 +183,7 @@ function renderTheaterRatingSection(theatersByRating, moviesByTheater) {
               <div class="al-theater-rating-top">
                 <span class="al-hover-target al-hover-target--label" tabindex="0">
                   ${escapeHtml(theater.location)}
-                  ${renderMoviesPopup(moviesByTheater.get(theater.location) || [], {
+                  ${renderMoviesPopup(moviesByTheater.get(theaterKey(theater.location)) || [], {
       empty: 'No films at this theater.',
       scrollable: true,
     })}
@@ -223,7 +224,7 @@ function renderTheaterRankingSection(theaters, moviesByTheater) {
               <span class="al-card-rank">${i + 1}</span>
               <span class="al-hover-target al-hover-target--label" tabindex="0">
                 ${escapeHtml(t.location)}
-                ${renderMoviesPopup(moviesByTheater.get(t.location) || [], { empty: 'No films at this theater.', scrollable: true })}
+                ${renderMoviesPopup(moviesByTheater.get(theaterKey(t.location)) || [], { empty: 'No films at this theater.', scrollable: true })}
               </span>
             </td>
             <td class="num" data-label="Visits">${t.count}</td>
@@ -301,7 +302,7 @@ function renderRewatchesSection(rewatches) {
           <tr>
             <td class="al-card-primary">${escapeHtml(r.title)}</td>
             <td class="num" data-label="Times">${r.count}</td>
-            <td class="al-muted al-card-span" data-label="Dates">${r.dates.map((d) => d.slice(5)).join(', ')}</td>
+            <td class="al-muted al-card-span" data-label="Dates">${r.dates.map((d) => escapeHtml(shortDate(d))).join(', ')}</td>
           </tr>
         `).join('')}
       </tbody></table></div>`
@@ -317,13 +318,41 @@ function renderByMonthSection(byMonth, moviesByMonth) {
     `, { className: 'al-by-month', expanded: true, kicker: 'Ledger' });
   }
 
+  // The ledger grows without bound across years; let people narrow it.
+  const years = [...new Set(rows.map((row) => row.month.slice(0, 4)))].sort((a, b) => b.localeCompare(a));
+  const yearFilter = years.length > 1
+    ? `
+      <select class="al-select al-by-month-year" id="by-month-year" aria-label="Filter by year">
+        <option value="">All years</option>
+        ${years.map((y) => `<option value="${y}">${y}</option>`).join('')}
+      </select>
+    `
+    : '';
+
   return insightSection('By month', `
-    <p class="al-muted al-by-month-hint">
-      <span class="al-hint-hover">Hover a month to see what you watched.</span>
-      <span class="al-hint-touch">Tap a month to see what you watched.</span>
-    </p>
-    ${renderMonthTable(rows, moviesByMonth)}
+    <div class="al-by-month-controls">
+      <p class="al-muted al-by-month-hint">
+        <span class="al-hint-hover">Hover a month to see what you watched.</span>
+        <span class="al-hint-touch">Tap a month to see what you watched.</span>
+      </p>
+      ${yearFilter}
+    </div>
+    <div id="by-month-table">${renderMonthTable(rows, moviesByMonth)}</div>
   `, { className: 'al-by-month', expanded: true, kicker: 'Ledger' });
+}
+
+function wireByMonthYear(byMonth, moviesByMonth) {
+  const select = document.getElementById('by-month-year');
+  const target = document.getElementById('by-month-table');
+  if (!select || !target) return;
+
+  select.addEventListener('change', () => {
+    const year = select.value;
+    const rows = year ? byMonth.filter((row) => row.month.startsWith(year)) : byMonth;
+    target.innerHTML = rows.length
+      ? renderMonthTable(rows, moviesByMonth)
+      : '<div class="al-empty">No months in that year.</div>';
+  });
 }
 
 function wireInsightSections(root) {
@@ -418,8 +447,9 @@ function groupMoviesByTheater(watches) {
   for (const watch of watches) {
     const location = (watch.location || 'Unknown').trim() || 'Unknown';
     if (isExcludedTheaterLocation(location)) continue;
-    if (!map.has(location)) map.set(location, []);
-    map.get(location).push({
+    const key = theaterKey(location);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push({
       title: watch.title,
       watched_on: watch.watched_on,
     });
@@ -506,17 +536,16 @@ function renderMoviesPopup(items, { empty = 'No movies.', scrollable = false } =
   `;
 }
 
-function averageWatchRating(ratings) {
-  const buckets = ratings?.buckets || {};
-  let sum = 0;
-  let count = 0;
-  for (const n of [1, 2, 3, 4, 5]) {
-    const c = buckets[n] || 0;
-    sum += n * c;
-    count += c;
-  }
-  if (!count) return null;
-  return Math.round((sum / count) * 10) / 10;
+/**
+ * Averages the actual ratings, not the whole-star buckets. Averaging buckets
+ * rounded every 4.5 down to 4 first, so a viewer who rated everything 4.5 saw
+ * "4★" — biased low by up to half a star.
+ */
+function averageWatchRating(watches) {
+  const rated = watches.filter((w) => !w.dnf && w.rating != null);
+  if (!rated.length) return null;
+  const sum = rated.reduce((total, w) => total + Number(w.rating), 0);
+  return Math.round((sum / rated.length) * 10) / 10;
 }
 
 function shortTheaterName(name) {

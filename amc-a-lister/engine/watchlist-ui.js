@@ -1,22 +1,35 @@
 import { escapeHtml, posterHtml, shortDate } from './format.js';
+import { todayISO } from './dates.js';
 import { prefillQuickLog } from './quick-log.js';
 import { watchlistApi, movieApi } from './api.js';
+import { wireComboboxKeys } from './combobox.js';
 
-export function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+export { todayISO };
+
+/**
+ * 'upcoming' | 'released' | 'unknown'.
+ *
+ * "unknown" matters now that titles are only auto-linked to TMDB on an exact
+ * match: an unlinked row has no date at all, and claiming it is already out
+ * (which is what this used to do) would put a wrong "Already out" badge on it.
+ */
+export function releaseState(item, today = todayISO()) {
+  if (item.release_date) return item.release_date <= today ? 'released' : 'upcoming';
+  // Year-only: past years are out, the current or a future year is still ahead.
+  if (item.year != null) {
+    return Number(item.year) < Number(today.slice(0, 4)) ? 'released' : 'upcoming';
+  }
+  return 'unknown';
 }
 
 export function isAlreadyOut(item, today = todayISO()) {
-  if (item.release_date) return item.release_date <= today;
-  // Year-only without a full date: past years are out; current/future stay in coming soon.
-  if (item.year != null) return Number(item.year) < new Date().getFullYear();
-  return true;
+  return releaseState(item, today) === 'released';
 }
 
 /** Coming soon first (soonest release), undated future years after dated ones. */
 export function sortComingSoon(items, today = todayISO()) {
   return items
-    .filter((item) => !isAlreadyOut(item, today))
+    .filter((item) => releaseState(item, today) === 'upcoming')
     .sort((a, b) => {
       const aDate = a.release_date || (a.year != null ? `${a.year}-12-31` : '9999-12-31');
       const bDate = b.release_date || (b.year != null ? `${b.year}-12-31` : '9999-12-31');
@@ -25,21 +38,29 @@ export function sortComingSoon(items, today = todayISO()) {
     });
 }
 
-/** Already released, oldest release first (chronological). */
+/** Already released, most recent first. */
 export function sortAlreadyOut(items, today = todayISO()) {
   return items
     .filter((item) => isAlreadyOut(item, today))
     .sort((a, b) => {
       const aDate = a.release_date || (a.year != null ? `${a.year}-01-01` : '0000-01-01');
       const bDate = b.release_date || (b.year != null ? `${b.year}-01-01` : '0000-01-01');
-      if (aDate !== bDate) return aDate.localeCompare(bDate);
+      if (aDate !== bDate) return bDate.localeCompare(aDate);
       return String(a.title || '').localeCompare(String(b.title || ''));
     });
 }
 
-/** Already-out titles first (chronological), then coming soon (soonest first). */
+/**
+ * One list, ordered by how soon each title is out: the next release leads, then
+ * later releases, then everything already playing (most recent first) with an
+ * "Already out" badge, and finally titles we have no release data for — those
+ * get no badge, because we can't honestly claim either way.
+ */
 export function combinedWatchlistItems(items, today = todayISO()) {
-  return [...sortAlreadyOut(items, today), ...sortComingSoon(items, today)];
+  const unknown = items
+    .filter((item) => releaseState(item, today) === 'unknown')
+    .sort((a, b) => String(a.title || '').localeCompare(String(b.title || '')));
+  return [...sortComingSoon(items, today), ...sortAlreadyOut(items, today), ...unknown];
 }
 
 export function releaseLabel(item) {
@@ -195,7 +216,7 @@ export function wireWatchlistList(auth, state, {
         if (onLogItem) {
           onLogItem(item);
         } else {
-          prefillQuickLog({ title: item.title, tmdbId: item.tmdb_id, mode: 'theater' });
+          prefillQuickLog({ title: item.title, tmdbId: item.tmdb_id, mode: 'theater', watchlistId: item.id });
         }
       });
     });
@@ -204,7 +225,7 @@ export function wireWatchlistList(auth, state, {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const id = btn.dataset.removeWatchlist;
-        if (!confirm('Remove from want to watch?')) return;
+        if (!confirm('Remove from your list?')) return;
         try {
           await api.remove(auth.token, id);
           state.watchlist = state.watchlist.filter((item) => item.id !== id);
@@ -362,18 +383,19 @@ function watchlistDetailPanelHtml(item, state, { detailsKind = 'movie', detailCl
   `);
 }
 
-function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detailsKind = 'movie', shadeComingSoon = false } = {}) {
+function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detailsKind = 'movie' } = {}) {
   const expanded = item.id === state.expandedId;
-  const comingSoon = shadeComingSoon && !isAlreadyOut(item);
-  const soonClass = comingSoon ? ' al-log-row--coming-soon' : '';
-  const detailSoonClass = comingSoon ? ' al-log-detail--coming-soon' : '';
+  // Released titles are the exception in a list called Coming Soon, so they
+  // carry the badge — the old treatment shaded the majority of the list.
+  const out = isAlreadyOut(item);
+  const outBadge = out ? ' <span class="al-badge al-badge--muted">Already out</span>' : '';
   return `
-    <div class="al-log-entry ${expanded ? 'is-expanded' : ''}${comingSoon ? ' is-coming-soon' : ''}" data-entry-id="${item.id}">
-      <article class="al-log-row al-log-row--watchlist al-log-row--clickable${soonClass} ${expanded ? 'is-expanded' : ''}" data-expand-row tabindex="0" role="button" aria-expanded="${expanded}">
+    <div class="al-log-entry ${expanded ? 'is-expanded' : ''}${out ? ' is-already-out' : ''}" data-entry-id="${item.id}">
+      <article class="al-log-row al-log-row--watchlist al-log-row--clickable ${expanded ? 'is-expanded' : ''}" data-expand-row tabindex="0" aria-expanded="${expanded}" aria-label="Toggle details">
         <div class="al-log-col al-col-poster">${posterHtml(item, { size: 'w92', width: 28, height: 42 })}</div>
         <div class="al-log-col al-log-col--desktop">${escapeHtml(releaseLabel(item))}</div>
         <div class="al-log-col--body">
-          <div class="al-log-col al-log-col--title">${escapeHtml(item.title)}</div>
+          <div class="al-log-col al-log-col--title">${escapeHtml(item.title)}${outBadge}</div>
           <div class="al-log-col al-log-col--mobile-meta al-only-mobile">${mobileWatchlistMeta(item)}</div>
         </div>
         <div class="al-log-col al-log-col--desktop al-muted">${escapeHtml(item.notes || '—')}</div>
@@ -383,18 +405,18 @@ function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detai
           <button type="button" class="al-link-btn" data-remove-watchlist="${item.id}">Remove</button>
         </div>
       </article>
-      ${expanded ? watchlistDetailPanelHtml(item, state, { detailsKind, detailClass: detailSoonClass }) : ''}
+      ${expanded ? watchlistDetailPanelHtml(item, state, { detailsKind }) : ''}
     </div>
   `;
 }
 
-export function watchlistLogTableHtml(items, state, { emptyMessage, logLabel, detailsKind, shadeComingSoon = false } = {}) {
+export function watchlistLogTableHtml(items, state, { emptyMessage, logLabel, detailsKind } = {}) {
   if (!items.length) {
     return `<div class="al-empty">${emptyMessage || 'Nothing here yet.'}</div>`;
   }
   return `
     <div class="al-log-list al-log-list--watchlist">
-      <div class="al-log-head al-log-head--watchlist" aria-hidden="true">
+      <div class="al-log-head al-log-head--watchlist" role="row">
         <span class="al-log-col al-col-poster"></span>
         <span class="al-log-col">Release</span>
         <span class="al-log-col">Title</span>
@@ -404,7 +426,7 @@ export function watchlistLogTableHtml(items, state, { emptyMessage, logLabel, de
       ${items.map((item) => (
         item.id === state.editingId
           ? watchlistEditRowHtml(item)
-          : watchlistViewEntryHtml(item, state, { logLabel, detailsKind, shadeComingSoon })
+          : watchlistViewEntryHtml(item, state, { logLabel, detailsKind })
       )).join('')}
     </div>
   `;
@@ -447,14 +469,13 @@ export function wireWatchlistLogList(auth, state, {
   detailsKind = 'movie',
   onLogItem,
   logLabel = 'Log screening',
-  shadeComingSoon = false,
 }) {
   if (!state.detailsCache) state.detailsCache = new Map();
 
   const render = () => {
     const items = getItems();
     const message = typeof emptyMessage === 'function' ? emptyMessage() : emptyMessage;
-    listEl.innerHTML = watchlistLogTableHtml(items, state, { emptyMessage: message, logLabel, detailsKind, shadeComingSoon });
+    listEl.innerHTML = watchlistLogTableHtml(items, state, { emptyMessage: message, logLabel, detailsKind });
     onChange?.();
     wireWatchlistLogActions(auth, state, render, {
       api,
@@ -520,7 +541,7 @@ function wireWatchlistLogActions(auth, state, render, {
       if (onLogItem) {
         onLogItem(item);
       } else {
-        prefillQuickLog({ title: item.title, tmdbId: item.tmdb_id, mode: 'theater' });
+        prefillQuickLog({ title: item.title, tmdbId: item.tmdb_id, mode: 'theater', watchlistId: item.id });
       }
     });
   });
@@ -538,7 +559,7 @@ function wireWatchlistLogActions(auth, state, render, {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const id = btn.dataset.removeWatchlist;
-      if (!confirm('Remove from want to watch?')) return;
+      if (!confirm('Remove from your list?')) return;
       try {
         await api.remove(auth.token, id);
         state.watchlist = state.watchlist.filter((item) => item.id !== id);
@@ -594,6 +615,8 @@ export function wireWatchlistAddForm(auth, state, {
 }) {
   let searchTimer = null;
 
+  wireComboboxKeys(titleInput, resultsEl);
+
   titleInput.addEventListener('input', () => {
     clearTimeout(searchTimer);
     const q = titleInput.value.trim();
@@ -632,8 +655,14 @@ export function wireWatchlistAddForm(auth, state, {
     if (!e.target.closest(`#${form.id} .al-search-wrap`)) resultsEl.hidden = true;
   });
 
+  const addBtn = form.querySelector('button[type="submit"]');
+  let adding = false;
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (adding) return;
+    adding = true;
+    addBtn.disabled = true;
     statusEl.textContent = 'Adding…';
     const title = titleInput.value.trim();
     let tmdbId = tmdbInput.value ? Number(tmdbInput.value) : null;
@@ -650,6 +679,9 @@ export function wireWatchlistAddForm(auth, state, {
       setTimeout(() => { statusEl.textContent = ''; }, 2000);
     } catch (err) {
       statusEl.textContent = err.message || 'Could not add.';
+    } finally {
+      adding = false;
+      addBtn.disabled = false;
     }
   });
 }

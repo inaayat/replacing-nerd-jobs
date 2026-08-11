@@ -3,8 +3,12 @@ import { isAuthed } from './lib/auth.js';
 // The quiz builder page is intentionally public: publishing directly is
 // still owner-only (api/save-quiz.js checks the auth cookie per-request),
 // while anyone can submit a quiz for review.
+// `outputDirectory: "."` serves the whole repo statically, which means server
+// modules under /lib were fetchable as plain text (/lib/db.js returned 200).
+// No secrets live in them — everything reads process.env — but the SQL and
+// auth logic have no business being public, so 404 them.
 export const config = {
-  matcher: '/private/:path*',
+  matcher: ['/private/:path*', '/lib/:path*'],
 };
 
 function loginPage(error, returnTo) {
@@ -102,6 +106,14 @@ function loginPage(error, returnTo) {
 export default async function middleware(request) {
   const url = new URL(request.url);
   const cookie = request.headers.get('cookie') || '';
+
+  // Server modules are never served as static assets, to anyone.
+  if (url.pathname.startsWith('/lib/')) {
+    return new Response('Not found', {
+      status: 404,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    });
+  }
 
   if (await isAuthed(cookie)) {
     return;

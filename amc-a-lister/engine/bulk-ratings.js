@@ -139,6 +139,14 @@ async function loadPage(auth) {
   document.getElementById('bulk-unrated').addEventListener('change', render);
   document.getElementById('bulk-changed').addEventListener('change', render);
 
+  // The page counts unsaved changes but nothing stopped a stray back-navigation
+  // from throwing them away.
+  window.addEventListener('beforeunload', (event) => {
+    if (!changedWatches().length || state.saving) return;
+    event.preventDefault();
+    event.returnValue = '';
+  });
+
   document.getElementById('bulk-list').addEventListener('change', (event) => {
     const select = event.target.closest('.al-bulk-rating-select');
     if (!select) return;

@@ -117,6 +117,10 @@ async function init() {
           <button type="submit" class="al-btn al-btn-primary al-signin-submit">Create account</button>
         </form>
         <p id="signin-error" class="al-error al-signin-error" hidden></p>
+        <p class="al-signin-help al-muted">
+          Forgotten your password? Reset it from your
+          <a href="/account.html">account page</a>.
+        </p>
         <p class="al-signin-back"><a href="/amc-a-lister/">← Back without signing in</a></p>
       </section>
     </main>
@@ -156,7 +160,12 @@ async function init() {
         mode: 'signup',
       });
       if (error) showError(error.message || 'Sign-up failed.');
-      else {
+      else if (!token) {
+        // Storing null here sent the user to setup with no session, which
+        // bounced them straight back to this page with no explanation.
+        showError('Account created, but could not start a session. Try signing in.');
+        setAuthMode('signin');
+      } else {
         storeAuthToken(token);
         location.replace('/amc-a-lister/settings.html?setup=rate');
       }

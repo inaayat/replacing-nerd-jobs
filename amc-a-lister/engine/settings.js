@@ -1,7 +1,8 @@
 import { bootPage, renderShell, requireSignIn, populateSidebarStats, isTvBetaEnabled, setTvBetaEnabled } from './nav.js';
-import { membershipApi, importApi } from './api.js';
+import { membershipApi, importApi, backfillApi } from './api.js';
 import { parseXlsxFile } from './import-xlsx.js';
-import { escapeHtml } from './format.js';
+import { escapeHtml, parseMoneyInput } from './format.js';
+import { todayISO } from './dates.js';
 
 const DEFAULT_TIERS = [
   { effective_on: '2018-06-01', cents: 2495 },
@@ -60,8 +61,39 @@ bootPage(async ({ root, auth }) => {
           <button class="al-btn" type="button" id="add-tier">+ Add price change</button>
         </div>
 
+        <div class="al-privacy-section">
+          <div class="al-tier-header">
+            <h2>Public profile</h2>
+            <p class="al-muted">Off by default. Nothing about your log is visible to anyone else until you turn this on.</p>
+          </div>
+          <label class="al-check al-check--block">
+            <input type="checkbox" id="public_profile" ${membership.public_profile ? 'checked' : ''} />
+            Show me on the public leaderboard
+          </label>
+          <div class="al-privacy-detail" id="public-profile-detail">
+            <p class="al-muted">
+              Other people see your name, how many films you've seen, your savings and
+              your average rating. They never see your email, your surname, your seat or
+              auditorium numbers, or anything you watched at home.
+            </p>
+            <div class="al-field">
+              <label for="username">Username <span class="al-muted">(optional)</span></label>
+              <input class="al-input" id="username" maxlength="24" placeholder="letterboxd_lurker"
+                     value="${escapeHtml(membership.username || '')}" />
+              <p class="al-muted al-field-hint">
+                3–24 characters, letters, numbers and underscores. Leave it blank and
+                you'll show as <strong>${escapeHtml(membership.public_name_without_username || 'Member')}</strong> instead.
+              </p>
+            </div>
+            <label class="al-check al-check--block">
+              <input type="checkbox" id="public_hide_theaters" ${membership.public_hide_theaters ? 'checked' : ''} />
+              Hide which theaters I go to
+            </label>
+          </div>
+        </div>
+
         <div class="al-toolbar" style="margin-top:12px">
-          <button class="al-btn al-btn-primary" type="submit">${needsRateSetup ? 'Save monthly rate' : 'Save membership'}</button>
+          <button class="al-btn al-btn-primary" type="submit">${needsRateSetup ? 'Save and continue' : 'Save membership'}</button>
           <p class="al-muted" id="membership-status" style="margin:0"></p>
         </div>
       </form>
@@ -74,6 +106,18 @@ bootPage(async ({ root, auth }) => {
           TV Shows — track series separately from theater movies
         </label>
         <p class="al-muted" id="beta-tv-status" style="margin-top:8px"></p>
+      </section>
+
+      <section class="al-panel">
+        <h2>Posters &amp; movie data</h2>
+        <p class="al-muted">
+          Links any screenings that aren't matched to TMDB yet and caches their artwork.
+          Runs in batches — press again if it reports more to go.
+        </p>
+        <div class="al-toolbar">
+          <button class="al-btn" type="button" id="backfill-btn">Backfill posters</button>
+          <p class="al-muted" id="backfill-status" style="margin:0"></p>
+        </div>
       </section>
 
       <section class="al-panel">
@@ -100,7 +144,7 @@ bootPage(async ({ root, auth }) => {
   const tiersEl = document.getElementById('price-tiers');
   document.getElementById('add-tier').addEventListener('click', () => {
     const row = document.createElement('div');
-    row.innerHTML = tierRowHtml({ effective_on: new Date().toISOString().slice(0, 10), cents: 2999 }, 99);
+    row.innerHTML = tierRowHtml({ effective_on: todayISO(), cents: 2999 }, 99);
     tiersEl.appendChild(row.firstElementChild);
   });
 
@@ -112,28 +156,63 @@ bootPage(async ({ root, auth }) => {
 
   document.getElementById('beta-tv').addEventListener('change', (e) => {
     setTvBetaEnabled(e.target.checked);
-    const status = document.getElementById('beta-tv-status');
-    status.textContent = e.target.checked
-      ? 'TV Shows enabled — it will show in the nav after refresh.'
-      : 'TV Shows hidden from nav.';
-    // Re-render shell nav without full reload
-    location.reload();
+    // No reload — that discarded unsaved membership edits on this same page,
+    // and destroyed the status message before it ever rendered.
+    document.getElementById('beta-tv-status').textContent = e.target.checked
+      ? 'TV Shows enabled. It appears in the nav on your next page load.'
+      : 'TV Shows hidden from the nav.';
   });
 
   const setStatus = (msg) => { document.getElementById('import-status').textContent = msg; };
 
-  document.getElementById('membership-form').addEventListener('submit', async (e) => {
+  const publicToggle = document.getElementById('public_profile');
+  const usernameInput = document.getElementById('username');
+  const hideTheatersInput = document.getElementById('public_hide_theaters');
+  const privacyDetail = document.getElementById('public-profile-detail');
+
+  const syncPrivacyFields = () => {
+    const on = publicToggle.checked;
+    privacyDetail.classList.toggle('is-active', on);
+    usernameInput.disabled = !on;
+    hideTheatersInput.disabled = !on;
+  };
+  publicToggle.addEventListener('change', syncPrivacyFields);
+  syncPrivacyFields();
+
+  const membershipForm = document.getElementById('membership-form');
+  const membershipSubmit = membershipForm.querySelector('button[type="submit"]');
+
+  membershipForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const status = document.getElementById('membership-status');
+    const { tiers: price_tiers, invalid } = collectTiers();
+
+    // Never silently drop a row the user typed — say which one is wrong.
+    if (invalid.length) {
+      status.textContent = invalid.length === 1
+        ? `Check the monthly price on row ${invalid[0]} — use a number like 27.99.`
+        : `Check the monthly prices on rows ${invalid.join(', ')}.`;
+      return;
+    }
+    if (!price_tiers.length) {
+      status.textContent = 'Add at least one monthly rate.';
+      return;
+    }
+    const duplicate = price_tiers.find(
+      (tier, i) => i > 0 && tier.effective_on === price_tiers[i - 1].effective_on,
+    );
+    if (duplicate) {
+      status.textContent = `Two rates start on ${duplicate.effective_on}. Give each a different date.`;
+      return;
+    }
     status.textContent = 'Saving…';
+    membershipSubmit.disabled = true;
     try {
-      const price_tiers = collectTiers();
-      if (!price_tiers.length) {
-        status.textContent = 'Add at least one monthly rate.';
-        return;
-      }
       await membershipApi.update(auth.token, {
         display_name: document.getElementById('display_name').value.trim() || null,
+        username: usernameInput.value.trim() || null,
+        public_profile: publicToggle.checked,
+        public_hide_theaters: hideTheatersInput.checked,
         price_tiers,
         rate_setup_complete: true,
       });
@@ -143,8 +222,32 @@ bootPage(async ({ root, auth }) => {
       }
     } catch (err) {
       status.textContent = err.message;
+      if (/username/i.test(err.message || '')) usernameInput.focus();
+    } finally {
+      membershipSubmit.disabled = false;
     }
   });
+
+  /**
+   * Import has no undo and there is no bulk delete to recover with, so show
+   * what was parsed and make the user confirm before anything is written.
+   */
+  const runImport = async (watches, sourceLabel) => {
+    const sample = watches.slice(0, 3).map((w) => `${w.watched_on} · ${w.title}`).join('\n');
+    const ok = confirm(
+      `Import ${watches.length} screening${watches.length === 1 ? '' : 's'} from ${sourceLabel}?\n\n`
+      + `First rows:\n${sample}${watches.length > 3 ? `\n…and ${watches.length - 3} more` : ''}\n\n`
+      + 'Existing rows with the same date, title and theater are skipped. '
+      + 'This cannot be undone.',
+    );
+    if (!ok) {
+      setStatus('Import cancelled.');
+      return;
+    }
+    setStatus(`Importing ${watches.length} rows…`);
+    const result = await importApi.run(auth.token, watches);
+    setStatus(`Imported ${result.inserted} screenings (${result.skipped} duplicates skipped).`);
+  };
 
   document.getElementById('xlsx-import-btn').addEventListener('click', async () => {
     const file = document.getElementById('xlsx-file').files?.[0];
@@ -154,22 +257,50 @@ bootPage(async ({ root, auth }) => {
     }
     setStatus('Reading spreadsheet…');
     try {
-      const watches = await parseXlsxFile(file);
-      const result = await importApi.run(auth.token, watches);
-      setStatus(`Imported ${result.inserted} screenings (${result.skipped} duplicates skipped).`);
+      await runImport(await parseXlsxFile(file), file.name);
     } catch (err) {
       setStatus(err.message);
     }
   });
 
   document.getElementById('import-btn').addEventListener('click', async () => {
-    setStatus('Importing JSON…');
+    const raw = document.getElementById('import-json').value.trim();
+    if (!raw) {
+      setStatus('Paste some JSON first.');
+      return;
+    }
     try {
-      const watches = JSON.parse(document.getElementById('import-json').value);
-      const result = await importApi.run(auth.token, watches);
-      setStatus(`Inserted ${result.inserted}, skipped ${result.skipped}.`);
+      let watches;
+      try {
+        watches = JSON.parse(raw);
+      } catch {
+        setStatus('That is not valid JSON. Expected an array of screenings.');
+        return;
+      }
+      if (!Array.isArray(watches) || !watches.length) {
+        setStatus('Expected a non-empty JSON array of screenings.');
+        return;
+      }
+      await runImport(watches, 'the pasted JSON');
     } catch (err) {
       setStatus(err.message);
+    }
+  });
+
+  const backfillBtn = document.getElementById('backfill-btn');
+  backfillBtn.addEventListener('click', async () => {
+    const status = document.getElementById('backfill-status');
+    backfillBtn.disabled = true;
+    status.textContent = 'Looking up titles on TMDB…';
+    try {
+      const { linked, cached, remaining } = await backfillApi.run(auth.token);
+      status.textContent = remaining > 0
+        ? `Linked ${linked}, cached ${cached} posters. ${remaining} still to go — run it again.`
+        : `Linked ${linked} titles and cached ${cached} posters. All caught up.`;
+    } catch (err) {
+      status.textContent = err.message || 'Backfill failed.';
+    } finally {
+      backfillBtn.disabled = false;
     }
   });
 }, { quickLogOnSuccess: (auth) => populateSidebarStats(auth) });
@@ -179,7 +310,7 @@ function resolveTiers(membership, needsRateSetup) {
     return [...membership.price_tiers].sort((a, b) => a.effective_on.localeCompare(b.effective_on));
   }
   if (needsRateSetup) {
-    return [{ effective_on: new Date().toISOString().slice(0, 10), cents: membership.current_cents || 2999 }];
+    return [{ effective_on: todayISO(), cents: membership.current_cents || 2999 }];
   }
   if (membership.price_bump_on) {
     return [
@@ -200,12 +331,27 @@ function tierRowHtml(tier, index) {
   `;
 }
 
+/**
+ * Rows that don't parse are reported by position rather than dropped — the old
+ * behaviour silently discarded anything typed as "$27.99" and still said "Saved".
+ */
 function collectTiers() {
-  return [...document.querySelectorAll('[data-tier-row]')]
-    .map((row) => ({
-      effective_on: row.querySelector('.tier-effective').value,
-      cents: Math.round(Number(row.querySelector('.tier-cents').value) * 100),
-    }))
-    .filter((tier) => tier.effective_on && tier.cents > 0)
-    .sort((a, b) => a.effective_on.localeCompare(b.effective_on));
+  const tiers = [];
+  const invalid = [];
+
+  [...document.querySelectorAll('[data-tier-row]')].forEach((row, i) => {
+    const effective_on = row.querySelector('.tier-effective').value;
+    const raw = row.querySelector('.tier-cents').value.trim();
+    if (!effective_on && !raw) return;
+
+    const cents = parseMoneyInput(raw);
+    if (!effective_on || cents == null || cents <= 0) {
+      invalid.push(i + 1);
+      return;
+    }
+    tiers.push({ effective_on, cents });
+  });
+
+  tiers.sort((a, b) => a.effective_on.localeCompare(b.effective_on));
+  return { tiers, invalid };
 }

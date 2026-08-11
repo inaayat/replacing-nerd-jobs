@@ -12,14 +12,49 @@ bootPage(async ({ root, auth }) => {
   if (!requireSignIn(auth, root)) return;
 
   root.innerHTML = renderShell({
-    title: 'Want',
-    subtitle: 'Coming soon and already in theaters.',
+    title: 'Coming Soon',
+    subtitle: "What's next, and what's already playing.",
     body: `<main class="al-main" id="wtw-main"><p class="al-muted">Loading…</p></main>`,
     signedIn: true,
   });
 
   await loadPage(auth);
-}, { quickLogOnSuccess: (auth) => populateSidebarStats(auth) });
+}, {
+  quickLogOnSuccess: async (auth, logged) => {
+    await Promise.all([clearLoggedFromList(auth, logged), populateSidebarStats(auth)]);
+  },
+});
+
+/**
+ * A title you've now seen shouldn't still be on a list of things you want to
+ * see — previously the list only ever grew. Matches the row the user clicked
+ * "Log screening" on, or failing that any row for the same film.
+ */
+async function clearLoggedFromList(auth, logged) {
+  const state = pageState;
+  if (!state || !logged) return;
+
+  const match = state.watchlist.find((item) => (
+    (logged.watchlistId && item.id === logged.watchlistId)
+    || (logged.tmdb_id && item.tmdb_id === logged.tmdb_id)
+  ));
+  if (!match) return;
+
+  try {
+    await watchlistApi.remove(auth.token, match.id);
+    state.watchlist = state.watchlist.filter((item) => item.id !== match.id);
+    state.rerender?.();
+    const statusEl = document.getElementById('watchlist-status');
+    if (statusEl) {
+      statusEl.textContent = `Logged ${match.title} — removed from Coming Soon.`;
+      setTimeout(() => { statusEl.textContent = ''; }, 3000);
+    }
+  } catch {
+    // The screening saved either way; leaving the row is a harmless fallback.
+  }
+}
+
+let pageState = null;
 
 async function loadPage(auth) {
   const main = document.getElementById('wtw-main');
@@ -30,7 +65,7 @@ async function loadPage(auth) {
   main.innerHTML = `
     <section class="al-panel al-panel--log al-panel--watchlist" id="watchlist-panel">
       <div class="al-watchlist-header al-watchlist-header--compact">
-        <h2 class="al-section-title">Want to watch</h2>
+        <h2 class="al-section-title">Coming Soon</h2>
         <span class="al-muted" id="wtw-count">${watchlist.length}</span>
       </div>
       <p class="al-muted al-watchlist-summary" id="wtw-summary"></p>
@@ -59,7 +94,9 @@ async function loadPage(auth) {
     detailsCache: new Map(),
     detailsLoading: null,
     detailsError: null,
+    rerender: null,
   };
+  pageState = state;
 
   const countEl = document.getElementById('wtw-count');
   const summaryEl = document.getElementById('wtw-summary');
@@ -98,12 +135,12 @@ async function loadPage(auth) {
     listEl: document.getElementById('watchlist-list'),
     statusEl: document.getElementById('watchlist-status'),
     getItems: getFilteredItems,
-    shadeComingSoon: true,
     emptyMessage: () => (state.search.trim()
       ? 'No matches.'
       : 'Nothing on your list yet. Add a title above.'),
     onChange: refreshHeader,
   });
+  state.rerender = renderList;
 
   wireWatchlistAddForm(auth, state, {
     form: document.getElementById('watchlist-add-form'),
