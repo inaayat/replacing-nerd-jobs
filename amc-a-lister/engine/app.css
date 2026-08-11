@@ -2223,6 +2223,16 @@ table.al-table {
   overflow: visible;
 }
 
+.al-by-month .al-month-table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.al-by-month .al-th-short {
+  display: none;
+}
+
 .al-insight .al-table-wrap {
   overflow-x: auto;
   overflow-y: visible;
@@ -2231,6 +2241,10 @@ table.al-table {
 
 .al-insight .al-table-wrap--cards {
   overflow: visible;
+}
+
+.al-insight .al-table-wrap--month {
+  overflow: hidden;
 }
 
 .al-insight .al-card-table {
@@ -2253,6 +2267,81 @@ table.al-table {
 }
 
 @media (max-width: 767px) {
+  .al-by-month .al-table-wrap--month {
+    overflow: hidden;
+    margin: 0 -2px;
+  }
+
+  .al-by-month .al-month-table {
+    width: 100%;
+    min-width: 0;
+    table-layout: fixed;
+    font-size: 0.68rem;
+  }
+
+  .al-by-month .al-month-table thead {
+    display: table-header-group;
+  }
+
+  .al-by-month .al-month-table tbody,
+  .al-by-month .al-month-table tfoot {
+    display: table-row-group;
+  }
+
+  .al-by-month .al-month-table tr.al-month-row,
+  .al-by-month .al-month-table tr.al-month-total {
+    display: table-row !important;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    grid-template-columns: none;
+    gap: 0;
+  }
+
+  .al-by-month .al-month-table th,
+  .al-by-month .al-month-table td {
+    display: table-cell;
+    padding: 6px 3px;
+    border-bottom: 1px solid var(--al-line) !important;
+    font-size: 0.68rem;
+    line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+  }
+
+  .al-by-month .al-month-table th:first-child,
+  .al-by-month .al-month-table td:first-child {
+    width: 22%;
+    padding-left: 2px;
+    white-space: nowrap;
+    font-weight: 600;
+  }
+
+  .al-by-month .al-month-table th.num,
+  .al-by-month .al-month-table td.num {
+    width: 19.5%;
+    padding-right: 2px;
+    text-align: right !important;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .al-by-month .al-th-full {
+    display: none;
+  }
+
+  .al-by-month .al-th-short {
+    display: inline;
+  }
+
+  .al-by-month .al-month-table tfoot th {
+    border-top: 2px solid var(--al-line);
+    padding-top: 8px;
+  }
+
   .al-insight .al-table-wrap--cards {
     overflow: visible;
   }
@@ -2360,6 +2449,11 @@ table.al-table {
   .al-rank-row.al-hover-target:hover td,
   .al-rank-row.al-hover-target:focus-within td {
     background: transparent;
+  }
+
+  .al-by-month .al-month-row.al-hover-target:hover td,
+  .al-by-month .al-month-row.al-hover-target:focus-within td {
+    background: rgba(0, 0, 0, 0.02);
   }
 
   .al-insight .al-card-table tbody tr:hover,

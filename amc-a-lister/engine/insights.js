@@ -442,12 +442,12 @@ function renderMonthTable(byMonth, moviesByMonth) {
   );
 
   return `
-    <div class="al-table-wrap al-table-wrap--cards al-table-wrap--month">
-      <table class="al-table al-month-table al-card-table">
+    <div class="al-table-wrap al-table-wrap--month">
+      <table class="al-table al-month-table">
         <thead>
           <tr>
             <th>Month</th>
-            <th class="num">Watched</th>
+            <th class="num" title="Watched"><span class="al-th-full">Watched</span><span class="al-th-short">#</span></th>
             <th class="num">Charged</th>
             <th class="num">Billed</th>
             <th class="num">Savings</th>
@@ -458,11 +458,11 @@ function renderMonthTable(byMonth, moviesByMonth) {
         </tbody>
         <tfoot>
           <tr class="al-month-total">
-            <th class="al-card-primary" scope="row">Total</th>
-            <th class="num" data-label="Watched">${totals.movies}</th>
-            <th class="num" data-label="Charged">${money(totals.charged)}</th>
-            <th class="num" data-label="Billed">${money(totals.bill)}</th>
-            <th class="num ${savingsClass(totals.savings)}" data-label="Savings">${formatSavings(totals.savings)}</th>
+            <th scope="row">Total</th>
+            <th class="num">${totals.movies}</th>
+            <th class="num">${money(totals.charged)}</th>
+            <th class="num">${money(totals.bill)}</th>
+            <th class="num ${savingsClass(totals.savings)}">${formatSavings(totals.savings)}</th>
           </tr>
         </tfoot>
       </table>
@@ -473,14 +473,14 @@ function renderMonthTable(byMonth, moviesByMonth) {
 function renderMonthRow(row, movies) {
   return `
     <tr class="al-month-row al-hover-target" tabindex="0">
-      <td class="al-card-primary" data-label="Month">
+      <td>
         ${escapeHtml(monthLabel(row.month))}
         ${renderMoviesPopup(movies, { empty: 'No movies this month.' })}
       </td>
-      <td class="num" data-label="Watched">${row.movies}</td>
-      <td class="num" data-label="Charged">${money(row.charged)}</td>
-      <td class="num" data-label="Billed">${money(row.bill)}</td>
-      <td class="num ${savingsClass(row.savings)}" data-label="Savings">${formatSavings(row.savings)}</td>
+      <td class="num">${row.movies}</td>
+      <td class="num">${money(row.charged)}</td>
+      <td class="num">${money(row.bill)}</td>
+      <td class="num ${savingsClass(row.savings)}">${formatSavings(row.savings)}</td>
     </tr>
   `;
 }
