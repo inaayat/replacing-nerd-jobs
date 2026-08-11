@@ -1780,6 +1780,74 @@ table.al-table {
   background: color-mix(in srgb, var(--al-burgundy) 6%, var(--al-panel));
 }
 
+.al-howto-title {
+  margin: 0 0 8px;
+  font-family: var(--al-font-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.al-howto-intro {
+  margin: 0 0 12px;
+}
+
+.al-howto-summary {
+  cursor: pointer;
+  font-family: var(--al-font-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--al-black);
+  list-style: none;
+}
+
+.al-howto-summary::-webkit-details-marker {
+  display: none;
+}
+
+.al-howto-summary::before {
+  content: '▸ ';
+  display: inline-block;
+  transition: transform 0.15s ease;
+}
+
+.al-howto-details[open] > .al-howto-summary::before {
+  transform: rotate(90deg);
+}
+
+.al-howto-body {
+  margin-top: 12px;
+}
+
+.al-howto-steps {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: grid;
+  gap: 10px;
+  color: var(--al-text);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.al-howto-steps li::marker {
+  color: var(--al-burgundy);
+  font-weight: 600;
+}
+
+.al-howto-steps a {
+  color: var(--al-burgundy);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.al-howto-steps a:hover {
+  text-decoration: underline;
+}
+
+.al-howto-steps code {
+  font-family: var(--al-font-mono);
+  font-size: 0.85em;
+}
+
 .al-toggle-btn {
   display: inline-flex;
   align-items: center;
