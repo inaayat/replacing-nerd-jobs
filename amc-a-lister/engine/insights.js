@@ -1,13 +1,13 @@
 import { bootPage, renderShell, requireSignIn, populateSidebarStats } from './nav.js';
 import { summaryApi, watchesApi } from './api.js';
-import { chargeMonth, topActorsByRating, topTheatersByRating } from './billing.js';
+import { chargeMonth, topActorsByRating, topTheatersByRating, ratingStarBucket, isExcludedTheaterLocation } from './billing.js';
 import { money, escapeHtml, monthLabel, shortDate } from './format.js';
 
 bootPage(async ({ root, auth }) => {
   if (!requireSignIn(auth, root)) return;
 
   root.innerHTML = renderShell({
-    title: 'Insights',
+    title: 'Statistics',
     subtitle: 'Where you watch, what you reward, and whether A-List is earning its keep.',
     body: `<main class="al-main al-main--insights" id="insights-main"><p class="al-muted">Loading…</p></main>`,
     signedIn: true,
@@ -82,7 +82,7 @@ function renderSpotlight({ summary, ratings, theaters, theatersByRating }) {
   const topRated = theatersByRating[0] || null;
 
   return `
-    <section class="al-insights-spotlight" aria-label="Insights highlights">
+    <section class="al-insights-spotlight" aria-label="Statistics highlights">
       ${spotlightCard({
     label: 'Avg rating',
     value: avgRating != null ? `${avgRating}★` : '—',
@@ -134,6 +134,7 @@ function renderRatingProfileSection(ratings, ratingBuckets, moviesByRating) {
       ${((ratings.dnf || 0) / Math.max(1, ratings.total || 0) * 100).toFixed(0)}% walk-out rate
     </p>
     <p class="al-muted al-insight-hint">
+      Ratings round down to whole stars (4.5 counts as 4★).
       <span class="al-hint-hover">Hover a rating to see films.</span>
       <span class="al-hint-touch">Tap a rating to see films.</span>
     </p>
@@ -400,7 +401,7 @@ function groupMoviesByRating(watches) {
   const map = new Map([[1, []], [2, []], [3, []], [4, []], [5, []]]);
   for (const watch of watches) {
     if (watch.dnf || watch.rating == null) continue;
-    const bucket = Math.min(5, Math.max(1, Math.round(watch.rating)));
+    const bucket = ratingStarBucket(watch.rating);
     map.get(bucket).push({
       title: watch.title,
       watched_on: watch.watched_on,
@@ -416,6 +417,7 @@ function groupMoviesByTheater(watches) {
   const map = new Map();
   for (const watch of watches) {
     const location = (watch.location || 'Unknown').trim() || 'Unknown';
+    if (isExcludedTheaterLocation(location)) continue;
     if (!map.has(location)) map.set(location, []);
     map.get(location).push({
       title: watch.title,

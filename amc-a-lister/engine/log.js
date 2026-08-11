@@ -2,6 +2,7 @@ import { bootPage, renderShell, requireSignIn, populateSidebarStats } from './na
 import { watchesApi, movieApi } from './api.js';
 import { money, shortDate, ratingLabel, escapeHtml, posterHtml } from './format.js';
 import { renderWatchEditForm, wireWatchEditForm } from './watch-form.js';
+import { ratingStarBucket } from './billing.js';
 
 let reloadLog;
 
@@ -41,8 +42,17 @@ async function loadLog(auth) {
           <option value="">All formats</option>
           ${formats.map((f) => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('')}
         </select>
-        <label class="al-check"><input type="checkbox" id="log-dnf" /> DNF only</label>
-        <button type="button" class="al-toggle-btn" id="log-include-home" aria-pressed="false">Watched at home</button>
+        <select class="al-select al-toolbar-filter" id="log-rating">
+          <option value="">All ratings</option>
+          <option value="5">5★</option>
+          <option value="4">4★</option>
+          <option value="3">3★</option>
+          <option value="2">2★</option>
+          <option value="1">1★</option>
+          <option value="dnf">DNF</option>
+          <option value="unrated">Unrated</option>
+        </select>
+        <button type="button" class="al-toggle-btn" id="log-include-home" aria-pressed="false">Include watched at home</button>
         <a href="/amc-a-lister/bulk-ratings.html" class="al-btn">Bulk edit ratings</a>
         <span class="al-muted" id="log-count"></span>
       </div>
@@ -74,7 +84,7 @@ async function loadLog(auth) {
     const q = document.getElementById('log-search').value.trim().toLowerCase();
     const theater = document.getElementById('log-theater').value;
     const format = document.getElementById('log-format').value;
-    const dnfOnly = document.getElementById('log-dnf').checked;
+    const rating = document.getElementById('log-rating').value;
     const includeHome = includeHomeOn();
 
     state.filtered = state.watches.filter((w) => {
@@ -82,7 +92,14 @@ async function loadLog(auth) {
       if (q && !`${w.title} ${w.location || ''}`.toLowerCase().includes(q)) return false;
       if (theater && w.location !== theater) return false;
       if (format && w.format !== format) return false;
-      if (dnfOnly && !w.dnf) return false;
+      if (rating === 'dnf') {
+        if (!w.dnf) return false;
+      } else if (rating === 'unrated') {
+        if (w.dnf || w.rating != null) return false;
+      } else if (rating) {
+        if (w.dnf || w.rating == null) return false;
+        if (String(ratingStarBucket(w.rating)) !== rating) return false;
+      }
       return true;
     });
     render();
@@ -95,7 +112,7 @@ async function loadLog(auth) {
     applyFilters();
   });
 
-  ['log-search', 'log-theater', 'log-format', 'log-dnf'].forEach((id) => {
+  ['log-search', 'log-theater', 'log-format', 'log-rating'].forEach((id) => {
     document.getElementById(id).addEventListener('input', applyFilters);
     document.getElementById(id).addEventListener('change', applyFilters);
   });

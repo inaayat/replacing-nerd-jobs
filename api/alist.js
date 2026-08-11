@@ -698,7 +698,6 @@ async function handleMembership(req, res) {
 
     if (req.method === 'PUT') {
       const body = req.body || {};
-      const promo = body.promo_cents != null ? Number(body.promo_cents) : undefined;
       const display = body.display_name != null ? String(body.display_name).trim() : undefined;
       const existing = await getMembership(userId);
 
@@ -713,18 +712,23 @@ async function handleMembership(req, res) {
       }
 
       const latest = priceTiers?.length ? priceTiers[priceTiers.length - 1] : null;
+      const rateSetupComplete = body.rate_setup_complete === false
+        ? false
+        : (body.price_tiers != null || existing.rate_setup_complete !== false);
       const rows = await db()`
         UPDATE alist_membership SET
-          promo_cents = ${promo ?? existing.promo_cents},
           price_tiers = ${JSON.stringify(priceTiers)},
           standard_cents = ${priceTiers?.[0]?.cents ?? existing.standard_cents},
           current_cents = ${latest?.cents ?? existing.current_cents},
           price_bump_on = ${latest?.effective_on ?? existing.price_bump_on},
           display_name = ${display ?? existing.display_name},
+          rate_setup_complete = ${rateSetupComplete},
+          promo_folded = true,
           updated_at = now()
         WHERE user_id = ${userId}
         RETURNING user_id, promo_cents, standard_cents, current_cents,
-                  price_bump_on::text AS price_bump_on, price_tiers, display_name, updated_at
+                  price_bump_on::text AS price_bump_on, price_tiers, display_name,
+                  rate_setup_complete, promo_folded, updated_at
       `;
       res.status(200).json({ membership: rows[0] });
       return;

@@ -1,27 +1,63 @@
 import './pwa.js';
-import { initAuth, wireAuthLink, refreshToken, authReturnUrl, loginUrl } from './auth.js';
-import { summaryApi } from './api.js';
+import { initAuth, wireAuthLink, refreshToken, loginUrl } from './auth.js';
+import { summaryApi, membershipApi } from './api.js';
 import { renderQuickLogBar, wireQuickLog } from './quick-log.js';
 
 const NAV_ACTIVE = document.body.dataset.page || '';
+const TV_BETA_KEY = 'alist.beta.tv';
 
 const PAGES = [
   { href: '/amc-a-lister/', label: 'Log', id: 'log' },
-  { href: '/amc-a-lister/what-to-watch.html', label: 'Watch', id: 'what-to-watch' },
-  { href: '/amc-a-lister/tv.html', label: 'TV', id: 'tv' },
-  { href: '/amc-a-lister/insights.html', label: 'Insights', id: 'insights' },
+  { href: '/amc-a-lister/what-to-watch.html', label: 'Want', id: 'what-to-watch' },
+  { href: '/amc-a-lister/tv.html', label: 'TV', id: 'tv', beta: 'tv' },
+  { href: '/amc-a-lister/statistics.html', label: 'Statistics', id: 'statistics' },
   { href: '/amc-a-lister/leaderboard.html', label: 'Leaderboard', id: 'leaderboard' },
-  { href: '/amc-a-lister/settings.html', label: 'Settings', id: 'settings' },
+  { href: '/amc-a-lister/settings.html', label: 'Settings', id: 'settings', mobileIcon: 'settings' },
 ];
 
+export function isTvBetaEnabled() {
+  try {
+    return localStorage.getItem(TV_BETA_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function setTvBetaEnabled(enabled) {
+  try {
+    localStorage.setItem(TV_BETA_KEY, enabled ? '1' : '0');
+  } catch {
+    // ignore storage failures
+  }
+}
+
+function visiblePages() {
+  return PAGES.filter((p) => {
+    if (p.beta === 'tv') return isTvBetaEnabled();
+    return true;
+  });
+}
+
+function settingsIconSvg() {
+  return `
+    <svg class="al-nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path fill="currentColor" d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.03 7.03 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.59.24-1.13.55-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.77 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.14.24.43.34.68.24l2.39-.96c.5.39 1.04.71 1.63.94l.36 2.54c.05.24.26.42.5.42h3.84c.24 0 .45-.18.5-.42l.36-2.54c.59-.24 1.13-.55 1.63-.94l2.39.96c.25.1.54 0 .68-.24l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5z"/>
+    </svg>
+  `;
+}
+
 export function renderShell({ title, subtitle, body = '', hideLogBar = false, signedIn = false } = {}) {
-  const links = PAGES.map((p) => {
+  const pages = visiblePages();
+  const links = pages.map((p) => {
     const active = p.id === NAV_ACTIVE ? ' is-active' : '';
     return `<a href="${p.href}" class="al-nav-link${active}">${p.label}</a>`;
   }).join('');
 
-  const mobileLinks = PAGES.map((p) => {
+  const mobileLinks = pages.map((p) => {
     const active = p.id === NAV_ACTIVE ? ' is-active' : '';
+    if (p.mobileIcon === 'settings') {
+      return `<a href="${p.href}" class="al-mobile-nav-link al-mobile-nav-link--icon${active}" aria-label="Settings" title="Settings">${settingsIconSvg()}</a>`;
+    }
     return `<a href="${p.href}" class="al-mobile-nav-link${active}">${p.label}</a>`;
   }).join('');
 
@@ -155,8 +191,24 @@ export async function populateSidebarStats(auth) {
   }
 }
 
+async function ensureMonthlyRateSetup(auth) {
+  if (!auth.signedIn || !auth.token) return true;
+  if (NAV_ACTIVE === 'settings') return true;
+  try {
+    const { membership } = await membershipApi.get(auth.token);
+    if (membership?.rate_setup_complete === false) {
+      location.replace('/amc-a-lister/settings.html?setup=rate');
+      return false;
+    }
+  } catch {
+    // ignore — page can still load
+  }
+  return true;
+}
+
 async function runBootPage(renderFn, auth, { quickLogOnSuccess } = {}) {
   const root = document.getElementById('app-root');
+  if (!(await ensureMonthlyRateSetup(auth))) return;
   await renderFn({ root, auth });
   wireAuthLink(auth);
   if (auth.signedIn && auth.token) {
@@ -233,7 +285,7 @@ export function requireSignIn(auth, root) {
           <ul class="al-bullets">
             <li>Log a screening in under 30 seconds</li>
             <li>See billed vs. ticket savings each month</li>
-            <li>Theater habits, format premiums, and rewatch stats on Insights</li>
+            <li>Theater habits, format premiums, and rewatch stats on Statistics</li>
           </ul>
           <p class="al-muted">Billing uses calendar months (1st–end), not the old sheet's 28th roll.</p>
           ${auth.configured ? `<p style="margin-top:12px"><a class="al-btn al-btn-primary" href="${loginHref}">Sign in to your log</a></p>` : ''}

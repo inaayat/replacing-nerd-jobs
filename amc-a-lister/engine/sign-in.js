@@ -156,7 +156,10 @@ async function init() {
         mode: 'signup',
       });
       if (error) showError(error.message || 'Sign-up failed.');
-      else await finishWithToken(token);
+      else {
+        storeAuthToken(token);
+        location.replace('/amc-a-lister/settings.html?setup=rate');
+      }
     } finally {
       submitBtn.disabled = false;
     }

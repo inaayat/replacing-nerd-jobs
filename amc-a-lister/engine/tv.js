@@ -1,4 +1,4 @@
-import { bootPage, renderShell, requireSignIn } from './nav.js';
+import { bootPage, renderShell, requireSignIn, isTvBetaEnabled } from './nav.js';
 import { tvWatchesApi, tvWatchlistApi, tvApi } from './api.js';
 import {
   sortAlreadyOut,
@@ -26,6 +26,15 @@ bootPage(async ({ root, auth }) => {
     signedIn: true,
   });
 
+  if (!isTvBetaEnabled()) {
+    document.getElementById('tv-main').innerHTML = `
+      <section class="al-panel">
+        <p>TV Shows is a beta feature. Enable it under <a href="/amc-a-lister/settings.html">Settings → Beta features</a>.</p>
+      </section>
+    `;
+    return;
+  }
+
   await loadPage(auth);
 });
 
@@ -40,7 +49,7 @@ async function loadPage(auth) {
 
   main.innerHTML = `
     <section class="al-panel al-panel--tv">
-      <p class="al-muted al-tv-stats-note">TV shows are not counted in A-List savings, insights, or leaderboard — only theater movie screenings are.</p>
+      <p class="al-muted al-tv-stats-note">TV shows are not counted in A-List savings, statistics, or leaderboard — only theater movie screenings are.</p>
       <div class="al-watchlist-header al-watchlist-header--compact">
         <h2 class="al-section-title" id="tv-section-title">${VIEWS.watched.label}</h2>
         <span class="al-muted" id="tv-count"></span>

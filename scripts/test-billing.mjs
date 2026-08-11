@@ -10,6 +10,9 @@ import {
   topActorsByRating,
   theaterStats,
   topTheatersByRating,
+  foldPromoIntoTiers,
+  ratingDistribution,
+  ratingStarBucket,
 } from '../lib/a-list-billing.js';
 
 const legacyMembership = {
@@ -17,10 +20,16 @@ const legacyMembership = {
   standard_cents: 2495,
   current_cents: 2799,
   price_bump_on: '2025-07-01',
+  promo_folded: true,
+  price_tiers: [
+    { effective_on: '2025-01-01', cents: 99 },
+    { effective_on: '2025-02-01', cents: 2495 },
+    { effective_on: '2025-07-01', cents: 2799 },
+  ],
 };
 
 const tieredMembership = {
-  promo_cents: 99,
+  promo_folded: true,
   price_tiers: [
     { effective_on: '2018-06-01', cents: 2495 },
     { effective_on: '2025-05-01', cents: 2799 },
@@ -46,6 +55,21 @@ assert.equal(monthlyRateForMonth('2026-08-01', tieredMembership), 2999);
 const tierMonths = ['2025-01-01', '2025-05-01', '2026-07-01'];
 assert.equal(monthlyBillForMonth('2025-05-01', tieredMembership, tierMonths), 2799);
 assert.equal(monthlyBillForMonth('2026-07-01', tieredMembership, tierMonths), 2999);
+
+const unmigrated = {
+  promo_cents: 99,
+  promo_folded: false,
+  price_tiers: [
+    { effective_on: '2018-06-01', cents: 2495 },
+    { effective_on: '2025-05-01', cents: 2799 },
+  ],
+};
+const folded = foldPromoIntoTiers(unmigrated, '2025-01-01');
+assert.equal(folded.changed, true);
+assert.equal(folded.tiers[0].cents, 99);
+assert.equal(folded.tiers[0].effective_on, '2025-01-01');
+assert.equal(folded.tiers[1].cents, 2495);
+assert.equal(folded.tiers[1].effective_on, '2025-02-01');
 
 const watches = [
   { watched_on: '2025-01-10', ticket_cents: 1800, title: 'A' },
@@ -89,7 +113,7 @@ const runtimeWatches = [
 const runtimeSummary = computeSummary(runtimeWatches, legacyMembership);
 assert.equal(runtimeSummary.avgRuntimeMin, 135);
 
-assert.equal(membershipPriceTiers(legacyMembership).length, 2);
+assert.equal(membershipPriceTiers(legacyMembership).length, 3);
 
 const castByTmdbId = new Map([
   [1, ['Actor A', 'Actor B']],
@@ -122,8 +146,19 @@ const theaterWatches = [
 const theaters = theaterStats(theaterWatches);
 assert.equal(theaters.find((t) => t.location === 'AMC Lincoln Square 13').avgRating, 4.7);
 assert.equal(theaters.find((t) => t.location === 'AMC Empire 25').avgRating, 2.5);
-assert.equal(theaters.find((t) => t.location === 'N/A - India').ratedCount, 1);
+assert.equal(theaters.find((t) => t.location === 'N/A - India'), undefined);
 assert.equal(topTheatersByRating(theaters)[0].location, 'AMC Lincoln Square 13');
 assert.equal(topTheatersByRating(theaters).length, 2);
+
+assert.equal(ratingStarBucket(4.5), 4);
+assert.equal(ratingStarBucket(4.9), 4);
+assert.equal(ratingStarBucket(5), 5);
+const ratings = ratingDistribution([
+  { rating: 4.5, dnf: false },
+  { rating: 4, dnf: false },
+  { rating: 3.2, dnf: false },
+]);
+assert.equal(ratings.buckets[4], 2);
+assert.equal(ratings.buckets[3], 1);
 
 console.log('billing tests passed');

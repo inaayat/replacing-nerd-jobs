@@ -1,4 +1,4 @@
-import { bootPage, renderShell, requireSignIn, populateSidebarStats } from './nav.js';
+import { bootPage, renderShell, requireSignIn, populateSidebarStats, isTvBetaEnabled, setTvBetaEnabled } from './nav.js';
 import { membershipApi, importApi } from './api.js';
 import { parseXlsxFile } from './import-xlsx.js';
 import { escapeHtml } from './format.js';
@@ -12,24 +12,35 @@ const DEFAULT_TIERS = [
 bootPage(async ({ root, auth }) => {
   if (!requireSignIn(auth, root)) return;
 
+  const params = new URLSearchParams(location.search);
+  const rateSetup = params.get('setup') === 'rate';
   const { membership } = await membershipApi.get(auth.token);
-  const tiers = resolveTiers(membership);
+  const needsRateSetup = rateSetup || membership.rate_setup_complete === false;
+  const tiers = resolveTiers(membership, needsRateSetup);
 
   root.innerHTML = renderShell({
     title: 'Settings',
-    subtitle: 'Membership pricing and spreadsheet import.',
+    subtitle: needsRateSetup
+      ? 'Set your A-List monthly rate to finish account setup.'
+      : 'Membership pricing, beta features, and spreadsheet import.',
     signedIn: true,
     body: `
     <main class="al-main">
+      ${needsRateSetup ? `
+        <section class="al-panel al-panel--setup">
+          <h2 class="serif">Set your monthly rate</h2>
+          <p class="al-muted">
+            Enter what A-List charges you each month. If your price changes later — or was different
+            in earlier periods — you can add price changes below (or anytime from this settings panel).
+          </p>
+        </section>
+      ` : ''}
+
       <form class="al-panel" id="membership-form">
         <div class="al-form-grid">
           <div class="al-field">
             <label for="display_name">Display name</label>
             <input class="al-input" id="display_name" value="${escapeHtml(membership.display_name || '')}" />
-          </div>
-          <div class="al-field">
-            <label for="promo_cents">Promo month ($)</label>
-            <input class="al-input" id="promo_cents" inputmode="decimal" value="${(membership.promo_cents / 100).toFixed(2)}" />
           </div>
         </div>
 
@@ -50,10 +61,20 @@ bootPage(async ({ root, auth }) => {
         </div>
 
         <div class="al-toolbar" style="margin-top:12px">
-          <button class="al-btn al-btn-primary" type="submit">Save membership</button>
+          <button class="al-btn al-btn-primary" type="submit">${needsRateSetup ? 'Save monthly rate' : 'Save membership'}</button>
           <p class="al-muted" id="membership-status" style="margin:0"></p>
         </div>
       </form>
+
+      <section class="al-panel">
+        <h2>Beta features</h2>
+        <p class="al-muted">Optional experiments. Turn these on when you want them in the nav.</p>
+        <label class="al-check al-check--block">
+          <input type="checkbox" id="beta-tv" ${isTvBetaEnabled() ? 'checked' : ''} />
+          TV Shows — track series separately from theater movies
+        </label>
+        <p class="al-muted" id="beta-tv-status" style="margin-top:8px"></p>
+      </section>
 
       <section class="al-panel">
         <h2>Import from A-List Tracking.xlsx</h2>
@@ -89,6 +110,16 @@ bootPage(async ({ root, auth }) => {
     }
   });
 
+  document.getElementById('beta-tv').addEventListener('change', (e) => {
+    setTvBetaEnabled(e.target.checked);
+    const status = document.getElementById('beta-tv-status');
+    status.textContent = e.target.checked
+      ? 'TV Shows enabled — it will show in the nav after refresh.'
+      : 'TV Shows hidden from nav.';
+    // Re-render shell nav without full reload
+    location.reload();
+  });
+
   const setStatus = (msg) => { document.getElementById('import-status').textContent = msg; };
 
   document.getElementById('membership-form').addEventListener('submit', async (e) => {
@@ -96,7 +127,6 @@ bootPage(async ({ root, auth }) => {
     const status = document.getElementById('membership-status');
     status.textContent = 'Saving…';
     try {
-      const dollars = (id) => Math.round(Number(document.getElementById(id).value) * 100);
       const price_tiers = collectTiers();
       if (!price_tiers.length) {
         status.textContent = 'Add at least one monthly rate.';
@@ -104,10 +134,13 @@ bootPage(async ({ root, auth }) => {
       }
       await membershipApi.update(auth.token, {
         display_name: document.getElementById('display_name').value.trim() || null,
-        promo_cents: dollars('promo_cents'),
         price_tiers,
+        rate_setup_complete: true,
       });
       status.textContent = 'Saved.';
+      if (needsRateSetup) {
+        location.replace('/amc-a-lister/');
+      }
     } catch (err) {
       status.textContent = err.message;
     }
@@ -141,9 +174,12 @@ bootPage(async ({ root, auth }) => {
   });
 }, { quickLogOnSuccess: (auth) => populateSidebarStats(auth) });
 
-function resolveTiers(membership) {
+function resolveTiers(membership, needsRateSetup) {
   if (Array.isArray(membership.price_tiers) && membership.price_tiers.length) {
     return [...membership.price_tiers].sort((a, b) => a.effective_on.localeCompare(b.effective_on));
+  }
+  if (needsRateSetup) {
+    return [{ effective_on: new Date().toISOString().slice(0, 10), cents: membership.current_cents || 2999 }];
   }
   if (membership.price_bump_on) {
     return [
