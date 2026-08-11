@@ -7,6 +7,7 @@ import {
   sortComingSoon,
   combinedWatchlistItems,
   isAlreadyOut,
+  releaseState,
 } from '../amc-a-lister/engine/watchlist-ui.js';
 
 let passed = 0;
@@ -43,8 +44,8 @@ assert(isAlreadyOut(items[3], today) === false, 'Aug 12 is coming soon');
 
 assertEqual(
   sortAlreadyOut(items, today).map((i) => i.title),
-  ['I Want Your Sex', 'Nimrods', 'Tony'],
-  'already-out is chronological ascending',
+  ['Tony', 'Nimrods', 'I Want Your Sex'],
+  'already-out is most recent first',
 );
 
 assertEqual(
@@ -53,18 +54,43 @@ assertEqual(
   'coming soon is soonest first',
 );
 
+// The page is called Coming Soon, so the next release leads and already-playing
+// titles follow (most recent first) carrying an "Already out" badge.
 assertEqual(
   combinedWatchlistItems(items, today).map((i) => i.release_date),
   [
-    '2026-07-29',
-    '2026-08-06',
-    '2026-08-07',
     '2026-08-12',
     '2026-08-13',
     '2026-08-20',
+    '2026-08-07',
+    '2026-08-06',
+    '2026-07-29',
   ],
-  'combined list reads as chronological release order',
+  'combined list leads with the soonest upcoming release',
 );
+
+// Undated entries sink to the end of the upcoming block, ahead of released ones.
+const withUndated = [
+  { id: 'a', title: 'Dated soon', release_date: '2026-09-01' },
+  { id: 'b', title: 'Year only', year: 2027 },
+  { id: 'c', title: 'No date at all' },
+  { id: 'd', title: 'Old release', release_date: '2020-01-01' },
+];
+assertEqual(
+  combinedWatchlistItems(withUndated, today).map((i) => i.title),
+  ['Dated soon', 'Year only', 'Old release', 'No date at all'],
+  'titles with no release data at all sort last, after already-out',
+);
+
+// A title with no date is "unknown", not "released" — it must not be badged
+// "Already out". Unlinked rows are common now that auto-linking needs an exact
+// title match.
+assert(releaseState({ title: 'Unlinked' }, today) === 'unknown', 'no date at all is unknown');
+assert(releaseState({ release_date: '2020-01-01' }, today) === 'released', 'past date is released');
+assert(releaseState({ release_date: '2027-01-01' }, today) === 'upcoming', 'future date is upcoming');
+assert(releaseState({ year: 2020 }, today) === 'released', 'past year is released');
+assert(releaseState({ year: 2026 }, today) === 'upcoming', 'current year is still upcoming');
+assert(isAlreadyOut({ title: 'Unlinked' }, today) === false, 'unknown is not badged as already out');
 
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

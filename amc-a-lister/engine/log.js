@@ -56,6 +56,7 @@ async function loadLog(auth) {
         <a href="/amc-a-lister/bulk-ratings.html" class="al-btn">Bulk edit ratings</a>
         <span class="al-muted" id="log-count"></span>
       </div>
+      <p class="al-error" id="log-error" role="alert" hidden></p>
       <div class="al-log-list-wrap" id="log-table"></div>
     </section>
   `;
@@ -112,20 +113,50 @@ async function loadLog(auth) {
     applyFilters();
   });
 
-  ['log-search', 'log-theater', 'log-format', 'log-rating'].forEach((id) => {
-    document.getElementById(id).addEventListener('input', applyFilters);
+  // Typing rebuilt the whole table and re-bound every listener on each
+  // keystroke; for a 100+ row log that is visibly laggy.
+  let searchTimer = null;
+  const debouncedFilters = () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(applyFilters, 120);
+  };
+
+  document.getElementById('log-search').addEventListener('input', debouncedFilters);
+  ['log-theater', 'log-format', 'log-rating'].forEach((id) => {
     document.getElementById(id).addEventListener('change', applyFilters);
   });
 
   applyFilters();
 }
 
+function showLogError(message) {
+  const el = document.getElementById('log-error');
+  if (!el) return;
+  el.textContent = message;
+  el.hidden = false;
+}
+
 function tableHtml(state) {
   const { filtered, editingId, expandedId } = state;
+  // "No matches" is wrong for someone who has never logged anything.
+  if (!state.watches.length) {
+    return `
+      <div class="al-empty al-empty--first-run">
+        <p><strong>No screenings yet.</strong></p>
+        <p class="al-muted">
+          Use the bar above to log one — a title and a date is enough, and the
+          rest of the fields appear once you start typing.
+        </p>
+        <p class="al-muted">
+          Already have a spreadsheet? <a href="/amc-a-lister/settings.html">Import it from Settings</a>.
+        </p>
+      </div>
+    `;
+  }
   if (!filtered.length) return '<div class="al-empty">No matches.</div>';
   return `
     <div class="al-log-list">
-      <div class="al-log-head" aria-hidden="true">
+      <div class="al-log-head" role="row">
         <span class="al-log-col al-col-poster"></span>
         <span class="al-log-col">Date</span>
         <span class="al-log-col">Title</span>
@@ -158,7 +189,7 @@ function viewEntryHtml(w, state) {
   const expanded = w.id === state.expandedId;
   return `
     <div class="al-log-entry ${expanded ? 'is-expanded' : ''}" data-entry-id="${w.id}">
-      <article class="al-log-row al-log-row--clickable ${expanded ? 'is-expanded' : ''}" data-expand-row tabindex="0" role="button" aria-expanded="${expanded}">
+      <article class="al-log-row al-log-row--clickable ${expanded ? 'is-expanded' : ''}" data-expand-row tabindex="0" aria-expanded="${expanded}" aria-label="Toggle details">
         <div class="al-log-col al-col-poster">${posterHtml(w)}</div>
         <div class="al-log-col al-log-col--desktop">${shortDate(w.watched_on)}</div>
         <div class="al-log-col--body">
@@ -319,13 +350,24 @@ function wireRowActions(auth, state, render) {
   document.querySelectorAll('[data-delete]').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
+      const id = btn.dataset.delete;
       if (!confirm('Delete this screening?')) return;
-      await watchesApi.remove(auth.token, btn.dataset.delete);
-      state.watches = state.watches.filter((w) => w.id !== btn.dataset.delete);
-      if (state.editingId === btn.dataset.delete) state.editingId = null;
-      if (state.expandedId === btn.dataset.delete) state.expandedId = null;
-      state.detailsCache.delete(btn.dataset.delete);
-      state.filtered = state.filtered.filter((w) => w.id !== btn.dataset.delete);
+
+      btn.disabled = true;
+      try {
+        await watchesApi.remove(auth.token, id);
+      } catch (err) {
+        // Previously unhandled: the row silently stayed put on any failure.
+        btn.disabled = false;
+        showLogError(err.message || 'Could not delete that screening.');
+        return;
+      }
+
+      state.watches = state.watches.filter((w) => w.id !== id);
+      state.filtered = state.filtered.filter((w) => w.id !== id);
+      if (state.editingId === id) state.editingId = null;
+      if (state.expandedId === id) state.expandedId = null;
+      state.detailsCache.delete(id);
       populateSidebarStats(auth);
       render();
     });

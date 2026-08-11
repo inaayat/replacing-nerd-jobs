@@ -19,6 +19,11 @@ Leaderboard, Member, Settings, Sign-in, Bulk ratings.
 | 21–33 | P2 | UX / flow | Want list never clears, no first-run state, orphaned pages, no import undo |
 | 34–39 | P2 | Accessibility | `aria-hidden` over focusable inputs, no reduced-motion, no keyboard nav in comboboxes |
 | 40–44 | P2 | Ops | Cache-first SW with manual versioning, vulnerable CDN dep, 502-for-everything |
+| 45 | P1 | Ops | `/lib/*.js` server source was served publicly as static files |
+| 46 | P1 | Correctness | Watchlist titles with no release date were labelled as already released |
+
+**Status: all phases implemented** on `alist-privacy-and-bugfixes`. Two items
+were resolved differently from the original plan — see *Deviations* at the end.
 
 ---
 
@@ -538,3 +543,53 @@ Note the ordering depends on `release_date`, which is populated lazily by
 `enrichWatchlistRows` (`api/alist.js:379-413`, capped at 12 lookups per request).
 Titles that have never been enriched sort as undated and sink to the bottom of
 the upcoming block. Worth a backfill pass alongside finding 18.
+
+
+---
+
+## Findings added during the build
+
+**45. `/lib/*.js` was publicly readable.** `vercel.json` sets
+`outputDirectory: "."`, so the whole repo is served statically and
+`GET /lib/db.js` returned 200 with the source, as did `lib/a-list.js` with all
+its SQL. No secrets are embedded (everything reads `process.env`), but the
+server logic had no business being public. `middleware.js` now matches
+`/lib/:path*` and 404s it. Verified `/package.json` and `/middleware.js` were
+already 404ing.
+
+**46. Undated watchlist titles claimed to be released.** `isAlreadyOut()`
+returned `true` when an item had neither `release_date` nor `year`, so an
+unlinked title was sorted with the released ones. That became a visible bug once
+released rows carry an "Already out" badge — and more common once auto-linking
+was tightened to exact matches. Replaced with `releaseState()` returning
+`upcoming | released | unknown`; unknown titles sort last and carry no badge.
+Caught by the sort test.
+
+---
+
+## Deviations from the plan
+
+**Billing gaps (finding 8) — documented, not changed.** The plan flagged that
+`billingChargeMonths` bills every calendar month since the first watch, which
+contradicts `PLAN.md:258`. Deciding between "bill only active months" and "add
+membership start/end dates" changes every number on the site — all-time savings,
+cost per movie, the leaderboard — so it is a call about your own money data, not
+a defect to silently pick a side on. The behaviour is unchanged and the totals
+you see today are unchanged. Still open.
+
+**xlsx (finding 41) — updated, not vendored.** The plan said vendor a current
+build locally. SheetJS left npm after 0.18.5, so there is no newer npm version
+for esm.sh to serve. `import-xlsx.js` now pulls `xlsx-0.20.3` from the vendor's
+own CDN (`cdn.sheetjs.com`), which clears the known advisories. It is still a
+runtime CDN import, so the offline-PWA caveat stands.
+
+**Server-side "now" is still UTC.** The client-side date bug (finding 5) is
+fixed via `engine/dates.js`. `computeSummary`'s notion of the current month
+still comes from the server clock, which is UTC on Vercel, so the current-period
+figure can flip a day early at a month boundary. Fixing it properly means
+sending the browser's timezone with the request; not done.
+
+**Statistics year filter (finding 32) — ledger only.** The "By month" table now
+has a year filter. The other panels are still all-time, because their numbers
+come from the server's `summary` payload rather than being recomputed client
+side.

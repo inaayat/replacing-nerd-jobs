@@ -2,13 +2,14 @@ import './pwa.js';
 import { initAuth, wireAuthLink, refreshToken, loginUrl } from './auth.js';
 import { summaryApi, membershipApi } from './api.js';
 import { renderQuickLogBar, wireQuickLog } from './quick-log.js';
+import { escapeHtml } from './format.js';
 
 const NAV_ACTIVE = document.body.dataset.page || '';
 const TV_BETA_KEY = 'alist.beta.tv';
 
 const PAGES = [
   { href: '/amc-a-lister/', label: 'Log', id: 'log' },
-  { href: '/amc-a-lister/what-to-watch.html', label: 'Want', id: 'what-to-watch' },
+  { href: '/amc-a-lister/what-to-watch.html', label: 'Coming Soon', id: 'what-to-watch' },
   { href: '/amc-a-lister/tv.html', label: 'TV', id: 'tv', beta: 'tv' },
   { href: '/amc-a-lister/statistics.html', label: 'Statistics', id: 'statistics' },
   { href: '/amc-a-lister/leaderboard.html', label: 'Leaderboard', id: 'leaderboard' },
@@ -212,7 +213,7 @@ async function runBootPage(renderFn, auth, { quickLogOnSuccess } = {}) {
   await renderFn({ root, auth });
   wireAuthLink(auth);
   if (auth.signedIn && auth.token) {
-    wireQuickLog(auth, { onSuccess: () => quickLogOnSuccess?.(auth) });
+    wireQuickLog(auth, { onSuccess: (logged) => quickLogOnSuccess?.(auth, logged) });
     populateSidebarStats(auth);
   }
 }
@@ -242,7 +243,7 @@ export async function bootPage(renderFn, { quickLogOnSuccess } = {}) {
           if (retryErr.status !== 401) {
             root.innerHTML = renderShell({
               title: 'Error',
-              body: `<main class="al-main"><div class="al-panel"><p class="al-error">${retryErr.message || 'Something went wrong.'}</p></div></main>`,
+              body: errorBody(retryErr),
             });
             return;
           }
@@ -255,9 +256,15 @@ export async function bootPage(renderFn, { quickLogOnSuccess } = {}) {
     }
     root.innerHTML = renderShell({
       title: 'Error',
-      body: `<main class="al-main"><div class="al-panel"><p class="al-error">${err.message || 'Something went wrong.'}</p></div></main>`,
+      body: errorBody(err),
     });
   }
+}
+
+/** Server messages can echo submitted values, so never interpolate them raw. */
+function errorBody(err) {
+  const message = escapeHtml(err?.message || 'Something went wrong.');
+  return `<main class="al-main"><div class="al-panel"><p class="al-error">${message}</p></div></main>`;
 }
 
 export function requireSignIn(auth, root) {

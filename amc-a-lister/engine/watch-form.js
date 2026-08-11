@@ -1,6 +1,7 @@
 import { movieApi } from './api.js';
 import { parseMoneyInput, escapeHtml } from './format.js';
 import { loadUserTheaters, wireTheaterSuggest } from './theater-suggest.js';
+import { wireComboboxKeys } from './combobox.js';
 
 export const WATCH_FORMATS = ['', 'IMAX', 'Dolby', 'IMAX 3D', '70MM', 'Q&A'];
 
@@ -21,9 +22,9 @@ export function renderWatchEditForm(watch, prefix = 'edit') {
         <label for="${prefix}-watched_on">Date seen</label>
         <input class="al-input" id="${prefix}-watched_on" type="date" required value="${watch.watched_on}" />
       </div>
-      <div class="al-field">
+      <div class="al-field" data-theater-only>
         <label for="${prefix}-ticket">Ticket value ($)</label>
-        <input class="al-input" id="${prefix}-ticket" inputmode="decimal" value="${ticketVal}" data-theater-only />
+        <input class="al-input" id="${prefix}-ticket" inputmode="decimal" value="${ticketVal}" />
       </div>
       <div class="al-field" data-theater-only>
         <label for="${prefix}-location">Theater</label>
@@ -50,6 +51,9 @@ export function renderWatchEditForm(watch, prefix = 'edit') {
       </div>
       <div class="al-field" style="display:flex;align-items:end" data-theater-only>
         <label class="al-check"><input type="checkbox" id="${prefix}-dnf" ${watch.dnf ? 'checked' : ''} /> DNF</label>
+      </div>
+      <div class="al-field" style="display:flex;align-items:end" data-theater-only>
+        <label class="al-check"><input type="checkbox" id="${prefix}-saw_alone" ${watch.saw_alone ? 'checked' : ''} /> Saw alone</label>
       </div>
       <div class="al-field" style="display:flex;align-items:end">
         <label class="al-check"><input type="checkbox" id="${prefix}-in_theaters" ${watch.in_theaters !== false ? 'checked' : ''} /> In theaters</label>
@@ -78,6 +82,7 @@ export function wireWatchEditForm(auth, watch, prefix, { onSave, onCancel }) {
   const theaterResultsEl = document.getElementById(`${prefix}-theater-results`);
   const tmdbInput = document.getElementById(`${prefix}-tmdb_id`);
   const dnfInput = document.getElementById(`${prefix}-dnf`);
+  const sawAloneInput = document.getElementById(`${prefix}-saw_alone`);
   const ratingInput = document.getElementById(`${prefix}-rating`);
   const inTheatersInput = document.getElementById(`${prefix}-in_theaters`);
   const statusEl = document.getElementById(`${prefix}-status`);
@@ -88,6 +93,8 @@ export function wireWatchEditForm(auth, watch, prefix, { onSave, onCancel }) {
   wireTheaterSuggest(locationInput, theaterResultsEl, {
     getTheaters: () => theaters,
   });
+  wireComboboxKeys(titleInput, resultsEl);
+  wireComboboxKeys(locationInput, theaterResultsEl);
 
   const syncTheaterFields = () => {
     const inTheaters = inTheatersInput.checked;
@@ -142,14 +149,20 @@ export function wireWatchEditForm(auth, watch, prefix, { onSave, onCancel }) {
     }, 300);
   });
 
-  form.addEventListener('click', (e) => {
+  document.addEventListener('click', (e) => {
     if (!e.target.closest('.al-search-wrap')) resultsEl.hidden = true;
   });
 
   form.querySelector('[data-cancel-edit]')?.addEventListener('click', () => onCancel?.());
 
+  const submitBtn = form.querySelector('button[type="submit"]');
+  let saving = false;
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (saving) return;
+    saving = true;
+    submitBtn.disabled = true;
     statusEl.textContent = 'Saving…';
 
     const inTheaters = inTheatersInput.checked;
@@ -163,6 +176,7 @@ export function wireWatchEditForm(auth, watch, prefix, { onSave, onCancel }) {
       ticket_cents: inTheaters ? parseMoneyInput(document.getElementById(`${prefix}-ticket`).value) : null,
       rating: inTheaters && dnfInput.checked ? null : (ratingInput.value ? Number(ratingInput.value) : null),
       dnf: inTheaters ? dnfInput.checked : false,
+      saw_alone: inTheaters ? sawAloneInput.checked : false,
       notes: inTheaters ? (document.getElementById(`${prefix}-notes`).value.trim() || null) : null,
       tmdb_id: tmdbInput.value ? Number(tmdbInput.value) : null,
       in_theaters: inTheaters,
@@ -176,6 +190,10 @@ export function wireWatchEditForm(auth, watch, prefix, { onSave, onCancel }) {
       await onSave(payload);
     } catch (err) {
       statusEl.textContent = err.message || 'Could not save.';
+    } finally {
+      // onSave usually re-renders and detaches this form; guard both paths.
+      saving = false;
+      if (submitBtn.isConnected) submitBtn.disabled = false;
     }
   });
 }

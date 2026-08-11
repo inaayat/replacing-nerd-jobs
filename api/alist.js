@@ -16,6 +16,8 @@ import {
   getLeaderboard,
   compareUsers,
   getUserPublicProfile,
+  getOwnProfile,
+  normalizeUsername,
 } from '../lib/a-list.js';
 import {
   computeSummary,
@@ -46,6 +48,8 @@ export default async function handler(req, res) {
       return handleMembership(req, res);
     case 'import':
       return handleImport(req, res);
+    case 'backfill-posters':
+      return handleBackfill(req, res);
     case 'movie-lookup':
       return handleMovieLookup(req, res);
     case 'movie-details':
@@ -145,102 +149,184 @@ async function applyBulkRatingUpdates(userId, rawUpdates) {
   return updated;
 }
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Validates before the value reaches Postgres. Without this a malformed date or
+ * an out-of-range rating (the column is NUMERIC(2,1), so 500 overflows) came
+ * back as a 502 with raw driver text in the UI.
+ *
+ * @returns {{ data: object } | { error: string }}
+ */
 function normalizeBody(body) {
-  const rating = body.dnf ? null : (body.rating != null ? Number(body.rating) : null);
-  const inTheaters = body.in_theaters !== false;
-  return {
-    watched_on: body.watched_on,
-    title: String(body.title || '').trim(),
-    tmdb_id: body.tmdb_id != null ? Number(body.tmdb_id) : null,
-    location: body.location ? String(body.location).trim() : null,
-    format: body.format ? String(body.format).trim() : '',
-    saw_alone: !!body.saw_alone,
-    auditorium: body.auditorium ? String(body.auditorium).trim() : null,
-    seat: body.seat ? String(body.seat).trim() : null,
-    ticket_cents: inTheaters && body.ticket_cents != null ? Number(body.ticket_cents) : null,
-    rating,
-    dnf: !!body.dnf,
-    notes: body.notes ? String(body.notes).trim() : null,
-    in_theaters: inTheaters,
-  };
-}
+  const watched_on = String(body.watched_on || '').slice(0, 10);
+  if (!ISO_DATE.test(watched_on) || Number.isNaN(Date.parse(watched_on))) {
+    return { error: 'watched_on must be a date in YYYY-MM-DD format.' };
+  }
 
-async function enrichMissingPosters(userId, watches) {
-  const apiKey = getTmdbApiKey();
-  if (!apiKey || !process.env.DATABASE_URL) return watches;
+  const title = String(body.title || '').trim();
+  if (!title) return { error: 'title is required.' };
+  if (title.length > 300) return { error: 'title is too long.' };
 
-  await ensureSchema();
-  let updated = watches.map((w) => ({ ...w }));
-  const posterById = new Map();
-
-  const missingIds = [...new Set(
-    updated.filter((w) => w.tmdb_id && !w.poster_path).map((w) => w.tmdb_id),
-  )];
-  for (const tmdbId of missingIds.slice(0, 12)) {
-    try {
-      const movie = await getMovieDetails(tmdbId, { apiKey });
-      if (!movie) continue;
-      if (movie.poster_path) posterById.set(tmdbId, movie.poster_path);
-    } catch {
-      // Skip failed lookups; list still works without posters.
+  const dnf = !!body.dnf;
+  let rating = null;
+  if (!dnf && body.rating != null && body.rating !== '') {
+    rating = Number(body.rating);
+    if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
+      return { error: 'rating must be between 1 and 5.' };
     }
   }
 
-  updated = updated.map((w) => ({
-    ...w,
-    poster_path: w.poster_path || (w.tmdb_id ? posterById.get(w.tmdb_id) : null) || null,
-  }));
-
-  const needsTitleLookup = updated.filter((w) => !w.poster_path && w.title);
-  const titleToWatches = new Map();
-  for (const w of needsTitleLookup) {
-    const key = normalizeTitle(w.title);
-    if (!titleToWatches.has(key)) titleToWatches.set(key, []);
-    titleToWatches.get(key).push(w);
+  const inTheaters = body.in_theaters !== false;
+  let ticket_cents = null;
+  if (inTheaters && body.ticket_cents != null && body.ticket_cents !== '') {
+    ticket_cents = Number(body.ticket_cents);
+    if (!Number.isInteger(ticket_cents) || ticket_cents < 0 || ticket_cents > 10_000_00) {
+      return { error: 'ticket price must be a positive amount under $10,000.' };
+    }
   }
 
-  const titleMatches = new Map();
-  let titleLookups = 0;
+  let tmdb_id = null;
+  if (body.tmdb_id != null && body.tmdb_id !== '') {
+    tmdb_id = Number(body.tmdb_id);
+    if (!Number.isInteger(tmdb_id) || tmdb_id <= 0) {
+      return { error: 'tmdb_id must be a positive integer.' };
+    }
+  }
 
-  for (const [titleKey, group] of titleToWatches) {
-    if (titleLookups >= 10) break;
-    const sampleTitle = group[0].title;
+  return {
+    data: {
+      watched_on,
+      title,
+      tmdb_id,
+      location: body.location ? String(body.location).trim().slice(0, 200) : null,
+      format: body.format ? String(body.format).trim().slice(0, 40) : '',
+      saw_alone: !!body.saw_alone,
+      auditorium: body.auditorium ? String(body.auditorium).trim().slice(0, 40) : null,
+      seat: body.seat ? String(body.seat).trim().slice(0, 40) : null,
+      ticket_cents,
+      rating,
+      dnf,
+      notes: body.notes ? String(body.notes).trim().slice(0, 2000) : null,
+      in_theaters: inTheaters,
+    },
+  };
+}
+
+/**
+ * Fill in posters from the local cache only — one query, no network.
+ *
+ * This used to make up to 12 TMDB detail calls plus 10 search calls, all
+ * awaited in sequence, on *every* list request. That put ~22 serial round trips
+ * in the hot path of the app's most-used endpoint. The network work now lives
+ * in backfillPosters(), triggered explicitly from Settings.
+ */
+async function enrichMissingPosters(userId, watches) {
+  if (!process.env.DATABASE_URL) return watches;
+
+  const missingIds = [...new Set(
+    watches.filter((w) => w.tmdb_id && !w.poster_path).map((w) => Number(w.tmdb_id)),
+  )];
+  if (!missingIds.length) return watches;
+
+  await ensureSchema();
+  const rows = await db()`
+    SELECT tmdb_id, poster_path
+    FROM alist_movie_cache
+    WHERE tmdb_id = ANY(${missingIds}) AND poster_path IS NOT NULL
+  `;
+  if (!rows.length) return watches;
+
+  const posterById = new Map(rows.map((r) => [Number(r.tmdb_id), r.poster_path]));
+  return watches.map((w) => ({
+    ...w,
+    poster_path: w.poster_path || posterById.get(Number(w.tmdb_id)) || null,
+  }));
+}
+
+/**
+ * Bounded, explicit backfill: link untagged titles to TMDB and cache their
+ * artwork. Reports what it did so the caller can run it again for the rest.
+ */
+async function backfillPosters(userId, limit = 20) {
+  const apiKey = getTmdbApiKey();
+  if (!apiKey) return { linked: 0, cached: 0, remaining: 0 };
+
+  await ensureSchema();
+  const rows = await listWatches(userId);
+  const watches = rows.map(watchFromRow);
+
+  const uncachedIds = [...new Set(
+    watches.filter((w) => w.tmdb_id && !w.poster_path).map((w) => Number(w.tmdb_id)),
+  )];
+  const untitled = [];
+  const seenTitles = new Set();
+  for (const w of watches) {
+    if (w.tmdb_id) continue;
+    const key = normalizeTitle(w.title);
+    if (!key || seenTitles.has(key)) continue;
+    seenTitles.add(key);
+    untitled.push(w);
+  }
+
+  let cached = 0;
+  let linked = 0;
+  let budget = limit;
+
+  for (const tmdbId of uncachedIds) {
+    if (budget <= 0) break;
+    budget -= 1;
     try {
-      const results = await searchMovies(sampleTitle, { apiKey });
-      const match = pickBestMatch(results, sampleTitle);
-      if (!match?.poster_path) continue;
-      await cacheMovieRecord(match);
-      titleMatches.set(titleKey, match);
-      titleLookups += 1;
+      const movie = await getMovieDetails(tmdbId, { apiKey });
+      if (movie?.poster_path) cached += 1;
+    } catch {
+      // A failed lookup just means no poster; the row still works.
+    }
+  }
 
-      for (const w of group) {
-        if (!w.tmdb_id) {
-          await db()`
-            UPDATE alist_watches
-            SET tmdb_id = ${match.tmdb_id}, updated_at = now()
-            WHERE id = ${w.id} AND user_id = ${userId} AND tmdb_id IS NULL
-          `;
-        }
-      }
+  for (const w of untitled) {
+    if (budget <= 0) break;
+    budget -= 1;
+    try {
+      const results = await searchMovies(w.title, { apiKey });
+      const match = pickBestMatch(results, w.title);
+      if (!match) continue;
+      await cacheMovieRecord(match);
+      const updated = await db()`
+        UPDATE alist_watches
+        SET tmdb_id = ${match.tmdb_id}, updated_at = now()
+        WHERE user_id = ${userId} AND tmdb_id IS NULL AND lower(title) = ${w.title.toLowerCase()}
+        RETURNING id
+      `;
+      linked += updated.length;
     } catch {
       // Skip failed title lookups.
     }
   }
 
-  return updated.map((w) => {
-    const match = titleMatches.get(normalizeTitle(w.title));
-    if (!match) {
-      return {
-        ...w,
-        poster_path: w.poster_path || (w.tmdb_id ? posterById.get(w.tmdb_id) : null) || null,
-      };
-    }
-    return {
-      ...w,
-      tmdb_id: w.tmdb_id || match.tmdb_id,
-      poster_path: w.poster_path || match.poster_path || null,
-    };
-  });
+  const remaining = Math.max(0, uncachedIds.length + untitled.length - limit);
+  return { linked, cached, remaining };
+}
+
+async function handleBackfill(req, res) {
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Use POST.' });
+    return;
+  }
+  if (!requireDb(res)) return;
+  const session = await requireUser(req, res);
+  if (!session) return;
+
+  if (!getTmdbApiKey()) {
+    res.status(503).json({ error: 'TMDB_API_KEY not configured.' });
+    return;
+  }
+
+  try {
+    res.status(200).json(await backfillPosters(session.userId));
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
 }
 
 async function handleWatches(req, res) {
@@ -262,11 +348,12 @@ async function handleWatches(req, res) {
   }
 
   if (req.method === 'POST') {
-    const data = normalizeBody(req.body || {});
-    if (!data.watched_on || !data.title) {
-      res.status(400).json({ error: 'watched_on and title are required.' });
+    const parsed = normalizeBody(req.body || {});
+    if (parsed.error) {
+      res.status(400).json({ error: parsed.error });
       return;
     }
+    const { data } = parsed;
     const id = randomUUID();
     try {
       const rows = await db()`
@@ -312,11 +399,12 @@ async function handleWatches(req, res) {
       res.status(400).json({ error: 'id is required.' });
       return;
     }
-    const data = normalizeBody(req.body || {});
-    if (!data.watched_on || !data.title) {
-      res.status(400).json({ error: 'watched_on and title are required.' });
+    const parsed = normalizeBody(req.body || {});
+    if (parsed.error) {
+      res.status(400).json({ error: parsed.error });
       return;
     }
+    const { data } = parsed;
     try {
       const rows = await db()`
         UPDATE alist_watches SET
@@ -439,6 +527,21 @@ async function handleWatchlist(req, res) {
     const id = randomUUID();
 
     try {
+      // Adding the same film twice produced two identical rows.
+      const dupe = tmdbId
+        ? await db()`
+            SELECT id FROM alist_watchlist
+            WHERE user_id = ${userId} AND tmdb_id = ${tmdbId}
+          `
+        : await db()`
+            SELECT id FROM alist_watchlist
+            WHERE user_id = ${userId} AND lower(title) = ${title.toLowerCase()}
+          `;
+      if (dupe.length) {
+        res.status(409).json({ error: `${title} is already on your list.` });
+        return;
+      }
+
       if (tmdbId && getTmdbApiKey()) {
         await getMovieDetails(tmdbId);
       }
@@ -563,6 +666,12 @@ async function handleUserProfile(req, res) {
   }
   if (!requireDbRead(res)) return;
 
+  const currentUserId = await optionalAuthUserId(req);
+  if (!currentUserId) {
+    res.status(401).json({ error: 'Sign in to view member profiles.' });
+    return;
+  }
+
   const userId = String(req.query?.user || '').trim();
   if (!userId) {
     res.status(400).json({ error: 'user id is required.' });
@@ -570,12 +679,16 @@ async function handleUserProfile(req, res) {
   }
 
   try {
-    const profile = await getUserPublicProfile(userId);
+    // Your own profile is readable regardless of opt-in state; everyone
+    // else's requires public_profile, and a private one 404s like a
+    // nonexistent id so opt-out status can't be probed.
+    const profile = userId === currentUserId
+      ? await getOwnProfile(currentUserId)
+      : await getUserPublicProfile(userId);
     if (!profile) {
       res.status(404).json({ error: 'User not found.' });
       return;
     }
-    const currentUserId = await optionalAuthUserId(req);
     res.status(200).json({ profile, currentUserId });
   } catch (err) {
     res.status(502).json({ error: err.message });
@@ -595,19 +708,17 @@ async function handleLeaderboardCompare(req, res) {
     return;
   }
 
-  let youId = String(req.query?.you || '').trim();
+  // "You" is always the session, never a query param — otherwise anyone could
+  // diff any two members' logs.
+  const youId = await optionalAuthUserId(req);
   if (!youId) {
-    youId = await optionalAuthUserId(req);
-  }
-  if (!youId) {
-    res.status(400).json({ error: 'you user id is required when not signed in.' });
+    res.status(401).json({ error: 'Sign in to compare logs.' });
     return;
   }
 
   try {
-    const currentUserId = await optionalAuthUserId(req);
     const comparison = await compareUsers(youId, withUserId);
-    res.status(200).json({ ...comparison, currentUserId });
+    res.status(200).json({ ...comparison, currentUserId: youId });
   } catch (err) {
     const status = err.message === 'User not found.' ? 404 : 400;
     res.status(status).json({ error: err.message });
@@ -701,6 +812,30 @@ async function handleMembership(req, res) {
       const display = body.display_name != null ? String(body.display_name).trim() : undefined;
       const existing = await getMembership(userId);
 
+      let username = existing.username;
+      if (body.username !== undefined) {
+        const result = normalizeUsername(body.username);
+        if (result.error) {
+          res.status(400).json({ error: result.error });
+          return;
+        }
+        username = result.username;
+      }
+
+      const publicProfile = body.public_profile !== undefined
+        ? body.public_profile === true
+        : existing.public_profile === true;
+      const hideTheaters = body.public_hide_theaters !== undefined
+        ? body.public_hide_theaters === true
+        : existing.public_hide_theaters === true;
+
+      // A public profile with no handle would have to fall back to a real name
+      // or an email, which is exactly what this model exists to prevent.
+      if (publicProfile && !username) {
+        res.status(400).json({ error: 'Pick a username before joining the leaderboard.' });
+        return;
+      }
+
       let priceTiers = existing.price_tiers;
       if (body.price_tiers != null) {
         const normalized = normalizePriceTiers(body.price_tiers);
@@ -715,21 +850,34 @@ async function handleMembership(req, res) {
       const rateSetupComplete = body.rate_setup_complete === false
         ? false
         : (body.price_tiers != null || existing.rate_setup_complete !== false);
-      const rows = await db()`
-        UPDATE alist_membership SET
-          price_tiers = ${JSON.stringify(priceTiers)},
-          standard_cents = ${priceTiers?.[0]?.cents ?? existing.standard_cents},
-          current_cents = ${latest?.cents ?? existing.current_cents},
-          price_bump_on = ${latest?.effective_on ?? existing.price_bump_on},
-          display_name = ${display ?? existing.display_name},
-          rate_setup_complete = ${rateSetupComplete},
-          promo_folded = true,
-          updated_at = now()
-        WHERE user_id = ${userId}
-        RETURNING user_id, promo_cents, standard_cents, current_cents,
-                  price_bump_on::text AS price_bump_on, price_tiers, display_name,
-                  rate_setup_complete, promo_folded, updated_at
-      `;
+      let rows;
+      try {
+        rows = await db()`
+          UPDATE alist_membership SET
+            price_tiers = ${JSON.stringify(priceTiers)},
+            standard_cents = ${priceTiers?.[0]?.cents ?? existing.standard_cents},
+            current_cents = ${latest?.cents ?? existing.current_cents},
+            price_bump_on = ${latest?.effective_on ?? existing.price_bump_on},
+            display_name = ${display ?? existing.display_name},
+            username = ${username},
+            public_profile = ${publicProfile},
+            public_hide_theaters = ${hideTheaters},
+            rate_setup_complete = ${rateSetupComplete},
+            promo_folded = true,
+            updated_at = now()
+          WHERE user_id = ${userId}
+          RETURNING user_id, promo_cents, standard_cents, current_cents,
+                    price_bump_on::text AS price_bump_on, price_tiers, display_name,
+                    username, public_profile, public_hide_theaters,
+                    rate_setup_complete, promo_folded, updated_at
+        `;
+      } catch (err) {
+        if (err.message?.includes('alist_membership_username_lower')) {
+          res.status(409).json({ error: 'That username is taken.' });
+          return;
+        }
+        throw err;
+      }
       res.status(200).json({ membership: rows[0] });
       return;
     }
@@ -739,6 +887,9 @@ async function handleMembership(req, res) {
     res.status(502).json({ error: err.message });
   }
 }
+
+const MAX_IMPORT_ROWS = 2000;
+const IMPORT_BATCH_SIZE = 100;
 
 function watchKey(w) {
   return `${w.watched_on}|${(w.title || '').toLowerCase()}|${(w.location || '').toLowerCase()}`;
@@ -762,6 +913,12 @@ async function handleImport(req, res) {
     res.status(400).json({ error: 'watches array is required.' });
     return;
   }
+  if (watches.length > MAX_IMPORT_ROWS) {
+    res.status(413).json({
+      error: `That's ${watches.length} rows — import at most ${MAX_IMPORT_ROWS} at a time.`,
+    });
+    return;
+  }
 
   try {
     const userId = await upsertUser(auth);
@@ -773,8 +930,8 @@ async function handleImport(req, res) {
     `;
     const seen = new Set(existing.map(watchKey));
 
-    let inserted = 0;
     let skipped = 0;
+    const pending = [];
 
     for (const raw of watches) {
       const data = {
@@ -805,19 +962,31 @@ async function handleImport(req, res) {
         continue;
       }
       seen.add(key);
+      pending.push(data);
+    }
 
+    // Batched rather than one awaited INSERT per row: a 100-row sheet was 100
+    // sequential round trips inside a single function invocation.
+    let inserted = 0;
+    for (let i = 0; i < pending.length; i += IMPORT_BATCH_SIZE) {
+      const batch = pending.slice(i, i + IMPORT_BATCH_SIZE);
       await db()`
         INSERT INTO alist_watches (
           id, user_id, watched_on, title, tmdb_id, location, format,
           saw_alone, auditorium, seat, ticket_cents, rating, dnf, notes
-        ) VALUES (
-          ${randomUUID()}, ${userId}, ${data.watched_on}, ${data.title},
-          ${data.tmdb_id}, ${data.location}, ${data.format}, ${data.saw_alone},
-          ${data.auditorium}, ${data.seat}, ${data.ticket_cents}, ${data.rating},
-          ${data.dnf}, ${data.notes}
+        )
+        SELECT
+          gen_random_uuid()::text, ${userId}, r.watched_on::date, r.title,
+          r.tmdb_id::int, r.location, r.format, r.saw_alone::boolean,
+          r.auditorium, r.seat, r.ticket_cents::int, r.rating::numeric(2,1),
+          r.dnf::boolean, r.notes
+        FROM jsonb_to_recordset(${JSON.stringify(batch)}::jsonb) AS r(
+          watched_on text, title text, tmdb_id int, location text, format text,
+          saw_alone boolean, auditorium text, seat text, ticket_cents int,
+          rating numeric, dnf boolean, notes text
         )
       `;
-      inserted += 1;
+      inserted += batch.length;
     }
 
     res.status(200).json({ inserted, skipped, total: watches.length });

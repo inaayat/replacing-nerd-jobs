@@ -196,7 +196,8 @@ export function computeSummary(watches, membership, options = {}) {
   const currentWatches = watches.filter((w) => chargeMonth(w.watched_on) === currentMonth);
   const currentCharged = currentWatches.reduce((s, w) => s + (w.ticket_cents || 0), 0);
   const currentBill = monthlyBillForMonth(currentMonth, membership, months);
-  const breakEvenTickets = Math.max(0, Math.ceil((currentBill - currentCharged) / 15));
+  const ticketBasis = avgTicket > 0 ? avgTicket : 1500;
+  const breakEvenTickets = Math.max(0, Math.ceil((currentBill - currentCharged) / ticketBasis));
 
   return {
     totalBilled,
@@ -222,15 +223,28 @@ export function isExcludedTheaterLocation(location) {
   return /N\/A/i.test(String(location || ''));
 }
 
+/**
+ * Grouping key for a free-text theater name. Location is typed by hand, so
+ * "AMC Lincoln Square 13", "amc lincoln square 13" and a stray double space
+ * used to split into three separate theaters and fragment every venue stat.
+ */
+export function theaterKey(location) {
+  return String(location || 'Unknown')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ') || 'unknown';
+}
+
 export function theaterStats(watches) {
   const map = new Map();
   for (const w of watches) {
     const loc = (w.location || 'Unknown').trim() || 'Unknown';
     if (isExcludedTheaterLocation(loc)) continue;
-    if (!map.has(loc)) {
-      map.set(loc, { location: loc, count: 0, charged: 0, ratingSum: 0, ratedCount: 0 });
+    const key = theaterKey(loc);
+    if (!map.has(key)) {
+      map.set(key, { location: loc, count: 0, charged: 0, ratingSum: 0, ratedCount: 0 });
     }
-    const row = map.get(loc);
+    const row = map.get(key);
     row.count += 1;
     row.charged += w.ticket_cents || 0;
     if (!w.dnf && w.rating != null) {

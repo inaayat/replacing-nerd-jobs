@@ -16,6 +16,25 @@ const VIEWS = {
 };
 
 bootPage(async ({ root, auth }) => {
+  if (!isTvBetaEnabled()) {
+    root.innerHTML = renderShell({
+      title: 'TV Shows',
+      subtitle: 'This one is still in beta.',
+      signedIn: auth.signedIn,
+      body: `
+        <main class="al-main">
+          <section class="al-panel">
+            <p class="al-muted">TV tracking is off for your account.</p>
+            <p style="margin-top:12px">
+              <a class="al-btn al-btn-primary" href="/amc-a-lister/settings.html">Turn it on in Settings</a>
+            </p>
+          </section>
+        </main>
+      `,
+    });
+    return;
+  }
+
   if (!requireSignIn(auth, root)) return;
 
   root.innerHTML = renderShell({
@@ -211,7 +230,6 @@ async function loadPage(auth) {
     detailsApi: tvApi,
     detailsKind: 'tv',
     logLabel: 'Log watched',
-    shadeComingSoon: true,
     getItems: getFilteredWatchlistItems,
     emptyMessage: () => (state.watchlistSearch.trim()
       ? 'No matches.'

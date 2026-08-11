@@ -1,46 +1,51 @@
-const CACHE = 'amc-a-lister-v13';
+/**
+ * Network-first for the app shell, cache-first for immutable assets.
+ *
+ * The previous version was cache-first for everything and purged only when the
+ * CACHE string was hand-edited. Two things went wrong with that: a deploy that
+ * forgot to bump the version served stale JS indefinitely, and the PRECACHE list
+ * omitted most engine modules, so those were runtime-cached on their own
+ * schedule and could mix old and new module versions against each other.
+ *
+ * BUILD_ID is rewritten on deploy (or falls back to the date below), so a new
+ * deploy always lands in a fresh cache.
+ */
+const BUILD_ID = '2026-08-11a';
+const CACHE = `amc-a-lister-${BUILD_ID}`;
 
+// Only genuinely static, rarely-changing assets. HTML and JS are fetched fresh
+// and merely fall back to the cache when offline.
 const PRECACHE = [
   '/amc-a-lister/',
-  '/amc-a-lister/index.html',
   '/amc-a-lister/manifest.webmanifest',
   '/amc-a-lister/icon.svg',
   '/amc-a-lister/icons/icon-192.png',
   '/amc-a-lister/icons/icon-512.png',
-  '/amc-a-lister/engine/app.css',
-  '/amc-a-lister/engine/nav.js',
-  '/amc-a-lister/engine/auth.js',
-  '/amc-a-lister/engine/api.js',
-  '/amc-a-lister/engine/format.js',
-  '/amc-a-lister/engine/billing.js',
-  '/amc-a-lister/engine/insights.js',
-  '/amc-a-lister/what-to-watch.html',
-  '/amc-a-lister/tv.html',
-  '/amc-a-lister/statistics.html',
-  '/amc-a-lister/insights.html',
-  '/amc-a-lister/leaderboard.html',
-  '/amc-a-lister/settings.html',
-  '/amc-a-lister/add.html',
-  '/amc-a-lister/bulk-ratings.html',
-  '/amc-a-lister/engine/bulk-ratings.js',
-  '/amc-a-lister/member.html',
-  '/amc-a-lister/sign-in.html',
-  '/amc-a-lister/engine/sign-in.js',
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((cache) => cache.addAll(PRECACHE)).then(() => self.skipWaiting()),
+    caches.open(CACHE)
+      // A single missing entry must not fail the whole install.
+      .then((cache) => Promise.allSettled(PRECACHE.map((url) => cache.add(url))))
+      .then(() => self.skipWaiting()),
   );
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(
+        keys.filter((key) => key.startsWith('amc-a-lister-') && key !== CACHE)
+          .map((key) => caches.delete(key)),
+      ))
       .then(() => self.clients.claim()),
   );
 });
+
+function isImmutableAsset(pathname) {
+  return /\.(png|svg|webmanifest|woff2?)$/.test(pathname);
+}
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
@@ -51,19 +56,28 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/api/')) return;
   if (!url.pathname.startsWith('/amc-a-lister/')) return;
 
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      const network = fetch(request)
-        .then((response) => {
-          if (response.ok) {
-            const copy = response.clone();
-            caches.open(CACHE).then((cache) => cache.put(request, copy));
-          }
-          return response;
-        })
-        .catch(() => cached);
+  if (isImmutableAsset(url.pathname)) {
+    event.respondWith(
+      caches.match(request).then((cached) => cached || fetchAndCache(request)),
+    );
+    return;
+  }
 
-      return cached || network;
-    }),
+  // HTML and JS: always try the network so a deploy takes effect on the next
+  // load, and fall back to the cache only when genuinely offline.
+  event.respondWith(
+    fetchAndCache(request).catch(() => caches.match(request).then(
+      (cached) => cached || caches.match('/amc-a-lister/'),
+    )),
   );
 });
+
+function fetchAndCache(request) {
+  return fetch(request).then((response) => {
+    if (response.ok) {
+      const copy = response.clone();
+      caches.open(CACHE).then((cache) => cache.put(request, copy));
+    }
+    return response;
+  });
+}
