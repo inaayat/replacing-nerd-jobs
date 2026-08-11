@@ -248,7 +248,7 @@ a { color: var(--al-burgundy); }
 }
 
 .al-quicklog.has-title:not(.is-off-theater) .al-quicklog-primary {
-  grid-template-columns: minmax(0, 120px) minmax(0, 2fr) minmax(0, 1.4fr) minmax(0, 80px) auto;
+  grid-template-columns: minmax(0, 120px) minmax(0, 2fr) minmax(0, 1.5fr) minmax(5.5rem, 7rem) auto;
 }
 
 @media (max-width: 720px) {
@@ -2665,6 +2665,7 @@ table.al-table {
   flex-direction: column;
   gap: 8px;
   width: 100%;
+  max-width: 920px;
   min-width: 0;
 }
 
@@ -2674,10 +2675,10 @@ table.al-table {
   grid-template-columns:
     36px
     6.75rem
-    minmax(7rem, 1.4fr)
+    minmax(0, 1fr)
     5.5rem
     4.25rem
-    auto;
+    5.75rem;
   column-gap: 12px;
   align-items: center;
   width: 100%;
@@ -2702,7 +2703,6 @@ table.al-table {
 
 .al-log-row--tv .al-row-actions {
   justify-self: start;
-  min-width: 5.5rem;
 }
 
 .al-watchlist-summary {
@@ -2733,6 +2733,7 @@ table.al-table {
   flex-direction: column;
   gap: 8px;
   width: 100%;
+  max-width: 920px;
   min-width: 0;
 }
 
@@ -2742,9 +2743,9 @@ table.al-table {
   grid-template-columns:
     36px
     6.75rem
-    minmax(8rem, 1.4fr)
-    minmax(5rem, 1fr)
-    auto;
+    minmax(0, 1.35fr)
+    minmax(0, 1fr)
+    12.5rem;
   column-gap: 12px;
   align-items: center;
   width: 100%;
@@ -2769,7 +2770,6 @@ table.al-table {
 
 .al-log-row--watchlist .al-row-actions {
   justify-self: start;
-  min-width: 11rem;
 }
 
 .al-watchlist-edit-fields {
