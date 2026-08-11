@@ -33,9 +33,9 @@ import {
   getTmdbApiKey,
   getMovieDetails,
   searchMovies,
-  cacheMovieRecord,
   normalizeTitle,
   pickBestMatch,
+  PP_SCHEMA,
 } from '../lib/tmdb.js';
 
 export default async function handler(req, res) {
@@ -292,7 +292,7 @@ async function backfillPosters(userId, limit = 20) {
       const results = await searchMovies(w.title, { apiKey });
       const match = pickBestMatch(results, w.title);
       if (!match) continue;
-      await cacheMovieRecord(match);
+      await getMovieDetails(match.tmdb_id, { apiKey });
       const updated = await db()`
         UPDATE alist_watches
         SET tmdb_id = ${match.tmdb_id}, updated_at = now()
@@ -474,8 +474,11 @@ async function enrichWatchlistRows(rows) {
   const updated = [];
 
   for (const row of rows) {
-    const hasDate = row.release_date || row.release_date_raw;
-    if (hasDate || !row.tmdb_id || lookups >= 12) {
+    const ppv = Number(row.cache_pp_v) || 0;
+    const needsEnrich = row.tmdb_id && (
+      !(row.release_date || row.release_date_raw) || ppv < PP_SCHEMA
+    );
+    if (!needsEnrich || lookups >= 12) {
       updated.push(row);
       continue;
     }
@@ -554,7 +557,8 @@ async function handleWatchlist(req, res) {
         SELECT
           w.id, w.title, w.tmdb_id, w.notes, w.created_at, w.updated_at,
           c.poster_path, c.year, c.release_date,
-          COALESCE(c.release_date::text, c.raw->>'release_date') AS release_date_raw
+          COALESCE(c.release_date::text, c.raw->>'release_date') AS release_date_raw,
+          (c.raw->>'pp_v')::int AS cache_pp_v
         FROM alist_watchlist w
         LEFT JOIN alist_movie_cache c ON c.tmdb_id = w.tmdb_id
         WHERE w.id = ${id} AND w.user_id = ${userId}
@@ -1057,14 +1061,6 @@ async function handleMovieLookup(req, res) {
 
   try {
     const results = await searchMovies(q, { apiKey });
-
-    if (process.env.DATABASE_URL) {
-      await ensureSchema();
-      for (const m of results) {
-        await cacheMovieRecord(m);
-      }
-    }
-
     res.status(200).json({ results });
   } catch (err) {
     res.status(502).json({ error: err.message });

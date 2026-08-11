@@ -51,6 +51,7 @@ const searchShape = movieFromTmdbResult({
   overview: null,
 });
 assert.equal(searchShape.year, 2019);
+assert.equal(searchShape.release_date, null);
 assert.deepEqual(searchShape.cast_members, []);
 
 const cacheRow = {
