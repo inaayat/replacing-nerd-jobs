@@ -2104,13 +2104,23 @@ table.al-table {
   margin: 0;
 }
 
-.al-insight-grid {
-  display: grid;
+.al-insight-stack {
+  display: flex;
+  flex-direction: column;
   gap: 12px;
+  width: 100%;
+  min-width: 0;
 }
 
-@media (min-width: 1024px) {
-  .al-insight-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.al-insight-stack > .al-insight {
+  width: 100%;
+  min-width: 0;
+}
+
+.al-insight-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
 }
 
 .al-insight-grid > .al-insight {
@@ -2922,8 +2932,8 @@ table.al-table {
     font-size: 0.7rem;
   }
 
+  .al-insight-stack,
   .al-insight-grid {
-    grid-template-columns: 1fr;
     gap: 10px;
   }
 
@@ -3337,35 +3347,40 @@ table.al-table {
 }
 
 .al-log-list--watchlist {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: grid;
+  grid-template-columns:
+    36px
+    6.75rem
+    minmax(0, 1.5fr)
+    minmax(5.5rem, 0.55fr)
+    minmax(10.5rem, auto);
+  column-gap: 12px;
+  row-gap: 8px;
+  align-items: center;
   width: 100%;
-  max-width: 920px;
   min-width: 0;
 }
 
 .al-log-head--watchlist,
 .al-log-row--watchlist {
   display: grid;
-  grid-template-columns:
-    36px
-    6.75rem
-    minmax(0, 1.35fr)
-    minmax(0, 1fr)
-    12.5rem;
-  column-gap: 12px;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
   align-items: center;
   width: 100%;
 }
 
 .al-log-head--watchlist {
-  grid-column: auto;
   padding: 0 14px 4px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--al-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .al-log-row--watchlist {
-  grid-column: auto;
+  padding: 10px 14px;
 }
 
 .al-log-row--watchlist .al-col-poster,
@@ -3376,8 +3391,23 @@ table.al-table {
   justify-content: flex-start;
 }
 
+.al-log-head--watchlist .al-log-col:last-child,
 .al-log-row--watchlist .al-row-actions {
-  justify-self: start;
+  justify-self: end;
+  text-align: right;
+}
+
+.al-log-row--watchlist .al-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  justify-content: flex-end;
+}
+
+.al-log-row--watchlist .al-log-col--desktop.al-muted {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .al-watchlist-edit-fields {

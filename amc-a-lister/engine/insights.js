@@ -29,16 +29,16 @@ bootPage(async ({ root, auth }) => {
 
   main.innerHTML = `
     ${renderSpotlight({ summary, ratings, theaters, theatersByRating, watchList })}
-    ${renderByMonthSection(byMonth, moviesByMonth)}
-    <div class="al-insight-grid">
+    <div class="al-insight-stack">
+      ${renderByMonthSection(byMonth, moviesByMonth)}
       ${renderRatingProfileSection(ratings, ratingBuckets, moviesByRating)}
       ${renderTheaterRatingSection(theatersByRating, moviesByTheater)}
       ${renderTheaterRankingSection(theaters, moviesByTheater)}
       ${renderFormatPremiumsSection(formats)}
       ${renderActorsMostSeenSection(actors)}
       ${renderActorsBestRatedSection(actors)}
+      ${renderRewatchesSection(rewatches)}
     </div>
-    ${renderRewatchesSection(rewatches)}
   `;
 
   wireInsightSections(main);
