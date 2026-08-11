@@ -257,6 +257,43 @@
         cursor: pointer;
       }
       .sign-out-btn:hover { background: var(--gray); }
+
+      .danger-zone {
+        margin-top: 24px;
+        padding-top: 20px;
+        border-top: 1.5px solid #cf452033;
+      }
+      .danger-zone h2 {
+        font-family: 'Fraunces', serif;
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--red);
+        margin: 0 0 8px;
+      }
+      .danger-zone p {
+        font-family: 'DM Mono', monospace;
+        font-size: 0.72rem;
+        opacity: 0.6;
+        margin: 0 0 12px;
+        line-height: 1.5;
+      }
+      .delete-account-btn {
+        font-family: 'DM Mono', monospace;
+        font-size: 0.72rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        padding: 8px 14px;
+        border-radius: 999px;
+        border: 1.5px solid var(--red);
+        background: transparent;
+        color: var(--red);
+        cursor: pointer;
+      }
+      .delete-account-btn:hover { background: #cf452014; }
+      .delete-account-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+      .delete-password {
+        margin-top: 10px;
+      }
     </style>
   </head>
   <body class="text-gray-900 flex flex-col">
@@ -323,6 +360,13 @@
           <dl id="profile-fields" class="brand-mono text-xs grid grid-cols-[auto_1fr] gap-x-4 gap-y-2"></dl>
           <p id="profile-note" class="mt-4 brand-mono text-xs opacity-50"></p>
           <button type="button" id="sign-out-btn" class="sign-out-btn mt-5">Sign out</button>
+          <div class="danger-zone">
+            <h2>Delete account</h2>
+            <p>Permanently removes your sign-in and all saved data across Beep boop tools (A-Lister logs, packing cubes, and anything else tied to this account). This cannot be undone.</p>
+            <input class="auth-input delete-password" type="password" id="delete-password" placeholder="confirm with your password" autocomplete="current-password" />
+            <button type="button" id="delete-account-btn" class="delete-account-btn">Delete my account</button>
+            <p id="delete-status" class="hidden brand-mono text-xs font-medium mt-3" style="color:#cf4520;"></p>
+          </div>
         </div>
       </div>
 
@@ -383,6 +427,7 @@
           await client.signOut();
           location.reload();
         });
+        wireDeleteAccount(client);
 
         const { data } = await client.getSession();
         if (data?.user) {
@@ -499,10 +544,64 @@
             .map(([k, v]) => `<dt class="opacity-45">${k}</dt><dd class="break-all">${v}</dd>`)
             .join('');
           note.textContent = 'This profile is stored in the Neon database and refreshed each visit.';
+          window.__accountToken = token;
         } catch (err) {
           fields.innerHTML = `<dt class="opacity-45">name</dt><dd>${user.name || '—'}</dd>`;
           note.textContent = `Profile database unavailable: ${err.message}`;
         }
+      }
+
+      function wireDeleteAccount(client) {
+        const btn = document.getElementById('delete-account-btn');
+        const passwordInput = document.getElementById('delete-password');
+        const status = document.getElementById('delete-status');
+        if (!btn) return;
+
+        btn.addEventListener('click', async () => {
+          const password = passwordInput.value;
+          if (!password) {
+            status.textContent = 'Enter your password to confirm deletion.';
+            status.classList.remove('hidden');
+            return;
+          }
+          if (!confirm('Delete your account permanently? All saved data will be removed and cannot be recovered.')) {
+            return;
+          }
+
+          status.classList.add('hidden');
+          btn.disabled = true;
+          try {
+            const { resolveNeonJwt, readStoredToken, storeAuthToken } = await import('/engine/neon-browser-auth.js');
+            const token = window.__accountToken || readStoredToken() || null;
+            if (!token) throw new Error('Session expired. Sign out and back in, then try again.');
+
+            const res = await fetch('/api/me', {
+              method: 'DELETE',
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ password }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || `Delete failed (${res.status})`);
+
+            storeAuthToken(null);
+            try {
+              await client.signOut();
+            } catch {
+              // app data is already gone
+            }
+            if (data.auth_removed === false && data.message) {
+              alert(data.message);
+            }
+            location.href = '/';
+          } catch (err) {
+            status.textContent = err.message;
+            status.classList.remove('hidden');
+            btn.disabled = false;
+          }
+        });
       }
     </script>
   </body>

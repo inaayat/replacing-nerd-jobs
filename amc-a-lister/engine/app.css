@@ -826,7 +826,6 @@ a { color: var(--al-burgundy); }
   margin: 6px 0 0;
   font-size: 0.95rem;
   color: var(--al-muted);
-  max-width: 48ch;
 }
 
 .al-main {
