@@ -52,9 +52,6 @@ export function renderWatchEditForm(watch, prefix = 'edit') {
       <div class="al-field" style="display:flex;align-items:end" data-theater-only>
         <label class="al-check"><input type="checkbox" id="${prefix}-dnf" ${watch.dnf ? 'checked' : ''} /> DNF</label>
       </div>
-      <div class="al-field" style="display:flex;align-items:end" data-theater-only>
-        <label class="al-check"><input type="checkbox" id="${prefix}-saw_alone" ${watch.saw_alone ? 'checked' : ''} /> Saw alone</label>
-      </div>
       <div class="al-field" style="display:flex;align-items:end">
         <label class="al-check"><input type="checkbox" id="${prefix}-in_theaters" ${watch.in_theaters !== false ? 'checked' : ''} /> In theaters</label>
       </div>
@@ -159,7 +156,6 @@ export function wireWatchEditForm(auth, watch, prefix, { onSave, onCancel }) {
       ticket_cents: inTheaters ? parseMoneyInput(document.getElementById(`${prefix}-ticket`).value) : null,
       rating: inTheaters && dnfInput.checked ? null : (ratingInput.value ? Number(ratingInput.value) : null),
       dnf: inTheaters ? dnfInput.checked : false,
-      saw_alone: inTheaters ? document.getElementById(`${prefix}-saw_alone`).checked : false,
       notes: inTheaters ? (document.getElementById(`${prefix}-notes`).value.trim() || null) : null,
       tmdb_id: tmdbInput.value ? Number(tmdbInput.value) : null,
       in_theaters: inTheaters,
