@@ -14,7 +14,7 @@ Leaderboard, Member, Settings, Sign-in, Bulk ratings.
 | # | Severity | Area | Issue |
 |---|---|---|---|
 | 1–4 | **P0** | Privacy | Every user's identity and full watch diary is readable by anyone, unauthenticated, with no opt-in |
-| 5–16 | P1 | Correctness | Timezone date bug, silent wrong-movie tagging, silent price-tier data loss, billing spec mismatch |
+| 5–16 | P1 | Correctness | Timezone date bug, silent wrong-movie tagging, silent price-tier data loss |
 | 17–20 | P1 | Performance | Full watch history fetched 2× per page load; up to 22 sequential TMDB calls inside one GET |
 | 21–33 | P2 | UX / flow | Want list never clears, no first-run state, orphaned pages, no import undo |
 | 34–39 | P2 | Accessibility | `aria-hidden` over focusable inputs, no reduced-motion, no keyboard nav in comboboxes |
@@ -569,13 +569,16 @@ Caught by the sort test.
 
 ## Deviations from the plan
 
-**Billing gaps (finding 8) — documented, not changed.** The plan flagged that
-`billingChargeMonths` bills every calendar month since the first watch, which
-contradicts `PLAN.md:258`. Deciding between "bill only active months" and "add
-membership start/end dates" changes every number on the site — all-time savings,
-cost per movie, the leaderboard — so it is a call about your own money data, not
-a defect to silently pick a side on. The behaviour is unchanged and the totals
-you see today are unchanged. Still open.
+**Billing gaps (finding 8) — RESOLVED: the code was right, the doc was wrong.**
+Confirmed that billing should charge every calendar month since the first watch,
+including months with no screenings — A-List bills you whether or not you go, so
+an empty month is a real charge against savings. `billingChargeMonths()` already
+did this; `PLAN.md` described the opposite ("sum of distinct chargeMonth bills")
+and has been corrected. No behaviour or totals changed.
+
+Still true as a consequence: there is no way to record a cancelled or paused
+membership, so a genuine gap bills at full price. Noted in `PLAN.md` as future
+work (membership start/end dates), not a defect.
 
 **xlsx (finding 41) — updated, not vendored.** The plan said vendor a current
 build locally. SheetJS left npm after 0.18.5, so there is no newer npm version

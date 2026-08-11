@@ -255,11 +255,23 @@ monthlyBill(chargeMonth) =
   else if chargeMonth < price_bump_on → standard_cents
   else → current_cents
 
-totalBilled   = sum of distinct chargeMonth bills (one bill per calendar month)
+totalBilled   = sum of bills for EVERY calendar month from the first watch
+                to the current month — including months with no screenings
 totalCharged  = sum(ticket_cents)
 totalSavings  = totalCharged - totalBilled
 costPerMovie  = totalBilled / count(watches)
 ```
+
+**Confirmed:** billing is continuous, not per-active-month. A-List charges you
+every month whether or not you go, so a month with no screenings is still a real
+$27.99 against your savings. An earlier draft of this file described
+`totalBilled` as the sum of *distinct* charge months (i.e. only months you
+watched something), which would have overstated savings; the implementation in
+`billingChargeMonths()` was always the continuous version and stays that way.
+
+Consequence: there is currently no way to record a cancelled or paused
+membership, so a genuine gap is billed at full price. If that ever comes up, the
+fix is membership start/end dates in Settings, not a change to this rule.
 
 Edge cases:
 
