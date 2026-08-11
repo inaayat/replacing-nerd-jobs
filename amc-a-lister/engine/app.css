@@ -1373,15 +1373,20 @@ table.al-table {
   font-size: 0.82rem;
 }
 
+.al-main--bulk-ratings.has-bulk-bar {
+  padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+}
+
 .al-bulk-ratings-bar {
-  position: sticky;
+  position: fixed;
+  z-index: 50;
+  left: 8px;
+  right: 8px;
   bottom: calc(72px + env(safe-area-inset-bottom, 0px));
-  z-index: 20;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-top: 12px;
   padding: 10px 12px;
   border-radius: 12px;
   background: var(--al-panel);
@@ -1389,14 +1394,31 @@ table.al-table {
   box-shadow: 0 8px 24px rgba(28, 28, 28, 0.08);
 }
 
+.al-bulk-ratings-bar[hidden] {
+  display: none;
+}
+
 .al-bulk-ratings-bar-actions {
   display: flex;
   gap: 8px;
+  flex-shrink: 0;
 }
 
-@media (min-width: 900px) {
+@media (min-width: 768px) {
+  .al-main--bulk-ratings.has-bulk-bar {
+    padding-bottom: 72px;
+  }
+
   .al-bulk-ratings-bar {
+    left: calc(16px + 300px + 16px);
+    right: 40px;
     bottom: 16px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .al-bulk-ratings-bar {
+    left: calc(16px + 340px + 16px);
   }
 }
 

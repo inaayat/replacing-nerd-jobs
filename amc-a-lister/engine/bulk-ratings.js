@@ -11,6 +11,7 @@ bootPage(async ({ root, auth }) => {
     title: 'Bulk edit ratings',
     subtitle: 'Update ratings for your whole watch log in one place. Only changed rows are saved.',
     signedIn: true,
+    hideLogBar: true,
     body: `<main class="al-main" id="bulk-ratings-main"><p class="al-muted">Loading…</p></main>`,
   });
 
@@ -30,7 +31,16 @@ function parseRatingSelect(value) {
 }
 
 function ratingMatches(a, b) {
-  return !!a.dnf === !!b.dnf && (a.rating ?? null) === (b.rating ?? null);
+  return !!a.dnf === !!b.dnf && normalizeRating(a.rating) === normalizeRating(b.rating);
+}
+
+function normalizeRating(rating) {
+  if (rating == null || rating === '') return null;
+  return Number(rating);
+}
+
+function ratingState(watch) {
+  return { rating: normalizeRating(watch.rating), dnf: !!watch.dnf };
 }
 
 function ratingOptionsHtml(selected) {
@@ -58,6 +68,8 @@ async function loadPage(auth) {
     error: '',
   };
 
+  main.className = 'al-main al-main--bulk-ratings';
+
   main.innerHTML = `
     <section class="al-panel al-panel--log">
       <div class="al-toolbar al-toolbar--log">
@@ -80,7 +92,7 @@ async function loadPage(auth) {
     <p class="al-muted" id="bulk-message" hidden></p>
   `;
 
-  const getOriginal = (watch) => ({ rating: watch.rating ?? null, dnf: !!watch.dnf });
+  const getOriginal = (watch) => ratingState(watch);
 
   const getCurrent = (watch) => state.edits.get(watch.id) || getOriginal(watch);
 
@@ -106,7 +118,9 @@ async function loadPage(auth) {
     const changed = changedWatches();
     const bar = document.getElementById('bulk-bar');
     const countEl = document.getElementById('bulk-bar-count');
-    if (!changed.length) {
+    const hasChanges = changed.length > 0;
+    main.classList.toggle('has-bulk-bar', hasChanges);
+    if (!hasChanges) {
       bar.hidden = true;
       return;
     }
@@ -117,14 +131,27 @@ async function loadPage(auth) {
   const render = () => {
     const filtered = filteredWatches();
     document.getElementById('bulk-count').textContent = `${filtered.length} of ${state.watches.length}`;
-    document.getElementById('bulk-list').innerHTML = listHtml(filtered, state, getCurrent, isChanged);
-    wireRows(state, render, getOriginal);
+    document.getElementById('bulk-list').innerHTML = listHtml(filtered, getCurrent, isChanged);
     updateBar();
   };
 
   document.getElementById('bulk-search').addEventListener('input', render);
   document.getElementById('bulk-unrated').addEventListener('change', render);
   document.getElementById('bulk-changed').addEventListener('change', render);
+
+  document.getElementById('bulk-list').addEventListener('change', (event) => {
+    const select = event.target.closest('.al-bulk-rating-select');
+    if (!select) return;
+    const watch = state.watches.find((w) => w.id === select.dataset.id);
+    if (!watch) return;
+    const next = parseRatingSelect(select.value);
+    if (ratingMatches(getOriginal(watch), next)) {
+      state.edits.delete(watch.id);
+    } else {
+      state.edits.set(watch.id, next);
+    }
+    render();
+  });
 
   document.getElementById('bulk-discard').addEventListener('click', () => {
     state.edits.clear();
@@ -152,9 +179,15 @@ async function loadPage(auth) {
         const { rating, dnf } = getCurrent(w);
         return { id: w.id, rating, dnf };
       });
-      const { watches: updated } = await watchesApi.bulkUpdateRatings(auth.token, rating_updates);
+      const { watches: updated = [] } = await watchesApi.bulkUpdateRatings(auth.token, rating_updates);
+      if (!updated.length) {
+        throw new Error('No ratings were saved. Try again.');
+      }
       const byId = new Map(updated.map((w) => [w.id, w]));
-      state.watches = state.watches.map((w) => byId.get(w.id) || w);
+      state.watches = state.watches.map((w) => {
+        const row = byId.get(w.id);
+        return row ? { ...w, ...row } : w;
+      });
       state.edits.clear();
       state.message = `Saved ${updated.length} rating${updated.length === 1 ? '' : 's'}.`;
       document.getElementById('bulk-message').textContent = state.message;
@@ -175,7 +208,7 @@ async function loadPage(auth) {
   render();
 }
 
-function listHtml(watches, state, getCurrent, isChanged) {
+function listHtml(watches, getCurrent, isChanged) {
   if (!watches.length) return '<div class="al-empty">No matches.</div>';
   return `
     <div class="al-bulk-ratings-head" aria-hidden="true">
@@ -206,20 +239,4 @@ function rowHtml(watch, current, changed) {
       </div>
     </div>
   `;
-}
-
-function wireRows(state, render, getOriginal) {
-  document.querySelectorAll('.al-bulk-rating-select').forEach((select) => {
-    select.addEventListener('change', () => {
-      const watch = state.watches.find((w) => w.id === select.dataset.id);
-      if (!watch) return;
-      const next = parseRatingSelect(select.value);
-      if (ratingMatches(getOriginal(watch), next)) {
-        state.edits.delete(watch.id);
-      } else {
-        state.edits.set(watch.id, next);
-      }
-      render();
-    });
-  });
 }
