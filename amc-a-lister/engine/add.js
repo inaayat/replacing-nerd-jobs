@@ -1,6 +1,7 @@
 import { bootPage, renderShell, requireSignIn } from './nav.js';
 import { watchesApi, movieApi } from './api.js';
 import { parseMoneyInput, escapeHtml } from './format.js';
+import { theatersFromWatches, wireTheaterSuggest } from './theater-suggest.js';
 
 const FORMATS = ['', 'IMAX', 'Dolby', 'IMAX 3D', '70MM', 'Q&A'];
 
@@ -10,10 +11,14 @@ bootPage(async ({ root, auth }) => {
   const params = new URLSearchParams(location.search);
   const editId = params.get('id');
   let existing = null;
+  let theaters = [];
 
-  if (editId) {
+  {
     const { watches } = await watchesApi.list(auth.token);
-    existing = watches.find((w) => w.id === editId) || null;
+    theaters = theatersFromWatches(watches);
+    if (editId) {
+      existing = watches.find((w) => w.id === editId) || null;
+    }
   }
 
   root.innerHTML = renderShell({
@@ -38,12 +43,10 @@ bootPage(async ({ root, auth }) => {
         </div>
         <div class="al-field">
           <label for="location">Theater</label>
-          <input class="al-input" id="location" name="location" list="theater-list" value="${escapeHtml(existing?.location || '')}" />
-          <datalist id="theater-list">
-            <option value="AMC Lincoln Square 13"></option>
-            <option value="AMC Empire 25"></option>
-            <option value="N/A - India"></option>
-          </datalist>
+          <div class="al-search-wrap">
+            <input class="al-input" id="location" name="location" type="text" autocomplete="off" value="${escapeHtml(existing?.location || '')}" />
+            <div class="al-search-results" id="theater-results" hidden></div>
+          </div>
         </div>
         <div class="al-field">
           <label for="format">Format</label>
@@ -84,8 +87,14 @@ bootPage(async ({ root, auth }) => {
   const form = document.getElementById('watch-form');
   const titleInput = document.getElementById('title');
   const resultsEl = document.getElementById('title-results');
+  const locationInput = document.getElementById('location');
+  const theaterResultsEl = document.getElementById('theater-results');
   const tmdbInput = document.getElementById('tmdb_id');
   let searchTimer = null;
+
+  wireTheaterSuggest(locationInput, theaterResultsEl, {
+    getTheaters: () => theaters,
+  });
 
   document.getElementById('dnf').addEventListener('change', (e) => {
     const rating = document.getElementById('rating');
