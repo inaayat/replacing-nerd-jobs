@@ -115,6 +115,36 @@ async function requireUser(req, res) {
   }
 }
 
+function normalizeRatingUpdate(entry) {
+  if (!entry?.id) return null;
+  const dnf = !!entry.dnf;
+  const rating = dnf ? null : (entry.rating != null && entry.rating !== '' ? Number(entry.rating) : null);
+  return { id: String(entry.id), rating, dnf };
+}
+
+async function applyBulkRatingUpdates(userId, rawUpdates) {
+  const updates = (Array.isArray(rawUpdates) ? rawUpdates : [])
+    .map(normalizeRatingUpdate)
+    .filter(Boolean);
+  if (!updates.length) return [];
+
+  const updated = [];
+  for (const u of updates) {
+    const rows = await db()`
+      UPDATE alist_watches SET
+        rating = ${u.rating},
+        dnf = ${u.dnf},
+        updated_at = now()
+      WHERE id = ${u.id} AND user_id = ${userId}
+      RETURNING id, watched_on::text AS watched_on, title, tmdb_id, location, format,
+                saw_alone, auditorium, seat, ticket_cents, rating::float AS rating,
+                dnf, notes, in_theaters, created_at, updated_at
+    `;
+    if (rows.length) updated.push(watchFromRow(rows[0]));
+  }
+  return updated;
+}
+
 function normalizeBody(body) {
   const rating = body.dnf ? null : (body.rating != null ? Number(body.rating) : null);
   const inTheaters = body.in_theaters !== false;
@@ -262,6 +292,21 @@ async function handleWatches(req, res) {
   }
 
   if (req.method === 'PATCH') {
+    if (Array.isArray(req.body?.rating_updates)) {
+      if (!req.body.rating_updates.length) {
+        res.status(400).json({ error: 'rating_updates must include at least one item.' });
+        return;
+      }
+      try {
+        const updated = await applyBulkRatingUpdates(userId, req.body.rating_updates);
+        const watches = await enrichMissingPosters(userId, updated);
+        res.status(200).json({ watches, updated: watches.length });
+      } catch (err) {
+        res.status(502).json({ error: err.message });
+      }
+      return;
+    }
+
     const id = req.body?.id;
     if (!id) {
       res.status(400).json({ error: 'id is required.' });

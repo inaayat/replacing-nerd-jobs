@@ -1321,6 +1321,102 @@ table.al-table {
 .al-toolbar-filter { max-width: 180px; }
 .al-toolbar-filter--format { max-width: 140px; }
 
+.al-bulk-ratings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.al-bulk-ratings-head,
+.al-bulk-ratings-row {
+  display: grid;
+  grid-template-columns: 44px 88px minmax(0, 1fr) 120px;
+  gap: 10px;
+  align-items: center;
+}
+
+.al-bulk-ratings-head {
+  padding: 0 8px 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--al-muted);
+}
+
+.al-bulk-ratings-row {
+  padding: 8px;
+  border-radius: 10px;
+  background: var(--al-panel-2);
+  border: 1px solid transparent;
+}
+
+.al-bulk-ratings-row.is-changed {
+  border-color: rgba(218, 0, 0, 0.25);
+  background: #fff8f6;
+}
+
+.al-bulk-ratings-col--title {
+  min-width: 0;
+  font-weight: 600;
+}
+
+.al-bulk-ratings-col--date {
+  font-family: var(--al-font-mono);
+  font-size: 0.78rem;
+  color: var(--al-muted);
+}
+
+.al-bulk-rating-select {
+  min-width: 0;
+  padding: 6px 8px;
+  font-size: 0.82rem;
+}
+
+.al-bulk-ratings-bar {
+  position: sticky;
+  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--al-panel);
+  border: 1px solid var(--al-line);
+  box-shadow: 0 8px 24px rgba(28, 28, 28, 0.08);
+}
+
+.al-bulk-ratings-bar-actions {
+  display: flex;
+  gap: 8px;
+}
+
+@media (min-width: 900px) {
+  .al-bulk-ratings-bar {
+    bottom: 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .al-bulk-ratings-head { display: none; }
+
+  .al-bulk-ratings-row {
+    grid-template-columns: 40px minmax(0, 1fr);
+    grid-template-areas:
+      "poster title"
+      "poster rating";
+    gap: 6px 10px;
+  }
+
+  .al-bulk-ratings-row .al-col-poster { grid-area: poster; }
+  .al-bulk-ratings-col--title { grid-area: title; }
+  .al-bulk-ratings-col--date { display: none; }
+  .al-bulk-ratings-col--rating { grid-area: rating; }
+}
+
 .al-input,
 .al-select,
 .al-textarea {
