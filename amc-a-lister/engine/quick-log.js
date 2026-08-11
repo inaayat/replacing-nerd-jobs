@@ -60,7 +60,6 @@ export function renderQuickLogBar() {
               </div>
               <div class="al-quicklog-field al-quicklog-field--checks" data-theater-only>
                 <label class="al-check"><input type="checkbox" id="ql-dnf" name="dnf" /> DNF</label>
-                <label class="al-check"><input type="checkbox" id="ql-saw_alone" name="saw_alone" /> Saw alone</label>
               </div>
               <div class="al-quicklog-field al-quicklog-field--notes" data-theater-only>
                 <label for="ql-notes">Notes</label>
@@ -120,7 +119,6 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
       form.format.value = '';
       form.auditorium.value = '';
       form.seat.value = '';
-      form.saw_alone.checked = false;
       dnfInput.checked = false;
       ratingInput.disabled = false;
       form.notes.value = '';
@@ -221,7 +219,6 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
       ticket_cents: inTheaters ? parseMoneyInput(form.ticket.value) : null,
       rating: inTheaters && dnfInput.checked ? null : (form.rating.value ? Number(form.rating.value) : null),
       dnf: inTheaters ? dnfInput.checked : false,
-      saw_alone: inTheaters ? form.saw_alone.checked : false,
       notes: inTheaters ? (form.notes.value.trim() || null) : null,
       tmdb_id: tmdbInput.value ? Number(tmdbInput.value) : null,
       in_theaters: inTheaters,

@@ -86,7 +86,6 @@ function renderProfile(main, profile, { currentUserId, auth }) {
           <option value="">All formats</option>
           ${formats.map((f) => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('')}
         </select>
-        <label class="al-check"><input type="checkbox" id="member-alone" /> Alone</label>
         <label class="al-check"><input type="checkbox" id="member-dnf" /> DNF only</label>
         <span class="al-muted" id="member-count"></span>
       </div>
@@ -113,21 +112,19 @@ function renderProfile(main, profile, { currentUserId, auth }) {
     const q = document.getElementById('member-search').value.trim().toLowerCase();
     const theater = document.getElementById('member-theater').value;
     const format = document.getElementById('member-format').value;
-    const alone = document.getElementById('member-alone').checked;
     const dnfOnly = document.getElementById('member-dnf').checked;
 
     state.filtered = state.watches.filter((w) => {
       if (q && !`${w.title} ${w.location || ''}`.toLowerCase().includes(q)) return false;
       if (theater && w.location !== theater) return false;
       if (format && w.format !== format) return false;
-      if (alone && !w.saw_alone) return false;
       if (dnfOnly && !w.dnf) return false;
       return true;
     });
     render();
   };
 
-  ['member-search', 'member-theater', 'member-format', 'member-alone', 'member-dnf'].forEach((id) => {
+  ['member-search', 'member-theater', 'member-format', 'member-dnf'].forEach((id) => {
     document.getElementById(id).addEventListener('input', applyFilters);
     document.getElementById(id).addEventListener('change', applyFilters);
   });

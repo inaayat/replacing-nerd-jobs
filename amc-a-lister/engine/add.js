@@ -66,9 +66,6 @@ bootPage(async ({ root, auth }) => {
         <div class="al-field" style="display:flex;align-items:end">
           <label class="al-check"><input type="checkbox" id="dnf" name="dnf" ${existing?.dnf ? 'checked' : ''} /> DNF</label>
         </div>
-        <div class="al-field" style="display:flex;align-items:end">
-          <label class="al-check"><input type="checkbox" id="saw_alone" name="saw_alone" ${existing?.saw_alone ? 'checked' : ''} /> Saw alone</label>
-        </div>
         <div class="al-field span-2">
           <label for="notes">Notes</label>
           <textarea class="al-textarea" id="notes" name="notes" rows="2">${escapeHtml(existing?.notes || '')}</textarea>
@@ -149,7 +146,6 @@ bootPage(async ({ root, auth }) => {
       ticket_cents: parseMoneyInput(form.ticket.value),
       rating: form.dnf.checked ? null : (form.rating.value ? Number(form.rating.value) : null),
       dnf: form.dnf.checked,
-      saw_alone: form.saw_alone.checked,
       notes: form.notes.value.trim() || null,
       tmdb_id: tmdbInput.value ? Number(tmdbInput.value) : null,
     };

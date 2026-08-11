@@ -43,7 +43,6 @@ async function loadLog(auth) {
           <option value="">All formats</option>
           ${formats.map((f) => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('')}
         </select>
-        <label class="al-check"><input type="checkbox" id="log-alone" /> Alone</label>
         <label class="al-check"><input type="checkbox" id="log-dnf" /> DNF only</label>
         <label class="al-check"><input type="checkbox" id="log-include-home" /> Watched at home</label>
         <a href="/amc-a-lister/bulk-ratings.html" class="al-btn">Bulk edit ratings</a>
@@ -76,7 +75,6 @@ async function loadLog(auth) {
     const q = document.getElementById('log-search').value.trim().toLowerCase();
     const theater = document.getElementById('log-theater').value;
     const format = document.getElementById('log-format').value;
-    const alone = document.getElementById('log-alone').checked;
     const dnfOnly = document.getElementById('log-dnf').checked;
     const includeHome = includeHomeEl.checked;
 
@@ -87,14 +85,13 @@ async function loadLog(auth) {
       if (q && !`${w.title} ${w.location || ''}`.toLowerCase().includes(q)) return false;
       if (theater && w.location !== theater) return false;
       if (format && w.format !== format) return false;
-      if (alone && !w.saw_alone) return false;
       if (dnfOnly && !w.dnf) return false;
       return true;
     });
     render();
   };
 
-  ['log-search', 'log-theater', 'log-format', 'log-alone', 'log-dnf', 'log-include-home'].forEach((id) => {
+  ['log-search', 'log-theater', 'log-format', 'log-dnf', 'log-include-home'].forEach((id) => {
     document.getElementById(id).addEventListener('input', applyFilters);
     document.getElementById(id).addEventListener('change', applyFilters);
   });
