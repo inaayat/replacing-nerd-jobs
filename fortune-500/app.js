@@ -5,10 +5,25 @@ import {
   GLOSSARY,
   PRIVATE_NOTES,
   MATCH_LABELS,
+  MAX_COMPARE,
+  PRESETS,
+  SCREENER_COLUMNS,
+  CHART_METRICS,
+  FEATURED,
+  METRIC_GROUPS,
+  LOWER_BETTER,
   isPublic,
   tickerLabel,
 } from './catalog.js';
 import { formatMetric, formatDerived } from './extract.js';
+import {
+  buildInsights,
+  similarByRevenue,
+  metricNumber,
+  ratioNumber,
+  percentile,
+  poolFor,
+} from './insights.js';
 
 const listEl = document.getElementById('list');
 const detailEl = document.getElementById('detail');
@@ -18,11 +33,13 @@ const searchEl = document.getElementById('search');
 const layoutEl = document.getElementById('layout');
 const compareBar = document.getElementById('compare-bar');
 const compareLabel = document.getElementById('compare-label');
+const compareChips = document.getElementById('compare-chips');
 const compareGo = document.getElementById('compare-go');
 const compareClear = document.getElementById('compare-clear');
+const presetsEl = document.getElementById('presets');
 
-const MAX_COMPARE = 4;
 const headlinesByCik = new Map();
+let snapshotCompanies = {};
 
 let companies = [];
 let filter = 'all';
@@ -30,6 +47,10 @@ let query = '';
 let selectedRank = null;
 let compareRanks = [];
 let compareMode = false;
+let screenerSort = { key: 'rank', dir: 'asc' };
+let chartKey = 'net_margin';
+let lastCompareRows = [];
+let lastCompareStatus = 'ok';
 
 function parseUrl() {
   const u = new URL(location.href);
@@ -44,7 +65,7 @@ function parseUrl() {
   }
   const n = Number(u.searchParams.get('rank'));
   const selectedRank = Number.isInteger(n) && n >= 1 && n <= 500 ? n : null;
-    return { compareMode: false, compareRanks: [], selectedRank };
+  return { compareMode: false, compareRanks: [], selectedRank };
 }
 
 function setUrl(opts = {}) {
@@ -61,6 +82,16 @@ function setUrl(opts = {}) {
 
 function companyByRank(rank) {
   return companies.find((c) => c.rank === rank);
+}
+
+function rememberHeadline(row) {
+  if (row?.cik == null) return;
+  headlinesByCik.set(row.cik, row);
+  snapshotCompanies[String(row.cik)] = row;
+}
+
+function headlinesOf(c) {
+  return c?.cik != null ? headlinesByCik.get(c.cik) : undefined;
 }
 
 function matches(c) {
@@ -84,17 +115,72 @@ function matches(c) {
   return blob.includes(q);
 }
 
+function lookupDef(key) {
+  return METRICS.find((m) => m.key === key) || DERIVED.find((d) => d.key === key) || null;
+}
+
+function lookupNumber(headlines, key) {
+  if (METRICS.some((m) => m.key === key)) return metricNumber(headlines, key);
+  return ratioNumber(headlines, key);
+}
+
+function lookupShown(headlines, key) {
+  const def = lookupDef(key);
+  if (!def || !headlines) return null;
+  if (METRICS.some((m) => m.key === key)) return formatMetric(def, headlines.metrics?.[key]);
+  return formatDerived(def, headlines.ratios?.[key]);
+}
+
+function screenerValue(c, col) {
+  if (col.type === 'rank') return c.rank;
+  if (col.type === 'name') return c.company;
+  const h = headlinesOf(c);
+  if (col.type === 'year') return h?.asOfYear ?? null;
+  if (col.source === 'metric') return metricNumber(h, col.key);
+  if (col.source === 'ratio') return ratioNumber(h, col.key);
+  return null;
+}
+
+function formatScreenerCell(col, value) {
+  if (value == null || value === '') return dash();
+  if (col.type === 'rank' || col.type === 'year') return escapeHtml(String(value));
+  if (col.type === 'name') return escapeHtml(value);
+  const def = lookupDef(col.key);
+  if (!def) return escapeHtml(String(value));
+  if (col.source === 'metric') return escapeHtml(formatMetric(def, { val: value }) || '—');
+  return escapeHtml(formatDerived(def, value) || '—');
+}
+
 function renderCompareBar() {
   const n = compareRanks.length;
   compareBar.hidden = n === 0;
-  document.body.style.paddingBottom = n === 0 ? '' : '72px';
+  document.body.style.paddingBottom = n === 0 ? '' : '84px';
   compareLabel.textContent =
     n === 0
       ? ''
       : n === 1
-        ? '1 company selected — pick 1–3 more to compare'
-        : `${n} companies selected`;
+        ? '1 company — pick 1–4 more, or a peer set'
+        : n >= MAX_COMPARE
+          ? `${n} companies (max)`
+          : `${n} companies selected`;
   compareGo.disabled = n < 2;
+  if (compareChips) {
+    compareChips.innerHTML = compareRanks
+      .map((r) => {
+        const c = companyByRank(r);
+        if (!c) return '';
+        return `<button type="button" class="f5-chip" data-unchip="${r}">${escapeHtml(c.company)} <span aria-hidden="true">×</span></button>`;
+      })
+      .join('');
+  }
+}
+
+function renderPresets() {
+  if (!presetsEl) return;
+  presetsEl.innerHTML = PRESETS.map(
+    (p) =>
+      `<button type="button" class="f5-preset" data-preset="${escapeAttr(p.id)}">${escapeHtml(p.label)}</button>`
+  ).join('');
 }
 
 function renderList() {
@@ -109,15 +195,19 @@ function renderList() {
       const check = pub
         ? `<input class="f5-check" type="checkbox" data-check="${c.rank}" ${checked ? 'checked' : ''} ${atCap && !checked ? 'disabled' : ''} aria-label="Add ${escapeAttr(c.company)} to compare" />`
         : `<span></span>`;
+      const rev = formatMetric({ unit: 'USD' }, headlinesOf(c)?.metrics?.revenue);
+      const right = pub
+        ? `<span class="f5-row-fig">${rev ? escapeHtml(rev) : ''}</span>`
+        : `<span class="f5-pill f5-pill-private">Private</span>`;
       return `<div class="f5-row${pub ? '' : ' is-private'}">
         ${check}
         <button type="button" class="f5-row-main" data-rank="${c.rank}" aria-selected="${selected}">
           <span class="f5-rank">${c.rank}</span>
           <span>
             <span class="f5-row-name">${escapeHtml(c.company)}</span>
-            <span class="f5-row-sub">${escapeHtml(tickerLabel(c))}${pub && c.sec_name ? ' · ' + escapeHtml(c.sec_name) : ''}</span>
+            <span class="f5-row-sub">${escapeHtml(tickerLabel(c))}</span>
           </span>
-          <span class="f5-pill ${pub ? 'f5-pill-public' : 'f5-pill-private'}">${pub ? 'SEC filer' : 'Private'}</span>
+          ${right}
         </button>
       </div>`;
     })
@@ -126,17 +216,71 @@ function renderList() {
   renderCompareBar();
 }
 
-function primer() {
+function dash() {
+  return `<span class="muted" title="Not tagged in the current 10-K">—</span>`;
+}
+
+function sortRows(rows) {
+  const col = SCREENER_COLUMNS.find((c) => c.key === screenerSort.key) || SCREENER_COLUMNS[0];
+  const dir = screenerSort.dir === 'asc' ? 1 : -1;
+  return [...rows].sort((a, b) => {
+    const av = screenerValue(a, col);
+    const bv = screenerValue(b, col);
+    if (col.type === 'name') {
+      const cmp = String(av || '').localeCompare(String(bv || ''));
+      return cmp === 0 ? a.rank - b.rank : dir * cmp;
+    }
+    const aMissing = av == null || (typeof av === 'number' && !Number.isFinite(av));
+    const bMissing = bv == null || (typeof bv === 'number' && !Number.isFinite(bv));
+    if (aMissing && bMissing) return a.rank - b.rank;
+    if (aMissing) return 1;
+    if (bMissing) return -1;
+    if (av === bv) return a.rank - b.rank;
+    return dir * (av < bv ? -1 : 1);
+  });
+}
+
+function screenerView() {
+  const rows = sortRows(companies.filter(matches));
+  const atCap = compareRanks.length >= MAX_COMPARE;
+  const head = SCREENER_COLUMNS.map((col) => {
+    const active = screenerSort.key === col.key;
+    const arrow = active ? (screenerSort.dir === 'asc' ? ' ↑' : ' ↓') : '';
+    const sortState = active ? (screenerSort.dir === 'asc' ? 'ascending' : 'descending') : 'none';
+    return `<th data-sort="${escapeAttr(col.key)}" aria-sort="${sortState}" class="${active ? 'is-sorted' : ''}">${escapeHtml(col.label)}${arrow}</th>`;
+  }).join('');
+  const body = rows
+    .map((c) => {
+      const pub = isPublic(c);
+      const checked = compareRanks.includes(c.rank);
+      const check = pub
+        ? `<input class="f5-check" type="checkbox" data-check="${c.rank}" ${checked ? 'checked' : ''} ${atCap && !checked ? 'disabled' : ''} aria-label="Add ${escapeAttr(c.company)} to compare" />`
+        : '';
+      const tds = SCREENER_COLUMNS.map((col) => {
+        if (col.type === 'name') {
+          return `<td class="f5-name-cell">${check}<button type="button" class="f5-linkish" data-rank="${c.rank}">${escapeHtml(c.company)}</button><div class="muted">${escapeHtml(tickerLabel(c))}</div></td>`;
+        }
+        const value = screenerValue(c, col);
+        const extra = col.type === 'rank' ? ' class="mono"' : '';
+        return `<td${extra}>${formatScreenerCell(col, value)}</td>`;
+      }).join('');
+      return `<tr class="${pub ? '' : 'is-private'}">${tds}</tr>`;
+    })
+    .join('');
+
   return `
-    <div class="f5-empty">
-      <h2>Start with a company — or compare a few</h2>
+    <div class="f5-screener">
+      <h2>Latest 10-K headlines</h2>
       <p class="f5-section-lede">
-        EDGAR is the SEC’s public filing cabinet. Check two to four <strong>SEC filer</strong>
-        boxes, then <strong>Compare headlines</strong> to line up the latest 10-K numbers.
-        Click a name to see that company’s feeds and tags.
+        Sort any column. Click a name for the company page, or check up to ${MAX_COMPARE}
+        public filers and hit <strong>Compare</strong>. Peer sets (big tech, banks, …) sit
+        above the list. A dash means the tag is missing from that 10-K — not $0.
       </p>
-      <div class="f5-note">
-        <p><strong>Figures are from each company’s latest annual 10-K in EDGAR</strong> (snapshot on this page, not Fortune’s published table). A blank cell means that tag is not in the current 10-K — not $0. Three filers have no usable annual XBRL yet (Truist, SpaceX, ExxonMobil Holdings).</p>
+      <div class="f5-table-wrap">
+        <table class="f5-table f5-screener-table">
+          <thead><tr>${head}</tr></thead>
+          <tbody>${body || `<tr><td colspan="${SCREENER_COLUMNS.length}">No matches.</td></tr>`}</tbody>
+        </table>
       </div>
     </div>`;
 }
@@ -160,21 +304,29 @@ function sourceCard(c, src) {
   </article>`;
 }
 
-function metricCard(def, point) {
-  const shown = formatMetric(def, point);
-  return `<article class="f5-metric">
-    <h4>${escapeHtml(def.label)}</h4>
-    <p class="val${shown ? '' : ' missing'}">${shown ? escapeHtml(shown) : 'Not tagged'}</p>
-    <p>${escapeHtml(def.plain)}</p>
-    <p class="tags">${escapeHtml(def.tags)}${point?.end ? ' · ' + escapeHtml(point.end) : ''}</p>
-  </article>`;
+function pctPill(value, source, key) {
+  const invert = LOWER_BETTER.has(key);
+  const pctile = percentile(value, poolFor(snapshotCompanies, source, key), invert);
+  if (pctile == null) return '';
+  const tone = pctile >= 75 ? 'high' : pctile <= 25 ? 'low' : 'mid';
+  const title = invert
+    ? 'Lower is better; percentile is inverted among public Fortune 500 filers with this tag'
+    : 'Among public Fortune 500 filers with this tag in the snapshot';
+  return `<span class="f5-pct f5-pct-${tone}" title="${escapeAttr(title)}">${pctile}th percentile</span>`;
 }
 
-function derivedCard(def, value) {
-  const shown = formatDerived(def, value);
-  return `<article class="f5-metric">
+function featuredCard(headlines, item) {
+  const def = lookupDef(item.key);
+  if (!def) return '';
+  const value = item.source === 'ratio' ? ratioNumber(headlines, item.key) : metricNumber(headlines, item.key);
+  const shown =
+    item.source === 'ratio'
+      ? formatDerived(def, headlines?.ratios?.[item.key])
+      : formatMetric(def, headlines?.metrics?.[item.key]);
+  return `<article class="f5-kpi">
     <h4>${escapeHtml(def.label)}</h4>
     <p class="val${shown ? '' : ' missing'}">${shown ? escapeHtml(shown) : 'Not tagged'}</p>
+    ${shown ? pctPill(value, item.source, item.key) : ''}
     <p>${escapeHtml(def.plain)}</p>
   </article>`;
 }
@@ -185,6 +337,7 @@ function publicDetail(c, headlines, status) {
       ? `<p class="f5-section-lede">Fortune lists this as <strong>${escapeHtml(c.fortune_ticker)}</strong>; the SEC ticker file uses <strong>${escapeHtml(c.sec_ticker)}</strong>. Same company, different symbol.</p>`
       : '';
   const match = MATCH_LABELS[c.match_source] || c.match_source || '';
+  const featuredKeys = new Set(FEATURED.map((f) => f.key));
   let numbers = '';
   if (status === 'loading') {
     numbers = `<p class="f5-section-lede">Loading latest 10-K headlines from the SEC…</p>`;
@@ -192,14 +345,47 @@ function publicDetail(c, headlines, status) {
     numbers = `<div class="f5-note"><p>Couldn’t load Company Facts (${escapeHtml(headlines?.error || 'network')}). The map of feeds below still works — open JSON on sec.gov.</p></div>`;
   } else if (headlines) {
     const year = headlines.asOfYear ? `FY${headlines.asOfYear}` : 'latest 10-K';
+    const restMetrics = METRICS.filter((m) => !featuredKeys.has(m.key));
+    const restDerived = DERIVED.filter((d) => !featuredKeys.has(d.key));
+    const restRows = [...restMetrics, ...restDerived]
+      .map((def) => {
+        const shown = lookupShown(headlines, def.key);
+        return `<tr><td>${escapeHtml(def.label)}</td><td>${shown ? escapeHtml(shown) : dash()}</td></tr>`;
+      })
+      .join('');
+    const peers = similarByRevenue(c, companies, snapshotCompanies, 4);
+    const peerBtns = peers
+      .map((p) => {
+        const shown = formatMetric({ unit: 'USD' }, { val: p.revenue });
+        return `<button type="button" class="f5-peer" data-peer="${p.company.rank}">${escapeHtml(p.company.company)}<span>${escapeHtml(shown || '')}</span></button>`;
+      })
+      .join('');
+    const peerBlock =
+      peers.length >= 2
+        ? `<div class="f5-peers">
+            <h3 class="f5-h3">Similar scale</h3>
+            <p class="f5-section-lede">Closest revenue among public Fortune 500 filers in this snapshot.</p>
+            <div class="f5-peer-row">${peerBtns}</div>
+            <button type="button" class="f5-peer-compare" data-compare-peers="${c.rank}">Compare with these</button>
+          </div>`
+        : '';
     numbers = `
       <h3 class="f5-h3">Headline numbers (${escapeHtml(year)})</h3>
-      <p class="f5-section-lede">From Company Facts, same annual period as the latest revenue/net-income 10-K. Blank means the tag isn’t in that filing.</p>
-      <div class="f5-metrics">${METRICS.map((m) => metricCard(m, headlines.metrics?.[m.key])).join('')}</div>
-      <h3 class="f5-h3">Ratios we compute (not stored by the SEC)</h3>
-      <div class="f5-metrics">${DERIVED.map((d) => derivedCard(d, headlines.ratios?.[d.key])).join('')}</div>
+      <p class="f5-section-lede">From Company Facts, same annual period as the latest revenue/net-income 10-K. Percentile is vs other public Fortune 500 filers that tagged the same item.</p>
+      <div class="f5-kpis">${FEATURED.map((item) => featuredCard(headlines, item)).join('')}</div>
+      ${peerBlock}
+      <h3 class="f5-h3">More 10-K tags</h3>
+      <div class="f5-table-wrap">
+        <table class="f5-table">
+          <tbody>${restRows}</tbody>
+        </table>
+      </div>
     `;
   }
+  const inCompare = compareRanks.includes(c.rank);
+  const addBtn = inCompare
+    ? `<button type="button" class="f5-add-compare" disabled>In compare set</button>`
+    : `<button type="button" class="f5-add-compare" data-add-compare="${c.rank}">Add to compare</button>`;
   return `
     <button type="button" class="f5-back" id="back">← All companies</button>
     <div class="f5-company-head">
@@ -208,7 +394,10 @@ function publicDetail(c, headlines, status) {
         <h2>${escapeHtml(c.company)}</h2>
         <p class="f5-legal">${escapeHtml(c.sec_name || '')}</p>
       </div>
-      <span class="f5-pill f5-pill-public">SEC filer</span>
+      <div class="f5-head-actions">
+        ${addBtn}
+        <span class="f5-pill f5-pill-public">SEC filer</span>
+      </div>
     </div>
     ${alias}
     <dl class="f5-dl">
@@ -260,17 +449,55 @@ function cellClass(values, value, better) {
   return '';
 }
 
-function dash() {
-  return `<span class="muted" title="Not tagged in the current 10-K">—</span>`;
+function barChart(names, rows) {
+  const spec = CHART_METRICS.find((m) => m.key === chartKey) || CHART_METRICS[0];
+  const def = lookupDef(spec.key);
+  const vals = names.map((c) => {
+    const h = rows.find((x) => x.cik === c.cik);
+    return spec.source === 'ratio' ? ratioNumber(h, spec.key) : metricNumber(h, spec.key);
+  });
+  const absMax = Math.max(0, ...vals.filter((v) => v != null).map((v) => Math.abs(v)));
+  const tabs = CHART_METRICS.map(
+    (m) =>
+      `<button type="button" class="f5-chart-tab${m.key === spec.key ? ' is-on' : ''}" data-chart="${escapeAttr(m.key)}">${escapeHtml(m.label)}</button>`
+  ).join('');
+  const bars = names
+    .map((c, i) => {
+      const v = vals[i];
+      const shown = v == null ? null : spec.source === 'ratio' ? formatDerived(def, v) : formatMetric(def, { val: v });
+      const width = v == null || !absMax ? 0 : (Math.abs(v) / absMax) * 100;
+      const cls = cellClass(vals, v, def?.better);
+      const neg = v != null && v < 0 ? ' is-neg' : '';
+      return `<div class="f5-bar-row">
+        <span class="f5-bar-name">${escapeHtml(c.company)}</span>
+        <div class="f5-bar-track">${v == null ? '' : `<div class="f5-bar-fill ${cls}${neg}" style="width:${width.toFixed(1)}%"></div>`}</div>
+        <span class="f5-bar-val">${shown ? escapeHtml(shown) : '—'}</span>
+      </div>`;
+    })
+    .join('');
+  return `
+    <div class="f5-chart">
+      <div class="f5-chart-tabs" role="tablist" aria-label="Chart metric">${tabs}</div>
+      <div class="f5-bars">${bars}</div>
+    </div>`;
 }
 
 function compareView(rows, status) {
   const names = compareRanks.map((r) => companyByRank(r)).filter(Boolean);
+  const insightRows = names.map((c) => ({
+    company: c,
+    headlines: rows.find((x) => x.cik === c.cik),
+  }));
+  const insights = status === 'ok' ? buildInsights(insightRows, snapshotCompanies) : [];
+  const insightBlock = insights.length
+    ? `<ul class="f5-insights">${insights.map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ul>`
+    : '';
+
   const head = names
     .map((c) => {
       const h = rows.find((x) => x.cik === c.cik);
       const fy = h?.asOfYear ? `FY${h.asOfYear}` : '';
-      return `<th>${escapeHtml(c.company)}<div class="muted">${escapeHtml(c.fortune_ticker || '')} ${fy}</div></th>`;
+      return `<th><button type="button" class="f5-linkish" data-rank="${c.rank}">${escapeHtml(c.company)}</button><div class="muted">${escapeHtml(c.fortune_ticker || '')} ${fy}</div></th>`;
     })
     .join('');
 
@@ -280,45 +507,35 @@ function compareView(rows, status) {
   } else if (status === 'error') {
     body = `<tr><td colspan="${names.length + 1}">Couldn’t reach /api/f500-headlines. On a static server this route doesn’t run — use the deployed site or <code>vercel dev</code>.</td></tr>`;
   } else {
-    const metricRows = METRICS.map((def) => {
-      const vals = names.map((c) => {
-        const h = rows.find((x) => x.cik === c.cik);
-        return h?.metrics?.[def.key]?.val;
-      });
-      const tds = names
-        .map((c, i) => {
-          const h = rows.find((x) => x.cik === c.cik);
-          const point = h?.metrics?.[def.key];
-          const shown = formatMetric(def, point);
-          const cls = cellClass(vals, point?.val, def.better);
-          return `<td class="${cls}">${shown ? escapeHtml(shown) : dash()}</td>`;
+    body = METRIC_GROUPS.map((group) => {
+      const groupRow = `<tr class="f5-group"><td colspan="${names.length + 1}">${escapeHtml(group.label)}</td></tr>`;
+      const metricRows = group.keys
+        .map((key) => {
+          const def = lookupDef(key);
+          if (!def) return '';
+          const vals = names.map((c) => lookupNumber(rows.find((x) => x.cik === c.cik), key));
+          const tds = names
+            .map((c, i) => {
+              const shown = lookupShown(rows.find((x) => x.cik === c.cik), key);
+              const cls = cellClass(vals, vals[i], def.better);
+              return `<td class="${cls}">${shown ? escapeHtml(shown) : dash()}</td>`;
+            })
+            .join('');
+          return `<tr><td>${escapeHtml(def.label)}</td>${tds}</tr>`;
         })
         .join('');
-      return `<tr><td>${escapeHtml(def.label)}</td>${tds}</tr>`;
+      return groupRow + metricRows;
     }).join('');
-    const ratioRows = DERIVED.map((def) => {
-      const vals = names.map((c) => {
-        const h = rows.find((x) => x.cik === c.cik);
-        return h?.ratios?.[def.key];
-      });
-      const tds = names
-        .map((c, i) => {
-          const h = rows.find((x) => x.cik === c.cik);
-          const value = h?.ratios?.[def.key];
-          const shown = formatDerived(def, value);
-          const cls = cellClass(vals, value, def.better);
-          return `<td class="${cls}">${shown ? escapeHtml(shown) : dash()}</td>`;
-        })
-        .join('');
-      return `<tr><td>${escapeHtml(def.label)}</td>${tds}</tr>`;
-    }).join('');
-    body = `${metricRows}<tr><td colspan="${names.length + 1}" class="muted">Ratios (computed here, not stored by the SEC)</td></tr>${ratioRows}`;
   }
+
+  const chart = status === 'ok' ? barChart(names, rows) : '';
 
   return `
     <button type="button" class="f5-back" id="back">← All companies</button>
     <h2 class="f5-h3">Compare headline numbers</h2>
     <p class="f5-section-lede">Latest annual 10-K period per company. Fiscal year-ends can differ (Apple is not calendar). Green = best in the row for “higher/lower is better” metrics; red = worst. Em-dash = not tagged.</p>
+    ${insightBlock}
+    ${chart}
     <p class="f5-legend"><span><i class="f5-swatch best"></i>best in row</span><span><i class="f5-swatch worst"></i>worst in row</span></p>
     <div class="f5-table-wrap">
       <table class="f5-table">
@@ -336,7 +553,7 @@ async function fetchHeadlines(ciks) {
     const res = await fetch(`/api/f500-headlines?ciks=${missing.join(',')}`);
     if (res.ok) {
       const data = await res.json();
-      for (const row of data.companies || []) headlinesByCik.set(row.cik, row);
+      for (const row of data.companies || []) rememberHeadline(row);
     }
   } catch {
     // Snapshot is enough for compare; live API is a fallback when deployed.
@@ -348,45 +565,44 @@ async function renderDetail() {
   layoutEl.classList.toggle('show-detail', compareMode || Boolean(selectedRank));
   if (compareMode) {
     const names = compareRanks.map(companyByRank).filter((c) => c && isPublic(c));
+    lastCompareRows = [];
+    lastCompareStatus = 'loading';
     detailEl.innerHTML = compareView([], 'loading');
-    document.getElementById('back')?.addEventListener('click', () => select(null));
     try {
       const rows = await fetchHeadlines(names.map((c) => c.cik));
       if (!compareMode) return;
-      detailEl.innerHTML = compareView(rows.filter(Boolean), 'ok');
-      document.getElementById('back')?.addEventListener('click', () => select(null));
+      lastCompareRows = rows.filter(Boolean);
+      lastCompareStatus = 'ok';
+      detailEl.innerHTML = compareView(lastCompareRows, 'ok');
     } catch {
       if (!compareMode) return;
+      lastCompareRows = [];
+      lastCompareStatus = 'error';
       detailEl.innerHTML = compareView([], 'error');
-      document.getElementById('back')?.addEventListener('click', () => select(null));
     }
     return;
   }
 
   const c = companyByRank(selectedRank);
   if (!c) {
-    detailEl.innerHTML = primer();
+    detailEl.innerHTML = screenerView();
     return;
   }
   if (!isPublic(c)) {
     detailEl.innerHTML = privateDetail(c);
-    document.getElementById('back')?.addEventListener('click', () => select(null));
     return;
   }
 
   const cached = headlinesByCik.get(c.cik);
   detailEl.innerHTML = publicDetail(c, cached, cached ? 'ok' : 'loading');
-  document.getElementById('back')?.addEventListener('click', () => select(null));
   if (cached) return;
   try {
     const [row] = await fetchHeadlines([c.cik]);
     if (selectedRank !== c.rank || compareMode) return;
     detailEl.innerHTML = publicDetail(c, row, row?.error ? 'error' : 'ok');
-    document.getElementById('back')?.addEventListener('click', () => select(null));
   } catch (err) {
     if (selectedRank !== c.rank || compareMode) return;
     detailEl.innerHTML = publicDetail(c, { error: err.message }, 'error');
-    document.getElementById('back')?.addEventListener('click', () => select(null));
   }
 }
 
@@ -432,7 +648,18 @@ function toggleCompare(rank, on) {
   }
   renderList();
   if (compareMode) applyState();
+  else if (!selectedRank) renderDetail();
   else renderCompareBar();
+}
+
+function applyPreset(id) {
+  const preset = PRESETS.find((p) => p.id === id);
+  if (!preset) return;
+  compareRanks = preset.ranks.filter((r) => {
+    const c = companyByRank(r);
+    return c && isPublic(c);
+  }).slice(0, MAX_COMPARE);
+  openCompare();
 }
 
 function escapeHtml(s) {
@@ -458,9 +685,76 @@ listEl.addEventListener('click', (e) => {
   select(Number(btn.dataset.rank));
 });
 
+detailEl.addEventListener('click', (e) => {
+  if (e.target.closest('#back')) {
+    select(null);
+    return;
+  }
+  const check = e.target.closest('[data-check]');
+  if (check) {
+    e.stopPropagation();
+    toggleCompare(Number(check.dataset.check), check.checked);
+    return;
+  }
+  const sortBtn = e.target.closest('[data-sort]');
+  if (sortBtn) {
+    const key = sortBtn.dataset.sort;
+    if (screenerSort.key === key) {
+      screenerSort = { key, dir: screenerSort.dir === 'asc' ? 'desc' : 'asc' };
+    } else {
+      screenerSort = { key, dir: key === 'name' || key === 'rank' ? 'asc' : 'desc' };
+    }
+    if (!selectedRank && !compareMode) detailEl.innerHTML = screenerView();
+    return;
+  }
+  const chart = e.target.closest('[data-chart]');
+  if (chart && compareMode) {
+    chartKey = chart.dataset.chart;
+    detailEl.innerHTML = compareView(lastCompareRows, lastCompareStatus);
+    return;
+  }
+  const add = e.target.closest('[data-add-compare]');
+  if (add) {
+    toggleCompare(Number(add.dataset.addCompare), true);
+    if (selectedRank) renderDetail();
+    return;
+  }
+  const peers = e.target.closest('[data-compare-peers]');
+  if (peers) {
+    const rank = Number(peers.dataset.comparePeers);
+    const c = companyByRank(rank);
+    const similar = similarByRevenue(c, companies, snapshotCompanies, MAX_COMPARE - 1);
+    compareRanks = [rank, ...similar.map((p) => p.company.rank)].slice(0, MAX_COMPARE);
+    openCompare();
+    return;
+  }
+  const peer = e.target.closest('[data-peer]');
+  if (peer) {
+    select(Number(peer.dataset.peer));
+    return;
+  }
+  const rankBtn = e.target.closest('[data-rank]');
+  if (rankBtn) {
+    select(Number(rankBtn.dataset.rank));
+  }
+});
+
+presetsEl?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-preset]');
+  if (!btn) return;
+  applyPreset(btn.dataset.preset);
+});
+
+compareBar.addEventListener('click', (e) => {
+  const chip = e.target.closest('[data-unchip]');
+  if (!chip) return;
+  toggleCompare(Number(chip.dataset.unchip), false);
+});
+
 searchEl.addEventListener('input', () => {
   query = searchEl.value.trim();
   renderList();
+  if (!selectedRank && !compareMode) renderDetail();
 });
 
 document.querySelector('.f5-filters').addEventListener('click', (e) => {
@@ -471,6 +765,7 @@ document.querySelector('.f5-filters').addEventListener('click', (e) => {
     b.setAttribute('aria-pressed', String(b === btn));
   }
   renderList();
+  if (!selectedRank && !compareMode) renderDetail();
 });
 
 compareGo.addEventListener('click', openCompare);
@@ -496,9 +791,8 @@ try {
   const snapRes = await fetch('./data/headlines-snapshot.json');
   if (snapRes.ok) {
     const snap = await snapRes.json();
-    for (const row of Object.values(snap.companies || {})) {
-      if (row?.cik != null) headlinesByCik.set(row.cik, row);
-    }
+    snapshotCompanies = snap.companies || {};
+    for (const row of Object.values(snapshotCompanies)) rememberHeadline(row);
     window.__f500PulledAt = snap.pulled_at;
   }
   const pub = companies.filter(isPublic).length;
@@ -515,6 +809,7 @@ try {
   document.getElementById('glossary-list').innerHTML = GLOSSARY.map(
     (g) => `<div><dt>${escapeHtml(g.term)}</dt><dd>${escapeHtml(g.def)}</dd></div>`
   ).join('');
+  renderPresets();
   const s = parseUrl();
   compareMode = s.compareMode;
   compareRanks = s.compareRanks;

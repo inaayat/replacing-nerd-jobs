@@ -35,9 +35,9 @@
         <p class="f5-kicker">Fortune rank · SEC EDGAR · no paywall numbers</p>
         <h1>What EDGAR has on each company</h1>
         <p class="f5-lede">
-          Pick a Fortune 500 company to see what the SEC publishes on it — or check two to four
-          public filers and compare their latest 10-K headline numbers. Missing tags are “not
-          tagged,” never zero. Private/mutual firms stay on the list with no financials.
+          Browse latest 10-K headlines for every public Fortune 500 filer, tap a peer set, or
+          line up to five companies. Missing tags are “not tagged,” never zero. Private/mutual
+          firms stay on the list with no financials.
         </p>
         <div class="f5-stats" id="stats"></div>
       </header>
@@ -54,6 +54,7 @@
               <button type="button" data-filter="private" aria-pressed="false">Private / mutual</button>
             </div>
             <p class="f5-count" id="count"></p>
+            <div class="f5-presets" id="presets" aria-label="Peer sets"></div>
           </div>
           <div class="f5-list" id="list" aria-label="Fortune 500"></div>
         </section>
@@ -62,10 +63,13 @@
       </div>
 
       <div class="f5-compare-bar" id="compare-bar" hidden>
-        <span id="compare-label"></span>
+        <div class="f5-compare-who">
+          <span id="compare-label"></span>
+          <div class="f5-chips" id="compare-chips"></div>
+        </div>
         <div>
           <button type="button" class="f5-compare-clear" id="compare-clear">Clear</button>
-          <button type="button" class="f5-compare-go" id="compare-go">Compare headlines</button>
+          <button type="button" class="f5-compare-go" id="compare-go">Compare</button>
         </div>
       </div>
 

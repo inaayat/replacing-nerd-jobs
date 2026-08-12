@@ -19,6 +19,7 @@ This repo is a no-build Vercel site (see `README.md` for structure/deploy). Non-
   - `node scripts/test-plot-points.mjs` — legacy Plot Points presets (`lib/plot-points.js`)
   - `node scripts/test-plot-points-query.mjs` — Plot Points query engine (`plot-points/query-engine.js`)
   - `node scripts/test-fortune500-extract.mjs` — Fortune 500 headline extract (`fortune-500/extract.js`)
+  - `node scripts/test-fortune500-insights.mjs` — Fortune 500 compare insights (`fortune-500/insights.js`)
   - `node scripts/test-public-imports.mjs` — no browser-loaded file imports server-only `/lib/` code
   - `node scripts/test-alist-watchlist-sort.mjs` — Coming Soon watchlist ordering
   - `node scripts/test-alist-showing.mjs` — watched-together / showing-invite match rules

@@ -1,15 +1,16 @@
 /**
  * Fortune 500 EDGAR headlines — one Hobby-plan function with ?route= branches.
  *
- * GET headlines?ciks=1018724,320193  → latest 10-K headline metrics (max 4 CIKs)
+ * GET headlines?ciks=1018724,320193  → latest 10-K headline metrics (max 5 CIKs)
  *
  * Fetches Company Facts from data.sec.gov (required User-Agent), extracts a
  * slim metric set, and caches it in Neon when DATABASE_URL is set.
  */
 import { db, ensureSchema } from '../lib/db.js';
 import { extractHeadlines } from '../fortune-500/extract.js';
+import { MAX_COMPARE } from '../fortune-500/catalog.js';
 
-const MAX_CIKS = 4;
+const MAX_CIKS = MAX_COMPARE;
 const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7;
 const SEC_PAUSE_MS = 125;
 
@@ -52,7 +53,7 @@ export default async function handler(req, res) {
 async function handleHeadlines(req, res) {
   const ciks = parseCiks(req.query?.ciks);
   if (!ciks.length) {
-    res.status(400).json({ error: 'Pass ?ciks= as up to 4 integer CIKs.' });
+    res.status(400).json({ error: `Pass ?ciks= as up to ${MAX_CIKS} integer CIKs.` });
     return;
   }
 

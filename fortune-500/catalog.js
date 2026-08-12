@@ -63,6 +63,76 @@ export const SOURCES = [
   },
 ];
 
+/** How many public filers can sit in one compare (API + UI). */
+export const MAX_COMPARE = 5;
+
+/** Metrics where a smaller number is better (used for compare coloring). */
+export const LOWER_BETTER = new Set(['debt_equity']);
+
+/**
+ * One-click peer sets. Ranks match fortune500_edgar_mapping.json.
+ * Keep each list ≤ MAX_COMPARE.
+ */
+export const PRESETS = [
+  { id: 'tech', label: 'Big tech', ranks: [4, 11, 6, 1, 15] },
+  { id: 'auto', label: 'Detroit + Tesla', ranks: [20, 21, 40] },
+  { id: 'banks', label: 'Big banks', ranks: [22, 38, 52, 54] },
+  { id: 'health', label: 'Health', ranks: [3, 43, 69, 70] },
+  { id: 'retail', label: 'Retail', ranks: [2, 12, 39, 23] },
+];
+
+/** Default table on the right when nothing is selected. */
+export const SCREENER_COLUMNS = [
+  { key: 'rank', label: '#', type: 'rank' },
+  { key: 'name', label: 'Company', type: 'name' },
+  { key: 'asOfYear', label: 'FY', type: 'year' },
+  { key: 'revenue', label: 'Revenue', type: 'usd', source: 'metric' },
+  { key: 'net_income', label: 'Net income', type: 'usd', source: 'metric' },
+  { key: 'net_margin', label: 'Net margin', type: 'pct', source: 'ratio' },
+  { key: 'revenue_yoy', label: 'Rev YoY', type: 'pct', source: 'ratio', signed: true },
+];
+
+export const CHART_METRICS = [
+  { key: 'net_margin', label: 'Net margin', source: 'ratio' },
+  { key: 'operating_margin', label: 'Op. margin', source: 'ratio' },
+  { key: 'gross_margin', label: 'Gross margin', source: 'ratio' },
+  { key: 'revenue_yoy', label: 'Revenue YoY', source: 'ratio', signed: true },
+  { key: 'roe', label: 'ROE', source: 'ratio' },
+  { key: 'roa', label: 'ROA', source: 'ratio' },
+  { key: 'revenue', label: 'Revenue', source: 'metric' },
+  { key: 'net_income', label: 'Net income', source: 'metric' },
+];
+
+export const FEATURED = [
+  { key: 'revenue', source: 'metric' },
+  { key: 'net_income', source: 'metric' },
+  { key: 'net_margin', source: 'ratio' },
+  { key: 'revenue_yoy', source: 'ratio' },
+];
+
+export const METRIC_GROUPS = [
+  {
+    id: 'income',
+    label: 'Income statement',
+    keys: ['revenue', 'gross_profit', 'operating_income', 'net_income', 'rd'],
+  },
+  {
+    id: 'balance',
+    label: 'Balance sheet',
+    keys: ['assets', 'liabilities', 'equity', 'cash', 'long_term_debt'],
+  },
+  {
+    id: 'cash',
+    label: 'Cash flow',
+    keys: ['cfo', 'cfi', 'cff', 'capex'],
+  },
+  {
+    id: 'ratios',
+    label: 'Ratios',
+    keys: ['gross_margin', 'operating_margin', 'net_margin', 'roa', 'roe', 'debt_equity', 'revenue_yoy'],
+  },
+];
+
 export const METRICS = [
   { key: 'revenue', label: 'Revenue', plain: 'Sales / top line for the period.', tags: 'Revenues, or RevenueFromContractWithCustomerExcludingAssessedTax', unit: 'USD', kind: 'duration', better: 'higher', candidates: [{ taxonomy: 'us-gaap', tag: 'Revenues' }, { taxonomy: 'us-gaap', tag: 'RevenueFromContractWithCustomerExcludingAssessedTax' }, { taxonomy: 'us-gaap', tag: 'SalesRevenueNet' }] },
   { key: 'net_income', label: 'Net income', plain: 'Profit after everything. Can be negative.', tags: 'NetIncomeLoss', unit: 'USD', kind: 'duration', better: 'higher', candidates: [{ taxonomy: 'us-gaap', tag: 'NetIncomeLoss' }] },
