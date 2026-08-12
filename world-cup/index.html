@@ -142,7 +142,7 @@
   </div>
   <div style="padding:16px">
     <!-- Official schedule download -->
-    <a href="/archive/world-cup/2026-world-cup-schedule.pdf" download style="display:flex;align-items:center;gap:8px;background:rgba(42,57,141,.06);border:1.5px solid var(--lgray);border-radius:8px;padding:10px 12px;margin-bottom:20px;text-decoration:none;color:var(--navy);font-size:12px;font-weight:700">
+    <a href="/world-cup/2026-world-cup-schedule.pdf" download style="display:flex;align-items:center;gap:8px;background:rgba(42,57,141,.06);border:1.5px solid var(--lgray);border-radius:8px;padding:10px 12px;margin-bottom:20px;text-decoration:none;color:var(--navy);font-size:12px;font-weight:700">
       <span style="font-size:16px">📄</span>
       <span>Download official match schedule (PDF)</span>
     </a>
@@ -201,13 +201,21 @@
       <button onclick="setTz('PT')" data-tz="PT">PT</button>
       <button onclick="setTz('UTC')" data-tz="UTC">UTC</button>
     </div>
-    <button onclick="loadData(true)" style="font-weight:700;color:#fff;padding:3px 8px;border-radius:4px;border:2px solid rgba(255,255,255,.5);font-size:11px;background:transparent;cursor:pointer;font-family:inherit;white-space:nowrap">↻ Refresh</button>
+    <button onclick="loadData(true)" title="Live scores are retired" style="font-weight:700;color:#fff;padding:3px 8px;border-radius:4px;border:2px solid rgba(255,255,255,.35);font-size:11px;background:transparent;cursor:pointer;font-family:inherit;white-space:nowrap;opacity:.55">↻ Refresh</button>
     <button onclick="openSidebar()" style="font-weight:700;color:#fff;padding:3px 8px;border-radius:4px;border:2px solid rgba(255,255,255,.5);font-size:11px;background:transparent;cursor:pointer;font-family:inherit;white-space:nowrap">ⓘ Guide</button>
     <a href="#bracket" style="font-weight:700;color:#fff;text-decoration:none;opacity:.8;font-size:13px;font-family:inherit">Bracket</a>
     <a href="#groups" style="font-weight:700;color:#fff;text-decoration:none;opacity:.8;font-size:13px;font-family:inherit">Groups</a>
   </div>
 </nav>
 
+<!-- Retired banner: live football-data.org scores are no longer fetched -->
+<div id="retired-banner" role="status" style="background:#fff8e6;border-bottom:2px solid #e3a72e;color:#1c1c1c;padding:10px 24px;display:flex;align-items:flex-start;gap:12px;font-size:13px;line-height:1.45">
+  <span style="font-size:16px;line-height:1.2;flex-shrink:0" aria-hidden="true">📦</span>
+  <div>
+    <strong style="display:block;font-size:13px;margin-bottom:2px">Retired — static snapshot</strong>
+    <span style="opacity:.85">Live score updates are no longer needed, so the football-data.org feed has been turned off. Groups, bracket tools, the official schedule PDF, and any previously cached results still work; they just won’t refresh from the live API.</span>
+  </div>
+</div>
 
 <!-- Tournament Summary -->
 <div class="px-8 pt-5 pb-4">
@@ -1045,10 +1053,10 @@ function renderAll() {
 }
 
 async function loadData(force = false) {
-  // Live football-data.org proxy (api/football.js) was retired with this project.
+  // Live football-data.org proxy (api/football.js) was retired — no live refresh.
   // Static schedule PDF + any previously cached localStorage data still work.
   const lu = document.getElementById('lu');
-  if (lu) lu.textContent = 'Archived — live scores retired';
+  if (lu) lu.textContent = 'Retired — live scores off';
   renderAll();
 }
 
@@ -1066,7 +1074,7 @@ if (cached) {
 syncTzButtons();
 renderAll();
 const luEl = document.getElementById('lu');
-if (luEl && !cached) luEl.textContent = 'Archived — live scores retired';
+if (luEl && !cached) luEl.textContent = 'Retired — live scores off';
 </script>
 </body>
 </html>

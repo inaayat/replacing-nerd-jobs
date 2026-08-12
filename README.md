@@ -44,9 +44,12 @@ is proxied onto this domain so it appears as a first-class card on the homepage.
 - Wiring: this repo’s `vercel.json` rewrites `/one-more-column/*` and `/api/omc-*`
   to that app
 
-### World Cup 2026 — retired → `/archive/world-cup`
+### World Cup 2026 — `/world-cup`
 
-Off the homepage. Static schedule/UI snapshot only (no live scores API).
+Back on the homepage as a **static snapshot**. Live football-data.org scores
+were turned off (no `api/football.js`); the page shows a retired banner and
+keeps groups/bracket tools + the official schedule PDF. Old
+`/archive/world-cup/*` URLs 301 to `/world-cup/`.
 
 ---
 
@@ -352,17 +355,17 @@ hand-editing the manifest in PRs.
 ├── packing-cubes/              ← reusable travel checklists
 ├── sporcle-spinoff/            ← trivia quiz platform
 ├── plot-points/                ← TMDB cinema query explorer
+├── world-cup/                  ← FIFA World Cup 2026 (static; live scores retired)
 │
 ├── scripts/                    ← index builders + pure-function tests
 ├── .github/workflows/          ← quiz/cube index rebuild + Neon preview cleanup
 │
 ├── ugly-dog-images/ · ugly-cat-images/
-└── archive/                    ← retired projects (inaayat.xyz/archive)
-    └── world-cup/              ← FIFA World Cup 2026 (static snapshot)
+└── archive/                    ← retired v1 site pages (inaayat.xyz/archive)
 ```
 
-Old `/private/*` URLs (including former GDDY statements) 301 to `/`. World Cup
-live URLs 301 to `/archive/world-cup/`.
+Old `/private/*` URLs (including former GDDY statements) 301 to `/`. Former
+`/archive/world-cup/*` URLs 301 to `/world-cup/`.
 
 ---
 

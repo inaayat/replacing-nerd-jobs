@@ -11,18 +11,18 @@
   },
   "redirects": [
     {
-      "source": "/world-cup",
-      "destination": "/archive/world-cup/",
+      "source": "/archive/world-cup",
+      "destination": "/world-cup/",
       "permanent": true
     },
     {
-      "source": "/world-cup/",
-      "destination": "/archive/world-cup/",
+      "source": "/archive/world-cup/",
+      "destination": "/world-cup/",
       "permanent": true
     },
     {
-      "source": "/world-cup/:path*",
-      "destination": "/archive/world-cup/:path*",
+      "source": "/archive/world-cup/:path*",
+      "destination": "/world-cup/:path*",
       "permanent": true
     },
     {
