@@ -1,13 +1,3 @@
-# beep boop
-
-Personal toolkit site served at [inaayat.xyz](https://inaayat.xyz).
-Repo: [inaayat/replacing-nerd-jobs](https://github.com/inaayat/replacing-nerd-jobs).
-
-Static HTML/CSS/JS pages plus a small set of Vercel serverless functions.
-There is **no build step** — push to `main` and Vercel redeploys.
-
----
-
 ## Website setup
 
 ### What this is
