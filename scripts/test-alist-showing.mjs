@@ -8,6 +8,7 @@ import {
   normalizeMovieTitle,
   inviteFromRow,
   summarizeBulkInviteResults,
+  normalizeSeenWithUsernames,
 } from '../lib/a-list-showing.js';
 
 let passed = 0;
@@ -115,6 +116,18 @@ assertDeep(
   ]),
   { linked: 1, already: 2, invited: 2, failed: 1, total: 6 },
   'bulk summary counts outcomes',
+);
+
+assertDeep(
+  normalizeSeenWithUsernames(['Karan', 'karan', 'Aditi!', 'ad_iti', 'ab', 'ok_user']),
+  ['karan', 'ad_iti', 'ok_user'],
+  'seen-with usernames normalize and dedupe',
+);
+
+assertDeep(
+  normalizeSeenWithUsernames('karan, aditi  other_user'),
+  ['karan', 'aditi', 'other_user'],
+  'seen-with accepts comma/space strings',
 );
 
 console.log(`${passed} passed, ${failed} failed`);

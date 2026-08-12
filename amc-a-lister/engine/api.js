@@ -140,6 +140,10 @@ export const showingInvitesApi = {
   respond: (token, body) => mutate(apiFetch('/api/alist-showing-invites', { method: 'PATCH', body, token })),
 };
 
+export const userSearchApi = {
+  search: (token, q) => apiFetch(`/api/alist-user-search?q=${encodeURIComponent(q || '')}`, { token }),
+};
+
 export const tvWatchesApi = {
   list: (token) => cachedGet('tv-watches', () => apiFetch('/api/alist-tv-watches', { token })),
   create: (token, watch) => mutate(apiFetch('/api/alist-tv-watches', { method: 'POST', body: watch, token })),

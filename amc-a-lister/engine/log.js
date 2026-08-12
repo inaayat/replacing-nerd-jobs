@@ -3,6 +3,7 @@ import { watchesApi, movieApi, showingInvitesApi } from './api.js';
 import { money, shortDate, ratingLabel, escapeHtml, posterHtml } from './format.js';
 import { renderWatchEditForm, wireWatchEditForm } from './watch-form.js';
 import { ratingStarBucket } from './billing.js';
+import { wireUserSuggest } from './user-suggest.js';
 
 let reloadLog;
 
@@ -359,8 +360,11 @@ function addViewerFormHtml(watch) {
           at ${escapeHtml(watch.location || 'this theater')}
         </label>
         <div class="al-add-viewer-row">
-          <input class="al-input" id="add-viewer-${watch.id}" name="username" type="text"
-                 placeholder="Their username" autocomplete="off" required maxlength="24" />
+          <div class="al-search-wrap al-add-viewer-search">
+            <input class="al-input" id="add-viewer-${watch.id}" name="username" type="text"
+                   placeholder="Search username…" autocomplete="off" required maxlength="24" />
+            <div class="al-search-results" id="add-viewer-results-${watch.id}" hidden></div>
+          </div>
           <button class="al-btn al-btn-primary" type="submit">Send</button>
           <button class="al-btn" type="button" data-cancel-add-viewer>Cancel</button>
         </div>
@@ -513,7 +517,21 @@ function wireRowActions(auth, state, render) {
       showLogError('');
       render();
       if (state.addingId) {
-        document.getElementById(`add-viewer-${state.addingId}`)?.focus();
+        const input = document.getElementById(`add-viewer-${state.addingId}`);
+        const resultsEl = document.getElementById(`add-viewer-results-${state.addingId}`);
+        if (input && resultsEl) {
+          wireUserSuggest(input, resultsEl, {
+            token: auth.token,
+            getExclude: () => {
+              const watch = state.watches.find((w) => w.id === state.addingId);
+              return (watch?.companions || []).map((c) => c.username);
+            },
+            onSelect: (username) => {
+              input.value = username;
+            },
+          });
+        }
+        input?.focus();
       }
     });
   });
@@ -635,8 +653,8 @@ function wireRowActions(auth, state, render) {
       const { watch: updated } = await watchesApi.update(auth.token, { id: watch.id, ...payload });
       const merged = {
         ...updated,
-        poster_path: updated.tmdb_id === watch.tmdb_id ? watch.poster_path : null,
-        companions: watch.companions || [],
+        poster_path: updated.poster_path || (updated.tmdb_id === watch.tmdb_id ? watch.poster_path : null),
+        companions: updated.companions || watch.companions || [],
       };
       state.watches = state.watches.map((w) => (w.id === watch.id ? merged : w));
       state.filtered = state.filtered.map((w) => (w.id === watch.id ? merged : w));

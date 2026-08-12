@@ -23,6 +23,9 @@ import {
   listShowingInvites,
   respondToShowingInvite,
   inviteToShowingBulk,
+  searchAlistUsers,
+  applySeenWith,
+  normalizeSeenWithUsernames,
 } from '../lib/a-list.js';
 import {
   computeSummary,
@@ -77,6 +80,8 @@ export default async function handler(req, res) {
       return handleTvDetails(req, res);
     case 'showing-invites':
       return handleShowingInvites(req, res);
+    case 'user-search':
+      return handleUserSearch(req, res);
     default:
       res.status(404).json({ error: 'Unknown A-List route.' });
   }
@@ -216,6 +221,7 @@ function normalizeBody(body) {
       dnf,
       notes: body.notes ? String(body.notes).trim().slice(0, 2000) : null,
       in_theaters: inTheaters,
+      seen_with: normalizeSeenWithUsernames(body.seen_with),
     },
   };
 }
@@ -362,6 +368,7 @@ async function handleWatches(req, res) {
     }
     const { data } = parsed;
     const id = randomUUID();
+    const sawAlone = data.seen_with.length ? false : data.saw_alone;
     try {
       const rows = await db()`
         INSERT INTO alist_watches (
@@ -369,7 +376,7 @@ async function handleWatches(req, res) {
           saw_alone, auditorium, seat, ticket_cents, rating, dnf, notes, in_theaters
         ) VALUES (
           ${id}, ${userId}, ${data.watched_on}, ${data.title}, ${data.tmdb_id},
-          ${data.location}, ${data.format}, ${data.saw_alone}, ${data.auditorium},
+          ${data.location}, ${data.format}, ${sawAlone}, ${data.auditorium},
           ${data.seat}, ${data.ticket_cents}, ${data.rating}, ${data.dnf}, ${data.notes},
           ${data.in_theaters}
         )
@@ -378,7 +385,18 @@ async function handleWatches(req, res) {
                   dnf, notes, in_theaters, created_at, updated_at
       `;
       await getMembership(userId);
-      res.status(201).json({ watch: watchFromRow(rows[0]) });
+      let seen_with = null;
+      if (data.in_theaters !== false && data.seen_with.length) {
+        seen_with = await applySeenWith(userId, id, data.seen_with);
+      }
+      const watch = watchFromRow({ ...rows[0], companions: [] });
+      if (seen_with?.results?.some((r) => r.linked)) {
+        // Refresh companions after tagging matches.
+        const refreshed = await listWatches(userId);
+        const match = refreshed.find((w) => w.id === id);
+        if (match) Object.assign(watch, watchFromRow(match));
+      }
+      res.status(201).json({ watch, seen_with });
     } catch (err) {
       res.status(502).json({ error: err.message });
     }
@@ -412,6 +430,7 @@ async function handleWatches(req, res) {
       return;
     }
     const { data } = parsed;
+    const sawAlone = data.seen_with.length ? false : data.saw_alone;
     try {
       const rows = await db()`
         UPDATE alist_watches SET
@@ -420,7 +439,7 @@ async function handleWatches(req, res) {
           tmdb_id = ${data.tmdb_id},
           location = ${data.location},
           format = ${data.format},
-          saw_alone = ${data.saw_alone},
+          saw_alone = ${sawAlone},
           auditorium = ${data.auditorium},
           seat = ${data.seat},
           ticket_cents = ${data.ticket_cents},
@@ -438,7 +457,16 @@ async function handleWatches(req, res) {
         res.status(404).json({ error: 'Watch not found.' });
         return;
       }
-      res.status(200).json({ watch: watchFromRow(rows[0]) });
+      let seen_with = null;
+      if (data.in_theaters !== false && data.seen_with.length) {
+        seen_with = await applySeenWith(userId, id, data.seen_with);
+      }
+      const refreshed = await listWatches(userId);
+      const match = refreshed.find((w) => w.id === id);
+      res.status(200).json({
+        watch: watchFromRow(match || { ...rows[0], companions: [] }),
+        seen_with,
+      });
     } catch (err) {
       res.status(502).json({ error: err.message });
     }
@@ -1667,6 +1695,24 @@ async function handleShowingInvites(req, res) {
   }
 
   res.status(405).json({ error: 'Method not allowed.' });
+}
+
+async function handleUserSearch(req, res) {
+  if (!requireDb(res)) return;
+  const session = await requireUser(req, res);
+  if (!session) return;
+  if (req.method !== 'GET') {
+    res.status(405).json({ error: 'Use GET.' });
+    return;
+  }
+
+  const q = String(req.query?.q || '').trim();
+  try {
+    const results = await searchAlistUsers(q, { excludeUserId: session.userId, limit: 8 });
+    res.status(200).json({ results });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
 }
 
 function parseMoney(value) {

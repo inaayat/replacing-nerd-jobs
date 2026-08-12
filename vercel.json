@@ -75,6 +75,10 @@
       "destination": "/api/alist?route=showing-invites"
     },
     {
+      "source": "/api/alist-user-search",
+      "destination": "/api/alist?route=user-search"
+    },
+    {
       "source": "/api/pc-cubes",
       "destination": "/api/packing-cubes?route=cubes"
     },

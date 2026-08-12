@@ -345,6 +345,58 @@ a { color: var(--al-burgundy); }
   }
   .al-quicklog-field--notes { grid-column: span 3; }
   .al-quicklog-field--checks { grid-column: span 2; }
+  .al-quicklog-field--seen-with { grid-column: 1 / -1; }
+}
+
+.al-seen-with {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.al-seen-with-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-height: 0;
+}
+
+.al-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #e8f0ea;
+  color: #2f5d3a;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.al-chip.is-locked {
+  background: #f0ece8;
+  color: var(--al-muted);
+}
+
+.al-chip-remove {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0 0 2px;
+}
+
+.al-add-viewer-search {
+  flex: 1 1 160px;
+  min-width: 140px;
+  max-width: 280px;
+  position: relative;
+}
+
+.al-bulk-add-user {
+  position: relative;
 }
 
 .al-quicklog-field--checks {

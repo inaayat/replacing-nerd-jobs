@@ -3,6 +3,7 @@ import { parseMoneyInput, escapeHtml } from './format.js';
 import { loadUserTheaters, rememberTheater, wireTheaterSuggest } from './theater-suggest.js';
 import { todayISO } from './dates.js';
 import { wireComboboxKeys } from './combobox.js';
+import { wireSeenWithPicker } from './user-suggest.js';
 
 const FORMATS = ['', 'IMAX', 'Dolby', 'IMAX 3D', '70MM', 'Q&A'];
 
@@ -68,6 +69,16 @@ export function renderQuickLogBar() {
                 <label for="ql-notes">Notes</label>
                 <input class="al-quicklog-input" id="ql-notes" name="notes" type="text" placeholder="Optional" />
               </div>
+              <div class="al-quicklog-field al-quicklog-field--seen-with" data-theater-only>
+                <label for="ql-seen-with">Seen with</label>
+                <div class="al-seen-with" id="ql-seen-with-wrap">
+                  <div class="al-seen-with-chips" id="ql-seen-with-chips"></div>
+                  <div class="al-search-wrap">
+                    <input class="al-quicklog-input" id="ql-seen-with" type="text" placeholder="Add username…" autocomplete="off" maxlength="24" />
+                    <div class="al-search-results" id="ql-seen-with-results" hidden></div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -104,6 +115,14 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
   let logMode = 'theater';
   let theaters = [];
 
+  const seenWith = wireSeenWithPicker({
+    chipsEl: document.getElementById('ql-seen-with-chips'),
+    input: document.getElementById('ql-seen-with'),
+    resultsEl: document.getElementById('ql-seen-with-results'),
+    token: auth.token,
+    onChange: () => checkExpand(),
+  });
+
   loadUserTheaters(auth.token).then((list) => { theaters = list; });
   wireTheaterSuggest(locationInput, theaterResultsEl, {
     getTheaters: () => theaters,
@@ -131,6 +150,7 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
       dnfInput.checked = false;
       ratingInput.disabled = false;
       form.notes.value = '';
+      seenWith.clear();
       shell.classList.remove('has-title');
     }
     checkExpand();
@@ -160,11 +180,12 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
       || form.rating.value
       || (logMode === 'theater' && form.notes.value.trim())
       || (logMode === 'theater' && dnfInput.checked)
+      || (logMode === 'theater' && seenWith.getUsernames().length)
     );
     setExpanded(active);
   };
 
-  ['ql-date', 'ql-title', 'ql-rating', 'ql-notes'].forEach((id) => {
+  ['ql-date', 'ql-title', 'ql-rating', 'ql-notes', 'ql-seen-with'].forEach((id) => {
     const el = document.getElementById(id);
     el.addEventListener('input', checkExpand);
     el.addEventListener('change', checkExpand);
@@ -242,6 +263,8 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
       notes: inTheaters ? (form.notes.value.trim() || null) : null,
       tmdb_id: tmdbInput.value ? Number(tmdbInput.value) : null,
       in_theaters: inTheaters,
+      seen_with: inTheaters ? seenWith.getUsernames() : [],
+      saw_alone: inTheaters ? seenWith.getUsernames().length === 0 : false,
     };
 
     if (!payload.tmdb_id && payload.title) {
@@ -249,8 +272,14 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
     }
 
     try {
-      await watchesApi.create(auth.token, payload);
-      statusEl.textContent = `Logged ${payload.title}${inTheaters ? '' : ' (off-theater)'}`;
+      const { seen_with: seenResult } = await watchesApi.create(auth.token, payload);
+      const withCount = seenResult?.summary
+        ? (seenResult.summary.linked || 0) + (seenResult.summary.invited || 0)
+        : payload.seen_with.length;
+      const withNote = withCount
+        ? ` · seen with ${withCount}`
+        : '';
+      statusEl.textContent = `Logged ${payload.title}${inTheaters ? '' : ' (off-theater)'}${withNote}`;
       statusEl.classList.add('is-success');
       if (inTheaters && payload.location) {
         theaters = rememberTheater(theaters, payload.location);
@@ -260,6 +289,7 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
       baselineDate = form.watched_on.value;
       tmdbInput.value = '';
       ratingInput.disabled = false;
+      seenWith.clear();
       setLogMode('theater');
       titleInput.focus();
       // Hand the caller what was logged (and which list row it came from) so a

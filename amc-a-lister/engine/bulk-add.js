@@ -1,6 +1,7 @@
 import { bootPage, renderShell, requireSignIn, populateSidebarStats } from './nav.js';
 import { watchesApi, showingInvitesApi } from './api.js';
 import { shortDate, money, escapeHtml, posterHtml } from './format.js';
+import { wireUserSuggest } from './user-suggest.js';
 
 bootPage(async ({ root, auth }) => {
   if (!requireSignIn(auth, root)) return;
@@ -52,10 +53,11 @@ async function loadPage(auth) {
   main.innerHTML = `
     <section class="al-panel al-panel--log">
       <div class="al-toolbar al-toolbar--log al-toolbar--bulk-add">
-        <div class="al-bulk-add-user">
+        <div class="al-bulk-add-user al-search-wrap">
           <label class="sr-only" for="bulk-username">Username</label>
           <input class="al-input" id="bulk-username" type="text" maxlength="24"
-                 placeholder="Their username" autocomplete="off" />
+                 placeholder="Search username…" autocomplete="off" />
+          <div class="al-search-results" id="bulk-username-results" hidden></div>
         </div>
         <input class="al-input al-toolbar-search" id="bulk-search" type="search" placeholder="Search title or theater…" />
         <label class="al-check"><input type="checkbox" id="bulk-hide-tagged" /> Hide already tagged</label>
@@ -119,6 +121,24 @@ async function loadPage(auth) {
     }
     render();
   });
+
+  wireUserSuggest(
+    document.getElementById('bulk-username'),
+    document.getElementById('bulk-username-results'),
+    {
+      token: auth.token,
+      minChars: 0,
+      onSelect: (username) => {
+        state.username = username;
+        document.getElementById('bulk-username').value = username;
+        for (const id of [...state.selected]) {
+          const watch = state.watches.find((w) => w.id === id);
+          if (watch && hasCompanion(watch, username)) state.selected.delete(id);
+        }
+        render();
+      },
+    },
+  );
 
   document.getElementById('bulk-search').addEventListener('input', render);
   document.getElementById('bulk-hide-tagged').addEventListener('change', render);

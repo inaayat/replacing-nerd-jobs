@@ -2,6 +2,7 @@ import { movieApi } from './api.js';
 import { parseMoneyInput, escapeHtml } from './format.js';
 import { loadUserTheaters, wireTheaterSuggest } from './theater-suggest.js';
 import { wireComboboxKeys } from './combobox.js';
+import { wireSeenWithPicker } from './user-suggest.js';
 
 export const WATCH_FORMATS = ['', 'IMAX', 'Dolby', 'IMAX 3D', '70MM', 'Q&A'];
 
@@ -59,6 +60,16 @@ export function renderWatchEditForm(watch, prefix = 'edit') {
         <label class="al-check"><input type="checkbox" id="${prefix}-in_theaters" ${watch.in_theaters !== false ? 'checked' : ''} /> In theaters</label>
       </div>
       <div class="al-field span-2" data-theater-only>
+        <label for="${prefix}-seen-with">Seen with</label>
+        <div class="al-seen-with" id="${prefix}-seen-with-wrap">
+          <div class="al-seen-with-chips" id="${prefix}-seen-with-chips"></div>
+          <div class="al-search-wrap">
+            <input class="al-input" id="${prefix}-seen-with" type="text" placeholder="Add username…" autocomplete="off" maxlength="24" />
+            <div class="al-search-results" id="${prefix}-seen-with-results" hidden></div>
+          </div>
+        </div>
+      </div>
+      <div class="al-field span-2" data-theater-only>
         <label for="${prefix}-notes">Notes</label>
         <textarea class="al-textarea" id="${prefix}-notes" rows="2">${escapeHtml(watch.notes || '')}</textarea>
       </div>
@@ -88,6 +99,30 @@ export function wireWatchEditForm(auth, watch, prefix, { onSave, onCancel }) {
   const statusEl = document.getElementById(`${prefix}-status`);
   let searchTimer = null;
   let theaters = [];
+
+  const existingCompanions = (watch.companions || [])
+    .map((c) => c.username)
+    .filter(Boolean);
+
+  const syncAlone = (usernames) => {
+    if (usernames.length) {
+      sawAloneInput.checked = false;
+      sawAloneInput.disabled = true;
+    } else {
+      sawAloneInput.disabled = false;
+    }
+  };
+
+  const seenWith = wireSeenWithPicker({
+    chipsEl: document.getElementById(`${prefix}-seen-with-chips`),
+    input: document.getElementById(`${prefix}-seen-with`),
+    resultsEl: document.getElementById(`${prefix}-seen-with-results`),
+    token: auth.token,
+    locked: existingCompanions,
+    initial: existingCompanions,
+    onChange: syncAlone,
+  });
+  syncAlone(seenWith.getUsernames());
 
   loadUserTheaters(auth.token).then((list) => { theaters = list; });
   wireTheaterSuggest(locationInput, theaterResultsEl, {
@@ -166,6 +201,7 @@ export function wireWatchEditForm(auth, watch, prefix, { onSave, onCancel }) {
     statusEl.textContent = 'Saving…';
 
     const inTheaters = inTheatersInput.checked;
+    const companions = inTheaters ? seenWith.getUsernames() : [];
     const payload = {
       watched_on: document.getElementById(`${prefix}-watched_on`).value,
       title: titleInput.value.trim(),
@@ -176,10 +212,11 @@ export function wireWatchEditForm(auth, watch, prefix, { onSave, onCancel }) {
       ticket_cents: inTheaters ? parseMoneyInput(document.getElementById(`${prefix}-ticket`).value) : null,
       rating: inTheaters && dnfInput.checked ? null : (ratingInput.value ? Number(ratingInput.value) : null),
       dnf: inTheaters ? dnfInput.checked : false,
-      saw_alone: inTheaters ? sawAloneInput.checked : false,
+      saw_alone: inTheaters ? (companions.length ? false : sawAloneInput.checked) : false,
       notes: inTheaters ? (document.getElementById(`${prefix}-notes`).value.trim() || null) : null,
       tmdb_id: tmdbInput.value ? Number(tmdbInput.value) : null,
       in_theaters: inTheaters,
+      seen_with: companions,
     };
 
     if (!payload.tmdb_id && payload.title) {
