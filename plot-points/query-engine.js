@@ -148,17 +148,18 @@ export const AGGREGATIONS = {
  * How rows are ordered. The displayed number is always the raw metric — these
  * only decide the sort, and the query's provenance states which was used.
  */
+// Labels stay short because they sit in a narrow select next to their hint.
 export const RANK_MODES = {
   metric: {
-    label: 'Value (confidence-weighted)',
+    label: 'Weighted value',
     hint: 'Pulls thin rows toward the film-set average so a single film can’t top the list.',
   },
   raw: {
-    label: 'Value (raw)',
+    label: 'Raw value',
     hint: 'Straight ranking on the number, however few films it came from.',
   },
   lift: {
-    label: 'Difference vs. film-set average',
+    label: 'Difference vs. average',
     hint: 'Ranks by how far above or below the whole film set a row sits.',
   },
 };
@@ -182,10 +183,11 @@ export const FILTER_OPS = {
 
 // How many films a query reads. Every film past the cache is a TMDB round
 // trip, so this is the one knob that trades latency for completeness.
+// Labels stay terse so they fit the select; the field hint carries the caveat.
 export const DEPTH_OPTIONS = [
-  { value: 60, label: '60 films · fast' },
-  { value: 120, label: '120 films · slower first run' },
-  { value: 200, label: '200 films · covers most filmographies' },
+  { value: 60, label: '60 films · fastest' },
+  { value: 120, label: '120 films · deeper' },
+  { value: 200, label: '200 films · deepest' },
 ];
 export const DEFAULT_DEPTH = 60;
 
@@ -470,6 +472,10 @@ export function normalizeSpec(input = {}) {
     depth,
     credit_quality: CREDIT_QUALITY[input.credit_quality] ? input.credit_quality : 'notable',
     rank_by: RANK_MODES[input.rank_by] ? input.rank_by : 'metric',
+    // Grouping people over their own filmography makes the subject a trivial
+    // #1 — they're in every film by definition. Off by default so existing
+    // shared links keep their meaning.
+    exclude_subject: input.exclude_subject === true,
     sort: input.sort === 'asc' ? 'asc' : 'desc',
     limit: Number.isFinite(limitRaw) && limitRaw >= 1
       ? Math.min(Math.floor(limitRaw), MAX_LIMIT)
@@ -494,6 +500,9 @@ export function describeSpec(spec) {
     `across ${scopeMeta.describe(spec.scope)}`,
   ];
   if (spec.min_films > 1) parts.push(`with at least ${spec.min_films} films`);
+  if (spec.exclude_subject && spec.scope.person_name) {
+    parts.push(`excluding ${spec.scope.person_name}`);
+  }
   if (spec.rank_by === 'lift') parts.push('ordered by distance from the film-set average');
 
   const filterText = spec.filters
@@ -530,12 +539,20 @@ export function runQuery(movies, rawSpec) {
   const scanned = decorated.length;
   const eligible = decorated.filter((m) => movieMatchesFilters(m, spec.filters));
 
+  // "Who does X co-star with" is the same query as "who appears in X's films"
+  // minus X, who is in all of them.
+  const subjectId = spec.exclude_subject ? Number(spec.scope.person_id) || null : null;
+  const isSubject = (entity) => subjectId !== null && (
+    entity.tmdb_id === subjectId || (entity.pair || []).includes(subjectId)
+  );
+
   const groups = new Map();
   for (const movie of eligible) {
     const entities = entitiesForMovie(movie, spec.group_by, {
       topCastPerFilm: spec.top_cast_per_film,
     });
     for (const entity of entities) {
+      if (isSubject(entity)) continue;
       if (!groups.has(entity.key)) {
         groups.set(entity.key, { ...entity, films: [] });
       }

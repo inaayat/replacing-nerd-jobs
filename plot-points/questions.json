@@ -40,6 +40,23 @@
       }
     },
     {
+      "id": "costars",
+      "group": "collaboration",
+      "question": "Who does {person} co-star with?",
+      "blurb": "Actors ranked by films shared — excluding the subject, who is in all of them.",
+      "slot": { "type": "person", "pool": "actors", "default": { "tmdb_id": 6193, "name": "Leonardo DiCaprio" } },
+      "spec": {
+        "scope": { "type": "person-acted" },
+        "group_by": "actor",
+        "metric": { "agg": "count" },
+        "exclude_subject": true,
+        "min_films": 2,
+        "sort": "desc",
+        "limit": 25,
+        "depth": 200
+      }
+    },
+    {
       "id": "house-composer",
       "group": "collaboration",
       "question": "Which composer does {person} keep hiring?",

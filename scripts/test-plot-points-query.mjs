@@ -410,6 +410,56 @@ const selfPair = runQuery([film({
 })], { group_by: 'actor+director', metric: { agg: 'count' }, min_films: 1 });
 assert.equal(selfPair.results.length, 0, 'self-pairs are dropped as degenerate');
 
+/* ── Excluding the scope subject ───────────────────────────────── */
+
+// "Who does X co-star with" is "who is in X's films" minus X, who is in all
+// of them and would otherwise be a trivial #1.
+const withSubject = runQuery(movies, {
+  scope: { type: 'person-acted', person_id: 10, person_name: 'Ada' },
+  group_by: 'actor',
+  metric: { agg: 'count' },
+  min_films: 1,
+});
+assert.equal(withSubject.results[0].label, 'Ada', 'by default the subject tops their own filmography');
+
+const withoutSubject = runQuery(movies, {
+  scope: { type: 'person-acted', person_id: 10, person_name: 'Ada' },
+  group_by: 'actor',
+  metric: { agg: 'count' },
+  exclude_subject: true,
+  min_films: 1,
+});
+assert.ok(
+  !withoutSubject.results.some((r) => r.label === 'Ada'),
+  'the subject is dropped from the rows when excluded',
+);
+assert.ok(withoutSubject.results.length, 'their co-stars still come back');
+assert.ok(
+  describeSpec(normalizeSpec({
+    scope: { type: 'person-acted', person_id: 10, person_name: 'Ada' },
+    group_by: 'actor',
+    metric: { agg: 'count' },
+    exclude_subject: true,
+  })).includes('excluding Ada'),
+  'provenance says who was left out',
+);
+
+// Pairs containing the subject go too, so co-star pairs stay about other people.
+const pairsWithoutSubject = runQuery(movies, {
+  scope: { type: 'person-acted', person_id: 10, person_name: 'Ada' },
+  group_by: 'actor+actor',
+  metric: { agg: 'count' },
+  exclude_subject: true,
+  min_films: 1,
+});
+assert.ok(
+  !pairsWithoutSubject.results.some((r) => r.label.includes('Ada')),
+  'pairs involving the excluded subject are dropped too',
+);
+
+assert.equal(normalizeSpec({}).exclude_subject, false, 'off by default');
+assert.equal(normalizeSpec({ exclude_subject: true }).exclude_subject, true);
+
 /* ── Baselines, confidence weighting, lift ─────────────────────── */
 
 const rated = runQuery(movies, {

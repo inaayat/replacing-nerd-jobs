@@ -56,6 +56,8 @@ const els = {
   yearFrom: el('scope-year-from'),
   yearTo: el('scope-year-to'),
   minVotes: el('scope-min-votes'),
+  excludeSubject: el('exclude-subject'),
+  excludeSubjectField: el('exclude-subject-field'),
   creditQuality: el('credit-quality'),
   creditQualityField: el('credit-quality-field'),
   creditQualityHint: el('credit-quality-hint'),
@@ -184,6 +186,7 @@ function syncScopeFields() {
   els.scopeDiscover.hidden = needs !== 'discover';
   // Credit screening only has anything to act on for a person's filmography.
   els.creditQualityField.hidden = needs !== 'person';
+  els.excludeSubjectField.hidden = needs !== 'person';
   els.creditQualityHint.textContent = CREDIT_QUALITY[els.creditQuality.value]?.hint || '';
 }
 
@@ -282,6 +285,7 @@ function currentSpec() {
     min_films: Number(els.minFilms.value),
     sort: els.sortDir.value,
     rank_by: els.rankBy.value,
+    exclude_subject: els.excludeSubject.checked,
     depth: Number(els.scanDepth.value),
     credit_quality: els.creditQuality.value,
     limit: Number(els.limit.value),
@@ -297,6 +301,7 @@ function applySpec(spec) {
   if (normalized.metric.field) els.metricField.value = normalized.metric.field;
   els.sortDir.value = normalized.sort;
   els.rankBy.value = normalized.rank_by;
+  els.excludeSubject.checked = normalized.exclude_subject;
   els.scanDepth.value = String(normalized.depth);
   els.creditQuality.value = normalized.credit_quality;
   els.minFilms.value = String(normalized.min_films);
@@ -837,6 +842,7 @@ function bindControls() {
     syncMetricFields();
     updateSpecPreview();
   });
+  els.excludeSubject.addEventListener('change', updateSpecPreview);
   els.creditQuality.addEventListener('change', () => {
     syncScopeFields();
     updateSpecPreview();

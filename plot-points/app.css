@@ -123,21 +123,24 @@ a { color: var(--pp-red); }
   padding-bottom: max(64px, calc(32px + env(safe-area-inset-bottom)));
 }
 
-/* Film-strip edge decoration */
+/* Film-strip edge decoration.
+   Deliberately NOT `overflow: hidden` — a strip contains type-ahead dropdowns
+   that must be able to hang below it, and clipping the panel swallowed them.
+   The perforations stop short of the corners instead, which is what the
+   clipping was for. */
 .pp-strip {
   position: relative;
   border: 1.5px solid var(--pp-ink);
   border-radius: var(--pp-radius);
   background: var(--pp-panel);
-  overflow: hidden;
 }
 
 .pp-strip::before,
 .pp-strip::after {
   content: "";
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: var(--pp-radius);
+  bottom: var(--pp-radius);
   width: 14px;
   background:
     repeating-linear-gradient(
@@ -153,8 +156,8 @@ a { color: var(--pp-red); }
 .pp-strip::after { right: 0; }
 
 .pp-hero {
-  padding: 48px 36px 40px;
-  margin-bottom: 28px;
+  padding: 30px 28px 26px;
+  margin-bottom: 20px;
   animation: pp-rise 0.7s ease both;
 }
 
@@ -217,7 +220,7 @@ a { color: var(--pp-red); }
 }
 
 .pp-section {
-  margin-bottom: 28px;
+  margin-bottom: 20px;
   animation: pp-rise 0.7s ease both;
   animation-delay: 0.08s;
 }
@@ -299,13 +302,13 @@ a { color: var(--pp-red); }
 }
 
 .pp-explorer {
-  padding: 22px;
+  padding: 16px;
 }
 
 .pp-explorer-grid {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
-  gap: 18px;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 16px;
 }
 
 
@@ -315,9 +318,9 @@ a { color: var(--pp-red); }
 
 .pp-fieldset {
   border: 1.5px solid var(--pp-line);
-  border-radius: 14px;
-  padding: 14px;
-  margin: 0 0 14px;
+  border-radius: 12px;
+  padding: 10px 12px 4px;
+  margin: 0 0 10px;
   background: rgba(255, 255, 255, 0.45);
 }
 
@@ -440,7 +443,35 @@ a { color: var(--pp-red); }
   gap: 8px;
 }
 
-.pp-field { margin-bottom: 14px; }
+.pp-field { margin-bottom: 10px; }
+
+/* A checkbox reads as a sentence, not as a labelled control above a box.
+   Selectors are doubled up because the generic `.pp-field input` rule below
+   is equally specific and later in the file — it would otherwise stretch the
+   box to full width and 40px tall. */
+.pp-field.pp-field--check label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  text-transform: none;
+  letter-spacing: 0;
+  font-family: var(--pp-font);
+  font-size: 0.78rem;
+  color: var(--pp-ink);
+  cursor: pointer;
+}
+
+.pp-field.pp-field--check input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  flex: 0 0 auto;
+  accent-color: var(--pp-red);
+  margin: 0;
+  padding: 0;
+  border-radius: 4px;
+}
 .pp-field label {
   display: block;
   font-family: var(--pp-mono);
@@ -448,17 +479,17 @@ a { color: var(--pp-red); }
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--pp-muted);
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .pp-field select,
 .pp-field input {
   width: 100%;
   border: 1.5px solid var(--pp-ink);
-  border-radius: 12px;
+  border-radius: 10px;
   background: #fff;
-  padding: 12px;
-  min-height: 48px;
+  padding: 8px 10px;
+  min-height: 40px;
   font: inherit;
   font-size: 16px; /* prevents iOS focus zoom */
   color: var(--pp-ink);
@@ -480,8 +511,12 @@ a { color: var(--pp-red); }
   background: #fff;
   border: 1.5px solid var(--pp-ink);
   border-radius: 12px;
-  overflow: hidden;
-  z-index: 5;
+  /* Twelve results is taller than the panel, so the list scrolls itself
+     rather than running off the bottom of the page. */
+  max-height: min(320px, 50vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  z-index: 20;
   box-shadow: 0 14px 30px rgba(28, 28, 28, 0.12);
   display: none;
 }
@@ -566,8 +601,8 @@ a { color: var(--pp-red); }
   background:
     linear-gradient(135deg, rgba(242, 161, 84, 0.16), transparent 45%),
     var(--pp-panel);
-  padding: 16px 18px;
-  margin-bottom: 14px;
+  padding: 13px 15px;
+  margin-bottom: 10px;
 }
 
 .pp-provenance h3 {
@@ -636,17 +671,17 @@ a { color: var(--pp-red); }
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .pp-rank-item {
   display: grid;
-  grid-template-columns: 42px 48px minmax(0, 1fr) auto;
-  gap: 12px;
+  grid-template-columns: 30px 40px minmax(0, 1fr) auto;
+  gap: 10px;
   align-items: center;
-  padding: 12px;
+  padding: 9px 11px;
   border: 1.5px solid var(--pp-line);
-  border-radius: 14px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.65);
   animation: pp-rise 0.45s ease both;
 }
@@ -700,15 +735,24 @@ a { color: var(--pp-red); }
 
 .pp-film-strip {
   display: flex;
-  gap: 6px;
+  gap: 5px;
   overflow-x: auto;
-  padding-top: 8px;
+  padding-top: 6px;
   grid-column: 2 / -1;
 }
 
 .pp-film-chip {
   flex: 0 0 auto;
-  width: 42px;
+  width: 36px;
+}
+
+/* Posters carry intrinsic width/height attributes for layout stability;
+   let the chip width win so the strip can tighten. */
+.pp-film-chip img,
+.pp-film-chip > span {
+  width: 100% !important;
+  height: auto !important;
+  aspect-ratio: 2 / 3;
 }
 
 .pp-film-chip img {
@@ -749,8 +793,8 @@ a { color: var(--pp-red); }
 /* ── The question composer ─────────────────────────────── */
 
 .pp-ask {
-  margin-top: 22px;
-  padding: 20px;
+  margin-top: 16px;
+  padding: 16px;
   border: 1.5px solid var(--pp-ink);
   border-radius: var(--pp-radius);
   background: var(--pp-panel);
@@ -806,12 +850,20 @@ a { color: var(--pp-red); }
 .pp-ask-search input {
   width: 100%;
   font: inherit;
-  font-size: 0.85rem;
+  font-size: 16px; /* prevents iOS focus zoom */
   padding: 10px 12px;
   border: 1.5px solid var(--pp-ink);
   border-radius: 10px;
   background: #fff;
   color: var(--pp-ink);
+}
+
+/* These sit outside .pp-field, so without this they get the browser's
+   default blue focus ring instead of the page's. */
+.pp-ask select:focus,
+.pp-ask input:focus {
+  outline: 2px solid color-mix(in srgb, var(--pp-orange) 70%, var(--pp-ink));
+  outline-offset: 1px;
 }
 
 .pp-ask .pp-cta-row { margin-top: 16px; }
@@ -821,7 +873,7 @@ a { color: var(--pp-red); }
 .pp-question-groups {
   display: flex;
   flex-direction: column;
-  gap: 26px;
+  gap: 18px;
 }
 
 .pp-question-group-title {
@@ -836,8 +888,8 @@ a { color: var(--pp-red); }
 /* ── Findings ──────────────────────────────────────────── */
 
 .pp-findings {
-  margin: 18px 0 4px;
-  padding: 14px 16px;
+  margin: 12px 0 4px;
+  padding: 11px 14px;
   border-left: 3px solid var(--pp-red);
   background: var(--pp-panel-2);
   border-radius: 0 12px 12px 0;
@@ -864,7 +916,7 @@ a { color: var(--pp-red); }
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 6px;
+  margin-top: 3px;
 }
 
 .pp-delta-track {
