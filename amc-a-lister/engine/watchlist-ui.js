@@ -38,20 +38,20 @@ export function sortComingSoon(items, today = todayISO()) {
     });
 }
 
-/** Already released, most recent first. */
+/** Already released, oldest first. */
 export function sortAlreadyOut(items, today = todayISO()) {
   return items
     .filter((item) => isAlreadyOut(item, today))
     .sort((a, b) => {
       const aDate = a.release_date || (a.year != null ? `${a.year}-01-01` : '0000-01-01');
       const bDate = b.release_date || (b.year != null ? `${b.year}-01-01` : '0000-01-01');
-      if (aDate !== bDate) return bDate.localeCompare(aDate);
+      if (aDate !== bDate) return aDate.localeCompare(bDate);
       return String(a.title || '').localeCompare(String(b.title || ''));
     });
 }
 
 /**
- * One list for the Coming Soon page: already-playing titles lead (most recent
+ * One list for the Coming Soon page: already-playing titles lead (oldest
  * release first) with an "Already out" badge, then upcoming releases ascending
  * soonest-first, and finally titles we have no release data for — those get no
  * badge, because we can't honestly claim either way.
