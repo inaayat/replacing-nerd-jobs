@@ -152,11 +152,16 @@ function showLogStatus(message) {
   el.textContent = message || '';
 }
 
+function watchedWithNames(watch) {
+  if (watch.in_theaters === false) return [];
+  return (watch.companions || []).map((c) => c.username).filter(Boolean);
+}
+
 function watchedWithCell(watch) {
-  if (watch.in_theaters === false) return '—';
-  const names = (watch.companions || []).map((c) => c.username).filter(Boolean);
-  if (!names.length) return '—';
-  return escapeHtml(names.join(', '));
+  const names = watchedWithNames(watch);
+  if (!names.length) return { html: '—', title: '', empty: true };
+  const text = names.join(', ');
+  return { html: escapeHtml(text), title: text, empty: false };
 }
 
 function renderInvitesPanel(auth, state, render) {
@@ -295,10 +300,10 @@ function tableHtml(state) {
         <span class="al-log-col al-col-poster"></span>
         <span class="al-log-col">Date</span>
         <span class="al-log-col">Title</span>
-        <span class="al-log-col">Watched with</span>
+        <span class="al-log-col al-log-col--with-head">With</span>
         <span class="al-log-col">Location</span>
-        <span class="al-log-col">Format</span>
-        <span class="al-log-col">Seat</span>
+        <span class="al-log-col al-log-col--format">Format</span>
+        <span class="al-log-col al-log-col--seat">Seat</span>
         <span class="al-log-col">Charge</span>
         <span class="al-log-col">Rating</span>
         <span class="al-log-col">Actions</span>
@@ -311,22 +316,29 @@ function tableHtml(state) {
 }
 
 function mobileLogMeta(w) {
-  const withNames = (w.companions || []).map((c) => c.username).filter(Boolean);
+  const withNames = watchedWithNames(w);
   const primary = [
     shortDate(w.watched_on),
     w.in_theaters === false ? 'Off-theater' : (w.format || 'Standard'),
     w.in_theaters === false ? null : money(w.ticket_cents),
     ratingLabel(w),
-    withNames.length ? `with ${withNames.join(', ')}` : null,
   ].filter(Boolean).map((part) => escapeHtml(String(part))).join(' · ');
   const location = escapeHtml(w.in_theaters === false ? 'Not in theaters' : (w.location || '—'));
-  return `<span class="al-log-meta-primary">${primary}</span><span class="al-log-meta-location">${location}</span>`;
+  const withLine = withNames.length
+    ? `<span class="al-log-meta-with">with ${escapeHtml(withNames.join(', '))}</span>`
+    : '';
+  return `
+    <span class="al-log-meta-primary">${primary}</span>
+    <span class="al-log-meta-location">${location}</span>
+    ${withLine}
+  `;
 }
 
 function viewEntryHtml(w, state) {
   const expanded = w.id === state.expandedId;
   const adding = w.id === state.addingId;
   const canAdd = w.in_theaters !== false;
+  const withCell = watchedWithCell(w);
   return `
     <div class="al-log-entry ${expanded ? 'is-expanded' : ''}" data-entry-id="${w.id}">
       <article class="al-log-row al-log-row--clickable ${expanded ? 'is-expanded' : ''}" data-expand-row tabindex="0" aria-expanded="${expanded}" aria-label="Toggle details">
@@ -339,10 +351,10 @@ function viewEntryHtml(w, state) {
           </div>
           <div class="al-log-col al-log-col--mobile-meta al-only-mobile">${mobileLogMeta(w)}</div>
         </div>
-        <div class="al-log-col al-log-col--desktop al-log-col--with ${w.companions?.length ? '' : 'al-muted'}">${watchedWithCell(w)}</div>
+        <div class="al-log-col al-log-col--desktop al-log-col--with ${withCell.empty ? 'al-muted' : ''}"${withCell.title ? ` title="${escapeHtml(withCell.title)}"` : ''}>${withCell.html}</div>
         <div class="al-log-col al-log-col--desktop al-muted">${escapeHtml(w.in_theaters === false ? 'Not in theaters' : (w.location || '—'))}</div>
-        <div class="al-log-col al-log-col--desktop">${w.in_theaters === false ? '—' : (w.format ? escapeHtml(w.format) : '—')}</div>
-        <div class="al-log-col al-log-col--desktop al-muted">${w.in_theaters === false ? '—' : escapeHtml([w.auditorium, w.seat].filter(Boolean).join(' · ') || '—')}</div>
+        <div class="al-log-col al-log-col--desktop al-log-col--format">${w.in_theaters === false ? '—' : (w.format ? escapeHtml(w.format) : '—')}</div>
+        <div class="al-log-col al-log-col--desktop al-log-col--seat al-muted">${w.in_theaters === false ? '—' : escapeHtml([w.auditorium, w.seat].filter(Boolean).join(' · ') || '—')}</div>
         <div class="al-log-col al-log-col--desktop al-log-col--num">${w.in_theaters === false ? '—' : money(w.ticket_cents)}</div>
         <div class="al-log-col al-log-col--desktop">${ratingLabel(w)}</div>
         <div class="al-log-col al-row-actions">
@@ -521,6 +533,7 @@ function wireRowActions(auth, state, render) {
       const id = btn.dataset.addViewer;
       state.addingId = state.addingId === id ? null : id;
       state.editingId = null;
+      if (state.addingId) state.expandedId = null;
       showLogError('');
       render();
       if (state.addingId) {
