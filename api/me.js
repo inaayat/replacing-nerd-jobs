@@ -130,6 +130,11 @@ async function handleDelete(req, res, auth) {
     }
 
     await ensureSchema();
+    // Explicit invite cleanup before user delete (also covered by ON DELETE CASCADE).
+    await db()`
+      DELETE FROM alist_watch_invites
+      WHERE from_user_id = ${auth.sub} OR to_user_id = ${auth.sub}
+    `;
     await db()`DELETE FROM users WHERE id = ${auth.sub}`;
 
     const authDelete = await deleteAuthUser(req, token, password);
