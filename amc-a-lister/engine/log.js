@@ -152,10 +152,11 @@ function showLogStatus(message) {
   el.textContent = message || '';
 }
 
-function companionsLabel(watch) {
+function watchedWithCell(watch) {
+  if (watch.in_theaters === false) return '—';
   const names = (watch.companions || []).map((c) => c.username).filter(Boolean);
-  if (!names.length) return '';
-  return `<span class="al-badge al-badge--together">with ${escapeHtml(names.join(', '))}</span>`;
+  if (!names.length) return '—';
+  return escapeHtml(names.join(', '));
 }
 
 function renderInvitesPanel(auth, state, render) {
@@ -294,6 +295,7 @@ function tableHtml(state) {
         <span class="al-log-col al-col-poster"></span>
         <span class="al-log-col">Date</span>
         <span class="al-log-col">Title</span>
+        <span class="al-log-col">Watched with</span>
         <span class="al-log-col">Location</span>
         <span class="al-log-col">Format</span>
         <span class="al-log-col">Seat</span>
@@ -309,11 +311,13 @@ function tableHtml(state) {
 }
 
 function mobileLogMeta(w) {
+  const withNames = (w.companions || []).map((c) => c.username).filter(Boolean);
   const primary = [
     shortDate(w.watched_on),
     w.in_theaters === false ? 'Off-theater' : (w.format || 'Standard'),
     w.in_theaters === false ? null : money(w.ticket_cents),
     ratingLabel(w),
+    withNames.length ? `with ${withNames.join(', ')}` : null,
   ].filter(Boolean).map((part) => escapeHtml(String(part))).join(' · ');
   const location = escapeHtml(w.in_theaters === false ? 'Not in theaters' : (w.location || '—'));
   return `<span class="al-log-meta-primary">${primary}</span><span class="al-log-meta-location">${location}</span>`;
@@ -332,10 +336,10 @@ function viewEntryHtml(w, state) {
           <div class="al-log-col al-log-col--title">
             ${escapeHtml(w.title)}
             ${w.in_theaters === false ? '<span class="al-badge al-badge--muted">Off-theater</span>' : ''}
-            ${companionsLabel(w)}
           </div>
           <div class="al-log-col al-log-col--mobile-meta al-only-mobile">${mobileLogMeta(w)}</div>
         </div>
+        <div class="al-log-col al-log-col--desktop al-log-col--with ${w.companions?.length ? '' : 'al-muted'}">${watchedWithCell(w)}</div>
         <div class="al-log-col al-log-col--desktop al-muted">${escapeHtml(w.in_theaters === false ? 'Not in theaters' : (w.location || '—'))}</div>
         <div class="al-log-col al-log-col--desktop">${w.in_theaters === false ? '—' : (w.format ? escapeHtml(w.format) : '—')}</div>
         <div class="al-log-col al-log-col--desktop al-muted">${w.in_theaters === false ? '—' : escapeHtml([w.auditorium, w.seat].filter(Boolean).join(' · ') || '—')}</div>
