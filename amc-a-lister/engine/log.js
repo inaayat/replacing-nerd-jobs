@@ -205,11 +205,14 @@ function renderInvitesPanel(auth, state, render) {
           <h3 class="al-invites-subhead">Waiting on</h3>
           <ul class="al-invites-outgoing-list">
             ${outgoing.map((invite) => `
-              <li>
-                <strong>${escapeHtml(invite.to_username || 'Member')}</strong>
-                · ${escapeHtml(invite.title)}
-                · ${shortDate(invite.watched_on)}
-                · ${escapeHtml(invite.location || '—')}
+              <li class="al-invites-outgoing-item">
+                <span class="al-invites-outgoing-text">
+                  <strong>${escapeHtml(invite.to_username || 'Member')}</strong>
+                  · ${escapeHtml(invite.title)}
+                  · ${shortDate(invite.watched_on)}
+                  · ${escapeHtml(invite.location || '—')}
+                </span>
+                <button type="button" class="al-link-btn al-invites-cancel" data-invite-cancel="${invite.id}">Delete</button>
               </li>
             `).join('')}
           </ul>
@@ -221,6 +224,24 @@ function renderInvitesPanel(auth, state, render) {
   panel.querySelector('[data-invites-toggle]')?.addEventListener('click', () => {
     state.invitesExpanded = !state.invitesExpanded;
     render();
+  });
+
+  panel.querySelectorAll('[data-invite-cancel]').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.inviteCancel;
+      if (!id) return;
+      btn.disabled = true;
+      try {
+        await showingInvitesApi.cancel(auth.token, id);
+        state.invites.outgoing = (state.invites.outgoing || []).filter((i) => i.id !== id);
+        showLogStatus('Invite deleted.');
+        render();
+      } catch (err) {
+        showLogError(err.message || 'Could not delete invite.');
+        btn.disabled = false;
+      }
+    });
   });
 
   panel.querySelectorAll('[data-invite-accept], [data-invite-deny]').forEach((btn) => {
@@ -318,7 +339,7 @@ function tableHtml(state) {
     <div class="al-log-list">
       <div class="al-log-head" role="row">
         <span class="al-log-col al-col-poster"></span>
-        <span class="al-log-col">Date</span>
+        <span class="al-log-col al-log-col--date">Date</span>
         <span class="al-log-col">Title</span>
         <span class="al-log-col al-log-col--with-head">With</span>
         <span class="al-log-col">Location</span>
@@ -363,7 +384,7 @@ function viewEntryHtml(w, state) {
     <div class="al-log-entry ${expanded ? 'is-expanded' : ''}" data-entry-id="${w.id}">
       <article class="al-log-row al-log-row--clickable ${expanded ? 'is-expanded' : ''}" data-expand-row tabindex="0" aria-expanded="${expanded}" aria-label="Toggle details">
         <div class="al-log-col al-col-poster">${posterHtml(w)}</div>
-        <div class="al-log-col al-log-col--desktop">${shortDate(w.watched_on)}</div>
+        <div class="al-log-col al-log-col--desktop al-log-col--date">${shortDate(w.watched_on)}</div>
         <div class="al-log-col--body">
           <div class="al-log-col al-log-col--title">
             ${escapeHtml(w.title)}

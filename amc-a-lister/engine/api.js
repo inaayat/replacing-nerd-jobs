@@ -138,6 +138,11 @@ export const showingInvitesApi = {
   create: (token, body) => mutate(apiFetch('/api/alist-showing-invites', { method: 'POST', body, token })),
   bulkCreate: (token, body) => mutate(apiFetch('/api/alist-showing-invites', { method: 'POST', body, token })),
   respond: (token, body) => mutate(apiFetch('/api/alist-showing-invites', { method: 'PATCH', body, token })),
+  cancel: (token, id) => mutate(apiFetch('/api/alist-showing-invites', {
+    method: 'PATCH',
+    body: { id, action: 'cancel' },
+    token,
+  })),
 };
 
 export const userSearchApi = {

@@ -22,6 +22,7 @@ import {
   inviteToShowing,
   listShowingInvites,
   respondToShowingInvite,
+  cancelShowingInvite,
   inviteToShowingBulk,
   searchAlistUsers,
   applySeenWith,
@@ -1682,7 +1683,35 @@ async function handleShowingInvites(req, res) {
       return;
     }
     try {
+      if (action === 'cancel') {
+        const result = await cancelShowingInvite(userId, inviteId);
+        if (result.error) {
+          res.status(result.status || 400).json({ error: result.error });
+          return;
+        }
+        res.status(200).json(result);
+        return;
+      }
       const result = await respondToShowingInvite(userId, { inviteId, action });
+      if (result.error) {
+        res.status(result.status || 400).json({ error: result.error });
+        return;
+      }
+      res.status(200).json(result);
+    } catch (err) {
+      res.status(502).json({ error: err.message });
+    }
+    return;
+  }
+
+  if (req.method === 'DELETE') {
+    const inviteId = String(req.body?.id || req.query?.id || '').trim();
+    if (!inviteId) {
+      res.status(400).json({ error: 'id is required.' });
+      return;
+    }
+    try {
+      const result = await cancelShowingInvite(userId, inviteId);
       if (result.error) {
         res.status(result.status || 400).json({ error: result.error });
         return;
