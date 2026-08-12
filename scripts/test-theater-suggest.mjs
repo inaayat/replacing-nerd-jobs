@@ -1,8 +1,18 @@
-import { theatersFromWatches, rememberTheater } from '../amc-a-lister/engine/theater-suggest.js';
+import {
+  theatersFromWatches,
+  rememberTheater,
+  filterTheaterSuggestions,
+} from '../amc-a-lister/engine/theater-suggest.js';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg);
 }
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const amcTheaters = JSON.parse(readFileSync(join(__dirname, '../amc-a-lister/data/amc-theaters.json'), 'utf8'));
 
 const watches = [
   { location: 'AMC Lincoln Square 13', in_theaters: true },
@@ -35,5 +45,23 @@ assert(!list.includes('Not in theaters'), 'should not remember Not in theaters')
 
 const filtered = theaters.filter((t) => t.toLowerCase().includes('34th'));
 assert(filtered.length === 1 && filtered[0] === 'AMC 34th Street 14', '34th filter failed');
+
+assert(amcTheaters.length === 524, `expected 524 AMC theaters, got ${amcTheaters.length}`);
+assert(amcTheaters.includes('AMC Summit 16'), 'missing AMC Summit 16');
+
+const emptyQuery = filterTheaterSuggestions(theaters, amcTheaters, '');
+assert(emptyQuery.length === theaters.length, 'empty query should show only user theaters');
+assert(emptyQuery[0] === 'AMC Lincoln Square 13', 'user theaters stay first on empty query');
+
+const lincolnMatches = filterTheaterSuggestions(theaters, amcTheaters, 'lincoln');
+assert(lincolnMatches[0] === 'AMC Lincoln Square 13', 'user theater should rank first');
+assert(lincolnMatches.some((t) => t === 'AMC Lincoln Square 13'), 'should include user Lincoln match');
+assert(lincolnMatches.every((t) => t.toLowerCase().includes('lincoln')), 'all matches should contain needle');
+
+const summitMatches = filterTheaterSuggestions([], amcTheaters, 'summit');
+assert(summitMatches.length === 1 && summitMatches[0] === 'AMC Summit 16', 'AMC catalog should match without user history');
+
+const deduped = filterTheaterSuggestions(['AMC Summit 16'], amcTheaters, 'summit');
+assert(deduped.length === 1, 'should dedupe user and catalog matches');
 
 console.log('ok: theater suggest helpers');
