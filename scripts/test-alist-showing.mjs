@@ -7,6 +7,7 @@ import {
   normalizeLocation,
   normalizeMovieTitle,
   inviteFromRow,
+  summarizeBulkInviteResults,
 } from '../lib/a-list-showing.js';
 
 let passed = 0;
@@ -18,6 +19,13 @@ function assert(cond, msg) {
     failed += 1;
     console.error(`FAIL: ${msg}`);
   }
+}
+
+function assertDeep(actual, expected, msg) {
+  assert(
+    JSON.stringify(actual) === JSON.stringify(expected),
+    `${msg}\n  expected ${JSON.stringify(expected)}\n  got      ${JSON.stringify(actual)}`,
+  );
 }
 
 assert(normalizeLocation('  AMC Lincoln Square 13 ') === 'amc lincoln square 13', 'location normalizes');
@@ -95,6 +103,19 @@ const invite = inviteFromRow({
 });
 assert(invite.tmdb_id === 55 && invite.ticket_cents === 2495, 'inviteFromRow coerces numbers');
 assert(invite.from_username === 'inaayat', 'invite keeps usernames');
+
+assertDeep(
+  summarizeBulkInviteResults([
+    { linked: true },
+    { linked: true, already: true },
+    { invited: true },
+    { invited: true },
+    { already_pending: true },
+    { error: 'nope' },
+  ]),
+  { linked: 1, already: 2, invited: 2, failed: 1, total: 6 },
+  'bulk summary counts outcomes',
+);
 
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

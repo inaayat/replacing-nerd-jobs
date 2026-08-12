@@ -58,6 +58,7 @@ async function loadLog(auth) {
         </select>
         <button type="button" class="al-toggle-btn" id="log-include-home" aria-pressed="false">Include watched at home</button>
         <a href="/amc-a-lister/bulk-ratings.html" class="al-btn">Bulk edit ratings</a>
+        <a href="/amc-a-lister/bulk-add.html" class="al-btn">Bulk add viewer</a>
         <span class="al-muted" id="log-count"></span>
       </div>
       <p class="al-error" id="log-error" role="alert" hidden></p>

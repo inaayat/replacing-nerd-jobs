@@ -22,6 +22,7 @@ import {
   inviteToShowing,
   listShowingInvites,
   respondToShowingInvite,
+  inviteToShowingBulk,
 } from '../lib/a-list.js';
 import {
   computeSummary,
@@ -1604,14 +1605,32 @@ async function handleShowingInvites(req, res) {
   }
 
   if (req.method === 'POST') {
-    const watchId = String(req.body?.watch_id || '').trim();
     const username = String(req.body?.username || '').trim();
-    if (!watchId) {
-      res.status(400).json({ error: 'watch_id is required.' });
-      return;
-    }
     if (!username) {
       res.status(400).json({ error: 'username is required.' });
+      return;
+    }
+
+    const watchIds = Array.isArray(req.body?.watch_ids)
+      ? req.body.watch_ids
+      : null;
+    if (watchIds) {
+      try {
+        const result = await inviteToShowingBulk(userId, { username, watchIds });
+        if (result.error) {
+          res.status(result.status || 400).json({ error: result.error });
+          return;
+        }
+        res.status(200).json(result);
+      } catch (err) {
+        res.status(502).json({ error: err.message });
+      }
+      return;
+    }
+
+    const watchId = String(req.body?.watch_id || '').trim();
+    if (!watchId) {
+      res.status(400).json({ error: 'watch_id or watch_ids is required.' });
       return;
     }
     try {

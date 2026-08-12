@@ -136,6 +136,7 @@ export const movieApi = {
 export const showingInvitesApi = {
   list: (token) => apiFetch('/api/alist-showing-invites', { token }),
   create: (token, body) => mutate(apiFetch('/api/alist-showing-invites', { method: 'POST', body, token })),
+  bulkCreate: (token, body) => mutate(apiFetch('/api/alist-showing-invites', { method: 'POST', body, token })),
   respond: (token, body) => mutate(apiFetch('/api/alist-showing-invites', { method: 'PATCH', body, token })),
 };
 
