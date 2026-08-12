@@ -31,14 +31,16 @@
       </div>
     </nav>
 
-    <main class="pp-shell">
-      <section class="pp-strip pp-hero" aria-label="Plot Points">
-        <p class="pp-kicker">Movies · TMDB · lists with receipts</p>
-        <h1 class="pp-brand">Plot Points</h1>
-        <p class="pp-lede">
-          Ask a question about the movies. Every answer shows the exact query behind it — and
-          leaves that query sitting in the builder for you to take apart.
-        </p>
+    <div class="pp-app">
+      <!-- ── Left rail: what to ask ───────────────────────────── -->
+      <aside class="pp-rail" aria-label="Ask a question">
+        <div class="pp-rail-head">
+          <p class="pp-kicker">Movies · TMDB · lists with receipts</p>
+          <h1 class="pp-brand">Plot Points</h1>
+          <p class="pp-lede">
+            Ask a question about the movies. Every answer shows the exact query behind it.
+          </p>
+        </div>
 
         <div class="pp-ask" id="ask">
           <label class="pp-ask-label" for="ask-template">Ask</label>
@@ -51,170 +53,165 @@
             </div>
           </div>
           <div class="pp-cta-row">
-            <button type="button" class="pp-btn" id="ask-run">Answer it</button>
-            <button type="button" class="pp-btn pp-btn--ghost" id="ask-surprise">Surprise me</button>
-            <a class="pp-btn pp-btn--ghost" href="#questions">Browse questions</a>
+            <button type="button" class="pp-btn pp-btn--sm" id="ask-run">Answer it</button>
+            <button type="button" class="pp-btn pp-btn--ghost pp-btn--sm" id="ask-surprise">Surprise me</button>
           </div>
         </div>
-      </section>
 
-      <section class="pp-section" id="questions" aria-labelledby="questions-title">
-        <div class="pp-section-head">
-          <h2 id="questions-title">Questions to start from</h2>
-          <p>Click one to answer it. The builder below fills in with that query so you can change any part of it.</p>
-        </div>
-        <div class="pp-question-groups" id="question-groups"></div>
-      </section>
+        <section class="pp-rail-questions" id="questions" aria-labelledby="questions-title">
+          <h2 class="pp-rail-heading" id="questions-title">Questions to start from</h2>
+          <div class="pp-question-groups" id="question-groups"></div>
+        </section>
+      </aside>
 
-      <section class="pp-section" id="builder" aria-labelledby="builder-title">
-        <div class="pp-section-head">
-          <h2 id="builder-title">The answer, and the query behind it</h2>
-          <p>Public &amp; anonymous. Every query gets a shareable link.</p>
-        </div>
+      <!-- ── Right: the query and its answer ──────────────────── -->
+      <main class="pp-work" id="builder">
+        <div class="pp-explorer-grid">
+          <form class="pp-builder" id="builder-form" autocomplete="off">
+            <p class="pp-work-heading">The query</p>
 
-        <div class="pp-strip pp-explorer">
-          <div class="pp-explorer-grid">
-            <form class="pp-builder" id="builder-form" autocomplete="off">
-              <!-- 1. Film set -->
-              <fieldset class="pp-fieldset">
-                <legend><span class="pp-step">1</span> Which films?</legend>
+            <!-- 1. Film set -->
+            <fieldset class="pp-fieldset">
+              <legend><span class="pp-step">1</span> Which films?</legend>
 
+              <div class="pp-field">
+                <label for="scope-type">Film set</label>
+                <select id="scope-type"></select>
+              </div>
+
+              <div class="pp-field" id="scope-person-field">
+                <label for="person-search">Person</label>
+                <div class="pp-search-wrap">
+                  <input id="person-search" type="search" placeholder="e.g. Christopher Nolan" />
+                  <div class="pp-suggest" id="person-suggest" role="listbox" aria-label="Person suggestions"></div>
+                </div>
+                <div id="selected-person" class="pp-selected empty">No person selected yet.</div>
+              </div>
+
+              <div class="pp-field" id="scope-collection-field" hidden>
+                <label for="collection-search">Collection</label>
+                <div class="pp-search-wrap">
+                  <input id="collection-search" type="search" placeholder="e.g. The Dark Knight Collection" />
+                  <div class="pp-suggest" id="collection-suggest" role="listbox" aria-label="Collection suggestions"></div>
+                </div>
+                <div id="selected-collection" class="pp-selected empty">No collection selected yet.</div>
+              </div>
+
+              <div id="scope-discover-fields" hidden>
                 <div class="pp-field">
-                  <label for="scope-type">Film set</label>
-                  <select id="scope-type"></select>
-                </div>
-
-                <div class="pp-field" id="scope-person-field">
-                  <label for="person-search">Person</label>
-                  <div class="pp-search-wrap">
-                    <input id="person-search" type="search" placeholder="e.g. Christopher Nolan" />
-                    <div class="pp-suggest" id="person-suggest" role="listbox" aria-label="Person suggestions"></div>
-                  </div>
-                  <div id="selected-person" class="pp-selected empty">No person selected yet.</div>
-                </div>
-
-                <div class="pp-field" id="scope-collection-field" hidden>
-                  <label for="collection-search">Collection</label>
-                  <div class="pp-search-wrap">
-                    <input id="collection-search" type="search" placeholder="e.g. The Dark Knight Collection" />
-                    <div class="pp-suggest" id="collection-suggest" role="listbox" aria-label="Collection suggestions"></div>
-                  </div>
-                  <div id="selected-collection" class="pp-selected empty">No collection selected yet.</div>
-                </div>
-
-                <div id="scope-discover-fields" hidden>
-                  <div class="pp-field">
-                    <label for="scope-genre">Genre</label>
-                    <select id="scope-genre"><option value="">Any genre</option></select>
-                  </div>
-                  <div class="pp-field-row">
-                    <div class="pp-field">
-                      <label for="scope-year-from">Year from</label>
-                      <input id="scope-year-from" type="number" min="1900" max="2100" placeholder="1990" />
-                    </div>
-                    <div class="pp-field">
-                      <label for="scope-year-to">Year to</label>
-                      <input id="scope-year-to" type="number" min="1900" max="2100" placeholder="2026" />
-                    </div>
-                  </div>
-                  <div class="pp-field">
-                    <label for="scope-min-votes">Minimum TMDB votes</label>
-                    <input id="scope-min-votes" type="number" min="0" placeholder="50" />
-                  </div>
-                </div>
-
-                <div class="pp-field pp-field--check" id="exclude-subject-field">
-                  <label for="exclude-subject">
-                    <input id="exclude-subject" type="checkbox" />
-                    <span>Leave this person out of the rows</span>
-                  </label>
-                </div>
-
-                <div class="pp-field" id="credit-quality-field">
-                  <label for="credit-quality">Which credits count</label>
-                  <select id="credit-quality"></select>
-                  <p class="pp-field-hint" id="credit-quality-hint"></p>
-                </div>
-
-                <div class="pp-field">
-                  <label for="scan-depth">Scan depth</label>
-                  <select id="scan-depth"></select>
-                  <p class="pp-field-hint">Films read per query. Deeper is more complete and slower on a cold cache.</p>
-                </div>
-              </fieldset>
-
-              <!-- 2. Rows -->
-              <fieldset class="pp-fieldset">
-                <legend><span class="pp-step">2</span> Group by</legend>
-                <div class="pp-field">
-                  <label for="group-by">Each row is a…</label>
-                  <select id="group-by"></select>
-                </div>
-              </fieldset>
-
-              <!-- 3. Metric -->
-              <fieldset class="pp-fieldset">
-                <legend><span class="pp-step">3</span> Rank by</legend>
-                <div class="pp-field">
-                  <label for="metric-agg">Measure</label>
-                  <select id="metric-agg"></select>
-                </div>
-                <div class="pp-field" id="metric-field-wrap" hidden>
-                  <label for="metric-field">Field</label>
-                  <select id="metric-field"></select>
-                </div>
-                <div class="pp-field">
-                  <label for="rank-by">Order rows by</label>
-                  <select id="rank-by"></select>
-                  <p class="pp-field-hint" id="rank-by-hint"></p>
+                  <label for="scope-genre">Genre</label>
+                  <select id="scope-genre"><option value="">Any genre</option></select>
                 </div>
                 <div class="pp-field-row">
                   <div class="pp-field">
-                    <label for="sort-dir">Direction</label>
-                    <select id="sort-dir">
-                      <option value="desc">Highest first</option>
-                      <option value="asc">Lowest first</option>
-                    </select>
+                    <label for="scope-year-from">Year from</label>
+                    <input id="scope-year-from" type="number" min="1900" max="2100" placeholder="1990" />
                   </div>
                   <div class="pp-field">
-                    <label for="min-films">Min films</label>
-                    <input id="min-films" type="number" min="1" max="50" value="2" />
+                    <label for="scope-year-to">Year to</label>
+                    <input id="scope-year-to" type="number" min="1900" max="2100" placeholder="2026" />
                   </div>
                 </div>
-              </fieldset>
-
-              <!-- 4. Filters -->
-              <fieldset class="pp-fieldset">
-                <legend><span class="pp-step">4</span> Filters <span class="pp-optional">optional</span></legend>
-                <div id="filter-rows" class="pp-filter-rows"></div>
-                <button type="button" class="pp-btn pp-btn--ghost pp-btn--sm" id="add-filter">+ Add filter</button>
-                <div class="pp-field" style="margin-top:14px">
-                  <label for="result-limit">Show top</label>
-                  <input id="result-limit" type="number" min="1" max="100" value="25" />
+                <div class="pp-field">
+                  <label for="scope-min-votes">Minimum TMDB votes</label>
+                  <input id="scope-min-votes" type="number" min="0" placeholder="50" />
                 </div>
-              </fieldset>
+              </div>
 
-              <button type="submit" class="pp-btn" id="run-query">Generate list</button>
+              <div class="pp-field pp-field--check" id="exclude-subject-field">
+                <label for="exclude-subject">
+                  <input id="exclude-subject" type="checkbox" />
+                  <span>Leave this person out of the rows</span>
+                </label>
+              </div>
 
-              <p class="pp-run-note" id="spec-preview"></p>
-              <p class="pp-run-note">
-                Movies only. Reuses the shared AMC A-Lister TMDB cache, so repeat
-                queries are much faster than the first one.
-              </p>
-            </form>
+              <div class="pp-field" id="credit-quality-field">
+                <label for="credit-quality">Which credits count</label>
+                <select id="credit-quality"></select>
+                <p class="pp-field-hint" id="credit-quality-hint"></p>
+              </div>
 
+              <div class="pp-field">
+                <label for="scan-depth">Scan depth</label>
+                <select id="scan-depth"></select>
+                <p class="pp-field-hint">Films read per query. Deeper is more complete and slower on a cold cache.</p>
+              </div>
+            </fieldset>
+
+            <!-- 2. Rows -->
+            <fieldset class="pp-fieldset">
+              <legend><span class="pp-step">2</span> Group by</legend>
+              <div class="pp-field">
+                <label for="group-by">Each row is a…</label>
+                <select id="group-by"></select>
+              </div>
+            </fieldset>
+
+            <!-- 3. Metric -->
+            <fieldset class="pp-fieldset">
+              <legend><span class="pp-step">3</span> Rank by</legend>
+              <div class="pp-field">
+                <label for="metric-agg">Measure</label>
+                <select id="metric-agg"></select>
+              </div>
+              <div class="pp-field" id="metric-field-wrap" hidden>
+                <label for="metric-field">Field</label>
+                <select id="metric-field"></select>
+              </div>
+              <div class="pp-field">
+                <label for="rank-by">Order rows by</label>
+                <select id="rank-by"></select>
+                <p class="pp-field-hint" id="rank-by-hint"></p>
+              </div>
+              <div class="pp-field-row">
+                <div class="pp-field">
+                  <label for="sort-dir">Direction</label>
+                  <select id="sort-dir">
+                    <option value="desc">Highest first</option>
+                    <option value="asc">Lowest first</option>
+                  </select>
+                </div>
+                <div class="pp-field">
+                  <label for="min-films">Min films</label>
+                  <input id="min-films" type="number" min="1" max="50" value="2" />
+                </div>
+              </div>
+            </fieldset>
+
+            <!-- 4. Filters -->
+            <fieldset class="pp-fieldset">
+              <legend><span class="pp-step">4</span> Filters <span class="pp-optional">optional</span></legend>
+              <div id="filter-rows" class="pp-filter-rows"></div>
+              <button type="button" class="pp-btn pp-btn--ghost pp-btn--sm" id="add-filter">+ Add filter</button>
+              <div class="pp-field" style="margin-top:12px">
+                <label for="result-limit">Show top</label>
+                <input id="result-limit" type="number" min="1" max="100" value="25" />
+              </div>
+            </fieldset>
+
+            <button type="submit" class="pp-btn" id="run-query">Generate list</button>
+
+            <p class="pp-run-note" id="spec-preview"></p>
+            <p class="pp-run-note">
+              Movies only. Reuses the shared AMC A-Lister TMDB cache, so repeat
+              queries are much faster than the first one.
+            </p>
+          </form>
+
+          <div class="pp-results-col">
+            <p class="pp-work-heading">The answer</p>
             <div class="pp-results-pane" id="results-pane" aria-live="polite" aria-busy="false">
-              <p class="pp-status">Pick a question above, or build a query on the left.</p>
+              <p class="pp-status">Pick a question on the left, or build a query here.</p>
             </div>
           </div>
         </div>
-      </section>
 
-      <footer class="pp-footer">
-        <span>This product uses the TMDB API but is not endorsed or certified by TMDB.</span>
-        <a href="https://www.themoviedb.org/" target="_blank" rel="noopener">themoviedb.org</a>
-      </footer>
-    </main>
+        <footer class="pp-footer">
+          <span>This product uses the TMDB API but is not endorsed or certified by TMDB.</span>
+          <a href="https://www.themoviedb.org/" target="_blank" rel="noopener">themoviedb.org</a>
+        </footer>
+      </main>
+    </div>
 
     <script type="module" src="./app.js"></script>
   </body>

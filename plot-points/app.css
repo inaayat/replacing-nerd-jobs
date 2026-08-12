@@ -14,6 +14,9 @@
   --pp-display: "Fraunces", Georgia, serif;
   --pp-mono: "DM Mono", ui-monospace, monospace;
   --pp-radius: 18px;
+  --pp-nav-h: 58px;
+  --pp-rail-w: 260px;
+  --pp-builder-w: 300px;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -116,32 +119,43 @@ a { color: var(--pp-red); }
 
 .pp-nav-links a:hover { opacity: 1; }
 
-.pp-shell {
-  width: min(1120px, calc(100% - 32px));
+/* ── App shell: fixed question rail, scrolling work area ─ */
+
+.pp-app {
+  width: min(1480px, calc(100% - 28px));
   margin: 0 auto;
-  padding: 28px 0 64px;
-  padding-bottom: max(64px, calc(32px + env(safe-area-inset-bottom)));
+  padding: 14px 0 40px;
+  padding-bottom: max(40px, calc(20px + env(safe-area-inset-bottom)));
+  display: grid;
+  grid-template-columns: var(--pp-rail-w) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
 }
 
-/* Film-strip edge decoration.
-   Deliberately NOT `overflow: hidden` — a strip contains type-ahead dropdowns
-   that must be able to hang below it, and clipping the panel swallowed them.
-   The perforations stop short of the corners instead, which is what the
-   clipping was for. */
-.pp-strip {
-  position: relative;
+/* The rail owns its own scroll so the question list can be long without
+   pushing the query and its answer off the screen. */
+.pp-rail {
+  position: sticky;
+  top: calc(var(--pp-nav-h) + 12px);
+  max-height: calc(100vh - var(--pp-nav-h) - 26px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   border: 1.5px solid var(--pp-ink);
   border-radius: var(--pp-radius);
   background: var(--pp-panel);
+  padding: 16px 14px 0;
 }
 
-.pp-strip::before,
-.pp-strip::after {
+/* Sprocket seam between the rail and the work area — the film-strip edge
+   the panels used to carry, kept where it doesn't crowd the content. */
+.pp-rail::after {
   content: "";
   position: absolute;
   top: var(--pp-radius);
   bottom: var(--pp-radius);
-  width: 14px;
+  right: 0;
+  width: 9px;
   background:
     repeating-linear-gradient(
       to bottom,
@@ -152,38 +166,68 @@ a { color: var(--pp-red); }
   pointer-events: none;
 }
 
-.pp-strip::before { left: 0; }
-.pp-strip::after { right: 0; }
+.pp-rail-head { flex: 0 0 auto; }
 
-.pp-hero {
-  padding: 30px 28px 26px;
-  margin-bottom: 20px;
-  animation: pp-rise 0.7s ease both;
+.pp-rail-questions {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: 0 -14px;
+  padding: 0 14px 14px;
 }
+
+.pp-rail-heading {
+  font-family: var(--pp-mono);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--pp-muted);
+  margin: 14px 0 8px;
+  position: sticky;
+  top: 0;
+  background: var(--pp-panel);
+  padding: 4px 0;
+  z-index: 2;
+}
+
+.pp-work { min-width: 0; }
+
+.pp-work-heading {
+  font-family: var(--pp-mono);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--pp-muted);
+  margin: 0 0 8px;
+}
+
+.pp-results-col { min-width: 0; }
+
+
 
 .pp-kicker {
   font-family: var(--pp-mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.14em;
+  font-size: 0.58rem;
+  letter-spacing: 0.11em;
   text-transform: uppercase;
   color: var(--pp-muted);
-  margin: 0 0 14px;
+  margin: 0 0 6px;
 }
 
 .pp-brand {
   font-family: var(--pp-display);
-  font-size: clamp(2.6rem, 7vw, 4.4rem);
-  line-height: 0.95;
+  font-size: 1.9rem;
+  line-height: 1;
   letter-spacing: -0.02em;
-  margin: 0 0 16px;
-  max-width: 12ch;
+  margin: 0 0 8px;
 }
 
 .pp-lede {
-  font-size: 1.05rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
   color: var(--pp-muted);
-  max-width: 36rem;
-  margin: 0 0 24px;
+  margin: 0 0 12px;
 }
 
 .pp-cta-row {
@@ -213,67 +257,47 @@ a { color: var(--pp-red); }
   transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease;
 }
 
+.pp-btn--sm {
+  font-size: 0.64rem;
+  padding: 8px 12px;
+  min-height: 36px;
+}
+
 .pp-btn:hover { transform: translateY(-2px); }
 .pp-btn--ghost {
   background: transparent;
   color: var(--pp-ink);
 }
 
-.pp-section {
-  margin-bottom: 20px;
-  animation: pp-rise 0.7s ease both;
-  animation-delay: 0.08s;
-}
-
-.pp-section-head {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.pp-section-head h2 {
-  font-family: var(--pp-display);
-  font-size: 1.45rem;
-  margin: 0;
-}
-
-.pp-section-head p {
-  margin: 0;
-  font-family: var(--pp-mono);
-  font-size: 0.68rem;
-  color: var(--pp-muted);
-  max-width: 28rem;
-  text-align: right;
-}
 
 .pp-featured {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: 1fr;
+  gap: 6px;
 }
 
 .pp-feature {
   border: 1.5px solid var(--pp-ink);
-  border-radius: 16px;
-  padding: 18px;
+  border-radius: 10px;
+  padding: 9px 11px;
   text-align: left;
   cursor: pointer;
   background: var(--pp-panel);
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
-  min-height: 140px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 16px;
+  gap: 3px;
   -webkit-tap-highlight-color: transparent;
 }
 
 .pp-feature:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 28px rgba(28, 28, 28, 0.1);
+  transform: translateX(2px);
+  box-shadow: -3px 3px 0 rgba(28, 28, 28, 0.12);
 }
+
+/* The generated spec line is useful beside a wide card, but in a narrow rail
+   it buries the question. The provenance panel carries it after a run. */
+.pp-feature .pp-feature-meta { display: none; }
 
 .pp-feature[data-accent="orange"] { background: color-mix(in srgb, var(--pp-orange) 55%, white); }
 .pp-feature[data-accent="teal"] { background: color-mix(in srgb, var(--pp-teal) 50%, white); }
@@ -282,14 +306,15 @@ a { color: var(--pp-red); }
 
 .pp-feature-title {
   font-family: var(--pp-display);
-  font-size: 1.2rem;
-  line-height: 1.15;
-  margin: 0 0 6px;
+  font-size: 0.92rem;
+  line-height: 1.2;
+  margin: 0;
 }
 
 .pp-feature-blurb {
   margin: 0;
-  font-size: 0.86rem;
+  font-size: 0.72rem;
+  line-height: 1.35;
   opacity: 0.75;
 }
 
@@ -301,14 +326,11 @@ a { color: var(--pp-red); }
   opacity: 0.7;
 }
 
-.pp-explorer {
-  padding: 16px;
-}
-
 .pp-explorer-grid {
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
+  grid-template-columns: var(--pp-builder-w) minmax(0, 1fr);
   gap: 16px;
+  align-items: start;
 }
 
 
@@ -793,12 +815,11 @@ a { color: var(--pp-red); }
 /* ── The question composer ─────────────────────────────── */
 
 .pp-ask {
-  margin-top: 16px;
-  padding: 16px;
+  flex: 0 0 auto;
+  padding: 11px 12px;
   border: 1.5px solid var(--pp-ink);
-  border-radius: var(--pp-radius);
-  background: var(--pp-panel);
-  box-shadow: 4px 4px 0 rgba(28, 28, 28, 0.08);
+  border-radius: 12px;
+  background: var(--pp-panel-2);
 }
 
 .pp-ask-label {
@@ -825,9 +846,9 @@ a { color: var(--pp-red); }
 .pp-ask-question {
   font-family: var(--pp-display);
   font-weight: 600;
-  font-size: clamp(1.25rem, 3.6vw, 1.85rem);
+  font-size: 1.02rem;
   line-height: 1.25;
-  margin: 14px 0 0;
+  margin: 9px 0 0;
 }
 
 /* The variable inside the sentence: reads as text, behaves as a control. */
@@ -866,23 +887,24 @@ a { color: var(--pp-red); }
   outline-offset: 1px;
 }
 
-.pp-ask .pp-cta-row { margin-top: 16px; }
+.pp-ask .pp-cta-row { margin-top: 10px; gap: 6px; }
 
 /* ── Question gallery ──────────────────────────────────── */
 
 .pp-question-groups {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 12px;
 }
 
 .pp-question-group-title {
   font-family: var(--pp-mono);
-  font-size: 0.64rem;
+  font-size: 0.56rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--pp-muted);
-  margin: 0 0 10px;
+  margin: 0 0 5px;
+  opacity: 0.8;
 }
 
 /* ── Findings ──────────────────────────────────────────── */
@@ -982,16 +1004,50 @@ a { color: var(--pp-red); }
   }
 }
 
-/* ── Tablet / stacked explorer ─────────────────────────── */
-@media (max-width: 860px) {
+/* ── Narrower desktop: shrink the rail before stacking ── */
+@media (max-width: 1240px) {
+  :root { --pp-rail-w: 230px; --pp-builder-w: 280px; }
+}
+
+/* ── Tablet: builder above results, rail still beside ─── */
+@media (max-width: 1080px) {
   .pp-explorer-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Stack the rail on top and let the page scroll as one ── */
+@media (max-width: 860px) {
+  .pp-app {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .pp-rail {
+    position: static;
+    max-height: none;
+    padding: 16px 14px;
+  }
+
+  .pp-rail::after { display: none; }
+
+  .pp-rail-questions {
+    overflow-y: visible;
+    max-height: none;
+    padding-bottom: 0;
+  }
+
+  .pp-rail-heading { position: static; }
+
+  /* With full width available the cards can breathe again. */
+  .pp-featured { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .pp-brand { font-size: 2.2rem; }
+  .pp-lede { font-size: 0.9rem; }
 }
 
 /* ── Mobile ────────────────────────────────────────────── */
 @media (max-width: 720px) {
-  .pp-shell {
+  .pp-app {
     width: calc(100% - 20px);
-    padding-top: 16px;
+    padding-top: 12px;
   }
 
   .pp-nav {
@@ -1018,38 +1074,16 @@ a { color: var(--pp-red); }
     justify-content: center;
   }
 
-  .pp-strip::before,
-  .pp-strip::after {
-    width: 9px;
-    opacity: 0.1;
-    background:
-      repeating-linear-gradient(
-        to bottom,
-        var(--pp-ink) 0 8px,
-        transparent 8px 14px
-      );
-  }
+  .pp-rail { padding: 18px 14px; }
 
-  .pp-hero {
-    padding: 28px 20px 24px;
-    margin-bottom: 20px;
-  }
-
-  .pp-kicker {
-    font-size: 0.62rem;
-    letter-spacing: 0.1em;
+  .pp-brand {
+    font-size: clamp(2rem, 10vw, 2.6rem);
     margin-bottom: 10px;
   }
 
-  .pp-brand {
-    font-size: clamp(2.35rem, 12vw, 3.4rem);
-    max-width: none;
-    margin-bottom: 12px;
-  }
-
   .pp-lede {
-    font-size: 0.98rem;
-    margin-bottom: 18px;
+    font-size: 0.92rem;
+    margin-bottom: 14px;
   }
 
   .pp-cta-row {
@@ -1059,44 +1093,14 @@ a { color: var(--pp-red); }
 
   .pp-btn { width: 100%; }
 
-  .pp-section { margin-bottom: 22px; }
-
-  .pp-section-head {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-    margin-bottom: 10px;
-  }
-
-  .pp-section-head h2 { font-size: 1.3rem; }
-
-  .pp-section-head p {
-    text-align: left;
-    font-size: 0.7rem;
-    max-width: none;
-  }
-
   .pp-featured {
     grid-template-columns: 1fr;
-    gap: 10px;
+    gap: 8px;
   }
 
-  .pp-feature {
-    min-height: 0;
-    padding: 16px;
-    gap: 12px;
-  }
-
-  .pp-feature-title { font-size: 1.12rem; }
-  .pp-feature-blurb { font-size: 0.9rem; }
-  .pp-feature-meta {
-    font-size: 0.68rem;
-    letter-spacing: 0.05em;
-  }
-
-  .pp-explorer {
-    padding: 16px 14px;
-  }
+  .pp-feature { padding: 12px 13px; }
+  .pp-feature-title { font-size: 1.02rem; }
+  .pp-feature-blurb { font-size: 0.82rem; }
 
   .pp-field label {
     font-size: 0.68rem;

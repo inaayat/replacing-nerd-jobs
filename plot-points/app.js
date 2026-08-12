@@ -794,7 +794,10 @@ async function runCurrentQuery({ scroll = true } = {}) {
     return;
   }
 
-  if (scroll) {
+  // On a wide screen the rail and the results are on screen together, so
+  // scrolling would move the answer away from the question that asked it.
+  // Only the stacked layout needs to travel.
+  if (scroll && window.matchMedia('(max-width: 860px)').matches) {
     els.builder.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
