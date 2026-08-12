@@ -658,7 +658,7 @@ Run against production after merge. Verified working: all 9 HTML pages and all
 23 JS modules load (no broken import from the new `dates.js` / `combobox.js` or
 the deleted files); every `/api/alist-*` rewrite resolves; the `/private/`
 password gate still 401s after the middleware matcher change; and the other
-projects (`/packing-cubes/`, `/sporcle-spinoff/`, `/world-cup/`,
+projects (`/packing-cubes/`, `/sporcle-spinoff/`,
 `/one-more-column/`) still route after `vercel.json` was reformatted.
 `/api/alist-leaderboard` returning `{"entries":[]}` rather than a 502 confirms
 `ensureSchema()` applied the three new columns.

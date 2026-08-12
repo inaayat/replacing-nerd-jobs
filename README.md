@@ -61,11 +61,13 @@ database/Auth instance; preview deployments get a Neon database branch named
 ### Hobby plan constraint (important)
 
 Vercel Hobby allows at most **12 serverless functions** per deployment, and this
-repo sits at exactly 12 files under `api/`. **Do not add new files under `api/`.**
-Instead, add a `?route=` branch to an existing handler and a matching rewrite in
-`vercel.json` (this is why A-Lister and Plot Points are multiplexed routers).
+repo currently uses **11 of 12** files under `api/` (one slot free after retiring
+World Cup / `football.js`). **Do not add new files under `api/` unless you are
+intentionally using that free slot.** Prefer adding a `?route=` branch to an
+existing handler and a matching rewrite in `vercel.json` (this is why A-Lister
+and Plot Points are multiplexed routers).
 
-Current roster (12/12):
+Current roster (11/12):
 
 | File | Used for |
 |---|---|
@@ -80,9 +82,12 @@ Current roster (12/12):
 | `api/save-cube.js` | Packing Cubes catalog: owner publishes / upserts a public cube JSON, or visitor opens a review PR. |
 | `api/save-suitcase.js` | Packing Cubes: anonymous “save suitcase out of localStorage” → always opens a GitHub PR for review (no direct publish). |
 | `api/report-issue.js` | Sporcle Spinoff: from a quiz page, opens a GitHub Issue describing a problem. |
-| `api/football.js` | World Cup 2026: proxies football-data.org (`?action=all` etc.) for fixtures/scores + knockout venue mapping. |
 
-If you need a 13th endpoint, fold it into the closest router above — do not create `api/something-new.js`.
+Retired: `api/football.js` (World Cup 2026 live scores) — project lives under
+`archive/world-cup/` as a static snapshot only.
+
+If you need another endpoint, prefer folding it into the closest router above.
+You may use the free 12th slot for a genuinely new top-level handler when needed.
 
 ### Environment variables
 
@@ -96,7 +101,6 @@ Storage integration usually provisions the first two automatically into Vercel.
 | `SITE_PASSWORD` | Vercel env only | Owner-only password for `/private/` |
 | `GITHUB_TOKEN` | Vercel env only | Opens PRs / commits quiz & cube content via GitHub API |
 | `TMDB_API_KEY` | Vercel env only | The Movie Database — A-Lister + Plot Points |
-| `FOOTBALL_DATA_KEY` | Vercel env only | football-data.org — World Cup / football API |
 | `NEON_PROJECT_ID` | GitHub Actions var | Preview DB branch cleanup |
 | `NEON_API_KEY` | GitHub Actions secret | Preview DB branch cleanup |
 
@@ -300,7 +304,6 @@ hand-editing the manifest in PRs.
 |---|---|---|
 | Neon (Postgres + Auth) | `DATABASE_URL`, `NEON_AUTH_BASE_URL` | Almost all authenticated features |
 | TMDB | `TMDB_API_KEY` | `lib/tmdb.js` → A-Lister + Plot Points (shared cache table) |
-| football-data.org | `FOOTBALL_DATA_KEY` | `api/football.js` / World Cup |
 | GitHub API | `GITHUB_TOKEN` | Content publish + issue filing |
 
 ---
@@ -321,7 +324,7 @@ hand-editing the manifest in PRs.
 ├── engine/
 │   └── neon-browser-auth.js    ← shared browser Neon Auth helpers
 │
-├── api/                        ← serverless functions (exactly 12 — Hobby limit)
+├── api/                        ← serverless functions (11/12 Hobby slots used)
 │   ├── login.js                ← /private password login + logout (GET)
 │   ├── auth-config.js          ← exposes NEON_AUTH_BASE_URL
 │   ├── auth-login.js           ← server-side Neon Auth → JWT
@@ -332,8 +335,7 @@ hand-editing the manifest in PRs.
 │   ├── save-quiz.js            ← Sporcle publish / PR
 │   ├── save-cube.js            ← Packing Cubes publish / PR
 │   ├── save-suitcase.js
-│   ├── report-issue.js
-│   └── football.js
+│   └── report-issue.js
 │
 ├── lib/                        ← server-only modules (not publicly fetchable)
 │   ├── db.js                   ← Neon client + ensureSchema()
@@ -349,7 +351,6 @@ hand-editing the manifest in PRs.
 ├── packing-cubes/              ← reusable travel checklists
 ├── sporcle-spinoff/            ← trivia quiz platform
 ├── plot-points/                ← TMDB cinema query explorer
-├── world-cup/                  ← FIFA World Cup 2026
 │
 ├── private/                    ← SITE_PASSWORD-gated section
 │   └── gddy-statements/
@@ -358,7 +359,8 @@ hand-editing the manifest in PRs.
 ├── .github/workflows/          ← quiz/cube index rebuild + Neon preview cleanup
 │
 ├── ugly-dog-images/ · ugly-cat-images/
-└── archive/                    ← retired v1 site (inaayat.xyz/archive)
+└── archive/                    ← retired projects (inaayat.xyz/archive)
+    └── world-cup/              ← FIFA World Cup 2026 (static; live API retired)
 ```
 
 ---
@@ -393,10 +395,10 @@ by **both** the browser and `api/plot-points.js` — keep it dependency-free ESM
 (no `node:` imports). Do **not** move it under `/lib/` (middleware 404s that path
 for browsers). Shares `alist_movie_cache` with A-Lister.
 
-### World Cup 2026 — `/world-cup`
+### World Cup 2026 — retired → `/archive/world-cup`
 
-Schedule / football helpers; live data via `api/football.js` when
-`FOOTBALL_DATA_KEY` is set.
+Moved off the homepage. Static schedule/UI snapshot only; `api/football.js` and
+`FOOTBALL_DATA_KEY` were removed to free a Hobby serverless slot.
 
 ---
 

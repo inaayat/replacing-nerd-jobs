@@ -9,6 +9,23 @@
       "maxDuration": 60
     }
   },
+  "redirects": [
+    {
+      "source": "/world-cup",
+      "destination": "/archive/world-cup/",
+      "permanent": true
+    },
+    {
+      "source": "/world-cup/",
+      "destination": "/archive/world-cup/",
+      "permanent": true
+    },
+    {
+      "source": "/world-cup/:path*",
+      "destination": "/archive/world-cup/:path*",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/alist-watches",
