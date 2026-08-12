@@ -227,7 +227,9 @@ function renderInvitesPanel(auth, state, render) {
             return true;
           });
           showLogStatus(result.linked || result.reused_existing
-            ? 'Accepted — tagged your existing log entry (no duplicate).'
+            ? (result.filled_fields?.length
+              ? `Accepted — tagged your existing entry and filled in ${result.filled_fields.join(', ')}.`
+              : 'Accepted — tagged your existing log entry (no duplicate).')
             : 'Added to your watch log.');
           populateSidebarStats(auth);
         } else {

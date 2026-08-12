@@ -10,6 +10,7 @@ import {
   inviteFromRow,
   summarizeBulkInviteResults,
   normalizeSeenWithUsernames,
+  missingWatchFieldsFromInvite,
 } from '../lib/a-list-showing.js';
 
 let passed = 0;
@@ -105,6 +106,33 @@ assert(
     { watched_on: '2026-08-11', title: 'Weapons', tmdb_id: 1 },
   ),
   'different date is not the same movie night',
+);
+
+assertDeep(
+  missingWatchFieldsFromInvite(
+    { location: null, ticket_cents: null, format: '', tmdb_id: null },
+    { location: 'AMC Empire 25', ticket_cents: 2495, format: 'IMAX', tmdb_id: 55 },
+  ),
+  { location: 'AMC Empire 25', ticket_cents: 2495, format: 'IMAX', tmdb_id: 55 },
+  'fills all missing fields from invite',
+);
+
+assertDeep(
+  missingWatchFieldsFromInvite(
+    { location: 'AMC Empire 25', ticket_cents: 1999, format: 'Dolby', tmdb_id: 55 },
+    { location: 'Other', ticket_cents: 2495, format: 'IMAX', tmdb_id: 99 },
+  ),
+  null,
+  'does not overwrite fields the invitee already has',
+);
+
+assertDeep(
+  missingWatchFieldsFromInvite(
+    { location: '', ticket_cents: null, format: 'IMAX', tmdb_id: 55 },
+    { location: 'AMC Lincoln Square 13', ticket_cents: 2495, format: 'Dolby', tmdb_id: 55 },
+  ),
+  { location: 'AMC Lincoln Square 13', ticket_cents: 2495 },
+  'only fills blank theater and ticket; keeps existing format/tmdb',
 );
 
 const invite = inviteFromRow({
