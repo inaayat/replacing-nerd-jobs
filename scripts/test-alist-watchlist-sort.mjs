@@ -54,22 +54,21 @@ assertEqual(
   'coming soon is soonest first',
 );
 
-// The page is called Coming Soon, so the next release leads and already-playing
-// titles follow (most recent first) carrying an "Already out" badge.
+// Already-playing titles lead (most recent first); upcoming follow soonest-first.
 assertEqual(
   combinedWatchlistItems(items, today).map((i) => i.release_date),
   [
-    '2026-08-12',
-    '2026-08-13',
-    '2026-08-20',
     '2026-08-07',
     '2026-08-06',
     '2026-07-29',
+    '2026-08-12',
+    '2026-08-13',
+    '2026-08-20',
   ],
-  'combined list leads with the soonest upcoming release',
+  'combined list leads with already-out, then soonest upcoming',
 );
 
-// Undated entries sink to the end of the upcoming block, ahead of released ones.
+// Undated entries sink after already-out and dated upcoming.
 const withUndated = [
   { id: 'a', title: 'Dated soon', release_date: '2026-09-01' },
   { id: 'b', title: 'Year only', year: 2027 },
@@ -78,8 +77,8 @@ const withUndated = [
 ];
 assertEqual(
   combinedWatchlistItems(withUndated, today).map((i) => i.title),
-  ['Dated soon', 'Year only', 'Old release', 'No date at all'],
-  'titles with no release data at all sort last, after already-out',
+  ['Old release', 'Dated soon', 'Year only', 'No date at all'],
+  'already-out leads; undated titles sort last',
 );
 
 // A title with no date is "unknown", not "released" — it must not be badged

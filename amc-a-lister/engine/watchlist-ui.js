@@ -51,16 +51,16 @@ export function sortAlreadyOut(items, today = todayISO()) {
 }
 
 /**
- * One list, ordered by how soon each title is out: the next release leads, then
- * later releases, then everything already playing (most recent first) with an
- * "Already out" badge, and finally titles we have no release data for — those
- * get no badge, because we can't honestly claim either way.
+ * One list for the Coming Soon page: already-playing titles lead (most recent
+ * release first) with an "Already out" badge, then upcoming releases ascending
+ * soonest-first, and finally titles we have no release data for — those get no
+ * badge, because we can't honestly claim either way.
  */
 export function combinedWatchlistItems(items, today = todayISO()) {
   const unknown = items
     .filter((item) => releaseState(item, today) === 'unknown')
     .sort((a, b) => String(a.title || '').localeCompare(String(b.title || '')));
-  return [...sortComingSoon(items, today), ...sortAlreadyOut(items, today), ...unknown];
+  return [...sortAlreadyOut(items, today), ...sortComingSoon(items, today), ...unknown];
 }
 
 export function releaseLabel(item) {

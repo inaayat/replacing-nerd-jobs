@@ -19,6 +19,9 @@ import {
   getOwnProfile,
   normalizeUsername,
   publicDisplayName,
+  inviteToShowing,
+  listShowingInvites,
+  respondToShowingInvite,
 } from '../lib/a-list.js';
 import {
   computeSummary,
@@ -71,6 +74,8 @@ export default async function handler(req, res) {
       return handleTvLookup(req, res);
     case 'tv-details':
       return handleTvDetails(req, res);
+    case 'showing-invites':
+      return handleShowingInvites(req, res);
     default:
       res.status(404).json({ error: 'Unknown A-List route.' });
   }
@@ -1580,6 +1585,69 @@ async function handleTvLookup(req, res) {
   } catch (err) {
     res.status(502).json({ error: err.message });
   }
+}
+
+async function handleShowingInvites(req, res) {
+  if (!requireDb(res)) return;
+  const session = await requireUser(req, res);
+  if (!session) return;
+  const { userId } = session;
+
+  if (req.method === 'GET') {
+    try {
+      const invites = await listShowingInvites(userId);
+      res.status(200).json(invites);
+    } catch (err) {
+      res.status(502).json({ error: err.message });
+    }
+    return;
+  }
+
+  if (req.method === 'POST') {
+    const watchId = String(req.body?.watch_id || '').trim();
+    const username = String(req.body?.username || '').trim();
+    if (!watchId) {
+      res.status(400).json({ error: 'watch_id is required.' });
+      return;
+    }
+    if (!username) {
+      res.status(400).json({ error: 'username is required.' });
+      return;
+    }
+    try {
+      const result = await inviteToShowing(userId, { watchId, username });
+      if (result.error) {
+        res.status(result.status || 400).json({ error: result.error });
+        return;
+      }
+      res.status(result.invite ? 201 : 200).json(result);
+    } catch (err) {
+      res.status(502).json({ error: err.message });
+    }
+    return;
+  }
+
+  if (req.method === 'PATCH') {
+    const inviteId = String(req.body?.id || '').trim();
+    const action = String(req.body?.action || '').trim();
+    if (!inviteId) {
+      res.status(400).json({ error: 'id is required.' });
+      return;
+    }
+    try {
+      const result = await respondToShowingInvite(userId, { inviteId, action });
+      if (result.error) {
+        res.status(result.status || 400).json({ error: result.error });
+        return;
+      }
+      res.status(200).json(result);
+    } catch (err) {
+      res.status(502).json({ error: err.message });
+    }
+    return;
+  }
+
+  res.status(405).json({ error: 'Method not allowed.' });
 }
 
 function parseMoney(value) {

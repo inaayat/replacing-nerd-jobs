@@ -71,6 +71,10 @@
       "destination": "/api/alist?route=tv-details"
     },
     {
+      "source": "/api/alist-showing-invites",
+      "destination": "/api/alist?route=showing-invites"
+    },
+    {
       "source": "/api/pc-cubes",
       "destination": "/api/packing-cubes?route=cubes"
     },

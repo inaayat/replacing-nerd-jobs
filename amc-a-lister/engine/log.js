@@ -1,5 +1,5 @@
 import { bootPage, renderShell, requireSignIn, populateSidebarStats } from './nav.js';
-import { watchesApi, movieApi } from './api.js';
+import { watchesApi, movieApi, showingInvitesApi } from './api.js';
 import { money, shortDate, ratingLabel, escapeHtml, posterHtml } from './format.js';
 import { renderWatchEditForm, wireWatchEditForm } from './watch-form.js';
 import { ratingStarBucket } from './billing.js';
@@ -26,11 +26,15 @@ async function loadLog(auth) {
   const main = document.getElementById('log-main');
   if (!main) return;
 
-  const { watches } = await watchesApi.list(auth.token);
+  const [{ watches }, invites] = await Promise.all([
+    watchesApi.list(auth.token),
+    showingInvitesApi.list(auth.token).catch(() => ({ incoming: [], outgoing: [] })),
+  ]);
   const theaters = [...new Set(watches.map((w) => w.location).filter(Boolean))].sort();
   const formats = [...new Set(watches.map((w) => w.format).filter(Boolean))].sort();
 
   main.innerHTML = `
+    <section class="al-panel al-panel--invites" id="showing-invites-panel" hidden></section>
     <section class="al-panel al-panel--log">
       <div class="al-toolbar al-toolbar--log">
         <input class="al-input al-toolbar-search" id="log-search" type="search" placeholder="Search title or theater…" />
@@ -57,6 +61,7 @@ async function loadLog(auth) {
         <span class="al-muted" id="log-count"></span>
       </div>
       <p class="al-error" id="log-error" role="alert" hidden></p>
+      <p class="al-muted" id="log-status" aria-live="polite"></p>
       <div class="al-log-list-wrap" id="log-table"></div>
     </section>
   `;
@@ -66,8 +71,10 @@ async function loadLog(auth) {
   const state = {
     watches,
     filtered: watches,
+    invites,
     editingId: null,
     expandedId: null,
+    addingId: null,
     detailsCache: new Map(),
     detailsLoading: null,
     detailsError: null,
@@ -75,6 +82,7 @@ async function loadLog(auth) {
 
   const render = () => {
     document.getElementById('log-count').textContent = `${state.filtered.length} of ${state.watches.length}`;
+    renderInvitesPanel(auth, state, render);
     document.getElementById('log-table').innerHTML = tableHtml(state);
     wireRowActions(auth, state, render);
   };
@@ -132,12 +140,117 @@ async function loadLog(auth) {
 function showLogError(message) {
   const el = document.getElementById('log-error');
   if (!el) return;
-  el.textContent = message;
-  el.hidden = false;
+  el.textContent = message || '';
+  el.hidden = !message;
+}
+
+function showLogStatus(message) {
+  const el = document.getElementById('log-status');
+  if (!el) return;
+  el.textContent = message || '';
+}
+
+function companionsLabel(watch) {
+  const names = (watch.companions || []).map((c) => c.username).filter(Boolean);
+  if (!names.length) return '';
+  return `<span class="al-badge al-badge--together">with ${escapeHtml(names.join(', '))}</span>`;
+}
+
+function renderInvitesPanel(auth, state, render) {
+  const panel = document.getElementById('showing-invites-panel');
+  if (!panel) return;
+  const incoming = state.invites?.incoming || [];
+  const outgoing = state.invites?.outgoing || [];
+  if (!incoming.length && !outgoing.length) {
+    panel.hidden = true;
+    panel.innerHTML = '';
+    return;
+  }
+
+  panel.hidden = false;
+  panel.innerHTML = `
+    <div class="al-invites-header">
+      <h2 class="al-invites-title">Showing invites</h2>
+      <p class="al-muted">Accept to add the outing to your watch log, or deny to dismiss it.</p>
+    </div>
+    ${incoming.length ? `
+      <div class="al-invites-list" id="incoming-invites">
+        ${incoming.map((invite) => inviteCardHtml(invite, 'incoming')).join('')}
+      </div>
+    ` : ''}
+    ${outgoing.length ? `
+      <div class="al-invites-outgoing">
+        <h3 class="al-invites-subhead">Waiting on</h3>
+        <ul class="al-invites-outgoing-list">
+          ${outgoing.map((invite) => `
+            <li>
+              <strong>${escapeHtml(invite.to_username || 'Member')}</strong>
+              · ${escapeHtml(invite.title)}
+              · ${shortDate(invite.watched_on)}
+              · ${escapeHtml(invite.location || '—')}
+            </li>
+          `).join('')}
+        </ul>
+      </div>
+    ` : ''}
+  `;
+
+  panel.querySelectorAll('[data-invite-accept], [data-invite-deny]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.inviteAccept || btn.dataset.inviteDeny;
+      const action = btn.dataset.inviteAccept ? 'accept' : 'deny';
+      btn.disabled = true;
+      try {
+        const result = await showingInvitesApi.respond(auth.token, { id, action });
+        state.invites.incoming = state.invites.incoming.filter((i) => i.id !== id);
+        if (action === 'accept') {
+          const { watches } = await watchesApi.list(auth.token);
+          state.watches = watches;
+          state.filtered = watches;
+          showLogStatus(result.linked
+            ? 'Tagged as watched together — they already had this outing.'
+            : 'Added to your watch log.');
+          populateSidebarStats(auth);
+        } else {
+          showLogStatus('Invite declined.');
+        }
+        render();
+      } catch (err) {
+        showLogError(err.message || 'Could not update invite.');
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
+function inviteCardHtml(invite, kind) {
+  return `
+    <article class="al-invite-card" data-invite-id="${invite.id}">
+      <div class="al-invite-card-poster">
+        ${posterHtml(invite, { size: 'w92', width: 40, height: 60, className: 'al-poster al-poster--watchlist-sm' })}
+      </div>
+      <div class="al-invite-card-body">
+        <h3 class="al-invite-card-title">${escapeHtml(invite.title)}</h3>
+        <p class="al-muted">
+          From <strong>${escapeHtml(invite.from_username || 'Member')}</strong>
+          · ${shortDate(invite.watched_on)}
+          · ${escapeHtml(invite.location || '—')}
+          · ${money(invite.ticket_cents)}
+          ${invite.format ? ` · ${escapeHtml(invite.format)}` : ''}
+        </p>
+      </div>
+      ${kind === 'incoming' ? `
+        <div class="al-invite-card-actions">
+          <button type="button" class="al-btn al-btn-primary" data-invite-accept="${invite.id}">Accept</button>
+          <button type="button" class="al-btn" data-invite-deny="${invite.id}">Deny</button>
+        </div>
+      ` : ''}
+    </article>
+  `;
 }
 
 function tableHtml(state) {
-  const { filtered, editingId, expandedId } = state;
+  const { filtered, editingId } = state;
   // "No matches" is wrong for someone who has never logged anything.
   if (!state.watches.length) {
     return `
@@ -187,6 +300,8 @@ function mobileLogMeta(w) {
 
 function viewEntryHtml(w, state) {
   const expanded = w.id === state.expandedId;
+  const adding = w.id === state.addingId;
+  const canAdd = w.in_theaters !== false;
   return `
     <div class="al-log-entry ${expanded ? 'is-expanded' : ''}" data-entry-id="${w.id}">
       <article class="al-log-row al-log-row--clickable ${expanded ? 'is-expanded' : ''}" data-expand-row tabindex="0" aria-expanded="${expanded}" aria-label="Toggle details">
@@ -196,6 +311,7 @@ function viewEntryHtml(w, state) {
           <div class="al-log-col al-log-col--title">
             ${escapeHtml(w.title)}
             ${w.in_theaters === false ? '<span class="al-badge al-badge--muted">Off-theater</span>' : ''}
+            ${companionsLabel(w)}
           </div>
           <div class="al-log-col al-log-col--mobile-meta al-only-mobile">${mobileLogMeta(w)}</div>
         </div>
@@ -205,11 +321,37 @@ function viewEntryHtml(w, state) {
         <div class="al-log-col al-log-col--desktop al-log-col--num">${w.in_theaters === false ? '—' : money(w.ticket_cents)}</div>
         <div class="al-log-col al-log-col--desktop">${ratingLabel(w)}</div>
         <div class="al-log-col al-row-actions">
+          ${canAdd ? `<button type="button" class="al-link-btn" data-add-viewer="${w.id}">Add</button>` : ''}
           <button type="button" class="al-link-btn" data-edit="${w.id}">Edit</button>
           <button type="button" class="al-link-btn" data-delete="${w.id}">Delete</button>
         </div>
       </article>
+      ${adding ? addViewerFormHtml(w) : ''}
       ${expanded ? detailPanelHtml(w, state) : ''}
+    </div>
+  `;
+}
+
+function addViewerFormHtml(watch) {
+  return `
+    <div class="al-add-viewer" data-add-viewer-panel="${watch.id}">
+      <form class="al-add-viewer-form" data-add-viewer-form="${watch.id}">
+        <label class="al-add-viewer-label" for="add-viewer-${watch.id}">
+          Add someone to <strong>${escapeHtml(watch.title)}</strong>
+          at ${escapeHtml(watch.location || 'this theater')}
+        </label>
+        <div class="al-add-viewer-row">
+          <input class="al-input" id="add-viewer-${watch.id}" name="username" type="text"
+                 placeholder="Their username" autocomplete="off" required maxlength="24" />
+          <button class="al-btn al-btn-primary" type="submit">Send</button>
+          <button class="al-btn" type="button" data-cancel-add-viewer>Cancel</button>
+        </div>
+        <p class="al-muted al-add-viewer-hint">
+          If they already logged the same movie and theater on ${shortDate(watch.watched_on)},
+          both entries are tagged as watched together. Otherwise they get an invite with
+          movie, theater, and ticket cost (${money(watch.ticket_cents)}) to accept or deny.
+        </p>
+      </form>
     </div>
   `;
 }
@@ -243,6 +385,9 @@ function detailPanelHtml(watch, state) {
   const director = movie.director || '—';
   const cast = movie.cast?.length ? movie.cast.join(', ') : '—';
   const titleLine = `${escapeHtml(movie.title)}${movie.year ? ` <span class="al-muted">(${movie.year})</span>` : ''}`;
+  const together = (watch.companions || []).length
+    ? `<div class="al-log-detail-fact"><dt>With</dt><dd>${escapeHtml(watch.companions.map((c) => c.username).join(', '))}</dd></div>`
+    : '';
 
   return wrap(`
     <h3 class="al-log-detail-title serif">${titleLine}</h3>
@@ -254,6 +399,7 @@ function detailPanelHtml(watch, state) {
           <div class="al-log-detail-fact"><dt>Genre</dt><dd>${escapeHtml(genres)}</dd></div>
           <div class="al-log-detail-fact"><dt>Director</dt><dd>${escapeHtml(director)}</dd></div>
           <div class="al-log-detail-fact"><dt>Cast</dt><dd>${escapeHtml(cast)}</dd></div>
+          ${together}
         </dl>
       </div>
     </div>
@@ -306,6 +452,7 @@ function wireRowActions(auth, state, render) {
   document.querySelectorAll('[data-expand-row]').forEach((row) => {
     const toggle = (e) => {
       if (e.target.closest('.al-row-actions')) return;
+      if (e.target.closest('.al-add-viewer')) return;
       const entry = row.closest('.al-log-entry');
       const id = entry?.dataset.entryId;
       if (!id) return;
@@ -319,6 +466,7 @@ function wireRowActions(auth, state, render) {
 
       state.expandedId = id;
       state.editingId = null;
+      state.addingId = null;
       state.detailsError = null;
 
       const watch = state.watches.find((w) => w.id === id);
@@ -338,11 +486,88 @@ function wireRowActions(auth, state, render) {
     });
   });
 
+  document.querySelectorAll('[data-add-viewer]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.addViewer;
+      state.addingId = state.addingId === id ? null : id;
+      state.editingId = null;
+      showLogError('');
+      render();
+      if (state.addingId) {
+        document.getElementById(`add-viewer-${state.addingId}`)?.focus();
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-cancel-add-viewer]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      state.addingId = null;
+      render();
+    });
+  });
+
+  document.querySelectorAll('[data-add-viewer-form]').forEach((form) => {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const watchId = form.dataset.addViewerForm;
+      const input = form.querySelector('input[name="username"]');
+      const username = input?.value.trim();
+      if (!username) return;
+      const submitBtn = form.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      showLogError('');
+      try {
+        const result = await showingInvitesApi.create(auth.token, {
+          watch_id: watchId,
+          username,
+        });
+        state.addingId = null;
+        if (result.linked) {
+          const { watches } = await watchesApi.list(auth.token);
+          state.watches = watches;
+          const q = document.getElementById('log-search')?.value.trim().toLowerCase() || '';
+          const theater = document.getElementById('log-theater')?.value || '';
+          const format = document.getElementById('log-format')?.value || '';
+          const rating = document.getElementById('log-rating')?.value || '';
+          const includeHome = document.getElementById('log-include-home')?.getAttribute('aria-pressed') === 'true';
+          state.filtered = state.watches.filter((w) => {
+            if (!includeHome && w.in_theaters === false) return false;
+            if (q && !`${w.title} ${w.location || ''}`.toLowerCase().includes(q)) return false;
+            if (theater && w.location !== theater) return false;
+            if (format && w.format !== format) return false;
+            if (rating === 'dnf') return !!w.dnf;
+            if (rating === 'unrated') return !w.dnf && w.rating == null;
+            if (rating) {
+              if (w.dnf || w.rating == null) return false;
+              return String(ratingStarBucket(w.rating)) === rating;
+            }
+            return true;
+          });
+          showLogStatus(result.already
+            ? `Already tagged with ${result.companion?.username || username}.`
+            : `Tagged as watched together with ${result.companion?.username || username}.`);
+        } else {
+          const invites = await showingInvitesApi.list(auth.token);
+          state.invites = invites;
+          showLogStatus(`Invite sent to ${username}.`);
+        }
+        render();
+      } catch (err) {
+        showLogError(err.message || 'Could not add that user.');
+        submitBtn.disabled = false;
+      }
+    });
+  });
+
   document.querySelectorAll('[data-edit]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       state.editingId = btn.dataset.edit;
       state.expandedId = null;
+      state.addingId = null;
       render();
     });
   });
@@ -367,6 +592,7 @@ function wireRowActions(auth, state, render) {
       state.filtered = state.filtered.filter((w) => w.id !== id);
       if (state.editingId === id) state.editingId = null;
       if (state.expandedId === id) state.expandedId = null;
+      if (state.addingId === id) state.addingId = null;
       state.detailsCache.delete(id);
       populateSidebarStats(auth);
       render();
@@ -392,6 +618,7 @@ function wireRowActions(auth, state, render) {
       const merged = {
         ...updated,
         poster_path: updated.tmdb_id === watch.tmdb_id ? watch.poster_path : null,
+        companions: watch.companions || [],
       };
       state.watches = state.watches.map((w) => (w.id === watch.id ? merged : w));
       state.filtered = state.filtered.map((w) => (w.id === watch.id ? merged : w));
