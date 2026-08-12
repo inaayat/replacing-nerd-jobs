@@ -147,15 +147,17 @@ Period forms: `CY2024` (annual), `CY2024Q1` (quarterly), `CY2024Q4I` (balance-sh
 Useful for a “who reported revenue for FY2024” benchmark. Not required to
 stand up the per-company explorer.
 
-### Bulk ZIPs (weekly safety net)
+### Bulk ZIPs (local safety net only — not on GitHub Actions)
 
 | File | URL | When SEC publishes |
 |------|-----|--------------------|
 | All company facts | `https://www.sec.gov/Archives/edgar/daily-index/xbrl/companyfacts.zip` | ~3:00 a.m. ET |
 | All submissions | `https://www.sec.gov/Archives/edgar/daily-index/bulkdata/submissions.zip` | ~3:00 a.m. ET |
 
-Download, filter to our 473 CIKs, discard the rest. Prefer this for a full
-Facts refresh instead of 473 live API calls.
+`companyfacts.zip` is ~1.3 GB compressed and ~13 GB uncompressed. That does
+**not** fit comfortably on a GitHub-hosted runner (14 GB free disk guaranteed).
+If we use the ZIP at all, run it locally and stream-filter to our 473 CIKs.
+The daily live API is enough for production.
 
 ---
 
