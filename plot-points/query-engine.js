@@ -522,6 +522,11 @@ export function specToHeadline(spec) {
   const plural = groupMeta.plural.charAt(0).toUpperCase() + groupMeta.plural.slice(1);
 
   if (spec.metric.agg === 'count') {
+    // With the subject excluded the question is "who turns up alongside them",
+    // which is a different sentence from "who is in the most of their films".
+    if (spec.exclude_subject && spec.scope.person_name) {
+      return `${plural} who appear most often alongside ${spec.scope.person_name}`;
+    }
     return `${plural} in the most ${subject}`;
   }
   const fieldMeta = NUMERIC_FIELDS[spec.metric.field];
@@ -684,6 +689,11 @@ export function runQuery(movies, rawSpec) {
 
 /* ── Findings ──────────────────────────────────────────────────── */
 
+/** "an actor", "a studio" — group nouns are data, so the article is derived. */
+function article(word) {
+  return /^[aeiou]/i.test(String(word)) ? 'an' : 'a';
+}
+
 /**
  * Short, literally-true sentences about the finished result set.
  *
@@ -704,7 +714,9 @@ export function buildFindings(rows, spec, { baseline, isCount, eligible }) {
 
   if (isCount) {
     const verb = isPair ? 'share' : 'appears in';
-    const times = baseline ? `, ${round(top.film_count / baseline)}× the ${baseline} typical for a ${groupNoun} here` : '';
+    const times = baseline
+      ? `, ${round(top.film_count / baseline)}× the ${baseline} typical for ${article(groupNoun)} ${groupNoun} here`
+      : '';
     out.push(`${top.label} ${verb} ${films(top.film_count)} of the ${eligible} scanned${times}.`);
   } else if (baseline) {
     const direction = top.metric >= baseline ? 'above' : 'below';

@@ -460,6 +460,28 @@ assert.ok(
 assert.equal(normalizeSpec({}).exclude_subject, false, 'off by default');
 assert.equal(normalizeSpec({ exclude_subject: true }).exclude_subject, true);
 
+// "Who is in the most of their films" and "who turns up alongside them" are
+// different questions and must not share a headline.
+assert.ok(
+  specToHeadline(normalizeSpec({
+    scope: { type: 'person-acted', person_id: 10, person_name: 'Ada' },
+    group_by: 'actor',
+    metric: { agg: 'count' },
+    exclude_subject: true,
+  })).includes('alongside Ada'),
+  'excluding the subject changes the headline',
+);
+
+// Group nouns come from data, so the article has to agree with them.
+assert.ok(
+  withSubject.findings[0].includes('an actor'),
+  `article agrees with the group noun: ${withSubject.findings[0]}`,
+);
+assert.ok(
+  runQuery(movies, { group_by: 'company', metric: { agg: 'count' }, min_films: 1 })
+    .findings[0].includes('a studio'),
+);
+
 /* ── Baselines, confidence weighting, lift ─────────────────────── */
 
 const rated = runQuery(movies, {
