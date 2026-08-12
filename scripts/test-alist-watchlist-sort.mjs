@@ -44,8 +44,8 @@ assert(isAlreadyOut(items[3], today) === false, 'Aug 12 is coming soon');
 
 assertEqual(
   sortAlreadyOut(items, today).map((i) => i.title),
-  ['Tony', 'Nimrods', 'I Want Your Sex'],
-  'already-out is most recent first',
+  ['I Want Your Sex', 'Nimrods', 'Tony'],
+  'already-out is oldest first',
 );
 
 assertEqual(
@@ -54,13 +54,13 @@ assertEqual(
   'coming soon is soonest first',
 );
 
-// Already-playing titles lead (most recent first); upcoming follow soonest-first.
+// Already-playing titles lead (oldest first); upcoming follow soonest-first.
 assertEqual(
   combinedWatchlistItems(items, today).map((i) => i.release_date),
   [
-    '2026-08-07',
-    '2026-08-06',
     '2026-07-29',
+    '2026-08-06',
+    '2026-08-07',
     '2026-08-12',
     '2026-08-13',
     '2026-08-20',
