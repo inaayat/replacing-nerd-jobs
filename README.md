@@ -43,11 +43,14 @@ Requires a Vercel login and the env vars listed below (Neon, TMDB, etc.).
 
 ### Deploy
 
-Connected to Vercel. Push to `main` → automatic redeploy. Done. beep boop.
+Connected to **Vercel** (hosting + serverless). Push to `main` → automatic
+redeploy. Done. beep boop.
 
-Preview deployments also get a Neon database branch named `preview/<git-branch>`
-via the Vercel ↔ Neon integration. When a PR closes, GitHub Actions deletes that
-branch (`.github/workflows/cleanup-neon-preview-branch.yml`).
+**Neon** is attached as Vercel Storage: production deploys use the main Neon
+database/Auth instance; preview deployments get a Neon database branch named
+`preview/<git-branch>`. When a PR closes, GitHub Actions deletes that branch
+(`.github/workflows/cleanup-neon-preview-branch.yml`). See
+[Neon vs Vercel](#neon-vs-vercel--who-does-what) below.
 
 ### Adding a new page
 
@@ -64,19 +67,76 @@ Instead, add a `?route=` branch to an existing handler and a matching rewrite in
 
 ### Environment variables
 
-Set these in the Vercel project (Production / Preview as needed). The Neon
-integration usually provisions the first two automatically.
+Set these in the **Vercel** project (Production / Preview as needed). The Neon
+Storage integration usually provisions the first two automatically into Vercel.
 
-| Variable | Purpose |
+| Variable | Owned by | Purpose |
+|---|---|---|
+| `DATABASE_URL` | Neon → injected into Vercel | Neon Postgres connection string |
+| `NEON_AUTH_BASE_URL` | Neon → injected into Vercel | Hosted Neon Auth endpoint (Better Auth) |
+| `SITE_PASSWORD` | Vercel env only | Owner-only password for `/private/` |
+| `GITHUB_TOKEN` | Vercel env only | Opens PRs / commits quiz & cube content via GitHub API |
+| `TMDB_API_KEY` | Vercel env only | The Movie Database — A-Lister + Plot Points |
+| `FOOTBALL_DATA_KEY` | Vercel env only | football-data.org — World Cup / football API |
+| `NEON_PROJECT_ID` | GitHub Actions var | Preview DB branch cleanup |
+| `NEON_API_KEY` | GitHub Actions secret | Preview DB branch cleanup |
+
+---
+
+## Neon vs Vercel — who does what
+
+These two services are paired but do different jobs. **Vercel runs the website;
+Neon holds durable user/auth data.** One Vercel ↔ Neon Storage integration wires
+them together and injects `DATABASE_URL` + `NEON_AUTH_BASE_URL` into each deploy.
+
+### Vercel — hosting, edge, and compute
+
+| Responsibility | How it shows up here |
 |---|---|
-| `DATABASE_URL` | Neon Postgres connection string |
-| `NEON_AUTH_BASE_URL` | Hosted Neon Auth endpoint (Better Auth) |
-| `SITE_PASSWORD` | Owner-only password for `/private/` |
-| `GITHUB_TOKEN` | Opens PRs / commits quiz & cube content via GitHub API |
-| `TMDB_API_KEY` | The Movie Database — A-Lister + Plot Points |
-| `FOOTBALL_DATA_KEY` | football-data.org — World Cup / football API |
-| `NEON_PROJECT_ID` | GitHub Actions var — preview branch cleanup |
-| `NEON_API_KEY` | GitHub Actions secret — preview branch cleanup |
+| **Static site hosting** | Serves every HTML/CSS/JS/image file from the repo (landing page, Sporcle, Packing Cubes UI, A-Lister UI, etc.) |
+| **Custom domain** | `inaayat.xyz` points at this Vercel project |
+| **Serverless API** | Runs everything under `api/*.js` (login, me, alist, packing-cubes, plot-points, save-quiz, …) |
+| **Edge middleware** | `middleware.js` gates `/private/*` and 404s `/lib/*` |
+| **Rewrites / proxy** | `vercel.json` routes like `/api/alist-*` → `api/alist.js?route=…`, and proxies `/one-more-column/*` to the other Vercel app |
+| **Secrets store** | Holds env vars the functions read at runtime (`SITE_PASSWORD`, `TMDB_API_KEY`, `GITHUB_TOKEN`, plus the Neon-injected ones) |
+| **CI deploy** | Git push to `main` → production deploy; PR branches → preview deploys |
+| **Preview isolation (with Neon)** | Each preview deploy can talk to its own Neon branch (`preview/<git-branch>`) |
+
+Vercel does **not** store A-Lister watches, suitcases, or user accounts. If a
+function needs persistence, it calls Neon (or GitHub, for static JSON catalogs).
+
+### Neon — database and multi-user auth
+
+| Responsibility | How it shows up here |
+|---|---|
+| **Postgres database** | App tables in `lib/db.js` (`users`, `alist_*`, `pc_*`, `plot_points_cache`, …) |
+| **Neon Auth (Better Auth)** | Hosted email/password auth at `NEON_AUTH_BASE_URL`; issues JWTs the browser stores and our APIs verify |
+| **Auth user store** | Neon Auth’s own tables (password hashes, sessions) — managed by Neon Auth, not by `ensureSchema()` |
+| **App user mirror** | Our `users` row is upserted from the JWT on `/api/me` so feature tables can FK to `users.id` |
+| **Branching** | Production DB on main; ephemeral `preview/<branch>` DBs for Vercel preview deploys |
+| **Caching / derived data** | TMDB movie/TV payloads in `alist_movie_cache` / `alist_tv_cache`; Plot Points query cache |
+
+Neon does **not** serve the website, run `api/` handlers, or own the
+`SITE_PASSWORD` `/private` cookie. Those stay on Vercel.
+
+### How a typical authenticated request splits
+
+```
+Browser (inaayat.xyz)
+  │
+  ├─ static HTML/JS  ← served by Vercel
+  │
+  ├─ sign-in ────────► Vercel /api/auth-login
+  │                      └─► Neon Auth (sign-in/email, /token)  → JWT back to browser
+  │
+  └─ API call ───────► Vercel /api/alist (or /api/me, /api/packing-cubes, …)
+                         ├─ verify JWT via Neon Auth JWKS (stateless)
+                         └─ read/write rows via DATABASE_URL → Neon Postgres
+```
+
+**Rule of thumb:** if it’s a page, rewrite, middleware, or short-lived function →
+**Vercel**. If it’s a user account, session/JWT issuer, or row that must survive
+a redeploy → **Neon**.
 
 ---
 
@@ -134,7 +194,8 @@ There is no committed auth config file. As soon as Vercel has
 
 ## Database
 
-[Neon](https://neon.tech) Postgres, accessed from serverless functions via
+[Neon](https://neon.tech) Postgres — the durable store for this site (Vercel
+only runs the code that talks to it). Accessed from serverless functions via
 `@neondatabase/serverless` (`lib/db.js`).
 
 - `db()` — lazy tagged-template client; safe to import before `DATABASE_URL` exists.
