@@ -65,6 +65,25 @@ repo sits at exactly 12 files under `api/`. **Do not add new files under `api/`.
 Instead, add a `?route=` branch to an existing handler and a matching rewrite in
 `vercel.json` (this is why A-Lister and Plot Points are multiplexed routers).
 
+Current roster (12/12):
+
+| File | Used for |
+|---|---|
+| `api/login.js` | Owner `/private/` gate: POST checks `SITE_PASSWORD` and sets the `__auth` cookie; GET clears it (logout). |
+| `api/auth-config.js` | Returns `{ url: NEON_AUTH_BASE_URL }` so the browser can talk to Neon Auth without a hardcoded URL. |
+| `api/auth-login.js` | Server-side Neon Auth sign-in/sign-up; returns a JWT (needed for mobile PWAs that block third-party auth cookies). |
+| `api/me.js` | Authed account sync: GET upserts the Neon Auth user into Postgres; DELETE wipes app data + Neon Auth account. |
+| `api/alist.js` | **AMC A-Lister router** (`?route=` / `/api/alist-*` rewrites): watches, summary, membership, import, poster backfill, movie/TV lookup & details, watchlists, leaderboard, compare, public profiles, showing invites, user search. |
+| `api/packing-cubes.js` | **Packing Cubes router** (`/api/pc-*`): cloud cubes CRUD, publish-to-catalog, suitcase state sync for signed-in users. |
+| `api/plot-points.js` | **Plot Points router** (`/api/plot-points-*`): TMDB person/collection search, genres, query build, legacy presets. |
+| `api/save-quiz.js` | Sporcle Spinoff: owner publishes quiz JSON to git, or visitor opens a review PR (also tag suggestions). |
+| `api/save-cube.js` | Packing Cubes catalog: owner publishes / upserts a public cube JSON, or visitor opens a review PR. |
+| `api/save-suitcase.js` | Packing Cubes: anonymous “save suitcase out of localStorage” → always opens a GitHub PR for review (no direct publish). |
+| `api/report-issue.js` | Sporcle Spinoff: from a quiz page, opens a GitHub Issue describing a problem. |
+| `api/football.js` | World Cup 2026: proxies football-data.org (`?action=all` etc.) for fixtures/scores + knockout venue mapping. |
+
+If you need a 13th endpoint, fold it into the closest router above — do not create `api/something-new.js`.
+
 ### Environment variables
 
 Set these in the **Vercel** project (Production / Preview as needed). The Neon
