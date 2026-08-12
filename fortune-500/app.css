@@ -16,7 +16,8 @@
   --mono: "DM Mono", ui-monospace, monospace;
   --radius: 16px;
   --f5-nav-h: calc(3.25rem + env(safe-area-inset-top, 0px));
-  --f5-gutter: clamp(12px, 1.4vw, 22px);
+  --f5-gutter: clamp(18px, 2.4vw, 40px);
+  --f5-panel-pad: clamp(16px, 1.6vw, 28px);
   --f5-compare-h: 0px;
 }
 
@@ -29,7 +30,7 @@ html, body {
   color: var(--ink);
   font-family: var(--font);
   font-size: 15px;
-  line-height: 1.45;
+  line-height: 1.5;
 }
 html { height: 100%; }
 
@@ -112,12 +113,12 @@ a { color: var(--ink); }
 .f5-shell {
   width: 100%;
   margin: 0;
-  padding: 10px var(--f5-gutter) 12px;
+  padding: 16px var(--f5-gutter) 18px;
   padding-left: max(var(--f5-gutter), env(safe-area-inset-left));
   padding-right: max(var(--f5-gutter), env(safe-area-inset-right));
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
   height: calc(100dvh - var(--f5-nav-h) - var(--f5-compare-h));
   min-height: 28rem;
   box-sizing: border-box;
@@ -128,8 +129,9 @@ a { color: var(--ink); }
   flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 8px 20px;
+  gap: 12px 28px;
   flex: 0 0 auto;
+  padding: 2px 2px 4px;
 }
 .f5-hero-copy { min-width: 0; flex: 1 1 28rem; }
 .f5-kicker {
@@ -148,10 +150,11 @@ a { color: var(--ink); }
   line-height: 1.15;
 }
 .f5-lede {
-  max-width: 54rem;
+  max-width: 42rem;
   margin: 0;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.92rem;
+  line-height: 1.55;
 }
 .f5-stats {
   display: flex;
@@ -173,7 +176,7 @@ a { color: var(--ink); }
 .f5-layout {
   display: grid;
   grid-template-columns: minmax(280px, min(400px, 26vw)) minmax(0, 1fr);
-  gap: 12px;
+  gap: 16px;
   align-items: stretch;
   flex: 1 1 auto;
   min-height: 0;
@@ -195,7 +198,7 @@ a { color: var(--ink); }
 }
 
 .f5-list-head {
-  padding: 10px 12px 8px;
+  padding: 14px var(--f5-panel-pad) 12px;
   border-bottom: 1.5px solid var(--line);
   flex-shrink: 0;
 }
@@ -275,15 +278,15 @@ a { color: var(--ink); }
   flex: 1;
   list-style: none;
   margin: 0;
-  padding: 6px;
+  padding: 8px 10px 12px;
 }
 .f5-row {
   display: grid;
   grid-template-columns: 1.4rem 1fr;
-  gap: 4px;
+  gap: 6px;
   align-items: center;
   border-radius: 10px;
-  padding: 2px 4px 2px 8px;
+  padding: 3px 6px 3px 10px;
 }
 .f5-row:hover, .f5-row:has(.f5-row-main[aria-selected="true"]) {
   background: var(--panel-2);
@@ -343,7 +346,7 @@ a { color: var(--ink); }
 .f5-pill-private { background: var(--panel-2); border: 1px solid var(--line); }
 
 .f5-detail {
-  padding: 16px 20px 20px;
+  padding: var(--f5-panel-pad) clamp(18px, 2vw, 32px) 24px;
   display: flex;
   flex-direction: column;
   overflow: auto;
@@ -410,9 +413,11 @@ a { color: var(--ink); }
   margin: 0 0 6px;
 }
 .f5-section-lede {
-  margin: 0 0 12px;
+  margin: 0 0 14px;
   color: var(--muted);
   font-size: 0.92rem;
+  line-height: 1.55;
+  max-width: 46rem;
 }
 
 .f5-sources {
@@ -424,7 +429,7 @@ a { color: var(--ink); }
 .f5-source {
   border: 1.5px solid var(--line);
   border-radius: 12px;
-  padding: 14px 16px;
+  padding: 16px 18px;
   background: var(--cream);
 }
 .f5-source-top {
@@ -516,7 +521,7 @@ a { color: var(--ink); }
 .f5-glossary-panel {
   width: 100%;
   margin: 0;
-  padding: 20px var(--f5-gutter) 40px;
+  padding: 28px var(--f5-gutter) 48px;
   padding-left: max(var(--f5-gutter), env(safe-area-inset-left));
   padding-right: max(var(--f5-gutter), env(safe-area-inset-right));
   background: var(--panel);
@@ -578,8 +583,8 @@ body:has(#compare-bar:not([hidden])) .f5-glossary-panel {
   gap: 10px;
   align-items: center;
   justify-content: space-between;
-  padding: 10px var(--f5-gutter);
-  padding-bottom: max(10px, env(safe-area-inset-bottom));
+  padding: 12px var(--f5-gutter);
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
   background: var(--ink);
   color: var(--cream);
   font-family: var(--mono);
@@ -603,10 +608,10 @@ body:has(#compare-bar:not([hidden])) .f5-glossary-panel {
 .f5-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.88rem;
+  font-size: 0.9rem;
 }
 .f5-table th, .f5-table td {
-  padding: 8px 10px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--line);
   text-align: right;
   white-space: nowrap;
@@ -672,7 +677,7 @@ body:has(#compare-bar:not([hidden])) .f5-glossary-panel {
 .f5-screener h2 {
   font-family: var(--display);
   font-size: clamp(1.25rem, 2vw, 1.55rem);
-  margin: 0 0 6px;
+  margin: 0 0 8px;
   flex: 0 0 auto;
 }
 .f5-screener .f5-section-lede { flex: 0 0 auto; }
@@ -681,7 +686,8 @@ body:has(#compare-bar:not([hidden])) .f5-glossary-panel {
   min-height: 0;
   max-height: none;
   overflow: auto;
-  margin: 8px 0 0;
+  margin: 10px -8px 0;
+  padding: 0 8px 12px;
 }
 .f5-screener-table thead th {
   position: sticky;
@@ -701,17 +707,23 @@ body:has(#compare-bar:not([hidden])) .f5-glossary-panel {
   text-align: left;
 }
 .f5-screener-table thead th:nth-child(2) { text-align: left; }
+.f5-screener-table th:first-child,
+.f5-screener-table td:first-child { padding-left: 16px; }
+.f5-screener-table th:last-child,
+.f5-screener-table td:last-child { padding-right: 16px; }
 .f5-name-cell .muted { flex-basis: 100%; margin-left: 24px; }
 .f5-screener-table tr.is-private { opacity: 0.65; }
 
 .f5-insights {
-  margin: 0 0 16px;
-  padding: 14px 16px 14px 32px;
+  margin: 0 0 18px;
+  padding: 16px 20px 16px 36px;
   border-radius: 12px;
   background: #e8f8fa;
   border: 1.5px solid rgba(54, 206, 220, 0.45);
+  max-width: 52rem;
+  line-height: 1.55;
 }
-.f5-insights li { margin: 6px 0; }
+.f5-insights li { margin: 8px 0; }
 
 .f5-chart { margin: 0 0 18px; }
 .f5-chart-tabs {
@@ -784,7 +796,7 @@ body:has(#compare-bar:not([hidden])) .f5-glossary-panel {
 .f5-kpi {
   border: 1.5px solid var(--line);
   border-radius: 12px;
-  padding: 12px;
+  padding: 14px 16px;
   background: var(--panel);
 }
 .f5-kpi h4 { margin: 0 0 4px; font-size: 0.88rem; }
@@ -885,15 +897,18 @@ body:has(#compare-bar:not([hidden])) .f5-glossary-panel {
   .f5-shell {
     height: auto;
     min-height: calc(100dvh - var(--f5-nav-h) - var(--f5-compare-h));
+    padding-top: 14px;
+    padding-bottom: 16px;
   }
   .f5-layout {
     grid-template-columns: 1fr;
     min-height: 0;
+    gap: 14px;
   }
   .f5-list-panel {
     max-height: min(38vh, 320px);
   }
-  .f5-detail { min-height: 52vh; }
+  .f5-detail { min-height: 52vh; padding: 16px 16px 20px; }
   .f5-layout.show-detail .f5-list-panel { display: none; }
   .f5-layout.show-detail .f5-back { display: inline-block; }
   .f5-layout.show-detail .f5-detail {
@@ -902,4 +917,5 @@ body:has(#compare-bar:not([hidden])) .f5-glossary-panel {
   .f5-screener .f5-table-wrap { max-height: min(70vh, 640px); }
   .f5-hero { align-items: flex-start; }
   .f5-stats { justify-content: flex-start; }
+  .f5-table th, .f5-table td { padding: 9px 12px; }
 }
