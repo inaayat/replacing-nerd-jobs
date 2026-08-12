@@ -727,6 +727,9 @@ function renderResults(payload) {
   // Deltas are only comparable within one result set, so the bar is scaled to
   // the largest gap present rather than to any absolute range.
   const widest = Math.max(...results.map((row) => Math.abs(row.delta || 0)), 0);
+  // Rows sort on the confidence-weighted value but display the real one, so
+  // without showing both the list reads as though it were sorted wrongly.
+  const weightedOrder = query.confidence_weighted && query.rank_by !== 'lift';
 
   els.results.innerHTML = `
     ${provenanceHtml(payload)}
@@ -750,6 +753,9 @@ function renderResults(payload) {
           <div class="pp-metric">
             ${escapeHtml(formatMetric(row.metric, spec))}
             <span>${escapeHtml(query.metric_label)}</span>
+            ${weightedOrder && row.adjusted !== row.metric
+    ? `<span class="pp-metric-weighted">ranked on ${escapeHtml(formatMetric(row.adjusted, spec))}</span>`
+    : ''}
           </div>
           ${filmStrip(row.films, spec)}
         </li>`;

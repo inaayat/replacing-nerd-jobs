@@ -689,6 +689,15 @@ a { color: var(--pp-red); }
   color: var(--pp-muted);
 }
 
+/* The value the row was actually sorted on, shown whenever it differs from
+   the displayed one — otherwise a confidence-weighted list looks mis-sorted. */
+.pp-metric-weighted {
+  margin-top: 2px;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  opacity: 0.75;
+}
+
 .pp-film-strip {
   display: flex;
   gap: 6px;
