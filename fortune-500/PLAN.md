@@ -1,7 +1,7 @@
 # Fortune 500 — EDGAR ingest plan
 
-Planning only. This folder is the seed for a Fortune 500 explorer on this
-site. There is no live page, API, or scheduled pull yet.
+The explainer page at `/fortune-500/` is live (static mapping + copy). There
+is no financial snapshot, API, or scheduled EDGAR pull yet.
 
 **Goal:** pull structured SEC EDGAR data for the **473 public** Fortune 500
 companies, store a queryable snapshot, and (later) show it at
@@ -18,7 +18,8 @@ Postgres, GitHub Actions, and a 12-function Hobby cap (currently 7/12).
 
 | Path | Role |
 |------|------|
-| `PLAN.md` | This document — source of truth for how we ingest and ship |
+| `index.html` / `app.js` / `app.css` / `catalog.js` | Static explainer: search 500, open a company, read what EDGAR publishes |
+| `PLAN.md` | Ingest + product plan (numbers, daily pull, compare UI still future) |
 | `data/fortune500_edgar_mapping.json` | **Primary mapping.** 500 rows: rank, names, tickers, CIK, pre-built EDGAR URLs, match status |
 | `data/fortune500_edgar_mapping.csv` | Same mapping as CSV (handy for spreadsheets / one-off scripts) |
 | `data/company_tickers.json` | Cached [SEC ticker → CIK](https://www.sec.gov/files/company_tickers.json) snapshot used to build the mapping (10,398 issuers) |
@@ -516,7 +517,7 @@ CREATE TABLE IF NOT EXISTS f500_catalog (
 ```
 fortune-500/
   PLAN.md
-  index.html                 # catalog + company view (phase 3)
+  index.html                 # screener + company page + compare (phase 2)
   app.js / app.css
   extract.js                 # dependency-free ESM: facts JSON → canonical rows
                              # importable by the Action and (if needed) the page
@@ -560,7 +561,8 @@ Env for the Action (not needed for a static snapshot v1):
 
 ### Phase 0 — this PR
 
-Folder, mapping files, this plan. No page, no API, no Action.
+Folder, mapping files, this plan, and the static explainer at `/fortune-500/`
+(catalog + per-company EDGAR feeds, no dollar figures yet). No API or Action.
 
 ### Phase 1 — extractor + one-company dry run
 

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <base href="/fortune-500/" />
+    <title>Fortune 500 × EDGAR — Beep boop</title>
+    <meta name="description" content="What the SEC actually files for each Fortune 500 company — profile, filings, and structured financial tags, in plain language." />
+    <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap" />
+    <link rel="stylesheet" href="./app.css" />
+  </head>
+  <body>
+    <nav class="f5-nav">
+      <div class="f5-nav-brand">
+        <a href="/" class="f5-nav-logo" aria-label="Beep boop home">
+          <img src="/ugly-dog-images/dog-3.png" alt="" width="18" height="18" style="object-fit:contain" />
+          <span>Beep boop</span>
+        </a>
+        <a href="/fortune-500/" class="f5-nav-section">
+          <img src="/fortune-500/icon.svg" alt="" width="22" height="22" />
+          <span>Fortune 500</span>
+        </a>
+      </div>
+      <div class="f5-nav-links">
+        <a href="#glossary">Glossary</a>
+        <a href="/#projects">Projects</a>
+      </div>
+    </nav>
+
+    <main class="f5-shell">
+      <header class="f5-hero">
+        <p class="f5-kicker">Fortune rank · SEC EDGAR · no paywall numbers</p>
+        <h1>What EDGAR has on each company</h1>
+        <p class="f5-lede">
+          Pick a Fortune 500 company. If it files with the SEC, you’ll see the four public
+          feeds (profile, structured financials, one-metric series, human filings) and the
+          headline tags those feeds contain — in English, with a link to the real JSON.
+          Dollar figures are not loaded yet; this page is the map, not the spreadsheet.
+        </p>
+        <div class="f5-stats" id="stats"></div>
+      </header>
+
+      <div class="f5-layout" id="layout">
+        <section class="f5-list-panel" aria-label="Company list">
+          <div class="f5-list-head">
+            <h2>Companies</h2>
+            <label class="visually-hidden" for="search" style="position:absolute;left:-9999px">Search companies</label>
+            <input id="search" class="f5-search" type="search" placeholder="Search name or ticker…" autocomplete="off" />
+            <div class="f5-filters" role="group" aria-label="Filter by filing status">
+              <button type="button" data-filter="all" aria-pressed="true">All</button>
+              <button type="button" data-filter="public" aria-pressed="false">Public filers</button>
+              <button type="button" data-filter="private" aria-pressed="false">Private / mutual</button>
+            </div>
+            <p class="f5-count" id="count"></p>
+          </div>
+          <div class="f5-list" id="list" role="listbox" aria-label="Fortune 500"></div>
+        </section>
+
+        <section class="f5-detail" id="detail" aria-live="polite"></section>
+      </div>
+
+      <section class="f5-detail" id="glossary" style="margin-top:16px">
+        <h2 class="f5-h3">Glossary</h2>
+        <p class="f5-section-lede">The jargon EDGAR uses, once, so company pages can stay concrete.</p>
+        <dl class="f5-glossary" id="glossary-list"></dl>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
