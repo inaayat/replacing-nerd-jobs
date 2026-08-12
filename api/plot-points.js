@@ -26,7 +26,7 @@ import {
   runQuery,
   groupByNeedsCredits,
   SCOPES,
-} from '../lib/plot-points-query.js';
+} from '../plot-points/query-engine.js';
 import {
   getTmdbApiKey,
   searchPeople,
@@ -39,14 +39,14 @@ import {
   getMoviesForQuery,
 } from '../lib/tmdb.js';
 
-const MAX_FILMS = 60;
-const DISCOVER_PAGES = 3;
-const FETCH_CONCURRENCY = 8;
+const DISCOVER_PAGE_SIZE = 20;
+const FETCH_CONCURRENCY = 16;
 const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
 // Bump to invalidate cached payloads whenever the engine's output changes.
-// v4 discards the empty results cached while the engine read the wrong
-// credit fields (`cast`/`crew` instead of `cast_members`/`crew_members`).
-const CACHE_VERSION = 4;
+// v5 discards everything cached while film sets were built from the *first*
+// N credits TMDB returned (i.e. the oldest), which silently dropped the
+// best-known half of any filmography over the scan depth.
+const CACHE_VERSION = 5;
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=86400');
@@ -197,8 +197,26 @@ async function resolveScope(spec, apiKey) {
       err.status = 404;
       throw err;
     }
-    const ids = await getPersonFilmIds(personId, scope.type, { apiKey });
-    return { ids, subject: person, label: person.name, resolvedName: person.name };
+    const {
+      ids, totalRaw, totalEligible, order, relaxed,
+    } = await getPersonFilmIds(personId, scope.type, {
+      apiKey,
+      quality: spec.credit_quality,
+    });
+    return {
+      ids,
+      subject: person,
+      label: person.name,
+      resolvedName: person.name,
+      selection: {
+        order,
+        total_credits: totalRaw,
+        eligible: totalEligible,
+        screened_out: Math.max(totalRaw - totalEligible, 0),
+        quality: relaxed ? 'everything' : spec.credit_quality,
+        relaxed,
+      },
+    };
   }
 
   if (scope.type === 'collection') {
@@ -209,10 +227,17 @@ async function resolveScope(spec, apiKey) {
       throw err;
     }
     const ids = await getCollectionMovieIds(collectionId, { apiKey });
-    return { ids, subject: null, label: scope.collection_name || `Collection ${collectionId}` };
+    return {
+      ids,
+      subject: null,
+      label: scope.collection_name || `Collection ${collectionId}`,
+      // A collection is a closed set, so every film in it is read.
+      selection: { order: 'collection order', total_credits: ids.length, eligible: ids.length },
+    };
   }
 
-  const ids = await discoverMovieIds({
+  const pages = Math.max(1, Math.ceil(spec.depth / DISCOVER_PAGE_SIZE));
+  const { ids, totalResults, order } = await discoverMovieIds({
     with_genres: scope.genre_id || undefined,
     with_companies: scope.company_id || undefined,
     with_original_language: scope.language || undefined,
@@ -220,18 +245,20 @@ async function resolveScope(spec, apiKey) {
     year_to: scope.year_to || undefined,
     min_votes: scope.min_votes,
     sort_by: scope.sort_by,
-  }, { apiKey, pages: DISCOVER_PAGES });
+  }, { apiKey, pages });
 
   return {
     ids,
     subject: null,
     label: SCOPES.discover.describe(scope),
-    // Discover returns a ranked page of an open-ended set, so this is a sample
-    // of the matching films rather than all of them. Say so in the provenance.
+    // Discover matches an open-ended set and returns a ranked slice of it, so
+    // this is always a sample — never a census — however deep the scan goes.
     sampled: {
-      order: scope.sort_by || 'popularity.desc',
-      note: 'Discover scopes sample the highest-ranked matching films, not every match.',
+      order,
+      matching: totalResults,
+      note: 'Discover reads the highest-ranked matching films, not every match.',
     },
+    selection: { order, total_credits: totalResults, eligible: ids.length },
   };
 }
 
@@ -254,8 +281,10 @@ function cacheKeyForSpec(spec) {
   const {
     person_name, collection_name, genre_name, company_name, ...scope
   } = spec.scope;
+  // `depth` and `credit_quality` live on the spec and change the film set, so
+  // they hash in via the spread — they must never be stripped like labels are.
   return createHash('sha256')
-    .update(stableStringify({ ...spec, scope, films: MAX_FILMS, v: CACHE_VERSION }))
+    .update(stableStringify({ ...spec, scope, v: CACHE_VERSION }))
     .digest('hex');
 }
 
@@ -273,7 +302,9 @@ function parseSpecParam(raw) {
 /* ── Generic query ─────────────────────────────────────────────── */
 
 async function runSpec(inputSpec, apiKey) {
-  const { ids, subject, label, resolvedName, sampled } = await resolveScope(inputSpec, apiKey);
+  const {
+    ids, subject, label, resolvedName, sampled, selection,
+  } = await resolveScope(inputSpec, apiKey);
   if (!ids.length) {
     const err = new Error('No films found for this scope. Try widening the filters.');
     err.status = 404;
@@ -286,7 +317,7 @@ async function runSpec(inputSpec, apiKey) {
     ? { ...inputSpec, scope: { ...inputSpec.scope, person_name: resolvedName } }
     : inputSpec;
 
-  const capped = ids.slice(0, MAX_FILMS);
+  const capped = ids.slice(0, spec.depth);
   const movies = await getMoviesForQuery(capped, { apiKey, concurrency: FETCH_CONCURRENCY });
   if (!movies.length) {
     const err = new Error('TMDB returned no usable film data for this scope.');
@@ -300,7 +331,12 @@ async function runSpec(inputSpec, apiKey) {
     subject,
     films_available: ids.length,
     films_used: capped.length,
+    depth: spec.depth,
+    // A discover scope is a sample of an open-ended set even when it isn't
+    // capped, so completeness is a stronger claim than "we read them all".
     truncated: ids.length > capped.length,
+    complete: !sampled && ids.length <= capped.length,
+    selection: selection || null,
     sampled: sampled || null,
   };
   payload.query.source = 'TMDB (shared movie cache)';

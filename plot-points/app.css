@@ -488,7 +488,10 @@ a { color: var(--pp-red); }
 
 .pp-suggest.open { display: block; }
 
-.pp-suggest button {
+/* Options, not buttons: the list is an ARIA listbox driven by arrow keys and
+   `aria-activedescendant`, so the highlight follows `.active` rather than
+   :hover or :focus. */
+.pp-suggest [role="option"] {
   width: 100%;
   border: 0;
   border-bottom: 1px solid var(--pp-line);
@@ -503,8 +506,15 @@ a { color: var(--pp-red); }
   font: inherit;
 }
 
-.pp-suggest button:last-child { border-bottom: 0; }
-.pp-suggest button:hover { background: var(--pp-panel-2); }
+.pp-suggest [role="option"]:last-child { border-bottom: 0; }
+.pp-suggest [role="option"]:hover,
+.pp-suggest [role="option"].active { background: var(--pp-panel-2); }
+
+.pp-suggest-error {
+  padding: 12px;
+  font-size: 0.78rem;
+  color: var(--pp-red);
+}
 
 .pp-suggest img,
 .pp-avatar {
@@ -726,6 +736,178 @@ a { color: var(--pp-red); }
 }
 
 .pp-footer a { color: inherit; }
+
+/* ── The question composer ─────────────────────────────── */
+
+.pp-ask {
+  margin-top: 22px;
+  padding: 20px;
+  border: 1.5px solid var(--pp-ink);
+  border-radius: var(--pp-radius);
+  background: var(--pp-panel);
+  box-shadow: 4px 4px 0 rgba(28, 28, 28, 0.08);
+}
+
+.pp-ask-label {
+  display: block;
+  font-family: var(--pp-mono);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--pp-muted);
+  margin-bottom: 6px;
+}
+
+.pp-ask select {
+  width: 100%;
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 8px 10px;
+  border: 1.5px solid var(--pp-line);
+  border-radius: 10px;
+  background: var(--pp-cream);
+  color: var(--pp-ink);
+}
+
+.pp-ask-question {
+  font-family: var(--pp-display);
+  font-weight: 600;
+  font-size: clamp(1.25rem, 3.6vw, 1.85rem);
+  line-height: 1.25;
+  margin: 14px 0 0;
+}
+
+/* The variable inside the sentence: reads as text, behaves as a control. */
+.pp-slot {
+  font: inherit;
+  color: var(--pp-red);
+  background: color-mix(in srgb, var(--pp-orange) 26%, transparent);
+  border: 0;
+  border-bottom: 2px dashed currentColor;
+  border-radius: 6px 6px 0 0;
+  padding: 0 4px;
+  cursor: pointer;
+}
+
+.pp-slot:hover,
+.pp-slot:focus-visible { background: color-mix(in srgb, var(--pp-orange) 46%, transparent); }
+
+.pp-ask-search { margin-top: 12px; }
+
+.pp-ask-search input {
+  width: 100%;
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 10px 12px;
+  border: 1.5px solid var(--pp-ink);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--pp-ink);
+}
+
+.pp-ask .pp-cta-row { margin-top: 16px; }
+
+/* ── Question gallery ──────────────────────────────────── */
+
+.pp-question-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+
+.pp-question-group-title {
+  font-family: var(--pp-mono);
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--pp-muted);
+  margin: 0 0 10px;
+}
+
+/* ── Findings ──────────────────────────────────────────── */
+
+.pp-findings {
+  margin: 18px 0 4px;
+  padding: 14px 16px;
+  border-left: 3px solid var(--pp-red);
+  background: var(--pp-panel-2);
+  border-radius: 0 12px 12px 0;
+}
+
+.pp-finding {
+  margin: 0 0 6px;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.pp-finding:last-child { margin-bottom: 0; }
+
+.pp-finding--lead {
+  font-family: var(--pp-display);
+  font-weight: 600;
+  font-size: 1.02rem;
+  line-height: 1.35;
+}
+
+/* ── Distance from the film-set baseline ───────────────── */
+
+.pp-delta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.pp-delta-track {
+  flex: 1;
+  min-width: 40px;
+  max-width: 120px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--pp-panel-2);
+  overflow: hidden;
+}
+
+.pp-delta-bar {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--pp-muted);
+}
+
+.pp-delta-bar[data-sign="up"] { background: var(--pp-teal); }
+.pp-delta-bar[data-sign="down"] { background: var(--pp-red); }
+
+.pp-delta-label {
+  font-family: var(--pp-mono);
+  font-size: 0.6rem;
+  color: var(--pp-muted);
+  white-space: nowrap;
+}
+
+/* ── Misc form + provenance ────────────────────────────── */
+
+.pp-field-hint {
+  margin: 4px 0 0;
+  font-size: 0.66rem;
+  line-height: 1.35;
+  color: var(--pp-muted);
+}
+
+.pp-prov-details { margin-top: 10px; }
+
+.pp-prov-details > summary {
+  cursor: pointer;
+  font-family: var(--pp-mono);
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--pp-muted);
+  padding: 4px 0;
+}
+
+.pp-prov-details > summary:hover { color: var(--pp-ink); }
+.pp-prov-details .pp-prov-grid { margin-top: 10px; }
 
 @keyframes pp-rise {
   from { opacity: 0; transform: translateY(10px); }

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <base href="/plot-points/" />
     <title>Plot Points — Beep boop</title>
-    <meta name="description" content="Build your own cinema data questions from TMDB — pick a film set, group by any role or attribute, and rank by any field." />
+    <meta name="description" content="Ask questions of TMDB — who a director keeps casting, which pairs recur, where the money goes — and take apart the query behind every answer." />
     <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -25,6 +25,7 @@
         </a>
       </div>
       <div class="pp-nav-links">
+        <a href="#questions">Questions</a>
         <a href="#builder">Builder</a>
         <a href="/#projects">Projects</a>
       </div>
@@ -35,26 +36,39 @@
         <p class="pp-kicker">Movies · TMDB · lists with receipts</p>
         <h1 class="pp-brand">Plot Points</h1>
         <p class="pp-lede">
-          Build your own cinema data questions. Pick a set of films, group them by any role or
-          attribute, and rank by any field TMDB exposes — every result shows the exact query behind it.
+          Ask a question about the movies. Every answer shows the exact query behind it — and
+          leaves that query sitting in the builder for you to take apart.
         </p>
-        <div class="pp-cta-row">
-          <a class="pp-btn" href="#builder" id="cta-builder">Build a query</a>
-          <a class="pp-btn pp-btn--ghost" href="#featured">Browse featured</a>
+
+        <div class="pp-ask" id="ask">
+          <label class="pp-ask-label" for="ask-template">Ask</label>
+          <select id="ask-template" aria-label="Choose a question"></select>
+          <p class="pp-ask-question" id="ask-question"></p>
+          <div class="pp-ask-search" id="ask-search" hidden>
+            <div class="pp-search-wrap">
+              <input id="ask-search-input" type="search" placeholder="Search a person…" aria-label="Search for a person" />
+              <div class="pp-suggest" id="ask-search-suggest" role="listbox" aria-label="Person suggestions"></div>
+            </div>
+          </div>
+          <div class="pp-cta-row">
+            <button type="button" class="pp-btn" id="ask-run">Answer it</button>
+            <button type="button" class="pp-btn pp-btn--ghost" id="ask-surprise">Surprise me</button>
+            <a class="pp-btn pp-btn--ghost" href="#questions">Browse questions</a>
+          </div>
         </div>
       </section>
 
-      <section class="pp-section" id="featured" aria-labelledby="featured-title">
+      <section class="pp-section" id="questions" aria-labelledby="questions-title">
         <div class="pp-section-head">
-          <h2 id="featured-title">Featured queries</h2>
-          <p>Starting points — click one, then tweak any part of it in the builder.</p>
+          <h2 id="questions-title">Questions to start from</h2>
+          <p>Click one to answer it. The builder below fills in with that query so you can change any part of it.</p>
         </div>
-        <div class="pp-featured" id="featured-grid"></div>
+        <div class="pp-question-groups" id="question-groups"></div>
       </section>
 
       <section class="pp-section" id="builder" aria-labelledby="builder-title">
         <div class="pp-section-head">
-          <h2 id="builder-title">Query builder</h2>
+          <h2 id="builder-title">The answer, and the query behind it</h2>
           <p>Public &amp; anonymous. Every query gets a shareable link.</p>
         </div>
 
@@ -74,7 +88,7 @@
                   <label for="person-search">Person</label>
                   <div class="pp-search-wrap">
                     <input id="person-search" type="search" placeholder="e.g. Christopher Nolan" />
-                    <div class="pp-suggest" id="person-suggest" role="listbox"></div>
+                    <div class="pp-suggest" id="person-suggest" role="listbox" aria-label="Person suggestions"></div>
                   </div>
                   <div id="selected-person" class="pp-selected empty">No person selected yet.</div>
                 </div>
@@ -83,7 +97,7 @@
                   <label for="collection-search">Collection</label>
                   <div class="pp-search-wrap">
                     <input id="collection-search" type="search" placeholder="e.g. The Dark Knight Collection" />
-                    <div class="pp-suggest" id="collection-suggest" role="listbox"></div>
+                    <div class="pp-suggest" id="collection-suggest" role="listbox" aria-label="Collection suggestions"></div>
                   </div>
                   <div id="selected-collection" class="pp-selected empty">No collection selected yet.</div>
                 </div>
@@ -108,6 +122,18 @@
                     <input id="scope-min-votes" type="number" min="0" placeholder="50" />
                   </div>
                 </div>
+
+                <div class="pp-field" id="credit-quality-field">
+                  <label for="credit-quality">Which credits count</label>
+                  <select id="credit-quality"></select>
+                  <p class="pp-field-hint" id="credit-quality-hint"></p>
+                </div>
+
+                <div class="pp-field">
+                  <label for="scan-depth">Scan depth</label>
+                  <select id="scan-depth"></select>
+                  <p class="pp-field-hint">Films read per query. Deeper is more complete and slower on a cold cache.</p>
+                </div>
               </fieldset>
 
               <!-- 2. Rows -->
@@ -130,9 +156,14 @@
                   <label for="metric-field">Field</label>
                   <select id="metric-field"></select>
                 </div>
+                <div class="pp-field">
+                  <label for="rank-by">Order rows by</label>
+                  <select id="rank-by"></select>
+                  <p class="pp-field-hint" id="rank-by-hint"></p>
+                </div>
                 <div class="pp-field-row">
                   <div class="pp-field">
-                    <label for="sort-dir">Order</label>
+                    <label for="sort-dir">Direction</label>
                     <select id="sort-dir">
                       <option value="desc">Highest first</option>
                       <option value="asc">Lowest first</option>
@@ -160,13 +191,13 @@
 
               <p class="pp-run-note" id="spec-preview"></p>
               <p class="pp-run-note">
-                Movies only. Scans up to 60 films per query and reuses the shared
-                AMC A-Lister TMDB cache, so repeat queries are much faster.
+                Movies only. Reuses the shared AMC A-Lister TMDB cache, so repeat
+                queries are much faster than the first one.
               </p>
             </form>
 
-            <div class="pp-results-pane" id="results-pane">
-              <p class="pp-status">Build a query on the left, or start from a featured card above.</p>
+            <div class="pp-results-pane" id="results-pane" aria-live="polite" aria-busy="false">
+              <p class="pp-status">Pick a question above, or build a query on the left.</p>
             </div>
           </div>
         </div>

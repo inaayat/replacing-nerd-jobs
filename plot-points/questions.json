@@ -1,0 +1,233 @@
+{
+  "_comment": "Question templates for Plot Points. Each entry is an ordinary spec that round-trips through normalizeSpec(), so a question can never express anything the builder can't. `{person}` in `question` is filled from `slot`; questions without a slot are fixed. `slot.pool` picks which seed list Surprise me draws from.",
+  "groups": [
+    { "id": "collaboration", "label": "Who works with whom", "accent": "orange" },
+    { "id": "taste", "label": "Who makes it good", "accent": "teal" },
+    { "id": "money", "label": "Where the money goes", "accent": "red" },
+    { "id": "time", "label": "How things changed", "accent": "peach" }
+  ],
+  "questions": [
+    {
+      "id": "repeat-cast",
+      "group": "collaboration",
+      "question": "Who does {person} keep casting?",
+      "blurb": "Actors ranked by how many of their films they turn up in.",
+      "slot": { "type": "person", "pool": "directors", "default": { "tmdb_id": 525, "name": "Christopher Nolan" } },
+      "spec": {
+        "scope": { "type": "person-directed" },
+        "group_by": "actor",
+        "metric": { "agg": "count" },
+        "min_films": 2,
+        "sort": "desc",
+        "limit": 25,
+        "depth": 60
+      }
+    },
+    {
+      "id": "repertory",
+      "group": "collaboration",
+      "question": "Which co-stars keep turning up together in {person}'s films?",
+      "blurb": "Pairs of actors, ranked by films shared — the repertory company.",
+      "slot": { "type": "person", "pool": "directors", "default": { "tmdb_id": 5655, "name": "Wes Anderson" } },
+      "spec": {
+        "scope": { "type": "person-directed" },
+        "group_by": "actor+actor",
+        "metric": { "agg": "count" },
+        "min_films": 2,
+        "sort": "desc",
+        "limit": 25,
+        "depth": 60
+      }
+    },
+    {
+      "id": "house-composer",
+      "group": "collaboration",
+      "question": "Which composer does {person} keep hiring?",
+      "blurb": "The same question, pointed at the crew instead of the cast.",
+      "slot": { "type": "person", "pool": "directors", "default": { "tmdb_id": 488, "name": "Steven Spielberg" } },
+      "spec": {
+        "scope": { "type": "person-directed" },
+        "group_by": "composer",
+        "metric": { "agg": "count" },
+        "min_films": 1,
+        "sort": "desc",
+        "limit": 25,
+        "depth": 120
+      }
+    },
+    {
+      "id": "blockbuster-duos",
+      "group": "collaboration",
+      "question": "Which duos show up together most across modern blockbusters?",
+      "blurb": "Co-star pairs across the best-known films of 2010–2024.",
+      "spec": {
+        "scope": { "type": "discover", "year_from": 2010, "year_to": 2024, "min_votes": 1000 },
+        "group_by": "actor+actor",
+        "metric": { "agg": "count" },
+        "min_films": 2,
+        "sort": "desc",
+        "limit": 25,
+        "depth": 200
+      }
+    },
+    {
+      "id": "best-work-actors",
+      "group": "taste",
+      "question": "Which of {person}'s actors turn up in their best films?",
+      "blurb": "Ranked by distance from the director's own average, not raw rating.",
+      "slot": { "type": "person", "pool": "directors", "default": { "tmdb_id": 1032, "name": "Martin Scorsese" } },
+      "spec": {
+        "scope": { "type": "person-directed" },
+        "group_by": "actor",
+        "metric": { "agg": "avg", "field": "vote_average" },
+        "rank_by": "lift",
+        "min_films": 2,
+        "sort": "desc",
+        "limit": 25,
+        "depth": 120
+      }
+    },
+    {
+      "id": "who-directs-best",
+      "group": "taste",
+      "question": "Which directors get the most out of {person}?",
+      "blurb": "Flip the scope to an actor's filmography and group by director.",
+      "slot": { "type": "person", "pool": "actors", "default": { "tmdb_id": 31, "name": "Tom Hanks" } },
+      "spec": {
+        "scope": { "type": "person-acted" },
+        "group_by": "director",
+        "metric": { "agg": "avg", "field": "vote_average" },
+        "min_films": 2,
+        "sort": "desc",
+        "limit": 25,
+        "depth": 200
+      }
+    },
+    {
+      "id": "over-time",
+      "group": "taste",
+      "question": "Which decade was {person}'s best?",
+      "blurb": "Rows don't have to be people — group by decade, genre, studio or country.",
+      "slot": { "type": "person", "pool": "directors", "default": { "tmdb_id": 578, "name": "Ridley Scott" } },
+      "spec": {
+        "scope": { "type": "person-directed" },
+        "group_by": "decade",
+        "metric": { "agg": "avg", "field": "vote_average" },
+        "min_films": 1,
+        "sort": "desc",
+        "limit": 25,
+        "depth": 120
+      }
+    },
+    {
+      "id": "shot-best",
+      "group": "taste",
+      "question": "Which cinematographers shoot the best-reviewed films?",
+      "blurb": "A crew role that rarely gets a leaderboard of its own.",
+      "spec": {
+        "scope": { "type": "discover", "year_from": 2000, "year_to": 2024, "min_votes": 1000 },
+        "group_by": "cinematographer",
+        "metric": { "agg": "avg", "field": "vote_average" },
+        "min_films": 3,
+        "sort": "desc",
+        "limit": 25,
+        "depth": 200
+      }
+    },
+    {
+      "id": "budget-multipliers",
+      "group": "money",
+      "question": "Which studios turn budgets into the biggest returns?",
+      "blurb": "Revenue ÷ budget, averaged over the films that report both.",
+      "spec": {
+        "scope": { "type": "discover", "year_from": 2010, "year_to": 2024, "min_votes": 500 },
+        "group_by": "company",
+        "metric": { "agg": "avg", "field": "roi" },
+        "min_films": 3,
+        "sort": "desc",
+        "limit": 25,
+        "depth": 200
+      }
+    },
+    {
+      "id": "genre-losses",
+      "group": "money",
+      "question": "Which genres lose the most money?",
+      "blurb": "Lowest average profit first — losses included, not quietly dropped.",
+      "spec": {
+        "scope": { "type": "discover", "year_from": 2010, "year_to": 2024, "min_votes": 200 },
+        "group_by": "genre",
+        "metric": { "agg": "avg", "field": "profit" },
+        "min_films": 3,
+        "sort": "asc",
+        "limit": 25,
+        "depth": 200
+      }
+    },
+    {
+      "id": "director-money",
+      "group": "money",
+      "question": "Does {person} make money?",
+      "blurb": "Average profit per decade across their filmography.",
+      "slot": { "type": "person", "pool": "directors", "default": { "tmdb_id": 865, "name": "Michael Bay" } },
+      "spec": {
+        "scope": { "type": "person-directed" },
+        "group_by": "decade",
+        "metric": { "agg": "avg", "field": "profit" },
+        "min_films": 1,
+        "sort": "desc",
+        "limit": 25,
+        "depth": 120
+      }
+    },
+    {
+      "id": "runtime-creep",
+      "group": "time",
+      "question": "Have movies actually got longer?",
+      "blurb": "Average runtime by decade across four decades of well-known films.",
+      "spec": {
+        "scope": { "type": "discover", "year_from": 1980, "year_to": 2024, "min_votes": 1000 },
+        "group_by": "decade",
+        "metric": { "agg": "avg", "field": "runtime" },
+        "min_films": 5,
+        "sort": "desc",
+        "limit": 25,
+        "depth": 200
+      }
+    }
+  ],
+  "seeds": {
+    "directors": [
+      { "tmdb_id": 525, "name": "Christopher Nolan" },
+      { "tmdb_id": 137427, "name": "Denis Villeneuve" },
+      { "tmdb_id": 1032, "name": "Martin Scorsese" },
+      { "tmdb_id": 488, "name": "Steven Spielberg" },
+      { "tmdb_id": 5655, "name": "Wes Anderson" },
+      { "tmdb_id": 21684, "name": "Bong Joon-ho" },
+      { "tmdb_id": 138, "name": "Quentin Tarantino" },
+      { "tmdb_id": 578, "name": "Ridley Scott" },
+      { "tmdb_id": 7467, "name": "David Fincher" },
+      { "tmdb_id": 4762, "name": "Paul Thomas Anderson" },
+      { "tmdb_id": 1769, "name": "Sofia Coppola" },
+      { "tmdb_id": 608, "name": "Hayao Miyazaki" },
+      { "tmdb_id": 865, "name": "Michael Bay" },
+      { "tmdb_id": 14392, "name": "Kathryn Bigelow" },
+      { "tmdb_id": 45400, "name": "Greta Gerwig" },
+      { "tmdb_id": 291263, "name": "Jordan Peele" }
+    ],
+    "actors": [
+      { "tmdb_id": 31, "name": "Tom Hanks" },
+      { "tmdb_id": 6193, "name": "Leonardo DiCaprio" },
+      { "tmdb_id": 5064, "name": "Meryl Streep" },
+      { "tmdb_id": 5292, "name": "Denzel Washington" },
+      { "tmdb_id": 2231, "name": "Samuel L. Jackson" },
+      { "tmdb_id": 1245, "name": "Scarlett Johansson" },
+      { "tmdb_id": 112, "name": "Cate Blanchett" },
+      { "tmdb_id": 287, "name": "Brad Pitt" },
+      { "tmdb_id": 19492, "name": "Viola Davis" },
+      { "tmdb_id": 3063, "name": "Tilda Swinton" },
+      { "tmdb_id": 3910, "name": "Frances McDormand" },
+      { "tmdb_id": 1620, "name": "Michelle Yeoh" }
+    ]
+  }
+}
