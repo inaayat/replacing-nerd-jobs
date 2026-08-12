@@ -51,6 +51,17 @@ were turned off (no `api/football.js`); the page shows a retired banner and
 keeps groups/bracket tools + the official schedule PDF. Old
 `/archive/world-cup/*` URLs 301 to `/world-cup/`.
 
+### Databaser — `databaser.inaayat.xyz`
+
+Schema-driven, local-first database builder for knowledge and planning apps.
+Configure entities, relationships, views, and exports through a visual Design
+tab instead of hand-coding per site. Lives in a **separate repo and Vercel
+deploy**; the homepage links out to its own subdomain.
+
+- Site: [databaser.inaayat.xyz](https://databaser.inaayat.xyz/)
+- Repo: [inaayat/dynamic-database-builder](https://github.com/inaayat/dynamic-database-builder)
+- Deploy: `https://dynamic-database-builder.vercel.app` (also `databaser.inaayat.xyz`)
+
 ---
 
 ## Website setup
@@ -289,6 +300,7 @@ Neon Auth, not by `ensureSchema()`).
 |---|---|---|
 | [inaayat/dumpster](https://github.com/inaayat/dumpster) | macOS productivity / personal knowledge dump (`dumpster.inaayat.xyz`) | External card on `index.html` |
 | [inaayat/dumpsteriOS](https://github.com/inaayat/dumpsteriOS) | iOS companion (“brain vomit” capture app) | External card on `index.html` |
+| [inaayat/dynamic-database-builder](https://github.com/inaayat/dynamic-database-builder) | Schema-driven database builder (`databaser.inaayat.xyz`) | External card on `index.html` |
 
 These are **not** deployed from this repo; the homepage just deep-links to GitHub
 (and Dumpster’s own site).
@@ -371,20 +383,21 @@ Old `/private/*` URLs (including former GDDY statements) 301 to `/`. Former
 
 ## Color scheme
 
-Landing page (`index.html`) palette:
+Landing page (`index.html`) palette — [Rainbows Exist](https://www.schemecolor.com/rainbows-exist-color-scheme.php):
 
 | token | hex |
 |---|---|
 | cream (bg) | `#faf3e3` |
-| orange | `#f2a154` |
-| peach | `#f6a98a` |
-| teal | `#b5d857` |
-| red | `#cf4520` |
-| gold | `#e3a72e` |
+| purple | `#a587ca` |
+| cyan | `#36cedc` |
+| green | `#8fe968` |
+| yellow | `#ffea56` |
+| orange | `#ffb750` |
+| pink | `#fe797b` |
 | gray (coming soon) | `#d8d3c6` |
 
-Use `card-orange` / `card-peach` / `card-teal` / `card-red` / `card-gold` for live
-project tiles. Reserve `card-cream` / `card-gray` for “coming soon” placeholders.
+Use `card-purple` / `card-cyan` / `card-green` / `card-yellow` / `card-orange` /
+`card-pink` for live project tiles. Reserve `card-cream` / `card-gray` for “coming soon” placeholders.
 
 ---
 

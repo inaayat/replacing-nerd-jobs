@@ -12,11 +12,12 @@
     <style>
       :root {
         --cream: #faf3e3;
-        --orange: #f2a154;
-        --peach: #f6a98a;
-        --teal: #b5d857;
-        --red: #cf4520;
-        --gold: #e3a72e;
+        --purple: #a587ca;
+        --cyan: #36cedc;
+        --green: #8fe968;
+        --yellow: #ffea56;
+        --orange: #ffb750;
+        --pink: #fe797b;
         --gray: #d8d3c6;
       }
       body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--cream); }
@@ -40,13 +41,13 @@
       .item-card .title { font-size: 1.2rem; line-height: 1.15; }
       .item-card .subtitle { font-size: 0.8rem; opacity: 0.65; margin-top: 2px; }
 
-      /* Vivid palette — use only these for live projects */
+      /* Rainbow palette — use only these for live projects */
+      .card-purple { background: var(--purple); }
+      .card-cyan   { background: var(--cyan); }
+      .card-green  { background: var(--green); }
+      .card-yellow { background: var(--yellow); }
       .card-orange { background: var(--orange); }
-      .card-peach  { background: var(--peach); }
-      .card-teal   { background: var(--teal); }
-      .card-red    { background: var(--red); color: #fdf3e7; }
-      .card-red .subtitle { opacity: 0.65; }
-      .card-gold   { background: var(--gold); }
+      .card-pink   { background: var(--pink); }
 
       /* Neutral tones — reserved for "coming soon" placeholders, never for live projects,
          so a real card never blends into the page background */
@@ -145,32 +146,33 @@
       <div class="project-grid">
 
         <!-- Item card template — duplicate one of these to add a project.
-             Swap the card-* class for a palette color: card-orange, card-peach, card-teal, card-red, card-gold.
+             Swap the card-* class for a palette color: card-purple, card-cyan, card-green,
+             card-yellow, card-orange, card-pink.
              card-cream and card-gray are neutral tones reserved for "coming soon" placeholders only —
              never use them on a live project, or it'll blend into the page background.
              Optionally add one size class for variety: span-wide (2 cols), span-tall (2 rows), span-big (2x2).
              Grid auto-flow is dense, so cards reflow to fill gaps automatically — no manual repositioning needed
              when adding, removing, or resizing tiles. Delete a "TBD" placeholder as each real project takes its place. -->
 
-        <a href="/packing-cubes/" class="no-underline item-card card-gold span-wide">
+        <a href="/packing-cubes/" class="no-underline item-card card-purple span-wide">
           <div class="icon"><img src="/packing-cubes/icon.svg" alt="" width="20" height="20"></div>
           <div class="title serif font-semibold">Packing Cubes</div>
           <div class="subtitle brand-mono">Reusable travel checklists</div>
         </a>
 
-        <a href="https://github.com/inaayat/dumpsteriOS" target="_blank" class="no-underline item-card card-peach">
+        <a href="https://github.com/inaayat/dumpsteriOS" target="_blank" class="no-underline item-card card-cyan">
           <div class="icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="#1c1c1c"><path d="M164.3 128L138.7 256L56 256C42.7 256 32 245.3 32 232L32 227.9C32 225.3 32.4 222.8 33.2 220.3L58.5 144.4C61.8 134.6 71 128 81.3 128L164.3 128zM187.7 256L213.3 128L296 128L296 256L187.7 256zM344 128L426.7 128L452.3 256L344 256L344 128zM475.7 128L558.7 128C569 128 578.2 134.6 581.5 144.4L606.8 220.3C607.6 222.7 608 225.3 608 227.9L608 232C608 245.3 597.3 256 584 256L501.3 256L475.7 128zM57.7 304L582.4 304C582 306.1 569.1 377.4 543.5 517.7C540.5 534 525.6 545.3 509.1 543.8C492.6 542.3 480 528.6 480 512L480 496L160 496L160 512C160 528.6 147.4 542.4 130.9 543.9C114.4 545.4 99.5 534 96.5 517.7C71 377.3 58 306.1 57.7 304z"/></svg></div>
           <div class="title serif font-semibold">DumpsteriOS</div>
           <div class="subtitle brand-mono">iOS Brain Vomit App</div>
         </a>
 
-        <a href="/sporcle-spinoff/" class="no-underline item-card card-red">
+        <a href="/sporcle-spinoff/" class="no-underline item-card card-green">
           <div class="icon"><img src="/sporcle-spinoff/icon.png" alt="" width="20" height="20"></div>
           <div class="title serif font-semibold">Sporcle Spinoff</div>
           <div class="subtitle brand-mono">Quick trivia quizzes</div>
         </a>
 
-        <a href="/amc-a-lister/" class="no-underline item-card card-red span-tall">
+        <a href="/amc-a-lister/" class="no-underline item-card card-yellow span-tall">
           <div class="icon"><img src="/amc-a-lister/icon.svg" alt="" width="20" height="20"></div>
           <div class="title serif font-semibold">AMC A-Lister</div>
           <div class="subtitle brand-mono">Watch log &amp; savings tracker</div>
@@ -182,7 +184,7 @@
           <div class="subtitle brand-mono">Cinema lists from TMDB</div>
         </a>
 
-        <a href="/world-cup/" class="no-underline item-card card-teal span-wide">
+        <a href="/world-cup/" class="no-underline item-card card-pink span-wide">
           <div class="icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="#1c1c1c"><path d="M451 292.3C446.6 289.5 443.4 285.3 441.8 280.4C440.2 275.5 440.4 270.2 442.3 265.4L475.6 182C455.7 159.6 431 141.5 403.2 129.3L334.1 186.9C330.1 190.2 325.1 192 320 192C314.9 192 309.8 190.2 305.9 186.9L236.8 129.3C209 141.5 184.3 159.6 164.4 182L197.8 265.4C199.7 270.2 199.9 275.5 198.3 280.4C196.7 285.3 193.4 289.5 189.1 292.3L113 340.2C116 371.1 125.7 399.9 140.6 425.4L230.3 419.4C235.5 419.1 240.6 420.5 244.8 423.6C249 426.7 252 431 253.2 436.1L275.2 523.3C289.6 526.5 304.6 528.1 320 528.1C335.4 528.1 350.3 526.4 364.8 523.3L386.8 436.1C388.1 431.1 391 426.7 395.2 423.6C399.4 420.5 404.5 419.1 409.7 419.4L499.4 425.4C514.4 400 524.1 371.1 527 340.3L451 292.3zM320 64C461.4 64 576 178.6 576 320C576 461.4 461.4 576 320 576C178.6 576 64 461.4 64 320C64 178.6 178.6 64 320 64zM382 285C390.4 291.1 393.9 301.9 390.7 311.8L372.4 368.1C369.2 378 360 384.7 349.6 384.7L290.4 384.7C280 384.7 270.8 378 267.6 368.1L249.3 311.8C246.1 301.9 249.6 291.1 258 285L305.9 250.2C314.3 244.1 325.7 244.1 334.1 250.2L382 285z"/></svg></div>
           <div class="title serif font-semibold">World Cup 2026</div>
           <div class="subtitle brand-mono">Static snapshot · live scores retired</div>
@@ -193,15 +195,17 @@
           <div class="title serif font-semibold">Dumpster</div>
           <div class="subtitle brand-mono">MacOS Productivity App</div>
         </a>
-        <a href="/one-more-column/" class="no-underline item-card card-teal">
+        <a href="/one-more-column/" class="no-underline item-card card-cyan">
           <div class="icon"><img src="/one-more-column/icon.svg" alt="" width="20" height="20"></div>
           <div class="title serif font-semibold">One More Column</div>
           <div class="subtitle brand-mono">Flexible capacity planning</div>
         </a>
-        <div class="item-card card-gray">
-          <div class="title serif font-semibold">TBD</div>
-          <div class="subtitle brand-mono">coming soon</div>
-        </div>
+
+        <a href="https://databaser.inaayat.xyz/" target="_blank" rel="noopener noreferrer" class="no-underline item-card card-green">
+          <div class="icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="#1c1c1c"><path d="M160 144C160 117.5 213.7 96 288 96C362.3 96 416 117.5 416 144L416 192L160 192L160 144zM128 192L128 144C128 64.5 199.4 32 288 32C376.6 32 448 64.5 448 144L448 192C483.3 192 512 220.7 512 256L512 512C512 547.3 483.3 576 448 576L128 576C92.7 576 64 547.3 64 512L64 256C64 220.7 92.7 192 128 192zM192 288C174.3 288 160 302.3 160 320C160 337.7 174.3 352 192 352C209.7 352 224 337.7 224 320C224 302.3 209.7 288 192 288zM288 352C305.7 352 320 337.7 320 320C320 302.3 305.7 288 288 288C270.3 288 256 302.3 256 320C256 337.7 270.3 352 288 352zM384 352C401.7 352 416 337.7 416 320C416 302.3 401.7 288 384 288C366.3 288 352 302.3 352 320C352 337.7 366.3 352 384 352z"/></svg></div>
+          <div class="title serif font-semibold">Databaser</div>
+          <div class="subtitle brand-mono">Schema-driven database builder</div>
+        </a>
         <div class="item-card card-gray span-tall">
           <div class="title serif font-semibold">TBD</div>
           <div class="subtitle brand-mono">coming soon</div>
