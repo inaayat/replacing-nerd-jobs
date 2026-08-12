@@ -206,7 +206,24 @@ function renderInvitesPanel(auth, state, render) {
         if (action === 'accept') {
           const { watches } = await watchesApi.list(auth.token);
           state.watches = watches;
-          state.filtered = watches;
+          const q = document.getElementById('log-search')?.value.trim().toLowerCase() || '';
+          const theater = document.getElementById('log-theater')?.value || '';
+          const format = document.getElementById('log-format')?.value || '';
+          const rating = document.getElementById('log-rating')?.value || '';
+          const includeHome = document.getElementById('log-include-home')?.getAttribute('aria-pressed') === 'true';
+          state.filtered = state.watches.filter((w) => {
+            if (!includeHome && w.in_theaters === false) return false;
+            if (q && !`${w.title} ${w.location || ''}`.toLowerCase().includes(q)) return false;
+            if (theater && w.location !== theater) return false;
+            if (format && w.format !== format) return false;
+            if (rating === 'dnf') return !!w.dnf;
+            if (rating === 'unrated') return !w.dnf && w.rating == null;
+            if (rating) {
+              if (w.dnf || w.rating == null) return false;
+              return String(ratingStarBucket(w.rating)) === rating;
+            }
+            return true;
+          });
           showLogStatus(result.linked
             ? 'Tagged as watched together — they already had this outing.'
             : 'Added to your watch log.');
