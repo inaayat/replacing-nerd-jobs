@@ -51,6 +51,17 @@ were turned off (no `api/football.js`); the page shows a retired banner and
 keeps groups/bracket tools + the official schedule PDF. Old
 `/archive/world-cup/*` URLs 301 to `/world-cup/`.
 
+### Databaser — `databaser.inaayat.xyz`
+
+Schema-driven, local-first database builder for knowledge and planning apps.
+Configure entities, relationships, views, and exports through a visual Design
+tab instead of hand-coding per site. Lives in a **separate repo and Vercel
+deploy**; the homepage links out to its own subdomain.
+
+- Site: [databaser.inaayat.xyz](https://databaser.inaayat.xyz/)
+- Repo: [inaayat/dynamic-database-builder](https://github.com/inaayat/dynamic-database-builder)
+- Deploy: `https://dynamic-database-builder.vercel.app` (also `databaser.inaayat.xyz`)
+
 ---
 
 ## Website setup
@@ -289,6 +300,7 @@ Neon Auth, not by `ensureSchema()`).
 |---|---|---|
 | [inaayat/dumpster](https://github.com/inaayat/dumpster) | macOS productivity / personal knowledge dump (`dumpster.inaayat.xyz`) | External card on `index.html` |
 | [inaayat/dumpsteriOS](https://github.com/inaayat/dumpsteriOS) | iOS companion (“brain vomit” capture app) | External card on `index.html` |
+| [inaayat/dynamic-database-builder](https://github.com/inaayat/dynamic-database-builder) | Schema-driven database builder (`databaser.inaayat.xyz`) | External card on `index.html` |
 
 These are **not** deployed from this repo; the homepage just deep-links to GitHub
 (and Dumpster’s own site).
