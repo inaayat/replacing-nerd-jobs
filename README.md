@@ -47,10 +47,9 @@ is proxied onto this domain so it appears as a first-class card on the homepage.
 ### Fortune 500 × EDGAR — `/fortune-500`
 
 Static explainer for the Fortune 500: search the 500, open a company, see in
-plain language what SEC EDGAR publishes (profile, filing index, XBRL facts,
-human 10-K browser). Mapping lives in `fortune-500/data/`. Dollar figures are
-not pulled yet — the page is the map of available feeds, with deep links to
-sec.gov. Plan: `fortune-500/PLAN.md`.
+plain language what SEC EDGAR publishes, and compare latest 10-K headline
+numbers (via `/api/f500-headlines`, which pulls Company Facts). Mapping lives
+in `fortune-500/data/`. Plan: `fortune-500/PLAN.md`.
 
 ### World Cup 2026 — `/world-cup`
 
@@ -126,12 +125,12 @@ database/Auth instance; preview deployments get a Neon database branch named
 ### Hobby plan constraint (important)
 
 Vercel Hobby allows at most **12 serverless functions** per deployment, and this
-repo currently uses **7 of 12** files under `api/`. Prefer adding a `?route=`
+repo currently uses **8 of 12** files under `api/`. Prefer adding a `?route=`
 branch to an existing handler and a matching rewrite in `vercel.json` (this is
 why A-Lister and Plot Points are multiplexed routers) before burning a free slot
 on a new top-level file.
 
-Current roster (7/12):
+Current roster (8/12):
 
 | File | Used for |
 |---|---|
@@ -142,6 +141,7 @@ Current roster (7/12):
 | `api/packing-cubes.js` | **Packing Cubes router** (`/api/pc-*`): cloud cubes CRUD, publish-to-catalog, suitcase state sync for signed-in users. |
 | `api/plot-points.js` | **Plot Points router** (`/api/plot-points-*`): TMDB person/collection search, genres, query build, legacy presets. |
 | `api/save-quiz.js` | Sporcle Spinoff: quiz + tag submissions open a GitHub review PR. |
+| `api/fortune-500.js` | **Fortune 500** (`/api/f500-headlines`): SEC Company Facts → slim 10-K headline metrics for compare. |
 
 ### Environment variables
 
@@ -154,6 +154,7 @@ Storage integration usually provisions the first two automatically into Vercel.
 | `NEON_AUTH_BASE_URL` | Neon → injected into Vercel | Hosted Neon Auth endpoint (Better Auth) |
 | `GITHUB_TOKEN` | Vercel env only | Opens PRs / commits quiz & cube content via GitHub API |
 | `TMDB_API_KEY` | Vercel env only | The Movie Database — A-Lister + Plot Points |
+| `SEC_USER_AGENT` | Vercel env only | EDGAR fair-access header (`AppName contact@domain`). Falls back to the public site URL if unset. |
 | `NEON_PROJECT_ID` | GitHub Actions var | Preview DB branch cleanup |
 | `NEON_API_KEY` | GitHub Actions secret | Preview DB branch cleanup |
 

@@ -1,7 +1,8 @@
 # Fortune 500 — EDGAR ingest plan
 
-The explainer page at `/fortune-500/` is live (static mapping + copy). There
-is no financial snapshot, API, or scheduled EDGAR pull yet.
+The explainer page at `/fortune-500/` is live. Headline numbers load on demand
+from SEC Company Facts (`/api/f500-headlines`) for a company page and for a
+2–4 company compare. There is no daily bulk crawl yet.
 
 **Goal:** pull structured SEC EDGAR data for the **473 public** Fortune 500
 companies, store a queryable snapshot, and (later) show it at
