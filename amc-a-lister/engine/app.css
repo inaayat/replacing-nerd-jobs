@@ -2244,11 +2244,11 @@ table.al-table {
 .al-log-list {
   display: grid;
   grid-template-columns:
-    36px
-    5.5rem
-    minmax(7rem, 1.2fr)
-    minmax(4.5rem, 0.7fr)
-    minmax(6.5rem, 1.05fr)
+    44px
+    5.75rem
+    minmax(7rem, 1.25fr)
+    minmax(4.25rem, 0.65fr)
+    minmax(5.25rem, 0.8fr)
     4.25rem
     5rem
     4.25rem
@@ -2258,7 +2258,14 @@ table.al-table {
   row-gap: 8px;
   align-items: center;
   width: 100%;
-  min-width: 54rem;
+  min-width: 52rem;
+}
+
+.al-log-list > .al-log-head .al-col-poster,
+.al-log-list > .al-log-entry .al-col-poster,
+.al-log-row .al-col-poster {
+  width: 44px;
+  padding-right: 8px !important;
 }
 
 .al-log-head {
