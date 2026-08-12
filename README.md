@@ -51,12 +51,12 @@ database/Auth instance; preview deployments get a Neon database branch named
 ### Hobby plan constraint (important)
 
 Vercel Hobby allows at most **12 serverless functions** per deployment, and this
-repo currently uses **8 of 12** files under `api/`. Prefer adding a `?route=`
+repo currently uses **7 of 12** files under `api/`. Prefer adding a `?route=`
 branch to an existing handler and a matching rewrite in `vercel.json` (this is
 why A-Lister and Plot Points are multiplexed routers) before burning a free slot
 on a new top-level file.
 
-Current roster (8/12):
+Current roster (7/12):
 
 | File | Used for |
 |---|---|
@@ -67,7 +67,6 @@ Current roster (8/12):
 | `api/packing-cubes.js` | **Packing Cubes router** (`/api/pc-*`): cloud cubes CRUD, publish-to-catalog, suitcase state sync for signed-in users. |
 | `api/plot-points.js` | **Plot Points router** (`/api/plot-points-*`): TMDB person/collection search, genres, query build, legacy presets. |
 | `api/save-quiz.js` | Sporcle Spinoff: quiz + tag submissions open a GitHub review PR. |
-| `api/report-issue.js` | Sporcle Spinoff: from a quiz page, opens a GitHub Issue describing a problem. |
 
 ### Environment variables
 
@@ -254,7 +253,6 @@ Several API routes use `GITHUB_TOKEN` against **this same repository**
 | Route | Action |
 |---|---|
 | `api/save-quiz.js` | Open a review PR for a quiz or tag suggestion |
-| `api/report-issue.js` | Open a GitHub issue from the site |
 | `lib/github-cubes.js` | Helpers for packing-cube publish/merge (used by `packing-cubes.js`) |
 
 After merge to `main`, Actions regenerate `sporcle-spinoff/quizzes/index.json`
@@ -287,15 +285,14 @@ hand-editing the manifest in PRs.
 ├── engine/
 │   └── neon-browser-auth.js    ← shared browser Neon Auth helpers
 │
-├── api/                        ← serverless functions (8/12 Hobby slots used)
+├── api/                        ← serverless functions (7/12 Hobby slots used)
 │   ├── auth-config.js          ← exposes NEON_AUTH_BASE_URL
 │   ├── auth-login.js           ← server-side Neon Auth → JWT
 │   ├── me.js                   ← upsert / delete user
 │   ├── alist.js                ← A-Lister router (?route=…)
 │   ├── packing-cubes.js        ← Packing Cubes router (?route=…)
 │   ├── plot-points.js          ← Plot Points router (?route=…)
-│   ├── save-quiz.js            ← Sporcle submit-for-review PR
-│   └── report-issue.js
+│   └── save-quiz.js            ← Sporcle submit-for-review PR
 │
 ├── lib/                        ← server-only modules (not publicly fetchable)
 │   ├── db.js                   ← Neon client + ensureSchema()
