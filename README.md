@@ -383,20 +383,21 @@ Old `/private/*` URLs (including former GDDY statements) 301 to `/`. Former
 
 ## Color scheme
 
-Landing page (`index.html`) palette:
+Landing page (`index.html`) palette — [Rainbows Exist](https://www.schemecolor.com/rainbows-exist-color-scheme.php):
 
 | token | hex |
 |---|---|
 | cream (bg) | `#faf3e3` |
-| orange | `#f2a154` |
-| peach | `#f6a98a` |
-| teal | `#b5d857` |
-| red | `#cf4520` |
-| gold | `#e3a72e` |
+| purple | `#a587ca` |
+| cyan | `#36cedc` |
+| green | `#8fe968` |
+| yellow | `#ffea56` |
+| orange | `#ffb750` |
+| pink | `#fe797b` |
 | gray (coming soon) | `#d8d3c6` |
 
-Use `card-orange` / `card-peach` / `card-teal` / `card-red` / `card-gold` for live
-project tiles. Reserve `card-cream` / `card-gray` for “coming soon” placeholders.
+Use `card-purple` / `card-cyan` / `card-green` / `card-yellow` / `card-orange` /
+`card-pink` for live project tiles. Reserve `card-cream` / `card-gray` for “coming soon” placeholders.
 
 ---
 
