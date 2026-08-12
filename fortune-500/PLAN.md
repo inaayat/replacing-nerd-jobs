@@ -256,25 +256,29 @@ Browser
 **Do not** put the 473-company crawl on Vercel. GitHub Actions has hours of
 runtime; Vercel does not.
 
-### GitHub Actions quota (this repo is public — minutes are free)
+### GitHub Actions quota (Free plan is 2,000 minutes/month — for private repos)
 
-`inaayat/replacing-nerd-jobs` is a **public** repo. Standard GitHub-hosted
-runners (`ubuntu-latest`) are **free and unlimited** on public repositories.
-The Free-plan **2,000 minutes/month** cap applies only to **private** repos.
-Existing workflows here (quiz index, cube index, Neon preview cleanup) already
-run on that free public allowance.
+GitHub Free includes **2,000 Actions minutes per month**. That pool is what
+private-repo jobs draw from. It resets each billing cycle and does not roll
+over. ([GitHub Actions billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions))
 
-The daily live-API job is tiny against that:
+This repo (`inaayat/replacing-nerd-jobs`) is **public**. Standard
+`ubuntu-latest` runners on public repos **do not consume** that 2,000-minute
+pool — GitHub bills them as free. The 2,000 would only start counting if the
+repo were made private, or if we used larger (paid) runners.
 
-| Job | Wall clock (est.) | Why |
-|-----|------------------:|-----|
-| Daily Submissions (473) + 0–30 Facts | **~3–8 min** | SEC rate limit, not CPU. ~2–4 hours/month. |
-| First-time Facts for all 473 (one-off) | **~15–25 min** | 473 large JSON downloads at 8 req/sec ≈ 1 min of pacing, plus parse/upsert. |
-| Weekly `companyfacts.zip` on the runner | **Don't** | ~1.3 GB zip, ~13 GB uncompressed. Runners only guarantee **14 GB** free disk. |
+Even if we budget as if the 2,000 cap applied:
 
-So: **yes, there is bandwidth for the daily Action.** Skip the bulk ZIP on
-GitHub-hosted runners. If we ever want a full refresh from the ZIP, run it
-locally (or stream-filter the zip without extracting all 13 GB).
+| Job | Wall clock | vs 2,000 min/month |
+|-----|-----------:|-------------------:|
+| Daily Submissions (473) + 0–30 Facts | **~3–8 min/day** | **~90–240 min/month** (~5–12% of the private-repo pool) |
+| First-time Facts for all 473 (one-off) | **~15–25 min** | one-time |
+| Weekly `companyfacts.zip` on the runner | **Don't** | ~1.3 GB zip / ~13 GB uncompressed; runners only guarantee **14 GB** disk |
+
+So the daily Action fits either reading: public (doesn't touch the 2,000) or
+private (still ~90–240 of 2,000). Skip the bulk ZIP on GitHub-hosted runners.
+If we ever want a full refresh from the ZIP, run it locally (or stream-filter
+without extracting all 13 GB).
 
 Do not upload raw Facts as Actions artifacts (Free accounts share **500 MB**
 of artifact + Packages storage). Write extracted rows to Neon or a slim
