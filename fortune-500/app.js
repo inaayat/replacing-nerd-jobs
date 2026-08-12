@@ -154,7 +154,6 @@ function formatScreenerCell(col, value) {
 function renderCompareBar() {
   const n = compareRanks.length;
   compareBar.hidden = n === 0;
-  document.body.style.paddingBottom = n === 0 ? '' : '84px';
   compareLabel.textContent =
     n === 0
       ? ''
