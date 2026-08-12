@@ -42,11 +42,15 @@ import {
 const DISCOVER_PAGE_SIZE = 20;
 const FETCH_CONCURRENCY = 16;
 const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
-// Bump to invalidate cached payloads whenever the engine's output changes.
-// v5 discards everything cached while film sets were built from the *first*
+// Bump to invalidate cached payloads whenever the engine's output changes —
+// including its prose, since headlines and findings are computed once and
+// stored in the payload rather than rendered per request.
+// v5 discarded everything cached while film sets were built from the *first*
 // N credits TMDB returned (i.e. the oldest), which silently dropped the
 // best-known half of any filmography over the scan depth.
-const CACHE_VERSION = 5;
+// v6 discards headlines and findings written before excluded-subject queries
+// got their own wording.
+const CACHE_VERSION = 6;
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=86400');
