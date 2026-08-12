@@ -27,17 +27,32 @@
     },
     {
       "source": "/private",
-      "destination": "/archive/private/",
+      "destination": "/",
       "permanent": true
     },
     {
       "source": "/private/",
-      "destination": "/archive/private/",
+      "destination": "/",
       "permanent": true
     },
     {
       "source": "/private/:path*",
-      "destination": "/archive/private/:path*",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/archive/private",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/archive/private/",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/archive/private/:path*",
+      "destination": "/",
       "permanent": true
     }
   ],
