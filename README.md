@@ -44,6 +44,14 @@ is proxied onto this domain so it appears as a first-class card on the homepage.
 - Wiring: this repo’s `vercel.json` rewrites `/one-more-column/*` and `/api/omc-*`
   to that app
 
+### Fortune 500 × EDGAR — `/fortune-500`
+
+Static explainer for the Fortune 500: search the 500, open a company, see in
+plain language what SEC EDGAR publishes (profile, filing index, XBRL facts,
+human 10-K browser). Mapping lives in `fortune-500/data/`. Dollar figures are
+not pulled yet — the page is the map of available feeds, with deep links to
+sec.gov. Plan: `fortune-500/PLAN.md`.
+
 ### World Cup 2026 — `/world-cup`
 
 Back on the homepage as a **static snapshot**. Live football-data.org scores
@@ -86,7 +94,8 @@ python3 -m http.server 8080
 # then open http://127.0.0.1:8080/
 ```
 
-Works for catalog/player pages like Sporcle Spinoff and Plot Points shells.
+Works for catalog/player pages like Sporcle Spinoff, Plot Points shells, and
+the Fortune 500 EDGAR explainer (`/fortune-500/`).
 `api/*` routes do **not** run under a plain static server.
 
 **Full stack** (API routes + env secrets):
