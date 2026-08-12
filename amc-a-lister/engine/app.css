@@ -868,7 +868,42 @@ a { color: var(--al-burgundy); }
 
 .al-panel--invites {
   margin-bottom: 16px;
-  padding: 16px 18px;
+  padding: 10px 16px;
+}
+
+.al-panel--invites.is-collapsed {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.al-invites-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  margin: 0;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+
+.al-invites-toggle:focus-visible {
+  outline: 2px solid var(--al-burgundy);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.al-invites-toggle-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+  min-width: 0;
 }
 
 .al-invites-header {
@@ -880,6 +915,38 @@ a { color: var(--al-burgundy); }
   font-family: var(--al-font-display);
   font-size: 1.15rem;
   font-weight: 600;
+}
+
+.al-invites-count {
+  font-size: 0.85rem;
+  color: var(--al-muted);
+  font-weight: 500;
+}
+
+.al-invites-chevron {
+  flex: 0 0 auto;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-right: 2px solid var(--al-muted);
+  border-bottom: 2px solid var(--al-muted);
+  transform: rotate(45deg);
+  transition: transform 0.15s ease;
+  margin-right: 4px;
+}
+
+.al-invites-toggle[aria-expanded="true"] .al-invites-chevron {
+  transform: rotate(225deg);
+  margin-top: 4px;
+}
+
+.al-invites-body {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.al-invites-help {
+  margin: 0 0 10px;
+  font-size: 0.9rem;
 }
 
 .al-invites-subhead {

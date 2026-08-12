@@ -74,6 +74,7 @@ async function loadLog(auth) {
     watches,
     filtered: watches,
     invites,
+    invitesExpanded: false,
     editingId: null,
     expandedId: null,
     addingId: null,
@@ -175,33 +176,52 @@ function renderInvitesPanel(auth, state, render) {
     return;
   }
 
+  const expanded = !!state.invitesExpanded;
+  const total = incoming.length + outgoing.length;
+  const summaryBits = [];
+  if (incoming.length) summaryBits.push(`${incoming.length} to respond`);
+  if (outgoing.length) summaryBits.push(`${outgoing.length} waiting`);
+  const summary = summaryBits.join(' · ') || `${total} invite${total === 1 ? '' : 's'}`;
+
   panel.hidden = false;
+  panel.classList.toggle('is-collapsed', !expanded);
   panel.innerHTML = `
-    <div class="al-invites-header">
-      <h2 class="al-invites-title">Showing invites</h2>
-      <p class="al-muted">Accept to add it to your log, or tag an existing same-date/movie entry — never a duplicate. Deny to dismiss.</p>
+    <button type="button" class="al-invites-toggle" data-invites-toggle aria-expanded="${expanded}">
+      <span class="al-invites-toggle-main">
+        <h2 class="al-invites-title">Showing invites</h2>
+        <span class="al-invites-count">${escapeHtml(summary)}</span>
+      </span>
+      <span class="al-invites-chevron" aria-hidden="true"></span>
+    </button>
+    <div class="al-invites-body" ${expanded ? '' : 'hidden'}>
+      <p class="al-muted al-invites-help">Accept to add it to your log, or tag an existing same-date/movie entry — never a duplicate. Deny to dismiss.</p>
+      ${incoming.length ? `
+        <div class="al-invites-list" id="incoming-invites">
+          ${incoming.map((invite) => inviteCardHtml(invite, 'incoming')).join('')}
+        </div>
+      ` : ''}
+      ${outgoing.length ? `
+        <div class="al-invites-outgoing">
+          <h3 class="al-invites-subhead">Waiting on</h3>
+          <ul class="al-invites-outgoing-list">
+            ${outgoing.map((invite) => `
+              <li>
+                <strong>${escapeHtml(invite.to_username || 'Member')}</strong>
+                · ${escapeHtml(invite.title)}
+                · ${shortDate(invite.watched_on)}
+                · ${escapeHtml(invite.location || '—')}
+              </li>
+            `).join('')}
+          </ul>
+        </div>
+      ` : ''}
     </div>
-    ${incoming.length ? `
-      <div class="al-invites-list" id="incoming-invites">
-        ${incoming.map((invite) => inviteCardHtml(invite, 'incoming')).join('')}
-      </div>
-    ` : ''}
-    ${outgoing.length ? `
-      <div class="al-invites-outgoing">
-        <h3 class="al-invites-subhead">Waiting on</h3>
-        <ul class="al-invites-outgoing-list">
-          ${outgoing.map((invite) => `
-            <li>
-              <strong>${escapeHtml(invite.to_username || 'Member')}</strong>
-              · ${escapeHtml(invite.title)}
-              · ${shortDate(invite.watched_on)}
-              · ${escapeHtml(invite.location || '—')}
-            </li>
-          `).join('')}
-        </ul>
-      </div>
-    ` : ''}
   `;
+
+  panel.querySelector('[data-invites-toggle]')?.addEventListener('click', () => {
+    state.invitesExpanded = !state.invitesExpanded;
+    render();
+  });
 
   panel.querySelectorAll('[data-invite-accept], [data-invite-deny]').forEach((btn) => {
     btn.addEventListener('click', async () => {
