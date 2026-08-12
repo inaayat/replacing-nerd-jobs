@@ -82,7 +82,7 @@ Current roster (8/12):
 Retired (slots freed):
 
 - `api/football.js` — World Cup 2026 → `archive/world-cup/`
-- `api/login.js` + `lib/auth.js` — site-password `/private/` gate → `archive/private/`
+- `api/login.js` + `lib/auth.js` — site-password `/private/` gate (removed; GDDY pages deleted)
 - `api/save-cube.js` / `api/save-suitcase.js` — dead Packing Cubes GitHub paths (Neon Auth + `packing-cubes.js` / `github-cubes.js` replaced them)
 
 ### Environment variables
@@ -163,7 +163,7 @@ a redeploy → **Neon**.
 ## Authentication
 
 Visitor accounts use **Neon Auth only** (the old `SITE_PASSWORD` / `/private/`
-cookie gate was retired — see `archive/private/`).
+cookie gate was removed, and the GDDY statements pages were deleted from the site).
 
 Built on [Neon Auth](https://neon.com/docs/auth/overview) (Better Auth), hosted
 at `NEON_AUTH_BASE_URL`. Used by A-Lister, Packing Cubes cloud sync, account
@@ -336,8 +336,7 @@ hand-editing the manifest in PRs.
 │
 ├── ugly-dog-images/ · ugly-cat-images/
 └── archive/                    ← retired projects (inaayat.xyz/archive)
-    ├── world-cup/              ← FIFA World Cup 2026 (static; live API retired)
-    └── private/                ← former SITE_PASSWORD section (gddy-statements)
+    └── world-cup/              ← FIFA World Cup 2026 (static; live API retired)
 ```
 
 ---
