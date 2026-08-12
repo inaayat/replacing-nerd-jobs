@@ -1,0 +1,148 @@
+/**
+ * One-shot pull of slim 10-K headlines for every public Fortune 500 CIK.
+ * Writes fortune-500/data/headlines-snapshot.json (not raw Company Facts).
+ *
+ * Usage: node scripts/pull-fortune500-headlines.mjs
+ * Respects SEC ~10 req/sec: two workers, 150ms between launches, 429 backoff.
+ */
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { extractHeadlines } from '../fortune-500/extract.js';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const OUT = join(ROOT, 'fortune-500/data/headlines-snapshot.json');
+const MAPPING = join(ROOT, 'fortune-500/data/fortune500_edgar_mapping.json');
+const UA =
+  process.env.SEC_USER_AGENT ||
+  'inaayat.xyz/fortune-500 (https://inaayat.xyz/fortune-500/)';
+const WORKERS = 2;
+const GAP_MS = 150;
+const MAX_ATTEMPTS = 5;
+
+function padCik(cik) {
+  return String(cik).padStart(10, '0');
+}
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+function slim(extracted, cik) {
+  return {
+    cik,
+    entityName: extracted.entityName,
+    asOfYear: extracted.asOfYear,
+    metrics: extracted.metrics,
+    priorRevenue: extracted.priorRevenue,
+    ratios: extracted.ratios,
+  };
+}
+
+function loadSnapshot() {
+  if (!existsSync(OUT)) {
+    return { pulled_at: null, companies: {} };
+  }
+  return JSON.parse(readFileSync(OUT, 'utf8'));
+}
+
+function saveSnapshot(snap) {
+  snap.pulled_at = new Date().toISOString();
+  writeFileSync(OUT, JSON.stringify(snap));
+}
+
+async function fetchFacts(cik) {
+  const url = `https://data.sec.gov/api/xbrl/companyfacts/CIK${padCik(cik)}.json`;
+  let delay = 1000;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const resp = await fetch(url, {
+      headers: { 'User-Agent': UA, Accept: 'application/json' },
+    });
+    if (resp.status === 429 || resp.status === 503) {
+      const wait = delay + Math.floor(Math.random() * 400);
+      console.warn(`  CIK ${cik} ${resp.status} — retry in ${wait}ms`);
+      await sleep(wait);
+      delay *= 2;
+      continue;
+    }
+    if (resp.status === 404) return { missing: true };
+    if (!resp.ok) throw new Error(`SEC ${resp.status}`);
+    return { facts: await resp.json() };
+  }
+  throw new Error(`SEC still 429/503 after ${MAX_ATTEMPTS} attempts`);
+}
+
+const mapping = JSON.parse(readFileSync(MAPPING, 'utf8'));
+const publicCos = mapping.filter((c) => c.status === 'matched' && c.cik != null);
+const snap = loadSnapshot();
+if (!snap.companies) snap.companies = {};
+
+const pending = publicCos.filter((c) => !snap.companies[String(c.cik)]);
+console.log(
+  `Public filers ${publicCos.length}; already in snapshot ${publicCos.length - pending.length}; to pull ${pending.length}`
+);
+
+let done = 0;
+let errors = 0;
+let launch = Promise.resolve();
+
+async function gated(fn) {
+  const prev = launch;
+  let release;
+  launch = new Promise((r) => {
+    release = r;
+  });
+  await prev;
+  setTimeout(release, GAP_MS);
+  return fn();
+}
+
+async function pullOne(c) {
+  try {
+    const result = await gated(() => fetchFacts(c.cik));
+    if (result.missing) {
+      snap.companies[String(c.cik)] = {
+        cik: c.cik,
+        error: 'no_company_facts',
+        asOfYear: null,
+        metrics: {},
+        ratios: {},
+      };
+    } else {
+      snap.companies[String(c.cik)] = slim(extractHeadlines(result.facts), c.cik);
+    }
+  } catch (err) {
+    errors += 1;
+    snap.companies[String(c.cik)] = {
+      cik: c.cik,
+      error: err.message || String(err),
+      asOfYear: null,
+      metrics: {},
+      ratios: {},
+    };
+    console.warn(`  fail ${c.rank} ${c.company}: ${err.message}`);
+  }
+  done += 1;
+  if (done % 10 === 0 || done === pending.length) {
+    saveSnapshot(snap);
+    console.log(`  ${done}/${pending.length} (${errors} errors)`);
+  }
+}
+
+async function runPool(items, n) {
+  let i = 0;
+  async function worker() {
+    while (i < items.length) {
+      const item = items[i];
+      i += 1;
+      await pullOne(item);
+    }
+  }
+  await Promise.all(Array.from({ length: n }, () => worker()));
+}
+
+await runPool(pending, WORKERS);
+saveSnapshot(snap);
+const ok = Object.values(snap.companies).filter((c) => c.asOfYear && !c.error).length;
+console.log(`Wrote ${OUT}`);
+console.log(`Headlines with an as-of year: ${ok}/${publicCos.length}`);

@@ -136,7 +136,7 @@ function primer() {
         Click a name to see that company’s feeds and tags.
       </p>
       <div class="f5-note">
-        <p><strong>What “not tagged” means.</strong> Company Facts is a giant JSON of XBRL tags. A bank often has no <code>GrossProfit</code>; Amazon’s last <code>GrossProfit</code> point is from 2009. We only show a number if it is from the same annual period as that company’s latest revenue/net income 10-K. A blank is “this tag isn’t in the current 10-K,” not $0.</p>
+        <p><strong>Figures are from each company’s latest annual 10-K in EDGAR</strong> (snapshot on this page, not Fortune’s published table). A blank cell means that tag is not in the current 10-K — not $0. Three filers have no usable annual XBRL yet (Truist, SpaceX, ExxonMobil Holdings).</p>
       </div>
     </div>`;
 }
@@ -332,10 +332,15 @@ function compareView(rows, status) {
 async function fetchHeadlines(ciks) {
   const missing = ciks.filter((cik) => !headlinesByCik.has(cik));
   if (!missing.length) return ciks.map((cik) => headlinesByCik.get(cik));
-  const res = await fetch(`/api/f500-headlines?ciks=${missing.join(',')}`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = await res.json();
-  for (const row of data.companies || []) headlinesByCik.set(row.cik, row);
+  try {
+    const res = await fetch(`/api/f500-headlines?ciks=${missing.join(',')}`);
+    if (res.ok) {
+      const data = await res.json();
+      for (const row of data.companies || []) headlinesByCik.set(row.cik, row);
+    }
+  } catch {
+    // Snapshot is enough for compare; live API is a fallback when deployed.
+  }
   return ciks.map((cik) => headlinesByCik.get(cik));
 }
 
@@ -488,10 +493,23 @@ try {
   if (!res.ok) throw new Error(`Could not load mapping (${res.status})`);
   companies = await res.json();
   companies.sort((a, b) => a.rank - b.rank);
+  const snapRes = await fetch('./data/headlines-snapshot.json');
+  if (snapRes.ok) {
+    const snap = await snapRes.json();
+    for (const row of Object.values(snap.companies || {})) {
+      if (row?.cik != null) headlinesByCik.set(row.cik, row);
+    }
+    window.__f500PulledAt = snap.pulled_at;
+  }
   const pub = companies.filter(isPublic).length;
+  const withFy = [...headlinesByCik.values()].filter((h) => h.asOfYear).length;
+  const pulled = window.__f500PulledAt
+    ? new Date(window.__f500PulledAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : null;
   statsEl.innerHTML = `
     <span class="f5-stat"><strong>${companies.length}</strong> Fortune 500</span>
     <span class="f5-stat"><strong>${pub}</strong> public SEC filers</span>
+    <span class="f5-stat"><strong>${withFy}</strong> with 10-K figures${pulled ? ' · ' + pulled : ''}</span>
     <span class="f5-stat"><strong>${companies.length - pub}</strong> private / mutual</span>
   `;
   document.getElementById('glossary-list').innerHTML = GLOSSARY.map(
