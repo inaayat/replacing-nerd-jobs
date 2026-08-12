@@ -254,6 +254,30 @@ Browser
 **Do not** put the 473-company crawl on Vercel. GitHub Actions has hours of
 runtime; Vercel does not.
 
+### GitHub Actions quota (this repo is public — minutes are free)
+
+`inaayat/replacing-nerd-jobs` is a **public** repo. Standard GitHub-hosted
+runners (`ubuntu-latest`) are **free and unlimited** on public repositories.
+The Free-plan **2,000 minutes/month** cap applies only to **private** repos.
+Existing workflows here (quiz index, cube index, Neon preview cleanup) already
+run on that free public allowance.
+
+The daily live-API job is tiny against that:
+
+| Job | Wall clock (est.) | Why |
+|-----|------------------:|-----|
+| Daily Submissions (473) + 0–30 Facts | **~3–8 min** | SEC rate limit, not CPU. ~2–4 hours/month. |
+| First-time Facts for all 473 (one-off) | **~15–25 min** | 473 large JSON downloads at 8 req/sec ≈ 1 min of pacing, plus parse/upsert. |
+| Weekly `companyfacts.zip` on the runner | **Don't** | ~1.3 GB zip, ~13 GB uncompressed. Runners only guarantee **14 GB** free disk. |
+
+So: **yes, there is bandwidth for the daily Action.** Skip the bulk ZIP on
+GitHub-hosted runners. If we ever want a full refresh from the ZIP, run it
+locally (or stream-filter the zip without extracting all 13 GB).
+
+Do not upload raw Facts as Actions artifacts (Free accounts share **500 MB**
+of artifact + Packages storage). Write extracted rows to Neon or a slim
+committed snapshot instead.
+
 ### Daily job (automated)
 
 | Step | Action | Calls |
@@ -268,10 +292,12 @@ Daily volume: ~**500–800** calls vs 946 if Facts were refreshed for everyone.
 Suggested clock:
 
 ```
-03:30 ET   Optional weekly: download companyfacts.zip, filter to our CIKs
 06:00 ET   Submissions for 473 (~1 min at 8 req/sec)
 06:05 ET   Facts for CIKs with new relevant filings
 ```
+
+Weekly bulk ZIP is a **local** safety net only (stream-filter 473 CIKs; do not
+extract the full archive on a GitHub runner).
 
 Seasonal: Jan–Apr (10-K) and ~6 weeks after quarter-end, keep the daily
 Submissions + conditional Facts cadence. Mid-quarter quiet periods can drop
@@ -450,7 +476,7 @@ Folder, mapping files, this plan. No page, no API, no Action.
 - Schema in `lib/db.js`.
 - Scheduled workflow: daily Submissions, conditional Facts, upsert, fail the
   job (don't silently skip) on SEC 403 (bad User-Agent) or mass 429s.
-- Weekly bulk-ZIP refresh as a safety net.
+- Optional local bulk-ZIP refresh as a safety net (not on the GitHub runner).
 - `api/fortune-500.js` read routes for live data. Homepage card (replace a
   TBD tile) only once the page is actually usable.
 
