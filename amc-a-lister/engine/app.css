@@ -2361,16 +2361,16 @@ table.al-table {
 @media (min-width: 768px) and (max-width: 1200px) {
   .al-log-list {
     grid-template-columns:
-      36px
-      5.25rem
-      minmax(6rem, 1.25fr)
-      minmax(4rem, 0.75fr)
-      minmax(5.5rem, 1fr)
+      44px
+      5.5rem
+      minmax(6rem, 1.3fr)
+      minmax(3.75rem, 0.7fr)
+      minmax(4.75rem, 0.75fr)
       4rem
       4.25rem
       3rem
       minmax(5.25rem, 6.25rem);
-    min-width: 46rem;
+    min-width: 44rem;
     column-gap: 8px;
   }
 
@@ -2382,15 +2382,15 @@ table.al-table {
 @media (min-width: 768px) and (max-width: 920px) {
   .al-log-list {
     grid-template-columns:
-      36px
-      5rem
-      minmax(5.5rem, 1.3fr)
-      minmax(3.75rem, 0.7fr)
-      minmax(5rem, 1fr)
+      44px
+      5.25rem
+      minmax(5.5rem, 1.35fr)
+      minmax(3.5rem, 0.65fr)
+      minmax(4.5rem, 0.75fr)
       4rem
       3rem
       minmax(5rem, 6rem);
-    min-width: 40rem;
+    min-width: 38rem;
   }
 
   .al-log-col--format {
