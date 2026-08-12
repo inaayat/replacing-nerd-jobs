@@ -173,7 +173,7 @@ function renderInvitesPanel(auth, state, render) {
   panel.innerHTML = `
     <div class="al-invites-header">
       <h2 class="al-invites-title">Showing invites</h2>
-      <p class="al-muted">Accept to add the outing to your watch log, or deny to dismiss it.</p>
+      <p class="al-muted">Accept to add it to your log, or tag an existing same-date/movie entry — never a duplicate. Deny to dismiss.</p>
     </div>
     ${incoming.length ? `
       <div class="al-invites-list" id="incoming-invites">
@@ -226,8 +226,8 @@ function renderInvitesPanel(auth, state, render) {
             }
             return true;
           });
-          showLogStatus(result.linked
-            ? 'Tagged as watched together — they already had this outing.'
+          showLogStatus(result.linked || result.reused_existing
+            ? 'Accepted — tagged your existing log entry (no duplicate).'
             : 'Added to your watch log.');
           populateSidebarStats(auth);
         } else {
@@ -369,9 +369,10 @@ function addViewerFormHtml(watch) {
           <button class="al-btn" type="button" data-cancel-add-viewer>Cancel</button>
         </div>
         <p class="al-muted al-add-viewer-hint">
-          If they already logged the same movie and theater on ${shortDate(watch.watched_on)},
-          both entries are tagged as watched together. Otherwise they get an invite with
-          movie, theater, and ticket cost (${money(watch.ticket_cents)}) to accept or deny.
+          If they already logged the same movie on ${shortDate(watch.watched_on)},
+          both entries are tagged as watched together (no duplicate). Otherwise they
+          get an invite with movie, theater, and ticket cost (${money(watch.ticket_cents)})
+          to accept or deny.
         </p>
       </form>
     </div>

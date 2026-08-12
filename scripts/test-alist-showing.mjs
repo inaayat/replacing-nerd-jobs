@@ -4,6 +4,7 @@
  */
 import {
   watchesMatchForTogether,
+  watchesMatchSameMovieNight,
   normalizeLocation,
   normalizeMovieTitle,
   inviteFromRow,
@@ -80,6 +81,30 @@ assert(
     { watched_on: '2026-08-10', title: 'Weapons', tmdb_id: 1, location: '' },
   ),
   'empty theater does not count as a shared outing',
+);
+
+assert(
+  watchesMatchSameMovieNight(
+    { watched_on: '2026-08-10', title: 'Weapons', tmdb_id: 1, location: 'AMC Empire 25' },
+    { watched_on: '2026-08-10', title: 'Weapons', tmdb_id: 1, location: 'AMC Lincoln Square 13' },
+  ),
+  'same date+movie matches even when theaters differ',
+);
+
+assert(
+  watchesMatchSameMovieNight(
+    { watched_on: '2026-08-10', title: 'The Odyssey', location: '' },
+    { watched_on: '2026-08-10', title: 'Odyssey', location: 'AMC' },
+  ),
+  'same date+title matches with missing theater',
+);
+
+assert(
+  !watchesMatchSameMovieNight(
+    { watched_on: '2026-08-10', title: 'Weapons', tmdb_id: 1 },
+    { watched_on: '2026-08-11', title: 'Weapons', tmdb_id: 1 },
+  ),
+  'different date is not the same movie night',
 );
 
 const invite = inviteFromRow({
