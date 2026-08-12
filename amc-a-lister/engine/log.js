@@ -152,10 +152,16 @@ function showLogStatus(message) {
   el.textContent = message || '';
 }
 
-function companionsLabel(watch) {
-  const names = (watch.companions || []).map((c) => c.username).filter(Boolean);
-  if (!names.length) return '';
-  return `<span class="al-badge al-badge--together">with ${escapeHtml(names.join(', '))}</span>`;
+function watchedWithNames(watch) {
+  if (watch.in_theaters === false) return [];
+  return (watch.companions || []).map((c) => c.username).filter(Boolean);
+}
+
+function watchedWithCell(watch) {
+  const names = watchedWithNames(watch);
+  if (!names.length) return { html: '—', title: '', empty: true };
+  const text = names.join(', ');
+  return { html: escapeHtml(text), title: text, empty: false };
 }
 
 function renderInvitesPanel(auth, state, render) {
@@ -173,7 +179,7 @@ function renderInvitesPanel(auth, state, render) {
   panel.innerHTML = `
     <div class="al-invites-header">
       <h2 class="al-invites-title">Showing invites</h2>
-      <p class="al-muted">Accept to add the outing to your watch log, or deny to dismiss it.</p>
+      <p class="al-muted">Accept to add it to your log, or tag an existing same-date/movie entry — never a duplicate. Deny to dismiss.</p>
     </div>
     ${incoming.length ? `
       <div class="al-invites-list" id="incoming-invites">
@@ -226,8 +232,10 @@ function renderInvitesPanel(auth, state, render) {
             }
             return true;
           });
-          showLogStatus(result.linked
-            ? 'Tagged as watched together — they already had this outing.'
+          showLogStatus(result.linked || result.reused_existing
+            ? (result.filled_fields?.length
+              ? `Accepted — tagged your existing entry and filled in ${result.filled_fields.join(', ')}.`
+              : 'Accepted — tagged your existing log entry (no duplicate).')
             : 'Added to your watch log.');
           populateSidebarStats(auth);
         } else {
@@ -292,9 +300,10 @@ function tableHtml(state) {
         <span class="al-log-col al-col-poster"></span>
         <span class="al-log-col">Date</span>
         <span class="al-log-col">Title</span>
+        <span class="al-log-col al-log-col--with-head">With</span>
         <span class="al-log-col">Location</span>
-        <span class="al-log-col">Format</span>
-        <span class="al-log-col">Seat</span>
+        <span class="al-log-col al-log-col--format">Format</span>
+        <span class="al-log-col al-log-col--seat">Seat</span>
         <span class="al-log-col">Charge</span>
         <span class="al-log-col">Rating</span>
         <span class="al-log-col">Actions</span>
@@ -307,6 +316,7 @@ function tableHtml(state) {
 }
 
 function mobileLogMeta(w) {
+  const withNames = watchedWithNames(w);
   const primary = [
     shortDate(w.watched_on),
     w.in_theaters === false ? 'Off-theater' : (w.format || 'Standard'),
@@ -314,13 +324,21 @@ function mobileLogMeta(w) {
     ratingLabel(w),
   ].filter(Boolean).map((part) => escapeHtml(String(part))).join(' · ');
   const location = escapeHtml(w.in_theaters === false ? 'Not in theaters' : (w.location || '—'));
-  return `<span class="al-log-meta-primary">${primary}</span><span class="al-log-meta-location">${location}</span>`;
+  const withLine = withNames.length
+    ? `<span class="al-log-meta-with">with ${escapeHtml(withNames.join(', '))}</span>`
+    : '';
+  return `
+    <span class="al-log-meta-primary">${primary}</span>
+    <span class="al-log-meta-location">${location}</span>
+    ${withLine}
+  `;
 }
 
 function viewEntryHtml(w, state) {
   const expanded = w.id === state.expandedId;
   const adding = w.id === state.addingId;
   const canAdd = w.in_theaters !== false;
+  const withCell = watchedWithCell(w);
   return `
     <div class="al-log-entry ${expanded ? 'is-expanded' : ''}" data-entry-id="${w.id}">
       <article class="al-log-row al-log-row--clickable ${expanded ? 'is-expanded' : ''}" data-expand-row tabindex="0" aria-expanded="${expanded}" aria-label="Toggle details">
@@ -330,13 +348,13 @@ function viewEntryHtml(w, state) {
           <div class="al-log-col al-log-col--title">
             ${escapeHtml(w.title)}
             ${w.in_theaters === false ? '<span class="al-badge al-badge--muted">Off-theater</span>' : ''}
-            ${companionsLabel(w)}
           </div>
           <div class="al-log-col al-log-col--mobile-meta al-only-mobile">${mobileLogMeta(w)}</div>
         </div>
+        <div class="al-log-col al-log-col--desktop al-log-col--with ${withCell.empty ? 'al-muted' : ''}"${withCell.title ? ` title="${escapeHtml(withCell.title)}"` : ''}>${withCell.html}</div>
         <div class="al-log-col al-log-col--desktop al-muted">${escapeHtml(w.in_theaters === false ? 'Not in theaters' : (w.location || '—'))}</div>
-        <div class="al-log-col al-log-col--desktop">${w.in_theaters === false ? '—' : (w.format ? escapeHtml(w.format) : '—')}</div>
-        <div class="al-log-col al-log-col--desktop al-muted">${w.in_theaters === false ? '—' : escapeHtml([w.auditorium, w.seat].filter(Boolean).join(' · ') || '—')}</div>
+        <div class="al-log-col al-log-col--desktop al-log-col--format">${w.in_theaters === false ? '—' : (w.format ? escapeHtml(w.format) : '—')}</div>
+        <div class="al-log-col al-log-col--desktop al-log-col--seat al-muted">${w.in_theaters === false ? '—' : escapeHtml([w.auditorium, w.seat].filter(Boolean).join(' · ') || '—')}</div>
         <div class="al-log-col al-log-col--desktop al-log-col--num">${w.in_theaters === false ? '—' : money(w.ticket_cents)}</div>
         <div class="al-log-col al-log-col--desktop">${ratingLabel(w)}</div>
         <div class="al-log-col al-row-actions">
@@ -369,9 +387,10 @@ function addViewerFormHtml(watch) {
           <button class="al-btn" type="button" data-cancel-add-viewer>Cancel</button>
         </div>
         <p class="al-muted al-add-viewer-hint">
-          If they already logged the same movie and theater on ${shortDate(watch.watched_on)},
-          both entries are tagged as watched together. Otherwise they get an invite with
-          movie, theater, and ticket cost (${money(watch.ticket_cents)}) to accept or deny.
+          If they already logged the same movie on ${shortDate(watch.watched_on)},
+          both entries are tagged as watched together (no duplicate). Otherwise they
+          get an invite with movie, theater, and ticket cost (${money(watch.ticket_cents)})
+          to accept or deny.
         </p>
       </form>
     </div>
@@ -514,6 +533,7 @@ function wireRowActions(auth, state, render) {
       const id = btn.dataset.addViewer;
       state.addingId = state.addingId === id ? null : id;
       state.editingId = null;
+      if (state.addingId) state.expandedId = null;
       showLogError('');
       render();
       if (state.addingId) {
