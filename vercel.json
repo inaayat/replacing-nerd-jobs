@@ -24,6 +24,21 @@
       "source": "/world-cup/:path*",
       "destination": "/archive/world-cup/:path*",
       "permanent": true
+    },
+    {
+      "source": "/private",
+      "destination": "/archive/private/",
+      "permanent": true
+    },
+    {
+      "source": "/private/",
+      "destination": "/archive/private/",
+      "permanent": true
+    },
+    {
+      "source": "/private/:path*",
+      "destination": "/archive/private/:path*",
+      "permanent": true
     }
   ],
   "rewrites": [

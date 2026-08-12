@@ -31,7 +31,7 @@ python3 -m http.server 8080
 ```
 
 Works for catalog/player pages like Sporcle Spinoff and Plot Points shells.
-`api/*` and the `/private` gate do **not** run under a plain static server.
+`api/*` routes do **not** run under a plain static server.
 
 **Full stack** (API routes + env secrets):
 
@@ -61,33 +61,29 @@ database/Auth instance; preview deployments get a Neon database branch named
 ### Hobby plan constraint (important)
 
 Vercel Hobby allows at most **12 serverless functions** per deployment, and this
-repo currently uses **11 of 12** files under `api/` (one slot free after retiring
-World Cup / `football.js`). **Do not add new files under `api/` unless you are
-intentionally using that free slot.** Prefer adding a `?route=` branch to an
-existing handler and a matching rewrite in `vercel.json` (this is why A-Lister
-and Plot Points are multiplexed routers).
+repo currently uses **8 of 12** files under `api/`. Prefer adding a `?route=`
+branch to an existing handler and a matching rewrite in `vercel.json` (this is
+why A-Lister and Plot Points are multiplexed routers) before burning a free slot
+on a new top-level file.
 
-Current roster (11/12):
+Current roster (8/12):
 
 | File | Used for |
 |---|---|
-| `api/login.js` | Owner `/private/` gate: POST checks `SITE_PASSWORD` and sets the `__auth` cookie; GET clears it (logout). |
 | `api/auth-config.js` | Returns `{ url: NEON_AUTH_BASE_URL }` so the browser can talk to Neon Auth without a hardcoded URL. |
 | `api/auth-login.js` | Server-side Neon Auth sign-in/sign-up; returns a JWT (needed for mobile PWAs that block third-party auth cookies). |
 | `api/me.js` | Authed account sync: GET upserts the Neon Auth user into Postgres; DELETE wipes app data + Neon Auth account. |
 | `api/alist.js` | **AMC A-Lister router** (`?route=` / `/api/alist-*` rewrites): watches, summary, membership, import, poster backfill, movie/TV lookup & details, watchlists, leaderboard, compare, public profiles, showing invites, user search. |
 | `api/packing-cubes.js` | **Packing Cubes router** (`/api/pc-*`): cloud cubes CRUD, publish-to-catalog, suitcase state sync for signed-in users. |
 | `api/plot-points.js` | **Plot Points router** (`/api/plot-points-*`): TMDB person/collection search, genres, query build, legacy presets. |
-| `api/save-quiz.js` | Sporcle Spinoff: owner publishes quiz JSON to git, or visitor opens a review PR (also tag suggestions). |
-| `api/save-cube.js` | Packing Cubes catalog: owner publishes / upserts a public cube JSON, or visitor opens a review PR. |
-| `api/save-suitcase.js` | Packing Cubes: anonymous “save suitcase out of localStorage” → always opens a GitHub PR for review (no direct publish). |
+| `api/save-quiz.js` | Sporcle Spinoff: quiz + tag submissions open a GitHub review PR (no direct-to-main publish). |
 | `api/report-issue.js` | Sporcle Spinoff: from a quiz page, opens a GitHub Issue describing a problem. |
 
-Retired: `api/football.js` (World Cup 2026 live scores) — project lives under
-`archive/world-cup/` as a static snapshot only.
+Retired (slots freed):
 
-If you need another endpoint, prefer folding it into the closest router above.
-You may use the free 12th slot for a genuinely new top-level handler when needed.
+- `api/football.js` — World Cup 2026 → `archive/world-cup/`
+- `api/login.js` + `lib/auth.js` — site-password `/private/` gate → `archive/private/`
+- `api/save-cube.js` / `api/save-suitcase.js` — dead Packing Cubes GitHub paths (Neon Auth + `packing-cubes.js` / `github-cubes.js` replaced them)
 
 ### Environment variables
 
@@ -98,11 +94,13 @@ Storage integration usually provisions the first two automatically into Vercel.
 |---|---|---|
 | `DATABASE_URL` | Neon → injected into Vercel | Neon Postgres connection string |
 | `NEON_AUTH_BASE_URL` | Neon → injected into Vercel | Hosted Neon Auth endpoint (Better Auth) |
-| `SITE_PASSWORD` | Vercel env only | Owner-only password for `/private/` |
 | `GITHUB_TOKEN` | Vercel env only | Opens PRs / commits quiz & cube content via GitHub API |
 | `TMDB_API_KEY` | Vercel env only | The Movie Database — A-Lister + Plot Points |
 | `NEON_PROJECT_ID` | GitHub Actions var | Preview DB branch cleanup |
 | `NEON_API_KEY` | GitHub Actions secret | Preview DB branch cleanup |
+
+You can delete unused `SITE_PASSWORD` / `FOOTBALL_DATA_KEY` from Vercel if they
+are still hanging around — nothing reads them anymore.
 
 ---
 
@@ -118,10 +116,10 @@ them together and injects `DATABASE_URL` + `NEON_AUTH_BASE_URL` into each deploy
 |---|---|
 | **Static site hosting** | Serves every HTML/CSS/JS/image file from the repo (landing page, Sporcle, Packing Cubes UI, A-Lister UI, etc.) |
 | **Custom domain** | `inaayat.xyz` points at this Vercel project |
-| **Serverless API** | Runs everything under `api/*.js` (login, me, alist, packing-cubes, plot-points, save-quiz, …) |
-| **Edge middleware** | `middleware.js` gates `/private/*` and 404s `/lib/*` |
+| **Serverless API** | Runs everything under `api/*.js` (auth-login, me, alist, packing-cubes, plot-points, save-quiz, …) |
+| **Edge middleware** | `middleware.js` 404s `/lib/*` so server modules are not served as static files |
 | **Rewrites / proxy** | `vercel.json` routes like `/api/alist-*` → `api/alist.js?route=…`, and proxies `/one-more-column/*` to the other Vercel app |
-| **Secrets store** | Holds env vars the functions read at runtime (`SITE_PASSWORD`, `TMDB_API_KEY`, `GITHUB_TOKEN`, plus the Neon-injected ones) |
+| **Secrets store** | Holds env vars the functions read at runtime (`TMDB_API_KEY`, `GITHUB_TOKEN`, plus the Neon-injected ones) |
 | **CI deploy** | Git push to `main` → production deploy; PR branches → preview deploys |
 | **Preview isolation (with Neon)** | Each preview deploy can talk to its own Neon branch (`preview/<git-branch>`) |
 
@@ -139,8 +137,7 @@ function needs persistence, it calls Neon (or GitHub, for static JSON catalogs).
 | **Branching** | Production DB on main; ephemeral `preview/<branch>` DBs for Vercel preview deploys |
 | **Caching / derived data** | TMDB movie/TV payloads in `alist_movie_cache` / `alist_tv_cache`; Plot Points query cache |
 
-Neon does **not** serve the website, run `api/` handlers, or own the
-`SITE_PASSWORD` `/private` cookie. Those stay on Vercel.
+Neon does **not** serve the website or run `api/` handlers — that stays on Vercel.
 
 ### How a typical authenticated request splits
 
@@ -165,28 +162,12 @@ a redeploy → **Neon**.
 
 ## Authentication
 
-There are **two separate auth systems**. Do not mix them up.
+Visitor accounts use **Neon Auth only** (the old `SITE_PASSWORD` / `/private/`
+cookie gate was retired — see `archive/private/`).
 
-### 1. Owner password gate (`/private/`)
-
-Simple site-owner lock for private pages (e.g. financial statements).
-
-| Piece | Role |
-|---|---|
-| `SITE_PASSWORD` | Shared secret in Vercel env |
-| `middleware.js` | Intercepts `/private/*`; shows a login form if unauthed |
-| `api/login.js` | POST checks password, sets `__auth` cookie (SHA-256 of password); GET clears it (logout) |
-| `lib/auth.js` | `isAuthed(cookie)` — Edge-safe cookie check via `crypto.subtle` |
-
-Cookie: `__auth=<sha256(SITE_PASSWORD)>`, HttpOnly, Secure, SameSite=Lax, 7 days.
-Also used by some owner-only publish paths (e.g. quiz/cube publish) that call
-`isAuthed()` per-request even when the builder page itself is public.
-
-### 2. Neon Auth (multi-user visitor accounts)
-
-Real email/password accounts for visitor-facing features (A-Lister, Packing
-Cubes cloud sync, account deletion, etc.). Built on [Neon Auth](https://neon.com/docs/auth/overview)
-(Better Auth), hosted at `NEON_AUTH_BASE_URL`.
+Built on [Neon Auth](https://neon.com/docs/auth/overview) (Better Auth), hosted
+at `NEON_AUTH_BASE_URL`. Used by A-Lister, Packing Cubes cloud sync, account
+deletion, etc.
 
 | Piece | Role |
 |---|---|
@@ -209,6 +190,10 @@ Cubes cloud sync, account deletion, etc.). Built on [Neon Auth](https://neon.com
 
 There is no committed auth config file. As soon as Vercel has
 `NEON_AUTH_BASE_URL` and `DATABASE_URL`, `/account.html` works.
+
+**Catalog publishes (Sporcle quizzes/tags):** always open a GitHub PR via
+`api/save-quiz.js` — there is no password-gated “publish straight to main”
+shortcut anymore. Merge the PR (or push JSON yourself) to go live.
 
 **Adding a new logged-in feature:** put tables in `ensureSchema()` keyed on
 `users.id`, and copy the `getAuth(req)` check from `api/me.js` / `api/alist.js`.
@@ -288,11 +273,9 @@ Several API routes use `GITHUB_TOKEN` against **this same repository**
 
 | Route | Action |
 |---|---|
-| `api/save-quiz.js` | Publish quiz JSON or open a review PR |
-| `api/save-cube.js` | Publish packing-cube JSON or open a review PR |
-| `api/save-suitcase.js` | Suitcase-related GitHub writes |
+| `api/save-quiz.js` | Open a review PR for a quiz or tag suggestion |
 | `api/report-issue.js` | Open a GitHub issue from the site |
-| `lib/github-cubes.js` | Helpers for packing-cube publish/merge |
+| `lib/github-cubes.js` | Helpers for packing-cube publish/merge (used by `packing-cubes.js`) |
 
 After merge to `main`, Actions regenerate `sporcle-spinoff/quizzes/index.json`
 and `packing-cubes/cubes/index.json` so catalogs stay consistent without
@@ -315,31 +298,27 @@ hand-editing the manifest in PRs.
 ├── index.html                  ← landing page (inaayat.xyz)
 ├── account.html                ← Neon Auth sign-in / account
 ├── _template.html              ← copy this to start a new page
-├── middleware.js               ← /private gate + /lib 404s
+├── middleware.js               ← 404s /lib/* (server modules stay private)
 ├── site.css                    ← shared styles for non-landing pages
 ├── package.json                ← @neondatabase/auth, serverless, jose
-├── vercel.json                 ← rewrites, function timeouts, OMC proxy
+├── vercel.json                 ← rewrites, redirects, function timeouts, OMC proxy
 │
 ├── fonts/                      ← Atkinson Hyperlegible
 ├── engine/
 │   └── neon-browser-auth.js    ← shared browser Neon Auth helpers
 │
-├── api/                        ← serverless functions (11/12 Hobby slots used)
-│   ├── login.js                ← /private password login + logout (GET)
+├── api/                        ← serverless functions (8/12 Hobby slots used)
 │   ├── auth-config.js          ← exposes NEON_AUTH_BASE_URL
 │   ├── auth-login.js           ← server-side Neon Auth → JWT
 │   ├── me.js                   ← upsert / delete user
 │   ├── alist.js                ← A-Lister router (?route=…)
 │   ├── packing-cubes.js        ← Packing Cubes router (?route=…)
 │   ├── plot-points.js          ← Plot Points router (?route=…)
-│   ├── save-quiz.js            ← Sporcle publish / PR
-│   ├── save-cube.js            ← Packing Cubes publish / PR
-│   ├── save-suitcase.js
+│   ├── save-quiz.js            ← Sporcle submit-for-review PR
 │   └── report-issue.js
 │
 ├── lib/                        ← server-only modules (not publicly fetchable)
 │   ├── db.js                   ← Neon client + ensureSchema()
-│   ├── auth.js                 ← SITE_PASSWORD cookie helpers
 │   ├── neon-auth.js            ← JWT verification
 │   ├── tmdb.js                 ← shared TMDB + movie cache
 │   ├── a-list*.js              ← A-Lister domain logic
@@ -352,15 +331,13 @@ hand-editing the manifest in PRs.
 ├── sporcle-spinoff/            ← trivia quiz platform
 ├── plot-points/                ← TMDB cinema query explorer
 │
-├── private/                    ← SITE_PASSWORD-gated section
-│   └── gddy-statements/
-│
 ├── scripts/                    ← index builders + pure-function tests
 ├── .github/workflows/          ← quiz/cube index rebuild + Neon preview cleanup
 │
 ├── ugly-dog-images/ · ugly-cat-images/
 └── archive/                    ← retired projects (inaayat.xyz/archive)
-    └── world-cup/              ← FIFA World Cup 2026 (static; live API retired)
+    ├── world-cup/              ← FIFA World Cup 2026 (static; live API retired)
+    └── private/                ← former SITE_PASSWORD section (gddy-statements)
 ```
 
 ---
@@ -372,9 +349,9 @@ hand-editing the manifest in PRs.
 Trivia platform: one shared engine, one renderer per interaction type, JSON-driven.
 Quiz types: multiple-choice, text-entry, image, matching, ranking, map, map-highlight.
 
-**Add a quiz:** builder at `/sporcle-spinoff/builder.html` (publish as owner or
-submit-for-review PR), or hand-add `quizzes/<id>.json` and open a PR. Catalog
-index is regenerated by Actions — don’t hand-edit `quizzes/index.json` in a PR.
+**Add a quiz:** builder at `/sporcle-spinoff/builder.html` (always opens a
+review PR), or hand-add `quizzes/<id>.json` and open a PR. Catalog index is
+regenerated by Actions — don’t hand-edit `quizzes/index.json` in a PR.
 
 ### Packing Cubes — `/packing-cubes`
 

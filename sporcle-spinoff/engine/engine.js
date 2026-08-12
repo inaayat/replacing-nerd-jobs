@@ -94,26 +94,18 @@ function renderTagPills(container, tags) {
   });
 }
 
-// "+ suggest a tag" — same publish/submit-for-review duality as the builder:
-// owners write straight to main, everyone else opens a PR (api/save-quiz.js
-// mode: 'suggest-tags'/'suggest-tags-publish').
+// "+ suggest a tag" — opens a GitHub PR via api/save-quiz.js (mode: 'suggest-tags').
 function setupTagSuggest(container, quiz) {
   container.innerHTML = '<button type="button" class="q-inline-link" id="q-tag-suggest-btn">+ suggest a tag</button>';
   container.querySelector('#q-tag-suggest-btn').addEventListener('click', () => openTagSuggestForm(container, quiz), { once: true });
 }
 
 async function openTagSuggestForm(container, quiz) {
-  let isOwner = false;
-  try {
-    const r = await fetch('/api/save-quiz');
-    isOwner = !!(await r.json()).authed;
-  } catch (e) { /* treat as anonymous */ }
-
   container.innerHTML = `
     <div class="q-inline-form">
       <input type="text" id="q-tag-input" placeholder="e.g. Sports, History">
-      ${isOwner ? '' : '<input type="text" id="q-tag-submitter" placeholder="Your name (optional)">'}
-      <button type="button" class="q-btn primary" id="q-tag-submit">${isOwner ? 'Add' : 'Suggest'}</button>
+      <input type="text" id="q-tag-submitter" placeholder="Your name (optional)">
+      <button type="button" class="q-btn primary" id="q-tag-submit">Suggest</button>
     </div>
     <div class="q-inline-toast" id="q-tag-toast"></div>`;
 
@@ -126,8 +118,12 @@ async function openTagSuggestForm(container, quiz) {
     btn.disabled = true;
     toast.textContent = ''; toast.className = 'q-inline-toast';
     try {
-      const body = { id: quiz.id, tags, mode: isOwner ? 'suggest-tags-publish' : 'suggest-tags' };
-      if (!isOwner) body.submitter = container.querySelector('#q-tag-submitter').value.trim();
+      const body = {
+        id: quiz.id,
+        tags,
+        mode: 'suggest-tags',
+        submitter: container.querySelector('#q-tag-submitter').value.trim(),
+      };
       const res = await fetch('/api/save-quiz', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
       });
@@ -140,13 +136,7 @@ async function openTagSuggestForm(container, quiz) {
         btn.disabled = false;
         return;
       }
-      if (isOwner) {
-        quiz.tags = data.tags;
-        renderTagPills(document.getElementById('q-tags'), data.tags);
-        toast.textContent = 'Added!';
-      } else {
-        toast.textContent = 'Submitted for review — thanks!';
-      }
+      toast.textContent = 'Submitted for review — thanks!';
       toast.className = 'q-inline-toast ok';
     } catch (err) {
       toast.textContent = err.message;

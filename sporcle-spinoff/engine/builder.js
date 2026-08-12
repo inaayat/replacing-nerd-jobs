@@ -1,8 +1,7 @@
 // Quiz builder core: template picker, common fields, dispatches to the
 // selected type's editor module (engine/editors/<type>.js), wires up
-// preview and publish. Mirrors engine.js's shape on the player side.
-// The page is public: owners (site password cookie) publish directly;
-// everyone else can submit a quiz for review, which opens a GitHub PR.
+// preview and submit-for-review. Mirrors engine.js's shape on the player side.
+// Everyone (including the site owner) opens a GitHub PR via api/save-quiz.js.
 const root = document.getElementById('builder-root');
 
 const TEMPLATES = [
@@ -17,7 +16,6 @@ const TEMPLATES = [
 
 let quiz = { title: '', blurb: '', tags: [], timeLimitSec: undefined, shuffle: true, type: 'text-entry', items: [] };
 let idManuallyEdited = false;
-let isOwner = false;
 let buildMode = 'form'; // 'form' | 'upload'
 let pendingQuizzes = null; // set to an array when a multi-quiz JSON is uploaded
 
@@ -87,15 +85,15 @@ function render() {
       </div>
 
       <div class="b-step">
-        <div class="b-step-head"><span class="b-step-num">4</span><span class="b-step-title" id="publish-step-title">Publish</span></div>
+        <div class="b-step-head"><span class="b-step-num">4</span><span class="b-step-title">Submit for review</span></div>
         <div class="b-publish-card">
           <div class="b-field" id="id-field"><label>Quiz ID (auto, editable)</label><input id="f-id" type="text"></div>
           <div class="b-id-preview" id="id-preview"></div>
-          <div class="b-field" id="submitter-field" style="display:none;margin-top:8px;">
+          <div class="b-field" id="submitter-field" style="margin-top:8px;">
             <label>Your name (optional)</label><input id="f-submitter" type="text" placeholder="Shown on the review request">
           </div>
           <div style="margin-top:10px;">
-            <button class="q-btn primary" id="publish-btn" type="button" style="width:100%">Publish quiz</button>
+            <button class="q-btn primary" id="publish-btn" type="button" style="width:100%">Submit for review</button>
           </div>
           <div class="b-validation" id="validation-hint" style="display:none"></div>
           <div class="b-toast" id="publish-toast"></div>
@@ -128,22 +126,6 @@ function render() {
     reader.readAsText(file);
   });
   document.getElementById('json-load').addEventListener('click', () => loadJson(document.getElementById('json-paste').value));
-}
-
-function applyOwnerState() {
-  const btn = document.getElementById('publish-btn');
-  const stepTitle = document.getElementById('publish-step-title');
-  const submitterField = document.getElementById('submitter-field');
-  if (isOwner) {
-    btn.textContent = 'Publish quiz';
-    stepTitle.textContent = 'Publish';
-    submitterField.style.display = 'none';
-  } else {
-    btn.textContent = 'Submit for review';
-    stepTitle.textContent = 'Submit for review';
-    submitterField.style.display = '';
-  }
-  updatePreview();
 }
 
 function onFieldsChange() {
@@ -273,9 +255,7 @@ function loadBatch(arr) {
 
 function updatePreview() {
   const batch = pendingQuizzes && pendingQuizzes.length > 1 ? pendingQuizzes : null;
-  const filedNote = isOwner
-    ? 'on the catalog page.'
-    : "on the catalog page once it's reviewed and approved.";
+  const filedNote = "on the catalog page once it's reviewed and approved.";
   const label = (TEMPLATES.find((t) => t.id === quiz.type) || {}).label || quiz.type;
 
   document.getElementById('prev-title').textContent = quiz.title || 'Untitled quiz';
@@ -319,7 +299,7 @@ function openPreview() {
 }
 
 async function postQuiz(qObj, submitter) {
-  const body = { quiz: qObj, mode: isOwner ? 'publish' : 'submit' };
+  const body = { quiz: qObj, mode: 'submit' };
   if (submitter) body.submitter = submitter;
   const res = await fetch('/api/save-quiz', {
     method: 'POST',
@@ -337,7 +317,7 @@ async function publish() {
   btn.disabled = true;
   toast.className = 'b-toast';
   const batch = pendingQuizzes && pendingQuizzes.length > 1 ? pendingQuizzes : null;
-  const submitter = !isOwner ? document.getElementById('f-submitter').value.trim() : undefined;
+  const submitter = document.getElementById('f-submitter').value.trim();
   try {
     if (batch) {
       // One request per quiz, sequentially so each catalog/index write sees
@@ -347,20 +327,16 @@ async function publish() {
         await postQuiz({ ...q, id: slugify(q.id || q.title) }, submitter);
         done += 1;
         toast.className = 'b-toast ok';
-        toast.textContent = `${isOwner ? 'Publishing' : 'Submitting'}… ${done}/${batch.length}`;
+        toast.textContent = `Submitting… ${done}/${batch.length}`;
       }
-      toast.textContent = isOwner
-        ? `Published all ${batch.length} quizzes — they're live on the catalog.`
-        : `Submitted all ${batch.length} quizzes for review.`;
+      toast.textContent = `Submitted all ${batch.length} quizzes for review.`;
     } else {
-      const data = await postQuiz(currentQuizObject(), submitter);
-      toast.textContent = isOwner
-        ? `Published — now live at ${data.url}`
-        : 'Submitted! Your quiz is waiting for the owner to review and approve it.';
+      await postQuiz(currentQuizObject(), submitter);
+      toast.textContent = 'Submitted! Your quiz is waiting for review and approval.';
     }
     toast.className = 'b-toast ok';
   } catch (err) {
-    toast.textContent = `Couldn't ${isOwner ? 'publish' : 'submit'}: ${err.message}`;
+    toast.textContent = `Couldn't submit: ${err.message}`;
     toast.className = 'b-toast err';
     btn.disabled = false;
   }
@@ -368,7 +344,3 @@ async function publish() {
 
 render();
 selectTemplate('text-entry');
-fetch('/api/save-quiz')
-  .then((r) => r.json())
-  .then((d) => { isOwner = !!d.authed; applyOwnerState(); })
-  .catch(() => applyOwnerState());

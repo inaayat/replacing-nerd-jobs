@@ -1,5 +1,3 @@
-import { isAuthed } from '../lib/auth.js';
-
 const OWNER = 'inaayat';
 const REPO = 'replacing-nerd-jobs';
 const BRANCH = 'main';
@@ -233,11 +231,6 @@ async function writeTagSuggestion(id, suggestedTags, branch) {
 }
 
 export default async function handler(req, res) {
-  if (req.method === 'GET') {
-    res.status(200).json({ authed: await isAuthed(req.headers.cookie) });
-    return;
-  }
-
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Use POST.' });
     return;
@@ -250,6 +243,8 @@ export default async function handler(req, res) {
 
   const { quiz, mode, submitter, id: suggestId, tags: suggestedTags } = req.body || {};
 
+  // All catalog writes go through a review PR — there is no site-password
+  // "publish straight to main" path anymore.
   if (mode === 'suggest-tags' || mode === 'suggest-tags-publish') {
     const validationError = validateSuggestedTags(suggestId, suggestedTags);
     if (validationError) {
@@ -258,18 +253,6 @@ export default async function handler(req, res) {
     }
     const id = slugify(suggestId);
     try {
-      if (mode === 'suggest-tags-publish') {
-        if (!(await isAuthed(req.headers.cookie))) {
-          res.status(401).json({ error: 'Publishing directly is owner-only — use "Suggest" instead.' });
-          return;
-        }
-        const { mergedTags, changed } = await writeTagSuggestion(id, suggestedTags, BRANCH);
-        res.status(200).json({ id, tags: mergedTags, changed, published: true });
-        return;
-      }
-
-      // Public path: dry-run the merge first so we never open an empty PR
-      // when every suggested tag already exists on the quiz.
       const branch = `tag-suggestions/${id}-${Date.now().toString(36)}`;
       await createBranch(branch);
       const { title, mergedTags, changed } = await writeTagSuggestion(id, suggestedTags, branch);
@@ -305,17 +288,7 @@ export default async function handler(req, res) {
   const finalQuiz = { ...quiz, id };
 
   try {
-    if (mode === 'publish') {
-      if (!(await isAuthed(req.headers.cookie))) {
-        res.status(401).json({ error: 'Publishing directly is owner-only — use "Submit for review" instead.' });
-        return;
-      }
-      await writeQuizFiles(finalQuiz, BRANCH, false);
-      res.status(200).json({ id, url: `/sporcle-spinoff/play.html?quiz=${encodeURIComponent(id)}` });
-      return;
-    }
-
-    if (mode === 'submit') {
+    if (mode === 'publish' || mode === 'submit') {
       const branch = `quiz-submissions/${id}-${Date.now().toString(36)}`;
       await createBranch(branch);
       await writeQuizFiles(finalQuiz, branch, true);
