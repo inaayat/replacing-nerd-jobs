@@ -35,10 +35,9 @@
         <p class="f5-kicker">Fortune rank · SEC EDGAR · no paywall numbers</p>
         <h1>What EDGAR has on each company</h1>
         <p class="f5-lede">
-          Pick a Fortune 500 company. If it files with the SEC, you’ll see the four public
-          feeds (profile, structured financials, one-metric series, human filings) and the
-          headline tags those feeds contain — in English, with a link to the real JSON.
-          Dollar figures are not loaded yet; this page is the map, not the spreadsheet.
+          Pick a Fortune 500 company to see what the SEC publishes on it — or check two to four
+          public filers and compare their latest 10-K headline numbers. Missing tags are “not
+          tagged,” never zero. Private/mutual firms stay on the list with no financials.
         </p>
         <div class="f5-stats" id="stats"></div>
       </header>
@@ -56,10 +55,18 @@
             </div>
             <p class="f5-count" id="count"></p>
           </div>
-          <div class="f5-list" id="list" role="listbox" aria-label="Fortune 500"></div>
+          <div class="f5-list" id="list" aria-label="Fortune 500"></div>
         </section>
 
         <section class="f5-detail" id="detail" aria-live="polite"></section>
+      </div>
+
+      <div class="f5-compare-bar" id="compare-bar" hidden>
+        <span id="compare-label"></span>
+        <div>
+          <button type="button" class="f5-compare-clear" id="compare-clear">Clear</button>
+          <button type="button" class="f5-compare-go" id="compare-go">Compare headlines</button>
+        </div>
       </div>
 
       <section class="f5-detail" id="glossary" style="margin-top:16px">

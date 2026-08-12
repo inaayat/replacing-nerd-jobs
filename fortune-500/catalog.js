@@ -29,7 +29,7 @@ export const SOURCES = [
     youGet: [
       'Hundreds of us-gaap tags (banks and insurers use extra industry tags)',
       'Each point has a value, period, form (10-K vs 10-Q), and filing date',
-      'This is the feed we would extract headline metrics from',
+      'This is the feed we extract headline numbers from',
     ],
   },
   {
@@ -64,32 +64,35 @@ export const SOURCES = [
 ];
 
 export const METRICS = [
-  { key: 'revenue', label: 'Revenue', plain: 'Sales / top line for the period.', tags: 'Revenues, or RevenueFromContractWithCustomerExcludingAssessedTax' },
-  { key: 'net_income', label: 'Net income', plain: 'Profit after everything. Can be negative.', tags: 'NetIncomeLoss' },
-  { key: 'gross_profit', label: 'Gross profit', plain: 'Revenue minus cost of goods. Often missing for banks.', tags: 'GrossProfit' },
-  { key: 'operating_income', label: 'Operating income', plain: 'Profit from the core business, before interest and tax.', tags: 'OperatingIncomeLoss' },
-  { key: 'assets', label: 'Total assets', plain: 'What the company owns (balance sheet, a point in time).', tags: 'Assets' },
-  { key: 'liabilities', label: 'Total liabilities', plain: 'What it owes.', tags: 'Liabilities' },
-  { key: 'equity', label: 'Shareholders’ equity', plain: 'Assets minus liabilities, roughly “book value”.', tags: 'StockholdersEquity' },
-  { key: 'cash', label: 'Cash', plain: 'Cash and cash equivalents on the balance sheet.', tags: 'CashAndCashEquivalentsAtCarryingValue' },
-  { key: 'cfo', label: 'Operating cash flow', plain: 'Cash generated (or used) by operations.', tags: 'NetCashProvidedByUsedInOperatingActivities' },
-  { key: 'cfi', label: 'Investing cash flow', plain: 'Capex, acquisitions, investments. Often negative.', tags: 'NetCashProvidedByUsedInInvestingActivities' },
-  { key: 'cff', label: 'Financing cash flow', plain: 'Debt, buybacks, dividends, equity issuance.', tags: 'NetCashProvidedByUsedInFinancingActivities' },
-  { key: 'eps_diluted', label: 'Diluted EPS', plain: 'Earnings per share, counting dilutive securities.', tags: 'EarningsPerShareDiluted' },
-  { key: 'eps_basic', label: 'Basic EPS', plain: 'Earnings per share on basic shares.', tags: 'EarningsPerShareBasic' },
-  { key: 'shares_out', label: 'Shares outstanding', plain: 'Share count. Not a stock price — EDGAR has no market cap.', tags: 'CommonStockSharesOutstanding' },
-  { key: 'long_term_debt', label: 'Long-term debt', plain: 'Debt due beyond a year. Tag coverage varies.', tags: 'LongTermDebt' },
-  { key: 'inventory', label: 'Inventory', plain: 'Goods on hand. Retail/manufacturing; rarely banks.', tags: 'InventoryNet' },
-  { key: 'receivables', label: 'Receivables', plain: 'Money customers owe.', tags: 'AccountsReceivableNetCurrent' },
-  { key: 'rd', label: 'R&D expense', plain: 'Research and development. Common in tech and pharma.', tags: 'ResearchAndDevelopmentExpense' },
-  { key: 'capex', label: 'CapEx', plain: 'Cash spent on property, plant, and equipment.', tags: 'PaymentsToAcquirePropertyPlantAndEquipment' },
+  { key: 'revenue', label: 'Revenue', plain: 'Sales / top line for the period.', tags: 'Revenues, or RevenueFromContractWithCustomerExcludingAssessedTax', unit: 'USD', kind: 'duration', better: 'higher', candidates: [{ taxonomy: 'us-gaap', tag: 'Revenues' }, { taxonomy: 'us-gaap', tag: 'RevenueFromContractWithCustomerExcludingAssessedTax' }, { taxonomy: 'us-gaap', tag: 'SalesRevenueNet' }] },
+  { key: 'net_income', label: 'Net income', plain: 'Profit after everything. Can be negative.', tags: 'NetIncomeLoss', unit: 'USD', kind: 'duration', better: 'higher', candidates: [{ taxonomy: 'us-gaap', tag: 'NetIncomeLoss' }] },
+  { key: 'gross_profit', label: 'Gross profit', plain: 'Revenue minus cost of goods. Often missing for banks.', tags: 'GrossProfit', unit: 'USD', kind: 'duration', better: 'higher', candidates: [{ taxonomy: 'us-gaap', tag: 'GrossProfit' }] },
+  { key: 'operating_income', label: 'Operating income', plain: 'Profit from the core business, before interest and tax.', tags: 'OperatingIncomeLoss', unit: 'USD', kind: 'duration', better: 'higher', candidates: [{ taxonomy: 'us-gaap', tag: 'OperatingIncomeLoss' }] },
+  { key: 'assets', label: 'Total assets', plain: 'What the company owns (balance sheet, a point in time).', tags: 'Assets', unit: 'USD', kind: 'instant', better: 'higher', candidates: [{ taxonomy: 'us-gaap', tag: 'Assets' }] },
+  { key: 'liabilities', label: 'Total liabilities', plain: 'What it owes.', tags: 'Liabilities', unit: 'USD', kind: 'instant', better: 'lower', candidates: [{ taxonomy: 'us-gaap', tag: 'Liabilities' }] },
+  { key: 'equity', label: 'Shareholders’ equity', plain: 'Assets minus liabilities, roughly “book value”.', tags: 'StockholdersEquity', unit: 'USD', kind: 'instant', better: 'higher', candidates: [{ taxonomy: 'us-gaap', tag: 'StockholdersEquity' }] },
+  { key: 'cash', label: 'Cash', plain: 'Cash and cash equivalents on the balance sheet.', tags: 'CashAndCashEquivalentsAtCarryingValue', unit: 'USD', kind: 'instant', better: 'higher', candidates: [{ taxonomy: 'us-gaap', tag: 'CashAndCashEquivalentsAtCarryingValue' }] },
+  { key: 'cfo', label: 'Operating cash flow', plain: 'Cash generated (or used) by operations.', tags: 'NetCashProvidedByUsedInOperatingActivities', unit: 'USD', kind: 'duration', better: 'higher', candidates: [{ taxonomy: 'us-gaap', tag: 'NetCashProvidedByUsedInOperatingActivities' }] },
+  { key: 'cfi', label: 'Investing cash flow', plain: 'Capex, acquisitions, investments. Often negative.', tags: 'NetCashProvidedByUsedInInvestingActivities', unit: 'USD', kind: 'duration', better: null, candidates: [{ taxonomy: 'us-gaap', tag: 'NetCashProvidedByUsedInInvestingActivities' }] },
+  { key: 'cff', label: 'Financing cash flow', plain: 'Debt, buybacks, dividends, equity issuance.', tags: 'NetCashProvidedByUsedInFinancingActivities', unit: 'USD', kind: 'duration', better: null, candidates: [{ taxonomy: 'us-gaap', tag: 'NetCashProvidedByUsedInFinancingActivities' }] },
+  { key: 'eps_diluted', label: 'Diluted EPS', plain: 'Earnings per share, counting dilutive securities.', tags: 'EarningsPerShareDiluted', unit: 'USD/shares', kind: 'duration', better: 'higher', candidates: [{ taxonomy: 'us-gaap', tag: 'EarningsPerShareDiluted' }] },
+  { key: 'eps_basic', label: 'Basic EPS', plain: 'Earnings per share on basic shares.', tags: 'EarningsPerShareBasic', unit: 'USD/shares', kind: 'duration', better: 'higher', candidates: [{ taxonomy: 'us-gaap', tag: 'EarningsPerShareBasic' }] },
+  { key: 'shares_out', label: 'Shares outstanding', plain: 'Share count. Not a stock price — EDGAR has no market cap.', tags: 'CommonStockSharesOutstanding', unit: 'shares', kind: 'instant', better: null, candidates: [{ taxonomy: 'us-gaap', tag: 'CommonStockSharesOutstanding' }, { taxonomy: 'dei', tag: 'EntityCommonStockSharesOutstanding' }] },
+  { key: 'long_term_debt', label: 'Long-term debt', plain: 'Debt due beyond a year. Tag coverage varies.', tags: 'LongTermDebt', unit: 'USD', kind: 'instant', better: 'lower', candidates: [{ taxonomy: 'us-gaap', tag: 'LongTermDebt' }] },
+  { key: 'inventory', label: 'Inventory', plain: 'Goods on hand. Retail/manufacturing; rarely banks.', tags: 'InventoryNet', unit: 'USD', kind: 'instant', better: null, candidates: [{ taxonomy: 'us-gaap', tag: 'InventoryNet' }] },
+  { key: 'receivables', label: 'Receivables', plain: 'Money customers owe.', tags: 'AccountsReceivableNetCurrent', unit: 'USD', kind: 'instant', better: null, candidates: [{ taxonomy: 'us-gaap', tag: 'AccountsReceivableNetCurrent' }] },
+  { key: 'rd', label: 'R&D expense', plain: 'Research and development. Common in tech and pharma.', tags: 'ResearchAndDevelopmentExpense', unit: 'USD', kind: 'duration', better: null, candidates: [{ taxonomy: 'us-gaap', tag: 'ResearchAndDevelopmentExpense' }] },
+  { key: 'capex', label: 'CapEx', plain: 'Cash spent on property, plant, and equipment.', tags: 'PaymentsToAcquirePropertyPlantAndEquipment', unit: 'USD', kind: 'duration', better: null, candidates: [{ taxonomy: 'us-gaap', tag: 'PaymentsToAcquirePropertyPlantAndEquipment' }] },
 ];
 
 export const DERIVED = [
-  { label: 'Gross / operating / net margin', plain: 'Profit line ÷ revenue. Hidden if a tag is missing — never shown as 0%.' },
-  { label: 'ROA / ROE', plain: 'Net income ÷ assets or equity.' },
-  { label: 'Debt / equity', plain: 'Long-term debt ÷ equity.' },
-  { label: 'Revenue YoY', plain: 'This year’s revenue vs last year’s.' },
+  { key: 'gross_margin', label: 'Gross margin', plain: 'Gross profit ÷ revenue. Hidden if a tag is missing — never shown as 0%.', format: 'percent', better: 'higher', needs: ['gross_profit', 'revenue'] },
+  { key: 'operating_margin', label: 'Operating margin', plain: 'Operating income ÷ revenue.', format: 'percent', better: 'higher', needs: ['operating_income', 'revenue'] },
+  { key: 'net_margin', label: 'Net margin', plain: 'Net income ÷ revenue.', format: 'percent', better: 'higher', needs: ['net_income', 'revenue'] },
+  { key: 'roa', label: 'ROA', plain: 'Net income ÷ assets.', format: 'percent', better: 'higher', needs: ['net_income', 'assets'] },
+  { key: 'roe', label: 'ROE', plain: 'Net income ÷ equity.', format: 'percent', better: 'higher', needs: ['net_income', 'equity'] },
+  { key: 'debt_equity', label: 'Debt / equity', plain: 'Long-term debt ÷ equity.', format: 'ratio', better: 'lower', needs: ['long_term_debt', 'equity'] },
+  { key: 'revenue_yoy', label: 'Revenue YoY', plain: 'This year’s revenue vs last year’s.', format: 'percent', signed: true, better: 'higher', needs: ['revenue'] },
 ];
 
 export const GLOSSARY = [

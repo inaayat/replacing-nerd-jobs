@@ -7,6 +7,9 @@
     },
     "api/alist.js": {
       "maxDuration": 60
+    },
+    "api/fortune-500.js": {
+      "maxDuration": 60
     }
   },
   "redirects": [
@@ -156,6 +159,10 @@
     {
       "source": "/api/plot-points-query",
       "destination": "/api/plot-points?route=query"
+    },
+    {
+      "source": "/api/f500-headlines",
+      "destination": "/api/fortune-500?route=headlines"
     },
     {
       "source": "/one-more-column",

@@ -1,7 +1,9 @@
 # Fortune 500 — EDGAR ingest plan
 
-The explainer page at `/fortune-500/` is live (static mapping + copy). There
-is no financial snapshot, API, or scheduled EDGAR pull yet.
+The explainer page at `/fortune-500/` is live. Headline numbers are a committed
+snapshot (`data/headlines-snapshot.json`, pulled 2026-08-12: 470/473 CIKs have
+an annual 10-K year). Compare uses the snapshot first; `/api/f500-headlines`
+is a live fallback. Refresh with `node scripts/pull-fortune500-headlines.mjs`.
 
 **Goal:** pull structured SEC EDGAR data for the **473 public** Fortune 500
 companies, store a queryable snapshot, and (later) show it at
@@ -23,7 +25,7 @@ Postgres, GitHub Actions, and a 12-function Hobby cap (currently 7/12).
 | `data/fortune500_edgar_mapping.json` | **Primary mapping.** 500 rows: rank, names, tickers, CIK, pre-built EDGAR URLs, match status |
 | `data/fortune500_edgar_mapping.csv` | Same mapping as CSV (handy for spreadsheets / one-off scripts) |
 | `data/company_tickers.json` | Cached [SEC ticker → CIK](https://www.sec.gov/files/company_tickers.json) snapshot used to build the mapping (10,398 issuers) |
-| `data/company_tickers_exchange.json` | Same universe plus exchange (`Nasdaq` / `NYSE` / …) |
+| `data/headlines-snapshot.json` | Slim latest-10-K headlines for 473 public CIKs (generated; do not hand-edit) |
 
 Do **not** commit raw Company Facts payloads or filing documents. Those are
 multi-MB per issuer. Extract a slim metric set (below) and persist that.
