@@ -413,22 +413,3 @@ node scripts/test-public-imports.mjs   # guards against browser code importing /
 node scripts/test-alist-watchlist-sort.mjs
 node scripts/test-alist-showing.mjs
 ```
-
----
-
-## Resources
-
-### Website inspo
-
-- [zachjordan.io](https://www.zachjordan.io/#extras)
-- [sumanthsamala.com](https://sumanthsamala.com/)
-
-### Free icons
-
-- [Free Icons](https://www.reddit.com/r/web_design/comments/16pa3v6/websites_for_free_icon_sets/)
-- [Flag Icons](https://flagpedia.net/download/api)
-- [Circle Flags](https://kapowaz.github.io/circle-flags/)
-
-### Website color schemes
-
-- [Website Color Schemes](https://visme.co/blog/website-color-schemes/)
