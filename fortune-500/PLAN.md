@@ -215,6 +215,110 @@ Neon; also small enough as a committed JSON snapshot for a static v1 page.
 
 ---
 
+## What users see (product)
+
+Three surfaces, all client-side on the extracted snapshot (no login). Private
+companies appear in the catalog only — no fake zeros.
+
+### 1. Company page — identity + latest year + history
+
+**Header (from Submissions / mapping):** Fortune rank and name, tickers
+(Fortune vs SEC if they differ), legal name, exchange, SIC / industry, fiscal
+year end, last 10-K / 10-Q date, link out to the SEC filing browser.
+
+**Headline cards (latest completed FY, USD unless noted):**
+
+| Card | Source |
+|------|--------|
+| Revenue | `revenue` |
+| Net income | `net_income` |
+| Diluted EPS | `eps_diluted` |
+| Total assets | `assets` |
+| Operating cash flow | `cfo` |
+| Employees / shares | skip employees (not in v1 tags); show `shares_out` |
+
+**Derived ratios** (computed in the page from the same FY; hide the card if a
+input is missing — never show `0%` for “tag not reported”):
+
+| Ratio | Formula |
+|-------|---------|
+| Gross margin | `gross_profit / revenue` |
+| Operating margin | `operating_income / revenue` |
+| Net margin | `net_income / revenue` |
+| ROA | `net_income / assets` |
+| ROE | `net_income / equity` |
+| Debt / equity | `long_term_debt / equity` |
+| FCF (approx.) | `cfo + capex` if capex is stored as a cash *outflow* (negative); document the sign in `extract.js` |
+| Revenue YoY | this FY `revenue` / prior FY `revenue` − 1 |
+
+**History:** one chart (toggle metric) for the last ~5 FY, plus a table that
+can switch Annual / Quarterly. Full v1 metric list is in the table, not all
+as cards: gross profit, operating income, equity, cash, CFI, CFF, basic EPS,
+long-term debt, inventory, receivables, R&D, capex.
+
+**Provenance on hover / expand:** period, form (`10-K` vs `10-Q`), filed date,
+the `us-gaap` tag that actually won. Users should be able to tell “this is
+Amazon’s FY2024 10-K revenue tag X”, not a mystery number.
+
+### 2. Catalog screener — compare the whole list
+
+Default view at `/fortune-500/`. Sortable, filterable table of all 500.
+
+**Default columns:** rank, company, ticker, status (public / private), latest
+FY revenue, net income, net margin, assets, revenue YoY.
+
+**Controls:**
+
+- Search by name or ticker
+- Public-only toggle (private rows stay visible but grayed, with no metrics)
+- Sort any numeric column (private sort to the bottom)
+- Optional later: filter by SIC / industry once Submissions metadata is stored
+
+Click a row → company page. Checkboxes (max **4**) add companies to a compare
+set; a sticky bar opens compare.
+
+This is the main “contrast 473 companies” tool — a screener, not a query
+builder. Plot Points already owns the builder pattern; this page should feel
+like a ranked table you can sort.
+
+### 3. Side-by-side compare — 2–4 companies
+
+URL like `?compare=4,11,15` (ranks). Same FY (or “latest reported FY per
+company” with a footnote when fiscal year-ends differ — Apple’s FY is not
+calendar, Walmart’s isn’t either).
+
+- KPI grid: one row per metric, one column per company, **highlight high/low**
+  in each row (for “higher is better” metrics; invert for debt/equity).
+- One overlay chart: pick a metric, plot 5 FY for each company.
+- Missing cells are **em-dash + “not reported”**, never zero.
+- “Add / remove” from the compare set without leaving the page.
+
+Fiscal year-end mismatch is the main compare footgun. Show each company’s
+`fy_end` under its name so “FY2024” is not silently incomparable.
+
+### What we will not show in v1
+
+| Tempting metric | Why not |
+|-----------------|--------|
+| Market cap / stock price | Not in EDGAR Company Facts (need a price feed) |
+| Fortune revenue / profit as published | We are not licensed to republish Fortune’s table; we show **SEC** figures next to Fortune **rank/name** |
+| Headcount | Not in the v1 tag list |
+| 10-K narrative (MD&A, risk factors) | Unstructured; phase 4 |
+| Peer percentile / “vs all filers” | Needs Frames API; phase 4 |
+| Banks vs retailers as if identical | Industry tags differ; screener still allows the sort, but company pages should note empty retail-style tags (gross profit, inventory) on financials |
+
+### Compare honesty rules
+
+- **Do not compare private companies** on financials. Catalog only.
+- **Do not impute missing XBRL as zero.** A bank with no `GrossProfit` is not
+  a 0% margin retailer.
+- **Do not mix units.** EPS stays per-share; shares stay counts; everything
+  else USD.
+- **Prefer the same `fp` (FY vs Q2)** when overlaying charts. Default compare
+  to annual.
+
+---
+
 ## How this repo should pull (not Vercel cron)
 
 ### Constraints that rule out a naive `api/*.js` crawler
@@ -474,8 +578,9 @@ Folder, mapping files, this plan. No page, no API, no Action.
 - Run the script locally (or a manual workflow_dispatch) for all 473.
 - Write `fortune-500/data/facts-snapshot.json` (latest FY + last 4 quarters
   per metric). Keep it well under a few MB.
-- Catalog UI can ship against mapping JSON + snapshot with
-  `python3 -m http.server` — no Vercel, no Neon, no daily job.
+- Catalog **screener** + **company page** + **2–4 company compare** against
+  mapping JSON + snapshot. Works with `python3 -m http.server` — no Vercel,
+  no Neon, no daily job.
 
 ### Phase 3 — Neon + daily Action
 
@@ -488,7 +593,8 @@ Folder, mapping files, this plan. No page, no API, no Action.
 
 ### Phase 4 — later, optional
 
-- Frames API for cross-company benchmarks.
+- Frames API for “this metric vs all F500” percentiles / bar ranking.
+- Industry-aware metric packs (bank vs retailer vs insurer).
 - On-demand filing documents (10-K HTML) behind a click, cached by accession.
 - Rematch script: new Fortune CSV + refreshed `company_tickers.json` →
   updated mapping (keep the alias table and manual CIK list).
