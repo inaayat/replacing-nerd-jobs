@@ -12,12 +12,13 @@
     <style>
       :root {
         --cream: #faf3e3;
-        --purple: #a587ca;
-        --cyan: #36cedc;
-        --green: #8fe968;
-        --yellow: #ffea56;
-        --orange: #ffb750;
-        --pink: #fe797b;
+        --purple: #755ca7;
+        --cyan: #78a8d5;
+        --green: #82a34d;
+        --yellow: #ffd143;
+        --orange: #f58b3b;
+        --pink: #eb82b0;
+        --red: #f05e53;
         --gray: #d8d3c6;
       }
       *, *::before, *::after { box-sizing: border-box; }
@@ -30,80 +31,86 @@
       .serif { font-family: 'Fraunces', serif; }
       .brand-mono { font-family: 'DM Mono', monospace; }
 
-      /* Positioning shell — JS packs these so every card stays on screen. */
+      /* Positioning shell. JS lays these out as tessellated puzzle pieces, so the
+         anchor box is only a coordinate frame — the visible/clickable shape is
+         .blob-body, which carries the clip-path. Anchor boxes overlap freely;
+         pointer-events stay off here so hit testing follows the clipped shape. */
       .item-card {
         position: absolute;
         display: block;
         color: #1c1c1c;
         text-decoration: none;
-        overflow: hidden;
+        pointer-events: none;
       }
       .item-card:focus { outline: none; }
-      .item-card:focus-visible .blob-body {
-        box-shadow: 0 0 0 3px #1c1c1c;
+      /* Offset drop-shadows trace the clipped silhouette, which an outline can't do. */
+      .item-card:focus-visible {
+        filter:
+          drop-shadow(2px 0 0 #1c1c1c) drop-shadow(-2px 0 0 #1c1c1c)
+          drop-shadow(0 2px 0 #1c1c1c) drop-shadow(0 -2px 0 #1c1c1c);
       }
       .item-card:hover,
       .item-card:focus-visible { z-index: 3; }
-      .item-card:hover .blob-body { filter: brightness(1.05); }
+      .item-card:hover .blob-body { filter: brightness(1.06); }
 
-      /* Freeform amoeba: solid fill, lumpy outline, text stays inside the shape. */
+      /* One puzzle piece: a smoothed Voronoi cell filled edge to edge. */
       .blob-body {
         position: absolute;
         inset: 0;
+        pointer-events: auto;
+        color: inherit;
+        clip-path: var(--piece, none);
+        transition: filter 140ms ease-out;
+      }
+      /* Label rides at the piece's widest interior point, not its bounding box. */
+      .blob-label {
+        position: absolute;
+        left: var(--lx, 50%);
+        top: var(--ly, 50%);
+        width: var(--lw, 60%);
+        transform: translate(-50%, -50%);
         display: flex;
         flex-direction: column;
-        justify-content: center;
         align-items: center;
         text-align: center;
-        padding: 22% 20%;
-        overflow: hidden;
-        color: inherit;
-        border-radius: var(--br-a);
-        transform: rotate(var(--rot, 0deg));
-        animation:
-          jelly-morph var(--dur, 11s) ease-in-out infinite,
-          jelly-bob var(--bob, 8s) ease-in-out infinite;
       }
       .item-card .icon {
-        position: relative;
-        z-index: 1;
         opacity: 0.55;
-        margin-bottom: 0.3em;
+        margin-bottom: 0.35em;
         line-height: 0;
         flex-shrink: 0;
       }
+      /* break-word rather than anywhere: only split a word that cannot fit at all,
+         so names like "DumpsteriOS" stay whole whenever there is room. */
       .item-card .title {
-        position: relative;
-        z-index: 1;
         font-size: var(--title-size, 1.05rem);
         line-height: 1.15;
         max-width: 100%;
-        overflow-wrap: anywhere;
-        word-break: break-word;
+        overflow-wrap: break-word;
         hyphens: auto;
       }
       .item-card .subtitle {
-        position: relative;
-        z-index: 1;
         font-size: var(--sub-size, 0.72rem);
         opacity: 0.7;
-        margin-top: 0.2em;
+        margin-top: 0.25em;
         max-width: 100%;
         line-height: 1.25;
-        overflow-wrap: anywhere;
-        word-break: break-word;
+        overflow-wrap: break-word;
         hyphens: auto;
       }
       .item-card.is-compact .icon,
       .item-card.is-compact .subtitle { display: none; }
+      .card-purple .icon img,
+      .card-purple .icon svg { filter: invert(1) brightness(1.6); }
 
-      /* Solid rainbow fills — packed blobs, not gelatinous bells */
+      /* Solid rainbow fills — flat puzzle pieces, no gradients or shadows */
       .card-purple { background: var(--purple); }
       .card-cyan   { background: var(--cyan); }
       .card-green  { background: var(--green); }
       .card-yellow { background: var(--yellow); }
       .card-orange { background: var(--orange); }
       .card-pink   { background: var(--pink); }
+      .card-red    { background: var(--red); }
       .project-grid.is-packed .item-card { background: transparent; border: 0; }
 
       .card-purple .blob-body { background: var(--purple); }
@@ -112,6 +119,10 @@
       .card-yellow .blob-body { background: var(--yellow); }
       .card-orange .blob-body { background: var(--orange); }
       .card-pink .blob-body { background: var(--pink); }
+      .card-red .blob-body { background: var(--red); }
+
+      /* Purple is the only fill dark enough to fail contrast with the ink text. */
+      .item-card.card-purple { color: var(--cream); }
 
       /* Neutral tones — reserved for "coming soon" placeholders, never for live projects */
       .card-cream {
@@ -160,6 +171,7 @@
         flex-direction: column;
         justify-content: flex-end;
         padding: 12px;
+        pointer-events: auto;
       }
 
       /* Fixed rectangular tile in the middle — blobs pack around it. */
@@ -181,13 +193,16 @@
         border-radius: 28px;
         background: var(--cream);
         border: 1.5px solid #1c1c1c22;
-        box-shadow: 0 10px 28px rgba(28, 28, 28, 0.08);
+        /* The flat cream ring matches the gutter the puzzle pieces leave between
+           each other, so the tile reads as another piece rather than an overlay. */
+        box-shadow: 0 0 0 11px var(--cream), 0 12px 30px rgba(28, 28, 28, 0.1);
       }
       @media (max-width: 640px) {
         .title-card {
-          width: min(260px, 86vw);
-          padding: 22px 20px 18px;
-          gap: 16px;
+          /* Narrower on a phone so the pieces beside it are not reduced to slivers. */
+          width: min(240px, 80vw);
+          padding: 20px 18px 16px;
+          gap: 14px;
         }
       }
       .blob-stage:not(.is-packed) .title-card {
@@ -240,16 +255,8 @@
       }
       .sidebar-link:hover { opacity: 1; }
 
-      @keyframes jelly-morph {
-        0%, 100% { border-radius: var(--br-a); }
-        50% { border-radius: var(--br-b); }
-      }
-      @keyframes jelly-bob {
-        0%, 100% { transform: translate(0, 0) rotate(var(--rot, 0deg)); }
-        50% { transform: translate(var(--fx, 0px), var(--fy, -2px)) rotate(var(--rot, 0deg)); }
-      }
       @media (prefers-reduced-motion: reduce) {
-        .blob-body { animation: none; }
+        .blob-body { transition: none; }
       }
     </style>
   </head>
@@ -279,12 +286,14 @@
 
         <!-- Item card template — duplicate one of these to add a project.
              Swap the card-* class for a palette color: card-purple, card-cyan, card-green,
-             card-yellow, card-orange, card-pink.
+             card-yellow, card-orange, card-pink, card-red.
              card-cream and card-gray are neutral tones reserved for "coming soon" placeholders only —
              never use them on a live project, or it'll blend into the page background.
-             Optionally add one size class so the packer draws a bigger blob: span-wide, span-tall, span-big.
-             Blobs pack around the centered rectangular title card. TBD placeholders fill leftover
-             space on larger screens; they hide first if the viewport gets tight.
+             Optionally add one size class so the piece claims more of the canvas:
+             span-wide, span-tall, span-big.
+             The pieces tile the whole stage around the centered title card, so every card
+             added shrinks the rest. TBD placeholders top the count up to a readable piece
+             size; they drop out first when the viewport gets tight.
              Delete a "TBD" placeholder as each real project takes its place. -->
 
         <a href="/packing-cubes/" class="no-underline item-card card-purple span-wide">
@@ -339,7 +348,7 @@
           <div class="title serif font-semibold">Databaser</div>
           <div class="subtitle brand-mono">Schema-driven database builder</div>
         </a>
-        <a href="/fortune-500/" class="no-underline item-card card-cyan span-tall">
+        <a href="/fortune-500/" class="no-underline item-card card-red span-tall">
           <div class="icon"><img src="/fortune-500/icon.svg" alt="" width="20" height="20"></div>
           <div class="title serif font-semibold">Fortune 500</div>
           <div class="subtitle brand-mono">Key ratios from SEC 10-Ks</div>
@@ -401,249 +410,586 @@
     </div>
 
     <script>
+      /*
+        Homepage jigsaw.
+
+        Every card becomes one piece of a tessellation that covers the whole stage.
+        The partition is a Laguerre (power) diagram: a Voronoi diagram where each
+        seed also carries a weight, so span-* cards can claim a larger cell without
+        the pieces ever overlapping or leaving a gap. A capacity-constrained loop
+        nudges the weights until each cell's on-screen area matches its target
+        share, and Lloyd relaxation keeps the seeds spread out.
+
+        Cells are then inset by half a gutter and corner-cut into curves, so the
+        cream page shows through as an even seam between neighbouring pieces.
+      */
       (function () {
-        const GAP = 3;
-        const TITLE_GAP = 12;
-        const BLOB_SHAPES = [
-          ["78% 22% 64% 36% / 42% 68% 32% 58%", "36% 64% 28% 72% / 58% 34% 66% 42%"],
-          ["32% 68% 48% 52% / 72% 28% 58% 42%", "70% 30% 62% 38% / 30% 70% 40% 60%"],
-          ["58% 42% 30% 70% / 48% 52% 70% 30%", "40% 60% 72% 28% / 62% 38% 34% 66%"],
-          ["24% 76% 56% 44% / 38% 62% 44% 56%", "66% 34% 22% 78% / 55% 45% 68% 32%"],
-          ["70% 30% 40% 60% / 25% 75% 55% 45%", "45% 55% 75% 25% / 60% 40% 30% 70%"],
-          ["50% 50% 80% 20% / 65% 35% 40% 60%", "20% 80% 45% 55% / 35% 65% 70% 30%"],
-          ["63% 37% 54% 46% / 48% 52% 36% 64%", "37% 63% 46% 54% / 64% 36% 58% 42%"],
-          ["28% 72% 35% 65% / 50% 50% 72% 28%", "72% 28% 65% 35% / 28% 72% 48% 52%"],
-        ];
-        const ASPECTS = [0.62, 1.42, 0.78, 1.28, 0.9, 1.52, 0.7, 1.15, 0.84, 1.36, 0.68, 1.22];
+        const GUTTER = 11;
+        // The diagram runs past the viewport so edge pieces bleed off rather than
+        // ending in a straight line along the border.
+        const BLEED = 130;
+        const TITLE_PAD = 14;
+        const SOLVE_STEPS = 70;
 
         const stage = document.querySelector(".blob-stage");
         const tank = document.querySelector(".project-grid");
         const title = document.querySelector(".title-card");
         if (!stage || !tank || !title) return;
+        // Without path() clipping there are no pieces to draw; leave the CSS grid up.
+        if (!window.CSS || !CSS.supports("clip-path", 'path("M0 0L1 0L1 1Z")')) return;
 
-        const cards = Array.from(tank.querySelectorAll(".item-card"));
-        const seeded = [];
+        function noise(a, b) {
+          const x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453;
+          return x - Math.floor(x);
+        }
 
-        cards.forEach((el, i) => {
-          if (!el.querySelector(".blob-body")) {
-            const body = document.createElement("div");
+        /* ---------- convex polygon helpers ---------- */
+
+        function signedArea(poly) {
+          let a = 0;
+          for (let i = 0, n = poly.length; i < n; i++) {
+            const p = poly[i];
+            const q = poly[(i + 1) % n];
+            a += p.x * q.y - q.x * p.y;
+          }
+          return a / 2;
+        }
+
+        function centroidOf(poly) {
+          let a = 0;
+          let cx = 0;
+          let cy = 0;
+          for (let i = 0, n = poly.length; i < n; i++) {
+            const p = poly[i];
+            const q = poly[(i + 1) % n];
+            const f = p.x * q.y - q.x * p.y;
+            a += f;
+            cx += (p.x + q.x) * f;
+            cy += (p.y + q.y) * f;
+          }
+          if (Math.abs(a) < 1e-7) {
+            let sx = 0;
+            let sy = 0;
+            for (const p of poly) {
+              sx += p.x;
+              sy += p.y;
+            }
+            return { x: sx / poly.length, y: sy / poly.length };
+          }
+          return { x: cx / (3 * a), y: cy / (3 * a) };
+        }
+
+        // Keep the half-plane nx*x + ny*y <= c.
+        function clipHalf(poly, nx, ny, c) {
+          if (poly.length < 3) return [];
+          const out = [];
+          for (let i = 0, n = poly.length; i < n; i++) {
+            const p = poly[i];
+            const q = poly[(i + 1) % n];
+            const dp = nx * p.x + ny * p.y - c;
+            const dq = nx * q.x + ny * q.y - c;
+            if (dp <= 0) out.push(p);
+            if ((dp < 0 && dq > 0) || (dp > 0 && dq < 0)) {
+              const t = dp / (dp - dq);
+              out.push({ x: p.x + (q.x - p.x) * t, y: p.y + (q.y - p.y) * t });
+            }
+          }
+          return out;
+        }
+
+        function clipToRect(poly, r) {
+          let p = clipHalf(poly, -1, 0, -r.x0);
+          p = clipHalf(p, 1, 0, r.x1);
+          p = clipHalf(p, 0, -1, -r.y0);
+          return clipHalf(p, 0, 1, r.y1);
+        }
+
+        function rectPoly(r) {
+          return [
+            { x: r.x0, y: r.y0 },
+            { x: r.x1, y: r.y0 },
+            { x: r.x1, y: r.y1 },
+            { x: r.x0, y: r.y1 },
+          ];
+        }
+
+        function bboxOf(poly) {
+          let x0 = Infinity;
+          let y0 = Infinity;
+          let x1 = -Infinity;
+          let y1 = -Infinity;
+          for (const p of poly) {
+            if (p.x < x0) x0 = p.x;
+            if (p.x > x1) x1 = p.x;
+            if (p.y < y0) y0 = p.y;
+            if (p.y > y1) y1 = p.y;
+          }
+          return { x0, y0, x1, y1 };
+        }
+
+        function orient(poly) {
+          return signedArea(poly) < 0 ? poly.slice().reverse() : poly;
+        }
+
+        // Pull every edge inward by d. Cells only ever border each other along a
+        // shared edge, so insetting both sides by half a gutter leaves a seam of a
+        // full gutter, the same width everywhere.
+        function insetPoly(poly, d) {
+          if (poly.length < 3) return [];
+          const edges = [];
+          for (let i = 0, n = poly.length; i < n; i++) {
+            const p = poly[i];
+            const q = poly[(i + 1) % n];
+            const ex = q.x - p.x;
+            const ey = q.y - p.y;
+            const len = Math.hypot(ex, ey);
+            if (len < 1e-6) continue;
+            edges.push({ nx: ey, ny: -ex, c: ey * p.x - ex * p.y - d * len });
+          }
+          let out = poly;
+          for (const e of edges) {
+            out = clipHalf(out, e.nx, e.ny, e.c);
+            if (out.length < 3) return [];
+          }
+          return out;
+        }
+
+        // Distance to the nearest edge; negative outside the polygon.
+        function edgeClearance(poly, x, y) {
+          let m = Infinity;
+          for (let i = 0, n = poly.length; i < n; i++) {
+            const p = poly[i];
+            const q = poly[(i + 1) % n];
+            const ex = q.x - p.x;
+            const ey = q.y - p.y;
+            const len = Math.hypot(ex, ey);
+            if (len < 1e-6) continue;
+            m = Math.min(m, (ex * (y - p.y) - ey * (x - p.x)) / len);
+          }
+          return m === Infinity ? 0 : m;
+        }
+
+        // Positive outside the rect, negative inside.
+        function rectClearance(x, y, r) {
+          const dx = Math.max(r.x0 - x, 0, x - r.x1);
+          const dy = Math.max(r.y0 - y, 0, y - r.y1);
+          if (dx > 0 || dy > 0) return Math.hypot(dx, dy);
+          return -Math.min(x - r.x0, r.x1 - x, y - r.y0, r.y1 - y);
+        }
+
+        // Roughly the largest inscribed circle, restricted to the part of the piece
+        // that is on screen and clear of the centre tile. Coarse grid, then zoom in.
+        function labelSpot(poly, visible, avoid) {
+          const fallback = centroidOf(poly);
+          const box = bboxOf(poly);
+          let x0 = Math.max(box.x0, visible.x0);
+          let x1 = Math.min(box.x1, visible.x1);
+          let y0 = Math.max(box.y0, visible.y0);
+          let y1 = Math.min(box.y1, visible.y1);
+          if (x1 <= x0 || y1 <= y0) return { x: fallback.x, y: fallback.y, r: 0 };
+
+          function score(x, y) {
+            return Math.min(
+              edgeClearance(poly, x, y),
+              rectClearance(x, y, avoid) - TITLE_PAD,
+              x - visible.x0,
+              visible.x1 - x,
+              y - visible.y0,
+              visible.y1 - y
+            );
+          }
+
+          const best = { x: (x0 + x1) / 2, y: (y0 + y1) / 2, r: 0 };
+          best.r = score(best.x, best.y);
+          for (let pass = 0; pass < 5; pass++) {
+            const n = pass === 0 ? 12 : 6;
+            const sx = (x1 - x0) / n;
+            const sy = (y1 - y0) / n;
+            for (let i = 0; i <= n; i++) {
+              for (let j = 0; j <= n; j++) {
+                const x = x0 + sx * i;
+                const y = y0 + sy * j;
+                const r = score(x, y);
+                if (r > best.r) {
+                  best.x = x;
+                  best.y = y;
+                  best.r = r;
+                }
+              }
+            }
+            const halfW = (x1 - x0) / 4;
+            const halfH = (y1 - y0) / 4;
+            x0 = best.x - halfW;
+            x1 = best.x + halfW;
+            y0 = best.y - halfH;
+            y1 = best.y + halfH;
+          }
+          return best;
+        }
+
+        // How far the label can extend from its spot before leaving the piece, the
+        // viewport, or bumping the centre tile. The inscribed radius alone is too
+        // pessimistic for a wide flat piece and too optimistic for a short one, so
+        // width and height are measured separately.
+        function clearRun(poly, visible, avoid, x, y, dx, dy) {
+          const step = 4;
+          const cap = Math.max(visible.x1 - visible.x0, visible.y1 - visible.y0);
+          let d = step;
+          while (d < cap) {
+            const px = x + dx * d;
+            const py = y + dy * d;
+            if (edgeClearance(poly, px, py) < 2) break;
+            if (px < visible.x0 + 2 || px > visible.x1 - 2) break;
+            if (py < visible.y0 + 2 || py > visible.y1 - 2) break;
+            if (rectClearance(px, py, avoid) < TITLE_PAD) break;
+            d += step;
+          }
+          return d - step;
+        }
+
+        // The label is a rectangle centred on a point, and its width and height
+        // trade off: a narrower box has more headroom above and below. Sweep a few
+        // widths and keep the one enclosing the most area. Every measurement comes
+        // from the shape alone, never from the text — sizing the box from the
+        // wrapped height would feed back on itself, since a narrower box wraps
+        // taller, which then asks for a narrower box again.
+        function labelSlot(poly, visible, avoid, spot) {
+          const run = (x, y, dx, dy) => clearRun(poly, visible, avoid, x, y, dx, dy);
+
+          function sweep(x, y) {
+            const maxHalfW = Math.max(1, Math.min(run(x, y, -1, 0), run(x, y, 1, 0)));
+            let best = { x, y, w: 0, h: 0, area: 0 };
+            for (const frac of [1, 0.82, 0.66, 0.5, 0.36]) {
+              const halfW = Math.max(1, maxHalfW * frac);
+              // Probe just inside the box rather than on its corners. A line of
+              // centred text almost never reaches its corners, and probing them
+              // exactly would collapse every candidate to nothing, since the
+              // corner sits on the boundary by construction.
+              let halfH = Infinity;
+              for (const t of [-0.88, 0, 0.88]) {
+                const px = x + halfW * t;
+                halfH = Math.min(halfH, run(px, y, 0, -1), run(px, y, 0, 1));
+              }
+              halfH = Math.max(1, halfH);
+              const area = halfW * halfH;
+              if (area > best.area) {
+                best = { x, y, w: halfW * 2 * 0.94, h: halfH * 2 * 0.96, area };
+              }
+            }
+            return best;
+          }
+
+          // A piece running off the side of the screen has its widest interior
+          // point near that edge, so a box centred there is limited to twice the
+          // shorter side. Recentring on the middle of the free run fixes that, but
+          // it can also slide the label down a long thin channel — beside the
+          // centre tile, say — so only keep it when it genuinely wins more room.
+          const shifted = sweep(
+            spot.x + (run(spot.x, spot.y, 1, 0) - run(spot.x, spot.y, -1, 0)) / 2,
+            spot.y + (run(spot.x, spot.y, 0, 1) - run(spot.x, spot.y, 0, -1)) / 2
+          );
+          const centred = sweep(spot.x, spot.y);
+          return shifted.area > centred.area ? shifted : centred;
+        }
+
+        // Corner-cut every vertex into a curve so the cell reads as hand-cut. The
+        // cut is capped at half the shorter edge, so adjacent corners never eat
+        // into each other and the curve always stays inside the cell.
+        function piecePath(poly, seed, ox, oy) {
+          const n = poly.length;
+          if (n < 3) return "";
+          const num = (v) => Math.round(v * 10) / 10;
+          let d = "";
+          for (let k = 0; k < n; k++) {
+            const prev = poly[(k - 1 + n) % n];
+            const v = poly[k];
+            const next = poly[(k + 1) % n];
+            const px = prev.x - v.x;
+            const py = prev.y - v.y;
+            const nx = next.x - v.x;
+            const ny = next.y - v.y;
+            const lp = Math.hypot(px, py) || 1;
+            const ln = Math.hypot(nx, ny) || 1;
+            const cut = Math.min(lp, ln) * 0.5 * (0.66 + noise(seed * 17 + k, 3.1) * 0.3);
+            const ax = v.x + (px / lp) * cut;
+            const ay = v.y + (py / lp) * cut;
+            const bx = v.x + (nx / ln) * cut;
+            const by = v.y + (ny / ln) * cut;
+            d += (k === 0 ? "M" : "L") + num(ax - ox) + " " + num(ay - oy);
+            d += "Q" + num(v.x - ox) + " " + num(v.y - oy) + " " + num(bx - ox) + " " + num(by - oy);
+          }
+          return d + "Z";
+        }
+
+        /* ---------- cards ---------- */
+
+        const pieces = Array.from(tank.querySelectorAll(".item-card")).map((el, i) => {
+          let body = el.querySelector(".blob-body");
+          if (!body) {
+            body = document.createElement("div");
             body.className = "blob-body";
-            while (el.firstChild) body.appendChild(el.firstChild);
+            const label = document.createElement("div");
+            label.className = "blob-label";
+            while (el.firstChild) label.appendChild(el.firstChild);
+            body.appendChild(label);
             el.appendChild(body);
           }
-          const [a, b] = BLOB_SHAPES[i % BLOB_SHAPES.length];
-          const rot = ((i * 53) % 21) - 10;
-          el.style.setProperty("--br-a", a);
-          el.style.setProperty("--br-b", b);
-          el.style.setProperty("--rot", rot + "deg");
-          el.style.setProperty("--fx", (((i * 13) % 5) - 2) + "px");
-          el.style.setProperty("--fy", (-1 - (i % 3)) + "px");
-          el.style.setProperty("--dur", 9 + (i % 5) * 1.1 + "s");
-          el.style.setProperty("--bob", 7 + (i % 4) * 0.9 + "s");
-          el.querySelector(".blob-body").style.animationDelay =
-            -(i * 0.83) + "s, " + -(i * 0.47) + "s";
-
           let weight = 1;
           if (el.classList.contains("span-big")) weight = 2.1;
           else if (el.classList.contains("span-wide")) weight = 1.45;
           else if (el.classList.contains("span-tall")) weight = 1.35;
-          seeded.push({
+          const filler = el.classList.contains("card-gray");
+          return {
             el,
-            weight,
-            aspect: ASPECTS[i % ASPECTS.length],
-            filler: el.classList.contains("card-gray"),
-          });
+            body,
+            label: body.querySelector(".blob-label"),
+            // Placeholders are spacers, so they give up some of the canvas to the
+            // real projects rather than tiling as equals.
+            weight: filler ? weight * 0.66 : weight,
+            seed: i + 1,
+            filler,
+          };
         });
 
-        const live = seeded.filter((c) => !c.filler);
-        const tbd = seeded.filter((c) => c.filler);
+        const live = pieces.filter((p) => !p.filler);
+        const fillers = pieces.filter((p) => p.filler);
 
-        function titleIsland() {
+        function titleRect() {
           const s = stage.getBoundingClientRect();
           const t = title.getBoundingClientRect();
           return {
-            cx: t.left - s.left + t.width / 2,
-            cy: t.top - s.top + t.height / 2,
-            hw: t.width / 2 + TITLE_GAP,
-            hh: t.height / 2 + TITLE_GAP,
+            x0: t.left - s.left,
+            y0: t.top - s.top,
+            x1: t.right - s.left,
+            y1: t.bottom - s.top,
           };
         }
 
-        function ellipseK(a, b, extra) {
-          const dx = b.x - a.x;
-          const dy = b.y - a.y;
-          const rx = a.rx + b.rx + extra;
-          const ry = a.ry + b.ry + extra;
-          if (rx < 0.001 || ry < 0.001) return 0;
-          return (dx * dx) / (rx * rx) + (dy * dy) / (ry * ry);
+        // Pieces may flow past the centre tile, but none should be *centred* in a
+        // gap too narrow to hold a label — that produces unreadable slivers down
+        // the sides on a phone. Any gap under minGap is folded into the exclusion
+        // zone, which pushes those seeds above or below the tile instead.
+        function seedExclusion(avoid, W, H, minGap) {
+          const r = { x0: avoid.x0, y0: avoid.y0, x1: avoid.x1, y1: avoid.y1 };
+          // Only fold a pair of strips away while the perpendicular gaps can still
+          // take the displaced seeds, or a very small viewport would exclude
+          // everything and pile every piece onto one edge.
+          const roomAbove = avoid.y0 >= minGap || H - avoid.y1 >= minGap;
+          const roomBeside = avoid.x0 >= minGap || W - avoid.x1 >= minGap;
+          if (roomAbove) {
+            if (r.x0 < minGap) r.x0 = -BLEED;
+            if (W - r.x1 < minGap) r.x1 = W + BLEED;
+          }
+          if (roomBeside) {
+            if (r.y0 < minGap) r.y0 = -BLEED;
+            if (H - r.y1 < minGap) r.y1 = H + BLEED;
+          }
+          return r;
         }
 
-        function pack(active, W, H, island) {
+        // Seeds are kept out of the centre tile so no piece is centred underneath it.
+        function pushOut(p, r, pad) {
+          if (p.x < r.x0 - pad || p.x > r.x1 + pad) return;
+          if (p.y < r.y0 - pad || p.y > r.y1 + pad) return;
+          const toL = p.x - (r.x0 - pad);
+          const toR = r.x1 + pad - p.x;
+          const toT = p.y - (r.y0 - pad);
+          const toB = r.y1 + pad - p.y;
+          const m = Math.min(toL, toR, toT, toB);
+          if (m === toL) p.x = r.x0 - pad;
+          else if (m === toR) p.x = r.x1 + pad;
+          else if (m === toT) p.y = r.y0 - pad;
+          else p.y = r.y1 + pad;
+        }
+
+        function solve(active, W, H, avoid) {
           const n = active.length;
-          if (!n) return [];
-          const pad = GAP;
-          const islandArea = (island.hw * 2) * (island.hh * 2);
-          const usable = Math.max(80, 0.92 * W * H - islandArea);
-          const sumW = active.reduce((s, c) => s + c.weight, 0);
-          let areaScale = usable / (Math.PI * sumW);
+          const bounds = rectPoly({ x0: -BLEED, y0: -BLEED, x1: W + BLEED, y1: H + BLEED });
+          const visible = { x0: 0, y0: 0, x1: W, y1: H };
+          const totalWeight = active.reduce((s, c) => s + c.weight, 0);
+          const stageArea = W * H;
+          const cols = Math.max(1, Math.round(Math.sqrt((n * W) / H)));
+          const rows = Math.max(1, Math.ceil(n / cols));
+          const weightCap = Math.pow(Math.min(W, H) * 0.5, 2);
 
-          const cols = Math.max(2, Math.round(Math.sqrt(n * (W / H))));
-          const rows = Math.ceil(n / cols);
-          const cellW = W / cols;
-          const cellH = H / rows;
-
-          const blobs = active.map((card, i) => {
-            const area = card.weight * areaScale;
-            const rx = Math.sqrt(area * card.aspect / Math.PI);
-            const ry = Math.sqrt(area / (card.aspect * Math.PI));
+          const seeds = active.map((card, i) => {
             const col = i % cols;
             const row = Math.floor(i / cols);
-            const jitterX = ((i * 17) % 11) - 5;
-            const jitterY = ((i * 29) % 11) - 5;
-            let x = (col + 0.5) * cellW + jitterX;
-            let y = (row + 0.5) * cellH + jitterY;
-            if (Math.abs(x - island.cx) < island.hw + rx && Math.abs(y - island.cy) < island.hh + ry) {
-              const dx = x - island.cx || 0.4;
-              const dy = y - island.cy || 0.2;
-              const m = Math.hypot(dx, dy) || 1;
-              x = island.cx + (dx / m) * (island.hw + rx + TITLE_GAP);
-              y = island.cy + (dy / m) * (island.hh + ry + TITLE_GAP);
-            }
-            return { el: card.el, live: !card.filler, rx, ry, x, y };
+            const p = {
+              x: ((col + 0.5) / cols) * W + (noise(i + 1, 1.3) - 0.5) * (W / cols) * 0.6,
+              y: ((row + 0.5) / rows) * H + (noise(i + 1, 2.7) - 0.5) * (H / rows) * 0.6,
+            };
+            pushOut(p, avoid, 10);
+            return p;
           });
+          const weights = new Array(n).fill(0);
+          const cells = new Array(n);
 
-          function pushOffIsland(b) {
-            const left = island.cx - island.hw;
-            const right = island.cx + island.hw;
-            const top = island.cy - island.hh;
-            const bot = island.cy + island.hh;
-            const nearestX = Math.max(left, Math.min(b.x, right));
-            const nearestY = Math.max(top, Math.min(b.y, bot));
-            let dx = b.x - nearestX;
-            let dy = b.y - nearestY;
-            if (dx === 0 && dy === 0) {
-              const toL = b.x - left;
-              const toR = right - b.x;
-              const toT = b.y - top;
-              const toB = bot - b.y;
-              const m = Math.min(toL, toR, toT, toB);
-              if (m === toL) b.x = left - b.rx;
-              else if (m === toR) b.x = right + b.rx;
-              else if (m === toT) b.y = top - b.ry;
-              else b.y = bot + b.ry;
+          function buildCells() {
+            for (let i = 0; i < n; i++) {
+              let poly = bounds;
+              const si = seeds[i];
+              const bi = si.x * si.x + si.y * si.y - weights[i];
+              for (let j = 0; j < n && poly.length; j++) {
+                if (i === j) continue;
+                const sj = seeds[j];
+                const nx = 2 * (sj.x - si.x);
+                const ny = 2 * (sj.y - si.y);
+                if (Math.abs(nx) < 1e-9 && Math.abs(ny) < 1e-9) continue;
+                poly = clipHalf(poly, nx, ny, sj.x * sj.x + sj.y * sj.y - weights[j] - bi);
+              }
+              cells[i] = poly;
+            }
+          }
+
+          for (let step = 0; step < SOLVE_STEPS; step++) {
+            buildCells();
+            const relax = step < SOLVE_STEPS * 0.6 ? 0.6 : 0.25;
+            let mean = 0;
+            for (let i = 0; i < n; i++) {
+              const seen = clipToRect(cells[i], visible);
+              const got = seen.length > 2 ? Math.abs(signedArea(seen)) : 0;
+              const want = (stageArea * active[i].weight) / totalWeight;
+              // Raising a weight by d grows the cell by roughly PI*d/2, so invert
+              // that to turn the area error into a weight step.
+              weights[i] += (1.15 * (want - got)) / Math.PI;
+              weights[i] = Math.max(-weightCap, Math.min(weightCap, weights[i]));
+              mean += weights[i];
+              if (seen.length > 2) {
+                const c = centroidOf(seen);
+                seeds[i].x += (c.x - seeds[i].x) * relax;
+                seeds[i].y += (c.y - seeds[i].y) * relax;
+              }
+              seeds[i].x = Math.max(4, Math.min(W - 4, seeds[i].x));
+              seeds[i].y = Math.max(4, Math.min(H - 4, seeds[i].y));
+              pushOut(seeds[i], avoid, 10);
+            }
+            // Only weight differences matter, so recentre to keep the numbers small.
+            mean /= n;
+            for (let i = 0; i < n; i++) weights[i] -= mean;
+          }
+          buildCells();
+          return cells;
+        }
+
+        function render(active, cells, W, H, avoid) {
+          const visible = { x0: 0, y0: 0, x1: W, y1: H };
+          const drawn = [];
+
+          active.forEach((card, i) => {
+            const shape = insetPoly(orient(cells[i]), GUTTER / 2);
+            if (shape.length < 3) {
+              card.el.style.display = "none";
               return;
             }
-            const k = (dx * dx) / (b.rx * b.rx) + (dy * dy) / (b.ry * b.ry);
-            if (k < 1) {
-              const s = 1 / Math.sqrt(Math.max(k, 0.0001));
-              b.x = nearestX + dx * s;
-              b.y = nearestY + dy * s;
+            const box = bboxOf(shape);
+            const spot = labelSpot(shape, visible, avoid);
+            const r = Math.max(0, spot.r);
+            const titleSize = Math.max(11, Math.min(26, r * 0.3));
+            // Corner-cutting draws a curve strictly inside the cell, so measure
+            // text room against a shrunken cell rather than the straight edges.
+            const inner = insetPoly(shape, 6);
+            const fit = inner.length > 2 ? inner : shape;
+            const slot = labelSlot(fit, visible, avoid, spot);
+            const width = Math.max(44, slot.w);
+
+            card.el.style.display = "";
+            card.el.style.left = box.x0 + "px";
+            card.el.style.top = box.y0 + "px";
+            card.el.style.width = box.x1 - box.x0 + "px";
+            card.el.style.height = box.y1 - box.y0 + "px";
+            card.body.style.setProperty(
+              "--piece",
+              'path("' + piecePath(shape, card.seed, box.x0, box.y0) + '")'
+            );
+
+            card.label.style.setProperty("--lx", slot.x - box.x0 + "px");
+            card.label.style.setProperty("--ly", slot.y - box.y0 + "px");
+            card.label.style.setProperty("--lw", width + "px");
+            card.label.style.visibility = r < 12 ? "hidden" : "";
+            card.el.style.setProperty("--title-size", titleSize + "px");
+            card.el.style.setProperty("--sub-size", Math.max(9, Math.min(13.5, r * 0.155)) + "px");
+            card.el.classList.toggle("is-compact", r < 46);
+            drawn.push({ card, titleSize, width, height: slot.h });
+          });
+
+          // How tall a label ends up depends on how many lines it wraps to, which
+          // is only knowable once it is laid out. Measure the placed pieces and
+          // drop anything taller than its slot to the title alone.
+          for (const d of drawn) {
+            if (d.card.label.offsetHeight > d.height) {
+              d.card.el.classList.add("is-compact");
             }
           }
 
-          function clampBounds(b) {
-            b.x = Math.min(W - pad - b.rx, Math.max(pad + b.rx, b.x));
-            b.y = Math.min(H - pad - b.ry, Math.max(pad + b.ry, b.y));
+          // A title holding a long unbreakable word ("DumpsteriOS") would be split
+          // mid-word on a narrow piece. min-content width is exactly that longest
+          // word, so measure it and scale the type until the name stays whole.
+          // Batched into set/read/reset sweeps to keep this to a couple of reflows.
+          const titles = drawn.map((d) => d.card.el.querySelector(".title"));
+          for (const t of titles) {
+            if (!t) continue;
+            // max-width would clamp the reading back to the label width, hiding
+            // the very overflow being measured.
+            t.style.maxWidth = "none";
+            t.style.width = "min-content";
+          }
+          const wordWidths = titles.map((t) => (t ? t.offsetWidth : 0));
+          for (const t of titles) {
+            if (!t) continue;
+            t.style.maxWidth = "";
+            t.style.width = "";
           }
 
-          function separate(passes) {
-            for (let iter = 0; iter < passes; iter++) {
-              for (let i = 0; i < n; i++) {
-                for (let j = i + 1; j < n; j++) {
-                  const a = blobs[i];
-                  const b = blobs[j];
-                  const k = ellipseK(a, b, GAP);
-                  if (k >= 1) continue;
-                  let dx = b.x - a.x;
-                  let dy = b.y - a.y;
-                  let dist = Math.hypot(dx, dy);
-                  if (dist < 0.001) {
-                    dx = 0.4;
-                    dy = 0.25;
-                    dist = Math.hypot(dx, dy);
-                  }
-                  const push = (1 - Math.sqrt(Math.max(k, 0.0001))) * 0.55 * dist;
-                  dx /= dist;
-                  dy /= dist;
-                  a.x -= dx * push;
-                  a.y -= dy * push;
-                  b.x += dx * push;
-                  b.y += dy * push;
-                }
-              }
-              for (const b of blobs) {
-                pushOffIsland(b);
-                clampBounds(b);
-                pushOffIsland(b);
-              }
-            }
-          }
-
-          separate(90);
-
-          function worstOverlap() {
-            let worst = 0;
-            for (let i = 0; i < n; i++) {
-              for (let j = i + 1; j < n; j++) {
-                const k = ellipseK(blobs[i], blobs[j], GAP);
-                if (k < 1) worst = Math.max(worst, 1 - k);
-              }
-              const b = blobs[i];
-              worst = Math.max(
-                worst,
-                pad + b.rx - b.x,
-                b.x - (W - pad - b.rx),
-                pad + b.ry - b.y,
-                b.y - (H - pad - b.ry)
+          drawn.forEach((d, i) => {
+            // Scale to just under the slot: landing exactly on it still wraps once
+            // rounding and letter-spacing are applied.
+            const room = d.width - 2;
+            let scale = wordWidths[i] > room ? room / wordWidths[i] : 1;
+            const tall = d.card.label.offsetHeight;
+            if (tall > d.height) scale = Math.min(scale, d.height / tall);
+            if (scale < 1) {
+              d.card.el.style.setProperty(
+                "--title-size",
+                d.titleSize * Math.max(0.42, scale) + "px"
               );
             }
-            return worst;
-          }
-
-          let guard = 0;
-          while (worstOverlap() > 0.04 && guard < 14) {
-            for (const b of blobs) {
-              b.rx *= 0.94;
-              b.ry *= 0.94;
-            }
-            separate(40);
-            guard += 1;
-          }
-          return blobs;
+          });
         }
 
-        function chooseFillers(W, H, island) {
-          const minLive = Math.max(32, Math.min(W, H) * 0.042);
-          const islandArea = (island.hw * 2) * (island.hh * 2);
-          const usable = Math.max(80, 0.92 * W * H - islandArea);
-          const liveW = live.reduce((s, c) => s + c.weight, 0);
-          const maxTotalW = usable / (Math.PI * minLive * minLive);
-          let tbdW = 0;
+        // Pieces tile the whole stage, so the card count sets how big each one is.
+        // Fillers only top the count up to a readable piece size — on a small
+        // viewport the real projects already fill the canvas and none are shown.
+        function fillerCount(W, H) {
+          const targetR = Math.max(95, Math.min(150, Math.sqrt(W * H) / 7.5));
+          const budget = (W * H) / (Math.PI * targetR * targetR);
+          // Placeholders are there to keep the real projects from ballooning, not
+          // to be the page. Hold them to a minority of the pieces on screen.
+          const cap = Math.round(live.length * 0.4);
+          let used = live.reduce((s, c) => s + c.weight, 0);
           let count = 0;
-          for (const card of tbd) {
-            if (liveW + tbdW + card.weight > maxTotalW) break;
-            tbdW += card.weight;
+          for (const c of fillers) {
+            if (count >= cap || used + c.weight > budget) break;
+            used += c.weight;
             count += 1;
           }
-          return { count };
+          return count;
         }
 
-        function apply(blobs) {
-          blobs.forEach((b) => {
-            const wide = b.rx * 2;
-            const tall = b.ry * 2;
-            const r = Math.min(b.rx, b.ry);
-            b.el.style.display = "";
-            b.el.style.width = wide + "px";
-            b.el.style.height = tall + "px";
-            b.el.style.left = b.x - b.rx + "px";
-            b.el.style.top = b.y - b.ry + "px";
-            const titleSize = Math.max(10, Math.min(22, r * 0.28));
-            const sub = Math.max(8, Math.min(13, r * 0.15));
-            b.el.style.setProperty("--title-size", titleSize + "px");
-            b.el.style.setProperty("--sub-size", sub + "px");
-            b.el.classList.toggle("is-compact", r < 42);
-          });
+        // Seeds are dealt out in reading order, so taking the two groups back to
+        // back would pool every placeholder in the last rows. Spread them evenly
+        // through the real projects instead.
+        function interleave(a, b) {
+          const out = [];
+          let i = 0;
+          let j = 0;
+          while (i < a.length || j < b.length) {
+            const takeA =
+              j >= b.length ||
+              (i < a.length && (i + 0.5) / a.length <= (j + 0.5) / b.length);
+            out.push(takeA ? a[i++] : b[j++]);
+          }
+          return out;
         }
 
         function layout() {
@@ -651,28 +997,36 @@
           const H = stage.clientHeight;
           if (W < 40 || H < 40) return;
 
-          const island = titleIsland();
-          const { count } = chooseFillers(W, H, island);
-          tbd.forEach((card, i) => {
-            card.el.style.display = i < count ? "" : "none";
+          const avoid = titleRect();
+          const count = fillerCount(W, H);
+          fillers.forEach((c, i) => {
+            c.el.style.display = i < count ? "" : "none";
           });
-          const active = live.concat(tbd.slice(0, count));
-          const blobs = pack(active, W, H, island);
-          apply(blobs);
+          const active = interleave(live, fillers.slice(0, count));
+          const cells = solve(active, W, H, seedExclusion(avoid, W, H, 130));
+          render(active, cells, W, H, avoid);
           tank.classList.add("is-packed");
           stage.classList.add("is-packed");
         }
 
-        layout();
-        requestAnimationFrame(layout);
-        if (document.fonts && document.fonts.ready) {
-          document.fonts.ready.then(layout);
+        let queued = 0;
+        function scheduleLayout() {
+          if (queued) return;
+          queued = requestAnimationFrame(() => {
+            queued = 0;
+            layout();
+          });
         }
-        const ro = new ResizeObserver(layout);
-        ro.observe(stage);
-        window.addEventListener("resize", layout);
+
+        layout();
+        scheduleLayout();
+        if (document.fonts && document.fonts.ready) {
+          document.fonts.ready.then(scheduleLayout);
+        }
+        new ResizeObserver(scheduleLayout).observe(stage);
+        window.addEventListener("resize", scheduleLayout);
         if (window.visualViewport) {
-          window.visualViewport.addEventListener("resize", layout);
+          window.visualViewport.addEventListener("resize", scheduleLayout);
         }
       })();
     </script>
