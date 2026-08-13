@@ -201,7 +201,10 @@ function parseUrl() {
       selectedRank,
       homeView: 'table',
       companyPane: pane,
-      playbookKey: book || playbookKey,
+      // Only an explicit, real playbook id counts. Falling back to the module
+      // default used to hand a hand-typed ?pane=model URL the SaaS model — NRR
+      // sliders on Apple.
+      playbookKey: book && playbookById(book).id === book ? book : null,
     };
   }
   return { compareMode: false, compareRanks: [], selectedRank: null, companyPane: 'ratios', ...hashHome() };
@@ -1538,9 +1541,14 @@ function compareView(rows, status) {
   } else if (status === 'error') {
     body = `<tr><td colspan="${colCount}">Couldn’t reach /api/f500-headlines.</td></tr>`;
   } else {
+    // The statement block already shows FCF in dollars; don't print the row
+    // twice when the cash-quality group comes around.
+    const seen = new Set();
     body = groups
       .map((group) => {
         const keys = group.keys.filter((key) => {
+          if (seen.has(key)) return false;
+          seen.add(key);
           if (!sharedOnly) return true;
           return names.every((c) => {
             const h = rows.find((x) => x.cik === c.cik);
@@ -2082,7 +2090,9 @@ try {
   if (s.companyPane === 'model' && s.selectedRank && s.playbookKey) {
     const c = companyByRank(s.selectedRank);
     if (c) {
-      if (modelLevel() < 2) setModelLevel(2);
+      // A shared link that picked an industry other than the obvious one is
+      // asking for the driver rung. A plain reload of your own model is not.
+      if (s.playbookKey !== guessPlaybook(c).id && modelLevel() < 2) setModelLevel(2);
       modelDraft = {
         ...seedAssumptions(headlinesOf(c), playbookById(s.playbookKey)),
         rank: c.rank,
