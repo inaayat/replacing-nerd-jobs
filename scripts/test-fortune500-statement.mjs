@@ -133,6 +133,24 @@ assert.ok(projected.notes.some((n) => /not a balance sheet/i.test(n)));
 assert.equal(buildStatement(headlines).rows.some((r) => r.key === 'rd'), false);
 assert.equal(buildStatement(headlines, { detail: true }).rows.some((r) => r.key === 'rd'), true);
 
+// The practice pane asks for only the lines the model moves, and no percent
+// check figures — those live on the guess cards beside it.
+const practice = buildStatement(headlines, {
+  model,
+  detail: true,
+  projectedRowsOnly: true,
+  drivers: false,
+});
+assert.deepEqual(
+  practice.rows.map((r) => r.key),
+  ['revenue', 'gross_profit', 'operating_income', 'net_income', 'fcf', 'rd', 'capex']
+);
+assert.ok(practice.rows.every((r) => r.projected));
+assert.equal(practice.driverRows.length, 0);
+// Nothing unprojected is on screen, so the balance-sheet caveat is not needed.
+assert.equal(practice.notes.some((n) => /not a balance sheet/i.test(n)), false);
+assert.deepEqual(practice.columns.map((c) => c.kind), projected.columns.map((c) => c.kind));
+
 // Missing tags stay blank, never zero, and the prior column disappears when a
 // snapshot predates prior-year values.
 const thin = ensureRatios({

@@ -153,11 +153,21 @@ function driverCell(column, driver, dollars, revenueRow) {
  * @param {object} [opts.model] result of runPracticeModel (adds projected columns)
  * @param {boolean} [opts.detail] include the extra income-statement lines
  * @param {boolean} [opts.prior] include the prior filed year column
+ * @param {boolean} [opts.projectedRowsOnly] drop lines this model never projects
+ *   (cash, long-term debt), so the practice pane isn't half rows of n/a
+ * @param {boolean} [opts.drivers] include the percent check figures underneath.
+ *   Off on the practice pane, where those percentages are the guess cards
+ *   sitting beside the statement.
  * @returns {{columns: object[], rows: object[], driverRows: object[], hasPrior: boolean, notes: string[]}}
  */
-export function buildStatement(headlines, { model = null, detail = false, prior = true } = {}) {
+export function buildStatement(
+  headlines,
+  { model = null, detail = false, prior = true, projectedRowsOnly = false, drivers = true } = {}
+) {
   const columns = statementColumns(headlines, { model, prior });
-  const wanted = STATEMENT_ROWS.filter((row) => detail || !row.detail);
+  const wanted = STATEMENT_ROWS.filter(
+    (row) => (detail || !row.detail) && (!projectedRowsOnly || row.modelKey)
+  );
   const dollars = new Map();
 
   const rows = wanted.map((row) => {
@@ -179,7 +189,8 @@ export function buildStatement(headlines, { model = null, detail = false, prior 
   });
 
   const revenueRow = dollars.get('revenue');
-  const driverRows = DRIVER_ROWS.filter((driver) => dollars.has(driver.of)).map((driver) => {
+  const wantedDrivers = drivers ? DRIVER_ROWS.filter((driver) => dollars.has(driver.of)) : [];
+  const driverRows = wantedDrivers.map((driver) => {
     const cells = columns.map((column, i) => {
       const prevColumnId = i > 0 ? columns[i - 1].id : null;
       return driverCell(column, { ...driver, prevColumnId }, dollars, revenueRow);
@@ -196,7 +207,7 @@ export function buildStatement(headlines, { model = null, detail = false, prior 
   const notes = [];
   const hasPrior = columns.some((c) => c.kind === 'prior');
   if (!hasPrior) notes.push('Only the latest 10-K year is in this snapshot, so there is no prior-year column yet.');
-  if (model) {
+  if (model && rows.some((row) => !row.projected)) {
     notes.push('Cash and long-term debt are filed only — this projects the income statement, not a balance sheet.');
   }
   return { columns, rows, driverRows, hasPrior, notes };
