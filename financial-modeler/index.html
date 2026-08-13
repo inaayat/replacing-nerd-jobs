@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <base href="/financial-modeler/" />
+    <title>Financial modeler — Beep boop</title>
+    <meta
+      name="description"
+      content="Build a 3-statement model, a DCF, and a trading comps table for any public Fortune 500 company — explained in plain English, downloadable as Excel."
+    />
+    <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap"
+    />
+    <link rel="stylesheet" href="./app.css" />
+  </head>
+  <body>
+    <nav class="fm-nav">
+      <div class="fm-nav-brand">
+        <a href="/" class="fm-nav-logo" aria-label="Beep boop home">
+          <img src="/ugly-dog-images/dog-3.png" alt="" width="18" height="18" />
+          <span>Beep boop</span>
+        </a>
+        <a href="/financial-modeler/" class="fm-nav-section">
+          <img src="/financial-modeler/icon.svg" alt="" width="22" height="22" />
+          <span>Financial modeler</span>
+        </a>
+      </div>
+      <div class="fm-nav-links">
+        <a href="/fortune-500/">10-K ratios</a>
+        <a href="/#projects">Projects</a>
+      </div>
+    </nav>
+
+    <main class="fm-shell">
+      <header class="fm-hero" id="hero">
+        <p class="fm-kicker">Three models, one workbook</p>
+        <h1>Build a real financial model without knowing finance yet.</h1>
+        <p class="fm-lede">
+          Pick a company. We read its last 10-K from the SEC, hand you a handful of plain-English
+          guesses, and build the three models every analyst starts with — then download the whole
+          thing as a spreadsheet with live formulas.
+        </p>
+      </header>
+
+      <section class="fm-tour" id="tour" hidden>
+        <div class="fm-tour-card">
+          <p class="fm-tour-step" id="tour-step">Step 1 of 3</p>
+          <h2 id="tour-title">Pick a company</h2>
+          <p id="tour-body">
+            Start with Apple if you have no strong feelings. Any public Fortune 500 filer works —
+            private ones have no 10-K, so there is nothing to model.
+          </p>
+          <div class="fm-tour-actions">
+            <button type="button" class="fm-btn" id="tour-next">Got it</button>
+            <button type="button" class="fm-btn fm-btn-ghost" id="tour-skip">Skip the tour</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="fm-step" id="step-company">
+        <div class="fm-step-head">
+          <span class="fm-step-num">1</span>
+          <div>
+            <h2>Pick a company</h2>
+            <p>Fortune 500 filers, straight from their SEC filings.</p>
+          </div>
+        </div>
+        <div class="fm-search-wrap">
+          <input
+            id="search"
+            class="fm-search"
+            type="search"
+            placeholder="Search by name or ticker…"
+            autocomplete="off"
+            aria-label="Search Fortune 500 companies"
+          />
+          <div class="fm-quick" id="quick"></div>
+        </div>
+        <div class="fm-results" id="results" hidden></div>
+        <p class="fm-status" id="status">Loading the company list…</p>
+      </section>
+
+      <section class="fm-step" id="step-models" hidden>
+        <div class="fm-step-head">
+          <span class="fm-step-num">2</span>
+          <div>
+            <h2>Choose your models</h2>
+            <p>Run all three — they build on each other, and they all land in one workbook.</p>
+          </div>
+        </div>
+        <div class="fm-model-picks" id="model-picks"></div>
+      </section>
+
+      <section class="fm-step" id="step-build" hidden>
+        <div class="fm-step-head">
+          <span class="fm-step-num">3</span>
+          <div>
+            <h2>Make your guesses</h2>
+            <p>Blue is yours to change. Black is calculated. Everything updates as you type.</p>
+          </div>
+        </div>
+        <div class="fm-workspace">
+          <aside class="fm-dials" id="dials"></aside>
+          <div class="fm-output" id="output"></div>
+        </div>
+      </section>
+    </main>
+
+    <div class="fm-dock" id="dock" hidden>
+      <div class="fm-dock-who">
+        <strong id="dock-name">—</strong>
+        <span id="dock-check">—</span>
+      </div>
+      <div class="fm-dock-actions">
+        <a class="fm-btn fm-btn-ghost" id="dock-ratios" href="/fortune-500/">Open the 10-K ratios</a>
+        <button type="button" class="fm-btn" id="dock-download">Download Excel</button>
+      </div>
+    </div>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
