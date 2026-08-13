@@ -51,7 +51,9 @@ financial ratios out (margins, ROE, asset turnover, cash conversion, …),
 ELI5 plus the actual 10-K arithmetic in a side dock, compare up to five
 companies, industry models (decision tree, formulas, inputs, metrics),
 and a practice model (last FY grown by those industry drivers, with Excel
-download). Snapshot in
+download). First visit is a short 10-K reading and modeling course
+(open a company, read a ratio, project five years); Skip reveals the
+full screener, compare, playbooks, and Excel. Snapshot in
 `data/headlines-snapshot.json`; `/api/f500-headlines` is a live fallback.
 Share prices (last + daily history) come from Yahoo Finance via
 `/api/f500-prices` — no API key; on-demand per open company.

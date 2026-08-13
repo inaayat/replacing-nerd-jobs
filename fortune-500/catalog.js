@@ -247,23 +247,69 @@ export const NOT_IN_EDGAR = [
   'The story in the 10-K’s words (MD&A, risk factors). Open the filing browser for that.',
 ];
 
+/** Rank of the suggested first company (Apple). */
+export const SUGGESTED_RANK = 4;
+
+export const PURPOSE =
+  'This is a 10-K reading and modeling course. Year 0 is filed. Everything after is a guess you control. Latest Fortune 500 10-K ratios (SEC tags). Dash = not tagged, not zero. Prices (Yahoo, delayed) are extra on a company page.';
+
+/** First-load overlay. Three steps; the 4-step course lives in COURSE_STEPS. */
 export const HOW_TO = [
   {
     n: '1',
     title: 'Open a company',
-    body: 'See which of these SEC tags its latest 10-K actually has. A dash is “not tagged,” not zero.',
+    body: 'Click a name on the left. Apple is a fine first 10-K. A dash is “not tagged,” not zero.',
   },
   {
     n: '2',
-    title: 'Read the kid version',
-    body: 'Every metric has an ELI5. Tap the name anywhere, or open “What the numbers mean.”',
+    title: 'Read one ratio',
+    body: 'Tap a tile — start with net margin. The dock is the lesson: kid version plus the 10-K math. “What ratios mean” has the rest.',
   },
   {
     n: '3',
-    title: 'Compare what they share',
-    body: 'Turn on “Pick to compare,” click 2–5 public companies, then Compare. Peer sets still jump you in. We highlight the best/worst in each row and skip invented zeros.',
+    title: 'Project five years',
+    body: 'Open Practice Model. Year 0 is the filed 10-K. The sliders are your guesses, not forecasts. Then compare a second company when you’re ready.',
   },
 ];
+
+/** 4-step path stored in localStorage `f500-course`. Never gates the rest of the UI. */
+export const COURSE_STEPS = [
+  {
+    id: 'open',
+    n: '1',
+    title: 'Open a company',
+    short: 'Open a company',
+    body: 'Click a name on the left. Apple is a good first 10-K.',
+  },
+  {
+    id: 'ratio',
+    n: '2',
+    title: 'Read one ratio',
+    short: 'Read one ratio',
+    body: 'Tap net margin (or any tile). The dock is the lesson: kid version plus the 10-K math.',
+  },
+  {
+    id: 'model',
+    n: '3',
+    title: 'Build a 5-year sketch',
+    short: 'Build a model',
+    body: 'Project the next 5 years from this 10-K. Year 0 is filed. The sliders are your guesses, not forecasts.',
+  },
+  {
+    id: 'compare',
+    n: '4',
+    title: 'Compare two 10-Ks',
+    short: 'Compare two',
+    body: 'Add a second public company. A dash is not tagged, not zero. Fiscal years may not line up.',
+  },
+];
+
+export function courseProgress(done = {}) {
+  const total = COURSE_STEPS.length;
+  const completed = COURSE_STEPS.filter((s) => done[s.id]).length;
+  const next = COURSE_STEPS.find((s) => !done[s.id]) || null;
+  return { total, completed, next, complete: completed === total };
+}
 
 export const METRICS = [
   {
