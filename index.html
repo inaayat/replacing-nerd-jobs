@@ -62,6 +62,20 @@
         clip-path: var(--piece, none);
         transition: filter 140ms ease-out;
       }
+      /* .can-drag is set by the script so CSS and behaviour cannot disagree.
+         Scoping these here leaves touch devices, where dragging is switched off,
+         with entirely native behaviour — including pinch to zoom, which
+         touch-action: none would otherwise suppress for no benefit.
+         Anchors already show a pointer; placeholders are divs and need the hint. */
+      .can-drag .blob-body { touch-action: none; }
+      .can-drag div.item-card .blob-body { cursor: grab; }
+      .can-drag .blob-label { user-select: none; }
+      .item-card.is-dragging { z-index: 8; }
+      .item-card.is-dragging .blob-body {
+        cursor: grabbing;
+        filter: brightness(1.08);
+      }
+      body.is-dragging { cursor: grabbing; user-select: none; }
       /* Label rides at the piece's widest interior point, not its bounding box. */
       .blob-label {
         position: absolute;
@@ -443,6 +457,10 @@
 
         Cells are then inset by half a gutter and corner-cut into curves, so the
         cream page shows through as an even seam between neighbouring pieces.
+
+        Seeds persist between layouts, which is what makes the pieces draggable:
+        a drag pins one seed to the cursor and re-runs a few solver rounds, and
+        every neighbour reshapes around it because the diagram cannot leave a gap.
       */
       (function () {
         const GUTTER = 11;
@@ -769,6 +787,11 @@
             weight: filler ? weight * 0.66 : weight,
             seed: i + 1,
             filler,
+            // Solver state, persisted across layouts so drags survive a reflow.
+            pos: null,
+            w: 0,
+            placed: false,
+            drawn: false,
           };
         });
 
@@ -823,90 +846,173 @@
           else p.y = r.y1 + pad;
         }
 
-        function solve(active, W, H, avoid) {
+        function clampSeed(p, W, H, avoid, pad) {
+          p.x = Math.max(4, Math.min(W - 4, p.x));
+          p.y = Math.max(4, Math.min(H - 4, p.y));
+          pushOut(p, avoid, pad === undefined ? 10 : pad);
+        }
+
+        // Roughly how far apart seeds sit once the diagram is balanced. Drag
+        // guards are expressed as fractions of this so they scale with the piece
+        // size instead of being a fixed number of pixels that is far too small on
+        // a phone, where ten pieces share the whole screen.
+        function seedSpacing(W, H, n) {
+          return Math.sqrt((W * H) / Math.max(1, n));
+        }
+
+        // Seeds live on the piece objects rather than in a local array, so they
+        // survive between layouts. That is what lets a drag move one seed and have
+        // the rest re-converge around it, and it keeps a resize from reshuffling
+        // the whole arrangement. `active` membership changes as placeholders come
+        // and go, so an index would not be a stable key.
+        function seedPieces(active, W, H, avoid) {
+          const n = active.length;
+          const cols = Math.max(1, Math.round(Math.sqrt((n * W) / H)));
+          const rows = Math.max(1, Math.ceil(n / cols));
+          active.forEach((card, i) => {
+            if (card.pos) return;
+            card.pos = {
+              x: (((i % cols) + 0.5) / cols) * W + (noise(i + 1, 1.3) - 0.5) * (W / cols) * 0.6,
+              y: ((Math.floor(i / cols) + 0.5) / rows) * H + (noise(i + 1, 2.7) - 0.5) * (H / rows) * 0.6,
+            };
+            clampSeed(card.pos, W, H, avoid);
+          });
+        }
+
+        // Clip every cell against the radical axis it shares with each other seed.
+        function buildCells(active, bounds, cells) {
+          const n = active.length;
+          for (let i = 0; i < n; i++) {
+            let poly = bounds;
+            const si = active[i].pos;
+            const bi = si.x * si.x + si.y * si.y - active[i].w;
+            for (let j = 0; j < n && poly.length; j++) {
+              if (i === j) continue;
+              const sj = active[j].pos;
+              const nx = 2 * (sj.x - si.x);
+              const ny = 2 * (sj.y - si.y);
+              if (Math.abs(nx) < 1e-9 && Math.abs(ny) < 1e-9) continue;
+              poly = clipHalf(poly, nx, ny, sj.x * sj.x + sj.y * sj.y - active[j].w - bi);
+            }
+            cells[i] = poly;
+          }
+          return cells;
+        }
+
+        // The share of its target area a piece is allowed to be squeezed to while
+        // sizes are otherwise frozen.
+        const RESCUE_AREA = 0.3;
+        // An inscribed radius below this cannot hold a legible label.
+        const MIN_READABLE_R = 30;
+        // Set when a dropped piece had to be released, so the settle can run again
+        // and let it find somewhere better.
+        let released = false;
+        // Below this share of its target area, a dropped piece stops being held in
+        // place and drifts back toward somewhere it can actually be read.
+        const PLACED_RESCUE = 0.5;
+
+        // Runs `steps` rounds of the capacity-constrained solve. `pinned` is the
+        // piece under the cursor and `freezeWeights` holds every piece at the size
+        // the markup asked for, so a drag rearranges without resizing anything.
+        function relax(active, W, H, avoid, opts) {
+          const steps = opts.steps;
+          const pinned = opts.pinned || null;
+          const freezeWeights = !!opts.freezeWeights;
           const n = active.length;
           const bounds = rectPoly({ x0: -BLEED, y0: -BLEED, x1: W + BLEED, y1: H + BLEED });
           const visible = { x0: 0, y0: 0, x1: W, y1: H };
           const totalWeight = active.reduce((s, c) => s + c.weight, 0);
           const stageArea = W * H;
-          const cols = Math.max(1, Math.round(Math.sqrt((n * W) / H)));
-          const rows = Math.max(1, Math.ceil(n / cols));
           const weightCap = Math.pow(Math.min(W, H) * 0.5, 2);
-
-          const seeds = active.map((card, i) => {
-            const col = i % cols;
-            const row = Math.floor(i / cols);
-            const p = {
-              x: ((col + 0.5) / cols) * W + (noise(i + 1, 1.3) - 0.5) * (W / cols) * 0.6,
-              y: ((row + 0.5) / rows) * H + (noise(i + 1, 2.7) - 0.5) * (H / rows) * 0.6,
-            };
-            pushOut(p, avoid, 10);
-            return p;
-          });
-          const weights = new Array(n).fill(0);
           const cells = new Array(n);
 
-          function buildCells() {
-            for (let i = 0; i < n; i++) {
-              let poly = bounds;
-              const si = seeds[i];
-              const bi = si.x * si.x + si.y * si.y - weights[i];
-              for (let j = 0; j < n && poly.length; j++) {
-                if (i === j) continue;
-                const sj = seeds[j];
-                const nx = 2 * (sj.x - si.x);
-                const ny = 2 * (sj.y - si.y);
-                if (Math.abs(nx) < 1e-9 && Math.abs(ny) < 1e-9) continue;
-                poly = clipHalf(poly, nx, ny, sj.x * sj.x + sj.y * sj.y - weights[j] - bi);
-              }
-              cells[i] = poly;
-            }
-          }
-
-          for (let step = 0; step < SOLVE_STEPS; step++) {
-            buildCells();
-            const relax = step < SOLVE_STEPS * 0.6 ? 0.6 : 0.25;
+          for (let step = 0; step < steps; step++) {
+            buildCells(active, bounds, cells);
+            const rate = step < steps * 0.6 ? 0.6 : 0.25;
             let mean = 0;
             for (let i = 0; i < n; i++) {
+              const card = active[i];
               const seen = clipToRect(cells[i], visible);
               const got = seen.length > 2 ? Math.abs(signedArea(seen)) : 0;
-              const want = (stageArea * active[i].weight) / totalWeight;
+              const want = (stageArea * card.weight) / totalWeight;
               // Raising a weight by d grows the cell by roughly PI*d/2, so invert
-              // that to turn the area error into a weight step.
-              weights[i] += (1.15 * (want - got)) / Math.PI;
-              weights[i] = Math.max(-weightCap, Math.min(weightCap, weights[i]));
-              mean += weights[i];
-              if (seen.length > 2) {
-                const c = centroidOf(seen);
-                seeds[i].x += (c.x - seeds[i].x) * relax;
-                seeds[i].y += (c.y - seeds[i].y) * relax;
+              // that to turn an area error into a weight step.
+              if (!freezeWeights) {
+                card.w += (1.15 * (want - got)) / Math.PI;
+                card.w = Math.max(-weightCap, Math.min(weightCap, card.w));
+                mean += card.w;
+              } else if (got < want * RESCUE_AREA) {
+                // Sizes are held while dragging, but a power cell can be crushed
+                // out of existence altogether by a seed moving in on it, which
+                // would blink the card off screen. Let a collapsing piece push
+                // back just far enough to survive.
+                card.w += (1.15 * (want * RESCUE_AREA - got)) / Math.PI;
+                card.w = Math.min(weightCap, card.w);
               }
-              seeds[i].x = Math.max(4, Math.min(W - 4, seeds[i].x));
-              seeds[i].y = Math.max(4, Math.min(H - 4, seeds[i].y));
-              pushOut(seeds[i], avoid, 10);
+              // A pinned piece is under the cursor and a placed one was put where
+              // it is on purpose, so neither gets pulled back toward its centroid.
+              // The exception is a placed piece squeezed well under its target
+              // area: it is on its way to an unreadable sliver, so let it ease
+              // back toward open space rather than honour the drop exactly.
+              const crushed = card.placed && got < want * PLACED_RESCUE;
+              if (seen.length > 2 && card !== pinned && (!card.placed || crushed)) {
+                const c = centroidOf(seen);
+                const pull = card.placed ? 0.15 : rate;
+                card.pos.x += (c.x - card.pos.x) * pull;
+                card.pos.y += (c.y - card.pos.y) * pull;
+              }
+              clampSeed(card.pos, W, H, avoid);
             }
-            // Only weight differences matter, so recentre to keep the numbers small.
-            mean /= n;
-            for (let i = 0; i < n; i++) weights[i] -= mean;
+            if (!freezeWeights) {
+              // Only weight differences matter, so recentre to keep numbers small.
+              mean /= n;
+              for (let i = 0; i < n; i++) active[i].w -= mean;
+            }
           }
-          buildCells();
-          return cells;
+          return buildCells(active, bounds, cells);
         }
 
-        function render(active, cells, W, H, avoid) {
+        // Geometry is cheap, but the label refit at the end reads layout and so
+        // forces reflow. Frames driven by a drag pass refit = false and reuse the
+        // type sizes already on screen; the refit runs once the piece is dropped.
+        function render(active, cells, W, H, avoid, refit) {
           const visible = { x0: 0, y0: 0, x1: W, y1: H };
           const drawn = [];
 
           active.forEach((card, i) => {
-            const shape = insetPoly(orient(cells[i]), GUTTER / 2);
+            // A cell squeezed narrower than the gutter would inset away to
+            // nothing and blink the piece off screen mid-drag. Narrow the seam
+            // for that piece instead; it is briefly tighter than its neighbours,
+            // which is far less noticeable than a card disappearing.
+            const cell = orient(cells[i]);
+            let shape = [];
+            for (const inset of [GUTTER / 2, GUTTER / 4, 1.5, 0]) {
+              shape = inset > 0 ? insetPoly(cell, inset) : cell;
+              if (shape.length > 2) break;
+            }
             if (shape.length < 3) {
-              card.el.style.display = "none";
+              // A power cell can be squeezed out of existence entirely by a
+              // neighbouring seed. Once a card has been drawn, leave it exactly as
+              // it was rather than hiding it: one frame of stale geometry is far
+              // less jarring than a project blinking off the page, and the next
+              // solve restores it.
+              if (!card.drawn) card.el.style.display = "none";
               return;
             }
+            card.drawn = true;
             const box = bboxOf(shape);
             const spot = labelSpot(shape, visible, avoid);
             const r = Math.max(0, spot.r);
             const titleSize = Math.max(11, Math.min(26, r * 0.3));
+            // Area alone does not say whether a piece is usable: a dropped seed
+            // can leave a cell that is big but crescent shaped, with nowhere to
+            // put the label. The inscribed radius does say, so a piece dropped
+            // somewhere unreadable gives up its pin and lets relaxation ease it
+            // back to a spot where its name fits.
+            if (card.placed && r < MIN_READABLE_R) {
+              card.placed = false;
+              released = true;
+            }
             // Corner-cutting draws a curve strictly inside the cell, so measure
             // text room against a shrunken cell rather than the straight edges.
             const inner = insetPoly(shape, 6);
@@ -934,6 +1040,10 @@
             drawn.push({ card, titleSize, width, height: slot.h });
           });
 
+          if (refit !== false) refitLabels(drawn);
+        }
+
+        function refitLabels(drawn) {
           // How tall a label ends up depends on how many lines it wraps to, which
           // is only knowable once it is laid out. Measure the placed pieces and
           // drop anything taller than its slot to the title alone.
@@ -1013,21 +1123,57 @@
           return out;
         }
 
-        function layout() {
+        // The pieces on screen right now, so a drag frame can re-solve the same
+        // set without redoing the placeholder bookkeeping.
+        let active = [];
+        let lastW = 0;
+        let lastH = 0;
+
+        function exclusionFor(avoid, W, H) {
+          return seedExclusion(avoid, W, H, 130);
+        }
+
+        function layout(opts) {
+          const steps = (opts && opts.steps) || SOLVE_STEPS;
           const W = stage.clientWidth;
           const H = stage.clientHeight;
           if (W < 40 || H < 40) return;
 
           const avoid = titleRect();
+          const excl = exclusionFor(avoid, W, H);
+          const arranged = pieces.some((p) => p.placed);
+
+          if (!arranged) {
+            // Nothing has been dragged, so solve cold from the seed grid. Carrying
+            // state over would keep adding relaxation rounds on every reflow and
+            // slowly drift the untouched layout away from the designed one.
+            for (const p of pieces) {
+              p.pos = null;
+              p.w = 0;
+            }
+          } else if (lastW && lastH && (W !== lastW || H !== lastH)) {
+            // Once pieces have been arranged, carry them through a resize instead
+            // of re-seeding, or the visitor's arrangement would be thrown away.
+            for (const p of pieces) {
+              if (!p.pos) continue;
+              p.pos.x *= W / lastW;
+              p.pos.y *= H / lastH;
+              clampSeed(p.pos, W, H, excl);
+            }
+          }
+          lastW = W;
+          lastH = H;
+
           const count = fillerCount(W, H);
           fillers.forEach((c, i) => {
             c.el.style.display = i < count ? "" : "none";
           });
-          const active = interleave(live, fillers.slice(0, count));
-          const cells = solve(active, W, H, seedExclusion(avoid, W, H, 130));
-          render(active, cells, W, H, avoid);
+          active = interleave(live, fillers.slice(0, count));
+          seedPieces(active, W, H, excl);
+          render(active, relax(active, W, H, excl, { steps }), W, H, avoid, true);
           tank.classList.add("is-packed");
           stage.classList.add("is-packed");
+          stage.classList.toggle("can-drag", dragEnabled());
         }
 
         let queued = 0;
@@ -1038,6 +1184,196 @@
             layout();
           });
         }
+
+        /* ---------- dragging ---------- */
+
+        // Below this much pointer travel the gesture is still a click, so the card
+        // navigates instead of moving.
+        const DRAG_SLOP = 5;
+        // A drag frame only has to nudge an already-converged diagram, so a few
+        // warm-started rounds are enough.
+        const DRAG_STEPS = 5;
+        const SETTLE_FRAMES = 10;
+        const SETTLE_STEPS = 4;
+        // Crowding a seed against its neighbours or against the centre tile
+        // squeezes its cell into an unreadable sliver, so a dragged piece keeps
+        // its distance from both. Fractions of the natural seed spacing.
+        const DRAG_SEED_GAP = 0.45;
+        const DRAG_TILE_GAP = 0.3;
+        const DRAG_EDGE_GAP = 0.28;
+
+        const bodyToPiece = new Map(pieces.map((p) => [p.body, p]));
+        const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+        // On a phone the pieces are small and there are only about ten of them, so
+        // a drag is more likely to wedge one into an unreadable sliver than to be
+        // fun. Excluding coarse pointers rather than requiring fine ones keeps
+        // dragging available wherever the pointer type is simply unreported.
+        const wideEnough = window.matchMedia("(min-width: 900px)");
+        const coarsePointer = window.matchMedia("(pointer: coarse)");
+        function dragEnabled() {
+          return wideEnough.matches && !coarsePointer.matches;
+        }
+
+        let drag = null;
+        let dragFrame = 0;
+        let settleFrame = 0;
+        let suppressClick = false;
+
+        function stagePoint(e) {
+          const r = stage.getBoundingClientRect();
+          return { x: e.clientX - r.left, y: e.clientY - r.top };
+        }
+
+        function separateSeed(piece, minGap) {
+          for (const other of active) {
+            if (other === piece || !other.pos) continue;
+            let dx = piece.pos.x - other.pos.x;
+            let dy = piece.pos.y - other.pos.y;
+            let d = Math.hypot(dx, dy);
+            if (d >= minGap) continue;
+            if (d < 1e-6) {
+              dx = 1;
+              dy = 0;
+              d = 1;
+            }
+            piece.pos.x = other.pos.x + (dx / d) * minGap;
+            piece.pos.y = other.pos.y + (dy / d) * minGap;
+          }
+        }
+
+        function runDragFrame() {
+          dragFrame = 0;
+          if (!drag || !drag.moved) return;
+          const { piece, W, H, avoid, excl } = drag;
+          const spacing = seedSpacing(W, H, active.length);
+          const tilePad = Math.min(70, spacing * DRAG_TILE_GAP);
+          // Hold the seed away from the viewport edge as well. Cells extend past
+          // the edge by design, but a seed dropped hard against it keeps most of
+          // its cell off screen and leaves only a sliver showing.
+          const edgePad = Math.min(90, spacing * DRAG_EDGE_GAP);
+          piece.pos.x = Math.max(edgePad, Math.min(W - edgePad, drag.target.x));
+          piece.pos.y = Math.max(edgePad, Math.min(H - edgePad, drag.target.y));
+          clampSeed(piece.pos, W, H, excl, tilePad);
+          separateSeed(piece, spacing * DRAG_SEED_GAP);
+          clampSeed(piece.pos, W, H, excl, tilePad);
+          const cells = relax(active, W, H, excl, {
+            steps: DRAG_STEPS,
+            pinned: piece,
+            freezeWeights: true,
+          });
+          render(active, cells, W, H, avoid, false);
+        }
+
+        function scheduleDragFrame() {
+          if (!dragFrame) dragFrame = requestAnimationFrame(runDragFrame);
+        }
+
+        // The solver converges gradually, so spreading its steps over a few frames
+        // reads as the pieces settling back into balance.
+        function settle(framesLeft) {
+          settleFrame = 0;
+          if (drag) return;
+          const W = stage.clientWidth;
+          const H = stage.clientHeight;
+          const avoid = titleRect();
+          const last = framesLeft <= 1;
+          const cells = relax(active, W, H, exclusionFor(avoid, W, H), { steps: SETTLE_STEPS });
+          render(active, cells, W, H, avoid, last);
+          if (!last) {
+            settleFrame = requestAnimationFrame(() => settle(framesLeft - 1));
+          } else if (released) {
+            // A piece gave up its pin on the last frame; settle again so it can
+            // actually move. Bounded, because a released piece stays released.
+            released = false;
+            settleFrame = requestAnimationFrame(() => settle(SETTLE_FRAMES));
+          }
+        }
+
+        function onPointerDown(e) {
+          if (e.button > 0 || !dragEnabled()) return;
+          const body = e.target.closest && e.target.closest(".blob-body");
+          const piece = body && bodyToPiece.get(body);
+          if (!piece || !piece.pos) return;
+          if (settleFrame) {
+            cancelAnimationFrame(settleFrame);
+            settleFrame = 0;
+          }
+          const W = stage.clientWidth;
+          const H = stage.clientHeight;
+          const avoid = titleRect();
+          const pt = stagePoint(e);
+          suppressClick = false;
+          drag = {
+            piece,
+            body,
+            pointerId: e.pointerId,
+            W,
+            H,
+            avoid,
+            excl: exclusionFor(avoid, W, H),
+            startX: e.clientX,
+            startY: e.clientY,
+            // The seed is not the visual centre of the piece, so carry the grab
+            // offset or it would jump the instant it is picked up.
+            offX: piece.pos.x - pt.x,
+            offY: piece.pos.y - pt.y,
+            target: { x: piece.pos.x, y: piece.pos.y },
+            moved: false,
+          };
+          if (body.setPointerCapture) body.setPointerCapture(e.pointerId);
+        }
+
+        function onPointerMove(e) {
+          if (!drag || e.pointerId !== drag.pointerId) return;
+          if (!drag.moved) {
+            if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) < DRAG_SLOP) return;
+            drag.moved = true;
+            drag.piece.el.classList.add("is-dragging");
+            document.body.classList.add("is-dragging");
+          }
+          const pt = stagePoint(e);
+          drag.target.x = pt.x + drag.offX;
+          drag.target.y = pt.y + drag.offY;
+          scheduleDragFrame();
+        }
+
+        function onPointerUp(e) {
+          if (!drag || e.pointerId !== drag.pointerId) return;
+          const { piece, body, moved } = drag;
+          if (body.releasePointerCapture) body.releasePointerCapture(e.pointerId);
+          piece.el.classList.remove("is-dragging");
+          document.body.classList.remove("is-dragging");
+          drag = null;
+          if (!moved) return;
+          // Leave it where it was dropped: relaxation stops pulling this seed back
+          // toward its centroid from here on.
+          piece.placed = true;
+          suppressClick = true;
+          if (dragFrame) {
+            cancelAnimationFrame(dragFrame);
+            dragFrame = 0;
+          }
+          if (reduceMotion.matches) layout({ steps: 24 });
+          else settle(SETTLE_FRAMES);
+        }
+
+        tank.addEventListener("pointerdown", onPointerDown);
+        tank.addEventListener("pointermove", onPointerMove);
+        tank.addEventListener("pointerup", onPointerUp);
+        tank.addEventListener("pointercancel", onPointerUp);
+        // Browsers natively drag links, which would pre-empt the gesture.
+        tank.addEventListener("dragstart", (e) => e.preventDefault());
+        // A gesture that moved must not also follow the link it ended on.
+        tank.addEventListener(
+          "click",
+          (e) => {
+            if (!suppressClick) return;
+            suppressClick = false;
+            e.preventDefault();
+            e.stopPropagation();
+          },
+          true
+        );
 
         layout();
         scheduleLayout();
