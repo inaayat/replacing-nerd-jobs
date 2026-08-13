@@ -1,0 +1,47 @@
+name: Pull AI buildout snapshot
+
+# Seven issuers only. Submissions every weekday; Company Facts only when a
+# 10-K / 10-Q accession changes; FRED GDP at most weekly. No new Vercel function.
+on:
+  schedule:
+    - cron: '15 10 * * 1-5'
+  workflow_dispatch:
+
+concurrency:
+  group: pull-ai-buildout
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Pull EDGAR + GDP snapshot
+        env:
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+        run: node scripts/pull-ai-buildout.mjs
+      - name: Commit snapshot if it changed
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- ai-buildout/data/snapshot.json; then
+            echo "snapshot already up to date"
+            exit 0
+          fi
+          git add ai-buildout/data/snapshot.json
+          git commit -m "Refresh AI buildout EDGAR snapshot [skip ci]"
+          for attempt in 1 2 3; do
+            if git push; then exit 0; fi
+            echo "push rejected (main moved) — syncing and retrying"
+            git pull --rebase --autostash origin main
+          done
+          echo "Could not push snapshot after retries" >&2
+          exit 1

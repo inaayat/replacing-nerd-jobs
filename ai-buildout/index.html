@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <base href="/ai-buildout/" />
+    <title>AI buildout money — Beep boop</title>
+    <meta
+      name="description"
+      content="How Amazon, Microsoft, Alphabet, Meta, and Oracle are paying for the AI buildout: tagged CapEx, cash flow, leases, and new bond filings — not the headline trillions."
+    />
+    <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap"
+    />
+    <link rel="stylesheet" href="./app.css" />
+  </head>
+  <body>
+    <nav class="ab-nav">
+      <div class="ab-nav-brand">
+        <a href="/" class="ab-nav-logo" aria-label="Beep boop home">
+          <img src="/ugly-dog-images/dog-3.png" alt="" width="18" height="18" style="object-fit: contain" />
+          <span>Beep boop</span>
+        </a>
+        <a href="/ai-buildout/" class="ab-nav-section">
+          <img src="/ai-buildout/icon.svg" alt="" width="22" height="22" />
+          <span>AI buildout money</span>
+        </a>
+      </div>
+      <div class="ab-nav-links">
+        <a href="#stack">Cash vs CapEx</a>
+        <a href="#iceberg">Books vs footnotes</a>
+        <a href="#deals">SPVs</a>
+        <a href="/fortune-500/">Fortune 500</a>
+        <a href="/#projects">Projects</a>
+      </div>
+    </nav>
+
+    <main class="ab-shell">
+      <header class="ab-hero">
+        <p class="ab-kicker">Seven 10-Ks · not the headline trillions</p>
+        <h1 class="ab-title">How the AI buildout is actually being paid for</h1>
+        <p class="ab-lede">
+          The numbers on Instagram are too big to mean anything. These are smaller on purpose: tagged
+          cash, CapEx, leases, and new bond filings for the five hyperscalers — plus Nvidia and Apple
+          so you can see who is building campuses versus who is selling chips or sitting in the same
+          credit neighborhood.
+        </p>
+        <div class="ab-chips" id="stat-chips"></div>
+        <p class="ab-pulled" id="pulled-note"></p>
+      </header>
+
+      <section class="ab-clocks" aria-labelledby="clocks-title">
+        <h2 id="clocks-title">What updates on what clock</h2>
+        <div class="ab-clock-grid">
+          <article>
+            <h3>Filing days</h3>
+            <p>424B / FWP prospectuses and debt-flavored 8-Ks. Quiet most days; noisy when they tap the market.</p>
+          </article>
+          <article>
+            <h3>Each 10-K / 10-Q</h3>
+            <p>CapEx, operating cash, lease liabilities, proceeds from debt. This is how you get “94 cents of every cash-flow dollar.”</p>
+          </article>
+          <article>
+            <h3>Not an API</h3>
+            <p>Moody’s / Morgan Stanley / PIMCO off-book totals. Cited at the bottom with dates. We do not refresh them.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="ab-panel" id="stack">
+        <div class="ab-panel-head">
+          <div>
+            <h2>The cash machine, then the bond market</h2>
+            <p>
+              Latest annual filing. CapEx as a share of operating cash — the 40–50% band is the last
+              decade’s habit. Amazon’s latest 10-K is the “94 cents” chart. Oracle is already over 100.
+            </p>
+          </div>
+          <div class="ab-toggle" role="group" aria-label="Which companies">
+            <button type="button" data-view="hyperscalers" aria-pressed="true">Five builders</button>
+            <button type="button" data-view="all" aria-pressed="false">All seven</button>
+          </div>
+        </div>
+        <div class="ab-eat" id="eat-bars"></div>
+        <div class="ab-table-wrap">
+          <table class="ab-table" id="stack-table"></table>
+        </div>
+        <p class="ab-foot">
+          Blank is a missing tag, never zero. Fiscal years differ (Microsoft June, Oracle May, Apple
+          September). CapEx is the cash-flow tag, not this year’s guidance.
+        </p>
+      </section>
+
+      <section class="ab-panel" id="history">
+        <div class="ab-panel-head">
+          <div>
+            <h2>CapEx eating operating cash</h2>
+            <p>Ten fiscal years. The cream band is 40–50 cents of every cash-flow dollar — where this group used to live.</p>
+          </div>
+        </div>
+        <div class="ab-chart" id="cfo-chart"></div>
+        <p class="ab-foot">Year is the period-end year, not the calendar the company markets.</p>
+      </section>
+
+      <section class="ab-panel" id="iceberg">
+        <div class="ab-panel-head">
+          <div>
+            <h2>On the books vs in the lease footnote</h2>
+            <p>
+              After ASC 842, operating leases <em>are</em> on the balance sheet. That is not the
+              Beignet trick. Two columns: tagged long-term debt, and tagged lease liabilities.
+              Undiscounted remaining lease payments sit beside them — a cousin, not a number you add.
+              Special-purpose vehicle debt (Hyperion) is in neither column.
+            </p>
+          </div>
+        </div>
+        <p class="ab-callout">
+          This is <strong>not</strong> Moody’s $1.65T. That figure is a research reconstruction. What
+          we can tag is smaller and checkable.
+        </p>
+        <div class="ab-chart" id="iceberg-chart"></div>
+        <div class="ab-table-wrap">
+          <table class="ab-table" id="iceberg-table"></table>
+        </div>
+      </section>
+
+      <section class="ab-panel" id="ticker">
+        <div class="ab-panel-head">
+          <div>
+            <h2>New paper hitting EDGAR</h2>
+            <p>
+              Prospectus supplements (424B), free-writing prospectuses (FWP), and 8-Ks whose
+              description looks like debt or a lease. We do not parse the dollar amount out of the
+              PDF yet — the filing is the event.
+            </p>
+          </div>
+        </div>
+        <div class="ab-ticker" id="event-list"></div>
+      </section>
+
+      <section class="ab-panel" id="deals">
+        <div class="ab-panel-head">
+          <div>
+            <h2>The pastry and the sequel</h2>
+            <p>
+              Anatomy of the shadow-banking machine running in public. Curated from the deal, not
+              scraped from a tag — Meta’s residual-value guarantee is a sentence in the 10-K, not a
+              dollar in Company Facts.
+            </p>
+          </div>
+        </div>
+        <div class="ab-anatomy" aria-hidden="true">
+          <ol>
+            <li>Parent wants the campus</li>
+            <li>SPV borrows and owns it</li>
+            <li>Parent pays rent</li>
+            <li>Guarantee if they walk</li>
+          </ol>
+        </div>
+        <div class="ab-deals" id="deal-cards"></div>
+      </section>
+
+      <section class="ab-panel" id="parlay">
+        <div class="ab-panel-head">
+          <div>
+            <h2>Four things that all have to hit</h2>
+            <p>What the filings can say, versus the story people tell with “AI revenue.”</p>
+          </div>
+        </div>
+        <div class="ab-parlay" id="parlay-cards"></div>
+      </section>
+
+      <section class="ab-panel" id="claims">
+        <div class="ab-panel-head">
+          <div>
+            <h2>Claims we will not pretend to live-update</h2>
+            <p>Useful as context. Wrong as a time series.</p>
+          </div>
+        </div>
+        <ul class="ab-claims" id="claim-list"></ul>
+      </section>
+
+      <section class="ab-panel" id="sources">
+        <div class="ab-panel-head">
+          <div>
+            <h2>Sources</h2>
+            <p>Free, the same family as the Fortune 500 page. No Bloomberg, no TRACE, no new serverless function.</p>
+          </div>
+        </div>
+        <ul class="ab-sources">
+          <li><strong>SEC Company Facts</strong> — annual XBRL for cash, CapEx, debt, leases, debt proceeds.</li>
+          <li><strong>SEC Submissions</strong> — the daily index of 424B / FWP / 8-K filings.</li>
+          <li><strong>FRED GDP</strong> — nominal US GDP as the “cents per dollar of the economy” denominator.</li>
+          <li><strong>Parent 10-K footnotes</strong> — residual-value guarantees and VIE language, linked not parsed.</li>
+        </ul>
+        <p class="ab-foot">
+          Refresh locally with <code>node scripts/pull-ai-buildout.mjs</code>. The GitHub Action does
+          the same on a weekday morning. Open any name on
+          <a href="/fortune-500/">Fortune 500 ratios</a> to read the rest of the 10-K.
+        </p>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

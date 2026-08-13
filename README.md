@@ -69,6 +69,16 @@ fallback.
 Share prices (last + daily history) come from Yahoo Finance via
 `/api/f500-prices` — no API key; on-demand per open company.
 
+### AI buildout money — `/ai-buildout`
+
+How Amazon, Microsoft, Alphabet, Meta, and Oracle (plus Nvidia and Apple as
+overlays) are paying for the AI buildout. Tagged CapEx, operating cash, lease
+liabilities, and new 424B/FWP filings from EDGAR — not Moody’s off-book
+trillions. Snapshot in `ai-buildout/data/snapshot.json` (regenerate with
+`node scripts/pull-ai-buildout.mjs`). A weekday GitHub Action refreshes
+Submissions daily, Company Facts when a 10-K/10-Q changes, and FRED GDP at
+most weekly. No new Vercel function.
+
 ### World Cup 2026 — `/world-cup`
 
 Back on the homepage as a **static snapshot**. Live football-data.org scores
@@ -112,7 +122,8 @@ python3 -m http.server 8080
 ```
 
 Works for catalog/player pages like Sporcle Spinoff, Plot Points shells, and
-the Fortune 500 EDGAR explainer (`/fortune-500/`).
+the Fortune 500 EDGAR explainer (`/fortune-500/`), and the AI buildout
+money monitor (`/ai-buildout/`).
 `api/*` routes do **not** run under a plain static server.
 
 **Full stack** (API routes + env secrets):
@@ -479,4 +490,5 @@ node scripts/test-alist-watchlist-sort.mjs
 node scripts/test-alist-showing.mjs
 node scripts/test-fortune500-extract.mjs
 node scripts/test-fortune500-insights.mjs
+node scripts/test-ai-buildout.mjs
 ```
