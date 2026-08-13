@@ -1,8 +1,7 @@
 /* Palette borrowed from the site home page: cream field, ink type, one loud red.
-   Red is a fill colour only. Nothing clears AA against pure red — ink is the
-   best of a bad set at 4.26:1, cream 3.62:1 — so text on a red fill is always
-   full-strength ink (alpha only makes it worse), and text that has to sit on
-   cream uses --al-red-deep instead. */
+   Red is a fill colour only: type on a red fill is white, and red type on cream
+   uses --al-red-deep. Nothing clears AA against pure red (white 4.00:1, ink
+   4.26:1), so keep that type full-strength — alpha only makes it worse. */
 :root {
   --al-cream: #faf3e3;
   --al-red: #ff0000;
@@ -117,7 +116,7 @@ a { color: var(--al-red-deep); }
   padding: 14px 16px 12px;
   border-radius: 16px;
   background: var(--al-red);
-  color: var(--al-black);
+  color: var(--al-white);
 }
 
 .al-sidebar-brand::after {
@@ -125,7 +124,7 @@ a { color: var(--al-red-deep); }
   display: block;
   height: 6px;
   margin-top: 10px;
-  background-image: radial-gradient(circle, var(--al-cream) 2.1px, transparent 2.3px);
+  background-image: radial-gradient(circle, var(--al-white) 2.1px, transparent 2.3px);
   background-size: 14px 6px;
   opacity: 0.8;
 }
@@ -136,11 +135,11 @@ a { color: var(--al-red-deep); }
   font-size: 1.4rem;
   font-weight: 700;
   line-height: 1.1;
-  color: var(--al-black);
+  color: var(--al-white);
   text-decoration: none;
 }
 
-.al-sidebar-title:hover { color: var(--al-black); text-decoration: underline; text-underline-offset: 3px; }
+.al-sidebar-title:hover { color: var(--al-white); text-decoration: underline; text-underline-offset: 3px; }
 
 .al-sidebar-tagline {
   margin: 0;
@@ -148,7 +147,7 @@ a { color: var(--al-red-deep); }
   font-weight: 400;
   font-style: italic;
   line-height: 1.35;
-  color: var(--al-black);
+  color: var(--al-white);
 }
 
 .al-sidebar-stats {
@@ -227,7 +226,7 @@ a { color: var(--al-red-deep); }
 }
 
 .al-nav-link.is-active {
-  color: var(--al-black);
+  color: var(--al-white);
   background: var(--al-red);
   font-weight: 700;
 }
@@ -466,7 +465,7 @@ a { color: var(--al-red-deep); }
   border: 0;
   border-radius: 999px;
   background: var(--al-red);
-  color: var(--al-black);
+  color: var(--al-white);
   font: inherit;
   font-size: 0.86rem;
   font-weight: 700;
@@ -509,7 +508,7 @@ a { color: var(--al-red-deep); }
 .al-quicklog-mode-btn.is-active {
   background: var(--al-red);
   border-color: var(--al-red);
-  color: var(--al-black);
+  color: var(--al-white);
   font-weight: 600;
 }
 
@@ -619,7 +618,7 @@ a { color: var(--al-red-deep); }
   padding: 0 4px;
   border-radius: 999px;
   background: var(--al-red);
-  color: var(--al-black);
+  color: var(--al-white);
   font-size: 0.68rem;
   font-weight: 600;
   line-height: 1.4;
@@ -1573,7 +1572,7 @@ a { color: var(--al-red-deep); }
 .al-btn-primary {
   background: var(--al-red);
   border-color: var(--al-red);
-  color: var(--al-black);
+  color: var(--al-white);
 }
 .al-btn-primary:hover { background: var(--al-red); border-color: var(--al-red); filter: brightness(0.95); }
 
@@ -2299,7 +2298,7 @@ table.al-table {
 .al-toggle-btn[aria-pressed="true"] {
   background: var(--al-red);
   border-color: var(--al-red);
-  color: var(--al-black);
+  color: var(--al-white);
 }
 
 .al-meter {
@@ -3662,13 +3661,14 @@ table.al-table {
     font-size: 0.72rem;
     font-weight: 600;
     text-decoration: none;
-    color: var(--al-black);
+    color: var(--al-white);
     text-align: center;
     line-height: 1.15;
   }
 
+  /* The active item is the one label not sitting on red, so it keeps ink. */
   .al-mobile-nav-link.is-active {
-    background: var(--al-cream);
+    background: var(--al-white);
     color: var(--al-black);
   }
 
@@ -4274,7 +4274,7 @@ table.al-table {
 .al-signin-tab.is-active {
   background: var(--al-red);
   border-color: var(--al-red);
-  color: var(--al-black);
+  color: var(--al-white);
 }
 
 .al-signin-form {
