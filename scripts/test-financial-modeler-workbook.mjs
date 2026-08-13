@@ -120,6 +120,15 @@ assert.match(styleBlock, /ss:ID="in"[\s\S]*?ss:Color="#0000FF"/, 'input style is
 assert.match(styleBlock, /ss:ID="calc"><Font ss:Color="#000000"/, 'formula style is black');
 assert.match(styleBlock, /ss:ID="link"><Font ss:Color="#008000"/, 'cross-sheet link style is green');
 
+// SpreadsheetML fixes the order of a Style's children, and Excel refuses to
+// open the file rather than reordering them for you.
+const STYLE_CHILD_ORDER = ['Alignment', 'Borders', 'Font', 'Interior', 'NumberFormat', 'Protection'];
+for (const style of styleBlock.matchAll(/<Style ss:ID="([^"]+)"[^>]*>([\s\S]*?)<\/Style>/g)) {
+  const children = [...style[2].matchAll(/<(Alignment|Borders|Font|Interior|NumberFormat|Protection)[\s>]/g)].map((m) => m[1]);
+  const sorted = [...children].sort((a, b) => STYLE_CHILD_ORDER.indexOf(a) - STYLE_CHILD_ORDER.indexOf(b));
+  assert.deepEqual(children, sorted, `style ${style[1]} lists its children out of schema order`);
+}
+
 const INPUT_STYLES = new Set(['in', 'inpct', 'innum']);
 const LINK_STYLES = new Set(['link', 'linknum']);
 

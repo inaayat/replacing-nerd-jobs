@@ -31,20 +31,20 @@ function esc(s) {
 const STYLES = `<Styles>
  <Style ss:ID="Default" ss:Name="Normal"><Alignment ss:Vertical="Bottom"/><Font ss:FontName="Calibri" ss:Size="11" ss:Color="#000000"/></Style>
  <Style ss:ID="title"><Font ss:FontName="Calibri" ss:Size="14" ss:Bold="1"/></Style>
- <Style ss:ID="hdr"><Font ss:Bold="1"/><Interior ss:Color="#EFEAE0" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
+ <Style ss:ID="hdr"><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/></Borders><Font ss:Bold="1"/><Interior ss:Color="#EFEAE0" ss:Pattern="Solid"/></Style>
  <Style ss:ID="lbl"><Font ss:Color="#000000"/></Style>
  <Style ss:ID="lblb"><Font ss:Bold="1"/></Style>
- <Style ss:ID="note"><Font ss:Italic="1" ss:Color="#6B6455"/><Alignment ss:WrapText="1" ss:Vertical="Top"/></Style>
+ <Style ss:ID="note"><Alignment ss:Vertical="Top" ss:WrapText="1"/><Font ss:Italic="1" ss:Color="#6B6455"/></Style>
  <Style ss:ID="in"><Font ss:Color="#0000FF"/><NumberFormat ss:Format="#,##0.0"/></Style>
  <Style ss:ID="inpct"><Font ss:Color="#0000FF"/><NumberFormat ss:Format="0.0%"/></Style>
  <Style ss:ID="innum"><Font ss:Color="#0000FF"/><NumberFormat ss:Format="#,##0.00"/></Style>
  <Style ss:ID="calc"><Font ss:Color="#000000"/><NumberFormat ss:Format="#,##0.0;(#,##0.0)"/></Style>
- <Style ss:ID="calcb"><Font ss:Color="#000000" ss:Bold="1"/><NumberFormat ss:Format="#,##0.0;(#,##0.0)"/><Borders><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
+ <Style ss:ID="calcb"><Borders><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders><Font ss:Color="#000000" ss:Bold="1"/><NumberFormat ss:Format="#,##0.0;(#,##0.0)"/></Style>
  <Style ss:ID="calcpct"><Font ss:Color="#000000"/><NumberFormat ss:Format="0.0%"/></Style>
  <Style ss:ID="calcnum"><Font ss:Color="#000000"/><NumberFormat ss:Format="#,##0.00"/></Style>
  <Style ss:ID="link"><Font ss:Color="#008000"/><NumberFormat ss:Format="#,##0.0;(#,##0.0)"/></Style>
  <Style ss:ID="linknum"><Font ss:Color="#008000"/><NumberFormat ss:Format="#,##0.00"/></Style>
- <Style ss:ID="check"><Font ss:Bold="1" ss:Color="#000000"/><NumberFormat ss:Format="#,##0.000"/><Interior ss:Color="#E8F3E8" ss:Pattern="Solid"/></Style>
+ <Style ss:ID="check"><Font ss:Bold="1" ss:Color="#000000"/><Interior ss:Color="#E8F3E8" ss:Pattern="Solid"/><NumberFormat ss:Format="#,##0.000"/></Style>
 </Styles>`;
 
 /** One cell. `f` is an R1C1 formula, `v` a literal, `s` a style id. */
