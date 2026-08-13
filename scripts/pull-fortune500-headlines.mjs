@@ -19,6 +19,12 @@ const UA =
 const WORKERS = 2;
 const GAP_MS = 150;
 const MAX_ATTEMPTS = 5;
+/**
+ * Bump when a slimmed field is added, so existing rows get refetched instead of
+ * silently serving a snapshot the UI can no longer fill in.
+ * 2 — prior-year filed values (`priorMetrics`) for the FY-1 statement column.
+ */
+const SNAPSHOT_SCHEMA = 2;
 
 function padCik(cik) {
   return String(cik).padStart(10, '0');
@@ -35,18 +41,25 @@ function slim(extracted, cik) {
     asOfYear: extracted.asOfYear,
     metrics: extracted.metrics,
     priorRevenue: extracted.priorRevenue,
+    priorMetrics: extracted.priorMetrics,
     ratios: extracted.ratios,
   };
 }
 
 function loadSnapshot() {
   if (!existsSync(OUT)) {
-    return { pulled_at: null, companies: {} };
+    return { schema: SNAPSHOT_SCHEMA, pulled_at: null, companies: {} };
   }
-  return JSON.parse(readFileSync(OUT, 'utf8'));
+  const snap = JSON.parse(readFileSync(OUT, 'utf8'));
+  if (snap.schema !== SNAPSHOT_SCHEMA) {
+    console.log(`Snapshot schema ${snap.schema ?? 1} → ${SNAPSHOT_SCHEMA}: refetching every filer.`);
+    return { schema: SNAPSHOT_SCHEMA, pulled_at: null, companies: {} };
+  }
+  return snap;
 }
 
 function saveSnapshot(snap) {
+  snap.schema = SNAPSHOT_SCHEMA;
   snap.pulled_at = new Date().toISOString();
   writeFileSync(OUT, JSON.stringify(snap));
 }

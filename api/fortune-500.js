@@ -18,6 +18,8 @@ import {
 
 const MAX_CIKS = MAX_COMPARE;
 const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7;
+/** Bump when the headline payload gains a field the UI needs, so cached rows refetch. */
+const PAYLOAD_SCHEMA = 2;
 const PRICE_CACHE_TTL_MS = 1000 * 60 * 15;
 const SEC_PAUSE_MS = 125;
 const YAHOO_UA =
@@ -148,10 +150,12 @@ async function headlinesForCik(cik) {
 
   const extracted = extractHeadlines(facts);
   const payload = {
+    schema: PAYLOAD_SCHEMA,
     entityName: extracted.entityName,
     asOfYear: extracted.asOfYear,
     metrics: extracted.metrics,
     priorRevenue: extracted.priorRevenue,
+    priorMetrics: extracted.priorMetrics,
     ratios: extracted.ratios,
     flags: extracted.flags,
   };
@@ -172,6 +176,7 @@ async function readCache(cik) {
     if (!row) return null;
     const age = Date.now() - new Date(row.fetched_at).getTime();
     if (age > CACHE_TTL_MS) return null;
+    if (row.payload?.schema !== PAYLOAD_SCHEMA) return null;
     return row.payload;
   } catch {
     return null;
