@@ -25,6 +25,8 @@ This repo is a no-build Vercel site (see `README.md` for structure/deploy). Non-
  - `node scripts/test-fortune500-model.mjs` — Fortune 500 practice model + playbooks (`fortune-500/model.js`)
  - `node scripts/test-fortune500-statement.mjs` — Fortune 500 statement view model (`fortune-500/statement.js`)
  - `node scripts/test-fortune500-prices.mjs` — Fortune 500 Yahoo price proxy (`api/fortune-500.js` `?route=prices`)
+ - `node scripts/test-financial-modeler-engine.mjs` — Financial Modeler engine (`financial-modeler/engine.js`)
+ - `node scripts/test-financial-modeler-workbook.mjs` — Financial Modeler Excel download (`financial-modeler/workbook.js`)
   - `node scripts/test-public-imports.mjs` — no browser-loaded file imports server-only `/lib/` code
   - `node scripts/test-alist-watchlist-sort.mjs` — Coming Soon watchlist ordering
   - `node scripts/test-alist-showing.mjs` — watched-together / showing-invite match rules

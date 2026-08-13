@@ -1,13 +1,14 @@
 /**
- * The Excel download: a SpreadsheetML 2003 workbook (.xls) that Excel opens
- * with live formulas, so editing an Assumptions cell recalculates the whole
- * model. Browser-safe ESM — no zip, no npm, no build step.
+ * The Excel download: a real Office Open XML workbook (.xlsx) that Excel,
+ * Numbers, and Sheets open with live formulas. Browser-safe ESM — a tiny
+ * uncompressed zip writer, no npm, no build step.
  *
  * Wall Street Prep conventions this file is built around:
  *  - blue font = hard-coded input, black = formula, green = link to another sheet
  *  - inputs live on Assumptions; no constant is buried inside a formula
  *  - one row is one calculation, and a forecast row uses the same formula in
- *    every column (absolute row, relative column R1C1 refs make that literal)
+ *    every column (absolute row, relative column R1C1 refs make that literal;
+ *    they are rewritten to A1 only when the xlsx is serialised)
  *  - income positive, expenses negative
  *  - historical column first, forecast to the right; no spacer columns
  *  - interest is charged on the *beginning* balance, so there is no circularity
@@ -28,48 +29,414 @@ function esc(s) {
     .replaceAll('"', '&quot;');
 }
 
-const STYLES = `<Styles>
- <Style ss:ID="Default" ss:Name="Normal"><Alignment ss:Vertical="Bottom"/><Font ss:FontName="Calibri" ss:Size="11" ss:Color="#000000"/></Style>
- <Style ss:ID="title"><Font ss:FontName="Calibri" ss:Size="14" ss:Bold="1"/></Style>
- <Style ss:ID="hdr"><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/></Borders><Font ss:Bold="1"/><Interior ss:Color="#EFEAE0" ss:Pattern="Solid"/></Style>
- <Style ss:ID="lbl"><Font ss:Color="#000000"/></Style>
- <Style ss:ID="lblb"><Font ss:Bold="1"/></Style>
- <Style ss:ID="note"><Alignment ss:Vertical="Top" ss:WrapText="1"/><Font ss:Italic="1" ss:Color="#6B6455"/></Style>
- <Style ss:ID="in"><Font ss:Color="#0000FF"/><NumberFormat ss:Format="#,##0.0"/></Style>
- <Style ss:ID="inpct"><Font ss:Color="#0000FF"/><NumberFormat ss:Format="0.0%"/></Style>
- <Style ss:ID="innum"><Font ss:Color="#0000FF"/><NumberFormat ss:Format="#,##0.00"/></Style>
- <Style ss:ID="calc"><Font ss:Color="#000000"/><NumberFormat ss:Format="#,##0.0;(#,##0.0)"/></Style>
- <Style ss:ID="calcb"><Borders><Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1"/></Borders><Font ss:Color="#000000" ss:Bold="1"/><NumberFormat ss:Format="#,##0.0;(#,##0.0)"/></Style>
- <Style ss:ID="calcpct"><Font ss:Color="#000000"/><NumberFormat ss:Format="0.0%"/></Style>
- <Style ss:ID="calcnum"><Font ss:Color="#000000"/><NumberFormat ss:Format="#,##0.00"/></Style>
- <Style ss:ID="link"><Font ss:Color="#008000"/><NumberFormat ss:Format="#,##0.0;(#,##0.0)"/></Style>
- <Style ss:ID="linknum"><Font ss:Color="#008000"/><NumberFormat ss:Format="#,##0.00"/></Style>
- <Style ss:ID="check"><Font ss:Bold="1" ss:Color="#000000"/><Interior ss:Color="#E8F3E8" ss:Pattern="Solid"/><NumberFormat ss:Format="#,##0.000"/></Style>
-</Styles>`;
+/** Style name → cellXfs index. Tests map cells back through this. */
+export const STYLE = {
+  Default: 0,
+  title: 1,
+  hdr: 2,
+  lbl: 3,
+  lblb: 4,
+  note: 5,
+  in: 6,
+  inpct: 7,
+  innum: 8,
+  calc: 9,
+  calcb: 10,
+  calcpct: 11,
+  calcnum: 12,
+  link: 13,
+  linknum: 14,
+  check: 15,
+};
 
-/** One cell. `f` is an R1C1 formula, `v` a literal, `s` a style id. */
-function cellXml({ f = null, v = null, s = null, t = null } = {}) {
-  const style = s ? ` ss:StyleID="${s}"` : '';
-  if (f) {
-    const cached = typeof v === 'number' && Number.isFinite(v) ? `<Data ss:Type="Number">${v}</Data>` : '';
-    return `<Cell${style} ss:Formula="${esc(f)}">${cached}</Cell>`;
-  }
-  if (v == null || v === '') return `<Cell${style}/>`;
-  const type = t || (typeof v === 'number' && Number.isFinite(v) ? 'Number' : 'String');
-  if (type === 'Number') return `<Cell${style}><Data ss:Type="Number">${v}</Data></Cell>`;
-  return `<Cell${style}><Data ss:Type="String">${esc(v)}</Data></Cell>`;
+const STYLE_NAMES = Object.fromEntries(Object.entries(STYLE).map(([k, v]) => [v, k]));
+
+export function styleName(xf) {
+  return STYLE_NAMES[xf] || null;
 }
+
+/* ----------------------------- R1C1 → A1 ----------------------------- */
+
+export function colLetter(n) {
+  let s = '';
+  let x = n;
+  while (x > 0) {
+    const rem = (x - 1) % 26;
+    s = String.fromCharCode(65 + rem) + s;
+    x = Math.floor((x - 1) / 26);
+  }
+  return s;
+}
+
+function r1c1RefToA1(rowPart, colPart, curRow, curCol) {
+  let row;
+  let rowAbs = false;
+  if (rowPart == null || rowPart === '') {
+    row = curRow;
+  } else if (rowPart.startsWith('[')) {
+    row = curRow + Number(rowPart.slice(1, -1));
+  } else {
+    row = Number(rowPart);
+    rowAbs = true;
+  }
+  let col;
+  let colAbs = false;
+  if (colPart == null || colPart === '') {
+    col = curCol;
+  } else if (colPart.startsWith('[')) {
+    col = curCol + Number(colPart.slice(1, -1));
+  } else {
+    col = Number(colPart);
+    colAbs = true;
+  }
+  return `${colAbs ? '$' : ''}${colLetter(col)}${rowAbs ? '$' : ''}${row}`;
+}
+
+/**
+ * Rewrite every R1C1 reference in a formula to A1, relative to the cell
+ * that holds it. Sheet names stay put. Excel stores A1 in the xlsx.
+ */
+export function r1c1ToA1(formula, curRow, curCol) {
+  return String(formula).replace(
+    /(?:([A-Za-z_][A-Za-z0-9_.]*)!)?R(\[-?\d+\]|\d+)?C(\[-?\d+\]|\d+)?/g,
+    (match, sheet, r, c) => {
+      if (r == null && c == null) return match;
+      const a1 = r1c1RefToA1(r, c, curRow, curCol);
+      return sheet ? `${sheet}!${a1}` : a1;
+    }
+  );
+}
+
+/* --------------------------- uncompressed zip -------------------------- */
+
+const CRC_TABLE = new Uint32Array(256);
+for (let i = 0; i < 256; i += 1) {
+  let c = i;
+  for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+  CRC_TABLE[i] = c >>> 0;
+}
+
+function crc32(bytes) {
+  let c = 0xffffffff;
+  for (let i = 0; i < bytes.length; i += 1) c = CRC_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+function u16(n) {
+  return Uint8Array.of(n & 0xff, (n >>> 8) & 0xff);
+}
+
+function u32(n) {
+  return Uint8Array.of(n & 0xff, (n >>> 8) & 0xff, (n >>> 16) & 0xff, (n >>> 24) & 0xff);
+}
+
+function concatBytes(chunks) {
+  let len = 0;
+  for (const c of chunks) len += c.length;
+  const out = new Uint8Array(len);
+  let off = 0;
+  for (const c of chunks) {
+    out.set(c, off);
+    off += c.length;
+  }
+  return out;
+}
+
+const utf8 = (s) => new TextEncoder().encode(s);
+
+/**
+ * STORED (uncompressed) zip. Excel, Numbers, and Sheets all accept it;
+ * we only need a valid local-header / central-directory / EOCD chain.
+ * @param {{name: string, data: string|Uint8Array}[]} files
+ */
+export function zipStore(files) {
+  const locals = [];
+  const centrals = [];
+  let offset = 0;
+  for (const file of files) {
+    const name = utf8(file.name);
+    const data = typeof file.data === 'string' ? utf8(file.data) : file.data;
+    const crc = crc32(data);
+    const local = concatBytes([
+      u32(0x04034b50),
+      u16(20),
+      u16(0),
+      u16(0),
+      u16(0),
+      u16(0),
+      u32(crc),
+      u32(data.length),
+      u32(data.length),
+      u16(name.length),
+      u16(0),
+      name,
+      data,
+    ]);
+    locals.push(local);
+    centrals.push(
+      concatBytes([
+        u32(0x02014b50),
+        u16(20),
+        u16(20),
+        u16(0),
+        u16(0),
+        u16(0),
+        u16(0),
+        u32(crc),
+        u32(data.length),
+        u32(data.length),
+        u16(name.length),
+        u16(0),
+        u16(0),
+        u16(0),
+        u16(0),
+        u32(0),
+        u32(offset),
+        name,
+      ])
+    );
+    offset += local.length;
+  }
+  const central = concatBytes(centrals);
+  const eocd = concatBytes([
+    u32(0x06054b50),
+    u16(0),
+    u16(0),
+    u16(files.length),
+    u16(files.length),
+    u32(central.length),
+    u32(offset),
+    u16(0),
+  ]);
+  return concatBytes([...locals, central, eocd]);
+}
+
+/* ------------------------------ OOXML parts ---------------------------- */
+
+const CONTENT_TYPES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+<Override PartName="/xl/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>
+<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
+SHEETS
+</Types>`;
+
+const ROOT_RELS = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
+</Relationships>`;
+
+const CORE_PROPS = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<dc:title>Financial model</dc:title>
+<dc:creator>Beep boop</dc:creator>
+</cp:coreProperties>`;
+
+const APP_PROPS = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties">
+<Application>Microsoft Excel</Application>
+</Properties>`;
+
+const THEME = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Office Theme">
+<a:themeElements>
+<a:clrScheme name="Office">
+<a:dk1><a:sysClr val="windowText" lastClr="000000"/></a:dk1>
+<a:lt1><a:sysClr val="window" lastClr="FFFFFF"/></a:lt1>
+<a:dk2><a:srgbClr val="1C1C1C"/></a:dk2>
+<a:lt2><a:srgbClr val="F6F1E7"/></a:lt2>
+<a:accent1><a:srgbClr val="1A49C4"/></a:accent1>
+<a:accent2><a:srgbClr val="1F7A4D"/></a:accent2>
+<a:accent3><a:srgbClr val="B3401F"/></a:accent3>
+<a:accent4><a:srgbClr val="F2C14E"/></a:accent4>
+<a:accent5><a:srgbClr val="755CA7"/></a:accent5>
+<a:accent6><a:srgbClr val="78A8D5"/></a:accent6>
+<a:hlink><a:srgbClr val="1A49C4"/></a:hlink>
+<a:folHlink><a:srgbClr val="755CA7"/></a:folHlink>
+</a:clrScheme>
+<a:fontScheme name="Office">
+<a:majorFont><a:latin typeface="Calibri"/><a:ea typeface=""/><a:cs typeface=""/></a:majorFont>
+<a:minorFont><a:latin typeface="Calibri"/><a:ea typeface=""/><a:cs typeface=""/></a:minorFont>
+</a:fontScheme>
+<a:fmtScheme name="Office">
+<a:fillStyleLst>
+<a:solidFill><a:schemeClr val="phClr"/></a:solidFill>
+<a:solidFill><a:schemeClr val="phClr"/></a:solidFill>
+<a:solidFill><a:schemeClr val="phClr"/></a:solidFill>
+</a:fillStyleLst>
+<a:lnStyleLst>
+<a:ln w="9525" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:prstDash val="solid"/></a:ln>
+<a:ln w="9525" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:prstDash val="solid"/></a:ln>
+<a:ln w="9525" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:prstDash val="solid"/></a:ln>
+</a:lnStyleLst>
+<a:effectStyleLst>
+<a:effectStyle><a:effectLst/></a:effectStyle>
+<a:effectStyle><a:effectLst/></a:effectStyle>
+<a:effectStyle><a:effectLst/></a:effectStyle>
+</a:effectStyleLst>
+<a:bgFillStyleLst>
+<a:solidFill><a:schemeClr val="phClr"/></a:solidFill>
+<a:solidFill><a:schemeClr val="phClr"/></a:solidFill>
+<a:solidFill><a:schemeClr val="phClr"/></a:solidFill>
+</a:bgFillStyleLst>
+</a:fmtScheme>
+</a:themeElements>
+</a:theme>`;
+
+/**
+ * fonts: 0 default black, 1 title bold, 2 bold, 3 italic muted, 4 blue input,
+ * 5 green link, 6 check bold. fills 0 none, 1 gray125 (required), 2 hdr, 3 check.
+ */
+const STYLES_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<numFmts count="5">
+<numFmt numFmtId="164" formatCode="#,##0.0"/>
+<numFmt numFmtId="165" formatCode="#,##0.0;(#,##0.0)"/>
+<numFmt numFmtId="166" formatCode="0.0%"/>
+<numFmt numFmtId="167" formatCode="#,##0.00"/>
+<numFmt numFmtId="168" formatCode="#,##0.000"/>
+</numFmts>
+<fonts count="7">
+<font><sz val="11"/><color rgb="FF000000"/><name val="Calibri"/></font>
+<font><b/><sz val="14"/><color rgb="FF000000"/><name val="Calibri"/></font>
+<font><b/><sz val="11"/><color rgb="FF000000"/><name val="Calibri"/></font>
+<font><i/><sz val="11"/><color rgb="FF6B6455"/><name val="Calibri"/></font>
+<font><sz val="11"/><color rgb="FF0000FF"/><name val="Calibri"/></font>
+<font><sz val="11"/><color rgb="FF008000"/><name val="Calibri"/></font>
+<font><b/><sz val="11"/><color rgb="FF000000"/><name val="Calibri"/></font>
+</fonts>
+<fills count="4">
+<fill><patternFill patternType="none"/></fill>
+<fill><patternFill patternType="gray125"/></fill>
+<fill><patternFill patternType="solid"><fgColor rgb="FFEFEAE0"/><bgColor rgb="FFEFEAE0"/></patternFill></fill>
+<fill><patternFill patternType="solid"><fgColor rgb="FFE8F3E8"/><bgColor rgb="FFE8F3E8"/></patternFill></fill>
+</fills>
+<borders count="3">
+<border><left/><right/><top/><bottom/><diagonal/></border>
+<border><left/><right/><top/><bottom style="thin"><color rgb="FF000000"/></bottom><diagonal/></border>
+<border><left/><right/><top style="thin"><color rgb="FF000000"/></top><bottom/><diagonal/></border>
+</borders>
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+<cellXfs count="16">
+<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>
+<xf numFmtId="0" fontId="2" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>
+<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>
+<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment wrapText="1" vertical="top"/></xf>
+<xf numFmtId="164" fontId="4" fillId="0" borderId="0" xfId="0" applyFont="1" applyNumberFormat="1"/>
+<xf numFmtId="166" fontId="4" fillId="0" borderId="0" xfId="0" applyFont="1" applyNumberFormat="1"/>
+<xf numFmtId="167" fontId="4" fillId="0" borderId="0" xfId="0" applyFont="1" applyNumberFormat="1"/>
+<xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyFont="1" applyNumberFormat="1"/>
+<xf numFmtId="165" fontId="2" fillId="0" borderId="2" xfId="0" applyFont="1" applyNumberFormat="1" applyBorder="1"/>
+<xf numFmtId="166" fontId="0" fillId="0" borderId="0" xfId="0" applyFont="1" applyNumberFormat="1"/>
+<xf numFmtId="167" fontId="0" fillId="0" borderId="0" xfId="0" applyFont="1" applyNumberFormat="1"/>
+<xf numFmtId="165" fontId="5" fillId="0" borderId="0" xfId="0" applyFont="1" applyNumberFormat="1"/>
+<xf numFmtId="167" fontId="5" fillId="0" borderId="0" xfId="0" applyFont="1" applyNumberFormat="1"/>
+<xf numFmtId="168" fontId="6" fillId="3" borderId="0" xfId="0" applyFont="1" applyFill="1" applyNumberFormat="1"/>
+</cellXfs>
+</styleSheet>`;
+
+function writeCell(cell, row, col) {
+  const ref = `${colLetter(col)}${row}`;
+  const s = cell.s && STYLE[cell.s] != null ? ` s="${STYLE[cell.s]}"` : '';
+  if (cell.f) {
+    const raw = String(cell.f).replace(/^=/, '');
+    const a1 = r1c1ToA1(raw, row, col);
+    const cached = typeof cell.v === 'number' && Number.isFinite(cell.v) ? `<v>${cell.v}</v>` : '';
+    return `<c r="${ref}"${s}><f>${esc(a1)}</f>${cached}</c>`;
+  }
+  if (cell.v == null || cell.v === '') return '';
+  if (typeof cell.v === 'number' && Number.isFinite(cell.v)) {
+    return `<c r="${ref}"${s}><v>${cell.v}</v></c>`;
+  }
+  return `<c r="${ref}"${s} t="inlineStr"><is><t>${esc(cell.v)}</t></is></c>`;
+}
+
+function sheetXml({ rows, widths }) {
+  const cols = (widths || [])
+    .map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${Math.max(8, Math.round(w / 6))}" customWidth="1"/>`)
+    .join('');
+  const data = rows
+    .map((cells, i) => {
+      const r = i + 1;
+      const body = (cells || []).map((cell, j) => writeCell(cell || {}, r, j + 1)).join('');
+      return `<row r="${r}">${body}</row>`;
+    })
+    .join('');
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+${cols ? `<cols>${cols}</cols>` : ''}
+<sheetData>${data}</sheetData>
+</worksheet>`;
+}
+
+function workbookXml(names) {
+  const sheets = names
+    .map((name, i) => `<sheet name="${esc(name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`)
+    .join('');
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<workbookPr/>
+<sheets>${sheets}</sheets>
+<calcPr fullCalcOnLoad="1"/>
+</workbook>`;
+}
+
+function workbookRels(sheetCount) {
+  const sheets = Array.from({ length: sheetCount }, (_, i) => {
+    return `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`;
+  }).join('');
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+${sheets}
+<Relationship Id="rId${sheetCount + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+<Relationship Id="rId${sheetCount + 2}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="theme/theme1.xml"/>
+</Relationships>`;
+}
+
+function contentTypes(sheetCount) {
+  const sheets = Array.from({ length: sheetCount }, (_, i) => {
+    return `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`;
+  }).join('\n');
+  return CONTENT_TYPES.replace('SHEETS', sheets);
+}
+
+function packXlsx(sheets) {
+  const files = [
+    { name: '[Content_Types].xml', data: contentTypes(sheets.length) },
+    { name: '_rels/.rels', data: ROOT_RELS },
+    { name: 'docProps/core.xml', data: CORE_PROPS },
+    { name: 'docProps/app.xml', data: APP_PROPS },
+    { name: 'xl/workbook.xml', data: workbookXml(sheets.map((s) => s.name)) },
+    { name: 'xl/_rels/workbook.xml.rels', data: workbookRels(sheets.length) },
+    { name: 'xl/styles.xml', data: STYLES_XML },
+    { name: 'xl/theme/theme1.xml', data: THEME },
+  ];
+  sheets.forEach((s, i) => {
+    files.push({ name: `xl/worksheets/sheet${i + 1}.xml`, data: sheetXml(s) });
+  });
+  return zipStore(files);
+}
+
+/* --------------------------- sheet builders ---------------------------- */
 
 /** Row builder that hands back the 1-based row number it just wrote. */
 function sheetBuilder() {
   const rows = [];
   return {
     add(cells) {
-      rows.push(`<Row>${cells.map(cellXml).join('')}</Row>`);
+      rows.push(cells);
       return rows.length;
     },
     blank() {
-      rows.push('<Row/>');
+      rows.push([]);
       return rows.length;
     },
     text(values, style = 'lbl') {
@@ -78,15 +445,10 @@ function sheetBuilder() {
     get length() {
       return rows.length;
     },
-    xml(widths) {
-      const cols = (widths || []).map((w) => `<Column ss:Width="${w}"/>`).join('');
-      return cols + rows.join('');
+    pack(widths) {
+      return { rows, widths: widths || [] };
     },
   };
-}
-
-function worksheet(name, body) {
-  return `<Worksheet ss:Name="${esc(name)}"><Table>${body}</Table></Worksheet>`;
 }
 
 const mm = (n) => (typeof n === 'number' && Number.isFinite(n) ? n / M : null);
@@ -168,7 +530,7 @@ function assumptionsSheet({ company, headlines, model, cards }) {
   ], 'note');
   b.text(['Note: D&A is not tagged either. CapEx is the stand-in — a mature company roughly replaces what it wears out.'], 'note');
 
-  return { xml: b.xml([260, 90, 380, 380]), at };
+  return { sheet: b.pack([260, 90, 380, 380]), at };
 }
 
 /**
@@ -216,7 +578,7 @@ function incomeSheet(model, at) {
   b.blank();
   b.text(['Interest uses the beginning-of-year debt and cash balances. That is deliberate: it keeps the model free of circular references.'], 'note');
 
-  return { xml: b.xml([300, ...rows.map(() => 90)]), rows: r };
+  return { sheet: b.pack([300, ...rows.map(() => 90)]), rows: r };
 }
 
 /** BASE schedules: begin + additions − subtractions = end, one block each. */
@@ -262,7 +624,7 @@ function schedulesSheet(model, at, isRows) {
   r.eqDiv = line('Dividends paid', null, `=-MAX(0,IS!R${isRows.netIncome}C)*${ref(at, 'payoutRatio')}`, 'link');
   r.eqEnd = line('Ending balance', rows[0].equity, `=R${r.eqBegin}C+R${r.eqNi}C+R${r.eqDiv}C`, 'calc', true);
 
-  return { xml: b.xml([300, ...rows.map(() => 90)]), rows: r };
+  return { sheet: b.pack([300, ...rows.map(() => 90)]), rows: r };
 }
 
 function balanceSheet(model, schedRows, cfsRows) {
@@ -295,7 +657,7 @@ function balanceSheet(model, schedRows, cfsRows) {
   for (let i = 0; i < cols; i += 1) checkCells.push({ f: `=R${r.totalAssets}C-R${r.totalLE}C`, s: 'check' });
   r.check = b.add(checkCells);
 
-  return { xml: b.xml([300, ...rows.map(() => 90)]), rows: r };
+  return { sheet: b.pack([300, ...rows.map(() => 90)]), rows: r };
 }
 
 function cashFlowSheet(model, isRows, schedRows) {
@@ -326,7 +688,7 @@ function cashFlowSheet(model, isRows, schedRows) {
   r.beginCash = line('Beginning cash', null, `=R${b.length + 2}C[-1]`);
   r.endCash = line('Ending cash', model.rows[0].cash, `=R${r.beginCash}C+R${r.net}C`, 'calc', true);
 
-  return { xml: b.xml([300, ...rows.map(() => 90)]), rows: r };
+  return { sheet: b.pack([300, ...rows.map(() => 90)]), rows: r };
 }
 
 function dcfSheet(model, dcf, sensitivity, at, isRows, schedRows) {
@@ -423,7 +785,7 @@ function dcfSheet(model, dcf, sensitivity, at, isRows, schedRows) {
     }
   }
 
-  return { xml: b.xml([300, 100, ...rows.map(() => 90)]) };
+  return { sheet: b.pack([300, 100, ...rows.map(() => 90)]) };
 }
 
 function compsSheet(comps, model) {
@@ -500,7 +862,7 @@ function compsSheet(comps, model) {
   b.text([`Mean row: ${meanRow ? 'live AVERAGE over the peer rows' : 'no peers selected'}.`], 'note');
   b.text([`Peer set chosen on the page for ${model.companyName || 'this company'}.`], 'note');
 
-  return { xml: b.xml([220, 70, 70, 90, 100, 90, 110, 100, 100, 70, 90, 90, 70]) };
+  return { sheet: b.pack([220, 70, 70, 90, 100, 90, 110, 100, 100, 70, 90, 90, 70]) };
 }
 
 function checksSheet(model, bsRows) {
@@ -519,7 +881,7 @@ function checksSheet(model, bsRows) {
   b.blank();
   b.text(['Sources = uses does not apply here: this is an operating model, not a transaction.'], 'note');
   b.text(['No circular references by design — interest is charged on beginning balances, so Excel never needs iterative calculation.'], 'note');
-  return { xml: b.xml([320, ...rows.map(() => 90)]) };
+  return { sheet: b.pack([320, ...rows.map(() => 90)]) };
 }
 
 function coverSheet({ company, headlines, model, sheets }) {
@@ -542,7 +904,7 @@ function coverSheet({ company, headlines, model, sheets }) {
   b.blank();
   b.text(['Every driver lives on Assumptions. Edit a blue cell there and Excel recalculates the whole workbook.'], 'note');
   b.text(['A blank cell means the 10-K did not tag that number. It is not a zero.'], 'note');
-  return b.xml([180, 520]);
+  return b.pack([180, 520]);
 }
 
 const SHEET_INDEX = [
@@ -558,16 +920,10 @@ const SHEET_INDEX = [
 
 /**
  * @param {object} opts
- * @param {object} opts.company mapping row
- * @param {object} opts.headlines extracted 10-K headlines
- * @param {object} opts.model result of runThreeStatement, plus `shares`
- * @param {object} opts.dcf result of runDcf
- * @param {object} opts.sensitivity result of dcfSensitivity
- * @param {object} opts.comps result of runComps
- * @param {object[]} opts.cards assumption copy shown on the page
+ * @returns {Uint8Array} a STORED zip that is a valid .xlsx
  */
-export function buildWorkbookXml({ company, headlines, model, dcf, sensitivity, comps, cards, include = {} }) {
-  const { xml: assumptions, at } = assumptionsSheet({ company, headlines, model, cards });
+export function buildWorkbook({ company, headlines, model, dcf, sensitivity, comps, cards, include = {} }) {
+  const { sheet: assumptions, at } = assumptionsSheet({ company, headlines, model, cards });
 
   // Sheet row numbers are resolved in dependency order: the income statement
   // needs to know where the debt schedule lives, the schedules need the income
@@ -583,31 +939,22 @@ export function buildWorkbookXml({ company, headlines, model, dcf, sensitivity, 
   const checks = checksSheet(model, bs.rows);
 
   const parts = [
-    worksheet('Cover', coverSheet({ company, headlines, model, sheets: SHEET_INDEX })),
-    worksheet('Assumptions', assumptions),
-    worksheet('IS', is.xml),
-    worksheet('BS', bs.xml),
-    worksheet('CFS', cfs.xml),
-    worksheet('Schedules', sched.xml),
+    { name: 'Cover', ...coverSheet({ company, headlines, model, sheets: SHEET_INDEX }) },
+    { name: 'Assumptions', ...assumptions },
+    { name: 'IS', ...is.sheet },
+    { name: 'BS', ...bs.sheet },
+    { name: 'CFS', ...cfs.sheet },
+    { name: 'Schedules', ...sched.sheet },
   ];
   if (include.dcf !== false && dcf) {
-    parts.push(worksheet('DCF', dcfSheet(model, dcf, sensitivity, at, is.rows, sched.rows).xml));
+    parts.push({ name: 'DCF', ...dcfSheet(model, dcf, sensitivity, at, is.rows, sched.rows).sheet });
   }
   if (include.comps !== false && comps?.ok) {
-    parts.push(worksheet('Comps', compsSheet(comps, model).xml));
+    parts.push({ name: 'Comps', ...compsSheet(comps, model).sheet });
   }
-  parts.push(worksheet('Checks', checks.xml));
+  parts.push({ name: 'Checks', ...checks.sheet });
 
-  return `<?xml version="1.0"?>
-<?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:o="urn:schemas-microsoft-com:office:office"
- xmlns:x="urn:schemas-microsoft-com:office:excel"
- xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:html="http://www.w3.org/TR/REC-html40">
-${STYLES}
-${parts.join('\n')}
-</Workbook>`;
+  return packXlsx(parts);
 }
 
 // First-pass row maps: only used to lay out the probe sheets whose real row
@@ -618,11 +965,13 @@ const PROBE_BS_ROWS = { cash: 4 };
 
 export function workbookFilename(company) {
   const ticker = String(company?.fortune_ticker || company?.sec_ticker || 'model').replace(/[^\w.-]/g, '');
-  return `${ticker}-financial-model.xls`;
+  return `${ticker}-financial-model.xlsx`;
 }
 
-export function downloadWorkbook(filename, xml) {
-  const blob = new Blob([xml], { type: 'application/vnd.ms-excel' });
+export const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+export function downloadWorkbook(filename, bytes) {
+  const blob = new Blob([bytes], { type: XLSX_MIME });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
