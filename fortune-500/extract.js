@@ -237,4 +237,155 @@ export function formatDerived(def, value) {
   return String(value);
 }
 
+export function describePoint(point, def, label) {
+  const name = label || def?.label || 'Value';
+  if (!def || !point || typeof point.val !== 'number' || !Number.isFinite(point.val)) {
+    return { key: def?.key || null, label: name, missing: true };
+  }
+  return {
+    key: def.key,
+    label: name,
+    missing: false,
+    val: point.val,
+    shown: formatMetric(def, point),
+    tag: point.tag || null,
+    taxonomy: point.taxonomy || null,
+    form: point.form || null,
+    end: point.end || null,
+    filed: point.filed || null,
+  };
+}
+
+function metricDef(key) {
+  return METRICS.find((m) => m.key === key) || null;
+}
+
+function derivedDef(key) {
+  return DERIVED.find((d) => d.key === key) || null;
+}
+
+function partFor(headlines, key, label) {
+  const def = metricDef(key);
+  return describePoint(headlines?.metrics?.[key], def, label);
+}
+
+function fcfValue(cfo, capex) {
+  if (cfo == null || capex == null) return null;
+  return capex < 0 ? cfo + capex : cfo - capex;
+}
+
+function fcfOpShown(cfoShown, capexVal, capexShown) {
+  if (capexVal == null) return `${cfoShown} − CapEx`;
+  return capexVal < 0 ? `${cfoShown} + ${capexShown}` : `${cfoShown} − ${capexShown}`;
+}
+
+/**
+ * Walk a ratio (or filed tag) back to the 10-K points that produced it.
+ * Missing ingredients stay missing — never filled with zero.
+ */
+export function explainCalculation(headlines, key) {
+  const filed = metricDef(key);
+  if (filed) {
+    const part = describePoint(headlines?.metrics?.[key], filed);
+    return {
+      key,
+      kind: 'filed',
+      formula: filed.tags,
+      arithmetic: part.missing ? null : part.shown,
+      result: part.missing ? null : part.shown,
+      parts: [part],
+    };
+  }
+
+  const def = derivedDef(key);
+  if (!def) return null;
+
+  const result = headlines?.ratios?.[key];
+  const shown = formatDerived(def, result);
+  const base = { key, kind: 'ratio', formula: def.formula, result: shown, arithmetic: null, parts: [] };
+
+  if (key === 'fcf') {
+    const cfo = partFor(headlines, 'cfo');
+    const capex = partFor(headlines, 'capex');
+    base.parts = [cfo, capex];
+    if (!cfo.missing && !capex.missing && shown) {
+      base.arithmetic = `${fcfOpShown(cfo.shown, capex.val, capex.shown)} = ${shown}`;
+    }
+    return base;
+  }
+
+  if (key === 'fcf_margin') {
+    const cfo = partFor(headlines, 'cfo');
+    const capex = partFor(headlines, 'capex');
+    const rev = partFor(headlines, 'revenue');
+    const fcf = fcfValue(cfo.missing ? null : cfo.val, capex.missing ? null : capex.val);
+    const fcfShown = formatUsd(fcf);
+    base.parts = [
+      cfo,
+      capex,
+      { key: 'fcf', label: 'Free cash flow', missing: fcf == null, val: fcf, shown: fcfShown },
+      rev,
+    ];
+    if (fcf != null && !rev.missing && shown) {
+      base.arithmetic = `(${fcfOpShown(cfo.shown, capex.val, capex.shown)} = ${fcfShown}) ÷ ${rev.shown} = ${shown}`;
+    }
+    return base;
+  }
+
+  if (key === 'revenue_yoy') {
+    const rev = partFor(headlines, 'revenue', 'This year’s revenue');
+    const priorDef = metricDef('revenue');
+    const prior = describePoint(headlines?.priorRevenue, priorDef, 'Last year’s revenue');
+    base.parts = [rev, prior];
+    if (!rev.missing && !prior.missing && shown) {
+      base.arithmetic = `${rev.shown} ÷ ${prior.shown} − 1 = ${shown}`;
+    }
+    return base;
+  }
+
+  if (key === 'receivables_days') {
+    const rec = partFor(headlines, 'receivables');
+    const rev = partFor(headlines, 'revenue');
+    base.parts = [rec, rev];
+    if (!rec.missing && !rev.missing && shown) {
+      base.arithmetic = `365 × ${rec.shown} ÷ ${rev.shown} = ${shown}`;
+    }
+    return base;
+  }
+
+  if (key === 'capex_intensity') {
+    const capex = partFor(headlines, 'capex');
+    const rev = partFor(headlines, 'revenue');
+    base.parts = [capex, rev];
+    if (!capex.missing && !rev.missing && shown) {
+      base.arithmetic = `|${capex.shown}| ÷ ${rev.shown} = ${shown}`;
+    }
+    return base;
+  }
+
+  const pairs = {
+    gross_margin: ['gross_profit', 'revenue'],
+    operating_margin: ['operating_income', 'revenue'],
+    net_margin: ['net_income', 'revenue'],
+    roa: ['net_income', 'assets'],
+    roe: ['net_income', 'equity'],
+    debt_equity: ['long_term_debt', 'equity'],
+    rd_intensity: ['rd', 'revenue'],
+    cash_conversion: ['cfo', 'net_income'],
+    asset_turnover: ['revenue', 'assets'],
+    leverage: ['assets', 'equity'],
+    debt_assets: ['long_term_debt', 'assets'],
+    book_value_ps: ['equity', 'shares_out'],
+  };
+  const pair = pairs[key];
+  if (!pair) return base;
+  const num = partFor(headlines, pair[0]);
+  const den = partFor(headlines, pair[1]);
+  base.parts = [num, den];
+  if (!num.missing && !den.missing && shown) {
+    base.arithmetic = `${num.shown} ÷ ${den.shown} = ${shown}`;
+  }
+  return base;
+}
+
 export { METRICS, DERIVED };

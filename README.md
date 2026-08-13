@@ -48,7 +48,9 @@ is proxied onto this domain so it appears as a first-class card on the homepage.
 
 Static ratio workspace for the Fortune 500: EDGAR 10-K tags in, key
 financial ratios out (margins, ROE, asset turnover, cash conversion, …),
-ELI5 in a side dock, compare up to five companies. Snapshot in
+ELI5 plus the actual 10-K arithmetic in a side dock, compare up to five
+companies, and a practice model (last FY grown by industry drivers from the
+FP&A crash course, with Excel download). Snapshot in
 `data/headlines-snapshot.json`; `/api/f500-headlines` is a live fallback.
 
 ### World Cup 2026 — `/world-cup`

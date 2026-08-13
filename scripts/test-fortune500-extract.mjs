@@ -8,6 +8,7 @@ import {
   formatMetric,
   computeRatios,
   ensureRatios,
+  explainCalculation,
 } from '../fortune-500/extract.js';
 
 const fixture = JSON.parse(
@@ -98,5 +99,27 @@ const filled = ensureRatios({
 });
 assert.equal(filled.ratios.fcf, 25);
 assert.ok(Math.abs(filled.ratios.revenue_yoy - 0.25) < 1e-9);
+
+const explained = explainCalculation(
+  {
+    metrics: {
+      revenue: { val: 100, tag: 'Revenues', form: '10-K', end: '2024-12-31', filed: '2025-02-01' },
+      net_income: { val: 10, tag: 'NetIncomeLoss', form: '10-K', end: '2024-12-31', filed: '2025-02-01' },
+    },
+    ratios: { net_margin: 0.1 },
+  },
+  'net_margin'
+);
+assert.equal(explained.arithmetic, '$10 ÷ $100 = 10.0%');
+assert.equal(explained.parts.length, 2);
+assert.equal(explained.parts[0].tag, 'NetIncomeLoss');
+assert.equal(explained.parts[1].tag, 'Revenues');
+
+const missing = explainCalculation(
+  { metrics: { revenue: { val: 100, tag: 'Revenues', form: '10-K' } }, ratios: { gross_margin: null } },
+  'gross_margin'
+);
+assert.equal(missing.arithmetic, null);
+assert.equal(missing.parts[0].missing, true);
 
 console.log('fortune-500 extract tests passed');

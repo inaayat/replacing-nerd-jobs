@@ -250,7 +250,7 @@ export const HOW_TO = [
   {
     n: '3',
     title: 'Compare what they share',
-    body: 'Check 2–5 public companies, or a ready-made story. We highlight the best/worst in each row and skip invented zeros.',
+    body: 'Turn on “Pick to compare,” click 2–5 public companies, then Compare. Peer sets still jump you in. We highlight the best/worst in each row and skip invented zeros.',
   },
 ];
 
