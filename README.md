@@ -69,6 +69,26 @@ fallback.
 Share prices (last + daily history) come from Yahoo Finance via
 `/api/f500-prices` — no API key; on-demand per open company.
 
+### Financial Modeler — `/financial-modeler`
+
+Beginner-friendly modeling bench on the same SEC snapshot the Fortune 500 page
+reads. Pick a public filer, pick any of three Wall Street Prep model types
+(3-statement, DCF, trading comps), move a handful of plain-English guesses, and
+download an Excel workbook with live formulas.
+
+`financial-modeler/engine.js` is the whole model: an integrated 3-statement
+where **cash is the plug** and the balance check is a real test, a two-stage
+DCF off its unlevered free cash flow, and peer multiples. Interest is charged
+on *beginning* balances, so nothing in the model (or the workbook) is circular.
+`financial-modeler/workbook.js` writes SpreadsheetML with the WSP colour code —
+blue input, black formula, green cross-sheet link — inputs isolated on one
+Assumptions sheet, and a Checks error dashboard.
+
+The snapshot has no tag for net PP&E, payables, or D&A, so those sit in two
+labelled residual lines (which is what makes year 0 equal the filed totals) and
+D&A starts equal to CapEx. Nothing untagged is ever read as zero.
+`/fortune-500/` stays the 10-K ratios/screener and is linked as a sibling.
+
 ### World Cup 2026 — `/world-cup`
 
 Back on the homepage as a **static snapshot**. Live football-data.org scores
