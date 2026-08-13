@@ -224,6 +224,10 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
             tmdbInput.value = btn.dataset.id;
             resultsEl.hidden = true;
             checkExpand();
+            // Picking the film is never the last step, so hand the caret to the
+            // next field. Theater focus also opens the past-theater list, which
+            // usually turns the rest of the log into one click.
+            focusAfterTitle(logMode);
           });
         });
       } catch {
@@ -314,6 +318,17 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
   });
 }
 
+/**
+ * Move to whatever still needs typing once the title is settled: the theater
+ * for a screening, the rating for anything watched at home.
+ */
+function focusAfterTitle(mode) {
+  const next = mode === 'off-theater'
+    ? document.getElementById('ql-rating')
+    : document.getElementById('ql-location');
+  next?.focus();
+}
+
 /** Which list row, if any, seeded the bar — reported back on a successful log. */
 let pendingSource = null;
 
@@ -340,5 +355,8 @@ export function prefillQuickLog({ title, tmdbId, mode = 'theater', watchlistId =
   // tmdb_id is already known when this comes from a list row.
   titleInput.dispatchEvent(new Event('change', { bubbles: true }));
   shell.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  titleInput.focus();
+  // The title arrived with the row, so start on the first field that is still
+  // blank rather than making the user tab past what is already filled in.
+  if (title) focusAfterTitle(mode);
+  else titleInput.focus();
 }
