@@ -3551,8 +3551,9 @@ table.al-table {
   }
 
   .al-quicklog {
-    padding: 8px;
-    border-radius: 12px;
+    /* Extra left padding clears the red ticket edge drawn by ::before. */
+    padding: 8px 8px 8px 14px;
+    border-radius: 14px;
     margin-bottom: 10px;
   }
 
