@@ -102,9 +102,6 @@ let modelExpanded = false;
 
 const COURSE_STORAGE = 'f500-course';
 const courseStripEl = document.getElementById('course-strip');
-const listHintEl = document.getElementById('list-hint');
-const purposeEl = document.getElementById('purpose');
-if (purposeEl) purposeEl.textContent = PURPOSE;
 
 function loadCourse() {
   try {
@@ -132,7 +129,7 @@ function isBeginner() {
 }
 
 function defaultHomeView() {
-  return isBeginner() ? 'howto' : 'table';
+  return 'table';
 }
 
 function markCourse(id) {
@@ -206,7 +203,7 @@ function setUrl(opts = {}) {
   } else if (homeView === 'industries') {
     url.hash = playbookKey ? `industries/${playbookKey}` : 'industries';
   } else if (homeView === 'howto') {
-    url.hash = isBeginner() ? '' : 'howto';
+    url.hash = 'howto';
   } else {
     url.hash = '';
   }
@@ -588,40 +585,6 @@ function handleGuideClick(e) {
   return false;
 }
 
-function nextUpHtml() {
-  if (!isBeginner()) return '';
-  const next = courseProgress(course.done).next;
-  if (!next) return '';
-  const apple = suggestedCompany();
-  const appleName = apple ? apple.company : 'Apple';
-  let action = '';
-  if (next.id === 'open') {
-    action = apple
-      ? `<button type="button" class="f5-mini" data-open-suggested>Open ${escapeHtml(appleName)}</button>`
-      : '';
-  } else if (next.id === 'ratio') {
-    action = selectedRank
-      ? `<p class="muted">Tap <strong>Net margin</strong> in the tiles — that’s the lesson.</p>`
-      : apple
-        ? `<button type="button" class="f5-mini" data-open-suggested>Open ${escapeHtml(appleName)}</button>`
-        : '';
-  } else if (next.id === 'model') {
-    action = selectedRank
-      ? `<button type="button" class="f5-mini" data-company-pane="model">Project the next 5 years</button>`
-      : apple
-        ? `<button type="button" class="f5-mini" data-open-suggested>Open ${escapeHtml(appleName)}</button>`
-        : '';
-  } else if (next.id === 'compare') {
-    action = `<button type="button" class="f5-mini" data-course-compare>Compare two 10-Ks</button>`;
-  }
-  return `<div class="f5-nextup">
-    <p class="f5-kicker">Next up · ${escapeHtml(next.n)}/4</p>
-    <h3>${escapeHtml(next.title)}</h3>
-    <p class="f5-eli5">${escapeHtml(next.body)}</p>
-    ${action}
-  </div>`;
-}
-
 function howtoStepsHtml() {
   const done = course.done;
   const map = { '1': 'open', '2': 'ratio', '3': 'model' };
@@ -641,22 +604,14 @@ function howtoView() {
   return `<div class="f5-howto-pane">
     <p class="f5-kicker">How to use</p>
     <h2>Read a 10-K, then sketch five years</h2>
-    <p class="f5-eli5">This is a 10-K reading and modeling course that also works as a real comps tool. Year 0 is filed. Everything after is a guess you control. Not a trading terminal.</p>
+    <p class="f5-eli5">${escapeHtml(PURPOSE)}</p>
     ${howtoStepsHtml()}
     ${notTagged ? `<p class="f5-missing-why"><strong>Dash:</strong> ${escapeHtml(notTagged.def)}</p>` : ''}
-    ${nextUpHtml()}
-    <div class="f5-howto-actions">
-      <button type="button" class="f5-mini f5-mini-ghost" data-course-skip>Skip · I’m comfortable</button>
-    </div>
-    <p class="muted">What ratios mean and Industry models stay in the nav. Add companies with <strong>Add</strong> — the tray at the bottom shows how many you’ve selected.</p>
+    <p class="muted">The bar at the top tells you the next click. Add companies with <strong>Add</strong> — the tray at the bottom shows how many you’ve selected.</p>
   </div>`;
 }
 
 function renderCourseChrome() {
-  const beginner = isBeginner();
-  if (listHintEl) {
-    listHintEl.hidden = !beginner;
-  }
   if (!courseStripEl) return;
   if (course.skipped) {
     courseStripEl.hidden = true;
@@ -668,14 +623,22 @@ function renderCourseChrome() {
     const on = Boolean(course.done[step.id]);
     return `<span class="f5-course-dot${on ? ' is-done' : ''}" title="${escapeAttr(step.title)}"></span>`;
   }).join('');
-  const label = progress.complete
-    ? '4/4 You’ve compared two 10-Ks'
-    : `${progress.completed}/4 ${escapeHtml(progress.next.short)}`;
+  const apple = suggestedCompany();
+  const appleName = apple ? apple.company : 'Apple';
+  let sentence = 'Done — you can keep exploring, or open How to use anytime.';
+  let action = '';
+  if (progress.next) {
+    sentence = `<strong>Step ${escapeHtml(progress.next.n)} of 4</strong> — ${escapeHtml(progress.next.prompt)}`;
+    if (progress.next.id === 'open') {
+      action = `<button type="button" class="f5-mini" data-open-suggested>Open ${escapeHtml(appleName)}</button>`;
+    }
+  }
   courseStripEl.hidden = false;
   courseStripEl.innerHTML = `
     <div class="f5-course-dots" aria-hidden="true">${dots}</div>
-    <p class="f5-course-label">${label}</p>
-    <button type="button" class="f5-linkish" data-course-skip>Skip · I’m comfortable</button>`;
+    <p class="f5-course-label">${sentence}</p>
+    ${action}
+    ${progress.complete ? '' : `<button type="button" class="f5-mini f5-mini-ghost" data-course-skip>Skip · I’m comfortable</button>`}`;
 }
 
 function startCompareLesson() {
@@ -736,7 +699,7 @@ function paneTabs(kind, current) {
 function screenerView() {
   if (homeView === 'learn') return learnView();
   if (homeView === 'industries') return industriesView();
-  if (homeView === 'howto' || isBeginner()) return howtoView();
+  if (homeView === 'howto') return howtoView();
   const cols = screenerColumns();
   const rows = sortRows(companies.filter(matches));
   const head = cols
@@ -767,7 +730,9 @@ function screenerView() {
     })
     .join('');
 
-  const hint = 'Open a company, or tap Add to fill the tray. Dash = not tagged, not zero.';
+  const hint = isBeginner()
+    ? 'Dash = not tagged, not zero.'
+    : 'Open a company, or tap Add to fill the tray. Dash = not tagged, not zero.';
 
   return `
     <div class="f5-screener">
@@ -999,7 +964,6 @@ function explainDock(key, headlines, comparePairs, company) {
     ${leaderLine}
     ${company ? edgarLinks(company) : comparePairs?.[0]?.company ? edgarLinks(comparePairs[0].company) : ''}
     <div class="f5-eli5-actions">${compareBtn}${sortBtn}</div>
-    ${isBeginner() ? nextUpHtml() : ''}
   </aside>`;
 }
 
@@ -1110,7 +1074,6 @@ function modelDock(headlines, company) {
     ${playbookBody(playbook)}
     <p class="f5-coverage-line">Effective growth ${escapeHtml(growth)} · year 0 is filed, everything else is practice.</p>
     <p class="f5-leaders"><button type="button" class="f5-linkish" data-home-view="industries" data-playbook="${escapeAttr(playbook.id)}">All industry models</button></p>
-    ${isBeginner() ? nextUpHtml() : ''}
   </aside>`;
 }
 
@@ -1303,7 +1266,7 @@ function publicDetail(c, headlines, status) {
   return `
     <div class="f5-workspace">
       <div class="f5-workspace-main">
-        <button type="button" class="f5-back" id="back">${isBeginner() ? '← How to use' : '← Table'}</button>
+        <button type="button" class="f5-back" id="back">← Table</button>
         <div class="f5-company-head">
           <div>
             <p class="f5-kicker">#${c.rank} · ${escapeHtml(tickerLabel(c))} · ${escapeHtml(c.cik_padded || '')}</p>
@@ -1323,7 +1286,7 @@ function privateDetail(c) {
   const note = PRIVATE_NOTES[c.rank] || 'Private or mutual — no public 10-K/10-Q ticker in the SEC JSON APIs.';
   return `
     <div class="f5-workspace-main">
-    <button type="button" class="f5-back" id="back">${isBeginner() ? '← How to use' : '← Table'}</button>
+    <button type="button" class="f5-back" id="back">← Table</button>
     <div class="f5-company-head">
       <div>
         <p class="f5-kicker">Fortune #${c.rank}</p>
@@ -1478,7 +1441,7 @@ function compareView(rows, status) {
   return `
     <div class="f5-workspace">
       <div class="f5-workspace-main">
-        <button type="button" class="f5-back" id="back">${isBeginner() ? '← How to use' : '← Table'}</button>
+        <button type="button" class="f5-back" id="back">← Table</button>
         <div class="f5-toolbar">
           ${paneTabs('compare', comparePane)}
           <label class="f5-shared-toggle"><input type="checkbox" id="shared-only" ${sharedOnly ? 'checked' : ''}/> Shared only</label>
