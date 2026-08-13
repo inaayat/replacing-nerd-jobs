@@ -264,17 +264,21 @@ export const HOW_TO = [
   },
   {
     n: '2',
-    title: 'Read one ratio',
-    body: 'Tap a tile — start with net margin. The dock is the lesson: kid version plus the 10-K math. “What ratios mean” has the rest.',
+    title: 'Change a guess',
+    body: 'The company opens on Practice model. Each guess is a card: what it is, where the default came from, and what moving it does. Year 0 is filed.',
   },
   {
     n: '3',
-    title: 'Project five years',
-    body: 'Open Practice model. Each guess is a short card: what it is, where the default came from, and what moving it does. Year 0 is filed.',
+    title: 'Read one ratio',
+    body: 'Key ratios has the tiles; tap one — start with net margin. The dock is the lesson: kid version plus the 10-K math.',
   },
 ];
 
-/** 4-step path stored in localStorage `f500-course`. Never gates the rest of the UI. */
+/**
+ * 4-step path stored in localStorage `f500-course`. Never gates the rest of the
+ * UI. Order follows the panes: a company opens on the practice model, so
+ * changing a guess comes before reading a ratio.
+ */
 export const COURSE_STEPS = [
   {
     id: 'open',
@@ -285,20 +289,20 @@ export const COURSE_STEPS = [
     body: 'Click a name on the left. Apple is a good first 10-K.',
   },
   {
-    id: 'ratio',
+    id: 'model',
     n: '2',
-    title: 'Read one ratio',
-    short: 'Read one ratio',
-    prompt: 'Tap the Net margin tile.',
-    body: 'Tap net margin (or any tile). The dock is the lesson: kid version plus the 10-K math.',
+    title: 'Change a guess',
+    short: 'Change a guess',
+    prompt: 'Drag Sales growth and watch year 5 move.',
+    body: 'Every card says what the guess is, where the default came from, and what moving it does.',
   },
   {
-    id: 'model',
+    id: 'ratio',
     n: '3',
-    title: 'Build a 5-year sketch',
-    short: 'Build a model',
-    prompt: 'Click “Project the next 5 years from this 10-K.”',
-    body: 'Project the next 5 years from this 10-K. Each guess card says what it is and what moving it does.',
+    title: 'Read one ratio',
+    short: 'Read one ratio',
+    prompt: 'Open Key ratios and tap Net margin.',
+    body: 'Tap net margin (or any tile). The dock is the lesson: kid version plus the 10-K math.',
   },
   {
     id: 'compare',
@@ -309,34 +313,6 @@ export const COURSE_STEPS = [
     body: 'Add a second public company. A dash is not tagged, not zero. Fiscal years may not line up.',
   },
 ];
-
-/**
- * Practice-model ladder. Every rung is one click away at any time — the rungs
- * decide how many drivers and statement lines are on screen, never which tools
- * you are allowed to use. Reset and Excel stay available on all three.
- */
-export const MODEL_RUNGS = [
-  {
-    level: 1,
-    label: 'Two sliders',
-    short: 'Two sliders',
-    adds: 'Revenue growth and net margin. Read FY0 against Y5 net income and FCF.',
-  },
-  {
-    level: 2,
-    label: 'Industry drivers',
-    short: 'Drivers',
-    adds: 'Volume × price, same-store, NRR, loan growth — plus bull / base / bear.',
-  },
-  {
-    level: 3,
-    label: 'More lines',
-    short: 'More lines',
-    adds: 'Gross profit, operating income, R&D and CapEx rows, and the sensitivity grid.',
-  },
-];
-
-export const MAX_MODEL_LEVEL = MODEL_RUNGS[MODEL_RUNGS.length - 1].level;
 
 export function courseProgress(done = {}) {
   const total = COURSE_STEPS.length;

@@ -52,9 +52,12 @@ plus the 10-K arithmetic in a side dock, compare up to five companies, and a
 practice model (last FY grown by industry drivers, with Excel download).
 Company and compare statements read like a filing — years across the top, line
 items down the side (`fortune-500/statement.js`), with a prior-year filed
-column from `priorMetrics`. On the model pane each guess is a short card:
+column from `priorMetrics`. A company opens on **Practice model** — the first
+pane tab, and the reason the page exists. Each guess there is a short card:
 English name, what it is, where the default came from, and a live year-5 vs
-filed line. The compare tray only appears once a company is selected. The
+filed line. That pane has no side dock (the card is the explanation); the ratio
+dock belongs to Key ratios and Filed statement. The compare tray only appears
+once a company is selected. The
 sliders model an income statement only: cash and debt stay filed-only rather
 than faking a balance sheet or a DCF. Snapshot in
 `data/headlines-snapshot.json` (regenerate with

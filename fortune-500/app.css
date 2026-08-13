@@ -1266,6 +1266,8 @@ body:has(#compare-bar:not([hidden])) .f5-glossary-panel {
   min-height: 0;
   height: 100%;
 }
+/* The practice model has no dock — the guess cards are the explanation. */
+.f5-workspace.is-wide { grid-template-columns: minmax(0, 1fr); }
 .f5-detail > .f5-screener,
 .f5-detail > .f5-workspace {
   flex: 1 1 auto;
@@ -1419,6 +1421,7 @@ body:has(#compare-bar:not([hidden])) .f5-glossary-panel {
     grid-template-columns: 1fr;
     grid-template-rows: 1fr auto;
   }
+  .f5-workspace.is-wide { grid-template-rows: 1fr; }
   .f5-dock {
     border-left: 0;
     border-top: 1.5px solid var(--line);
@@ -1453,14 +1456,6 @@ body:has(#compare-bar:not([hidden])) .f5-glossary-panel {
   font-size: 0.8rem;
   line-height: 1.35;
 }
-.f5-model-form {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 16px;
-  align-items: flex-end;
-  margin: 0 0 12px;
-  font-size: 0.82rem;
-}
 .f5-guesses {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(16.5rem, 1fr));
@@ -1476,12 +1471,8 @@ body:has(#compare-bar:not([hidden])) .f5-glossary-panel {
   background: var(--panel);
   border: 1.5px solid var(--line);
   border-radius: 12px;
-  cursor: pointer;
 }
-.f5-guess.is-on {
-  border-color: var(--ink);
-  background: #e8f8fa;
-}
+.f5-guess:focus-within { border-color: var(--ink); }
 .f5-guess-name {
   margin: 0;
   font-size: 0.95rem;
@@ -1532,46 +1523,6 @@ body:has(#compare-bar:not([hidden])) .f5-glossary-panel {
   margin: 0 0 12px;
 }
 
-/* The modeling ladder. Every rung is clickable; nothing here is locked. */
-.f5-ladder {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-  gap: 6px;
-  margin: 0 0 12px;
-}
-.f5-rung {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  text-align: left;
-  font: inherit;
-  cursor: pointer;
-  color: var(--ink);
-  background: var(--cream);
-  border: 1.5px solid var(--line);
-  border-radius: 10px;
-  padding: 7px 10px;
-}
-.f5-rung-n {
-  font-family: var(--mono);
-  font-size: 0.6rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.f5-rung-label { font-weight: 600; font-size: 0.86rem; }
-.f5-rung-adds {
-  font-size: 0.74rem;
-  color: var(--muted);
-  line-height: 1.3;
-}
-.f5-rung:hover { border-color: var(--cyan); }
-.f5-rung.is-passed { background: var(--panel-2); }
-.f5-rung.is-on {
-  border-color: var(--ink);
-  background: #e8f8fa;
-}
-.f5-rung.is-on .f5-rung-n { color: var(--ink); }
 .f5-playbook-pick {
   display: flex;
   flex-direction: column;
@@ -1593,23 +1544,14 @@ body:has(#compare-bar:not([hidden])) .f5-glossary-panel {
   background: var(--cream);
   color: var(--ink);
 }
-.f5-driver {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-family: var(--mono);
-  font-size: 0.65rem;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  min-width: 11rem;
-}
 .f5-driver-controls {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 .f5-driver-controls input[type="range"] {
-  width: 7rem;
+  flex: 1 1 6rem;
+  min-width: 0;
   accent-color: var(--cyan);
 }
 .f5-model-input {
