@@ -12,7 +12,8 @@ import {
   defFor,
   sourceFor,
 } from './catalog.js';
-import { formatMetric, formatDerived, ensureRatios } from './extract.js';
+import { formatMetric, formatDerived, formatUsd, ensureRatios, explainCalculation } from './extract.js';
+import { defaultAssumptions, runDriverModel, MODEL_YEARS } from './model.js';
 import {
   buildInsights,
   similarByRevenue,
@@ -56,6 +57,8 @@ let sharedOnly = false;
 let explainKey = 'net_margin';
 let companyPane = 'ratios';
 let comparePane = 'ratios';
+let pickMode = false;
+let modelDraft = null;
 
 function parseUrl() {
   const u = new URL(location.href);
@@ -206,22 +209,17 @@ function renderPresets() {
 
 function renderList() {
   const rows = companies.filter(matches);
-  countEl.textContent = `${rows.length} shown${window.__f500Stats ? ' · ' + window.__f500Stats : ''}`;
-  const atCap = compareRanks.length >= MAX_COMPARE;
+  countEl.textContent = `${rows.length} shown${window.__f500Stats ? ' · ' + window.__f500Stats : ''}${pickMode ? ' · picking' : ''}`;
   const html = rows
     .map((c) => {
       const pub = isPublic(c);
       const selected = c.rank === selectedRank && !compareMode;
-      const checked = compareRanks.includes(c.rank);
-      const check = pub
-        ? `<input class="f5-check" type="checkbox" data-check="${c.rank}" ${checked ? 'checked' : ''} ${atCap && !checked ? 'disabled' : ''} aria-label="Add ${escapeAttr(c.company)} to compare" />`
-        : `<span></span>`;
+      const picked = compareRanks.includes(c.rank);
       const nm = formatDerived(lookupDef('net_margin'), headlinesOf(c)?.ratios?.net_margin);
       const right = pub
         ? `<span class="f5-row-fig">${nm ? escapeHtml(nm) : ''}</span>`
         : `<span class="f5-pill f5-pill-private">Private</span>`;
-      return `<div class="f5-row${pub ? '' : ' is-private'}">
-        ${check}
+      return `<div class="f5-row${pub ? '' : ' is-private'}${picked ? ' is-picked' : ''}">
         <button type="button" class="f5-row-main" data-rank="${c.rank}" aria-selected="${selected}">
           <span class="f5-rank">${c.rank}</span>
           <span>
@@ -270,9 +268,14 @@ function viewTabs() {
 }
 
 function paneTabs(kind, current) {
-  return `<div class="f5-view-tabs" role="tablist" aria-label="Ratios or filed tags">
+  const modelTab =
+    kind === 'company'
+      ? `<button type="button" class="f5-view-tab" data-company-pane="model" aria-pressed="${current === 'model'}">Simple model</button>`
+      : '';
+  return `<div class="f5-view-tabs" role="tablist" aria-label="Ratios, filed tags, or model">
     <button type="button" class="f5-view-tab" data-${kind}-pane="ratios" aria-pressed="${current === 'ratios'}">Key ratios</button>
     <button type="button" class="f5-view-tab" data-${kind}-pane="filed" aria-pressed="${current === 'filed'}">Filed numbers</button>
+    ${modelTab}
   </div>`;
 }
 
@@ -280,7 +283,6 @@ function screenerView() {
   if (homeView === 'learn') return learnView();
   const cols = screenerColumns();
   const rows = sortRows(companies.filter(matches));
-  const atCap = compareRanks.length >= MAX_COMPARE;
   const head = cols
     .map((col) => {
       const active = screenerSort.key === col.key;
@@ -294,29 +296,31 @@ function screenerView() {
   const body = rows
     .map((c) => {
       const pub = isPublic(c);
-      const checked = compareRanks.includes(c.rank);
-      const check = pub
-        ? `<input class="f5-check" type="checkbox" data-check="${c.rank}" ${checked ? 'checked' : ''} ${atCap && !checked ? 'disabled' : ''} aria-label="Add ${escapeAttr(c.company)} to compare" />`
-        : '';
+      const picked = compareRanks.includes(c.rank);
       const tds = cols
         .map((col) => {
           if (col.type === 'name') {
-            return `<td class="f5-name-cell">${check}<button type="button" class="f5-linkish" data-rank="${c.rank}">${escapeHtml(c.company)}</button></td>`;
+            return `<td class="f5-name-cell"><button type="button" class="f5-linkish" data-rank="${c.rank}">${escapeHtml(c.company)}</button></td>`;
           }
           const value = screenerValue(c, col);
           const extra = col.type === 'rank' ? ' class="mono"' : '';
           return `<td${extra}>${formatScreenerCell(col, value)}</td>`;
         })
         .join('');
-      return `<tr class="${pub ? '' : 'is-private'}">${tds}</tr>`;
+      return `<tr class="${pub ? '' : 'is-private'}${picked ? ' is-picked' : ''}" data-row-rank="${c.rank}">${tds}</tr>`;
     })
     .join('');
+
+  const hint = pickMode
+    ? 'Click companies to add or remove them. Compare in the bar when you have 2–5.'
+    : 'Open a company, or turn on Pick to compare. Dash = ratio ingredients weren’t tagged.';
 
   return `
     <div class="f5-screener">
       <div class="f5-toolbar">
         ${viewTabs()}
-        <p class="f5-toolbar-hint">Check 2–5 companies, then Compare. Dash = ratio ingredients weren’t tagged.</p>
+        <button type="button" class="f5-view-tab" data-pick-mode aria-pressed="${pickMode}">Pick to compare</button>
+        <p class="f5-toolbar-hint">${hint}</p>
       </div>
       <div class="f5-table-wrap">
         <table class="f5-table f5-screener-table">
@@ -364,7 +368,33 @@ function learnView() {
     </div>`;
 }
 
-function explainDock(key, headlines) {
+function renderCalcParts(expl) {
+  if (!expl?.parts?.length) return '';
+  return `<ul class="f5-calc-parts">${expl.parts
+    .map((p) => {
+      if (p.missing) {
+        return `<li class="muted">${escapeHtml(p.label)} — not tagged in this 10-K</li>`;
+      }
+      const meta = [p.tag, p.form, p.end ? `period ending ${p.end}` : '', p.filed ? `filed ${p.filed}` : '']
+        .filter(Boolean)
+        .join(' · ');
+      return `<li><strong>${escapeHtml(p.label)}</strong> ${escapeHtml(p.shown || '')}${
+        meta ? `<div class="muted">${escapeHtml(meta)}</div>` : ''
+      }</li>`;
+    })
+    .join('')}</ul>`;
+}
+
+function calcBlock(expl, name) {
+  if (!expl) return '';
+  const who = name ? `<p class="f5-kicker">${escapeHtml(name)}</p>` : '';
+  const eq = expl.arithmetic
+    ? `<p class="f5-calc-eq">${escapeHtml(expl.arithmetic)}</p>`
+    : `<p class="muted">A tagged ingredient is missing, so we don’t compute this.</p>`;
+  return `<div class="f5-calc">${who}${eq}${renderCalcParts(expl)}</div>`;
+}
+
+function explainDock(key, headlines, comparePairs) {
   const def = lookupDef(key);
   if (!def) {
     return `<aside class="f5-dock"><p class="muted">Tap a ratio to see what it means.</p></aside>`;
@@ -390,16 +420,107 @@ function explainDock(key, headlines) {
       ? `<button type="button" class="f5-mini" data-compare-leaders="${escapeAttr(key)}">Compare leaders</button>`
       : '';
   const sortBtn = `<button type="button" class="f5-mini f5-mini-ghost" data-sort-metric="${escapeAttr(key)}">Add to table</button>`;
+
+  let calcHtml = '';
+  if (comparePairs?.length) {
+    const lines = comparePairs
+      .filter((p) => p.company)
+      .map((p) => {
+        const expl = p.headlines ? explainCalculation(p.headlines, key) : null;
+        return `<p class="f5-calc-line"><strong>${escapeHtml(p.company.company)}</strong> ${escapeHtml(expl?.arithmetic || '—')}</p>`;
+      })
+      .join('');
+    calcHtml = `<div class="f5-calc">${lines}<p class="muted">Open a company to see the XBRL tags in the equation.</p></div>`;
+  } else if (headlines) {
+    calcHtml = calcBlock(explainCalculation(headlines, key));
+  } else {
+    calcHtml = `<p class="muted">Open a company to plug its 10-K numbers into ${escapeHtml(def.formula || 'this formula')}.</p>`;
+  }
+
   return `<aside class="f5-dock">
     <p class="f5-kicker">${escapeHtml(def.formula || 'Key ratio')}</p>
     <h3>${escapeHtml(def.label)}${shown ? ` · ${escapeHtml(shown)}` : ''}</h3>
     ${shown && headlines ? pctPill(value, source, key) : ''}
+    ${calcHtml}
     <p class="f5-eli5">${escapeHtml(def.eli5)}</p>
-    ${shown ? '' : `<p class="f5-missing-why">${escapeHtml(def.whyMissing || '')}</p>`}
+    ${shown || comparePairs?.length ? '' : `<p class="f5-missing-why">${escapeHtml(def.whyMissing || '')}</p>`}
     <p class="f5-coverage-line"><strong>${n}</strong> / ${publicCount} public companies have this.</p>
     ${leaderLine}
     <div class="f5-eli5-actions">${compareBtn}${sortBtn}</div>
   </aside>`;
+}
+
+function modelDock(headlines) {
+  const a = modelAssumptions(headlines);
+  const g = formatDerived(lookupDef('revenue_yoy'), a.revenueGrowth) || '—';
+  const nm = a.netMargin == null ? 'not tagged' : formatDerived(lookupDef('net_margin'), a.netMargin);
+  const fm = a.fcfMargin == null ? 'not tagged' : formatDerived(lookupDef('fcf_margin'), a.fcfMargin);
+  return `<aside class="f5-dock">
+    <p class="f5-kicker">Driver model</p>
+    <h3>How this is calculated</h3>
+    <div class="f5-calc">
+      <p class="f5-calc-eq">Rev<sub>t</sub> = last 10-K revenue × (1 + growth)<sup>t</sup></p>
+      <ul class="f5-calc-parts">
+        <li>Net income<sub>t</sub> = Rev<sub>t</sub> × net margin</li>
+        <li>FCF<sub>t</sub> = Rev<sub>t</sub> × FCF margin</li>
+      </ul>
+    </div>
+    <p class="f5-eli5">This is a lemonade-stand forecast: last year’s jar, grown by a rate you pick, with the same keep-the-dollar rates unless you change them. It is not a full income-statement / balance-sheet / cash-flow model, and EDGAR has no stock price so there is no DCF.</p>
+    <p class="f5-coverage-line">Growth default ${escapeHtml(g)} · net margin ${escapeHtml(nm)} · FCF margin ${escapeHtml(fm)}</p>
+  </aside>`;
+}
+
+function modelAssumptions(headlines) {
+  if (modelDraft && modelDraft.rank === selectedRank) {
+    return {
+      years: MODEL_YEARS,
+      revenueGrowth: modelDraft.revenueGrowth,
+      netMargin: modelDraft.netMargin,
+      fcfMargin: modelDraft.fcfMargin,
+    };
+  }
+  return defaultAssumptions(headlines);
+}
+
+function pctField(name, value, emptyLabel) {
+  if (value == null || !Number.isFinite(value)) {
+    return `<span class="muted">${escapeHtml(emptyLabel || 'not tagged')}</span>`;
+  }
+  return `<input class="f5-model-input" type="number" step="0.1" name="${escapeAttr(name)}" value="${(value * 100).toFixed(1)}" />`;
+}
+
+function modelPanel(headlines) {
+  const a = modelAssumptions(headlines);
+  const model = runDriverModel(headlines, a);
+  if (!model.ok) {
+    return `${paneTabs('company', 'model')}<p class="f5-toolbar-hint">${escapeHtml(model.reason)}</p>`;
+  }
+  const rows = model.rows
+    .map(
+      (r) => `<tr class="${r.filed ? 'is-on' : ''}">
+        <td>${r.filed ? `FY${r.year} filed` : `FY${r.year}`}</td>
+        <td>${escapeHtml(formatUsd(r.revenue) || '—')}</td>
+        <td>${r.netIncome == null ? '—' : escapeHtml(formatUsd(r.netIncome))}</td>
+        <td>${r.fcf == null ? '—' : escapeHtml(formatUsd(r.fcf))}</td>
+      </tr>`
+    )
+    .join('');
+  return `
+    ${paneTabs('company', 'model')}
+    <p class="f5-toolbar-hint">Year 0 is the latest 10-K. Later years use your drivers. Missing tags stay blank.</p>
+    <form class="f5-model-form" id="model-form">
+      <label>Rev growth % / yr <input class="f5-model-input" type="number" step="0.1" name="revenueGrowth" value="${(a.revenueGrowth * 100).toFixed(1)}" /></label>
+      <label>Net margin % ${pctField('netMargin', a.netMargin)}</label>
+      <label>FCF margin % ${pctField('fcfMargin', a.fcfMargin)}</label>
+      <button type="button" class="f5-mini f5-mini-ghost" id="model-reset">Reset to 10-K</button>
+    </form>
+    <div class="f5-table-wrap">
+      <table class="f5-table">
+        <thead><tr><th>Year</th><th>Revenue</th><th>Net income</th><th>FCF</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <ul class="f5-model-notes">${model.notes.map((n) => `<li>${escapeHtml(n)}</li>`).join('')}</ul>`;
 }
 
 function pctPill(value, source, key) {
@@ -436,9 +557,10 @@ function filedRow(def, headlines) {
 function publicDetail(c, headlines, status) {
   const inCompare = compareRanks.includes(c.rank);
   const addBtn = inCompare
-    ? `<button type="button" class="f5-add-compare" disabled>In compare</button>`
-    : `<button type="button" class="f5-add-compare" data-add-compare="${c.rank}">Compare</button>`;
+    ? `<button type="button" class="f5-add-compare" data-toggle-compare="${c.rank}">Remove</button>`
+    : `<button type="button" class="f5-add-compare" data-toggle-compare="${c.rank}">Add to compare</button>`;
   let main = '';
+  let dock = '';
   if (status === 'loading') {
     main = `<p class="f5-toolbar-hint">Loading 10-K ratios…</p>`;
   } else if (status === 'error') {
@@ -475,6 +597,10 @@ function publicDetail(c, headlines, status) {
             ${tables}
           </table>
         </div>`;
+      dock = explainDock(explainKey, headlines);
+    } else if (companyPane === 'model') {
+      main = `${suggest}${modelPanel(headlines)}`;
+      dock = modelDock(headlines);
     } else {
       const groups = RATIO_GROUPS.map((group) => {
         const tiles = group.keys
@@ -490,9 +616,10 @@ function publicDetail(c, headlines, status) {
       }).join('');
       main = `
         ${paneTabs('company', companyPane)}
-        <p class="f5-toolbar-hint">${year} · ${cov.derivedOk.length} ratios from ${cov.tagged.length}/${cov.total} tagged items · tap a tile</p>
+        <p class="f5-toolbar-hint">${year} · ${cov.derivedOk.length} ratios from ${cov.tagged.length}/${cov.total} tagged items · tap a tile for the 10-K math</p>
         ${suggest}
         ${groups}`;
+      dock = explainDock(explainKey, headlines);
     }
   }
   return `
@@ -508,7 +635,7 @@ function publicDetail(c, headlines, status) {
         </div>
         ${main}
       </div>
-      ${status === 'ok' || headlines ? explainDock(explainKey, headlines) : ''}
+      ${status === 'ok' || headlines ? dock : ''}
     </div>`;
 }
 
@@ -654,7 +781,7 @@ function compareView(rows, status) {
           </table>
         </div>
       </div>
-      ${explainDock(explainKey)}
+      ${explainDock(explainKey, null, insightRows)}
     </div>`;
 }
 
@@ -742,6 +869,7 @@ function select(rank, opts = {}) {
 
 function openCompare() {
   if (compareRanks.length < 2) return;
+  pickMode = false;
   compareMode = true;
   selectedRank = null;
   applyState();
@@ -761,7 +889,10 @@ function toggleCompare(rank, on) {
   renderList();
   if (compareMode) applyState();
   else if (!selectedRank) renderDetail();
-  else renderCompareBar();
+  else {
+    renderCompareBar();
+    renderDetail();
+  }
 }
 
 function applyPreset(id) {
@@ -786,15 +917,17 @@ function escapeAttr(s) {
 }
 
 listEl.addEventListener('click', (e) => {
-  const check = e.target.closest('[data-check]');
-  if (check) {
-    e.stopPropagation();
-    toggleCompare(Number(check.dataset.check), check.checked);
-    return;
-  }
   const btn = e.target.closest('[data-rank]');
   if (!btn) return;
-  select(Number(btn.dataset.rank));
+  const rank = Number(btn.dataset.rank);
+  if (pickMode) {
+    const c = companyByRank(rank);
+    if (c && isPublic(c)) {
+      toggleCompare(rank, !compareRanks.includes(rank));
+      return;
+    }
+  }
+  select(rank);
 });
 
 detailEl.addEventListener('click', (e) => {
@@ -802,11 +935,32 @@ detailEl.addEventListener('click', (e) => {
     select(null);
     return;
   }
+  if (e.target.closest('#model-reset')) {
+    modelDraft = null;
+    renderDetail();
+    return;
+  }
   const check = e.target.closest('[data-check]');
   if (check) {
     e.stopPropagation();
     toggleCompare(Number(check.dataset.check), check.checked);
     return;
+  }
+  const pickBtn = e.target.closest('[data-pick-mode]');
+  if (pickBtn) {
+    pickMode = !pickMode;
+    if (!selectedRank && !compareMode) renderDetail();
+    return;
+  }
+  const rowRank = e.target.closest('tr[data-row-rank]');
+  if (pickMode && rowRank && !selectedRank && !compareMode) {
+    const rank = Number(rowRank.dataset.rowRank);
+    const c = companyByRank(rank);
+    if (c && isPublic(c) && !e.target.closest('[data-sort]')) {
+      e.preventDefault();
+      toggleCompare(rank, !compareRanks.includes(rank));
+      return;
+    }
   }
   const sortBtn = e.target.closest('[data-sort]');
   if (sortBtn) {
@@ -823,6 +977,12 @@ detailEl.addEventListener('click', (e) => {
   if (chart && compareMode) {
     chartKey = chart.dataset.chart;
     detailEl.innerHTML = compareView(lastCompareRows, lastCompareStatus);
+    return;
+  }
+  const toggleCmp = e.target.closest('[data-toggle-compare]');
+  if (toggleCmp) {
+    const rank = Number(toggleCmp.dataset.toggleCompare);
+    toggleCompare(rank, !compareRanks.includes(rank));
     return;
   }
   const add = e.target.closest('[data-add-compare]');
@@ -860,7 +1020,8 @@ detailEl.addEventListener('click', (e) => {
   }
   const companyPaneBtn = e.target.closest('[data-company-pane]');
   if (companyPaneBtn) {
-    companyPane = companyPaneBtn.dataset.companyPane === 'filed' ? 'filed' : 'ratios';
+    const pane = companyPaneBtn.dataset.companyPane;
+    companyPane = pane === 'filed' || pane === 'model' ? pane : 'ratios';
     renderDetail();
     return;
   }
@@ -925,9 +1086,32 @@ detailEl.addEventListener('click', (e) => {
 });
 
 detailEl.addEventListener('change', (e) => {
-  if (e.target.id !== 'shared-only') return;
-  sharedOnly = e.target.checked;
-  if (compareMode) detailEl.innerHTML = compareView(lastCompareRows, lastCompareStatus);
+  if (e.target.id === 'shared-only') {
+    sharedOnly = e.target.checked;
+    if (compareMode) detailEl.innerHTML = compareView(lastCompareRows, lastCompareStatus);
+    return;
+  }
+  const form = e.target.closest('#model-form');
+  if (!form || !selectedRank) return;
+  const headlines = headlinesOf(companyByRank(selectedRank));
+  const current = modelAssumptions(headlines);
+  const field = e.target.name;
+  const raw = Number(e.target.value);
+  if (!Number.isFinite(raw)) return;
+  const next = { rank: selectedRank, ...current };
+  if (field === 'revenueGrowth') next.revenueGrowth = raw / 100;
+  if (field === 'netMargin') next.netMargin = raw / 100;
+  if (field === 'fcfMargin') next.fcfMargin = raw / 100;
+  modelDraft = next;
+  renderDetail();
+  const again = detailEl.querySelector(`#model-form [name="${field}"]`);
+  if (again) {
+    again.focus();
+    if (typeof again.setSelectionRange === 'function' && again.value) {
+      const n = again.value.length;
+      again.setSelectionRange(n, n);
+    }
+  }
 });
 
 presetsEl?.addEventListener('click', (e) => {
