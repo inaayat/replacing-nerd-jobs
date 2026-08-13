@@ -1194,6 +1194,8 @@ function paintCompare(rows, status) {
     fillQuotes(names, '1y', true);
   }
 }
+
+async function fetchHeadlines(ciks) {
   const missing = ciks.filter((cik) => !headlinesByCik.has(cik));
   if (!missing.length) return ciks.map((cik) => headlinesByCik.get(cik));
   try {
