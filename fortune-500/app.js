@@ -97,10 +97,9 @@ let playbookKey = 'saas';
 let extraCol = null;
 let sharedOnly = false;
 let explainKey = 'net_margin';
-let companyPane = 'ratios';
+let companyPane = 'model';
 let comparePane = 'ratios';
 let modelDraft = null;
-let focusAssumption = 'revenueGrowth';
 
 const COURSE_STORAGE = 'f500-course';
 const courseStripEl = document.getElementById('course-strip');
@@ -160,7 +159,7 @@ function parseUrl() {
   const u = new URL(location.href);
   const raw = u.searchParams.get('compare');
   const paneRaw = u.searchParams.get('pane');
-  const pane = paneRaw === 'model' || paneRaw === 'filed' ? paneRaw : 'ratios';
+  const pane = paneRaw === 'ratios' || paneRaw === 'filed' ? paneRaw : 'model';
   const book = u.searchParams.get('playbook');
   if (raw) {
     const ranks = raw
@@ -168,7 +167,7 @@ function parseUrl() {
       .map(Number)
       .filter((n) => Number.isInteger(n) && n >= 1 && n <= 500)
       .slice(0, MAX_COMPARE);
-    return { compareMode: ranks.length >= 2, compareRanks: ranks, selectedRank: null, homeView: 'table', companyPane: 'ratios' };
+    return { compareMode: ranks.length >= 2, compareRanks: ranks, selectedRank: null, homeView: 'table', companyPane: 'model' };
   }
   const n = Number(u.searchParams.get('rank'));
   const selectedRank = Number.isInteger(n) && n >= 1 && n <= 500 ? n : null;
@@ -185,7 +184,7 @@ function parseUrl() {
       playbookKey: book && playbookById(book).id === book ? book : null,
     };
   }
-  return { compareMode: false, compareRanks: [], selectedRank: null, companyPane: 'ratios', ...hashHome() };
+  return { compareMode: false, compareRanks: [], selectedRank: null, companyPane: 'model', ...hashHome() };
 }
 
 function setUrl(opts = {}) {
@@ -199,9 +198,12 @@ function setUrl(opts = {}) {
     url.hash = '';
   } else if (opts.selectedRank) {
     url.searchParams.set('rank', String(opts.selectedRank));
-    if (companyPane === 'model' || companyPane === 'filed') url.searchParams.set('pane', companyPane);
-    const bookId = modelDraft?.playbookId || playbookKey;
-    if (companyPane === 'model' && bookId) url.searchParams.set('playbook', bookId);
+    if (companyPane === 'ratios' || companyPane === 'filed') url.searchParams.set('pane', companyPane);
+    // Only a model you actually touched carries its industry in the URL; a
+    // plain company link should open on whatever the ticker guesses.
+    if (companyPane === 'model' && modelDraft?.playbookId) {
+      url.searchParams.set('playbook', modelDraft.playbookId);
+    }
     url.hash = '';
   } else if (homeView === 'learn') {
     url.hash = 'learn';
@@ -561,7 +563,7 @@ function skipChrome() {
   homeView = 'table';
   compareMode = false;
   selectedRank = null;
-  companyPane = 'ratios';
+  companyPane = 'model';
   applyState();
 }
 
@@ -681,15 +683,16 @@ function viewTabs() {
   </div>`;
 }
 
+/** Practice model leads on a company: changing guesses is the job here. */
 function paneTabs(kind, current) {
   const modelTab =
     kind === 'company'
       ? `<button type="button" class="f5-view-tab" data-company-pane="model" aria-pressed="${current === 'model'}">Practice model</button>`
       : '';
-  return `<div class="f5-view-tabs" role="tablist" aria-label="Ratios, filed statement, or model">
+  return `<div class="f5-view-tabs" role="tablist" aria-label="Model, ratios, or filed statement">
+    ${modelTab}
     <button type="button" class="f5-view-tab" data-${kind}-pane="ratios" aria-pressed="${current === 'ratios'}">Key ratios</button>
     <button type="button" class="f5-view-tab" data-${kind}-pane="filed" aria-pressed="${current === 'filed'}">Filed statement</button>
-    ${modelTab}
   </div>`;
 }
 
@@ -1093,9 +1096,8 @@ function guessValue(assumptions, field) {
 
 function guessCard(field, assumptions, headlines, model, playbook) {
   const copy = describeAssumption(field, headlines, model, playbook);
-  const on = focusAssumption === field.key ? ' is-on' : '';
   const extraKey = field.isExtra ? field.key : undefined;
-  return `<article class="f5-guess${on}" data-assumption="${escapeAttr(field.key)}">
+  return `<article class="f5-guess" data-assumption="${escapeAttr(field.key)}">
     <h4 class="f5-guess-name">${escapeHtml(copy.name)}</h4>
     <p class="f5-guess-what">${escapeHtml(copy.what)}</p>
     <p class="f5-guess-origin">${escapeHtml(copy.origin)}</p>
@@ -1141,26 +1143,6 @@ function modelLiveHtml(c, headlines) {
     ${statementTable(statement, { company: c })}`;
 }
 
-function focusedField(playbook) {
-  const fields = assumptionFields(playbook);
-  return fields.find((f) => f.key === focusAssumption) || fields[0];
-}
-
-function modelDock(headlines, company) {
-  const playbook = currentPlaybook(company);
-  const a = modelAssumptions(headlines, company);
-  const model = runPracticeModel(headlines, a, playbook);
-  const field = focusedField(playbook);
-  const copy = describeAssumption(field, headlines, model, playbook);
-  return `<aside class="f5-dock" id="model-dock">
-    <p class="f5-kicker">This guess</p>
-    <h3>${escapeHtml(copy.name)}</h3>
-    <p class="f5-eli5">${escapeHtml(copy.what)}</p>
-    <p>${escapeHtml(copy.origin)}</p>
-    <p class="f5-guess-effect" id="dock-effect">${escapeHtml(copy.effect)}</p>
-  </aside>`;
-}
-
 function modelPanel(headlines, company) {
   const playbook = currentPlaybook(company);
   const a = modelAssumptions(headlines, company);
@@ -1169,7 +1151,6 @@ function modelPanel(headlines, company) {
     return `${paneTabs('company', 'model')}<p class="f5-toolbar-hint">${escapeHtml(model.reason)}</p>`;
   }
   const fields = assumptionFields(playbook);
-  if (!fields.some((f) => f.key === focusAssumption)) focusAssumption = fields[0].key;
   const cards = fields.map((field) => guessCard(field, a, headlines, model, playbook)).join('');
   const options = PLAYBOOKS.map(
     (p) =>
@@ -1279,7 +1260,6 @@ function publicDetail(c, headlines, status) {
           company: c,
           caption: `${c.company} — as filed`,
         })}
-        <button type="button" class="f5-cta" data-company-pane="model">Project these lines forward →</button>
         <h3 class="f5-model-sub">Every tag behind those lines</h3>
         <div class="f5-table-wrap">
           <table class="f5-table">
@@ -1289,8 +1269,9 @@ function publicDetail(c, headlines, status) {
         </div>`;
       dock = explainDock(explainKey, headlines, null, c);
     } else if (companyPane === 'model') {
+      // No dock: every guess card already carries its own explanation, and a
+      // side panel repeating the focused one was the same four lines twice.
       main = modelPanel(headlines, c);
-      dock = modelDock(headlines, c);
     } else {
       const groups = RATIO_GROUPS.map((group) => {
         const tiles = group.keys
@@ -1304,18 +1285,22 @@ function publicDetail(c, headlines, status) {
           <div class="f5-tiles">${tiles}</div>
         </section>`;
       }).join('');
-      const projectCta = `<button type="button" class="f5-cta" data-company-pane="model">Project the next 5 years from this 10-K</button>`;
       main = `
         ${paneTabs('company', companyPane)}
         <p class="f5-toolbar-hint">You’re looking at ${escapeHtml(c.company)}’s ${escapeHtml(year)} 10-K. Tap a tile for the math.</p>
-        ${projectCta}
         ${suggest}
         ${groups}`;
       dock = explainDock(explainKey, headlines, null, c);
     }
   }
+  const side =
+    companyPane === 'model'
+      ? ''
+      : status === 'ok' || headlines
+        ? dock
+        : `<aside class="f5-dock">${skeletonHtml(3)}</aside>`;
   return `
-    <div class="f5-workspace">
+    <div class="f5-workspace${side ? '' : ' is-wide'}">
       <div class="f5-workspace-main">
         <button type="button" class="f5-back" id="back">← Table</button>
         <div class="f5-company-head">
@@ -1329,7 +1314,7 @@ function publicDetail(c, headlines, status) {
         ${quoteMount(c)}
         ${main}
       </div>
-      ${status === 'ok' || headlines ? dock : `<aside class="f5-dock">${skeletonHtml(3)}</aside>`}
+      ${side}
     </div>`;
 }
 
@@ -1608,7 +1593,7 @@ function select(rank, opts = {}) {
   compareMode = false;
   selectedRank = rank;
   if (rank == null) {
-    companyPane = 'ratios';
+    companyPane = 'model';
     homeView = defaultHomeView();
   }
   const c = rank ? companyByRank(rank) : null;
@@ -1679,19 +1664,6 @@ listEl.addEventListener('click', (e) => {
 
 detailEl.addEventListener('click', (e) => {
   if (handleGuideClick(e)) return;
-  const guess = e.target.closest('[data-assumption]');
-  if (guess && selectedRank && companyPane === 'model' && !e.target.closest('[data-driver]')) {
-    const c = companyByRank(selectedRank);
-    const headlines = headlinesOf(c);
-    if (c && headlines && focusAssumption !== guess.dataset.assumption) {
-      focusAssumption = guess.dataset.assumption;
-      for (const card of detailEl.querySelectorAll('.f5-guess')) {
-        card.classList.toggle('is-on', card.dataset.assumption === focusAssumption);
-      }
-      const dock = document.getElementById('model-dock');
-      if (dock) dock.outerHTML = modelDock(headlines, c);
-    }
-  }
   if (e.target.closest('#back')) {
     select(null);
     return;
@@ -1910,12 +1882,6 @@ function applyDriverInput(el) {
   if (el.dataset.extra) next.extras[el.dataset.extra] = value;
   else if (el.dataset.driver) next[el.dataset.driver] = value;
   modelDraft = next;
-  if (el.dataset.driver) {
-    focusAssumption = el.dataset.driver;
-    for (const card of detailEl.querySelectorAll('.f5-guess')) {
-      card.classList.toggle('is-on', card.dataset.assumption === focusAssumption);
-    }
-  }
   const live = document.getElementById('model-live');
   if (live) live.innerHTML = modelLiveHtml(c, headlines);
   const playbook = currentPlaybook(c);
@@ -1925,8 +1891,6 @@ function applyDriverInput(el) {
     if (!field) continue;
     line.textContent = describeAssumption(field, headlines, model, playbook).effect;
   }
-  const dock = document.getElementById('model-dock');
-  if (dock) dock.outerHTML = modelDock(headlines, c);
   const sens = document.getElementById('model-sens');
   if (sens) sens.innerHTML = sensitivityHtml(model);
   const shown = (value * 100).toFixed(1);
@@ -1935,21 +1899,6 @@ function applyDriverInput(el) {
     if (other !== el) other.value = shown;
   }
 }
-
-detailEl.addEventListener('focusin', (e) => {
-  const card = e.target.closest('[data-assumption]');
-  if (!card || !selectedRank || companyPane !== 'model') return;
-  if (focusAssumption === card.dataset.assumption) return;
-  const c = companyByRank(selectedRank);
-  const headlines = headlinesOf(c);
-  if (!c || !headlines) return;
-  focusAssumption = card.dataset.assumption;
-  for (const other of detailEl.querySelectorAll('.f5-guess')) {
-    other.classList.toggle('is-on', other.dataset.assumption === focusAssumption);
-  }
-  const dock = document.getElementById('model-dock');
-  if (dock) dock.outerHTML = modelDock(headlines, c);
-});
 
 detailEl.addEventListener('input', (e) => {
   const el = e.target.closest('[data-driver]');
