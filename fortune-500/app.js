@@ -14,7 +14,15 @@ import {
 } from './catalog.js';
 import { formatMetric, formatDerived, formatUsd, ensureRatios, explainCalculation } from './extract.js';
 import { seedAssumptions, applyScenario, runPracticeModel, effectiveGrowth, MODEL_YEARS } from './model.js';
-import { PLAYBOOKS, CRASH_COURSE_URL, GOLDEN_RULES, guessPlaybook, playbookById } from './playbooks.js';
+import {
+  PLAYBOOKS,
+  GOLDEN_RULES,
+  DECISION_TREE,
+  guessPlaybook,
+  playbookById,
+  industryPlaybooks,
+  playbookDog,
+} from './playbooks.js';
 import { buildWorkbookXml, workbookFilename, downloadWorkbook } from './workbook.js';
 import {
   buildInsights,
@@ -54,6 +62,7 @@ let chartKey = 'net_margin';
 let lastCompareRows = [];
 let lastCompareStatus = 'ok';
 let homeView = 'table';
+let playbookKey = 'saas';
 let extraCol = null;
 let sharedOnly = false;
 let explainKey = 'net_margin';
@@ -61,6 +70,20 @@ let companyPane = 'ratios';
 let comparePane = 'ratios';
 let pickMode = false;
 let modelDraft = null;
+
+function hashHome() {
+  const hash = (location.hash || '').replace(/^#/, '');
+  if (hash === 'learn') return { homeView: 'learn', playbookKey };
+  if (hash === 'industries' || hash.startsWith('industries/')) {
+    const id = hash.split('/')[1];
+    const book = id ? playbookById(id) : null;
+    return {
+      homeView: 'industries',
+      playbookKey: book && book.id === id ? id : playbookKey,
+    };
+  }
+  return { homeView: 'table', playbookKey };
+}
 
 function parseUrl() {
   const u = new URL(location.href);
@@ -71,11 +94,12 @@ function parseUrl() {
       .map(Number)
       .filter((n) => Number.isInteger(n) && n >= 1 && n <= 500)
       .slice(0, MAX_COMPARE);
-    return { compareMode: ranks.length >= 2, compareRanks: ranks, selectedRank: null };
+    return { compareMode: ranks.length >= 2, compareRanks: ranks, selectedRank: null, homeView: 'table' };
   }
   const n = Number(u.searchParams.get('rank'));
   const selectedRank = Number.isInteger(n) && n >= 1 && n <= 500 ? n : null;
-  return { compareMode: false, compareRanks: [], selectedRank };
+  if (selectedRank) return { compareMode: false, compareRanks: [], selectedRank, homeView: 'table' };
+  return { compareMode: false, compareRanks: [], selectedRank: null, ...hashHome() };
 }
 
 function setUrl(opts = {}) {
@@ -84,8 +108,16 @@ function setUrl(opts = {}) {
   url.searchParams.delete('compare');
   if (opts.compareMode && opts.compareRanks?.length >= 2) {
     url.searchParams.set('compare', opts.compareRanks.join(','));
+    url.hash = '';
   } else if (opts.selectedRank) {
     url.searchParams.set('rank', String(opts.selectedRank));
+    url.hash = '';
+  } else if (homeView === 'learn') {
+    url.hash = 'learn';
+  } else if (homeView === 'industries') {
+    url.hash = playbookKey ? `industries/${playbookKey}` : 'industries';
+  } else {
+    url.hash = '';
   }
   history[opts.replace ? 'replaceState' : 'pushState']({}, '', url);
 }
@@ -263,9 +295,10 @@ function sortRows(rows) {
 }
 
 function viewTabs() {
-  return `<div class="f5-view-tabs" role="tablist" aria-label="Ratios or glossary">
+  return `<div class="f5-view-tabs" role="tablist" aria-label="Table, glossary, or industry models">
     <button type="button" class="f5-view-tab" data-home-view="table" aria-pressed="${homeView === 'table'}">Compare table</button>
     <button type="button" class="f5-view-tab" data-home-view="learn" aria-pressed="${homeView === 'learn'}">What ratios mean</button>
+    <button type="button" class="f5-view-tab" data-home-view="industries" aria-pressed="${homeView === 'industries'}">Industry models</button>
   </div>`;
 }
 
@@ -283,6 +316,7 @@ function paneTabs(kind, current) {
 
 function screenerView() {
   if (homeView === 'learn') return learnView();
+  if (homeView === 'industries') return industriesView();
   const cols = screenerColumns();
   const rows = sortRows(companies.filter(matches));
   const head = cols
@@ -367,6 +401,86 @@ function learnView() {
         </div>
       </div>
       ${explainDock(explainKey)}
+    </div>`;
+}
+
+function listBlock(title, items) {
+  if (!items?.length) return '';
+  return `<div class="f5-info-block">
+    <h4>${escapeHtml(title)}</h4>
+    <ul class="f5-play-list">${items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>
+  </div>`;
+}
+
+function playbookBody(playbook) {
+  const dog = playbookDog(playbook);
+  return `
+    <p class="f5-quote"><img src="${escapeAttr(dog)}" alt="" width="28" height="28">${escapeHtml(playbook.quote)}</p>
+    <p class="f5-eli5">${escapeHtml(playbook.intro)}</p>
+    <div class="f5-calc">
+      <p class="f5-kicker">Core formula</p>
+      <pre class="f5-calc-eq">${escapeHtml(playbook.formula)}</pre>
+    </div>
+    <div class="f5-dock-cols">
+      ${listBlock('Key inputs', playbook.inputs)}
+      ${listBlock('Key metrics', playbook.metrics)}
+    </div>
+    ${
+      playbook.subs?.length
+        ? `<p class="f5-kicker">Sub-industries</p><div class="f5-subs">${playbook.subs
+            .map((s) => `<span class="f5-sub-tag">${escapeHtml(s)}</span>`)
+            .join('')}</div>`
+        : ''
+    }`;
+}
+
+function playbookDock(id) {
+  const playbook = playbookById(id);
+  return `<aside class="f5-dock" id="playbook-dock">
+    <p class="f5-kicker">${escapeHtml(playbook.subtitle)}</p>
+    <h3>${escapeHtml(playbook.label)}</h3>
+    ${playbookBody(playbook)}
+    <ol class="f5-model-rules">${GOLDEN_RULES.map((r) => `<li>${escapeHtml(r)}</li>`).join('')}</ol>
+  </aside>`;
+}
+
+function industriesView() {
+  const books = industryPlaybooks();
+  const selected = playbookById(playbookKey);
+  const tree = DECISION_TREE.map(
+    (step) => `<div class="f5-calc f5-tree-step">
+      <p class="f5-kicker">Q${step.n}</p>
+      <p class="f5-tree-q">${escapeHtml(step.q)}</p>
+      <div class="f5-tree-opts">
+        ${step.picks
+          .map(
+            (pick) =>
+              `<button type="button" class="f5-tree-chip${playbookKey === pick.id ? ' is-on' : ''}" data-playbook="${escapeAttr(pick.id)}">${escapeHtml(pick.label)}</button>`
+          )
+          .join('')}
+      </div>
+      ${step.no ? `<p class="muted">${escapeHtml(step.no)}</p>` : ''}
+    </div>`
+  ).join('');
+  const cards = books
+    .map(
+      (p, i) => `<button type="button" class="f5-tile f5-play-card${p.id === selected.id ? ' is-on' : ''}" data-playbook="${escapeAttr(p.id)}">
+        <span class="f5-tile-label">${String(i + 1).padStart(2, '0')}</span>
+        <span class="f5-tile-val">${escapeHtml(p.label)}</span>
+        <span class="muted">${escapeHtml(p.subtitle)}</span>
+      </button>`
+    )
+    .join('');
+  return `
+    <div class="f5-workspace">
+      <div class="f5-workspace-main">
+        <div class="f5-toolbar">${viewTabs()}</div>
+        <p class="f5-toolbar-hint">Four questions to pick a starting model, then the industry for formulas, inputs, and metrics. Practice them on a company 10-K.</p>
+        <div class="f5-tree">${tree}</div>
+        <h3 class="f5-model-sub">${books.length} industries</h3>
+        <div class="f5-play-grid">${cards}</div>
+      </div>
+      ${playbookDock(selected.id)}
     </div>`;
 }
 
@@ -552,18 +666,12 @@ function modelDock(headlines, company) {
   const playbook = currentPlaybook(company);
   const a = modelAssumptions(headlines, company);
   const growth = formatDerived(lookupDef('revenue_yoy'), effectiveGrowth(a, playbook)) || '—';
-  const course = `${CRASH_COURSE_URL}${playbook.hash || ''}`;
   return `<aside class="f5-dock" id="model-dock">
-    <p class="f5-kicker">${escapeHtml(playbook.label)}</p>
-    <h3>Practice this industry</h3>
-    <p class="f5-eli5">${escapeHtml(playbook.intro)}</p>
-    <div class="f5-calc">
-      <p class="f5-calc-eq">${escapeHtml(playbook.formula).replaceAll('\n', ' · ')}</p>
-    </div>
-    <p class="muted">${escapeHtml(playbook.quote)}</p>
+    <p class="f5-kicker">${escapeHtml(playbook.subtitle)}</p>
+    <h3>${escapeHtml(playbook.label)}</h3>
+    ${playbookBody(playbook)}
     <p class="f5-coverage-line">Effective growth ${escapeHtml(growth)} · year 0 is filed, everything else is practice.</p>
-    <p class="f5-leaders"><a href="${escapeAttr(course)}">FP&amp;A crash course${playbook.hash ? ' — this industry' : ''}</a></p>
-    <ol class="f5-model-rules">${GOLDEN_RULES.slice(0, 4).map((r) => `<li>${escapeHtml(r)}</li>`).join('')}</ol>
+    <p class="f5-leaders"><button type="button" class="f5-linkish" data-home-view="industries" data-playbook="${escapeAttr(playbook.id)}">All industry models</button></p>
   </aside>`;
 }
 
@@ -589,7 +697,7 @@ function modelPanel(headlines, company) {
     .join('');
   return `
     ${paneTabs('company', 'model')}
-    <p class="f5-toolbar-hint">Year 0 is the 10-K. Change drivers and watch the sheet. Industry templates come from the <a href="${escapeAttr(CRASH_COURSE_URL + (playbook.hash || ''))}">FP&amp;A crash course</a>.</p>
+    <p class="f5-toolbar-hint">Year 0 is the 10-K. Change drivers and watch the sheet. Industry templates live on this page.</p>
     <div class="f5-model-toolbar">
       <label class="f5-playbook-pick">Industry
         <select id="model-playbook">${options}</select>
@@ -1119,9 +1227,22 @@ detailEl.addEventListener('click', (e) => {
     select(Number(rankBtn.dataset.rank));
     return;
   }
+  const playBtn = e.target.closest('[data-playbook]');
+  if (playBtn) {
+    const id = playBtn.dataset.playbook;
+    if (id && playbookById(id).id === id) playbookKey = id;
+    if (playBtn.dataset.homeView === 'industries' || homeView === 'industries') {
+      homeView = 'industries';
+      compareMode = false;
+      selectedRank = null;
+      applyState();
+    }
+    return;
+  }
   const viewBtn = e.target.closest('[data-home-view]');
   if (viewBtn) {
-    homeView = viewBtn.dataset.homeView === 'learn' ? 'learn' : 'table';
+    const v = viewBtn.dataset.homeView;
+    homeView = v === 'learn' || v === 'industries' ? v : 'table';
     compareMode = false;
     selectedRank = null;
     applyState();
@@ -1190,6 +1311,7 @@ detailEl.addEventListener('click', (e) => {
     if (compareMode) detailEl.innerHTML = compareView(lastCompareRows, lastCompareStatus);
     else if (selectedRank) renderDetail();
     else if (homeView === 'learn') detailEl.innerHTML = learnView();
+    else if (homeView === 'industries') detailEl.innerHTML = industriesView();
     return;
   }
 });
@@ -1250,19 +1372,22 @@ presetsEl?.addEventListener('click', (e) => {
   applyPreset(btn.dataset.preset);
 });
 
-function openLearn(e) {
-  e?.preventDefault();
-  homeView = 'learn';
-  compareMode = false;
-  selectedRank = null;
-  applyState();
-  if (window.matchMedia('(max-width: 820px)').matches) {
-    detailEl.scrollIntoView({ block: 'start' });
-  }
+function openHomeView(view) {
+  return (e) => {
+    e?.preventDefault();
+    homeView = view;
+    compareMode = false;
+    selectedRank = null;
+    applyState();
+    if (window.matchMedia('(max-width: 820px)').matches) {
+      detailEl.scrollIntoView({ block: 'start' });
+    }
+  };
 }
 
-document.getElementById('nav-learn')?.addEventListener('click', openLearn);
-document.getElementById('glossary-learn')?.addEventListener('click', openLearn);
+document.getElementById('nav-learn')?.addEventListener('click', openHomeView('learn'));
+document.getElementById('nav-industries')?.addEventListener('click', openHomeView('industries'));
+document.getElementById('glossary-learn')?.addEventListener('click', openHomeView('learn'));
 
 compareBar.addEventListener('click', (e) => {
   const chip = e.target.closest('[data-unchip]');
@@ -1299,6 +1424,8 @@ window.addEventListener('popstate', () => {
   compareMode = s.compareMode;
   compareRanks = s.compareRanks;
   selectedRank = s.selectedRank;
+  homeView = s.homeView || 'table';
+  if (s.playbookKey) playbookKey = s.playbookKey;
   applyState({ fromPop: true });
 });
 
@@ -1322,7 +1449,8 @@ try {
   compareMode = s.compareMode;
   compareRanks = s.compareRanks;
   selectedRank = s.selectedRank;
-  if (location.hash === '#learn' && !compareMode && !selectedRank) homeView = 'learn';
+  homeView = s.homeView || 'table';
+  if (s.playbookKey) playbookKey = s.playbookKey;
   applyState({ replace: true, fromPop: true });
 } catch (err) {
   detailEl.innerHTML = `<p class="f5-error">${escapeHtml(err.message)}</p>`;

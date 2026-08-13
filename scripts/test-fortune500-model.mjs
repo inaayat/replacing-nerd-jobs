@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { defaultAssumptions, runDriverModel, seedAssumptions, impliedGrowth, effectiveGrowth, applyScenario, runPracticeModel } from '../fortune-500/model.js';
-import { guessPlaybook, playbookById } from '../fortune-500/playbooks.js';
+import { guessPlaybook, playbookById, industryPlaybooks, DECISION_TREE, GOLDEN_RULES } from '../fortune-500/playbooks.js';
 import { buildWorkbookXml, workbookFilename } from '../fortune-500/workbook.js';
 
 const headlines = {
@@ -82,5 +82,19 @@ assert.ok(xml.includes('Worksheet ss:Name="Projection"'));
 assert.ok(xml.includes('Worksheet ss:Name="Industry"'));
 assert.ok(xml.includes('same-store') || xml.includes('Same-store') || xml.includes('Retail'));
 assert.equal(workbookFilename({ fortune_ticker: 'WMT' }), 'WMT-practice-model.xls');
+assert.ok(!xml.includes('fpa-crash-course'));
+assert.ok(!xml.includes('inaayat.xyz/archive'));
+assert.ok(xml.includes('Key inputs'));
+assert.ok(xml.includes('Store count'));
+assert.ok(xml.includes('Pat the dogs'));
+
+assert.equal(DECISION_TREE.length, 4);
+assert.equal(industryPlaybooks().length, 18);
+assert.ok(retail.inputs.length >= 5);
+assert.ok(retail.metrics.length >= 5);
+assert.ok(retail.subs.includes('grocery & supermarket'));
+assert.equal(playbookById('startup').id, 'startup');
+assert.ok(GOLDEN_RULES.length >= 7);
+assert.equal(guessPlaybook({ fortune_ticker: 'ZZZZ', company: 'Mystery Startup LLC' }).id, 'generic');
 
 console.log('fortune-500 model tests passed');

@@ -184,7 +184,7 @@ export function runPracticeModel(headlines, assumptions = {}, playbook) {
     sensitivity: sensitivityGrid(headlines, assumptions, book),
     notes: [
       `Year 0 is the FY${headlines?.asOfYear} 10-K. Later years are your practice assumptions, not a SEC forecast.`,
-      book.id !== 'generic' ? `Playbook: ${book.label}. Extra drivers follow the FP&A crash course.` : null,
+      book.id !== 'generic' ? `Playbook: ${book.label}. Extra drivers follow this industry’s model.` : null,
       assumptions.netMargin == null && book.niMode !== 'roa' ? 'Net margin was not tagged, so profit stays blank.' : null,
       assumptions.fcfMargin == null ? 'FCF margin needs operating cash and CapEx. Missing either → FCF stays blank.' : null,
       'No share price in EDGAR, so this is not a DCF or a target price.',

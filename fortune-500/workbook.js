@@ -3,6 +3,8 @@
  * Browser-safe ESM — no zip, no npm. Formulas live in the Projection sheet.
  */
 
+import { GOLDEN_RULES } from './playbooks.js';
+
 function esc(s) {
   return String(s ?? '')
     .replaceAll('&', '&amp;')
@@ -67,15 +69,9 @@ export function buildWorkbookXml({ company, headlines, assumptions, model, playb
     stringRow(['Scenario', assumptions?.scenario || 'base']),
     stringRow(['Source FY', fy ? `FY${fy} 10-K` : '']),
     stringRow(['Generated for practice — year 0 is filed; later years are assumptions.']),
-    stringRow(['Industry crash course', 'https://www.inaayat.xyz/archive/fpa-crash-course/' + (playbook?.hash || '')]),
     stringRow([]),
     stringRow(['Golden rules']),
-    stringRow(['1', 'Build the unit first.']),
-    stringRow(['2', 'Separate volume from price.']),
-    stringRow(['3', 'COGS before gross margin.']),
-    stringRow(['4', 'Sensitize anything that moves the answer 20%+.']),
-    stringRow(['5', 'Cash is not earnings.']),
-    stringRow(['6', 'The model is a conversation starter.']),
+    ...GOLDEN_RULES.map((rule, i) => stringRow([String(i + 1), rule])),
   ].join('');
 
   const actuals = [
@@ -115,7 +111,7 @@ export function buildWorkbookXml({ company, headlines, assumptions, model, playb
     stringRow(['CapEx / sales', pct(assumptions?.capexIntensity), '']),
     stringRow(['R&D / sales', pct(assumptions?.rdIntensity), '']),
     stringRow(['ROA', pct(assumptions?.roa), 'Used for bank playbook NI.']),
-    stringRow(['Industry extras', '', 'From the FP&A crash course. Change these, then copy implied growth into B7.']),
+    stringRow(['Industry extras', '', 'From this industry’s playbook. Change these, then copy implied growth into B7.']),
     ...extraRows,
   ].join('');
 
@@ -164,6 +160,12 @@ export function buildWorkbookXml({ company, headlines, assumptions, model, playb
     }
   }
 
+  const listRows = (title, items) => [
+    stringRow([title]),
+    ...(items?.length ? items.map((item) => stringRow([item])) : [stringRow([''])]),
+    stringRow([]),
+  ];
+
   const industry = [
     stringRow([playbook?.label || 'Generic P&L']),
     stringRow([playbook?.subtitle || '']),
@@ -177,7 +179,11 @@ export function buildWorkbookXml({ company, headlines, assumptions, model, playb
     stringRow(['Coach note']),
     stringRow([playbook?.quote || '']),
     stringRow([]),
-    stringRow(['Crash course', `https://www.inaayat.xyz/archive/fpa-crash-course/${playbook?.hash || ''}`]),
+    ...listRows('Key inputs', playbook?.inputs),
+    ...listRows('Key metrics', playbook?.metrics),
+    ...listRows('Sub-industries', playbook?.subs),
+    stringRow(['Golden rules']),
+    ...GOLDEN_RULES.map((rule, i) => stringRow([String(i + 1), rule])),
   ].join('');
 
   return `<?xml version="1.0"?>
