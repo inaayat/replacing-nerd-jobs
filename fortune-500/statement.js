@@ -15,7 +15,9 @@
  * The statement, in filing order.
  * - `source`: 'metric' reads headlines.metrics[key].val, 'ratio' reads headlines.ratios[key]
  * - `modelKey`: field on a practice-model row; null means we don't project it
- * - `detail`: only shown once the modeler asks for more income-statement lines
+ * - `detail`: extra income-statement lines (R&D, CapEx) shown when the
+ *   practice model is on; the UI always asks for them now that every guess
+ *   is a card.
  */
 export const STATEMENT_ROWS = [
   { key: 'revenue', label: 'Revenue', source: 'metric', modelKey: 'revenue' },

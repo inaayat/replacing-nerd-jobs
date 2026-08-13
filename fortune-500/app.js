@@ -12,8 +12,6 @@ import {
   HOW_TO,
   GLOSSARY,
   COURSE_STEPS,
-  MODEL_RUNGS,
-  MAX_MODEL_LEVEL,
   SUGGESTED_RANK,
   PURPOSE,
   courseProgress,
@@ -36,7 +34,7 @@ import {
   plausibleMargin,
   MARGIN_KEYS,
 } from './extract.js';
-import { seedAssumptions, applyScenario, runPracticeModel, effectiveGrowth, MODEL_YEARS } from './model.js';
+import { seedAssumptions, applyScenario, runPracticeModel, MODEL_YEARS, describeAssumption, assumptionFields } from './model.js';
 import { buildStatement } from './statement.js';
 import {
   PLAYBOOKS,
@@ -102,23 +100,19 @@ let explainKey = 'net_margin';
 let companyPane = 'ratios';
 let comparePane = 'ratios';
 let modelDraft = null;
+let focusAssumption = 'revenueGrowth';
 
 const COURSE_STORAGE = 'f500-course';
 const courseStripEl = document.getElementById('course-strip');
 
-function clampLevel(n) {
-  if (!Number.isInteger(n)) return null;
-  return Math.min(MAX_MODEL_LEVEL, Math.max(1, n));
-}
-
 function loadCourse() {
   try {
     const raw = JSON.parse(localStorage.getItem(COURSE_STORAGE) || 'null');
-    if (!raw || typeof raw !== 'object') return { done: {}, skipped: false, level: null };
+    if (!raw || typeof raw !== 'object') return { done: {}, skipped: false };
     const done = raw.done && typeof raw.done === 'object' ? raw.done : {};
-    return { done, skipped: Boolean(raw.skipped), level: clampLevel(raw.level) };
+    return { done, skipped: Boolean(raw.skipped) };
   } catch {
-    return { done: {}, skipped: false, level: null };
+    return { done: {}, skipped: false };
   }
 }
 
@@ -134,22 +128,6 @@ function saveCourse() {
 
 function isBeginner() {
   return !course.skipped && !courseProgress(course.done).complete;
-}
-
-/**
- * Which rung of the practice-model ladder is on screen. Rungs only add controls
- * and statement lines; nothing is locked, and any rung is one click away.
- */
-function modelLevel() {
-  if (course.level) return course.level;
-  return isBeginner() ? 1 : MAX_MODEL_LEVEL;
-}
-
-function setModelLevel(n) {
-  const level = clampLevel(Number(n));
-  if (!level) return;
-  course.level = level;
-  saveCourse();
 }
 
 function defaultHomeView() {
@@ -462,10 +440,10 @@ function formatScreenerCell(col, value) {
 
 function renderCompareBar() {
   const n = compareRanks.length;
-  compareBar.hidden = false;
+  compareBar.hidden = n === 0;
   compareLabel.textContent =
     n === 0
-      ? '0 selected — open a company and tap Add, or use a peer set'
+      ? ''
       : n === 1
         ? '1 selected — add one more, then Compare'
         : n >= MAX_COMPARE
@@ -579,7 +557,6 @@ function companyForPlaybook(id) {
 
 function skipChrome() {
   course.skipped = true;
-  course.level = MAX_MODEL_LEVEL;
   saveCourse();
   homeView = 'table';
   compareMode = false;
@@ -600,12 +577,6 @@ function handleGuideClick(e) {
   }
   if (e.target.closest('[data-course-compare]')) {
     startCompareLesson();
-    return true;
-  }
-  const rung = e.target.closest('[data-model-level]');
-  if (rung) {
-    setModelLevel(rung.dataset.modelLevel);
-    renderDetail();
     return true;
   }
   const practice = e.target.closest('[data-practice-rank]');
@@ -640,7 +611,7 @@ function howtoView() {
     <p class="f5-eli5">${escapeHtml(PURPOSE)}</p>
     ${howtoStepsHtml()}
     ${notTagged ? `<p class="f5-missing-why"><strong>Dash:</strong> ${escapeHtml(notTagged.def)}</p>` : ''}
-    <p class="muted">The bar at the top tells you the next click. Add companies with <strong>Add</strong> — the tray at the bottom shows how many you’ve selected.</p>
+    <p class="muted">The bar at the top tells you the next click. Add a company when you want to compare — the tray appears once something is selected.</p>
   </div>`;
 }
 
@@ -690,8 +661,6 @@ function openPractice(company, playbook) {
   const book = playbook || guessPlaybook(company);
   playbookKey = book.id;
   companyPane = 'model';
-  // Arriving from an industry playbook means the industry drivers are the point.
-  if (modelLevel() < 2) setModelLevel(2);
   const headlines = headlinesOf(company);
   modelDraft = {
     ...seedAssumptions(headlines, book),
@@ -858,7 +827,10 @@ function playbookDock(id) {
     <h3>${escapeHtml(playbook.label)}</h3>
     ${playbookBody(playbook)}
     ${practice}
-    <ol class="f5-model-rules">${GOLDEN_RULES.map((r) => `<li>${escapeHtml(r)}</li>`).join('')}</ol>
+    <details class="f5-rules-fold">
+      <summary>Seven modeling rules</summary>
+      <ol class="f5-model-rules">${GOLDEN_RULES.map((r) => `<li>${escapeHtml(r)}</li>`).join('')}</ol>
+    </details>
   </aside>`;
 }
 
@@ -1100,7 +1072,7 @@ function signedUsd(n) {
   return n > 0 ? `+${shown}` : `−${shown}`;
 }
 
-function driverField(key, label, value, help, extraKey) {
+function driverControls(key, value, extraKey) {
   const attr = extraKey ? `data-driver="${escapeAttr(key)}" data-extra="${escapeAttr(extraKey)}"` : `data-driver="${escapeAttr(key)}"`;
   const empty = value == null || !Number.isFinite(value);
   const shown = empty ? '' : (value * 100).toFixed(1);
@@ -1109,13 +1081,27 @@ function driverField(key, label, value, help, extraKey) {
   const range = empty
     ? ''
     : `<input type="range" min="${min}" max="${max}" step="0.5" ${attr} data-scale="pct" value="${shown}" />`;
-  return `<label class="f5-driver" title="${escapeAttr(help || '')}">
-    <span>${escapeHtml(label)}${empty ? ' <span class="muted">practice</span>' : ''}</span>
-    <span class="f5-driver-controls">
+  return `<span class="f5-driver-controls">
       ${range}
       <input class="f5-model-input" type="number" step="0.1" ${attr} data-scale="pct" value="${shown}" placeholder="—" />
-    </span>
-  </label>`;
+    </span>`;
+}
+
+function guessValue(assumptions, field) {
+  return field.isExtra ? assumptions.extras?.[field.key] : assumptions[field.key];
+}
+
+function guessCard(field, assumptions, headlines, model, playbook) {
+  const copy = describeAssumption(field, headlines, model, playbook);
+  const on = focusAssumption === field.key ? ' is-on' : '';
+  const extraKey = field.isExtra ? field.key : undefined;
+  return `<article class="f5-guess${on}" data-assumption="${escapeAttr(field.key)}">
+    <h4 class="f5-guess-name">${escapeHtml(copy.name)}</h4>
+    <p class="f5-guess-what">${escapeHtml(copy.what)}</p>
+    <p class="f5-guess-origin">${escapeHtml(copy.origin)}</p>
+    <p class="f5-guess-effect" data-guess-effect="${escapeAttr(field.key)}">${escapeHtml(copy.effect)}</p>
+    ${driverControls(field.key, guessValue(assumptions, field), extraKey)}
+  </article>`;
 }
 
 function sensitivityHtml(model) {
@@ -1131,7 +1117,6 @@ function sensitivityHtml(model) {
     })
     .join('');
   return `
-    <h3 class="f5-model-sub">Sensitivity — year-5 net income (growth ↓, net margin →)</h3>
     <div class="f5-table-wrap">
       <table class="f5-table f5-sens-table">
         <thead><tr>${head}</tr></thead>
@@ -1146,66 +1131,34 @@ function modelLiveHtml(c, headlines) {
   const a = modelAssumptions(headlines, c);
   const model = runPracticeModel(headlines, a, playbook);
   if (!model.ok) return `<p class="f5-toolbar-hint">${escapeHtml(model.reason)}</p>`;
-  const level = modelLevel();
-  const statement = buildStatement(headlines, { model, detail: level >= 3 });
-  const last = model.rows[model.rows.length - 1];
-  const g = formatDerived(lookupDef('revenue_yoy'), model.growth) || '—';
-  const implied = formatDerived(lookupDef('revenue_yoy'), model.impliedGrowth) || '—';
+  const statement = buildStatement(headlines, { model, detail: true });
   return `
-    <p class="f5-model-delta">FY${last.year} vs filed FY${model.year0}:
+    <p class="f5-model-delta">Year 5 vs filed FY${model.year0}:
       NI <strong>${escapeHtml(signedUsd(model.vsFiled.netIncome))}</strong>
       · FCF <strong>${escapeHtml(signedUsd(model.vsFiled.fcf))}</strong>
-      · revenue <strong>${escapeHtml(signedUsd(model.vsFiled.revenue))}</strong>
-      · growth <strong>${escapeHtml(g)}</strong>${
-        playbook.extras?.length ? ` <span class="muted">(from industry drivers ${escapeHtml(implied)})</span>` : ''
-      }
+      · sales <strong>${escapeHtml(signedUsd(model.vsFiled.revenue))}</strong>
     </p>
-    ${statementTable(statement, {
-      hint: 'Filed years are shaded. Y1–Y5 are your assumptions — tap a line item for the 10-K math behind it.',
-      company: c,
-    })}
-    ${level >= 3 ? sensitivityHtml(model) : ''}
-    <ul class="f5-model-notes">${[...model.notes, ...statement.notes]
-      .map((n) => `<li>${escapeHtml(n)}</li>`)
-      .join('')}</ul>`;
+    ${statementTable(statement, { company: c })}`;
+}
+
+function focusedField(playbook) {
+  const fields = assumptionFields(playbook);
+  return fields.find((f) => f.key === focusAssumption) || fields[0];
 }
 
 function modelDock(headlines, company) {
   const playbook = currentPlaybook(company);
   const a = modelAssumptions(headlines, company);
-  const growth = formatDerived(lookupDef('revenue_yoy'), effectiveGrowth(a, playbook)) || '—';
+  const model = runPracticeModel(headlines, a, playbook);
+  const field = focusedField(playbook);
+  const copy = describeAssumption(field, headlines, model, playbook);
   return `<aside class="f5-dock" id="model-dock">
-    <p class="f5-kicker">${escapeHtml(playbook.subtitle)}</p>
-    <h3>${escapeHtml(playbook.label)}</h3>
-    <p class="f5-eli5">Year 0 is filed. Everything after is a guess you control — not a forecast.</p>
-    ${playbookBody(playbook)}
-    <p class="f5-coverage-line">Effective growth ${escapeHtml(growth)} · year 0 is filed, everything else is practice.</p>
-    ${
-      company?.rank
-        ? `<div class="f5-eli5-actions">
-            <button type="button" class="f5-mini f5-mini-ghost" data-compare-peers="${company.rank}">Compare with peers</button>
-          </div>`
-        : ''
-    }
-    <p class="f5-leaders"><button type="button" class="f5-linkish" data-home-view="industries" data-playbook="${escapeAttr(playbook.id)}">All industry models</button></p>
+    <p class="f5-kicker">This guess</p>
+    <h3>${escapeHtml(copy.name)}</h3>
+    <p class="f5-eli5">${escapeHtml(copy.what)}</p>
+    <p>${escapeHtml(copy.origin)}</p>
+    <p class="f5-guess-effect" id="dock-effect">${escapeHtml(copy.effect)}</p>
   </aside>`;
-}
-
-/**
- * The ladder. Rungs are always clickable — they change how much of the model is
- * on screen, never what you are allowed to open.
- */
-function modelLadder(level) {
-  const rungs = MODEL_RUNGS.map(
-    (rung) => `<button type="button" class="f5-rung${rung.level === level ? ' is-on' : ''}${
-      rung.level < level ? ' is-passed' : ''
-    }" data-model-level="${rung.level}" aria-pressed="${rung.level === level}">
-      <span class="f5-rung-n">Step ${rung.level}</span>
-      <span class="f5-rung-label">${escapeHtml(rung.label)}</span>
-      <span class="f5-rung-adds">${escapeHtml(rung.adds)}</span>
-    </button>`
-  ).join('');
-  return `<div class="f5-ladder" role="group" aria-label="How much of the model to show">${rungs}</div>`;
 }
 
 function modelPanel(headlines, company) {
@@ -1215,66 +1168,35 @@ function modelPanel(headlines, company) {
   if (!model.ok) {
     return `${paneTabs('company', 'model')}<p class="f5-toolbar-hint">${escapeHtml(model.reason)}</p>`;
   }
-  const level = modelLevel();
+  const fields = assumptionFields(playbook);
+  if (!fields.some((f) => f.key === focusAssumption)) focusAssumption = fields[0].key;
+  const cards = fields.map((field) => guessCard(field, a, headlines, model, playbook)).join('');
   const options = PLAYBOOKS.map(
     (p) =>
       `<option value="${escapeAttr(p.id)}" ${p.id === playbook.id ? 'selected' : ''}>${escapeHtml(p.label)}</option>`
   ).join('');
-  const extras = (playbook.extras || [])
-    .map((field) => driverField(field.key, field.label, a.extras?.[field.key], field.help, field.key))
-    .join('');
   const scenarios = ['base', 'bull', 'bear']
     .map(
       (s) =>
         `<button type="button" class="f5-view-tab" data-scenario="${s}" aria-pressed="${a.scenario === s}">${s}</button>`
     )
     .join('');
-  const growthField = driverField(
-    'revenueGrowth',
-    'Revenue growth % / yr',
-    a.revenueGrowth,
-    'Your assumption, not a forecast. Industry drivers override it on step 2.'
-  );
-  const industryDrivers = level >= 2 ? extras : '';
-  const marginFields =
-    level >= 2
-      ? `${driverField('fcfMargin', 'FCF margin %', a.fcfMargin, 'Free cash flow / sales.')}
-        ${driverField('grossMargin', 'Gross margin %', a.grossMargin, 'Blank if the 10-K did not tag gross profit.')}`
-      : '';
-  const detailFields =
-    level >= 3
-      ? `${driverField('operatingMargin', 'Operating margin %', a.operatingMargin, 'Operating income / sales.')}
-        ${driverField('rdIntensity', 'R&D / sales %', a.rdIntensity, 'Blank if the 10-K did not tag R&D.')}
-        ${driverField('capexIntensity', 'CapEx / sales %', a.capexIntensity, 'How much of each sales dollar goes back into plant.')}`
-      : '';
-  const industryPick =
-    level >= 2
-      ? `<label class="f5-playbook-pick">Industry
-          <select id="model-playbook">${options}</select>
-        </label>
-        <div class="f5-view-tabs" role="tablist" aria-label="Scenario">${scenarios}</div>`
-      : '';
-  const yoy = formatDerived(lookupDef('revenue_yoy'), headlines?.ratios?.revenue_yoy);
-  const lastYear = yoy
-    ? `Last 10-K, revenue changed ${yoy}.`
-    : 'The last 10-K did not tag prior-year revenue, so there is no filed growth rate to anchor on.';
   return `
     ${paneTabs('company', companyPane)}
-    <p class="f5-toolbar-hint">${escapeHtml(lastYear)} Filed years are the 10-K; Y1–Y5 are your assumptions, not a forecast.</p>
-    ${modelLadder(level)}
     <div class="f5-model-toolbar">
-      ${industryPick}
+      <label class="f5-playbook-pick">Industry
+        <select id="model-playbook">${options}</select>
+      </label>
+      <div class="f5-view-tabs f5-scenario-pills" role="tablist" aria-label="Scenario">${scenarios}</div>
       <button type="button" class="f5-mini f5-mini-ghost" id="model-reset">Reset to 10-K</button>
       <button type="button" class="f5-mini" id="model-xlsx">Download Excel</button>
     </div>
-    <form class="f5-model-form" id="model-form">
-      ${growthField}
-      ${driverField('netMargin', 'Net margin %', a.netMargin, 'Keep-the-dollar rate from the 10-K, unless you change it.')}
-      ${industryDrivers}
-      ${marginFields}
-      ${detailFields}
-    </form>
-    <div id="model-live">${modelLiveHtml(company, headlines)}</div>`;
+    <form class="f5-guesses" id="model-form">${cards}</form>
+    <div id="model-live">${modelLiveHtml(company, headlines)}</div>
+    <details class="f5-sens-fold">
+      <summary>Sensitivity — year-5 net income</summary>
+      <div id="model-sens">${sensitivityHtml(model)}</div>
+    </details>`;
 }
 
 function pctPill(value, source, key, headlines) {
@@ -1356,9 +1278,6 @@ function publicDetail(c, headlines, status) {
         ${statementTable(statement, {
           company: c,
           caption: `${c.company} — as filed`,
-          hint: statement.hasPrior
-            ? 'Both columns are filed 10-K dollars. Read across for growth, down for the statement.'
-            : 'The filed year, as tagged. Tap a line item for the XBRL math.',
         })}
         <button type="button" class="f5-cta" data-company-pane="model">Project these lines forward →</button>
         <h3 class="f5-model-sub">Every tag behind those lines</h3>
@@ -1370,7 +1289,7 @@ function publicDetail(c, headlines, status) {
         </div>`;
       dock = explainDock(explainKey, headlines, null, c);
     } else if (companyPane === 'model') {
-      main = `${suggest}${modelPanel(headlines, c)}`;
+      main = modelPanel(headlines, c);
       dock = modelDock(headlines, c);
     } else {
       const groups = RATIO_GROUPS.map((group) => {
@@ -1760,6 +1679,19 @@ listEl.addEventListener('click', (e) => {
 
 detailEl.addEventListener('click', (e) => {
   if (handleGuideClick(e)) return;
+  const guess = e.target.closest('[data-assumption]');
+  if (guess && selectedRank && companyPane === 'model' && !e.target.closest('[data-driver]')) {
+    const c = companyByRank(selectedRank);
+    const headlines = headlinesOf(c);
+    if (c && headlines && focusAssumption !== guess.dataset.assumption) {
+      focusAssumption = guess.dataset.assumption;
+      for (const card of detailEl.querySelectorAll('.f5-guess')) {
+        card.classList.toggle('is-on', card.dataset.assumption === focusAssumption);
+      }
+      const dock = document.getElementById('model-dock');
+      if (dock) dock.outerHTML = modelDock(headlines, c);
+    }
+  }
   if (e.target.closest('#back')) {
     select(null);
     return;
@@ -1978,16 +1910,46 @@ function applyDriverInput(el) {
   if (el.dataset.extra) next.extras[el.dataset.extra] = value;
   else if (el.dataset.driver) next[el.dataset.driver] = value;
   modelDraft = next;
+  if (el.dataset.driver) {
+    focusAssumption = el.dataset.driver;
+    for (const card of detailEl.querySelectorAll('.f5-guess')) {
+      card.classList.toggle('is-on', card.dataset.assumption === focusAssumption);
+    }
+  }
   const live = document.getElementById('model-live');
   if (live) live.innerHTML = modelLiveHtml(c, headlines);
+  const playbook = currentPlaybook(c);
+  const model = runPracticeModel(headlines, next, playbook);
+  for (const line of detailEl.querySelectorAll('[data-guess-effect]')) {
+    const field = assumptionFields(playbook).find((f) => f.key === line.dataset.guessEffect);
+    if (!field) continue;
+    line.textContent = describeAssumption(field, headlines, model, playbook).effect;
+  }
   const dock = document.getElementById('model-dock');
   if (dock) dock.outerHTML = modelDock(headlines, c);
+  const sens = document.getElementById('model-sens');
+  if (sens) sens.innerHTML = sensitivityHtml(model);
   const shown = (value * 100).toFixed(1);
   const key = el.dataset.driver;
   for (const other of detailEl.querySelectorAll(`[data-driver="${key}"]`)) {
     if (other !== el) other.value = shown;
   }
 }
+
+detailEl.addEventListener('focusin', (e) => {
+  const card = e.target.closest('[data-assumption]');
+  if (!card || !selectedRank || companyPane !== 'model') return;
+  if (focusAssumption === card.dataset.assumption) return;
+  const c = companyByRank(selectedRank);
+  const headlines = headlinesOf(c);
+  if (!c || !headlines) return;
+  focusAssumption = card.dataset.assumption;
+  for (const other of detailEl.querySelectorAll('.f5-guess')) {
+    other.classList.toggle('is-on', other.dataset.assumption === focusAssumption);
+  }
+  const dock = document.getElementById('model-dock');
+  if (dock) dock.outerHTML = modelDock(headlines, c);
+});
 
 detailEl.addEventListener('input', (e) => {
   const el = e.target.closest('[data-driver]');
@@ -2102,9 +2064,6 @@ try {
   if (s.companyPane === 'model' && s.selectedRank && s.playbookKey) {
     const c = companyByRank(s.selectedRank);
     if (c) {
-      // A shared link that picked an industry other than the obvious one is
-      // asking for the driver rung. A plain reload of your own model is not.
-      if (s.playbookKey !== guessPlaybook(c).id && modelLevel() < 2) setModelLevel(2);
       modelDraft = {
         ...seedAssumptions(headlinesOf(c), playbookById(s.playbookKey)),
         rank: c.rank,

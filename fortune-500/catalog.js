@@ -253,7 +253,7 @@ export const NOT_IN_EDGAR = [
 export const SUGGESTED_RANK = 4;
 
 export const PURPOSE =
-  'This is a 10-K reading and modeling course. Year 0 is filed. Everything after is a guess you control. Latest Fortune 500 10-K ratios (SEC tags). Dash = not tagged, not zero. Prices (Yahoo, delayed) are extra on a company page.';
+  'Open a 10-K, read the filed statement, then change a few guesses. Year 0 is filed. Everything after is yours. Dash = not tagged, not zero.';
 
 /** First-load overlay. Three steps; the 4-step course lives in COURSE_STEPS. */
 export const HOW_TO = [
@@ -270,7 +270,7 @@ export const HOW_TO = [
   {
     n: '3',
     title: 'Project five years',
-    body: 'Open Practice Model. Year 0 is the filed 10-K. The sliders are your guesses, not forecasts. Then compare a second company when you’re ready.',
+    body: 'Open Practice model. Each guess is a short card: what it is, where the default came from, and what moving it does. Year 0 is filed.',
   },
 ];
 
@@ -298,7 +298,7 @@ export const COURSE_STEPS = [
     title: 'Build a 5-year sketch',
     short: 'Build a model',
     prompt: 'Click “Project the next 5 years from this 10-K.”',
-    body: 'Project the next 5 years from this 10-K. Year 0 is filed. The sliders are your guesses, not forecasts.',
+    body: 'Project the next 5 years from this 10-K. Each guess card says what it is and what moving it does.',
   },
   {
     id: 'compare',
