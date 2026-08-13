@@ -140,13 +140,25 @@ therefore shrinks every other card; `span-wide` / `span-tall` / `span-big` only
 change a card's share relative to its neighbours. `TBD` placeholders top the piece
 count up to a readable size and drop out on small viewports.
 
-Two things are easy to break:
+On a wide viewport with a non-coarse pointer the pieces can also be **dragged**.
+Seeds persist on the piece objects between layouts, so a drag pins one seed to the
+cursor and re-runs a few solver rounds while the neighbours reshape around it. A
+dropped piece keeps its spot: relaxation stops pulling it toward its centroid.
+Nothing is persisted, so a reload restores the designed layout.
+
+Four things are easy to break:
 
 - Anchor boxes overlap, so `.item-card` is `pointer-events: none` and the clipped
   `.blob-body` takes the hits. Turning that off makes cards steal each other's clicks.
 - Label positions and type sizes are measured from the shape, never from the
   wrapped text. Sizing a label from its own rendered height feeds back on itself,
   because a narrower label wraps taller and then asks to be narrower again.
+- Until something is dragged, `layout()` re-seeds from scratch every time. Keeping
+  the state instead would add relaxation rounds on each reflow and slowly drift the
+  untouched layout away from the designed one.
+- A dropped piece is released again if its cell ends up too cramped to hold a
+  label. Without that escape hatch a piece can be dropped into a crescent that has
+  correct area but nowhere to put text, and it stays there.
 
 ### Hobby plan constraint (important)
 
