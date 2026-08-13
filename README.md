@@ -49,7 +49,9 @@ is proxied onto this domain so it appears as a first-class card on the homepage.
 Open a 10-K, read the filed statement, then change a few guesses. EDGAR tags
 in, key ratios out (margins, ROE, asset turnover, cash conversion, …), ELI5
 plus the 10-K arithmetic in a side dock, compare up to five companies, and a
-practice model (last FY grown by industry drivers, with Excel download).
+practice model (last FY grown by industry drivers, with Excel download whose
+Assumptions sheet carries the same guess copy and drives the Projection
+formulas).
 Company and compare statements read like a filing — years across the top, line
 items down the side (`fortune-500/statement.js`), with a prior-year filed
 column from `priorMetrics`. A company opens on **Practice model** — the first

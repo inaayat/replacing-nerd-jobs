@@ -69,18 +69,48 @@ const bankRun = runPracticeModel(
 assert.ok(Math.abs(bankRun.rows[1].assets - 210) < 1e-9);
 assert.ok(Math.abs(bankRun.rows[1].netIncome - 21) < 1e-9);
 
+// A filer that tagged CapEx and R&D too, so every projected line comes out as
+// a formula and the sheet references can be checked.
+const fullHeadlines = {
+  ...headlines,
+  ratios: { ...headlines.ratios, capex_intensity: 0.03, rd_intensity: 0.02, operating_margin: 0.25 },
+};
+const fullSeeded = seedAssumptions(fullHeadlines, retail);
 const xml = buildWorkbookXml({
   company: { company: 'Walmart', fortune_ticker: 'WMT', rank: 2 },
-  headlines,
-  assumptions: seeded,
-  model: practiced,
+  headlines: fullHeadlines,
+  assumptions: fullSeeded,
+  model: runPracticeModel(fullHeadlines, fullSeeded, retail),
   playbook: retail,
 });
 assert.ok(xml.includes('ss:Formula'));
-assert.ok(xml.includes('Assumptions!R7C2'));
 assert.ok(xml.includes('Worksheet ss:Name="Projection"'));
 assert.ok(xml.includes('Worksheet ss:Name="Industry"'));
 assert.ok(xml.includes('same-store') || xml.includes('Same-store') || xml.includes('Retail'));
+
+// The workbook names and explains a guess the same way the on-screen card
+// does, and its formulas point at the row that guess actually landed on.
+assert.ok(xml.includes('Sales growth'));
+assert.ok(xml.includes('How fast you think sales grow each year after the last 10-K.'));
+assert.ok(xml.includes('Same-store sales'));
+assert.ok(!xml.includes('CapEx / sales'));
+assert.ok(!xml.includes('Revenue growth% / yr'));
+
+function assumptionRow(sheetXml, label) {
+  const rows = sheetXml.split('<Row>');
+  return rows.findIndex((r) => r.includes(`>${label}<`));
+}
+const assumptionsXml = xml.split('ss:Name="Assumptions"')[1].split('</Worksheet>')[0];
+for (const [label, key] of [
+  ['Sales growth', 'revenueGrowth'],
+  ['Net margin', 'netMargin'],
+  ['CapEx', 'capexIntensity'],
+  ['R&amp;D', 'rdIntensity'],
+]) {
+  const n = assumptionRow(assumptionsXml, label);
+  assert.ok(n > 0, `${key} row missing`);
+  assert.ok(xml.includes(`Assumptions!R${n}C2`), `${key} formula should point at row ${n}`);
+}
 assert.equal(workbookFilename({ fortune_ticker: 'WMT' }), 'WMT-practice-model.xls');
 assert.ok(!xml.includes('fpa-crash-course'));
 assert.ok(!xml.includes('inaayat.xyz/archive'));
