@@ -97,13 +97,10 @@ let sharedOnly = false;
 let explainKey = 'net_margin';
 let companyPane = 'ratios';
 let comparePane = 'ratios';
-let pickMode = false;
 let modelDraft = null;
 let modelExpanded = false;
 
-const HOWTO_STORAGE = 'f500-howto-dismissed';
 const COURSE_STORAGE = 'f500-course';
-const howtoEl = document.getElementById('howto');
 const courseStripEl = document.getElementById('course-strip');
 const listHintEl = document.getElementById('list-hint');
 const purposeEl = document.getElementById('purpose');
@@ -134,20 +131,8 @@ function isBeginner() {
   return !course.skipped && !courseProgress(course.done).complete;
 }
 
-function isHowtoDismissed() {
-  try {
-    return localStorage.getItem(HOWTO_STORAGE) === '1';
-  } catch {
-    return false;
-  }
-}
-
-function markHowtoDismissed() {
-  try {
-    localStorage.setItem(HOWTO_STORAGE, '1');
-  } catch {
-    /* private mode */
-  }
+function defaultHomeView() {
+  return isBeginner() ? 'howto' : 'table';
 }
 
 function markCourse(id) {
@@ -160,6 +145,7 @@ function markCourse(id) {
 function hashHome() {
   const hash = (location.hash || '').replace(/^#/, '');
   if (hash === 'learn') return { homeView: 'learn', playbookKey };
+  if (hash === 'howto') return { homeView: 'howto', playbookKey };
   if (hash === 'industries' || hash.startsWith('industries/')) {
     const id = hash.split('/')[1];
     const book = id ? playbookById(id) : null;
@@ -168,7 +154,7 @@ function hashHome() {
       playbookKey: book && book.id === id ? id : playbookKey,
     };
   }
-  return { homeView: 'table', playbookKey };
+  return { homeView: defaultHomeView(), playbookKey };
 }
 
 function parseUrl() {
@@ -219,6 +205,8 @@ function setUrl(opts = {}) {
     url.hash = 'learn';
   } else if (homeView === 'industries') {
     url.hash = playbookKey ? `industries/${playbookKey}` : 'industries';
+  } else if (homeView === 'howto') {
+    url.hash = isBeginner() ? '' : 'howto';
   } else {
     url.hash = '';
   }
@@ -450,15 +438,15 @@ function formatScreenerCell(col, value) {
 
 function renderCompareBar() {
   const n = compareRanks.length;
-  compareBar.hidden = n === 0;
+  compareBar.hidden = false;
   compareLabel.textContent =
     n === 0
-      ? ''
+      ? '0 selected — open a company and tap Add, or use a peer set'
       : n === 1
-        ? '1 company — pick 1–4 more, or a peer set'
+        ? '1 selected — add one more, then Compare'
         : n >= MAX_COMPARE
-          ? `${n} companies (max)`
-          : `${n} companies selected`;
+          ? `${n} selected (max)`
+          : `${n} selected`;
   compareGo.disabled = n < 2;
   if (compareChips) {
     compareChips.innerHTML = compareRanks
@@ -473,15 +461,21 @@ function renderCompareBar() {
 
 function renderPresets() {
   if (!presetsEl) return;
-  presetsEl.innerHTML = PRESETS.map(
-    (p) =>
-      `<button type="button" class="f5-preset" data-preset="${escapeAttr(p.id)}">${escapeHtml(p.label)}</button>`
-  ).join('');
+  presetsEl.innerHTML = PRESETS.map((p) => {
+    const who = p.ranks
+      .map((r) => companyByRank(r)?.company)
+      .filter(Boolean)
+      .join(', ');
+    return `<button type="button" class="f5-preset" data-preset="${escapeAttr(p.id)}" title="${escapeAttr(p.blurb)}">
+      <span class="f5-preset-label">${escapeHtml(p.label)}</span>
+      <span class="f5-preset-who">${escapeHtml(who || p.blurb)}</span>
+    </button>`;
+  }).join('');
 }
 
 function renderList() {
   const rows = companies.filter(matches);
-  countEl.textContent = `${rows.length} shown${window.__f500Stats ? ' · ' + window.__f500Stats : ''}${pickMode ? ' · picking' : ''}`;
+  countEl.textContent = `${rows.length} shown${window.__f500Stats ? ' · ' + window.__f500Stats : ''}`;
   const suggestRank = isBeginner() ? SUGGESTED_RANK : null;
   const html = rows
     .map((c) => {
@@ -490,9 +484,12 @@ function renderList() {
       const picked = compareRanks.includes(c.rank);
       const suggest = c.rank === suggestRank && pub;
       const nm = formatDerived(lookupDef('net_margin'), headlinesOf(c)?.ratios?.net_margin);
-      const right = pub
+      const fig = pub
         ? `<span class="f5-row-fig">${nm ? escapeHtml(nm) : ''}</span>`
         : `<span class="f5-pill f5-pill-private">Private</span>`;
+      const add = pub
+        ? `<button type="button" class="f5-row-add" data-toggle-compare="${c.rank}" aria-pressed="${picked}">${picked ? 'Added' : 'Add'}</button>`
+        : '';
       return `<div class="f5-row${pub ? '' : ' is-private'}${picked ? ' is-picked' : ''}${suggest ? ' is-suggest' : ''}">
         <button type="button" class="f5-row-main" data-rank="${c.rank}" aria-selected="${selected}">
           <span class="f5-rank">${c.rank}</span>
@@ -500,8 +497,9 @@ function renderList() {
             <span class="f5-row-name">${escapeHtml(c.company)}${suggest ? ' <span class="f5-suggest-tag">Start here</span>' : ''}</span>
             <span class="f5-row-sub">${escapeHtml(tickerLabel(c))}</span>
           </span>
-          ${right}
+          ${fig}
         </button>
+        ${add}
       </div>`;
     })
     .join('');
@@ -553,28 +551,20 @@ function companyForPlaybook(id) {
 function skipChrome() {
   course.skipped = true;
   saveCourse();
-  markHowtoDismissed();
-  closeHowto();
-  pickMode = false;
   modelExpanded = true;
-  renderCourseChrome();
-  renderList();
-  renderDetail();
+  homeView = 'table';
+  compareMode = false;
+  selectedRank = null;
+  companyPane = 'ratios';
+  applyState();
 }
 
 function handleGuideClick(e) {
-  if (e.target.closest('[data-howto-dismiss]')) {
-    markHowtoDismissed();
-    closeHowto();
-    return true;
-  }
   if (e.target.closest('[data-course-skip]')) {
     skipChrome();
     return true;
   }
   if (e.target.closest('[data-open-suggested]')) {
-    markHowtoDismissed();
-    closeHowto();
     const apple = suggestedCompany();
     if (apple) select(apple.rank);
     return true;
@@ -646,59 +636,23 @@ function howtoStepsHtml() {
   </ol>`;
 }
 
-function homeDock() {
+function howtoView() {
   const apple = suggestedCompany();
   const notTagged = GLOSSARY.find((g) => g.term === 'Not tagged');
-  return `<aside class="f5-dock" id="home-dock">
+  const appleName = apple ? apple.company : 'Apple';
+  return `<div class="f5-howto-pane">
     <p class="f5-kicker">How to use</p>
-    <h3>Click a name on the left</h3>
-    <p class="f5-eli5">${apple ? `${escapeHtml(apple.company)} is a good first 10-K.` : 'Pick any public company.'} Then tap a ratio and project five years from the filing.</p>
+    <h2>Read a 10-K, then sketch five years</h2>
+    <p class="f5-eli5">This is a 10-K reading and modeling course that also works as a real comps tool. Year 0 is filed. Everything after is a guess you control. Not a trading terminal.</p>
     ${howtoStepsHtml()}
     ${notTagged ? `<p class="f5-missing-why"><strong>Dash:</strong> ${escapeHtml(notTagged.def)}</p>` : ''}
     ${nextUpHtml()}
-    <div class="f5-eli5-actions">
-      ${apple ? `<button type="button" class="f5-mini" data-open-suggested>Open ${escapeHtml(apple.company)}</button>` : ''}
+    <div class="f5-howto-actions">
+      ${apple ? `<button type="button" class="f5-mini" data-open-suggested>Open ${escapeHtml(appleName)}</button>` : ''}
       <button type="button" class="f5-mini f5-mini-ghost" data-course-skip>Skip · I’m comfortable</button>
     </div>
-  </aside>`;
-}
-
-function howtoCardHtml() {
-  const apple = suggestedCompany();
-  return `<div class="f5-howto-card" role="dialog" aria-modal="true" aria-labelledby="howto-title">
-    <p class="f5-kicker">Fortune 500 × 10-Ks</p>
-    <h2 id="howto-title">How to use this page</h2>
-    <p class="f5-eli5">A short 10-K reading and modeling course that also works as a real comps tool. Not a trading terminal.</p>
-    ${howtoStepsHtml()}
-    <div class="f5-howto-actions">
-      ${apple ? `<button type="button" class="f5-mini" data-open-suggested>Open ${escapeHtml(apple.company)}</button>` : ''}
-      <button type="button" class="f5-mini f5-mini-ghost" data-howto-dismiss>Got it</button>
-      <button type="button" class="f5-linkish" data-course-skip>Skip · I’m comfortable</button>
-    </div>
+    <p class="muted">What ratios mean and Industry models stay in the nav. Add companies with <strong>Add</strong> — the tray at the bottom shows how many you’ve selected.</p>
   </div>`;
-}
-
-function openHowto() {
-  if (!howtoEl) return;
-  howtoEl.innerHTML = howtoCardHtml();
-  howtoEl.hidden = false;
-  const closeBtn = howtoEl.querySelector('[data-howto-dismiss]');
-  closeBtn?.focus();
-}
-
-function closeHowto() {
-  if (!howtoEl) return;
-  howtoEl.hidden = true;
-  howtoEl.innerHTML = '';
-}
-
-function maybeOpenHowto() {
-  if (isHowtoDismissed()) return;
-  if (selectedRank || compareMode) {
-    markHowtoDismissed();
-    return;
-  }
-  openHowto();
 }
 
 function renderCourseChrome() {
@@ -728,10 +682,10 @@ function renderCourseChrome() {
 }
 
 function startCompareLesson() {
-  pickMode = true;
   const rank = selectedRank;
   compareMode = false;
   selectedRank = null;
+  homeView = defaultHomeView();
   if (rank && isPublic(companyByRank(rank)) && !compareRanks.includes(rank)) {
     compareRanks = [...compareRanks, rank];
   }
@@ -765,6 +719,12 @@ function viewTabs() {
 }
 
 function paneTabs(kind, current) {
+  if (isBeginner() && kind === 'company') {
+    if (current === 'model') {
+      return `<button type="button" class="f5-back is-inline" data-company-pane="ratios">← Ratios</button>`;
+    }
+    return '';
+  }
   const modelTab =
     kind === 'company'
       ? `<button type="button" class="f5-view-tab" data-company-pane="model" aria-pressed="${current === 'model'}">Practice model</button>`
@@ -779,6 +739,7 @@ function paneTabs(kind, current) {
 function screenerView() {
   if (homeView === 'learn') return learnView();
   if (homeView === 'industries') return industriesView();
+  if (homeView === 'howto' || isBeginner()) return howtoView();
   const cols = screenerColumns();
   const rows = sortRows(companies.filter(matches));
   const head = cols
@@ -809,21 +770,12 @@ function screenerView() {
     })
     .join('');
 
-  const hint = pickMode
-    ? 'Click companies to add or remove them. Compare in the bar when you have 2–5.'
-    : isBeginner()
-      ? 'The list on the left is the next click. Dash = not tagged, not zero.'
-      : 'Open a company, or turn on Pick to compare. Dash = ratio ingredients weren’t tagged.';
+  const hint = 'Open a company, or tap Add to fill the tray. Dash = not tagged, not zero.';
 
-  const pickBtn = isBeginner()
-    ? ''
-    : `<button type="button" class="f5-view-tab" data-pick-mode aria-pressed="${pickMode}">Pick to compare</button>`;
-
-  const table = `
+  return `
     <div class="f5-screener">
       <div class="f5-toolbar">
         ${viewTabs()}
-        ${pickBtn}
         <p class="f5-toolbar-hint">${hint}</p>
       </div>
       <div class="f5-table-wrap">
@@ -833,11 +785,6 @@ function screenerView() {
         </table>
       </div>
     </div>`;
-
-  if (isBeginner() && homeView === 'table') {
-    return `<div class="f5-workspace"><div class="f5-workspace-main">${table}</div>${homeDock()}</div>`;
-  }
-  return table;
 }
 
 function learnView() {
@@ -1289,8 +1236,8 @@ function filedRow(def, headlines) {
 function publicDetail(c, headlines, status) {
   const inCompare = compareRanks.includes(c.rank);
   const addBtn = inCompare
-    ? `<button type="button" class="f5-add-compare" data-toggle-compare="${c.rank}">Remove</button>`
-    : `<button type="button" class="f5-add-compare" data-toggle-compare="${c.rank}">Add to compare</button>`;
+    ? `<button type="button" class="f5-add-compare" data-toggle-compare="${c.rank}" aria-pressed="true">Added</button>`
+    : `<button type="button" class="f5-add-compare" data-toggle-compare="${c.rank}" aria-pressed="false">Add</button>`;
   let main = '';
   let dock = '';
   if (status === 'loading') {
@@ -1301,7 +1248,7 @@ function publicDetail(c, headlines, status) {
     const year = fyLabel(headlines);
     const cov = coverageOf(headlines);
     const suggestions = suggestComparisons(c, companies, snapshotCompanies, 2);
-    const suggest = suggestions.length
+    const suggest = !isBeginner() && suggestions.length
       ? `<div class="f5-inline-suggest">${suggestions
           .map(
             (s) =>
@@ -1359,7 +1306,7 @@ function publicDetail(c, headlines, status) {
   return `
     <div class="f5-workspace">
       <div class="f5-workspace-main">
-        <button type="button" class="f5-back" id="back">← Table</button>
+        <button type="button" class="f5-back" id="back">${isBeginner() ? '← How to use' : '← Table'}</button>
         <div class="f5-company-head">
           <div>
             <p class="f5-kicker">#${c.rank} · ${escapeHtml(tickerLabel(c))} · ${escapeHtml(c.cik_padded || '')}</p>
@@ -1379,7 +1326,7 @@ function privateDetail(c) {
   const note = PRIVATE_NOTES[c.rank] || 'Private or mutual — no public 10-K/10-Q ticker in the SEC JSON APIs.';
   return `
     <div class="f5-workspace-main">
-    <button type="button" class="f5-back" id="back">← Table</button>
+    <button type="button" class="f5-back" id="back">${isBeginner() ? '← How to use' : '← Table'}</button>
     <div class="f5-company-head">
       <div>
         <p class="f5-kicker">Fortune #${c.rank}</p>
@@ -1534,7 +1481,7 @@ function compareView(rows, status) {
   return `
     <div class="f5-workspace">
       <div class="f5-workspace-main">
-        <button type="button" class="f5-back" id="back">← Table</button>
+        <button type="button" class="f5-back" id="back">${isBeginner() ? '← How to use' : '← Table'}</button>
         <div class="f5-toolbar">
           ${paneTabs('compare', comparePane)}
           <label class="f5-shared-toggle"><input type="checkbox" id="shared-only" ${sharedOnly ? 'checked' : ''}/> Shared only</label>
@@ -1644,7 +1591,10 @@ function applyState(opts = {}) {
 function select(rank, opts = {}) {
   compareMode = false;
   selectedRank = rank;
-  if (rank == null) companyPane = 'ratios';
+  if (rank == null) {
+    companyPane = 'ratios';
+    homeView = defaultHomeView();
+  }
   const c = rank ? companyByRank(rank) : null;
   if (c && isPublic(c)) markCourse('open');
   applyState(opts);
@@ -1652,7 +1602,6 @@ function select(rank, opts = {}) {
 
 function openCompare() {
   if (compareRanks.length < 2) return;
-  pickMode = false;
   compareMode = true;
   selectedRank = null;
   markCourse('compare');
@@ -1701,17 +1650,15 @@ function escapeAttr(s) {
 }
 
 listEl.addEventListener('click', (e) => {
+  const add = e.target.closest('[data-toggle-compare]');
+  if (add) {
+    const rank = Number(add.dataset.toggleCompare);
+    toggleCompare(rank, !compareRanks.includes(rank));
+    return;
+  }
   const btn = e.target.closest('[data-rank]');
   if (!btn) return;
-  const rank = Number(btn.dataset.rank);
-  if (pickMode) {
-    const c = companyByRank(rank);
-    if (c && isPublic(c)) {
-      toggleCompare(rank, !compareRanks.includes(rank));
-      return;
-    }
-  }
-  select(rank);
+  select(Number(btn.dataset.rank));
 });
 
 detailEl.addEventListener('click', (e) => {
@@ -1754,22 +1701,6 @@ detailEl.addEventListener('click', (e) => {
     e.stopPropagation();
     toggleCompare(Number(check.dataset.check), check.checked);
     return;
-  }
-  const pickBtn = e.target.closest('[data-pick-mode]');
-  if (pickBtn) {
-    pickMode = !pickMode;
-    if (!selectedRank && !compareMode) renderDetail();
-    return;
-  }
-  const rowRank = e.target.closest('tr[data-row-rank]');
-  if (pickMode && rowRank && !selectedRank && !compareMode) {
-    const rank = Number(rowRank.dataset.rowRank);
-    const c = companyByRank(rank);
-    if (c && isPublic(c) && !e.target.closest('[data-sort]')) {
-      e.preventDefault();
-      toggleCompare(rank, !compareRanks.includes(rank));
-      return;
-    }
   }
   const sortBtn = e.target.closest('[data-sort]');
   if (sortBtn) {
@@ -1838,7 +1769,7 @@ detailEl.addEventListener('click', (e) => {
   const viewBtn = e.target.closest('[data-home-view]');
   if (viewBtn) {
     const v = viewBtn.dataset.homeView;
-    homeView = v === 'learn' || v === 'industries' ? v : 'table';
+    homeView = v === 'learn' || v === 'industries' ? v : v === 'howto' ? 'howto' : 'table';
     compareMode = false;
     selectedRank = null;
     applyState();
@@ -2007,24 +1938,8 @@ function openHomeView(view) {
 document.getElementById('nav-learn')?.addEventListener('click', openHomeView('learn'));
 document.getElementById('nav-industries')?.addEventListener('click', openHomeView('industries'));
 document.getElementById('glossary-learn')?.addEventListener('click', openHomeView('learn'));
-document.getElementById('nav-howto')?.addEventListener('click', (e) => {
-  e.preventDefault();
-  openHowto();
-});
-howtoEl?.addEventListener('click', (e) => {
-  if (e.target === howtoEl) {
-    markHowtoDismissed();
-    closeHowto();
-    return;
-  }
-  handleGuideClick(e);
-});
+document.getElementById('nav-howto')?.addEventListener('click', openHomeView('howto'));
 courseStripEl?.addEventListener('click', handleGuideClick);
-document.addEventListener('keydown', (e) => {
-  if (e.key !== 'Escape' || howtoEl?.hidden) return;
-  markHowtoDismissed();
-  closeHowto();
-});
 
 compareBar.addEventListener('click', (e) => {
   const chip = e.target.closest('[data-unchip]');
@@ -2061,7 +1976,7 @@ window.addEventListener('popstate', () => {
   compareMode = s.compareMode;
   compareRanks = s.compareRanks;
   selectedRank = s.selectedRank;
-  homeView = s.homeView || 'table';
+  homeView = s.homeView || defaultHomeView();
   if (s.companyPane) companyPane = s.companyPane;
   if (s.playbookKey) playbookKey = s.playbookKey;
   applyState({ fromPop: true });
@@ -2087,7 +2002,7 @@ try {
   compareMode = s.compareMode;
   compareRanks = s.compareRanks;
   selectedRank = s.selectedRank;
-  homeView = s.homeView || 'table';
+  homeView = s.homeView || defaultHomeView();
   if (s.companyPane) companyPane = s.companyPane;
   if (s.playbookKey) playbookKey = s.playbookKey;
   if (s.companyPane === 'model' && s.selectedRank && s.playbookKey) {
@@ -2103,7 +2018,6 @@ try {
     }
   }
   applyState({ replace: true, fromPop: true });
-  maybeOpenHowto();
 } catch (err) {
   detailEl.innerHTML = `<p class="f5-error">${escapeHtml(err.message)}</p>`;
 }

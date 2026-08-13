@@ -18,7 +18,7 @@
   --f5-nav-h: calc(3.25rem + env(safe-area-inset-top, 0px));
   --f5-gutter: clamp(18px, 2.4vw, 40px);
   --f5-panel-pad: clamp(16px, 1.6vw, 28px);
-  --f5-compare-h: 0px;
+  --f5-compare-h: calc(4.75rem + env(safe-area-inset-bottom, 0px));
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -306,22 +306,44 @@ a { color: var(--ink); }
   line-height: 1.35;
 }
 
+.f5-presets-kicker {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.55;
+  margin: 10px 0 0;
+}
 .f5-presets {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 6px;
-  margin-top: 10px;
+  margin-top: 6px;
 }
 .f5-preset {
-  font-family: var(--mono);
-  font-size: 0.65rem;
-  letter-spacing: 0.03em;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  font: inherit;
+  text-align: left;
   border: 1.5px solid var(--line);
   background: var(--cream);
-  border-radius: 999px;
-  padding: 5px 10px;
+  border-radius: 10px;
+  padding: 7px 10px;
   cursor: pointer;
   color: var(--ink);
+}
+.f5-preset-label {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.03em;
+  font-weight: 500;
+}
+.f5-preset-who {
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.3;
 }
 .f5-preset:hover {
   background: var(--cyan);
@@ -337,8 +359,8 @@ a { color: var(--ink); }
 }
 .f5-row {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 6px;
+  grid-template-columns: 1fr auto;
+  gap: 4px;
   align-items: center;
   border-radius: 10px;
   padding: 3px 6px 3px 10px;
@@ -406,6 +428,23 @@ a { color: var(--ink); }
   opacity: 0.72;
   white-space: nowrap;
 }
+.f5-row-add {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1.5px solid var(--line);
+  background: var(--cream);
+  border-radius: 999px;
+  padding: 5px 8px;
+  cursor: pointer;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.f5-row-add[aria-pressed="true"] {
+  background: var(--green);
+  border-color: var(--green);
+}
 .f5-pill {
   font-family: var(--mono);
   font-size: 0.62rem;
@@ -434,6 +473,10 @@ a { color: var(--ink); }
   cursor: pointer;
   text-decoration: underline;
   color: var(--muted);
+}
+.f5-back.is-inline {
+  display: inline-block;
+  margin: 0 0 10px;
 }
 
 .f5-company-head {
@@ -1673,6 +1716,24 @@ pre.f5-calc-eq {
   }
   .f5-head-actions { justify-content: flex-start; }
   .f5-add-compare { width: fit-content; }
+}
+
+.f5-detail > .f5-howto-pane {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 18px 20px 20px;
+}
+.f5-howto-pane h2 {
+  font-family: var(--display);
+  font-size: clamp(1.25rem, 2vw, 1.7rem);
+  font-weight: 600;
+  margin: 0 0 8px;
+  line-height: 1.2;
+}
+.f5-howto-pane .f5-eli5 {
+  max-width: 40rem;
+  margin: 0 0 4px;
 }
 
 .f5-cta {
