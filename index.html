@@ -184,10 +184,18 @@
 
       /* span-* classes are size hints for the packer (bigger bells), not CSS grid spans. */
 
-      .project-grid {
+      .blob-stage {
         position: relative;
+        flex: 1 1 auto;
         width: 100%;
         height: 100%;
+        min-height: 0;
+        overflow: hidden;
+      }
+
+      .project-grid {
+        position: absolute;
+        inset: 0;
         overflow: hidden;
       }
       .project-grid:not(.is-packed) {
@@ -196,7 +204,7 @@
         grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
         grid-auto-rows: 140px;
         gap: 10px;
-        height: auto;
+        top: 180px;
         overflow: auto;
       }
       .project-grid:not(.is-packed) .item-card {
@@ -213,45 +221,61 @@
         padding: 12px;
       }
 
-      .page-main {
-        flex: 1 1 auto;
+      /* Fixed island in the middle — blobs pack around this, it does not drift. */
+      .title-card {
+        position: absolute;
+        z-index: 6;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: min(320px, 84vw);
+        padding: 32px 36px 28px;
+        text-align: center;
         display: flex;
         flex-direction: column;
-        min-height: 0;
-        height: 100%;
+        align-items: center;
+        gap: 16px;
+        border-radius: 46% 54% 48% 52% / 42% 46% 54% 58%;
+        background:
+          radial-gradient(ellipse at 32% 26%, rgba(255,255,255,0.8), transparent 52%),
+          var(--cream);
+        border: 1.5px solid #1c1c1c18;
+        box-shadow:
+          inset 0 -16px 28px rgba(28, 28, 28, 0.05),
+          0 14px 36px rgba(28, 28, 28, 0.1);
       }
-      @media (min-width: 768px) { .page-main { flex-direction: row; } }
+      .blob-stage:not(.is-packed) .title-card {
+        position: relative;
+        left: auto;
+        top: auto;
+        transform: none;
+        margin: 16px auto;
+      }
+      .title-card .brand {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        color: #1c1c1c;
+        text-decoration: none;
+      }
+      .title-card .lede {
+        display: block;
+        max-width: 22em;
+        line-height: 1.45;
+        font-size: 0.72rem;
+        opacity: 0.8;
+      }
 
-      .sidebar {
-        flex-shrink: 0;
-        border-radius: 18px;
-        padding: 14px 16px;
+      .sidebar-nav {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 14px;
+        margin: 0;
       }
-      @media (min-width: 768px) {
-        .sidebar {
-          width: 340px;
-          height: 100%;
-          padding: 20px;
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-        }
-      }
-      @media (min-width: 1024px) { .sidebar { width: 420px; } }
-
-      .grid-scroll {
-        flex: 1 1 auto;
-        min-width: 0;
-        min-height: 0;
-        overflow: hidden;
-        padding: 0 8px 8px 8px;
-      }
-      @media (min-width: 768px) {
-        .grid-scroll { height: 100%; padding: 0 12px 12px 12px; }
-      }
-
-      .sidebar-nav { display: flex; flex-direction: row; gap: 14px; margin-top: 10px; }
-      @media (min-width: 768px) { .sidebar-nav { flex-direction: column; gap: 8px; margin-top: 24px; } }
 
       .sidebar-link {
         font-size: 0.72rem;
@@ -262,10 +286,6 @@
         text-decoration: none;
       }
       .sidebar-link:hover { opacity: 1; }
-
-      @media (max-width: 767px) {
-        .sidebar .lede { display: none; }
-      }
 
       @keyframes jelly-morph {
         0%, 100% { border-radius: var(--br-a); }
@@ -283,28 +303,24 @@
   </head>
   <body class="text-gray-900 flex flex-col">
 
-    <div class="page-main px-4 sm:px-8 md:px-10 py-4 gap-4">
+    <div class="blob-stage" id="projects">
 
-      <!-- Sidebar: compact on mobile so the blob tank can use the remaining viewport. -->
-      <aside class="sidebar card-cream">
-        <div>
-          <a href="/" class="serif font-semibold text-2xl md:text-3xl text-gray-900 no-underline flex items-center gap-2">
-            <img src="/ugly-dog-images/dog-3.png" alt="" width="28" height="28" style="object-fit:contain;flex-shrink:0;" />
-            Beep boop
-          </a>
-          <div class="sidebar-nav brand-mono">
-            <a href="#projects" class="sidebar-link">Projects</a>
-            <a href="/account.html" class="sidebar-link">Account</a>
-            <a href="/archive/" class="sidebar-link">Archive</a>
-          </div>
+      <!-- Fixed title island — blobs pack around this and it does not drift. -->
+      <aside class="title-card" aria-label="Beep boop">
+        <a href="/" class="brand serif font-semibold text-2xl md:text-3xl">
+          <img src="/ugly-dog-images/dog-3.png" alt="" width="36" height="36" style="object-fit:contain;" />
+          Beep boop
+        </a>
+        <div class="sidebar-nav brand-mono">
+          <a href="#projects" class="sidebar-link">Projects</a>
+          <a href="/account.html" class="sidebar-link">Account</a>
+          <a href="/archive/" class="sidebar-link">Archive</a>
         </div>
-        <div class="lede subtitle brand-mono !text-xs max-w-full opacity-80">
+        <div class="lede brand-mono">
           Tools and experiments to see if AI can replace the nerds.
         </div>
       </aside>
 
-      <!-- Blob tank: JS packs every item-card into this box so they all stay visible. -->
-      <div id="projects" class="grid-scroll">
       <div class="project-grid">
 
         <!-- Item card template — duplicate one of these to add a project.
@@ -313,7 +329,9 @@
              card-cream and card-gray are neutral tones reserved for "coming soon" placeholders only —
              never use them on a live project, or it'll blend into the page background.
              Optionally add one size class so the packer draws a bigger bell: span-wide, span-tall, span-big.
-             Blobs are packed to fit the viewport (no scrolling). Delete a "TBD" placeholder as each real project takes its place. -->
+             Blobs pack around the centered title card. TBD placeholders fill leftover
+             space on larger screens; they hide first if the viewport gets tight.
+             Delete a "TBD" placeholder as each real project takes its place. -->
 
         <a href="/packing-cubes/" class="no-underline item-card card-purple span-wide">
           <div class="icon"><img src="/packing-cubes/icon.svg" alt="" width="20" height="20"></div>
@@ -426,8 +444,6 @@
         </div>
 
       </div>
-      </div>
-
     </div>
 
     <script>
@@ -441,8 +457,10 @@
           ["60% 40% 50% 50% / 36% 50% 50% 64%", "44% 56% 42% 58% / 58% 46% 54% 42%"],
         ];
 
+        const stage = document.querySelector(".blob-stage");
         const tank = document.querySelector(".project-grid");
-        if (!tank) return;
+        const title = document.querySelector(".title-card");
+        if (!stage || !tank || !title) return;
 
         const cards = Array.from(tank.querySelectorAll(".item-card"));
         const seeded = [];
@@ -472,47 +490,81 @@
           if (el.classList.contains("span-big")) weight = 2.15;
           else if (el.classList.contains("span-wide")) weight = 1.5;
           else if (el.classList.contains("span-tall")) weight = 1.42;
-          seeded.push({ el, weight });
+          seeded.push({
+            el,
+            weight,
+            filler: el.classList.contains("card-gray"),
+          });
         });
 
-        function weightOf(card) {
-          return card.weight;
+        const live = seeded.filter((c) => !c.filler);
+        const tbd = seeded.filter((c) => c.filler);
+
+        function titleIsland() {
+          const s = stage.getBoundingClientRect();
+          const t = title.getBoundingClientRect();
+          return {
+            cx: t.left - s.left + t.width / 2,
+            cy: t.top - s.top + t.height / 2,
+            rx: t.width / 2 + 18,
+            ry: t.height / 2 + 18,
+          };
         }
 
-        function layout() {
-          const W = tank.clientWidth;
-          const H = tank.clientHeight;
-          const n = seeded.length;
-          if (W < 40 || H < 40 || !n) return;
+        function gapFor(a, b) {
+          return Math.max(6, (a.r + b.r) * 0.045);
+        }
 
-          const pad = Math.max(6, Math.min(W, H) * 0.02);
-          const innerW = W - pad * 2;
-          const innerH = H - pad * 2;
-          const sumW = seeded.reduce((s, c) => s + weightOf(c), 0);
-          const fill = innerW / innerH < 0.7 ? 0.7 : 0.74;
-          let scale = Math.sqrt((fill * innerW * innerH) / (Math.PI * sumW));
-
-          const order = seeded
-            .map((_, i) => i)
-            .sort((a, b) => weightOf(seeded[b]) - weightOf(seeded[a]));
-          const blobs = new Array(n);
+        function pack(active, W, H, island) {
+          const n = active.length;
+          if (!n) return [];
+          const pad = Math.max(8, Math.min(W, H) * 0.018);
+          const islandArea = Math.PI * island.rx * island.ry;
+          const usable = Math.max(80, 0.82 * W * H - islandArea);
+          const sumW = active.reduce((s, c) => s + c.weight, 0);
+          const scale = Math.sqrt(usable / (Math.PI * sumW));
           const golden = Math.PI * (3 - Math.sqrt(5));
+
+          const order = active
+            .map((_, i) => i)
+            .sort((a, b) => active[b].weight - active[a].weight);
+
+          const blobs = new Array(n);
           order.forEach((src, i) => {
-            const card = seeded[src];
-            const r = scale * Math.sqrt(weightOf(card));
-            const t = (i + 0.5) / n;
-            const rad = Math.sqrt(t) * 0.46 * Math.min(innerW, innerH);
-            const theta = i * golden;
+            const card = active[src];
+            const r = scale * Math.sqrt(card.weight);
+            const t = (i + 0.35) / n;
+            const ring =
+              Math.max(island.rx, island.ry) +
+              r +
+              12 +
+              Math.sqrt(t) * 0.42 * Math.min(W, H);
+            const theta = i * golden + 0.4;
             blobs[src] = {
               el: card.el,
+              live: !card.filler,
               r,
-              x: W / 2 + Math.cos(theta) * rad * (innerW / Math.min(innerW, innerH)),
-              y: H / 2 + Math.sin(theta) * rad * (innerH / Math.min(innerW, innerH)),
+              x: island.cx + Math.cos(theta) * ring * (W / Math.min(W, H)),
+              y: island.cy + Math.sin(theta) * ring * (H / Math.min(W, H)),
             };
           });
 
-          function gapFor(a, b) {
-            return Math.max(6, (a.r + b.r) * 0.045);
+          function pushOffIsland(b) {
+            const dx = b.x - island.cx;
+            const dy = b.y - island.cy;
+            const minRx = island.rx + b.r + 10;
+            const minRy = island.ry + b.r + 10;
+            const k =
+              (dx * dx) / (minRx * minRx) + (dy * dy) / (minRy * minRy);
+            if (k < 0.0001) {
+              b.x = island.cx + minRx;
+              return;
+            }
+            if (k < 1) {
+              const s = 1 / Math.sqrt(k);
+              b.x = island.cx + dx * s;
+              b.y = island.cy + dy * s;
+            }
           }
 
           function separate(passes) {
@@ -525,7 +577,7 @@
                   let dy = b.y - a.y;
                   let dist = Math.hypot(dx, dy);
                   if (dist < 0.001) {
-                    dx = 0.4;
+                    dx = 0.35;
                     dy = 0.2;
                     dist = Math.hypot(dx, dy);
                   }
@@ -543,20 +595,25 @@
               }
               const bob = 6;
               for (const b of blobs) {
+                pushOffIsland(b);
                 const minX = pad + b.r;
                 const maxX = W - pad - b.r;
                 const minY = pad + b.r + bob;
                 const maxY = H - pad - b.r;
-                if (minX > maxX || minY > maxY) continue;
-                if (b.x < minX) b.x += (minX - b.x) * 0.85;
-                if (b.x > maxX) b.x -= (b.x - maxX) * 0.85;
-                if (b.y < minY) b.y += (minY - b.y) * 0.85;
-                if (b.y > maxY) b.y -= (b.y - maxY) * 0.85;
+                if (minX <= maxX) {
+                  if (b.x < minX) b.x += (minX - b.x) * 0.9;
+                  if (b.x > maxX) b.x -= (b.x - maxX) * 0.9;
+                }
+                if (minY <= maxY) {
+                  if (b.y < minY) b.y += (minY - b.y) * 0.9;
+                  if (b.y > maxY) b.y -= (b.y - maxY) * 0.9;
+                }
+                pushOffIsland(b);
               }
             }
           }
 
-          separate(70);
+          separate(80);
 
           function worstOverlap() {
             let worst = 0;
@@ -569,6 +626,12 @@
                 worst = Math.max(worst, need - dist);
               }
               const b = blobs[i];
+              const minRx = island.rx + b.r + 8;
+              const minRy = island.ry + b.r + 8;
+              const k =
+                ((b.x - island.cx) ** 2) / (minRx * minRx) +
+                ((b.y - island.cy) ** 2) / (minRy * minRy);
+              if (k < 1) worst = Math.max(worst, (1 - k) * b.r);
               const bob = 6;
               worst = Math.max(
                 worst,
@@ -582,34 +645,72 @@
           }
 
           let guard = 0;
-          while (worstOverlap() > 0.8 && guard < 12) {
-            const factor = 0.93;
-            for (const b of blobs) b.r *= factor;
-            separate(40);
+          while (worstOverlap() > 0.8 && guard < 14) {
+            for (const b of blobs) b.r *= 0.93;
+            separate(36);
             guard += 1;
           }
+          return blobs;
+        }
 
+        function chooseFillers(W, H, island) {
+          const minLive = Math.max(34, Math.min(W, H) * 0.048);
+          const islandArea = Math.PI * island.rx * island.ry;
+          const usable = Math.max(80, 0.82 * W * H - islandArea);
+          const liveW = live.reduce((s, c) => s + c.weight, 0);
+          const maxTotalW = usable / (Math.PI * minLive * minLive);
+          let tbdW = 0;
+          let count = 0;
+          for (const card of tbd) {
+            if (liveW + tbdW + card.weight > maxTotalW) break;
+            tbdW += card.weight;
+            count += 1;
+          }
+          return { count };
+        }
+
+        function apply(blobs) {
           blobs.forEach((b) => {
             const size = b.r * 2;
             const tall = size * 0.98;
             const wide = size * 0.88;
+            b.el.style.display = "";
             b.el.style.width = wide + "px";
             b.el.style.height = tall + "px";
             b.el.style.left = b.x - wide / 2 + "px";
             b.el.style.top = b.y - tall / 2 + "px";
-            const title = Math.max(10, Math.min(22, b.r * 0.26));
+            const titleSize = Math.max(10, Math.min(22, b.r * 0.26));
             const sub = Math.max(8, Math.min(13, b.r * 0.14));
-            b.el.style.setProperty("--title-size", title + "px");
+            b.el.style.setProperty("--title-size", titleSize + "px");
             b.el.style.setProperty("--sub-size", sub + "px");
             b.el.classList.toggle("is-compact", b.r < 46);
           });
+        }
+
+        function layout() {
+          const W = stage.clientWidth;
+          const H = stage.clientHeight;
+          if (W < 40 || H < 40) return;
+
+          const island = titleIsland();
+          const { count } = chooseFillers(W, H, island);
+          tbd.forEach((card, i) => {
+            card.el.style.display = i < count ? "" : "none";
+          });
+          const active = live.concat(tbd.slice(0, count));
+          const blobs = pack(active, W, H, island);
+          apply(blobs);
           tank.classList.add("is-packed");
+          stage.classList.add("is-packed");
         }
 
         layout();
         requestAnimationFrame(layout);
+        if (document.fonts && document.fonts.ready) {
+          document.fonts.ready.then(layout);
+        }
         const ro = new ResizeObserver(layout);
-        ro.observe(tank);
+        ro.observe(stage);
         window.addEventListener("resize", layout);
         if (window.visualViewport) {
           window.visualViewport.addEventListener("resize", layout);
