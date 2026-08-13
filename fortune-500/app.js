@@ -13,7 +13,9 @@ import {
   sourceFor,
 } from './catalog.js';
 import { formatMetric, formatDerived, formatUsd, ensureRatios, explainCalculation } from './extract.js';
-import { defaultAssumptions, runDriverModel, MODEL_YEARS } from './model.js';
+import { seedAssumptions, applyScenario, runPracticeModel, effectiveGrowth, MODEL_YEARS } from './model.js';
+import { PLAYBOOKS, CRASH_COURSE_URL, GOLDEN_RULES, guessPlaybook, playbookById } from './playbooks.js';
+import { buildWorkbookXml, workbookFilename, downloadWorkbook } from './workbook.js';
 import {
   buildInsights,
   similarByRevenue,
@@ -270,7 +272,7 @@ function viewTabs() {
 function paneTabs(kind, current) {
   const modelTab =
     kind === 'company'
-      ? `<button type="button" class="f5-view-tab" data-company-pane="model" aria-pressed="${current === 'model'}">Simple model</button>`
+      ? `<button type="button" class="f5-view-tab" data-company-pane="model" aria-pressed="${current === 'model'}">Practice model</button>`
       : '';
   return `<div class="f5-view-tabs" role="tablist" aria-label="Ratios, filed tags, or model">
     <button type="button" class="f5-view-tab" data-${kind}-pane="ratios" aria-pressed="${current === 'ratios'}">Key ratios</button>
@@ -450,51 +452,53 @@ function explainDock(key, headlines, comparePairs) {
   </aside>`;
 }
 
-function modelDock(headlines) {
-  const a = modelAssumptions(headlines);
-  const g = formatDerived(lookupDef('revenue_yoy'), a.revenueGrowth) || '—';
-  const nm = a.netMargin == null ? 'not tagged' : formatDerived(lookupDef('net_margin'), a.netMargin);
-  const fm = a.fcfMargin == null ? 'not tagged' : formatDerived(lookupDef('fcf_margin'), a.fcfMargin);
-  return `<aside class="f5-dock">
-    <p class="f5-kicker">Driver model</p>
-    <h3>How this is calculated</h3>
-    <div class="f5-calc">
-      <p class="f5-calc-eq">Rev<sub>t</sub> = last 10-K revenue × (1 + growth)<sup>t</sup></p>
-      <ul class="f5-calc-parts">
-        <li>Net income<sub>t</sub> = Rev<sub>t</sub> × net margin</li>
-        <li>FCF<sub>t</sub> = Rev<sub>t</sub> × FCF margin</li>
-      </ul>
-    </div>
-    <p class="f5-eli5">This is a lemonade-stand forecast: last year’s jar, grown by a rate you pick, with the same keep-the-dollar rates unless you change them. It is not a full income-statement / balance-sheet / cash-flow model, and EDGAR has no stock price so there is no DCF.</p>
-    <p class="f5-coverage-line">Growth default ${escapeHtml(g)} · net margin ${escapeHtml(nm)} · FCF margin ${escapeHtml(fm)}</p>
-  </aside>`;
+function currentPlaybook(company) {
+  if (modelDraft && modelDraft.rank === selectedRank && modelDraft.playbookId) {
+    return playbookById(modelDraft.playbookId);
+  }
+  return guessPlaybook(company);
 }
 
-function modelAssumptions(headlines) {
+function modelAssumptions(headlines, company) {
   if (modelDraft && modelDraft.rank === selectedRank) {
     return {
       years: MODEL_YEARS,
-      revenueGrowth: modelDraft.revenueGrowth,
-      netMargin: modelDraft.netMargin,
-      fcfMargin: modelDraft.fcfMargin,
+      ...modelDraft,
     };
   }
-  return defaultAssumptions(headlines);
+  return seedAssumptions(headlines, guessPlaybook(company));
 }
 
-function pctField(name, value, emptyLabel) {
-  if (value == null || !Number.isFinite(value)) {
-    return `<span class="muted">${escapeHtml(emptyLabel || 'not tagged')}</span>`;
-  }
-  return `<input class="f5-model-input" type="number" step="0.1" name="${escapeAttr(name)}" value="${(value * 100).toFixed(1)}" />`;
+function signedUsd(n) {
+  if (n == null || !Number.isFinite(n)) return '—';
+  const shown = formatUsd(Math.abs(n));
+  if (!shown) return '—';
+  return n > 0 ? `+${shown}` : `−${shown}`;
 }
 
-function modelPanel(headlines) {
-  const a = modelAssumptions(headlines);
-  const model = runDriverModel(headlines, a);
-  if (!model.ok) {
-    return `${paneTabs('company', 'model')}<p class="f5-toolbar-hint">${escapeHtml(model.reason)}</p>`;
-  }
+function driverField(key, label, value, help, extraKey) {
+  const attr = extraKey ? `data-driver="${escapeAttr(key)}" data-extra="${escapeAttr(extraKey)}"` : `data-driver="${escapeAttr(key)}"`;
+  const empty = value == null || !Number.isFinite(value);
+  const shown = empty ? '' : (value * 100).toFixed(1);
+  const min = extraKey === 'nrr' ? 80 : -20;
+  const max = extraKey === 'nrr' ? 150 : 40;
+  const range = empty
+    ? ''
+    : `<input type="range" min="${min}" max="${max}" step="0.5" ${attr} data-scale="pct" value="${shown}" />`;
+  return `<label class="f5-driver" title="${escapeAttr(help || '')}">
+    <span>${escapeHtml(label)}${empty ? ' <span class="muted">practice</span>' : ''}</span>
+    <span class="f5-driver-controls">
+      ${range}
+      <input class="f5-model-input" type="number" step="0.1" ${attr} data-scale="pct" value="${shown}" placeholder="—" />
+    </span>
+  </label>`;
+}
+
+function modelLiveHtml(c, headlines) {
+  const playbook = currentPlaybook(c);
+  const a = modelAssumptions(headlines, c);
+  const model = runPracticeModel(headlines, a, playbook);
+  if (!model.ok) return `<p class="f5-toolbar-hint">${escapeHtml(model.reason)}</p>`;
   const rows = model.rows
     .map(
       (r) => `<tr class="${r.filed ? 'is-on' : ''}">
@@ -502,25 +506,106 @@ function modelPanel(headlines) {
         <td>${escapeHtml(formatUsd(r.revenue) || '—')}</td>
         <td>${r.netIncome == null ? '—' : escapeHtml(formatUsd(r.netIncome))}</td>
         <td>${r.fcf == null ? '—' : escapeHtml(formatUsd(r.fcf))}</td>
+        <td>${r.grossProfit == null ? '—' : escapeHtml(formatUsd(r.grossProfit))}</td>
       </tr>`
+    )
+    .join('');
+  const last = model.rows[model.rows.length - 1];
+  const g = formatDerived(lookupDef('revenue_yoy'), model.growth) || '—';
+  const implied = formatDerived(lookupDef('revenue_yoy'), model.impliedGrowth) || '—';
+  const sens = model.sensitivity;
+  const sensHead = `<th></th>${sens.cols.map((col) => `<th>${escapeHtml(((col || 0) * 100).toFixed(1))}%</th>`).join('')}`;
+  const sensBody = sens.rows
+    .map((r) => {
+      const on = Math.abs(r.growth - model.growth) < 1e-9;
+      return `<tr class="${on ? 'is-on' : ''}"><th>${escapeHtml((r.growth * 100).toFixed(1))}%</th>${r.cells
+        .map((cell) => `<td>${cell == null ? '—' : escapeHtml(formatUsd(cell) || '—')}</td>`)
+        .join('')}</tr>`;
+    })
+    .join('');
+  return `
+    <p class="f5-model-delta">FY${last.year} vs filed:
+      revenue <strong>${escapeHtml(signedUsd(model.vsFiled.revenue))}</strong>
+      · NI <strong>${escapeHtml(signedUsd(model.vsFiled.netIncome))}</strong>
+      · FCF <strong>${escapeHtml(signedUsd(model.vsFiled.fcf))}</strong>
+      · effective growth <strong>${escapeHtml(g)}</strong>${
+        playbook.extras?.length ? ` <span class="muted">(from industry drivers ${escapeHtml(implied)})</span>` : ''
+      }
+    </p>
+    <div class="f5-table-wrap">
+      <table class="f5-table">
+        <thead><tr><th>Year</th><th>Revenue</th><th>Net income</th><th>FCF</th><th>Gross profit</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <h3 class="f5-model-sub">Sensitivity — year-5 net income (growth ↓, net margin →)</h3>
+    <div class="f5-table-wrap">
+      <table class="f5-table f5-sens-table">
+        <thead><tr>${sensHead}</tr></thead>
+        <tbody>${sensBody}</tbody>
+      </table>
+    </div>
+    <ul class="f5-model-notes">${model.notes.map((n) => `<li>${escapeHtml(n)}</li>`).join('')}</ul>`;
+}
+
+function modelDock(headlines, company) {
+  const playbook = currentPlaybook(company);
+  const a = modelAssumptions(headlines, company);
+  const growth = formatDerived(lookupDef('revenue_yoy'), effectiveGrowth(a, playbook)) || '—';
+  const course = `${CRASH_COURSE_URL}${playbook.hash || ''}`;
+  return `<aside class="f5-dock" id="model-dock">
+    <p class="f5-kicker">${escapeHtml(playbook.label)}</p>
+    <h3>Practice this industry</h3>
+    <p class="f5-eli5">${escapeHtml(playbook.intro)}</p>
+    <div class="f5-calc">
+      <p class="f5-calc-eq">${escapeHtml(playbook.formula).replaceAll('\n', ' · ')}</p>
+    </div>
+    <p class="muted">${escapeHtml(playbook.quote)}</p>
+    <p class="f5-coverage-line">Effective growth ${escapeHtml(growth)} · year 0 is filed, everything else is practice.</p>
+    <p class="f5-leaders"><a href="${escapeAttr(course)}">FP&amp;A crash course${playbook.hash ? ' — this industry' : ''}</a></p>
+    <ol class="f5-model-rules">${GOLDEN_RULES.slice(0, 4).map((r) => `<li>${escapeHtml(r)}</li>`).join('')}</ol>
+  </aside>`;
+}
+
+function modelPanel(headlines, company) {
+  const playbook = currentPlaybook(company);
+  const a = modelAssumptions(headlines, company);
+  const model = runPracticeModel(headlines, a, playbook);
+  if (!model.ok) {
+    return `${paneTabs('company', 'model')}<p class="f5-toolbar-hint">${escapeHtml(model.reason)}</p>`;
+  }
+  const options = PLAYBOOKS.map(
+    (p) =>
+      `<option value="${escapeAttr(p.id)}" ${p.id === playbook.id ? 'selected' : ''}>${escapeHtml(p.label)}</option>`
+  ).join('');
+  const extras = (playbook.extras || [])
+    .map((field) => driverField(field.key, field.label, a.extras?.[field.key], field.help, field.key))
+    .join('');
+  const scenarios = ['base', 'bull', 'bear']
+    .map(
+      (s) =>
+        `<button type="button" class="f5-view-tab" data-scenario="${s}" aria-pressed="${a.scenario === s}">${s}</button>`
     )
     .join('');
   return `
     ${paneTabs('company', 'model')}
-    <p class="f5-toolbar-hint">Year 0 is the latest 10-K. Later years use your drivers. Missing tags stay blank.</p>
-    <form class="f5-model-form" id="model-form">
-      <label>Rev growth % / yr <input class="f5-model-input" type="number" step="0.1" name="revenueGrowth" value="${(a.revenueGrowth * 100).toFixed(1)}" /></label>
-      <label>Net margin % ${pctField('netMargin', a.netMargin)}</label>
-      <label>FCF margin % ${pctField('fcfMargin', a.fcfMargin)}</label>
+    <p class="f5-toolbar-hint">Year 0 is the 10-K. Change drivers and watch the sheet. Industry templates come from the <a href="${escapeAttr(CRASH_COURSE_URL + (playbook.hash || ''))}">FP&amp;A crash course</a>.</p>
+    <div class="f5-model-toolbar">
+      <label class="f5-playbook-pick">Industry
+        <select id="model-playbook">${options}</select>
+      </label>
+      <div class="f5-view-tabs" role="tablist" aria-label="Scenario">${scenarios}</div>
       <button type="button" class="f5-mini f5-mini-ghost" id="model-reset">Reset to 10-K</button>
-    </form>
-    <div class="f5-table-wrap">
-      <table class="f5-table">
-        <thead><tr><th>Year</th><th>Revenue</th><th>Net income</th><th>FCF</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
+      <button type="button" class="f5-mini" id="model-xlsx">Download Excel</button>
     </div>
-    <ul class="f5-model-notes">${model.notes.map((n) => `<li>${escapeHtml(n)}</li>`).join('')}</ul>`;
+    <form class="f5-model-form" id="model-form">
+      ${extras}
+      ${playbook.extras?.length ? '' : driverField('revenueGrowth', 'Rev growth % / yr', a.revenueGrowth, 'Used when there is no industry split.')}
+      ${driverField('netMargin', 'Net margin %', a.netMargin, 'Keep-the-dollar rate from the 10-K, unless you change it.')}
+      ${driverField('fcfMargin', 'FCF margin %', a.fcfMargin, 'Free cash flow / sales.')}
+      ${driverField('grossMargin', 'Gross margin %', a.grossMargin, 'Blank if the 10-K did not tag gross profit.')}
+    </form>
+    <div id="model-live">${modelLiveHtml(company, headlines)}</div>`;
 }
 
 function pctPill(value, source, key) {
@@ -599,8 +684,8 @@ function publicDetail(c, headlines, status) {
         </div>`;
       dock = explainDock(explainKey, headlines);
     } else if (companyPane === 'model') {
-      main = `${suggest}${modelPanel(headlines)}`;
-      dock = modelDock(headlines);
+      main = `${suggest}${modelPanel(headlines, c)}`;
+      dock = modelDock(headlines, c);
     } else {
       const groups = RATIO_GROUPS.map((group) => {
         const tiles = group.keys
@@ -940,6 +1025,30 @@ detailEl.addEventListener('click', (e) => {
     renderDetail();
     return;
   }
+  if (e.target.closest('#model-xlsx')) {
+    const c = companyByRank(selectedRank);
+    const headlines = headlinesOf(c);
+    if (!c || !headlines) return;
+    const playbook = currentPlaybook(c);
+    const assumptions = modelAssumptions(headlines, c);
+    const model = runPracticeModel(headlines, assumptions, playbook);
+    if (!model.ok) return;
+    downloadWorkbook(
+      workbookFilename(c),
+      buildWorkbookXml({ company: c, headlines, assumptions, model, playbook })
+    );
+    return;
+  }
+  const scenarioBtn = e.target.closest('[data-scenario]');
+  if (scenarioBtn && selectedRank) {
+    const c = companyByRank(selectedRank);
+    const headlines = headlinesOf(c);
+    const book = currentPlaybook(c);
+    const base = seedAssumptions(headlines, book);
+    modelDraft = { ...applyScenario(base, scenarioBtn.dataset.scenario), rank: selectedRank, playbookId: book.id };
+    renderDetail();
+    return;
+  }
   const check = e.target.closest('[data-check]');
   if (check) {
     e.stopPropagation();
@@ -1085,32 +1194,53 @@ detailEl.addEventListener('click', (e) => {
   }
 });
 
+function applyDriverInput(el) {
+  const c = companyByRank(selectedRank);
+  const headlines = headlinesOf(c);
+  if (!c || !headlines) return;
+  const current = modelAssumptions(headlines, c);
+  const raw = Number(el.value);
+  if (!Number.isFinite(raw)) return;
+  const value = el.dataset.scale === 'pct' ? raw / 100 : raw;
+  const next = {
+    rank: selectedRank,
+    ...current,
+    extras: { ...(current.extras || {}) },
+    scenario: 'custom',
+    playbookId: currentPlaybook(c).id,
+  };
+  if (el.dataset.extra) next.extras[el.dataset.extra] = value;
+  else if (el.dataset.driver) next[el.dataset.driver] = value;
+  modelDraft = next;
+  const live = document.getElementById('model-live');
+  if (live) live.innerHTML = modelLiveHtml(c, headlines);
+  const dock = document.getElementById('model-dock');
+  if (dock) dock.outerHTML = modelDock(headlines, c);
+  const shown = (value * 100).toFixed(1);
+  const key = el.dataset.driver;
+  for (const other of detailEl.querySelectorAll(`[data-driver="${key}"]`)) {
+    if (other !== el) other.value = shown;
+  }
+}
+
+detailEl.addEventListener('input', (e) => {
+  const el = e.target.closest('[data-driver]');
+  if (!el || !selectedRank) return;
+  applyDriverInput(el);
+});
+
 detailEl.addEventListener('change', (e) => {
   if (e.target.id === 'shared-only') {
     sharedOnly = e.target.checked;
     if (compareMode) detailEl.innerHTML = compareView(lastCompareRows, lastCompareStatus);
     return;
   }
-  const form = e.target.closest('#model-form');
-  if (!form || !selectedRank) return;
-  const headlines = headlinesOf(companyByRank(selectedRank));
-  const current = modelAssumptions(headlines);
-  const field = e.target.name;
-  const raw = Number(e.target.value);
-  if (!Number.isFinite(raw)) return;
-  const next = { rank: selectedRank, ...current };
-  if (field === 'revenueGrowth') next.revenueGrowth = raw / 100;
-  if (field === 'netMargin') next.netMargin = raw / 100;
-  if (field === 'fcfMargin') next.fcfMargin = raw / 100;
-  modelDraft = next;
-  renderDetail();
-  const again = detailEl.querySelector(`#model-form [name="${field}"]`);
-  if (again) {
-    again.focus();
-    if (typeof again.setSelectionRange === 'function' && again.value) {
-      const n = again.value.length;
-      again.setSelectionRange(n, n);
-    }
+  if (e.target.id === 'model-playbook' && selectedRank) {
+    const c = companyByRank(selectedRank);
+    const headlines = headlinesOf(c);
+    const book = playbookById(e.target.value);
+    modelDraft = { ...seedAssumptions(headlines, book), rank: selectedRank, playbookId: book.id, scenario: 'base' };
+    renderDetail();
   }
 });
 

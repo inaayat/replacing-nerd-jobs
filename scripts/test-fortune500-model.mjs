@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
-import { defaultAssumptions, runDriverModel } from '../fortune-500/model.js';
+import { defaultAssumptions, runDriverModel, seedAssumptions, impliedGrowth, effectiveGrowth, applyScenario, runPracticeModel } from '../fortune-500/model.js';
+import { guessPlaybook, playbookById } from '../fortune-500/playbooks.js';
+import { buildWorkbookXml, workbookFilename } from '../fortune-500/workbook.js';
 
 const headlines = {
   asOfYear: 2024,
-  metrics: { revenue: { val: 100 } },
-  ratios: { revenue_yoy: 0.1, net_margin: 0.2, fcf_margin: 0.05 },
+  metrics: { revenue: { val: 100 }, assets: { val: 200 }, net_income: { val: 20 } },
+  ratios: { revenue_yoy: 0.1, net_margin: 0.2, fcf_margin: 0.05, roa: 0.1, gross_margin: 0.4 },
 };
 
 const a = defaultAssumptions(headlines);
@@ -32,5 +34,53 @@ const noMargin = runDriverModel(
 assert.equal(noMargin.ok, true);
 assert.equal(noMargin.rows[0].netIncome, null);
 assert.equal(noMargin.rows[0].fcf, null);
+
+assert.equal(guessPlaybook({ fortune_ticker: 'WMT', company: 'Walmart' }).id, 'retail');
+assert.equal(guessPlaybook({ fortune_ticker: 'AMZN', company: 'Amazon' }).id, 'marketplace');
+assert.equal(guessPlaybook({ fortune_ticker: 'JPM', company: 'JPMorgan' }).id, 'banking');
+assert.equal(guessPlaybook({ fortune_ticker: 'ZZZZ', company: 'Mystery Co' }).id, 'generic');
+
+const retail = playbookById('retail');
+const seeded = seedAssumptions(headlines, retail);
+assert.equal(seeded.playbookId, 'retail');
+assert.ok(Math.abs(impliedGrowth(seeded, retail) - ((1.03) * (1.02) - 1)) < 1e-9);
+assert.ok(Math.abs(effectiveGrowth(seeded, retail) - impliedGrowth(seeded, retail)) < 1e-9);
+
+const practiced = runPracticeModel(headlines, seeded, retail);
+assert.equal(practiced.ok, true);
+assert.ok(practiced.sensitivity.rows.length >= 3);
+assert.ok(practiced.vsFiled.revenue > 0);
+
+const bull = applyScenario(seeded, 'bull');
+assert.equal(bull.scenario, 'bull');
+assert.ok(bull.revenueGrowth > seeded.revenueGrowth);
+assert.ok(bull.extras.compGrowth > seeded.extras.compGrowth);
+
+const saas = playbookById('saas');
+const saasGrowth = impliedGrowth({ extras: { nrr: 1.1, newArrRate: 0.08 } }, saas);
+assert.ok(Math.abs(saasGrowth - 0.18) < 1e-9);
+
+const bank = playbookById('banking');
+const bankRun = runPracticeModel(
+  headlines,
+  { ...seedAssumptions(headlines, bank), extras: { loanGrowth: 0.05 } },
+  bank
+);
+assert.ok(Math.abs(bankRun.rows[1].assets - 210) < 1e-9);
+assert.ok(Math.abs(bankRun.rows[1].netIncome - 21) < 1e-9);
+
+const xml = buildWorkbookXml({
+  company: { company: 'Walmart', fortune_ticker: 'WMT', rank: 2 },
+  headlines,
+  assumptions: seeded,
+  model: practiced,
+  playbook: retail,
+});
+assert.ok(xml.includes('ss:Formula'));
+assert.ok(xml.includes('Assumptions!R7C2'));
+assert.ok(xml.includes('Worksheet ss:Name="Projection"'));
+assert.ok(xml.includes('Worksheet ss:Name="Industry"'));
+assert.ok(xml.includes('same-store') || xml.includes('Same-store') || xml.includes('Retail'));
+assert.equal(workbookFilename({ fortune_ticker: 'WMT' }), 'WMT-practice-model.xls');
 
 console.log('fortune-500 model tests passed');
