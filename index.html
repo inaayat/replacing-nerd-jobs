@@ -221,21 +221,23 @@
         padding: 12px;
       }
 
-      /* Fixed island in the middle — blobs pack around this, it does not drift. */
+      /* Fixed island in the middle — the old sidebar, transplanted. Blobs pack around it. */
       .title-card {
         position: absolute;
         z-index: 6;
         left: 50%;
         top: 50%;
         transform: translate(-50%, -50%);
-        width: min(320px, 84vw);
-        padding: 32px 36px 28px;
-        text-align: center;
+        width: min(340px, 86vw);
+        min-height: min(380px, 62vh);
+        padding: 44px 40px 36px;
         display: flex;
         flex-direction: column;
-        align-items: center;
-        gap: 16px;
-        border-radius: 46% 54% 48% 52% / 42% 46% 54% 58%;
+        justify-content: space-between;
+        align-items: stretch;
+        gap: 28px;
+        text-align: left;
+        border-radius: 38% 42% 40% 36% / 28% 32% 34% 30%;
         background:
           radial-gradient(ellipse at 32% 26%, rgba(255,255,255,0.8), transparent 52%),
           var(--cream);
@@ -243,6 +245,14 @@
         box-shadow:
           inset 0 -16px 28px rgba(28, 28, 28, 0.05),
           0 14px 36px rgba(28, 28, 28, 0.1);
+      }
+      @media (max-width: 640px) {
+        .title-card {
+          width: min(300px, 88vw);
+          min-height: min(300px, 48vh);
+          padding: 32px 28px 28px;
+          gap: 20px;
+        }
       }
       .blob-stage:not(.is-packed) .title-card {
         position: relative;
@@ -255,11 +265,11 @@
         display: flex;
         flex-direction: row;
         align-items: center;
-        justify-content: center;
         gap: 10px;
         color: #1c1c1c;
         text-decoration: none;
       }
+      .title-card .title-card-top { display: flex; flex-direction: column; gap: 22px; }
       .title-card .lede {
         display: block;
         max-width: 22em;
@@ -270,10 +280,9 @@
 
       .sidebar-nav {
         display: flex;
-        flex-direction: row;
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 14px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
         margin: 0;
       }
 
@@ -305,16 +314,18 @@
 
     <div class="blob-stage" id="projects">
 
-      <!-- Fixed title island — blobs pack around this and it does not drift. -->
+      <!-- Fixed center card: the full former sidebar (brand, nav, tagline). It does not drift. -->
       <aside class="title-card" aria-label="Beep boop">
-        <a href="/" class="brand serif font-semibold text-2xl md:text-3xl">
-          <img src="/ugly-dog-images/dog-3.png" alt="" width="36" height="36" style="object-fit:contain;" />
-          Beep boop
-        </a>
-        <div class="sidebar-nav brand-mono">
-          <a href="#projects" class="sidebar-link">Projects</a>
-          <a href="/account.html" class="sidebar-link">Account</a>
-          <a href="/archive/" class="sidebar-link">Archive</a>
+        <div class="title-card-top">
+          <a href="/" class="brand serif font-semibold text-2xl md:text-3xl">
+            <img src="/ugly-dog-images/dog-3.png" alt="" width="36" height="36" style="object-fit:contain;" />
+            Beep boop
+          </a>
+          <nav class="sidebar-nav brand-mono">
+            <a href="#projects" class="sidebar-link">Projects</a>
+            <a href="/account.html" class="sidebar-link">Account</a>
+            <a href="/archive/" class="sidebar-link">Archive</a>
+          </nav>
         </div>
         <div class="lede brand-mono">
           Tools and experiments to see if AI can replace the nerds.
@@ -506,8 +517,8 @@
           return {
             cx: t.left - s.left + t.width / 2,
             cy: t.top - s.top + t.height / 2,
-            rx: t.width / 2 + 18,
-            ry: t.height / 2 + 18,
+            rx: t.width / 2 + 22,
+            ry: t.height / 2 + 22,
           };
         }
 
