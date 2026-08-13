@@ -36,20 +36,17 @@
         display: block;
         color: #1c1c1c;
         text-decoration: none;
-        overflow: visible;
+        overflow: hidden;
       }
       .item-card:focus { outline: none; }
       .item-card:focus-visible .blob-body {
-        box-shadow:
-          0 0 0 3px #1c1c1c,
-          inset 0 -18px 28px rgba(28, 28, 28, 0.08),
-          0 10px 28px rgba(28, 28, 28, 0.12);
+        box-shadow: 0 0 0 3px #1c1c1c;
       }
       .item-card:hover,
       .item-card:focus-visible { z-index: 3; }
-      .item-card:hover .blob-body { filter: brightness(1.06); }
+      .item-card:hover .blob-body { filter: brightness(1.05); }
 
-      /* Freeform jellyfish bell: morphing outline, gelatinous highlight, faint trailing skirt. */
+      /* Freeform amoeba: solid fill, lumpy outline, text stays inside the shape. */
       .blob-body {
         position: absolute;
         inset: 0;
@@ -58,45 +55,22 @@
         justify-content: center;
         align-items: center;
         text-align: center;
-        padding: 12%;
+        padding: 22% 20%;
+        overflow: hidden;
         color: inherit;
         border-radius: var(--br-a);
         transform: rotate(var(--rot, 0deg));
         animation:
-          jelly-morph var(--dur, 9s) ease-in-out infinite,
-          jelly-bob var(--bob, 7s) ease-in-out infinite;
-        box-shadow:
-          inset 0 -18px 28px rgba(28, 28, 28, 0.08),
-          0 10px 24px rgba(28, 28, 28, 0.08);
-      }
-      .blob-body::before {
-        content: "";
-        position: absolute;
-        inset: 10% 16% 38% 16%;
-        border-radius: 50%;
-        background: radial-gradient(ellipse at 40% 35%, rgba(255,255,255,0.55), transparent 70%);
-        pointer-events: none;
-      }
-      .blob-body::after {
-        content: "";
-        position: absolute;
-        left: 22%;
-        right: 22%;
-        bottom: -10%;
-        height: 28%;
-        background: inherit;
-        opacity: 0.28;
-        filter: blur(9px);
-        border-radius: 40% 40% 55% 55% / 30% 30% 70% 70%;
-        pointer-events: none;
-        z-index: -1;
+          jelly-morph var(--dur, 11s) ease-in-out infinite,
+          jelly-bob var(--bob, 8s) ease-in-out infinite;
       }
       .item-card .icon {
         position: relative;
         z-index: 1;
         opacity: 0.55;
-        margin-bottom: 0.35em;
+        margin-bottom: 0.3em;
         line-height: 0;
+        flex-shrink: 0;
       }
       .item-card .title {
         position: relative;
@@ -104,6 +78,9 @@
         font-size: var(--title-size, 1.05rem);
         line-height: 1.15;
         max-width: 100%;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        hyphens: auto;
       }
       .item-card .subtitle {
         position: relative;
@@ -113,12 +90,14 @@
         margin-top: 0.2em;
         max-width: 100%;
         line-height: 1.25;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        hyphens: auto;
       }
       .item-card.is-compact .icon,
       .item-card.is-compact .subtitle { display: none; }
 
-      /* Solid fills on the card itself (no-JS grid fallback). Packed blobs clear this so
-         the freeform bell can show through the corners. */
+      /* Solid rainbow fills — packed blobs, not gelatinous bells */
       .card-purple { background: var(--purple); }
       .card-cyan   { background: var(--cyan); }
       .card-green  { background: var(--green); }
@@ -127,59 +106,21 @@
       .card-pink   { background: var(--pink); }
       .project-grid.is-packed .item-card { background: transparent; border: 0; }
 
-      /* Rainbow palette — gelatinous fill lives on .blob-body so the skirt can inherit it */
-      .card-purple .blob-body {
-        background:
-          radial-gradient(ellipse at 32% 28%, rgba(255,255,255,0.5), transparent 42%),
-          radial-gradient(ellipse at 50% 110%, color-mix(in srgb, var(--purple) 72%, #1c1c1c), transparent 58%),
-          var(--purple);
-      }
-      .card-cyan .blob-body {
-        background:
-          radial-gradient(ellipse at 32% 28%, rgba(255,255,255,0.5), transparent 42%),
-          radial-gradient(ellipse at 50% 110%, color-mix(in srgb, var(--cyan) 72%, #1c1c1c), transparent 58%),
-          var(--cyan);
-      }
-      .card-green .blob-body {
-        background:
-          radial-gradient(ellipse at 32% 28%, rgba(255,255,255,0.5), transparent 42%),
-          radial-gradient(ellipse at 50% 110%, color-mix(in srgb, var(--green) 72%, #1c1c1c), transparent 58%),
-          var(--green);
-      }
-      .card-yellow .blob-body {
-        background:
-          radial-gradient(ellipse at 32% 28%, rgba(255,255,255,0.55), transparent 42%),
-          radial-gradient(ellipse at 50% 110%, color-mix(in srgb, var(--yellow) 78%, #1c1c1c), transparent 58%),
-          var(--yellow);
-      }
-      .card-orange .blob-body {
-        background:
-          radial-gradient(ellipse at 32% 28%, rgba(255,255,255,0.5), transparent 42%),
-          radial-gradient(ellipse at 50% 110%, color-mix(in srgb, var(--orange) 72%, #1c1c1c), transparent 58%),
-          var(--orange);
-      }
-      .card-pink .blob-body {
-        background:
-          radial-gradient(ellipse at 32% 28%, rgba(255,255,255,0.5), transparent 42%),
-          radial-gradient(ellipse at 50% 110%, color-mix(in srgb, var(--pink) 72%, #1c1c1c), transparent 58%),
-          var(--pink);
-      }
+      .card-purple .blob-body { background: var(--purple); }
+      .card-cyan .blob-body { background: var(--cyan); }
+      .card-green .blob-body { background: var(--green); }
+      .card-yellow .blob-body { background: var(--yellow); }
+      .card-orange .blob-body { background: var(--orange); }
+      .card-pink .blob-body { background: var(--pink); }
 
       /* Neutral tones — reserved for "coming soon" placeholders, never for live projects */
       .card-cream {
         background: var(--cream);
         border: 1.5px solid #1c1c1c22;
       }
-      .card-cream .blob-body {
-        background: var(--cream);
-        box-shadow: inset 0 0 0 1.5px #1c1c1c22, 0 8px 20px rgba(28, 28, 28, 0.06);
-      }
+      .card-cream .blob-body { background: var(--cream); }
       .card-gray { color: #55524a; }
-      .card-gray .blob-body {
-        background:
-          radial-gradient(ellipse at 32% 28%, rgba(255,255,255,0.28), transparent 40%),
-          var(--gray);
-      }
+      .card-gray .blob-body { background: var(--gray); }
       .card-gray .title, .card-gray .subtitle { opacity: 0.75; }
 
       /* span-* classes are size hints for the packer (bigger bells), not CSS grid spans. */
@@ -221,37 +162,32 @@
         padding: 12px;
       }
 
-      /* Fixed island in the middle — the old sidebar, transplanted. Blobs pack around it. */
+      /* Fixed rectangular tile in the middle — blobs pack around it. */
       .title-card {
         position: absolute;
         z-index: 6;
         left: 50%;
         top: 50%;
         transform: translate(-50%, -50%);
-        width: min(340px, 86vw);
-        min-height: min(380px, 62vh);
-        padding: 44px 40px 36px;
+        width: min(300px, 84vw);
+        padding: 28px 28px 24px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
         align-items: stretch;
-        gap: 28px;
+        gap: 24px;
         text-align: left;
-        border-radius: 38% 42% 40% 36% / 28% 32% 34% 30%;
-        background:
-          radial-gradient(ellipse at 32% 26%, rgba(255,255,255,0.8), transparent 52%),
-          var(--cream);
-        border: 1.5px solid #1c1c1c18;
-        box-shadow:
-          inset 0 -16px 28px rgba(28, 28, 28, 0.05),
-          0 14px 36px rgba(28, 28, 28, 0.1);
+        overflow: hidden;
+        border-radius: 28px;
+        background: var(--cream);
+        border: 1.5px solid #1c1c1c22;
+        box-shadow: 0 10px 28px rgba(28, 28, 28, 0.08);
       }
       @media (max-width: 640px) {
         .title-card {
-          width: min(300px, 88vw);
-          min-height: min(300px, 48vh);
-          padding: 32px 28px 28px;
-          gap: 20px;
+          width: min(260px, 86vw);
+          padding: 22px 20px 18px;
+          gap: 16px;
         }
       }
       .blob-stage:not(.is-packed) .title-card {
@@ -265,17 +201,22 @@
         display: flex;
         flex-direction: row;
         align-items: center;
+        flex-wrap: wrap;
         gap: 10px;
         color: #1c1c1c;
         text-decoration: none;
+        overflow-wrap: anywhere;
+        word-break: break-word;
       }
-      .title-card .title-card-top { display: flex; flex-direction: column; gap: 22px; }
+      .title-card .title-card-top { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
       .title-card .lede {
         display: block;
-        max-width: 22em;
+        max-width: 100%;
         line-height: 1.45;
         font-size: 0.72rem;
         opacity: 0.8;
+        overflow-wrap: anywhere;
+        word-break: break-word;
       }
 
       .sidebar-nav {
@@ -284,6 +225,7 @@
         align-items: flex-start;
         gap: 8px;
         margin: 0;
+        min-width: 0;
       }
 
       .sidebar-link {
@@ -293,6 +235,8 @@
         color: #1c1c1c;
         opacity: 0.55;
         text-decoration: none;
+        overflow-wrap: anywhere;
+        word-break: break-word;
       }
       .sidebar-link:hover { opacity: 1; }
 
@@ -301,9 +245,8 @@
         50% { border-radius: var(--br-b); }
       }
       @keyframes jelly-bob {
-        0%, 100% { transform: translate(0, 0) rotate(var(--rot, 0deg)) scale(1, 1); }
-        42% { transform: translate(var(--fx, 0px), var(--fy, -5px)) rotate(var(--rot, 0deg)) scale(1.025, 0.975); }
-        71% { transform: translate(calc(var(--fx, 0px) * -0.55), calc(var(--fy, -5px) * 0.35)) rotate(var(--rot, 0deg)) scale(0.985, 1.02); }
+        0%, 100% { transform: translate(0, 0) rotate(var(--rot, 0deg)); }
+        50% { transform: translate(var(--fx, 0px), var(--fy, -2px)) rotate(var(--rot, 0deg)); }
       }
       @media (prefers-reduced-motion: reduce) {
         .blob-body { animation: none; }
@@ -314,7 +257,7 @@
 
     <div class="blob-stage" id="projects">
 
-      <!-- Fixed center card: the full former sidebar (brand, nav, tagline). It does not drift. -->
+      <!-- Fixed center tile: rectangular with curved corners. Full former sidebar. -->
       <aside class="title-card" aria-label="Beep boop">
         <div class="title-card-top">
           <a href="/" class="brand serif font-semibold text-2xl md:text-3xl">
@@ -339,8 +282,8 @@
              card-yellow, card-orange, card-pink.
              card-cream and card-gray are neutral tones reserved for "coming soon" placeholders only —
              never use them on a live project, or it'll blend into the page background.
-             Optionally add one size class so the packer draws a bigger bell: span-wide, span-tall, span-big.
-             Blobs pack around the centered title card. TBD placeholders fill leftover
+             Optionally add one size class so the packer draws a bigger blob: span-wide, span-tall, span-big.
+             Blobs pack around the centered rectangular title card. TBD placeholders fill leftover
              space on larger screens; they hide first if the viewport gets tight.
              Delete a "TBD" placeholder as each real project takes its place. -->
 
@@ -459,14 +402,19 @@
 
     <script>
       (function () {
+        const GAP = 3;
+        const TITLE_GAP = 12;
         const BLOB_SHAPES = [
-          ["58% 42% 46% 54% / 42% 38% 62% 58%", "46% 54% 58% 42% / 52% 60% 40% 48%"],
-          ["50% 50% 42% 58% / 38% 44% 56% 62%", "62% 38% 55% 45% / 48% 36% 64% 52%"],
-          ["64% 36% 48% 52% / 44% 52% 48% 56%", "40% 60% 52% 48% / 58% 42% 50% 50%"],
-          ["46% 54% 60% 40% / 40% 48% 52% 60%", "55% 45% 40% 60% / 62% 38% 55% 45%"],
-          ["52% 48% 38% 62% / 46% 58% 42% 54%", "38% 62% 55% 45% / 50% 40% 60% 50%"],
-          ["60% 40% 50% 50% / 36% 50% 50% 64%", "44% 56% 42% 58% / 58% 46% 54% 42%"],
+          ["78% 22% 64% 36% / 42% 68% 32% 58%", "36% 64% 28% 72% / 58% 34% 66% 42%"],
+          ["32% 68% 48% 52% / 72% 28% 58% 42%", "70% 30% 62% 38% / 30% 70% 40% 60%"],
+          ["58% 42% 30% 70% / 48% 52% 70% 30%", "40% 60% 72% 28% / 62% 38% 34% 66%"],
+          ["24% 76% 56% 44% / 38% 62% 44% 56%", "66% 34% 22% 78% / 55% 45% 68% 32%"],
+          ["70% 30% 40% 60% / 25% 75% 55% 45%", "45% 55% 75% 25% / 60% 40% 30% 70%"],
+          ["50% 50% 80% 20% / 65% 35% 40% 60%", "20% 80% 45% 55% / 35% 65% 70% 30%"],
+          ["63% 37% 54% 46% / 48% 52% 36% 64%", "37% 63% 46% 54% / 64% 36% 58% 42%"],
+          ["28% 72% 35% 65% / 50% 50% 72% 28%", "72% 28% 65% 35% / 28% 72% 48% 52%"],
         ];
+        const ASPECTS = [0.62, 1.42, 0.78, 1.28, 0.9, 1.52, 0.7, 1.15, 0.84, 1.36, 0.68, 1.22];
 
         const stage = document.querySelector(".blob-stage");
         const tank = document.querySelector(".project-grid");
@@ -484,26 +432,25 @@
             el.appendChild(body);
           }
           const [a, b] = BLOB_SHAPES[i % BLOB_SHAPES.length];
-          const rot = ((i * 47) % 17) - 8;
-          const fx = ((i * 13) % 7) - 3;
-          const fy = -3 - ((i * 11) % 4);
+          const rot = ((i * 53) % 21) - 10;
           el.style.setProperty("--br-a", a);
           el.style.setProperty("--br-b", b);
           el.style.setProperty("--rot", rot + "deg");
-          el.style.setProperty("--fx", fx + "px");
-          el.style.setProperty("--fy", fy + "px");
-          el.style.setProperty("--dur", 7.5 + (i % 5) * 0.9 + "s");
-          el.style.setProperty("--bob", 6.2 + (i % 4) * 0.8 + "s");
+          el.style.setProperty("--fx", (((i * 13) % 5) - 2) + "px");
+          el.style.setProperty("--fy", (-1 - (i % 3)) + "px");
+          el.style.setProperty("--dur", 9 + (i % 5) * 1.1 + "s");
+          el.style.setProperty("--bob", 7 + (i % 4) * 0.9 + "s");
           el.querySelector(".blob-body").style.animationDelay =
-            -(i * 0.73) + "s, " + -(i * 0.41) + "s";
+            -(i * 0.83) + "s, " + -(i * 0.47) + "s";
 
           let weight = 1;
-          if (el.classList.contains("span-big")) weight = 2.15;
-          else if (el.classList.contains("span-wide")) weight = 1.5;
-          else if (el.classList.contains("span-tall")) weight = 1.42;
+          if (el.classList.contains("span-big")) weight = 2.1;
+          else if (el.classList.contains("span-wide")) weight = 1.45;
+          else if (el.classList.contains("span-tall")) weight = 1.35;
           seeded.push({
             el,
             weight,
+            aspect: ASPECTS[i % ASPECTS.length],
             filler: el.classList.contains("card-gray"),
           });
         });
@@ -517,65 +464,86 @@
           return {
             cx: t.left - s.left + t.width / 2,
             cy: t.top - s.top + t.height / 2,
-            rx: t.width / 2 + 22,
-            ry: t.height / 2 + 22,
+            hw: t.width / 2 + TITLE_GAP,
+            hh: t.height / 2 + TITLE_GAP,
           };
         }
 
-        function gapFor(a, b) {
-          return Math.max(6, (a.r + b.r) * 0.045);
+        function ellipseK(a, b, extra) {
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const rx = a.rx + b.rx + extra;
+          const ry = a.ry + b.ry + extra;
+          if (rx < 0.001 || ry < 0.001) return 0;
+          return (dx * dx) / (rx * rx) + (dy * dy) / (ry * ry);
         }
 
         function pack(active, W, H, island) {
           const n = active.length;
           if (!n) return [];
-          const pad = Math.max(8, Math.min(W, H) * 0.018);
-          const islandArea = Math.PI * island.rx * island.ry;
-          const usable = Math.max(80, 0.82 * W * H - islandArea);
+          const pad = GAP;
+          const islandArea = (island.hw * 2) * (island.hh * 2);
+          const usable = Math.max(80, 0.92 * W * H - islandArea);
           const sumW = active.reduce((s, c) => s + c.weight, 0);
-          const scale = Math.sqrt(usable / (Math.PI * sumW));
-          const golden = Math.PI * (3 - Math.sqrt(5));
+          let areaScale = usable / (Math.PI * sumW);
 
-          const order = active
-            .map((_, i) => i)
-            .sort((a, b) => active[b].weight - active[a].weight);
+          const cols = Math.max(2, Math.round(Math.sqrt(n * (W / H))));
+          const rows = Math.ceil(n / cols);
+          const cellW = W / cols;
+          const cellH = H / rows;
 
-          const blobs = new Array(n);
-          order.forEach((src, i) => {
-            const card = active[src];
-            const r = scale * Math.sqrt(card.weight);
-            const t = (i + 0.35) / n;
-            const ring =
-              Math.max(island.rx, island.ry) +
-              r +
-              12 +
-              Math.sqrt(t) * 0.42 * Math.min(W, H);
-            const theta = i * golden + 0.4;
-            blobs[src] = {
-              el: card.el,
-              live: !card.filler,
-              r,
-              x: island.cx + Math.cos(theta) * ring * (W / Math.min(W, H)),
-              y: island.cy + Math.sin(theta) * ring * (H / Math.min(W, H)),
-            };
+          const blobs = active.map((card, i) => {
+            const area = card.weight * areaScale;
+            const rx = Math.sqrt(area * card.aspect / Math.PI);
+            const ry = Math.sqrt(area / (card.aspect * Math.PI));
+            const col = i % cols;
+            const row = Math.floor(i / cols);
+            const jitterX = ((i * 17) % 11) - 5;
+            const jitterY = ((i * 29) % 11) - 5;
+            let x = (col + 0.5) * cellW + jitterX;
+            let y = (row + 0.5) * cellH + jitterY;
+            if (Math.abs(x - island.cx) < island.hw + rx && Math.abs(y - island.cy) < island.hh + ry) {
+              const dx = x - island.cx || 0.4;
+              const dy = y - island.cy || 0.2;
+              const m = Math.hypot(dx, dy) || 1;
+              x = island.cx + (dx / m) * (island.hw + rx + TITLE_GAP);
+              y = island.cy + (dy / m) * (island.hh + ry + TITLE_GAP);
+            }
+            return { el: card.el, live: !card.filler, rx, ry, x, y };
           });
 
           function pushOffIsland(b) {
-            const dx = b.x - island.cx;
-            const dy = b.y - island.cy;
-            const minRx = island.rx + b.r + 10;
-            const minRy = island.ry + b.r + 10;
-            const k =
-              (dx * dx) / (minRx * minRx) + (dy * dy) / (minRy * minRy);
-            if (k < 0.0001) {
-              b.x = island.cx + minRx;
+            const left = island.cx - island.hw;
+            const right = island.cx + island.hw;
+            const top = island.cy - island.hh;
+            const bot = island.cy + island.hh;
+            const nearestX = Math.max(left, Math.min(b.x, right));
+            const nearestY = Math.max(top, Math.min(b.y, bot));
+            let dx = b.x - nearestX;
+            let dy = b.y - nearestY;
+            if (dx === 0 && dy === 0) {
+              const toL = b.x - left;
+              const toR = right - b.x;
+              const toT = b.y - top;
+              const toB = bot - b.y;
+              const m = Math.min(toL, toR, toT, toB);
+              if (m === toL) b.x = left - b.rx;
+              else if (m === toR) b.x = right + b.rx;
+              else if (m === toT) b.y = top - b.ry;
+              else b.y = bot + b.ry;
               return;
             }
+            const k = (dx * dx) / (b.rx * b.rx) + (dy * dy) / (b.ry * b.ry);
             if (k < 1) {
-              const s = 1 / Math.sqrt(k);
-              b.x = island.cx + dx * s;
-              b.y = island.cy + dy * s;
+              const s = 1 / Math.sqrt(Math.max(k, 0.0001));
+              b.x = nearestX + dx * s;
+              b.y = nearestY + dy * s;
             }
+          }
+
+          function clampBounds(b) {
+            b.x = Math.min(W - pad - b.rx, Math.max(pad + b.rx, b.x));
+            b.y = Math.min(H - pad - b.ry, Math.max(pad + b.ry, b.y));
           }
 
           function separate(passes) {
@@ -584,90 +552,70 @@
                 for (let j = i + 1; j < n; j++) {
                   const a = blobs[i];
                   const b = blobs[j];
+                  const k = ellipseK(a, b, GAP);
+                  if (k >= 1) continue;
                   let dx = b.x - a.x;
                   let dy = b.y - a.y;
                   let dist = Math.hypot(dx, dy);
                   if (dist < 0.001) {
-                    dx = 0.35;
-                    dy = 0.2;
+                    dx = 0.4;
+                    dy = 0.25;
                     dist = Math.hypot(dx, dy);
                   }
-                  const minDist = a.r + b.r + gapFor(a, b);
-                  if (dist < minDist) {
-                    const push = (minDist - dist) * 0.52;
-                    dx /= dist;
-                    dy /= dist;
-                    a.x -= dx * push;
-                    a.y -= dy * push;
-                    b.x += dx * push;
-                    b.y += dy * push;
-                  }
+                  const push = (1 - Math.sqrt(Math.max(k, 0.0001))) * 0.55 * dist;
+                  dx /= dist;
+                  dy /= dist;
+                  a.x -= dx * push;
+                  a.y -= dy * push;
+                  b.x += dx * push;
+                  b.y += dy * push;
                 }
               }
-              const bob = 6;
               for (const b of blobs) {
                 pushOffIsland(b);
-                const minX = pad + b.r;
-                const maxX = W - pad - b.r;
-                const minY = pad + b.r + bob;
-                const maxY = H - pad - b.r;
-                if (minX <= maxX) {
-                  if (b.x < minX) b.x += (minX - b.x) * 0.9;
-                  if (b.x > maxX) b.x -= (b.x - maxX) * 0.9;
-                }
-                if (minY <= maxY) {
-                  if (b.y < minY) b.y += (minY - b.y) * 0.9;
-                  if (b.y > maxY) b.y -= (b.y - maxY) * 0.9;
-                }
+                clampBounds(b);
                 pushOffIsland(b);
               }
             }
           }
 
-          separate(80);
+          separate(90);
 
           function worstOverlap() {
             let worst = 0;
             for (let i = 0; i < n; i++) {
               for (let j = i + 1; j < n; j++) {
-                const a = blobs[i];
-                const b = blobs[j];
-                const need = a.r + b.r + gapFor(a, b);
-                const dist = Math.hypot(b.x - a.x, b.y - a.y);
-                worst = Math.max(worst, need - dist);
+                const k = ellipseK(blobs[i], blobs[j], GAP);
+                if (k < 1) worst = Math.max(worst, 1 - k);
               }
               const b = blobs[i];
-              const minRx = island.rx + b.r + 8;
-              const minRy = island.ry + b.r + 8;
-              const k =
-                ((b.x - island.cx) ** 2) / (minRx * minRx) +
-                ((b.y - island.cy) ** 2) / (minRy * minRy);
-              if (k < 1) worst = Math.max(worst, (1 - k) * b.r);
-              const bob = 6;
               worst = Math.max(
                 worst,
-                pad + b.r - b.x,
-                b.x - (W - pad - b.r),
-                pad + b.r + bob - b.y,
-                b.y - (H - pad - b.r)
+                pad + b.rx - b.x,
+                b.x - (W - pad - b.rx),
+                pad + b.ry - b.y,
+                b.y - (H - pad - b.ry)
               );
             }
             return worst;
           }
 
           let guard = 0;
-          while (worstOverlap() > 0.8 && guard < 14) {
-            for (const b of blobs) b.r *= 0.93;
-            separate(36);
+          while (worstOverlap() > 0.04 && guard < 14) {
+            for (const b of blobs) {
+              b.rx *= 0.94;
+              b.ry *= 0.94;
+            }
+            separate(40);
             guard += 1;
           }
           return blobs;
         }
 
         function chooseFillers(W, H, island) {
-          const minLive = Math.max(34, Math.min(W, H) * 0.048);
-          const islandArea = Math.PI * island.rx * island.ry;
-          const usable = Math.max(80, 0.82 * W * H - islandArea);
+          const minLive = Math.max(32, Math.min(W, H) * 0.042);
+          const islandArea = (island.hw * 2) * (island.hh * 2);
+          const usable = Math.max(80, 0.92 * W * H - islandArea);
           const liveW = live.reduce((s, c) => s + c.weight, 0);
           const maxTotalW = usable / (Math.PI * minLive * minLive);
           let tbdW = 0;
@@ -682,19 +630,19 @@
 
         function apply(blobs) {
           blobs.forEach((b) => {
-            const size = b.r * 2;
-            const tall = size * 0.98;
-            const wide = size * 0.88;
+            const wide = b.rx * 2;
+            const tall = b.ry * 2;
+            const r = Math.min(b.rx, b.ry);
             b.el.style.display = "";
             b.el.style.width = wide + "px";
             b.el.style.height = tall + "px";
-            b.el.style.left = b.x - wide / 2 + "px";
-            b.el.style.top = b.y - tall / 2 + "px";
-            const titleSize = Math.max(10, Math.min(22, b.r * 0.26));
-            const sub = Math.max(8, Math.min(13, b.r * 0.14));
+            b.el.style.left = b.x - b.rx + "px";
+            b.el.style.top = b.y - b.ry + "px";
+            const titleSize = Math.max(10, Math.min(22, r * 0.28));
+            const sub = Math.max(8, Math.min(13, r * 0.15));
             b.el.style.setProperty("--title-size", titleSize + "px");
             b.el.style.setProperty("--sub-size", sub + "px");
-            b.el.classList.toggle("is-compact", b.r < 46);
+            b.el.classList.toggle("is-compact", r < 42);
           });
         }
 
