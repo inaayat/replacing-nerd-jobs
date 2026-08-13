@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import { defaultAssumptions, runDriverModel, seedAssumptions, impliedGrowth, effectiveGrowth, applyScenario, runPracticeModel } from '../fortune-500/model.js';
-import { guessPlaybook, playbookById, industryPlaybooks, DECISION_TREE, GOLDEN_RULES } from '../fortune-500/playbooks.js';
+import { defaultAssumptions, runDriverModel, seedAssumptions, impliedGrowth, effectiveGrowth, applyScenario, runPracticeModel, describeAssumption, assumptionFields, CORE_ASSUMPTIONS } from '../fortune-500/model.js';
+import { guessPlaybook, playbookById, industryPlaybooks, DECISION_TREE, GOLDEN_RULES, PLAYBOOKS } from '../fortune-500/playbooks.js';
 import { buildWorkbookXml, workbookFilename } from '../fortune-500/workbook.js';
 
 const headlines = {
@@ -96,5 +96,39 @@ assert.ok(retail.subs.includes('grocery & supermarket'));
 assert.equal(playbookById('startup').id, 'startup');
 assert.ok(GOLDEN_RULES.length >= 7);
 assert.equal(guessPlaybook({ fortune_ticker: 'ZZZZ', company: 'Mystery Startup LLC' }).id, 'generic');
+
+const sales = CORE_ASSUMPTIONS.find((f) => f.key === 'revenueGrowth');
+assert.equal(sales.name, 'Sales growth');
+assert.ok(sales.what.endsWith('.'));
+assert.ok(!sales.what.includes('revenueGrowth'));
+const salesCopy = describeAssumption(sales, headlines, practiced, retail);
+assert.match(salesCopy.origin, /Last year’s 10-K/);
+assert.match(salesCopy.origin, /10\.0%/);
+assert.match(salesCopy.effect, /year-5 revenue/);
+assert.match(salesCopy.effect, /\$/);
+assert.ok(salesCopy.what.includes('industry’s drivers'));
+
+const missingYoy = defaultAssumptions({ asOfYear: 2024, metrics: { revenue: { val: 100 } }, ratios: {} });
+assert.equal(missingYoy.revenueGrowth, null);
+const missingCopy = describeAssumption(sales, { ratios: {} }, practiced, playbookById('generic'));
+assert.match(missingCopy.origin, /didn’t tag/);
+
+for (const book of PLAYBOOKS) {
+  for (const field of book.extras || []) {
+    assert.ok(field.what && field.what.endsWith('.'), `${book.id}.${field.key} what`);
+    assert.ok(field.what.length >= 40, `${book.id}.${field.key} what too short`);
+    assert.ok(field.origin && field.origin.includes('10-K'), `${book.id}.${field.key} origin`);
+    assert.ok(!/% \/ yr/.test(field.label), `${book.id}.${field.key} jargon label`);
+  }
+  const fields = assumptionFields(book);
+  assert.equal(fields[0].name, 'Sales growth');
+  assert.ok(fields.some((f) => f.key === 'netMargin'));
+  assert.ok(fields.some((f) => f.key === 'fcfMargin'));
+  assert.ok(fields.some((f) => f.key === 'capexIntensity'));
+}
+
+const nrr = playbookById('saas').extras.find((f) => f.key === 'nrr');
+assert.match(nrr.what, /existing customers/i);
+assert.match(nrr.origin, /110%/);
 
 console.log('fortune-500 model tests passed');

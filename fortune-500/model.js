@@ -2,7 +2,10 @@
  * Practice driver model: last 10-K as year 0, industry playbook drivers after that.
  * Browser-safe ESM. Missing XBRL stays blank. Not a 3-statement model or a DCF.
  */
-import { extraDefaults, playbookById } from './playbooks.js';
+import { formatUsd, formatPercent } from './extract.js';
+import { extraDefaults, playbookById, CORE_ASSUMPTIONS, assumptionFields } from './playbooks.js';
+
+export { CORE_ASSUMPTIONS, assumptionFields };
 
 export const MODEL_YEARS = 5;
 
@@ -21,7 +24,7 @@ export function defaultAssumptions(headlines) {
     years: MODEL_YEARS,
     playbookId: 'generic',
     scenario: 'base',
-    revenueGrowth: finite(g) ? g : 0.05,
+    revenueGrowth: finite(g) ? g : null,
     grossMargin: finite(headlines?.ratios?.gross_margin) ? headlines.ratios.gross_margin : null,
     operatingMargin: finite(headlines?.ratios?.operating_margin) ? headlines.ratios.operating_margin : null,
     netMargin: finite(headlines?.ratios?.net_margin) ? headlines.ratios.net_margin : null,
@@ -189,6 +192,73 @@ export function runPracticeModel(headlines, assumptions = {}, playbook) {
       assumptions.fcfMargin == null ? 'FCF margin needs operating cash and CapEx. Missing either → FCF stays blank.' : null,
       'No share price in EDGAR, so this is not a DCF or a target price.',
     ].filter(Boolean),
+  };
+}
+
+function originFromRatio(field, headlines) {
+  const n = headlines?.ratios?.[field.filedRatio];
+  if (!finite(n)) return field.originMissing;
+  const pct = formatPercent(Math.abs(n));
+  const shown = formatPercent(n);
+  if (field.originKind === 'growth') {
+    return n < 0
+      ? `Last year’s 10-K: ${field.originNoun} fell ${pct}.`
+      : `Last year’s 10-K: ${field.originNoun} grew ${pct}.`;
+  }
+  if (field.originKind === 'keep') {
+    return `Last year’s 10-K: they kept ${shown} of each sales dollar.`;
+  }
+  if (field.originKind === 'ofSales') {
+    return `Last year’s 10-K: ${field.originNoun} was ${shown} of sales.`;
+  }
+  return field.originMissing;
+}
+
+function effectLine(field, model) {
+  if (!model?.ok || !model.rows?.length) {
+    return 'Need a tagged sales figure before this guess can move the statement.';
+  }
+  const filed = model.rows[0];
+  const last = model.rows[model.rows.length - 1];
+  const metric = field.effectMetric || 'revenue';
+  const name = field.effectName || 'revenue';
+  const y5 = last[metric];
+  const y0 = filed[metric];
+  if (!finite(y5) || !finite(y0)) {
+    return `Year-5 ${name} stays blank until this rate is filled in.`;
+  }
+  const lead = field.effectLead || 'If this rate holds each year';
+  const y5Shown = formatUsd(y5);
+  const y0Shown = formatUsd(y0);
+  if (!y5Shown || !y0Shown) {
+    return `Year-5 ${name} stays blank until this rate is filled in.`;
+  }
+  return `${lead}, year-5 ${name} is ${y5Shown} vs ${y0Shown} filed.`;
+}
+
+/**
+ * Plain-English copy for one guess card: name, what it is, where the default
+ * came from, and what moving it does to year-5 vs the filed 10-K.
+ */
+export function describeAssumption(field, headlines, model, playbook) {
+  const name = field?.name || field?.label || 'This guess';
+  let what = field?.what || '';
+  if (
+    field?.key === 'revenueGrowth' &&
+    !field.isExtra &&
+    playbook?.growthKind &&
+    playbook.growthKind !== 'plain' &&
+    playbook.extras?.length
+  ) {
+    what += ' This industry’s drivers below set the rate instead of this box.';
+  }
+  const origin = field?.isExtra ? field.origin : originFromRatio(field, headlines);
+  return {
+    key: field?.key,
+    name,
+    what,
+    origin,
+    effect: effectLine(field, model),
   };
 }
 
