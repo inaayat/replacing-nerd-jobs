@@ -279,6 +279,7 @@ export const COURSE_STEPS = [
     n: '1',
     title: 'Open a company',
     short: 'Open a company',
+    prompt: 'Click Apple in the list on the left.',
     body: 'Click a name on the left. Apple is a good first 10-K.',
   },
   {
@@ -286,6 +287,7 @@ export const COURSE_STEPS = [
     n: '2',
     title: 'Read one ratio',
     short: 'Read one ratio',
+    prompt: 'Tap the Net margin tile.',
     body: 'Tap net margin (or any tile). The dock is the lesson: kid version plus the 10-K math.',
   },
   {
@@ -293,6 +295,7 @@ export const COURSE_STEPS = [
     n: '3',
     title: 'Build a 5-year sketch',
     short: 'Build a model',
+    prompt: 'Click “Project the next 5 years from this 10-K.”',
     body: 'Project the next 5 years from this 10-K. Year 0 is filed. The sliders are your guesses, not forecasts.',
   },
   {
@@ -300,6 +303,7 @@ export const COURSE_STEPS = [
     n: '4',
     title: 'Compare two 10-Ks',
     short: 'Compare two',
+    prompt: 'Add a second company, then Compare.',
     body: 'Add a second public company. A dash is not tagged, not zero. Fiscal years may not line up.',
   },
 ];

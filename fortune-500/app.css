@@ -135,28 +135,20 @@ a { color: var(--ink); }
   box-sizing: border-box;
 }
 
-.f5-purpose {
-  margin: 0;
-  padding: 0 2px 8px;
-  color: var(--muted);
-  font-size: 0.84rem;
-  line-height: 1.45;
-  max-width: 54rem;
-  flex: 0 0 auto;
-}
-
 .f5-course-strip {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 12px;
   flex: 0 0 auto;
-  padding: 0 2px 8px;
-  font-family: var(--mono);
-  font-size: 0.72rem;
+  padding: 8px 12px 10px;
+  margin: 0 0 8px;
+  background: var(--panel);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
 }
 .f5-course-strip[hidden] { display: none; }
-.f5-course-dots { display: flex; gap: 5px; }
+.f5-course-dots { display: flex; gap: 5px; flex-shrink: 0; }
 .f5-course-dot {
   width: 8px;
   height: 8px;
@@ -170,8 +162,16 @@ a { color: var(--ink); }
   opacity: 1;
   box-shadow: none;
 }
-.f5-course-label { margin: 0; color: var(--ink); }
-.f5-course-strip .f5-linkish { margin-left: auto; }
+.f5-course-label {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 0.95rem;
+  line-height: 1.35;
+  flex: 1 1 16rem;
+}
+.f5-course-strip .f5-mini { flex: 0 0 auto; }
+.f5-course-strip .f5-mini-ghost { margin-left: auto; }
 
 .f5-hero {
   display: flex;
