@@ -161,6 +161,8 @@ export const COMPARE_SCALE_GROUP = {
 };
 
 /** Industrial cash metrics that mislead on banks / broker-dealers. */
+export const BANK_CASH_KEYS = new Set(['fcf', 'fcf_margin', 'cash_conversion', 'capex_intensity']);
+
 export const FEATURED = [
   { key: 'net_margin', source: 'ratio' },
   { key: 'roe', source: 'ratio' },

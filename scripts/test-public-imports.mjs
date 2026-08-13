@@ -60,6 +60,38 @@ function importSpecifiers(source) {
   return specs;
 }
 
+function exportedNames(source) {
+  const names = new Set();
+  for (const m of source.matchAll(
+    /\bexport\s+(?:async\s+)?(?:function|class|const|let|var)\s+([A-Za-z_$][\w$]*)/g
+  )) {
+    names.add(m[1]);
+  }
+  for (const m of source.matchAll(/\bexport\s*\{([^}]+)\}/g)) {
+    for (const part of m[1].split(',')) {
+      const bits = part.trim();
+      if (!bits) continue;
+      const as = bits.match(/\sas\s+([A-Za-z_$][\w$]*)$/);
+      names.add(as ? as[1] : bits.split(/\s+/)[0]);
+    }
+  }
+  return names;
+}
+
+function namedImports(source) {
+  const out = [];
+  for (const m of source.matchAll(/\bimport\s*\{([^}]+)\}\s*from\s*['"]([^'"]+)['"]/g)) {
+    const names = [];
+    for (const part of m[1].split(',')) {
+      const bits = part.trim();
+      if (!bits) continue;
+      names.push(bits.split(/\s+as\s+/)[0].trim());
+    }
+    out.push({ spec: m[2], names: names.filter(Boolean) });
+  }
+  return out;
+}
+
 /** `<script src>` and `<link href>` for same-origin assets. */
 function htmlAssetPaths(source) {
   const paths = [];
@@ -100,6 +132,22 @@ for (const file of walk(ROOT)) {
     // A relative path that doesn't exist on disk is a 404 for the same reason.
     if (extname(target) && !existsSync(target)) {
       failures.push(`${rel} references ${spec} → ${targetRel} does not exist`);
+    }
+  }
+
+  if (extname(file) === '.js') {
+    for (const { spec, names } of namedImports(source)) {
+      if (!spec.startsWith('./') && !spec.startsWith('../')) continue;
+      const target = resolve(dirname(file), spec);
+      if (extname(target) !== '.js' || !existsSync(target)) continue;
+      const exported = exportedNames(readFileSync(target, 'utf8'));
+      for (const name of names) {
+        if (!exported.has(name)) {
+          failures.push(
+            `${rel} imports ${name} from ${spec} but ${relative(ROOT, target)} does not export it`
+          );
+        }
+      }
     }
   }
 }
