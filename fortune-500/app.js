@@ -1166,6 +1166,13 @@ function modelDock(headlines, company) {
     <p class="f5-eli5">Year 0 is filed. Everything after is a guess you control — not a forecast.</p>
     ${playbookBody(playbook)}
     <p class="f5-coverage-line">Effective growth ${escapeHtml(growth)} · year 0 is filed, everything else is practice.</p>
+    ${
+      company?.rank
+        ? `<div class="f5-eli5-actions">
+            <button type="button" class="f5-mini f5-mini-ghost" data-compare-peers="${company.rank}">Compare with peers</button>
+          </div>`
+        : ''
+    }
     <p class="f5-leaders"><button type="button" class="f5-linkish" data-home-view="industries" data-playbook="${escapeAttr(playbook.id)}">All industry models</button></p>
   </aside>`;
 }

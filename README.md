@@ -51,10 +51,19 @@ financial ratios out (margins, ROE, asset turnover, cash conversion, …),
 ELI5 plus the actual 10-K arithmetic in a side dock, compare up to five
 companies, industry models (decision tree, formulas, inputs, metrics),
 and a practice model (last FY grown by those industry drivers, with Excel
-download). First visit is a short 10-K reading and modeling course
-(open a company, read a ratio, project five years); Skip reveals the
-full screener, compare, playbooks, and Excel. Snapshot in
-`data/headlines-snapshot.json`; `/api/f500-headlines` is a live fallback.
+download). Company and compare statements read like a filing — years
+across the top, line items down the side (`fortune-500/statement.js`),
+with a prior-year filed column from `priorMetrics`. The practice model has
+a three-rung ladder (two sliders → industry drivers → more lines and the
+sensitivity grid); rungs change how much is on screen, never which tools
+you can use. It projects the income statement only: cash and debt stay
+filed-only rather than faking a balance sheet or a DCF. First visit is a
+short 10-K reading and modeling course (open a company, read a ratio,
+project five years); Skip reveals the full screener, compare, playbooks,
+and Excel. Snapshot in `data/headlines-snapshot.json` (regenerate with
+`node scripts/pull-fortune500-headlines.mjs`; bump `SNAPSHOT_SCHEMA` there
+when the slimmed payload gains a field); `/api/f500-headlines` is a live
+fallback.
 Share prices (last + daily history) come from Yahoo Finance via
 `/api/f500-prices` — no API key; on-demand per open company.
 
