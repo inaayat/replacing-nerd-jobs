@@ -1014,7 +1014,13 @@ function statementLabelCell(key, label) {
  * comps workbook uses. Filed columns are tinted; projected columns are labelled
  * Y1…Y5 so nobody mistakes a slider for a filing.
  */
-function statementTable(statement, { caption = '', hint = '' } = {}) {
+function statementTable(statement, { caption = '', hint = '', company = null } = {}) {
+  const bankRow = (key) => bankCashSuppressed(company, key);
+  const bankCells = (count) =>
+    Array.from(
+      { length: count },
+      () => `<td class="muted" title="${escapeAttr(FLAG_COPY.bank_cash)}">n/a (bank)</td>`
+    ).join('');
   const head = statement.columns
     .map(
       (col) =>
@@ -1026,9 +1032,11 @@ function statementTable(statement, { caption = '', hint = '' } = {}) {
   const dollarRows = statement.rows
     .map((row) => {
       const on = explainKey === row.key ? ' is-on' : '';
-      const cells = row.cells
-        .map((cell) => `<td class="is-${cell.kind}">${statementDollarCell(cell)}</td>`)
-        .join('');
+      const cells = bankRow(row.key)
+        ? bankCells(row.cells.length)
+        : row.cells
+            .map((cell) => `<td class="is-${cell.kind}">${statementDollarCell(cell)}</td>`)
+            .join('');
       return `<tr class="${on.trim()}"><th scope="row">${statementLabelCell(row.key, row.label)}</th>${cells}</tr>`;
     })
     .join('');
@@ -1039,16 +1047,18 @@ function statementTable(statement, { caption = '', hint = '' } = {}) {
         ${drivers
           .map((row) => {
             const on = explainKey === row.key ? ' is-on' : '';
-            const cells = row.cells
-              .map(
-                (cell) =>
-                  `<td class="is-${cell.kind}">${
-                    cell.value == null
-                      ? `<span class="muted">—</span>`
-                      : escapeHtml(formatPercent(cell.value, row.kind === 'growth') || '—')
-                  }</td>`
-              )
-              .join('');
+            const cells = bankRow(row.key)
+              ? bankCells(row.cells.length)
+              : row.cells
+                  .map(
+                    (cell) =>
+                      `<td class="is-${cell.kind}">${
+                        cell.value == null
+                          ? `<span class="muted">—</span>`
+                          : escapeHtml(formatPercent(cell.value, row.kind === 'growth') || '—')
+                      }</td>`
+                  )
+                  .join('');
             return `<tr class="${on.trim()}"><th scope="row">${statementLabelCell(row.key, row.label)}</th>${cells}</tr>`;
           })
           .join('')}
@@ -1152,6 +1162,7 @@ function modelLiveHtml(c, headlines) {
     </p>
     ${statementTable(statement, {
       hint: 'Filed years are shaded. Y1–Y5 are your assumptions — tap a line item for the 10-K math behind it.',
+      company: c,
     })}
     ${level >= 3 ? sensitivityHtml(model) : ''}
     <ul class="f5-model-notes">${[...model.notes, ...statement.notes]
@@ -1343,6 +1354,7 @@ function publicDetail(c, headlines, status) {
         <p class="f5-toolbar-hint">You’re looking at ${escapeHtml(c.company)}’s ${escapeHtml(year)} 10-K. ${cov.tagged.length}/${cov.total} tags. A dash is not tagged, not zero.</p>
         ${suggest}
         ${statementTable(statement, {
+          company: c,
           caption: `${c.company} — as filed`,
           hint: statement.hasPrior
             ? 'Both columns are filed 10-K dollars. Read across for growth, down for the statement.'
