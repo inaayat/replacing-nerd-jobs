@@ -25,6 +25,7 @@
         </a>
       </div>
       <div class="f5-nav-links">
+        <button type="button" class="f5-nav-link" id="nav-howto">How to use</button>
         <a href="#learn" id="nav-learn">What ratios mean</a>
         <a href="#industries" id="nav-industries">Industry models</a>
         <a href="/#projects">Projects</a>
@@ -32,10 +33,13 @@
     </nav>
 
     <main class="f5-shell">
+      <p class="f5-purpose" id="purpose">This is a 10-K reading and modeling course. Year 0 is filed. Everything after is a guess you control. Latest Fortune 500 10-K ratios (SEC tags). Dash = not tagged, not zero. Prices (Yahoo, delayed) are extra on a company page.</p>
+      <div class="f5-course-strip" id="course-strip" hidden></div>
       <div class="f5-layout" id="layout">
         <section class="f5-list-panel" aria-label="Company list">
           <div class="f5-list-head">
             <h2>Companies</h2>
+            <p class="f5-list-hint" id="list-hint">Click a name to open its 10-K. Apple is a good first.</p>
             <label class="visually-hidden" for="search" style="position:absolute;left:-9999px">Search companies</label>
             <input id="search" class="f5-search" type="search" placeholder="Search name or ticker…" autocomplete="off" />
             <div class="f5-filters" role="group" aria-label="Filter by filing status">
@@ -52,6 +56,8 @@
         <section class="f5-detail" id="detail" aria-live="polite"></section>
       </div>
     </main>
+
+    <div class="f5-howto" id="howto" hidden></div>
 
     <div class="f5-compare-bar" id="compare-bar" hidden>
       <div class="f5-compare-who">

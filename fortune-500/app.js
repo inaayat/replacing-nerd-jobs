@@ -9,6 +9,12 @@ import {
   COMPARE_SCALE_GROUP,
   BANK_CASH_KEYS,
   LOWER_BETTER,
+  HOW_TO,
+  GLOSSARY,
+  COURSE_STEPS,
+  SUGGESTED_RANK,
+  PURPOSE,
+  courseProgress,
   isPublic,
   tickerLabel,
   defFor,
@@ -93,6 +99,63 @@ let companyPane = 'ratios';
 let comparePane = 'ratios';
 let pickMode = false;
 let modelDraft = null;
+let modelExpanded = false;
+
+const HOWTO_STORAGE = 'f500-howto-dismissed';
+const COURSE_STORAGE = 'f500-course';
+const howtoEl = document.getElementById('howto');
+const courseStripEl = document.getElementById('course-strip');
+const listHintEl = document.getElementById('list-hint');
+const purposeEl = document.getElementById('purpose');
+if (purposeEl) purposeEl.textContent = PURPOSE;
+
+function loadCourse() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(COURSE_STORAGE) || 'null');
+    if (!raw || typeof raw !== 'object') return { done: {}, skipped: false };
+    const done = raw.done && typeof raw.done === 'object' ? raw.done : {};
+    return { done, skipped: Boolean(raw.skipped) };
+  } catch {
+    return { done: {}, skipped: false };
+  }
+}
+
+let course = loadCourse();
+
+function saveCourse() {
+  try {
+    localStorage.setItem(COURSE_STORAGE, JSON.stringify(course));
+  } catch {
+    /* private mode */
+  }
+}
+
+function isBeginner() {
+  return !course.skipped && !courseProgress(course.done).complete;
+}
+
+function isHowtoDismissed() {
+  try {
+    return localStorage.getItem(HOWTO_STORAGE) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function markHowtoDismissed() {
+  try {
+    localStorage.setItem(HOWTO_STORAGE, '1');
+  } catch {
+    /* private mode */
+  }
+}
+
+function markCourse(id) {
+  if (course.skipped || course.done[id]) return false;
+  course.done[id] = true;
+  saveCourse();
+  return true;
+}
 
 function hashHome() {
   const hash = (location.hash || '').replace(/^#/, '');
@@ -111,29 +174,46 @@ function hashHome() {
 function parseUrl() {
   const u = new URL(location.href);
   const raw = u.searchParams.get('compare');
+  const paneRaw = u.searchParams.get('pane');
+  const pane = paneRaw === 'model' || paneRaw === 'filed' ? paneRaw : 'ratios';
+  const book = u.searchParams.get('playbook');
   if (raw) {
     const ranks = raw
       .split(',')
       .map(Number)
       .filter((n) => Number.isInteger(n) && n >= 1 && n <= 500)
       .slice(0, MAX_COMPARE);
-    return { compareMode: ranks.length >= 2, compareRanks: ranks, selectedRank: null, homeView: 'table' };
+    return { compareMode: ranks.length >= 2, compareRanks: ranks, selectedRank: null, homeView: 'table', companyPane: 'ratios' };
   }
   const n = Number(u.searchParams.get('rank'));
   const selectedRank = Number.isInteger(n) && n >= 1 && n <= 500 ? n : null;
-  if (selectedRank) return { compareMode: false, compareRanks: [], selectedRank, homeView: 'table' };
-  return { compareMode: false, compareRanks: [], selectedRank: null, ...hashHome() };
+  if (selectedRank) {
+    return {
+      compareMode: false,
+      compareRanks: [],
+      selectedRank,
+      homeView: 'table',
+      companyPane: pane,
+      playbookKey: book || playbookKey,
+    };
+  }
+  return { compareMode: false, compareRanks: [], selectedRank: null, companyPane: 'ratios', ...hashHome() };
 }
 
 function setUrl(opts = {}) {
   const url = new URL(location.href);
   url.searchParams.delete('rank');
   url.searchParams.delete('compare');
+  url.searchParams.delete('pane');
+  url.searchParams.delete('playbook');
   if (opts.compareMode && opts.compareRanks?.length >= 2) {
     url.searchParams.set('compare', opts.compareRanks.join(','));
     url.hash = '';
   } else if (opts.selectedRank) {
     url.searchParams.set('rank', String(opts.selectedRank));
+    if (companyPane === 'model' || companyPane === 'filed') url.searchParams.set('pane', companyPane);
+    const bookId = modelDraft?.playbookId || playbookKey;
+    if (companyPane === 'model' && bookId) url.searchParams.set('playbook', bookId);
     url.hash = '';
   } else if (homeView === 'learn') {
     url.hash = 'learn';
@@ -402,20 +482,22 @@ function renderPresets() {
 function renderList() {
   const rows = companies.filter(matches);
   countEl.textContent = `${rows.length} shown${window.__f500Stats ? ' · ' + window.__f500Stats : ''}${pickMode ? ' · picking' : ''}`;
+  const suggestRank = isBeginner() ? SUGGESTED_RANK : null;
   const html = rows
     .map((c) => {
       const pub = isPublic(c);
       const selected = c.rank === selectedRank && !compareMode;
       const picked = compareRanks.includes(c.rank);
+      const suggest = c.rank === suggestRank && pub;
       const nm = formatDerived(lookupDef('net_margin'), headlinesOf(c)?.ratios?.net_margin);
       const right = pub
         ? `<span class="f5-row-fig">${nm ? escapeHtml(nm) : ''}</span>`
         : `<span class="f5-pill f5-pill-private">Private</span>`;
-      return `<div class="f5-row${pub ? '' : ' is-private'}${picked ? ' is-picked' : ''}">
+      return `<div class="f5-row${pub ? '' : ' is-private'}${picked ? ' is-picked' : ''}${suggest ? ' is-suggest' : ''}">
         <button type="button" class="f5-row-main" data-rank="${c.rank}" aria-selected="${selected}">
           <span class="f5-rank">${c.rank}</span>
           <span>
-            <span class="f5-row-name">${escapeHtml(c.company)}</span>
+            <span class="f5-row-name">${escapeHtml(c.company)}${suggest ? ' <span class="f5-suggest-tag">Start here</span>' : ''}</span>
             <span class="f5-row-sub">${escapeHtml(tickerLabel(c))}</span>
           </span>
           ${right}
@@ -425,6 +507,7 @@ function renderList() {
     .join('');
   listEl.innerHTML = html || `<p class="f5-count" style="padding:12px">No matches.</p>`;
   renderCompareBar();
+  renderCourseChrome();
 }
 
 function dash() {
@@ -450,6 +533,227 @@ function sortRows(rows) {
     if (av === bv) return a.rank - b.rank;
     return dir * (av < bv ? -1 : 1);
   });
+}
+
+function suggestedCompany() {
+  return companyByRank(SUGGESTED_RANK) || companies.find(isPublic) || null;
+}
+
+function companyForPlaybook(id) {
+  const book = playbookById(id);
+  if (!book) return null;
+  for (const c of companies) {
+    if (!isPublic(c)) continue;
+    const t = String(c.fortune_ticker || c.sec_ticker || '').toUpperCase();
+    if (book.tickers?.has(t)) return c;
+  }
+  return companies.find((c) => isPublic(c) && guessPlaybook(c).id === id) || null;
+}
+
+function skipChrome() {
+  course.skipped = true;
+  saveCourse();
+  markHowtoDismissed();
+  closeHowto();
+  pickMode = false;
+  modelExpanded = true;
+  renderCourseChrome();
+  renderList();
+  renderDetail();
+}
+
+function handleGuideClick(e) {
+  if (e.target.closest('[data-howto-dismiss]')) {
+    markHowtoDismissed();
+    closeHowto();
+    return true;
+  }
+  if (e.target.closest('[data-course-skip]')) {
+    skipChrome();
+    return true;
+  }
+  if (e.target.closest('[data-open-suggested]')) {
+    markHowtoDismissed();
+    closeHowto();
+    const apple = suggestedCompany();
+    if (apple) select(apple.rank);
+    return true;
+  }
+  if (e.target.closest('[data-course-compare]')) {
+    startCompareLesson();
+    return true;
+  }
+  if (e.target.closest('[data-model-expand]')) {
+    modelExpanded = true;
+    renderDetail();
+    return true;
+  }
+  const practice = e.target.closest('[data-practice-rank]');
+  if (practice) {
+    const rank = Number(practice.dataset.practiceRank);
+    const book = playbookById(practice.dataset.practicePlaybook);
+    openPractice(companyByRank(rank), book);
+    return true;
+  }
+  return false;
+}
+
+function nextUpHtml() {
+  if (!isBeginner()) return '';
+  const next = courseProgress(course.done).next;
+  if (!next) return '';
+  const apple = suggestedCompany();
+  const appleName = apple ? apple.company : 'Apple';
+  let action = '';
+  if (next.id === 'open') {
+    action = apple
+      ? `<button type="button" class="f5-mini" data-open-suggested>Open ${escapeHtml(appleName)}</button>`
+      : '';
+  } else if (next.id === 'ratio') {
+    action = selectedRank
+      ? `<p class="muted">Tap <strong>Net margin</strong> in the tiles — that’s the lesson.</p>`
+      : apple
+        ? `<button type="button" class="f5-mini" data-open-suggested>Open ${escapeHtml(appleName)}</button>`
+        : '';
+  } else if (next.id === 'model') {
+    action = selectedRank
+      ? `<button type="button" class="f5-mini" data-company-pane="model">Project the next 5 years</button>`
+      : apple
+        ? `<button type="button" class="f5-mini" data-open-suggested>Open ${escapeHtml(appleName)}</button>`
+        : '';
+  } else if (next.id === 'compare') {
+    action = `<button type="button" class="f5-mini" data-course-compare>Compare two 10-Ks</button>`;
+  }
+  return `<div class="f5-nextup">
+    <p class="f5-kicker">Next up · ${escapeHtml(next.n)}/4</p>
+    <h3>${escapeHtml(next.title)}</h3>
+    <p class="f5-eli5">${escapeHtml(next.body)}</p>
+    ${action}
+  </div>`;
+}
+
+function howtoStepsHtml() {
+  const done = course.done;
+  const map = { '1': 'open', '2': 'ratio', '3': 'model' };
+  return `<ol class="f5-howto-steps">
+    ${HOW_TO.map((step) => {
+      const checked = Boolean(done[map[step.n]]);
+      return `<li class="${checked ? 'is-done' : ''}">
+        <span class="f5-howto-n" aria-hidden="true">${checked ? '✓' : escapeHtml(step.n)}</span>
+        <span><strong>${escapeHtml(step.title)}</strong> ${escapeHtml(step.body)}</span>
+      </li>`;
+    }).join('')}
+  </ol>`;
+}
+
+function homeDock() {
+  const apple = suggestedCompany();
+  const notTagged = GLOSSARY.find((g) => g.term === 'Not tagged');
+  return `<aside class="f5-dock" id="home-dock">
+    <p class="f5-kicker">How to use</p>
+    <h3>Click a name on the left</h3>
+    <p class="f5-eli5">${apple ? `${escapeHtml(apple.company)} is a good first 10-K.` : 'Pick any public company.'} Then tap a ratio and project five years from the filing.</p>
+    ${howtoStepsHtml()}
+    ${notTagged ? `<p class="f5-missing-why"><strong>Dash:</strong> ${escapeHtml(notTagged.def)}</p>` : ''}
+    ${nextUpHtml()}
+    <div class="f5-eli5-actions">
+      ${apple ? `<button type="button" class="f5-mini" data-open-suggested>Open ${escapeHtml(apple.company)}</button>` : ''}
+      <button type="button" class="f5-mini f5-mini-ghost" data-course-skip>Skip · I’m comfortable</button>
+    </div>
+  </aside>`;
+}
+
+function howtoCardHtml() {
+  const apple = suggestedCompany();
+  return `<div class="f5-howto-card" role="dialog" aria-modal="true" aria-labelledby="howto-title">
+    <p class="f5-kicker">Fortune 500 × 10-Ks</p>
+    <h2 id="howto-title">How to use this page</h2>
+    <p class="f5-eli5">A short 10-K reading and modeling course that also works as a real comps tool. Not a trading terminal.</p>
+    ${howtoStepsHtml()}
+    <div class="f5-howto-actions">
+      ${apple ? `<button type="button" class="f5-mini" data-open-suggested>Open ${escapeHtml(apple.company)}</button>` : ''}
+      <button type="button" class="f5-mini f5-mini-ghost" data-howto-dismiss>Got it</button>
+      <button type="button" class="f5-linkish" data-course-skip>Skip · I’m comfortable</button>
+    </div>
+  </div>`;
+}
+
+function openHowto() {
+  if (!howtoEl) return;
+  howtoEl.innerHTML = howtoCardHtml();
+  howtoEl.hidden = false;
+  const closeBtn = howtoEl.querySelector('[data-howto-dismiss]');
+  closeBtn?.focus();
+}
+
+function closeHowto() {
+  if (!howtoEl) return;
+  howtoEl.hidden = true;
+  howtoEl.innerHTML = '';
+}
+
+function maybeOpenHowto() {
+  if (isHowtoDismissed()) return;
+  if (selectedRank || compareMode) {
+    markHowtoDismissed();
+    return;
+  }
+  openHowto();
+}
+
+function renderCourseChrome() {
+  const beginner = isBeginner();
+  if (listHintEl) {
+    listHintEl.hidden = !beginner;
+  }
+  if (!courseStripEl) return;
+  if (course.skipped) {
+    courseStripEl.hidden = true;
+    courseStripEl.innerHTML = '';
+    return;
+  }
+  const progress = courseProgress(course.done);
+  const dots = COURSE_STEPS.map((step) => {
+    const on = Boolean(course.done[step.id]);
+    return `<span class="f5-course-dot${on ? ' is-done' : ''}" title="${escapeAttr(step.title)}"></span>`;
+  }).join('');
+  const label = progress.complete
+    ? '4/4 You’ve compared two 10-Ks'
+    : `${progress.completed}/4 ${escapeHtml(progress.next.short)}`;
+  courseStripEl.hidden = false;
+  courseStripEl.innerHTML = `
+    <div class="f5-course-dots" aria-hidden="true">${dots}</div>
+    <p class="f5-course-label">${label}</p>
+    <button type="button" class="f5-linkish" data-course-skip>Skip · I’m comfortable</button>`;
+}
+
+function startCompareLesson() {
+  pickMode = true;
+  const rank = selectedRank;
+  compareMode = false;
+  selectedRank = null;
+  if (rank && isPublic(companyByRank(rank)) && !compareRanks.includes(rank)) {
+    compareRanks = [...compareRanks, rank];
+  }
+  applyState();
+}
+
+function openPractice(company, playbook) {
+  if (!company || !isPublic(company)) return;
+  const book = playbook || guessPlaybook(company);
+  playbookKey = book.id;
+  companyPane = 'model';
+  modelExpanded = true;
+  const headlines = headlinesOf(company);
+  modelDraft = {
+    ...seedAssumptions(headlines, book),
+    rank: company.rank,
+    playbookId: book.id,
+    scenario: 'base',
+  };
+  markCourse('open');
+  markCourse('model');
+  select(company.rank);
 }
 
 function viewTabs() {
@@ -507,13 +811,19 @@ function screenerView() {
 
   const hint = pickMode
     ? 'Click companies to add or remove them. Compare in the bar when you have 2–5.'
-    : 'Open a company, or turn on Pick to compare. Dash = ratio ingredients weren’t tagged.';
+    : isBeginner()
+      ? 'The list on the left is the next click. Dash = not tagged, not zero.'
+      : 'Open a company, or turn on Pick to compare. Dash = ratio ingredients weren’t tagged.';
 
-  return `
+  const pickBtn = isBeginner()
+    ? ''
+    : `<button type="button" class="f5-view-tab" data-pick-mode aria-pressed="${pickMode}">Pick to compare</button>`;
+
+  const table = `
     <div class="f5-screener">
       <div class="f5-toolbar">
         ${viewTabs()}
-        <button type="button" class="f5-view-tab" data-pick-mode aria-pressed="${pickMode}">Pick to compare</button>
+        ${pickBtn}
         <p class="f5-toolbar-hint">${hint}</p>
       </div>
       <div class="f5-table-wrap">
@@ -523,6 +833,11 @@ function screenerView() {
         </table>
       </div>
     </div>`;
+
+  if (isBeginner() && homeView === 'table') {
+    return `<div class="f5-workspace"><div class="f5-workspace-main">${table}</div>${homeDock()}</div>`;
+  }
+  return table;
 }
 
 function learnView() {
@@ -594,10 +909,18 @@ function playbookBody(playbook) {
 
 function playbookDock(id) {
   const playbook = playbookById(id);
+  const sample = companyForPlaybook(id);
+  const practice = sample
+    ? `<div class="f5-eli5-actions">
+        <button type="button" class="f5-mini" data-practice-rank="${sample.rank}" data-practice-playbook="${escapeAttr(playbook.id)}">Practice this on ${escapeHtml(sample.company)}</button>
+      </div>
+      <p class="muted">Opens that company’s Practice Model with this industry’s drivers. Year 0 is the 10-K; everything after is your guess.</p>`
+    : `<p class="muted">Open a company, then Practice Model, to try these drivers on a real 10-K.</p>`;
   return `<aside class="f5-dock" id="playbook-dock">
     <p class="f5-kicker">${escapeHtml(playbook.subtitle)}</p>
     <h3>${escapeHtml(playbook.label)}</h3>
     ${playbookBody(playbook)}
+    ${practice}
     <ol class="f5-model-rules">${GOLDEN_RULES.map((r) => `<li>${escapeHtml(r)}</li>`).join('')}</ol>
   </aside>`;
 }
@@ -633,7 +956,7 @@ function industriesView() {
     <div class="f5-workspace">
       <div class="f5-workspace-main">
         <div class="f5-toolbar">${viewTabs()}</div>
-        <p class="f5-toolbar-hint">Four questions to pick a starting model, then the industry for formulas, inputs, and metrics. Practice them on a company 10-K.</p>
+        <p class="f5-toolbar-hint">Four questions to pick a starting model. Then practice it on a company — year 0 is the 10-K, the sliders are your guesses.</p>
         <div class="f5-tree">${tree}</div>
         <h3 class="f5-model-sub">${books.length} industries</h3>
         <div class="f5-play-grid">${cards}</div>
@@ -732,6 +1055,7 @@ function explainDock(key, headlines, comparePairs, company) {
     ${leaderLine}
     ${company ? edgarLinks(company) : comparePairs?.[0]?.company ? edgarLinks(comparePairs[0].company) : ''}
     <div class="f5-eli5-actions">${compareBtn}${sortBtn}</div>
+    ${isBeginner() ? nextUpHtml() : ''}
   </aside>`;
 }
 
@@ -838,10 +1162,32 @@ function modelDock(headlines, company) {
   return `<aside class="f5-dock" id="model-dock">
     <p class="f5-kicker">${escapeHtml(playbook.subtitle)}</p>
     <h3>${escapeHtml(playbook.label)}</h3>
+    <p class="f5-eli5">Year 0 is filed. Everything after is a guess you control — not a forecast.</p>
     ${playbookBody(playbook)}
     <p class="f5-coverage-line">Effective growth ${escapeHtml(growth)} · year 0 is filed, everything else is practice.</p>
     <p class="f5-leaders"><button type="button" class="f5-linkish" data-home-view="industries" data-playbook="${escapeAttr(playbook.id)}">All industry models</button></p>
+    ${isBeginner() ? nextUpHtml() : ''}
   </aside>`;
+}
+
+function modelSketchHtml(company, headlines) {
+  const playbook = currentPlaybook(company);
+  const a = modelAssumptions(headlines, company);
+  const model = runPracticeModel(headlines, a, playbook);
+  if (!model.ok) return `<p class="f5-toolbar-hint">${escapeHtml(model.reason)}</p>`;
+  const y0 = model.rows[0];
+  const y5 = model.rows[model.rows.length - 1];
+  const yoy = formatDerived(lookupDef('revenue_yoy'), headlines?.ratios?.revenue_yoy);
+  const g = formatDerived(lookupDef('revenue_yoy'), model.growth) || '—';
+  const lastYear = yoy
+    ? `Last 10-K, revenue changed ${escapeHtml(yoy)}.`
+    : 'Last 10-K did not tag revenue growth.';
+  return `
+    <p class="f5-toolbar-hint">${lastYear} Your growth slider is ${escapeHtml(g)} per year — that is your guess, not a forecast.</p>
+    <p class="f5-model-delta">Filed FY${y0.year} → FY${y5.year}:
+      NI <strong>${escapeHtml(signedUsd(model.vsFiled.netIncome))}</strong>
+      · FCF <strong>${escapeHtml(signedUsd(model.vsFiled.fcf))}</strong>
+    </p>`;
 }
 
 function modelPanel(headlines, company) {
@@ -851,6 +1197,7 @@ function modelPanel(headlines, company) {
   if (!model.ok) {
     return `${paneTabs('company', 'model')}<p class="f5-toolbar-hint">${escapeHtml(model.reason)}</p>`;
   }
+  const simple = isBeginner() && !modelExpanded;
   const options = PLAYBOOKS.map(
     (p) =>
       `<option value="${escapeAttr(p.id)}" ${p.id === playbook.id ? 'selected' : ''}>${escapeHtml(p.label)}</option>`
@@ -864,25 +1211,41 @@ function modelPanel(headlines, company) {
         `<button type="button" class="f5-view-tab" data-scenario="${s}" aria-pressed="${a.scenario === s}">${s}</button>`
     )
     .join('');
+  const extraDrivers = simple
+    ? ''
+    : `${extras}${playbook.extras?.length ? '' : driverField('revenueGrowth', 'Rev growth % / yr', a.revenueGrowth, 'Used when there is no industry split.')}`;
+  const simpleGrowth = simple
+    ? driverField('revenueGrowth', 'Rev growth % / yr', a.revenueGrowth, 'Your assumption, not a forecast.')
+    : '';
+  const extraMargins = simple
+    ? ''
+    : `${driverField('fcfMargin', 'FCF margin %', a.fcfMargin, 'Free cash flow / sales.')}
+      ${driverField('grossMargin', 'Gross margin %', a.grossMargin, 'Blank if the 10-K did not tag gross profit.')}`;
+  const powerToolbar = simple
+    ? `<div class="f5-model-toolbar">
+        <button type="button" class="f5-mini f5-mini-ghost" data-model-expand>Show industry drivers</button>
+        <button type="button" class="f5-mini f5-mini-ghost" id="model-reset">Reset to 10-K</button>
+        <button type="button" class="f5-mini" id="model-xlsx">Download Excel</button>
+      </div>`
+    : `<div class="f5-model-toolbar">
+        <label class="f5-playbook-pick">Industry
+          <select id="model-playbook">${options}</select>
+        </label>
+        <div class="f5-view-tabs" role="tablist" aria-label="Scenario">${scenarios}</div>
+        <button type="button" class="f5-mini f5-mini-ghost" id="model-reset">Reset to 10-K</button>
+        <button type="button" class="f5-mini" id="model-xlsx">Download Excel</button>
+      </div>`;
   return `
-    ${paneTabs('company', 'model')}
-    <p class="f5-toolbar-hint">Year 0 is the 10-K. Change drivers and watch the sheet. Industry templates live on this page.</p>
-    <div class="f5-model-toolbar">
-      <label class="f5-playbook-pick">Industry
-        <select id="model-playbook">${options}</select>
-      </label>
-      <div class="f5-view-tabs" role="tablist" aria-label="Scenario">${scenarios}</div>
-      <button type="button" class="f5-mini f5-mini-ghost" id="model-reset">Reset to 10-K</button>
-      <button type="button" class="f5-mini" id="model-xlsx">Download Excel</button>
-    </div>
+    ${paneTabs('company', companyPane)}
+    <p class="f5-toolbar-hint">Year 0 is the 10-K. Everything after is a guess you control, not a forecast.</p>
+    ${powerToolbar}
     <form class="f5-model-form" id="model-form">
-      ${extras}
-      ${playbook.extras?.length ? '' : driverField('revenueGrowth', 'Rev growth % / yr', a.revenueGrowth, 'Used when there is no industry split.')}
+      ${simpleGrowth}
+      ${extraDrivers}
       ${driverField('netMargin', 'Net margin %', a.netMargin, 'Keep-the-dollar rate from the 10-K, unless you change it.')}
-      ${driverField('fcfMargin', 'FCF margin %', a.fcfMargin, 'Free cash flow / sales.')}
-      ${driverField('grossMargin', 'Gross margin %', a.grossMargin, 'Blank if the 10-K did not tag gross profit.')}
+      ${extraMargins}
     </form>
-    <div id="model-live">${modelLiveHtml(company, headlines)}</div>`;
+    <div id="model-live">${simple ? modelSketchHtml(company, headlines) : modelLiveHtml(company, headlines)}</div>`;
 }
 
 function pctPill(value, source, key, headlines) {
@@ -958,7 +1321,7 @@ function publicDetail(c, headlines, status) {
       }).join('');
       main = `
         ${paneTabs('company', companyPane)}
-        <p class="f5-toolbar-hint">${escapeHtml(year)} · ${cov.tagged.length}/${cov.total} tags · ${cov.derivedOk.length} ratios · a dash is not zero</p>
+        <p class="f5-toolbar-hint">You’re looking at ${escapeHtml(c.company)}’s ${escapeHtml(year)} 10-K. ${cov.tagged.length}/${cov.total} tags. A dash is not tagged, not zero.</p>
         ${suggest}
         <div class="f5-table-wrap">
           <table class="f5-table">
@@ -983,9 +1346,11 @@ function publicDetail(c, headlines, status) {
           <div class="f5-tiles">${tiles}</div>
         </section>`;
       }).join('');
+      const projectCta = `<button type="button" class="f5-cta" data-company-pane="model">Project the next 5 years from this 10-K</button>`;
       main = `
         ${paneTabs('company', companyPane)}
-        <p class="f5-toolbar-hint">${escapeHtml(year)} · ${cov.derivedOk.length} ratios from ${cov.tagged.length}/${cov.total} tagged items · tap a tile for the 10-K math</p>
+        <p class="f5-toolbar-hint">You’re looking at ${escapeHtml(c.company)}’s ${escapeHtml(year)} 10-K. Tap a tile for the math.</p>
+        ${projectCta}
         ${suggest}
         ${groups}`;
       dock = explainDock(explainKey, headlines, null, c);
@@ -1174,6 +1539,7 @@ function compareView(rows, status) {
           ${paneTabs('compare', comparePane)}
           <label class="f5-shared-toggle"><input type="checkbox" id="shared-only" ${sharedOnly ? 'checked' : ''}/> Shared only</label>
         </div>
+        <p class="f5-toolbar-hint">Dash = not tagged, not zero. Fiscal years may not line up — check FY under each name.</p>
         ${insights.length ? `<ul class="f5-insights">${insights.map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ul>` : ''}
         ${status === 'ok' ? barChart(names, rows) : ''}
         <div class="f5-table-wrap">
@@ -1211,6 +1577,7 @@ async function fetchHeadlines(ciks) {
 }
 
 async function renderDetail() {
+  renderCourseChrome();
   layoutEl.classList.toggle('show-detail', compareMode || Boolean(selectedRank));
   if (compareMode) {
     const names = compareRanks.map(companyByRank).filter((c) => c && isPublic(c));
@@ -1277,6 +1644,9 @@ function applyState(opts = {}) {
 function select(rank, opts = {}) {
   compareMode = false;
   selectedRank = rank;
+  if (rank == null) companyPane = 'ratios';
+  const c = rank ? companyByRank(rank) : null;
+  if (c && isPublic(c)) markCourse('open');
   applyState(opts);
 }
 
@@ -1285,6 +1655,7 @@ function openCompare() {
   pickMode = false;
   compareMode = true;
   selectedRank = null;
+  markCourse('compare');
   applyState();
 }
 
@@ -1344,6 +1715,7 @@ listEl.addEventListener('click', (e) => {
 });
 
 detailEl.addEventListener('click', (e) => {
+  if (handleGuideClick(e)) return;
   if (e.target.closest('#back')) {
     select(null);
     return;
@@ -1476,7 +1848,8 @@ detailEl.addEventListener('click', (e) => {
   if (companyPaneBtn) {
     const pane = companyPaneBtn.dataset.companyPane;
     companyPane = pane === 'filed' || pane === 'model' ? pane : 'ratios';
-    renderDetail();
+    if (companyPane === 'model') markCourse('model');
+    applyState();
     return;
   }
   const comparePaneBtn = e.target.closest('[data-compare-pane]');
@@ -1548,10 +1921,12 @@ detailEl.addEventListener('click', (e) => {
   const explain = e.target.closest('[data-explain]');
   if (explain) {
     explainKey = explain.dataset.explain;
+    if (selectedRank && !compareMode) markCourse('ratio');
     if (compareMode) paintCompare(lastCompareRows, lastCompareStatus);
     else if (selectedRank) renderDetail();
     else if (homeView === 'learn') detailEl.innerHTML = learnView();
     else if (homeView === 'industries') detailEl.innerHTML = industriesView();
+    renderCourseChrome();
     return;
   }
 });
@@ -1560,6 +1935,7 @@ function applyDriverInput(el) {
   const c = companyByRank(selectedRank);
   const headlines = headlinesOf(c);
   if (!c || !headlines) return;
+  markCourse('model');
   const current = modelAssumptions(headlines, c);
   const raw = Number(el.value);
   if (!Number.isFinite(raw)) return;
@@ -1575,7 +1951,10 @@ function applyDriverInput(el) {
   else if (el.dataset.driver) next[el.dataset.driver] = value;
   modelDraft = next;
   const live = document.getElementById('model-live');
-  if (live) live.innerHTML = modelLiveHtml(c, headlines);
+  if (live) {
+    live.innerHTML =
+      isBeginner() && !modelExpanded ? modelSketchHtml(c, headlines) : modelLiveHtml(c, headlines);
+  }
   const dock = document.getElementById('model-dock');
   if (dock) dock.outerHTML = modelDock(headlines, c);
   const shown = (value * 100).toFixed(1);
@@ -1628,6 +2007,24 @@ function openHomeView(view) {
 document.getElementById('nav-learn')?.addEventListener('click', openHomeView('learn'));
 document.getElementById('nav-industries')?.addEventListener('click', openHomeView('industries'));
 document.getElementById('glossary-learn')?.addEventListener('click', openHomeView('learn'));
+document.getElementById('nav-howto')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  openHowto();
+});
+howtoEl?.addEventListener('click', (e) => {
+  if (e.target === howtoEl) {
+    markHowtoDismissed();
+    closeHowto();
+    return;
+  }
+  handleGuideClick(e);
+});
+courseStripEl?.addEventListener('click', handleGuideClick);
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape' || howtoEl?.hidden) return;
+  markHowtoDismissed();
+  closeHowto();
+});
 
 compareBar.addEventListener('click', (e) => {
   const chip = e.target.closest('[data-unchip]');
@@ -1665,6 +2062,7 @@ window.addEventListener('popstate', () => {
   compareRanks = s.compareRanks;
   selectedRank = s.selectedRank;
   homeView = s.homeView || 'table';
+  if (s.companyPane) companyPane = s.companyPane;
   if (s.playbookKey) playbookKey = s.playbookKey;
   applyState({ fromPop: true });
 });
@@ -1690,8 +2088,22 @@ try {
   compareRanks = s.compareRanks;
   selectedRank = s.selectedRank;
   homeView = s.homeView || 'table';
+  if (s.companyPane) companyPane = s.companyPane;
   if (s.playbookKey) playbookKey = s.playbookKey;
+  if (s.companyPane === 'model' && s.selectedRank && s.playbookKey) {
+    const c = companyByRank(s.selectedRank);
+    if (c) {
+      modelExpanded = true;
+      modelDraft = {
+        ...seedAssumptions(headlinesOf(c), playbookById(s.playbookKey)),
+        rank: c.rank,
+        playbookId: s.playbookKey,
+        scenario: 'base',
+      };
+    }
+  }
   applyState({ replace: true, fromPop: true });
+  maybeOpenHowto();
 } catch (err) {
   detailEl.innerHTML = `<p class="f5-error">${escapeHtml(err.message)}</p>`;
 }

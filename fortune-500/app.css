@@ -100,15 +100,26 @@ a { color: var(--ink); }
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
-.f5-nav-links a {
+.f5-nav-links a,
+.f5-nav-links .f5-nav-link {
   text-decoration: none;
   opacity: 0.55;
   min-height: 44px;
   padding: 0 10px;
   display: inline-flex;
   align-items: center;
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
 }
-.f5-nav-links a:hover { opacity: 1; }
+.f5-nav-links a:hover,
+.f5-nav-links .f5-nav-link:hover { opacity: 1; }
 
 .f5-shell {
   width: 100%;
@@ -123,6 +134,44 @@ a { color: var(--ink); }
   min-height: 24rem;
   box-sizing: border-box;
 }
+
+.f5-purpose {
+  margin: 0;
+  padding: 0 2px 8px;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+  max-width: 54rem;
+  flex: 0 0 auto;
+}
+
+.f5-course-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  flex: 0 0 auto;
+  padding: 0 2px 8px;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+}
+.f5-course-strip[hidden] { display: none; }
+.f5-course-dots { display: flex; gap: 5px; }
+.f5-course-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--line);
+  box-shadow: inset 0 0 0 1px var(--ink);
+  opacity: 0.35;
+}
+.f5-course-dot.is-done {
+  background: var(--green);
+  opacity: 1;
+  box-shadow: none;
+}
+.f5-course-label { margin: 0; color: var(--ink); }
+.f5-course-strip .f5-linkish { margin-left: auto; }
 
 .f5-hero {
   display: flex;
@@ -250,6 +299,12 @@ a { color: var(--ink); }
   opacity: 0.55;
   margin: 8px 0 0;
 }
+.f5-list-hint {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
 
 .f5-presets {
   display: flex;
@@ -295,9 +350,23 @@ a { color: var(--ink); }
   background: #e8f8fa;
   box-shadow: inset 0 0 0 1.5px var(--cyan);
 }
-.f5-row.is-picked {
-  background: #e8f8fa;
-  box-shadow: inset 0 0 0 1.5px var(--cyan);
+.f5-row.is-suggest {
+  background: #eef8e4;
+  box-shadow: inset 0 0 0 1.5px var(--green);
+}
+.f5-suggest-tag {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--green);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 1px 6px;
+  margin-left: 6px;
+  vertical-align: middle;
 }
 .f5-row.is-private { opacity: 0.72; }
 .f5-row-main {
@@ -1126,6 +1195,12 @@ body:has(#compare-bar:not([hidden])) .f5-glossary-panel {
   flex-direction: column;
 }
 .f5-workspace-main .f5-table-wrap { flex: 1 1 auto; min-height: 0; margin: 8px 0 0; }
+.f5-workspace-main .f5-screener {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
 .f5-dock {
   border-left: 1.5px solid var(--line);
   background: var(--cream);
@@ -1586,7 +1661,8 @@ pre.f5-calc-eq {
     flex-wrap: wrap;
     gap: 0;
   }
-  .f5-nav-links a {
+  .f5-nav-links a,
+  .f5-nav-links .f5-nav-link {
     min-height: 36px;
     padding: 0 8px;
     font-size: 0.62rem;
@@ -1597,4 +1673,97 @@ pre.f5-calc-eq {
   }
   .f5-head-actions { justify-content: flex-start; }
   .f5-add-compare { width: fit-content; }
+}
+
+.f5-cta {
+  font-family: var(--display);
+  font-size: 0.95rem;
+  font-weight: 600;
+  border: 1.5px solid var(--ink);
+  background: var(--green);
+  color: var(--ink);
+  border-radius: 12px;
+  padding: 10px 14px;
+  cursor: pointer;
+  margin: 0 0 12px;
+  width: fit-content;
+  max-width: 100%;
+  text-align: left;
+}
+.f5-cta:hover { filter: brightness(0.97); }
+
+.f5-nextup {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1.5px solid var(--line);
+}
+.f5-nextup h3 { margin-bottom: 6px; }
+
+.f5-howto {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(28, 28, 28, 0.28);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: calc(var(--f5-nav-h) + 16px) 16px 24px;
+}
+.f5-howto[hidden] { display: none; }
+.f5-howto-card {
+  width: min(34rem, 100%);
+  background: var(--panel);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px 22px 18px;
+  box-shadow: 0 18px 48px rgba(28, 28, 28, 0.14);
+}
+.f5-howto-card h2 {
+  font-family: var(--display);
+  font-size: 1.35rem;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+.f5-howto-steps {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.f5-howto-steps li {
+  display: grid;
+  grid-template-columns: 1.6rem 1fr;
+  gap: 8px;
+  align-items: start;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+.f5-howto-n {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--green);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+.f5-howto-steps li.is-done .f5-howto-n { background: var(--ink); color: var(--cream); }
+.f5-howto-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin-top: 16px;
+}
+.f5-howto-actions .f5-linkish,
+.f5-course-strip .f5-linkish {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 500;
+  opacity: 0.75;
 }

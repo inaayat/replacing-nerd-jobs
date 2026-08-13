@@ -11,7 +11,7 @@ import {
   leadersFor,
   suggestComparisons,
 } from '../fortune-500/insights.js';
-import { METRICS, DERIVED, PRESETS, allDefs, isPublic } from '../fortune-500/catalog.js';
+import { METRICS, DERIVED, PRESETS, allDefs, isPublic, COURSE_STEPS, SUGGESTED_RANK, HOW_TO, PURPOSE, courseProgress } from '../fortune-500/catalog.js';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -227,5 +227,18 @@ assert.equal(spacex.cik, 1181412, 'keep the mis-matched CIK on file');
 const exxon = mapping.find((r) => r.rank === 9);
 assert.equal(exxon.cik, 34088);
 assert.equal(exxon.successor_cik, 2115436);
+
+const apple = mapping.find((r) => r.rank === 4);
+assert.equal(apple.company, 'Apple');
+assert.equal(SUGGESTED_RANK, 4);
+assert.equal(COURSE_STEPS.length, 4);
+assert.deepEqual(COURSE_STEPS.map((s) => s.id), ['open', 'ratio', 'model', 'compare']);
+assert.equal(HOW_TO.length, 3);
+assert.ok(PURPOSE.includes('Year 0 is filed'));
+const mid = courseProgress({ open: true, ratio: true });
+assert.equal(mid.completed, 2);
+assert.equal(mid.next.id, 'model');
+assert.equal(mid.complete, false);
+assert.equal(courseProgress({ open: true, ratio: true, model: true, compare: true }).complete, true);
 
 console.log('fortune-500 insights tests passed');
