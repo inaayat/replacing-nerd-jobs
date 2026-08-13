@@ -510,5 +510,7 @@ node scripts/test-alist-watchlist-sort.mjs
 node scripts/test-alist-showing.mjs
 node scripts/test-fortune500-extract.mjs
 node scripts/test-fortune500-insights.mjs
+node scripts/test-financial-modeler-engine.mjs
+node scripts/test-financial-modeler-workbook.mjs
 node scripts/test-ai-buildout.mjs
 ```

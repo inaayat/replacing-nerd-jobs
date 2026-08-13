@@ -33,7 +33,7 @@
       <div class="ab-nav-links">
         <a href="#stack">Cash vs CapEx</a>
         <a href="#iceberg">Books vs footnotes</a>
-        <a href="#deals">SPVs</a>
+        <a href="#watch">Next Beignet</a>
         <a href="/fortune-500/">Fortune 500</a>
         <a href="/#projects">Projects</a>
       </div>
@@ -133,13 +133,44 @@
           <div>
             <h2>New paper hitting EDGAR</h2>
             <p>
-              Prospectus supplements (424B), free-writing prospectuses (FWP), and 8-Ks whose
-              description looks like debt or a lease. We do not parse the dollar amount out of the
-              PDF yet — the filing is the event.
+              Prospectus supplements and term sheets, grouped into one row per company per day
+              so a 424B and its FWP are not listed twice. Earnings 8-Ks are dropped. We still
+              cannot read the dollar amount out of the PDF.
             </p>
           </div>
         </div>
         <div class="ab-ticker" id="event-list"></div>
+      </section>
+
+      <section class="ab-panel" id="watch">
+        <div class="ab-panel-head">
+          <div>
+            <h2>How a new Beignet would actually show up</h2>
+            <p>
+              It would not appear as a company named Beignet in this seven-name feed. The Hyperion
+              bonds were issued by a special-purpose vehicle — often a 144A that never files a 10-K
+              of its own. EDGAR full-text search for “Beignet Investor” returns nothing. What we can
+              watch is the <em>parent</em> footnote: Meta’s 10-Q is where “residual value guarantee”
+              lives. When that phrase (or Beignet / Soapia) hits one of these seven CIKs, it lands
+              below. A deal card still takes a person reading the sentence.
+            </p>
+          </div>
+        </div>
+        <div class="ab-clock-grid">
+          <article>
+            <h3>Will catch</h3>
+            <p>Parent 10-K/10-Q text for residual-value guarantees. Parent 8-K Item 1.01 (a signed lease). A vehicle name once it is in the parent’s filing.</p>
+          </article>
+          <article>
+            <h3>Will miss</h3>
+            <p>A 144A sold only to institutions, with no parent 8-K and no footnote yet. Blue Owl / BlackRock marketing a pastry-named SPV that is not in EDGAR.</p>
+          </article>
+          <article>
+            <h3>Not an algorithm</h3>
+            <p>“Primary beneficiary” and “variable interest entity” are boilerplate in almost every 10-K. We do not auto-promote those hits into deal cards.</p>
+          </article>
+        </div>
+        <div class="ab-ticker" id="footnote-hits" style="margin-top:16px"></div>
       </section>
 
       <section class="ab-panel" id="deals">

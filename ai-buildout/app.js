@@ -14,6 +14,8 @@ import {
   gdpShare,
   numberOr,
   absCapex,
+  groupOfferingEvents,
+  offeringHeadline,
 } from './extract.js';
 
 const snap = await fetch('./data/snapshot.json').then((r) => {
@@ -22,7 +24,10 @@ const snap = await fetch('./data/snapshot.json').then((r) => {
 });
 
 const byId = Object.fromEntries((snap.companies || []).map((c) => [c.id, c]));
-const catalog = COMPANIES.map((c) => ({ ...c, ...(byId[c.id] || {}) }));
+const catalog = COMPANIES.map((c) => {
+  const row = byId[c.id] || {};
+  return { ...c, extracted: row.extracted, error: row.error };
+});
 
 let view = 'hyperscalers';
 
@@ -65,7 +70,8 @@ function renderChips() {
   const share = gdpShare(capex, gdp);
   const amazon = byId.amzn;
   const amznEat = amazon?.extracted?.derived?.capex_to_cfo;
-  const events = (snap.events || []).length;
+  const grouped = groupOfferingEvents(snap.events || []);
+  const events = grouped.length;
   const el = document.getElementById('stat-chips');
   el.innerHTML = [
     {
@@ -82,7 +88,7 @@ function renderChips() {
     },
     {
       val: String(events),
-      label: 'recent 424B / FWP / debt 8-Ks kept',
+      label: 'takedown days (424B / FWP grouped)',
     },
   ]
     .map(
@@ -137,7 +143,7 @@ function renderStackTable() {
       const end = x?.latest?.cfo?.end || x?.latest?.capex?.end;
       return `<tr>
         <td><strong>${escapeHtml(co.name)}</strong> ${escapeHtml(co.ticker)}</td>
-        <td title="${escapeHtml(ROLES[co.role] || '')}">${escapeHtml(co.role)}</td>
+        <td title="${escapeHtml(co.fyNote || '')}">${escapeHtml(ROLES[co.role] || co.role)}</td>
         <td class="num">${dash(formatUsd(latestVal(co, 'cfo')))}</td>
         <td class="num">${dash(formatUsd(absCapex(latestVal(co, 'capex'))))}</td>
         <td class="num">${dash(formatPercent(x?.derived?.capex_to_cfo, { digits: 0 }))}</td>
@@ -160,41 +166,33 @@ function renderIceberg() {
       numberOr(co.extracted?.iceberg?.remaining_lease_payments) || 0,
     ])
   );
-  const w = 720;
-  const rowH = 56;
-  const h = 24 + rows.length * rowH;
-  const left = 88;
-  const chartW = 600;
-  const bars = rows
-    .map((co, i) => {
-      const y = 8 + i * rowH;
-      const debt = numberOr(co.extracted?.iceberg?.long_term_debt);
-      const lease = numberOr(co.extracted?.iceberg?.lease_liability);
-      const remain = numberOr(co.extracted?.iceberg?.remaining_lease_payments);
-      const debtW = debt == null ? 0 : (debt / max) * chartW;
-      const leaseW = lease == null ? 0 : (lease / max) * chartW;
-      const remainX = remain == null ? null : left + (remain / max) * chartW;
-      return `<g>
-        <text x="0" y="${y + 22}" font-size="12" font-family="DM Mono, monospace">${escapeHtml(co.ticker)}</text>
-        <rect x="${left}" y="${y + 4}" width="${debtW}" height="12" fill="${co.color}"/>
-        <rect x="${left}" y="${y + 20}" width="${leaseW}" height="12" fill="${co.color}" opacity="0.45"/>
-        ${
-          remainX == null
-            ? ''
-            : `<line x1="${remainX}" x2="${remainX}" y1="${y + 2}" y2="${y + 36}" stroke="${co.color}" stroke-dasharray="3 3"/>`
-        }
-      </g>`;
+  const metricRows = [
+    ['long_term_debt', 'Long-term debt', 1],
+    ['lease_liability', 'Lease liabilities', 0.55],
+    ['remaining_lease_payments', 'Remaining lease payments', 0.28],
+  ];
+  document.getElementById('iceberg-chart').innerHTML = rows
+    .map((co) => {
+      const ice = co.extracted?.iceberg || {};
+      const bars = metricRows
+        .map(([key, label, opacity]) => {
+          const v = numberOr(ice[key]);
+          const width = v == null ? 0 : (v / max) * 100;
+          return `<div class="ab-ice-row">
+            <span class="ab-ice-label">${label}</span>
+            <div class="ab-eat-track">
+              <div class="ab-eat-fill" style="width:${width}%;background:${co.color};opacity:${opacity}"></div>
+            </div>
+            <span class="ab-eat-pct">${dash(formatUsd(v))}</span>
+          </div>`;
+        })
+        .join('');
+      return `<div class="ab-ice-co">
+        <div class="ab-ice-name">${escapeHtml(co.name)}</div>
+        ${bars}
+      </div>`;
     })
     .join('');
-  document.getElementById('iceberg-chart').innerHTML = `
-    <svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Long-term debt versus lease liabilities">
-      ${bars}
-    </svg>
-    <div class="ab-legend">
-      <span><i style="background:#1c1c1c"></i>Long-term debt (solid)</span>
-      <span><i style="background:#1c1c1c;opacity:.45"></i>Lease liabilities (faded)</span>
-      <span>Dashed tick = undiscounted remaining lease payments</span>
-    </div>`;
 
   const head = `<thead><tr>
     <th>Company</th>
@@ -281,15 +279,36 @@ function renderCfoChart() {
 
 function renderEvents() {
   const allowed = new Set(visibleCompanies().map((c) => c.cik));
-  const items = (snap.events || []).filter((e) => allowed.has(e.cik)).slice(0, 40);
+  const items = groupOfferingEvents((snap.events || []).filter((e) => allowed.has(e.cik))).slice(0, 24);
   document.getElementById('event-list').innerHTML = items
     .map((e) => {
       const href = e.url || '#';
       return `<a class="ab-event" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">
         <span class="when">${escapeHtml(e.filed || '—')}</span>
         <span>${escapeHtml(e.ticker || '')}</span>
-        <span class="form">${escapeHtml(e.form || '')}</span>
-        <span>${escapeHtml(e.description || e.form || 'Filing')}</span>
+        <span class="form">${escapeHtml(offeringHeadline(e))}</span>
+      </a>`;
+    })
+    .join('');
+}
+
+function renderFootnotes() {
+  const el = document.getElementById('footnote-hits');
+  if (!el) return;
+  const allowed = new Set(visibleCompanies().map((c) => c.cik));
+  const hits = (snap.footnoteHits || []).filter((h) => allowed.has(h.cik)).slice(0, 20);
+  if (!hits.length) {
+    el.innerHTML = '<p class="ab-foot">No residual-value-guarantee / Beignet / Soapia hits in the latest EDGAR full-text pull for these names.</p>';
+    return;
+  }
+  el.innerHTML = hits
+    .map((h) => {
+      const href = h.url || '#';
+      return `<a class="ab-event" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">
+        <span class="when">${escapeHtml(h.filed || '—')}</span>
+        <span>${escapeHtml(h.ticker || '')}</span>
+        <span class="form">${escapeHtml(h.form || '')}</span>
+        <span>${escapeHtml(h.phrase || '')}</span>
       </a>`;
     })
     .join('');
@@ -353,6 +372,7 @@ function renderAll() {
   renderCfoChart();
   renderIceberg();
   renderEvents();
+  renderFootnotes();
 }
 
 for (const btn of document.querySelectorAll('[data-view]')) {

@@ -4,6 +4,9 @@ import {
   pickForYear,
   extractCompany,
   eventsFromSubmissions,
+  groupOfferingEvents,
+  offeringHeadline,
+  latestFootnoteHits,
   fcfFrom,
   capexToCfo,
   icebergFrom,
@@ -26,6 +29,8 @@ assert.equal(catalogWatch('424B5', ''), true);
 assert.equal(catalogWatch('FWP', null), true);
 assert.equal(catalogWatch('8-K', 'Results of Operations'), false);
 assert.equal(catalogWatch('8-K', 'Entry into a Credit Agreement'), true);
+assert.equal(catalogWatch('8-K', '8-K', '1.01,9.01'), true);
+assert.equal(catalogWatch('8-K', '8-K', '2.02,9.01'), false);
 assert.equal(catalogWatch('8-K', 'Senior Notes due 2055'), true);
 assert.equal(isWatchFiling('424B2'), true);
 
@@ -168,10 +173,11 @@ const events = eventsFromSubmissions(
         primaryDocDescription: [
           'Entry into a Material Definitive Agreement — data center lease',
           'Results of Operations and Financial Condition',
-          'Prospectus Supplement — Senior Notes',
+          '424B5',
           'Annual report',
-          'Free Writing Prospectus',
+          'FWP',
         ],
+        items: ['1.01,9.01', '2.02,9.01', '', '', ''],
       },
     },
   },
@@ -179,8 +185,27 @@ const events = eventsFromSubmissions(
 );
 assert.equal(events.length, 3, 'earnings 8-K and 10-K dropped; lease 8-K, 424B5, FWP kept');
 assert.equal(events[0].filed, '2026-05-01');
+assert.equal(events.find((e) => e.form === '424B5').description, null, 'form-as-description is dropped');
 assert.ok(events[0].url.includes('000132680126000111'));
 assert.ok(events.some((e) => e.form === '424B5'));
+
+const grouped = groupOfferingEvents([
+  { cik: 1, ticker: 'GOOGL', filed: '2026-08-07', form: '424B5', url: 'a' },
+  { cik: 1, ticker: 'GOOGL', filed: '2026-08-07', form: 'FWP', url: 'b' },
+  { cik: 1, ticker: 'GOOGL', filed: '2026-08-06', form: '424B2', url: 'c' },
+]);
+assert.equal(grouped.length, 2);
+assert.equal(grouped[0].count, 2);
+assert.match(offeringHeadline(grouped[0]), /2 filings/);
+
+assert.deepEqual(
+  latestFootnoteHits([
+    { cik: 1, phrase: 'rvg', filed: '2025-01-01' },
+    { cik: 1, phrase: 'rvg', filed: '2026-07-31' },
+    { cik: 2, phrase: 'rvg', filed: '2026-01-01' },
+  ]).map((h) => h.filed),
+  ['2026-07-31', '2026-01-01']
+);
 
 const empty = extractCompany({ cik: 1, entityName: 'X', facts: { 'us-gaap': {} } });
 assert.equal(empty.asOfYear, null);

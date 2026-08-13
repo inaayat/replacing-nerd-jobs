@@ -5,9 +5,9 @@
  * of income-statement teaching tags. This one keeps ~10 FY of cash, CapEx,
  * debt, leases, and debt proceeds for seven names.
  */
-import { METRICS, SERIES_YEARS, isWatchFiling, filingArchiveUrl, companyByCik } from './catalog.js';
+import { METRICS, SERIES_YEARS, isWatchFiling, filingArchiveUrl, companyByCik, formLabel } from './catalog.js';
 
-export { isWatchFiling };
+export { isWatchFiling, formLabel };
 
 const ANNUAL_FORMS = new Set(['10-K', '10-K/A']);
 const MIN_ANNUAL_DAYS = 300;
@@ -247,7 +247,8 @@ export function eventsFromSubmissions(submissions, meta = {}) {
   for (let i = 0; i < recent.form.length; i++) {
     const form = recent.form[i];
     const description = recent.primaryDocDescription?.[i] || null;
-    if (!isWatchFiling(form, description)) continue;
+    const items = recent.items?.[i] || null;
+    if (!isWatchFiling(form, description, items)) continue;
     const accession = recent.accessionNumber?.[i] || null;
     const filed = recent.filingDate?.[i] || null;
     const primaryDocument = recent.primaryDocument?.[i] || null;
@@ -258,12 +259,85 @@ export function eventsFromSubmissions(submissions, meta = {}) {
       form,
       filed,
       accession,
-      description,
+      items,
+      description: usefulDescription(form, description),
       url: filingArchiveUrl(cik, accession, primaryDocument),
     });
   }
   out.sort((a, b) => String(b.filed || '').localeCompare(String(a.filed || '')));
   return out;
+}
+
+function usefulDescription(form, description) {
+  const d = String(description || '').trim();
+  if (!d) return null;
+  if (d.toUpperCase() === String(form || '').toUpperCase()) return null;
+  return d;
+}
+
+/** Collapse same-issuer, same-day 424B + FWP pairs into one takedown. */
+export function groupOfferingEvents(events) {
+  const map = new Map();
+  for (const e of events || []) {
+    const key = `${e.cik}|${e.filed}`;
+    const existing = map.get(key);
+    if (!existing) {
+      map.set(key, {
+        cik: e.cik,
+        ticker: e.ticker,
+        name: e.name,
+        filed: e.filed,
+        forms: [e.form],
+        accession: e.accession,
+        items: e.items || null,
+        description: e.description || null,
+        url: e.url,
+        count: 1,
+      });
+      continue;
+    }
+    existing.count += 1;
+    if (e.form && !existing.forms.includes(e.form)) existing.forms.push(e.form);
+    if (!existing.description && e.description) existing.description = e.description;
+    if (!existing.url && e.url) existing.url = e.url;
+  }
+  return [...map.values()].sort((a, b) => String(b.filed || '').localeCompare(String(a.filed || '')));
+}
+
+export function offeringHeadline(event) {
+  const labels = [...new Set((event.forms || [event.form]).filter(Boolean).map(formLabel))];
+  if (event.count > 1 && labels.length) {
+    return `${labels.join(' + ')} (${event.count} filings)`;
+  }
+  if (event.description) return event.description;
+  return labels[0] || event.form || 'Filing';
+}
+
+export function slimEftsHit(hit, phrase) {
+  const src = hit?._source || {};
+  const adsh = src.adsh || (hit?._id || '').split(':')[0] || null;
+  const cik = Number((src.ciks && src.ciks[0]) || 0) || null;
+  const primary = (hit?._id || '').split(':')[1] || null;
+  return {
+    phrase: phrase?.label || phrase?.id || null,
+    cik,
+    ticker: companyByCik(cik)?.ticker || null,
+    name: companyByCik(cik)?.name || (src.display_names && src.display_names[0]) || null,
+    form: src.form || src.file_type || null,
+    filed: src.file_date || null,
+    accession: adsh,
+    url: filingArchiveUrl(cik, adsh, primary),
+  };
+}
+
+export function latestFootnoteHits(hits) {
+  const map = new Map();
+  for (const h of hits || []) {
+    const key = `${h.cik}|${h.phrase}`;
+    const prev = map.get(key);
+    if (!prev || String(h.filed || '') > String(prev.filed || '')) map.set(key, h);
+  }
+  return [...map.values()].sort((a, b) => String(b.filed || '').localeCompare(String(a.filed || '')));
 }
 
 export function sumLatest(companies, key, { roles } = {}) {

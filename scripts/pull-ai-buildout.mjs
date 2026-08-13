@@ -9,8 +9,8 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { COMPANIES, SNAPSHOT_SCHEMA, GDP_FALLBACK, edgarFactsUrl, edgarSubmissionsUrl } from '../ai-buildout/catalog.js';
-import { extractCompany, eventsFromSubmissions } from '../ai-buildout/extract.js';
+import { COMPANIES, SNAPSHOT_SCHEMA, GDP_FALLBACK, FOOTNOTE_PHRASES, edgarFactsUrl, edgarSubmissionsUrl } from '../ai-buildout/catalog.js';
+import { extractCompany, eventsFromSubmissions, slimEftsHit, latestFootnoteHits } from '../ai-buildout/extract.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_DIR = join(ROOT, 'ai-buildout/data');
@@ -46,6 +46,23 @@ async function fetchJson(url) {
     return { json: await resp.json() };
   }
   throw new Error(`still 429/503 after ${MAX_ATTEMPTS} attempts: ${url}`);
+}
+
+async function fetchEfts(phrase, { cikPadded, start = '2024-01-01' } = {}) {
+  const end = new Date().toISOString().slice(0, 10);
+  const params = [
+    `q=${encodeURIComponent(phrase.q)}`,
+    'dateRange=custom',
+    `startdt=${start}`,
+    `enddt=${end}`,
+    'forms=10-K,10-Q,8-K',
+  ];
+  if (cikPadded) params.push(`ciks=${cikPadded}`);
+  const url = `https://efts.sec.gov/LATEST/search-index?${params.join('&')}`;
+  const res = await fetchJson(url);
+  if (res.missing || !res.json) return [];
+  const hits = res.json?.hits?.hits || [];
+  return hits.slice(0, 8).map((h) => slimEftsHit(h, phrase));
 }
 
 async function fetchGdp() {
@@ -225,6 +242,28 @@ for (const co of COMPANIES) {
 events.sort((a, b) => String(b.filed || '').localeCompare(String(a.filed || '')));
 const trimmed = events.slice(0, EVENT_KEEP);
 
+const footnoteHits = [];
+const seenHit = new Set();
+console.log('footnote phrases');
+for (const co of COMPANIES) {
+  for (const phrase of FOOTNOTE_PHRASES) {
+    await sleep(GAP_MS);
+    try {
+      const hits = await fetchEfts(phrase, { cikPadded: co.cikPadded });
+      for (const hit of hits) {
+        const key = `${hit.accession}|${hit.phrase}`;
+        if (!hit.accession || seenHit.has(key)) continue;
+        seenHit.add(key);
+        footnoteHits.push(hit);
+      }
+    } catch (err) {
+      console.warn(`  efts fail ${co.ticker} ${phrase.id}: ${err.message}`);
+    }
+  }
+}
+footnoteHits.sort((a, b) => String(b.filed || '').localeCompare(String(a.filed || '')));
+const footnoteLatest = latestFootnoteHits(footnoteHits);
+
 let gdp;
 if (!FORCE && gdpIsFresh(prev?.gdp) && prev?.gdp?.value) {
   console.log('GDP (cached)');
@@ -240,6 +279,7 @@ const snap = {
   gdp,
   companies,
   events: trimmed,
+  footnoteHits: footnoteLatest,
   pull_state: pullState,
 };
 
@@ -250,5 +290,5 @@ if (!FORCE && prev && contentKey(prev) === contentKey(snap)) {
   console.log(`Wrote ${OUT}`);
 }
 const ok = companies.filter((c) => c.extracted?.asOfYear).length;
-console.log(`Companies with an as-of year: ${ok}/${COMPANIES.length}; events ${trimmed.length}; errors ${errors}`);
+console.log(`Companies with an as-of year: ${ok}/${COMPANIES.length}; events ${trimmed.length}; footnote hits ${footnoteLatest.length}; errors ${errors}`);
 if (ok < COMPANIES.length) process.exitCode = 1;
