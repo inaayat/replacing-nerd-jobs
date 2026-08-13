@@ -637,9 +637,7 @@ function howtoStepsHtml() {
 }
 
 function howtoView() {
-  const apple = suggestedCompany();
   const notTagged = GLOSSARY.find((g) => g.term === 'Not tagged');
-  const appleName = apple ? apple.company : 'Apple';
   return `<div class="f5-howto-pane">
     <p class="f5-kicker">How to use</p>
     <h2>Read a 10-K, then sketch five years</h2>
@@ -648,7 +646,6 @@ function howtoView() {
     ${notTagged ? `<p class="f5-missing-why"><strong>Dash:</strong> ${escapeHtml(notTagged.def)}</p>` : ''}
     ${nextUpHtml()}
     <div class="f5-howto-actions">
-      ${apple ? `<button type="button" class="f5-mini" data-open-suggested>Open ${escapeHtml(appleName)}</button>` : ''}
       <button type="button" class="f5-mini f5-mini-ghost" data-course-skip>Skip · I’m comfortable</button>
     </div>
     <p class="muted">What ratios mean and Industry models stay in the nav. Add companies with <strong>Add</strong> — the tray at the bottom shows how many you’ve selected.</p>
