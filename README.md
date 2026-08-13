@@ -46,15 +46,26 @@ is proxied onto this domain so it appears as a first-class card on the homepage.
 
 ### Fortune 500 × EDGAR — `/fortune-500`
 
-Static ratio workspace for the Fortune 500: EDGAR 10-K tags in, key
-financial ratios out (margins, ROE, asset turnover, cash conversion, …),
-ELI5 plus the actual 10-K arithmetic in a side dock, compare up to five
-companies, industry models (decision tree, formulas, inputs, metrics),
-and a practice model (last FY grown by those industry drivers, with Excel
-download). First visit is a short 10-K reading and modeling course
-(open a company, read a ratio, project five years); Skip reveals the
-full screener, compare, playbooks, and Excel. Snapshot in
-`data/headlines-snapshot.json`; `/api/f500-headlines` is a live fallback.
+Open a 10-K, read the filed statement, then change a few guesses. EDGAR tags
+in, key ratios out (margins, ROE, asset turnover, cash conversion, …), ELI5
+plus the 10-K arithmetic in a side dock, compare up to five companies, and a
+practice model (last FY grown by industry drivers, with Excel download whose
+Assumptions sheet carries the same guess copy and drives the Projection
+formulas).
+Company and compare statements read like a filing — years across the top, line
+items down the side (`fortune-500/statement.js`), with a prior-year filed
+column from `priorMetrics`. A company opens on **Practice model** — the first
+pane tab, and the reason the page exists. Each guess there is a short card:
+English name, what it is, where the default came from, and a live year-5 vs
+filed line. That pane has no side dock (the card is the explanation); the ratio
+dock belongs to Key ratios and Filed statement. The compare tray only appears
+once a company is selected. The
+sliders model an income statement only: cash and debt stay filed-only rather
+than faking a balance sheet or a DCF. Snapshot in
+`data/headlines-snapshot.json` (regenerate with
+`node scripts/pull-fortune500-headlines.mjs`; bump `SNAPSHOT_SCHEMA` there
+when the slimmed payload gains a field); `/api/f500-headlines` is a live
+fallback.
 Share prices (last + daily history) come from Yahoo Finance via
 `/api/f500-prices` — no API key; on-demand per open company.
 

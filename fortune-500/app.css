@@ -18,7 +18,7 @@
   --f5-nav-h: calc(3.25rem + env(safe-area-inset-top, 0px));
   --f5-gutter: clamp(18px, 2.4vw, 40px);
   --f5-panel-pad: clamp(16px, 1.6vw, 28px);
-  --f5-compare-h: calc(4.75rem + env(safe-area-inset-bottom, 0px));
+  --f5-compare-h: env(safe-area-inset-bottom, 0px);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -135,28 +135,20 @@ a { color: var(--ink); }
   box-sizing: border-box;
 }
 
-.f5-purpose {
-  margin: 0;
-  padding: 0 2px 8px;
-  color: var(--muted);
-  font-size: 0.84rem;
-  line-height: 1.45;
-  max-width: 54rem;
-  flex: 0 0 auto;
-}
-
 .f5-course-strip {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 12px;
   flex: 0 0 auto;
-  padding: 0 2px 8px;
-  font-family: var(--mono);
-  font-size: 0.72rem;
+  padding: 8px 12px 10px;
+  margin: 0 0 8px;
+  background: var(--panel);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
 }
 .f5-course-strip[hidden] { display: none; }
-.f5-course-dots { display: flex; gap: 5px; }
+.f5-course-dots { display: flex; gap: 5px; flex-shrink: 0; }
 .f5-course-dot {
   width: 8px;
   height: 8px;
@@ -170,8 +162,16 @@ a { color: var(--ink); }
   opacity: 1;
   box-shadow: none;
 }
-.f5-course-label { margin: 0; color: var(--ink); }
-.f5-course-strip .f5-linkish { margin-left: auto; }
+.f5-course-label {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 0.95rem;
+  line-height: 1.35;
+  flex: 1 1 16rem;
+}
+.f5-course-strip .f5-mini { flex: 0 0 auto; }
+.f5-course-strip .f5-mini-ghost { margin-left: auto; }
 
 .f5-hero {
   display: flex;
@@ -314,23 +314,23 @@ a { color: var(--ink); }
   opacity: 0.55;
   margin: 10px 0 0;
 }
+/* Peer sets are chips, not paragraphs: member names live in the tooltip. */
 .f5-presets {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 5px;
   margin-top: 6px;
 }
 .f5-preset {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font: inherit;
   text-align: left;
   border: 1.5px solid var(--line);
   background: var(--cream);
-  border-radius: 10px;
-  padding: 7px 10px;
+  border-radius: 999px;
+  padding: 4px 9px;
   cursor: pointer;
   color: var(--ink);
 }
@@ -340,15 +340,18 @@ a { color: var(--ink); }
   letter-spacing: 0.03em;
   font-weight: 500;
 }
-.f5-preset-who {
-  font-size: 0.72rem;
+.f5-preset-n {
+  font-family: var(--mono);
+  font-size: 0.6rem;
   color: var(--muted);
-  line-height: 1.3;
+  border-left: 1px solid var(--line);
+  padding-left: 5px;
 }
 .f5-preset:hover {
   background: var(--cyan);
   border-color: var(--cyan);
 }
+.f5-preset:hover .f5-preset-n { color: var(--ink); }
 
 .f5-list {
   overflow: auto;
@@ -747,6 +750,46 @@ body:has(#compare-bar:not([hidden])) .f5-glossary-panel {
 .f5-table .muted { color: var(--muted); font-weight: 400; }
 .f5-table .is-best { background: rgba(143, 233, 104, 0.35); }
 .f5-table .is-worst { background: rgba(254, 121, 123, 0.22); }
+
+/* Statement: years across, line items down. Filed columns are shaded so a
+   projection never reads as a filing, and the line-item column stays put while
+   the years scroll on narrow screens. */
+.f5-statement td, .f5-statement tbody th {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+}
+.f5-statement tbody th {
+  font-family: var(--font);
+  font-weight: 600;
+  text-align: left;
+  white-space: normal;
+}
+.f5-statement th:first-child,
+.f5-statement td:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--cream);
+  z-index: 1;
+  min-width: 8.5rem;
+}
+.f5-statement thead th:first-child { background: var(--cream); }
+.f5-statement .f5-col { vertical-align: bottom; }
+.f5-statement .f5-col-year { display: block; }
+.f5-statement .f5-col-note {
+  display: block;
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.f5-statement thead th.is-filed,
+.f5-statement thead th.is-prior { color: var(--ink); }
+.f5-statement td.is-filed,
+.f5-statement td.is-prior { background: rgba(54, 206, 220, 0.1); }
+.f5-statement td.is-filed { background: rgba(54, 206, 220, 0.18); }
+.f5-statement thead th.is-projected { color: var(--muted); }
+.f5-statement tr.is-on td,
+.f5-statement tr.is-on th:first-child { background: #e8f8fa; }
+.f5-statement tbody + tbody tr:first-child td { border-top: 1.5px solid var(--line); }
 .f5-metric .val {
   font-family: var(--display);
   font-size: 1.25rem;
@@ -1223,6 +1266,8 @@ body:has(#compare-bar:not([hidden])) .f5-glossary-panel {
   min-height: 0;
   height: 100%;
 }
+/* The practice model has no dock — the guess cards are the explanation. */
+.f5-workspace.is-wide { grid-template-columns: minmax(0, 1fr); }
 .f5-detail > .f5-screener,
 .f5-detail > .f5-workspace {
   flex: 1 1 auto;
@@ -1238,6 +1283,8 @@ body:has(#compare-bar:not([hidden])) .f5-glossary-panel {
   flex-direction: column;
 }
 .f5-workspace-main .f5-table-wrap { flex: 1 1 auto; min-height: 0; margin: 8px 0 0; }
+/* A statement sits at its natural height so the tag table under it is reachable. */
+.f5-workspace-main .f5-table-wrap.is-statement { flex: 0 0 auto; margin: 8px 0 14px; }
 .f5-workspace-main .f5-screener {
   flex: 1 1 auto;
   min-height: 0;
@@ -1374,6 +1421,7 @@ body:has(#compare-bar:not([hidden])) .f5-glossary-panel {
     grid-template-columns: 1fr;
     grid-template-rows: 1fr auto;
   }
+  .f5-workspace.is-wide { grid-template-rows: 1fr; }
   .f5-dock {
     border-left: 0;
     border-top: 1.5px solid var(--line);
@@ -1408,13 +1456,64 @@ body:has(#compare-bar:not([hidden])) .f5-glossary-panel {
   font-size: 0.8rem;
   line-height: 1.35;
 }
-.f5-model-form {
+.f5-guesses {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16.5rem, 1fr));
+  gap: 10px;
+  margin: 0 0 14px;
+}
+.f5-guess {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px 16px;
-  align-items: flex-end;
-  margin: 0 0 12px;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 10px 12px;
+  background: var(--panel);
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+}
+.f5-guess:focus-within { border-color: var(--ink); }
+.f5-guess-name {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.f5-guess-what,
+.f5-guess-origin,
+.f5-guess-effect {
+  margin: 0;
   font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+.f5-guess-effect {
+  color: var(--ink);
+}
+.f5-guess .f5-driver-controls {
+  margin-top: 4px;
+}
+.f5-scenario-pills {
+  gap: 4px;
+}
+.f5-scenario-pills .f5-view-tab {
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  text-transform: lowercase;
+}
+.f5-sens-fold,
+.f5-rules-fold {
+  margin: 8px 0 16px;
+  font-size: 0.85rem;
+}
+.f5-sens-fold summary,
+.f5-rules-fold summary {
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 .f5-model-toolbar {
   display: flex;
@@ -1423,6 +1522,7 @@ body:has(#compare-bar:not([hidden])) .f5-glossary-panel {
   align-items: center;
   margin: 0 0 12px;
 }
+
 .f5-playbook-pick {
   display: flex;
   flex-direction: column;
@@ -1444,23 +1544,14 @@ body:has(#compare-bar:not([hidden])) .f5-glossary-panel {
   background: var(--cream);
   color: var(--ink);
 }
-.f5-driver {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-family: var(--mono);
-  font-size: 0.65rem;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  min-width: 11rem;
-}
 .f5-driver-controls {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 .f5-driver-controls input[type="range"] {
-  width: 7rem;
+  flex: 1 1 6rem;
+  min-width: 0;
   accent-color: var(--cyan);
 }
 .f5-model-input {

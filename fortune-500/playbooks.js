@@ -51,8 +51,126 @@ function T(list) {
   return new Set(list.map((t) => t.toUpperCase()));
 }
 
-function extra(key, label, fallback, help) {
-  return { key, label, fallback, help };
+/**
+ * Industry extra. `label` is the English name on the guess card. `what` is one
+ * sentence; `origin` is where the default came from (never a 10-K tag).
+ */
+function extra(key, label, fallback, what, origin) {
+  return {
+    key,
+    name: label,
+    label,
+    fallback,
+    help: what,
+    what,
+    origin,
+    isExtra: true,
+    effectMetric: 'revenue',
+    effectName: 'revenue',
+    effectLead: 'If this driver holds, with the others at their current rates',
+  };
+}
+
+/**
+ * Core practice-model guesses. Same card shape as industry extras: English
+ * name, one-sentence what, origin from the 10-K (or blank), live year-5 effect.
+ */
+export const CORE_ASSUMPTIONS = [
+  {
+    key: 'revenueGrowth',
+    name: 'Sales growth',
+    label: 'Sales growth',
+    what: 'How fast you think sales grow each year after the last 10-K.',
+    filedRatio: 'revenue_yoy',
+    originKind: 'growth',
+    originNoun: 'sales',
+    originMissing: 'The 10-K didn’t tag prior-year sales, so this is blank.',
+    effectMetric: 'revenue',
+    effectName: 'revenue',
+    effectLead: 'If sales grow at this rate each year',
+  },
+  {
+    key: 'netMargin',
+    name: 'Net margin',
+    label: 'Net margin',
+    what: 'The share of each sales dollar left after every cost, interest, and tax.',
+    filedRatio: 'net_margin',
+    originKind: 'keep',
+    originNoun: 'profit',
+    originMissing: 'The 10-K didn’t tag net income against sales, so this is blank.',
+    effectMetric: 'netIncome',
+    effectName: 'net income',
+    effectLead: 'If they keep this share of each sales dollar',
+  },
+  {
+    key: 'fcfMargin',
+    name: 'FCF margin',
+    label: 'FCF margin',
+    what: 'Free cash flow as a share of sales — cash from operations minus spending on plants and equipment.',
+    filedRatio: 'fcf_margin',
+    originKind: 'ofSales',
+    originNoun: 'free cash flow',
+    originMissing: 'The 10-K didn’t tag operating cash and CapEx together, so this is blank.',
+    effectMetric: 'fcf',
+    effectName: 'free cash flow',
+    effectLead: 'If free cash flow stays this share of sales',
+  },
+  {
+    key: 'grossMargin',
+    name: 'Gross margin',
+    label: 'Gross margin',
+    what: 'Gross profit as a share of sales — what’s left after the cost of what they sold.',
+    filedRatio: 'gross_margin',
+    originKind: 'ofSales',
+    originNoun: 'gross profit',
+    originMissing: 'The 10-K didn’t tag gross profit, so this is blank.',
+    effectMetric: 'grossProfit',
+    effectName: 'gross profit',
+    effectLead: 'If gross profit stays this share of sales',
+  },
+  {
+    key: 'operatingMargin',
+    name: 'Operating margin',
+    label: 'Operating margin',
+    what: 'Operating income as a share of sales — profit from the business before interest and tax.',
+    filedRatio: 'operating_margin',
+    originKind: 'ofSales',
+    originNoun: 'operating income',
+    originMissing: 'The 10-K didn’t tag operating income, so this is blank.',
+    effectMetric: 'operatingIncome',
+    effectName: 'operating income',
+    effectLead: 'If operating income stays this share of sales',
+  },
+  {
+    key: 'rdIntensity',
+    name: 'R&D',
+    label: 'R&D',
+    what: 'Research and development spending as a share of sales.',
+    filedRatio: 'rd_intensity',
+    originKind: 'ofSales',
+    originNoun: 'R&D',
+    originMissing: 'The 10-K didn’t tag R&D, so this is blank.',
+    effectMetric: 'rd',
+    effectName: 'R&D',
+    effectLead: 'If R&D stays this share of sales',
+  },
+  {
+    key: 'capexIntensity',
+    name: 'CapEx',
+    label: 'CapEx',
+    what: 'How much of each sales dollar goes back into plants, equipment, or similar assets.',
+    filedRatio: 'capex_intensity',
+    originKind: 'ofSales',
+    originNoun: 'CapEx',
+    originMissing: 'The 10-K didn’t tag CapEx, so this is blank.',
+    effectMetric: 'capex',
+    effectName: 'CapEx',
+    effectLead: 'If CapEx stays this share of sales',
+  },
+];
+
+export function assumptionFields(playbook) {
+  return [...CORE_ASSUMPTIONS, ...(playbook?.extras || [])];
 }
 
 export const PLAYBOOKS = [
@@ -80,8 +198,20 @@ export const PLAYBOOKS = [
     quote: 'Same-store sales is the number that actually matters — everything else is noise.',
     growthKind: 'comp_unit',
     extras: [
-      extra('compGrowth', 'Same-store / comp sales %', 0.03, 'Existing cohort, not new stores.'),
-      extra('unitGrowth', 'Net new space / stores %', 0.02, 'Opens minus closures, as a % of the base.'),
+      extra(
+        'compGrowth',
+        'Same-store sales',
+        0.03,
+        'Sales growth at stores that were already open last year, not from opening new ones.',
+        'The 10-K doesn’t tag same-store sales, so the retail model starts at 3%.'
+      ),
+      extra(
+        'unitGrowth',
+        'New stores',
+        0.02,
+        'How fast the store base grows after openings and closures.',
+        'The 10-K doesn’t tag store count, so the retail model starts at 2%.'
+      ),
     ],
     inputs: [
       'Store count (opens, closures)',
@@ -114,8 +244,20 @@ export const PLAYBOOKS = [
     quote: 'If RevPAR is growing, everything else can be fixed. If it is declining, no cost cut saves you.',
     growthKind: 'comp_unit',
     extras: [
-      extra('compGrowth', 'Occupancy change %', 0.01, 'Change in occupancy rate, not the occupancy level.'),
-      extra('unitGrowth', 'ADR growth %', 0.03, 'Average daily rate.'),
+      extra(
+        'compGrowth',
+        'Occupancy change',
+        0.01,
+        'How much more or less of the hotel is filled versus last year — not the occupancy level itself.',
+        'The 10-K doesn’t tag occupancy, so the hotel model starts at 1%.'
+      ),
+      extra(
+        'unitGrowth',
+        'Room rate (ADR)',
+        0.03,
+        'How fast the average daily room rate rises.',
+        'The 10-K doesn’t tag average daily rate, so the hotel model starts at 3%.'
+      ),
     ],
     inputs: [
       'Occupancy rate by segment',
@@ -146,8 +288,20 @@ export const PLAYBOOKS = [
     quote: 'Four-wall EBITDA is the real signal — strip corporate overhead and see if the restaurant makes money.',
     growthKind: 'comp_unit',
     extras: [
-      extra('compGrowth', 'Comparable restaurant sales %', 0.03, 'Same restaurants, year on year.'),
-      extra('unitGrowth', 'Net new units %', 0.04, 'Openings minus closures.'),
+      extra(
+        'compGrowth',
+        'Same-restaurant sales',
+        0.03,
+        'Sales growth at restaurants that were already open, not from new locations.',
+        'The 10-K doesn’t tag comparable restaurant sales, so this model starts at 3%.'
+      ),
+      extra(
+        'unitGrowth',
+        'New restaurants',
+        0.04,
+        'How fast the restaurant count grows after openings and closures.',
+        'The 10-K doesn’t tag unit count, so this model starts at 4%.'
+      ),
     ],
     inputs: [
       'Average unit volume (AUV) by vintage',
@@ -178,8 +332,20 @@ export const PLAYBOOKS = [
     quote: 'New ARR − churned ARR = net new ARR. Simple until cohorts mature and retention is terrible.',
     growthKind: 'nrr',
     extras: [
-      extra('nrr', 'Net revenue retention', 1.1, '1.10 = 110% NRR. Below 1.0 means the base is shrinking.'),
-      extra('newArrRate', 'New bookings as % of last year', 0.08, 'Brand-new ARR / last year’s revenue.'),
+      extra(
+        'nrr',
+        'Net revenue retention',
+        1.1,
+        'How much existing customers spend this year versus last year. Above 100% means they expanded; below 100% means the base is shrinking.',
+        'The 10-K doesn’t tag retention, so the SaaS model starts at 110%.'
+      ),
+      extra(
+        'newArrRate',
+        'New bookings',
+        0.08,
+        'Brand-new sales this year, as a share of last year’s revenue.',
+        'The 10-K doesn’t tag new bookings, so the SaaS model starts at 8%.'
+      ),
     ],
     inputs: [
       'Opening ARR by customer cohort',
@@ -211,8 +377,20 @@ export const PLAYBOOKS = [
     quote: 'A plant at 60% utilization burns cash. The same plant at 85% prints money.',
     growthKind: 'volume_price',
     extras: [
-      extra('volumeGrowth', 'Volume growth %', 0.03, 'Units, not dollars.'),
-      extra('priceGrowth', 'Price / mix %', 0.02, 'Average selling price and mix.'),
+      extra(
+        'volumeGrowth',
+        'Volume growth',
+        0.03,
+        'Growth in units produced or shipped, not in the selling price.',
+        'The 10-K doesn’t tag unit volume, so this model starts at 3%.'
+      ),
+      extra(
+        'priceGrowth',
+        'Price and mix',
+        0.02,
+        'Growth from a higher average selling price or a richer mix of products.',
+        'The 10-K doesn’t tag price/mix, so this model starts at 2%.'
+      ),
     ],
     inputs: [
       'Production volume by SKU / product line',
@@ -245,7 +423,13 @@ export const PLAYBOOKS = [
     growthKind: 'loan',
     niMode: 'roa',
     extras: [
-      extra('loanGrowth', 'Loan / asset growth %', 0.04, 'Balance-sheet growth.'),
+      extra(
+        'loanGrowth',
+        'Loan growth',
+        0.04,
+        'How fast the loan book (and with it, the balance sheet) grows.',
+        'The 10-K doesn’t tag a single loan-growth figure, so the bank model starts at 4%.'
+      ),
     ],
     inputs: [
       'Loan growth by portfolio (commercial, consumer, mortgage)',
@@ -276,8 +460,20 @@ export const PLAYBOOKS = [
     quote: 'Who’s in the waiting room determines the margin more than how busy you are.',
     growthKind: 'volume_price',
     extras: [
-      extra('volumeGrowth', 'Volume / utilization %', 0.02, 'Discharges, members, or visits.'),
-      extra('priceGrowth', 'Price / payor mix %', 0.03, 'Rate and mix, not sticker price.'),
+      extra(
+        'volumeGrowth',
+        'Patient volume',
+        0.02,
+        'Growth in discharges, members, or visits — how many people you serve.',
+        'The 10-K doesn’t tag volume, so this model starts at 2%.'
+      ),
+      extra(
+        'priceGrowth',
+        'Price and payor mix',
+        0.03,
+        'Growth from reimbursement rates and which insurers you bill, not the sticker charge.',
+        'The 10-K doesn’t tag payor mix, so this model starts at 3%.'
+      ),
     ],
     inputs: [
       'Discharges / patient days by service line',
@@ -308,7 +504,13 @@ export const PLAYBOOKS = [
     quote: 'The regulator is a silent partner. Capex is the other one.',
     growthKind: 'loan',
     extras: [
-      extra('loanGrowth', 'Rate base / volume growth %', 0.04, 'Allowed growth in the capital base, or produced volume.'),
+      extra(
+        'loanGrowth',
+        'Rate base / volume',
+        0.04,
+        'Allowed growth in the regulated capital base, or produced volume for merchant names.',
+        'The 10-K doesn’t tag rate-base growth as one number, so this model starts at 4%.'
+      ),
     ],
     inputs: [
       'Rate base growth (capital additions)',
@@ -339,8 +541,20 @@ export const PLAYBOOKS = [
     quote: 'Pipeline value is probability-weighted. The rest is details.',
     growthKind: 'volume_price',
     extras: [
-      extra('volumeGrowth', 'Patient / volume %', 0.04, 'Treated patients or units.'),
-      extra('priceGrowth', 'Net price %', 0.02, 'After rebates (gross-to-net).'),
+      extra(
+        'volumeGrowth',
+        'Patient volume',
+        0.04,
+        'Growth in treated patients or units sold.',
+        'The 10-K didn’t tag patient volume, so this model starts at 4%.'
+      ),
+      extra(
+        'priceGrowth',
+        'Net price',
+        0.02,
+        'Growth in price after rebates and discounts (gross-to-net).',
+        'The 10-K didn’t tag net price, so this model starts at 2%.'
+      ),
     ],
     inputs: [
       'Patient population & penetration rate',
@@ -371,8 +585,20 @@ export const PLAYBOOKS = [
     quote: 'Is ARPU growing faster than churn? If no, you are a declining annuity.',
     growthKind: 'volume_price',
     extras: [
-      extra('volumeGrowth', 'Subscriber net-add %', 0.01, 'Change in the sub base.'),
-      extra('priceGrowth', 'ARPU growth %', 0.02, 'Average revenue per user.'),
+      extra(
+        'volumeGrowth',
+        'Subscriber growth',
+        0.01,
+        'Change in the subscriber base after adds and disconnects.',
+        'The 10-K didn’t tag net adds as a growth rate, so this model starts at 1%.'
+      ),
+      extra(
+        'priceGrowth',
+        'ARPU growth',
+        0.02,
+        'How fast average revenue per user (what each subscriber pays) rises.',
+        'The 10-K didn’t tag ARPU, so this model starts at 2%.'
+      ),
     ],
     inputs: [
       'Subscriber net adds by tier',
@@ -403,8 +629,20 @@ export const PLAYBOOKS = [
     quote: 'Model take rate as something that can fall while GMV rises.',
     growthKind: 'comp_unit',
     extras: [
-      extra('compGrowth', 'GMV growth %', 0.12, 'Gross merchandise / gross bookings.'),
-      extra('unitGrowth', 'Take-rate change %', -0.01, 'Negative means the cut shrinks.'),
+      extra(
+        'compGrowth',
+        'GMV growth',
+        0.12,
+        'Growth in gross merchandise value — the total goods that flow through the platform.',
+        'The 10-K doesn’t tag GMV, so the marketplace model starts at 12%.'
+      ),
+      extra(
+        'unitGrowth',
+        'Take-rate change',
+        -0.01,
+        'How the platform’s cut of GMV changes. Negative means you keep a smaller share.',
+        'The 10-K doesn’t tag take rate, so this model starts at −1%.'
+      ),
     ],
     inputs: [
       'Active buyer & seller counts',
@@ -435,7 +673,13 @@ export const PLAYBOOKS = [
     quote: 'Float is the other P&L. Combined ratio says whether you get paid to hold it.',
     growthKind: 'loan',
     extras: [
-      extra('loanGrowth', 'Premium growth %', 0.05, 'Policies × rate, not investment income.'),
+      extra(
+        'loanGrowth',
+        'Premium growth',
+        0.05,
+        'Growth in premiums from policies and rates, not from investment income.',
+        'The 10-K doesn’t tag a single premium-growth driver, so this model starts at 5%.'
+      ),
     ],
     inputs: [
       'Policy count & retention rate',
@@ -466,8 +710,20 @@ export const PLAYBOOKS = [
     quote: 'Audiences are the hard forecast. Monetization is the second one.',
     growthKind: 'volume_price',
     extras: [
-      extra('volumeGrowth', 'Audience / sub growth %', 0.04, 'Users, subs, or impressions.'),
-      extra('priceGrowth', 'ARPU / CPM growth %', 0.02, 'Monetization rate.'),
+      extra(
+        'volumeGrowth',
+        'Audience growth',
+        0.04,
+        'Growth in users, subscribers, or impressions.',
+        'The 10-K doesn’t tag audience as one rate, so this model starts at 4%.'
+      ),
+      extra(
+        'priceGrowth',
+        'ARPU / CPM growth',
+        0.02,
+        'Growth in how much you earn per user or per thousand ads.',
+        'The 10-K doesn’t tag ARPU or CPM, so this model starts at 2%.'
+      ),
     ],
     inputs: [
       'Monthly active users / unique visitors',
@@ -498,9 +754,27 @@ export const PLAYBOOKS = [
     quote: 'If utilization drops below 70%, you are burning cash.',
     growthKind: 'services',
     extras: [
-      extra('headcountGrowth', 'Headcount growth %', 0.05, 'Billable FTEs.'),
-      extra('utilDelta', 'Utilization change %', 0, 'Change in utilization, not the level.'),
-      extra('rateGrowth', 'Bill-rate growth %', 0.03, 'Average realized rate.'),
+      extra(
+        'headcountGrowth',
+        'Headcount growth',
+        0.05,
+        'How many more billable people you add, which is the main volume driver in a people business.',
+        'The 10-K doesn’t tag billable headcount, so this model starts at 5%.'
+      ),
+      extra(
+        'utilDelta',
+        'Utilization change',
+        0,
+        'How much more or less of people’s time is billed — the change, not the utilization level.',
+        'The 10-K doesn’t tag utilization, so this starts at no change.'
+      ),
+      extra(
+        'rateGrowth',
+        'Bill-rate growth',
+        0.03,
+        'Growth in the average rate you actually collect per hour.',
+        'The 10-K doesn’t tag realized bill rate, so this model starts at 3%.'
+      ),
     ],
     inputs: [
       'Headcount by level (partner, manager, analyst)',
@@ -531,8 +805,20 @@ export const PLAYBOOKS = [
     quote: 'CAC is high. Completion rates tell you if word-of-mouth will show up.',
     growthKind: 'nrr',
     extras: [
-      extra('nrr', 'Net retention', 1.05, 'Existing learner base.'),
-      extra('newArrRate', 'New enrollments as % of last year', 0.1, 'New logos / learners.'),
+      extra(
+        'nrr',
+        'Net retention',
+        1.05,
+        'How much existing learners spend this year versus last year.',
+        'The 10-K doesn’t tag learner retention, so this model starts at 105%.'
+      ),
+      extra(
+        'newArrRate',
+        'New enrollments',
+        0.1,
+        'New learners or seats this year, as a share of last year’s revenue.',
+        'The 10-K doesn’t tag new enrollments, so this model starts at 10%.'
+      ),
     ],
     inputs: [
       'New enrollments / subscriber adds',
@@ -563,8 +849,20 @@ export const PLAYBOOKS = [
     quote: 'How many DAUs pay, and how much? Whales are existential.',
     growthKind: 'volume_price',
     extras: [
-      extra('volumeGrowth', 'DAU / player growth %', 0.05, 'Active users.'),
-      extra('priceGrowth', 'ARPDAU growth %', 0.03, 'Spend per daily active user.'),
+      extra(
+        'volumeGrowth',
+        'Player growth',
+        0.05,
+        'Growth in daily active users or players.',
+        'The 10-K doesn’t tag DAU, so this model starts at 5%.'
+      ),
+      extra(
+        'priceGrowth',
+        'Spend per player',
+        0.03,
+        'Growth in average revenue per daily active user.',
+        'The 10-K doesn’t tag ARPDAU, so this model starts at 3%.'
+      ),
     ],
     inputs: [
       'Daily active users (DAU) by title',
@@ -595,8 +893,20 @@ export const PLAYBOOKS = [
     quote: 'If cap rates expand 50 bps and NOI is flat, you just lost a chunk of value.',
     growthKind: 'comp_unit',
     extras: [
-      extra('compGrowth', 'Occupancy change %', 0.01, 'Change in occupancy.'),
-      extra('unitGrowth', 'Rent growth %', 0.03, 'Market rent / lease spreads.'),
+      extra(
+        'compGrowth',
+        'Occupancy change',
+        0.01,
+        'How much more or less of the property is leased versus last year.',
+        'The 10-K doesn’t tag occupancy as a growth rate, so this model starts at 1%.'
+      ),
+      extra(
+        'unitGrowth',
+        'Rent growth',
+        0.03,
+        'Growth in market rent or in the spread between in-place leases and new leases.',
+        'The 10-K doesn’t tag rent growth as one driver, so this model starts at 3%.'
+      ),
     ],
     inputs: [
       'Occupancy rate & market rent growth',

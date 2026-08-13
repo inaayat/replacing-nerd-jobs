@@ -707,10 +707,6 @@ async function handleUserProfile(req, res) {
   if (!requireDbRead(res)) return;
 
   const currentUserId = await optionalAuthUserId(req);
-  if (!currentUserId) {
-    res.status(401).json({ error: 'Sign in to view member profiles.' });
-    return;
-  }
 
   const userId = String(req.query?.user || '').trim();
   if (!userId) {
@@ -719,10 +715,10 @@ async function handleUserProfile(req, res) {
   }
 
   try {
-    // Your own profile is readable regardless of opt-in state; everyone
-    // else's requires public_profile, and a private one 404s like a
-    // nonexistent id so opt-out status can't be probed.
-    const profile = userId === currentUserId
+    // Signed-in members can always read their own profile. Everyone else —
+    // including anonymous visitors — can read opted-in profiles; a private
+    // one 404s like a nonexistent id so opt-out status can't be probed.
+    const profile = currentUserId && userId === currentUserId
       ? await getOwnProfile(currentUserId)
       : await getUserPublicProfile(userId);
     if (!profile) {

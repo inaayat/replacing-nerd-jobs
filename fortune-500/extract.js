@@ -114,12 +114,24 @@ function inferAsOfYear(facts) {
 export function extractHeadlines(facts) {
   const asOfYear = inferAsOfYear(facts);
   const metrics = {};
+  const priorValues = {};
+  let priorRevenue = null;
   for (const def of METRICS) {
     const points = collectPoints(facts, def);
     metrics[def.key] = asOfYear == null ? null : pickForYear(points, asOfYear);
+    // A 10-K restates the year before it, which is the second column of every
+    // statement. Keep it as a slim value map: enough for a FY-1 column and
+    // year-over-year math without doubling the snapshot.
+    const prior = asOfYear == null ? null : pickForYear(points, asOfYear - 1);
+    if (def.key === 'revenue') priorRevenue = prior;
+    if (prior && typeof prior.val === 'number' && Number.isFinite(prior.val)) {
+      priorValues[def.key] = prior.val;
+    }
   }
-  const revenuePoints = collectPoints(facts, METRICS.find((m) => m.key === 'revenue'));
-  const priorRevenue = asOfYear == null ? null : pickForYear(revenuePoints, asOfYear - 1);
+  const priorMetrics =
+    asOfYear != null && Object.keys(priorValues).length
+      ? { year: asOfYear - 1, values: priorValues }
+      : null;
   const ratios = computeRatios(metrics, priorRevenue);
   return {
     cik: facts?.cik ?? null,
@@ -127,6 +139,7 @@ export function extractHeadlines(facts) {
     asOfYear,
     metrics,
     priorRevenue,
+    priorMetrics,
     ratios,
     flags: sanityFlags(metrics, ratios),
   };

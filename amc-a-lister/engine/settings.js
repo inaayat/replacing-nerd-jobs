@@ -75,7 +75,7 @@ bootPage(async ({ root, auth }) => {
           </label>
           <div class="al-privacy-detail" id="public-profile-detail">
             <p class="al-muted">
-              Other people see your name, how many films you've seen, your savings and
+              Anyone can see your name, how many films you've seen, your savings and
               your average rating. They never see your email, your surname, your seat or
               auditorium numbers, or anything you watched at home.
             </p>

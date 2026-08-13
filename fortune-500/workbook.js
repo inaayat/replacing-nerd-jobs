@@ -4,6 +4,7 @@
  */
 
 import { GOLDEN_RULES } from './playbooks.js';
+import { assumptionFields, describeAssumption } from './model.js';
 
 function esc(s) {
   return String(s ?? '')
@@ -46,6 +47,58 @@ function pct(n) {
 }
 
 /**
+ * The Assumptions sheet, built from the same field list as the on-screen guess
+ * cards so the workbook and the page name and explain a guess identically.
+ *
+ * Returns the rows plus a key → row-number map: the Projection sheet's formulas
+ * point at these cells, and hardcoding those numbers meant reordering a guess
+ * silently repointed CapEx at R&D.
+ *
+ * The cards' "year-5 vs filed" sentence is deliberately left out — Excel
+ * recalculates the projection, so a frozen sentence would start lying the first
+ * time someone edits a cell. The Projection sheet is that answer, live.
+ */
+function assumptionsSheetRows({ company, headlines, assumptions, model, playbook }) {
+  const rows = [];
+  const rowOf = new Map();
+  const add = (cells, key) => {
+    rows.push(stringRow(cells));
+    if (key) rowOf.set(key, rows.length);
+  };
+
+  const fy = headlines?.asOfYear ?? '';
+  add(['Guess', 'Value (decimal)', 'What it is', 'Where the default came from']);
+  add(['Company', company?.company || '']);
+  add(['Ticker', company?.fortune_ticker || company?.sec_ticker || '']);
+  add(['Industry', playbook?.label || '']);
+  add(['Filed FY', fy]);
+  add(['Filed revenue', headlines?.metrics?.revenue?.val ?? '', 'Year 0 of the projection, straight from the 10-K.', 'Locked — the sheet grows from here.']);
+
+  for (const field of assumptionFields(playbook)) {
+    const copy = describeAssumption(field, headlines, model, playbook);
+    // Growth is the one cell the projection multiplies by, so it carries the
+    // effective rate — industry drivers are already folded into it.
+    const value =
+      field.key === 'revenueGrowth'
+        ? pct(model?.growth ?? assumptions?.revenueGrowth)
+        : pct(field.isExtra ? assumptions?.extras?.[field.key] : assumptions?.[field.key]);
+    add([copy.name, value, copy.what, copy.origin], field.key);
+  }
+
+  add([
+    'ROA',
+    pct(assumptions?.roa),
+    'Net income as a share of assets. Banks earn on the balance sheet, so their projection uses this instead of a margin.',
+    fy ? `Last year’s 10-K, FY${fy}.` : '',
+  ], 'roa');
+  add([]);
+  add(['Change a value in column B and the Projection sheet recalculates.']);
+  add(['Industry drivers are already inside the growth rate above; edit that cell to change the projection.']);
+
+  return { rows: rows.join(''), rowOf };
+}
+
+/**
  * @param {{ company: object, headlines: object, assumptions: object, model: object, playbook: object }} opts
  */
 export function buildWorkbookXml({ company, headlines, assumptions, model, playbook }) {
@@ -55,23 +108,23 @@ export function buildWorkbookXml({ company, headlines, assumptions, model, playb
   const filedRev = headlines?.metrics?.revenue?.val ?? '';
   const filedNi = headlines?.metrics?.net_income?.val ?? '';
   const filedFcf = headlines?.ratios?.fcf ?? '';
-  const g = model?.growth ?? assumptions?.revenueGrowth ?? 0;
   const nm = assumptions?.netMargin;
   const fm = assumptions?.fcfMargin;
   const gm = assumptions?.grossMargin;
 
+  // Golden rules live on the Industry sheet; printing them here too was the
+  // same list twice in one file.
   const cover = [
     stringRow(['Fortune 500 practice model']),
     stringRow(['Company', name]),
     stringRow(['Ticker', ticker]),
     stringRow(['Fortune rank', company?.rank ?? '']),
-    stringRow(['Playbook', playbook?.label || 'Generic']),
+    stringRow(['Industry', playbook?.label || 'Generic']),
     stringRow(['Scenario', assumptions?.scenario || 'base']),
     stringRow(['Source FY', fy ? `FY${fy} 10-K` : '']),
-    stringRow(['Generated for practice — year 0 is filed; later years are assumptions.']),
     stringRow([]),
-    stringRow(['Golden rules']),
-    ...GOLDEN_RULES.map((rule, i) => stringRow([String(i + 1), rule])),
+    stringRow(['Year 0 is the filed 10-K. Every later year is a guess you made.']),
+    stringRow(['Assumptions names and explains each guess; Projection is the answer.']),
   ].join('');
 
   const actuals = [
@@ -91,31 +144,17 @@ export function buildWorkbookXml({ company, headlines, assumptions, model, playb
     stringRow(['A blank cell means the tag was missing — not zero.']),
   ].join('');
 
-  const extraRows = (playbook?.extras || []).map((field) => {
-    const val = assumptions?.extras?.[field.key];
-    return stringRow([field.label, pct(val), field.help || '']);
+  const { rows: assumptionsSheet, rowOf } = assumptionsSheetRows({
+    company,
+    headlines,
+    assumptions,
+    model,
+    playbook,
   });
+  const cell = (key) => `Assumptions!R${rowOf.get(key)}C2`;
 
-  const assumptionsSheet = [
-    stringRow(['Driver', 'Value', 'Notes']),
-    stringRow(['Company', name]),
-    stringRow(['Ticker', ticker]),
-    stringRow(['Playbook', playbook?.label || '']),
-    stringRow(['Filed FY', fy]),
-    stringRow(['Filed revenue', filedRev, 'Locked year-0 seed']),
-    stringRow(['Revenue growth', pct(g), 'Decimal (0.05 = 5%). Projection uses this effective rate.']),
-    stringRow(['Net margin', pct(nm), 'Decimal. Blank if not tagged.']),
-    stringRow(['FCF margin', pct(fm), 'Decimal. Blank if CFO or CapEx missing.']),
-    stringRow(['Gross margin', pct(gm), '']),
-    stringRow(['Operating margin', pct(assumptions?.operatingMargin), '']),
-    stringRow(['CapEx / sales', pct(assumptions?.capexIntensity), '']),
-    stringRow(['R&D / sales', pct(assumptions?.rdIntensity), '']),
-    stringRow(['ROA', pct(assumptions?.roa), 'Used for bank playbook NI.']),
-    stringRow(['Industry extras', '', 'From this industry’s playbook. Change these, then copy implied growth into B7.']),
-    ...extraRows,
-  ].join('');
-
-  // Projection: row 2 is FY0 values; rows 3+ formulas off Assumptions!B6 (rev) and B7 (growth), B8 (nm), B9 (fm)
+  // Projection: row 2 is FY0 filed values; later rows are formulas off the
+  // Assumptions cells above, so Excel recalculates when a guess is edited.
   const projHeader = stringRow(['Year', 'Revenue', 'Net income', 'FCF', 'Gross profit', 'CapEx', 'R&D', 'Rule of 40']);
   const projRows = (model?.rows || []).map((r, i) => {
     if (i === 0) {
@@ -132,21 +171,28 @@ export function buildWorkbookXml({ company, headlines, assumptions, model, playb
     }
     return row([
       dataCell('String', `FY${r.year}`),
-      formulaCell('=R[-1]C*(1+Assumptions!R7C2)', r.revenue),
-      nm == null ? dataCell('Number', r.netIncome) : formulaCell('=RC2*Assumptions!R8C2', r.netIncome),
-      fm == null ? dataCell('Number', r.fcf) : formulaCell('=RC2*Assumptions!R9C2', r.fcf),
-      gm == null ? dataCell('Number', r.grossProfit) : formulaCell('=RC2*Assumptions!R10C2', r.grossProfit),
+      formulaCell(`=R[-1]C*(1+${cell('revenueGrowth')})`, r.revenue),
+      nm == null ? dataCell('Number', r.netIncome) : formulaCell(`=RC2*${cell('netMargin')}`, r.netIncome),
+      fm == null ? dataCell('Number', r.fcf) : formulaCell(`=RC2*${cell('fcfMargin')}`, r.fcf),
+      gm == null ? dataCell('Number', r.grossProfit) : formulaCell(`=RC2*${cell('grossMargin')}`, r.grossProfit),
       assumptions?.capexIntensity == null
         ? dataCell('Number', r.capex)
-        : formulaCell('=RC2*Assumptions!R12C2', r.capex),
-      assumptions?.rdIntensity == null ? dataCell('Number', r.rd) : formulaCell('=RC2*Assumptions!R13C2', r.rd),
+        : formulaCell(`=RC2*${cell('capexIntensity')}`, r.capex),
+      assumptions?.rdIntensity == null
+        ? dataCell('Number', r.rd)
+        : formulaCell(`=RC2*${cell('rdIntensity')}`, r.rd),
       fm == null
         ? dataCell('Number', r.ruleOf40)
-        : formulaCell('=Assumptions!R7C2+Assumptions!R9C2', r.ruleOf40),
+        : formulaCell(`=${cell('revenueGrowth')}+${cell('fcfMargin')}`, r.ruleOf40),
     ]);
   });
 
-  const projection = [projHeader, ...projRows, stringRow([]), stringRow(['Change growth in Assumptions!B7 or margins in B8/B9 — Excel will recalc this sheet.'])].join('');
+  const projection = [
+    projHeader,
+    ...projRows,
+    stringRow([]),
+    stringRow(['Edit any guess on the Assumptions sheet — Excel recalculates these years.']),
+  ].join('');
 
   const sens = model?.sensitivity;
   let sensitivity = stringRow(['Sensitivity: year-5 net income', `Growth down the side, net margin across. Center is your current drivers.`]);

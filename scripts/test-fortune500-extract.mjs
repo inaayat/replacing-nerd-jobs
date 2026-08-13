@@ -181,6 +181,105 @@ assert.equal(bothTags.metrics.revenue.tag, 'Revenues');
 assert.equal(bothTags.metrics.revenue.val, 20000000000);
 assert.ok(bothTags.ratios.net_margin < 1);
 
+/**
+ * Broker-dealers and several big banks (Goldman, Morgan Stanley, Wells Fargo)
+ * only tag their top line as RevenuesNetOfInterestExpense. Without it there is
+ * no revenue at all, so every margin, turnover and growth figure is blank.
+ */
+function annual(val, year, extra = {}) {
+  return {
+    units: {
+      USD: [
+        {
+          val,
+          start: `${year}-01-01`,
+          end: `${year}-12-31`,
+          fy: year,
+          fp: 'FY',
+          form: '10-K',
+          filed: `${year + 1}-02-20`,
+          ...extra,
+        },
+      ],
+    },
+  };
+}
+
+const brokerDealer = extractHeadlines({
+  cik: 886982,
+  entityName: 'Goldman-like',
+  facts: {
+    'us-gaap': {
+      RevenuesNetOfInterestExpense: annual(58.3e9, 2025),
+      NoninterestIncome: annual(44.7e9, 2025),
+      InterestAndDividendIncomeOperating: annual(80.4e9, 2025),
+      NetIncomeLoss: annual(17.2e9, 2025),
+    },
+  },
+});
+assert.equal(brokerDealer.metrics.revenue.tag, 'RevenuesNetOfInterestExpense');
+assert.equal(brokerDealer.metrics.revenue.val, 58.3e9);
+assert.ok(brokerDealer.ratios.net_margin > 0.29 && brokerDealer.ratios.net_margin < 0.3);
+
+// A utility that tags both keeps total operating revenues, not the smaller
+// contract-revenue subset (NextEra files $27.4B against $25.8B).
+const utility = extractHeadlines({
+  cik: 753308,
+  entityName: 'NextEra-like',
+  facts: {
+    'us-gaap': {
+      RegulatedAndUnregulatedOperatingRevenue: annual(27.4e9, 2025),
+      RevenueFromContractWithCustomerIncludingAssessedTax: annual(25.8e9, 2025),
+      NetIncomeLoss: annual(7e9, 2025),
+    },
+  },
+});
+assert.equal(utility.metrics.revenue.tag, 'RegulatedAndUnregulatedOperatingRevenue');
+assert.equal(utility.metrics.revenue.val, 27.4e9);
+
+// Retailers and industrials that only tag the including-assessed-tax variant.
+const retailer = extractHeadlines({
+  cik: 109198,
+  entityName: 'TJX-like',
+  facts: {
+    'us-gaap': {
+      RevenueFromContractWithCustomerIncludingAssessedTax: annual(60.4e9, 2025),
+      NetIncomeLoss: annual(4.9e9, 2025),
+    },
+  },
+});
+assert.equal(retailer.metrics.revenue.tag, 'RevenueFromContractWithCustomerIncludingAssessedTax');
+assert.equal(retailer.metrics.revenue.val, 60.4e9);
+
+// The sales-tax-free variant still wins when a filer tags both.
+const bothAssessed = extractHeadlines({
+  cik: 2,
+  entityName: 'Both-variants',
+  facts: {
+    'us-gaap': {
+      RevenueFromContractWithCustomerExcludingAssessedTax: annual(100e9, 2025),
+      RevenueFromContractWithCustomerIncludingAssessedTax: annual(106e9, 2025),
+      NetIncomeLoss: annual(10e9, 2025),
+    },
+  },
+});
+assert.equal(bothAssessed.metrics.revenue.tag, 'RevenueFromContractWithCustomerExcludingAssessedTax');
+
+// A filer that tags both keeps the plain total; the bank tag is only a fallback.
+const bothRevenueTags = extractHeadlines({
+  cik: 19617,
+  entityName: 'JPMorgan-like',
+  facts: {
+    'us-gaap': {
+      Revenues: annual(182.4e9, 2025),
+      RevenuesNetOfInterestExpense: annual(1e9, 2025),
+      NetIncomeLoss: annual(57e9, 2025),
+    },
+  },
+});
+assert.equal(bothRevenueTags.metrics.revenue.tag, 'Revenues');
+assert.equal(bothRevenueTags.metrics.revenue.val, 182.4e9);
+
 const feeOnly = computeRatios(
   {
     revenue: { val: 2797000000, tag: 'RevenueFromContractWithCustomerExcludingAssessedTax' },

@@ -24,6 +24,7 @@ import {
   formatMetric,
   formatDerived,
   formatUsd,
+  formatPercent,
   ensureRatios,
   explainCalculation,
   FLAG_COPY,
@@ -33,7 +34,8 @@ import {
   plausibleMargin,
   MARGIN_KEYS,
 } from './extract.js';
-import { seedAssumptions, applyScenario, runPracticeModel, effectiveGrowth, MODEL_YEARS } from './model.js';
+import { seedAssumptions, applyScenario, runPracticeModel, MODEL_YEARS, describeAssumption, assumptionFields } from './model.js';
+import { buildStatement } from './statement.js';
 import {
   PLAYBOOKS,
   GOLDEN_RULES,
@@ -95,16 +97,12 @@ let playbookKey = 'saas';
 let extraCol = null;
 let sharedOnly = false;
 let explainKey = 'net_margin';
-let companyPane = 'ratios';
+let companyPane = 'model';
 let comparePane = 'ratios';
 let modelDraft = null;
-let modelExpanded = false;
 
 const COURSE_STORAGE = 'f500-course';
 const courseStripEl = document.getElementById('course-strip');
-const listHintEl = document.getElementById('list-hint');
-const purposeEl = document.getElementById('purpose');
-if (purposeEl) purposeEl.textContent = PURPOSE;
 
 function loadCourse() {
   try {
@@ -132,7 +130,7 @@ function isBeginner() {
 }
 
 function defaultHomeView() {
-  return isBeginner() ? 'howto' : 'table';
+  return 'table';
 }
 
 function markCourse(id) {
@@ -161,7 +159,7 @@ function parseUrl() {
   const u = new URL(location.href);
   const raw = u.searchParams.get('compare');
   const paneRaw = u.searchParams.get('pane');
-  const pane = paneRaw === 'model' || paneRaw === 'filed' ? paneRaw : 'ratios';
+  const pane = paneRaw === 'ratios' || paneRaw === 'filed' ? paneRaw : 'model';
   const book = u.searchParams.get('playbook');
   if (raw) {
     const ranks = raw
@@ -169,7 +167,7 @@ function parseUrl() {
       .map(Number)
       .filter((n) => Number.isInteger(n) && n >= 1 && n <= 500)
       .slice(0, MAX_COMPARE);
-    return { compareMode: ranks.length >= 2, compareRanks: ranks, selectedRank: null, homeView: 'table', companyPane: 'ratios' };
+    return { compareMode: ranks.length >= 2, compareRanks: ranks, selectedRank: null, homeView: 'table', companyPane: 'model' };
   }
   const n = Number(u.searchParams.get('rank'));
   const selectedRank = Number.isInteger(n) && n >= 1 && n <= 500 ? n : null;
@@ -180,10 +178,13 @@ function parseUrl() {
       selectedRank,
       homeView: 'table',
       companyPane: pane,
-      playbookKey: book || playbookKey,
+      // Only an explicit, real playbook id counts. Falling back to the module
+      // default used to hand a hand-typed ?pane=model URL the SaaS model — NRR
+      // sliders on Apple.
+      playbookKey: book && playbookById(book).id === book ? book : null,
     };
   }
-  return { compareMode: false, compareRanks: [], selectedRank: null, companyPane: 'ratios', ...hashHome() };
+  return { compareMode: false, compareRanks: [], selectedRank: null, companyPane: 'model', ...hashHome() };
 }
 
 function setUrl(opts = {}) {
@@ -197,16 +198,19 @@ function setUrl(opts = {}) {
     url.hash = '';
   } else if (opts.selectedRank) {
     url.searchParams.set('rank', String(opts.selectedRank));
-    if (companyPane === 'model' || companyPane === 'filed') url.searchParams.set('pane', companyPane);
-    const bookId = modelDraft?.playbookId || playbookKey;
-    if (companyPane === 'model' && bookId) url.searchParams.set('playbook', bookId);
+    if (companyPane === 'ratios' || companyPane === 'filed') url.searchParams.set('pane', companyPane);
+    // Only a model you actually touched carries its industry in the URL; a
+    // plain company link should open on whatever the ticker guesses.
+    if (companyPane === 'model' && modelDraft?.playbookId) {
+      url.searchParams.set('playbook', modelDraft.playbookId);
+    }
     url.hash = '';
   } else if (homeView === 'learn') {
     url.hash = 'learn';
   } else if (homeView === 'industries') {
     url.hash = playbookKey ? `industries/${playbookKey}` : 'industries';
   } else if (homeView === 'howto') {
-    url.hash = isBeginner() ? '' : 'howto';
+    url.hash = 'howto';
   } else {
     url.hash = '';
   }
@@ -438,10 +442,10 @@ function formatScreenerCell(col, value) {
 
 function renderCompareBar() {
   const n = compareRanks.length;
-  compareBar.hidden = false;
+  compareBar.hidden = n === 0;
   compareLabel.textContent =
     n === 0
-      ? '0 selected — open a company and tap Add, or use a peer set'
+      ? ''
       : n === 1
         ? '1 selected — add one more, then Compare'
         : n >= MAX_COMPARE
@@ -459,6 +463,10 @@ function renderCompareBar() {
   }
 }
 
+/**
+ * Peer sets as one-line chips. The member names live in the tooltip — spelling
+ * them out inline used to eat most of the left rail before the company list.
+ */
 function renderPresets() {
   if (!presetsEl) return;
   presetsEl.innerHTML = PRESETS.map((p) => {
@@ -466,9 +474,10 @@ function renderPresets() {
       .map((r) => companyByRank(r)?.company)
       .filter(Boolean)
       .join(', ');
-    return `<button type="button" class="f5-preset" data-preset="${escapeAttr(p.id)}" title="${escapeAttr(p.blurb)}">
+    const tip = who ? `${p.blurb}\n${who}` : p.blurb;
+    return `<button type="button" class="f5-preset" data-preset="${escapeAttr(p.id)}" title="${escapeAttr(tip)}">
       <span class="f5-preset-label">${escapeHtml(p.label)}</span>
-      <span class="f5-preset-who">${escapeHtml(who || p.blurb)}</span>
+      <span class="f5-preset-n" aria-hidden="true">${p.ranks.length}</span>
     </button>`;
   }).join('');
 }
@@ -551,11 +560,10 @@ function companyForPlaybook(id) {
 function skipChrome() {
   course.skipped = true;
   saveCourse();
-  modelExpanded = true;
   homeView = 'table';
   compareMode = false;
   selectedRank = null;
-  companyPane = 'ratios';
+  companyPane = 'model';
   applyState();
 }
 
@@ -573,11 +581,6 @@ function handleGuideClick(e) {
     startCompareLesson();
     return true;
   }
-  if (e.target.closest('[data-model-expand]')) {
-    modelExpanded = true;
-    renderDetail();
-    return true;
-  }
   const practice = e.target.closest('[data-practice-rank]');
   if (practice) {
     const rank = Number(practice.dataset.practiceRank);
@@ -586,40 +589,6 @@ function handleGuideClick(e) {
     return true;
   }
   return false;
-}
-
-function nextUpHtml() {
-  if (!isBeginner()) return '';
-  const next = courseProgress(course.done).next;
-  if (!next) return '';
-  const apple = suggestedCompany();
-  const appleName = apple ? apple.company : 'Apple';
-  let action = '';
-  if (next.id === 'open') {
-    action = apple
-      ? `<button type="button" class="f5-mini" data-open-suggested>Open ${escapeHtml(appleName)}</button>`
-      : '';
-  } else if (next.id === 'ratio') {
-    action = selectedRank
-      ? `<p class="muted">Tap <strong>Net margin</strong> in the tiles — that’s the lesson.</p>`
-      : apple
-        ? `<button type="button" class="f5-mini" data-open-suggested>Open ${escapeHtml(appleName)}</button>`
-        : '';
-  } else if (next.id === 'model') {
-    action = selectedRank
-      ? `<button type="button" class="f5-mini" data-company-pane="model">Project the next 5 years</button>`
-      : apple
-        ? `<button type="button" class="f5-mini" data-open-suggested>Open ${escapeHtml(appleName)}</button>`
-        : '';
-  } else if (next.id === 'compare') {
-    action = `<button type="button" class="f5-mini" data-course-compare>Compare two 10-Ks</button>`;
-  }
-  return `<div class="f5-nextup">
-    <p class="f5-kicker">Next up · ${escapeHtml(next.n)}/4</p>
-    <h3>${escapeHtml(next.title)}</h3>
-    <p class="f5-eli5">${escapeHtml(next.body)}</p>
-    ${action}
-  </div>`;
 }
 
 function howtoStepsHtml() {
@@ -637,29 +606,18 @@ function howtoStepsHtml() {
 }
 
 function howtoView() {
-  const apple = suggestedCompany();
   const notTagged = GLOSSARY.find((g) => g.term === 'Not tagged');
-  const appleName = apple ? apple.company : 'Apple';
   return `<div class="f5-howto-pane">
     <p class="f5-kicker">How to use</p>
     <h2>Read a 10-K, then sketch five years</h2>
-    <p class="f5-eli5">This is a 10-K reading and modeling course that also works as a real comps tool. Year 0 is filed. Everything after is a guess you control. Not a trading terminal.</p>
+    <p class="f5-eli5">${escapeHtml(PURPOSE)}</p>
     ${howtoStepsHtml()}
     ${notTagged ? `<p class="f5-missing-why"><strong>Dash:</strong> ${escapeHtml(notTagged.def)}</p>` : ''}
-    ${nextUpHtml()}
-    <div class="f5-howto-actions">
-      ${apple ? `<button type="button" class="f5-mini" data-open-suggested>Open ${escapeHtml(appleName)}</button>` : ''}
-      <button type="button" class="f5-mini f5-mini-ghost" data-course-skip>Skip · I’m comfortable</button>
-    </div>
-    <p class="muted">What ratios mean and Industry models stay in the nav. Add companies with <strong>Add</strong> — the tray at the bottom shows how many you’ve selected.</p>
+    <p class="muted">The bar at the top tells you the next click. Add a company when you want to compare — the tray appears once something is selected.</p>
   </div>`;
 }
 
 function renderCourseChrome() {
-  const beginner = isBeginner();
-  if (listHintEl) {
-    listHintEl.hidden = !beginner;
-  }
   if (!courseStripEl) return;
   if (course.skipped) {
     courseStripEl.hidden = true;
@@ -671,14 +629,22 @@ function renderCourseChrome() {
     const on = Boolean(course.done[step.id]);
     return `<span class="f5-course-dot${on ? ' is-done' : ''}" title="${escapeAttr(step.title)}"></span>`;
   }).join('');
-  const label = progress.complete
-    ? '4/4 You’ve compared two 10-Ks'
-    : `${progress.completed}/4 ${escapeHtml(progress.next.short)}`;
+  const apple = suggestedCompany();
+  const appleName = apple ? apple.company : 'Apple';
+  let sentence = 'Done — you can keep exploring, or open How to use anytime.';
+  let action = '';
+  if (progress.next) {
+    sentence = `<strong>Step ${escapeHtml(progress.next.n)} of 4</strong> — ${escapeHtml(progress.next.prompt)}`;
+    if (progress.next.id === 'open') {
+      action = `<button type="button" class="f5-mini" data-open-suggested>Open ${escapeHtml(appleName)}</button>`;
+    }
+  }
   courseStripEl.hidden = false;
   courseStripEl.innerHTML = `
     <div class="f5-course-dots" aria-hidden="true">${dots}</div>
-    <p class="f5-course-label">${label}</p>
-    <button type="button" class="f5-linkish" data-course-skip>Skip · I’m comfortable</button>`;
+    <p class="f5-course-label">${sentence}</p>
+    ${action}
+    ${progress.complete ? '' : `<button type="button" class="f5-mini f5-mini-ghost" data-course-skip>Skip · I’m comfortable</button>`}`;
 }
 
 function startCompareLesson() {
@@ -697,7 +663,6 @@ function openPractice(company, playbook) {
   const book = playbook || guessPlaybook(company);
   playbookKey = book.id;
   companyPane = 'model';
-  modelExpanded = true;
   const headlines = headlinesOf(company);
   modelDraft = {
     ...seedAssumptions(headlines, book),
@@ -718,28 +683,23 @@ function viewTabs() {
   </div>`;
 }
 
+/** Practice model leads on a company: changing guesses is the job here. */
 function paneTabs(kind, current) {
-  if (isBeginner() && kind === 'company') {
-    if (current === 'model') {
-      return `<button type="button" class="f5-back is-inline" data-company-pane="ratios">← Ratios</button>`;
-    }
-    return '';
-  }
   const modelTab =
     kind === 'company'
       ? `<button type="button" class="f5-view-tab" data-company-pane="model" aria-pressed="${current === 'model'}">Practice model</button>`
       : '';
-  return `<div class="f5-view-tabs" role="tablist" aria-label="Ratios, filed tags, or model">
-    <button type="button" class="f5-view-tab" data-${kind}-pane="ratios" aria-pressed="${current === 'ratios'}">Key ratios</button>
-    <button type="button" class="f5-view-tab" data-${kind}-pane="filed" aria-pressed="${current === 'filed'}">Filed numbers</button>
+  return `<div class="f5-view-tabs" role="tablist" aria-label="Model, ratios, or filed statement">
     ${modelTab}
+    <button type="button" class="f5-view-tab" data-${kind}-pane="ratios" aria-pressed="${current === 'ratios'}">Key ratios</button>
+    <button type="button" class="f5-view-tab" data-${kind}-pane="filed" aria-pressed="${current === 'filed'}">Filed statement</button>
   </div>`;
 }
 
 function screenerView() {
   if (homeView === 'learn') return learnView();
   if (homeView === 'industries') return industriesView();
-  if (homeView === 'howto' || isBeginner()) return howtoView();
+  if (homeView === 'howto') return howtoView();
   const cols = screenerColumns();
   const rows = sortRows(companies.filter(matches));
   const head = cols
@@ -770,7 +730,9 @@ function screenerView() {
     })
     .join('');
 
-  const hint = 'Open a company, or tap Add to fill the tray. Dash = not tagged, not zero.';
+  const hint = isBeginner()
+    ? 'Dash = not tagged, not zero.'
+    : 'Open a company, or tap Add to fill the tray. Dash = not tagged, not zero.';
 
   return `
     <div class="f5-screener">
@@ -868,7 +830,10 @@ function playbookDock(id) {
     <h3>${escapeHtml(playbook.label)}</h3>
     ${playbookBody(playbook)}
     ${practice}
-    <ol class="f5-model-rules">${GOLDEN_RULES.map((r) => `<li>${escapeHtml(r)}</li>`).join('')}</ol>
+    <details class="f5-rules-fold">
+      <summary>Seven modeling rules</summary>
+      <ol class="f5-model-rules">${GOLDEN_RULES.map((r) => `<li>${escapeHtml(r)}</li>`).join('')}</ol>
+    </details>
   </aside>`;
 }
 
@@ -1002,8 +967,88 @@ function explainDock(key, headlines, comparePairs, company) {
     ${leaderLine}
     ${company ? edgarLinks(company) : comparePairs?.[0]?.company ? edgarLinks(comparePairs[0].company) : ''}
     <div class="f5-eli5-actions">${compareBtn}${sortBtn}</div>
-    ${isBeginner() ? nextUpHtml() : ''}
   </aside>`;
+}
+
+function statementDollarCell(cell) {
+  if (cell.kind === 'na') {
+    return `<span class="muted" title="Not projected — the sliders model the income statement, not a balance sheet">n/a</span>`;
+  }
+  if (cell.value == null) return dash();
+  return escapeHtml(formatUsd(cell.value) || '—');
+}
+
+function statementLabelCell(key, label) {
+  const def = lookupDef(key);
+  if (!def) return escapeHtml(label);
+  return `<button type="button" class="f5-linkish" data-explain="${escapeAttr(key)}" title="${escapeAttr(def.plain || def.label)}">${escapeHtml(label)}</button>`;
+}
+
+/**
+ * Years across the top, line items down the side — the orientation a 10-K or a
+ * comps workbook uses. Filed columns are tinted; projected columns are labelled
+ * Y1…Y5 so nobody mistakes a slider for a filing.
+ */
+function statementTable(statement, { caption = '', hint = '', company = null } = {}) {
+  const bankRow = (key) => bankCashSuppressed(company, key);
+  const bankCells = (count) =>
+    Array.from(
+      { length: count },
+      () => `<td class="muted" title="${escapeAttr(FLAG_COPY.bank_cash)}">n/a (bank)</td>`
+    ).join('');
+  const head = statement.columns
+    .map(
+      (col) =>
+        `<th class="f5-col is-${col.kind}" scope="col"><span class="f5-col-year">${escapeHtml(col.label)}</span>${
+          col.note ? `<span class="f5-col-note">${escapeHtml(col.note)}</span>` : ''
+        }</th>`
+    )
+    .join('');
+  const dollarRows = statement.rows
+    .map((row) => {
+      const on = explainKey === row.key ? ' is-on' : '';
+      const cells = bankRow(row.key)
+        ? bankCells(row.cells.length)
+        : row.cells
+            .map((cell) => `<td class="is-${cell.kind}">${statementDollarCell(cell)}</td>`)
+            .join('');
+      return `<tr class="${on.trim()}"><th scope="row">${statementLabelCell(row.key, row.label)}</th>${cells}</tr>`;
+    })
+    .join('');
+  const drivers = statement.driverRows.filter((row) => !row.empty);
+  const driverRows = drivers.length
+    ? `<tbody>
+        <tr class="f5-group"><td colspan="${statement.columns.length + 1}">Check figures — the drivers behind the dollars</td></tr>
+        ${drivers
+          .map((row) => {
+            const on = explainKey === row.key ? ' is-on' : '';
+            const cells = bankRow(row.key)
+              ? bankCells(row.cells.length)
+              : row.cells
+                  .map(
+                    (cell) =>
+                      `<td class="is-${cell.kind}">${
+                        cell.value == null
+                          ? `<span class="muted">—</span>`
+                          : escapeHtml(formatPercent(cell.value, row.kind === 'growth') || '—')
+                      }</td>`
+                  )
+                  .join('');
+            return `<tr class="${on.trim()}"><th scope="row">${statementLabelCell(row.key, row.label)}</th>${cells}</tr>`;
+          })
+          .join('')}
+      </tbody>`
+    : '';
+  return `
+    ${caption ? `<h3 class="f5-model-sub">${escapeHtml(caption)}</h3>` : ''}
+    ${hint ? `<p class="f5-toolbar-hint">${escapeHtml(hint)}</p>` : ''}
+    <div class="f5-table-wrap is-statement">
+      <table class="f5-table f5-statement">
+        <thead><tr><th scope="col">Line item</th>${head}</tr></thead>
+        <tbody>${dollarRows}</tbody>
+        ${driverRows}
+      </table>
+    </div>`;
 }
 
 function currentPlaybook(company) {
@@ -1030,7 +1075,7 @@ function signedUsd(n) {
   return n > 0 ? `+${shown}` : `−${shown}`;
 }
 
-function driverField(key, label, value, help, extraKey) {
+function driverControls(key, value, extraKey) {
   const attr = extraKey ? `data-driver="${escapeAttr(key)}" data-extra="${escapeAttr(extraKey)}"` : `data-driver="${escapeAttr(key)}"`;
   const empty = value == null || !Number.isFinite(value);
   const shown = empty ? '' : (value * 100).toFixed(1);
@@ -1039,37 +1084,33 @@ function driverField(key, label, value, help, extraKey) {
   const range = empty
     ? ''
     : `<input type="range" min="${min}" max="${max}" step="0.5" ${attr} data-scale="pct" value="${shown}" />`;
-  return `<label class="f5-driver" title="${escapeAttr(help || '')}">
-    <span>${escapeHtml(label)}${empty ? ' <span class="muted">practice</span>' : ''}</span>
-    <span class="f5-driver-controls">
+  return `<span class="f5-driver-controls">
       ${range}
       <input class="f5-model-input" type="number" step="0.1" ${attr} data-scale="pct" value="${shown}" placeholder="—" />
-    </span>
-  </label>`;
+    </span>`;
 }
 
-function modelLiveHtml(c, headlines) {
-  const playbook = currentPlaybook(c);
-  const a = modelAssumptions(headlines, c);
-  const model = runPracticeModel(headlines, a, playbook);
-  if (!model.ok) return `<p class="f5-toolbar-hint">${escapeHtml(model.reason)}</p>`;
-  const rows = model.rows
-    .map(
-      (r) => `<tr class="${r.filed ? 'is-on' : ''}">
-        <td>${r.filed ? `FY${r.year} filed` : `FY${r.year}`}</td>
-        <td>${escapeHtml(formatUsd(r.revenue) || '—')}</td>
-        <td>${r.netIncome == null ? '—' : escapeHtml(formatUsd(r.netIncome))}</td>
-        <td>${r.fcf == null ? '—' : escapeHtml(formatUsd(r.fcf))}</td>
-        <td>${r.grossProfit == null ? '—' : escapeHtml(formatUsd(r.grossProfit))}</td>
-      </tr>`
-    )
-    .join('');
-  const last = model.rows[model.rows.length - 1];
-  const g = formatDerived(lookupDef('revenue_yoy'), model.growth) || '—';
-  const implied = formatDerived(lookupDef('revenue_yoy'), model.impliedGrowth) || '—';
+function guessValue(assumptions, field) {
+  return field.isExtra ? assumptions.extras?.[field.key] : assumptions[field.key];
+}
+
+function guessCard(field, assumptions, headlines, model, playbook) {
+  const copy = describeAssumption(field, headlines, model, playbook);
+  const extraKey = field.isExtra ? field.key : undefined;
+  return `<article class="f5-guess" data-assumption="${escapeAttr(field.key)}">
+    <h4 class="f5-guess-name">${escapeHtml(copy.name)}</h4>
+    <p class="f5-guess-what">${escapeHtml(copy.what)}</p>
+    <p class="f5-guess-origin">${escapeHtml(copy.origin)}</p>
+    <p class="f5-guess-effect" data-guess-effect="${escapeAttr(field.key)}">${escapeHtml(copy.effect)}</p>
+    ${driverControls(field.key, guessValue(assumptions, field), extraKey)}
+  </article>`;
+}
+
+function sensitivityHtml(model) {
   const sens = model.sensitivity;
-  const sensHead = `<th></th>${sens.cols.map((col) => `<th>${escapeHtml(((col || 0) * 100).toFixed(1))}%</th>`).join('')}`;
-  const sensBody = sens.rows
+  if (!sens) return '';
+  const head = `<th></th>${sens.cols.map((col) => `<th>${escapeHtml(((col || 0) * 100).toFixed(1))}%</th>`).join('')}`;
+  const body = sens.rows
     .map((r) => {
       const on = Math.abs(r.growth - model.growth) < 1e-9;
       return `<tr class="${on ? 'is-on' : ''}"><th>${escapeHtml((r.growth * 100).toFixed(1))}%</th>${r.cells
@@ -1078,63 +1119,28 @@ function modelLiveHtml(c, headlines) {
     })
     .join('');
   return `
-    <p class="f5-model-delta">FY${last.year} vs filed:
-      revenue <strong>${escapeHtml(signedUsd(model.vsFiled.revenue))}</strong>
-      · NI <strong>${escapeHtml(signedUsd(model.vsFiled.netIncome))}</strong>
-      · FCF <strong>${escapeHtml(signedUsd(model.vsFiled.fcf))}</strong>
-      · effective growth <strong>${escapeHtml(g)}</strong>${
-        playbook.extras?.length ? ` <span class="muted">(from industry drivers ${escapeHtml(implied)})</span>` : ''
-      }
-    </p>
-    <div class="f5-table-wrap">
-      <table class="f5-table">
-        <thead><tr><th>Year</th><th>Revenue</th><th>Net income</th><th>FCF</th><th>Gross profit</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>
-    <h3 class="f5-model-sub">Sensitivity — year-5 net income (growth ↓, net margin →)</h3>
     <div class="f5-table-wrap">
       <table class="f5-table f5-sens-table">
-        <thead><tr>${sensHead}</tr></thead>
-        <tbody>${sensBody}</tbody>
+        <thead><tr>${head}</tr></thead>
+        <tbody>${body}</tbody>
       </table>
-    </div>
-    <ul class="f5-model-notes">${model.notes.map((n) => `<li>${escapeHtml(n)}</li>`).join('')}</ul>`;
+    </div>`;
 }
 
-function modelDock(headlines, company) {
-  const playbook = currentPlaybook(company);
-  const a = modelAssumptions(headlines, company);
-  const growth = formatDerived(lookupDef('revenue_yoy'), effectiveGrowth(a, playbook)) || '—';
-  return `<aside class="f5-dock" id="model-dock">
-    <p class="f5-kicker">${escapeHtml(playbook.subtitle)}</p>
-    <h3>${escapeHtml(playbook.label)}</h3>
-    <p class="f5-eli5">Year 0 is filed. Everything after is a guess you control — not a forecast.</p>
-    ${playbookBody(playbook)}
-    <p class="f5-coverage-line">Effective growth ${escapeHtml(growth)} · year 0 is filed, everything else is practice.</p>
-    <p class="f5-leaders"><button type="button" class="f5-linkish" data-home-view="industries" data-playbook="${escapeAttr(playbook.id)}">All industry models</button></p>
-    ${isBeginner() ? nextUpHtml() : ''}
-  </aside>`;
-}
-
-function modelSketchHtml(company, headlines) {
-  const playbook = currentPlaybook(company);
-  const a = modelAssumptions(headlines, company);
+/** The projection itself: filed years, then Y1…Y5, as statement columns. */
+function modelLiveHtml(c, headlines) {
+  const playbook = currentPlaybook(c);
+  const a = modelAssumptions(headlines, c);
   const model = runPracticeModel(headlines, a, playbook);
   if (!model.ok) return `<p class="f5-toolbar-hint">${escapeHtml(model.reason)}</p>`;
-  const y0 = model.rows[0];
-  const y5 = model.rows[model.rows.length - 1];
-  const yoy = formatDerived(lookupDef('revenue_yoy'), headlines?.ratios?.revenue_yoy);
-  const g = formatDerived(lookupDef('revenue_yoy'), model.growth) || '—';
-  const lastYear = yoy
-    ? `Last 10-K, revenue changed ${escapeHtml(yoy)}.`
-    : 'Last 10-K did not tag revenue growth.';
+  const statement = buildStatement(headlines, { model, detail: true });
   return `
-    <p class="f5-toolbar-hint">${lastYear} Your growth slider is ${escapeHtml(g)} per year — that is your guess, not a forecast.</p>
-    <p class="f5-model-delta">Filed FY${y0.year} → FY${y5.year}:
+    <p class="f5-model-delta">Year 5 vs filed FY${model.year0}:
       NI <strong>${escapeHtml(signedUsd(model.vsFiled.netIncome))}</strong>
       · FCF <strong>${escapeHtml(signedUsd(model.vsFiled.fcf))}</strong>
-    </p>`;
+      · sales <strong>${escapeHtml(signedUsd(model.vsFiled.revenue))}</strong>
+    </p>
+    ${statementTable(statement, { company: c })}`;
 }
 
 function modelPanel(headlines, company) {
@@ -1144,55 +1150,34 @@ function modelPanel(headlines, company) {
   if (!model.ok) {
     return `${paneTabs('company', 'model')}<p class="f5-toolbar-hint">${escapeHtml(model.reason)}</p>`;
   }
-  const simple = isBeginner() && !modelExpanded;
+  const fields = assumptionFields(playbook);
+  const cards = fields.map((field) => guessCard(field, a, headlines, model, playbook)).join('');
   const options = PLAYBOOKS.map(
     (p) =>
       `<option value="${escapeAttr(p.id)}" ${p.id === playbook.id ? 'selected' : ''}>${escapeHtml(p.label)}</option>`
   ).join('');
-  const extras = (playbook.extras || [])
-    .map((field) => driverField(field.key, field.label, a.extras?.[field.key], field.help, field.key))
-    .join('');
   const scenarios = ['base', 'bull', 'bear']
     .map(
       (s) =>
         `<button type="button" class="f5-view-tab" data-scenario="${s}" aria-pressed="${a.scenario === s}">${s}</button>`
     )
     .join('');
-  const extraDrivers = simple
-    ? ''
-    : `${extras}${playbook.extras?.length ? '' : driverField('revenueGrowth', 'Rev growth % / yr', a.revenueGrowth, 'Used when there is no industry split.')}`;
-  const simpleGrowth = simple
-    ? driverField('revenueGrowth', 'Rev growth % / yr', a.revenueGrowth, 'Your assumption, not a forecast.')
-    : '';
-  const extraMargins = simple
-    ? ''
-    : `${driverField('fcfMargin', 'FCF margin %', a.fcfMargin, 'Free cash flow / sales.')}
-      ${driverField('grossMargin', 'Gross margin %', a.grossMargin, 'Blank if the 10-K did not tag gross profit.')}`;
-  const powerToolbar = simple
-    ? `<div class="f5-model-toolbar">
-        <button type="button" class="f5-mini f5-mini-ghost" data-model-expand>Show industry drivers</button>
-        <button type="button" class="f5-mini f5-mini-ghost" id="model-reset">Reset to 10-K</button>
-        <button type="button" class="f5-mini" id="model-xlsx">Download Excel</button>
-      </div>`
-    : `<div class="f5-model-toolbar">
-        <label class="f5-playbook-pick">Industry
-          <select id="model-playbook">${options}</select>
-        </label>
-        <div class="f5-view-tabs" role="tablist" aria-label="Scenario">${scenarios}</div>
-        <button type="button" class="f5-mini f5-mini-ghost" id="model-reset">Reset to 10-K</button>
-        <button type="button" class="f5-mini" id="model-xlsx">Download Excel</button>
-      </div>`;
   return `
     ${paneTabs('company', companyPane)}
-    <p class="f5-toolbar-hint">Year 0 is the 10-K. Everything after is a guess you control, not a forecast.</p>
-    ${powerToolbar}
-    <form class="f5-model-form" id="model-form">
-      ${simpleGrowth}
-      ${extraDrivers}
-      ${driverField('netMargin', 'Net margin %', a.netMargin, 'Keep-the-dollar rate from the 10-K, unless you change it.')}
-      ${extraMargins}
-    </form>
-    <div id="model-live">${simple ? modelSketchHtml(company, headlines) : modelLiveHtml(company, headlines)}</div>`;
+    <div class="f5-model-toolbar">
+      <label class="f5-playbook-pick">Industry
+        <select id="model-playbook">${options}</select>
+      </label>
+      <div class="f5-view-tabs f5-scenario-pills" role="tablist" aria-label="Scenario">${scenarios}</div>
+      <button type="button" class="f5-mini f5-mini-ghost" id="model-reset">Reset to 10-K</button>
+      <button type="button" class="f5-mini" id="model-xlsx">Download Excel</button>
+    </div>
+    <form class="f5-guesses" id="model-form">${cards}</form>
+    <div id="model-live">${modelLiveHtml(company, headlines)}</div>
+    <details class="f5-sens-fold">
+      <summary>Sensitivity — year-5 net income</summary>
+      <div id="model-sens">${sensitivityHtml(model)}</div>
+    </details>`;
 }
 
 function pctPill(value, source, key, headlines) {
@@ -1266,10 +1251,16 @@ function publicDetail(c, headlines, status) {
           .join('');
         return `<tbody><tr class="f5-group"><td colspan="3">${escapeHtml(group.label)}</td></tr>${rows}</tbody>`;
       }).join('');
+      const statement = buildStatement(headlines, { detail: true });
       main = `
         ${paneTabs('company', companyPane)}
         <p class="f5-toolbar-hint">You’re looking at ${escapeHtml(c.company)}’s ${escapeHtml(year)} 10-K. ${cov.tagged.length}/${cov.total} tags. A dash is not tagged, not zero.</p>
         ${suggest}
+        ${statementTable(statement, {
+          company: c,
+          caption: `${c.company} — as filed`,
+        })}
+        <h3 class="f5-model-sub">Every tag behind those lines</h3>
         <div class="f5-table-wrap">
           <table class="f5-table">
             <thead><tr><th>Tag</th><th>Value</th><th>XBRL</th></tr></thead>
@@ -1278,8 +1269,9 @@ function publicDetail(c, headlines, status) {
         </div>`;
       dock = explainDock(explainKey, headlines, null, c);
     } else if (companyPane === 'model') {
-      main = `${suggest}${modelPanel(headlines, c)}`;
-      dock = modelDock(headlines, c);
+      // No dock: every guess card already carries its own explanation, and a
+      // side panel repeating the focused one was the same four lines twice.
+      main = modelPanel(headlines, c);
     } else {
       const groups = RATIO_GROUPS.map((group) => {
         const tiles = group.keys
@@ -1293,20 +1285,24 @@ function publicDetail(c, headlines, status) {
           <div class="f5-tiles">${tiles}</div>
         </section>`;
       }).join('');
-      const projectCta = `<button type="button" class="f5-cta" data-company-pane="model">Project the next 5 years from this 10-K</button>`;
       main = `
         ${paneTabs('company', companyPane)}
         <p class="f5-toolbar-hint">You’re looking at ${escapeHtml(c.company)}’s ${escapeHtml(year)} 10-K. Tap a tile for the math.</p>
-        ${projectCta}
         ${suggest}
         ${groups}`;
       dock = explainDock(explainKey, headlines, null, c);
     }
   }
+  const side =
+    companyPane === 'model'
+      ? ''
+      : status === 'ok' || headlines
+        ? dock
+        : `<aside class="f5-dock">${skeletonHtml(3)}</aside>`;
   return `
-    <div class="f5-workspace">
+    <div class="f5-workspace${side ? '' : ' is-wide'}">
       <div class="f5-workspace-main">
-        <button type="button" class="f5-back" id="back">${isBeginner() ? '← How to use' : '← Table'}</button>
+        <button type="button" class="f5-back" id="back">← Table</button>
         <div class="f5-company-head">
           <div>
             <p class="f5-kicker">#${c.rank} · ${escapeHtml(tickerLabel(c))} · ${escapeHtml(c.cik_padded || '')}</p>
@@ -1318,7 +1314,7 @@ function publicDetail(c, headlines, status) {
         ${quoteMount(c)}
         ${main}
       </div>
-      ${status === 'ok' || headlines ? dock : `<aside class="f5-dock">${skeletonHtml(3)}</aside>`}
+      ${side}
     </div>`;
 }
 
@@ -1326,7 +1322,7 @@ function privateDetail(c) {
   const note = PRIVATE_NOTES[c.rank] || 'Private or mutual — no public 10-K/10-Q ticker in the SEC JSON APIs.';
   return `
     <div class="f5-workspace-main">
-    <button type="button" class="f5-back" id="back">${isBeginner() ? '← How to use' : '← Table'}</button>
+    <button type="button" class="f5-back" id="back">← Table</button>
     <div class="f5-company-head">
       <div>
         <p class="f5-kicker">Fortune #${c.rank}</p>
@@ -1461,9 +1457,14 @@ function compareView(rows, status) {
   } else if (status === 'error') {
     body = `<tr><td colspan="${colCount}">Couldn’t reach /api/f500-headlines.</td></tr>`;
   } else {
+    // The statement block already shows FCF in dollars; don't print the row
+    // twice when the cash-quality group comes around.
+    const seen = new Set();
     body = groups
       .map((group) => {
         const keys = group.keys.filter((key) => {
+          if (seen.has(key)) return false;
+          seen.add(key);
           if (!sharedOnly) return true;
           return names.every((c) => {
             const h = rows.find((x) => x.cik === c.cik);
@@ -1481,7 +1482,7 @@ function compareView(rows, status) {
   return `
     <div class="f5-workspace">
       <div class="f5-workspace-main">
-        <button type="button" class="f5-back" id="back">${isBeginner() ? '← How to use' : '← Table'}</button>
+        <button type="button" class="f5-back" id="back">← Table</button>
         <div class="f5-toolbar">
           ${paneTabs('compare', comparePane)}
           <label class="f5-shared-toggle"><input type="checkbox" id="shared-only" ${sharedOnly ? 'checked' : ''}/> Shared only</label>
@@ -1592,7 +1593,7 @@ function select(rank, opts = {}) {
   compareMode = false;
   selectedRank = rank;
   if (rank == null) {
-    companyPane = 'ratios';
+    companyPane = 'model';
     homeView = defaultHomeView();
   }
   const c = rank ? companyByRank(rank) : null;
@@ -1882,12 +1883,16 @@ function applyDriverInput(el) {
   else if (el.dataset.driver) next[el.dataset.driver] = value;
   modelDraft = next;
   const live = document.getElementById('model-live');
-  if (live) {
-    live.innerHTML =
-      isBeginner() && !modelExpanded ? modelSketchHtml(c, headlines) : modelLiveHtml(c, headlines);
+  if (live) live.innerHTML = modelLiveHtml(c, headlines);
+  const playbook = currentPlaybook(c);
+  const model = runPracticeModel(headlines, next, playbook);
+  for (const line of detailEl.querySelectorAll('[data-guess-effect]')) {
+    const field = assumptionFields(playbook).find((f) => f.key === line.dataset.guessEffect);
+    if (!field) continue;
+    line.textContent = describeAssumption(field, headlines, model, playbook).effect;
   }
-  const dock = document.getElementById('model-dock');
-  if (dock) dock.outerHTML = modelDock(headlines, c);
+  const sens = document.getElementById('model-sens');
+  if (sens) sens.innerHTML = sensitivityHtml(model);
   const shown = (value * 100).toFixed(1);
   const key = el.dataset.driver;
   for (const other of detailEl.querySelectorAll(`[data-driver="${key}"]`)) {
@@ -2008,7 +2013,6 @@ try {
   if (s.companyPane === 'model' && s.selectedRank && s.playbookKey) {
     const c = companyByRank(s.selectedRank);
     if (c) {
-      modelExpanded = true;
       modelDraft = {
         ...seedAssumptions(headlinesOf(c), playbookById(s.playbookKey)),
         rank: c.rank,

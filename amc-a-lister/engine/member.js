@@ -17,15 +17,6 @@ bootPage(async ({ root, auth }) => {
   });
 
   const main = document.getElementById('member-main');
-  if (!auth.signedIn) {
-    main.innerHTML = `
-      <section class="al-panel">
-        <p class="al-muted">Member profiles are visible to signed-in A-Listers.</p>
-        <p style="margin-top:12px"><a class="al-btn al-btn-primary" href="${loginUrl()}">Sign in</a></p>
-      </section>
-    `;
-    return;
-  }
   if (!userId) {
     main.innerHTML = `
       <section class="al-panel">
@@ -37,21 +28,30 @@ bootPage(async ({ root, auth }) => {
   }
 
   try {
-    const { profile, currentUserId } = await leaderboardApi.profile(userId, auth.token);
+    const token = auth.signedIn ? auth.token : undefined;
+    const { profile, currentUserId } = await leaderboardApi.profile(userId, token);
     const isSelf = currentUserId === profile.userId;
     document.querySelector('.al-page-title').textContent = profile.displayName;
     document.querySelector('.al-page-sub').textContent = isSelf
       ? (profile.isPublic
-        ? 'This is exactly what other members see.'
+        ? 'This is exactly what other people see.'
         : 'Private — only you can see this. Turn on your public profile in Settings.')
       : 'Public watch log and A-List stats.';
     document.title = `${profile.displayName} — AMC A-Lister`;
     renderProfile(main, profile, { currentUserId, auth });
   } catch (err) {
+    const isPrivate = err.status === 404;
     main.innerHTML = `
       <section class="al-panel">
-        <p class="al-error">${escapeHtml(err.message || 'Could not load profile.')}</p>
-        <p><a class="al-btn" href="/amc-a-lister/leaderboard.html">← Back to leaderboard</a></p>
+        <p class="${isPrivate ? 'al-muted' : 'al-error'}">${escapeHtml(
+          isPrivate
+            ? 'This member has not made their log public.'
+            : (err.message || 'Could not load profile.'),
+        )}</p>
+        ${!auth.signedIn && isPrivate ? `
+          <p style="margin-top:12px"><a class="al-btn al-btn-primary" href="${loginUrl()}">Sign in</a></p>
+        ` : ''}
+        <p style="margin-top:12px"><a class="al-btn" href="/amc-a-lister/leaderboard.html">← Back to leaderboard</a></p>
       </section>
     `;
   }

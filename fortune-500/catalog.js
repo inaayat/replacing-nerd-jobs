@@ -1,4 +1,5 @@
 /** Copy and lookup tables for the Fortune 500 × EDGAR explainer. No Node APIs. */
+import { STATEMENT_KEYS } from './statement.js';
 
 export const SOURCES = [
   {
@@ -151,12 +152,13 @@ export const CHART_METRICS = [
   { key: 'revenue_yoy', label: 'Revenue YoY', source: 'ratio', signed: true },
 ];
 
-export const COMPARE_SCALE_KEYS = ['revenue', 'operating_income', 'net_income', 'cash', 'long_term_debt'];
+/** Same line items, same order as the filed statement — companies as columns. */
+export const COMPARE_SCALE_KEYS = [...STATEMENT_KEYS];
 
 export const COMPARE_SCALE_GROUP = {
   id: 'scale',
-  label: 'Scale (latest 10-K $)',
-  kid: 'Dollars first — a comps table needs size, not only ratios.',
+  label: 'Statement (latest 10-K $)',
+  kid: 'Dollars first, in filing order — a comps table needs size, not only ratios.',
   keys: COMPARE_SCALE_KEYS,
 };
 
@@ -251,7 +253,7 @@ export const NOT_IN_EDGAR = [
 export const SUGGESTED_RANK = 4;
 
 export const PURPOSE =
-  'This is a 10-K reading and modeling course. Year 0 is filed. Everything after is a guess you control. Latest Fortune 500 10-K ratios (SEC tags). Dash = not tagged, not zero. Prices (Yahoo, delayed) are extra on a company page.';
+  'Open a 10-K, read the filed statement, then change a few guesses. Year 0 is filed. Everything after is yours. Dash = not tagged, not zero.';
 
 /** First-load overlay. Three steps; the 4-step course lives in COURSE_STEPS. */
 export const HOW_TO = [
@@ -262,44 +264,52 @@ export const HOW_TO = [
   },
   {
     n: '2',
-    title: 'Read one ratio',
-    body: 'Tap a tile — start with net margin. The dock is the lesson: kid version plus the 10-K math. “What ratios mean” has the rest.',
+    title: 'Change a guess',
+    body: 'The company opens on Practice model. Each guess is a card: what it is, where the default came from, and what moving it does. Year 0 is filed.',
   },
   {
     n: '3',
-    title: 'Project five years',
-    body: 'Open Practice Model. Year 0 is the filed 10-K. The sliders are your guesses, not forecasts. Then compare a second company when you’re ready.',
+    title: 'Read one ratio',
+    body: 'Key ratios has the tiles; tap one — start with net margin. The dock is the lesson: kid version plus the 10-K math.',
   },
 ];
 
-/** 4-step path stored in localStorage `f500-course`. Never gates the rest of the UI. */
+/**
+ * 4-step path stored in localStorage `f500-course`. Never gates the rest of the
+ * UI. Order follows the panes: a company opens on the practice model, so
+ * changing a guess comes before reading a ratio.
+ */
 export const COURSE_STEPS = [
   {
     id: 'open',
     n: '1',
     title: 'Open a company',
     short: 'Open a company',
+    prompt: 'Click Apple in the list on the left.',
     body: 'Click a name on the left. Apple is a good first 10-K.',
   },
   {
-    id: 'ratio',
+    id: 'model',
     n: '2',
-    title: 'Read one ratio',
-    short: 'Read one ratio',
-    body: 'Tap net margin (or any tile). The dock is the lesson: kid version plus the 10-K math.',
+    title: 'Change a guess',
+    short: 'Change a guess',
+    prompt: 'Drag Sales growth and watch year 5 move.',
+    body: 'Every card says what the guess is, where the default came from, and what moving it does.',
   },
   {
-    id: 'model',
+    id: 'ratio',
     n: '3',
-    title: 'Build a 5-year sketch',
-    short: 'Build a model',
-    body: 'Project the next 5 years from this 10-K. Year 0 is filed. The sliders are your guesses, not forecasts.',
+    title: 'Read one ratio',
+    short: 'Read one ratio',
+    prompt: 'Open Key ratios and tap Net margin.',
+    body: 'Tap net margin (or any tile). The dock is the lesson: kid version plus the 10-K math.',
   },
   {
     id: 'compare',
     n: '4',
     title: 'Compare two 10-Ks',
     short: 'Compare two',
+    prompt: 'Add a second company, then Compare.',
     body: 'Add a second public company. A dash is not tagged, not zero. Fiscal years may not line up.',
   },
 ];
@@ -318,14 +328,24 @@ export const METRICS = [
     plain: 'How much customers paid this year.',
     eli5: 'This is the lemonade-stand jar: every dollar customers paid for stuff or services this year, before subtracting lemons, cups, or rent. Bigger is not automatically better — a grocery chain can ring up more sales than a chip maker and keep far less.',
     whyMissing: 'A few filers use an industry-specific sales tag we don’t pick up, so we leave it blank instead of guessing.',
-    tags: 'Revenues, or RevenueFromContractWithCustomerExcludingAssessedTax',
+    tags: 'Revenues, RevenueFromContractWithCustomer…, RegulatedAndUnregulatedOperatingRevenue, or RevenuesNetOfInterestExpense',
     unit: 'USD',
     kind: 'duration',
     better: 'higher',
+    // Order is "first hit wins" within a year, so the industry-specific tags sit
+    // last: only utilities, retailers and banks file them, and each is the top
+    // line that industry actually reports. Without them Goldman, Morgan Stanley,
+    // Wells Fargo, Duke, NextEra, TJX, Valero and Kraft Heinz had no revenue at
+    // all, which blanked every margin, turnover and growth figure on their pages.
+    // The utility total comes before the contract-revenue subset (NextEra tags
+    // both: $27.4B of operating revenues vs $25.8B of contract revenue).
     candidates: [
       { taxonomy: 'us-gaap', tag: 'Revenues' },
       { taxonomy: 'us-gaap', tag: 'RevenueFromContractWithCustomerExcludingAssessedTax' },
       { taxonomy: 'us-gaap', tag: 'SalesRevenueNet' },
+      { taxonomy: 'us-gaap', tag: 'RegulatedAndUnregulatedOperatingRevenue' },
+      { taxonomy: 'us-gaap', tag: 'RevenueFromContractWithCustomerIncludingAssessedTax' },
+      { taxonomy: 'us-gaap', tag: 'RevenuesNetOfInterestExpense' },
     ],
   },
   {

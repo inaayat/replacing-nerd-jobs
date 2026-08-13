@@ -232,12 +232,13 @@ const apple = mapping.find((r) => r.rank === 4);
 assert.equal(apple.company, 'Apple');
 assert.equal(SUGGESTED_RANK, 4);
 assert.equal(COURSE_STEPS.length, 4);
-assert.deepEqual(COURSE_STEPS.map((s) => s.id), ['open', 'ratio', 'model', 'compare']);
+// The practice model is the pane a company opens on, so it comes before ratios.
+assert.deepEqual(COURSE_STEPS.map((s) => s.id), ['open', 'model', 'ratio', 'compare']);
 assert.equal(HOW_TO.length, 3);
 assert.ok(PURPOSE.includes('Year 0 is filed'));
-const mid = courseProgress({ open: true, ratio: true });
+const mid = courseProgress({ open: true, model: true });
 assert.equal(mid.completed, 2);
-assert.equal(mid.next.id, 'model');
+assert.equal(mid.next.id, 'ratio');
 assert.equal(mid.complete, false);
 assert.equal(courseProgress({ open: true, ratio: true, model: true, compare: true }).complete, true);
 
