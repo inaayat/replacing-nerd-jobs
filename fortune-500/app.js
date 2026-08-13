@@ -69,13 +69,11 @@ const listEl = document.getElementById('list');
 const detailEl = document.getElementById('detail');
 const countEl = document.getElementById('count');
 const searchEl = document.getElementById('search');
-const layoutEl = document.getElementById('layout');
 const compareBar = document.getElementById('compare-bar');
 const compareLabel = document.getElementById('compare-label');
 const compareChips = document.getElementById('compare-chips');
 const compareGo = document.getElementById('compare-go');
 const compareClear = document.getElementById('compare-clear');
-const presetsEl = document.getElementById('presets');
 
 const headlinesByCik = new Map();
 const pricesByTicker = new Map();
@@ -100,6 +98,8 @@ let explainKey = 'net_margin';
 let companyPane = 'model';
 let comparePane = 'ratios';
 let modelDraft = null;
+let searchOpen = false;
+let activeResult = -1;
 
 const COURSE_STORAGE = 'f500-course';
 const courseStripEl = document.getElementById('course-strip');
@@ -464,12 +464,11 @@ function renderCompareBar() {
 }
 
 /**
- * Peer sets as one-line chips. The member names live in the tooltip — spelling
- * them out inline used to eat most of the left rail before the company list.
+ * Peer sets as one-line chips on the table view. The member names live in the
+ * tooltip — spelling them out inline used to eat the whole rail.
  */
-function renderPresets() {
-  if (!presetsEl) return;
-  presetsEl.innerHTML = PRESETS.map((p) => {
+function presetsHtml() {
+  const chips = PRESETS.map((p) => {
     const who = p.ranks
       .map((r) => companyByRank(r)?.company)
       .filter(Boolean)
@@ -480,39 +479,80 @@ function renderPresets() {
       <span class="f5-preset-n" aria-hidden="true">${p.ranks.length}</span>
     </button>`;
   }).join('');
+  return `<div class="f5-presets" aria-label="Peer sets">${chips}</div>`;
 }
 
-function renderList() {
-  const rows = companies.filter(matches);
-  countEl.textContent = `${rows.length} shown${window.__f500Stats ? ' · ' + window.__f500Stats : ''}`;
-  const suggestRank = isBeginner() ? SUGGESTED_RANK : null;
-  const html = rows
-    .map((c) => {
-      const pub = isPublic(c);
-      const selected = c.rank === selectedRank && !compareMode;
-      const picked = compareRanks.includes(c.rank);
-      const suggest = c.rank === suggestRank && pub;
-      const nm = formatDerived(lookupDef('net_margin'), headlinesOf(c)?.ratios?.net_margin);
-      const fig = pub
-        ? `<span class="f5-row-fig">${nm ? escapeHtml(nm) : ''}</span>`
-        : `<span class="f5-pill f5-pill-private">Private</span>`;
-      const add = pub
-        ? `<button type="button" class="f5-row-add" data-toggle-compare="${c.rank}" aria-pressed="${picked}">${picked ? 'Added' : 'Add'}</button>`
-        : '';
-      return `<div class="f5-row${pub ? '' : ' is-private'}${picked ? ' is-picked' : ''}${suggest ? ' is-suggest' : ''}">
-        <button type="button" class="f5-row-main" data-rank="${c.rank}" aria-selected="${selected}">
-          <span class="f5-rank">${c.rank}</span>
-          <span>
-            <span class="f5-row-name">${escapeHtml(c.company)}${suggest ? ' <span class="f5-suggest-tag">Start here</span>' : ''}</span>
-            <span class="f5-row-sub">${escapeHtml(tickerLabel(c))}</span>
-          </span>
-          ${fig}
-        </button>
-        ${add}
-      </div>`;
-    })
-    .join('');
-  listEl.innerHTML = html || `<p class="f5-count" style="padding:12px">No matches.</p>`;
+/** How many search hits the dropdown shows before asking you to keep typing. */
+const MAX_RESULTS = 8;
+
+function resultRow(c, active) {
+  const pub = isPublic(c);
+  const picked = compareRanks.includes(c.rank);
+  const nm = formatDerived(lookupDef('net_margin'), headlinesOf(c)?.ratios?.net_margin);
+  const fig = pub
+    ? `<span class="f5-row-fig">${nm ? escapeHtml(nm) : ''}</span>`
+    : `<span class="f5-pill f5-pill-private">Private</span>`;
+  const add = pub
+    ? `<button type="button" class="f5-row-add" data-toggle-compare="${c.rank}" aria-pressed="${picked}" tabindex="-1">${picked ? 'Added' : 'Add'}</button>`
+    : '';
+  return `<div class="f5-row${pub ? '' : ' is-private'}${picked ? ' is-picked' : ''}${active ? ' is-active' : ''}" role="option" aria-selected="${active}">
+    <button type="button" class="f5-row-main" data-rank="${c.rank}" tabindex="-1">
+      <span class="f5-rank">${c.rank}</span>
+      <span>
+        <span class="f5-row-name">${escapeHtml(c.company)}</span>
+        <span class="f5-row-sub">${escapeHtml(tickerLabel(c))}</span>
+      </span>
+      ${fig}
+    </button>
+    ${add}
+  </div>`;
+}
+
+/**
+ * The search dropdown. It only opens on a query — with no text typed, the
+ * table underneath is already the whole list, so a permanent panel of 500
+ * names was just occupying the left third of every page.
+ */
+function renderResults() {
+  const all = companies.filter(matches);
+  countEl.textContent = query
+    ? `${all.length} match${all.length === 1 ? '' : 'es'}`
+    : window.__f500Stats || `${companies.length} companies`;
+  const open = Boolean(query) && searchOpen;
+  listEl.hidden = !open;
+  searchEl.setAttribute('aria-expanded', String(open));
+  if (!open) {
+    activeResult = -1;
+    return;
+  }
+  const shown = all.slice(0, MAX_RESULTS);
+  if (activeResult >= shown.length) activeResult = shown.length - 1;
+  const more =
+    all.length > shown.length
+      ? `<p class="f5-results-more">${all.length - shown.length} more — keep typing, or press Escape to browse the table.</p>`
+      : '';
+  listEl.innerHTML = shown.length
+    ? shown.map((c, i) => resultRow(c, i === activeResult)).join('') + more
+    : `<p class="f5-results-more">No company matches “${escapeHtml(query)}”.</p>`;
+}
+
+function openResults() {
+  searchOpen = true;
+  renderResults();
+}
+
+function closeResults({ clear = false } = {}) {
+  searchOpen = false;
+  activeResult = -1;
+  if (clear) {
+    query = '';
+    searchEl.value = '';
+  }
+  renderResults();
+}
+
+function renderFinder() {
+  renderResults();
   renderCompareBar();
   renderCourseChrome();
 }
@@ -740,6 +780,7 @@ function screenerView() {
         ${viewTabs()}
         <p class="f5-toolbar-hint">${hint}</p>
       </div>
+      ${presetsHtml()}
       <div class="f5-table-wrap">
         <table class="f5-table f5-screener-table">
           <thead><tr>${head}</tr></thead>
@@ -1094,15 +1135,22 @@ function guessValue(assumptions, field) {
   return field.isExtra ? assumptions.extras?.[field.key] : assumptions[field.key];
 }
 
+/**
+ * One guess, as a row in the left column: name and control on the top line,
+ * the three explaining sentences under it. Wide and short so the statement
+ * beside it keeps the height it needs.
+ */
 function guessCard(field, assumptions, headlines, model, playbook) {
   const copy = describeAssumption(field, headlines, model, playbook);
   const extraKey = field.isExtra ? field.key : undefined;
   return `<article class="f5-guess" data-assumption="${escapeAttr(field.key)}">
-    <h4 class="f5-guess-name">${escapeHtml(copy.name)}</h4>
+    <div class="f5-guess-head">
+      <h4 class="f5-guess-name">${escapeHtml(copy.name)}</h4>
+      ${driverControls(field.key, guessValue(assumptions, field), extraKey)}
+    </div>
     <p class="f5-guess-what">${escapeHtml(copy.what)}</p>
     <p class="f5-guess-origin">${escapeHtml(copy.origin)}</p>
     <p class="f5-guess-effect" data-guess-effect="${escapeAttr(field.key)}">${escapeHtml(copy.effect)}</p>
-    ${driverControls(field.key, guessValue(assumptions, field), extraKey)}
   </article>`;
 }
 
@@ -1133,7 +1181,14 @@ function modelLiveHtml(c, headlines) {
   const a = modelAssumptions(headlines, c);
   const model = runPracticeModel(headlines, a, playbook);
   if (!model.ok) return `<p class="f5-toolbar-hint">${escapeHtml(model.reason)}</p>`;
-  const statement = buildStatement(headlines, { model, detail: true });
+  // Only the lines this model actually moves, and no percent check figures —
+  // those percentages are the guess cards next to the statement.
+  const statement = buildStatement(headlines, {
+    model,
+    detail: true,
+    projectedRowsOnly: true,
+    drivers: false,
+  });
   return `
     <p class="f5-model-delta">Year 5 vs filed FY${model.year0}:
       NI <strong>${escapeHtml(signedUsd(model.vsFiled.netIncome))}</strong>
@@ -1162,6 +1217,8 @@ function modelPanel(headlines, company) {
         `<button type="button" class="f5-view-tab" data-scenario="${s}" aria-pressed="${a.scenario === s}">${s}</button>`
     )
     .join('');
+  // Two columns that scroll on their own: guesses on the left, the statement
+  // they move on the right, so the projection stays whole on screen.
   return `
     ${paneTabs('company', companyPane)}
     <div class="f5-model-toolbar">
@@ -1172,12 +1229,16 @@ function modelPanel(headlines, company) {
       <button type="button" class="f5-mini f5-mini-ghost" id="model-reset">Reset to 10-K</button>
       <button type="button" class="f5-mini" id="model-xlsx">Download Excel</button>
     </div>
-    <form class="f5-guesses" id="model-form">${cards}</form>
-    <div id="model-live">${modelLiveHtml(company, headlines)}</div>
-    <details class="f5-sens-fold">
-      <summary>Sensitivity — year-5 net income</summary>
-      <div id="model-sens">${sensitivityHtml(model)}</div>
-    </details>`;
+    <div class="f5-model-layout">
+      <form class="f5-guesses" id="model-form" aria-label="Your assumptions">${cards}</form>
+      <div class="f5-model-output">
+        <div id="model-live">${modelLiveHtml(company, headlines)}</div>
+        <details class="f5-sens-fold">
+          <summary>Sensitivity — year-5 net income</summary>
+          <div id="model-sens">${sensitivityHtml(model)}</div>
+        </details>
+      </div>
+    </div>`;
 }
 
 function pctPill(value, source, key, headlines) {
@@ -1526,7 +1587,6 @@ async function fetchHeadlines(ciks) {
 
 async function renderDetail() {
   renderCourseChrome();
-  layoutEl.classList.toggle('show-detail', compareMode || Boolean(selectedRank));
   if (compareMode) {
     const names = compareRanks.map(companyByRank).filter((c) => c && isPublic(c));
     lastCompareRows = [];
@@ -1582,7 +1642,7 @@ function applyState(opts = {}) {
       replace: opts.replace,
     });
   }
-  renderList();
+  renderFinder();
   renderDetail();
   if ((compareMode || selectedRank) && window.matchMedia('(max-width: 820px)').matches) {
     detailEl.scrollIntoView({ block: 'start' });
@@ -1620,7 +1680,7 @@ function toggleCompare(rank, on) {
     compareRanks = compareRanks.filter((r) => r !== rank);
     if (compareMode && compareRanks.length < 2) compareMode = false;
   }
-  renderList();
+  renderFinder();
   if (compareMode) applyState();
   else if (!selectedRank) renderDetail();
   else {
@@ -1659,6 +1719,7 @@ listEl.addEventListener('click', (e) => {
   }
   const btn = e.target.closest('[data-rank]');
   if (!btn) return;
+  closeResults({ clear: true });
   select(Number(btn.dataset.rank));
 });
 
@@ -1921,12 +1982,6 @@ detailEl.addEventListener('change', (e) => {
   }
 });
 
-presetsEl?.addEventListener('click', (e) => {
-  const btn = e.target.closest('[data-preset]');
-  if (!btn) return;
-  applyPreset(btn.dataset.preset);
-});
-
 function openHomeView(view) {
   return (e) => {
     e?.preventDefault();
@@ -1954,8 +2009,48 @@ compareBar.addEventListener('click', (e) => {
 
 searchEl.addEventListener('input', () => {
   query = searchEl.value.trim();
-  renderList();
+  activeResult = query ? 0 : -1;
+  openResults();
   if (!selectedRank && !compareMode) renderDetail();
+});
+
+searchEl.addEventListener('focus', () => {
+  if (query) openResults();
+});
+
+/** Arrow keys walk the hits; Enter opens one; Escape drops back to the table. */
+searchEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeResults({ clear: true });
+    renderDetail();
+    searchEl.blur();
+    return;
+  }
+  const hits = companies.filter(matches).slice(0, MAX_RESULTS);
+  if (!hits.length) return;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (!searchOpen) openResults();
+    const step = e.key === 'ArrowDown' ? 1 : -1;
+    activeResult = (activeResult + step + hits.length) % hits.length;
+    renderResults();
+    listEl.querySelector('.f5-row.is-active')?.scrollIntoView({ block: 'nearest' });
+    return;
+  }
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const c = hits[Math.max(0, activeResult)];
+    if (c) {
+      closeResults({ clear: true });
+      select(c.rank);
+    }
+  }
+});
+
+document.addEventListener('click', (e) => {
+  if (!searchOpen) return;
+  if (e.target.closest('.f5-finder')) return;
+  closeResults();
 });
 
 document.querySelector('.f5-filters').addEventListener('click', (e) => {
@@ -1965,7 +2060,7 @@ document.querySelector('.f5-filters').addEventListener('click', (e) => {
   for (const b of document.querySelectorAll('.f5-filters [data-filter]')) {
     b.setAttribute('aria-pressed', String(b === btn));
   }
-  renderList();
+  renderResults();
   if (!selectedRank && !compareMode) renderDetail();
 });
 
@@ -2001,8 +2096,7 @@ try {
   }
   const pub = companies.filter(isPublic).length;
   const withFy = [...headlinesByCik.values()].filter((h) => h.asOfYear).length;
-  window.__f500Stats = `${pub} public · ${withFy} with 10-Ks`;
-  renderPresets();
+  window.__f500Stats = `${companies.length} companies · ${pub} public · ${withFy} with 10-Ks`;
   const s = parseUrl();
   compareMode = s.compareMode;
   compareRanks = s.compareRanks;

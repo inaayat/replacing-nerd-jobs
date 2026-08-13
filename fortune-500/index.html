@@ -38,24 +38,31 @@
         <button type="button" class="f5-mini" data-open-suggested>Open Apple</button>
         <button type="button" class="f5-mini f5-mini-ghost" data-course-skip>Skip · I’m comfortable</button>
       </div>
-      <div class="f5-layout" id="layout">
-        <section class="f5-list-panel" aria-label="Company list">
-          <div class="f5-list-head">
-            <h2>Companies</h2>
-            <label class="visually-hidden" for="search" style="position:absolute;left:-9999px">Search companies</label>
-            <input id="search" class="f5-search" type="search" placeholder="Search name or ticker…" autocomplete="off" />
-            <div class="f5-filters" role="group" aria-label="Filter by filing status">
-              <button type="button" data-filter="all" aria-pressed="true">All</button>
-              <button type="button" data-filter="public" aria-pressed="false">Public</button>
-              <button type="button" data-filter="private" aria-pressed="false">Private</button>
-            </div>
-            <p class="f5-count" id="count">Loading companies…</p>
-            <p class="f5-presets-kicker">Peer sets — tap one to fill the compare tray</p>
-            <div class="f5-presets" id="presets" aria-label="Peer sets"></div>
+      <div class="f5-finder">
+        <div class="f5-finder-bar">
+          <label class="visually-hidden" for="search" style="position:absolute;left:-9999px">Search companies</label>
+          <input
+            id="search"
+            class="f5-search"
+            type="search"
+            role="combobox"
+            aria-expanded="false"
+            aria-controls="list"
+            aria-autocomplete="list"
+            placeholder="Search the Fortune 500 by name or ticker…"
+            autocomplete="off"
+          />
+          <div class="f5-filters" role="group" aria-label="Filter by filing status">
+            <button type="button" data-filter="all" aria-pressed="true">All</button>
+            <button type="button" data-filter="public" aria-pressed="false">Public</button>
+            <button type="button" data-filter="private" aria-pressed="false">Private</button>
           </div>
-          <div class="f5-list" id="list" aria-label="Fortune 500"></div>
-        </section>
+          <p class="f5-count" id="count">Loading companies…</p>
+        </div>
+        <div class="f5-results" id="list" role="listbox" aria-label="Search results" hidden></div>
+      </div>
 
+      <div class="f5-layout" id="layout">
         <section class="f5-detail" id="detail" aria-live="polite">
           <p class="f5-toolbar-hint" style="padding:16px">Loading companies…</p>
         </section>
