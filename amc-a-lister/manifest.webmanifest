@@ -7,7 +7,7 @@
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#faf3e3",
-  "theme_color": "#830f10",
+  "theme_color": "#f05e53",
   "categories": ["entertainment", "lifestyle", "productivity"],
   "icons": [
     {

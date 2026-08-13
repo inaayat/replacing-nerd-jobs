@@ -74,7 +74,10 @@ async function loadLog(auth) {
     watches,
     filtered: watches,
     invites,
-    invitesExpanded: false,
+    // An invite you have to respond to is the only thing on this page with a
+    // deadline, so it opens with Accept/Deny already on screen. Outgoing-only
+    // ("waiting on them") has nothing to act on and stays collapsed.
+    invitesExpanded: (invites?.incoming || []).length > 0,
     editingId: null,
     expandedId: null,
     addingId: null,

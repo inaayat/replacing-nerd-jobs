@@ -12,7 +12,7 @@
  * cannot go stale between bumps. Only the handful of precached static assets
  * below depend on this string, so bump it when an icon or the manifest changes.
  */
-const BUILD_ID = '2026-08-11a';
+const BUILD_ID = '2026-08-13a';
 const CACHE = `amc-a-lister-${BUILD_ID}`;
 
 // Only genuinely static, rarely-changing assets. HTML and JS are fetched fresh

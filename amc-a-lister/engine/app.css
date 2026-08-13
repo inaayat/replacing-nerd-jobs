@@ -1,17 +1,33 @@
+/* Palette borrowed from the site home page: cream field, ink type, one fun red.
+   Red is a fill colour — ink on #f05e53 clears AA, cream on it does not — so
+   text that must sit on cream uses --al-red-deep instead. */
 :root {
-  --al-red: #da0000;
-  --al-burgundy: #830f10;
+  --al-cream: #faf3e3;
+  --al-red: #f05e53;
+  --al-red-deep: #c93b2e;
+  --al-purple: #755ca7;
+  --al-cyan: #78a8d5;
+  --al-yellow: #ffd143;
+  --al-orange: #f58b3b;
+  --al-orange-deep: var(--al-orange-deep);
+  --al-pink: #eb82b0;
+  --al-green: #82a34d;
+  --al-green-deep: #4f6b23;
   --al-black: #1c1c1c;
   --al-white: #ffffff;
-  --al-charcoal: #574d4c;
-  --al-cream: #faf3e3;
+  --al-charcoal: #55524a;
   --al-bg: var(--al-cream);
-  --al-panel: #ffffff;
-  --al-panel-2: #faf6ef;
+  --al-panel: #fffdf6;
+  --al-panel-2: #fdf8ea;
   --al-text: #1c1c1c;
-  --al-muted: #6b5f5e;
-  --al-line: rgba(28, 28, 28, 0.1);
-  --al-radius: 18px;
+  --al-muted: #6f6a5d;
+  --al-line: rgba(28, 28, 28, 0.12);
+  /* Shared red washes so highlight states stay in step with the brand colour. */
+  --al-red-tint: color-mix(in srgb, var(--al-red) 8%, transparent);
+  --al-red-tint-strong: color-mix(in srgb, var(--al-red) 18%, transparent);
+  --al-red-edge: color-mix(in srgb, var(--al-red) 34%, transparent);
+  --al-red-ring: color-mix(in srgb, var(--al-red) 45%, transparent);
+  --al-radius: 20px;
   --al-font-body: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --al-font-display: "Fraunces", Georgia, serif;
   --al-font-mono: "DM Mono", ui-monospace, monospace;
@@ -29,7 +45,7 @@ html, body {
   line-height: 1.45;
 }
 
-a { color: var(--al-burgundy); }
+a { color: var(--al-red-deep); }
 
 .serif { font-family: var(--al-font-display); font-weight: 500; }
 .brand-mono { font-family: var(--al-font-mono); }
@@ -68,13 +84,14 @@ a { color: var(--al-burgundy); }
 
 .al-sidebar {
   flex-shrink: 0;
-  background: var(--al-burgundy);
-  color: var(--al-white);
+  background: var(--al-panel);
+  color: var(--al-text);
+  border: 1px solid var(--al-line);
   border-radius: var(--al-radius);
-  padding: 24px 20px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
 }
 
 @media (min-width: 768px) {
@@ -90,31 +107,46 @@ a { color: var(--al-burgundy); }
   .al-sidebar { width: 340px; }
 }
 
+/* The one big red shape on the page: a marquee card, bulbs and all. */
 .al-sidebar-brand {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  padding: 14px 16px 12px;
+  border-radius: 16px;
+  background: var(--al-red);
+  color: var(--al-black);
+}
+
+.al-sidebar-brand::after {
+  content: '';
+  display: block;
+  height: 6px;
+  margin-top: 10px;
+  background-image: radial-gradient(circle, var(--al-cream) 2.1px, transparent 2.3px);
+  background-size: 14px 6px;
+  opacity: 0.8;
 }
 
 .al-sidebar-title {
   display: block;
   font-family: var(--al-font-display);
-  font-size: 1.35rem;
-  font-weight: 600;
-  line-height: 1.15;
-  color: var(--al-white);
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--al-black);
   text-decoration: none;
 }
 
-.al-sidebar-title:hover { color: var(--al-white); opacity: 0.9; }
+.al-sidebar-title:hover { color: var(--al-black); text-decoration: underline; text-underline-offset: 3px; }
 
 .al-sidebar-tagline {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   font-weight: 400;
   font-style: italic;
   line-height: 1.35;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(28, 28, 28, 0.72);
 }
 
 .al-sidebar-stats {
@@ -133,14 +165,18 @@ a { color: var(--al-burgundy); }
 .al-sidebar-stats-heading {
   grid-column: 1 / -1;
   margin: 0 0 4px;
-  font-size: 0.75rem;
+  font-family: var(--al-font-mono);
+  font-size: 0.68rem;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--al-muted);
 }
 
 .al-sidebar-stat {
-  background: rgba(0, 0, 0, 0.18);
-  border-radius: 10px;
+  background: var(--al-cream);
+  border: 1px solid var(--al-line);
+  border-radius: 12px;
   padding: 10px 10px 8px;
   min-width: 0;
 }
@@ -148,7 +184,7 @@ a { color: var(--al-burgundy); }
 .al-sidebar-stat-label {
   font-size: 0.7rem;
   font-weight: 400;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--al-muted);
 }
 
 .al-sidebar-stat-value {
@@ -156,42 +192,42 @@ a { color: var(--al-burgundy); }
   font-size: 1.1rem;
   font-weight: 600;
   font-family: var(--al-font-mono);
-  color: var(--al-white);
+  color: var(--al-text);
   font-variant-numeric: tabular-nums;
 }
 
-.al-sidebar-stat-value.is-savings { color: #8fe8b8; }
-.al-sidebar-stat-value.is-cost { color: #ffb4b4; }
+.al-sidebar-stat-value.is-savings { color: var(--al-green-deep); }
+.al-sidebar-stat-value.is-cost { color: var(--al-red-deep); }
 
 .al-sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  margin: 0 -20px;
+  gap: 3px;
+  margin: 0;
 }
 
 .al-nav-link {
   display: block;
   width: 100%;
   box-sizing: border-box;
-  padding: 8px 20px;
-  font-size: 0.9rem;
+  padding: 8px 14px;
+  font-size: 0.92rem;
   font-weight: 500;
   line-height: 1.3;
   text-decoration: none;
-  color: rgba(255, 255, 255, 0.7);
-  border-radius: 0;
+  color: rgba(28, 28, 28, 0.68);
+  border-radius: 999px;
 }
 
 .al-nav-link:hover {
-  color: var(--al-white);
-  background: rgba(0, 0, 0, 0.12);
+  color: var(--al-text);
+  background: var(--al-red-tint);
 }
 
 .al-nav-link.is-active {
-  color: var(--al-white);
-  background: rgba(0, 0, 0, 0.22);
-  font-weight: 600;
+  color: var(--al-black);
+  background: var(--al-red);
+  font-weight: 700;
 }
 
 .al-sidebar-footer {
@@ -200,15 +236,15 @@ a { color: var(--al-burgundy); }
   gap: 6px;
   font-size: 0.8rem;
   padding-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  border-top: 1px solid var(--al-line);
 }
 
 .al-sidebar-footer a {
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--al-muted);
   text-decoration: none;
 }
 
-.al-sidebar-footer a:hover { color: var(--al-white); }
+.al-sidebar-footer a:hover { color: var(--al-red-deep); }
 
 .al-content-scroll {
   flex: 1 1 auto;
@@ -228,11 +264,23 @@ a { color: var(--al-burgundy); }
 /* Quick-log bar: compact primary row + smooth expandable extras */
 .al-quicklog {
   flex-shrink: 0;
+  position: relative;
   margin-bottom: 12px;
   background: var(--al-panel);
   border: 1px solid var(--al-line);
   border-radius: var(--al-radius);
-  padding: 8px 10px;
+  padding: 10px 12px 10px 16px;
+}
+
+/* Ticket stub: a red edge down the left of the bar you log from. The dropdowns
+   inside overflow the bar, so this is a pseudo-element, not a clipped border. */
+.al-quicklog::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 6px;
+  border-radius: var(--al-radius) 0 0 var(--al-radius);
+  background: var(--al-red);
 }
 
 .al-quicklog-primary {
@@ -301,7 +349,7 @@ a { color: var(--al-burgundy); }
 }
 
 .al-quicklog-input:focus {
-  outline: 2px solid rgba(218, 0, 0, 0.18);
+  outline: 2px solid var(--al-red-ring);
   border-color: var(--al-red);
   background: var(--al-white);
 }
@@ -367,14 +415,14 @@ a { color: var(--al-burgundy); }
   gap: 4px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: #e8f0ea;
-  color: #2f5d3a;
+  background: color-mix(in srgb, var(--al-green) 26%, var(--al-cream));
+  color: var(--al-green-deep);
   font-size: 0.78rem;
   font-weight: 600;
 }
 
 .al-chip.is-locked {
-  background: #f0ece8;
+  background: color-mix(in srgb, var(--al-black) 8%, var(--al-cream));
   color: var(--al-muted);
 }
 
@@ -414,12 +462,12 @@ a { color: var(--al-burgundy); }
 .al-quicklog-submit {
   padding: 7px 16px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 999px;
   background: var(--al-red);
-  color: var(--al-white);
+  color: var(--al-black);
   font: inherit;
   font-size: 0.86rem;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
   height: 34px;
@@ -427,7 +475,7 @@ a { color: var(--al-burgundy); }
 }
 
 .al-quicklog-submit:hover {
-  background: var(--al-burgundy);
+  filter: brightness(0.95);
 }
 
 .al-quicklog-status {
@@ -437,8 +485,8 @@ a { color: var(--al-burgundy); }
   min-height: 1.1em;
 }
 
-.al-quicklog-status.is-success { color: #0d7a42; }
-.al-quicklog-status.is-error { color: var(--al-red); }
+.al-quicklog-status.is-success { color: var(--al-green-deep); }
+.al-quicklog-status.is-error { color: var(--al-red-deep); }
 
 .al-quicklog-mode {
   display: flex;
@@ -457,9 +505,10 @@ a { color: var(--al-burgundy); }
 }
 
 .al-quicklog-mode-btn.is-active {
-  background: var(--al-black);
-  border-color: var(--al-black);
-  color: #fff;
+  background: var(--al-red);
+  border-color: var(--al-red);
+  color: var(--al-black);
+  font-weight: 600;
 }
 
 .al-quicklog.is-off-theater [data-theater-only] {
@@ -529,8 +578,8 @@ a { color: var(--al-burgundy); }
 }
 
 .al-segment-btn.is-active .al-segment-count {
-  background: rgba(218, 0, 0, 0.12);
-  color: var(--al-red);
+  background: var(--al-red-tint-strong);
+  color: var(--al-red-deep);
 }
 
 .al-watchlist-header-actions {
@@ -557,7 +606,7 @@ a { color: var(--al-burgundy); }
 
 .al-already-out-btn:hover {
   border-color: var(--al-red);
-  color: var(--al-red);
+  color: var(--al-red-deep);
 }
 
 .al-already-out-count {
@@ -568,13 +617,15 @@ a { color: var(--al-burgundy); }
   padding: 0 4px;
   border-radius: 999px;
   background: var(--al-red);
-  color: #fff;
+  color: var(--al-black);
   font-size: 0.68rem;
+  font-weight: 600;
   line-height: 1.4;
 }
 
 .al-already-out-btn--empty .al-already-out-count {
-  background: var(--al-muted);
+  background: color-mix(in srgb, var(--al-black) 10%, var(--al-cream));
+  color: var(--al-muted);
 }
 
 .al-watchlist-add {
@@ -816,7 +867,7 @@ a { color: var(--al-burgundy); }
   padding: 8px;
   border: 1px solid var(--al-line);
   border-radius: 10px;
-  background: #fff;
+  background: var(--al-panel);
 }
 
 .al-watchlist-card-title {
@@ -857,13 +908,13 @@ a { color: var(--al-burgundy); }
 }
 
 .al-badge--muted {
-  background: #f0ece8;
-  color: var(--al-muted);
+  background: color-mix(in srgb, var(--al-yellow) 40%, var(--al-cream));
+  color: #6a4d00;
 }
 
 .al-badge--together {
-  background: #e8f0ea;
-  color: #2f5d3a;
+  background: color-mix(in srgb, var(--al-green) 26%, var(--al-cream));
+  color: var(--al-green-deep);
 }
 
 .al-panel--invites {
@@ -893,7 +944,7 @@ a { color: var(--al-burgundy); }
 }
 
 .al-invites-toggle:focus-visible {
-  outline: 2px solid var(--al-burgundy);
+  outline: 2px solid var(--al-red-deep);
   outline-offset: 2px;
   border-radius: 6px;
 }
@@ -975,7 +1026,7 @@ a { color: var(--al-burgundy); }
   justify-content: space-between;
   gap: 12px;
   padding: 8px 0;
-  border-top: 1px solid var(--al-rule, #e6e0d8);
+  border-top: 1px solid var(--al-line);
 }
 
 .al-invites-outgoing-item:first-child {
@@ -1011,7 +1062,7 @@ a { color: var(--al-burgundy); }
   gap: 12px;
   align-items: center;
   padding: 10px 0;
-  border-top: 1px solid var(--al-rule, #e6e0d8);
+  border-top: 1px solid var(--al-line);
 }
 
 .al-invite-card:first-child {
@@ -1055,7 +1106,7 @@ a { color: var(--al-burgundy); }
   border: 1px solid var(--al-line);
   border-top: 0;
   border-radius: 0 0 12px 12px;
-  background: #faf8f5;
+  background: var(--al-panel-2);
   margin-top: -8px;
 }
 
@@ -1135,14 +1186,14 @@ a { color: var(--al-burgundy); }
   background: var(--al-panel);
   border: 1px solid var(--al-line);
   border-radius: var(--al-radius);
-  padding: 12px 14px;
+  padding: 14px 16px;
   margin-bottom: 10px;
 }
 
 .al-panel h2 {
   margin: 0 0 10px;
   font-family: var(--al-font-display);
-  font-size: 1.05rem;
+  font-size: 1.1rem;
   font-weight: 600;
 }
 
@@ -1254,25 +1305,24 @@ a { color: var(--al-burgundy); }
   overflow: hidden;
   min-width: 0;
   padding: 14px 14px 12px;
-  border-radius: 14px;
+  border-radius: 16px;
   border: 1px solid var(--al-line);
-  background:
-    linear-gradient(160deg, rgba(255, 255, 255, 0.92), rgba(250, 246, 239, 0.96)),
-    var(--al-panel);
+  background: var(--al-panel-2);
 }
 
+/* One flat colour bar per card — the sibling hues from the home page, used to
+   tell the spotlight cards apart rather than to decorate every panel. */
 .al-insights-spot::before {
   content: '';
   position: absolute;
   inset: 0 auto 0 0;
-  width: 3px;
-  background: var(--al-burgundy);
-  opacity: 0.55;
+  width: 4px;
+  background: var(--al-purple);
 }
 
-.al-insights-spot.is-accent::before { background: var(--al-red); opacity: 0.85; }
-.al-insights-spot.is-good::before { background: #0d7a42; opacity: 0.8; }
-.al-insights-spot.is-warn::before { background: #a85b00; opacity: 0.8; }
+.al-insights-spot.is-accent::before { background: var(--al-red); }
+.al-insights-spot.is-good::before { background: var(--al-green); }
+.al-insights-spot.is-warn::before { background: var(--al-orange); }
 
 .al-insights-spot-label {
   margin: 0;
@@ -1307,7 +1357,7 @@ a { color: var(--al-burgundy); }
 }
 
 .al-insight.is-expanded {
-  border-color: rgba(131, 15, 16, 0.18);
+  border-color: var(--al-red-edge);
   box-shadow: 0 8px 24px rgba(28, 28, 28, 0.05);
 }
 
@@ -1339,7 +1389,7 @@ a { color: var(--al-burgundy); }
 
 .al-rating-bar-row:hover,
 .al-rating-bar-row:focus-within {
-  background: rgba(218, 0, 0, 0.04);
+  background: var(--al-red-tint);
 }
 
 .al-rating-bar-label {
@@ -1360,7 +1410,7 @@ a { color: var(--al-burgundy); }
   height: 100%;
   width: 0;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--al-burgundy), var(--al-red));
+  background: var(--al-red);
   transition: width 0.55s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -1425,7 +1475,7 @@ a { color: var(--al-burgundy); }
 }
 
 .al-theater-rating-score {
-  color: var(--al-burgundy);
+  color: var(--al-red-deep);
 }
 
 .al-theater-rating-meta,
@@ -1455,11 +1505,11 @@ a { color: var(--al-burgundy); }
 }
 
 .al-meter--theater .al-meter-fill {
-  background: linear-gradient(90deg, #a31214, var(--al-red));
+  background: var(--al-red);
 }
 
 .al-meter--format .al-meter-fill {
-  background: linear-gradient(90deg, var(--al-charcoal), var(--al-burgundy));
+  background: var(--al-purple);
 }
 
 .al-hud {
@@ -1497,18 +1547,18 @@ a { color: var(--al-burgundy); }
   font-variant-numeric: tabular-nums;
 }
 
-.al-stat-value.is-savings { color: #0d7a42; }
-.al-stat-value.is-cost { color: var(--al-burgundy); }
+.al-stat-value.is-savings { color: var(--al-green-deep); }
+.al-stat-value.is-cost { color: var(--al-red-deep); }
 
 .al-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 8px 12px;
-  border-radius: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
   border: 1px solid var(--al-line);
-  background: var(--al-white);
+  background: var(--al-panel);
   color: var(--al-text);
   font-size: 0.78rem;
   font-weight: 700;
@@ -1517,13 +1567,13 @@ a { color: var(--al-burgundy); }
   font-family: inherit;
 }
 
-.al-btn:hover { border-color: var(--al-charcoal); }
+.al-btn:hover { border-color: var(--al-charcoal); background: var(--al-cream); }
 .al-btn-primary {
   background: var(--al-red);
   border-color: var(--al-red);
-  color: var(--al-white);
+  color: var(--al-black);
 }
-.al-btn-primary:hover { background: var(--al-burgundy); border-color: var(--al-burgundy); }
+.al-btn-primary:hover { background: var(--al-red); border-color: var(--al-red); filter: brightness(0.95); }
 
 .al-table-wrap { overflow-x: auto; }
 
@@ -1601,8 +1651,8 @@ table.al-table {
 }
 
 .al-profile-card.is-you {
-  border-color: rgba(218, 0, 0, 0.22);
-  background: rgba(218, 0, 0, 0.03);
+  border-color: var(--al-red-edge);
+  background: var(--al-red-tint);
 }
 
 .al-profile-card-head {
@@ -1632,7 +1682,7 @@ table.al-table {
 }
 
 .al-profile-name a:hover {
-  color: var(--al-burgundy);
+  color: var(--al-red-deep);
 }
 
 .al-profile-stats {
@@ -1658,14 +1708,14 @@ table.al-table {
 .al-profile-view {
   align-self: flex-start;
   margin-top: auto;
-  color: var(--al-burgundy);
+  color: var(--al-red-deep);
   font-size: 0.82rem;
   font-weight: 600;
   text-decoration: none;
 }
 
 .al-profile-view:hover {
-  color: var(--al-red);
+  color: var(--al-red-deep);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -1689,7 +1739,7 @@ table.al-table {
 }
 
 .al-leaderboard-member-link:hover {
-  color: var(--al-red);
+  color: var(--al-red-deep);
   text-decoration: underline;
 }
 
@@ -1737,7 +1787,7 @@ table.al-table {
 }
 
 .al-leaderboard-table tr.is-you td {
-  background: rgba(218, 0, 0, 0.04);
+  background: var(--al-red-tint);
 }
 
 .al-you-badge {
@@ -1749,8 +1799,8 @@ table.al-table {
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  background: rgba(218, 0, 0, 0.1);
-  color: var(--al-burgundy);
+  background: var(--al-red-tint-strong);
+  color: var(--al-red-deep);
   vertical-align: middle;
 }
 
@@ -1782,7 +1832,7 @@ table.al-table {
 }
 
 .al-leaderboard-table tr.is-compare-target td {
-  background: rgba(218, 0, 0, 0.06);
+  background: var(--al-red-tint);
 }
 
 .al-compare-row-btn {
@@ -1858,21 +1908,21 @@ table.al-table {
   font-size: 0.62rem;
   line-height: 1.2;
   text-align: center;
-  color: var(--al-burgundy);
+  color: var(--al-red-deep);
 }
 
 .al-tag {
   display: inline-block;
-  padding: 1px 6px;
+  padding: 1px 7px;
   border-radius: 999px;
   font-size: 0.62rem;
-  background: rgba(218,0,0,0.08);
-  color: var(--al-burgundy);
-  border: 1px solid rgba(218,0,0,0.18);
+  background: var(--al-red-tint);
+  color: var(--al-red-deep);
+  border: 1px solid var(--al-red-edge);
 }
 
 .al-muted { color: var(--al-muted); font-size: 0.82rem; }
-.al-error { color: var(--al-red); }
+.al-error { color: var(--al-red-deep); }
 
 .al-marketing h2 { font-size: 1.15rem; margin: 0 0 10px; }
 .al-bullets { margin: 0; padding-left: 1.1rem; color: var(--al-muted); font-size: 0.88rem; }
@@ -1936,8 +1986,8 @@ table.al-table {
 }
 
 .al-bulk-ratings-row.is-changed {
-  border-color: rgba(218, 0, 0, 0.25);
-  background: #fff8f6;
+  border-color: var(--al-red-edge);
+  background: var(--al-red-tint);
 }
 
 .al-bulk-ratings-col--title {
@@ -2047,8 +2097,8 @@ table.al-table {
 }
 
 .al-bulk-add-row.is-selected {
-  border-color: rgba(47, 93, 58, 0.28);
-  background: #f3f8f4;
+  border-color: color-mix(in srgb, var(--al-green) 55%, transparent);
+  background: color-mix(in srgb, var(--al-green) 12%, var(--al-cream));
 }
 
 .al-bulk-add-row.is-tagged {
@@ -2114,7 +2164,7 @@ table.al-table {
 .al-input:focus,
 .al-select:focus,
 .al-textarea:focus {
-  outline: 2px solid rgba(218,0,0,0.25);
+  outline: 2px solid var(--al-red-ring);
   border-color: var(--al-red);
 }
 
@@ -2150,8 +2200,8 @@ table.al-table {
 }
 
 .al-panel--setup {
-  border-color: color-mix(in srgb, var(--al-burgundy) 35%, var(--al-line));
-  background: color-mix(in srgb, var(--al-burgundy) 6%, var(--al-panel));
+  border-color: color-mix(in srgb, var(--al-red-deep) 35%, var(--al-line));
+  background: color-mix(in srgb, var(--al-red-deep) 6%, var(--al-panel));
 }
 
 .al-howto-title {
@@ -2203,12 +2253,12 @@ table.al-table {
 }
 
 .al-howto-steps li::marker {
-  color: var(--al-burgundy);
+  color: var(--al-red-deep);
   font-weight: 600;
 }
 
 .al-howto-steps a {
-  color: var(--al-burgundy);
+  color: var(--al-red-deep);
   font-weight: 600;
   text-decoration: none;
 }
@@ -2245,9 +2295,9 @@ table.al-table {
 
 .al-toggle-btn.is-active,
 .al-toggle-btn[aria-pressed="true"] {
-  background: var(--al-black);
-  border-color: var(--al-black);
-  color: #fff;
+  background: var(--al-red);
+  border-color: var(--al-red);
+  color: var(--al-black);
 }
 
 .al-meter {
@@ -2338,7 +2388,7 @@ table.al-table {
   text-underline-offset: 2px;
   white-space: nowrap;
 }
-.al-link-btn:hover { color: var(--al-red); }
+.al-link-btn:hover { color: var(--al-red-deep); }
 
 .al-log-list-wrap { overflow-x: auto; }
 
@@ -2395,13 +2445,14 @@ table.al-table {
   padding: 10px 14px;
   background: var(--al-panel-2);
   border: 1px solid var(--al-line);
-  border-radius: 12px;
+  border-radius: 14px;
   box-shadow: 0 2px 8px rgba(28, 28, 28, 0.05);
-  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
 
 .al-log-row:hover {
-  border-color: rgba(28, 28, 28, 0.16);
+  border-color: var(--al-red-edge);
+  background: var(--al-panel);
   box-shadow: 0 4px 14px rgba(28, 28, 28, 0.08);
 }
 
@@ -2513,7 +2564,7 @@ table.al-table {
 }
 
 .al-log-row--clickable:focus-visible {
-  outline: 2px solid var(--al-burgundy);
+  outline: 2px solid var(--al-red-deep);
   outline-offset: 2px;
 }
 
@@ -2930,8 +2981,8 @@ table.al-table {
   }
 
   .al-insight .al-card-table tr.al-month-total {
-    background: rgba(131, 15, 16, 0.04);
-    border-color: rgba(131, 15, 16, 0.14);
+    background: var(--al-red-tint);
+    border-color: var(--al-red-edge);
   }
 
   .al-insight .al-card-table td,
@@ -3008,7 +3059,7 @@ table.al-table {
 
   .al-insight .al-card-table tbody tr:hover,
   .al-insight .al-card-table tbody tr:focus-within {
-    border-color: rgba(218, 0, 0, 0.22);
+    border-color: var(--al-red-edge);
   }
 
   /* Keep film popups on-screen as a bottom sheet */
@@ -3091,7 +3142,7 @@ table.al-table {
 .al-month-row.al-hover-target:focus-within td,
 .al-rank-row.al-hover-target:hover td,
 .al-rank-row.al-hover-target:focus-within td {
-  background: rgba(218, 0, 0, 0.04);
+  background: var(--al-red-tint);
 }
 
 .al-hover-popup-title {
@@ -3150,8 +3201,8 @@ table.al-table {
   color: var(--al-text);
 }
 
-.al-month-table .is-savings { color: #0d7a42; }
-.al-month-table .is-cost { color: var(--al-red); }
+.al-month-table .is-savings { color: var(--al-green-deep); }
+.al-month-table .is-cost { color: var(--al-red-deep); }
 
 .al-empty {
   padding: 20px 10px;
@@ -3208,14 +3259,16 @@ table.al-table {
   margin: 8px 0 0;
   font-size: 0.68rem;
   line-height: 1.35;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--al-muted);
 }
 
 .al-tmdb-credit a {
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--al-muted);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+.al-tmdb-credit a:hover { color: var(--al-red-deep); }
 
 .al-poster {
   display: block;
@@ -3332,10 +3385,11 @@ table.al-table {
   }
 
   .al-mobile-header-card {
-    background: var(--al-burgundy);
-    color: #fff;
-    border-radius: 12px;
-    padding: 8px 10px;
+    background: var(--al-panel);
+    color: var(--al-text);
+    border: 1px solid var(--al-line);
+    border-radius: 14px;
+    padding: 8px 12px;
   }
 
   .al-mobile-header-top {
@@ -3349,9 +3403,9 @@ table.al-table {
 
   .al-mobile-header-title {
     font-family: var(--al-font-display);
-    font-size: 1rem;
-    font-weight: 600;
-    color: #fff;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--al-text);
     text-decoration: none;
     line-height: 1.2;
     flex: 1 1 auto;
@@ -3362,8 +3416,7 @@ table.al-table {
   }
 
   .al-mobile-header-title:hover {
-    color: #fff;
-    opacity: 0.9;
+    color: var(--al-red-deep);
   }
 
   .al-mobile-header-actions {
@@ -3376,8 +3429,9 @@ table.al-table {
 
   .al-mobile-home-link,
   .al-mobile-auth-link {
-    font-size: 0.68rem;
-    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--al-muted);
     text-decoration: none;
     white-space: nowrap;
     padding: 4px 0;
@@ -3385,7 +3439,7 @@ table.al-table {
 
   .al-mobile-home-link:hover,
   .al-mobile-auth-link:hover {
-    color: #fff;
+    color: var(--al-red-deep);
   }
 
   .al-content-scroll {
@@ -3401,7 +3455,7 @@ table.al-table {
     display: block;
     margin-top: 6px;
     padding-top: 6px;
-    border-top: 1px solid rgba(255, 255, 255, 0.14);
+    border-top: 1px solid var(--al-line);
   }
 
   .al-mobile-stats-inner {
@@ -3423,7 +3477,7 @@ table.al-table {
     font-size: 0.6rem;
     letter-spacing: 0.02em;
     text-transform: uppercase;
-    opacity: 0.72;
+    color: var(--al-muted);
     white-space: nowrap;
   }
 
@@ -3435,8 +3489,8 @@ table.al-table {
     white-space: nowrap;
   }
 
-  .al-mobile-stat-value.is-savings { color: #8fe8b8; }
-  .al-mobile-stat-value.is-cost { color: #ffb4b4; }
+  .al-mobile-stat-value.is-savings { color: var(--al-green-deep); }
+  .al-mobile-stat-value.is-cost { color: var(--al-red-deep); }
 
   .al-page-header {
     margin-bottom: 12px;
@@ -3590,9 +3644,9 @@ table.al-table {
     z-index: 40;
     padding: 4px;
     gap: 4px;
-    background: var(--al-burgundy);
-    border-radius: 14px;
-    box-shadow: 0 8px 28px rgba(28, 28, 28, 0.22);
+    background: var(--al-red);
+    border-radius: 16px;
+    box-shadow: 0 8px 28px rgba(28, 28, 28, 0.18);
   }
 
   .al-mobile-nav-link {
@@ -3601,18 +3655,18 @@ table.al-table {
     align-items: center;
     justify-content: center;
     padding: 8px 4px;
-    border-radius: 10px;
+    border-radius: 12px;
     font-size: 0.72rem;
     font-weight: 600;
     text-decoration: none;
-    color: rgba(255, 255, 255, 0.72);
+    color: rgba(28, 28, 28, 0.7);
     text-align: center;
     line-height: 1.15;
   }
 
   .al-mobile-nav-link.is-active {
-    background: rgba(0, 0, 0, 0.22);
-    color: var(--al-white);
+    background: var(--al-cream);
+    color: var(--al-black);
   }
 
   .al-mobile-nav-link--icon {
@@ -3727,7 +3781,7 @@ table.al-table {
   }
 
   .al-log-meta-with {
-    color: #2f5d3a;
+    color: var(--al-green-deep);
     font-weight: 500;
   }
 
@@ -3910,21 +3964,21 @@ table.al-table {
 }
 
 .al-log-row--coming-soon {
-  background: #f0ece6;
+  background: color-mix(in srgb, var(--al-yellow) 12%, var(--al-cream));
   border-color: rgba(28, 28, 28, 0.1);
 }
 
 .al-log-row--coming-soon:hover {
-  background: #ebe6df;
+  background: color-mix(in srgb, var(--al-yellow) 20%, var(--al-cream));
   border-color: rgba(28, 28, 28, 0.14);
 }
 
 .al-log-entry.is-coming-soon .al-log-detail--coming-soon {
-  background: #f0ece6;
+  background: color-mix(in srgb, var(--al-yellow) 12%, var(--al-cream));
 }
 
 .al-log-entry.is-coming-soon .al-log-detail--coming-soon .al-log-detail-inner {
-  background: #f7f4ef;
+  background: var(--al-panel);
 }
 
 .al-log-list--watchlist {
@@ -4215,9 +4269,9 @@ table.al-table {
 }
 
 .al-signin-tab.is-active {
-  background: var(--al-burgundy);
-  border-color: var(--al-burgundy);
-  color: #fff;
+  background: var(--al-red);
+  border-color: var(--al-red);
+  color: var(--al-black);
 }
 
 .al-signin-form {
