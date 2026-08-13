@@ -23,8 +23,9 @@ const MAX_ATTEMPTS = 5;
  * Bump when a slimmed field is added, so existing rows get refetched instead of
  * silently serving a snapshot the UI can no longer fill in.
  * 2 — prior-year filed values (`priorMetrics`) for the FY-1 statement column.
+ * 3 — industry revenue tags (utilities, retailers, banks) as revenue candidates.
  */
-const SNAPSHOT_SCHEMA = 2;
+const SNAPSHOT_SCHEMA = 3;
 
 function padCik(cik) {
   return String(cik).padStart(10, '0');

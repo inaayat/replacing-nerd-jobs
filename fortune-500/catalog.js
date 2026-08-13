@@ -352,14 +352,24 @@ export const METRICS = [
     plain: 'How much customers paid this year.',
     eli5: 'This is the lemonade-stand jar: every dollar customers paid for stuff or services this year, before subtracting lemons, cups, or rent. Bigger is not automatically better — a grocery chain can ring up more sales than a chip maker and keep far less.',
     whyMissing: 'A few filers use an industry-specific sales tag we don’t pick up, so we leave it blank instead of guessing.',
-    tags: 'Revenues, or RevenueFromContractWithCustomerExcludingAssessedTax',
+    tags: 'Revenues, RevenueFromContractWithCustomer…, RegulatedAndUnregulatedOperatingRevenue, or RevenuesNetOfInterestExpense',
     unit: 'USD',
     kind: 'duration',
     better: 'higher',
+    // Order is "first hit wins" within a year, so the industry-specific tags sit
+    // last: only utilities, retailers and banks file them, and each is the top
+    // line that industry actually reports. Without them Goldman, Morgan Stanley,
+    // Wells Fargo, Duke, NextEra, TJX, Valero and Kraft Heinz had no revenue at
+    // all, which blanked every margin, turnover and growth figure on their pages.
+    // The utility total comes before the contract-revenue subset (NextEra tags
+    // both: $27.4B of operating revenues vs $25.8B of contract revenue).
     candidates: [
       { taxonomy: 'us-gaap', tag: 'Revenues' },
       { taxonomy: 'us-gaap', tag: 'RevenueFromContractWithCustomerExcludingAssessedTax' },
       { taxonomy: 'us-gaap', tag: 'SalesRevenueNet' },
+      { taxonomy: 'us-gaap', tag: 'RegulatedAndUnregulatedOperatingRevenue' },
+      { taxonomy: 'us-gaap', tag: 'RevenueFromContractWithCustomerIncludingAssessedTax' },
+      { taxonomy: 'us-gaap', tag: 'RevenuesNetOfInterestExpense' },
     ],
   },
   {
