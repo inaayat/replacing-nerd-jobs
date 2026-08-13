@@ -314,23 +314,23 @@ a { color: var(--ink); }
   opacity: 0.55;
   margin: 10px 0 0;
 }
+/* Peer sets are chips, not paragraphs: member names live in the tooltip. */
 .f5-presets {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 5px;
   margin-top: 6px;
 }
 .f5-preset {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font: inherit;
   text-align: left;
   border: 1.5px solid var(--line);
   background: var(--cream);
-  border-radius: 10px;
-  padding: 7px 10px;
+  border-radius: 999px;
+  padding: 4px 9px;
   cursor: pointer;
   color: var(--ink);
 }
@@ -340,15 +340,18 @@ a { color: var(--ink); }
   letter-spacing: 0.03em;
   font-weight: 500;
 }
-.f5-preset-who {
-  font-size: 0.72rem;
+.f5-preset-n {
+  font-family: var(--mono);
+  font-size: 0.6rem;
   color: var(--muted);
-  line-height: 1.3;
+  border-left: 1px solid var(--line);
+  padding-left: 5px;
 }
 .f5-preset:hover {
   background: var(--cyan);
   border-color: var(--cyan);
 }
+.f5-preset:hover .f5-preset-n { color: var(--ink); }
 
 .f5-list {
   overflow: auto;
@@ -747,6 +750,46 @@ body:has(#compare-bar:not([hidden])) .f5-glossary-panel {
 .f5-table .muted { color: var(--muted); font-weight: 400; }
 .f5-table .is-best { background: rgba(143, 233, 104, 0.35); }
 .f5-table .is-worst { background: rgba(254, 121, 123, 0.22); }
+
+/* Statement: years across, line items down. Filed columns are shaded so a
+   projection never reads as a filing, and the line-item column stays put while
+   the years scroll on narrow screens. */
+.f5-statement td, .f5-statement tbody th {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+}
+.f5-statement tbody th {
+  font-family: var(--font);
+  font-weight: 600;
+  text-align: left;
+  white-space: normal;
+}
+.f5-statement th:first-child,
+.f5-statement td:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--cream);
+  z-index: 1;
+  min-width: 8.5rem;
+}
+.f5-statement thead th:first-child { background: var(--cream); }
+.f5-statement .f5-col { vertical-align: bottom; }
+.f5-statement .f5-col-year { display: block; }
+.f5-statement .f5-col-note {
+  display: block;
+  font-size: 0.58rem;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.f5-statement thead th.is-filed,
+.f5-statement thead th.is-prior { color: var(--ink); }
+.f5-statement td.is-filed,
+.f5-statement td.is-prior { background: rgba(54, 206, 220, 0.1); }
+.f5-statement td.is-filed { background: rgba(54, 206, 220, 0.18); }
+.f5-statement thead th.is-projected { color: var(--muted); }
+.f5-statement tr.is-on td,
+.f5-statement tr.is-on th:first-child { background: #e8f8fa; }
+.f5-statement tbody + tbody tr:first-child td { border-top: 1.5px solid var(--line); }
 .f5-metric .val {
   font-family: var(--display);
   font-size: 1.25rem;
@@ -1238,6 +1281,8 @@ body:has(#compare-bar:not([hidden])) .f5-glossary-panel {
   flex-direction: column;
 }
 .f5-workspace-main .f5-table-wrap { flex: 1 1 auto; min-height: 0; margin: 8px 0 0; }
+/* A statement sits at its natural height so the tag table under it is reachable. */
+.f5-workspace-main .f5-table-wrap.is-statement { flex: 0 0 auto; margin: 8px 0 14px; }
 .f5-workspace-main .f5-screener {
   flex: 1 1 auto;
   min-height: 0;
@@ -1423,6 +1468,47 @@ body:has(#compare-bar:not([hidden])) .f5-glossary-panel {
   align-items: center;
   margin: 0 0 12px;
 }
+
+/* The modeling ladder. Every rung is clickable; nothing here is locked. */
+.f5-ladder {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 6px;
+  margin: 0 0 12px;
+}
+.f5-rung {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  color: var(--ink);
+  background: var(--cream);
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  padding: 7px 10px;
+}
+.f5-rung-n {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.f5-rung-label { font-weight: 600; font-size: 0.86rem; }
+.f5-rung-adds {
+  font-size: 0.74rem;
+  color: var(--muted);
+  line-height: 1.3;
+}
+.f5-rung:hover { border-color: var(--cyan); }
+.f5-rung.is-passed { background: var(--panel-2); }
+.f5-rung.is-on {
+  border-color: var(--ink);
+  background: #e8f8fa;
+}
+.f5-rung.is-on .f5-rung-n { color: var(--ink); }
 .f5-playbook-pick {
   display: flex;
   flex-direction: column;

@@ -1,4 +1,5 @@
 /** Copy and lookup tables for the Fortune 500 × EDGAR explainer. No Node APIs. */
+import { STATEMENT_KEYS } from './statement.js';
 
 export const SOURCES = [
   {
@@ -151,12 +152,13 @@ export const CHART_METRICS = [
   { key: 'revenue_yoy', label: 'Revenue YoY', source: 'ratio', signed: true },
 ];
 
-export const COMPARE_SCALE_KEYS = ['revenue', 'operating_income', 'net_income', 'cash', 'long_term_debt'];
+/** Same line items, same order as the filed statement — companies as columns. */
+export const COMPARE_SCALE_KEYS = [...STATEMENT_KEYS];
 
 export const COMPARE_SCALE_GROUP = {
   id: 'scale',
-  label: 'Scale (latest 10-K $)',
-  kid: 'Dollars first — a comps table needs size, not only ratios.',
+  label: 'Statement (latest 10-K $)',
+  kid: 'Dollars first, in filing order — a comps table needs size, not only ratios.',
   keys: COMPARE_SCALE_KEYS,
 };
 
@@ -307,6 +309,34 @@ export const COURSE_STEPS = [
     body: 'Add a second public company. A dash is not tagged, not zero. Fiscal years may not line up.',
   },
 ];
+
+/**
+ * Practice-model ladder. Every rung is one click away at any time — the rungs
+ * decide how many drivers and statement lines are on screen, never which tools
+ * you are allowed to use. Reset and Excel stay available on all three.
+ */
+export const MODEL_RUNGS = [
+  {
+    level: 1,
+    label: 'Two sliders',
+    short: 'Two sliders',
+    adds: 'Revenue growth and net margin. Read FY0 against Y5 net income and FCF.',
+  },
+  {
+    level: 2,
+    label: 'Industry drivers',
+    short: 'Drivers',
+    adds: 'Volume × price, same-store, NRR, loan growth — plus bull / base / bear.',
+  },
+  {
+    level: 3,
+    label: 'More lines',
+    short: 'More lines',
+    adds: 'Gross profit, operating income, R&D and CapEx rows, and the sensitivity grid.',
+  },
+];
+
+export const MAX_MODEL_LEVEL = MODEL_RUNGS[MODEL_RUNGS.length - 1].level;
 
 export function courseProgress(done = {}) {
   const total = COURSE_STEPS.length;
