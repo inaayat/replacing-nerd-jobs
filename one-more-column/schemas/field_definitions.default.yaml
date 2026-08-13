@@ -1,0 +1,25 @@
+# ARCHIVED — not loaded by the app.
+#
+# Early drafts used a workspace/profile-level field registry
+# (`field_definitions` table). Custom attributes now live on each
+# task type via `task_type_fields` (see lib/handlers/task-types.js).
+#
+# Kept only as a historical sketch of the shape we started with.
+# Prefer defining fields on Task types in the UI.
+
+profile: default
+note: superseded_by_task_type_fields
+example_fields:
+  - key: external_id
+    label: External ID
+    type: text
+  - key: priority
+    label: Priority
+    type: select
+    options: [High, Medium, Low]
+  - key: category
+    label: Category
+    type: text
+  - key: input_due
+    label: Input due
+    type: date

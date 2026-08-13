@@ -1,0 +1,9 @@
+{
+  "non_jira": {
+    "label": "Non-Jira Tasks",
+    "workbook_title": "Non-Jira Tracking",
+    "embed_url": "https://YOUR_TENANT.sharepoint.com/:x:/r/sites/YOUR_SITE/_layouts/15/Doc.aspx?sourcedoc=%7BYOUR-DOC-ID%7D&action=embedview",
+    "edit_url": "https://YOUR_TENANT.sharepoint.com/:x:/r/sites/YOUR_SITE/Shared%20Documents/Non-Jira%20Tracking.xlsx?web=1",
+    "enabled": true
+  }
+}

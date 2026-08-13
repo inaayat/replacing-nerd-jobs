@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>One More Column — design reference</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Fraunces:ital,wght@0,500;0,600;0,700;1,500&display=swap">
+
+  <!--
+    ═══════════════════════════════════════════════════════════════════════
+    Design reference for One More Column.
+
+    This page links ../engine/app.css rather than restating it. The previous
+    version kept its own copy of every token and component rule, which drifted
+    out of sync with the app almost immediately and ended up prescribing a
+    visual language the product no longer used. There is one stylesheet now;
+    this file only demonstrates what is in it.
+
+    House rules:
+      1. One More Column shares the inaayat.xyz family look — cream page,
+         Fraunces display type, DM Mono for labels and figures.
+      2. The sidebar is teal because the project's tile on the landing grid is
+         `card-teal`. Sibling apps do the same (amc-a-lister is burgundy), so
+         each app reads as an extension of the tile you clicked.
+      3. Prefer the CSS variables in :root over hard-coded hex.
+      4. Colour is never the only signal — pair every band with a number or
+         label, since capacity red/amber/green has to survive colour blindness
+         and greyscale printing.
+    ═══════════════════════════════════════════════════════════════════════
+  -->
+
+  <link rel="stylesheet" href="../engine/app.css">
+  <style>
+    /* Page-local scaffolding for the gallery itself. */
+    .gallery { padding: 32px; display: flex; flex-direction: column; gap: 24px; max-width: 1100px; margin: 0 auto; }
+    .swatch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+    .swatch-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-md); overflow: hidden; }
+    .swatch-card .chip { height: 44px; }
+    .swatch-card .meta { padding: 8px 10px; font-size: 0.72rem; color: var(--muted); }
+    .swatch-card code { font-family: var(--font-mono); font-size: 0.66rem; display: block; }
+    .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  </style>
+</head>
+<body>
+  <div class="gallery">
+
+    <div class="page-head">
+      <p class="eyebrow">Design reference</p>
+      <h1 class="page-title">One More Column</h1>
+      <p class="page-lead">
+        Every class below comes from <code class="mono">engine/app.css</code>. Copy the markup, not the styles.
+      </p>
+    </div>
+
+    <section class="panel">
+      <h2 class="section-title" style="margin-bottom:14px">Colour tokens</h2>
+      <div class="swatch-grid" id="token-swatches"></div>
+    </section>
+
+    <section class="panel">
+      <h2 class="section-title" style="margin-bottom:14px">Type</h2>
+      <p class="page-title">Fraunces — page titles</p>
+      <p class="section-title">Fraunces — section titles</p>
+      <p class="page-lead">Body copy is the system sans stack, set at 15px with a 1.45 line height.</p>
+      <p class="field-label">DM Mono — field labels, uppercased</p>
+      <p class="mono">DM Mono — figures: 1234.5 hours</p>
+    </section>
+
+    <section class="panel">
+      <h2 class="section-title" style="margin-bottom:14px">Buttons</h2>
+      <div class="row">
+        <button class="btn btn-primary">Primary</button>
+        <button class="btn btn-warm">Warm</button>
+        <button class="btn btn-ghost">Ghost</button>
+        <button class="btn btn-quiet">Quiet</button>
+        <button class="btn btn-danger">Danger</button>
+        <button class="btn btn-primary" disabled>Disabled</button>
+        <button class="btn btn-ghost btn-sm">Small</button>
+        <button class="btn btn-primary btn-lg">Large</button>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <div class="toggle-group" role="group" aria-label="Example toggle">
+          <button class="toggle-btn active">Active</button>
+          <button class="toggle-btn">Inactive</button>
+        </div>
+        <div class="pill-tabs">
+          <button class="pill-tab active">Everyone</button>
+          <button class="pill-tab">Analyst</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="section-title" style="margin-bottom:14px">Forms</h2>
+      <div class="form-grid form-grid-2">
+        <label class="field">
+          <span class="field-label">Normal</span>
+          <input class="input" placeholder="Placeholder">
+          <span class="field-hint">Hint text sits under the control.</span>
+        </label>
+        <label class="field">
+          <span class="field-label">Invalid</span>
+          <input class="input invalid" value="Bad value">
+          <span class="field-error"><span aria-hidden="true">!</span>Say what is wrong and how to fix it.</span>
+        </label>
+      </div>
+      <div class="choice-row" style="margin-top:14px">
+        <label class="choice selected"><span class="choice-name">Selected</span><span class="choice-desc">Radio cards beat a select when the choice changes the shape of the page.</span></label>
+        <label class="choice"><span class="choice-name">Unselected</span><span class="choice-desc">Description explains the consequence.</span></label>
+        <label class="choice"><span class="choice-name">Third</span><span class="choice-desc">Three is about the limit.</span></label>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="section-title" style="margin-bottom:14px">Status</h2>
+      <div class="row" style="margin-bottom:14px">
+        <span class="badge">Neutral</span>
+        <span class="badge badge-ok">Good</span>
+        <span class="badge badge-warn">Tight</span>
+        <span class="badge badge-bad">Over</span>
+        <span class="badge badge-live">Live</span>
+        <span class="dirty-flag">Unsaved changes</span>
+      </div>
+      <div class="notice notice-info" style="margin-bottom:8px">Info — explains a redirect or a state.</div>
+      <div class="notice notice-warn" style="margin-bottom:8px">Warning — something needs attention but nothing is broken.</div>
+      <div class="notice notice-error">Error — the action failed.</div>
+      <div class="legend" style="margin-top:14px">
+        <span class="legend-item"><span class="swatch ok"></span> Room to spare</span>
+        <span class="legend-item"><span class="swatch tight"></span> Getting tight</span>
+        <span class="legend-item"><span class="swatch over"></span> Overloaded</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="section-title" style="margin-bottom:14px">Capacity cells</h2>
+      <div class="table-scroll">
+        <table class="table cap-table">
+          <thead><tr><th class="cap-person">Person</th><th class="cap-period">Jan 5</th><th class="cap-period">Jan 12</th><th class="cap-period">Jan 19</th></tr></thead>
+          <tbody>
+            <tr>
+              <th class="cap-person" scope="row">Alex Rivera<span class="cap-team">Analyst</span></th>
+              <td class="cap-cell cap-ok"><span class="cap-load">8</span><span class="cap-rem">24h left</span></td>
+              <td class="cap-cell cap-tight"><span class="cap-load">26</span><span class="cap-rem">6h left</span></td>
+              <td class="cap-cell cap-over"><span class="cap-load">40</span><span class="cap-rem">-8h left</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="section-title" style="margin-bottom:14px">Empty state</h2>
+      <div class="empty">
+        <span class="empty-title">Nothing here yet</span>
+        <p class="empty-body">Say what is missing, why it matters, and give one button that fixes it.</p>
+        <button class="btn btn-primary">The one obvious action</button>
+      </div>
+    </section>
+
+    <p class="field-hint" style="text-align:center">
+      Styles live in engine/app.css. Change them there, not here.
+    </p>
+  </div>
+
+  <script>
+    const tokens = [
+      ['--cream', 'Page'], ['--panel', 'Panel'], ['--panel-2', 'Panel muted'],
+      ['--teal', 'Sidebar / primary'], ['--gold', 'Warm accent'], ['--red', 'Danger'],
+      ['--peach', 'Peach'], ['--orange', 'Orange'], ['--sand', 'Sand'],
+      ['--ink', 'Ink'], ['--muted', 'Muted ink'], ['--faint', 'Faint ink'],
+      ['--band-ok-bg', 'Band OK'], ['--band-tight-bg', 'Band tight'], ['--band-over-bg', 'Band over'],
+      ['--accent-soft', 'Accent soft'],
+    ];
+    const root = getComputedStyle(document.documentElement);
+    const grid = document.getElementById('token-swatches');
+    for (const [name, label] of tokens) {
+      const value = root.getPropertyValue(name).trim();
+      const card = document.createElement('div');
+      card.className = 'swatch-card';
+      card.innerHTML = `<div class="chip" style="background:${value}"></div>
+        <div class="meta"><strong>${label}</strong><code>${name}</code><code>${value}</code></div>`;
+      grid.appendChild(card);
+    }
+  </script>
+</body>
+</html>

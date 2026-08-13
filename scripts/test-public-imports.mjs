@@ -30,7 +30,7 @@ const SKIP_DIRS = new Set([
 const SKIP_FILES = new Set(['middleware.js', '_template.html']);
 
 // Paths that middleware.js makes unreachable to the browser.
-const BLOCKED_PREFIXES = ['lib/'];
+const BLOCKED_PREFIXES = ['lib/', 'one-more-column/lib/'];
 
 function walk(dir, out = []) {
   for (const entry of readdirSync(dir)) {

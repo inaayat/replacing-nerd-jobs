@@ -35,14 +35,16 @@ for browsers). Shares `alist_movie_cache` with A-Lister.
 
 ### One More Column — `/one-more-column`
 
-Flexible capacity planning. Lives in a **separate repo and Vercel deploy**, but
-is proxied onto this domain so it appears as a first-class card on the homepage.
+Flexible capacity planning. Vanilla HTML/JS SPA plus `/api/omc-*` serverless
+routes (multiplexed in `api/one-more-column.js`).
 
 - Site: [inaayat.xyz/one-more-column](https://inaayat.xyz/one-more-column/)
-- Repo: [inaayat/one-more-column](https://github.com/inaayat/one-more-column)
-- Deploy: `https://one-more-column.vercel.app`
-- Wiring: this repo’s `vercel.json` rewrites `/one-more-column/*` and `/api/omc-*`
-  to that app
+- Code: `one-more-column/` (browser) + `one-more-column/lib/` (handlers; 404'd
+  by middleware, same as `/lib/`)
+- API: `/api/omc-*` → `api/one-more-column.js?route=…`
+
+Uses the same Neon Auth JWT (`alist-auth-jwt`) and `DATABASE_URL` as the rest
+of the site. Schema is created by `one-more-column/lib/db.js` `ensureSchema()`.
 
 ### Fortune 500 × EDGAR — `/fortune-500`
 
@@ -125,12 +127,12 @@ database/Auth instance; preview deployments get a Neon database branch named
 ### Hobby plan constraint (important)
 
 Vercel Hobby allows at most **12 serverless functions** per deployment, and this
-repo currently uses **8 of 12** files under `api/`. Prefer adding a `?route=`
+repo currently uses **9 of 12** files under `api/`. Prefer adding a `?route=`
 branch to an existing handler and a matching rewrite in `vercel.json` (this is
 why A-Lister and Plot Points are multiplexed routers) before burning a free slot
 on a new top-level file.
 
-Current roster (8/12):
+Current roster (9/12):
 
 | File | Used for |
 |---|---|
@@ -142,6 +144,7 @@ Current roster (8/12):
 | `api/plot-points.js` | **Plot Points router** (`/api/plot-points-*`): TMDB person/collection search, genres, query build, legacy presets. |
 | `api/save-quiz.js` | Sporcle Spinoff: quiz + tag submissions open a GitHub review PR. |
 | `api/fortune-500.js` | **Fortune 500** (`/api/f500-headlines`): SEC Company Facts → slim 10-K headline metrics for compare. |
+| `api/one-more-column.js` | **One More Column router** (`/api/omc-*`): plans, planner rows, gates, team, capacity, changelog. |
 
 ### Environment variables
 
@@ -173,8 +176,8 @@ them together and injects `DATABASE_URL` + `NEON_AUTH_BASE_URL` into each deploy
 | **Static site hosting** | Serves every HTML/CSS/JS/image file from the repo (landing page, Sporcle, Packing Cubes UI, A-Lister UI, etc.) |
 | **Custom domain** | `inaayat.xyz` points at this Vercel project |
 | **Serverless API** | Runs everything under `api/*.js` (auth-login, me, alist, packing-cubes, plot-points, save-quiz, …) |
-| **Edge middleware** | `middleware.js` 404s `/lib/*` so server modules are not served as static files |
-| **Rewrites / proxy** | `vercel.json` routes like `/api/alist-*` → `api/alist.js?route=…`, and proxies `/one-more-column/*` to the other Vercel app |
+| **Edge middleware** | `middleware.js` 404s `/lib/*` and `/one-more-column/lib/*` so server modules are not served as static files |
+| **Rewrites / proxy** | `vercel.json` routes like `/api/alist-*` → `api/alist.js?route=…`, `/api/omc-*` → `api/one-more-column.js?route=…` |
 | **Secrets store** | Holds env vars the functions read at runtime (`TMDB_API_KEY`, `GITHUB_TOKEN`, plus the Neon-injected ones) |
 | **CI deploy** | Git push to `main` → production deploy; PR branches → preview deploys |
 | **Preview isolation (with Neon)** | Each preview deploy can talk to its own Neon branch (`preview/<git-branch>`) |
@@ -298,11 +301,6 @@ Neon Auth, not by `ensureSchema()`).
 ---
 
 ## Connections to other repositories
-
-### Proxied into this site (same domain)
-
-**One More Column** — see [Projects](#one-more-column--one-more-column). Repo:
-[inaayat/one-more-column](https://github.com/inaayat/one-more-column).
 
 ### Linked from the landing page (separate products)
 

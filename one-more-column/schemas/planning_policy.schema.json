@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PlanningPolicy",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "weekly_capacity_default": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Default weekly capacity hours when no resource profile exists"
+    },
+    "review_ratio": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 2,
+      "description": "Review hours as a fraction of work hours when review_hours is unset"
+    },
+    "overload_threshold": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Utilization above this ratio marks a cell overloaded (1.0 = at capacity)"
+    },
+    "spread_lag_weeks": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Weeks before due week to spread load in spread mode"
+    },
+    "working_days_per_week": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 7,
+      "description": "Working days used when converting daily_hours to weekly"
+    }
+  },
+  "required": [
+    "weekly_capacity_default",
+    "review_ratio",
+    "overload_threshold",
+    "spread_lag_weeks",
+    "working_days_per_week"
+  ]
+}
