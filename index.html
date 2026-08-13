@@ -80,12 +80,13 @@
         line-height: 0;
         flex-shrink: 0;
       }
+      /* break-word rather than anywhere: only split a word that cannot fit at all,
+         so names like "DumpsteriOS" stay whole whenever there is room. */
       .item-card .title {
         font-size: var(--title-size, 1.05rem);
         line-height: 1.15;
         max-width: 100%;
-        overflow-wrap: anywhere;
-        word-break: break-word;
+        overflow-wrap: break-word;
         hyphens: auto;
       }
       .item-card .subtitle {
@@ -94,8 +95,7 @@
         margin-top: 0.25em;
         max-width: 100%;
         line-height: 1.25;
-        overflow-wrap: anywhere;
-        word-break: break-word;
+        overflow-wrap: break-word;
         hyphens: auto;
       }
       .item-card.is-compact .icon,
@@ -199,9 +199,10 @@
       }
       @media (max-width: 640px) {
         .title-card {
-          width: min(260px, 86vw);
-          padding: 22px 20px 18px;
-          gap: 16px;
+          /* Narrower on a phone so the pieces beside it are not reduced to slivers. */
+          width: min(240px, 80vw);
+          padding: 20px 18px 16px;
+          gap: 14px;
         }
       }
       .blob-stage:not(.is-packed) .title-card {
@@ -626,6 +627,71 @@
           return best;
         }
 
+        // How far the label can extend from its spot before leaving the piece, the
+        // viewport, or bumping the centre tile. The inscribed radius alone is too
+        // pessimistic for a wide flat piece and too optimistic for a short one, so
+        // width and height are measured separately.
+        function clearRun(poly, visible, avoid, x, y, dx, dy) {
+          const step = 4;
+          const cap = Math.max(visible.x1 - visible.x0, visible.y1 - visible.y0);
+          let d = step;
+          while (d < cap) {
+            const px = x + dx * d;
+            const py = y + dy * d;
+            if (edgeClearance(poly, px, py) < 2) break;
+            if (px < visible.x0 + 2 || px > visible.x1 - 2) break;
+            if (py < visible.y0 + 2 || py > visible.y1 - 2) break;
+            if (rectClearance(px, py, avoid) < TITLE_PAD) break;
+            d += step;
+          }
+          return d - step;
+        }
+
+        // The label is a rectangle centred on a point, and its width and height
+        // trade off: a narrower box has more headroom above and below. Sweep a few
+        // widths and keep the one enclosing the most area. Every measurement comes
+        // from the shape alone, never from the text — sizing the box from the
+        // wrapped height would feed back on itself, since a narrower box wraps
+        // taller, which then asks for a narrower box again.
+        function labelSlot(poly, visible, avoid, spot) {
+          const run = (x, y, dx, dy) => clearRun(poly, visible, avoid, x, y, dx, dy);
+
+          function sweep(x, y) {
+            const maxHalfW = Math.max(1, Math.min(run(x, y, -1, 0), run(x, y, 1, 0)));
+            let best = { x, y, w: 0, h: 0, area: 0 };
+            for (const frac of [1, 0.82, 0.66, 0.5, 0.36]) {
+              const halfW = Math.max(1, maxHalfW * frac);
+              // Probe just inside the box rather than on its corners. A line of
+              // centred text almost never reaches its corners, and probing them
+              // exactly would collapse every candidate to nothing, since the
+              // corner sits on the boundary by construction.
+              let halfH = Infinity;
+              for (const t of [-0.88, 0, 0.88]) {
+                const px = x + halfW * t;
+                halfH = Math.min(halfH, run(px, y, 0, -1), run(px, y, 0, 1));
+              }
+              halfH = Math.max(1, halfH);
+              const area = halfW * halfH;
+              if (area > best.area) {
+                best = { x, y, w: halfW * 2 * 0.94, h: halfH * 2 * 0.96, area };
+              }
+            }
+            return best;
+          }
+
+          // A piece running off the side of the screen has its widest interior
+          // point near that edge, so a box centred there is limited to twice the
+          // shorter side. Recentring on the middle of the free run fixes that, but
+          // it can also slide the label down a long thin channel — beside the
+          // centre tile, say — so only keep it when it genuinely wins more room.
+          const shifted = sweep(
+            spot.x + (run(spot.x, spot.y, 1, 0) - run(spot.x, spot.y, -1, 0)) / 2,
+            spot.y + (run(spot.x, spot.y, 0, 1) - run(spot.x, spot.y, 0, -1)) / 2
+          );
+          const centred = sweep(spot.x, spot.y);
+          return shifted.area > centred.area ? shifted : centred;
+        }
+
         // Corner-cut every vertex into a curve so the cell reads as hand-cut. The
         // cut is capped at half the shorter edge, so adjacent corners never eat
         // into each other and the curve always stays inside the cell.
@@ -672,13 +738,16 @@
           if (el.classList.contains("span-big")) weight = 2.1;
           else if (el.classList.contains("span-wide")) weight = 1.45;
           else if (el.classList.contains("span-tall")) weight = 1.35;
+          const filler = el.classList.contains("card-gray");
           return {
             el,
             body,
             label: body.querySelector(".blob-label"),
-            weight,
+            // Placeholders are spacers, so they give up some of the canvas to the
+            // real projects rather than tiling as equals.
+            weight: filler ? weight * 0.66 : weight,
             seed: i + 1,
-            filler: el.classList.contains("card-gray"),
+            filler,
           };
         });
 
@@ -694,6 +763,28 @@
             x1: t.right - s.left,
             y1: t.bottom - s.top,
           };
+        }
+
+        // Pieces may flow past the centre tile, but none should be *centred* in a
+        // gap too narrow to hold a label — that produces unreadable slivers down
+        // the sides on a phone. Any gap under minGap is folded into the exclusion
+        // zone, which pushes those seeds above or below the tile instead.
+        function seedExclusion(avoid, W, H, minGap) {
+          const r = { x0: avoid.x0, y0: avoid.y0, x1: avoid.x1, y1: avoid.y1 };
+          // Only fold a pair of strips away while the perpendicular gaps can still
+          // take the displaced seeds, or a very small viewport would exclude
+          // everything and pile every piece onto one edge.
+          const roomAbove = avoid.y0 >= minGap || H - avoid.y1 >= minGap;
+          const roomBeside = avoid.x0 >= minGap || W - avoid.x1 >= minGap;
+          if (roomAbove) {
+            if (r.x0 < minGap) r.x0 = -BLEED;
+            if (W - r.x1 < minGap) r.x1 = W + BLEED;
+          }
+          if (roomBeside) {
+            if (r.y0 < minGap) r.y0 = -BLEED;
+            if (H - r.y1 < minGap) r.y1 = H + BLEED;
+          }
+          return r;
         }
 
         // Seeds are kept out of the centre tile so no piece is centred underneath it.
@@ -783,6 +874,8 @@
 
         function render(active, cells, W, H, avoid) {
           const visible = { x0: 0, y0: 0, x1: W, y1: H };
+          const drawn = [];
+
           active.forEach((card, i) => {
             const shape = insetPoly(orient(cells[i]), GUTTER / 2);
             if (shape.length < 3) {
@@ -792,6 +885,13 @@
             const box = bboxOf(shape);
             const spot = labelSpot(shape, visible, avoid);
             const r = Math.max(0, spot.r);
+            const titleSize = Math.max(11, Math.min(26, r * 0.3));
+            // Corner-cutting draws a curve strictly inside the cell, so measure
+            // text room against a shrunken cell rather than the straight edges.
+            const inner = insetPoly(shape, 6);
+            const fit = inner.length > 2 ? inner : shape;
+            const slot = labelSlot(fit, visible, avoid, spot);
+            const width = Math.max(44, slot.w);
 
             card.el.style.display = "";
             card.el.style.left = box.x0 + "px";
@@ -803,29 +903,93 @@
               'path("' + piecePath(shape, card.seed, box.x0, box.y0) + '")'
             );
 
-            card.label.style.setProperty("--lx", spot.x - box.x0 + "px");
-            card.label.style.setProperty("--ly", spot.y - box.y0 + "px");
-            card.label.style.setProperty("--lw", Math.max(48, r * 1.75) + "px");
+            card.label.style.setProperty("--lx", slot.x - box.x0 + "px");
+            card.label.style.setProperty("--ly", slot.y - box.y0 + "px");
+            card.label.style.setProperty("--lw", width + "px");
             card.label.style.visibility = r < 12 ? "hidden" : "";
-            card.el.style.setProperty("--title-size", Math.max(11, Math.min(26, r * 0.3)) + "px");
+            card.el.style.setProperty("--title-size", titleSize + "px");
             card.el.style.setProperty("--sub-size", Math.max(9, Math.min(13.5, r * 0.155)) + "px");
             card.el.classList.toggle("is-compact", r < 46);
+            drawn.push({ card, titleSize, width, height: slot.h });
+          });
+
+          // How tall a label ends up depends on how many lines it wraps to, which
+          // is only knowable once it is laid out. Measure the placed pieces and
+          // drop anything taller than its slot to the title alone.
+          for (const d of drawn) {
+            if (d.card.label.offsetHeight > d.height) {
+              d.card.el.classList.add("is-compact");
+            }
+          }
+
+          // A title holding a long unbreakable word ("DumpsteriOS") would be split
+          // mid-word on a narrow piece. min-content width is exactly that longest
+          // word, so measure it and scale the type until the name stays whole.
+          // Batched into set/read/reset sweeps to keep this to a couple of reflows.
+          const titles = drawn.map((d) => d.card.el.querySelector(".title"));
+          for (const t of titles) {
+            if (!t) continue;
+            // max-width would clamp the reading back to the label width, hiding
+            // the very overflow being measured.
+            t.style.maxWidth = "none";
+            t.style.width = "min-content";
+          }
+          const wordWidths = titles.map((t) => (t ? t.offsetWidth : 0));
+          for (const t of titles) {
+            if (!t) continue;
+            t.style.maxWidth = "";
+            t.style.width = "";
+          }
+
+          drawn.forEach((d, i) => {
+            // Scale to just under the slot: landing exactly on it still wraps once
+            // rounding and letter-spacing are applied.
+            const room = d.width - 2;
+            let scale = wordWidths[i] > room ? room / wordWidths[i] : 1;
+            const tall = d.card.label.offsetHeight;
+            if (tall > d.height) scale = Math.min(scale, d.height / tall);
+            if (scale < 1) {
+              d.card.el.style.setProperty(
+                "--title-size",
+                d.titleSize * Math.max(0.42, scale) + "px"
+              );
+            }
           });
         }
 
         // Pieces tile the whole stage, so the card count sets how big each one is.
-        // Fillers top up the count until the average piece is comfortably readable.
+        // Fillers only top the count up to a readable piece size — on a small
+        // viewport the real projects already fill the canvas and none are shown.
         function fillerCount(W, H) {
-          const targetR = Math.max(78, Math.min(112, Math.sqrt(W * H) / 11));
+          const targetR = Math.max(95, Math.min(150, Math.sqrt(W * H) / 7.5));
           const budget = (W * H) / (Math.PI * targetR * targetR);
+          // Placeholders are there to keep the real projects from ballooning, not
+          // to be the page. Hold them to a minority of the pieces on screen.
+          const cap = Math.round(live.length * 0.4);
           let used = live.reduce((s, c) => s + c.weight, 0);
           let count = 0;
           for (const c of fillers) {
-            if (used + c.weight > budget) break;
+            if (count >= cap || used + c.weight > budget) break;
             used += c.weight;
             count += 1;
           }
           return count;
+        }
+
+        // Seeds are dealt out in reading order, so taking the two groups back to
+        // back would pool every placeholder in the last rows. Spread them evenly
+        // through the real projects instead.
+        function interleave(a, b) {
+          const out = [];
+          let i = 0;
+          let j = 0;
+          while (i < a.length || j < b.length) {
+            const takeA =
+              j >= b.length ||
+              (i < a.length && (i + 0.5) / a.length <= (j + 0.5) / b.length);
+            out.push(takeA ? a[i++] : b[j++]);
+          }
+          return out;
         }
 
         function layout() {
@@ -838,8 +1002,9 @@
           fillers.forEach((c, i) => {
             c.el.style.display = i < count ? "" : "none";
           });
-          const active = live.concat(fillers.slice(0, count));
-          render(active, solve(active, W, H, avoid), W, H, avoid);
+          const active = interleave(live, fillers.slice(0, count));
+          const cells = solve(active, W, H, seedExclusion(avoid, W, H, 130));
+          render(active, cells, W, H, avoid);
           tank.classList.add("is-packed");
           stage.classList.add("is-packed");
         }

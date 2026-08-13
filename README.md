@@ -122,6 +122,25 @@ database/Auth instance; preview deployments get a Neon database branch named
 2. Link it from the main card grid in `index.html`
 3. `git push` — Vercel redeploys automatically
 
+### How the homepage cards lay out
+
+The landing page is not a grid. Each `.item-card` becomes one piece of a
+tessellation that covers the whole viewport, computed in the inline script at the
+bottom of `index.html`. The partition is a Laguerre (power) diagram — a Voronoi
+diagram whose seeds carry weights — solved so each piece's on-screen area matches
+its share, then inset by half a gutter and corner-cut into curves. Adding a card
+therefore shrinks every other card; `span-wide` / `span-tall` / `span-big` only
+change a card's share relative to its neighbours. `TBD` placeholders top the piece
+count up to a readable size and drop out on small viewports.
+
+Two things are easy to break:
+
+- Anchor boxes overlap, so `.item-card` is `pointer-events: none` and the clipped
+  `.blob-body` takes the hits. Turning that off makes cards steal each other's clicks.
+- Label positions and type sizes are measured from the shape, never from the
+  wrapped text. Sizing a label from its own rendered height feeds back on itself,
+  because a narrower label wraps taller and then asks to be narrower again.
+
 ### Hobby plan constraint (important)
 
 Vercel Hobby allows at most **12 serverless functions** per deployment, and this
@@ -393,21 +412,26 @@ Old `/private/*` URLs (including former GDDY statements) 301 to `/`. Former
 
 ## Color scheme
 
-Landing page (`index.html`) palette — [Rainbows Exist](https://www.schemecolor.com/rainbows-exist-color-scheme.php):
+Landing page (`index.html`) palette:
 
 | token | hex |
 |---|---|
 | cream (bg) | `#faf3e3` |
-| purple | `#a587ca` |
-| cyan | `#36cedc` |
-| green | `#8fe968` |
-| yellow | `#ffea56` |
-| orange | `#ffb750` |
-| pink | `#fe797b` |
+| purple | `#755ca7` |
+| cyan | `#78a8d5` |
+| green | `#82a34d` |
+| yellow | `#ffd143` |
+| orange | `#f58b3b` |
+| pink | `#eb82b0` |
+| red | `#f05e53` |
 | gray (coming soon) | `#d8d3c6` |
 
 Use `card-purple` / `card-cyan` / `card-green` / `card-yellow` / `card-orange` /
-`card-pink` for live project tiles. Reserve `card-cream` / `card-gray` for “coming soon” placeholders.
+`card-pink` / `card-red` for live project tiles. Reserve `card-cream` / `card-gray` for “coming soon” placeholders.
+
+Purple is the only fill dark enough to fail contrast against the `#1c1c1c` label
+text, so `.item-card.card-purple` flips to cream text and inverts its icon. Keep
+that pairing if you change the purple.
 
 ---
 
