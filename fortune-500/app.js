@@ -12,10 +12,14 @@ import {
   FEATURED,
   METRIC_GROUPS,
   LOWER_BETTER,
+  HOW_TO,
+  NOT_IN_EDGAR,
   isPublic,
   tickerLabel,
+  defFor,
+  sourceFor,
 } from './catalog.js';
-import { formatMetric, formatDerived } from './extract.js';
+import { formatMetric, formatDerived, ensureRatios } from './extract.js';
 import {
   buildInsights,
   similarByRevenue,
@@ -23,6 +27,10 @@ import {
   ratioNumber,
   percentile,
   poolFor,
+  coverageOf,
+  coverageOverlap,
+  leadersFor,
+  suggestComparisons,
 } from './insights.js';
 
 const listEl = document.getElementById('list');
@@ -51,6 +59,10 @@ let screenerSort = { key: 'rank', dir: 'asc' };
 let chartKey = 'net_margin';
 let lastCompareRows = [];
 let lastCompareStatus = 'ok';
+let homeView = 'table';
+let extraCol = null;
+let sharedOnly = false;
+let explainKey = null;
 
 function parseUrl() {
   const u = new URL(location.href);
@@ -86,8 +98,9 @@ function companyByRank(rank) {
 
 function rememberHeadline(row) {
   if (row?.cik == null) return;
-  headlinesByCik.set(row.cik, row);
-  snapshotCompanies[String(row.cik)] = row;
+  const full = ensureRatios(row);
+  headlinesByCik.set(row.cik, full);
+  snapshotCompanies[String(row.cik)] = full;
 }
 
 function headlinesOf(c) {
@@ -116,7 +129,23 @@ function matches(c) {
 }
 
 function lookupDef(key) {
-  return METRICS.find((m) => m.key === key) || DERIVED.find((d) => d.key === key) || null;
+  return defFor(key);
+}
+
+function screenerColumns() {
+  const cols = [...SCREENER_COLUMNS];
+  if (extraCol && !cols.some((c) => c.key === extraCol.key)) {
+    const def = lookupDef(extraCol.key);
+    if (def) {
+      cols.push({
+        key: extraCol.key,
+        label: def.label,
+        type: 'extra',
+        source: extraCol.source || sourceFor(extraCol.key),
+      });
+    }
+  }
+  return cols;
 }
 
 function lookupNumber(headlines, key) {
@@ -215,12 +244,22 @@ function renderList() {
   renderCompareBar();
 }
 
+function explainBanner(key) {
+  const def = lookupDef(key);
+  if (!def) return '';
+  return `<div class="f5-note" id="explain-banner">
+    <p><strong>${escapeHtml(def.label)} — like you’re five.</strong> ${escapeHtml(def.eli5)}</p>
+    ${def.whyMissing ? `<p class="f5-missing-why">${escapeHtml(def.whyMissing)}</p>` : ''}
+  </div>`;
+}
+
 function dash() {
   return `<span class="muted" title="Not tagged in the current 10-K">—</span>`;
 }
 
 function sortRows(rows) {
-  const col = SCREENER_COLUMNS.find((c) => c.key === screenerSort.key) || SCREENER_COLUMNS[0];
+  const cols = screenerColumns();
+  const col = cols.find((c) => c.key === screenerSort.key) || cols[0];
   const dir = screenerSort.dir === 'asc' ? 1 : -1;
   return [...rows].sort((a, b) => {
     const av = screenerValue(a, col);
@@ -239,15 +278,45 @@ function sortRows(rows) {
   });
 }
 
+function viewTabs() {
+  return `<div class="f5-view-tabs" role="tablist" aria-label="Browse or learn">
+    <button type="button" class="f5-view-tab" data-home-view="table" aria-pressed="${homeView === 'table'}">All companies</button>
+    <button type="button" class="f5-view-tab" data-home-view="learn" aria-pressed="${homeView === 'learn'}">What the numbers mean</button>
+  </div>`;
+}
+
+function storyCards() {
+  return `<div class="f5-stories" aria-label="Try a comparison">
+    ${PRESETS.map(
+      (p) => `<button type="button" class="f5-story${p.story ? ' is-story' : ''}" data-preset="${escapeAttr(p.id)}">
+        <strong>${escapeHtml(p.label)}</strong>
+        <span>${escapeHtml(p.blurb)}</span>
+      </button>`
+    ).join('')}
+  </div>`;
+}
+
+function howTo() {
+  return `<ol class="f5-howto">
+    ${HOW_TO.map((s) => `<li><strong>${escapeHtml(s.title)}</strong> ${escapeHtml(s.body)}</li>`).join('')}
+  </ol>`;
+}
+
 function screenerView() {
+  if (homeView === 'learn') return learnView();
+  const cols = screenerColumns();
   const rows = sortRows(companies.filter(matches));
   const atCap = compareRanks.length >= MAX_COMPARE;
-  const head = SCREENER_COLUMNS.map((col) => {
-    const active = screenerSort.key === col.key;
-    const arrow = active ? (screenerSort.dir === 'asc' ? ' ↑' : ' ↓') : '';
-    const sortState = active ? (screenerSort.dir === 'asc' ? 'ascending' : 'descending') : 'none';
-    return `<th data-sort="${escapeAttr(col.key)}" aria-sort="${sortState}" class="${active ? 'is-sorted' : ''}">${escapeHtml(col.label)}${arrow}</th>`;
-  }).join('');
+  const head = cols
+    .map((col) => {
+      const active = screenerSort.key === col.key;
+      const arrow = active ? (screenerSort.dir === 'asc' ? ' ↑' : ' ↓') : '';
+      const sortState = active ? (screenerSort.dir === 'asc' ? 'ascending' : 'descending') : 'none';
+      const def = lookupDef(col.key);
+      const tip = def?.plain ? ` title="${escapeAttr(def.plain)}"` : '';
+      return `<th data-sort="${escapeAttr(col.key)}" aria-sort="${sortState}" class="${active ? 'is-sorted' : ''}"${tip}>${escapeHtml(col.label)}${arrow}</th>`;
+    })
+    .join('');
   const body = rows
     .map((c) => {
       const pub = isPublic(c);
@@ -255,32 +324,106 @@ function screenerView() {
       const check = pub
         ? `<input class="f5-check" type="checkbox" data-check="${c.rank}" ${checked ? 'checked' : ''} ${atCap && !checked ? 'disabled' : ''} aria-label="Add ${escapeAttr(c.company)} to compare" />`
         : '';
-      const tds = SCREENER_COLUMNS.map((col) => {
-        if (col.type === 'name') {
-          return `<td class="f5-name-cell">${check}<button type="button" class="f5-linkish" data-rank="${c.rank}">${escapeHtml(c.company)}</button><div class="muted">${escapeHtml(tickerLabel(c))}</div></td>`;
-        }
-        const value = screenerValue(c, col);
-        const extra = col.type === 'rank' ? ' class="mono"' : '';
-        return `<td${extra}>${formatScreenerCell(col, value)}</td>`;
-      }).join('');
+      const tds = cols
+        .map((col) => {
+          if (col.type === 'name') {
+            return `<td class="f5-name-cell">${check}<button type="button" class="f5-linkish" data-rank="${c.rank}">${escapeHtml(c.company)}</button><div class="muted">${escapeHtml(tickerLabel(c))}</div></td>`;
+          }
+          const value = screenerValue(c, col);
+          const extra = col.type === 'rank' ? ' class="mono"' : '';
+          return `<td${extra}>${formatScreenerCell(col, value)}</td>`;
+        })
+        .join('');
       return `<tr class="${pub ? '' : 'is-private'}">${tds}</tr>`;
     })
     .join('');
 
+  const extraNote = extraCol
+    ? `<p class="f5-section-lede">Extra column: <strong>${escapeHtml(lookupDef(extraCol.key)?.label || extraCol.key)}</strong>. Sort it like the others. A dash still means not tagged.</p>`
+    : '';
+
   return `
     <div class="f5-screener">
+      ${viewTabs()}
       <h2>Latest 10-K headlines</h2>
       <p class="f5-section-lede">
-        Sort any column. Click a name for the company page, or check up to ${MAX_COMPARE}
-        public filers and hit <strong>Compare</strong>. Peer sets (big tech, banks, …) sit
-        above the list. A dash means the tag is missing from that 10-K — not $0.
+        These are SEC tags from each company’s annual report — not Fortune magazine’s ranking dollars.
+        Click a name to see <em>which</em> numbers that 10-K actually filed, with a kid-level explanation.
+        Check up to ${MAX_COMPARE} public filers and hit <strong>Compare</strong>, or tap a story below.
       </p>
+      ${howTo()}
+      ${storyCards()}
+      ${extraNote}
       <div class="f5-table-wrap">
         <table class="f5-table f5-screener-table">
           <thead><tr>${head}</tr></thead>
-          <tbody>${body || `<tr><td colspan="${SCREENER_COLUMNS.length}">No matches.</td></tr>`}</tbody>
+          <tbody>${body || `<tr><td colspan="${cols.length}">No matches.</td></tr>`}</tbody>
         </table>
       </div>
+    </div>`;
+}
+
+function learnView() {
+  const publicCount = Object.keys(snapshotCompanies).length || companies.filter(isPublic).length;
+  const groups = METRIC_GROUPS.map((group) => {
+    const cards = group.keys
+      .map((key) => {
+        const def = lookupDef(key);
+        if (!def) return '';
+        const source = sourceFor(key);
+        const pool = poolFor(snapshotCompanies, source, key);
+        const n = pool.length;
+        const preferHigh = def.better !== 'lower';
+        const leaders = leadersFor(companies, snapshotCompanies, key, source, 3, preferHigh);
+        const leaderLine = leaders.length
+          ? `<p class="f5-leaders">${preferHigh ? 'Highest here' : 'Lowest here'}: ${leaders
+              .map((l) => {
+                const shown =
+                  source === 'ratio'
+                    ? formatDerived(def, l.value)
+                    : formatMetric(def, { val: l.value });
+                return `<button type="button" class="f5-linkish" data-rank="${l.company.rank}">${escapeHtml(l.company.company)}</button> ${escapeHtml(shown || '')}`;
+              })
+              .join(' · ')}</p>`
+          : '';
+        const compareBtn =
+          leaders.length >= 2
+            ? `<button type="button" class="f5-mini" data-compare-leaders="${escapeAttr(key)}">Compare the leaders</button>`
+            : '';
+        const sortBtn = `<button type="button" class="f5-mini f5-mini-ghost" data-sort-metric="${escapeAttr(key)}">Show in the table</button>`;
+        const coverage =
+          publicCount > 0
+            ? `<p class="f5-coverage-line"><strong>${n}</strong> of ${publicCount} public companies tagged this${n ? ` (${Math.round((100 * n) / publicCount)}%)` : ''}.</p>`
+            : '';
+        return `<article class="f5-eli5-card" id="metric-${escapeAttr(key)}">
+          <h4>${escapeHtml(def.label)}</h4>
+          <p class="f5-eli5">${escapeHtml(def.eli5)}</p>
+          ${coverage}
+          <p class="f5-missing-why">${escapeHtml(def.whyMissing || '')}</p>
+          ${leaderLine}
+          <div class="f5-eli5-actions">${compareBtn}${sortBtn}</div>
+        </article>`;
+      })
+      .join('');
+    return `<section class="f5-eli5-group">
+      <h3 class="f5-h3">${escapeHtml(group.label)}</h3>
+      <p class="f5-section-lede">${escapeHtml(group.kid)}</p>
+      <div class="f5-eli5-grid">${cards}</div>
+    </section>`;
+  }).join('');
+
+  return `
+    <div class="f5-learn">
+      ${viewTabs()}
+      <h2>Every number, like you’re five</h2>
+      <p class="f5-section-lede">
+        We look for these tags in each public company’s latest 10-K. Not every company has every tag —
+        that’s the point. Compare companies on what they <em>share</em>, and treat a blank as unknown.
+      </p>
+      <div class="f5-note">
+        <p><strong>Not in EDGAR Company Facts:</strong> ${escapeHtml(NOT_IN_EDGAR.join(' '))}</p>
+      </div>
+      ${groups}
     </div>`;
 }
 
@@ -326,7 +469,39 @@ function featuredCard(headlines, item) {
     <h4>${escapeHtml(def.label)}</h4>
     <p class="val${shown ? '' : ' missing'}">${shown ? escapeHtml(shown) : 'Not tagged'}</p>
     ${shown ? pctPill(value, item.source, item.key) : ''}
-    <p>${escapeHtml(def.plain)}</p>
+    <p class="f5-eli5">${escapeHtml(def.plain)}</p>
+  </article>`;
+}
+
+function coverageBanner(headlines) {
+  const cov = coverageOf(headlines);
+  const dots = METRICS.map((m) => {
+    const on = cov.tagged.includes(m.key);
+    return `<span class="f5-dot${on ? ' is-on' : ''}" title="${escapeAttr(m.label + (on ? ' — tagged' : ' — not tagged'))}"></span>`;
+  }).join('');
+  return `<div class="f5-coverage">
+    <p><strong>${cov.tagged.length} of ${cov.total}</strong> SEC tags found in this 10-K. ${cov.derivedOk.length} of ${DERIVED.length} ratios we can compute from those tags.</p>
+    <div class="f5-dots" aria-hidden="true">${dots}</div>
+    <p class="f5-section-lede" style="margin:8px 0 0">A blank isn’t zero — banks skip inventory, some retailers have a stale gross-profit tag we refuse to use, and a few companies name the same idea differently.</p>
+  </div>`;
+}
+
+function metricExplainCard(def, headlines) {
+  const source = sourceFor(def.key);
+  const shown = lookupShown(headlines, def.key);
+  const tagged = shown != null;
+  const tagUsed =
+    source === 'metric' && headlines?.metrics?.[def.key]?.tag
+      ? headlines.metrics[def.key].tag
+      : def.tags || '';
+  return `<article class="f5-metric ${tagged ? '' : 'is-missing'}">
+    <div class="f5-metric-top">
+      <h4>${escapeHtml(def.label)}</h4>
+      <p class="val${tagged ? '' : ' missing'}">${tagged ? escapeHtml(shown) : 'Not tagged'}</p>
+    </div>
+    <p class="f5-eli5">${escapeHtml(def.eli5)}</p>
+    ${tagged ? '' : `<p class="f5-missing-why">${escapeHtml(def.whyMissing || '')}</p>`}
+    ${tagUsed ? `<p class="tags">${escapeHtml(tagUsed)}</p>` : ''}
   </article>`;
 }
 
@@ -336,22 +511,26 @@ function publicDetail(c, headlines, status) {
       ? `<p class="f5-section-lede">Fortune lists this as <strong>${escapeHtml(c.fortune_ticker)}</strong>; the SEC ticker file uses <strong>${escapeHtml(c.sec_ticker)}</strong>. Same company, different symbol.</p>`
       : '';
   const match = MATCH_LABELS[c.match_source] || c.match_source || '';
-  const featuredKeys = new Set(FEATURED.map((f) => f.key));
   let numbers = '';
   if (status === 'loading') {
     numbers = `<p class="f5-section-lede">Loading latest 10-K headlines from the SEC…</p>`;
   } else if (status === 'error') {
-    numbers = `<div class="f5-note"><p>Couldn’t load Company Facts (${escapeHtml(headlines?.error || 'network')}). The map of feeds below still works — open JSON on sec.gov.</p></div>`;
+    numbers = `<div class="f5-note"><p>Couldn’t load Company Facts (${escapeHtml(headlines?.error || 'network')}). The SEC links below still work.</p></div>`;
   } else if (headlines) {
     const year = headlines.asOfYear ? `FY${headlines.asOfYear}` : 'latest 10-K';
-    const restMetrics = METRICS.filter((m) => !featuredKeys.has(m.key));
-    const restDerived = DERIVED.filter((d) => !featuredKeys.has(d.key));
-    const restRows = [...restMetrics, ...restDerived]
-      .map((def) => {
-        const shown = lookupShown(headlines, def.key);
-        return `<tr><td>${escapeHtml(def.label)}</td><td>${shown ? escapeHtml(shown) : dash()}</td></tr>`;
-      })
-      .join('');
+    const groups = METRIC_GROUPS.map((group) => {
+      const cards = group.keys
+        .map((key) => {
+          const def = lookupDef(key);
+          return def ? metricExplainCard(def, headlines) : '';
+        })
+        .join('');
+      return `<section class="f5-eli5-group">
+        <h3 class="f5-h3">${escapeHtml(group.label)}</h3>
+        <p class="f5-section-lede">${escapeHtml(group.kid)}</p>
+        <div class="f5-metrics">${cards}</div>
+      </section>`;
+    }).join('');
     const peers = similarByRevenue(c, companies, snapshotCompanies, 4);
     const peerBtns = peers
       .map((p) => {
@@ -359,6 +538,23 @@ function publicDetail(c, headlines, status) {
         return `<button type="button" class="f5-peer" data-peer="${p.company.rank}">${escapeHtml(p.company.company)}<span>${escapeHtml(shown || '')}</span></button>`;
       })
       .join('');
+    const suggestions = suggestComparisons(c, companies, snapshotCompanies, 3);
+    const suggestBlock = suggestions.length
+      ? `<div class="f5-suggest">
+          <h3 class="f5-h3">Interesting comparisons</h3>
+          <p class="f5-section-lede">Built from metrics this company actually tagged.</p>
+          <div class="f5-stories">
+            ${suggestions
+              .map(
+                (s) => `<button type="button" class="f5-story is-story" data-suggest="${escapeAttr(s.id)}" data-suggest-ranks="${s.ranks.join(',')}">
+                  <strong>${escapeHtml(s.title)}</strong>
+                  <span>${escapeHtml(s.why)}</span>
+                </button>`
+              )
+              .join('')}
+          </div>
+        </div>`
+      : '';
     const peerBlock =
       peers.length >= 2
         ? `<div class="f5-peers">
@@ -371,20 +567,23 @@ function publicDetail(c, headlines, status) {
     numbers = `
       <h3 class="f5-h3">Headline numbers (${escapeHtml(year)})</h3>
       <p class="f5-section-lede">From Company Facts, same annual period as the latest revenue/net-income 10-K. Percentile is vs other public Fortune 500 filers that tagged the same item.</p>
+      ${coverageBanner(headlines)}
       <div class="f5-kpis">${FEATURED.map((item) => featuredCard(headlines, item)).join('')}</div>
+      ${suggestBlock}
       ${peerBlock}
-      <h3 class="f5-h3">More 10-K tags</h3>
-      <div class="f5-table-wrap">
-        <table class="f5-table">
-          <tbody>${restRows}</tbody>
-        </table>
-      </div>
+      ${groups}
     `;
   }
   const inCompare = compareRanks.includes(c.rank);
   const addBtn = inCompare
     ? `<button type="button" class="f5-add-compare" disabled>In compare set</button>`
     : `<button type="button" class="f5-add-compare" data-add-compare="${c.rank}">Add to compare</button>`;
+  const sources = `<details class="f5-sec-links">
+    <summary>SEC links for this company</summary>
+    <p class="f5-section-lede">Raw EDGAR feeds for this CIK — the same files we read. Optional if you just wanted the numbers.</p>
+    <div class="f5-sources">${SOURCES.map((s) => sourceCard(c, s)).join('')}</div>
+    <p class="f5-section-lede">Not in EDGAR Company Facts: ${escapeHtml(NOT_IN_EDGAR.join(' '))}</p>
+  </details>`;
   return `
     <button type="button" class="f5-back" id="back">← All companies</button>
     <div class="f5-company-head">
@@ -406,10 +605,7 @@ function publicDetail(c, headlines, status) {
       <div><dt>How we matched</dt><dd>${escapeHtml(match)}</dd></div>
     </dl>
     ${numbers}
-    <h3 class="f5-h3">Four public feeds</h3>
-    <p class="f5-section-lede">Each card is a real SEC URL for this CIK.</p>
-    <div class="f5-sources">${SOURCES.map((s) => sourceCard(c, s)).join('')}</div>
-    <p class="f5-section-lede">Not in EDGAR Company Facts: stock price, market cap, Fortune’s published revenue ranking dollars, or employee count.</p>
+    ${sources}
   `;
 }
 
@@ -491,12 +687,22 @@ function compareView(rows, status) {
   const insightBlock = insights.length
     ? `<ul class="f5-insights">${insights.map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ul>`
     : '';
+  const overlap = status === 'ok' ? coverageOverlap(insightRows) : null;
+  const overlapNote = overlap
+    ? `<p class="f5-section-lede">${overlap.shared.length} tags everyone here filed · ${overlap.split.length} tagged by only some · ${overlap.none.length} tagged by none. ${
+        overlap.split.length
+          ? 'Turn on “shared tags only” to hide rows that aren’t a fair fight.'
+          : ''
+      }</p>`
+    : '';
 
   const head = names
     .map((c) => {
       const h = rows.find((x) => x.cik === c.cik);
       const fy = h?.asOfYear ? `FY${h.asOfYear}` : '';
-      return `<th><button type="button" class="f5-linkish" data-rank="${c.rank}">${escapeHtml(c.company)}</button><div class="muted">${escapeHtml(c.fortune_ticker || '')} ${fy}</div></th>`;
+      const cov = h ? coverageOf(h) : null;
+      const covLine = cov ? `${cov.tagged.length}/${cov.total} tags` : '';
+      return `<th><button type="button" class="f5-linkish" data-rank="${c.rank}">${escapeHtml(c.company)}</button><div class="muted">${escapeHtml(c.fortune_ticker || '')} ${fy}${covLine ? ' · ' + covLine : ''}</div></th>`;
     })
     .join('');
 
@@ -507,8 +713,16 @@ function compareView(rows, status) {
     body = `<tr><td colspan="${names.length + 1}">Couldn’t reach /api/f500-headlines. On a static server this route doesn’t run — use the deployed site or <code>vercel dev</code>.</td></tr>`;
   } else {
     body = METRIC_GROUPS.map((group) => {
-      const groupRow = `<tr class="f5-group"><td colspan="${names.length + 1}">${escapeHtml(group.label)}</td></tr>`;
-      const metricRows = group.keys
+      const keys = group.keys.filter((key) => {
+        if (!sharedOnly || !overlap) return true;
+        if (METRICS.some((m) => m.key === key)) return overlap.shared.includes(key);
+        const def = lookupDef(key);
+        if (!def?.needs) return true;
+        return def.needs.every((need) => overlap.shared.includes(need));
+      });
+      if (!keys.length) return '';
+      const groupRow = `<tr class="f5-group"><td colspan="${names.length + 1}">${escapeHtml(group.label)} — ${escapeHtml(group.kid)}</td></tr>`;
+      const metricRows = keys
         .map((key) => {
           const def = lookupDef(key);
           if (!def) return '';
@@ -517,10 +731,17 @@ function compareView(rows, status) {
             .map((c, i) => {
               const shown = lookupShown(rows.find((x) => x.cik === c.cik), key);
               const cls = cellClass(vals, vals[i], def.better);
-              return `<td class="${cls}">${shown ? escapeHtml(shown) : dash()}</td>`;
+              const title = shown ? '' : def.whyMissing ? ` title="${escapeAttr(def.whyMissing)}"` : '';
+              return `<td class="${cls}"${title}>${shown ? escapeHtml(shown) : dash()}</td>`;
             })
             .join('');
-          return `<tr><td>${escapeHtml(def.label)}</td>${tds}</tr>`;
+          return `<tr>
+            <td>
+              <button type="button" class="f5-linkish" data-explain="${escapeAttr(key)}">${escapeHtml(def.label)}</button>
+              <div class="f5-eli5-mini">${escapeHtml(def.plain)}</div>
+            </td>
+            ${tds}
+          </tr>`;
         })
         .join('');
       return groupRow + metricRows;
@@ -528,12 +749,17 @@ function compareView(rows, status) {
   }
 
   const chart = status === 'ok' ? barChart(names, rows) : '';
+  const toggle = `<label class="f5-shared-toggle"><input type="checkbox" id="shared-only" ${sharedOnly ? 'checked' : ''}/> Shared tags only</label>`;
+  const explain = explainKey ? explainBanner(explainKey) : '';
 
   return `
     <button type="button" class="f5-back" id="back">← All companies</button>
-    <h2 class="f5-h3">Compare headline numbers</h2>
-    <p class="f5-section-lede">Latest annual 10-K period per company. Fiscal year-ends can differ (Apple is not calendar). Green = best in the row for “higher/lower is better” metrics; red = worst. Em-dash = not tagged.</p>
+    <h2 class="f5-h3">Compare what they actually filed</h2>
+    <p class="f5-section-lede">Latest annual 10-K period per company. Fiscal year-ends can differ (Apple is not calendar). Green = best in the row for “higher/lower is better” metrics; red = worst. Em-dash = not tagged. Tap a metric name for the kid explanation.</p>
     ${insightBlock}
+    ${explain}
+    ${overlapNote}
+    ${toggle}
     ${chart}
     <p class="f5-legend"><span><i class="f5-swatch best"></i>best in row</span><span><i class="f5-swatch worst"></i>worst in row</span></p>
     <div class="f5-table-wrap">
@@ -735,7 +961,71 @@ detailEl.addEventListener('click', (e) => {
   const rankBtn = e.target.closest('[data-rank]');
   if (rankBtn) {
     select(Number(rankBtn.dataset.rank));
+    return;
   }
+  const viewBtn = e.target.closest('[data-home-view]');
+  if (viewBtn) {
+    homeView = viewBtn.dataset.homeView === 'learn' ? 'learn' : 'table';
+    compareMode = false;
+    selectedRank = null;
+    applyState();
+    return;
+  }
+  const preset = e.target.closest('[data-preset]');
+  if (preset) {
+    applyPreset(preset.dataset.preset);
+    return;
+  }
+  const leaderBtn = e.target.closest('[data-compare-leaders]');
+  if (leaderBtn) {
+    const key = leaderBtn.dataset.compareLeaders;
+    const def = lookupDef(key);
+    const source = sourceFor(key);
+    const preferHigh = def?.better !== 'lower';
+    const top = leadersFor(companies, snapshotCompanies, key, source, MAX_COMPARE, preferHigh);
+    compareRanks = top.map((x) => x.company.rank);
+    if (compareRanks.length >= 2) openCompare();
+    return;
+  }
+  const sortMetric = e.target.closest('[data-sort-metric]');
+  if (sortMetric) {
+    const key = sortMetric.dataset.sortMetric;
+    extraCol = { key, source: sourceFor(key) };
+    const def = lookupDef(key);
+    const dir = key === 'name' || key === 'rank' || def?.better === 'lower' ? 'asc' : 'desc';
+    screenerSort = { key, dir };
+    homeView = 'table';
+    compareMode = false;
+    selectedRank = null;
+    applyState();
+    return;
+  }
+  const suggest = e.target.closest('[data-suggest]');
+  if (suggest) {
+    const ranks = String(suggest.dataset.suggestRanks || '')
+      .split(',')
+      .map(Number)
+      .filter((n) => Number.isInteger(n) && n >= 1 && n <= 500);
+    compareRanks = ranks
+      .filter((r) => {
+        const c = companyByRank(r);
+        return c && isPublic(c);
+      })
+      .slice(0, MAX_COMPARE);
+    if (compareRanks.length >= 2) openCompare();
+    return;
+  }
+  const explain = e.target.closest('[data-explain]');
+  if (explain) {
+    explainKey = explain.dataset.explain;
+    if (compareMode) detailEl.innerHTML = compareView(lastCompareRows, lastCompareStatus);
+  }
+});
+
+detailEl.addEventListener('change', (e) => {
+  if (e.target.id !== 'shared-only') return;
+  sharedOnly = e.target.checked;
+  if (compareMode) detailEl.innerHTML = compareView(lastCompareRows, lastCompareStatus);
 });
 
 presetsEl?.addEventListener('click', (e) => {
@@ -743,6 +1033,20 @@ presetsEl?.addEventListener('click', (e) => {
   if (!btn) return;
   applyPreset(btn.dataset.preset);
 });
+
+function openLearn(e) {
+  e?.preventDefault();
+  homeView = 'learn';
+  compareMode = false;
+  selectedRank = null;
+  applyState();
+  if (window.matchMedia('(max-width: 820px)').matches) {
+    detailEl.scrollIntoView({ block: 'start' });
+  }
+}
+
+document.getElementById('nav-learn')?.addEventListener('click', openLearn);
+document.getElementById('glossary-learn')?.addEventListener('click', openLearn);
 
 compareBar.addEventListener('click', (e) => {
   const chip = e.target.closest('[data-unchip]');
@@ -813,6 +1117,7 @@ try {
   compareMode = s.compareMode;
   compareRanks = s.compareRanks;
   selectedRank = s.selectedRank;
+  if (location.hash === '#learn' && !compareMode && !selectedRank) homeView = 'learn';
   applyState({ replace: true, fromPop: true });
 } catch (err) {
   detailEl.innerHTML = `<p class="f5-error">${escapeHtml(err.message)}</p>`;

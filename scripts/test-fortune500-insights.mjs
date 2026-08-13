@@ -6,19 +6,37 @@ import {
   similarByRevenue,
   metricNumber,
   ratioNumber,
+  coverageOf,
+  coverageOverlap,
+  leadersFor,
+  suggestComparisons,
 } from '../fortune-500/insights.js';
+import { METRICS, DERIVED, PRESETS, allDefs } from '../fortune-500/catalog.js';
 
-function headlines({ revenue, net_income, net_margin, revenue_yoy, roe, asOfYear = 2025 }) {
+function headlines({
+  revenue,
+  net_income,
+  cfo,
+  rd,
+  net_margin,
+  revenue_yoy,
+  roe,
+  rd_intensity,
+  asOfYear = 2025,
+}) {
   return {
     asOfYear,
     metrics: {
       revenue: revenue != null ? { val: revenue } : null,
       net_income: net_income != null ? { val: net_income } : null,
+      cfo: cfo != null ? { val: cfo } : null,
+      rd: rd != null ? { val: rd } : null,
     },
     ratios: {
       net_margin: net_margin ?? null,
       revenue_yoy: revenue_yoy ?? null,
       roe: roe ?? null,
+      rd_intensity: rd_intensity ?? null,
     },
   };
 }
@@ -94,5 +112,76 @@ const peers = similarByRevenue(catalog[0], catalog, revSnap, 2);
 assert.equal(peers.length, 2);
 assert.equal(peers[0].company.company, 'Walmart');
 assert.equal(peers[1].company.company, 'Apple');
+
+const cov = coverageOf(headlines({ revenue: 10, net_income: 1, cfo: 2 }));
+assert.ok(cov.tagged.includes('revenue'));
+assert.ok(cov.tagged.includes('cfo'));
+assert.ok(cov.missing.includes('inventory'));
+assert.equal(cov.total, METRICS.length);
+
+const overlap = coverageOverlap([
+  { company: co('A', { cik: 1 }), headlines: headlines({ revenue: 10, net_income: 1, rd: 2 }) },
+  { company: co('B', { cik: 2 }), headlines: headlines({ revenue: 12, net_income: 2 }) },
+]);
+assert.ok(overlap.shared.includes('revenue'));
+assert.ok(overlap.shared.includes('net_income'));
+assert.ok(overlap.split.includes('rd'));
+assert.ok(overlap.none.includes('inventory'));
+
+const wildMargin = buildInsights([
+  { company: co('Bankish'), headlines: headlines({ revenue: 2e9, net_margin: 1.72 }) },
+  { company: co('Appleish'), headlines: headlines({ revenue: 400e9, net_margin: 0.27 }) },
+]);
+assert.ok(!wildMargin.some((s) => s.includes('172')));
+
+const cashStory = buildInsights([
+  { company: co('CashCo'), headlines: headlines({ revenue: 100e9, net_income: 20e9, cfo: 50e9, net_margin: 0.2 }) },
+  { company: co('AccrualCo'), headlines: headlines({ revenue: 90e9, net_income: 25e9, cfo: 5e9, net_margin: 0.28 }) },
+]);
+assert.ok(cashStory.some((s) => s.includes('cash') && s.includes('profit')));
+
+const rdStory = buildInsights([
+  { company: co('Lab'), headlines: headlines({ revenue: 50e9, rd: 10e9, rd_intensity: 0.2, net_margin: 0.1 }) },
+  { company: co('Store'), headlines: headlines({ revenue: 60e9, net_margin: 0.03 }) },
+]);
+assert.ok(rdStory.some((s) => s.includes('R&D') && s.includes('Lab') && s.includes('Store')));
+
+const leaders = leadersFor(
+  catalog,
+  {
+    101: headlines({ revenue: 700e9, net_margin: 0.1 }),
+    102: headlines({ revenue: 680e9, net_margin: 0.03 }),
+    103: headlines({ revenue: 390e9, net_margin: 0.27 }),
+    104: headlines({ revenue: 20e9, net_margin: 0.05 }),
+  },
+  'net_margin',
+  'ratio',
+  2,
+  true
+);
+assert.equal(leaders[0].company.company, 'Apple');
+assert.equal(leaders.length, 2);
+
+const marginSnap = {
+  101: headlines({ revenue: 700e9, net_margin: 0.11, rd: 80e9, rd_intensity: 0.11 }),
+  102: headlines({ revenue: 680e9, net_margin: 0.03 }),
+  103: headlines({ revenue: 390e9, net_margin: 0.27, rd: 30e9, rd_intensity: 0.08 }),
+  104: headlines({ revenue: 20e9, net_margin: 0.05, rd: 8e9, rd_intensity: 0.4 }),
+};
+const suggestions = suggestComparisons(catalog[0], catalog, marginSnap, 3);
+assert.ok(suggestions.some((s) => s.id === 'similar'));
+assert.ok(suggestions.some((s) => s.id === 'margin-foil'));
+assert.ok(suggestions.some((s) => s.id === 'rd'));
+assert.ok(suggestions.every((s) => s.ranks[0] === 1));
+
+for (const def of allDefs()) {
+  assert.ok(def.eli5 && def.eli5.length > 40, `${def.key} needs an ELI5`);
+  assert.ok(def.whyMissing && def.whyMissing.length > 10, `${def.key} needs whyMissing`);
+  assert.ok(def.plain, `${def.key} needs a one-liner`);
+}
+for (const p of PRESETS) {
+  assert.ok(p.blurb, `${p.id} needs a blurb`);
+  assert.ok(p.ranks.length >= 2 && p.ranks.length <= 5);
+}
 
 console.log('fortune-500 insights tests passed');

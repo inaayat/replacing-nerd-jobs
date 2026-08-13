@@ -3,8 +3,10 @@
  * Pure functions — used by the browser and by tests.
  *
  * Headline shape matches extract.js: metrics[key].val (USD) and
- * ratios[key] as fractions (0.108 = 10.8%), never already-multiplied percents.
+ * ratios[key] as fractions (0.108 = 10.8%) except `fcf` which is USD.
+ * Never already-multiplied percents.
  */
+import { METRICS, DERIVED, isPublic } from './catalog.js';
 import { formatUsd, formatPercent } from './extract.js';
 
 export function metricNumber(headlines, key) {
@@ -15,6 +17,10 @@ export function metricNumber(headlines, key) {
 export function ratioNumber(headlines, key) {
   const v = headlines?.ratios?.[key];
   return typeof v === 'number' && Number.isFinite(v) ? v : null;
+}
+
+export function valueFor(headlines, key, source) {
+  return source === 'ratio' ? ratioNumber(headlines, key) : metricNumber(headlines, key);
 }
 
 function nameOf(row) {
@@ -34,6 +40,10 @@ function usd(n) {
 
 function pct(n, signed = false) {
   return formatPercent(n, signed) || '—';
+}
+
+function plausibleMargin(v) {
+  return v != null && Number.isFinite(v) && v <= 1 && v >= -0.8;
 }
 
 /**
@@ -59,6 +69,58 @@ export function poolFor(snapshotCompanies, source, key) {
     if (v != null) out.push(v);
   }
   return out;
+}
+
+export function coverageOf(headlines) {
+  const tagged = [];
+  const missing = [];
+  for (const def of METRICS) {
+    if (metricNumber(headlines, def.key) != null) tagged.push(def.key);
+    else missing.push(def.key);
+  }
+  const derivedOk = [];
+  const derivedSkip = [];
+  for (const def of DERIVED) {
+    if (ratioNumber(headlines, def.key) != null) derivedOk.push(def.key);
+    else derivedSkip.push(def.key);
+  }
+  return {
+    tagged,
+    missing,
+    derivedOk,
+    derivedSkip,
+    total: METRICS.length,
+  };
+}
+
+export function coverageOverlap(rows) {
+  const usable = (rows || []).filter((r) => r?.headlines);
+  if (usable.length < 2) return { shared: [], split: [], none: METRICS.map((m) => m.key) };
+  const sets = usable.map((r) => new Set(coverageOf(r.headlines).tagged));
+  const shared = [];
+  const split = [];
+  const none = [];
+  for (const def of METRICS) {
+    const n = sets.filter((s) => s.has(def.key)).length;
+    if (n === sets.length) shared.push(def.key);
+    else if (n === 0) none.push(def.key);
+    else split.push(def.key);
+  }
+  return { shared, split, none };
+}
+
+export function leadersFor(catalog, snapshotCompanies, key, source, n = 3, preferHigh = true) {
+  const scored = [];
+  for (const row of catalog || []) {
+    if (!isPublic(row)) continue;
+    const h = snapshotCompanies?.[String(row.cik)];
+    let v = source === 'ratio' ? ratioNumber(h, key) : metricNumber(h, key);
+    if (v == null) continue;
+    if (key === 'net_margin' && !plausibleMargin(v)) continue;
+    scored.push({ company: row, value: v });
+  }
+  scored.sort((a, b) => (preferHigh ? b.value - a.value : a.value - b.value));
+  return scored.slice(0, n);
 }
 
 /**
@@ -93,7 +155,7 @@ export function buildInsights(rows, snapshotCompanies) {
 
   const nm = usable
     .map((r) => ({ r, v: ratioNumber(r.headlines, 'net_margin') }))
-    .filter((x) => x.v != null)
+    .filter((x) => plausibleMargin(x.v))
     .sort((a, b) => b.v - a.v);
   if (nm.length >= 2) {
     const top = nm[0];
@@ -126,6 +188,42 @@ export function buildInsights(rows, snapshotCompanies) {
     }
   }
 
+  const cashPairs = usable
+    .map((r) => ({
+      r,
+      ni: metricNumber(r.headlines, 'net_income'),
+      cfo: metricNumber(r.headlines, 'cfo'),
+    }))
+    .filter((x) => x.ni != null && x.cfo != null);
+  if (cashPairs.length >= 2) {
+    const richest = [...cashPairs].sort((a, b) => b.cfo - b.ni - (a.cfo - a.ni))[0];
+    const poorest = [...cashPairs].sort((a, b) => a.cfo - a.ni - (b.cfo - b.ni))[0];
+    if (richest && poorest && richest.r !== poorest.r) {
+      const richGap = richest.cfo - richest.ni;
+      const poorGap = poorest.cfo - poorest.ni;
+      if (Math.abs(richGap) >= 1e9 || Math.abs(poorGap) >= 1e9) {
+        insights.push(
+          `${nameOf(richest.r)}’s operations brought in ${usd(richest.cfo)} of cash vs ${usd(richest.ni)} of profit; ${nameOf(poorest.r)} had ${usd(poorest.cfo)} cash vs ${usd(poorest.ni)} profit. Cash and profit are different stories.`
+        );
+      }
+    }
+  }
+
+  const rd = usable
+    .map((r) => ({ r, v: ratioNumber(r.headlines, 'rd_intensity') }))
+    .filter((x) => x.v != null && x.v > 0)
+    .sort((a, b) => b.v - a.v);
+  const rdMissing = usable.filter((r) => ratioNumber(r.headlines, 'rd_intensity') == null);
+  if (rd.length >= 2) {
+    insights.push(
+      `${nameOf(rd[0].r)} spent ${pct(rd[0].v)} of sales on R&D; ${nameOf(rd[rd.length - 1].r)} spent ${pct(rd[rd.length - 1].v)}.`
+    );
+  } else if (rd.length === 1 && rdMissing.length) {
+    insights.push(
+      `${nameOf(rd[0].r)} tagged R&D (${pct(rd[0].v)} of sales). ${nameOf(rdMissing[0])} didn’t — that usually means a different business, not $0 of research.`
+    );
+  }
+
   const roe = usable
     .map((r) => ({ r, v: ratioNumber(r.headlines, 'roe') }))
     .filter((x) => x.v != null)
@@ -133,6 +231,16 @@ export function buildInsights(rows, snapshotCompanies) {
   if (roe.length >= 2 && roe[0].v - roe[roe.length - 1].v >= 0.05) {
     insights.push(
       `${nameOf(roe[0].r)} earns ${pct(roe[0].v)} on equity (ROE) vs ${pct(roe[roe.length - 1].v)} at ${nameOf(roe[roe.length - 1].r)}.`
+    );
+  }
+
+  const overlap = coverageOverlap(usable);
+  if (overlap.split.length) {
+    const labels = overlap.split
+      .slice(0, 3)
+      .map((k) => METRICS.find((m) => m.key === k)?.label || k);
+    insights.push(
+      `Not every company tagged the same items. Split across this set: ${labels.join(', ')}${overlap.split.length > 3 ? '…' : ''}. A blank is “not in this 10-K,” not zero.`
     );
   }
 
@@ -153,7 +261,7 @@ export function buildInsights(rows, snapshotCompanies) {
     );
   }
 
-  return insights.slice(0, 5);
+  return insights.slice(0, 7);
 }
 
 export function similarByRevenue(company, catalog, snapshotCompanies, limit = 4) {
@@ -173,4 +281,73 @@ export function similarByRevenue(company, catalog, snapshotCompanies, limit = 4)
   }
   scored.sort((a, b) => a.dist - b.dist);
   return scored.slice(0, limit);
+}
+
+/**
+ * Ready-made compare sets that start from one company.
+ * Returns [{ id, title, why, ranks }].
+ */
+export function suggestComparisons(company, catalog, snapshotCompanies, limit = 3) {
+  const out = [];
+  if (!company || !isPublic(company)) return out;
+  const cik = String(company.cik);
+  const mine = snapshotCompanies?.[cik];
+  const similar = similarByRevenue(company, catalog, snapshotCompanies, 3);
+  if (similar.length >= 2) {
+    out.push({
+      id: 'similar',
+      title: 'Closest in sales',
+      why: 'Public Fortune 500 companies with the most similar revenue. Size is the fairest first comparison.',
+      ranks: [company.rank, ...similar.map((p) => p.company.rank)],
+    });
+  }
+
+  const myMargin = ratioNumber(mine, 'net_margin');
+  const myRev = metricNumber(mine, 'revenue');
+  if (plausibleMargin(myMargin) && myRev > 0) {
+    let best = null;
+    for (const row of catalog || []) {
+      if (row.rank === company.rank || !isPublic(row)) continue;
+      const h = snapshotCompanies?.[String(row.cik)];
+      const m = ratioNumber(h, 'net_margin');
+      const r = metricNumber(h, 'revenue');
+      if (!plausibleMargin(m) || r == null || r <= 0) continue;
+      if (r < myRev / 5 || r > myRev * 5) continue;
+      const gap = Math.abs(m - myMargin);
+      if (!best || gap > best.gap) best = { row, gap, m };
+    }
+    if (best && best.gap >= 0.03) {
+      out.push({
+        id: 'margin-foil',
+        title: `Vs ${best.row.company} on profit per dollar`,
+        why: 'Similar-ish sales, very different net margin. That’s usually a business-model story, not a rounding error.',
+        ranks: [company.rank, best.row.rank],
+      });
+    }
+  }
+
+  const myRd = metricNumber(mine, 'rd');
+  if (myRd != null && myRd > 0) {
+    const rdPeers = [];
+    for (const row of catalog || []) {
+      if (row.rank === company.rank || !isPublic(row)) continue;
+      const h = snapshotCompanies?.[String(row.cik)];
+      const rd = metricNumber(h, 'rd');
+      const rev = metricNumber(h, 'revenue');
+      if (rd == null || rd <= 0 || rev == null || rev <= 0) continue;
+      rdPeers.push({ row, intensity: rd / rev });
+    }
+    rdPeers.sort((a, b) => b.intensity - a.intensity);
+    const picks = rdPeers.slice(0, 3).map((p) => p.row.rank);
+    if (picks.length >= 2) {
+      out.push({
+        id: 'rd',
+        title: 'Other research spenders',
+        why: 'R&D only shows up when a company tags it. These filers do — grocers and most insurers don’t.',
+        ranks: [company.rank, ...picks].slice(0, 5),
+      });
+    }
+  }
+
+  return out.slice(0, limit);
 }

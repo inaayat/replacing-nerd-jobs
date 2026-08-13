@@ -46,10 +46,10 @@ is proxied onto this domain so it appears as a first-class card on the homepage.
 
 ### Fortune 500 × EDGAR — `/fortune-500`
 
-Static explainer for the Fortune 500: search the 500, open a company, see in
-plain language what SEC EDGAR publishes, and compare latest 10-K headline
-numbers (via `/api/f500-headlines`, which pulls Company Facts). Mapping lives
-in `fortune-500/data/`. Plan: `fortune-500/PLAN.md`.
+Static explainer for the Fortune 500: search the 500, open a company, see which
+SEC EDGAR tags its latest 10-K actually filed (with kid-level explanations),
+and compare companies on the metrics they share. Headline numbers come from
+`data/headlines-snapshot.json` with `/api/f500-headlines` as a live fallback.
 
 ### World Cup 2026 — `/world-cup`
 
@@ -423,4 +423,6 @@ node scripts/test-plot-points-query.mjs
 node scripts/test-public-imports.mjs   # guards against browser code importing /lib/
 node scripts/test-alist-watchlist-sort.mjs
 node scripts/test-alist-showing.mjs
+node scripts/test-fortune500-extract.mjs
+node scripts/test-fortune500-insights.mjs
 ```

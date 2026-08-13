@@ -7,6 +7,7 @@ import {
   formatUsd,
   formatMetric,
   computeRatios,
+  ensureRatios,
 } from '../fortune-500/extract.js';
 
 const fixture = JSON.parse(
@@ -48,6 +49,29 @@ assert.equal(ratios.net_margin, 0.1);
 assert.equal(ratios.roa, 0.05);
 assert.equal(ratios.roe, 0.2);
 assert.equal(ratios.debt_equity, 0.5);
+assert.equal(ratios.rd_intensity, null);
+assert.equal(ratios.fcf, null);
 assert.ok(Math.abs(ratios.revenue_yoy - 0.25) < 1e-9);
+
+const withCash = computeRatios(
+  { revenue: { val: 100 }, cfo: { val: 40 }, capex: { val: 15 }, rd: { val: 8 } },
+  null
+);
+assert.equal(withCash.fcf, 25, 'CapEx stored as a positive outflow is subtracted');
+assert.equal(withCash.rd_intensity, 0.08);
+
+const negCapex = computeRatios(
+  { cfo: { val: 40 }, capex: { val: -15 } },
+  null
+);
+assert.equal(negCapex.fcf, 25, 'negative CapEx outflow is added');
+
+const filled = ensureRatios({
+  metrics: { revenue: { val: 100 }, net_income: { val: 10 }, cfo: { val: 30 }, capex: { val: 5 } },
+  priorRevenue: { val: 80 },
+  ratios: {},
+});
+assert.equal(filled.ratios.fcf, 25);
+assert.ok(Math.abs(filled.ratios.revenue_yoy - 0.25) < 1e-9);
 
 console.log('fortune-500 extract tests passed');

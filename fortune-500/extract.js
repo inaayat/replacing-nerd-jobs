@@ -134,6 +134,9 @@ export function computeRatios(metrics, priorRevenue) {
   const assets = val(metrics, 'assets');
   const equity = val(metrics, 'equity');
   const debt = val(metrics, 'long_term_debt');
+  const cfo = val(metrics, 'cfo');
+  const capex = val(metrics, 'capex');
+  const rd = val(metrics, 'rd');
   const prior = priorRevenue && typeof priorRevenue.val === 'number' ? priorRevenue.val : null;
 
   out.gross_margin = gp != null && rev ? gp / rev : null;
@@ -142,8 +145,21 @@ export function computeRatios(metrics, priorRevenue) {
   out.roa = ni != null && assets ? ni / assets : null;
   out.roe = ni != null && equity ? ni / equity : null;
   out.debt_equity = debt != null && equity ? debt / equity : null;
+  out.rd_intensity = rd != null && rev ? rd / rev : null;
+  // CapEx is almost always a positive cash outflow in Company Facts.
+  // If a filer stores it as a negative outflow, adding it is equivalent.
+  out.fcf = cfo != null && capex != null ? (capex < 0 ? cfo + capex : cfo - capex) : null;
   out.revenue_yoy = rev != null && prior ? rev / prior - 1 : null;
   return out;
+}
+
+/** Fill derived ratios on a snapshot/API row so older snapshots pick up new formulas. */
+export function ensureRatios(headlines) {
+  if (!headlines?.metrics) return headlines;
+  return {
+    ...headlines,
+    ratios: computeRatios(headlines.metrics, headlines.priorRevenue),
+  };
 }
 
 export function formatUsd(n) {
@@ -195,6 +211,7 @@ export function formatDerived(def, value) {
   if (value == null || !Number.isFinite(value)) return null;
   if (def.format === 'percent') return formatPercent(value, Boolean(def.signed));
   if (def.format === 'ratio') return formatRatio(value);
+  if (def.format === 'usd') return formatUsd(value);
   return String(value);
 }
 
