@@ -18,8 +18,8 @@ import {
 
 const MAX_CIKS = MAX_COMPARE;
 const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7;
-/** Bump when the headline payload gains a field the UI needs, so cached rows refetch. */
-const PAYLOAD_SCHEMA = 2;
+/** Bump when the headline payload gains a field or a tag the UI needs, so cached rows refetch. */
+const PAYLOAD_SCHEMA = 3;
 const PRICE_CACHE_TTL_MS = 1000 * 60 * 15;
 const SEC_PAUSE_MS = 125;
 const YAHOO_UA =
