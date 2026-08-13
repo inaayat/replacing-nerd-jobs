@@ -755,7 +755,11 @@
             const ny = next.y - v.y;
             const lp = Math.hypot(px, py) || 1;
             const ln = Math.hypot(nx, ny) || 1;
-            const cut = Math.min(lp, ln) * 0.5 * (0.66 + noise(seed * 17 + k, 3.1) * 0.3);
+            // Spend nearly the whole budget so the curve starts close to the
+            // midpoint of each edge and the vertex reads as a pebble corner
+            // rather than a point. Held just under 1 so two corners sharing a
+            // short edge cannot quite meet and kink it.
+            const cut = Math.min(lp, ln) * 0.5 * (0.88 + noise(seed * 17 + k, 3.1) * 0.1);
             const ax = v.x + (px / lp) * cut;
             const ay = v.y + (py / lp) * cut;
             const bx = v.x + (nx / ln) * cut;
