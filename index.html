@@ -737,6 +737,11 @@
           return shifted.area > centred.area ? shifted : centred;
         }
 
+        // How far each corner's control point eases off the vertex toward the
+        // chord. 0 leaves it on the vertex and keeps a tip; 1 flattens the corner
+        // to a straight chord.
+        const CORNER_EASE = 0.4;
+
         // Corner-cut every vertex into a curve so the cell reads as hand-cut. The
         // cut is capped at half the shorter edge, so adjacent corners never eat
         // into each other and the curve always stays inside the cell.
@@ -764,8 +769,15 @@
             const ay = v.y + (py / lp) * cut;
             const bx = v.x + (nx / ln) * cut;
             const by = v.y + (ny / ln) * cut;
+            // Pull the control point off the vertex and in toward the chord. Left
+            // on the vertex, the curve is dragged into a tip — which is exactly
+            // what a Voronoi triple junction is, an acute corner where three
+            // cells meet. Easing it toward the midpoint of A and B trades the
+            // tip for a rounded fillet.
+            const cx = v.x + ((ax + bx) / 2 - v.x) * CORNER_EASE;
+            const cy = v.y + ((ay + by) / 2 - v.y) * CORNER_EASE;
             d += (k === 0 ? "M" : "L") + num(ax - ox) + " " + num(ay - oy);
-            d += "Q" + num(v.x - ox) + " " + num(v.y - oy) + " " + num(bx - ox) + " " + num(by - oy);
+            d += "Q" + num(cx - ox) + " " + num(cy - oy) + " " + num(bx - ox) + " " + num(by - oy);
           }
           return d + "Z";
         }
@@ -1025,7 +1037,10 @@
             }
             // Corner-cutting draws a curve strictly inside the cell, so measure
             // text room against a shrunken cell rather than the straight edges.
-            const inner = insetPoly(shape, 6);
+            // This has to track CORNER_EASE: the further the control point eases
+            // off the vertex, the deeper the curve bites in, and the further a
+            // label has to stay back to remain inside the drawn shape.
+            const inner = insetPoly(shape, 13);
             const fit = inner.length > 2 ? inner : shape;
             const slot = labelSlot(fit, visible, avoid, spot);
             const width = Math.max(44, slot.w);
