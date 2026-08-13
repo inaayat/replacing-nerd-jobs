@@ -47,26 +47,49 @@
               <button type="button" data-filter="public" aria-pressed="false">Public</button>
               <button type="button" data-filter="private" aria-pressed="false">Private</button>
             </div>
-            <p class="f5-count" id="count"></p>
+            <p class="f5-count" id="count">Loading companies…</p>
+            <p class="f5-presets-kicker">Peer sets — tap one to fill the compare tray</p>
             <div class="f5-presets" id="presets" aria-label="Peer sets"></div>
           </div>
           <div class="f5-list" id="list" aria-label="Fortune 500"></div>
         </section>
 
-        <section class="f5-detail" id="detail" aria-live="polite"></section>
+        <section class="f5-detail" id="detail" aria-live="polite">
+          <div class="f5-howto-pane">
+            <p class="f5-kicker">How to use</p>
+            <h2>Read a 10-K, then sketch five years</h2>
+            <p class="f5-eli5">This is a 10-K reading and modeling course that also works as a real comps tool. Year 0 is filed. Everything after is a guess you control. A dash is not tagged, not zero.</p>
+            <ol class="f5-howto-steps">
+              <li>
+                <span class="f5-howto-n" aria-hidden="true">1</span>
+                <span><strong>Open a company</strong> Click a name on the left. Apple is a fine first 10-K.</span>
+              </li>
+              <li>
+                <span class="f5-howto-n" aria-hidden="true">2</span>
+                <span><strong>Read one ratio</strong> Tap a tile — start with net margin. The dock is the lesson: kid version plus the 10-K math.</span>
+              </li>
+              <li>
+                <span class="f5-howto-n" aria-hidden="true">3</span>
+                <span><strong>Project five years</strong> Open Practice Model. Year 0 is the filed 10-K. The sliders are your guesses, not forecasts. Then add a second company in the tray below.</span>
+              </li>
+            </ol>
+            <div class="f5-howto-actions">
+              <button type="button" class="f5-mini" data-open-suggested>Open Apple</button>
+              <button type="button" class="f5-mini f5-mini-ghost" data-course-skip>Skip · I’m comfortable</button>
+            </div>
+          </div>
+        </section>
       </div>
     </main>
 
-    <div class="f5-howto" id="howto" hidden></div>
-
-    <div class="f5-compare-bar" id="compare-bar" hidden>
+    <div class="f5-compare-bar" id="compare-bar">
       <div class="f5-compare-who">
-        <span id="compare-label"></span>
+        <span id="compare-label">0 selected — open a company and tap Add, or use a peer set</span>
         <div class="f5-chips" id="compare-chips"></div>
       </div>
       <div>
         <button type="button" class="f5-compare-clear" id="compare-clear">Clear</button>
-        <button type="button" class="f5-compare-go" id="compare-go">Compare</button>
+        <button type="button" class="f5-compare-go" id="compare-go" disabled>Compare</button>
       </div>
     </div>
 
