@@ -36,7 +36,8 @@ function preferredUnit(def, unit) {
 function collectPoints(facts, def) {
   const out = [];
   const taxonomies = facts?.facts || {};
-  for (const cand of def.candidates) {
+  for (let i = 0; i < def.candidates.length; i++) {
+    const cand = def.candidates[i];
     const node = taxonomies[cand.taxonomy]?.[cand.tag];
     if (!node?.units) continue;
     for (const [unit, pts] of Object.entries(node.units)) {
@@ -62,6 +63,7 @@ function collectPoints(facts, def) {
           frame: p.frame || null,
           tag: cand.tag,
           taxonomy: cand.taxonomy,
+          candidateIndex: i,
         });
       }
     }
@@ -82,7 +84,16 @@ function scorePoint(p, targetYear) {
 function pickForYear(points, targetYear) {
   const pool = points.filter((p) => yearOf(p.end) === targetYear);
   if (!pool.length) return null;
-  pool.sort((a, b) => scorePoint(b, targetYear) - scorePoint(a, targetYear));
+  // Candidate order is the catalog's "first hit wins" (Revenues before a
+  // fee-revenue subtotal). Filed-date scoring is only a tiebreaker among
+  // the same tag — mixing it in used to let a later-filed subtotal beat
+  // total revenue and print 160%+ margins.
+  pool.sort((a, b) => {
+    const ai = a.candidateIndex ?? 99;
+    const bi = b.candidateIndex ?? 99;
+    if (ai !== bi) return ai - bi;
+    return scorePoint(b, targetYear) - scorePoint(a, targetYear);
+  });
   return pool[0];
 }
 
@@ -117,6 +128,7 @@ export function extractHeadlines(facts) {
     metrics,
     priorRevenue,
     ratios,
+    flags: sanityFlags(metrics, ratios),
   };
 }
 
@@ -141,9 +153,9 @@ export function computeRatios(metrics, priorRevenue) {
   const rec = val(metrics, 'receivables');
   const prior = priorRevenue && typeof priorRevenue.val === 'number' ? priorRevenue.val : null;
 
-  out.gross_margin = gp != null && rev ? gp / rev : null;
-  out.operating_margin = oi != null && rev ? oi / rev : null;
-  out.net_margin = ni != null && rev ? ni / rev : null;
+  out.gross_margin = clampMargin(gp != null && rev ? gp / rev : null);
+  out.operating_margin = clampMargin(oi != null && rev ? oi / rev : null);
+  out.net_margin = clampMargin(ni != null && rev ? ni / rev : null);
   out.roa = ni != null && assets ? ni / assets : null;
   out.roe = ni != null && equity ? ni / equity : null;
   out.debt_equity = debt != null && equity ? debt / equity : null;
@@ -152,7 +164,7 @@ export function computeRatios(metrics, priorRevenue) {
   // CapEx is almost always a positive cash outflow in Company Facts.
   // If a filer stores it as a negative outflow, adding it is equivalent.
   out.fcf = cfo != null && capex != null ? (capex < 0 ? cfo + capex : cfo - capex) : null;
-  out.fcf_margin = out.fcf != null && rev ? out.fcf / rev : null;
+  out.fcf_margin = clampMargin(out.fcf != null && rev ? out.fcf / rev : null);
   out.cash_conversion = cfo != null && ni ? cfo / ni : null;
   out.capex_intensity = capex != null && rev ? Math.abs(capex) / rev : null;
   out.asset_turnover = rev != null && assets ? rev / assets : null;
@@ -163,12 +175,101 @@ export function computeRatios(metrics, priorRevenue) {
   return out;
 }
 
+export const MARGIN_KEYS = ['gross_margin', 'operating_margin', 'net_margin', 'fcf_margin'];
+
+/** Margin as a fraction. Values outside ±100% are almost always a tag mismatch. */
+export function plausibleMargin(v) {
+  return v != null && Number.isFinite(v) && v <= 1 && v >= -1;
+}
+
+function clampMargin(v) {
+  return plausibleMargin(v) ? v : null;
+}
+
+export const FLAG_COPY = {
+  impossible_margin:
+    'Over 100% (or below −100%) — the ingredients don’t match. Often a fee/subtotal revenue tag paired with total net income. Hidden instead of ranked as a leader.',
+  thin_equity:
+    'Check the equity base. ROE this high is often buybacks shrinking book value, not a 150% business.',
+  fee_subtotal:
+    'Revenue tag looks like a contract/fee subtotal, not total sales, so margin ratios are omitted.',
+  bank_cash:
+    'Not meaningful for banks — industrial FCF / cash conversion doesn’t apply. Use ROE and book.',
+};
+
+/**
+ * Why a ratio was dashed or needs a footnote. Uses the raw tagged dollars,
+ * so it still fires after computeRatios has nulled an impossible percent.
+ */
+export function sanityFlags(metrics, ratios) {
+  const flags = {};
+  const rev = val(metrics, 'revenue');
+  const gp = val(metrics, 'gross_profit');
+  const oi = val(metrics, 'operating_income');
+  const ni = val(metrics, 'net_income');
+  const cfo = val(metrics, 'cfo');
+  const capex = val(metrics, 'capex');
+  const fcf = cfo != null && capex != null ? (capex < 0 ? cfo + capex : cfo - capex) : null;
+  const raw = {
+    gross_margin: gp != null && rev ? gp / rev : null,
+    operating_margin: oi != null && rev ? oi / rev : null,
+    net_margin: ni != null && rev ? ni / rev : null,
+    fcf_margin: fcf != null && rev ? fcf / rev : null,
+  };
+  for (const key of MARGIN_KEYS) {
+    if (raw[key] != null && !plausibleMargin(raw[key])) flags[key] = 'impossible_margin';
+  }
+  const revTag = metrics?.revenue?.tag;
+  if (
+    revTag === 'RevenueFromContractWithCustomerExcludingAssessedTax' &&
+    (flags.net_margin || flags.fcf_margin)
+  ) {
+    flags.revenue = 'fee_subtotal';
+  }
+  const roe = ratios?.roe;
+  if (roe != null && Number.isFinite(roe) && Math.abs(roe) > 0.8) flags.roe = 'thin_equity';
+  return flags;
+}
+
+export function periodEndOf(headlines) {
+  return (
+    headlines?.metrics?.revenue?.end ||
+    headlines?.metrics?.net_income?.end ||
+    headlines?.metrics?.assets?.end ||
+    null
+  );
+}
+
+export function formatPeriodEnd(iso) {
+  if (!iso) return '';
+  const d = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' });
+}
+
+/** 1 → 1st, 2 → 2nd, 3 → 3rd, 11–13 → th, else th. */
+export function ordinal(n) {
+  const num = Number(n);
+  if (!Number.isFinite(num)) return String(n);
+  const v = Math.abs(Math.round(num)) % 100;
+  const d = v % 10;
+  let suf = 'th';
+  if (v < 11 || v > 13) {
+    if (d === 1) suf = 'st';
+    else if (d === 2) suf = 'nd';
+    else if (d === 3) suf = 'rd';
+  }
+  return `${Math.round(num)}${suf}`;
+}
+
 /** Fill derived ratios on a snapshot/API row so older snapshots pick up new formulas. */
 export function ensureRatios(headlines) {
   if (!headlines?.metrics) return headlines;
+  const ratios = computeRatios(headlines.metrics, headlines.priorRevenue);
   return {
     ...headlines,
-    ratios: computeRatios(headlines.metrics, headlines.priorRevenue),
+    ratios,
+    flags: sanityFlags(headlines.metrics, ratios),
   };
 }
 

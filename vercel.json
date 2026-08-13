@@ -165,6 +165,10 @@
       "destination": "/api/fortune-500?route=headlines"
     },
     {
+      "source": "/api/f500-prices",
+      "destination": "/api/fortune-500?route=prices"
+    },
+    {
       "source": "/one-more-column",
       "destination": "https://one-more-column.vercel.app/one-more-column"
     },

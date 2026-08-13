@@ -264,8 +264,8 @@ export const PLAYBOOKS = [
       'Non-performing loan (NPL) ratio',
     ],
     subs: ['commercial banking', 'investment banking', 'asset management', 'credit unions / community banks', 'fintech lending'],
-    tickers: T(['JPM', 'BAC', 'WFC', 'C', 'GS', 'MS', 'USB', 'PNC', 'TFC', 'COF', 'SCHW', 'BK', 'STT', 'FITB', 'KEY', 'CFG', 'RF', 'HBAN', 'MTB', 'NTRS']),
-    names: ['bank', 'goldman', 'morgan stanley', 'wells fargo', 'citigroup', 'capital one'],
+    tickers: T(['JPM', 'BAC', 'WFC', 'C', 'GS', 'MS', 'USB', 'PNC', 'TFC', 'COF', 'SCHW', 'BK', 'STT', 'FITB', 'KEY', 'CFG', 'RF', 'HBAN', 'MTB', 'NTRS', 'DFS']),
+    names: ['bank', 'goldman', 'morgan stanley', 'wells fargo', 'citigroup', 'capital one', 'discover'],
   },
   {
     id: 'healthcare',

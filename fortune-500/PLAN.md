@@ -2,12 +2,14 @@
 
 The explainer page at `/fortune-500/` is live. Headline numbers are a committed
 snapshot (`data/headlines-snapshot.json`, pulled 2026-08-12: 470/473 CIKs have
-an annual 10-K year). Compare uses the snapshot first; `/api/f500-headlines`
-is a live fallback. Refresh with `node scripts/pull-fortune500-headlines.mjs`.
+an annual 10-K year; Exxon Mobil was remapped to predecessor CIK 34088 on
+2026-08-13). Compare uses the snapshot first; `/api/f500-headlines`
+is a live fallback. Share prices load on demand from `/api/f500-prices`
+(Yahoo v8, no API key). Refresh with `node scripts/pull-fortune500-headlines.mjs`.
 
-**Goal:** pull structured SEC EDGAR data for the **473 public** Fortune 500
+**Goal:** pull structured SEC EDGAR data for the **472 public** Fortune 500
 companies, store a queryable snapshot, and (later) show it at
-`/fortune-500/`. The **27 private / mutual** companies stay in the catalog as
+`/fortune-500/`. The **28 private / mutual** companies stay in the catalog as
 non-filers; we do not hit EDGAR for them.
 
 This plan adapts the mapping and pull schedule in the uploaded
@@ -39,11 +41,11 @@ Fortune list; the committed copies are a snapshot from 2026-08-12.
 
 | Category | Count | EDGAR pulls? |
 |----------|------:|:-------------|
-| Public SEC filers (`status: matched`) | **473** | **Yes** |
-| Private / mutual (`status: no_ticker`) | **27** | **No** |
+| Public SEC filers (`status: matched`) | **472** | **Yes** |
+| Private / mutual (`status: no_ticker`) | **28** | **No** |
 | Fortune 500 total | 500 | — |
 
-Unique public CIKs: 473. Mapping ranks 1–500 with no gaps.
+Unique public CIKs: 472. Mapping ranks 1–500 with no gaps.
 
 ### How the mapping was built
 
@@ -543,7 +545,8 @@ Points):
 
 | Rewrite | `?route=` | Returns |
 |---------|-----------|---------|
-| `/api/f500-catalog` | `catalog` | 500 rows from mapping / Neon (rank, name, ticker, status) |
+| `/api/f500-headlines` | `headlines` | Slim latest-10-K metrics for `?ciks=` (max 5) |
+| `/api/f500-prices` | `prices` | Yahoo v8 last price + daily OHLCV for `?ticker=&range=1y\|5y\|max` (no API key) |
 | `/api/f500-company` | `company` | One issuer: profile + latest facts |
 | `/api/f500-facts` | `facts` | Time series for `?cik=` / `?rank=` + optional `?metric=` |
 
@@ -621,6 +624,7 @@ Folder, mapping files, this plan, and the static explainer at `/fortune-500/`
 | 142 | GuideWell Mutual | Mutual holding company |
 | 157 | Medline | Private |
 | 215 | American Family Insurance | Mutual insurer |
+| 236 | SpaceX | Private (mapped SPCX/CIK 1181412 is not a public 10-K) |
 | 273 | Peter Kiewit Sons' | Private (construction) |
 | 276 | Guardian Life | Mutual insurer |
 | 280 | Edward Jones | Private (Jones Financial) |
@@ -651,10 +655,7 @@ Show them in the catalog with a “private / no SEC filings” badge.
 3. **Which Fortune year** this mapping is. Treat ranks as a dated list;
    when Fortune publishes the next 500, rematch rather than overwrite
    history in place.
-4. **Exxon CIK `0002115436`** (mapping: “ExxonMobil Holdings Corp”) looks
-   like a successor entity vs the long-running Exxon Mobil CIK. Verify
-   Submissions/Facts actually have the 10-K series we want before treating
-   it as rank 9’s time series.
+4. **Exxon CIK.** Rank 9 now points at the 10-K filer `0000034088` (Exxon Mobil Corporation). The 2026 Texas-redomicile successor `0002115436` is kept on the row as `successor_cik` so we don’t lose it; Facts stay empty there until the new parent files a 10-K.
 5. **Homepage card.** Do not add until there is a page to open. Use a
    rainbow `item-card` (not `card-gray`) when it goes live.
 
@@ -664,8 +665,8 @@ Show them in the catalog with a “private / no SEC filings” badge.
 
 | Item | Value |
 |------|------:|
-| Public companies to pull | 473 |
-| Private companies (catalog only) | 27 |
+| Public companies to pull | 472 |
+| Private companies (catalog only) | 28 |
 | Automated URLs per public company | 2 (Submissions always; Facts on change) |
 | Daily Submissions | ~473 calls, ~1 min |
 | Daily Facts | Conditional, typically 0–30 |

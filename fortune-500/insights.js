@@ -7,7 +7,15 @@
  * Never already-multiplied percents.
  */
 import { METRICS, DERIVED, isPublic } from './catalog.js';
-import { formatUsd, formatPercent, formatRatio } from './extract.js';
+import {
+  formatUsd,
+  formatPercent,
+  formatRatio,
+  plausibleMargin,
+  MARGIN_KEYS,
+  ordinal,
+  periodEndOf,
+} from './extract.js';
 
 export function metricNumber(headlines, key) {
   const p = headlines?.metrics?.[key];
@@ -42,10 +50,6 @@ function pct(n, signed = false) {
   return formatPercent(n, signed) || '—';
 }
 
-function plausibleMargin(v) {
-  return v != null && Number.isFinite(v) && v <= 1 && v >= -0.8;
-}
-
 /**
  * Percentile of `value` among `pool` (higher = better unless invert).
  * Returns 0–100, or null if fewer than 8 peers have the metric.
@@ -64,9 +68,12 @@ export function percentile(value, pool, invert = false) {
 export function poolFor(snapshotCompanies, source, key) {
   const out = [];
   if (!snapshotCompanies || typeof snapshotCompanies !== 'object') return out;
+  const margin = source === 'ratio' && MARGIN_KEYS.includes(key);
   for (const row of Object.values(snapshotCompanies)) {
     const v = source === 'ratio' ? ratioNumber(row, key) : metricNumber(row, key);
-    if (v != null) out.push(v);
+    if (v == null) continue;
+    if (margin && !plausibleMargin(v)) continue;
+    out.push(v);
   }
   return out;
 }
@@ -116,7 +123,7 @@ export function leadersFor(catalog, snapshotCompanies, key, source, n = 3, prefe
     const h = snapshotCompanies?.[String(row.cik)];
     let v = source === 'ratio' ? ratioNumber(h, key) : metricNumber(h, key);
     if (v == null) continue;
-    if (key === 'net_margin' && !plausibleMargin(v)) continue;
+    if (MARGIN_KEYS.includes(key) && !plausibleMargin(v)) continue;
     scored.push({ company: row, value: v });
   }
   scored.sort((a, b) => (preferHigh ? b.value - a.value : a.value - b.value));
@@ -133,6 +140,21 @@ export function buildInsights(rows, snapshotCompanies) {
   if (usable.length < 2) return [];
 
   const insights = [];
+  const ends = usable.map((r) => periodEndOf(r.headlines)).filter(Boolean);
+  const endTimes = ends.map((e) => Date.parse(e)).filter(Number.isFinite);
+  const years = [...new Set(usable.map((r) => r.headlines.asOfYear))].sort();
+  const yearMismatch = years.length > 1;
+  const unaligned =
+    yearMismatch ||
+    (endTimes.length >= 2 && Math.max(...endTimes) - Math.min(...endTimes) > 45 * 86400000);
+  if (unaligned) {
+    const shown = ends.length
+      ? ends.join(', ')
+      : years.map((y) => String(y)).join(', ');
+    insights.push(
+      `Fiscal years are not aligned (${shown}). Period-end dates differ, so ranking growth across this set is misleading.`
+    );
+  }
   const rev = usable
     .map((r) => ({ r, v: metricNumber(r.headlines, 'revenue') }))
     .filter((x) => x.v != null && x.v > 0)
@@ -168,10 +190,12 @@ export function buildInsights(rows, snapshotCompanies) {
     }
   }
 
-  const yoy = usable
-    .map((r) => ({ r, v: ratioNumber(r.headlines, 'revenue_yoy') }))
-    .filter((x) => x.v != null)
-    .sort((a, b) => b.v - a.v);
+  const yoy = unaligned
+    ? []
+    : usable
+        .map((r) => ({ r, v: ratioNumber(r.headlines, 'revenue_yoy') }))
+        .filter((x) => x.v != null)
+        .sort((a, b) => b.v - a.v);
   if (yoy.length >= 2) {
     const top = yoy[0];
     const growers = yoy.filter((x) => x.v > 0);
@@ -269,16 +293,9 @@ export function buildInsights(rows, snapshotCompanies) {
     const pctile = percentile(rev[0].v, pool);
     if (pctile != null && pctile >= 90) {
       insights.push(
-        `${nameOf(rev[0].r)}’s revenue sits in the ${pctile}th percentile of public Fortune 500 filers in this snapshot.`
+        `${nameOf(rev[0].r)}’s revenue sits in the ${ordinal(pctile)} percentile of public Fortune 500 filers in this snapshot.`
       );
     }
-  }
-
-  const years = [...new Set(usable.map((r) => r.headlines.asOfYear))].sort();
-  if (years.length > 1) {
-    insights.push(
-      `Fiscal years differ (${years.join(', ')}). Compare levels with that in mind — a 2024 10-K is not the same vintage as a 2025 one.`
-    );
   }
 
   return insights.slice(0, 7);
@@ -317,7 +334,7 @@ export function suggestComparisons(company, catalog, snapshotCompanies, limit = 
     out.push({
       id: 'similar',
       title: 'Closest in sales',
-      why: 'Public Fortune 500 companies with the most similar revenue. Size is the fairest first comparison.',
+      why: 'Peers by trailing 10-K revenue. Size is the fairest first comparison.',
       ranks: [company.rank, ...similar.map((p) => p.company.rank)],
     });
   }

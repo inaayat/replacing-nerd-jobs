@@ -53,6 +53,8 @@ companies, industry models (decision tree, formulas, inputs, metrics),
 and a practice model (last FY grown by those industry drivers, with Excel
 download). Snapshot in
 `data/headlines-snapshot.json`; `/api/f500-headlines` is a live fallback.
+Share prices (last + daily history) come from Yahoo Finance via
+`/api/f500-prices` — no API key; on-demand per open company.
 
 ### World Cup 2026 — `/world-cup`
 
@@ -163,7 +165,7 @@ Current roster (8/12):
 | `api/packing-cubes.js` | **Packing Cubes router** (`/api/pc-*`): cloud cubes CRUD, publish-to-catalog, suitcase state sync for signed-in users. |
 | `api/plot-points.js` | **Plot Points router** (`/api/plot-points-*`): TMDB person/collection search, genres, query build, legacy presets. |
 | `api/save-quiz.js` | Sporcle Spinoff: quiz + tag submissions open a GitHub review PR. |
-| `api/fortune-500.js` | **Fortune 500** (`/api/f500-headlines`): SEC Company Facts → slim 10-K headline metrics for compare. |
+| `api/fortune-500.js` | **Fortune 500** (`/api/f500-headlines`, `/api/f500-prices`): SEC Company Facts → slim 10-K headline metrics; Yahoo v8 chart proxy for last price + daily OHLCV. |
 
 ### Environment variables
 

@@ -151,7 +151,16 @@ export const CHART_METRICS = [
   { key: 'revenue_yoy', label: 'Revenue YoY', source: 'ratio', signed: true },
 ];
 
-/** Compact company-page tiles (ratios only). */
+export const COMPARE_SCALE_KEYS = ['revenue', 'operating_income', 'net_income', 'cash', 'long_term_debt'];
+
+export const COMPARE_SCALE_GROUP = {
+  id: 'scale',
+  label: 'Scale (latest 10-K $)',
+  kid: 'Dollars first — a comps table needs size, not only ratios.',
+  keys: COMPARE_SCALE_KEYS,
+};
+
+/** Industrial cash metrics that mislead on banks / broker-dealers. */
 export const FEATURED = [
   { key: 'net_margin', source: 'ratio' },
   { key: 'roe', source: 'ratio' },
@@ -230,7 +239,7 @@ export const METRIC_GROUPS = [
 ];
 
 export const NOT_IN_EDGAR = [
-  'Stock price or market cap — EDGAR is filings, not a live ticker.',
+  'Stock price or market cap — not in EDGAR; the company page loads a delayed Yahoo last price on demand.',
   'Fortune magazine’s published revenue ranking dollars (we are not licensed to copy that table).',
   'Employee count — not in this tag list.',
   'The story in the 10-K’s words (MD&A, risk factors). Open the filing browser for that.',
@@ -710,6 +719,7 @@ export const PRIVATE_NOTES = {
   142: 'Mutual holding company',
   157: 'Private',
   215: 'Mutual insurer',
+  236: 'Private (Space Exploration Technologies)',
   273: 'Private (construction)',
   276: 'Mutual insurer',
   280: 'Private (Jones Financial)',

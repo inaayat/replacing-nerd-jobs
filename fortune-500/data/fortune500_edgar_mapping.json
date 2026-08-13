@@ -124,15 +124,18 @@
     "company": "Exxon Mobil",
     "fortune_ticker": "XOM",
     "sec_ticker": "XOM",
-    "cik": 2115436,
-    "cik_padded": "0002115436",
-    "sec_name": "ExxonMobil Holdings Corp",
-    "edgar_submissions_api": "https://data.sec.gov/submissions/CIK0002115436.json",
-    "edgar_companyfacts_api": "https://data.sec.gov/api/xbrl/companyfacts/CIK0002115436.json",
-    "edgar_companyconcept_revenues_api": "https://data.sec.gov/api/xbrl/companyconcept/CIK0002115436/us-gaap/Revenues.json",
-    "edgar_filings_browse": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0002115436&type=&dateb=&owner=include&count=40",
+    "cik": 34088,
+    "cik_padded": "0000034088",
+    "sec_name": "EXXON MOBIL CORPORATION",
+    "edgar_submissions_api": "https://data.sec.gov/submissions/CIK0000034088.json",
+    "edgar_companyfacts_api": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000034088.json",
+    "edgar_companyconcept_revenues_api": "https://data.sec.gov/api/xbrl/companyconcept/CIK0000034088/us-gaap/Revenues.json",
+    "edgar_filings_browse": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000034088&type=&dateb=&owner=include&count=40",
     "status": "matched",
-    "match_source": "company_tickers_json"
+    "match_source": "manual_cik_lookup",
+    "successor_cik": 2115436,
+    "successor_cik_padded": "0002115436",
+    "successor_sec_name": "ExxonMobil Holdings Corp"
   },
   {
     "rank": 10,
@@ -3536,7 +3539,7 @@
     "edgar_companyfacts_api": "https://data.sec.gov/api/xbrl/companyfacts/CIK0001181412.json",
     "edgar_companyconcept_revenues_api": "https://data.sec.gov/api/xbrl/companyconcept/CIK0001181412/us-gaap/Revenues.json",
     "edgar_filings_browse": "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001181412&type=&dateb=&owner=include&count=40",
-    "status": "matched",
+    "status": "no_ticker",
     "match_source": "company_tickers_json"
   },
   {
@@ -4846,7 +4849,7 @@
   },
   {
     "rank": 324,
-    "company": "Est\u00e9e Lauder",
+    "company": "Estée Lauder",
     "fortune_ticker": "EL",
     "sec_ticker": "EL",
     "cik": 1001250,

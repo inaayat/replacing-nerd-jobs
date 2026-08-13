@@ -11,7 +11,10 @@ import {
   leadersFor,
   suggestComparisons,
 } from '../fortune-500/insights.js';
-import { METRICS, DERIVED, PRESETS, allDefs } from '../fortune-500/catalog.js';
+import { METRICS, DERIVED, PRESETS, allDefs, isPublic } from '../fortune-500/catalog.js';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 function headlines({
   revenue,
@@ -91,7 +94,7 @@ const mixedYears = buildInsights([
   { company: co('A'), headlines: headlines({ revenue: 10e9, asOfYear: 2024 }) },
   { company: co('B'), headlines: headlines({ revenue: 12e9, asOfYear: 2025 }) },
 ]);
-assert.ok(mixedYears.some((s) => s.includes('Fiscal years differ') && s.includes('2024') && s.includes('2025')));
+assert.ok(mixedYears.some((s) => s.includes('not aligned') && s.includes('2024') && s.includes('2025')));
 
 const bigPool = {};
 for (let i = 1; i <= 20; i++) bigPool[i] = headlines({ revenue: i * 1e9 });
@@ -144,6 +147,25 @@ const wildMargin = buildInsights([
 ]);
 assert.ok(!wildMargin.some((s) => s.includes('172')));
 
+const unalignedSentences = buildInsights([
+  {
+    company: co('Apple'),
+    headlines: {
+      ...headlines({ revenue: 400e9, revenue_yoy: 0.02, asOfYear: 2025 }),
+      metrics: { revenue: { val: 400e9, end: '2025-09-27' } },
+    },
+  },
+  {
+    company: co('Microsoft'),
+    headlines: {
+      ...headlines({ revenue: 280e9, revenue_yoy: 0.178, asOfYear: 2026 }),
+      metrics: { revenue: { val: 280e9, end: '2026-06-30' } },
+    },
+  },
+]);
+assert.ok(unalignedSentences.some((s) => s.includes('not aligned')));
+assert.ok(!unalignedSentences.some((s) => s.includes('grew revenue fastest')));
+
 const cashStory = buildInsights([
   { company: co('CashCo'), headlines: headlines({ revenue: 100e9, net_income: 20e9, cfo: 50e9, net_margin: 0.2 }) },
   { company: co('AccrualCo'), headlines: headlines({ revenue: 90e9, net_income: 25e9, cfo: 5e9, net_margin: 0.28 }) },
@@ -193,5 +215,17 @@ for (const p of PRESETS) {
   assert.ok(p.blurb, `${p.id} needs a blurb`);
   assert.ok(p.ranks.length >= 2 && p.ranks.length <= 5);
 }
+
+const mapping = JSON.parse(
+  readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../fortune-500/data/fortune500_edgar_mapping.json'), 'utf8')
+);
+const spacex = mapping.find((r) => r.rank === 236);
+assert.equal(spacex.company, 'SpaceX');
+assert.equal(spacex.status, 'no_ticker');
+assert.equal(isPublic(spacex), false);
+assert.equal(spacex.cik, 1181412, 'keep the mis-matched CIK on file');
+const exxon = mapping.find((r) => r.rank === 9);
+assert.equal(exxon.cik, 34088);
+assert.equal(exxon.successor_cik, 2115436);
 
 console.log('fortune-500 insights tests passed');

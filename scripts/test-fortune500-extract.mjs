@@ -9,6 +9,8 @@ import {
   computeRatios,
   ensureRatios,
   explainCalculation,
+  sanityFlags,
+  ordinal,
 } from '../fortune-500/extract.js';
 
 const fixture = JSON.parse(
@@ -121,5 +123,100 @@ const missing = explainCalculation(
 );
 assert.equal(missing.arithmetic, null);
 assert.equal(missing.parts[0].missing, true);
+
+const bothTags = extractHeadlines({
+  cik: 1393612,
+  entityName: 'Discover-like',
+  facts: {
+    'us-gaap': {
+      Revenues: {
+        units: {
+          USD: [
+            {
+              val: 20000000000,
+              start: '2024-01-01',
+              end: '2024-12-31',
+              fy: 2024,
+              fp: 'FY',
+              form: '10-K',
+              filed: '2025-01-01',
+            },
+          ],
+        },
+      },
+      RevenueFromContractWithCustomerExcludingAssessedTax: {
+        units: {
+          USD: [
+            {
+              val: 2800000000,
+              start: '2024-01-01',
+              end: '2024-12-31',
+              fy: 2024,
+              fp: 'FY',
+              form: '10-K',
+              filed: '2025-02-20',
+            },
+          ],
+        },
+      },
+      NetIncomeLoss: {
+        units: {
+          USD: [
+            {
+              val: 4500000000,
+              start: '2024-01-01',
+              end: '2024-12-31',
+              fy: 2024,
+              fp: 'FY',
+              form: '10-K',
+              filed: '2025-02-20',
+            },
+          ],
+        },
+      },
+    },
+  },
+});
+assert.equal(bothTags.metrics.revenue.tag, 'Revenues');
+assert.equal(bothTags.metrics.revenue.val, 20000000000);
+assert.ok(bothTags.ratios.net_margin < 1);
+
+const feeOnly = computeRatios(
+  {
+    revenue: { val: 2797000000, tag: 'RevenueFromContractWithCustomerExcludingAssessedTax' },
+    net_income: { val: 4535000000 },
+    cfo: { val: 8425000000 },
+    capex: { val: 268000000 },
+  },
+  null
+);
+assert.equal(feeOnly.net_margin, null, 'impossible net margin is dashed');
+assert.equal(feeOnly.fcf_margin, null, 'impossible FCF margin is dashed');
+const feeFlags = sanityFlags(
+  {
+    revenue: { val: 2797000000, tag: 'RevenueFromContractWithCustomerExcludingAssessedTax' },
+    net_income: { val: 4535000000 },
+    cfo: { val: 8425000000 },
+    capex: { val: 268000000 },
+  },
+  feeOnly
+);
+assert.equal(feeFlags.net_margin, 'impossible_margin');
+assert.equal(feeFlags.revenue, 'fee_subtotal');
+
+const appleish = ensureRatios({
+  metrics: { revenue: { val: 400e9 }, net_income: { val: 112e9 }, equity: { val: 73e9 } },
+  ratios: {},
+});
+assert.ok(appleish.ratios.roe > 1);
+assert.equal(appleish.flags.roe, 'thin_equity');
+
+assert.equal(ordinal(92), '92nd');
+assert.equal(ordinal(91), '91st');
+assert.equal(ordinal(93), '93rd');
+assert.equal(ordinal(11), '11th');
+assert.equal(ordinal(12), '12th');
+assert.equal(ordinal(13), '13th');
+assert.equal(ordinal(1), '1st');
 
 console.log('fortune-500 extract tests passed');

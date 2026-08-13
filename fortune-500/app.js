@@ -6,13 +6,27 @@ import {
   CHART_METRICS,
   RATIO_GROUPS,
   FILED_GROUPS,
+  COMPARE_SCALE_GROUP,
+  BANK_CASH_KEYS,
   LOWER_BETTER,
   isPublic,
   tickerLabel,
   defFor,
   sourceFor,
 } from './catalog.js';
-import { formatMetric, formatDerived, formatUsd, ensureRatios, explainCalculation } from './extract.js';
+import {
+  formatMetric,
+  formatDerived,
+  formatUsd,
+  ensureRatios,
+  explainCalculation,
+  FLAG_COPY,
+  ordinal,
+  periodEndOf,
+  formatPeriodEnd,
+  plausibleMargin,
+  MARGIN_KEYS,
+} from './extract.js';
 import { seedAssumptions, applyScenario, runPracticeModel, effectiveGrowth, MODEL_YEARS } from './model.js';
 import {
   PLAYBOOKS,
@@ -35,6 +49,13 @@ import {
   leadersFor,
   suggestComparisons,
 } from './insights.js';
+import {
+  priceTicker,
+  formatPrice,
+  formatChangePct,
+  sparklineSvg,
+  DEFAULT_PRICE_RANGE,
+} from './prices.js';
 
 const listEl = document.getElementById('list');
 const detailEl = document.getElementById('detail');
@@ -49,7 +70,9 @@ const compareClear = document.getElementById('compare-clear');
 const presetsEl = document.getElementById('presets');
 
 const headlinesByCik = new Map();
+const pricesByTicker = new Map();
 let snapshotCompanies = {};
+let quoteRange = DEFAULT_PRICE_RANGE;
 
 let companies = [];
 let filter = 'all';
@@ -188,6 +211,141 @@ function lookupShown(headlines, key) {
   if (!def || !headlines) return null;
   if (sourceFor(key) === 'metric') return formatMetric(def, headlines.metrics?.[key]);
   return formatDerived(def, headlines.ratios?.[key]);
+}
+
+function isBankLike(company) {
+  return guessPlaybook(company)?.id === 'banking';
+}
+
+function bankCashSuppressed(company, key) {
+  return Boolean(company) && BANK_CASH_KEYS.has(key) && isBankLike(company);
+}
+
+function missingTagHint(def, headlines) {
+  if (!def) return '';
+  if (def.needs?.length) {
+    for (const key of def.needs) {
+      if (metricNumber(headlines, key) == null) {
+        const m = lookupDef(key);
+        const tag = (m?.candidates?.[0]?.tag || m?.tags || key).split(',')[0].trim();
+        return `${tag} missing`;
+      }
+    }
+    if (def.key === 'revenue_yoy' && !headlines?.priorRevenue) return 'prior-year revenue missing';
+  }
+  const tag = (def.candidates?.[0]?.tag || def.tags || '').split(',')[0].trim();
+  return tag ? `${tag} missing` : 'not tagged';
+}
+
+function flagNote(headlines, key) {
+  const code = headlines?.flags?.[key] || headlines?.flags?.revenue;
+  if (!code) return '';
+  if (key === 'roe' && headlines?.flags?.roe) return FLAG_COPY.thin_equity;
+  if (MARGIN_KEYS.includes(key) && headlines?.flags?.[key]) return FLAG_COPY[headlines.flags[key]] || '';
+  if (headlines?.flags?.revenue === 'fee_subtotal' && MARGIN_KEYS.includes(key)) return FLAG_COPY.fee_subtotal;
+  return '';
+}
+
+function edgarLinks(c) {
+  const browse = c?.edgar_filings_browse;
+  const facts = c?.edgar_companyfacts_api;
+  if (!browse && !facts) return '';
+  const bits = [];
+  if (browse) {
+    bits.push(
+      `<a class="f5-edgar-link" href="${escapeAttr(browse)}" target="_blank" rel="noopener noreferrer">View 10-K on EDGAR</a>`
+    );
+  }
+  if (facts) {
+    bits.push(
+      `<a class="f5-edgar-link" href="${escapeAttr(facts)}" target="_blank" rel="noopener noreferrer">Company facts</a>`
+    );
+  }
+  return `<p class="f5-edgar-links">${bits.join(' · ')}</p>`;
+}
+
+function fyLabel(headlines) {
+  if (headlines?.asOfYear) return `FY${headlines.asOfYear}`;
+  return 'No 10-K data parsed yet';
+}
+
+function skeletonHtml(rows = 4) {
+  const blocks = Array.from({ length: rows }, () => '<div class="f5-skel-line"></div>').join('');
+  return `<div class="f5-skel" aria-busy="true" aria-label="Loading companies…"><p class="f5-toolbar-hint">Loading companies…</p>${blocks}</div>`;
+}
+
+function quoteMount(c, compact = false) {
+  const t = priceTicker(c);
+  if (!t) return '';
+  return `<div class="f5-price${compact ? ' is-compact' : ''}" data-quote-ticker="${escapeAttr(t)}" data-quote-rank="${c.rank}">
+    <p class="f5-toolbar-hint">Loading price…</p>
+  </div>`;
+}
+
+function quoteHtml(c, data, range, compact = false) {
+  if (!data || data.error || data.last == null) {
+    return `<p class="f5-toolbar-hint">Price unavailable</p>`;
+  }
+  const last = formatPrice(data.last, data.currency) || '—';
+  const chg = formatChangePct(data.changePct);
+  const up = data.changePct != null && data.changePct > 0;
+  const down = data.changePct != null && data.changePct < 0;
+  const shares = metricNumber(headlinesOf(c), 'shares_out');
+  const mcap = shares != null && data.last != null ? data.last * shares : null;
+  const mcapShown = mcap != null ? formatUsd(mcap) : null;
+  const spark = compact ? '' : sparklineSvg(data.bars);
+  const rangeBtns = compact
+    ? ''
+    : `<div class="f5-price-ranges" role="group" aria-label="Price history range">
+        ${['1y', '5y']
+          .map(
+            (r) =>
+              `<button type="button" class="f5-view-tab" data-price-range="${r}" data-price-ticker="${escapeAttr(data.symbol)}" aria-pressed="${range === r}">${r}</button>`
+          )
+          .join('')}
+      </div>`;
+  return `
+    <div class="f5-price-row">
+      <div>
+        <p class="f5-price-last">${escapeHtml(last)} <span class="f5-price-chg${up ? ' is-up' : ''}${down ? ' is-down' : ''}">${chg ? escapeHtml(chg) : ''}</span></p>
+        ${mcapShown ? `<p class="f5-price-mcap">≈ ${escapeHtml(mcapShown)} mkt cap <span class="muted">(last × shares outstanding)</span></p>` : ''}
+        <p class="f5-price-src">Yahoo Finance, delayed, not for trading.</p>
+      </div>
+      ${spark}
+      ${rangeBtns}
+    </div>`;
+}
+
+async function fetchPrices(ticker, range) {
+  const key = `${ticker}|${range}`;
+  if (pricesByTicker.has(key)) return pricesByTicker.get(key);
+  try {
+    const res = await fetch(`/api/f500-prices?ticker=${encodeURIComponent(ticker)}&range=${encodeURIComponent(range)}`);
+    const data = res.ok ? await res.json() : { error: 'price unavailable' };
+    pricesByTicker.set(key, data);
+    return data;
+  } catch {
+    const data = { error: 'price unavailable' };
+    pricesByTicker.set(key, data);
+    return data;
+  }
+}
+
+async function fillQuotes(cos, range = quoteRange, compact = false) {
+  const jobs = (cos || []).map(async (c) => {
+    const t = priceTicker(c);
+    if (!t) return;
+    const el = detailEl.querySelector(`[data-quote-ticker="${CSS.escape(t)}"]`);
+    if (!el) return;
+    try {
+      const data = await fetchPrices(t, range);
+      if (!detailEl.contains(el)) return;
+      el.innerHTML = quoteHtml(c, data, range, compact);
+    } catch {
+      if (detailEl.contains(el)) el.innerHTML = `<p class="f5-toolbar-hint">Price unavailable</p>`;
+    }
+  });
+  await Promise.all(jobs);
 }
 
 function screenerValue(c, col) {
@@ -510,14 +668,15 @@ function calcBlock(expl, name) {
   return `<div class="f5-calc">${who}${eq}${renderCalcParts(expl)}</div>`;
 }
 
-function explainDock(key, headlines, comparePairs) {
+function explainDock(key, headlines, comparePairs, company) {
   const def = lookupDef(key);
   if (!def) {
     return `<aside class="f5-dock"><p class="muted">Tap a ratio to see what it means.</p></aside>`;
   }
   const source = sourceFor(key);
-  const shown = headlines ? lookupShown(headlines, key) : null;
-  const value = headlines ? lookupNumber(headlines, key) : null;
+  const bank = bankCashSuppressed(company, key);
+  const shown = bank ? null : headlines ? lookupShown(headlines, key) : null;
+  const value = bank ? null : headlines ? lookupNumber(headlines, key) : null;
   const publicCount = Object.keys(snapshotCompanies).length || companies.filter(isPublic).length;
   const n = poolFor(snapshotCompanies, source, key).length;
   const preferHigh = def.better !== 'lower';
@@ -556,12 +715,22 @@ function explainDock(key, headlines, comparePairs) {
   return `<aside class="f5-dock">
     <p class="f5-kicker">${escapeHtml(def.formula || 'Key ratio')}</p>
     <h3>${escapeHtml(def.label)}${shown ? ` · ${escapeHtml(shown)}` : ''}</h3>
-    ${shown && headlines ? pctPill(value, source, key) : ''}
+    ${shown && headlines ? pctPill(value, source, key, headlines) : ''}
+    ${bank ? `<p class="f5-flag">${escapeHtml(FLAG_COPY.bank_cash)}</p>` : ''}
+    ${!bank && headlines?.flags?.[key] === 'thin_equity' ? `<p class="f5-flag">${escapeHtml(FLAG_COPY.thin_equity)}</p>` : ''}
+    ${
+      !bank &&
+      (headlines?.flags?.[key] === 'impossible_margin' ||
+        (headlines?.flags?.revenue === 'fee_subtotal' && MARGIN_KEYS.includes(key)))
+        ? `<p class="f5-flag">${escapeHtml(flagNote(headlines, key) || FLAG_COPY.impossible_margin)}</p>`
+        : ''
+    }
     ${calcHtml}
     <p class="f5-eli5">${escapeHtml(def.eli5)}</p>
     ${shown || comparePairs?.length ? '' : `<p class="f5-missing-why">${escapeHtml(def.whyMissing || '')}</p>`}
     <p class="f5-coverage-line"><strong>${n}</strong> / ${publicCount} public companies have this.</p>
     ${leaderLine}
+    ${company ? edgarLinks(company) : comparePairs?.[0]?.company ? edgarLinks(comparePairs[0].company) : ''}
     <div class="f5-eli5-actions">${compareBtn}${sortBtn}</div>
   </aside>`;
 }
@@ -716,7 +885,8 @@ function modelPanel(headlines, company) {
     <div id="model-live">${modelLiveHtml(company, headlines)}</div>`;
 }
 
-function pctPill(value, source, key) {
+function pctPill(value, source, key, headlines) {
+  if (MARGIN_KEYS.includes(key) && !plausibleMargin(value)) return '';
   const invert = LOWER_BETTER.has(key);
   const pctile = percentile(value, poolFor(snapshotCompanies, source, key), invert);
   if (pctile == null) return '';
@@ -724,15 +894,21 @@ function pctPill(value, source, key) {
   const title = invert
     ? 'Lower is better; percentile is inverted among public Fortune 500 filers with this tag'
     : 'Among public Fortune 500 filers with this tag in the snapshot';
-  return `<span class="f5-pct f5-pct-${tone}" title="${escapeAttr(title)}">${pctile}th percentile</span>`;
+  const flag = headlines?.flags?.[key] === 'thin_equity' ? ' · check equity base' : '';
+  return `<span class="f5-pct f5-pct-${tone}" title="${escapeAttr(title)}">${ordinal(pctile)} percentile${flag}</span>`;
 }
 
-function ratioTile(def, headlines) {
-  const shown = lookupShown(headlines, def.key);
+function ratioTile(def, headlines, company) {
+  const bank = bankCashSuppressed(company, def.key);
+  const shown = bank ? null : lookupShown(headlines, def.key);
   const on = explainKey === def.key;
-  return `<button type="button" class="f5-tile${on ? ' is-on' : ''}${shown ? '' : ' is-missing'}" data-explain="${escapeAttr(def.key)}">
+  const miss = !shown ? (bank ? 'n/a for banks' : missingTagHint(def, headlines)) : '';
+  const flag = shown && headlines?.flags?.[def.key] === 'thin_equity' ? 'check equity base' : '';
+  return `<button type="button" class="f5-tile${on ? ' is-on' : ''}${shown ? '' : ' is-missing'}" data-explain="${escapeAttr(def.key)}" title="${escapeAttr(miss || flag || def.label)}">
     <span class="f5-tile-label">${escapeHtml(def.label)}</span>
     <span class="f5-tile-val">${shown ? escapeHtml(shown) : '—'}</span>
+    ${miss ? `<span class="f5-tile-miss">${escapeHtml(miss)}</span>` : ''}
+    ${flag ? `<span class="f5-tile-flag">${escapeHtml(flag)}</span>` : ''}
   </button>`;
 }
 
@@ -755,11 +931,11 @@ function publicDetail(c, headlines, status) {
   let main = '';
   let dock = '';
   if (status === 'loading') {
-    main = `<p class="f5-toolbar-hint">Loading 10-K ratios…</p>`;
+    main = skeletonHtml(5);
   } else if (status === 'error') {
     main = `<p class="f5-toolbar-hint">Couldn’t load Company Facts (${escapeHtml(headlines?.error || 'network')}).</p>`;
   } else if (headlines) {
-    const year = headlines.asOfYear ? `FY${headlines.asOfYear}` : 'FY?';
+    const year = fyLabel(headlines);
     const cov = coverageOf(headlines);
     const suggestions = suggestComparisons(c, companies, snapshotCompanies, 2);
     const suggest = suggestions.length
@@ -782,7 +958,7 @@ function publicDetail(c, headlines, status) {
       }).join('');
       main = `
         ${paneTabs('company', companyPane)}
-        <p class="f5-toolbar-hint">${year} · ${cov.tagged.length}/${cov.total} tags · ${cov.derivedOk.length} ratios · a dash is not zero</p>
+        <p class="f5-toolbar-hint">${escapeHtml(year)} · ${cov.tagged.length}/${cov.total} tags · ${cov.derivedOk.length} ratios · a dash is not zero</p>
         ${suggest}
         <div class="f5-table-wrap">
           <table class="f5-table">
@@ -790,7 +966,7 @@ function publicDetail(c, headlines, status) {
             ${tables}
           </table>
         </div>`;
-      dock = explainDock(explainKey, headlines);
+      dock = explainDock(explainKey, headlines, null, c);
     } else if (companyPane === 'model') {
       main = `${suggest}${modelPanel(headlines, c)}`;
       dock = modelDock(headlines, c);
@@ -799,7 +975,7 @@ function publicDetail(c, headlines, status) {
         const tiles = group.keys
           .map((key) => {
             const def = lookupDef(key);
-            return def ? ratioTile(def, headlines) : '';
+            return def ? ratioTile(def, headlines, c) : '';
           })
           .join('');
         return `<section class="f5-tile-group">
@@ -809,10 +985,10 @@ function publicDetail(c, headlines, status) {
       }).join('');
       main = `
         ${paneTabs('company', companyPane)}
-        <p class="f5-toolbar-hint">${year} · ${cov.derivedOk.length} ratios from ${cov.tagged.length}/${cov.total} tagged items · tap a tile for the 10-K math</p>
+        <p class="f5-toolbar-hint">${escapeHtml(year)} · ${cov.derivedOk.length} ratios from ${cov.tagged.length}/${cov.total} tagged items · tap a tile for the 10-K math</p>
         ${suggest}
         ${groups}`;
-      dock = explainDock(explainKey, headlines);
+      dock = explainDock(explainKey, headlines, null, c);
     }
   }
   return `
@@ -823,12 +999,14 @@ function publicDetail(c, headlines, status) {
           <div>
             <p class="f5-kicker">#${c.rank} · ${escapeHtml(tickerLabel(c))} · ${escapeHtml(c.cik_padded || '')}</p>
             <h2>${escapeHtml(c.company)}</h2>
+            ${edgarLinks(c)}
           </div>
           <div class="f5-head-actions">${addBtn}</div>
         </div>
+        ${quoteMount(c)}
         ${main}
       </div>
-      ${status === 'ok' || headlines ? dock : ''}
+      ${status === 'ok' || headlines ? dock : `<aside class="f5-dock">${skeletonHtml(3)}</aside>`}
     </div>`;
 }
 
@@ -902,6 +1080,13 @@ function barChart(names, rows) {
     </div>`;
 }
 
+function median(nums) {
+  const s = (nums || []).filter((n) => typeof n === 'number' && Number.isFinite(n)).sort((a, b) => a - b);
+  if (!s.length) return null;
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+}
+
 function compareView(rows, status) {
   const names = compareRanks.map((r) => companyByRank(r)).filter(Boolean);
   const insightRows = names.map((c) => ({
@@ -909,50 +1094,74 @@ function compareView(rows, status) {
     headlines: rows.find((x) => x.cik === c.cik),
   }));
   const insights = status === 'ok' ? buildInsights(insightRows, snapshotCompanies).slice(0, 3) : [];
-  const groups = comparePane === 'filed' ? FILED_GROUPS : RATIO_GROUPS;
+  const groups =
+    comparePane === 'filed' ? FILED_GROUPS : [COMPARE_SCALE_GROUP, ...RATIO_GROUPS];
+  const colCount = names.length + 2;
 
   const head = names
     .map((c) => {
       const h = rows.find((x) => x.cik === c.cik);
-      const fy = h?.asOfYear ? `FY${h.asOfYear}` : '';
-      return `<th><button type="button" class="f5-linkish" data-rank="${c.rank}">${escapeHtml(c.company)}</button><div class="muted">${escapeHtml(c.fortune_ticker || '')} ${fy}</div></th>`;
+            const fy = !h ? '' : h.asOfYear ? `FY${h.asOfYear}` : fyLabel(h);
+      const ended = formatPeriodEnd(periodEndOf(h));
+      return `<th><button type="button" class="f5-linkish" data-rank="${c.rank}">${escapeHtml(c.company)}</button>
+        <div class="muted">${escapeHtml(c.fortune_ticker || '')} ${escapeHtml(fy)}${ended ? ` · ${escapeHtml(ended)}` : ''}</div>
+        ${quoteMount(c, true)}</th>`;
     })
     .join('');
 
+  const renderMetricRow = (key) => {
+    const def = lookupDef(key);
+    if (!def) return '';
+    const vals = names.map((c) => {
+      const h = rows.find((x) => x.cik === c.cik);
+      if (bankCashSuppressed(c, key)) return null;
+      return lookupNumber(h, key);
+    });
+    const tds = names
+      .map((c, i) => {
+        const h = rows.find((x) => x.cik === c.cik);
+        if (bankCashSuppressed(c, key)) {
+          return `<td class="muted" title="${escapeAttr(FLAG_COPY.bank_cash)}">n/a (bank)</td>`;
+        }
+        const shown = lookupShown(h, key);
+        const cls = cellClass(vals, vals[i], def.better);
+        return `<td class="${cls}">${shown ? escapeHtml(shown) : dash()}</td>`;
+      })
+      .join('');
+    const med = median(vals);
+    const medShown =
+      med == null
+        ? '—'
+        : sourceFor(key) === 'metric'
+          ? formatMetric(def, { val: med })
+          : formatDerived(def, med);
+    const on = explainKey === key ? ' is-on' : '';
+    return `<tr class="${on.trim()}">
+      <td><button type="button" class="f5-linkish" data-explain="${escapeAttr(key)}">${escapeHtml(def.label)}</button></td>
+      ${tds}
+      <td class="muted">${medShown ? escapeHtml(medShown) : '—'}</td>
+    </tr>`;
+  };
+
   let body = '';
   if (status === 'loading') {
-    body = `<tr><td colspan="${names.length + 1}">Loading…</td></tr>`;
+    body = `<tr><td colspan="${colCount}">${skeletonHtml(3)}</td></tr>`;
   } else if (status === 'error') {
-    body = `<tr><td colspan="${names.length + 1}">Couldn’t reach /api/f500-headlines.</td></tr>`;
+    body = `<tr><td colspan="${colCount}">Couldn’t reach /api/f500-headlines.</td></tr>`;
   } else {
     body = groups
       .map((group) => {
         const keys = group.keys.filter((key) => {
           if (!sharedOnly) return true;
-          return names.every((c) => lookupNumber(rows.find((x) => x.cik === c.cik), key) != null);
+          return names.every((c) => {
+            const h = rows.find((x) => x.cik === c.cik);
+            if (bankCashSuppressed(c, key)) return false;
+            return lookupNumber(h, key) != null;
+          });
         });
         if (!keys.length) return '';
-        const groupRow = `<tr class="f5-group"><td colspan="${names.length + 1}">${escapeHtml(group.label)}</td></tr>`;
-        const metricRows = keys
-          .map((key) => {
-            const def = lookupDef(key);
-            if (!def) return '';
-            const vals = names.map((c) => lookupNumber(rows.find((x) => x.cik === c.cik), key));
-            const tds = names
-              .map((c, i) => {
-                const shown = lookupShown(rows.find((x) => x.cik === c.cik), key);
-                const cls = cellClass(vals, vals[i], def.better);
-                return `<td class="${cls}">${shown ? escapeHtml(shown) : dash()}</td>`;
-              })
-              .join('');
-            const on = explainKey === key ? ' is-on' : '';
-            return `<tr class="${on.trim()}">
-              <td><button type="button" class="f5-linkish" data-explain="${escapeAttr(key)}">${escapeHtml(def.label)}</button></td>
-              ${tds}
-            </tr>`;
-          })
-          .join('');
-        return groupRow + metricRows;
+        const groupRow = `<tr class="f5-group"><td colspan="${colCount}">${escapeHtml(group.label)}</td></tr>`;
+        return groupRow + keys.map(renderMetricRow).join('');
       })
       .join('');
   }
@@ -969,16 +1178,22 @@ function compareView(rows, status) {
         ${status === 'ok' ? barChart(names, rows) : ''}
         <div class="f5-table-wrap">
           <table class="f5-table">
-            <thead><tr><th></th>${head}</tr></thead>
+            <thead><tr><th></th>${head}<th>Median</th></tr></thead>
             <tbody>${body}</tbody>
           </table>
         </div>
       </div>
-      ${explainDock(explainKey, null, insightRows)}
+      ${status === 'loading' ? `<aside class="f5-dock">${skeletonHtml(3)}</aside>` : explainDock(explainKey, null, insightRows)}
     </div>`;
 }
 
-async function fetchHeadlines(ciks) {
+function paintCompare(rows, status) {
+  detailEl.innerHTML = compareView(rows, status);
+  if (status === 'ok') {
+    const names = compareRanks.map(companyByRank).filter((c) => c && isPublic(c));
+    fillQuotes(names, '1y', true);
+  }
+}
   const missing = ciks.filter((cik) => !headlinesByCik.has(cik));
   if (!missing.length) return ciks.map((cik) => headlinesByCik.get(cik));
   try {
@@ -999,18 +1214,18 @@ async function renderDetail() {
     const names = compareRanks.map(companyByRank).filter((c) => c && isPublic(c));
     lastCompareRows = [];
     lastCompareStatus = 'loading';
-    detailEl.innerHTML = compareView([], 'loading');
+    paintCompare([], 'loading');
     try {
       const rows = await fetchHeadlines(names.map((c) => c.cik));
       if (!compareMode) return;
       lastCompareRows = rows.filter(Boolean);
       lastCompareStatus = 'ok';
-      detailEl.innerHTML = compareView(lastCompareRows, 'ok');
+      paintCompare(lastCompareRows, 'ok');
     } catch {
       if (!compareMode) return;
       lastCompareRows = [];
       lastCompareStatus = 'error';
-      detailEl.innerHTML = compareView([], 'error');
+      paintCompare([], 'error');
     }
     return;
   }
@@ -1027,14 +1242,17 @@ async function renderDetail() {
 
   const cached = headlinesByCik.get(c.cik);
   detailEl.innerHTML = publicDetail(c, cached, cached ? 'ok' : 'loading');
+  fillQuotes([c], quoteRange);
   if (cached) return;
   try {
     const [row] = await fetchHeadlines([c.cik]);
     if (selectedRank !== c.rank || compareMode) return;
     detailEl.innerHTML = publicDetail(c, row, row?.error ? 'error' : 'ok');
+    fillQuotes([c], quoteRange);
   } catch (err) {
     if (selectedRank !== c.rank || compareMode) return;
     detailEl.innerHTML = publicDetail(c, { error: err.message }, 'error');
+    fillQuotes([c], quoteRange);
   }
 }
 
@@ -1193,7 +1411,7 @@ detailEl.addEventListener('click', (e) => {
   const chart = e.target.closest('[data-chart]');
   if (chart && compareMode) {
     chartKey = chart.dataset.chart;
-    detailEl.innerHTML = compareView(lastCompareRows, lastCompareStatus);
+    paintCompare(lastCompareRows, lastCompareStatus);
     return;
   }
   const toggleCmp = e.target.closest('[data-toggle-compare]');
@@ -1212,6 +1430,10 @@ detailEl.addEventListener('click', (e) => {
   if (peers) {
     const rank = Number(peers.dataset.comparePeers);
     const c = companyByRank(rank);
+    if (compareRanks.length >= 2) {
+      const ok = window.confirm('Replace the current compare set with peers by trailing 10-K revenue?');
+      if (!ok) return;
+    }
     const similar = similarByRevenue(c, companies, snapshotCompanies, MAX_COMPARE - 1);
     compareRanks = [rank, ...similar.map((p) => p.company.rank)].slice(0, MAX_COMPARE);
     openCompare();
@@ -1258,7 +1480,7 @@ detailEl.addEventListener('click', (e) => {
   const comparePaneBtn = e.target.closest('[data-compare-pane]');
   if (comparePaneBtn) {
     comparePane = comparePaneBtn.dataset.comparePane === 'filed' ? 'filed' : 'ratios';
-    if (compareMode) detailEl.innerHTML = compareView(lastCompareRows, lastCompareStatus);
+    if (compareMode) paintCompare(lastCompareRows, lastCompareStatus);
     return;
   }
   const preset = e.target.closest('[data-preset]');
@@ -1296,6 +1518,14 @@ detailEl.addEventListener('click', (e) => {
       .split(',')
       .map(Number)
       .filter((n) => Number.isInteger(n) && n >= 1 && n <= 500);
+    const criterion =
+      suggest.dataset.suggest === 'similar'
+        ? 'peers by trailing 10-K revenue'
+        : suggest.getAttribute('title') || 'this suggested set';
+    if (compareRanks.length >= 2) {
+      const ok = window.confirm(`Replace the current compare set with ${criterion}?`);
+      if (!ok) return;
+    }
     compareRanks = ranks
       .filter((r) => {
         const c = companyByRank(r);
@@ -1305,10 +1535,18 @@ detailEl.addEventListener('click', (e) => {
     if (compareRanks.length >= 2) openCompare();
     return;
   }
+  const priceRange = e.target.closest('[data-price-range]');
+  if (priceRange) {
+    const next = priceRange.dataset.priceRange === '1y' ? '1y' : '5y';
+    quoteRange = next;
+    const c = companyByRank(selectedRank);
+    if (c) fillQuotes([c], quoteRange);
+    return;
+  }
   const explain = e.target.closest('[data-explain]');
   if (explain) {
     explainKey = explain.dataset.explain;
-    if (compareMode) detailEl.innerHTML = compareView(lastCompareRows, lastCompareStatus);
+    if (compareMode) paintCompare(lastCompareRows, lastCompareStatus);
     else if (selectedRank) renderDetail();
     else if (homeView === 'learn') detailEl.innerHTML = learnView();
     else if (homeView === 'industries') detailEl.innerHTML = industriesView();
@@ -1354,7 +1592,7 @@ detailEl.addEventListener('input', (e) => {
 detailEl.addEventListener('change', (e) => {
   if (e.target.id === 'shared-only') {
     sharedOnly = e.target.checked;
-    if (compareMode) detailEl.innerHTML = compareView(lastCompareRows, lastCompareStatus);
+    if (compareMode) paintCompare(lastCompareRows, lastCompareStatus);
     return;
   }
   if (e.target.id === 'model-playbook' && selectedRank) {
