@@ -1,19 +1,12 @@
 import {
-  SOURCES,
-  METRICS,
-  DERIVED,
-  GLOSSARY,
   PRIVATE_NOTES,
-  MATCH_LABELS,
   MAX_COMPARE,
   PRESETS,
   SCREENER_COLUMNS,
   CHART_METRICS,
-  FEATURED,
-  METRIC_GROUPS,
+  RATIO_GROUPS,
+  FILED_GROUPS,
   LOWER_BETTER,
-  HOW_TO,
-  NOT_IN_EDGAR,
   isPublic,
   tickerLabel,
   defFor,
@@ -28,7 +21,6 @@ import {
   percentile,
   poolFor,
   coverageOf,
-  coverageOverlap,
   leadersFor,
   suggestComparisons,
 } from './insights.js';
@@ -36,7 +28,6 @@ import {
 const listEl = document.getElementById('list');
 const detailEl = document.getElementById('detail');
 const countEl = document.getElementById('count');
-const statsEl = document.getElementById('stats');
 const searchEl = document.getElementById('search');
 const layoutEl = document.getElementById('layout');
 const compareBar = document.getElementById('compare-bar');
@@ -62,7 +53,9 @@ let lastCompareStatus = 'ok';
 let homeView = 'table';
 let extraCol = null;
 let sharedOnly = false;
-let explainKey = null;
+let explainKey = 'net_margin';
+let companyPane = 'ratios';
+let comparePane = 'ratios';
 
 function parseUrl() {
   const u = new URL(location.href);
@@ -149,14 +142,14 @@ function screenerColumns() {
 }
 
 function lookupNumber(headlines, key) {
-  if (METRICS.some((m) => m.key === key)) return metricNumber(headlines, key);
+  if (sourceFor(key) === 'metric') return metricNumber(headlines, key);
   return ratioNumber(headlines, key);
 }
 
 function lookupShown(headlines, key) {
   const def = lookupDef(key);
   if (!def || !headlines) return null;
-  if (METRICS.some((m) => m.key === key)) return formatMetric(def, headlines.metrics?.[key]);
+  if (sourceFor(key) === 'metric') return formatMetric(def, headlines.metrics?.[key]);
   return formatDerived(def, headlines.ratios?.[key]);
 }
 
@@ -213,7 +206,7 @@ function renderPresets() {
 
 function renderList() {
   const rows = companies.filter(matches);
-  countEl.textContent = `${rows.length} shown`;
+  countEl.textContent = `${rows.length} shown${window.__f500Stats ? ' · ' + window.__f500Stats : ''}`;
   const atCap = compareRanks.length >= MAX_COMPARE;
   const html = rows
     .map((c) => {
@@ -223,9 +216,9 @@ function renderList() {
       const check = pub
         ? `<input class="f5-check" type="checkbox" data-check="${c.rank}" ${checked ? 'checked' : ''} ${atCap && !checked ? 'disabled' : ''} aria-label="Add ${escapeAttr(c.company)} to compare" />`
         : `<span></span>`;
-      const rev = formatMetric({ unit: 'USD' }, headlinesOf(c)?.metrics?.revenue);
+      const nm = formatDerived(lookupDef('net_margin'), headlinesOf(c)?.ratios?.net_margin);
       const right = pub
-        ? `<span class="f5-row-fig">${rev ? escapeHtml(rev) : ''}</span>`
+        ? `<span class="f5-row-fig">${nm ? escapeHtml(nm) : ''}</span>`
         : `<span class="f5-pill f5-pill-private">Private</span>`;
       return `<div class="f5-row${pub ? '' : ' is-private'}">
         ${check}
@@ -242,15 +235,6 @@ function renderList() {
     .join('');
   listEl.innerHTML = html || `<p class="f5-count" style="padding:12px">No matches.</p>`;
   renderCompareBar();
-}
-
-function explainBanner(key) {
-  const def = lookupDef(key);
-  if (!def) return '';
-  return `<div class="f5-note" id="explain-banner">
-    <p><strong>${escapeHtml(def.label)} — like you’re five.</strong> ${escapeHtml(def.eli5)}</p>
-    ${def.whyMissing ? `<p class="f5-missing-why">${escapeHtml(def.whyMissing)}</p>` : ''}
-  </div>`;
 }
 
 function dash() {
@@ -279,27 +263,17 @@ function sortRows(rows) {
 }
 
 function viewTabs() {
-  return `<div class="f5-view-tabs" role="tablist" aria-label="Browse or learn">
-    <button type="button" class="f5-view-tab" data-home-view="table" aria-pressed="${homeView === 'table'}">All companies</button>
-    <button type="button" class="f5-view-tab" data-home-view="learn" aria-pressed="${homeView === 'learn'}">What the numbers mean</button>
+  return `<div class="f5-view-tabs" role="tablist" aria-label="Ratios or glossary">
+    <button type="button" class="f5-view-tab" data-home-view="table" aria-pressed="${homeView === 'table'}">Compare table</button>
+    <button type="button" class="f5-view-tab" data-home-view="learn" aria-pressed="${homeView === 'learn'}">What ratios mean</button>
   </div>`;
 }
 
-function storyCards() {
-  return `<div class="f5-stories" aria-label="Try a comparison">
-    ${PRESETS.map(
-      (p) => `<button type="button" class="f5-story${p.story ? ' is-story' : ''}" data-preset="${escapeAttr(p.id)}">
-        <strong>${escapeHtml(p.label)}</strong>
-        <span>${escapeHtml(p.blurb)}</span>
-      </button>`
-    ).join('')}
+function paneTabs(kind, current) {
+  return `<div class="f5-view-tabs" role="tablist" aria-label="Ratios or filed tags">
+    <button type="button" class="f5-view-tab" data-${kind}-pane="ratios" aria-pressed="${current === 'ratios'}">Key ratios</button>
+    <button type="button" class="f5-view-tab" data-${kind}-pane="filed" aria-pressed="${current === 'filed'}">Filed numbers</button>
   </div>`;
-}
-
-function howTo() {
-  return `<ol class="f5-howto">
-    ${HOW_TO.map((s) => `<li><strong>${escapeHtml(s.title)}</strong> ${escapeHtml(s.body)}</li>`).join('')}
-  </ol>`;
 }
 
 function screenerView() {
@@ -327,7 +301,7 @@ function screenerView() {
       const tds = cols
         .map((col) => {
           if (col.type === 'name') {
-            return `<td class="f5-name-cell">${check}<button type="button" class="f5-linkish" data-rank="${c.rank}">${escapeHtml(c.company)}</button><div class="muted">${escapeHtml(tickerLabel(c))}</div></td>`;
+            return `<td class="f5-name-cell">${check}<button type="button" class="f5-linkish" data-rank="${c.rank}">${escapeHtml(c.company)}</button></td>`;
           }
           const value = screenerValue(c, col);
           const extra = col.type === 'rank' ? ' class="mono"' : '';
@@ -338,22 +312,12 @@ function screenerView() {
     })
     .join('');
 
-  const extraNote = extraCol
-    ? `<p class="f5-section-lede">Extra column: <strong>${escapeHtml(lookupDef(extraCol.key)?.label || extraCol.key)}</strong>. Sort it like the others. A dash still means not tagged.</p>`
-    : '';
-
   return `
     <div class="f5-screener">
-      ${viewTabs()}
-      <h2>Latest 10-K headlines</h2>
-      <p class="f5-section-lede">
-        These are SEC tags from each company’s annual report — not Fortune magazine’s ranking dollars.
-        Click a name to see <em>which</em> numbers that 10-K actually filed, with a kid-level explanation.
-        Check up to ${MAX_COMPARE} public filers and hit <strong>Compare</strong>, or tap a story below.
-      </p>
-      ${howTo()}
-      ${storyCards()}
-      ${extraNote}
+      <div class="f5-toolbar">
+        ${viewTabs()}
+        <p class="f5-toolbar-hint">Check 2–5 companies, then Compare. Dash = ratio ingredients weren’t tagged.</p>
+      </div>
       <div class="f5-table-wrap">
         <table class="f5-table f5-screener-table">
           <thead><tr>${head}</tr></thead>
@@ -365,85 +329,77 @@ function screenerView() {
 
 function learnView() {
   const publicCount = Object.keys(snapshotCompanies).length || companies.filter(isPublic).length;
-  const groups = METRIC_GROUPS.map((group) => {
-    const cards = group.keys
+  const groups = RATIO_GROUPS.map((group) => {
+    const rows = group.keys
       .map((key) => {
         const def = lookupDef(key);
         if (!def) return '';
-        const source = sourceFor(key);
-        const pool = poolFor(snapshotCompanies, source, key);
-        const n = pool.length;
-        const preferHigh = def.better !== 'lower';
-        const leaders = leadersFor(companies, snapshotCompanies, key, source, 3, preferHigh);
-        const leaderLine = leaders.length
-          ? `<p class="f5-leaders">${preferHigh ? 'Highest here' : 'Lowest here'}: ${leaders
-              .map((l) => {
-                const shown =
-                  source === 'ratio'
-                    ? formatDerived(def, l.value)
-                    : formatMetric(def, { val: l.value });
-                return `<button type="button" class="f5-linkish" data-rank="${l.company.rank}">${escapeHtml(l.company.company)}</button> ${escapeHtml(shown || '')}`;
-              })
-              .join(' · ')}</p>`
-          : '';
-        const compareBtn =
-          leaders.length >= 2
-            ? `<button type="button" class="f5-mini" data-compare-leaders="${escapeAttr(key)}">Compare the leaders</button>`
-            : '';
-        const sortBtn = `<button type="button" class="f5-mini f5-mini-ghost" data-sort-metric="${escapeAttr(key)}">Show in the table</button>`;
-        const coverage =
-          publicCount > 0
-            ? `<p class="f5-coverage-line"><strong>${n}</strong> of ${publicCount} public companies tagged this${n ? ` (${Math.round((100 * n) / publicCount)}%)` : ''}.</p>`
-            : '';
-        return `<article class="f5-eli5-card" id="metric-${escapeAttr(key)}">
-          <h4>${escapeHtml(def.label)}</h4>
-          <p class="f5-eli5">${escapeHtml(def.eli5)}</p>
-          ${coverage}
-          <p class="f5-missing-why">${escapeHtml(def.whyMissing || '')}</p>
-          ${leaderLine}
-          <div class="f5-eli5-actions">${compareBtn}${sortBtn}</div>
-        </article>`;
+        const n = poolFor(snapshotCompanies, sourceFor(key), key).length;
+        const on = explainKey === key;
+        return `<tr class="${on ? 'is-on' : ''}">
+          <td><button type="button" class="f5-linkish" data-explain="${escapeAttr(key)}">${escapeHtml(def.label)}</button><div class="muted">${escapeHtml(def.formula || '')}</div></td>
+          <td class="f5-plain-cell">${escapeHtml(def.plain)}</td>
+          <td class="mono">${n ? `${n}/${publicCount}` : '—'}</td>
+        </tr>`;
       })
       .join('');
-    return `<section class="f5-eli5-group">
-      <h3 class="f5-h3">${escapeHtml(group.label)}</h3>
-      <p class="f5-section-lede">${escapeHtml(group.kid)}</p>
-      <div class="f5-eli5-grid">${cards}</div>
-    </section>`;
+    return `<tbody>
+      <tr class="f5-group"><td colspan="3">${escapeHtml(group.label)}</td></tr>
+      ${rows}
+    </tbody>`;
   }).join('');
 
   return `
-    <div class="f5-learn">
-      ${viewTabs()}
-      <h2>Every number, like you’re five</h2>
-      <p class="f5-section-lede">
-        We look for these tags in each public company’s latest 10-K. Not every company has every tag —
-        that’s the point. Compare companies on what they <em>share</em>, and treat a blank as unknown.
-      </p>
-      <div class="f5-note">
-        <p><strong>Not in EDGAR Company Facts:</strong> ${escapeHtml(NOT_IN_EDGAR.join(' '))}</p>
+    <div class="f5-workspace">
+      <div class="f5-workspace-main">
+        <div class="f5-toolbar">${viewTabs()}</div>
+        <div class="f5-table-wrap">
+          <table class="f5-table f5-learn-table">
+            <thead><tr><th>Ratio</th><th>In one line</th><th>Have it</th></tr></thead>
+            ${groups}
+          </table>
+        </div>
       </div>
-      ${groups}
+      ${explainDock(explainKey)}
     </div>`;
 }
 
-function sourceCard(c, src) {
-  const href = c[src.urlKey];
-  if (!href) return '';
-  const jsonBtn = `<a class="f5-open" href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer">${src.id === 'browse' ? 'Open on sec.gov' : 'Open JSON'}</a>`;
-  const extra =
-    src.id === 'submissions' && c.edgar_filings_browse
-      ? `<a class="f5-open f5-open-ghost" href="${escapeAttr(c.edgar_filings_browse)}" target="_blank" rel="noopener noreferrer">Filing browser</a>`
+function explainDock(key, headlines) {
+  const def = lookupDef(key);
+  if (!def) {
+    return `<aside class="f5-dock"><p class="muted">Tap a ratio to see what it means.</p></aside>`;
+  }
+  const source = sourceFor(key);
+  const shown = headlines ? lookupShown(headlines, key) : null;
+  const value = headlines ? lookupNumber(headlines, key) : null;
+  const publicCount = Object.keys(snapshotCompanies).length || companies.filter(isPublic).length;
+  const n = poolFor(snapshotCompanies, source, key).length;
+  const preferHigh = def.better !== 'lower';
+  const leaders = leadersFor(companies, snapshotCompanies, key, source, 3, preferHigh);
+  const leaderLine = leaders.length
+    ? `<p class="f5-leaders">${preferHigh ? 'Highest' : 'Lowest'}: ${leaders
+        .map((l) => {
+          const v =
+            source === 'ratio' ? formatDerived(def, l.value) : formatMetric(def, { val: l.value });
+          return `<button type="button" class="f5-linkish" data-rank="${l.company.rank}">${escapeHtml(l.company.company)}</button> ${escapeHtml(v || '')}`;
+        })
+        .join(' · ')}</p>`
+    : '';
+  const compareBtn =
+    leaders.length >= 2
+      ? `<button type="button" class="f5-mini" data-compare-leaders="${escapeAttr(key)}">Compare leaders</button>`
       : '';
-  return `<article class="f5-source">
-    <div class="f5-source-top">
-      <h3>${escapeHtml(src.title)}</h3>
-      <span class="f5-source-meta">${escapeHtml(src.api)} · ${escapeHtml(src.format)} · ${escapeHtml(src.cadence)}</span>
-    </div>
-    <p>${escapeHtml(src.summary)}</p>
-    <ul>${src.youGet.map((x) => `<li>${escapeHtml(x)}</li>`).join('')}</ul>
-    ${jsonBtn}${extra}
-  </article>`;
+  const sortBtn = `<button type="button" class="f5-mini f5-mini-ghost" data-sort-metric="${escapeAttr(key)}">Add to table</button>`;
+  return `<aside class="f5-dock">
+    <p class="f5-kicker">${escapeHtml(def.formula || 'Key ratio')}</p>
+    <h3>${escapeHtml(def.label)}${shown ? ` · ${escapeHtml(shown)}` : ''}</h3>
+    ${shown && headlines ? pctPill(value, source, key) : ''}
+    <p class="f5-eli5">${escapeHtml(def.eli5)}</p>
+    ${shown ? '' : `<p class="f5-missing-why">${escapeHtml(def.whyMissing || '')}</p>`}
+    <p class="f5-coverage-line"><strong>${n}</strong> / ${publicCount} public companies have this.</p>
+    ${leaderLine}
+    <div class="f5-eli5-actions">${compareBtn}${sortBtn}</div>
+  </aside>`;
 }
 
 function pctPill(value, source, key) {
@@ -457,162 +413,110 @@ function pctPill(value, source, key) {
   return `<span class="f5-pct f5-pct-${tone}" title="${escapeAttr(title)}">${pctile}th percentile</span>`;
 }
 
-function featuredCard(headlines, item) {
-  const def = lookupDef(item.key);
-  if (!def) return '';
-  const value = item.source === 'ratio' ? ratioNumber(headlines, item.key) : metricNumber(headlines, item.key);
-  const shown =
-    item.source === 'ratio'
-      ? formatDerived(def, headlines?.ratios?.[item.key])
-      : formatMetric(def, headlines?.metrics?.[item.key]);
-  return `<article class="f5-kpi">
-    <h4>${escapeHtml(def.label)}</h4>
-    <p class="val${shown ? '' : ' missing'}">${shown ? escapeHtml(shown) : 'Not tagged'}</p>
-    ${shown ? pctPill(value, item.source, item.key) : ''}
-    <p class="f5-eli5">${escapeHtml(def.plain)}</p>
-  </article>`;
-}
-
-function coverageBanner(headlines) {
-  const cov = coverageOf(headlines);
-  const dots = METRICS.map((m) => {
-    const on = cov.tagged.includes(m.key);
-    return `<span class="f5-dot${on ? ' is-on' : ''}" title="${escapeAttr(m.label + (on ? ' — tagged' : ' — not tagged'))}"></span>`;
-  }).join('');
-  return `<div class="f5-coverage">
-    <p><strong>${cov.tagged.length} of ${cov.total}</strong> SEC tags found in this 10-K. ${cov.derivedOk.length} of ${DERIVED.length} ratios we can compute from those tags.</p>
-    <div class="f5-dots" aria-hidden="true">${dots}</div>
-    <p class="f5-section-lede" style="margin:8px 0 0">A blank isn’t zero — banks skip inventory, some retailers have a stale gross-profit tag we refuse to use, and a few companies name the same idea differently.</p>
-  </div>`;
-}
-
-function metricExplainCard(def, headlines) {
-  const source = sourceFor(def.key);
+function ratioTile(def, headlines) {
   const shown = lookupShown(headlines, def.key);
-  const tagged = shown != null;
-  const tagUsed =
-    source === 'metric' && headlines?.metrics?.[def.key]?.tag
-      ? headlines.metrics[def.key].tag
-      : def.tags || '';
-  return `<article class="f5-metric ${tagged ? '' : 'is-missing'}">
-    <div class="f5-metric-top">
-      <h4>${escapeHtml(def.label)}</h4>
-      <p class="val${tagged ? '' : ' missing'}">${tagged ? escapeHtml(shown) : 'Not tagged'}</p>
-    </div>
-    <p class="f5-eli5">${escapeHtml(def.eli5)}</p>
-    ${tagged ? '' : `<p class="f5-missing-why">${escapeHtml(def.whyMissing || '')}</p>`}
-    ${tagUsed ? `<p class="tags">${escapeHtml(tagUsed)}</p>` : ''}
-  </article>`;
+  const on = explainKey === def.key;
+  return `<button type="button" class="f5-tile${on ? ' is-on' : ''}${shown ? '' : ' is-missing'}" data-explain="${escapeAttr(def.key)}">
+    <span class="f5-tile-label">${escapeHtml(def.label)}</span>
+    <span class="f5-tile-val">${shown ? escapeHtml(shown) : '—'}</span>
+  </button>`;
+}
+
+function filedRow(def, headlines) {
+  const shown = lookupShown(headlines, def.key);
+  const on = explainKey === def.key;
+  const tag = headlines?.metrics?.[def.key]?.tag || def.tags || '';
+  return `<tr class="${on ? 'is-on' : ''}">
+    <td><button type="button" class="f5-linkish" data-explain="${escapeAttr(def.key)}">${escapeHtml(def.label)}</button></td>
+    <td>${shown ? escapeHtml(shown) : dash()}</td>
+    <td class="muted">${escapeHtml(tag)}</td>
+  </tr>`;
 }
 
 function publicDetail(c, headlines, status) {
-  const alias =
-    c.fortune_ticker && c.sec_ticker && c.fortune_ticker !== c.sec_ticker
-      ? `<p class="f5-section-lede">Fortune lists this as <strong>${escapeHtml(c.fortune_ticker)}</strong>; the SEC ticker file uses <strong>${escapeHtml(c.sec_ticker)}</strong>. Same company, different symbol.</p>`
-      : '';
-  const match = MATCH_LABELS[c.match_source] || c.match_source || '';
-  let numbers = '';
-  if (status === 'loading') {
-    numbers = `<p class="f5-section-lede">Loading latest 10-K headlines from the SEC…</p>`;
-  } else if (status === 'error') {
-    numbers = `<div class="f5-note"><p>Couldn’t load Company Facts (${escapeHtml(headlines?.error || 'network')}). The SEC links below still work.</p></div>`;
-  } else if (headlines) {
-    const year = headlines.asOfYear ? `FY${headlines.asOfYear}` : 'latest 10-K';
-    const groups = METRIC_GROUPS.map((group) => {
-      const cards = group.keys
-        .map((key) => {
-          const def = lookupDef(key);
-          return def ? metricExplainCard(def, headlines) : '';
-        })
-        .join('');
-      return `<section class="f5-eli5-group">
-        <h3 class="f5-h3">${escapeHtml(group.label)}</h3>
-        <p class="f5-section-lede">${escapeHtml(group.kid)}</p>
-        <div class="f5-metrics">${cards}</div>
-      </section>`;
-    }).join('');
-    const peers = similarByRevenue(c, companies, snapshotCompanies, 4);
-    const peerBtns = peers
-      .map((p) => {
-        const shown = formatMetric({ unit: 'USD' }, { val: p.revenue });
-        return `<button type="button" class="f5-peer" data-peer="${p.company.rank}">${escapeHtml(p.company.company)}<span>${escapeHtml(shown || '')}</span></button>`;
-      })
-      .join('');
-    const suggestions = suggestComparisons(c, companies, snapshotCompanies, 3);
-    const suggestBlock = suggestions.length
-      ? `<div class="f5-suggest">
-          <h3 class="f5-h3">Interesting comparisons</h3>
-          <p class="f5-section-lede">Built from metrics this company actually tagged.</p>
-          <div class="f5-stories">
-            ${suggestions
-              .map(
-                (s) => `<button type="button" class="f5-story is-story" data-suggest="${escapeAttr(s.id)}" data-suggest-ranks="${s.ranks.join(',')}">
-                  <strong>${escapeHtml(s.title)}</strong>
-                  <span>${escapeHtml(s.why)}</span>
-                </button>`
-              )
-              .join('')}
-          </div>
-        </div>`
-      : '';
-    const peerBlock =
-      peers.length >= 2
-        ? `<div class="f5-peers">
-            <h3 class="f5-h3">Similar scale</h3>
-            <p class="f5-section-lede">Closest revenue among public Fortune 500 filers in this snapshot.</p>
-            <div class="f5-peer-row">${peerBtns}</div>
-            <button type="button" class="f5-peer-compare" data-compare-peers="${c.rank}">Compare with these</button>
-          </div>`
-        : '';
-    numbers = `
-      <h3 class="f5-h3">Headline numbers (${escapeHtml(year)})</h3>
-      <p class="f5-section-lede">From Company Facts, same annual period as the latest revenue/net-income 10-K. Percentile is vs other public Fortune 500 filers that tagged the same item.</p>
-      ${coverageBanner(headlines)}
-      <div class="f5-kpis">${FEATURED.map((item) => featuredCard(headlines, item)).join('')}</div>
-      ${suggestBlock}
-      ${peerBlock}
-      ${groups}
-    `;
-  }
   const inCompare = compareRanks.includes(c.rank);
   const addBtn = inCompare
-    ? `<button type="button" class="f5-add-compare" disabled>In compare set</button>`
-    : `<button type="button" class="f5-add-compare" data-add-compare="${c.rank}">Add to compare</button>`;
-  const sources = `<details class="f5-sec-links">
-    <summary>SEC links for this company</summary>
-    <p class="f5-section-lede">Raw EDGAR feeds for this CIK — the same files we read. Optional if you just wanted the numbers.</p>
-    <div class="f5-sources">${SOURCES.map((s) => sourceCard(c, s)).join('')}</div>
-    <p class="f5-section-lede">Not in EDGAR Company Facts: ${escapeHtml(NOT_IN_EDGAR.join(' '))}</p>
-  </details>`;
+    ? `<button type="button" class="f5-add-compare" disabled>In compare</button>`
+    : `<button type="button" class="f5-add-compare" data-add-compare="${c.rank}">Compare</button>`;
+  let main = '';
+  if (status === 'loading') {
+    main = `<p class="f5-toolbar-hint">Loading 10-K ratios…</p>`;
+  } else if (status === 'error') {
+    main = `<p class="f5-toolbar-hint">Couldn’t load Company Facts (${escapeHtml(headlines?.error || 'network')}).</p>`;
+  } else if (headlines) {
+    const year = headlines.asOfYear ? `FY${headlines.asOfYear}` : 'FY?';
+    const cov = coverageOf(headlines);
+    const suggestions = suggestComparisons(c, companies, snapshotCompanies, 2);
+    const suggest = suggestions.length
+      ? `<div class="f5-inline-suggest">${suggestions
+          .map(
+            (s) =>
+              `<button type="button" class="f5-preset" data-suggest="${escapeAttr(s.id)}" data-suggest-ranks="${s.ranks.join(',')}" title="${escapeAttr(s.why)}">${escapeHtml(s.title)}</button>`
+          )
+          .join('')}</div>`
+      : '';
+    if (companyPane === 'filed') {
+      const tables = FILED_GROUPS.map((group) => {
+        const rows = group.keys
+          .map((key) => {
+            const def = lookupDef(key);
+            return def ? filedRow(def, headlines) : '';
+          })
+          .join('');
+        return `<tbody><tr class="f5-group"><td colspan="3">${escapeHtml(group.label)}</td></tr>${rows}</tbody>`;
+      }).join('');
+      main = `
+        ${paneTabs('company', companyPane)}
+        <p class="f5-toolbar-hint">${year} · ${cov.tagged.length}/${cov.total} tags · ${cov.derivedOk.length} ratios · a dash is not zero</p>
+        ${suggest}
+        <div class="f5-table-wrap">
+          <table class="f5-table">
+            <thead><tr><th>Tag</th><th>Value</th><th>XBRL</th></tr></thead>
+            ${tables}
+          </table>
+        </div>`;
+    } else {
+      const groups = RATIO_GROUPS.map((group) => {
+        const tiles = group.keys
+          .map((key) => {
+            const def = lookupDef(key);
+            return def ? ratioTile(def, headlines) : '';
+          })
+          .join('');
+        return `<section class="f5-tile-group">
+          <h3>${escapeHtml(group.label)}</h3>
+          <div class="f5-tiles">${tiles}</div>
+        </section>`;
+      }).join('');
+      main = `
+        ${paneTabs('company', companyPane)}
+        <p class="f5-toolbar-hint">${year} · ${cov.derivedOk.length} ratios from ${cov.tagged.length}/${cov.total} tagged items · tap a tile</p>
+        ${suggest}
+        ${groups}`;
+    }
+  }
   return `
-    <button type="button" class="f5-back" id="back">← All companies</button>
-    <div class="f5-company-head">
-      <div>
-        <p class="f5-kicker">Fortune #${c.rank}</p>
-        <h2>${escapeHtml(c.company)}</h2>
-        <p class="f5-legal">${escapeHtml(c.sec_name || '')}</p>
+    <div class="f5-workspace">
+      <div class="f5-workspace-main">
+        <button type="button" class="f5-back" id="back">← Table</button>
+        <div class="f5-company-head">
+          <div>
+            <p class="f5-kicker">#${c.rank} · ${escapeHtml(tickerLabel(c))} · ${escapeHtml(c.cik_padded || '')}</p>
+            <h2>${escapeHtml(c.company)}</h2>
+          </div>
+          <div class="f5-head-actions">${addBtn}</div>
+        </div>
+        ${main}
       </div>
-      <div class="f5-head-actions">
-        ${addBtn}
-        <span class="f5-pill f5-pill-public">SEC filer</span>
-      </div>
-    </div>
-    ${alias}
-    <dl class="f5-dl">
-      <div><dt>Fortune ticker</dt><dd>${escapeHtml(c.fortune_ticker || '—')}</dd></div>
-      <div><dt>SEC ticker</dt><dd>${escapeHtml(c.sec_ticker || '—')}</dd></div>
-      <div><dt>CIK</dt><dd class="mono">${escapeHtml(c.cik_padded || String(c.cik))}</dd></div>
-      <div><dt>How we matched</dt><dd>${escapeHtml(match)}</dd></div>
-    </dl>
-    ${numbers}
-    ${sources}
-  `;
+      ${status === 'ok' || headlines ? explainDock(explainKey, headlines) : ''}
+    </div>`;
 }
 
 function privateDetail(c) {
   const note = PRIVATE_NOTES[c.rank] || 'Private or mutual — no public 10-K/10-Q ticker in the SEC JSON APIs.';
   return `
-    <button type="button" class="f5-back" id="back">← All companies</button>
+    <div class="f5-workspace-main">
+    <button type="button" class="f5-back" id="back">← Table</button>
     <div class="f5-company-head">
       <div>
         <p class="f5-kicker">Fortune #${c.rank}</p>
@@ -623,7 +527,8 @@ function privateDetail(c) {
     <div class="f5-note private">
       <p><strong>EDGAR does not have the same public financials for this company.</strong> ${escapeHtml(note)}. Mutuals, cooperatives, and private firms generally do not file 10-Ks under a tradable ticker, so there is no Submissions / Company Facts URL to open.</p>
     </div>
-    <p class="f5-section-lede">They stay on the Fortune 500 list so rank gaps are honest. We do not invent numbers or scrape a substitute.</p>
+    <p class="f5-toolbar-hint">They stay on the list so rank gaps are honest. No invented numbers.</p>
+    </div>
   `;
 }
 
@@ -683,92 +588,74 @@ function compareView(rows, status) {
     company: c,
     headlines: rows.find((x) => x.cik === c.cik),
   }));
-  const insights = status === 'ok' ? buildInsights(insightRows, snapshotCompanies) : [];
-  const insightBlock = insights.length
-    ? `<ul class="f5-insights">${insights.map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ul>`
-    : '';
-  const overlap = status === 'ok' ? coverageOverlap(insightRows) : null;
-  const overlapNote = overlap
-    ? `<p class="f5-section-lede">${overlap.shared.length} tags everyone here filed · ${overlap.split.length} tagged by only some · ${overlap.none.length} tagged by none. ${
-        overlap.split.length
-          ? 'Turn on “shared tags only” to hide rows that aren’t a fair fight.'
-          : ''
-      }</p>`
-    : '';
+  const insights = status === 'ok' ? buildInsights(insightRows, snapshotCompanies).slice(0, 3) : [];
+  const groups = comparePane === 'filed' ? FILED_GROUPS : RATIO_GROUPS;
 
   const head = names
     .map((c) => {
       const h = rows.find((x) => x.cik === c.cik);
       const fy = h?.asOfYear ? `FY${h.asOfYear}` : '';
-      const cov = h ? coverageOf(h) : null;
-      const covLine = cov ? `${cov.tagged.length}/${cov.total} tags` : '';
-      return `<th><button type="button" class="f5-linkish" data-rank="${c.rank}">${escapeHtml(c.company)}</button><div class="muted">${escapeHtml(c.fortune_ticker || '')} ${fy}${covLine ? ' · ' + covLine : ''}</div></th>`;
+      return `<th><button type="button" class="f5-linkish" data-rank="${c.rank}">${escapeHtml(c.company)}</button><div class="muted">${escapeHtml(c.fortune_ticker || '')} ${fy}</div></th>`;
     })
     .join('');
 
   let body = '';
   if (status === 'loading') {
-    body = `<tr><td colspan="${names.length + 1}">Loading Company Facts from the SEC…</td></tr>`;
+    body = `<tr><td colspan="${names.length + 1}">Loading…</td></tr>`;
   } else if (status === 'error') {
-    body = `<tr><td colspan="${names.length + 1}">Couldn’t reach /api/f500-headlines. On a static server this route doesn’t run — use the deployed site or <code>vercel dev</code>.</td></tr>`;
+    body = `<tr><td colspan="${names.length + 1}">Couldn’t reach /api/f500-headlines.</td></tr>`;
   } else {
-    body = METRIC_GROUPS.map((group) => {
-      const keys = group.keys.filter((key) => {
-        if (!sharedOnly || !overlap) return true;
-        if (METRICS.some((m) => m.key === key)) return overlap.shared.includes(key);
-        const def = lookupDef(key);
-        if (!def?.needs) return true;
-        return def.needs.every((need) => overlap.shared.includes(need));
-      });
-      if (!keys.length) return '';
-      const groupRow = `<tr class="f5-group"><td colspan="${names.length + 1}">${escapeHtml(group.label)} — ${escapeHtml(group.kid)}</td></tr>`;
-      const metricRows = keys
-        .map((key) => {
-          const def = lookupDef(key);
-          if (!def) return '';
-          const vals = names.map((c) => lookupNumber(rows.find((x) => x.cik === c.cik), key));
-          const tds = names
-            .map((c, i) => {
-              const shown = lookupShown(rows.find((x) => x.cik === c.cik), key);
-              const cls = cellClass(vals, vals[i], def.better);
-              const title = shown ? '' : def.whyMissing ? ` title="${escapeAttr(def.whyMissing)}"` : '';
-              return `<td class="${cls}"${title}>${shown ? escapeHtml(shown) : dash()}</td>`;
-            })
-            .join('');
-          return `<tr>
-            <td>
-              <button type="button" class="f5-linkish" data-explain="${escapeAttr(key)}">${escapeHtml(def.label)}</button>
-              <div class="f5-eli5-mini">${escapeHtml(def.plain)}</div>
-            </td>
-            ${tds}
-          </tr>`;
-        })
-        .join('');
-      return groupRow + metricRows;
-    }).join('');
+    body = groups
+      .map((group) => {
+        const keys = group.keys.filter((key) => {
+          if (!sharedOnly) return true;
+          return names.every((c) => lookupNumber(rows.find((x) => x.cik === c.cik), key) != null);
+        });
+        if (!keys.length) return '';
+        const groupRow = `<tr class="f5-group"><td colspan="${names.length + 1}">${escapeHtml(group.label)}</td></tr>`;
+        const metricRows = keys
+          .map((key) => {
+            const def = lookupDef(key);
+            if (!def) return '';
+            const vals = names.map((c) => lookupNumber(rows.find((x) => x.cik === c.cik), key));
+            const tds = names
+              .map((c, i) => {
+                const shown = lookupShown(rows.find((x) => x.cik === c.cik), key);
+                const cls = cellClass(vals, vals[i], def.better);
+                return `<td class="${cls}">${shown ? escapeHtml(shown) : dash()}</td>`;
+              })
+              .join('');
+            const on = explainKey === key ? ' is-on' : '';
+            return `<tr class="${on.trim()}">
+              <td><button type="button" class="f5-linkish" data-explain="${escapeAttr(key)}">${escapeHtml(def.label)}</button></td>
+              ${tds}
+            </tr>`;
+          })
+          .join('');
+        return groupRow + metricRows;
+      })
+      .join('');
   }
 
-  const chart = status === 'ok' ? barChart(names, rows) : '';
-  const toggle = `<label class="f5-shared-toggle"><input type="checkbox" id="shared-only" ${sharedOnly ? 'checked' : ''}/> Shared tags only</label>`;
-  const explain = explainKey ? explainBanner(explainKey) : '';
-
   return `
-    <button type="button" class="f5-back" id="back">← All companies</button>
-    <h2 class="f5-h3">Compare what they actually filed</h2>
-    <p class="f5-section-lede">Latest annual 10-K period per company. Fiscal year-ends can differ (Apple is not calendar). Green = best in the row for “higher/lower is better” metrics; red = worst. Em-dash = not tagged. Tap a metric name for the kid explanation.</p>
-    ${insightBlock}
-    ${explain}
-    ${overlapNote}
-    ${toggle}
-    ${chart}
-    <p class="f5-legend"><span><i class="f5-swatch best"></i>best in row</span><span><i class="f5-swatch worst"></i>worst in row</span></p>
-    <div class="f5-table-wrap">
-      <table class="f5-table">
-        <thead><tr><th>Metric</th>${head}</tr></thead>
-        <tbody>${body}</tbody>
-      </table>
-    </div>
-  `;
+    <div class="f5-workspace">
+      <div class="f5-workspace-main">
+        <button type="button" class="f5-back" id="back">← Table</button>
+        <div class="f5-toolbar">
+          ${paneTabs('compare', comparePane)}
+          <label class="f5-shared-toggle"><input type="checkbox" id="shared-only" ${sharedOnly ? 'checked' : ''}/> Shared only</label>
+        </div>
+        ${insights.length ? `<ul class="f5-insights">${insights.map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ul>` : ''}
+        ${status === 'ok' ? barChart(names, rows) : ''}
+        <div class="f5-table-wrap">
+          <table class="f5-table">
+            <thead><tr><th></th>${head}</tr></thead>
+            <tbody>${body}</tbody>
+          </table>
+        </div>
+      </div>
+      ${explainDock(explainKey)}
+    </div>`;
 }
 
 async function fetchHeadlines(ciks) {
@@ -971,6 +858,18 @@ detailEl.addEventListener('click', (e) => {
     applyState();
     return;
   }
+  const companyPaneBtn = e.target.closest('[data-company-pane]');
+  if (companyPaneBtn) {
+    companyPane = companyPaneBtn.dataset.companyPane === 'filed' ? 'filed' : 'ratios';
+    renderDetail();
+    return;
+  }
+  const comparePaneBtn = e.target.closest('[data-compare-pane]');
+  if (comparePaneBtn) {
+    comparePane = comparePaneBtn.dataset.comparePane === 'filed' ? 'filed' : 'ratios';
+    if (compareMode) detailEl.innerHTML = compareView(lastCompareRows, lastCompareStatus);
+    return;
+  }
   const preset = e.target.closest('[data-preset]');
   if (preset) {
     applyPreset(preset.dataset.preset);
@@ -1019,6 +918,9 @@ detailEl.addEventListener('click', (e) => {
   if (explain) {
     explainKey = explain.dataset.explain;
     if (compareMode) detailEl.innerHTML = compareView(lastCompareRows, lastCompareStatus);
+    else if (selectedRank) renderDetail();
+    else if (homeView === 'learn') detailEl.innerHTML = learnView();
+    return;
   }
 });
 
@@ -1100,18 +1002,7 @@ try {
   }
   const pub = companies.filter(isPublic).length;
   const withFy = [...headlinesByCik.values()].filter((h) => h.asOfYear).length;
-  const pulled = window.__f500PulledAt
-    ? new Date(window.__f500PulledAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-    : null;
-  statsEl.innerHTML = `
-    <span class="f5-stat"><strong>${companies.length}</strong> Fortune 500</span>
-    <span class="f5-stat"><strong>${pub}</strong> public SEC filers</span>
-    <span class="f5-stat"><strong>${withFy}</strong> with 10-K figures${pulled ? ' · ' + pulled : ''}</span>
-    <span class="f5-stat"><strong>${companies.length - pub}</strong> private / mutual</span>
-  `;
-  document.getElementById('glossary-list').innerHTML = GLOSSARY.map(
-    (g) => `<div><dt>${escapeHtml(g.term)}</dt><dd>${escapeHtml(g.def)}</dd></div>`
-  ).join('');
+  window.__f500Stats = `${pub} public · ${withFy} with 10-Ks`;
   renderPresets();
   const s = parseUrl();
   compareMode = s.compareMode;

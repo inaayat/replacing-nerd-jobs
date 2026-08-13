@@ -7,7 +7,7 @@
  * Never already-multiplied percents.
  */
 import { METRICS, DERIVED, isPublic } from './catalog.js';
-import { formatUsd, formatPercent } from './extract.js';
+import { formatUsd, formatPercent, formatRatio } from './extract.js';
 
 export function metricNumber(headlines, key) {
   const p = headlines?.metrics?.[key];
@@ -231,6 +231,26 @@ export function buildInsights(rows, snapshotCompanies) {
   if (roe.length >= 2 && roe[0].v - roe[roe.length - 1].v >= 0.05) {
     insights.push(
       `${nameOf(roe[0].r)} earns ${pct(roe[0].v)} on equity (ROE) vs ${pct(roe[roe.length - 1].v)} at ${nameOf(roe[roe.length - 1].r)}.`
+    );
+  }
+
+  const turns = usable
+    .map((r) => ({ r, v: ratioNumber(r.headlines, 'asset_turnover') }))
+    .filter((x) => x.v != null && x.v > 0)
+    .sort((a, b) => b.v - a.v);
+  if (turns.length >= 2 && turns[0].v / turns[turns.length - 1].v >= 1.4) {
+    insights.push(
+      `${nameOf(turns[0].r)} generates ${formatRatio(turns[0].v)} of sales per dollar of assets; ${nameOf(turns[turns.length - 1].r)} generates ${formatRatio(turns[turns.length - 1].v)}.`
+    );
+  }
+
+  const cc = usable
+    .map((r) => ({ r, v: ratioNumber(r.headlines, 'cash_conversion') }))
+    .filter((x) => x.v != null && Number.isFinite(x.v) && Math.abs(x.v) < 15)
+    .sort((a, b) => b.v - a.v);
+  if (cc.length >= 2 && Math.abs(cc[0].v - cc[cc.length - 1].v) >= 0.4) {
+    insights.push(
+      `${nameOf(cc[0].r)} turns each profit dollar into ${formatRatio(cc[0].v)} of operating cash; ${nameOf(cc[cc.length - 1].r)} into ${formatRatio(cc[cc.length - 1].v)}.`
     );
   }
 

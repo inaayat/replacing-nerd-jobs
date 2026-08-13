@@ -59,6 +59,31 @@ const withCash = computeRatios(
 );
 assert.equal(withCash.fcf, 25, 'CapEx stored as a positive outflow is subtracted');
 assert.equal(withCash.rd_intensity, 0.08);
+assert.equal(withCash.fcf_margin, 0.25);
+assert.equal(withCash.capex_intensity, 0.15);
+
+const more = computeRatios(
+  {
+    revenue: { val: 100 },
+    net_income: { val: 10 },
+    assets: { val: 200 },
+    equity: { val: 50 },
+    cfo: { val: 12 },
+    capex: { val: 4 },
+    shares_out: { val: 5 },
+    receivables: { val: 20 },
+    long_term_debt: { val: 25 },
+  },
+  null
+);
+assert.equal(more.asset_turnover, 0.5);
+assert.equal(more.leverage, 4);
+assert.equal(more.cash_conversion, 1.2);
+assert.equal(more.book_value_ps, 10);
+assert.equal(more.receivables_days, 73);
+assert.equal(more.debt_assets, 0.125);
+assert.equal(more.fcf, 8);
+assert.equal(more.fcf_margin, 0.08);
 
 const negCapex = computeRatios(
   { cfo: { val: 40 }, capex: { val: -15 } },

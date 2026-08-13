@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <base href="/fortune-500/" />
-    <title>Fortune 500 numbers, explained — Beep boop</title>
-    <meta name="description" content="See which SEC EDGAR metrics each Fortune 500 company tagged, explained like you’re five, and compare companies on the numbers they share." />
+    <title>Fortune 500 ratios — Beep boop</title>
+    <meta name="description" content="Key financial ratios from SEC EDGAR 10-Ks for Fortune 500 companies, explained in plain language, compared side by side." />
     <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -21,41 +21,26 @@
         </a>
         <a href="/fortune-500/" class="f5-nav-section">
           <img src="/fortune-500/icon.svg" alt="" width="22" height="22" />
-          <span>Fortune 500</span>
+          <span>Fortune 500 ratios</span>
         </a>
       </div>
       <div class="f5-nav-links">
-        <a href="#learn" id="nav-learn">The numbers</a>
-        <a href="#glossary">Filing words</a>
+        <a href="#learn" id="nav-learn">What ratios mean</a>
         <a href="/#projects">Projects</a>
       </div>
     </nav>
 
     <main class="f5-shell">
-      <header class="f5-hero">
-        <div class="f5-hero-copy">
-          <p class="f5-kicker">Fortune rank · SEC 10-K tags · plain English</p>
-          <h1>What each company actually filed</h1>
-          <p class="f5-lede">
-            Open a Fortune 500 company to see which numbers its annual SEC report tagged.
-            Every metric has a kid-level explanation. Then compare companies on the tags they share —
-            a blank means “not tagged,” never zero.
-          </p>
-        </div>
-        <div class="f5-stats" id="stats"></div>
-      </header>
-
       <div class="f5-layout" id="layout">
         <section class="f5-list-panel" aria-label="Company list">
           <div class="f5-list-head">
             <h2>Companies</h2>
-            <p class="f5-list-hint">Search, then check boxes to compare. Stories sit on the right.</p>
             <label class="visually-hidden" for="search" style="position:absolute;left:-9999px">Search companies</label>
             <input id="search" class="f5-search" type="search" placeholder="Search name or ticker…" autocomplete="off" />
             <div class="f5-filters" role="group" aria-label="Filter by filing status">
               <button type="button" data-filter="all" aria-pressed="true">All</button>
-              <button type="button" data-filter="public" aria-pressed="false">Public filers</button>
-              <button type="button" data-filter="private" aria-pressed="false">Private / mutual</button>
+              <button type="button" data-filter="public" aria-pressed="false">Public</button>
+              <button type="button" data-filter="private" aria-pressed="false">Private</button>
             </div>
             <p class="f5-count" id="count"></p>
             <div class="f5-presets" id="presets" aria-label="Peer sets"></div>
@@ -77,12 +62,6 @@
         <button type="button" class="f5-compare-go" id="compare-go">Compare</button>
       </div>
     </div>
-
-    <section class="f5-glossary-panel" id="glossary">
-      <h2 class="f5-h3">Filing words</h2>
-      <p class="f5-section-lede">The SEC jargon, once. The money metrics themselves live under <a href="#learn" id="glossary-learn">What the numbers mean</a>.</p>
-      <dl class="f5-glossary" id="glossary-list"></dl>
-    </section>
 
     <script type="module" src="./app.js"></script>
   </body>

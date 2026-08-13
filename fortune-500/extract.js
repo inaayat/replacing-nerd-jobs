@@ -137,6 +137,8 @@ export function computeRatios(metrics, priorRevenue) {
   const cfo = val(metrics, 'cfo');
   const capex = val(metrics, 'capex');
   const rd = val(metrics, 'rd');
+  const shares = val(metrics, 'shares_out');
+  const rec = val(metrics, 'receivables');
   const prior = priorRevenue && typeof priorRevenue.val === 'number' ? priorRevenue.val : null;
 
   out.gross_margin = gp != null && rev ? gp / rev : null;
@@ -145,10 +147,18 @@ export function computeRatios(metrics, priorRevenue) {
   out.roa = ni != null && assets ? ni / assets : null;
   out.roe = ni != null && equity ? ni / equity : null;
   out.debt_equity = debt != null && equity ? debt / equity : null;
+  out.debt_assets = debt != null && assets ? debt / assets : null;
   out.rd_intensity = rd != null && rev ? rd / rev : null;
   // CapEx is almost always a positive cash outflow in Company Facts.
   // If a filer stores it as a negative outflow, adding it is equivalent.
   out.fcf = cfo != null && capex != null ? (capex < 0 ? cfo + capex : cfo - capex) : null;
+  out.fcf_margin = out.fcf != null && rev ? out.fcf / rev : null;
+  out.cash_conversion = cfo != null && ni ? cfo / ni : null;
+  out.capex_intensity = capex != null && rev ? Math.abs(capex) / rev : null;
+  out.asset_turnover = rev != null && assets ? rev / assets : null;
+  out.leverage = assets != null && equity ? assets / equity : null;
+  out.book_value_ps = equity != null && shares ? equity / shares : null;
+  out.receivables_days = rec != null && rev ? (365 * rec) / rev : null;
   out.revenue_yoy = rev != null && prior ? rev / prior - 1 : null;
   return out;
 }
@@ -197,7 +207,17 @@ export function formatPercent(n, signed = false) {
 
 export function formatRatio(n) {
   if (n == null || !Number.isFinite(n)) return null;
-  return `${n.toFixed(2)}×`;
+  const abs = Math.abs(n);
+  const sign = n < 0 ? '−' : '';
+  if (abs >= 10) return `${sign}${abs.toFixed(1)}×`;
+  return `${sign}${abs.toFixed(2)}×`;
+}
+
+export function formatDays(n) {
+  if (n == null || !Number.isFinite(n)) return null;
+  const abs = Math.abs(n);
+  const sign = n < 0 ? '−' : '';
+  return `${sign}${abs.toFixed(0)} days`;
 }
 
 export function formatMetric(def, point) {
@@ -212,6 +232,8 @@ export function formatDerived(def, value) {
   if (def.format === 'percent') return formatPercent(value, Boolean(def.signed));
   if (def.format === 'ratio') return formatRatio(value);
   if (def.format === 'usd') return formatUsd(value);
+  if (def.format === 'per_share') return formatEps(value);
+  if (def.format === 'days') return formatDays(value);
   return String(value);
 }
 

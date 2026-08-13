@@ -22,6 +22,8 @@ function headlines({
   revenue_yoy,
   roe,
   rd_intensity,
+  asset_turnover,
+  cash_conversion,
   asOfYear = 2025,
 }) {
   return {
@@ -37,6 +39,8 @@ function headlines({
       revenue_yoy: revenue_yoy ?? null,
       roe: roe ?? null,
       rd_intensity: rd_intensity ?? null,
+      asset_turnover: asset_turnover ?? null,
+      cash_conversion: cash_conversion ?? null,
     },
   };
 }
@@ -69,6 +73,12 @@ assert.ok(scale.some((s) => s.includes('Amazon') && s.includes('7.0×') && s.inc
 assert.ok(scale.some((s) => s.includes('net margin') && s.includes('11.0%') && s.includes('3.0%')));
 assert.ok(scale.some((s) => s.includes('grew') && s.includes('shrank')));
 assert.ok(scale.some((s) => s.includes('ROE')));
+
+const turns = buildInsights([
+  { company: co('Grocer'), headlines: headlines({ revenue: 100e9, net_margin: 0.03, asset_turnover: 2.4 }) },
+  { company: co('Utility'), headlines: headlines({ revenue: 80e9, net_margin: 0.08, asset_turnover: 0.4 }) },
+]);
+assert.ok(turns.some((s) => s.includes('sales per dollar of assets') && s.includes('Grocer') && s.includes('Utility')));
 
 const similarSize = buildInsights([
   { company: co('Ford Motor'), headlines: headlines({ revenue: 180e9, net_margin: 0.04, revenue_yoy: 0.03 }) },

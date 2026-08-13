@@ -113,14 +113,14 @@ a { color: var(--ink); }
 .f5-shell {
   width: 100%;
   margin: 0;
-  padding: 16px var(--f5-gutter) 18px;
+  padding: 10px var(--f5-gutter) 10px;
   padding-left: max(var(--f5-gutter), env(safe-area-inset-left));
   padding-right: max(var(--f5-gutter), env(safe-area-inset-right));
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 0;
   height: calc(100dvh - var(--f5-nav-h) - var(--f5-compare-h));
-  min-height: 28rem;
+  min-height: 24rem;
   box-sizing: border-box;
 }
 
@@ -175,8 +175,8 @@ a { color: var(--ink); }
 
 .f5-layout {
   display: grid;
-  grid-template-columns: minmax(280px, min(400px, 26vw)) minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+  gap: 10px;
   align-items: stretch;
   flex: 1 1 auto;
   min-height: 0;
@@ -198,14 +198,14 @@ a { color: var(--ink); }
 }
 
 .f5-list-head {
-  padding: 14px var(--f5-panel-pad) 12px;
+  padding: 10px 12px 8px;
   border-bottom: 1.5px solid var(--line);
   flex-shrink: 0;
 }
 .f5-list-head h2 {
   font-family: var(--display);
-  font-size: 1.05rem;
-  margin: 0 0 8px;
+  font-size: 1rem;
+  margin: 0 0 6px;
 }
 .f5-search {
   width: 100%;
@@ -346,10 +346,10 @@ a { color: var(--ink); }
 .f5-pill-private { background: var(--panel-2); border: 1px solid var(--line); }
 
 .f5-detail {
-  padding: var(--f5-panel-pad) clamp(18px, 2vw, 32px) 24px;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  overflow: auto;
+  overflow: hidden;
 }
 .f5-back {
   display: none;
@@ -611,7 +611,7 @@ body:has(#compare-bar:not([hidden])) .f5-glossary-panel {
   font-size: 0.9rem;
 }
 .f5-table th, .f5-table td {
-  padding: 10px 14px;
+  padding: 6px 10px;
   border-bottom: 1px solid var(--line);
   text-align: right;
   white-space: nowrap;
@@ -673,6 +673,7 @@ body:has(#compare-bar:not([hidden])) .f5-glossary-panel {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  padding: 10px 12px 0;
 }
 .f5-screener h2 {
   font-family: var(--display);
@@ -715,17 +716,17 @@ body:has(#compare-bar:not([hidden])) .f5-glossary-panel {
 .f5-screener-table tr.is-private { opacity: 0.65; }
 
 .f5-insights {
-  margin: 0 0 18px;
-  padding: 16px 20px 16px 36px;
-  border-radius: 12px;
+  margin: 0 0 8px;
+  padding: 8px 12px 8px 28px;
+  border-radius: 10px;
   background: #e8f8fa;
   border: 1.5px solid rgba(54, 206, 220, 0.45);
-  max-width: 52rem;
-  line-height: 1.55;
+  font-size: 0.82rem;
+  line-height: 1.4;
 }
-.f5-insights li { margin: 8px 0; }
+.f5-insights li { margin: 4px 0; }
 
-.f5-chart { margin: 0 0 18px; }
+.f5-chart { margin: 0 0 8px; }
 .f5-chart-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -1098,6 +1099,114 @@ body:has(#compare-bar:not([hidden])) .f5-glossary-panel {
 
 .f5-learn .f5-note { margin-top: 0; }
 
+.f5-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+.f5-detail > .f5-screener,
+.f5-detail > .f5-workspace {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.f5-detail > .f5-error { padding: 16px; }
+.f5-workspace-main {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 10px 14px 12px;
+  display: flex;
+  flex-direction: column;
+}
+.f5-workspace-main .f5-table-wrap { flex: 1 1 auto; min-height: 0; margin: 8px 0 0; }
+.f5-dock {
+  border-left: 1.5px solid var(--line);
+  background: var(--cream);
+  padding: 14px 16px;
+  overflow: auto;
+  min-height: 0;
+}
+.f5-dock h3 {
+  font-family: var(--display);
+  font-size: 1.15rem;
+  margin: 0 0 8px;
+  line-height: 1.2;
+}
+.f5-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin-bottom: 8px;
+  flex: 0 0 auto;
+}
+.f5-toolbar .f5-view-tabs { margin: 0; }
+.f5-toolbar-hint {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.f5-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 6px;
+  margin: 0 0 12px;
+}
+.f5-tile-group h3 {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin: 0 0 6px;
+  opacity: 0.55;
+}
+.f5-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  border: 1.5px solid var(--line);
+  background: var(--panel);
+  border-radius: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+.f5-tile:hover { border-color: var(--cyan); }
+.f5-tile.is-on {
+  background: #e8f8fa;
+  border-color: var(--cyan);
+  box-shadow: inset 0 0 0 1px var(--cyan);
+}
+.f5-tile.is-missing { background: var(--panel-2); }
+.f5-tile-label { font-size: 0.72rem; color: var(--muted); line-height: 1.2; }
+.f5-tile-val { font-family: var(--display); font-size: 1.05rem; font-weight: 600; }
+.f5-inline-suggest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 10px;
+}
+.f5-learn-table tr.is-on td,
+.f5-table tr.is-on td { background: #e8f8fa; }
+.f5-plain-cell {
+  text-align: left !important;
+  white-space: normal !important;
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-weight: 400;
+  max-width: 28rem;
+}
+.f5-company-head { margin-bottom: 8px; }
+.f5-company-head h2 {
+  font-size: clamp(1.15rem, 2vw, 1.55rem);
+}
+.f5-shared-toggle { margin: 0; }
+
 .f5-compare-who { min-width: 0; flex: 1; }
 .f5-chips {
   display: flex;
@@ -1121,25 +1230,33 @@ body:has(#compare-bar:not([hidden])) .f5-glossary-panel {
   .f5-shell {
     height: auto;
     min-height: calc(100dvh - var(--f5-nav-h) - var(--f5-compare-h));
-    padding-top: 14px;
-    padding-bottom: 16px;
+    padding-top: 10px;
+    padding-bottom: 10px;
   }
   .f5-layout {
     grid-template-columns: 1fr;
     min-height: 0;
-    gap: 14px;
+    gap: 10px;
   }
   .f5-list-panel {
-    max-height: min(38vh, 320px);
+    max-height: min(32vh, 260px);
   }
-  .f5-detail { min-height: 52vh; padding: 16px 16px 20px; }
+  .f5-detail { min-height: 52vh; }
   .f5-layout.show-detail .f5-list-panel { display: none; }
   .f5-layout.show-detail .f5-back { display: inline-block; }
   .f5-layout.show-detail .f5-detail {
     min-height: calc(100dvh - var(--f5-nav-h) - var(--f5-compare-h) - 1rem);
   }
+  .f5-workspace {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr auto;
+  }
+  .f5-dock {
+    border-left: 0;
+    border-top: 1.5px solid var(--line);
+    max-height: 40vh;
+  }
   .f5-screener .f5-table-wrap { max-height: min(70vh, 640px); }
   .f5-hero { align-items: flex-start; }
   .f5-stats { justify-content: flex-start; }
-  .f5-table th, .f5-table td { padding: 9px 12px; }
 }
