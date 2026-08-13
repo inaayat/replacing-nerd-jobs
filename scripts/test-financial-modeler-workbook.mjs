@@ -1,7 +1,7 @@
 /**
- * The Excel download has to be a real workbook, not a screenshot in XML: live
- * formulas, inputs isolated on one sheet, and the Wall Street Prep colour
- * code (blue input, black formula, green cross-sheet link).
+ * The Excel download has to be a real .xlsx, not XML pretending to be xls:
+ * OOXML zip, live formulas, inputs isolated on one sheet, and the Wall Street
+ * Prep colour code (blue input, black formula, green cross-sheet link).
  */
 import assert from 'node:assert/strict';
 import {
@@ -11,7 +11,15 @@ import {
   dcfSensitivity,
   runComps,
 } from '../financial-modeler/engine.js';
-import { buildWorkbookXml, workbookFilename } from '../financial-modeler/workbook.js';
+import {
+  buildWorkbook,
+  workbookFilename,
+  STYLE,
+  styleName,
+  r1c1ToA1,
+  colLetter,
+  zipStore,
+} from '../financial-modeler/workbook.js';
 
 const B = 1e9;
 
@@ -61,73 +69,167 @@ const comps = runComps(
 
 const cards = [{ key: 'revenueGrowth', name: 'Sales growth', what: 'How much bigger it gets.', origin: 'From the 10-K.' }];
 
-const xml = buildWorkbookXml({ company, headlines, model, dcf, sensitivity, comps, cards });
+const bytes = buildWorkbook({ company, headlines, model, dcf, sensitivity, comps, cards });
 
-/* --------------------------- shape of the file ------------------------- */
+/* --------------------------- zip / OOXML shape ------------------------- */
 
-assert.match(xml, /^<\?xml version="1\.0"\?>\n<\?mso-application progid="Excel\.Sheet"\?>/);
-assert.equal(workbookFilename(company), 'AAPL-financial-model.xls');
-assert.ok(!xml.includes('undefined'), 'no undefined leaked into a cell or a formula');
-assert.ok(!xml.includes('NaN'), 'no NaN leaked into a cell');
-assert.ok(!/R(undefined|NaN)C/.test(xml), 'every formula resolved a real row number');
+assert.ok(bytes instanceof Uint8Array, 'workbook is a zip byte array');
+assert.equal(bytes[0], 0x50);
+assert.equal(bytes[1], 0x4b);
+assert.equal(bytes[2], 0x03);
+assert.equal(bytes[3], 0x04);
+assert.equal(workbookFilename(company), 'AAPL-financial-model.xlsx');
+
+function unzipStored(buf) {
+  const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  const files = new Map();
+  let offset = 0;
+  while (offset + 30 <= buf.length) {
+    const sig = view.getUint32(offset, true);
+    if (sig !== 0x04034b50) break;
+    const method = view.getUint16(offset + 8, true);
+    const compSize = view.getUint32(offset + 18, true);
+    const nameLen = view.getUint16(offset + 26, true);
+    const extraLen = view.getUint16(offset + 28, true);
+    const name = new TextDecoder().decode(buf.subarray(offset + 30, offset + 30 + nameLen));
+    const start = offset + 30 + nameLen + extraLen;
+    assert.equal(method, 0, `${name} must be STORED (uncompressed)`);
+    files.set(name, new TextDecoder().decode(buf.subarray(start, start + compSize)));
+    offset = start + compSize;
+  }
+  return files;
+}
+
+const zip = unzipStored(bytes);
+for (const part of [
+  '[Content_Types].xml',
+  '_rels/.rels',
+  'xl/workbook.xml',
+  'xl/_rels/workbook.xml.rels',
+  'xl/styles.xml',
+  'xl/worksheets/sheet1.xml',
+]) {
+  assert.ok(zip.has(part), `xlsx is missing ${part}`);
+}
+
+const types = zip.get('[Content_Types].xml');
+assert.match(types, /spreadsheetml\.sheet\.main\+xml/);
+assert.match(types, /spreadsheetml\.worksheet\+xml/);
+assert.match(types, /spreadsheetml\.styles\+xml/);
+assert.ok(!/vnd\.ms-excel/.test(types), 'must not advertise the old SpreadsheetML 2003 type');
+
+const book = zip.get('xl/workbook.xml');
+assert.match(book, /fullCalcOnLoad="1"/, 'Excel should recalc on open');
+const names = [...book.matchAll(/<sheet name="([^"]+)"/g)].map((m) => m[1]);
+assert.deepEqual(names, ['Cover', 'Assumptions', 'IS', 'BS', 'CFS', 'Schedules', 'DCF', 'Comps', 'Checks']);
+assert.ok(names.length > 5);
+
+const allXml = [...zip.values()].join('\n');
+assert.ok(!allXml.includes('undefined'), 'no undefined leaked into a cell or a formula');
+assert.ok(!allXml.includes('NaN'), 'no NaN leaked into a cell');
+assert.ok(!/vbaProject|<Macro|x:MacrosImported/i.test(allXml));
+assert.ok(!/urn:schemas-microsoft-com:office:spreadsheet/.test(allXml), 'must not be SpreadsheetML 2003');
+
+/* --------------------------- colour conventions ------------------------ */
+
+const styleBlock = zip.get('xl/styles.xml');
+assert.match(styleBlock, /<color rgb="FF0000FF"/, 'input style is blue');
+assert.match(styleBlock, /<color rgb="FF008000"/, 'cross-sheet link style is green');
+assert.match(styleBlock, /<color rgb="FF000000"/, 'formula style is black');
+
+const fonts = [...styleBlock.matchAll(/<font>([\s\S]*?)<\/font>/g)].map((m) => m[1]);
+const fontColor = (font) => font.match(/<color rgb="([A-F0-9]+)"/)?.[1];
+assert.equal(fontColor(fonts[4]), 'FF0000FF', 'font 4 is the blue input face');
+assert.equal(fontColor(fonts[5]), 'FF008000', 'font 5 is the green link face');
+assert.equal(fontColor(fonts[0]), 'FF000000', 'font 0 is black');
+
+const cellXfsXml = styleBlock.match(/<cellXfs[\s\S]*?<\/cellXfs>/)[0];
+const xfs = [...cellXfsXml.matchAll(/<xf\b([^>]*)/g)].map((m) => m[1]);
+assert.match(xfs[STYLE.in], /fontId="4"/, 'in xf uses the blue font');
+assert.match(xfs[STYLE.inpct], /fontId="4"/);
+assert.match(xfs[STYLE.innum], /fontId="4"/);
+assert.match(xfs[STYLE.calc], /fontId="0"/, 'calc xf uses the black font');
+assert.match(xfs[STYLE.link], /fontId="5"/, 'link xf uses the green font');
+assert.match(xfs[STYLE.linknum], /fontId="5"/);
+
+/* -------------------- parse sheets (A1 → R1C1 for asserts) ------------- */
+
+function colNumber(letters) {
+  let n = 0;
+  for (const ch of letters) n = n * 26 + (ch.charCodeAt(0) - 64);
+  return n;
+}
+
+function a1RefToR1c1(absCol, letters, absRow, rowNum, curRow, curCol) {
+  const col = colNumber(letters);
+  const row = Number(rowNum);
+  const r = absRow ? `R${row}` : row === curRow ? 'R' : `R[${row - curRow}]`;
+  const c = absCol ? `C${col}` : col === curCol ? 'C' : `C[${col - curCol}]`;
+  return r + c;
+}
+
+function a1ToR1c1(formula, curRow, curCol) {
+  return String(formula).replace(
+    /(?:([A-Za-z_][A-Za-z0-9_.]*)!)?(\$?)([A-Z]+)(\$?)(\d+)/g,
+    (_, sheet, dollarCol, letters, dollarRow, rowNum) => {
+      const ref = a1RefToR1c1(dollarCol === '$', letters, dollarRow === '$', rowNum, curRow, curCol);
+      return sheet ? `${sheet}!${ref}` : ref;
+    }
+  );
+}
 
 const unescapeXml = (s) =>
   s == null
     ? null
     : s.replaceAll('&quot;', '"').replaceAll('&gt;', '>').replaceAll('&lt;', '<').replaceAll('&amp;', '&');
 
-/** Split the workbook into sheets, and each sheet into its rows and cells. */
-function parseSheets(source) {
-  const sheets = new Map();
-  for (const m of source.matchAll(/<Worksheet ss:Name="([^"]+)"><Table>([\s\S]*?)<\/Table><\/Worksheet>/g)) {
-    const rows = [];
-    for (const r of m[2].matchAll(/<Row(?:\/>|>([\s\S]*?)<\/Row>)/g)) {
-      const cells = [];
-      for (const c of (r[1] || '').matchAll(/<Cell([^>]*?)(?:\/>|>([\s\S]*?)<\/Cell>)/g)) {
-        const attrs = c[1] || '';
-        cells.push({
-          style: attrs.match(/ss:StyleID="([^"]+)"/)?.[1] || null,
-          formula: unescapeXml(attrs.match(/ss:Formula="([^"]+)"/)?.[1] || null),
-          value: unescapeXml((c[2] || '').match(/<Data[^>]*>([\s\S]*?)<\/Data>/)?.[1] ?? null),
-        });
-      }
-      rows.push(cells);
+function parseSheetXml(xml) {
+  const rows = [];
+  for (const rm of xml.matchAll(/<row r="(\d+)"[^>]*>([\s\S]*?)<\/row>/g)) {
+    const rowNum = Number(rm[1]);
+    while (rows.length < rowNum) rows.push([]);
+    const cells = rows[rowNum - 1];
+    for (const cm of rm[2].matchAll(/<c ([^>]+)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
+      const attrs = cm[1];
+      const ref = attrs.match(/\br="([A-Z]+)(\d+)"/);
+      if (!ref) continue;
+      const col = colNumber(ref[1]);
+      const xf = Number(attrs.match(/\bs="(\d+)"/)?.[1] ?? 0);
+      const body = cm[2] || '';
+      const fRaw = unescapeXml(body.match(/<f[^>]*>([\s\S]*?)<\/f>/)?.[1] ?? null);
+      const inline = unescapeXml(body.match(/<is><t[^>]*>([\s\S]*?)<\/t><\/is>/)?.[1] ?? null);
+      const v = unescapeXml(body.match(/<v>([\s\S]*?)<\/v>/)?.[1] ?? null);
+      while (cells.length < col) cells.push({ style: null, formula: null, value: null, a1: null });
+      const formula = fRaw == null ? null : a1ToR1c1(fRaw.startsWith('=') ? fRaw : `=${fRaw}`, rowNum, col);
+      cells[col - 1] = {
+        style: styleName(xf),
+        formula,
+        a1: fRaw == null ? null : fRaw.startsWith('=') ? fRaw : `=${fRaw}`,
+        value: inline != null ? inline : v,
+      };
     }
-    sheets.set(m[1], rows);
   }
-  return sheets;
+  return rows;
 }
 
-const sheets = parseSheets(xml);
-const names = [...sheets.keys()];
-assert.deepEqual(names, ['Cover', 'Assumptions', 'IS', 'BS', 'CFS', 'Schedules', 'DCF', 'Comps', 'Checks']);
-// More than five sheets, so WSP wants a cover and a table of contents.
-assert.ok(names.length > 5);
+function parseWorkbook(buf) {
+  const parts = unzipStored(buf);
+  const wb = parts.get('xl/workbook.xml');
+  const sheetNames = [...wb.matchAll(/<sheet name="([^"]+)"/g)].map((m) => m[1]);
+  const sheets = new Map();
+  sheetNames.forEach((name, i) => {
+    sheets.set(name, parseSheetXml(parts.get(`xl/worksheets/sheet${i + 1}.xml`)));
+  });
+  return { sheets, xml: [...parts.values()].join('\n'), parts };
+}
+
+const { sheets, xml } = parseWorkbook(bytes);
 const coverText = sheets.get('Cover').flat().map((c) => c.value).join(' | ');
 for (const name of names.slice(1)) {
   assert.ok(coverText.includes(name), `Cover's table of contents is missing ${name}`);
 }
 assert.ok(coverText.includes('USD'), 'Cover states the currency');
 assert.ok(/[Mm]illions/.test(coverText), 'Cover states the scale');
-
-// No macros anywhere.
-assert.ok(!/vbaProject|<Macro|x:MacrosImported/i.test(xml));
-
-/* --------------------------- colour conventions ------------------------ */
-
-const styleBlock = xml.match(/<Styles>[\s\S]*?<\/Styles>/)[0];
-assert.match(styleBlock, /ss:ID="in"[\s\S]*?ss:Color="#0000FF"/, 'input style is blue');
-assert.match(styleBlock, /ss:ID="calc"><Font ss:Color="#000000"/, 'formula style is black');
-assert.match(styleBlock, /ss:ID="link"><Font ss:Color="#008000"/, 'cross-sheet link style is green');
-
-// SpreadsheetML fixes the order of a Style's children, and Excel refuses to
-// open the file rather than reordering them for you.
-const STYLE_CHILD_ORDER = ['Alignment', 'Borders', 'Font', 'Interior', 'NumberFormat', 'Protection'];
-for (const style of styleBlock.matchAll(/<Style ss:ID="([^"]+)"[^>]*>([\s\S]*?)<\/Style>/g)) {
-  const children = [...style[2].matchAll(/<(Alignment|Borders|Font|Interior|NumberFormat|Protection)[\s>]/g)].map((m) => m[1]);
-  const sorted = [...children].sort((a, b) => STYLE_CHILD_ORDER.indexOf(a) - STYLE_CHILD_ORDER.indexOf(b));
-  assert.deepEqual(children, sorted, `style ${style[1]} lists its children out of schema order`);
-}
 
 const INPUT_STYLES = new Set(['in', 'inpct', 'innum']);
 const LINK_STYLES = new Set(['link', 'linknum']);
@@ -163,15 +265,12 @@ for (const label of [
 ]) {
   assert.ok(drivers.has(label), `Assumptions is missing the ${label} input`);
 }
-// The plain-English copy travels with the cell.
 const growthRow = assumptionRows[drivers.get('Revenue growth (per year)') - 1];
 assert.equal(growthRow[2].value, 'How much bigger it gets.');
 assert.equal(growthRow[3].value, 'From the 10-K.');
 
-// Every Assumptions reference in the workbook lands on a row that really
-// holds an input — reordering a driver used to silently repoint a formula.
 const referenced = new Set();
-for (const m of xml.matchAll(/Assumptions!R(\d+)C2/g)) referenced.add(Number(m[1]));
+for (const m of xml.matchAll(/Assumptions!\$B\$(\d+)/g)) referenced.add(Number(m[1]));
 assert.ok(referenced.size >= 10, 'the statements should read a dozen-odd drivers');
 const inputRowNumbers = new Set(drivers.values());
 for (const row of referenced) {
@@ -192,7 +291,6 @@ for (const sheet of ['IS', 'BS', 'CFS', 'Schedules', 'DCF', 'Comps', 'Checks']) 
   assert.ok(formulas.length > 0, `${sheet} has no live formulas`);
 }
 
-// Historical column first, forecast to the right, no spacer columns.
 const header = findRow('IS', 'US$ in millions').cells;
 assert.equal(header[1].value, 'FY2025A');
 assert.deepEqual(
@@ -200,8 +298,8 @@ assert.deepEqual(
   ['FY2026E', 'FY2027E', 'FY2028E', 'FY2029E', 'FY2030E']
 );
 
-// One row, one calculation: a forecast row uses the identical formula in
-// every one of its columns.
+// One row, one calculation: after converting A1 back to R1C1, a forecast row
+// uses the identical formula in every column.
 for (const [sheet, label] of [
   ['IS', 'Revenue'],
   ['IS', 'Net income'],
@@ -215,12 +313,12 @@ for (const [sheet, label] of [
   assert.ok(forecast[0], `${sheet}!${label} forecast cells are not formulas`);
 }
 
-// Year 0 is the filed number, hard-coded and blue; the forecast is black.
 const revenue = findRow('IS', 'Revenue');
 assert.equal(revenue.cells[1].style, 'in');
 assert.equal(revenue.cells[1].value, '400000');
 assert.equal(revenue.cells[1].formula, null);
 assert.match(revenue.cells[2].formula, /^=RC\[-1\]\*\(1\+Assumptions!R\d+C2\)$/);
+assert.match(revenue.cells[2].a1, /^=B4\*\(1\+Assumptions!\$B\$\d+\)$/);
 
 /* --------------------------- the balance check ------------------------- */
 
@@ -232,10 +330,8 @@ for (const cell of check.cells.slice(1)) {
   assert.equal(cell.formula, `=R${totalAssets.number}C-R${totalLE.number}C`);
   assert.equal(cell.style, 'check');
 }
-// It is a live check, so it must read zero on the numbers we shipped.
 for (const row of model.rows) assert.ok(Math.abs(row.balanceCheck) < model.checks.tolerance);
 
-// The error dashboard mirrors it and adds a negative-cash alarm.
 const dashCheck = findRow('Checks', 'Balance sheet: assets − (liabilities + equity)');
 assert.match(dashCheck.cells[1].formula, /^=BS!R\d+C$/);
 const cashAlarm = findRow('Checks', 'Cash never goes negative');
@@ -243,8 +339,6 @@ assert.match(cashAlarm.cells[1].formula, /IF\(BS!R\d+C>=0,"OK","NEGATIVE"\)/);
 
 /* -------------------- statements wired to each other ------------------- */
 
-// Cash is the plug: the balance sheet reads it off the cash flow statement,
-// which in turn reads last year's balance sheet.
 const bsCash = findRow('BS', 'Cash & equivalents');
 assert.match(bsCash.cells[2].formula, /^=CFS!R\d+C$/);
 assert.equal(bsCash.cells[2].style, 'link');
@@ -252,14 +346,11 @@ const beginCash = findRow('CFS', 'Beginning cash');
 const endCash = findRow('CFS', 'Ending cash');
 assert.equal(beginCash.cells[2].formula, `=R${endCash.number}C[-1]`);
 
-// Interest reads the *beginning* debt balance, so there is no circularity and
-// Excel never needs iterative calculation switched on.
 const debtBegin = findRow('Schedules', 'Beginning balance');
 const interest = findRow('IS', 'Interest expense');
 assert.match(interest.cells[2].formula, /^=-Schedules!R\d+C\*Assumptions!R\d+C2$/);
 assert.ok(debtBegin.number > 0);
 
-// The corkscrews are BASE schedules, not restatements.
 const eqEnd = sheets.get('Schedules').findIndex((cells) => cells[0]?.value === 'Ending balance');
 assert.notEqual(eqEnd, -1);
 
@@ -273,11 +364,9 @@ const fcf = findRow('DCF', 'Unlevered free cash flow');
 assert.match(fcf.cells[2].formula, /^=SUM\(R\d+C:R\d+C\)$/);
 const price = findRow('DCF', 'Implied share price');
 assert.match(price.cells[1].formula, /^=R\d+C2\/R\d+C2$/);
-// A missing market price must not blow up the sheet.
 const upside = findRow('DCF', 'Implied upside / (downside)');
 assert.match(upside.cells[1].formula, /^=IFERROR\(/);
 
-// The sensitivity grid recalculates rather than freezing today's answer.
 const sensCells = sheets
   .get('DCF')
   .flat()
@@ -296,8 +385,6 @@ for (const cell of medianRow.slice(10)) {
 const meanRow = compRows.find((cells) => cells[0]?.value === 'Mean');
 for (const cell of meanRow.slice(10)) assert.match(cell.formula, /AVERAGE\(/);
 
-// The unpriced peer is written with blank price/EV cells and its multiples
-// come out as "nr" — never as a zero that would drag the median down.
 const peerB = compRows.find((cells) => cells[0]?.value === 'Peer B');
 assert.equal(peerB[2].value, null, 'no price for the unpriced peer');
 assert.equal(peerB[5].value, null, 'no net debt without an enterprise value');
@@ -305,9 +392,20 @@ assert.match(peerB[10].formula, /^=IFERROR\(/);
 
 /* ---------------------- picking only some of the models ---------------- */
 
-const isOnly = parseSheets(
-  buildWorkbookXml({ company, headlines, model, dcf, sensitivity, comps, cards, include: { dcf: false, comps: false } })
+const isOnly = parseWorkbook(
+  buildWorkbook({ company, headlines, model, dcf, sensitivity, comps, cards, include: { dcf: false, comps: false } })
 );
-assert.deepEqual([...isOnly.keys()], ['Cover', 'Assumptions', 'IS', 'BS', 'CFS', 'Schedules', 'Checks']);
+assert.deepEqual([...isOnly.sheets.keys()], ['Cover', 'Assumptions', 'IS', 'BS', 'CFS', 'Schedules', 'Checks']);
+
+/* ---------------------- converter + zip smoke -------------------------- */
+
+assert.equal(r1c1ToA1('RC[-1]*(1+Assumptions!R6C2)', 4, 3), 'B4*(1+Assumptions!$B$6)');
+assert.equal(r1c1ToA1('R8C-R14C', 8, 4), 'D$8-D$14');
+assert.equal(r1c1ToA1('CFS!R16C', 4, 3), 'CFS!C$16');
+assert.equal(colLetter(1), 'A');
+assert.equal(colLetter(27), 'AA');
+
+const roundTrip = unzipStored(zipStore([{ name: 'hello.txt', data: 'hi' }]));
+assert.equal(roundTrip.get('hello.txt'), 'hi');
 
 console.log('financial modeler workbook tests passed');

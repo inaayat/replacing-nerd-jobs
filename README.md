@@ -80,9 +80,11 @@ download an Excel workbook with live formulas.
 where **cash is the plug** and the balance check is a real test, a two-stage
 DCF off its unlevered free cash flow, and peer multiples. Interest is charged
 on *beginning* balances, so nothing in the model (or the workbook) is circular.
-`financial-modeler/workbook.js` writes SpreadsheetML with the WSP colour code —
+`financial-modeler/workbook.js` writes a real Office Open XML `.xlsx` (a zip of
+the usual workbook / worksheet / styles parts) with the WSP colour code —
 blue input, black formula, green cross-sheet link — inputs isolated on one
-Assumptions sheet, and a Checks error dashboard.
+Assumptions sheet, and a Checks error dashboard. Formulas stay live; the file
+opens in Excel, Numbers, and Sheets.
 
 The snapshot has no tag for net PP&E, payables, or D&A, so those sit in two
 labelled residual lines (which is what makes year 0 equal the filed totals) and
@@ -510,5 +512,7 @@ node scripts/test-alist-watchlist-sort.mjs
 node scripts/test-alist-showing.mjs
 node scripts/test-fortune500-extract.mjs
 node scripts/test-fortune500-insights.mjs
+node scripts/test-financial-modeler-engine.mjs
+node scripts/test-financial-modeler-workbook.mjs
 node scripts/test-ai-buildout.mjs
 ```

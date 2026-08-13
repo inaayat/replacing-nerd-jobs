@@ -17,7 +17,7 @@ import {
   SCALE,
 } from './engine.js';
 import { DIALS, DIAL_GROUPS, dialsFor } from './dials.js';
-import { buildWorkbookXml, workbookFilename, downloadWorkbook } from './workbook.js';
+import { buildWorkbook, workbookFilename, downloadWorkbook } from './workbook.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -189,6 +189,7 @@ async function selectCompany(company) {
 
   if (!isPublic(company)) {
     state.headlines = null;
+    document.body.classList.remove('has-company');
     $('status').className = 'fm-status is-warn';
     $('status').textContent = `${company.company} is private. ${PRIVATE_NOTES?.[company.company] || 'No 10-K means no statements to model — we won’t invent them.'}`;
     $('step-models').hidden = true;
@@ -199,6 +200,7 @@ async function selectCompany(company) {
 
   const headlines = headlinesFor(company);
   if (!headlines) {
+    document.body.classList.remove('has-company');
     $('status').className = 'fm-status is-warn';
     $('status').textContent = `${company.company} isn’t in the filing snapshot yet, so there’s nothing to build from.`;
     return;
@@ -206,6 +208,7 @@ async function selectCompany(company) {
   state.headlines = headlines;
   const ready = modelReadiness(headlines);
   if (!ready.ok) {
+    document.body.classList.remove('has-company');
     $('status').className = 'fm-status is-warn';
     $('status').textContent = `${company.company}’s filing is missing ${ready.missing.join(', ')} — a balance sheet can’t be built without those, and filling them with zero would be a lie.`;
     $('step-build').hidden = true;
@@ -217,6 +220,7 @@ async function selectCompany(company) {
   state.assumptions = defaultAssumptions(headlines);
   state.scenario = 'base';
   state.peers = peerSet(company);
+  document.body.classList.add('has-company');
   $('step-models').hidden = false;
   $('step-build').hidden = false;
   $('dock').hidden = false;
@@ -401,10 +405,12 @@ function threeStatementPanel(model) {
     <h3>The three statements</h3>
     <p class="fm-aside"><strong>How this is built:</strong> revenue grows by your rate, margins turn it into profit, and profit flows into equity. Cash is whatever is left over after the other two statements have had their say — so if the balance check below reads zero, the model is internally honest.</p>
     <p class="${balances ? 'fm-flag is-ok' : 'fm-flag is-bad'}">${balances ? 'Balance sheet ties in every year' : 'Balance sheet does not tie — do not trust this'}</p>
-    ${is}
-    ${bs}
+    <div class="fm-statements">
+      <div class="fm-statement">${is}</div>
+      <div class="fm-statement">${bs}</div>
+      <div class="fm-statement">${cfs}</div>
+    </div>
     <p class="fm-aside">${escapeHtml(model.residualNote)}</p>
-    ${cfs}
     <div class="fm-legend"><span class="is-blue">Blue — your input</span><span class="is-black">Black — calculated</span><span class="is-green">Green — link between sheets (in the Excel)</span></div>
   </section>`;
 }
@@ -585,7 +591,7 @@ function endTour() {
 function download() {
   const run = currentRun();
   if (!run?.model?.ok) return;
-  const xml = buildWorkbookXml({
+  const bytes = buildWorkbook({
     company: state.company,
     headlines: state.headlines,
     model: run.model,
@@ -595,7 +601,7 @@ function download() {
     cards: assumptionCards(),
     include: { dcf: state.models.includes('dcf'), comps: state.models.includes('comps') },
   });
-  downloadWorkbook(workbookFilename(state.company), xml);
+  downloadWorkbook(workbookFilename(state.company), bytes);
 }
 
 /* --------------------------------- boot -------------------------------- */
