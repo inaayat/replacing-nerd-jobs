@@ -1,9 +1,11 @@
-/* Palette borrowed from the site home page: cream field, ink type, one fun red.
-   Red is a fill colour — ink on #f05e53 clears AA, cream on it does not — so
-   text that must sit on cream uses --al-red-deep instead. */
+/* Palette borrowed from the site home page: cream field, ink type, one loud red.
+   Red is a fill colour only. Nothing clears AA against pure red — ink is the
+   best of a bad set at 4.26:1, cream 3.62:1 — so text on a red fill is always
+   full-strength ink (alpha only makes it worse), and text that has to sit on
+   cream uses --al-red-deep instead. */
 :root {
   --al-cream: #faf3e3;
-  --al-red: #f05e53;
+  --al-red: #ff0000;
   --al-red-deep: #c93b2e;
   --al-purple: #755ca7;
   --al-cyan: #78a8d5;
@@ -146,7 +148,7 @@ a { color: var(--al-red-deep); }
   font-weight: 400;
   font-style: italic;
   line-height: 1.35;
-  color: rgba(28, 28, 28, 0.72);
+  color: var(--al-black);
 }
 
 .al-sidebar-stats {
@@ -3660,7 +3662,7 @@ table.al-table {
     font-size: 0.72rem;
     font-weight: 600;
     text-decoration: none;
-    color: rgba(28, 28, 28, 0.7);
+    color: var(--al-black);
     text-align: center;
     line-height: 1.15;
   }
