@@ -96,13 +96,13 @@
         --on-dark-blob: #f5ebe0;
       }
       [data-theme="zohran"] {
-        --bg: #ffdfd3;
-        --ink: #1e3a8a;
-        --ink-muted: #475569;
-        --tile-bg: #4a9b8e;
-        --tile-border: #ffffff55;
-        --gutter: #ffdfd3;
-        --cream: #ffffff;
+        --bg: #dc2626;
+        --ink: #1a4fd6;
+        --ink-muted: #1e40af;
+        --tile-bg: #faf3e3;
+        --tile-border: #1a4fd622;
+        --gutter: #dc2626;
+        --cream: #faf3e3;
         --purple: #1a4fd6;
         --cyan: #1a4fd6;
         --green: #1a4fd6;
@@ -110,9 +110,9 @@
         --orange: #f5c400;
         --pink: #1a4fd6;
         --red: #1a4fd6;
-        --gray: #c8d8f0;
-        --on-dark-blob: #ffffff;
-        --on-light-blob: #1e3a8a;
+        --gray: #f5d0d0;
+        --on-dark-blob: #f5c400;
+        --on-light-blob: #1a4fd6;
       }
       *, *::before, *::after { box-sizing: border-box; }
       html, body { height: 100%; height: 100dvh; overflow: hidden; }
@@ -266,7 +266,10 @@
       [data-theme="zohran"] .item-card.card-red .icon img,
       [data-theme="zohran"] .item-card.card-red .icon svg,
       [data-theme="zohran"] .item-card.card-pink .icon img,
-      [data-theme="zohran"] .item-card.card-pink .icon svg { filter: invert(1) brightness(1.6); }
+      [data-theme="zohran"] .item-card.card-pink .icon svg {
+        filter: brightness(0) saturate(100%) invert(78%) sepia(74%) saturate(650%) hue-rotate(359deg) brightness(104%) contrast(101%);
+        opacity: 0.9;
+      }
 
       /* Neutral tones — reserved for "coming soon" placeholders, never for live projects */
       .card-cream {
@@ -346,18 +349,17 @@
         box-shadow: 0 0 0 11px var(--gutter), 0 12px 30px rgba(0, 0, 0, 0.45);
       }
       [data-theme="zohran"] .title-card {
-        color: #ffffff;
-        box-shadow: 0 0 0 11px var(--gutter), 0 12px 30px rgba(30, 58, 138, 0.16);
+        box-shadow: 0 0 0 11px var(--gutter), 0 12px 30px rgba(0, 0, 0, 0.18);
       }
       [data-theme="zohran"] .title-card .brand,
       [data-theme="zohran"] .title-card .sidebar-link,
-      [data-theme="zohran"] .title-card .lede { color: #ffffff; }
-      [data-theme="zohran"] .title-card .sidebar-link { opacity: 0.78; }
+      [data-theme="zohran"] .title-card .lede { color: var(--ink); }
+      [data-theme="zohran"] .title-card .sidebar-link { opacity: 0.62; }
       [data-theme="zohran"] .title-card .sidebar-link:hover { opacity: 1; }
-      [data-theme="zohran"] .title-card .lede { opacity: 0.9; }
+      [data-theme="zohran"] .title-card .lede { opacity: 0.78; }
       [data-theme="zohran"] .theme-btn.is-active {
-        border-color: #ffffff;
-        background: color-mix(in srgb, #ffffff 16%, transparent);
+        border-color: var(--ink);
+        background: color-mix(in srgb, var(--ink) 10%, transparent);
       }
       @media (max-width: 640px) {
         .title-card {
@@ -545,20 +547,17 @@
           </button>
           <button type="button" class="theme-btn" data-theme="zohran" aria-label="Zohran campaign theme" aria-pressed="false" title="Zohran">
             <svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="12" cy="12" r="11" fill="#ffdfd3"/>
-              <circle cx="12" cy="13.2" r="4.3" fill="#f0c49a"/>
-              <path d="M8.2 14.4c1 1.6 2.4 2.4 3.8 2.4s2.8-.8 3.8-2.4c-.4 1.6-1.8 2.8-3.8 2.8s-3.4-1.2-3.8-2.8z" fill="#5c3d2e"/>
-              <path d="M8.8 12.1c.8.2 1.6.3 2.4.3" fill="none" stroke="#5c3d2e" stroke-width="0.55" stroke-linecap="round"/>
-              <circle cx="10.4" cy="12.3" r="0.45" fill="#1e3a8a"/>
-              <circle cx="13.6" cy="12.3" r="0.45" fill="#1e3a8a"/>
-              <path d="M10.8 13.5c.7.45 1.7.45 2.4 0" fill="none" stroke="#5c3d2e" stroke-width="0.55" stroke-linecap="round"/>
-              <path d="M6.2 9.2 7.1 7.1 8.3 8.8 9.5 6.4 10.7 8.8 11.9 6.4 13.1 8.8 14.3 6.4 15.5 8.8 16.7 6.4 17.9 8.8 19.1 7.1 20 9.2" fill="#4a9b8e"/>
-              <rect x="6.4" y="8.8" width="11.2" height="1.8" rx="0.35" fill="#3d8578"/>
-              <rect x="7.4" y="9.15" width="1.1" height="0.65" rx="0.12" fill="#dff5ef"/>
-              <rect x="9.35" y="9.15" width="1.1" height="0.65" rx="0.12" fill="#dff5ef"/>
-              <rect x="11.45" y="9.15" width="1.1" height="0.65" rx="0.12" fill="#dff5ef"/>
-              <rect x="13.55" y="9.15" width="1.1" height="0.65" rx="0.12" fill="#dff5ef"/>
-              <rect x="15.65" y="9.15" width="1.1" height="0.65" rx="0.12" fill="#dff5ef"/>
+              <circle cx="12" cy="12" r="11" fill="#faf3e3"/>
+              <rect x="7.5" y="18.2" width="9" height="1.8" rx="0.45" fill="#1a4fd6"/>
+              <path d="M9.2 18.2V11.8c0-1.8 1.3-3.2 2.8-3.2s2.8 1.4 2.8 3.2v6.4" fill="#1a4fd6"/>
+              <path d="M8.2 8.8 9.1 6.6 10.1 8.4 12 5.8 13.9 8.4 14.9 6.6 15.8 8.8" fill="#f5c400"/>
+              <rect x="8.4" y="8.3" width="7.2" height="1.5" rx="0.3" fill="#e03a3e"/>
+              <rect x="7.1" y="10.8" width="1.8" height="3.2" rx="0.35" fill="#f5c400"/>
+              <path d="M15.8 10.2v4.8" stroke="#f5c400" stroke-width="1.1" stroke-linecap="round"/>
+              <circle cx="15.8" cy="9.3" r="1.05" fill="#f5c400"/>
+              <circle cx="11.2" cy="10.8" r="0.55" fill="#f5c400"/>
+              <circle cx="12.8" cy="10.8" r="0.55" fill="#f5c400"/>
+              <path d="M11.3 12.1c.5.35 1.2.35 1.7 0" fill="none" stroke="#f5c400" stroke-width="0.45" stroke-linecap="round"/>
             </svg>
           </button>
         </div>
