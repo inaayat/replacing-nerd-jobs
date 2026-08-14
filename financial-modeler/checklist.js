@@ -8,22 +8,27 @@ export function renderChecklist(steps, activeId, { onSelect, preview, title, sub
     .map((step, i) => {
       const active = step.id === activeId;
       const status = active ? 'active' : 'pending';
+      const label = step.pillLabel || step.title;
       return `<li class="fm-build-step is-${status}">
-        <button type="button" class="fm-build-step-btn" data-build-step="${step.id}" aria-current="${active ? 'step' : 'false'}">
-          <span class="fm-build-step-num">${i + 1}</span>
-          <span class="fm-build-step-title">${escapeHtml(step.title)}</span>
+        <button type="button" class="fm-build-step-btn" data-build-step="${step.id}" aria-current="${active ? 'step' : 'false'}" title="${escapeHtml(step.title)}">
+          <span class="fm-build-step-label">${i + 1}. ${escapeHtml(label)}</span>
         </button>
       </li>`;
     })
     .join('');
 
   const active = steps.find((s) => s.id === activeId) || steps[0];
+  const activeNum = steps.findIndex((s) => s.id === activeId) + 1 || 1;
+  const pillLabel = active.pillLabel || active.title;
   const previewHtml = preview
     ? `<p class="fm-build-preview"><strong>Live preview.</strong> ${escapeHtml(preview)}</p>`
     : '';
   const detail = active
-    ? `<div class="fm-build-detail">
-        <p class="fm-build-instruction">${escapeHtml(active.instruction)}</p>
+    ? `<div class="fm-build-detail" aria-live="polite">
+        <h4 class="fm-build-detail-title">Step ${activeNum}: ${escapeHtml(pillLabel)}</h4>
+        <p><strong>What this step does.</strong> ${escapeHtml(active.instruction)}</p>
+        ${active.whyOrder ? `<p><strong>Why it comes here.</strong> ${escapeHtml(active.whyOrder)}</p>` : ''}
+        ${active.tableRows ? `<p><strong>Rows it drives.</strong> ${escapeHtml(active.tableRows)}</p>` : ''}
         ${active.formula ? `<p class="fm-build-formula"><strong>Formula.</strong> ${escapeHtml(active.formula)}</p>` : ''}
         ${previewHtml}
       </div>`
@@ -37,6 +42,7 @@ export function renderChecklist(steps, activeId, { onSelect, preview, title, sub
     : '';
 
   const html = `${header}<nav class="fm-build-checklist" aria-label="${escapeHtml(title || 'Build steps')}">
+    <p class="fm-build-pills-lede">Tap a step to see what it does and which table rows it affects.</p>
     <ol class="fm-build-steps">${items}</ol>
     ${detail}
   </nav>`;

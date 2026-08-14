@@ -32,6 +32,26 @@ import {
   runUnitEcon,
 } from './unit-econ.js';
 import {
+  SINGLE_UNIT_DIALS,
+  SINGLE_UNIT_DIAL_GROUPS,
+  UNIT_SCENARIO_DRIVERS,
+  defaultSingleUnitAssumptions,
+  runSingleUnitPortfolio,
+} from './unit-portfolio.js';
+import {
+  CAPITAL_DIALS,
+  defaultCapitalProjectAssumptions,
+  runCapitalProject,
+} from './capital-project.js';
+import {
+  defaultStrategicAssumptions,
+  runStrategicAppraisal,
+} from './strategic-investment.js';
+import {
+  defaultMarketEntryAssumptions,
+  runMarketEntry,
+} from './market-entry.js';
+import {
   createScenarioState,
   setActiveScenario,
   editScenarioValue,
@@ -75,6 +95,7 @@ const state = {
   sensitivityPreset: 'dcfWaccGrowth',
   goalSeekTarget: '',
   goalSeekInput: 'revenueGrowth',
+  unitTemplate: 'lemonade',
 };
 
 const TABS = [
@@ -84,6 +105,9 @@ const TABS = [
     hint: 'Income statement, balance sheet, and cash flow wired together. DCF and comps build on this.',
     filer: true,
     unit: true,
+    capital: true,
+    strategic: true,
+    market: true,
   },
   {
     id: 'dcf',
@@ -91,6 +115,9 @@ const TABS = [
     hint: 'Depends on unlevered free cash flow from the three-statement forecast.',
     filer: true,
     unit: false,
+    capital: false,
+    strategic: false,
+    market: false,
   },
   {
     id: 'comps',
@@ -98,6 +125,9 @@ const TABS = [
     hint: 'Depends on your peer set and live market prices — not an auto-picked neighbour list.',
     filer: true,
     unit: false,
+    capital: false,
+    strategic: false,
+    market: false,
   },
   {
     id: 'scenarios',
@@ -105,13 +135,19 @@ const TABS = [
     hint: 'Changes several assumptions together — unlike sensitivity, which isolates one or two drivers.',
     filer: true,
     unit: true,
+    capital: false,
+    strategic: false,
+    market: false,
   },
   {
     id: 'sensitivity',
     label: 'Sensitivity',
     hint: 'Holds other assumptions constant while two drivers move — a range of outcomes, not one answer.',
     filer: true,
-    unit: false,
+    unit: true,
+    capital: false,
+    strategic: false,
+    market: false,
   },
   {
     id: 'checks',
@@ -119,6 +155,9 @@ const TABS = [
     hint: 'Balance-sheet tie, warnings, and Excel download. Workbook includes only the models you selected in setup.',
     filer: true,
     unit: true,
+    capital: true,
+    strategic: true,
+    market: true,
     always: true,
   },
 ];
@@ -131,8 +170,23 @@ const EXERCISES = [
   },
   {
     id: 'unit',
-    title: 'From one sale',
-    blurb: 'A lemonade stall: cups × price, cost per cup, a cart you depreciate. Same three statements, smaller numbers.',
+    title: 'Single-unit economics',
+    blurb: 'Unit P&L, optional portfolio rollout, and returns — start from the lemonade example or a blank template.',
+  },
+  {
+    id: 'capital',
+    title: 'Capital project',
+    blurb: 'Construction, funding, operations, and project vs equity returns for a long-lived asset.',
+  },
+  {
+    id: 'strategic',
+    title: 'Strategic investment',
+    blurb: 'Compare build, buy, partner, license, lease, delay, and do-nothing with incremental NPV.',
+  },
+  {
+    id: 'market',
+    title: 'Market entry',
+    blurb: 'Regional market sizing, entry structures, FX, and risk-adjusted returns.',
   },
 ];
 
@@ -183,8 +237,28 @@ const fmtM = (n) =>
 const fmtPrice = (n) => (Number.isFinite(n) ? `$${n.toFixed(2)}` : null);
 const fmtX = (n) => (Number.isFinite(n) ? `${n.toFixed(1)}×` : null);
 
+function isFiler() {
+  return state.exercise === 'filer';
+}
+
 function isUnit() {
   return state.exercise === 'unit';
+}
+
+function isCapital() {
+  return state.exercise === 'capital';
+}
+
+function isStrategic() {
+  return state.exercise === 'strategic';
+}
+
+function isMarket() {
+  return state.exercise === 'market';
+}
+
+function isStandaloneExercise() {
+  return isUnit() || isCapital() || isStrategic() || isMarket();
 }
 
 function syncAssumptionsFromScenarios() {
@@ -195,12 +269,18 @@ function syncAssumptionsFromScenarios() {
 }
 
 function initScenarioState(defaults) {
-  state.scenarioState = createScenarioState(defaults);
+  const drivers = isUnit() ? UNIT_SCENARIO_DRIVERS : SCENARIO_DRIVERS;
+  state.scenarioState = createScenarioState(defaults, drivers);
   syncAssumptionsFromScenarios();
+}
+
+function scenarioDrivers() {
+  return state.scenarioState?.drivers || SCENARIO_DRIVERS;
 }
 
 function dialValueText(dial, value) {
   if (value == null || !Number.isFinite(value)) return '—';
+  if (dial.fmt === 'bool') return value ? 'On' : 'Off';
   if (dial.fmt === 'pct') return `${(value * 100).toFixed(1)}%`;
   if (dial.fmt === 'days') return `${Math.round(value)} days`;
   if (dial.fmt === 'years') return `${Math.round(value)} years`;
@@ -274,14 +354,19 @@ function compsOn() {
 }
 
 function workspaceLive() {
-  return isUnit() ? Boolean(state.assumptions) : Boolean(state.company && state.headlines);
+  if (isFiler()) return Boolean(state.company && state.headlines);
+  return Boolean(state.assumptions);
 }
 
 function availableTabs() {
   return TABS.filter((t) => {
     if (t.always) return true;
+    if (isFiler()) return t.filer;
     if (isUnit()) return t.unit;
-    return t.filer;
+    if (isCapital()) return t.capital;
+    if (isStrategic()) return t.strategic;
+    if (isMarket()) return t.market;
+    return false;
   });
 }
 
@@ -303,11 +388,11 @@ function ensureActiveTab() {
 function syncLayout() {
   const live = workspaceLive();
   document.body.classList.toggle('has-company', live);
-  document.body.classList.toggle('is-unit', isUnit());
+  document.body.classList.toggle('is-unit', isStandaloneExercise());
   $('setup-summary').hidden = !live || Boolean(state.setupEdit);
-  $('setup').hidden = isUnit() || (live && !state.setupEdit);
+  $('setup').hidden = isStandaloneExercise() || (live && !state.setupEdit);
   $('step-exercise').hidden = live && state.setupEdit !== 'exercise';
-  if (isUnit()) {
+  if (isStandaloneExercise()) {
     $('step-models').hidden = true;
     $('step-peers').hidden = true;
     $('step-build').hidden = !live;
@@ -734,11 +819,32 @@ function activeDialGroups() {
   return isUnit() ? UNIT_DIAL_GROUPS : DIAL_GROUPS;
 }
 
+function applyBuildStepHighlight() {
+  const guideTabs = { three: 'three', dcf: 'dcf', comps: 'comps' };
+  const guideTab = guideTabs[state.activeTab];
+  if (!guideTab) return;
+  const steps = stepsForTab(guideTab);
+  const activeId = state.buildStep[guideTab] || steps[0]?.id;
+  const step = steps.find((s) => s.id === activeId);
+  const keys = new Set(step?.rowKeys || []);
+  document.querySelectorAll('[data-row-key]').forEach((tr) => {
+    tr.classList.toggle('fm-trace-highlight', keys.has(tr.dataset.rowKey));
+  });
+}
+
 function applyTraceHighlight(key) {
   const keys = new Set(key ? dependencyRowKeys(key) : []);
   document.querySelectorAll('[data-row-key]').forEach((tr) => {
     tr.classList.toggle('fm-trace-highlight', keys.has(tr.dataset.rowKey));
   });
+}
+
+function syncRowHighlights() {
+  if (state.focusedAssumption) {
+    applyTraceHighlight(state.focusedAssumption);
+    return;
+  }
+  applyBuildStepHighlight();
 }
 
 function renderDependencyTrace(key) {
@@ -751,15 +857,16 @@ function renderDependencyTrace(key) {
 const BUILD_GUIDE = {
   three: {
     title: 'How this model is built',
-    subtitle: 'Build order for the tables below — not a second model.',
+    subtitle:
+      'Build order for the tables below — not a second model. Each step is one piece of the 3-statement (revenue → costs → cash → balance sheet).',
   },
   dcf: {
     title: 'How this model is built',
-    subtitle: 'Build order for the DCF output below — not a second model.',
+    subtitle: 'Build order for the DCF output below — not a second model. Each step adds one piece of the valuation.',
   },
   comps: {
     title: 'How this model is built',
-    subtitle: 'Build order for the comps tables below — not a second model.',
+    subtitle: 'Build order for the comps tables below — not a second model. Each step adds one piece of the peer comparison.',
   },
 };
 
@@ -819,6 +926,7 @@ function focusAssumption(key, { rerenderModel = false } = {}) {
     row.classList.toggle('is-active', row.dataset.dialKey === key);
   });
   applyTraceHighlight(key);
+  if (!key) syncRowHighlights();
   if (rerenderModel) render();
 }
 
@@ -1562,7 +1670,7 @@ function render() {
   $('output').innerHTML = panel.html;
   renderInspectorChecklist(panel.context);
 
-  applyTraceHighlight(state.focusedAssumption);
+  syncRowHighlights();
 
   $('sensitivity-preset')?.addEventListener('change', (e) => {
     state.sensitivityPreset = e.target.value;
