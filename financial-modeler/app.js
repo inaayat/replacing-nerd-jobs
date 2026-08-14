@@ -2132,12 +2132,21 @@ function render() {
   } else {
     $('dock-name').textContent = `${state.company.company} · FY${state.headlines.asOfYear}`;
   }
-  $('dock-check').textContent = (() => {
-    if (model.kind === 'strategic') return model.checks.probabilitiesSum ? 'Probabilities OK' : 'Fix probability weights';
-    if (model.kind === 'capital-project') return model.checks.sourcesUses ? 'Project checks pass' : 'Sources/uses issue';
-    if (model.kind === 'market-entry') return `Preferred: ${model.preferredStructure || '—'}`;
-    return model.checks?.balances ? 'Balance sheet ties · ready to download' : 'Balance sheet does not tie';
-  })();
+  const dockCheck = $('dock-check');
+  if (dockCheck) {
+    if (isFiler()) {
+      dockCheck.hidden = true;
+      dockCheck.textContent = '';
+    } else {
+      dockCheck.hidden = false;
+      dockCheck.textContent = (() => {
+        if (model.kind === 'strategic') return model.checks.probabilitiesSum ? 'Probabilities OK' : 'Fix probability weights';
+        if (model.kind === 'capital-project') return model.checks.sourcesUses ? 'Project checks pass' : 'Sources/uses issue';
+        if (model.kind === 'market-entry') return `Preferred: ${model.preferredStructure || '—'}`;
+        return model.checks?.balances ? 'Balance sheet ties · ready to download' : 'Balance sheet does not tie';
+      })();
+    }
+  }
 }
 
 function renderPicks() {
