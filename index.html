@@ -616,11 +616,11 @@
 
       .project-row {
         display: grid;
-        grid-template-columns: auto minmax(0, 1fr);
+        grid-template-columns: auto minmax(0, max-content) auto;
         grid-template-rows: auto auto auto;
-        column-gap: 10px;
+        column-gap: 8px;
         row-gap: 4px;
-        align-items: start;
+        align-items: baseline;
         width: 100%;
         box-sizing: border-box;
         padding: 10px 12px;
@@ -639,21 +639,19 @@
         outline-offset: 3px;
       }
       .project-row .row-top {
-        grid-column: 1;
-        grid-row: 1;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 4px;
-        min-width: 3.2rem;
+        display: contents;
       }
       .project-row .row-num {
+        grid-column: 1;
+        grid-row: 1;
         font-size: 0.6rem;
         letter-spacing: 0.08em;
         text-transform: uppercase;
         opacity: 0.62;
       }
       .project-row .row-status {
+        grid-column: 3;
+        grid-row: 1;
         font-size: 0.56rem;
         letter-spacing: 0.1em;
         text-transform: uppercase;
@@ -661,6 +659,7 @@
         border-radius: 999px;
         background: color-mix(in srgb, var(--ink) 10%, transparent);
         opacity: 0.88;
+        white-space: nowrap;
       }
       .project-row.is-failed .row-status {
         background: color-mix(in srgb, var(--ink) 18%, transparent);
@@ -669,10 +668,10 @@
       .project-row .row-title {
         grid-column: 2;
         grid-row: 1;
-        align-self: center;
+        margin: 0;
+        min-width: 0;
         font-size: 1.02rem;
         line-height: 1.2;
-        margin: 0;
       }
       .project-row .row-blurb,
       .project-row .row-outcome {
