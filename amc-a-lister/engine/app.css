@@ -1,7 +1,9 @@
-/* Grey field, black ink, deep red fills — white is only for type on red. */
+/* Grey field, black ink, soft red panels with deep red accents. */
 :root {
   --al-cream: #e6e6e6;
   --al-red: #aa0000;
+  --al-red-soft: #f2d6d6;
+  --al-red-soft-deep: #e8c0c0;
   --al-red-deep: #d43900;
   --al-purple: #755ca7;
   --al-cyan: #78a8d5;
@@ -25,7 +27,12 @@
   --al-red-tint-strong: color-mix(in srgb, var(--al-red) 22%, transparent);
   --al-red-edge: color-mix(in srgb, var(--al-red) 40%, transparent);
   --al-red-ring: color-mix(in srgb, var(--al-red) 50%, transparent);
-  /* Type and surfaces sitting on brand-red fills (sidebar, log panel). */
+  /* Large soft-red surfaces (sidebar, panels) — dark type reads easier than white-on-red. */
+  --al-on-soft: var(--al-text);
+  --al-on-soft-muted: var(--al-muted);
+  --al-on-soft-surface: rgba(255, 255, 255, 0.72);
+  --al-on-soft-border: color-mix(in srgb, var(--al-red) 16%, transparent);
+  /* Deep red fills — white type only on small accent shapes. */
   --al-on-red: #ffffff;
   --al-on-red-muted: rgba(255, 255, 255, 0.72);
   --al-on-red-faint: rgba(255, 255, 255, 0.14);
@@ -88,9 +95,9 @@ a { color: var(--al-red-deep); }
 
 .al-sidebar {
   flex-shrink: 0;
-  background: var(--al-red);
-  color: var(--al-on-red);
-  border: 1px solid color-mix(in srgb, var(--al-black) 22%, var(--al-red));
+  background: var(--al-red-soft);
+  color: var(--al-on-soft);
+  border: 1px solid var(--al-on-soft-border);
   border-radius: var(--al-radius);
   padding: 16px;
   display: flex;
@@ -111,15 +118,15 @@ a { color: var(--al-red-deep); }
   .al-sidebar { width: 340px; }
 }
 
-/* Brand inset on the red sidebar rail. */
+/* Brand card: the one deep-red accent on the soft sidebar. */
 .al-sidebar-brand {
   display: flex;
   flex-direction: column;
   gap: 4px;
   padding: 14px 16px 12px;
   border-radius: 16px;
-  background: color-mix(in srgb, var(--al-black) 16%, var(--al-red));
-  border: 1px solid var(--al-on-red-border);
+  background: var(--al-red);
+  border: 1px solid color-mix(in srgb, var(--al-black) 18%, var(--al-red));
   color: var(--al-on-red);
 }
 
@@ -165,12 +172,12 @@ a { color: var(--al-red-deep); }
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--al-on-red-muted);
+  color: var(--al-on-soft-muted);
 }
 
 .al-sidebar-stat {
-  background: var(--al-on-red-surface);
-  border: 1px solid var(--al-on-red-border);
+  background: var(--al-on-soft-surface);
+  border: 1px solid var(--al-on-soft-border);
   border-radius: 12px;
   padding: 10px 10px 8px;
   min-width: 0;
@@ -179,7 +186,7 @@ a { color: var(--al-red-deep); }
 .al-sidebar-stat-label {
   font-size: 0.7rem;
   font-weight: 400;
-  color: var(--al-on-red-muted);
+  color: var(--al-on-soft-muted);
 }
 
 .al-sidebar-stat-value {
@@ -187,12 +194,12 @@ a { color: var(--al-red-deep); }
   font-size: 1.1rem;
   font-weight: 600;
   font-family: var(--al-font-mono);
-  color: var(--al-on-red);
+  color: var(--al-on-soft);
   font-variant-numeric: tabular-nums;
 }
 
-.al-sidebar-stat-value.is-savings { color: #d4f0a8; }
-.al-sidebar-stat-value.is-cost { color: #ffc4a8; }
+.al-sidebar-stat-value.is-savings { color: var(--al-green-deep); }
+.al-sidebar-stat-value.is-cost { color: var(--al-red-deep); }
 
 .al-sidebar-nav {
   display: flex;
@@ -210,13 +217,13 @@ a { color: var(--al-red-deep); }
   font-weight: 500;
   line-height: 1.3;
   text-decoration: none;
-  color: var(--al-on-red-muted);
+  color: var(--al-on-soft-muted);
   border-radius: 999px;
 }
 
 .al-nav-link:hover {
-  color: var(--al-on-red);
-  background: var(--al-on-red-surface);
+  color: var(--al-on-soft);
+  background: var(--al-on-soft-surface);
 }
 
 .al-nav-link.is-active {
@@ -231,25 +238,25 @@ a { color: var(--al-red-deep); }
   gap: 6px;
   font-size: 0.8rem;
   padding-top: 12px;
-  border-top: 1px solid var(--al-on-red-border);
+  border-top: 1px solid var(--al-on-soft-border);
 }
 
 .al-sidebar-footer a {
-  color: var(--al-on-red-muted);
+  color: var(--al-on-soft-muted);
   text-decoration: none;
 }
 
-.al-sidebar-footer a:hover { color: var(--al-on-red); }
+.al-sidebar-footer a:hover { color: var(--al-red-deep); }
 
 .al-sidebar .al-tmdb-credit {
-  color: var(--al-on-red-muted);
+  color: var(--al-on-soft-muted);
 }
 
 .al-sidebar .al-tmdb-credit a {
-  color: var(--al-on-red-muted);
+  color: var(--al-on-soft-muted);
 }
 
-.al-sidebar .al-tmdb-credit a:hover { color: var(--al-on-red); }
+.al-sidebar .al-tmdb-credit a:hover { color: var(--al-red-deep); }
 
 .al-content-scroll {
   flex: 1 1 auto;
@@ -3342,21 +3349,23 @@ table.al-table {
 
 .al-mobile-nav { display: none; }
 
-/* Signed-in shell: red panels + quick-log bar; light cards/rows inside. */
+/* Signed-in shell: soft red panels + quick-log bar; white card rows inside. */
 .page-main .al-panel,
-.page-main .al-quicklog {
-  background: var(--al-red);
-  border-color: color-mix(in srgb, var(--al-black) 22%, var(--al-red));
-  color: var(--al-on-red);
+.page-main .al-quicklog,
+.page-main .al-bulk-ratings-bar {
+  background: var(--al-red-soft);
+  border-color: var(--al-on-soft-border);
+  color: var(--al-on-soft);
 }
 
 .page-main .al-quicklog::before {
-  background: color-mix(in srgb, var(--al-black) 18%, var(--al-red));
+  background: var(--al-red);
 }
 
 .page-main .al-panel .al-muted,
-.page-main .al-quicklog .al-muted {
-  color: var(--al-on-red-muted);
+.page-main .al-quicklog .al-muted,
+.page-main .al-bulk-ratings-bar .al-muted {
+  color: var(--al-on-soft-muted);
 }
 
 .page-main .al-panel h2,
@@ -3366,34 +3375,34 @@ table.al-table {
 .page-main .al-panel .al-insight-toggle h2,
 .page-main .al-panel .al-tier-header h2,
 .page-main .al-panel .al-invites-title {
-  color: var(--al-on-red);
+  color: var(--al-on-soft);
 }
 
 .page-main .al-panel .al-insight-kicker,
 .page-main .al-panel .al-invites-subhead {
-  color: var(--al-on-red-muted);
+  color: var(--al-on-soft-muted);
 }
 
 .page-main .al-panel .al-insight-chevron,
 .page-main .al-panel .al-invites-chevron {
-  border-color: var(--al-on-red-muted);
+  border-color: var(--al-on-soft-muted);
 }
 
 .page-main .al-panel .al-log-head,
 .page-main .al-panel .al-bulk-ratings-head {
-  color: var(--al-on-red-muted);
+  color: var(--al-on-soft-muted);
 }
 
 .page-main .al-panel .al-invites-outgoing-text {
-  color: var(--al-on-red);
+  color: var(--al-on-soft);
 }
 
 .page-main .al-panel .al-invites-outgoing-item {
-  border-color: var(--al-on-red-border);
+  border-color: var(--al-on-soft-border);
 }
 
 .page-main .al-panel .al-error {
-  color: #ffd4d4;
+  color: var(--al-red-deep);
 }
 
 .page-main .al-panel .al-toolbar :is(.al-input, .al-select),
@@ -3402,83 +3411,73 @@ table.al-table {
 .page-main .al-panel form.al-panel :is(.al-input, .al-select, .al-textarea),
 .page-main .al-panel > form :is(.al-input, .al-select, .al-textarea),
 .page-main .al-quicklog .al-quicklog-input {
-  background: var(--al-on-red-surface);
-  border-color: var(--al-on-red-border);
-  color: var(--al-on-red);
+  background: var(--al-on-soft-surface);
+  border-color: var(--al-on-soft-border);
+  color: var(--al-on-soft);
 }
 
 .page-main .al-panel .al-toolbar :is(.al-input, .al-select)::placeholder,
 .page-main .al-quicklog .al-quicklog-input::placeholder {
-  color: var(--al-on-red-muted);
+  color: var(--al-on-soft-muted);
 }
 
 .page-main .al-quicklog-field label,
 .page-main .al-panel > form .al-field label,
 .page-main .al-panel form.al-panel .al-field label {
-  color: var(--al-on-red-muted);
+  color: var(--al-on-soft-muted);
 }
 
 .page-main .al-panel .al-toolbar .al-toggle-btn,
 .page-main .al-panel .al-compare-toolbar .al-btn,
 .page-main .al-panel .al-toolbar .al-btn {
-  border-color: var(--al-on-red-border);
-  color: var(--al-on-red-muted);
-  background: var(--al-on-red-surface);
+  border-color: var(--al-on-soft-border);
+  color: var(--al-on-soft-muted);
+  background: var(--al-on-soft-surface);
 }
 
 .page-main .al-panel .al-toolbar .al-toggle-btn:hover,
 .page-main .al-panel .al-toolbar .al-btn:hover,
 .page-main .al-panel .al-compare-toolbar .al-btn:hover {
-  color: var(--al-on-red);
-  border-color: var(--al-on-red);
+  color: var(--al-on-soft);
+  border-color: var(--al-red-soft-deep);
 }
 
 .page-main .al-panel .al-toolbar .al-toggle-btn.is-active,
 .page-main .al-panel .al-toolbar .al-toggle-btn[aria-pressed="true"],
 .page-main .al-panel .al-toolbar .al-btn-primary,
 .page-main .al-panel .al-compare-toolbar .al-btn-primary {
-  background: var(--al-white);
-  border-color: var(--al-white);
-  color: var(--al-red);
+  background: var(--al-red);
+  border-color: var(--al-red);
+  color: var(--al-white);
 }
 
 .page-main .al-quicklog .al-quicklog-mode-btn {
-  border-color: var(--al-on-red-border);
-  color: var(--al-on-red-muted);
+  border-color: var(--al-on-soft-border);
+  color: var(--al-on-soft-muted);
 }
 
 .page-main .al-quicklog .al-quicklog-mode-btn.is-active {
-  background: var(--al-white);
-  border-color: var(--al-white);
-  color: var(--al-red);
+  background: var(--al-red);
+  border-color: var(--al-red);
+  color: var(--al-white);
   font-weight: 600;
 }
 
 .page-main .al-quicklog .al-quicklog-submit {
-  background: var(--al-white);
-  color: var(--al-red);
+  background: var(--al-red);
+  color: var(--al-white);
 }
 
 .page-main .al-quicklog .al-quicklog-submit:hover {
-  filter: brightness(0.97);
+  filter: brightness(0.95);
 }
 
-.page-main .al-quicklog .al-quicklog-status.is-success { color: #d4f0a8; }
-.page-main .al-quicklog .al-quicklog-status.is-error { color: #ffd4d4; }
+.page-main .al-quicklog .al-quicklog-status.is-success { color: var(--al-green-deep); }
+.page-main .al-quicklog .al-quicklog-status.is-error { color: var(--al-red-deep); }
 
 .page-main .al-search-results {
   background: var(--al-white);
   color: var(--al-text);
-}
-
-.page-main .al-bulk-ratings-bar {
-  background: var(--al-red);
-  border-color: color-mix(in srgb, var(--al-black) 22%, var(--al-red));
-  color: var(--al-on-red);
-}
-
-.page-main .al-bulk-ratings-bar .al-muted {
-  color: var(--al-on-red-muted);
 }
 
 .page-main .al-panel :where(
@@ -3613,18 +3612,18 @@ table.al-table {
 .page-main .al-panel .al-theater-rating-meta,
 .page-main .al-panel .al-theater-rating-rank,
 .page-main .al-panel .al-rating-bar-label {
-  color: var(--al-on-red-muted);
+  color: var(--al-on-soft-muted);
 }
 
 .page-main .al-panel .al-theater-rating-score,
 .page-main .al-panel .al-format-charged,
 .page-main .al-panel .al-rating-bar-count {
-  color: var(--al-on-red);
+  color: var(--al-on-soft);
 }
 
 .page-main .al-panel .al-rating-bar-row:hover,
 .page-main .al-panel .al-rating-bar-row:focus-within {
-  background: var(--al-on-red-surface);
+  background: var(--al-on-soft-surface);
 }
 
 .page-main .al-panel .al-segment-btn.is-active {
@@ -3940,9 +3939,10 @@ table.al-table {
     z-index: 40;
     padding: 4px;
     gap: 4px;
-    background: var(--al-red);
+    background: var(--al-red-soft);
+    border: 1px solid var(--al-on-soft-border);
     border-radius: 16px;
-    box-shadow: 0 8px 28px rgba(28, 28, 28, 0.18);
+    box-shadow: 0 8px 28px rgba(28, 28, 28, 0.12);
   }
 
   .al-mobile-nav-link {
@@ -3955,15 +3955,14 @@ table.al-table {
     font-size: 0.72rem;
     font-weight: 600;
     text-decoration: none;
-    color: var(--al-white);
+    color: var(--al-on-soft-muted);
     text-align: center;
     line-height: 1.15;
   }
 
-  /* The active item is the one label not sitting on red, so it keeps ink. */
   .al-mobile-nav-link.is-active {
-    background: var(--al-panel);
-    color: var(--al-black);
+    background: var(--al-red);
+    color: var(--al-white);
   }
 
   .al-mobile-nav-link--icon {
@@ -3984,7 +3983,7 @@ table.al-table {
     width: 100%;
     padding: 12px;
     margin-bottom: 10px;
-    border: 1px solid color-mix(in srgb, var(--al-black) 22%, var(--al-red));
+    border: 1px solid var(--al-on-soft-border);
     border-radius: 14px;
   }
 
