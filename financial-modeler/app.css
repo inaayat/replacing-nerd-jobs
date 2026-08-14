@@ -1894,6 +1894,7 @@ body.fm-is-mobile .fm-mobile-lede-note {
 }
 body.fm-is-mobile .fm-tour { display: none !important; }
 body.fm-is-mobile .fm-web-only-setup { display: none; }
+body.fm-is-mobile .fm-quick { display: none; }
 
 /* Keep the landing on one phone screen: one-row nav, short hero, five
    exercise rows filling the leftover height so none sit below the fold. */
