@@ -549,7 +549,7 @@ function renderWorkspaceAdjust() {
   if (!isFiler()) {
     bar.innerHTML = `<div class="fm-ws-adjust">
       <span class="fm-ws-ex-label">${escapeHtml(exerciseShortLabel())}</span>
-      ${switchEx}
+      <span class="fm-ws-switch">${switchEx}</span>
     </div>`;
     bar.querySelector('[data-switch-exercise]')?.addEventListener('click', switchToLanding);
     return;
@@ -558,7 +558,7 @@ function renderWorkspaceAdjust() {
   const companyLabel = currentCompanyLabel();
   bar.innerHTML = `<div class="fm-ws-adjust">
     <div class="fm-ws-field" id="ws-company-block">
-      <input id="ws-company-search" class="fm-ws-input fm-ws-company-input" type="search" value="${escapeHtml(companyLabel)}" placeholder="Search company…" autocomplete="off" aria-label="Company you’re modeling" />
+      <input id="ws-company-search" class="fm-ws-input fm-ws-field-input" type="search" value="${escapeHtml(companyLabel)}" placeholder="Search company…" autocomplete="off" aria-label="Company you’re modeling" />
       <div class="fm-ws-pop" id="ws-company-pop" hidden>
         <div class="fm-results" id="ws-company-results" hidden></div>
       </div>
@@ -566,13 +566,13 @@ function renderWorkspaceAdjust() {
     <div class="fm-ws-peers" id="ws-peers-block">
       <div class="fm-peer-chips" id="ws-peer-chips"></div>
       <div class="fm-ws-field">
-        <input id="ws-peer-search" class="fm-ws-input fm-ws-peer-input" type="search" placeholder="Add peer…" autocomplete="off" aria-label="Add a peer" />
+        <input id="ws-peer-search" class="fm-ws-input fm-ws-field-input" type="search" placeholder="Add peer…" autocomplete="off" aria-label="Add a peer" />
         <div class="fm-ws-pop" id="ws-peer-pop" hidden>
           <div class="fm-results" id="ws-peer-results" hidden></div>
         </div>
       </div>
     </div>
-    ${switchEx}
+    <span class="fm-ws-switch">${switchEx}</span>
   </div>`;
 
   bindWorkspaceAdjust(bar);
@@ -1276,16 +1276,8 @@ function renderAssumptionListHtml() {
     })
     .join('');
 
-  const modelToggles = isFiler()
-    ? `<div class="fm-ws-models" role="group" aria-label="Models to include">
-        <button type="button" data-ws-model="three" aria-pressed="true" disabled title="The 3-statement is the base — it stays on">3-statement</button>
-        <button type="button" data-ws-model="dcf" aria-pressed="${state.models.includes('dcf')}">DCF</button>
-        <button type="button" data-ws-model="comps" aria-pressed="${compsOn()}">Comps</button>
-      </div>`
-    : '';
-
   return {
-    chrome: `${modelToggles}${isUnit() ? `<div class="fm-unit-template" role="group" aria-label="Unit template">
+    chrome: `${isUnit() ? `<div class="fm-unit-template" role="group" aria-label="Unit template">
       <button type="button" data-unit-template="lemonade" aria-pressed="${state.unitTemplate === 'lemonade'}">Lemonade example</button>
       <button type="button" data-unit-template="blank" aria-pressed="${state.unitTemplate === 'blank'}">Blank template</button>
     </div>` : ''}${
@@ -1299,10 +1291,6 @@ function renderAssumptionListHtml() {
 
 function bindAssumptionList(wrap) {
   const active = isStandaloneExercise() ? exerciseDialList() : assumptionCatalog(state.models);
-
-  wrap.querySelectorAll('[data-ws-model]').forEach((btn) => {
-    btn.addEventListener('click', () => toggleModel(btn.dataset.wsModel));
-  });
 
   wrap.querySelectorAll('[data-unit-template]').forEach((btn) => {
     btn.onclick = () => {

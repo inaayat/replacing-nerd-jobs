@@ -104,7 +104,7 @@
             <div class="fm-landing-block">
               <h3>Companies you compare against</h3>
               <p>Optional. Used for trading comps — you can add or drop names later in the model.</p>
-              <div class="fm-peer-row">
+              <div class="fm-peer-add">
                 <input
                   id="peer-search"
                   class="fm-search fm-peer-search"
@@ -113,8 +113,8 @@
                   autocomplete="off"
                   aria-label="Search companies to compare against"
                 />
-                <div class="fm-peer-chips" id="peer-chips"></div>
               </div>
+              <div class="fm-peer-chips" id="peer-chips"></div>
               <div class="fm-results" id="peer-results" hidden></div>
               <p class="fm-status" id="peer-status"></p>
             </div>
@@ -136,10 +136,10 @@
       <section class="fm-step fm-workspace-step" id="step-build" hidden>
         <header class="fm-workspace-head">
           <div class="fm-workspace-head-row">
+            <div class="fm-ws-setup" id="workspace-setup" hidden></div>
             <nav class="fm-tabs" id="model-tabs" role="tablist" aria-label="Model views"></nav>
             <div class="fm-workspace-status" id="workspace-status"></div>
           </div>
-          <div class="fm-workspace-setup" id="workspace-setup" hidden></div>
         </header>
         <div class="fm-workspace-body">
           <aside class="fm-assump-rail" id="assumptions-bar" aria-label="Assumptions">
