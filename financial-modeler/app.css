@@ -293,21 +293,34 @@ tr.fm-link-interest td:first-child { background: rgba(26, 73, 196, 0.1); }
 }
 
 .fm-landing {
-  display: grid;
-  grid-template-columns: 1fr 0fr;
-  column-gap: 0;
-  align-items: start;
-  transition: grid-template-columns 360ms ease, column-gap 360ms ease;
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  transition: gap 580ms cubic-bezier(0.16, 1, 0.3, 1);
 }
-.fm-landing.is-filer {
-  grid-template-columns: 1fr 1.15fr;
-  column-gap: 16px;
+.fm-landing > .fm-exercise-picks {
+  flex: 1 1 auto;
+  min-width: 0;
 }
-.fm-landing > * { min-width: 0; }
 .fm-landing-slide {
+  flex: 0 0 0%;
+  width: 0%;
+  max-width: 0%;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  transition:
+    flex-basis 580ms cubic-bezier(0.16, 1, 0.3, 1),
+    width 580ms cubic-bezier(0.16, 1, 0.3, 1),
+    max-width 580ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.fm-landing.is-filer {
+  gap: 16px;
+}
+.fm-landing.is-filer .fm-landing-slide {
+  flex-basis: 54%;
+  width: 54%;
+  max-width: 54%;
 }
 .fm-landing-filer {
   display: flex;
@@ -320,27 +333,31 @@ tr.fm-link-interest td:first-child { background: rgba(26, 73, 196, 0.1); }
   border-radius: 12px;
   background: var(--paper-2);
   opacity: 0;
-  transform: translateX(16px);
-  transition: opacity 280ms ease, transform 360ms ease;
+  transition: opacity 200ms ease;
 }
 .fm-landing.is-filer .fm-landing-filer {
   opacity: 1;
-  transform: none;
+  transition: opacity 400ms ease 140ms;
 }
 @media (max-width: 899px) {
   .fm-landing {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto 0fr;
-    transition: grid-template-rows 360ms ease, row-gap 360ms ease;
+    flex-direction: column;
+    transition: gap 580ms cubic-bezier(0.16, 1, 0.3, 1);
   }
-  .fm-landing.is-filer {
-    grid-template-rows: auto 1fr;
-    row-gap: 16px;
+  .fm-landing-slide {
+    flex-basis: auto;
+    width: 100%;
+    max-width: 100%;
+    max-height: 0;
+    transition: max-height 580ms cubic-bezier(0.16, 1, 0.3, 1);
   }
-  .fm-landing-filer { transform: translateY(12px); }
+  .fm-landing.is-filer .fm-landing-slide {
+    max-height: 90rem;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .fm-landing,
+  .fm-landing-slide,
   .fm-landing-filer { transition: none; }
 }
 .fm-landing-block h3 {
