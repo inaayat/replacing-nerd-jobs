@@ -70,84 +70,87 @@
             <p>Same three statements. Different place to start.</p>
           </div>
         </div>
-        <div class="fm-exercise-picks" id="exercise-picks"></div>
+        <div class="fm-landing" id="landing">
+          <div class="fm-exercise-picks" id="exercise-picks"></div>
+          <aside class="fm-landing-filer" id="landing-filer" hidden>
+            <div class="fm-landing-block">
+              <h3>Pick the company</h3>
+              <p>Fortune 500 filers, plus a watchlist (GoDaddy, Wix, Cloudflare, …). Last year’s 10-K is year 0.</p>
+              <div class="fm-search-wrap">
+                <input
+                  id="search"
+                  class="fm-search"
+                  type="search"
+                  placeholder="Search by name or ticker…"
+                  autocomplete="off"
+                  aria-label="Search companies"
+                />
+                <div class="fm-quick" id="quick"></div>
+                <div class="fm-quick" id="quick-extra"></div>
+              </div>
+              <div class="fm-results" id="results" hidden></div>
+              <p class="fm-status" id="status">Loading the company list…</p>
+            </div>
+            <div class="fm-landing-block">
+              <h3>Companies you compare against</h3>
+              <p>Optional. Used for trading comps — you can add or drop names later in the model.</p>
+              <div class="fm-peer-row">
+                <input
+                  id="peer-search"
+                  class="fm-search fm-peer-search"
+                  type="search"
+                  placeholder="Add a peer by name or ticker…"
+                  autocomplete="off"
+                  aria-label="Search companies to compare against"
+                />
+                <div class="fm-peer-chips" id="peer-chips"></div>
+              </div>
+              <div class="fm-results" id="peer-results" hidden></div>
+              <p class="fm-status" id="peer-status"></p>
+            </div>
+            <button type="button" class="fm-btn" id="landing-next" disabled>
+              Next — open the model
+            </button>
+          </aside>
+        </div>
       </section>
 
       <div class="fm-setup-summary" id="setup-summary" hidden>
         <div class="fm-summary-grid" id="summary-grid"></div>
       </div>
-
-      <div class="fm-setup" id="setup">
-        <section class="fm-step" id="step-company">
-          <div class="fm-step-head">
-            <span class="fm-step-num">2</span>
-            <div>
-              <h2>Pick a company</h2>
-              <p>Fortune 500 filers, plus a watchlist (GoDaddy, Wix, Cloudflare, …).</p>
-            </div>
-          </div>
-          <div class="fm-search-wrap">
-            <input
-              id="search"
-              class="fm-search"
-              type="search"
-              placeholder="Search by name or ticker…"
-              autocomplete="off"
-              aria-label="Search companies"
-            />
-            <div class="fm-quick" id="quick"></div>
-            <div class="fm-quick" id="quick-extra"></div>
-          </div>
-          <div class="fm-results" id="results" hidden></div>
-          <p class="fm-status" id="status">Loading the company list…</p>
-        </section>
-
-        <section class="fm-step" id="step-models" hidden>
-          <div class="fm-step-head">
-            <span class="fm-step-num">3</span>
-            <div>
-              <h2>Choose your models</h2>
-              <p>Run all three — they build on each other, and they all land in one workbook.</p>
-            </div>
-          </div>
-          <div class="fm-model-picks" id="model-picks"></div>
-        </section>
-
-        <section class="fm-step" id="step-peers" hidden>
-          <div class="fm-step-head">
-            <span class="fm-step-num">4</span>
-            <div>
-              <h2>Pick the companies you compare against</h2>
-              <p>Comps are only as honest as this list. Similar businesses — not whoever sits nearby in the Fortune ranking.</p>
-            </div>
-          </div>
-          <div class="fm-peer-row">
-            <input
-              id="peer-search"
-              class="fm-search fm-peer-search"
-              type="search"
-              placeholder="Add a peer by name or ticker…"
-              autocomplete="off"
-              aria-label="Search companies to compare against"
-            />
-            <div class="fm-peer-chips" id="peer-chips"></div>
-          </div>
-          <div class="fm-results" id="peer-results" hidden></div>
-          <p class="fm-status" id="peer-status"></p>
-        </section>
+      <div class="fm-setup" id="setup" hidden>
+        <div class="fm-model-picks" id="model-picks" hidden></div>
       </div>
 
       <section class="fm-step fm-workspace-step" id="step-build" hidden>
         <header class="fm-workspace-head">
           <div class="fm-workspace-head-row">
             <nav class="fm-tabs" id="model-tabs" role="tablist" aria-label="Model views"></nav>
-            <div class="fm-workspace-setup" id="workspace-setup" hidden></div>
             <div class="fm-workspace-status" id="workspace-status"></div>
           </div>
+          <div class="fm-workspace-setup" id="workspace-setup" hidden></div>
           <p class="fm-tab-hint" id="tab-hint" hidden></p>
         </header>
         <div class="fm-workspace-body">
           <aside class="fm-assump-rail" id="assumptions-bar" aria-label="Assumptions">
+            <div class="fm-inspector" id="inspector">
+              <button
+                type="button"
+                class="fm-inspector-summary"
+                id="inspector-toggle"
+                aria-expanded="false"
+                aria-controls="inspector-panel"
+              >
+                How this model is built
+              </button>
+              <div class="fm-inspector-reveal">
+                <div class="fm-inspector-reveal-inner">
+                  <div class="fm-inspector-panel" id="inspector-panel">
+                    <div class="fm-inspector-checklist" id="inspector-checklist"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
             <div class="fm-assump-freeze">
               <h2 class="fm-assump-heading">Change these assumptions — they build the model</h2>
               <div class="fm-assump-pop" id="assumption-detail" aria-live="polite"></div>
@@ -157,12 +160,6 @@
           </aside>
           <div class="fm-main">
             <div class="fm-main-scroll" id="output" role="tabpanel"></div>
-            <details class="fm-inspector" id="inspector">
-              <summary class="fm-inspector-summary">How this model is built</summary>
-              <div class="fm-inspector-panel">
-                <div class="fm-inspector-checklist" id="inspector-checklist"></div>
-              </div>
-            </details>
           </div>
         </div>
         <div class="fm-inspector-sheet" id="inspector-sheet" hidden>
