@@ -415,8 +415,15 @@ function syncLayout() {
   if (setupEl) setupEl.hidden = true;
 
   $('step-exercise').hidden = live;
+  const landing = $('landing');
   const filerCol = $('landing-filer');
-  if (filerCol) filerCol.hidden = live || !isFiler();
+  const showFiler = !live && isFiler();
+  landing?.classList.toggle('is-filer', showFiler);
+  if (filerCol) {
+    filerCol.ariaHidden = showFiler ? 'false' : 'true';
+    filerCol.inert = !showFiler;
+  }
+  if (showFiler) renderLandingModels();
 
   $('step-build').hidden = !live;
   $('dock').hidden = !live;
@@ -444,6 +451,45 @@ function updateLandingNext() {
   btn.textContent = ready
     ? `Next — open ${state.company.fortune_ticker || state.company.company}`
     : 'Next — open the model';
+}
+
+function modelToggleHtml(prefix) {
+  const dcfOn = state.models.includes('dcf');
+  const comps = state.models.includes('comps');
+  return `<button type="button" data-${prefix}-model="three" aria-pressed="true" disabled title="The 3-statement is the base — it stays on">3-statement</button>
+    <button type="button" data-${prefix}-model="dcf" aria-pressed="${dcfOn}">DCF</button>
+    <button type="button" data-${prefix}-model="comps" aria-pressed="${comps}">Trading comps</button>`;
+}
+
+function toggleModel(id) {
+  if (id === 'three') return;
+  state.models = state.models.includes(id)
+    ? state.models.filter((m) => m !== id)
+    : [...state.models, id];
+  if (!state.models.includes('three')) state.models.unshift('three');
+  renderLandingModels();
+  if (workspaceLive()) {
+    ensureActiveTab();
+    render();
+    renderWorkspaceAdjust();
+  }
+}
+
+function renderLandingModels() {
+  const wrap = $('landing-models');
+  if (!wrap) return;
+  wrap.querySelectorAll('[data-landing-model]').forEach((btn) => {
+    const id = btn.dataset.landingModel;
+    const on = state.models.includes(id);
+    btn.setAttribute('aria-pressed', String(on));
+  });
+}
+
+function bindLandingModels() {
+  $('landing-models')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-landing-model]');
+    if (btn && !btn.disabled) toggleModel(btn.dataset.landingModel);
+  });
 }
 
 function enterWorkspace() {
@@ -488,8 +534,6 @@ function renderWorkspaceAdjust() {
   const companyName = state.company?.company || 'Pick a company';
   const ticker = state.company?.fortune_ticker || '';
   const companyLabel = ticker ? `${companyName} (${ticker})` : companyName;
-  const dcfOn = state.models.includes('dcf');
-  const comps = compsOn();
 
   bar.innerHTML = `<div class="fm-ws-adjust">
     <div class="fm-ws-block">
@@ -510,9 +554,7 @@ function renderWorkspaceAdjust() {
     <div class="fm-ws-block">
       <span class="fm-ws-kicker">What’s in this model</span>
       <div class="fm-ws-models" role="group" aria-label="Models to include">
-        <button type="button" data-ws-model="three" aria-pressed="true" disabled title="The 3-statement is the base — it stays on">3-statement</button>
-        <button type="button" data-ws-model="dcf" aria-pressed="${dcfOn}">DCF</button>
-        <button type="button" data-ws-model="comps" aria-pressed="${comps}">Trading comps</button>
+        ${modelToggleHtml('ws')}
       </div>
     </div>
     <div class="fm-ws-block" id="ws-peers-block">
@@ -542,17 +584,7 @@ function bindWorkspaceAdjust(bar) {
   search?.addEventListener('input', (e) => renderWsCompanyResults(e.target.value));
 
   bar.querySelectorAll('[data-ws-model]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const id = btn.dataset.wsModel;
-      if (id === 'three') return;
-      state.models = state.models.includes(id)
-        ? state.models.filter((m) => m !== id)
-        : [...state.models, id];
-      if (!state.models.includes('three')) state.models.unshift('three');
-      ensureActiveTab();
-      render();
-      renderWorkspaceAdjust();
-    });
+    btn.addEventListener('click', () => toggleModel(btn.dataset.wsModel));
   });
 
   $('ws-peer-search')?.addEventListener('input', (e) => renderWsPeerResults(e.target.value));
@@ -2158,6 +2190,7 @@ async function boot() {
   });
 
   $('landing-next')?.addEventListener('click', () => enterWorkspace());
+  bindLandingModels();
   $('tour-next').onclick = () => {
     state.tourStep += 1;
     if (state.tourStep >= TOUR.length) endTour();

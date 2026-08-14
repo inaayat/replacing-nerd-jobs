@@ -72,7 +72,8 @@
         </div>
         <div class="fm-landing" id="landing">
           <div class="fm-exercise-picks" id="exercise-picks"></div>
-          <aside class="fm-landing-filer" id="landing-filer" hidden>
+          <div class="fm-landing-slide">
+          <aside class="fm-landing-filer" id="landing-filer" aria-hidden="true" inert>
             <div class="fm-landing-block">
               <h3>Pick the company</h3>
               <p>Fortune 500 filers, plus a watchlist (GoDaddy, Wix, Cloudflare, …). Last year’s 10-K is year 0.</p>
@@ -90,6 +91,15 @@
               </div>
               <div class="fm-results" id="results" hidden></div>
               <p class="fm-status" id="status">Loading the company list…</p>
+            </div>
+            <div class="fm-landing-block">
+              <h3>Models to build</h3>
+              <p>3-statement is the base. Turn on DCF and trading comps if you want them in the same workbook.</p>
+              <div class="fm-ws-models" id="landing-models" role="group" aria-label="Models to include">
+                <button type="button" data-landing-model="three" aria-pressed="true" disabled title="The 3-statement is the base — it stays on">3-statement</button>
+                <button type="button" data-landing-model="dcf" aria-pressed="true">DCF</button>
+                <button type="button" data-landing-model="comps" aria-pressed="true">Trading comps</button>
+              </div>
             </div>
             <div class="fm-landing-block">
               <h3>Companies you compare against</h3>
@@ -112,6 +122,7 @@
               Next — open the model
             </button>
           </aside>
+          </div>
         </div>
       </section>
 
