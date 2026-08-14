@@ -1111,32 +1111,42 @@ td.fm-blank { color: var(--rule-strong); }
   flex: none;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   padding: 14px 14px 12px;
   border-bottom: 1px solid var(--rule);
+}
+.fm-rail-dog {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+.fm-rail-titles {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
 }
 .fm-rail-logo,
 .fm-rail-section {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
   text-decoration: none;
   font-family: Fraunces, Georgia, serif;
   font-weight: 600;
   font-size: 14px;
   color: var(--ink);
   min-width: 0;
+  white-space: nowrap;
 }
-.fm-rail-logo img { object-fit: contain; flex: none; }
 .fm-rail-section {
   padding-left: 12px;
   border-left: 1px solid var(--rule);
 }
-.fm-rail-section span,
-.fm-rail-logo span {
+.fm-rail-logo span,
+.fm-rail-section span {
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .fm-rail-setup {
   flex: none;
