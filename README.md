@@ -71,26 +71,44 @@ Share prices (last + daily history) come from Yahoo Finance via
 
 ### Financial Modeler — `/financial-modeler`
 
-Beginner-friendly modeling bench on the same SEC snapshot the Fortune 500 page
-reads. Pick a public filer, pick any of three Wall Street Prep model types
-(3-statement, DCF, trading comps), choose the peer set yourself when comps
-are on, move a handful of plain-English guesses, and
-download an Excel workbook with live formulas.
+Beginner-friendly modeling bench. Two exercises share the same three-statement
+wiring (cash is the plug, interest on beginning balances, a real balance check):
 
-`financial-modeler/engine.js` is the whole model: an integrated 3-statement
+- **From a 10-K** — pick a public Fortune 500 filer (or a watchlist name such as
+  GoDaddy, Wix, Cloudflare, Robinhood), pick any of three Wall Street
+  Prep model types (3-statement, DCF, trading comps), choose the peer set yourself
+  when comps are on, move a handful of plain-English guesses.
+- **From one sale** — a lemonade stall built from cups × price, cost per cup, and a
+  cart you depreciate. Same statements, dollars instead of millions.
+
+Either exercise downloads an Excel workbook with live formulas.
+
+`financial-modeler/engine.js` is the 10-K model: an integrated 3-statement
 where **cash is the plug** and the balance check is a real test, a two-stage
 DCF off its unlevered free cash flow, and peer multiples. Interest is charged
 on *beginning* balances, so nothing in the model (or the workbook) is circular.
+`financial-modeler/unit-econ.js` is the cups × price exercise (same plug, same
+non-circular interest, straight-line depreciation on year-1 equipment).
 `financial-modeler/workbook.js` writes a real Office Open XML `.xlsx` (a zip of
 the usual workbook / worksheet / styles parts) with the WSP colour code —
 blue input, black formula, green cross-sheet link — inputs isolated on one
 Assumptions sheet, and a Checks error dashboard. Formulas stay live; the file
-opens in Excel, Numbers, and Sheets.
+opens in Excel, Numbers, and Sheets. The statements stack full-width on the
+page so every forecast year stays on screen; gold / green / blue highlights
+mark the net-income, cash-plug, and interest handoffs between statements.
 
 The snapshot has no tag for net PP&E, payables, or D&A, so those sit in two
 labelled residual lines (which is what makes year 0 equal the filed totals) and
 D&A starts equal to CapEx. Nothing untagged is ever read as zero.
 `/fortune-500/` stays the 10-K ratios/screener and is linked as a sibling.
+Watchlist names that are not in the Fortune 500 start as a name/ticker list in
+`financial-modeler/watchlist.json`. CIKs are resolved the same way as the
+Fortune 500 mapping: ticker → SEC `company_tickers.json`, then confirmed
+against `data.sec.gov/submissions` (`node scripts/build-financial-modeler-extras.mjs`
+writes `extras.json`). Refresh their 10-K/20-F headlines with
+`node scripts/pull-financial-modeler-extras.mjs` (writes `extras-headlines.json`).
+Wix, On Holding, Sportradar, and Genius Sports file a 20-F; Veeam is private
+and has no filing to model.
 
 ### AI buildout money — `/ai-buildout`
 
@@ -515,5 +533,7 @@ node scripts/test-fortune500-extract.mjs
 node scripts/test-fortune500-insights.mjs
 node scripts/test-financial-modeler-engine.mjs
 node scripts/test-financial-modeler-workbook.mjs
+node scripts/test-financial-modeler-unit-econ.mjs
+node scripts/test-financial-modeler-extras.mjs
 node scripts/test-ai-buildout.mjs
 ```

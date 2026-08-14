@@ -969,6 +969,300 @@ export function buildWorkbook({ company, headlines, model, dcf, sensitivity, com
 const PROBE_IS_ROWS = { revenue: 4, cogs: 5, da: 9, ebit: 8, netIncome: 15 };
 const PROBE_BS_ROWS = { cash: 4 };
 
+/* ---------------------- unit-econ lemonade workbook --------------------- */
+
+function unitYearHeader(rows) {
+  return [{ v: 'US$', s: 'hdr' }, ...rows.map((r) => ({ v: `Y${r.year}`, s: 'hdr' }))];
+}
+
+function unitAssumptionsSheet(model, cards) {
+  const b = sheetBuilder();
+  const at = new Map();
+  b.text(['Assumptions & drivers'], 'title');
+  b.text(['Blue cells are yours to change. Every other sheet reads them. Figures are US dollars, not millions.'], 'note');
+  b.text(['Lemonade stall · cups × price · the same three-statement wiring as the 10-K model.'], 'note');
+  b.blank();
+  b.add([
+    { v: 'Driver', s: 'hdr' },
+    { v: 'Value', s: 'hdr' },
+    { v: 'What it is', s: 'hdr' },
+    { v: 'How to get it', s: 'hdr' },
+    { v: 'Where the default came from', s: 'hdr' },
+  ]);
+
+  const a = model.assumptions;
+  const copy = (key) => cards?.find((c) => c.key === key) || {};
+  const put = (key, label, value, style) => {
+    const c = copy(key);
+    const r = b.add([
+      { v: label, s: 'lbl' },
+      { v: typeof value === 'number' && Number.isFinite(value) ? value : null, s: style },
+      { v: c.what || '', s: 'note' },
+      { v: c.how || '', s: 'note' },
+      { v: c.origin || '', s: 'note' },
+    ]);
+    at.set(key, r);
+    return r;
+  };
+
+  put('units', 'Cups in year 1', a.units, 'innum');
+  put('price', 'Price per cup', a.price, 'innum');
+  put('discountRate', 'Discount', a.discountRate, 'inpct');
+  put('unitGrowth', 'Cups growth (per year)', a.unitGrowth, 'inpct');
+  put('cogsPerUnit', 'Cost per cup', a.cogsPerUnit, 'innum');
+  put('laborPct', 'Labor (% of sales)', a.laborPct, 'inpct');
+  put('otherOpex', 'Other operating costs (per year)', a.otherOpex, 'in');
+  put('taxRate', 'Tax rate', a.taxRate, 'inpct');
+  put('equipment', 'Equipment (bought in year 1)', a.equipment, 'in');
+  put('usefulLife', 'Useful life (years)', a.usefulLife, 'innum');
+  put('openingCash', 'Cash you start with', a.openingCash, 'in');
+  put('openingDebt', 'Debt you start with', a.openingDebt, 'in');
+  put('dsoDays', 'Days to collect', a.dsoDays, 'innum');
+  put('dioDays', 'Days of inventory', a.dioDays, 'innum');
+  put('dpoDays', 'Days to pay suppliers', a.dpoDays, 'innum');
+  put('interestRate', 'Interest rate on debt', a.interestRate, 'inpct');
+  put('cashYield', 'Interest earned on cash', a.cashYield, 'inpct');
+  put('debtRepaymentPct', 'Debt repaid each year (% of balance)', a.debtRepaymentPct, 'inpct');
+  put('payoutRatio', 'Owner draw (% of net income)', a.payoutRatio, 'inpct');
+
+  return { sheet: b.pack([260, 90, 260, 360, 320]), at };
+}
+
+function unitLine(b, rows, label, formulas, cachedKey, style, bold) {
+  const xf = bold ? 'calcb' : style || 'calc';
+  const cells = [{ v: label, s: bold ? 'lblb' : 'lbl' }];
+  for (let i = 0; i < rows.length; i += 1) {
+    const f = typeof formulas === 'function' ? formulas(i) : formulas;
+    const cached = cachedKey ? rows[i][cachedKey] : null;
+    cells.push({ f, v: Number.isFinite(cached) ? cached : null, s: xf });
+  }
+  return b.add(cells);
+}
+
+function unitIncomeSheet(model, at, bsRows) {
+  const b = sheetBuilder();
+  const rows = model.rows;
+  b.text(['Income statement'], 'title');
+  b.text(['US dollars. Cups × price is sales. Interest uses last year’s cash and debt, so nothing is circular.'], 'note');
+  b.add(unitYearHeader(rows));
+  const line = (label, formulas, cachedKey, style, bold) =>
+    unitLine(b, rows, label, formulas, cachedKey, style, bold);
+
+  const r = {};
+  r.units = line(
+    'Cups sold',
+    (i) => (i === 0 ? `=${ref(at, 'units')}` : `=RC[-1]*(1+${ref(at, 'unitGrowth')})`),
+    'units',
+    'calcnum'
+  );
+  r.revenue = line('Revenue', `=R${r.units}C*${ref(at, 'price')}*(1-${ref(at, 'discountRate')})`, 'revenue');
+  r.cogs = line('Cost of sales', `=-R${r.units}C*${ref(at, 'cogsPerUnit')}`, 'cogs');
+  r.grossProfit = line('Gross profit', `=R${r.revenue}C+R${r.cogs}C`, 'grossProfit', 'calc', true);
+  r.labor = line('Labor', `=-R${r.revenue}C*${ref(at, 'laborPct')}`, 'labor');
+  r.otherOpex = line('Other operating costs', `=-${ref(at, 'otherOpex')}`, 'otherOpex');
+  r.da = line(
+    'Depreciation',
+    (i) => `=IF(${i + 1}<=${ref(at, 'usefulLife')},-${ref(at, 'equipment')}/${ref(at, 'usefulLife')},0)`,
+    'da'
+  );
+  r.ebit = line(
+    'Operating income (EBIT)',
+    `=R${r.grossProfit}C+R${r.labor}C+R${r.otherOpex}C+R${r.da}C`,
+    'ebit',
+    'calc',
+    true
+  );
+  r.interestExpense = line(
+    'Interest expense',
+    (i) =>
+      i === 0
+        ? `=-${ref(at, 'openingDebt')}*${ref(at, 'interestRate')}`
+        : `=-BS!R${bsRows.debt}C[-1]*${ref(at, 'interestRate')}`,
+    'interestExpense',
+    'link'
+  );
+  r.interestIncome = line(
+    'Interest income',
+    (i) =>
+      i === 0
+        ? `=${ref(at, 'openingCash')}*${ref(at, 'cashYield')}`
+        : `=BS!R${bsRows.cash}C[-1]*${ref(at, 'cashYield')}`,
+    'interestIncome',
+    'link'
+  );
+  r.pretax = line(
+    'Pre-tax income',
+    `=R${r.ebit}C+R${r.interestExpense}C+R${r.interestIncome}C`,
+    'pretax',
+    'calc',
+    true
+  );
+  r.taxes = line('Income taxes', `=-MAX(0,R${r.pretax}C)*${ref(at, 'taxRate')}`, 'taxes');
+  r.netIncome = line('Net income', `=R${r.pretax}C+R${r.taxes}C`, 'netIncome', 'calc', true);
+  b.blank();
+  b.text(['Interest uses the beginning-of-year debt and cash balances. That is deliberate: it keeps the model free of circular references.'], 'note');
+  return { sheet: b.pack([280, ...rows.map(() => 90)]), rows: r };
+}
+
+function unitCashSheet(model, isRows, bsRows, at) {
+  const b = sheetBuilder();
+  const rows = model.rows;
+  b.text(['Cash flow statement'], 'title');
+  b.text(['US dollars. Cash in positive, cash out negative. Ending cash is the plug on the balance sheet.'], 'note');
+  b.add(unitYearHeader(rows));
+  const line = (label, formulas, cachedKey, style, bold) =>
+    unitLine(b, rows, label, formulas, cachedKey, style, bold);
+
+  const r = {};
+  r.ni = line('Net income', `=IS!R${isRows.netIncome}C`, 'netIncome', 'link');
+  r.da = line('Add back: depreciation', `=-IS!R${isRows.da}C`, 'daAddBack', 'link');
+  r.dAr = line(
+    'Receivables (use) / source',
+    (i) => (i === 0 ? `=-BS!R${bsRows.ar}C` : `=-(BS!R${bsRows.ar}C-BS!R${bsRows.ar}C[-1])`),
+    'deltaAr',
+    'link'
+  );
+  r.dInv = line(
+    'Inventory (use) / source',
+    (i) => (i === 0 ? `=-BS!R${bsRows.inv}C` : `=-(BS!R${bsRows.inv}C-BS!R${bsRows.inv}C[-1])`),
+    'deltaInv',
+    'link'
+  );
+  r.dAp = line(
+    'Payables source / (use)',
+    (i) => (i === 0 ? `=BS!R${bsRows.ap}C` : `=BS!R${bsRows.ap}C-BS!R${bsRows.ap}C[-1]`),
+    'deltaAp',
+    'link'
+  );
+  r.cfo = line('Cash from operations', `=SUM(R${r.ni}C:R${r.dAp}C)`, 'cfo', 'calc', true);
+  r.capex = line('Capital expenditure', (i) => (i === 0 ? `=-${ref(at, 'equipment')}` : '=0'), 'capex', 'link');
+  r.repay = line(
+    'Debt repayment',
+    (i) =>
+      i === 0
+        ? `=-${ref(at, 'openingDebt')}*${ref(at, 'debtRepaymentPct')}`
+        : `=-BS!R${bsRows.debt}C[-1]*${ref(at, 'debtRepaymentPct')}`,
+    'debtRepayment',
+    'link'
+  );
+  r.div = line('Owner draw', `=-MAX(0,R${r.ni}C)*${ref(at, 'payoutRatio')}`, 'dividends', 'link');
+  r.net = line('Net change in cash', `=R${r.cfo}C+R${r.capex}C+R${r.repay}C+R${r.div}C`, 'netChangeCash', 'calc', true);
+  r.beginCash = line(
+    'Beginning cash',
+    (i) => (i === 0 ? `=${ref(at, 'openingCash')}` : `=R${b.length + 2}C[-1]`),
+    null,
+    'link'
+  );
+  r.endCash = line('Ending cash', `=R${r.beginCash}C+R${r.net}C`, 'cash', 'calc', true);
+  return { sheet: b.pack([280, ...rows.map(() => 90)]), rows: r };
+}
+
+function unitBalanceSheet(model, isRows, cfsRows, at) {
+  const b = sheetBuilder();
+  const rows = model.rows;
+  b.text(['Balance sheet'], 'title');
+  b.text(['US dollars. Cash is the plug — it is whatever the cash flow statement leaves behind.'], 'note');
+  b.add(unitYearHeader(rows));
+  const line = (label, formulas, cachedKey, style, bold) =>
+    unitLine(b, rows, label, formulas, cachedKey, style, bold);
+
+  const r = {};
+  r.cash = line('Cash (the plug)', `=CFS!R${cfsRows.endCash}C`, 'cash', 'link');
+  r.ar = line('Accounts receivable', `=IS!R${isRows.revenue}C*${ref(at, 'dsoDays')}/365`, 'receivables', 'link');
+  r.inv = line('Inventory', `=-IS!R${isRows.cogs}C*${ref(at, 'dioDays')}/365`, 'inventory', 'link');
+  r.ppe = line(
+    'Equipment (net)',
+    (i) => (i === 0 ? `=${ref(at, 'equipment')}+IS!R${isRows.da}C` : `=RC[-1]+IS!R${isRows.da}C`),
+    'ppe',
+    'link'
+  );
+  r.totalAssets = line('Total assets', `=SUM(R${r.cash}C:R${r.ppe}C)`, 'totalAssets', 'calc', true);
+  b.blank();
+  r.debt = line(
+    'Debt',
+    (i) =>
+      i === 0
+        ? `=${ref(at, 'openingDebt')}*(1-${ref(at, 'debtRepaymentPct')})`
+        : `=RC[-1]*(1-${ref(at, 'debtRepaymentPct')})`,
+    'debt'
+  );
+  r.ap = line('Payables', `=-IS!R${isRows.cogs}C*${ref(at, 'dpoDays')}/365`, 'payables', 'link');
+  r.totalLiab = line('Total liabilities', `=R${r.debt}C+R${r.ap}C`, 'totalLiabilities', 'calc', true);
+  r.equity = line(
+    'Shareholders’ equity',
+    (i) => {
+      const ni = `IS!R${isRows.netIncome}C`;
+      const div = `-MAX(0,${ni})*${ref(at, 'payoutRatio')}`;
+      return i === 0
+        ? `=${ref(at, 'openingCash')}-${ref(at, 'openingDebt')}+${ni}+${div}`
+        : `=RC[-1]+${ni}+${div}`;
+    },
+    'equity',
+    'link'
+  );
+  r.totalLE = line('Total liabilities & equity', `=R${r.totalLiab}C+R${r.equity}C`, 'totalLiabEquity', 'calc', true);
+  const checkCells = [{ v: 'Check: assets − (liabilities + equity)', s: 'lblb' }];
+  for (let i = 0; i < rows.length; i += 1) {
+    checkCells.push({ f: `=R${r.totalAssets}C-R${r.totalLE}C`, s: 'check' });
+  }
+  r.check = b.add(checkCells);
+  return { sheet: b.pack([300, ...rows.map(() => 90)]), rows: r };
+}
+
+function unitChecksSheet(model, bsRows) {
+  const b = sheetBuilder();
+  b.text(['Checks'], 'title');
+  b.text(['Everything here should read zero. If it does not, a formula was overwritten.'], 'note');
+  b.add(unitYearHeader(model.rows));
+  const cells = [{ v: 'Balance sheet imbalance', s: 'lblb' }];
+  for (let i = 0; i < model.rows.length; i += 1) {
+    cells.push({ f: `=BS!R${bsRows.check}C`, v: model.rows[i].balanceCheck, s: 'check' });
+  }
+  b.add(cells);
+  return { sheet: b.pack([260, ...model.rows.map(() => 90)]) };
+}
+
+function unitCoverSheet(model) {
+  const b = sheetBuilder();
+  b.text(['Financial model — lemonade stall'], 'title');
+  b.text([
+    'Built from one sale (cups × price), not from a 10-K. Same three-statement wiring: cash is the plug, interest uses beginning balances.',
+  ], 'note');
+  b.blank();
+  b.text(['How the three statements connect'], 'lblb');
+  b.add([{ v: 'Income statement', s: 'lblb' }, { v: 'Cups × price is sales. Cost per cup is COGS. Net income is the handoff.', s: 'note' }]);
+  b.add([{ v: 'Cash flow', s: 'lblb' }, { v: 'Starts with that net income. Year 1 buys the equipment. The leftover is the change in cash.', s: 'note' }]);
+  b.add([{ v: 'Balance sheet', s: 'lblb' }, { v: 'Cash is that leftover (the plug). Equity = last year + net income − owner draw. The check row must read zero.', s: 'note' }]);
+  b.blank();
+  b.text([`Years: ${model.years}. Scenario: ${model.assumptions.scenario || 'base'}.`], 'note');
+  return b.pack([200, 520]);
+}
+
+const UNIT_PROBE_BS = { cash: 4, ar: 5, inv: 6, ppe: 7, debt: 10, ap: 11 };
+
+/**
+ * Excel for the unit-econ exercise. Dollars, not millions. Live formulas
+ * from cups × price, with the same colour code as the 10-K workbook.
+ */
+export function buildUnitWorkbook({ model, cards }) {
+  const { sheet: assumptions, at } = unitAssumptionsSheet(model, cards);
+  const isProbe = unitIncomeSheet(model, at, UNIT_PROBE_BS);
+  const cfsProbe = unitCashSheet(model, isProbe.rows, UNIT_PROBE_BS, at);
+  const bs = unitBalanceSheet(model, isProbe.rows, cfsProbe.rows, at);
+  const is = unitIncomeSheet(model, at, bs.rows);
+  const cfs = unitCashSheet(model, is.rows, bs.rows, at);
+  const checks = unitChecksSheet(model, bs.rows);
+
+  return packXlsx([
+    { name: 'Cover', ...unitCoverSheet(model) },
+    { name: 'Assumptions', ...assumptions },
+    { name: 'IS', ...is.sheet },
+    { name: 'CFS', ...cfs.sheet },
+    { name: 'BS', ...bs.sheet },
+    { name: 'Checks', ...checks.sheet },
+  ]);
+}
+
 export function workbookFilename(company) {
   const ticker = String(company?.fortune_ticker || company?.sec_ticker || 'model').replace(/[^\w.-]/g, '');
   return `${ticker}-financial-model.xlsx`;

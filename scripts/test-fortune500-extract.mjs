@@ -318,4 +318,123 @@ assert.equal(ordinal(12), '12th');
 assert.equal(ordinal(13), '13th');
 assert.equal(ordinal(1), '1st');
 
+{
+  const fpi = extractHeadlines({
+    cik: 1576789,
+    entityName: 'Wix-like',
+    facts: {
+      'us-gaap': {
+        Revenues: {
+          units: {
+            USD: [
+              {
+                val: 1.76e9,
+                start: '2024-01-01',
+                end: '2024-12-31',
+                fy: 2024,
+                fp: 'FY',
+                form: '20-F',
+                filed: '2025-03-20',
+              },
+            ],
+          },
+        },
+        NetIncomeLoss: {
+          units: {
+            USD: [
+              {
+                val: 0.14e9,
+                start: '2024-01-01',
+                end: '2024-12-31',
+                fy: 2024,
+                fp: 'FY',
+                form: '20-F',
+                filed: '2025-03-20',
+              },
+            ],
+          },
+        },
+      },
+    },
+  });
+  assert.equal(fpi.asOfYear, 2024);
+  assert.equal(fpi.metrics.revenue.val, 1.76e9);
+  assert.equal(fpi.metrics.revenue.form, '20-F');
+  assert.equal(fpi.metrics.net_income.val, 0.14e9);
+}
+
+{
+  const ifrs = extractHeadlines({
+    cik: 1858985,
+    entityName: 'On-like',
+    facts: {
+      'ifrs-full': {
+        RevenueFromContractsWithCustomers: {
+          units: {
+            CHF: [
+              {
+                val: 3.014e9,
+                start: '2025-01-01',
+                end: '2025-12-31',
+                fy: 2025,
+                fp: 'FY',
+                form: '20-F',
+                filed: '2026-03-01',
+              },
+            ],
+          },
+        },
+        ProfitLossAttributableToOwnersOfParent: {
+          units: {
+            CHF: [
+              {
+                val: 2.8e8,
+                start: '2025-01-01',
+                end: '2025-12-31',
+                fy: 2025,
+                fp: 'FY',
+                form: '20-F',
+                filed: '2026-03-01',
+              },
+            ],
+          },
+        },
+        Assets: {
+          units: {
+            CHF: [
+              {
+                val: 2.8e9,
+                end: '2025-12-31',
+                fy: 2025,
+                fp: 'FY',
+                form: '20-F',
+                filed: '2026-03-01',
+              },
+            ],
+          },
+        },
+        Equity: {
+          units: {
+            CHF: [
+              {
+                val: 1.6e9,
+                end: '2025-12-31',
+                fy: 2025,
+                fp: 'FY',
+                form: '20-F',
+                filed: '2026-03-01',
+              },
+            ],
+          },
+        },
+      },
+    },
+  });
+  assert.equal(ifrs.asOfYear, 2025);
+  assert.equal(ifrs.metrics.revenue.val, 3.014e9);
+  assert.equal(ifrs.metrics.revenue.unit, 'CHF');
+  assert.equal(ifrs.metrics.revenue.form, '20-F');
+  assert.equal(ifrs.metrics.assets.val, 2.8e9);
+}
+
 console.log('fortune-500 extract tests passed');

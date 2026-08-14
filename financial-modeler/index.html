@@ -7,7 +7,7 @@
     <title>Financial modeler — Beep boop</title>
     <meta
       name="description"
-      content="Build a 3-statement model, a DCF, and a trading comps table for any public Fortune 500 company — explained in plain English, downloadable as Excel."
+      content="Build a 3-statement model from a 10-K or from one sale, plus a DCF and trading comps — explained in plain English, downloadable as Excel."
     />
     <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -38,12 +38,12 @@
 
     <main class="fm-shell">
       <header class="fm-hero" id="hero">
-        <p class="fm-kicker">Three models, one workbook</p>
+        <p class="fm-kicker">Two exercises, one workbook</p>
         <h1>Build a real financial model without knowing finance yet.</h1>
         <p class="fm-lede">
-          Pick a company. We read its last 10-K from the SEC, hand you a handful of plain-English
-          guesses, and build the three models every analyst starts with — then download the whole
-          thing as a spreadsheet with live formulas.
+          Start from a public company’s 10-K, or from one sale at a lemonade stall. Either way you
+          get the three statements wired together, the same handful of plain-English guesses, and a
+          spreadsheet with live formulas.
         </p>
       </header>
 
@@ -62,13 +62,24 @@
         </div>
       </section>
 
+      <section class="fm-step" id="step-exercise">
+        <div class="fm-step-head">
+          <span class="fm-step-num">1</span>
+          <div>
+            <h2>Pick an exercise</h2>
+            <p>Same three statements. Different place to start.</p>
+          </div>
+        </div>
+        <div class="fm-exercise-picks" id="exercise-picks"></div>
+      </section>
+
       <div class="fm-setup" id="setup">
         <section class="fm-step" id="step-company">
           <div class="fm-step-head">
-            <span class="fm-step-num">1</span>
+            <span class="fm-step-num">2</span>
             <div>
               <h2>Pick a company</h2>
-              <p>Fortune 500 filers, straight from their SEC filings.</p>
+              <p>Fortune 500 filers, plus a watchlist (GoDaddy, Wix, Cloudflare, …).</p>
             </div>
           </div>
           <div class="fm-search-wrap">
@@ -78,9 +89,10 @@
               type="search"
               placeholder="Search by name or ticker…"
               autocomplete="off"
-              aria-label="Search Fortune 500 companies"
+              aria-label="Search companies"
             />
             <div class="fm-quick" id="quick"></div>
+            <div class="fm-quick" id="quick-extra"></div>
           </div>
           <div class="fm-results" id="results" hidden></div>
           <p class="fm-status" id="status">Loading the company list…</p>
@@ -88,7 +100,7 @@
 
         <section class="fm-step" id="step-models" hidden>
           <div class="fm-step-head">
-            <span class="fm-step-num">2</span>
+            <span class="fm-step-num">3</span>
             <div>
               <h2>Choose your models</h2>
               <p>Run all three — they build on each other, and they all land in one workbook.</p>
@@ -99,7 +111,7 @@
 
         <section class="fm-step" id="step-peers" hidden>
           <div class="fm-step-head">
-            <span class="fm-step-num">3</span>
+            <span class="fm-step-num">4</span>
             <div>
               <h2>Pick the companies you compare against</h2>
               <p>Comps are only as honest as this list. Similar businesses — not whoever sits nearby in the Fortune ranking.</p>
@@ -123,7 +135,7 @@
 
       <section class="fm-step" id="step-build" hidden>
         <div class="fm-step-head">
-          <span class="fm-step-num" id="step-build-num">3</span>
+          <span class="fm-step-num" id="step-build-num">5</span>
           <div>
             <h2>Make your guesses</h2>
             <p>Each blue number starts from last year’s 10-K arithmetic. Change it if the next five years won’t look like that.</p>

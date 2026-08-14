@@ -1,0 +1,99 @@
+[
+  {
+    "company": "GoDaddy",
+    "ticker": "GDDY",
+    "blurb": "Domain/hosting platform; recurring revenue"
+  },
+  {
+    "company": "Wix",
+    "ticker": "WIX",
+    "blurb": "Website/software platform; strong recurring revenue"
+  },
+  {
+    "company": "Duolingo",
+    "ticker": "DUOL",
+    "blurb": "Language-learning app"
+  },
+  {
+    "company": "AppLovin",
+    "ticker": "APP",
+    "blurb": "Mobile advertising + AI ad optimization"
+  },
+  {
+    "company": "Toast",
+    "ticker": "TOST",
+    "blurb": "Restaurant OS / payments"
+  },
+  {
+    "company": "Cloudflare",
+    "ticker": "NET",
+    "blurb": "Internet infrastructure / security"
+  },
+  {
+    "company": "Samsara",
+    "ticker": "IOT",
+    "blurb": "Connected operations / fleet software"
+  },
+  {
+    "company": "Axon",
+    "ticker": "AXON",
+    "blurb": "Public-safety technology + recurring software"
+  },
+  {
+    "company": "Reddit",
+    "ticker": "RDDT",
+    "blurb": "Community platform; ads + data licensing"
+  },
+  {
+    "company": "Rubrik",
+    "ticker": "RBRK",
+    "blurb": "Data security and backup"
+  },
+  {
+    "company": "Cava",
+    "ticker": "CAVA",
+    "blurb": "Fast-growing restaurant chain"
+  },
+  {
+    "company": "Hims & Hers",
+    "ticker": "HIMS",
+    "blurb": "Consumer healthcare + telehealth"
+  },
+  {
+    "company": "On Holding",
+    "ticker": "ONON",
+    "blurb": "Premium athletic footwear / apparel"
+  },
+  {
+    "company": "Sweetgreen",
+    "ticker": "SG",
+    "blurb": "Tech-oriented restaurant concept"
+  },
+  {
+    "company": "Robinhood",
+    "ticker": "HOOD",
+    "blurb": "Retail investing / crypto platform"
+  },
+  {
+    "company": "Tempus AI",
+    "ticker": "TEM",
+    "blurb": "AI/data platform for healthcare"
+  },
+  {
+    "company": "Sportradar",
+    "ticker": "SRAD",
+    "blurb": "Sports data / odds infrastructure"
+  },
+  {
+    "company": "Genius Sports",
+    "ticker": "GENI",
+    "blurb": "Sports data + betting technology"
+  },
+  {
+    "company": "Veeam",
+    "ticker": "VEEAM",
+    "private": true,
+    "blurb": "Data protection/backup — private",
+    "note": "Veeam is private, so there is no 10-K to model — interesting as private-company exposure, not as a filer."
+  }
+]
