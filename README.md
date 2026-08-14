@@ -83,6 +83,9 @@ wiring (cash is the plug, interest on beginning balances, a real balance check):
 
 Either exercise downloads an Excel workbook with live formulas.
 
+The approved product direction and phased implementation requirements are in
+[`docs/financial-modeler-plan.md`](docs/financial-modeler-plan.md).
+
 `financial-modeler/engine.js` is the 10-K model: an integrated 3-statement
 where **cash is the plug** and the balance check is a real test, a two-stage
 DCF off its unlevered free cash flow, and peer multiples. Interest is charged
