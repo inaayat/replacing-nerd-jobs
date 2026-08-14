@@ -527,12 +527,34 @@ function threeStatementPanel(model) {
 
   return `<section class="fm-panel">
     <h3>The three statements</h3>
-    <p class="fm-aside"><strong>How this is built:</strong> revenue grows by your rate, margins turn it into profit, and profit flows into equity. Cash is whatever is left over after the other two statements have had their say — so if the balance check below reads zero, the model is internally honest.</p>
+    <ol class="fm-flow">
+      <li>
+        <strong>Income statement</strong>
+        <p>Sales grow by your rate. Margins turn sales into operating profit. Interest is charged on <em>last year’s</em> debt and cash, so nothing is circular. What’s left after tax is net income — that number is the handoff.</p>
+      </li>
+      <li>
+        <strong>Cash flow</strong>
+        <p>Starts with that net income. Depreciation is added back (it wasn’t cash). Then cash goes out for working capital, CapEx, debt paydown, and dividends. Whatever remains is the change in cash.</p>
+      </li>
+      <li>
+        <strong>Balance sheet</strong>
+        <p>Cash is that leftover — the plug. Receivables and inventory are sized off this year’s sales. Equity = last year + net income − dividends. If assets minus liabilities and equity is zero, the three statements agree.</p>
+      </li>
+    </ol>
     <p class="${balances ? 'fm-flag is-ok' : 'fm-flag is-bad'}">${balances ? 'Balance sheet ties in every year' : 'Balance sheet does not tie — do not trust this'}</p>
     <div class="fm-statements">
-      <div class="fm-statement">${is}</div>
-      <div class="fm-statement">${bs}</div>
-      <div class="fm-statement">${cfs}</div>
+      <div class="fm-statement">
+        <p class="fm-statement-note"><strong>Handoff.</strong> Net income goes two places: the top of cash flow, and into equity.</p>
+        ${is}
+      </div>
+      <div class="fm-statement">
+        <p class="fm-statement-note"><strong>Handoff.</strong> Ending cash is whatever this statement leaves behind. That number is the plug on the balance sheet.</p>
+        ${cfs}
+      </div>
+      <div class="fm-statement">
+        <p class="fm-statement-note"><strong>Handoff.</strong> This year’s cash and debt come back next year as interest on the income statement.</p>
+        ${bs}
+      </div>
     </div>
     <p class="fm-aside">${escapeHtml(model.residualNote)}</p>
     <div class="fm-legend"><span class="is-blue">Blue — your input</span><span class="is-black">Black — calculated</span><span class="is-green">Green — link between sheets (in the Excel)</span></div>

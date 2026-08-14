@@ -230,6 +230,8 @@ for (const name of names.slice(1)) {
 }
 assert.ok(coverText.includes('USD'), 'Cover states the currency');
 assert.ok(/[Mm]illions/.test(coverText), 'Cover states the scale');
+assert.ok(coverText.includes('How the three statements connect'));
+assert.match(coverText, /[Pp]lug/, 'Cover says cash is the plug');
 
 const INPUT_STYLES = new Set(['in', 'inpct', 'innum']);
 const LINK_STYLES = new Set(['link', 'linknum']);
