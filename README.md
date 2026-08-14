@@ -81,7 +81,11 @@ wiring (cash is the plug, interest on beginning balances, a real balance check):
 - **From one sale** — a lemonade stall built from cups × price, cost per cup, and a
   cart you depreciate. Same statements, dollars instead of millions.
 
-Either exercise downloads an Excel workbook with live formulas.
+Either exercise downloads an Excel workbook with live formulas. On a phone
+(`max-width: 900px`) the same engine runs a walkthrough instead: one guess at
+a time, a three-year slice, and income / cash flow / balance sheet one by one.
+DCF, comps, scenarios, sensitivity, and Excel stay on the web workspace — the
+desktop two-pane layout is unchanged.
 
 The approved product direction and phased implementation requirements are in
 [`docs/financial-modeler-plan.md`](docs/financial-modeler-plan.md).
@@ -554,5 +558,6 @@ node scripts/test-financial-modeler-engine.mjs
 node scripts/test-financial-modeler-workbook.mjs
 node scripts/test-financial-modeler-unit-econ.mjs
 node scripts/test-financial-modeler-extras.mjs
+node scripts/test-financial-modeler-mobile.mjs
 node scripts/test-ai-buildout.mjs
 ```

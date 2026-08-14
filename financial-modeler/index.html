@@ -40,6 +40,10 @@
       <header class="fm-hero fm-hero-compact" id="hero">
         <h1>Build a financial model</h1>
         <p class="fm-lede">From a 10-K or one sale — three statements, plain-English guesses, live Excel.</p>
+        <p class="fm-mobile-lede-note">
+          On a phone you’ll walk through each guess, then each statement, on a three-year slice.
+          DCF, comps, scenarios, and Excel stay on the web version.
+        </p>
       </header>
 
       <section class="fm-tour" id="tour" hidden>
@@ -69,6 +73,7 @@
             <div class="fm-landing-block">
               <h3>Pick the company</h3>
               <p>Fortune 500 filers, plus a watchlist (GoDaddy, Wix, Cloudflare, …). Last year’s 10-K is year 0.</p>
+              <p class="fm-mobile-lede-note">This phone view walks the 3-statement model. DCF, comps, scenarios, and Excel download are on the web version.</p>
               <div class="fm-search-wrap">
                 <input
                   id="search"
@@ -84,7 +89,7 @@
               <div class="fm-results" id="results" hidden></div>
               <p class="fm-status" id="status">Loading the company list…</p>
             </div>
-            <div class="fm-landing-block">
+            <div class="fm-landing-block fm-web-only-setup">
               <h3>Models to build</h3>
               <p>3-statement is the base. Turn on DCF and trading comps if you want them in the same workbook.</p>
               <div class="fm-ws-models" id="landing-models" role="group" aria-label="Models to include">
@@ -93,7 +98,7 @@
                 <button type="button" data-landing-model="comps" aria-pressed="true">Trading comps</button>
               </div>
             </div>
-            <div class="fm-landing-block">
+            <div class="fm-landing-block fm-web-only-setup">
               <h3>Companies you compare against</h3>
               <p>Optional. Used for trading comps — you can add or drop names later in the model.</p>
               <div class="fm-peer-add">
@@ -191,6 +196,8 @@
       </section>
 
       <button type="button" class="fm-inspector-toggle" id="inspector-mobile" hidden>Build guide</button>
+
+      <section class="fm-mobile" id="fm-mobile" hidden aria-label="Phone walkthrough"></section>
     </main>
 
     <script type="module" src="./app.js"></script>

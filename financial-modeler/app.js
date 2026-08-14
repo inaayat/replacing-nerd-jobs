@@ -75,6 +75,17 @@ import {
   exerciseWorkbookFilename,
   downloadWorkbook,
 } from './workbook.js';
+import {
+  isMobileUi,
+  MOBILE_MQ,
+  MOBILE_FORECAST_YEARS,
+  clampIndex,
+  walkableDials,
+  truncateModelRows,
+  yearRangeNote,
+  mobileModelPages,
+  renderMobileHtml,
+} from './mobile.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -100,6 +111,8 @@ const state = {
   goalSeekTarget: '',
   goalSeekInput: 'revenueGrowth',
   unitTemplate: 'lemonade',
+  mobileAssumptionIndex: 0,
+  mobileStatement: 'income',
 };
 
 const TABS = [
@@ -414,8 +427,19 @@ function ensureActiveTab() {
   }
 }
 
+function applyMobileClass() {
+  document.body.classList.toggle('fm-is-mobile', isMobileUi());
+}
+
+function resetMobileWalkthrough() {
+  state.mobileAssumptionIndex = 0;
+  state.mobileStatement = 'income';
+}
+
 function syncLayout() {
+  applyMobileClass();
   const live = workspaceLive();
+  const mobile = isMobileUi();
   document.body.classList.toggle('has-company', live);
   document.body.classList.toggle('is-unit', isStandaloneExercise() && live);
   document.body.classList.toggle('is-editing-setup', false);
@@ -435,8 +459,10 @@ function syncLayout() {
   }
   if (showFiler) renderLandingModels();
 
-  $('step-build').hidden = !live;
-  $('dock').hidden = !live;
+  $('step-build').hidden = !live || mobile;
+  $('dock').hidden = !live || mobile;
+  const mobileRoot = $('fm-mobile');
+  if (mobileRoot) mobileRoot.hidden = !live || !mobile;
 
   const setupBar = $('workspace-setup');
   if (setupBar) setupBar.hidden = !live;
@@ -507,6 +533,7 @@ function enterWorkspace() {
   if (isStandaloneExercise() && !state.assumptions) return;
   state.phase = 'workspace';
   state.setupEdit = null;
+  resetMobileWalkthrough();
   syncLayout();
   render();
 }
@@ -1003,6 +1030,7 @@ function selectExercise(id) {
   state.exercise = id;
   state.activeTab = 'three';
   state.setupEdit = null;
+  resetMobileWalkthrough();
   if (id === 'filer') {
     state.phase = 'landing';
     renderExercises();
@@ -2051,8 +2079,222 @@ function renderActivePanel(run) {
   return { html, context };
 }
 
+function mobileDialList() {
+  if (isStandaloneExercise()) return exerciseDialList();
+  return assumptionCatalog(['three']);
+}
+
+function mobileStatus(model) {
+  if (!model) return { ok: false, chip: '', text: '' };
+  if (model.kind === 'strategic') {
+    const ok = Boolean(model.checks?.probabilitiesSum);
+    return { ok, chip: ok ? 'Probabilities OK' : 'Fix weights', text: ok ? 'Scenario probabilities sum to 100%.' : 'Probabilities do not sum to 100%.' };
+  }
+  if (model.kind === 'capital-project') {
+    const ok = Boolean(model.checks?.sourcesUses);
+    return { ok, chip: ok ? 'Sources = uses' : 'Funding issue', text: ok ? 'Sources equal uses.' : 'Sources and uses do not balance.' };
+  }
+  if (model.kind === 'market-entry') {
+    return { ok: Boolean(model.ok), chip: model.preferredStructure || 'Market entry', text: `Preferred structure: ${model.preferredStructure || '—'}` };
+  }
+  const ok = Boolean(model.checks?.balances);
+  return {
+    ok,
+    chip: ok ? 'Sheet ties' : 'Does not tie',
+    text: ok ? 'Balance sheet ties in every projected year.' : 'Balance sheet does not tie — do not trust the outputs.',
+  };
+}
+
+function buildMobileView(run) {
+  const { model } = run;
+  const unitKind = model.kind === 'unit' || model.kind === 'single-unit';
+  const pages = mobileModelPages(model.kind);
+  if (!pages.some((p) => p.id === state.mobileStatement)) {
+    state.mobileStatement = pages[0]?.id || 'income';
+  }
+  const allDials = mobileDialList();
+  const dials = walkableDials(allDials, (d) => dialRawValue(d)).map((d) => {
+    const value = dialRawValue(d);
+    const validation = d.fmt === 'bool' || value == null ? { valid: true } : validateAssumption(d, value);
+    return {
+      key: d.key,
+      name: d.name,
+      fmt: d.fmt,
+      what: d.shortDefinition || d.what || '',
+      effect: d.effect || '',
+      origin: originFor(d, state.headlines),
+      token: sourceToken(d, value, state.sourceDefaults),
+      valueText: dialValueText(d, value),
+      boolValue: d.fmt === 'bool' ? Boolean(value) : false,
+      disabled: false,
+      warn: validation.warn && validation.message ? validation.message : '',
+      min: d.min,
+      max: d.max,
+      step: d.step,
+    };
+  });
+  state.mobileAssumptionIndex = clampIndex(state.mobileAssumptionIndex, dials.length);
+
+  const truncated = truncateModelRows(model.rows, MOBILE_FORECAST_YEARS);
+  const status = mobileStatus(model);
+  let title = 'Financial modeler';
+  let subtitle = '';
+  if (isUnit()) {
+    title = state.unitTemplate === 'blank' ? 'Single-unit model' : 'Lemonade stall';
+    subtitle = 'Cups × price, then the same three statements.';
+  } else if (isCapital()) {
+    title = 'Capital project';
+    subtitle = 'Construction, funding, and returns — three-year slice.';
+  } else if (isStrategic()) {
+    title = 'Strategic investment';
+    subtitle = 'Build, buy, partner, or wait.';
+  } else if (isMarket()) {
+    title = 'Market entry';
+    subtitle = 'Structures and risk-adjusted returns.';
+  } else if (state.company) {
+    title = state.company.company;
+    subtitle = `${state.company.fortune_ticker || ''} · FY${state.headlines?.asOfYear ?? ''} 10-K`.replace(/^ · /, '');
+  }
+
+  return {
+    title,
+    subtitle,
+    statusOk: status.ok,
+    statusChip: status.chip,
+    statusText: status.text,
+    dials,
+    assumptionIndex: state.mobileAssumptionIndex,
+    statementId: state.mobileStatement,
+    pages,
+    rows: truncated,
+    kind: model.kind,
+    unitKind,
+    assumptions: state.assumptions,
+    scale: model.scale ?? SCALE,
+    unitLabel: model.unitLabel ?? (unitKind || isStandaloneExercise() ? 'US$' : 'US$ millions'),
+    yearNote: yearRangeNote(truncated, {
+      unitKind,
+      totalForecast: isCapital() ? model.rows?.length || 12 : 5,
+    }),
+    unitTemplate: isUnit() ? state.unitTemplate : null,
+    altRows: model.alternatives?.map((a) => [a.label, formatUsd(a.npv) || '—', formatUsd(a.incrementalNpv) || '—']),
+    structureRows: model.structures?.map((s) => [s.label, formatUsd(s.npv) || '—', String(s.breakevenYear ?? '—')]),
+    webNote: isFiler()
+      ? 'DCF, trading comps, scenarios, and the five-year workbook stay on a computer.'
+      : 'Excel download and the full-year tables stay on a computer.',
+  };
+}
+
+function applyMobileDialValue(dial, value) {
+  const drivers = scenarioDrivers();
+  if (state.scenarioState && drivers.includes(dial.key)) {
+    state.scenarioState = editScenarioValue(state.scenarioState, dial.key, value);
+    syncAssumptionsFromScenarios();
+  } else {
+    setDialValue(dial, value);
+  }
+}
+
+function bindMobileWorkspace(root) {
+  const active = mobileDialList();
+  const walkable = walkableDials(active, (d) => dialRawValue(d));
+  const current = walkable[state.mobileAssumptionIndex];
+
+  root.querySelector('[data-mobile-home]')?.addEventListener('click', () => switchToLanding());
+
+  root.querySelectorAll('[data-unit-template]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const tpl = btn.dataset.unitTemplate;
+      if (tpl === state.unitTemplate) return;
+      state.unitTemplate = tpl;
+      const defaults = defaultSingleUnitAssumptions(tpl);
+      initScenarioState(defaults);
+      state.sourceDefaults = { ...defaults };
+      resetMobileWalkthrough();
+      render();
+    });
+  });
+
+  root.querySelectorAll('[data-assump-index]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.mobileAssumptionIndex = clampIndex(Number(btn.dataset.assumpIndex), walkable.length);
+      render();
+    });
+  });
+  root.querySelectorAll('[data-assump-delta]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.mobileAssumptionIndex = clampIndex(
+        state.mobileAssumptionIndex + Number(btn.dataset.assumpDelta),
+        walkable.length
+      );
+      render();
+    });
+  });
+  root.querySelectorAll('[data-statement]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.mobileStatement = btn.dataset.statement;
+      render();
+    });
+  });
+
+  const input = root.querySelector('[data-mobile-input]');
+  if (input && current) {
+    input.addEventListener('change', () => {
+      const value = parseDialInput(current, input.value);
+      if (value == null) return render();
+      applyMobileDialValue(current, value);
+      render();
+    });
+  }
+  root.querySelectorAll('[data-nudge]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (!current) return;
+      const dir = Number(btn.dataset.nudge);
+      const cur = dialRawValue(current);
+      if (cur == null || !Number.isFinite(cur)) return;
+      const next = Math.min(current.max, Math.max(current.min, cur + dir * (current.step || 0.01)));
+      applyMobileDialValue(current, next);
+      render();
+    });
+  });
+  root.querySelectorAll('[data-bool]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (!current) return;
+      applyMobileDialValue(current, btn.dataset.bool === 'true');
+      render();
+    });
+  });
+}
+
+function renderMobileWorkspace() {
+  const root = $('fm-mobile');
+  if (!root) return;
+  const run = currentRun();
+  if (!run) return;
+  if (!run.model?.ok) {
+    root.innerHTML = renderMobileHtml({
+      title: state.company?.company || 'Financial modeler',
+      subtitle: '',
+      statusOk: false,
+      statusChip: 'Missing data',
+      error: run.model?.reason || 'Not enough filed data to build this model.',
+      dials: [],
+      pages: mobileModelPages(run.model?.kind),
+      rows: [],
+    });
+    bindMobileWorkspace(root);
+    return;
+  }
+  root.innerHTML = renderMobileHtml(buildMobileView(run));
+  bindMobileWorkspace(root);
+}
+
 function render() {
   if (!workspaceLive()) return;
+  if (isMobileUi()) {
+    renderMobileWorkspace();
+    return;
+  }
   const run = currentRun();
   if (!run) return;
   const { model, dcf, sens, comps } = run;
@@ -2232,6 +2474,13 @@ function download() {
 /* --------------------------------- boot -------------------------------- */
 
 async function boot() {
+  applyMobileClass();
+  const mq = window.matchMedia(MOBILE_MQ);
+  mq.addEventListener?.('change', () => {
+    applyMobileClass();
+    syncLayout();
+    if (workspaceLive()) render();
+  });
   renderTour();
   renderExercises();
   syncLayout();
