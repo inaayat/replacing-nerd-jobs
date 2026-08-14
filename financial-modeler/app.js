@@ -394,7 +394,9 @@ function syncLayout() {
   const live = workspaceLive();
   document.body.classList.toggle('has-company', live);
   document.body.classList.toggle('is-unit', isStandaloneExercise());
-  $('setup-summary').hidden = !live || Boolean(state.setupEdit);
+  $('setup-summary').hidden = true;
+  const setupBar = $('workspace-setup');
+  if (setupBar) setupBar.hidden = !live || Boolean(state.setupEdit);
   $('setup').hidden = isStandaloneExercise() || (live && !state.setupEdit);
   $('step-exercise').hidden = live && state.setupEdit !== 'exercise';
   if (isStandaloneExercise()) {
@@ -438,8 +440,10 @@ function syncLayout() {
 
 function renderSetupSummary() {
   const grid = $('summary-grid');
+  const setupBar = $('workspace-setup');
   if (!workspaceLive()) {
     grid.innerHTML = '';
+    if (setupBar) setupBar.innerHTML = '';
     return;
   }
   const exercise = EXERCISES.find((e) => e.id === state.exercise)?.title || '—';
@@ -451,37 +455,63 @@ function renderSetupSummary() {
   const peers = isUnit() || !compsOn() ? '—' : `${state.peers.length} peer${state.peers.length === 1 ? '' : 's'}`;
   const filing = isUnit() ? 'Unit exercise' : state.headlines?.asOfYear ? `FY${state.headlines.asOfYear} 10-K` : '—';
 
+  const changeBtn = (label, target) =>
+    `<button type="button" class="fm-summary-change" data-edit="${target}">${label}</button>`;
+  const changeBtnCompact = (label, target) =>
+    `<button type="button" class="fm-workspace-setup-link" data-edit="${target}">${label}</button>`;
+
+  const changeHtml = `
+    ${changeBtn('Change exercise', 'exercise')}
+    ${isUnit() ? '' : changeBtn('Change company', 'company')}
+    ${isUnit() ? '' : changeBtn('Change models', 'models')}
+    ${isUnit() || !compsOn() ? '' : changeBtn('Change peers', 'peers')}`;
+  const changeHtmlCompact = `
+    ${changeBtnCompact('Change exercise', 'exercise')}
+    ${isUnit() ? '' : changeBtnCompact('Change company', 'company')}
+    ${isUnit() ? '' : changeBtnCompact('Change models', 'models')}
+    ${isUnit() || !compsOn() ? '' : changeBtnCompact('Change peers', 'peers')}`;
+
+  if (setupBar && !state.setupEdit) {
+    setupBar.innerHTML = changeHtmlCompact;
+    bindSetupEditLinks(setupBar);
+  } else if (setupBar) {
+    setupBar.innerHTML = '';
+  }
+
   grid.innerHTML = `
     <dl class="fm-summary-item"><dt>Exercise</dt><dd>${escapeHtml(exercise)}</dd></dl>
     <dl class="fm-summary-item"><dt>${isUnit() ? 'Example' : 'Company'}</dt><dd>${escapeHtml(company)}</dd></dl>
     ${isUnit() ? '' : `<dl class="fm-summary-item"><dt>Models in workbook</dt><dd>${escapeHtml(models)}</dd></dl>`}
     ${isUnit() || !compsOn() ? '' : `<dl class="fm-summary-item"><dt>Peers</dt><dd>${escapeHtml(peers)}</dd></dl>`}
     <dl class="fm-summary-item"><dt>Filing</dt><dd>${escapeHtml(filing)}</dd></dl>
-    <div class="fm-summary-actions">
-      <button type="button" class="fm-summary-change" data-edit="exercise">Change exercise</button>
-      ${isUnit() ? '' : '<button type="button" class="fm-summary-change" data-edit="company">Change company</button>'}
-      ${isUnit() ? '' : '<button type="button" class="fm-summary-change" data-edit="models">Change models</button>'}
-      ${isUnit() || !compsOn() ? '' : '<button type="button" class="fm-summary-change" data-edit="peers">Change peers</button>'}
-    </div>`;
+    <div class="fm-summary-actions">${changeHtml}</div>`;
 
   grid.querySelectorAll('[data-edit]').forEach((btn) => {
-    btn.onclick = () => {
-      const target = btn.dataset.edit;
-      if (target === 'exercise') {
-        state.setupEdit = 'exercise';
-        $('setup-summary').hidden = true;
-        $('setup').hidden = false;
-        $('step-exercise').hidden = false;
-        $('step-exercise').scrollIntoView({ behavior: 'smooth', block: 'start' });
-        return;
-      }
-      state.setupEdit = target;
-      syncLayout();
-      const el = target === 'peers' ? $('step-peers') : target === 'models' ? $('step-models') : $('step-company');
-      el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      if (target === 'peers') renderPeerPicker();
-    };
+    btn.onclick = () => openSetupEdit(btn.dataset.edit);
   });
+}
+
+function bindSetupEditLinks(wrap) {
+  wrap.querySelectorAll('[data-edit]').forEach((btn) => {
+    btn.onclick = () => openSetupEdit(btn.dataset.edit);
+  });
+}
+
+function openSetupEdit(target) {
+  if (target === 'exercise') {
+    state.setupEdit = 'exercise';
+    $('setup-summary').hidden = true;
+    $('setup').hidden = false;
+    $('step-exercise').hidden = false;
+    $('step-exercise').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    syncLayout();
+    return;
+  }
+  state.setupEdit = target;
+  syncLayout();
+  const el = target === 'peers' ? $('step-peers') : target === 'models' ? $('step-models') : $('step-company');
+  el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (target === 'peers') renderPeerPicker();
 }
 
 function finishSetupEdit() {
