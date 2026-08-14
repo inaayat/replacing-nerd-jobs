@@ -132,13 +132,23 @@ function escapeHtml(s) {
 /* --------------------------------- data -------------------------------- */
 
 async function loadData() {
-  const [mapRes, snapRes] = await Promise.all([
+  const [mapRes, snapRes, extraRes, extraSnapRes] = await Promise.all([
     fetch('/fortune-500/data/fortune500_edgar_mapping.json'),
     fetch('/fortune-500/data/headlines-snapshot.json'),
+    fetch('/financial-modeler/extras.json'),
+    fetch('/financial-modeler/extras-headlines.json'),
   ]);
-  state.companies = await mapRes.json();
+  const mapping = await mapRes.json();
+  const extras = extraRes.ok ? await extraRes.json() : [];
+  const extraSnap = extraSnapRes.ok ? await extraSnapRes.json() : { companies: {} };
+  const seenCik = new Set(mapping.map((c) => c.cik).filter((cik) => cik != null));
+  const seenTicker = new Set(mapping.map((c) => c.fortune_ticker).filter(Boolean));
+  const extraOnly = extras.filter(
+    (c) => (c.cik == null || !seenCik.has(c.cik)) && !seenTicker.has(c.fortune_ticker)
+  );
+  state.companies = [...mapping, ...extraOnly];
   const snap = await snapRes.json();
-  for (const [cik, row] of Object.entries(snap.companies || {})) {
+  for (const [cik, row] of Object.entries({ ...snap.companies, ...extraSnap.companies } || {})) {
     state.snapshot.set(Number(cik), ensureRatios(row));
   }
 }
@@ -175,7 +185,7 @@ function syncLayout() {
   document.body.classList.toggle('has-company', live);
   document.body.classList.toggle('is-unit', isUnit());
   $('setup').hidden = isUnit();
-  $('dock-ratios').hidden = isUnit();
+  $('dock-ratios').hidden = isUnit() || Boolean(state.company?.extra);
   if (isUnit()) {
     $('step-models').hidden = true;
     $('step-peers').hidden = true;
@@ -201,17 +211,30 @@ function syncLayout() {
 
 /* -------------------------------- search ------------------------------- */
 
+function resultSub(c, { has, pub, self = false, picked = false } = {}) {
+  if (self) return 'That’s the company you’re modeling';
+  if (!pub) return c.note || 'Private — no 10-K';
+  if (!has) return 'No filing in the snapshot';
+  const extra = c.extra ? c.blurb || 'Watchlist filer' : `#${c.rank}`;
+  const ticker = c.fortune_ticker || '';
+  return `${extra}${ticker ? ` · ${ticker}` : ''}${picked ? ' · in the set' : ''}`;
+}
+
 function renderQuick() {
   const picks = ['AAPL', 'MSFT', 'WMT', 'NVDA'];
-  $('quick').innerHTML = picks
-    .map((t) => `<button type="button" class="fm-chip" data-ticker="${t}">${t}</button>`)
-    .join('');
-  $('quick').onclick = (e) => {
+  const extras = ['GDDY', 'WIX', 'NET', 'HOOD', 'DUOL'];
+  const chip = (t) => `<button type="button" class="fm-chip" data-ticker="${t}">${t}</button>`;
+  $('quick').innerHTML = picks.map(chip).join('');
+  const extraBox = $('quick-extra');
+  if (extraBox) extraBox.innerHTML = extras.map(chip).join('');
+  const onChip = (e) => {
     const t = e.target.closest('[data-ticker]');
     if (!t) return;
     const company = state.companies.find((c) => c.fortune_ticker === t.dataset.ticker);
     if (company) selectCompany(company);
   };
+  $('quick').onclick = onChip;
+  if (extraBox) extraBox.onclick = onChip;
 }
 
 function renderResults(query) {
@@ -222,26 +245,34 @@ function renderResults(query) {
     return;
   }
   const hits = state.companies
-    .filter((c) => c.company?.toLowerCase().includes(q) || c.fortune_ticker?.toLowerCase().includes(q))
+    .filter(
+      (c) =>
+        c.company?.toLowerCase().includes(q) ||
+        c.fortune_ticker?.toLowerCase().includes(q) ||
+        c.sec_ticker?.toLowerCase().includes(q) ||
+        c.blurb?.toLowerCase().includes(q)
+    )
     .slice(0, 40);
   box.hidden = false;
   if (!hits.length) {
-    box.innerHTML = '<p class="fm-empty">Nothing by that name in the Fortune 500 list.</p>';
+    box.innerHTML = '<p class="fm-empty">Nothing by that name in the company list.</p>';
     return;
   }
   box.innerHTML = hits
     .map((c) => {
       const pub = isPublic(c);
       const has = pub && state.snapshot.has(Number(c.cik));
-      const sub = !pub ? 'Private — no 10-K' : has ? `#${c.rank} · ${c.fortune_ticker}` : 'No filing in the snapshot';
-      return `<button type="button" class="fm-result${has ? '' : ' is-private'}" data-cik="${c.cik}" ${has ? '' : 'disabled'}>
+      const sub = resultSub(c, { has, pub });
+      return `<button type="button" class="fm-result${has ? '' : ' is-private'}" data-cik="${c.cik ?? ''}" data-ticker="${escapeHtml(c.fortune_ticker || '')}" ${has ? '' : 'disabled'}>
         <strong>${escapeHtml(c.company)}</strong><span>${escapeHtml(sub)}</span></button>`;
     })
     .join('');
   box.onclick = (e) => {
     const btn = e.target.closest('[data-cik]');
     if (!btn) return;
-    const company = state.companies.find((c) => String(c.cik) === btn.dataset.cik);
+    const company = state.companies.find(
+      (c) => String(c.cik) === btn.dataset.cik || (btn.dataset.ticker && c.fortune_ticker === btn.dataset.ticker)
+    );
     if (company) selectCompany(company);
   };
 }
@@ -313,11 +344,17 @@ function renderPeerResults(query) {
     return;
   }
   const hits = state.companies
-    .filter((c) => c.company?.toLowerCase().includes(q) || c.fortune_ticker?.toLowerCase().includes(q))
+    .filter(
+      (c) =>
+        c.company?.toLowerCase().includes(q) ||
+        c.fortune_ticker?.toLowerCase().includes(q) ||
+        c.sec_ticker?.toLowerCase().includes(q) ||
+        c.blurb?.toLowerCase().includes(q)
+    )
     .slice(0, 40);
   box.hidden = false;
   if (!hits.length) {
-    box.innerHTML = '<p class="fm-empty">Nothing by that name in the Fortune 500 list.</p>';
+    box.innerHTML = '<p class="fm-empty">Nothing by that name in the company list.</p>';
     return;
   }
   box.innerHTML = hits
@@ -327,16 +364,10 @@ function renderPeerResults(query) {
       const self = c.cik === state.company?.cik;
       const picked = isPeer(c);
       const blocked = !has || self;
-      const sub = self
-        ? 'That’s the company you’re modeling'
-        : !pub
-          ? 'Private — no 10-K'
-          : has
-            ? `#${c.rank} · ${c.fortune_ticker}${picked ? ' · in the set' : ''}`
-            : 'No filing in the snapshot';
+      const sub = resultSub(c, { has, pub, self, picked });
       const cls = `fm-result${blocked ? ' is-private' : ''}`;
       const selected = picked ? ' aria-selected="true"' : '';
-      return `<button type="button" class="${cls}" data-peer-cik="${c.cik}"${selected} ${blocked ? 'disabled' : ''}>
+      return `<button type="button" class="${cls}" data-peer-cik="${c.cik ?? ''}"${selected} ${blocked ? 'disabled' : ''}>
         <strong>${escapeHtml(c.company)}</strong><span>${escapeHtml(sub)}</span></button>`;
     })
     .join('');
@@ -360,7 +391,9 @@ async function selectCompany(company) {
   if (!isPublic(company)) {
     state.headlines = null;
     $('status').className = 'fm-status is-warn';
-    $('status').textContent = `${company.company} is private. ${PRIVATE_NOTES?.[company.company] || 'No 10-K means no statements to model — we won’t invent them.'}`;
+    $('status').textContent = `${company.company} is private. ${
+      company.note || PRIVATE_NOTES?.[company.company] || PRIVATE_NOTES?.[company.rank] || 'No 10-K means no statements to model — we won’t invent them.'
+    }`;
     syncLayout();
     return;
   }
@@ -817,6 +850,8 @@ function currentRun() {
   if (!headlines) return null;
   const model = runThreeStatement(headlines, state.assumptions);
   if (!model.ok) return { model };
+  const ccy = headlines?.metrics?.revenue?.unit;
+  if (ccy && ccy !== 'USD') model.unitLabel = `${ccy} millions`;
   const shares = headlines?.metrics?.shares_out?.val ?? null;
   model.shares = shares;
   model.companyName = state.company?.company || '';

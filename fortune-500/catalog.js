@@ -346,6 +346,8 @@ export const METRICS = [
       { taxonomy: 'us-gaap', tag: 'RegulatedAndUnregulatedOperatingRevenue' },
       { taxonomy: 'us-gaap', tag: 'RevenueFromContractWithCustomerIncludingAssessedTax' },
       { taxonomy: 'us-gaap', tag: 'RevenuesNetOfInterestExpense' },
+      { taxonomy: 'ifrs-full', tag: 'RevenueFromContractsWithCustomers' },
+      { taxonomy: 'ifrs-full', tag: 'Revenue' },
     ],
   },
   {
@@ -358,7 +360,11 @@ export const METRICS = [
     unit: 'USD',
     kind: 'duration',
     better: 'higher',
-    candidates: [{ taxonomy: 'us-gaap', tag: 'NetIncomeLoss' }],
+    candidates: [
+      { taxonomy: 'us-gaap', tag: 'NetIncomeLoss' },
+      { taxonomy: 'ifrs-full', tag: 'ProfitLossAttributableToOwnersOfParent' },
+      { taxonomy: 'ifrs-full', tag: 'ProfitLoss' },
+    ],
   },
   {
     key: 'gross_profit',
@@ -370,7 +376,10 @@ export const METRICS = [
     unit: 'USD',
     kind: 'duration',
     better: 'higher',
-    candidates: [{ taxonomy: 'us-gaap', tag: 'GrossProfit' }],
+    candidates: [
+      { taxonomy: 'us-gaap', tag: 'GrossProfit' },
+      { taxonomy: 'ifrs-full', tag: 'GrossProfit' },
+    ],
   },
   {
     key: 'operating_income',
@@ -382,7 +391,10 @@ export const METRICS = [
     unit: 'USD',
     kind: 'duration',
     better: 'higher',
-    candidates: [{ taxonomy: 'us-gaap', tag: 'OperatingIncomeLoss' }],
+    candidates: [
+      { taxonomy: 'us-gaap', tag: 'OperatingIncomeLoss' },
+      { taxonomy: 'ifrs-full', tag: 'ProfitLossFromOperatingActivities' },
+    ],
   },
   {
     key: 'assets',
@@ -394,7 +406,10 @@ export const METRICS = [
     unit: 'USD',
     kind: 'instant',
     better: 'higher',
-    candidates: [{ taxonomy: 'us-gaap', tag: 'Assets' }],
+    candidates: [
+      { taxonomy: 'us-gaap', tag: 'Assets' },
+      { taxonomy: 'ifrs-full', tag: 'Assets' },
+    ],
   },
   {
     key: 'liabilities',
@@ -406,7 +421,10 @@ export const METRICS = [
     unit: 'USD',
     kind: 'instant',
     better: null,
-    candidates: [{ taxonomy: 'us-gaap', tag: 'Liabilities' }],
+    candidates: [
+      { taxonomy: 'us-gaap', tag: 'Liabilities' },
+      { taxonomy: 'ifrs-full', tag: 'Liabilities' },
+    ],
   },
   {
     key: 'equity',
@@ -418,7 +436,12 @@ export const METRICS = [
     unit: 'USD',
     kind: 'instant',
     better: 'higher',
-    candidates: [{ taxonomy: 'us-gaap', tag: 'StockholdersEquity' }],
+    candidates: [
+      { taxonomy: 'us-gaap', tag: 'StockholdersEquity' },
+      { taxonomy: 'us-gaap', tag: 'StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest' },
+      { taxonomy: 'ifrs-full', tag: 'Equity' },
+      { taxonomy: 'ifrs-full', tag: 'EquityAttributableToOwnersOfParent' },
+    ],
   },
   {
     key: 'cash',
@@ -430,7 +453,10 @@ export const METRICS = [
     unit: 'USD',
     kind: 'instant',
     better: 'higher',
-    candidates: [{ taxonomy: 'us-gaap', tag: 'CashAndCashEquivalentsAtCarryingValue' }],
+    candidates: [
+      { taxonomy: 'us-gaap', tag: 'CashAndCashEquivalentsAtCarryingValue' },
+      { taxonomy: 'ifrs-full', tag: 'CashAndCashEquivalents' },
+    ],
   },
   {
     key: 'cfo',
@@ -442,7 +468,10 @@ export const METRICS = [
     unit: 'USD',
     kind: 'duration',
     better: 'higher',
-    candidates: [{ taxonomy: 'us-gaap', tag: 'NetCashProvidedByUsedInOperatingActivities' }],
+    candidates: [
+      { taxonomy: 'us-gaap', tag: 'NetCashProvidedByUsedInOperatingActivities' },
+      { taxonomy: 'ifrs-full', tag: 'NetCashFlowsFromUsedInOperatingActivities' },
+    ],
   },
   {
     key: 'cfi',
@@ -529,7 +558,11 @@ export const METRICS = [
     unit: 'USD',
     kind: 'instant',
     better: null,
-    candidates: [{ taxonomy: 'us-gaap', tag: 'InventoryNet' }],
+    candidates: [
+      { taxonomy: 'us-gaap', tag: 'InventoryNet' },
+      { taxonomy: 'ifrs-full', tag: 'Inventories' },
+      { taxonomy: 'ifrs-full', tag: 'InventoriesTotal' },
+    ],
   },
   {
     key: 'receivables',
@@ -541,7 +574,10 @@ export const METRICS = [
     unit: 'USD',
     kind: 'instant',
     better: null,
-    candidates: [{ taxonomy: 'us-gaap', tag: 'AccountsReceivableNetCurrent' }],
+    candidates: [
+      { taxonomy: 'us-gaap', tag: 'AccountsReceivableNetCurrent' },
+      { taxonomy: 'ifrs-full', tag: 'TradeAndOtherCurrentReceivables' },
+    ],
   },
   {
     key: 'rd',
@@ -565,7 +601,10 @@ export const METRICS = [
     unit: 'USD',
     kind: 'duration',
     better: null,
-    candidates: [{ taxonomy: 'us-gaap', tag: 'PaymentsToAcquirePropertyPlantAndEquipment' }],
+    candidates: [
+      { taxonomy: 'us-gaap', tag: 'PaymentsToAcquirePropertyPlantAndEquipment' },
+      { taxonomy: 'ifrs-full', tag: 'PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities' },
+    ],
   },
 ];
 

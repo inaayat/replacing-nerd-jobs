@@ -9,7 +9,7 @@
  */
 import { METRICS, DERIVED } from './catalog.js';
 
-const ANNUAL_FORMS = new Set(['10-K', '10-K/A']);
+const ANNUAL_FORMS = new Set(['10-K', '10-K/A', '20-F', '20-F/A']);
 const MIN_ANNUAL_DAYS = 300;
 
 function yearOf(iso) {
@@ -26,8 +26,10 @@ function daySpan(start, end) {
   return (b - a) / 86400000;
 }
 
+const MONEY_UNITS = new Set(['USD', 'EUR', 'CHF', 'GBP', 'CAD', 'AUD', 'ILS']);
+
 function preferredUnit(def, unit) {
-  if (def.unit === 'USD') return unit === 'USD';
+  if (def.unit === 'USD') return MONEY_UNITS.has(unit);
   if (def.unit === 'USD/shares') return unit === 'USD/shares';
   if (def.unit === 'shares') return unit === 'shares';
   return true;
@@ -73,8 +75,9 @@ function collectPoints(facts, def) {
 
 function scorePoint(p, targetYear) {
   let score = 0;
-  if (p.form === '10-K') score += 4;
-  if (p.form === '10-K/A') score += 3;
+  if (p.form === '10-K' || p.form === '20-F') score += 4;
+  if (p.form === '10-K/A' || p.form === '20-F/A') score += 3;
+  if (p.unit === 'USD') score += 1;
   if (targetYear && p.frame === `CY${targetYear}`) score += 2;
   if (targetYear && p.frame === `CY${targetYear}Q4I`) score += 2;
   if (p.filed) score += 0.001 * Date.parse(p.filed);

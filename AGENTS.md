@@ -28,6 +28,7 @@ This repo is a no-build Vercel site (see `README.md` for structure/deploy). Non-
  - `node scripts/test-financial-modeler-engine.mjs` — Financial Modeler engine (`financial-modeler/engine.js`)
  - `node scripts/test-financial-modeler-workbook.mjs` — Financial Modeler Excel download (`financial-modeler/workbook.js`)
  - `node scripts/test-financial-modeler-unit-econ.mjs` — Financial Modeler unit-econ exercise (`financial-modeler/unit-econ.js`)
+ - `node scripts/test-financial-modeler-extras.mjs` — Financial Modeler extra filers (`financial-modeler/extras.json`)
   - `node scripts/test-public-imports.mjs` — no browser-loaded file imports server-only `/lib/` code
   - `node scripts/test-alist-watchlist-sort.mjs` — Coming Soon watchlist ordering
   - `node scripts/test-alist-showing.mjs` — watched-together / showing-invite match rules

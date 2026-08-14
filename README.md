@@ -74,7 +74,8 @@ Share prices (last + daily history) come from Yahoo Finance via
 Beginner-friendly modeling bench. Two exercises share the same three-statement
 wiring (cash is the plug, interest on beginning balances, a real balance check):
 
-- **From a 10-K** — pick a public Fortune 500 filer, pick any of three Wall Street
+- **From a 10-K** — pick a public Fortune 500 filer (or a watchlist name such as
+  GoDaddy, Wix, Cloudflare, Robinhood), pick any of three Wall Street
   Prep model types (3-statement, DCF, trading comps), choose the peer set yourself
   when comps are on, move a handful of plain-English guesses.
 - **From one sale** — a lemonade stall built from cups × price, cost per cup, and a
@@ -100,6 +101,10 @@ The snapshot has no tag for net PP&E, payables, or D&A, so those sit in two
 labelled residual lines (which is what makes year 0 equal the filed totals) and
 D&A starts equal to CapEx. Nothing untagged is ever read as zero.
 `/fortune-500/` stays the 10-K ratios/screener and is linked as a sibling.
+Watchlist names that are not in the Fortune 500 live in
+`financial-modeler/extras.json` (Wix and a few others file a 20-F; Veeam is
+private and has no filing to model). Refresh their 10-K/20-F headlines with
+`node scripts/pull-financial-modeler-extras.mjs` (writes `extras-headlines.json`).
 
 ### AI buildout money — `/ai-buildout`
 
@@ -525,5 +530,6 @@ node scripts/test-fortune500-insights.mjs
 node scripts/test-financial-modeler-engine.mjs
 node scripts/test-financial-modeler-workbook.mjs
 node scripts/test-financial-modeler-unit-econ.mjs
+node scripts/test-financial-modeler-extras.mjs
 node scripts/test-ai-buildout.mjs
 ```

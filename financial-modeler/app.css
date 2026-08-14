@@ -129,6 +129,7 @@ a { color: inherit; }
 }
 .fm-search:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .fm-quick { display: flex; gap: 8px; flex-wrap: wrap; }
+.fm-quick + .fm-quick { margin-top: 6px; }
 .fm-chip {
   border: 1px solid var(--rule-strong);
   background: var(--paper);

@@ -1,30 +1,24 @@
 /**
- * One-shot pull of slim 10-K headlines for every public Fortune 500 CIK.
- * Writes fortune-500/data/headlines-snapshot.json (not raw Company Facts).
+ * Pull slim 10-K / 20-F headlines for financial-modeler extra filers
+ * (GoDaddy, Wix, …). Writes financial-modeler/extras-headlines.json so the
+ * Fortune 500 snapshot stays Fortune 500-only.
  *
- * Usage: node scripts/pull-fortune500-headlines.mjs
- * Respects SEC ~10 req/sec: two workers, 150ms between launches, 429 backoff.
+ * Usage: node scripts/pull-financial-modeler-extras.mjs
  */
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { extractHeadlines } from '../fortune-500/extract.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const OUT = join(ROOT, 'fortune-500/data/headlines-snapshot.json');
-const MAPPING = join(ROOT, 'fortune-500/data/fortune500_edgar_mapping.json');
+const OUT = join(ROOT, 'financial-modeler/extras-headlines.json');
+const EXTRAS = join(ROOT, 'financial-modeler/extras.json');
 const UA =
   process.env.SEC_USER_AGENT ||
   'inaayat.xyz/fortune-500 (https://inaayat.xyz/fortune-500/)';
 const WORKERS = 2;
 const GAP_MS = 150;
 const MAX_ATTEMPTS = 5;
-/**
- * Bump when a slimmed field is added, so existing rows get refetched instead of
- * silently serving a snapshot the UI can no longer fill in.
- * 2 — prior-year filed values (`priorMetrics`) for the FY-1 statement column.
- * 3 — industry revenue tags (utilities, retailers, banks) as revenue candidates.
- */
 const SNAPSHOT_SCHEMA = 3;
 
 function padCik(cik) {
@@ -45,24 +39,6 @@ function slim(extracted, cik) {
     priorMetrics: extracted.priorMetrics,
     ratios: extracted.ratios,
   };
-}
-
-function loadSnapshot() {
-  if (!existsSync(OUT)) {
-    return { schema: SNAPSHOT_SCHEMA, pulled_at: null, companies: {} };
-  }
-  const snap = JSON.parse(readFileSync(OUT, 'utf8'));
-  if (snap.schema !== SNAPSHOT_SCHEMA) {
-    console.log(`Snapshot schema ${snap.schema ?? 1} → ${SNAPSHOT_SCHEMA}: refetching every filer.`);
-    return { schema: SNAPSHOT_SCHEMA, pulled_at: null, companies: {} };
-  }
-  return snap;
-}
-
-function saveSnapshot(snap) {
-  snap.schema = SNAPSHOT_SCHEMA;
-  snap.pulled_at = new Date().toISOString();
-  writeFileSync(OUT, JSON.stringify(snap));
 }
 
 async function fetchFacts(cik) {
@@ -86,15 +62,8 @@ async function fetchFacts(cik) {
   throw new Error(`SEC still 429/503 after ${MAX_ATTEMPTS} attempts`);
 }
 
-const mapping = JSON.parse(readFileSync(MAPPING, 'utf8'));
-const publicCos = mapping.filter((c) => c.status === 'matched' && c.cik != null);
-const snap = loadSnapshot();
-if (!snap.companies) snap.companies = {};
-
-const pending = publicCos.filter((c) => !snap.companies[String(c.cik)]);
-console.log(
-  `Public filers ${publicCos.length}; already in snapshot ${publicCos.length - pending.length}; to pull ${pending.length}`
-);
+const extras = JSON.parse(readFileSync(EXTRAS, 'utf8')).filter((c) => c.status === 'matched' && c.cik != null);
+const snap = { schema: SNAPSHOT_SCHEMA, pulled_at: null, companies: {} };
 
 let done = 0;
 let errors = 0;
@@ -122,8 +91,13 @@ async function pullOne(c) {
         metrics: {},
         ratios: {},
       };
+      console.warn(`  ${c.fortune_ticker} — no Company Facts`);
     } else {
-      snap.companies[String(c.cik)] = slim(extractHeadlines(result.facts), c.cik);
+      const row = slim(extractHeadlines(result.facts), c.cik);
+      snap.companies[String(c.cik)] = row;
+      console.log(
+        `  ${c.fortune_ticker} FY${row.asOfYear ?? '—'} revenue=${row.metrics?.revenue?.val ?? 'missing'}`
+      );
     }
   } catch (err) {
     errors += 1;
@@ -134,13 +108,9 @@ async function pullOne(c) {
       metrics: {},
       ratios: {},
     };
-    console.warn(`  fail ${c.fortune_ticker || c.company}: ${err.message}`);
+    console.warn(`  fail ${c.fortune_ticker}: ${err.message}`);
   }
   done += 1;
-  if (done % 10 === 0 || done === pending.length) {
-    saveSnapshot(snap);
-    console.log(`  ${done}/${pending.length} (${errors} errors)`);
-  }
 }
 
 async function runPool(items, n) {
@@ -155,8 +125,10 @@ async function runPool(items, n) {
   await Promise.all(Array.from({ length: n }, () => worker()));
 }
 
-await runPool(pending, WORKERS);
-saveSnapshot(snap);
+console.log(`Pulling ${extras.length} extra filers from EDGAR`);
+await runPool(extras, WORKERS);
+snap.pulled_at = new Date().toISOString();
+writeFileSync(OUT, `${JSON.stringify(snap, null, 2)}\n`);
 const ok = Object.values(snap.companies).filter((c) => c.asOfYear && !c.error).length;
 console.log(`Wrote ${OUT}`);
-console.log(`Headlines with an as-of year: ${ok}/${publicCos.length}`);
+console.log(`Headlines with an as-of year: ${ok}/${extras.length} (${errors} errors)`);
