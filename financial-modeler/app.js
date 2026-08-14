@@ -94,7 +94,8 @@ const TABS = [
   {
     id: 'three',
     label: '3 Statements',
-    hint: 'Income statement, balance sheet, and cash flow wired together. DCF and comps build on this.',
+    what: 'Income statement, balance sheet, and cash flow wired together so they always tie.',
+    hint: 'Income statement, balance sheet, and cash flow wired together so they always tie.',
     filer: true,
     unit: true,
     capital: true,
@@ -104,7 +105,8 @@ const TABS = [
   {
     id: 'dcf',
     label: 'DCF',
-    hint: 'Depends on unlevered free cash flow from the three-statement forecast.',
+    what: 'What the company is worth if you discount the cash it can produce.',
+    hint: 'What the company is worth if you discount the cash it can produce.',
     filer: true,
     unit: false,
     capital: false,
@@ -114,7 +116,8 @@ const TABS = [
   {
     id: 'comps',
     label: 'Comps',
-    hint: 'Depends on your peer set and live market prices — not an auto-picked neighbour list.',
+    what: 'What similar public companies trade for, as a cross-check.',
+    hint: 'What similar public companies trade for, as a cross-check.',
     filer: true,
     unit: false,
     capital: false,
@@ -124,7 +127,8 @@ const TABS = [
   {
     id: 'scenarios',
     label: 'Scenarios',
-    hint: 'Changes several assumptions together — unlike sensitivity, which isolates one or two drivers.',
+    what: 'Base, upside, and downside — several assumptions move together as one case.',
+    hint: 'Base, upside, and downside — several assumptions move together as one case.',
     filer: true,
     unit: true,
     capital: false,
@@ -134,7 +138,8 @@ const TABS = [
   {
     id: 'sensitivity',
     label: 'Sensitivity',
-    hint: 'Holds other assumptions constant while two drivers move — a range of outcomes, not one answer.',
+    what: 'A range of outcomes when one or two drivers change and everything else stays put.',
+    hint: 'A range of outcomes when one or two drivers change and everything else stays put.',
     filer: true,
     unit: true,
     capital: false,
@@ -144,7 +149,8 @@ const TABS = [
   {
     id: 'checks',
     label: 'Checks & Download',
-    hint: 'Balance-sheet tie, warnings, and Excel download. Workbook includes only the models you selected in setup.',
+    what: 'Balance-sheet tie, warnings, and Excel download for the models you picked.',
+    hint: 'Balance-sheet tie, warnings, and Excel download for the models you picked.',
     filer: true,
     unit: true,
     capital: true,
@@ -186,17 +192,17 @@ const MODEL_PICKS = [
   {
     id: 'three',
     title: '3-statement model',
-    blurb: 'Income statement, balance sheet, and cash flow wired together. Everything else is built on this one.',
+    blurb: 'Income statement, balance sheet, and cash flow wired together so they always tie. DCF and comps build on this.',
   },
   {
     id: 'dcf',
     title: 'Discounted cash flow',
-    blurb: 'What the business is worth if you own all its future cash. Ends in a price per share.',
+    blurb: 'What the company is worth if you discount the cash it can produce. Ends in a price per share.',
   },
   {
     id: 'comps',
     title: 'Trading comps',
-    blurb: 'What the market pays for similar companies right now, applied to this one.',
+    blurb: 'What similar public companies trade for, as a cross-check against the DCF.',
   },
 ];
 
@@ -538,6 +544,14 @@ function renderTabs() {
       render();
     };
   });
+
+  const hintEl = $('tab-hint');
+  if (hintEl) {
+    const tab = TABS.find((t) => t.id === state.activeTab);
+    const text = tab?.what || tab?.hint || '';
+    hintEl.textContent = text;
+    hintEl.hidden = !text;
+  }
 }
 
 function renderWorkspaceStatus(model, dcf) {
@@ -1000,9 +1014,6 @@ function renderAssumptionDetailHtml(key) {
   const value = state.assumptions?.[d.key];
   const disabled = value == null;
   const validation = disabled ? { valid: true } : validateAssumption(d, value);
-  const slider = !disabled
-    ? `<input type="range" class="fm-assump-slider fm-assump-slider--compact" data-range="${d.key}" min="${d.min}" max="${d.max}" step="${d.step}" value="${value}" aria-label="${escapeHtml(d.name)} slider" />`
-    : '';
   const err = !validation.valid
     ? `<span class="fm-assump-strip-error">${escapeHtml(validation.message)}</span>`
     : validation.warn && validation.message
@@ -1012,7 +1023,7 @@ function renderAssumptionDetailHtml(key) {
   return `<div class="fm-assump-strip-inner">
     <strong class="fm-assump-strip-name">${escapeHtml(d.name)}</strong>
     <span class="fm-assump-strip-text">${escapeHtml(d.shortDefinition || d.what)}</span>
-    ${slider}${err}
+    ${err}
   </div>`;
 }
 
@@ -1023,26 +1034,7 @@ function renderAssumptionDetail() {
     ? renderAssumptionDetailHtml(key)
     : '<p class="fm-assump-placeholder">Click a name or start typing a value — every chip is editable.</p>';
   const el = $('assumption-detail');
-  if (el) {
-    el.innerHTML = html;
-    if (key) bindAssumptionDetail(el);
-  }
-}
-
-function bindAssumptionDetail(wrap) {
-  wrap.querySelectorAll('[data-range]').forEach((el) => {
-    el.addEventListener('input', () => {
-      const key = el.dataset.range;
-      const value = Number(el.value);
-      if (state.scenarioState && scenarioDrivers().includes(key)) {
-        state.scenarioState = editScenarioValue(state.scenarioState, key, value);
-        syncAssumptionsFromScenarios();
-      } else {
-        state.assumptions = { ...state.assumptions, [key]: value };
-      }
-      render();
-    });
-  });
+  if (el) el.innerHTML = html;
 }
 
 function renderAssumptionListHtml() {
@@ -1725,11 +1717,6 @@ function currentRun() {
     state.peers.map((c) => ({ company: c, headlines: headlinesFor(c), price: state.prices.get(priceTicker(c)) ?? null }))
   );
   return { model, dcf, sens, comps, price, shares };
-}
-
-function tabHint() {
-  const tab = TABS.find((t) => t.id === state.activeTab);
-  return tab?.hint ? `<p class="fm-tab-hint">${escapeHtml(tab.hint)}</p>` : '';
 }
 
 function renderInspectorChecklist(context) {
