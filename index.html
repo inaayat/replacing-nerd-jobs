@@ -521,13 +521,18 @@
         flex-direction: column;
         overflow: hidden;
         border-radius: 28px;
+        color: var(--ink);
         background: var(--tile-bg);
         border: 1.5px solid var(--tile-border);
         box-shadow: -10px 0 28px rgba(28, 28, 28, 0.1);
-        transition: background-color 220ms ease, border-color 220ms ease;
+        transition: background-color 220ms ease, border-color 220ms ease, color 220ms ease, box-shadow 220ms ease;
       }
       [data-theme="moon"] .projects-panel-shell {
         box-shadow: -10px 0 28px rgba(0, 0, 0, 0.45);
+      }
+      [data-theme="zohran"] .projects-panel-shell {
+        box-shadow: -10px 0 28px rgba(0, 0, 0, 0.18);
+        color: #faf3e3;
       }
       .projects-panel-head {
         flex: 0 0 auto;
@@ -536,11 +541,14 @@
         justify-content: space-between;
         gap: 12px;
         padding: 16px 16px 10px;
+        background: var(--tile-bg);
+        transition: background-color 220ms ease, color 220ms ease;
       }
       .projects-panel-head h2 {
         margin: 0;
         font-size: 1.35rem;
         line-height: 1.15;
+        color: inherit;
       }
       .projects-note {
         margin: 6px 0 0;
@@ -548,7 +556,9 @@
         line-height: 1.45;
         opacity: 0.7;
         max-width: 54ch;
+        color: inherit;
       }
+      [data-theme="zohran"] .projects-note { opacity: 0.88; }
       .projects-close {
         flex-shrink: 0;
         width: 34px;
@@ -556,15 +566,22 @@
         border: 1.5px solid var(--tile-border);
         border-radius: 999px;
         background: transparent;
-        color: var(--ink);
+        color: inherit;
         cursor: pointer;
         font-size: 1.15rem;
         line-height: 1;
+        transition: background-color 220ms ease, border-color 220ms ease, color 220ms ease;
       }
-      .projects-close:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+      .projects-close:hover { background: color-mix(in srgb, currentColor 8%, transparent); }
       .projects-close:focus-visible {
-        outline: 2px solid var(--ink);
+        outline: 2px solid currentColor;
         outline-offset: 2px;
+      }
+      [data-theme="zohran"] .projects-close {
+        border-color: #faf3e344;
+      }
+      [data-theme="zohran"] .projects-close:hover {
+        background: color-mix(in srgb, #faf3e3 14%, transparent);
       }
       .projects-panel-scroll {
         flex: 1 1 auto;
@@ -573,6 +590,8 @@
         overflow-y: auto;
         overscroll-behavior: contain;
         padding: 4px 14px 16px;
+        background: var(--gutter);
+        transition: background-color 220ms ease;
       }
       .projects-grid {
         display: grid;
@@ -603,7 +622,7 @@
         border-radius: 20px;
         text-decoration: none;
         color: var(--ink);
-        transition: filter 140ms ease-out, transform 140ms ease-out;
+        transition: filter 140ms ease-out, transform 140ms ease-out, background-color 220ms ease, color 220ms ease;
       }
       a.project-row:hover {
         filter: brightness(1.06);
@@ -636,7 +655,7 @@
         opacity: 0.88;
       }
       .project-row.is-failed .row-status {
-        background: color-mix(in srgb, #1c1c1c 18%, transparent);
+        background: color-mix(in srgb, var(--ink) 18%, transparent);
         font-weight: 500;
       }
       .project-row .row-title {
@@ -684,6 +703,20 @@
       [data-theme="zohran"] .project-row.card-yellow,
       [data-theme="zohran"] .project-row.card-orange,
       [data-theme="zohran"] .project-row.card-red { color: var(--on-light-blob); }
+      [data-theme="zohran"] .project-row.card-purple .row-blurb,
+      [data-theme="zohran"] .project-row.card-cyan .row-blurb,
+      [data-theme="zohran"] .project-row.card-green .row-blurb,
+      [data-theme="zohran"] .project-row.card-pink .row-blurb,
+      [data-theme="zohran"] .project-row.card-purple .row-outcome,
+      [data-theme="zohran"] .project-row.card-cyan .row-outcome,
+      [data-theme="zohran"] .project-row.card-green .row-outcome,
+      [data-theme="zohran"] .project-row.card-pink .row-outcome { opacity: 0.92; }
+      [data-theme="zohran"] .project-row.card-yellow .row-blurb,
+      [data-theme="zohran"] .project-row.card-orange .row-blurb,
+      [data-theme="zohran"] .project-row.card-red .row-blurb,
+      [data-theme="zohran"] .project-row.card-yellow .row-outcome,
+      [data-theme="zohran"] .project-row.card-orange .row-outcome,
+      [data-theme="zohran"] .project-row.card-red .row-outcome { opacity: 0.82; }
 
       @media (prefers-reduced-motion: reduce) {
         .blob-body { transition: none; }
