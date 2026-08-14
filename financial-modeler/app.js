@@ -1036,7 +1036,7 @@ function renderExercises() {
   $('exercise-picks').innerHTML = EXERCISES.map((ex) => {
     const on = state.exercise === ex.id;
     return `<button type="button" class="fm-exercise-pick" data-exercise="${ex.id}" aria-pressed="${on}">
-      <h3>${escapeHtml(ex.title)}</h3><p>${escapeHtml(ex.blurb)}</p></button>`;
+      <h3>${escapeHtml(ex.title)}</h3></button>`;
   }).join('');
   $('exercise-picks').onclick = (e) => {
     const btn = e.target.closest('[data-exercise]');
