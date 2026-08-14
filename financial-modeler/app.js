@@ -18,9 +18,7 @@ import {
 import { DIALS, DIAL_GROUPS, dialsFor } from './dials.js';
 import {
   assumptionCatalog,
-  sourceBadge,
   validateAssumption,
-  isOverride,
 } from './assumptions.js';
 import { dependencyPath, dependencyRowKeys } from './dependencies.js';
 import { stepsForTab } from './build-steps.js';
