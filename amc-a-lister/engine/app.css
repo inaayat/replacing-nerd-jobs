@@ -1,10 +1,9 @@
-/* Palette borrowed from the site home page: cream field, ink type, one loud red.
-   Red is a fill colour only: type on a red fill is white, and red type on cream
-   uses --al-red-deep. Nothing clears AA against pure red (white 4.00:1, ink
-   4.26:1), so keep that type full-strength — alpha only makes it worse. */
+/* Palette borrowed from the site home page: cream field, ink type, one deep red.
+   Red is a fill colour only: type on a red fill is white, and red text on cream
+   uses --al-red-deep. */
 :root {
   --al-cream: #faf3e3;
-  --al-red: #ff0000;
+  --al-red: #b80f0a;
   --al-red-deep: #c93b2e;
   --al-purple: #755ca7;
   --al-cyan: #78a8d5;
@@ -108,7 +107,7 @@ a { color: var(--al-red-deep); }
   .al-sidebar { width: 340px; }
 }
 
-/* The one big red shape on the page: a marquee card, bulbs and all. */
+/* The one big red shape on the page: the sidebar marquee card. */
 .al-sidebar-brand {
   display: flex;
   flex-direction: column;
@@ -117,16 +116,6 @@ a { color: var(--al-red-deep); }
   border-radius: 16px;
   background: var(--al-red);
   color: var(--al-white);
-}
-
-.al-sidebar-brand::after {
-  content: '';
-  display: block;
-  height: 6px;
-  margin-top: 10px;
-  background-image: radial-gradient(circle, var(--al-white) 2.1px, transparent 2.3px);
-  background-size: 14px 6px;
-  opacity: 0.8;
 }
 
 .al-sidebar-title {
