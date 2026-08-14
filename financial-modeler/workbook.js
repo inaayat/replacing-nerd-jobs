@@ -18,6 +18,9 @@
  */
 
 import { COMP_MULTIPLES } from './engine.js';
+import { SCENARIO_DRIVERS, SCENARIO_LABELS } from './scenarios.js';
+
+const SCENARIO_KEYS = ['downside', 'base', 'upside', 'custom'];
 
 const M = 1e6;
 
@@ -462,17 +465,64 @@ function yearHeader(rows, label = 'US$ in millions') {
  * Assumptions sheet. Every driver the statements use lives here in blue, one
  * per row, with the plain-English note the page shows next to the same slider.
  */
-function assumptionsSheet({ company, headlines, model, cards }) {
+function assumptionsSheet({ company, headlines, model, cards, scenarioState }) {
   const b = sheetBuilder();
   const at = new Map();
+  const useScenarios = Boolean(scenarioState?.scenarios);
+  at.valueCol = useScenarios ? 6 : 2;
+  at.scenarioKeys = useScenarios ? new Set(SCENARIO_DRIVERS) : null;
+  at.selectorRow = null;
+  at.headerRow = null;
+
   b.text(['Assumptions & drivers'], 'title');
-  b.text(['Blue cells are yours to change. Every other sheet reads them.'], 'note');
+  b.text(['Blue cells are yours to change. Every other sheet reads the Active column when scenarios are on.'], 'note');
   b.text([`${company?.company || headlines?.entityName || ''} · ${company?.fortune_ticker || company?.sec_ticker || ''} · US$ in millions`], 'note');
   b.blank();
-  b.add([{ v: 'Driver', s: 'hdr' }, { v: 'Value', s: 'hdr' }, { v: 'What it is', s: 'hdr' }, { v: 'How to get it', s: 'hdr' }, { v: 'Where the default came from', s: 'hdr' }]);
+
+  if (useScenarios) {
+    b.text(['Scenario selector — type downside, base, upside, or custom. Active column updates automatically.'], 'note');
+    at.selectorRow = b.add([
+      { v: 'Active scenario', s: 'lbl' },
+      { v: scenarioState.activeScenario || 'base', s: 'in' },
+    ]);
+    b.blank();
+    at.headerRow = b.add([
+      { v: 'Driver', s: 'hdr' },
+      ...SCENARIO_KEYS.map((k) => ({ v: SCENARIO_LABELS[k], s: 'hdr' })),
+      { v: 'Active', s: 'hdr' },
+      { v: 'What it is', s: 'hdr' },
+      { v: 'How to get it', s: 'hdr' },
+      { v: 'Where the default came from', s: 'hdr' },
+    ]);
+  } else {
+    b.add([
+      { v: 'Driver', s: 'hdr' },
+      { v: 'Value', s: 'hdr' },
+      { v: 'What it is', s: 'hdr' },
+      { v: 'How to get it', s: 'hdr' },
+      { v: 'Where the default came from', s: 'hdr' },
+    ]);
+  }
 
   const a = model.assumptions;
   const put = (key, label, value, style, what, how, origin) => {
+    if (useScenarios && SCENARIO_DRIVERS.includes(key)) {
+      const rowNum = b.length + 1;
+      const cells = [{ v: label, s: 'lbl' }];
+      for (const sk of SCENARIO_KEYS) {
+        const raw = scenarioState.scenarios[sk]?.values?.[key];
+        const val = raw != null ? raw : value;
+        cells.push({ v: typeof val === 'number' && Number.isFinite(val) ? val : null, s: style });
+      }
+      cells.push({
+        f: `=INDEX(R${rowNum}C2:R${rowNum}C5,1,MATCH(R${at.selectorRow}C2,R${at.headerRow}C2:R${at.headerRow}C5,0))`,
+        s: style,
+      });
+      cells.push({ v: what, s: 'note' }, { v: how, s: 'note' }, { v: origin, s: 'note' });
+      const r = b.add(cells);
+      at.set(key, r);
+      return r;
+    }
     const r = b.add([
       { v: label, s: 'lbl' },
       { v: typeof value === 'number' && Number.isFinite(value) ? value : null, s: style },
@@ -531,15 +581,16 @@ function assumptionsSheet({ company, headlines, model, cards }) {
   ], 'note');
   b.text(['Note: D&A is not tagged either. CapEx is the stand-in — a mature company roughly replaces what it wears out.'], 'note');
 
-  return { sheet: b.pack([240, 90, 260, 360, 320]), at };
+  return { sheet: b.pack(useScenarios ? [220, 72, 72, 72, 72, 72, 240, 300, 280] : [240, 90, 260, 360, 320]), at };
 }
 
 /**
- * `A!` prefixed reference into Assumptions, always the same shape so a reader
- * can spot an input by eye.
+ * `A!` prefixed reference into Assumptions. Scenario drivers read the Active
+ * column; opening balances and locked cells stay in column B.
  */
 function ref(at, key) {
-  return `Assumptions!R${at.get(key)}C2`;
+  const col = at.scenarioKeys?.has(key) ? at.valueCol : 2;
+  return `Assumptions!R${at.get(key)}C${col}`;
 }
 
 function incomeSheet(model, at) {
@@ -866,7 +917,7 @@ function compsSheet(comps, model) {
   return { sheet: b.pack([220, 70, 70, 90, 100, 90, 110, 100, 100, 70, 90, 90, 70]) };
 }
 
-function checksSheet(model, bsRows) {
+function checksSheet(model, bsRows, at) {
   const b = sheetBuilder();
   const rows = model.rows;
   b.text(['Error dashboard'], 'title');
@@ -879,9 +930,20 @@ function checksSheet(model, bsRows) {
   const cashCells = [{ v: 'Cash never goes negative', s: 'lblb' }];
   for (let i = 0; i < rows.length; i += 1) cashCells.push({ f: `=IF(BS!R${bsRows.cash}C>=0,"OK","NEGATIVE")`, s: 'lbl' });
   b.add(cashCells);
+  if (at?.selectorRow && at?.headerRow) {
+    b.blank();
+    b.add([
+      { v: 'Scenario selector is valid', s: 'lblb' },
+      {
+        f: `=IF(COUNTIF(Assumptions!R${at.headerRow}C2:Assumptions!R${at.headerRow}C5,Assumptions!R${at.selectorRow}C2)=1,"OK","INVALID")`,
+        s: 'lbl',
+      },
+    ]);
+  }
   b.blank();
   b.text(['Sources = uses does not apply here: this is an operating model, not a transaction.'], 'note');
   b.text(['No circular references by design — interest is charged on beginning balances, so Excel never needs iterative calculation.'], 'note');
+  b.text(['Scenarios change several drivers together; the DCF sensitivity grid isolates WACC and terminal growth only.'], 'note');
   return { sheet: b.pack([320, ...rows.map(() => 90)]) };
 }
 
@@ -894,6 +956,28 @@ function coverSheet({ company, headlines, model, sheets }) {
   b.text(['Currency', 'USD']);
   b.text(['Scale', 'Millions (US$mm) on every sheet']);
   b.text(['Built', new Date().toISOString().slice(0, 10)]);
+  b.blank();
+  b.text(['Build order'], 'lblb');
+  b.add([{ v: '1', s: 'lbl' }, { v: 'Assumptions — pick a scenario and edit blue drivers.', s: 'note' }]);
+  b.add([{ v: '2', s: 'lbl' }, { v: 'IS → Schedules → BS → CFS — three statements wired together.', s: 'note' }]);
+  b.add([{ v: '3', s: 'lbl' }, { v: 'DCF and Comps — valuation on top of the forecast.', s: 'note' }]);
+  b.add([{ v: '4', s: 'lbl' }, { v: 'Checks — balance tie and scenario selector must read OK/zero.', s: 'note' }]);
+  b.blank();
+  b.text(['Scenarios vs sensitivity'], 'lblb');
+  b.add([
+    { v: 'Scenarios', s: 'lblb' },
+    {
+      v: 'Change several assumptions together (growth, margins, WACC). Use the scenario selector on Assumptions — each case has its own column.',
+      s: 'note',
+    },
+  ]);
+  b.add([
+    { v: 'Sensitivity', s: 'lblb' },
+    {
+      v: 'On DCF, the WACC × terminal-growth grid holds everything else fixed — like Excel What-If Analysis with two input cells. Direction: higher WACC lowers value.',
+      s: 'note',
+    },
+  ]);
   b.blank();
   b.text(['How to read the colours'], 'lblb');
   b.add([{ v: 'Blue', s: 'in' }, { v: 'A number you typed. Change these.', s: 'lbl' }]);
@@ -928,8 +1012,8 @@ const SHEET_INDEX = [
  * @param {object} opts
  * @returns {Uint8Array} a STORED zip that is a valid .xlsx
  */
-export function buildWorkbook({ company, headlines, model, dcf, sensitivity, comps, cards, include = {} }) {
-  const { sheet: assumptions, at } = assumptionsSheet({ company, headlines, model, cards });
+export function buildWorkbook({ company, headlines, model, dcf, sensitivity, comps, cards, include = {}, scenarioState = null }) {
+  const { sheet: assumptions, at } = assumptionsSheet({ company, headlines, model, cards, scenarioState });
 
   // Sheet row numbers are resolved in dependency order: the income statement
   // needs to know where the debt schedule lives, the schedules need the income
@@ -942,7 +1026,7 @@ export function buildWorkbook({ company, headlines, model, dcf, sensitivity, com
   const bs = balanceSheet(model, sched.rows, cfsProbe.rows);
   const is = incomeSheet({ ...model, schedRows: sched.rows, bsRows: bs.rows }, at);
   const cfs = cashFlowSheet(model, is.rows, sched.rows);
-  const checks = checksSheet(model, bs.rows);
+  const checks = checksSheet(model, bs.rows, at);
 
   const parts = [
     { name: 'Cover', ...coverSheet({ company, headlines, model, sheets: SHEET_INDEX }) },

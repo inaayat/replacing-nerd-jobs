@@ -20,6 +20,7 @@ import {
   colLetter,
   zipStore,
 } from '../financial-modeler/workbook.js';
+import { createScenarioState } from '../financial-modeler/scenarios.js';
 
 const B = 1e9;
 
@@ -399,6 +400,24 @@ const isOnly = parseWorkbook(
   buildWorkbook({ company, headlines, model, dcf, sensitivity, comps, cards, include: { dcf: false, comps: false } })
 );
 assert.deepEqual([...isOnly.sheets.keys()], ['Cover', 'Assumptions', 'IS', 'BS', 'CFS', 'Schedules', 'Checks']);
+
+/* ---------------------- scenario columns on Assumptions ---------------- */
+
+const scenarioState = createScenarioState(assumptions);
+const scenState = { ...scenarioState, activeScenario: 'upside' };
+const scenBytes = buildWorkbook({ company, headlines, model, dcf, sensitivity, comps, cards, scenarioState: scenState });
+const scenParsed = parseWorkbook(scenBytes);
+const assumpRows = scenParsed.sheets.get('Assumptions');
+const growthScen = assumpRows.find((cells) => cells[0]?.value === 'Revenue growth (per year)');
+assert.ok(growthScen, 'scenario assumptions include revenue growth row');
+const activeCell = growthScen[5];
+assert.ok(activeCell?.formula, 'Active column uses a formula');
+assert.match(activeCell.formula, /INDEX\(/);
+assert.match(activeCell.a1, /INDEX\(/);
+assert.match(scenParsed.xml, /Assumptions!\$F\$/);
+const scenChecks = scenParsed.sheets.get('Checks').flat().find((c) => c.formula?.includes('COUNTIF(Assumptions!'));
+assert.ok(scenChecks, 'Checks sheet validates scenario selector');
+assert.match(scenChecks.formula, /COUNTIF\(Assumptions!R\d+C2:Assumptions!R\d+C5,Assumptions!R\d+C2\)=1/);
 
 /* ---------------------- converter + zip smoke -------------------------- */
 

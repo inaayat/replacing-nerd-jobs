@@ -1672,6 +1672,7 @@ function download() {
     sensitivity: run.sens,
     comps: run.comps,
     cards: assumptionCards(),
+    scenarioState: state.scenarioState,
     include: { dcf: state.models.includes('dcf'), comps: state.models.includes('comps') },
   });
   downloadWorkbook(workbookFilename(state.company), bytes);
