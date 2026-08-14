@@ -722,11 +722,6 @@ function renderTabs() {
       render();
     };
   });
-  const selected = nav.querySelector('.fm-tab[aria-selected="true"]');
-  if (selected && nav.scrollWidth > nav.clientWidth) {
-    const left = selected.offsetLeft - (nav.clientWidth - selected.offsetWidth) / 2;
-    nav.scrollTo({ left: Math.max(0, left) });
-  }
 }
 
 function renderWorkspaceStatus(model, dcf) {
