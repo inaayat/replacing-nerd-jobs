@@ -3342,161 +3342,294 @@ table.al-table {
 
 .al-mobile-nav { display: none; }
 
-/* Log page: red watch-log panel (toolbar + table) and showing-invites box. */
-body[data-page="log"] .al-panel--log,
-body[data-page="log"] .al-panel--invites {
+/* Signed-in shell: red panels + quick-log bar; light cards/rows inside. */
+.page-main .al-panel,
+.page-main .al-quicklog {
   background: var(--al-red);
   border-color: color-mix(in srgb, var(--al-black) 22%, var(--al-red));
   color: var(--al-on-red);
 }
 
-body[data-page="log"] .al-panel--log .al-muted,
-body[data-page="log"] .al-panel--invites .al-muted,
-body[data-page="log"] .al-panel--invites .al-invites-count {
+.page-main .al-quicklog::before {
+  background: color-mix(in srgb, var(--al-black) 18%, var(--al-red));
+}
+
+.page-main .al-panel .al-muted,
+.page-main .al-quicklog .al-muted {
   color: var(--al-on-red-muted);
 }
 
-body[data-page="log"] .al-panel--invites .al-invites-chevron {
-  border-color: var(--al-on-red-muted);
-}
-
-body[data-page="log"] .al-panel--invites .al-invites-outgoing-list {
-  color: var(--al-on-red-muted);
-}
-
-body[data-page="log"] .al-panel--invites .al-invites-outgoing-text {
+.page-main .al-panel h2,
+.page-main .al-panel .al-section-title,
+.page-main .al-panel .al-member-period-title,
+.page-main .al-panel .al-howto-title,
+.page-main .al-panel .al-insight-toggle h2,
+.page-main .al-panel .al-tier-header h2,
+.page-main .al-panel .al-invites-title {
   color: var(--al-on-red);
 }
 
-body[data-page="log"] .al-panel--invites .al-invites-outgoing-item,
-body[data-page="log"] .al-panel--invites .al-invite-card {
-  border-color: var(--al-on-red-border);
-}
-
-body[data-page="log"] .al-panel--log .al-log-head {
+.page-main .al-panel .al-insight-kicker,
+.page-main .al-panel .al-invites-subhead {
   color: var(--al-on-red-muted);
 }
 
-body[data-page="log"] .al-panel--log .al-log-row {
-  background: var(--al-white);
-  border-color: var(--al-line);
-  color: var(--al-text);
-  box-shadow: 0 2px 8px rgba(28, 28, 28, 0.05);
+.page-main .al-panel .al-insight-chevron,
+.page-main .al-panel .al-invites-chevron {
+  border-color: var(--al-on-red-muted);
 }
 
-body[data-page="log"] .al-panel--log .al-log-row:hover {
-  background: var(--al-panel);
-  border-color: var(--al-red-edge);
+.page-main .al-panel .al-log-head,
+.page-main .al-panel .al-bulk-ratings-head {
+  color: var(--al-on-red-muted);
 }
 
-body[data-page="log"] .al-panel--log .al-log-col--desktop.al-muted,
-body[data-page="log"] .al-panel--log .al-log-col--format,
-body[data-page="log"] .al-panel--log .al-log-col--seat {
-  color: var(--al-muted);
+.page-main .al-panel .al-invites-outgoing-text {
+  color: var(--al-on-red);
 }
 
-body[data-page="log"] .al-panel--log .al-link-btn {
-  color: var(--al-muted);
+.page-main .al-panel .al-invites-outgoing-item {
+  border-color: var(--al-on-red-border);
 }
 
-body[data-page="log"] .al-panel--log .al-link-btn:hover {
-  color: var(--al-red-deep);
-}
-
-body[data-page="log"] .al-panel--log .al-log-detail,
-body[data-page="log"] .al-panel--log .al-add-viewer {
-  background: var(--al-panel-2);
-  border-color: var(--al-line);
-  color: var(--al-text);
-}
-
-body[data-page="log"] .al-panel--log .al-log-detail-inner {
-  background: var(--al-white);
-  border-color: var(--al-line);
-  color: var(--al-text);
-}
-
-body[data-page="log"] .al-panel--log .al-log-detail-fact {
-  background: var(--al-panel);
-  border-color: var(--al-line);
-}
-
-body[data-page="log"] .al-panel--log .al-log-detail-facts dt {
-  color: var(--al-muted);
-}
-
-body[data-page="log"] .al-panel--log .al-log-detail-facts dd,
-body[data-page="log"] .al-panel--log .al-log-detail-overview {
-  color: var(--al-text);
-}
-
-body[data-page="log"] .al-panel--log .al-log-detail-overview-wrap {
-  border-color: var(--al-line);
-}
-
-body[data-page="log"] .al-panel--log .al-log-row.is-expanded,
-body[data-page="log"] .al-panel--log .al-log-row:has(+ .al-add-viewer),
-body[data-page="log"] .al-panel--log .al-log-row--editing {
-  background: var(--al-white);
-  border-color: var(--al-red-edge);
-}
-
-body[data-page="log"] .al-panel--log .al-error {
+.page-main .al-panel .al-error {
   color: #ffd4d4;
 }
 
-body[data-page="log"] .al-panel--log .al-input,
-body[data-page="log"] .al-panel--log .al-select {
+.page-main .al-panel .al-toolbar :is(.al-input, .al-select),
+.page-main .al-panel .al-profile-toolbar :is(.al-input, .al-select),
+.page-main .al-panel .al-compare-toolbar :is(.al-input, .al-select),
+.page-main .al-panel form.al-panel :is(.al-input, .al-select, .al-textarea),
+.page-main .al-panel > form :is(.al-input, .al-select, .al-textarea),
+.page-main .al-quicklog .al-quicklog-input {
   background: var(--al-on-red-surface);
   border-color: var(--al-on-red-border);
   color: var(--al-on-red);
 }
 
-body[data-page="log"] .al-panel--log .al-input::placeholder {
+.page-main .al-panel .al-toolbar :is(.al-input, .al-select)::placeholder,
+.page-main .al-quicklog .al-quicklog-input::placeholder {
   color: var(--al-on-red-muted);
 }
 
-body[data-page="log"] .al-panel--log .al-toggle-btn {
+.page-main .al-quicklog-field label,
+.page-main .al-panel > form .al-field label,
+.page-main .al-panel form.al-panel .al-field label {
+  color: var(--al-on-red-muted);
+}
+
+.page-main .al-panel .al-toolbar .al-toggle-btn,
+.page-main .al-panel .al-compare-toolbar .al-btn,
+.page-main .al-panel .al-toolbar .al-btn {
   border-color: var(--al-on-red-border);
   color: var(--al-on-red-muted);
+  background: var(--al-on-red-surface);
 }
 
-body[data-page="log"] .al-panel--log .al-toggle-btn:hover {
+.page-main .al-panel .al-toolbar .al-toggle-btn:hover,
+.page-main .al-panel .al-toolbar .al-btn:hover,
+.page-main .al-panel .al-compare-toolbar .al-btn:hover {
   color: var(--al-on-red);
   border-color: var(--al-on-red);
 }
 
-body[data-page="log"] .al-panel--log .al-toggle-btn.is-active,
-body[data-page="log"] .al-panel--log .al-toggle-btn[aria-pressed="true"] {
+.page-main .al-panel .al-toolbar .al-toggle-btn.is-active,
+.page-main .al-panel .al-toolbar .al-toggle-btn[aria-pressed="true"],
+.page-main .al-panel .al-toolbar .al-btn-primary,
+.page-main .al-panel .al-compare-toolbar .al-btn-primary {
   background: var(--al-white);
   border-color: var(--al-white);
   color: var(--al-red);
 }
 
-body[data-page="log"] .al-panel--log .al-btn {
-  background: var(--al-on-red-surface);
+.page-main .al-quicklog .al-quicklog-mode-btn {
   border-color: var(--al-on-red-border);
+  color: var(--al-on-red-muted);
+}
+
+.page-main .al-quicklog .al-quicklog-mode-btn.is-active {
+  background: var(--al-white);
+  border-color: var(--al-white);
+  color: var(--al-red);
+  font-weight: 600;
+}
+
+.page-main .al-quicklog .al-quicklog-submit {
+  background: var(--al-white);
+  color: var(--al-red);
+}
+
+.page-main .al-quicklog .al-quicklog-submit:hover {
+  filter: brightness(0.97);
+}
+
+.page-main .al-quicklog .al-quicklog-status.is-success { color: #d4f0a8; }
+.page-main .al-quicklog .al-quicklog-status.is-error { color: #ffd4d4; }
+
+.page-main .al-search-results {
+  background: var(--al-white);
+  color: var(--al-text);
+}
+
+.page-main .al-bulk-ratings-bar {
+  background: var(--al-red);
+  border-color: color-mix(in srgb, var(--al-black) 22%, var(--al-red));
   color: var(--al-on-red);
 }
 
-body[data-page="log"] .al-panel--log .al-btn:hover {
-  background: var(--al-white);
-  border-color: var(--al-white);
-  color: var(--al-red);
+.page-main .al-bulk-ratings-bar .al-muted {
+  color: var(--al-on-red-muted);
 }
 
-body[data-page="log"] .al-panel--log .al-btn-primary {
+.page-main .al-panel :where(
+  .al-log-row,
+  .al-bulk-ratings-row,
+  .al-profile-card,
+  .al-insights-spot,
+  .al-stat,
+  .al-log-detail,
+  .al-add-viewer,
+  .al-log-detail-inner,
+  .al-log-detail-fact,
+  .al-invite-card,
+  .al-table-wrap,
+  .al-segment,
+  .al-compare-section,
+  .al-watchlist-row
+) {
   background: var(--al-white);
-  border-color: var(--al-white);
-  color: var(--al-red);
+  border-color: var(--al-line);
+  color: var(--al-text);
 }
 
-body[data-page="log"] .al-panel--log .al-log-col--mobile-meta {
+.page-main .al-panel .al-invite-card {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--al-line);
+}
+
+.page-main .al-panel .al-invite-card:first-child {
+  padding-top: 10px;
+}
+
+.page-main .al-panel .al-watchlist-row {
+  border-radius: 10px;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+}
+
+.page-main .al-panel .al-watchlist-row:last-child {
+  margin-bottom: 0;
+}
+
+.page-main .al-panel .al-log-row:hover {
+  background: var(--al-panel);
+  border-color: var(--al-red-edge);
+}
+
+.page-main .al-panel .al-log-row.is-expanded,
+.page-main .al-panel .al-log-row:has(+ .al-add-viewer),
+.page-main .al-panel .al-log-row--editing {
+  background: var(--al-white);
+  border-color: var(--al-red-edge);
+}
+
+.page-main .al-panel .al-bulk-ratings-row.is-changed {
+  border-color: var(--al-red-edge);
+  background: color-mix(in srgb, var(--al-red) 8%, var(--al-white));
+}
+
+.page-main .al-panel .al-profile-card.is-you {
+  border-color: var(--al-red-edge);
+  background: color-mix(in srgb, var(--al-red) 8%, var(--al-white));
+}
+
+.page-main .al-panel :where(
+  .al-log-row,
+  .al-bulk-ratings-row,
+  .al-profile-card,
+  .al-insights-spot,
+  .al-stat,
+  .al-log-detail,
+  .al-add-viewer,
+  .al-log-detail-inner,
+  .al-invite-card,
+  .al-compare-section,
+  .al-watchlist-row
+) .al-muted,
+.page-main .al-panel :where(
+  .al-log-row,
+  .al-bulk-ratings-row,
+  .al-profile-card,
+  .al-insights-spot,
+  .al-stat,
+  .al-log-detail,
+  .al-add-viewer,
+  .al-log-detail-inner,
+  .al-invite-card,
+  .al-compare-section,
+  .al-watchlist-row
+) .al-log-col--desktop.al-muted,
+.page-main .al-panel :where(
+  .al-log-row,
+  .al-bulk-ratings-row
+) .al-log-col--format,
+.page-main .al-panel :where(
+  .al-log-row,
+  .al-bulk-ratings-row
+) .al-log-col--seat {
   color: var(--al-muted);
 }
 
-body[data-page="log"] .al-panel--log .al-log-meta-with {
+.page-main .al-panel :where(.al-log-row, .al-bulk-ratings-row, .al-invite-card, .al-watchlist-row) .al-link-btn {
+  color: var(--al-muted);
+}
+
+.page-main .al-panel :where(.al-log-row, .al-bulk-ratings-row, .al-invite-card, .al-watchlist-row) .al-link-btn:hover {
+  color: var(--al-red-deep);
+}
+
+.page-main .al-panel .al-log-col--mobile-meta {
+  color: var(--al-muted);
+}
+
+.page-main .al-panel .al-log-meta-with {
   color: var(--al-green-deep);
+}
+
+.page-main .al-panel .al-log-detail-overview-wrap {
+  border-color: var(--al-line);
+}
+
+.page-main .al-panel .al-log-detail-fact {
+  background: var(--al-panel);
+}
+
+.page-main .al-panel .al-log-row {
+  box-shadow: 0 2px 8px rgba(28, 28, 28, 0.05);
+}
+
+.page-main .al-panel .al-insight-lede,
+.page-main .al-panel .al-theater-rating-meta,
+.page-main .al-panel .al-theater-rating-rank,
+.page-main .al-panel .al-rating-bar-label {
+  color: var(--al-on-red-muted);
+}
+
+.page-main .al-panel .al-theater-rating-score,
+.page-main .al-panel .al-format-charged,
+.page-main .al-panel .al-rating-bar-count {
+  color: var(--al-on-red);
+}
+
+.page-main .al-panel .al-rating-bar-row:hover,
+.page-main .al-panel .al-rating-bar-row:focus-within {
+  background: var(--al-on-red-surface);
+}
+
+.page-main .al-panel .al-segment-btn.is-active {
+  background: var(--al-red);
+  color: var(--al-white);
 }
 
 /* Mobile layout */
@@ -3849,19 +3982,10 @@ body[data-page="log"] .al-panel--log .al-log-meta-with {
 
   .al-panel--log {
     width: 100%;
-    padding: 0;
-    margin-bottom: 0;
-    border: 0;
-    background: transparent;
-  }
-
-  body[data-page="log"] .al-panel--log,
-  body[data-page="log"] .al-panel--invites {
     padding: 12px;
     margin-bottom: 10px;
     border: 1px solid color-mix(in srgb, var(--al-black) 22%, var(--al-red));
     border-radius: 14px;
-    background: var(--al-red);
   }
 
   .al-panel--log .al-toolbar {
