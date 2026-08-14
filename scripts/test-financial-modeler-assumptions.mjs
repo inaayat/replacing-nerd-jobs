@@ -2,7 +2,7 @@
  * Assumption catalog, dependency map, and build-step metadata.
  */
 import assert from 'node:assert/strict';
-import { assumptionCatalog, isOverride, validateAssumption } from '../financial-modeler/assumptions.js';
+import { assumptionCatalog, isOverride, sourceToken, validateAssumption } from '../financial-modeler/assumptions.js';
 import { dependencyPath, dependencyRowKeys } from '../financial-modeler/dependencies.js';
 import { stepsForTab, THREE_STATEMENT_STEPS } from '../financial-modeler/build-steps.js';
 import { previewForStep } from '../financial-modeler/checklist.js';
@@ -39,6 +39,11 @@ assert.equal(stepsForTab('comps').length, 6);
   const defaults = { revenueGrowth: 0.05, ebitMargin: 0.12 };
   assert.equal(isOverride('revenueGrowth', 0.05, defaults), false);
   assert.equal(isOverride('revenueGrowth', 0.08, defaults), true);
+  assert.equal(sourceToken(rg, 0.05, { revenueGrowth: 0.05 }), 'filing');
+  assert.equal(sourceToken(rg, 0.08, { revenueGrowth: 0.05 }), 'override');
+  const tax = catalog.find((c) => c.key === 'taxRate');
+  assert.equal(sourceToken(tax, 0.21, { taxRate: 0.21 }), 'assumption');
+  assert.equal(sourceToken(tax, 0.25, { taxRate: 0.21 }), 'override');
 }
 
 {

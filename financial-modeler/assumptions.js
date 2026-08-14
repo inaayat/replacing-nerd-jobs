@@ -148,3 +148,10 @@ export function isOverride(key, current, sourceDefaults) {
   const tol = Math.max(Math.abs(b) * 1e-6, 1e-9);
   return Math.abs(a - b) > tol;
 }
+
+/** Quiet row token: filing | assumption | override. */
+export function sourceToken(meta, current, sourceDefaults) {
+  if (isOverride(meta?.key, current, sourceDefaults)) return 'override';
+  if (meta?.sourceType === 'historical-calculation') return 'filing';
+  return 'assumption';
+}
