@@ -4684,3 +4684,252 @@ table.al-table {
   flex: 0 0 auto;
   width: auto;
 }
+
+/* Dark mode: black / dark grey field, deep red accents, muted red log cards. */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --al-bg: #0a0a0a;
+  --al-cream: #121212;
+  --al-panel: #1a1a1a;
+  --al-panel-2: #242424;
+  --al-text: #ececec;
+  --al-muted: #9a9a9a;
+  --al-black: #ececec;
+  --al-charcoal: #ececec;
+  --al-line: rgba(255, 255, 255, 0.1);
+  --al-red-soft: #3d2222;
+  --al-red-soft-deep: #4d2a2a;
+  --al-on-soft-border: rgba(170, 0, 0, 0.35);
+  --al-red-tint: color-mix(in srgb, var(--al-red) 18%, transparent);
+  --al-red-tint-strong: color-mix(in srgb, var(--al-red) 30%, transparent);
+}
+
+[data-theme="dark"] .al-sidebar {
+  background: #141414;
+  color: var(--al-text);
+  border-color: var(--al-line);
+}
+
+[data-theme="dark"] .al-sidebar-stats-heading,
+[data-theme="dark"] .al-sidebar-stat-label,
+[data-theme="dark"] .al-nav-link,
+[data-theme="dark"] .al-sidebar-footer a,
+[data-theme="dark"] .al-sidebar .al-tmdb-credit,
+[data-theme="dark"] .al-sidebar .al-tmdb-credit a {
+  color: var(--al-muted);
+}
+
+[data-theme="dark"] .al-nav-link:hover {
+  color: var(--al-text);
+  background: var(--al-panel-2);
+}
+
+[data-theme="dark"] .al-nav-link.is-active {
+  background: var(--al-red);
+  color: var(--al-white);
+}
+
+[data-theme="dark"] .al-sidebar-stat {
+  background: var(--al-panel-2);
+  border-color: var(--al-line);
+}
+
+[data-theme="dark"] .al-sidebar-stat-value {
+  color: var(--al-text);
+}
+
+[data-theme="dark"] .al-sidebar-stat-value.is-savings { color: #b8e986; }
+[data-theme="dark"] .al-sidebar-stat-value.is-cost { color: #ffb89a; }
+
+[data-theme="dark"] .al-sidebar-footer a:hover,
+[data-theme="dark"] .al-sidebar .al-tmdb-credit a:hover {
+  color: var(--al-red-deep);
+}
+
+[data-theme="dark"] .page-main .al-panel,
+[data-theme="dark"] .page-main .al-quicklog,
+[data-theme="dark"] .page-main .al-bulk-ratings-bar {
+  background: var(--al-panel);
+  border-color: var(--al-line);
+  color: var(--al-text);
+}
+
+[data-theme="dark"] .page-main .al-quicklog::before {
+  background: var(--al-red);
+}
+
+[data-theme="dark"] .page-main .al-panel .al-muted,
+[data-theme="dark"] .page-main .al-quicklog .al-muted,
+[data-theme="dark"] .page-main .al-bulk-ratings-bar .al-muted,
+[data-theme="dark"] .page-main .al-panel .al-insight-kicker,
+[data-theme="dark"] .page-main .al-panel .al-invites-subhead,
+[data-theme="dark"] .page-main .al-panel .al-log-head,
+[data-theme="dark"] .page-main .al-panel .al-bulk-ratings-head,
+[data-theme="dark"] .page-main .al-quicklog-field label,
+[data-theme="dark"] .page-main .al-panel > form .al-field label,
+[data-theme="dark"] .page-main .al-panel form.al-panel .al-field label {
+  color: var(--al-muted);
+}
+
+[data-theme="dark"] .page-main .al-panel h2,
+[data-theme="dark"] .page-main .al-panel .al-section-title,
+[data-theme="dark"] .page-main .al-panel .al-member-period-title,
+[data-theme="dark"] .page-main .al-panel .al-howto-title,
+[data-theme="dark"] .page-main .al-panel .al-insight-toggle h2,
+[data-theme="dark"] .page-main .al-panel .al-tier-header h2,
+[data-theme="dark"] .page-main .al-panel .al-invites-title,
+[data-theme="dark"] .page-main .al-panel .al-invites-outgoing-text {
+  color: var(--al-text);
+}
+
+[data-theme="dark"] .page-main .al-panel .al-insight-chevron,
+[data-theme="dark"] .page-main .al-panel .al-invites-chevron {
+  border-color: var(--al-muted);
+}
+
+[data-theme="dark"] .page-main .al-panel .al-invites-outgoing-item {
+  border-color: var(--al-line);
+}
+
+[data-theme="dark"] .page-main .al-panel .al-error {
+  color: #ffb4b4;
+}
+
+[data-theme="dark"] .page-main .al-panel .al-toolbar :is(.al-input, .al-select),
+[data-theme="dark"] .page-main .al-panel .al-profile-toolbar :is(.al-input, .al-select),
+[data-theme="dark"] .page-main .al-panel .al-compare-toolbar :is(.al-input, .al-select),
+[data-theme="dark"] .page-main .al-panel form.al-panel :is(.al-input, .al-select, .al-textarea),
+[data-theme="dark"] .page-main .al-panel > form :is(.al-input, .al-select, .al-textarea),
+[data-theme="dark"] .page-main .al-quicklog .al-quicklog-input {
+  background: var(--al-panel-2);
+  border-color: var(--al-line);
+  color: var(--al-text);
+}
+
+[data-theme="dark"] .page-main .al-panel .al-toolbar :is(.al-input, .al-select)::placeholder,
+[data-theme="dark"] .page-main .al-quicklog .al-quicklog-input::placeholder {
+  color: var(--al-muted);
+}
+
+[data-theme="dark"] .page-main .al-panel .al-toolbar .al-toggle-btn,
+[data-theme="dark"] .page-main .al-panel .al-compare-toolbar .al-btn,
+[data-theme="dark"] .page-main .al-panel .al-toolbar .al-btn,
+[data-theme="dark"] .page-main .al-quicklog .al-quicklog-mode-btn {
+  background: var(--al-panel-2);
+  border-color: var(--al-line);
+  color: var(--al-muted);
+}
+
+[data-theme="dark"] .page-main .al-panel .al-toolbar .al-toggle-btn:hover,
+[data-theme="dark"] .page-main .al-panel .al-toolbar .al-btn:hover,
+[data-theme="dark"] .page-main .al-panel .al-compare-toolbar .al-btn:hover,
+[data-theme="dark"] .page-main .al-quicklog .al-quicklog-mode-btn:hover {
+  color: var(--al-text);
+  border-color: var(--al-red-edge);
+}
+
+[data-theme="dark"] .page-main .al-panel .al-toolbar .al-toggle-btn.is-active,
+[data-theme="dark"] .page-main .al-panel .al-toolbar .al-toggle-btn[aria-pressed="true"],
+[data-theme="dark"] .page-main .al-panel .al-toolbar .al-btn-primary,
+[data-theme="dark"] .page-main .al-panel .al-compare-toolbar .al-btn-primary,
+[data-theme="dark"] .page-main .al-quicklog .al-quicklog-mode-btn.is-active,
+[data-theme="dark"] .page-main .al-quicklog .al-quicklog-submit {
+  background: var(--al-red);
+  border-color: var(--al-red);
+  color: var(--al-white);
+}
+
+[data-theme="dark"] .page-main .al-quicklog .al-quicklog-status.is-success { color: #b8e986; }
+[data-theme="dark"] .page-main .al-quicklog .al-quicklog-status.is-error { color: #ffb4b4; }
+
+[data-theme="dark"] .page-main .al-panel :where(
+  .al-bulk-ratings-row,
+  .al-profile-card,
+  .al-insights-spot,
+  .al-stat,
+  .al-invite-card,
+  .al-table-wrap,
+  .al-segment,
+  .al-compare-section,
+  .al-watchlist-row
+) {
+  background: var(--al-panel-2);
+  border-color: var(--al-line);
+  color: var(--al-text);
+}
+
+[data-theme="dark"] .page-main .al-panel .al-log-row:hover {
+  background: var(--al-red-soft-deep);
+  border-color: var(--al-red-edge);
+}
+
+[data-theme="dark"] .page-main .al-panel .al-bulk-ratings-row.is-changed,
+[data-theme="dark"] .page-main .al-panel .al-profile-card.is-you {
+  background: color-mix(in srgb, var(--al-red) 14%, var(--al-panel-2));
+}
+
+[data-theme="dark"] .page-main .al-panel .al-insight-lede,
+[data-theme="dark"] .page-main .al-panel .al-theater-rating-meta,
+[data-theme="dark"] .page-main .al-panel .al-theater-rating-rank,
+[data-theme="dark"] .page-main .al-panel .al-rating-bar-label,
+[data-theme="dark"] .page-main .al-panel .al-rating-bar-count {
+  color: var(--al-muted);
+}
+
+[data-theme="dark"] .page-main .al-panel .al-theater-rating-score,
+[data-theme="dark"] .page-main .al-panel .al-format-charged {
+  color: var(--al-text);
+}
+
+[data-theme="dark"] .page-main .al-panel .al-rating-bar-row:hover,
+[data-theme="dark"] .page-main .al-panel .al-rating-bar-row:focus-within {
+  background: var(--al-red-tint);
+}
+
+[data-theme="dark"] .page-main .al-panel .al-log-detail-fact {
+  background: color-mix(in srgb, var(--al-white) 8%, var(--al-red-soft));
+}
+
+[data-theme="dark"] .al-page-title {
+  color: var(--al-text);
+}
+
+[data-theme="dark"] .al-page-sub {
+  color: var(--al-muted);
+}
+
+[data-theme="dark"] .al-search-results button.is-active,
+[data-theme="dark"] .al-search-results button:hover {
+  background: var(--al-panel-2);
+}
+
+[data-theme="dark"] .al-badge--muted {
+  background: color-mix(in srgb, var(--al-yellow) 22%, var(--al-panel-2));
+  color: #f0d890;
+}
+
+[data-theme="dark"] .al-badge--together {
+  background: color-mix(in srgb, var(--al-green) 22%, var(--al-panel-2));
+  color: #b8e986;
+}
+
+@media (max-width: 767px) {
+  [data-theme="dark"] .al-mobile-nav {
+    background: #141414;
+    border: 1px solid var(--al-line);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  }
+
+  [data-theme="dark"] .al-mobile-nav-link {
+    color: var(--al-muted);
+  }
+
+  [data-theme="dark"] .al-mobile-nav-link.is-active {
+    background: var(--al-red);
+    color: var(--al-white);
+  }
+
+  [data-theme="dark"] .al-panel--log {
+    border-color: var(--al-line);
+  }
+}

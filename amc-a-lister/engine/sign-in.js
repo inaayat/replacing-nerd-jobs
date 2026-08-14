@@ -1,5 +1,8 @@
 import { loadNeonAuth, resolveNeonJwt, loginViaApi, readStoredToken } from '../../engine/neon-browser-auth.js';
 import { storeAuthToken } from './auth.js';
+import { initTheme } from './theme.js';
+
+initTheme();
 
 function nextUrl() {
   const next = new URLSearchParams(location.search).get('next');
