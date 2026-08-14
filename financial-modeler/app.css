@@ -294,15 +294,10 @@ tr.fm-link-interest td:first-child { background: rgba(26, 73, 196, 0.1); }
 .fm-legend .is-int { color: var(--blue); }
 
 .fm-exercise-picks {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 10px;
   align-items: stretch;
-}
-@media (max-width: 899px) {
-  .fm-exercise-picks {
-    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  }
 }
 
 .fm-landing {
