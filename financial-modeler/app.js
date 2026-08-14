@@ -922,8 +922,8 @@ function ensureFocusedAssumption() {
 function focusAssumption(key, { rerenderModel = false } = {}) {
   state.focusedAssumption = key;
   renderAssumptionDetail();
-  document.querySelectorAll('.fm-assump-chip, .fm-assump-row').forEach((row) => {
-    row.classList.toggle('is-active', row.dataset.dialKey === key);
+  document.querySelectorAll('.fm-chip-compact, .fm-assump-chip').forEach((row) => {
+    row.classList.toggle('is-active', row.dataset.dialKey === key || row.dataset.selectDial === key);
   });
   applyTraceHighlight(key);
   if (!key) syncRowHighlights();
@@ -958,13 +958,12 @@ function renderAssumptionDetailHtml(key) {
 function renderAssumptionDetail() {
   ensureFocusedAssumption();
   const key = state.focusedAssumption;
-  const html = key ? renderAssumptionDetailHtml(key) : '';
-  for (const id of ['assumption-detail', 'assumption-detail-sheet']) {
-    const el = $(id);
-    if (!el) continue;
+  const html = key ? renderAssumptionDetailHtml(key) : '<p class="fm-assump-placeholder">Select an assumption on the right to see what it means and what it drives.</p>';
+  const el = $('assumption-detail');
+  if (el) {
     el.innerHTML = html;
-    el.hidden = !html;
-    if (html) bindAssumptionDetail(el);
+    el.hidden = false;
+    if (key) bindAssumptionDetail(el);
   }
 }
 
@@ -973,7 +972,7 @@ function bindAssumptionDetail(wrap) {
     el.addEventListener('input', () => {
       const key = el.dataset.range;
       const value = Number(el.value);
-      if (state.scenarioState && SCENARIO_DRIVERS.includes(key)) {
+      if (state.scenarioState && scenarioDrivers().includes(key)) {
         state.scenarioState = editScenarioValue(state.scenarioState, key, value);
         syncAssumptionsFromScenarios();
       } else {
@@ -998,24 +997,28 @@ function renderAssumptionListHtml() {
       const value = state.assumptions[d.key];
       const disabled = value == null;
       const isActive = state.focusedAssumption === d.key;
-      const override = !isUnit() && isOverride(d.key, value, state.sourceDefaults);
-      const validation = disabled ? { valid: true } : validateAssumption(d, value);
-      const err =
-        !validation.valid && isActive
-          ? `<p class="fm-assump-row-error">${escapeHtml(validation.message)}</p>`
-          : '';
-      return `<div class="fm-assump-chip${isActive ? ' is-active' : ''}${disabled ? ' is-missing' : ''}" data-dial-key="${d.key}">
-        <button type="button" class="fm-assump-name" data-select-dial="${d.key}">${escapeHtml(d.name)}</button>
-        ${isUnit() ? '' : sourceBadge(d, { isOverride: override, isMissing: disabled })}
-        <input class="fm-dial-value" type="text" inputmode="decimal" data-key="${d.key}" value="${escapeHtml(dialValueText(d, value))}" ${disabled ? 'disabled' : ''} aria-label="${escapeHtml(d.name)} value" />
-        ${err}
-      </div>`;
+      return `<button type="button" class="fm-chip-compact${isActive ? ' is-active' : ''}${disabled ? ' is-missing' : ''}" data-select-dial="${d.key}" data-dial-key="${d.key}">
+        <span class="fm-chip-name">${escapeHtml(d.name)}</span>
+        <span class="fm-chip-val">${escapeHtml(dialValueText(d, value))}</span>
+      </button>`;
+    })
+    .join('');
+
+  const editors = active
+    .map((d) => {
+      const value = state.assumptions[d.key];
+      const disabled = value == null;
+      if (state.focusedAssumption !== d.key || disabled) return '';
+      return `<label class="fm-chip-edit">Edit value
+        <input class="fm-dial-value" type="text" inputmode="decimal" data-key="${d.key}" value="${escapeHtml(dialValueText(d, value))}" aria-label="${escapeHtml(d.name)} value" />
+      </label>`;
     })
     .join('');
 
   return `<div class="fm-assump-top">
     <div class="fm-assump-scenarios" role="group" aria-label="Scenario">${scenarios}</div>
     <div class="fm-assump-grid">${chips}</div>
+    ${editors ? `<div class="fm-chip-edit-wrap">${editors}</div>` : ''}
   </div>`;
 }
 
@@ -1032,7 +1035,8 @@ function bindAssumptionList(wrap) {
       const dial = active.find((d) => d.key === el.dataset.key);
       const value = parseDialInput(dial, el.value);
       if (value == null) return render();
-      if (state.scenarioState && SCENARIO_DRIVERS.includes(dial.key)) {
+      const drivers = scenarioDrivers();
+      if (state.scenarioState && drivers.includes(dial.key)) {
         state.scenarioState = editScenarioValue(state.scenarioState, dial.key, value);
         syncAssumptionsFromScenarios();
       } else {

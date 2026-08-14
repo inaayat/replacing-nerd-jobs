@@ -142,33 +142,36 @@
           <nav class="fm-tabs" id="model-tabs" role="tablist" aria-label="Model views"></nav>
           <div class="fm-workspace-status" id="workspace-status"></div>
         </header>
-        <div class="fm-assumptions-bar" id="assumptions-bar" aria-label="Model assumptions">
-          <div id="dials"></div>
+        <div class="fm-teaching-band" id="teaching-band">
+          <div class="fm-teaching-explain">
+            <div class="fm-assumption-teach" id="assumption-detail" hidden></div>
+          </div>
+          <div class="fm-teaching-chips" id="assumptions-bar" aria-label="Assumptions">
+            <div id="dials"></div>
+          </div>
         </div>
         <div class="fm-workspace-body">
           <div class="fm-main">
             <div id="output" role="tabpanel"></div>
           </div>
-          <aside class="fm-inspector" id="inspector" aria-label="Explanation and build guide">
+          <aside class="fm-inspector" id="inspector" aria-label="Build guide">
             <div class="fm-inspector-panel">
-              <div class="fm-inspector-detail" id="assumption-detail" hidden></div>
               <div class="fm-inspector-checklist" id="inspector-checklist"></div>
             </div>
           </aside>
         </div>
         <div class="fm-inspector-sheet" id="inspector-sheet" hidden>
           <div class="fm-inspector-sheet-head">
-            <strong>Explanation</strong>
+            <strong>How this model is built</strong>
             <button type="button" class="fm-btn fm-btn-ghost" id="inspector-sheet-close">Close</button>
           </div>
           <div class="fm-inspector-sheet-body">
-            <div class="fm-inspector-detail" id="assumption-detail-sheet" hidden></div>
             <div class="fm-inspector-checklist" id="inspector-checklist-sheet"></div>
           </div>
         </div>
       </section>
 
-      <button type="button" class="fm-inspector-toggle" id="inspector-mobile" hidden>Explain</button>
+      <button type="button" class="fm-inspector-toggle" id="inspector-mobile" hidden>Build guide</button>
     </main>
 
     <div class="fm-dock" id="dock" hidden>
