@@ -1,5 +1,4 @@
 import { bootPage, renderShell, requireSignIn, populateSidebarStats, isTvBetaEnabled, setTvBetaEnabled } from './nav.js';
-import { isDarkModeEnabled, setDarkModeEnabled } from './theme.js';
 import { membershipApi, importApi, backfillApi } from './api.js';
 import { parseXlsxFile } from './import-xlsx.js';
 import { escapeHtml, parseMoneyInput } from './format.js';
@@ -103,16 +102,6 @@ bootPage(async ({ root, auth }) => {
       </form>
 
       <section class="al-panel">
-        <h2>Appearance</h2>
-        <p class="al-muted">Dark mode uses black and dark grey surfaces with red accents. Your choice is saved on this device.</p>
-        <label class="al-check al-check--block">
-          <input type="checkbox" id="dark-mode" ${isDarkModeEnabled() ? 'checked' : ''} />
-          Dark mode
-        </label>
-        <p class="al-muted" id="dark-mode-status" style="margin-top:8px"></p>
-      </section>
-
-      <section class="al-panel">
         <h2>Beta features</h2>
         <p class="al-muted">Optional experiments. Turn these on when you want them in the nav.</p>
         <label class="al-check al-check--block">
@@ -175,13 +164,6 @@ bootPage(async ({ root, auth }) => {
     document.getElementById('beta-tv-status').textContent = e.target.checked
       ? 'TV Shows enabled. It appears in the nav on your next page load.'
       : 'TV Shows hidden from the nav.';
-  });
-
-  document.getElementById('dark-mode').addEventListener('change', (e) => {
-    setDarkModeEnabled(e.target.checked);
-    document.getElementById('dark-mode-status').textContent = e.target.checked
-      ? 'Dark mode on.'
-      : 'Dark mode off.';
   });
 
   const setStatus = (msg) => { document.getElementById('import-status').textContent = msg; };

@@ -1,4 +1,3 @@
-import { initTheme } from './theme.js';
 import './pwa.js';
 import { initAuth, wireAuthLink, refreshToken, loginUrl } from './auth.js';
 import { summaryApi, membershipApi } from './api.js';
@@ -7,8 +6,6 @@ import { escapeHtml } from './format.js';
 
 const NAV_ACTIVE = document.body.dataset.page || '';
 const TV_BETA_KEY = 'alist.beta.tv';
-
-initTheme();
 
 const PAGES = [
   { href: '/amc-a-lister/', label: 'Log', id: 'log' },

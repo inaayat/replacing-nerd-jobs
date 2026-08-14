@@ -1,44 +1,17 @@
-/* Grey field, deep red panels, light red watch-log cards. */
 :root {
-  --al-cream: #e6e6e6;
-  --al-red: #aa0000;
-  --al-red-soft: #f2d6d6;
-  --al-red-soft-deep: #e8c0c0;
-  --al-red-deep: #d43900;
-  --al-purple: #755ca7;
-  --al-cyan: #78a8d5;
-  --al-yellow: #ffd143;
-  --al-orange: #d43900;
-  --al-orange-deep: #aa0000;
-  --al-pink: #eb82b0;
-  --al-green: #82a34d;
-  --al-green-deep: #4f6b23;
-  --al-black: #1a1a1a;
+  --al-red: #da0000;
+  --al-burgundy: #830f10;
+  --al-black: #1c1c1c;
   --al-white: #ffffff;
-  --al-charcoal: #1a1a1a;
+  --al-charcoal: #574d4c;
+  --al-cream: #faf3e3;
   --al-bg: var(--al-cream);
-  --al-panel: #efefef;
-  --al-panel-2: #dcdcdc;
-  --al-text: #1a1a1a;
-  --al-muted: #525252;
-  --al-line: rgba(26, 26, 26, 0.14);
-  /* Shared red washes so highlight states stay in step with the brand colour. */
-  --al-red-tint: color-mix(in srgb, var(--al-red) 10%, transparent);
-  --al-red-tint-strong: color-mix(in srgb, var(--al-red) 22%, transparent);
-  --al-red-edge: color-mix(in srgb, var(--al-red) 40%, transparent);
-  --al-red-ring: color-mix(in srgb, var(--al-red) 50%, transparent);
-  /* Large soft-red surfaces (sidebar, panels) — dark type reads easier than white-on-red. */
-  --al-on-soft: var(--al-text);
-  --al-on-soft-muted: var(--al-muted);
-  --al-on-soft-surface: rgba(255, 255, 255, 0.72);
-  --al-on-soft-border: color-mix(in srgb, var(--al-red) 16%, transparent);
-  /* Deep red fills — white type only on small accent shapes. */
-  --al-on-red: #ffffff;
-  --al-on-red-muted: rgba(255, 255, 255, 0.72);
-  --al-on-red-faint: rgba(255, 255, 255, 0.14);
-  --al-on-red-surface: rgba(255, 255, 255, 0.12);
-  --al-on-red-border: rgba(255, 255, 255, 0.22);
-  --al-radius: 20px;
+  --al-panel: #ffffff;
+  --al-panel-2: #faf6ef;
+  --al-text: #1c1c1c;
+  --al-muted: #6b5f5e;
+  --al-line: rgba(28, 28, 28, 0.1);
+  --al-radius: 18px;
   --al-font-body: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --al-font-display: "Fraunces", Georgia, serif;
   --al-font-mono: "DM Mono", ui-monospace, monospace;
@@ -56,7 +29,7 @@ html, body {
   line-height: 1.45;
 }
 
-a { color: var(--al-red-deep); }
+a { color: var(--al-burgundy); }
 
 .serif { font-family: var(--al-font-display); font-weight: 500; }
 .brand-mono { font-family: var(--al-font-mono); }
@@ -95,14 +68,13 @@ a { color: var(--al-red-deep); }
 
 .al-sidebar {
   flex-shrink: 0;
-  background: var(--al-red);
-  color: var(--al-on-red);
-  border: 1px solid color-mix(in srgb, var(--al-black) 22%, var(--al-red));
+  background: var(--al-burgundy);
+  color: var(--al-white);
   border-radius: var(--al-radius);
-  padding: 16px;
+  padding: 24px 20px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
 }
 
 @media (min-width: 768px) {
@@ -118,37 +90,31 @@ a { color: var(--al-red-deep); }
   .al-sidebar { width: 340px; }
 }
 
-/* Brand inset on the deep red sidebar. */
 .al-sidebar-brand {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 14px 16px 12px;
-  border-radius: 16px;
-  background: color-mix(in srgb, var(--al-black) 16%, var(--al-red));
-  border: 1px solid var(--al-on-red-border);
-  color: var(--al-on-red);
 }
 
 .al-sidebar-title {
   display: block;
   font-family: var(--al-font-display);
-  font-size: 1.4rem;
-  font-weight: 700;
-  line-height: 1.1;
+  font-size: 1.35rem;
+  font-weight: 600;
+  line-height: 1.15;
   color: var(--al-white);
   text-decoration: none;
 }
 
-.al-sidebar-title:hover { color: var(--al-white); text-decoration: underline; text-underline-offset: 3px; }
+.al-sidebar-title:hover { color: var(--al-white); opacity: 0.9; }
 
 .al-sidebar-tagline {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   font-weight: 400;
   font-style: italic;
   line-height: 1.35;
-  color: var(--al-white);
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .al-sidebar-stats {
@@ -167,18 +133,14 @@ a { color: var(--al-red-deep); }
 .al-sidebar-stats-heading {
   grid-column: 1 / -1;
   margin: 0 0 4px;
-  font-family: var(--al-font-mono);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--al-on-red);
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .al-sidebar-stat {
-  background: var(--al-on-red-surface);
-  border: 1px solid var(--al-on-red-border);
-  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: 10px;
   padding: 10px 10px 8px;
   min-width: 0;
 }
@@ -186,8 +148,7 @@ a { color: var(--al-red-deep); }
 .al-sidebar-stat-label {
   font-size: 0.7rem;
   font-weight: 400;
-  color: var(--al-on-red);
-  opacity: 0.82;
+  color: rgba(255, 255, 255, 0.55);
 }
 
 .al-sidebar-stat-value {
@@ -195,42 +156,42 @@ a { color: var(--al-red-deep); }
   font-size: 1.1rem;
   font-weight: 600;
   font-family: var(--al-font-mono);
-  color: var(--al-on-red);
+  color: var(--al-white);
   font-variant-numeric: tabular-nums;
 }
 
-.al-sidebar-stat-value.is-savings { color: #d4f0a8; }
-.al-sidebar-stat-value.is-cost { color: #ffc4a8; }
+.al-sidebar-stat-value.is-savings { color: #8fe8b8; }
+.al-sidebar-stat-value.is-cost { color: #ffb4b4; }
 
 .al-sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  margin: 0;
+  gap: 2px;
+  margin: 0 -20px;
 }
 
 .al-nav-link {
   display: block;
   width: 100%;
   box-sizing: border-box;
-  padding: 8px 14px;
-  font-size: 0.92rem;
+  padding: 8px 20px;
+  font-size: 0.9rem;
   font-weight: 500;
   line-height: 1.3;
   text-decoration: none;
-  color: var(--al-on-red-muted);
-  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.7);
+  border-radius: 0;
 }
 
 .al-nav-link:hover {
-  color: var(--al-on-red);
-  background: var(--al-on-red-surface);
+  color: var(--al-white);
+  background: rgba(0, 0, 0, 0.12);
 }
 
 .al-nav-link.is-active {
-  color: var(--al-red);
-  background: var(--al-white);
-  font-weight: 700;
+  color: var(--al-white);
+  background: rgba(0, 0, 0, 0.22);
+  font-weight: 600;
 }
 
 .al-sidebar-footer {
@@ -239,25 +200,15 @@ a { color: var(--al-red-deep); }
   gap: 6px;
   font-size: 0.8rem;
   padding-top: 12px;
-  border-top: 1px solid var(--al-on-red-border);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .al-sidebar-footer a {
-  color: var(--al-on-red-muted);
+  color: rgba(255, 255, 255, 0.55);
   text-decoration: none;
 }
 
-.al-sidebar-footer a:hover { color: var(--al-on-red); }
-
-.al-sidebar .al-tmdb-credit {
-  color: var(--al-on-red-muted);
-}
-
-.al-sidebar .al-tmdb-credit a {
-  color: var(--al-on-red-muted);
-}
-
-.al-sidebar .al-tmdb-credit a:hover { color: var(--al-on-red); }
+.al-sidebar-footer a:hover { color: var(--al-white); }
 
 .al-content-scroll {
   flex: 1 1 auto;
@@ -277,23 +228,11 @@ a { color: var(--al-red-deep); }
 /* Quick-log bar: compact primary row + smooth expandable extras */
 .al-quicklog {
   flex-shrink: 0;
-  position: relative;
   margin-bottom: 12px;
   background: var(--al-panel);
   border: 1px solid var(--al-line);
   border-radius: var(--al-radius);
-  padding: 10px 12px 10px 16px;
-}
-
-/* Ticket stub: a red edge down the left of the bar you log from. The dropdowns
-   inside overflow the bar, so this is a pseudo-element, not a clipped border. */
-.al-quicklog::before {
-  content: '';
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 6px;
-  border-radius: var(--al-radius) 0 0 var(--al-radius);
-  background: var(--al-red);
+  padding: 8px 10px;
 }
 
 .al-quicklog-primary {
@@ -362,9 +301,9 @@ a { color: var(--al-red-deep); }
 }
 
 .al-quicklog-input:focus {
-  outline: 2px solid var(--al-red-ring);
+  outline: 2px solid rgba(218, 0, 0, 0.18);
   border-color: var(--al-red);
-  background: var(--al-panel);
+  background: var(--al-white);
 }
 
 .al-quicklog-expand {
@@ -428,14 +367,14 @@ a { color: var(--al-red-deep); }
   gap: 4px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--al-green) 26%, var(--al-cream));
-  color: var(--al-green-deep);
+  background: #e8f0ea;
+  color: #2f5d3a;
   font-size: 0.78rem;
   font-weight: 600;
 }
 
 .al-chip.is-locked {
-  background: color-mix(in srgb, var(--al-black) 8%, var(--al-cream));
+  background: #f0ece8;
   color: var(--al-muted);
 }
 
@@ -475,12 +414,12 @@ a { color: var(--al-red-deep); }
 .al-quicklog-submit {
   padding: 7px 16px;
   border: 0;
-  border-radius: 999px;
+  border-radius: 8px;
   background: var(--al-red);
   color: var(--al-white);
   font: inherit;
   font-size: 0.86rem;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
   height: 34px;
@@ -488,7 +427,7 @@ a { color: var(--al-red-deep); }
 }
 
 .al-quicklog-submit:hover {
-  filter: brightness(0.95);
+  background: var(--al-burgundy);
 }
 
 .al-quicklog-status {
@@ -498,8 +437,8 @@ a { color: var(--al-red-deep); }
   min-height: 1.1em;
 }
 
-.al-quicklog-status.is-success { color: var(--al-green-deep); }
-.al-quicklog-status.is-error { color: var(--al-red-deep); }
+.al-quicklog-status.is-success { color: #0d7a42; }
+.al-quicklog-status.is-error { color: var(--al-red); }
 
 .al-quicklog-mode {
   display: flex;
@@ -518,10 +457,9 @@ a { color: var(--al-red-deep); }
 }
 
 .al-quicklog-mode-btn.is-active {
-  background: var(--al-red);
-  border-color: var(--al-red);
-  color: var(--al-white);
-  font-weight: 600;
+  background: var(--al-black);
+  border-color: var(--al-black);
+  color: #fff;
 }
 
 .al-quicklog.is-off-theater [data-theater-only] {
@@ -591,8 +529,8 @@ a { color: var(--al-red-deep); }
 }
 
 .al-segment-btn.is-active .al-segment-count {
-  background: var(--al-red-tint-strong);
-  color: var(--al-red-deep);
+  background: rgba(218, 0, 0, 0.12);
+  color: var(--al-red);
 }
 
 .al-watchlist-header-actions {
@@ -619,7 +557,7 @@ a { color: var(--al-red-deep); }
 
 .al-already-out-btn:hover {
   border-color: var(--al-red);
-  color: var(--al-red-deep);
+  color: var(--al-red);
 }
 
 .al-already-out-count {
@@ -630,15 +568,13 @@ a { color: var(--al-red-deep); }
   padding: 0 4px;
   border-radius: 999px;
   background: var(--al-red);
-  color: var(--al-white);
+  color: #fff;
   font-size: 0.68rem;
-  font-weight: 600;
   line-height: 1.4;
 }
 
 .al-already-out-btn--empty .al-already-out-count {
-  background: color-mix(in srgb, var(--al-black) 10%, var(--al-cream));
-  color: var(--al-muted);
+  background: var(--al-muted);
 }
 
 .al-watchlist-add {
@@ -880,7 +816,7 @@ a { color: var(--al-red-deep); }
   padding: 8px;
   border: 1px solid var(--al-line);
   border-radius: 10px;
-  background: var(--al-panel);
+  background: #fff;
 }
 
 .al-watchlist-card-title {
@@ -921,13 +857,13 @@ a { color: var(--al-red-deep); }
 }
 
 .al-badge--muted {
-  background: color-mix(in srgb, var(--al-yellow) 40%, var(--al-cream));
-  color: #6a4d00;
+  background: #f0ece8;
+  color: var(--al-muted);
 }
 
 .al-badge--together {
-  background: color-mix(in srgb, var(--al-green) 26%, var(--al-cream));
-  color: var(--al-green-deep);
+  background: #e8f0ea;
+  color: #2f5d3a;
 }
 
 .al-panel--invites {
@@ -957,7 +893,7 @@ a { color: var(--al-red-deep); }
 }
 
 .al-invites-toggle:focus-visible {
-  outline: 2px solid var(--al-red-deep);
+  outline: 2px solid var(--al-burgundy);
   outline-offset: 2px;
   border-radius: 6px;
 }
@@ -1039,7 +975,7 @@ a { color: var(--al-red-deep); }
   justify-content: space-between;
   gap: 12px;
   padding: 8px 0;
-  border-top: 1px solid var(--al-line);
+  border-top: 1px solid var(--al-rule, #e6e0d8);
 }
 
 .al-invites-outgoing-item:first-child {
@@ -1051,7 +987,7 @@ a { color: var(--al-red-deep); }
   min-width: 0;
   flex: 1 1 auto;
   line-height: 1.4;
-  color: var(--al-charcoal);
+  color: var(--al-charcoal, #1c1c1c);
 }
 
 .al-invites-outgoing-text strong {
@@ -1075,7 +1011,7 @@ a { color: var(--al-red-deep); }
   gap: 12px;
   align-items: center;
   padding: 10px 0;
-  border-top: 1px solid var(--al-line);
+  border-top: 1px solid var(--al-rule, #e6e0d8);
 }
 
 .al-invite-card:first-child {
@@ -1119,7 +1055,7 @@ a { color: var(--al-red-deep); }
   border: 1px solid var(--al-line);
   border-top: 0;
   border-radius: 0 0 12px 12px;
-  background: var(--al-panel-2);
+  background: #faf8f5;
   margin-top: -8px;
 }
 
@@ -1199,14 +1135,14 @@ a { color: var(--al-red-deep); }
   background: var(--al-panel);
   border: 1px solid var(--al-line);
   border-radius: var(--al-radius);
-  padding: 14px 16px;
+  padding: 12px 14px;
   margin-bottom: 10px;
 }
 
 .al-panel h2 {
   margin: 0 0 10px;
   font-family: var(--al-font-display);
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   font-weight: 600;
 }
 
@@ -1318,24 +1254,25 @@ a { color: var(--al-red-deep); }
   overflow: hidden;
   min-width: 0;
   padding: 14px 14px 12px;
-  border-radius: 16px;
+  border-radius: 14px;
   border: 1px solid var(--al-line);
-  background: var(--al-panel-2);
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.92), rgba(250, 246, 239, 0.96)),
+    var(--al-panel);
 }
 
-/* One flat colour bar per card — the sibling hues from the home page, used to
-   tell the spotlight cards apart rather than to decorate every panel. */
 .al-insights-spot::before {
   content: '';
   position: absolute;
   inset: 0 auto 0 0;
-  width: 4px;
-  background: var(--al-purple);
+  width: 3px;
+  background: var(--al-burgundy);
+  opacity: 0.55;
 }
 
-.al-insights-spot.is-accent::before { background: var(--al-red); }
-.al-insights-spot.is-good::before { background: var(--al-green); }
-.al-insights-spot.is-warn::before { background: var(--al-orange); }
+.al-insights-spot.is-accent::before { background: var(--al-red); opacity: 0.85; }
+.al-insights-spot.is-good::before { background: #0d7a42; opacity: 0.8; }
+.al-insights-spot.is-warn::before { background: #a85b00; opacity: 0.8; }
 
 .al-insights-spot-label {
   margin: 0;
@@ -1370,7 +1307,7 @@ a { color: var(--al-red-deep); }
 }
 
 .al-insight.is-expanded {
-  border-color: var(--al-red-edge);
+  border-color: rgba(131, 15, 16, 0.18);
   box-shadow: 0 8px 24px rgba(28, 28, 28, 0.05);
 }
 
@@ -1402,7 +1339,7 @@ a { color: var(--al-red-deep); }
 
 .al-rating-bar-row:hover,
 .al-rating-bar-row:focus-within {
-  background: var(--al-red-tint);
+  background: rgba(218, 0, 0, 0.04);
 }
 
 .al-rating-bar-label {
@@ -1423,7 +1360,7 @@ a { color: var(--al-red-deep); }
   height: 100%;
   width: 0;
   border-radius: inherit;
-  background: var(--al-red);
+  background: linear-gradient(90deg, var(--al-burgundy), var(--al-red));
   transition: width 0.55s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -1488,7 +1425,7 @@ a { color: var(--al-red-deep); }
 }
 
 .al-theater-rating-score {
-  color: var(--al-red-deep);
+  color: var(--al-burgundy);
 }
 
 .al-theater-rating-meta,
@@ -1518,11 +1455,11 @@ a { color: var(--al-red-deep); }
 }
 
 .al-meter--theater .al-meter-fill {
-  background: var(--al-red);
+  background: linear-gradient(90deg, #a31214, var(--al-red));
 }
 
 .al-meter--format .al-meter-fill {
-  background: var(--al-purple);
+  background: linear-gradient(90deg, var(--al-charcoal), var(--al-burgundy));
 }
 
 .al-hud {
@@ -1560,18 +1497,18 @@ a { color: var(--al-red-deep); }
   font-variant-numeric: tabular-nums;
 }
 
-.al-stat-value.is-savings { color: var(--al-green-deep); }
-.al-stat-value.is-cost { color: var(--al-red-deep); }
+.al-stat-value.is-savings { color: #0d7a42; }
+.al-stat-value.is-cost { color: var(--al-burgundy); }
 
 .al-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 8px 14px;
-  border-radius: 999px;
+  padding: 8px 12px;
+  border-radius: 8px;
   border: 1px solid var(--al-line);
-  background: var(--al-panel);
+  background: var(--al-white);
   color: var(--al-text);
   font-size: 0.78rem;
   font-weight: 700;
@@ -1580,13 +1517,13 @@ a { color: var(--al-red-deep); }
   font-family: inherit;
 }
 
-.al-btn:hover { border-color: var(--al-charcoal); background: var(--al-cream); }
+.al-btn:hover { border-color: var(--al-charcoal); }
 .al-btn-primary {
   background: var(--al-red);
   border-color: var(--al-red);
   color: var(--al-white);
 }
-.al-btn-primary:hover { background: var(--al-red); border-color: var(--al-red); filter: brightness(0.95); }
+.al-btn-primary:hover { background: var(--al-burgundy); border-color: var(--al-burgundy); }
 
 .al-table-wrap { overflow-x: auto; }
 
@@ -1664,8 +1601,8 @@ table.al-table {
 }
 
 .al-profile-card.is-you {
-  border-color: var(--al-red-edge);
-  background: var(--al-red-tint);
+  border-color: rgba(218, 0, 0, 0.22);
+  background: rgba(218, 0, 0, 0.03);
 }
 
 .al-profile-card-head {
@@ -1695,7 +1632,7 @@ table.al-table {
 }
 
 .al-profile-name a:hover {
-  color: var(--al-red-deep);
+  color: var(--al-burgundy);
 }
 
 .al-profile-stats {
@@ -1721,14 +1658,14 @@ table.al-table {
 .al-profile-view {
   align-self: flex-start;
   margin-top: auto;
-  color: var(--al-red-deep);
+  color: var(--al-burgundy);
   font-size: 0.82rem;
   font-weight: 600;
   text-decoration: none;
 }
 
 .al-profile-view:hover {
-  color: var(--al-red-deep);
+  color: var(--al-red);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -1752,7 +1689,7 @@ table.al-table {
 }
 
 .al-leaderboard-member-link:hover {
-  color: var(--al-red-deep);
+  color: var(--al-red);
   text-decoration: underline;
 }
 
@@ -1800,7 +1737,7 @@ table.al-table {
 }
 
 .al-leaderboard-table tr.is-you td {
-  background: var(--al-red-tint);
+  background: rgba(218, 0, 0, 0.04);
 }
 
 .al-you-badge {
@@ -1812,8 +1749,8 @@ table.al-table {
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  background: var(--al-red-tint-strong);
-  color: var(--al-red-deep);
+  background: rgba(218, 0, 0, 0.1);
+  color: var(--al-burgundy);
   vertical-align: middle;
 }
 
@@ -1845,7 +1782,7 @@ table.al-table {
 }
 
 .al-leaderboard-table tr.is-compare-target td {
-  background: var(--al-red-tint);
+  background: rgba(218, 0, 0, 0.06);
 }
 
 .al-compare-row-btn {
@@ -1921,21 +1858,21 @@ table.al-table {
   font-size: 0.62rem;
   line-height: 1.2;
   text-align: center;
-  color: var(--al-red-deep);
+  color: var(--al-burgundy);
 }
 
 .al-tag {
   display: inline-block;
-  padding: 1px 7px;
+  padding: 1px 6px;
   border-radius: 999px;
   font-size: 0.62rem;
-  background: var(--al-red-tint);
-  color: var(--al-red-deep);
-  border: 1px solid var(--al-red-edge);
+  background: rgba(218,0,0,0.08);
+  color: var(--al-burgundy);
+  border: 1px solid rgba(218,0,0,0.18);
 }
 
 .al-muted { color: var(--al-muted); font-size: 0.82rem; }
-.al-error { color: var(--al-red-deep); }
+.al-error { color: var(--al-red); }
 
 .al-marketing h2 { font-size: 1.15rem; margin: 0 0 10px; }
 .al-bullets { margin: 0; padding-left: 1.1rem; color: var(--al-muted); font-size: 0.88rem; }
@@ -1999,8 +1936,8 @@ table.al-table {
 }
 
 .al-bulk-ratings-row.is-changed {
-  border-color: var(--al-red-edge);
-  background: var(--al-red-tint);
+  border-color: rgba(218, 0, 0, 0.25);
+  background: #fff8f6;
 }
 
 .al-bulk-ratings-col--title {
@@ -2110,8 +2047,8 @@ table.al-table {
 }
 
 .al-bulk-add-row.is-selected {
-  border-color: color-mix(in srgb, var(--al-green) 55%, transparent);
-  background: color-mix(in srgb, var(--al-green) 12%, var(--al-cream));
+  border-color: rgba(47, 93, 58, 0.28);
+  background: #f3f8f4;
 }
 
 .al-bulk-add-row.is-tagged {
@@ -2169,7 +2106,7 @@ table.al-table {
   padding: 8px 10px;
   border-radius: 8px;
   border: 1px solid var(--al-line);
-  background: var(--al-panel);
+  background: var(--al-white);
   color: var(--al-text);
   font: inherit;
 }
@@ -2177,7 +2114,7 @@ table.al-table {
 .al-input:focus,
 .al-select:focus,
 .al-textarea:focus {
-  outline: 2px solid var(--al-red-ring);
+  outline: 2px solid rgba(218,0,0,0.25);
   border-color: var(--al-red);
 }
 
@@ -2213,8 +2150,8 @@ table.al-table {
 }
 
 .al-panel--setup {
-  border-color: color-mix(in srgb, var(--al-red-deep) 35%, var(--al-line));
-  background: color-mix(in srgb, var(--al-red-deep) 6%, var(--al-panel));
+  border-color: color-mix(in srgb, var(--al-burgundy) 35%, var(--al-line));
+  background: color-mix(in srgb, var(--al-burgundy) 6%, var(--al-panel));
 }
 
 .al-howto-title {
@@ -2266,12 +2203,12 @@ table.al-table {
 }
 
 .al-howto-steps li::marker {
-  color: var(--al-red-deep);
+  color: var(--al-burgundy);
   font-weight: 600;
 }
 
 .al-howto-steps a {
-  color: var(--al-red-deep);
+  color: var(--al-burgundy);
   font-weight: 600;
   text-decoration: none;
 }
@@ -2308,9 +2245,9 @@ table.al-table {
 
 .al-toggle-btn.is-active,
 .al-toggle-btn[aria-pressed="true"] {
-  background: var(--al-red);
-  border-color: var(--al-red);
-  color: var(--al-white);
+  background: var(--al-black);
+  border-color: var(--al-black);
+  color: #fff;
 }
 
 .al-meter {
@@ -2401,7 +2338,7 @@ table.al-table {
   text-underline-offset: 2px;
   white-space: nowrap;
 }
-.al-link-btn:hover { color: var(--al-red-deep); }
+.al-link-btn:hover { color: var(--al-red); }
 
 .al-log-list-wrap { overflow-x: auto; }
 
@@ -2458,14 +2395,13 @@ table.al-table {
   padding: 10px 14px;
   background: var(--al-panel-2);
   border: 1px solid var(--al-line);
-  border-radius: 14px;
+  border-radius: 12px;
   box-shadow: 0 2px 8px rgba(28, 28, 28, 0.05);
-  transition: box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
 .al-log-row:hover {
-  border-color: var(--al-red-edge);
-  background: var(--al-panel);
+  border-color: rgba(28, 28, 28, 0.16);
   box-shadow: 0 4px 14px rgba(28, 28, 28, 0.08);
 }
 
@@ -2577,7 +2513,7 @@ table.al-table {
 }
 
 .al-log-row--clickable:focus-visible {
-  outline: 2px solid var(--al-red-deep);
+  outline: 2px solid var(--al-burgundy);
   outline-offset: 2px;
 }
 
@@ -2809,7 +2745,7 @@ table.al-table {
 }
 
 .al-segment-btn.is-active {
-  background: var(--al-panel);
+  background: var(--al-white);
   color: var(--al-text);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
@@ -2994,8 +2930,8 @@ table.al-table {
   }
 
   .al-insight .al-card-table tr.al-month-total {
-    background: var(--al-red-tint);
-    border-color: var(--al-red-edge);
+    background: rgba(131, 15, 16, 0.04);
+    border-color: rgba(131, 15, 16, 0.14);
   }
 
   .al-insight .al-card-table td,
@@ -3072,7 +3008,7 @@ table.al-table {
 
   .al-insight .al-card-table tbody tr:hover,
   .al-insight .al-card-table tbody tr:focus-within {
-    border-color: var(--al-red-edge);
+    border-color: rgba(218, 0, 0, 0.22);
   }
 
   /* Keep film popups on-screen as a bottom sheet */
@@ -3155,7 +3091,7 @@ table.al-table {
 .al-month-row.al-hover-target:focus-within td,
 .al-rank-row.al-hover-target:hover td,
 .al-rank-row.al-hover-target:focus-within td {
-  background: var(--al-red-tint);
+  background: rgba(218, 0, 0, 0.04);
 }
 
 .al-hover-popup-title {
@@ -3214,8 +3150,8 @@ table.al-table {
   color: var(--al-text);
 }
 
-.al-month-table .is-savings { color: var(--al-green-deep); }
-.al-month-table .is-cost { color: var(--al-red-deep); }
+.al-month-table .is-savings { color: #0d7a42; }
+.al-month-table .is-cost { color: var(--al-red); }
 
 .al-empty {
   padding: 20px 10px;
@@ -3272,16 +3208,14 @@ table.al-table {
   margin: 8px 0 0;
   font-size: 0.68rem;
   line-height: 1.35;
-  color: var(--al-muted);
+  color: rgba(255, 255, 255, 0.4);
 }
 
 .al-tmdb-credit a {
-  color: var(--al-muted);
+  color: rgba(255, 255, 255, 0.55);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-
-.al-tmdb-credit a:hover { color: var(--al-red-deep); }
 
 .al-poster {
   display: block;
@@ -3350,360 +3284,6 @@ table.al-table {
 
 .al-mobile-nav { display: none; }
 
-/* Signed-in shell: deep red panels; light red watch-log cards inside. */
-.page-main .al-panel,
-.page-main .al-quicklog,
-.page-main .al-bulk-ratings-bar {
-  background: var(--al-red);
-  border-color: color-mix(in srgb, var(--al-black) 22%, var(--al-red));
-  color: var(--al-on-red);
-}
-
-.page-main .al-quicklog::before {
-  background: color-mix(in srgb, var(--al-black) 18%, var(--al-red));
-}
-
-.page-main .al-panel .al-muted,
-.page-main .al-quicklog .al-muted,
-.page-main .al-bulk-ratings-bar .al-muted {
-  color: var(--al-on-red-muted);
-}
-
-.page-main .al-panel h2,
-.page-main .al-panel .al-section-title,
-.page-main .al-panel .al-member-period-title,
-.page-main .al-panel .al-howto-title,
-.page-main .al-panel .al-insight-toggle h2,
-.page-main .al-panel .al-tier-header h2,
-.page-main .al-panel .al-invites-title {
-  color: var(--al-on-red);
-}
-
-.page-main .al-panel .al-insight-kicker,
-.page-main .al-panel .al-invites-subhead {
-  color: var(--al-on-red-muted);
-}
-
-.page-main .al-panel .al-insight-chevron,
-.page-main .al-panel .al-invites-chevron {
-  border-color: var(--al-on-red-muted);
-}
-
-.page-main .al-panel .al-log-head,
-.page-main .al-panel .al-bulk-ratings-head {
-  color: var(--al-on-red-muted);
-}
-
-.page-main .al-panel .al-invites-outgoing-text {
-  color: var(--al-on-red);
-}
-
-.page-main .al-panel .al-invites-outgoing-item {
-  border-color: var(--al-on-red-border);
-}
-
-/* Red panels inherit white type; stop page-ink tokens from leaking in. */
-.page-main .al-panel .al-bullets,
-.page-main .al-panel .al-bullets li,
-.page-main .al-panel .al-howto-intro,
-.page-main .al-panel .al-howto-steps,
-.page-main .al-panel .al-field-hint,
-.page-main .al-panel .al-invites-help,
-.page-main .al-panel .al-compare-lead,
-.page-main .al-panel .al-empty,
-.page-main .al-panel .al-empty--first-run p {
-  color: var(--al-on-red-muted);
-}
-
-.page-main .al-panel .al-marketing h2,
-.page-main .al-panel .al-howto-summary {
-  color: var(--al-on-red);
-}
-
-.page-main .al-panel a:not(.al-btn):not(.al-nav-link):not(.al-mobile-nav-link):not(.al-profile-view) {
-  color: var(--al-on-red);
-}
-
-.page-main .al-panel a:not(.al-btn):not(.al-nav-link):not(.al-mobile-nav-link):not(.al-profile-view):hover {
-  color: var(--al-white);
-}
-
-.page-main .al-panel .al-btn-primary {
-  background: var(--al-white);
-  border-color: var(--al-white);
-  color: var(--al-red);
-}
-
-.page-main .al-panel .al-btn-primary:hover {
-  background: var(--al-white);
-  border-color: var(--al-white);
-  color: var(--al-red);
-  filter: brightness(0.97);
-}
-
-.page-main .al-panel :where(
-  .al-log-row,
-  .al-bulk-ratings-row,
-  .al-profile-card,
-  .al-insights-spot,
-  .al-stat,
-  .al-invite-card,
-  .al-compare-section,
-  .al-watchlist-row,
-  .al-table-wrap
-) .al-btn-primary {
-  background: var(--al-red);
-  border-color: var(--al-red);
-  color: var(--al-white);
-}
-
-.page-main .al-panel .al-error {
-  color: #ffd4d4;
-}
-
-.page-main .al-panel .al-toolbar :is(.al-input, .al-select),
-.page-main .al-panel .al-profile-toolbar :is(.al-input, .al-select),
-.page-main .al-panel .al-compare-toolbar :is(.al-input, .al-select),
-.page-main .al-panel form.al-panel :is(.al-input, .al-select, .al-textarea),
-.page-main .al-panel > form :is(.al-input, .al-select, .al-textarea),
-.page-main .al-quicklog .al-quicklog-input {
-  background: var(--al-on-red-surface);
-  border-color: var(--al-on-red-border);
-  color: var(--al-on-red);
-}
-
-.page-main .al-panel .al-toolbar :is(.al-input, .al-select)::placeholder,
-.page-main .al-quicklog .al-quicklog-input::placeholder {
-  color: var(--al-on-red-muted);
-}
-
-.page-main .al-quicklog-field label,
-.page-main .al-panel > form .al-field label,
-.page-main .al-panel form.al-panel .al-field label {
-  color: var(--al-on-red-muted);
-}
-
-.page-main .al-panel .al-toolbar .al-toggle-btn,
-.page-main .al-panel .al-compare-toolbar .al-btn,
-.page-main .al-panel .al-toolbar .al-btn {
-  border-color: var(--al-on-red-border);
-  color: var(--al-on-red-muted);
-  background: var(--al-on-red-surface);
-}
-
-.page-main .al-panel .al-toolbar .al-toggle-btn:hover,
-.page-main .al-panel .al-toolbar .al-btn:hover,
-.page-main .al-panel .al-compare-toolbar .al-btn:hover {
-  color: var(--al-on-red);
-  border-color: var(--al-on-red);
-}
-
-.page-main .al-panel .al-toolbar .al-toggle-btn.is-active,
-.page-main .al-panel .al-toolbar .al-toggle-btn[aria-pressed="true"],
-.page-main .al-panel .al-toolbar .al-btn-primary,
-.page-main .al-panel .al-compare-toolbar .al-btn-primary {
-  background: var(--al-white);
-  border-color: var(--al-white);
-  color: var(--al-red);
-}
-
-.page-main .al-quicklog .al-quicklog-mode-btn {
-  border-color: var(--al-on-red-border);
-  color: var(--al-on-red-muted);
-}
-
-.page-main .al-quicklog .al-quicklog-mode-btn.is-active {
-  background: var(--al-white);
-  border-color: var(--al-white);
-  color: var(--al-red);
-  font-weight: 600;
-}
-
-.page-main .al-quicklog .al-quicklog-submit {
-  background: var(--al-white);
-  color: var(--al-red);
-}
-
-.page-main .al-quicklog .al-quicklog-submit:hover {
-  filter: brightness(0.97);
-}
-
-.page-main .al-quicklog .al-quicklog-status.is-success { color: #d4f0a8; }
-.page-main .al-quicklog .al-quicklog-status.is-error { color: #ffd4d4; }
-
-.page-main .al-search-results {
-  background: var(--al-white);
-  color: var(--al-text);
-}
-
-.page-main .al-panel :where(
-  .al-bulk-ratings-row,
-  .al-profile-card,
-  .al-insights-spot,
-  .al-stat,
-  .al-invite-card,
-  .al-table-wrap,
-  .al-segment,
-  .al-compare-section,
-  .al-watchlist-row
-) {
-  background: var(--al-white);
-  border-color: var(--al-line);
-  color: var(--al-text);
-}
-
-/* Watch log rows/details: light red cards on the deep red panel. */
-.page-main .al-panel :where(
-  .al-log-row,
-  .al-log-detail,
-  .al-add-viewer,
-  .al-log-detail-inner,
-  .al-log-detail-fact
-) {
-  background: var(--al-red-soft);
-  border-color: var(--al-on-soft-border);
-  color: var(--al-on-soft);
-}
-
-.page-main .al-panel .al-invite-card {
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--al-line);
-}
-
-.page-main .al-panel .al-invite-card:first-child {
-  padding-top: 10px;
-}
-
-.page-main .al-panel .al-watchlist-row {
-  border-radius: 10px;
-  padding: 6px 8px;
-  margin-bottom: 4px;
-}
-
-.page-main .al-panel .al-watchlist-row:last-child {
-  margin-bottom: 0;
-}
-
-.page-main .al-panel .al-log-row:hover {
-  background: var(--al-red-soft-deep);
-  border-color: color-mix(in srgb, var(--al-red) 28%, transparent);
-}
-
-.page-main .al-panel .al-log-row.is-expanded,
-.page-main .al-panel .al-log-row:has(+ .al-add-viewer),
-.page-main .al-panel .al-log-row--editing {
-  background: var(--al-red-soft);
-  border-color: color-mix(in srgb, var(--al-red) 32%, transparent);
-}
-
-.page-main .al-panel .al-bulk-ratings-row.is-changed {
-  border-color: var(--al-red-edge);
-  background: color-mix(in srgb, var(--al-red) 8%, var(--al-white));
-}
-
-.page-main .al-panel .al-profile-card.is-you {
-  border-color: var(--al-red-edge);
-  background: color-mix(in srgb, var(--al-red) 8%, var(--al-white));
-}
-
-.page-main .al-panel :where(
-  .al-log-row,
-  .al-bulk-ratings-row,
-  .al-profile-card,
-  .al-insights-spot,
-  .al-stat,
-  .al-log-detail,
-  .al-add-viewer,
-  .al-log-detail-inner,
-  .al-invite-card,
-  .al-compare-section,
-  .al-watchlist-row
-) .al-muted,
-.page-main .al-panel :where(
-  .al-log-row,
-  .al-bulk-ratings-row,
-  .al-profile-card,
-  .al-insights-spot,
-  .al-stat,
-  .al-log-detail,
-  .al-add-viewer,
-  .al-log-detail-inner,
-  .al-invite-card,
-  .al-compare-section,
-  .al-watchlist-row
-) .al-log-col--desktop.al-muted,
-.page-main .al-panel :where(
-  .al-log-row,
-  .al-bulk-ratings-row
-) .al-log-col--format,
-.page-main .al-panel :where(
-  .al-log-row,
-  .al-bulk-ratings-row
-) .al-log-col--seat {
-  color: var(--al-muted);
-}
-
-.page-main .al-panel :where(.al-log-row, .al-bulk-ratings-row, .al-invite-card, .al-watchlist-row) .al-link-btn {
-  color: var(--al-muted);
-}
-
-.page-main .al-panel :where(.al-log-row, .al-bulk-ratings-row, .al-invite-card, .al-watchlist-row) .al-link-btn:hover {
-  color: var(--al-red-deep);
-}
-
-.page-main .al-panel .al-log-col--mobile-meta {
-  color: var(--al-muted);
-}
-
-.page-main .al-panel .al-log-meta-with {
-  color: var(--al-green-deep);
-}
-
-.page-main .al-panel .al-log-detail-overview-wrap {
-  border-color: var(--al-on-soft-border);
-}
-
-.page-main .al-panel .al-log-detail-fact {
-  background: color-mix(in srgb, var(--al-white) 42%, var(--al-red-soft));
-}
-
-.page-main .al-panel .al-log-detail-facts dt {
-  color: var(--al-muted);
-}
-
-.page-main .al-panel .al-log-detail-facts dd,
-.page-main .al-panel .al-log-detail-overview {
-  color: var(--al-text);
-}
-
-.page-main .al-panel .al-log-row {
-  box-shadow: 0 2px 8px rgba(28, 28, 28, 0.05);
-}
-
-.page-main .al-panel .al-insight-lede,
-.page-main .al-panel .al-theater-rating-meta,
-.page-main .al-panel .al-theater-rating-rank,
-.page-main .al-panel .al-rating-bar-label {
-  color: var(--al-on-red-muted);
-}
-
-.page-main .al-panel .al-theater-rating-score,
-.page-main .al-panel .al-format-charged,
-.page-main .al-panel .al-rating-bar-count {
-  color: var(--al-on-red);
-}
-
-.page-main .al-panel .al-rating-bar-row:hover,
-.page-main .al-panel .al-rating-bar-row:focus-within {
-  background: var(--al-on-red-surface);
-}
-
-.page-main .al-panel .al-segment-btn.is-active {
-  background: var(--al-red);
-  color: var(--al-white);
-}
-
 /* Mobile layout */
 @media (max-width: 767px) {
   .page-main {
@@ -3752,11 +3332,10 @@ table.al-table {
   }
 
   .al-mobile-header-card {
-    background: var(--al-panel);
-    color: var(--al-text);
-    border: 1px solid var(--al-line);
-    border-radius: 14px;
-    padding: 8px 12px;
+    background: var(--al-burgundy);
+    color: #fff;
+    border-radius: 12px;
+    padding: 8px 10px;
   }
 
   .al-mobile-header-top {
@@ -3770,9 +3349,9 @@ table.al-table {
 
   .al-mobile-header-title {
     font-family: var(--al-font-display);
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: var(--al-text);
+    font-size: 1rem;
+    font-weight: 600;
+    color: #fff;
     text-decoration: none;
     line-height: 1.2;
     flex: 1 1 auto;
@@ -3783,7 +3362,8 @@ table.al-table {
   }
 
   .al-mobile-header-title:hover {
-    color: var(--al-red-deep);
+    color: #fff;
+    opacity: 0.9;
   }
 
   .al-mobile-header-actions {
@@ -3796,9 +3376,8 @@ table.al-table {
 
   .al-mobile-home-link,
   .al-mobile-auth-link {
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: var(--al-muted);
+    font-size: 0.68rem;
+    color: rgba(255, 255, 255, 0.85);
     text-decoration: none;
     white-space: nowrap;
     padding: 4px 0;
@@ -3806,7 +3385,7 @@ table.al-table {
 
   .al-mobile-home-link:hover,
   .al-mobile-auth-link:hover {
-    color: var(--al-red-deep);
+    color: #fff;
   }
 
   .al-content-scroll {
@@ -3822,7 +3401,7 @@ table.al-table {
     display: block;
     margin-top: 6px;
     padding-top: 6px;
-    border-top: 1px solid var(--al-line);
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
   }
 
   .al-mobile-stats-inner {
@@ -3844,7 +3423,7 @@ table.al-table {
     font-size: 0.6rem;
     letter-spacing: 0.02em;
     text-transform: uppercase;
-    color: var(--al-muted);
+    opacity: 0.72;
     white-space: nowrap;
   }
 
@@ -3856,8 +3435,8 @@ table.al-table {
     white-space: nowrap;
   }
 
-  .al-mobile-stat-value.is-savings { color: var(--al-green-deep); }
-  .al-mobile-stat-value.is-cost { color: var(--al-red-deep); }
+  .al-mobile-stat-value.is-savings { color: #8fe8b8; }
+  .al-mobile-stat-value.is-cost { color: #ffb4b4; }
 
   .al-page-header {
     margin-bottom: 12px;
@@ -3918,9 +3497,8 @@ table.al-table {
   }
 
   .al-quicklog {
-    /* Extra left padding clears the red ticket edge drawn by ::before. */
-    padding: 8px 8px 8px 14px;
-    border-radius: 14px;
+    padding: 8px;
+    border-radius: 12px;
     margin-bottom: 10px;
   }
 
@@ -4012,9 +3590,9 @@ table.al-table {
     z-index: 40;
     padding: 4px;
     gap: 4px;
-    background: var(--al-red);
-    border-radius: 16px;
-    box-shadow: 0 8px 28px rgba(28, 28, 28, 0.18);
+    background: var(--al-burgundy);
+    border-radius: 14px;
+    box-shadow: 0 8px 28px rgba(28, 28, 28, 0.22);
   }
 
   .al-mobile-nav-link {
@@ -4023,18 +3601,18 @@ table.al-table {
     align-items: center;
     justify-content: center;
     padding: 8px 4px;
-    border-radius: 12px;
+    border-radius: 10px;
     font-size: 0.72rem;
     font-weight: 600;
     text-decoration: none;
-    color: var(--al-white);
+    color: rgba(255, 255, 255, 0.72);
     text-align: center;
     line-height: 1.15;
   }
 
   .al-mobile-nav-link.is-active {
-    background: var(--al-panel);
-    color: var(--al-black);
+    background: rgba(0, 0, 0, 0.22);
+    color: var(--al-white);
   }
 
   .al-mobile-nav-link--icon {
@@ -4053,10 +3631,10 @@ table.al-table {
 
   .al-panel--log {
     width: 100%;
-    padding: 12px;
-    margin-bottom: 10px;
-    border: 1px solid color-mix(in srgb, var(--al-black) 22%, var(--al-red));
-    border-radius: 14px;
+    padding: 0;
+    margin-bottom: 0;
+    border: 0;
+    background: transparent;
   }
 
   .al-panel--log .al-toolbar {
@@ -4149,7 +3727,7 @@ table.al-table {
   }
 
   .al-log-meta-with {
-    color: var(--al-green-deep);
+    color: #2f5d3a;
     font-weight: 500;
   }
 
@@ -4332,21 +3910,21 @@ table.al-table {
 }
 
 .al-log-row--coming-soon {
-  background: color-mix(in srgb, var(--al-yellow) 12%, var(--al-cream));
+  background: #f0ece6;
   border-color: rgba(28, 28, 28, 0.1);
 }
 
 .al-log-row--coming-soon:hover {
-  background: color-mix(in srgb, var(--al-yellow) 20%, var(--al-cream));
+  background: #ebe6df;
   border-color: rgba(28, 28, 28, 0.14);
 }
 
 .al-log-entry.is-coming-soon .al-log-detail--coming-soon {
-  background: color-mix(in srgb, var(--al-yellow) 12%, var(--al-cream));
+  background: #f0ece6;
 }
 
 .al-log-entry.is-coming-soon .al-log-detail--coming-soon .al-log-detail-inner {
-  background: var(--al-panel);
+  background: #f7f4ef;
 }
 
 .al-log-list--watchlist {
@@ -4637,9 +4215,9 @@ table.al-table {
 }
 
 .al-signin-tab.is-active {
-  background: var(--al-red);
-  border-color: var(--al-red);
-  color: var(--al-white);
+  background: var(--al-burgundy);
+  border-color: var(--al-burgundy);
+  color: #fff;
 }
 
 .al-signin-form {
@@ -4739,296 +4317,4 @@ table.al-table {
 .al-by-month-year {
   flex: 0 0 auto;
   width: auto;
-}
-
-/* Dark mode: black / dark grey field, deep red accents, muted red log cards. */
-[data-theme="dark"] {
-  color-scheme: dark;
-  --al-bg: #0a0a0a;
-  --al-cream: #121212;
-  --al-panel: #1a1a1a;
-  --al-panel-2: #242424;
-  --al-text: #ececec;
-  --al-muted: #9a9a9a;
-  --al-black: #ececec;
-  --al-charcoal: #ececec;
-  --al-line: rgba(255, 255, 255, 0.1);
-  --al-red-soft: #3d2222;
-  --al-red-soft-deep: #4d2a2a;
-  --al-on-soft-border: rgba(170, 0, 0, 0.35);
-  --al-red-tint: color-mix(in srgb, var(--al-red) 18%, transparent);
-  --al-red-tint-strong: color-mix(in srgb, var(--al-red) 30%, transparent);
-}
-
-[data-theme="dark"] .page-main .al-panel .al-bullets,
-[data-theme="dark"] .page-main .al-panel .al-bullets li,
-[data-theme="dark"] .page-main .al-panel .al-howto-intro,
-[data-theme="dark"] .page-main .al-panel .al-howto-steps,
-[data-theme="dark"] .page-main .al-panel .al-field-hint,
-[data-theme="dark"] .page-main .al-panel .al-invites-help,
-[data-theme="dark"] .page-main .al-panel .al-compare-lead,
-[data-theme="dark"] .page-main .al-panel .al-empty,
-[data-theme="dark"] .page-main .al-panel .al-empty--first-run p {
-  color: var(--al-muted);
-}
-
-[data-theme="dark"] .page-main .al-panel .al-marketing h2,
-[data-theme="dark"] .page-main .al-panel .al-howto-summary {
-  color: var(--al-text);
-}
-
-[data-theme="dark"] .page-main .al-panel a:not(.al-btn):not(.al-nav-link):not(.al-mobile-nav-link):not(.al-profile-view) {
-  color: var(--al-red-deep);
-}
-
-[data-theme="dark"] .page-main .al-panel .al-btn-primary {
-  background: var(--al-red);
-  border-color: var(--al-red);
-  color: var(--al-white);
-}
-
-[data-theme="dark"] .page-main .al-panel :where(
-  .al-log-row,
-  .al-bulk-ratings-row,
-  .al-profile-card,
-  .al-insights-spot,
-  .al-stat,
-  .al-invite-card,
-  .al-compare-section,
-  .al-watchlist-row,
-  .al-table-wrap
-) .al-btn-primary {
-  background: var(--al-red);
-  border-color: var(--al-red);
-  color: var(--al-white);
-}
-
-[data-theme="dark"] .al-sidebar {
-  background: #141414;
-  color: var(--al-text);
-  border-color: var(--al-line);
-}
-
-[data-theme="dark"] .al-sidebar-stats-heading,
-[data-theme="dark"] .al-sidebar-stat-label,
-[data-theme="dark"] .al-nav-link,
-[data-theme="dark"] .al-sidebar-footer a,
-[data-theme="dark"] .al-sidebar .al-tmdb-credit,
-[data-theme="dark"] .al-sidebar .al-tmdb-credit a {
-  color: var(--al-muted);
-}
-
-[data-theme="dark"] .al-nav-link:hover {
-  color: var(--al-text);
-  background: var(--al-panel-2);
-}
-
-[data-theme="dark"] .al-nav-link.is-active {
-  background: var(--al-red);
-  color: var(--al-white);
-}
-
-[data-theme="dark"] .al-sidebar-stat {
-  background: var(--al-panel-2);
-  border-color: var(--al-line);
-}
-
-[data-theme="dark"] .al-sidebar-stat-value {
-  color: var(--al-text);
-}
-
-[data-theme="dark"] .al-sidebar-stat-value.is-savings { color: #b8e986; }
-[data-theme="dark"] .al-sidebar-stat-value.is-cost { color: #ffb89a; }
-
-[data-theme="dark"] .al-sidebar-footer a:hover,
-[data-theme="dark"] .al-sidebar .al-tmdb-credit a:hover {
-  color: var(--al-red-deep);
-}
-
-[data-theme="dark"] .page-main .al-panel,
-[data-theme="dark"] .page-main .al-quicklog,
-[data-theme="dark"] .page-main .al-bulk-ratings-bar {
-  background: var(--al-panel);
-  border-color: var(--al-line);
-  color: var(--al-text);
-}
-
-[data-theme="dark"] .page-main .al-quicklog::before {
-  background: var(--al-red);
-}
-
-[data-theme="dark"] .page-main .al-panel .al-muted,
-[data-theme="dark"] .page-main .al-quicklog .al-muted,
-[data-theme="dark"] .page-main .al-bulk-ratings-bar .al-muted,
-[data-theme="dark"] .page-main .al-panel .al-insight-kicker,
-[data-theme="dark"] .page-main .al-panel .al-invites-subhead,
-[data-theme="dark"] .page-main .al-panel .al-log-head,
-[data-theme="dark"] .page-main .al-panel .al-bulk-ratings-head,
-[data-theme="dark"] .page-main .al-quicklog-field label,
-[data-theme="dark"] .page-main .al-panel > form .al-field label,
-[data-theme="dark"] .page-main .al-panel form.al-panel .al-field label {
-  color: var(--al-muted);
-}
-
-[data-theme="dark"] .page-main .al-panel h2,
-[data-theme="dark"] .page-main .al-panel .al-section-title,
-[data-theme="dark"] .page-main .al-panel .al-member-period-title,
-[data-theme="dark"] .page-main .al-panel .al-howto-title,
-[data-theme="dark"] .page-main .al-panel .al-insight-toggle h2,
-[data-theme="dark"] .page-main .al-panel .al-tier-header h2,
-[data-theme="dark"] .page-main .al-panel .al-invites-title,
-[data-theme="dark"] .page-main .al-panel .al-invites-outgoing-text {
-  color: var(--al-text);
-}
-
-[data-theme="dark"] .page-main .al-panel .al-insight-chevron,
-[data-theme="dark"] .page-main .al-panel .al-invites-chevron {
-  border-color: var(--al-muted);
-}
-
-[data-theme="dark"] .page-main .al-panel .al-invites-outgoing-item {
-  border-color: var(--al-line);
-}
-
-[data-theme="dark"] .page-main .al-panel .al-error {
-  color: #ffb4b4;
-}
-
-[data-theme="dark"] .page-main .al-panel .al-toolbar :is(.al-input, .al-select),
-[data-theme="dark"] .page-main .al-panel .al-profile-toolbar :is(.al-input, .al-select),
-[data-theme="dark"] .page-main .al-panel .al-compare-toolbar :is(.al-input, .al-select),
-[data-theme="dark"] .page-main .al-panel form.al-panel :is(.al-input, .al-select, .al-textarea),
-[data-theme="dark"] .page-main .al-panel > form :is(.al-input, .al-select, .al-textarea),
-[data-theme="dark"] .page-main .al-quicklog .al-quicklog-input {
-  background: var(--al-panel-2);
-  border-color: var(--al-line);
-  color: var(--al-text);
-}
-
-[data-theme="dark"] .page-main .al-panel .al-toolbar :is(.al-input, .al-select)::placeholder,
-[data-theme="dark"] .page-main .al-quicklog .al-quicklog-input::placeholder {
-  color: var(--al-muted);
-}
-
-[data-theme="dark"] .page-main .al-panel .al-toolbar .al-toggle-btn,
-[data-theme="dark"] .page-main .al-panel .al-compare-toolbar .al-btn,
-[data-theme="dark"] .page-main .al-panel .al-toolbar .al-btn,
-[data-theme="dark"] .page-main .al-quicklog .al-quicklog-mode-btn {
-  background: var(--al-panel-2);
-  border-color: var(--al-line);
-  color: var(--al-muted);
-}
-
-[data-theme="dark"] .page-main .al-panel .al-toolbar .al-toggle-btn:hover,
-[data-theme="dark"] .page-main .al-panel .al-toolbar .al-btn:hover,
-[data-theme="dark"] .page-main .al-panel .al-compare-toolbar .al-btn:hover,
-[data-theme="dark"] .page-main .al-quicklog .al-quicklog-mode-btn:hover {
-  color: var(--al-text);
-  border-color: var(--al-red-edge);
-}
-
-[data-theme="dark"] .page-main .al-panel .al-toolbar .al-toggle-btn.is-active,
-[data-theme="dark"] .page-main .al-panel .al-toolbar .al-toggle-btn[aria-pressed="true"],
-[data-theme="dark"] .page-main .al-panel .al-toolbar .al-btn-primary,
-[data-theme="dark"] .page-main .al-panel .al-compare-toolbar .al-btn-primary,
-[data-theme="dark"] .page-main .al-quicklog .al-quicklog-mode-btn.is-active,
-[data-theme="dark"] .page-main .al-quicklog .al-quicklog-submit {
-  background: var(--al-red);
-  border-color: var(--al-red);
-  color: var(--al-white);
-}
-
-[data-theme="dark"] .page-main .al-quicklog .al-quicklog-status.is-success { color: #b8e986; }
-[data-theme="dark"] .page-main .al-quicklog .al-quicklog-status.is-error { color: #ffb4b4; }
-
-[data-theme="dark"] .page-main .al-panel :where(
-  .al-bulk-ratings-row,
-  .al-profile-card,
-  .al-insights-spot,
-  .al-stat,
-  .al-invite-card,
-  .al-table-wrap,
-  .al-segment,
-  .al-compare-section,
-  .al-watchlist-row
-) {
-  background: var(--al-panel-2);
-  border-color: var(--al-line);
-  color: var(--al-text);
-}
-
-[data-theme="dark"] .page-main .al-panel .al-log-row:hover {
-  background: var(--al-red-soft-deep);
-  border-color: var(--al-red-edge);
-}
-
-[data-theme="dark"] .page-main .al-panel .al-bulk-ratings-row.is-changed,
-[data-theme="dark"] .page-main .al-panel .al-profile-card.is-you {
-  background: color-mix(in srgb, var(--al-red) 14%, var(--al-panel-2));
-}
-
-[data-theme="dark"] .page-main .al-panel .al-insight-lede,
-[data-theme="dark"] .page-main .al-panel .al-theater-rating-meta,
-[data-theme="dark"] .page-main .al-panel .al-theater-rating-rank,
-[data-theme="dark"] .page-main .al-panel .al-rating-bar-label,
-[data-theme="dark"] .page-main .al-panel .al-rating-bar-count {
-  color: var(--al-muted);
-}
-
-[data-theme="dark"] .page-main .al-panel .al-theater-rating-score,
-[data-theme="dark"] .page-main .al-panel .al-format-charged {
-  color: var(--al-text);
-}
-
-[data-theme="dark"] .page-main .al-panel .al-rating-bar-row:hover,
-[data-theme="dark"] .page-main .al-panel .al-rating-bar-row:focus-within {
-  background: var(--al-red-tint);
-}
-
-[data-theme="dark"] .page-main .al-panel .al-log-detail-fact {
-  background: color-mix(in srgb, var(--al-white) 8%, var(--al-red-soft));
-}
-
-[data-theme="dark"] .al-page-title {
-  color: var(--al-text);
-}
-
-[data-theme="dark"] .al-page-sub {
-  color: var(--al-muted);
-}
-
-[data-theme="dark"] .al-search-results button.is-active,
-[data-theme="dark"] .al-search-results button:hover {
-  background: var(--al-panel-2);
-}
-
-[data-theme="dark"] .al-badge--muted {
-  background: color-mix(in srgb, var(--al-yellow) 22%, var(--al-panel-2));
-  color: #f0d890;
-}
-
-[data-theme="dark"] .al-badge--together {
-  background: color-mix(in srgb, var(--al-green) 22%, var(--al-panel-2));
-  color: #b8e986;
-}
-
-@media (max-width: 767px) {
-  [data-theme="dark"] .al-mobile-nav {
-    background: #141414;
-    border: 1px solid var(--al-line);
-    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
-  }
-
-  [data-theme="dark"] .al-mobile-nav-link {
-    color: var(--al-muted);
-  }
-
-  [data-theme="dark"] .al-mobile-nav-link.is-active {
-    background: var(--al-red);
-    color: var(--al-white);
-  }
-
-  [data-theme="dark"] .al-panel--log {
-    border-color: var(--al-line);
-  }
 }
