@@ -507,6 +507,24 @@ function switchToLanding() {
   $('step-exercise')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+function currentCompanyLabel() {
+  const companyName = state.company?.company || 'Pick a company';
+  const ticker = state.company?.fortune_ticker || '';
+  return ticker ? `${companyName} (${ticker})` : companyName;
+}
+
+function exerciseShortLabel() {
+  return (
+    {
+      filer: '10-K',
+      unit: 'Unit',
+      capital: 'Capital',
+      strategic: 'Strategic',
+      market: 'Market',
+    }[state.exercise] || 'Exercise'
+  );
+}
+
 function renderWorkspaceAdjust() {
   const bar = $('workspace-setup');
   if (!bar) return;
@@ -515,53 +533,35 @@ function renderWorkspaceAdjust() {
     return;
   }
 
-  const exerciseTitle = EXERCISES.find((e) => e.id === state.exercise)?.title || 'Exercise';
-  const switchEx = `<button type="button" class="fm-workspace-setup-link" data-switch-exercise="1">Switch exercise</button>`;
+  const switchEx = `<button type="button" class="fm-ws-text-link" data-switch-exercise="1">Switch</button>`;
 
   if (!isFiler()) {
     bar.innerHTML = `<div class="fm-ws-adjust">
-      <div class="fm-ws-block">
-        <span class="fm-ws-kicker">Exercise</span>
-        <strong>${escapeHtml(exerciseTitle)}</strong>
-        ${switchEx}
-      </div>
+      <span class="fm-ws-ex-label">${escapeHtml(exerciseShortLabel())}</span>
+      ${switchEx}
     </div>`;
     bar.querySelector('[data-switch-exercise]')?.addEventListener('click', switchToLanding);
     return;
   }
 
-  const companyName = state.company?.company || 'Pick a company';
-  const ticker = state.company?.fortune_ticker || '';
-  const companyLabel = ticker ? `${companyName} (${ticker})` : companyName;
-
+  const companyLabel = currentCompanyLabel();
   bar.innerHTML = `<div class="fm-ws-adjust">
-    <div class="fm-ws-block">
-      <span class="fm-ws-kicker">Exercise</span>
-      <strong>${escapeHtml(exerciseTitle)}</strong>
-      ${switchEx}
-    </div>
-    <div class="fm-ws-block" id="ws-company-block">
-      <span class="fm-ws-kicker">Company you’re modeling</span>
-      <button type="button" class="fm-workspace-setup-link" id="ws-company-toggle" aria-expanded="false">
-        ${escapeHtml(companyLabel)} — search to swap
-      </button>
+    <div class="fm-ws-field" id="ws-company-block">
+      <input id="ws-company-search" class="fm-ws-input fm-ws-company-input" type="search" value="${escapeHtml(companyLabel)}" placeholder="Search company…" autocomplete="off" aria-label="Company you’re modeling" />
       <div class="fm-ws-pop" id="ws-company-pop" hidden>
-        <input id="ws-company-search" class="fm-search" type="search" placeholder="Search by name or ticker…" autocomplete="off" aria-label="Swap company" />
         <div class="fm-results" id="ws-company-results" hidden></div>
       </div>
     </div>
-    <div class="fm-ws-block">
-      <span class="fm-ws-kicker">What’s in this model</span>
-      <div class="fm-ws-models" role="group" aria-label="Models to include">
-        ${modelToggleHtml('ws')}
+    <div class="fm-ws-peers" id="ws-peers-block">
+      <div class="fm-peer-chips" id="ws-peer-chips"></div>
+      <div class="fm-ws-field">
+        <input id="ws-peer-search" class="fm-ws-input fm-ws-peer-input" type="search" placeholder="Add peer…" autocomplete="off" aria-label="Add a peer" />
+        <div class="fm-ws-pop" id="ws-peer-pop" hidden>
+          <div class="fm-results" id="ws-peer-results" hidden></div>
+        </div>
       </div>
     </div>
-    <div class="fm-ws-block" id="ws-peers-block">
-      <span class="fm-ws-kicker">Companies you compare against</span>
-      <div class="fm-peer-chips" id="ws-peer-chips"></div>
-      <input id="ws-peer-search" class="fm-search fm-peer-search" type="search" placeholder="Add a peer by name or ticker…" autocomplete="off" aria-label="Add a peer" />
-      <div class="fm-results" id="ws-peer-results" hidden></div>
-    </div>
+    ${switchEx}
   </div>`;
 
   bindWorkspaceAdjust(bar);
@@ -571,32 +571,48 @@ function renderWorkspaceAdjust() {
 function bindWorkspaceAdjust(bar) {
   bar.querySelector('[data-switch-exercise]')?.addEventListener('click', switchToLanding);
 
-  const toggle = $('ws-company-toggle');
-  const pop = $('ws-company-pop');
   const search = $('ws-company-search');
-  toggle?.addEventListener('click', () => {
-    const open = pop.hidden;
-    pop.hidden = !open;
-    toggle.setAttribute('aria-expanded', String(open));
-    if (open) search?.focus();
-  });
+  const companyPop = $('ws-company-pop');
+  companyPop?.addEventListener('mousedown', (e) => e.preventDefault());
+  search?.addEventListener('focus', () => search.select());
   search?.addEventListener('input', (e) => renderWsCompanyResults(e.target.value));
-
-  bar.querySelectorAll('[data-ws-model]').forEach((btn) => {
-    btn.addEventListener('click', () => toggleModel(btn.dataset.wsModel));
+  search?.addEventListener('blur', () => {
+    setTimeout(() => {
+      if (search) search.value = currentCompanyLabel();
+      hideWsPop('ws-company-pop', 'ws-company-results');
+    }, 150);
   });
 
-  $('ws-peer-search')?.addEventListener('input', (e) => renderWsPeerResults(e.target.value));
+  const peerSearch = $('ws-peer-search');
+  const peerPop = $('ws-peer-pop');
+  peerPop?.addEventListener('mousedown', (e) => e.preventDefault());
+  peerSearch?.addEventListener('input', (e) => renderWsPeerResults(e.target.value));
+  peerSearch?.addEventListener('blur', () => {
+    setTimeout(() => hideWsPop('ws-peer-pop', 'ws-peer-results'), 150);
+  });
+}
+
+function hideWsPop(popId, boxId) {
+  const pop = $(popId);
+  const box = $(boxId);
+  if (pop) pop.hidden = true;
+  if (box) box.hidden = true;
+}
+
+function showWsPop(popId) {
+  const pop = $(popId);
+  if (pop) pop.hidden = false;
 }
 
 function renderWsCompanyResults(query) {
   const box = $('ws-company-results');
   if (!box) return;
   const q = query.trim().toLowerCase();
-  if (!q) {
-    box.hidden = true;
+  if (!q || q === currentCompanyLabel().toLowerCase()) {
+    hideWsPop('ws-company-pop', 'ws-company-results');
     return;
   }
+  showWsPop('ws-company-pop');
   const hits = state.companies
     .filter(
       (c) =>
@@ -635,9 +651,10 @@ function renderWsPeerResults(query) {
   if (!box) return;
   const q = query.trim().toLowerCase();
   if (!q) {
-    box.hidden = true;
+    hideWsPop('ws-peer-pop', 'ws-peer-results');
     return;
   }
+  showWsPop('ws-peer-pop');
   const hits = state.companies
     .filter(
       (c) =>
@@ -681,7 +698,9 @@ function renderTabs() {
     .map((t) => {
       const enabled = tabEnabled(t.id);
       const selected = state.activeTab === t.id;
-      return `<button type="button" class="fm-tab" role="tab" id="tab-${t.id}" data-tab="${t.id}" aria-selected="${selected}" ${enabled ? '' : 'disabled'}>${escapeHtml(t.label)}</button>`;
+      const hint = t.what || t.hint || '';
+      const title = hint ? ` title="${escapeHtml(hint)}"` : '';
+      return `<button type="button" class="fm-tab" role="tab" id="tab-${t.id}" data-tab="${t.id}" aria-selected="${selected}" ${enabled ? '' : 'disabled'}${title}>${escapeHtml(t.label)}</button>`;
     })
     .join('');
   nav.querySelectorAll('[data-tab]').forEach((btn) => {
@@ -692,14 +711,6 @@ function renderTabs() {
       render();
     };
   });
-
-  const hintEl = $('tab-hint');
-  if (hintEl) {
-    const tab = TABS.find((t) => t.id === state.activeTab);
-    const text = tab?.what || tab?.hint || '';
-    hintEl.textContent = text;
-    hintEl.hidden = !text;
-  }
 }
 
 function renderWorkspaceStatus(model, dcf) {
@@ -1233,8 +1244,16 @@ function renderAssumptionListHtml() {
     })
     .join('');
 
+  const modelToggles = isFiler()
+    ? `<div class="fm-ws-models" role="group" aria-label="Models to include">
+        <button type="button" data-ws-model="three" aria-pressed="true" disabled title="The 3-statement is the base — it stays on">3-statement</button>
+        <button type="button" data-ws-model="dcf" aria-pressed="${state.models.includes('dcf')}">DCF</button>
+        <button type="button" data-ws-model="comps" aria-pressed="${compsOn()}">Comps</button>
+      </div>`
+    : '';
+
   return {
-    chrome: `${isUnit() ? `<div class="fm-unit-template" role="group" aria-label="Unit template">
+    chrome: `${modelToggles}${isUnit() ? `<div class="fm-unit-template" role="group" aria-label="Unit template">
       <button type="button" data-unit-template="lemonade" aria-pressed="${state.unitTemplate === 'lemonade'}">Lemonade example</button>
       <button type="button" data-unit-template="blank" aria-pressed="${state.unitTemplate === 'blank'}">Blank template</button>
     </div>` : ''}${
@@ -1248,6 +1267,10 @@ function renderAssumptionListHtml() {
 
 function bindAssumptionList(wrap) {
   const active = isUnit() || isCapital() ? exerciseDialList() : assumptionCatalog(state.models);
+
+  wrap.querySelectorAll('[data-ws-model]').forEach((btn) => {
+    btn.addEventListener('click', () => toggleModel(btn.dataset.wsModel));
+  });
 
   wrap.querySelectorAll('[data-unit-template]').forEach((btn) => {
     btn.onclick = () => {
@@ -2180,12 +2203,10 @@ async function boot() {
   });
 
   document.addEventListener('click', (e) => {
-    const pop = $('ws-company-pop');
-    const block = $('ws-company-block');
-    if (!pop || pop.hidden) return;
-    if (block?.contains(e.target)) return;
-    pop.hidden = true;
-    $('ws-company-toggle')?.setAttribute('aria-expanded', 'false');
+    const companyBlock = $('ws-company-block');
+    const peersBlock = $('ws-peers-block');
+    if (!companyBlock?.contains(e.target)) hideWsPop('ws-company-pop', 'ws-company-results');
+    if (!peersBlock?.contains(e.target)) hideWsPop('ws-peer-pop', 'ws-peer-results');
   });
 
   $('landing-next')?.addEventListener('click', () => enterWorkspace());
