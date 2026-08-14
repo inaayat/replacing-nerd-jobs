@@ -2,6 +2,18 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <script>
+      (function () {
+        var key = "inaayat-home-theme";
+        var valid = { rainbow: 1, moon: 1, grape: 1, toilet: 1 };
+        var theme = "rainbow";
+        try {
+          var saved = localStorage.getItem(key);
+          if (valid[saved]) theme = saved;
+        } catch (e) {}
+        document.documentElement.setAttribute("data-theme", theme);
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Beep boop</title>
     <meta name="description" content="Can AI replace the nerds? Tools and experiments to find out." />
@@ -411,13 +423,6 @@
         .blob-body { transition: none; }
       }
     </style>
-    <script>
-      (function () {
-        var saved = localStorage.getItem("inaayat-home-theme");
-        var theme = saved === "moon" || saved === "grape" || saved === "toilet" ? saved : "rainbow";
-        document.documentElement.setAttribute("data-theme", theme);
-      })();
-    </script>
   </head>
   <body class="flex flex-col">
 
@@ -623,12 +628,25 @@
       (function () {
         var root = document.documentElement;
         var buttons = Array.from(document.querySelectorAll(".theme-btn"));
+        var key = "inaayat-home-theme";
         var valid = { rainbow: 1, moon: 1, grape: 1, toilet: 1 };
 
-        function setTheme(name) {
+        function readTheme() {
+          try {
+            var saved = localStorage.getItem(key);
+            if (valid[saved]) return saved;
+          } catch (e) {}
+          return root.getAttribute("data-theme") || "rainbow";
+        }
+
+        function setTheme(name, persist) {
           if (!valid[name]) name = "rainbow";
           root.setAttribute("data-theme", name);
-          localStorage.setItem("inaayat-home-theme", name);
+          if (persist !== false) {
+            try {
+              localStorage.setItem(key, name);
+            } catch (e) {}
+          }
           buttons.forEach(function (btn) {
             var on = btn.getAttribute("data-theme") === name;
             btn.classList.toggle("is-active", on);
@@ -644,7 +662,11 @@
           });
         });
 
-        setTheme(root.getAttribute("data-theme") || "rainbow");
+        window.addEventListener("storage", function (e) {
+          if (e.key === key && valid[e.newValue]) setTheme(e.newValue, false);
+        });
+
+        setTheme(readTheme(), false);
       })();
     </script>
 
