@@ -40,6 +40,7 @@
         --red: #f05e53;
         --gray: #d8d3c6;
         --on-dark-blob: #faf3e3;
+        --projects-panel-w: min(56vw, 840px);
       }
       [data-theme="moon"] {
         --bg: #0f0f0f;
@@ -190,7 +191,7 @@
         flex-shrink: 0;
       }
       /* break-word rather than anywhere: only split a word that cannot fit at all,
-         so names like "DumpsteriOS" stay whole whenever there is room. */
+         so names like "Financial Modeler" stay whole whenever there is room. */
       .item-card .title {
         font-size: var(--title-size, 1.05rem);
         line-height: 1.15;
@@ -291,6 +292,10 @@
         height: 100%;
         min-height: 0;
         overflow: hidden;
+        transition: width 420ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      html.is-projects-open .blob-stage {
+        width: calc(100% - var(--projects-panel-w));
       }
 
       .project-grid {
@@ -478,9 +483,212 @@
         flex-shrink: 0;
         opacity: 0.85;
       }
+      .sidebar-link.is-current { opacity: 1; }
+
+      /* ── Projects side panel ── */
+      .projects-panel {
+        position: fixed;
+        top: 0;
+        right: 0;
+        z-index: 12;
+        width: var(--projects-panel-w);
+        height: 100%;
+        height: 100dvh;
+        max-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        pointer-events: none;
+        transform: translateX(100%);
+        transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      html.is-projects-open .projects-panel {
+        pointer-events: auto;
+        transform: translateX(0);
+      }
+      .projects-panel-inner {
+        height: 100%;
+        max-height: 100dvh;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        padding: 11px 11px 11px 0;
+      }
+      .projects-panel-shell {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        border-radius: 28px;
+        background: var(--tile-bg);
+        border: 1.5px solid var(--tile-border);
+        box-shadow: -10px 0 28px rgba(28, 28, 28, 0.1);
+        transition: background-color 220ms ease, border-color 220ms ease;
+      }
+      [data-theme="moon"] .projects-panel-shell {
+        box-shadow: -10px 0 28px rgba(0, 0, 0, 0.45);
+      }
+      .projects-panel-head {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 16px 16px 10px;
+      }
+      .projects-panel-head h2 {
+        margin: 0;
+        font-size: 1.35rem;
+        line-height: 1.15;
+      }
+      .projects-note {
+        margin: 6px 0 0;
+        font-size: 0.68rem;
+        line-height: 1.45;
+        opacity: 0.7;
+        max-width: 54ch;
+      }
+      .projects-close {
+        flex-shrink: 0;
+        width: 34px;
+        height: 34px;
+        border: 1.5px solid var(--tile-border);
+        border-radius: 999px;
+        background: transparent;
+        color: var(--ink);
+        cursor: pointer;
+        font-size: 1.15rem;
+        line-height: 1;
+      }
+      .projects-close:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+      .projects-close:focus-visible {
+        outline: 2px solid var(--ink);
+        outline-offset: 2px;
+      }
+      .projects-panel-scroll {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding: 4px 14px 16px;
+      }
+      .projects-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+      @media (max-width: 1280px) {
+        :root, [data-theme="rainbow"], [data-theme="moon"], [data-theme="grape"], [data-theme="toilet"], [data-theme="zohran"] {
+          --projects-panel-w: min(52vw, 720px);
+        }
+        .projects-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+      @media (max-width: 899px) {
+        :root, [data-theme="rainbow"], [data-theme="moon"], [data-theme="grape"], [data-theme="toilet"], [data-theme="zohran"] {
+          --projects-panel-w: 100%;
+        }
+        html.is-projects-open .blob-stage { width: 100%; }
+        .projects-panel-inner { padding: 10px; }
+        .projects-grid { grid-template-columns: 1fr; }
+      }
+
+      .project-row {
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+        min-height: 168px;
+        padding: 14px 14px 12px;
+        border-radius: 20px;
+        text-decoration: none;
+        color: var(--ink);
+        transition: filter 140ms ease-out, transform 140ms ease-out;
+      }
+      a.project-row:hover {
+        filter: brightness(1.06);
+        transform: translateY(-2px);
+      }
+      a.project-row:focus { outline: none; }
+      a.project-row:focus-visible {
+        outline: 2px solid var(--ink);
+        outline-offset: 3px;
+      }
+      .project-row .row-top {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .project-row .row-num {
+        font-size: 0.6rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        opacity: 0.62;
+      }
+      .project-row .row-status {
+        font-size: 0.56rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        padding: 3px 8px;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--ink) 10%, transparent);
+        opacity: 0.88;
+      }
+      .project-row.is-failed .row-status {
+        background: color-mix(in srgb, #1c1c1c 18%, transparent);
+        font-weight: 500;
+      }
+      .project-row .row-title {
+        font-size: 1.02rem;
+        line-height: 1.2;
+        margin: 0;
+      }
+      .project-row .row-blurb,
+      .project-row .row-outcome {
+        margin: 0;
+        font-size: 0.68rem;
+        line-height: 1.4;
+        opacity: 0.82;
+      }
+      .project-row .row-outcome {
+        margin-top: auto;
+        padding-top: 4px;
+        opacity: 0.78;
+      }
+      .project-row .row-outcome strong {
+        display: block;
+        font-weight: 500;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        font-size: 0.56rem;
+        margin-bottom: 2px;
+        opacity: 0.7;
+      }
+      .project-row.card-purple,
+      .project-row.card-red { color: var(--on-dark-blob); }
+      [data-theme="moon"] .project-row.card-purple,
+      [data-theme="moon"] .project-row.card-red,
+      [data-theme="moon"] .project-row.card-cyan,
+      [data-theme="moon"] .project-row.card-green { color: var(--on-dark-blob); }
+      [data-theme="grape"] .project-row.card-purple,
+      [data-theme="grape"] .project-row.card-red,
+      [data-theme="grape"] .project-row.card-orange { color: var(--on-dark-blob); }
+      [data-theme="toilet"] .project-row.card-purple,
+      [data-theme="toilet"] .project-row.card-red,
+      [data-theme="toilet"] .project-row.card-orange { color: var(--on-dark-blob); }
+      [data-theme="zohran"] .project-row.card-purple,
+      [data-theme="zohran"] .project-row.card-cyan,
+      [data-theme="zohran"] .project-row.card-green,
+      [data-theme="zohran"] .project-row.card-pink { color: var(--on-dark-blob); }
+      [data-theme="zohran"] .project-row.card-yellow,
+      [data-theme="zohran"] .project-row.card-orange,
+      [data-theme="zohran"] .project-row.card-red { color: var(--on-light-blob); }
 
       @media (prefers-reduced-motion: reduce) {
         .blob-body { transition: none; }
+        .blob-stage, .projects-panel { transition: none; }
+        a.project-row:hover { transform: none; }
       }
     </style>
   </head>
@@ -503,7 +711,7 @@
               GitHub
             </a>
             <a href="/account.html" class="sidebar-link">Account</a>
-            <a href="/archive/" class="sidebar-link">Archive</a>
+            <a href="#list" class="sidebar-link" id="projects-tab" aria-expanded="false" aria-controls="projects-panel">Projects</a>
           </nav>
         </div>
         <div class="theme-picker brand-mono" role="group" aria-label="Color scheme">
@@ -591,12 +799,6 @@
           <div class="icon"><img src="/packing-cubes/icon.svg" alt="" width="20" height="20"></div>
           <div class="title serif font-semibold">Packing Cubes</div>
           <div class="subtitle brand-mono">Reusable travel checklists</div>
-        </a>
-
-        <a href="https://github.com/inaayat/dumpsteriOS" target="_blank" class="no-underline item-card card-cyan">
-          <div class="icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="20" height="20" fill="#1c1c1c"><path d="M164.3 128L138.7 256L56 256C42.7 256 32 245.3 32 232L32 227.9C32 225.3 32.4 222.8 33.2 220.3L58.5 144.4C61.8 134.6 71 128 81.3 128L164.3 128zM187.7 256L213.3 128L296 128L296 256L187.7 256zM344 128L426.7 128L452.3 256L344 256L344 128zM475.7 128L558.7 128C569 128 578.2 134.6 581.5 144.4L606.8 220.3C607.6 222.7 608 225.3 608 227.9L608 232C608 245.3 597.3 256 584 256L501.3 256L475.7 128zM57.7 304L582.4 304C582 306.1 569.1 377.4 543.5 517.7C540.5 534 525.6 545.3 509.1 543.8C492.6 542.3 480 528.6 480 512L480 496L160 496L160 512C160 528.6 147.4 542.4 130.9 543.9C114.4 545.4 99.5 534 96.5 517.7C71 377.3 58 306.1 57.7 304z"/></svg></div>
-          <div class="title serif font-semibold">DumpsteriOS</div>
-          <div class="subtitle brand-mono">iOS Brain Vomit App</div>
         </a>
 
         <a href="/sporcle-spinoff/" class="no-underline item-card card-green">
@@ -705,6 +907,179 @@
       </div>
     </div>
 
+    <aside class="projects-panel" id="projects-panel" aria-hidden="true" inert aria-labelledby="projects-panel-title">
+      <div class="projects-panel-inner">
+        <div class="projects-panel-shell">
+          <header class="projects-panel-head">
+            <div>
+              <h2 id="projects-panel-title" class="serif font-semibold">Projects</h2>
+              <p class="projects-note brand-mono">First-pass outcomes for review — tell me what’s wrong, which failed, and what you actually learned. Hardware / 3D-print pieces live inside Archive.</p>
+            </div>
+            <button type="button" class="projects-close" id="projects-close" aria-label="Close projects">×</button>
+          </header>
+          <div class="projects-panel-scroll" tabindex="0">
+            <div class="projects-grid">
+
+              <a href="/archive/" class="project-row card-purple">
+                <div class="row-top brand-mono"><span class="row-num">01</span><span class="row-status">retired</span></div>
+                <h3 class="row-title serif font-semibold">Archive</h3>
+                <p class="row-blurb brand-mono">The original inaayat.xyz — iPod-era personal site with hardware, 3D prints, art, and the first “can I replace the nerds?” pages.</p>
+                <p class="row-outcome brand-mono"><strong>Outcome</strong> Retired as the homepage; still the museum for everything before Beep boop.</p>
+              </a>
+
+              <a href="/packing-cubes/" class="project-row card-cyan">
+                <div class="row-top brand-mono"><span class="row-num">02</span><span class="row-status">live</span></div>
+                <h3 class="row-title serif font-semibold">Packing Cubes</h3>
+                <p class="row-blurb brand-mono">Reusable packing checklists composed into suitcases. Public catalog in git; signed-in users sync private cubes in Neon.</p>
+                <p class="row-outcome brand-mono"><strong>Outcome</strong> Draft: a small tool people actually reuse. Publishing a cube through a PR kept the catalog honest.</p>
+              </a>
+
+              <a href="/sporcle-spinoff/" class="project-row card-green">
+                <div class="row-top brand-mono"><span class="row-num">03</span><span class="row-status">live</span></div>
+                <h3 class="row-title serif font-semibold">Sporcle Spinoff</h3>
+                <p class="row-blurb brand-mono">Trivia platform: one engine, one renderer per interaction type, JSON-driven quizzes (maps, matching, ranking, text-entry…).</p>
+                <p class="row-outcome brand-mono"><strong>Outcome</strong> Draft: the shared engine paid off. New quizzes are content, not new apps.</p>
+              </a>
+
+              <a href="/amc-a-lister/" class="project-row card-yellow">
+                <div class="row-top brand-mono"><span class="row-num">04</span><span class="row-status">live</span></div>
+                <h3 class="row-title serif font-semibold">AMC A-Lister</h3>
+                <p class="row-blurb brand-mono">AMC A-List membership tracker: log screenings, billed vs ticket, watchlist, TV log, leaderboard, showing invites.</p>
+                <p class="row-outcome brand-mono"><strong>Outcome</strong> Draft: the first real multi-user product on Neon Auth. Membership math is the point, not the movie DB.</p>
+              </a>
+
+              <a href="/plot-points/" class="project-row card-orange">
+                <div class="row-top brand-mono"><span class="row-num">05</span><span class="row-status">live</span></div>
+                <h3 class="row-title serif font-semibold">Plot Points</h3>
+                <p class="row-blurb brand-mono">Cinema list / query explorer on TMDB. Same movie cache as A-Lister; query engine shared by the browser and the API.</p>
+                <p class="row-outcome brand-mono"><strong>Outcome</strong> Draft: one field catalog for UI and server stopped the two sides drifting. Don’t put browser modules under /lib/.</p>
+              </a>
+
+              <a href="/world-cup/" class="project-row card-pink">
+                <div class="row-top brand-mono"><span class="row-num">06</span><span class="row-status">live</span></div>
+                <h3 class="row-title serif font-semibold">World Cup 2026</h3>
+                <p class="row-blurb brand-mono">Groups, bracket, and the official schedule. Live football-data.org scores were turned off; the page is a static snapshot.</p>
+                <p class="row-outcome brand-mono"><strong>Outcome</strong> Draft: live scores failed (API + Hobby-function budget). The schedule tools were still worth keeping.</p>
+              </a>
+
+              <a href="https://github.com/inaayat/dumpster" target="_blank" rel="noopener noreferrer" class="project-row card-red">
+                <div class="row-top brand-mono"><span class="row-num">07</span><span class="row-status">live</span></div>
+                <h3 class="row-title serif font-semibold">Dumpster</h3>
+                <p class="row-blurb brand-mono">Native macOS SwiftUI app for capturing, tagging, and refining brain vomit. Separate repo; dumpster.inaayat.xyz.</p>
+                <p class="row-outcome brand-mono"><strong>Outcome</strong> Draft: the Mac app is the one that stuck. Capture on a laptop beat a second phone inbox.</p>
+              </a>
+
+              <a href="/one-more-column/" class="project-row card-purple">
+                <div class="row-top brand-mono"><span class="row-num">08</span><span class="row-status">live</span></div>
+                <h3 class="row-title serif font-semibold">One More Column</h3>
+                <p class="row-blurb brand-mono">Flexible capacity planning. Lives in inaayat/one-more-column and is proxied onto this domain as a first-class card.</p>
+                <p class="row-outcome brand-mono"><strong>Outcome</strong> Draft: a separate Vercel app can still feel native if the rewrite is boring and complete.</p>
+              </a>
+
+              <a href="https://databaser.inaayat.xyz/" target="_blank" rel="noopener noreferrer" class="project-row card-cyan">
+                <div class="row-top brand-mono"><span class="row-num">09</span><span class="row-status">live</span></div>
+                <h3 class="row-title serif font-semibold">Databaser</h3>
+                <p class="row-blurb brand-mono">Schema-driven, local-first database builder (inaayat/dynamic-database-builder). Entities, relationships, views, exports — no per-site hand-coding.</p>
+                <p class="row-outcome brand-mono"><strong>Outcome</strong> Draft: “configure instead of recode” is the right itch; the subdomain keeps it from crowding this repo.</p>
+              </a>
+
+              <a href="/fortune-500/" class="project-row card-green">
+                <div class="row-top brand-mono"><span class="row-num">10</span><span class="row-status">live</span></div>
+                <h3 class="row-title serif font-semibold">Fortune 500</h3>
+                <p class="row-blurb brand-mono">Open a 10-K, read the filed statement, then change a few guesses. EDGAR tags in, key ratios out, practice model, Excel download.</p>
+                <p class="row-outcome brand-mono"><strong>Outcome</strong> Draft: ratios + a practice model beat dumping raw XBRL. The statement layout is the product.</p>
+              </a>
+
+              <a href="/financial-modeler/" class="project-row card-yellow">
+                <div class="row-top brand-mono"><span class="row-num">11</span><span class="row-status">live</span></div>
+                <h3 class="row-title serif font-semibold">Financial Modeler</h3>
+                <p class="row-blurb brand-mono">Beginner modeling bench: 3-statement / DCF / comps from a 10-K, or a lemonade stall from one sale. Cash is the plug; Excel stays live.</p>
+                <p class="row-outcome brand-mono"><strong>Outcome</strong> Draft: teaching the wiring (plug, interest on beginning balances, a real balance check) matters more than another dashboard.</p>
+              </a>
+
+              <a href="/ai-buildout/" class="project-row card-orange">
+                <div class="row-top brand-mono"><span class="row-num">12</span><span class="row-status">live</span></div>
+                <h3 class="row-title serif font-semibold">AI buildout money</h3>
+                <p class="row-blurb brand-mono">How Amazon, Microsoft, Alphabet, Meta, and Oracle (plus Nvidia and Apple) are actually paying for the AI buildout — tagged CapEx, cash, leases, 424Bs.</p>
+                <p class="row-outcome brand-mono"><strong>Outcome</strong> Draft: smaller tagged numbers beat Instagram trillions. Keep it off the 473-company Fortune 500 snapshot.</p>
+              </a>
+
+              <a href="https://github.com/inaayat/dumpsteriOS" target="_blank" rel="noopener noreferrer" class="project-row card-pink is-failed">
+                <div class="row-top brand-mono"><span class="row-num">13</span><span class="row-status">failed</span></div>
+                <h3 class="row-title serif font-semibold">DumpsteriOS</h3>
+                <p class="row-blurb brand-mono">iOS companion to Dumpster (“brain vomit” capture). Separate Swift repo. Pulled off the homepage tiles.</p>
+                <p class="row-outcome brand-mono"><strong>Outcome</strong> Draft: failed as a first-class product. AI features gated to iPhone 15+; a second inbox didn’t earn its tile.</p>
+              </a>
+
+              <a href="https://github.com/inaayat/my-brain-vomit-sorter" target="_blank" rel="noopener noreferrer" class="project-row card-red is-failed">
+                <div class="row-top brand-mono"><span class="row-num">14</span><span class="row-status">failed</span></div>
+                <h3 class="row-title serif font-semibold">Brain Vomit Sorter</h3>
+                <p class="row-blurb brand-mono">First native macOS SwiftUI attempt to sort brain vomit. Separate repo; predecessor to Dumpster.</p>
+                <p class="row-outcome brand-mono"><strong>Outcome</strong> Draft: failed / superseded. Dumpster is the rewrite that kept the name and the habit.</p>
+              </a>
+
+              <a href="https://github.com/inaayat/ollama-aider" target="_blank" rel="noopener noreferrer" class="project-row card-purple is-failed">
+                <div class="row-top brand-mono"><span class="row-num">15</span><span class="row-status">failed</span></div>
+                <h3 class="row-title serif font-semibold">Ollama + Aider</h3>
+                <p class="row-blurb brand-mono">Toolkit for running Aider with Ollama locally on macOS. GitHub-archived separate repo.</p>
+                <p class="row-outcome brand-mono"><strong>Outcome</strong> Draft: failed. Local LLM + Aider setup didn’t become a thing I kept using; repo archived.</p>
+              </a>
+
+              <a href="https://github.com/inaayat/setup-aider-ollama" target="_blank" rel="noopener noreferrer" class="project-row card-cyan is-failed">
+                <div class="row-top brand-mono"><span class="row-num">16</span><span class="row-status">failed</span></div>
+                <h3 class="row-title serif font-semibold">Setup Aider / Ollama</h3>
+                <p class="row-blurb brand-mono">Earlier helper repo “for setting up aider + ollama.” Also GitHub-archived.</p>
+                <p class="row-outcome brand-mono"><strong>Outcome</strong> Draft: failed. Folded into ollama-aider, then both archived.</p>
+              </a>
+
+              <a href="/archive/seattle-budget/" class="project-row card-green">
+                <div class="row-top brand-mono"><span class="row-num">17</span><span class="row-status">retired</span></div>
+                <h3 class="row-title serif font-semibold">Seattle Budget</h3>
+                <p class="row-blurb brand-mono">Open-budget explorer (“seattle budget for nerds”). Scraped fund descriptions, charts, the old dog-card layout.</p>
+                <p class="row-outcome brand-mono"><strong>Outcome</strong> Draft: retired to Archive. Taught the “make a filing readable” pattern later used on 10-Ks.</p>
+              </a>
+
+              <a href="/archive/tv-data/" class="project-row card-yellow">
+                <div class="row-top brand-mono"><span class="row-num">18</span><span class="row-status">retired</span></div>
+                <h3 class="row-title serif font-semibold">TV Shows for Nerds</h3>
+                <p class="row-blurb brand-mono">TV series explorer with insights charts. Precursor energy to A-Lister / Plot Points, without TMDB accounts.</p>
+                <p class="row-outcome brand-mono"><strong>Outcome</strong> Draft: retired. Static dump wasn’t as sticky as a watch log you update yourself.</p>
+              </a>
+
+              <a href="/archive/corp-ai-investment-roi/" class="project-row card-orange">
+                <div class="row-top brand-mono"><span class="row-num">19</span><span class="row-status">retired</span></div>
+                <h3 class="row-title serif font-semibold">Corporate AI ROI</h3>
+                <p class="row-blurb brand-mono">“Will the zucc make a buck?” — corporate AI adoption / investment dataset and write-up.</p>
+                <p class="row-outcome brand-mono"><strong>Outcome</strong> Draft: retired. One-off dataset; AI buildout money is the version that can refresh from EDGAR.</p>
+              </a>
+
+              <a href="/archive/how-to-be-a-finance-nerd/" class="project-row card-pink">
+                <div class="row-top brand-mono"><span class="row-num">20</span><span class="row-status">retired</span></div>
+                <h3 class="row-title serif font-semibold">How to Be a Finance Nerd</h3>
+                <p class="row-blurb brand-mono">Forecasting &amp; budgeting crash course with Apple and Target statement walkthroughs.</p>
+                <p class="row-outcome brand-mono"><strong>Outcome</strong> Draft: retired, but it spawned FP&amp;A, Fortune 500, and Financial Modeler. The lesson stuck; the page didn’t need to stay home.</p>
+              </a>
+
+              <a href="/archive/fpa-crash-course/" class="project-row card-red">
+                <div class="row-top brand-mono"><span class="row-num">21</span><span class="row-status">retired</span></div>
+                <h3 class="row-title serif font-semibold">FP&amp;A Crash Course</h3>
+                <p class="row-blurb brand-mono">Modeling modules (services firms, startups, seasonality) linked from the finance-nerd course.</p>
+                <p class="row-outcome brand-mono"><strong>Outcome</strong> Draft: retired into Archive. Interactive 10-K modeling replaced a static curriculum.</p>
+              </a>
+
+              <a href="/archive/ai-governance-audit/" class="project-row card-purple">
+                <div class="row-top brand-mono"><span class="row-num">22</span><span class="row-status">retired</span></div>
+                <h3 class="row-title serif font-semibold">AI Governance Audit</h3>
+                <p class="row-blurb brand-mono">“Rules for artificially intelligent nerds” — internal-audit flavored AI governance page.</p>
+                <p class="row-outcome brand-mono"><strong>Outcome</strong> Draft: retired. A checklist site didn’t compound the way filings-based tools did.</p>
+              </a>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
     <script>
       (function () {
         var root = document.documentElement;
@@ -748,6 +1123,76 @@
         });
 
         setTheme(readTheme(), false);
+      })();
+    </script>
+
+    <script>
+      (function () {
+        var root = document.documentElement;
+        var tab = document.getElementById("projects-tab");
+        var panel = document.getElementById("projects-panel");
+        var stage = document.querySelector(".blob-stage");
+        var closeBtn = document.getElementById("projects-close");
+        var animTimer;
+        if (!tab || !panel) return;
+
+        function isOpen() {
+          return root.classList.contains("is-projects-open");
+        }
+
+        function setOpen(open) {
+          if (open === isOpen()) return;
+          var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+          if (!reduce) root.classList.add("is-projects-animating");
+          else root.classList.remove("is-projects-animating");
+          root.classList.toggle("is-projects-open", open);
+          tab.classList.toggle("is-current", open);
+          tab.setAttribute("aria-expanded", open ? "true" : "false");
+          panel.setAttribute("aria-hidden", open ? "false" : "true");
+          panel.inert = !open;
+          if (open) {
+            if (location.hash !== "#list") {
+              try { history.replaceState(null, "", "#list"); } catch (e) {}
+            }
+          } else if (location.hash === "#list") {
+            try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+          }
+          if (reduce) window.dispatchEvent(new Event("resize"));
+          else {
+            clearTimeout(animTimer);
+            animTimer = setTimeout(function () {
+              root.classList.remove("is-projects-animating");
+              window.dispatchEvent(new Event("resize"));
+            }, 480);
+          }
+        }
+
+        tab.addEventListener("click", function (e) {
+          e.preventDefault();
+          setOpen(!isOpen());
+        });
+        if (closeBtn) {
+          closeBtn.addEventListener("click", function () { setOpen(false); });
+        }
+        document.addEventListener("keydown", function (e) {
+          if (e.key === "Escape" && isOpen()) setOpen(false);
+        });
+        window.addEventListener("hashchange", function () {
+          setOpen(location.hash === "#list");
+        });
+        if (stage) {
+          stage.addEventListener("transitionend", function (e) {
+            if (e.propertyName !== "width") return;
+            root.classList.remove("is-projects-animating");
+            window.dispatchEvent(new Event("resize"));
+          });
+        }
+        panel.addEventListener("transitionend", function (e) {
+          if (e.propertyName !== "transform") return;
+          root.classList.remove("is-projects-animating");
+          window.dispatchEvent(new Event("resize"));
+        });
+        if (location.hash === "#list") setOpen(true);
       })();
     </script>
 
@@ -1364,7 +1809,7 @@
             }
           }
 
-          // A title holding a long unbreakable word ("DumpsteriOS") would be split
+          // A title holding a long unbreakable word would be split
           // mid-word on a narrow piece. min-content width is exactly that longest
           // word, so measure it and scale the type until the name stays whole.
           // Batched into set/read/reset sweeps to keep this to a couple of reflows.
@@ -1445,7 +1890,9 @@
         }
 
         function layout(opts) {
-          const steps = (opts && opts.steps) || SOLVE_STEPS;
+          const animating = document.documentElement.classList.contains("is-projects-animating");
+          const steps = (opts && opts.steps) || (animating ? 10 : SOLVE_STEPS);
+          const keepSeeds = (opts && opts.keepSeeds) || animating;
           const W = stage.clientWidth;
           const H = stage.clientHeight;
           if (W < 40 || H < 40) return;
@@ -1454,7 +1901,7 @@
           const excl = exclusionFor(avoid, W, H);
           const arranged = pieces.some((p) => p.placed);
 
-          if (!arranged) {
+          if (!arranged && !keepSeeds) {
             // Nothing has been dragged, so solve cold from the seed grid. Carrying
             // state over would keep adding relaxation rounds on every reflow and
             // slowly drift the untouched layout away from the designed one.

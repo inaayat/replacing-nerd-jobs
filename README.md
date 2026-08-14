@@ -197,7 +197,7 @@ database/Auth instance; preview deployments get a Neon database branch named
 ### Adding a new page
 
 1. `cp _template.html my-project/index.html`
-2. Link it from the main card grid in `index.html`
+2. Link it from the main card grid in `index.html`, and add a row to the Projects side panel catalog (`#list`)
 3. `git push` — Vercel redeploys automatically
 
 ### How the homepage cards lay out
@@ -216,6 +216,13 @@ Seeds persist on the piece objects between layouts, so a drag pins one seed to t
 cursor and re-runs a few solver rounds while the neighbours reshape around it. A
 dropped piece keeps its spot: relaxation stops pulling it toward its centroid.
 Nothing is persisted, so a reload restores the designed layout.
+
+The centre tile’s **Projects** tab (replacing Archive) opens a full-viewport-height
+side panel (`#list`). On desktop the blob stage shrinks so the tessellation
+re-solves into the remaining width; the panel itself does not grow with content —
+the three-column project list scrolls inside it. On a phone the panel overlays
+instead of squeezing the pieces. The catalog includes live tools, retired Archive
+pages, failed experiments, and projects that live in other GitHub repos.
 
 Four things are easy to break:
 
@@ -417,9 +424,13 @@ Neon Auth, not by `ensureSchema()`).
 
 | Repo | What | Link style |
 |---|---|---|
-| [inaayat/dumpster](https://github.com/inaayat/dumpster) | macOS productivity / personal knowledge dump (`dumpster.inaayat.xyz`) | External card on `index.html` |
-| [inaayat/dumpsteriOS](https://github.com/inaayat/dumpsteriOS) | iOS companion (“brain vomit” capture app) | External card on `index.html` |
-| [inaayat/dynamic-database-builder](https://github.com/inaayat/dynamic-database-builder) | Schema-driven database builder (`databaser.inaayat.xyz`) | External card on `index.html` |
+| [inaayat/dumpster](https://github.com/inaayat/dumpster) | macOS productivity / personal knowledge dump (`dumpster.inaayat.xyz`) | External card on `index.html`; listed in the Projects panel |
+| [inaayat/dumpsteriOS](https://github.com/inaayat/dumpsteriOS) | iOS companion (“brain vomit” capture app) | Projects panel only (failed; not a homepage tile) |
+| [inaayat/dynamic-database-builder](https://github.com/inaayat/dynamic-database-builder) | Schema-driven database builder (`databaser.inaayat.xyz`) | External card on `index.html`; listed in the Projects panel |
+| [inaayat/one-more-column](https://github.com/inaayat/one-more-column) | Flexible capacity planning | Proxied card on `index.html`; listed in the Projects panel |
+| [inaayat/my-brain-vomit-sorter](https://github.com/inaayat/my-brain-vomit-sorter) | First macOS SwiftUI brain-vomit sorter (superseded by Dumpster) | Projects panel (failed) |
+| [inaayat/ollama-aider](https://github.com/inaayat/ollama-aider) | Local Aider + Ollama toolkit (GitHub-archived) | Projects panel (failed) |
+| [inaayat/setup-aider-ollama](https://github.com/inaayat/setup-aider-ollama) | Earlier Aider/Ollama setup helper (GitHub-archived) | Projects panel (failed) |
 
 These are **not** deployed from this repo; the homepage just deep-links to GitHub
 (and Dumpster’s own site).
