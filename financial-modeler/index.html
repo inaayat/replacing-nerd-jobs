@@ -146,22 +146,24 @@
           </div>
           <p class="fm-tab-hint" id="tab-hint" hidden></p>
         </header>
-        <div class="fm-teaching-band" id="teaching-band">
-          <h2 class="fm-assump-heading">Change these assumptions — they build the model</h2>
-          <div class="fm-assump-strip" id="assumption-detail" aria-live="polite"></div>
-        </div>
         <div class="fm-workspace-body">
+          <aside class="fm-assump-rail" id="assumptions-bar" aria-label="Assumptions">
+            <div class="fm-assump-freeze">
+              <h2 class="fm-assump-heading">Change these assumptions — they build the model</h2>
+              <div class="fm-assump-pop" id="assumption-detail" aria-live="polite"></div>
+              <div class="fm-assump-chrome" id="dials-chrome"></div>
+            </div>
+            <div class="fm-assump-rail-body" id="dials"></div>
+          </aside>
           <div class="fm-main">
-            <div id="output" role="tabpanel"></div>
-            <aside class="fm-inspector" id="inspector" aria-label="Build guide">
+            <div class="fm-main-scroll" id="output" role="tabpanel"></div>
+            <details class="fm-inspector" id="inspector">
+              <summary class="fm-inspector-summary">How this model is built</summary>
               <div class="fm-inspector-panel">
                 <div class="fm-inspector-checklist" id="inspector-checklist"></div>
               </div>
-            </aside>
+            </details>
           </div>
-          <aside class="fm-assump-rail" id="assumptions-bar" aria-label="Assumptions">
-            <div id="dials"></div>
-          </aside>
         </div>
         <div class="fm-inspector-sheet" id="inspector-sheet" hidden>
           <div class="fm-inspector-sheet-head">

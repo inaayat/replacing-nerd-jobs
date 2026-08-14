@@ -401,6 +401,7 @@ function syncLayout() {
   const live = workspaceLive();
   document.body.classList.toggle('has-company', live);
   document.body.classList.toggle('is-unit', isStandaloneExercise());
+  document.body.classList.toggle('is-editing-setup', live && Boolean(state.setupEdit));
   $('setup-summary').hidden = true;
   const setupBar = $('workspace-setup');
   if (setupBar) setupBar.hidden = !live || Boolean(state.setupEdit);
@@ -1016,16 +1017,17 @@ function renderAssumptionDetailHtml(key) {
   const disabled = value == null;
   const validation = disabled ? { valid: true } : validateAssumption(d, value);
   const err = !validation.valid
-    ? `<span class="fm-assump-strip-error">${escapeHtml(validation.message)}</span>`
+    ? `<p class="fm-assump-pop-error">${escapeHtml(validation.message)}</p>`
     : validation.warn && validation.message
-      ? `<span class="fm-assump-strip-warn">${escapeHtml(validation.message)}</span>`
+      ? `<p class="fm-assump-pop-warn">${escapeHtml(validation.message)}</p>`
       : '';
+  const what = d.shortDefinition || d.what || '';
+  const effect = d.effect && d.effect !== what ? d.effect : '';
+  const sentences = [what, effect].filter(Boolean).slice(0, 2);
 
-  return `<div class="fm-assump-strip-inner">
-    <strong class="fm-assump-strip-name">${escapeHtml(d.name)}</strong>
-    <span class="fm-assump-strip-text">${escapeHtml(d.shortDefinition || d.what)}</span>
-    ${err}
-  </div>`;
+  return `<p class="fm-assump-pop-text"><strong>${escapeHtml(d.name)}.</strong> ${sentences
+    .map((s) => escapeHtml(s))
+    .join(' ')}</p>${err}`;
 }
 
 function renderAssumptionDetail() {
@@ -1060,20 +1062,23 @@ function renderAssumptionListHtml() {
         : `<input class="fm-chip-input" type="text" inputmode="decimal" data-key="${d.key}" value="${escapeHtml(dialValueText(d, value))}" aria-label="${escapeHtml(d.name)} value" />`;
       return `<div class="fm-assump-row${isActive ? ' is-active' : ''}${disabled ? ' is-missing' : ''}" data-dial-key="${d.key}">
         <button type="button" class="fm-chip-name" data-select-dial="${d.key}">${escapeHtml(d.name)}</button>
-        <span class="fm-chip-source">${escapeHtml(token)}</span>
         ${input}
+        <span class="fm-chip-source">${escapeHtml(token)}</span>
       </div>`;
     })
     .join('');
 
-  return `<div class="fm-assump-top">
-    ${isUnit() ? `<div class="fm-unit-template" role="group" aria-label="Unit template">
+  return {
+    chrome: `${isUnit() ? `<div class="fm-unit-template" role="group" aria-label="Unit template">
       <button type="button" data-unit-template="lemonade" aria-pressed="${state.unitTemplate === 'lemonade'}">Lemonade example</button>
       <button type="button" data-unit-template="blank" aria-pressed="${state.unitTemplate === 'blank'}">Blank template</button>
-    </div>` : ''}
-    <div class="fm-assump-scenarios" role="group" aria-label="Scenario">${scenarios}</div>
-    <div class="fm-assump-grid">${chips}</div>
-  </div>`;
+    </div>` : ''}${
+      scenarios
+        ? `<div class="fm-assump-scenarios" role="group" aria-label="Scenario">${scenarios}</div>`
+        : ''
+    }`,
+    list: `<div class="fm-assump-grid">${chips}</div>`,
+  };
 }
 
 function bindAssumptionList(wrap) {
@@ -1091,8 +1096,11 @@ function bindAssumptionList(wrap) {
     };
   });
 
-  wrap.querySelectorAll('[data-select-dial]').forEach((btn) => {
-    btn.onclick = () => focusAssumption(btn.dataset.selectDial);
+  wrap.querySelectorAll('.fm-assump-row').forEach((row) => {
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('[data-key]')) return;
+      focusAssumption(row.dataset.dialKey);
+    });
   });
 
   wrap.querySelectorAll('[data-key]').forEach((el) => {
@@ -1123,12 +1131,13 @@ function bindAssumptionList(wrap) {
 }
 
 function renderDials() {
-  const html = renderAssumptionListHtml();
+  const { chrome, list } = renderAssumptionListHtml();
+  const chromeEl = $('dials-chrome');
   const bar = $('dials');
-  if (bar) {
-    bar.innerHTML = html;
-    bindAssumptionList(bar);
-  }
+  const rail = $('assumptions-bar');
+  if (chromeEl) chromeEl.innerHTML = chrome;
+  if (bar) bar.innerHTML = list;
+  if (rail) bindAssumptionList(rail);
   renderAssumptionDetail();
 }
 
@@ -1728,18 +1737,21 @@ function renderInspectorChecklist(context) {
   const guideTab = guideTabs[tabId];
   const desktop = $('inspector-checklist');
   const sheet = $('inspector-checklist-sheet');
+  const inspector = $('inspector');
   const targets = [desktop, sheet].filter(Boolean);
 
   if (!guideTab) {
     targets.forEach((el) => {
       el.innerHTML = '';
     });
+    if (inspector) inspector.hidden = true;
     return;
   }
 
   const cl = wrapChecklist(guideTab, context);
   const concepts = guideTab === 'three' ? threeStatementConceptCards(context.model) : '';
   const html = cl.html + concepts;
+  if (inspector) inspector.hidden = !html;
   targets.forEach((el) => {
     el.innerHTML = html;
     if (cl.html) cl.bind(el);

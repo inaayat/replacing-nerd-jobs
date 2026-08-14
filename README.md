@@ -96,9 +96,11 @@ non-circular interest, straight-line depreciation on year-1 equipment).
 the usual workbook / worksheet / styles parts) with the WSP colour code —
 blue input, black formula, green cross-sheet link — inputs isolated on one
 Assumptions sheet, and a Checks error dashboard. Formulas stay live; the file
-opens in Excel, Numbers, and Sheets. The statements stack full-width on the
-page so every forecast year stays on screen; gold / green / blue highlights
-mark the net-income, cash-plug, and interest handoffs between statements.
+opens in Excel, Numbers, and Sheets. The workspace is two panes: a narrow
+assumption table on the left (label, blue value, filing | assumption | override)
+and independently scrolling statements on the right. Selecting a row highlights
+the statement lines it feeds; gold / green / blue marks the net-income, cash-plug,
+and interest handoffs between statements.
 
 The snapshot has no tag for net PP&E, payables, or D&A, so those sit in two
 labelled residual lines (which is what makes year 0 equal the filed totals) and
