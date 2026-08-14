@@ -410,7 +410,13 @@ tr.fm-trace-highlight td:first-child { background: rgba(242, 193, 78, 0.35) !imp
 .fm-build-detail { font-size: 12px; color: var(--ink-soft); }
 .fm-build-instruction { margin: 0 0 6px; color: var(--ink); }
 .fm-build-formula { margin: 0 0 6px; }
-.fm-build-preview { margin: 8px 0 0; padding-top: 8px; border-top: 1px dashed var(--rule); color: var(--ink); }
+.fm-sens-center { outline: 2px solid var(--ink); font-weight: 600; }
+.fm-sens-pick { display: block; margin: 0 0 12px; font-size: 12px; }
+.fm-sens-pick select { display: block; margin-top: 4px; width: 100%; max-width: 480px; }
+.fm-goal-seek { display: grid; gap: 10px; max-width: 420px; }
+.fm-goal-seek label { font-size: 12px; color: var(--ink-soft); }
+.fm-goal-seek label input,
+.fm-goal-seek label select { display: block; margin-top: 4px; width: 100%; }
 
 /* output --------------------------------------------------------------- */
 

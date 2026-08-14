@@ -44,6 +44,11 @@ import {
   SCENARIO_DRIVERS,
   legacyScenarioId,
 } from './scenarios.js';
+import {
+  runSensitivityMatrix,
+  checkMonotonicity,
+  goalSeek,
+  SENSITIVITY_PRESETS,
 import { buildWorkbook, buildUnitWorkbook, workbookFilename, downloadWorkbook } from './workbook.js';
 
 const $ = (id) => document.getElementById(id);
@@ -66,6 +71,9 @@ const state = {
   focusedAssumption: null,
   buildStep: { three: 'revenue', dcf: 'fcf', comps: 'peers' },
   sourceDefaults: null,
+  sensitivityPreset: 'dcfWaccGrowth',
+  goalSeekTarget: '',
+  goalSeekInput: 'revenueGrowth',
 };
 
 const TABS = [
@@ -1070,31 +1078,135 @@ function dcfPanel(model, dcf, checklistHtml = '') {
 }
 
 function sensitivityPanel(model, dcf, sens) {
-  if (!state.models.includes('dcf')) {
-    return `<section class="fm-panel"><div class="fm-empty"><h3>DCF not selected</h3><p>Enable Discounted cash flow in setup to run WACC × terminal-growth sensitivity.</p></div></section>`;
+  if (isUnit()) {
+    return `<section class="fm-panel"><div class="fm-empty"><h3>Unit exercise</h3><p>Sensitivity presets for the 10-K models apply to the filer exercise.</p></div></section>`;
   }
-  if (!dcf?.ok) {
-    return `<section class="fm-panel"><h3>Sensitivity</h3><div class="fm-empty"><h3>Need a working DCF first</h3><p>${escapeHtml(dcf?.reason || 'Fix the three-statement model before stressing the valuation.')}</p></div></section>`;
+  if (!state.models.includes('dcf') && state.sensitivityPreset === 'dcfWaccGrowth') {
+    state.sensitivityPreset = 'opsGrowthMargin';
   }
-  const grid = sens
-    ? `<div class="fm-scroll"><table class="fm-table"><thead><tr><th>WACC ╲ growth forever</th>${sens.growths
-        .map((g) => `<th>${(g * 100).toFixed(2)}%</th>`)
-        .join('')}</tr></thead><tbody>${sens.rows
-        .map(
-          (r) =>
-            `<tr><td>${(r.wacc * 100).toFixed(2)}%</td>${r.cells
-              .map((c) => `<td>${c == null ? '—' : escapeHtml(sens.unit === 'price' ? fmtPrice(c) : fmtM(c))}</td>`)
-              .join('')}</tr>`
-        )
-        .join('')}</tbody></table></div>`
-    : '<p class="fm-empty">Sensitivity grid unavailable.</p>';
+
+  const ctx = {
+    headlines: state.headlines,
+    assumptions: state.assumptions,
+    model,
+    dcf,
+    sens,
+    shares: state.headlines?.metrics?.shares_out?.val ?? null,
+    price: state.prices.get(priceTicker(state.company)) ?? null,
+    peers: state.peers,
+  };
+
+  const matrix = runSensitivityMatrix(state.sensitivityPreset, ctx);
+  const mono = matrix ? checkMonotonicity(matrix) : { ok: true, warnings: [] };
+
+  const presetOptions = Object.values(SENSITIVITY_PRESETS)
+    .map((p) => `<option value="${p.id}" ${p.id === state.sensitivityPreset ? 'selected' : ''}>${escapeHtml(p.label)}</option>`)
+    .join('');
+
+  let grid = '<p class="fm-empty">Select a working model to run sensitivity.</p>';
+  if (matrix?.rows?.length) {
+    const fmtCell = (v) => {
+      if (v == null || !Number.isFinite(v)) return '—';
+      if (matrix.unit === 'price') return fmtPrice(v) || '—';
+      return fmtM(v) || '—';
+    };
+    const fmtRow = (v) => (matrix.rowLabel === 'WACC' ? `${(v * 100).toFixed(2)}%` : dialValueText({ fmt: matrix.rowLabel?.includes('Days') ? 'days' : 'pct', key: matrix.rowInput }, v));
+    const fmtCol = (v) => (matrix.colLabel === 'Terminal growth' || matrix.colLabel === 'terminalGrowth' ? `${(v * 100).toFixed(2)}%` : dialValueText({ fmt: matrix.colLabel?.includes('Days') ? 'days' : 'pct', key: matrix.columnInput }, v));
+
+    grid = `<div class="fm-scroll"><table class="fm-table fm-sensitivity-grid"><thead><tr><th>${escapeHtml(matrix.colLabel || 'Column')} ╲ ${escapeHtml(matrix.rowLabel || 'Row')}</th>${matrix.colValues
+      .map((g, i) => `<th class="${i === matrix.baseColIndex ? 'fm-col-actual' : ''}">${escapeHtml(fmtCol(g))}</th>`)
+      .join('')}</tr></thead><tbody>${matrix.rows
+      .map(
+        (r, ri) =>
+          `<tr><td>${escapeHtml(fmtRow(r.rowValue))}</td>${r.cells
+            .map((c, ci) => {
+              const isCenter = ri === matrix.baseRowIndex && ci === matrix.baseColIndex;
+              const heat = finiteHeat(c, matrix);
+              return `<td class="${isCenter ? 'fm-sens-center' : ''}" style="background:${heat}">${escapeHtml(fmtCell(c))}</td>`;
+            })
+            .join('')}</tr>`
+      )
+      .join('')}</tbody></table></div>`;
+  }
+
+  const interpret = matrix?.interpret ? `<p class="fm-aside">${escapeHtml(matrix.interpret)}</p>` : '';
+  const monoWarn = mono.warnings?.length
+    ? `<p class="fm-status is-warn">${escapeHtml(mono.warnings.join(' '))}</p>`
+    : '';
+
+  const gs = runGoalSeekUi(ctx);
 
   return `<section class="fm-panel">
     <h3>Two-variable sensitivity</h3>
-    <p class="fm-aside"><strong>What this shows:</strong> implied share price if WACC and terminal growth move while everything else stays at your active assumptions. Higher WACC lowers value; higher terminal growth raises it — if results run the other way, something is wrong.</p>
-    <h4 style="margin-top:14px;font-size:14px">WACC × terminal growth → implied share price</h4>
+    <p class="fm-aside">Holds other assumptions at the active scenario while two drivers move. This does not change your Base/Upside/Downside cases.</p>
+    <label class="fm-sens-pick">Preset
+      <select id="sensitivity-preset" class="fm-search">${presetOptions}</select>
+    </label>
+    ${interpret}
     ${grid}
+    ${monoWarn}
+    <h4 style="margin-top:18px;font-size:14px">One-variable goal seek</h4>
+    ${gs.html}
   </section>`;
+}
+
+function finiteHeat(value, matrix) {
+  if (value == null || !Number.isFinite(value)) return 'transparent';
+  const flat = matrix.rows.flatMap((r) => r.cells).filter((c) => Number.isFinite(c));
+  if (!flat.length) return 'transparent';
+  const min = Math.min(...flat);
+  const max = Math.max(...flat);
+  if (max === min) return 'rgba(242, 193, 78, 0.15)';
+  const t = (value - min) / (max - min);
+  const alpha = 0.12 + t * 0.35;
+  return `rgba(26, 73, 196, ${alpha.toFixed(3)})`;
+}
+
+function runGoalSeekUi(ctx) {
+  const targetRaw = state.goalSeekTarget;
+  const targetValue = Number(String(targetRaw).replace(/[^0-9.\-]/g, ''));
+  const inputKey = state.goalSeekInput;
+  const meta = assumptionCatalog(state.models).find((d) => d.key === inputKey) || { min: -0.2, max: 0.4 };
+  let result = null;
+  if (Number.isFinite(targetValue)) {
+    result = goalSeek({
+      targetValue,
+      inputKey,
+      assumptions: ctx.assumptions,
+      min: meta.min,
+      max: meta.max,
+      evaluate: (patch) => {
+        const m = runThreeStatement(ctx.headlines, patch);
+        if (!m.ok) return null;
+        if (state.models.includes('dcf')) {
+          const d = runDcf(m, { price: ctx.price, shares: ctx.shares });
+          return d.impliedPrice;
+        }
+        return m.rows.find((r) => r.offset === 1)?.netIncome ?? null;
+      },
+    });
+  }
+  const inputs = ['revenueGrowth', 'ebitMargin', 'terminalGrowth', 'riskFreeRate']
+    .map((k) => `<option value="${k}" ${k === inputKey ? 'selected' : ''}>${k}</option>`)
+    .join('');
+
+  const outcome = !Number.isFinite(targetValue)
+    ? '<p class="fm-status">Enter a target value to solve.</p>'
+    : result?.ok
+      ? `<p class="fm-flag is-ok">Solved ${escapeHtml(inputKey)} = ${escapeHtml(dialValueText(meta, result.solved))}${result.approximate ? ' (approximate)' : ''}</p>`
+      : `<p class="fm-flag is-bad">${escapeHtml(result?.reason || 'Could not solve')}</p>`;
+
+  return {
+    html: `<div class="fm-goal-seek">
+      <label>Target output value
+        <input id="goal-seek-target" class="fm-search" type="text" inputmode="decimal" value="${escapeHtml(targetRaw)}" placeholder="${state.models.includes('dcf') ? 'Implied share price' : 'Net income'}" />
+      </label>
+      <label>Input to adjust
+        <select id="goal-seek-input" class="fm-search">${inputs}</select>
+      </label>
+      ${outcome}
+    </div>`,
+  };
 }
 
 function scenarioAssumptionsFor(key) {
@@ -1383,6 +1495,19 @@ function render() {
   });
 
   applyTraceHighlight(document.activeElement?.dataset?.key || null);
+
+  $('sensitivity-preset')?.addEventListener('change', (e) => {
+    state.sensitivityPreset = e.target.value;
+    render();
+  });
+  $('goal-seek-target')?.addEventListener('change', (e) => {
+    state.goalSeekTarget = e.target.value;
+    render();
+  });
+  $('goal-seek-input')?.addEventListener('change', (e) => {
+    state.goalSeekInput = e.target.value;
+    render();
+  });
 
   $('output').querySelectorAll('[data-scenario-select]').forEach((el) => {
     el.onclick = () => {
