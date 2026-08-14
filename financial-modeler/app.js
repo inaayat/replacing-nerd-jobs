@@ -49,6 +49,7 @@ import {
   checkMonotonicity,
   goalSeek,
   SENSITIVITY_PRESETS,
+} from './sensitivity.js';
 import { buildWorkbook, buildUnitWorkbook, workbookFilename, downloadWorkbook } from './workbook.js';
 
 const $ = (id) => document.getElementById(id);
@@ -757,9 +758,67 @@ function wrapChecklist(tabId, context) {
   });
 }
 
-function renderDialsHtml() {
+function dialCatalogEntry(key) {
+  const list = isUnit() ? UNIT_DIALS : assumptionCatalog(state.models);
+  return list.find((d) => d.key === key) || null;
+}
+
+function ensureFocusedAssumption() {
+  const active = isUnit() ? UNIT_DIALS : assumptionCatalog(state.models);
+  if (state.focusedAssumption && active.some((d) => d.key === state.focusedAssumption)) return;
+  state.focusedAssumption = active[0]?.key ?? null;
+}
+
+function focusAssumption(key, { rerenderModel = false } = {}) {
+  state.focusedAssumption = key;
+  renderAssumptionDetail();
+  document.querySelectorAll('.fm-assump-row').forEach((row) => {
+    row.classList.toggle('is-active', row.dataset.dialKey === key);
+    const slider = row.querySelector('.fm-assump-slider');
+    if (slider) slider.hidden = row.dataset.dialKey !== key;
+  });
+  applyTraceHighlight(key);
+  if (rerenderModel) render();
+}
+
+function renderAssumptionDetailHtml(key) {
+  const d = dialCatalogEntry(key);
+  if (!d) return '';
+  const value = state.assumptions?.[d.key];
+  const disabled = value == null;
+  const override = !isUnit() && isOverride(d.key, value, state.sourceDefaults);
+  const validation = disabled ? { valid: true } : validateAssumption(d, value);
+  const path = dependencyPath(d.key);
+  const pathHtml = path.length
+    ? `<p class="fm-trace-path"><strong>Affects.</strong> ${path.map((p) => escapeHtml(p)).join(' → ')}</p>`
+    : `<p class="fm-trace-path"><strong>Affects.</strong> ${escapeHtml(d.effect)}</p>`;
+
+  return `<h3>${escapeHtml(d.name)} ${isUnit() ? '' : sourceBadge(d, { isOverride: override, isMissing: disabled })}</h3>
+    ${validation.valid ? '' : `<p class="fm-dial-error">${escapeHtml(validation.message)}</p>`}
+    ${validation.warn && validation.message ? `<p class="fm-dial-warn">${escapeHtml(validation.message)}</p>` : ''}
+    <p><strong>What it is.</strong> ${escapeHtml(d.shortDefinition || d.what)}</p>
+    <p><strong>Formula.</strong> ${escapeHtml(d.formulaText || d.how)}</p>
+    <p><strong>${isUnit() ? 'This stall.' : 'This filing.'}</strong> ${escapeHtml(originFor(d, state.headlines))}</p>
+    ${pathHtml}`;
+}
+
+function renderAssumptionDetail() {
+  ensureFocusedAssumption();
+  const key = state.focusedAssumption;
+  const html = key ? renderAssumptionDetailHtml(key) : '';
+  for (const id of ['assumption-detail', 'assumption-detail-sheet']) {
+    const el = $(id);
+    if (!el) continue;
+    el.innerHTML = html;
+    el.hidden = !html;
+  }
+}
+
+function renderAssumptionListHtml() {
   const active = isUnit() ? UNIT_DIALS : assumptionCatalog(state.models);
   const groupsDef = isUnit() ? UNIT_DIAL_GROUPS : DIAL_GROUPS;
+  ensureFocusedAssumption();
+
   const scenarios = SCENARIO_ORDER.map(
     (s) =>
       `<button type="button" data-scenario="${s}" aria-pressed="${state.scenarioState?.activeScenario === s}">${SCENARIO_LABELS[s]}</button>`
@@ -768,47 +827,45 @@ function renderDialsHtml() {
   const groups = groupsDef
     .filter((g) => active.some((d) => d.group === g.id))
     .map((g) => {
-      const cards = active
+      const rows = active
         .filter((d) => d.group === g.id)
         .map((d) => {
           const value = state.assumptions[d.key];
           const disabled = value == null;
-          const meta = d;
-          const validation = disabled ? { valid: true } : validateAssumption(meta, value);
+          const isActive = state.focusedAssumption === d.key;
           const override = !isUnit() && isOverride(d.key, value, state.sourceDefaults);
-          const errId = `dial-err-${d.key}`;
-          return `<div class="fm-dial" data-dial-key="${d.key}">
-            <div class="fm-dial-top">
-              <span class="fm-dial-name">${escapeHtml(d.name)}</span>
-              ${isUnit() ? '' : sourceBadge(meta, { isOverride: override, isMissing: disabled })}
-              <input class="fm-dial-value" type="text" inputmode="decimal" data-key="${d.key}" value="${escapeHtml(dialValueText(d, value))}" ${disabled ? 'disabled' : ''} aria-label="${escapeHtml(d.name)} value" aria-describedby="${validation.valid ? '' : errId}" aria-invalid="${validation.valid ? 'false' : 'true'}" />
-            </div>
-            ${disabled ? '' : `<input type="range" data-range="${d.key}" min="${d.min}" max="${d.max}" step="${d.step}" value="${value}" aria-label="${escapeHtml(d.name)} slider" />`}
-            ${validation.valid ? '' : `<p class="fm-dial-error" id="${errId}">${escapeHtml(validation.message)}</p>`}
-            ${validation.warn && validation.message ? `<p class="fm-dial-warn">${escapeHtml(validation.message)}</p>` : ''}
-            <p class="fm-dial-what">${escapeHtml(d.shortDefinition || d.what)}</p>
-            <p class="fm-dial-how"><strong>Formula.</strong> ${escapeHtml(d.formulaText || d.how)}</p>
-            <p class="fm-dial-origin"><strong>${isUnit() ? 'This stall.' : 'This filing.'}</strong> ${escapeHtml(originFor(d, state.headlines))}</p>
-            <p class="fm-dial-effect">${escapeHtml(d.effect)}</p>
-            ${isUnit() ? '' : renderDependencyTrace(d.key)}
+          const validation = disabled ? { valid: true } : validateAssumption(d, value);
+          const slider =
+            !disabled && isActive
+              ? `<input type="range" class="fm-assump-slider" data-range="${d.key}" min="${d.min}" max="${d.max}" step="${d.step}" value="${value}" aria-label="${escapeHtml(d.name)} slider" />`
+              : '';
+          const err =
+            !validation.valid && isActive
+              ? `<p class="fm-assump-row-error">${escapeHtml(validation.message)}</p>`
+              : '';
+          return `<div class="fm-assump-row${isActive ? ' is-active' : ''}${disabled ? ' is-missing' : ''}" data-dial-key="${d.key}">
+            <button type="button" class="fm-assump-name" data-select-dial="${d.key}">${escapeHtml(d.name)}</button>
+            ${isUnit() ? '' : sourceBadge(d, { isOverride: override, isMissing: disabled })}
+            <input class="fm-dial-value" type="text" inputmode="decimal" data-key="${d.key}" value="${escapeHtml(dialValueText(d, value))}" ${disabled ? 'disabled' : ''} aria-label="${escapeHtml(d.name)} value" />
+            ${slider}
+            ${err}
           </div>`;
         })
         .join('');
-      return `<h3 style="font-size:13px;margin-top:6px">${escapeHtml(g.label)}</h3>${cards}`;
+      return `<div class="fm-assump-group"><h4 class="fm-assump-group-label">${escapeHtml(g.label)}</h4><div class="fm-assump-rows">${rows}</div></div>`;
     })
     .join('');
 
-  const lede = isUnit()
-    ? 'Every blue number is a guess about the stall. Change cups or the price and watch it hit all three statements.'
-    : 'Last year’s 10-K gives you the arithmetic. The text field is your call on whether the next five years look like that.';
-
-  return `<div class="fm-scenarios" role="group" aria-label="Scenario">${scenarios}</div>
-    <p class="fm-dials-lede">${lede}</p>
-    ${groups}`;
+  return `<div class="fm-assump-scenarios" role="group" aria-label="Scenario">${scenarios}</div>${groups}`;
 }
 
-function bindDials(wrap) {
+function bindAssumptionList(wrap) {
   const active = isUnit() ? UNIT_DIALS : assumptionCatalog(state.models);
+
+  wrap.querySelectorAll('[data-select-dial]').forEach((btn) => {
+    btn.onclick = () => focusAssumption(btn.dataset.selectDial);
+  });
+
   wrap.querySelectorAll('[data-range]').forEach((el) => {
     el.addEventListener('input', () => {
       const key = el.dataset.range;
@@ -822,9 +879,9 @@ function bindDials(wrap) {
       render();
     });
   });
+
   wrap.querySelectorAll('[data-key]').forEach((el) => {
-    el.addEventListener('focus', () => applyTraceHighlight(el.dataset.key));
-    el.addEventListener('blur', () => applyTraceHighlight(null));
+    el.addEventListener('focus', () => focusAssumption(el.dataset.key));
     el.addEventListener('change', () => {
       const dial = active.find((d) => d.key === el.dataset.key);
       const value = parseDialInput(dial, el.value);
@@ -838,6 +895,7 @@ function bindDials(wrap) {
       render();
     });
   });
+
   wrap.querySelectorAll('[data-scenario]').forEach((el) => {
     el.addEventListener('click', () => {
       if (!state.scenarioState) return;
@@ -849,17 +907,18 @@ function bindDials(wrap) {
 }
 
 function renderDials() {
-  const html = renderDialsHtml();
+  const html = renderAssumptionListHtml();
   const desktop = $('dials');
   const sheet = $('dials-sheet');
   if (desktop) {
     desktop.innerHTML = html;
-    bindDials(desktop);
+    bindAssumptionList(desktop);
   }
   if (sheet) {
     sheet.innerHTML = html;
-    bindDials(sheet);
+    bindAssumptionList(sheet);
   }
+  renderAssumptionDetail();
 }
 
 /* ------------------------------- rendering ----------------------------- */
@@ -1625,20 +1684,11 @@ async function boot() {
   renderExercises();
   syncLayout();
 
-  const inspector = $('inspector');
   const openMobileInspector = () => {
     $('inspector-sheet').hidden = false;
     renderDials();
   };
   $('inspector-mobile')?.addEventListener('click', openMobileInspector);
-  $('inspector-toggle')?.addEventListener('click', () => {
-    if (window.matchMedia('(max-width: 900px)').matches) openMobileInspector();
-    else {
-      state.inspectorCollapsed = !state.inspectorCollapsed;
-      inspector?.classList.toggle('is-collapsed', state.inspectorCollapsed);
-      $('inspector-toggle')?.setAttribute('aria-expanded', String(!state.inspectorCollapsed));
-    }
-  });
   $('inspector-sheet-close')?.addEventListener('click', () => {
     $('inspector-sheet').hidden = true;
   });

@@ -143,12 +143,12 @@
           <div class="fm-workspace-status" id="workspace-status"></div>
         </header>
         <div class="fm-workspace-body">
-          <div class="fm-main" id="output" role="tabpanel"></div>
+          <div class="fm-main">
+            <div class="fm-assump-detail-band" id="assumption-detail" hidden></div>
+            <div id="output" role="tabpanel"></div>
+          </div>
           <aside class="fm-inspector" id="inspector">
-            <button type="button" class="fm-inspector-toggle" id="inspector-toggle" aria-expanded="true" aria-controls="dials">
-              Assumptions
-            </button>
-            <div class="fm-inspector-panel" id="dials"></div>
+            <div class="fm-inspector-panel" id="dials" aria-label="Assumptions"></div>
           </aside>
         </div>
         <div class="fm-inspector-sheet" id="inspector-sheet" hidden>
@@ -156,7 +156,10 @@
             <strong>Assumptions</strong>
             <button type="button" class="fm-btn fm-btn-ghost" id="inspector-sheet-close">Close</button>
           </div>
-          <div class="fm-inspector-sheet-body" id="dials-sheet"></div>
+          <div class="fm-inspector-sheet-body">
+            <div id="dials-sheet"></div>
+            <div class="fm-assump-detail-band" id="assumption-detail-sheet" hidden></div>
+          </div>
         </div>
       </section>
 
