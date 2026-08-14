@@ -333,10 +333,11 @@ tr.fm-link-interest td:first-child { background: rgba(26, 73, 196, 0.1); }
   border-radius: 12px;
   background: var(--paper-2);
   opacity: 0;
-  transition: opacity 360ms ease 120ms;
+  transition: opacity 200ms ease;
 }
 .fm-landing.is-filer .fm-landing-filer {
   opacity: 1;
+  transition: opacity 400ms ease 140ms;
 }
 @media (max-width: 899px) {
   .fm-landing {
