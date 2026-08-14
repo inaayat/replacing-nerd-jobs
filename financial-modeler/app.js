@@ -1,6 +1,6 @@
 /**
  * Financial modeler page. Loads the same Fortune 500 snapshot the ratios page
- * uses, runs the engine, and renders the three models with the guesses beside
+ * uses, runs the engine, and renders the three models with the assumptions beside
  * them. No build step: plain ESM modules loaded by the browser.
  */
 import { ensureRatios, formatUsd, formatPercent } from '../fortune-500/extract.js';

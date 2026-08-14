@@ -339,7 +339,7 @@ export function renderMobileHtml(view) {
           : ''
       }
       <div class="fm-m-assump-top">
-        <p class="fm-m-kicker">Guess ${dials.length ? idx + 1 : 0} of ${dials.length}</p>
+        <p class="fm-m-kicker">Assumption ${dials.length ? idx + 1 : 0} of ${dials.length}</p>
         <div class="fm-m-dots" role="tablist" aria-label="Assumptions">${stepperDots(dials, idx)}</div>
       </div>
       ${
@@ -350,11 +350,11 @@ export function renderMobileHtml(view) {
             ${valueControls(dial)}
             ${warn}
             ${effect}`
-          : `<h2>No editable guesses</h2><p class="fm-m-what">This filing left every driver blank. Open the web version if you still want the statements.</p>`
+          : `<h2>No editable assumptions</h2><p class="fm-m-what">This filing left every driver blank. Open the web version if you still want the statements.</p>`
       }
       <div class="fm-m-assump-nav">
         <button type="button" class="fm-btn fm-btn-ghost" data-assump-delta="-1" ${idx <= 0 ? 'disabled' : ''}>Back</button>
-        <button type="button" class="fm-btn" data-assump-delta="1" ${idx >= dials.length - 1 ? 'disabled' : ''}>Next guess</button>
+        <button type="button" class="fm-btn" data-assump-delta="1" ${idx >= dials.length - 1 ? 'disabled' : ''}>Next</button>
       </div>
     </section>
     <section class="fm-m-card fm-m-model" aria-label="Model">
@@ -386,7 +386,7 @@ function chromeHtml(view) {
     <p class="fm-m-sub">${escapeHtml(view.subtitle || '')}</p>
   </header>
   <aside class="fm-m-webnote" aria-label="Web-only features">
-    <p><strong>Phone walkthrough.</strong> One guess at a time, three years, statements one by one. Open this page on a computer for the full model.</p>
+    <p><strong>Phone walkthrough.</strong> One assumption at a time, three years, statements one by one. Open this page on a computer for the full model.</p>
   </aside>`;
 }
 

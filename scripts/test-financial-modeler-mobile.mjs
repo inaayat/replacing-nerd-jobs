@@ -166,7 +166,7 @@ assert.equal(clampIndex(0, 0), 0);
     unitLabel: 'US$ millions',
     yearNote: 'Showing FY2025A–FY2028E. Years 4–5 are on the web version.',
   });
-  assert.match(html, /Guess 1 of 1/);
+  assert.match(html, /Assumption 1 of 1/);
   assert.match(html, /Sales growth/);
   assert.match(html, /Income statement/);
   assert.match(html, /FY2025A/);
