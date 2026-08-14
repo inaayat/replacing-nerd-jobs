@@ -3,6 +3,7 @@
  * Clones assumptions per cell — never mutates the active scenario.
  */
 import { runThreeStatement, runDcf, dcfSensitivity, WACC_STEPS, GROWTH_STEPS } from './engine.js';
+import { runSingleUnitPortfolio } from './unit-portfolio.js';
 
 function finite(n) {
   return typeof n === 'number' && Number.isFinite(n);
@@ -61,6 +62,17 @@ export const SENSITIVITY_PRESETS = {
     oneWay: true,
     interpret: 'A higher peer multiple implies a higher share price.',
   },
+  unitPriceUtil: {
+    id: 'unitPriceUtil',
+    label: 'Core price × utilization → unit EBITDA (Y1)',
+    rowInput: 'corePrice',
+    columnInput: 'utilization',
+    output: 'unitEbitda',
+    rowSteps: [-0.5, -0.25, 0, 0.25, 0.5],
+    colSteps: [-0.1, -0.05, 0, 0.05, 0.1],
+    monotonic: { row: 1, col: 1 },
+    interpret: 'Higher price and utilization raise first-year EBITDA.',
+  },
 };
 
 const INPUT_BOUNDS = {
@@ -69,6 +81,8 @@ const INPUT_BOUNDS = {
   terminalGrowth: { min: 0, max: 0.05 },
   dsoDays: { min: 0, max: 240 },
   riskFreeRate: { min: 0, max: 0.1 },
+  corePrice: { min: 0.5, max: 500 },
+  utilization: { min: 0, max: 1 },
 };
 
 export function evaluateSensitivityOutput(outputKey, ctx) {
@@ -101,6 +115,10 @@ export function evaluateSensitivityOutput(outputKey, ctx) {
   }
   if (outputKey === 'compsImpliedPrice') {
     return comps?.implied?.[0]?.pricePerShare ?? null;
+  }
+  if (outputKey === 'unitEbitda') {
+    const m = model?.ok ? model : null;
+    return m?.rows?.[0]?.ebitda ?? m?.unitYears?.[0]?.ebitda ?? null;
   }
   return null;
 }
@@ -270,3 +288,58 @@ export function goalSeek({
 }
 
 export { WACC_STEPS, GROWTH_STEPS };
+
+/**
+ * Coordinate search for multi-input optimization (Phase 9). Reports local optimum only.
+ */
+export function multiInputOptimize({
+  objective,
+  inputs,
+  assumptions,
+  evaluate,
+  constraints = [],
+  steps = 8,
+  tolerance = 1e-3,
+}) {
+  if (!inputs?.length || typeof evaluate !== 'function') {
+    return { ok: false, reason: 'Missing inputs or evaluate function.' };
+  }
+
+  const clampInput = (spec, v) => Math.min(spec.max, Math.max(spec.min, v));
+  let best = { value: -Infinity, patch: { ...assumptions }, feasible: false };
+
+  const grid = (depth, patch) => {
+    if (depth >= inputs.length) {
+      for (const c of constraints) {
+        const v = c.check(patch);
+        if (!v.ok) return;
+      }
+      const score = evaluate(patch, objective);
+      if (score != null && score > best.value) {
+        best = { value: score, patch: { ...patch }, feasible: true };
+      }
+      return;
+    }
+    const spec = inputs[depth];
+    const base = patch[spec.key] ?? assumptions[spec.key] ?? (spec.min + spec.max) / 2;
+    const deltas = Array.from({ length: steps }, (_, i) => spec.min + ((spec.max - spec.min) * i) / (steps - 1));
+    for (const d of deltas) {
+      const v = clampInput(spec, Number.isFinite(d) ? d : base);
+      grid(depth + 1, { ...patch, [spec.key]: v });
+    }
+  };
+
+  grid(0, { ...assumptions });
+
+  if (!best.feasible) {
+    return { ok: false, reason: 'No feasible solution found within bounds and constraints.' };
+  }
+  return {
+    ok: true,
+    objective,
+    value: best.value,
+    solution: best.patch,
+    localOptimum: true,
+    approximate: true,
+  };
+}

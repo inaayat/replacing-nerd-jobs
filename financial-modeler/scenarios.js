@@ -13,7 +13,7 @@ export const SCENARIO_LABELS = {
   custom: 'Custom',
 };
 
-/** Drivers that appear in the scenario manager table. */
+/** Drivers that appear in the scenario manager table (10-K exercise). */
 export const SCENARIO_DRIVERS = [
   'revenueGrowth',
   'grossMargin',
@@ -39,43 +39,53 @@ function clamp(n, lo, hi) {
   return Math.min(hi, Math.max(lo, n));
 }
 
-function pickDrivers(full) {
+function pickDrivers(full, drivers = SCENARIO_DRIVERS) {
   const values = {};
-  for (const key of SCENARIO_DRIVERS) {
+  for (const key of drivers) {
     if (full[key] != null) values[key] = full[key];
   }
   return values;
 }
 
-/** One-time tilt for downside/upside beyond the legacy bear/bull helper. */
-function tiltValues(baseValues, sign) {
+function tiltValues(baseValues, sign, drivers = SCENARIO_DRIVERS) {
   const out = { ...baseValues };
   const bump = (key, delta, lo, hi) => {
     if (finite(out[key])) out[key] = clamp(out[key] + sign * delta, lo, hi);
   };
-  bump('revenueGrowth', 0.03, -0.2, 0.4);
-  bump('ebitMargin', 0.02, -0.2, 0.7);
-  bump('grossMargin', 0.015, 0, 0.95);
-  bump('capexPct', 0.01, 0, 0.4);
-  bump('terminalGrowth', 0.005, 0, 0.05);
-  bump('dsoDays', 5, 0, 240);
-  bump('dioDays', 5, 0, 365);
-  if (sign < 0) {
-    bump('beta', 0.15, 0.2, 2.5);
-    bump('equityRiskPremium', 0.01, 0, 0.12);
-  } else if (sign > 0) {
-    bump('beta', -0.1, 0.2, 2.5);
-    bump('equityRiskPremium', -0.005, 0, 0.12);
+  if (drivers.includes('revenueGrowth')) {
+    bump('revenueGrowth', 0.03, -0.2, 0.4);
+    bump('ebitMargin', 0.02, -0.2, 0.7);
+    bump('grossMargin', 0.015, 0, 0.95);
+    bump('capexPct', 0.01, 0, 0.4);
+    bump('terminalGrowth', 0.005, 0, 0.05);
+    bump('dsoDays', 5, 0, 240);
+    bump('dioDays', 5, 0, 365);
+    if (sign < 0) {
+      bump('beta', 0.15, 0.2, 2.5);
+      bump('equityRiskPremium', 0.01, 0, 0.12);
+    } else if (sign > 0) {
+      bump('beta', -0.1, 0.2, 2.5);
+      bump('equityRiskPremium', -0.005, 0, 0.12);
+    }
+  }
+  if (drivers.includes('capacity')) {
+    bump('capacity', 2000, 1000, 200000);
+    bump('utilization', 0.05, 0, 1);
+    bump('corePrice', 0.4, 0.5, 500);
+    bump('volumeGrowth', 0.03, -0.3, 0.5);
+    bump('variableCostPerTxn', sign > 0 ? -0.1 : 0.1, 0, 100);
+    bump('rent', sign > 0 ? -500 : 500, 0, 500000);
   }
   return out;
 }
 
-export function createScenarioState(defaultAssumptions) {
-  const baseValues = pickDrivers(defaultAssumptions);
+export function createScenarioState(defaultAssumptions, drivers = SCENARIO_DRIVERS) {
+  const baseValues = pickDrivers(defaultAssumptions, drivers);
   return {
     activeScenario: 'base',
     initialized: { downside: false, base: true, upside: false, custom: false },
     defaults: { ...defaultAssumptions },
+    drivers,
     scenarios: {
       downside: { label: SCENARIO_LABELS.downside, values: {} },
       base: { label: SCENARIO_LABELS.base, values: { ...baseValues } },
@@ -87,10 +97,11 @@ export function createScenarioState(defaultAssumptions) {
 
 export function ensureScenarioInitialized(state, key) {
   if (state.initialized[key]) return state;
+  const drivers = state.drivers || SCENARIO_DRIVERS;
   const baseValues = { ...state.scenarios.base.values };
   let values;
-  if (key === 'downside') values = tiltValues(baseValues, -1);
-  else if (key === 'upside') values = tiltValues(baseValues, 1);
+  if (key === 'downside') values = tiltValues(baseValues, -1, drivers);
+  else if (key === 'upside') values = tiltValues(baseValues, 1, drivers);
   else if (key === 'custom') values = { ...baseValues };
   else values = { ...baseValues };
 
@@ -124,11 +135,12 @@ export function editScenarioValue(state, driverKey, value) {
 
 export function resetActiveScenario(state, defaultAssumptions) {
   const active = state.activeScenario;
+  const drivers = state.drivers || SCENARIO_DRIVERS;
   let values;
-  if (active === 'base') values = pickDrivers(defaultAssumptions);
-  else if (active === 'downside') values = tiltValues(pickDrivers(defaultAssumptions), -1);
-  else if (active === 'upside') values = tiltValues(pickDrivers(defaultAssumptions), 1);
-  else values = { ...pickDrivers(defaultAssumptions) };
+  if (active === 'base') values = pickDrivers(defaultAssumptions, drivers);
+  else if (active === 'downside') values = tiltValues(pickDrivers(defaultAssumptions, drivers), -1, drivers);
+  else if (active === 'upside') values = tiltValues(pickDrivers(defaultAssumptions, drivers), 1, drivers);
+  else values = { ...pickDrivers(defaultAssumptions, drivers) };
 
   return {
     ...state,
@@ -140,8 +152,8 @@ export function resetActiveScenario(state, defaultAssumptions) {
   };
 }
 
-export function resetAllScenarios(defaultAssumptions) {
-  return createScenarioState(defaultAssumptions);
+export function resetAllScenarios(defaultAssumptions, drivers = SCENARIO_DRIVERS) {
+  return createScenarioState(defaultAssumptions, drivers);
 }
 
 /** Merge active scenario drivers onto filing defaults for the engine. */
