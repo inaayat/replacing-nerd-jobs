@@ -96,11 +96,34 @@
           </div>
           <div class="fm-model-picks" id="model-picks"></div>
         </section>
+
+        <section class="fm-step" id="step-peers" hidden>
+          <div class="fm-step-head">
+            <span class="fm-step-num">3</span>
+            <div>
+              <h2>Pick the companies you compare against</h2>
+              <p>Comps are only as honest as this list. Similar businesses — not whoever sits nearby in the Fortune ranking.</p>
+            </div>
+          </div>
+          <div class="fm-peer-row">
+            <input
+              id="peer-search"
+              class="fm-search fm-peer-search"
+              type="search"
+              placeholder="Add a peer by name or ticker…"
+              autocomplete="off"
+              aria-label="Search companies to compare against"
+            />
+            <div class="fm-peer-chips" id="peer-chips"></div>
+          </div>
+          <div class="fm-results" id="peer-results" hidden></div>
+          <p class="fm-status" id="peer-status"></p>
+        </section>
       </div>
 
       <section class="fm-step" id="step-build" hidden>
         <div class="fm-step-head">
-          <span class="fm-step-num">3</span>
+          <span class="fm-step-num" id="step-build-num">3</span>
           <div>
             <h2>Make your guesses</h2>
             <p>Blue is yours to change. Black is calculated. Everything updates as you type.</p>
