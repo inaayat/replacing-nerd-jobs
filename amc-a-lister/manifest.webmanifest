@@ -6,8 +6,8 @@
   "scope": "/amc-a-lister/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#faf3e3",
-  "theme_color": "#B80F0A",
+  "background_color": "#f9f9f9",
+  "theme_color": "#AA0000",
   "categories": ["entertainment", "lifestyle", "productivity"],
   "icons": [
     {
