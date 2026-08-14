@@ -1053,18 +1053,43 @@ export function buildWorkbook({ company, headlines, model, dcf, sensitivity, com
 const PROBE_IS_ROWS = { revenue: 4, cogs: 5, da: 9, ebit: 8, netIncome: 15 };
 const PROBE_BS_ROWS = { cash: 4 };
 
-/* ---------------------- unit-econ lemonade workbook --------------------- */
+/* ---------------------- single-unit / portfolio workbook ---------------- */
 
-function unitYearHeader(rows) {
-  return [{ v: 'US$', s: 'hdr' }, ...rows.map((r) => ({ v: `Y${r.year}`, s: 'hdr' }))];
-}
+const UNIT_ASSUMPTION_ROWS = [
+  ['capacity', 'Capacity', 'innum'],
+  ['utilization', 'Utilization', 'inpct'],
+  ['corePrice', 'Core price', 'innum'],
+  ['discountRate', 'Discount', 'inpct'],
+  ['volumeGrowth', 'Volume growth (per year)', 'inpct'],
+  ['variableCostPerTxn', 'Variable cost / transaction', 'innum'],
+  ['laborVariablePct', 'Labor (% of revenue)', 'inpct'],
+  ['laborFixed', 'Fixed labor (per year)', 'in'],
+  ['rent', 'Rent & occupancy (per year)', 'in'],
+  ['localMarketing', 'Local marketing (per year)', 'in'],
+  ['centralMarketing', 'Central marketing (per year)', 'in'],
+  ['allocatedOverhead', 'Allocated overhead (per year)', 'in'],
+  ['taxRate', 'Tax rate', 'inpct'],
+  ['openingCosts', 'Opening investment (year 1 CapEx)', 'in'],
+  ['usefulLife', 'Useful life (years)', 'innum'],
+  ['maintenanceCapex', 'Maintenance CapEx (per year)', 'in'],
+  ['openingCash', 'Cash you start with', 'in'],
+  ['openingDebt', 'Debt you start with', 'in'],
+  ['dsoDays', 'Days to collect', 'innum'],
+  ['dioDays', 'Days of inventory', 'innum'],
+  ['dpoDays', 'Days to pay suppliers', 'innum'],
+  ['interestRate', 'Interest rate on debt', 'inpct'],
+  ['cashYield', 'Interest earned on cash', 'inpct'],
+  ['debtRepaymentPct', 'Debt repaid each year (% of balance)', 'inpct'],
+  ['payoutRatio', 'Owner draw (% of net income)', 'inpct'],
+  ['hurdleRate', 'Discount rate (NPV hurdle)', 'inpct'],
+];
 
 function unitAssumptionsSheet(model, cards) {
   const b = sheetBuilder();
   const at = new Map();
   b.text(['Assumptions & drivers'], 'title');
   b.text(['Blue cells are yours to change. Every other sheet reads them. Figures are US dollars, not millions.'], 'note');
-  b.text(['Lemonade stall · cups × price · the same three-statement wiring as the 10-K model.'], 'note');
+  b.text(['Single-unit model · capacity × utilization × price · same three-statement wiring as the 10-K model.'], 'note');
   b.blank();
   b.add([
     { v: 'Driver', s: 'hdr' },
@@ -1076,38 +1101,18 @@ function unitAssumptionsSheet(model, cards) {
 
   const a = model.assumptions;
   const copy = (key) => cards?.find((c) => c.key === key) || {};
-  const put = (key, label, value, style) => {
+  for (const [key, label, style] of UNIT_ASSUMPTION_ROWS) {
+    const value = a[key];
     const c = copy(key);
     const r = b.add([
       { v: label, s: 'lbl' },
       { v: typeof value === 'number' && Number.isFinite(value) ? value : null, s: style },
       { v: c.what || '', s: 'note' },
       { v: c.how || '', s: 'note' },
-      { v: c.origin || '', s: 'note' },
+      { v: c.origin || c.originText?.() || '', s: 'note' },
     ]);
     at.set(key, r);
-    return r;
-  };
-
-  put('units', 'Cups in year 1', a.units, 'innum');
-  put('price', 'Price per cup', a.price, 'innum');
-  put('discountRate', 'Discount', a.discountRate, 'inpct');
-  put('unitGrowth', 'Cups growth (per year)', a.unitGrowth, 'inpct');
-  put('cogsPerUnit', 'Cost per cup', a.cogsPerUnit, 'innum');
-  put('laborPct', 'Labor (% of sales)', a.laborPct, 'inpct');
-  put('otherOpex', 'Other operating costs (per year)', a.otherOpex, 'in');
-  put('taxRate', 'Tax rate', a.taxRate, 'inpct');
-  put('equipment', 'Equipment (bought in year 1)', a.equipment, 'in');
-  put('usefulLife', 'Useful life (years)', a.usefulLife, 'innum');
-  put('openingCash', 'Cash you start with', a.openingCash, 'in');
-  put('openingDebt', 'Debt you start with', a.openingDebt, 'in');
-  put('dsoDays', 'Days to collect', a.dsoDays, 'innum');
-  put('dioDays', 'Days of inventory', a.dioDays, 'innum');
-  put('dpoDays', 'Days to pay suppliers', a.dpoDays, 'innum');
-  put('interestRate', 'Interest rate on debt', a.interestRate, 'inpct');
-  put('cashYield', 'Interest earned on cash', a.cashYield, 'inpct');
-  put('debtRepaymentPct', 'Debt repaid each year (% of balance)', a.debtRepaymentPct, 'inpct');
-  put('payoutRatio', 'Owner draw (% of net income)', a.payoutRatio, 'inpct');
+  }
 
   return { sheet: b.pack([260, 90, 260, 360, 320]), at };
 }
@@ -1123,30 +1128,49 @@ function unitLine(b, rows, label, formulas, cachedKey, style, bold) {
   return b.add(cells);
 }
 
+function unitYearHeader(rows) {
+  return [{ v: 'US$', s: 'hdr' }, ...rows.map((r) => ({ v: `Y${r.year}`, s: 'hdr' }))];
+}
+
 function unitIncomeSheet(model, at, bsRows) {
   const b = sheetBuilder();
   const rows = model.rows;
   b.text(['Income statement'], 'title');
-  b.text(['US dollars. Cups × price is sales. Interest uses last year’s cash and debt, so nothing is circular.'], 'note');
+  b.text(['US dollars. Transactions = capacity × utilization (growing each year). Interest uses last year’s cash and debt.'], 'note');
   b.add(unitYearHeader(rows));
   const line = (label, formulas, cachedKey, style, bold) =>
     unitLine(b, rows, label, formulas, cachedKey, style, bold);
 
   const r = {};
-  r.units = line(
-    'Cups sold',
-    (i) => (i === 0 ? `=${ref(at, 'units')}` : `=RC[-1]*(1+${ref(at, 'unitGrowth')})`),
-    'units',
+  r.transactions = line(
+    'Transactions',
+    (i) =>
+      i === 0
+        ? `=${ref(at, 'capacity')}*${ref(at, 'utilization')}`
+        : `=RC[-1]*(1+${ref(at, 'volumeGrowth')})`,
+    'transactions',
     'calcnum'
   );
-  r.revenue = line('Revenue', `=R${r.units}C*${ref(at, 'price')}*(1-${ref(at, 'discountRate')})`, 'revenue');
-  r.cogs = line('Cost of sales', `=-R${r.units}C*${ref(at, 'cogsPerUnit')}`, 'cogs');
+  r.revenue = line(
+    'Revenue',
+    `=R${r.transactions}C*${ref(at, 'corePrice')}*(1-${ref(at, 'discountRate')})`,
+    'revenue'
+  );
+  r.cogs = line('Cost of sales', `=-R${r.transactions}C*${ref(at, 'variableCostPerTxn')}`, 'cogs');
   r.grossProfit = line('Gross profit', `=R${r.revenue}C+R${r.cogs}C`, 'grossProfit', 'calc', true);
-  r.labor = line('Labor', `=-R${r.revenue}C*${ref(at, 'laborPct')}`, 'labor');
-  r.otherOpex = line('Other operating costs', `=-${ref(at, 'otherOpex')}`, 'otherOpex');
+  r.labor = line(
+    'Labor',
+    `=-R${r.revenue}C*${ref(at, 'laborVariablePct')}-${ref(at, 'laborFixed')}`,
+    'labor'
+  );
+  r.otherOpex = line(
+    'Other operating costs',
+    `=-${ref(at, 'rent')}-${ref(at, 'localMarketing')}-${ref(at, 'centralMarketing')}-${ref(at, 'allocatedOverhead')}`,
+    'otherOpex'
+  );
   r.da = line(
     'Depreciation',
-    (i) => `=IF(${i + 1}<=${ref(at, 'usefulLife')},-${ref(at, 'equipment')}/${ref(at, 'usefulLife')},0)`,
+    (i) => `=IF(${i + 1}<=${ref(at, 'usefulLife')},-${ref(at, 'openingCosts')}/${ref(at, 'usefulLife')},0)`,
     'da'
   );
   r.ebit = line(
@@ -1219,7 +1243,12 @@ function unitCashSheet(model, isRows, bsRows, at) {
     'link'
   );
   r.cfo = line('Cash from operations', `=SUM(R${r.ni}C:R${r.dAp}C)`, 'cfo', 'calc', true);
-  r.capex = line('Capital expenditure', (i) => (i === 0 ? `=-${ref(at, 'equipment')}` : '=0'), 'capex', 'link');
+  r.capex = line(
+    'Capital expenditure',
+    (i) => (i === 0 ? `=-${ref(at, 'openingCosts')}-${ref(at, 'maintenanceCapex')}` : `=-${ref(at, 'maintenanceCapex')}`),
+    'capex',
+    'link'
+  );
   r.repay = line(
     'Debt repayment',
     (i) =>
@@ -1256,7 +1285,7 @@ function unitBalanceSheet(model, isRows, cfsRows, at) {
   r.inv = line('Inventory', `=-IS!R${isRows.cogs}C*${ref(at, 'dioDays')}/365`, 'inventory', 'link');
   r.ppe = line(
     'Equipment (net)',
-    (i) => (i === 0 ? `=${ref(at, 'equipment')}+IS!R${isRows.da}C` : `=RC[-1]+IS!R${isRows.da}C`),
+    (i) => (i === 0 ? `=${ref(at, 'openingCosts')}+IS!R${isRows.da}C` : `=RC[-1]+IS!R${isRows.da}C`),
     'ppe',
     'link'
   );
@@ -1345,6 +1374,317 @@ export function buildUnitWorkbook({ model, cards }) {
     { name: 'BS', ...bs.sheet },
     { name: 'Checks', ...checks.sheet },
   ]);
+}
+
+/* ---------------------- capital / strategic / market ------------------- */
+
+function exerciseAssumptionsSheet(title, note, rows, cards) {
+  const b = sheetBuilder();
+  const at = new Map();
+  b.text(['Assumptions & drivers'], 'title');
+  b.text([note], 'note');
+  b.text([title], 'note');
+  b.blank();
+  b.add([
+    { v: 'Driver', s: 'hdr' },
+    { v: 'Value', s: 'hdr' },
+    { v: 'What it is', s: 'hdr' },
+    { v: 'How to get it', s: 'hdr' },
+    { v: 'Where the default came from', s: 'hdr' },
+  ]);
+  const copy = (key) => cards?.find((c) => c.key === key) || {};
+  for (const row of rows) {
+    const [key, label, value, style] = row;
+    const c = copy(key);
+    const r = b.add([
+      { v: label, s: 'lbl' },
+      { v: typeof value === 'number' && Number.isFinite(value) ? value : null, s: style || 'in' },
+      { v: c.what || '', s: 'note' },
+      { v: c.how || '', s: 'note' },
+      { v: c.origin || c.originText?.() || '', s: 'note' },
+    ]);
+    at.set(key, r);
+  }
+  return { sheet: b.pack([260, 90, 260, 360, 320]), at };
+}
+
+function capitalAssumptionRows(a) {
+  const overrun = 1 + (a.costOverrunPct ?? 0);
+  return [
+    ['constructionYears', 'Construction years', a.constructionYears, 'innum'],
+    ['costOverrunPct', 'Cost overrun', a.costOverrunPct, 'inpct'],
+    ['phase1Spend', 'Phase 1 spend', a.phase1Spend, 'in'],
+    ['phase2Spend', 'Phase 2 spend', a.phase2Spend, 'in'],
+    ['capacityUnits', 'Capacity units', a.capacityUnits, 'innum'],
+    ['pricePerUnit', 'Price per unit', a.pricePerUnit, 'innum'],
+    ['volumeGrowth', 'Volume growth', a.volumeGrowth, 'inpct'],
+    ['variableCostPct', 'Variable cost (% revenue)', a.variableCostPct, 'inpct'],
+    ['fixedOpex', 'Fixed opex (per year)', a.fixedOpex, 'in'],
+    ['maintenanceCapex', 'Maintenance CapEx', a.maintenanceCapex, 'in'],
+    ['debtPct', 'Debt funding %', a.debtPct, 'inpct'],
+    ['equityInvested', 'Equity invested', a.equityInvested, 'in'],
+    ['interestRate', 'Interest rate', a.interestRate, 'inpct'],
+    ['amortYears', 'Debt amortization (years)', a.amortYears, 'innum'],
+    ['taxRate', 'Tax rate', a.taxRate, 'inpct'],
+    ['incentiveCredit', 'Incentive credit', a.incentiveCredit, 'in'],
+    ['terminalValue', 'Terminal value', a.terminalValue, 'in'],
+    ['hurdleRate', 'Hurdle rate', a.hurdleRate, 'inpct'],
+    ['phase1SpendOverrun', 'Phase 1 (incl. overrun)', (a.phase1Spend ?? 0) * overrun, 'in'],
+    ['phase2SpendOverrun', 'Phase 2 (incl. overrun)', (a.phase2Spend ?? 0) * overrun, 'in'],
+  ];
+}
+
+function capitalScheduleSheet(model, at) {
+  const b = sheetBuilder();
+  const rows = model.rows;
+  b.text(['Project schedule'], 'title');
+  b.text(['US dollars. CapEx in construction years; revenue begins after construction.'], 'note');
+  b.add([{ v: 'Line item', s: 'hdr' }, ...rows.map((r) => ({ v: `Y${r.year}`, s: 'hdr' }))]);
+
+  const line = (label, formulas, cachedKey, style = 'calc', bold = false) =>
+    unitLine(b, rows, label, formulas, cachedKey, style, bold);
+
+  const buildYears = Math.max(1, Math.round(model.assumptions.constructionYears ?? 2));
+  const r = {};
+  r.capex = line(
+    'CapEx',
+    (i) => {
+      const y = i + 1;
+      if (y === 1) return `=-Assumptions!R${at.get('phase1SpendOverrun')}C2`;
+      if (y === buildYears) return `=-Assumptions!R${at.get('phase2SpendOverrun')}C2`;
+      return '=0';
+    },
+    'capex',
+    'link'
+  );
+  r.revenue = line(
+    'Revenue',
+    (i) => {
+      const y = i + 1;
+      if (y <= buildYears) return '=0';
+      return `=Assumptions!R${at.get('capacityUnits')}C2*Assumptions!R${at.get('pricePerUnit')}C2*(1+Assumptions!R${at.get('volumeGrowth')}C2)^(${y}-${buildYears})`;
+    },
+    'revenue',
+    'link'
+  );
+  r.ebit = line(
+    'EBIT',
+    (i) => {
+      const y = i + 1;
+      if (y <= buildYears) return '=0';
+      return `=R${r.revenue}C*(1-Assumptions!R${at.get('variableCostPct')}C2)-Assumptions!R${at.get('fixedOpex')}C2`;
+    },
+    'ebit'
+  );
+  r.projectFcf = line(
+    'Project FCF',
+    (i) => `=R${r.capex}C+R${r.ebit}C`,
+    'projectFcf',
+    'calc',
+    true
+  );
+
+  return { sheet: b.pack([280, ...rows.map(() => 90)]), rows: r };
+}
+
+function returnsSummarySheet(returns, labels) {
+  const b = sheetBuilder();
+  b.text(['Returns summary'], 'title');
+  b.add([{ v: 'Metric', s: 'hdr' }, { v: 'Value', s: 'hdr' }]);
+  for (const [label, value, style] of labels) {
+    b.add([
+      { v: label, s: 'lbl' },
+      { v: typeof value === 'number' && Number.isFinite(value) ? value : null, s: style || 'calcnum' },
+    ]);
+  }
+  return b.pack([240, 120]);
+}
+
+export function buildCapitalWorkbook({ model, cards }) {
+  const a = model.assumptions;
+  const { sheet: assumptions, at } = exerciseAssumptionsSheet(
+    'Capital project · construction, funding, and operations',
+    'Blue cells are yours to change. Every other sheet reads them.',
+    capitalAssumptionRows(a),
+    cards
+  );
+  const schedule = capitalScheduleSheet(model, at);
+  const ret = model.returns || {};
+  const returns = returnsSummarySheet(ret, [
+    ['Project IRR', ret.projectIrr, 'calcpct'],
+    ['Equity IRR', ret.equityIrr, 'calcpct'],
+    ['Project NPV', ret.projectNpv, 'calcnum'],
+    ['Equity NPV', ret.equityNpv, 'calcnum'],
+    ['Peak funding', ret.peakFunding, 'calcnum'],
+    ['Payback (years)', ret.paybackYears, 'calcnum'],
+  ]);
+
+  return packXlsx([
+    { name: 'Cover', ...exerciseCover('Capital project model', 'Construction CapEx, operating ramp, and project vs equity returns.') },
+    { name: 'Assumptions', ...assumptions },
+    { name: 'Schedule', ...schedule.sheet },
+    { name: 'Returns', ...returns },
+    { name: 'Checks', ...exerciseChecksSheet(model.checks) },
+  ]);
+}
+
+function strategicAssumptionRows(a) {
+  const rows = [
+    ['hurdleRate', 'Hurdle rate', a.hurdleRate, 'inpct'],
+    ['years', 'Forecast years', a.years, 'innum'],
+    ['probabilityBuild', 'P(Build)', a.probabilityBuild, 'inpct'],
+    ['probabilityBuy', 'P(Buy)', a.probabilityBuy, 'inpct'],
+    ['probabilityPartner', 'P(Partner)', a.probabilityPartner, 'inpct'],
+    ['probabilityLicense', 'P(License)', a.probabilityLicense, 'inpct'],
+    ['probabilityLease', 'P(Lease)', a.probabilityLease, 'inpct'],
+    ['probabilityDelay', 'P(Delay)', a.probabilityDelay, 'inpct'],
+    ['probabilityNothing', 'P(Do nothing)', a.probabilityNothing, 'inpct'],
+  ];
+  for (const key of ['build', 'buy', 'partner', 'license', 'lease', 'delay', 'nothing']) {
+    const alt = a[key] || {};
+    rows.push([`${key}Capex`, `${key} — CapEx`, alt.capex, 'in']);
+    rows.push([`${key}Opex`, `${key} — annual opex`, alt.opex, 'in']);
+    rows.push([`${key}Revenue`, `${key} — revenue Y1`, alt.revenue, 'in']);
+    rows.push([`${key}Growth`, `${key} — growth`, alt.growth, 'inpct']);
+  }
+  return rows;
+}
+
+function strategicAlternativesSheet(model) {
+  const b = sheetBuilder();
+  b.text(['Strategic alternatives'], 'title');
+  b.add([
+    { v: 'Alternative', s: 'hdr' },
+    { v: 'NPV', s: 'hdr' },
+    { v: 'Incremental NPV', s: 'hdr' },
+    { v: 'Probability', s: 'hdr' },
+    { v: 'Qualitative', s: 'hdr' },
+  ]);
+  for (const alt of model.alternatives) {
+    b.add([
+      { v: alt.label, s: 'lbl' },
+      { v: Number.isFinite(alt.npv) ? alt.npv : null, s: 'calcnum' },
+      { v: Number.isFinite(alt.incrementalNpv) ? alt.incrementalNpv : null, s: 'calcnum' },
+      { v: alt.probability, s: 'inpct' },
+      { v: alt.qualitativeScore, s: 'innum' },
+    ]);
+  }
+  b.blank();
+  b.add([
+    { v: 'Expected NPV (probability-weighted)', s: 'lblb' },
+    { v: Number.isFinite(model.expectedNpv) ? model.expectedNpv : null, s: 'calcb' },
+  ]);
+  return b.pack([200, 120, 120, 90, 90]);
+}
+
+export function buildStrategicWorkbook({ model, cards }) {
+  const { sheet: assumptions } = exerciseAssumptionsSheet(
+    'Strategic investment appraisal',
+    'Blue cells are yours to change. Alternatives sheet shows NPV from the active case.',
+    strategicAssumptionRows(model.assumptions),
+    cards
+  );
+  return packXlsx([
+    { name: 'Cover', ...exerciseCover('Strategic investment model', 'Build, buy, partner, and other alternatives vs do-nothing.') },
+    { name: 'Assumptions', ...assumptions },
+    { name: 'Alternatives', ...strategicAlternativesSheet(model) },
+    { name: 'Checks', ...exerciseChecksSheet({ probabilitiesSum: model.checks?.probabilitiesSum }) },
+  ]);
+}
+
+function marketAssumptionRows(a) {
+  return [
+    ['hurdleRate', 'Hurdle rate', a.hurdleRate, 'inpct'],
+    ['years', 'Forecast years', a.years, 'innum'],
+    ['addressableMarket', 'Addressable market', a.addressableMarket, 'in'],
+    ['marketGrowth', 'Market growth', a.marketGrowth, 'inpct'],
+    ['pricePremium', 'Price premium', a.pricePremium, 'inpct'],
+    ['laborCost', 'Labor cost', a.laborCost, 'in'],
+    ['rentCost', 'Rent', a.rentCost, 'in'],
+    ['logisticsCost', 'Logistics', a.logisticsCost, 'in'],
+    ['taxRate', 'Tax rate', a.taxRate, 'inpct'],
+    ['withholdingPct', 'Withholding tax', a.withholdingPct, 'inpct'],
+    ['tariffPct', 'Tariff', a.tariffPct, 'inpct'],
+    ['incentivePct', 'Incentive', a.incentivePct, 'inpct'],
+    ['localizationCost', 'Localization cost', a.localizationCost, 'in'],
+    ['partnerShare', 'Partner share', a.partnerShare, 'inpct'],
+    ['fxRate', 'FX rate (local per USD)', a.fxRate, 'innum'],
+    ['countryRiskPremium', 'Country risk premium', a.countryRiskPremium, 'inpct'],
+    ['rolloutYears', 'Rollout years', a.rolloutYears, 'innum'],
+  ];
+}
+
+function marketStructuresSheet(model) {
+  const b = sheetBuilder();
+  b.text(['Entry structures'], 'title');
+  b.add([{ v: 'Structure', s: 'hdr' }, { v: 'NPV (USD)', s: 'hdr' }, { v: 'Breakeven year', s: 'hdr' }]);
+  for (const s of model.structures) {
+    b.add([
+      { v: s.label, s: 'lbl' },
+      { v: Number.isFinite(s.npv) ? s.npv : null, s: 'calcnum' },
+      { v: s.breakevenYear ?? null, s: 'innum' },
+    ]);
+  }
+  return b.pack([200, 120, 100]);
+}
+
+function exerciseCover(title, blurb) {
+  const b = sheetBuilder();
+  b.text([title], 'title');
+  b.text([blurb], 'note');
+  b.blank();
+  b.text(['How to read the colours'], 'lblb');
+  b.add([{ v: 'Blue', s: 'in' }, { v: 'A number you typed. Change these on Assumptions.', s: 'lbl' }]);
+  b.add([{ v: 'Black', s: 'calc' }, { v: 'A formula. Do not overwrite.', s: 'lbl' }]);
+  b.add([{ v: 'Green', s: 'link' }, { v: 'A link to another sheet.', s: 'lbl' }]);
+  return b.pack([200, 520]);
+}
+
+function exerciseChecksSheet(checks) {
+  const b = sheetBuilder();
+  b.text(['Checks'], 'title');
+  if (checks?.probabilitiesSum != null) {
+    b.add([
+      { v: 'Scenario probabilities sum to 100%', s: 'lblb' },
+      { v: checks.probabilitiesSum ? 'OK' : 'FAIL', s: checks.probabilitiesSum ? 'check' : 'lbl' },
+    ]);
+  }
+  if (checks?.sourcesUses != null) {
+    b.add([
+      { v: 'Sources equal uses', s: 'lblb' },
+      { v: checks.sourcesUses ? 'OK' : 'FAIL', s: checks.sourcesUses ? 'check' : 'lbl' },
+    ]);
+  }
+  if (checks?.balances != null) {
+    b.add([
+      { v: 'Balance sheet ties', s: 'lblb' },
+      { v: checks.balances ? 'OK' : 'FAIL', s: checks.balances ? 'check' : 'lbl' },
+    ]);
+  }
+  return b.pack([280, 120]);
+}
+
+export function buildMarketWorkbook({ model, cards }) {
+  const { sheet: assumptions } = exerciseAssumptionsSheet(
+    `Market entry · ${model.assumptions.localCurrency} → ${model.assumptions.reportingCurrency}`,
+    'Blue cells are yours to change. Structures sheet ranks entry modes.',
+    marketAssumptionRows(model.assumptions),
+    cards
+  );
+  return packXlsx([
+    { name: 'Cover', ...exerciseCover('Market entry model', 'Regional sizing, entry structures, FX, and risk-adjusted returns.') },
+    { name: 'Assumptions', ...assumptions },
+    { name: 'Structures', ...marketStructuresSheet(model) },
+    { name: 'Checks', ...exerciseChecksSheet({ fxIdentified: model.checks?.fxIdentified }) },
+  ]);
+}
+
+export function exerciseWorkbookFilename(exercise, template) {
+  if (exercise === 'unit') return template === 'blank' ? 'single-unit-model.xlsx' : 'lemonade-stall-model.xlsx';
+  if (exercise === 'capital') return 'capital-project-model.xlsx';
+  if (exercise === 'strategic') return 'strategic-investment-model.xlsx';
+  if (exercise === 'market') return 'market-entry-model.xlsx';
+  return 'financial-model.xlsx';
 }
 
 export function workbookFilename(company) {

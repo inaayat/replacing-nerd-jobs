@@ -23,6 +23,8 @@ assert.deepEqual(dependencyPath('revenueGrowth'), [
   'Implied share price',
 ]);
 assert.ok(dependencyRowKeys('revenueGrowth').includes('revenue'));
+assert.ok(dependencyRowKeys('capacity', 'unit').includes('transactions'));
+assert.ok(dependencyRowKeys('hurdleRate', 'capital').includes('projectNpv'));
 
 assert.equal(stepsForTab('three').length, THREE_STATEMENT_STEPS.length);
 assert.equal(stepsForTab('dcf').length, 5);

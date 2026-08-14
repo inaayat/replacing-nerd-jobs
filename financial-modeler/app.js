@@ -39,10 +39,12 @@ import {
 import {
   defaultStrategicAssumptions,
   runStrategicAppraisal,
+  STRATEGIC_DIALS,
 } from './strategic-investment.js';
 import {
   defaultMarketEntryAssumptions,
   runMarketEntry,
+  MARKET_DIALS,
 } from './market-entry.js';
 import {
   createScenarioState,
@@ -63,7 +65,16 @@ import {
   goalSeek,
   SENSITIVITY_PRESETS,
 } from './sensitivity.js';
-import { buildWorkbook, buildUnitWorkbook, workbookFilename, downloadWorkbook } from './workbook.js';
+import {
+  buildWorkbook,
+  buildUnitWorkbook,
+  buildCapitalWorkbook,
+  buildStrategicWorkbook,
+  buildMarketWorkbook,
+  workbookFilename,
+  exerciseWorkbookFilename,
+  downloadWorkbook,
+} from './workbook.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -1035,8 +1046,24 @@ function renderExercises() {
 
 /* -------------------------------- dials -------------------------------- */
 
+function dialRawValue(dial) {
+  if (dial.altKey && dial.altField) return state.assumptions?.[dial.altKey]?.[dial.altField];
+  return state.assumptions?.[dial.key];
+}
+
+function setDialValue(dial, value) {
+  if (dial.altKey && dial.altField) {
+    state.assumptions = {
+      ...state.assumptions,
+      [dial.altKey]: { ...state.assumptions[dial.altKey], [dial.altField]: value },
+    };
+    return;
+  }
+  state.assumptions = { ...state.assumptions, [dial.key]: value };
+}
+
 function originFor(dial, headlines) {
-  if (isUnit()) return dial.originText();
+  if (isUnit() || isCapital() || isStrategic() || isMarket()) return dial.originText?.() || '';
   const raw = dial.originKey ? headlines?.ratios?.[dial.originKey] : null;
   if (dial.key === 'dsoDays') {
     const d = state.assumptions?.dsoDays;
@@ -1051,7 +1078,7 @@ function originFor(dial, headlines) {
 
 /** The copy the workbook prints next to the same cell. */
 function assumptionCards() {
-  const list = isUnit() || isCapital() ? exerciseDialList() : assumptionCatalog(state.models);
+  const list = isStandaloneExercise() ? exerciseDialList() : assumptionCatalog(state.models);
   return list.map((d) => ({
     key: d.key,
     name: d.name,
@@ -1064,6 +1091,8 @@ function assumptionCards() {
 function exerciseDialList() {
   if (isUnit()) return unitDialList();
   if (isCapital()) return CAPITAL_DIALS.filter((d) => d.fmt !== 'raw');
+  if (isStrategic()) return STRATEGIC_DIALS;
+  if (isMarket()) return MARKET_DIALS;
   return assumptionCatalog(state.models);
 }
 
@@ -1089,9 +1118,12 @@ function applyBuildStepHighlight() {
 }
 
 function applyTraceHighlight(key) {
-  const keys = new Set(key ? dependencyRowKeys(key) : []);
+  const keys = new Set(key ? dependencyRowKeys(key, state.exercise || 'filer', state.activeTab) : []);
   document.querySelectorAll('[data-row-key]').forEach((tr) => {
     tr.classList.toggle('fm-trace-highlight', keys.has(tr.dataset.rowKey));
+  });
+  document.querySelectorAll('[data-trace-key]').forEach((el) => {
+    el.classList.toggle('fm-trace-highlight', keys.has(el.dataset.traceKey));
   });
 }
 
@@ -1105,7 +1137,7 @@ function syncRowHighlights() {
 
 function renderDependencyTrace(key) {
   if (!key) return '';
-  const path = dependencyPath(key);
+  const path = dependencyPath(key, state.exercise || 'filer');
   if (!path.length) return '';
   return `<p class="fm-trace-path fm-trace-inline" aria-live="polite"><strong>Affects.</strong> ${path.map((p) => escapeHtml(p)).join(' → ')}</p>`;
 }
@@ -1165,12 +1197,12 @@ function wrapChecklist(tabId, context) {
 }
 
 function dialCatalogEntry(key) {
-  const list = isUnit() || isCapital() ? exerciseDialList() : assumptionCatalog(state.models);
+  const list = isStandaloneExercise() ? exerciseDialList() : assumptionCatalog(state.models);
   return list.find((d) => d.key === key) || null;
 }
 
 function ensureFocusedAssumption() {
-  const active = isUnit() || isCapital() ? exerciseDialList() : assumptionCatalog(state.models);
+  const active = isStandaloneExercise() ? exerciseDialList() : assumptionCatalog(state.models);
   if (state.focusedAssumption && active.some((d) => d.key === state.focusedAssumption)) return;
   state.focusedAssumption = active[0]?.key ?? null;
 }
@@ -1189,7 +1221,7 @@ function focusAssumption(key, { rerenderModel = false } = {}) {
 function renderAssumptionDetailHtml(key) {
   const d = dialCatalogEntry(key);
   if (!d) return '';
-  const value = state.assumptions?.[d.key];
+  const value = dialRawValue(d);
   const disabled = value == null;
   const validation = disabled ? { valid: true } : validateAssumption(d, value);
   const err = !validation.valid
@@ -1217,7 +1249,7 @@ function renderAssumptionDetail() {
 }
 
 function renderAssumptionListHtml() {
-  const active = isUnit() || isCapital() ? exerciseDialList() : assumptionCatalog(state.models);
+  const active = isStandaloneExercise() ? exerciseDialList() : assumptionCatalog(state.models);
   ensureFocusedAssumption();
 
   const scenarios = state.scenarioState
@@ -1229,8 +1261,8 @@ function renderAssumptionListHtml() {
 
   const chips = active
     .map((d) => {
-      const value = state.assumptions[d.key];
-      const disabled = value == null;
+      const value = dialRawValue(d);
+      const disabled = value == null && d.fmt !== 'bool';
       const isActive = state.focusedAssumption === d.key;
       const token = sourceToken(d, value, state.sourceDefaults);
       const input = disabled
@@ -1266,7 +1298,7 @@ function renderAssumptionListHtml() {
 }
 
 function bindAssumptionList(wrap) {
-  const active = isUnit() || isCapital() ? exerciseDialList() : assumptionCatalog(state.models);
+  const active = isStandaloneExercise() ? exerciseDialList() : assumptionCatalog(state.models);
 
   wrap.querySelectorAll('[data-ws-model]').forEach((btn) => {
     btn.addEventListener('click', () => toggleModel(btn.dataset.wsModel));
@@ -1302,7 +1334,7 @@ function bindAssumptionList(wrap) {
         state.scenarioState = editScenarioValue(state.scenarioState, dial.key, value);
         syncAssumptionsFromScenarios();
       } else {
-        state.assumptions = { ...state.assumptions, [dial.key]: value };
+        setDialValue(dial, value);
       }
       render();
     });
@@ -1396,7 +1428,7 @@ function threeStatementPanel(model) {
   const opts = { scale, unitLabel };
 
   const isLines = [
-    ...(unitKind ? [lineOf(rows, 'Cups sold', 'units', { fmt: 'qty' })] : []),
+    ...(unitKind ? [lineOf(rows, 'Transactions', 'transactions', { fmt: 'qty' })] : []),
     lineOf(rows, 'Revenue', 'revenue'),
     ...(hasGross
       ? [lineOf(rows, 'Cost of sales', 'cogs'), lineOf(rows, 'Gross profit', 'grossProfit', { total: true })]
@@ -1459,8 +1491,9 @@ function threeStatementPanel(model) {
   const ret = unitKind ? model.returns || {} : null;
   const returnsBlock = unitKind
     ? `<div class="fm-verdict">
-      <div><dt>Unit IRR</dt><dd>${ret?.unitIrr != null ? `${(ret.unitIrr * 100).toFixed(1)}%` : '—'}</dd></div>
-      <div><dt>Unit NPV</dt><dd>${ret?.unitNpv != null ? formatUsd(ret.unitNpv) : '—'}</dd></div>
+      <div data-trace-key="unitNpv"><dt>Unit IRR</dt><dd>${ret?.unitIrr != null ? `${(ret.unitIrr * 100).toFixed(1)}%` : '—'}</dd></div>
+      <div data-trace-key="unitNpv"><dt>Unit NPV</dt><dd>${ret?.unitNpv != null ? formatUsd(ret.unitNpv) : '—'}</dd></div>
+      <div data-trace-key="portfolioNpv"><dt>Portfolio NPV</dt><dd>${ret?.portfolioNpv != null ? formatUsd(ret.portfolioNpv) : '—'}</dd></div>
       <div><dt>Payback</dt><dd>${ret?.paybackYears ?? '—'} yrs</dd></div>
       <div><dt>Breakeven util.</dt><dd>${ret?.breakevenUtilization != null ? `${(ret.breakevenUtilization * 100).toFixed(0)}%` : '—'}</dd></div>
     </div>`
@@ -1508,11 +1541,11 @@ function dcfPanel(model, dcf) {
 
   return `<section class="fm-panel fm-panel-model">
     <div class="fm-verdict">
-      <div><dt>Discount rate (WACC)</dt><dd>${formatPercent(dcf.wacc.wacc)}</dd></div>
-      <div><dt>Enterprise value</dt><dd>${formatUsd(dcf.enterpriseValue) || '—'}</dd></div>
-      <div><dt>Implied share price</dt><dd>${fmtPrice(dcf.impliedPrice) || 'not reported'}</dd></div>
+      <div data-trace-key="wacc"><dt>Discount rate (WACC)</dt><dd>${formatPercent(dcf.wacc.wacc)}</dd></div>
+      <div data-trace-key="enterpriseValue"><dt>Enterprise value</dt><dd>${formatUsd(dcf.enterpriseValue) || '—'}</dd></div>
+      <div data-trace-key="impliedPrice"><dt>Implied share price</dt><dd>${fmtPrice(dcf.impliedPrice) || 'not reported'}</dd></div>
       <div><dt>Last market price</dt><dd>${fmtPrice(dcf.marketPrice) || 'not reported'}</dd></div>
-      <div><dt>Upside</dt><dd class="${upClass}">${dcf.upside == null ? 'not reported' : formatPercent(dcf.upside, true)}</dd></div>
+      <div data-trace-key="impliedPrice"><dt>Upside</dt><dd class="${upClass}">${dcf.upside == null ? 'not reported' : formatPercent(dcf.upside, true)}</dd></div>
     </div>
     ${flows}
   </section>`;
@@ -1560,7 +1593,7 @@ function sensitivityPanel(model, dcf, sens) {
     const fmtRow = (v) => (matrix.rowLabel === 'WACC' ? `${(v * 100).toFixed(2)}%` : dialValueText({ fmt: matrix.rowLabel?.includes('Days') ? 'days' : 'pct', key: matrix.rowInput }, v));
     const fmtCol = (v) => (matrix.colLabel === 'Terminal growth' || matrix.colLabel === 'terminalGrowth' ? `${(v * 100).toFixed(2)}%` : dialValueText({ fmt: matrix.colLabel?.includes('Days') ? 'days' : 'pct', key: matrix.columnInput }, v));
 
-    grid = `<div class="fm-scroll"><table class="fm-table fm-sensitivity-grid"><thead><tr><th>${escapeHtml(matrix.colLabel || 'Column')} ╲ ${escapeHtml(matrix.rowLabel || 'Row')}</th>${matrix.colValues
+    grid = `<div class="fm-scroll" data-trace-key="sensitivityGrid"><table class="fm-table fm-sensitivity-grid"><thead><tr><th>${escapeHtml(matrix.colLabel || 'Column')} ╲ ${escapeHtml(matrix.rowLabel || 'Row')}</th>${matrix.colValues
       .map((g, i) => `<th class="${i === matrix.baseColIndex ? 'fm-col-actual' : ''}">${escapeHtml(fmtCol(g))}</th>`)
       .join('')}</tr></thead><tbody>${matrix.rows
       .map(
@@ -1823,7 +1856,7 @@ function checksPanel(model, dcf, comps) {
     <p class="fm-aside"><strong>Workbook will include:</strong> ${escapeHtml(workbookModels)}. Tab visibility does not change this — only your setup model picks do.</p>
     <div class="fm-dock-actions" style="margin-top:16px">
       ${isStandaloneExercise() ? '' : `<a class="fm-btn fm-btn-ghost" href="/fortune-500/#company=${state.company?.cik || ''}">Open the 10-K ratios</a>`}
-      <button type="button" class="fm-btn" id="checks-download" ${ready || isUnit() ? '' : 'disabled'}>Download Excel</button>
+      <button type="button" class="fm-btn" id="checks-download" ${ready || isStandaloneExercise() ? '' : 'disabled'}>Download Excel</button>
     </div>
     ${ready ? '' : '<p class="fm-status is-warn">Fix the balance sheet before downloading — the workbook will still generate, but the numbers are not trustworthy.</p>'}
   </section>`;
@@ -1958,9 +1991,9 @@ function capitalProjectPanel(model) {
   const ret = model.returns || {};
   return `<section class="fm-panel fm-panel-model">
     <div class="fm-verdict">
-      <div><dt>Project IRR</dt><dd>${ret.projectIrr != null ? `${(ret.projectIrr * 100).toFixed(1)}%` : '—'}</dd></div>
-      <div><dt>Equity IRR</dt><dd>${ret.equityIrr != null ? `${(ret.equityIrr * 100).toFixed(1)}%` : '—'}</dd></div>
-      <div><dt>Peak funding</dt><dd>${ret.peakFunding != null ? formatUsd(ret.peakFunding) : '—'}</dd></div>
+      <div data-trace-key="projectNpv"><dt>Project IRR</dt><dd>${ret.projectIrr != null ? `${(ret.projectIrr * 100).toFixed(1)}%` : '—'}</dd></div>
+      <div data-trace-key="equityNpv"><dt>Equity IRR</dt><dd>${ret.equityIrr != null ? `${(ret.equityIrr * 100).toFixed(1)}%` : '—'}</dd></div>
+      <div data-trace-key="projectNpv"><dt>Peak funding</dt><dd>${ret.peakFunding != null ? formatUsd(ret.peakFunding) : '—'}</dd></div>
     </div>
     ${table(cols, [{ title: 'Project schedule', lines }], { scale: 1, unitLabel: 'US$' })}
   </section>`;
@@ -1970,12 +2003,13 @@ function strategicPanel(model) {
   const rows = model.alternatives
     .map(
       (a) =>
-        `<tr><td>${escapeHtml(a.label)}</td><td>${formatUsd(a.npv) || '—'}</td><td>${formatUsd(a.incrementalNpv) || '—'}</td><td>${a.qualitativeScore}/5</td></tr>`
+        `<tr data-row-key="altNpv_${a.key}"><td>${escapeHtml(a.label)}</td><td data-row-key="altNpv_${a.key}">${formatUsd(a.npv) || '—'}</td><td data-row-key="incrementalNpv_${a.key}">${formatUsd(a.incrementalNpv) || '—'}</td><td>${a.qualitativeScore}/5</td></tr>`
     )
     .join('');
   return `<section class="fm-panel fm-panel-model">
     <p class="fm-panel-status">Selected: ${escapeHtml(model.selected?.label || '—')}${model.checks.probabilitiesSum ? '' : ' · probabilities do not sum to 100%'}</p>
     <div class="fm-scroll"><table class="fm-table"><thead><tr><th>Alternative</th><th>NPV</th><th>Incremental NPV</th><th>Qualitative</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="fm-aside" data-trace-key="expectedNpv"><strong>Expected NPV:</strong> ${model.expectedNpv != null ? formatUsd(model.expectedNpv) : '—'}</p>
   </section>`;
 }
 
@@ -1983,7 +2017,7 @@ function marketPanel(model) {
   const rows = model.structures
     .map(
       (s) =>
-        `<tr><td>${escapeHtml(s.label)}</td><td>${formatUsd(s.npv) || '—'}</td><td>${s.breakevenYear ?? '—'}</td></tr>`
+        `<tr data-row-key="structureNpv"><td>${escapeHtml(s.label)}</td><td>${formatUsd(s.npv) || '—'}</td><td>${s.breakevenYear ?? '—'}</td></tr>`
     )
     .join('');
   return `<section class="fm-panel fm-panel-model">
@@ -2165,12 +2199,25 @@ function endTour() {
 function download() {
   const run = currentRun();
   if (!run?.model?.ok) return;
+  const cards = assumptionCards();
   if (isUnit()) {
-    const bytes = buildUnitWorkbook({ model: run.model, cards: assumptionCards() });
-    downloadWorkbook(state.unitTemplate === 'blank' ? 'single-unit-model.xlsx' : 'lemonade-stall-model.xlsx', bytes);
+    const bytes = buildUnitWorkbook({ model: run.model, cards });
+    downloadWorkbook(exerciseWorkbookFilename('unit', state.unitTemplate), bytes);
     return;
   }
-  if (isStandaloneExercise()) {
+  if (isCapital()) {
+    const bytes = buildCapitalWorkbook({ model: run.model, cards });
+    downloadWorkbook(exerciseWorkbookFilename('capital'), bytes);
+    return;
+  }
+  if (isStrategic()) {
+    const bytes = buildStrategicWorkbook({ model: run.model, cards });
+    downloadWorkbook(exerciseWorkbookFilename('strategic'), bytes);
+    return;
+  }
+  if (isMarket()) {
+    const bytes = buildMarketWorkbook({ model: run.model, cards });
+    downloadWorkbook(exerciseWorkbookFilename('market'), bytes);
     return;
   }
   const bytes = buildWorkbook({

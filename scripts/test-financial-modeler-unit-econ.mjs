@@ -9,6 +9,11 @@ import {
   runUnitEcon,
   UNIT_DIALS,
 } from '../financial-modeler/unit-econ.js';
+import {
+  defaultSingleUnitAssumptions,
+  runSingleUnitPortfolio,
+  SINGLE_UNIT_DIALS,
+} from '../financial-modeler/unit-portfolio.js';
 import { buildUnitWorkbook } from '../financial-modeler/workbook.js';
 
 const a = defaultUnitAssumptions();
@@ -95,9 +100,10 @@ for (const r of model.rows) {
 
 console.log('test-financial-modeler-unit-econ: ok');
 
-/* ------------------------------ workbook ------------------------------ */
+/* ------------------------------ workbook (unit-portfolio dials) --------- */
 
-const cards = UNIT_DIALS.map((d) => ({
+const portfolioModel = runSingleUnitPortfolio(defaultSingleUnitAssumptions('lemonade'));
+const portfolioCards = SINGLE_UNIT_DIALS.map((d) => ({
   key: d.key,
   name: d.name,
   what: d.what,
@@ -105,7 +111,7 @@ const cards = UNIT_DIALS.map((d) => ({
   origin: d.originText(),
 }));
 
-const bytes = buildUnitWorkbook({ model, cards });
+const bytes = buildUnitWorkbook({ model: portfolioModel, cards: portfolioCards });
 assert.ok(bytes instanceof Uint8Array);
 assert.equal(bytes[0], 0x50);
 assert.equal(bytes[1], 0x4b);
@@ -137,10 +143,10 @@ assert.deepEqual(names, ['Cover', 'Assumptions', 'IS', 'CFS', 'BS', 'Checks']);
 const allXml = [...zip.values()].join('\n');
 assert.ok(!allXml.includes('undefined'), 'no undefined leaked into the unit workbook');
 assert.ok(!allXml.includes('NaN'), 'no NaN leaked into the unit workbook');
-assert.match(zip.get('xl/worksheets/sheet3.xml'), /Cups sold/);
+assert.match(zip.get('xl/worksheets/sheet3.xml'), /Transactions/);
 assert.match(zip.get('xl/worksheets/sheet3.xml'), /Assumptions!/);
-assert.match(zip.get('xl/worksheets/sheet4.xml'), /IS!/);
-assert.match(zip.get('xl/worksheets/sheet5.xml'), /CFS!/);
-assert.match(zip.get('xl/worksheets/sheet2.xml'), /Cups in year 1/);
+assert.match(zip.get('xl/worksheets/sheet2.xml'), /Capacity/);
+assert.match(zip.get('xl/worksheets/sheet2.xml'), /Core price/);
+assert.doesNotMatch(zip.get('xl/worksheets/sheet2.xml'), /Cups in year 1/);
 
 console.log('test-financial-modeler-unit-econ workbook: ok');

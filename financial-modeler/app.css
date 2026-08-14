@@ -686,7 +686,8 @@ tr.fm-link-interest td:first-child { background: rgba(26, 73, 196, 0.1); }
 .fm-source-badge.is-missing { background: var(--paper); color: var(--ink-soft); }
 
 tr.fm-trace-highlight td,
-tr.fm-trace-highlight td:first-child { background: rgba(242, 193, 78, 0.35) !important; outline: 1px solid var(--accent); }
+tr.fm-trace-highlight td:first-child,
+[data-trace-key].fm-trace-highlight { background: rgba(242, 193, 78, 0.35) !important; outline: 1px solid var(--accent); }
 
 .fm-build-checklist {
   margin: 0 0 12px;
