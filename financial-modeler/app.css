@@ -483,11 +483,53 @@ tr.fm-trace-highlight td,
 tr.fm-trace-highlight td:first-child { background: rgba(242, 193, 78, 0.35) !important; outline: 1px solid var(--accent); }
 
 .fm-build-checklist {
-  margin: 0 0 16px;
-  padding: 12px 14px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
   border: 1px solid var(--rule);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--paper);
+}
+.fm-build-guide-head {
+  margin-bottom: 10px;
+}
+.fm-build-guide-title {
+  margin: 0 0 4px;
+  font-family: Fraunces, Georgia, serif;
+  font-size: 14px;
+  font-weight: 600;
+}
+.fm-build-guide-sub {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+.fm-concept-cards {
+  display: grid;
+  gap: 8px;
+  margin-top: 4px;
+}
+.fm-concept-card {
+  padding: 10px 12px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--paper);
+}
+.fm-concept-card h4 {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: Fraunces, Georgia, serif;
+}
+.fm-concept-card p {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+.fm-panel-status {
+  margin: 0 0 10px;
+  font-size: 12px;
 }
 .fm-build-steps {
   display: flex;

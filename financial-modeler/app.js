@@ -748,13 +748,51 @@ function renderDependencyTrace(key) {
   return `<p class="fm-trace-path fm-trace-inline" aria-live="polite"><strong>Affects.</strong> ${path.map((p) => escapeHtml(p)).join(' → ')}</p>`;
 }
 
+const BUILD_GUIDE = {
+  three: {
+    title: 'How this model is built',
+    subtitle: 'Build order for the tables below — not a second model.',
+  },
+  dcf: {
+    title: 'How this model is built',
+    subtitle: 'Build order for the DCF output below — not a second model.',
+  },
+  comps: {
+    title: 'How this model is built',
+    subtitle: 'Build order for the comps tables below — not a second model.',
+  },
+};
+
+function threeStatementConceptCards(model) {
+  const unitKind = model?.kind === 'unit' || model?.kind === 'single-unit';
+  const isText = unitKind
+    ? 'Cups × price is sales. Cost per cup is COGS. Depreciation spreads the kit cost. Net income is the handoff to cash flow and equity.'
+    : 'Sales grow by your rate. Margins turn sales into operating profit. Interest uses last year’s debt and cash — nothing circular. Net income is the handoff.';
+  return `<div class="fm-concept-cards" aria-label="How the three statements connect">
+    <article class="fm-concept-card">
+      <h4>Income statement</h4>
+      <p>${isText}</p>
+    </article>
+    <article class="fm-concept-card">
+      <h4>Cash flow</h4>
+      <p>Starts with net income. Add back depreciation. Working capital, CapEx, debt paydown, and dividends are cash movements. What remains is the change in cash.</p>
+    </article>
+    <article class="fm-concept-card">
+      <h4>Balance sheet</h4>
+      <p>Cash is the plug from cash flow. Receivables and inventory size off this year’s sales. Equity rolls forward from net income minus dividends. The check row must read zero.</p>
+    </article>
+  </div>`;
+}
+
 function wrapChecklist(tabId, context) {
   const steps = stepsForTab(tabId);
   if (!steps.length) return { html: '', bind: () => {} };
   const activeId = state.buildStep[tabId] || steps[0].id;
   const active = steps.find((s) => s.id === activeId) || steps[0];
   const preview = previewForStep(active, context);
+  const meta = BUILD_GUIDE[tabId] || {};
   return renderChecklist(steps, activeId, {
+    ...meta,
     onSelect: (id) => {
       state.buildStep[tabId] = id;
       render();
@@ -1044,10 +1082,7 @@ function threeStatementPanel(model) {
   );
 
   return `<section class="fm-panel fm-panel-model">
-    <div class="fm-panel-head">
-      <h3>Three statements</h3>
-      <p class="${balances ? 'fm-flag is-ok' : 'fm-flag is-bad'}">${balances ? 'Balance sheet ties' : 'Balance sheet does not tie'}</p>
-    </div>
+    <p class="fm-panel-status ${balances ? 'fm-flag is-ok' : 'fm-flag is-bad'}">${balances ? 'Balance sheet ties' : 'Balance sheet does not tie'}</p>
     <div class="fm-statements">
       <div class="fm-statement">${is}</div>
       ${handoff('ni', '↓', 'Net income → cash flow & equity')}
@@ -1086,7 +1121,6 @@ function dcfPanel(model, dcf) {
   const upClass = dcf.upside == null ? '' : dcf.upside >= 0 ? 'is-up' : 'is-down';
 
   return `<section class="fm-panel fm-panel-model">
-    <h3>Discounted cash flow</h3>
     <div class="fm-verdict">
       <div><dt>Discount rate (WACC)</dt><dd>${formatPercent(dcf.wacc.wacc)}</dd></div>
       <div><dt>Enterprise value</dt><dd>${formatUsd(dcf.enterpriseValue) || '—'}</dd></div>
@@ -1411,7 +1445,6 @@ function compsPanel(comps) {
     .join('');
 
   return `<section class="fm-panel fm-panel-model">
-    <h3>Trading comps</h3>
     <div class="fm-scroll"><table class="fm-table">
       <thead><tr><th>Company</th><th>Price</th><th>EV ($m)</th><th>EV/Revenue</th><th>EV/EBITDA</th><th>P/E</th></tr></thead>
       <tbody>${body}${stats}</tbody></table></div>
@@ -1469,8 +1502,10 @@ function renderInspectorChecklist(context) {
   }
 
   const cl = wrapChecklist(guideTab, context);
+  const concepts = guideTab === 'three' ? threeStatementConceptCards(context.model) : '';
+  const html = cl.html + concepts;
   targets.forEach((el) => {
-    el.innerHTML = cl.html;
+    el.innerHTML = html;
     if (cl.html) cl.bind(el);
   });
 }
@@ -1524,7 +1559,7 @@ function render() {
   renderDials();
   renderWorkspaceStatus(model, dcf);
   const panel = renderActivePanel(run);
-  $('output').innerHTML = tabHint() + panel.html;
+  $('output').innerHTML = panel.html;
   renderInspectorChecklist(panel.context);
 
   applyTraceHighlight(state.focusedAssumption);

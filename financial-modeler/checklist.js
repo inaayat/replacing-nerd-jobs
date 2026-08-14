@@ -2,7 +2,7 @@
  * Reusable build-checklist renderer for guided model construction.
  */
 
-export function renderChecklist(steps, activeId, { onSelect, preview } = {}) {
+export function renderChecklist(steps, activeId, { onSelect, preview, title, subtitle } = {}) {
   if (!steps.length) return { html: '', bind: () => {} };
   const items = steps
     .map((step, i) => {
@@ -29,7 +29,14 @@ export function renderChecklist(steps, activeId, { onSelect, preview } = {}) {
       </div>`
     : '';
 
-  const html = `<nav class="fm-build-checklist" aria-label="Build steps">
+  const header = title
+    ? `<div class="fm-build-guide-head">
+        <h3 class="fm-build-guide-title">${escapeHtml(title)}</h3>
+        ${subtitle ? `<p class="fm-build-guide-sub">${escapeHtml(subtitle)}</p>` : ''}
+      </div>`
+    : '';
+
+  const html = `${header}<nav class="fm-build-checklist" aria-label="${escapeHtml(title || 'Build steps')}">
     <ol class="fm-build-steps">${items}</ol>
     ${detail}
   </nav>`;
