@@ -7,7 +7,7 @@
  * on the builders, not the overlay.
  */
 
-export const SNAPSHOT_SCHEMA = 1;
+export const SNAPSHOT_SCHEMA = 2;
 export const SERIES_YEARS = 10;
 
 export const COMPANIES = [
@@ -38,7 +38,7 @@ export const COMPANIES = [
     cik: 1652044,
     cikPadded: '0001652044',
     role: 'hyperscaler',
-    color: '#ffea56',
+    color: '#4285F4',
     fyNote: 'Calendar year.',
   },
   {
@@ -78,7 +78,7 @@ export const COMPANIES = [
     cik: 320193,
     cikPadded: '0000320193',
     role: 'overlay',
-    color: '#1c1c1c',
+    color: '#86868b',
     fyNote: 'Fiscal year ends in September.',
   },
 ];
@@ -94,9 +94,9 @@ export function hyperscalers() {
 }
 
 export const ROLES = {
-  hyperscaler: 'Builds and rents the campuses.',
-  supplier: 'Sells the chips the campuses eat.',
-  overlay: 'Same credit neighborhood, not a hyperscaler tenant.',
+  hyperscaler: 'Builder',
+  supplier: 'Chips',
+  overlay: 'Same credit neighborhood',
 };
 
 export const METRICS = [
@@ -242,14 +242,47 @@ export const EIGHT_K_FORMS = new Set(['8-K', '8-K/A']);
 const ISSUANCE_DESC_RE =
   /debt|note|bond|lease|credit agreement|indenture|offering|senior notes|debenture|borrow|facility|term loan/i;
 
-export function isWatchFiling(form, description) {
+export const FORM_LABELS = {
+  '424B2': 'Pricing supplement',
+  '424B3': 'Prospectus',
+  '424B4': 'Prospectus',
+  '424B5': 'Shelf takedown',
+  '424B7': 'Prospectus',
+  FWP: 'Term sheet',
+  '8-K': 'Current report',
+  '8-K/A': 'Current report (amendment)',
+};
+
+export function formLabel(form) {
+  const f = String(form || '').toUpperCase();
+  return FORM_LABELS[f] || f;
+}
+
+/** 8-K items that can mark a lease, guarantee, or new borrowing. */
+const MATERIAL_8K_ITEMS = /\b1\.01\b|\b2\.03\b|\b2\.04\b/;
+
+export function isWatchFiling(form, description, items) {
   const f = String(form || '')
     .trim()
     .toUpperCase();
   if (f.startsWith('424B') || OFFERING_FORMS.has(f)) return true;
-  if (EIGHT_K_FORMS.has(f) && ISSUANCE_DESC_RE.test(description || '')) return true;
+  if (!EIGHT_K_FORMS.has(f)) return false;
+  if (MATERIAL_8K_ITEMS.test(items || '')) return true;
+  if (ISSUANCE_DESC_RE.test(description || '')) return true;
   return false;
 }
+
+/**
+ * Phrases that show up in the *parent* 10-K/10-Q when an SPV deal is hiding
+ * in the footnotes. Vehicle names like “Beignet Investor” usually do not
+ * file their own 10-K — the $27B Hyperion bonds were project finance, often
+ * 144A, so they never appear as a 424B under a pastry CIK.
+ */
+export const FOOTNOTE_PHRASES = [
+  { id: 'rvg', q: 'residual value guarantee', label: 'residual value guarantee' },
+  { id: 'beignet', q: '"Beignet Investor"', label: 'Beignet Investor' },
+  { id: 'soapia', q: 'Soapia', label: 'Soapia' },
+];
 
 /**
  * Curated SPV / project-finance cards. These issuers are often not the
