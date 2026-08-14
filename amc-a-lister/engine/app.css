@@ -25,6 +25,12 @@
   --al-red-tint-strong: color-mix(in srgb, var(--al-red) 22%, transparent);
   --al-red-edge: color-mix(in srgb, var(--al-red) 40%, transparent);
   --al-red-ring: color-mix(in srgb, var(--al-red) 50%, transparent);
+  /* Type and surfaces sitting on brand-red fills (sidebar, log panel). */
+  --al-on-red: #ffffff;
+  --al-on-red-muted: rgba(255, 255, 255, 0.72);
+  --al-on-red-faint: rgba(255, 255, 255, 0.14);
+  --al-on-red-surface: rgba(255, 255, 255, 0.12);
+  --al-on-red-border: rgba(255, 255, 255, 0.22);
   --al-radius: 20px;
   --al-font-body: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --al-font-display: "Fraunces", Georgia, serif;
@@ -82,9 +88,9 @@ a { color: var(--al-red-deep); }
 
 .al-sidebar {
   flex-shrink: 0;
-  background: var(--al-panel);
-  color: var(--al-text);
-  border: 1px solid var(--al-line);
+  background: var(--al-red);
+  color: var(--al-on-red);
+  border: 1px solid color-mix(in srgb, var(--al-black) 22%, var(--al-red));
   border-radius: var(--al-radius);
   padding: 16px;
   display: flex;
@@ -105,15 +111,16 @@ a { color: var(--al-red-deep); }
   .al-sidebar { width: 340px; }
 }
 
-/* The one big red shape on the page: the sidebar marquee card. */
+/* Brand inset on the red sidebar rail. */
 .al-sidebar-brand {
   display: flex;
   flex-direction: column;
   gap: 4px;
   padding: 14px 16px 12px;
   border-radius: 16px;
-  background: var(--al-red);
-  color: var(--al-white);
+  background: color-mix(in srgb, var(--al-black) 16%, var(--al-red));
+  border: 1px solid var(--al-on-red-border);
+  color: var(--al-on-red);
 }
 
 .al-sidebar-title {
@@ -158,12 +165,12 @@ a { color: var(--al-red-deep); }
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--al-muted);
+  color: var(--al-on-red-muted);
 }
 
 .al-sidebar-stat {
-  background: var(--al-cream);
-  border: 1px solid var(--al-line);
+  background: var(--al-on-red-surface);
+  border: 1px solid var(--al-on-red-border);
   border-radius: 12px;
   padding: 10px 10px 8px;
   min-width: 0;
@@ -172,7 +179,7 @@ a { color: var(--al-red-deep); }
 .al-sidebar-stat-label {
   font-size: 0.7rem;
   font-weight: 400;
-  color: var(--al-muted);
+  color: var(--al-on-red-muted);
 }
 
 .al-sidebar-stat-value {
@@ -180,12 +187,12 @@ a { color: var(--al-red-deep); }
   font-size: 1.1rem;
   font-weight: 600;
   font-family: var(--al-font-mono);
-  color: var(--al-text);
+  color: var(--al-on-red);
   font-variant-numeric: tabular-nums;
 }
 
-.al-sidebar-stat-value.is-savings { color: var(--al-green-deep); }
-.al-sidebar-stat-value.is-cost { color: var(--al-red-deep); }
+.al-sidebar-stat-value.is-savings { color: #d4f0a8; }
+.al-sidebar-stat-value.is-cost { color: #ffc4a8; }
 
 .al-sidebar-nav {
   display: flex;
@@ -203,18 +210,18 @@ a { color: var(--al-red-deep); }
   font-weight: 500;
   line-height: 1.3;
   text-decoration: none;
-  color: color-mix(in srgb, var(--al-text) 68%, transparent);
+  color: var(--al-on-red-muted);
   border-radius: 999px;
 }
 
 .al-nav-link:hover {
-  color: var(--al-text);
-  background: var(--al-red-tint);
+  color: var(--al-on-red);
+  background: var(--al-on-red-surface);
 }
 
 .al-nav-link.is-active {
-  color: var(--al-white);
-  background: var(--al-red);
+  color: var(--al-red);
+  background: var(--al-white);
   font-weight: 700;
 }
 
@@ -224,15 +231,25 @@ a { color: var(--al-red-deep); }
   gap: 6px;
   font-size: 0.8rem;
   padding-top: 12px;
-  border-top: 1px solid var(--al-line);
+  border-top: 1px solid var(--al-on-red-border);
 }
 
 .al-sidebar-footer a {
-  color: var(--al-muted);
+  color: var(--al-on-red-muted);
   text-decoration: none;
 }
 
-.al-sidebar-footer a:hover { color: var(--al-red-deep); }
+.al-sidebar-footer a:hover { color: var(--al-on-red); }
+
+.al-sidebar .al-tmdb-credit {
+  color: var(--al-on-red-muted);
+}
+
+.al-sidebar .al-tmdb-credit a {
+  color: var(--al-on-red-muted);
+}
+
+.al-sidebar .al-tmdb-credit a:hover { color: var(--al-on-red); }
 
 .al-content-scroll {
   flex: 1 1 auto;
@@ -3325,6 +3342,163 @@ table.al-table {
 
 .al-mobile-nav { display: none; }
 
+/* Log page: red watch-log panel (toolbar + table) and showing-invites box. */
+body[data-page="log"] .al-panel--log,
+body[data-page="log"] .al-panel--invites {
+  background: var(--al-red);
+  border-color: color-mix(in srgb, var(--al-black) 22%, var(--al-red));
+  color: var(--al-on-red);
+}
+
+body[data-page="log"] .al-panel--log .al-muted,
+body[data-page="log"] .al-panel--invites .al-muted,
+body[data-page="log"] .al-panel--invites .al-invites-count {
+  color: var(--al-on-red-muted);
+}
+
+body[data-page="log"] .al-panel--invites .al-invites-chevron {
+  border-color: var(--al-on-red-muted);
+}
+
+body[data-page="log"] .al-panel--invites .al-invites-outgoing-list {
+  color: var(--al-on-red-muted);
+}
+
+body[data-page="log"] .al-panel--invites .al-invites-outgoing-text {
+  color: var(--al-on-red);
+}
+
+body[data-page="log"] .al-panel--invites .al-invites-outgoing-item,
+body[data-page="log"] .al-panel--invites .al-invite-card {
+  border-color: var(--al-on-red-border);
+}
+
+body[data-page="log"] .al-panel--log .al-log-head {
+  color: var(--al-on-red-muted);
+}
+
+body[data-page="log"] .al-panel--log .al-log-row {
+  background: var(--al-on-red-surface);
+  border-color: var(--al-on-red-border);
+  color: var(--al-on-red);
+  box-shadow: none;
+}
+
+body[data-page="log"] .al-panel--log .al-log-row:hover {
+  background: color-mix(in srgb, var(--al-white) 22%, transparent);
+  border-color: color-mix(in srgb, var(--al-white) 40%, transparent);
+}
+
+body[data-page="log"] .al-panel--log .al-log-col--desktop.al-muted,
+body[data-page="log"] .al-panel--log .al-log-col--format,
+body[data-page="log"] .al-panel--log .al-log-col--seat {
+  color: var(--al-on-red-muted);
+}
+
+body[data-page="log"] .al-panel--log .al-link-btn {
+  color: var(--al-on-red-muted);
+}
+
+body[data-page="log"] .al-panel--log .al-link-btn:hover {
+  color: var(--al-on-red);
+}
+
+body[data-page="log"] .al-panel--log .al-log-detail,
+body[data-page="log"] .al-panel--log .al-add-viewer {
+  background: color-mix(in srgb, var(--al-black) 12%, var(--al-red));
+  border-color: var(--al-on-red-border);
+  color: var(--al-on-red);
+}
+
+body[data-page="log"] .al-panel--log .al-log-detail-inner {
+  background: var(--al-on-red-surface);
+  border-color: var(--al-on-red-border);
+  color: var(--al-on-red);
+}
+
+body[data-page="log"] .al-panel--log .al-log-detail-fact {
+  background: color-mix(in srgb, var(--al-black) 10%, var(--al-red));
+  border-color: var(--al-on-red-border);
+}
+
+body[data-page="log"] .al-panel--log .al-log-detail-facts dt {
+  color: var(--al-on-red-muted);
+}
+
+body[data-page="log"] .al-panel--log .al-log-detail-facts dd,
+body[data-page="log"] .al-panel--log .al-log-detail-overview {
+  color: var(--al-on-red);
+}
+
+body[data-page="log"] .al-panel--log .al-log-detail-overview-wrap {
+  border-color: var(--al-on-red-border);
+}
+
+body[data-page="log"] .al-panel--log .al-log-row.is-expanded,
+body[data-page="log"] .al-panel--log .al-log-row:has(+ .al-add-viewer),
+body[data-page="log"] .al-panel--log .al-log-row--editing {
+  background: var(--al-on-red-surface);
+  border-color: var(--al-on-red-border);
+}
+
+body[data-page="log"] .al-panel--log .al-error {
+  color: #ffd4d4;
+}
+
+body[data-page="log"] .al-panel--log .al-input,
+body[data-page="log"] .al-panel--log .al-select {
+  background: var(--al-on-red-surface);
+  border-color: var(--al-on-red-border);
+  color: var(--al-on-red);
+}
+
+body[data-page="log"] .al-panel--log .al-input::placeholder {
+  color: var(--al-on-red-muted);
+}
+
+body[data-page="log"] .al-panel--log .al-toggle-btn {
+  border-color: var(--al-on-red-border);
+  color: var(--al-on-red-muted);
+}
+
+body[data-page="log"] .al-panel--log .al-toggle-btn:hover {
+  color: var(--al-on-red);
+  border-color: var(--al-on-red);
+}
+
+body[data-page="log"] .al-panel--log .al-toggle-btn.is-active,
+body[data-page="log"] .al-panel--log .al-toggle-btn[aria-pressed="true"] {
+  background: var(--al-white);
+  border-color: var(--al-white);
+  color: var(--al-red);
+}
+
+body[data-page="log"] .al-panel--log .al-btn {
+  background: var(--al-on-red-surface);
+  border-color: var(--al-on-red-border);
+  color: var(--al-on-red);
+}
+
+body[data-page="log"] .al-panel--log .al-btn:hover {
+  background: var(--al-white);
+  border-color: var(--al-white);
+  color: var(--al-red);
+}
+
+body[data-page="log"] .al-panel--log .al-btn-primary {
+  background: var(--al-white);
+  border-color: var(--al-white);
+  color: var(--al-red);
+}
+
+body[data-page="log"] .al-panel--log .al-log-col--mobile-meta {
+  color: var(--al-on-red-muted);
+}
+
+body[data-page="log"] .al-panel--log .al-log-meta-with {
+  color: #d4f0a8;
+}
+
 /* Mobile layout */
 @media (max-width: 767px) {
   .page-main {
@@ -3679,6 +3853,15 @@ table.al-table {
     margin-bottom: 0;
     border: 0;
     background: transparent;
+  }
+
+  body[data-page="log"] .al-panel--log,
+  body[data-page="log"] .al-panel--invites {
+    padding: 12px;
+    margin-bottom: 10px;
+    border: 1px solid color-mix(in srgb, var(--al-black) 22%, var(--al-red));
+    border-radius: 14px;
+    background: var(--al-red);
   }
 
   .al-panel--log .al-toolbar {
