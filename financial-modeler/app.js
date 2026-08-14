@@ -17,11 +17,19 @@ import {
   SCALE,
 } from './engine.js';
 import { DIALS, DIAL_GROUPS, dialsFor } from './dials.js';
-import { buildWorkbook, workbookFilename, downloadWorkbook } from './workbook.js';
+import {
+  UNIT_DIALS,
+  UNIT_DIAL_GROUPS,
+  defaultUnitAssumptions,
+  applyUnitScenario,
+  runUnitEcon,
+} from './unit-econ.js';
+import { buildWorkbook, buildUnitWorkbook, workbookFilename, downloadWorkbook } from './workbook.js';
 
 const $ = (id) => document.getElementById(id);
 
 const state = {
+  exercise: 'filer',
   companies: [],
   snapshot: new Map(),
   prices: new Map(),
@@ -33,6 +41,19 @@ const state = {
   peers: [],
   tourStep: 0,
 };
+
+const EXERCISES = [
+  {
+    id: 'filer',
+    title: 'From a 10-K',
+    blurb: 'Pick a public Fortune 500 company. Last year’s filing is year 0; you forecast the next five.',
+  },
+  {
+    id: 'unit',
+    title: 'From one sale',
+    blurb: 'A lemonade stall: cups × price, cost per cup, a cart you depreciate. Same three statements, smaller numbers.',
+  },
+];
 
 const MODEL_PICKS = [
   {
@@ -54,8 +75,8 @@ const MODEL_PICKS = [
 
 const TOUR = [
   {
-    title: 'Pick a company',
-    body: 'Start with Apple if you have no strong feelings. Any public Fortune 500 filer works — private ones have no 10-K, so there is nothing to model.',
+    title: 'Pick an exercise',
+    body: 'From a 10-K reads a public company’s filing. From one sale is a lemonade stall built from cups × price. Same three statements either way.',
   },
   {
     title: 'Choose your models',
@@ -81,11 +102,27 @@ const fmtM = (n) =>
 const fmtPrice = (n) => (Number.isFinite(n) ? `$${n.toFixed(2)}` : null);
 const fmtX = (n) => (Number.isFinite(n) ? `${n.toFixed(1)}×` : null);
 
+function isUnit() {
+  return state.exercise === 'unit';
+}
+
 function dialValueText(dial, value) {
   if (value == null || !Number.isFinite(value)) return '—';
   if (dial.fmt === 'pct') return `${(value * 100).toFixed(1)}%`;
   if (dial.fmt === 'days') return `${Math.round(value)} days`;
+  if (dial.fmt === 'years') return `${Math.round(value)} years`;
+  if (dial.fmt === 'qty') return Math.round(value).toLocaleString('en-US');
+  if (dial.fmt === 'usd') {
+    return `$${value.toLocaleString('en-US', { maximumFractionDigits: value >= 100 ? 0 : 2 })}`;
+  }
   return value.toFixed(2);
+}
+
+function parseDialInput(dial, rawText) {
+  const raw = Number(String(rawText).replace(/[^0-9.\-]/g, ''));
+  if (!Number.isFinite(raw)) return null;
+  if (dial.fmt === 'pct') return raw / 100;
+  return raw;
 }
 
 function escapeHtml(s) {
@@ -130,13 +167,35 @@ function headlinesFor(company) {
 }
 
 function compsOn() {
-  return state.models.includes('comps');
+  return !isUnit() && state.models.includes('comps');
 }
 
-function syncPeerStep() {
-  const on = Boolean(state.company && compsOn() && state.headlines);
+function syncLayout() {
+  const live = isUnit() || Boolean(state.company && state.headlines);
+  document.body.classList.toggle('has-company', live);
+  document.body.classList.toggle('is-unit', isUnit());
+  $('setup').hidden = isUnit();
+  $('dock-ratios').hidden = isUnit();
+  if (isUnit()) {
+    $('step-models').hidden = true;
+    $('step-peers').hidden = true;
+    $('step-build').hidden = false;
+    $('dock').hidden = false;
+    $('step-build-num').textContent = '2';
+    return;
+  }
+  $('dock').hidden = !live;
+  if (!state.company || !state.headlines) {
+    $('step-models').hidden = true;
+    $('step-peers').hidden = true;
+    $('step-build').hidden = true;
+    return;
+  }
+  $('step-models').hidden = false;
+  $('step-build').hidden = false;
+  const on = compsOn();
   $('step-peers').hidden = !on;
-  $('step-build-num').textContent = on ? '4' : '3';
+  $('step-build-num').textContent = on ? '5' : '4';
   if (on) renderPeerPicker();
 }
 
@@ -300,32 +359,27 @@ async function selectCompany(company) {
 
   if (!isPublic(company)) {
     state.headlines = null;
-    document.body.classList.remove('has-company');
     $('status').className = 'fm-status is-warn';
     $('status').textContent = `${company.company} is private. ${PRIVATE_NOTES?.[company.company] || 'No 10-K means no statements to model — we won’t invent them.'}`;
-    $('step-models').hidden = true;
-    $('step-peers').hidden = true;
-    $('step-build').hidden = true;
-    $('dock').hidden = true;
+    syncLayout();
     return;
   }
 
   const headlines = headlinesFor(company);
   if (!headlines) {
-    document.body.classList.remove('has-company');
+    state.headlines = null;
     $('status').className = 'fm-status is-warn';
     $('status').textContent = `${company.company} isn’t in the filing snapshot yet, so there’s nothing to build from.`;
-    $('step-peers').hidden = true;
+    syncLayout();
     return;
   }
   state.headlines = headlines;
   const ready = modelReadiness(headlines);
   if (!ready.ok) {
-    document.body.classList.remove('has-company');
     $('status').className = 'fm-status is-warn';
     $('status').textContent = `${company.company}’s filing is missing ${ready.missing.join(', ')} — a balance sheet can’t be built without those, and filling them with zero would be a lie.`;
-    $('step-build').hidden = true;
-    $('step-peers').hidden = true;
+    state.headlines = null;
+    syncLayout();
     return;
   }
 
@@ -334,22 +388,47 @@ async function selectCompany(company) {
   state.assumptions = defaultAssumptions(headlines);
   state.scenario = 'base';
   state.peers = [];
-  document.body.classList.add('has-company');
-  $('step-models').hidden = false;
-  $('step-build').hidden = false;
-  $('dock').hidden = false;
   $('dock-ratios').href = `/fortune-500/#company=${company.cik}`;
   renderPicks();
-  syncPeerStep();
+  syncLayout();
   render();
 
   const price = await loadPrice(company);
   if (price != null) render();
 }
 
+function selectExercise(id) {
+  if (id !== 'filer' && id !== 'unit') return;
+  state.exercise = id;
+  state.scenario = 'base';
+  if (id === 'unit') {
+    state.assumptions = defaultUnitAssumptions();
+  } else if (state.company && state.headlines) {
+    state.assumptions = defaultAssumptions(state.headlines);
+  } else {
+    state.assumptions = null;
+  }
+  renderExercises();
+  syncLayout();
+  if (state.assumptions) render();
+}
+
+function renderExercises() {
+  $('exercise-picks').innerHTML = EXERCISES.map((ex) => {
+    const on = state.exercise === ex.id;
+    return `<button type="button" class="fm-exercise-pick" data-exercise="${ex.id}" aria-pressed="${on}">
+      <h3>${escapeHtml(ex.title)}</h3><p>${escapeHtml(ex.blurb)}</p></button>`;
+  }).join('');
+  $('exercise-picks').onclick = (e) => {
+    const btn = e.target.closest('[data-exercise]');
+    if (btn) selectExercise(btn.dataset.exercise);
+  };
+}
+
 /* -------------------------------- dials -------------------------------- */
 
 function originFor(dial, headlines) {
+  if (isUnit()) return dial.originText();
   const raw = dial.originKey ? headlines?.ratios?.[dial.originKey] : null;
   if (dial.key === 'dsoDays') {
     const d = state.assumptions?.dsoDays;
@@ -364,7 +443,8 @@ function originFor(dial, headlines) {
 
 /** The copy the workbook prints next to the same cell. */
 function assumptionCards() {
-  return DIALS.map((d) => ({
+  const list = isUnit() ? UNIT_DIALS : DIALS;
+  return list.map((d) => ({
     key: d.key,
     name: d.name,
     what: d.what,
@@ -373,9 +453,18 @@ function assumptionCards() {
   }));
 }
 
+function activeDials() {
+  return isUnit() ? UNIT_DIALS : dialsFor(state.models);
+}
+
+function activeDialGroups() {
+  return isUnit() ? UNIT_DIAL_GROUPS : DIAL_GROUPS;
+}
+
 function renderDials(model) {
   const wrap = $('dials');
-  const active = dialsFor(state.models);
+  const active = activeDials();
+  const groupsDef = activeDialGroups();
   const scenarios = ['bear', 'base', 'bull']
     .map(
       (s) =>
@@ -383,7 +472,8 @@ function renderDials(model) {
     )
     .join('');
 
-  const groups = DIAL_GROUPS.filter((g) => active.some((d) => d.group === g.id))
+  const groups = groupsDef
+    .filter((g) => active.some((d) => d.group === g.id))
     .map((g) => {
       const cards = active
         .filter((d) => d.group === g.id)
@@ -398,7 +488,7 @@ function renderDials(model) {
             ${disabled ? '' : `<input type="range" data-range="${d.key}" min="${d.min}" max="${d.max}" step="${d.step}" value="${value}" aria-label="${escapeHtml(d.name)} slider" />`}
             <p class="fm-dial-what">${escapeHtml(d.what)}</p>
             <p class="fm-dial-how"><strong>How to get it.</strong> ${escapeHtml(d.how)}</p>
-            <p class="fm-dial-origin"><strong>This filing.</strong> ${escapeHtml(originFor(d, state.headlines))}</p>
+            <p class="fm-dial-origin"><strong>${isUnit() ? 'This stall.' : 'This filing.'}</strong> ${escapeHtml(originFor(d, state.headlines))}</p>
             <p class="fm-dial-effect">${escapeHtml(d.effect)}</p>
           </div>`;
         })
@@ -407,8 +497,12 @@ function renderDials(model) {
     })
     .join('');
 
+  const lede = isUnit()
+    ? 'Every blue number is a guess about the stall. Change cups or the price and watch it hit all three statements.'
+    : 'Last year’s 10-K gives you the arithmetic. The slider is your call on whether the next five years look like that.';
+
   wrap.innerHTML = `<div class="fm-scenarios" role="group" aria-label="Scenario">${scenarios}</div>
-    <p class="fm-dials-lede">Last year’s 10-K gives you the arithmetic. The slider is your call on whether the next five years look like that.</p>
+    <p class="fm-dials-lede">${lede}</p>
     ${groups}`;
 
   wrap.querySelectorAll('[data-range]').forEach((el) => {
@@ -419,10 +513,9 @@ function renderDials(model) {
   });
   wrap.querySelectorAll('[data-key]').forEach((el) => {
     el.addEventListener('change', () => {
-      const dial = DIALS.find((d) => d.key === el.dataset.key);
-      const raw = Number(String(el.value).replace(/[^0-9.\-]/g, ''));
-      if (!Number.isFinite(raw)) return render();
-      const value = dial.fmt === 'pct' ? raw / 100 : raw;
+      const dial = active.find((d) => d.key === el.dataset.key);
+      const value = parseDialInput(dial, el.value);
+      if (value == null) return render();
       state.assumptions = { ...state.assumptions, [dial.key]: value };
       render();
     });
@@ -430,7 +523,9 @@ function renderDials(model) {
   wrap.querySelectorAll('[data-scenario]').forEach((el) => {
     el.addEventListener('click', () => {
       state.scenario = el.dataset.scenario;
-      state.assumptions = applyScenario(defaultAssumptions(state.headlines), state.scenario);
+      state.assumptions = isUnit()
+        ? applyUnitScenario(defaultUnitAssumptions(), state.scenario)
+        : applyScenario(defaultAssumptions(state.headlines), state.scenario);
       render();
     });
   });
@@ -439,9 +534,20 @@ function renderDials(model) {
 
 /* ------------------------------- rendering ----------------------------- */
 
-function table(columns, sections) {
-  const head = `<thead><tr><th>US$ millions</th>${columns
-    .map((c) => `<th class="${c.filed ? 'fm-col-actual' : ''}">FY${c.year}${c.filed ? 'A' : 'E'}</th>`)
+function formatCell(line, v, scale) {
+  if (v == null || !Number.isFinite(v)) return null;
+  if (line.fmt === 'qty') return Math.round(v).toLocaleString('en-US');
+  const n = v / scale;
+  const digits = scale === 1 && Math.abs(n) < 100 ? 2 : 0;
+  return n.toLocaleString('en-US', { maximumFractionDigits: digits, minimumFractionDigits: 0 });
+}
+
+function table(columns, sections, { scale = SCALE, unitLabel = 'US$ millions' } = {}) {
+  const head = `<thead><tr><th>${escapeHtml(unitLabel)}</th>${columns
+    .map((c) => {
+      const label = c.label || `FY${c.year}${c.filed ? 'A' : 'E'}`;
+      return `<th class="${c.filed ? 'fm-col-actual' : ''}">${escapeHtml(label)}</th>`;
+    })
     .join('')}</tr></thead>`;
   const body = sections
     .map((section) => {
@@ -451,11 +557,12 @@ function table(columns, sections) {
           const cells = columns
             .map((c, i) => {
               const v = line.values[i];
-              const text = line.fmt === 'raw' ? v : fmtM(v);
+              const text = line.fmt === 'raw' ? v : formatCell(line, v, scale);
               return `<td class="${text == null ? 'fm-blank' : c.filed ? 'fm-actual' : 'fm-forecast'}">${text == null ? '—' : escapeHtml(String(text))}</td>`;
             })
             .join('');
-          return `<tr class="${line.total ? 'fm-total' : ''}"><td>${escapeHtml(line.label)}</td>${cells}</tr>`;
+          const cls = [line.total ? 'fm-total' : '', line.cls || ''].filter(Boolean).join(' ');
+          return `<tr class="${cls}"><td>${escapeHtml(line.label)}</td>${cells}</tr>`;
         })
         .join('');
       return title + lines;
@@ -464,73 +571,102 @@ function table(columns, sections) {
   return `<div class="fm-scroll"><table class="fm-table">${head}<tbody>${body}</tbody></table></div>`;
 }
 
-function lineOf(rows, label, key, { total = false } = {}) {
-  return { label, total, values: rows.map((r) => r[key]) };
+function lineOf(rows, label, key, { total = false, cls = '', fmt } = {}) {
+  return { label, total, cls, fmt, values: rows.map((r) => r[key]) };
+}
+
+function handoff(kind, arrow, text) {
+  return `<div class="fm-handoff is-${kind}">
+    <span class="fm-handoff-arrow" aria-hidden="true">${arrow}</span>
+    <p>${text}</p>
+  </div>`;
 }
 
 function threeStatementPanel(model) {
   const rows = model.rows;
-  const columns = rows.map((r) => ({ year: r.year, filed: r.filed }));
+  const unitKind = model.kind === 'unit';
+  const scale = model.scale ?? SCALE;
+  const unitLabel = model.unitLabel ?? 'US$ millions';
+  const columns = rows.map((r) => ({
+    year: r.year,
+    filed: r.filed,
+    label: unitKind ? `Y${r.year}` : `FY${r.year}${r.filed ? 'A' : 'E'}`,
+  }));
   const balances = model.checks.balances;
-  const hasGross = model.assumptions.grossMargin != null;
+  const hasGross = model.assumptions.grossMargin != null || unitKind;
+  const opts = { scale, unitLabel };
 
-  const is = table(columns, [
-    {
-      title: 'Income statement',
-      lines: [
-        lineOf(rows, 'Revenue', 'revenue'),
-        ...(hasGross
-          ? [lineOf(rows, 'Cost of sales', 'cogs'), lineOf(rows, 'Gross profit', 'grossProfit', { total: true })]
-          : []),
-        lineOf(rows, 'Operating expenses', 'opex'),
-        lineOf(rows, 'Operating income (EBIT)', 'ebit', { total: true }),
-        lineOf(rows, 'Interest expense', 'interestExpense'),
-        lineOf(rows, 'Interest income', 'interestIncome'),
-        lineOf(rows, 'Taxes', 'taxes'),
-        lineOf(rows, 'Net income', 'netIncome', { total: true }),
-      ],
-    },
-  ]);
+  const isLines = [
+    ...(unitKind ? [lineOf(rows, 'Cups sold', 'units', { fmt: 'qty' })] : []),
+    lineOf(rows, 'Revenue', 'revenue'),
+    ...(hasGross
+      ? [lineOf(rows, 'Cost of sales', 'cogs'), lineOf(rows, 'Gross profit', 'grossProfit', { total: true })]
+      : []),
+    ...(unitKind
+      ? [lineOf(rows, 'Labor', 'labor'), lineOf(rows, 'Other operating costs', 'otherOpex')]
+      : [lineOf(rows, 'Operating expenses', 'opex')]),
+    lineOf(rows, 'Operating income (EBIT)', 'ebit', { total: true }),
+    lineOf(rows, 'Interest expense', 'interestExpense', { cls: 'fm-link-interest' }),
+    lineOf(rows, 'Interest income', 'interestIncome', { cls: 'fm-link-interest' }),
+    lineOf(rows, 'Taxes', 'taxes'),
+    lineOf(rows, 'Net income', 'netIncome', { total: true, cls: 'fm-link-ni' }),
+  ];
 
-  const bs = table(columns, [
-    {
-      title: 'Balance sheet',
-      lines: [
-        lineOf(rows, 'Cash (the plug)', 'cash'),
-        lineOf(rows, 'Accounts receivable', 'receivables'),
-        lineOf(rows, 'Inventory', 'inventory'),
-        lineOf(rows, 'Other assets (PP&E, goodwill, untagged)', 'otherAssets'),
-        lineOf(rows, 'Total assets', 'totalAssets', { total: true }),
-        lineOf(rows, 'Long-term debt', 'debt'),
-        lineOf(rows, 'Other liabilities', 'otherLiabilities'),
-        lineOf(rows, 'Shareholders’ equity', 'equity'),
-        lineOf(rows, 'Total liabilities & equity', 'totalLiabEquity', { total: true }),
-        { label: 'Check — should be zero', total: true, values: rows.map((r) => r.balanceCheck) },
-      ],
-    },
-  ]);
+  const is = table(columns, [{ title: 'Income statement', lines: isLines }], opts);
 
-  const cfs = table(columns, [
-    {
-      title: 'Cash flow',
-      lines: [
-        lineOf(rows, 'Net income', 'netIncome'),
-        lineOf(rows, 'Add back depreciation', 'da'),
-        lineOf(rows, 'Cash from operations', 'cfo', { total: true }),
-        lineOf(rows, 'Capital expenditure', 'capex'),
-        lineOf(rows, 'Debt repayment', 'debtRepayment'),
-        lineOf(rows, 'Dividends', 'dividends'),
-        lineOf(rows, 'Net change in cash', 'netChangeCash', { total: true }),
-      ],
-    },
-  ]);
+  const cfsLines = [
+    lineOf(rows, 'Net income', 'netIncome', { cls: 'fm-link-ni' }),
+    unitKind
+      ? { label: 'Add back depreciation', cls: '', values: rows.map((r) => r.daAddBack) }
+      : lineOf(rows, 'Add back depreciation', 'da'),
+    ...(unitKind
+      ? [
+          lineOf(rows, 'Receivables (use) / source', 'deltaAr'),
+          lineOf(rows, 'Inventory (use) / source', 'deltaInv'),
+          lineOf(rows, 'Payables source / (use)', 'deltaAp'),
+        ]
+      : []),
+    lineOf(rows, 'Cash from operations', 'cfo', { total: true }),
+    lineOf(rows, 'Capital expenditure', 'capex'),
+    lineOf(rows, 'Debt repayment', 'debtRepayment'),
+    lineOf(rows, 'Dividends', 'dividends'),
+    lineOf(rows, 'Net change in cash', 'netChangeCash', { total: true, cls: 'fm-link-cash' }),
+  ];
+
+  const cfs = table(columns, [{ title: 'Cash flow', lines: cfsLines }], opts);
+
+  const bs = table(
+    columns,
+    [
+      {
+        title: 'Balance sheet',
+        lines: [
+          lineOf(rows, 'Cash (the plug)', 'cash', { cls: 'fm-link-cash' }),
+          lineOf(rows, 'Accounts receivable', 'receivables'),
+          lineOf(rows, 'Inventory', 'inventory'),
+          lineOf(rows, unitKind ? 'Equipment (net)' : 'Other assets (PP&E, goodwill, untagged)', 'otherAssets'),
+          lineOf(rows, 'Total assets', 'totalAssets', { total: true }),
+          lineOf(rows, 'Debt', 'debt', { cls: 'fm-link-interest' }),
+          lineOf(rows, unitKind ? 'Payables (the grocer)' : 'Other liabilities', 'otherLiabilities'),
+          lineOf(rows, 'Shareholders’ equity', 'equity', { cls: 'fm-link-ni' }),
+          lineOf(rows, 'Total liabilities & equity', 'totalLiabEquity', { total: true }),
+          { label: 'Check — should be zero', total: true, values: rows.map((r) => r.balanceCheck) },
+        ],
+      },
+    ],
+    opts
+  );
 
   return `<section class="fm-panel">
     <h3>The three statements</h3>
     <ol class="fm-flow">
       <li>
         <strong>Income statement</strong>
-        <p>Sales grow by your rate. Margins turn sales into operating profit. Interest is charged on <em>last year’s</em> debt and cash, so nothing is circular. What’s left after tax is net income — that number is the handoff.</p>
+        <p>${
+          unitKind
+            ? 'Cups × price is sales. Cost per cup is COGS. The cart’s depreciation is a non-cash charge. What’s left after tax is net income — that number is the handoff.'
+            : 'Sales grow by your rate. Margins turn sales into operating profit. Interest is charged on <em>last year’s</em> debt and cash, so nothing is circular. What’s left after tax is net income — that number is the handoff.'
+        }</p>
       </li>
       <li>
         <strong>Cash flow</strong>
@@ -547,17 +683,26 @@ function threeStatementPanel(model) {
         <p class="fm-statement-note"><strong>Handoff.</strong> Net income goes two places: the top of cash flow, and into equity.</p>
         ${is}
       </div>
+      ${handoff('ni', '↓', 'Net income (gold) walks to the top of cash flow, and into equity on the balance sheet.')}
       <div class="fm-statement">
         <p class="fm-statement-note"><strong>Handoff.</strong> Ending cash is whatever this statement leaves behind. That number is the plug on the balance sheet.</p>
         ${cfs}
       </div>
+      ${handoff('cash', '↓', 'Net change in cash (green) plus last year’s till is the cash plug on the balance sheet.')}
       <div class="fm-statement">
         <p class="fm-statement-note"><strong>Handoff.</strong> This year’s cash and debt come back next year as interest on the income statement.</p>
         ${bs}
       </div>
+      ${handoff('interest', '↑', 'Next year’s interest (blue) is charged on this year’s cash and debt — never on this year’s plug, so nothing is circular.')}
     </div>
     <p class="fm-aside">${escapeHtml(model.residualNote)}</p>
-    <div class="fm-legend"><span class="is-blue">Blue — your input</span><span class="is-black">Black — calculated</span><span class="is-green">Green — link between sheets (in the Excel)</span></div>
+    <div class="fm-legend">
+      <span class="is-blue">Blue — your input</span>
+      <span class="is-black">Black — calculated</span>
+      <span class="is-ni">Gold — net income handoff</span>
+      <span class="is-cash-link">Green — cash plug</span>
+      <span class="is-int">Blue row — interest on last year’s balances</span>
+    </div>
   </section>`;
 }
 
@@ -662,6 +807,12 @@ function compsPanel(comps) {
 }
 
 function currentRun() {
+  if (isUnit()) {
+    if (!state.assumptions) return null;
+    const model = runUnitEcon(state.assumptions);
+    model.companyName = 'Lemonade stall';
+    return { model, dcf: null, sens: null, comps: null };
+  }
   const headlines = state.headlines;
   if (!headlines) return null;
   const model = runThreeStatement(headlines, state.assumptions);
@@ -688,6 +839,14 @@ function render() {
     return;
   }
   renderDials(model);
+  if (isUnit()) {
+    $('output').innerHTML = threeStatementPanel(model);
+    $('dock-name').textContent = 'Lemonade stall';
+    $('dock-check').textContent = model.checks.balances
+      ? 'Balance sheet ties · ready to download'
+      : 'Balance sheet does not tie';
+    return;
+  }
   const parts = [];
   if (state.models.includes('three')) parts.push(threeStatementPanel(model));
   if (state.models.includes('dcf')) parts.push(dcfPanel(model, dcf, sens));
@@ -713,8 +872,8 @@ function renderPicks() {
     const id = btn.dataset.model;
     state.models = state.models.includes(id) ? state.models.filter((m) => m !== id) : [...state.models, id];
     renderPicks();
-    syncPeerStep();
-    render();
+    syncLayout();
+    if (state.company && state.headlines) render();
   };
 }
 
@@ -743,6 +902,11 @@ function endTour() {
 function download() {
   const run = currentRun();
   if (!run?.model?.ok) return;
+  if (isUnit()) {
+    const bytes = buildUnitWorkbook({ model: run.model, cards: assumptionCards() });
+    downloadWorkbook('lemonade-stall-model.xlsx', bytes);
+    return;
+  }
   const bytes = buildWorkbook({
     company: state.company,
     headlines: state.headlines,
@@ -760,6 +924,8 @@ function download() {
 
 async function boot() {
   renderTour();
+  renderExercises();
+  syncLayout();
   $('tour-next').onclick = () => {
     state.tourStep += 1;
     if (state.tourStep >= TOUR.length) endTour();
