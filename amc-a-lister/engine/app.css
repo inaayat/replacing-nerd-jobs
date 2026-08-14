@@ -1,7 +1,6 @@
-/* Readability Red palette: off-white field, charcoal ink, deep red fills,
-   red-orange accents on light surfaces, white type on red. */
+/* Grey field, black ink, deep red fills — white is only for type on red. */
 :root {
-  --al-cream: #f9f9f9;
+  --al-cream: #e6e6e6;
   --al-red: #aa0000;
   --al-red-deep: #d43900;
   --al-purple: #755ca7;
@@ -12,20 +11,20 @@
   --al-pink: #eb82b0;
   --al-green: #82a34d;
   --al-green-deep: #4f6b23;
-  --al-black: #414241;
+  --al-black: #1a1a1a;
   --al-white: #ffffff;
-  --al-charcoal: #414241;
+  --al-charcoal: #1a1a1a;
   --al-bg: var(--al-cream);
-  --al-panel: #ffffff;
-  --al-panel-2: #f9f9f9;
-  --al-text: #414241;
-  --al-muted: #6e6f6e;
-  --al-line: rgba(65, 66, 65, 0.12);
+  --al-panel: #efefef;
+  --al-panel-2: #dcdcdc;
+  --al-text: #1a1a1a;
+  --al-muted: #525252;
+  --al-line: rgba(26, 26, 26, 0.14);
   /* Shared red washes so highlight states stay in step with the brand colour. */
-  --al-red-tint: color-mix(in srgb, var(--al-red) 8%, transparent);
-  --al-red-tint-strong: color-mix(in srgb, var(--al-red) 18%, transparent);
-  --al-red-edge: color-mix(in srgb, var(--al-red) 34%, transparent);
-  --al-red-ring: color-mix(in srgb, var(--al-red) 45%, transparent);
+  --al-red-tint: color-mix(in srgb, var(--al-red) 10%, transparent);
+  --al-red-tint-strong: color-mix(in srgb, var(--al-red) 22%, transparent);
+  --al-red-edge: color-mix(in srgb, var(--al-red) 40%, transparent);
+  --al-red-ring: color-mix(in srgb, var(--al-red) 50%, transparent);
   --al-radius: 20px;
   --al-font-body: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --al-font-display: "Fraunces", Georgia, serif;
@@ -340,7 +339,7 @@ a { color: var(--al-red-deep); }
 .al-quicklog-input:focus {
   outline: 2px solid var(--al-red-ring);
   border-color: var(--al-red);
-  background: var(--al-white);
+  background: var(--al-panel);
 }
 
 .al-quicklog-expand {
@@ -2145,7 +2144,7 @@ table.al-table {
   padding: 8px 10px;
   border-radius: 8px;
   border: 1px solid var(--al-line);
-  background: var(--al-white);
+  background: var(--al-panel);
   color: var(--al-text);
   font: inherit;
 }
@@ -2785,7 +2784,7 @@ table.al-table {
 }
 
 .al-segment-btn.is-active {
-  background: var(--al-white);
+  background: var(--al-panel);
   color: var(--al-text);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
@@ -3656,7 +3655,7 @@ table.al-table {
 
   /* The active item is the one label not sitting on red, so it keeps ink. */
   .al-mobile-nav-link.is-active {
-    background: var(--al-white);
+    background: var(--al-panel);
     color: var(--al-black);
   }
 
