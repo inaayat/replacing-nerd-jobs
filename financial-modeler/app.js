@@ -19,6 +19,7 @@ import { DIALS, DIAL_GROUPS, dialsFor } from './dials.js';
 import {
   assumptionCatalog,
   validateAssumption,
+  sourceToken,
 } from './assumptions.js';
 import { dependencyPath, dependencyRowKeys } from './dependencies.js';
 import { stepsForTab } from './build-steps.js';
@@ -1000,7 +1001,7 @@ function ensureFocusedAssumption() {
 function focusAssumption(key, { rerenderModel = false } = {}) {
   state.focusedAssumption = key;
   renderAssumptionDetail();
-  document.querySelectorAll('.fm-chip-compact').forEach((row) => {
+  document.querySelectorAll('.fm-assump-row').forEach((row) => {
     row.classList.toggle('is-active', row.dataset.dialKey === key);
   });
   applyTraceHighlight(key);
@@ -1032,7 +1033,7 @@ function renderAssumptionDetail() {
   const key = state.focusedAssumption;
   const html = key
     ? renderAssumptionDetailHtml(key)
-    : '<p class="fm-assump-placeholder">Click a name or start typing a value — every chip is editable.</p>';
+    : '<p class="fm-assump-placeholder">Click a name or start typing a value — every row is editable.</p>';
   const el = $('assumption-detail');
   if (el) el.innerHTML = html;
 }
@@ -1053,11 +1054,13 @@ function renderAssumptionListHtml() {
       const value = state.assumptions[d.key];
       const disabled = value == null;
       const isActive = state.focusedAssumption === d.key;
+      const token = sourceToken(d, value, state.sourceDefaults);
       const input = disabled
         ? `<span class="fm-chip-input is-missing" aria-hidden="true">—</span>`
         : `<input class="fm-chip-input" type="text" inputmode="decimal" data-key="${d.key}" value="${escapeHtml(dialValueText(d, value))}" aria-label="${escapeHtml(d.name)} value" />`;
-      return `<div class="fm-chip-compact${isActive ? ' is-active' : ''}${disabled ? ' is-missing' : ''}" data-dial-key="${d.key}">
+      return `<div class="fm-assump-row${isActive ? ' is-active' : ''}${disabled ? ' is-missing' : ''}" data-dial-key="${d.key}">
         <button type="button" class="fm-chip-name" data-select-dial="${d.key}">${escapeHtml(d.name)}</button>
+        <span class="fm-chip-source">${escapeHtml(token)}</span>
         ${input}
       </div>`;
     })
