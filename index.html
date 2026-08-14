@@ -146,8 +146,10 @@
           drop-shadow(0 2px 0 #1c1c1c) drop-shadow(0 -2px 0 #1c1c1c);
       }
       .item-card:hover,
-      .item-card:focus-visible { z-index: 3; }
-      .item-card:hover .blob-body { filter: brightness(1.06); }
+      .item-card:focus-visible,
+      .item-card.is-linked-hover { z-index: 3; }
+      .item-card:hover .blob-body,
+      .item-card.is-linked-hover .blob-body { filter: brightness(1.06); }
 
       /* One puzzle piece: a smoothed Voronoi cell filled edge to edge. */
       .blob-body {
@@ -589,20 +591,20 @@
         overflow-x: hidden;
         overflow-y: auto;
         overscroll-behavior: contain;
-        padding: 4px 14px 16px;
+        padding: 4px 10px 14px;
         background: var(--gutter);
         transition: background-color 220ms ease;
       }
       .projects-grid {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
       }
       @media (max-width: 1280px) {
         :root, [data-theme="rainbow"], [data-theme="moon"], [data-theme="grape"], [data-theme="toilet"], [data-theme="zohran"] {
           --projects-panel-w: min(52vw, 720px);
         }
-        .projects-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       }
       @media (max-width: 899px) {
         :root, [data-theme="rainbow"], [data-theme="moon"], [data-theme="grape"], [data-theme="toilet"], [data-theme="zohran"] {
@@ -610,23 +612,26 @@
         }
         html.is-projects-open .blob-stage { width: 100%; }
         .projects-panel-inner { padding: 10px; }
-        .projects-grid { grid-template-columns: 1fr; }
       }
 
       .project-row {
-        display: flex;
-        flex-direction: column;
-        gap: 7px;
-        min-height: 168px;
-        padding: 14px 14px 12px;
-        border-radius: 20px;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        grid-template-rows: auto auto auto;
+        column-gap: 10px;
+        row-gap: 4px;
+        align-items: start;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        border-radius: 14px;
         text-decoration: none;
         color: var(--ink);
-        transition: filter 140ms ease-out, transform 140ms ease-out, background-color 220ms ease, color 220ms ease;
+        transition: filter 140ms ease-out, background-color 220ms ease, color 220ms ease;
       }
-      a.project-row:hover {
+      a.project-row:hover,
+      a.project-row.is-linked-hover {
         filter: brightness(1.06);
-        transform: translateY(-2px);
       }
       a.project-row:focus { outline: none; }
       a.project-row:focus-visible {
@@ -634,10 +639,13 @@
         outline-offset: 3px;
       }
       .project-row .row-top {
+        grid-column: 1;
+        grid-row: 1;
         display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 8px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+        min-width: 3.2rem;
       }
       .project-row .row-num {
         font-size: 0.6rem;
@@ -659,20 +667,24 @@
         font-weight: 500;
       }
       .project-row .row-title {
+        grid-column: 2;
+        grid-row: 1;
+        align-self: center;
         font-size: 1.02rem;
         line-height: 1.2;
         margin: 0;
       }
       .project-row .row-blurb,
       .project-row .row-outcome {
+        grid-column: 1 / -1;
         margin: 0;
         font-size: 0.68rem;
         line-height: 1.4;
         opacity: 0.82;
       }
+      .project-row .row-blurb { grid-row: 2; }
       .project-row .row-outcome {
-        margin-top: auto;
-        padding-top: 4px;
+        grid-row: 3;
         opacity: 0.78;
       }
       .project-row .row-outcome strong {
@@ -721,7 +733,6 @@
       @media (prefers-reduced-motion: reduce) {
         .blob-body { transition: none; }
         .blob-stage, .projects-panel { transition: none; }
-        a.project-row:hover { transform: none; }
       }
     </style>
   </head>
@@ -1226,6 +1237,67 @@
           window.dispatchEvent(new Event("resize"));
         });
         if (location.hash === "#list") setOpen(true);
+      })();
+    </script>
+
+    <script>
+      (function () {
+        function normHref(href) {
+          try {
+            var u = new URL(href, location.origin);
+            var path = u.pathname.replace(/\/$/, "") || "/";
+            if (u.origin === location.origin) return path;
+            return u.origin + path;
+          } catch (e) {
+            return href;
+          }
+        }
+
+        var cards = Array.from(document.querySelectorAll(".item-card[href]"));
+        var rows = Array.from(document.querySelectorAll(".project-row[href]"));
+        if (!cards.length || !rows.length) return;
+
+        var cardByHref = new Map();
+        var rowByHref = new Map();
+        cards.forEach(function (card) {
+          cardByHref.set(normHref(card.getAttribute("href")), card);
+        });
+        rows.forEach(function (row) {
+          rowByHref.set(normHref(row.getAttribute("href")), row);
+        });
+
+        var active = null;
+
+        function setLinked(key, on) {
+          if (!key) return;
+          var card = cardByHref.get(key);
+          var row = rowByHref.get(key);
+          if (card) card.classList.toggle("is-linked-hover", on);
+          if (row) row.classList.toggle("is-linked-hover", on);
+        }
+
+        function activate(key) {
+          if (active === key) return;
+          if (active) setLinked(active, false);
+          active = key || null;
+          if (active) setLinked(active, true);
+        }
+
+        function wire(el) {
+          var key = normHref(el.getAttribute("href"));
+          if (!cardByHref.has(key) && !rowByHref.has(key)) return;
+          el.addEventListener("mouseenter", function () { activate(key); });
+          el.addEventListener("mouseleave", function () {
+            if (active === key) activate(null);
+          });
+          el.addEventListener("focus", function () { activate(key); });
+          el.addEventListener("blur", function () {
+            if (active === key) activate(null);
+          });
+        }
+
+        cards.forEach(wire);
+        rows.forEach(wire);
       })();
     </script>
 
