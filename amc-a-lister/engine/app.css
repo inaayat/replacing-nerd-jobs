@@ -3378,67 +3378,67 @@ body[data-page="log"] .al-panel--log .al-log-head {
 }
 
 body[data-page="log"] .al-panel--log .al-log-row {
-  background: var(--al-on-red-surface);
-  border-color: var(--al-on-red-border);
-  color: var(--al-on-red);
-  box-shadow: none;
+  background: var(--al-white);
+  border-color: var(--al-line);
+  color: var(--al-text);
+  box-shadow: 0 2px 8px rgba(28, 28, 28, 0.05);
 }
 
 body[data-page="log"] .al-panel--log .al-log-row:hover {
-  background: color-mix(in srgb, var(--al-white) 22%, transparent);
-  border-color: color-mix(in srgb, var(--al-white) 40%, transparent);
+  background: var(--al-panel);
+  border-color: var(--al-red-edge);
 }
 
 body[data-page="log"] .al-panel--log .al-log-col--desktop.al-muted,
 body[data-page="log"] .al-panel--log .al-log-col--format,
 body[data-page="log"] .al-panel--log .al-log-col--seat {
-  color: var(--al-on-red-muted);
+  color: var(--al-muted);
 }
 
 body[data-page="log"] .al-panel--log .al-link-btn {
-  color: var(--al-on-red-muted);
+  color: var(--al-muted);
 }
 
 body[data-page="log"] .al-panel--log .al-link-btn:hover {
-  color: var(--al-on-red);
+  color: var(--al-red-deep);
 }
 
 body[data-page="log"] .al-panel--log .al-log-detail,
 body[data-page="log"] .al-panel--log .al-add-viewer {
-  background: color-mix(in srgb, var(--al-black) 12%, var(--al-red));
-  border-color: var(--al-on-red-border);
-  color: var(--al-on-red);
+  background: var(--al-panel-2);
+  border-color: var(--al-line);
+  color: var(--al-text);
 }
 
 body[data-page="log"] .al-panel--log .al-log-detail-inner {
-  background: var(--al-on-red-surface);
-  border-color: var(--al-on-red-border);
-  color: var(--al-on-red);
+  background: var(--al-white);
+  border-color: var(--al-line);
+  color: var(--al-text);
 }
 
 body[data-page="log"] .al-panel--log .al-log-detail-fact {
-  background: color-mix(in srgb, var(--al-black) 10%, var(--al-red));
-  border-color: var(--al-on-red-border);
+  background: var(--al-panel);
+  border-color: var(--al-line);
 }
 
 body[data-page="log"] .al-panel--log .al-log-detail-facts dt {
-  color: var(--al-on-red-muted);
+  color: var(--al-muted);
 }
 
 body[data-page="log"] .al-panel--log .al-log-detail-facts dd,
 body[data-page="log"] .al-panel--log .al-log-detail-overview {
-  color: var(--al-on-red);
+  color: var(--al-text);
 }
 
 body[data-page="log"] .al-panel--log .al-log-detail-overview-wrap {
-  border-color: var(--al-on-red-border);
+  border-color: var(--al-line);
 }
 
 body[data-page="log"] .al-panel--log .al-log-row.is-expanded,
 body[data-page="log"] .al-panel--log .al-log-row:has(+ .al-add-viewer),
 body[data-page="log"] .al-panel--log .al-log-row--editing {
-  background: var(--al-on-red-surface);
-  border-color: var(--al-on-red-border);
+  background: var(--al-white);
+  border-color: var(--al-red-edge);
 }
 
 body[data-page="log"] .al-panel--log .al-error {
@@ -3492,11 +3492,11 @@ body[data-page="log"] .al-panel--log .al-btn-primary {
 }
 
 body[data-page="log"] .al-panel--log .al-log-col--mobile-meta {
-  color: var(--al-on-red-muted);
+  color: var(--al-muted);
 }
 
 body[data-page="log"] .al-panel--log .al-log-meta-with {
-  color: #d4f0a8;
+  color: var(--al-green-deep);
 }
 
 /* Mobile layout */
