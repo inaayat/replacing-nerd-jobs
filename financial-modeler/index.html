@@ -139,16 +139,19 @@
 
       <section class="fm-step fm-workspace-step" id="step-build" hidden>
         <header class="fm-workspace-head">
-          <nav class="fm-tabs" id="model-tabs" role="tablist" aria-label="Model views"></nav>
-          <div class="fm-workspace-status" id="workspace-status"></div>
+          <div class="fm-workspace-head-row">
+            <nav class="fm-tabs" id="model-tabs" role="tablist" aria-label="Model views"></nav>
+            <div class="fm-workspace-setup" id="workspace-setup" hidden></div>
+            <div class="fm-workspace-status" id="workspace-status"></div>
+          </div>
+          <p class="fm-tab-hint" id="tab-hint" hidden></p>
         </header>
         <div class="fm-teaching-band" id="teaching-band">
-          <div class="fm-teaching-explain">
-            <div class="fm-assumption-teach" id="assumption-detail" hidden></div>
-          </div>
-          <div class="fm-teaching-chips" id="assumptions-bar" aria-label="Assumptions">
+          <h2 class="fm-assump-heading">Change these assumptions — they build the model.</h2>
+          <div class="fm-assump-chips-wrap" id="assumptions-bar" aria-label="Assumptions">
             <div id="dials"></div>
           </div>
+          <div class="fm-assump-strip" id="assumption-detail" aria-live="polite"></div>
         </div>
         <div class="fm-workspace-body">
           <div class="fm-main">
@@ -172,18 +175,17 @@
       </section>
 
       <button type="button" class="fm-inspector-toggle" id="inspector-mobile" hidden>Build guide</button>
+      <div class="fm-dock" id="dock" hidden>
+        <div class="fm-dock-who">
+          <strong id="dock-name">—</strong>
+          <span id="dock-check">—</span>
+        </div>
+        <div class="fm-dock-actions">
+          <a class="fm-btn fm-btn-ghost" id="dock-ratios" href="/fortune-500/">Open the 10-K ratios</a>
+          <button type="button" class="fm-btn" id="dock-download">Download Excel</button>
+        </div>
+      </div>
     </main>
-
-    <div class="fm-dock" id="dock" hidden>
-      <div class="fm-dock-who">
-        <strong id="dock-name">—</strong>
-        <span id="dock-check">—</span>
-      </div>
-      <div class="fm-dock-actions">
-        <a class="fm-btn fm-btn-ghost" id="dock-ratios" href="/fortune-500/">Open the 10-K ratios</a>
-        <button type="button" class="fm-btn" id="dock-download">Download Excel</button>
-      </div>
-    </div>
 
     <script type="module" src="./app.js"></script>
   </body>

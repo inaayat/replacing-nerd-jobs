@@ -18,9 +18,7 @@ import {
 import { DIALS, DIAL_GROUPS, dialsFor } from './dials.js';
 import {
   assumptionCatalog,
-  sourceBadge,
   validateAssumption,
-  isOverride,
 } from './assumptions.js';
 import { dependencyPath, dependencyRowKeys } from './dependencies.js';
 import { stepsForTab } from './build-steps.js';
@@ -96,7 +94,8 @@ const TABS = [
   {
     id: 'three',
     label: '3 Statements',
-    hint: 'Income statement, balance sheet, and cash flow wired together. DCF and comps build on this.',
+    what: 'Income statement, balance sheet, and cash flow wired together so they always tie.',
+    hint: 'Income statement, balance sheet, and cash flow wired together so they always tie.',
     filer: true,
     unit: true,
     capital: true,
@@ -106,7 +105,8 @@ const TABS = [
   {
     id: 'dcf',
     label: 'DCF',
-    hint: 'Depends on unlevered free cash flow from the three-statement forecast.',
+    what: 'What the company is worth if you discount the cash it can produce.',
+    hint: 'What the company is worth if you discount the cash it can produce.',
     filer: true,
     unit: false,
     capital: false,
@@ -116,7 +116,8 @@ const TABS = [
   {
     id: 'comps',
     label: 'Comps',
-    hint: 'Depends on your peer set and live market prices — not an auto-picked neighbour list.',
+    what: 'What similar public companies trade for, as a cross-check.',
+    hint: 'What similar public companies trade for, as a cross-check.',
     filer: true,
     unit: false,
     capital: false,
@@ -126,7 +127,8 @@ const TABS = [
   {
     id: 'scenarios',
     label: 'Scenarios',
-    hint: 'Changes several assumptions together — unlike sensitivity, which isolates one or two drivers.',
+    what: 'Base, upside, and downside — several assumptions move together as one case.',
+    hint: 'Base, upside, and downside — several assumptions move together as one case.',
     filer: true,
     unit: true,
     capital: false,
@@ -136,7 +138,8 @@ const TABS = [
   {
     id: 'sensitivity',
     label: 'Sensitivity',
-    hint: 'Holds other assumptions constant while two drivers move — a range of outcomes, not one answer.',
+    what: 'A range of outcomes when one or two drivers change and everything else stays put.',
+    hint: 'A range of outcomes when one or two drivers change and everything else stays put.',
     filer: true,
     unit: true,
     capital: false,
@@ -146,7 +149,8 @@ const TABS = [
   {
     id: 'checks',
     label: 'Checks & Download',
-    hint: 'Balance-sheet tie, warnings, and Excel download. Workbook includes only the models you selected in setup.',
+    what: 'Balance-sheet tie, warnings, and Excel download for the models you picked.',
+    hint: 'Balance-sheet tie, warnings, and Excel download for the models you picked.',
     filer: true,
     unit: true,
     capital: true,
@@ -188,17 +192,17 @@ const MODEL_PICKS = [
   {
     id: 'three',
     title: '3-statement model',
-    blurb: 'Income statement, balance sheet, and cash flow wired together. Everything else is built on this one.',
+    blurb: 'Income statement, balance sheet, and cash flow wired together so they always tie. DCF and comps build on this.',
   },
   {
     id: 'dcf',
     title: 'Discounted cash flow',
-    blurb: 'What the business is worth if you own all its future cash. Ends in a price per share.',
+    blurb: 'What the company is worth if you discount the cash it can produce. Ends in a price per share.',
   },
   {
     id: 'comps',
     title: 'Trading comps',
-    blurb: 'What the market pays for similar companies right now, applied to this one.',
+    blurb: 'What similar public companies trade for, as a cross-check against the DCF.',
   },
 ];
 
@@ -396,7 +400,9 @@ function syncLayout() {
   const live = workspaceLive();
   document.body.classList.toggle('has-company', live);
   document.body.classList.toggle('is-unit', isStandaloneExercise());
-  $('setup-summary').hidden = !live || Boolean(state.setupEdit);
+  $('setup-summary').hidden = true;
+  const setupBar = $('workspace-setup');
+  if (setupBar) setupBar.hidden = !live || Boolean(state.setupEdit);
   $('setup').hidden = isStandaloneExercise() || (live && !state.setupEdit);
   $('step-exercise').hidden = live && state.setupEdit !== 'exercise';
   if (isStandaloneExercise()) {
@@ -440,8 +446,10 @@ function syncLayout() {
 
 function renderSetupSummary() {
   const grid = $('summary-grid');
+  const setupBar = $('workspace-setup');
   if (!workspaceLive()) {
     grid.innerHTML = '';
+    if (setupBar) setupBar.innerHTML = '';
     return;
   }
   const exercise = EXERCISES.find((e) => e.id === state.exercise)?.title || '—';
@@ -453,37 +461,63 @@ function renderSetupSummary() {
   const peers = isUnit() || !compsOn() ? '—' : `${state.peers.length} peer${state.peers.length === 1 ? '' : 's'}`;
   const filing = isUnit() ? 'Unit exercise' : state.headlines?.asOfYear ? `FY${state.headlines.asOfYear} 10-K` : '—';
 
+  const changeBtn = (label, target) =>
+    `<button type="button" class="fm-summary-change" data-edit="${target}">${label}</button>`;
+  const changeBtnCompact = (label, target) =>
+    `<button type="button" class="fm-workspace-setup-link" data-edit="${target}">${label}</button>`;
+
+  const changeHtml = `
+    ${changeBtn('Change exercise', 'exercise')}
+    ${isUnit() ? '' : changeBtn('Change company', 'company')}
+    ${isUnit() ? '' : changeBtn('Change models', 'models')}
+    ${isUnit() || !compsOn() ? '' : changeBtn('Change peers', 'peers')}`;
+  const changeHtmlCompact = `
+    ${changeBtnCompact('Change exercise', 'exercise')}
+    ${isUnit() ? '' : changeBtnCompact('Change company', 'company')}
+    ${isUnit() ? '' : changeBtnCompact('Change models', 'models')}
+    ${isUnit() || !compsOn() ? '' : changeBtnCompact('Change peers', 'peers')}`;
+
+  if (setupBar && !state.setupEdit) {
+    setupBar.innerHTML = changeHtmlCompact;
+    bindSetupEditLinks(setupBar);
+  } else if (setupBar) {
+    setupBar.innerHTML = '';
+  }
+
   grid.innerHTML = `
     <dl class="fm-summary-item"><dt>Exercise</dt><dd>${escapeHtml(exercise)}</dd></dl>
     <dl class="fm-summary-item"><dt>${isUnit() ? 'Example' : 'Company'}</dt><dd>${escapeHtml(company)}</dd></dl>
     ${isUnit() ? '' : `<dl class="fm-summary-item"><dt>Models in workbook</dt><dd>${escapeHtml(models)}</dd></dl>`}
     ${isUnit() || !compsOn() ? '' : `<dl class="fm-summary-item"><dt>Peers</dt><dd>${escapeHtml(peers)}</dd></dl>`}
     <dl class="fm-summary-item"><dt>Filing</dt><dd>${escapeHtml(filing)}</dd></dl>
-    <div class="fm-summary-actions">
-      <button type="button" class="fm-summary-change" data-edit="exercise">Change exercise</button>
-      ${isUnit() ? '' : '<button type="button" class="fm-summary-change" data-edit="company">Change company</button>'}
-      ${isUnit() ? '' : '<button type="button" class="fm-summary-change" data-edit="models">Change models</button>'}
-      ${isUnit() || !compsOn() ? '' : '<button type="button" class="fm-summary-change" data-edit="peers">Change peers</button>'}
-    </div>`;
+    <div class="fm-summary-actions">${changeHtml}</div>`;
 
   grid.querySelectorAll('[data-edit]').forEach((btn) => {
-    btn.onclick = () => {
-      const target = btn.dataset.edit;
-      if (target === 'exercise') {
-        state.setupEdit = 'exercise';
-        $('setup-summary').hidden = true;
-        $('setup').hidden = false;
-        $('step-exercise').hidden = false;
-        $('step-exercise').scrollIntoView({ behavior: 'smooth', block: 'start' });
-        return;
-      }
-      state.setupEdit = target;
-      syncLayout();
-      const el = target === 'peers' ? $('step-peers') : target === 'models' ? $('step-models') : $('step-company');
-      el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      if (target === 'peers') renderPeerPicker();
-    };
+    btn.onclick = () => openSetupEdit(btn.dataset.edit);
   });
+}
+
+function bindSetupEditLinks(wrap) {
+  wrap.querySelectorAll('[data-edit]').forEach((btn) => {
+    btn.onclick = () => openSetupEdit(btn.dataset.edit);
+  });
+}
+
+function openSetupEdit(target) {
+  if (target === 'exercise') {
+    state.setupEdit = 'exercise';
+    $('setup-summary').hidden = true;
+    $('setup').hidden = false;
+    $('step-exercise').hidden = false;
+    $('step-exercise').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    syncLayout();
+    return;
+  }
+  state.setupEdit = target;
+  syncLayout();
+  const el = target === 'peers' ? $('step-peers') : target === 'models' ? $('step-models') : $('step-company');
+  el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (target === 'peers') renderPeerPicker();
 }
 
 function finishSetupEdit() {
@@ -510,6 +544,14 @@ function renderTabs() {
       render();
     };
   });
+
+  const hintEl = $('tab-hint');
+  if (hintEl) {
+    const tab = TABS.find((t) => t.id === state.activeTab);
+    const text = tab?.what || tab?.hint || '';
+    hintEl.textContent = text;
+    hintEl.hidden = !text;
+  }
 }
 
 function renderWorkspaceStatus(model, dcf) {
@@ -958,8 +1000,8 @@ function ensureFocusedAssumption() {
 function focusAssumption(key, { rerenderModel = false } = {}) {
   state.focusedAssumption = key;
   renderAssumptionDetail();
-  document.querySelectorAll('.fm-chip-compact, .fm-assump-chip').forEach((row) => {
-    row.classList.toggle('is-active', row.dataset.dialKey === key || row.dataset.selectDial === key);
+  document.querySelectorAll('.fm-chip-compact').forEach((row) => {
+    row.classList.toggle('is-active', row.dataset.dialKey === key);
   });
   applyTraceHighlight(key);
   if (!key) syncRowHighlights();
@@ -971,52 +1013,28 @@ function renderAssumptionDetailHtml(key) {
   if (!d) return '';
   const value = state.assumptions?.[d.key];
   const disabled = value == null;
-  const override = !isUnit() && isOverride(d.key, value, state.sourceDefaults);
   const validation = disabled ? { valid: true } : validateAssumption(d, value);
-  const path = dependencyPath(d.key);
-  const pathHtml = path.length
-    ? `<p class="fm-trace-path"><strong>Affects.</strong> ${path.map((p) => escapeHtml(p)).join(' → ')}</p>`
-    : `<p class="fm-trace-path"><strong>Affects.</strong> ${escapeHtml(d.effect)}</p>`;
-  const slider = !disabled
-    ? `<input type="range" class="fm-assump-slider" data-range="${d.key}" min="${d.min}" max="${d.max}" step="${d.step}" value="${value}" aria-label="${escapeHtml(d.name)} slider" />`
-    : '';
+  const err = !validation.valid
+    ? `<span class="fm-assump-strip-error">${escapeHtml(validation.message)}</span>`
+    : validation.warn && validation.message
+      ? `<span class="fm-assump-strip-warn">${escapeHtml(validation.message)}</span>`
+      : '';
 
-  return `<h3>${escapeHtml(d.name)} ${isUnit() ? '' : sourceBadge(d, { isOverride: override, isMissing: disabled })}</h3>
-    ${validation.valid ? '' : `<p class="fm-dial-error">${escapeHtml(validation.message)}</p>`}
-    ${validation.warn && validation.message ? `<p class="fm-dial-warn">${escapeHtml(validation.message)}</p>` : ''}
-    <p><strong>What it is.</strong> ${escapeHtml(d.shortDefinition || d.what)}</p>
-    <p><strong>Formula.</strong> ${escapeHtml(d.formulaText || d.how)}</p>
-    <p><strong>${isUnit() ? 'This stall.' : 'This filing.'}</strong> ${escapeHtml(originFor(d, state.headlines))}</p>
-    ${pathHtml}
-    ${slider}`;
+  return `<div class="fm-assump-strip-inner">
+    <strong class="fm-assump-strip-name">${escapeHtml(d.name)}</strong>
+    <span class="fm-assump-strip-text">${escapeHtml(d.shortDefinition || d.what)}</span>
+    ${err}
+  </div>`;
 }
 
 function renderAssumptionDetail() {
   ensureFocusedAssumption();
   const key = state.focusedAssumption;
-  const html = key ? renderAssumptionDetailHtml(key) : '<p class="fm-assump-placeholder">Select an assumption on the right to see what it means and what it drives.</p>';
+  const html = key
+    ? renderAssumptionDetailHtml(key)
+    : '<p class="fm-assump-placeholder">Click a name or start typing a value — every chip is editable.</p>';
   const el = $('assumption-detail');
-  if (el) {
-    el.innerHTML = html;
-    el.hidden = false;
-    if (key) bindAssumptionDetail(el);
-  }
-}
-
-function bindAssumptionDetail(wrap) {
-  wrap.querySelectorAll('[data-range]').forEach((el) => {
-    el.addEventListener('input', () => {
-      const key = el.dataset.range;
-      const value = Number(el.value);
-      if (state.scenarioState && scenarioDrivers().includes(key)) {
-        state.scenarioState = editScenarioValue(state.scenarioState, key, value);
-        syncAssumptionsFromScenarios();
-      } else {
-        state.assumptions = { ...state.assumptions, [key]: value };
-      }
-      render();
-    });
-  });
+  if (el) el.innerHTML = html;
 }
 
 function renderAssumptionListHtml() {
@@ -1035,21 +1053,13 @@ function renderAssumptionListHtml() {
       const value = state.assumptions[d.key];
       const disabled = value == null;
       const isActive = state.focusedAssumption === d.key;
-      return `<button type="button" class="fm-chip-compact${isActive ? ' is-active' : ''}${disabled ? ' is-missing' : ''}" data-select-dial="${d.key}" data-dial-key="${d.key}">
-        <span class="fm-chip-name">${escapeHtml(d.name)}</span>
-        <span class="fm-chip-val">${escapeHtml(dialValueText(d, value))}</span>
-      </button>`;
-    })
-    .join('');
-
-  const editors = active
-    .map((d) => {
-      const value = state.assumptions[d.key];
-      const disabled = value == null;
-      if (state.focusedAssumption !== d.key || disabled) return '';
-      return `<label class="fm-chip-edit">Edit value
-        <input class="fm-dial-value" type="text" inputmode="decimal" data-key="${d.key}" value="${escapeHtml(dialValueText(d, value))}" aria-label="${escapeHtml(d.name)} value" />
-      </label>`;
+      const input = disabled
+        ? `<span class="fm-chip-input is-missing" aria-hidden="true">—</span>`
+        : `<input class="fm-chip-input" type="text" inputmode="decimal" data-key="${d.key}" value="${escapeHtml(dialValueText(d, value))}" aria-label="${escapeHtml(d.name)} value" />`;
+      return `<div class="fm-chip-compact${isActive ? ' is-active' : ''}${disabled ? ' is-missing' : ''}" data-dial-key="${d.key}">
+        <button type="button" class="fm-chip-name" data-select-dial="${d.key}">${escapeHtml(d.name)}</button>
+        ${input}
+      </div>`;
     })
     .join('');
 
@@ -1060,7 +1070,6 @@ function renderAssumptionListHtml() {
     </div>` : ''}
     <div class="fm-assump-scenarios" role="group" aria-label="Scenario">${scenarios}</div>
     <div class="fm-assump-grid">${chips}</div>
-    ${editors ? `<div class="fm-chip-edit-wrap">${editors}</div>` : ''}
   </div>`;
 }
 
@@ -1084,7 +1093,7 @@ function bindAssumptionList(wrap) {
   });
 
   wrap.querySelectorAll('[data-key]').forEach((el) => {
-    el.addEventListener('focus', () => focusAssumption(el.dataset.key));
+    el.addEventListener('focus', () => focusAssumption(el.dataset.key, { rerenderModel: false }));
     el.addEventListener('change', () => {
       const dial = active.find((d) => d.key === el.dataset.key);
       const value = parseDialInput(dial, el.value);
@@ -1708,11 +1717,6 @@ function currentRun() {
     state.peers.map((c) => ({ company: c, headlines: headlinesFor(c), price: state.prices.get(priceTicker(c)) ?? null }))
   );
   return { model, dcf, sens, comps, price, shares };
-}
-
-function tabHint() {
-  const tab = TABS.find((t) => t.id === state.activeTab);
-  return tab?.hint ? `<p class="fm-tab-hint">${escapeHtml(tab.hint)}</p>` : '';
 }
 
 function renderInspectorChecklist(context) {
