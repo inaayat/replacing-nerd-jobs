@@ -294,11 +294,15 @@ tr.fm-link-interest td:first-child { background: rgba(26, 73, 196, 0.1); }
 .fm-legend .is-int { color: var(--blue); }
 
 .fm-exercise-picks {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
-  align-items: flex-start;
-  align-content: flex-start;
+  align-items: stretch;
+}
+@media (max-width: 899px) {
+  .fm-exercise-picks {
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  }
 }
 
 .fm-landing {
@@ -432,8 +436,9 @@ tr.fm-link-interest td:first-child { background: rgba(26, 73, 196, 0.1); }
   cursor: not-allowed;
 }
 .fm-exercise-pick {
-  flex: 1 1 8.5rem;
-  min-width: min(100%, 8.5rem);
+  width: 100%;
+  min-width: 0;
+  height: 100%;
   text-align: left;
   border: 1px solid var(--rule-strong);
   background: var(--paper);
@@ -450,10 +455,6 @@ tr.fm-link-interest td:first-child { background: rgba(26, 73, 196, 0.1); }
   font-size: 11px;
   line-height: 1.35;
   color: var(--ink-soft);
-}
-@media (min-width: 900px) {
-  .fm-exercise-picks { flex-wrap: nowrap; }
-  .fm-exercise-pick { flex: 1 1 0; min-width: 0; }
 }
 
 .fm-dials { display: grid; gap: 0; }
