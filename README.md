@@ -77,12 +77,12 @@ wiring (cash is the plug, interest on beginning balances, a real balance check):
 - **From a 10-K** — pick a public Fortune 500 filer (or a watchlist name such as
   GoDaddy, Wix, Cloudflare, Robinhood), pick any of three Wall Street
   Prep model types (3-statement, DCF, trading comps), choose the peer set yourself
-  when comps are on, move a handful of plain-English guesses.
+  when comps are on, move a handful of plain-English assumptions.
 - **From one sale** — a lemonade stall built from cups × price, cost per cup, and a
   cart you depreciate. Same statements, dollars instead of millions.
 
 Either exercise downloads an Excel workbook with live formulas. On a phone
-(`max-width: 900px`) the same engine runs a walkthrough instead: one guess at
+(`max-width: 900px`) the same engine runs a walkthrough instead: one assumption at
 a time, a three-year slice, and income / cash flow / balance sheet one by one.
 DCF, comps, scenarios, sensitivity, and Excel stay on the web workspace — the
 desktop two-pane layout is unchanged.
