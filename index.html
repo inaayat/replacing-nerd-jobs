@@ -10,7 +10,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Fraunces:ital,wght@0,500;0,600;0,700;1,500&display=swap" />
     <style>
-      :root {
+      :root,
+      [data-theme="rainbow"] {
+        --bg: #faf3e3;
+        --ink: #1c1c1c;
+        --ink-muted: #55524a;
+        --tile-bg: #faf3e3;
+        --tile-border: #1c1c1c22;
+        --gutter: #faf3e3;
         --cream: #faf3e3;
         --purple: #755ca7;
         --cyan: #78a8d5;
@@ -20,13 +27,70 @@
         --pink: #eb82b0;
         --red: #f05e53;
         --gray: #d8d3c6;
+        --on-dark-blob: #faf3e3;
+      }
+      [data-theme="moon"] {
+        --bg: #0f0f0f;
+        --ink: #e4e4e4;
+        --ink-muted: #9a9a9a;
+        --tile-bg: #181818;
+        --tile-border: #ffffff14;
+        --gutter: #0f0f0f;
+        --cream: #e4e4e4;
+        --purple: #2e2e2e;
+        --cyan: #424242;
+        --green: #565656;
+        --yellow: #6a6a6a;
+        --orange: #7e7e7e;
+        --pink: #929292;
+        --red: #383838;
+        --gray: #242424;
+        --on-dark-blob: #e4e4e4;
+      }
+      [data-theme="grape"] {
+        --bg: #f0eaf8;
+        --ink: #1c1c1c;
+        --ink-muted: #5a4a72;
+        --tile-bg: #f0eaf8;
+        --tile-border: #4a2c6a22;
+        --gutter: #f0eaf8;
+        --cream: #f0eaf8;
+        --purple: #5e3d8a;
+        --cyan: #7b68a8;
+        --green: #8f7bb8;
+        --yellow: #a894cc;
+        --orange: #6b4c9a;
+        --pink: #9575cd;
+        --red: #4a2c6a;
+        --gray: #c4b8d8;
+        --on-dark-blob: #f0eaf8;
+      }
+      [data-theme="toilet"] {
+        --bg: #f5ebe0;
+        --ink: #1c1c1c;
+        --ink-muted: #6d4c41;
+        --tile-bg: #f5ebe0;
+        --tile-border: #5d403722;
+        --gutter: #f5ebe0;
+        --cream: #f5ebe0;
+        --purple: #6d4c41;
+        --cyan: #8d6e63;
+        --green: #a1887f;
+        --yellow: #bcaaa4;
+        --orange: #795548;
+        --pink: #8d6e63;
+        --red: #5d4037;
+        --gray: #d7ccc8;
+        --on-dark-blob: #f5ebe0;
       }
       *, *::before, *::after { box-sizing: border-box; }
       html, body { height: 100%; height: 100dvh; overflow: hidden; }
       body {
         margin: 0;
         font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        background: var(--cream);
+        background: var(--bg);
+        color: var(--ink);
+        transition: background-color 220ms ease, color 220ms ease;
       }
       .serif { font-family: 'Fraunces', serif; }
       .brand-mono { font-family: 'DM Mono', monospace; }
@@ -38,7 +102,7 @@
       .item-card {
         position: absolute;
         display: block;
-        color: #1c1c1c;
+        color: var(--ink);
         text-decoration: none;
         pointer-events: none;
       }
@@ -60,7 +124,7 @@
         pointer-events: auto;
         color: inherit;
         clip-path: var(--piece, none);
-        transition: filter 140ms ease-out;
+        transition: filter 140ms ease-out, background-color 220ms ease;
       }
       /* .can-drag is set by the script so CSS and behaviour cannot disagree.
          Scoping these here leaves touch devices, where dragging is switched off,
@@ -135,8 +199,19 @@
       .card-pink .blob-body { background: var(--pink); }
       .card-red .blob-body { background: var(--red); }
 
-      /* Purple is the only fill dark enough to fail contrast with the ink text. */
-      .item-card.card-purple { color: var(--cream); }
+      /* Dark blob fills need light ink for contrast. */
+      .item-card.card-purple,
+      .item-card.card-red { color: var(--on-dark-blob); }
+      [data-theme="moon"] .item-card.card-purple,
+      [data-theme="moon"] .item-card.card-red,
+      [data-theme="moon"] .item-card.card-cyan,
+      [data-theme="moon"] .item-card.card-green { color: var(--on-dark-blob); }
+      [data-theme="grape"] .item-card.card-purple,
+      [data-theme="grape"] .item-card.card-red,
+      [data-theme="grape"] .item-card.card-orange { color: var(--on-dark-blob); }
+      [data-theme="toilet"] .item-card.card-purple,
+      [data-theme="toilet"] .item-card.card-red,
+      [data-theme="toilet"] .item-card.card-orange { color: var(--on-dark-blob); }
 
       /* Neutral tones — reserved for "coming soon" placeholders, never for live projects */
       .card-cream {
@@ -144,7 +219,7 @@
         border: 1.5px solid #1c1c1c22;
       }
       .card-cream .blob-body { background: var(--cream); }
-      .card-gray { color: #55524a; }
+      .card-gray { color: var(--ink-muted); }
       .card-gray .blob-body { background: var(--gray); }
       .card-gray .title, .card-gray .subtitle { opacity: 0.75; }
 
@@ -205,11 +280,15 @@
         text-align: center;
         overflow: hidden;
         border-radius: 28px;
-        background: var(--cream);
-        border: 1.5px solid #1c1c1c22;
-        /* The flat cream ring matches the gutter the puzzle pieces leave between
+        background: var(--tile-bg);
+        border: 1.5px solid var(--tile-border);
+        transition: background-color 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+        /* The flat ring matches the gutter the puzzle pieces leave between
            each other, so the tile reads as another piece rather than an overlay. */
-        box-shadow: 0 0 0 11px var(--cream), 0 12px 30px rgba(28, 28, 28, 0.1);
+        box-shadow: 0 0 0 11px var(--gutter), 0 12px 30px rgba(28, 28, 28, 0.1);
+      }
+      [data-theme="moon"] .title-card {
+        box-shadow: 0 0 0 11px var(--gutter), 0 12px 30px rgba(0, 0, 0, 0.45);
       }
       @media (max-width: 640px) {
         .title-card {
@@ -233,7 +312,7 @@
         justify-content: center;
         flex-wrap: wrap;
         gap: 10px;
-        color: #1c1c1c;
+        color: var(--ink);
         text-decoration: none;
         overflow-wrap: anywhere;
         word-break: break-word;
@@ -273,13 +352,56 @@
         font-size: 0.72rem;
         letter-spacing: 0.05em;
         text-transform: uppercase;
-        color: #1c1c1c;
+        color: var(--ink);
         opacity: 0.55;
         text-decoration: none;
         overflow-wrap: anywhere;
         word-break: break-word;
       }
       .sidebar-link:hover { opacity: 1; }
+
+      .theme-picker {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        margin: 0;
+        padding: 0;
+        border: 0;
+      }
+      .theme-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        padding: 0;
+        border: 1.5px solid transparent;
+        border-radius: 999px;
+        background: transparent;
+        cursor: pointer;
+        line-height: 0;
+        opacity: 0.72;
+        transition: opacity 140ms ease, transform 140ms ease, border-color 140ms ease, background-color 140ms ease;
+      }
+      .theme-btn:hover {
+        opacity: 1;
+        transform: scale(1.12);
+      }
+      .theme-btn.is-active {
+        opacity: 1;
+        border-color: var(--ink);
+        background: color-mix(in srgb, var(--ink) 8%, transparent);
+      }
+      .theme-btn:focus-visible {
+        outline: 2px solid var(--ink);
+        outline-offset: 2px;
+      }
+      .theme-btn svg {
+        display: block;
+        width: 18px;
+        height: 18px;
+      }
       .sidebar-link .sidebar-icon {
         flex-shrink: 0;
         opacity: 0.85;
@@ -289,8 +411,15 @@
         .blob-body { transition: none; }
       }
     </style>
+    <script>
+      (function () {
+        var saved = localStorage.getItem("inaayat-home-theme");
+        var theme = saved === "moon" || saved === "grape" || saved === "toilet" ? saved : "rainbow";
+        document.documentElement.setAttribute("data-theme", theme);
+      })();
+    </script>
   </head>
-  <body class="text-gray-900 flex flex-col">
+  <body class="flex flex-col">
 
     <div class="blob-stage" id="projects">
 
@@ -311,6 +440,47 @@
             <a href="/account.html" class="sidebar-link">Account</a>
             <a href="/archive/" class="sidebar-link">Archive</a>
           </nav>
+        </div>
+        <div class="theme-picker brand-mono" role="group" aria-label="Color scheme">
+          <button type="button" class="theme-btn is-active" data-theme="rainbow" aria-label="Rainbow theme" aria-pressed="true" title="Rainbow">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 16a8 8 0 0 1 16 0" fill="none" stroke="#f05e53" stroke-width="2.2" stroke-linecap="round"/>
+              <path d="M6.5 16a5.5 5.5 0 0 1 11 0" fill="none" stroke="#f58b3b" stroke-width="2.2" stroke-linecap="round"/>
+              <path d="M9 16a3 3 0 0 1 6 0" fill="none" stroke="#ffd143" stroke-width="2.2" stroke-linecap="round"/>
+              <circle cx="7" cy="9" r="1.1" fill="#78a8d5"/>
+              <circle cx="17" cy="8" r="0.9" fill="#eb82b0"/>
+            </svg>
+          </button>
+          <button type="button" class="theme-btn" data-theme="moon" aria-label="Moon theme" aria-pressed="false" title="Moon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M16.5 5.2a7.5 7.5 0 1 0 2.3 12.1 6.2 6.2 0 1 1 4.2-12.1z" fill="#c8c8c8"/>
+              <circle cx="14.5" cy="11" r="0.55" fill="#555"/>
+              <circle cx="16.8" cy="13.2" r="0.45" fill="#555"/>
+              <path d="M14.2 15.1q1.8 0.8 3.4 0" fill="none" stroke="#555" stroke-width="0.7" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <button type="button" class="theme-btn" data-theme="grape" aria-label="Grape theme" aria-pressed="false" title="Grape">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <ellipse cx="12" cy="16.5" rx="5.5" ry="4.2" fill="#7b4bb7"/>
+              <circle cx="8.2" cy="12.5" r="2.3" fill="#9575cd"/>
+              <circle cx="12" cy="11.2" r="2.4" fill="#6a4c9a"/>
+              <circle cx="15.8" cy="12.5" r="2.3" fill="#8e6bb8"/>
+              <circle cx="10" cy="9.2" r="2.1" fill="#a889cc"/>
+              <circle cx="14.2" cy="9.2" r="2.1" fill="#5e3d8a"/>
+              <path d="M12 6.5V4.5" stroke="#82a34d" stroke-width="1.4" stroke-linecap="round"/>
+              <path d="M12 4.5c1.2-1.5 2.8-1.8 3.6-1.2" fill="none" stroke="#82a34d" stroke-width="1.2" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <button type="button" class="theme-btn" data-theme="toilet" aria-label="Toilet theme" aria-pressed="false" title="Toilet">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="7" y="3" width="10" height="5.5" rx="1.4" fill="#bcaaa4"/>
+              <rect x="8.2" y="4.2" width="7.6" height="1.8" rx="0.6" fill="#8d6e63"/>
+              <path d="M8.5 8.5h7v1.2c0 1.8-1.2 3.2-3.5 3.2s-3.5-1.4-3.5-3.2V8.5z" fill="#d7ccc8"/>
+              <ellipse cx="12" cy="15.8" rx="5.2" ry="3.6" fill="#efebe9"/>
+              <ellipse cx="12" cy="15.2" rx="3.4" ry="2.1" fill="#8d6e63"/>
+              <circle cx="10.2" cy="14.8" r="0.45" fill="#fff" opacity="0.7"/>
+            </svg>
+          </button>
         </div>
         <div class="lede brand-mono">
           tools &amp; experiments by inaayat gill
@@ -448,6 +618,35 @@
 
       </div>
     </div>
+
+    <script>
+      (function () {
+        var root = document.documentElement;
+        var buttons = Array.from(document.querySelectorAll(".theme-btn"));
+        var valid = { rainbow: 1, moon: 1, grape: 1, toilet: 1 };
+
+        function setTheme(name) {
+          if (!valid[name]) name = "rainbow";
+          root.setAttribute("data-theme", name);
+          localStorage.setItem("inaayat-home-theme", name);
+          buttons.forEach(function (btn) {
+            var on = btn.getAttribute("data-theme") === name;
+            btn.classList.toggle("is-active", on);
+            btn.setAttribute("aria-pressed", on ? "true" : "false");
+          });
+        }
+
+        buttons.forEach(function (btn) {
+          btn.addEventListener("click", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            setTheme(btn.getAttribute("data-theme"));
+          });
+        });
+
+        setTheme(root.getAttribute("data-theme") || "rainbow");
+      })();
+    </script>
 
     <script>
       /*
