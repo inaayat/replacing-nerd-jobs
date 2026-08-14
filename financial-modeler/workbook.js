@@ -900,6 +900,11 @@ function coverSheet({ company, headlines, model, sheets }) {
   b.add([{ v: 'Black', s: 'calc' }, { v: 'A formula. Do not overwrite.', s: 'lbl' }]);
   b.add([{ v: 'Green', s: 'link' }, { v: 'A link to another sheet.', s: 'lbl' }]);
   b.blank();
+  b.text(['How the three statements connect'], 'lblb');
+  b.add([{ v: 'Income statement', s: 'lblb' }, { v: 'Sales grow, margins make profit. Interest uses last year’s debt and cash, so nothing is circular. Net income is the handoff.', s: 'note' }]);
+  b.add([{ v: 'Cash flow', s: 'lblb' }, { v: 'Starts with that net income. Add back D&A, then CapEx, working capital, debt repaid, dividends. The leftover is the change in cash.', s: 'note' }]);
+  b.add([{ v: 'Balance sheet', s: 'lblb' }, { v: 'Cash is that leftover (the plug). Equity = last year + net income − dividends. The check row must read zero.', s: 'note' }]);
+  b.blank();
   b.text(['Contents'], 'lblb');
   for (const [name, what] of sheets) b.add([{ v: name, s: 'lblb' }, { v: what, s: 'note' }]);
   b.blank();
