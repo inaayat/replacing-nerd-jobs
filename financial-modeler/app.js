@@ -36,11 +36,60 @@ const state = {
   company: null,
   headlines: null,
   models: ['three', 'dcf', 'comps'],
+  activeTab: 'three',
   assumptions: null,
   scenario: 'base',
   peers: [],
   tourStep: 0,
+  inspectorCollapsed: false,
+  setupEdit: null,
 };
+
+const TABS = [
+  {
+    id: 'three',
+    label: '3 Statements',
+    hint: 'Income statement, balance sheet, and cash flow wired together. DCF and comps build on this.',
+    filer: true,
+    unit: true,
+  },
+  {
+    id: 'dcf',
+    label: 'DCF',
+    hint: 'Depends on unlevered free cash flow from the three-statement forecast.',
+    filer: true,
+    unit: false,
+  },
+  {
+    id: 'comps',
+    label: 'Comps',
+    hint: 'Depends on your peer set and live market prices — not an auto-picked neighbour list.',
+    filer: true,
+    unit: false,
+  },
+  {
+    id: 'scenarios',
+    label: 'Scenarios',
+    hint: 'Changes several assumptions together — unlike sensitivity, which isolates one or two drivers.',
+    filer: true,
+    unit: true,
+  },
+  {
+    id: 'sensitivity',
+    label: 'Sensitivity',
+    hint: 'Holds other assumptions constant while two drivers move — a range of outcomes, not one answer.',
+    filer: true,
+    unit: false,
+  },
+  {
+    id: 'checks',
+    label: 'Checks & Download',
+    hint: 'Balance-sheet tie, warnings, and Excel download. Workbook includes only the models you selected in setup.',
+    filer: true,
+    unit: true,
+    always: true,
+  },
+];
 
 const EXERCISES = [
   {
@@ -180,18 +229,46 @@ function compsOn() {
   return !isUnit() && state.models.includes('comps');
 }
 
+function workspaceLive() {
+  return isUnit() ? Boolean(state.assumptions) : Boolean(state.company && state.headlines);
+}
+
+function availableTabs() {
+  return TABS.filter((t) => {
+    if (t.always) return true;
+    if (isUnit()) return t.unit;
+    return t.filer;
+  });
+}
+
+function tabEnabled(tabId) {
+  if (tabId === 'three' || tabId === 'scenarios' || tabId === 'checks') return true;
+  if (tabId === 'dcf') return state.models.includes('dcf');
+  if (tabId === 'comps') return state.models.includes('comps');
+  if (tabId === 'sensitivity') return state.models.includes('dcf');
+  return true;
+}
+
+function ensureActiveTab() {
+  const tabs = availableTabs().filter((t) => tabEnabled(t.id));
+  if (!tabs.some((t) => t.id === state.activeTab)) {
+    state.activeTab = tabs[0]?.id || 'three';
+  }
+}
+
 function syncLayout() {
-  const live = isUnit() || Boolean(state.company && state.headlines);
+  const live = workspaceLive();
   document.body.classList.toggle('has-company', live);
   document.body.classList.toggle('is-unit', isUnit());
-  $('setup').hidden = isUnit();
-  $('dock-ratios').hidden = isUnit() || Boolean(state.company?.extra);
+  $('setup-summary').hidden = !live || Boolean(state.setupEdit);
+  $('setup').hidden = isUnit() || (live && !state.setupEdit);
+  $('step-exercise').hidden = live && state.setupEdit !== 'exercise';
   if (isUnit()) {
     $('step-models').hidden = true;
     $('step-peers').hidden = true;
-    $('step-build').hidden = false;
-    $('dock').hidden = false;
-    $('step-build-num').textContent = '2';
+    $('step-build').hidden = !live;
+    $('dock').hidden = !live;
+    if (live) ensureActiveTab();
     return;
   }
   $('dock').hidden = !live;
@@ -199,14 +276,119 @@ function syncLayout() {
     $('step-models').hidden = true;
     $('step-peers').hidden = true;
     $('step-build').hidden = true;
+    state.setupEdit = null;
     return;
   }
-  $('step-models').hidden = false;
-  $('step-build').hidden = false;
-  const on = compsOn();
-  $('step-peers').hidden = !on;
-  $('step-build-num').textContent = on ? '5' : '4';
-  if (on) renderPeerPicker();
+  if (state.setupEdit) {
+    $('step-models').hidden = state.setupEdit !== 'models';
+    $('step-peers').hidden = state.setupEdit !== 'peers';
+    $('step-company').hidden = state.setupEdit !== 'company';
+    $('step-build').hidden = true;
+    return;
+  }
+  $('step-company').hidden = live;
+  $('step-models').hidden = !live;
+  $('step-peers').hidden = !compsOn();
+  $('step-build').hidden = !live;
+  if (live) {
+    ensureActiveTab();
+    renderSetupSummary();
+  }
+  $('dock-ratios').hidden = isUnit() || Boolean(state.company?.extra);
+}
+
+function renderSetupSummary() {
+  const grid = $('summary-grid');
+  if (!workspaceLive()) {
+    grid.innerHTML = '';
+    return;
+  }
+  const exercise = EXERCISES.find((e) => e.id === state.exercise)?.title || '—';
+  const company = isUnit()
+    ? 'Lemonade stall'
+    : `${state.company?.company || '—'} · FY${state.headlines?.asOfYear || '—'}`;
+  const modelLabels = MODEL_PICKS.filter((m) => state.models.includes(m.id)).map((m) => m.title);
+  const models = isUnit() ? '3-statement only' : modelLabels.length ? modelLabels.join(', ') : 'None selected';
+  const peers = isUnit() || !compsOn() ? '—' : `${state.peers.length} peer${state.peers.length === 1 ? '' : 's'}`;
+  const filing = isUnit() ? 'Unit exercise' : state.headlines?.asOfYear ? `FY${state.headlines.asOfYear} 10-K` : '—';
+
+  grid.innerHTML = `
+    <dl class="fm-summary-item"><dt>Exercise</dt><dd>${escapeHtml(exercise)}</dd></dl>
+    <dl class="fm-summary-item"><dt>${isUnit() ? 'Example' : 'Company'}</dt><dd>${escapeHtml(company)}</dd></dl>
+    ${isUnit() ? '' : `<dl class="fm-summary-item"><dt>Models in workbook</dt><dd>${escapeHtml(models)}</dd></dl>`}
+    ${isUnit() || !compsOn() ? '' : `<dl class="fm-summary-item"><dt>Peers</dt><dd>${escapeHtml(peers)}</dd></dl>`}
+    <dl class="fm-summary-item"><dt>Filing</dt><dd>${escapeHtml(filing)}</dd></dl>
+    <div class="fm-summary-actions">
+      <button type="button" class="fm-summary-change" data-edit="exercise">Change exercise</button>
+      ${isUnit() ? '' : '<button type="button" class="fm-summary-change" data-edit="company">Change company</button>'}
+      ${isUnit() ? '' : '<button type="button" class="fm-summary-change" data-edit="models">Change models</button>'}
+      ${isUnit() || !compsOn() ? '' : '<button type="button" class="fm-summary-change" data-edit="peers">Change peers</button>'}
+    </div>`;
+
+  grid.querySelectorAll('[data-edit]').forEach((btn) => {
+    btn.onclick = () => {
+      const target = btn.dataset.edit;
+      if (target === 'exercise') {
+        state.setupEdit = 'exercise';
+        $('setup-summary').hidden = true;
+        $('setup').hidden = false;
+        $('step-exercise').hidden = false;
+        $('step-exercise').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+      state.setupEdit = target;
+      syncLayout();
+      const el = target === 'peers' ? $('step-peers') : target === 'models' ? $('step-models') : $('step-company');
+      el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (target === 'peers') renderPeerPicker();
+    };
+  });
+}
+
+function finishSetupEdit() {
+  state.setupEdit = null;
+  syncLayout();
+  render();
+}
+
+function renderTabs() {
+  const nav = $('model-tabs');
+  const tabs = availableTabs();
+  nav.innerHTML = tabs
+    .map((t) => {
+      const enabled = tabEnabled(t.id);
+      const selected = state.activeTab === t.id;
+      return `<button type="button" class="fm-tab" role="tab" id="tab-${t.id}" data-tab="${t.id}" aria-selected="${selected}" ${enabled ? '' : 'disabled'}>${escapeHtml(t.label)}</button>`;
+    })
+    .join('');
+  nav.querySelectorAll('[data-tab]').forEach((btn) => {
+    btn.onclick = () => {
+      if (btn.disabled) return;
+      state.activeTab = btn.dataset.tab;
+      renderTabs();
+      render();
+    };
+  });
+}
+
+function renderWorkspaceStatus(model, dcf) {
+  const box = $('workspace-status');
+  if (!model?.ok) {
+    box.innerHTML = '';
+    return;
+  }
+  const balance = model.checks.balances
+    ? '<span class="fm-flag is-ok">Balance sheet ties</span>'
+    : '<span class="fm-flag is-bad">Balance sheet does not tie</span>';
+  const dcfWarn =
+    dcf && !dcf.ok && state.models.includes('dcf')
+      ? `<span class="fm-flag is-bad">${escapeHtml(dcf.reason || 'DCF incomplete')}</span>`
+      : '';
+  const waccWarn =
+    dcf?.ok && state.assumptions?.terminalGrowth >= dcf.wacc?.wacc
+      ? '<span class="fm-flag is-bad">Terminal growth ≥ WACC</span>'
+      : '';
+  box.innerHTML = `${balance}${dcfWarn}${waccWarn}`;
 }
 
 /* -------------------------------- search ------------------------------- */
@@ -423,6 +605,7 @@ async function selectCompany(company) {
   state.peers = [];
   $('dock-ratios').href = `/fortune-500/#company=${company.cik}`;
   renderPicks();
+  state.setupEdit = null;
   syncLayout();
   render();
 
@@ -434,6 +617,8 @@ function selectExercise(id) {
   if (id !== 'filer' && id !== 'unit') return;
   state.exercise = id;
   state.scenario = 'base';
+  state.activeTab = 'three';
+  state.setupEdit = null;
   if (id === 'unit') {
     state.assumptions = defaultUnitAssumptions();
   } else if (state.company && state.headlines) {
@@ -494,8 +679,7 @@ function activeDialGroups() {
   return isUnit() ? UNIT_DIAL_GROUPS : DIAL_GROUPS;
 }
 
-function renderDials(model) {
-  const wrap = $('dials');
+function renderDialsHtml() {
   const active = activeDials();
   const groupsDef = activeDialGroups();
   const scenarios = ['bear', 'base', 'bull']
@@ -532,12 +716,15 @@ function renderDials(model) {
 
   const lede = isUnit()
     ? 'Every blue number is a guess about the stall. Change cups or the price and watch it hit all three statements.'
-    : 'Last year’s 10-K gives you the arithmetic. The slider is your call on whether the next five years look like that.';
+    : 'Last year’s 10-K gives you the arithmetic. The text field is your call on whether the next five years look like that.';
 
-  wrap.innerHTML = `<div class="fm-scenarios" role="group" aria-label="Scenario">${scenarios}</div>
+  return `<div class="fm-scenarios" role="group" aria-label="Scenario">${scenarios}</div>
     <p class="fm-dials-lede">${lede}</p>
     ${groups}`;
+}
 
+function bindDials(wrap) {
+  const active = activeDials();
   wrap.querySelectorAll('[data-range]').forEach((el) => {
     el.addEventListener('input', () => {
       state.assumptions = { ...state.assumptions, [el.dataset.range]: Number(el.value) };
@@ -562,7 +749,20 @@ function renderDials(model) {
       render();
     });
   });
-  void model;
+}
+
+function renderDials() {
+  const html = renderDialsHtml();
+  const desktop = $('dials');
+  const sheet = $('dials-sheet');
+  if (desktop) {
+    desktop.innerHTML = html;
+    bindDials(desktop);
+  }
+  if (sheet) {
+    sheet.innerHTML = html;
+    bindDials(sheet);
+  }
 }
 
 /* ------------------------------- rendering ----------------------------- */
@@ -739,7 +939,10 @@ function threeStatementPanel(model) {
   </section>`;
 }
 
-function dcfPanel(model, dcf, sens) {
+function dcfPanel(model, dcf) {
+  if (!state.models.includes('dcf')) {
+    return `<section class="fm-panel"><div class="fm-empty"><h3>DCF not selected</h3><p>Turn on Discounted cash flow in setup to include it in the workbook, or switch to this tab to preview it.</p></div></section>`;
+  }
   if (!dcf?.ok) {
     return `<section class="fm-panel"><h3>Discounted cash flow</h3><div class="fm-empty"><h3>Can’t value this yet</h3><p>${escapeHtml(dcf?.reason || 'No cash flows to discount.')}</p></div></section>`;
   }
@@ -756,18 +959,6 @@ function dcfPanel(model, dcf, sens) {
   ]);
 
   const upClass = dcf.upside == null ? '' : dcf.upside >= 0 ? 'is-up' : 'is-down';
-  const grid = sens
-    ? `<div class="fm-scroll"><table class="fm-table"><thead><tr><th>WACC ╲ growth forever</th>${sens.growths
-        .map((g) => `<th>${(g * 100).toFixed(2)}%</th>`)
-        .join('')}</tr></thead><tbody>${sens.rows
-        .map(
-          (r) =>
-            `<tr><td>${(r.wacc * 100).toFixed(2)}%</td>${r.cells
-              .map((c) => `<td>${c == null ? '—' : escapeHtml(sens.unit === 'price' ? fmtPrice(c) : fmtM(c))}</td>`)
-              .join('')}</tr>`
-        )
-        .join('')}</tbody></table></div>`
-    : '';
 
   return `<section class="fm-panel">
     <h3>What it’s worth (DCF)</h3>
@@ -781,9 +972,102 @@ function dcfPanel(model, dcf, sens) {
     </div>
     ${dcf.marketPrice == null ? '<p class="fm-aside">No live share price right now, so there is nothing to compare the implied price against. That stays blank rather than defaulting to zero.</p>' : ''}
     ${flows}
-    <p class="fm-aside">${escapeHtml(`${formatPercent(dcf.terminalShare)} of this value is the terminal lump sum — the part you are least sure about. That is normal, and it is why the table below exists.`)}</p>
-    <h4 style="margin-top:14px;font-size:14px">If you are wrong about the discount rate</h4>
+    <p class="fm-aside">${escapeHtml(`${formatPercent(dcf.terminalShare)} of this value is the terminal lump sum — the part you are least sure about. That is normal, and it is why the Sensitivity tab exists.`)}</p>
+  </section>`;
+}
+
+function sensitivityPanel(model, dcf, sens) {
+  if (!state.models.includes('dcf')) {
+    return `<section class="fm-panel"><div class="fm-empty"><h3>DCF not selected</h3><p>Enable Discounted cash flow in setup to run WACC × terminal-growth sensitivity.</p></div></section>`;
+  }
+  if (!dcf?.ok) {
+    return `<section class="fm-panel"><h3>Sensitivity</h3><div class="fm-empty"><h3>Need a working DCF first</h3><p>${escapeHtml(dcf?.reason || 'Fix the three-statement model before stressing the valuation.')}</p></div></section>`;
+  }
+  const grid = sens
+    ? `<div class="fm-scroll"><table class="fm-table"><thead><tr><th>WACC ╲ growth forever</th>${sens.growths
+        .map((g) => `<th>${(g * 100).toFixed(2)}%</th>`)
+        .join('')}</tr></thead><tbody>${sens.rows
+        .map(
+          (r) =>
+            `<tr><td>${(r.wacc * 100).toFixed(2)}%</td>${r.cells
+              .map((c) => `<td>${c == null ? '—' : escapeHtml(sens.unit === 'price' ? fmtPrice(c) : fmtM(c))}</td>`)
+              .join('')}</tr>`
+        )
+        .join('')}</tbody></table></div>`
+    : '<p class="fm-empty">Sensitivity grid unavailable.</p>';
+
+  return `<section class="fm-panel">
+    <h3>Two-variable sensitivity</h3>
+    <p class="fm-aside"><strong>What this shows:</strong> implied share price if WACC and terminal growth move while everything else stays at your active assumptions. Higher WACC lowers value; higher terminal growth raises it — if results run the other way, something is wrong.</p>
+    <h4 style="margin-top:14px;font-size:14px">WACC × terminal growth → implied share price</h4>
     ${grid}
+  </section>`;
+}
+
+function scenariosPanel() {
+  const scenarioCopy = {
+    bear: 'Lower sales growth and operating margin — a cautious case.',
+    base: 'Defaults from the filing — last year repeated unless you changed them.',
+    bull: 'Higher sales growth and operating margin — an optimistic case.',
+  };
+  const cards = ['bear', 'base', 'bull']
+    .map(
+      (s) =>
+        `<div class="fm-dial" style="margin-bottom:10px">
+          <div class="fm-dial-top">
+            <span class="fm-dial-name">${s[0].toUpperCase()}${s.slice(1)}</span>
+            <button type="button" class="fm-chip" data-scenario-apply="${s}" ${state.scenario === s ? 'disabled' : ''}>${state.scenario === s ? 'Active' : 'Apply'}</button>
+          </div>
+          <p class="fm-dial-what">${escapeHtml(scenarioCopy[s])}</p>
+        </div>`
+    )
+    .join('');
+
+  return `<section class="fm-panel">
+    <h3>Operating scenarios</h3>
+    <p class="fm-aside"><strong>Scenarios vs sensitivity:</strong> a scenario moves several assumptions together (growth and margin). Sensitivity isolates one or two drivers. Full Base/Upside/Downside/Custom editing arrives in a later update — for now, Bear/Base/Bull preset tilts are in the Assumptions panel too.</p>
+    ${cards}
+    <p class="fm-aside">Applying a scenario resets assumptions from filing defaults with a tilt. Edit individual drivers in the Assumptions panel on the right (or the Assumptions button on mobile).</p>
+  </section>`;
+}
+
+function checksPanel(model, dcf, comps) {
+  const checks = [];
+  checks.push(model.checks.balances ? 'Balance sheet ties in every projected year' : 'Balance sheet does NOT tie — do not trust outputs');
+  if (model.checks.cashWarning) checks.push(model.checks.cashWarning);
+  if (dcf && state.models.includes('dcf')) {
+    if (!dcf.ok) checks.push(`DCF: ${dcf.reason || 'incomplete'}`);
+    else if (state.assumptions?.terminalGrowth >= dcf.wacc?.wacc) {
+      checks.push('Terminal growth is ≥ WACC — the DCF math is not meaningful');
+    } else checks.push('DCF relationships look valid');
+  }
+  if (state.models.includes('comps')) {
+    if (!state.peers.length) checks.push('Comps: no peer set chosen');
+    else if (!comps?.ok) checks.push(`Comps: ${comps.reason || 'incomplete'}`);
+    else checks.push(`Comps: ${state.peers.length} peers with usable data`);
+  }
+  const workbookModels = isUnit()
+    ? '3-statement lemonade model'
+    : [
+        state.models.includes('three') && '3-statement',
+        state.models.includes('dcf') && 'DCF',
+        state.models.includes('comps') && 'comps',
+      ]
+        .filter(Boolean)
+        .join(', ') || 'nothing selected';
+
+  const list = checks.map((c) => `<li>${escapeHtml(c)}</li>`).join('');
+  const ready = model.checks.balances;
+
+  return `<section class="fm-panel">
+    <h3>Integrity checks</h3>
+    <ul class="fm-flow" style="grid-template-columns:1fr">${list}</ul>
+    <p class="fm-aside"><strong>Workbook will include:</strong> ${escapeHtml(workbookModels)}. Tab visibility does not change this — only your setup model picks do.</p>
+    <div class="fm-dock-actions" style="margin-top:16px">
+      ${isUnit() ? '' : `<a class="fm-btn fm-btn-ghost" href="/fortune-500/#company=${state.company?.cik || ''}">Open the 10-K ratios</a>`}
+      <button type="button" class="fm-btn" id="checks-download" ${ready ? '' : 'disabled'}>Download Excel</button>
+    </div>
+    ${ready ? '' : '<p class="fm-status is-warn">Fix the balance sheet before downloading — the workbook will still generate, but the numbers are not trustworthy.</p>'}
   </section>`;
 }
 
@@ -865,30 +1149,65 @@ function currentRun() {
   return { model, dcf, sens, comps, price, shares };
 }
 
+function tabHint() {
+  const tab = TABS.find((t) => t.id === state.activeTab);
+  return tab?.hint ? `<p class="fm-tab-hint">${escapeHtml(tab.hint)}</p>` : '';
+}
+
+function renderActivePanel(run) {
+  const { model, dcf, sens, comps } = run;
+  switch (state.activeTab) {
+    case 'three':
+      return threeStatementPanel(model);
+    case 'dcf':
+      return dcfPanel(model, dcf);
+    case 'comps':
+      return compsPanel(comps);
+    case 'scenarios':
+      return scenariosPanel();
+    case 'sensitivity':
+      return sensitivityPanel(model, dcf, sens);
+    case 'checks':
+      return checksPanel(model, dcf, comps);
+    default:
+      return threeStatementPanel(model);
+  }
+}
+
 function render() {
   const run = currentRun();
   if (!run) return;
   const { model, dcf, sens, comps } = run;
   if (!model.ok) {
     $('output').innerHTML = `<section class="fm-panel"><div class="fm-empty"><h3>Not enough filed data</h3><p>${escapeHtml(model.reason)}</p></div></section>`;
+    renderWorkspaceStatus(model, dcf);
     return;
   }
-  renderDials(model);
-  if (isUnit()) {
-    $('output').innerHTML = threeStatementPanel(model);
-    $('dock-name').textContent = 'Lemonade stall';
-    $('dock-check').textContent = model.checks.balances
-      ? 'Balance sheet ties · ready to download'
-      : 'Balance sheet does not tie';
-    return;
-  }
-  const parts = [];
-  if (state.models.includes('three')) parts.push(threeStatementPanel(model));
-  if (state.models.includes('dcf')) parts.push(dcfPanel(model, dcf, sens));
-  if (state.models.includes('comps')) parts.push(compsPanel(comps));
-  $('output').innerHTML = parts.join('') || '<section class="fm-panel"><div class="fm-empty"><h3>Pick at least one model</h3><p>Step 2 above.</p></div></section>';
+  renderTabs();
+  renderDials();
+  renderWorkspaceStatus(model, dcf);
+  $('output').innerHTML = tabHint() + renderActivePanel(run);
 
-  $('dock-name').textContent = `${state.company.company} · FY${state.headlines.asOfYear}`;
+  $('output').querySelectorAll('[data-scenario-apply]').forEach((el) => {
+    el.onclick = () => {
+      state.scenario = el.dataset.scenarioApply;
+      state.assumptions = isUnit()
+        ? applyUnitScenario(defaultUnitAssumptions(), state.scenario)
+        : applyScenario(defaultAssumptions(state.headlines), state.scenario);
+      render();
+    };
+  });
+
+  const dl = $('checks-download');
+  if (dl) dl.onclick = download;
+
+  $('inspector-mobile').hidden = !workspaceLive();
+
+  if (isUnit()) {
+    $('dock-name').textContent = 'Lemonade stall';
+  } else {
+    $('dock-name').textContent = `${state.company.company} · FY${state.headlines.asOfYear}`;
+  }
   $('dock-check').textContent = model.checks.balances
     ? 'Balance sheet ties · ready to download'
     : 'Balance sheet does not tie';
@@ -907,6 +1226,7 @@ function renderPicks() {
     const id = btn.dataset.model;
     state.models = state.models.includes(id) ? state.models.filter((m) => m !== id) : [...state.models, id];
     renderPicks();
+    ensureActiveTab();
     syncLayout();
     if (state.company && state.headlines) render();
   };
@@ -961,6 +1281,25 @@ async function boot() {
   renderTour();
   renderExercises();
   syncLayout();
+
+  const inspector = $('inspector');
+  const openMobileInspector = () => {
+    $('inspector-sheet').hidden = false;
+    renderDials();
+  };
+  $('inspector-mobile')?.addEventListener('click', openMobileInspector);
+  $('inspector-toggle')?.addEventListener('click', () => {
+    if (window.matchMedia('(max-width: 900px)').matches) openMobileInspector();
+    else {
+      state.inspectorCollapsed = !state.inspectorCollapsed;
+      inspector?.classList.toggle('is-collapsed', state.inspectorCollapsed);
+      $('inspector-toggle')?.setAttribute('aria-expanded', String(!state.inspectorCollapsed));
+    }
+  });
+  $('inspector-sheet-close')?.addEventListener('click', () => {
+    $('inspector-sheet').hidden = true;
+  });
+
   $('tour-next').onclick = () => {
     state.tourStep += 1;
     if (state.tourStep >= TOUR.length) endTour();

@@ -73,6 +73,10 @@
         <div class="fm-exercise-picks" id="exercise-picks"></div>
       </section>
 
+      <div class="fm-setup-summary" id="setup-summary" hidden>
+        <div class="fm-summary-grid" id="summary-grid"></div>
+      </div>
+
       <div class="fm-setup" id="setup">
         <section class="fm-step" id="step-company">
           <div class="fm-step-head">
@@ -133,19 +137,30 @@
         </section>
       </div>
 
-      <section class="fm-step" id="step-build" hidden>
-        <div class="fm-step-head">
-          <span class="fm-step-num" id="step-build-num">5</span>
-          <div>
-            <h2>Make your guesses</h2>
-            <p>Each blue number starts from last year’s 10-K arithmetic. Change it if the next five years won’t look like that.</p>
-          </div>
+      <section class="fm-step fm-workspace-step" id="step-build" hidden>
+        <header class="fm-workspace-head">
+          <nav class="fm-tabs" id="model-tabs" role="tablist" aria-label="Model views"></nav>
+          <div class="fm-workspace-status" id="workspace-status"></div>
+        </header>
+        <div class="fm-workspace-body">
+          <div class="fm-main" id="output" role="tabpanel"></div>
+          <aside class="fm-inspector" id="inspector">
+            <button type="button" class="fm-inspector-toggle" id="inspector-toggle" aria-expanded="true" aria-controls="dials">
+              Assumptions
+            </button>
+            <div class="fm-inspector-panel" id="dials"></div>
+          </aside>
         </div>
-        <div class="fm-workspace">
-          <aside class="fm-dials" id="dials"></aside>
-          <div class="fm-output" id="output"></div>
+        <div class="fm-inspector-sheet" id="inspector-sheet" hidden>
+          <div class="fm-inspector-sheet-head">
+            <strong>Assumptions</strong>
+            <button type="button" class="fm-btn fm-btn-ghost" id="inspector-sheet-close">Close</button>
+          </div>
+          <div class="fm-inspector-sheet-body" id="dials-sheet"></div>
         </div>
       </section>
+
+      <button type="button" class="fm-inspector-toggle" id="inspector-mobile" hidden>Assumptions</button>
     </main>
 
     <div class="fm-dock" id="dock" hidden>
