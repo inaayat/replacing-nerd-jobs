@@ -18,6 +18,15 @@ import {
 } from './engine.js';
 import { DIALS, DIAL_GROUPS, dialsFor } from './dials.js';
 import {
+  assumptionCatalog,
+  sourceBadge,
+  validateAssumption,
+  isOverride,
+} from './assumptions.js';
+import { dependencyPath, dependencyRowKeys } from './dependencies.js';
+import { stepsForTab } from './build-steps.js';
+import { renderChecklist, previewForStep } from './checklist.js';
+import {
   UNIT_DIALS,
   UNIT_DIAL_GROUPS,
   defaultUnitAssumptions,
@@ -43,6 +52,9 @@ const state = {
   tourStep: 0,
   inspectorCollapsed: false,
   setupEdit: null,
+  focusedAssumption: null,
+  buildStep: { three: 'revenue', dcf: 'fcf', comps: 'peers' },
+  sourceDefaults: null,
 };
 
 const TABS = [
@@ -601,6 +613,7 @@ async function selectCompany(company) {
   $('status').className = 'fm-status';
   $('status').textContent = `Reading ${company.company}’s FY${headlines.asOfYear} 10-K.`;
   state.assumptions = defaultAssumptions(headlines);
+  state.sourceDefaults = { ...state.assumptions };
   state.scenario = 'base';
   state.peers = [];
   $('dock-ratios').href = `/fortune-500/#company=${company.cik}`;
@@ -621,8 +634,10 @@ function selectExercise(id) {
   state.setupEdit = null;
   if (id === 'unit') {
     state.assumptions = defaultUnitAssumptions();
+    state.sourceDefaults = { ...state.assumptions };
   } else if (state.company && state.headlines) {
     state.assumptions = defaultAssumptions(state.headlines);
+    state.sourceDefaults = { ...state.assumptions };
   } else {
     state.assumptions = null;
   }
@@ -661,12 +676,12 @@ function originFor(dial, headlines) {
 
 /** The copy the workbook prints next to the same cell. */
 function assumptionCards() {
-  const list = isUnit() ? UNIT_DIALS : DIALS;
+  const list = isUnit() ? UNIT_DIALS : assumptionCatalog(state.models);
   return list.map((d) => ({
     key: d.key,
     name: d.name,
-    what: d.what,
-    how: d.how,
+    what: d.shortDefinition || d.what,
+    how: d.formulaText || d.how,
     origin: originFor(d, state.headlines),
   }));
 }
@@ -679,9 +694,38 @@ function activeDialGroups() {
   return isUnit() ? UNIT_DIAL_GROUPS : DIAL_GROUPS;
 }
 
+function applyTraceHighlight(key) {
+  const keys = new Set(key ? dependencyRowKeys(key) : []);
+  document.querySelectorAll('[data-row-key]').forEach((tr) => {
+    tr.classList.toggle('fm-trace-highlight', keys.has(tr.dataset.rowKey));
+  });
+}
+
+function renderDependencyTrace(key) {
+  if (!key) return '';
+  const path = dependencyPath(key);
+  if (!path.length) return '';
+  return `<p class="fm-trace-path fm-trace-inline" aria-live="polite"><strong>Affects.</strong> ${path.map((p) => escapeHtml(p)).join(' → ')}</p>`;
+}
+
+function wrapChecklist(tabId, context) {
+  const steps = stepsForTab(tabId);
+  if (!steps.length) return { html: '', bind: () => {} };
+  const activeId = state.buildStep[tabId] || steps[0].id;
+  const active = steps.find((s) => s.id === activeId) || steps[0];
+  const preview = previewForStep(active, context);
+  return renderChecklist(steps, activeId, {
+    onSelect: (id) => {
+      state.buildStep[tabId] = id;
+      render();
+    },
+    preview,
+  });
+}
+
 function renderDialsHtml() {
-  const active = activeDials();
-  const groupsDef = activeDialGroups();
+  const active = isUnit() ? UNIT_DIALS : assumptionCatalog(state.models);
+  const groupsDef = isUnit() ? UNIT_DIAL_GROUPS : DIAL_GROUPS;
   const scenarios = ['bear', 'base', 'bull']
     .map(
       (s) =>
@@ -697,16 +741,24 @@ function renderDialsHtml() {
         .map((d) => {
           const value = state.assumptions[d.key];
           const disabled = value == null;
-          return `<div class="fm-dial">
+          const meta = d;
+          const validation = disabled ? { valid: true } : validateAssumption(meta, value);
+          const override = !isUnit() && isOverride(d.key, value, state.sourceDefaults);
+          const errId = `dial-err-${d.key}`;
+          return `<div class="fm-dial" data-dial-key="${d.key}">
             <div class="fm-dial-top">
               <span class="fm-dial-name">${escapeHtml(d.name)}</span>
-              <input class="fm-dial-value" type="text" inputmode="decimal" data-key="${d.key}" value="${escapeHtml(dialValueText(d, value))}" ${disabled ? 'disabled' : ''} aria-label="${escapeHtml(d.name)} value" />
+              ${isUnit() ? '' : sourceBadge(meta, { isOverride: override, isMissing: disabled })}
+              <input class="fm-dial-value" type="text" inputmode="decimal" data-key="${d.key}" value="${escapeHtml(dialValueText(d, value))}" ${disabled ? 'disabled' : ''} aria-label="${escapeHtml(d.name)} value" aria-describedby="${validation.valid ? '' : errId}" aria-invalid="${validation.valid ? 'false' : 'true'}" />
             </div>
             ${disabled ? '' : `<input type="range" data-range="${d.key}" min="${d.min}" max="${d.max}" step="${d.step}" value="${value}" aria-label="${escapeHtml(d.name)} slider" />`}
-            <p class="fm-dial-what">${escapeHtml(d.what)}</p>
-            <p class="fm-dial-how"><strong>How to get it.</strong> ${escapeHtml(d.how)}</p>
+            ${validation.valid ? '' : `<p class="fm-dial-error" id="${errId}">${escapeHtml(validation.message)}</p>`}
+            ${validation.warn && validation.message ? `<p class="fm-dial-warn">${escapeHtml(validation.message)}</p>` : ''}
+            <p class="fm-dial-what">${escapeHtml(d.shortDefinition || d.what)}</p>
+            <p class="fm-dial-how"><strong>Formula.</strong> ${escapeHtml(d.formulaText || d.how)}</p>
             <p class="fm-dial-origin"><strong>${isUnit() ? 'This stall.' : 'This filing.'}</strong> ${escapeHtml(originFor(d, state.headlines))}</p>
             <p class="fm-dial-effect">${escapeHtml(d.effect)}</p>
+            ${isUnit() ? '' : renderDependencyTrace(d.key)}
           </div>`;
         })
         .join('');
@@ -724,7 +776,7 @@ function renderDialsHtml() {
 }
 
 function bindDials(wrap) {
-  const active = activeDials();
+  const active = isUnit() ? UNIT_DIALS : assumptionCatalog(state.models);
   wrap.querySelectorAll('[data-range]').forEach((el) => {
     el.addEventListener('input', () => {
       state.assumptions = { ...state.assumptions, [el.dataset.range]: Number(el.value) };
@@ -732,6 +784,8 @@ function bindDials(wrap) {
     });
   });
   wrap.querySelectorAll('[data-key]').forEach((el) => {
+    el.addEventListener('focus', () => applyTraceHighlight(el.dataset.key));
+    el.addEventListener('blur', () => applyTraceHighlight(null));
     el.addEventListener('change', () => {
       const dial = active.find((d) => d.key === el.dataset.key);
       const value = parseDialInput(dial, el.value);
@@ -746,6 +800,7 @@ function bindDials(wrap) {
       state.assumptions = isUnit()
         ? applyUnitScenario(defaultUnitAssumptions(), state.scenario)
         : applyScenario(defaultAssumptions(state.headlines), state.scenario);
+      if (!isUnit()) state.sourceDefaults = { ...defaultAssumptions(state.headlines), ...state.assumptions };
       render();
     });
   });
@@ -775,7 +830,7 @@ function formatCell(line, v, scale) {
   return n.toLocaleString('en-US', { maximumFractionDigits: digits, minimumFractionDigits: 0 });
 }
 
-function table(columns, sections, { scale = SCALE, unitLabel = 'US$ millions' } = {}) {
+function table(columns, sections, { scale = SCALE, unitLabel = 'US$ millions', rowKeyFor } = {}) {
   const head = `<thead><tr><th>${escapeHtml(unitLabel)}</th>${columns
     .map((c) => {
       const label = c.label || `FY${c.year}${c.filed ? 'A' : 'E'}`;
@@ -795,7 +850,9 @@ function table(columns, sections, { scale = SCALE, unitLabel = 'US$ millions' } 
             })
             .join('');
           const cls = [line.total ? 'fm-total' : '', line.cls || ''].filter(Boolean).join(' ');
-          return `<tr class="${cls}"><td>${escapeHtml(line.label)}</td>${cells}</tr>`;
+          const rowKey = line.rowKey || (rowKeyFor ? rowKeyFor(line) : null);
+          const dataKey = rowKey ? ` data-row-key="${rowKey}"` : '';
+          return `<tr class="${cls}"${dataKey}><td>${escapeHtml(line.label)}</td>${cells}</tr>`;
         })
         .join('');
       return title + lines;
@@ -805,7 +862,7 @@ function table(columns, sections, { scale = SCALE, unitLabel = 'US$ millions' } 
 }
 
 function lineOf(rows, label, key, { total = false, cls = '', fmt } = {}) {
-  return { label, total, cls, fmt, values: rows.map((r) => r[key]) };
+  return { label, total, cls, fmt, rowKey: key, values: rows.map((r) => r[key]) };
 }
 
 function handoff(kind, arrow, text) {
@@ -815,7 +872,7 @@ function handoff(kind, arrow, text) {
   </div>`;
 }
 
-function threeStatementPanel(model) {
+function threeStatementPanel(model, checklistHtml = '') {
   const rows = model.rows;
   const unitKind = model.kind === 'unit';
   const scale = model.scale ?? SCALE;
@@ -850,7 +907,7 @@ function threeStatementPanel(model) {
   const cfsLines = [
     lineOf(rows, 'Net income', 'netIncome', { cls: 'fm-link-ni' }),
     unitKind
-      ? { label: 'Add back depreciation', cls: '', values: rows.map((r) => r.daAddBack) }
+      ? { label: 'Add back depreciation', cls: '', rowKey: 'da', values: rows.map((r) => r.daAddBack) }
       : lineOf(rows, 'Add back depreciation', 'da'),
     ...(unitKind
       ? [
@@ -883,7 +940,7 @@ function threeStatementPanel(model) {
           lineOf(rows, unitKind ? 'Payables (the grocer)' : 'Other liabilities', 'otherLiabilities'),
           lineOf(rows, 'Shareholders’ equity', 'equity', { cls: 'fm-link-ni' }),
           lineOf(rows, 'Total liabilities & equity', 'totalLiabEquity', { total: true }),
-          { label: 'Check — should be zero', total: true, values: rows.map((r) => r.balanceCheck) },
+          { label: 'Check — should be zero', total: true, rowKey: 'balanceCheck', values: rows.map((r) => r.balanceCheck) },
         ],
       },
     ],
@@ -892,6 +949,7 @@ function threeStatementPanel(model) {
 
   return `<section class="fm-panel">
     <h3>The three statements</h3>
+    ${checklistHtml ? `<div class="fm-checklist-wrap" data-checklist="three">${checklistHtml}</div>` : ''}
     <ol class="fm-flow">
       <li>
         <strong>Income statement</strong>
@@ -939,7 +997,7 @@ function threeStatementPanel(model) {
   </section>`;
 }
 
-function dcfPanel(model, dcf) {
+function dcfPanel(model, dcf, checklistHtml = '') {
   if (!state.models.includes('dcf')) {
     return `<section class="fm-panel"><div class="fm-empty"><h3>DCF not selected</h3><p>Turn on Discounted cash flow in setup to include it in the workbook, or switch to this tab to preview it.</p></div></section>`;
   }
@@ -962,6 +1020,7 @@ function dcfPanel(model, dcf) {
 
   return `<section class="fm-panel">
     <h3>What it’s worth (DCF)</h3>
+    ${checklistHtml ? `<div class="fm-checklist-wrap" data-checklist="dcf">${checklistHtml}</div>` : ''}
     <p class="fm-aside"><strong>How this is built:</strong> add up the cash of the next five years, plus a lump sum for every year after that, then discount it all back to today at a rate that reflects the risk. Subtract debt, add cash, divide by shares — that’s a price.</p>
     <div class="fm-verdict">
       <div><dt>Discount rate (WACC)</dt><dd>${formatPercent(dcf.wacc.wacc)}</dd></div>
@@ -1071,7 +1130,7 @@ function checksPanel(model, dcf, comps) {
   </section>`;
 }
 
-function compsPanel(comps) {
+function compsPanel(comps, checklistHtml = '') {
   if (!state.peers.length) {
     return `<section class="fm-panel"><h3>What the market pays for the neighbours</h3>
       <div class="fm-empty"><h3>Choose the peer set</h3>
@@ -1111,6 +1170,7 @@ function compsPanel(comps) {
 
   return `<section class="fm-panel">
     <h3>What the market pays for the neighbours</h3>
+    ${checklistHtml ? `<div class="fm-checklist-wrap" data-checklist="comps">${checklistHtml}</div>` : ''}
     <p class="fm-aside"><strong>How this is built:</strong> you picked the peer set. We work out what multiple of their sales or profit the market pays, then apply the middle one to this company. It answers "what would a buyer pay today", not "what is it worth forever".</p>
     <div class="fm-scroll"><table class="fm-table">
       <thead><tr><th>Company</th><th>Price</th><th>EV ($m)</th><th>EV/Revenue</th><th>EV/EBITDA</th><th>P/E</th></tr></thead>
@@ -1156,22 +1216,41 @@ function tabHint() {
 
 function renderActivePanel(run) {
   const { model, dcf, sens, comps } = run;
+  const context = {
+    model,
+    dcf,
+    comps,
+    assumptions: state.assumptions,
+    peers: state.peers,
+  };
+  const threeCl = wrapChecklist('three', context);
+  const dcfCl = wrapChecklist('dcf', context);
+  const compsCl = wrapChecklist('comps', context);
+
+  let html;
   switch (state.activeTab) {
     case 'three':
-      return threeStatementPanel(model);
+      html = threeStatementPanel(model, threeCl.html);
+      break;
     case 'dcf':
-      return dcfPanel(model, dcf);
+      html = dcfPanel(model, dcf, dcfCl.html);
+      break;
     case 'comps':
-      return compsPanel(comps);
+      html = compsPanel(comps, compsCl.html);
+      break;
     case 'scenarios':
-      return scenariosPanel();
+      html = scenariosPanel();
+      break;
     case 'sensitivity':
-      return sensitivityPanel(model, dcf, sens);
+      html = sensitivityPanel(model, dcf, sens);
+      break;
     case 'checks':
-      return checksPanel(model, dcf, comps);
+      html = checksPanel(model, dcf, comps);
+      break;
     default:
-      return threeStatementPanel(model);
+      html = threeStatementPanel(model, threeCl.html);
   }
+  return { html, bindChecklists: [threeCl, dcfCl, compsCl] };
 }
 
 function render() {
@@ -1186,7 +1265,15 @@ function render() {
   renderTabs();
   renderDials();
   renderWorkspaceStatus(model, dcf);
-  $('output').innerHTML = tabHint() + renderActivePanel(run);
+  const panel = renderActivePanel(run);
+  $('output').innerHTML = tabHint() + panel.html;
+
+  $('output').querySelectorAll('.fm-checklist-wrap').forEach((wrap, i) => {
+    const cl = panel.bindChecklists[i];
+    if (cl?.bind) cl.bind(wrap);
+  });
+
+  applyTraceHighlight(document.activeElement?.dataset?.key || null);
 
   $('output').querySelectorAll('[data-scenario-apply]').forEach((el) => {
     el.onclick = () => {
