@@ -1,9 +1,10 @@
 /**
  * The guesses, in plain English. One entry per editable driver: what it is,
- * where its default came from, and what moving it does.
+ * the 10-K arithmetic an analyst uses to get it, where this filing’s default
+ * came from, and what moving it does.
  *
  * Browser-safe ESM with no imports. The page renders these as cards and the
- * workbook prints the same two sentences next to the same cell, so the
+ * workbook prints the same sentences next to the same cell, so the
  * spreadsheet and the screen never explain a number differently.
  */
 
@@ -27,8 +28,9 @@ export const DIALS = [
     max: 0.4,
     step: 0.005,
     what: 'How much bigger the company gets each year.',
+    how: 'This year’s sales ÷ last year’s sales, minus 1. Then decide if the next five years keep that pace, fade toward the economy, or follow management guidance.',
     originKey: 'revenue_yoy',
-    originText: (o) => (o == null ? 'Nothing to copy from the filing, so this starts at 4%.' : `Last year sales moved ${o}.`),
+    originText: (o) => (o == null ? 'This filing has no prior-year sales, so the slider starts at 4%.' : `Last year sales moved ${o}.`),
     effect: 'Every line on all three statements starts from this number.',
   },
   {
@@ -40,8 +42,9 @@ export const DIALS = [
     max: 0.95,
     step: 0.005,
     what: 'Of every sales dollar, what’s left after making the thing you sold.',
+    how: 'Gross profit ÷ sales. Cost of sales is the rest (1 − this).',
     originKey: 'gross_margin',
-    originText: (o) => (o == null ? 'This filer doesn’t tag gross profit — banks and insurers usually don’t. The model skips the line rather than invent it.' : `The 10-K kept ${o} of each sales dollar.`),
+    originText: (o) => (o == null ? 'This filer doesn’t tag gross profit — banks and insurers usually don’t. The model skips the line rather than invent it.' : `Gross profit was ${o} of sales.`),
     effect: 'Sets cost of sales, and inventory is sized off it.',
   },
   {
@@ -53,8 +56,9 @@ export const DIALS = [
     max: 0.7,
     step: 0.005,
     what: 'Profit after running the business, before interest and tax.',
+    how: 'Operating income ÷ sales. If operating income isn’t tagged, back it out as (net income ÷ sales) ÷ (1 − tax rate).',
     originKey: 'operating_margin',
-    originText: (o) => (o == null ? 'Operating income isn’t tagged, so this is backed out of net income and the tax rate.' : `The 10-K reported ${o}.`),
+    originText: (o) => (o == null ? 'Operating income isn’t tagged, so this is backed out of net income and the tax rate.' : `Operating income was ${o} of sales.`),
     effect: 'This is the single biggest lever on the DCF.',
   },
   {
@@ -66,7 +70,8 @@ export const DIALS = [
     max: 0.45,
     step: 0.005,
     what: 'The share of pre-tax profit that goes to governments.',
-    originText: () => 'Starts at the 21% US federal statutory rate.',
+    how: 'Income tax expense ÷ pre-tax income. If that line is messy (credits, one-offs), start at the 21% US federal statutory rate and adjust.',
+    originText: () => 'This snapshot has no clean tax-expense tag, so the slider starts at the 21% US federal statutory rate.',
     effect: 'Lowers net income and the after-tax cash the DCF discounts.',
   },
   {
@@ -78,8 +83,9 @@ export const DIALS = [
     max: 0.4,
     step: 0.005,
     what: 'Money spent on factories, servers, stores — as a share of sales.',
+    how: 'Capital expenditure ÷ sales. Filings often tag CapEx as a cash outflow (negative); use the absolute value.',
     originKey: 'capex_intensity',
-    originText: (o) => (o == null ? 'CapEx isn’t tagged here, so this starts at 4% of sales.' : `The 10-K spent ${o} of sales.`),
+    originText: (o) => (o == null ? 'CapEx isn’t tagged here, so this starts at 4% of sales.' : `CapEx was ${o} of sales.`),
     effect: 'Cash out today, a bigger asset base tomorrow.',
   },
   {
@@ -91,7 +97,8 @@ export const DIALS = [
     max: 0.4,
     step: 0.005,
     what: 'The accounting cost of assets wearing out. No cash leaves the building.',
-    originText: () => 'Not a tag in this snapshot, so it starts equal to capital spending — what a steady company roughly replaces each year.',
+    how: 'D&A ÷ sales. This snapshot has no D&A tag, so a mature company is assumed to replace what it wears out: start equal to CapEx % of sales.',
+    originText: () => 'Not a tag in this snapshot, so it starts equal to capital spending.',
     effect: 'Cuts profit but is added straight back in the cash flow statement.',
   },
   {
@@ -103,7 +110,8 @@ export const DIALS = [
     max: 180,
     step: 1,
     what: 'How long customers take to pay. Longer means cash sits in receivables.',
-    originText: (o) => (o == null ? 'Receivables aren’t tagged, so this stays flat instead of guessing.' : `The 10-K implies ${o}.`),
+    how: 'Accounts receivable ÷ sales × 365.',
+    originText: (o) => (o == null ? 'Receivables aren’t tagged, so this stays flat instead of guessing.' : `Receivables ÷ sales × 365 = ${o}.`),
     effect: 'Raising it eats cash without touching profit.',
   },
   {
@@ -115,7 +123,8 @@ export const DIALS = [
     max: 240,
     step: 1,
     what: 'How long stock sits on shelves before it sells.',
-    originText: (o) => (o == null ? 'No inventory tag — a services or financial company usually has none.' : `The 10-K implies ${o}.`),
+    how: 'Inventory ÷ cost of sales × 365. Cost of sales is sales × (1 − gross margin).',
+    originText: (o) => (o == null ? 'No inventory tag — a services or financial company usually has none.' : `Inventory ÷ cost of sales × 365 = ${o}.`),
     effect: 'Same as above: more days, less cash.',
   },
   {
@@ -127,7 +136,8 @@ export const DIALS = [
     max: 0.15,
     step: 0.0025,
     what: 'What the company pays to borrow.',
-    originText: () => 'Starts at 5%, a rough investment-grade coupon. It’s charged on the balance at the *start* of the year, which is what keeps this model free of circular references.',
+    how: 'Interest expense ÷ beginning-of-year debt. The 10-K notes also list coupon rates. Charged on the *start*-of-year balance so the model stays free of circular references.',
+    originText: () => 'No interest-expense tag in this snapshot, so the slider starts at 5% — a rough investment-grade coupon.',
     effect: 'Also becomes the cost of debt inside WACC.',
   },
   {
@@ -139,7 +149,8 @@ export const DIALS = [
     max: 0.5,
     step: 0.01,
     what: 'Share of the loan balance repaid each year.',
-    originText: () => 'Starts at 5% if they carry debt, 0% if they don’t.',
+    how: 'Debt repaid (cash flow statement) ÷ beginning debt. Or read the debt footnote for scheduled maturities.',
+    originText: () => 'No repayment tag in this snapshot, so this starts at 5% if they carry debt and 0% if they don’t.',
     effect: 'Uses cash now, cuts interest later.',
   },
   {
@@ -151,6 +162,7 @@ export const DIALS = [
     max: 1,
     step: 0.05,
     what: 'Share of profit handed to shareholders instead of kept.',
+    how: 'Dividends paid ÷ net income. Both are on the cash flow and income statements.',
     originText: () => 'Dividends aren’t in the snapshot, so this starts at zero — every dollar of profit stays in equity until you say otherwise.',
     effect: 'Lowers cash and equity by the same amount, so the sheet still balances.',
   },
@@ -163,7 +175,8 @@ export const DIALS = [
     max: 2.5,
     step: 0.05,
     what: 'How violently the stock moves versus the market. 1.0 means it moves with it.',
-    originText: () => 'Starts at 1.0 — the market itself.',
+    how: 'Slope of the stock versus the S&P 500 (Bloomberg, Yahoo, or a 5-year weekly regression). Cost of equity = risk-free rate + beta × equity risk premium.',
+    originText: () => 'No live beta in this snapshot, so this starts at 1.0 — the market itself.',
     effect: 'Higher beta means a higher discount rate and a lower value.',
   },
   {
@@ -175,7 +188,8 @@ export const DIALS = [
     max: 0.1,
     step: 0.0025,
     what: 'What you’d earn lending to the US government instead.',
-    originText: () => 'Starts near the recent 10-year Treasury yield.',
+    how: 'The 10-year US Treasury yield on the day you build the model.',
+    originText: () => 'Starts near a recent 10-year Treasury yield (4.3%). Look up today’s number if you want it live.',
     effect: 'The floor under every other return in the model.',
   },
   {
@@ -187,6 +201,7 @@ export const DIALS = [
     max: 0.12,
     step: 0.0025,
     what: 'The extra return investors demand for owning stocks instead of bonds.',
+    how: 'Stocks’ extra return over Treasuries. Damodaran publishes an implied ERP; textbooks often use 4–6%. Cost of equity = risk-free + beta × this.',
     originText: () => 'Starts at 5%, the usual textbook figure.',
     effect: 'Multiplied by beta to get the cost of equity.',
   },
@@ -199,6 +214,7 @@ export const DIALS = [
     max: 0.05,
     step: 0.0025,
     what: 'How fast the company grows after the five forecast years — forever.',
+    how: 'Long-run inflation or nominal GDP — and it must stay below WACC. Gordon growth: terminal value = last FCF × (1 + g) ÷ (WACC − g).',
     originText: () => 'Starts at 2.5%, roughly long-run inflation. Above the economy’s growth rate and you’ve claimed the company eventually eats the world.',
     effect: 'Usually decides most of the valuation, which is why the sensitivity table exists.',
   },

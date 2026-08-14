@@ -67,7 +67,7 @@ const TOUR = [
   },
   {
     title: 'Change the blue numbers',
-    body: 'Blue means you typed it. Black means the model worked it out. Move a slider and watch every statement redraw — then download the same thing as a spreadsheet.',
+    body: 'Each blue number starts from a 10-K formula written on the card — sales ÷ last year’s sales, receivables ÷ sales × 365, and so on. Change it if you think the next five years won’t look like last year.',
   },
 ];
 
@@ -364,7 +364,13 @@ function originFor(dial, headlines) {
 
 /** The copy the workbook prints next to the same cell. */
 function assumptionCards() {
-  return DIALS.map((d) => ({ key: d.key, name: d.name, what: d.what, origin: originFor(d, state.headlines) }));
+  return DIALS.map((d) => ({
+    key: d.key,
+    name: d.name,
+    what: d.what,
+    how: d.how,
+    origin: originFor(d, state.headlines),
+  }));
 }
 
 function renderDials(model) {
@@ -391,7 +397,8 @@ function renderDials(model) {
             </div>
             ${disabled ? '' : `<input type="range" data-range="${d.key}" min="${d.min}" max="${d.max}" step="${d.step}" value="${value}" aria-label="${escapeHtml(d.name)} slider" />`}
             <p class="fm-dial-what">${escapeHtml(d.what)}</p>
-            <p class="fm-dial-origin">${escapeHtml(originFor(d, state.headlines))}</p>
+            <p class="fm-dial-how"><strong>How to get it.</strong> ${escapeHtml(d.how)}</p>
+            <p class="fm-dial-origin"><strong>This filing.</strong> ${escapeHtml(originFor(d, state.headlines))}</p>
             <p class="fm-dial-effect">${escapeHtml(d.effect)}</p>
           </div>`;
         })
@@ -400,7 +407,9 @@ function renderDials(model) {
     })
     .join('');
 
-  wrap.innerHTML = `<div class="fm-scenarios" role="group" aria-label="Scenario">${scenarios}</div>${groups}`;
+  wrap.innerHTML = `<div class="fm-scenarios" role="group" aria-label="Scenario">${scenarios}</div>
+    <p class="fm-dials-lede">Last year’s 10-K gives you the arithmetic. The slider is your call on whether the next five years look like that.</p>
+    ${groups}`;
 
   wrap.querySelectorAll('[data-range]').forEach((el) => {
     el.addEventListener('input', () => {

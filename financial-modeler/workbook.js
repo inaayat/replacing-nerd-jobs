@@ -469,14 +469,15 @@ function assumptionsSheet({ company, headlines, model, cards }) {
   b.text(['Blue cells are yours to change. Every other sheet reads them.'], 'note');
   b.text([`${company?.company || headlines?.entityName || ''} · ${company?.fortune_ticker || company?.sec_ticker || ''} · US$ in millions`], 'note');
   b.blank();
-  b.add([{ v: 'Driver', s: 'hdr' }, { v: 'Value', s: 'hdr' }, { v: 'What it is', s: 'hdr' }, { v: 'Where the default came from', s: 'hdr' }]);
+  b.add([{ v: 'Driver', s: 'hdr' }, { v: 'Value', s: 'hdr' }, { v: 'What it is', s: 'hdr' }, { v: 'How to get it', s: 'hdr' }, { v: 'Where the default came from', s: 'hdr' }]);
 
   const a = model.assumptions;
-  const put = (key, label, value, style, what, origin) => {
+  const put = (key, label, value, style, what, how, origin) => {
     const r = b.add([
       { v: label, s: 'lbl' },
       { v: typeof value === 'number' && Number.isFinite(value) ? value : null, s: style },
       { v: what, s: 'note' },
+      { v: how, s: 'note' },
       { v: origin, s: 'note' },
     ]);
     at.set(key, r);
@@ -503,7 +504,7 @@ function assumptionsSheet({ company, headlines, model, cards }) {
     ['terminalGrowth', 'Terminal growth rate', a.terminalGrowth, 'inpct'],
   ]) {
     const c = copy(key);
-    put(key, label, value, style, c.what || '', c.origin || '');
+    put(key, label, value, style, c.what || '', c.how || '', c.origin || '');
   }
 
   b.blank();
@@ -530,7 +531,7 @@ function assumptionsSheet({ company, headlines, model, cards }) {
   ], 'note');
   b.text(['Note: D&A is not tagged either. CapEx is the stand-in — a mature company roughly replaces what it wears out.'], 'note');
 
-  return { sheet: b.pack([260, 90, 380, 380]), at };
+  return { sheet: b.pack([240, 90, 260, 360, 320]), at };
 }
 
 /**
