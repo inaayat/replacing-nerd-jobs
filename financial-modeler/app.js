@@ -8,7 +8,6 @@ import { isPublic, PRIVATE_NOTES } from '../fortune-500/catalog.js';
 import { priceTicker } from '../fortune-500/prices.js';
 import {
   defaultAssumptions,
-  applyScenario,
   runThreeStatement,
   runDcf,
   dcfSensitivity,
@@ -30,9 +29,21 @@ import {
   UNIT_DIALS,
   UNIT_DIAL_GROUPS,
   defaultUnitAssumptions,
-  applyUnitScenario,
   runUnitEcon,
 } from './unit-econ.js';
+import {
+  createScenarioState,
+  setActiveScenario,
+  editScenarioValue,
+  resetActiveScenario,
+  resetAllScenarios,
+  assumptionsFromScenarioState,
+  ensureScenarioInitialized,
+  SCENARIO_ORDER,
+  SCENARIO_LABELS,
+  SCENARIO_DRIVERS,
+  legacyScenarioId,
+} from './scenarios.js';
 import { buildWorkbook, buildUnitWorkbook, workbookFilename, downloadWorkbook } from './workbook.js';
 
 const $ = (id) => document.getElementById(id);
@@ -47,7 +58,7 @@ const state = {
   models: ['three', 'dcf', 'comps'],
   activeTab: 'three',
   assumptions: null,
-  scenario: 'base',
+  scenarioState: null,
   peers: [],
   tourStep: 0,
   inspectorCollapsed: false,
@@ -165,6 +176,18 @@ const fmtX = (n) => (Number.isFinite(n) ? `${n.toFixed(1)}×` : null);
 
 function isUnit() {
   return state.exercise === 'unit';
+}
+
+function syncAssumptionsFromScenarios() {
+  if (state.scenarioState) {
+    state.assumptions = assumptionsFromScenarioState(state.scenarioState);
+    state.scenario = state.scenarioState.activeScenario;
+  }
+}
+
+function initScenarioState(defaults) {
+  state.scenarioState = createScenarioState(defaults);
+  syncAssumptionsFromScenarios();
 }
 
 function dialValueText(dial, value) {
@@ -613,8 +636,8 @@ async function selectCompany(company) {
   $('status').className = 'fm-status';
   $('status').textContent = `Reading ${company.company}’s FY${headlines.asOfYear} 10-K.`;
   state.assumptions = defaultAssumptions(headlines);
+  initScenarioState(state.assumptions);
   state.sourceDefaults = { ...state.assumptions };
-  state.scenario = 'base';
   state.peers = [];
   $('dock-ratios').href = `/fortune-500/#company=${company.cik}`;
   renderPicks();
@@ -630,14 +653,17 @@ function selectExercise(id) {
   if (id !== 'filer' && id !== 'unit') return;
   state.exercise = id;
   state.scenario = 'base';
+  state.scenario = 'base';
   state.activeTab = 'three';
   state.setupEdit = null;
   if (id === 'unit') {
-    state.assumptions = defaultUnitAssumptions();
-    state.sourceDefaults = { ...state.assumptions };
+    const defaults = defaultUnitAssumptions();
+    initScenarioState(defaults);
+    state.sourceDefaults = { ...defaults };
   } else if (state.company && state.headlines) {
-    state.assumptions = defaultAssumptions(state.headlines);
-    state.sourceDefaults = { ...state.assumptions };
+    const defaults = defaultAssumptions(state.headlines);
+    initScenarioState(defaults);
+    state.sourceDefaults = { ...defaults };
   } else {
     state.assumptions = null;
   }
@@ -726,12 +752,10 @@ function wrapChecklist(tabId, context) {
 function renderDialsHtml() {
   const active = isUnit() ? UNIT_DIALS : assumptionCatalog(state.models);
   const groupsDef = isUnit() ? UNIT_DIAL_GROUPS : DIAL_GROUPS;
-  const scenarios = ['bear', 'base', 'bull']
-    .map(
-      (s) =>
-        `<button type="button" data-scenario="${s}" aria-pressed="${state.scenario === s}">${s[0].toUpperCase()}${s.slice(1)}</button>`
-    )
-    .join('');
+  const scenarios = SCENARIO_ORDER.map(
+    (s) =>
+      `<button type="button" data-scenario="${s}" aria-pressed="${state.scenarioState?.activeScenario === s}">${SCENARIO_LABELS[s]}</button>`
+  ).join('');
 
   const groups = groupsDef
     .filter((g) => active.some((d) => d.group === g.id))
@@ -779,7 +803,14 @@ function bindDials(wrap) {
   const active = isUnit() ? UNIT_DIALS : assumptionCatalog(state.models);
   wrap.querySelectorAll('[data-range]').forEach((el) => {
     el.addEventListener('input', () => {
-      state.assumptions = { ...state.assumptions, [el.dataset.range]: Number(el.value) };
+      const key = el.dataset.range;
+      const value = Number(el.value);
+      if (state.scenarioState && SCENARIO_DRIVERS.includes(key)) {
+        state.scenarioState = editScenarioValue(state.scenarioState, key, value);
+        syncAssumptionsFromScenarios();
+      } else {
+        state.assumptions = { ...state.assumptions, [key]: value };
+      }
       render();
     });
   });
@@ -790,17 +821,20 @@ function bindDials(wrap) {
       const dial = active.find((d) => d.key === el.dataset.key);
       const value = parseDialInput(dial, el.value);
       if (value == null) return render();
-      state.assumptions = { ...state.assumptions, [dial.key]: value };
+      if (state.scenarioState && SCENARIO_DRIVERS.includes(dial.key)) {
+        state.scenarioState = editScenarioValue(state.scenarioState, dial.key, value);
+        syncAssumptionsFromScenarios();
+      } else {
+        state.assumptions = { ...state.assumptions, [dial.key]: value };
+      }
       render();
     });
   });
   wrap.querySelectorAll('[data-scenario]').forEach((el) => {
     el.addEventListener('click', () => {
-      state.scenario = el.dataset.scenario;
-      state.assumptions = isUnit()
-        ? applyUnitScenario(defaultUnitAssumptions(), state.scenario)
-        : applyScenario(defaultAssumptions(state.headlines), state.scenario);
-      if (!isUnit()) state.sourceDefaults = { ...defaultAssumptions(state.headlines), ...state.assumptions };
+      if (!state.scenarioState) return;
+      state.scenarioState = setActiveScenario(state.scenarioState, el.dataset.scenario);
+      syncAssumptionsFromScenarios();
       render();
     });
   });
@@ -1063,30 +1097,105 @@ function sensitivityPanel(model, dcf, sens) {
   </section>`;
 }
 
+function scenarioAssumptionsFor(key) {
+  if (!state.scenarioState) return state.assumptions;
+  const st = ensureScenarioInitialized(state.scenarioState, key);
+  return { ...st.defaults, ...st.scenarios[key].values, scenario: key };
+}
+
+function runScenarioColumn(key) {
+  const assumptions = scenarioAssumptionsFor(key);
+  if (isUnit()) {
+    const model = runUnitEcon(assumptions);
+    return { model, dcf: null, ok: model.ok };
+  }
+  const model = runThreeStatement(state.headlines, assumptions);
+  if (!model.ok) return { model, dcf: null, ok: false };
+  const shares = state.headlines?.metrics?.shares_out?.val ?? null;
+  const price = state.prices.get(priceTicker(state.company)) ?? null;
+  const dcf = state.models.includes('dcf') ? runDcf(model, { price, shares }) : null;
+  return { model, dcf, ok: true };
+}
+
 function scenariosPanel() {
-  const scenarioCopy = {
-    bear: 'Lower sales growth and operating margin — a cautious case.',
-    base: 'Defaults from the filing — last year repeated unless you changed them.',
-    bull: 'Higher sales growth and operating margin — an optimistic case.',
-  };
-  const cards = ['bear', 'base', 'bull']
+  if (!state.scenarioState) {
+    return `<section class="fm-panel"><div class="fm-empty"><h3>Select a company first</h3></div></section>`;
+  }
+
+  const active = state.scenarioState.activeScenario;
+  const catalog = assumptionCatalog(isUnit() ? ['three'] : state.models);
+  const driverMeta = new Map(catalog.filter((d) => SCENARIO_DRIVERS.includes(d.key)).map((d) => [d.key, d]));
+
+  const header = SCENARIO_ORDER.map(
+    (k) => `<th class="${k === active ? 'fm-col-actual' : ''}">${SCENARIO_LABELS[k]}</th>`
+  ).join('');
+
+  const rows = SCENARIO_DRIVERS.filter((key) => driverMeta.has(key) || state.scenarioState.scenarios.base.values[key] != null)
+    .map((key) => {
+      const meta = driverMeta.get(key) || { key, name: key, fmt: 'num' };
+      const cells = SCENARIO_ORDER.map((k) => {
+        const st = ensureScenarioInitialized(state.scenarioState, k);
+        const v = st.scenarios[k].values[key];
+        const isActive = k === active;
+        return `<td class="${isActive ? 'fm-forecast' : ''}">${escapeHtml(dialValueText(meta, v))}</td>`;
+      }).join('');
+      return `<tr><td>${escapeHtml(meta.name || key)}</td>${cells}</tr>`;
+    })
+    .join('');
+
+  const outputs = SCENARIO_ORDER.map((k) => {
+    const run = runScenarioColumn(k);
+    const row = run.model?.rows?.find((r) => r.offset === 1);
+    const rev = row ? fmtM(row.revenue) : '—';
+    const ebit = row ? fmtM(row.ebit) : '—';
+    const ni = row ? fmtM(row.netIncome) : '—';
+    const cash = row ? fmtM(row.cash) : '—';
+    const debt = row ? fmtM(row.debt) : '—';
+    const fcf = row ? fmtM(row.unleveredFcf) : '—';
+    const price = run.dcf?.impliedPrice != null ? fmtPrice(run.dcf.impliedPrice) : '—';
+    const tie = run.model?.checks?.balances ? 'Ties' : 'Fails';
+    return { k, rev, ebit, ni, cash, debt, fcf, price, tie, ok: run.ok };
+  });
+
+  const outputRows = [
+    ['Revenue (Y1)', outputs.map((o) => o.rev)],
+    ['EBIT (Y1)', outputs.map((o) => o.ebit)],
+    ['Net income (Y1)', outputs.map((o) => o.ni)],
+    ['Ending cash (Y1)', outputs.map((o) => o.cash)],
+    ['Debt (Y1)', outputs.map((o) => o.debt)],
+    ['Unlevered FCF (Y1)', outputs.map((o) => o.fcf)],
+    ['Implied share price', outputs.map((o) => o.price)],
+    ['Balance check', outputs.map((o) => o.tie)],
+  ]
     .map(
-      (s) =>
-        `<div class="fm-dial" style="margin-bottom:10px">
-          <div class="fm-dial-top">
-            <span class="fm-dial-name">${s[0].toUpperCase()}${s.slice(1)}</span>
-            <button type="button" class="fm-chip" data-scenario-apply="${s}" ${state.scenario === s ? 'disabled' : ''}>${state.scenario === s ? 'Active' : 'Apply'}</button>
-          </div>
-          <p class="fm-dial-what">${escapeHtml(scenarioCopy[s])}</p>
-        </div>`
+      ([label, vals]) =>
+        `<tr><td>${escapeHtml(label)}</td>${vals.map((v, i) => `<td class="${SCENARIO_ORDER[i] === active ? 'fm-forecast' : ''}">${escapeHtml(String(v))}</td>`).join('')}</tr>`
     )
     .join('');
 
+  const casePills = SCENARIO_ORDER.map(
+    (k) =>
+      `<button type="button" class="fm-chip" data-scenario-select="${k}" aria-pressed="${k === active}">${SCENARIO_LABELS[k]}</button>`
+  ).join('');
+
   return `<section class="fm-panel">
-    <h3>Operating scenarios</h3>
-    <p class="fm-aside"><strong>Scenarios vs sensitivity:</strong> a scenario moves several assumptions together (growth and margin). Sensitivity isolates one or two drivers. Full Base/Upside/Downside/Custom editing arrives in a later update — for now, Bear/Base/Bull preset tilts are in the Assumptions panel too.</p>
-    ${cards}
-    <p class="fm-aside">Applying a scenario resets assumptions from filing defaults with a tilt. Edit individual drivers in the Assumptions panel on the right (or the Assumptions button on mobile).</p>
+    <h3>Scenario manager</h3>
+    <p class="fm-aside"><strong>Scenarios vs sensitivity:</strong> each column is a coherent case — several drivers move together. Sensitivity (another tab) isolates one or two variables. Edits in the Assumptions panel change only the active case (<strong>${escapeHtml(SCENARIO_LABELS[active])}</strong>).</p>
+    <div class="fm-scenarios" role="group" aria-label="Active scenario">${casePills}</div>
+    <h4 style="margin:16px 0 8px;font-size:14px">Drivers by scenario</h4>
+    <div class="fm-scroll"><table class="fm-table">
+      <thead><tr><th>Driver</th>${header}</tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+    <h4 style="margin:16px 0 8px;font-size:14px">Outputs by scenario</h4>
+    <div class="fm-scroll"><table class="fm-table">
+      <thead><tr><th>Output</th>${header}</tr></thead>
+      <tbody>${outputRows}</tbody>
+    </table></div>
+    <div class="fm-dock-actions" style="margin-top:14px">
+      <button type="button" class="fm-btn fm-btn-ghost" id="scenario-reset-active">Reset active case</button>
+      <button type="button" class="fm-btn fm-btn-ghost" id="scenario-reset-all">Reset all cases</button>
+    </div>
   </section>`;
 }
 
@@ -1275,15 +1384,37 @@ function render() {
 
   applyTraceHighlight(document.activeElement?.dataset?.key || null);
 
-  $('output').querySelectorAll('[data-scenario-apply]').forEach((el) => {
+  $('output').querySelectorAll('[data-scenario-select]').forEach((el) => {
     el.onclick = () => {
-      state.scenario = el.dataset.scenarioApply;
-      state.assumptions = isUnit()
-        ? applyUnitScenario(defaultUnitAssumptions(), state.scenario)
-        : applyScenario(defaultAssumptions(state.headlines), state.scenario);
+      if (!state.scenarioState) return;
+      state.scenarioState = setActiveScenario(state.scenarioState, el.dataset.scenarioSelect);
+      syncAssumptionsFromScenarios();
       render();
     };
   });
+
+  const resetActive = $('scenario-reset-active');
+  if (resetActive) {
+    resetActive.onclick = () => {
+      if (!state.scenarioState) return;
+      if (!confirm(`Reset ${SCENARIO_LABELS[state.scenarioState.activeScenario]} to its filing defaults?`)) return;
+      const defaults = isUnit() ? defaultUnitAssumptions() : defaultAssumptions(state.headlines);
+      state.scenarioState = resetActiveScenario(state.scenarioState, defaults);
+      syncAssumptionsFromScenarios();
+      render();
+    };
+  }
+  const resetAll = $('scenario-reset-all');
+  if (resetAll) {
+    resetAll.onclick = () => {
+      if (!state.scenarioState) return;
+      if (!confirm('Reset all scenarios to filing defaults? This clears every case edit.')) return;
+      const defaults = isUnit() ? defaultUnitAssumptions() : defaultAssumptions(state.headlines);
+      state.scenarioState = resetAllScenarios(defaults);
+      syncAssumptionsFromScenarios();
+      render();
+    };
+  }
 
   const dl = $('checks-download');
   if (dl) dl.onclick = download;
