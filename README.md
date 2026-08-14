@@ -101,10 +101,14 @@ The snapshot has no tag for net PP&E, payables, or D&A, so those sit in two
 labelled residual lines (which is what makes year 0 equal the filed totals) and
 D&A starts equal to CapEx. Nothing untagged is ever read as zero.
 `/fortune-500/` stays the 10-K ratios/screener and is linked as a sibling.
-Watchlist names that are not in the Fortune 500 live in
-`financial-modeler/extras.json` (Wix and a few others file a 20-F; Veeam is
-private and has no filing to model). Refresh their 10-K/20-F headlines with
+Watchlist names that are not in the Fortune 500 start as a name/ticker list in
+`financial-modeler/watchlist.json`. CIKs are resolved the same way as the
+Fortune 500 mapping: ticker → SEC `company_tickers.json`, then confirmed
+against `data.sec.gov/submissions` (`node scripts/build-financial-modeler-extras.mjs`
+writes `extras.json`). Refresh their 10-K/20-F headlines with
 `node scripts/pull-financial-modeler-extras.mjs` (writes `extras-headlines.json`).
+Wix, On Holding, Sportradar, and Genius Sports file a 20-F; Veeam is private
+and has no filing to model.
 
 ### AI buildout money — `/ai-buildout`
 

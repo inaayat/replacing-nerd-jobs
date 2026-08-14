@@ -12,9 +12,22 @@ import { modelReadiness } from '../financial-modeler/engine.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const extras = JSON.parse(readFileSync(join(ROOT, 'financial-modeler/extras.json'), 'utf8'));
+const watchlist = JSON.parse(readFileSync(join(ROOT, 'financial-modeler/watchlist.json'), 'utf8'));
 const mapping = JSON.parse(readFileSync(join(ROOT, 'fortune-500/data/fortune500_edgar_mapping.json'), 'utf8'));
+const tickerDump = JSON.parse(readFileSync(join(ROOT, 'fortune-500/data/company_tickers.json'), 'utf8'));
 
 assert.ok(extras.length >= 18, 'watchlist should include the named growth names');
+assert.deepEqual(
+  extras.map((c) => c.fortune_ticker),
+  watchlist.map((c) => c.ticker),
+  'extras.json must be generated from watchlist.json in the same order'
+);
+
+const tickerToCik = new Map();
+for (const row of Object.values(tickerDump)) {
+  const t = String(row.ticker || '').toUpperCase();
+  if (t && !tickerToCik.has(t)) tickerToCik.set(t, Number(row.cik_str));
+}
 
 const tickers = extras.map((c) => c.fortune_ticker);
 assert.equal(new Set(tickers).size, tickers.length, 'duplicate extra ticker');
@@ -34,6 +47,10 @@ for (const t of ['GDDY', 'WIX', 'DUOL', 'APP', 'TOST', 'NET', 'IOT', 'AXON', 'RD
   assert.ok(c, `missing ${t}`);
   assert.equal(isPublic(c), true, `${t} should be a public filer`);
   assert.ok(Number.isInteger(c.cik) && c.cik > 0, `${t} needs a CIK`);
+  assert.equal(c.match_source, 'company_tickers_json');
+  assert.equal(c.cik, tickerToCik.get(t), `${t} CIK must match company_tickers.json`);
+  assert.equal(c.cik_padded, String(c.cik).padStart(10, '0'));
+  assert.match(c.edgar_companyfacts_api, new RegExp(`CIK${c.cik_padded}`));
 }
 
 assert.equal(byTicker.WIX.form, '20-F', 'Wix files a 20-F, not a 10-K');
