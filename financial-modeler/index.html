@@ -134,41 +134,39 @@
       </div>
 
       <section class="fm-step fm-workspace-step" id="step-build" hidden>
-        <header class="fm-workspace-head">
-          <div class="fm-workspace-head-row">
-            <div class="fm-ws-setup" id="workspace-setup" hidden></div>
-            <nav class="fm-tabs" id="model-tabs" role="tablist" aria-label="Model views"></nav>
-            <div class="fm-workspace-status" id="workspace-status"></div>
-          </div>
-        </header>
-        <div class="fm-workspace-body">
-          <aside class="fm-assump-rail" id="assumptions-bar" aria-label="Assumptions">
-            <div class="fm-inspector" id="inspector">
-              <button
-                type="button"
-                class="fm-inspector-summary"
-                id="inspector-toggle"
-                aria-expanded="false"
-                aria-controls="inspector-panel"
-              >
-                How this model is built
-              </button>
-              <div class="fm-inspector-reveal">
-                <div class="fm-inspector-reveal-inner">
-                  <div class="fm-inspector-panel" id="inspector-panel">
-                    <div class="fm-inspector-checklist" id="inspector-checklist"></div>
-                  </div>
+        <aside class="fm-assump-band" id="assumptions-bar" aria-label="Assumptions">
+          <div class="fm-assump-band-setup" id="workspace-setup" hidden></div>
+          <div class="fm-inspector" id="inspector">
+            <button
+              type="button"
+              class="fm-inspector-summary"
+              id="inspector-toggle"
+              aria-expanded="false"
+              aria-controls="inspector-panel"
+            >
+              How this model is built
+            </button>
+            <div class="fm-inspector-reveal">
+              <div class="fm-inspector-reveal-inner">
+                <div class="fm-inspector-panel" id="inspector-panel">
+                  <div class="fm-inspector-checklist" id="inspector-checklist"></div>
                 </div>
               </div>
             </div>
-            <div class="fm-assump-freeze">
-              <h2 class="fm-assump-heading">Change these assumptions — they build the model</h2>
-              <div class="fm-assump-pop" id="assumption-detail" aria-live="polite"></div>
-              <div class="fm-assump-chrome" id="dials-chrome"></div>
-            </div>
-            <div class="fm-assump-rail-body" id="dials"></div>
-          </aside>
+          </div>
+          <div class="fm-assump-freeze">
+            <h2 class="fm-assump-heading">Change these assumptions — they build the model</h2>
+            <div class="fm-assump-pop" id="assumption-detail" aria-live="polite"></div>
+            <div class="fm-assump-chrome" id="dials-chrome"></div>
+          </div>
+          <div class="fm-assump-band-body" id="dials"></div>
+        </aside>
+        <div class="fm-workspace-body">
           <div class="fm-main">
+            <header class="fm-main-head">
+              <nav class="fm-tabs" id="model-tabs" role="tablist" aria-label="Model views"></nav>
+              <div class="fm-workspace-status" id="workspace-status"></div>
+            </header>
             <div class="fm-main-scroll" id="output" role="tabpanel"></div>
           </div>
         </div>

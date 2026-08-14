@@ -556,7 +556,7 @@ function renderWorkspaceAdjust() {
   }
 
   const companyLabel = currentCompanyLabel();
-  bar.innerHTML = `<div class="fm-ws-adjust">
+  bar.innerHTML = `<div class="fm-ws-adjust fm-ws-adjust-stacked">
     <div class="fm-ws-field" id="ws-company-block">
       <input id="ws-company-search" class="fm-ws-input fm-ws-field-input" type="search" value="${escapeHtml(companyLabel)}" placeholder="Search company…" autocomplete="off" aria-label="Company you’re modeling" />
       <div class="fm-ws-pop" id="ws-company-pop" hidden>
@@ -564,13 +564,13 @@ function renderWorkspaceAdjust() {
       </div>
     </div>
     <div class="fm-ws-peers" id="ws-peers-block">
-      <div class="fm-peer-chips" id="ws-peer-chips"></div>
       <div class="fm-ws-field">
-        <input id="ws-peer-search" class="fm-ws-input fm-ws-field-input" type="search" placeholder="Add peer…" autocomplete="off" aria-label="Add a peer" />
+        <input id="ws-peer-search" class="fm-ws-input fm-ws-field-input" type="search" placeholder="Add a comp or peer…" autocomplete="off" aria-label="Add a comp or peer" />
         <div class="fm-ws-pop" id="ws-peer-pop" hidden>
           <div class="fm-results" id="ws-peer-results" hidden></div>
         </div>
       </div>
+      <div class="fm-peer-chips" id="ws-peer-chips"></div>
     </div>
     <span class="fm-ws-switch">${switchEx}</span>
   </div>`;
@@ -1411,7 +1411,6 @@ function threeStatementPanel(model) {
     filed: r.filed,
     label: unitKind ? `Y${r.year}` : `FY${r.year}${r.filed ? 'A' : 'E'}`,
   }));
-  const balances = model.checks.balances;
   const hasGross = model.assumptions.grossMargin != null || unitKind;
   const opts = { scale, unitLabel };
 
@@ -1488,7 +1487,6 @@ function threeStatementPanel(model) {
     : '';
 
   return `<section class="fm-panel fm-panel-model">
-    <p class="fm-panel-status ${balances ? 'fm-flag is-ok' : 'fm-flag is-bad'}">${balances ? 'Balance sheet ties' : 'Balance sheet does not tie'}</p>
     ${returnsBlock}
     <div class="fm-statements">
       <div class="fm-statement">${is}</div>
