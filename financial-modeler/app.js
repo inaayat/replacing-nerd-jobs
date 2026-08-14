@@ -408,7 +408,6 @@ function syncLayout() {
   document.body.classList.toggle('has-company', live);
   document.body.classList.toggle('is-unit', isStandaloneExercise() && live);
   document.body.classList.toggle('is-editing-setup', false);
-  document.body.classList.toggle('fm-started', Boolean(state.exercise));
 
   $('setup-summary').hidden = true;
   const setupEl = $('setup');

@@ -294,15 +294,16 @@ tr.fm-link-interest td:first-child { background: rgba(26, 73, 196, 0.1); }
 
 .fm-landing {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 0fr;
+  grid-template-columns: 1fr 0fr;
   column-gap: 0;
   align-items: start;
-  transition: grid-template-columns 320ms ease, column-gap 320ms ease;
+  transition: grid-template-columns 360ms ease, column-gap 360ms ease;
 }
 .fm-landing.is-filer {
-  grid-template-columns: minmax(240px, 0.95fr) minmax(280px, 1.15fr);
+  grid-template-columns: 1fr 1.15fr;
   column-gap: 16px;
 }
+.fm-landing > * { min-width: 0; }
 .fm-landing-slide {
   min-width: 0;
   min-height: 0;
@@ -313,14 +314,14 @@ tr.fm-link-interest td:first-child { background: rgba(26, 73, 196, 0.1); }
   flex-direction: column;
   gap: 16px;
   width: 100%;
-  min-width: 16rem;
+  min-width: 0;
   padding: 16px;
   border: 1px solid var(--rule-strong);
   border-radius: 12px;
   background: var(--paper-2);
   opacity: 0;
-  transform: translateX(20px);
-  transition: opacity 280ms ease, transform 320ms ease;
+  transform: translateX(16px);
+  transition: opacity 280ms ease, transform 360ms ease;
 }
 .fm-landing.is-filer .fm-landing-filer {
   opacity: 1;
@@ -330,16 +331,13 @@ tr.fm-link-interest td:first-child { background: rgba(26, 73, 196, 0.1); }
   .fm-landing {
     grid-template-columns: 1fr;
     grid-template-rows: auto 0fr;
-    transition: grid-template-rows 320ms ease, row-gap 320ms ease;
+    transition: grid-template-rows 360ms ease, row-gap 360ms ease;
   }
   .fm-landing.is-filer {
     grid-template-rows: auto 1fr;
     row-gap: 16px;
   }
-  .fm-landing-filer {
-    min-width: 0;
-    transform: translateY(16px);
-  }
+  .fm-landing-filer { transform: translateY(12px); }
 }
 @media (prefers-reduced-motion: reduce) {
   .fm-landing,
@@ -1324,8 +1322,6 @@ td.fm-blank { color: var(--rule-strong); }
 /* picked company: compact setup, normal page scroll -------------------- */
 
 @media (min-width: 901px) {
-  body.fm-started .fm-hero,
-  body.fm-started .fm-tour { display: none; }
   body.has-company .fm-hero,
   body.has-company .fm-tour { display: none; }
   body.has-company .fm-setup { display: none; }
@@ -1397,8 +1393,6 @@ td.fm-blank { color: var(--rule-strong); }
 
 @media (max-width: 900px) {
   .fm-shell { padding: 18px 16px 24px; }
-  body.fm-started .fm-hero,
-  body.fm-started .fm-tour { display: none; }
   body.has-company .fm-setup { display: none; }
   body.has-company.is-unit .fm-setup { display: none; }
   body.has-company .fm-hero { margin-bottom: 14px; }
