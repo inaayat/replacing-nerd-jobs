@@ -324,6 +324,27 @@ tr.fm-link-interest td:first-child { background: rgba(26, 73, 196, 0.1); }
   border-color: var(--ink);
 }
 
+.fm-unit-template {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.fm-unit-template button {
+  border: 1px solid var(--rule-strong);
+  background: var(--paper);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.fm-unit-template button[aria-pressed='true'] {
+  background: var(--ink);
+  color: var(--paper-2);
+  border-color: var(--ink);
+}
+
 .fm-assump-top { min-width: 0; }
 
 .fm-assump-grid {

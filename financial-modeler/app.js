@@ -26,12 +26,6 @@ import { dependencyPath, dependencyRowKeys } from './dependencies.js';
 import { stepsForTab } from './build-steps.js';
 import { renderChecklist, previewForStep } from './checklist.js';
 import {
-  UNIT_DIALS,
-  UNIT_DIAL_GROUPS,
-  defaultUnitAssumptions,
-  runUnitEcon,
-} from './unit-econ.js';
-import {
   SINGLE_UNIT_DIALS,
   SINGLE_UNIT_DIAL_GROUPS,
   UNIT_SCENARIO_DRIVERS,
@@ -283,6 +277,7 @@ function dialValueText(dial, value) {
   if (dial.fmt === 'bool') return value ? 'On' : 'Off';
   if (dial.fmt === 'pct') return `${(value * 100).toFixed(1)}%`;
   if (dial.fmt === 'days') return `${Math.round(value)} days`;
+  if (dial.fmt === 'months') return `${Math.round(value)} mo`;
   if (dial.fmt === 'years') return `${Math.round(value)} years`;
   if (dial.fmt === 'qty') return Math.round(value).toLocaleString('en-US');
   if (dial.fmt === 'usd') {
@@ -374,8 +369,20 @@ function tabEnabled(tabId) {
   if (tabId === 'three' || tabId === 'scenarios' || tabId === 'checks') return true;
   if (tabId === 'dcf') return state.models.includes('dcf');
   if (tabId === 'comps') return state.models.includes('comps');
-  if (tabId === 'sensitivity') return state.models.includes('dcf');
+  if (tabId === 'sensitivity') return isUnit() || state.models.includes('dcf');
   return true;
+}
+
+function unitDialList() {
+  const a = state.assumptions || {};
+  return SINGLE_UNIT_DIALS.filter((d) => {
+    if (d.key === 'membershipRevenue' || d.key === 'advertisingRevenue') return a.secondaryEnabled;
+    return true;
+  });
+}
+
+function unitDefaults() {
+  return defaultSingleUnitAssumptions(state.unitTemplate || 'lemonade');
 }
 
 function ensureActiveTab() {
@@ -511,9 +518,22 @@ function renderWorkspaceStatus(model, dcf) {
     box.innerHTML = '';
     return;
   }
-  const balance = model.checks.balances
-    ? '<span class="fm-flag is-ok">Balance sheet ties</span>'
-    : '<span class="fm-flag is-bad">Balance sheet does not tie</span>';
+  let flags = '';
+  if (model.kind === 'strategic') {
+    flags = model.checks.probabilitiesSum
+      ? '<span class="fm-flag is-ok">Probabilities sum to 100%</span>'
+      : '<span class="fm-flag is-bad">Probabilities do not sum to 100%</span>';
+  } else if (model.kind === 'capital-project') {
+    flags = model.checks.sourcesUses
+      ? '<span class="fm-flag is-ok">Sources equal uses</span>'
+      : '<span class="fm-flag is-bad">Sources/uses mismatch</span>';
+  } else if (model.kind === 'market-entry') {
+    flags = `<span class="fm-flag is-ok">Preferred: ${escapeHtml(model.preferredStructure || '—')}</span>`;
+  } else {
+    flags = model.checks?.balances
+      ? '<span class="fm-flag is-ok">Balance sheet ties</span>'
+      : '<span class="fm-flag is-bad">Balance sheet does not tie</span>';
+  }
   const dcfWarn =
     dcf && !dcf.ok && state.models.includes('dcf')
       ? `<span class="fm-flag is-bad">${escapeHtml(dcf.reason || 'DCF incomplete')}</span>`
@@ -522,7 +542,7 @@ function renderWorkspaceStatus(model, dcf) {
     dcf?.ok && state.assumptions?.terminalGrowth >= dcf.wacc?.wacc
       ? '<span class="fm-flag is-bad">Terminal growth ≥ WACC</span>'
       : '';
-  box.innerHTML = `${balance}${dcfWarn}${waccWarn}`;
+  box.innerHTML = `${flags}${dcfWarn}${waccWarn}`;
 }
 
 /* -------------------------------- search ------------------------------- */
@@ -749,16 +769,26 @@ async function selectCompany(company) {
 }
 
 function selectExercise(id) {
-  if (id !== 'filer' && id !== 'unit') return;
+  if (!EXERCISES.some((e) => e.id === id)) return;
   state.exercise = id;
-  state.scenario = 'base';
-  state.scenario = 'base';
   state.activeTab = 'three';
   state.setupEdit = null;
   if (id === 'unit') {
-    const defaults = defaultUnitAssumptions();
+    const defaults = defaultSingleUnitAssumptions(state.unitTemplate || 'lemonade');
     initScenarioState(defaults);
     state.sourceDefaults = { ...defaults };
+  } else if (id === 'capital') {
+    state.assumptions = defaultCapitalProjectAssumptions();
+    state.scenarioState = null;
+    state.sourceDefaults = { ...state.assumptions };
+  } else if (id === 'strategic') {
+    state.assumptions = defaultStrategicAssumptions();
+    state.scenarioState = null;
+    state.sourceDefaults = { ...state.assumptions };
+  } else if (id === 'market') {
+    state.assumptions = defaultMarketEntryAssumptions();
+    state.scenarioState = null;
+    state.sourceDefaults = { ...state.assumptions };
   } else if (state.company && state.headlines) {
     const defaults = defaultAssumptions(state.headlines);
     initScenarioState(defaults);
@@ -801,7 +831,7 @@ function originFor(dial, headlines) {
 
 /** The copy the workbook prints next to the same cell. */
 function assumptionCards() {
-  const list = isUnit() ? UNIT_DIALS : assumptionCatalog(state.models);
+  const list = isUnit() || isCapital() ? exerciseDialList() : assumptionCatalog(state.models);
   return list.map((d) => ({
     key: d.key,
     name: d.name,
@@ -811,12 +841,18 @@ function assumptionCards() {
   }));
 }
 
+function exerciseDialList() {
+  if (isUnit()) return unitDialList();
+  if (isCapital()) return CAPITAL_DIALS.filter((d) => d.fmt !== 'raw');
+  return assumptionCatalog(state.models);
+}
+
 function activeDials() {
-  return isUnit() ? UNIT_DIALS : dialsFor(state.models);
+  return isUnit() ? unitDialList() : dialsFor(state.models);
 }
 
 function activeDialGroups() {
-  return isUnit() ? UNIT_DIAL_GROUPS : DIAL_GROUPS;
+  return isUnit() ? SINGLE_UNIT_DIAL_GROUPS : DIAL_GROUPS;
 }
 
 function applyBuildStepHighlight() {
@@ -909,12 +945,12 @@ function wrapChecklist(tabId, context) {
 }
 
 function dialCatalogEntry(key) {
-  const list = isUnit() ? UNIT_DIALS : assumptionCatalog(state.models);
+  const list = isUnit() || isCapital() ? exerciseDialList() : assumptionCatalog(state.models);
   return list.find((d) => d.key === key) || null;
 }
 
 function ensureFocusedAssumption() {
-  const active = isUnit() ? UNIT_DIALS : assumptionCatalog(state.models);
+  const active = isUnit() || isCapital() ? exerciseDialList() : assumptionCatalog(state.models);
   if (state.focusedAssumption && active.some((d) => d.key === state.focusedAssumption)) return;
   state.focusedAssumption = active[0]?.key ?? null;
 }
@@ -984,13 +1020,15 @@ function bindAssumptionDetail(wrap) {
 }
 
 function renderAssumptionListHtml() {
-  const active = isUnit() ? UNIT_DIALS : assumptionCatalog(state.models);
+  const active = isUnit() || isCapital() ? exerciseDialList() : assumptionCatalog(state.models);
   ensureFocusedAssumption();
 
-  const scenarios = SCENARIO_ORDER.map(
-    (s) =>
-      `<button type="button" data-scenario="${s}" aria-pressed="${state.scenarioState?.activeScenario === s}">${SCENARIO_LABELS[s]}</button>`
-  ).join('');
+  const scenarios = state.scenarioState
+    ? SCENARIO_ORDER.map(
+        (s) =>
+          `<button type="button" data-scenario="${s}" aria-pressed="${state.scenarioState?.activeScenario === s}">${SCENARIO_LABELS[s]}</button>`
+      ).join('')
+    : '';
 
   const chips = active
     .map((d) => {
@@ -1016,6 +1054,10 @@ function renderAssumptionListHtml() {
     .join('');
 
   return `<div class="fm-assump-top">
+    ${isUnit() ? `<div class="fm-unit-template" role="group" aria-label="Unit template">
+      <button type="button" data-unit-template="lemonade" aria-pressed="${state.unitTemplate === 'lemonade'}">Lemonade example</button>
+      <button type="button" data-unit-template="blank" aria-pressed="${state.unitTemplate === 'blank'}">Blank template</button>
+    </div>` : ''}
     <div class="fm-assump-scenarios" role="group" aria-label="Scenario">${scenarios}</div>
     <div class="fm-assump-grid">${chips}</div>
     ${editors ? `<div class="fm-chip-edit-wrap">${editors}</div>` : ''}
@@ -1023,7 +1065,19 @@ function renderAssumptionListHtml() {
 }
 
 function bindAssumptionList(wrap) {
-  const active = isUnit() ? UNIT_DIALS : assumptionCatalog(state.models);
+  const active = isUnit() || isCapital() ? exerciseDialList() : assumptionCatalog(state.models);
+
+  wrap.querySelectorAll('[data-unit-template]').forEach((btn) => {
+    btn.onclick = () => {
+      const tpl = btn.dataset.unitTemplate;
+      if (tpl === state.unitTemplate) return;
+      state.unitTemplate = tpl;
+      const defaults = defaultSingleUnitAssumptions(tpl);
+      initScenarioState(defaults);
+      state.sourceDefaults = { ...defaults };
+      render();
+    };
+  });
 
   wrap.querySelectorAll('[data-select-dial]').forEach((btn) => {
     btn.onclick = () => focusAssumption(btn.dataset.selectDial);
@@ -1120,7 +1174,7 @@ function handoff(kind, arrow, text) {
 
 function threeStatementPanel(model) {
   const rows = model.rows;
-  const unitKind = model.kind === 'unit';
+  const unitKind = model.kind === 'unit' || model.kind === 'single-unit';
   const scale = model.scale ?? SCALE;
   const unitLabel = model.unitLabel ?? 'US$ millions';
   const columns = rows.map((r) => ({
@@ -1193,8 +1247,19 @@ function threeStatementPanel(model) {
     opts
   );
 
+  const ret = unitKind ? model.returns || {} : null;
+  const returnsBlock = unitKind
+    ? `<div class="fm-verdict">
+      <div><dt>Unit IRR</dt><dd>${ret?.unitIrr != null ? `${(ret.unitIrr * 100).toFixed(1)}%` : '—'}</dd></div>
+      <div><dt>Unit NPV</dt><dd>${ret?.unitNpv != null ? formatUsd(ret.unitNpv) : '—'}</dd></div>
+      <div><dt>Payback</dt><dd>${ret?.paybackYears ?? '—'} yrs</dd></div>
+      <div><dt>Breakeven util.</dt><dd>${ret?.breakevenUtilization != null ? `${(ret.breakevenUtilization * 100).toFixed(0)}%` : '—'}</dd></div>
+    </div>`
+    : '';
+
   return `<section class="fm-panel fm-panel-model">
     <p class="fm-panel-status ${balances ? 'fm-flag is-ok' : 'fm-flag is-bad'}">${balances ? 'Balance sheet ties' : 'Balance sheet does not tie'}</p>
+    ${returnsBlock}
     <div class="fm-statements">
       <div class="fm-statement">${is}</div>
       ${handoff('ni', '↓', 'Net income → cash flow & equity')}
@@ -1246,9 +1311,8 @@ function dcfPanel(model, dcf) {
 
 function sensitivityPanel(model, dcf, sens) {
   if (isUnit()) {
-    return `<section class="fm-panel"><div class="fm-empty"><h3>Unit exercise</h3><p>Sensitivity presets for the 10-K models apply to the filer exercise.</p></div></section>`;
-  }
-  if (!state.models.includes('dcf') && state.sensitivityPreset === 'dcfWaccGrowth') {
+    state.sensitivityPreset = 'unitPriceUtil';
+  } else if (!state.models.includes('dcf') && state.sensitivityPreset === 'dcfWaccGrowth') {
     state.sensitivityPreset = 'opsGrowthMargin';
   }
 
@@ -1263,10 +1327,14 @@ function sensitivityPanel(model, dcf, sens) {
     peers: state.peers,
   };
 
-  const matrix = runSensitivityMatrix(state.sensitivityPreset, ctx);
+  const unitRunner = (patch) => ({ model: runSingleUnitPortfolio(patch), dcf: null, comps: null });
+  const matrix = runSensitivityMatrix(state.sensitivityPreset, ctx, {
+    runModel: isUnit() ? unitRunner : undefined,
+  });
   const mono = matrix ? checkMonotonicity(matrix) : { ok: true, warnings: [] };
 
   const presetOptions = Object.values(SENSITIVITY_PRESETS)
+    .filter((p) => isUnit() === (p.id === 'unitPriceUtil'))
     .map((p) => `<option value="${p.id}" ${p.id === state.sensitivityPreset ? 'selected' : ''}>${escapeHtml(p.label)}</option>`)
     .join('');
 
@@ -1275,6 +1343,9 @@ function sensitivityPanel(model, dcf, sens) {
     const fmtCell = (v) => {
       if (v == null || !Number.isFinite(v)) return '—';
       if (matrix.unit === 'price') return fmtPrice(v) || '—';
+      if (isUnit() || matrix.output === 'unitEbitda') {
+        return `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+      }
       return fmtM(v) || '—';
     };
     const fmtRow = (v) => (matrix.rowLabel === 'WACC' ? `${(v * 100).toFixed(2)}%` : dialValueText({ fmt: matrix.rowLabel?.includes('Days') ? 'days' : 'pct', key: matrix.rowInput }, v));
@@ -1385,7 +1456,7 @@ function scenarioAssumptionsFor(key) {
 function runScenarioColumn(key) {
   const assumptions = scenarioAssumptionsFor(key);
   if (isUnit()) {
-    const model = runUnitEcon(assumptions);
+    const model = runSingleUnitPortfolio(assumptions);
     return { model, dcf: null, ok: model.ok };
   }
   const model = runThreeStatement(state.headlines, assumptions);
@@ -1402,14 +1473,16 @@ function scenariosPanel() {
   }
 
   const active = state.scenarioState.activeScenario;
-  const catalog = assumptionCatalog(isUnit() ? ['three'] : state.models);
-  const driverMeta = new Map(catalog.filter((d) => SCENARIO_DRIVERS.includes(d.key)).map((d) => [d.key, d]));
+  const drivers = scenarioDrivers();
+  const catalog = isUnit() ? unitDialList() : assumptionCatalog(state.models);
+  const driverMeta = new Map(catalog.filter((d) => drivers.includes(d.key)).map((d) => [d.key, d]));
 
   const header = SCENARIO_ORDER.map(
     (k) => `<th class="${k === active ? 'fm-col-actual' : ''}">${SCENARIO_LABELS[k]}</th>`
   ).join('');
 
-  const rows = SCENARIO_DRIVERS.filter((key) => driverMeta.has(key) || state.scenarioState.scenarios.base.values[key] != null)
+  const rows = drivers
+    .filter((key) => driverMeta.has(key) || state.scenarioState.scenarios.base.values[key] != null)
     .map((key) => {
       const meta = driverMeta.get(key) || { key, name: key, fmt: 'num' };
       const cells = SCENARIO_ORDER.map((k) => {
@@ -1424,28 +1497,36 @@ function scenariosPanel() {
 
   const outputs = SCENARIO_ORDER.map((k) => {
     const run = runScenarioColumn(k);
-    const row = run.model?.rows?.find((r) => r.offset === 1);
+    const row = run.model?.rows?.find((r) => r.offset === 1) || run.model?.rows?.[0];
     const rev = row ? fmtM(row.revenue) : '—';
-    const ebit = row ? fmtM(row.ebit) : '—';
-    const ni = row ? fmtM(row.netIncome) : '—';
-    const cash = row ? fmtM(row.cash) : '—';
-    const debt = row ? fmtM(row.debt) : '—';
+    const ebit = row ? (isUnit() ? `$${Math.round(row.ebit).toLocaleString('en-US')}` : fmtM(row.ebit)) : '—';
+    const ni = row ? (isUnit() ? `$${Math.round(row.netIncome).toLocaleString('en-US')}` : fmtM(row.netIncome)) : '—';
+    const cash = row ? (isUnit() ? `$${Math.round(row.cash).toLocaleString('en-US')}` : fmtM(row.cash)) : '—';
+    const debt = row ? (isUnit() ? `$${Math.round(row.debt).toLocaleString('en-US')}` : fmtM(row.debt)) : '—';
     const fcf = row ? fmtM(row.unleveredFcf) : '—';
     const price = run.dcf?.impliedPrice != null ? fmtPrice(run.dcf.impliedPrice) : '—';
     const tie = run.model?.checks?.balances ? 'Ties' : 'Fails';
-    return { k, rev, ebit, ni, cash, debt, fcf, price, tie, ok: run.ok };
+    return { k, row, model: run.model, rev, ebit, ni, cash, debt, fcf, price, tie, ok: run.ok };
   });
 
-  const outputRows = [
-    ['Revenue (Y1)', outputs.map((o) => o.rev)],
-    ['EBIT (Y1)', outputs.map((o) => o.ebit)],
-    ['Net income (Y1)', outputs.map((o) => o.ni)],
-    ['Ending cash (Y1)', outputs.map((o) => o.cash)],
-    ['Debt (Y1)', outputs.map((o) => o.debt)],
-    ['Unlevered FCF (Y1)', outputs.map((o) => o.fcf)],
-    ['Implied share price', outputs.map((o) => o.price)],
-    ['Balance check', outputs.map((o) => o.tie)],
-  ]
+  const outputRows = (isUnit()
+    ? [
+        ['Unit EBITDA (Y1)', outputs.map((o) => (o.row ? `$${Math.round(o.row.ebitda).toLocaleString('en-US')}` : '—'))],
+        ['Net income (Y1)', outputs.map((o) => o.ni)],
+        ['Unit NPV', outputs.map((o) => (o.model?.returns?.unitNpv != null ? formatUsd(o.model.returns.unitNpv) : '—'))],
+        ['Payback (years)', outputs.map((o) => (o.model?.returns?.paybackYears ?? '—'))],
+        ['Balance check', outputs.map((o) => o.tie)],
+      ]
+    : [
+        ['Revenue (Y1)', outputs.map((o) => o.rev)],
+        ['EBIT (Y1)', outputs.map((o) => o.ebit)],
+        ['Net income (Y1)', outputs.map((o) => o.ni)],
+        ['Ending cash (Y1)', outputs.map((o) => o.cash)],
+        ['Debt (Y1)', outputs.map((o) => o.debt)],
+        ['Unlevered FCF (Y1)', outputs.map((o) => o.fcf)],
+        ['Implied share price', outputs.map((o) => o.price)],
+        ['Balance check', outputs.map((o) => o.tie)],
+      ])
     .map(
       ([label, vals]) =>
         `<tr><td>${escapeHtml(label)}</td>${vals.map((v, i) => `<td class="${SCENARIO_ORDER[i] === active ? 'fm-forecast' : ''}">${escapeHtml(String(v))}</td>`).join('')}</tr>`
@@ -1480,8 +1561,22 @@ function scenariosPanel() {
 
 function checksPanel(model, dcf, comps) {
   const checks = [];
-  checks.push(model.checks.balances ? 'Balance sheet ties in every projected year' : 'Balance sheet does NOT tie — do not trust outputs');
-  if (model.checks.cashWarning) checks.push(model.checks.cashWarning);
+  if (model.kind === 'strategic') {
+    checks.push(model.checks.probabilitiesSum ? 'Scenario probabilities sum to 100%' : 'Probabilities do not sum to 100% — expected value is not trusted');
+    checks.push(`Selected alternative: ${model.selected?.label || '—'}`);
+    if (model.expectedNpv != null) checks.push(`Probability-weighted NPV: ${formatUsd(model.expectedNpv)}`);
+  } else if (model.kind === 'market-entry') {
+    checks.push(`Preferred structure: ${model.preferredStructure || '—'}`);
+    checks.push('Regional rankings separate financial and qualitative components');
+  } else if (model.kind === 'capital-project') {
+    checks.push(model.checks.sourcesUses ? 'Sources equal uses (within tolerance)' : 'Sources and uses do not balance');
+    checks.push(model.checks.debtRoll ? 'Debt schedule rolls forward' : 'Debt schedule issue');
+    if (model.returns?.peakFunding != null) checks.push(`Peak funding: ${formatUsd(model.returns.peakFunding)}`);
+  } else {
+    checks.push(model.checks?.balances ? 'Balance sheet ties in every projected year' : 'Balance sheet does NOT tie — do not trust outputs');
+    if (model.checks?.cashWarning) checks.push(model.checks.cashWarning);
+    if (isUnit() && model.checks?.unitPortfolioReconciled) checks.push('Unit and portfolio cash flows reconcile');
+  }
   if (dcf && state.models.includes('dcf')) {
     if (!dcf.ok) checks.push(`DCF: ${dcf.reason || 'incomplete'}`);
     else if (state.assumptions?.terminalGrowth >= dcf.wacc?.wacc) {
@@ -1493,8 +1588,8 @@ function checksPanel(model, dcf, comps) {
     else if (!comps?.ok) checks.push(`Comps: ${comps.reason || 'incomplete'}`);
     else checks.push(`Comps: ${state.peers.length} peers with usable data`);
   }
-  const workbookModels = isUnit()
-    ? '3-statement lemonade model'
+  const workbookModels = isStandaloneExercise()
+    ? `${EXERCISES.find((e) => e.id === state.exercise)?.title || 'Exercise'} model`
     : [
         state.models.includes('three') && '3-statement',
         state.models.includes('dcf') && 'DCF',
@@ -1504,15 +1599,22 @@ function checksPanel(model, dcf, comps) {
         .join(', ') || 'nothing selected';
 
   const list = checks.map((c) => `<li>${escapeHtml(c)}</li>`).join('');
-  const ready = model.checks.balances;
+  const ready =
+    model.kind === 'strategic'
+      ? model.checks?.probabilitiesSum
+      : model.kind === 'capital-project'
+        ? model.checks?.sourcesUses
+        : model.kind === 'market-entry'
+          ? model.ok
+          : model.checks?.balances;
 
   return `<section class="fm-panel">
     <h3>Integrity checks</h3>
     <ul class="fm-flow" style="grid-template-columns:1fr">${list}</ul>
     <p class="fm-aside"><strong>Workbook will include:</strong> ${escapeHtml(workbookModels)}. Tab visibility does not change this — only your setup model picks do.</p>
     <div class="fm-dock-actions" style="margin-top:16px">
-      ${isUnit() ? '' : `<a class="fm-btn fm-btn-ghost" href="/fortune-500/#company=${state.company?.cik || ''}">Open the 10-K ratios</a>`}
-      <button type="button" class="fm-btn" id="checks-download" ${ready ? '' : 'disabled'}>Download Excel</button>
+      ${isStandaloneExercise() ? '' : `<a class="fm-btn fm-btn-ghost" href="/fortune-500/#company=${state.company?.cik || ''}">Open the 10-K ratios</a>`}
+      <button type="button" class="fm-btn" id="checks-download" ${ready || isUnit() ? '' : 'disabled'}>Download Excel</button>
     </div>
     ${ready ? '' : '<p class="fm-status is-warn">Fix the balance sheet before downloading — the workbook will still generate, but the numbers are not trustworthy.</p>'}
   </section>`;
@@ -1570,8 +1672,23 @@ function compsPanel(comps) {
 function currentRun() {
   if (isUnit()) {
     if (!state.assumptions) return null;
-    const model = runUnitEcon(state.assumptions);
-    model.companyName = 'Lemonade stall';
+    const model = runSingleUnitPortfolio(state.assumptions);
+    model.companyName = 'Single-unit model';
+    return { model, dcf: null, sens: null, comps: null };
+  }
+  if (isCapital()) {
+    if (!state.assumptions) return null;
+    const model = runCapitalProject(state.assumptions);
+    return { model, dcf: null, sens: null, comps: null };
+  }
+  if (isStrategic()) {
+    if (!state.assumptions) return null;
+    const model = runStrategicAppraisal(state.assumptions);
+    return { model, dcf: null, sens: null, comps: null };
+  }
+  if (isMarket()) {
+    if (!state.assumptions) return null;
+    const model = runMarketEntry(state.assumptions);
     return { model, dcf: null, sens: null, comps: null };
   }
   const headlines = state.headlines;
@@ -1622,6 +1739,52 @@ function renderInspectorChecklist(context) {
   });
 }
 
+function capitalProjectPanel(model) {
+  const cols = model.rows.map((r) => ({ year: r.year, filed: false }));
+  const lines = [
+    lineOf(model.rows, 'CapEx', 'capex'),
+    lineOf(model.rows, 'Revenue', 'revenue'),
+    lineOf(model.rows, 'EBIT', 'ebit'),
+    lineOf(model.rows, 'Project FCF', 'projectFcf'),
+    lineOf(model.rows, 'DSCR', 'dscr', { fmt: 'raw' }),
+  ];
+  const ret = model.returns || {};
+  return `<section class="fm-panel fm-panel-model">
+    <div class="fm-verdict">
+      <div><dt>Project IRR</dt><dd>${ret.projectIrr != null ? `${(ret.projectIrr * 100).toFixed(1)}%` : '—'}</dd></div>
+      <div><dt>Equity IRR</dt><dd>${ret.equityIrr != null ? `${(ret.equityIrr * 100).toFixed(1)}%` : '—'}</dd></div>
+      <div><dt>Peak funding</dt><dd>${ret.peakFunding != null ? formatUsd(ret.peakFunding) : '—'}</dd></div>
+    </div>
+    ${table(cols, [{ title: 'Project schedule', lines }], { scale: 1, unitLabel: 'US$' })}
+  </section>`;
+}
+
+function strategicPanel(model) {
+  const rows = model.alternatives
+    .map(
+      (a) =>
+        `<tr><td>${escapeHtml(a.label)}</td><td>${formatUsd(a.npv) || '—'}</td><td>${formatUsd(a.incrementalNpv) || '—'}</td><td>${a.qualitativeScore}/5</td></tr>`
+    )
+    .join('');
+  return `<section class="fm-panel fm-panel-model">
+    <p class="fm-panel-status">Selected: ${escapeHtml(model.selected?.label || '—')}${model.checks.probabilitiesSum ? '' : ' · probabilities do not sum to 100%'}</p>
+    <div class="fm-scroll"><table class="fm-table"><thead><tr><th>Alternative</th><th>NPV</th><th>Incremental NPV</th><th>Qualitative</th></tr></thead><tbody>${rows}</tbody></table></div>
+  </section>`;
+}
+
+function marketPanel(model) {
+  const rows = model.structures
+    .map(
+      (s) =>
+        `<tr><td>${escapeHtml(s.label)}</td><td>${formatUsd(s.npv) || '—'}</td><td>${s.breakevenYear ?? '—'}</td></tr>`
+    )
+    .join('');
+  return `<section class="fm-panel fm-panel-model">
+    <p class="fm-panel-status">Preferred structure: ${escapeHtml(model.preferredStructure || '—')} · ${escapeHtml(model.assumptions.localCurrency)} → ${escapeHtml(model.assumptions.reportingCurrency)} @ ${model.assumptions.fxRate}</p>
+    <div class="fm-scroll"><table class="fm-table"><thead><tr><th>Structure</th><th>NPV</th><th>Breakeven year</th></tr></thead><tbody>${rows}</tbody></table></div>
+  </section>`;
+}
+
 function renderActivePanel(run) {
   const { model, dcf, sens, comps } = run;
   const context = {
@@ -1635,7 +1798,10 @@ function renderActivePanel(run) {
   let html;
   switch (state.activeTab) {
     case 'three':
-      html = threeStatementPanel(model);
+      if (model.kind === 'capital-project') html = capitalProjectPanel(model);
+      else if (model.kind === 'strategic') html = strategicPanel(model);
+      else if (model.kind === 'market-entry') html = marketPanel(model);
+      else html = threeStatementPanel(model);
       break;
     case 'dcf':
       html = dcfPanel(model, dcf);
@@ -1703,7 +1869,7 @@ function render() {
     resetActive.onclick = () => {
       if (!state.scenarioState) return;
       if (!confirm(`Reset ${SCENARIO_LABELS[state.scenarioState.activeScenario]} to its filing defaults?`)) return;
-      const defaults = isUnit() ? defaultUnitAssumptions() : defaultAssumptions(state.headlines);
+      const defaults = isUnit() ? unitDefaults() : defaultAssumptions(state.headlines);
       state.scenarioState = resetActiveScenario(state.scenarioState, defaults);
       syncAssumptionsFromScenarios();
       render();
@@ -1714,7 +1880,7 @@ function render() {
     resetAll.onclick = () => {
       if (!state.scenarioState) return;
       if (!confirm('Reset all scenarios to filing defaults? This clears every case edit.')) return;
-      const defaults = isUnit() ? defaultUnitAssumptions() : defaultAssumptions(state.headlines);
+      const defaults = isUnit() ? unitDefaults() : defaultAssumptions(state.headlines);
       state.scenarioState = resetAllScenarios(defaults);
       syncAssumptionsFromScenarios();
       render();
@@ -1727,13 +1893,22 @@ function render() {
   $('inspector-mobile').hidden = !workspaceLive();
 
   if (isUnit()) {
-    $('dock-name').textContent = 'Lemonade stall';
+    $('dock-name').textContent = state.unitTemplate === 'blank' ? 'Single-unit model' : 'Lemonade stall';
+  } else if (isCapital()) {
+    $('dock-name').textContent = 'Capital project';
+  } else if (isStrategic()) {
+    $('dock-name').textContent = 'Strategic investment';
+  } else if (isMarket()) {
+    $('dock-name').textContent = 'Market entry';
   } else {
     $('dock-name').textContent = `${state.company.company} · FY${state.headlines.asOfYear}`;
   }
-  $('dock-check').textContent = model.checks.balances
-    ? 'Balance sheet ties · ready to download'
-    : 'Balance sheet does not tie';
+  $('dock-check').textContent = (() => {
+    if (model.kind === 'strategic') return model.checks.probabilitiesSum ? 'Probabilities OK' : 'Fix probability weights';
+    if (model.kind === 'capital-project') return model.checks.sourcesUses ? 'Project checks pass' : 'Sources/uses issue';
+    if (model.kind === 'market-entry') return `Preferred: ${model.preferredStructure || '—'}`;
+    return model.checks?.balances ? 'Balance sheet ties · ready to download' : 'Balance sheet does not tie';
+  })();
 }
 
 function renderPicks() {
@@ -1783,7 +1958,10 @@ function download() {
   if (!run?.model?.ok) return;
   if (isUnit()) {
     const bytes = buildUnitWorkbook({ model: run.model, cards: assumptionCards() });
-    downloadWorkbook('lemonade-stall-model.xlsx', bytes);
+    downloadWorkbook(state.unitTemplate === 'blank' ? 'single-unit-model.xlsx' : 'lemonade-stall-model.xlsx', bytes);
+    return;
+  }
+  if (isStandaloneExercise()) {
     return;
   }
   const bytes = buildWorkbook({
