@@ -1,27 +1,26 @@
-/* Palette borrowed from the site home page: cream field, ink type, one deep red.
-   Red is a fill colour only: type on a red fill is white, and red text on cream
-   uses --al-red-deep. */
+/* Readability Red palette: off-white field, charcoal ink, deep red fills,
+   red-orange accents on light surfaces, white type on red. */
 :root {
-  --al-cream: #faf3e3;
-  --al-red: #b80f0a;
-  --al-red-deep: #c93b2e;
+  --al-cream: #f9f9f9;
+  --al-red: #aa0000;
+  --al-red-deep: #d43900;
   --al-purple: #755ca7;
   --al-cyan: #78a8d5;
   --al-yellow: #ffd143;
-  --al-orange: #f58b3b;
-  --al-orange-deep: var(--al-orange-deep);
+  --al-orange: #d43900;
+  --al-orange-deep: #aa0000;
   --al-pink: #eb82b0;
   --al-green: #82a34d;
   --al-green-deep: #4f6b23;
-  --al-black: #1c1c1c;
+  --al-black: #414241;
   --al-white: #ffffff;
-  --al-charcoal: #55524a;
+  --al-charcoal: #414241;
   --al-bg: var(--al-cream);
-  --al-panel: #fffdf6;
-  --al-panel-2: #fdf8ea;
-  --al-text: #1c1c1c;
-  --al-muted: #6f6a5d;
-  --al-line: rgba(28, 28, 28, 0.12);
+  --al-panel: #ffffff;
+  --al-panel-2: #f9f9f9;
+  --al-text: #414241;
+  --al-muted: #6e6f6e;
+  --al-line: rgba(65, 66, 65, 0.12);
   /* Shared red washes so highlight states stay in step with the brand colour. */
   --al-red-tint: color-mix(in srgb, var(--al-red) 8%, transparent);
   --al-red-tint-strong: color-mix(in srgb, var(--al-red) 18%, transparent);
@@ -205,7 +204,7 @@ a { color: var(--al-red-deep); }
   font-weight: 500;
   line-height: 1.3;
   text-decoration: none;
-  color: rgba(28, 28, 28, 0.68);
+  color: color-mix(in srgb, var(--al-text) 68%, transparent);
   border-radius: 999px;
 }
 
@@ -1028,7 +1027,7 @@ a { color: var(--al-red-deep); }
   min-width: 0;
   flex: 1 1 auto;
   line-height: 1.4;
-  color: var(--al-charcoal, #1c1c1c);
+  color: var(--al-charcoal);
 }
 
 .al-invites-outgoing-text strong {
