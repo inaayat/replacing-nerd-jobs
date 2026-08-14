@@ -306,17 +306,15 @@ tr.fm-link-interest td:first-child { background: rgba(26, 73, 196, 0.1); }
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin-bottom: 10px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--rule);
+  margin-bottom: 8px;
 }
 .fm-assump-scenarios button {
   border: 1px solid var(--rule-strong);
   background: var(--paper);
   border-radius: 999px;
-  padding: 4px 8px;
+  padding: 4px 10px;
   font: inherit;
-  font-size: 10.5px;
+  font-size: 11px;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -326,31 +324,38 @@ tr.fm-link-interest td:first-child { background: rgba(26, 73, 196, 0.1); }
   border-color: var(--ink);
 }
 
-.fm-assump-group { margin-bottom: 8px; }
-.fm-assump-group-label {
-  margin: 0 0 4px;
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-soft);
-  font-weight: 500;
-}
-.fm-assump-rows { display: grid; gap: 0; border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; background: var(--paper); }
-.fm-assump-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+.fm-assump-top { min-width: 0; }
+
+.fm-assump-grid {
+  display: flex;
+  flex-wrap: wrap;
   gap: 6px;
-  align-items: center;
-  padding: 7px 8px;
-  border-bottom: 1px solid var(--rule);
-  background: var(--paper-2);
+  align-items: stretch;
 }
-.fm-assump-row:last-child { border-bottom: none; }
-.fm-assump-row.is-active { background: rgba(242, 193, 78, 0.22); }
-.fm-assump-row.is-missing { opacity: 0.72; }
+
+.fm-assump-chip,
+.fm-assump-row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 6px;
+  padding: 5px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--paper-2);
+  max-width: 100%;
+}
+.fm-assump-chip.is-active,
+.fm-assump-row.is-active {
+  background: rgba(242, 193, 78, 0.22);
+  border-color: var(--ink);
+  box-shadow: 0 0 0 1px rgba(60, 48, 24, 0.08);
+}
+.fm-assump-chip.is-missing,
+.fm-assump-row.is-missing { opacity: 0.85; }
 .fm-assump-name {
   font-family: Fraunces, Georgia, serif;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   text-align: left;
   border: none;
@@ -358,60 +363,58 @@ tr.fm-link-interest td:first-child { background: rgba(26, 73, 196, 0.1); }
   padding: 0;
   cursor: pointer;
   color: inherit;
-  font: inherit;
-  font-family: Fraunces, Georgia, serif;
-  font-weight: 600;
-  font-size: 12.5px;
 }
 .fm-assump-name:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
-.fm-assump-row .fm-source-badge { font-size: 9px; padding: 1px 5px; }
+.fm-assump-chip .fm-source-badge,
+.fm-assump-row .fm-source-badge { font-size: 9px; padding: 1px 5px; flex-shrink: 0; }
+.fm-assump-chip .fm-dial-value,
 .fm-assump-row .fm-dial-value {
-  width: 72px;
-  padding: 3px 5px;
+  width: 68px;
+  padding: 2px 5px;
   font-size: 12px;
+  flex-shrink: 0;
 }
 .fm-assump-slider {
-  grid-column: 1 / -1;
   width: 100%;
-  margin: 0;
-  padding: 0 8px 8px;
+  margin: 4px 0 0;
   accent-color: var(--blue);
-  background: rgba(242, 193, 78, 0.12);
 }
 .fm-assump-row-error {
-  grid-column: 1 / -1;
+  flex-basis: 100%;
   margin: 0;
-  padding: 0 8px 6px;
   font-size: 10.5px;
   color: var(--red);
 }
 
-.fm-assump-detail-band {
-  margin-bottom: 14px;
-  padding: 14px 16px;
-  border: 1px solid var(--rule-strong);
-  border-radius: 12px;
-  background: var(--paper);
-  box-shadow: var(--shadow);
-}
-.fm-assump-detail-band h3 {
-  margin: 0 0 8px;
-  font-size: 16px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-.fm-assump-detail-band p {
-  margin: 0 0 8px;
+.fm-assump-group { display: none; }
+
+.fm-inspector-detail {
   font-size: 13px;
   line-height: 1.5;
   color: var(--ink-soft);
-  max-width: 72ch;
 }
-.fm-assump-detail-band p:last-child { margin-bottom: 0; }
-.fm-assump-detail-band strong { color: var(--ink); font-family: Fraunces, Georgia, serif; }
-.fm-assump-detail-band .fm-trace-path { color: var(--ink); border-top: 1px dashed var(--rule); padding-top: 8px; }
+.fm-inspector-detail h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink);
+}
+.fm-inspector-detail p { margin: 0 0 8px; }
+.fm-inspector-detail p:last-child { margin-bottom: 0; }
+.fm-inspector-detail strong { color: var(--ink); font-family: Fraunces, Georgia, serif; }
+.fm-inspector-detail .fm-trace-path {
+  color: var(--ink);
+  border-top: 1px dashed var(--rule);
+  padding-top: 8px;
+  margin-top: 4px;
+}
+.fm-inspector-checklist { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--rule); }
+.fm-inspector-checklist:empty { display: none; margin: 0; padding: 0; border: none; }
+
+.fm-assump-detail-band { display: none; }
 
 .fm-scenarios { display: flex; gap: 6px; }
 .fm-scenarios button {
@@ -541,6 +544,24 @@ tr.fm-trace-highlight td:first-child { background: rgba(242, 193, 78, 0.35) !imp
   box-shadow: var(--shadow);
 }
 .fm-panel > h3 { font-size: 18px; }
+.fm-panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+.fm-panel-head h3 { margin: 0; }
+.fm-panel-model .fm-statements { margin-top: 0; }
+.fm-legend-compact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
 .fm-aside {
   margin: 8px 0 14px;
   padding: 10px 12px;
@@ -727,9 +748,14 @@ td.fm-blank { color: var(--rule-strong); }
   gap: 8px 12px;
   font-size: 12px;
 }
+.fm-assumptions-bar {
+  padding: 12px 18px 14px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper);
+}
 .fm-workspace-body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(200px, 252px);
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 300px);
   gap: 0;
   align-items: start;
 }
@@ -738,9 +764,11 @@ td.fm-blank { color: var(--rule-strong); }
   border-left: 1px solid var(--rule);
   background: var(--paper-2);
   align-self: stretch;
+  position: sticky;
+  top: 0;
 }
 .fm-inspector-panel {
-  padding: 12px 10px 18px;
+  padding: 14px 12px 18px;
 }
 .fm-inspector-sheet {
   position: fixed;
