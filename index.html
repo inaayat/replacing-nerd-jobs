@@ -546,6 +546,10 @@
         background: var(--tile-bg);
         transition: background-color 220ms ease, color 220ms ease;
       }
+      .projects-panel-head > div:first-child {
+        flex: 1 1 auto;
+        min-width: 0;
+      }
       .projects-panel-head h2 {
         margin: 0;
         font-size: 1.35rem;
@@ -557,7 +561,6 @@
         font-size: 0.68rem;
         line-height: 1.45;
         opacity: 0.7;
-        max-width: 54ch;
         color: inherit;
       }
       [data-theme="zohran"] .projects-note { opacity: 0.88; }
@@ -956,7 +959,7 @@
           <header class="projects-panel-head">
             <div>
               <h2 id="projects-panel-title" class="serif font-semibold">Projects</h2>
-              <p class="projects-note brand-mono">First-pass outcomes for review — tell me what’s wrong, which failed, and what you actually learned. Hardware / 3D-print pieces live inside Archive.</p>
+              <p class="projects-note brand-mono">Everything I have tried to do, some really bad</p>
             </div>
             <button type="button" class="projects-close" id="projects-close" aria-label="Close projects">×</button>
           </header>
