@@ -183,6 +183,14 @@ a { color: inherit; }
 .fm-pick p { margin: 6px 0 0; font-size: 12px; color: var(--ink-soft); }
 .fm-pick .fm-tick { float: right; font-size: 13px; }
 
+/* peer set ------------------------------------------------------------- */
+
+.fm-peer-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.fm-peer-search { flex: 1 1 220px; min-width: 180px; }
+.fm-peer-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.fm-peer-chip { background: var(--paper-2); }
+.fm-peer-chip span { margin-left: 4px; color: var(--ink-soft); }
+
 /* workspace ------------------------------------------------------------ */
 
 .fm-setup { display: block; }
@@ -412,6 +420,8 @@ td.fm-blank { color: var(--rule-strong); }
   body.has-company .fm-pick h3 { font-size: 13px; display: inline; }
   body.has-company .fm-pick .fm-tick { float: none; margin-left: 6px; }
   body.has-company .fm-model-picks { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  body.has-company #step-peers { grid-column: 1 / -1; }
+  body.has-company #step-peers .fm-status { margin-top: 8px; }
   body.has-company #step-build {
     flex: 1 1 auto;
     min-height: 0;

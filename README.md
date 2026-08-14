@@ -73,7 +73,8 @@ Share prices (last + daily history) come from Yahoo Finance via
 
 Beginner-friendly modeling bench on the same SEC snapshot the Fortune 500 page
 reads. Pick a public filer, pick any of three Wall Street Prep model types
-(3-statement, DCF, trading comps), move a handful of plain-English guesses, and
+(3-statement, DCF, trading comps), choose the peer set yourself when comps
+are on, move a handful of plain-English guesses, and
 download an Excel workbook with live formulas.
 
 `financial-modeler/engine.js` is the whole model: an integrated 3-statement

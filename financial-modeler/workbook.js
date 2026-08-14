@@ -860,7 +860,7 @@ function compsSheet(comps, model) {
   });
   b.blank();
   b.text([`Mean row: ${meanRow ? 'live AVERAGE over the peer rows' : 'no peers selected'}.`], 'note');
-  b.text([`Peer set chosen on the page for ${model.companyName || 'this company'}.`], 'note');
+  b.text([`Peer set you picked on the page for ${model.companyName || 'this company'}.`], 'note');
 
   return { sheet: b.pack([220, 70, 70, 90, 100, 90, 110, 100, 100, 70, 90, 90, 70]) };
 }

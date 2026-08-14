@@ -62,6 +62,10 @@ const TOUR = [
     body: 'Leave all three on. The DCF reads the cash flows the 3-statement produced, and comps sanity-check the answer against the market.',
   },
   {
+    title: 'Pick the comps yourself',
+    body: 'Trading comps are only as honest as the peer set. Choose companies that actually do similar work — we will not invent a neighbour list from Fortune rank.',
+  },
+  {
     title: 'Change the blue numbers',
     body: 'Blue means you typed it. Black means the model worked it out. Move a slider and watch every statement redraw — then download the same thing as a spreadsheet.',
   },
@@ -125,12 +129,15 @@ function headlinesFor(company) {
   return state.snapshot.get(Number(company?.cik)) || null;
 }
 
-/** Peers: the other Fortune filers closest in rank that actually filed. */
-function peerSet(company) {
-  const ranked = state.companies
-    .filter((c) => isPublic(c) && c.cik !== company.cik && state.snapshot.has(Number(c.cik)))
-    .sort((a, b) => Math.abs(a.rank - company.rank) - Math.abs(b.rank - company.rank));
-  return ranked.slice(0, 4);
+function compsOn() {
+  return state.models.includes('comps');
+}
+
+function syncPeerStep() {
+  const on = Boolean(state.company && compsOn() && state.headlines);
+  $('step-peers').hidden = !on;
+  $('step-build-num').textContent = on ? '4' : '3';
+  if (on) renderPeerPicker();
 }
 
 /* -------------------------------- search ------------------------------- */
@@ -180,6 +187,110 @@ function renderResults(query) {
   };
 }
 
+const MAX_PEERS = 8;
+
+function isPeer(company) {
+  return state.peers.some((c) => c.cik === company.cik);
+}
+
+async function addPeer(company) {
+  if (!company || company.cik === state.company?.cik || isPeer(company)) return;
+  if (state.peers.length >= MAX_PEERS) {
+    $('peer-status').className = 'fm-status is-warn';
+    $('peer-status').textContent = 'Eight peers is plenty — drop one before adding another.';
+    return;
+  }
+  state.peers = [...state.peers, company];
+  $('peer-search').value = '';
+  $('peer-results').hidden = true;
+  renderPeerPicker();
+  render();
+  const price = await loadPrice(company);
+  if (price != null) render();
+}
+
+function removePeer(cik) {
+  state.peers = state.peers.filter((c) => String(c.cik) !== String(cik));
+  renderPeerPicker();
+  const q = $('peer-search').value;
+  if (q.trim()) renderPeerResults(q);
+  render();
+}
+
+function renderPeerPicker() {
+  const chips = $('peer-chips');
+  if (!state.peers.length) {
+    chips.innerHTML = '';
+  } else {
+    chips.innerHTML = state.peers
+      .map(
+        (c) =>
+          `<button type="button" class="fm-chip fm-peer-chip" data-remove-cik="${c.cik}" aria-label="Remove ${escapeHtml(c.company)}">
+            ${escapeHtml(c.fortune_ticker || c.company)} <span aria-hidden="true">×</span>
+          </button>`
+      )
+      .join('');
+  }
+  chips.onclick = (e) => {
+    const btn = e.target.closest('[data-remove-cik]');
+    if (btn) removePeer(btn.dataset.removeCik);
+  };
+
+  const status = $('peer-status');
+  status.className = 'fm-status';
+  if (!state.peers.length) {
+    status.textContent =
+      'No peers yet. Search and add companies that do similar work — that choice is the comps exercise.';
+  } else {
+    status.textContent = `${state.peers.length} peer${state.peers.length === 1 ? '' : 's'} in the set. The table uses only this list.`;
+  }
+}
+
+function renderPeerResults(query) {
+  const box = $('peer-results');
+  const q = query.trim().toLowerCase();
+  if (!q) {
+    box.hidden = true;
+    return;
+  }
+  const hits = state.companies
+    .filter((c) => c.company?.toLowerCase().includes(q) || c.fortune_ticker?.toLowerCase().includes(q))
+    .slice(0, 40);
+  box.hidden = false;
+  if (!hits.length) {
+    box.innerHTML = '<p class="fm-empty">Nothing by that name in the Fortune 500 list.</p>';
+    return;
+  }
+  box.innerHTML = hits
+    .map((c) => {
+      const pub = isPublic(c);
+      const has = pub && state.snapshot.has(Number(c.cik));
+      const self = c.cik === state.company?.cik;
+      const picked = isPeer(c);
+      const blocked = !has || self;
+      const sub = self
+        ? 'That’s the company you’re modeling'
+        : !pub
+          ? 'Private — no 10-K'
+          : has
+            ? `#${c.rank} · ${c.fortune_ticker}${picked ? ' · in the set' : ''}`
+            : 'No filing in the snapshot';
+      const cls = `fm-result${blocked ? ' is-private' : ''}`;
+      const selected = picked ? ' aria-selected="true"' : '';
+      return `<button type="button" class="${cls}" data-peer-cik="${c.cik}"${selected} ${blocked ? 'disabled' : ''}>
+        <strong>${escapeHtml(c.company)}</strong><span>${escapeHtml(sub)}</span></button>`;
+    })
+    .join('');
+  box.onclick = (e) => {
+    const btn = e.target.closest('[data-peer-cik]');
+    if (!btn) return;
+    const company = state.companies.find((c) => String(c.cik) === btn.dataset.peerCik);
+    if (!company) return;
+    if (isPeer(company)) removePeer(company.cik);
+    else addPeer(company);
+  };
+}
+
 /* ------------------------------ selection ------------------------------ */
 
 async function selectCompany(company) {
@@ -193,6 +304,7 @@ async function selectCompany(company) {
     $('status').className = 'fm-status is-warn';
     $('status').textContent = `${company.company} is private. ${PRIVATE_NOTES?.[company.company] || 'No 10-K means no statements to model — we won’t invent them.'}`;
     $('step-models').hidden = true;
+    $('step-peers').hidden = true;
     $('step-build').hidden = true;
     $('dock').hidden = true;
     return;
@@ -203,6 +315,7 @@ async function selectCompany(company) {
     document.body.classList.remove('has-company');
     $('status').className = 'fm-status is-warn';
     $('status').textContent = `${company.company} isn’t in the filing snapshot yet, so there’s nothing to build from.`;
+    $('step-peers').hidden = true;
     return;
   }
   state.headlines = headlines;
@@ -212,6 +325,7 @@ async function selectCompany(company) {
     $('status').className = 'fm-status is-warn';
     $('status').textContent = `${company.company}’s filing is missing ${ready.missing.join(', ')} — a balance sheet can’t be built without those, and filling them with zero would be a lie.`;
     $('step-build').hidden = true;
+    $('step-peers').hidden = true;
     return;
   }
 
@@ -219,17 +333,18 @@ async function selectCompany(company) {
   $('status').textContent = `Reading ${company.company}’s FY${headlines.asOfYear} 10-K.`;
   state.assumptions = defaultAssumptions(headlines);
   state.scenario = 'base';
-  state.peers = peerSet(company);
+  state.peers = [];
   document.body.classList.add('has-company');
   $('step-models').hidden = false;
   $('step-build').hidden = false;
   $('dock').hidden = false;
   $('dock-ratios').href = `/fortune-500/#company=${company.cik}`;
   renderPicks();
+  syncPeerStep();
   render();
 
-  const prices = await Promise.all([company, ...state.peers].map((c) => loadPrice(c)));
-  if (prices.some((p) => p != null)) render();
+  const price = await loadPrice(company);
+  if (price != null) render();
 }
 
 /* -------------------------------- dials -------------------------------- */
@@ -464,8 +579,13 @@ function dcfPanel(model, dcf, sens) {
 }
 
 function compsPanel(comps) {
+  if (!state.peers.length) {
+    return `<section class="fm-panel"><h3>What the market pays for the neighbours</h3>
+      <div class="fm-empty"><h3>Choose the peer set</h3>
+      <p>Trading comps start with a judgment call: who actually belongs in the same set. Search in step 3 and add companies that do similar work — we won’t invent a list from Fortune rank.</p></div></section>`;
+  }
   if (!comps?.ok) {
-    return `<section class="fm-panel"><h3>Trading comps</h3><div class="fm-empty"><h3>No peers to compare against</h3><p>${escapeHtml(comps?.reason || 'Pick a company with public peers.')}</p></div></section>`;
+    return `<section class="fm-panel"><h3>Trading comps</h3><div class="fm-empty"><h3>No usable peers yet</h3><p>${escapeHtml(comps?.reason || 'Add a public peer with a share price.')}</p></div></section>`;
   }
   const rows = [...comps.rows, comps.self];
   const body = rows
@@ -498,7 +618,7 @@ function compsPanel(comps) {
 
   return `<section class="fm-panel">
     <h3>What the market pays for the neighbours</h3>
-    <p class="fm-aside"><strong>How this is built:</strong> take similar companies, work out what multiple of their sales or profit the market pays, then apply the middle one to this company. It answers "what would a buyer pay today", not "what is it worth forever".</p>
+    <p class="fm-aside"><strong>How this is built:</strong> you picked the peer set. We work out what multiple of their sales or profit the market pays, then apply the middle one to this company. It answers "what would a buyer pay today", not "what is it worth forever".</p>
     <div class="fm-scroll"><table class="fm-table">
       <thead><tr><th>Company</th><th>Price</th><th>EV ($m)</th><th>EV/Revenue</th><th>EV/EBITDA</th><th>P/E</th></tr></thead>
       <tbody>${body}${stats}</tbody></table></div>
@@ -562,6 +682,7 @@ function renderPicks() {
     const id = btn.dataset.model;
     state.models = state.models.includes(id) ? state.models.filter((m) => m !== id) : [...state.models, id];
     renderPicks();
+    syncPeerStep();
     render();
   };
 }
@@ -616,6 +737,7 @@ async function boot() {
   $('tour-skip').onclick = endTour;
   $('dock-download').onclick = download;
   $('search').addEventListener('input', (e) => renderResults(e.target.value));
+  $('peer-search').addEventListener('input', (e) => renderPeerResults(e.target.value));
 
   try {
     await loadData();
