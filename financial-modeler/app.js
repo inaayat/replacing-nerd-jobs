@@ -958,8 +958,8 @@ function ensureFocusedAssumption() {
 function focusAssumption(key, { rerenderModel = false } = {}) {
   state.focusedAssumption = key;
   renderAssumptionDetail();
-  document.querySelectorAll('.fm-chip-compact, .fm-assump-chip').forEach((row) => {
-    row.classList.toggle('is-active', row.dataset.dialKey === key || row.dataset.selectDial === key);
+  document.querySelectorAll('.fm-chip-compact').forEach((row) => {
+    row.classList.toggle('is-active', row.dataset.dialKey === key);
   });
   applyTraceHighlight(key);
   if (!key) syncRowHighlights();
@@ -971,34 +971,32 @@ function renderAssumptionDetailHtml(key) {
   if (!d) return '';
   const value = state.assumptions?.[d.key];
   const disabled = value == null;
-  const override = !isUnit() && isOverride(d.key, value, state.sourceDefaults);
   const validation = disabled ? { valid: true } : validateAssumption(d, value);
-  const path = dependencyPath(d.key);
-  const pathHtml = path.length
-    ? `<p class="fm-trace-path"><strong>Affects.</strong> ${path.map((p) => escapeHtml(p)).join(' → ')}</p>`
-    : `<p class="fm-trace-path"><strong>Affects.</strong> ${escapeHtml(d.effect)}</p>`;
   const slider = !disabled
-    ? `<input type="range" class="fm-assump-slider" data-range="${d.key}" min="${d.min}" max="${d.max}" step="${d.step}" value="${value}" aria-label="${escapeHtml(d.name)} slider" />`
+    ? `<input type="range" class="fm-assump-slider fm-assump-slider--compact" data-range="${d.key}" min="${d.min}" max="${d.max}" step="${d.step}" value="${value}" aria-label="${escapeHtml(d.name)} slider" />`
     : '';
+  const err = !validation.valid
+    ? `<span class="fm-assump-strip-error">${escapeHtml(validation.message)}</span>`
+    : validation.warn && validation.message
+      ? `<span class="fm-assump-strip-warn">${escapeHtml(validation.message)}</span>`
+      : '';
 
-  return `<h3>${escapeHtml(d.name)} ${isUnit() ? '' : sourceBadge(d, { isOverride: override, isMissing: disabled })}</h3>
-    ${validation.valid ? '' : `<p class="fm-dial-error">${escapeHtml(validation.message)}</p>`}
-    ${validation.warn && validation.message ? `<p class="fm-dial-warn">${escapeHtml(validation.message)}</p>` : ''}
-    <p><strong>What it is.</strong> ${escapeHtml(d.shortDefinition || d.what)}</p>
-    <p><strong>Formula.</strong> ${escapeHtml(d.formulaText || d.how)}</p>
-    <p><strong>${isUnit() ? 'This stall.' : 'This filing.'}</strong> ${escapeHtml(originFor(d, state.headlines))}</p>
-    ${pathHtml}
-    ${slider}`;
+  return `<div class="fm-assump-strip-inner">
+    <strong class="fm-assump-strip-name">${escapeHtml(d.name)}</strong>
+    <span class="fm-assump-strip-text">${escapeHtml(d.shortDefinition || d.what)}</span>
+    ${slider}${err}
+  </div>`;
 }
 
 function renderAssumptionDetail() {
   ensureFocusedAssumption();
   const key = state.focusedAssumption;
-  const html = key ? renderAssumptionDetailHtml(key) : '<p class="fm-assump-placeholder">Select an assumption on the right to see what it means and what it drives.</p>';
+  const html = key
+    ? renderAssumptionDetailHtml(key)
+    : '<p class="fm-assump-placeholder">Click a name or start typing a value — every chip is editable.</p>';
   const el = $('assumption-detail');
   if (el) {
     el.innerHTML = html;
-    el.hidden = false;
     if (key) bindAssumptionDetail(el);
   }
 }
@@ -1035,21 +1033,13 @@ function renderAssumptionListHtml() {
       const value = state.assumptions[d.key];
       const disabled = value == null;
       const isActive = state.focusedAssumption === d.key;
-      return `<button type="button" class="fm-chip-compact${isActive ? ' is-active' : ''}${disabled ? ' is-missing' : ''}" data-select-dial="${d.key}" data-dial-key="${d.key}">
-        <span class="fm-chip-name">${escapeHtml(d.name)}</span>
-        <span class="fm-chip-val">${escapeHtml(dialValueText(d, value))}</span>
-      </button>`;
-    })
-    .join('');
-
-  const editors = active
-    .map((d) => {
-      const value = state.assumptions[d.key];
-      const disabled = value == null;
-      if (state.focusedAssumption !== d.key || disabled) return '';
-      return `<label class="fm-chip-edit">Edit value
-        <input class="fm-dial-value" type="text" inputmode="decimal" data-key="${d.key}" value="${escapeHtml(dialValueText(d, value))}" aria-label="${escapeHtml(d.name)} value" />
-      </label>`;
+      const input = disabled
+        ? `<span class="fm-chip-input is-missing" aria-hidden="true">—</span>`
+        : `<input class="fm-chip-input" type="text" inputmode="decimal" data-key="${d.key}" value="${escapeHtml(dialValueText(d, value))}" aria-label="${escapeHtml(d.name)} value" />`;
+      return `<div class="fm-chip-compact${isActive ? ' is-active' : ''}${disabled ? ' is-missing' : ''}" data-dial-key="${d.key}">
+        <button type="button" class="fm-chip-name" data-select-dial="${d.key}">${escapeHtml(d.name)}</button>
+        ${input}
+      </div>`;
     })
     .join('');
 
@@ -1060,7 +1050,6 @@ function renderAssumptionListHtml() {
     </div>` : ''}
     <div class="fm-assump-scenarios" role="group" aria-label="Scenario">${scenarios}</div>
     <div class="fm-assump-grid">${chips}</div>
-    ${editors ? `<div class="fm-chip-edit-wrap">${editors}</div>` : ''}
   </div>`;
 }
 
@@ -1084,7 +1073,7 @@ function bindAssumptionList(wrap) {
   });
 
   wrap.querySelectorAll('[data-key]').forEach((el) => {
-    el.addEventListener('focus', () => focusAssumption(el.dataset.key));
+    el.addEventListener('focus', () => focusAssumption(el.dataset.key, { rerenderModel: false }));
     el.addEventListener('change', () => {
       const dial = active.find((d) => d.key === el.dataset.key);
       const value = parseDialInput(dial, el.value);
