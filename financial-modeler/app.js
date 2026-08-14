@@ -68,7 +68,8 @@ import { buildWorkbook, buildUnitWorkbook, workbookFilename, downloadWorkbook } 
 const $ = (id) => document.getElementById(id);
 
 const state = {
-  exercise: 'filer',
+  exercise: null,
+  phase: 'landing',
   companies: [],
   snapshot: new Map(),
   prices: new Map(),
@@ -80,7 +81,6 @@ const state = {
   scenarioState: null,
   peers: [],
   tourStep: 0,
-  inspectorCollapsed: false,
   setupEdit: null,
   focusedAssumption: null,
   buildStep: { three: 'revenue', dcf: 'fcf', comps: 'peers' },
@@ -354,8 +354,14 @@ function compsOn() {
 }
 
 function workspaceLive() {
+  if (state.phase !== 'workspace') return false;
   if (isFiler()) return Boolean(state.company && state.headlines);
-  return Boolean(state.assumptions);
+  if (isStandaloneExercise()) return Boolean(state.assumptions);
+  return false;
+}
+
+function filerReady() {
+  return isFiler() && Boolean(state.company && state.headlines);
 }
 
 function availableTabs() {
@@ -400,132 +406,241 @@ function ensureActiveTab() {
 function syncLayout() {
   const live = workspaceLive();
   document.body.classList.toggle('has-company', live);
-  document.body.classList.toggle('is-unit', isStandaloneExercise());
-  document.body.classList.toggle('is-editing-setup', live && Boolean(state.setupEdit));
+  document.body.classList.toggle('is-unit', isStandaloneExercise() && live);
+  document.body.classList.toggle('is-editing-setup', false);
+  document.body.classList.toggle('fm-started', Boolean(state.exercise));
+
   $('setup-summary').hidden = true;
-  const setupBar = $('workspace-setup');
-  if (setupBar) setupBar.hidden = !live || Boolean(state.setupEdit);
-  $('setup').hidden = isStandaloneExercise() || (live && !state.setupEdit);
-  $('step-exercise').hidden = live && state.setupEdit !== 'exercise';
-  if (isStandaloneExercise()) {
-    $('step-models').hidden = true;
-    $('step-peers').hidden = true;
-    $('step-build').hidden = !live;
-    $('dock').hidden = !live;
-    if (live) ensureActiveTab();
-    return;
-  }
-  $('dock').hidden = !live;
-  if (!state.company || !state.headlines) {
-    $('step-models').hidden = true;
-    $('step-peers').hidden = true;
-    $('step-build').hidden = true;
-    state.setupEdit = null;
-    return;
-  }
-  if (state.setupEdit) {
-    $('step-models').hidden = state.setupEdit !== 'models';
-    $('step-peers').hidden = state.setupEdit !== 'peers';
-    $('step-company').hidden = state.setupEdit !== 'company';
-    // Keep the live model visible while tweaking models or peers (issue 192).
-    $('step-build').hidden = state.setupEdit === 'company';
-    if (workspaceLive() && state.setupEdit !== 'company') {
-      ensureActiveTab();
-      renderSetupSummary();
-    }
-    return;
-  }
-  $('step-company').hidden = live;
-  $('step-models').hidden = !live;
-  $('step-peers').hidden = !compsOn();
+  const setupEl = $('setup');
+  if (setupEl) setupEl.hidden = true;
+
+  $('step-exercise').hidden = live;
+  const filerCol = $('landing-filer');
+  if (filerCol) filerCol.hidden = live || !isFiler();
+
   $('step-build').hidden = !live;
+  $('dock').hidden = !live;
+
+  const setupBar = $('workspace-setup');
+  if (setupBar) setupBar.hidden = !live;
+
+  updateLandingNext();
+  if (isFiler() && !live) renderPeerPicker();
+
   if (live) {
     ensureActiveTab();
-    renderSetupSummary();
-  }
-  $('dock-ratios').hidden = isUnit() || Boolean(state.company?.extra);
-}
-
-function renderSetupSummary() {
-  const grid = $('summary-grid');
-  const setupBar = $('workspace-setup');
-  if (!workspaceLive()) {
-    grid.innerHTML = '';
-    if (setupBar) setupBar.innerHTML = '';
-    return;
-  }
-  const exercise = EXERCISES.find((e) => e.id === state.exercise)?.title || '—';
-  const company = isUnit()
-    ? 'Lemonade stall'
-    : `${state.company?.company || '—'} · FY${state.headlines?.asOfYear || '—'}`;
-  const modelLabels = MODEL_PICKS.filter((m) => state.models.includes(m.id)).map((m) => m.title);
-  const models = isUnit() ? '3-statement only' : modelLabels.length ? modelLabels.join(', ') : 'None selected';
-  const peers = isUnit() || !compsOn() ? '—' : `${state.peers.length} peer${state.peers.length === 1 ? '' : 's'}`;
-  const filing = isUnit() ? 'Unit exercise' : state.headlines?.asOfYear ? `FY${state.headlines.asOfYear} 10-K` : '—';
-
-  const changeBtn = (label, target) =>
-    `<button type="button" class="fm-summary-change" data-edit="${target}">${label}</button>`;
-  const changeBtnCompact = (label, target) =>
-    `<button type="button" class="fm-workspace-setup-link" data-edit="${target}">${label}</button>`;
-
-  const changeHtml = `
-    ${changeBtn('Change exercise', 'exercise')}
-    ${isUnit() ? '' : changeBtn('Change company', 'company')}
-    ${isUnit() ? '' : changeBtn('Change models', 'models')}
-    ${isUnit() || !compsOn() ? '' : changeBtn('Change peers', 'peers')}`;
-  const changeHtmlCompact = `
-    ${changeBtnCompact('Change exercise', 'exercise')}
-    ${isUnit() ? '' : changeBtnCompact('Change company', 'company')}
-    ${isUnit() ? '' : changeBtnCompact('Change models', 'models')}
-    ${isUnit() || !compsOn() ? '' : changeBtnCompact('Change peers', 'peers')}`;
-
-  if (setupBar && !state.setupEdit) {
-    setupBar.innerHTML = changeHtmlCompact;
-    bindSetupEditLinks(setupBar);
-  } else if (setupBar) {
-    setupBar.innerHTML = '';
+    renderWorkspaceAdjust();
   }
 
-  grid.innerHTML = `
-    <dl class="fm-summary-item"><dt>Exercise</dt><dd>${escapeHtml(exercise)}</dd></dl>
-    <dl class="fm-summary-item"><dt>${isUnit() ? 'Example' : 'Company'}</dt><dd>${escapeHtml(company)}</dd></dl>
-    ${isUnit() ? '' : `<dl class="fm-summary-item"><dt>Models in workbook</dt><dd>${escapeHtml(models)}</dd></dl>`}
-    ${isUnit() || !compsOn() ? '' : `<dl class="fm-summary-item"><dt>Peers</dt><dd>${escapeHtml(peers)}</dd></dl>`}
-    <dl class="fm-summary-item"><dt>Filing</dt><dd>${escapeHtml(filing)}</dd></dl>
-    <div class="fm-summary-actions">${changeHtml}</div>`;
-
-  grid.querySelectorAll('[data-edit]').forEach((btn) => {
-    btn.onclick = () => openSetupEdit(btn.dataset.edit);
-  });
+  const ratios = $('dock-ratios');
+  if (ratios) ratios.hidden = !isFiler() || Boolean(state.company?.extra);
 }
 
-function bindSetupEditLinks(wrap) {
-  wrap.querySelectorAll('[data-edit]').forEach((btn) => {
-    btn.onclick = () => openSetupEdit(btn.dataset.edit);
-  });
+function updateLandingNext() {
+  const btn = $('landing-next');
+  if (!btn) return;
+  const ready = filerReady();
+  btn.disabled = !ready;
+  btn.textContent = ready
+    ? `Next — open ${state.company.fortune_ticker || state.company.company}`
+    : 'Next — open the model';
 }
 
-function openSetupEdit(target) {
-  if (target === 'exercise') {
-    state.setupEdit = 'exercise';
-    $('setup-summary').hidden = true;
-    $('setup').hidden = false;
-    $('step-exercise').hidden = false;
-    $('step-exercise').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    syncLayout();
-    return;
-  }
-  state.setupEdit = target;
-  syncLayout();
-  const el = target === 'peers' ? $('step-peers') : target === 'models' ? $('step-models') : $('step-company');
-  el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  if (target === 'peers') renderPeerPicker();
-}
-
-function finishSetupEdit() {
+function enterWorkspace() {
+  if (isFiler() && !filerReady()) return;
+  if (isStandaloneExercise() && !state.assumptions) return;
+  state.phase = 'workspace';
   state.setupEdit = null;
   syncLayout();
   render();
+}
+
+function switchToLanding() {
+  state.phase = 'landing';
+  state.setupEdit = null;
+  syncLayout();
+  $('step-exercise')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderWorkspaceAdjust() {
+  const bar = $('workspace-setup');
+  if (!bar) return;
+  if (!workspaceLive()) {
+    bar.innerHTML = '';
+    return;
+  }
+
+  const exerciseTitle = EXERCISES.find((e) => e.id === state.exercise)?.title || 'Exercise';
+  const switchEx = `<button type="button" class="fm-workspace-setup-link" data-switch-exercise="1">Switch exercise</button>`;
+
+  if (!isFiler()) {
+    bar.innerHTML = `<div class="fm-ws-adjust">
+      <div class="fm-ws-block">
+        <span class="fm-ws-kicker">Exercise</span>
+        <strong>${escapeHtml(exerciseTitle)}</strong>
+        ${switchEx}
+      </div>
+    </div>`;
+    bar.querySelector('[data-switch-exercise]')?.addEventListener('click', switchToLanding);
+    return;
+  }
+
+  const companyName = state.company?.company || 'Pick a company';
+  const ticker = state.company?.fortune_ticker || '';
+  const companyLabel = ticker ? `${companyName} (${ticker})` : companyName;
+  const dcfOn = state.models.includes('dcf');
+  const comps = compsOn();
+
+  bar.innerHTML = `<div class="fm-ws-adjust">
+    <div class="fm-ws-block">
+      <span class="fm-ws-kicker">Exercise</span>
+      <strong>${escapeHtml(exerciseTitle)}</strong>
+      ${switchEx}
+    </div>
+    <div class="fm-ws-block" id="ws-company-block">
+      <span class="fm-ws-kicker">Company you’re modeling</span>
+      <button type="button" class="fm-workspace-setup-link" id="ws-company-toggle" aria-expanded="false">
+        ${escapeHtml(companyLabel)} — search to swap
+      </button>
+      <div class="fm-ws-pop" id="ws-company-pop" hidden>
+        <input id="ws-company-search" class="fm-search" type="search" placeholder="Search by name or ticker…" autocomplete="off" aria-label="Swap company" />
+        <div class="fm-results" id="ws-company-results" hidden></div>
+      </div>
+    </div>
+    <div class="fm-ws-block">
+      <span class="fm-ws-kicker">What’s in this model</span>
+      <div class="fm-ws-models" role="group" aria-label="Models to include">
+        <button type="button" data-ws-model="three" aria-pressed="true" disabled title="The 3-statement is the base — it stays on">3-statement</button>
+        <button type="button" data-ws-model="dcf" aria-pressed="${dcfOn}">DCF</button>
+        <button type="button" data-ws-model="comps" aria-pressed="${comps}">Trading comps</button>
+      </div>
+    </div>
+    <div class="fm-ws-block" id="ws-peers-block">
+      <span class="fm-ws-kicker">Companies you compare against</span>
+      <div class="fm-peer-chips" id="ws-peer-chips"></div>
+      <input id="ws-peer-search" class="fm-search fm-peer-search" type="search" placeholder="Add a peer by name or ticker…" autocomplete="off" aria-label="Add a peer" />
+      <div class="fm-results" id="ws-peer-results" hidden></div>
+    </div>
+  </div>`;
+
+  bindWorkspaceAdjust(bar);
+  renderPeerPicker();
+}
+
+function bindWorkspaceAdjust(bar) {
+  bar.querySelector('[data-switch-exercise]')?.addEventListener('click', switchToLanding);
+
+  const toggle = $('ws-company-toggle');
+  const pop = $('ws-company-pop');
+  const search = $('ws-company-search');
+  toggle?.addEventListener('click', () => {
+    const open = pop.hidden;
+    pop.hidden = !open;
+    toggle.setAttribute('aria-expanded', String(open));
+    if (open) search?.focus();
+  });
+  search?.addEventListener('input', (e) => renderWsCompanyResults(e.target.value));
+
+  bar.querySelectorAll('[data-ws-model]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.wsModel;
+      if (id === 'three') return;
+      state.models = state.models.includes(id)
+        ? state.models.filter((m) => m !== id)
+        : [...state.models, id];
+      if (!state.models.includes('three')) state.models.unshift('three');
+      ensureActiveTab();
+      render();
+      renderWorkspaceAdjust();
+    });
+  });
+
+  $('ws-peer-search')?.addEventListener('input', (e) => renderWsPeerResults(e.target.value));
+}
+
+function renderWsCompanyResults(query) {
+  const box = $('ws-company-results');
+  if (!box) return;
+  const q = query.trim().toLowerCase();
+  if (!q) {
+    box.hidden = true;
+    return;
+  }
+  const hits = state.companies
+    .filter(
+      (c) =>
+        c.company?.toLowerCase().includes(q) ||
+        c.fortune_ticker?.toLowerCase().includes(q) ||
+        c.sec_ticker?.toLowerCase().includes(q) ||
+        c.blurb?.toLowerCase().includes(q)
+    )
+    .slice(0, 40);
+  box.hidden = false;
+  if (!hits.length) {
+    box.innerHTML = '<p class="fm-empty">Nothing by that name in the company list.</p>';
+    return;
+  }
+  box.innerHTML = hits
+    .map((c) => {
+      const pub = isPublic(c);
+      const has = pub && state.snapshot.has(Number(c.cik));
+      const sub = resultSub(c, { has, pub });
+      return `<button type="button" class="fm-result${has ? '' : ' is-private'}" data-cik="${c.cik ?? ''}" data-ticker="${escapeHtml(c.fortune_ticker || '')}" ${has ? '' : 'disabled'}>
+        <strong>${escapeHtml(c.company)}</strong><span>${escapeHtml(sub)}</span></button>`;
+    })
+    .join('');
+  box.onclick = (e) => {
+    const btn = e.target.closest('[data-cik]');
+    if (!btn) return;
+    const company = state.companies.find(
+      (c) => String(c.cik) === btn.dataset.cik || (btn.dataset.ticker && c.fortune_ticker === btn.dataset.ticker)
+    );
+    if (company) selectCompany(company);
+  };
+}
+
+function renderWsPeerResults(query) {
+  const box = $('ws-peer-results');
+  if (!box) return;
+  const q = query.trim().toLowerCase();
+  if (!q) {
+    box.hidden = true;
+    return;
+  }
+  const hits = state.companies
+    .filter(
+      (c) =>
+        c.company?.toLowerCase().includes(q) ||
+        c.fortune_ticker?.toLowerCase().includes(q) ||
+        c.sec_ticker?.toLowerCase().includes(q) ||
+        c.blurb?.toLowerCase().includes(q)
+    )
+    .slice(0, 40);
+  box.hidden = false;
+  if (!hits.length) {
+    box.innerHTML = '<p class="fm-empty">Nothing by that name in the company list.</p>';
+    return;
+  }
+  box.innerHTML = hits
+    .map((c) => {
+      const pub = isPublic(c);
+      const has = pub && state.snapshot.has(Number(c.cik));
+      const self = c.cik === state.company?.cik;
+      const picked = isPeer(c);
+      const blocked = !has || self;
+      const sub = resultSub(c, { has, pub, self, picked });
+      return `<button type="button" class="fm-result${blocked ? ' is-private' : ''}" data-peer-cik="${c.cik ?? ''}" ${picked ? 'aria-selected="true"' : ''} ${blocked ? 'disabled' : ''}>
+        <strong>${escapeHtml(c.company)}</strong><span>${escapeHtml(sub)}</span></button>`;
+    })
+    .join('');
+  box.onclick = (e) => {
+    const btn = e.target.closest('[data-peer-cik]');
+    if (!btn) return;
+    const company = state.companies.find((c) => String(c.cik) === btn.dataset.peerCik);
+    if (!company) return;
+    if (isPeer(company)) removePeer(company.cik);
+    else addPeer(company);
+  };
 }
 
 function renderTabs() {
@@ -665,30 +780,42 @@ function isPeer(company) {
 
 async function addPeer(company) {
   if (!company || company.cik === state.company?.cik || isPeer(company)) return;
+  const status = $('peer-status');
   if (state.peers.length >= MAX_PEERS) {
-    $('peer-status').className = 'fm-status is-warn';
-    $('peer-status').textContent = 'Eight peers is plenty — drop one before adding another.';
+    if (status) {
+      status.className = 'fm-status is-warn';
+      status.textContent = 'Eight peers is plenty — drop one before adding another.';
+    }
     return;
   }
   state.peers = [...state.peers, company];
-  $('peer-search').value = '';
-  $('peer-results').hidden = true;
+  const landSearch = $('peer-search');
+  if (landSearch) landSearch.value = '';
+  const landResults = $('peer-results');
+  if (landResults) landResults.hidden = true;
+  const wsSearch = $('ws-peer-search');
+  if (wsSearch) wsSearch.value = '';
+  const wsResults = $('ws-peer-results');
+  if (wsResults) wsResults.hidden = true;
   renderPeerPicker();
-  render();
+  if (workspaceLive()) render();
   const price = await loadPrice(company);
-  if (price != null) render();
+  if (price != null && workspaceLive()) render();
 }
 
 function removePeer(cik) {
   state.peers = state.peers.filter((c) => String(c.cik) !== String(cik));
   renderPeerPicker();
-  const q = $('peer-search').value;
-  if (q.trim()) renderPeerResults(q);
-  render();
+  const q = $('peer-search')?.value || $('ws-peer-search')?.value || '';
+  if (q.trim()) {
+    renderPeerResults(q);
+    renderWsPeerResults(q);
+  }
+  if (workspaceLive()) render();
 }
 
-function renderPeerPicker() {
-  const chips = $('peer-chips');
+function fillPeerChips(chips) {
+  if (!chips) return;
   if (!state.peers.length) {
     chips.innerHTML = '';
   } else {
@@ -705,8 +832,14 @@ function renderPeerPicker() {
     const btn = e.target.closest('[data-remove-cik]');
     if (btn) removePeer(btn.dataset.removeCik);
   };
+}
+
+function renderPeerPicker() {
+  fillPeerChips($('peer-chips'));
+  fillPeerChips($('ws-peer-chips'));
 
   const status = $('peer-status');
+  if (!status) return;
   status.className = 'fm-status';
   if (!state.peers.length) {
     status.textContent =
@@ -801,15 +934,15 @@ async function selectCompany(company) {
   state.assumptions = defaultAssumptions(headlines);
   initScenarioState(state.assumptions);
   state.sourceDefaults = { ...state.assumptions };
-  state.peers = [];
+  state.peers = state.peers.filter((c) => c.cik !== company.cik);
   $('dock-ratios').href = `/fortune-500/#company=${company.cik}`;
-  renderPicks();
   state.setupEdit = null;
   syncLayout();
-  render();
+  if (workspaceLive()) render();
+  else updateLandingNext();
 
   const price = await loadPrice(company);
-  if (price != null) render();
+  if (price != null && workspaceLive()) render();
 }
 
 function selectExercise(id) {
@@ -817,6 +950,13 @@ function selectExercise(id) {
   state.exercise = id;
   state.activeTab = 'three';
   state.setupEdit = null;
+  if (id === 'filer') {
+    state.phase = 'landing';
+    renderExercises();
+    syncLayout();
+    return;
+  }
+  state.phase = 'workspace';
   if (id === 'unit') {
     const defaults = defaultSingleUnitAssumptions(state.unitTemplate || 'lemonade');
     initScenarioState(defaults);
@@ -833,16 +973,10 @@ function selectExercise(id) {
     state.assumptions = defaultMarketEntryAssumptions();
     state.scenarioState = null;
     state.sourceDefaults = { ...state.assumptions };
-  } else if (state.company && state.headlines) {
-    const defaults = defaultAssumptions(state.headlines);
-    initScenarioState(defaults);
-    state.sourceDefaults = { ...defaults };
-  } else {
-    state.assumptions = null;
   }
   renderExercises();
   syncLayout();
-  if (state.assumptions) render();
+  render();
 }
 
 function renderExercises() {
@@ -979,7 +1113,7 @@ function wrapChecklist(tabId, context) {
   const preview = previewForStep(active, context);
   const meta = BUILD_GUIDE[tabId] || {};
   return renderChecklist(steps, activeId, {
-    ...meta,
+    subtitle: meta.subtitle,
     onSelect: (id) => {
       state.buildStep[tabId] = id;
       render();
@@ -1844,6 +1978,7 @@ function renderActivePanel(run) {
 }
 
 function render() {
+  if (!workspaceLive()) return;
   const run = currentRun();
   if (!run) return;
   const { model, dcf, sens, comps } = run;
@@ -1909,7 +2044,8 @@ function render() {
   const dl = $('checks-download');
   if (dl) dl.onclick = download;
 
-  $('inspector-mobile').hidden = !workspaceLive();
+  const mobileInspector = $('inspector-mobile');
+  if (mobileInspector) mobileInspector.hidden = true;
 
   if (isUnit()) {
     $('dock-name').textContent = state.unitTemplate === 'blank' ? 'Single-unit model' : 'Lemonade stall';
@@ -2004,15 +2140,24 @@ async function boot() {
   renderExercises();
   syncLayout();
 
-  const openMobileInspector = () => {
-    $('inspector-sheet').hidden = false;
-    renderDials();
-  };
-  $('inspector-mobile')?.addEventListener('click', openMobileInspector);
-  $('inspector-sheet-close')?.addEventListener('click', () => {
-    $('inspector-sheet').hidden = true;
+  const inspector = $('inspector');
+  const inspectorToggle = $('inspector-toggle');
+  inspectorToggle?.addEventListener('click', () => {
+    const open = !inspector.classList.contains('is-open');
+    inspector.classList.toggle('is-open', open);
+    inspectorToggle.setAttribute('aria-expanded', String(open));
   });
 
+  document.addEventListener('click', (e) => {
+    const pop = $('ws-company-pop');
+    const block = $('ws-company-block');
+    if (!pop || pop.hidden) return;
+    if (block?.contains(e.target)) return;
+    pop.hidden = true;
+    $('ws-company-toggle')?.setAttribute('aria-expanded', 'false');
+  });
+
+  $('landing-next')?.addEventListener('click', () => enterWorkspace());
   $('tour-next').onclick = () => {
     state.tourStep += 1;
     if (state.tourStep >= TOUR.length) endTour();
@@ -2020,8 +2165,8 @@ async function boot() {
   };
   $('tour-skip').onclick = endTour;
   $('dock-download').onclick = download;
-  $('search').addEventListener('input', (e) => renderResults(e.target.value));
-  $('peer-search').addEventListener('input', (e) => renderPeerResults(e.target.value));
+  $('search')?.addEventListener('input', (e) => renderResults(e.target.value));
+  $('peer-search')?.addEventListener('input', (e) => renderPeerResults(e.target.value));
 
   try {
     await loadData();
