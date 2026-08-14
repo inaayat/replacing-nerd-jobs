@@ -172,7 +172,7 @@ a { color: var(--al-red-deep); }
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--al-on-red-muted);
+  color: var(--al-on-red);
 }
 
 .al-sidebar-stat {
@@ -186,7 +186,8 @@ a { color: var(--al-red-deep); }
 .al-sidebar-stat-label {
   font-size: 0.7rem;
   font-weight: 400;
-  color: var(--al-on-red-muted);
+  color: var(--al-on-red);
+  opacity: 0.82;
 }
 
 .al-sidebar-stat-value {
@@ -3401,6 +3402,61 @@ table.al-table {
   border-color: var(--al-on-red-border);
 }
 
+/* Red panels inherit white type; stop page-ink tokens from leaking in. */
+.page-main .al-panel .al-bullets,
+.page-main .al-panel .al-bullets li,
+.page-main .al-panel .al-howto-intro,
+.page-main .al-panel .al-howto-steps,
+.page-main .al-panel .al-field-hint,
+.page-main .al-panel .al-invites-help,
+.page-main .al-panel .al-compare-lead,
+.page-main .al-panel .al-empty,
+.page-main .al-panel .al-empty--first-run p {
+  color: var(--al-on-red-muted);
+}
+
+.page-main .al-panel .al-marketing h2,
+.page-main .al-panel .al-howto-summary {
+  color: var(--al-on-red);
+}
+
+.page-main .al-panel a:not(.al-btn):not(.al-nav-link):not(.al-mobile-nav-link):not(.al-profile-view) {
+  color: var(--al-on-red);
+}
+
+.page-main .al-panel a:not(.al-btn):not(.al-nav-link):not(.al-mobile-nav-link):not(.al-profile-view):hover {
+  color: var(--al-white);
+}
+
+.page-main .al-panel .al-btn-primary {
+  background: var(--al-white);
+  border-color: var(--al-white);
+  color: var(--al-red);
+}
+
+.page-main .al-panel .al-btn-primary:hover {
+  background: var(--al-white);
+  border-color: var(--al-white);
+  color: var(--al-red);
+  filter: brightness(0.97);
+}
+
+.page-main .al-panel :where(
+  .al-log-row,
+  .al-bulk-ratings-row,
+  .al-profile-card,
+  .al-insights-spot,
+  .al-stat,
+  .al-invite-card,
+  .al-compare-section,
+  .al-watchlist-row,
+  .al-table-wrap
+) .al-btn-primary {
+  background: var(--al-red);
+  border-color: var(--al-red);
+  color: var(--al-white);
+}
+
 .page-main .al-panel .al-error {
   color: #ffd4d4;
 }
@@ -4702,6 +4758,49 @@ table.al-table {
   --al-on-soft-border: rgba(170, 0, 0, 0.35);
   --al-red-tint: color-mix(in srgb, var(--al-red) 18%, transparent);
   --al-red-tint-strong: color-mix(in srgb, var(--al-red) 30%, transparent);
+}
+
+[data-theme="dark"] .page-main .al-panel .al-bullets,
+[data-theme="dark"] .page-main .al-panel .al-bullets li,
+[data-theme="dark"] .page-main .al-panel .al-howto-intro,
+[data-theme="dark"] .page-main .al-panel .al-howto-steps,
+[data-theme="dark"] .page-main .al-panel .al-field-hint,
+[data-theme="dark"] .page-main .al-panel .al-invites-help,
+[data-theme="dark"] .page-main .al-panel .al-compare-lead,
+[data-theme="dark"] .page-main .al-panel .al-empty,
+[data-theme="dark"] .page-main .al-panel .al-empty--first-run p {
+  color: var(--al-muted);
+}
+
+[data-theme="dark"] .page-main .al-panel .al-marketing h2,
+[data-theme="dark"] .page-main .al-panel .al-howto-summary {
+  color: var(--al-text);
+}
+
+[data-theme="dark"] .page-main .al-panel a:not(.al-btn):not(.al-nav-link):not(.al-mobile-nav-link):not(.al-profile-view) {
+  color: var(--al-red-deep);
+}
+
+[data-theme="dark"] .page-main .al-panel .al-btn-primary {
+  background: var(--al-red);
+  border-color: var(--al-red);
+  color: var(--al-white);
+}
+
+[data-theme="dark"] .page-main .al-panel :where(
+  .al-log-row,
+  .al-bulk-ratings-row,
+  .al-profile-card,
+  .al-insights-spot,
+  .al-stat,
+  .al-invite-card,
+  .al-compare-section,
+  .al-watchlist-row,
+  .al-table-wrap
+) .al-btn-primary {
+  background: var(--al-red);
+  border-color: var(--al-red);
+  color: var(--al-white);
 }
 
 [data-theme="dark"] .al-sidebar {
