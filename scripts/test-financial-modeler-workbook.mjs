@@ -67,7 +67,7 @@ const comps = runComps(
   ]
 );
 
-const cards = [{ key: 'revenueGrowth', name: 'Sales growth', what: 'How much bigger it gets.', origin: 'From the 10-K.' }];
+const cards = [{ key: 'revenueGrowth', name: 'Sales growth', what: 'How much bigger it gets.', how: 'This year’s sales ÷ last year’s − 1.', origin: 'From the 10-K.' }];
 
 const bytes = buildWorkbook({ company, headlines, model, dcf, sensitivity, comps, cards });
 
@@ -267,7 +267,8 @@ for (const label of [
 }
 const growthRow = assumptionRows[drivers.get('Revenue growth (per year)') - 1];
 assert.equal(growthRow[2].value, 'How much bigger it gets.');
-assert.equal(growthRow[3].value, 'From the 10-K.');
+assert.equal(growthRow[3].value, 'This year’s sales ÷ last year’s − 1.');
+assert.equal(growthRow[4].value, 'From the 10-K.');
 
 const referenced = new Set();
 for (const m of xml.matchAll(/Assumptions!\$B\$(\d+)/g)) referenced.add(Number(m[1]));
