@@ -7,7 +7,7 @@
     <title>World in NYC — Beep boop</title>
     <meta
       name="description"
-      content="Ethnic enclaves in New York City on the election-district map — the same hyper-local grain as the CUNY 2025 election map."
+      content="Ethnic enclaves in New York City on the election-district map, plus a world map of the countries those neighborhoods come from."
     />
     <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -31,6 +31,10 @@
           <span>World in NYC</span>
         </a>
       </div>
+      <div class="win-view-toggle" role="tablist" aria-label="Map view">
+        <button type="button" class="win-view-btn is-on" id="view-nyc" role="tab" aria-selected="true" data-view="nyc">NYC</button>
+        <button type="button" class="win-view-btn" id="view-world" role="tab" aria-selected="false" data-view="world">World</button>
+      </div>
       <div class="win-nav-links">
         <a href="#list">Enclaves</a>
         <a href="/#projects">Projects</a>
@@ -43,6 +47,7 @@
     <div class="win-app">
       <main class="win-map-wrap">
         <div id="map" role="application" aria-label="New York City election district map"></div>
+        <div id="world-map" role="application" aria-label="World map of origin countries" hidden></div>
         <button type="button" class="win-legend-toggle" id="legend-toggle" aria-expanded="false" aria-controls="legend">
           Legend
         </button>
@@ -52,7 +57,7 @@
           <button type="button" class="win-card-close" id="card-close" aria-label="Close district card">×</button>
           <div id="card-body"></div>
         </aside>
-        <p class="win-status" id="status">Loading election districts…</p>
+        <p class="win-status" id="status">Loading maps…</p>
       </main>
 
       <aside class="win-rail" id="rail" aria-label="Enclave filters">
@@ -64,14 +69,18 @@
             <button type="button" class="win-text-btn win-sheet-close" id="sheet-close">Map</button>
           </div>
         </div>
-        <p class="win-lede">
+        <p class="win-lede" id="nyc-lede">
           Every colored block is an election district — the same grain as the
           <a href="https://www.urbanresearchmaps.org/electioncompare2025/?lat=40.72103&amp;lng=-73.97690&amp;zoom=10.50&amp;ed=66039" target="_blank" rel="noopener">CUNY 2025 election map</a>.
           Tap a block to see who Wikipedia places there.
         </p>
+        <p class="win-lede" id="world-lede" hidden>
+          Countries NYC has a listed enclave from — same region colors as the
+          election-district map. Tap one to see the neighborhoods.
+        </p>
 
         <label class="win-search">
-          <span class="win-label">Find a group or neighborhood</span>
+          <span class="win-label" id="search-label">Find a group or neighborhood</span>
           <input id="search" type="search" placeholder="Chinatown, Little Guyana, Astoria…" autocomplete="off" enterkeyhint="search" />
         </label>
 
@@ -79,7 +88,7 @@
 
         <section id="list" class="win-list-wrap">
           <div class="win-list-head">
-            <h2>Enclaves</h2>
+            <h2 id="list-heading">Enclaves</h2>
             <button type="button" class="win-text-btn" id="clear-filter" hidden>Clear filter</button>
           </div>
           <div class="win-list" id="enclave-list"></div>

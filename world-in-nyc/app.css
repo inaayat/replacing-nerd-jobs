@@ -78,6 +78,32 @@ a { color: #cf4520; }
 
 .win-nav-links a:hover { color: var(--win-ink); }
 
+.win-view-toggle {
+  display: inline-flex;
+  border: 1.5px solid var(--win-line);
+  border-radius: 999px;
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+
+.win-view-btn {
+  border: 0;
+  background: transparent;
+  color: var(--win-ink);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 12px;
+  cursor: pointer;
+  min-height: 36px;
+  touch-action: manipulation;
+}
+
+.win-view-btn.is-on {
+  background: var(--win-ink);
+  color: var(--win-cream);
+}
+
 .win-browse-btn {
   display: none;
   border: 1.5px solid var(--win-ink);
@@ -264,7 +290,23 @@ a { color: #cf4520; }
   min-height: 0;
 }
 
-#map { width: 100%; height: 100%; }
+#map,
+#world-map {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+/* Keep the hidden map in layout so MapLibre can measure it, then resize on show. */
+#world-map[hidden],
+#map[hidden] {
+  display: block !important;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
 
 .win-legend-toggle {
   display: none;
@@ -411,6 +453,9 @@ a { color: #cf4520; }
   .win-nav-links { display: none; }
   .win-nav-logo span { display: none; }
   .win-browse-btn { display: inline-flex; align-items: center; }
+  .win-view-toggle { margin-left: auto; }
+  .win-view-btn { padding: 7px 10px; min-height: 40px; }
+  .win-nav-section span { max-width: 9ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   .win-app {
     display: block;
