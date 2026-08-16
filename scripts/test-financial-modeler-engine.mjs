@@ -359,6 +359,19 @@ assert.equal(mean([]), null);
 }
 
 {
+  const headlines = retailer({
+    debt_current: point(12.35e9, { tag: 'LongTermDebtCurrent' }),
+    debt_noncurrent: point(78.33e9, { tag: 'LongTermDebtNoncurrent' }),
+    long_term_debt: point(90.68e9, { tag: 'LongTermDebt' }),
+    liabilities: point(120e9),
+    equity: point(60e9),
+    assets: point(150e9),
+  });
+  const model = runThreeStatement(headlines, defaultAssumptions(headlines));
+  assert.equal(model.rows[0].debt, 90.68e9, 'dual-tagged filer uses current + noncurrent, not legacy total twice');
+}
+
+{
   const target = { company: { company: 'Retailer Inc', cik: 1 }, headlines: retailer(), price: 100 };
   const empty = runComps(target, []);
   assert.equal(empty.ok, false);

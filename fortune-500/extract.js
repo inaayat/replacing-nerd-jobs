@@ -358,16 +358,57 @@ export const DERIVED_GROSS_PROFIT_TAG = 'Revenue−COGS';
 /** Derived income-statement tag when COGS is computed from revenue − gross profit. */
 export const DERIVED_COGS_TAG = 'Revenue−GrossProfit';
 
+/** Marker when interest-bearing debt is rolled up from current + noncurrent / legacy tags. */
+export const DEBT_STOCK_TAG = 'DebtStock';
+
+function hasDebtPiece(metrics) {
+  return (
+    val(metrics, 'debt_current') != null ||
+    val(metrics, 'debt_noncurrent') != null ||
+    val(metrics, 'long_term_debt') != null
+  );
+}
+
 /**
- * Interest-bearing debt for leverage, net debt, and implied interest rate.
- * Current + noncurrent when either is tagged; otherwise the legacy long-term tag.
+ * Interest-bearing debt stock (P9): current + (noncurrent ?? legacy long-term).
+ * When only the legacy long-term tag exists, that total is used as-is.
  */
-export function interestBearingDebt(metrics) {
-  const cur = val(metrics, 'debt_current');
-  const non = val(metrics, 'debt_noncurrent');
-  const ltd = val(metrics, 'long_term_debt');
-  if (cur != null || non != null) return (cur || 0) + (non || 0);
-  return ltd;
+export function debtStock(metrics) {
+  if (!metrics || !hasDebtPiece(metrics)) return null;
+  return (val(metrics, 'debt_current') ?? 0) + (val(metrics, 'debt_noncurrent') ?? val(metrics, 'long_term_debt') ?? 0);
+}
+
+/** @deprecated alias */
+export const interestBearingDebt = debtStock;
+
+/** Synthetic metric point for display (statement, information page). */
+export function debtStockPoint(metrics) {
+  const total = debtStock(metrics);
+  if (total == null) return null;
+  const cur = metrics.debt_current;
+  const non = metrics.debt_noncurrent;
+  const ltd = metrics.long_term_debt;
+  const src = non || ltd || cur || null;
+  let tag = DEBT_STOCK_TAG;
+  if (cur && non) tag = `${cur.tag}+${non.tag}`;
+  else if (cur && ltd && !non) tag = `${cur.tag}+${ltd.tag}`;
+  else if (non) tag = non.tag;
+  else if (ltd) tag = ltd.tag;
+  else if (cur) tag = cur.tag;
+  return {
+    val: total,
+    unit: src?.unit || 'USD',
+    start: null,
+    end: src?.end || cur?.end || non?.end || ltd?.end || null,
+    fy: src?.fy ?? null,
+    fp: src?.fp || 'FY',
+    form: src?.form || '10-K',
+    filed: src?.filed || null,
+    frame: src?.frame || null,
+    tag,
+    taxonomy: tag === DEBT_STOCK_TAG ? 'derived' : src?.taxonomy || 'us-gaap',
+    derived: true,
+  };
 }
 
 function derivedPointFrom(source, valNum, tag) {
@@ -387,13 +428,13 @@ function derivedPointFrom(source, valNum, tag) {
   };
 }
 
-/** Copy debt_noncurrent into long_term_debt when issuers skip the legacy tag. */
-function applyDebtAliases(metrics) {
+/** Copy weighted-average diluted shares when period-end shares are absent. */
+function applySharesFallback(metrics) {
   if (!metrics) return;
-  if (metrics.long_term_debt && finiteVal(metrics.long_term_debt.val)) return;
-  const non = metrics.debt_noncurrent;
-  if (!(non && finiteVal(non.val))) return;
-  metrics.long_term_debt = { ...non, derived: true };
+  if (metrics.shares_out && finiteVal(metrics.shares_out.val)) return;
+  const wavg = metrics.shares_diluted_wavg;
+  if (!(wavg && finiteVal(wavg.val))) return;
+  metrics.shares_out = { ...wavg, derived: true };
 }
 
 /** Fill gross profit or COGS from the other line plus revenue when one side is tagged. */
@@ -417,7 +458,6 @@ function applyPriorMetricNormalizations(priorMetrics) {
   for (const [key, v] of Object.entries(priorMetrics.values)) {
     if (typeof v === 'number' && Number.isFinite(v)) pseudo[key] = { val: v };
   }
-  applyDebtAliases(pseudo);
   applyIncomeDerivations(pseudo);
   for (const [key, point] of Object.entries(pseudo)) {
     if (priorMetrics.values[key] == null && point && finiteVal(point.val)) {
@@ -426,10 +466,10 @@ function applyPriorMetricNormalizations(priorMetrics) {
   }
 }
 
-/** Aliases and derived income lines shared by fresh extracts and cached snapshots. */
+/** Derived income lines and share fallbacks shared by fresh extracts and cached snapshots. */
 export function normalizeMetrics(metrics, priorMetrics = null) {
-  applyDebtAliases(metrics);
   applyIncomeDerivations(metrics);
+  applySharesFallback(metrics);
   applyPriorMetricNormalizations(priorMetrics);
 }
 
@@ -441,7 +481,7 @@ export function computeRatios(metrics, priorRevenue) {
   const ni = val(metrics, 'net_income');
   const assets = val(metrics, 'assets');
   const equity = val(metrics, 'equity');
-  const debt = interestBearingDebt(metrics);
+  const debt = debtStock(metrics);
   const cfo = val(metrics, 'cfo');
   const capex = val(metrics, 'capex');
   const rd = val(metrics, 'rd');
@@ -473,15 +513,11 @@ export function computeRatios(metrics, priorRevenue) {
   const pretax = val(metrics, 'pretax_income');
   out.effective_tax_rate =
     tax != null && pretax != null && pretax > 0 ? clamp(tax / pretax, -0.5, 0.8) : null;
-  const debtStock =
-    (val(metrics, 'debt_current') || 0) + (val(metrics, 'debt_noncurrent') || val(metrics, 'long_term_debt') || 0);
-  const hasDebtTag =
-    val(metrics, 'debt_current') != null ||
-    val(metrics, 'debt_noncurrent') != null ||
-    val(metrics, 'long_term_debt') != null;
+  const debtStockVal = debtStock(metrics);
+  const hasDebtTag = hasDebtPiece(metrics);
   const interestExp = val(metrics, 'interest_expense');
   out.implied_interest_rate =
-    interestExp != null && hasDebtTag && debtStock > 0 ? clamp(interestExp / debtStock, 0, 0.4) : null;
+    interestExp != null && hasDebtTag && debtStockVal > 0 ? clamp(interestExp / debtStockVal, 0, 0.4) : null;
   const div = val(metrics, 'dividends_paid');
   out.payout_ratio = div != null && ni != null && ni > 0 ? clamp(div / ni, 0, 5) : null;
   const nii = val(metrics, 'net_interest_income');
@@ -816,7 +852,7 @@ export function explainCalculation(headlines, key) {
   const pair = pairs[key];
   if (!pair) return base;
   if (key === 'debt_equity' || key === 'debt_assets') {
-    const debtTotal = interestBearingDebt(headlines?.metrics);
+    const debtTotal = debtStock(headlines?.metrics);
     const num = {
       key: 'interest_bearing_debt',
       label: 'Interest-bearing debt',

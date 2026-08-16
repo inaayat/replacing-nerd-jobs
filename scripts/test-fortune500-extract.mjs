@@ -13,6 +13,7 @@ import {
   ordinal,
   IMPLIED_LIABILITIES_TAG,
   liabilityComponents,
+  debtStock,
 } from '../fortune-500/extract.js';
 import { studentText } from '../fortune-500/metric-packs.js';
 import { METRICS } from '../fortune-500/catalog.js';
@@ -702,10 +703,20 @@ assert.equal(ordinal(1), '1st');
       long_term_debt: null,
     },
   });
-  assert.equal(gddy.metrics.long_term_debt.val, 3_765_200_000);
-  assert.equal(gddy.metrics.long_term_debt.derived, true);
-  assert.equal(gddy.metrics.long_term_debt.tag, 'LongTermDebtNoncurrent');
+  assert.equal(gddy.metrics.long_term_debt, null, 'do not alias noncurrent into core long_term_debt');
+  assert.equal(debtStock(gddy.metrics), 15_100_000 + 3_765_200_000);
   assert.ok(Math.abs(gddy.ratios.debt_equity - (15_100_000 + 3_765_200_000) / 215_100_000) < 1e-9);
+
+  const aapl = ensureRatios({
+    metrics: {
+      equity: { val: 100e9 },
+      debt_current: { val: 12.35e9, tag: 'LongTermDebtCurrent', end: '2025-09-27' },
+      debt_noncurrent: { val: 78.33e9, tag: 'LongTermDebtNoncurrent', end: '2025-09-27' },
+      long_term_debt: { val: 90.68e9, tag: 'LongTermDebt', end: '2025-09-27' },
+    },
+  });
+  assert.equal(debtStock(aapl.metrics), 90.68e9, 'prefer noncurrent over legacy total when both exist');
+  assert.ok(Math.abs(aapl.ratios.debt_equity - 90.68e9 / 100e9) < 1e-9);
 
   const abt = ensureRatios({
     metrics: {

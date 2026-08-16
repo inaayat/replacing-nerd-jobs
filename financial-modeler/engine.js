@@ -12,7 +12,7 @@
  * number gets invented is the two labelled residual buckets on the balance
  * sheet, which exist so year 0 ties to the filed totals instead of to a guess.
  */
-import { interestBearingDebt } from '../fortune-500/extract.js';
+import { debtStock } from '../fortune-500/extract.js';
 
 export const SCALE = 1e6;
 export const FORECAST_YEARS = 5;
@@ -30,7 +30,7 @@ function metric(headlines, key) {
 }
 
 function filedDebt(headlines) {
-  const total = interestBearingDebt(headlines?.metrics);
+  const total = debtStock(headlines?.metrics);
   return finite(total) ? total : null;
 }
 
