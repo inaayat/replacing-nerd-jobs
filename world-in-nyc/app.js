@@ -230,9 +230,7 @@ function renderList(catalog, filter, query, onPick, includeHistoric, votes) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = `win-item${filter?.kind === 'enclave' && filter.index === i ? ' is-on' : ''}`;
-    const roll = votes?.enclaves?.[enc.id]?.primary;
-    const vote = !isHistoric(enc) && roll?.n ? ` · ${shareLine(roll.v, votes.candidates)}` : '';
-    btn.innerHTML = `<span class="win-item-swatch" style="background:${regionColor(catalog, enc.region)}"></span><span class="win-item-text"><span class="win-item-name">${enc.name}</span><span class="win-item-meta">${enc.group}${isHistoric(enc) ? ' · historic' : ''}${vote}</span></span>`;
+    btn.innerHTML = `<span class="win-item-swatch" style="background:${regionColor(catalog, enc.region)}"></span><span class="win-item-text"><span class="win-item-name">${enc.name}</span><span class="win-item-meta">${enc.group}${isHistoric(enc) ? ' · historic' : ''}</span></span>`;
     btn.addEventListener('click', () => onPick({ kind: 'enclave', index: i, id: enc.id }));
     root.append(btn);
   }
@@ -248,7 +246,7 @@ function countryPassesFilter(row, filter) {
   return true;
 }
 
-function renderCountryList(countries, filter, query, selectedIso, onPick, catalog) {
+function renderCountryList(countries, filter, query, onPick, catalog) {
   const root = $('enclave-list');
   root.innerHTML = '';
   const q = query.trim().toLowerCase();
@@ -260,10 +258,10 @@ function renderCountryList(countries, filter, query, selectedIso, onPick, catalo
   for (const row of items) {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = `win-item${selectedIso === row.iso ? ' is-on' : ''}`;
-    const nhood = row.places.slice(0, 3).join(', ');
+    btn.className = 'win-item';
+    const nhood = row.places.join(', ');
     const color = row.regions.length === 1 ? regionColor(catalog, row.regions[0]) : '#6b5f5e';
-    btn.innerHTML = `<span class="win-item-swatch" style="background:${color}"></span><span class="win-item-text"><span class="win-item-name">${row.name}</span><span class="win-item-meta">${nhood}${row.places.length > 3 ? '…' : ''}</span></span>`;
+    btn.innerHTML = `<span class="win-item-swatch" style="background:${color}"></span><span class="win-item-text"><span class="win-item-name">${row.name}</span><span class="win-item-meta">${nhood}</span></span>`;
     btn.addEventListener('click', () => onPick(row.iso));
     root.append(btn);
   }
@@ -272,16 +270,32 @@ function renderCountryList(countries, filter, query, selectedIso, onPick, catalo
   }
 }
 
+function renderCountryEnclaves(row, catalog, query, includeHistoric, votes, onPick) {
+  const root = $('enclave-list');
+  root.innerHTML = '';
+  const q = query.trim().toLowerCase();
+  const items = enclavesForEra(row.enclaves, includeHistoric).filter((enc) => enclaveMatches(enc, q));
+  setListCount(items.length, 'enclave');
+  for (const enc of items) {
+    const i = catalog.enclaves.indexOf(enc);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'win-item';
+    const places = (enc.places || []).join(', ');
+    btn.innerHTML = `<span class="win-item-swatch" style="background:${regionColor(catalog, enc.region)}"></span><span class="win-item-text"><span class="win-item-name">${enc.name}</span><span class="win-item-meta">${enc.group}${isHistoric(enc) ? ' · historic' : ''}${places ? ` · ${places}` : ''}</span></span>`;
+    btn.addEventListener('click', () => onPick({ kind: 'enclave', index: i, id: enc.id }));
+    root.append(btn);
+  }
+  if (!items.length) {
+    root.innerHTML = '<p class="win-item-meta">No NYC enclaves listed for this country.</p>';
+  }
+}
+
 function countryCardHtml(row, catalog, includeHistoric) {
-  const visible = enclavesForEra(row.enclaves, includeHistoric);
-  const pills = visible.map((enc) => {
-    const color = regionColor(catalog, enc.region);
-    const historic = isHistoric(enc) ? ' · historic' : '';
-    return `<button type="button" class="win-enclave-pill" data-enclave="${enc.id}"><strong style="color:${color}">${enc.name}</strong><div class="mono">${enc.group}${historic}</div></button>`;
-  }).join('');
+  const n = enclavesForEra(row.enclaves, includeHistoric).length;
   return `
     <h3>${row.name}</h3>
-    ${pills || '<p class="mono">No current enclave listed.</p>'}
+    <p class="mono">${n} NYC ${n === 1 ? 'enclave' : 'enclaves'} — tap one to open it on the map.</p>
   `;
 }
 
@@ -678,7 +692,15 @@ async function main() {
       return;
     }
     if (currentView === 'world') {
-      renderCountryList(countries, filter, $('search').value, selectedCountry, showCountryCard, catalog);
+      const row = selectedCountry ? countryByIso.get(selectedCountry) : null;
+      if (row) {
+        renderCountryEnclaves(row, catalog, $('search').value, includeHistoric, votes, (next) => {
+          applyView('nyc');
+          setFilter(next);
+        });
+      } else {
+        renderCountryList(countries, filter, $('search').value, showCountryCard, catalog);
+      }
     } else {
       renderList(catalog, filter, $('search').value, setFilter, includeHistoric, votes);
     }
@@ -719,6 +741,8 @@ async function main() {
     $('card-body').innerHTML = countryCardHtml(row, catalog, includeHistoric);
     card.hidden = false;
     selectedCountry = iso;
+    $('rail-kicker').textContent = row.name;
+    $('list-heading').textContent = `Enclaves in ${row.name}`;
     if (isMobileUi() && sheetSnap() === 'peek') setSheetSnap('half');
     if (worldMap?.getSource('world')) {
       worldMap.removeFeatureState({ source: 'world' });
@@ -729,13 +753,6 @@ async function main() {
     syncQuery();
     const feat = worldByIso.get(iso);
     if (feat && worldMap) fitCountry(worldMap, feat);
-    for (const btn of $('card-body').querySelectorAll('[data-enclave]')) {
-      btn.addEventListener('click', () => {
-        const index = catalog.enclaves.findIndex((e) => e.id === btn.dataset.enclave);
-        applyView('nyc');
-        setFilter({ kind: 'enclave', index, id: btn.dataset.enclave });
-      });
-    }
     resizeMap();
   }
 
@@ -1044,6 +1061,8 @@ async function main() {
     $('card').hidden = true;
     if (currentView === 'world') {
       selectedCountry = null;
+      $('rail-kicker').textContent = 'Origin countries';
+      $('list-heading').textContent = 'Countries';
       if (worldMap?.getSource('world')) worldMap.removeFeatureState({ source: 'world' });
       applyWorldPaint();
       refreshList();
