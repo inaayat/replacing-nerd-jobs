@@ -158,11 +158,10 @@ function filedRow(def, headlines) {
   return `<tr>
     <td class="label">${escapeHtml(def.label)}</td>
     <td class="val${missing ? ' is-missing' : ''}">${escapeHtml(shown || '—')}</td>
-    <td>
-      <div class="def">${escapeHtml(studentText(def))}</div>
-      <div class="src">${escapeHtml(sourceLine(point, def))}</div>
-      ${series ? `<div class="fm-info-series">${escapeHtml(series)}</div>` : ''}
-    </td>
+    <td class="def">${escapeHtml(studentText(def))}${
+      series ? `<div class="fm-info-series">${escapeHtml(series)}</div>` : ''
+    }</td>
+    <td class="src">${escapeHtml(sourceLine(point, def))}</td>
   </tr>`;
 }
 
@@ -173,22 +172,23 @@ function derivedRow(def, headlines) {
   return `<tr>
     <td class="label">${escapeHtml(def.label)}</td>
     <td class="val${missing ? ' is-missing' : ''}">${escapeHtml(shown || '—')}</td>
-    <td>
-      <div class="def">${escapeHtml(studentText(def))}</div>
-      <div class="src">${escapeHtml(derivedSource(def))}</div>
-    </td>
+    <td class="def">${escapeHtml(studentText(def))}</td>
+    <td class="src">${escapeHtml(derivedSource(def))}</td>
   </tr>`;
 }
 
-function groupTable(title, summary, rowsHtml, id) {
+function groupTable(title, summary, rowsHtml, id, headers = ['Metric', 'Value', 'Definition', 'Where to find it']) {
   if (!rowsHtml) return '';
+  const head = headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('');
   return `<section class="fm-info-group" id="${id}">
     <h3>${escapeHtml(title)}</h3>
     <p class="fm-info-summary">${escapeHtml(summary)}</p>
-    <table class="fm-info-table">
-      <thead><tr><th>Metric</th><th>Value</th><th>Definition and source</th></tr></thead>
-      <tbody>${rowsHtml}</tbody>
-    </table>
+    <div class="fm-info-table-wrap">
+      <table class="fm-info-table">
+        <thead><tr>${head}</tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>
   </section>`;
 }
 
@@ -197,14 +197,13 @@ function renderSegments(seg) {
     return groupTable(
       'Reportable segments',
       'Product, operating-segment, and geographic cuts from the 10-K’s dimensional XBRL (not Company Facts).',
-      `<tr><td class="label">Segments</td><td class="val is-missing">—</td><td>
-        <div class="def">${escapeHtml(SEGMENT_METRIC_DEFS[0].student)}</div>
-        <div class="src">${escapeHtml(
+      `<tr><td class="label">Segments</td><td class="val is-missing">—</td>
+        <td class="def">${escapeHtml(SEGMENT_METRIC_DEFS[0].student)}</td>
+        <td class="src">${escapeHtml(
           seg?.error
             ? `Not available: ${seg.error}.`
             : 'This filing did not yield at least two members on a product, operating, or geographic axis.'
-        )}</div>
-      </td></tr>`,
+        )}</td></tr>`,
       'group-segments'
     );
   }
@@ -224,18 +223,18 @@ function renderSegments(seg) {
           return `<tr>
             <td class="label">${escapeHtml(m.label)}</td>
             <td class="val">${escapeHtml(formatUsd(m.revenue) || '—')}</td>
-            <td>
-              <div class="def">${escapeHtml(bits.join(' · ') || 'No tagged amounts for this member.')}</div>
-              <div class="src">Inline XBRL member ${escapeHtml(m.member)} on the ${escapeHtml(axis.label)} axis of the latest annual report${filing}.</div>
-            </td>
+            <td class="def">${escapeHtml(bits.join(' · ') || 'No tagged amounts for this member.')}</td>
+            <td class="src">Inline XBRL member ${escapeHtml(m.member)} on the ${escapeHtml(axis.label)} axis of the latest annual report${filing}.</td>
           </tr>`;
         })
         .join('');
       return `<div class="fm-info-axis"><h4>${escapeHtml(axis.label)}</h4>
-        <table class="fm-info-table">
-          <thead><tr><th>Member</th><th>Revenue</th><th>Notes</th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table></div>`;
+        <div class="fm-info-table-wrap">
+          <table class="fm-info-table">
+            <thead><tr><th>Member</th><th>Revenue</th><th>Definition</th><th>Where to find it</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div></div>`;
     })
     .join('');
   return `<section class="fm-info-group" id="group-segments">
