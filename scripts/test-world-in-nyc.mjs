@@ -10,6 +10,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { GROUP_COUNTRIES, countryIndex, countriesForGroup } from '../world-in-nyc/countries.js';
 import { isHistoric, enclavesForEra, tagCurrentEnclaves } from '../world-in-nyc/era.js';
+import { winnerOf, shareLine, totalOf } from '../world-in-nyc/votes.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DATA = join(ROOT, 'world-in-nyc/data');
@@ -144,4 +145,24 @@ const historicOnlyEds = ed.features.filter((f) => (f.properties.e || []).length 
 assert.ok(historicOnlyEds.length > 0, 'some EDs are historic-only and should unshade by default');
 assert.ok(ed.features.some((f) => (f.properties.ec || []).length), 'current-tagged EDs exist');
 
-console.log(`ok — ${enclaves.length} enclaves on ${ed.features.length} election districts (${withEnclave} tagged); ${withHistoric.length} origin countries (${currentOnly.length} current)`);
+assert.match(js, /mayor-2025/);
+assert.match(html, /id="vote-summary"/);
+assert.equal(winnerOf([10, 3, 1, 0]), 'm');
+assert.equal(winnerOf([5, 5, 1, 0]), 't');
+assert.equal(winnerOf([0, 0, 0, 0]), '');
+
+const mayorPath = join(DATA, 'mayor-2025.json');
+assert.ok(existsSync(mayorPath), 'mayor-2025.json missing — run node scripts/pull-world-in-nyc-mayor.mjs');
+const mayor = JSON.parse(readFileSync(mayorPath, 'utf8'));
+assert.deepEqual(mayor.city.slice(0, 3), [1114184, 906614, 153749], 'citywide Mamdani/Cuomo/Sliwa must match certified BOE/CUNY totals');
+assert.ok(mayor.matched > 3500, `too few EDs joined to mayor results: ${mayor.matched}`);
+assert.ok(mayor.byEd['61060'], 'sample ED 61060 should have votes');
+assert.ok(!mayor.enclaves['little-spain'], 'historic enclaves are omitted from 2025 rollups');
+const guyana = mayor.enclaves['little-guyana'];
+assert.ok(guyana?.primary?.n >= 1, 'Little Guyana needs primary EDs');
+assert.equal(winnerOf(guyana.primary.v), 'm');
+assert.ok(guyana.all.n > guyana.primary.n, 'mixed-district rollup should be larger than primary-only');
+assert.match(shareLine(guyana.primary.v), /Mamdani/);
+assert.ok(totalOf(guyana.primary.v) > 0);
+
+console.log(`ok — ${enclaves.length} enclaves on ${ed.features.length} election districts (${withEnclave} tagged); ${withHistoric.length} origin countries (${currentOnly.length} current); mayor ${mayor.matched} EDs`);

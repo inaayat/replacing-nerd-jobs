@@ -1,5 +1,12 @@
 import { countryIndex, countryMatchExpr, countryMatches } from './countries.js';
 import { isHistoric, enclavesForEra, tagCurrentEnclaves } from './era.js';
+import {
+  lookupEd,
+  shareLine,
+  tagVoteWinners,
+  voteBarHtml,
+  winnerMatchExpr,
+} from './votes.js';
 
 const BORO_FROM_CD = {
   1: 'Manhattan',
@@ -139,10 +146,15 @@ function eraKeys(includeHistoric) {
     : { e: 'ec', r: 'rc', rs: 'rsc' };
 }
 
-function applyFilter(map, catalog, filter, includeHistoric) {
+function applyFilter(map, catalog, filter, includeHistoric, votes) {
   const fill = map.getLayer('ed-fill');
   if (!fill) return;
   const keys = eraKeys(includeHistoric);
+  if (filter?.kind === 'enclave' && votes) {
+    map.setPaintProperty('ed-fill', 'fill-color', winnerMatchExpr(votes.candidates));
+    map.setFilter('ed-fill', ['in', filter.index, ['get', keys.e]]);
+    return;
+  }
   map.setPaintProperty('ed-fill', 'fill-color', colorMatch(catalog, keys.r));
   if (!filter) {
     map.setFilter('ed-fill', ['!=', ['get', keys.r], '']);
@@ -177,7 +189,7 @@ function renderRegions(catalog, filter, onPick) {
   }
 }
 
-function renderList(catalog, filter, query, onPick, includeHistoric) {
+function renderList(catalog, filter, query, onPick, includeHistoric, votes) {
   const root = $('enclave-list');
   root.innerHTML = '';
   const q = query.trim().toLowerCase();
@@ -191,7 +203,9 @@ function renderList(catalog, filter, query, onPick, includeHistoric) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = `win-item${filter?.kind === 'enclave' && filter.index === i ? ' is-on' : ''}`;
-    btn.innerHTML = `<span class="win-item-name">${enc.name}</span><span class="win-item-meta">${enc.group}${isHistoric(enc) ? ' · historic' : ''}</span>`;
+    const roll = votes?.enclaves?.[enc.id]?.primary;
+    const vote = !isHistoric(enc) && roll?.n ? ` · ${shareLine(roll.v, votes.candidates)}` : '';
+    btn.innerHTML = `<span class="win-item-name">${enc.name}</span><span class="win-item-meta">${enc.group}${isHistoric(enc) ? ' · historic' : ''}${vote}</span>`;
     btn.addEventListener('click', () => onPick({ kind: 'enclave', index: i, id: enc.id }));
     root.append(btn);
   }
@@ -242,8 +256,13 @@ function countryCardHtml(row, catalog, includeHistoric) {
   `;
 }
 
-function renderLegend(catalog, filter, view = 'nyc') {
+function renderLegend(catalog, filter, view = 'nyc', votes = null) {
   const root = $('legend');
+  if (view === 'nyc' && filter?.kind === 'enclave' && votes) {
+    const rows = votes.candidates.map((c) => `<div class="win-legend-row"><i style="background:${c.color}"></i>${c.label}</div>`).join('');
+    root.innerHTML = `<h3>${catalog.enclaves[filter.index].name}</h3>${rows}<div class="win-legend-row"><i style="background:#cfc6b8;outline:1px solid #1c1c1c22"></i>No votes / tie</div>`;
+    return;
+  }
   const regions = filter?.kind === 'region'
     ? catalog.regions.filter((r) => r.id === filter.id)
     : catalog.regions;
@@ -255,7 +274,34 @@ function renderLegend(catalog, filter, view = 'nyc') {
   root.innerHTML = `${title}${rows}${extra}`;
 }
 
-function cardHtml(props, catalog, includeHistoric) {
+function renderVoteSummary(filter, catalog, votes) {
+  const root = $('vote-summary');
+  if (!root) return;
+  if (filter?.kind !== 'enclave' || !votes) {
+    root.hidden = true;
+    root.innerHTML = '';
+    return;
+  }
+  const enc = catalog.enclaves[filter.index];
+  if (isHistoric(enc)) {
+    root.hidden = false;
+    root.innerHTML = '<p class="mono">Historic — not this 2025 electorate.</p>';
+    return;
+  }
+  const roll = votes.enclaves?.[enc.id];
+  if (!roll?.primary?.n) {
+    root.hidden = false;
+    root.innerHTML = '<p class="mono">No 2025 mayor votes on primary districts.</p>';
+    return;
+  }
+  const mixed = roll.all.n > roll.primary.n
+    ? `<div class="mono">Including mixed districts (${roll.all.n}): ${shareLine(roll.all.v, votes.candidates)}</div>`
+    : '';
+  root.hidden = false;
+  root.innerHTML = `${voteBarHtml(roll.primary.v, votes.candidates, `2025 mayor · ${roll.primary.n} primary EDs`)}${mixed}`;
+}
+
+function cardHtml(props, catalog, includeHistoric, votes) {
   const enclaves = (props.e || [])
     .map((i) => catalog.enclaves[i])
     .filter((enc) => enc && (includeHistoric || !isHistoric(enc)));
@@ -264,8 +310,11 @@ function cardHtml(props, catalog, includeHistoric) {
     const historic = isHistoric(enc) ? ' · historic' : '';
     return `<button type="button" class="win-enclave-pill" data-enclave="${enc.id}"><strong style="color:${color}">${enc.name}</strong><div class="mono">${enc.group}${historic}</div>${enc.note ? `<div class="mono">${enc.note}</div>` : ''}</button>`;
   }).join('') || '<p class="mono">Wikipedia does not list a named enclave on this district.</p>';
+  const vec = votes ? lookupEd(votes, props.ed) : null;
+  const bar = vec ? voteBarHtml(vec, votes.candidates) : '';
   return `
     <h3>AD ${props.ad} · ED ${String(props.n).padStart(3, '0')}</h3>
+    ${bar}
     <dl class="win-kv">
       <dt>Borough</dt><dd>${props.b || '—'}</dd>
       <dt>Neighborhood</dt><dd>${props.nta || '—'}</dd>
@@ -356,16 +405,18 @@ function wireSheetDrag(onResize) {
 async function main() {
   const status = $('status');
   const start = parseQuery();
-  const [catalog, ed, world, style] = await Promise.all([
+  const [catalog, ed, world, style, votes] = await Promise.all([
     fetch('./data/enclaves.json').then((r) => r.json()),
     fetch('./data/ed.geojson').then((r) => r.json()),
     fetch('./data/world.geojson').then((r) => r.json()),
     loadStyle(),
+    fetch('./data/mayor-2025.json').then((r) => (r.ok ? r.json() : null)).catch(() => null),
   ]);
 
   const regionColors = Object.fromEntries(catalog.regions.map((r) => [r.id, r.color]));
   regionColors.mixed = '#6b5f5e';
   tagCurrentEnclaves(ed.features, catalog.enclaves);
+  if (votes) tagVoteWinners(ed.features, votes);
   let includeHistoric = start.historic;
   let countries = countryIndex(enclavesForEra(catalog.enclaves, includeHistoric), world.features);
   let countryByIso = new Map(countries.map((row) => [row.iso, row]));
@@ -466,7 +517,7 @@ async function main() {
     if (currentView === 'world') {
       renderCountryList(countries, filter, $('search').value, selectedCountry, showCountryCard);
     } else {
-      renderList(catalog, filter, $('search').value, setFilter, includeHistoric);
+      renderList(catalog, filter, $('search').value, setFilter, includeHistoric, votes);
     }
   }
 
@@ -477,7 +528,7 @@ async function main() {
       card.hidden = true;
       return;
     }
-    $('card-body').innerHTML = cardHtml(feat.properties, catalog, includeHistoric);
+    $('card-body').innerHTML = cardHtml(feat.properties, catalog, includeHistoric, votes);
     card.hidden = false;
     selectedId = edId;
     syncQuery();
@@ -554,7 +605,8 @@ async function main() {
     }
 
     renderRegions(catalog, filter, setFilter);
-    renderLegend(catalog, filter, currentView);
+    renderLegend(catalog, filter, currentView, votes);
+    renderVoteSummary(currentView === 'nyc' ? filter : null, catalog, votes);
     refreshList();
     syncQuery();
     resizeMap();
@@ -562,10 +614,11 @@ async function main() {
 
   function setFilter(next) {
     filter = next;
-    applyFilter(map, catalog, filter, includeHistoric);
+    applyFilter(map, catalog, filter, includeHistoric, votes);
     applyWorldPaint();
     renderRegions(catalog, filter, setFilter);
-    renderLegend(catalog, filter, currentView);
+    renderLegend(catalog, filter, currentView, votes);
+    renderVoteSummary(filter, catalog, votes);
     $('clear-filter').hidden = !filter;
     refreshList();
     if (filter?.kind === 'enclave' && currentView === 'nyc') {
@@ -588,10 +641,11 @@ async function main() {
       $('card').hidden = true;
       if (worldMap.getSource('world')) worldMap.removeFeatureState({ source: 'world' });
     }
-    applyFilter(map, catalog, filter, includeHistoric);
+    applyFilter(map, catalog, filter, includeHistoric, votes);
     applyWorldPaint();
     renderRegions(catalog, filter, setFilter);
-    renderLegend(catalog, filter, currentView);
+    renderLegend(catalog, filter, currentView, votes);
+    renderVoteSummary(filter, catalog, votes);
     refreshList();
     if (currentView === 'nyc' && selectedId) showCard(selectedId);
     else if (currentView === 'world' && selectedCountry) showCountryCard(selectedCountry);
@@ -605,7 +659,7 @@ async function main() {
     if (isMobileUi()) $('legend').hidden = true;
     else $('legend').hidden = false;
     syncHistoricBtn();
-    applyFilter(map, catalog, filter, includeHistoric);
+    applyFilter(map, catalog, filter, includeHistoric, votes);
     applyView(currentView);
     if (currentView === 'nyc' && selectedId) showCard(selectedId);
     if (currentView === 'world' && selectedCountry) showCountryCard(selectedCountry);

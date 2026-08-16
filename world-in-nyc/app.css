@@ -224,6 +224,29 @@ a { color: #cf4520; }
   color: var(--win-cream);
 }
 
+.win-vote {
+  margin: 8px 0 10px;
+}
+.win-vote-cap { margin-bottom: 4px; }
+.win-vote-bar {
+  display: flex;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(28, 28, 28, 0.08);
+  margin-bottom: 4px;
+}
+.win-vote-bar i { display: block; min-width: 0; }
+.win-vote-summary {
+  margin: 10px 0 4px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--win-line);
+  border-radius: 12px;
+  background: #fffdf8;
+}
+.win-vote-summary .mono { font-family: var(--win-mono); font-size: 11px; color: var(--win-muted); }
+.win-vote-summary[hidden] { display: none; }
+
 .win-list-wrap { margin-top: 10px; }
 
 .win-list-head {
