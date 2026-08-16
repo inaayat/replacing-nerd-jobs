@@ -11,6 +11,8 @@ import {
   explainCalculation,
   sanityFlags,
   ordinal,
+  IMPLIED_LIABILITIES_TAG,
+  liabilityComponents,
 } from '../fortune-500/extract.js';
 import { studentText } from '../fortune-500/metric-packs.js';
 import { METRICS } from '../fortune-500/catalog.js';
@@ -544,6 +546,95 @@ assert.equal(ordinal(1), '1st');
   const copy = studentText(revenue);
   assert.ok(copy.startsWith('How much customers paid this year.'));
   assert.ok(copy.includes('starting point of the income statement'));
+}
+
+{
+  const annual = (val, end, fy) => [{
+    val,
+    end,
+    fy,
+    fp: 'FY',
+    form: '10-K',
+    filed: `${fy + 1}-02-01`,
+  }];
+  const duration = (val, start, end, fy) => [{
+    val,
+    start,
+    end,
+    fy,
+    fp: 'FY',
+    form: '10-K',
+    filed: `${fy + 1}-02-01`,
+  }];
+  const noRollup = extractHeadlines({
+    cik: 2,
+    entityName: 'No Liab Tag Inc',
+    facts: {
+      'us-gaap': {
+        Revenues: { units: { USD: duration(50, '2025-01-01', '2025-12-31', 2025) } },
+        NetIncomeLoss: { units: { USD: duration(5, '2025-01-01', '2025-12-31', 2025) } },
+        Assets: {
+          units: {
+            USD: [
+              ...annual(80, '2024-12-31', 2024),
+              ...annual(100, '2025-12-31', 2025),
+            ],
+          },
+        },
+        StockholdersEquity: {
+          units: {
+            USD: [
+              ...annual(30, '2024-12-31', 2024),
+              ...annual(40, '2025-12-31', 2025),
+            ],
+          },
+        },
+        LongTermDebtNoncurrent: { units: { USD: annual(25, '2025-12-31', 2025) } },
+        AccountsPayableCurrent: { units: { USD: annual(10, '2025-12-31', 2025) } },
+      },
+    },
+  });
+  assert.equal(noRollup.metrics.liabilities.val, 60);
+  assert.equal(noRollup.metrics.liabilities.tag, IMPLIED_LIABILITIES_TAG);
+  assert.equal(noRollup.metrics.liabilities.derived, true);
+  assert.equal(noRollup.metrics.debt_noncurrent.val, 25);
+  assert.equal(noRollup.metrics.accounts_payable.val, 10);
+  const pieces = liabilityComponents(noRollup.metrics);
+  assert.deepEqual(
+    pieces.map((p) => p.key),
+    ['debt_noncurrent', 'accounts_payable']
+  );
+  const fy24 = noRollup.seriesAnnual.liabilities.find((r) => r.year === 2024);
+  assert.equal(fy24.val, 50);
+  assert.equal(noRollup.priorMetrics.values.liabilities, 50);
+
+  const tagged = extractHeadlines({
+    cik: 3,
+    entityName: 'Has Liab Tag Inc',
+    facts: {
+      'us-gaap': {
+        Revenues: { units: { USD: duration(50, '2025-01-01', '2025-12-31', 2025) } },
+        NetIncomeLoss: { units: { USD: duration(5, '2025-01-01', '2025-12-31', 2025) } },
+        Assets: { units: { USD: annual(100, '2025-12-31', 2025) } },
+        StockholdersEquity: { units: { USD: annual(40, '2025-12-31', 2025) } },
+        Liabilities: { units: { USD: annual(77, '2025-12-31', 2025) } },
+      },
+    },
+  });
+  assert.equal(tagged.metrics.liabilities.val, 77, 'tagged roll-up wins over assets − equity');
+  assert.equal(tagged.metrics.liabilities.tag, 'Liabilities');
+  assert.equal(tagged.metrics.liabilities.derived, undefined);
+
+  const fromSnap = ensureRatios({
+    metrics: {
+      assets: { val: 100, tag: 'Assets' },
+      equity: { val: 15, tag: 'StockholdersEquity' },
+      liabilities: null,
+      debt_current: { val: 8, tag: 'LongTermDebtCurrent' },
+    },
+  });
+  assert.equal(fromSnap.metrics.liabilities.val, 85);
+  assert.equal(fromSnap.metrics.liabilities.tag, IMPLIED_LIABILITIES_TAG);
 }
 
 console.log('fortune-500 extract tests passed');

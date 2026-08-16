@@ -11,6 +11,8 @@ import {
   formatPeriodEnd,
   ALL_FILED_METRICS,
   ALL_DERIVED,
+  IMPLIED_LIABILITIES_TAG,
+  liabilityComponents,
 } from '../fortune-500/extract.js';
 import {
   FILED_PACK_GROUPS,
@@ -89,6 +91,9 @@ function searchCompanies(q) {
 }
 
 function sourceLine(point, def) {
+  if (point?.derived || point?.tag === IMPLIED_LIABILITIES_TAG) {
+    return 'Computed as total assets − shareholders’ equity. The 10-K did not tag a consolidated Liabilities line.';
+  }
   if (!point || typeof point.val !== 'number') {
     return def?.whyMissing
       ? `Not tagged in this annual report. ${def.whyMissing}`
@@ -122,12 +127,21 @@ function quarterlyNote(headlines, key) {
   return `Quarterly (10-Q): ${bits.join(' · ')}`;
 }
 
+function componentsNote(headlines, key) {
+  if (key !== 'liabilities') return '';
+  const bits = liabilityComponents(headlines?.metrics).map(
+    (c) => `${c.label} ${formatUsd(c.val) || c.val}`
+  );
+  if (!bits.length) return '';
+  return `Tagged pieces (not a complete total): ${bits.join(' · ')}.`;
+}
+
 function countTagged(headlines) {
   let tagged = 0;
   const total = ALL_FILED_METRICS.length;
   for (const def of ALL_FILED_METRICS) {
     const p = headlines?.metrics?.[def.key];
-    if (p && typeof p.val === 'number' && Number.isFinite(p.val)) tagged += 1;
+    if (p && typeof p.val === 'number' && Number.isFinite(p.val) && !p.derived) tagged += 1;
   }
   return { tagged, total };
 }
@@ -154,13 +168,14 @@ function filedRow(def, headlines) {
   const point = headlines?.metrics?.[def.key];
   const shown = formatMetric(def, point);
   const missing = shown == null;
-  const series = [seriesNote(headlines, def.key), quarterlyNote(headlines, def.key)].filter(Boolean).join(' ');
+  const extra = [componentsNote(headlines, def.key), seriesNote(headlines, def.key), quarterlyNote(headlines, def.key)]
+    .filter(Boolean)
+    .map((line) => `<div class="fm-info-series">${escapeHtml(line)}</div>`)
+    .join('');
   return `<tr>
     <td class="label">${escapeHtml(def.label)}</td>
     <td class="val${missing ? ' is-missing' : ''}">${escapeHtml(shown || '—')}</td>
-    <td class="def">${escapeHtml(studentText(def))}${
-      series ? `<div class="fm-info-series">${escapeHtml(series)}</div>` : ''
-    }</td>
+    <td class="def">${escapeHtml(studentText(def))}${extra}</td>
     <td class="src">${escapeHtml(sourceLine(point, def))}</td>
   </tr>`;
 }

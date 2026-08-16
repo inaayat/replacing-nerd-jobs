@@ -772,7 +772,7 @@ export const CORE_STUDENT = {
   assets:
     'The total of resources controlled by the entity at period-end — cash, receivables, inventory, PP&E, intangibles, and other assets. A stock, not a flow.',
   liabilities:
-    'The total of present obligations at period-end. Together with equity it should equal assets. Some issuers omit a consolidated Liabilities tag.',
+    'The total of present obligations at period-end. Assets − equity when the 10-K does not tag a consolidated Liabilities line. Individual debts (payables, borrowings, leases) are listed separately and do not sum to this total.',
   equity:
     'Residual interest in assets after deducting liabilities — book value attributable to shareholders. Not market capitalization.',
   cash:
