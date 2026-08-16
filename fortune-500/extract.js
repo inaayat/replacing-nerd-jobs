@@ -8,9 +8,23 @@
  * treated as missing for the current headline set — not as a current zero.
  */
 import { METRICS, DERIVED } from './catalog.js';
+import {
+  EXTENDED_FILED_METRICS,
+  EXTENDED_DERIVED,
+  SERIES_ANNUAL_YEARS,
+  SERIES_QUARTERLY_LIMIT,
+  QUARTERLY_SERIES_KEYS,
+} from './metric-packs.js';
 
 const ANNUAL_FORMS = new Set(['10-K', '10-K/A', '20-F', '20-F/A']);
+const QUARTER_FORMS = new Set(['10-Q', '10-Q/A']);
 const MIN_ANNUAL_DAYS = 300;
+const MIN_QUARTER_DAYS = 60;
+
+export const ALL_FILED_METRICS = [...METRICS, ...EXTENDED_FILED_METRICS];
+export const ALL_DERIVED = [...DERIVED, ...EXTENDED_DERIVED];
+const ALL_FILED_BY_KEY = Object.fromEntries(ALL_FILED_METRICS.map((m) => [m.key, m]));
+const ALL_DERIVED_BY_KEY = Object.fromEntries(ALL_DERIVED.map((m) => [m.key, m]));
 
 function yearOf(iso) {
   if (!iso || iso.length < 4) return null;
@@ -35,7 +49,10 @@ function preferredUnit(def, unit) {
   return true;
 }
 
-function collectPoints(facts, def) {
+function collectPoints(facts, def, opts = {}) {
+  const forms = opts.forms || ANNUAL_FORMS;
+  const requireFp = opts.fp !== undefined ? opts.fp : 'FY';
+  const minDays = opts.minDays ?? (def.kind === 'duration' ? MIN_ANNUAL_DAYS : null);
   const out = [];
   const taxonomies = facts?.facts || {};
   for (let i = 0; i < def.candidates.length; i++) {
@@ -46,12 +63,13 @@ function collectPoints(facts, def) {
       if (!preferredUnit(def, unit)) continue;
       if (!Array.isArray(pts)) continue;
       for (const p of pts) {
-        if (!ANNUAL_FORMS.has(p.form) || p.fp !== 'FY') continue;
+        if (!forms.has(p.form)) continue;
+        if (requireFp != null && p.fp !== requireFp) continue;
         const endYear = yearOf(p.end);
         if (endYear == null) continue;
-        if (def.kind === 'duration') {
+        if (minDays != null && def.kind === 'duration') {
           const days = daySpan(p.start, p.end);
-          if (days == null || days < MIN_ANNUAL_DAYS) continue;
+          if (days == null || days < minDays) continue;
         }
         out.push({
           val: p.val,
@@ -71,6 +89,88 @@ function collectPoints(facts, def) {
     }
   }
   return out;
+}
+
+function finiteVal(n) {
+  return typeof n === 'number' && Number.isFinite(n);
+}
+
+function slimSeriesPoint(p, year) {
+  return {
+    year,
+    val: p.val,
+    end: p.end,
+    start: p.start || null,
+    tag: p.tag,
+    taxonomy: p.taxonomy,
+    form: p.form,
+    filed: p.filed || null,
+    fp: p.fp || null,
+  };
+}
+
+function extractAnnualSeries(facts, defs, asOfYear) {
+  if (asOfYear == null) return {};
+  const out = {};
+  for (const def of defs) {
+    const points = collectPoints(facts, def);
+    const rows = [];
+    for (let y = asOfYear - SERIES_ANNUAL_YEARS + 1; y <= asOfYear; y += 1) {
+      const p = pickForYear(points, y);
+      if (p && finiteVal(p.val)) rows.push(slimSeriesPoint(p, y));
+    }
+    if (rows.length) out[def.key] = rows;
+  }
+  return out;
+}
+
+function extractQuarterlySeries(facts, asOfYear) {
+  if (asOfYear == null) return {};
+  const out = {};
+  for (const key of QUARTERLY_SERIES_KEYS) {
+    const def = ALL_FILED_BY_KEY[key];
+    if (!def) continue;
+    const points = collectPoints(facts, def, {
+      forms: QUARTER_FORMS,
+      fp: null,
+      minDays: MIN_QUARTER_DAYS,
+    }).filter((p) => p.fp && p.fp.startsWith('Q'));
+    points.sort((a, b) => {
+      if (a.end !== b.end) return a.end < b.end ? 1 : -1;
+      return scorePoint(b, yearOf(b.end)) - scorePoint(a, yearOf(a.end));
+    });
+    const seen = new Set();
+    const rows = [];
+    for (const p of points) {
+      const id = `${p.end}|${p.fp}`;
+      if (seen.has(id) || !finiteVal(p.val)) continue;
+      seen.add(id);
+      rows.push(slimSeriesPoint(p, yearOf(p.end)));
+      if (rows.length >= SERIES_QUARTERLY_LIMIT) break;
+    }
+    rows.reverse();
+    if (rows.length) out[key] = rows;
+  }
+  return out;
+}
+
+function applyLeaseLiabilitySum(metrics) {
+  const total = metrics.operating_lease_liability;
+  if (total && finiteVal(total.val)) return;
+  const cur = metrics.operating_lease_liability_current;
+  const non = metrics.operating_lease_liability_noncurrent;
+  const curV = cur && finiteVal(cur.val) ? cur.val : null;
+  const nonV = non && finiteVal(non.val) ? non.val : null;
+  if (curV == null && nonV == null) return;
+  const src = curV != null && nonV != null ? cur : non || cur;
+  metrics.operating_lease_liability = {
+    ...src,
+    val: (curV || 0) + (nonV || 0),
+    tag:
+      curV != null && nonV != null
+        ? 'OperatingLeaseLiabilityCurrent+Noncurrent'
+        : src.tag,
+  };
 }
 
 function scorePoint(p, targetYear) {
@@ -119,23 +219,33 @@ export function extractHeadlines(facts) {
   const metrics = {};
   const priorValues = {};
   let priorRevenue = null;
-  for (const def of METRICS) {
+  for (const def of ALL_FILED_METRICS) {
     const points = collectPoints(facts, def);
     metrics[def.key] = asOfYear == null ? null : pickForYear(points, asOfYear);
-    // A 10-K restates the year before it, which is the second column of every
-    // statement. Keep it as a slim value map: enough for a FY-1 column and
-    // year-over-year math without doubling the snapshot.
     const prior = asOfYear == null ? null : pickForYear(points, asOfYear - 1);
     if (def.key === 'revenue') priorRevenue = prior;
-    if (prior && typeof prior.val === 'number' && Number.isFinite(prior.val)) {
+    if (prior && finiteVal(prior.val)) {
       priorValues[def.key] = prior.val;
     }
   }
+  applyLeaseLiabilitySum(metrics);
   const priorMetrics =
     asOfYear != null && Object.keys(priorValues).length
       ? { year: asOfYear - 1, values: priorValues }
       : null;
   const ratios = computeRatios(metrics, priorRevenue);
+  const seriesAnnual = extractAnnualSeries(facts, ALL_FILED_METRICS, asOfYear);
+  if (seriesAnnual.operating_lease_liability == null && asOfYear != null) {
+    const curRows = seriesAnnual.operating_lease_liability_current || [];
+    const nonRows = seriesAnnual.operating_lease_liability_noncurrent || [];
+    const byYear = new Map();
+    for (const r of curRows) byYear.set(r.year, { ...r, val: r.val });
+    for (const r of nonRows) {
+      const prev = byYear.get(r.year);
+      byYear.set(r.year, prev ? { ...r, val: prev.val + r.val, tag: 'OperatingLeaseLiabilityCurrent+Noncurrent' } : r);
+    }
+    if (byYear.size) seriesAnnual.operating_lease_liability = [...byYear.values()].sort((a, b) => a.year - b.year);
+  }
   return {
     cik: facts?.cik ?? null,
     entityName: facts?.entityName ?? null,
@@ -145,6 +255,8 @@ export function extractHeadlines(facts) {
     priorMetrics,
     ratios,
     flags: sanityFlags(metrics, ratios),
+    seriesAnnual,
+    seriesQuarterly: extractQuarterlySeries(facts, asOfYear),
   };
 }
 
@@ -188,7 +300,34 @@ export function computeRatios(metrics, priorRevenue) {
   out.book_value_ps = equity != null && shares ? equity / shares : null;
   out.receivables_days = rec != null && rev ? (365 * rec) / rev : null;
   out.revenue_yoy = rev != null && prior ? rev / prior - 1 : null;
+
+  const tax = val(metrics, 'income_tax_expense');
+  const pretax = val(metrics, 'pretax_income');
+  out.effective_tax_rate =
+    tax != null && pretax != null && pretax > 0 ? clamp(tax / pretax, -0.5, 0.8) : null;
+  const debtStock =
+    (val(metrics, 'debt_current') || 0) + (val(metrics, 'debt_noncurrent') || val(metrics, 'long_term_debt') || 0);
+  const hasDebtTag =
+    val(metrics, 'debt_current') != null ||
+    val(metrics, 'debt_noncurrent') != null ||
+    val(metrics, 'long_term_debt') != null;
+  const interestExp = val(metrics, 'interest_expense');
+  out.implied_interest_rate =
+    interestExp != null && hasDebtTag && debtStock > 0 ? clamp(interestExp / debtStock, 0, 0.4) : null;
+  const div = val(metrics, 'dividends_paid');
+  out.payout_ratio = div != null && ni != null && ni > 0 ? clamp(div / ni, 0, 5) : null;
+  const nii = val(metrics, 'net_interest_income');
+  const niiOther = val(metrics, 'noninterest_income');
+  const nie = val(metrics, 'noninterest_expense');
+  const bankRev = (nii || 0) + (niiOther || 0);
+  out.efficiency_ratio =
+    nie != null && (nii != null || niiOther != null) && bankRev > 0 ? clamp(nie / bankRev, 0, 5) : null;
   return out;
+}
+
+function clamp(n, lo, hi) {
+  if (n == null || !Number.isFinite(n)) return null;
+  return Math.min(hi, Math.max(lo, n));
 }
 
 export const MARGIN_KEYS = ['gross_margin', 'operating_margin', 'net_margin', 'fcf_margin'];
@@ -286,6 +425,8 @@ export function ensureRatios(headlines) {
     ...headlines,
     ratios,
     flags: sanityFlags(headlines.metrics, ratios),
+    seriesAnnual: headlines.seriesAnnual || {},
+    seriesQuarterly: headlines.seriesQuarterly || {},
   };
 }
 
@@ -341,6 +482,11 @@ export function formatMetric(def, point) {
   if (!point || typeof point.val !== 'number') return null;
   if (def.unit === 'USD/shares') return formatEps(point.val);
   if (def.unit === 'shares') return formatShares(point.val);
+  if (def.unit === 'pure') {
+    const n = point.val;
+    if (Math.abs(n) <= 1) return formatPercent(n);
+    return `${n.toFixed(1)}%`;
+  }
   return formatUsd(point.val);
 }
 
@@ -374,11 +520,11 @@ export function describePoint(point, def, label) {
 }
 
 function metricDef(key) {
-  return METRICS.find((m) => m.key === key) || null;
+  return ALL_FILED_BY_KEY[key] || METRICS.find((m) => m.key === key) || null;
 }
 
 function derivedDef(key) {
-  return DERIVED.find((d) => d.key === key) || null;
+  return ALL_DERIVED_BY_KEY[key] || DERIVED.find((d) => d.key === key) || null;
 }
 
 function partFor(headlines, key, label) {

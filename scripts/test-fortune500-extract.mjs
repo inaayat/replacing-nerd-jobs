@@ -437,4 +437,104 @@ assert.equal(ordinal(1), '1st');
   assert.equal(ifrs.metrics.assets.val, 2.8e9);
 }
 
+{
+  // Extended packs: Amazon fixture has no PP&E tag → null, not zero.
+  assert.equal(h.metrics.ppe_net, null);
+  assert.equal(h.metrics.accounts_payable, null);
+  assert.ok(h.seriesAnnual, 'annual series object');
+  assert.ok(h.seriesAnnual.revenue.length >= 4, 'multi-year revenue series');
+  assert.equal(h.seriesAnnual.revenue.at(-1).year, 2025);
+  assert.equal(h.seriesAnnual.revenue.at(-1).val, 716924000000);
+}
+
+{
+  const leaseFacts = {
+    cik: 1,
+    entityName: 'Lease Co',
+    facts: {
+      'us-gaap': {
+        Revenues: {
+          units: {
+            USD: [
+              {
+                val: 100,
+                start: '2025-01-01',
+                end: '2025-12-31',
+                fy: 2025,
+                fp: 'FY',
+                form: '10-K',
+                filed: '2026-02-01',
+              },
+            ],
+          },
+        },
+        NetIncomeLoss: {
+          units: {
+            USD: [
+              {
+                val: 10,
+                start: '2025-01-01',
+                end: '2025-12-31',
+                fy: 2025,
+                fp: 'FY',
+                form: '10-K',
+                filed: '2026-02-01',
+              },
+            ],
+          },
+        },
+        Assets: {
+          units: {
+            USD: [{ val: 200, end: '2025-12-31', fy: 2025, fp: 'FY', form: '10-K', filed: '2026-02-01' }],
+          },
+        },
+        OperatingLeaseLiabilityCurrent: {
+          units: {
+            USD: [{ val: 20, end: '2025-12-31', fy: 2025, fp: 'FY', form: '10-K', filed: '2026-02-01' }],
+          },
+        },
+        OperatingLeaseLiabilityNoncurrent: {
+          units: {
+            USD: [{ val: 80, end: '2025-12-31', fy: 2025, fp: 'FY', form: '10-K', filed: '2026-02-01' }],
+          },
+        },
+        IncomeTaxExpenseBenefit: {
+          units: {
+            USD: [
+              {
+                val: 4,
+                start: '2025-01-01',
+                end: '2025-12-31',
+                fy: 2025,
+                fp: 'FY',
+                form: '10-K',
+                filed: '2026-02-01',
+              },
+            ],
+          },
+        },
+        IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest: {
+          units: {
+            USD: [
+              {
+                val: 20,
+                start: '2025-01-01',
+                end: '2025-12-31',
+                fy: 2025,
+                fp: 'FY',
+                form: '10-K',
+                filed: '2026-02-01',
+              },
+            ],
+          },
+        },
+      },
+    },
+  };
+  const lease = extractHeadlines(leaseFacts);
+  assert.equal(lease.metrics.operating_lease_liability.val, 100);
+  assert.equal(lease.metrics.operating_lease_liability.tag, 'OperatingLeaseLiabilityCurrent+Noncurrent');
+  assert.equal(lease.ratios.effective_tax_rate, 0.2);
+}
+
 console.log('fortune-500 extract tests passed');

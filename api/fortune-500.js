@@ -19,7 +19,7 @@ import {
 const MAX_CIKS = MAX_COMPARE;
 const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7;
 /** Bump when the headline payload gains a field or a tag the UI needs, so cached rows refetch. */
-const PAYLOAD_SCHEMA = 3;
+const PAYLOAD_SCHEMA = 4;
 const PRICE_CACHE_TTL_MS = 1000 * 60 * 15;
 const SEC_PAUSE_MS = 125;
 const YAHOO_UA =
@@ -158,6 +158,8 @@ async function headlinesForCik(cik) {
     priorMetrics: extracted.priorMetrics,
     ratios: extracted.ratios,
     flags: extracted.flags,
+    seriesAnnual: extracted.seriesAnnual || {},
+    seriesQuarterly: extracted.seriesQuarterly || {},
   };
   await writeCache(cik, payload);
   return { cik, ...payload, cached: false };

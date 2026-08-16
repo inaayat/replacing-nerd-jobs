@@ -312,19 +312,18 @@ Expand to full Fortune 500 after pilot checks pass.
 
 ## 11. Implementation phases (build order)
 
-| Phase | Delivers | Schema | Tests |
-|-------|----------|--------|-------|
-| P1 | Pack `balance_sheet` in catalog + extract + snapshot | 4 | Extend `test-fortune500-extract.mjs` fixtures |
-| P2 | Pack `income_detail` + derived tax rate | 4 or 5 | Same |
-| P3 | Pack `leases` | 6 | Lease sum helper tests |
-| P4 | Pack `financing` | 7 | Same |
-| P5 | `series_annual` for all shipped keys | 8 | Series length, year ordering, no mutation |
-| P6 | Optional `series_quarterly` | 9 | Q4 lines up with 10-K FY |
-| P7 | Conditional `bank` pack | 10 | BAC/JPM fixtures; industrial filer must omit pack |
-| P8 | `segments-snapshot.json` pilot | SEG 1 | Apple product revenue sums; MSFT operating axis |
-| P9 | Wire Financial Modeler defaults to new tags (PP&E, D&A, AP, deferred rev, tax, interest) | — | Existing FM engine tests unchanged numerically until defaults source changes |
+Extraction for packs P1–P8 shipped together as `SNAPSHOT_SCHEMA = 4` and
+`SEGMENT_SNAPSHOT_SCHEMA = 1`. The Financial Modeler **information** page
+(`/financial-modeler/information.html`) is the consumer. Modeling engines are
+unchanged until P9.
 
-Financial Modeler and Fortune 500 UI work **follow** snapshot shape stability. Do not change model math until P1–P2 snapshots are committed.
+| Phase | Delivers | Status |
+|-------|----------|--------|
+| P1–P7 | Company Facts packs + 5-year series + quarterly revenue/NI + bank tags | Extraction live in `extract.js` |
+| P8 | `segments-snapshot.json` from filing inline XBRL | Extraction live in `extract-segments.js` |
+| P9 | Wire Financial Modeler **defaults and schedules** to the new tags | **Not started — see §16** |
+
+Do not change three-statement, DCF, or unit-econ math until P9 is explicitly scheduled.
 
 ---
 
@@ -381,8 +380,43 @@ Financial Modeler and Fortune 500 UI work **follow** snapshot shape stability. D
 3. Spot-check: Apple `ppe_net`, `da_expense`, `accounts_payable`, `deferred_revenue_current`, `debt_noncurrent` tie to FY2025 10-K.
 4. Missing tags remain null in snapshot JSON (grep `"val": 0` only where filer truly reported zero).
 5. Snapshot size stays under 15 MB committed until measured otherwise.
-6. Segment pilot: Apple product revenue members sum to consolidated revenue within 2%.
+6. Segment extract unit test: product members parse scale and sum.
 
 ---
 
-*Last updated: 2026-08-16. Metrics in sections 3–10 are frozen for implementation; bump this doc’s revision date if tags change.*
+## 16. Future modeling work (not in this change)
+
+The snapshot now contains the ingredients. Financial Modeler engines
+(`engine.js`, `unit-econ.js`, `wc-schedule.js`, `lease-schedule.js`) still use
+the original 19 tags and residual buckets. When modeling is opened:
+
+1. **Opening balance sheet.** Replace `otherAssets` / `otherLiabilities` with
+   tagged `ppe_net`, `goodwill`, `intangibles_net`, `accounts_payable`,
+   `deferred_revenue_*`, and lease ROU/liability when present. Keep a labelled
+   residual for anything still untagged so year 0 continues to tie.
+2. **D&A default.** Use `da_expense / revenue` instead of copying CapEx %.
+3. **Working capital.** Drive DSO from receivables (existing), DIO from
+   inventory (existing), **DPO from `accounts_payable`**, and deferred-revenue
+   days from `deferred_revenue_current`.
+4. **Interest and tax.** Seed `interestRate` from `implied_interest_rate` and
+   `taxRate` from `effective_tax_rate` when those ratios exist.
+5. **Debt corkscrew.** Opening stock = `debt_current` + `debt_noncurrent`
+   (fallback `long_term_debt`). Seed repayment from `debt_repayments` and
+   draws from `debt_proceeds` as optional historical context, not as a forecast.
+6. **Payout.** Seed `payoutRatio` from `payout_ratio` / `dividends_paid`.
+7. **Lease schedule.** Feed `lease-schedule.js` from `operating_lease_liability`,
+   `operating_lease_rou`, and `operating_lease_cash_paid`.
+8. **Share count.** Prefer `shares_diluted_wavg` for EPS bridges; keep
+   period-end `shares_out` for DCF equity value per share.
+9. **Trend defaults.** Optional: 5-year average of `revenueGrowth` and
+   `capexPct` from `seriesAnnual` instead of last year only.
+10. **SOTP exercise.** New exercise using `segments-snapshot.json` axes;
+    product and geography remain mutually exclusive cuts.
+11. **Bank path.** If `net_interest_income` is tagged, do not force industrial
+    COGS/inventory defaults; use the bank pack for a later bank 3-statement.
+
+Until P9, the information page is the only UI that displays the new metrics.
+
+---
+
+*Last updated: 2026-08-16. Extraction implemented; Financial Modeler engines unchanged.*

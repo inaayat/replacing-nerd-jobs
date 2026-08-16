@@ -23,9 +23,10 @@ const MAX_ATTEMPTS = 5;
  * Bump when a slimmed field is added, so existing rows get refetched instead of
  * silently serving a snapshot the UI can no longer fill in.
  * 2 — prior-year filed values (`priorMetrics`) for the FY-1 statement column.
- * 3 — industry revenue tags (utilities, retailers, banks) as revenue candidates.
+ * 4 — extended Company Facts packs (PP&E, D&A, WC, leases, financing, bank)
+ *     plus 5-year annual series and quarterly revenue/NI.
  */
-const SNAPSHOT_SCHEMA = 3;
+const SNAPSHOT_SCHEMA = 4;
 
 function padCik(cik) {
   return String(cik).padStart(10, '0');
@@ -44,6 +45,9 @@ function slim(extracted, cik) {
     priorRevenue: extracted.priorRevenue,
     priorMetrics: extracted.priorMetrics,
     ratios: extracted.ratios,
+    flags: extracted.flags,
+    seriesAnnual: extracted.seriesAnnual || {},
+    seriesQuarterly: extracted.seriesQuarterly || {},
   };
 }
 

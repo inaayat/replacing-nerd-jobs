@@ -1,0 +1,224 @@
+/* Information page: override the modeler landing lock and add a filing ledger. */
+
+body.fm-info {
+  height: auto !important;
+  min-height: 100%;
+  overflow: auto !important;
+  display: block !important;
+}
+
+.fm-info-shell {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 28px 22px 80px;
+}
+
+.fm-info-hero {
+  max-width: 68ch;
+  margin-bottom: 22px;
+}
+
+.fm-info-hero h1 {
+  font-size: clamp(28px, 4vw, 40px);
+  line-height: 1.15;
+}
+
+.fm-info-hero p {
+  margin: 12px 0 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+  max-width: 68ch;
+}
+
+.fm-info-search-wrap {
+  position: relative;
+  max-width: 36rem;
+  margin-bottom: 28px;
+}
+
+.fm-info-search-label {
+  display: block;
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 6px;
+}
+
+.fm-info-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 20px;
+}
+
+.fm-info-head h2 {
+  font-size: clamp(22px, 3vw, 30px);
+}
+
+.fm-info-meta {
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  margin: 6px 0 0;
+}
+
+.fm-info-counts {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  text-align: right;
+}
+
+.fm-info-toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 28px;
+}
+
+.fm-info-toc a {
+  font-size: 12px;
+  color: var(--ink-soft);
+  text-decoration: none;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: var(--paper-2);
+}
+
+.fm-info-toc a:hover {
+  color: var(--ink);
+  border-color: var(--rule-strong);
+}
+
+.fm-info-group {
+  margin-bottom: 32px;
+}
+
+.fm-info-group h3 {
+  font-size: 20px;
+  margin-bottom: 4px;
+}
+
+.fm-info-group .fm-info-summary {
+  color: var(--ink-soft);
+  font-size: 13px;
+  margin: 0 0 12px;
+}
+
+.fm-info-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.fm-info-table th,
+.fm-info-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 13px;
+}
+
+.fm-info-table th {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  font-weight: 500;
+  background: #f3eee4;
+}
+
+.fm-info-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.fm-info-table .val {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  width: 8.5rem;
+}
+
+.fm-info-table .val.is-missing {
+  color: var(--ink-soft);
+}
+
+.fm-info-table .def {
+  color: var(--ink);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.fm-info-table .src {
+  color: var(--ink-soft);
+  font-size: 11.5px;
+  line-height: 1.4;
+  max-width: 28rem;
+}
+
+.fm-info-table .label {
+  font-weight: 500;
+  min-width: 11rem;
+}
+
+.fm-info-series {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  margin-top: 4px;
+}
+
+.fm-info-axis {
+  margin: 0 0 18px;
+}
+
+.fm-info-axis h4 {
+  font-size: 15px;
+  margin: 0 0 8px;
+}
+
+.fm-info-note {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  max-width: 70ch;
+}
+
+.fm-info-results .fm-hit {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper-2);
+  cursor: pointer;
+  font: inherit;
+}
+
+.fm-info-results {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  z-index: 5;
+  max-height: 320px;
+  overflow: auto;
+  border: 1px solid var(--rule-strong);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+@media (max-width: 720px) {
+  .fm-info-table .def,
+  .fm-info-table .src {
+    display: block;
+  }
+  .fm-info-counts {
+    text-align: left;
+  }
+}

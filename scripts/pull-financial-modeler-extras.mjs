@@ -19,7 +19,7 @@ const UA =
 const WORKERS = 2;
 const GAP_MS = 150;
 const MAX_ATTEMPTS = 5;
-const SNAPSHOT_SCHEMA = 3;
+const SNAPSHOT_SCHEMA = 4;
 
 function padCik(cik) {
   return String(cik).padStart(10, '0');
@@ -38,6 +38,9 @@ function slim(extracted, cik) {
     priorRevenue: extracted.priorRevenue,
     priorMetrics: extracted.priorMetrics,
     ratios: extracted.ratios,
+    flags: extracted.flags,
+    seriesAnnual: extracted.seriesAnnual || {},
+    seriesQuarterly: extracted.seriesQuarterly || {},
   };
 }
 
