@@ -173,6 +173,13 @@ function applyFilter(map, catalog, filter, includeHistoric, votes) {
   }
 }
 
+function setListCount(n, noun) {
+  const el = $('list-count');
+  if (!el) return;
+  const plural = { enclave: 'enclaves', country: 'countries' };
+  el.textContent = `${n} ${n === 1 ? noun : plural[noun] || `${noun}s`}`;
+}
+
 function renderRegions(catalog, filter, onPick) {
   const root = $('regions');
   root.innerHTML = '';
@@ -193,6 +200,21 @@ function renderRegions(catalog, filter, onPick) {
   }
 }
 
+function syncFilterToggle(catalog, filter) {
+  const btn = $('filter-toggle');
+  if (!btn) return;
+  const on = filter?.kind === 'region';
+  btn.classList.toggle('is-on', on);
+  if (on) {
+    const region = catalog.regions.find((r) => r.id === filter.id);
+    btn.style.setProperty('--swatch', region?.color || '#888');
+    btn.innerHTML = `<span class="swatch"></span>${region?.label || 'Filters'}`;
+  } else {
+    btn.style.removeProperty('--swatch');
+    btn.textContent = 'Filters';
+  }
+}
+
 function renderList(catalog, filter, query, onPick, includeHistoric, votes) {
   const root = $('enclave-list');
   root.innerHTML = '';
@@ -202,6 +224,7 @@ function renderList(catalog, filter, query, onPick, includeHistoric, votes) {
     if (filter?.kind === 'region') return enc.region === filter.id;
     return true;
   });
+  setListCount(items.length, 'enclave');
   for (const enc of items) {
     const i = catalog.enclaves.indexOf(enc);
     const btn = document.createElement('button');
@@ -209,7 +232,7 @@ function renderList(catalog, filter, query, onPick, includeHistoric, votes) {
     btn.className = `win-item${filter?.kind === 'enclave' && filter.index === i ? ' is-on' : ''}`;
     const roll = votes?.enclaves?.[enc.id]?.primary;
     const vote = !isHistoric(enc) && roll?.n ? ` · ${shareLine(roll.v, votes.candidates)}` : '';
-    btn.innerHTML = `<span class="win-item-name">${enc.name}</span><span class="win-item-meta">${enc.group}${isHistoric(enc) ? ' · historic' : ''}${vote}</span>`;
+    btn.innerHTML = `<span class="win-item-swatch" style="background:${regionColor(catalog, enc.region)}"></span><span class="win-item-text"><span class="win-item-name">${enc.name}</span><span class="win-item-meta">${enc.group}${isHistoric(enc) ? ' · historic' : ''}${vote}</span></span>`;
     btn.addEventListener('click', () => onPick({ kind: 'enclave', index: i, id: enc.id }));
     root.append(btn);
   }
@@ -225,7 +248,7 @@ function countryPassesFilter(row, filter) {
   return true;
 }
 
-function renderCountryList(countries, filter, query, selectedIso, onPick) {
+function renderCountryList(countries, filter, query, selectedIso, onPick, catalog) {
   const root = $('enclave-list');
   root.innerHTML = '';
   const q = query.trim().toLowerCase();
@@ -233,12 +256,14 @@ function renderCountryList(countries, filter, query, selectedIso, onPick) {
     if (!countryMatches(row, q)) return false;
     return countryPassesFilter(row, filter);
   });
+  setListCount(items.length, 'country');
   for (const row of items) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = `win-item${selectedIso === row.iso ? ' is-on' : ''}`;
     const nhood = row.places.slice(0, 3).join(', ');
-    btn.innerHTML = `<span class="win-item-name">${row.name}</span><span class="win-item-meta">${nhood}${row.places.length > 3 ? '…' : ''}</span>`;
+    const color = row.regions.length === 1 ? regionColor(catalog, row.regions[0]) : '#6b5f5e';
+    btn.innerHTML = `<span class="win-item-swatch" style="background:${color}"></span><span class="win-item-text"><span class="win-item-name">${row.name}</span><span class="win-item-meta">${nhood}${row.places.length > 3 ? '…' : ''}</span></span>`;
     btn.addEventListener('click', () => onPick(row.iso));
     root.append(btn);
   }
@@ -327,9 +352,20 @@ function cardHtml(props, catalog, includeHistoric, votes) {
   `;
 }
 
+function sheetSnap() {
+  return $('rail')?.dataset.snap || 'peek';
+}
+
 function fitPadding() {
   if (!isMobileUi()) return 48;
-  return { top: 56, left: 16, right: 16, bottom: 120 };
+  const snap = sheetSnap();
+  const vh = window.innerHeight || 800;
+  const bottom = snap === 'full'
+    ? Math.round(vh * 0.88)
+    : snap === 'half'
+      ? Math.min(Math.round(vh * 0.45), 420)
+      : 72;
+  return { top: 56, left: 16, right: 16, bottom: bottom + 8 };
 }
 
 function fitEnclave(map, ed, index) {
@@ -359,16 +395,27 @@ function fitCountry(worldMap, feature) {
   if (!b.isEmpty()) worldMap.fitBounds(b, { padding: 48, maxZoom: 5, duration: 600 });
 }
 
-function setSheetOpen(open) {
+function setSheetSnap(snap) {
   const rail = $('rail');
   const toggle = $('browse-toggle');
-  rail.classList.toggle('is-open', open);
+  const next = snap === 'full' || snap === 'half' ? snap : 'peek';
+  rail.dataset.snap = next;
+  const open = next !== 'peek';
+  rail.classList.toggle('is-open', next === 'full');
   document.body.classList.toggle('win-sheet-open', open);
   toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
   const closeLabel = document.body.classList.contains('win-stats-view') ? 'Table' : 'Map';
   toggle.textContent = open ? closeLabel : 'Browse';
   const sheetClose = $('sheet-close');
   if (sheetClose) sheetClose.textContent = closeLabel;
+}
+
+function setSheetOpen(open) {
+  if (!open) {
+    setSheetSnap('peek');
+    return;
+  }
+  setSheetSnap(sheetSnap() === 'full' ? 'full' : 'half');
 }
 
 function wireSheetDrag(onResize) {
@@ -378,12 +425,19 @@ function wireSheetDrag(onResize) {
   let startY = 0;
   let dragging = false;
 
+  const snaps = ['peek', 'half', 'full'];
   const onMove = (ev) => {
     if (!dragging) return;
     const y = ev.touches ? ev.touches[0].clientY : ev.clientY;
     const dy = y - startY;
-    if (dy > 56) setSheetOpen(false);
-    else if (dy < -56) setSheetOpen(true);
+    const i = snaps.indexOf(sheetSnap());
+    if (dy > 56 && i > 0) {
+      setSheetSnap(snaps[i - 1]);
+      startY = y;
+    } else if (dy < -56 && i < snaps.length - 1) {
+      setSheetSnap(snaps[i + 1]);
+      startY = y;
+    }
   };
   const onUp = () => {
     if (!dragging) return;
@@ -404,9 +458,11 @@ function wireSheetDrag(onResize) {
   };
   handle.addEventListener('pointerdown', onDown);
   handle.addEventListener('click', () => {
-    setSheetOpen(!rail.classList.contains('is-open'));
+    const i = snaps.indexOf(sheetSnap());
+    setSheetSnap(i >= 2 ? 'peek' : snaps[i + 1]);
     onResize();
   });
+  void rail;
 }
 
 async function main() {
@@ -454,20 +510,7 @@ async function main() {
   });
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
 
-  const worldMap = new maplibregl.Map({
-    container: 'world-map',
-    style: worldStyle,
-    center: [20, 18],
-    zoom: isMobileUi() ? 1.15 : 1.45,
-    maxZoom: 8,
-    minZoom: 0.8,
-    attributionControl: true,
-    dragRotate: false,
-    pitchWithRotate: false,
-    touchPitch: false,
-  });
-  worldMap.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
-
+  let worldMap = null;
   let filter = null;
   let hoverId = null;
   let worldHover = null;
@@ -475,7 +518,6 @@ async function main() {
   let selectedCountry = start.country && countryByIso.has(start.country) ? start.country : null;
   let currentView = start.view;
   let nycReady = false;
-  let worldReady = false;
   let statsSort = { key: 'm', dir: 'desc' };
   const edIndex = new Map(ed.features.map((f) => [f.properties.ed, f]));
 
@@ -495,18 +537,26 @@ async function main() {
   }
   syncHistoricBtn();
 
+  function updateHero() {
+    const n = enclavesForEra(catalog.enclaves, includeHistoric).length;
+    const c = countries.length;
+    const el = $('hero-count');
+    if (el) el.textContent = `${n} communities · ${c} origin countries`;
+  }
+
   function rebuildCountries() {
     countries = countryIndex(enclavesForEra(catalog.enclaves, includeHistoric), world.features);
     countryByIso = new Map(countries.map((row) => [row.iso, row]));
-    if (worldMap.getLayer('world-fill')) {
+    if (worldMap?.getLayer('world-fill')) {
       worldMap.setPaintProperty('world-fill', 'fill-color', countryMatchExpr(countries, regionColors));
     }
+    updateHero();
   }
 
   function resizeMap() {
     requestAnimationFrame(() => {
       map.resize();
-      worldMap.resize();
+      worldMap?.resize();
     });
   }
 
@@ -515,7 +565,7 @@ async function main() {
   }
 
   function applyWorldPaint() {
-    if (!worldMap.getLayer('world-fill')) return;
+    if (!worldMap?.getLayer('world-fill')) return;
     const isos = matchingCountryIsos();
     worldMap.setPaintProperty('world-fill', 'fill-opacity', [
       'case',
@@ -544,6 +594,7 @@ async function main() {
       return true;
     });
     const rows = sortStatsRows(filtered, statsSort.key, statsSort.dir);
+    setListCount(rows.length, 'enclave');
     if (kicker) {
       kicker.textContent = votes
         ? `2025 mayor · ${rows.length} ${rows.length === 1 ? 'enclave' : 'enclaves'}`
@@ -627,7 +678,7 @@ async function main() {
       return;
     }
     if (currentView === 'world') {
-      renderCountryList(countries, filter, $('search').value, selectedCountry, showCountryCard);
+      renderCountryList(countries, filter, $('search').value, selectedCountry, showCountryCard, catalog);
     } else {
       renderList(catalog, filter, $('search').value, setFilter, includeHistoric, votes);
     }
@@ -644,7 +695,7 @@ async function main() {
     card.hidden = false;
     selectedId = edId;
     syncQuery();
-    if (isMobileUi()) setSheetOpen(false);
+    if (isMobileUi() && sheetSnap() === 'peek') setSheetSnap('half');
     if (map.getSource('ed')) {
       map.removeFeatureState({ source: 'ed' });
       map.setFeatureState({ source: 'ed', id: edId }, { selected: true });
@@ -668,8 +719,8 @@ async function main() {
     $('card-body').innerHTML = countryCardHtml(row, catalog, includeHistoric);
     card.hidden = false;
     selectedCountry = iso;
-    if (isMobileUi()) setSheetOpen(false);
-    if (worldMap.getSource('world')) {
+    if (isMobileUi() && sheetSnap() === 'peek') setSheetSnap('half');
+    if (worldMap?.getSource('world')) {
       worldMap.removeFeatureState({ source: 'world' });
       worldMap.setFeatureState({ source: 'world', id: iso }, { selected: true });
     }
@@ -677,7 +728,7 @@ async function main() {
     refreshList();
     syncQuery();
     const feat = worldByIso.get(iso);
-    if (feat) fitCountry(worldMap, feat);
+    if (feat && worldMap) fitCountry(worldMap, feat);
     for (const btn of $('card-body').querySelectorAll('[data-enclave]')) {
       btn.addEventListener('click', () => {
         const index = catalog.enclaves.findIndex((e) => e.id === btn.dataset.enclave);
@@ -715,7 +766,11 @@ async function main() {
     $('search').placeholder = currentView === 'world'
       ? 'Italy, Little Italy, Astoria…'
       : 'Chinatown, Little Guyana, Astoria…';
-    if ($('rail').classList.contains('is-open')) setSheetOpen(true);
+    if ($('rail').classList.contains('is-open') || sheetSnap() !== 'peek') {
+      setSheetSnap(sheetSnap() === 'peek' ? 'half' : sheetSnap());
+    }
+
+    if (currentView === 'world') ensureWorldMap();
 
     if (currentView === 'stats') {
       $('card').hidden = true;
@@ -730,6 +785,7 @@ async function main() {
     }
 
     renderRegions(catalog, filter, setFilter);
+    syncFilterToggle(catalog, filter);
     renderLegend(catalog, filter, currentView, votes);
     renderVoteSummary(currentView === 'nyc' ? filter : null, catalog, votes);
     refreshList();
@@ -742,12 +798,15 @@ async function main() {
     applyFilter(map, catalog, filter, includeHistoric, votes);
     applyWorldPaint();
     renderRegions(catalog, filter, setFilter);
+    syncFilterToggle(catalog, filter);
     renderLegend(catalog, filter, currentView, votes);
     renderVoteSummary(currentView === 'nyc' ? filter : null, catalog, votes);
     $('clear-filter').hidden = !filter;
+    if (filter?.kind === 'region') $('regions').hidden = true;
+    $('filter-toggle').setAttribute('aria-expanded', $('regions').hidden ? 'false' : 'true');
     refreshList();
     if (filter?.kind === 'enclave' && currentView === 'nyc') {
-      if (isMobileUi()) setSheetOpen(false);
+      if (isMobileUi() && sheetSnap() === 'peek') setSheetSnap('half');
       fitEnclave(map, ed, filter.index);
     }
     resizeMap();
@@ -764,11 +823,12 @@ async function main() {
     if (selectedCountry && !countryByIso.has(selectedCountry)) {
       selectedCountry = null;
       $('card').hidden = true;
-      if (worldMap.getSource('world')) worldMap.removeFeatureState({ source: 'world' });
+      if (worldMap?.getSource('world')) worldMap.removeFeatureState({ source: 'world' });
     }
     applyFilter(map, catalog, filter, includeHistoric, votes);
     applyWorldPaint();
     renderRegions(catalog, filter, setFilter);
+    syncFilterToggle(catalog, filter);
     renderLegend(catalog, filter, currentView, votes);
     renderVoteSummary(currentView === 'nyc' ? filter : null, catalog, votes);
     refreshList();
@@ -778,16 +838,121 @@ async function main() {
     resizeMap();
   }
 
+  function surpriseMe() {
+    const pool = enclavesForEra(catalog.enclaves, includeHistoric);
+    if (!pool.length) return;
+    const enc = pool[Math.floor(Math.random() * pool.length)];
+    const index = catalog.enclaves.indexOf(enc);
+    applyView('nyc');
+    setFilter({ kind: 'enclave', index, id: enc.id });
+  }
+
+  function setRailCollapsed(collapsed) {
+    document.body.classList.toggle('win-rail-collapsed', collapsed);
+    const btn = $('rail-toggle');
+    btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    btn.textContent = collapsed ? 'Show list' : 'Hide list';
+    resizeMap();
+  }
+
   function finishLoad() {
-    if (!nycReady || !worldReady) return;
+    if (!nycReady) return;
     status.hidden = true;
     if (isMobileUi() || currentView === 'stats') $('legend').hidden = true;
     else $('legend').hidden = false;
     syncHistoricBtn();
+    updateHero();
     applyFilter(map, catalog, filter, includeHistoric, votes);
     applyView(currentView);
     if (currentView === 'nyc' && selectedId) showCard(selectedId);
     if (currentView === 'world' && selectedCountry) showCountryCard(selectedCountry);
+  }
+
+  function wireWorldEvents(nextMap) {
+    nextMap.on('mousemove', 'world-fill', (e) => {
+      const iso = e.features[0]?.properties?.iso;
+      nextMap.getCanvas().style.cursor = countryByIso.has(iso) ? 'pointer' : '';
+      if (worldHover && worldHover !== iso) {
+        nextMap.setFeatureState({ source: 'world', id: worldHover }, { hover: false });
+      }
+      worldHover = iso;
+      if (iso) nextMap.setFeatureState({ source: 'world', id: iso }, { hover: true });
+    });
+    nextMap.on('mouseleave', 'world-fill', () => {
+      nextMap.getCanvas().style.cursor = '';
+      if (worldHover) nextMap.setFeatureState({ source: 'world', id: worldHover }, { hover: false });
+      worldHover = null;
+    });
+    nextMap.on('click', 'world-fill', (e) => {
+      const iso = e.features[0]?.properties?.iso;
+      if (iso && countryByIso.has(iso)) showCountryCard(iso);
+    });
+  }
+
+  function ensureWorldMap() {
+    if (worldMap) return worldMap;
+    worldMap = new maplibregl.Map({
+      container: 'world-map',
+      style: worldStyle,
+      center: [20, 18],
+      zoom: isMobileUi() ? 1.15 : 1.45,
+      maxZoom: 8,
+      minZoom: 0.8,
+      attributionControl: true,
+      dragRotate: false,
+      pitchWithRotate: false,
+      touchPitch: false,
+    });
+    worldMap.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
+    worldMap.on('load', () => {
+      worldMap.addSource('world', {
+        type: 'geojson',
+        data: world,
+        promoteId: 'iso',
+      });
+      worldMap.addLayer({
+        id: 'world-fill',
+        type: 'fill',
+        source: 'world',
+        paint: {
+          'fill-color': countryMatchExpr(countries, regionColors),
+          'fill-opacity': 0.7,
+        },
+      });
+      worldMap.addLayer({
+        id: 'world-line',
+        type: 'line',
+        source: 'world',
+        paint: {
+          'line-color': '#1c1c1c',
+          'line-width': [
+            'interpolate', ['linear'], ['zoom'],
+            1, 0.25,
+            4, 0.7,
+          ],
+          'line-opacity': 0.35,
+        },
+      });
+      worldMap.addLayer({
+        id: 'world-selected',
+        type: 'line',
+        source: 'world',
+        paint: {
+          'line-color': '#1c1c1c',
+          'line-width': 1.8,
+          'line-opacity': [
+            'case',
+            ['boolean', ['feature-state', 'selected'], false], 1,
+            0,
+          ],
+        },
+      });
+      applyWorldPaint();
+      if (currentView === 'world' && selectedCountry) showCountryCard(selectedCountry);
+      resizeMap();
+    });
+    wireWorldEvents(worldMap);
+    return worldMap;
   }
 
   map.on('load', () => {
@@ -853,54 +1018,6 @@ async function main() {
     finishLoad();
   });
 
-  worldMap.on('load', () => {
-    worldMap.addSource('world', {
-      type: 'geojson',
-      data: world,
-      promoteId: 'iso',
-    });
-    worldMap.addLayer({
-      id: 'world-fill',
-      type: 'fill',
-      source: 'world',
-      paint: {
-        'fill-color': countryMatchExpr(countries, regionColors),
-        'fill-opacity': 0.7,
-      },
-    });
-    worldMap.addLayer({
-      id: 'world-line',
-      type: 'line',
-      source: 'world',
-      paint: {
-        'line-color': '#1c1c1c',
-        'line-width': [
-          'interpolate', ['linear'], ['zoom'],
-          1, 0.25,
-          4, 0.7,
-        ],
-        'line-opacity': 0.35,
-      },
-    });
-    worldMap.addLayer({
-      id: 'world-selected',
-      type: 'line',
-      source: 'world',
-      paint: {
-        'line-color': '#1c1c1c',
-        'line-width': 1.8,
-        'line-opacity': [
-          'case',
-          ['boolean', ['feature-state', 'selected'], false], 1,
-          0,
-        ],
-      },
-    });
-    applyWorldPaint();
-    worldReady = true;
-    finishLoad();
-  });
-
   map.on('mousemove', 'ed-fill', (e) => {
     map.getCanvas().style.cursor = 'pointer';
     const id = e.features[0]?.id;
@@ -923,30 +1040,11 @@ async function main() {
     if (e.features?.[0]?.properties?.ed) showCard(e.features[0].properties.ed);
   });
 
-  worldMap.on('mousemove', 'world-fill', (e) => {
-    const iso = e.features[0]?.properties?.iso;
-    worldMap.getCanvas().style.cursor = countryByIso.has(iso) ? 'pointer' : '';
-    if (worldHover && worldHover !== iso) {
-      worldMap.setFeatureState({ source: 'world', id: worldHover }, { hover: false });
-    }
-    worldHover = iso;
-    if (iso) worldMap.setFeatureState({ source: 'world', id: iso }, { hover: true });
-  });
-  worldMap.on('mouseleave', 'world-fill', () => {
-    worldMap.getCanvas().style.cursor = '';
-    if (worldHover) worldMap.setFeatureState({ source: 'world', id: worldHover }, { hover: false });
-    worldHover = null;
-  });
-  worldMap.on('click', 'world-fill', (e) => {
-    const iso = e.features[0]?.properties?.iso;
-    if (iso && countryByIso.has(iso)) showCountryCard(iso);
-  });
-
   $('card-close').addEventListener('click', () => {
     $('card').hidden = true;
     if (currentView === 'world') {
       selectedCountry = null;
-      if (worldMap.getSource('world')) worldMap.removeFeatureState({ source: 'world' });
+      if (worldMap?.getSource('world')) worldMap.removeFeatureState({ source: 'world' });
       applyWorldPaint();
       refreshList();
     } else {
@@ -960,19 +1058,18 @@ async function main() {
   $('search').addEventListener('input', () => refreshList());
   $('search').addEventListener('focus', () => {
     if (isMobileUi()) {
-      setSheetOpen(true);
+      setSheetSnap('full');
       resizeMap();
     }
   });
 
   $('browse-toggle').addEventListener('click', () => {
-    const open = !$('rail').classList.contains('is-open');
-    setSheetOpen(open);
-    if (open) $('card').hidden = true;
+    const open = sheetSnap() === 'peek';
+    setSheetSnap(open ? 'half' : 'peek');
     resizeMap();
   });
   $('sheet-close').addEventListener('click', () => {
-    setSheetOpen(false);
+    setSheetSnap('peek');
     resizeMap();
   });
   $('legend-toggle').addEventListener('click', () => {
@@ -980,6 +1077,15 @@ async function main() {
     const next = legend.hidden;
     legend.hidden = !next;
     $('legend-toggle').setAttribute('aria-expanded', next ? 'true' : 'false');
+  });
+  $('filter-toggle').addEventListener('click', () => {
+    const box = $('regions');
+    box.hidden = !box.hidden;
+    $('filter-toggle').setAttribute('aria-expanded', box.hidden ? 'false' : 'true');
+  });
+  $('surprise').addEventListener('click', surpriseMe);
+  $('rail-toggle').addEventListener('click', () => {
+    setRailCollapsed(!document.body.classList.contains('win-rail-collapsed'));
   });
   $('view-nyc').addEventListener('click', () => applyView('nyc'));
   $('view-world').addEventListener('click', () => applyView('world'));
@@ -990,10 +1096,13 @@ async function main() {
   window.addEventListener('resize', () => {
     if (!isMobileUi()) {
       $('legend').hidden = currentView === 'stats';
-      setSheetOpen(false);
+      setSheetSnap('peek');
     }
     resizeMap();
   });
+
+  if (currentView === 'world') ensureWorldMap();
+  updateHero();
 }
 
 main().catch((err) => {
