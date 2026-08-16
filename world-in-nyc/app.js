@@ -1,4 +1,5 @@
 import { countryIndex, countryMatchExpr, countryMatches } from './countries.js';
+import { isHistoric, enclavesForEra, tagCurrentEnclaves } from './era.js';
 
 const BORO_FROM_CD = {
   1: 'Manhattan',
@@ -55,8 +56,8 @@ function regionColor(catalog, regionId) {
   return catalog.regions.find((r) => r.id === regionId)?.color || '#cfc6b8';
 }
 
-function colorMatch(catalog) {
-  const expr = ['match', ['get', 'r']];
+function colorMatch(catalog, prop = 'r') {
+  const expr = ['match', ['get', prop]];
   for (const region of catalog.regions) expr.push(region.id, region.color);
   expr.push('#cfc6b8');
   return expr;
@@ -71,10 +72,11 @@ function parseQuery() {
     ed: Number.isFinite(ed) && ed > 0 ? ed : null,
     view,
     country: country && country.length === 3 ? country : null,
+    historic: params.get('historic') === '1',
   };
 }
 
-function setQuery({ ed, view, country }) {
+function setQuery({ ed, view, country, historic }) {
   const url = new URL(location.href);
   if (view === 'world') url.searchParams.set('view', 'world');
   else url.searchParams.delete('view');
@@ -82,6 +84,8 @@ function setQuery({ ed, view, country }) {
   else url.searchParams.delete('ed');
   if (country) url.searchParams.set('country', country);
   else url.searchParams.delete('country');
+  if (historic) url.searchParams.set('historic', '1');
+  else url.searchParams.delete('historic');
   history.replaceState(null, '', url);
 }
 
@@ -129,19 +133,27 @@ async function ensureOverlay(map, name) {
 void ensureOverlay;
 void formatCD;
 
-function applyFilter(map, catalog, filter) {
+function eraKeys(includeHistoric) {
+  return includeHistoric
+    ? { e: 'e', r: 'r', rs: 'rs' }
+    : { e: 'ec', r: 'rc', rs: 'rsc' };
+}
+
+function applyFilter(map, catalog, filter, includeHistoric) {
   const fill = map.getLayer('ed-fill');
   if (!fill) return;
+  const keys = eraKeys(includeHistoric);
+  map.setPaintProperty('ed-fill', 'fill-color', colorMatch(catalog, keys.r));
   if (!filter) {
-    map.setFilter('ed-fill', ['!=', ['get', 'r'], '']);
+    map.setFilter('ed-fill', ['!=', ['get', keys.r], '']);
     return;
   }
   if (filter.kind === 'region') {
-    map.setFilter('ed-fill', ['in', filter.id, ['get', 'rs']]);
+    map.setFilter('ed-fill', ['in', filter.id, ['get', keys.rs]]);
     return;
   }
   if (filter.kind === 'enclave') {
-    map.setFilter('ed-fill', ['in', filter.index, ['get', 'e']]);
+    map.setFilter('ed-fill', ['in', filter.index, ['get', keys.e]]);
   }
 }
 
@@ -165,11 +177,11 @@ function renderRegions(catalog, filter, onPick) {
   }
 }
 
-function renderList(catalog, filter, query, onPick) {
+function renderList(catalog, filter, query, onPick, includeHistoric) {
   const root = $('enclave-list');
   root.innerHTML = '';
   const q = query.trim().toLowerCase();
-  const items = catalog.enclaves.filter((enc) => {
+  const items = enclavesForEra(catalog.enclaves, includeHistoric).filter((enc) => {
     if (!enclaveMatches(enc, q)) return false;
     if (filter?.kind === 'region') return enc.region === filter.id;
     return true;
@@ -179,7 +191,7 @@ function renderList(catalog, filter, query, onPick) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = `win-item${filter?.kind === 'enclave' && filter.index === i ? ' is-on' : ''}`;
-    btn.innerHTML = `<span class="win-item-name">${enc.name}</span><span class="win-item-meta">${enc.group}${enc.status === 'historic' ? ' · historic' : ''}</span>`;
+    btn.innerHTML = `<span class="win-item-name">${enc.name}</span><span class="win-item-meta">${enc.group}${isHistoric(enc) ? ' · historic' : ''}</span>`;
     btn.addEventListener('click', () => onPick({ kind: 'enclave', index: i, id: enc.id }));
     root.append(btn);
   }
@@ -217,14 +229,16 @@ function renderCountryList(countries, filter, query, selectedIso, onPick) {
   }
 }
 
-function countryCardHtml(row, catalog) {
-  const pills = row.enclaves.map((enc) => {
+function countryCardHtml(row, catalog, includeHistoric) {
+  const visible = enclavesForEra(row.enclaves, includeHistoric);
+  const pills = visible.map((enc) => {
     const color = regionColor(catalog, enc.region);
-    return `<button type="button" class="win-enclave-pill" data-enclave="${enc.id}"><strong style="color:${color}">${enc.name}</strong><div class="mono">${enc.group}</div></button>`;
+    const historic = isHistoric(enc) ? ' · historic' : '';
+    return `<button type="button" class="win-enclave-pill" data-enclave="${enc.id}"><strong style="color:${color}">${enc.name}</strong><div class="mono">${enc.group}${historic}</div></button>`;
   }).join('');
   return `
     <h3>${row.name}</h3>
-    ${pills}
+    ${pills || '<p class="mono">No current enclave listed.</p>'}
   `;
 }
 
@@ -241,11 +255,13 @@ function renderLegend(catalog, filter, view = 'nyc') {
   root.innerHTML = `${title}${rows}${extra}`;
 }
 
-function cardHtml(props, catalog) {
-  const enclaves = (props.e || []).map((i) => catalog.enclaves[i]).filter(Boolean);
+function cardHtml(props, catalog, includeHistoric) {
+  const enclaves = (props.e || [])
+    .map((i) => catalog.enclaves[i])
+    .filter((enc) => enc && (includeHistoric || !isHistoric(enc)));
   const pills = enclaves.map((enc) => {
     const color = regionColor(catalog, enc.region);
-    const historic = enc.status === 'historic' ? ' · historic' : '';
+    const historic = isHistoric(enc) ? ' · historic' : '';
     return `<button type="button" class="win-enclave-pill" data-enclave="${enc.id}"><strong style="color:${color}">${enc.name}</strong><div class="mono">${enc.group}${historic}</div>${enc.note ? `<div class="mono">${enc.note}</div>` : ''}</button>`;
   }).join('') || '<p class="mono">Wikipedia does not list a named enclave on this district.</p>';
   return `
@@ -349,8 +365,10 @@ async function main() {
 
   const regionColors = Object.fromEntries(catalog.regions.map((r) => [r.id, r.color]));
   regionColors.mixed = '#6b5f5e';
-  const countries = countryIndex(catalog.enclaves, world.features);
-  const countryByIso = new Map(countries.map((row) => [row.iso, row]));
+  tagCurrentEnclaves(ed.features, catalog.enclaves);
+  let includeHistoric = start.historic;
+  let countries = countryIndex(enclavesForEra(catalog.enclaves, includeHistoric), world.features);
+  let countryByIso = new Map(countries.map((row) => [row.iso, row]));
   const worldByIso = new Map(world.features.map((f) => [f.properties.iso, f]));
   const worldStyle = typeof structuredClone === 'function' ? structuredClone(style) : JSON.parse(JSON.stringify(style));
 
@@ -402,7 +420,23 @@ async function main() {
       view: currentView,
       ed: currentView === 'nyc' ? selectedId : null,
       country: currentView === 'world' ? selectedCountry : null,
+      historic: includeHistoric,
     });
+  }
+
+  function syncHistoricBtn() {
+    const btn = $('historic-toggle');
+    btn.classList.toggle('is-on', includeHistoric);
+    btn.setAttribute('aria-pressed', includeHistoric ? 'true' : 'false');
+  }
+  syncHistoricBtn();
+
+  function rebuildCountries() {
+    countries = countryIndex(enclavesForEra(catalog.enclaves, includeHistoric), world.features);
+    countryByIso = new Map(countries.map((row) => [row.iso, row]));
+    if (worldMap.getLayer('world-fill')) {
+      worldMap.setPaintProperty('world-fill', 'fill-color', countryMatchExpr(countries, regionColors));
+    }
   }
 
   function resizeMap() {
@@ -432,7 +466,7 @@ async function main() {
     if (currentView === 'world') {
       renderCountryList(countries, filter, $('search').value, selectedCountry, showCountryCard);
     } else {
-      renderList(catalog, filter, $('search').value, setFilter);
+      renderList(catalog, filter, $('search').value, setFilter, includeHistoric);
     }
   }
 
@@ -443,7 +477,7 @@ async function main() {
       card.hidden = true;
       return;
     }
-    $('card-body').innerHTML = cardHtml(feat.properties, catalog);
+    $('card-body').innerHTML = cardHtml(feat.properties, catalog, includeHistoric);
     card.hidden = false;
     selectedId = edId;
     syncQuery();
@@ -468,7 +502,7 @@ async function main() {
       card.hidden = true;
       return;
     }
-    $('card-body').innerHTML = countryCardHtml(row, catalog);
+    $('card-body').innerHTML = countryCardHtml(row, catalog, includeHistoric);
     card.hidden = false;
     selectedCountry = iso;
     if (isMobileUi()) setSheetOpen(false);
@@ -528,7 +562,7 @@ async function main() {
 
   function setFilter(next) {
     filter = next;
-    applyFilter(map, catalog, filter);
+    applyFilter(map, catalog, filter, includeHistoric);
     applyWorldPaint();
     renderRegions(catalog, filter, setFilter);
     renderLegend(catalog, filter, currentView);
@@ -541,11 +575,37 @@ async function main() {
     resizeMap();
   }
 
+  function setHistoric(on) {
+    includeHistoric = !!on;
+    syncHistoricBtn();
+    if (!includeHistoric && filter?.kind === 'enclave' && isHistoric(catalog.enclaves[filter.index])) {
+      filter = null;
+      $('clear-filter').hidden = true;
+    }
+    rebuildCountries();
+    if (selectedCountry && !countryByIso.has(selectedCountry)) {
+      selectedCountry = null;
+      $('card').hidden = true;
+      if (worldMap.getSource('world')) worldMap.removeFeatureState({ source: 'world' });
+    }
+    applyFilter(map, catalog, filter, includeHistoric);
+    applyWorldPaint();
+    renderRegions(catalog, filter, setFilter);
+    renderLegend(catalog, filter, currentView);
+    refreshList();
+    if (currentView === 'nyc' && selectedId) showCard(selectedId);
+    else if (currentView === 'world' && selectedCountry) showCountryCard(selectedCountry);
+    syncQuery();
+    resizeMap();
+  }
+
   function finishLoad() {
     if (!nycReady || !worldReady) return;
     status.hidden = true;
     if (isMobileUi()) $('legend').hidden = true;
     else $('legend').hidden = false;
+    syncHistoricBtn();
+    applyFilter(map, catalog, filter, includeHistoric);
     applyView(currentView);
     if (currentView === 'nyc' && selectedId) showCard(selectedId);
     if (currentView === 'world' && selectedCountry) showCountryCard(selectedCountry);
@@ -570,9 +630,9 @@ async function main() {
       id: 'ed-fill',
       type: 'fill',
       source: 'ed',
-      filter: ['!=', ['get', 'r'], ''],
+      filter: ['!=', ['get', 'rc'], ''],
       paint: {
-        'fill-color': colorMatch(catalog),
+        'fill-color': colorMatch(catalog, 'rc'),
         'fill-opacity': [
           'case',
           ['boolean', ['feature-state', 'selected'], false], 0.82,
@@ -744,6 +804,7 @@ async function main() {
   });
   $('view-nyc').addEventListener('click', () => applyView('nyc'));
   $('view-world').addEventListener('click', () => applyView('world'));
+  $('historic-toggle').addEventListener('click', () => setHistoric(!includeHistoric));
   wireSheetDrag(resizeMap);
 
   window.addEventListener('resize', () => {

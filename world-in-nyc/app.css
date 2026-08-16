@@ -184,6 +184,12 @@ a { color: #cf4520; }
   outline-offset: 1px;
 }
 
+.win-era {
+  display: flex;
+  justify-content: flex-end;
+  margin: 8px 0 0;
+}
+
 .win-regions {
   display: flex;
   flex-wrap: wrap;

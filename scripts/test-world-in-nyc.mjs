@@ -9,6 +9,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { GROUP_COUNTRIES, countryIndex, countriesForGroup } from '../world-in-nyc/countries.js';
+import { isHistoric, enclavesForEra, tagCurrentEnclaves } from '../world-in-nyc/era.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DATA = join(ROOT, 'world-in-nyc/data');
@@ -76,6 +77,8 @@ assert.doesNotMatch(js, /<dt>Council<\/dt>/);
 assert.match(html, /id="view-world"/);
 assert.match(html, /id="world-map"/);
 assert.match(html, /id="rail-kicker"/);
+assert.match(html, /id="historic-toggle"/);
+assert.doesNotMatch(html, /id="historic-toggle"[^>]*is-on/);
 assert.doesNotMatch(html, /class="win-title"/);
 assert.doesNotMatch(html, /id="world-lede"/);
 assert.doesNotMatch(html, /href="#list"/);
@@ -117,13 +120,28 @@ for (const group of Object.keys(GROUP_COUNTRIES)) {
   assert.ok(groups.includes(group), `GROUP_COUNTRIES has leftover group ${group}`);
 }
 
-const countries = countryIndex(enclaves, world.features);
-assert.ok(countries.length >= 40, `expected a full origin-country index, got ${countries.length}`);
-const italy = countries.find((c) => c.iso === 'ITA');
-assert.ok(italy, 'Italy should be shaded');
+const historic = enclaves.filter(isHistoric);
+assert.equal(historic.length, 6, `expected six Wikipedia-historic enclaves, got ${historic.length}`);
+assert.ok(historic.some((e) => e.id === 'little-spain'), 'Little Spain is historic');
+
+const currentOnly = countryIndex(enclavesForEra(enclaves, false), world.features);
+const withHistoric = countryIndex(enclavesForEra(enclaves, true), world.features);
+assert.equal(currentOnly.find((c) => c.iso === 'ESP'), undefined,
+  'Spain is only a historic enclave and should be off by default');
+assert.ok(withHistoric.find((c) => c.iso === 'ESP'), 'Spain appears when historic is on');
+assert.ok(currentOnly.find((c) => c.iso === 'ITA'), 'Italy stays on the current map');
+assert.ok(!currentOnly.find((c) => c.iso === 'ITA').enclaves.some(isHistoric),
+  'current Italy list should omit Italian Harlem');
+const italy = currentOnly.find((c) => c.iso === 'ITA');
 assert.ok(italy.places.includes('Little Italy') && italy.places.includes('Bensonhurst'),
   `Italy should list NYC neighborhoods, got ${italy.places.join(', ')}`);
-assert.equal(countries.find((c) => c.iso === 'USA'), undefined,
+assert.equal(currentOnly.find((c) => c.iso === 'USA'), undefined,
   'USA itself is not an origin country in the Wikipedia list');
+assert.ok(withHistoric.length >= 40, `expected a full origin-country index, got ${withHistoric.length}`);
 
-console.log(`ok — ${enclaves.length} enclaves on ${ed.features.length} election districts (${withEnclave} tagged); ${countries.length} origin countries`);
+tagCurrentEnclaves(ed.features, enclaves);
+const historicOnlyEds = ed.features.filter((f) => (f.properties.e || []).length && !(f.properties.ec || []).length);
+assert.ok(historicOnlyEds.length > 0, 'some EDs are historic-only and should unshade by default');
+assert.ok(ed.features.some((f) => (f.properties.ec || []).length), 'current-tagged EDs exist');
+
+console.log(`ok — ${enclaves.length} enclaves on ${ed.features.length} election districts (${withEnclave} tagged); ${withHistoric.length} origin countries (${currentOnly.length} current)`);
