@@ -25,7 +25,7 @@ export const STATEMENT_ROWS = [
   { key: 'operating_income', label: 'Operating income', source: 'metric', modelKey: 'operatingIncome' },
   { key: 'net_income', label: 'Net income', source: 'metric', modelKey: 'netIncome' },
   { key: 'fcf', label: 'Free cash flow', source: 'ratio', modelKey: 'fcf' },
-  { key: 'cash', label: 'Cash', source: 'metric', modelKey: null },
+  { key: 'cash', label: 'Cash and cash equivalents', source: 'metric', modelKey: null },
   { key: 'long_term_debt', label: 'Long-term debt', source: 'metric', modelKey: null },
   { key: 'rd', label: 'R&D', source: 'metric', modelKey: 'rd', detail: true },
   { key: 'capex', label: 'CapEx', source: 'metric', modelKey: 'capex', detail: true },

@@ -61,8 +61,8 @@
 
       <section class="fm-step fm-step-landing" id="step-exercise">
         <div class="fm-step-head fm-step-head-compact">
-          <h2>Pick an exercise</h2>
-          <p>Same three statements. Different place to start.</p>
+          <h2>Where to start</h2>
+          <p>Look up a filing, or pick an exercise. Same three statements — different place to begin.</p>
         </div>
         <div class="fm-landing" id="landing">
           <div class="fm-exercise-picks" id="exercise-picks"></div>
@@ -75,14 +75,12 @@
               <div class="fm-search-wrap">
                 <input
                   id="search"
-                  class="fm-search"
+                  class="fm-search fm-search-wide"
                   type="search"
                   placeholder="Search by name or ticker…"
                   autocomplete="off"
                   aria-label="Search companies"
                 />
-                <div class="fm-quick" id="quick"></div>
-                <div class="fm-quick" id="quick-extra"></div>
               </div>
               <div class="fm-results" id="results" hidden></div>
               <p class="fm-status" id="status">Loading the company list…</p>
@@ -90,11 +88,7 @@
             <div class="fm-landing-block fm-web-only-setup">
               <h3>Models to build</h3>
               <p>3-statement is the base. Turn on DCF and trading comps if you want them in the same workbook.</p>
-              <div class="fm-ws-models" id="landing-models" role="group" aria-label="Models to include">
-                <button type="button" data-landing-model="three" aria-pressed="true" disabled title="The 3-statement is the base — it stays on">3-statement</button>
-                <button type="button" data-landing-model="dcf" aria-pressed="true">DCF</button>
-                <button type="button" data-landing-model="comps" aria-pressed="true">Trading comps</button>
-              </div>
+              <div class="fm-model-stack" id="landing-models" role="group" aria-label="Models to include"></div>
             </div>
             <div class="fm-landing-block fm-web-only-setup">
               <h3>Companies you compare against</h3>
@@ -102,7 +96,7 @@
               <div class="fm-peer-add">
                 <input
                   id="peer-search"
-                  class="fm-search fm-peer-search"
+                  class="fm-search fm-search-wide fm-peer-search"
                   type="search"
                   placeholder="Add a peer by name or ticker…"
                   autocomplete="off"

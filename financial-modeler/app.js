@@ -233,8 +233,8 @@ const MODEL_PICKS = [
 
 const TOUR = [
   {
-    title: 'Pick an exercise',
-    body: 'From a 10-K reads a public company’s filing. From one sale is a lemonade stall built from cups × price. Same three statements either way.',
+    title: 'Pick a starting point',
+    body: 'Filings (reference) is the tagged 10-K lookup. From a 10-K reads a public company’s filing into a model. From one sale is a lemonade stall built from cups × price. Same three statements either way.',
   },
   {
     title: 'Choose your models',
@@ -514,11 +514,16 @@ function toggleModel(id) {
 function renderLandingModels() {
   const wrap = $('landing-models');
   if (!wrap) return;
-  wrap.querySelectorAll('[data-landing-model]').forEach((btn) => {
-    const id = btn.dataset.landingModel;
-    const on = state.models.includes(id);
-    btn.setAttribute('aria-pressed', String(on));
-  });
+  wrap.innerHTML = MODEL_PICKS.map((m) => {
+    const on = state.models.includes(m.id);
+    const locked = m.id === 'three';
+    return `<button type="button" class="fm-model-card" data-landing-model="${m.id}" aria-pressed="${on}" ${
+      locked ? 'disabled title="The 3-statement is the base — it stays on"' : ''
+    }>
+      <h3>${escapeHtml(m.title)}</h3>
+      <p>${escapeHtml(m.blurb)}</p>
+    </button>`;
+  }).join('');
 }
 
 function bindLandingModels() {
@@ -795,23 +800,6 @@ function resultSub(c, { has, pub, self = false, picked = false } = {}) {
   return `${extra}${ticker ? ` · ${ticker}` : ''}${picked ? ' · in the set' : ''}`;
 }
 
-function renderQuick() {
-  const picks = ['AAPL', 'MSFT', 'WMT', 'NVDA'];
-  const extras = ['GDDY', 'WIX', 'NET', 'HOOD', 'DUOL'];
-  const chip = (t) => `<button type="button" class="fm-chip" data-ticker="${t}">${t}</button>`;
-  $('quick').innerHTML = picks.map(chip).join('');
-  const extraBox = $('quick-extra');
-  if (extraBox) extraBox.innerHTML = extras.map(chip).join('');
-  const onChip = (e) => {
-    const t = e.target.closest('[data-ticker]');
-    if (!t) return;
-    const company = state.companies.find((c) => c.fortune_ticker === t.dataset.ticker);
-    if (company) selectCompany(company);
-  };
-  $('quick').onclick = onChip;
-  if (extraBox) extraBox.onclick = onChip;
-}
-
 function renderResults(query) {
   const box = $('results');
   const q = query.trim().toLowerCase();
@@ -1061,11 +1049,20 @@ function selectExercise(id) {
 }
 
 function renderExercises() {
-  $('exercise-picks').innerHTML = EXERCISES.map((ex) => {
+  const filings = `<a class="fm-exercise-pick fm-exercise-link" href="/financial-modeler/information.html">
+      <p class="fm-exercise-kicker">Reference</p>
+      <h3>Filings (reference)</h3>
+      <p>Every tagged line from the latest 10-K: values, definitions, and a link back to the filing on EDGAR.</p>
+    </a>`;
+  const exercises = EXERCISES.map((ex) => {
     const on = state.exercise === ex.id;
     return `<button type="button" class="fm-exercise-pick" data-exercise="${ex.id}" aria-pressed="${on}">
-      <h3>${escapeHtml(ex.title)}</h3></button>`;
+      <p class="fm-exercise-kicker">Exercise</p>
+      <h3>${escapeHtml(ex.title)}</h3>
+      <p>${escapeHtml(ex.blurb)}</p>
+    </button>`;
   }).join('');
+  $('exercise-picks').innerHTML = filings + exercises;
   $('exercise-picks').onclick = (e) => {
     const btn = e.target.closest('[data-exercise]');
     if (btn) selectExercise(btn.dataset.exercise);
@@ -2519,7 +2516,6 @@ async function boot() {
     $('status').textContent = 'Couldn’t load the filing snapshot. Reload the page?';
     return;
   }
-  renderQuick();
   $('status').textContent = `${state.companies.length} companies loaded. ${state.snapshot.size} have a filing we can model.`;
 }
 

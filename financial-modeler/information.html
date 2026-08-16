@@ -52,7 +52,7 @@
         <h1>Company filings</h1>
         <p>
           Every metric extracted from the latest annual report for a public company in this catalog.
-          A dash means the 10-K (or 20-F) did not tag that line — not a value of zero.
+          Click a metric to expand its year-by-year series. A dash means the 10-K (or 20-F) did not tag that line — not a value of zero.
         </p>
       </header>
 
@@ -60,13 +60,13 @@
         <label class="fm-info-search-label" for="info-search">Company</label>
         <input
           id="info-search"
-          class="fm-search"
+          class="fm-search fm-search-wide"
           type="search"
           placeholder="Search by name or ticker…"
           autocomplete="off"
           aria-label="Search companies"
         />
-        <div class="fm-results" id="info-results" hidden></div>
+        <div class="fm-results fm-info-results" id="info-results" hidden></div>
         <p class="fm-status" id="info-status">Loading the company list…</p>
       </div>
 

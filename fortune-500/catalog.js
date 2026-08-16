@@ -445,16 +445,18 @@ export const METRICS = [
   },
   {
     key: 'cash',
-    label: 'Cash',
+    label: 'Cash and cash equivalents',
     plain: 'Dollars in the bank on that day.',
     eli5: 'Actual money — and things almost as good as money — sitting there on the balance-sheet day. Not the same as profit (you can be profitable and still short on cash) and not the same as operating cash flow (that’s movement over a year).',
-    whyMissing: 'Some filers split cash across several tags we don’t roll up, so we leave it blank rather than undercount.',
-    tags: 'CashAndCashEquivalentsAtCarryingValue',
+    whyMissing:
+      'Not tagged as cash and cash equivalents for this year. After 2018 some filers only tag the combined cash + restricted-cash line; we read that as a fallback, and leave the cell blank if neither tag is present.',
+    tags: 'CashAndCashEquivalentsAtCarryingValue, CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents',
     unit: 'USD',
     kind: 'instant',
     better: 'higher',
     candidates: [
       { taxonomy: 'us-gaap', tag: 'CashAndCashEquivalentsAtCarryingValue' },
+      { taxonomy: 'us-gaap', tag: 'CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents' },
       { taxonomy: 'ifrs-full', tag: 'CashAndCashEquivalents' },
     ],
   },
