@@ -189,6 +189,51 @@ function applyLeaseLiabilitySum(metrics) {
   };
 }
 
+function grossProfitPoint(revenue, cogs) {
+  const r = revenue && finiteVal(revenue.val) ? revenue.val : null;
+  const c = cogs && finiteVal(cogs.val) && cogs.val >= 0 ? cogs.val : null;
+  if (r == null || c == null) return null;
+  if (revenue.end && cogs.end && revenue.end !== cogs.end) return null;
+  if (revenue.start && cogs.start && revenue.start !== cogs.start) return null;
+  return {
+    ...revenue,
+    val: r - c,
+    tag: DERIVED_GROSS_PROFIT_TAG,
+    taxonomy: 'derived',
+    derived: true,
+    formula: 'revenue − cost of goods and services sold',
+  };
+}
+
+function applyDerivedGrossProfit(metrics, seriesAnnual, priorMetrics) {
+  if (!metrics) return;
+  if (!(metrics.gross_profit && finiteVal(metrics.gross_profit.val))) {
+    const derived = grossProfitPoint(metrics.revenue, metrics.cogs);
+    if (derived) metrics.gross_profit = derived;
+  }
+  if (seriesAnnual) {
+    const byYear = new Map(
+      (seriesAnnual.gross_profit || []).filter((row) => finiteVal(row.val)).map((row) => [row.year, row])
+    );
+    const cogsByYear = new Map((seriesAnnual.cogs || []).map((row) => [row.year, row]));
+    for (const revenue of seriesAnnual.revenue || []) {
+      if (byYear.has(revenue.year)) continue;
+      const derived = grossProfitPoint(revenue, cogsByYear.get(revenue.year));
+      if (derived) byYear.set(revenue.year, { ...derived, year: revenue.year });
+    }
+    if (byYear.size) {
+      seriesAnnual.gross_profit = [...byYear.values()].sort((a, b) => a.year - b.year);
+    }
+  }
+  if (priorMetrics?.values && priorMetrics.values.gross_profit == null) {
+    const revenue = priorMetrics.values.revenue;
+    const cogs = priorMetrics.values.cogs;
+    if (finiteVal(revenue) && finiteVal(cogs) && cogs >= 0) {
+      priorMetrics.values.gross_profit = revenue - cogs;
+    }
+  }
+}
+
 function impliedLiabilityPoint(assets, equity) {
   const a = assets && finiteVal(assets.val) ? assets.val : null;
   const e = equity && finiteVal(equity.val) ? equity.val : null;
@@ -330,6 +375,7 @@ export function extractHeadlines(facts) {
     }
     if (byYear.size) seriesAnnual.operating_lease_liability = [...byYear.values()].sort((a, b) => a.year - b.year);
   }
+  applyDerivedGrossProfit(metrics, seriesAnnual, priorMetrics);
   applyImpliedLiabilities(metrics, seriesAnnual, priorMetrics);
   normalizeMetrics(metrics, priorMetrics);
   const ratios = computeRatios(metrics, priorRevenue);
@@ -622,10 +668,19 @@ export function ordinal(n) {
 }
 
 /** Fill derived ratios (and implied liabilities) on a snapshot/API row so older snapshots pick up new formulas. */
+function backfillLongTermDebt(metrics) {
+  const ltd = metrics?.long_term_debt;
+  if (ltd && finiteVal(ltd.val)) return;
+  const dnc = metrics?.debt_noncurrent;
+  if (dnc && finiteVal(dnc.val)) metrics.long_term_debt = { ...dnc };
+}
+
 export function ensureRatios(headlines) {
   if (!headlines?.metrics) return headlines;
   const metrics = headlines.metrics;
+  backfillLongTermDebt(metrics);
   const seriesAnnual = headlines.seriesAnnual ? { ...headlines.seriesAnnual } : {};
+  applyDerivedGrossProfit(metrics, seriesAnnual, headlines.priorMetrics);
   applyImpliedLiabilities(metrics, seriesAnnual, headlines.priorMetrics);
   normalizeMetrics(metrics, headlines.priorMetrics);
   const ratios = computeRatios(metrics, headlines.priorRevenue);

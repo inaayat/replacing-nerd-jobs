@@ -802,7 +802,7 @@ export const CORE_STUDENT = {
   shares_out:
     'Common shares outstanding at period-end. A stock count; the DCF share count typically uses this or diluted weighted-average shares, depending on the model.',
   long_term_debt:
-    'The legacy long-term-debt tag. Coverage is uneven; prefer debt_current plus debt_noncurrent when those are tagged.',
+    'Noncurrent interest-bearing debt at period-end. Many filers tag this as LongTermDebtNoncurrent rather than the legacy LongTermDebt line; we read both before leaving the cell blank.',
   inventory:
     'Goods held for sale, net of reserves. Used with cost of sales to estimate days inventory outstanding. Often untagged for banks and software firms.',
   receivables:

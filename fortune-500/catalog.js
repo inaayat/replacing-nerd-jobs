@@ -543,7 +543,8 @@ export const METRICS = [
     label: 'Long-term debt',
     plain: 'Loans they don’t have to pay back this year.',
     eli5: 'Borrowed money due after this year — the slow IOUs. A factory-heavy company often has more than a software company. More debt can mean leverage (amplifies wins and losses), not automatically trouble.',
-    whyMissing: 'Coverage is patchy. Many companies put debt in a different tag, or have none. Blank is not $0 of debt.',
+    whyMissing:
+      'Many filers tag debt under noncurrent, convertible, notes-payable, or issuer-specific roll-ups. We read the common standardized alternatives before leaving the cell blank — blank is not $0 of debt.',
     tags: 'LongTermDebt, LongTermDebtAndCapitalLeaseObligations, LongTermDebtNoncurrent',
     unit: 'USD',
     kind: 'instant',

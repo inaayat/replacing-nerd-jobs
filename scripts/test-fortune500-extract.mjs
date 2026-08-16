@@ -691,6 +691,79 @@ assert.equal(ordinal(1), '1st');
   });
   assert.equal(bothCash.metrics.cash.val, 100, 'prefer cash & equivalents over the restricted-cash combined tag');
   assert.equal(bothCash.metrics.cash.tag, 'CashAndCashEquivalentsAtCarryingValue');
+
+  const gddyDebt = extractHeadlines({
+    cik: 1609711,
+    entityName: 'GoDaddy-like debt',
+    facts: {
+      'us-gaap': {
+        Revenues: { units: { USD: duration(50, '2025-01-01', '2025-12-31', 2025) } },
+        NetIncomeLoss: { units: { USD: duration(5, '2025-01-01', '2025-12-31', 2025) } },
+        LongTermDebtNoncurrent: { units: { USD: instant(3765.2e6, '2025-12-31', 2025) } },
+      },
+    },
+  });
+  assert.equal(gddyDebt.metrics.long_term_debt.val, 3765.2e6);
+  assert.equal(gddyDebt.metrics.long_term_debt.tag, 'LongTermDebtNoncurrent');
+
+  const legacyDebt = extractHeadlines({
+    cik: 1,
+    entityName: 'Legacy debt tag',
+    facts: {
+      'us-gaap': {
+        Revenues: { units: { USD: duration(50, '2025-01-01', '2025-12-31', 2025) } },
+        NetIncomeLoss: { units: { USD: duration(5, '2025-01-01', '2025-12-31', 2025) } },
+        LongTermDebt: { units: { USD: instant(100, '2025-12-31', 2025) } },
+        LongTermDebtNoncurrent: { units: { USD: instant(90, '2025-12-31', 2025) } },
+      },
+    },
+  });
+  assert.equal(legacyDebt.metrics.long_term_debt.val, 90, 'prefer noncurrent debt tag when both exist');
+  assert.equal(legacyDebt.metrics.long_term_debt.tag, 'LongTermDebtNoncurrent');
+
+  const fromSnap = ensureRatios({
+    metrics: {
+      revenue: { val: 100 },
+      net_income: { val: 10 },
+      assets: { val: 200 },
+      equity: { val: 50 },
+      long_term_debt: null,
+      debt_noncurrent: { val: 25, tag: 'LongTermDebtNoncurrent', taxonomy: 'us-gaap' },
+    },
+  });
+  assert.equal(fromSnap.metrics.long_term_debt.val, 25);
+  assert.equal(fromSnap.ratios.debt_equity, 0.5);
+
+  const derivedGross = extractHeadlines({
+    cik: 2,
+    entityName: 'Derived gross profit',
+    facts: {
+      'us-gaap': {
+        Revenues: { units: { USD: duration(100, '2025-01-01', '2025-12-31', 2025) } },
+        NetIncomeLoss: { units: { USD: duration(10, '2025-01-01', '2025-12-31', 2025) } },
+        CostOfRevenue: { units: { USD: duration(65, '2025-01-01', '2025-12-31', 2025) } },
+      },
+    },
+  });
+  assert.equal(derivedGross.metrics.gross_profit.val, 35);
+  assert.equal(derivedGross.metrics.gross_profit.derived, true);
+  assert.equal(derivedGross.metrics.gross_profit.formula, 'revenue − cost of goods and services sold');
+  assert.equal(derivedGross.ratios.gross_margin, 0.35);
+
+  const reportedGross = extractHeadlines({
+    cik: 3,
+    entityName: 'Reported gross profit',
+    facts: {
+      'us-gaap': {
+        Revenues: { units: { USD: duration(100, '2025-01-01', '2025-12-31', 2025) } },
+        NetIncomeLoss: { units: { USD: duration(10, '2025-01-01', '2025-12-31', 2025) } },
+        GrossProfit: { units: { USD: duration(40, '2025-01-01', '2025-12-31', 2025) } },
+        CostOfRevenue: { units: { USD: duration(65, '2025-01-01', '2025-12-31', 2025) } },
+      },
+    },
+  });
+  assert.equal(reportedGross.metrics.gross_profit.val, 40, 'reported gross profit wins over calculation');
+  assert.equal(reportedGross.metrics.gross_profit.derived, undefined);
 }
 
 {
