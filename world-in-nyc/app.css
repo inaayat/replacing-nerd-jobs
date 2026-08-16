@@ -8,8 +8,9 @@
   --win-display: "Fraunces", Georgia, serif;
   --win-mono: "DM Mono", ui-monospace, monospace;
   --win-nav-h: 56px;
-  --win-rail-w: 340px;
-  --win-sheet-peek: 52px;
+  --win-rail-w: clamp(300px, 22vw, 340px);
+  --win-sheet-peek: 64px;
+  --win-sheet-half: min(45dvh, 420px);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -25,7 +26,6 @@ html, body {
 a { color: #cf4520; }
 
 .win-nav {
-  height: var(--win-nav-h);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -121,16 +121,27 @@ a { color: #cf4520; }
 
 .win-app {
   display: grid;
-  grid-template-columns: var(--win-rail-w) 1fr;
+  grid-template-columns: minmax(0, 1fr) var(--win-rail-w);
   height: calc(100dvh - var(--win-nav-h) - env(safe-area-inset-top));
+  overflow: hidden;
+}
+
+body.win-rail-collapsed .win-app {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+body.win-rail-collapsed .win-rail {
+  display: none;
 }
 
 .win-rail {
-  overflow: auto;
-  padding: 18px 16px 28px;
-  border-right: 1.5px solid var(--win-line);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   background: var(--win-cream);
-  -webkit-overflow-scrolling: touch;
+  border-left: 1.5px solid var(--win-line);
 }
 
 .visually-hidden {
@@ -154,6 +165,12 @@ a { color: #cf4520; }
   gap: 8px;
 }
 
+.win-rail-head {
+  flex: 0 0 auto;
+  padding: 14px 16px 8px;
+  border-bottom: 1px solid var(--win-line);
+}
+
 .win-kicker {
   margin: 0;
   font-family: var(--win-mono);
@@ -163,11 +180,29 @@ a { color: #cf4520; }
   color: var(--win-muted);
 }
 
+.win-count {
+  margin-left: auto;
+  font-family: var(--win-mono);
+  font-size: 11px;
+  color: var(--win-muted);
+  white-space: nowrap;
+}
+
 .win-lede {
-  margin: 8px 0 16px;
-  font-size: 13.5px;
+  margin: 8px 0 14px;
+  font-size: 13px;
   line-height: 1.45;
   color: #3d3834;
+}
+
+.win-hero-count {
+  display: block;
+  font-family: var(--win-display);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--win-ink);
+  margin-bottom: 6px;
 }
 
 .win-search input {
@@ -185,18 +220,22 @@ a { color: #cf4520; }
   outline-offset: 1px;
 }
 
-.win-era {
+.win-toolbar {
   display: flex;
-  justify-content: flex-end;
-  margin: 8px 0 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 0;
 }
 
 .win-regions {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin: 14px 0 8px;
+  margin: 10px 0 4px;
 }
+
+.win-regions[hidden] { display: none; }
 
 .win-chip {
   border: 1.5px solid var(--win-line);
@@ -239,7 +278,7 @@ a { color: #cf4520; }
 }
 .win-vote-bar i { display: block; min-width: 0; }
 .win-vote-summary {
-  margin: 10px 0 4px;
+  margin: 0 0 8px;
   padding: 10px 12px;
   border: 1.5px solid var(--win-line);
   border-radius: 12px;
@@ -248,17 +287,24 @@ a { color: #cf4520; }
 .win-vote-summary .mono { font-family: var(--win-mono); font-size: 11px; color: var(--win-muted); }
 .win-vote-summary[hidden] { display: none; }
 
-.win-list-wrap { margin-top: 10px; }
-
-.win-list-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: flex-end;
-  gap: 8px;
+.win-detail {
+  flex: 0 1 auto;
+  overflow: auto;
+  max-height: 42%;
+  padding: 10px 12px 0;
+  min-height: 0;
 }
 
-.win-list-head:not(:has(#clear-filter:not([hidden]))) {
+.win-detail:not(:has(:not([hidden]))) {
   display: none;
+}
+
+.win-list-wrap {
+  flex: 1 1 auto;
+  overflow: auto;
+  min-height: 0;
+  padding: 8px 8px 20px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .win-text-btn {
@@ -268,7 +314,7 @@ a { color: #cf4520; }
   font: inherit;
   font-size: 12px;
   cursor: pointer;
-  padding: 0;
+  padding: 0 4px;
   min-height: 32px;
 }
 
@@ -279,6 +325,9 @@ a { color: #cf4520; }
 }
 
 .win-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   text-align: left;
   border: 0;
   background: transparent;
@@ -288,10 +337,22 @@ a { color: #cf4520; }
   font: inherit;
   min-height: 48px;
   touch-action: manipulation;
+  width: 100%;
 }
 
 .win-item:hover,
 .win-item.is-on { background: rgba(28, 28, 28, 0.06); }
+
+.win-item-swatch {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 6px;
+  background: var(--swatch, #888);
+}
+
+.win-item-text { min-width: 0; }
 
 .win-item-name {
   display: block;
@@ -442,7 +503,7 @@ body.win-stats-view .win-legend {
   display: none !important;
 }
 
-body.win-stats-view .win-era {
+body.win-stats-view .win-toolbar #historic-toggle {
   display: none;
 }
 
@@ -486,26 +547,48 @@ body.win-stats-view .win-era {
   display: block;
 }
 
-.win-card {
+.win-rail-toggle {
   position: absolute;
   right: 12px;
   top: 12px;
-  z-index: 6;
-  width: min(340px, calc(100% - 24px));
-  max-height: calc(100% - 24px);
-  overflow: auto;
+  z-index: 5;
+  border: 1.5px solid var(--win-line);
   background: var(--win-panel);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 36px;
+  box-shadow: 0 8px 24px rgba(28, 28, 28, 0.08);
+}
+
+body.win-rail-collapsed .win-rail-toggle {
+  background: var(--win-ink);
+  color: var(--win-cream);
+  border-color: var(--win-ink);
+}
+
+.win-card {
+  position: relative;
+  z-index: auto;
+  width: auto;
+  max-height: none;
+  overflow: visible;
+  background: #fffdf8;
   border: 1.5px solid var(--win-line);
   border-radius: 14px;
-  padding: 14px 16px 16px;
-  box-shadow: 0 12px 32px rgba(28, 28, 28, 0.12);
-  -webkit-overflow-scrolling: touch;
+  padding: 12px 14px 14px;
+  margin-bottom: 8px;
 }
+
+.win-card[hidden] { display: none; }
 
 .win-card-close {
   position: absolute;
-  top: 8px;
-  right: 10px;
+  top: 4px;
+  right: 4px;
   border: 0;
   background: none;
   font-size: 28px;
@@ -520,7 +603,7 @@ body.win-stats-view .win-era {
 .win-card h3 {
   margin: 0 36px 4px 0;
   font-family: var(--win-display);
-  font-size: 22px;
+  font-size: 20px;
 }
 
 .win-card .mono {
@@ -584,7 +667,7 @@ body.win-stats-view .win-era {
   margin-bottom: 4px;
 }
 
-/* Phone: map fills the screen; browse + district card are bottom sheets. */
+/* Phone: map fills the screen; one bottom sheet for browse + details. */
 @media (max-width: 860px) {
   html, body { overflow: hidden; height: 100dvh; }
 
@@ -594,6 +677,7 @@ body.win-stats-view .win-era {
   .win-view-toggle { margin-left: auto; }
   .win-view-btn { padding: 7px 8px; min-height: 40px; }
   .win-nav-section span { display: none; }
+  .win-rail-toggle { display: none; }
 
   @media (max-width: 400px) {
     .win-nav-logo { display: none; }
@@ -604,6 +688,14 @@ body.win-stats-view .win-era {
     display: block;
     position: relative;
     height: calc(100dvh - var(--win-nav-h) - env(safe-area-inset-top));
+  }
+
+  body.win-rail-collapsed .win-app {
+    grid-template-columns: unset;
+  }
+
+  body.win-rail-collapsed .win-rail {
+    display: flex;
   }
 
   .win-map-wrap {
@@ -652,33 +744,48 @@ body.win-stats-view .win-era {
     right: 0;
     bottom: 0;
     z-index: 8;
-    height: min(78dvh, 640px);
-    max-height: min(78dvh, 640px);
-    padding: 0 16px calc(18px + env(safe-area-inset-bottom));
-    border-right: 0;
+    height: min(88dvh, 720px);
+    max-height: min(88dvh, 720px);
+    border-left: 0;
     border-top: 1.5px solid var(--win-line);
     border-radius: 18px 18px 0 0;
     box-shadow: 0 -12px 40px rgba(28, 28, 28, 0.16);
     transform: translateY(calc(100% - var(--win-sheet-peek) - env(safe-area-inset-bottom)));
     transition: transform 220ms ease;
     overflow: hidden;
+    display: flex;
   }
 
+  .win-rail[data-snap="half"] {
+    transform: translateY(calc(100% - var(--win-sheet-half) - env(safe-area-inset-bottom)));
+  }
+
+  .win-rail[data-snap="full"],
   .win-rail.is-open {
     transform: translateY(0);
-    overflow: auto;
+  }
+
+  .win-rail[data-snap="peek"] {
+    overflow: hidden;
+  }
+
+  .win-rail[data-snap="half"],
+  .win-rail[data-snap="full"],
+  .win-rail.is-open {
+    overflow: hidden;
   }
 
   .win-sheet-handle {
     display: block;
     width: 44px;
     height: 22px;
-    margin: 6px auto 2px;
+    margin: 6px auto 0;
     padding: 0;
     border: 0;
     background: transparent;
     cursor: grab;
     touch-action: none;
+    flex: 0 0 auto;
   }
 
   .win-sheet-handle::before {
@@ -700,7 +807,17 @@ body.win-stats-view .win-era {
     padding: 0 4px;
   }
 
+  .win-rail-head {
+    padding: 0 16px 8px;
+    border-bottom: 0;
+  }
+
   .win-lede { display: none; }
+
+  .win-detail {
+    max-height: none;
+    flex: 0 1 auto;
+  }
 
   .win-stats-group,
   .win-stats-winner,
@@ -714,10 +831,12 @@ body.win-stats-view .win-era {
     padding: 12px 14px calc(16px + env(safe-area-inset-bottom));
   }
 
-  body.win-stats-view .win-rail {
+  body.win-stats-view .win-rail[data-snap="peek"] {
     transform: translateY(100%);
   }
 
+  body.win-stats-view .win-rail[data-snap="half"],
+  body.win-stats-view .win-rail[data-snap="full"],
   body.win-stats-view .win-rail.is-open {
     transform: translateY(0);
   }
@@ -734,23 +853,6 @@ body.win-stats-view .win-era {
 
   .win-stats-table th button {
     min-height: 36px;
-  }
-
-  .win-card {
-    left: 10px;
-    right: 10px;
-    top: auto;
-    bottom: calc(var(--win-sheet-peek) + env(safe-area-inset-bottom) + 8px);
-    width: auto;
-    max-height: 46%;
-    padding-top: 6px;
-    border-radius: 16px;
-  }
-
-  .win-card .win-sheet-handle { display: block; }
-
-  body.win-sheet-open .win-card {
-    bottom: 12px;
   }
 
   body.win-sheet-open .win-browse-btn {

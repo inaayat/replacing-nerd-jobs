@@ -65,45 +65,53 @@
           Legend
         </button>
         <div class="win-legend" id="legend"></div>
-        <aside class="win-card" id="card" hidden>
-          <div class="win-sheet-handle" aria-hidden="true"></div>
-          <button type="button" class="win-card-close" id="card-close" aria-label="Close district card">×</button>
-          <div id="card-body"></div>
-        </aside>
+        <button type="button" class="win-rail-toggle" id="rail-toggle" aria-expanded="true" aria-controls="rail">
+          Hide list
+        </button>
         <p class="win-status" id="status">Loading maps…</p>
       </main>
 
-      <aside class="win-rail" id="rail" aria-label="Enclave filters">
+      <aside class="win-rail" id="rail" aria-label="Enclave filters" data-snap="peek">
         <button type="button" class="win-sheet-handle" id="sheet-handle" aria-label="Drag to resize browse sheet"></button>
-        <div class="win-sheet-peek">
-          <div class="win-sheet-title-row">
-            <p class="win-kicker" id="rail-kicker">Election districts</p>
-            <button type="button" class="win-text-btn win-sheet-close" id="sheet-close">Map</button>
+        <header class="win-rail-head">
+          <div class="win-sheet-peek">
+            <div class="win-sheet-title-row">
+              <p class="win-kicker" id="rail-kicker">Election districts</p>
+              <span class="win-count" id="list-count"></span>
+              <button type="button" class="win-text-btn win-sheet-close" id="sheet-close">Map</button>
+            </div>
           </div>
+          <h1 class="visually-hidden">World in NYC</h1>
+          <p class="win-lede" id="nyc-lede">
+            <strong class="win-hero-count" id="hero-count">Communities on election districts</strong>
+            Every colored block is an election district — the same grain as the
+            <a href="https://www.urbanresearchmaps.org/electioncompare2025/?lat=40.72103&amp;lng=-73.97690&amp;zoom=10.50&amp;ed=66039" target="_blank" rel="noopener">CUNY 2025 election map</a>.
+          </p>
+
+          <label class="win-search">
+            <span class="visually-hidden" id="search-label">Find a group or neighborhood</span>
+            <input id="search" type="search" placeholder="Chinatown, Little Guyana, Astoria…" autocomplete="off" enterkeyhint="search" aria-labelledby="search-label" />
+          </label>
+
+          <div class="win-toolbar">
+            <button type="button" class="win-chip" id="historic-toggle" aria-pressed="false">Historic</button>
+            <button type="button" class="win-chip" id="filter-toggle" aria-expanded="false" aria-controls="regions">Filters</button>
+            <button type="button" class="win-chip" id="surprise">Surprise me</button>
+            <button type="button" class="win-text-btn" id="clear-filter" hidden>Clear</button>
+          </div>
+          <div class="win-regions" id="regions" role="listbox" aria-label="Regions" hidden></div>
+        </header>
+
+        <div class="win-detail" id="detail">
+          <aside class="win-card" id="card" hidden>
+            <button type="button" class="win-card-close" id="card-close" aria-label="Close district card">×</button>
+            <div id="card-body"></div>
+          </aside>
+          <div class="win-vote-summary" id="vote-summary" hidden></div>
         </div>
-        <h1 class="visually-hidden">World in NYC</h1>
-        <p class="win-lede" id="nyc-lede">
-          Every colored block is an election district — the same grain as the
-          <a href="https://www.urbanresearchmaps.org/electioncompare2025/?lat=40.72103&amp;lng=-73.97690&amp;zoom=10.50&amp;ed=66039" target="_blank" rel="noopener">CUNY 2025 election map</a>.
-        </p>
-
-        <label class="win-search">
-          <span class="visually-hidden" id="search-label">Find a group or neighborhood</span>
-          <input id="search" type="search" placeholder="Chinatown, Little Guyana, Astoria…" autocomplete="off" enterkeyhint="search" aria-labelledby="search-label" />
-        </label>
-
-        <div class="win-era">
-          <button type="button" class="win-chip" id="historic-toggle" aria-pressed="false">Historic</button>
-        </div>
-
-        <div class="win-regions" id="regions" role="listbox" aria-label="Regions"></div>
-        <div class="win-vote-summary" id="vote-summary" hidden></div>
 
         <section id="list" class="win-list-wrap">
-          <div class="win-list-head">
-            <h2 class="visually-hidden" id="list-heading">Enclaves</h2>
-            <button type="button" class="win-text-btn" id="clear-filter" hidden>Clear filter</button>
-          </div>
+          <h2 class="visually-hidden" id="list-heading">Enclaves</h2>
           <div class="win-list" id="enclave-list"></div>
         </section>
       </aside>
