@@ -80,6 +80,7 @@ assert.match(js, /setSheetSnap/);
 assert.match(js, /ensureWorldMap/);
 assert.match(js, /renderCountryEnclaves/);
 assert.match(js, /renderEnclaveFocus/);
+assert.match(js, /pickDistrict/);
 assert.doesNotMatch(js, /places\.slice\(0,\s*3\)/);
 assert.doesNotMatch(html, /data-overlay=/);
 assert.match(js, /ensureOverlay/);

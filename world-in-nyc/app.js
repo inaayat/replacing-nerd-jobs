@@ -437,6 +437,19 @@ function fitPadding() {
   return { top: 56, left: 16, right: 16, bottom: bottom + 8 };
 }
 
+function fitFeature(map, feature, extra = {}) {
+  if (!feature?.geometry) return;
+  const b = new maplibregl.LngLatBounds();
+  const g = feature.geometry;
+  const polys = g.type === 'Polygon' ? [g.coordinates] : g.coordinates;
+  for (const poly of polys) {
+    for (const ring of poly) {
+      for (const pt of ring) b.extend(pt);
+    }
+  }
+  if (!b.isEmpty()) map.fitBounds(b, { padding: fitPadding(), duration: 600, ...extra });
+}
+
 function fitEnclave(map, ed, index) {
   const matching = ed.features.filter((f) => (f.properties.e || []).includes(index));
   if (!matching.length) return;
@@ -452,16 +465,7 @@ function fitEnclave(map, ed, index) {
 }
 
 function fitCountry(worldMap, feature) {
-  if (!feature?.geometry) return;
-  const b = new maplibregl.LngLatBounds();
-  const g = feature.geometry;
-  const polys = g.type === 'Polygon' ? [g.coordinates] : g.coordinates;
-  for (const poly of polys) {
-    for (const ring of poly) {
-      for (const pt of ring) b.extend(pt);
-    }
-  }
-  if (!b.isEmpty()) worldMap.fitBounds(b, { padding: 48, maxZoom: 5, duration: 600 });
+  fitFeature(worldMap, feature, { padding: 48, maxZoom: 5 });
 }
 
 function setSheetSnap(snap) {
@@ -565,11 +569,14 @@ async function main() {
     document.body.classList.add('win-stats-view');
   }
 
+  const NYC_CAM = { center: [-73.9769, 40.72103], zoom: isMobileUi() ? 10.1 : 10.5 };
+  const WORLD_CAM = { center: [20, 18], zoom: isMobileUi() ? 1.15 : 1.45 };
+
   const map = new maplibregl.Map({
     container: 'map',
     style,
-    center: [-73.9769, 40.72103],
-    zoom: isMobileUi() ? 10.1 : 10.5,
+    center: NYC_CAM.center,
+    zoom: NYC_CAM.zoom,
     maxZoom: 16,
     minZoom: 9,
     attributionControl: true,
@@ -804,6 +811,55 @@ async function main() {
     resizeMap();
   }
 
+  function resetNycView() {
+    map.easeTo({ center: NYC_CAM.center, zoom: NYC_CAM.zoom, duration: 600 });
+  }
+
+  function resetWorldView() {
+    worldMap?.easeTo({ center: WORLD_CAM.center, zoom: WORLD_CAM.zoom, duration: 600 });
+  }
+
+  function clearNycSelection() {
+    $('card').hidden = true;
+    selectedId = null;
+    if (map.getSource('ed')) map.removeFeatureState({ source: 'ed' });
+    if (filter?.kind === 'enclave') setFilter(null);
+    else refreshList();
+    syncQuery();
+    resizeMap();
+  }
+
+  function pickDistrict(id) {
+    if (id == null) return;
+    const edId = Number(id);
+    if (edId === Number(selectedId)) {
+      clearNycSelection();
+      resetNycView();
+      return;
+    }
+    showCard(edId);
+    const feat = edIndex.get(edId);
+    if (feat) fitFeature(map, feat, { maxZoom: 14 });
+  }
+
+  function pickCountry(iso) {
+    if (!iso || !countryByIso.has(iso)) return;
+    if (iso === selectedCountry) {
+      $('card').hidden = true;
+      selectedCountry = null;
+      $('rail-kicker').textContent = 'Origin countries';
+      $('list-heading').textContent = 'Countries';
+      if (worldMap?.getSource('world')) worldMap.removeFeatureState({ source: 'world' });
+      applyWorldPaint();
+      refreshList();
+      syncQuery();
+      resetWorldView();
+      resizeMap();
+      return;
+    }
+    showCountryCard(iso);
+  }
+
   function showCountryCard(iso) {
     const row = countryByIso.get(iso);
     const card = $('card');
@@ -985,8 +1041,7 @@ async function main() {
       worldHover = null;
     });
     nextMap.on('click', 'world-fill', (e) => {
-      const iso = e.features[0]?.properties?.iso;
-      if (iso && countryByIso.has(iso)) showCountryCard(iso);
+      pickCountry(e.features[0]?.properties?.iso);
     });
   }
 
@@ -995,8 +1050,8 @@ async function main() {
     worldMap = new maplibregl.Map({
       container: 'world-map',
       style: worldStyle,
-      center: [20, 18],
-      zoom: isMobileUi() ? 1.15 : 1.45,
+      center: WORLD_CAM.center,
+      zoom: WORLD_CAM.zoom,
       maxZoom: 8,
       minZoom: 0.8,
       attributionControl: true,
@@ -1134,30 +1189,22 @@ async function main() {
     hoverId = null;
   });
   map.on('click', 'ed-fill', (e) => {
-    const id = e.features[0]?.properties?.ed;
-    if (id) showCard(id);
+    pickDistrict(e.features[0]?.properties?.ed);
   });
   map.on('click', 'ed-dim', (e) => {
-    if (e.features?.[0]?.properties?.ed) showCard(e.features[0].properties.ed);
+    pickDistrict(e.features[0]?.properties?.ed);
   });
 
   $('card-close').addEventListener('click', () => {
-    $('card').hidden = true;
     if (currentView === 'world') {
-      selectedCountry = null;
-      $('rail-kicker').textContent = 'Origin countries';
-      $('list-heading').textContent = 'Countries';
-      if (worldMap?.getSource('world')) worldMap.removeFeatureState({ source: 'world' });
-      applyWorldPaint();
-      refreshList();
+      pickCountry(selectedCountry);
     } else {
-      selectedId = null;
-      if (map.getSource('ed')) map.removeFeatureState({ source: 'ed' });
-      if (filter?.kind === 'enclave') setFilter(null);
-      else refreshList();
+      if (selectedId) pickDistrict(selectedId);
+      else {
+        clearNycSelection();
+        resetNycView();
+      }
     }
-    syncQuery();
-    resizeMap();
   });
   $('clear-filter').addEventListener('click', () => setFilter(null));
   $('search').addEventListener('input', () => refreshList());
