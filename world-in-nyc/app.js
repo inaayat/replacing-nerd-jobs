@@ -629,10 +629,11 @@ async function main() {
     updateHero();
   }
 
-  function resizeMap() {
+  function resizeMap(then) {
     requestAnimationFrame(() => {
       map.resize();
       worldMap?.resize();
+      if (then) requestAnimationFrame(then);
     });
   }
 
@@ -808,7 +809,6 @@ async function main() {
       map.setFeatureState({ source: 'ed', id: edId }, { selected: true });
     }
     refreshList();
-    resizeMap();
   }
 
   function resetNycView() {
@@ -826,20 +826,20 @@ async function main() {
     if (filter?.kind === 'enclave') setFilter(null);
     else refreshList();
     syncQuery();
-    resizeMap();
   }
 
   function pickDistrict(id) {
     if (id == null) return;
     const edId = Number(id);
-    if (edId === Number(selectedId)) {
+    if (!Number.isFinite(edId) || edId <= 0) return;
+    if (selectedId != null && edId === Number(selectedId)) {
       clearNycSelection();
-      resetNycView();
+      resizeMap(() => resetNycView());
       return;
     }
     showCard(edId);
     const feat = edIndex.get(edId);
-    if (feat) fitFeature(map, feat, { maxZoom: 14 });
+    if (feat) resizeMap(() => fitFeature(map, feat, { maxZoom: 14 }));
   }
 
   function pickCountry(iso) {
@@ -961,7 +961,9 @@ async function main() {
       $('card').hidden = false;
       if (map.getSource('ed')) map.removeFeatureState({ source: 'ed' });
       if (isMobileUi() && sheetSnap() === 'peek') setSheetSnap('half');
-      fitEnclave(map, ed, filter.index);
+      refreshList();
+      resizeMap(() => fitEnclave(map, ed, filter.index));
+      return;
     } else if (currentView === 'nyc' && !selectedId) {
       $('card').hidden = true;
     }
@@ -1188,11 +1190,13 @@ async function main() {
     if (hoverId != null) map.setFeatureState({ source: 'ed', id: hoverId }, { hover: false });
     hoverId = null;
   });
-  map.on('click', 'ed-fill', (e) => {
-    pickDistrict(e.features[0]?.properties?.ed);
-  });
-  map.on('click', 'ed-dim', (e) => {
-    pickDistrict(e.features[0]?.properties?.ed);
+  map.on('click', (e) => {
+    if (currentView !== 'nyc') return;
+    const layers = ['ed-fill', 'ed-dim'].filter((id) => map.getLayer(id));
+    if (!layers.length) return;
+    const hit = map.queryRenderedFeatures(e.point, { layers })[0];
+    if (!hit) return;
+    pickDistrict(hit.id ?? hit.properties?.ed);
   });
 
   $('card-close').addEventListener('click', () => {
@@ -1202,7 +1206,7 @@ async function main() {
       if (selectedId) pickDistrict(selectedId);
       else {
         clearNycSelection();
-        resetNycView();
+        resizeMap(() => resetNycView());
       }
     }
   });
