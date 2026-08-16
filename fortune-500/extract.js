@@ -668,17 +668,9 @@ export function ordinal(n) {
 }
 
 /** Fill derived ratios (and implied liabilities) on a snapshot/API row so older snapshots pick up new formulas. */
-function backfillLongTermDebt(metrics) {
-  const ltd = metrics?.long_term_debt;
-  if (ltd && finiteVal(ltd.val)) return;
-  const dnc = metrics?.debt_noncurrent;
-  if (dnc && finiteVal(dnc.val)) metrics.long_term_debt = { ...dnc };
-}
-
 export function ensureRatios(headlines) {
   if (!headlines?.metrics) return headlines;
   const metrics = headlines.metrics;
-  backfillLongTermDebt(metrics);
   const seriesAnnual = headlines.seriesAnnual ? { ...headlines.seriesAnnual } : {};
   applyDerivedGrossProfit(metrics, seriesAnnual, headlines.priorMetrics);
   applyImpliedLiabilities(metrics, seriesAnnual, headlines.priorMetrics);

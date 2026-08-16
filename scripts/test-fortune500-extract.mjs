@@ -718,8 +718,8 @@ assert.equal(ordinal(1), '1st');
       },
     },
   });
-  assert.equal(legacyDebt.metrics.long_term_debt.val, 90, 'prefer noncurrent debt tag when both exist');
-  assert.equal(legacyDebt.metrics.long_term_debt.tag, 'LongTermDebtNoncurrent');
+  assert.equal(legacyDebt.metrics.long_term_debt.val, 100, 'prefer legacy total debt when both tags exist');
+  assert.equal(legacyDebt.metrics.long_term_debt.tag, 'LongTermDebt');
 
   const fromSnap = ensureRatios({
     metrics: {
@@ -731,7 +731,7 @@ assert.equal(ordinal(1), '1st');
       debt_noncurrent: { val: 25, tag: 'LongTermDebtNoncurrent', taxonomy: 'us-gaap' },
     },
   });
-  assert.equal(fromSnap.metrics.long_term_debt.val, 25);
+  assert.equal(fromSnap.metrics.long_term_debt, null);
   assert.equal(fromSnap.ratios.debt_equity, 0.5);
 
   const derivedGross = extractHeadlines({
