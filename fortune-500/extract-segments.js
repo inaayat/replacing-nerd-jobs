@@ -122,7 +122,7 @@ export function extractFactAnchorsFromHtml(html, headlines) {
     const candidates = facts.filter(
       (fact) => fact.tag === localName(point.tag) && fact.end === point.end && !fact.dimensional
     );
-    const hit = candidates.find((fact) => closeEnough(fact.val, point.val)) || candidates[0];
+    const hit = candidates.find((fact) => closeEnough(fact.val, point.val));
     if (!hit) continue;
     if (!anchors[point.key]) anchors[point.key] = {};
     anchors[point.key][point.end] = hit.id;
