@@ -216,7 +216,7 @@ function seriesTable(title, rows, def) {
         def,
         filing: currentFiling(),
       });
-      const open = hrefs.find((l) => l.kind === 'document' || l.kind === 'browse');
+      const open = hrefs.find((l) => l.kind === 'document');
       const link = open
         ? `<a href="${escapeHtml(open.href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(form || 'EDGAR')}</a>`
         : escapeHtml(form);
@@ -483,7 +483,6 @@ function renderCompany(company) {
   });
   const filingBar = filingLinks.length
     ? `<p class="fm-info-filing-links">${filingLinks
-        .filter((l) => l.kind === 'document' || l.kind === 'browse' || l.kind === 'facts')
         .map(
           (l) =>
             `<a href="${escapeHtml(l.href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(l.label)}</a>`

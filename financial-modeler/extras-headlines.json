@@ -1,6 +1,6 @@
 {
   "schema": 4,
-  "pulled_at": "2026-08-16T13:13:33.433Z",
+  "pulled_at": "2026-08-16T19:15:23.747Z",
   "companies": {
     "1069183": {
       "cik": 1069183,
@@ -204,7 +204,7 @@
           "candidateIndex": 0
         },
         "long_term_debt": {
-          "val": 1810722000,
+          "val": 1730170000,
           "unit": "USD",
           "start": null,
           "end": "2025-12-31",
@@ -213,7 +213,7 @@
           "form": "10-K",
           "filed": "2026-02-25",
           "frame": null,
-          "tag": "LongTermDebt",
+          "tag": "LongTermDebtNoncurrent",
           "taxonomy": "us-gaap",
           "candidateIndex": 0
         },
@@ -684,7 +684,7 @@
           "eps_diluted": 4.8,
           "eps_basic": 4.98,
           "shares_out": 76619331,
-          "long_term_debt": 680289000,
+          "long_term_debt": 0,
           "inventory": 265316000,
           "rd": 441593000,
           "capex": 78785000,
@@ -723,8 +723,8 @@
         "net_margin": 0.04484777315350476,
         "roa": 0.017807203763603143,
         "roe": 0.03844253695579367,
-        "debt_equity": 0.55840671449163,
-        "debt_assets": 0.2586630054970399,
+        "debt_equity": 0.5335653652034843,
+        "debt_assets": 0.2471560914490538,
         "rd_intensity": 0.246195048382176,
         "fcf": 75081000,
         "fcf_margin": 0.02701206244495484,
@@ -1542,11 +1542,22 @@
         ],
         "long_term_debt": [
           {
+            "year": 2023,
+            "val": 677113000,
+            "end": "2023-12-31",
+            "start": null,
+            "tag": "LongTermDebtNoncurrent",
+            "taxonomy": "us-gaap",
+            "form": "10-K/A",
+            "filed": "2025-05-07",
+            "fp": "FY"
+          },
+          {
             "year": 2024,
-            "val": 680289000,
+            "val": 0,
             "end": "2024-12-31",
             "start": null,
-            "tag": "LongTermDebt",
+            "tag": "LongTermDebtNoncurrent",
             "taxonomy": "us-gaap",
             "form": "10-K",
             "filed": "2026-02-25",
@@ -1554,10 +1565,10 @@
           },
           {
             "year": 2025,
-            "val": 1810722000,
+            "val": 1730170000,
             "end": "2025-12-31",
             "start": null,
-            "tag": "LongTermDebt",
+            "tag": "LongTermDebtNoncurrent",
             "taxonomy": "us-gaap",
             "form": "10-K",
             "filed": "2026-02-25",
@@ -15986,7 +15997,20 @@
           "taxonomy": "us-gaap",
           "candidateIndex": 0
         },
-        "long_term_debt": null,
+        "long_term_debt": {
+          "val": 3765200000,
+          "unit": "USD",
+          "start": null,
+          "end": "2025-12-31",
+          "fy": 2025,
+          "fp": "FY",
+          "form": "10-K",
+          "filed": "2026-02-25",
+          "frame": null,
+          "tag": "LongTermDebtNoncurrent",
+          "taxonomy": "us-gaap",
+          "candidateIndex": 0
+        },
         "inventory": null,
         "receivables": {
           "val": 83100000,
@@ -16439,6 +16463,7 @@
           "eps_diluted": 6.45,
           "eps_basic": 6.63,
           "shares_out": 141208000,
+          "long_term_debt": 3779100000,
           "receivables": 91100000,
           "capex": 26600000,
           "ppe_net": 156400000,
@@ -16477,8 +16502,8 @@
         "net_margin": 0.17672840378905696,
         "roa": 0.10889992408119578,
         "roe": 4.0678754067875404,
-        "debt_equity": null,
-        "debt_assets": null,
+        "debt_equity": 17.504416550441654,
+        "debt_assets": 0.4686057076005924,
         "rd_intensity": null,
         "fcf": 1575500000,
         "fcf_margin": 0.31821211447961056,
@@ -17099,6 +17124,63 @@
             "end": "2025-12-31",
             "start": null,
             "tag": "CommonStockSharesOutstanding",
+            "taxonomy": "us-gaap",
+            "form": "10-K",
+            "filed": "2026-02-25",
+            "fp": "FY"
+          }
+        ],
+        "long_term_debt": [
+          {
+            "year": 2021,
+            "val": 3858200000,
+            "end": "2021-12-31",
+            "start": null,
+            "tag": "LongTermDebtNoncurrent",
+            "taxonomy": "us-gaap",
+            "form": "10-K",
+            "filed": "2023-02-16",
+            "fp": "FY"
+          },
+          {
+            "year": 2022,
+            "val": 3812900000,
+            "end": "2022-12-31",
+            "start": null,
+            "tag": "LongTermDebtNoncurrent",
+            "taxonomy": "us-gaap",
+            "form": "10-K",
+            "filed": "2024-02-29",
+            "fp": "FY"
+          },
+          {
+            "year": 2023,
+            "val": 3798500000,
+            "end": "2023-12-31",
+            "start": null,
+            "tag": "LongTermDebtNoncurrent",
+            "taxonomy": "us-gaap",
+            "form": "10-K",
+            "filed": "2025-02-20",
+            "fp": "FY"
+          },
+          {
+            "year": 2024,
+            "val": 3779100000,
+            "end": "2024-12-31",
+            "start": null,
+            "tag": "LongTermDebtNoncurrent",
+            "taxonomy": "us-gaap",
+            "form": "10-K",
+            "filed": "2026-02-25",
+            "fp": "FY"
+          },
+          {
+            "year": 2025,
+            "val": 3765200000,
+            "end": "2025-12-31",
+            "start": null,
+            "tag": "LongTermDebtNoncurrent",
             "taxonomy": "us-gaap",
             "form": "10-K",
             "filed": "2026-02-25",
@@ -20180,6 +20262,17 @@
           }
         ],
         "cash": [
+          {
+            "year": 2021,
+            "val": 140332000,
+            "end": "2021-12-26",
+            "start": null,
+            "tag": "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+            "taxonomy": "us-gaap",
+            "form": "10-K",
+            "filed": "2025-02-26",
+            "fp": "FY"
+          },
           {
             "year": 2022,
             "val": 39125000,
@@ -26753,6 +26846,19 @@
             "fp": "FY"
           }
         ],
+        "long_term_debt": [
+          {
+            "year": 2021,
+            "val": 0,
+            "end": "2021-12-31",
+            "start": null,
+            "tag": "LongTermDebtNoncurrent",
+            "taxonomy": "us-gaap",
+            "form": "10-K",
+            "filed": "2022-03-01",
+            "fp": "FY"
+          }
+        ],
         "inventory": [
           {
             "year": 2021,
@@ -29500,6 +29606,17 @@
         ],
         "cash": [
           {
+            "year": 2021,
+            "val": 1337848000,
+            "end": "2021-12-31",
+            "start": null,
+            "tag": "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+            "taxonomy": "us-gaap",
+            "form": "10-K",
+            "filed": "2025-02-13",
+            "fp": "FY"
+          },
+          {
             "year": 2022,
             "val": 435810000,
             "end": "2022-12-31",
@@ -31988,6 +32105,17 @@
         ],
         "cash": [
           {
+            "year": 2021,
+            "val": 278466000,
+            "end": "2021-12-31",
+            "start": null,
+            "tag": "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+            "taxonomy": "us-gaap",
+            "form": "10-K",
+            "filed": "2025-02-24",
+            "fp": "FY"
+          },
+          {
             "year": 2022,
             "val": 302938000,
             "end": "2022-12-31",
@@ -33937,8 +34065,8 @@
           "fp": "FY",
           "form": "10-K",
           "filed": "2026-02-19",
-          "frame": "CY2025Q4I",
-          "tag": "LongTermDebt",
+          "frame": null,
+          "tag": "LongTermDebtNoncurrent",
           "taxonomy": "us-gaap",
           "candidateIndex": 0
         },
@@ -35172,32 +35300,32 @@
         "long_term_debt": [
           {
             "year": 2021,
-            "val": 3227644000,
+            "val": 3201834000,
             "end": "2021-12-31",
             "start": null,
-            "tag": "LongTermDebt",
-            "taxonomy": "us-gaap",
-            "form": "10-K",
-            "filed": "2022-03-11",
-            "fp": "FY"
-          },
-          {
-            "year": 2022,
-            "val": 3211722000,
-            "end": "2022-12-31",
-            "start": null,
-            "tag": "LongTermDebt",
+            "tag": "LongTermDebtNoncurrent",
             "taxonomy": "us-gaap",
             "form": "10-K",
             "filed": "2023-02-28",
             "fp": "FY"
           },
           {
+            "year": 2022,
+            "val": 3178412000,
+            "end": "2022-12-31",
+            "start": null,
+            "tag": "LongTermDebtNoncurrent",
+            "taxonomy": "us-gaap",
+            "form": "10-K",
+            "filed": "2024-02-26",
+            "fp": "FY"
+          },
+          {
             "year": 2023,
-            "val": 3120906000,
+            "val": 2905906000,
             "end": "2023-12-31",
             "start": null,
-            "tag": "LongTermDebt",
+            "tag": "LongTermDebtNoncurrent",
             "taxonomy": "us-gaap",
             "form": "10-K",
             "filed": "2025-02-27",
@@ -35208,7 +35336,7 @@
             "val": 3508983000,
             "end": "2024-12-31",
             "start": null,
-            "tag": "LongTermDebt",
+            "tag": "LongTermDebtNoncurrent",
             "taxonomy": "us-gaap",
             "form": "10-K",
             "filed": "2026-02-19",
@@ -35219,7 +35347,7 @@
             "val": 3512987000,
             "end": "2025-12-31",
             "start": null,
-            "tag": "LongTermDebt",
+            "tag": "LongTermDebtNoncurrent",
             "taxonomy": "us-gaap",
             "form": "10-K",
             "filed": "2026-02-19",
@@ -44644,35 +44772,35 @@
         "long_term_debt": [
           {
             "year": 2021,
-            "val": 88000,
+            "val": 65000,
             "end": "2021-12-31",
             "start": null,
-            "tag": "LongTermDebt",
-            "taxonomy": "us-gaap",
-            "form": "20-F/A",
-            "filed": "2022-11-10",
-            "fp": "FY"
-          },
-          {
-            "year": 2022,
-            "val": 14493000,
-            "end": "2022-12-31",
-            "start": null,
-            "tag": "LongTermDebt",
+            "tag": "LongTermDebtNoncurrent",
             "taxonomy": "us-gaap",
             "form": "20-F",
             "filed": "2023-03-30",
             "fp": "FY"
           },
           {
-            "year": 2023,
-            "val": 7592000,
-            "end": "2023-12-31",
+            "year": 2022,
+            "val": 7088000,
+            "end": "2022-12-31",
             "start": null,
-            "tag": "LongTermDebt",
+            "tag": "LongTermDebtNoncurrent",
             "taxonomy": "us-gaap",
             "form": "20-F",
             "filed": "2024-03-15",
+            "fp": "FY"
+          },
+          {
+            "year": 2023,
+            "val": 19000,
+            "end": "2023-12-31",
+            "start": null,
+            "tag": "LongTermDebtNoncurrent",
+            "taxonomy": "us-gaap",
+            "form": "20-F",
+            "filed": "2025-03-14",
             "fp": "FY"
           },
           {
@@ -46414,7 +46542,7 @@
           "frame": "CY2025Q4I",
           "tag": "CashAndCashEquivalents",
           "taxonomy": "ifrs-full",
-          "candidateIndex": 1
+          "candidateIndex": 2
         },
         "cfo": null,
         "cfi": null,
@@ -47921,7 +48049,20 @@
           "taxonomy": "ifrs-full",
           "candidateIndex": 1
         },
-        "liabilities": null,
+        "liabilities": {
+          "val": 1203000000,
+          "unit": "CHF",
+          "start": null,
+          "end": "2025-12-31",
+          "fy": 2025,
+          "fp": "FY",
+          "form": "20-F",
+          "filed": "2026-03-03",
+          "frame": "CY2025Q4I",
+          "tag": "Assets−Equity",
+          "taxonomy": "derived",
+          "derived": true
+        },
         "equity": {
           "val": 1632400000,
           "unit": "CHF",
@@ -47948,7 +48089,7 @@
           "frame": "CY2025Q4I",
           "tag": "CashAndCashEquivalents",
           "taxonomy": "ifrs-full",
-          "candidateIndex": 1
+          "candidateIndex": 2
         },
         "cfo": null,
         "cfi": null,
@@ -48166,7 +48307,8 @@
           "interest_expense": 23100000,
           "interest_income": 23500000,
           "income_tax_expense": 37400000,
-          "pretax_income": 279600000
+          "pretax_income": 279600000,
+          "liabilities": 984900000
         }
       },
       "ratios": {
@@ -49175,6 +49317,83 @@
             "filed": "2026-03-03",
             "fp": "FY"
           }
+        ],
+        "liabilities": [
+          {
+            "val": 388100000,
+            "unit": "USD",
+            "start": null,
+            "end": "2021-12-31",
+            "fy": null,
+            "fp": "FY",
+            "form": "20-F",
+            "filed": "2023-03-21",
+            "frame": null,
+            "tag": "Assets−Equity",
+            "taxonomy": "derived",
+            "derived": true,
+            "year": 2021
+          },
+          {
+            "val": 412900000,
+            "unit": "USD",
+            "start": null,
+            "end": "2022-12-31",
+            "fy": null,
+            "fp": "FY",
+            "form": "20-F",
+            "filed": "2024-03-12",
+            "frame": null,
+            "tag": "Assets−Equity",
+            "taxonomy": "derived",
+            "derived": true,
+            "year": 2022
+          },
+          {
+            "val": 518500000,
+            "unit": "USD",
+            "start": null,
+            "end": "2023-12-31",
+            "fy": null,
+            "fp": "FY",
+            "form": "20-F",
+            "filed": "2025-03-04",
+            "frame": null,
+            "tag": "Assets−Equity",
+            "taxonomy": "derived",
+            "derived": true,
+            "year": 2023
+          },
+          {
+            "val": 984900000,
+            "unit": "USD",
+            "start": null,
+            "end": "2024-12-31",
+            "fy": null,
+            "fp": "FY",
+            "form": "20-F",
+            "filed": "2026-03-03",
+            "frame": null,
+            "tag": "Assets−Equity",
+            "taxonomy": "derived",
+            "derived": true,
+            "year": 2024
+          },
+          {
+            "val": 1203000000,
+            "unit": "USD",
+            "start": null,
+            "end": "2025-12-31",
+            "fy": null,
+            "fp": "FY",
+            "form": "20-F",
+            "filed": "2026-03-03",
+            "frame": null,
+            "tag": "Assets−Equity",
+            "taxonomy": "derived",
+            "derived": true,
+            "year": 2025
+          }
         ]
       },
       "seriesQuarterly": {}
@@ -49821,6 +50040,7 @@
           "cff": 398023000,
           "eps_diluted": -7.48,
           "eps_basic": -7.48,
+          "long_term_debt": 322341000,
           "inventory": 4183000,
           "receivables": 177627000,
           "rd": 531615000,
@@ -50192,6 +50412,28 @@
         ],
         "cash": [
           {
+            "year": 2022,
+            "val": 75693000,
+            "end": "2022-01-31",
+            "start": null,
+            "tag": "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+            "taxonomy": "us-gaap",
+            "form": "10-K",
+            "filed": "2025-03-20",
+            "fp": "FY"
+          },
+          {
+            "year": 2023,
+            "val": 140606000,
+            "end": "2023-01-31",
+            "start": null,
+            "tag": "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+            "taxonomy": "us-gaap",
+            "form": "10-K",
+            "filed": "2026-03-19",
+            "fp": "FY"
+          },
+          {
             "year": 2024,
             "val": 130031000,
             "end": "2024-01-31",
@@ -50452,6 +50694,30 @@
             "taxonomy": "us-gaap",
             "form": "10-K",
             "filed": "2026-03-19",
+            "fp": "FY"
+          }
+        ],
+        "long_term_debt": [
+          {
+            "year": 2024,
+            "val": 287042000,
+            "end": "2024-01-31",
+            "start": null,
+            "tag": "LongTermDebtNoncurrent",
+            "taxonomy": "us-gaap",
+            "form": "10-K",
+            "filed": "2025-03-20",
+            "fp": "FY"
+          },
+          {
+            "year": 2025,
+            "val": 322341000,
+            "end": "2025-01-31",
+            "start": null,
+            "tag": "LongTermDebtNoncurrent",
+            "taxonomy": "us-gaap",
+            "form": "10-K",
+            "filed": "2025-03-20",
             "fp": "FY"
           }
         ],

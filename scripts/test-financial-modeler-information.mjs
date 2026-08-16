@@ -95,18 +95,16 @@ const filing = {
 };
 
 const withDoc = filingSourceLinks({ company, point, def, filing });
-assert.ok(withDoc.some((l) => l.kind === 'document' && l.href.includes('/ix?doc=')));
-assert.ok(withDoc.some((l) => l.kind === 'browse'));
-assert.ok(withDoc.some((l) => l.kind === 'concept' && l.href.includes('us-gaap/Revenues.json')));
-assert.ok(withDoc.some((l) => l.label === 'us-gaap:Revenues'));
+assert.equal(withDoc.length, 1);
+assert.equal(withDoc[0].kind, 'document');
+assert.ok(withDoc[0].href.includes('/ix?doc='));
+assert.equal(withDoc[0].label, 'Open 10-K (inline XBRL)');
 
 const noDoc = filingSourceLinks({ company, point, def });
-assert.ok(noDoc.some((l) => l.kind === 'browse' && l.href.includes('type=10-K')));
-assert.ok(!noDoc.some((l) => l.kind === 'document'));
+assert.deepEqual(noDoc, []);
 
 const derived = filingSourceLinks({ company, derived: true });
-assert.ok(derived.length >= 1);
-assert.ok(derived.every((l) => l.kind === 'browse'));
+assert.deepEqual(derived, []);
 
 const eq = stackedAddends(
   [

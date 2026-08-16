@@ -359,7 +359,7 @@ export function computeRatios(metrics, priorRevenue) {
   const ni = val(metrics, 'net_income');
   const assets = val(metrics, 'assets');
   const equity = val(metrics, 'equity');
-  const debt = val(metrics, 'long_term_debt');
+  const debt = val(metrics, 'long_term_debt') ?? val(metrics, 'debt_noncurrent');
   const cfo = val(metrics, 'cfo');
   const capex = val(metrics, 'capex');
   const rd = val(metrics, 'rd');
@@ -504,9 +504,17 @@ export function ordinal(n) {
 }
 
 /** Fill derived ratios (and implied liabilities) on a snapshot/API row so older snapshots pick up new formulas. */
+function backfillLongTermDebt(metrics) {
+  const ltd = metrics?.long_term_debt;
+  if (ltd && finiteVal(ltd.val)) return;
+  const dnc = metrics?.debt_noncurrent;
+  if (dnc && finiteVal(dnc.val)) metrics.long_term_debt = { ...dnc };
+}
+
 export function ensureRatios(headlines) {
   if (!headlines?.metrics) return headlines;
   const metrics = headlines.metrics;
+  backfillLongTermDebt(metrics);
   const seriesAnnual = headlines.seriesAnnual ? { ...headlines.seriesAnnual } : {};
   applyImpliedLiabilities(metrics, seriesAnnual, headlines.priorMetrics);
   const ratios = computeRatios(metrics, headlines.priorRevenue);

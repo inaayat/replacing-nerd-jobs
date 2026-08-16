@@ -132,57 +132,17 @@ export function hasExpandableSeries(headlines, key) {
  * Human links for “where to find it”. Company Facts do not store a PDF page
  * number; the inline XBRL viewer is the closest jump-to-the-line we can offer.
  */
-export function filingSourceLinks({ company, point, def, filing, derived } = {}) {
+/** One human-readable jump: the inline XBRL viewer for the annual report. */
+export function filingSourceLinks({ company, point, filing, derived } = {}) {
+  if (derived) return [];
   const cik = company?.cik;
-  const links = [];
   const form = point?.form || filing?.form || company?.form || '10-K';
-  const filed = point?.filed || filing?.filingDate || null;
   const accession = filing?.accession;
   const primary = filing?.primary;
-  const taxonomy = point?.taxonomy || 'us-gaap';
-  const tag = point?.tag || (typeof def?.tags === 'string' ? def.tags.split(/[,\s]+/)[0] : '');
-
-  if (derived) {
-    const browse = edgarBrowseUrl({ cik, form, browse: company?.edgar_filings_browse });
-    if (browse) links.push({ href: browse, label: `Filings on EDGAR (${form})`, kind: 'browse' });
-    return links;
-  }
-
-  if (accession && primary) {
-    const html = inlineXbrlUrl(cik, accession, primary);
-    const raw = filingArchiveUrl(cik, accession, primary);
-    if (html) links.push({ href: html, label: `Open ${form} (inline XBRL)`, kind: 'document' });
-    if (raw) links.push({ href: raw, label: `${form} HTML`, kind: 'archive' });
-  }
-
-  const browse = edgarBrowseUrl({
-    cik,
-    form,
-    filed,
-    browse: company?.edgar_filings_browse,
-  });
-  if (browse) {
-    links.push({
-      href: browse,
-      label: accession ? `All ${form} filings` : `Open ${form} on EDGAR`,
-      kind: 'browse',
-    });
-  }
-
-  const concept = companyConceptUrl(cik, taxonomy, tag);
-  if (concept && tag) {
-    links.push({ href: concept, label: `${taxonomy}:${tag}`, kind: 'concept' });
-  }
-
-  const facts = companyFactsUrl(cik, company?.edgar_companyfacts_api);
-  if (facts) links.push({ href: facts, label: 'Company Facts', kind: 'facts' });
-
-  const seen = new Set();
-  return links.filter((link) => {
-    if (!link.href || seen.has(link.href)) return false;
-    seen.add(link.href);
-    return true;
-  });
+  if (!accession || !primary) return [];
+  const html = inlineXbrlUrl(cik, accession, primary);
+  if (!html) return [];
+  return [{ href: html, label: `Open ${form} (inline XBRL)`, kind: 'document' }];
 }
 
 /**

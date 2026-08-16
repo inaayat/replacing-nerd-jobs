@@ -543,12 +543,18 @@ export const METRICS = [
     label: 'Long-term debt',
     plain: 'Loans they don’t have to pay back this year.',
     eli5: 'Borrowed money due after this year — the slow IOUs. A factory-heavy company often has more than a software company. More debt can mean leverage (amplifies wins and losses), not automatically trouble.',
-    whyMissing: 'Coverage is patchy. Many companies put debt in a different tag, or have none. Blank is not $0 of debt.',
-    tags: 'LongTermDebt',
+    whyMissing:
+      'Many filers tag noncurrent debt as LongTermDebtNoncurrent instead of the legacy LongTermDebt line. We read both (and the capital-lease variant) before leaving the cell blank — blank is not $0 of debt.',
+    tags: 'LongTermDebtNoncurrent, LongTermDebt, LongTermDebtAndCapitalLeaseObligations',
     unit: 'USD',
     kind: 'instant',
     better: null,
-    candidates: [{ taxonomy: 'us-gaap', tag: 'LongTermDebt' }],
+    candidates: [
+      { taxonomy: 'us-gaap', tag: 'LongTermDebtNoncurrent' },
+      { taxonomy: 'us-gaap', tag: 'LongTermDebt' },
+      { taxonomy: 'us-gaap', tag: 'LongTermDebtAndCapitalLeaseObligations' },
+      { taxonomy: 'ifrs-full', tag: 'NoncurrentBorrowings' },
+    ],
   },
   {
     key: 'inventory',
