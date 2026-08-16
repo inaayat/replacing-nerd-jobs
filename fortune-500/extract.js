@@ -255,14 +255,29 @@ function impliedLiabilityPoint(assets, equity) {
   };
 }
 
+const EQUITY_TOTAL_DEF = {
+  key: '_equity_total',
+  unit: 'USD',
+  kind: 'instant',
+  candidates: [
+    { taxonomy: 'us-gaap', tag: 'StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest' },
+  ],
+};
+
 /**
  * Many 10-Ks skip us-gaap:Liabilities and only tag the pieces. The complete
- * total is still assets − equity. Individual debt lines stay on their own keys.
+ * total is assets − total equity. Parent equity overstates liabilities when
+ * NCI exists, so we use the including-NCI equity tag when it is filed.
  */
-function applyImpliedLiabilities(metrics, seriesAnnual, priorMetrics) {
+function applyImpliedLiabilities(metrics, seriesAnnual, priorMetrics, facts = null, asOfYear = null) {
   if (!metrics) return;
+  const totalEquityPoints = facts ? collectPoints(facts, EQUITY_TOTAL_DEF) : [];
+  const equityForYear = (year, fallback) => {
+    const p = year == null ? null : pickForYear(totalEquityPoints, year);
+    return p && finiteVal(p.val) ? p : fallback;
+  };
   if (!(metrics.liabilities && finiteVal(metrics.liabilities.val))) {
-    const implied = impliedLiabilityPoint(metrics.assets, metrics.equity);
+    const implied = impliedLiabilityPoint(metrics.assets, equityForYear(asOfYear, metrics.equity));
     if (implied) metrics.liabilities = implied;
   }
   if (seriesAnnual) {
@@ -273,7 +288,7 @@ function applyImpliedLiabilities(metrics, seriesAnnual, priorMetrics) {
     const equityByYear = new Map((seriesAnnual.equity || []).map((row) => [row.year, row]));
     for (const assets of seriesAnnual.assets || []) {
       if (byYear.has(assets.year)) continue;
-      const implied = impliedLiabilityPoint(assets, equityByYear.get(assets.year));
+      const implied = impliedLiabilityPoint(assets, equityForYear(assets.year, equityByYear.get(assets.year)));
       if (implied) byYear.set(assets.year, { ...implied, year: assets.year });
     }
     if (byYear.size) {
@@ -282,7 +297,8 @@ function applyImpliedLiabilities(metrics, seriesAnnual, priorMetrics) {
   }
   if (priorMetrics?.values && priorMetrics.values.liabilities == null) {
     const a = priorMetrics.values.assets;
-    const e = priorMetrics.values.equity;
+    const total = priorMetrics.year == null ? null : pickForYear(totalEquityPoints, priorMetrics.year);
+    const e = total && finiteVal(total.val) ? total.val : priorMetrics.values.equity;
     if (typeof a === 'number' && Number.isFinite(a) && typeof e === 'number' && Number.isFinite(e)) {
       priorMetrics.values.liabilities = a - e;
     }
@@ -376,8 +392,8 @@ export function extractHeadlines(facts) {
     if (byYear.size) seriesAnnual.operating_lease_liability = [...byYear.values()].sort((a, b) => a.year - b.year);
   }
   applyDerivedGrossProfit(metrics, seriesAnnual, priorMetrics);
-  applyImpliedLiabilities(metrics, seriesAnnual, priorMetrics);
-  normalizeMetrics(metrics, priorMetrics);
+  applyImpliedLiabilities(metrics, seriesAnnual, priorMetrics, facts, asOfYear);
+  normalizeMetrics(metrics, priorMetrics, seriesAnnual);
   const ratios = computeRatios(metrics, priorRevenue);
   return {
     cik: facts?.cik ?? null,
@@ -474,13 +490,88 @@ function derivedPointFrom(source, valNum, tag) {
   };
 }
 
-/** Copy weighted-average diluted shares when period-end shares are absent. */
-function applySharesFallback(metrics) {
+/**
+ * Tags that can be the wrong economic line at some filers. Drop them from
+ * live extracts and from older snapshots so a piece or mixed total is never
+ * shown as the labeled metric.
+ */
+const UNSAFE_TAGS_BY_KEY = {
+  sga: new Set([
+    'GeneralAndAdministrativeExpense',
+    'SellingAndMarketingExpense',
+    'AdministrativeExpense',
+    'SellingExpense',
+  ]),
+  cash: new Set(['CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents']),
+  revenue: new Set(['RevenueFromContractWithCustomerIncludingAssessedTax']),
+  equity: new Set(['StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest', 'Equity']),
+  prepaid_expenses: new Set(['PrepaidExpenseAndOtherAssetsCurrent']),
+  accrued_liabilities: new Set(['EmployeeRelatedLiabilitiesCurrent', 'OtherCurrentLiabilities']),
+  intangibles_net: new Set(['IntangibleAssetsNetIncludingGoodwill']),
+  da_expense: new Set(['Depreciation']),
+  interest_income: new Set(['InterestIncomeExpenseNet']),
+  finance_lease_liability: new Set(['FinanceLeaseLiabilityNoncurrent']),
+  debt_current: new Set([
+    'DebtCurrent',
+    'ShortTermBorrowings',
+    'CommercialPaper',
+    'ConvertibleDebtCurrent',
+    'ConvertibleNotesPayableCurrent',
+    'NotesPayableCurrent',
+    'LongTermDebtAndCapitalLeaseObligationsCurrent',
+    'CurrentBorrowings',
+  ]),
+  debt_noncurrent: new Set([
+    'ConvertibleDebtNoncurrent',
+    'ConvertibleLongTermNotesPayable',
+    'ConvertibleDebt',
+    'LongTermNotesPayable',
+    'UnsecuredDebt',
+    'SeniorNotes',
+    'NotesPayableNoncurrent',
+    'OtherLongTermDebtNoncurrent',
+  ]),
+  long_term_debt: new Set([
+    'LongTermDebt',
+    'LongTermDebtAndCapitalLeaseObligations',
+    'ConvertibleDebtNoncurrent',
+    'ConvertibleLongTermNotesPayable',
+    'ConvertibleDebt',
+    'LongTermNotesPayable',
+    'UnsecuredDebt',
+    'SeniorNotes',
+    'NotesPayableNoncurrent',
+    'OtherLongTermDebtNoncurrent',
+  ]),
+};
+
+const SAFE_NONCURRENT_DEBT = new Set(['LongTermDebtNoncurrent', 'NoncurrentBorrowings']);
+
+function pointIsUnsafe(key, point) {
+  if (!point) return false;
+  const tags = UNSAFE_TAGS_BY_KEY[key];
+  if (tags && tags.has(point.tag)) return true;
+  if (key === 'shares_out' && point.derived && /WeightedAverage/.test(point.tag || '')) return true;
+  return false;
+}
+
+function dropUnsafeFiledPoints(metrics, seriesAnnual = null) {
   if (!metrics) return;
-  if (metrics.shares_out && finiteVal(metrics.shares_out.val)) return;
-  const wavg = metrics.shares_diluted_wavg;
-  if (!(wavg && finiteVal(wavg.val))) return;
-  metrics.shares_out = { ...wavg, derived: true };
+  for (const key of Object.keys(UNSAFE_TAGS_BY_KEY)) {
+    if (pointIsUnsafe(key, metrics[key])) metrics[key] = null;
+  }
+  if (pointIsUnsafe('shares_out', metrics.shares_out)) metrics.shares_out = null;
+  const non = metrics.debt_noncurrent;
+  const nonOk = non && finiteVal(non.val) && SAFE_NONCURRENT_DEBT.has(non.tag);
+  if (!(metrics.long_term_debt && finiteVal(metrics.long_term_debt.val)) && nonOk) {
+    metrics.long_term_debt = { ...non };
+  }
+  if (seriesAnnual) {
+    for (const [key, rows] of Object.entries(seriesAnnual)) {
+      if (!Array.isArray(rows)) continue;
+      seriesAnnual[key] = rows.filter((row) => !pointIsUnsafe(key, row));
+    }
+  }
 }
 
 /** Fill gross profit or COGS from the other line plus revenue when one side is tagged. */
@@ -512,10 +603,10 @@ function applyPriorMetricNormalizations(priorMetrics) {
   }
 }
 
-/** Derived income lines and share fallbacks shared by fresh extracts and cached snapshots. */
-export function normalizeMetrics(metrics, priorMetrics = null) {
+/** Derived income lines and snapshot sanitizer shared by fresh extracts and cached snapshots. */
+export function normalizeMetrics(metrics, priorMetrics = null, seriesAnnual = null) {
+  dropUnsafeFiledPoints(metrics, seriesAnnual);
   applyIncomeDerivations(metrics);
-  applySharesFallback(metrics);
   applyPriorMetricNormalizations(priorMetrics);
 }
 
@@ -674,7 +765,7 @@ export function ensureRatios(headlines) {
   const seriesAnnual = headlines.seriesAnnual ? { ...headlines.seriesAnnual } : {};
   applyDerivedGrossProfit(metrics, seriesAnnual, headlines.priorMetrics);
   applyImpliedLiabilities(metrics, seriesAnnual, headlines.priorMetrics);
-  normalizeMetrics(metrics, headlines.priorMetrics);
+  normalizeMetrics(metrics, headlines.priorMetrics, seriesAnnual);
   const ratios = computeRatios(metrics, headlines.priorRevenue);
   return {
     ...headlines,

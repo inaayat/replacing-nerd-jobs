@@ -7,6 +7,9 @@
  * detail, leases, financing, bank tags) plus student-facing copy for the
  * Financial Modeler information page.
  *
+ * Candidate lists are synonyms for one line, never a subset or a mixed total.
+ * If a fallback can be the wrong number at any filer, leave the cell blank.
+ *
  * Browser-safe ESM. Academic register — definitions a student would use.
  */
 
@@ -91,10 +94,9 @@ export const BALANCE_SHEET_METRICS = [
     'IntangibleAssetsNetExcludingGoodwill',
     [
       { taxonomy: 'us-gaap', tag: 'IntangibleAssetsNetExcludingGoodwill' },
-      { taxonomy: 'us-gaap', tag: 'IntangibleAssetsNetIncludingGoodwill' },
       { taxonomy: 'ifrs-full', tag: 'IntangibleAssetsOtherThanGoodwill' },
     ],
-    'Some filers combine goodwill and other intangibles; we prefer the excluding-goodwill tag when both exist.'
+    'Some filers combine goodwill and other intangibles; we do not use that combined tag as “excluding goodwill.”'
   ),
   usdInstant.call(
     BS,
@@ -116,10 +118,8 @@ export const BALANCE_SHEET_METRICS = [
     'AccruedLiabilitiesCurrent',
     [
       { taxonomy: 'us-gaap', tag: 'AccruedLiabilitiesCurrent' },
-      { taxonomy: 'us-gaap', tag: 'EmployeeRelatedLiabilitiesCurrent' },
-      { taxonomy: 'ifrs-full', tag: 'OtherCurrentLiabilities' },
     ],
-    'Coverage is uneven; many issuers roll accruals into “other current liabilities.”'
+    'Coverage is uneven; many issuers roll accruals into “other current liabilities.” We do not substitute wages-only or other-current tags — those are pieces, not this line.'
   ),
   usdInstant.call(
     BS,
@@ -155,46 +155,29 @@ export const BALANCE_SHEET_METRICS = [
     'PrepaidExpenseCurrent',
     [
       { taxonomy: 'us-gaap', tag: 'PrepaidExpenseCurrent' },
-      { taxonomy: 'us-gaap', tag: 'PrepaidExpenseAndOtherAssetsCurrent' },
       { taxonomy: 'ifrs-full', tag: 'PrepaymentsCurrent' },
     ],
-    'Frequently combined with other current assets and therefore missing as a standalone tag.'
+    'Frequently combined with other current assets and therefore missing as a standalone tag. We do not use PrepaidExpenseAndOtherAssetsCurrent — that mix is the wrong number for prepaid expenses.'
   ),
   usdInstant.call(
     BS,
     'debt_current',
-    'Current portion of debt',
-    'Borrowings due within one year, including the current portion of long-term debt, short-term notes, and commercial paper. Together with noncurrent debt this is the usual input to net debt (debt minus cash).',
-    'LongTermDebtCurrent, DebtCurrent, ShortTermBorrowings',
+    'Current portion of long-term debt',
+    'The slice of long-term debt due within one year. Short-term borrowings and commercial paper are separate tags; we do not add them here because they can overlap with this line or sit beside it, and adding would be wrong for some filers.',
+    'LongTermDebtCurrent',
     [
       { taxonomy: 'us-gaap', tag: 'LongTermDebtCurrent' },
-      { taxonomy: 'us-gaap', tag: 'DebtCurrent' },
-      { taxonomy: 'us-gaap', tag: 'ShortTermBorrowings' },
-      { taxonomy: 'us-gaap', tag: 'CommercialPaper' },
-      { taxonomy: 'us-gaap', tag: 'ConvertibleDebtCurrent' },
-      { taxonomy: 'us-gaap', tag: 'ConvertibleNotesPayableCurrent' },
-      { taxonomy: 'us-gaap', tag: 'NotesPayableCurrent' },
-      { taxonomy: 'us-gaap', tag: 'LongTermDebtAndCapitalLeaseObligationsCurrent' },
-      { taxonomy: 'ifrs-full', tag: 'CurrentBorrowings' },
     ],
-    'Issuers use several debt tags; blank means we did not find a current-debt roll-up, not that maturities are zero.'
+    'Blank means we did not find LongTermDebtCurrent — not that current maturities are zero, and not that commercial paper is included.'
   ),
   usdInstant.call(
     BS,
     'debt_noncurrent',
     'Long-term debt, noncurrent',
-    'Interest-bearing debt due after one year. Preferred over the legacy LongTermDebt tag when both exist, because LongTermDebt is sometimes the current-plus-noncurrent total and sometimes only the long-term piece.',
-    'LongTermDebtNoncurrent, ConvertibleDebtNoncurrent',
+    'Interest-bearing debt due after one year. Notes, convertibles, and senior-debt tags are pieces of this line at some issuers and the whole line at others — we only read the standardized noncurrent roll-up.',
+    'LongTermDebtNoncurrent',
     [
       { taxonomy: 'us-gaap', tag: 'LongTermDebtNoncurrent' },
-      { taxonomy: 'us-gaap', tag: 'ConvertibleDebtNoncurrent' },
-      { taxonomy: 'us-gaap', tag: 'ConvertibleLongTermNotesPayable' },
-      { taxonomy: 'us-gaap', tag: 'ConvertibleDebt' },
-      { taxonomy: 'us-gaap', tag: 'LongTermNotesPayable' },
-      { taxonomy: 'us-gaap', tag: 'UnsecuredDebt' },
-      { taxonomy: 'us-gaap', tag: 'SeniorNotes' },
-      { taxonomy: 'us-gaap', tag: 'NotesPayableNoncurrent' },
-      { taxonomy: 'us-gaap', tag: 'OtherLongTermDebtNoncurrent' },
       { taxonomy: 'ifrs-full', tag: 'NoncurrentBorrowings' },
     ],
     'About half of filers skip a clean long-term-debt tag; blank is not evidence of an unlevered balance sheet.'
@@ -207,12 +190,11 @@ export const BALANCE_SHEET_METRICS = [
     'DepreciationDepletionAndAmortization, DepreciationAmortizationAndAccretionNet',
     [
       { taxonomy: 'us-gaap', tag: 'DepreciationDepletionAndAmortization' },
-      { taxonomy: 'us-gaap', tag: 'Depreciation' },
       { taxonomy: 'us-gaap', tag: 'DepreciationAndAmortization' },
       { taxonomy: 'us-gaap', tag: 'DepreciationAmortizationAndAccretionNet' },
       { taxonomy: 'ifrs-full', tag: 'DepreciationAmortisationAndImpairmentExpense' },
     ],
-    'Some filers report D&A only in the cash-flow statement footnotes under a tag we do not read.'
+    'Some filers report D&A only in the cash-flow statement footnotes. We do not use Depreciation alone — that omits amortization.'
   ),
 ];
 
@@ -240,12 +222,8 @@ export const INCOME_DETAIL_METRICS = [
     'SellingGeneralAndAdministrativeExpense',
     [
       { taxonomy: 'us-gaap', tag: 'SellingGeneralAndAdministrativeExpense' },
-      { taxonomy: 'us-gaap', tag: 'GeneralAndAdministrativeExpense' },
-      { taxonomy: 'us-gaap', tag: 'SellingAndMarketingExpense' },
-      { taxonomy: 'ifrs-full', tag: 'AdministrativeExpense' },
-      { taxonomy: 'ifrs-full', tag: 'SellingExpense' },
     ],
-    'Issuers often split SG&A into several tags; we take the first consolidated candidate that exists for the year.'
+    'Issuers that split selling and G&A into separate tags are left blank. G&A or selling-and-marketing alone is the wrong number for this line (Microsoft files both).'
   ),
   usdDuration.call(
     ID,
@@ -274,10 +252,9 @@ export const INCOME_DETAIL_METRICS = [
       { taxonomy: 'us-gaap', tag: 'InterestAndDividendIncomeOperating' },
       { taxonomy: 'us-gaap', tag: 'InvestmentIncomeInterest' },
       { taxonomy: 'us-gaap', tag: 'InterestIncomeDepositsWithFinancialInstitutions' },
-      { taxonomy: 'us-gaap', tag: 'InterestIncomeExpenseNet' },
       { taxonomy: 'ifrs-full', tag: 'FinanceIncome' },
     ],
-    'Industrial filers often omit it when immaterial; InterestIncomeExpenseNet is a net figure and is used only if a gross interest-income tag is absent.'
+    'Industrial filers often omit it when immaterial. We do not use InterestIncomeExpenseNet — that is income minus expense, not interest income.'
   ),
   usdDuration.call(
     ID,
@@ -349,9 +326,8 @@ export const LEASE_METRICS = [
     [
       { taxonomy: 'us-gaap', tag: 'FinanceLeaseLiability' },
       { taxonomy: 'us-gaap', tag: 'CapitalLeaseObligations' },
-      { taxonomy: 'us-gaap', tag: 'FinanceLeaseLiabilityNoncurrent' },
     ],
-    'Many lessees have operating leases only.'
+    'Many lessees have operating leases only. We do not use the noncurrent piece as the total.'
   ),
   usdInstant.call(
     LS,
@@ -788,7 +764,7 @@ export const CORE_STUDENT = {
   equity:
     'Residual interest in assets after deducting liabilities — book value attributable to shareholders. Not market capitalization.',
   cash:
-    'Cash and cash equivalents at carrying value on the balance-sheet date. A stock of liquidity, distinct from operating cash flow (a flow over the year).',
+    'Cash and cash equivalents at carrying value on the balance-sheet date. A stock of liquidity, distinct from operating cash flow (a flow over the year). The combined cash + restricted-cash tag is a different line and is not substituted.',
   cfo:
     'Net cash provided by (used in) operating activities. The cash counterpart of earnings after working-capital and non-cash adjustments.',
   cfi:
@@ -802,7 +778,7 @@ export const CORE_STUDENT = {
   shares_out:
     'Common shares outstanding at period-end. A stock count; the DCF share count typically uses this or diluted weighted-average shares, depending on the model.',
   long_term_debt:
-    'Noncurrent interest-bearing debt at period-end. Many filers tag this as LongTermDebtNoncurrent rather than the legacy LongTermDebt line; we read both before leaving the cell blank.',
+    'Noncurrent interest-bearing debt at period-end. Only LongTermDebtNoncurrent (or IFRS NoncurrentBorrowings) is mapped. The legacy LongTermDebt tag is sometimes the current-plus-noncurrent total, so it is left blank rather than shown as this line.',
   inventory:
     'Goods held for sale, net of reserves. Used with cost of sales to estimate days inventory outstanding. Often untagged for banks and software firms.',
   receivables:

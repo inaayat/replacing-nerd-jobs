@@ -56,29 +56,9 @@ function fcfFrom(cfo, capex) {
   return capex < 0 ? cfo + capex : cfo - capex;
 }
 
-/** P9 debt stock from filed metric points (import-free duplicate of extract.debtStock). */
-function debtStockFromMetrics(metrics) {
-  if (!metrics) return null;
-  const cur = numberOr(metrics.debt_current?.val);
-  const non = numberOr(metrics.debt_noncurrent?.val);
-  const ltd = numberOr(metrics.long_term_debt?.val);
-  if (cur == null && non == null && ltd == null) return null;
-  return (cur ?? 0) + (non ?? ltd ?? 0);
-}
-
-function debtStockFromPrior(values) {
-  if (!values) return null;
-  const cur = numberOr(values.debt_current);
-  const non = numberOr(values.debt_noncurrent);
-  const ltd = numberOr(values.long_term_debt);
-  if (cur == null && non == null && ltd == null) return null;
-  return (cur ?? 0) + (non ?? ltd ?? 0);
-}
-
 /** Latest filed value for one statement row. */
 function filedValue(headlines, row) {
   if (row.source === 'ratio') return numberOr(headlines?.ratios?.[row.key]);
-  if (row.key === 'long_term_debt') return debtStockFromMetrics(headlines?.metrics);
   return numberOr(headlines?.metrics?.[row.key]?.val);
 }
 
@@ -91,10 +71,6 @@ function priorValue(headlines, row) {
   const values = headlines?.priorMetrics?.values;
   if (values) {
     if (row.key === 'fcf') return fcfFrom(numberOr(values.cfo), numberOr(values.capex));
-    if (row.key === 'long_term_debt') {
-      const stock = debtStockFromPrior(values);
-      if (stock != null) return stock;
-    }
     if (row.key in values) return numberOr(values[row.key]);
   }
   if (row.key === 'revenue') return numberOr(headlines?.priorRevenue?.val);

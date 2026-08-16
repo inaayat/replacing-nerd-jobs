@@ -242,7 +242,8 @@ const utility = extractHeadlines({
 assert.equal(utility.metrics.revenue.tag, 'RegulatedAndUnregulatedOperatingRevenue');
 assert.equal(utility.metrics.revenue.val, 27.4e9);
 
-// Retailers and industrials that only tag the including-assessed-tax variant.
+// Retailers that only tag revenue including assessed tax are left blank —
+// that line can include sales tax, so it is not a safe synonym for revenue.
 const retailer = extractHeadlines({
   cik: 109198,
   entityName: 'TJX-like',
@@ -253,8 +254,7 @@ const retailer = extractHeadlines({
     },
   },
 });
-assert.equal(retailer.metrics.revenue.tag, 'RevenueFromContractWithCustomerIncludingAssessedTax');
-assert.equal(retailer.metrics.revenue.val, 60.4e9);
+assert.equal(retailer.metrics.revenue, null);
 
 // The sales-tax-free variant still wins when a filer tags both.
 const bothAssessed = extractHeadlines({
@@ -656,8 +656,7 @@ assert.equal(ordinal(1), '1st');
     form: '10-K',
     filed: `${fy + 1}-02-01`,
   }];
-  // GoDaddy-style: AtCarryingValue went stale in 2018; the 10-K line is the
-  // combined cash + restricted-cash tag.
+  // Combined cash + restricted-cash is a different line; do not use it as cash.
   const gddyLike = extractHeadlines({
     cik: 1609711,
     entityName: 'GoDaddy-like',
@@ -672,8 +671,7 @@ assert.equal(ordinal(1), '1st');
       },
     },
   });
-  assert.equal(gddyLike.metrics.cash.val, 1080.9e6);
-  assert.equal(gddyLike.metrics.cash.tag, 'CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents');
+  assert.equal(gddyLike.metrics.cash, null);
 
   const bothCash = extractHeadlines({
     cik: 3,
@@ -718,8 +716,21 @@ assert.equal(ordinal(1), '1st');
       },
     },
   });
-  assert.equal(legacyDebt.metrics.long_term_debt.val, 100, 'prefer legacy total debt when both tags exist');
-  assert.equal(legacyDebt.metrics.long_term_debt.tag, 'LongTermDebt');
+  assert.equal(legacyDebt.metrics.long_term_debt.val, 90, 'noncurrent tag is the labeled line when both exist');
+  assert.equal(legacyDebt.metrics.long_term_debt.tag, 'LongTermDebtNoncurrent');
+
+  const onlyLegacyDebt = extractHeadlines({
+    cik: 1,
+    entityName: 'Ambiguous LongTermDebt',
+    facts: {
+      'us-gaap': {
+        Revenues: { units: { USD: duration(50, '2025-01-01', '2025-12-31', 2025) } },
+        NetIncomeLoss: { units: { USD: duration(5, '2025-01-01', '2025-12-31', 2025) } },
+        LongTermDebt: { units: { USD: instant(100, '2025-12-31', 2025) } },
+      },
+    },
+  });
+  assert.equal(onlyLegacyDebt.metrics.long_term_debt, null, 'LongTermDebt alone is sometimes a total, so leave blank');
 
   const fromSnap = ensureRatios({
     metrics: {
@@ -731,7 +742,8 @@ assert.equal(ordinal(1), '1st');
       debt_noncurrent: { val: 25, tag: 'LongTermDebtNoncurrent', taxonomy: 'us-gaap' },
     },
   });
-  assert.equal(fromSnap.metrics.long_term_debt, null);
+  assert.equal(fromSnap.metrics.long_term_debt.val, 25);
+  assert.equal(fromSnap.metrics.long_term_debt.tag, 'LongTermDebtNoncurrent');
   assert.equal(fromSnap.ratios.debt_equity, 0.5);
 
   const derivedGross = extractHeadlines({
@@ -776,7 +788,8 @@ assert.equal(ordinal(1), '1st');
       long_term_debt: null,
     },
   });
-  assert.equal(gddy.metrics.long_term_debt, null, 'do not alias noncurrent into core long_term_debt');
+  assert.equal(gddy.metrics.long_term_debt.val, 3_765_200_000);
+  assert.equal(gddy.metrics.long_term_debt.tag, 'LongTermDebtNoncurrent');
   assert.equal(debtStock(gddy.metrics), 15_100_000 + 3_765_200_000);
   assert.ok(Math.abs(gddy.ratios.debt_equity - (15_100_000 + 3_765_200_000) / 215_100_000) < 1e-9);
 
@@ -788,7 +801,8 @@ assert.equal(ordinal(1), '1st');
       long_term_debt: { val: 90.68e9, tag: 'LongTermDebt', end: '2025-09-27' },
     },
   });
-  assert.equal(debtStock(aapl.metrics), 90.68e9, 'prefer noncurrent over legacy total when both exist');
+  assert.equal(aapl.metrics.long_term_debt.val, 78.33e9, 'drop ambiguous LongTermDebt total in favor of noncurrent');
+  assert.equal(debtStock(aapl.metrics), 90.68e9, 'debt stock is still current + noncurrent');
   assert.ok(Math.abs(aapl.ratios.debt_equity - 90.68e9 / 100e9) < 1e-9);
 
   const abt = ensureRatios({
@@ -811,6 +825,114 @@ assert.equal(ordinal(1), '1st');
   });
   assert.equal(gpOnly.metrics.cogs.val, 60);
   assert.equal(gpOnly.metrics.cogs.tag, 'Revenue−GrossProfit');
+}
+
+{
+  const instant = (val, end, fy) => [{
+    val,
+    end,
+    fy,
+    fp: 'FY',
+    form: '10-K',
+    filed: `${fy + 1}-02-01`,
+  }];
+  const duration = (val, start, end, fy) => [{
+    val,
+    start,
+    end,
+    fy,
+    fp: 'FY',
+    form: '10-K',
+    filed: `${fy + 1}-02-01`,
+  }];
+
+  // Microsoft-style: G&A and selling are pieces. Do not print G&A as SG&A.
+  const msftSga = extractHeadlines({
+    cik: 789019,
+    entityName: 'Microsoft-like',
+    facts: {
+      'us-gaap': {
+        Revenues: { units: { USD: duration(100, '2025-01-01', '2025-12-31', 2025) } },
+        NetIncomeLoss: { units: { USD: duration(10, '2025-01-01', '2025-12-31', 2025) } },
+        GeneralAndAdministrativeExpense: { units: { USD: duration(8, '2025-01-01', '2025-12-31', 2025) } },
+        SellingAndMarketingExpense: { units: { USD: duration(27, '2025-01-01', '2025-12-31', 2025) } },
+      },
+    },
+  });
+  assert.equal(msftSga.metrics.sga, null);
+
+  const aaplSga = extractHeadlines({
+    cik: 320193,
+    entityName: 'Apple-like SG&A',
+    facts: {
+      'us-gaap': {
+        Revenues: { units: { USD: duration(100, '2025-01-01', '2025-12-31', 2025) } },
+        NetIncomeLoss: { units: { USD: duration(10, '2025-01-01', '2025-12-31', 2025) } },
+        SellingGeneralAndAdministrativeExpense: { units: { USD: duration(28, '2025-01-01', '2025-12-31', 2025) } },
+        GeneralAndAdministrativeExpense: { units: { USD: duration(8, '2025-01-01', '2025-12-31', 2025) } },
+        SellingAndMarketingExpense: { units: { USD: duration(20, '2025-01-01', '2025-12-31', 2025) } },
+      },
+    },
+  });
+  assert.equal(aaplSga.metrics.sga.val, 28);
+  assert.equal(aaplSga.metrics.sga.tag, 'SellingGeneralAndAdministrativeExpense');
+
+  const cpOnly = extractHeadlines({
+    cik: 1,
+    entityName: 'CP-only',
+    facts: {
+      'us-gaap': {
+        Revenues: { units: { USD: duration(50, '2025-01-01', '2025-12-31', 2025) } },
+        NetIncomeLoss: { units: { USD: duration(5, '2025-01-01', '2025-12-31', 2025) } },
+        CommercialPaper: { units: { USD: instant(8, '2025-12-31', 2025) } },
+      },
+    },
+  });
+  assert.equal(cpOnly.metrics.debt_current, null, 'commercial paper is not the current-LTD line');
+
+  const wavgOnly = extractHeadlines({
+    cik: 1,
+    entityName: 'Wavg shares',
+    facts: {
+      'us-gaap': {
+        Revenues: { units: { USD: duration(50, '2025-01-01', '2025-12-31', 2025) } },
+        NetIncomeLoss: { units: { USD: duration(5, '2025-01-01', '2025-12-31', 2025) } },
+        WeightedAverageNumberOfDilutedSharesOutstanding: {
+          units: { shares: duration(8e9, '2025-01-01', '2025-12-31', 2025) },
+        },
+      },
+    },
+  });
+  assert.equal(wavgOnly.metrics.shares_out, null, 'weighted-average shares are not period-end shares');
+  assert.equal(wavgOnly.metrics.shares_diluted_wavg.val, 8e9);
+
+  const nciLiab = extractHeadlines({
+    cik: 104169,
+    entityName: 'Walmart-like NCI',
+    facts: {
+      'us-gaap': {
+        Revenues: { units: { USD: duration(50, '2025-01-01', '2025-12-31', 2025) } },
+        NetIncomeLoss: { units: { USD: duration(5, '2025-01-01', '2025-12-31', 2025) } },
+        Assets: { units: { USD: instant(284.668, '2025-12-31', 2025) } },
+        StockholdersEquity: { units: { USD: instant(99.617, '2025-12-31', 2025) } },
+        StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest: {
+          units: { USD: instant(105.887, '2025-12-31', 2025) },
+        },
+      },
+    },
+  });
+  assert.equal(nciLiab.metrics.equity.val, 99.617, 'parent equity, not including NCI');
+  assert.ok(Math.abs(nciLiab.metrics.liabilities.val - (284.668 - 105.887)) < 1e-9);
+  assert.equal(nciLiab.metrics.liabilities.tag, IMPLIED_LIABILITIES_TAG);
+
+  const droppedSga = ensureRatios({
+    metrics: {
+      sga: { val: 8, tag: 'GeneralAndAdministrativeExpense' },
+      cash: { val: 11, tag: 'CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents' },
+    },
+  });
+  assert.equal(droppedSga.metrics.sga, null);
+  assert.equal(droppedSga.metrics.cash, null);
 }
 
 console.log('fortune-500 extract tests passed');

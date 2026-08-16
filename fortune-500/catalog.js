@@ -321,6 +321,11 @@ export function courseProgress(done = {}) {
   return { total, completed, next, complete: completed === total };
 }
 
+/**
+ * Headline 10-K lines. Candidate tags must be synonyms for that line at every
+ * filer — never a subset, a mixed total, or a related-but-different concept.
+ * Blank is honest; a wrong number is not.
+ */
 export const METRICS = [
   {
     key: 'revenue',
@@ -328,23 +333,19 @@ export const METRICS = [
     plain: 'How much customers paid this year.',
     eli5: 'This is the lemonade-stand jar: every dollar customers paid for stuff or services this year, before subtracting lemons, cups, or rent. Bigger is not automatically better — a grocery chain can ring up more sales than a chip maker and keep far less.',
     whyMissing: 'A few filers use an industry-specific sales tag we don’t pick up, so we leave it blank instead of guessing.',
-    tags: 'Revenues, RevenueFromContractWithCustomer…, RegulatedAndUnregulatedOperatingRevenue, or RevenuesNetOfInterestExpense',
+    tags: 'Revenues, RevenueFromContractWithCustomerExcludingAssessedTax, SalesRevenueNet, RegulatedAndUnregulatedOperatingRevenue, or RevenuesNetOfInterestExpense',
     unit: 'USD',
     kind: 'duration',
     better: 'higher',
-    // Order is "first hit wins" within a year, so the industry-specific tags sit
-    // last: only utilities, retailers and banks file them, and each is the top
-    // line that industry actually reports. Without them Goldman, Morgan Stanley,
-    // Wells Fargo, Duke, NextEra, TJX, Valero and Kraft Heinz had no revenue at
-    // all, which blanked every margin, turnover and growth figure on their pages.
-    // The utility total comes before the contract-revenue subset (NextEra tags
-    // both: $27.4B of operating revenues vs $25.8B of contract revenue).
+    // Order is "first hit wins" within a year. Candidates are synonyms for the
+    // same top line — never a subset (contract revenue when Revenues exists)
+    // and never a mixed total (revenue including assessed tax). Industry tags
+    // sit last so they only fill when the filer has no general revenue tag.
     candidates: [
       { taxonomy: 'us-gaap', tag: 'Revenues' },
       { taxonomy: 'us-gaap', tag: 'RevenueFromContractWithCustomerExcludingAssessedTax' },
       { taxonomy: 'us-gaap', tag: 'SalesRevenueNet' },
       { taxonomy: 'us-gaap', tag: 'RegulatedAndUnregulatedOperatingRevenue' },
-      { taxonomy: 'us-gaap', tag: 'RevenueFromContractWithCustomerIncludingAssessedTax' },
       { taxonomy: 'us-gaap', tag: 'RevenuesNetOfInterestExpense' },
       { taxonomy: 'ifrs-full', tag: 'RevenueFromContractsWithCustomers' },
       { taxonomy: 'ifrs-full', tag: 'Revenue' },
@@ -438,8 +439,6 @@ export const METRICS = [
     better: 'higher',
     candidates: [
       { taxonomy: 'us-gaap', tag: 'StockholdersEquity' },
-      { taxonomy: 'us-gaap', tag: 'StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest' },
-      { taxonomy: 'ifrs-full', tag: 'Equity' },
       { taxonomy: 'ifrs-full', tag: 'EquityAttributableToOwnersOfParent' },
     ],
   },
@@ -449,14 +448,13 @@ export const METRICS = [
     plain: 'Dollars in the bank on that day.',
     eli5: 'Actual money — and things almost as good as money — sitting there on the balance-sheet day. Not the same as profit (you can be profitable and still short on cash) and not the same as operating cash flow (that’s movement over a year).',
     whyMissing:
-      'Not tagged as cash and cash equivalents for this year. After 2018 some filers only tag the combined cash + restricted-cash line; we read that as a fallback, and leave the cell blank if neither tag is present.',
-    tags: 'CashAndCashEquivalentsAtCarryingValue, CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents',
+      'Not tagged as cash and cash equivalents for this year. We do not substitute the combined cash + restricted-cash tag — that line can include restricted cash, so it is the wrong number for this cell.',
+    tags: 'CashAndCashEquivalentsAtCarryingValue',
     unit: 'USD',
     kind: 'instant',
     better: 'higher',
     candidates: [
       { taxonomy: 'us-gaap', tag: 'CashAndCashEquivalentsAtCarryingValue' },
-      { taxonomy: 'us-gaap', tag: 'CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents' },
       { taxonomy: 'ifrs-full', tag: 'CashAndCashEquivalents' },
     ],
   },
@@ -528,7 +526,8 @@ export const METRICS = [
     label: 'Shares outstanding',
     plain: 'How many slices the company is cut into.',
     eli5: 'The number of slices. More slices doesn’t mean a bigger pizza — it just means each slice is smaller. EDGAR has no stock price, so we cannot turn this into market cap.',
-    whyMissing: 'Sometimes only tagged in a different DEI field we missed, or only in a 10-Q.',
+    whyMissing:
+      'Sometimes only tagged in a different DEI field we missed, or only as weighted-average shares. We do not copy a weighted-average count into this cell — that is a different (usually larger) number than shares outstanding on the balance-sheet date.',
     tags: 'CommonStockSharesOutstanding',
     unit: 'shares',
     kind: 'instant',
@@ -544,23 +543,13 @@ export const METRICS = [
     plain: 'Loans they don’t have to pay back this year.',
     eli5: 'Borrowed money due after this year — the slow IOUs. A factory-heavy company often has more than a software company. More debt can mean leverage (amplifies wins and losses), not automatically trouble.',
     whyMissing:
-      'Many filers tag debt under noncurrent, convertible, notes-payable, or issuer-specific roll-ups. We read the common standardized alternatives before leaving the cell blank — blank is not $0 of debt.',
-    tags: 'LongTermDebt, LongTermDebtAndCapitalLeaseObligations, LongTermDebtNoncurrent',
+      'Only the noncurrent long-term-debt tag is safe for this label. The legacy LongTermDebt line is sometimes current + noncurrent, and notes / senior / convertible tags are pieces — we leave those blank rather than print the wrong total.',
+    tags: 'LongTermDebtNoncurrent',
     unit: 'USD',
     kind: 'instant',
     better: null,
     candidates: [
-      { taxonomy: 'us-gaap', tag: 'LongTermDebt' },
-      { taxonomy: 'us-gaap', tag: 'LongTermDebtAndCapitalLeaseObligations' },
       { taxonomy: 'us-gaap', tag: 'LongTermDebtNoncurrent' },
-      { taxonomy: 'us-gaap', tag: 'ConvertibleDebtNoncurrent' },
-      { taxonomy: 'us-gaap', tag: 'ConvertibleLongTermNotesPayable' },
-      { taxonomy: 'us-gaap', tag: 'ConvertibleDebt' },
-      { taxonomy: 'us-gaap', tag: 'LongTermNotesPayable' },
-      { taxonomy: 'us-gaap', tag: 'UnsecuredDebt' },
-      { taxonomy: 'us-gaap', tag: 'SeniorNotes' },
-      { taxonomy: 'us-gaap', tag: 'NotesPayableNoncurrent' },
-      { taxonomy: 'us-gaap', tag: 'OtherLongTermDebtNoncurrent' },
       { taxonomy: 'ifrs-full', tag: 'NoncurrentBorrowings' },
     ],
   },
