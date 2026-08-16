@@ -146,6 +146,11 @@ body.fm-info {
   border-collapse: collapse;
 }
 
+.fm-info-table col.col-label { width: 20%; }
+.fm-info-table col.col-val { width: 7%; }
+.fm-info-table col.col-def { width: 44%; }
+.fm-info-table col.col-src { width: 29%; }
+
 .fm-info-table th,
 .fm-info-table td {
   text-align: left;
@@ -190,7 +195,7 @@ body.fm-info {
 .fm-info-table .val {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  width: 12%;
+  width: 7%;
   font-weight: 500;
   color: var(--blue);
   font-size: 14px;
@@ -205,7 +210,7 @@ body.fm-info {
   color: var(--ink);
   font-size: 12.5px;
   line-height: 1.5;
-  width: 34%;
+  width: 44%;
   overflow-wrap: anywhere;
 }
 
@@ -213,7 +218,7 @@ body.fm-info {
   color: var(--ink-soft);
   font-size: 11.5px;
   line-height: 1.45;
-  width: 32%;
+  width: 29%;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
@@ -304,7 +309,7 @@ body.fm-info {
 }
 
 .fm-info-table .label {
-  width: 22%;
+  width: 20%;
   overflow-wrap: anywhere;
 }
 

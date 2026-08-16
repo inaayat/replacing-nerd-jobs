@@ -586,6 +586,12 @@ function groupTable(title, summary, rowsHtml, id, headers = ['Metric', 'Value', 
     <p class="fm-info-summary">${escapeHtml(summary)}</p>
     <div class="fm-info-table-wrap">
       <table class="fm-info-table">
+        <colgroup>
+          <col class="col-label" />
+          <col class="col-val" />
+          <col class="col-def" />
+          <col class="col-src" />
+        </colgroup>
         <thead><tr>${head}</tr></thead>
         <tbody>${rowsHtml}</tbody>
       </table>
