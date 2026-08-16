@@ -9,6 +9,7 @@
   --win-mono: "DM Mono", ui-monospace, monospace;
   --win-nav-h: 56px;
   --win-rail-w: 340px;
+  --win-sheet-peek: 72px;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -30,6 +31,10 @@ a { color: #cf4520; }
   justify-content: space-between;
   gap: 12px;
   padding: 0 16px;
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+  padding-top: env(safe-area-inset-top);
+  height: calc(var(--win-nav-h) + env(safe-area-inset-top));
   border-bottom: 1.5px solid var(--win-line);
   background: rgba(250, 243, 227, 0.94);
   position: sticky;
@@ -73,10 +78,24 @@ a { color: #cf4520; }
 
 .win-nav-links a:hover { color: var(--win-ink); }
 
+.win-browse-btn {
+  display: none;
+  border: 1.5px solid var(--win-ink);
+  background: var(--win-ink);
+  color: var(--win-cream);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 40px;
+}
+
 .win-app {
   display: grid;
   grid-template-columns: var(--win-rail-w) 1fr;
-  height: calc(100dvh - var(--win-nav-h));
+  height: calc(100dvh - var(--win-nav-h) - env(safe-area-inset-top));
 }
 
 .win-rail {
@@ -84,6 +103,16 @@ a { color: #cf4520; }
   padding: 18px 16px 28px;
   border-right: 1.5px solid var(--win-line);
   background: var(--win-cream);
+  -webkit-overflow-scrolling: touch;
+}
+
+.win-sheet-handle { display: none; }
+.win-sheet-close { display: none; }
+.win-sheet-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .win-kicker {
@@ -125,7 +154,7 @@ a { color: #cf4520; }
   border-radius: 10px;
   padding: 9px 11px;
   font: inherit;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .win-search input:focus {
@@ -144,12 +173,14 @@ a { color: #cf4520; }
   border: 1.5px solid var(--win-line);
   background: #fffdf8;
   border-radius: 999px;
-  padding: 5px 9px;
+  padding: 7px 11px;
   font-size: 12px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-height: 36px;
+  touch-action: manipulation;
 }
 
 .win-chip .swatch {
@@ -167,16 +198,14 @@ a { color: #cf4520; }
 
 .win-list-wrap { margin-top: 10px; }
 
-.win-list-head,
-.win-layers h2 {
+.win-list-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 8px;
 }
 
-.win-list-head h2,
-.win-layers h2 {
+.win-list-head h2 {
   margin: 0 0 8px;
   font-size: 13px;
   font-family: var(--win-mono);
@@ -192,6 +221,7 @@ a { color: #cf4520; }
   font-size: 12px;
   cursor: pointer;
   padding: 0;
+  min-height: 32px;
 }
 
 .win-list {
@@ -205,9 +235,11 @@ a { color: #cf4520; }
   border: 0;
   background: transparent;
   border-radius: 10px;
-  padding: 7px 8px;
+  padding: 10px 8px;
   cursor: pointer;
   font: inherit;
+  min-height: 48px;
+  touch-action: manipulation;
 }
 
 .win-item:hover,
@@ -226,34 +258,17 @@ a { color: #cf4520; }
   color: var(--win-muted);
 }
 
-.win-layers {
-  margin-top: 18px;
-  padding-top: 14px;
-  border-top: 1.5px solid var(--win-line);
-}
-
-.win-layers-note {
-  margin: 0 0 10px;
-  font-size: 12px;
-  color: var(--win-muted);
-  line-height: 1.4;
-}
-
-.win-check {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  margin: 5px 0;
-  cursor: pointer;
-}
-
 .win-map-wrap {
   position: relative;
   min-width: 0;
+  min-height: 0;
 }
 
 #map { width: 100%; height: 100%; }
+
+.win-legend-toggle {
+  display: none;
+}
 
 .win-legend {
   position: absolute;
@@ -304,6 +319,7 @@ a { color: #cf4520; }
   border-radius: 14px;
   padding: 14px 16px 16px;
   box-shadow: 0 12px 32px rgba(28, 28, 28, 0.12);
+  -webkit-overflow-scrolling: touch;
 }
 
 .win-card-close {
@@ -312,13 +328,17 @@ a { color: #cf4520; }
   right: 10px;
   border: 0;
   background: none;
-  font-size: 22px;
+  font-size: 28px;
+  line-height: 1;
   cursor: pointer;
   color: var(--win-muted);
+  width: 44px;
+  height: 44px;
+  touch-action: manipulation;
 }
 
 .win-card h3 {
-  margin: 0 20px 4px 0;
+  margin: 0 36px 4px 0;
   font-family: var(--win-display);
   font-size: 22px;
 }
@@ -347,10 +367,12 @@ a { color: #cf4520; }
   text-align: left;
   background: rgba(28, 28, 28, 0.04);
   border-radius: 10px;
-  padding: 8px 10px;
+  padding: 10px 12px;
   margin: 6px 0;
   cursor: pointer;
   font: inherit;
+  min-height: 48px;
+  touch-action: manipulation;
 }
 
 .win-status {
@@ -366,6 +388,7 @@ a { color: #cf4520; }
   padding: 6px 12px;
   font-family: var(--win-mono);
   font-size: 12px;
+  white-space: nowrap;
 }
 
 .win-status[hidden] { display: none; }
@@ -377,19 +400,152 @@ a { color: #cf4520; }
   border-radius: 10px;
 }
 
+.maplibregl-ctrl-bottom-right {
+  margin-bottom: 4px;
+}
+
+/* Phone: map fills the screen; browse + district card are bottom sheets. */
 @media (max-width: 860px) {
-  .win-app {
-    grid-template-columns: 1fr;
-    grid-template-rows: 42vh 1fr;
-  }
-  .win-rail {
-    border-right: 0;
-    border-bottom: 1.5px solid var(--win-line);
-  }
-  .win-card {
-    top: auto;
-    bottom: 12px;
-    max-height: 42%;
-  }
+  html, body { overflow: hidden; height: 100dvh; }
+
   .win-nav-links { display: none; }
+  .win-nav-logo span { display: none; }
+  .win-browse-btn { display: inline-flex; align-items: center; }
+
+  .win-app {
+    display: block;
+    position: relative;
+    height: calc(100dvh - var(--win-nav-h) - env(safe-area-inset-top));
+  }
+
+  .win-map-wrap {
+    position: absolute;
+    inset: 0;
+  }
+
+  .win-legend-toggle {
+    display: inline-flex;
+    align-items: center;
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    z-index: 5;
+    border: 1.5px solid var(--win-line);
+    background: var(--win-panel);
+    border-radius: 999px;
+    padding: 8px 12px;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    min-height: 40px;
+    box-shadow: 0 8px 24px rgba(28, 28, 28, 0.08);
+  }
+
+  .win-legend-toggle[aria-expanded="true"] {
+    background: var(--win-ink);
+    color: var(--win-cream);
+    border-color: var(--win-ink);
+  }
+
+  .win-legend {
+    top: 56px;
+    bottom: auto;
+    left: 10px;
+    max-height: 46%;
+    overflow: auto;
+  }
+
+  .win-legend[hidden] { display: none; }
+
+  .win-rail {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 8;
+    height: min(78dvh, 640px);
+    max-height: min(78dvh, 640px);
+    padding: 0 16px calc(18px + env(safe-area-inset-bottom));
+    border-right: 0;
+    border-top: 1.5px solid var(--win-line);
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -12px 40px rgba(28, 28, 28, 0.16);
+    transform: translateY(calc(100% - var(--win-sheet-peek) - env(safe-area-inset-bottom)));
+    transition: transform 220ms ease;
+    overflow: hidden;
+  }
+
+  .win-rail.is-open {
+    transform: translateY(0);
+    overflow: auto;
+  }
+
+  .win-sheet-handle {
+    display: block;
+    width: 44px;
+    height: 22px;
+    margin: 6px auto 2px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: grab;
+    touch-action: none;
+  }
+
+  .win-sheet-handle::before {
+    content: "";
+    display: block;
+    width: 42px;
+    height: 5px;
+    margin: 8px auto 0;
+    border-radius: 999px;
+    background: rgba(28, 28, 28, 0.28);
+  }
+
+  .win-sheet-close {
+    display: inline-flex;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 600;
+    min-height: 40px;
+    padding: 0 4px;
+  }
+
+  .win-title {
+    font-size: 24px;
+    margin: 2px 0 8px;
+  }
+
+  .win-lede { display: none; }
+
+  .win-card {
+    left: 10px;
+    right: 10px;
+    top: auto;
+    bottom: calc(var(--win-sheet-peek) + env(safe-area-inset-bottom) + 8px);
+    width: auto;
+    max-height: 46%;
+    padding-top: 6px;
+    border-radius: 16px;
+  }
+
+  .win-card .win-sheet-handle { display: block; }
+
+  body.win-sheet-open .win-card {
+    bottom: 12px;
+  }
+
+  body.win-sheet-open .win-browse-btn {
+    background: transparent;
+    color: var(--win-ink);
+  }
+
+  .maplibregl-ctrl-bottom-right {
+    margin-bottom: calc(var(--win-sheet-peek) + env(safe-area-inset-bottom) + 4px);
+  }
+
+  body.win-sheet-open .maplibregl-ctrl-bottom-right {
+    margin-bottom: 8px;
+  }
 }

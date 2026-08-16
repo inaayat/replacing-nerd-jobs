@@ -6,6 +6,12 @@ const BORO_FROM_CD = {
   5: 'Staten Island',
 };
 
+const MOBILE_MQ = '(max-width: 860px)';
+
+/* Future: political overlays (City Council, Congress, community, Assembly,
+   Senate) from https://libguides.nypl.org/nycboundaries/political
+   GeoJSON is in data/overlays/. ensureOverlay() below is unused until the
+   toggles return to the UI. */
 const OVERLAY_COLORS = {
   council: '#1c1c1c',
   congress: '#cf4520',
@@ -28,6 +34,14 @@ const OSM_STYLE = {
 };
 
 const $ = (id) => document.getElementById(id);
+
+function isMobileUi() {
+  try {
+    return window.matchMedia(MOBILE_MQ).matches;
+  } catch {
+    return false;
+  }
+}
 
 function formatCD(code) {
   if (code == null) return '—';
@@ -99,6 +113,9 @@ async function ensureOverlay(map, name) {
   map.addSource(name, { type: 'geojson', data: geo });
   paintOverlays(map, name, OVERLAY_COLORS[name]);
 }
+
+void ensureOverlay;
+void formatCD;
 
 function applyFilter(map, catalog, filter) {
   const fill = map.getLayer('ed-fill');
@@ -174,22 +191,22 @@ function cardHtml(props, catalog) {
     const color = regionColor(catalog, enc.region);
     const historic = enc.status === 'historic' ? ' · historic' : '';
     return `<button type="button" class="win-enclave-pill" data-enclave="${enc.id}"><strong style="color:${color}">${enc.name}</strong><div class="mono">${enc.group}${historic}</div>${enc.note ? `<div class="mono">${enc.note}</div>` : ''}</button>`;
-  }).join('') || '<p class="mono">Wikipedia does not list a named enclave on this district. The outlines are still here for later layers.</p>';
+  }).join('') || '<p class="mono">Wikipedia does not list a named enclave on this district.</p>';
   return `
     <h3>AD ${props.ad} · ED ${String(props.n).padStart(3, '0')}</h3>
     <div class="mono">Election district ${props.ed}</div>
     <dl class="win-kv">
       <dt>Borough</dt><dd>${props.b || '—'}</dd>
       <dt>Neighborhood</dt><dd>${props.nta || '—'}</dd>
-      <dt>Community</dt><dd>${formatCD(props.cd)}</dd>
-      <dt>Council</dt><dd>${props.cc ?? '—'}</dd>
-      <dt>Congress</dt><dd>${props.cg ?? '—'}</dd>
-      <dt>Assembly</dt><dd>${props.as ?? '—'}</dd>
-      <dt>Senate</dt><dd>${props.se ?? '—'}</dd>
     </dl>
     <h4 class="mono">Enclaves</h4>
     ${pills}
   `;
+}
+
+function fitPadding() {
+  if (!isMobileUi()) return 48;
+  return { top: 56, left: 16, right: 16, bottom: 120 };
 }
 
 function fitEnclave(map, ed, index) {
@@ -203,7 +220,54 @@ function fitEnclave(map, ed, index) {
       for (const pt of poly[0]) b.extend(pt);
     }
   }
-  if (!b.isEmpty()) map.fitBounds(b, { padding: 48, maxZoom: 13, duration: 600 });
+  if (!b.isEmpty()) map.fitBounds(b, { padding: fitPadding(), maxZoom: 13, duration: 600 });
+}
+
+function setSheetOpen(open) {
+  const rail = $('rail');
+  const toggle = $('browse-toggle');
+  rail.classList.toggle('is-open', open);
+  document.body.classList.toggle('win-sheet-open', open);
+  toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  toggle.textContent = open ? 'Map' : 'Browse';
+}
+
+function wireSheetDrag(onResize) {
+  const handle = $('sheet-handle');
+  const rail = $('rail');
+  if (!handle) return;
+  let startY = 0;
+  let dragging = false;
+
+  const onMove = (ev) => {
+    if (!dragging) return;
+    const y = ev.touches ? ev.touches[0].clientY : ev.clientY;
+    const dy = y - startY;
+    if (dy > 56) setSheetOpen(false);
+    else if (dy < -56) setSheetOpen(true);
+  };
+  const onUp = () => {
+    if (!dragging) return;
+    dragging = false;
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    window.removeEventListener('touchmove', onMove);
+    window.removeEventListener('touchend', onUp);
+    onResize();
+  };
+  const onDown = (ev) => {
+    dragging = true;
+    startY = ev.touches ? ev.touches[0].clientY : ev.clientY;
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('touchmove', onMove, { passive: true });
+    window.addEventListener('touchend', onUp);
+  };
+  handle.addEventListener('pointerdown', onDown);
+  handle.addEventListener('click', () => {
+    setSheetOpen(!rail.classList.contains('is-open'));
+    onResize();
+  });
 }
 
 async function main() {
@@ -218,10 +282,13 @@ async function main() {
     container: 'map',
     style,
     center: [-73.9769, 40.72103],
-    zoom: 10.5,
+    zoom: isMobileUi() ? 10.1 : 10.5,
     maxZoom: 16,
     minZoom: 9,
     attributionControl: true,
+    dragRotate: false,
+    pitchWithRotate: false,
+    touchPitch: false,
   });
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
 
@@ -229,6 +296,10 @@ async function main() {
   let hoverId = null;
   let selectedId = parseQuery().ed;
   const edIndex = new Map(ed.features.map((f) => [f.properties.ed, f]));
+
+  function resizeMap() {
+    requestAnimationFrame(() => map.resize());
+  }
 
   function showCard(edId) {
     const feat = edIndex.get(edId);
@@ -241,6 +312,7 @@ async function main() {
     card.hidden = false;
     selectedId = edId;
     setQuery(edId);
+    if (isMobileUi()) setSheetOpen(false);
     if (map.getSource('ed')) {
       map.removeFeatureState({ source: 'ed' });
       map.setFeatureState({ source: 'ed', id: edId }, { selected: true });
@@ -251,6 +323,7 @@ async function main() {
         setFilter({ kind: 'enclave', index, id: btn.dataset.enclave });
       });
     }
+    resizeMap();
   }
 
   function setFilter(next) {
@@ -260,7 +333,11 @@ async function main() {
     renderList(catalog, filter, $('search').value, setFilter);
     renderLegend(catalog, filter);
     $('clear-filter').hidden = !filter;
-    if (filter?.kind === 'enclave') fitEnclave(map, ed, filter.index);
+    if (filter?.kind === 'enclave') {
+      if (isMobileUi()) setSheetOpen(false);
+      fitEnclave(map, ed, filter.index);
+    }
+    resizeMap();
   }
 
   map.on('load', () => {
@@ -324,10 +401,13 @@ async function main() {
     });
 
     status.hidden = true;
+    if (isMobileUi()) $('legend').hidden = true;
+    else $('legend').hidden = false;
     renderRegions(catalog, filter, setFilter);
     renderList(catalog, filter, '', setFilter);
     renderLegend(catalog, filter);
     if (selectedId) showCard(selectedId);
+    resizeMap();
   });
 
   map.on('mousemove', 'ed-fill', (e) => {
@@ -357,33 +437,43 @@ async function main() {
     selectedId = null;
     setQuery(null);
     if (map.getSource('ed')) map.removeFeatureState({ source: 'ed' });
+    resizeMap();
   });
   $('clear-filter').addEventListener('click', () => setFilter(null));
   $('search').addEventListener('input', () => {
     renderList(catalog, filter, $('search').value, setFilter);
   });
-
-  document.querySelectorAll('[data-layer]').forEach((input) => {
-    input.addEventListener('change', () => {
-      const vis = input.checked ? 'visible' : 'none';
-      map.setLayoutProperty(input.dataset.layer, 'visibility', vis);
-    });
+  $('search').addEventListener('focus', () => {
+    if (isMobileUi()) {
+      setSheetOpen(true);
+      resizeMap();
+    }
   });
-  document.querySelectorAll('[data-overlay]').forEach((input) => {
-    input.addEventListener('change', async () => {
-      const name = input.dataset.overlay;
-      if (input.checked) {
-        status.hidden = false;
-        status.textContent = `Loading ${name} districts…`;
-        try {
-          await ensureOverlay(map, name);
-        } finally {
-          status.hidden = true;
-        }
-      } else if (map.getLayer(`${name}-line`)) {
-        map.setLayoutProperty(`${name}-line`, 'visibility', 'none');
-      }
-    });
+
+  $('browse-toggle').addEventListener('click', () => {
+    const open = !$('rail').classList.contains('is-open');
+    setSheetOpen(open);
+    if (open) $('card').hidden = true;
+    resizeMap();
+  });
+  $('sheet-close').addEventListener('click', () => {
+    setSheetOpen(false);
+    resizeMap();
+  });
+  $('legend-toggle').addEventListener('click', () => {
+    const legend = $('legend');
+    const next = legend.hidden;
+    legend.hidden = !next;
+    $('legend-toggle').setAttribute('aria-expanded', next ? 'true' : 'false');
+  });
+  wireSheetDrag(resizeMap);
+
+  window.addEventListener('resize', () => {
+    if (!isMobileUi()) {
+      $('legend').hidden = false;
+      setSheetOpen(false);
+    }
+    resizeMap();
   });
 }
 

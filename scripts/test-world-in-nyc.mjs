@@ -61,8 +61,19 @@ for (const name of ['council', 'congress', 'cd', 'assembly', 'senate']) {
 }
 
 const html = readFileSync(join(ROOT, 'world-in-nyc/index.html'), 'utf8');
+const css = readFileSync(join(ROOT, 'world-in-nyc/app.css'), 'utf8');
+const js = readFileSync(join(ROOT, 'world-in-nyc/app.js'), 'utf8');
 assert.match(html, /maplibre-gl/);
 assert.match(html, /urbanresearchmaps.org\/electioncompare2025/);
-assert.match(html, /libguides.nypl.org\/nycboundaries\/political/);
+assert.match(html, /browse-toggle/);
+assert.match(css, /max-width: 860px/);
+assert.match(css, /win-sheet-peek/);
+assert.doesNotMatch(html, /data-overlay=/);
+assert.match(js, /ensureOverlay/);
+assert.match(js, /libguides.nypl.org\/nycboundaries\/political/);
+assert.doesNotMatch(js, /<dt>Council<\/dt>/);
+const sampleProps = ed.features[0].properties;
+assert.ok('cd' in sampleProps && 'cc' in sampleProps && 'cg' in sampleProps && 'as' in sampleProps && 'se' in sampleProps,
+  'keep political-district ids on each ED for later overlays');
 
 console.log(`ok — ${enclaves.length} enclaves on ${ed.features.length} election districts (${withEnclave} tagged)`);

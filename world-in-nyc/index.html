@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <base href="/world-in-nyc/" />
     <title>World in NYC — Beep boop</title>
     <meta
@@ -33,24 +33,46 @@
       </div>
       <div class="win-nav-links">
         <a href="#list">Enclaves</a>
-        <a href="#layers">Districts</a>
         <a href="/#projects">Projects</a>
       </div>
+      <button type="button" class="win-browse-btn" id="browse-toggle" aria-expanded="false" aria-controls="rail">
+        Browse
+      </button>
     </nav>
 
     <div class="win-app">
-      <aside class="win-rail" aria-label="Enclave filters">
-        <p class="win-kicker">Election districts · Wikipedia enclaves</p>
-        <h1 class="win-title">World in NYC</h1>
+      <main class="win-map-wrap">
+        <div id="map" role="application" aria-label="New York City election district map"></div>
+        <button type="button" class="win-legend-toggle" id="legend-toggle" aria-expanded="false" aria-controls="legend">
+          Legend
+        </button>
+        <div class="win-legend" id="legend"></div>
+        <aside class="win-card" id="card" hidden>
+          <div class="win-sheet-handle" aria-hidden="true"></div>
+          <button type="button" class="win-card-close" id="card-close" aria-label="Close district card">×</button>
+          <div id="card-body"></div>
+        </aside>
+        <p class="win-status" id="status">Loading election districts…</p>
+      </main>
+
+      <aside class="win-rail" id="rail" aria-label="Enclave filters">
+        <button type="button" class="win-sheet-handle" id="sheet-handle" aria-label="Drag to resize browse sheet"></button>
+        <div class="win-sheet-peek">
+          <p class="win-kicker">Election districts · Wikipedia enclaves</p>
+          <div class="win-sheet-title-row">
+            <h1 class="win-title">World in NYC</h1>
+            <button type="button" class="win-text-btn win-sheet-close" id="sheet-close">Map</button>
+          </div>
+        </div>
         <p class="win-lede">
           Every colored block is an election district — the same grain as the
           <a href="https://www.urbanresearchmaps.org/electioncompare2025/?lat=40.72103&amp;lng=-73.97690&amp;zoom=10.50&amp;ed=66039" target="_blank" rel="noopener">CUNY 2025 election map</a>.
-          Click one to see who Wikipedia places there, plus the political districts that contain it.
+          Tap a block to see who Wikipedia places there.
         </p>
 
         <label class="win-search">
           <span class="win-label">Find a group or neighborhood</span>
-          <input id="search" type="search" placeholder="Chinatown, Little Guyana, Astoria…" autocomplete="off" />
+          <input id="search" type="search" placeholder="Chinatown, Little Guyana, Astoria…" autocomplete="off" enterkeyhint="search" />
         </label>
 
         <div class="win-regions" id="regions" role="listbox" aria-label="Regions"></div>
@@ -62,33 +84,15 @@
           </div>
           <div class="win-list" id="enclave-list"></div>
         </section>
-
-        <section id="layers" class="win-layers">
-          <h2>Political districts</h2>
-          <p class="win-layers-note">
-            Overlay outlines from DCP, matching the types in the
-            <a href="https://libguides.nypl.org/nycboundaries/political" target="_blank" rel="noopener">NYPL political-districts guide</a>.
-          </p>
-          <label class="win-check"><input type="checkbox" data-layer="ed-line" checked /> Election districts</label>
-          <label class="win-check"><input type="checkbox" data-overlay="council" /> City Council</label>
-          <label class="win-check"><input type="checkbox" data-overlay="congress" /> Congress</label>
-          <label class="win-check"><input type="checkbox" data-overlay="cd" /> Community districts</label>
-          <label class="win-check"><input type="checkbox" data-overlay="assembly" /> State Assembly</label>
-          <label class="win-check"><input type="checkbox" data-overlay="senate" /> State Senate</label>
-        </section>
       </aside>
-
-      <main class="win-map-wrap">
-        <div id="map" role="application" aria-label="New York City election district map"></div>
-        <div class="win-legend" id="legend"></div>
-        <aside class="win-card" id="card" hidden>
-          <button type="button" class="win-card-close" id="card-close" aria-label="Close district card">×</button>
-          <div id="card-body"></div>
-        </aside>
-        <p class="win-status" id="status">Loading election districts…</p>
-      </main>
     </div>
 
+    <!--
+      Political overlays (City Council, Congress, community districts, Assembly,
+      Senate) stay in data/overlays/ and ensureOverlay() in app.js. Source:
+      https://libguides.nypl.org/nycboundaries/political
+      Put the toggles back when a later feature needs them.
+    -->
     <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
     <script type="module" src="./app.js"></script>
   </body>
