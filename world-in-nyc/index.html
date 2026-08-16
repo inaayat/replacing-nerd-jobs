@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <base href="/world-in-nyc/" />
+    <title>World in NYC — Beep boop</title>
+    <meta
+      name="description"
+      content="Ethnic enclaves in New York City on the election-district map — the same hyper-local grain as the CUNY 2025 election map."
+    />
+    <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap"
+    />
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+    <link rel="stylesheet" href="./app.css" />
+  </head>
+  <body>
+    <nav class="win-nav">
+      <div class="win-nav-brand">
+        <a href="/" class="win-nav-logo" aria-label="Beep boop home">
+          <img src="/ugly-dog-images/dog-3.png" alt="" width="18" height="18" />
+          <span>Beep boop</span>
+        </a>
+        <a href="/world-in-nyc/" class="win-nav-section">
+          <img src="/world-in-nyc/icon.svg" alt="" width="22" height="22" />
+          <span>World in NYC</span>
+        </a>
+      </div>
+      <div class="win-nav-links">
+        <a href="#list">Enclaves</a>
+        <a href="#layers">Districts</a>
+        <a href="/#projects">Projects</a>
+      </div>
+    </nav>
+
+    <div class="win-app">
+      <aside class="win-rail" aria-label="Enclave filters">
+        <p class="win-kicker">Election districts · Wikipedia enclaves</p>
+        <h1 class="win-title">World in NYC</h1>
+        <p class="win-lede">
+          Every colored block is an election district — the same grain as the
+          <a href="https://www.urbanresearchmaps.org/electioncompare2025/?lat=40.72103&amp;lng=-73.97690&amp;zoom=10.50&amp;ed=66039" target="_blank" rel="noopener">CUNY 2025 election map</a>.
+          Click one to see who Wikipedia places there, plus the political districts that contain it.
+        </p>
+
+        <label class="win-search">
+          <span class="win-label">Find a group or neighborhood</span>
+          <input id="search" type="search" placeholder="Chinatown, Little Guyana, Astoria…" autocomplete="off" />
+        </label>
+
+        <div class="win-regions" id="regions" role="listbox" aria-label="Regions"></div>
+
+        <section id="list" class="win-list-wrap">
+          <div class="win-list-head">
+            <h2>Enclaves</h2>
+            <button type="button" class="win-text-btn" id="clear-filter" hidden>Clear filter</button>
+          </div>
+          <div class="win-list" id="enclave-list"></div>
+        </section>
+
+        <section id="layers" class="win-layers">
+          <h2>Political districts</h2>
+          <p class="win-layers-note">
+            Overlay outlines from DCP, matching the types in the
+            <a href="https://libguides.nypl.org/nycboundaries/political" target="_blank" rel="noopener">NYPL political-districts guide</a>.
+          </p>
+          <label class="win-check"><input type="checkbox" data-layer="ed-line" checked /> Election districts</label>
+          <label class="win-check"><input type="checkbox" data-overlay="council" /> City Council</label>
+          <label class="win-check"><input type="checkbox" data-overlay="congress" /> Congress</label>
+          <label class="win-check"><input type="checkbox" data-overlay="cd" /> Community districts</label>
+          <label class="win-check"><input type="checkbox" data-overlay="assembly" /> State Assembly</label>
+          <label class="win-check"><input type="checkbox" data-overlay="senate" /> State Senate</label>
+        </section>
+      </aside>
+
+      <main class="win-map-wrap">
+        <div id="map" role="application" aria-label="New York City election district map"></div>
+        <div class="win-legend" id="legend"></div>
+        <aside class="win-card" id="card" hidden>
+          <button type="button" class="win-card-close" id="card-close" aria-label="Close district card">×</button>
+          <div id="card-body"></div>
+        </aside>
+        <p class="win-status" id="status">Loading election districts…</p>
+      </main>
+    </div>
+
+    <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

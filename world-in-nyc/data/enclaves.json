@@ -1,0 +1,1016 @@
+{
+  "source": "https://en.wikipedia.org/wiki/New_York_City_ethnic_enclaves",
+  "geography": {
+    "primary": "election-district",
+    "note": "Election districts are NYC's finest political geography (NYPL: voting/electoral district). Each ED also carries Community District, City Council, Assembly, State Senate, and Congressional ids for later layers."
+  },
+  "regions": [
+    { "id": "african-american", "label": "African American", "color": "#5c4033" },
+    { "id": "west-african", "label": "West African", "color": "#c45c26" },
+    { "id": "caribbean", "label": "Caribbean", "color": "#1d9a8a" },
+    { "id": "south-asian", "label": "South Asian", "color": "#e3a72e" },
+    { "id": "east-asian", "label": "East Asian", "color": "#cf4520" },
+    { "id": "southeast-asian", "label": "Southeast Asian", "color": "#f28b3b" },
+    { "id": "european", "label": "European", "color": "#3d6ea8" },
+    { "id": "latin-american", "label": "Latin American", "color": "#3a7d44" },
+    { "id": "mena", "label": "Middle Eastern & North African", "color": "#7b3fa0" },
+    { "id": "jewish", "label": "Jewish", "color": "#355c7d" },
+    { "id": "other", "label": "Other", "color": "#6b5f5e" }
+  ],
+  "enclaves": [
+    {
+      "id": "harlem",
+      "name": "Harlem",
+      "group": "African American",
+      "region": "african-american",
+      "places": ["Harlem", "Central Harlem", "East Harlem", "Hamilton Heights", "Sugar Hill", "Manhattanville"],
+      "note": "Historic socioeconomic center of Black America."
+    },
+    {
+      "id": "bedford-stuyvesant",
+      "name": "Bedford–Stuyvesant",
+      "group": "African American",
+      "region": "african-american",
+      "places": ["Bedford-Stuyvesant", "Stuyvesant Heights", "Weeksville", "Ocean Hill"]
+    },
+    {
+      "id": "crown-heights-aa",
+      "name": "Crown Heights",
+      "group": "African American",
+      "region": "african-american",
+      "places": ["Crown Heights"]
+    },
+    {
+      "id": "east-new-york-aa",
+      "name": "East New York / Brownsville",
+      "group": "African American",
+      "region": "african-american",
+      "places": ["East New York", "Brownsville", "Starrett City"]
+    },
+    {
+      "id": "flatbush-aa",
+      "name": "Flatbush / East Flatbush / Canarsie",
+      "group": "African American",
+      "region": "african-american",
+      "places": ["Flatbush", "East Flatbush", "Canarsie", "Erasmus", "Farragut"]
+    },
+    {
+      "id": "jamaica-aa",
+      "name": "Jamaica / Southeast Queens",
+      "group": "African American",
+      "region": "african-american",
+      "places": ["Jamaica", "South Jamaica", "St. Albans", "Hollis", "Laurelton", "Cambria Heights", "Springfield Gardens", "Rochdale"]
+    },
+    {
+      "id": "south-bronx-aa",
+      "name": "South Bronx",
+      "group": "African American",
+      "region": "african-american",
+      "places": ["Mott Haven", "Melrose", "Longwood", "Hunts Point", "Morrisania", "Crotona", "Highbridge", "Concourse"]
+    },
+    {
+      "id": "sandy-ground",
+      "name": "Sandy Ground",
+      "group": "African American",
+      "region": "african-american",
+      "places": ["Rossville", "Woodrow"],
+      "note": "Oldest continuously settled free-Black community in the U.S."
+    },
+    {
+      "id": "si-north-shore-aa",
+      "name": "Staten Island North Shore",
+      "group": "African American",
+      "region": "african-american",
+      "places": ["West New Brighton", "Port Richmond", "Arlington", "Mariners Harbor", "New Brighton", "Stapleton", "Park Hill"]
+    },
+    {
+      "id": "le-petit-senegal",
+      "name": "Le Petit Senegal",
+      "group": "West African",
+      "region": "west-african",
+      "places": ["Central Harlem"],
+      "bbox": [-73.9585, 40.8015, -73.948, 40.8065],
+      "note": "116th Street between St. Nicholas and 8th Avenues. Francophone West African."
+    },
+    {
+      "id": "little-liberia",
+      "name": "Little Liberia",
+      "group": "Liberian",
+      "region": "west-african",
+      "places": ["Park Hill", "Clifton", "Stapleton"],
+      "note": "Grew on Staten Island after the Liberian Civil War."
+    },
+    {
+      "id": "little-guyana",
+      "name": "Little Guyana",
+      "group": "Guyanese / Trinidadian / Surinamese",
+      "region": "caribbean",
+      "places": ["Ozone Park", "Richmond Hill", "South Ozone Park"],
+      "note": "Liberty Avenue corridor; Indo-Caribbean and Afro-Caribbean."
+    },
+    {
+      "id": "jamaican-brooklyn",
+      "name": "Jamaican Brooklyn",
+      "group": "Jamaican",
+      "region": "caribbean",
+      "places": ["Crown Heights", "East Flatbush", "Flatbush", "Canarsie"]
+    },
+    {
+      "id": "jamaican-queens",
+      "name": "Jamaican Queens",
+      "group": "Jamaican",
+      "region": "caribbean",
+      "places": ["Queens Village", "Jamaica", "St. Albans", "Springfield Gardens"]
+    },
+    {
+      "id": "jamaican-bronx",
+      "name": "Jamaican Bronx",
+      "group": "Jamaican",
+      "region": "caribbean",
+      "places": ["Wakefield", "Williamsbridge", "Tremont", "Baychester"]
+    },
+    {
+      "id": "haitian-brooklyn",
+      "name": "Haitian Brooklyn",
+      "group": "Haitian",
+      "region": "caribbean",
+      "places": ["Flatbush", "East Flatbush", "Prospect Lefferts Gardens", "Crown Heights", "Canarsie", "Kensington", "Midwood", "Flatlands", "Bushwick", "Park Slope", "Prospect Heights", "Bensonhurst"]
+    },
+    {
+      "id": "haitian-queens",
+      "name": "Haitian Queens",
+      "group": "Haitian",
+      "region": "caribbean",
+      "places": ["Springfield Gardens", "South Jamaica", "Hollis", "Queens Village", "Cambria Heights", "Laurelton", "Rosedale"]
+    },
+    {
+      "id": "bangla-town",
+      "name": "Bangla Town / Kensington",
+      "group": "Bangladeshi",
+      "region": "south-asian",
+      "places": ["Kensington"],
+      "note": "McDonald Avenue corridor; informal Bangla Town."
+    },
+    {
+      "id": "bangladeshi-jackson-heights",
+      "name": "Bangladeshi Jackson Heights",
+      "group": "Bangladeshi",
+      "region": "south-asian",
+      "places": ["Jackson Heights"],
+      "bbox": [-73.894, 40.746, -73.881, 40.752],
+      "note": "73rd Street, shared with Indian, Pakistani, and Filipino businesses."
+    },
+    {
+      "id": "bangladeshi-hillside",
+      "name": "Bangladeshi Hillside Avenue",
+      "group": "Bangladeshi",
+      "region": "south-asian",
+      "places": ["Jamaica Hills", "Briarwood", "Jamaica Estates", "Hollis"]
+    },
+    {
+      "id": "bangladeshi-parkchester",
+      "name": "Bangladeshi Parkchester",
+      "group": "Bangladeshi",
+      "region": "south-asian",
+      "places": ["Parkchester"]
+    },
+    {
+      "id": "curry-row",
+      "name": "Curry Row",
+      "group": "Indian",
+      "region": "south-asian",
+      "places": ["East Village"],
+      "bbox": [-73.9905, 40.7245, -73.9825, 40.7275],
+      "note": "6th Street between 1st and 2nd Avenues."
+    },
+    {
+      "id": "curry-hill",
+      "name": "Curry Hill / Little India",
+      "group": "Indian",
+      "region": "south-asian",
+      "places": ["Murray Hill", "Rose Hill", "Kips Bay"],
+      "bbox": [-73.9855, 40.7405, -73.979, 40.7465],
+      "note": "Lexington Avenue between 26th and 31st Streets."
+    },
+    {
+      "id": "little-india-jackson-heights",
+      "name": "Little India (Jackson Heights)",
+      "group": "Indian",
+      "region": "south-asian",
+      "places": ["Jackson Heights"],
+      "bbox": [-73.8935, 40.7465, -73.8885, 40.7508],
+      "note": "74th Street between Roosevelt and 37th Avenue."
+    },
+    {
+      "id": "little-punjab",
+      "name": "Little Punjab / Little India (Richmond Hill)",
+      "group": "Indian / Sikh",
+      "region": "south-asian",
+      "places": ["Richmond Hill", "South Ozone Park"],
+      "note": "Largest Sikh population in the NYC area; also Little Indo-Caribbean."
+    },
+    {
+      "id": "little-pakistan-brooklyn",
+      "name": "Little Pakistan (Brooklyn)",
+      "group": "Pakistani",
+      "region": "south-asian",
+      "places": ["Kensington", "Midwood"]
+    },
+    {
+      "id": "pakistani-queens",
+      "name": "Pakistani Queens",
+      "group": "Pakistani",
+      "region": "south-asian",
+      "places": ["Jackson Heights", "Fresh Meadows"]
+    },
+    {
+      "id": "sri-lankan-tompkinsville",
+      "name": "Tompkinsville Sri Lankan",
+      "group": "Sri Lankan",
+      "region": "south-asian",
+      "places": ["Tompkinsville", "Stapleton"],
+      "bbox": [-74.0875, 40.6325, -74.0745, 40.6405],
+      "note": "Victory Boulevard and Cebra Avenue; one of the highest concentrations outside Sri Lanka."
+    },
+    {
+      "id": "manhattan-chinatown",
+      "name": "Manhattan Chinatown",
+      "group": "Chinese",
+      "region": "east-asian",
+      "places": ["Chinatown", "Two Bridges"],
+      "bbox": [-74.0025, 40.7115, -73.989, 40.7195]
+    },
+    {
+      "id": "little-fuzhou",
+      "name": "Little Fuzhou",
+      "group": "Chinese (Fuzhou)",
+      "region": "east-asian",
+      "places": ["Chinatown", "Two Bridges", "Lower East Side"],
+      "bbox": [-73.9975, 40.712, -73.9875, 40.7165],
+      "note": "East Broadway; Fujianese enclave inside Chinatown."
+    },
+    {
+      "id": "flushing-chinatown",
+      "name": "Flushing Chinatown",
+      "group": "Chinese",
+      "region": "east-asian",
+      "places": ["Flushing"]
+    },
+    {
+      "id": "elmhurst-chinatown",
+      "name": "Elmhurst Chinatown",
+      "group": "Chinese",
+      "region": "east-asian",
+      "places": ["Elmhurst"]
+    },
+    {
+      "id": "corona-chinatown",
+      "name": "Corona Chinatown",
+      "group": "Chinese",
+      "region": "east-asian",
+      "places": ["Corona"],
+      "note": "Emerging satellite of Flushing."
+    },
+    {
+      "id": "sunset-park-chinatown",
+      "name": "Sunset Park Chinatown",
+      "group": "Chinese",
+      "region": "east-asian",
+      "places": ["Sunset Park"],
+      "bbox": [-74.014, 40.637, -74.0005, 40.6485],
+      "note": "Eighth Avenue from 42nd to 62nd Streets."
+    },
+    {
+      "id": "avenue-u-chinatown",
+      "name": "Avenue U Chinatown",
+      "group": "Chinese",
+      "region": "east-asian",
+      "places": ["Homecrest", "Sheepshead Bay", "Gravesend"],
+      "bbox": [-73.9685, 40.5945, -73.9505, 40.6015]
+    },
+    {
+      "id": "bensonhurst-chinatown",
+      "name": "Bensonhurst Chinatown",
+      "group": "Chinese",
+      "region": "east-asian",
+      "places": ["Bensonhurst", "Bath Beach", "Dyker Heights"],
+      "bbox": [-74.012, 40.593, -73.982, 40.611]
+    },
+    {
+      "id": "japanese-astoria",
+      "name": "Japanese Astoria",
+      "group": "Japanese",
+      "region": "east-asian",
+      "places": ["Astoria"]
+    },
+    {
+      "id": "japanese-yorkville",
+      "name": "Japanese Yorkville",
+      "group": "Japanese",
+      "region": "east-asian",
+      "places": ["Yorkville"]
+    },
+    {
+      "id": "koreatown-manhattan",
+      "name": "Koreatown",
+      "group": "Korean",
+      "region": "east-asian",
+      "places": ["Midtown South", "Koreatown"],
+      "bbox": [-73.9905, 40.7468, -73.9848, 40.7498],
+      "note": "32nd Street between Broadway and Fifth Avenue."
+    },
+    {
+      "id": "long-island-koreatown",
+      "name": "Long Island Koreatown (Queens)",
+      "group": "Korean",
+      "region": "east-asian",
+      "places": ["Flushing", "Murray Hill", "Bayside", "Douglaston", "Little Neck", "Auburndale", "Sunnyside", "Woodside", "Elmhurst"]
+    },
+    {
+      "id": "korean-bedford-park",
+      "name": "Korean Bedford Park",
+      "group": "Korean",
+      "region": "east-asian",
+      "places": ["Bedford Park"]
+    },
+    {
+      "id": "little-manila",
+      "name": "Little Manila",
+      "group": "Filipino",
+      "region": "southeast-asian",
+      "places": ["Woodside"],
+      "bbox": [-73.9145, 40.7445, -73.8995, 40.7505],
+      "note": "Roosevelt Avenue."
+    },
+    {
+      "id": "filipino-queens",
+      "name": "Filipino Queens",
+      "group": "Filipino",
+      "region": "southeast-asian",
+      "places": ["Jackson Heights", "Elmhurst", "Jamaica", "Hollis"]
+    },
+    {
+      "id": "little-saigon",
+      "name": "Little Saigon",
+      "group": "Vietnamese",
+      "region": "southeast-asian",
+      "places": ["Chinatown"],
+      "bbox": [-73.9985, 40.7138, -73.9948, 40.7172],
+      "note": "Bowery, unofficial, next to Chinatown."
+    },
+    {
+      "id": "vietnamese-flushing",
+      "name": "Vietnamese Flushing",
+      "group": "Vietnamese",
+      "region": "southeast-asian",
+      "places": ["Flushing"]
+    },
+    {
+      "id": "albanian-bronx",
+      "name": "Albanian Bronx",
+      "group": "Albanian",
+      "region": "european",
+      "places": ["Belmont", "Pelham Parkway", "Allerton", "Bronxdale"]
+    },
+    {
+      "id": "little-france",
+      "name": "Little France / Little Paris",
+      "group": "French",
+      "region": "european",
+      "places": ["Carroll Gardens", "Cobble Hill", "Boerum Hill"]
+    },
+    {
+      "id": "little-germany",
+      "name": "Little Germany (Kleindeutschland)",
+      "group": "German",
+      "region": "european",
+      "places": ["East Village", "Alphabet City", "Lower East Side"],
+      "status": "historic",
+      "note": "Tompkins Square / Alphabet City. Social core ended after the General Slocum disaster (1904)."
+    },
+    {
+      "id": "yorkville-german",
+      "name": "Yorkville (German Broadway)",
+      "group": "German",
+      "region": "european",
+      "places": ["Yorkville"],
+      "note": "86th Street was called the German Broadway."
+    },
+    {
+      "id": "german-queens",
+      "name": "German Queens",
+      "group": "German",
+      "region": "european",
+      "places": ["Ridgewood", "Maspeth", "Glendale", "Middle Village"]
+    },
+    {
+      "id": "greektown-astoria",
+      "name": "Greektown (Astoria)",
+      "group": "Greek",
+      "region": "european",
+      "places": ["Astoria", "Ditmars-Steinway"]
+    },
+    {
+      "id": "little-hungary",
+      "name": "Little Hungary",
+      "group": "Hungarian",
+      "region": "european",
+      "places": ["Yorkville"],
+      "bbox": [-73.9565, 40.7705, -73.9465, 40.7765],
+      "note": "79th Street hub in Yorkville."
+    },
+    {
+      "id": "hungarian-forest-hills",
+      "name": "Hungarian Forest Hills",
+      "group": "Hungarian",
+      "region": "european",
+      "places": ["Forest Hills"]
+    },
+    {
+      "id": "irish-hells-kitchen",
+      "name": "Hell's Kitchen (Irish)",
+      "group": "Irish",
+      "region": "european",
+      "places": ["Hell's Kitchen", "Clinton"]
+    },
+    {
+      "id": "irish-woodlawn",
+      "name": "Woodlawn Heights (Irish)",
+      "group": "Irish",
+      "region": "european",
+      "places": ["Woodlawn"]
+    },
+    {
+      "id": "irish-bay-ridge",
+      "name": "Bay Ridge (Irish)",
+      "group": "Irish",
+      "region": "european",
+      "places": ["Bay Ridge"]
+    },
+    {
+      "id": "irish-rockaway",
+      "name": "Belle Harbor / Breezy Point",
+      "group": "Irish",
+      "region": "european",
+      "places": ["Belle Harbor", "Breezy Point", "Neponsit", "Rockaway Park"]
+    },
+    {
+      "id": "irish-marine-park",
+      "name": "Marine Park / Gerritsen Beach",
+      "group": "Irish",
+      "region": "european",
+      "places": ["Marine Park", "Gerritsen Beach"]
+    },
+    {
+      "id": "irish-west-brighton",
+      "name": "West Brighton (Irish)",
+      "group": "Irish",
+      "region": "european",
+      "places": ["West New Brighton"]
+    },
+    {
+      "id": "irish-western-queens",
+      "name": "Western Queens (Irish)",
+      "group": "Irish",
+      "region": "european",
+      "places": ["Woodside", "Sunnyside", "Maspeth"]
+    },
+    {
+      "id": "little-italy-manhattan",
+      "name": "Little Italy",
+      "group": "Italian",
+      "region": "european",
+      "places": ["Little Italy", "NoLita"],
+      "bbox": [-73.9988, 40.7178, -73.9952, 40.7212],
+      "note": "Mulberry Street between Kenmare and Grand. Once 17 blocks."
+    },
+    {
+      "id": "italian-harlem",
+      "name": "Italian Harlem",
+      "group": "Italian",
+      "region": "european",
+      "places": ["East Harlem"],
+      "bbox": [-73.9385, 40.7945, -73.9325, 40.8015],
+      "status": "historic",
+      "note": "Pleasant Avenue remnant; mostly gone since the 1970s."
+    },
+    {
+      "id": "arthur-avenue",
+      "name": "Arthur Avenue",
+      "group": "Italian",
+      "region": "european",
+      "places": ["Belmont"],
+      "bbox": [-73.8888, 40.8515, -73.8828, 40.8585]
+    },
+    {
+      "id": "italian-bronx",
+      "name": "Italian Bronx",
+      "group": "Italian",
+      "region": "european",
+      "places": ["Morris Park", "Country Club", "Pelham Bay", "Throgs Neck"]
+    },
+    {
+      "id": "italian-brooklyn",
+      "name": "Italian Brooklyn",
+      "group": "Italian",
+      "region": "european",
+      "places": ["Bensonhurst", "Dyker Heights", "Bay Ridge", "Carroll Gardens", "Cobble Hill", "Williamsburg", "Canarsie"]
+    },
+    {
+      "id": "italian-queens",
+      "name": "Italian Queens",
+      "group": "Italian",
+      "region": "european",
+      "places": ["Howard Beach", "Middle Village", "Whitestone", "Ozone Park", "Astoria"]
+    },
+    {
+      "id": "italian-staten-island",
+      "name": "Italian Staten Island",
+      "group": "Italian",
+      "region": "european",
+      "places": ["Great Kills", "New Dorp", "Tottenville", "Annadale", "Eltingville", "Huguenot", "Dongan Hills", "South Beach", "Grasmere", "Old Town", "Grant City", "Oakwood"],
+      "note": "Staten Island is the most Italian county in the U.S. (37.7% ancestry in the 2000 census cited by Wikipedia)."
+    },
+    {
+      "id": "little-malta",
+      "name": "Little Malta",
+      "group": "Maltese",
+      "region": "european",
+      "places": ["Astoria"],
+      "note": "Maltese Center and bakeries in Astoria."
+    },
+    {
+      "id": "cypriot-astoria",
+      "name": "Cypriot Astoria",
+      "group": "Cypriot",
+      "region": "european",
+      "places": ["Astoria"]
+    },
+    {
+      "id": "lapskaus-boulevard",
+      "name": "Lapskaus Boulevard",
+      "group": "Norwegian / Scandinavian",
+      "region": "european",
+      "places": ["Bay Ridge", "Sunset Park", "Dyker Heights"],
+      "note": "Eighth Avenue Norwegian corridor; also Swedish and Danish."
+    },
+    {
+      "id": "finnish-sunset-park",
+      "name": "Finlandia Street / Sunset Park Finns",
+      "group": "Finnish",
+      "region": "european",
+      "places": ["Sunset Park"],
+      "note": "40th Street co-named Finlandia Street (1991)."
+    },
+    {
+      "id": "scandinavian-bronx",
+      "name": "Scandinavian Bronx",
+      "group": "Swedish / Scandinavian",
+      "region": "european",
+      "places": ["Throgs Neck", "Castle Hill", "Morrisania"]
+    },
+    {
+      "id": "little-poland",
+      "name": "Little Poland",
+      "group": "Polish",
+      "region": "european",
+      "places": ["Greenpoint", "Williamsburg"]
+    },
+    {
+      "id": "polish-queens",
+      "name": "Polish Queens",
+      "group": "Polish",
+      "region": "european",
+      "places": ["Maspeth", "Ridgewood"]
+    },
+    {
+      "id": "polish-east-village",
+      "name": "Polish East Village",
+      "group": "Polish",
+      "region": "european",
+      "places": ["East Village"]
+    },
+    {
+      "id": "brighton-beach",
+      "name": "Brighton Beach",
+      "group": "Russian",
+      "region": "european",
+      "places": ["Brighton Beach"],
+      "note": "Largest Russian-speaking community in the United States."
+    },
+    {
+      "id": "russian-brooklyn",
+      "name": "Russian Brooklyn",
+      "group": "Russian",
+      "region": "european",
+      "places": ["Bay Ridge", "Gravesend", "Sheepshead Bay", "Midwood"]
+    },
+    {
+      "id": "russian-staten-island",
+      "name": "Russian Staten Island",
+      "group": "Russian",
+      "region": "european",
+      "places": ["South Beach", "New Dorp"]
+    },
+    {
+      "id": "serbian-queens",
+      "name": "Serbian Queens",
+      "group": "Serbian",
+      "region": "european",
+      "places": ["Ridgewood", "Glendale", "Astoria"]
+    },
+    {
+      "id": "ukrainian-east-village",
+      "name": "Ukrainian East Village",
+      "group": "Ukrainian",
+      "region": "european",
+      "places": ["East Village"],
+      "bbox": [-73.9915, 40.7255, -73.9855, 40.7305],
+      "note": "Second Avenue between 6th and 10th Streets."
+    },
+    {
+      "id": "little-spain",
+      "name": "Little Spain",
+      "group": "Spanish",
+      "region": "european",
+      "places": ["Chelsea"],
+      "bbox": [-74.0055, 40.7385, -73.9995, 40.7415],
+      "status": "historic",
+      "note": "14th Street between Seventh and Eighth Avenues."
+    },
+    {
+      "id": "croatian-queens",
+      "name": "Croatian Queens",
+      "group": "Croatian",
+      "region": "european",
+      "places": ["Astoria", "Ridgewood", "Sunnyside"]
+    },
+    {
+      "id": "romanian-queens",
+      "name": "Romanian Queens",
+      "group": "Romanian",
+      "region": "european",
+      "places": ["Ridgewood", "Sunnyside", "Astoria"]
+    },
+    {
+      "id": "little-brazil",
+      "name": "Little Brazil (Rua 46)",
+      "group": "Brazilian",
+      "region": "latin-american",
+      "places": ["Midtown"],
+      "bbox": [-73.9848, 40.7555, -73.9798, 40.7578],
+      "status": "historic",
+      "note": "West 46th Street between Fifth and Sixth; dissolved in the 1990s."
+    },
+    {
+      "id": "brazilian-astoria",
+      "name": "Brazilian Astoria",
+      "group": "Brazilian",
+      "region": "latin-american",
+      "places": ["Astoria"],
+      "bbox": [-73.9315, 40.7545, -73.9215, 40.7615]
+    },
+    {
+      "id": "brazilian-jackson-heights",
+      "name": "Brazilian Jackson Heights",
+      "group": "Brazilian",
+      "region": "latin-american",
+      "places": ["Jackson Heights"]
+    },
+    {
+      "id": "colombian-queens",
+      "name": "Colombian Queens",
+      "group": "Colombian",
+      "region": "latin-american",
+      "places": ["Jackson Heights", "Corona", "Elmhurst", "Murray Hill"]
+    },
+    {
+      "id": "dominican-washington-heights",
+      "name": "Dominican Upper Manhattan",
+      "group": "Dominican",
+      "region": "latin-american",
+      "places": ["Washington Heights", "Inwood", "East Harlem"]
+    },
+    {
+      "id": "dominican-bronx",
+      "name": "Dominican Bronx",
+      "group": "Dominican",
+      "region": "latin-american",
+      "places": ["Highbridge", "University Heights", "Morris Heights", "Kingsbridge", "Fordham", "Bedford Park", "Concourse", "Tremont"]
+    },
+    {
+      "id": "dominican-brooklyn",
+      "name": "Dominican Brooklyn",
+      "group": "Dominican",
+      "region": "latin-american",
+      "places": ["Bushwick", "Williamsburg", "Sunset Park", "East New York"]
+    },
+    {
+      "id": "dominican-queens",
+      "name": "Dominican Queens",
+      "group": "Dominican",
+      "region": "latin-american",
+      "places": ["Corona", "Jackson Heights", "Ridgewood", "Woodhaven"]
+    },
+    {
+      "id": "ecuadorian-williamsburg",
+      "name": "Ecuadorian Southside Williamsburg",
+      "group": "Ecuadorian",
+      "region": "latin-american",
+      "places": ["Williamsburg"]
+    },
+    {
+      "id": "ecuadorian-queens",
+      "name": "Ecuadorian Queens",
+      "group": "Ecuadorian",
+      "region": "latin-american",
+      "places": ["Jackson Heights", "Corona", "Ridgewood"]
+    },
+    {
+      "id": "ecuadorian-tremont",
+      "name": "Ecuadorian Tremont",
+      "group": "Ecuadorian",
+      "region": "latin-american",
+      "places": ["Tremont"]
+    },
+    {
+      "id": "mexican-sunset-park",
+      "name": "Mexican Sunset Park",
+      "group": "Mexican",
+      "region": "latin-american",
+      "places": ["Sunset Park"],
+      "bbox": [-74.0255, 40.6355, -74.0055, 40.6495],
+      "note": "Densest Mexican population: 2nd–5th Avenues, 35th–63rd Streets."
+    },
+    {
+      "id": "mexican-brooklyn",
+      "name": "Mexican Brooklyn",
+      "group": "Mexican",
+      "region": "latin-american",
+      "places": ["Flatbush", "Bushwick", "Brighton Beach"]
+    },
+    {
+      "id": "mexican-queens",
+      "name": "Mexican Queens",
+      "group": "Mexican",
+      "region": "latin-american",
+      "places": ["Elmhurst", "East Elmhurst", "Jackson Heights", "Corona", "Kew Gardens"]
+    },
+    {
+      "id": "mexican-east-harlem",
+      "name": "Mexican East Harlem",
+      "group": "Mexican",
+      "region": "latin-american",
+      "places": ["East Harlem"],
+      "bbox": [-73.9425, 40.7925, -73.9325, 40.7995]
+    },
+    {
+      "id": "mexican-staten-island",
+      "name": "Mexican Staten Island",
+      "group": "Mexican",
+      "region": "latin-american",
+      "places": ["Port Richmond", "West New Brighton", "Tompkinsville"]
+    },
+    {
+      "id": "spanish-harlem",
+      "name": "Spanish Harlem / El Barrio",
+      "group": "Puerto Rican",
+      "region": "latin-american",
+      "places": ["East Harlem"]
+    },
+    {
+      "id": "loisaida",
+      "name": "Loisaida",
+      "group": "Puerto Rican",
+      "region": "latin-american",
+      "places": ["East Village", "Alphabet City", "Lower East Side"],
+      "note": "East of Avenue A."
+    },
+    {
+      "id": "puerto-rican-brooklyn",
+      "name": "Puerto Rican Brooklyn",
+      "group": "Puerto Rican",
+      "region": "latin-american",
+      "places": ["Bushwick", "Williamsburg", "East New York", "Brownsville", "Coney Island", "Red Hook", "Sunset Park", "Bay Ridge"],
+      "note": "Graham Avenue is nicknamed Avenue of Puerto Rico."
+    },
+    {
+      "id": "puerto-rican-queens",
+      "name": "Puerto Rican Queens",
+      "group": "Puerto Rican",
+      "region": "latin-american",
+      "places": ["Ridgewood", "Maspeth", "Glendale", "Middle Village", "Woodhaven"]
+    },
+    {
+      "id": "puerto-rican-bronx",
+      "name": "Puerto Rican Bronx",
+      "group": "Puerto Rican",
+      "region": "latin-american",
+      "places": ["Mott Haven", "Melrose", "Longwood", "Soundview", "Hunts Point", "Morrisania", "Concourse"]
+    },
+    {
+      "id": "puerto-rican-staten-island",
+      "name": "Puerto Rican Staten Island",
+      "group": "Puerto Rican",
+      "region": "latin-american",
+      "places": ["Mariners Harbor", "Arlington", "Elm Park", "Graniteville", "Port Richmond", "Stapleton"]
+    },
+    {
+      "id": "salvadoran-nyc",
+      "name": "Salvadoran NYC",
+      "group": "Salvadoran",
+      "region": "latin-american",
+      "places": ["Flushing", "Corona", "Jamaica", "Williamsburg", "Parkchester"]
+    },
+    {
+      "id": "guatemalan-nyc",
+      "name": "Guatemalan NYC",
+      "group": "Guatemalan",
+      "region": "latin-american",
+      "places": ["Jackson Heights", "Elmhurst", "Bushwick"]
+    },
+    {
+      "id": "honduran-nyc",
+      "name": "Honduran NYC",
+      "group": "Honduran",
+      "region": "latin-american",
+      "places": ["Mott Haven", "Highbridge", "Brownsville", "Williamsburg", "Bushwick", "East New York", "Harlem", "East Harlem", "Jamaica"]
+    },
+    {
+      "id": "south-american-jackson-heights",
+      "name": "South American Jackson Heights",
+      "group": "Argentinian / Uruguayan / Peruvian",
+      "region": "latin-american",
+      "places": ["Jackson Heights"],
+      "note": "Wikipedia lists Argentinians, Uruguayans, and Peruvians here without a dedicated enclave name."
+    },
+    {
+      "id": "little-syria",
+      "name": "Little Syria",
+      "group": "Syrian / Lebanese",
+      "region": "mena",
+      "places": ["Financial District", "Battery Park City"],
+      "bbox": [-74.0175, 40.7045, -74.0128, 40.7125],
+      "status": "historic",
+      "note": "Washington Street. Cleared for the Brooklyn–Battery Tunnel."
+    },
+    {
+      "id": "atlantic-avenue-arab",
+      "name": "Atlantic Avenue (Arab Brooklyn)",
+      "group": "Arab / Lebanese / Syrian",
+      "region": "mena",
+      "places": ["Brooklyn Heights", "Downtown Brooklyn", "Boerum Hill", "Cobble Hill"],
+      "bbox": [-73.9965, 40.6875, -73.9785, 40.6925]
+    },
+    {
+      "id": "arab-park-slope",
+      "name": "Arab Park Slope / East Williamsburg",
+      "group": "Arab",
+      "region": "mena",
+      "places": ["Park Slope", "East Williamsburg", "Midwood"]
+    },
+    {
+      "id": "little-yemen",
+      "name": "Little Yemen",
+      "group": "Yemeni",
+      "region": "mena",
+      "places": ["Morris Park"],
+      "bbox": [-73.8675, 40.8485, -73.8555, 40.8565],
+      "note": "White Plains Road."
+    },
+    {
+      "id": "little-egypt",
+      "name": "Little Egypt",
+      "group": "Egyptian / Maghrebi",
+      "region": "mena",
+      "places": ["Astoria", "Ditmars-Steinway"],
+      "bbox": [-73.9165, 40.7605, -73.9105, 40.7725],
+      "note": "Steinway Street between Broadway and Astoria Boulevard."
+    },
+    {
+      "id": "palestinian-new-springville",
+      "name": "Palestinian New Springville",
+      "group": "Palestinian",
+      "region": "mena",
+      "places": ["New Springville"]
+    },
+    {
+      "id": "coptic-si",
+      "name": "Coptic Egyptian Staten Island",
+      "group": "Coptic Egyptian",
+      "region": "mena",
+      "places": ["Eltingville", "Great Kills", "Annadale"]
+    },
+    {
+      "id": "israeli-williamsburg",
+      "name": "Israeli South Williamsburg",
+      "group": "Israeli",
+      "region": "mena",
+      "places": ["Williamsburg"]
+    },
+    {
+      "id": "israeli-kings-highway",
+      "name": "Israeli Kings Highway",
+      "group": "Israeli",
+      "region": "mena",
+      "places": ["Midwood", "Gravesend"]
+    },
+    {
+      "id": "iranian-queens",
+      "name": "Iranian Queens",
+      "group": "Iranian",
+      "region": "mena",
+      "places": ["Kew Gardens", "Forest Hills", "Rego Park", "Flushing"]
+    },
+    {
+      "id": "little-armenia",
+      "name": "Little Armenia",
+      "group": "Armenian",
+      "region": "other",
+      "places": ["Murray Hill"],
+      "status": "historic",
+      "note": "Murray Hill remnant around St. Vartan Cathedral; most Armenians now in Queens."
+    },
+    {
+      "id": "armenian-queens",
+      "name": "Armenian Queens",
+      "group": "Armenian",
+      "region": "other",
+      "places": ["Forest Hills", "Rego Park", "Flushing", "Bayside"]
+    },
+    {
+      "id": "little-australia",
+      "name": "Little Australia",
+      "group": "Australian",
+      "region": "other",
+      "places": ["Chinatown", "Little Italy"],
+      "bbox": [-74.0005, 40.7175, -73.9955, 40.7215],
+      "note": "Mulberry and Mott Streets café strip since about 2010."
+    },
+    {
+      "id": "boro-park",
+      "name": "Borough Park",
+      "group": "Jewish (Orthodox)",
+      "region": "jewish",
+      "places": ["Borough Park"],
+      "note": "One of the largest Orthodox Jewish communities in the world."
+    },
+    {
+      "id": "jewish-crown-heights",
+      "name": "Crown Heights (Jewish)",
+      "group": "Jewish (Orthodox)",
+      "region": "jewish",
+      "places": ["Crown Heights"]
+    },
+    {
+      "id": "jewish-williamsburg",
+      "name": "Williamsburg (Hasidic)",
+      "group": "Jewish (Hasidic)",
+      "region": "jewish",
+      "places": ["Williamsburg"]
+    },
+    {
+      "id": "jewish-flatbush-midwood",
+      "name": "Flatbush / Midwood (Jewish)",
+      "group": "Jewish",
+      "region": "jewish",
+      "places": ["Flatbush", "Midwood"]
+    },
+    {
+      "id": "jewish-riverdale",
+      "name": "Riverdale (Jewish)",
+      "group": "Jewish",
+      "region": "jewish",
+      "places": ["Riverdale", "Fieldston", "North Riverdale", "Spuyten Duyvil"]
+    },
+    {
+      "id": "jewish-queens",
+      "name": "Jewish Queens",
+      "group": "Jewish",
+      "region": "jewish",
+      "places": ["Forest Hills", "Kew Gardens Hills", "Kew Gardens", "Fresh Meadows"]
+    },
+    {
+      "id": "jewish-manhattan",
+      "name": "Jewish Manhattan",
+      "group": "Jewish",
+      "region": "jewish",
+      "places": ["Upper East Side", "Upper West Side", "Washington Heights", "Lower East Side"]
+    },
+    {
+      "id": "jewish-staten-island",
+      "name": "Hasidic Staten Island",
+      "group": "Jewish (Hasidic)",
+      "region": "jewish",
+      "places": ["Willowbrook", "New Springville", "Eltingville", "New Brighton"]
+    },
+    {
+      "id": "romani-bronx",
+      "name": "Romani Bronx",
+      "group": "Romani",
+      "region": "other",
+      "places": ["University Heights", "Fordham", "Tremont"],
+      "note": "Muslim Romani from southern Yugoslavia; Vlax / Kalderash / Machvaya."
+    }
+  ]
+}
