@@ -132,14 +132,23 @@ export function hasExpandableSeries(headlines, key) {
  * Human links for “where to find it”. Company Facts do not store a PDF page
  * number; the inline XBRL viewer is the closest jump-to-the-line we can offer.
  */
-/** One human-readable jump: the inline XBRL viewer for the annual report. */
-export function filingSourceLinks({ company, point, filing, derived } = {}) {
-  if (derived) return [];
+/** One human-readable jump: exact fact when indexed, otherwise the viewer. */
+export function filingSourceLinks({ company, point, def, filing } = {}) {
   const cik = company?.cik;
   const form = point?.form || filing?.form || company?.form || '10-K';
   const accession = filing?.accession;
   const primary = filing?.primary;
   if (!accession || !primary) return [];
+  const factId = def?.key && point?.end ? filing?.factAnchors?.[def.key]?.[point.end] : '';
+  if (factId) {
+    const archive = filingArchiveUrl(cik, accession, primary);
+    if (!archive) return [];
+    return [{
+      href: `${archive}#${encodeURIComponent(factId)}`,
+      label: `Open exact line in ${form}`,
+      kind: 'document',
+    }];
+  }
   const html = inlineXbrlUrl(cik, accession, primary);
   if (!html) return [];
   return [{ href: html, label: `Open ${form} (inline XBRL)`, kind: 'document' }];

@@ -732,6 +732,37 @@ assert.equal(ordinal(1), '1st');
   });
   assert.equal(fromSnap.metrics.long_term_debt.val, 25);
   assert.equal(fromSnap.ratios.debt_equity, 0.5);
+
+  const derivedGross = extractHeadlines({
+    cik: 2,
+    entityName: 'Derived gross profit',
+    facts: {
+      'us-gaap': {
+        Revenues: { units: { USD: duration(100, '2025-01-01', '2025-12-31', 2025) } },
+        NetIncomeLoss: { units: { USD: duration(10, '2025-01-01', '2025-12-31', 2025) } },
+        CostOfRevenue: { units: { USD: duration(65, '2025-01-01', '2025-12-31', 2025) } },
+      },
+    },
+  });
+  assert.equal(derivedGross.metrics.gross_profit.val, 35);
+  assert.equal(derivedGross.metrics.gross_profit.derived, true);
+  assert.equal(derivedGross.metrics.gross_profit.formula, 'revenue − cost of goods and services sold');
+  assert.equal(derivedGross.ratios.gross_margin, 0.35);
+
+  const reportedGross = extractHeadlines({
+    cik: 3,
+    entityName: 'Reported gross profit',
+    facts: {
+      'us-gaap': {
+        Revenues: { units: { USD: duration(100, '2025-01-01', '2025-12-31', 2025) } },
+        NetIncomeLoss: { units: { USD: duration(10, '2025-01-01', '2025-12-31', 2025) } },
+        GrossProfit: { units: { USD: duration(40, '2025-01-01', '2025-12-31', 2025) } },
+        CostOfRevenue: { units: { USD: duration(65, '2025-01-01', '2025-12-31', 2025) } },
+      },
+    },
+  });
+  assert.equal(reportedGross.metrics.gross_profit.val, 40, 'reported gross profit wins over calculation');
+  assert.equal(reportedGross.metrics.gross_profit.derived, undefined);
 }
 
 console.log('fortune-500 extract tests passed');

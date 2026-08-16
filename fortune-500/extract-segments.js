@@ -52,12 +52,82 @@ function parseScale(attrs) {
 }
 
 function parseNumber(raw, attrs) {
-  const cleaned = String(raw || '').replace(/,/g, '').trim();
+  const cleaned = String(raw || '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&#160;|&nbsp;/gi, '')
+    .replace(/,/g, '')
+    .trim();
   if (!cleaned || cleaned === '—') return null;
   const n = Number(cleaned);
   if (!Number.isFinite(n)) return null;
   const sign = /\bsign="-"/i.test(attrs) ? -1 : 1;
   return sign * n * 10 ** parseScale(attrs);
+}
+
+function attr(attrs, name) {
+  return attrs.match(new RegExp(`\\b${name}="([^"]+)"`, 'i'))?.[1] || null;
+}
+
+function closeEnough(actual, expected) {
+  if (!Number.isFinite(actual) || !Number.isFinite(expected)) return false;
+  return Math.abs(actual - expected) <= Math.max(1e-6, Math.abs(expected) * 1e-9);
+}
+
+/**
+ * Match extracted Company Facts points to visible ix:* element IDs in the
+ * filing. Those IDs let the reference page open the exact reported line.
+ */
+export function extractFactAnchorsFromHtml(html, headlines) {
+  if (!html || typeof html !== 'string' || !headlines?.metrics) return {};
+  const contexts = new Map();
+  for (const m of html.matchAll(/<xbrli:context[^>]*\bid="([^"]+)"[^>]*>([\s\S]*?)<\/xbrli:context>/gi)) {
+    contexts.set(m[1], {
+      end:
+        m[2].match(/<xbrli:(?:endDate|instant)>([^<]+)<\/xbrli:(?:endDate|instant)>/i)?.[1] ||
+        null,
+      dimensional: /<xbrldi:(?:explicitMember|typedMember)\b/i.test(m[2]),
+    });
+  }
+
+  const facts = [];
+  for (const m of html.matchAll(/<ix:(?:nonFraction|nonNumeric)([^>]*)>([\s\S]*?)<\/ix:(?:nonFraction|nonNumeric)>/gi)) {
+    const attrs = m[1];
+    const id = attr(attrs, 'id');
+    const name = attr(attrs, 'name');
+    const context = contexts.get(attr(attrs, 'contextRef'));
+    if (!id || !name || !context?.end) continue;
+    facts.push({
+      id,
+      tag: localName(name),
+      end: context.end,
+      dimensional: context.dimensional,
+      val: parseNumber(m[2], attrs),
+    });
+  }
+
+  const expected = [];
+  for (const [key, point] of Object.entries(headlines.metrics || {})) {
+    if (point?.derived || !point?.tag || !point?.end || !Number.isFinite(point?.val)) continue;
+    expected.push({ key, ...point });
+  }
+  for (const [key, rows] of Object.entries(headlines.seriesAnnual || {})) {
+    for (const point of rows || []) {
+      if (point?.derived || !point?.tag || !point?.end || !Number.isFinite(point?.val)) continue;
+      expected.push({ key, ...point });
+    }
+  }
+
+  const anchors = {};
+  for (const point of expected) {
+    const candidates = facts.filter(
+      (fact) => fact.tag === localName(point.tag) && fact.end === point.end && !fact.dimensional
+    );
+    const hit = candidates.find((fact) => closeEnough(fact.val, point.val)) || candidates[0];
+    if (!hit) continue;
+    if (!anchors[point.key]) anchors[point.key] = {};
+    anchors[point.key][point.end] = hit.id;
+  }
+  return anchors;
 }
 
 /**

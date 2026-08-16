@@ -92,19 +92,25 @@ const filing = {
   accession: '0000104169-26-000019',
   primary: 'wmt-20260131.htm',
   filingDate: '2026-03-13',
+  factAnchors: { revenue: { '2026-01-31': 'f-42' } },
 };
 
-const withDoc = filingSourceLinks({ company, point, def, filing });
+const exactPoint = { ...point, end: '2026-01-31' };
+const withDoc = filingSourceLinks({ company, point: exactPoint, def, filing });
 assert.equal(withDoc.length, 1);
 assert.equal(withDoc[0].kind, 'document');
-assert.ok(withDoc[0].href.includes('/ix?doc='));
-assert.equal(withDoc[0].label, 'Open 10-K (inline XBRL)');
+assert.ok(withDoc[0].href.endsWith('/wmt-20260131.htm#f-42'));
+assert.equal(withDoc[0].label, 'Open exact line in 10-K');
 
 const noDoc = filingSourceLinks({ company, point, def });
 assert.deepEqual(noDoc, []);
 
 const derived = filingSourceLinks({ company, derived: true });
 assert.deepEqual(derived, []);
+
+const fallback = filingSourceLinks({ company, point, def, filing });
+assert.ok(fallback[0].href.includes('/ix?doc='));
+assert.equal(fallback[0].label, 'Open 10-K (inline XBRL)');
 
 const eq = stackedAddends(
   [

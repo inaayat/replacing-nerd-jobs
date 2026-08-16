@@ -1062,7 +1062,7 @@ function renderExercises() {
       <p>${escapeHtml(ex.blurb)}</p>
     </button>`;
   }).join('');
-  $('exercise-picks').innerHTML = filings + exercises;
+  $('exercise-picks').innerHTML = exercises + filings;
   $('exercise-picks').onclick = (e) => {
     const btn = e.target.closest('[data-exercise]');
     if (btn) selectExercise(btn.dataset.exercise);

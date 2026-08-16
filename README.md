@@ -71,15 +71,18 @@ Share prices (last + daily history) come from Yahoo Finance via
 
 ### Financial Modeler — `/financial-modeler`
 
-Beginner-friendly modeling bench. Two exercises share the same three-statement
-wiring (cash is the plug, interest on beginning balances, a real balance check):
+Beginner-friendly modeling bench. Five exercises share the same modeling
+workspace (cash is the plug, interest on beginning balances, and balance checks
+where the exercise uses three statements):
 
 - **From a 10-K** — pick a public Fortune 500 filer (or a watchlist name such as
   GoDaddy, Wix, Cloudflare, Robinhood), pick any of three Wall Street
   Prep model types (3-statement, DCF, trading comps), choose the peer set yourself
   when comps are on, move a handful of plain-English assumptions.
-- **From one sale** — a lemonade stall built from cups × price, cost per cup, and a
-  cart you depreciate. Same statements, dollars instead of millions.
+- **Single-unit economics** — a lemonade stall built from cups × price, cost per
+  cup, and a cart you depreciate, with an optional portfolio rollout.
+- **Capital project, strategic investment, and market entry** — project finance,
+  incremental NPV choices, and regional market sizing exercises.
 
 Either exercise downloads an Excel workbook with live formulas. On a phone
 (`max-width: 900px`) the same engine runs a walkthrough instead: one assumption at
@@ -103,7 +106,10 @@ Assumptions sheet, and a Checks error dashboard. Formulas stay live; the file
 opens in Excel, Numbers, and Sheets. The workspace is two panes: a narrow
 assumption table on the left (label, blue value, filing | assumption | override)
 with a collapsed “How this model is built” guide at the top of that rail, and
-independently scrolling statements on the right. The first screen is stacked starting points (Filings reference plus the modeling exercises, each with a short description); choosing From a 10-K reveals a company search, stacked model cards, and peers, then Next. In the
+independently scrolling statements on the right. The first screen is a
+horizontal starting-point accordion on desktop (Filings reference plus the
+modeling exercises); choosing From a 10-K expands it and reveals company,
+model, and peer setup in one compact row. In the
 10-K workspace, company, 3-statement/DCF/comps, and peers are edited in place. Selecting a row highlights
 the statement lines it feeds; gold / green / blue marks the net-income, cash-plug,
 and interest handoffs between statements.
@@ -120,6 +126,12 @@ writes `extras.json`). Refresh their 10-K/20-F headlines with
 `node scripts/pull-financial-modeler-extras.mjs` (writes `extras-headlines.json`).
 Wix, On Holding, Sportradar, and Genius Sports file a 20-F; Veeam is private
 and has no filing to model.
+
+The Filings reference uses Company Facts for standardized values and the
+segments snapshot for filing metadata plus inline-XBRL fact element IDs.
+`node scripts/pull-fortune500-segments.mjs` refreshes both segments and exact
+line anchors. Reported facts link directly to the corresponding line in the
+human-readable filing; calculated values fall back to the filing viewer.
 
 ### AI buildout money — `/ai-buildout`
 

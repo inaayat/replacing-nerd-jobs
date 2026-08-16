@@ -7,18 +7,23 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { extractSegmentsFromHtml } from '../fortune-500/extract-segments.js';
+import {
+  extractFactAnchorsFromHtml,
+  extractSegmentsFromHtml,
+} from '../fortune-500/extract-segments.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(ROOT, 'fortune-500/data/segments-snapshot.json');
 const MAPPING = join(ROOT, 'fortune-500/data/fortune500_edgar_mapping.json');
+const HEADLINES = join(ROOT, 'fortune-500/data/extended-snapshot.json');
+const EXTRA_HEADLINES = join(ROOT, 'financial-modeler/extras-headlines.json');
 const UA =
   process.env.SEC_USER_AGENT ||
   'inaayat.xyz/fortune-500 (https://inaayat.xyz/fortune-500/)';
 const WORKERS = 2;
 const GAP_MS = 150;
 const MAX_ATTEMPTS = 5;
-const SEGMENT_SNAPSHOT_SCHEMA = 1;
+const SEGMENT_SNAPSHOT_SCHEMA = 2;
 const ANNUAL = new Set(['10-K', '10-K/A', '20-F', '20-F/A']);
 
 function padCik(cik) {
@@ -96,6 +101,12 @@ const unique = publicCos.filter((c) => {
 });
 const snap = loadSnapshot();
 if (!snap.companies) snap.companies = {};
+const headlineCompanies = {
+  ...JSON.parse(readFileSync(HEADLINES, 'utf8')).companies,
+  ...(existsSync(EXTRA_HEADLINES)
+    ? JSON.parse(readFileSync(EXTRA_HEADLINES, 'utf8')).companies
+    : {}),
+};
 
 const pending = unique.filter((c) => !snap.companies[String(c.cik)]);
 console.log(
@@ -146,6 +157,7 @@ async function pullOne(c) {
             cik: c.cik,
             entityName: sub.json.name || c.company,
             filing,
+            factAnchors: extractFactAnchorsFromHtml(doc.text, headlineCompanies[cik]),
             ...extracted,
           };
         }

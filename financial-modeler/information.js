@@ -106,7 +106,9 @@ function searchCompanies(q) {
 }
 
 function currentFiling() {
-  return state.segments.get(Number(state.company?.cik))?.filing || null;
+  const row = state.segments.get(Number(state.company?.cik));
+  if (!row?.filing) return null;
+  return { ...row.filing, factAnchors: row.factAnchors || {} };
 }
 
 function sourceLinksHtml(point, def, { derived = false } = {}) {
@@ -127,8 +129,11 @@ function sourceLinksHtml(point, def, { derived = false } = {}) {
 }
 
 function sourceLine(point, def) {
-  if (point?.derived || point?.tag === IMPLIED_LIABILITIES_TAG) {
+  if (point?.tag === IMPLIED_LIABILITIES_TAG) {
     return 'Computed as total assets − shareholders’ equity. The 10-K did not tag a consolidated Liabilities line.';
+  }
+  if (point?.derived) {
+    return `Computed from tagged lines in this annual report as ${point.formula || def?.formula || 'a derived value'}.`;
   }
   if (!point || typeof point.val !== 'number') {
     return def?.whyMissing
@@ -297,7 +302,9 @@ function filedRow(def, headlines, groupId) {
     : `<span class="fm-info-metric-name">${escapeHtml(def.label)}</span>`;
   const badge = missing
     ? '<span class="fm-info-badge is-missing">Not tagged</span>'
-    : '<span class="fm-info-badge is-tagged">Tagged</span>';
+    : point?.derived
+      ? '<span class="fm-info-badge is-derived">Calculated</span>'
+      : '<span class="fm-info-badge is-tagged">Tagged</span>';
   const row = `<tr class="fm-info-row${open ? ' is-open' : ''}${missing ? ' is-missing' : ''}" data-metric="${escapeHtml(def.key)}">
     <td class="label">${toggle}${badge}</td>
     <td class="val${missing ? ' is-missing' : ''}">${escapeHtml(shown || '—')}</td>
