@@ -214,3 +214,33 @@ export function stackedAddends(parts, total = null) {
       : false;
   return { rows, sum, total: hasTotal ? total : null, tiesTotal };
 }
+
+/** sessionStorage key for cached filed-tags API payloads. */
+export function filedTagsCacheKey(cik, fy) {
+  return `fm-filed-tags:${cik}:${fy ?? 'na'}`;
+}
+
+/** Filter filed-tag rows (All / Mapped / Unmapped + search). */
+export function filterFiledTagRows(rows, { query = '', filter = 'all' } = {}) {
+  const needle = String(query || '')
+    .trim()
+    .toLowerCase();
+  return (rows || []).filter((row) => {
+    if (filter === 'mapped' && !row.mappedKey) return false;
+    if (filter === 'unmapped' && row.mappedKey) return false;
+    if (!needle) return true;
+    const hay = [row.tag, row.label, row.taxonomy, row.mappedKey, row.mappedLabel]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    return hay.includes(needle);
+  });
+}
+
+/** Human summary for the filed-tags panel header. */
+export function filedTagsCountLabel(counts) {
+  const filed = counts?.filed ?? 0;
+  const mapped = counts?.mapped ?? 0;
+  const unmapped = counts?.unmapped ?? filed - mapped;
+  return `${filed} filed · ${mapped} mapped · ${unmapped} not in our catalog`;
+}

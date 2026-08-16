@@ -3,6 +3,7 @@
  * uses, runs the engine, and renders the three models with the assumptions beside
  * them. No build step: plain ESM modules loaded by the browser.
  */
+import { prepareHeadlines } from './tag-overrides.js';
 import { ensureRatios, formatUsd, formatPercent } from '../fortune-500/extract.js';
 import { isPublic, PRIVATE_NOTES } from '../fortune-500/catalog.js';
 import { priceTicker } from '../fortune-500/prices.js';
@@ -370,7 +371,8 @@ async function loadPrice(company) {
 }
 
 function headlinesFor(company) {
-  return state.snapshot.get(Number(company?.cik)) || null;
+  const raw = state.snapshot.get(Number(company?.cik));
+  return raw ? prepareHeadlines(raw, company?.cik) : null;
 }
 
 function compsOn() {

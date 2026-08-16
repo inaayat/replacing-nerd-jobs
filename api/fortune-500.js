@@ -3,12 +3,14 @@
  *
  * GET headlines?ciks=1018724,320193  → latest 10-K headline metrics (max 5 CIKs)
  * GET prices?ticker=AAPL&range=5y    → Yahoo v8 last price + daily OHLCV (no API key)
+ * GET filed?cik=1609711              → all statement-like XBRL tags for latest 10-K FY
  *
  * Headlines: Company Facts from data.sec.gov, cached in Neon when DATABASE_URL is set.
  * Prices: Yahoo Finance chart API, same optional Neon cache, CDN s-maxage.
  */
 import { db, ensureSchema } from '../lib/db.js';
 import { extractHeadlines } from '../fortune-500/extract.js';
+import { extractFiledTags, FILED_TAGS_SCHEMA } from '../fortune-500/filed-tags.js';
 import { MAX_COMPARE } from '../fortune-500/catalog.js';
 import {
   yahooChartUrl,
@@ -59,7 +61,50 @@ export default async function handler(req, res) {
   const route = String(req.query?.route || '').trim();
   if (route === 'headlines') return handleHeadlines(req, res);
   if (route === 'prices') return handlePrices(req, res);
-  res.status(404).json({ error: 'Unknown Fortune 500 route.', routes: ['headlines', 'prices'] });
+  if (route === 'filed') return handleFiled(req, res);
+  res.status(404).json({ error: 'Unknown Fortune 500 route.', routes: ['headlines', 'prices', 'filed'] });
+}
+
+async function handleFiled(req, res) {
+  const cik = Number(req.query?.cik);
+  if (!Number.isInteger(cik) || cik <= 0) {
+    res.status(400).json({ error: 'Pass ?cik= as a positive integer CIK.' });
+    return;
+  }
+
+  const cached = await readFiledCache(cik);
+  if (cached) {
+    res.status(200).json({ ...cached, cached: true });
+    return;
+  }
+
+  const facts = await fetchCompanyFacts(cik);
+  if (facts.error) {
+    res.status(200).json({ cik, error: facts.error, rows: [], also: [], counts: { filed: 0, mapped: 0, unmapped: 0 } });
+    return;
+  }
+
+  const payload = extractFiledTags(facts);
+  await writeFiledCache(cik, payload);
+  res.status(200).json({ ...payload, cached: false });
+}
+
+async function fetchCompanyFacts(cik) {
+  const url = `https://data.sec.gov/api/xbrl/companyfacts/CIK${padCik(cik)}.json`;
+  try {
+    const resp = await fetch(url, {
+      headers: {
+        'User-Agent': secUserAgent(),
+        Accept: 'application/json',
+      },
+    });
+    if (!resp.ok) {
+      return { error: `SEC ${resp.status}` };
+    }
+    return await resp.json();
+  } catch (err) {
+    return { error: err.message || 'SEC fetch failed' };
+  }
 }
 
 async function handleHeadlines(req, res) {
@@ -131,21 +176,9 @@ async function headlinesForCik(cik) {
   const cached = await readCache(cik);
   if (cached) return { cik, ...cached, cached: true };
 
-  const url = `https://data.sec.gov/api/xbrl/companyfacts/CIK${padCik(cik)}.json`;
-  let facts;
-  try {
-    const resp = await fetch(url, {
-      headers: {
-        'User-Agent': secUserAgent(),
-        Accept: 'application/json',
-      },
-    });
-    if (!resp.ok) {
-      return { cik, error: `SEC ${resp.status}`, metrics: {}, ratios: {}, asOfYear: null };
-    }
-    facts = await resp.json();
-  } catch (err) {
-    return { cik, error: err.message || 'SEC fetch failed', metrics: {}, ratios: {}, asOfYear: null };
+  const facts = await fetchCompanyFacts(cik);
+  if (facts.error) {
+    return { cik, error: facts.error, metrics: {}, ratios: {}, asOfYear: null };
   }
 
   const extracted = extractHeadlines(facts);
@@ -199,6 +232,43 @@ async function writeCache(cik, payload) {
     `;
   } catch {
     // Cache is optional — still return live numbers.
+  }
+}
+
+async function readFiledCache(cik) {
+  try {
+    if (!process.env.DATABASE_URL) return null;
+    await ensureSchema();
+    const rows = await db()`
+      SELECT payload, fetched_at
+      FROM f500_filed_cache
+      WHERE cik = ${cik}
+    `;
+    const row = rows[0];
+    if (!row) return null;
+    const age = Date.now() - new Date(row.fetched_at).getTime();
+    if (age > CACHE_TTL_MS) return null;
+    if (row.payload?.schema !== FILED_TAGS_SCHEMA) return null;
+    return row.payload;
+  } catch {
+    return null;
+  }
+}
+
+async function writeFiledCache(cik, payload) {
+  try {
+    if (!process.env.DATABASE_URL) return;
+    await ensureSchema();
+    await db()`
+      INSERT INTO f500_filed_cache (cik, as_of_year, payload, fetched_at)
+      VALUES (${cik}, ${payload.asOfYear}, ${JSON.stringify(payload)}, now())
+      ON CONFLICT (cik) DO UPDATE SET
+        as_of_year = EXCLUDED.as_of_year,
+        payload = EXCLUDED.payload,
+        fetched_at = now()
+    `;
+  } catch {
+    // Cache is optional.
   }
 }
 

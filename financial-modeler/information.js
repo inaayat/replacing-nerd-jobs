@@ -32,7 +32,17 @@ import {
   metricMatchesQuery,
   filingSourceLinks,
   stackedAddends,
+  filedTagsCacheKey,
+  filterFiledTagRows,
+  filedTagsCountLabel,
 } from './information-view.js';
+import {
+  prepareHeadlines,
+  saveOverride,
+  clearOverride,
+  loadOverridesForCik,
+  blankMetricKeys,
+} from './tag-overrides.js';
 
 const state = {
   companies: [],
@@ -41,6 +51,12 @@ const state = {
   company: null,
   metricQuery: '',
   expanded: new Set(),
+  filedOpen: false,
+  filedLoading: false,
+  filedError: null,
+  filedPayload: null,
+  filedFilter: 'all',
+  filedQuery: '',
 };
 
 const $ = (id) => document.getElementById(id);
@@ -129,6 +145,13 @@ function sourceLinksHtml(point, def, { derived = false } = {}) {
 }
 
 function sourceLine(point, def) {
+  if (point?.override) {
+    const taxonomy = point.taxonomy || 'us-gaap';
+    const tag = point.tag || '';
+    const form = point.form || '10-K';
+    const ended = point.end ? formatPeriodEnd(point.end) : 'the latest fiscal year';
+    return `Your map: ${taxonomy}:${tag} · ${form} for the period ended ${ended}.`;
+  }
   if (point?.derived || point?.tag === IMPLIED_LIABILITIES_TAG) {
     return 'Computed as total assets − shareholders’ equity. The 10-K did not tag a consolidated Liabilities line.';
   }
@@ -254,6 +277,152 @@ function seriesPanel(def, headlines, rowId, open) {
   </tr>`;
 }
 
+function headlinesForCompany(company) {
+  const raw = state.snapshot.get(Number(company?.cik));
+  if (!raw) return null;
+  return prepareHeadlines(raw, company?.cik);
+}
+
+function formatFiledVal(row) {
+  if (row?.unit === 'USD/shares') return formatMetric({ unit: 'USD/shares' }, row);
+  if (row?.unit === 'shares') return formatMetric({ unit: 'shares' }, row);
+  return formatUsd(row?.val) || '—';
+}
+
+function blankMetricGroups(company) {
+  const base = state.snapshot.get(Number(company?.cik));
+  const groups = [];
+  for (const g of FILED_PACK_GROUPS) {
+    const blanks = blankMetricKeys(base, g.keys);
+    if (!blanks.length) continue;
+    const options = blanks
+      .map((key) => {
+        const def = filedDef(key);
+        return def ? `<option value="${escapeHtml(key)}">${escapeHtml(def.label)}</option>` : '';
+      })
+      .join('');
+    groups.push({ id: g.id, label: g.label, options });
+  }
+  return groups;
+}
+
+function overrideForMetric(cik, metricKey) {
+  const row = loadOverridesForCik(cik);
+  return row[metricKey] || null;
+}
+
+function overrideBadge(cik, metricKey) {
+  if (!overrideForMetric(cik, metricKey)) return '';
+  return `<span class="fm-info-badge is-override">Your map</span>
+    <button type="button" class="fm-info-clear-override" data-clear-override="${escapeHtml(metricKey)}">Clear</button>`;
+}
+
+async function loadFiledTags(company, headlines) {
+  const cik = Number(company?.cik);
+  const fy = headlines?.asOfYear;
+  const cacheKey = filedTagsCacheKey(cik, fy);
+  try {
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) {
+      state.filedPayload = JSON.parse(cached);
+      state.filedError = state.filedPayload?.error || null;
+      return;
+    }
+  } catch {
+    // ignore bad cache
+  }
+  state.filedLoading = true;
+  state.filedError = null;
+  try {
+    const res = await fetch(`/api/f500-filed?cik=${cik}`);
+    const data = await res.json();
+    state.filedPayload = data;
+    state.filedError = data?.error || null;
+    if (!data?.error) {
+      try {
+        sessionStorage.setItem(cacheKey, JSON.stringify(data));
+      } catch {
+        // quota
+      }
+    }
+  } catch (err) {
+    state.filedError = err.message || 'Could not load filed tags';
+    state.filedPayload = null;
+  } finally {
+    state.filedLoading = false;
+  }
+}
+
+function renderFiledTagsPanel(company, headlines) {
+  const counts = state.filedPayload?.counts;
+  const summary = counts ? filedTagsCountLabel(counts) : 'Open to load every tag from this 10-K';
+  const open = state.filedOpen;
+  const rows = filterFiledTagRows(state.filedPayload?.rows || [], {
+    query: state.filedQuery,
+    filter: state.filedFilter,
+  });
+  const blankGroups = blankMetricGroups(company);
+  const cik = Number(company.cik);
+  const overrides = loadOverridesForCik(cik);
+
+  const body = state.filedLoading
+    ? '<p class="fm-info-note">Loading filed tags from SEC Company Facts…</p>'
+    : state.filedError
+      ? `<p class="fm-info-note">Could not load filed tags: ${escapeHtml(state.filedError)}. Live API only — not available on a plain static server.</p>`
+      : !state.filedPayload
+        ? '<p class="fm-info-note">Expand to fetch every statement-like tag from the latest annual report.</p>'
+        : `<div class="fm-info-filed-toolbar">
+            <input type="search" class="fm-search" id="filed-search" placeholder="Search tags or labels…" value="${escapeHtml(state.filedQuery)}" aria-label="Search filed tags" />
+            <div class="fm-info-filed-chips" role="group" aria-label="Filter filed tags">
+              <button type="button" class="fm-info-chip${state.filedFilter === 'all' ? ' is-active' : ''}" data-filed-filter="all">All</button>
+              <button type="button" class="fm-info-chip${state.filedFilter === 'mapped' ? ' is-active' : ''}" data-filed-filter="mapped">Mapped</button>
+              <button type="button" class="fm-info-chip${state.filedFilter === 'unmapped' ? ' is-active' : ''}" data-filed-filter="unmapped">Unmapped</button>
+            </div>
+          </div>
+          <div class="fm-info-table-wrap">
+            <table class="fm-info-table fm-info-filed-table">
+              <thead><tr><th>Tag</th><th>Label</th><th>Value</th><th>End</th><th>Maps to</th><th></th></tr></thead>
+              <tbody>${rows
+                .map((row) => {
+                  const concept = `${row.taxonomy}:${row.tag}`;
+                  const mapped = row.mappedLabel || '—';
+                  const userMapped = Object.entries(overrides).some(
+                    ([, o]) => o.tag === row.tag && (o.taxonomy || 'us-gaap') === row.taxonomy
+                  );
+                  const mapBadge = userMapped ? '<span class="fm-info-badge is-override">You mapped this</span>' : '';
+                  const select =
+                    blankGroups.length || !row.mappedKey
+                      ? `<label class="fm-info-use-for"><span class="visually-hidden">Use for</span>
+                          <select data-use-tag="${escapeHtml(concept)}" aria-label="Use ${escapeHtml(row.tag)} for a blank metric">
+                            <option value="">Use for…</option>
+                            ${blankGroups
+                              .map(
+                                (g) =>
+                                  `<optgroup label="${escapeHtml(g.label)}">${g.options}</optgroup>`
+                              )
+                              .join('')}
+                          </select></label>`
+                      : '';
+                  return `<tr class="fm-info-filed-row${row.mappedKey ? ' is-mapped' : ' is-unmapped'}">
+                    <td class="tag"><code>${escapeHtml(concept)}</code></td>
+                    <td class="label">${escapeHtml(row.label)}${mapBadge}</td>
+                    <td class="val">${escapeHtml(formatFiledVal(row))}</td>
+                    <td class="end">${escapeHtml(formatPeriodEnd(row.end) || '—')}</td>
+                    <td class="maps">${escapeHtml(mapped)}</td>
+                    <td class="act">${select}</td>
+                  </tr>`;
+                })
+                .join('')}</tbody>
+            </table>
+          </div>
+          <p class="fm-info-filed-foot">${rows.length} row${rows.length === 1 ? '' : 's'} shown</p>`;
+
+  return `<details class="fm-info-filed" id="all-filed-tags"${open ? ' open' : ''}>
+    <summary><span>All filed tags (this 10-K)</span><span class="fm-info-filed-summary">${escapeHtml(summary)}</span></summary>
+    <div class="fm-info-filed-body">${body}</div>
+  </details>`;
+}
+
 function countTagged(headlines) {
   let tagged = 0;
   const total = ALL_FILED_METRICS.length;
@@ -286,7 +455,7 @@ function renderResults(list) {
     .join('');
 }
 
-function filedRow(def, headlines, groupId) {
+function filedRow(def, headlines, groupId, cik) {
   let point = headlines?.metrics?.[def.key];
   let shown = formatMetric(def, point);
   if (def.key === 'long_term_debt') {
@@ -308,11 +477,14 @@ function filedRow(def, headlines, groupId) {
         <span class="fm-info-expand-hint">${open ? 'Hide years' : 'Show years'}</span>
       </button>`
     : `<span class="fm-info-metric-name">${escapeHtml(def.label)}</span>`;
+  const overrideHtml = overrideBadge(cik, def.key);
   const badge = missing
     ? '<span class="fm-info-badge is-missing">Not tagged</span>'
-    : '<span class="fm-info-badge is-tagged">Tagged</span>';
-  const row = `<tr class="fm-info-row${open ? ' is-open' : ''}${missing ? ' is-missing' : ''}" data-metric="${escapeHtml(def.key)}">
-    <td class="label">${toggle}${badge}</td>
+    : point?.override
+      ? ''
+      : '<span class="fm-info-badge is-tagged">Tagged</span>';
+  const row = `<tr class="fm-info-row${open ? ' is-open' : ''}${missing ? ' is-missing' : ''}${point?.override ? ' is-override' : ''}" data-metric="${escapeHtml(def.key)}">
+    <td class="label">${toggle}${badge}${overrideHtml}</td>
     <td class="val${missing ? ' is-missing' : ''}">${escapeHtml(shown || '—')}</td>
     <td class="def">${escapeHtml(studentText(def))}${extra}</td>
     <td class="src">
@@ -431,7 +603,8 @@ function renderSegments(seg, query) {
 }
 
 function renderCompany(company) {
-  const headlines = state.snapshot.get(Number(company.cik));
+  const headlines = headlinesForCompany(company);
+  const cik = Number(company.cik);
   const root = $('info-company');
   const query = state.metricQuery;
   if (!headlines || headlines.error || !headlines.asOfYear) {
@@ -474,7 +647,7 @@ function renderCompany(company) {
   const filedHtml = FILED_PACK_GROUPS.map((g) => {
     const defs = g.keys.map((key) => filedDef(key)).filter(Boolean);
     const visible = defs.filter((def) => metricMatchesQuery(query, def, headlines?.metrics?.[def.key]));
-    const rows = visible.map((def) => filedRow(def, headlines, g.id)).join('');
+    const rows = visible.map((def) => filedRow(def, headlines, g.id, cik)).join('');
     return groupTable(g.label, g.summary, rows, `group-${g.id}`, ['Metric', 'Value', 'Definition', 'Where to find it'], GROUP_TONE[g.id] || 'ratio');
   }).join('');
 
@@ -528,6 +701,7 @@ function renderCompany(company) {
       />
     </div>
     <nav class="fm-info-toc" aria-label="Filing sections">${toc}</nav>
+    ${renderFiledTagsPanel(company, headlines)}
     ${hasAny ? `${filedHtml}${derivedHtml}${segHtml}` : '<p class="fm-info-note">No metrics match that search.</p>'}`;
 
   const metricInput = $('metric-search');
@@ -551,6 +725,12 @@ function selectCompany(company) {
   state.company = company;
   state.metricQuery = '';
   state.expanded = new Set();
+  state.filedOpen = false;
+  state.filedLoading = false;
+  state.filedError = null;
+  state.filedPayload = null;
+  state.filedFilter = 'all';
+  state.filedQuery = '';
   const ticker = tickerOf(company);
   const url = new URL(window.location.href);
   url.searchParams.set('ticker', ticker);
@@ -583,6 +763,35 @@ function toggleSeries(id) {
   window.scrollTo(0, y);
 }
 
+function applyUseForTag(selectEl) {
+  const metricKey = selectEl.value;
+  if (!metricKey || !state.company) return;
+  const concept = selectEl.dataset.useTag || '';
+  const sep = concept.indexOf(':');
+  if (sep < 0) return;
+  const taxonomy = concept.slice(0, sep);
+  const tag = concept.slice(sep + 1);
+  const row = state.filedPayload?.rows?.find((r) => r.taxonomy === taxonomy && r.tag === tag);
+  if (!row) return;
+  const def = filedDef(metricKey);
+  const cik = Number(state.company.cik);
+  const base = state.snapshot.get(cik)?.metrics?.[metricKey];
+  const hasTagged =
+    base && typeof base.val === 'number' && Number.isFinite(base.val) && !base.override;
+  if (hasTagged) {
+    const label = def?.label || metricKey;
+    if (!window.confirm(`Replace the tagged ${label} value with ${taxonomy}:${tag}?`)) {
+      selectEl.value = '';
+      return;
+    }
+  }
+  saveOverride(cik, metricKey, row);
+  selectEl.value = '';
+  const y = window.scrollY;
+  renderCompany(state.company);
+  window.scrollTo(0, y);
+}
+
 function bind() {
   const input = $('info-search');
   input.addEventListener('input', () => {
@@ -602,10 +811,56 @@ function bind() {
   });
   $('info-company').addEventListener('click', (ev) => {
     if (ev.target.closest('a')) return;
+    const clearBtn = ev.target.closest('[data-clear-override]');
+    if (clearBtn && state.company) {
+      ev.preventDefault();
+      clearOverride(Number(state.company.cik), clearBtn.dataset.clearOverride);
+      const y = window.scrollY;
+      renderCompany(state.company);
+      window.scrollTo(0, y);
+      return;
+    }
+    const chip = ev.target.closest('[data-filed-filter]');
+    if (chip) {
+      ev.preventDefault();
+      state.filedFilter = chip.dataset.filedFilter || 'all';
+      const y = window.scrollY;
+      renderCompany(state.company);
+      window.scrollTo(0, y);
+      return;
+    }
     const btn = ev.target.closest('[data-series-for]') || ev.target.closest('.fm-info-row')?.querySelector('[data-series-for]');
     if (!btn) return;
     ev.preventDefault();
     toggleSeries(btn.dataset.seriesFor);
+  });
+  $('info-company').addEventListener('change', (ev) => {
+    const sel = ev.target.closest('select[data-use-tag]');
+    if (sel) applyUseForTag(sel);
+  });
+  $('info-company').addEventListener('input', (ev) => {
+    if (ev.target.id === 'filed-search') {
+      state.filedQuery = ev.target.value;
+      const y = window.scrollY;
+      renderCompany(state.company);
+      const again = $('filed-search');
+      if (again) {
+        again.focus();
+        const len = again.value.length;
+        again.setSelectionRange(len, len);
+      }
+      window.scrollTo(0, y);
+    }
+  });
+  $('info-company').addEventListener('toggle', async (ev) => {
+    const details = ev.target.closest('#all-filed-tags');
+    if (!details || ev.target !== details || !state.company) return;
+    state.filedOpen = details.open;
+    if (details.open && !state.filedPayload && !state.filedLoading) {
+      const headlines = headlinesForCompany(state.company);
+      await loadFiledTags(state.company, headlines);
+      renderCompany(state.company);
+    }
   });
 }
 
