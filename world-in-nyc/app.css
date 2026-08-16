@@ -352,12 +352,13 @@ body.win-rail-collapsed .win-rail {
   background: var(--swatch, #888);
 }
 
-.win-item-text { min-width: 0; }
+.win-item-text { min-width: 0; flex: 1; }
 
 .win-item-name {
   display: block;
   font-size: 13.5px;
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .win-item-meta {
@@ -365,6 +366,8 @@ body.win-rail-collapsed .win-rail {
   font-family: var(--win-mono);
   font-size: 11px;
   color: var(--win-muted);
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .win-map-wrap {

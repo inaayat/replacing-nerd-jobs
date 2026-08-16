@@ -78,6 +78,8 @@ assert.match(css, /win-sheet-peek/);
 assert.match(css, /grid-template-columns:\s*minmax\(0,\s*1fr\)/);
 assert.match(js, /setSheetSnap/);
 assert.match(js, /ensureWorldMap/);
+assert.match(js, /renderCountryEnclaves/);
+assert.doesNotMatch(js, /places\.slice\(0,\s*3\)/);
 assert.doesNotMatch(html, /data-overlay=/);
 assert.match(js, /ensureOverlay/);
 assert.match(js, /libguides.nypl.org\/nycboundaries\/political/);
