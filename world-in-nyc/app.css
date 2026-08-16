@@ -337,6 +337,7 @@ a { color: #cf4520; }
   overflow: auto;
   background: var(--win-cream);
   padding: 18px 20px 28px;
+  -webkit-overflow-scrolling: touch;
 }
 
 #stats-pane[hidden] {
@@ -410,7 +411,13 @@ a { color: #cf4520; }
 
 .win-stats-table td:first-child {
   font-weight: 600;
+  white-space: normal;
+  overflow-wrap: break-word;
 }
+
+.win-stats-short { display: none; }
+
+.win-stats-name-swatch { display: none; }
 
 .win-stats-table tbody tr {
   cursor: pointer;
@@ -585,8 +592,13 @@ body.win-stats-view .win-era {
   .win-nav-logo span { display: none; }
   .win-browse-btn { display: inline-flex; align-items: center; }
   .win-view-toggle { margin-left: auto; }
-  .win-view-btn { padding: 7px 10px; min-height: 40px; }
+  .win-view-btn { padding: 7px 8px; min-height: 40px; }
   .win-nav-section span { display: none; }
+
+  @media (max-width: 400px) {
+    .win-nav-logo { display: none; }
+    .win-view-btn { padding: 7px 7px; }
+  }
 
   .win-app {
     display: block;
@@ -690,10 +702,24 @@ body.win-stats-view .win-era {
 
   .win-lede { display: none; }
 
-  .win-stats-group { display: none; }
+  .win-stats-group,
+  .win-stats-winner,
+  .win-stats-eds { display: none; }
+
+  .win-stats-full { display: none; }
+  .win-stats-short { display: inline; }
+  .win-stats-name-swatch { display: inline-block; }
 
   #stats-pane {
-    padding: 12px 14px calc(var(--win-sheet-peek) + env(safe-area-inset-bottom) + 16px);
+    padding: 12px 14px calc(16px + env(safe-area-inset-bottom));
+  }
+
+  body.win-stats-view .win-rail {
+    transform: translateY(100%);
+  }
+
+  body.win-stats-view .win-rail.is-open {
+    transform: translateY(0);
   }
 
   .win-stats-lede {
@@ -703,7 +729,11 @@ body.win-stats-view .win-era {
 
   .win-stats-table th,
   .win-stats-table td {
-    padding: 8px 6px 8px 0;
+    padding: 12px 8px 12px 0;
+  }
+
+  .win-stats-table th button {
+    min-height: 36px;
   }
 
   .win-card {

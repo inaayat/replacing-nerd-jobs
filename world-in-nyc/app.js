@@ -553,17 +553,20 @@ async function main() {
     const cols = [
       { key: 'name', label: 'Enclave', cls: '' },
       { key: 'group', label: 'Group', cls: 'win-stats-group' },
-      { key: 'winner', label: 'Winner', cls: '' },
-      { key: 'm', label: 'Mamdani', cls: 'win-stats-num' },
-      { key: 'c', label: 'Cuomo', cls: 'win-stats-num' },
-      { key: 's', label: 'Sliwa', cls: 'win-stats-num' },
-      { key: 'n', label: 'EDs', cls: 'win-stats-num' },
+      { key: 'winner', label: 'Winner', cls: 'win-stats-winner' },
+      { key: 'm', label: 'Mamdani', short: 'M', cls: 'win-stats-num' },
+      { key: 'c', label: 'Cuomo', short: 'C', cls: 'win-stats-num' },
+      { key: 's', label: 'Sliwa', short: 'S', cls: 'win-stats-num' },
+      { key: 'n', label: 'EDs', cls: 'win-stats-num win-stats-eds' },
     ];
     const thead = table.tHead || table.createTHead();
     thead.innerHTML = `<tr>${cols.map((col) => {
       const on = statsSort.key === col.key;
       const aria = on ? (statsSort.dir === 'asc' ? 'ascending' : 'descending') : 'none';
-      return `<th scope="col" class="${col.cls}" data-key="${col.key}" aria-sort="${aria}"><button type="button">${col.label}</button></th>`;
+      const label = col.short
+        ? `<span class="win-stats-full">${col.label}</span><span class="win-stats-short">${col.short}</span>`
+        : col.label;
+      return `<th scope="col" class="${col.cls}" data-key="${col.key}" aria-sort="${aria}"><button type="button">${label}</button></th>`;
     }).join('')}</tr>`;
 
     const tbody = table.tBodies[0] || table.createTBody();
@@ -579,14 +582,15 @@ async function main() {
       const on = filter?.kind === 'enclave' && filter.id === row.id ? ' is-on' : '';
       const color = votes.candidates.find((c) => c.id === row.winner)?.color;
       const swatch = color ? `<i class="win-stats-swatch" style="background:${color}"></i>` : '';
+      const nameSwatch = color ? `<i class="win-stats-swatch win-stats-name-swatch" style="background:${color}"></i>` : '';
       return `<tr class="${on.trim()}" data-enclave="${row.id}" tabindex="0">
-        <td>${row.name}</td>
+        <td>${nameSwatch}${row.name}</td>
         <td class="win-stats-group">${row.group}</td>
-        <td>${swatch}${winnerLabel(row.winner, votes.candidates)}</td>
+        <td class="win-stats-winner">${swatch}${winnerLabel(row.winner, votes.candidates)}</td>
         <td class="win-stats-num">${formatPct(row.m)}</td>
         <td class="win-stats-num">${formatPct(row.c)}</td>
         <td class="win-stats-num">${formatPct(row.s)}</td>
-        <td class="win-stats-num">${row.n || '—'}</td>
+        <td class="win-stats-num win-stats-eds">${row.n || '—'}</td>
       </tr>`;
     }).join('');
 
