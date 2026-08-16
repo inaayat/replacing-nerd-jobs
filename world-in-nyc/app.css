@@ -527,14 +527,18 @@ body.win-stats-view .win-toolbar #historic-toggle {
 
 .win-legend {
   position: absolute;
-  left: 12px;
-  bottom: 12px;
+  right: 12px;
+  top: 52px;
+  left: auto;
+  bottom: auto;
   z-index: 5;
   background: var(--win-panel);
   border: 1.5px solid var(--win-line);
   border-radius: 12px;
-  padding: 10px 12px;
-  max-width: min(280px, calc(100% - 24px));
+  padding: 8px 10px;
+  max-width: min(260px, calc(100% - 24px));
+  max-height: calc(100% - 64px);
+  overflow: auto;
   font-size: 12px;
   box-shadow: 0 8px 24px rgba(28, 28, 28, 0.08);
 }
@@ -551,7 +555,36 @@ body.win-stats-view .win-toolbar #historic-toggle {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 3px 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 4px;
+  border-radius: 6px;
+  color: inherit;
+  cursor: pointer;
+  min-height: 28px;
+}
+
+.win-legend-row.is-static {
+  cursor: default;
+  padding-left: 4px;
+}
+
+.win-legend-row:not(.is-static):hover {
+  background: rgba(28, 28, 28, 0.06);
+}
+
+.win-legend.has-filter .win-legend-row:not(.is-on):not(.is-static) {
+  opacity: 0.4;
+}
+
+.win-legend-row.is-on {
+  background: rgba(28, 28, 28, 0.08);
+  font-weight: 600;
 }
 
 .win-legend-row i {
@@ -559,6 +592,12 @@ body.win-stats-view .win-toolbar #historic-toggle {
   height: 10px;
   border-radius: 2px;
   display: block;
+  flex: 0 0 auto;
+}
+
+.win-legend-row.is-on i {
+  outline: 1.5px solid #1c1c1c;
+  outline-offset: 1px;
 }
 
 .win-rail-toggle {
@@ -743,9 +782,10 @@ body.win-rail-collapsed .win-rail-toggle {
   }
 
   .win-legend {
-    top: 56px;
+    top: 10px;
     bottom: auto;
-    left: 10px;
+    left: auto;
+    right: 10px;
     max-height: 46%;
     overflow: auto;
   }

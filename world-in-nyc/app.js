@@ -150,6 +150,13 @@ function eraKeys(includeHistoric) {
     : { e: 'ec', r: 'rc', rs: 'rsc' };
 }
 
+function regionIdsOf(filter) {
+  if (filter?.kind !== 'region') return [];
+  if (Array.isArray(filter.ids) && filter.ids.length) return filter.ids;
+  if (filter.id) return [filter.id];
+  return [];
+}
+
 function applyFilter(map, catalog, filter, includeHistoric, votes) {
   const fill = map.getLayer('ed-fill');
   if (!fill) return;
@@ -165,7 +172,15 @@ function applyFilter(map, catalog, filter, includeHistoric, votes) {
     return;
   }
   if (filter.kind === 'region') {
-    map.setFilter('ed-fill', ['in', filter.id, ['get', keys.rs]]);
+    const ids = regionIdsOf(filter);
+    if (!ids.length) {
+      map.setFilter('ed-fill', ['!=', ['get', keys.r], '']);
+      return;
+    }
+    const match = ids.length === 1
+      ? ['in', ids[0], ['get', keys.rs]]
+      : ['any', ...ids.map((id) => ['in', id, ['get', keys.rs]])];
+    map.setFilter('ed-fill', match);
     return;
   }
   if (filter.kind === 'enclave') {
@@ -185,14 +200,15 @@ function renderRegions(catalog, filter, onPick) {
   root.innerHTML = '';
   const all = document.createElement('button');
   all.type = 'button';
-  all.className = `win-chip${!filter ? ' is-on' : ''}`;
+  all.className = `win-chip${!filter || filter.kind === 'region' && !regionIdsOf(filter).length ? ' is-on' : ''}`;
   all.textContent = 'All groups';
   all.addEventListener('click', () => onPick(null));
   root.append(all);
+  const selected = new Set(regionIdsOf(filter));
   for (const region of catalog.regions) {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = `win-chip${filter?.kind === 'region' && filter.id === region.id ? ' is-on' : ''}`;
+    btn.className = `win-chip${selected.has(region.id) ? ' is-on' : ''}`;
     btn.style.setProperty('--swatch', region.color);
     btn.innerHTML = `<span class="swatch"></span>${region.label}`;
     btn.addEventListener('click', () => onPick({ kind: 'region', id: region.id }));
@@ -203,12 +219,16 @@ function renderRegions(catalog, filter, onPick) {
 function syncFilterToggle(catalog, filter) {
   const btn = $('filter-toggle');
   if (!btn) return;
-  const on = filter?.kind === 'region';
+  const ids = regionIdsOf(filter);
+  const on = ids.length > 0;
   btn.classList.toggle('is-on', on);
-  if (on) {
-    const region = catalog.regions.find((r) => r.id === filter.id);
+  if (on && ids.length === 1) {
+    const region = catalog.regions.find((r) => r.id === ids[0]);
     btn.style.setProperty('--swatch', region?.color || '#888');
     btn.innerHTML = `<span class="swatch"></span>${region?.label || 'Filters'}`;
+  } else if (on) {
+    btn.style.removeProperty('--swatch');
+    btn.textContent = `${ids.length} groups`;
   } else {
     btn.style.removeProperty('--swatch');
     btn.textContent = 'Filters';
@@ -221,7 +241,10 @@ function renderList(catalog, filter, query, onPick, includeHistoric, votes) {
   const q = query.trim().toLowerCase();
   const items = enclavesForEra(catalog.enclaves, includeHistoric).filter((enc) => {
     if (!enclaveMatches(enc, q)) return false;
-    if (filter?.kind === 'region') return enc.region === filter.id;
+    if (filter?.kind === 'region') {
+      const ids = regionIdsOf(filter);
+      if (ids.length && !ids.includes(enc.region)) return false;
+    }
     return true;
   });
   setListCount(items.length, 'enclave');
@@ -241,7 +264,11 @@ function renderList(catalog, filter, query, onPick, includeHistoric, votes) {
 
 function countryPassesFilter(row, filter) {
   if (!filter) return true;
-  if (filter.kind === 'region') return row.regions.includes(filter.id);
+  if (filter.kind === 'region') {
+    const ids = regionIdsOf(filter);
+    if (!ids.length) return true;
+    return ids.some((id) => row.regions.includes(id));
+  }
   if (filter.kind === 'enclave') return row.enclaves.some((enc) => enc.id === filter.id);
   return true;
 }
@@ -356,22 +383,45 @@ function countryCardHtml(row, catalog, includeHistoric) {
   `;
 }
 
-function renderLegend(catalog, filter, view = 'nyc', votes = null) {
+function renderLegend(catalog, filter, view = 'nyc', votes = null, onToggleRegion = null) {
   const root = $('legend');
+  root.innerHTML = '';
   if (view === 'nyc' && filter?.kind === 'enclave' && votes) {
-    const rows = votes.candidates.map((c) => `<div class="win-legend-row"><i style="background:${c.color}"></i>${c.label}</div>`).join('');
-    root.innerHTML = `<h3>${catalog.enclaves[filter.index].name}</h3>${rows}<div class="win-legend-row"><i style="background:#cfc6b8;outline:1px solid #1c1c1c22"></i>No votes / tie</div>`;
+    const heading = document.createElement('h3');
+    heading.textContent = catalog.enclaves[filter.index].name;
+    root.append(heading);
+    for (const c of votes.candidates) {
+      const row = document.createElement('div');
+      row.className = 'win-legend-row';
+      row.innerHTML = `<i style="background:${c.color}"></i>${c.label}`;
+      root.append(row);
+    }
+    const extra = document.createElement('div');
+    extra.className = 'win-legend-row';
+    extra.innerHTML = '<i style="background:#cfc6b8;outline:1px solid #1c1c1c22"></i>No votes / tie';
+    root.append(extra);
     return;
   }
-  const regions = filter?.kind === 'region'
-    ? catalog.regions.filter((r) => r.id === filter.id)
-    : catalog.regions;
-  const rows = regions.map((r) => `<div class="win-legend-row"><i style="background:${r.color}"></i>${r.label}</div>`).join('');
-  const title = filter?.kind === 'enclave' ? `<h3>${catalog.enclaves[filter.index].name}</h3>` : '';
-  const extra = view === 'world'
-    ? `<div class="win-legend-row"><i style="background:#6b5f5e"></i>Several regions</div><div class="win-legend-row"><i style="background:#e8e0d2;outline:1px solid #1c1c1c22"></i>None listed</div>`
-    : `<div class="win-legend-row"><i style="background:#e8e0d2;outline:1px solid #1c1c1c22"></i>None listed</div>`;
-  root.innerHTML = `${title}${rows}${extra}`;
+  const selected = new Set(regionIdsOf(filter));
+  root.classList.toggle('has-filter', selected.size > 0);
+  for (const r of catalog.regions) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `win-legend-row${selected.has(r.id) ? ' is-on' : ''}`;
+    btn.innerHTML = `<i style="background:${r.color}"></i>${r.label}`;
+    if (onToggleRegion) btn.addEventListener('click', () => onToggleRegion(r.id));
+    root.append(btn);
+  }
+  if (view === 'world') {
+    const mixed = document.createElement('div');
+    mixed.className = 'win-legend-row is-static';
+    mixed.innerHTML = '<i style="background:#6b5f5e"></i>Several regions';
+    root.append(mixed);
+  }
+  const none = document.createElement('div');
+  none.className = 'win-legend-row is-static';
+  none.innerHTML = '<i style="background:#e8e0d2;outline:1px solid #1c1c1c22"></i>None listed';
+  root.append(none);
 }
 
 function renderVoteSummary(filter, catalog, votes) {
@@ -667,7 +717,10 @@ async function main() {
     const filtered = all.filter((row) => {
       const enc = encById.get(row.id);
       if (!enclaveMatches(enc, q)) return false;
-      if (filter?.kind === 'region') return row.region === filter.id;
+      if (filter?.kind === 'region') {
+        const ids = regionIdsOf(filter);
+        if (ids.length && !ids.includes(row.region)) return false;
+      }
       return true;
     });
     const rows = sortStatsRows(filtered, statsSort.key, statsSort.dir);
@@ -936,20 +989,31 @@ async function main() {
 
     renderRegions(catalog, filter, setFilter);
     syncFilterToggle(catalog, filter);
-    renderLegend(catalog, filter, currentView, votes);
+    renderLegend(catalog, filter, currentView, votes, toggleRegion);
     renderVoteSummary(currentView === 'nyc' ? filter : null, catalog, votes);
     refreshList();
     syncQuery();
     resizeMap();
   }
 
+  function toggleRegion(id) {
+    const base = filter?.kind === 'region' ? regionIdsOf(filter) : [];
+    const ids = base.includes(id) ? base.filter((x) => x !== id) : [...base, id];
+    setFilter(ids.length ? { kind: 'region', ids } : null);
+  }
+
   function setFilter(next) {
+    if (next?.kind === 'region' && next.id && !next.ids) {
+      const base = filter?.kind === 'region' ? regionIdsOf(filter) : [];
+      const ids = base.includes(next.id) ? base.filter((x) => x !== next.id) : [...base, next.id];
+      next = ids.length ? { kind: 'region', ids } : null;
+    }
     filter = next;
     applyFilter(map, catalog, filter, includeHistoric, votes);
     applyWorldPaint();
     renderRegions(catalog, filter, setFilter);
     syncFilterToggle(catalog, filter);
-    renderLegend(catalog, filter, currentView, votes);
+    renderLegend(catalog, filter, currentView, votes, toggleRegion);
     renderVoteSummary(currentView === 'nyc' ? filter : null, catalog, votes);
     $('clear-filter').hidden = !filter;
     if (filter?.kind === 'region') $('regions').hidden = true;
@@ -988,7 +1052,7 @@ async function main() {
     applyWorldPaint();
     renderRegions(catalog, filter, setFilter);
     syncFilterToggle(catalog, filter);
-    renderLegend(catalog, filter, currentView, votes);
+    renderLegend(catalog, filter, currentView, votes, toggleRegion);
     renderVoteSummary(currentView === 'nyc' ? filter : null, catalog, votes);
     refreshList();
     if (currentView === 'nyc' && selectedId) showCard(selectedId);
