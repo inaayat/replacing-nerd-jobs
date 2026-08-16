@@ -29,6 +29,7 @@ import {
   hasExpandableSeries,
   metricMatchesQuery,
   filingSourceLinks,
+  stackedAddends,
 } from './information-view.js';
 
 const state = {
@@ -148,13 +149,50 @@ function derivedSource(def) {
   return `Derived from other tagged lines in the same annual report.${formula}${missing}`;
 }
 
-function componentsNote(headlines, key) {
+function componentsEquation(headlines, key) {
   if (key !== 'liabilities') return '';
-  const bits = liabilityComponents(headlines?.metrics).map(
-    (c) => `${c.label} ${formatUsd(c.val) || c.val}`
-  );
-  if (!bits.length) return '';
-  return `Tagged pieces (not a complete total): ${bits.join(' · ')}.`;
+  const parts = liabilityComponents(headlines?.metrics);
+  if (!parts.length) return '';
+  const total = headlines?.metrics?.liabilities;
+  const totalVal = total && typeof total.val === 'number' ? total.val : null;
+  const eq = stackedAddends(parts, totalVal);
+  const body = eq.rows
+    .map(
+      (r) => `<tr>
+        <td class="op">${escapeHtml(r.op)}</td>
+        <td class="eq-label">${escapeHtml(r.label)}</td>
+        <td class="eq-val">${escapeHtml(formatUsd(r.abs) || String(r.abs))}</td>
+      </tr>`
+    )
+    .join('');
+  const sumRow = eq.tiesTotal
+    ? `<tr class="eq-sum">
+      <td class="op">=</td>
+      <td class="eq-label">Total liabilities</td>
+      <td class="eq-val">${escapeHtml(formatUsd(eq.total) || String(eq.total))}</td>
+    </tr>`
+    : `<tr class="eq-sum">
+      <td class="op">=</td>
+      <td class="eq-label">Sum of tagged pieces</td>
+      <td class="eq-val">${escapeHtml(formatUsd(eq.sum) || String(eq.sum))}</td>
+    </tr>`;
+  const totalRow =
+    eq.tiesTotal || eq.total == null
+      ? ''
+      : `<tr class="eq-total is-untied">
+      <td class="op">≠</td>
+      <td class="eq-label">Total liabilities</td>
+      <td class="eq-val">${escapeHtml(formatUsd(eq.total) || String(eq.total))}</td>
+    </tr>`;
+  const note = eq.tiesTotal
+    ? 'These tagged lines add to the reported total.'
+    : 'Tagged pieces — not a complete total. Individual debts do not roll up to liabilities.';
+  return `<div class="fm-info-eq" role="group" aria-label="Liability components">
+    <p class="fm-info-eq-lead">${note}</p>
+    <table class="fm-info-eq-table">
+      <tbody>${body}${sumRow}${eq.tiesTotal ? '' : totalRow}</tbody>
+    </table>
+  </div>`;
 }
 
 function formatSeriesValue(def, row) {
@@ -203,12 +241,10 @@ function seriesPanel(def, headlines, rowId, open) {
   const annual = annualSeries(headlines, def.key);
   const quarterly = quarterlySeries(headlines, def.key);
   if (!annual.length && !quarterly.length) return '';
-  const components = componentsNote(headlines, def.key);
   return `<tr class="fm-info-series-row${open ? ' is-open' : ''}" id="${escapeHtml(rowId)}"${open ? '' : ' hidden'}>
     <td colspan="4">
       <div class="fm-info-series-panel">
         <p class="fm-info-series-lead">Year-by-year from Company Facts. Click a filing to open it on EDGAR. XBRL does not record a PDF page number — the inline viewer highlights the tagged line in the HTML report.</p>
-        ${components ? `<p class="fm-info-components">${escapeHtml(components)}</p>` : ''}
         ${seriesTable('Annual (10-K / 20-F)', annual, def)}
         ${seriesTable('Quarterly (10-Q)', quarterly, def)}
       </div>
@@ -248,7 +284,7 @@ function filedRow(def, headlines, groupId) {
   const point = headlines?.metrics?.[def.key];
   const shown = formatMetric(def, point);
   const missing = shown == null;
-  const extra = componentsNote(headlines, def.key);
+  const extra = componentsEquation(headlines, def.key);
   const expandable = hasExpandableSeries(headlines, def.key);
   const id = expandId(groupId, def.key);
   const open = state.expanded.has(id);
@@ -265,9 +301,7 @@ function filedRow(def, headlines, groupId) {
   const row = `<tr class="fm-info-row${open ? ' is-open' : ''}${missing ? ' is-missing' : ''}" data-metric="${escapeHtml(def.key)}">
     <td class="label">${toggle}${badge}</td>
     <td class="val${missing ? ' is-missing' : ''}">${escapeHtml(shown || '—')}</td>
-    <td class="def">${escapeHtml(studentText(def))}${
-      extra && !expandable ? `<div class="fm-info-components">${escapeHtml(extra)}</div>` : ''
-    }</td>
+    <td class="def">${escapeHtml(studentText(def))}${extra}</td>
     <td class="src">
       <p>${escapeHtml(sourceLine(point, def))}</p>
       ${sourceLinksHtml(point, def, { derived: Boolean(point?.derived || point?.tag === IMPLIED_LIABILITIES_TAG) })}

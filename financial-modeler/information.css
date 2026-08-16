@@ -371,12 +371,80 @@ body.fm-info {
   padding: 4px 0 6px;
 }
 
-.fm-info-series-lead,
-.fm-info-components {
+.fm-info-series-lead {
   margin: 0 0 10px;
   font-size: 12px;
   color: var(--ink-soft);
   max-width: 72ch;
+}
+
+.fm-info-eq {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: #f7f3ea;
+  max-width: 28rem;
+}
+
+.fm-info-eq-lead {
+  margin: 0 0 8px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+.fm-info-eq-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.fm-info-eq-table td {
+  padding: 3px 0;
+  border: 0;
+  font-size: 12.5px;
+  vertical-align: baseline;
+}
+
+.fm-info-eq-table .op {
+  width: 1.25rem;
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+.fm-info-eq-table .eq-label {
+  color: var(--ink);
+  padding-right: 12px;
+}
+
+.fm-info-eq-table .eq-val {
+  text-align: right;
+  white-space: nowrap;
+  font-weight: 500;
+  color: var(--blue);
+  width: 6.5rem;
+}
+
+.fm-info-eq-table .eq-sum td {
+  padding-top: 8px;
+  border-top: 1px solid var(--ink);
+  font-weight: 500;
+}
+
+.fm-info-eq-table .eq-sum .eq-label,
+.fm-info-eq-table .eq-sum .op {
+  color: var(--ink);
+}
+
+.fm-info-eq-table .eq-total td {
+  padding-top: 4px;
+}
+
+.fm-info-eq-table .eq-total.is-untied .op,
+.fm-info-eq-table .eq-total.is-untied .eq-label,
+.fm-info-eq-table .eq-total.is-untied .eq-val {
+  color: var(--red);
 }
 
 .fm-info-years {
@@ -640,6 +708,44 @@ body.fm-info {
   .fm-info-years table {
     min-width: 0;
   }
+
+  .fm-info-eq {
+    max-width: none;
+  }
+
+  .fm-info-eq-table,
+  .fm-info-eq-table tbody {
+    display: table;
+    width: 100%;
+  }
+
+  .fm-info-eq-table tbody {
+    display: table-row-group;
+  }
+
+  .fm-info-eq-table tr {
+    display: table-row;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+  }
+
+  .fm-info-eq-table td {
+    display: table-cell;
+    width: auto;
+    margin-top: 0;
+    padding: 3px 0;
+    border-bottom: 0;
+  }
+
+  .fm-info-eq-table td + td {
+    margin-top: 0;
+  }
+
+  .fm-info-eq-table .op { width: 1.25rem; }
+  .fm-info-eq-table .eq-val { width: 6.5rem; }
 
   .fm-info-axis .fm-info-table-wrap {
     margin-top: 8px;

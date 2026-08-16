@@ -184,3 +184,33 @@ export function filingSourceLinks({ company, point, def, filing, derived } = {})
     return true;
   });
 }
+
+/**
+ * Turn addends into a stacked equation. First row has no operator (or − if
+ * negative); later rows are + or −. `tiesTotal` is whether the sum matches
+ * `total` within 0.5% — used so incomplete liability pieces are not sold as
+ * a roll-up.
+ */
+export function stackedAddends(parts, total = null) {
+  const rows = [];
+  for (const part of parts || []) {
+    const val = part?.val;
+    if (typeof val !== 'number' || !Number.isFinite(val)) continue;
+    rows.push({
+      op: rows.length === 0 ? (val < 0 ? '−' : '') : val < 0 ? '−' : '+',
+      label: part.label || part.key || '',
+      key: part.key || '',
+      val,
+      abs: Math.abs(val),
+    });
+  }
+  const sum = rows.reduce((n, r) => n + r.val, 0);
+  const hasTotal = typeof total === 'number' && Number.isFinite(total);
+  const tiesTotal =
+    hasTotal && rows.length > 0
+      ? total === 0
+        ? Math.abs(sum) < 1
+        : Math.abs(sum - total) / Math.abs(total) <= 0.005
+      : false;
+  return { rows, sum, total: hasTotal ? total : null, tiesTotal };
+}

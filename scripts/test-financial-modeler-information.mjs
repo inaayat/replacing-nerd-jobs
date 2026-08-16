@@ -17,6 +17,7 @@ import {
   annualSeries,
   quarterlySeries,
   filingSourceLinks,
+  stackedAddends,
 } from '../financial-modeler/information-view.js';
 
 assert.equal(padCik(104169), '0000104169');
@@ -106,5 +107,43 @@ assert.ok(!noDoc.some((l) => l.kind === 'document'));
 const derived = filingSourceLinks({ company, derived: true });
 assert.ok(derived.length >= 1);
 assert.ok(derived.every((l) => l.kind === 'browse'));
+
+const eq = stackedAddends(
+  [
+    { key: 'debt_current', label: 'Current portion of debt', val: 15.1e6 },
+    { key: 'debt_noncurrent', label: 'Long-term debt, noncurrent', val: 3.8e9 },
+    { key: 'accounts_payable', label: 'Accounts payable', val: 67.5e6 },
+  ],
+  7.8e9
+);
+assert.equal(eq.rows.length, 3);
+assert.equal(eq.rows[0].op, '');
+assert.equal(eq.rows[1].op, '+');
+assert.equal(eq.rows[2].op, '+');
+assert.equal(eq.sum, 15.1e6 + 3.8e9 + 67.5e6);
+assert.equal(eq.tiesTotal, false);
+assert.equal(eq.total, 7.8e9);
+
+const tied = stackedAddends(
+  [
+    { label: 'A', val: 40 },
+    { label: 'B', val: 60 },
+  ],
+  100
+);
+assert.equal(tied.tiesTotal, true);
+assert.equal(tied.rows[0].op, '');
+assert.equal(tied.rows[1].op, '+');
+
+const withMinus = stackedAddends([
+  { label: 'Income', val: 10 },
+  { label: 'Loss', val: -3 },
+]);
+assert.equal(withMinus.rows[1].op, '−');
+assert.equal(withMinus.rows[1].abs, 3);
+assert.equal(withMinus.sum, 7);
+
+assert.deepEqual(stackedAddends([]).rows, []);
+assert.equal(stackedAddends(null).sum, 0);
 
 console.log('test-financial-modeler-information: ok');
