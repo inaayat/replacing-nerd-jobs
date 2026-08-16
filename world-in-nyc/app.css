@@ -303,8 +303,19 @@ body.win-rail-collapsed .win-rail {
   flex: 1 1 auto;
   overflow: auto;
   min-height: 0;
-  padding: 8px 8px 20px;
+  padding: 8px 8px calc(32px + env(safe-area-inset-bottom));
   -webkit-overflow-scrolling: touch;
+}
+
+.win-focus-note {
+  margin: 4px 8px 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #3d3834;
+}
+
+.win-focus-label {
+  margin: 12px 8px 4px;
 }
 
 .win-text-btn {
