@@ -422,6 +422,7 @@ export const FINANCING_METRICS = [
       { taxonomy: 'us-gaap', tag: 'ProceedsFromIssuanceOfDebt' },
       { taxonomy: 'us-gaap', tag: 'ProceedsFromNotesPayable' },
       { taxonomy: 'us-gaap', tag: 'ProceedsFromIssuanceOfSeniorLongTermDebt' },
+      { taxonomy: 'us-gaap', tag: 'ProceedsFromIssuanceOfSecuredDebt' },
     ],
     'Revolvers and commercial paper are sometimes tagged separately and will not appear here.'
   ),

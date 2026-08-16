@@ -692,4 +692,41 @@ assert.equal(ordinal(1), '1st');
   assert.equal(bothCash.metrics.cash.tag, 'CashAndCashEquivalentsAtCarryingValue');
 }
 
+{
+  const gddy = ensureRatios({
+    metrics: {
+      revenue: { val: 4_951_100_000, end: '2025-12-31', form: '10-K' },
+      equity: { val: 215_100_000 },
+      debt_current: { val: 15_100_000, tag: 'LongTermDebtCurrent', end: '2025-12-31' },
+      debt_noncurrent: { val: 3_765_200_000, tag: 'LongTermDebtNoncurrent', end: '2025-12-31' },
+      long_term_debt: null,
+    },
+  });
+  assert.equal(gddy.metrics.long_term_debt.val, 3_765_200_000);
+  assert.equal(gddy.metrics.long_term_debt.derived, true);
+  assert.equal(gddy.metrics.long_term_debt.tag, 'LongTermDebtNoncurrent');
+  assert.ok(Math.abs(gddy.ratios.debt_equity - (15_100_000 + 3_765_200_000) / 215_100_000) < 1e-9);
+
+  const abt = ensureRatios({
+    metrics: {
+      revenue: { val: 44_328_000_000, end: '2025-12-31', form: '10-K' },
+      cogs: { val: 19_319_000_000, tag: 'CostOfGoodsAndServicesSold', end: '2025-12-31' },
+      gross_profit: null,
+    },
+  });
+  assert.equal(abt.metrics.gross_profit.val, 44_328_000_000 - 19_319_000_000);
+  assert.equal(abt.metrics.gross_profit.tag, 'Revenue−COGS');
+  assert.ok(abt.ratios.gross_margin > 0.5 && abt.ratios.gross_margin < 0.6);
+
+  const gpOnly = ensureRatios({
+    metrics: {
+      revenue: { val: 100, end: '2025-12-31' },
+      gross_profit: { val: 40, tag: 'GrossProfit', end: '2025-12-31' },
+      cogs: null,
+    },
+  });
+  assert.equal(gpOnly.metrics.cogs.val, 60);
+  assert.equal(gpOnly.metrics.cogs.tag, 'Revenue−GrossProfit');
+}
+
 console.log('fortune-500 extract tests passed');
