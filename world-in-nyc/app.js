@@ -220,13 +220,10 @@ function renderCountryList(countries, filter, query, selectedIso, onPick) {
 function countryCardHtml(row, catalog) {
   const pills = row.enclaves.map((enc) => {
     const color = regionColor(catalog, enc.region);
-    const places = (enc.places || []).join(', ');
-    return `<button type="button" class="win-enclave-pill" data-enclave="${enc.id}"><strong style="color:${color}">${enc.name}</strong><div class="mono">${enc.group}${places ? ` · ${places}` : ''}</div></button>`;
+    return `<button type="button" class="win-enclave-pill" data-enclave="${enc.id}"><strong style="color:${color}">${enc.name}</strong><div class="mono">${enc.group}</div></button>`;
   }).join('');
   return `
     <h3>${row.name}</h3>
-    <div class="mono">NYC neighborhoods with a listed ${row.name} enclave. Tap one to open it on the NYC map.</div>
-    <h4 class="mono">In NYC</h4>
     ${pills}
   `;
 }
@@ -237,13 +234,11 @@ function renderLegend(catalog, filter, view = 'nyc') {
     ? catalog.regions.filter((r) => r.id === filter.id)
     : catalog.regions;
   const rows = regions.map((r) => `<div class="win-legend-row"><i style="background:${r.color}"></i>${r.label}</div>`).join('');
-  const title = filter?.kind === 'enclave'
-    ? catalog.enclaves[filter.index].name
-    : view === 'world' ? 'Origin countries' : 'By region';
+  const title = filter?.kind === 'enclave' ? `<h3>${catalog.enclaves[filter.index].name}</h3>` : '';
   const extra = view === 'world'
-    ? `<div class="win-legend-row"><i style="background:#6b5f5e"></i>Several regions</div><div class="win-legend-row"><i style="background:#e8e0d2;outline:1px solid #1c1c1c22"></i>No listed NYC enclave</div>`
-    : `<div class="win-legend-row"><i style="background:#e8e0d2;outline:1px solid #1c1c1c22"></i>No listed enclave</div>`;
-  root.innerHTML = `<h3>${title}</h3>${rows}${extra}`;
+    ? `<div class="win-legend-row"><i style="background:#6b5f5e"></i>Several regions</div><div class="win-legend-row"><i style="background:#e8e0d2;outline:1px solid #1c1c1c22"></i>None listed</div>`
+    : `<div class="win-legend-row"><i style="background:#e8e0d2;outline:1px solid #1c1c1c22"></i>None listed</div>`;
+  root.innerHTML = `${title}${rows}${extra}`;
 }
 
 function cardHtml(props, catalog) {
@@ -255,12 +250,10 @@ function cardHtml(props, catalog) {
   }).join('') || '<p class="mono">Wikipedia does not list a named enclave on this district.</p>';
   return `
     <h3>AD ${props.ad} · ED ${String(props.n).padStart(3, '0')}</h3>
-    <div class="mono">Election district ${props.ed}</div>
     <dl class="win-kv">
       <dt>Borough</dt><dd>${props.b || '—'}</dd>
       <dt>Neighborhood</dt><dd>${props.nta || '—'}</dd>
     </dl>
-    <h4 class="mono">Enclaves</h4>
     ${pills}
   `;
 }
@@ -507,7 +500,7 @@ async function main() {
     $('map').hidden = currentView !== 'nyc';
     $('world-map').hidden = currentView !== 'world';
     $('nyc-lede').hidden = currentView !== 'nyc';
-    $('world-lede').hidden = currentView !== 'world';
+    $('rail-kicker').textContent = currentView === 'world' ? 'Origin countries' : 'Election districts';
     $('list-heading').textContent = currentView === 'world' ? 'Countries' : 'Enclaves';
     $('search-label').textContent = currentView === 'world'
       ? 'Find a country or neighborhood'

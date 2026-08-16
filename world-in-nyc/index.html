@@ -26,7 +26,7 @@
           <img src="/ugly-dog-images/dog-3.png" alt="" width="18" height="18" />
           <span>Beep boop</span>
         </a>
-        <a href="/world-in-nyc/" class="win-nav-section">
+        <a href="/world-in-nyc/" class="win-nav-section" aria-label="World in NYC">
           <img src="/world-in-nyc/icon.svg" alt="" width="22" height="22" />
           <span>World in NYC</span>
         </a>
@@ -36,7 +36,6 @@
         <button type="button" class="win-view-btn" id="view-world" role="tab" aria-selected="false" data-view="world">World</button>
       </div>
       <div class="win-nav-links">
-        <a href="#list">Enclaves</a>
         <a href="/#projects">Projects</a>
       </div>
       <button type="button" class="win-browse-btn" id="browse-toggle" aria-expanded="false" aria-controls="rail">
@@ -63,32 +62,27 @@
       <aside class="win-rail" id="rail" aria-label="Enclave filters">
         <button type="button" class="win-sheet-handle" id="sheet-handle" aria-label="Drag to resize browse sheet"></button>
         <div class="win-sheet-peek">
-          <p class="win-kicker">Election districts · Wikipedia enclaves</p>
           <div class="win-sheet-title-row">
-            <h1 class="win-title">World in NYC</h1>
+            <p class="win-kicker" id="rail-kicker">Election districts</p>
             <button type="button" class="win-text-btn win-sheet-close" id="sheet-close">Map</button>
           </div>
         </div>
+        <h1 class="visually-hidden">World in NYC</h1>
         <p class="win-lede" id="nyc-lede">
           Every colored block is an election district — the same grain as the
           <a href="https://www.urbanresearchmaps.org/electioncompare2025/?lat=40.72103&amp;lng=-73.97690&amp;zoom=10.50&amp;ed=66039" target="_blank" rel="noopener">CUNY 2025 election map</a>.
-          Tap a block to see who Wikipedia places there.
-        </p>
-        <p class="win-lede" id="world-lede" hidden>
-          Countries NYC has a listed enclave from — same region colors as the
-          election-district map. Tap one to see the neighborhoods.
         </p>
 
         <label class="win-search">
-          <span class="win-label" id="search-label">Find a group or neighborhood</span>
-          <input id="search" type="search" placeholder="Chinatown, Little Guyana, Astoria…" autocomplete="off" enterkeyhint="search" />
+          <span class="visually-hidden" id="search-label">Find a group or neighborhood</span>
+          <input id="search" type="search" placeholder="Chinatown, Little Guyana, Astoria…" autocomplete="off" enterkeyhint="search" aria-labelledby="search-label" />
         </label>
 
         <div class="win-regions" id="regions" role="listbox" aria-label="Regions"></div>
 
         <section id="list" class="win-list-wrap">
           <div class="win-list-head">
-            <h2 id="list-heading">Enclaves</h2>
+            <h2 class="visually-hidden" id="list-heading">Enclaves</h2>
             <button type="button" class="win-text-btn" id="clear-filter" hidden>Clear filter</button>
           </div>
           <div class="win-list" id="enclave-list"></div>

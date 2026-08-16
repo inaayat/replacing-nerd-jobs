@@ -9,7 +9,7 @@
   --win-mono: "DM Mono", ui-monospace, monospace;
   --win-nav-h: 56px;
   --win-rail-w: 340px;
-  --win-sheet-peek: 72px;
+  --win-sheet-peek: 52px;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -132,11 +132,23 @@ a { color: #cf4520; }
   -webkit-overflow-scrolling: touch;
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .win-sheet-handle { display: none; }
 .win-sheet-close { display: none; }
 .win-sheet-title-row {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
@@ -150,27 +162,11 @@ a { color: #cf4520; }
   color: var(--win-muted);
 }
 
-.win-title {
-  margin: 6px 0 8px;
-  font-family: var(--win-display);
-  font-size: 32px;
-  line-height: 1.05;
-  font-weight: 650;
-}
-
 .win-lede {
-  margin: 0 0 16px;
+  margin: 8px 0 16px;
   font-size: 13.5px;
   line-height: 1.45;
   color: #3d3834;
-}
-
-.win-label {
-  display: block;
-  font-family: var(--win-mono);
-  font-size: 11px;
-  color: var(--win-muted);
-  margin-bottom: 6px;
 }
 
 .win-search input {
@@ -227,16 +223,12 @@ a { color: #cf4520; }
 .win-list-head {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 8px;
 }
 
-.win-list-head h2 {
-  margin: 0 0 8px;
-  font-size: 13px;
-  font-family: var(--win-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+.win-list-head:not(:has(#clear-filter:not([hidden]))) {
+  display: none;
 }
 
 .win-text-btn {
@@ -455,7 +447,7 @@ a { color: #cf4520; }
   .win-browse-btn { display: inline-flex; align-items: center; }
   .win-view-toggle { margin-left: auto; }
   .win-view-btn { padding: 7px 10px; min-height: 40px; }
-  .win-nav-section span { max-width: 9ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .win-nav-section span { display: none; }
 
   .win-app {
     display: block;
@@ -555,11 +547,6 @@ a { color: #cf4520; }
     font-weight: 600;
     min-height: 40px;
     padding: 0 4px;
-  }
-
-  .win-title {
-    font-size: 24px;
-    margin: 2px 0 8px;
   }
 
   .win-lede { display: none; }
