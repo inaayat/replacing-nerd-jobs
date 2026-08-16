@@ -3,8 +3,11 @@ import { isHistoric, enclavesForEra, tagCurrentEnclaves } from './era.js';
 import {
   lookupEd,
   shareLine,
+  sortStatsRows,
+  statsRows,
   tagVoteWinners,
   voteBarHtml,
+  winnerLabel,
   winnerMatchExpr,
 } from './votes.js';
 
@@ -73,7 +76,8 @@ function colorMatch(catalog, prop = 'r') {
 function parseQuery() {
   const params = new URLSearchParams(location.search);
   const ed = Number(params.get('ed') || '');
-  const view = params.get('view') === 'world' ? 'world' : 'nyc';
+  const rawView = params.get('view');
+  const view = rawView === 'world' || rawView === 'stats' ? rawView : 'nyc';
   const country = (params.get('country') || '').toUpperCase() || null;
   return {
     ed: Number.isFinite(ed) && ed > 0 ? ed : null,
@@ -85,7 +89,7 @@ function parseQuery() {
 
 function setQuery({ ed, view, country, historic }) {
   const url = new URL(location.href);
-  if (view === 'world') url.searchParams.set('view', 'world');
+  if (view === 'world' || view === 'stats') url.searchParams.set('view', view);
   else url.searchParams.delete('view');
   if (ed) url.searchParams.set('ed', String(ed));
   else url.searchParams.delete('ed');
@@ -361,7 +365,10 @@ function setSheetOpen(open) {
   rail.classList.toggle('is-open', open);
   document.body.classList.toggle('win-sheet-open', open);
   toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-  toggle.textContent = open ? 'Map' : 'Browse';
+  const closeLabel = document.body.classList.contains('win-stats-view') ? 'Table' : 'Map';
+  toggle.textContent = open ? closeLabel : 'Browse';
+  const sheetClose = $('sheet-close');
+  if (sheetClose) sheetClose.textContent = closeLabel;
 }
 
 function wireSheetDrag(onResize) {
@@ -426,6 +433,11 @@ async function main() {
   if (start.view === 'world') {
     $('map').hidden = true;
     $('world-map').hidden = false;
+  } else if (start.view === 'stats') {
+    $('map').hidden = true;
+    $('world-map').hidden = true;
+    $('stats-pane').hidden = false;
+    document.body.classList.add('win-stats-view');
   }
 
   const map = new maplibregl.Map({
@@ -464,6 +476,7 @@ async function main() {
   let currentView = start.view;
   let nycReady = false;
   let worldReady = false;
+  let statsSort = { key: 'm', dir: 'desc' };
   const edIndex = new Map(ed.features.map((f) => [f.properties.ed, f]));
 
   function syncQuery() {
@@ -513,7 +526,102 @@ async function main() {
     ]);
   }
 
+  function formatPct(n) {
+    return n == null ? '—' : `${Math.round(n)}%`;
+  }
+
+  function renderStatsTable() {
+    const table = $('stats-table');
+    if (!table) return;
+    const kicker = $('stats-pane').querySelector('.win-kicker');
+    const q = $('search').value.trim().toLowerCase();
+    const encById = new Map(catalog.enclaves.map((enc) => [enc.id, enc]));
+    const all = votes ? statsRows(catalog.enclaves, votes.enclaves) : [];
+    const filtered = all.filter((row) => {
+      const enc = encById.get(row.id);
+      if (!enclaveMatches(enc, q)) return false;
+      if (filter?.kind === 'region') return row.region === filter.id;
+      return true;
+    });
+    const rows = sortStatsRows(filtered, statsSort.key, statsSort.dir);
+    if (kicker) {
+      kicker.textContent = votes
+        ? `2025 mayor · ${rows.length} ${rows.length === 1 ? 'enclave' : 'enclaves'}`
+        : '2025 mayor';
+    }
+
+    const cols = [
+      { key: 'name', label: 'Enclave', cls: '' },
+      { key: 'group', label: 'Group', cls: 'win-stats-group' },
+      { key: 'winner', label: 'Winner', cls: '' },
+      { key: 'm', label: 'Mamdani', cls: 'win-stats-num' },
+      { key: 'c', label: 'Cuomo', cls: 'win-stats-num' },
+      { key: 's', label: 'Sliwa', cls: 'win-stats-num' },
+      { key: 'n', label: 'EDs', cls: 'win-stats-num' },
+    ];
+    const thead = table.tHead || table.createTHead();
+    thead.innerHTML = `<tr>${cols.map((col) => {
+      const on = statsSort.key === col.key;
+      const aria = on ? (statsSort.dir === 'asc' ? 'ascending' : 'descending') : 'none';
+      return `<th scope="col" class="${col.cls}" data-key="${col.key}" aria-sort="${aria}"><button type="button">${col.label}</button></th>`;
+    }).join('')}</tr>`;
+
+    const tbody = table.tBodies[0] || table.createTBody();
+    if (!votes) {
+      tbody.innerHTML = '<tr><td colspan="7">2025 mayor results are not loaded.</td></tr>';
+      return;
+    }
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="7">No enclaves match.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map((row) => {
+      const on = filter?.kind === 'enclave' && filter.id === row.id ? ' is-on' : '';
+      const color = votes.candidates.find((c) => c.id === row.winner)?.color;
+      const swatch = color ? `<i class="win-stats-swatch" style="background:${color}"></i>` : '';
+      return `<tr class="${on.trim()}" data-enclave="${row.id}" tabindex="0">
+        <td>${row.name}</td>
+        <td class="win-stats-group">${row.group}</td>
+        <td>${swatch}${winnerLabel(row.winner, votes.candidates)}</td>
+        <td class="win-stats-num">${formatPct(row.m)}</td>
+        <td class="win-stats-num">${formatPct(row.c)}</td>
+        <td class="win-stats-num">${formatPct(row.s)}</td>
+        <td class="win-stats-num">${row.n || '—'}</td>
+      </tr>`;
+    }).join('');
+
+    const openEnclave = (id) => {
+      const index = catalog.enclaves.findIndex((enc) => enc.id === id);
+      if (index < 0) return;
+      selectedId = null;
+      applyView('nyc');
+      setFilter({ kind: 'enclave', index, id });
+    };
+    for (const tr of tbody.querySelectorAll('[data-enclave]')) {
+      tr.addEventListener('click', () => openEnclave(tr.dataset.enclave));
+      tr.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          openEnclave(tr.dataset.enclave);
+        }
+      });
+    }
+    for (const th of thead.querySelectorAll('th[data-key]')) {
+      th.querySelector('button').addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const key = th.dataset.key;
+        if (statsSort.key === key) statsSort.dir = statsSort.dir === 'asc' ? 'desc' : 'asc';
+        else statsSort = { key, dir: key === 'name' || key === 'group' || key === 'winner' ? 'asc' : 'desc' };
+        renderStatsTable();
+      });
+    }
+  }
+
   function refreshList() {
+    if (currentView === 'stats') {
+      renderStatsTable();
+      return;
+    }
     if (currentView === 'world') {
       renderCountryList(countries, filter, $('search').value, selectedCountry, showCountryCard);
     } else {
@@ -577,15 +685,25 @@ async function main() {
   }
 
   function applyView(view) {
-    currentView = view === 'world' ? 'world' : 'nyc';
-    $('view-nyc').classList.toggle('is-on', currentView === 'nyc');
-    $('view-world').classList.toggle('is-on', currentView === 'world');
-    $('view-nyc').setAttribute('aria-selected', currentView === 'nyc' ? 'true' : 'false');
-    $('view-world').setAttribute('aria-selected', currentView === 'world' ? 'true' : 'false');
+    currentView = view === 'world' || view === 'stats' ? view : 'nyc';
+    document.body.classList.toggle('win-stats-view', currentView === 'stats');
+    for (const btn of document.querySelectorAll('.win-view-btn')) {
+      const on = btn.dataset.view === currentView;
+      btn.classList.toggle('is-on', on);
+      btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    }
     $('map').hidden = currentView !== 'nyc';
     $('world-map').hidden = currentView !== 'world';
+    $('stats-pane').hidden = currentView !== 'stats';
     $('nyc-lede').hidden = currentView !== 'nyc';
-    $('rail-kicker').textContent = currentView === 'world' ? 'Origin countries' : 'Election districts';
+    $('enclave-list').hidden = currentView === 'stats';
+    $('legend-toggle').hidden = currentView === 'stats';
+    $('legend').hidden = currentView === 'stats' || isMobileUi();
+    $('rail-kicker').textContent = currentView === 'world'
+      ? 'Origin countries'
+      : currentView === 'stats'
+        ? '2025 mayor'
+        : 'Election districts';
     $('list-heading').textContent = currentView === 'world' ? 'Countries' : 'Enclaves';
     $('search-label').textContent = currentView === 'world'
       ? 'Find a country or neighborhood'
@@ -593,8 +711,11 @@ async function main() {
     $('search').placeholder = currentView === 'world'
       ? 'Italy, Little Italy, Astoria…'
       : 'Chinatown, Little Guyana, Astoria…';
+    if ($('rail').classList.contains('is-open')) setSheetOpen(true);
 
-    if (currentView === 'world') {
+    if (currentView === 'stats') {
+      $('card').hidden = true;
+    } else if (currentView === 'world') {
       if (map.getSource('ed')) map.removeFeatureState({ source: 'ed' });
       if (selectedCountry) showCountryCard(selectedCountry);
       else $('card').hidden = true;
@@ -618,7 +739,7 @@ async function main() {
     applyWorldPaint();
     renderRegions(catalog, filter, setFilter);
     renderLegend(catalog, filter, currentView, votes);
-    renderVoteSummary(filter, catalog, votes);
+    renderVoteSummary(currentView === 'nyc' ? filter : null, catalog, votes);
     $('clear-filter').hidden = !filter;
     refreshList();
     if (filter?.kind === 'enclave' && currentView === 'nyc') {
@@ -645,7 +766,7 @@ async function main() {
     applyWorldPaint();
     renderRegions(catalog, filter, setFilter);
     renderLegend(catalog, filter, currentView, votes);
-    renderVoteSummary(filter, catalog, votes);
+    renderVoteSummary(currentView === 'nyc' ? filter : null, catalog, votes);
     refreshList();
     if (currentView === 'nyc' && selectedId) showCard(selectedId);
     else if (currentView === 'world' && selectedCountry) showCountryCard(selectedCountry);
@@ -656,7 +777,7 @@ async function main() {
   function finishLoad() {
     if (!nycReady || !worldReady) return;
     status.hidden = true;
-    if (isMobileUi()) $('legend').hidden = true;
+    if (isMobileUi() || currentView === 'stats') $('legend').hidden = true;
     else $('legend').hidden = false;
     syncHistoricBtn();
     applyFilter(map, catalog, filter, includeHistoric, votes);
@@ -858,12 +979,13 @@ async function main() {
   });
   $('view-nyc').addEventListener('click', () => applyView('nyc'));
   $('view-world').addEventListener('click', () => applyView('world'));
+  $('view-stats').addEventListener('click', () => applyView('stats'));
   $('historic-toggle').addEventListener('click', () => setHistoric(!includeHistoric));
   wireSheetDrag(resizeMap);
 
   window.addEventListener('resize', () => {
     if (!isMobileUi()) {
-      $('legend').hidden = false;
+      $('legend').hidden = currentView === 'stats';
       setSheetOpen(false);
     }
     resizeMap();

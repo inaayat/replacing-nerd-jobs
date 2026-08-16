@@ -84,6 +84,7 @@ a { color: #cf4520; }
   border-radius: 999px;
   overflow: hidden;
   flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .win-view-btn {
@@ -327,6 +328,115 @@ a { color: #cf4520; }
   visibility: hidden;
   pointer-events: none;
   z-index: 0;
+}
+
+#stats-pane {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  overflow: auto;
+  background: var(--win-cream);
+  padding: 18px 20px 28px;
+}
+
+#stats-pane[hidden] {
+  display: none !important;
+}
+
+.win-stats-lede {
+  margin: 6px 0 14px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: #3d3834;
+  max-width: 46em;
+}
+
+.win-stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.win-stats-table th,
+.win-stats-table td {
+  text-align: left;
+  padding: 8px 10px 8px 0;
+  border-bottom: 1px solid var(--win-line);
+  vertical-align: middle;
+}
+
+.win-stats-table th {
+  font-family: var(--win-mono);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--win-muted);
+  position: sticky;
+  top: 0;
+  background: var(--win-cream);
+  z-index: 1;
+  white-space: nowrap;
+}
+
+.win-stats-table th button {
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  padding: 0;
+  cursor: pointer;
+}
+
+.win-stats-table th[aria-sort="ascending"] button::after,
+.win-stats-table th[aria-sort="descending"] button::after {
+  content: " ↑";
+  color: var(--win-ink);
+}
+
+.win-stats-table th[aria-sort="descending"] button::after {
+  content: " ↓";
+}
+
+.win-stats-table .win-stats-num {
+  text-align: right;
+  font-family: var(--win-mono);
+  font-size: 12px;
+  white-space: nowrap;
+  padding-right: 8px;
+}
+
+.win-stats-table td:first-child {
+  font-weight: 600;
+}
+
+.win-stats-table tbody tr {
+  cursor: pointer;
+}
+
+.win-stats-table tbody tr:hover,
+.win-stats-table tbody tr.is-on {
+  background: rgba(28, 28, 28, 0.05);
+}
+
+.win-stats-swatch {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  margin-right: 6px;
+  vertical-align: 1px;
+}
+
+body.win-stats-view .win-legend-toggle,
+body.win-stats-view .win-legend {
+  display: none !important;
+}
+
+body.win-stats-view .win-era {
+  display: none;
 }
 
 .win-legend-toggle {
@@ -579,6 +689,22 @@ a { color: #cf4520; }
   }
 
   .win-lede { display: none; }
+
+  .win-stats-group { display: none; }
+
+  #stats-pane {
+    padding: 12px 14px calc(var(--win-sheet-peek) + env(safe-area-inset-bottom) + 16px);
+  }
+
+  .win-stats-lede {
+    font-size: 13px;
+    margin-bottom: 10px;
+  }
+
+  .win-stats-table th,
+  .win-stats-table td {
+    padding: 8px 6px 8px 0;
+  }
 
   .win-card {
     left: 10px;

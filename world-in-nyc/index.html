@@ -31,9 +31,10 @@
           <span>World in NYC</span>
         </a>
       </div>
-      <div class="win-view-toggle" role="tablist" aria-label="Map view">
+      <div class="win-view-toggle" role="tablist" aria-label="View">
         <button type="button" class="win-view-btn is-on" id="view-nyc" role="tab" aria-selected="true" data-view="nyc">NYC</button>
         <button type="button" class="win-view-btn" id="view-world" role="tab" aria-selected="false" data-view="world">World</button>
+        <button type="button" class="win-view-btn" id="view-stats" role="tab" aria-selected="false" data-view="stats">Stats</button>
       </div>
       <div class="win-nav-links">
         <a href="/#projects">Projects</a>
@@ -47,6 +48,19 @@
       <main class="win-map-wrap">
         <div id="map" role="application" aria-label="New York City election district map"></div>
         <div id="world-map" role="application" aria-label="World map of origin countries" hidden></div>
+        <div id="stats-pane" hidden>
+          <p class="win-kicker">2025 mayor</p>
+          <p class="win-stats-lede">
+            Vote shares in the election districts Wikipedia tags as each neighborhood — not a poll of that group.
+          </p>
+          <div class="win-stats-scroll">
+            <table class="win-stats-table" id="stats-table">
+              <caption class="visually-hidden">2025 mayor results by enclave</caption>
+              <thead></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
         <button type="button" class="win-legend-toggle" id="legend-toggle" aria-expanded="false" aria-controls="legend">
           Legend
         </button>

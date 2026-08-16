@@ -33,6 +33,18 @@ export function totalOf(vec) {
   return (vec[0] || 0) + (vec[1] || 0) + (vec[2] || 0) + (vec[3] || 0);
 }
 
+export function pctOf(vec, i) {
+  const t = totalOf(vec);
+  if (!t) return null;
+  return (100 * (vec[i] || 0)) / t;
+}
+
+export function winnerLabel(id, candidates = CANDIDATES) {
+  if (!id) return '—';
+  if (id === 't') return 'Tie';
+  return candidates.find((c) => c.id === id)?.label || '—';
+}
+
 export function bucketUnit(name) {
   if (!name || SKIP_UNITS.has(name)) return -1;
   const n = name.toLowerCase();
@@ -124,4 +136,60 @@ export function rollupEnclaves(features, enclaves, byEd) {
     };
   }
   return out;
+}
+
+/** One row per current enclave from the primary-ED 2025 mayor rollup. */
+export function statsRows(enclaves, voteEnclaves) {
+  const rows = [];
+  for (const enc of enclaves) {
+    if (enc.status === 'historic') continue;
+    const roll = voteEnclaves?.[enc.id]?.primary;
+    const vec = roll?.v || emptyVec();
+    const n = roll?.n || 0;
+    rows.push({
+      id: enc.id,
+      name: enc.name,
+      group: enc.group,
+      region: enc.region,
+      winner: n ? winnerOf(vec) : '',
+      m: n ? pctOf(vec, 0) : null,
+      c: n ? pctOf(vec, 1) : null,
+      s: n ? pctOf(vec, 2) : null,
+      n,
+    });
+  }
+  return rows;
+}
+
+const TEXT_SORT = new Set(['name', 'group', 'winner']);
+const WINNER_RANK = { m: 0, c: 1, s: 2, o: 3, t: 4 };
+
+function cmpNullable(a, b, sign) {
+  const aNull = a == null;
+  const bNull = b == null;
+  if (aNull && bNull) return 0;
+  if (aNull) return 1;
+  if (bNull) return -1;
+  if (a === b) return 0;
+  return sign * (a < b ? -1 : 1);
+}
+
+export function sortStatsRows(rows, key = 'm', dir = 'desc') {
+  const sign = dir === 'asc' ? 1 : -1;
+  const copy = rows.slice();
+  copy.sort((a, b) => {
+    let cmp = 0;
+    if (key === 'winner') {
+      const ar = a.winner ? WINNER_RANK[a.winner] ?? 9 : null;
+      const br = b.winner ? WINNER_RANK[b.winner] ?? 9 : null;
+      cmp = cmpNullable(ar, br, sign);
+    } else if (TEXT_SORT.has(key)) {
+      cmp = sign * String(a[key] || '').localeCompare(String(b[key] || ''), undefined, { sensitivity: 'base' });
+    } else {
+      cmp = cmpNullable(a[key], b[key], sign);
+    }
+    if (cmp) return cmp;
+    return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+  });
+  return copy;
 }

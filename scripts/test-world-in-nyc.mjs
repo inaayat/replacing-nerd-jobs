@@ -10,7 +10,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { GROUP_COUNTRIES, countryIndex, countriesForGroup } from '../world-in-nyc/countries.js';
 import { isHistoric, enclavesForEra, tagCurrentEnclaves } from '../world-in-nyc/era.js';
-import { winnerOf, shareLine, totalOf } from '../world-in-nyc/votes.js';
+import { winnerOf, shareLine, totalOf, statsRows, sortStatsRows } from '../world-in-nyc/votes.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DATA = join(ROOT, 'world-in-nyc/data');
@@ -76,7 +76,10 @@ assert.match(js, /ensureOverlay/);
 assert.match(js, /libguides.nypl.org\/nycboundaries\/political/);
 assert.doesNotMatch(js, /<dt>Council<\/dt>/);
 assert.match(html, /id="view-world"/);
+assert.match(html, /id="view-stats"/);
 assert.match(html, /id="world-map"/);
+assert.match(html, /id="stats-pane"/);
+assert.match(html, /id="stats-table"/);
 assert.match(html, /id="rail-kicker"/);
 assert.match(html, /id="historic-toggle"/);
 assert.doesNotMatch(html, /id="historic-toggle"[^>]*is-on/);
@@ -164,5 +167,21 @@ assert.equal(winnerOf(guyana.primary.v), 'm');
 assert.ok(guyana.all.n > guyana.primary.n, 'mixed-district rollup should be larger than primary-only');
 assert.match(shareLine(guyana.primary.v), /Mamdani/);
 assert.ok(totalOf(guyana.primary.v) > 0);
+
+const stats = statsRows(enclaves, mayor.enclaves);
+assert.ok(!stats.some((row) => row.id === 'little-spain'), 'historic enclaves stay off the stats table');
+const guyanaRow = stats.find((row) => row.id === 'little-guyana');
+assert.ok(guyanaRow, 'Little Guyana is on the stats table');
+assert.equal(guyanaRow.winner, 'm');
+assert.ok(guyanaRow.m > guyanaRow.c);
+const byMamdani = sortStatsRows(stats, 'm', 'desc');
+assert.equal(byMamdani[0].id, stats.slice().sort((a, b) => (b.m ?? -1) - (a.m ?? -1))[0].id);
+for (let i = 1; i < byMamdani.length; i++) {
+  const prev = byMamdani[i - 1].m;
+  const next = byMamdani[i].m;
+  if (prev == null || next == null) continue;
+  assert.ok(prev >= next, 'Mamdani % should sort descending');
+}
+assert.match(js, /applyView\('stats'\)/);
 
 console.log(`ok — ${enclaves.length} enclaves on ${ed.features.length} election districts (${withEnclave} tagged); ${withHistoric.length} origin countries (${currentOnly.length} current); mayor ${mayor.matched} EDs`);
