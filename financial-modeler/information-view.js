@@ -184,6 +184,10 @@ export function stackedAddends(parts, total = null) {
   return { rows, sum, total: hasTotal ? total : null, tiesTotal };
 }
 
+export function filedTagsApiUrl(cik) {
+  return `/api/fortune-500?route=filed&cik=${Number(cik)}`;
+}
+
 /** sessionStorage key for cached filed-tags API payloads. */
 export function filedTagsCacheKey(cik, fy) {
   return `fm-filed-tags:${cik}:${fy ?? 'na'}`;
@@ -212,4 +216,39 @@ export function filedTagsCountLabel(counts) {
   const mapped = counts?.mapped ?? 0;
   const unmapped = counts?.unmapped ?? filed - mapped;
   return `${filed} filed · ${mapped} mapped · ${unmapped} not in our catalog`;
+}
+
+/**
+ * Rank Company Facts rows for an in-row “find a tag” search.
+ * Requires two characters so an empty field does not dump the whole 10-K.
+ */
+export function rankFiledTagMatches(rows, query, { limit = 6 } = {}) {
+  const needle = String(query || '')
+    .trim()
+    .toLowerCase();
+  if (needle.length < 2) return [];
+  const scored = [];
+  for (const row of rows || []) {
+    const tag = String(row.tag || '').toLowerCase();
+    const label = String(row.label || '').toLowerCase();
+    const taxonomy = String(row.taxonomy || '').toLowerCase();
+    let score = 0;
+    if (tag === needle || label === needle) score = 100;
+    else if (tag.startsWith(needle) || label.startsWith(needle)) score = 80;
+    else if (tag.includes(needle) || label.includes(needle) || taxonomy.includes(needle)) score = 40;
+    else continue;
+    if (!row.mappedKey) score += 4;
+    scored.push({ row, score });
+  }
+  scored.sort((a, b) => b.score - a.score || Math.abs(b.row.val || 0) - Math.abs(a.row.val || 0));
+  const out = [];
+  const seen = new Set();
+  for (const item of scored) {
+    const id = `${item.row.taxonomy}:${item.row.tag}`;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push(item.row);
+    if (out.length >= limit) break;
+  }
+  return out;
 }

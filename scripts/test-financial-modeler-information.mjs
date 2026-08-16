@@ -19,8 +19,10 @@ import {
   filingSourceLinks,
   stackedAddends,
   filedTagsCacheKey,
+  filedTagsApiUrl,
   filterFiledTagRows,
   filedTagsCountLabel,
+  rankFiledTagMatches,
 } from '../financial-modeler/information-view.js';
 import { extractFiledTags, filterFiledRows } from '../fortune-500/filed-tags.js';
 import {
@@ -163,6 +165,7 @@ assert.deepEqual(stackedAddends([]).rows, []);
 assert.equal(stackedAddends(null).sum, 0);
 
 assert.equal(filedTagsCacheKey(1609711, 2025), 'fm-filed-tags:1609711:2025');
+assert.equal(filedTagsApiUrl(1609711), '/api/fortune-500?route=filed&cik=1609711');
 assert.equal(filedTagsCountLabel({ filed: 212, mapped: 44, unmapped: 168 }), '212 filed · 44 mapped · 168 not in our catalog');
 
 const filedRows = [
@@ -173,6 +176,11 @@ assert.equal(filterFiledTagRows(filedRows, { filter: 'mapped' }).length, 1);
 assert.equal(filterFiledTagRows(filedRows, { filter: 'unmapped' }).length, 1);
 assert.equal(filterFiledRows(filedRows, { query: 'cogs' }).length, 1);
 assert.equal(filterFiledRows(filedRows, { query: 'Revenues' }).length, 1);
+
+assert.deepEqual(rankFiledTagMatches(filedRows, 'c'), []);
+assert.equal(rankFiledTagMatches(filedRows, 'cogs')[0].tag, 'CostOfGoodsSold');
+assert.equal(rankFiledTagMatches(filedRows, 'rev')[0].tag, 'Revenues');
+assert.equal(rankFiledTagMatches(filedRows, 'zzz').length, 0);
 
 const instant = (val, end, fy) => [{ val, end, fy, fp: 'FY', form: '10-K', filed: `${fy + 1}-02-15` }];
 const duration = (val, start, end, fy) => [

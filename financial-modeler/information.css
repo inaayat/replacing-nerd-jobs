@@ -107,58 +107,6 @@ body.fm-info {
   font-weight: 500;
 }
 
-.fm-info-toc {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-  margin: 0 0 28px;
-}
-
-@media (min-width: 720px) {
-  .fm-info-toc {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-.fm-info-toc-card {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  text-decoration: none;
-  border: 1px solid var(--rule);
-  border-left: 4px solid var(--rule-strong);
-  border-radius: 10px;
-  padding: 10px 12px;
-  background: var(--paper-2);
-  min-width: 0;
-}
-
-.fm-info-toc-card strong {
-  font-family: Fraunces, Georgia, serif;
-  font-size: 14px;
-  color: var(--ink);
-}
-
-.fm-info-toc-card span {
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--ink-soft);
-}
-
-.fm-info-toc-card:hover {
-  border-color: var(--rule-strong);
-  background: #fff;
-}
-
-.fm-info-toc-card.is-income { border-left-color: #c49212; }
-.fm-info-toc-card.is-balance { border-left-color: var(--blue); }
-.fm-info-toc-card.is-cash { border-left-color: var(--green); }
-.fm-info-toc-card.is-lease { border-left-color: #6b4ea1; }
-.fm-info-toc-card.is-finance { border-left-color: var(--red); }
-.fm-info-toc-card.is-bank { border-left-color: #0f6b7a; }
-.fm-info-toc-card.is-ratio { border-left-color: #8a5a12; }
-.fm-info-toc-card.is-segment { border-left-color: #b3401f; }
-
 .fm-info-group {
   margin-bottom: 32px;
   padding-left: 12px;
@@ -186,7 +134,7 @@ body.fm-info {
 }
 
 .fm-info-table-wrap {
-  overflow-x: auto;
+  overflow-x: hidden;
   border: 1px solid var(--rule);
   border-radius: 12px;
   background: var(--paper-2);
@@ -194,7 +142,7 @@ body.fm-info {
 
 .fm-info-table {
   width: 100%;
-  min-width: 52rem;
+  table-layout: fixed;
   border-collapse: collapse;
 }
 
@@ -242,7 +190,7 @@ body.fm-info {
 .fm-info-table .val {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  width: 8.5rem;
+  width: 12%;
   font-weight: 500;
   color: var(--blue);
   font-size: 14px;
@@ -257,23 +205,107 @@ body.fm-info {
   color: var(--ink);
   font-size: 12.5px;
   line-height: 1.5;
-  min-width: 16rem;
+  width: 34%;
+  overflow-wrap: anywhere;
 }
 
 .fm-info-table .src {
   color: var(--ink-soft);
   font-size: 11.5px;
   line-height: 1.45;
-  min-width: 14rem;
-  max-width: 24rem;
+  width: 32%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .fm-info-table .src p {
   margin: 0 0 8px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.fm-info-map {
+  margin-top: 2px;
+}
+
+.fm-info-map-search {
+  width: 100%;
+  height: 2rem;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.55);
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.fm-info-map-search::placeholder {
+  color: var(--ink-soft);
+  opacity: 0.85;
+}
+
+.fm-info-map-search:hover {
+  background: #fff;
+}
+
+.fm-info-map-search:focus {
+  outline: none;
+  border-color: var(--rule-strong);
+  background: #fff;
+}
+
+.fm-info-map-hits {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  border-top: 1px solid var(--rule);
+}
+
+.fm-info-map-hits li + li {
+  border-top: 1px solid var(--rule);
+}
+
+.fm-info-map-hit {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  width: 100%;
+  margin: 0;
+  padding: 6px 2px;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fm-info-map-hit:hover,
+.fm-info-map-hit:focus-visible {
+  background: rgba(26, 73, 196, 0.05);
+}
+
+.fm-info-map-hit-label {
+  font-size: 12.5px;
+  color: var(--ink);
+}
+
+.fm-info-map-hit-meta {
+  font-size: 11px;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.fm-info-map-note {
+  margin: 6px 0 0;
+  font-size: 11.5px;
+  color: var(--ink-soft);
 }
 
 .fm-info-table .label {
-  min-width: 13rem;
+  width: 22%;
+  overflow-wrap: anywhere;
 }
 
 .fm-info-metric-name {
@@ -426,11 +458,12 @@ body.fm-info {
 .fm-info-filed-table code {
   font-family: var(--mono);
   font-size: 11px;
+  overflow-wrap: anywhere;
   word-break: break-word;
 }
 
 .fm-info-filed-table .tag {
-  min-width: 9rem;
+  overflow-wrap: anywhere;
 }
 
 .fm-info-filed-table .act {
@@ -704,15 +737,6 @@ body.fm-info {
 
   .fm-info-hero h1 {
     font-size: 24px;
-  }
-
-  .fm-info-toc {
-    position: static;
-    grid-template-columns: 1fr;
-    margin: 0 0 20px;
-    padding: 0;
-    background: none;
-    overflow: visible;
   }
 
   .fm-info-table-wrap {

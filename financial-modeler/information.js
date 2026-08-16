@@ -33,8 +33,10 @@ import {
   filingSourceLinks,
   stackedAddends,
   filedTagsCacheKey,
+  filedTagsApiUrl,
   filterFiledTagRows,
   filedTagsCountLabel,
+  rankFiledTagMatches,
 } from './information-view.js';
 import {
   prepareHeadlines,
@@ -57,6 +59,8 @@ const state = {
   filedPayload: null,
   filedFilter: 'all',
   filedQuery: '',
+  mapFocus: null,
+  mapQuery: {},
 };
 
 const $ = (id) => document.getElementById(id);
@@ -339,7 +343,11 @@ async function loadFiledTags(company, headlines) {
   state.filedLoading = true;
   state.filedError = null;
   try {
-    const res = await fetch(`/api/f500-filed?cik=${cik}`);
+    const res = await fetch(filedTagsApiUrl(cik));
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`HTTP ${res.status}${text ? `: ${text.slice(0, 120)}` : ''}`);
+    }
     const data = await res.json();
     state.filedPayload = data;
     state.filedError = data?.error || null;
@@ -360,7 +368,13 @@ async function loadFiledTags(company, headlines) {
 
 function renderFiledTagsPanel(company, headlines) {
   const counts = state.filedPayload?.counts;
-  const summary = counts ? filedTagsCountLabel(counts) : 'Open to load every tag from this 10-K';
+  const summary = counts
+    ? filedTagsCountLabel(counts)
+    : state.filedError
+      ? `Could not load: ${state.filedError}`
+      : state.filedLoading
+        ? 'Loading from Company Facts…'
+        : 'Open to load every tag from this 10-K';
   const open = state.filedOpen;
   const rows = filterFiledTagRows(state.filedPayload?.rows || [], {
     query: state.filedQuery,
@@ -460,6 +474,50 @@ function renderResults(list) {
     .join('');
 }
 
+function mapSearchHtml(def) {
+  const q = state.mapQuery[def.key] || '';
+  const active = state.mapFocus === def.key;
+  let body = '';
+  if (state.filedError && active) {
+    body = `<p class="fm-info-map-note">Couldn’t load tags. ${escapeHtml(state.filedError)}</p>`;
+  } else if (state.filedLoading && active && q.length >= 2) {
+    body = '<p class="fm-info-map-note">Loading this 10-K’s tags…</p>';
+  } else if (active && q.length >= 2 && !state.filedPayload) {
+    body = '<p class="fm-info-map-note">Loading this 10-K’s tags…</p>';
+  } else if (active && q.length >= 2) {
+    const hits = rankFiledTagMatches(state.filedPayload?.rows || [], q, { limit: 6 });
+    body = hits.length
+      ? `<ul class="fm-info-map-hits">${hits
+          .map((row) => {
+            const concept = `${row.taxonomy}:${row.tag}`;
+            const val = formatFiledVal(row);
+            return `<li>
+              <button type="button" class="fm-info-map-hit" data-map-pick="${escapeHtml(concept)}" data-map-metric="${escapeHtml(def.key)}">
+                <span class="fm-info-map-hit-label">${escapeHtml(row.label || row.tag)}</span>
+                <span class="fm-info-map-hit-meta">${escapeHtml(val)} · ${escapeHtml(row.tag)}</span>
+              </button>
+            </li>`;
+          })
+          .join('')}</ul>`
+      : '<p class="fm-info-map-note">No tags match.</p>';
+  }
+  return `<div class="fm-info-map">
+    <label class="fm-info-map-label">
+      <span class="visually-hidden">Search this 10-K for ${escapeHtml(def.label)}</span>
+      <input
+        type="search"
+        class="fm-info-map-search"
+        data-map-metric="${escapeHtml(def.key)}"
+        placeholder="Search this 10-K…"
+        value="${escapeHtml(q)}"
+        autocomplete="off"
+        aria-label="Search this 10-K for ${escapeHtml(def.label)}"
+      />
+    </label>
+    ${body}
+  </div>`;
+}
+
 function filedRow(def, headlines, groupId, cik) {
   let point = headlines?.metrics?.[def.key];
   let shown = formatMetric(def, point);
@@ -496,7 +554,7 @@ function filedRow(def, headlines, groupId, cik) {
     <td class="def">${escapeHtml(studentText(def))}${extra}</td>
     <td class="src">
       <p>${escapeHtml(sourceLine(point, def))}</p>
-      ${sourceLinksHtml(point, def, { derived: Boolean(point?.derived || point?.tag === IMPLIED_LIABILITIES_TAG) })}
+      ${missing ? mapSearchHtml(def) : sourceLinksHtml(point, def, { derived: Boolean(point?.derived || point?.tag === IMPLIED_LIABILITIES_TAG) })}
     </td>
   </tr>`;
   return row + (expandable ? seriesPanel(def, headlines, seriesId, open) : '');
@@ -630,27 +688,6 @@ function renderCompany(company) {
   const period = formatPeriodEnd(headlines.metrics?.revenue?.end || headlines.metrics?.assets?.end);
   const filing = currentFiling();
 
-  const toc = [
-    ...FILED_PACK_GROUPS.map((g) => {
-      const tone = GROUP_TONE[g.id] || 'ratio';
-      return `<a class="fm-info-toc-card is-${tone}" href="#group-${g.id}">
-        <strong>${escapeHtml(g.label)}</strong>
-        <span>${escapeHtml(g.summary)}</span>
-      </a>`;
-    }),
-    ...DERIVED_PACK_GROUPS.map((g) => {
-      const tone = GROUP_TONE[g.id] || 'ratio';
-      return `<a class="fm-info-toc-card is-${tone}" href="#group-${g.id}">
-        <strong>${escapeHtml(g.label)}</strong>
-        <span>${escapeHtml(g.summary)}</span>
-      </a>`;
-    }),
-    `<a class="fm-info-toc-card is-segment" href="#group-segments">
-      <strong>Segments</strong>
-      <span>Product, operating, and geographic cuts from the annual report’s dimensional XBRL.</span>
-    </a>`,
-  ].join('');
-
   const filedHtml = FILED_PACK_GROUPS.map((g) => {
     const defs = g.keys.map((key) => filedDef(key)).filter(Boolean);
     const visible = defs.filter((def) => metricMatchesQuery(query, def, headlines?.metrics?.[def.key]));
@@ -706,7 +743,6 @@ function renderCompany(company) {
         aria-label="Search metrics"
       />
     </div>
-    <nav class="fm-info-toc" aria-label="Filing sections">${toc}</nav>
     ${renderFiledTagsPanel(company, headlines)}
     ${hasAny ? `${filedHtml}${derivedHtml}${segHtml}` : '<p class="fm-info-note">No metrics match that search.</p>'}`;
 
@@ -725,6 +761,13 @@ function renderCompany(company) {
       window.scrollTo(0, y);
     });
   }
+  bindFiledPanel(company, headlines);
+  const mapInput = root.querySelector(`input[data-map-metric="${CSS.escape(state.mapFocus || '')}"]`);
+  if (mapInput && state.mapFocus) {
+    mapInput.focus();
+    const len = mapInput.value.length;
+    mapInput.setSelectionRange(len, len);
+  }
 }
 
 function selectCompany(company) {
@@ -737,6 +780,8 @@ function selectCompany(company) {
   state.filedPayload = null;
   state.filedFilter = 'all';
   state.filedQuery = '';
+  state.mapFocus = null;
+  state.mapQuery = {};
   const ticker = tickerOf(company);
   const url = new URL(window.location.href);
   url.searchParams.set('ticker', ticker);
@@ -744,8 +789,14 @@ function selectCompany(company) {
   history.replaceState({}, '', url);
   $('info-search').value = `${company.company} (${ticker})`;
   $('info-results').hidden = true;
+  const headlines = headlinesForCompany(company);
   renderCompany(company);
   $('info-company').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (headlines?.asOfYear) {
+    loadFiledTags(company, headlines).then(() => {
+      if (state.company === company) renderCompany(company);
+    });
+  }
 }
 
 function findByQuery() {
@@ -798,6 +849,33 @@ function applyUseForTag(selectEl) {
   window.scrollTo(0, y);
 }
 
+function bindFiledPanel(company, headlines) {
+  const details = $('all-filed-tags');
+  if (!details) return;
+  details.addEventListener('toggle', async () => {
+    state.filedOpen = details.open;
+    if (!details.open || state.filedPayload || state.filedLoading) return;
+    await loadFiledTags(company, headlines);
+    if (state.company === company) renderCompany(company);
+  });
+}
+
+function applyMapPick(metricKey, concept) {
+  if (!metricKey || !state.company || !concept) return;
+  const sep = concept.indexOf(':');
+  if (sep < 0) return;
+  const taxonomy = concept.slice(0, sep);
+  const tag = concept.slice(sep + 1);
+  const row = state.filedPayload?.rows?.find((r) => r.taxonomy === taxonomy && r.tag === tag);
+  if (!row) return;
+  saveOverride(Number(state.company.cik), metricKey, row);
+  state.mapFocus = null;
+  state.mapQuery = { ...state.mapQuery, [metricKey]: '' };
+  const y = window.scrollY;
+  renderCompany(state.company);
+  window.scrollTo(0, y);
+}
+
 function bind() {
   const input = $('info-search');
   input.addEventListener('input', () => {
@@ -817,6 +895,14 @@ function bind() {
   });
   $('info-company').addEventListener('click', (ev) => {
     if (ev.target.closest('a')) return;
+    if (ev.target.closest('.fm-info-map')) {
+      const hit = ev.target.closest('[data-map-pick]');
+      if (hit) {
+        ev.preventDefault();
+        applyMapPick(hit.dataset.mapMetric, hit.dataset.mapPick);
+      }
+      return;
+    }
     const clearBtn = ev.target.closest('[data-clear-override]');
     if (clearBtn && state.company) {
       ev.preventDefault();
@@ -856,18 +942,49 @@ function bind() {
         again.setSelectionRange(len, len);
       }
       window.scrollTo(0, y);
+      return;
     }
-  });
-  $('info-company').addEventListener('toggle', async (ev) => {
-    const details = ev.target.closest('#all-filed-tags');
-    if (!details || ev.target !== details || !state.company) return;
-    state.filedOpen = details.open;
-    if (details.open && !state.filedPayload && !state.filedLoading) {
+    const mapInput = ev.target.closest('[data-map-metric]');
+    if (mapInput && state.company) {
+      const key = mapInput.dataset.mapMetric;
+      state.mapFocus = key;
+      state.mapQuery = { ...state.mapQuery, [key]: mapInput.value };
       const headlines = headlinesForCompany(state.company);
-      await loadFiledTags(state.company, headlines);
+      if (!state.filedPayload && !state.filedLoading && headlines?.asOfYear) {
+        loadFiledTags(state.company, headlines).then(() => {
+          if (state.company) renderCompany(state.company);
+        });
+      }
+      const y = window.scrollY;
       renderCompany(state.company);
+      window.scrollTo(0, y);
     }
   });
+  $('info-company').addEventListener('focusin', (ev) => {
+    const mapInput = ev.target.closest('[data-map-metric]');
+    if (!mapInput || !state.company) return;
+    state.mapFocus = mapInput.dataset.mapMetric;
+    const headlines = headlinesForCompany(state.company);
+    if (!state.filedPayload && !state.filedLoading && headlines?.asOfYear) {
+      loadFiledTags(state.company, headlines).then(() => {
+        if (state.company) renderCompany(state.company);
+      });
+    }
+  });
+  $('info-company').addEventListener(
+    'toggle',
+    async (ev) => {
+      const details = ev.target;
+      if (!details?.id || details.id !== 'all-filed-tags' || !state.company) return;
+      state.filedOpen = details.open;
+      if (details.open && !state.filedPayload && !state.filedLoading) {
+        const headlines = headlinesForCompany(state.company);
+        await loadFiledTags(state.company, headlines);
+        renderCompany(state.company);
+      }
+    },
+    true
+  );
 }
 
 await loadData();
