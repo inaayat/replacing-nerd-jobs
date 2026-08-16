@@ -103,8 +103,7 @@ Assumptions sheet, and a Checks error dashboard. Formulas stay live; the file
 opens in Excel, Numbers, and Sheets. The workspace is two panes: a narrow
 assumption table on the left (label, blue value, filing | assumption | override)
 with a collapsed “How this model is built” guide at the top of that rail, and
-independently scrolling statements on the right. The first screen is exercise
-cards; choosing From a 10-K reveals a company, models, and peers column, then Next. In the
+independently scrolling statements on the right. The first screen is stacked starting points (Filings reference plus the modeling exercises, each with a short description); choosing From a 10-K reveals a company search, stacked model cards, and peers, then Next. In the
 10-K workspace, company, 3-statement/DCF/comps, and peers are edited in place. Selecting a row highlights
 the statement lines it feeds; gold / green / blue marks the net-income, cash-plug,
 and interest handoffs between statements.
@@ -579,6 +578,7 @@ node scripts/test-financial-modeler-workbook.mjs
 node scripts/test-financial-modeler-unit-econ.mjs
 node scripts/test-financial-modeler-extras.mjs
 node scripts/test-financial-modeler-mobile.mjs
+node scripts/test-financial-modeler-information.mjs
 node scripts/test-ai-buildout.mjs
 node scripts/test-world-in-nyc.mjs
 ```

@@ -233,8 +233,8 @@ const MODEL_PICKS = [
 
 const TOUR = [
   {
-    title: 'Pick an exercise',
-    body: 'From a 10-K reads a public company’s filing. From one sale is a lemonade stall built from cups × price. Same three statements either way.',
+    title: 'Pick a starting point',
+    body: 'Filings (reference) is the tagged 10-K lookup. From a 10-K reads a public company’s filing into a model. From one sale is a lemonade stall built from cups × price. Same three statements either way.',
   },
   {
     title: 'Choose your models',
@@ -514,11 +514,16 @@ function toggleModel(id) {
 function renderLandingModels() {
   const wrap = $('landing-models');
   if (!wrap) return;
-  wrap.querySelectorAll('[data-landing-model]').forEach((btn) => {
-    const id = btn.dataset.landingModel;
-    const on = state.models.includes(id);
-    btn.setAttribute('aria-pressed', String(on));
-  });
+  wrap.innerHTML = MODEL_PICKS.map((m) => {
+    const on = state.models.includes(m.id);
+    const locked = m.id === 'three';
+    return `<button type="button" class="fm-model-card" data-landing-model="${m.id}" aria-pressed="${on}" ${
+      locked ? 'disabled title="The 3-statement is the base — it stays on"' : ''
+    }>
+      <h3>${escapeHtml(m.title)}</h3>
+      <p>${escapeHtml(m.blurb)}</p>
+    </button>`;
+  }).join('');
 }
 
 function bindLandingModels() {
@@ -1061,11 +1066,20 @@ function selectExercise(id) {
 }
 
 function renderExercises() {
-  $('exercise-picks').innerHTML = EXERCISES.map((ex) => {
+  const filings = `<a class="fm-exercise-pick fm-exercise-link" href="/financial-modeler/information.html">
+      <p class="fm-exercise-kicker">Reference</p>
+      <h3>Filings (reference)</h3>
+      <p>Every tagged line from the latest 10-K: values, definitions, and a link back to the filing on EDGAR.</p>
+    </a>`;
+  const exercises = EXERCISES.map((ex) => {
     const on = state.exercise === ex.id;
     return `<button type="button" class="fm-exercise-pick" data-exercise="${ex.id}" aria-pressed="${on}">
-      <h3>${escapeHtml(ex.title)}</h3></button>`;
+      <p class="fm-exercise-kicker">Exercise</p>
+      <h3>${escapeHtml(ex.title)}</h3>
+      <p>${escapeHtml(ex.blurb)}</p>
+    </button>`;
   }).join('');
+  $('exercise-picks').innerHTML = filings + exercises;
   $('exercise-picks').onclick = (e) => {
     const btn = e.target.closest('[data-exercise]');
     if (btn) selectExercise(btn.dataset.exercise);
