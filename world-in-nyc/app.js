@@ -870,6 +870,10 @@ async function main() {
       else $('card').hidden = true;
     } else if (selectedId) {
       showCard(selectedId);
+    } else if (filter?.kind === 'enclave') {
+      const enc = catalog.enclaves[filter.index];
+      $('card-body').innerHTML = enclaveCardHtml(enc);
+      $('card').hidden = false;
     } else {
       $('card').hidden = true;
     }
