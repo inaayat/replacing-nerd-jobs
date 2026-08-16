@@ -1,3 +1,5 @@
+import { countryIndex, countryMatchExpr, countryMatches } from './countries.js';
+
 const BORO_FROM_CD = {
   1: 'Manhattan',
   2: 'Bronx',
@@ -6,6 +8,12 @@ const BORO_FROM_CD = {
   5: 'Staten Island',
 };
 
+const MOBILE_MQ = '(max-width: 860px)';
+
+/* Future: political overlays (City Council, Congress, community, Assembly,
+   Senate) from https://libguides.nypl.org/nycboundaries/political
+   GeoJSON is in data/overlays/. ensureOverlay() below is unused until the
+   toggles return to the UI. */
 const OVERLAY_COLORS = {
   council: '#1c1c1c',
   congress: '#cf4520',
@@ -29,6 +37,14 @@ const OSM_STYLE = {
 
 const $ = (id) => document.getElementById(id);
 
+function isMobileUi() {
+  try {
+    return window.matchMedia(MOBILE_MQ).matches;
+  } catch {
+    return false;
+  }
+}
+
 function formatCD(code) {
   if (code == null) return '—';
   const boro = BORO_FROM_CD[Math.floor(code / 100)] || '';
@@ -49,13 +65,23 @@ function colorMatch(catalog) {
 function parseQuery() {
   const params = new URLSearchParams(location.search);
   const ed = Number(params.get('ed') || '');
-  return { ed: Number.isFinite(ed) && ed > 0 ? ed : null };
+  const view = params.get('view') === 'world' ? 'world' : 'nyc';
+  const country = (params.get('country') || '').toUpperCase() || null;
+  return {
+    ed: Number.isFinite(ed) && ed > 0 ? ed : null,
+    view,
+    country: country && country.length === 3 ? country : null,
+  };
 }
 
-function setQuery(ed) {
+function setQuery({ ed, view, country }) {
   const url = new URL(location.href);
+  if (view === 'world') url.searchParams.set('view', 'world');
+  else url.searchParams.delete('view');
   if (ed) url.searchParams.set('ed', String(ed));
   else url.searchParams.delete('ed');
+  if (country) url.searchParams.set('country', country);
+  else url.searchParams.delete('country');
   history.replaceState(null, '', url);
 }
 
@@ -99,6 +125,9 @@ async function ensureOverlay(map, name) {
   map.addSource(name, { type: 'geojson', data: geo });
   paintOverlays(map, name, OVERLAY_COLORS[name]);
 }
+
+void ensureOverlay;
+void formatCD;
 
 function applyFilter(map, catalog, filter) {
   const fill = map.getLayer('ed-fill');
@@ -159,13 +188,57 @@ function renderList(catalog, filter, query, onPick) {
   }
 }
 
-function renderLegend(catalog, filter) {
+function countryPassesFilter(row, filter) {
+  if (!filter) return true;
+  if (filter.kind === 'region') return row.regions.includes(filter.id);
+  if (filter.kind === 'enclave') return row.enclaves.some((enc) => enc.id === filter.id);
+  return true;
+}
+
+function renderCountryList(countries, filter, query, selectedIso, onPick) {
+  const root = $('enclave-list');
+  root.innerHTML = '';
+  const q = query.trim().toLowerCase();
+  const items = countries.filter((row) => {
+    if (!countryMatches(row, q)) return false;
+    return countryPassesFilter(row, filter);
+  });
+  for (const row of items) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `win-item${selectedIso === row.iso ? ' is-on' : ''}`;
+    const nhood = row.places.slice(0, 3).join(', ');
+    btn.innerHTML = `<span class="win-item-name">${row.name}</span><span class="win-item-meta">${nhood}${row.places.length > 3 ? '…' : ''}</span>`;
+    btn.addEventListener('click', () => onPick(row.iso));
+    root.append(btn);
+  }
+  if (!items.length) {
+    root.innerHTML = '<p class="win-item-meta">No countries match.</p>';
+  }
+}
+
+function countryCardHtml(row, catalog) {
+  const pills = row.enclaves.map((enc) => {
+    const color = regionColor(catalog, enc.region);
+    return `<button type="button" class="win-enclave-pill" data-enclave="${enc.id}"><strong style="color:${color}">${enc.name}</strong><div class="mono">${enc.group}</div></button>`;
+  }).join('');
+  return `
+    <h3>${row.name}</h3>
+    ${pills}
+  `;
+}
+
+function renderLegend(catalog, filter, view = 'nyc') {
   const root = $('legend');
   const regions = filter?.kind === 'region'
     ? catalog.regions.filter((r) => r.id === filter.id)
     : catalog.regions;
   const rows = regions.map((r) => `<div class="win-legend-row"><i style="background:${r.color}"></i>${r.label}</div>`).join('');
-  root.innerHTML = `<h3>${filter?.kind === 'enclave' ? catalog.enclaves[filter.index].name : 'By region'}</h3>${rows}<div class="win-legend-row"><i style="background:#e8e0d2;outline:1px solid #1c1c1c22"></i>No listed enclave</div>`;
+  const title = filter?.kind === 'enclave' ? `<h3>${catalog.enclaves[filter.index].name}</h3>` : '';
+  const extra = view === 'world'
+    ? `<div class="win-legend-row"><i style="background:#6b5f5e"></i>Several regions</div><div class="win-legend-row"><i style="background:#e8e0d2;outline:1px solid #1c1c1c22"></i>None listed</div>`
+    : `<div class="win-legend-row"><i style="background:#e8e0d2;outline:1px solid #1c1c1c22"></i>None listed</div>`;
+  root.innerHTML = `${title}${rows}${extra}`;
 }
 
 function cardHtml(props, catalog) {
@@ -174,22 +247,20 @@ function cardHtml(props, catalog) {
     const color = regionColor(catalog, enc.region);
     const historic = enc.status === 'historic' ? ' · historic' : '';
     return `<button type="button" class="win-enclave-pill" data-enclave="${enc.id}"><strong style="color:${color}">${enc.name}</strong><div class="mono">${enc.group}${historic}</div>${enc.note ? `<div class="mono">${enc.note}</div>` : ''}</button>`;
-  }).join('') || '<p class="mono">Wikipedia does not list a named enclave on this district. The outlines are still here for later layers.</p>';
+  }).join('') || '<p class="mono">Wikipedia does not list a named enclave on this district.</p>';
   return `
     <h3>AD ${props.ad} · ED ${String(props.n).padStart(3, '0')}</h3>
-    <div class="mono">Election district ${props.ed}</div>
     <dl class="win-kv">
       <dt>Borough</dt><dd>${props.b || '—'}</dd>
       <dt>Neighborhood</dt><dd>${props.nta || '—'}</dd>
-      <dt>Community</dt><dd>${formatCD(props.cd)}</dd>
-      <dt>Council</dt><dd>${props.cc ?? '—'}</dd>
-      <dt>Congress</dt><dd>${props.cg ?? '—'}</dd>
-      <dt>Assembly</dt><dd>${props.as ?? '—'}</dd>
-      <dt>Senate</dt><dd>${props.se ?? '—'}</dd>
     </dl>
-    <h4 class="mono">Enclaves</h4>
     ${pills}
   `;
+}
+
+function fitPadding() {
+  if (!isMobileUi()) return 48;
+  return { top: 56, left: 16, right: 16, bottom: 120 };
 }
 
 function fitEnclave(map, ed, index) {
@@ -203,32 +274,167 @@ function fitEnclave(map, ed, index) {
       for (const pt of poly[0]) b.extend(pt);
     }
   }
-  if (!b.isEmpty()) map.fitBounds(b, { padding: 48, maxZoom: 13, duration: 600 });
+  if (!b.isEmpty()) map.fitBounds(b, { padding: fitPadding(), maxZoom: 13, duration: 600 });
+}
+
+function fitCountry(worldMap, feature) {
+  if (!feature?.geometry) return;
+  const b = new maplibregl.LngLatBounds();
+  const g = feature.geometry;
+  const polys = g.type === 'Polygon' ? [g.coordinates] : g.coordinates;
+  for (const poly of polys) {
+    for (const ring of poly) {
+      for (const pt of ring) b.extend(pt);
+    }
+  }
+  if (!b.isEmpty()) worldMap.fitBounds(b, { padding: 48, maxZoom: 5, duration: 600 });
+}
+
+function setSheetOpen(open) {
+  const rail = $('rail');
+  const toggle = $('browse-toggle');
+  rail.classList.toggle('is-open', open);
+  document.body.classList.toggle('win-sheet-open', open);
+  toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  toggle.textContent = open ? 'Map' : 'Browse';
+}
+
+function wireSheetDrag(onResize) {
+  const handle = $('sheet-handle');
+  const rail = $('rail');
+  if (!handle) return;
+  let startY = 0;
+  let dragging = false;
+
+  const onMove = (ev) => {
+    if (!dragging) return;
+    const y = ev.touches ? ev.touches[0].clientY : ev.clientY;
+    const dy = y - startY;
+    if (dy > 56) setSheetOpen(false);
+    else if (dy < -56) setSheetOpen(true);
+  };
+  const onUp = () => {
+    if (!dragging) return;
+    dragging = false;
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    window.removeEventListener('touchmove', onMove);
+    window.removeEventListener('touchend', onUp);
+    onResize();
+  };
+  const onDown = (ev) => {
+    dragging = true;
+    startY = ev.touches ? ev.touches[0].clientY : ev.clientY;
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('touchmove', onMove, { passive: true });
+    window.addEventListener('touchend', onUp);
+  };
+  handle.addEventListener('pointerdown', onDown);
+  handle.addEventListener('click', () => {
+    setSheetOpen(!rail.classList.contains('is-open'));
+    onResize();
+  });
 }
 
 async function main() {
   const status = $('status');
-  const [catalog, ed, style] = await Promise.all([
+  const start = parseQuery();
+  const [catalog, ed, world, style] = await Promise.all([
     fetch('./data/enclaves.json').then((r) => r.json()),
     fetch('./data/ed.geojson').then((r) => r.json()),
+    fetch('./data/world.geojson').then((r) => r.json()),
     loadStyle(),
   ]);
+
+  const regionColors = Object.fromEntries(catalog.regions.map((r) => [r.id, r.color]));
+  regionColors.mixed = '#6b5f5e';
+  const countries = countryIndex(catalog.enclaves, world.features);
+  const countryByIso = new Map(countries.map((row) => [row.iso, row]));
+  const worldByIso = new Map(world.features.map((f) => [f.properties.iso, f]));
+  const worldStyle = typeof structuredClone === 'function' ? structuredClone(style) : JSON.parse(JSON.stringify(style));
+
+  if (start.view === 'world') {
+    $('map').hidden = true;
+    $('world-map').hidden = false;
+  }
 
   const map = new maplibregl.Map({
     container: 'map',
     style,
     center: [-73.9769, 40.72103],
-    zoom: 10.5,
+    zoom: isMobileUi() ? 10.1 : 10.5,
     maxZoom: 16,
     minZoom: 9,
     attributionControl: true,
+    dragRotate: false,
+    pitchWithRotate: false,
+    touchPitch: false,
   });
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
 
+  const worldMap = new maplibregl.Map({
+    container: 'world-map',
+    style: worldStyle,
+    center: [20, 18],
+    zoom: isMobileUi() ? 1.15 : 1.45,
+    maxZoom: 8,
+    minZoom: 0.8,
+    attributionControl: true,
+    dragRotate: false,
+    pitchWithRotate: false,
+    touchPitch: false,
+  });
+  worldMap.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
+
   let filter = null;
   let hoverId = null;
-  let selectedId = parseQuery().ed;
+  let worldHover = null;
+  let selectedId = start.ed;
+  let selectedCountry = start.country && countryByIso.has(start.country) ? start.country : null;
+  let currentView = start.view;
+  let nycReady = false;
+  let worldReady = false;
   const edIndex = new Map(ed.features.map((f) => [f.properties.ed, f]));
+
+  function syncQuery() {
+    setQuery({
+      view: currentView,
+      ed: currentView === 'nyc' ? selectedId : null,
+      country: currentView === 'world' ? selectedCountry : null,
+    });
+  }
+
+  function resizeMap() {
+    requestAnimationFrame(() => {
+      map.resize();
+      worldMap.resize();
+    });
+  }
+
+  function matchingCountryIsos() {
+    return countries.filter((row) => countryPassesFilter(row, filter)).map((row) => row.iso);
+  }
+
+  function applyWorldPaint() {
+    if (!worldMap.getLayer('world-fill')) return;
+    const isos = matchingCountryIsos();
+    worldMap.setPaintProperty('world-fill', 'fill-opacity', [
+      'case',
+      ['!', ['in', ['get', 'iso'], ['literal', isos]]], 0.16,
+      ['boolean', ['feature-state', 'selected'], false], 0.9,
+      ['boolean', ['feature-state', 'hover'], false], 0.82,
+      0.7,
+    ]);
+  }
+
+  function refreshList() {
+    if (currentView === 'world') {
+      renderCountryList(countries, filter, $('search').value, selectedCountry, showCountryCard);
+    } else {
+      renderList(catalog, filter, $('search').value, setFilter);
+    }
+  }
 
   function showCard(edId) {
     const feat = edIndex.get(edId);
@@ -240,7 +446,8 @@ async function main() {
     $('card-body').innerHTML = cardHtml(feat.properties, catalog);
     card.hidden = false;
     selectedId = edId;
-    setQuery(edId);
+    syncQuery();
+    if (isMobileUi()) setSheetOpen(false);
     if (map.getSource('ed')) {
       map.removeFeatureState({ source: 'ed' });
       map.setFeatureState({ source: 'ed', id: edId }, { selected: true });
@@ -251,16 +458,97 @@ async function main() {
         setFilter({ kind: 'enclave', index, id: btn.dataset.enclave });
       });
     }
+    resizeMap();
+  }
+
+  function showCountryCard(iso) {
+    const row = countryByIso.get(iso);
+    const card = $('card');
+    if (!row) {
+      card.hidden = true;
+      return;
+    }
+    $('card-body').innerHTML = countryCardHtml(row, catalog);
+    card.hidden = false;
+    selectedCountry = iso;
+    if (isMobileUi()) setSheetOpen(false);
+    if (worldMap.getSource('world')) {
+      worldMap.removeFeatureState({ source: 'world' });
+      worldMap.setFeatureState({ source: 'world', id: iso }, { selected: true });
+    }
+    applyWorldPaint();
+    refreshList();
+    syncQuery();
+    const feat = worldByIso.get(iso);
+    if (feat) fitCountry(worldMap, feat);
+    for (const btn of $('card-body').querySelectorAll('[data-enclave]')) {
+      btn.addEventListener('click', () => {
+        const index = catalog.enclaves.findIndex((e) => e.id === btn.dataset.enclave);
+        applyView('nyc');
+        setFilter({ kind: 'enclave', index, id: btn.dataset.enclave });
+      });
+    }
+    resizeMap();
+  }
+
+  function applyView(view) {
+    currentView = view === 'world' ? 'world' : 'nyc';
+    $('view-nyc').classList.toggle('is-on', currentView === 'nyc');
+    $('view-world').classList.toggle('is-on', currentView === 'world');
+    $('view-nyc').setAttribute('aria-selected', currentView === 'nyc' ? 'true' : 'false');
+    $('view-world').setAttribute('aria-selected', currentView === 'world' ? 'true' : 'false');
+    $('map').hidden = currentView !== 'nyc';
+    $('world-map').hidden = currentView !== 'world';
+    $('nyc-lede').hidden = currentView !== 'nyc';
+    $('rail-kicker').textContent = currentView === 'world' ? 'Origin countries' : 'Election districts';
+    $('list-heading').textContent = currentView === 'world' ? 'Countries' : 'Enclaves';
+    $('search-label').textContent = currentView === 'world'
+      ? 'Find a country or neighborhood'
+      : 'Find a group or neighborhood';
+    $('search').placeholder = currentView === 'world'
+      ? 'Italy, Little Italy, Astoria…'
+      : 'Chinatown, Little Guyana, Astoria…';
+
+    if (currentView === 'world') {
+      if (map.getSource('ed')) map.removeFeatureState({ source: 'ed' });
+      if (selectedCountry) showCountryCard(selectedCountry);
+      else $('card').hidden = true;
+    } else if (selectedId) {
+      showCard(selectedId);
+    } else {
+      $('card').hidden = true;
+    }
+
+    renderRegions(catalog, filter, setFilter);
+    renderLegend(catalog, filter, currentView);
+    refreshList();
+    syncQuery();
+    resizeMap();
   }
 
   function setFilter(next) {
     filter = next;
     applyFilter(map, catalog, filter);
+    applyWorldPaint();
     renderRegions(catalog, filter, setFilter);
-    renderList(catalog, filter, $('search').value, setFilter);
-    renderLegend(catalog, filter);
+    renderLegend(catalog, filter, currentView);
     $('clear-filter').hidden = !filter;
-    if (filter?.kind === 'enclave') fitEnclave(map, ed, filter.index);
+    refreshList();
+    if (filter?.kind === 'enclave' && currentView === 'nyc') {
+      if (isMobileUi()) setSheetOpen(false);
+      fitEnclave(map, ed, filter.index);
+    }
+    resizeMap();
+  }
+
+  function finishLoad() {
+    if (!nycReady || !worldReady) return;
+    status.hidden = true;
+    if (isMobileUi()) $('legend').hidden = true;
+    else $('legend').hidden = false;
+    applyView(currentView);
+    if (currentView === 'nyc' && selectedId) showCard(selectedId);
+    if (currentView === 'world' && selectedCountry) showCountryCard(selectedCountry);
   }
 
   map.on('load', () => {
@@ -322,12 +610,56 @@ async function main() {
         ],
       },
     });
+    nycReady = true;
+    finishLoad();
+  });
 
-    status.hidden = true;
-    renderRegions(catalog, filter, setFilter);
-    renderList(catalog, filter, '', setFilter);
-    renderLegend(catalog, filter);
-    if (selectedId) showCard(selectedId);
+  worldMap.on('load', () => {
+    worldMap.addSource('world', {
+      type: 'geojson',
+      data: world,
+      promoteId: 'iso',
+    });
+    worldMap.addLayer({
+      id: 'world-fill',
+      type: 'fill',
+      source: 'world',
+      paint: {
+        'fill-color': countryMatchExpr(countries, regionColors),
+        'fill-opacity': 0.7,
+      },
+    });
+    worldMap.addLayer({
+      id: 'world-line',
+      type: 'line',
+      source: 'world',
+      paint: {
+        'line-color': '#1c1c1c',
+        'line-width': [
+          'interpolate', ['linear'], ['zoom'],
+          1, 0.25,
+          4, 0.7,
+        ],
+        'line-opacity': 0.35,
+      },
+    });
+    worldMap.addLayer({
+      id: 'world-selected',
+      type: 'line',
+      source: 'world',
+      paint: {
+        'line-color': '#1c1c1c',
+        'line-width': 1.8,
+        'line-opacity': [
+          'case',
+          ['boolean', ['feature-state', 'selected'], false], 1,
+          0,
+        ],
+      },
+    });
+    applyWorldPaint();
+    worldReady = true;
+    finishLoad();
   });
 
   map.on('mousemove', 'ed-fill', (e) => {
@@ -352,42 +684,78 @@ async function main() {
     if (e.features?.[0]?.properties?.ed) showCard(e.features[0].properties.ed);
   });
 
-  $('card-close').addEventListener('click', () => {
-    $('card').hidden = true;
-    selectedId = null;
-    setQuery(null);
-    if (map.getSource('ed')) map.removeFeatureState({ source: 'ed' });
+  worldMap.on('mousemove', 'world-fill', (e) => {
+    const iso = e.features[0]?.properties?.iso;
+    worldMap.getCanvas().style.cursor = countryByIso.has(iso) ? 'pointer' : '';
+    if (worldHover && worldHover !== iso) {
+      worldMap.setFeatureState({ source: 'world', id: worldHover }, { hover: false });
+    }
+    worldHover = iso;
+    if (iso) worldMap.setFeatureState({ source: 'world', id: iso }, { hover: true });
   });
-  $('clear-filter').addEventListener('click', () => setFilter(null));
-  $('search').addEventListener('input', () => {
-    renderList(catalog, filter, $('search').value, setFilter);
+  worldMap.on('mouseleave', 'world-fill', () => {
+    worldMap.getCanvas().style.cursor = '';
+    if (worldHover) worldMap.setFeatureState({ source: 'world', id: worldHover }, { hover: false });
+    worldHover = null;
+  });
+  worldMap.on('click', 'world-fill', (e) => {
+    const iso = e.features[0]?.properties?.iso;
+    if (iso && countryByIso.has(iso)) showCountryCard(iso);
   });
 
-  document.querySelectorAll('[data-layer]').forEach((input) => {
-    input.addEventListener('change', () => {
-      const vis = input.checked ? 'visible' : 'none';
-      map.setLayoutProperty(input.dataset.layer, 'visibility', vis);
-    });
+  $('card-close').addEventListener('click', () => {
+    $('card').hidden = true;
+    if (currentView === 'world') {
+      selectedCountry = null;
+      if (worldMap.getSource('world')) worldMap.removeFeatureState({ source: 'world' });
+      applyWorldPaint();
+      refreshList();
+    } else {
+      selectedId = null;
+      if (map.getSource('ed')) map.removeFeatureState({ source: 'ed' });
+    }
+    syncQuery();
+    resizeMap();
   });
-  document.querySelectorAll('[data-overlay]').forEach((input) => {
-    input.addEventListener('change', async () => {
-      const name = input.dataset.overlay;
-      if (input.checked) {
-        status.hidden = false;
-        status.textContent = `Loading ${name} districts…`;
-        try {
-          await ensureOverlay(map, name);
-        } finally {
-          status.hidden = true;
-        }
-      } else if (map.getLayer(`${name}-line`)) {
-        map.setLayoutProperty(`${name}-line`, 'visibility', 'none');
-      }
-    });
+  $('clear-filter').addEventListener('click', () => setFilter(null));
+  $('search').addEventListener('input', () => refreshList());
+  $('search').addEventListener('focus', () => {
+    if (isMobileUi()) {
+      setSheetOpen(true);
+      resizeMap();
+    }
+  });
+
+  $('browse-toggle').addEventListener('click', () => {
+    const open = !$('rail').classList.contains('is-open');
+    setSheetOpen(open);
+    if (open) $('card').hidden = true;
+    resizeMap();
+  });
+  $('sheet-close').addEventListener('click', () => {
+    setSheetOpen(false);
+    resizeMap();
+  });
+  $('legend-toggle').addEventListener('click', () => {
+    const legend = $('legend');
+    const next = legend.hidden;
+    legend.hidden = !next;
+    $('legend-toggle').setAttribute('aria-expanded', next ? 'true' : 'false');
+  });
+  $('view-nyc').addEventListener('click', () => applyView('nyc'));
+  $('view-world').addEventListener('click', () => applyView('world'));
+  wireSheetDrag(resizeMap);
+
+  window.addEventListener('resize', () => {
+    if (!isMobileUi()) {
+      $('legend').hidden = false;
+      setSheetOpen(false);
+    }
+    resizeMap();
   });
 }
 
 main().catch((err) => {
   console.error(err);
-  $('status').textContent = 'Could not load the district map.';
+  $('status').textContent = 'Could not load the maps.';
 });
