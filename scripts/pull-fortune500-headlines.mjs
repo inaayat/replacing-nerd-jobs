@@ -9,9 +9,11 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { extractHeadlines } from '../fortune-500/extract.js';
+import { METRICS } from '../fortune-500/catalog.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(ROOT, 'fortune-500/data/headlines-snapshot.json');
+const OUT_EXTENDED = join(ROOT, 'fortune-500/data/extended-snapshot.json');
 const MAPPING = join(ROOT, 'fortune-500/data/fortune500_edgar_mapping.json');
 const UA =
   process.env.SEC_USER_AGENT ||
@@ -36,26 +38,54 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-function slim(extracted, cik) {
+const CORE_KEYS = METRICS.map((m) => m.key);
+
+function pickMetrics(metrics, keys) {
+  const out = {};
+  for (const key of keys) out[key] = metrics?.[key] ?? null;
+  return out;
+}
+
+function slimCore(extracted, cik) {
+  const prior = extracted.priorMetrics;
+  const priorValues = {};
+  if (prior?.values) {
+    for (const key of CORE_KEYS) {
+      if (prior.values[key] != null) priorValues[key] = prior.values[key];
+    }
+  }
   return {
     cik,
     entityName: extracted.entityName,
     asOfYear: extracted.asOfYear,
-    metrics: extracted.metrics,
+    metrics: pickMetrics(extracted.metrics, CORE_KEYS),
     priorRevenue: extracted.priorRevenue,
-    priorMetrics: extracted.priorMetrics,
+    priorMetrics: prior && Object.keys(priorValues).length ? { year: prior.year, values: priorValues } : null,
     ratios: extracted.ratios,
     flags: extracted.flags,
+  };
+}
+
+function slimFull(extracted, cik) {
+  return {
+    ...slimCore(extracted, cik),
+    metrics: extracted.metrics,
+    priorMetrics: extracted.priorMetrics,
     seriesAnnual: extracted.seriesAnnual || {},
     seriesQuarterly: extracted.seriesQuarterly || {},
   };
 }
 
+function slim(extracted, cik) {
+  return slimFull(extracted, cik);
+}
+
 function loadSnapshot() {
-  if (!existsSync(OUT)) {
+  const path = existsSync(OUT_EXTENDED) ? OUT_EXTENDED : OUT;
+  if (!existsSync(path)) {
     return { schema: SNAPSHOT_SCHEMA, pulled_at: null, companies: {} };
   }
-  const snap = JSON.parse(readFileSync(OUT, 'utf8'));
+  const snap = JSON.parse(readFileSync(path, 'utf8'));
   if (snap.schema !== SNAPSHOT_SCHEMA) {
     console.log(`Snapshot schema ${snap.schema ?? 1} → ${SNAPSHOT_SCHEMA}: refetching every filer.`);
     return { schema: SNAPSHOT_SCHEMA, pulled_at: null, companies: {} };
@@ -66,7 +96,16 @@ function loadSnapshot() {
 function saveSnapshot(snap) {
   snap.schema = SNAPSHOT_SCHEMA;
   snap.pulled_at = new Date().toISOString();
-  writeFileSync(OUT, JSON.stringify(snap));
+  writeFileSync(OUT_EXTENDED, JSON.stringify(snap));
+  const core = { schema: SNAPSHOT_SCHEMA, pulled_at: snap.pulled_at, companies: {} };
+  for (const [cik, row] of Object.entries(snap.companies || {})) {
+    if (row.error) {
+      core.companies[cik] = row;
+      continue;
+    }
+    core.companies[cik] = slimCore(row, row.cik ?? Number(cik));
+  }
+  writeFileSync(OUT, JSON.stringify(core));
 }
 
 async function fetchFacts(cik) {
