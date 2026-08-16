@@ -12,6 +12,7 @@
  * number gets invented is the two labelled residual buckets on the balance
  * sheet, which exist so year 0 ties to the filed totals instead of to a guess.
  */
+import { debtStock } from '../fortune-500/extract.js';
 
 export const SCALE = 1e6;
 export const FORECAST_YEARS = 5;
@@ -26,6 +27,11 @@ function numberOr(v, fallback = null) {
 
 function metric(headlines, key) {
   return numberOr(headlines?.metrics?.[key]?.val);
+}
+
+function filedDebt(headlines) {
+  const total = debtStock(headlines?.metrics);
+  return finite(total) ? total : null;
 }
 
 function clamp(n, lo, hi) {
@@ -60,7 +66,7 @@ export function defaultAssumptions(headlines) {
   const capex = metric(headlines, 'capex');
   const receivables = metric(headlines, 'receivables');
   const inventory = metric(headlines, 'inventory');
-  const debt = metric(headlines, 'long_term_debt');
+  const debt = filedDebt(headlines);
   const growth = headlines?.ratios?.revenue_yoy;
 
   const taxRate = 0.21;
@@ -134,7 +140,7 @@ function openingBalanceSheet(headlines) {
   const cash = numberOr(metric(headlines, 'cash'), 0);
   const receivables = numberOr(metric(headlines, 'receivables'), 0);
   const inventory = numberOr(metric(headlines, 'inventory'), 0);
-  const debt = numberOr(metric(headlines, 'long_term_debt'), 0);
+  const debt = numberOr(filedDebt(headlines), 0);
   return {
     cash,
     receivables,
@@ -423,7 +429,7 @@ function compRow(entry) {
   const ebit = metric(headlines, 'operating_income');
   const capex = metric(headlines, 'capex');
   const cash = metric(headlines, 'cash');
-  const debt = metric(headlines, 'long_term_debt');
+  const debt = filedDebt(headlines);
   const eps = metric(headlines, 'eps_diluted');
   const marketCap = finite(price) && finite(shares) ? price * shares : null;
   // Without a market cap there is no enterprise value, and a comp with no EV
@@ -488,7 +494,7 @@ export function runComps(target, peers = []) {
   }
   const netDebt = numberOr(self.enterpriseValue, null) != null
     ? self.enterpriseValue - self.marketCap
-    : numberOr(metric(target.headlines, 'long_term_debt'), 0) - numberOr(metric(target.headlines, 'cash'), 0);
+    : numberOr(filedDebt(target.headlines), 0) - numberOr(metric(target.headlines, 'cash'), 0);
 
   const implied = COMP_MULTIPLES.map((m) => {
     const multiple = stats[m.key].median;

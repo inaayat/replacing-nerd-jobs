@@ -331,7 +331,7 @@ function escapeHtml(s) {
 async function loadData() {
   const [mapRes, snapRes, extraRes, extraSnapRes] = await Promise.all([
     fetch('/fortune-500/data/fortune500_edgar_mapping.json'),
-    fetch('/fortune-500/data/headlines-snapshot.json'),
+    fetch('/fortune-500/data/extended-snapshot.json'),
     fetch('/financial-modeler/extras.json'),
     fetch('/financial-modeler/extras-headlines.json'),
   ]);

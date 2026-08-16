@@ -331,6 +331,7 @@ export function extractHeadlines(facts) {
     if (byYear.size) seriesAnnual.operating_lease_liability = [...byYear.values()].sort((a, b) => a.year - b.year);
   }
   applyImpliedLiabilities(metrics, seriesAnnual, priorMetrics);
+  normalizeMetrics(metrics, priorMetrics);
   const ratios = computeRatios(metrics, priorRevenue);
   return {
     cik: facts?.cik ?? null,
@@ -351,6 +352,127 @@ function val(metrics, key) {
   return p && typeof p.val === 'number' && Number.isFinite(p.val) ? p.val : null;
 }
 
+/** Derived income-statement tag when gross profit is computed from revenue − COGS. */
+export const DERIVED_GROSS_PROFIT_TAG = 'Revenue−COGS';
+
+/** Derived income-statement tag when COGS is computed from revenue − gross profit. */
+export const DERIVED_COGS_TAG = 'Revenue−GrossProfit';
+
+/** Marker when interest-bearing debt is rolled up from current + noncurrent / legacy tags. */
+export const DEBT_STOCK_TAG = 'DebtStock';
+
+function hasDebtPiece(metrics) {
+  return (
+    val(metrics, 'debt_current') != null ||
+    val(metrics, 'debt_noncurrent') != null ||
+    val(metrics, 'long_term_debt') != null
+  );
+}
+
+/**
+ * Interest-bearing debt stock (P9): current + (noncurrent ?? legacy long-term).
+ * When only the legacy long-term tag exists, that total is used as-is.
+ */
+export function debtStock(metrics) {
+  if (!metrics || !hasDebtPiece(metrics)) return null;
+  return (val(metrics, 'debt_current') ?? 0) + (val(metrics, 'debt_noncurrent') ?? val(metrics, 'long_term_debt') ?? 0);
+}
+
+/** @deprecated alias */
+export const interestBearingDebt = debtStock;
+
+/** Synthetic metric point for display (statement, information page). */
+export function debtStockPoint(metrics) {
+  const total = debtStock(metrics);
+  if (total == null) return null;
+  const cur = metrics.debt_current;
+  const non = metrics.debt_noncurrent;
+  const ltd = metrics.long_term_debt;
+  const src = non || ltd || cur || null;
+  let tag = DEBT_STOCK_TAG;
+  if (cur && non) tag = `${cur.tag}+${non.tag}`;
+  else if (cur && ltd && !non) tag = `${cur.tag}+${ltd.tag}`;
+  else if (non) tag = non.tag;
+  else if (ltd) tag = ltd.tag;
+  else if (cur) tag = cur.tag;
+  return {
+    val: total,
+    unit: src?.unit || 'USD',
+    start: null,
+    end: src?.end || cur?.end || non?.end || ltd?.end || null,
+    fy: src?.fy ?? null,
+    fp: src?.fp || 'FY',
+    form: src?.form || '10-K',
+    filed: src?.filed || null,
+    frame: src?.frame || null,
+    tag,
+    taxonomy: tag === DEBT_STOCK_TAG ? 'derived' : src?.taxonomy || 'us-gaap',
+    derived: true,
+  };
+}
+
+function derivedPointFrom(source, valNum, tag) {
+  return {
+    val: valNum,
+    unit: source?.unit || 'USD',
+    start: source?.start ?? null,
+    end: source?.end ?? null,
+    fy: source?.fy ?? null,
+    fp: source?.fp || 'FY',
+    form: source?.form || '10-K',
+    filed: source?.filed || null,
+    frame: source?.frame || null,
+    tag,
+    taxonomy: 'derived',
+    derived: true,
+  };
+}
+
+/** Copy weighted-average diluted shares when period-end shares are absent. */
+function applySharesFallback(metrics) {
+  if (!metrics) return;
+  if (metrics.shares_out && finiteVal(metrics.shares_out.val)) return;
+  const wavg = metrics.shares_diluted_wavg;
+  if (!(wavg && finiteVal(wavg.val))) return;
+  metrics.shares_out = { ...wavg, derived: true };
+}
+
+/** Fill gross profit or COGS from the other line plus revenue when one side is tagged. */
+function applyIncomeDerivations(metrics) {
+  if (!metrics) return;
+  const rev = val(metrics, 'revenue');
+  let gp = val(metrics, 'gross_profit');
+  let cogs = val(metrics, 'cogs');
+  if (gp == null && rev != null && cogs != null) {
+    metrics.gross_profit = derivedPointFrom(metrics.revenue || metrics.cogs, rev - cogs, DERIVED_GROSS_PROFIT_TAG);
+    gp = rev - cogs;
+  }
+  if (cogs == null && rev != null && gp != null) {
+    metrics.cogs = derivedPointFrom(metrics.revenue || metrics.gross_profit, rev - gp, DERIVED_COGS_TAG);
+  }
+}
+
+function applyPriorMetricNormalizations(priorMetrics) {
+  if (!priorMetrics?.values) return;
+  const pseudo = {};
+  for (const [key, v] of Object.entries(priorMetrics.values)) {
+    if (typeof v === 'number' && Number.isFinite(v)) pseudo[key] = { val: v };
+  }
+  applyIncomeDerivations(pseudo);
+  for (const [key, point] of Object.entries(pseudo)) {
+    if (priorMetrics.values[key] == null && point && finiteVal(point.val)) {
+      priorMetrics.values[key] = point.val;
+    }
+  }
+}
+
+/** Derived income lines and share fallbacks shared by fresh extracts and cached snapshots. */
+export function normalizeMetrics(metrics, priorMetrics = null) {
+  applyIncomeDerivations(metrics);
+  applySharesFallback(metrics);
+  applyPriorMetricNormalizations(priorMetrics);
+}
+
 export function computeRatios(metrics, priorRevenue) {
   const out = {};
   const rev = val(metrics, 'revenue');
@@ -359,7 +481,7 @@ export function computeRatios(metrics, priorRevenue) {
   const ni = val(metrics, 'net_income');
   const assets = val(metrics, 'assets');
   const equity = val(metrics, 'equity');
-  const debt = val(metrics, 'long_term_debt');
+  const debt = debtStock(metrics);
   const cfo = val(metrics, 'cfo');
   const capex = val(metrics, 'capex');
   const rd = val(metrics, 'rd');
@@ -391,15 +513,11 @@ export function computeRatios(metrics, priorRevenue) {
   const pretax = val(metrics, 'pretax_income');
   out.effective_tax_rate =
     tax != null && pretax != null && pretax > 0 ? clamp(tax / pretax, -0.5, 0.8) : null;
-  const debtStock =
-    (val(metrics, 'debt_current') || 0) + (val(metrics, 'debt_noncurrent') || val(metrics, 'long_term_debt') || 0);
-  const hasDebtTag =
-    val(metrics, 'debt_current') != null ||
-    val(metrics, 'debt_noncurrent') != null ||
-    val(metrics, 'long_term_debt') != null;
+  const debtStockVal = debtStock(metrics);
+  const hasDebtTag = hasDebtPiece(metrics);
   const interestExp = val(metrics, 'interest_expense');
   out.implied_interest_rate =
-    interestExp != null && hasDebtTag && debtStock > 0 ? clamp(interestExp / debtStock, 0, 0.4) : null;
+    interestExp != null && hasDebtTag && debtStockVal > 0 ? clamp(interestExp / debtStockVal, 0, 0.4) : null;
   const div = val(metrics, 'dividends_paid');
   out.payout_ratio = div != null && ni != null && ni > 0 ? clamp(div / ni, 0, 5) : null;
   const nii = val(metrics, 'net_interest_income');
@@ -509,6 +627,7 @@ export function ensureRatios(headlines) {
   const metrics = headlines.metrics;
   const seriesAnnual = headlines.seriesAnnual ? { ...headlines.seriesAnnual } : {};
   applyImpliedLiabilities(metrics, seriesAnnual, headlines.priorMetrics);
+  normalizeMetrics(metrics, headlines.priorMetrics);
   const ratios = computeRatios(metrics, headlines.priorRevenue);
   return {
     ...headlines,
@@ -732,6 +851,22 @@ export function explainCalculation(headlines, key) {
   };
   const pair = pairs[key];
   if (!pair) return base;
+  if (key === 'debt_equity' || key === 'debt_assets') {
+    const debtTotal = debtStock(headlines?.metrics);
+    const num = {
+      key: 'interest_bearing_debt',
+      label: 'Interest-bearing debt',
+      missing: debtTotal == null,
+      val: debtTotal,
+      shown: formatUsd(debtTotal),
+    };
+    const den = partFor(headlines, pair[1]);
+    base.parts = [num, den];
+    if (!num.missing && !den.missing && shown) {
+      base.arithmetic = `${num.shown} ÷ ${den.shown} = ${shown}`;
+    }
+    return base;
+  }
   const num = partFor(headlines, pair[0]);
   const den = partFor(headlines, pair[1]);
   base.parts = [num, den];

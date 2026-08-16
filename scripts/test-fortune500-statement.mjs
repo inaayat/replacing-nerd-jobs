@@ -178,6 +178,20 @@ assert.deepEqual(
 );
 assert.equal(legacyStatement.rows.find((r) => r.key === 'net_income').cells[0].value, null);
 
+{
+  const gddyDebt = ensureRatios({
+    asOfYear: 2025,
+    metrics: {
+      revenue: point(4.951e9, '2025-12-31'),
+      debt_current: point(15.1e6, '2025-12-31'),
+      debt_noncurrent: point(3.7652e9, '2025-12-31'),
+      long_term_debt: null,
+    },
+  });
+  const debtRow = buildStatement(gddyDebt).rows.find((r) => r.key === 'long_term_debt');
+  assert.equal(debtRow.cells[0].value, 3_765_200_000 + 15_100_000);
+}
+
 // A statement with no model has no projected columns at all.
 assert.equal(statementColumns(headlines).some((c) => c.kind === 'projected'), false);
 

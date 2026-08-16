@@ -13,6 +13,8 @@ import {
   ALL_DERIVED,
   IMPLIED_LIABILITIES_TAG,
   liabilityComponents,
+  debtStock,
+  debtStockPoint,
 } from '../fortune-500/extract.js';
 import {
   FILED_PACK_GROUPS,
@@ -256,6 +258,10 @@ function countTagged(headlines) {
   let tagged = 0;
   const total = ALL_FILED_METRICS.length;
   for (const def of ALL_FILED_METRICS) {
+    if (def.key === 'long_term_debt') {
+      if (debtStock(headlines?.metrics) != null) tagged += 1;
+      continue;
+    }
     const p = headlines?.metrics?.[def.key];
     if (p && typeof p.val === 'number' && Number.isFinite(p.val) && !p.derived) tagged += 1;
   }
@@ -281,8 +287,15 @@ function renderResults(list) {
 }
 
 function filedRow(def, headlines, groupId) {
-  const point = headlines?.metrics?.[def.key];
-  const shown = formatMetric(def, point);
+  let point = headlines?.metrics?.[def.key];
+  let shown = formatMetric(def, point);
+  if (def.key === 'long_term_debt') {
+    const stockPoint = debtStockPoint(headlines?.metrics);
+    if (stockPoint) {
+      point = stockPoint;
+      shown = formatUsd(stockPoint.val);
+    }
+  }
   const missing = shown == null;
   const extra = componentsEquation(headlines, def.key);
   const expandable = hasExpandableSeries(headlines, def.key);

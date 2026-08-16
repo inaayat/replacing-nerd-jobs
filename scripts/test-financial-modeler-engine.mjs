@@ -339,6 +339,39 @@ assert.equal(mean([]), null);
 }
 
 {
+  // GoDaddy-style: LongTermDebtNoncurrent without the legacy LongTermDebt tag.
+  const headlines = retailer({
+    long_term_debt: null,
+    debt_noncurrent: point(3_765_200_000, { tag: 'LongTermDebtNoncurrent' }),
+    debt_current: point(15_100_000, { tag: 'LongTermDebtCurrent' }),
+    cash: point(1_080_900_000),
+    liabilities: point(7_819_800_000),
+    equity: point(215_100_000),
+    assets: point(8_034_900_000),
+  });
+  const model = runThreeStatement(headlines, defaultAssumptions(headlines));
+  assert.equal(model.ok, true);
+  assert.equal(model.rows[0].debt, 3_765_200_000 + 15_100_000);
+  const dcf = runDcf(model, { price: 50, shares: 1e9 });
+  assert.equal(dcf.ok, true);
+  assert.equal(dcf.netDebt, 3_765_200_000 + 15_100_000 - 1_080_900_000);
+  assert.ok(dcf.wacc.debt > 3e9, 'WACC debt weight uses interest-bearing debt, not zero');
+}
+
+{
+  const headlines = retailer({
+    debt_current: point(12.35e9, { tag: 'LongTermDebtCurrent' }),
+    debt_noncurrent: point(78.33e9, { tag: 'LongTermDebtNoncurrent' }),
+    long_term_debt: point(90.68e9, { tag: 'LongTermDebt' }),
+    liabilities: point(120e9),
+    equity: point(60e9),
+    assets: point(150e9),
+  });
+  const model = runThreeStatement(headlines, defaultAssumptions(headlines));
+  assert.equal(model.rows[0].debt, 90.68e9, 'dual-tagged filer uses current + noncurrent, not legacy total twice');
+}
+
+{
   const target = { company: { company: 'Retailer Inc', cik: 1 }, headlines: retailer(), price: 100 };
   const empty = runComps(target, []);
   assert.equal(empty.ok, false);
