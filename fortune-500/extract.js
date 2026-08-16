@@ -26,6 +26,22 @@ export const ALL_DERIVED = [...DERIVED, ...EXTENDED_DERIVED];
 const ALL_FILED_BY_KEY = Object.fromEntries(ALL_FILED_METRICS.map((m) => [m.key, m]));
 const ALL_DERIVED_BY_KEY = Object.fromEntries(ALL_DERIVED.map((m) => [m.key, m]));
 
+/** Marker when total liabilities is computed as assets − equity. */
+export const IMPLIED_LIABILITIES_TAG = 'Assets−Equity';
+
+const LIABILITY_COMPONENT_KEYS = [
+  'debt_current',
+  'debt_noncurrent',
+  'long_term_debt',
+  'accounts_payable',
+  'accrued_liabilities',
+  'deferred_revenue_current',
+  'deferred_revenue_noncurrent',
+  'operating_lease_liability',
+  'finance_lease_liability',
+  'deposits',
+];
+
 function yearOf(iso) {
   if (!iso || iso.length < 4) return null;
   const y = Number(iso.slice(0, 4));
@@ -173,6 +189,75 @@ function applyLeaseLiabilitySum(metrics) {
   };
 }
 
+function impliedLiabilityPoint(assets, equity) {
+  const a = assets && finiteVal(assets.val) ? assets.val : null;
+  const e = equity && finiteVal(equity.val) ? equity.val : null;
+  if (a == null || e == null) return null;
+  const src = assets.end ? assets : equity;
+  return {
+    val: a - e,
+    unit: src.unit || 'USD',
+    start: null,
+    end: src.end || equity.end || null,
+    fy: src.fy ?? null,
+    fp: src.fp || 'FY',
+    form: src.form || '10-K',
+    filed: src.filed || equity.filed || null,
+    frame: src.frame || null,
+    tag: IMPLIED_LIABILITIES_TAG,
+    taxonomy: 'derived',
+    derived: true,
+  };
+}
+
+/**
+ * Many 10-Ks skip us-gaap:Liabilities and only tag the pieces. The complete
+ * total is still assets − equity. Individual debt lines stay on their own keys.
+ */
+function applyImpliedLiabilities(metrics, seriesAnnual, priorMetrics) {
+  if (!metrics) return;
+  if (!(metrics.liabilities && finiteVal(metrics.liabilities.val))) {
+    const implied = impliedLiabilityPoint(metrics.assets, metrics.equity);
+    if (implied) metrics.liabilities = implied;
+  }
+  if (seriesAnnual) {
+    const byYear = new Map();
+    for (const row of seriesAnnual.liabilities || []) {
+      if (finiteVal(row.val)) byYear.set(row.year, row);
+    }
+    const equityByYear = new Map((seriesAnnual.equity || []).map((row) => [row.year, row]));
+    for (const assets of seriesAnnual.assets || []) {
+      if (byYear.has(assets.year)) continue;
+      const implied = impliedLiabilityPoint(assets, equityByYear.get(assets.year));
+      if (implied) byYear.set(assets.year, { ...implied, year: assets.year });
+    }
+    if (byYear.size) {
+      seriesAnnual.liabilities = [...byYear.values()].sort((a, b) => a.year - b.year);
+    }
+  }
+  if (priorMetrics?.values && priorMetrics.values.liabilities == null) {
+    const a = priorMetrics.values.assets;
+    const e = priorMetrics.values.equity;
+    if (typeof a === 'number' && Number.isFinite(a) && typeof e === 'number' && Number.isFinite(e)) {
+      priorMetrics.values.liabilities = a - e;
+    }
+  }
+}
+
+/** Tagged liability pieces for the filings page. Not a complete roll-up. */
+export function liabilityComponents(metrics) {
+  const skipLongTerm = metrics?.debt_noncurrent && finiteVal(metrics.debt_noncurrent.val);
+  const out = [];
+  for (const key of LIABILITY_COMPONENT_KEYS) {
+    if (key === 'long_term_debt' && skipLongTerm) continue;
+    const point = metrics?.[key];
+    if (!(point && finiteVal(point.val))) continue;
+    const def = ALL_FILED_BY_KEY[key];
+    out.push({ key, label: def?.label || key, val: point.val });
+  }
+  return out;
+}
+
 function scorePoint(p, targetYear) {
   let score = 0;
   if (p.form === '10-K' || p.form === '20-F') score += 4;
@@ -233,7 +318,6 @@ export function extractHeadlines(facts) {
     asOfYear != null && Object.keys(priorValues).length
       ? { year: asOfYear - 1, values: priorValues }
       : null;
-  const ratios = computeRatios(metrics, priorRevenue);
   const seriesAnnual = extractAnnualSeries(facts, ALL_FILED_METRICS, asOfYear);
   if (seriesAnnual.operating_lease_liability == null && asOfYear != null) {
     const curRows = seriesAnnual.operating_lease_liability_current || [];
@@ -246,6 +330,8 @@ export function extractHeadlines(facts) {
     }
     if (byYear.size) seriesAnnual.operating_lease_liability = [...byYear.values()].sort((a, b) => a.year - b.year);
   }
+  applyImpliedLiabilities(metrics, seriesAnnual, priorMetrics);
+  const ratios = computeRatios(metrics, priorRevenue);
   return {
     cik: facts?.cik ?? null,
     entityName: facts?.entityName ?? null,
@@ -417,15 +503,19 @@ export function ordinal(n) {
   return `${Math.round(num)}${suf}`;
 }
 
-/** Fill derived ratios on a snapshot/API row so older snapshots pick up new formulas. */
+/** Fill derived ratios (and implied liabilities) on a snapshot/API row so older snapshots pick up new formulas. */
 export function ensureRatios(headlines) {
   if (!headlines?.metrics) return headlines;
-  const ratios = computeRatios(headlines.metrics, headlines.priorRevenue);
+  const metrics = headlines.metrics;
+  const seriesAnnual = headlines.seriesAnnual ? { ...headlines.seriesAnnual } : {};
+  applyImpliedLiabilities(metrics, seriesAnnual, headlines.priorMetrics);
+  const ratios = computeRatios(metrics, headlines.priorRevenue);
   return {
     ...headlines,
+    metrics,
     ratios,
-    flags: sanityFlags(headlines.metrics, ratios),
-    seriesAnnual: headlines.seriesAnnual || {},
+    flags: sanityFlags(metrics, ratios),
+    seriesAnnual,
     seriesQuarterly: headlines.seriesQuarterly || {},
   };
 }
