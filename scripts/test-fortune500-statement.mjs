@@ -54,7 +54,7 @@ const headlines = ensureRatios({
 // Row order is the statement, not a pile of ratios.
 assert.deepEqual(
   STATEMENT_ROWS.filter((r) => !r.detail).map((r) => r.label),
-  ['Revenue', 'Gross profit', 'Operating income', 'Net income', 'Free cash flow', 'Cash', 'Long-term debt']
+  ['Revenue', 'Gross profit', 'Operating income', 'Net income', 'Free cash flow', 'Cash and cash equivalents', 'Long-term debt']
 );
 assert.deepEqual(STATEMENT_KEYS, [
   'revenue',

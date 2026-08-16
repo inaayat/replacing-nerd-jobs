@@ -637,4 +637,59 @@ assert.equal(ordinal(1), '1st');
   assert.equal(fromSnap.metrics.liabilities.tag, IMPLIED_LIABILITIES_TAG);
 }
 
+{
+  const instant = (val, end, fy) => [{
+    val,
+    end,
+    fy,
+    fp: 'FY',
+    form: '10-K',
+    filed: `${fy + 1}-02-01`,
+  }];
+  const duration = (val, start, end, fy) => [{
+    val,
+    start,
+    end,
+    fy,
+    fp: 'FY',
+    form: '10-K',
+    filed: `${fy + 1}-02-01`,
+  }];
+  // GoDaddy-style: AtCarryingValue went stale in 2018; the 10-K line is the
+  // combined cash + restricted-cash tag.
+  const gddyLike = extractHeadlines({
+    cik: 1609711,
+    entityName: 'GoDaddy-like',
+    facts: {
+      'us-gaap': {
+        Revenues: { units: { USD: duration(50, '2025-01-01', '2025-12-31', 2025) } },
+        NetIncomeLoss: { units: { USD: duration(5, '2025-01-01', '2025-12-31', 2025) } },
+        CashAndCashEquivalentsAtCarryingValue: { units: { USD: instant(932.4e6, '2018-12-31', 2018) } },
+        CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents: {
+          units: { USD: instant(1080.9e6, '2025-12-31', 2025) },
+        },
+      },
+    },
+  });
+  assert.equal(gddyLike.metrics.cash.val, 1080.9e6);
+  assert.equal(gddyLike.metrics.cash.tag, 'CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents');
+
+  const bothCash = extractHeadlines({
+    cik: 3,
+    entityName: 'Both cash tags',
+    facts: {
+      'us-gaap': {
+        Revenues: { units: { USD: duration(50, '2025-01-01', '2025-12-31', 2025) } },
+        NetIncomeLoss: { units: { USD: duration(5, '2025-01-01', '2025-12-31', 2025) } },
+        CashAndCashEquivalentsAtCarryingValue: { units: { USD: instant(100, '2025-12-31', 2025) } },
+        CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents: {
+          units: { USD: instant(130, '2025-12-31', 2025) },
+        },
+      },
+    },
+  });
+  assert.equal(bothCash.metrics.cash.val, 100, 'prefer cash & equivalents over the restricted-cash combined tag');
+  assert.equal(bothCash.metrics.cash.tag, 'CashAndCashEquivalentsAtCarryingValue');
+}
+
 console.log('fortune-500 extract tests passed');

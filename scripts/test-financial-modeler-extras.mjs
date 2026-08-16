@@ -67,7 +67,7 @@ assert.match(veeam.note, /private/i);
 
 {
   const headlines = JSON.parse(readFileSync(join(ROOT, 'financial-modeler/extras-headlines.json'), 'utf8'));
-  assert.equal(headlines.schema, 3);
+  assert.equal(headlines.schema, 4);
   for (const c of extras.filter((x) => isPublic(x))) {
     const row = headlines.companies[String(c.cik)];
     assert.ok(row, `no headlines for ${c.fortune_ticker}`);
@@ -76,6 +76,11 @@ assert.match(veeam.note, /private/i);
     const ready = modelReadiness(ensureRatios(row));
     assert.equal(ready.ok, true, `${c.fortune_ticker} not modelable: ${ready.missing?.join(', ')}`);
   }
+  assert.equal(
+    headlines.companies['1609711'].metrics.cash.val,
+    1080900000,
+    'GoDaddy cash is the 10-K cash & equivalents line ($1,080.9M)'
+  );
 }
 
 console.log('test-financial-modeler-extras: ok');
