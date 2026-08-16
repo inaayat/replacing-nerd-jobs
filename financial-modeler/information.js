@@ -33,6 +33,7 @@ import {
   filingSourceLinks,
   stackedAddends,
   filedTagsCacheKey,
+  filedTagsApiUrl,
   filterFiledTagRows,
   filedTagsCountLabel,
 } from './information-view.js';
@@ -339,7 +340,11 @@ async function loadFiledTags(company, headlines) {
   state.filedLoading = true;
   state.filedError = null;
   try {
-    const res = await fetch(`/api/f500-filed?cik=${cik}`);
+    const res = await fetch(filedTagsApiUrl(cik));
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`HTTP ${res.status}${text ? `: ${text.slice(0, 120)}` : ''}`);
+    }
     const data = await res.json();
     state.filedPayload = data;
     state.filedError = data?.error || null;
@@ -360,7 +365,13 @@ async function loadFiledTags(company, headlines) {
 
 function renderFiledTagsPanel(company, headlines) {
   const counts = state.filedPayload?.counts;
-  const summary = counts ? filedTagsCountLabel(counts) : 'Open to load every tag from this 10-K';
+  const summary = counts
+    ? filedTagsCountLabel(counts)
+    : state.filedError
+      ? `Could not load: ${state.filedError}`
+      : state.filedLoading
+        ? 'Loading from Company Facts…'
+        : 'Open to load every tag from this 10-K';
   const open = state.filedOpen;
   const rows = filterFiledTagRows(state.filedPayload?.rows || [], {
     query: state.filedQuery,
@@ -630,27 +641,6 @@ function renderCompany(company) {
   const period = formatPeriodEnd(headlines.metrics?.revenue?.end || headlines.metrics?.assets?.end);
   const filing = currentFiling();
 
-  const toc = [
-    ...FILED_PACK_GROUPS.map((g) => {
-      const tone = GROUP_TONE[g.id] || 'ratio';
-      return `<a class="fm-info-toc-card is-${tone}" href="#group-${g.id}">
-        <strong>${escapeHtml(g.label)}</strong>
-        <span>${escapeHtml(g.summary)}</span>
-      </a>`;
-    }),
-    ...DERIVED_PACK_GROUPS.map((g) => {
-      const tone = GROUP_TONE[g.id] || 'ratio';
-      return `<a class="fm-info-toc-card is-${tone}" href="#group-${g.id}">
-        <strong>${escapeHtml(g.label)}</strong>
-        <span>${escapeHtml(g.summary)}</span>
-      </a>`;
-    }),
-    `<a class="fm-info-toc-card is-segment" href="#group-segments">
-      <strong>Segments</strong>
-      <span>Product, operating, and geographic cuts from the annual report’s dimensional XBRL.</span>
-    </a>`,
-  ].join('');
-
   const filedHtml = FILED_PACK_GROUPS.map((g) => {
     const defs = g.keys.map((key) => filedDef(key)).filter(Boolean);
     const visible = defs.filter((def) => metricMatchesQuery(query, def, headlines?.metrics?.[def.key]));
@@ -706,7 +696,6 @@ function renderCompany(company) {
         aria-label="Search metrics"
       />
     </div>
-    <nav class="fm-info-toc" aria-label="Filing sections">${toc}</nav>
     ${renderFiledTagsPanel(company, headlines)}
     ${hasAny ? `${filedHtml}${derivedHtml}${segHtml}` : '<p class="fm-info-note">No metrics match that search.</p>'}`;
 
@@ -725,6 +714,7 @@ function renderCompany(company) {
       window.scrollTo(0, y);
     });
   }
+  bindFiledPanel(company, headlines);
 }
 
 function selectCompany(company) {
@@ -744,8 +734,14 @@ function selectCompany(company) {
   history.replaceState({}, '', url);
   $('info-search').value = `${company.company} (${ticker})`;
   $('info-results').hidden = true;
+  const headlines = headlinesForCompany(company);
   renderCompany(company);
   $('info-company').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (headlines?.asOfYear) {
+    loadFiledTags(company, headlines).then(() => {
+      if (state.company === company) renderCompany(company);
+    });
+  }
 }
 
 function findByQuery() {
@@ -796,6 +792,17 @@ function applyUseForTag(selectEl) {
   const y = window.scrollY;
   renderCompany(state.company);
   window.scrollTo(0, y);
+}
+
+function bindFiledPanel(company, headlines) {
+  const details = $('all-filed-tags');
+  if (!details) return;
+  details.addEventListener('toggle', async () => {
+    state.filedOpen = details.open;
+    if (!details.open || state.filedPayload || state.filedLoading) return;
+    await loadFiledTags(company, headlines);
+    if (state.company === company) renderCompany(company);
+  });
 }
 
 function bind() {
@@ -858,16 +865,20 @@ function bind() {
       window.scrollTo(0, y);
     }
   });
-  $('info-company').addEventListener('toggle', async (ev) => {
-    const details = ev.target.closest('#all-filed-tags');
-    if (!details || ev.target !== details || !state.company) return;
-    state.filedOpen = details.open;
-    if (details.open && !state.filedPayload && !state.filedLoading) {
-      const headlines = headlinesForCompany(state.company);
-      await loadFiledTags(state.company, headlines);
-      renderCompany(state.company);
-    }
-  });
+  $('info-company').addEventListener(
+    'toggle',
+    async (ev) => {
+      const details = ev.target;
+      if (!details?.id || details.id !== 'all-filed-tags' || !state.company) return;
+      state.filedOpen = details.open;
+      if (details.open && !state.filedPayload && !state.filedLoading) {
+        const headlines = headlinesForCompany(state.company);
+        await loadFiledTags(state.company, headlines);
+        renderCompany(state.company);
+      }
+    },
+    true
+  );
 }
 
 await loadData();

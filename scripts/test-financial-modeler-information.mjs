@@ -19,6 +19,7 @@ import {
   filingSourceLinks,
   stackedAddends,
   filedTagsCacheKey,
+  filedTagsApiUrl,
   filterFiledTagRows,
   filedTagsCountLabel,
 } from '../financial-modeler/information-view.js';
@@ -163,6 +164,7 @@ assert.deepEqual(stackedAddends([]).rows, []);
 assert.equal(stackedAddends(null).sum, 0);
 
 assert.equal(filedTagsCacheKey(1609711, 2025), 'fm-filed-tags:1609711:2025');
+assert.equal(filedTagsApiUrl(1609711), '/api/fortune-500?route=filed&cik=1609711');
 assert.equal(filedTagsCountLabel({ filed: 212, mapped: 44, unmapped: 168 }), '212 filed · 44 mapped · 168 not in our catalog');
 
 const filedRows = [

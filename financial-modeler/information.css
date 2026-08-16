@@ -107,58 +107,6 @@ body.fm-info {
   font-weight: 500;
 }
 
-.fm-info-toc {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-  margin: 0 0 28px;
-}
-
-@media (min-width: 720px) {
-  .fm-info-toc {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-.fm-info-toc-card {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  text-decoration: none;
-  border: 1px solid var(--rule);
-  border-left: 4px solid var(--rule-strong);
-  border-radius: 10px;
-  padding: 10px 12px;
-  background: var(--paper-2);
-  min-width: 0;
-}
-
-.fm-info-toc-card strong {
-  font-family: Fraunces, Georgia, serif;
-  font-size: 14px;
-  color: var(--ink);
-}
-
-.fm-info-toc-card span {
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--ink-soft);
-}
-
-.fm-info-toc-card:hover {
-  border-color: var(--rule-strong);
-  background: #fff;
-}
-
-.fm-info-toc-card.is-income { border-left-color: #c49212; }
-.fm-info-toc-card.is-balance { border-left-color: var(--blue); }
-.fm-info-toc-card.is-cash { border-left-color: var(--green); }
-.fm-info-toc-card.is-lease { border-left-color: #6b4ea1; }
-.fm-info-toc-card.is-finance { border-left-color: var(--red); }
-.fm-info-toc-card.is-bank { border-left-color: #0f6b7a; }
-.fm-info-toc-card.is-ratio { border-left-color: #8a5a12; }
-.fm-info-toc-card.is-segment { border-left-color: #b3401f; }
-
 .fm-info-group {
   margin-bottom: 32px;
   padding-left: 12px;
@@ -704,15 +652,6 @@ body.fm-info {
 
   .fm-info-hero h1 {
     font-size: 24px;
-  }
-
-  .fm-info-toc {
-    position: static;
-    grid-template-columns: 1fr;
-    margin: 0 0 20px;
-    padding: 0;
-    background: none;
-    overflow: visible;
   }
 
   .fm-info-table-wrap {

@@ -184,6 +184,10 @@ export function stackedAddends(parts, total = null) {
   return { rows, sum, total: hasTotal ? total : null, tiesTotal };
 }
 
+export function filedTagsApiUrl(cik) {
+  return `/api/fortune-500?route=filed&cik=${Number(cik)}`;
+}
+
 /** sessionStorage key for cached filed-tags API payloads. */
 export function filedTagsCacheKey(cik, fy) {
   return `fm-filed-tags:${cik}:${fy ?? 'na'}`;
