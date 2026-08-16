@@ -800,23 +800,6 @@ function resultSub(c, { has, pub, self = false, picked = false } = {}) {
   return `${extra}${ticker ? ` · ${ticker}` : ''}${picked ? ' · in the set' : ''}`;
 }
 
-function renderQuick() {
-  const picks = ['AAPL', 'MSFT', 'WMT', 'NVDA'];
-  const extras = ['GDDY', 'WIX', 'NET', 'HOOD', 'DUOL'];
-  const chip = (t) => `<button type="button" class="fm-chip" data-ticker="${t}">${t}</button>`;
-  $('quick').innerHTML = picks.map(chip).join('');
-  const extraBox = $('quick-extra');
-  if (extraBox) extraBox.innerHTML = extras.map(chip).join('');
-  const onChip = (e) => {
-    const t = e.target.closest('[data-ticker]');
-    if (!t) return;
-    const company = state.companies.find((c) => c.fortune_ticker === t.dataset.ticker);
-    if (company) selectCompany(company);
-  };
-  $('quick').onclick = onChip;
-  if (extraBox) extraBox.onclick = onChip;
-}
-
 function renderResults(query) {
   const box = $('results');
   const q = query.trim().toLowerCase();
@@ -2533,7 +2516,6 @@ async function boot() {
     $('status').textContent = 'Couldn’t load the filing snapshot. Reload the page?';
     return;
   }
-  renderQuick();
   $('status').textContent = `${state.companies.length} companies loaded. ${state.snapshot.size} have a filing we can model.`;
 }
 

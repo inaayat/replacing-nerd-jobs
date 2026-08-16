@@ -216,8 +216,6 @@ a { color: inherit; }
   width: 100%;
 }
 .fm-search:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-.fm-quick { display: flex; gap: 8px; flex-wrap: wrap; }
-.fm-quick + .fm-quick { margin-top: 6px; }
 .fm-chip {
   border: 1px solid var(--rule-strong);
   background: var(--paper);
@@ -1963,7 +1961,6 @@ body.fm-is-mobile .fm-mobile-lede-note {
 }
 body.fm-is-mobile .fm-tour { display: none !important; }
 body.fm-is-mobile .fm-web-only-setup { display: none; }
-body.fm-is-mobile .fm-quick { display: none; }
 
 /* Phone landing: stacked cards with descriptions, page can scroll. */
 body.fm-is-mobile:not(.has-company) .fm-nav {
