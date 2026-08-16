@@ -18,7 +18,19 @@ import {
   quarterlySeries,
   filingSourceLinks,
   stackedAddends,
+  filedTagsCacheKey,
+  filterFiledTagRows,
+  filedTagsCountLabel,
 } from '../financial-modeler/information-view.js';
+import { extractFiledTags, filterFiledRows } from '../fortune-500/filed-tags.js';
+import {
+  STORAGE_KEY,
+  saveOverride,
+  clearOverride,
+  loadOverridesForCik,
+  applyTagOverrides,
+  blankMetricKeys,
+} from '../financial-modeler/tag-overrides.js';
 
 assert.equal(padCik(104169), '0000104169');
 assert.equal(padCik('0000104169'), '0000104169');
@@ -145,5 +157,120 @@ assert.equal(withMinus.sum, 7);
 
 assert.deepEqual(stackedAddends([]).rows, []);
 assert.equal(stackedAddends(null).sum, 0);
+
+assert.equal(filedTagsCacheKey(1609711, 2025), 'fm-filed-tags:1609711:2025');
+assert.equal(filedTagsCountLabel({ filed: 212, mapped: 44, unmapped: 168 }), '212 filed · 44 mapped · 168 not in our catalog');
+
+const filedRows = [
+  { tag: 'Revenues', label: 'Revenues', mappedKey: 'revenue' },
+  { tag: 'CostOfGoodsSold', label: 'COGS', mappedKey: null },
+];
+assert.equal(filterFiledTagRows(filedRows, { filter: 'mapped' }).length, 1);
+assert.equal(filterFiledTagRows(filedRows, { filter: 'unmapped' }).length, 1);
+assert.equal(filterFiledRows(filedRows, { query: 'cogs' }).length, 1);
+assert.equal(filterFiledRows(filedRows, { query: 'Revenues' }).length, 1);
+
+const instant = (val, end, fy) => [{ val, end, fy, fp: 'FY', form: '10-K', filed: `${fy + 1}-02-15` }];
+const duration = (val, start, end, fy) => [
+  { val, start, end, fy, fp: 'FY', form: '10-K', filed: `${fy + 1}-02-15` },
+];
+
+const mockFacts = {
+  cik: 1609711,
+  entityName: 'GoDaddy Inc.',
+  facts: {
+    'us-gaap': {
+      Revenues: {
+        label: 'Revenues',
+        units: { USD: duration(4.951e9, '2025-01-01', '2025-12-31', 2025) },
+      },
+      NetIncomeLoss: {
+        label: 'Net Income (Loss)',
+        units: { USD: duration(5e8, '2025-01-01', '2025-12-31', 2025) },
+      },
+      Assets: {
+        label: 'Assets',
+        units: { USD: instant(8e9, '2025-12-31', 2025) },
+      },
+      StockholdersEquity: {
+        label: 'Equity',
+        units: { USD: instant(2e9, '2025-12-31', 2025) },
+      },
+      CostOfGoodsAndServiceExcludingDepreciationDepletionAndAmortization: {
+        label: 'Cost of goods and services, excluding D&A',
+        units: { USD: duration(1.802e9, '2025-01-01', '2025-12-31', 2025) },
+      },
+      EntityInformationLineItems: {
+        label: 'Entity info abstract',
+        units: { USD: instant(1, '2025-12-31', 2025) },
+      },
+    },
+  },
+};
+
+const filed = extractFiledTags(mockFacts);
+assert.equal(filed.asOfYear, 2025);
+assert.ok(filed.rows.length >= 5);
+assert.ok(filed.rows.some((r) => r.tag === 'Revenues' && r.mappedKey === 'revenue'));
+const cogsAlt = filed.rows.find(
+  (r) => r.tag === 'CostOfGoodsAndServiceExcludingDepreciationDepletionAndAmortization'
+);
+assert.ok(cogsAlt, 'unmapped sibling COGS tag is included');
+assert.equal(cogsAlt.mappedKey, null);
+assert.ok(filed.counts.filed >= filed.counts.mapped);
+assert.ok(!filed.rows.some((r) => r.tag === 'EntityInformationLineItems'));
+assert.equal(filterFiledRows(filed.rows, { filter: 'unmapped' }).some((r) => r.tag === cogsAlt.tag), true);
+
+const ls = {};
+globalThis.localStorage = {
+  getItem: (k) => ls[k] ?? null,
+  setItem: (k, v) => {
+    ls[k] = v;
+  },
+  removeItem: (k) => {
+    delete ls[k];
+  },
+};
+
+const baseHeadlines = {
+  asOfYear: 2025,
+  metrics: {
+    revenue: { val: 4.951e9, tag: 'Revenues', taxonomy: 'us-gaap', end: '2025-12-31' },
+    cogs: null,
+    gross_profit: null,
+    net_income: { val: 5e8, tag: 'NetIncomeLoss', taxonomy: 'us-gaap', end: '2025-12-31' },
+  },
+  priorRevenue: null,
+};
+
+saveOverride(1609711, 'cogs', {
+  taxonomy: 'us-gaap',
+  tag: 'CostOfGoodsAndServiceExcludingDepreciationDepletionAndAmortization',
+  val: 1.802e9,
+  unit: 'USD',
+  end: '2025-12-31',
+  form: '10-K',
+  fy: 2025,
+});
+assert.ok(loadOverridesForCik(1609711).cogs);
+assert.ok(JSON.parse(ls[STORAGE_KEY])['1609711'].cogs);
+
+const filled = applyTagOverrides(baseHeadlines, 1609711);
+assert.equal(filled.metrics.cogs.val, 1.802e9);
+assert.equal(filled.metrics.cogs.override, true);
+assert.equal(filled.metrics.gross_profit.val, 4.951e9 - 1.802e9);
+assert.equal(filled.metrics.gross_profit.tag, 'Revenue−COGS');
+
+const tagged = applyTagOverrides(baseHeadlines, 1609711, { allowReplace: false });
+assert.equal(tagged.metrics.revenue.val, 4.951e9, 'does not clobber tagged revenue without allowReplace');
+
+saveOverride(1609711, 'revenue', { taxonomy: 'us-gaap', tag: 'OtherRevenues', val: 1, unit: 'USD', end: '2025-12-31' });
+const replaced = applyTagOverrides(baseHeadlines, 1609711, { allowReplace: true });
+assert.equal(replaced.metrics.revenue.val, 1);
+
+clearOverride(1609711, 'cogs');
+assert.equal(loadOverridesForCik(1609711).cogs, undefined);
+
+assert.deepEqual(blankMetricKeys(baseHeadlines, ['cogs', 'revenue', 'net_income']), ['cogs']);
 
 console.log('test-financial-modeler-information: ok');

@@ -34,6 +34,7 @@ import {
   plausibleMargin,
   MARGIN_KEYS,
 } from './extract.js';
+import { prepareHeadlines } from '../financial-modeler/tag-overrides.js';
 import { seedAssumptions, applyScenario, runPracticeModel, MODEL_YEARS, describeAssumption, assumptionFields } from './model.js';
 import { buildStatement } from './statement.js';
 import {
@@ -229,7 +230,9 @@ function rememberHeadline(row) {
 }
 
 function headlinesOf(c) {
-  return c?.cik != null ? headlinesByCik.get(c.cik) : undefined;
+  if (c?.cik == null) return undefined;
+  const h = headlinesByCik.get(c.cik);
+  return h ? prepareHeadlines(h, c.cik) : undefined;
 }
 
 function matches(c) {

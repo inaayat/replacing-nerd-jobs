@@ -170,6 +170,10 @@
       "destination": "/api/fortune-500?route=prices"
     },
     {
+      "source": "/api/f500-filed",
+      "destination": "/api/fortune-500?route=filed"
+    },
+    {
       "source": "/one-more-column",
       "destination": "https://one-more-column.vercel.app/one-more-column"
     },
