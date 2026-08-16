@@ -820,7 +820,15 @@ export const CORE_STUDENT = {
 
 export function studentText(def) {
   if (!def) return '';
-  if (def.student) return def.student;
-  return CORE_STUDENT[def.key] || def.plain || '';
+  const academic = String(def.student || CORE_STUDENT[def.key] || '').trim();
+  const plain = String(def.plain || '').trim();
+  if (plain && academic) {
+    if (academic.startsWith(plain) || academic.toLowerCase().startsWith(plain.toLowerCase())) {
+      return academic;
+    }
+    const lead = /[.!?]$/.test(plain) ? plain : `${plain}.`;
+    return `${lead} ${academic}`;
+  }
+  return academic || plain;
 }
 

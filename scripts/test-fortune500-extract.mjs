@@ -12,6 +12,8 @@ import {
   sanityFlags,
   ordinal,
 } from '../fortune-500/extract.js';
+import { studentText } from '../fortune-500/metric-packs.js';
+import { METRICS } from '../fortune-500/catalog.js';
 
 const fixture = JSON.parse(
   readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'fixtures/amzn-facts-mini.json'), 'utf8')
@@ -535,6 +537,13 @@ assert.equal(ordinal(1), '1st');
   assert.equal(lease.metrics.operating_lease_liability.val, 100);
   assert.equal(lease.metrics.operating_lease_liability.tag, 'OperatingLeaseLiabilityCurrent+Noncurrent');
   assert.equal(lease.ratios.effective_tax_rate, 0.2);
+}
+
+{
+  const revenue = METRICS.find((m) => m.key === 'revenue');
+  const copy = studentText(revenue);
+  assert.ok(copy.startsWith('How much customers paid this year.'));
+  assert.ok(copy.includes('starting point of the income statement'));
 }
 
 console.log('fortune-500 extract tests passed');
