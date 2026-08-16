@@ -23,7 +23,7 @@ const UA =
 const WORKERS = 2;
 const GAP_MS = 150;
 const MAX_ATTEMPTS = 5;
-const SEGMENT_SNAPSHOT_SCHEMA = 2;
+const SEGMENT_SNAPSHOT_SCHEMA = 3;
 const ANNUAL = new Set(['10-K', '10-K/A', '20-F', '20-F/A']);
 
 function padCik(cik) {
