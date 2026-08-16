@@ -22,6 +22,7 @@ import {
   filedTagsApiUrl,
   filterFiledTagRows,
   filedTagsCountLabel,
+  rankFiledTagMatches,
 } from '../financial-modeler/information-view.js';
 import { extractFiledTags, filterFiledRows } from '../fortune-500/filed-tags.js';
 import {
@@ -175,6 +176,11 @@ assert.equal(filterFiledTagRows(filedRows, { filter: 'mapped' }).length, 1);
 assert.equal(filterFiledTagRows(filedRows, { filter: 'unmapped' }).length, 1);
 assert.equal(filterFiledRows(filedRows, { query: 'cogs' }).length, 1);
 assert.equal(filterFiledRows(filedRows, { query: 'Revenues' }).length, 1);
+
+assert.deepEqual(rankFiledTagMatches(filedRows, 'c'), []);
+assert.equal(rankFiledTagMatches(filedRows, 'cogs')[0].tag, 'CostOfGoodsSold');
+assert.equal(rankFiledTagMatches(filedRows, 'rev')[0].tag, 'Revenues');
+assert.equal(rankFiledTagMatches(filedRows, 'zzz').length, 0);
 
 const instant = (val, end, fy) => [{ val, end, fy, fp: 'FY', form: '10-K', filed: `${fy + 1}-02-15` }];
 const duration = (val, start, end, fy) => [

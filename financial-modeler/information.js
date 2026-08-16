@@ -36,6 +36,7 @@ import {
   filedTagsApiUrl,
   filterFiledTagRows,
   filedTagsCountLabel,
+  rankFiledTagMatches,
 } from './information-view.js';
 import {
   prepareHeadlines,
@@ -58,6 +59,8 @@ const state = {
   filedPayload: null,
   filedFilter: 'all',
   filedQuery: '',
+  mapFocus: null,
+  mapQuery: {},
 };
 
 const $ = (id) => document.getElementById(id);
@@ -471,6 +474,50 @@ function renderResults(list) {
     .join('');
 }
 
+function mapSearchHtml(def) {
+  const q = state.mapQuery[def.key] || '';
+  const active = state.mapFocus === def.key;
+  let body = '';
+  if (state.filedError && active) {
+    body = `<p class="fm-info-map-note">Couldn’t load tags. ${escapeHtml(state.filedError)}</p>`;
+  } else if (state.filedLoading && active && q.length >= 2) {
+    body = '<p class="fm-info-map-note">Loading this 10-K’s tags…</p>';
+  } else if (active && q.length >= 2 && !state.filedPayload) {
+    body = '<p class="fm-info-map-note">Loading this 10-K’s tags…</p>';
+  } else if (active && q.length >= 2) {
+    const hits = rankFiledTagMatches(state.filedPayload?.rows || [], q, { limit: 6 });
+    body = hits.length
+      ? `<ul class="fm-info-map-hits">${hits
+          .map((row) => {
+            const concept = `${row.taxonomy}:${row.tag}`;
+            const val = formatFiledVal(row);
+            return `<li>
+              <button type="button" class="fm-info-map-hit" data-map-pick="${escapeHtml(concept)}" data-map-metric="${escapeHtml(def.key)}">
+                <span class="fm-info-map-hit-label">${escapeHtml(row.label || row.tag)}</span>
+                <span class="fm-info-map-hit-meta">${escapeHtml(val)} · ${escapeHtml(row.tag)}</span>
+              </button>
+            </li>`;
+          })
+          .join('')}</ul>`
+      : '<p class="fm-info-map-note">No tags match.</p>';
+  }
+  return `<div class="fm-info-map">
+    <label class="fm-info-map-label">
+      <span class="visually-hidden">Search this 10-K for ${escapeHtml(def.label)}</span>
+      <input
+        type="search"
+        class="fm-info-map-search"
+        data-map-metric="${escapeHtml(def.key)}"
+        placeholder="Search this 10-K…"
+        value="${escapeHtml(q)}"
+        autocomplete="off"
+        aria-label="Search this 10-K for ${escapeHtml(def.label)}"
+      />
+    </label>
+    ${body}
+  </div>`;
+}
+
 function filedRow(def, headlines, groupId, cik) {
   let point = headlines?.metrics?.[def.key];
   let shown = formatMetric(def, point);
@@ -507,7 +554,7 @@ function filedRow(def, headlines, groupId, cik) {
     <td class="def">${escapeHtml(studentText(def))}${extra}</td>
     <td class="src">
       <p>${escapeHtml(sourceLine(point, def))}</p>
-      ${sourceLinksHtml(point, def, { derived: Boolean(point?.derived || point?.tag === IMPLIED_LIABILITIES_TAG) })}
+      ${missing ? mapSearchHtml(def) : sourceLinksHtml(point, def, { derived: Boolean(point?.derived || point?.tag === IMPLIED_LIABILITIES_TAG) })}
     </td>
   </tr>`;
   return row + (expandable ? seriesPanel(def, headlines, seriesId, open) : '');
@@ -715,6 +762,12 @@ function renderCompany(company) {
     });
   }
   bindFiledPanel(company, headlines);
+  const mapInput = root.querySelector(`input[data-map-metric="${CSS.escape(state.mapFocus || '')}"]`);
+  if (mapInput && state.mapFocus) {
+    mapInput.focus();
+    const len = mapInput.value.length;
+    mapInput.setSelectionRange(len, len);
+  }
 }
 
 function selectCompany(company) {
@@ -727,6 +780,8 @@ function selectCompany(company) {
   state.filedPayload = null;
   state.filedFilter = 'all';
   state.filedQuery = '';
+  state.mapFocus = null;
+  state.mapQuery = {};
   const ticker = tickerOf(company);
   const url = new URL(window.location.href);
   url.searchParams.set('ticker', ticker);
@@ -805,6 +860,22 @@ function bindFiledPanel(company, headlines) {
   });
 }
 
+function applyMapPick(metricKey, concept) {
+  if (!metricKey || !state.company || !concept) return;
+  const sep = concept.indexOf(':');
+  if (sep < 0) return;
+  const taxonomy = concept.slice(0, sep);
+  const tag = concept.slice(sep + 1);
+  const row = state.filedPayload?.rows?.find((r) => r.taxonomy === taxonomy && r.tag === tag);
+  if (!row) return;
+  saveOverride(Number(state.company.cik), metricKey, row);
+  state.mapFocus = null;
+  state.mapQuery = { ...state.mapQuery, [metricKey]: '' };
+  const y = window.scrollY;
+  renderCompany(state.company);
+  window.scrollTo(0, y);
+}
+
 function bind() {
   const input = $('info-search');
   input.addEventListener('input', () => {
@@ -824,6 +895,14 @@ function bind() {
   });
   $('info-company').addEventListener('click', (ev) => {
     if (ev.target.closest('a')) return;
+    if (ev.target.closest('.fm-info-map')) {
+      const hit = ev.target.closest('[data-map-pick]');
+      if (hit) {
+        ev.preventDefault();
+        applyMapPick(hit.dataset.mapMetric, hit.dataset.mapPick);
+      }
+      return;
+    }
     const clearBtn = ev.target.closest('[data-clear-override]');
     if (clearBtn && state.company) {
       ev.preventDefault();
@@ -863,6 +942,33 @@ function bind() {
         again.setSelectionRange(len, len);
       }
       window.scrollTo(0, y);
+      return;
+    }
+    const mapInput = ev.target.closest('[data-map-metric]');
+    if (mapInput && state.company) {
+      const key = mapInput.dataset.mapMetric;
+      state.mapFocus = key;
+      state.mapQuery = { ...state.mapQuery, [key]: mapInput.value };
+      const headlines = headlinesForCompany(state.company);
+      if (!state.filedPayload && !state.filedLoading && headlines?.asOfYear) {
+        loadFiledTags(state.company, headlines).then(() => {
+          if (state.company) renderCompany(state.company);
+        });
+      }
+      const y = window.scrollY;
+      renderCompany(state.company);
+      window.scrollTo(0, y);
+    }
+  });
+  $('info-company').addEventListener('focusin', (ev) => {
+    const mapInput = ev.target.closest('[data-map-metric]');
+    if (!mapInput || !state.company) return;
+    state.mapFocus = mapInput.dataset.mapMetric;
+    const headlines = headlinesForCompany(state.company);
+    if (!state.filedPayload && !state.filedLoading && headlines?.asOfYear) {
+      loadFiledTags(state.company, headlines).then(() => {
+        if (state.company) renderCompany(state.company);
+      });
     }
   });
   $('info-company').addEventListener(
