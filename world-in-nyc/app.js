@@ -230,9 +230,7 @@ function renderList(catalog, filter, query, onPick, includeHistoric, votes) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = `win-item${filter?.kind === 'enclave' && filter.index === i ? ' is-on' : ''}`;
-    const roll = votes?.enclaves?.[enc.id]?.primary;
-    const vote = !isHistoric(enc) && roll?.n ? ` · ${shareLine(roll.v, votes.candidates)}` : '';
-    btn.innerHTML = `<span class="win-item-swatch" style="background:${regionColor(catalog, enc.region)}"></span><span class="win-item-text"><span class="win-item-name">${enc.name}</span><span class="win-item-meta">${enc.group}${isHistoric(enc) ? ' · historic' : ''}${vote}</span></span>`;
+    btn.innerHTML = `<span class="win-item-swatch" style="background:${regionColor(catalog, enc.region)}"></span><span class="win-item-text"><span class="win-item-name">${enc.name}</span><span class="win-item-meta">${enc.group}${isHistoric(enc) ? ' · historic' : ''}</span></span>`;
     btn.addEventListener('click', () => onPick({ kind: 'enclave', index: i, id: enc.id }));
     root.append(btn);
   }
@@ -284,9 +282,7 @@ function renderCountryEnclaves(row, catalog, query, includeHistoric, votes, onPi
     btn.type = 'button';
     btn.className = 'win-item';
     const places = (enc.places || []).join(', ');
-    const roll = votes?.enclaves?.[enc.id]?.primary;
-    const vote = !isHistoric(enc) && roll?.n ? ` · ${shareLine(roll.v, votes.candidates)}` : '';
-    btn.innerHTML = `<span class="win-item-swatch" style="background:${regionColor(catalog, enc.region)}"></span><span class="win-item-text"><span class="win-item-name">${enc.name}</span><span class="win-item-meta">${enc.group}${isHistoric(enc) ? ' · historic' : ''}${places ? ` · ${places}` : ''}${vote}</span></span>`;
+    btn.innerHTML = `<span class="win-item-swatch" style="background:${regionColor(catalog, enc.region)}"></span><span class="win-item-text"><span class="win-item-name">${enc.name}</span><span class="win-item-meta">${enc.group}${isHistoric(enc) ? ' · historic' : ''}${places ? ` · ${places}` : ''}</span></span>`;
     btn.addEventListener('click', () => onPick({ kind: 'enclave', index: i, id: enc.id }));
     root.append(btn);
   }
