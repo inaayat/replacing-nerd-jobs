@@ -456,6 +456,13 @@ function sheetBuilder() {
 
 const mm = (n) => (typeof n === 'number' && Number.isFinite(n) ? n / M : null);
 
+function sumFiled(a, b) {
+  const fa = typeof a === 'number' && Number.isFinite(a);
+  const fb = typeof b === 'number' && Number.isFinite(b);
+  if (!fa && !fb) return null;
+  return (fa ? a : 0) + (fb ? b : 0);
+}
+
 /** FY0 first, then one column per forecast year. No spacer columns. */
 function yearHeader(rows, label = 'US$ in millions') {
   return [{ v: label, s: 'hdr' }, ...rows.map((r) => ({ v: r.filed ? `FY${r.year}A` : `FY${r.year}E`, s: 'hdr' }))];
@@ -652,7 +659,7 @@ function schedulesSheet(model, at, isRows) {
   b.text(['Working capital'], 'lblb');
   r.ar = line('Accounts receivable', rows[0].receivables, `=IS!R${isRows.revenue}C*${ref(at, 'dsoDays')}/365`, 'link');
   r.inv = line('Inventory', rows[0].inventory, `=-IS!R${isRows.cogs}C*${ref(at, 'dioDays')}/365`, 'link');
-  r.nwc = line('Net working capital', rows[0].receivables + rows[0].inventory, `=R${r.ar}C+R${r.inv}C`, 'calc', true);
+  r.nwc = line('Net working capital', sumFiled(rows[0].receivables, rows[0].inventory), `=R${r.ar}C+R${r.inv}C`, 'calc', true);
   r.nwcChange = line('(Increase) / decrease in working capital', null, `=-(R${r.nwc}C-R${r.nwc}C[-1])`);
   b.blank();
 

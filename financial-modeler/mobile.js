@@ -6,6 +6,7 @@
  *
  * Browser-safe ESM (no `node:` imports). Tests import the helpers below.
  */
+import { isFiledStatementInput } from './engine.js';
 
 export const MOBILE_MQ = '(max-width: 900px)';
 export const MOBILE_FORECAST_YEARS = 3;
@@ -137,7 +138,6 @@ export function linesForStatement(model, statementId) {
   const rows = model?.rows;
   if (!Array.isArray(rows) || !rows.length) return [];
   const unitKind = model.kind === 'unit' || model.kind === 'single-unit';
-  const hasGross = model.assumptions?.grossMargin != null || unitKind;
 
   if (statementId === 'schedule' && model.kind === 'capital-project') {
     return [
@@ -152,9 +152,8 @@ export function linesForStatement(model, statementId) {
     return [
       ...(unitKind ? [line(rows, 'Transactions', 'transactions', { fmt: 'qty' })] : []),
       line(rows, 'Revenue', 'revenue'),
-      ...(hasGross
-        ? [line(rows, 'Cost of sales', 'cogs'), line(rows, 'Gross profit', 'grossProfit', { total: true })]
-        : []),
+      line(rows, 'Cost of sales', 'cogs'),
+      line(rows, 'Gross profit', 'grossProfit', { total: true }),
       ...(unitKind
         ? [line(rows, 'Labor', 'labor'), line(rows, 'Other operating costs', 'otherOpex')]
         : [line(rows, 'Operating expenses', 'opex')]),
@@ -240,7 +239,7 @@ function statementTabs(pages, activeId) {
     .join('');
 }
 
-function tableHtml(columns, lines, { scale, unitLabel }) {
+function tableHtml(columns, lines, { scale, unitLabel, blankFiledNulls = false }) {
   const head = `<thead><tr><th>${escapeHtml(unitLabel)}</th>${columns
     .map((c) => `<th class="${c.filed ? 'fm-col-actual' : ''}">${escapeHtml(c.label)}</th>`)
     .join('')}</tr></thead>`;
@@ -250,7 +249,11 @@ function tableHtml(columns, lines, { scale, unitLabel }) {
         .map((v, i) => {
           const text = lineRow.fmt === 'raw' ? (v == null ? null : String(v)) : formatMobileCell(v, { scale, fmt: lineRow.fmt });
           const col = columns[i];
-          return `<td class="${text == null ? 'fm-blank' : col?.filed ? 'fm-actual' : 'fm-forecast'}">${text == null ? '—' : escapeHtml(text)}</td>`;
+          if (text == null) {
+            const showBlank = blankFiledNulls && col?.filed && isFiledStatementInput(lineRow.key);
+            return `<td class="fm-blank">${showBlank ? 'blank' : '—'}</td>`;
+          }
+          return `<td class="${col?.filed ? 'fm-actual' : 'fm-forecast'}">${escapeHtml(text)}</td>`;
         })
         .join('');
       const cls = [lineRow.total ? 'fm-total' : '', lineRow.cls || ''].filter(Boolean).join(' ');
@@ -320,7 +323,7 @@ export function renderMobileHtml(view) {
     body = altTableHtml(['Structure', 'NPV', 'Breakeven'], view.structureRows);
   } else {
     const lines = linesForStatement({ ...view.model, rows, assumptions: view.assumptions, kind: view.kind }, page.id);
-    body = tableHtml(columns, lines, { scale, unitLabel });
+    body = tableHtml(columns, lines, { scale, unitLabel, blankFiledNulls: !unitKind && !view.kind });
   }
 
   const warn = dial?.warn ? `<p class="fm-m-warn">${escapeHtml(dial.warn)}</p>` : '';

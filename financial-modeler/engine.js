@@ -34,6 +34,48 @@ function filedDebt(headlines) {
   return finite(total) ? total : null;
 }
 
+/**
+ * Statement keys that come from 10-K tags (or from a tag, like cost of sales
+ * from gross profit). Year-0 nulls here mean "the filing didn't tag this",
+ * not "we chose not to compute it". Interest, taxes, and net change in cash
+ * are the latter — they stay em-dashes, not the word "blank".
+ */
+export const FILED_STATEMENT_INPUTS = [
+  { key: 'revenue', label: 'Revenue' },
+  { key: 'cogs', label: 'Cost of sales', group: 'cogs' },
+  { key: 'grossProfit', label: 'Cost of sales', group: 'cogs' },
+  { key: 'ebit', label: 'Operating income' },
+  { key: 'netIncome', label: 'Net income' },
+  { key: 'cfo', label: 'Cash from operations' },
+  { key: 'capex', label: 'Capital expenditure' },
+  { key: 'cash', label: 'Cash' },
+  { key: 'receivables', label: 'Accounts receivable' },
+  { key: 'inventory', label: 'Inventory' },
+  { key: 'debt', label: 'Debt' },
+  { key: 'totalAssets', label: 'Total assets' },
+  { key: 'equity', label: 'Shareholders’ equity' },
+];
+
+const FILED_INPUT_KEYS = new Set(FILED_STATEMENT_INPUTS.map((item) => item.key));
+
+export function isFiledStatementInput(key) {
+  return FILED_INPUT_KEYS.has(key);
+}
+
+/** Unique missing year-0 tagged inputs, with cost of sales / gross profit collapsed. */
+export function missingFiledStatementInputs(row) {
+  const seen = new Set();
+  const out = [];
+  for (const item of FILED_STATEMENT_INPUTS) {
+    if (finite(row?.[item.key])) continue;
+    const group = item.group || item.key;
+    if (seen.has(group)) continue;
+    seen.add(group);
+    out.push({ key: group, label: item.label });
+  }
+  return out;
+}
+
 function clamp(n, lo, hi) {
   return Math.min(hi, Math.max(lo, n));
 }
@@ -129,18 +171,23 @@ export function applyScenario(assumptions, scenario) {
 /**
  * Year 0 balance sheet, built so total assets and total liabilities + equity
  * are the filed totals exactly. Cash, receivables, inventory, and long-term
- * debt are the filed tags; everything the snapshot doesn't tag lands in a
- * residual line that says so in its own label.
+ * debt stay null when the 10-K tag is missing (the UI can say "blank" instead
+ * of inventing $0). Residuals still treat those missing stocks as 0 so the
+ * untagged remainder lands in the two "other" lines and year 0 still ties.
  */
 function openingBalanceSheet(headlines) {
   const assets = metric(headlines, 'assets');
   const equity = metric(headlines, 'equity');
   const filedLiabilities = metric(headlines, 'liabilities');
   const liabilities = finite(filedLiabilities) ? filedLiabilities : assets - equity;
-  const cash = numberOr(metric(headlines, 'cash'), 0);
-  const receivables = numberOr(metric(headlines, 'receivables'), 0);
-  const inventory = numberOr(metric(headlines, 'inventory'), 0);
-  const debt = numberOr(filedDebt(headlines), 0);
+  const cash = metric(headlines, 'cash');
+  const receivables = metric(headlines, 'receivables');
+  const inventory = metric(headlines, 'inventory');
+  const debt = filedDebt(headlines);
+  const cashStock = numberOr(cash, 0);
+  const recStock = numberOr(receivables, 0);
+  const invStock = numberOr(inventory, 0);
+  const debtForResidual = numberOr(debt, 0);
   return {
     cash,
     receivables,
@@ -148,10 +195,10 @@ function openingBalanceSheet(headlines) {
     // Net PP&E, goodwill, and investments are one bucket: the snapshot has no
     // separate tag for them, and splitting a total we don't have would be a
     // guess wearing a line item's clothes.
-    otherAssets: assets - cash - receivables - inventory,
+    otherAssets: assets - cashStock - recStock - invStock,
     totalAssets: assets,
     debt,
-    otherLiabilities: liabilities - debt,
+    otherLiabilities: liabilities - debtForResidual,
     totalLiabilities: liabilities,
     equity,
     totalLiabEquity: liabilities + equity,
@@ -218,6 +265,10 @@ export function runThreeStatement(headlines, assumptions) {
 
   for (let i = 1; i <= years; i += 1) {
     const prev = rows[i - 1];
+    const beginCash = numberOr(prev.cash, 0);
+    const beginDebt = numberOr(prev.debt, 0);
+    const beginReceivables = numberOr(prev.receivables, 0);
+    const beginInventory = numberOr(prev.inventory, 0);
     const revenue = prev.revenue * (1 + g);
     const grossProfit = gm == null ? null : revenue * gm;
     const cogs = gm == null ? null : -(revenue - grossProfit);
@@ -226,31 +277,31 @@ export function runThreeStatement(headlines, assumptions) {
     const da = revenue * numberOr(a.daPct, 0);
     const capex = revenue * numberOr(a.capexPct, 0);
 
-    const interestExpense = -prev.debt * numberOr(a.interestRate, 0);
-    const interestIncome = prev.cash * numberOr(a.cashYield, 0);
+    const interestExpense = -beginDebt * numberOr(a.interestRate, 0);
+    const interestIncome = beginCash * numberOr(a.cashYield, 0);
     const pretax = ebit + interestExpense + interestIncome;
     const taxes = pretax > 0 ? -pretax * tax : 0;
     const netIncome = pretax + taxes;
 
-    const receivables = a.dsoDays == null ? prev.receivables : (revenue * a.dsoDays) / 365;
+    const receivables = a.dsoDays == null ? beginReceivables : (revenue * a.dsoDays) / 365;
     const inventory =
       a.dioDays == null
-        ? prev.inventory
+        ? beginInventory
         : gm == null
           ? (revenue * a.dioDays) / 365
           : (revenue * (1 - gm) * a.dioDays) / 365;
-    const workingCapitalUse = receivables - prev.receivables + (inventory - prev.inventory);
+    const workingCapitalUse = receivables - beginReceivables + (inventory - beginInventory);
 
     const cfo = netIncome + da - workingCapitalUse;
     const cfi = -capex;
-    const debtRepayment = Math.min(prev.debt, prev.debt * numberOr(a.debtRepaymentPct, 0));
+    const debtRepayment = Math.min(beginDebt, beginDebt * numberOr(a.debtRepaymentPct, 0));
     const dividends = netIncome > 0 ? netIncome * clamp(numberOr(a.payoutRatio, 0), 0, 1) : 0;
     const cff = -debtRepayment - dividends;
     const netChangeCash = cfo + cfi + cff;
 
-    const cash = prev.cash + netChangeCash;
+    const cash = beginCash + netChangeCash;
     const otherAssets = prev.otherAssets + capex - da;
-    const debt = prev.debt - debtRepayment;
+    const debt = beginDebt - debtRepayment;
     const otherLiabilities = prev.otherLiabilities;
     const equity = prev.equity + netIncome - dividends;
     const totalAssets = cash + receivables + inventory + otherAssets;
