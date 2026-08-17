@@ -1603,14 +1603,14 @@ function threeStatementPanel(model) {
     </div>`
     : '';
 
-  return `<section class="fm-panel fm-panel-model fm-panel-statements">
+  return `<section class="fm-panel fm-panel-model">
     ${returnsBlock}
     <div class="fm-statements">
-      <div class="fm-statement fm-statement-card">${is}</div>
+      <div class="fm-statement">${is}</div>
       ${handoff('ni', '↓', 'Net income → cash flow & equity')}
-      <div class="fm-statement fm-statement-card">${cfs}</div>
+      <div class="fm-statement">${cfs}</div>
       ${handoff('cash', '↓', 'Net change in cash → cash plug')}
-      <div class="fm-statement fm-statement-card">${bs}</div>
+      <div class="fm-statement">${bs}</div>
       ${handoff('interest', '↑', 'Cash & debt → next year interest')}
     </div>
     <div class="fm-legend fm-legend-compact">

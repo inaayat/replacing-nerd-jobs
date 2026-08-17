@@ -304,24 +304,10 @@ a { color: inherit; }
 .fm-statements {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 20px;
   min-width: 0;
 }
 .fm-statement { min-width: 0; }
-.fm-statement-card {
-  background: var(--paper);
-  border: 1px solid var(--rule);
-  border-radius: 12px;
-  padding: 12px 14px 10px;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.03);
-}
-.fm-panel-statements .fm-handoff {
-  margin: 0 0 0 8px;
-  padding: 6px 10px;
-  font-size: 11.5px;
-  max-width: 28rem;
-}
-.fm-panel-statements .fm-handoff-arrow { font-size: 15px; }
 
 .fm-flow {
   display: grid;
@@ -987,56 +973,33 @@ tr.fm-trace-highlight td:first-child,
 }
 .fm-panel-head h3 { margin: 0; }
 .fm-panel-model .fm-statements { margin-top: 0; }
-.fm-panel-statements table.fm-table {
-  font-size: 12px;
+.fm-panel-model table.fm-table {
   font-variant-numeric: tabular-nums;
 }
-.fm-panel-statements table.fm-table th,
-.fm-panel-statements table.fm-table td {
-  padding: 6px 10px;
-  line-height: 1.35;
-}
-.fm-panel-statements table.fm-table th:first-child,
-.fm-panel-statements table.fm-table td:first-child {
-  min-width: 11rem;
-  max-width: 16rem;
+.fm-panel-model table.fm-table th:first-child,
+.fm-panel-model table.fm-table td:first-child {
   white-space: normal;
-  padding-right: 14px;
+  max-width: 14rem;
+  padding-right: 12px;
 }
-.fm-panel-statements table.fm-table thead th {
-  padding-top: 2px;
-  padding-bottom: 8px;
-  border-bottom-width: 2px;
-}
-.fm-panel-statements table.fm-table tbody tr.fm-section td {
-  padding-top: 0;
-  padding-bottom: 6px;
-  font-size: 13px;
-  letter-spacing: 0.01em;
-  text-transform: none;
-  background: transparent !important;
-}
-.fm-panel-statements table.fm-table tbody tr:not(.fm-section):not(.fm-total):not(.fm-link-ni):not(.fm-link-cash):not(.fm-link-interest):nth-child(even) td {
-  background-color: rgba(0, 0, 0, 0.025);
-}
-.fm-panel-statements table.fm-table tbody tr:not(.fm-section):not(.fm-total):not(.fm-link-ni):not(.fm-link-cash):not(.fm-link-interest):nth-child(even) td:first-child {
-  background-color: color-mix(in srgb, var(--paper-2) 97%, var(--ink) 3%);
-}
-.fm-panel-statements table.fm-table tbody tr.fm-total td {
-  padding-top: 8px;
-  padding-bottom: 8px;
-  border-top: 2px solid var(--rule-strong);
-  font-weight: 600;
-}
-.fm-panel-statements td.fm-forecast {
+.fm-panel-model .fm-handoff {
+  margin: -8px 0 0;
+  padding: 0 0 0 10px;
+  font-size: 11px;
   color: var(--ink-soft);
+  background: transparent;
+  border-left: 2px solid var(--rule);
+  border-radius: 0;
 }
-.fm-panel-statements td.fm-actual {
-  font-weight: 500;
+.fm-panel-model .fm-handoff.is-ni,
+.fm-panel-model .fm-handoff.is-cash,
+.fm-panel-model .fm-handoff.is-interest {
+  background: transparent;
+  border-left-color: var(--rule-strong);
 }
-.fm-panel-statements th.fm-col-actual {
-  font-weight: 600;
-  color: var(--ink);
+.fm-panel-model .fm-handoff-arrow {
+  font-size: 14px;
+  color: var(--ink-soft);
 }
 .fm-legend-compact {
   display: flex;
