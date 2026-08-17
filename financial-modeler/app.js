@@ -4,6 +4,14 @@
  * them. No build step: plain ESM modules loaded by the browser.
  */
 import { prepareHeadlines } from './tag-overrides.js';
+import {
+  applyYear0Inputs,
+  loadDraft,
+  saveDraft,
+  readCikDraft,
+  writeCikDraft,
+  YEAR0_METRIC,
+} from './workspace-draft.js';
 import { ensureRatios, formatUsd, formatPercent } from '../fortune-500/extract.js';
 import { isPublic, PRIVATE_NOTES } from '../fortune-500/catalog.js';
 import { priceTicker } from '../fortune-500/prices.js';
@@ -116,6 +124,7 @@ const state = {
   unitTemplate: 'lemonade',
   mobileAssumptionIndex: 0,
   mobileStatement: 'income',
+  year0: {},
 };
 
 const TABS = [
@@ -374,7 +383,12 @@ async function loadPrice(company) {
 
 function headlinesFor(company) {
   const raw = state.snapshot.get(Number(company?.cik));
-  return raw ? prepareHeadlines(raw, company?.cik) : null;
+  if (!raw) return null;
+  const prepared = prepareHeadlines(raw, company?.cik);
+  if (state.company && Number(company.cik) === Number(state.company.cik)) {
+    return applyYear0Inputs(prepared, state.year0);
+  }
+  return prepared;
 }
 
 function compsOn() {
@@ -566,11 +580,12 @@ function currentCompanyLabel() {
   return ticker ? `${companyName} (${ticker})` : companyName;
 }
 
-function filingsReferenceUrl(company) {
+function filingsReferenceUrl(company, metric) {
   if (!company?.cik) return '/financial-modeler/information.html';
   const ticker = company.fortune_ticker || company.sec_ticker || '';
   const params = new URLSearchParams({ cik: String(company.cik) });
   if (ticker) params.set('ticker', ticker);
+  if (metric) params.set('metric', metric);
   return `/financial-modeler/information.html?${params}`;
 }
 
@@ -1054,12 +1069,67 @@ function renderPeerResults(query) {
   };
 }
 
+
+function draftStore() {
+  try {
+    return localStorage;
+  } catch {
+    return null;
+  }
+}
+
+function persistDraft() {
+  const store = draftStore();
+  const cik = state.company?.cik;
+  if (!store || !isFiler() || cik == null || !state.assumptions) return;
+  const session = {
+    assumptions: state.assumptions,
+    scenarioState: state.scenarioState,
+    sourceDefaults: state.sourceDefaults,
+    year0: state.year0 || {},
+    models: state.models,
+    activeTab: state.activeTab,
+    peerCiks: (state.peers || []).map((c) => c.cik).filter((id) => id != null),
+    phase: state.phase,
+  };
+  saveDraft(store, writeCikDraft(loadDraft(store), cik, session));
+}
+
+function bindYear0Inputs(root) {
+  root?.querySelectorAll('[data-year0-metric]').forEach((el) => {
+    el.addEventListener('change', () => {
+      const key = el.dataset.year0Metric;
+      const raw = String(el.value).trim();
+      const next = { ...(state.year0 || {}) };
+      if (!raw) delete next[key];
+      else {
+        const n = Number(raw.replace(/[^0-9.\-]/g, ''));
+        if (!Number.isFinite(n)) return;
+        next[key] = n * SCALE;
+      }
+      state.year0 = next;
+      state.headlines = headlinesFor(state.company);
+      const fresh = defaultAssumptions(state.headlines);
+      const a = { ...state.assumptions };
+      for (const [k, v] of Object.entries(fresh)) {
+        if ((a[k] == null || !Number.isFinite(a[k])) && typeof v === 'number' && Number.isFinite(v)) a[k] = v;
+      }
+      state.assumptions = a;
+      persistDraft();
+      render();
+    });
+  });
+}
+
 /* ------------------------------ selection ------------------------------ */
 
 async function selectCompany(company) {
+  if (state.company && Number(state.company.cik) !== Number(company.cik)) persistDraft();
+  const saved = readCikDraft(loadDraft(draftStore()), company.cik);
+  state.year0 = saved?.year0 && typeof saved.year0 === 'object' ? { ...saved.year0 } : {};
   state.company = company;
   $('results').hidden = true;
-  $('search').value = company.company;
+  if ($('search')) $('search').value = company.company;
 
   if (!isPublic(company)) {
     state.headlines = null;
@@ -1091,10 +1161,28 @@ async function selectCompany(company) {
 
   $('status').className = 'fm-status';
   $('status').textContent = `Reading ${company.company}’s FY${headlines.asOfYear} 10-K.`;
-  state.assumptions = defaultAssumptions(headlines);
-  initScenarioState(state.assumptions);
-  state.sourceDefaults = { ...state.assumptions };
-  state.peers = state.peers.filter((c) => c.cik !== company.cik);
+  if (saved?.assumptions) {
+    state.assumptions = saved.assumptions;
+    state.scenarioState = saved.scenarioState || null;
+    if (state.scenarioState) syncAssumptionsFromScenarios();
+    else initScenarioState(state.assumptions);
+    state.sourceDefaults = saved.sourceDefaults || { ...defaultAssumptions(headlines) };
+    if (Array.isArray(saved.models) && saved.models.length) state.models = saved.models;
+    if (saved.activeTab) state.activeTab = saved.activeTab;
+    if (Array.isArray(saved.peerCiks)) {
+      state.peers = saved.peerCiks
+        .map((id) => state.companies.find((c) => Number(c.cik) === Number(id)))
+        .filter(Boolean)
+        .filter((c) => c.cik !== company.cik);
+    } else {
+      state.peers = state.peers.filter((c) => c.cik !== company.cik);
+    }
+  } else {
+    state.assumptions = defaultAssumptions(headlines);
+    initScenarioState(state.assumptions);
+    state.sourceDefaults = { ...state.assumptions };
+    state.peers = state.peers.filter((c) => c.cik !== company.cik);
+  }
   $('dock-ratios').href = `/fortune-500/#company=${company.cik}`;
   const dockFilings = $('dock-filings');
   if (dockFilings) dockFilings.href = filingsReferenceUrl(company);
@@ -1494,10 +1582,15 @@ function table(columns, sections, { scale = SCALE, unitLabel = 'US$ millions', r
             .map((c, i) => {
               const v = line.values[i];
               const text = line.fmt === 'raw' ? v : formatCell(line, v, scale);
-              if (text == null) {
-                const showBlank = blankFiledNulls && c.filed && isFiledStatementInput(line.rowKey);
-                return `<td class="fm-blank">${showBlank ? 'blank' : '—'}</td>`;
+              const metricKey = YEAR0_METRIC[line.rowKey];
+              const typed = metricKey != null && state.year0?.[metricKey] != null;
+              const editable = blankFiledNulls && c.filed && isFiledStatementInput(line.rowKey) && (text == null || typed);
+              if (editable) {
+                const shown = typed ? escapeHtml(String(text ?? '')) : '';
+                const href = filingsReferenceUrl(state.company, metricKey);
+                return `<td class="fm-blank fm-blank-edit"><input class="fm-blank-input" data-year0-metric="${escapeHtml(metricKey)}" inputmode="decimal" placeholder="blank" aria-label="${escapeHtml(line.label)} (US$ millions)" value="${shown}" /><a class="fm-blank-filings" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">Filings</a></td>`;
               }
+              if (text == null) return `<td class="fm-blank">—</td>`;
               return `<td class="${c.filed ? 'fm-actual' : 'fm-forecast'}">${escapeHtml(String(text))}</td>`;
             })
             .join('');
@@ -2403,6 +2496,7 @@ function renderMobileWorkspace() {
 
 function render() {
   if (!workspaceLive()) return;
+  persistDraft();
   if (isMobileUi()) {
     renderMobileWorkspace();
     return;
@@ -2420,9 +2514,11 @@ function render() {
   renderWorkspaceStatus(model, dcf);
   const panel = renderActivePanel(run);
   $('output').innerHTML = panel.html;
+  bindYear0Inputs($('output'));
   renderInspectorChecklist(panel.context);
 
   syncRowHighlights();
+  persistDraft();
 
   $('sensitivity-preset')?.addEventListener('change', (e) => {
     state.sensitivityPreset = e.target.value;
@@ -2633,6 +2729,16 @@ async function boot() {
     return;
   }
   $('status').textContent = `${state.companies.length} companies loaded. ${state.snapshot.size} have a filing we can model.`;
+  window.addEventListener('beforeunload', persistDraft);
+  const draft = loadDraft(draftStore());
+  const last = draft.lastCik;
+  const session = readCikDraft(draft, last);
+  const company = last ? state.companies.find((c) => String(c.cik) === String(last)) : null;
+  if (company && session) {
+    state.exercise = 'filer';
+    await selectCompany(company);
+    if (session.phase === 'workspace') enterWorkspace();
+  }
 }
 
 boot();
