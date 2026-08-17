@@ -14,6 +14,8 @@ import {
   dcfSensitivity,
   runComps,
   modelReadiness,
+  isFiledStatementInput,
+  missingFiledStatementInputs,
   SCALE,
 } from './engine.js';
 import { DIALS, DIAL_GROUPS, dialsFor } from './dials.js';
@@ -1476,7 +1478,7 @@ function formatCell(line, v, scale) {
   return n.toLocaleString('en-US', { maximumFractionDigits: digits, minimumFractionDigits: 0 });
 }
 
-function table(columns, sections, { scale = SCALE, unitLabel = 'US$ millions', rowKeyFor } = {}) {
+function table(columns, sections, { scale = SCALE, unitLabel = 'US$ millions', rowKeyFor, blankFiledNulls = false } = {}) {
   const head = `<thead><tr><th>${escapeHtml(unitLabel)}</th>${columns
     .map((c) => {
       const label = c.label || `FY${c.year}${c.filed ? 'A' : 'E'}`;
@@ -1492,7 +1494,11 @@ function table(columns, sections, { scale = SCALE, unitLabel = 'US$ millions', r
             .map((c, i) => {
               const v = line.values[i];
               const text = line.fmt === 'raw' ? v : formatCell(line, v, scale);
-              return `<td class="${text == null ? 'fm-blank' : c.filed ? 'fm-actual' : 'fm-forecast'}">${text == null ? '—' : escapeHtml(String(text))}</td>`;
+              if (text == null) {
+                const showBlank = blankFiledNulls && c.filed && isFiledStatementInput(line.rowKey);
+                return `<td class="fm-blank">${showBlank ? 'blank' : '—'}</td>`;
+              }
+              return `<td class="${c.filed ? 'fm-actual' : 'fm-forecast'}">${escapeHtml(String(text))}</td>`;
             })
             .join('');
           const cls = [line.total ? 'fm-total' : '', line.cls || ''].filter(Boolean).join(' ');
@@ -1518,6 +1524,24 @@ function handoff(kind, arrow, text) {
   </div>`;
 }
 
+function joinEnglish(items) {
+  if (!items.length) return '';
+  if (items.length === 1) return items[0];
+  if (items.length === 2) return `${items[0]} and ${items[1]}`;
+  return `${items.slice(0, -1).join(', ')}, and ${items[items.length - 1]}`;
+}
+
+function blankFiledNote(model) {
+  if (model.kind === 'unit' || model.kind === 'single-unit') return '';
+  const missing = missingFiledStatementInputs(model.rows?.[0]);
+  if (!missing.length) return '';
+  const labels = missing.map((item, i) => (i === 0 ? item.label : item.label.charAt(0).toLowerCase() + item.label.slice(1)));
+  const list = joinEnglish(labels);
+  const verb = missing.length === 1 ? 'was' : 'were';
+  const filingsHref = filingsReferenceUrl(state.company);
+  return `<p class="fm-blank-note">${escapeHtml(list)} ${verb} not tagged on this 10-K — shown as blank. <a href="${escapeHtml(filingsHref)}" target="_blank" rel="noopener noreferrer">Filings (reference)</a></p>`;
+}
+
 function threeStatementPanel(model) {
   const rows = model.rows;
   const unitKind = model.kind === 'unit' || model.kind === 'single-unit';
@@ -1528,15 +1552,13 @@ function threeStatementPanel(model) {
     filed: r.filed,
     label: unitKind ? `Y${r.year}` : `FY${r.year}${r.filed ? 'A' : 'E'}`,
   }));
-  const hasGross = model.assumptions.grossMargin != null || unitKind;
-  const opts = { scale, unitLabel };
+  const opts = { scale, unitLabel, blankFiledNulls: !unitKind };
 
   const isLines = [
     ...(unitKind ? [lineOf(rows, 'Transactions', 'transactions', { fmt: 'qty' })] : []),
     lineOf(rows, 'Revenue', 'revenue'),
-    ...(hasGross
-      ? [lineOf(rows, 'Cost of sales', 'cogs'), lineOf(rows, 'Gross profit', 'grossProfit', { total: true })]
-      : []),
+    lineOf(rows, 'Cost of sales', 'cogs'),
+    lineOf(rows, 'Gross profit', 'grossProfit', { total: true }),
     ...(unitKind
       ? [lineOf(rows, 'Labor', 'labor'), lineOf(rows, 'Other operating costs', 'otherOpex')]
       : [lineOf(rows, 'Operating expenses', 'opex')]),
@@ -1605,6 +1627,7 @@ function threeStatementPanel(model) {
 
   return `<section class="fm-panel fm-panel-model">
     ${returnsBlock}
+    ${blankFiledNote(model)}
     <div class="fm-statements">
       <div class="fm-statement">${is}</div>
       ${handoff('ni', '↓', 'Net income → cash flow & equity')}

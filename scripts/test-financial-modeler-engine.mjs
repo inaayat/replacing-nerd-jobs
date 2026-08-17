@@ -14,6 +14,8 @@ import {
   modelReadiness,
   median,
   mean,
+  missingFiledStatementInputs,
+  isFiledStatementInput,
 } from '../financial-modeler/engine.js';
 
 const B = 1e9;
@@ -76,8 +78,8 @@ assert.equal(modelReadiness(retailer()).ok, true);
 }
 
 {
-  // A filer with no gross profit tag keeps a null gross margin — the model
-  // drops the line rather than pretending cost of sales is zero.
+  // A filer with no gross profit tag keeps a null gross margin — cost of sales
+  // stays on the statements as null rather than pretending it is zero.
   const bank = retailer({ gross_profit: null, inventory: null, receivables: null });
   bank.ratios = { ...bank.ratios, gross_margin: null };
   const a = defaultAssumptions(bank);
@@ -86,10 +88,15 @@ assert.equal(modelReadiness(retailer()).ok, true);
   assert.equal(a.dsoDays, null);
   const model = runThreeStatement(bank, a);
   assert.equal(model.ok, true);
+  assert.equal(model.rows[0].grossProfit, null);
+  assert.equal(model.rows[0].cogs, null);
+  assert.equal(model.rows[0].receivables, null);
+  assert.equal(model.rows[0].inventory, null);
+  assert.ok(missingFiledStatementInputs(model.rows[0]).some((m) => m.key === 'cogs'));
   for (const row of model.rows.slice(1)) {
     assert.equal(row.grossProfit, null);
     assert.equal(row.cogs, null);
-    // Untagged working capital holds flat instead of being sized off a guess.
+    // Untagged working capital holds flat at 0 instead of being sized off a guess.
     assert.equal(row.receivables, 0);
   }
   assert.equal(model.checks.balances, true);
@@ -116,6 +123,11 @@ assert.equal(modelReadiness(retailer()).ok, true);
   assert.equal(row0.totalLiabEquity, 150 * B);
   assert.equal(row0.otherAssets, 150 * B - 20 * B - 10 * B - 15 * B);
   assert.equal(row0.otherLiabilities, 90 * B - 30 * B);
+  assert.ok(row0.cogs < 0 && Number.isFinite(row0.cogs), 'a company with gross profit still has numeric cost of sales');
+  assert.ok(Number.isFinite(row0.grossProfit));
+  assert.equal(row0.cash, 20 * B);
+  assert.equal(row0.debt, 30 * B);
+  assert.deepEqual(missingFiledStatementInputs(row0), []);
 
   for (const row of model.rows) {
     assert.ok(
@@ -369,6 +381,34 @@ assert.equal(mean([]), null);
   });
   const model = runThreeStatement(headlines, defaultAssumptions(headlines));
   assert.equal(model.rows[0].debt, 90.68e9, 'dual-tagged filer uses current + noncurrent, not legacy total twice');
+}
+
+{
+  // Missing cash / debt tags stay null on year 0 so the UI can say "blank"
+  // instead of $0. Forecasts still run by treating the opening stock as 0,
+  // and the residual lines absorb the untagged remainder so year 0 still ties.
+  const headlines = retailer({ cash: null, long_term_debt: null });
+  const model = runThreeStatement(headlines, defaultAssumptions(headlines));
+  assert.equal(model.ok, true);
+  const row0 = model.rows[0];
+  assert.equal(row0.cash, null);
+  assert.equal(row0.debt, null);
+  assert.equal(row0.otherAssets, 150 * B - 10 * B - 15 * B, 'untagged cash stays in other assets');
+  assert.equal(row0.otherLiabilities, 90 * B, 'untagged debt stays in other liabilities');
+  assert.equal(row0.totalAssets, 150 * B);
+  assert.equal(row0.totalLiabEquity, 150 * B);
+  assert.equal(model.checks.balances, true);
+  const y1 = model.rows[1];
+  assert.ok(Number.isFinite(y1.cash), 'forecast cash still rolls forward from a 0 opening');
+  assert.equal(y1.debt, 0, 'forecast debt rolls forward from a 0 opening');
+  assert.ok(Number.isFinite(y1.interestIncome));
+  assert.ok(Number.isFinite(y1.interestExpense));
+  const missing = missingFiledStatementInputs(row0);
+  assert.ok(missing.some((m) => m.key === 'cash'));
+  assert.ok(missing.some((m) => m.key === 'debt'));
+  assert.equal(isFiledStatementInput('cash'), true);
+  assert.equal(isFiledStatementInput('interestExpense'), false);
+  assert.equal(isFiledStatementInput('netChangeCash'), false);
 }
 
 {

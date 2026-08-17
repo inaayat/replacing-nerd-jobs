@@ -102,6 +102,8 @@ assert.equal(clampIndex(0, 0), 0);
   const balance = linesForStatement({ ...model, rows: shown }, 'balance');
   assert.equal(income.at(-1).key, 'netIncome');
   assert.equal(income.at(-1).values.length, 4);
+  assert.ok(income.some((l) => l.key === 'cogs'));
+  assert.ok(income.some((l) => l.key === 'grossProfit'));
   assert.equal(cash.at(-1).key, 'netChangeCash');
   assert.equal(balance.at(-1).key, 'balanceCheck');
   assert.equal(
@@ -178,6 +180,43 @@ assert.equal(clampIndex(0, 0), 0);
   assert.doesNotMatch(html, /Download Excel/);
   assert.match(html, /Phone walkthrough/);
   assert.match(html, /three years/);
+}
+
+{
+  const headlines = retailer();
+  headlines.metrics.gross_profit = null;
+  headlines.metrics.cash = null;
+  headlines.metrics.long_term_debt = null;
+  headlines.ratios.gross_margin = null;
+  const model = runThreeStatement(headlines, defaultAssumptions(headlines));
+  const income = linesForStatement(model, 'income');
+  const balance = linesForStatement(model, 'balance');
+  assert.ok(income.some((l) => l.key === 'cogs'), '10-K income statement always includes cost of sales');
+  assert.equal(income.find((l) => l.key === 'cogs').values[0], null);
+  assert.equal(income.find((l) => l.key === 'grossProfit').values[0], null);
+  assert.equal(balance.find((l) => l.key === 'cash').values[0], null);
+  assert.equal(balance.find((l) => l.key === 'debt').values[0], null);
+
+  const html = renderMobileHtml({
+    title: 'Untagged Inc',
+    subtitle: 'TEST · FY2025 10-K',
+    statusOk: true,
+    statusChip: 'Sheet ties',
+    statusText: 'Balance sheet ties in every projected year.',
+    dials: [],
+    assumptionIndex: 0,
+    statementId: 'income',
+    pages: STATEMENT_PAGES,
+    rows: model.rows.slice(0, 4),
+    kind: undefined,
+    assumptions: model.assumptions,
+    scale: 1e6,
+    unitLabel: 'US$ millions',
+    yearNote: 'Showing FY2025A–FY2028E.',
+  });
+  assert.match(html, /Cost of sales/);
+  assert.match(html, /<td class="fm-blank">blank<\/td>/);
+  assert.match(html, /<td class="fm-blank">—<\/td>/, 'year-0 interest/taxes stay em-dashes');
 }
 
 console.log('financial modeler mobile tests passed');
