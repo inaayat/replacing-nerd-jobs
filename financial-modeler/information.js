@@ -984,5 +984,12 @@ await loadData();
 $('info-status').textContent = `${state.companies.length} public filers. Search a name to open its tagged metrics.`;
 bind();
 const initial = findByQuery();
-if (initial) selectCompany(initial);
-else renderResults(searchCompanies('apple'));
+const metric = new URLSearchParams(window.location.search).get('metric');
+if (initial) {
+  selectCompany(initial);
+  if (metric) {
+    const jump = () => document.querySelector(`[data-metric="${CSS.escape(metric)}"]`)?.scrollIntoView({ block: 'center' });
+    jump();
+    setTimeout(jump, 400);
+  }
+} else renderResults(searchCompanies('apple'));
