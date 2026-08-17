@@ -646,7 +646,10 @@ function bindWorkspaceAdjust(bar) {
   const search = $('ws-company-search');
   const companyPop = $('ws-company-pop');
   companyPop?.addEventListener('mousedown', (e) => e.preventDefault());
-  search?.addEventListener('focus', () => search.select());
+  search?.addEventListener('focus', () => {
+    search.select();
+    syncWsPopPositions();
+  });
   search?.addEventListener('input', (e) => renderWsCompanyResults(e.target.value));
   search?.addEventListener('blur', () => {
     setTimeout(() => {
@@ -658,6 +661,7 @@ function bindWorkspaceAdjust(bar) {
   const peerSearch = $('ws-peer-search');
   const peerPop = $('ws-peer-pop');
   peerPop?.addEventListener('mousedown', (e) => e.preventDefault());
+  peerSearch?.addEventListener('focus', syncWsPopPositions);
   peerSearch?.addEventListener('input', (e) => renderWsPeerResults(e.target.value));
   peerSearch?.addEventListener('blur', () => {
     setTimeout(() => hideWsPop('ws-peer-pop', 'ws-peer-results'), 150);
@@ -676,8 +680,58 @@ function showWsPop(popId) {
   if (pop) pop.hidden = false;
 }
 
+const WS_POP_ROW_PX = 42;
+
+/** How many result rows fit below (or above) the input without scrolling the list. */
+function wsPopVisibleLimit(input) {
+  if (!input) return 8;
+  const rect = input.getBoundingClientRect();
+  const below = window.innerHeight - rect.bottom - 12;
+  const above = rect.top - 12;
+  const space = Math.max(below, above);
+  return Math.max(4, Math.min(40, Math.floor(space / WS_POP_ROW_PX)));
+}
+
+function positionWsPop(popId, inputId) {
+  const pop = $(popId);
+  const input = $(inputId);
+  if (!pop || !input || pop.hidden) return;
+  const rect = input.getBoundingClientRect();
+  const width = Math.min(320, Math.max(rect.width, 260));
+  let left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+  const below = window.innerHeight - rect.bottom - 8;
+  const above = rect.top - 8;
+  const openBelow = below >= above;
+  pop.style.position = 'fixed';
+  pop.style.left = `${left}px`;
+  pop.style.width = `${width}px`;
+  pop.style.zIndex = '100';
+  pop.style.right = 'auto';
+  if (openBelow) {
+    pop.style.top = `${rect.bottom + 4}px`;
+    pop.style.bottom = 'auto';
+  } else {
+    pop.style.top = 'auto';
+    pop.style.bottom = `${window.innerHeight - rect.top + 4}px`;
+  }
+}
+
+function syncWsPopPositions() {
+  if (!$('ws-company-pop')?.hidden) positionWsPop('ws-company-pop', 'ws-company-search');
+  if (!$('ws-peer-pop')?.hidden) positionWsPop('ws-peer-pop', 'ws-peer-search');
+}
+
+let wsPopListenersBound = false;
+function bindWsPopListeners() {
+  if (wsPopListenersBound) return;
+  wsPopListenersBound = true;
+  window.addEventListener('resize', syncWsPopPositions);
+  window.addEventListener('scroll', syncWsPopPositions, true);
+}
+
 function renderWsCompanyResults(query) {
   const box = $('ws-company-results');
+  const input = $('ws-company-search');
   if (!box) return;
   const q = query.trim().toLowerCase();
   if (!q || q === currentCompanyLabel().toLowerCase()) {
@@ -685,6 +739,7 @@ function renderWsCompanyResults(query) {
     return;
   }
   showWsPop('ws-company-pop');
+  const limit = wsPopVisibleLimit(input);
   const hits = state.companies
     .filter(
       (c) =>
@@ -693,10 +748,11 @@ function renderWsCompanyResults(query) {
         c.sec_ticker?.toLowerCase().includes(q) ||
         c.blurb?.toLowerCase().includes(q)
     )
-    .slice(0, 40);
+    .slice(0, limit);
   box.hidden = false;
   if (!hits.length) {
     box.innerHTML = '<p class="fm-empty">Nothing by that name in the company list.</p>';
+    positionWsPop('ws-company-pop', 'ws-company-search');
     return;
   }
   box.innerHTML = hits
@@ -716,10 +772,12 @@ function renderWsCompanyResults(query) {
     );
     if (company) selectCompany(company);
   };
+  positionWsPop('ws-company-pop', 'ws-company-search');
 }
 
 function renderWsPeerResults(query) {
   const box = $('ws-peer-results');
+  const input = $('ws-peer-search');
   if (!box) return;
   const q = query.trim().toLowerCase();
   if (!q) {
@@ -727,6 +785,7 @@ function renderWsPeerResults(query) {
     return;
   }
   showWsPop('ws-peer-pop');
+  const limit = wsPopVisibleLimit(input);
   const hits = state.companies
     .filter(
       (c) =>
@@ -735,10 +794,11 @@ function renderWsPeerResults(query) {
         c.sec_ticker?.toLowerCase().includes(q) ||
         c.blurb?.toLowerCase().includes(q)
     )
-    .slice(0, 40);
+    .slice(0, limit);
   box.hidden = false;
   if (!hits.length) {
     box.innerHTML = '<p class="fm-empty">Nothing by that name in the company list.</p>';
+    positionWsPop('ws-peer-pop', 'ws-peer-search');
     return;
   }
   box.innerHTML = hits
@@ -761,6 +821,7 @@ function renderWsPeerResults(query) {
     if (isPeer(company)) removePeer(company.cik);
     else addPeer(company);
   };
+  positionWsPop('ws-peer-pop', 'ws-peer-search');
 }
 
 function renderTabs() {
@@ -2503,6 +2564,7 @@ function download() {
 
 async function boot() {
   applyMobileClass();
+  bindWsPopListeners();
   const mq = window.matchMedia(MOBILE_MQ);
   mq.addEventListener?.('change', () => {
     applyMobileClass();

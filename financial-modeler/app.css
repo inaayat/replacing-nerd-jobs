@@ -491,7 +491,8 @@ tr.fm-link-interest td:first-child { background: rgba(26, 73, 196, 0.1); }
   padding: 0 12px;
 }
 .fm-landing-filer .fm-results {
-  max-height: min(14rem, 32vh);
+  max-height: none;
+  overflow: visible;
   margin-top: 8px;
 }
 .fm-exercise-pick {
@@ -1448,10 +1449,8 @@ td.fm-blank { color: var(--rule-strong); }
 }
 .fm-ws-models button:disabled { cursor: default; opacity: 1; }
 .fm-ws-pop {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  z-index: 8;
+  position: fixed;
+  z-index: 100;
   width: min(320px, 80vw);
   padding: 6px;
   border: 1px solid var(--rule-strong);
@@ -1464,8 +1463,7 @@ td.fm-blank { color: var(--rule-strong); }
   flex-direction: column;
   gap: 4px;
   margin: 0;
-  max-height: 220px;
-  overflow: auto;
+  overflow: visible;
   grid-template-columns: none;
 }
 .fm-ws-pop .fm-result { padding: 6px 8px; }
