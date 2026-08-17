@@ -1,5 +1,5 @@
 import { escapeHtml, posterHtml, shortDate } from './format.js';
-import { todayISO } from './dates.js';
+import { todayISO, monthsBeforeISO } from './dates.js';
 import { prefillQuickLog } from './quick-log.js';
 import { watchlistApi, movieApi } from './api.js';
 import { wireComboboxKeys } from './combobox.js';
@@ -24,6 +24,73 @@ export function releaseState(item, today = todayISO()) {
 
 export function isAlreadyOut(item, today = todayISO()) {
   return releaseState(item, today) === 'released';
+}
+
+/** Best date for age comparisons; year-only rows use Jan 1 of that year. */
+export function effectiveReleaseDate(item) {
+  if (item.release_date) return item.release_date;
+  if (item.year != null) return `${item.year}-01-01`;
+  return null;
+}
+
+/** Released titles still likely in theaters (~3 calendar months). */
+export function theatricalCutoffISO(today = todayISO(), now = new Date()) {
+  const [y, m, d] = today.split('-').map(Number);
+  return monthsBeforeISO(3, new Date(y, m - 1, d));
+}
+
+/**
+ * 'coming-soon' | 'in-theaters' | 'watch-at-home' | 'unknown'.
+ * Unknown dates stay on Coming Soon — we can't claim they're out or at home.
+ */
+export function watchlistBucket(item, today = todayISO()) {
+  const state = releaseState(item, today);
+  if (state === 'upcoming') return 'coming-soon';
+  if (state === 'unknown') return 'unknown';
+  const effective = effectiveReleaseDate(item);
+  if (!effective) return 'unknown';
+  return effective >= theatricalCutoffISO(today) ? 'in-theaters' : 'watch-at-home';
+}
+
+export function isInTheaters(item, today = todayISO()) {
+  return watchlistBucket(item, today) === 'in-theaters';
+}
+
+export function isWatchAtHome(item, today = todayISO()) {
+  return watchlistBucket(item, today) === 'watch-at-home';
+}
+
+export function sortInTheaters(items, today = todayISO()) {
+  return items
+    .filter((item) => isInTheaters(item, today))
+    .sort((a, b) => {
+      const aDate = effectiveReleaseDate(a) || '0000-01-01';
+      const bDate = effectiveReleaseDate(b) || '0000-01-01';
+      if (aDate !== bDate) return bDate.localeCompare(aDate);
+      return String(a.title || '').localeCompare(String(b.title || ''));
+    });
+}
+
+/** Left theaters; most recently released first. */
+export function sortWatchAtHome(items, today = todayISO()) {
+  return items
+    .filter((item) => isWatchAtHome(item, today))
+    .sort((a, b) => {
+      const aDate = effectiveReleaseDate(a) || '0000-01-01';
+      const bDate = effectiveReleaseDate(b) || '0000-01-01';
+      if (aDate !== bDate) return bDate.localeCompare(aDate);
+      return String(a.title || '').localeCompare(String(b.title || ''));
+    });
+}
+
+export function itemsForWatchlistView(items, view, today = todayISO()) {
+  const unknown = items
+    .filter((item) => releaseState(item, today) === 'unknown')
+    .sort((a, b) => String(a.title || '').localeCompare(String(b.title || '')));
+  if (view === 'coming-soon') return [...sortComingSoon(items, today), ...unknown];
+  if (view === 'in-theaters') return sortInTheaters(items, today);
+  if (view === 'watch-at-home') return sortWatchAtHome(items, today);
+  return combinedWatchlistItems(items, today);
 }
 
 /** Coming soon first (soonest release), undated future years after dated ones. */
@@ -383,19 +450,27 @@ function watchlistDetailPanelHtml(item, state, { detailsKind = 'movie', detailCl
   `);
 }
 
-function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detailsKind = 'movie' } = {}) {
+function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detailsKind = 'movie', view = null } = {}) {
   const expanded = item.id === state.expandedId;
-  // Released titles are the exception in a list called Coming Soon, so they
-  // carry the badge — the old treatment shaded the majority of the list.
-  const out = isAlreadyOut(item);
-  const outBadge = out ? ' <span class="al-badge al-badge--muted">Already out</span>' : '';
+  const bucket = view ? watchlistBucket(item) : null;
+  let badge = '';
+  if (!view && isAlreadyOut(item)) {
+    badge = ' <span class="al-badge al-badge--muted">Already out</span>';
+  } else if (view === 'in-theaters') {
+    badge = ' <span class="al-badge al-badge--muted">In theaters</span>';
+  } else if (view === 'watch-at-home') {
+    badge = ' <span class="al-badge al-badge--muted">Watch at home</span>';
+  }
+  const out = view
+    ? (bucket === 'in-theaters' || bucket === 'watch-at-home')
+    : isAlreadyOut(item);
   return `
     <div class="al-log-entry ${expanded ? 'is-expanded' : ''}${out ? ' is-already-out' : ''}" data-entry-id="${item.id}">
       <article class="al-log-row al-log-row--watchlist al-log-row--clickable ${expanded ? 'is-expanded' : ''}" data-expand-row tabindex="0" aria-expanded="${expanded}" aria-label="Toggle details">
         <div class="al-log-col al-col-poster">${posterHtml(item, { size: 'w92', width: 28, height: 42 })}</div>
         <div class="al-log-col al-log-col--desktop">${escapeHtml(releaseLabel(item))}</div>
         <div class="al-log-col--body">
-          <div class="al-log-col al-log-col--title">${escapeHtml(item.title)}${outBadge}</div>
+          <div class="al-log-col al-log-col--title">${escapeHtml(item.title)}${badge}</div>
           <div class="al-log-col al-log-col--mobile-meta al-only-mobile">${mobileWatchlistMeta(item)}</div>
         </div>
         <div class="al-log-col al-log-col--desktop al-muted">${escapeHtml(item.notes || '—')}</div>
@@ -410,7 +485,7 @@ function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detai
   `;
 }
 
-export function watchlistLogTableHtml(items, state, { emptyMessage, logLabel, detailsKind } = {}) {
+export function watchlistLogTableHtml(items, state, { emptyMessage, logLabel, detailsKind, view = null } = {}) {
   if (!items.length) {
     return `<div class="al-empty">${emptyMessage || 'Nothing here yet.'}</div>`;
   }
@@ -426,7 +501,7 @@ export function watchlistLogTableHtml(items, state, { emptyMessage, logLabel, de
       ${items.map((item) => (
         item.id === state.editingId
           ? watchlistEditRowHtml(item)
-          : watchlistViewEntryHtml(item, state, { logLabel, detailsKind })
+          : watchlistViewEntryHtml(item, state, { logLabel, detailsKind, view })
       )).join('')}
     </div>
   `;
@@ -469,13 +544,21 @@ export function wireWatchlistLogList(auth, state, {
   detailsKind = 'movie',
   onLogItem,
   logLabel = 'Log screening',
+  view = null,
 }) {
   if (!state.detailsCache) state.detailsCache = new Map();
 
   const render = () => {
     const items = getItems();
     const message = typeof emptyMessage === 'function' ? emptyMessage() : emptyMessage;
-    listEl.innerHTML = watchlistLogTableHtml(items, state, { emptyMessage: message, logLabel, detailsKind });
+    const resolvedLogLabel = typeof logLabel === 'function' ? logLabel() : logLabel;
+    const resolvedView = typeof view === 'function' ? view() : view;
+    listEl.innerHTML = watchlistLogTableHtml(items, state, {
+      emptyMessage: message,
+      logLabel: resolvedLogLabel,
+      detailsKind,
+      view: resolvedView,
+    });
     onChange?.();
     wireWatchlistLogActions(auth, state, render, {
       api,

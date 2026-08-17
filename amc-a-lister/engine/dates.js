@@ -24,3 +24,9 @@ export function toLocalISO(date) {
 export function currentMonthISO(now = new Date()) {
   return `${todayISO(now).slice(0, 7)}-01`;
 }
+
+/** Local calendar date N months before today (or `now`), as YYYY-MM-DD. */
+export function monthsBeforeISO(months, now = new Date()) {
+  const d = new Date(now.getFullYear(), now.getMonth() - months, now.getDate());
+  return toLocalISO(d);
+}

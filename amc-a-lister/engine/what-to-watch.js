@@ -1,19 +1,26 @@
 import { bootPage, renderShell, requireSignIn, populateSidebarStats } from './nav.js';
 import { watchlistApi } from './api.js';
+import { prefillQuickLog } from './quick-log.js';
 import {
-  sortAlreadyOut,
-  sortComingSoon,
-  combinedWatchlistItems,
+  sortInTheaters,
+  sortWatchAtHome,
+  itemsForWatchlistView,
   wireWatchlistLogList,
   wireWatchlistAddForm,
 } from './watchlist-ui.js';
+
+const VIEWS = {
+  'coming-soon': { label: 'Coming Soon', segment: 'Coming Soon', logLabel: 'Log screening' },
+  'in-theaters': { label: 'In Theaters', segment: 'In Theaters', logLabel: 'Log screening' },
+  'watch-at-home': { label: 'Watch at Home', segment: 'Watch at Home', logLabel: 'Log at home' },
+};
 
 bootPage(async ({ root, auth }) => {
   if (!requireSignIn(auth, root)) return;
 
   root.innerHTML = renderShell({
     title: 'Coming Soon',
-    subtitle: "What's next, and what's already playing.",
+    subtitle: "What's next, in theaters, and ready to watch at home.",
     body: `<main class="al-main" id="wtw-main"><p class="al-muted">Loading…</p></main>`,
     signedIn: true,
   });
@@ -46,7 +53,7 @@ async function clearLoggedFromList(auth, logged) {
     state.rerender?.();
     const statusEl = document.getElementById('watchlist-status');
     if (statusEl) {
-      statusEl.textContent = `Logged ${match.title} — removed from Coming Soon.`;
+      statusEl.textContent = `Logged ${match.title} — removed from your list.`;
       setTimeout(() => { statusEl.textContent = ''; }, 3000);
     }
   } catch {
@@ -61,12 +68,26 @@ async function loadPage(auth) {
   if (!main) return;
 
   const { items: watchlist } = await watchlistApi.list(auth.token);
+  const soonCount = itemsForWatchlistView(watchlist, 'coming-soon').length;
+  const theatersCount = sortInTheaters(watchlist).length;
+  const homeCount = sortWatchAtHome(watchlist).length;
 
   main.innerHTML = `
     <section class="al-panel al-panel--log al-panel--watchlist" id="watchlist-panel">
       <div class="al-watchlist-header al-watchlist-header--compact">
-        <h2 class="al-section-title">Coming Soon</h2>
+        <h2 class="al-section-title" id="wtw-section-title">${VIEWS['coming-soon'].label}</h2>
         <span class="al-muted" id="wtw-count">${watchlist.length}</span>
+      </div>
+      <div class="al-segment al-watchlist-segment" role="tablist" aria-label="Watchlist view">
+        <button type="button" class="al-segment-btn is-active" data-wtw-view="coming-soon" role="tab" aria-selected="true">
+          Coming Soon <span class="al-segment-count" id="wtw-soon-count">${soonCount}</span>
+        </button>
+        <button type="button" class="al-segment-btn" data-wtw-view="in-theaters" role="tab" aria-selected="false">
+          In Theaters <span class="al-segment-count" id="wtw-theaters-count">${theatersCount}</span>
+        </button>
+        <button type="button" class="al-segment-btn" data-wtw-view="watch-at-home" role="tab" aria-selected="false">
+          Watch at Home <span class="al-segment-count" id="wtw-home-count">${homeCount}</span>
+        </button>
       </div>
       <p class="al-muted al-watchlist-summary" id="wtw-summary"></p>
       <form class="al-watchlist-add" id="watchlist-add-form" autocomplete="off">
@@ -88,6 +109,7 @@ async function loadPage(auth) {
 
   const state = {
     watchlist,
+    view: 'coming-soon',
     search: '',
     expandedId: null,
     editingId: null,
@@ -98,47 +120,75 @@ async function loadPage(auth) {
   };
   pageState = state;
 
+  const sectionTitle = document.getElementById('wtw-section-title');
   const countEl = document.getElementById('wtw-count');
   const summaryEl = document.getElementById('wtw-summary');
   const filterCountEl = document.getElementById('wtw-filter-count');
+  const soonCountEl = document.getElementById('wtw-soon-count');
+  const theatersCountEl = document.getElementById('wtw-theaters-count');
+  const homeCountEl = document.getElementById('wtw-home-count');
 
-  const getAllItems = () => combinedWatchlistItems(state.watchlist);
+  const getViewItems = () => itemsForWatchlistView(state.watchlist, state.view);
 
   const getFilteredItems = () => {
     const q = state.search.trim().toLowerCase();
-    const items = getAllItems();
+    const items = getViewItems();
     if (!q) return items;
     return items.filter((item) => `${item.title} ${item.notes || ''}`.toLowerCase().includes(q));
   };
 
-  const refreshHeader = () => {
-    const out = sortAlreadyOut(state.watchlist);
-    const soon = sortComingSoon(state.watchlist);
-    const filtered = getFilteredItems();
-    const total = state.watchlist.length;
+  const emptyMessageForView = () => {
+    if (state.search.trim()) return 'No matches.';
+    const cfg = VIEWS[state.view];
+    if (state.view === 'coming-soon') return 'Nothing coming soon. Add a title above.';
+    if (state.view === 'in-theaters') return 'Nothing in theaters right now.';
+    return 'Nothing to watch at home yet.';
+  };
 
-    if (countEl) countEl.textContent = String(total);
+  const refreshHeader = () => {
+    const cfg = VIEWS[state.view];
+    const soon = itemsForWatchlistView(state.watchlist, 'coming-soon');
+    const theaters = sortInTheaters(state.watchlist);
+    const home = sortWatchAtHome(state.watchlist);
+    const viewItems = getViewItems();
+    const filtered = getFilteredItems();
+
+    if (sectionTitle) sectionTitle.textContent = cfg.label;
+    if (soonCountEl) soonCountEl.textContent = String(soon.length);
+    if (theatersCountEl) theatersCountEl.textContent = String(theaters.length);
+    if (homeCountEl) homeCountEl.textContent = String(home.length);
+    if (countEl) countEl.textContent = String(viewItems.length);
+
     if (summaryEl) {
       const parts = [];
-      if (out.length) parts.push(`${out.length} already out`);
       if (soon.length) parts.push(`${soon.length} coming soon`);
+      if (theaters.length) parts.push(`${theaters.length} in theaters`);
+      if (home.length) parts.push(`${home.length} watch at home`);
       summaryEl.textContent = parts.join(' · ') || 'Nothing on your list yet.';
     }
+
     if (filterCountEl) {
+      const total = viewItems.length;
       filterCountEl.textContent = filtered.length === total
         ? `${total} title${total === 1 ? '' : 's'}`
         : `${filtered.length} of ${total}`;
     }
   };
 
+  const onLogItem = (item) => {
+    const mode = state.view === 'watch-at-home' ? 'off-theater' : 'theater';
+    prefillQuickLog({ title: item.title, tmdbId: item.tmdb_id, mode, watchlistId: item.id });
+  };
+
   const renderList = wireWatchlistLogList(auth, state, {
     listEl: document.getElementById('watchlist-list'),
     statusEl: document.getElementById('watchlist-status'),
     getItems: getFilteredItems,
-    emptyMessage: () => (state.search.trim()
-      ? 'No matches.'
-      : 'Nothing on your list yet. Add a title above.'),
+    emptyMessage: emptyMessageForView,
     onChange: refreshHeader,
+    onLogItem,
+    logLabel: () => VIEWS[state.view].logLabel,
+    view: () => state.view,
   });
   state.rerender = renderList;
 
@@ -154,6 +204,20 @@ async function loadPage(auth) {
   document.getElementById('wtw-search').addEventListener('input', (e) => {
     state.search = e.target.value;
     renderList();
+  });
+
+  document.querySelectorAll('[data-wtw-view]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.view = btn.dataset.wtwView;
+      state.expandedId = null;
+      state.editingId = null;
+      document.querySelectorAll('[data-wtw-view]').forEach((b) => {
+        const active = b.dataset.wtwView === state.view;
+        b.classList.toggle('is-active', active);
+        b.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+      renderList();
+    });
   });
 
   refreshHeader();

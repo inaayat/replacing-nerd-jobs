@@ -8,7 +8,15 @@ import {
   combinedWatchlistItems,
   isAlreadyOut,
   releaseState,
+  watchlistBucket,
+  isInTheaters,
+  isWatchAtHome,
+  sortInTheaters,
+  sortWatchAtHome,
+  itemsForWatchlistView,
+  theatricalCutoffISO,
 } from '../amc-a-lister/engine/watchlist-ui.js';
+import { monthsBeforeISO } from '../amc-a-lister/engine/dates.js';
 
 let passed = 0;
 let failed = 0;
@@ -90,6 +98,58 @@ assert(releaseState({ release_date: '2027-01-01' }, today) === 'upcoming', 'futu
 assert(releaseState({ year: 2020 }, today) === 'released', 'past year is released');
 assert(releaseState({ year: 2026 }, today) === 'upcoming', 'current year is still upcoming');
 assert(isAlreadyOut({ title: 'Unlinked' }, today) === false, 'unknown is not badged as already out');
+
+assertEqual(monthsBeforeISO(3, new Date(2026, 7, 11)), '2026-05-11', '3 calendar months before Aug 11');
+assertEqual(theatricalCutoffISO(today), '2026-05-11', 'theatrical cutoff is 3 months back');
+
+const bucketItems = [
+  { id: 'future', title: 'Future', release_date: '2026-09-01' },
+  { id: 'recent', title: 'Recent', release_date: '2026-07-01' },
+  { id: 'edge', title: 'Edge', release_date: '2026-05-11' },
+  { id: 'old', title: 'Old', release_date: '2026-05-10' },
+  { id: 'classic', title: 'Classic', release_date: '2020-01-01' },
+  { id: 'undated', title: 'Undated' },
+];
+
+assert(watchlistBucket(bucketItems[0], today) === 'coming-soon', 'future is coming soon');
+assert(watchlistBucket(bucketItems[1], today) === 'in-theaters', 'July release is in theaters');
+assert(watchlistBucket(bucketItems[2], today) === 'in-theaters', 'exactly 3 months is still in theaters');
+assert(watchlistBucket(bucketItems[3], today) === 'watch-at-home', 'just over 3 months is watch at home');
+assert(watchlistBucket(bucketItems[4], today) === 'watch-at-home', 'classic is watch at home');
+assert(watchlistBucket(bucketItems[5], today) === 'unknown', 'undated stays unknown');
+
+assert(isInTheaters(bucketItems[1], today) === true, 'recent is in theaters');
+assert(isWatchAtHome(bucketItems[4], today) === true, 'classic is watch at home');
+
+assertEqual(
+  sortInTheaters(bucketItems, today).map((i) => i.title),
+  ['Recent', 'Edge'],
+  'in theaters is newest first',
+);
+
+assertEqual(
+  sortWatchAtHome(bucketItems, today).map((i) => i.title),
+  ['Old', 'Classic'],
+  'watch at home is newest first',
+);
+
+assertEqual(
+  itemsForWatchlistView(bucketItems, 'coming-soon', today).map((i) => i.title),
+  ['Future', 'Undated'],
+  'coming soon tab has upcoming plus unknown',
+);
+
+assertEqual(
+  itemsForWatchlistView(bucketItems, 'in-theaters', today).map((i) => i.title),
+  ['Recent', 'Edge'],
+  'in theaters tab',
+);
+
+assertEqual(
+  itemsForWatchlistView(bucketItems, 'watch-at-home', today).map((i) => i.title),
+  ['Old', 'Classic'],
+  'watch at home tab',
+);
 
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
