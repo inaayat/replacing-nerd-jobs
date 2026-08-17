@@ -479,6 +479,12 @@ function syncLayout() {
 
   const ratios = $('dock-ratios');
   if (ratios) ratios.hidden = !isFiler() || Boolean(state.company?.extra);
+  const dockFilings = $('dock-filings');
+  if (dockFilings) {
+    const show = isFiler() && live && state.company?.cik;
+    dockFilings.hidden = !show;
+    if (show) dockFilings.href = filingsReferenceUrl(state.company);
+  }
 }
 
 function updateLandingNext() {
@@ -558,6 +564,14 @@ function currentCompanyLabel() {
   return ticker ? `${companyName} (${ticker})` : companyName;
 }
 
+function filingsReferenceUrl(company) {
+  if (!company?.cik) return '/financial-modeler/information.html';
+  const ticker = company.fortune_ticker || company.sec_ticker || '';
+  const params = new URLSearchParams({ cik: String(company.cik) });
+  if (ticker) params.set('ticker', ticker);
+  return `/financial-modeler/information.html?${params}`;
+}
+
 function exerciseShortLabel() {
   return (
     {
@@ -590,6 +604,7 @@ function renderWorkspaceAdjust() {
   }
 
   const companyLabel = currentCompanyLabel();
+  const filingsHref = filingsReferenceUrl(state.company);
   bar.innerHTML = `<div class="fm-ws-adjust fm-ws-adjust-stacked">
     <div class="fm-ws-field" id="ws-company-block">
       <input id="ws-company-search" class="fm-ws-input fm-ws-field-input" type="search" value="${escapeHtml(companyLabel)}" placeholder="Search company…" autocomplete="off" aria-label="Company you’re modeling" />
@@ -597,7 +612,11 @@ function renderWorkspaceAdjust() {
         <div class="fm-results" id="ws-company-results" hidden></div>
       </div>
     </div>
-    <div class="fm-ws-peers" id="ws-peers-block">
+    <div class="fm-ws-row">
+      <div class="fm-ws-models" role="group" aria-label="Models to include">${modelToggleHtml('ws')}</div>
+      <a class="fm-ws-text-link fm-ws-filings" href="${escapeHtml(filingsHref)}" target="_blank" rel="noopener noreferrer">Filings (reference)</a>
+    </div>
+    <div class="fm-ws-peers" id="ws-peers-block"${state.models.includes('comps') ? '' : ' hidden'}>
       <div class="fm-ws-field">
         <input id="ws-peer-search" class="fm-ws-input fm-ws-field-input" type="search" placeholder="Add a comp or peer…" autocomplete="off" aria-label="Add a comp or peer" />
         <div class="fm-ws-pop" id="ws-peer-pop" hidden>
@@ -615,6 +634,14 @@ function renderWorkspaceAdjust() {
 
 function bindWorkspaceAdjust(bar) {
   bar.querySelector('[data-switch-exercise]')?.addEventListener('click', switchToLanding);
+
+  bar.querySelectorAll('[data-ws-model]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return;
+      toggleModel(btn.dataset.wsModel);
+      renderWorkspaceAdjust();
+    });
+  });
 
   const search = $('ws-company-search');
   const companyPop = $('ws-company-pop');
@@ -1006,6 +1033,8 @@ async function selectCompany(company) {
   state.sourceDefaults = { ...state.assumptions };
   state.peers = state.peers.filter((c) => c.cik !== company.cik);
   $('dock-ratios').href = `/fortune-500/#company=${company.cik}`;
+  const dockFilings = $('dock-filings');
+  if (dockFilings) dockFilings.href = filingsReferenceUrl(company);
   state.setupEdit = null;
   syncLayout();
   if (workspaceLive()) render();
@@ -1513,14 +1542,14 @@ function threeStatementPanel(model) {
     </div>`
     : '';
 
-  return `<section class="fm-panel fm-panel-model">
+  return `<section class="fm-panel fm-panel-model fm-panel-statements">
     ${returnsBlock}
     <div class="fm-statements">
-      <div class="fm-statement">${is}</div>
+      <div class="fm-statement fm-statement-card">${is}</div>
       ${handoff('ni', '↓', 'Net income → cash flow & equity')}
-      <div class="fm-statement">${cfs}</div>
+      <div class="fm-statement fm-statement-card">${cfs}</div>
       ${handoff('cash', '↓', 'Net change in cash → cash plug')}
-      <div class="fm-statement">${bs}</div>
+      <div class="fm-statement fm-statement-card">${bs}</div>
       ${handoff('interest', '↑', 'Cash & debt → next year interest')}
     </div>
     <div class="fm-legend fm-legend-compact">
