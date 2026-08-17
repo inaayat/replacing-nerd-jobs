@@ -13,6 +13,7 @@ import {
   isWatchAtHome,
   sortInTheaters,
   sortWatchAtHome,
+  sortComingSoonTab,
   itemsForWatchlistView,
   theatricalCutoffISO,
 } from '../amc-a-lister/engine/watchlist-ui.js';
@@ -135,14 +136,14 @@ assertEqual(
 
 assertEqual(
   itemsForWatchlistView(bucketItems, 'coming-soon', today).map((i) => i.title),
-  ['Future', 'Undated'],
-  'coming soon tab has upcoming plus unknown',
+  ['Edge', 'Recent', 'Future', 'Undated'],
+  'coming soon tab merges in-theaters + upcoming, oldest first',
 );
 
 assertEqual(
-  itemsForWatchlistView(bucketItems, 'in-theaters', today).map((i) => i.title),
-  ['Recent', 'Edge'],
-  'in theaters tab',
+  sortComingSoonTab(bucketItems, today).map((i) => i.release_date || i.title),
+  ['2026-05-11', '2026-07-01', '2026-09-01', 'Undated'],
+  'coming soon tab sort is ascending by release',
 );
 
 assertEqual(

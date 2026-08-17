@@ -2,7 +2,6 @@ import { bootPage, renderShell, requireSignIn, populateSidebarStats } from './na
 import { watchlistApi } from './api.js';
 import { prefillQuickLog } from './quick-log.js';
 import {
-  sortInTheaters,
   sortWatchAtHome,
   itemsForWatchlistView,
   wireWatchlistLogList,
@@ -10,9 +9,8 @@ import {
 } from './watchlist-ui.js';
 
 const VIEWS = {
-  'coming-soon': { label: 'Coming Soon', segment: 'Coming Soon', logLabel: 'Log screening' },
-  'in-theaters': { label: 'In Theaters', segment: 'In Theaters', logLabel: 'Log screening' },
-  'watch-at-home': { label: 'Watch at Home', segment: 'Watch at Home', logLabel: 'Log at home' },
+  'coming-soon': { label: 'Coming Soon', logLabel: 'Log screening' },
+  'watch-at-home': { label: 'Watch at Home', logLabel: 'Log at home' },
 };
 
 bootPage(async ({ root, auth }) => {
@@ -20,7 +18,7 @@ bootPage(async ({ root, auth }) => {
 
   root.innerHTML = renderShell({
     title: 'Coming Soon',
-    subtitle: "What's next, in theaters, and ready to watch at home.",
+    subtitle: "What's next, and what's already playing.",
     body: `<main class="al-main" id="wtw-main"><p class="al-muted">Loading…</p></main>`,
     signedIn: true,
   });
@@ -69,7 +67,6 @@ async function loadPage(auth) {
 
   const { items: watchlist } = await watchlistApi.list(auth.token);
   const soonCount = itemsForWatchlistView(watchlist, 'coming-soon').length;
-  const theatersCount = sortInTheaters(watchlist).length;
   const homeCount = sortWatchAtHome(watchlist).length;
 
   main.innerHTML = `
@@ -81,9 +78,6 @@ async function loadPage(auth) {
       <div class="al-segment al-watchlist-segment" role="tablist" aria-label="Watchlist view">
         <button type="button" class="al-segment-btn is-active" data-wtw-view="coming-soon" role="tab" aria-selected="true">
           Coming Soon <span class="al-segment-count" id="wtw-soon-count">${soonCount}</span>
-        </button>
-        <button type="button" class="al-segment-btn" data-wtw-view="in-theaters" role="tab" aria-selected="false">
-          In Theaters <span class="al-segment-count" id="wtw-theaters-count">${theatersCount}</span>
         </button>
         <button type="button" class="al-segment-btn" data-wtw-view="watch-at-home" role="tab" aria-selected="false">
           Watch at Home <span class="al-segment-count" id="wtw-home-count">${homeCount}</span>
@@ -103,7 +97,7 @@ async function loadPage(auth) {
         <input class="al-input al-toolbar-search" id="wtw-search" type="search" placeholder="Search title or notes…" />
         <span class="al-muted" id="wtw-filter-count"></span>
       </div>
-      <div class="al-log-list-wrap" id="watchlist-list"></div>
+      <div class="al-log-list-wrap" id="watchlist-list" data-wtw-view="coming-soon"></div>
     </section>
   `;
 
@@ -120,12 +114,12 @@ async function loadPage(auth) {
   };
   pageState = state;
 
+  const listWrap = document.getElementById('watchlist-list');
   const sectionTitle = document.getElementById('wtw-section-title');
   const countEl = document.getElementById('wtw-count');
   const summaryEl = document.getElementById('wtw-summary');
   const filterCountEl = document.getElementById('wtw-filter-count');
   const soonCountEl = document.getElementById('wtw-soon-count');
-  const theatersCountEl = document.getElementById('wtw-theaters-count');
   const homeCountEl = document.getElementById('wtw-home-count');
 
   const getViewItems = () => itemsForWatchlistView(state.watchlist, state.view);
@@ -139,30 +133,26 @@ async function loadPage(auth) {
 
   const emptyMessageForView = () => {
     if (state.search.trim()) return 'No matches.';
-    const cfg = VIEWS[state.view];
     if (state.view === 'coming-soon') return 'Nothing coming soon. Add a title above.';
-    if (state.view === 'in-theaters') return 'Nothing in theaters right now.';
     return 'Nothing to watch at home yet.';
   };
 
   const refreshHeader = () => {
     const cfg = VIEWS[state.view];
     const soon = itemsForWatchlistView(state.watchlist, 'coming-soon');
-    const theaters = sortInTheaters(state.watchlist);
     const home = sortWatchAtHome(state.watchlist);
     const viewItems = getViewItems();
     const filtered = getFilteredItems();
 
     if (sectionTitle) sectionTitle.textContent = cfg.label;
     if (soonCountEl) soonCountEl.textContent = String(soon.length);
-    if (theatersCountEl) theatersCountEl.textContent = String(theaters.length);
     if (homeCountEl) homeCountEl.textContent = String(home.length);
     if (countEl) countEl.textContent = String(viewItems.length);
+    if (listWrap) listWrap.dataset.wtwView = state.view;
 
     if (summaryEl) {
       const parts = [];
-      if (soon.length) parts.push(`${soon.length} coming soon`);
-      if (theaters.length) parts.push(`${theaters.length} in theaters`);
+      if (soon.length) parts.push(`${soon.length} coming soon / in theaters`);
       if (home.length) parts.push(`${home.length} watch at home`);
       summaryEl.textContent = parts.join(' · ') || 'Nothing on your list yet.';
     }
@@ -181,7 +171,7 @@ async function loadPage(auth) {
   };
 
   const renderList = wireWatchlistLogList(auth, state, {
-    listEl: document.getElementById('watchlist-list'),
+    listEl: listWrap,
     statusEl: document.getElementById('watchlist-status'),
     getItems: getFilteredItems,
     emptyMessage: emptyMessageForView,

@@ -71,6 +71,27 @@ export function sortInTheaters(items, today = todayISO()) {
     });
 }
 
+/** Sort key for the Coming Soon tab: ascending, furthest releases last. */
+export function comingSoonTabSortKey(item, today = todayISO()) {
+  if (releaseState(item, today) === 'unknown') return '9999-12-32';
+  if (releaseState(item, today) === 'upcoming') {
+    return item.release_date || (item.year != null ? `${item.year}-12-31` : '9999-12-31');
+  }
+  return effectiveReleaseDate(item) || '0000-01-01';
+}
+
+/** In theaters + upcoming + unknown; oldest release first, furthest away last. */
+export function sortComingSoonTab(items, today = todayISO()) {
+  return items
+    .filter((item) => watchlistBucket(item, today) !== 'watch-at-home')
+    .sort((a, b) => {
+      const aKey = comingSoonTabSortKey(a, today);
+      const bKey = comingSoonTabSortKey(b, today);
+      if (aKey !== bKey) return aKey.localeCompare(bKey);
+      return String(a.title || '').localeCompare(String(b.title || ''));
+    });
+}
+
 /** Left theaters; most recently released first. */
 export function sortWatchAtHome(items, today = todayISO()) {
   return items
@@ -84,11 +105,7 @@ export function sortWatchAtHome(items, today = todayISO()) {
 }
 
 export function itemsForWatchlistView(items, view, today = todayISO()) {
-  const unknown = items
-    .filter((item) => releaseState(item, today) === 'unknown')
-    .sort((a, b) => String(a.title || '').localeCompare(String(b.title || '')));
-  if (view === 'coming-soon') return [...sortComingSoon(items, today), ...unknown];
-  if (view === 'in-theaters') return sortInTheaters(items, today);
+  if (view === 'coming-soon') return sortComingSoonTab(items, today);
   if (view === 'watch-at-home') return sortWatchAtHome(items, today);
   return combinedWatchlistItems(items, today);
 }
@@ -450,13 +467,13 @@ function watchlistDetailPanelHtml(item, state, { detailsKind = 'movie', detailCl
   `);
 }
 
-function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detailsKind = 'movie', view = null } = {}) {
+function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detailsKind = 'movie', view = null, hideLog = false } = {}) {
   const expanded = item.id === state.expandedId;
   const bucket = view ? watchlistBucket(item) : null;
   let badge = '';
   if (!view && isAlreadyOut(item)) {
     badge = ' <span class="al-badge al-badge--muted">Already out</span>';
-  } else if (view === 'in-theaters') {
+  } else if (view === 'coming-soon' && bucket === 'in-theaters') {
     badge = ' <span class="al-badge al-badge--muted">In theaters</span>';
   } else if (view === 'watch-at-home') {
     badge = ' <span class="al-badge al-badge--muted">Watch at home</span>';
@@ -464,6 +481,7 @@ function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detai
   const out = view
     ? (bucket === 'in-theaters' || bucket === 'watch-at-home')
     : isAlreadyOut(item);
+  const logBtn = hideLog ? '' : `<button type="button" class="al-link-btn" data-log-watchlist="${item.id}">${escapeHtml(logLabel)}</button>`;
   return `
     <div class="al-log-entry ${expanded ? 'is-expanded' : ''}${out ? ' is-already-out' : ''}" data-entry-id="${item.id}">
       <article class="al-log-row al-log-row--watchlist al-log-row--clickable ${expanded ? 'is-expanded' : ''}" data-expand-row tabindex="0" aria-expanded="${expanded}" aria-label="Toggle details">
@@ -475,7 +493,7 @@ function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detai
         </div>
         <div class="al-log-col al-log-col--desktop al-muted">${escapeHtml(item.notes || '—')}</div>
         <div class="al-log-col al-row-actions">
-          <button type="button" class="al-link-btn" data-log-watchlist="${item.id}">${escapeHtml(logLabel)}</button>
+          ${logBtn}
           <button type="button" class="al-link-btn" data-edit-watchlist="${item.id}">Edit</button>
           <button type="button" class="al-link-btn" data-remove-watchlist="${item.id}">Remove</button>
         </div>
@@ -485,7 +503,7 @@ function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detai
   `;
 }
 
-export function watchlistLogTableHtml(items, state, { emptyMessage, logLabel, detailsKind, view = null } = {}) {
+export function watchlistLogTableHtml(items, state, { emptyMessage, logLabel, detailsKind, view = null, hideLog = false } = {}) {
   if (!items.length) {
     return `<div class="al-empty">${emptyMessage || 'Nothing here yet.'}</div>`;
   }
@@ -501,7 +519,7 @@ export function watchlistLogTableHtml(items, state, { emptyMessage, logLabel, de
       ${items.map((item) => (
         item.id === state.editingId
           ? watchlistEditRowHtml(item)
-          : watchlistViewEntryHtml(item, state, { logLabel, detailsKind, view })
+          : watchlistViewEntryHtml(item, state, { logLabel, detailsKind, view, hideLog })
       )).join('')}
     </div>
   `;
@@ -545,6 +563,7 @@ export function wireWatchlistLogList(auth, state, {
   onLogItem,
   logLabel = 'Log screening',
   view = null,
+  hideLog = false,
 }) {
   if (!state.detailsCache) state.detailsCache = new Map();
 
@@ -553,11 +572,13 @@ export function wireWatchlistLogList(auth, state, {
     const message = typeof emptyMessage === 'function' ? emptyMessage() : emptyMessage;
     const resolvedLogLabel = typeof logLabel === 'function' ? logLabel() : logLabel;
     const resolvedView = typeof view === 'function' ? view() : view;
+    const resolvedHideLog = typeof hideLog === 'function' ? hideLog() : hideLog;
     listEl.innerHTML = watchlistLogTableHtml(items, state, {
       emptyMessage: message,
       logLabel: resolvedLogLabel,
       detailsKind,
       view: resolvedView,
+      hideLog: resolvedHideLog,
     });
     onChange?.();
     wireWatchlistLogActions(auth, state, render, {

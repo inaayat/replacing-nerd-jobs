@@ -4158,6 +4158,15 @@ table.al-table {
     width: 100%;
     flex: none;
   }
+
+  /* Coming Soon is add-only on phone — no sticky log bar or row log buttons. */
+  [data-page="what-to-watch"] #al-quicklog {
+    display: none;
+  }
+
+  [data-page="what-to-watch"] .al-log-list-wrap[data-wtw-view="coming-soon"] [data-log-watchlist] {
+    display: none;
+  }
 }
 
 .al-signin-body {
