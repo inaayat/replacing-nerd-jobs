@@ -639,6 +639,23 @@ assert.equal(ordinal(1), '1st');
 }
 
 {
+  const impliedEquity = extractHeadlines({
+    entityName: 'REIT Example',
+    facts: {
+      'us-gaap': {
+        Revenues: { units: { USD: [{ val: 100, start: '2025-01-01', end: '2025-12-31', fy: 2025, fp: 'FY', form: '10-K', filed: '2026-02-01' }] } },
+        NetIncomeLoss: { units: { USD: [{ val: 10, start: '2025-01-01', end: '2025-12-31', fy: 2025, fp: 'FY', form: '10-K', filed: '2026-02-01' }] } },
+        OperatingIncomeLoss: { units: { USD: [{ val: 20, start: '2025-01-01', end: '2025-12-31', fy: 2025, fp: 'FY', form: '10-K', filed: '2026-02-01' }] } },
+        Assets: { units: { USD: [{ val: 200, end: '2025-12-31', fy: 2025, fp: 'FY', form: '10-K', filed: '2026-02-01' }] } },
+        Liabilities: { units: { USD: [{ val: 120, end: '2025-12-31', fy: 2025, fp: 'FY', form: '10-K', filed: '2026-02-01' }] } },
+      },
+    },
+  });
+  assert.equal(impliedEquity.metrics.equity.val, 80);
+  assert.equal(impliedEquity.metrics.equity.tag, 'Assets-Liabilities');
+}
+
+{
   const instant = (val, end, fy) => [{
     val,
     end,

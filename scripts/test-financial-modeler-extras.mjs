@@ -16,12 +16,14 @@ const watchlist = JSON.parse(readFileSync(join(ROOT, 'financial-modeler/watchlis
 const mapping = JSON.parse(readFileSync(join(ROOT, 'fortune-500/data/fortune500_edgar_mapping.json'), 'utf8'));
 const tickerDump = JSON.parse(readFileSync(join(ROOT, 'fortune-500/data/company_tickers.json'), 'utf8'));
 
-assert.ok(extras.length >= 18, 'watchlist should include the named growth names');
+assert.ok(extras.length >= 23, 'watchlist should include growth names and cinema exhibitors');
 assert.deepEqual(
   extras.map((c) => c.fortune_ticker),
   watchlist.map((c) => c.ticker),
   'extras.json must be generated from watchlist.json in the same order'
 );
+
+const NOT_MODELABLE_EXTRAS = new Set(['CNK']);
 
 const tickerToCik = new Map();
 for (const row of Object.values(tickerDump)) {
@@ -42,7 +44,7 @@ for (const c of extras) {
 }
 
 const byTicker = Object.fromEntries(extras.map((c) => [c.fortune_ticker, c]));
-for (const t of ['GDDY', 'WIX', 'DUOL', 'APP', 'TOST', 'NET', 'IOT', 'AXON', 'RDDT', 'RBRK', 'CAVA', 'HIMS', 'ONON', 'SG', 'HOOD', 'TEM', 'SRAD', 'GENI']) {
+for (const t of ['GDDY', 'WIX', 'DUOL', 'APP', 'TOST', 'NET', 'IOT', 'AXON', 'RDDT', 'RBRK', 'CAVA', 'HIMS', 'ONON', 'SG', 'HOOD', 'TEM', 'SRAD', 'GENI', 'AMC', 'CNK', 'IMAX', 'NCMI', 'EPR']) {
   const c = byTicker[t];
   assert.ok(c, `missing ${t}`);
   assert.equal(isPublic(c), true, `${t} should be a public filer`);
@@ -73,7 +75,11 @@ assert.match(veeam.note, /private/i);
     assert.ok(row, `no headlines for ${c.fortune_ticker}`);
     assert.ok(row.asOfYear, `${c.fortune_ticker} is missing an as-of year`);
     assert.ok(row.metrics?.revenue?.val > 0, `${c.fortune_ticker} is missing revenue`);
-    const ready = modelReadiness(ensureRatios(row));
+    const ready = modelReadiness(ensureRatios(structuredClone(row)));
+    if (NOT_MODELABLE_EXTRAS.has(c.fortune_ticker)) {
+      assert.equal(ready.ok, false, `${c.fortune_ticker} should stay unmodelable until SEC tags a balance sheet`);
+      continue;
+    }
     assert.equal(ready.ok, true, `${c.fortune_ticker} not modelable: ${ready.missing?.join(', ')}`);
   }
   assert.equal(

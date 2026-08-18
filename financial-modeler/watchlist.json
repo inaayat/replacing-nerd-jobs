@@ -90,6 +90,31 @@
     "blurb": "Sports data + betting technology"
   },
   {
+    "company": "AMC Entertainment",
+    "ticker": "AMC",
+    "blurb": "Largest US movie exhibitor; box office, concessions, and A-List"
+  },
+  {
+    "company": "Cinemark",
+    "ticker": "CNK",
+    "blurb": "Second-largest US cinema chain; domestic and Latin America theatres"
+  },
+  {
+    "company": "IMAX",
+    "ticker": "IMAX",
+    "blurb": "Premium large-format screens and theatre technology licensing"
+  },
+  {
+    "company": "National CineMedia",
+    "ticker": "NCMI",
+    "blurb": "National cinema advertising network (pre-show ads)"
+  },
+  {
+    "company": "EPR Properties",
+    "ticker": "EPR",
+    "blurb": "Specialty REIT; movie theatres and entertainment venues (net lease)"
+  },
+  {
     "company": "Veeam",
     "ticker": "VEEAM",
     "private": true,

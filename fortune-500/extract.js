@@ -603,10 +603,20 @@ function applyPriorMetricNormalizations(priorMetrics) {
   }
 }
 
+/** When equity is not tagged but assets and liabilities are, book equity = assets − liabilities. */
+function applyImpliedEquity(metrics) {
+  if (!metrics || val(metrics, 'equity') != null) return;
+  const assets = val(metrics, 'assets');
+  const liabilities = val(metrics, 'liabilities');
+  if (assets == null || liabilities == null) return;
+  metrics.equity = derivedPointFrom(metrics.assets || metrics.liabilities, assets - liabilities, 'Assets-Liabilities');
+}
+
 /** Derived income lines and snapshot sanitizer shared by fresh extracts and cached snapshots. */
 export function normalizeMetrics(metrics, priorMetrics = null, seriesAnnual = null) {
   dropUnsafeFiledPoints(metrics, seriesAnnual);
   applyIncomeDerivations(metrics);
+  applyImpliedEquity(metrics);
   applyPriorMetricNormalizations(priorMetrics);
 }
 

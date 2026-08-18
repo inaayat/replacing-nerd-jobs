@@ -76,7 +76,7 @@ workspace (cash is the plug, interest on beginning balances, and balance checks
 where the exercise uses three statements):
 
 - **From a 10-K** — pick a public Fortune 500 filer (or a watchlist name such as
-  GoDaddy, Wix, Cloudflare, Robinhood), pick any of three Wall Street
+  GoDaddy, Wix, Cloudflare, Robinhood, AMC, Cinemark), pick any of three Wall Street
   Prep model types (3-statement, DCF, trading comps), choose the peer set yourself
   when comps are on, move a handful of plain-English assumptions.
 - **Single-unit economics** — a lemonade stall built from cups × price, cost per
