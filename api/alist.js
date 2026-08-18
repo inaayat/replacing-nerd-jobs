@@ -626,15 +626,32 @@ async function handleWatchlist(req, res) {
         return;
       }
       const row = existing[0];
-      const rows = await db()`
+      const nextTmdbId = tmdbId !== undefined ? tmdbId : row.tmdb_id;
+      if (nextTmdbId && getTmdbApiKey()) {
+        await getMovieDetails(nextTmdbId);
+      }
+      await db()`
         UPDATE alist_watchlist SET
           title = ${title ?? row.title},
-          tmdb_id = ${tmdbId !== undefined ? tmdbId : row.tmdb_id},
+          tmdb_id = ${nextTmdbId},
           notes = ${notes !== undefined ? notes : row.notes},
           updated_at = now()
         WHERE id = ${id} AND user_id = ${userId}
-        RETURNING id, title, tmdb_id, notes, created_at, updated_at
       `;
+      const rows = await enrichWatchlistRows(await db()`
+        SELECT
+          w.id, w.title, w.tmdb_id, w.notes, w.created_at, w.updated_at,
+          c.poster_path, c.year, c.release_date,
+          COALESCE(c.release_date::text, c.raw->>'release_date') AS release_date_raw,
+          (c.raw->>'pp_v')::int AS cache_pp_v
+        FROM alist_watchlist w
+        LEFT JOIN alist_movie_cache c ON c.tmdb_id = w.tmdb_id
+        WHERE w.id = ${id} AND w.user_id = ${userId}
+      `);
+      if (!rows.length) {
+        res.status(404).json({ error: 'Watchlist item not found.' });
+        return;
+      }
       res.status(200).json({ item: watchlistFromRow(rows[0]) });
     } catch (err) {
       res.status(502).json({ error: err.message });

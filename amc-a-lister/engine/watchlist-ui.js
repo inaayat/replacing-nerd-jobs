@@ -372,8 +372,12 @@ function watchlistEditRowHtml(item) {
       <article class="al-log-row al-log-row--watchlist al-log-row--editing" data-id="${item.id}">
         <form class="al-watchlist-edit-form" data-watchlist-edit-form="${item.id}">
           <div class="al-watchlist-edit-fields">
-            <input class="al-input" name="title" type="text" value="${escapeHtml(item.title)}" required />
+            <div class="al-search-wrap al-watchlist-edit-search">
+              <input class="al-input" name="title" type="text" value="${escapeHtml(item.title)}" required autocomplete="off" />
+              <div class="al-search-results" id="watchlist-edit-results-${item.id}" hidden></div>
+            </div>
             <input class="al-input" name="notes" type="text" value="${escapeHtml(item.notes || '')}" placeholder="Notes (optional)" />
+            <input type="hidden" name="tmdb_id" value="${item.tmdb_id ?? ''}" />
             <button class="al-btn al-btn-primary" type="submit">Save</button>
             <button class="al-btn" type="button" data-cancel-watchlist="${item.id}">Cancel</button>
           </div>
@@ -381,6 +385,54 @@ function watchlistEditRowHtml(item) {
       </article>
     </div>
   `;
+}
+
+function wireWatchlistEditSearch(auth, form, { searchApi = movieApi } = {}) {
+  const titleInput = form.querySelector('[name="title"]');
+  const resultsEl = form.querySelector('.al-search-results');
+  const tmdbInput = form.querySelector('[name="tmdb_id"]');
+  if (!titleInput || !resultsEl || !tmdbInput) return;
+
+  let searchTimer = null;
+  wireComboboxKeys(titleInput, resultsEl);
+
+  titleInput.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    const q = titleInput.value.trim();
+    if (q.length < 2) {
+      resultsEl.hidden = true;
+      return;
+    }
+    searchTimer = setTimeout(async () => {
+      try {
+        const { results } = await searchApi.search(auth.token, q);
+        if (!results.length) {
+          resultsEl.hidden = true;
+          return;
+        }
+        resultsEl.hidden = false;
+        resultsEl.innerHTML = results.map((m) => `
+          <button type="button" data-id="${m.tmdb_id}" data-title="${escapeHtml(m.title)}">
+            ${m.poster_path ? `<img src="https://image.tmdb.org/t/p/w92${m.poster_path}" alt="" width="28" height="42" style="border-radius:4px;object-fit:cover">` : '<span style="width:28px"></span>'}
+            <span>${escapeHtml(m.title)}${m.year ? ` <span class="al-muted">(${m.year})</span>` : ''}</span>
+          </button>
+        `).join('');
+        resultsEl.querySelectorAll('button').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            titleInput.value = btn.dataset.title;
+            tmdbInput.value = btn.dataset.id;
+            resultsEl.hidden = true;
+          });
+        });
+      } catch {
+        resultsEl.hidden = true;
+      }
+    }, 300);
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.al-watchlist-edit-search')) resultsEl.hidden = true;
+  });
 }
 
 function watchlistDetailPanelHtml(item, state, { detailsKind = 'movie', detailClass = '' } = {}) {
@@ -582,6 +634,7 @@ export function wireWatchlistLogList(auth, state, {
     });
     onChange?.();
     wireWatchlistLogActions(auth, state, render, {
+      listEl,
       api,
       detailsApi,
       detailsKind,
@@ -596,13 +649,14 @@ export function wireWatchlistLogList(auth, state, {
 }
 
 function wireWatchlistLogActions(auth, state, render, {
+  listEl,
   api,
   detailsApi,
   detailsKind,
   onLogItem,
   statusEl,
 }) {
-  document.querySelectorAll('[data-expand-row]').forEach((row) => {
+  listEl.querySelectorAll('[data-expand-row]').forEach((row) => {
     const toggle = (e) => {
       if (e.target.closest('.al-row-actions')) return;
       const entry = row.closest('.al-log-entry');
@@ -637,7 +691,7 @@ function wireWatchlistLogActions(auth, state, render, {
     });
   });
 
-  document.querySelectorAll('[data-log-watchlist]').forEach((btn) => {
+  listEl.querySelectorAll('[data-log-watchlist]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const item = state.watchlist.find((w) => w.id === btn.dataset.logWatchlist);
@@ -650,7 +704,7 @@ function wireWatchlistLogActions(auth, state, render, {
     });
   });
 
-  document.querySelectorAll('[data-edit-watchlist]').forEach((btn) => {
+  listEl.querySelectorAll('[data-edit-watchlist]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       state.editingId = btn.dataset.editWatchlist;
@@ -659,7 +713,7 @@ function wireWatchlistLogActions(auth, state, render, {
     });
   });
 
-  document.querySelectorAll('[data-remove-watchlist]').forEach((btn) => {
+  listEl.querySelectorAll('[data-remove-watchlist]').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const id = btn.dataset.removeWatchlist;
@@ -677,27 +731,44 @@ function wireWatchlistLogActions(auth, state, render, {
     });
   });
 
-  document.querySelectorAll('[data-cancel-watchlist]').forEach((btn) => {
+  listEl.querySelectorAll('[data-cancel-watchlist]').forEach((btn) => {
     btn.addEventListener('click', () => {
       state.editingId = null;
       render();
     });
   });
 
-  document.querySelectorAll('[data-watchlist-edit-form]').forEach((form) => {
+  listEl.querySelectorAll('[data-watchlist-edit-form]').forEach((form) => {
+    wireWatchlistEditSearch(auth, form, { searchApi: detailsApi });
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const id = form.dataset.watchlistEditForm;
       const fd = new FormData(form);
+      const title = String(fd.get('title') || '').trim();
+      let tmdbId = fd.get('tmdb_id') ? Number(fd.get('tmdb_id')) : null;
+      if (!tmdbId && title) {
+        tmdbId = await detailsApi.resolve(auth.token, title);
+      }
       const payload = {
         id,
-        title: String(fd.get('title') || '').trim(),
+        title,
         notes: String(fd.get('notes') || '').trim() || null,
+        tmdb_id: tmdbId,
       };
       try {
         const { item } = await api.update(auth.token, payload);
         const prev = state.watchlist.find((w) => w.id === id);
-        state.watchlist = state.watchlist.map((w) => (w.id === id ? { ...item, poster_path: prev?.poster_path, release_date: prev?.release_date, year: prev?.year } : w));
+        const sameTmdb = item.tmdb_id === prev?.tmdb_id;
+        const merged = {
+          ...item,
+          poster_path: item.poster_path ?? (sameTmdb ? prev?.poster_path : null),
+          release_date: item.release_date ?? (sameTmdb ? prev?.release_date : null),
+          year: item.year ?? (sameTmdb ? prev?.year : null),
+        };
+        if (item.tmdb_id !== prev?.tmdb_id) {
+          state.detailsCache.delete(id);
+        }
+        state.watchlist = state.watchlist.map((w) => (w.id === id ? merged : w));
         state.editingId = null;
         render();
       } catch (err) {

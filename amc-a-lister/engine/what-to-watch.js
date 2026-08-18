@@ -18,7 +18,7 @@ bootPage(async ({ root, auth }) => {
 
   root.innerHTML = renderShell({
     title: 'Coming Soon',
-    subtitle: "What's next, and what's already playing.",
+    subtitle: "What's next, what's at home — expand a row for movie details.",
     body: `<main class="al-main" id="wtw-main"><p class="al-muted">Loading…</p></main>`,
     signedIn: true,
   });

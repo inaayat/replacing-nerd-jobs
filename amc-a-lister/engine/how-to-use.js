@@ -17,7 +17,8 @@ function howToUseSteps() {
       <li>
         <strong><a href="/amc-a-lister/what-to-watch.html">Coming Soon</a></strong>
         tracks movies you want to see. Add titles from search; they sort by US release date
-        when TMDB has one.
+        when TMDB has one. Expand a row on Coming Soon or Watch at Home for the same movie
+        details you get in your watch log.
       </li>
       <li>
         <strong><a href="/amc-a-lister/statistics.html">Statistics</a></strong>
