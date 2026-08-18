@@ -7,6 +7,7 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { latestAnnualFiling } from '../fortune-500/edgar-filings.js';
 import {
   extractFactAnchorsFromHtml,
   extractSegmentsFromHtml,
@@ -24,8 +25,6 @@ const WORKERS = 2;
 const GAP_MS = 150;
 const MAX_ATTEMPTS = 5;
 const SEGMENT_SNAPSHOT_SCHEMA = 3;
-const ANNUAL = new Set(['10-K', '10-K/A', '20-F', '20-F/A']);
-
 function padCik(cik) {
   return String(cik).padStart(10, '0');
 }
@@ -68,22 +67,6 @@ async function fetchJson(url) {
     return { text: await resp.text() };
   }
   throw new Error(`still 429/503 after ${MAX_ATTEMPTS}: ${url}`);
-}
-
-function latestAnnual(submissions) {
-  const recent = submissions?.filings?.recent;
-  if (!recent?.form) return null;
-  for (let i = 0; i < recent.form.length; i += 1) {
-    if (ANNUAL.has(recent.form[i])) {
-      return {
-        form: recent.form[i],
-        accession: recent.accessionNumber[i],
-        primary: recent.primaryDocument[i],
-        filingDate: recent.filingDate[i],
-      };
-    }
-  }
-  return null;
 }
 
 const mapping = JSON.parse(readFileSync(MAPPING, 'utf8'));
@@ -136,7 +119,7 @@ async function pullOne(c) {
     if (sub.missing || !sub.json) {
       snap.companies[cik] = { cik: c.cik, error: 'no_submissions', axes: [], flags: ['no_submissions'] };
     } else {
-      const filing = latestAnnual(sub.json);
+      const filing = latestAnnualFiling(sub.json);
       if (!filing?.accession || !filing.primary) {
         snap.companies[cik] = { cik: c.cik, error: 'no_annual', axes: [], flags: ['no_annual'] };
       } else {

@@ -89,4 +89,19 @@ assert.match(veeam.note, /private/i);
   );
 }
 
+{
+  const segments = JSON.parse(readFileSync(join(ROOT, 'fortune-500/data/segments-snapshot.json'), 'utf8'));
+  const cinema = ['AMC', 'IMAX', 'NCMI', 'EPR'];
+  for (const t of cinema) {
+    const c = byTicker[t];
+    const row = segments.companies[String(c.cik)];
+    assert.ok(row?.filing?.accession, `${t} needs segment filing metadata for XBRL links`);
+    const anchors = row.factAnchors?.revenue;
+    assert.ok(anchors && Object.keys(anchors).length > 0, `${t} needs revenue fact anchors`);
+  }
+  const cnk = segments.companies[String(byTicker.CNK.cik)];
+  assert.ok(cnk?.filing?.accession, 'CNK needs segment filing metadata');
+  assert.ok(cnk?.factAnchors?.revenue, 'CNK needs revenue fact anchors');
+}
+
 console.log('test-financial-modeler-extras: ok');
