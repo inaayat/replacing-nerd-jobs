@@ -7,7 +7,7 @@
     <title>Sticky Notes — Beep boop</title>
     <meta
       name="description"
-      content="A cork-board for the chronically disorganized. Pin ideas, errands, and half-formed thoughts — from the web or a Chrome extension."
+      content="A board you dump onto and think on. Cluster notes into collections, file them into memory, wipe the board — nothing is ever lost."
     />
     <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -31,57 +31,89 @@
         </a>
       </div>
       <div class="sn-nav-links">
-        <a href="#extension" class="sn-nav-keep">Extension</a>
+        <a href="#" data-nav-auth class="sn-nav-keep">Sign in</a>
         <a href="/#projects">Projects</a>
       </div>
     </nav>
 
     <main class="sn-shell">
-      <header class="sn-hero">
+      <section class="sn-gate" id="gate" hidden>
         <p class="sn-kicker">For the chronically disorganized</p>
-        <h1 class="sn-title">Pin it before you forget it</h1>
+        <h1 class="sn-title">Dump it. Cluster it. File it. Wipe the board.</h1>
         <p class="sn-lede">
-          Sticky Notes is a digital cork board for the stuff that never makes it into a todo app:
-          half-baked ideas, links you meant to read, errands, and the name of that restaurant.
-          Drop notes on the board here, or capture them from anywhere with the browser extension.
+          Sticky Notes is a thinking board with a memory. Throw down half-formed ideas, links,
+          and things to remember; drag them into clusters; name a cluster and file it away.
+          Wipe the board whenever it fills up — nothing is deleted, and anything can come back.
         </p>
-      </header>
+        <p class="sn-gate-cta">
+          <a class="sn-btn sn-btn-primary" id="gate-signin" href="/account.html?next=/sticky-notes/">Sign in to open your board</a>
+        </p>
+        <p class="sn-gate-note" id="gate-note" hidden></p>
+      </section>
 
-      <div class="sn-toolbar">
-        <button type="button" class="sn-btn sn-btn-primary" id="add-note">+ New note</button>
-        <div class="sn-color-pick" id="color-pick" aria-label="Note color"></div>
-        <button type="button" class="sn-btn" id="clear-board">Clear board</button>
-      </div>
-
-      <div class="sn-board-wrap">
-        <div class="sn-board" id="board" aria-label="Sticky note board">
-          <div class="sn-empty" id="empty-state">
-            No notes yet — add one above, or install the extension and pin from any tab.
+      <div class="sn-app" id="app" hidden>
+        <div class="sn-toolbar">
+          <div class="sn-tabs" role="tablist">
+            <button type="button" class="sn-tab" id="tab-board" role="tab" aria-selected="true">Board</button>
+            <button type="button" class="sn-tab" id="tab-memory" role="tab" aria-selected="false">
+              Memory <span class="sn-tab-count" id="memory-count"></span>
+            </button>
+          </div>
+          <div class="sn-toolbar-actions" id="board-actions">
+            <button type="button" class="sn-btn sn-btn-primary" id="add-note">+ New note</button>
+            <div class="sn-zoom">
+              <button type="button" class="sn-zoom-btn" id="zoom-out" aria-label="Zoom out">−</button>
+              <button type="button" class="sn-zoom-label" id="zoom-fit" title="Zoom to fit">100%</button>
+              <button type="button" class="sn-zoom-btn" id="zoom-in" aria-label="Zoom in">+</button>
+            </div>
+            <button type="button" class="sn-btn" id="wipe-board">Wipe board</button>
           </div>
         </div>
+
+        <div class="sn-viewport" id="viewport" tabindex="0" aria-label="Sticky note board">
+          <div class="sn-world" id="world">
+            <svg class="sn-arrows" id="arrow-layer"></svg>
+          </div>
+          <div class="sn-rubber" id="rubber" hidden></div>
+          <div class="sn-empty" id="board-empty" hidden>
+            Press <kbd>N</kbd>, double-click anywhere, or paste — the board is yours.
+          </div>
+        </div>
+
+        <section class="sn-memory" id="memory-pane" hidden>
+          <div class="sn-mem-filters" id="mem-filters">
+            <input type="search" class="sn-mem-search" id="mem-search" placeholder="Search memory…" />
+            <div class="sn-mem-chiprow" id="mem-color-chips" aria-label="Filter by color"></div>
+            <div class="sn-mem-chiprow" id="mem-icon-chips" aria-label="Filter by icon"></div>
+            <select class="sn-mem-select" id="mem-collection" aria-label="Filter by collection">
+              <option value="">All collections</option>
+            </select>
+          </div>
+          <div class="sn-mem-list" id="mem-list"></div>
+          <div class="sn-mem-more">
+            <button type="button" class="sn-btn" id="mem-more" hidden>Show more</button>
+          </div>
+        </section>
       </div>
 
-      <section class="sn-extension-panel" id="extension">
-        <h2>Chrome extension</h2>
-        <p>
-          Capture a thought from any tab without switching apps. Notes land in the extension first,
-          then merge onto this board the next time you open it.
-        </p>
-        <ol class="sn-steps">
-          <li>Download or clone this repo and open <code>sticky-notes/extension/</code>.</li>
-          <li>In Chrome, go to <code>chrome://extensions</code>, enable <strong>Developer mode</strong>.</li>
-          <li>Click <strong>Load unpacked</strong> and select the <code>extension</code> folder.</li>
-          <li>Use the toolbar icon, the right-click menu, or <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>N</kbd> to pin a note.</li>
-        </ol>
-        <p style="margin-top: 14px">
-          <a href="https://github.com/inaayat/replacing-nerd-jobs/tree/main/sticky-notes/extension" target="_blank" rel="noopener noreferrer">
-            Extension source on GitHub →
-          </a>
-        </p>
-      </section>
+      <div class="sn-actionbar" id="actionbar" hidden>
+        <span class="sn-ab-count" id="ab-count"></span>
+        <span class="sn-ab-swatches" id="ab-swatches"></span>
+        <span class="sn-ab-iconwrap">
+          <button type="button" class="sn-ab-iconbtn" id="ab-icon" title="Icon">◇</button>
+          <span class="sn-ab-iconpop" id="ab-iconpop" hidden></span>
+        </span>
+        <button type="button" class="sn-ab-pin" id="ab-pin" title="Pin (survives wipes)">Pin</button>
+        <input class="sn-ab-name" id="ab-name" list="collection-names" placeholder="Collection…" />
+        <datalist id="collection-names"></datalist>
+        <button type="button" class="sn-ab-file" id="ab-file">File</button>
+      </div>
     </main>
 
-    <div class="sn-toast" id="toast" role="status" aria-live="polite"></div>
+    <div class="sn-toast" id="toast" role="status" aria-live="polite">
+      <span id="toast-text"></span>
+      <button type="button" id="toast-undo" hidden>Undo</button>
+    </div>
 
     <script type="module" src="./app.js"></script>
     <script type="module" src="./extension-bridge.js"></script>
