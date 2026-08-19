@@ -1,6 +1,6 @@
 # Sticky Notes — product plan
 
-Status: **v0 shipped (localStorage cork board), v1 being designed**
+Status: **v0 shipped (localStorage cork board), v1 planned below**
 Site: `/sticky-notes/` on [inaayat.xyz](https://inaayat.xyz) (this repo)
 Auth: Neon Auth + Postgres (same pattern as A-Lister / Packing Cubes / Table Manners)
 
@@ -13,29 +13,26 @@ whole product.
 
 ## One sentence
 
-A board you dump onto and think on — drag notes around, cluster the related ones,
-then **file that cluster into memory and clear the board** — so the board stays
-small enough to be useful while nothing you wrote down is ever lost.
+A board you dump onto and think on — add notes fast, shove them around, cluster
+the related ones into named mind-map groups — then **file clusters into memory
+and wipe the board**, with everything recoverable, so the board stays a clean
+fast thinking surface and memory does the remembering.
 
 ---
 
 ## The five jobs
 
-Sticky Notes is deliberately multi-purpose. Every design call has to serve all
-five, which is why one view is not enough.
-
 | Job | What it looks like | What it demands |
 |-----|--------------------|-----------------|
 | **Dump** | "call the dentist", "idea for the site" | Capture in under two seconds, zero required fields |
 | **Read it later** | pasted URLs | Recognizable link cards, and a way to see what is unread |
-| **Brainstorm** | many fragments on one topic | Move them around, cluster the related ones, see them all at once |
+| **Brainstorm** | many fragments on one topic | Move them around, cluster, name the cluster — mind mapping |
 | **Categorize** | cutting across all of the above | Two cheap picks, appliable to a whole selection at once |
-| **Memory** | the restaurant name, the book rec | Search, and a dense view that fits hundreds of rows |
+| **Memory** | the restaurant name, the book rec | Search, and a dense table that fits hundreds of rows |
 
 The through-line: notes accumulate and are rarely deleted. Assume **hundreds of
-notes** in memory. The board, by contrast, should hold a couple dozen at most —
-which is what makes free dragging viable there and hopeless as a global filing
-system.
+notes in memory** and **a couple dozen on the board**. That size split is what
+makes free dragging viable on the board and hopeless as a global filing system.
 
 ---
 
@@ -44,92 +41,104 @@ system.
 | Decision | Call |
 |----------|------|
 | Surface | **Web app** at `/sticky-notes/` |
-| Persistence | **Signed-in from day one.** Neon Auth + Postgres, notes follow the user across devices |
-| Browser extension | **Deferred.** Revisit after the web app is good. v0 extension stays in the repo, untouched |
-| Two tiers | **Board** (small, spatial, what you are working on) and **Memory** (everything filed away). Same notes, two states, not two apps |
-| Board | Freely draggable notes on a canvas. Position is real and saved. Stays small on purpose — a working surface, not an archive |
-| Memory | The **collapsed table**: dense rows with columns for text, color, icon, group, source, dates. Searchable. Where "find that one thing" happens |
-| Filing | **Group-select notes on the board, categorize them, send them to memory.** This is the core motion of the app |
-| Clear board | Empties the *visualization*, never the data. Cleared notes are in memory and findable. Destroying data needs a separate, explicit delete |
-| Free positioning | **Kept, on the board only.** Dragging is how you think and how you group; it is not the filing system for hundreds of notes, because the board never holds hundreds |
-| Categorizing | **Two axes, both user-defined: color and icon.** A note carries one of each, independently. Two axes cover "what kind of thing is this" and "what part of my life is this" without a tag-management chore |
-| Meaning of the axes | The user names them. The app ships defaults but the labels are the user's, stored per account as a **legend** |
-| Search | Full-text across note bodies, available in both views |
-| Typography | **No handwriting font.** The v0 `Segoe Print` / `Comic Sans` body was cheugy and informal. Notes use the site's existing type system |
-| Free positioning | **Dropped as the default.** The wall arranges notes itself |
+| Persistence | **Signed-in.** Neon Auth + Postgres, notes follow the user across devices |
+| Browser extension | **Deferred.** v0 extension stays in the repo, untouched |
+| Two tiers | **Board** (small, spatial, what you are thinking about) and **Memory** (everything filed away). Same notes, two states |
+| Board | Freely draggable notes. Position is real and saved. A working surface, not an archive |
+| Memory | The **structured table**: dense rows, sortable columns, search. Where "find that one thing" happens |
+| Groups | **Named clusters are first-class.** Rope-select notes, name the cluster, and it files as a unit that remembers its arrangement |
+| Recall | **Two-way.** A group (or a single note) can be pulled from memory back onto the board, arrangement restored. Memory is a shelf, not a graveyard |
+| Wipe board | Files everything to memory and empties the visualization. **Never destroys data.** Delete is a separate, explicit act |
+| Categorizing | Two independent, user-defined axes: **color** and **icon**, one of each per note, both optional, appliable to a whole selection at once |
+| Legend | The user names what each color and icon means; notes store keys, never labels, so renaming relabels history |
+| Typography | **No handwriting font** — v0's `Segoe Print`/`Comic Sans` was cheugy. Site sans for bodies, `DM Mono` for metadata, `Fraunces` for page headings only |
+| Card look | Light card, **color shown as a header chip / edge**, like the inspo boards — not a fully saturated paper square. Clean and formal |
+| Performance | The board must feel native: transform-based drag, no full re-renders, nothing ever blocks on the network. Budget below |
 | Sharing / collaboration | Later |
-| Mobile capture / PWA | Later |
+| Mobile capture / PWA | Later; memory table should degrade fine on phones, the board is desktop-first |
 
 ---
 
-## Open questions
+## UX walkthrough
 
-Being worked through one at a time with the owner. Nothing below is decided, and
-code should not assume an answer.
+The clean path, end to end. Every step is designed so the fast thing is the
+default thing and categorizing is deferrable until "when you have time."
 
-1. ~~Core job~~ — settled: all five above
-2. ~~Main view~~ — settled: spatial board + collapsed memory table. Handwriting
-   font is out; free dragging is in, on the board. **Still open:** how much of
-   the paper look survives (colored cards yes, but rotation?), whether cards are
-   uniform or content-sized, and whether the board pans/zooms or is one screen
-3. **Note anatomy** — partly settled: body text, color, icon, position, dates.
-   **Still open:** separate title or first-line-as-title, link previews for
-   pasted URLs, checkbox, pasted images
-4. ~~Organizing~~ — settled: two user-defined axes, color and icon, appliable to
-   a multi-note selection. **Still open:** fixed-and-renameable vs. fully custom
-   sets, and whether a note may have neither
-5. **Groups and recall** — the load-bearing open question. Is a group a named
-   first-class object? Does filing preserve the cluster's spatial arrangement or
-   flatten it to rows? Can notes come back from memory to the board?
-6. **Capture path** — how a note gets born, and how fast that has to be
-7. **Sync conflicts** — what happens when two tabs or two devices edit at once
-8. **Ambient presence** — should the app put itself in front of you (digest,
-   resurfacing old notes) or wait to be opened
-9. **Mobile** — dragging a canvas on a phone is bad; does mobile get the table
-   only?
-10. **Aesthetic direction** — how closely it should match the rest of the site
+### 1. Dump
+
+- Open `/sticky-notes/`. The board is what you see; a **New note** affordance and
+  the keyboard shortcut `N` both drop a fresh note where there's room, already
+  in edit mode.
+- **Double-click empty board** creates a note at that spot — capture where your
+  eye already is.
+- **Paste onto the board** creates a note from the clipboard. A pasted URL
+  becomes a link card (title fetched server-side, lazily — the card shows the
+  raw URL instantly and upgrades when the fetch lands).
+- No required fields. No color, no icon, no name. Type, click away, done.
+
+### 2. Think (mind-map mode)
+
+- Drag any note anywhere. Drag on empty space **rubber-band selects**;
+  shift-click adds to a selection; dragging any selected note moves the whole
+  selection rigidly.
+- A selection shows a **floating action bar** next to it: color swatches, icon
+  picker, a name field, and **File to memory**. One bar, everything on it.
+- Naming a selection turns it into a **group**: the notes get a shared name chip
+  (like "Awesome idea" in the inspo), and a soft outline hugs the cluster.
+  Groups can keep living on the board — naming and filing are separate acts.
+
+### 3. Categorize when you have time
+
+- Applying a color or icon to a selection stamps every note in it, one click.
+- Nothing forces this at capture time. Uncategorized notes are fine; they land
+  in memory as "unsorted" and can be triaged from the table later.
+
+### 4. File / wipe
+
+- **File to memory** on a selection or group: the notes animate off the board,
+  the group appears at the top of memory. The board is emptier.
+- **Wipe board** files *everything* remaining: named groups file as themselves,
+  loose notes file as one auto-named batch ("Board wipe — Aug 19"). The board
+  animates clean. There is no confirm dialog because nothing is lost — instead a
+  toast offers **Undo**, which pulls it all straight back.
+- Delete exists, but only per-note / per-group from the table, worded as
+  destruction, and never adjacent to wipe.
+
+### 5. Remember
+
+- Toggle to **Memory**: a dense table. Columns: note text, color, icon, group,
+  source link, filed date. Sort by any column, filter by color/icon/group,
+  full-text search across bodies.
+- Groups are collapsible header rows; a group row shows its name and count, and
+  expands to its notes.
+- Every row and every group has **Restore to board**. Restoring a group puts the
+  cluster back with its relative arrangement intact, offset to free space.
 
 ---
 
-## Board and memory
+## Performance budget — "clean, no lag"
 
-The app has two states for a note, and the interesting design is the transition
-between them.
+The board dies as a product if dragging stutters. Rules, all cheap to follow in
+a no-build vanilla-JS repo:
 
-```
-   BOARD (spatial, small)                    MEMORY (structured, large)
-   ──────────────────────                    ─────────────────────────
-   ┌────┐  ┌────┐                            text          color  icon  group
-   │    │  │    │   ┌────┐    group-select    ────────────────────────────────
-   └────┘  └────┘   │    │    + categorize    thai place    food   ★     dinner
-        ┌────┐      └────┘    ──────────►     that podcast  work   link  reading
-        │    │  ┌────┐                        dentist       home   !     errands
-        └────┘  │    │                        ...
-                └────┘
-   drag, cluster, think                       search, sort, filter, recall
-```
+| Rule | Concretely |
+|------|-----------|
+| Drag never touches layout | Notes position with `transform: translate(x, y)`, not `left/top`. Pointer moves batched through `requestAnimationFrame`; one style write per frame |
+| No full re-renders | v0 re-rendered the whole board on every change. v1 updates only the touched note's element. The board render function runs once per page load and per view switch |
+| Isolate paint | `contain: layout style` on every card; `will-change: transform` applied on drag start and removed on drop, never left on |
+| Never block on network | All interactions commit to an in-memory store + `localStorage` mirror synchronously. Server sync is a debounced background queue (batched upserts, last-write-wins by `updatedAt` — the merge logic in `notes.js` already does this) |
+| Filing is optimistic | File/wipe animates immediately from local state; the API call follows. Failure re-queues silently and retries — the user never sees a spinner for their own notes |
+| Memory table stays light | Render rows for the current filter/search only, capped with a "show more"; no virtualization needed until real usage says otherwise |
+| Animations are transform/opacity only | The file-away and wipe animations move and fade cards; nothing animates width, height, or box-shadow |
 
-**The motion.** Dump notes onto the board as they occur to you. Shove them around
-until related things sit near each other. Rope-select a cluster, apply a color
-and icon to the whole selection in one move, and send it to memory. The board is
-now emptier and the thought is preserved somewhere you can find it.
+Selection (rubber-band hit-testing) runs against the in-memory note list, not
+the DOM.
 
-**"Clear board" means clear the visualization, not the data.** This is the single
-most important behavior to get right, and v0 got it wrong — its clear button
-called a destructive delete behind a `confirm()`. In v1, clearing files notes to
-memory. Actual destruction is a separate, deliberate action.
-
-**Why the board must stay small.** A board with three hundred notes on it is the
-v0 failure mode: overlapping cards, no way to find anything, dragging as a chore.
-A board with twenty notes is a desk you can think at. Memory absorbs the rest,
-and the table view is built for volume, so neither view has to be good at the
-other's job.
+---
 
 ## Categorizing: two axes, not a tag pile
 
-A note carries **one color** and **one icon**, and the two are independent. That
-gives a grid of meanings from two cheap picks at capture time, and both are
-glanceable on the wall and sortable as columns in the table.
+A note carries **one color** and **one icon**, independent and optional.
 
 ```
               icon  →   link      idea      remember   errand
@@ -139,55 +148,96 @@ glanceable on the wall and sortable as columns in the table.
   house                 ·         ·         ·          ·
 ```
 
-The app does not decide what the axes mean. It ships defaults, and the user
-renames them; the mapping from color/icon to label is a per-account **legend**.
-Renaming a color relabels every note already using it, because notes store the
-color key, never its label.
-
-Why two axes instead of free-text tags: free tags require the user to remember
-what they called something last time, and they rot into near-duplicates. Picking
-from a small fixed palette at capture time costs one click and stays consistent.
-
-## Typography
-
-No handwriting. v0 set note bodies in `Segoe Print` / `Bradley Hand` /
-`Comic Sans MS`, which read as cheugy and informal against the rest of the site.
-Notes use the existing system instead: the site sans for note bodies, `DM Mono`
-for the small metadata (dates, source domains), `Fraunces` reserved for page
-headings. Colored cards stay — the sticky feeling should come from color, shape,
-and density, not from a font pretending to be a pen.
+The app ships a fixed set (working assumption: 6 colors, ~12 icons) with default
+labels; the user renames them inline from the filter bar. Notes store the key
+(`"c1"`, `"star"`), never the label, so renaming a color relabels every note
+retroactively. Free-text tags deliberately do not exist: two one-click axes plus
+group names plus full-text search cover the same ground without tag rot.
 
 ---
 
-## Shape of the build (once the above is settled)
+## Data model (Neon)
 
-Nothing here is written yet. Recorded so the eventual slices are obvious.
+```
+sn_notes    id, user_id, text, color_key, icon_key,
+            status ('board' | 'memory'), group_id (nullable),
+            x, y, w, h,                  -- kept even in memory, so recall
+                                          -- restores the arrangement
+            source_url, source_title,
+            created_at, updated_at, filed_at
+sn_groups   id, user_id, name, status ('board' | 'memory'),
+            created_at, filed_at
+sn_legend   user_id, kind ('color' | 'icon'), key, label
+```
+
+Filing = flipping `status` (and stamping `filed_at`); wiping = the same, in
+bulk; recall = flipping back. Nothing is copied, nothing is destroyed. Positions
+ride along untouched, which is the whole trick behind arrangement-preserving
+recall.
+
+## API shape
+
+One new function, `api/sticky-notes.js` (repo is at 9 of Vercel Hobby's 12 —
+the `AGENTS.md` "8" is stale), `?route=` branches + `vercel.json` rewrites, all
+behind `getAuth` from `lib/neon-auth.js`:
+
+| Route | Does |
+|-------|------|
+| `state` (GET) | Board notes + groups + legend in one payload; memory fetched by the table with filters |
+| `ops` (POST) | Batched operations from the sync queue: upsert notes, move, categorize, file, wipe, restore, delete |
+| `legend` (PUT) | Rename colors / icons |
+| `unfurl` (GET) | Fetch a pasted URL's title for link cards, cached |
+
+## Files
 
 | Piece | Responsibility |
 |-------|----------------|
-| `api/sticky-notes.js` | One authed handler, `?route=` branches for notes CRUD and search |
+| `api/sticky-notes.js` | The authed handler above |
 | `lib/sticky-notes.js` | Server-only Neon queries. Never imported by the browser |
-| `sticky-notes/notes.js` | Shared note model and normalizers, dependency-free ESM, browser-safe |
-| `sticky-notes/views.js` | The one source of truth for view state (board vs. memory, active filters, search) and for the board→memory filing rules, shared by both renderers |
-| `sticky-notes/legend.js` | Color/icon keys, their default labels, and the per-account overrides |
+| `sticky-notes/notes.js` | Note/group model, normalizers, merge — dependency-free ESM, shared and browser-safe |
+| `sticky-notes/legend.js` | Color/icon keys, default labels, override handling |
+| `sticky-notes/board.js` | Canvas: drag, rubber-band selection, action bar, wipe animation |
+| `sticky-notes/memory.js` | Table: filters, search, group rows, restore |
+| `sticky-notes/sync.js` | In-memory store, `localStorage` mirror, debounced op queue |
 | `sticky-notes/engine/auth.js` | Neon Auth wiring over `engine/neon-browser-auth.js` |
-| `scripts/test-sticky-notes.mjs` | Pure-function tests for the note model and view state |
+| `scripts/test-sticky-notes.mjs` | Pure-function tests: model, merge, selection hit-testing, filing/restore transitions, legend |
 
-Constraints that already apply:
+Constraints that already apply: `middleware.js` 404s `/lib/`, so anything the
+browser imports lives under `sticky-notes/` (`scripts/test-public-imports.mjs`
+enforces it); browser modules stay dependency-free ESM, no `node:` imports, no
+npm packages, no build step.
 
-- Vercel Hobby caps a deployment at **12 serverless functions**; the repo uses
-  **9** today, so one new `api/sticky-notes.js` fits. Do not add a second.
-- `middleware.js` 404s everything under `/lib/`, so any module the browser
-  imports must live under `sticky-notes/`, not `lib/`. `node
-  scripts/test-public-imports.mjs` enforces this.
-- Keep browser-imported modules dependency-free ESM — no `node:` imports, no npm
-  packages.
+## Build slices
+
+1. **Board core** — notes, capture (N / double-click / paste), transform drag,
+   local-first store with localStorage mirror. Feels perfect before anything else lands
+2. **Select + categorize** — rubber-band, action bar, legend, group naming
+3. **Memory** — Neon schema, `state`/`ops` routes, filing, wipe with undo, the table
+4. **Recall** — restore note/group to board with arrangement
+5. **Polish** — link unfurl, search, file/wipe animations, empty states
+6. **Later** — extension revival, arrows/connectors between notes, images, mobile board
 
 ---
 
+## Open questions
+
+1. **Arrows/connectors** — the mind-map inspo has arrows between clusters. Parked
+   for "later" as scaffolding the board doesn't need in v1; overrule if arrows are
+   core to how you think
+2. **Board bounds** — one fixed screen that fills up (forcing wipes, keeping it
+   honest) vs. a pannable canvas with more room. Working assumption: one screen,
+   no pan/zoom — simpler and faster, and the pressure to wipe is a feature
+3. **Recurring board notes** — anything that should *stay* on the board across
+   wipes (pinned), or does wipe always mean everything goes
+4. **Note sizing** — fixed width with height following content (clean columns,
+   like the inspo) vs. freely resizable like v0. Working assumption: fixed width
+5. **Memory default view** — flat rows sorted by filed date vs. grouped-by-group.
+   Working assumption: grouped, newest group first
+
 ## Non-goals for v1
 
-- No extension work (the v0 extension keeps working against its own storage)
+- No extension work (v0 extension keeps working against its own storage)
 - No real-time collaboration
 - No second serverless function
 - No build step; this stays a no-build site
+- No due dates, no reminders — this is deliberately not a todo app
