@@ -162,6 +162,15 @@ country mapping lives in `world-in-nyc/countries.js` (browser ESM). Certified
 (refresh with `node scripts/pull-world-in-nyc-mayor.mjs`). Enclave vote shares
 are those EDs, not voter ethnicity. No new Vercel function.
 
+### Sticky Notes — `/sticky-notes`
+
+Digital cork board for the chronically disorganized: pin errands, links, and
+half-formed ideas on a draggable web board (`localStorage`). A **Chrome
+extension** in `sticky-notes/extension/` quick-captures from any tab (popup,
+context menu, `Alt+Shift+N`); notes queue in `chrome.storage.local` and merge
+onto the board when you open `/sticky-notes/`. Product plan:
+`docs/sticky-notes-plan.md`. No backend in v0.
+
 ### World Cup 2026 — `/world-cup`
 
 Back on the homepage as a **static snapshot**. Live football-data.org scores

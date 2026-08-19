@@ -1,0 +1,49 @@
+{
+  "manifest_version": 3,
+  "name": "Sticky Notes — Beep boop",
+  "description": "Pin thoughts from any tab onto your Sticky Notes board at inaayat.xyz.",
+  "version": "0.1.0",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_title": "Pin a sticky note",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png"
+    }
+  },
+  "permissions": ["storage", "contextMenus", "activeTab"],
+  "host_permissions": [
+    "https://inaayat.xyz/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://inaayat.xyz/sticky-notes/*",
+        "http://localhost/*/sticky-notes/*",
+        "http://127.0.0.1/*/sticky-notes/*"
+      ],
+      "js": ["content-board.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "commands": {
+    "quick-capture": {
+      "suggested_key": {
+        "default": "Alt+Shift+N",
+        "mac": "Alt+Shift+N"
+      },
+      "description": "Open quick capture"
+    }
+  }
+}

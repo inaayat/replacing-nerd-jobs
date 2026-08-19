@@ -1,0 +1,110 @@
+:root {
+  --cream: #faf3e3;
+  --ink: #1c1c1c;
+  --muted: #6b5f5e;
+  --line: rgba(28, 28, 28, 0.12);
+  --note-yellow: #ffea56;
+  --note-pink: #fe9ec6;
+  --note-blue: #9ed4ff;
+  --note-green: #b8f28a;
+  --note-purple: #d4b8ff;
+  --mono: "DM Mono", ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  width: 320px;
+  padding: 14px;
+  font: 14px/1.45 ui-sans-serif, system-ui, sans-serif;
+  color: var(--ink);
+  background: var(--cream);
+}
+
+.pop-head {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.pop-head strong { display: block; font-size: 1rem; }
+.pop-head span {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.pop-label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+  color: var(--muted);
+}
+
+textarea {
+  width: 100%;
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  resize: vertical;
+  font: inherit;
+  background: #fffdf8;
+}
+
+.pop-colors {
+  display: flex;
+  gap: 8px;
+  margin: 10px 0 12px;
+}
+.pop-colors button {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+.pop-colors button[aria-pressed="true"] {
+  border-color: var(--ink);
+}
+
+.pop-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.pop-btn {
+  flex: 1;
+  min-height: 40px;
+  border-radius: 999px;
+  border: 1.5px solid var(--ink);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: #fffdf8;
+  color: var(--ink);
+}
+.pop-btn.primary {
+  background: var(--ink);
+  color: var(--cream);
+}
+.pop-btn.ghost { flex: 0 0 auto; padding: 0 12px; }
+
+.pop-status {
+  min-height: 1.2em;
+  margin: 10px 0 0;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  color: var(--muted);
+}

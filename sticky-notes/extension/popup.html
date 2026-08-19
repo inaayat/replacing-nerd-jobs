@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pin a note</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="pop-head">
+      <img src="icons/icon-48.png" alt="" width="24" height="24" />
+      <div>
+        <strong>Sticky Notes</strong>
+        <span>Quick capture</span>
+      </div>
+    </header>
+
+    <label class="pop-label" for="note-text">What do you need to remember?</label>
+    <textarea id="note-text" rows="5" placeholder="Call dentist, read this article, buy milk…"></textarea>
+
+    <div class="pop-colors" id="colors" aria-label="Note color"></div>
+
+    <div class="pop-actions">
+      <button type="button" class="pop-btn primary" id="save">Pin it</button>
+      <a class="pop-btn ghost" id="open-board" href="https://inaayat.xyz/sticky-notes/" target="_blank" rel="noopener noreferrer">Open board</a>
+    </div>
+
+    <p class="pop-status" id="status" role="status" aria-live="polite"></p>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>
