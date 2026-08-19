@@ -237,9 +237,8 @@ CREATE TABLE IF NOT EXISTS sn_legend (
 
 | Rewrite | Destination | Method → response |
 |---------|-------------|-------------------|
-| `/api/sn-state` | `?route=state` | GET → `{ board: { notes, collections }, arrows, legend, memoryCounts: { notes, collections } }` (arrows are all of the user's arrows; the client renders only those with both endpoints on the board) |
-| `/api/sn-memory` | `?route=memory` | GET, query `search, color, icon, collection, offset` → `{ notes, collections, total }`, 200 rows/page, newest `filed_at` first. `search` uses `ILIKE '%…%'` on `text` |
-| `/api/sn-ops` | `?route=ops` | POST `{ ops }` → `{ ok: true, applied: n }`. Applied in order; every statement scoped `WHERE user_id = $user`. Upserts use `ON CONFLICT (id) DO UPDATE … WHERE sn_notes.updated_at <= EXCLUDED.updated_at` for LWW. Unknown op kinds → 400. Cap 200 ops/request |
+| `/api/sn-state` | `?route=state` | GET → `{ state: { notes, collections, arrows, legend } }` — the user's **complete** state, both statuses. The client is fully local-first and filters memory client-side, so one payload is the whole sync surface (hundreds of notes is nothing; revisit with a paginated memory route only if real data says so) |
+| `/api/sn-ops` | `?route=ops` | POST `{ ops }` → `{ ok: true, applied: n }`. Applied in order; every statement scoped `WHERE user_id = $user`. Upserts use `ON CONFLICT (id) DO UPDATE … WHERE sn_notes.updated_at <= EXCLUDED.updated_at` for LWW. Unknown op kinds are skipped (an older server must not reject a newer client's queue). Cap 200 ops/request |
 | `/api/sn-legend` | `?route=legend` | PUT `{ kind, key, label }` → `{ ok: true }`. Reject unknown keys (validate against `LEGEND_DEFAULTS` — import from `sticky-notes/notes.js`, which is browser-safe and legal for the server to import) |
 | `/api/sn-unfurl` | `?route=unfurl` | GET `?url=` → `{ title }`. Server-side fetch, 5 s timeout, `<title>` regex, http(s) only; on any failure `{ title: null }`. Client follows up with a `note.upsert` setting `sourceTitle` |
 

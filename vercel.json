@@ -174,6 +174,22 @@
       "destination": "/api/table-manners?route=sheet"
     },
     {
+      "source": "/api/sn-state",
+      "destination": "/api/sticky-notes?route=state"
+    },
+    {
+      "source": "/api/sn-ops",
+      "destination": "/api/sticky-notes?route=ops"
+    },
+    {
+      "source": "/api/sn-legend",
+      "destination": "/api/sticky-notes?route=legend"
+    },
+    {
+      "source": "/api/sn-unfurl",
+      "destination": "/api/sticky-notes?route=unfurl"
+    },
+    {
       "source": "/api/f500-filed",
       "destination": "/api/fortune-500?route=filed"
     },
