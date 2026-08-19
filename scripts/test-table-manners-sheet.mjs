@@ -13,6 +13,8 @@ import {
   deleteRow,
   deleteColumn,
   cardsFromSheet,
+  groupsFromSheet,
+  setHeaderLabel,
   neighborCell,
   firstCell,
   cellValue,
@@ -92,6 +94,22 @@ assert.deepEqual(neighborCell(withCell, start, 1, 0), {
   colId: withCell.columns[0].id,
 });
 assert.equal(neighborCell({ columns: [], rows: [] }, null, 1, 0), null);
+
+let related = setCell(emptySheet(), 'r1', 'c1', 'Acme');
+related = setCell(related, 'r2', 'c1', 'acme');
+related = setCell(related, 'r2', 'c2', 'SOW');
+related = setCell(related, 'r3', 'c1', '');
+const grouped = groupsFromSheet(related);
+assert.equal(grouped.length, 2, 'same header collapses; blanks stay alone');
+assert.equal(grouped[0].label, 'Acme');
+assert.equal(grouped[0].rows.length, 2);
+assert.equal(grouped[1].rows.length, 1);
+assert.equal(grouped[1].label, '');
+
+const renamedGroup = setHeaderLabel(related, grouped[0].rows.map((row) => row.id), 'Globex');
+assert.equal(cellValue(renamedGroup.rows[0], 'c1'), 'Globex');
+assert.equal(cellValue(renamedGroup.rows[1], 'c1'), 'Globex');
+assert.equal(cellValue(renamedGroup.rows[2], 'c1'), '');
 
 const huge = 'x'.repeat(SHEET_LIMITS.cell + 20);
 const clipped = setCell(blank, blank.rows[0].id, blank.columns[0].id, huge);

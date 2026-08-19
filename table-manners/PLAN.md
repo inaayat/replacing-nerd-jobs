@@ -43,9 +43,13 @@ without people fingering copies and breaking the relationships.
 
 With **one sheet**, mapping is **not** a second table or an ER diagram.
 
-The sheet has columns and rows. A **mapping** is how those fields (and
-eventually link fields) are arranged into a view: which columns show up, in
-what order, grouped into chunks a human can scan.
+The sheet has columns and rows. **Columns are named** (click the header under
+A/B/C). The **first column is the row header**. A **mapping** is how those
+fields are arranged into a view: which columns show up, in what order, grouped
+into chunks a human can scan.
+
+Rows that share the same row header are **one relationship**, not two records.
+The spreadsheet stays flat (one fact per row). The Map face groups them.
 
 ```
   Spreadsheet                         Views (web + Excel tabs)
@@ -147,7 +151,7 @@ look. The name is the cute part; the working surface is not.
 | Header | Dark bar, white type, Beep boop wordmark + Table Manners |
 | Type | System sans for chrome; tabular figures in cells |
 | Radius | ~8–12px on chrome; grid cells stay square |
-| Actions | Solid **Export** (violet). Pills for Spreadsheet / Cards |
+| Actions | Solid **Export** (violet). Pills for Spreadsheet / Map |
 | Color | Blue = selected. Green = saved. Red = error. No rainbow on the grid |
 | Icon | Place setting. Dog stays in the nav wordmark only |
 
@@ -170,9 +174,9 @@ look. The name is the cute part; the working surface is not.
 
 ### Slice 2 — one pretty view + toggle
 - Flip spreadsheet ↔ pretty view without losing place.
-- Pretty view shows the **same rows in chunks** (record cards or grouped
-  field sections — pick at implementation; default: one card per row, fields
-  in sheet order).
+- Pretty view (Map) shows the **same rows in chunks**. First column is the
+  row header; identical headers become one relationship with related fact
+  rows. Singleton headers stay one card. Fields follow sheet order.
 - Edits in either face write the same store.
 
 ### Slice 3 — multiple views from the mapping
@@ -270,8 +274,8 @@ guards this).
 
 ## Success criteria — slice 2
 
-- [x] Spreadsheet ↔ Cards toggle without leaving the document.
-- [x] Cards show the same rows, one card per row, fields in sheet order.
+- [x] Spreadsheet ↔ Map toggle without leaving the document.
+- [x] Map groups the same row header into one relationship; unique headers stay one card.
 - [x] Edits in either face write the same store.
 
 Later slices have their own bars: toggle pretty view; named views; **xlsx

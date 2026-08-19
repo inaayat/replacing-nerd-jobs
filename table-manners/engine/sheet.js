@@ -173,16 +173,86 @@ export function deleteColumn(sheet, colId) {
   return normalizeSheet({ ...sheet, columns, rows });
 }
 
+export function headerColumn(sheet) {
+  return sheet.columns[0] || null;
+}
+
+export function headerLabel(row, sheet) {
+  const col = headerColumn(sheet);
+  return col ? cellValue(row, col.id).trim() : '';
+}
+
+function headerKey(label) {
+  return String(label || '').trim().toLowerCase();
+}
+
+export function rowFields(row, columns) {
+  return columns.map((col) => ({
+    colId: col.id,
+    name: col.name,
+    type: col.type,
+    value: cellValue(row, col.id),
+  }));
+}
+
 export function cardsFromSheet(sheet) {
   return sheet.rows.map((row) => ({
     id: row.id,
-    fields: sheet.columns.map((col) => ({
-      colId: col.id,
-      name: col.name,
-      type: col.type,
-      value: cellValue(row, col.id),
-    })),
+    fields: rowFields(row, sheet.columns),
   }));
+}
+
+/**
+ * First column is the row header. Blank headers stay one row each.
+ * The same non-empty header is one relationship (many fact rows).
+ */
+export function groupsFromSheet(sheet) {
+  const header = headerColumn(sheet);
+  const rest = sheet.columns.slice(1);
+  const groups = [];
+  const byKey = new Map();
+
+  for (const row of sheet.rows) {
+    const label = header ? cellValue(row, header.id).trim() : '';
+    const key = headerKey(label);
+    if (!key) {
+      groups.push({
+        id: row.id,
+        key: '',
+        label: '',
+        header,
+        rest,
+        rows: [row],
+      });
+      continue;
+    }
+    let group = byKey.get(key);
+    if (!group) {
+      group = {
+        id: row.id,
+        key,
+        label,
+        header,
+        rest,
+        rows: [],
+      };
+      byKey.set(key, group);
+      groups.push(group);
+    }
+    group.rows.push(row);
+  }
+  return groups;
+}
+
+export function setHeaderLabel(sheet, rowIds, value) {
+  const col = headerColumn(sheet);
+  if (!col) return sheet;
+  const want = new Set(rowIds);
+  let next = sheet;
+  for (const row of sheet.rows) {
+    if (want.has(row.id)) next = setCell(next, row.id, col.id, value);
+  }
+  return next;
 }
 
 export function firstCell(sheet) {

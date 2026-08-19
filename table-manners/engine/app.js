@@ -15,6 +15,7 @@ import {
   setCell,
   setColumnName,
   setTitle,
+  setHeaderLabel,
 } from './sheet.js';
 
 const FACE_KEY = 'tm-face';
@@ -152,6 +153,7 @@ function render() {
         applySheet(setCell(state.sheet, rowId, colId, value));
       },
       onAddRow: () => applySheet(addRow(state.sheet, state.selected?.rowId)),
+      onRenameGroup: (rowIds, value) => applySheet(setHeaderLabel(state.sheet, rowIds, value)),
     });
     return;
   }

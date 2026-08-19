@@ -283,23 +283,55 @@ a { color: inherit; }
   text-align: left;
 }
 
+.tm-grid-colhead.is-row-header {
+  min-width: 168px;
+  background: #eef1f6;
+}
+
 .tm-grid-letter {
   display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
   font-size: 10px;
   letter-spacing: 0.04em;
   padding: 4px 8px 0;
+  text-align: left;
+  cursor: pointer;
 }
 
 .tm-grid-colname {
   width: 100%;
   border: 0;
-  background: transparent;
-  padding: 2px 8px 6px;
+  background: #fff;
+  border-radius: 6px;
+  margin: 2px 6px 0;
+  width: calc(100% - 12px);
+  padding: 4px 6px;
   font-weight: 700;
   color: var(--ink);
 }
 
-.tm-grid-colname:focus { outline: none; }
+.tm-grid-colname:focus {
+  outline: 2px solid var(--blue);
+  outline-offset: 0;
+}
+
+.tm-grid-colhint {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 8px 5px;
+  color: var(--muted);
+}
+
+.tm-grid-cell.is-row-header {
+  font-weight: 700;
+  background: #f8f9fb;
+}
 
 .tm-grid-colhead.is-sel-col,
 .tm-grid-rowhead.is-sel-row { background: var(--blue-soft); color: var(--ink); }
@@ -366,6 +398,57 @@ a { color: inherit; }
   margin: 0;
   font-size: 0.95rem;
   font-weight: 700;
+}
+
+.tm-card-title-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid transparent;
+  background: transparent;
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 2px 4px;
+  border-radius: 6px;
+}
+
+.tm-card-title-input:focus {
+  outline: 2px solid var(--blue);
+  background: #fff;
+}
+
+.tm-card-map {
+  background: linear-gradient(#fff, #fff) padding-box,
+    linear-gradient(180deg, #e8eefb, #fff) border-box;
+}
+
+.tm-map-note {
+  margin: 0 0 10px;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.tm-map-rels {
+  display: grid;
+  gap: 8px;
+  padding-left: 10px;
+  border-left: 2px solid var(--blue-soft);
+}
+
+.tm-map-rel {
+  display: grid;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--canvas);
+}
+
+.tm-map-rel-tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 .tm-card-fields { display: grid; gap: 8px; }

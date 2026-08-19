@@ -24,14 +24,21 @@ export function renderGrid(root, sheet, { selected, editing, onSelect, onStartEd
     th.className = 'tm-grid-colhead';
     th.dataset.colId = col.id;
     if (selected?.colId === col.id) th.classList.add('is-sel-col');
-    const letter = document.createElement('span');
+    if (i === 0) th.classList.add('is-row-header');
+    const letter = document.createElement('button');
+    letter.type = 'button';
     letter.className = 'tm-grid-letter';
     letter.textContent = colLetter(i + 1);
+    letter.setAttribute('aria-label', `Select column ${colLetter(i + 1)}`);
+    letter.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      onSelect?.({ rowId: selected?.rowId || sheet.rows[0]?.id, colId: col.id });
+    });
     const name = document.createElement('input');
     name.className = 'tm-grid-colname';
     name.value = col.name;
-    name.setAttribute('aria-label', `Column ${i + 1} name`);
-    name.addEventListener('focus', () => onSelect?.({ rowId: selected?.rowId || sheet.rows[0]?.id, colId: col.id }));
+    name.placeholder = i === 0 ? 'Row header' : 'Column name';
+    name.setAttribute('aria-label', i === 0 ? 'Row header column name' : `Column ${colLetter(i + 1)} name`);
     name.addEventListener('change', () => onRenameColumn?.(col.id, name.value));
     name.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
@@ -39,7 +46,10 @@ export function renderGrid(root, sheet, { selected, editing, onSelect, onStartEd
         name.blur();
       }
     });
-    th.append(letter, name);
+    const hint = document.createElement('span');
+    hint.className = 'tm-grid-colhint';
+    hint.textContent = i === 0 ? 'Row header' : 'Name';
+    th.append(letter, name, hint);
     headRow.appendChild(th);
   });
   thead.appendChild(headRow);
@@ -57,6 +67,7 @@ export function renderGrid(root, sheet, { selected, editing, onSelect, onStartEd
     sheet.columns.forEach((col) => {
       const td = document.createElement('td');
       td.className = 'tm-grid-cell';
+      if (col.id === sheet.columns[0]?.id) td.classList.add('is-row-header');
       td.dataset.rowId = row.id;
       td.dataset.colId = col.id;
       const isSel = selected && selected.rowId === row.id && selected.colId === col.id;
