@@ -14,7 +14,7 @@ whole product.
 ## One sentence
 
 A board you dump onto and think on — add notes fast, shove them around, cluster
-the related ones into named mind-map groups — then **file clusters into memory
+the related ones into named collections — then **file them into memory
 and wipe the board**, with everything recoverable, so the board stays a clean
 fast thinking surface and memory does the remembering.
 
@@ -46,8 +46,9 @@ makes free dragging viable on the board and hopeless as a global filing system.
 | Two tiers | **Board** (small, spatial, what you are thinking about) and **Memory** (everything filed away). Same notes, two states |
 | Board | Freely draggable notes. Position is real and saved. A working surface, not an archive |
 | Memory | The **structured table**: dense rows, sortable columns, search. Where "find that one thing" happens |
-| Groups | **Named clusters are first-class.** Rope-select notes, name the cluster, and it files as a unit that remembers its arrangement |
-| Recall | **Two-way.** A group (or a single note) can be pulled from memory back onto the board, arrangement restored. Memory is a shelf, not a graveyard |
+| Collections | **Named collections are first-class.** Rope-select notes, type "Japan trip", and that becomes a thing in memory you can open, **add to later**, and see as a unit. Memory is a list of collections plus loose notes |
+| Adding later | The board's file action offers **existing collections as well as a new name** — a note captured today can join a collection filed last month |
+| Recall | **Two-way.** A collection (or a single note) can be pulled from memory back onto the board, arrangement restored. Memory is a shelf, not a graveyard |
 | Wipe board | Files everything to memory and empties the visualization. **Never destroys data.** Delete is a separate, explicit act |
 | Categorizing | Two independent, user-defined axes: **color** and **icon**, one of each per note, both optional, appliable to a whole selection at once |
 | Legend | The user names what each color and icon means; notes store keys, never labels, so renaming relabels history |
@@ -83,9 +84,11 @@ default thing and categorizing is deferrable until "when you have time."
   selection rigidly.
 - A selection shows a **floating action bar** next to it: color swatches, icon
   picker, a name field, and **File to memory**. One bar, everything on it.
-- Naming a selection turns it into a **group**: the notes get a shared name chip
-  (like "Awesome idea" in the inspo), and a soft outline hugs the cluster.
-  Groups can keep living on the board — naming and filing are separate acts.
+- Naming a selection turns it into a **collection**: the notes get a shared name
+  chip (like "Awesome idea" in the inspo), and a soft outline hugs the cluster.
+  Collections can keep living on the board — naming and filing are separate acts.
+  The name field offers **existing collections** by typeahead, so a new note can
+  join "Japan trip" from last month instead of spawning a duplicate.
 
 ### 3. Categorize when you have time
 
@@ -95,24 +98,27 @@ default thing and categorizing is deferrable until "when you have time."
 
 ### 4. File / wipe
 
-- **File to memory** on a selection or group: the notes animate off the board,
-  the group appears at the top of memory. The board is emptier.
-- **Wipe board** files *everything* remaining: named groups file as themselves,
-  loose notes file as one auto-named batch ("Board wipe — Aug 19"). The board
-  animates clean. There is no confirm dialog because nothing is lost — instead a
-  toast offers **Undo**, which pulls it all straight back.
-- Delete exists, but only per-note / per-group from the table, worded as
+- **File to memory** on a selection or collection: the notes animate off the
+  board, the collection appears at the top of memory. The board is emptier.
+- **Wipe board** files *everything* remaining: named collections file as
+  themselves, loose notes file loose. The board animates clean. There is no
+  confirm dialog because nothing is lost — instead a toast offers **Undo**,
+  which pulls it all straight back.
+- Delete exists, but only per-note / per-collection from the table, worded as
   destruction, and never adjacent to wipe.
 
 ### 5. Remember
 
-- Toggle to **Memory**: a dense table. Columns: note text, color, icon, group,
-  source link, filed date. Sort by any column, filter by color/icon/group,
-  full-text search across bodies.
-- Groups are collapsible header rows; a group row shows its name and count, and
-  expands to its notes.
-- Every row and every group has **Restore to board**. Restoring a group puts the
-  cluster back with its relative arrangement intact, offset to free space.
+- Toggle to **Memory**: a list of **collections plus loose notes**. Collections
+  are collapsible header rows showing name and count; expanding shows the notes.
+  Loose notes sit below (or interleaved by date — flat sort is one click away).
+- Columns: note text, color, icon, collection, source link, filed date. Sort by
+  any column, filter by color/icon/collection, full-text search across bodies.
+- A collection can be **added to later**: from the table directly, or by filing
+  new board notes into it by name.
+- Every row and every collection has **Restore to board**. Restoring a
+  collection puts the cluster back with its relative arrangement intact, offset
+  to free space.
 
 ---
 
@@ -152,7 +158,7 @@ The app ships a fixed set (working assumption: 6 colors, ~12 icons) with default
 labels; the user renames them inline from the filter bar. Notes store the key
 (`"c1"`, `"star"`), never the label, so renaming a color relabels every note
 retroactively. Free-text tags deliberately do not exist: two one-click axes plus
-group names plus full-text search cover the same ground without tag rot.
+collection names plus full-text search cover the same ground without tag rot.
 
 ---
 
@@ -160,13 +166,13 @@ group names plus full-text search cover the same ground without tag rot.
 
 ```
 sn_notes    id, user_id, text, color_key, icon_key,
-            status ('board' | 'memory'), group_id (nullable),
+            status ('board' | 'memory'), collection_id (nullable),
             x, y, w, h,                  -- kept even in memory, so recall
                                           -- restores the arrangement
             source_url, source_title,
             created_at, updated_at, filed_at
-sn_groups   id, user_id, name, status ('board' | 'memory'),
-            created_at, filed_at
+sn_collections  id, user_id, name, status ('board' | 'memory'),
+                created_at, filed_at
 sn_legend   user_id, kind ('color' | 'icon'), key, label
 ```
 
@@ -183,7 +189,7 @@ behind `getAuth` from `lib/neon-auth.js`:
 
 | Route | Does |
 |-------|------|
-| `state` (GET) | Board notes + groups + legend in one payload; memory fetched by the table with filters |
+| `state` (GET) | Board notes + collections + legend in one payload; memory fetched by the table with filters |
 | `ops` (POST) | Batched operations from the sync queue: upsert notes, move, categorize, file, wipe, restore, delete |
 | `legend` (PUT) | Rename colors / icons |
 | `unfurl` (GET) | Fetch a pasted URL's title for link cards, cached |
@@ -194,10 +200,10 @@ behind `getAuth` from `lib/neon-auth.js`:
 |-------|----------------|
 | `api/sticky-notes.js` | The authed handler above |
 | `lib/sticky-notes.js` | Server-only Neon queries. Never imported by the browser |
-| `sticky-notes/notes.js` | Note/group model, normalizers, merge — dependency-free ESM, shared and browser-safe |
+| `sticky-notes/notes.js` | Note/collection model, normalizers, merge — dependency-free ESM, shared and browser-safe |
 | `sticky-notes/legend.js` | Color/icon keys, default labels, override handling |
 | `sticky-notes/board.js` | Canvas: drag, rubber-band selection, action bar, wipe animation |
-| `sticky-notes/memory.js` | Table: filters, search, group rows, restore |
+| `sticky-notes/memory.js` | Table: filters, search, collection rows, restore |
 | `sticky-notes/sync.js` | In-memory store, `localStorage` mirror, debounced op queue |
 | `sticky-notes/engine/auth.js` | Neon Auth wiring over `engine/neon-browser-auth.js` |
 | `scripts/test-sticky-notes.mjs` | Pure-function tests: model, merge, selection hit-testing, filing/restore transitions, legend |
@@ -211,9 +217,9 @@ npm packages, no build step.
 
 1. **Board core** — notes, capture (N / double-click / paste), transform drag,
    local-first store with localStorage mirror. Feels perfect before anything else lands
-2. **Select + categorize** — rubber-band, action bar, legend, group naming
+2. **Select + categorize** — rubber-band, action bar, legend, collection naming with existing-collection typeahead
 3. **Memory** — Neon schema, `state`/`ops` routes, filing, wipe with undo, the table
-4. **Recall** — restore note/group to board with arrangement
+4. **Recall** — restore note/collection to board with arrangement, add-to-collection from the table
 5. **Polish** — link unfurl, search, file/wipe animations, empty states
 6. **Later** — extension revival, arrows/connectors between notes, images, mobile board
 
@@ -231,8 +237,8 @@ npm packages, no build step.
    wipes (pinned), or does wipe always mean everything goes
 4. **Note sizing** — fixed width with height following content (clean columns,
    like the inspo) vs. freely resizable like v0. Working assumption: fixed width
-5. **Memory default view** — flat rows sorted by filed date vs. grouped-by-group.
-   Working assumption: grouped, newest group first
+5. ~~Memory default view~~ — settled: **collections plus loose notes**, newest
+   first, with a flat date-sorted view one click away
 
 ## Non-goals for v1
 
