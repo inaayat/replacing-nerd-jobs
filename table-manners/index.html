@@ -1,43 +1,70 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Table Manners — Replacing Nerd Jobs</title>
-  <meta name="description" content="A grid you already think in, plus prettier views of the same sheet so structured data is easier to see, grab in chunks, and export as a fresh Excel file.">
-  <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png">
-  <link rel="stylesheet" href="../site.css">
-  <style>
-    .tm-lede { max-width: 40rem; line-height: 1.55; }
-    .tm-note { margin-top: 1.25rem; font-size: 0.9rem; opacity: 0.8; }
-  </style>
-</head>
-<body>
-<header class="site-header">
-  <div>
-    <h1>Table Manners</h1>
-    <p>Spreadsheet first. Pretty views of the same sheet. Fresh Excel out.</p>
-  </div>
-  <a class="back-link" href="/">&#8592; home</a>
-</header>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <base href="/table-manners/" />
+    <title>Table Manners — Beep boop</title>
+    <meta
+      name="description"
+      content="A grid you already think in, plus prettier views of the same sheet so structured data is easier to see, grab in chunks, and export as a fresh Excel file."
+    />
+    <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png" />
+    <link rel="stylesheet" href="./app.css" />
+  </head>
+  <body>
+    <nav class="tm-nav">
+      <div class="tm-nav-brand">
+        <a href="/" class="tm-nav-logo" aria-label="Beep boop home">
+          <img src="/ugly-dog-images/dog-3.png" alt="" width="18" height="18" />
+          <span>Beep boop</span>
+        </a>
+        <a href="/table-manners/" class="tm-nav-section">
+          <img src="/table-manners/icon.svg" alt="" width="20" height="20" />
+          <span>Table Manners</span>
+        </a>
+      </div>
+      <div class="tm-nav-links">
+        <span class="tm-status" id="tm-status" hidden></span>
+        <button type="button" class="tm-btn tm-btn-export" id="tm-export">Export</button>
+        <a href="/#projects">Projects</a>
+        <a href="/account.html?next=/table-manners/" data-nav-auth>Sign in</a>
+      </div>
+    </nav>
 
-<div class="main">
-  <div class="panel">
-    <div class="panel-head">
-      <h2>Coming next</h2>
+    <div class="tm-shell">
+      <section class="tm-landing" id="tm-landing">
+        <div class="tm-hero">
+          <h1>Spreadsheet first. Pretty views of the same sheet. Fresh Excel out.</h1>
+          <p>
+            One living grid for people who already think in columns. Flip to cards when you want the
+            same rows in chunks. Export is always a newly generated file — copies don’t rot.
+          </p>
+          <div class="tm-hero-actions">
+            <a class="tm-btn tm-btn-export" id="tm-signin" href="/account.html?next=/table-manners/">Sign in</a>
+            <button type="button" class="tm-btn tm-btn-ghost" id="tm-export-landing">Export empty sheet</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="tm-app" id="tm-app" hidden>
+        <div class="tm-toolbar">
+          <div class="tm-faces" id="tm-faces" role="tablist" aria-label="Sheet face">
+            <button type="button" class="tm-pill is-active" data-face="grid" role="tab">Spreadsheet</button>
+            <button type="button" class="tm-pill" data-face="pretty" role="tab">Cards</button>
+          </div>
+          <input class="tm-title" id="tm-title" type="text" maxlength="80" aria-label="Sheet title" value="Untitled" />
+          <div class="tm-tools">
+            <button type="button" class="tm-btn tm-btn-ghost" id="tm-add-row">Add row</button>
+            <button type="button" class="tm-btn tm-btn-ghost" id="tm-add-col">Add column</button>
+            <button type="button" class="tm-btn tm-btn-ghost" id="tm-del-row">Delete row</button>
+            <button type="button" class="tm-btn tm-btn-ghost" id="tm-del-col">Delete column</button>
+          </div>
+        </div>
+        <div class="tm-well" id="tm-well"></div>
+      </section>
     </div>
-    <div class="panel-body">
-      <p class="tm-lede">
-        Start in a spreadsheet — one sheet, the grid finance people already think in.
-        Flip to a prettier view when you want the same data in chunks. Export to Excel
-        is always there: a freshly generated file, so copies don’t rot. Sign-in
-        persistence comes as this is built; the plan lives in
-        <a href="https://github.com/inaayat/replacing-nerd-jobs/blob/main/table-manners/PLAN.md">PLAN.md</a>.
-      </p>
-      <p class="tm-note brand-mono">Slice 1 is a signed-in grid. Not a Databaser port.</p>
-      <p><a href="/account.html?next=/table-manners/">Sign in</a> · <a href="/#projects">Projects</a></p>
-    </div>
-  </div>
-</div>
-</body>
+
+    <script type="module" src="./engine/app.js"></script>
+  </body>
 </html>

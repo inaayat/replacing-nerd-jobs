@@ -170,6 +170,10 @@
       "destination": "/api/fortune-500?route=prices"
     },
     {
+      "source": "/api/tm-sheet",
+      "destination": "/api/table-manners?route=sheet"
+    },
+    {
       "source": "/api/f500-filed",
       "destination": "/api/fortune-500?route=filed"
     },

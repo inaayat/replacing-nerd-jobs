@@ -1,6 +1,6 @@
 # Table Manners — product plan
 
-Status: **planning locked for slice 1** — no grid editor or API yet  
+Status: **slices 1–2 in this repo** — signed-in one sheet, card face, Excel download
 Site: `/table-manners/` on [inaayat.xyz](https://inaayat.xyz) (this repo)  
 Auth: Neon Auth + Postgres (same pattern as A-Lister / Packing Cubes)
 
@@ -137,9 +137,19 @@ ugly afterthought.
 - Switching must not feel like export / import. Same backend document.
 - Excel download is **always there**, and it is **output**, not a third editor.
 
-Visual tone: closer to Packing Cubes (cozy utility) than Dumpster, but not
-cutesy-for-its-own-sake. Corporate people have to trust it. The name is the
-cute part.
+Visual tone: a dense planning dashboard people would trust at work — not
+Dumpster, not Packing Cubes’ travel-gold, not the generic `site.css` archive
+look. The name is the cute part; the working surface is not.
+
+| Token | Call |
+|--------|------|
+| Canvas | Cool off-white (`#f4f5f7`), white sheet well |
+| Header | Dark bar, white type, Beep boop wordmark + Table Manners |
+| Type | System sans for chrome; tabular figures in cells |
+| Radius | ~8–12px on chrome; grid cells stay square |
+| Actions | Solid **Export** (violet). Pills for Spreadsheet / Cards |
+| Color | Blue = selected. Green = saved. Red = error. No rainbow on the grid |
+| Icon | Place setting. Dog stays in the nav wordmark only |
 
 ---
 
@@ -238,7 +248,7 @@ A download with `views` empty is still a valid workbook (one tab).
 └── engine/
     ├── store.js         ← load/save via API
     ├── grid.js          ← spreadsheet
-    ├── views.js         ← pretty view(s); stub until slice 2
+    ├── views.js         ← card face (slice 2)
     ├── workbook.js      ← xlsx generator; ships in slice 1, grows in slice 4
     └── connectors.js    ← pulls; slice 7
 ```
@@ -251,12 +261,18 @@ guards this).
 
 ## Success criteria — slice 1
 
-- [ ] Signed-in user gets a persisted **one-sheet** grid after refresh.
-- [ ] Signed-out user cannot read or write that sheet.
-- [ ] `/api/me` DELETE removes Table Manners rows.
-- [ ] Still within the 12-function Hobby cap (one new router).
-- [ ] Signed-in user can **always** download a fresh `.xlsx` of the current sheet.
-- [ ] `node scripts/test-public-imports.mjs` still passes.
+- [x] Signed-in user gets a persisted **one-sheet** grid after refresh.
+- [x] Signed-out user cannot read or write that sheet.
+- [x] `/api/me` DELETE removes Table Manners rows.
+- [x] Still within the 12-function Hobby cap (one new router).
+- [x] Signed-in user can **always** download a fresh `.xlsx` of the current sheet.
+- [x] `node scripts/test-public-imports.mjs` still passes.
+
+## Success criteria — slice 2
+
+- [x] Spreadsheet ↔ Cards toggle without leaving the document.
+- [x] Cards show the same rows, one card per row, fields in sheet order.
+- [x] Edits in either face write the same store.
 
 Later slices have their own bars: toggle pretty view; named views; **xlsx
 tabs can match views** without ever removing the download button; extra
@@ -279,11 +295,7 @@ sheets; connectors refresh without becoming a second source of truth.
 
 ## Next implementation step
 
-Landing stub (`index.html`) and a **planned** Projects-panel row are in.
-Homepage tessellation tile can wait until slice 1 is usable.
+Slices 1–2 are in. Homepage tessellation tile can still wait.
 
-Then:
-
-1. `ensureSchema()` + `api/table-manners.js` + grid editor + **Excel download
-   of that grid**.
-2. Stop. Do not build extra views, connectors, or a second sheet in the same pass.
+Then slice 3: named views (field subsets / order). Do not add extra sheets or
+connectors in that pass.
