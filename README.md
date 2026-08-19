@@ -173,15 +173,18 @@ are those EDs, not voter ethnicity. No new Vercel function.
 ### Sticky Notes — `/sticky-notes`
 
 Dumping ground for the chronically disorganized: thoughts, links to read later,
-brainstorm fragments, and things to remember. **v0 (shipped)** is a draggable
-cork board in `localStorage`, plus a **Chrome extension** in
-`sticky-notes/extension/` that quick-captures from any tab (popup, context menu,
-`Alt+Shift+N`), queues in `chrome.storage.local`, and merges onto the board when
-you open `/sticky-notes/`. **v1 (being designed)** replaces the cork board with a
-signed-in web app on Neon Auth + Postgres, tags and search, and one note store
-seen two ways — a sticky wall that arranges itself, collapsible into a
-structured table. Extension work is deferred. Product plan:
-`docs/sticky-notes-plan.md`. No backend in v0.
+brainstorm fragments, and things to remember. **v1** is a signed-in two-tier app
+(Neon Auth + Postgres): a pan/zoom **board** where you dump notes, drag them into
+clusters, draw arrows, pin, resize, and rope-select to stamp a color + icon and
+name a **collection** — and a **memory** table (collections + loose notes,
+filters, full-text search) that the board files into. **Wipe board** files
+everything except pinned notes and offers Undo; nothing is destroyed, and
+collections restore with their arrangement intact. Local-first: every action
+commits to `localStorage` instantly and syncs to `api/sticky-notes.js` in the
+background as ops. The v0 **Chrome extension** in `sticky-notes/extension/`
+still quick-captures from any tab and merges in when you open the board;
+extension v2 is deferred. Product plan + implementation spec:
+`docs/sticky-notes-plan.md`. Static-server dev: `/sticky-notes/?local=1`.
 
 ### World Cup 2026 — `/world-cup`
 

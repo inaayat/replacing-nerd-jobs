@@ -31,13 +31,18 @@ toastUndo.addEventListener('click', () => {
 });
 
 async function init() {
-  const auth = await initAuth();
-  wireAuthLink(auth);
+  // ?local=1 skips auth for static-server dev (python3 -m http.server); the
+  // store runs local-only (no token → the sync queue never flushes).
+  const localMode = new URLSearchParams(location.search).has('local');
+  const auth = localMode
+    ? { configured: false, signedIn: true, token: null }
+    : await initAuth();
+  if (!localMode) wireAuthLink(auth);
 
   const gate = $('#gate');
   const app = $('#app');
 
-  if (!auth.configured || !auth.signedIn) {
+  if (!auth.signedIn) {
     gate.hidden = false;
     if (auth.needsReauth) {
       const note = $('#gate-note');
