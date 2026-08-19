@@ -1,9 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <circle cx="32" cy="34" r="18" fill="#fff" stroke="#1c1c1c" stroke-width="3"/>
-  <circle cx="32" cy="34" r="8" fill="none" stroke="#1c1c1c" stroke-width="2"/>
-  <path d="M14 18c0 6 4 8 4 14V48" fill="none" stroke="#1c1c1c" stroke-width="3" stroke-linecap="round"/>
-  <path d="M10 18c0 5 2 7 2 12" fill="none" stroke="#1c1c1c" stroke-width="2.5" stroke-linecap="round"/>
-  <path d="M18 18c0 5-2 7-2 12" fill="none" stroke="#1c1c1c" stroke-width="2.5" stroke-linecap="round"/>
-  <path d="M50 18c2 6-2 10-2 16v14" fill="none" stroke="#1c1c1c" stroke-width="3" stroke-linecap="round"/>
-  <path d="M50 18c4 0 6 4 4 10" fill="none" stroke="#1c1c1c" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="32" cy="34" r="19" fill="#fff4ea"/>
+  <circle cx="32" cy="34" r="19" fill="none" stroke="#6b46b0" stroke-width="3"/>
+  <circle cx="32" cy="34" r="8" fill="#ffe4f0" stroke="#ff7aa2" stroke-width="2"/>
+  <path d="M14 17c0 6 4 8 4 14v18" fill="none" stroke="#6b46b0" stroke-width="3" stroke-linecap="round"/>
+  <path d="M10 17c0 5 2 7 2 12" fill="none" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M18 17c0 5-2 7-2 12" fill="none" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M50 17c2 6-2 10-2 16v16" fill="none" stroke="#6b46b0" stroke-width="3" stroke-linecap="round"/>
+  <path d="M50 17c4 0 6 4 4 10" fill="none" stroke="#ff7aa2" stroke-width="2.5" stroke-linecap="round"/>
 </svg>

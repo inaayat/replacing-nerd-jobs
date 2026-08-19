@@ -141,19 +141,19 @@ ugly afterthought.
 - Switching must not feel like export / import. Same backend document.
 - Excel download is **always there**, and it is **output**, not a third editor.
 
-Visual tone: a dense planning dashboard people would trust at work — not
-Dumpster, not Packing Cubes’ travel-gold, not the generic `site.css` archive
-look. The name is the cute part; the working surface is not.
+Visual tone: a dense planning dashboard, but **round and bright** — peach
+canvas, plum-to-pink capsule header, Nunito. Trust comes from the grid,
+not from gray chrome. Still not Dumpster, and not Packing Cubes’ travel-gold.
 
 | Token | Call |
 |--------|------|
-| Canvas | Cool off-white (`#f4f5f7`), white sheet well |
-| Header | Dark bar, white type, Beep boop wordmark + Table Manners |
-| Type | System sans for chrome; tabular figures in cells |
-| Radius | ~8–12px on chrome; grid cells stay square |
-| Actions | Solid **Export** (violet). Pills for Spreadsheet / Map |
-| Color | Blue = selected. Green = saved. Red = error. No rainbow on the grid |
-| Icon | Place setting. Dog stays in the nav wordmark only |
+| Canvas | Warm peach (`#fff3e8`) with blush / lilac washes |
+| Header | Rounded capsule, plum → violet → pink gradient |
+| Type | Nunito; tabular figures in cells |
+| Radius | Capsules and 16–22px wells; selected cells get a soft round |
+| Actions | White **Export** on the header; gradient Export on the landing |
+| Color | Violet = selected. Pink tags. Green = saved. Red = error |
+| Icon | Place setting in plum / pink. Dog stays in the nav wordmark only |
 
 ---
 
