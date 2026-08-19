@@ -1,4 +1,4 @@
-import { cellValue, neighborCell } from './sheet.js';
+import { cellValue, neighborCell, colLetter } from './sheet.js';
 
 function cellKey(rowId, colId) {
   return `${rowId}:${colId}`;
@@ -26,7 +26,7 @@ export function renderGrid(root, sheet, { selected, editing, onSelect, onStartEd
     if (selected?.colId === col.id) th.classList.add('is-sel-col');
     const letter = document.createElement('span');
     letter.className = 'tm-grid-letter';
-    letter.textContent = String.fromCharCode(65 + (i % 26));
+    letter.textContent = colLetter(i + 1);
     const name = document.createElement('input');
     name.className = 'tm-grid-colname';
     name.value = col.name;

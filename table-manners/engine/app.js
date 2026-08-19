@@ -94,12 +94,12 @@ function setStatus() {
   els.status.dataset.tone = 'ok';
 }
 
-const persist = debounceSave(async (sheet) => {
+const persist = debounceSave(async (sheet, opts) => {
   if (!state.auth?.token) return;
   state.save = 'saving';
   setStatus();
   try {
-    const data = await saveSheet(state.auth.token, sheet);
+    const data = await saveSheet(state.auth.token, sheet, opts);
     state.sheet = normalizeSheet(data.sheet || sheet);
     state.lastSaved = data.updatedAt ? new Date(data.updatedAt) : new Date();
     state.save = 'saved';
@@ -268,10 +268,10 @@ function bindChrome() {
   });
 
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') persist.flush();
+    if (document.visibilityState === 'hidden') persist.flush({ keepalive: true });
   });
   window.addEventListener('beforeunload', () => {
-    persist.flush();
+    persist.flush({ keepalive: true });
   });
   setInterval(setStatus, 15_000);
 }

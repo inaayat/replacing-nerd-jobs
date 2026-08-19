@@ -14,7 +14,7 @@ import {
 assert.equal(colLetter(1), 'A');
 assert.equal(colLetter(26), 'Z');
 assert.equal(colLetter(27), 'AA');
-assert.equal(sheetTabName('Q3: close?*'), 'Q3  close');
+assert.equal(sheetTabName('Q3: close?*'), 'Q3 close');
 assert.equal(workbookFilename('Q3 Close'), 'q3-close.xlsx');
 assert.equal(workbookFilename('***'), 'table-manners.xlsx');
 

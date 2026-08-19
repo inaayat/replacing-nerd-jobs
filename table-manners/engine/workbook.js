@@ -3,7 +3,9 @@
  * zip writer, same approach as `financial-modeler/workbook.js`. No npm,
  * no serverless function.
  */
-import { cellValue } from './sheet.js';
+import { cellValue, colLetter } from './sheet.js';
+
+export { colLetter };
 
 const CRC_TABLE = new Uint32Array(256);
 for (let i = 0; i < 256; i += 1) {
@@ -108,17 +110,6 @@ function esc(s) {
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;');
-}
-
-export function colLetter(n) {
-  let x = n;
-  let out = '';
-  while (x > 0) {
-    const rem = (x - 1) % 26;
-    out = String.fromCharCode(65 + rem) + out;
-    x = Math.floor((x - 1) / 26);
-  }
-  return out;
 }
 
 export function sheetTabName(title) {

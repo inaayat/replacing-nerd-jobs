@@ -13,9 +13,10 @@ export async function loadSheet(token) {
   return data;
 }
 
-export async function saveSheet(token, sheet) {
+export async function saveSheet(token, sheet, { keepalive = false } = {}) {
   const res = await fetch(PATH, {
     method: 'PUT',
+    keepalive,
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
@@ -34,18 +35,18 @@ export async function saveSheet(token, sheet) {
 export function debounceSave(fn, wait = 700) {
   let timer = null;
   let pending = null;
-  const run = async () => {
+  const run = async (opts) => {
     timer = null;
     const job = pending;
     pending = null;
-    if (job) await fn(job);
+    if (job) await fn(job, opts);
   };
   const wrapped = (payload) => {
     pending = payload;
     if (timer) clearTimeout(timer);
-    timer = setTimeout(run, wait);
+    timer = setTimeout(() => run(), wait);
   };
-  wrapped.flush = async () => {
+  wrapped.flush = async (opts) => {
     if (timer) {
       clearTimeout(timer);
       timer = null;
@@ -53,7 +54,7 @@ export function debounceSave(fn, wait = 700) {
     if (pending) {
       const job = pending;
       pending = null;
-      await fn(job);
+      await fn(job, opts);
     }
   };
   return wrapped;

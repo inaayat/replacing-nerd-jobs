@@ -16,6 +16,17 @@ export const SHEET_LIMITS = {
 const ID_RE = /^[A-Za-z][A-Za-z0-9_]{0,31}$/;
 const TYPES = new Set(['text', 'number']);
 
+export function colLetter(n) {
+  let x = n;
+  let out = '';
+  while (x > 0) {
+    const rem = (x - 1) % 26;
+    out = String.fromCharCode(65 + rem) + out;
+    x = Math.floor((x - 1) / 26);
+  }
+  return out;
+}
+
 export function newId(prefix) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }

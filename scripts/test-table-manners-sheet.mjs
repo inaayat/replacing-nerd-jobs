@@ -16,8 +16,12 @@ import {
   neighborCell,
   firstCell,
   cellValue,
+  colLetter,
   SHEET_LIMITS,
 } from '../table-manners/engine/sheet.js';
+
+assert.equal(colLetter(1), 'A');
+assert.equal(colLetter(27), 'AA');
 
 const blank = emptySheet();
 assert.equal(blank.columns.length, 2);
