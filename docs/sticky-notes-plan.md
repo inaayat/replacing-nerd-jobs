@@ -48,8 +48,10 @@ notes**, not dozens, and design the default view for that.
 | Sticky wall | The signature view. Notes as cards, no overlap, arranged by the app rather than dragged into place |
 | Collapsed table | Dense rows with columns for text, tags, source, dates. The view that makes "memory" and "find it" work |
 | View is a preference | The toggle persists per user, so whoever prefers the table opens into the table |
-| Tags | First-class and shared across both views. Filtering by tag narrows both |
+| Categorizing | **Two axes, both user-defined: color and icon.** A note carries one of each, independently. Two axes cover "what kind of thing is this" and "what part of my life is this" without a tag-management chore |
+| Meaning of the axes | The user names them. The app ships defaults but the labels are the user's, stored per account as a **legend** |
 | Search | Full-text across note bodies, available in both views |
+| Typography | **No handwriting font.** The v0 `Segoe Print` / `Comic Sans` body was cheugy and informal. Notes use the site's existing type system |
 | Free positioning | **Dropped as the default.** The wall arranges notes itself |
 | Sharing / collaboration | Later |
 | Mobile capture / PWA | Later |
@@ -62,15 +64,17 @@ Being worked through one at a time with the owner. Nothing below is decided, and
 code should not assume an answer.
 
 1. ~~Core job~~ — settled: all five above
-2. ~~Main view~~ — settled: sticky wall + collapsed table toggle. **Still open:**
-   the wall's own arrangement (dense masonry vs. capture-first stream vs. tag
-   columns), whether to keep the paper look (colored squares, handwriting font,
-   rotation) or go cleaner and editorial, and whether cards are uniform size or
-   size themselves to their content
-3. **Note anatomy** — what a note holds beyond text: title, tags, URL metadata,
-   color, checkbox, image, due date
-4. **Organizing** — how tags are created and picked, and whether colors mean
-   something or are decoration
+2. ~~Main view~~ — settled: sticky wall + collapsed table toggle. Handwriting
+   font is out. **Still open:** the wall's own arrangement (dense masonry vs.
+   capture-first stream vs. columns), how much of the paper look survives
+   (colored cards yes, but rotation and torn edges?), and whether cards are
+   uniform size or size themselves to their content
+3. **Note anatomy** — partly settled: body text, color, icon, dates. **Still
+   open:** separate title or first-line-as-title, link previews for pasted URLs,
+   checkbox, pasted images
+4. ~~Organizing~~ — settled: two user-defined axes, color and icon. **Still
+   open:** whether free-text tags exist *in addition*, and how many slots each
+   axis gets
 5. **Lifecycle** — do notes ever get done, archived, or expire, or is the pile
    permanent
 6. **Capture path** — how a note gets born in the web app, and how fast that has
@@ -80,6 +84,40 @@ code should not assume an answer.
    digest) or wait to be opened
 9. **Mobile** — usable on a phone from day one, or desktop-first
 10. **Aesthetic direction** — how closely it should match the rest of the site
+
+---
+
+## Categorizing: two axes, not a tag pile
+
+A note carries **one color** and **one icon**, and the two are independent. That
+gives a grid of meanings from two cheap picks at capture time, and both are
+glanceable on the wall and sortable as columns in the table.
+
+```
+              icon  →   link      idea      remember   errand
+  color ↓
+  work                  ·         ·         ·          ·
+  personal              ·         ·         ·          ·
+  house                 ·         ·         ·          ·
+```
+
+The app does not decide what the axes mean. It ships defaults, and the user
+renames them; the mapping from color/icon to label is a per-account **legend**.
+Renaming a color relabels every note already using it, because notes store the
+color key, never its label.
+
+Why two axes instead of free-text tags: free tags require the user to remember
+what they called something last time, and they rot into near-duplicates. Picking
+from a small fixed palette at capture time costs one click and stays consistent.
+
+## Typography
+
+No handwriting. v0 set note bodies in `Segoe Print` / `Bradley Hand` /
+`Comic Sans MS`, which read as cheugy and informal against the rest of the site.
+Notes use the existing system instead: the site sans for note bodies, `DM Mono`
+for the small metadata (dates, source domains), `Fraunces` reserved for page
+headings. Colored cards stay — the sticky feeling should come from color, shape,
+and density, not from a font pretending to be a pen.
 
 ---
 
