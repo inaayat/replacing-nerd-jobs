@@ -172,11 +172,15 @@ are those EDs, not voter ethnicity. No new Vercel function.
 
 ### Sticky Notes — `/sticky-notes`
 
-Digital cork board for the chronically disorganized: pin errands, links, and
-half-formed ideas on a draggable web board (`localStorage`). A **Chrome
-extension** in `sticky-notes/extension/` quick-captures from any tab (popup,
-context menu, `Alt+Shift+N`); notes queue in `chrome.storage.local` and merge
-onto the board when you open `/sticky-notes/`. Product plan:
+Dumping ground for the chronically disorganized: thoughts, links to read later,
+brainstorm fragments, and things to remember. **v0 (shipped)** is a draggable
+cork board in `localStorage`, plus a **Chrome extension** in
+`sticky-notes/extension/` that quick-captures from any tab (popup, context menu,
+`Alt+Shift+N`), queues in `chrome.storage.local`, and merges onto the board when
+you open `/sticky-notes/`. **v1 (being designed)** replaces the cork board with a
+signed-in web app on Neon Auth + Postgres, tags and search, and one note store
+seen two ways — a sticky wall that arranges itself, collapsible into a
+structured table. Extension work is deferred. Product plan:
 `docs/sticky-notes-plan.md`. No backend in v0.
 
 ### World Cup 2026 — `/world-cup`
