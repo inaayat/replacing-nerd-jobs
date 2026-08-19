@@ -143,19 +143,19 @@ ugly afterthought.
 - Switching must not feel like export / import. Same backend document.
 - Excel download is **always there**, and it is **output**, not a third editor.
 
-Visual tone: a dense planning dashboard, but **round and bright** — peach
-canvas, plum-to-pink capsule header, Nunito. Trust comes from the grid,
-not from gray chrome. Still not Dumpster, and not Packing Cubes’ travel-gold.
+Visual tone: a dense planning dashboard people would trust at work. Flat
+color, slightly rounded chrome (6–8px), no gradients, no capsules. Still
+not Dumpster, and not Packing Cubes’ travel-gold.
 
 | Token | Call |
 |--------|------|
-| Canvas | Warm peach (`#fff3e8`) with blush / lilac washes |
-| Header | Rounded capsule, plum → violet → pink gradient |
-| Type | Nunito; tabular figures in cells |
-| Radius | Capsules and 16–22px wells; selected cells get a soft round |
-| Actions | White **Export** on the header; gradient Export on the landing |
-| Color | Violet = selected. Pink tags. Green = saved. Red = error |
-| Icon | Place setting in plum / pink. Dog stays in the nav wordmark only |
+| Canvas | Cool gray (`#f3f4f6`), white sheet well |
+| Header | Full-bleed charcoal bar, white type |
+| Type | System sans; tabular figures in cells |
+| Radius | 6–8px on chrome; grid cells stay square |
+| Actions | Solid blue **Export**. Segmented Spreadsheet / Form |
+| Color | Blue = selected. Green = saved. Red = error |
+| Icon | Place setting in ink. Dog stays in the nav wordmark only |
 
 ---
 
