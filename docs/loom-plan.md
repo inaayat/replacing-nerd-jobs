@@ -160,6 +160,69 @@ Subtitle options (pair with whatever name):
 
 ---
 
+## Brainstorming questions (to think out loud)
+
+These are not gates. Half-answers, rambles, and “I don’t know yet” are useful.
+They exist to find the *itch*, not to lock a spec.
+
+### The itch
+- What spreadsheet (or Notion / Airtable board) do you currently *hate*
+  navigating — the one where you know the data is there but you can’t *see*
+  how things connect?
+- When that happens, are you usually **adding** something, **looking something
+  up**, or **explaining the structure to someone else**?
+- If this shipped tomorrow as a personal tool only you used, what would make
+  you open it in a week vs abandon it like a clever prototype?
+
+### A scene, not a feature list
+- Walk through one fake session in sentences: you sit down, you want X, you
+  click Y, you feel Z. What’s X?
+- Who is on the other end of a relationship in that scene — a person, a
+  company, a recipe, a trip, a film, a dollar amount?
+- When you say “pretty,” is that **softer chrome** (rounded cards, names not
+  ids) or **spatial** (things laid out so you can wander)?
+
+### Spreadsheet vs pretty view
+- Are you someone who *thinks* in grids and wants a prettier face for guests
+  (including future-you), or someone who *hates* grids and only uses them
+  because that’s how schema gets born?
+- Should adding a column in the sheet feel like a power-user move you do
+  rarely, or like the normal way the app grows?
+- What’s the first moment you’d switch from sheet → pretty view in a sitting?
+  What’s the first moment you’d switch back?
+
+### Relationships
+- Do you mostly need “this belongs to that” (owner, parent, category) or
+  “these two know each other” (friends, co-stars, ingredients that show up
+  together)?
+- How messy is real life here — one owner, or tags that explode into
+  many-to-many immediately?
+- Is a relationship a **field on a row** (project.owner) or a **thing you
+  might want to name** (“works at,” “starred in,” “packed inside”)?
+
+### Cute, specifically
+- Cute name only, or cute *UI* (stickers, dogs, packing-cubes warmth)?
+- Any names that are *too* cute / too childish for a tool you’ll put real
+  life into?
+- If the homepage card sat next to Packing Cubes and Dumpster, should this
+  feel closer to Cubes (cozy utility) or Dumpster (irreverent capture)?
+
+### Scope honesty
+- Is Databaser the “serious” sibling and this the “I just want to type”? Or
+  are they competing in your head?
+- What’s the smallest thing that would still feel like *the idea* — not a
+  generic CRUD app with a nicer font?
+- What should this *refuse* to be (Excel, Airtable, a graph database, a
+  whiteboard)?
+
+### Persistence / private
+- Is this diary-private (only you), or “I might show a friend the pretty
+  view someday”?
+- Any data you’d *never* want in this (money, health, other people’s
+  emails) that should stay out of the first demo?
+
+---
+
 ## Questions before building (please answer)
 
 Grouped so you can reply in a list. Defaults in *italics* if you skip an item.
