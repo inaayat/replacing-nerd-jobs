@@ -29,7 +29,7 @@ without people fingering copies and breaking the relationships.
 | First data shape | **One sheet** (no workbook tabs) |
 | Pretty views | Multiple named views, all sourced from the mapping the sheet creates |
 | Job | Structure data, then make it easy to **visualize** or **obtain in chunks** |
-| Excel | A **generated artifact**, not a second source of truth. Website views decide which tabs/columns appear. Each download is a **fresh file**. |
+| Excel | **Always available.** A generated artifact, not a second source of truth. Day one: download the current sheet. Later: views become extra tabs you can include or hide. Each download is a **fresh file**. |
 | External data | **Future:** connectors that pull into the sheet (demo APIs that stand in for Jira / SharePoint). |
 | vs Databaser | **Replacement.** New codebase in this repo. Schema grows in the grid, not a Design tab. |
 | Auth | Signed-in persistence from day one |
@@ -53,7 +53,8 @@ what order, grouped into chunks a human can scan.
   one grid of columns × rows    →     default pretty view
                                       + user-made views
                                       (same data, different chunks)
-                                      + later: one xlsx sheet per view
+                                      + xlsx always (one tab at first;
+                                        later one tab per chosen view)
 ```
 
 Later, when there are multiple sheets, a mapping can also mean “this column
@@ -82,9 +83,14 @@ People can still mangle the downloaded file. That does not matter. The next
 export is clean. **Do not round-trip edits from Excel back into the app** in
 early slices.
 
-**Export settings (future, once views exist):** which views become tabs, tab
-names, which columns on each tab. Changing that on the website changes the
-next file, not a stale workbook sitting on disk.
+**Invariant:** there is always an Export to Excel control — empty sheet,
+pretty view, extra views, connectors, doesn’t matter. You never wait for a
+later slice to get a file out.
+
+**Export settings (once views exist):** which views become tabs, tab names,
+which columns on each tab. Changing that on the website changes the next
+file, not a stale workbook sitting on disk. Until then, export is the full
+sheet as a single tab.
 
 ---
 
@@ -125,7 +131,7 @@ ugly afterthought.
 - Spreadsheet stays a **real editor** (add rows, edit cells, add columns).
 - Pretty view stays a **real editor** too (same records, friendlier chunks).
 - Switching must not feel like export / import. Same backend document.
-- Excel download is **output**, not a third editor.
+- Excel download is **always there**, and it is **output**, not a third editor.
 
 Visual tone: closer to Packing Cubes (cozy utility) than Dumpster, but not
 cutesy-for-its-own-sake. Corporate people have to trust it. The name is the
@@ -141,7 +147,10 @@ cute part.
 - Signed-in: **one sheet**, spreadsheet first.
 - Persist the sheet (columns + rows) in Neon as JSONB on `users.id`.
 - Refresh / new browser still has the data.
-- No second sheet, no custom views, no Excel, no connectors yet.
+- **Export to Excel** from day one: one tab, current columns and rows, fresh
+  `.xlsx` via a browser OOXML generator (same approach as
+  `financial-modeler/workbook.js`). No extra serverless function.
+- No second sheet, no custom views, no connectors yet.
 - One new API router (`api/table-manners.js` + rewrites). Do not burn extra
   Hobby function slots.
 
@@ -156,15 +165,13 @@ cute part.
 - User can save additional views: which fields, order, maybe grouping.
 - All views read the same sheet. Deleting a column in the grid updates every
   view (drop missing fields; don’t ghost them).
-- These views are the contract for Excel tabs in the next slice.
+- Export still works; until slice 4, the file can stay a single full-sheet tab.
 
-### Slice 4 — Excel export (fresh file, tabs = views)
-- Download `.xlsx` generated from the living sheet + view list.
-- Default: one workbook tab per view (or a chosen subset), columns as the
-  view specifies. Full sheet can be tab one.
-- Reuse the no-build OOXML approach in `financial-modeler/workbook.js`
-  (browser-side zip, no new serverless function unless a test needs Node).
-- No import-from-Excel in this slice.
+### Slice 4 — richer Excel (tabs you choose)
+- Same always-on download; now views can become extra tabs (or a chosen
+  subset). Full sheet remains available as a tab.
+- User can change, on the website, which tabs the next file contains.
+- Still no import-from-Excel.
 
 ### Slice 5 — more than one sheet (in the web app)
 - Workbook tabs in the product. Link columns (“this points at that sheet”).
@@ -227,7 +234,7 @@ Sketch:
     ├── store.js         ← load/save via API
     ├── grid.js          ← spreadsheet
     ├── views.js         ← pretty view(s); stub until slice 2
-    ├── workbook.js      ← xlsx generator; slice 4
+    ├── workbook.js      ← xlsx generator; ships in slice 1, grows in slice 4
     └── connectors.js    ← pulls; slice 7
 ```
 
@@ -243,11 +250,12 @@ guards this).
 - [ ] Signed-out user cannot read or write that sheet.
 - [ ] `/api/me` DELETE removes Table Manners rows.
 - [ ] Still within the 12-function Hobby cap (one new router).
+- [ ] Signed-in user can **always** download a fresh `.xlsx` of the current sheet.
 - [ ] `node scripts/test-public-imports.mjs` still passes.
 
 Later slices have their own bars: toggle pretty view; named views; **xlsx
-tabs match views and regenerate cleanly**; extra sheets; connectors refresh
-without becoming a second source of truth.
+tabs can match views** without ever removing the download button; extra
+sheets; connectors refresh without becoming a second source of truth.
 
 ---
 
@@ -270,5 +278,6 @@ Homepage tessellation tile can wait until slice 1 is usable.
 
 Then:
 
-1. `ensureSchema()` + `api/table-manners.js` + grid editor.
-2. Stop. Do not build views, Excel, connectors, or a second sheet in the same pass.
+1. `ensureSchema()` + `api/table-manners.js` + grid editor + **Excel download
+   of that grid**.
+2. Stop. Do not build extra views, connectors, or a second sheet in the same pass.
