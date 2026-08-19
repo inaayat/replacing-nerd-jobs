@@ -685,8 +685,10 @@ a { color: var(--ink); }
   display: flex;
   align-items: center;
   gap: 12px;
+  /* A faded-out toast must never swallow clicks meant for the page. */
+  pointer-events: none;
 }
-.sn-toast.is-visible { transform: translateX(-50%) translateY(0); opacity: 1; }
+.sn-toast.is-visible { transform: translateX(-50%) translateY(0); opacity: 1; pointer-events: auto; }
 
 .sn-toast button {
   border: 1.5px solid rgba(250, 243, 227, 0.5);
