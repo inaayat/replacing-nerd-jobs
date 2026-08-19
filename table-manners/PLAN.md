@@ -106,11 +106,15 @@ sources** are enough to practice the UX:
 
 | Stand-in (this ecosystem) | Stands in for |
 |---------------------------|---------------|
-| A-Lister (signed-in watches / watchlist) | “My team’s system of record” |
-| Plot Points / TMDB | A public inquiry API |
+| **Loopy** — TMDB (The Movie Database) as a public catalog you can query | “Pull from the company database” (Jira/SharePoint-shaped intake, without those credentials) |
+| A-Lister (signed-in watches / watchlist) | “My team’s system of record” (your rows, not the public catalog) |
 | Fortune 500 headlines / EDGAR | A regulated filing dump |
 | Packing Cubes catalog or suitcase | A small internal list |
-| A tiny “loopy” demo table (fixture JSON or a toy endpoint) | A fake second database you can pull without credentials |
+
+Plot Points already speaks TMDB; Loopy here means **using TMDB as a dummy
+external database**, not a new movie product. A-Lister is a different
+connector even though it also uses TMDB: it pulls *your* log, not search
+hits from the catalog.
 
 Each connector should be: pick source → map fields onto this sheet’s columns →
 refresh writes rows. Manual edits on those rows need a rule later (lock
@@ -182,9 +186,9 @@ cute part.
 
 ### Slice 7 — connectors (pull from elsewhere)
 - Adapter: source → field map → write/refresh rows.
-- Ship 1–2 stand-ins first (A-Lister + a public inquiry source, plus a
-  fixture “loopy” table if we want a credential-free second DB).
-- Document them as **practice for Jira / SharePoint**, not as those products.
+- Ship 1–2 stand-ins first: **Loopy (TMDB catalog)** plus A-Lister (your
+  watches). Document them as **practice for Jira / SharePoint**, not as those
+  products.
 
 **Out until much later:** Excel as an editor that syncs back, formulas as the
 product, real-time collab, sharing a sheet with another account, actual Jira /
@@ -219,7 +223,8 @@ Sketch:
 }
 ```
 
-`views` / `export` / `connectors` stay empty until their slices.
+`views` / extra export tabs / `connectors` stay empty until their slices.
+A download with `views` empty is still a valid workbook (one tab).
 
 ---
 
@@ -267,7 +272,8 @@ sheets; connectors refresh without becoming a second source of truth.
   document per user**; list-of-sheets can wait).
 - Whether Databaser’s homepage card is retired when slice 2 ships, or later.
 - Connector lock vs override when a refresh would clobber a typed cell.
-- Exact stand-in list for slice 7 (A-Lister is in; “loopy” fixture TBD).
+- Exact stand-in list for slice 7 (**Loopy = TMDB catalog**; A-Lister = your
+  watches). Extra sources (EDGAR, Packing Cubes) can wait.
 
 ---
 
