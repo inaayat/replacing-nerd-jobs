@@ -1,10 +1,10 @@
-import { cellValue, neighborCell, colLetter } from './sheet.js';
+import { cellValue, neighborCell, colLetter, groupRows, groupLabelText } from './sheet.js';
 
 function cellKey(rowId, colId) {
   return `${rowId}:${colId}`;
 }
 
-export function renderGrid(root, sheet, { selected, editing, onSelect, onStartEdit, onCommit, onCancel, onRenameColumn }) {
+export function renderGrid(root, sheet, { selected, editing, groupBy, onSelect, onStartEdit, onCommit, onCancel, onRenameColumn }) {
   root.replaceChildren();
   root.className = 'tm-grid-wrap';
 
@@ -24,7 +24,7 @@ export function renderGrid(root, sheet, { selected, editing, onSelect, onStartEd
     th.className = 'tm-grid-colhead';
     th.dataset.colId = col.id;
     if (selected?.colId === col.id) th.classList.add('is-sel-col');
-    if (i === 0) th.classList.add('is-row-header');
+    if (col.id === groupBy) th.classList.add('is-grouped');
     const letter = document.createElement('button');
     letter.type = 'button';
     letter.className = 'tm-grid-letter';
@@ -37,8 +37,8 @@ export function renderGrid(root, sheet, { selected, editing, onSelect, onStartEd
     const name = document.createElement('input');
     name.className = 'tm-grid-colname';
     name.value = col.name;
-    name.placeholder = i === 0 ? 'Row header' : 'Column name';
-    name.setAttribute('aria-label', i === 0 ? 'Row header column name' : `Column ${colLetter(i + 1)} name`);
+    name.placeholder = 'Column name';
+    name.setAttribute('aria-label', `Column ${colLetter(i + 1)} name`);
     name.addEventListener('change', () => onRenameColumn?.(col.id, name.value));
     name.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
@@ -48,7 +48,7 @@ export function renderGrid(root, sheet, { selected, editing, onSelect, onStartEd
     });
     const hint = document.createElement('span');
     hint.className = 'tm-grid-colhint';
-    hint.textContent = i === 0 ? 'Row header' : 'Name';
+    hint.textContent = col.id === groupBy ? 'Grouped' : col.type;
     th.append(letter, name, hint);
     headRow.appendChild(th);
   });
@@ -56,18 +56,38 @@ export function renderGrid(root, sheet, { selected, editing, onSelect, onStartEd
   table.appendChild(thead);
 
   const tbody = document.createElement('tbody');
-  sheet.rows.forEach((row, r) => {
+  let rowNumber = 0;
+  const buckets = groupRows(sheet, groupBy);
+  buckets.forEach((bucket) => {
+    if (bucket.column) {
+      const bandRow = document.createElement('tr');
+      const band = document.createElement('td');
+      band.className = 'tm-grid-band';
+      band.colSpan = sheet.columns.length + 1;
+      const label = document.createElement('span');
+      label.className = 'tm-grid-band-label';
+      label.textContent = groupLabelText(bucket);
+      const count = document.createElement('span');
+      count.className = 'tm-grid-band-count';
+      count.textContent = bucket.rows.length === 1 ? '1 row' : `${bucket.rows.length} rows`;
+      band.append(label, count);
+      bandRow.appendChild(band);
+      tbody.appendChild(bandRow);
+    }
+
+    bucket.rows.forEach((row) => {
+    rowNumber += 1;
     const tr = document.createElement('tr');
     const rh = document.createElement('th');
     rh.className = 'tm-grid-rowhead';
-    rh.textContent = String(r + 1);
+    rh.textContent = String(rowNumber);
     if (selected?.rowId === row.id) rh.classList.add('is-sel-row');
     tr.appendChild(rh);
 
     sheet.columns.forEach((col) => {
       const td = document.createElement('td');
       td.className = 'tm-grid-cell';
-      if (col.id === sheet.columns[0]?.id) td.classList.add('is-row-header');
+      if (col.id === groupBy) td.classList.add('is-grouped');
       td.dataset.rowId = row.id;
       td.dataset.colId = col.id;
       const isSel = selected && selected.rowId === row.id && selected.colId === col.id;
@@ -110,6 +130,7 @@ export function renderGrid(root, sheet, { selected, editing, onSelect, onStartEd
       tr.appendChild(td);
     });
     tbody.appendChild(tr);
+    });
   });
   table.appendChild(tbody);
   root.appendChild(table);

@@ -12,9 +12,12 @@ import {
   addColumn,
   deleteRow,
   deleteColumn,
-  cardsFromSheet,
-  groupsFromSheet,
-  setHeaderLabel,
+  rowFields,
+  groupRows,
+  groupLabelText,
+  addRecord,
+  rowIsEmpty,
+  findColumn,
   neighborCell,
   firstCell,
   cellValue,
@@ -79,10 +82,10 @@ assert.equal(droppedRow.rows.length, 3);
 const lastCol = deleteColumn({ ...droppedRow, columns: [droppedRow.columns[0]] }, droppedRow.columns[0].id);
 assert.equal(lastCol.columns.length, 1, 'never drop the last column');
 
-const cards = cardsFromSheet(withCell);
-assert.equal(cards.length, withCell.rows.length);
-assert.equal(cards[0].fields[0].value, 'Acme');
-assert.equal(cards[0].fields[1].name, 'Notes');
+const fields = rowFields(withCell.rows[0], withCell.columns);
+assert.equal(fields.length, withCell.columns.length);
+assert.equal(fields[0].value, 'Acme');
+assert.equal(fields[1].name, 'Notes');
 
 const start = firstCell(withCell);
 assert.deepEqual(neighborCell(withCell, start, 0, 1), {
@@ -95,21 +98,35 @@ assert.deepEqual(neighborCell(withCell, start, 1, 0), {
 });
 assert.equal(neighborCell({ columns: [], rows: [] }, null, 1, 0), null);
 
-let related = setCell(emptySheet(), 'r1', 'c1', 'Acme');
-related = setCell(related, 'r2', 'c1', 'acme');
-related = setCell(related, 'r2', 'c2', 'SOW');
-related = setCell(related, 'r3', 'c1', '');
-const grouped = groupsFromSheet(related);
-assert.equal(grouped.length, 2, 'same header collapses; blanks stay alone');
-assert.equal(grouped[0].label, 'Acme');
-assert.equal(grouped[0].rows.length, 2);
-assert.equal(grouped[1].rows.length, 1);
-assert.equal(grouped[1].label, '');
+// Group by is display-only: rows keep their own identity in every bucket.
+let logged = setCell(emptySheet(), 'r1', 'c1', 'Dune');
+logged = setCell(logged, 'r2', 'c1', 'dune');
+logged = setCell(logged, 'r2', 'c2', 'rewatch');
+logged = setCell(logged, 'r3', 'c1', '');
 
-const renamedGroup = setHeaderLabel(related, grouped[0].rows.map((row) => row.id), 'Globex');
-assert.equal(cellValue(renamedGroup.rows[0], 'c1'), 'Globex');
-assert.equal(cellValue(renamedGroup.rows[1], 'c1'), 'Globex');
-assert.equal(cellValue(renamedGroup.rows[2], 'c1'), '');
+const ungrouped = groupRows(logged, '');
+assert.equal(ungrouped.length, 1, 'no grouping is one bucket');
+assert.equal(ungrouped[0].rows.length, 3);
+assert.equal(groupLabelText(ungrouped[0]), 'All records');
+
+const byName = groupRows(logged, 'c1');
+assert.equal(byName.length, 2, 'same value buckets together, blanks are their own bucket');
+assert.equal(byName[0].label, 'Dune');
+assert.equal(byName[0].rows.length, 2, 'both rows still exist inside the bucket');
+assert.equal(byName[1].rows.length, 1);
+assert.equal(groupLabelText(byName[1]), 'No name', 'blank bucket names itself after the column');
+
+const total = groupRows(logged, 'c1').reduce((n, b) => n + b.rows.length, 0);
+assert.equal(total, logged.rows.length, 'grouping never drops or merges a row');
+
+assert.equal(groupRows(logged, 'gone')[0].column, null, 'a deleted group column falls back');
+assert.equal(findColumn(logged, 'c2').name, 'Notes');
+
+const seeded = addRecord(logged, { c1: 'Dune' });
+assert.equal(seeded.rows.length, 4);
+assert.equal(cellValue(seeded.rows[3], 'c1'), 'Dune', 'new record joins the group it was added under');
+assert.equal(rowIsEmpty(seeded.rows[3], seeded.columns), false);
+assert.equal(rowIsEmpty(addRecord(logged).rows[3], logged.columns), true);
 
 const huge = 'x'.repeat(SHEET_LIMITS.cell + 20);
 const clipped = setCell(blank, blank.rows[0].id, blank.columns[0].id, huge);

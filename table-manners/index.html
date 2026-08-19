@@ -7,7 +7,7 @@
     <title>Table Manners — Beep boop</title>
     <meta
       name="description"
-      content="A grid you already think in, plus prettier views of the same sheet so structured data is easier to see, grab in chunks, and export as a fresh Excel file."
+      content="A spreadsheet with a friendlier way in: name your columns, type records through a form, group by any column, and export a fresh Excel file."
     />
     <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -38,11 +38,11 @@
     <div class="tm-shell">
       <section class="tm-landing" id="tm-landing">
         <div class="tm-hero">
-          <h1>Spreadsheet first. Pretty views of the same sheet. Fresh Excel out.</h1>
+          <h1>A spreadsheet with a friendlier way in.</h1>
           <p>
-            One living grid for people who already think in columns. Name the columns. The first
-            column is the row header — the same name is one relationship, not two records. Export
-            is always a newly generated file — copies don’t rot.
+            Track what you want in columns you name. Flip to a form when typing a row in a grid is
+            annoying, group by any column when you want to see it sorted out, and export a fresh
+            Excel file whenever you need one.
           </p>
           <div class="tm-hero-actions">
             <a class="tm-btn tm-btn-export" id="tm-signin" href="/account.html?next=/table-manners/">Sign in</a>
@@ -55,9 +55,13 @@
         <div class="tm-toolbar">
           <div class="tm-faces" id="tm-faces" role="tablist" aria-label="Sheet face">
             <button type="button" class="tm-pill is-active" data-face="grid" role="tab">Spreadsheet</button>
-            <button type="button" class="tm-pill" data-face="pretty" role="tab">Map</button>
+            <button type="button" class="tm-pill" data-face="form" role="tab">Form</button>
           </div>
           <input class="tm-title" id="tm-title" type="text" maxlength="80" aria-label="Sheet title" value="Untitled" />
+          <label class="tm-groupby">
+            <span>Group by</span>
+            <select id="tm-group-by" aria-label="Group rows by column"></select>
+          </label>
           <div class="tm-tools">
             <button type="button" class="tm-btn tm-btn-ghost" id="tm-add-row">Add row</button>
             <button type="button" class="tm-btn tm-btn-ghost" id="tm-add-col">Add column</button>

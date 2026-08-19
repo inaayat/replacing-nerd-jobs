@@ -173,19 +173,6 @@ export function deleteColumn(sheet, colId) {
   return normalizeSheet({ ...sheet, columns, rows });
 }
 
-export function headerColumn(sheet) {
-  return sheet.columns[0] || null;
-}
-
-export function headerLabel(row, sheet) {
-  const col = headerColumn(sheet);
-  return col ? cellValue(row, col.id).trim() : '';
-}
-
-function headerKey(label) {
-  return String(label || '').trim().toLowerCase();
-}
-
 export function rowFields(row, columns) {
   return columns.map((col) => ({
     colId: col.id,
@@ -195,64 +182,59 @@ export function rowFields(row, columns) {
   }));
 }
 
-export function cardsFromSheet(sheet) {
-  return sheet.rows.map((row) => ({
-    id: row.id,
-    fields: rowFields(row, sheet.columns),
-  }));
+export function findColumn(sheet, colId) {
+  return sheet.columns.find((col) => col.id === colId) || null;
 }
+
+export const NO_GROUP = '';
 
 /**
- * First column is the row header. Blank headers stay one row each.
- * The same non-empty header is one relationship (many fact rows).
+ * Group by is a control, not an identity rule: rows keep their own existence,
+ * they are only bucketed for display. `colId` empty means one bucket of
+ * everything, in sheet order.
  */
-export function groupsFromSheet(sheet) {
-  const header = headerColumn(sheet);
-  const rest = sheet.columns.slice(1);
-  const groups = [];
-  const byKey = new Map();
-
-  for (const row of sheet.rows) {
-    const label = header ? cellValue(row, header.id).trim() : '';
-    const key = headerKey(label);
-    if (!key) {
-      groups.push({
-        id: row.id,
-        key: '',
-        label: '',
-        header,
-        rest,
-        rows: [row],
-      });
-      continue;
-    }
-    let group = byKey.get(key);
-    if (!group) {
-      group = {
-        id: row.id,
-        key,
-        label,
-        header,
-        rest,
-        rows: [],
-      };
-      byKey.set(key, group);
-      groups.push(group);
-    }
-    group.rows.push(row);
+export function groupRows(sheet, colId) {
+  const col = colId ? findColumn(sheet, colId) : null;
+  if (!col) {
+    return [{ key: NO_GROUP, label: '', column: null, rows: sheet.rows.slice() }];
   }
-  return groups;
+  const buckets = [];
+  const byKey = new Map();
+  for (const row of sheet.rows) {
+    const label = cellValue(row, col.id).trim();
+    const key = label.toLowerCase();
+    let bucket = byKey.get(key);
+    if (!bucket) {
+      bucket = { key, label, column: col, rows: [] };
+      byKey.set(key, bucket);
+      buckets.push(bucket);
+    }
+    bucket.rows.push(row);
+  }
+  buckets.sort((a, b) => {
+    if (!a.key) return 1;
+    if (!b.key) return -1;
+    return a.label.localeCompare(b.label, undefined, { numeric: true });
+  });
+  return buckets;
 }
 
-export function setHeaderLabel(sheet, rowIds, value) {
-  const col = headerColumn(sheet);
-  if (!col) return sheet;
-  const want = new Set(rowIds);
-  let next = sheet;
-  for (const row of sheet.rows) {
-    if (want.has(row.id)) next = setCell(next, row.id, col.id, value);
+export function groupLabelText(bucket) {
+  if (!bucket.column) return 'All records';
+  return bucket.label || `No ${bucket.column.name.toLowerCase()}`;
+}
+
+/** New record pre-filled with the group it was added under. */
+export function addRecord(sheet, seed) {
+  const row = { id: newId('r') };
+  for (const [colId, value] of Object.entries(seed || {})) {
+    if (sheet.columns.some((col) => col.id === colId)) row[colId] = value;
   }
-  return next;
+  return normalizeSheet({ ...sheet, rows: [...sheet.rows, row] });
+}
+
+export function rowIsEmpty(row, columns) {
+  return columns.every((col) => cellValue(row, col.id).trim() === '');
 }
 
 export function firstCell(sheet) {

@@ -25,7 +25,7 @@ without people fingering copies and breaking the relationships.
 | Name | **Table Manners** (`/table-manners/`) |
 | Who it’s for | People who think in grids (finance / corporate), who still need good UX |
 | Start screen | Spreadsheet |
-| Daily motion | Flip **spreadsheet ↔ pretty view** in the same sitting, often |
+| Daily motion | Flip **spreadsheet ↔ form** in the same sitting, often |
 | First data shape | **One sheet** (no workbook tabs) |
 | Pretty views | Multiple named views, all sourced from the mapping the sheet creates |
 | Job | Structure data, then make it easy to **visualize** or **obtain in chunks** |
@@ -44,12 +44,14 @@ without people fingering copies and breaking the relationships.
 With **one sheet**, mapping is **not** a second table or an ER diagram.
 
 The sheet has columns and rows. **Columns are named** (click the header under
-A/B/C). The **first column is the row header**. A **mapping** is how those
-fields are arranged into a view: which columns show up, in what order, grouped
-into chunks a human can scan.
+A/B/C). A **mapping** is how those fields are arranged into a view: which
+columns show up, in what order, grouped into chunks a human can scan.
 
-Rows that share the same row header are **one relationship**, not two records.
-The spreadsheet stays flat (one fact per row). The Map face groups them.
+**Group by is a control, not an identity rule.** Point it at any column and
+both faces bucket rows under that value; set it to “No grouping” and it goes
+away. Two rows with the same value are still two rows — grouping never merges,
+dedupes, or rewrites them. (An earlier pass auto-merged rows that shared the
+first column. That was wrong: it made a display choice change the data model.)
 
 ```
   Spreadsheet                         Views (web + Excel tabs)
@@ -137,7 +139,7 @@ fails if the pretty view is a toy that fights the grid, or if the grid is an
 ugly afterthought.
 
 - Spreadsheet stays a **real editor** (add rows, edit cells, add columns).
-- Pretty view stays a **real editor** too (same records, friendlier chunks).
+- The form stays a **real editor** too (same records, friendlier fields).
 - Switching must not feel like export / import. Same backend document.
 - Excel download is **always there**, and it is **output**, not a third editor.
 
@@ -172,11 +174,12 @@ not from gray chrome. Still not Dumpster, and not Packing Cubes’ travel-gold.
 - One new API router (`api/table-manners.js` + rewrites). Do not burn extra
   Hobby function slots.
 
-### Slice 2 — one pretty view + toggle
-- Flip spreadsheet ↔ pretty view without losing place.
-- Pretty view (Map) shows the **same rows in chunks**. First column is the
-  row header; identical headers become one relationship with related fact
-  rows. Singleton headers stay one card. Fields follow sheet order.
+### Slice 2 — friendlier way in + group by
+- Flip Spreadsheet ↔ **Form** without losing place.
+- Form is for **entering** data: one card per record, labelled fields,
+  **Add record**, delete record. Typing a row shouldn’t require aiming at cells.
+- **Group by** any column, in both faces: bands in the grid, sections in the
+  form. “Add here” seeds the new record with that group’s value.
 - Edits in either face write the same store.
 
 ### Slice 3 — multiple views from the mapping
@@ -274,8 +277,9 @@ guards this).
 
 ## Success criteria — slice 2
 
-- [x] Spreadsheet ↔ Map toggle without leaving the document.
-- [x] Map groups the same row header into one relationship; unique headers stay one card.
+- [x] Spreadsheet ↔ Form toggle without leaving the document.
+- [x] Form adds and deletes records with labelled fields, not bare cells.
+- [x] Group by any column in both faces; grouping never merges rows.
 - [x] Edits in either face write the same store.
 
 Later slices have their own bars: toggle pretty view; named views; **xlsx

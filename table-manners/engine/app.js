@@ -1,7 +1,7 @@
 import { initAuth, wireAuthLink, loginUrl } from './auth.js';
 import { loadSheet, saveSheet, debounceSave } from './store.js';
 import { renderGrid, bindGridKeys } from './grid.js';
-import { renderCards } from './views.js';
+import { renderForm } from './views.js';
 import { downloadWorkbook } from './workbook.js';
 import {
   emptySheet,
@@ -15,10 +15,12 @@ import {
   setCell,
   setColumnName,
   setTitle,
-  setHeaderLabel,
+  addRecord,
+  findColumn,
 } from './sheet.js';
 
 const FACE_KEY = 'tm-face';
+const GROUP_KEY = 'tm-group-by';
 
 const els = {
   landing: document.getElementById('tm-landing'),
@@ -28,6 +30,7 @@ const els = {
   status: document.getElementById('tm-status'),
   faces: document.getElementById('tm-faces'),
   export: document.getElementById('tm-export'),
+  groupBy: document.getElementById('tm-group-by'),
   addRow: document.getElementById('tm-add-row'),
   addCol: document.getElementById('tm-add-col'),
   delRow: document.getElementById('tm-del-row'),
@@ -39,6 +42,7 @@ const state = {
   auth: null,
   sheet: emptySheet(),
   face: readFace(),
+  groupBy: readGroupBy(),
   selected: null,
   editing: false,
   draft: null,
@@ -50,7 +54,7 @@ const state = {
 function readFace() {
   try {
     const stored = localStorage.getItem(FACE_KEY);
-    if (stored === 'pretty' || stored === 'grid') return stored;
+    if (stored === 'form' || stored === 'grid') return stored;
   } catch {
     // ignore
   }
@@ -60,6 +64,23 @@ function readFace() {
 function writeFace(face) {
   try {
     localStorage.setItem(FACE_KEY, face);
+  } catch {
+    // ignore
+  }
+}
+
+function readGroupBy() {
+  try {
+    return localStorage.getItem(GROUP_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+function writeGroupBy(colId) {
+  try {
+    if (colId) localStorage.setItem(GROUP_KEY, colId);
+    else localStorage.removeItem(GROUP_KEY);
   } catch {
     // ignore
   }
@@ -135,16 +156,39 @@ function applySheet(next, { dirty = true } = {}) {
   render();
 }
 
+function renderGroupControl() {
+  if (!els.groupBy) return;
+  if (state.groupBy && !findColumn(state.sheet, state.groupBy)) {
+    state.groupBy = '';
+    writeGroupBy('');
+  }
+  const current = state.groupBy;
+  els.groupBy.replaceChildren();
+  const none = document.createElement('option');
+  none.value = '';
+  none.textContent = 'No grouping';
+  els.groupBy.appendChild(none);
+  state.sheet.columns.forEach((col) => {
+    const opt = document.createElement('option');
+    opt.value = col.id;
+    opt.textContent = col.name;
+    els.groupBy.appendChild(opt);
+  });
+  els.groupBy.value = current;
+}
+
 function render() {
   if (els.faces) {
     els.faces.querySelectorAll('[data-face]').forEach((btn) => {
       btn.classList.toggle('is-active', btn.dataset.face === state.face);
     });
   }
+  renderGroupControl();
   if (!els.well) return;
-  if (state.face === 'pretty') {
-    renderCards(els.well, state.sheet, {
+  if (state.face === 'form') {
+    renderForm(els.well, state.sheet, {
       selected: state.selected,
+      groupBy: state.groupBy,
       onSelect: (sel) => {
         state.selected = sel;
         render();
@@ -152,8 +196,12 @@ function render() {
       onCommit: (rowId, colId, value) => {
         applySheet(setCell(state.sheet, rowId, colId, value));
       },
-      onAddRow: () => applySheet(addRow(state.sheet, state.selected?.rowId)),
-      onRenameGroup: (rowIds, value) => applySheet(setHeaderLabel(state.sheet, rowIds, value)),
+      onAddRecord: (seed) => {
+        const next = addRecord(state.sheet, seed);
+        state.selected = { rowId: next.rows[next.rows.length - 1].id, colId: next.columns[0]?.id };
+        applySheet(next);
+      },
+      onDeleteRow: (rowId) => applySheet(deleteRow(state.sheet, rowId)),
     });
     return;
   }
@@ -161,6 +209,7 @@ function render() {
   renderGrid(els.well, state.sheet, {
     selected: state.selected,
     editing: state.editing,
+    groupBy: state.groupBy,
     onSelect: (sel) => {
       state.editing = false;
       state.draft = null;
@@ -215,9 +264,15 @@ function bindChrome() {
   els.faces?.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-face]');
     if (!btn) return;
-    state.face = btn.dataset.face === 'pretty' ? 'pretty' : 'grid';
+    state.face = btn.dataset.face === 'form' ? 'form' : 'grid';
     state.editing = false;
     writeFace(state.face);
+    render();
+  });
+
+  els.groupBy?.addEventListener('change', () => {
+    state.groupBy = els.groupBy.value;
+    writeGroupBy(state.groupBy);
     render();
   });
 
