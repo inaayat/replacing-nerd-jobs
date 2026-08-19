@@ -1,5 +1,5 @@
 # Moved
 
-The relationship-workbook plan is now **Air Table**.
+The relationship-workbook plan is now **Table Manners**.
 
-→ [`air-table/PLAN.md`](../air-table/PLAN.md)
+→ [`table-manners/PLAN.md`](../table-manners/PLAN.md)

@@ -180,9 +180,9 @@ deploy**; the homepage links out to its own subdomain.
 - Repo: [inaayat/dynamic-database-builder](https://github.com/inaayat/dynamic-database-builder)
 - Deploy: `https://dynamic-database-builder.vercel.app` (also `databaser.inaayat.xyz`)
 
-**Successor (planned):** [Air Table](/air-table/) in this repo — grid-first,
-one sheet, prettier views of the same data. Fresh start, not a Databaser port.
-See `air-table/PLAN.md`.
+**Successor (planned):** [Table Manners](/table-manners/) in this repo —
+grid-first, one sheet, prettier views of the same data, later a fresh Excel
+export. Fresh start, not a Databaser port. See `table-manners/PLAN.md`.
 
 ---
 
