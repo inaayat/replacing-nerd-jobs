@@ -1,7 +1,8 @@
 /**
  * Sticky Notes memory — the collapsed table view. Collections plus loose
  * notes, filters by color/icon/collection, client-side full-text search,
- * restore / move / delete actions. Renders at most PAGE rows at a time.
+ * restore / move / delete actions, plus a pointer drag onto the board that
+ * restores a note at the drop point. Renders at most PAGE rows at a time.
  *
  * Renders into the same element whether it is the right-hand sidebar (≥1100px)
  * or the Memory tab below that; only the surrounding chrome differs.
@@ -19,13 +20,25 @@ import { renderBody } from './body.js';
 
 const PAGE = 200;
 
-export function createMemory({ store, els, showToast, openSheet, onRestore, onOpenWiki }) {
+export function createMemory({
+  store,
+  els,
+  showToast,
+  openSheet,
+  onRestore,
+  onOpenWiki,
+  onRestoreDragBegin,
+  onRestoreDragHover,
+  onRestoreDrop,
+}) {
   const filters = { search: '', color: null, icon: null, collection: '' };
   let limit = PAGE;
   let searchTimer = null;
   let lastTotal = null;
+  let suppressRowClick = false;
 
   const coarse = () => window.matchMedia('(pointer: coarse)').matches;
+  const slopPx = () => (coarse() ? 8 : 4);
 
   function memoryNotes() {
     return store.state.notes
@@ -142,12 +155,115 @@ export function createMemory({ store, els, showToast, openSheet, onRestore, onOp
       }, 'sn-mem-danger'),
     );
     row.append(dot, icon, text, meta, actions);
+    bindRestoreDrag(row, note);
     // No hover on a phone: tapping the row is what reveals its actions.
     row.addEventListener('click', (e) => {
+      if (suppressRowClick) {
+        suppressRowClick = false;
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
       if (!coarse() || e.target.closest('button, a')) return;
       row.classList.toggle('is-open');
     });
     return row;
+  }
+
+  function ghostLabel(note) {
+    const line = String(note.text || '')
+      .split('\n')
+      .map((s) => s.replace(/^[•\-\d.]+\s*/, '').trim())
+      .find(Boolean);
+    const label = line || 'Note';
+    return label.length > 36 ? `${label.slice(0, 35)}…` : label;
+  }
+
+  function makeGhost(note) {
+    const ghost = document.createElement('div');
+    ghost.className = 'sn-restore-ghost';
+    ghost.setAttribute('aria-hidden', 'true');
+    const dot = document.createElement('span');
+    dot.className = 'sn-mem-dot';
+    if (note.colorKey) dot.style.background = colorHex(note.colorKey);
+    ghost.append(dot, document.createTextNode(ghostLabel(note)));
+    return ghost;
+  }
+
+  function placeGhost(ghost, clientX, clientY) {
+    ghost.style.left = `${clientX}px`;
+    ghost.style.top = `${clientY}px`;
+  }
+
+  /**
+   * Pointer drag from a memory row onto the board restores that note at the
+   * drop point. Tap (no slop) still opens the row on coarse pointers. A
+   * mostly-vertical move on touch is a list scroll, not a drag.
+   */
+  function bindRestoreDrag(row, note) {
+    row.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      if (e.target.closest('button, a')) return;
+      const pointerId = e.pointerId;
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const snapshot = {
+        id: note.id,
+        text: note.text,
+        colorKey: note.colorKey,
+        w: note.w,
+      };
+      let started = false;
+      let abandoned = false;
+      let ghost = null;
+
+      const teardown = () => {
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        window.removeEventListener('pointercancel', onUp);
+        ghost?.remove();
+        row.classList.remove('is-dragging');
+      };
+
+      const onMove = (ev) => {
+        if (ev.pointerId !== pointerId || abandoned) return;
+        const dx = ev.clientX - startX;
+        const dy = ev.clientY - startY;
+        const dist = Math.hypot(dx, dy);
+        if (!started) {
+          if (dist < slopPx()) return;
+          if (coarse() && Math.abs(dy) >= Math.abs(dx)) {
+            abandoned = true;
+            teardown();
+            return;
+          }
+          started = true;
+          suppressRowClick = true;
+          row.classList.remove('is-open');
+          row.classList.add('is-dragging');
+          ghost = makeGhost(snapshot);
+          document.body.appendChild(ghost);
+          onRestoreDragBegin?.();
+        }
+        ev.preventDefault();
+        placeGhost(ghost, ev.clientX, ev.clientY);
+        ghost.classList.toggle('is-over', Boolean(onRestoreDragHover?.(ev.clientX, ev.clientY)));
+      };
+
+      const onUp = (ev) => {
+        if (ev.pointerId !== pointerId) return;
+        const dropped = started;
+        const x = ev.clientX;
+        const y = ev.clientY;
+        teardown();
+        if (!dropped) return;
+        onRestoreDrop?.(snapshot, x, y);
+      };
+
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+      window.addEventListener('pointercancel', onUp);
+    });
   }
 
   function assignCollection(noteId, collectionId) {

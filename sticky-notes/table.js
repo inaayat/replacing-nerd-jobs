@@ -222,7 +222,8 @@ export function createTable({ store, els, showToast, onViewCanvas }) {
     for (const group of groupByColor(store.state, notes)) {
       const head = document.createElement('tr');
       head.className = 'sn-tbl-grouprow';
-      const cell = document.createElement('td');
+      const cell = document.createElement('th');
+      cell.scope = 'rowgroup';
       cell.colSpan = 6;
       cell.appendChild(colorHeading(group.key));
       head.appendChild(cell);
@@ -281,7 +282,7 @@ export function createTable({ store, els, showToast, onViewCanvas }) {
       const section = document.createElement('section');
       section.className = 'sn-mem-collection';
       const head = document.createElement('div');
-      head.className = 'sn-mem-colhead';
+      head.className = 'sn-tbl-listhead';
       head.appendChild(colorHeading(group.key));
       section.appendChild(head);
       for (const note of group.notes) {

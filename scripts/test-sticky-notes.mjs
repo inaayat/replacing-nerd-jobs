@@ -138,6 +138,16 @@ function note(id, extra = {}) {
   eq(back.filedAt, null, 'restore clears filedAt');
   eq(back.x, 500, 'restore keeps arrangement');
 
+  s = applyOps(s, [
+    { op: 'file', ids: ['a'] },
+    { op: 'restore', ids: ['a'] },
+    { op: 'note.move', id: 'a', x: 80, y: 90 },
+  ]);
+  const dropped = s.notes.find((n) => n.id === 'a');
+  eq(dropped.status, 'board', 'restore + move is a spatial restore');
+  eq(dropped.x, 80, 'spatial restore lands at drop x');
+  eq(dropped.y, 90, 'spatial restore lands at drop y');
+
   s = applyOps(s, [{ op: 'wipe', ts: '2025-07-01T00:00:00.000Z' }]);
   eq(s.notes.find((n) => n.id === 'p').status, 'board', 'wipe skips pinned');
   eq(s.notes.find((n) => n.id === 'b').status, 'memory', 'wipe files loose notes');
