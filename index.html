@@ -212,8 +212,11 @@
       }
       .item-card.is-compact .icon,
       .item-card.is-compact .subtitle { display: none; }
+      /* Dark fills need light icons, the same way they need light ink. */
       .card-purple .icon img,
-      .card-purple .icon svg { filter: invert(1) brightness(1.6); }
+      .card-purple .icon svg,
+      .card-red .icon img,
+      .card-red .icon svg { filter: invert(1) brightness(1.6); }
 
       /* Solid rainbow fills — flat puzzle pieces, no gradients or shadows */
       .card-purple { background: var(--purple); }
@@ -891,11 +894,12 @@
           <div class="title serif font-semibold">World in NYC</div>
           <div class="subtitle brand-mono">Enclaves and origin countries</div>
         </a>
+        <a href="/sticky-notes/" class="no-underline item-card card-red span-tall">
+          <div class="icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="#1c1c1c"><path d="M5 3.5h11.2c1.1 0 2 .9 2 2v8.1l-4.9 4.9H5c-1.1 0-2-.9-2-2V5.5c0-1.1.9-2 2-2zm1.6 4.2a.9.9 0 0 0 0 1.8h8a.9.9 0 0 0 0-1.8zm0 4a.9.9 0 0 0 0 1.8h5a.9.9 0 0 0 0-1.8z"/><path d="M18.1 15.4l-3.6 3.6v-2.1c0-.8.7-1.5 1.5-1.5z" opacity="0.55"/><path d="M20.4 6.6c.6 0 1 .4 1 1v11.1c0 .6-.4 1-1 1H9.3a1 1 0 0 1 0-2h10.1V7.6c0-.6.4-1 1-1z" opacity="0.35"/></svg></div>
+          <div class="title serif font-semibold">Sticky Notes</div>
+          <div class="subtitle brand-mono">Dump it, cluster it, file it</div>
+        </a>
         <div class="item-card card-gray span-big">
-          <div class="title serif font-semibold">TBD</div>
-          <div class="subtitle brand-mono">coming soon</div>
-        </div>
-        <div class="item-card card-gray">
           <div class="title serif font-semibold">TBD</div>
           <div class="subtitle brand-mono">coming soon</div>
         </div>
@@ -1050,8 +1054,8 @@
               <a href="/sticky-notes/" class="project-row card-yellow">
                 <div class="row-top brand-mono"><span class="row-num">14</span><span class="row-status">in beta</span></div>
                 <h3 class="row-title serif font-semibold">Sticky Notes</h3>
-                <p class="row-blurb brand-mono">Digital cork board for the chronically disorganized. Web board plus a Chrome extension to pin thoughts from any tab.</p>
-                <p class="row-outcome brand-mono"><strong>Outcome</strong> Draft: capture the idea before building accounts. Extension queue merges when you open the board.</p>
+                <p class="row-blurb brand-mono">Board for the chronically disorganized: dump notes, cluster them, write on the board itself, then file a cluster into memory and wipe.</p>
+                <p class="row-outcome brand-mono"><strong>Outcome</strong> Live: a thinking surface with a memory. Nothing is lost on a wipe, and the Chrome extension still pins thoughts from any tab.</p>
               </a>
 
               <a href="https://github.com/inaayat/dumpsteriOS" target="_blank" rel="noopener noreferrer" class="project-row card-pink is-failed">

@@ -1,23 +1,32 @@
 // Tests for the Sticky Notes v1 pure model (sticky-notes/notes.js).
 // Run: node scripts/test-sticky-notes.mjs
 import {
+  COLOR_KEYS,
+  DEFAULT_COLOR_KEY,
   LEGEND_DEFAULTS,
   NOTE_W_MAX,
   NOTE_W_MIN,
   applyOps,
   arrowEndpoints,
   bbox,
+  colorHex,
   emptyState,
   findFreeSlot,
   fitViewport,
   isLoneUrl,
   legendLabel,
+  listTriggerFor,
   mergeStates,
   migrateLegacyStore,
+  noteBlocks,
   normalizeNote,
+  normalizeRich,
   normalizeState,
   rectsIntersect,
+  richFromNode,
+  richToText,
   screenToWorld,
+  textToRich,
   urlDomain,
   wipeTargets,
   worldToScreen,
@@ -295,6 +304,171 @@ function note(id, extra = {}) {
   eq(zoomAt(vp, anchor, 0.001).zoom, 0.4, 'zoom clamped to min');
   const pinned = zoomAt({ panX: 0, panY: 0, zoom: 2 }, anchor, 4);
   eq(pinned.panX, 0, 'a clamped zoom does not pan');
+}
+
+// 12. rich bodies — bold, bullets, numbers, and the plain projection
+{
+  const rich = [
+    { type: 'p', spans: [{ text: 'Shop for ' }, { text: 'Sunday', bold: true }] },
+    { type: 'ul', spans: [{ text: 'milk' }] },
+    { type: 'ul', spans: [{ text: 'eggs' }] },
+    { type: 'ol', spans: [{ text: 'book the van' }] },
+    { type: 'ol', spans: [{ text: 'load it' }] },
+  ];
+  eq(
+    richToText(rich),
+    'Shop for Sunday\n• milk\n• eggs\n1. book the van\n2. load it',
+    'plain projection marks lists and renumbers each run',
+  );
+  // Bold is the one thing the projection cannot carry, so compare line kinds
+  // and words: a note that round-trips through plain text keeps its lists.
+  const shape = (blocks) => blocks.map((b) => `${b.type}:${b.spans.map((s) => s.text).join('')}`);
+  eq(
+    JSON.stringify(shape(textToRich(richToText(rich)))),
+    JSON.stringify(shape(normalizeRich(rich))),
+    'text → rich → text round-trips the line kinds',
+  );
+
+  const messy = normalizeRich([
+    { type: 'nope', spans: [{ text: 'a' }, { text: 'b' }] },
+    { type: 'ul', spans: [{ text: 'x', bold: true }, { text: 'y', bold: true }] },
+    { type: 'p', spans: [{ text: 'multi\nline' }] },
+    { type: 'p', spans: [] },
+    { type: 'p', spans: [{ text: '' }] },
+  ]);
+  eq(messy[0].type, 'p', 'unknown block type falls back to a paragraph');
+  eq(messy[0].spans.length, 1, 'adjacent spans of equal weight merge');
+  eq(messy[0].spans[0].text, 'ab', 'merged span keeps both halves');
+  eq(messy[1].spans[0].bold, true, 'bold survives normalization');
+  eq(messy[2].spans[0].text, 'multi line', 'a newline inside a line becomes a space');
+  eq(messy.length, 3, 'trailing empty paragraphs are dropped');
+  assert(normalizeRich([{ type: 'p', spans: [] }]) === null, 'an all-empty body is null');
+  assert(normalizeRich('nope') === null, 'a non-array body is null');
+  // The bullet somebody started and never typed into is not a line.
+  const dangling = normalizeRich([
+    { type: 'p', spans: [{ text: 'buy' }] },
+    { type: 'ul', spans: [{ text: 'milk' }] },
+    { type: 'ul', spans: [] },
+  ]);
+  eq(dangling.length, 2, 'a trailing empty list item is dropped');
+  const blankInside = normalizeRich([
+    { type: 'p', spans: [{ text: 'a' }] },
+    { type: 'p', spans: [] },
+    { type: 'p', spans: [{ text: 'b' }] },
+  ]);
+  eq(blankInside.length, 3, 'a blank line in the middle is kept');
+
+  // A body written before formatting existed still reads as one.
+  const legacy = noteBlocks({ text: 'Trip\n- passport\n- charger\n1. book\n2. pack' });
+  eq(legacy.length, 5, 'plain text becomes one block per line');
+  eq(legacy[1].type, 'ul', 'a "- " line reads as a bullet');
+  eq(legacy[1].spans[0].text, 'passport', 'the marker is not part of the text');
+  eq(legacy[3].type, 'ol', 'a "1. " line reads as a numbered item');
+  eq(noteBlocks({ text: 'plain', rich: null })[0].type, 'p', 'plain lines stay paragraphs');
+
+  // The stored note keeps text as the projection of the body, so memory search
+  // and the memory table never see stale text.
+  const note = normalizeNote({ id: 'n', text: 'stale', rich });
+  eq(note.text, richToText(rich), 'rich body is authoritative over text');
+  eq(note.rich.length, 5, 'rich body is kept on the note');
+  assert(normalizeNote({ id: 'n', rich: [{ type: 'p', spans: [] }] }) === null, 'empty body rejected');
+  eq(normalizeNote({ id: 'n', text: 'plain' }).rich, null, 'a plain note stores no body');
+  const bad = normalizeNote({ id: 'n', text: 'kept', rich: { not: 'an array' } });
+  eq(bad.text, 'kept', 'an unusable body falls back to the text');
+}
+
+// 13. list triggers — the marker-plus-space gesture
+{
+  for (const marker of ['*', '-', '+', '•']) {
+    eq(listTriggerFor(marker), 'ul', `"${marker} " starts a bullet list`);
+  }
+  eq(listTriggerFor('1.'), 'ol', '"1. " starts a numbered list');
+  eq(listTriggerFor('12)'), 'ol', '"12) " starts a numbered list');
+  eq(listTriggerFor(''), null, 'a bare space is just a space');
+  eq(listTriggerFor('milk *'), null, 'a marker mid-line is not a trigger');
+  eq(listTriggerFor('**'), null, 'two asterisks are not a list');
+  eq(listTriggerFor('word'), null, 'a word is not a trigger');
+}
+
+// 14. reading a body back out of the editor's DOM
+{
+  const el = (tagName, childNodes = [], style = null) => ({ nodeType: 1, tagName, childNodes, style });
+  const text = (nodeValue) => ({ nodeType: 3, nodeValue });
+  const body = el('DIV', [
+    el('DIV', [text('Shop for '), el('B', [text('Sunday')])]),
+    el('UL', [el('LI', [text('milk')]), el('LI', [text('eggs')])]),
+    el('DIV', [el('BR')]),
+    el('DIV', [text('note to self')]),
+    el('OL', [el('LI', [el('SPAN', [text('one')], { fontWeight: '700' })])]),
+  ]);
+  const blocks = normalizeRich(richFromNode(body));
+  eq(blocks.length, 6, 'each line and list item is one block');
+  eq(blocks[0].spans.length, 2, 'a bold run is its own span');
+  eq(blocks[0].spans[1].bold, true, '<b> reads as bold');
+  eq(blocks[1].type, 'ul', 'list items keep their list kind');
+  eq(blocks[2].type, 'ul', 'both list items survive');
+  eq(blocks[3].type, 'p', 'a <br>-only line is a blank paragraph');
+  eq(blocks[3].spans.length, 0, 'a blank line holds no spans');
+  eq(blocks[5].type, 'ol', 'an ordered list reads as ordered');
+  eq(blocks[5].spans[0].bold, true, 'font-weight: 700 reads as bold');
+  eq(
+    richToText(blocks),
+    'Shop for Sunday\n• milk\n• eggs\n\nnote to self\n1. one',
+    'the DOM read projects back to the same plain text',
+  );
+  eq(JSON.stringify(richFromNode(el('DIV', []))), '[]', 'an empty editor reads as no blocks');
+}
+
+// 15. new notes are light grey
+{
+  assert(COLOR_KEYS.includes(DEFAULT_COLOR_KEY), 'the default colour is a real palette key');
+  eq(LEGEND_DEFAULTS.colors[DEFAULT_COLOR_KEY].label, 'Grey', 'the default colour is the grey');
+  assert(/^#[0-9a-f]{6}$/i.test(colorHex(DEFAULT_COLOR_KEY)), 'the default colour has a hex');
+  eq(COLOR_KEYS[0], DEFAULT_COLOR_KEY, 'the default leads every palette row');
+  // Notes stored before the grey existed keep having no colour at all.
+  eq(normalizeNote({ id: 'n', text: 'old' }).colorKey, null, 'an uncoloured note stays uncoloured');
+  eq(normalizeNote({ id: 'n', text: 'x', colorKey: 'c1' }).colorKey, 'c1', 'stored colours are untouched');
+}
+
+// 16. board ink — lives on the board, never in memory, dies with a wipe
+{
+  const ink = (id, extra = {}) => ({ op: 'ink.upsert', ink: { id, text: `ink ${id}`, ...extra } });
+  let s = state(note('a'), ink('i1', { x: 40, y: 60 }), ink('i2'));
+  eq(s.ink.length, 2, 'ink.upsert adds board text');
+  assert(!('status' in s.ink[0]), 'ink has no status, so it can never be filed');
+  s = applyOps(s, [{ op: 'ink.move', id: 'i1', x: 300, y: 120 }]);
+  eq(s.ink.find((i) => i.id === 'i1').x, 300, 'ink.move repositions');
+  assert(applyOps(s, [ink('i3', { text: '  ' })]).ink.length === 2, 'empty ink is rejected');
+
+  const targets = wipeTargets(s);
+  eq(targets.ink.length, 2, 'wipeTargets captures the ink a wipe would destroy');
+  const wiped = applyOps(s, [{ op: 'wipe', ts: '2025-09-01T00:00:00.000Z' }]);
+  eq(wiped.ink.length, 0, 'wipe removes board ink');
+  eq(wiped.notes.filter((n) => n.status === 'memory').length, 1, 'wipe still files notes');
+  assert(
+    !wiped.notes.some((n) => n.text.startsWith('ink ')),
+    'wiped ink is not smuggled into memory as a note',
+  );
+
+  // Undo of a wipe re-upserts the ink, because it was deleted rather than filed.
+  const undone = applyOps(wiped, [
+    { op: 'restore', ids: targets.noteIds },
+    ...targets.ink.map((row) => ({ op: 'ink.upsert', ink: row })),
+  ]);
+  eq(undone.ink.length, 2, 'undo brings the board ink back');
+  eq(undone.ink.find((i) => i.id === 'i1').x, 300, 'undone ink keeps where it sat');
+
+  const gone = applyOps(s, [{ op: 'ink.delete', ids: ['i1'] }]);
+  eq(gone.ink.length, 1, 'ink.delete removes one');
+  eq(gone.notes.length, 1, 'deleting ink leaves the notes alone');
+
+  // Ink syncs like everything else: last write wins, unknown ids append.
+  const older = { id: 'i1', text: 'old', updatedAt: '2025-01-01T00:00:00.000Z' };
+  const newer = { id: 'i1', text: 'new', updatedAt: '2025-06-01T00:00:00.000Z' };
+  const merged = mergeStates({ ink: [older] }, { ink: [newer, { id: 'i9', text: 'extra' }] });
+  eq(merged.ink.find((i) => i.id === 'i1').text, 'new', 'newer ink wins the merge');
+  eq(merged.ink.length, 2, 'unknown ink ids append');
+  eq(normalizeState({}).ink.length, 0, 'a state with no ink normalizes to an empty list');
 }
 
 // misc: URL helpers

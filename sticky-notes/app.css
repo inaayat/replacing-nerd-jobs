@@ -433,14 +433,18 @@ a { color: var(--ink); }
 
 /* ---------------------------------------------------------------- cards */
 
+/* The colour a note carries fills the whole card — a sticky note is the
+   colour, it does not wear a stripe. Uncoloured (pre-existing) notes keep the
+   paper background. */
 .sn-card {
   position: absolute;
-  background: var(--panel);
+  z-index: 2;
+  background: var(--note-fill, var(--panel));
   border: 1.5px solid var(--line);
   border-radius: 10px;
   box-shadow: 0 1px 4px rgba(28, 28, 28, 0.08);
   min-height: 64px;
-  padding: 10px 12px 8px 16px;
+  padding: 10px 12px 8px;
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
@@ -470,15 +474,6 @@ a { color: var(--ink); }
   25%, 75% { box-shadow: 0 0 0 6px rgba(28, 28, 28, 0.14); }
 }
 
-.sn-card-color {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 6px;
-  border-radius: 10px 0 0 10px;
-}
-
 .sn-card-pin {
   display: none;
   position: absolute;
@@ -497,25 +492,38 @@ a { color: var(--ink); }
 
 .sn-card-icon {
   position: absolute;
-  right: 8px;
-  top: 8px;
-  width: 16px;
-  height: 16px;
-  opacity: 0.6;
+  right: 7px;
+  top: 7px;
+  width: 18px;
+  height: 18px;
+  opacity: 0.75;
   pointer-events: none;
 }
 .sn-card-icon svg { width: 100%; height: 100%; }
+.sn-card-icon:empty { display: none; }
 
 .sn-card-body {
   font-size: 0.92rem;
   line-height: 1.4;
-  white-space: pre-wrap;
   word-break: break-word;
   outline: none;
   padding-right: 16px;
   /* Click the body and you type — say so before the click. */
   cursor: text;
 }
+
+/* Formatting is bold plus two kinds of list, and nothing else. */
+.sn-card-body b { font-weight: 700; }
+.sn-card-body > div { white-space: pre-wrap; min-height: 1.4em; }
+.sn-card-body ul,
+.sn-card-body ol {
+  margin: 0;
+  padding-left: 1.2em;
+}
+.sn-card-body li { white-space: pre-wrap; }
+.sn-card-body ul { list-style: disc; }
+.sn-card-body ol { list-style: decimal; }
+.sn-card-body li::marker { color: rgba(28, 28, 28, 0.55); }
 
 .sn-card-source {
   font-family: var(--mono);
@@ -560,6 +568,51 @@ a { color: var(--ink); }
 }
 .sn-card:hover .sn-card-resize { opacity: 1; }
 
+/* ---------------------------------------------------------------- board ink */
+
+/* Text written on the board rather than on a note: no card, no fill, no pin.
+   It is wiped with the board and never filed. */
+.sn-ink {
+  position: absolute;
+  z-index: 1;
+  /* The world layer is a 0×0 transform origin, so an absolutely positioned
+     child has no width to lay text out in — it has to size to its content
+     before max-width can cap it, or every word breaks to its own line. */
+  width: max-content;
+  max-width: 340px;
+  padding: 2px 5px;
+  margin: -2px -5px;
+  font-family: var(--display);
+  font-size: 1.15rem;
+  line-height: 1.25;
+  color: rgba(28, 28, 28, 0.78);
+  white-space: pre-wrap;
+  word-break: break-word;
+  border: 1.5px dashed transparent;
+  border-radius: 8px;
+  outline: none;
+  cursor: text;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.sn-ink:hover { border-color: rgba(28, 28, 28, 0.22); }
+.sn-ink.is-dragging { border-color: rgba(28, 28, 28, 0.35); cursor: grabbing; }
+.sn-ink.is-editing {
+  border-color: var(--ink);
+  background: rgba(255, 253, 248, 0.92);
+  color: var(--ink);
+  user-select: text;
+  -webkit-user-select: text;
+  z-index: 7;
+}
+
+/* The pen is armed: the next press writes on the board. */
+.sn-viewport.is-writing { cursor: text; }
+.sn-btn-pen[aria-pressed="true"] { background: var(--ink); color: var(--cream); }
+.sn-pen-glyph { display: inline-flex; width: 15px; height: 15px; }
+.sn-pen-glyph svg { width: 100%; height: 100%; }
+
 /* ---------------------------------------------------------------- collection chips */
 
 .sn-chip {
@@ -590,13 +643,25 @@ a { color: var(--ink); }
   z-index: 46;
   display: flex;
   align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
   gap: 2px;
+  max-width: calc(100vw - 16px);
   background: var(--ink);
   color: var(--cream);
   border-radius: 999px;
   padding: 3px;
   box-shadow: 0 6px 18px rgba(28, 28, 28, 0.28);
+  /* A press on the bar must never be read as a double-tap-to-zoom. */
+  touch-action: manipulation;
 }
+
+.sn-eb-wrap { position: relative; display: inline-flex; }
+
+/* Formatting is a group so a phone can give it its own row (see the coarse
+   block below) instead of squeezing seven 44 px targets onto one line. */
+.sn-eb-group { display: inline-flex; align-items: center; gap: 2px; }
+.sn-eb-format { border-left: 1px solid rgba(250, 243, 227, 0.25); padding-left: 3px; margin-left: 2px; }
 
 .sn-eb-btn {
   width: 26px;
@@ -627,18 +692,53 @@ a { color: var(--ink); }
   background: transparent;
 }
 
-.sn-eb-palette {
+/* Colour and icon are the same gesture: a compact popover over the bar. */
+.sn-eb-palette,
+.sn-eb-iconpop {
   position: absolute;
-  bottom: calc(100% + 6px);
+  bottom: calc(100% + 8px);
   left: 50%;
   transform: translateX(-50%);
-  display: flex;
-  gap: 4px;
   background: var(--ink);
-  border-radius: 999px;
-  padding: 5px 7px;
   box-shadow: 0 6px 18px rgba(28, 28, 28, 0.28);
+  touch-action: manipulation;
 }
+/* placePopover overrides top/bottom once it can measure the bar. */
+
+.sn-eb-palette {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: min(280px, calc(100vw - 24px));
+  gap: 4px;
+  border-radius: 16px;
+  padding: 5px 7px;
+}
+
+.sn-eb-iconpop {
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  gap: 3px;
+  border-radius: 12px;
+  padding: 6px;
+}
+
+.sn-eb-icon {
+  width: 28px;
+  height: 28px;
+  padding: 5px;
+  border: 1.5px solid transparent;
+  background: transparent;
+  color: var(--cream);
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.sn-eb-icon svg { width: 100%; height: 100%; }
+.sn-eb-icon:hover { border-color: rgba(250, 243, 227, 0.4); }
+.sn-eb-icon[aria-pressed="true"] { background: var(--cream); color: var(--ink); }
 
 .sn-eb-swatch {
   width: 18px;
@@ -1301,8 +1401,22 @@ a { color: var(--ink); }
 /* Fingers need bigger targets than a cursor does. */
 @media (pointer: coarse) {
   .sn-eb-btn { width: 44px; height: 44px; padding: 11px; }
-  .sn-eb-swatch { width: 30px; height: 30px; }
+  .sn-eb-swatch { width: 32px; height: 32px; }
   .sn-eb-palette { gap: 6px; padding: 7px 9px; }
+  .sn-eb-icon { width: 44px; height: 44px; padding: 12px; }
+  .sn-eb-iconpop { grid-template-columns: repeat(4, 44px); gap: 4px; }
+  /* Five 44 px actions fit a phone row; formatting takes the next one rather
+     than pushing the bar wider than the screen. `order` keeps Done last on the
+     first row without reordering the markup. */
+  .sn-eb-format {
+    order: 5;
+    flex-basis: 100%;
+    justify-content: center;
+    border-left: 0;
+    border-top: 1px solid rgba(250, 243, 227, 0.25);
+    padding: 2px 0 0;
+    margin: 0;
+  }
   .sn-ab-swatch { width: 28px; height: 28px; }
   .sn-ab-iconbtn,
   .sn-ab-pin,
@@ -1314,6 +1428,64 @@ a { color: var(--ink); }
   /* Connector dots and the resize grip are mouse affordances. */
   .sn-dot,
   .sn-card-resize { display: none; }
+
+  /* iOS Safari zooms the whole document when focus lands on editable text
+     smaller than 16 px, and the page never zooms back. Everything you can type
+     into is therefore at least 16 px on touch: the note body, board ink, the
+     collection name, and the memory filters. Board pan and pinch are
+     unaffected — they are canvas transforms, not page scale. */
+  .sn-card-body,
+  .sn-ink,
+  .sn-ab-name,
+  .sn-mem-search,
+  .sn-mem-select { font-size: 16px; }
+  .sn-ink { font-size: 17px; }
+
+  /* Toolbar targets match the 44 px the note bar uses. */
+  .sn-btn,
+  .sn-iconbtn,
+  .sn-tab,
+  .sn-zoom-btn,
+  .sn-zoom-label { min-height: 44px; }
+  .sn-iconbtn { width: 44px; }
+
+  /* Buttons outside the (touch-action: none) canvas still need to opt out of
+     double-tap zoom. */
+  .sn-btn,
+  .sn-iconbtn,
+  .sn-tab,
+  .sn-menu-item,
+  .sn-mem-action,
+  .sn-mem-chip,
+  .sn-selbar,
+  .sn-toast button { touch-action: manipulation; }
+}
+
+/* ---------------------------------------------------------------- installed app */
+
+/* Added to <html> when the page is running from the home screen (matchMedia on
+   Android/desktop, navigator.standalone on iOS). There is no browser chrome to
+   sit under, so the site nav compacts to a strip and the board takes the screen
+   it just got back. Safe-area insets matter here — black-translucent means the
+   status bar and the home indicator overlap the page. */
+.sn-standalone {
+  --nav-h: calc(2.4rem + env(safe-area-inset-top, 0px));
+}
+.sn-standalone .sn-nav {
+  background: var(--cream);
+  backdrop-filter: none;
+  border-bottom: 0;
+  padding: 0 10px;
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.sn-standalone .sn-nav-logo span,
+.sn-standalone .sn-nav-section span { display: none; }
+.sn-standalone .sn-nav-links { font-size: 0.62rem; }
+.sn-standalone .sn-app {
+  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+}
+.sn-standalone .sn-selbar {
+  bottom: calc(8px + env(safe-area-inset-bottom, 0px));
 }
 
 @media (prefers-reduced-motion: reduce) {

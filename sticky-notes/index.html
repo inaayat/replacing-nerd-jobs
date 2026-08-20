@@ -9,7 +9,15 @@
       name="description"
       content="A board you dump onto and think on. Cluster notes into collections, file them into memory, wipe the board — nothing is ever lost."
     />
-    <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <meta name="theme-color" content="#faf3e3" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Sticky Notes" />
+    <link rel="apple-touch-icon" href="./icons/icon-192.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -63,6 +71,16 @@
             <div class="sn-board-actions" id="board-actions">
             <button type="button" class="sn-btn sn-btn-primary" id="add-note">
               <span aria-hidden="true">+</span> <span class="sn-btn-label">New note</span>
+            </button>
+            <button
+              type="button"
+              class="sn-btn sn-btn-pen"
+              id="add-text"
+              aria-pressed="false"
+              title="Write on the board — text that is wiped, never filed"
+            >
+              <span class="sn-pen-glyph" aria-hidden="true"></span>
+              <span class="sn-btn-label">Write</span>
             </button>
             <div class="sn-zoom" id="zoom-controls">
               <button type="button" class="sn-zoom-btn" id="zoom-out" aria-label="Zoom out" title="Zoom out">−</button>
@@ -174,13 +192,25 @@
       </div>
     </main>
 
-    <!-- Tier 1 chrome: rides the note being edited, in screen space. -->
+    <!-- Tier 1 chrome: rides the note being edited, in screen space. Formatting
+         is its own group so it can drop to a second row on a phone. -->
     <div class="sn-editbar" id="editbar" hidden role="toolbar" aria-label="Note actions">
       <button type="button" class="sn-eb-btn sn-eb-danger" id="eb-trash" aria-label="Delete note" title="Delete for good"></button>
       <button type="button" class="sn-eb-btn" id="eb-pin" aria-label="Pin note" title="Pin — survives a wipe"></button>
-      <button type="button" class="sn-eb-btn" id="eb-color" aria-label="Note colour" title="Colour"><span class="sn-eb-dot"></span></button>
+      <span class="sn-eb-wrap">
+        <button type="button" class="sn-eb-btn" id="eb-color" aria-label="Note colour" title="Colour"><span class="sn-eb-dot"></span></button>
+        <div class="sn-eb-palette" id="eb-palette" hidden></div>
+      </span>
+      <span class="sn-eb-wrap">
+        <button type="button" class="sn-eb-btn" id="eb-icon" aria-label="Note icon" title="Icon"></button>
+        <div class="sn-eb-iconpop" id="eb-iconpop" hidden></div>
+      </span>
       <button type="button" class="sn-eb-btn sn-eb-done" id="eb-done" aria-label="Done editing" title="Done">✓</button>
-      <div class="sn-eb-palette" id="eb-palette" hidden></div>
+      <span class="sn-eb-group sn-eb-format">
+        <button type="button" class="sn-eb-btn" id="eb-bold" aria-label="Bold" title="Bold (⌘/Ctrl+B)"></button>
+        <button type="button" class="sn-eb-btn" id="eb-bullets" aria-label="Bullet list" title="Bullet list — or type “* ” on a new line"></button>
+        <button type="button" class="sn-eb-btn" id="eb-numbers" aria-label="Numbered list" title="Numbered list — or type “1. ” on a new line"></button>
+      </span>
     </div>
 
     <div class="sn-scrim" id="scrim" hidden></div>

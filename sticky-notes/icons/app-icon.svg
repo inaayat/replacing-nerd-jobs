@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="Sticky Notes">
+  <!-- Home-screen source art. Full-bleed so it works as a maskable icon: every
+       shape stays inside the middle 80%, which is the safe zone a round or
+       squircle mask leaves visible. The in-page nav icon is ../icon.svg. -->
+  <rect width="64" height="64" rx="14" fill="#faf3e3"/>
+  <g opacity="0.5">
+    <circle cx="14" cy="14" r="1" fill="#1c1c1c"/>
+    <circle cx="32" cy="12" r="1" fill="#1c1c1c"/>
+    <circle cx="50" cy="14" r="1" fill="#1c1c1c"/>
+    <circle cx="14" cy="50" r="1" fill="#1c1c1c"/>
+    <circle cx="32" cy="52" r="1" fill="#1c1c1c"/>
+    <circle cx="50" cy="50" r="1" fill="#1c1c1c"/>
+  </g>
+  <!-- the grey note a new note starts as, filed behind -->
+  <g transform="rotate(-8 30 32)">
+    <rect x="12" y="16" width="24" height="24" rx="3" fill="#e5e2da" stroke="#1c1c1c" stroke-opacity="0.18" stroke-width="1"/>
+    <path d="M17 23h13M17 28h10" stroke="#1c1c1c" stroke-opacity="0.3" stroke-width="1.6" stroke-linecap="round"/>
+  </g>
+  <!-- the note on top, with a corner peeled up -->
+  <g transform="rotate(6 36 34)">
+    <path d="M24 22h22a2 2 0 0 1 2 2v14l-8 8H24a2 2 0 0 1-2-2V24a2 2 0 0 1 2-2z" fill="#ffea56" stroke="#1c1c1c" stroke-opacity="0.22" stroke-width="1"/>
+    <path d="M48 38l-8 8v-6a2 2 0 0 1 2-2z" fill="#eed23f" stroke="#1c1c1c" stroke-opacity="0.16" stroke-width="1" stroke-linejoin="round"/>
+    <path d="M27 29h14M27 34.5h10" stroke="#1c1c1c" stroke-opacity="0.55" stroke-width="1.9" stroke-linecap="round"/>
+  </g>
+</svg>
