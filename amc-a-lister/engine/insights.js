@@ -43,11 +43,11 @@ bootPage(async ({ root, auth }) => {
   const valueStats = buildValueStats(summary);
 
   main.innerHTML = `
+    ${renderValueCategory(summary, valueStats)}
     <div class="al-insights-overview" aria-label="Stats overview">
       ${renderByMonthSection(byMonth, moviesByMonth)}
       ${renderRatingSection(ratings, ratingBuckets, moviesByRating, watchList)}
     </div>
-    ${renderValueCategory(summary, valueStats)}
     ${renderTheaterCategory(theaterStats, moviesByTheater)}
     ${renderFormatCategory(formatStats, moviesByFormat)}
     ${renderCastCategory(actors)}
@@ -158,17 +158,19 @@ function renderTheaterCategory(theaters, moviesByTheater) {
     ? `
       <p class="al-muted al-insight-lede">Top 10 by visits. Average ticket uses screenings with a recorded ticket price.</p>
       ${rankTable({
+    className: 'al-stats-table--theater',
     headers: [
+      { label: '<span class="sr-only">Rank</span>', className: 'al-rank-col' },
       { label: 'Theater' },
-      { label: 'Visits', className: 'num' },
-      { label: 'Avg ticket', className: 'num' },
-      { label: 'Avg rating', className: 'num' },
-      { label: 'Ticket value', className: 'num' },
+      { label: 'Visits', className: 'num al-stat-col--count' },
+      { label: 'Avg ticket', className: 'num al-stat-col--money' },
+      { label: 'Avg rating', className: 'num al-stat-col--rating' },
+      { label: 'Ticket value', className: 'num al-stat-col--money' },
     ],
     rows: theaters.slice(0, 10).map((theater, index) => `
-          <tr class="al-rank-row">
+          <tr class="al-rank-row al-ranked-row">
+            <td class="al-rank-col" aria-label="Rank ${index + 1}">${index + 1}</td>
             <td class="al-card-primary">
-              <span class="al-card-rank">${index + 1}</span>
               <span class="al-hover-target al-hover-target--label" tabindex="0">
                 ${escapeHtml(theater.location)}
                 ${renderMoviesPopup(moviesByTheater.get(theater.key) || [], {
@@ -177,10 +179,10 @@ function renderTheaterCategory(theaters, moviesByTheater) {
     })}
               </span>
             </td>
-            <td class="num" data-label="Visits">${theater.count}</td>
-            <td class="num" data-label="Avg ticket">${theater.avgTicket == null ? '—' : money(theater.avgTicket)}</td>
-            <td class="num" data-label="Avg rating">${theater.avgRating == null ? '—' : `${theater.avgRating}★`}</td>
-            <td class="num" data-label="Ticket value">${money(theater.charged)}</td>
+            <td class="num al-stat-col--count" data-label="Visits">${theater.count}</td>
+            <td class="num al-stat-col--money" data-label="Avg ticket">${theater.avgTicket == null ? '—' : money(theater.avgTicket)}</td>
+            <td class="num al-stat-col--rating" data-label="Avg rating">${theater.avgRating == null ? '—' : `${theater.avgRating}★`}</td>
+            <td class="num al-stat-col--money" data-label="Ticket value">${money(theater.charged)}</td>
           </tr>
         `),
   })}
@@ -200,17 +202,19 @@ function renderFormatCategory(formats, moviesByFormat) {
     ? `
       <p class="al-muted al-insight-lede">See which formats fill your calendar and carry the biggest ticket value.</p>
       ${rankTable({
+    className: 'al-stats-table--format',
     headers: [
+      { label: '<span class="sr-only">Rank</span>', className: 'al-rank-col' },
       { label: 'Format' },
-      { label: 'Visits', className: 'num' },
-      { label: 'Share', className: 'num' },
-      { label: 'Avg ticket', className: 'num' },
-      { label: 'Avg rating', className: 'num' },
+      { label: 'Visits', className: 'num al-stat-col--count' },
+      { label: 'Share', className: 'num al-stat-col--percent' },
+      { label: 'Avg ticket', className: 'num al-stat-col--money' },
+      { label: 'Avg rating', className: 'num al-stat-col--rating' },
     ],
     rows: formats.map((format, index) => `
-          <tr class="al-rank-row">
+          <tr class="al-rank-row al-ranked-row">
+            <td class="al-rank-col" aria-label="Rank ${index + 1}">${index + 1}</td>
             <td class="al-card-primary">
-              <span class="al-card-rank">${index + 1}</span>
               <span class="al-hover-target al-hover-target--label" tabindex="0">
                 ${escapeHtml(format.format)}
                 ${renderMoviesPopup(moviesByFormat.get(format.key) || [], {
@@ -219,10 +223,10 @@ function renderFormatCategory(formats, moviesByFormat) {
     })}
               </span>
             </td>
-            <td class="num" data-label="Visits">${format.count}</td>
-            <td class="num" data-label="Share">${formatPercent(format.share)}</td>
-            <td class="num" data-label="Avg ticket">${format.avgTicket == null ? '—' : money(format.avgTicket)}</td>
-            <td class="num" data-label="Avg rating">${format.avgRating == null ? '—' : `${format.avgRating}★`}</td>
+            <td class="num al-stat-col--count" data-label="Visits">${format.count}</td>
+            <td class="num al-stat-col--percent" data-label="Share">${formatPercent(format.share)}</td>
+            <td class="num al-stat-col--money" data-label="Avg ticket">${format.avgTicket == null ? '—' : money(format.avgTicket)}</td>
+            <td class="num al-stat-col--rating" data-label="Avg rating">${format.avgRating == null ? '—' : `${format.avgRating}★`}</td>
           </tr>
         `),
   })}
@@ -267,18 +271,21 @@ function renderHabitsCategory(habits, days, rewatches) {
   const runtimeValue = habits.runtimeCount ? formatRuntime(habits.totalRuntimeMin) : '—';
   const dayBody = days.length
     ? rankTable({
+      className: 'al-stats-table--days',
       headers: [
+        { label: '<span class="sr-only">Rank</span>', className: 'al-rank-col' },
         { label: 'Day' },
-        { label: 'Visits', className: 'num' },
-        { label: 'Share', className: 'num' },
-        { label: 'Avg rating', className: 'num' },
+        { label: 'Visits', className: 'num al-stat-col--count' },
+        { label: 'Share', className: 'num al-stat-col--percent' },
+        { label: 'Avg rating', className: 'num al-stat-col--rating' },
       ],
       rows: days.map((day, index) => `
-        <tr class="al-rank-row">
-          <td class="al-card-primary"><span class="al-card-rank">${index + 1}</span>${escapeHtml(day.day)}</td>
-          <td class="num" data-label="Visits">${day.count}</td>
-          <td class="num" data-label="Share">${formatPercent(day.share)}</td>
-          <td class="num" data-label="Avg rating">${day.avgRating == null ? '—' : `${day.avgRating}★`}</td>
+        <tr class="al-rank-row al-ranked-row">
+          <td class="al-rank-col" aria-label="Rank ${index + 1}">${index + 1}</td>
+          <td class="al-card-primary">${escapeHtml(day.day)}</td>
+          <td class="num al-stat-col--count" data-label="Visits">${day.count}</td>
+          <td class="num al-stat-col--percent" data-label="Share">${formatPercent(day.share)}</td>
+          <td class="num al-stat-col--rating" data-label="Avg rating">${day.avgRating == null ? '—' : `${day.avgRating}★`}</td>
         </tr>
       `),
     })
@@ -390,7 +397,7 @@ function renderRewatches(rewatches) {
   if (!rewatches.length) return '<div class="al-empty">No rewatches logged yet.</div>';
   return `
     <div class="al-table-wrap al-table-wrap--cards">
-      <table class="al-table al-card-table al-rewatch-table">
+      <table class="al-table al-card-table al-stats-table al-stats-table--rewatch al-rewatch-table">
         <thead><tr><th>Title</th><th class="num">Times</th><th>Dates</th></tr></thead>
         <tbody>
           ${rewatches.map((rewatch) => `
@@ -409,31 +416,33 @@ function renderRewatches(rewatches) {
 function actorRankTable(actors, { sortByRating = false } = {}) {
   const ratingLabel = sortByRating ? 'Avg rating' : 'Avg';
   return rankTable({
+    className: 'al-stats-table--actors',
     headers: [
+      { label: '<span class="sr-only">Rank</span>', className: 'al-rank-col' },
       { label: 'Actor' },
-      { label: 'Films', className: 'num' },
-      { label: ratingLabel, className: 'num' },
+      { label: 'Films', className: 'num al-stat-col--count' },
+      { label: ratingLabel, className: 'num al-stat-col--rating' },
     ],
     rows: actors.map((actor, index) => `
-      <tr class="al-rank-row">
+      <tr class="al-rank-row al-ranked-row">
+        <td class="al-rank-col" aria-label="Rank ${index + 1}">${index + 1}</td>
         <td class="al-card-primary">
-          <span class="al-card-rank">${index + 1}</span>
           <span class="al-hover-target al-hover-target--label" tabindex="0">
             ${escapeHtml(actor.actor)}
             ${renderMoviesPopup(actor.films, { empty: 'No films found.' })}
           </span>
         </td>
-        <td class="num" data-label="Films">${actor.count}</td>
-        <td class="num" data-label="${escapeHtml(ratingLabel)}">${actor.avgRating == null ? '—' : `${actor.avgRating}★`}</td>
+        <td class="num al-stat-col--count" data-label="Films">${actor.count}</td>
+        <td class="num al-stat-col--rating" data-label="${escapeHtml(ratingLabel)}">${actor.avgRating == null ? '—' : `${actor.avgRating}★`}</td>
       </tr>
     `),
   });
 }
 
-function rankTable({ headers, rows }) {
+function rankTable({ headers, rows, className = '' }) {
   return `
     <div class="al-table-wrap al-table-wrap--cards">
-      <table class="al-table al-rank-table al-card-table">
+      <table class="al-table al-rank-table al-card-table al-stats-table ${className}">
         <thead>
           <tr>${headers.map((header) => `<th${header.className ? ` class="${header.className}"` : ''}>${header.label}</th>`).join('')}</tr>
         </thead>
