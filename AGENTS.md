@@ -33,6 +33,7 @@ This repo is a no-build Vercel site (see `README.md` for structure/deploy). Non-
  - `node scripts/test-financial-modeler-mobile.mjs` — Financial Modeler phone walkthrough (`financial-modeler/mobile.js`)
  - `node scripts/test-financial-modeler-information.mjs` — Filings reference search, series, and EDGAR links
   - `node scripts/test-public-imports.mjs` — no browser-loaded file imports server-only `/lib/` code
+  - `node scripts/test-alist-statistics.mjs` — A-Lister theater, format, day, habit, and value summaries
   - `node scripts/test-alist-watchlist-sort.mjs` — Coming Soon watchlist ordering
   - `node scripts/test-alist-showing.mjs` — watched-together / showing-invite match rules
   - `node scripts/test-amc-alist-rank.mjs` — A-Lister Beli-style movie stack insertion
