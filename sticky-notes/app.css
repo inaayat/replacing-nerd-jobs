@@ -1295,6 +1295,8 @@ html.sn-table-view #menu-fit { display: none !important; }
     min-height: 1.4em;
     -webkit-line-clamp: unset;
     display: block;
+    /* Beat .sn-mem-text's 0.82rem so iOS does not zoom the page on edit. */
+    font-size: 16px;
   }
   .sn-tbl-list .sn-mem-meta { max-width: none; }
   .sn-tbl-list .sn-tbl-actions {
@@ -2196,8 +2198,10 @@ html.sn-table-view #menu-fit { display: none !important; }
   /* iOS Safari zooms the whole document when focus lands on editable text
      smaller than 16 px, and the page never zooms back. Everything you can type
      into is therefore at least 16 px on touch: the note body, board ink, the
-     collection name, and the memory filters. Board pan and pinch are
-     unaffected — they are canvas transforms, not page scale. */
+     collection name, the memory filters, and the table Note cell (including
+     the <720 grouped list, whose .sn-mem-text would otherwise win at 0.82rem).
+     Board pan and pinch are unaffected — they are canvas transforms, not page
+     scale. */
   .sn-card-body,
   .sn-ink,
   .sn-ab-name,
@@ -2205,7 +2209,9 @@ html.sn-table-view #menu-fit { display: none !important; }
   .sn-mem-select,
   .sn-wiki-editor,
   .sn-wiki-title,
-  .sn-link-field input { font-size: 16px; }
+  .sn-link-field input,
+  .sn-tbl-body,
+  .sn-tbl-list .sn-mem-text { font-size: 16px; }
   .sn-wiki-note-btn,
   .sn-wiki-notes-toggle,
   .sn-wiki-back { min-height: 44px; }
@@ -2227,7 +2233,7 @@ html.sn-table-view #menu-fit { display: none !important; }
   .sn-guestbar-close { width: 44px; }
 
   /* Buttons outside the (touch-action: none) canvas still need to opt out of
-     double-tap zoom. */
+     double-tap zoom. Table chrome is the same: allow scroll, not page zoom. */
   .sn-btn,
   .sn-iconbtn,
   .sn-tab,
@@ -2240,7 +2246,13 @@ html.sn-table-view #menu-fit { display: none !important; }
   .sn-guestbar-cta,
   .sn-guestbar-close,
   .sn-selbar,
-  .sn-toast button { touch-action: manipulation; }
+  .sn-toast button,
+  .sn-table-pane,
+  .sn-tbl,
+  .sn-tbl-list,
+  .sn-tbl-row,
+  .sn-tbl-card,
+  .sn-tbl-body { touch-action: manipulation; }
 }
 
 /* Phone edit chrome: one slim row of small glyphs, 44 px hits via slop.
