@@ -77,6 +77,10 @@
               aria-label="Add a note"
               title="Add a note (N)"
             ><span aria-hidden="true">+</span></button>
+            <div class="sn-view-toggle" role="group" aria-label="Board view">
+              <button type="button" id="view-canvas" aria-pressed="true" title="Canvas" aria-label="Canvas view"></button>
+              <button type="button" id="view-table" aria-pressed="false" title="Table" aria-label="Table view"></button>
+            </div>
             <button
               type="button"
               class="sn-btn sn-btn-pen"
@@ -176,6 +180,10 @@
             </div>
           </div>
 
+          <div class="sn-table-pane" id="table-pane" hidden>
+            <div class="sn-table-root" id="table-root"></div>
+          </div>
+
           <aside class="sn-sidebar" id="sidebar" aria-label="Memory">
             <div class="sn-side-head">
               <span class="sn-side-title">Memory</span>
@@ -231,6 +239,23 @@
         <button type="button" class="sn-eb-btn" id="eb-bold" aria-label="Bold" title="Bold (⌘/Ctrl+B)"></button>
         <button type="button" class="sn-eb-btn" id="eb-bullets" aria-label="Bullet list" title="Bullet list — or type “* ” on a new line"></button>
         <button type="button" class="sn-eb-btn" id="eb-numbers" aria-label="Numbered list" title="Numbered list — or type “1. ” on a new line"></button>
+        <span class="sn-eb-wrap">
+          <button type="button" class="sn-eb-btn" id="eb-link" aria-label="Link" title="Link (⌘/Ctrl+K)"></button>
+          <div class="sn-eb-linkpop sn-linkpop" id="eb-linkpop" hidden>
+            <label class="sn-link-field">
+              <span>URL</span>
+              <input class="sn-link-url" id="eb-link-url" type="url" inputmode="url" autocomplete="off" placeholder="https://" />
+            </label>
+            <label class="sn-link-field">
+              <span>Text</span>
+              <input class="sn-link-text" id="eb-link-text" type="text" autocomplete="off" placeholder="Display text" />
+            </label>
+            <div class="sn-link-actions">
+              <button type="button" class="sn-btn sn-btn-primary sn-link-save" id="eb-link-save">Save</button>
+              <button type="button" class="sn-btn sn-link-remove" id="eb-link-remove">Remove</button>
+            </div>
+          </div>
+        </span>
       </span>
     </div>
 

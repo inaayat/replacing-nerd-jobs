@@ -12,8 +12,10 @@ import {
   ICON_SVGS,
   colorHex,
   legendLabel,
+  noteBlocks,
   randomId,
 } from './notes.js';
+import { renderBody } from './body.js';
 
 const PAGE = 200;
 
@@ -110,7 +112,7 @@ export function createMemory({ store, els, showToast, openSheet, onRestore }) {
     icon.innerHTML = note.iconKey ? ICON_SVGS[note.iconKey] : '';
     const text = document.createElement('span');
     text.className = 'sn-mem-text';
-    text.textContent = note.text;
+    renderBody(text, noteBlocks(note));
     text.title = note.text;
     const meta = document.createElement('span');
     meta.className = 'sn-mem-meta';

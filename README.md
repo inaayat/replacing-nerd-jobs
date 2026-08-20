@@ -185,12 +185,17 @@ type into it**, caret where you pressed; drag it instead to move it. The note
 being edited raises a small bar with trash / pin / colour / icon / done plus
 bold, bullets, and numbers — trash really deletes the note, with ten seconds of
 Undo — and a selection raises a bar docked at the bottom of the canvas.
-A note body holds **bold, bullet lists, and numbered lists**, and nothing else:
-type `* ` or `1. ` at the start of a line and the marker becomes the list, the
-way Apple Notes and Notion do it. **Colour fills the whole card**, and a new note
-arrives light grey. **Write on the board** (the pen, or `T`) puts text on the
-cork board itself — labels over a cluster, a word between two arrows. That text
-is scaffolding: it is never filed, and **Wipe board** takes it away.
+A note body holds **bold, bullet lists, numbered lists, and link pills**,
+and nothing else: type `* ` or `1. ` at the start of a line and the marker
+becomes the list, the way Apple Notes and Notion do it. Paste a URL while
+editing (or ⌘/Ctrl+K) and it becomes a cream pill — display text starts as the
+domain and picks up the page title unless you rename it. **Colour fills the
+whole card**, and a new note arrives light grey. The toolbar sits on the left.
+A canvas | table toggle next to **+** shows the same board notes as cards or as
+a grouped list (`sticky-notes/table.js`); switching writes no ops. **Write on
+the board** (the pen, or `T`) puts text on the cork board itself — labels over
+a cluster, a word between two arrows. That text is scaffolding: it is never
+filed, and **Wipe board** takes it away.
 Wipe files everything else except pinned notes and offers Undo; nothing is
 destroyed, and collections restore with their
 arrangement intact. The canvas is full-bleed; at ≥1100px memory is a permanent
