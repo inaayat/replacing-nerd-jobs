@@ -7,6 +7,8 @@ import {
   applyInsertAnswer,
   removeByTmdbId,
   uniqueLoggedMovies,
+  eligibleTmdbIds,
+  dropIneligibleRanks,
 } from './rank-insert.js';
 
 bootPage(async ({ root, auth }) => {
@@ -47,13 +49,24 @@ async function loadPage(auth) {
   const main = document.getElementById('rank-main');
   if (!main) return;
 
-  const [{ ranks }, { watches }] = await Promise.all([
+  const [{ ranks: storedRanks }, { watches }] = await Promise.all([
     ranksApi.list(auth.token),
     watchesApi.list(auth.token),
   ]);
 
+  let ranks = storedRanks || [];
+  const pruned = dropIneligibleRanks(ranks, watches || []);
+  if (pruned.length !== ranks.length) {
+    try {
+      const saved = await ranksApi.replace(auth.token, pruned);
+      ranks = saved.ranks || pruned;
+    } catch {
+      ranks = pruned;
+    }
+  }
+
   const state = {
-    ranks: ranks || [],
+    ranks,
     watches: watches || [],
     selected: new Set(),
     pending: null,
@@ -76,6 +89,16 @@ async function loadPage(auth) {
   };
 
   state.runQueue = (movies) => rankQueue(auth, state, movies, render);
+
+  const addId = Number(new URLSearchParams(location.search).get('add'));
+  if (addId) {
+    history.replaceState({}, '', '/amc-a-lister/rank.html');
+    const movie = movieFromLogged(state, addId);
+    if (movie) {
+      askToRank(state, movie, render);
+      return;
+    }
+  }
   render();
 }
 
@@ -98,7 +121,7 @@ function firstRunHtml(state) {
 
   const loggedBlock = logged.length
     ? `
-      <p class="al-muted">Pick movies from your log to stack-rank. You do not have to rank all of them.</p>
+      <p class="al-muted">Pick theater movies from your log to stack-rank. DNFs count; home and streaming watches do not. You do not have to rank all of them.</p>
       <div class="al-rank-picker-tools">
         <input class="al-input" id="rank-picker-filter" type="search" placeholder="Filter logged titles…" />
         <button class="al-btn" type="button" id="rank-select-all">Select all</button>
@@ -115,7 +138,7 @@ function firstRunHtml(state) {
     `
     : `
       <div class="al-empty al-empty--first-run">
-        <p>No movies in your log yet. Search TMDB to start a stack with one or two titles, then compare.</p>
+        <p>No theater movies in your log yet. Rank only includes titles you watched in theaters (including DNFs).</p>
       </div>
     `;
 
@@ -126,7 +149,7 @@ function firstRunHtml(state) {
       ${loggedBlock}
       <div class="al-rank-add" style="margin-top:16px">
         <h3 class="al-rank-add-title">Search TMDB</h3>
-        ${searchFieldHtml('Add a title without logging it')}
+        ${searchFieldHtml('Find a theater movie from your log')}
       </div>
     </section>
   `;
@@ -140,16 +163,19 @@ function listHtml(state) {
     <section class="al-panel al-rank-panel">
       <div class="al-watchlist-header al-watchlist-header--compact">
         <h2 class="al-section-title">Your stack</h2>
-        <span class="al-muted">${state.ranks.length} movie${state.ranks.length === 1 ? '' : 's'}</span>
+        <div class="al-rank-header-actions">
+          <span class="al-muted">${state.ranks.length} movie${state.ranks.length === 1 ? '' : 's'}</span>
+          <button class="al-btn" type="button" id="rank-clear">Clear ranking</button>
+        </div>
       </div>
       ${state.error ? `<p class="al-error">${escapeHtml(state.error)}</p>` : ''}
       ${state.status ? `<p class="al-muted" aria-live="polite">${escapeHtml(state.status)}</p>` : ''}
       <div class="al-rank-add">
-        ${searchFieldHtml('Add a movie to this stack')}
+        ${searchFieldHtml('Add a theater movie from your log')}
       </div>
       ${unranked.length ? `
         <div class="al-rank-unranked">
-          <p class="al-rank-unranked-label">From your log, not yet ranked</p>
+          <p class="al-rank-unranked-label">Theater movies from your log, not yet ranked</p>
           <div class="al-rank-unranked-list">
             ${unranked.slice(0, 12).map(unrankedChipHtml).join('')}
           </div>
@@ -295,6 +321,7 @@ function wire(auth, state, render) {
   wireList(auth, state, render);
   wireConfirm(state, render);
   wireCompare(state);
+  wireClear(auth, state, render);
 }
 
 function wireSearch(auth, state, render) {
@@ -315,12 +342,13 @@ function wireSearch(auth, state, render) {
     searchTimer = setTimeout(async () => {
       try {
         const { results } = await movieApi.search(auth.token, q);
-        if (!results.length) {
+        const eligible = results.filter((m) => isEligibleToRank(state, m));
+        if (!eligible.length) {
           resultsEl.hidden = true;
           return;
         }
         resultsEl.hidden = false;
-        resultsEl.innerHTML = results.map((m) => `
+        resultsEl.innerHTML = eligible.map((m) => `
           <button type="button" data-id="${m.tmdb_id}" data-title="${escapeHtml(m.title)}"
             data-year="${m.year || ''}" data-poster="${escapeHtml(m.poster_path || '')}">
             ${m.poster_path ? `<img src="https://image.tmdb.org/t/p/w92${m.poster_path}" alt="" width="28" height="42" style="border-radius:4px;object-fit:cover">` : '<span style="width:28px"></span>'}
@@ -331,7 +359,13 @@ function wireSearch(auth, state, render) {
           btn.addEventListener('click', () => {
             resultsEl.hidden = true;
             input.value = '';
-            askToRank(state, movieFromSearch(btn), render);
+            const movie = movieFromSearch(btn);
+            if (!isEligibleToRank(state, movie)) {
+              state.error = 'Rank only includes movies you watched in theaters.';
+              render();
+              return;
+            }
+            askToRank(state, movie, render);
           });
         });
       } catch {
@@ -418,6 +452,25 @@ function wireList(auth, state, render) {
   });
 }
 
+function wireClear(auth, state, render) {
+  document.getElementById('rank-clear')?.addEventListener('click', async () => {
+    if (!state.ranks.length) return;
+    if (!confirm('Clear your entire ranking? This cannot be undone. Your watch log is unchanged.')) return;
+    try {
+      state.saving = true;
+      const { ranks } = await ranksApi.replace(auth.token, []);
+      state.ranks = ranks || [];
+      state.status = 'Ranking cleared.';
+      state.error = '';
+    } catch (err) {
+      state.error = err.message || 'Could not clear the ranking.';
+    } finally {
+      state.saving = false;
+      render();
+    }
+  });
+}
+
 function wireConfirm(state, render) {
   document.getElementById('rank-confirm-yes')?.addEventListener('click', () => {
     const movie = state.pending;
@@ -483,8 +536,18 @@ function waitForCompare(state, render) {
   });
 }
 
+function isEligibleToRank(state, movie) {
+  return eligibleTmdbIds(state.watches).has(Number(movie?.tmdb_id));
+}
+
 function askToRank(state, movie, render) {
   if (!movie?.tmdb_id) return;
+  if (!isEligibleToRank(state, movie)) {
+    state.error = 'Rank only includes movies you watched in theaters.';
+    state.pending = null;
+    render();
+    return;
+  }
   state.pending = {
     ...movie,
     alreadyRanked: state.ranks.some((r) => r.tmdb_id === movie.tmdb_id),
@@ -497,7 +560,7 @@ async function rankQueue(auth, state, movies, render) {
   state.busy = true;
   state.error = '';
   state.status = '';
-  const queue = movies.filter((m) => m?.tmdb_id);
+  const queue = movies.filter((m) => m?.tmdb_id && isEligibleToRank(state, m));
   state.remaining = Math.max(0, queue.length - 1);
 
   try {

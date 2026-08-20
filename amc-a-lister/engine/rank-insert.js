@@ -78,12 +78,39 @@ export function placeWithOracle(ranked, candidate, decide) {
   };
 }
 
-/** Unique logged titles that have a tmdb_id, excluding those already ranked. */
+/**
+ * Theater screenings only. `in_theaters === false` is home/streaming.
+ * DNFs stay eligible — the log already stores that as `dnf`.
+ * Missing `in_theaters` counts as theater (legacy rows defaulted true).
+ */
+export function isTheaterWatch(watch) {
+  return watch != null && watch.in_theaters !== false;
+}
+
+/** Unique tmdb_ids the user has watched in a theater (DNF included). */
+export function eligibleTmdbIds(watches) {
+  const ids = new Set();
+  for (const watch of watches || []) {
+    if (!isTheaterWatch(watch)) continue;
+    const tmdbId = Number(watch.tmdb_id);
+    if (tmdbId > 0) ids.add(tmdbId);
+  }
+  return ids;
+}
+
+/** Drop stored ranks that are not theater watches, keeping relative order. */
+export function dropIneligibleRanks(ranks, watches) {
+  const eligible = eligibleTmdbIds(watches);
+  return (ranks || []).filter((movie) => eligible.has(Number(movie.tmdb_id)));
+}
+
+/** Unique theater-logged titles that have a tmdb_id, excluding those already ranked. */
 export function uniqueLoggedMovies(watches, rankedTmdbIds = []) {
   const ranked = new Set((rankedTmdbIds || []).map(Number).filter((id) => id > 0));
   const seen = new Set();
   const out = [];
   for (const watch of watches || []) {
+    if (!isTheaterWatch(watch)) continue;
     const tmdbId = Number(watch.tmdb_id);
     if (!tmdbId || seen.has(tmdbId) || ranked.has(tmdbId)) continue;
     seen.add(tmdbId);

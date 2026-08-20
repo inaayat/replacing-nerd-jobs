@@ -6,7 +6,8 @@ Live on [inaayat.xyz](https://inaayat.xyz).
 
 AMC A-List membership value tracker: log screenings, compare billed vs. ticket
 prices, watchlist, TV log, leaderboard, showing invites. Optional **Rank** beta
-(Settings) is a Beli-style movie stack, stored separately from the watch log. Fully Neon Auth + Neon
+(Settings) is a Beli-style movie stack of unique theater watches (DNFs included,
+home/streaming excluded), stored separately from the watch log. Fully Neon Auth + Neon
 Postgres; movie/TV metadata from TMDB via `lib/tmdb.js`.
 
 ### Packing Cubes — `/packing-cubes`

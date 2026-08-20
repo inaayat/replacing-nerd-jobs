@@ -1867,6 +1867,33 @@ async function handleRanks(req, res) {
     return;
   }
 
+  if (req.method === 'PUT') {
+    const list = req.body?.movies;
+    if (!Array.isArray(list)) {
+      res.status(400).json({ error: 'movies array is required.' });
+      return;
+    }
+    try {
+      const movies = [];
+      const seen = new Set();
+      for (const item of list) {
+        const movie = await fillRankMovie(item || {});
+        if (movie.error) {
+          res.status(400).json({ error: movie.error });
+          return;
+        }
+        if (seen.has(movie.tmdb_id)) continue;
+        seen.add(movie.tmdb_id);
+        movies.push(movie);
+      }
+      const ranks = await replaceMovieRanks(userId, movies);
+      res.status(200).json({ ranks });
+    } catch (err) {
+      res.status(502).json({ error: err.message });
+    }
+    return;
+  }
+
   if (req.method === 'DELETE') {
     const tmdbId = Number(req.body?.tmdb_id || req.query?.tmdb_id);
     if (!Number.isInteger(tmdbId) || tmdbId <= 0) {
