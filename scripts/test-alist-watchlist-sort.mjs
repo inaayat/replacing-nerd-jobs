@@ -125,6 +125,33 @@ assert(watchlistBucket(bucketItems[5], today) === 'unknown', 'undated stays unkn
 assert(isInTheaters(bucketItems[1], today) === true, 'recent is in theaters');
 assert(isWatchAtHome(bucketItems[4], today) === true, 'classic is watch at home');
 
+const overriddenFuture = {
+  ...bucketItems[0],
+  id: 'future-home',
+  watch_at_home_override: true,
+};
+const overriddenRecent = {
+  ...bucketItems[1],
+  id: 'recent-home',
+  watch_at_home_override: true,
+};
+assert(
+  watchlistBucket(overriddenFuture, today) === 'watch-at-home',
+  'future release can be manually sent to watch at home',
+);
+assert(
+  watchlistBucket(overriddenRecent, today) === 'watch-at-home',
+  'recent theatrical release can be manually sent to watch at home',
+);
+assert(
+  watchlistBucket({ ...overriddenFuture, watch_at_home_override: false }, today) === 'coming-soon',
+  'clearing override restores the automatic future bucket',
+);
+assert(
+  watchlistBucket({ ...overriddenRecent, watch_at_home_override: false }, today) === 'in-theaters',
+  'clearing override restores the automatic theatrical bucket',
+);
+
 assertEqual(
   sortInTheaters(bucketItems, today).map((i) => i.title),
   ['Recent', 'Edge'],
@@ -153,6 +180,18 @@ assertEqual(
   itemsForWatchlistView(bucketItems, 'watch-at-home', today).map((i) => i.title),
   ['Old', 'Classic'],
   'watch at home tab',
+);
+
+const withOverrides = [...bucketItems, overriddenFuture, overriddenRecent];
+assertEqual(
+  itemsForWatchlistView(withOverrides, 'coming-soon', today).map((i) => i.id),
+  ['edge', 'recent', 'future', 'undated'],
+  'overridden titles leave Coming Soon while automatic titles keep current sorting',
+);
+assertEqual(
+  itemsForWatchlistView(withOverrides, 'watch-at-home', today).map((i) => i.id),
+  ['future-home', 'recent-home', 'old', 'classic'],
+  'overridden future and theatrical titles appear on Watch at Home',
 );
 
 assert(watchlistMatchesLogged(
@@ -210,6 +249,38 @@ assert(expandedHome.includes('is-expanded'), 'Watch at Home expanded row is mark
 assert(expandedHome.includes('al-log-detail'), 'Watch at Home expand shows the detail panel');
 assert(expandedHome.includes('Watch at home'), 'Watch at Home keeps its badge when expanded');
 
+const comingSoonActions = watchlistLogTableHtml(
+  [bucketItems[0]],
+  detailsState(),
+  { view: 'coming-soon' },
+);
+assert(
+  comingSoonActions.includes('data-watchlist-home-override="true"'),
+  'Coming Soon row has an in-place Watch at Home action',
+);
+assert(comingSoonActions.includes('Watch at home</button>'), 'home override action has a clear label');
+
+const overriddenHomeActions = watchlistLogTableHtml(
+  [overriddenFuture],
+  detailsState(),
+  { view: 'watch-at-home' },
+);
+assert(
+  overriddenHomeActions.includes('data-watchlist-home-override="false"'),
+  'overridden Watch at Home row can return to automatic sorting',
+);
+assert(overriddenHomeActions.includes('Use automatic</button>'), 'undo action has a clear label');
+
+const automaticHomeActions = watchlistLogTableHtml(
+  [bucketItems[4]],
+  detailsState(),
+  { view: 'watch-at-home' },
+);
+assert(
+  !automaticHomeActions.includes('data-watchlist-home-override'),
+  'naturally aged Watch at Home title does not show a redundant override action',
+);
+
 const collapsedAgain = watchlistLogTableHtml(expandItems, detailsState({ expandedId: null }), { view: 'coming-soon' });
 assert(!collapsedAgain.includes('is-expanded'), 'clearing expandedId collapses Coming Soon again');
 assert(!collapsedAgain.includes('al-log-detail'), 'collapsed Coming Soon hides the detail panel');
@@ -236,6 +307,22 @@ const uiSource = readFileSync(new URL('../amc-a-lister/engine/watchlist-ui.js', 
 assert(
   /wireWatchlistRowExpand\(listEl, toggleExpand\);/.test(uiSource),
   'watchlist rows rebind expand after every render, like the watch log',
+);
+
+const apiSource = readFileSync(new URL('../api/alist.js', import.meta.url), 'utf8');
+const listSource = readFileSync(new URL('../lib/a-list.js', import.meta.url), 'utf8');
+const dbSource = readFileSync(new URL('../lib/db.js', import.meta.url), 'utf8');
+assert(
+  apiSource.includes('watch_at_home_override'),
+  'watchlist API accepts and persists the home override',
+);
+assert(
+  listSource.includes('watch_at_home_override'),
+  'watchlist API responses expose the persisted home override',
+);
+assert(
+  /ALTER TABLE alist_watchlist[\s\S]*ADD COLUMN IF NOT EXISTS watch_at_home_override/.test(dbSource),
+  'watchlist schema migrates existing databases with the home override column',
 );
 
 console.log(`${passed} passed, ${failed} failed`);

@@ -604,7 +604,8 @@ async function handleWatchlist(req, res) {
       `;
       const rows = await enrichWatchlistRows(await db()`
         SELECT
-          w.id, w.title, w.tmdb_id, w.notes, w.created_at, w.updated_at,
+          w.id, w.title, w.tmdb_id, w.notes, w.watch_at_home_override,
+          w.created_at, w.updated_at,
           c.poster_path, c.year, c.release_date,
           COALESCE(c.release_date::text, c.raw->>'release_date') AS release_date_raw,
           (c.raw->>'pp_v')::int AS cache_pp_v
@@ -628,10 +629,13 @@ async function handleWatchlist(req, res) {
     const title = req.body?.title != null ? String(req.body.title).trim() : undefined;
     const tmdbId = req.body?.tmdb_id != null ? Number(req.body.tmdb_id) : undefined;
     const notes = req.body?.notes != null ? String(req.body.notes).trim() || null : undefined;
+    const watchAtHomeOverride = req.body?.watch_at_home_override !== undefined
+      ? req.body.watch_at_home_override === true
+      : undefined;
 
     try {
       const existing = await db()`
-        SELECT id, title, tmdb_id, notes
+        SELECT id, title, tmdb_id, notes, watch_at_home_override
         FROM alist_watchlist
         WHERE id = ${id} AND user_id = ${userId}
       `;
@@ -649,12 +653,16 @@ async function handleWatchlist(req, res) {
           title = ${title ?? row.title},
           tmdb_id = ${nextTmdbId},
           notes = ${notes !== undefined ? notes : row.notes},
+          watch_at_home_override = ${watchAtHomeOverride !== undefined
+    ? watchAtHomeOverride
+    : row.watch_at_home_override === true},
           updated_at = now()
         WHERE id = ${id} AND user_id = ${userId}
       `;
       const rows = await enrichWatchlistRows(await db()`
         SELECT
-          w.id, w.title, w.tmdb_id, w.notes, w.created_at, w.updated_at,
+          w.id, w.title, w.tmdb_id, w.notes, w.watch_at_home_override,
+          w.created_at, w.updated_at,
           c.poster_path, c.year, c.release_date,
           COALESCE(c.release_date::text, c.raw->>'release_date') AS release_date_raw,
           (c.raw->>'pp_v')::int AS cache_pp_v

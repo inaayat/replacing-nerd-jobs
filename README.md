@@ -459,7 +459,7 @@ only runs the code that talks to it). Accessed from serverless functions via
 | `alist_watches` | A-Lister | Movie screening log |
 | `alist_watch_invites` | A-Lister | “Watched together” invites |
 | `alist_watch_companions` | A-Lister | Bidirectional companion tags |
-| `alist_watchlist` | A-Lister | Movies to see |
+| `alist_watchlist` | A-Lister | Movies to see, including an optional manual Watch at Home bucket override |
 | `alist_movie_cache` | A-Lister + Plot Points | TMDB movie payloads (`raw` JSONB); Plot Points also stores cast-with-ids |
 | `alist_tv_watches` | A-Lister | TV episode log |
 | `alist_tv_watchlist` | A-Lister | TV to watch |
