@@ -600,8 +600,6 @@ async function init() {
       pane: $('#memory-pane'),
       list: $('#mem-list'),
       search: $('#mem-search'),
-      colorChips: $('#mem-color-chips'),
-      iconChips: $('#mem-icon-chips'),
       collectionSelect: $('#mem-collection'),
       more: $('#mem-more'),
       newCollection: $('#mem-new-col'),
