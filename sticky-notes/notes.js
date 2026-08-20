@@ -118,9 +118,9 @@ const num = (v, fallback) => (Number.isFinite(v) ? v : fallback);
 // `note.text` stays the plain-text projection of the body: it is what memory
 // search, the memory table, and the extension bridge read.
 
-export const BLOCK_TYPES = ['p', 'ul', 'ol'];
-export const RICH_MAX_BLOCKS = 400;
-export const RICH_MAX_SPANS = 120;
+const BLOCK_TYPES = ['p', 'ul', 'ol'];
+const RICH_MAX_BLOCKS = 400;
+const RICH_MAX_SPANS = 120;
 
 /** A bullet or number marker at the start of a line, in the plain projection. */
 const BULLET_LINE = /^\s*[-*+•]\s+(.*)$/;
@@ -145,7 +145,7 @@ function normalizeSpans(raw) {
   return out;
 }
 
-export function blockText(block) {
+function blockText(block) {
   return (block?.spans || []).map((span) => span.text).join('');
 }
 
@@ -160,10 +160,9 @@ export function normalizeRich(raw) {
       spans: normalizeSpans(block.spans),
     });
   }
-  // A contenteditable always leaves a trailing empty line behind.
-  while (blocks.length && blocks[blocks.length - 1].type === 'p' && !blockText(blocks[blocks.length - 1])) {
-    blocks.pop();
-  }
+  // A contenteditable leaves trailing empties behind: a blank last line, or the
+  // bullet somebody started and never typed into.
+  while (blocks.length && !blockText(blocks[blocks.length - 1])) blocks.pop();
   return blocks.length ? blocks : null;
 }
 

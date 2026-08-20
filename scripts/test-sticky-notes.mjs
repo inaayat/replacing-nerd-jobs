@@ -344,6 +344,19 @@ function note(id, extra = {}) {
   eq(messy.length, 3, 'trailing empty paragraphs are dropped');
   assert(normalizeRich([{ type: 'p', spans: [] }]) === null, 'an all-empty body is null');
   assert(normalizeRich('nope') === null, 'a non-array body is null');
+  // The bullet somebody started and never typed into is not a line.
+  const dangling = normalizeRich([
+    { type: 'p', spans: [{ text: 'buy' }] },
+    { type: 'ul', spans: [{ text: 'milk' }] },
+    { type: 'ul', spans: [] },
+  ]);
+  eq(dangling.length, 2, 'a trailing empty list item is dropped');
+  const blankInside = normalizeRich([
+    { type: 'p', spans: [{ text: 'a' }] },
+    { type: 'p', spans: [] },
+    { type: 'p', spans: [{ text: 'b' }] },
+  ]);
+  eq(blankInside.length, 3, 'a blank line in the middle is kept');
 
   // A body written before formatting existed still reads as one.
   const legacy = noteBlocks({ text: 'Trip\n- passport\n- charger\n1. book\n2. pack' });

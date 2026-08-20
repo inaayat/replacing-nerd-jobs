@@ -1169,6 +1169,7 @@ export function createBoard({ store, els, showToast, onEdit }) {
       body.removeEventListener('blur', onBlur);
       body.removeEventListener('keydown', onKey);
       body.removeEventListener('beforeinput', onBeforeInput);
+      body.removeEventListener('input', onInput);
       body.removeEventListener('paste', onEditPaste);
       document.removeEventListener('selectionchange', renderFormatState);
       window.visualViewport?.removeEventListener('resize', onVisualResize);
@@ -1223,16 +1224,30 @@ export function createBoard({ store, els, showToast, onEdit }) {
      * "* " or "1. " at the start of a line becomes a list, the way Apple Notes
      * and Notion do it — the marker plus a space, and the marker disappears.
      */
-    const onBeforeInput = (e) => {
-      if (e.inputType !== 'insertText' || e.data !== ' ') return;
-      const prefix = caretLinePrefix(body);
-      const kind = listTriggerFor(prefix);
-      if (!kind) return;
-      if (caretLine(body)?.tagName === 'LI') return; // already in a list
-      e.preventDefault();
+    const startList = (kind) => {
       dropLinePrefix(body);
       toggleList(body, kind === 'ul' ? 'UL' : 'OL');
       renderFormatState();
+    };
+    const onBeforeInput = (e) => {
+      if (e.inputType !== 'insertText' || e.data !== ' ') return;
+      const kind = listTriggerFor(caretLinePrefix(body));
+      if (!kind) return;
+      if (caretLine(body)?.tagName === 'LI') return; // already in a list
+      e.preventDefault();
+      startList(kind);
+    };
+    /**
+     * The same gesture, after the fact. Phone keyboards do not all deliver a
+     * cancellable space — autocorrect and prediction insert their own text — so
+     * a line that already reads "* " converts too.
+     */
+    const onInput = () => {
+      if (caretLine(body)?.tagName === 'LI') return;
+      const prefix = caretLinePrefix(body);
+      if (!prefix || !/[ \u00a0]$/.test(prefix)) return;
+      const kind = listTriggerFor(prefix.slice(0, -1));
+      if (kind) startList(kind);
     };
     // Pasted rich text arrives as whatever the source page was; take the words.
     const onEditPaste = (e) => {
@@ -1249,6 +1264,7 @@ export function createBoard({ store, els, showToast, onEdit }) {
     body.addEventListener('blur', onBlur);
     body.addEventListener('keydown', onKey);
     body.addEventListener('beforeinput', onBeforeInput);
+    body.addEventListener('input', onInput);
     body.addEventListener('paste', onEditPaste);
     document.addEventListener('selectionchange', renderFormatState);
     renderFormatState();
