@@ -577,6 +577,25 @@ async function init() {
       if (!wide.matches) setTab('board');
       board.revealNotes(ids);
     },
+    onRestoreDragBegin: () => {
+      if (!wide.matches) setTab('board');
+      if (boardView === 'table') setBoardView('canvas');
+    },
+    onRestoreDragHover: (clientX, clientY) => board.containsClientPoint(clientX, clientY),
+    onRestoreDrop: (note, clientX, clientY) => {
+      if (!board.containsClientPoint(clientX, clientY)) return false;
+      const p = board.clientToWorld(clientX, clientY);
+      const ts = new Date().toISOString();
+      const x = p.x - (note.w || 220) / 2;
+      const y = p.y - 24;
+      store.dispatch([
+        { op: 'restore', ids: [note.id], ts },
+        { op: 'note.move', id: note.id, x, y, ts },
+      ]);
+      showToast('Restored to board');
+      board.pulseNotes([note.id]);
+      return true;
+    },
     els: {
       pane: $('#memory-pane'),
       list: $('#mem-list'),

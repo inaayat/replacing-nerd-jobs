@@ -142,6 +142,18 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     return screenToWorld({ x: e.clientX - r.left, y: e.clientY - r.top }, vp);
   }
 
+  function clientToWorld(clientX, clientY) {
+    const r = viewport.getBoundingClientRect();
+    return screenToWorld({ x: clientX - r.left, y: clientY - r.top }, vp);
+  }
+
+  function containsClientPoint(clientX, clientY) {
+    if (viewport.hidden || viewport.closest('[hidden]')) return false;
+    const r = viewport.getBoundingClientRect();
+    if (r.width < 8 || r.height < 8) return false;
+    return clientX >= r.left && clientX < r.right && clientY >= r.top && clientY < r.bottom;
+  }
+
   /**
    * The slice of the window the user can actually see. A phone keyboard eats
    * the bottom of the visual viewport without changing the layout viewport,
@@ -1543,6 +1555,18 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     saveViewport();
   }
 
+  /** Flash restored cards so a Restore is visible. */
+  function pulseNotes(ids) {
+    for (const id of ids) {
+      const el = cardEls.get(id);
+      if (!el) continue;
+      el.classList.remove('is-pulsing');
+      void el.offsetWidth;
+      el.classList.add('is-pulsing');
+      setTimeout(() => el.classList.remove('is-pulsing'), 950);
+    }
+  }
+
   /** Bring restored notes into view and flash them, so a Restore is visible. */
   function revealNotes(ids) {
     const rects = ids
@@ -1556,14 +1580,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     vp.panY = r.height / 2 - (box.y + box.h / 2) * vp.zoom;
     applyViewport();
     saveViewport();
-    for (const id of ids) {
-      const el = cardEls.get(id);
-      if (!el) continue;
-      el.classList.remove('is-pulsing');
-      void el.offsetWidth;
-      el.classList.add('is-pulsing');
-      setTimeout(() => el.classList.remove('is-pulsing'), 950);
-    }
+    pulseNotes(ids);
   }
 
   // ------------------------------------------------------------------ keyboard
@@ -1810,6 +1827,9 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     zoomOut: () => zoomBy(1 / 1.2),
     zoomFit,
     revealNotes,
+    pulseNotes,
+    clientToWorld,
+    containsClientPoint,
     selectAll,
     deleteSelection,
     refresh: fullRender,

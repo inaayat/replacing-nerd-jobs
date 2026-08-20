@@ -1134,13 +1134,30 @@ html.sn-table-view #menu-fit { display: none !important; }
   vertical-align: top;
   font-size: 0.88rem;
 }
-.sn-tbl-grouprow td { padding: 16px 12px 6px; border-bottom: 1px solid var(--line); }
+.sn-tbl-grouprow th {
+  position: static;
+  padding: 10px 12px 2px;
+  border-bottom: 0;
+  background: transparent;
+  font-weight: inherit;
+  text-transform: none;
+  letter-spacing: inherit;
+  color: inherit;
+  z-index: auto;
+}
+.sn-tbl-grouprow:first-child th { padding-top: 6px; }
 .sn-tbl-group {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-family: var(--display);
-  font-size: 1.05rem;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  line-height: 1.2;
+  white-space: nowrap;
 }
 .sn-tbl-row:hover { background: rgba(28, 28, 28, 0.025); }
 .sn-tbl-row .sn-tbl-actions { opacity: 0; }
@@ -1554,26 +1571,41 @@ html.sn-table-view #menu-fit { display: none !important; }
 
 .sn-mem-collection { margin: 0; }
 
-.sn-mem-colhead {
+.sn-mem-colhead,
+.sn-tbl-listhead {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 8px 14px;
-  padding: 14px 2px 8px;
-  border-bottom: 1px solid var(--line);
+  gap: 4px 10px;
+  padding: 8px 2px 3px;
+  border-bottom: 0;
 }
 
-.sn-mem-colname { font-family: var(--display); font-size: 1.05rem; }
-.sn-mem-loose .sn-mem-colname { opacity: 0.6; }
+.sn-mem-colname {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.sn-mem-loose .sn-mem-colname { opacity: 1; }
 
 .sn-mem-row {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 9px 2px;
+  flex-wrap: nowrap;
+  gap: 6px;
+  padding: 3px 2px;
   border-bottom: 1px solid var(--line);
 }
+.sn-mem-list .sn-mem-row {
+  user-select: none;
+  touch-action: pan-y;
+  cursor: grab;
+}
+.sn-mem-list .sn-mem-row.is-dragging { cursor: grabbing; opacity: 0.45; }
+.sn-mem-row.is-open { flex-wrap: wrap; }
 .sn-mem-row:hover { background: rgba(28, 28, 28, 0.025); }
 
 .sn-mem-dot {
@@ -1589,14 +1621,23 @@ html.sn-table-view #menu-fit { display: none !important; }
 .sn-mem-icon:empty { visibility: hidden; }
 
 .sn-mem-text {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
-  font-size: 0.88rem;
+  font-size: 0.82rem;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
+.sn-mem-list .sn-mem-text {
+  display: block;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  -webkit-line-clamp: unset;
+  -webkit-box-orient: unset;
+}
+.sn-mem-list .sn-mem-text > :not(:first-child) { display: none; }
+.sn-mem-list .sn-mem-text > div { min-height: 0; }
 
 .sn-mem-meta {
   font-family: var(--mono);
@@ -1605,7 +1646,8 @@ html.sn-table-view #menu-fit { display: none !important; }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 220px;
+  max-width: 140px;
+  flex: none;
 }
 .sn-mem-meta a { color: inherit; }
 
@@ -1644,6 +1686,30 @@ html.sn-table-view #menu-fit { display: none !important; }
 }
 
 .sn-mem-more { text-align: center; padding: 16px 0; }
+
+.sn-restore-ghost {
+  position: fixed;
+  z-index: 80;
+  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  padding: 5px 10px;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  box-shadow: 0 8px 20px rgba(28, 28, 28, 0.12);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  color: var(--ink);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transform: translate(-12px, -14px);
+}
+.sn-restore-ghost.is-over { border-color: var(--ink); }
 
 /* ---------------------------------------------------------------- guide + sheet */
 
@@ -1997,6 +2063,7 @@ html.sn-table-view #menu-fit { display: none !important; }
   .sn-ab-name,
   .sn-mem-action { min-height: 44px; }
   .sn-mem-action { padding: 9px 12px; }
+  .sn-mem-row { min-height: 44px; padding: 8px 2px; }
   .sn-ab-icongrid { width: 40px; height: 40px; }
   /* Connector dots and the resize grip are mouse affordances. */
   .sn-dot,
