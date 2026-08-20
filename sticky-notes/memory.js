@@ -18,6 +18,39 @@ import { renderBody } from './body.js';
 
 const PAGE = 200;
 
+/**
+ * Split Memory notes into collection sections plus loose notes.
+ * Empty `status: 'memory'` collections still get a section — that is how
+ * "+ New collection" lands — so callers must not assume every section has
+ * notes. Board-status collections with no matching notes stay hidden.
+ */
+export function memorySections(collections, notes, filters = {}) {
+  const byCollection = new Map();
+  const loose = [];
+  const known = new Set(collections.map((c) => c.id));
+  for (const note of notes) {
+    if (note.collectionId && known.has(note.collectionId)) {
+      if (!byCollection.has(note.collectionId)) byCollection.set(note.collectionId, []);
+      byCollection.get(note.collectionId).push(note);
+    } else {
+      loose.push(note);
+    }
+  }
+
+  const cols = collections
+    .filter((c) => {
+      if (byCollection.has(c.id)) return true;
+      if (c.status !== 'memory') return false;
+      if (filters.search) return false;
+      if (filters.collection && filters.collection !== c.id) return false;
+      return true;
+    })
+    .sort((a, b) => (Date.parse(b.filedAt || b.updatedAt) || 0) - (Date.parse(a.filedAt || a.updatedAt) || 0))
+    .map((col) => ({ col, notes: byCollection.get(col.id) || [] }));
+
+  return { cols, loose };
+}
+
 export function createMemory({
   store,
   els,
@@ -322,29 +355,9 @@ export function createMemory({
     const shown = notes.slice(0, limit);
     els.more.hidden = notes.length <= limit;
 
-    const byCollection = new Map();
-    const loose = [];
-    for (const note of shown) {
-      if (note.collectionId && store.state.collections.some((c) => c.id === note.collectionId)) {
-        if (!byCollection.has(note.collectionId)) byCollection.set(note.collectionId, []);
-        byCollection.get(note.collectionId).push(note);
-      } else {
-        loose.push(note);
-      }
-    }
+    const { cols, loose } = memorySections(store.state.collections, shown, filters);
 
-    const cols = store.state.collections
-      .filter((c) => {
-        if (byCollection.has(c.id)) return true;
-        if (c.status !== 'memory') return false;
-        if (filters.search) return false;
-        if (filters.collection && filters.collection !== c.id) return false;
-        return true;
-      })
-      .sort((a, b) => (Date.parse(b.filedAt || b.updatedAt) || 0) - (Date.parse(a.filedAt || a.updatedAt) || 0));
-
-    for (const col of cols) {
-      const notesIn = byCollection.get(col.id);
+    for (const { col, notes: notesIn } of cols) {
       const section = document.createElement('section');
       section.className = 'sn-mem-collection';
       section.appendChild(collectionHeader(col, notesIn.length));

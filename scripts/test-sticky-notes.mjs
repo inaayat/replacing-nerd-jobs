@@ -49,6 +49,7 @@ import {
   zoomAt,
 } from '../sticky-notes/notes.js';
 import { sortBoardNotes } from '../sticky-notes/table.js';
+import { memorySections } from '../sticky-notes/memory.js';
 
 let failures = 0;
 function assert(cond, label) {
@@ -820,6 +821,27 @@ function note(id, extra = {}) {
   eq(adopted.wikis[0].doc.blocks[0].spans[0].text, 'Hello', 'stateToOps carries the wiki');
   eq(adopted.collections[0].status, 'memory', 'stateToOps keeps a memory collection in memory');
   assert(!stateIsEmpty(guest), 'a collection-only board is worth keeping');
+}
+
+// 20. Memory list — empty memory-status collections must still render
+{
+  const inbox = { id: 'inbox', name: 'Inbox', status: 'memory', filedAt: '2026-01-02T00:00:00.000Z' };
+  const trip = { id: 'trip', name: 'Trip', status: 'board' };
+  const filed = { id: 'filed', name: 'Filed', status: 'memory', filedAt: '2026-01-01T00:00:00.000Z' };
+  const note = { id: 'n1', text: 'milk', collectionId: 'filed', status: 'memory' };
+
+  const empty = memorySections([inbox], []);
+  eq(empty.cols.length, 1, 'an empty memory collection still gets a section');
+  eq(empty.cols[0].notes.length, 0, 'that section has an empty notes array, not undefined');
+  eq(empty.loose.length, 0, 'no loose notes when Memory is only an empty collection');
+
+  const mixed = memorySections([inbox, trip, filed], [note]);
+  eq(mixed.cols.map((s) => s.col.id).join(','), 'inbox,filed', 'empty memory first by filedAt; board-only collections stay hidden');
+  eq(mixed.cols.find((s) => s.col.id === 'filed').notes[0].id, 'n1', 'filed notes stay under their collection');
+
+  const filtered = memorySections([inbox, filed], [note], { search: 'milk' });
+  eq(filtered.cols.length, 1, 'a search hides empty memory collections');
+  eq(filtered.cols[0].col.id, 'filed', 'the collection that still has a matching note remains');
 }
 
 if (failures) {
