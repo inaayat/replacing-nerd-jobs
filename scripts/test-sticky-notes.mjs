@@ -27,7 +27,10 @@ import {
   fitViewport,
   headingTriggerFor,
   HREF_MAX,
+  BOARD_VIEW_KEY,
+  BOARD_VIEW_KEY_V1,
   defaultBoardView,
+  phoneBoardViewNeedsReset,
   isLoneUrl,
   approach,
   displayedKeyboardSlice,
@@ -972,13 +975,46 @@ function note(id, extra = {}) {
 
 // 22. Phone board-view default and note zoom
 {
-  eq(defaultBoardView(null, { coarse: true, width: 390 }), 'table', 'unset phone view is the table');
-  eq(defaultBoardView(undefined, { coarse: true, width: 720 }), 'table', 'unset coarse 720 is the table');
+  eq(BOARD_VIEW_KEY, 'sticky-notes-board-view-v2', 'v2 key is the live preference');
+  eq(BOARD_VIEW_KEY_V1, 'sticky-notes-board-view', 'v1 key is the leftover #276 slot');
+  eq(defaultBoardView(null, { coarse: true, width: 390 }), 'canvas', 'unset phone view is the board');
+  eq(defaultBoardView(undefined, { coarse: true, width: 720 }), 'canvas', 'unset coarse 720 is the board');
   eq(defaultBoardView(null, { coarse: false, width: 390 }), 'canvas', 'unset desktop-pointer stays canvas even if narrow');
   eq(defaultBoardView(null, { coarse: true, width: 1024 }), 'canvas', 'unset coarse tablet/desktop width stays canvas');
   eq(defaultBoardView('canvas', { coarse: true, width: 390 }), 'canvas', 'a stored canvas pick wins on the phone');
   eq(defaultBoardView('table', { coarse: false, width: 1440 }), 'table', 'a stored table pick wins on desktop');
-  eq(defaultBoardView('nope', { coarse: true, width: 390 }), 'table', 'garbage stored value is treated as unset');
+  eq(defaultBoardView('table', { coarse: true, width: 390 }), 'table', 'an explicit v2 table pick wins on the phone');
+  eq(defaultBoardView('nope', { coarse: true, width: 390 }), 'canvas', 'garbage stored value is treated as unset');
+  eq(
+    defaultBoardView(null, { coarse: true, width: 390, legacy: 'table' }),
+    'canvas',
+    'leftover v1 table on the phone is ignored',
+  );
+  eq(
+    defaultBoardView(null, { coarse: false, width: 1440, legacy: 'table' }),
+    'table',
+    'leftover v1 table on desktop is honored',
+  );
+  eq(
+    defaultBoardView('canvas', { coarse: true, width: 390, legacy: 'table' }),
+    'canvas',
+    'v2 canvas beats a leftover v1 table on the phone',
+  );
+  eq(
+    phoneBoardViewNeedsReset(null, { coarse: true, width: 390, legacy: 'table' }),
+    true,
+    'phone leftover table is a one-shot reset',
+  );
+  eq(
+    phoneBoardViewNeedsReset('table', { coarse: true, width: 390, legacy: 'table' }),
+    false,
+    'explicit v2 table is not reset',
+  );
+  eq(
+    phoneBoardViewNeedsReset(null, { coarse: false, width: 1440, legacy: 'table' }),
+    false,
+    'desktop leftover table is not reset',
+  );
 
   const tiny = phoneNoteZoom({ zoom: 1, noteW: 220, viewW: 390, minScreenW: 260 });
   eq(tiny.changed, true, 'a 220 px card at zoom 1 is lifted on a phone');

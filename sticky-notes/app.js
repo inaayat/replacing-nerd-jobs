@@ -27,7 +27,10 @@ import {
   TAG_SVG,
   TRASH_SVG,
   approach,
+  BOARD_VIEW_KEY,
+  BOARD_VIEW_KEY_V1,
   defaultBoardView,
+  phoneBoardViewNeedsReset,
   KEYBOARD_INSET_TAU,
   keyboardLayout,
   stateIsEmpty,
@@ -44,7 +47,6 @@ const $ = (sel) => document.querySelector(sel);
 const HINTS_KEY = 'sticky-notes-hints-v1';
 const SIDEBAR_KEY = 'sticky-notes-sidebar';
 const VIEW_KEY = 'sticky-notes-view';
-const BOARD_VIEW_KEY = 'sticky-notes-board-view';
 const GUESTBAR_KEY = 'sticky-notes-guestbar';
 
 // Set at boot; the guide and the empty state both have something extra to say
@@ -234,7 +236,7 @@ function guideGroups() {
           glyph: '▦',
           name: 'Canvas or table',
           text: touch
-            ? 'Same notes, as a list or as cards. The table is the default for writing; switch to the canvas to move notes, write on the board, or zoom.'
+            ? 'Same notes, as a list or as cards. The board is the default; switch to the list to scan, then back to move notes, write on the board, or zoom.'
             : 'The same board notes, as cards or as a list. Switching does not move or file anything.',
         },
         {
@@ -394,7 +396,7 @@ const hintText = $('#hint-text');
 
 function hintCopy() {
   return coarse()
-    ? 'Tap to type · drag to move · table is the default for writing'
+    ? 'Tap to type · drag to move · the list is a toggle, not the default'
     : 'Click a note to type · drag it to move · select a few and name them to make a collection';
 }
 
@@ -692,10 +694,16 @@ async function init() {
 
   let tab = readLocal(VIEW_KEY) === 'memory' ? 'memory' : 'board';
   let collapsed = readLocal(SIDEBAR_KEY) === 'collapsed';
-  let boardView = defaultBoardView(readLocal(BOARD_VIEW_KEY), {
+  const boardViewOpts = {
     coarse: coarse(),
     width: window.innerWidth,
-  });
+    legacy: readLocal(BOARD_VIEW_KEY_V1),
+  };
+  const storedBoardView = readLocal(BOARD_VIEW_KEY);
+  let boardView = defaultBoardView(storedBoardView, boardViewOpts);
+  if (phoneBoardViewNeedsReset(storedBoardView, boardViewOpts)) {
+    writeLocal(BOARD_VIEW_KEY, 'canvas');
+  }
 
   const table = createTable({
     store,

@@ -30,8 +30,11 @@ export const NOTE_W_MAX = 480;
 export const NOTE_H_MIN = 48;
 export const ZOOM_MIN = 0.4;
 export const ZOOM_MAX = 2;
-/** Unset `sticky-notes-board-view` uses the table on coarse viewports this wide. */
+/** Coarse viewports this wide are a phone: leftover v1 `table` is reset once. */
 export const PHONE_VIEW_MAX = 720;
+/** Canvas | table toggle. v2 so a leftover #276 phone `table` can be ignored. */
+export const BOARD_VIEW_KEY = 'sticky-notes-board-view-v2';
+export const BOARD_VIEW_KEY_V1 = 'sticky-notes-board-view';
 
 // Keys are stored on notes; labels are the renameable defaults. Insertion order
 // is the order every palette and filter row shows, which is why the neutral a
@@ -472,13 +475,28 @@ export function noteCreateSize(phone) {
 }
 
 /**
- * Canvas | table preference. A stored pick always wins. If the key is unset,
- * coarse/narrow (≤720) opens on the table so writing does not start on the
- * whiteboard; desktop still opens on the canvas.
+ * Canvas | table preference. `stored` is the v2 key — a v2 pick always wins.
+ * Unset opens the whiteboard, phone and desktop. On desktop only, a leftover
+ * v1 pick is honored so a desktop table user is not forced back to the canvas.
+ * On coarse/narrow (≤720), a leftover v1 `table` (#276's phone default) is
+ * ignored; the first explicit toggle after that writes v2 and is honored.
  */
-export function defaultBoardView(stored, { coarse = false, width = 1024 } = {}) {
+export function defaultBoardView(stored, { coarse = false, width = 1024, legacy = null } = {}) {
   if (stored === 'table' || stored === 'canvas') return stored;
-  return coarse && width <= PHONE_VIEW_MAX ? 'table' : 'canvas';
+  const phone = coarse && width <= PHONE_VIEW_MAX;
+  if (!phone && (legacy === 'table' || legacy === 'canvas')) return legacy;
+  return 'canvas';
+}
+
+/** True when a leftover phone `table` should be written to the v2 key as canvas. */
+export function phoneBoardViewNeedsReset(stored, { coarse = false, width = 1024, legacy = null } = {}) {
+  return (
+    stored !== 'table' &&
+    stored !== 'canvas' &&
+    coarse &&
+    width <= PHONE_VIEW_MAX &&
+    legacy === 'table'
+  );
 }
 
 function noteShape(raw, text, rich) {
