@@ -16,9 +16,14 @@ import {
   bbox,
   blankNote,
   colorHex,
+  docIsEmpty,
+  DOC_MAX_BLOCKS,
+  draftDocFromNotes,
+  emptyDoc,
   emptyState,
   findFreeSlot,
   fitViewport,
+  headingTriggerFor,
   HREF_MAX,
   isLoneUrl,
   legendLabel,
@@ -26,6 +31,7 @@ import {
   mergeStates,
   migrateLegacyStore,
   noteBlocks,
+  normalizeDoc,
   normalizeHref,
   normalizeNote,
   normalizeRich,
@@ -691,6 +697,119 @@ function note(id, extra = {}) {
     'alpha-c7-new,alpha-c7-old,zeta-c7,loose-c1,none',
     'c7 before c1 before uncoloured; Alpha before Zeta; loose last; newer first',
   );
+}
+
+// 19. wiki documents — whitelist, caps, LWW, delete, memory-status create
+{
+  const doc = normalizeDoc({
+    blocks: [
+      { type: 'h1', spans: [{ text: 'Trip' }] },
+      { type: 'h2', spans: [{ text: 'Yellow' }] },
+      { type: 'ul', spans: [{ text: 'passport' }], noteId: 'n1' },
+      { type: 'hr' },
+      { type: 'script', spans: [{ text: 'nope' }] },
+      { type: 'h3', spans: [{ text: 'demoted' }] },
+    ],
+  });
+  eq(doc.blocks[0].type, 'h1', 'normalizeDoc keeps h1');
+  eq(doc.blocks[1].type, 'h2', 'normalizeDoc keeps h2');
+  eq(doc.blocks[2].noteId, 'n1', 'normalizeDoc keeps pull provenance');
+  eq(doc.blocks[3].type, 'hr', 'normalizeDoc keeps a rule');
+  eq(doc.blocks[4].type, 'p', 'unknown wiki block types become paragraphs');
+  eq(doc.blocks[5].type, 'p', 'h3 is wiki-unknown and becomes a paragraph');
+  assert(normalizeRich(doc.blocks)[0].type === 'p', 'normalizeRich still refuses headings');
+  assert(docIsEmpty(emptyDoc()), 'an empty doc is empty');
+  assert(docIsEmpty({ blocks: [{ type: 'p', spans: [] }] }), 'blank paragraphs count as empty');
+  assert(!docIsEmpty(doc), 'a heading is not empty');
+
+  const capped = normalizeDoc({
+    blocks: Array.from({ length: DOC_MAX_BLOCKS + 40 }, (_, i) => ({
+      type: 'p',
+      spans: [{ text: `line ${i}` }],
+    })),
+  });
+  eq(capped.blocks.length, DOC_MAX_BLOCKS, 'normalizeDoc caps at 600 blocks');
+  const fat = normalizeDoc({
+    blocks: [{
+      type: 'p',
+      spans: Array.from({ length: 200 }, (_, i) => ({ text: `s${i}`, bold: i % 2 === 0 })),
+    }],
+  });
+  eq(fat.blocks[0].spans.length, 120, 'wiki spans share the 120-span cap');
+
+  eq(headingTriggerFor('#'), 'h1', '"# " starts a heading');
+  eq(headingTriggerFor('##'), 'h2', '"## " starts a subheading');
+  eq(headingTriggerFor('###'), null, 'h3 is not a trigger');
+  eq(headingTriggerFor('# title'), null, 'a heading marker must be alone');
+
+  const notes = [
+    { id: 'a', text: 'milk', colorKey: 'c1' },
+    { id: 'b', text: 'eggs', colorKey: 'c1' },
+    { id: 'c', text: 'plain', colorKey: null },
+  ];
+  const draft = draftDocFromNotes(notes, { colors: { c1: 'Shop' } });
+  eq(draft.blocks[0].type, 'h2', 'draft starts a colour-group heading');
+  eq(draft.blocks[0].spans[0].text, 'Shop', 'draft uses the legend label');
+  eq(draft.blocks.filter((b) => b.type === 'ul').length, 3, 'draft makes one bullet per note');
+  eq(draft.blocks.find((b) => b.noteId === 'a').spans[0].text, 'milk', 'draft notes stay raw');
+
+  let s = applyOps(emptyState(), [{ op: 'collection.create', id: 'col', name: 'Japan' }]);
+  const older = {
+    op: 'wiki.set',
+    collectionId: 'col',
+    doc: { blocks: [{ type: 'p', spans: [{ text: 'old' }] }] },
+    ts: '2025-01-01T00:00:00.000Z',
+  };
+  const newer = {
+    op: 'wiki.set',
+    collectionId: 'col',
+    doc: { blocks: [{ type: 'h1', spans: [{ text: 'new' }] }] },
+    ts: '2025-06-01T00:00:00.000Z',
+  };
+  const forward = applyOps(s, [older, newer]);
+  eq(forward.wikis[0].doc.blocks[0].spans[0].text, 'new', 'wiki.set newer wins');
+  const reverse = applyOps(applyOps(s, [newer]), [older]);
+  eq(reverse.wikis[0].doc.blocks[0].spans[0].text, 'new', 'wiki.set older loses both directions');
+
+  const mergedNew = mergeStates(
+    { collections: [{ id: 'col', name: 'Japan' }], wikis: [{ collectionId: 'col', doc: older.doc, updatedAt: older.ts }] },
+    { collections: [{ id: 'col', name: 'Japan' }], wikis: [{ collectionId: 'col', doc: newer.doc, updatedAt: newer.ts }] },
+  );
+  eq(mergedNew.wikis[0].doc.blocks[0].spans[0].text, 'new', 'merge incoming newer wiki wins');
+  const mergedOld = mergeStates(
+    { collections: [{ id: 'col', name: 'Japan' }], wikis: [{ collectionId: 'col', doc: newer.doc, updatedAt: newer.ts }] },
+    { collections: [{ id: 'col', name: 'Japan' }], wikis: [{ collectionId: 'col', doc: older.doc, updatedAt: older.ts }] },
+  );
+  eq(mergedOld.wikis[0].doc.blocks[0].spans[0].text, 'new', 'merge base newer wiki survives');
+
+  const ghost = applyOps(emptyState(), [{
+    op: 'wiki.set', collectionId: 'missing', doc: { blocks: [{ type: 'p', spans: [{ text: 'x' }] }] },
+  }]);
+  eq(ghost.wikis.length, 0, 'wiki.set without a collection is a no-op');
+
+  const gone = applyOps(forward, [{ op: 'collection.delete', id: 'col', deleteNotes: false }]);
+  eq(gone.wikis.length, 0, 'collection.delete removes the wiki');
+  eq(normalizeState({
+    collections: [],
+    wikis: [{ collectionId: 'col', doc: newer.doc, updatedAt: newer.ts }],
+  }).wikis.length, 0, 'a wiki whose collection is gone is dropped');
+
+  let mem = applyOps(emptyState(), [
+    { op: 'collection.create', id: 'inbox', name: 'Inbox', status: 'memory' },
+  ]);
+  eq(mem.collections[0].status, 'memory', 'collection.create can start in memory');
+  mem = applyOps(mem, [{ op: 'wipe', ts: '2025-09-01T00:00:00.000Z' }]);
+  eq(mem.collections[0].status, 'memory', 'a memory collection survives wipe unfiled');
+  eq(mem.collections.length, 1, 'wipe does not invent or drop the empty memory collection');
+
+  let guest = applyOps(emptyState(), [
+    { op: 'collection.create', id: 'col', name: 'Page', status: 'memory' },
+    { op: 'wiki.set', collectionId: 'col', doc: { blocks: [{ type: 'h1', spans: [{ text: 'Hello' }] }] }, ts: '2025-09-09T00:00:00.000Z' },
+  ]);
+  const adopted = applyOps(emptyState(), stateToOps(guest));
+  eq(adopted.wikis[0].doc.blocks[0].spans[0].text, 'Hello', 'stateToOps carries the wiki');
+  eq(adopted.collections[0].status, 'memory', 'stateToOps keeps a memory collection in memory');
+  assert(!stateIsEmpty(guest), 'a collection-only board is worth keeping');
 }
 
 if (failures) {

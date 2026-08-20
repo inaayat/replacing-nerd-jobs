@@ -13,6 +13,7 @@
  * cards.
  */
 import {
+  BOOK_SVG,
   BOLD_SVG,
   BULLET_LIST_SVG,
   COLOR_KEYS,
@@ -56,7 +57,7 @@ const LONG_PRESS_MS = 400;
 const DOUBLE_TAP_MS = 350;
 const DOUBLE_TAP_PX = 28;
 
-export function createBoard({ store, els, showToast, onEdit }) {
+export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
   const { viewport, world, arrowLayer, rubber, empty, actionbar, editbar } = els;
 
   let vp = loadViewport();
@@ -434,16 +435,18 @@ export function createBoard({ store, els, showToast, onEdit }) {
       const rects = byCollection.get(col.id);
       if (!rects) continue;
       const box = bbox(rects);
-      const chip = document.createElement('button');
-      chip.type = 'button';
+      const chip = document.createElement('div');
       chip.className = 'sn-chip';
-      chip.innerHTML = `${TAG_SVG}<span></span>`;
-      chip.querySelector('span').textContent = col.name;
-      chip.title = `Collection “${col.name}” — ${rects.length} note${rects.length === 1 ? '' : 's'}. Select them all, then File to send the collection to memory.`;
       chip.style.left = `${box.x}px`;
       chip.style.top = `${box.y - 30}px`;
       chip.addEventListener('pointerdown', (e) => e.stopPropagation());
-      chip.addEventListener('click', () => {
+      const nameBtn = document.createElement('button');
+      nameBtn.type = 'button';
+      nameBtn.className = 'sn-chip-name';
+      nameBtn.innerHTML = `${TAG_SVG}<span></span>`;
+      nameBtn.querySelector('span').textContent = col.name;
+      nameBtn.title = `Collection “${col.name}” — ${rects.length} note${rects.length === 1 ? '' : 's'}. Select them all, then File to send the collection to memory.`;
+      nameBtn.addEventListener('click', () => {
         if (editingId) endEdit?.(false);
         selection.clear();
         for (const n of boardNotes()) if (n.collectionId === col.id) selection.add(n.id);
@@ -451,6 +454,17 @@ export function createBoard({ store, els, showToast, onEdit }) {
         if (coarse()) setSelectMode(true);
         renderSelection();
       });
+      const wikiBtn = document.createElement('button');
+      wikiBtn.type = 'button';
+      wikiBtn.className = 'sn-chip-wiki';
+      wikiBtn.innerHTML = BOOK_SVG;
+      wikiBtn.setAttribute('aria-label', `Open page for ${col.name}`);
+      wikiBtn.title = `Open the page for “${col.name}”`;
+      wikiBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        onOpenWiki?.(col.id);
+      });
+      chip.append(nameBtn, wikiBtn);
       world.appendChild(chip);
       chipEls.set(col.id, chip);
     }

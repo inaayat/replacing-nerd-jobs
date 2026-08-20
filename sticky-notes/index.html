@@ -184,6 +184,30 @@
             <div class="sn-table-root" id="table-root"></div>
           </div>
 
+          <section class="sn-wiki-pane" id="wiki-pane" hidden>
+            <header class="sn-wiki-head">
+              <button type="button" class="sn-wiki-back" id="wiki-back" aria-label="Back to board" title="Back to board">‹</button>
+              <button type="button" class="sn-wiki-title" id="wiki-title">Page</button>
+              <button
+                type="button"
+                class="sn-wiki-notes-toggle"
+                id="wiki-notes-toggle"
+                aria-expanded="false"
+                hidden
+              >Notes (0)</button>
+            </header>
+            <div class="sn-wiki-layout">
+              <aside class="sn-wiki-outline" id="wiki-outline" aria-label="Notes in this collection"></aside>
+              <div class="sn-wiki-page">
+                <nav class="sn-wiki-toc" id="wiki-toc" hidden></nav>
+                <button type="button" class="sn-btn sn-wiki-draft" id="wiki-draft" hidden>
+                  Draft from notes
+                </button>
+                <div class="sn-wiki-editor" id="wiki-editor"></div>
+              </div>
+            </div>
+          </section>
+
           <aside class="sn-sidebar" id="sidebar" aria-label="Memory">
             <div class="sn-side-head">
               <span class="sn-side-title">Memory</span>
@@ -209,8 +233,12 @@
               </div>
               <p class="sn-mem-note">
                 A <b>collection</b> is a named group of notes. Select notes on the board, name them
-                in the bar at the bottom, then File — the whole group lands here together.
+                in the bar at the bottom, then File — the whole group lands here together. Every
+                collection has a <b>page</b>.
               </p>
+              <div class="sn-mem-toolbar">
+                <button type="button" class="sn-btn" id="mem-new-col">+ New collection</button>
+              </div>
               <div class="sn-mem-list" id="mem-list"></div>
               <div class="sn-mem-more">
                 <button type="button" class="sn-btn" id="mem-more" hidden>Show more</button>
@@ -257,6 +285,32 @@
           </div>
         </span>
       </span>
+    </div>
+
+    <div class="sn-wiki-format" id="wiki-format" hidden role="toolbar" aria-label="Page formatting">
+      <button type="button" class="sn-eb-btn" id="wiki-h1" aria-label="Heading" title="Heading — or type “# ”">H1</button>
+      <button type="button" class="sn-eb-btn" id="wiki-h2" aria-label="Subheading" title="Subheading — or type “## ”">H2</button>
+      <button type="button" class="sn-eb-btn" id="wiki-bold" aria-label="Bold" title="Bold (⌘/Ctrl+B)"></button>
+      <button type="button" class="sn-eb-btn" id="wiki-bullets" aria-label="Bullet list" title="Bullet list — or type “* ”"></button>
+      <button type="button" class="sn-eb-btn" id="wiki-numbers" aria-label="Numbered list" title="Numbered list — or type “1. ”"></button>
+      <span class="sn-eb-wrap">
+        <button type="button" class="sn-eb-btn" id="wiki-link" aria-label="Link" title="Link (⌘/Ctrl+K)"></button>
+        <div class="sn-eb-linkpop sn-linkpop" id="wiki-linkpop" hidden>
+          <label class="sn-link-field">
+            <span>URL</span>
+            <input class="sn-link-url" id="wiki-link-url" type="url" inputmode="url" autocomplete="off" placeholder="https://" />
+          </label>
+          <label class="sn-link-field">
+            <span>Text</span>
+            <input class="sn-link-text" id="wiki-link-text" type="text" autocomplete="off" placeholder="Display text" />
+          </label>
+          <div class="sn-link-actions">
+            <button type="button" class="sn-btn sn-btn-primary sn-link-save" id="wiki-link-save">Save</button>
+            <button type="button" class="sn-btn sn-link-remove" id="wiki-link-remove">Remove</button>
+          </div>
+        </div>
+      </span>
+      <button type="button" class="sn-eb-btn" id="wiki-hr" aria-label="Divider" title="Horizontal rule"></button>
     </div>
 
     <div class="sn-scrim" id="scrim" hidden></div>
