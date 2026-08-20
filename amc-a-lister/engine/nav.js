@@ -50,6 +50,41 @@ export function setRankBetaEnabled(enabled) {
   }
 }
 
+/** After logging a theater watch (DNF included), offer to put it on the Rank stack. */
+function offerRankAfterLog(logged) {
+  if (!isRankBetaEnabled()) return;
+  if (!logged || logged.in_theaters === false) return;
+  const tmdbId = Number(logged.tmdb_id);
+  if (!tmdbId) return;
+  if (document.body.dataset.page === 'rank') return;
+  if (document.getElementById('rank-after-add')) return;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'rank-after-add';
+  overlay.className = 'al-rank-modal';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-labelledby', 'rank-after-add-title');
+  overlay.innerHTML = `
+    <div class="al-rank-modal-card">
+      <div>
+        <h2 class="al-rank-modal-title" id="rank-after-add-title">Stack rank this?</h2>
+        <p class="al-rank-modal-film">${escapeHtml(logged.title || 'This movie')}</p>
+        <p class="al-muted">Add it to your theater stack. Your watch log stays as it is.</p>
+        <div class="al-rank-modal-actions">
+          <button type="button" class="al-btn al-btn-primary" id="rank-after-yes">Yes, compare</button>
+          <button type="button" class="al-btn" id="rank-after-no">Not now</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#rank-after-yes')?.addEventListener('click', () => {
+    location.href = `/amc-a-lister/rank.html?add=${tmdbId}`;
+  });
+  overlay.querySelector('#rank-after-no')?.addEventListener('click', () => overlay.remove());
+}
+
 function visiblePages() {
   return PAGES.filter((p) => {
     if (p.beta === 'tv') return isTvBetaEnabled();
@@ -230,7 +265,12 @@ async function runBootPage(renderFn, auth, { quickLogOnSuccess } = {}) {
   await renderFn({ root, auth });
   wireAuthLink(auth);
   if (auth.signedIn && auth.token) {
-    wireQuickLog(auth, { onSuccess: (logged) => quickLogOnSuccess?.(auth, logged) });
+    wireQuickLog(auth, {
+      onSuccess: async (logged) => {
+        await quickLogOnSuccess?.(auth, logged);
+        offerRankAfterLog(logged);
+      },
+    });
     populateSidebarStats(auth);
   }
 }

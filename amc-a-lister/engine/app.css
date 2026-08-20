@@ -501,6 +501,13 @@ a { color: var(--al-burgundy); }
   margin-bottom: 6px;
 }
 
+.al-rank-header-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
 .al-watchlist-segment {
   margin-bottom: 10px;
   width: 100%;

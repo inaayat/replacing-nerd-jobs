@@ -304,6 +304,8 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
         await onSuccess({
           title: payload.title,
           tmdb_id: payload.tmdb_id,
+          in_theaters: inTheaters,
+          dnf: !!payload.dnf,
           watchlistId: source?.watchlistId ?? null,
         });
       }

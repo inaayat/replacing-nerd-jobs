@@ -10,6 +10,9 @@ import {
   removeByTmdbId,
   placeWithOracle,
   uniqueLoggedMovies,
+  isTheaterWatch,
+  eligibleTmdbIds,
+  dropIneligibleRanks,
 } from '../amc-a-lister/engine/rank-insert.js';
 
 function movie(id, title = `M${id}`) {
@@ -132,6 +135,34 @@ function placeWithAnswers(rankedLength, answers) {
   assert.deepEqual(unique.map((m) => m.tmdb_id), [11, 22]);
   assert.equal(unique[0].title, 'Dune');
   assert.equal(unique[1].year, 1995);
+}
+
+// Theater-only: home/streaming excluded, DNFs included, rewatches once.
+{
+  const watches = [
+    { tmdb_id: 11, title: 'Dune', in_theaters: true },
+    { tmdb_id: 11, title: 'Dune again', in_theaters: true, dnf: true },
+    { tmdb_id: 22, title: 'Heat at home', in_theaters: false },
+    { tmdb_id: 33, title: 'Walked out', in_theaters: true, dnf: true },
+    { tmdb_id: 44, title: 'Legacy theater row' },
+  ];
+  assert.equal(isTheaterWatch(watches[0]), true);
+  assert.equal(isTheaterWatch(watches[1]), true);
+  assert.equal(isTheaterWatch(watches[2]), false);
+  assert.equal(isTheaterWatch(watches[4]), true);
+
+  const unique = uniqueLoggedMovies(watches);
+  assert.deepEqual(unique.map((m) => m.tmdb_id), [11, 33, 44]);
+
+  const ids = [...eligibleTmdbIds(watches)].sort((a, b) => a - b);
+  assert.deepEqual(ids, [11, 33, 44]);
+
+  const stored = [
+    { tmdb_id: 11, title: 'Dune' },
+    { tmdb_id: 22, title: 'Heat at home' },
+    { tmdb_id: 33, title: 'Walked out' },
+  ];
+  assert.deepEqual(dropIneligibleRanks(stored, watches).map((m) => m.tmdb_id), [11, 33]);
 }
 
 console.log('amc alist rank tests passed');
