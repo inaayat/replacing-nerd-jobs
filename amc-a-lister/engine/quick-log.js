@@ -276,7 +276,7 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
     }
 
     try {
-      const { seen_with: seenResult } = await watchesApi.create(auth.token, payload);
+      const { seen_with: seenResult, removed_watchlist } = await watchesApi.create(auth.token, payload);
       const withCount = seenResult?.summary
         ? (seenResult.summary.linked || 0) + (seenResult.summary.invited || 0)
         : payload.seen_with.length;
@@ -307,6 +307,7 @@ export function wireQuickLog(auth, { onSuccess } = {}) {
           in_theaters: inTheaters,
           dnf: !!payload.dnf,
           watchlistId: source?.watchlistId ?? null,
+          removed_watchlist: removed_watchlist || [],
         });
       }
       setTimeout(() => { statusEl.textContent = ''; statusEl.classList.remove('is-success'); }, 2500);

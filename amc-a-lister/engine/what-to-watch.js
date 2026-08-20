@@ -6,6 +6,7 @@ import {
   itemsForWatchlistView,
   wireWatchlistLogList,
   wireWatchlistAddForm,
+  watchlistMatchesLogged,
 } from './watchlist-ui.js';
 
 const VIEWS = {
@@ -18,7 +19,7 @@ bootPage(async ({ root, auth }) => {
 
   root.innerHTML = renderShell({
     title: 'Coming Soon',
-    subtitle: "What's next, what's at home — expand a row for movie details.",
+    subtitle: "What's next and what's at home — tap a row for movie details.",
     body: `<main class="al-main" id="wtw-main"><p class="al-muted">Loading…</p></main>`,
     signedIn: true,
   });
@@ -32,30 +33,38 @@ bootPage(async ({ root, auth }) => {
 
 /**
  * A title you've now seen shouldn't still be on a list of things you want to
- * see — previously the list only ever grew. Matches the row the user clicked
- * "Log screening" on, or failing that any row for the same film.
+ * see. The API clears matching rows on create; this updates the on-screen list
+ * (and re-deletes if an older server skipped the clear).
  */
 async function clearLoggedFromList(auth, logged) {
   const state = pageState;
   if (!state || !logged) return;
 
-  const match = state.watchlist.find((item) => (
-    (logged.watchlistId && item.id === logged.watchlistId)
-    || (logged.tmdb_id && item.tmdb_id === logged.tmdb_id)
-  ));
-  if (!match) return;
+  const matches = state.watchlist.filter((item) => watchlistMatchesLogged(item, logged));
+  if (!matches.length) return;
 
-  try {
-    await watchlistApi.remove(auth.token, match.id);
-    state.watchlist = state.watchlist.filter((item) => item.id !== match.id);
-    state.rerender?.();
-    const statusEl = document.getElementById('watchlist-status');
-    if (statusEl) {
-      statusEl.textContent = `Logged ${match.title} — removed from your list.`;
-      setTimeout(() => { statusEl.textContent = ''; }, 3000);
+  const removedIds = new Set(
+    (logged.removed_watchlist || []).map((row) => String(row.id)),
+  );
+  const stillOnServer = matches.filter((item) => !removedIds.has(String(item.id)));
+  await Promise.all(stillOnServer.map(async (item) => {
+    try {
+      await watchlistApi.remove(auth.token, item.id);
+    } catch {
+      // Already gone on the server is fine.
     }
-  } catch {
-    // The screening saved either way; leaving the row is a harmless fallback.
+  }));
+
+  const drop = new Set(matches.map((item) => String(item.id)));
+  state.watchlist = state.watchlist.filter((item) => !drop.has(String(item.id)));
+  if (state.expandedId && drop.has(String(state.expandedId))) state.expandedId = null;
+  state.rerender?.();
+
+  const statusEl = document.getElementById('watchlist-status');
+  if (statusEl) {
+    const label = matches.length === 1 ? matches[0].title : `${matches.length} titles`;
+    statusEl.textContent = `Logged — removed ${label} from your list.`;
+    setTimeout(() => { statusEl.textContent = ''; }, 3000);
   }
 }
 

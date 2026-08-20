@@ -6,6 +6,8 @@ import { wireComboboxKeys } from './combobox.js';
 
 export { todayISO };
 
+export { watchlistItemMatchesLogged as watchlistMatchesLogged } from './watchlist-match.js';
+
 /**
  * 'upcoming' | 'released' | 'unknown'.
  *
@@ -33,10 +35,10 @@ export function effectiveReleaseDate(item) {
   return null;
 }
 
-/** Released titles still likely in theaters (~3 calendar months). */
+/** Released titles still likely in theaters (~2 calendar months). */
 export function theatricalCutoffISO(today = todayISO(), now = new Date()) {
   const [y, m, d] = today.split('-').map(Number);
-  return monthsBeforeISO(3, new Date(y, m - 1, d));
+  return monthsBeforeISO(2, new Date(y, m - 1, d));
 }
 
 /**
@@ -435,6 +437,10 @@ function wireWatchlistEditSearch(auth, form, { searchApi = movieApi } = {}) {
   });
 }
 
+function sameWatchlistId(a, b) {
+  return a != null && b != null && String(a) === String(b);
+}
+
 function watchlistDetailPanelHtml(item, state, { detailsKind = 'movie', detailClass = '' } = {}) {
   const wrap = (content) => `
     <div class="al-log-detail${detailClass}">
@@ -446,15 +452,15 @@ function watchlistDetailPanelHtml(item, state, { detailsKind = 'movie', detailCl
     return wrap('<p class="al-muted">No TMDB match for this title. Use <strong>Edit</strong> to pick the title from search.</p>');
   }
 
-  if (state.detailsLoading === item.id) {
+  if (state.detailsLoading != null && sameWatchlistId(state.detailsLoading, item.id)) {
     return wrap('<p class="al-muted">Loading details…</p>');
   }
 
-  if (state.detailsError && state.expandedId === item.id) {
+  if (state.detailsError && sameWatchlistId(state.expandedId, item.id)) {
     return wrap(`<p class="al-error">${escapeHtml(state.detailsError)}</p>`);
   }
 
-  const details = state.detailsCache.get(item.id);
+  const details = state.detailsCache.get(item.id) || state.detailsCache.get(String(item.id));
   if (!details) {
     return wrap('<p class="al-muted">Loading details…</p>');
   }
@@ -520,7 +526,7 @@ function watchlistDetailPanelHtml(item, state, { detailsKind = 'movie', detailCl
 }
 
 function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detailsKind = 'movie', view = null, hideLog = false } = {}) {
-  const expanded = item.id === state.expandedId;
+  const expanded = sameWatchlistId(item.id, state.expandedId);
   const bucket = view ? watchlistBucket(item) : null;
   let badge = '';
   if (!view && isAlreadyOut(item)) {
@@ -536,7 +542,7 @@ function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detai
   const logBtn = hideLog ? '' : `<button type="button" class="al-link-btn" data-log-watchlist="${item.id}">${escapeHtml(logLabel)}</button>`;
   return `
     <div class="al-log-entry ${expanded ? 'is-expanded' : ''}${out ? ' is-already-out' : ''}" data-entry-id="${item.id}">
-      <article class="al-log-row al-log-row--watchlist al-log-row--clickable ${expanded ? 'is-expanded' : ''}" data-expand-row tabindex="0" aria-expanded="${expanded}" aria-label="Toggle details">
+      <article class="al-log-row al-log-row--watchlist al-log-row--clickable ${expanded ? 'is-expanded' : ''}" data-expand-row role="button" tabindex="0" aria-expanded="${expanded ? 'true' : 'false'}" aria-label="Show details for ${escapeHtml(item.title)}">
         <div class="al-log-col al-col-poster">${posterHtml(item, { size: 'w92', width: 28, height: 42 })}</div>
         <div class="al-log-col al-log-col--desktop">${escapeHtml(releaseLabel(item))}</div>
         <div class="al-log-col--body">
@@ -578,22 +584,22 @@ export function watchlistLogTableHtml(items, state, { emptyMessage, logLabel, de
 }
 
 async function loadWatchlistDetails(auth, state, itemId, render, { detailsApi, detailsKind = 'movie' } = {}) {
-  const item = state.watchlist.find((w) => w.id === itemId);
+  const item = state.watchlist.find((w) => sameWatchlistId(w.id, itemId));
   if (!item?.tmdb_id) return;
 
-  if (state.detailsCache.has(itemId)) return;
+  if (state.detailsCache.has(item.id) || state.detailsCache.has(String(item.id))) return;
 
-  state.detailsLoading = itemId;
+  state.detailsLoading = item.id;
   state.detailsError = null;
   render();
 
   try {
     const data = await detailsApi.details(auth.token, item.tmdb_id);
     const details = detailsKind === 'tv' ? data.show : data.movie;
-    state.detailsCache.set(itemId, details);
+    state.detailsCache.set(item.id, details);
     if (details?.poster_path && !item.poster_path) {
       const withPoster = { ...item, poster_path: details.poster_path };
-      state.watchlist = state.watchlist.map((w) => (w.id === itemId ? withPoster : w));
+      state.watchlist = state.watchlist.map((w) => (sameWatchlistId(w.id, itemId) ? withPoster : w));
     }
   } catch (err) {
     state.detailsError = err.message || 'Could not load details.';
@@ -656,37 +662,41 @@ function wireWatchlistLogActions(auth, state, render, {
   onLogItem,
   statusEl,
 }) {
-  listEl.querySelectorAll('[data-expand-row]').forEach((row) => {
-    const toggle = (e) => {
-      if (e.target.closest('.al-row-actions')) return;
-      const entry = row.closest('.al-log-entry');
-      const id = entry?.dataset.entryId;
-      if (!id) return;
+  const toggleExpand = (entry) => {
+    const id = entry?.dataset.entryId;
+    if (!id) return;
 
-      if (state.expandedId === id) {
-        state.expandedId = null;
-        state.detailsError = null;
-        render();
-        return;
-      }
-
-      state.expandedId = id;
-      state.editingId = null;
+    if (sameWatchlistId(state.expandedId, id)) {
+      state.expandedId = null;
       state.detailsError = null;
+      render();
+      return;
+    }
 
-      const item = state.watchlist.find((w) => w.id === id);
-      if (item?.tmdb_id && !state.detailsCache.has(id)) {
-        loadWatchlistDetails(auth, state, id, render, { detailsApi, detailsKind });
-      } else {
-        render();
-      }
-    };
+    state.expandedId = id;
+    state.editingId = null;
+    state.detailsError = null;
 
-    row.addEventListener('click', toggle);
+    const item = state.watchlist.find((w) => sameWatchlistId(w.id, id));
+    if (item?.tmdb_id && !state.detailsCache.has(id) && !state.detailsCache.has(item.id)) {
+      loadWatchlistDetails(auth, state, item.id, render, { detailsApi, detailsKind });
+    } else {
+      render();
+    }
+  };
+
+  // Delegate from the list root so taps work even when rows re-render, and so
+  // mobile Safari reliably hits the row (not only the text node).
+  listEl.querySelectorAll('[data-expand-row]').forEach((row) => {
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('.al-row-actions')) return;
+      const entry = e.target.closest('.al-log-entry') || row.closest('.al-log-entry');
+      toggleExpand(entry);
+    });
     row.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        toggle(e);
+        toggleExpand(row.closest('.al-log-entry'));
       }
     });
   });
@@ -694,7 +704,7 @@ function wireWatchlistLogActions(auth, state, render, {
   listEl.querySelectorAll('[data-log-watchlist]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      const item = state.watchlist.find((w) => w.id === btn.dataset.logWatchlist);
+      const item = state.watchlist.find((w) => sameWatchlistId(w.id, btn.dataset.logWatchlist));
       if (!item) return;
       if (onLogItem) {
         onLogItem(item);
@@ -720,9 +730,9 @@ function wireWatchlistLogActions(auth, state, render, {
       if (!confirm('Remove from your list?')) return;
       try {
         await api.remove(auth.token, id);
-        state.watchlist = state.watchlist.filter((item) => item.id !== id);
-        if (state.editingId === id) state.editingId = null;
-        if (state.expandedId === id) state.expandedId = null;
+        state.watchlist = state.watchlist.filter((item) => !sameWatchlistId(item.id, id));
+        if (sameWatchlistId(state.editingId, id)) state.editingId = null;
+        if (sameWatchlistId(state.expandedId, id)) state.expandedId = null;
         state.detailsCache.delete(id);
         render();
       } catch (err) {

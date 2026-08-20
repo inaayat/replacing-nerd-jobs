@@ -10,6 +10,7 @@ import {
   getMembership,
   watchFromRow,
   watchlistFromRow,
+  clearWatchlistForLoggedMovie,
   tvWatchFromRow,
   tvWatchlistFromRow,
   theaterWatches,
@@ -399,7 +400,18 @@ async function handleWatches(req, res) {
         const match = refreshed.find((w) => w.id === id);
         if (match) Object.assign(watch, watchFromRow(match));
       }
-      res.status(201).json({ watch, seen_with });
+      // Logging a film means you no longer "want" it — clear matching Coming Soon
+      // / Watch at Home rows for every entry path (quick-log, any page).
+      let removed_watchlist = [];
+      try {
+        removed_watchlist = await clearWatchlistForLoggedMovie(userId, {
+          tmdbId: data.tmdb_id,
+          title: data.title,
+        });
+      } catch {
+        // Watch already saved; leaving the want-list row is a soft failure.
+      }
+      res.status(201).json({ watch, seen_with, removed_watchlist });
     } catch (err) {
       res.status(502).json({ error: err.message });
     }
