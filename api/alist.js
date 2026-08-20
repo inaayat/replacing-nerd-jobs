@@ -83,6 +83,8 @@ export default async function handler(req, res) {
       return handleShowingInvites(req, res);
     case 'user-search':
       return handleUserSearch(req, res);
+    case 'ranks':
+      return handleRanks(req, res);
     default:
       res.status(404).json({ error: 'Unknown A-List route.' });
   }
@@ -1755,6 +1757,138 @@ async function handleUserSearch(req, res) {
   } catch (err) {
     res.status(502).json({ error: err.message });
   }
+}
+
+function rankFromRow(row) {
+  return {
+    tmdb_id: Number(row.tmdb_id),
+    position: Number(row.position),
+    title: row.title,
+    year: row.year != null ? Number(row.year) : null,
+    poster_path: row.poster_path || null,
+    updated_at: row.updated_at,
+  };
+}
+
+async function listMovieRanks(userId) {
+  const rows = await db()`
+    SELECT tmdb_id, position, title, year, poster_path, updated_at
+    FROM alist_movie_ranks
+    WHERE user_id = ${userId}
+    ORDER BY position ASC, updated_at ASC
+  `;
+  return rows.map(rankFromRow);
+}
+
+async function replaceMovieRanks(userId, movies) {
+  const sql = db();
+  const queries = [
+    sql`DELETE FROM alist_movie_ranks WHERE user_id = ${userId}`,
+    ...movies.map((movie, i) => sql`
+      INSERT INTO alist_movie_ranks (
+        user_id, tmdb_id, position, title, year, poster_path, updated_at
+      ) VALUES (
+        ${userId}, ${movie.tmdb_id}, ${i + 1}, ${movie.title},
+        ${movie.year}, ${movie.poster_path}, now()
+      )
+    `),
+  ];
+  if (typeof sql.transaction === 'function') {
+    await sql.transaction(queries);
+  } else {
+    for (const query of queries) await query;
+  }
+  return listMovieRanks(userId);
+}
+
+async function fillRankMovie(body) {
+  const tmdbId = Number(body?.tmdb_id);
+  if (!Number.isInteger(tmdbId) || tmdbId <= 0) return { error: 'tmdb_id is required.' };
+  const title = String(body?.title || '').trim();
+  let year = body?.year != null && body.year !== '' ? Number(body.year) : null;
+  if (year != null && !Number.isInteger(year)) year = null;
+  let posterPath = body?.poster_path ? String(body.poster_path) : null;
+
+  if ((!title || year == null || !posterPath) && process.env.TMDB_API_KEY) {
+    try {
+      const movie = await getMovieDetails(tmdbId);
+      if (movie) {
+        return {
+          tmdb_id: tmdbId,
+          title: title || movie.title,
+          year: year ?? movie.year ?? null,
+          poster_path: posterPath || movie.poster_path || null,
+        };
+      }
+    } catch {
+      // Fall through to the fields the client sent.
+    }
+  }
+
+  if (!title) return { error: 'title is required.' };
+  return { tmdb_id: tmdbId, title, year, poster_path: posterPath };
+}
+
+async function handleRanks(req, res) {
+  if (!requireDb(res)) return;
+  const session = await requireUser(req, res);
+  if (!session) return;
+  const { userId } = session;
+
+  if (req.method === 'GET') {
+    try {
+      const ranks = await listMovieRanks(userId);
+      res.status(200).json({ ranks });
+    } catch (err) {
+      res.status(502).json({ error: err.message });
+    }
+    return;
+  }
+
+  if (req.method === 'POST') {
+    try {
+      const movie = await fillRankMovie(req.body || {});
+      if (movie.error) {
+        res.status(400).json({ error: movie.error });
+        return;
+      }
+      const existing = await listMovieRanks(userId);
+      const without = existing.filter((row) => row.tmdb_id !== movie.tmdb_id);
+      const rawPosition = Number(req.body?.position);
+      const position = Number.isInteger(rawPosition)
+        ? Math.max(1, Math.min(rawPosition, without.length + 1))
+        : without.length + 1;
+      without.splice(position - 1, 0, movie);
+      const ranks = await replaceMovieRanks(userId, without);
+      res.status(200).json({ ranks });
+    } catch (err) {
+      res.status(502).json({ error: err.message });
+    }
+    return;
+  }
+
+  if (req.method === 'DELETE') {
+    const tmdbId = Number(req.body?.tmdb_id || req.query?.tmdb_id);
+    if (!Number.isInteger(tmdbId) || tmdbId <= 0) {
+      res.status(400).json({ error: 'tmdb_id is required.' });
+      return;
+    }
+    try {
+      const existing = await listMovieRanks(userId);
+      const remaining = existing.filter((row) => row.tmdb_id !== tmdbId);
+      if (remaining.length === existing.length) {
+        res.status(404).json({ error: 'Rank not found.' });
+        return;
+      }
+      const ranks = await replaceMovieRanks(userId, remaining);
+      res.status(200).json({ ok: true, ranks });
+    } catch (err) {
+      res.status(502).json({ error: err.message });
+    }
+    return;
+  }
+
+  res.status(405).json({ error: 'Method not allowed.' });
 }
 
 function parseMoney(value) {

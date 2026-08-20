@@ -168,3 +168,14 @@ export const tvApi = {
   details: (token, tmdbId) => apiFetch(`/api/alist-tv-details?tmdb_id=${encodeURIComponent(tmdbId)}`, { token }),
   resolve: (token, title) => resolveExact(tvApi, token, title),
 };
+
+export const ranksApi = {
+  list: (token) => apiFetch('/api/alist-ranks', { token }),
+  upsert: (token, movie) => apiFetch('/api/alist-ranks', { method: 'POST', body: movie, token }),
+  remove: (token, tmdb_id) => apiFetch('/api/alist-ranks', {
+    method: 'DELETE',
+    body: { tmdb_id },
+    token,
+  }),
+};
+
