@@ -648,6 +648,7 @@ export function wireWatchlistLogList(auth, state, {
       logLabel,
       statusEl,
     });
+    wireWatchlistRowExpand(listEl, toggleExpand);
   };
 
   const toggleExpand = (id) => {
@@ -672,39 +673,30 @@ export function wireWatchlistLogList(auth, state, {
     }
   };
 
-  // Delegate from the list root (same idea as the watch log): innerHTML re-renders
-  // drop per-row listeners, and Safari often targets a text node instead of the
-  // article. Do not use role="button" on the row — action buttons live inside it.
-  listEl.addEventListener('click', (e) => {
-    const id = watchlistExpandIdFromEvent(e, listEl);
-    if (!id) return;
-    toggleExpand(id);
-  });
-  listEl.addEventListener('keydown', (e) => {
-    if (e.key !== 'Enter' && e.key !== ' ') return;
-    const id = watchlistExpandIdFromEvent(e, listEl);
-    if (!id) return;
-    e.preventDefault();
-    toggleExpand(id);
-  });
-
   render();
   return render;
 }
 
-function eventElement(e) {
-  const t = e.target;
-  return t instanceof Element ? t : t?.parentElement || null;
-}
-
-/** Row id for a Coming Soon / Watch at Home tap; null if the tap was on actions. */
-export function watchlistExpandIdFromEvent(e, listEl) {
-  const el = eventElement(e);
-  if (!el || (listEl && !listEl.contains(el))) return null;
-  if (el.closest('.al-row-actions')) return null;
-  const row = el.closest('[data-expand-row]');
-  if (!row || (listEl && !listEl.contains(row))) return null;
-  return row.dataset.entryId || row.closest('.al-log-entry')?.dataset.entryId || null;
+/**
+ * Same shape as the watch log's row wiring: bind each row after every render,
+ * take the id off the row's entry, ignore taps that landed on the action
+ * buttons. Do not use role="button" on the row — action buttons live inside it.
+ */
+function wireWatchlistRowExpand(listEl, toggleExpand) {
+  listEl.querySelectorAll('[data-expand-row]').forEach((row) => {
+    const toggle = (e) => {
+      if (e.target instanceof Element && e.target.closest('.al-row-actions')) return;
+      const id = row.dataset.entryId || row.closest('.al-log-entry')?.dataset.entryId;
+      if (!id) return;
+      toggleExpand(id);
+    };
+    row.addEventListener('click', toggle);
+    row.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      toggle(e);
+    });
+  });
 }
 
 function wireWatchlistLogActions(auth, state, render, {

@@ -4336,7 +4336,7 @@ table.al-table {
     display: none;
   }
 
-  [data-page="what-to-watch"] .al-log-list-wrap[data-wtw-view="coming-soon"] [data-log-watchlist] {
+  [data-page="what-to-watch"] .al-log-list-wrap[data-wtw-list-view="coming-soon"] [data-log-watchlist] {
     display: none;
   }
 }
