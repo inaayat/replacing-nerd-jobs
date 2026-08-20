@@ -22,11 +22,16 @@ export const GUEST_STORAGE_KEY = 'sticky-notes-guest-v2';
 
 export const NOTE_W_DEFAULT = 220;
 export const NOTE_H_DEFAULT = 64;
+/** Phone create size — a tap target, not a postage stamp. Desktop stays 220×64. */
+export const NOTE_W_PHONE = 288;
+export const NOTE_H_PHONE = 160;
 export const NOTE_W_MIN = 160;
 export const NOTE_W_MAX = 480;
 export const NOTE_H_MIN = 48;
 export const ZOOM_MIN = 0.4;
 export const ZOOM_MAX = 2;
+/** Unset `sticky-notes-board-view` uses the table on coarse viewports this wide. */
+export const PHONE_VIEW_MAX = 720;
 
 // Keys are stored on notes; labels are the renameable defaults. Insertion order
 // is the order every palette and filter row shows, which is why the neutral a
@@ -459,6 +464,21 @@ export function normalizeNote(raw) {
  */
 export function blankNote(partial = {}) {
   return noteShape(partial || {}, '', null);
+}
+
+/** World-space size stamped on a new note. Phone cards are larger; desktop is not. */
+export function noteCreateSize(phone) {
+  return phone ? { w: NOTE_W_PHONE, h: NOTE_H_PHONE } : { w: NOTE_W_DEFAULT, h: NOTE_H_DEFAULT };
+}
+
+/**
+ * Canvas | table preference. A stored pick always wins. If the key is unset,
+ * coarse/narrow (≤720) opens on the table so writing does not start on the
+ * whiteboard; desktop still opens on the canvas.
+ */
+export function defaultBoardView(stored, { coarse = false, width = 1024 } = {}) {
+  if (stored === 'table' || stored === 'canvas') return stored;
+  return coarse && width <= PHONE_VIEW_MAX ? 'table' : 'canvas';
 }
 
 function noteShape(raw, text, rich) {
@@ -997,39 +1017,77 @@ export function keyboardInset(visual, innerHeight) {
 }
 
 /**
- * Board pan + edit-bar position for the note (or ink) being typed.
+ * Treat a phone keyboard as a layout inset. The remaining page is the
+ * visual slice (`height` + `offsetTop`) — not a camera pan, and not a
+ * document scroll. `active` when enough of the layout viewport is gone.
+ */
+export function keyboardLayout(visual, innerHeight) {
+  const slice = visibleSlice(visual, innerHeight);
+  const layoutH = Number.isFinite(innerHeight) ? innerHeight : slice.height;
+  const inset = Math.max(0, layoutH - slice.bottom);
+  return {
+    height: slice.height,
+    offsetTop: slice.top,
+    inset,
+    active: inset >= 48,
+  };
+}
+
+/**
+ * Zoom a world-sized card up to a usable on-screen width on the phone.
+ * Desktop callers should not use this — it never shrinks, only lifts a
+ * postage-stamp card toward `minScreenW` without exceeding the viewport.
+ */
+export function phoneNoteZoom({ zoom, noteW, viewW, minScreenW = 260 } = {}) {
+  const current = Number.isFinite(zoom) ? zoom : 1;
+  const w = Number.isFinite(noteW) ? noteW : 0;
+  const view = Number.isFinite(viewW) ? viewW : 0;
+  const minW = Number.isFinite(minScreenW) ? minScreenW : 260;
+  const screenW = w * current;
+  if (!(w > 0 && view > 0) || screenW >= minW) {
+    return { zoom: current, changed: false };
+  }
+  const needed = minW / w;
+  const capped = (view - 24) / w;
+  const next = clamp(Math.min(needed, capped), ZOOM_MIN, ZOOM_MAX);
+  return { zoom: next, changed: next > current + 0.01 };
+}
+
+/**
+ * Edit-bar position for the note (or ink) being typed.
  *
- * Phone / coarse: keep the caret in the top third of what the keyboard
- * leaves, and put a slim bar above the note when that fits. If the
- * remaining slice is too short, dock the bar just above the keyboard
- * (`visible.bottom`) instead of parking a slab in the middle of the
- * canvas. Desktop is the existing float-above / flip-below behaviour.
+ * Phone / coarse: the keyboard is a layout inset, so the remaining canvas
+ * is already the space above it. Do not pan (`dy` is 0). Dock the slim
+ * bar at the bottom of that slice, just above the keyboard.
+ * Desktop is the existing float-above / flip-below behaviour (`dy` may
+ * nudge a card that sits under the floating bar).
  *
- * `dy` is a screen-space delta to add to `panY`. The document scale
- * stays 1 — only the board pans.
+ * The document scale stays 1.
  */
 export function planEditSession({ card, barW, barH, canvas, visible, phone }) {
   const width = Number.isFinite(barW) ? barW : 0;
   const height = Number.isFinite(barH) ? barH : 0;
   const clipTop = Math.max(canvas.top, visible.top);
   const clipBottom = Math.min(canvas.bottom, visible.bottom);
-  const clipH = clipBottom - clipTop;
+  const minLeft = canvas.left + 4;
+  const maxLeft = Math.max(minLeft, canvas.right - width - 4);
+
+  if (phone) {
+    return {
+      dy: 0,
+      top: clipBottom - height - 4,
+      left: minLeft,
+      docked: true,
+    };
+  }
+
   const minTop = clipTop + 4;
   const maxTop = clipBottom - height - 4;
-  const docked = Boolean(phone && clipH < height + 72);
-
-  const reserveTop = phone ? (docked ? 8 : height + 8) : 44;
+  const reserveTop = 44;
   const bandTop = clipTop + reserveTop;
-  const bandBottom = (docked ? clipBottom - height - 8 : clipBottom) - 12;
-  const bandH = bandBottom - bandTop;
-
+  const bandBottom = clipBottom - 12;
   let dy = 0;
-  if (phone) {
-    const targetTop = bandH > 0 ? bandTop + Math.min(bandH / 6, 20) : clipTop + 8;
-    const inBand = card.top >= bandTop - 6 && card.top <= bandTop + Math.max(32, bandH / 3);
-    const limit = (docked ? bandBottom : clipBottom) - 20;
-    if (!(inBand && card.top < limit)) dy = targetTop - card.top;
-  } else if (!(card.top >= bandTop && card.bottom <= bandBottom)) {
+  if (!(card.top >= bandTop && card.bottom <= bandBottom)) {
     dy = card.bottom > bandBottom ? bandBottom - card.bottom : 0;
     if (card.top + dy < bandTop) dy = bandTop - card.top;
   }
@@ -1037,18 +1095,10 @@ export function planEditSession({ card, barW, barH, canvas, visible, phone }) {
   const nextTop = card.top + dy;
   const nextBottom = card.bottom + dy;
   const above = nextTop - height - 8;
-  let top;
-  if (phone) {
-    top = !docked && above >= minTop ? above : clipBottom - height - 4;
-  } else {
-    top = above < minTop ? nextBottom + 8 : above;
-    top = clamp(top, minTop, Math.max(minTop, maxTop));
-  }
-
-  const minLeft = canvas.left + 4;
-  const maxLeft = Math.max(minLeft, canvas.right - width - 4);
-  const left = docked ? minLeft : clamp(card.left + (card.width || 0) / 2 - width / 2, minLeft, maxLeft);
-  return { dy, top, left, docked };
+  let top = above < minTop ? nextBottom + 8 : above;
+  top = clamp(top, minTop, Math.max(minTop, maxTop));
+  const left = clamp(card.left + (card.width || 0) / 2 - width / 2, minLeft, maxLeft);
+  return { dy, top, left, docked: false };
 }
 
 /** Rect intersection where touching edges count as a hit. */
