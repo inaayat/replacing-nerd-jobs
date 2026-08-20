@@ -193,9 +193,9 @@ domain and picks up the page title unless you rename it. **Colour fills the
 whole card**, and a new note arrives light grey. The toolbar sits on the left.
 A canvas | table toggle next to **+** shows the same board notes as cards or as
 a grouped list (`sticky-notes/table.js`); switching writes no ops. On a phone
-the table is the default for writing (unset `sticky-notes-board-view`); desktop
-still opens on the canvas. Every
-**collection has a page** (`#wiki/<id>`): a live outline of its notes plus a
+the whiteboard is the default (unset `sticky-notes-board-view-v2`); a leftover
+phone `table` in the v1 key is reset once. Desktop still honors a stored table
+pick. Every **collection has a page** (`#wiki/<id>`): a live outline of its notes plus a
 house-edited body (headings, lists, link pills). Open it from the book on the
 board chip or Memory → Page; there is no “create wiki” step. **Write on
 the board** (the pen, or `T`) puts text on the cork board itself — labels over

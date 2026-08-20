@@ -1263,6 +1263,45 @@ html.sn-table-view #menu-fit { display: none !important; }
 }
 @media (max-width: 719px) {
   .sn-tbl { display: none; }
+  /* Phone list: stacked colour-filled cards, not a leftover desktop table. */
+  .sn-table-pane {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .sn-tbl-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0 0 20px;
+  }
+  .sn-tbl-list .sn-tbl-card {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    flex-wrap: nowrap;
+    gap: 4px;
+    padding: 12px 12px 10px;
+    border: 1.5px solid var(--line);
+    border-radius: 8px;
+    background: var(--note-fill, var(--panel));
+    min-height: 0;
+  }
+  .sn-tbl-list .sn-tbl-card:hover { background: var(--note-fill, var(--panel)); }
+  .sn-tbl-list .sn-mem-icon { width: 16px; height: 16px; }
+  .sn-tbl-list .sn-mem-icon:empty { display: none; }
+  .sn-tbl-list .sn-tbl-body {
+    max-width: none;
+    min-height: 1.4em;
+    -webkit-line-clamp: unset;
+    display: block;
+  }
+  .sn-tbl-list .sn-mem-meta { max-width: none; }
+  .sn-tbl-list .sn-tbl-actions {
+    margin-left: 0;
+    justify-content: flex-end;
+  }
+  .sn-tbl-list .sn-tbl-card:not(.is-open) .sn-tbl-actions { display: none; }
 }
 
 .sn-eb-btn {
@@ -2044,6 +2083,15 @@ html.sn-table-view #menu-fit { display: none !important; }
   .sn-nav-links a { padding: 0 8px; }
   .sn-navchip { padding: 5px 8px; }
 
+  /* Rounded rectangles, not capsules — note cards stay 10px on their own. */
+  .sn-tab,
+  .sn-tab-count,
+  .sn-btn,
+  .sn-iconbtn,
+  .sn-view-toggle {
+    border-radius: 8px;
+  }
+
   /* Two rows on a phone: the sentence, then the way out of it. */
   .sn-guestbar {
     margin: 6px 6px 0;
@@ -2082,7 +2130,6 @@ html.sn-table-view #menu-fit { display: none !important; }
   .sn-mem-row.is-open .sn-mem-actions { width: 100%; margin-left: 0; justify-content: flex-end; }
   .sn-tbl-row .sn-tbl-actions { opacity: 1; }
   .sn-tbl-row:not(.is-open) .sn-tbl-actions { display: none; }
-  .sn-table-pane { border-radius: 10px; }
 
   .sn-selbar {
     bottom: calc(8px + env(safe-area-inset-bottom, 0px));

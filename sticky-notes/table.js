@@ -279,44 +279,33 @@ export function createTable({ store, els, showToast, onViewCanvas }) {
   function renderNarrow(notes) {
     const list = document.createElement('div');
     list.className = 'sn-tbl-list';
-    for (const group of groupByColor(store.state, notes)) {
-      const section = document.createElement('section');
-      section.className = 'sn-mem-collection';
-      const head = document.createElement('div');
-      head.className = 'sn-tbl-listhead';
-      head.appendChild(colorHeading(group.key));
-      section.appendChild(head);
-      for (const note of group.notes) {
-        const row = document.createElement('div');
-        row.className = 'sn-mem-row sn-tbl-row';
-        row.dataset.id = note.id;
-        const dot = document.createElement('span');
-        dot.className = 'sn-mem-dot';
-        dot.style.background = note.colorKey ? colorHex(note.colorKey) : 'transparent';
-        const icon = document.createElement('span');
-        icon.className = 'sn-mem-icon';
-        icon.innerHTML = note.iconKey ? ICON_SVGS[note.iconKey] : '';
-        const text = document.createElement('span');
-        text.className = 'sn-mem-text sn-tbl-body';
-        paintPreview(text, note);
-        const meta = document.createElement('span');
-        meta.className = 'sn-mem-meta';
-        const col = collectionName(store.state, note);
-        meta.textContent = `${col || 'Loose'} · ${formatDate(note.updatedAt)}`;
-        const actions = rowActions(note);
-        row.append(dot, icon, text, meta, actions);
-        row.addEventListener('click', (e) => {
-          if (e.target.closest('button, a')) return;
-          if (coarse()) row.classList.toggle('is-open');
-        });
-        text.addEventListener('click', (e) => {
-          if (e.target.closest('a.sn-pill') && editingId !== note.id) return;
-          e.stopPropagation();
-          startEdit(note.id, text);
-        });
-        section.appendChild(row);
-      }
-      list.appendChild(section);
+    for (const note of sortBoardNotes(store.state, notes)) {
+      const row = document.createElement('div');
+      row.className = 'sn-mem-row sn-tbl-row sn-tbl-card';
+      row.dataset.id = note.id;
+      row.style.setProperty('--note-fill', note.colorKey ? colorHex(note.colorKey) : '');
+      const icon = document.createElement('span');
+      icon.className = 'sn-mem-icon';
+      icon.innerHTML = note.iconKey ? ICON_SVGS[note.iconKey] : '';
+      const text = document.createElement('span');
+      text.className = 'sn-mem-text sn-tbl-body';
+      paintPreview(text, note);
+      const meta = document.createElement('span');
+      meta.className = 'sn-mem-meta';
+      const col = collectionName(store.state, note);
+      meta.textContent = `${col || 'Loose'} · ${formatDate(note.updatedAt)}`;
+      const actions = rowActions(note);
+      row.append(icon, text, meta, actions);
+      row.addEventListener('click', (e) => {
+        if (e.target.closest('button, a')) return;
+        if (coarse()) row.classList.toggle('is-open');
+      });
+      text.addEventListener('click', (e) => {
+        if (e.target.closest('a.sn-pill') && editingId !== note.id) return;
+        e.stopPropagation();
+        startEdit(note.id, text);
+      });
+      list.appendChild(row);
     }
     root.appendChild(list);
   }
