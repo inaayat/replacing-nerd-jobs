@@ -1080,7 +1080,14 @@ html.sn-table-view #menu-fit { display: none !important; }
   max-width: calc(100vw - 16px);
 }
 .sn-wiki-format .sn-eb-btn { color: var(--cream); }
-.sn-mem-toolbar { padding: 0 14px 10px; }
+.sn-mem-toolbar { padding: 0 0 4px; }
+.sn-mem-newcol {
+  padding: 4px 10px;
+  min-height: 28px;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  border-color: var(--line);
+}
 
 @media (min-width: 1100px) {
   .sn-wiki-pane { border-radius: 10px; }
@@ -1500,9 +1507,9 @@ html.sn-table-view #menu-fit { display: none !important; }
 .sn-mem-filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .sn-mem-search {
@@ -1563,7 +1570,7 @@ html.sn-table-view #menu-fit { display: none !important; }
   font-size: 0.62rem;
   line-height: 1.6;
   color: var(--muted);
-  margin: 0 0 12px;
+  margin: 0 0 8px;
 }
 .sn-mem-note b { color: var(--ink); font-weight: 500; }
 
