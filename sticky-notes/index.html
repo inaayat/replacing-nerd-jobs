@@ -39,25 +39,26 @@
         </a>
       </div>
       <div class="sn-nav-links">
+        <button
+          type="button"
+          class="sn-navchip"
+          id="guest-chip"
+          hidden
+          title="This board is only on this device — sign in to save it"
+        >Local only</button>
         <a href="#" data-nav-auth class="sn-nav-keep">Sign in</a>
         <a href="/#projects">Projects</a>
       </div>
     </nav>
 
     <main class="sn-shell">
-      <section class="sn-gate" id="gate" hidden>
-        <p class="sn-kicker">For the chronically disorganized</p>
-        <h1 class="sn-title">Dump it. Cluster it. File it. Wipe the board.</h1>
-        <p class="sn-lede">
-          Sticky Notes is a thinking board with a memory. Throw down half-formed ideas, links,
-          and things to remember; drag them into clusters; name a cluster and file it away.
-          Wipe the board whenever it fills up — nothing is deleted, and anything can come back.
-        </p>
-        <p class="sn-gate-cta">
-          <a class="sn-btn sn-btn-primary" id="gate-signin" href="/account.html?next=/sticky-notes/">Sign in to open your board</a>
-        </p>
-        <p class="sn-gate-note" id="gate-note" hidden></p>
-      </section>
+      <!-- Signed out the board still works; it just cannot be saved. The strip
+           says so, and stays reachable from the toolbar chip once dismissed. -->
+      <div class="sn-guestbar" id="guestbar" hidden>
+        <span class="sn-guestbar-text" id="guestbar-text"></span>
+        <a class="sn-guestbar-cta" id="guestbar-cta" href="/account.html?next=/sticky-notes/">Create an account</a>
+        <button type="button" class="sn-guestbar-close" id="guestbar-close" aria-label="Hide this notice">×</button>
+      </div>
 
       <div class="sn-app" id="app" hidden>
         <div class="sn-toolbar">
@@ -69,9 +70,13 @@
           </div>
           <div class="sn-toolbar-actions">
             <div class="sn-board-actions" id="board-actions">
-            <button type="button" class="sn-btn sn-btn-primary" id="add-note">
-              <span aria-hidden="true">+</span> <span class="sn-btn-label">New note</span>
-            </button>
+            <button
+              type="button"
+              class="sn-btn sn-btn-primary sn-btn-add"
+              id="add-note"
+              aria-label="Add a note"
+              title="Add a note (N)"
+            ><span aria-hidden="true">+</span></button>
             <button
               type="button"
               class="sn-btn sn-btn-pen"
@@ -87,6 +92,14 @@
               <button type="button" class="sn-zoom-label" id="zoom-fit" title="Fit every note on screen">100%</button>
               <button type="button" class="sn-zoom-btn" id="zoom-in" aria-label="Zoom in" title="Zoom in">+</button>
             </div>
+            <button
+              type="button"
+              class="sn-btn sn-wide-only"
+              id="select-all"
+              title="Select every note on the board (⌘/Ctrl+A)"
+            >
+              Select all
+            </button>
             <button type="button" class="sn-btn sn-wide-only" id="wipe-board" title="File everything except pinned notes">
               Wipe board
             </button>
@@ -100,6 +113,7 @@
                 title="More"
               >⋯</button>
               <div class="sn-menu" id="more-menu" hidden>
+                <button type="button" class="sn-menu-item" id="menu-select-all">Select all notes</button>
                 <button type="button" class="sn-menu-item" id="menu-fit">Fit every note on screen</button>
                 <button type="button" class="sn-menu-item" id="menu-wipe">Wipe board</button>
               </div>
@@ -125,6 +139,7 @@
             <div class="sn-empty" id="board-empty" hidden>
               <p class="sn-empty-line">Nothing on the board yet.</p>
               <p class="sn-empty-sub" id="board-empty-sub"></p>
+              <p class="sn-empty-sub" id="board-empty-guest" hidden></p>
             </div>
             <div class="sn-hintstrip" id="hint-strip" hidden>
               <span id="hint-text"></span>
@@ -151,6 +166,12 @@
               </span>
               <datalist id="collection-names"></datalist>
               <button type="button" class="sn-ab-file" id="ab-file" title="Send to memory — nothing is lost">File</button>
+              <button
+                type="button"
+                class="sn-ab-delete"
+                id="ab-delete"
+                title="Delete for good — ten seconds to undo"
+              >Delete</button>
               <span class="sn-ab-hint" id="ab-hint" hidden></span>
             </div>
           </div>

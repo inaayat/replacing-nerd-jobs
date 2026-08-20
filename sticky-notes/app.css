@@ -98,7 +98,25 @@ a { color: var(--ink); }
 }
 .sn-nav-links a:hover { opacity: 1; }
 
-/* ---------------------------------------------------------------- shell + gate */
+/* The one thing that stays on screen after the guest strip is dismissed, so a
+   local-only board is never quietly local. */
+.sn-navchip {
+  align-self: center;
+  border: 1.5px solid var(--ink);
+  background: transparent;
+  color: var(--ink);
+  border-radius: 999px;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: uppercase;
+  padding: 5px 10px;
+  min-height: 32px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sn-navchip:hover { background: var(--ink); color: var(--cream); }
+
+/* ---------------------------------------------------------------- shell */
 
 .sn-shell {
   flex: 1;
@@ -107,32 +125,55 @@ a { color: var(--ink); }
   flex-direction: column;
 }
 
-/* Signed out there is no canvas, so the prose keeps its comfortable measure. */
-.sn-gate {
-  padding: clamp(32px, 8vh, 96px) var(--gutter);
-  max-width: 760px;
-  margin: 0 auto;
-}
+/* ---------------------------------------------------------------- guest strip */
 
-.sn-kicker {
+/* Signed out the board works exactly the same; only saving is missing. This
+   says so above the canvas rather than in a modal in front of it. */
+.sn-guestbar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 10px 0;
+  padding: 8px 8px 8px 14px;
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  background: var(--panel);
   font-family: var(--mono);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.03em;
+}
+
+.sn-guestbar-text { min-width: 0; }
+
+.sn-guestbar-cta {
+  flex: none;
+  margin-left: auto;
+  background: var(--ink);
+  color: var(--cream);
+  border-radius: 999px;
+  padding: 7px 12px;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
-  margin: 0 0 10px;
+  white-space: nowrap;
 }
 
-.sn-title {
-  font-family: var(--display);
-  font-size: clamp(2rem, 4vw, 3rem);
-  line-height: 1.08;
-  margin: 0 0 12px;
+.sn-guestbar-close {
+  flex: none;
+  border: 1.5px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
 }
-
-.sn-lede { max-width: 62ch; margin: 0 0 24px; color: var(--muted); font-size: 1.05rem; }
-
-.sn-gate-note { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); }
+.sn-guestbar-close:hover { background: var(--ink); color: var(--cream); }
 
 .sn-app {
   flex: 1;
@@ -224,6 +265,17 @@ a { color: var(--ink); }
 }
 .sn-btn:hover { filter: brightness(0.98); }
 .sn-btn-primary { background: var(--ink); color: var(--cream); }
+
+/* The create control is a + and nothing else — a note starts blank, and so
+   does its button. The name lives in aria-label / title. */
+.sn-btn.sn-btn-add {
+  width: 40px;
+  padding: 0;
+  justify-content: center;
+  font-size: 1.1rem;
+  line-height: 1;
+  flex: none;
+}
 
 .sn-iconbtn {
   border: 1.5px solid var(--line);
@@ -894,6 +946,23 @@ a { color: var(--ink); }
   min-height: 28px;
 }
 
+/* File keeps the notes (memory); Delete does not. It is outlined rather than
+   filled so the safe action stays the obvious one. */
+.sn-ab-delete {
+  border: 1.5px solid rgba(250, 243, 227, 0.4);
+  background: transparent;
+  color: var(--cream);
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 6px 14px;
+  cursor: pointer;
+  min-height: 28px;
+}
+.sn-ab-delete:hover { background: #c23434; border-color: #c23434; color: #fff; }
+
 .sn-ab-hint {
   flex-basis: 100%;
   text-align: center;
@@ -1338,6 +1407,21 @@ a { color: var(--ink); }
 
   .sn-nav-section span { display: none; }
   .sn-nav-links a { padding: 0 8px; }
+  .sn-navchip { padding: 5px 8px; }
+
+  /* Two rows on a phone: the sentence, then the way out of it. */
+  .sn-guestbar {
+    margin: 6px 6px 0;
+    flex-wrap: wrap;
+    row-gap: 8px;
+    border-radius: 16px;
+    padding: 8px 8px 8px 12px;
+    font-size: 0.64rem;
+    line-height: 1.5;
+  }
+  .sn-guestbar-text { flex: 1 1 100%; }
+  .sn-guestbar-cta { margin-left: 0; }
+  .sn-guestbar-close { margin-left: auto; }
 
   /* One line of controls, scrollable rather than wrapped. */
   .sn-toolbar { gap: 6px; }
@@ -1421,8 +1505,9 @@ a { color: var(--ink); }
   .sn-ab-iconbtn,
   .sn-ab-pin,
   .sn-ab-file,
+  .sn-ab-delete,
   .sn-ab-name,
-  .sn-mem-action { min-height: 40px; }
+  .sn-mem-action { min-height: 44px; }
   .sn-mem-action { padding: 9px 12px; }
   .sn-ab-icongrid { width: 40px; height: 40px; }
   /* Connector dots and the resize grip are mouse affordances. */
@@ -1446,8 +1531,13 @@ a { color: var(--ink); }
   .sn-iconbtn,
   .sn-tab,
   .sn-zoom-btn,
-  .sn-zoom-label { min-height: 44px; }
-  .sn-iconbtn { width: 44px; }
+  .sn-zoom-label,
+  .sn-navchip,
+  .sn-guestbar-cta,
+  .sn-guestbar-close { min-height: 44px; }
+  .sn-iconbtn,
+  .sn-btn.sn-btn-add { width: 44px; }
+  .sn-guestbar-close { width: 44px; }
 
   /* Buttons outside the (touch-action: none) canvas still need to opt out of
      double-tap zoom. */
@@ -1457,6 +1547,9 @@ a { color: var(--ink); }
   .sn-menu-item,
   .sn-mem-action,
   .sn-mem-chip,
+  .sn-navchip,
+  .sn-guestbar-cta,
+  .sn-guestbar-close,
   .sn-selbar,
   .sn-toast button { touch-action: manipulation; }
 }
