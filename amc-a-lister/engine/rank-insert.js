@@ -123,3 +123,11 @@ export function uniqueLoggedMovies(watches, rankedTmdbIds = []) {
   }
   return out;
 }
+
+/**
+ * First ranking setup: every unique theater-watched title (DNFs included).
+ * No subset — later adds use unranked chips / search / after-add instead.
+ */
+export function firstRunMovies(watches) {
+  return uniqueLoggedMovies(watches);
+}
