@@ -307,9 +307,15 @@ export function createMemory({
   function collectionHeader(col, count) {
     const head = document.createElement('div');
     head.className = 'sn-mem-colhead';
+    const main = document.createElement('div');
+    main.className = 'sn-mem-colhead-main';
     const name = document.createElement('span');
     name.className = 'sn-mem-colname';
     name.textContent = col.name;
+    const page = actionBtn('Open page', () => onOpenWiki?.(col.id), 'sn-mem-page');
+    page.title = `Open the page for “${col.name}”`;
+    page.setAttribute('aria-label', `Open page for ${col.name}`);
+    main.append(name, page);
     const meta = document.createElement('span');
     meta.className = 'sn-mem-meta';
     meta.textContent = `${count} note${count === 1 ? '' : 's'}${col.filedAt ? ` · filed ${formatDate(col.filedAt)}` : ''}`;
@@ -336,7 +342,7 @@ export function createMemory({
         store.dispatch([{ op: 'collection.delete', id: col.id, deleteNotes }]);
       }, 'sn-mem-danger'),
     );
-    head.append(name, meta, actions);
+    head.append(main, meta, actions);
     return head;
   }
 
@@ -356,6 +362,16 @@ export function createMemory({
     els.more.hidden = notes.length <= limit;
 
     const { cols, loose } = memorySections(store.state.collections, shown, filters);
+    const hasCollections = store.state.collections.length > 0;
+    if (els.newCollection) {
+      els.newCollection.title = 'Create a named group with its own page';
+      els.newCollection.setAttribute('aria-label', hasCollections
+        ? 'New collection'
+        : 'New collection — creates a named group with its own page');
+    }
+    if (els.newCollectionHint) {
+      els.newCollectionHint.hidden = hasCollections;
+    }
 
     for (const { col, notes: notesIn } of cols) {
       const section = document.createElement('section');
@@ -381,7 +397,7 @@ export function createMemory({
       emptyEl.className = 'sn-mem-empty';
       emptyEl.textContent = filters.search || filters.collection
         ? 'Nothing in memory matches these filters.'
-        : 'Memory is empty. Select notes on the board, name them to make a collection, then File — they land here and can always come back.';
+        : 'Name notes as a collection (the board bar, or + New collection), then open Page. That is the wiki.';
       els.list.appendChild(emptyEl);
     }
 
