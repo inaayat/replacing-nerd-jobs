@@ -4128,6 +4128,14 @@ table.al-table {
   padding: 10px 14px;
 }
 
+/* iOS only emits click on non-button descendants if they (not just the row) are
+   pointer-cursor. Action buttons keep their own cursor via .al-link-btn. */
+.al-log-row--watchlist.al-log-row--clickable .al-log-col,
+.al-log-row--watchlist.al-log-row--clickable .al-log-col--body,
+.al-log-row--watchlist.al-log-row--clickable .al-col-poster {
+  cursor: pointer;
+}
+
 .al-log-row--watchlist .al-col-poster,
 .al-log-head--watchlist .al-col-poster {
   width: 36px;
