@@ -20,9 +20,12 @@ export const NOTE_H_MIN = 48;
 export const ZOOM_MIN = 0.4;
 export const ZOOM_MAX = 2;
 
-// Keys are stored on notes; labels are the renameable defaults.
+// Keys are stored on notes; labels are the renameable defaults. Insertion order
+// is the order every palette and filter row shows, which is why the neutral a
+// new note starts as comes first.
 export const LEGEND_DEFAULTS = {
   colors: {
+    c7: { label: 'Grey', hex: '#e5e2da' },
     c1: { label: 'Yellow', hex: '#ffea56' },
     c2: { label: 'Pink', hex: '#fe9ec6' },
     c3: { label: 'Blue', hex: '#9ed4ff' },
@@ -70,8 +73,22 @@ export const TRASH_SVG = `${SVG_OPEN}<path d="M4 7h16"/><path d="M10 4h4"/><path
 
 export const TAG_SVG = `${SVG_OPEN}<path d="M3 12V4h8l9 9-8 8z"/><circle cx="7.5" cy="7.5" r="1.2"/></svg>`;
 
+// Formatting controls. Bold is drawn filled — a stroked "B" reads as an outline
+// letter next to the stroked icons either side of it.
+export const PEN_SVG = `${SVG_OPEN}<path d="M4 20l3.5-.8L19 7.7a2 2 0 0 0 0-2.8l-.9-.9a2 2 0 0 0-2.8 0L3.8 15.5z"/><path d="M14.5 6.5l3 3"/></svg>`;
+
+export const BOLD_SVG =
+  '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.6h5.6c2.6 0 4.2 1.3 4.2 3.4 0 1.4-.7 2.5-2 3 1.7.4 2.7 1.6 2.7 3.3 0 2.4-1.8 3.9-4.7 3.9H7zm2.7 2.2v3.1h2.5c1.2 0 1.9-.6 1.9-1.6s-.7-1.5-1.9-1.5zm0 5.2v3.6h2.9c1.3 0 2.1-.7 2.1-1.8s-.8-1.8-2.1-1.8z"/></svg>';
+
+export const BULLET_LIST_SVG = `${SVG_OPEN}<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.4" fill="currentColor" stroke="none"/><circle cx="4.5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="4.5" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg>`;
+
+export const NUMBER_LIST_SVG = `${SVG_OPEN}<path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.4 4.6h1.2V9"/><path d="M3 10.9h2.2L3 14.1h2.4"/><path d="M3.1 16.2h2.1l-1.1 1.4h.2a1 1 0 1 1-1 1.1"/></svg>`;
+
 export const COLOR_KEYS = Object.keys(LEGEND_DEFAULTS.colors);
 export const ICON_KEYS = Object.keys(LEGEND_DEFAULTS.icons);
+
+/** A note nobody has coloured yet is light grey, not white. */
+export const DEFAULT_COLOR_KEY = 'c7';
 
 function nowIso() {
   return new Date().toISOString();
@@ -89,16 +106,223 @@ export function clamp(n, min, max) {
 const num = (v, fallback) => (Number.isFinite(v) ? v : fallback);
 
 // ---------------------------------------------------------------------------
+// Rich body
+//
+// A note body is a flat list of lines, because that is what a sticky note is:
+//   { type: 'p' | 'ul' | 'ol', spans: [{ text, bold }] }
+// Consecutive `ul` / `ol` lines render as one list, so a run of them numbers
+// from 1. The formatting model is deliberately this small — bold, bullets,
+// numbers — and it is stored as data rather than HTML, so nothing has to be
+// sanitized on the way in or out.
+//
+// `note.text` stays the plain-text projection of the body: it is what memory
+// search, the memory table, and the extension bridge read.
+
+export const BLOCK_TYPES = ['p', 'ul', 'ol'];
+export const RICH_MAX_BLOCKS = 400;
+export const RICH_MAX_SPANS = 120;
+
+/** A bullet or number marker at the start of a line, in the plain projection. */
+const BULLET_LINE = /^\s*[-*+•]\s+(.*)$/;
+const NUMBER_LINE = /^\s*\d{1,3}[.)]\s+(.*)$/;
+
+function spanText(raw) {
+  const text = typeof raw === 'string' ? raw : String(raw?.text ?? '');
+  // Each block is one line; a stray newline would silently swallow the rest.
+  return text.replace(/[\r\n\t]+/g, ' ');
+}
+
+function normalizeSpans(raw) {
+  const out = [];
+  for (const span of Array.isArray(raw) ? raw.slice(0, RICH_MAX_SPANS) : []) {
+    const text = spanText(span);
+    if (!text) continue;
+    const bold = typeof span === 'object' && span !== null ? Boolean(span.bold) : false;
+    const last = out[out.length - 1];
+    if (last && last.bold === bold) last.text += text;
+    else out.push({ text, bold });
+  }
+  return out;
+}
+
+export function blockText(block) {
+  return (block?.spans || []).map((span) => span.text).join('');
+}
+
+/** Validate a body from storage, the server, or a DOM read. Empty → null. */
+export function normalizeRich(raw) {
+  if (!Array.isArray(raw)) return null;
+  const blocks = [];
+  for (const block of raw.slice(0, RICH_MAX_BLOCKS)) {
+    if (!block || typeof block !== 'object') continue;
+    blocks.push({
+      type: BLOCK_TYPES.includes(block.type) ? block.type : 'p',
+      spans: normalizeSpans(block.spans),
+    });
+  }
+  // A contenteditable always leaves a trailing empty line behind.
+  while (blocks.length && blocks[blocks.length - 1].type === 'p' && !blockText(blocks[blocks.length - 1])) {
+    blocks.pop();
+  }
+  return blocks.length ? blocks : null;
+}
+
+/** Plain projection: bullets as "• ", numbered lines renumbered per run. */
+export function richToText(blocks) {
+  const lines = [];
+  let counter = 0;
+  for (const block of Array.isArray(blocks) ? blocks : []) {
+    const text = blockText(block);
+    if (block.type === 'ul') {
+      counter = 0;
+      lines.push(`• ${text}`);
+    } else if (block.type === 'ol') {
+      counter += 1;
+      lines.push(`${counter}. ${text}`);
+    } else {
+      counter = 0;
+      lines.push(text);
+    }
+  }
+  return lines.join('\n').trim();
+}
+
+/**
+ * Read a plain-text body as a rich one. Every note written before formatting
+ * existed comes through here, so a note somebody typed as "- milk" becomes a
+ * real bullet rather than a line that only looks like one.
+ */
+export function textToRich(text) {
+  const blocks = [];
+  for (const line of String(text ?? '').split(/\r?\n/)) {
+    const bullet = BULLET_LINE.exec(line);
+    if (bullet) {
+      blocks.push({ type: 'ul', spans: [{ text: bullet[1], bold: false }] });
+      continue;
+    }
+    const numbered = NUMBER_LINE.exec(line);
+    if (numbered) {
+      blocks.push({ type: 'ol', spans: [{ text: numbered[1], bold: false }] });
+      continue;
+    }
+    blocks.push({ type: 'p', spans: [{ text: line, bold: false }] });
+  }
+  return normalizeRich(blocks) || [{ type: 'p', spans: [] }];
+}
+
+/** The body to render for a note, whether or not it has been edited since. */
+export function noteBlocks(note) {
+  return note?.rich || textToRich(note?.text);
+}
+
+// Tags that end the current line, and the ones that make their contents bold.
+const LINE_TAGS = new Set([
+  'DIV', 'P', 'LI', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'PRE', 'SECTION',
+  'ARTICLE', 'HEADER', 'FOOTER', 'TABLE', 'TR', 'TD', 'TH',
+]);
+const BOLD_TAGS = new Set(['B', 'STRONG', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'TH']);
+
+function isBoldNode(node) {
+  if (BOLD_TAGS.has(node.tagName)) return true;
+  const weight = String(node.style?.fontWeight || '');
+  return weight === 'bold' || weight === 'bolder' || Number(weight) >= 600;
+}
+
+/**
+ * Read a rendered body back into blocks. Takes anything shaped like a DOM node
+ * (`nodeType` / `nodeValue` / `tagName` / `childNodes`), so it stays pure and
+ * testable — a contenteditable hands back whatever markup the browser felt like
+ * writing, and this is the one place that gets normalized.
+ */
+export function richFromNode(root) {
+  const out = [];
+  let line = null; // spans of the line being read; null = no line open
+  let lineType = 'p';
+
+  const open = (type) => {
+    if (line) return;
+    line = [];
+    lineType = type;
+  };
+  const close = () => {
+    if (!line) return;
+    out.push({ type: lineType, spans: line });
+    line = null;
+  };
+
+  const walk = (node, bold, type) => {
+    for (const child of node.childNodes || []) {
+      if (child.nodeType === 3) {
+        if (!child.nodeValue) continue;
+        open(type);
+        line.push({ text: child.nodeValue, bold });
+        continue;
+      }
+      if (child.nodeType !== 1) continue;
+      if (child.tagName === 'BR') {
+        open(type);
+        close();
+        continue;
+      }
+      if (child.tagName === 'UL' || child.tagName === 'OL') {
+        close();
+        const listType = child.tagName === 'UL' ? 'ul' : 'ol';
+        for (const item of child.childNodes || []) {
+          if (item.nodeType !== 1 || item.tagName !== 'LI') continue;
+          walkLine(item, bold, listType);
+        }
+        continue;
+      }
+      if (LINE_TAGS.has(child.tagName)) {
+        close();
+        walkLine(child, bold, type);
+        continue;
+      }
+      walk(child, bold || isBoldNode(child), type);
+    }
+  };
+
+  // A block element is one line, even when it is empty — that is a blank line.
+  const walkLine = (node, bold, type) => {
+    const before = out.length;
+    walk(node, bold, type);
+    if (line) close();
+    else if (out.length === before) out.push({ type, spans: [] });
+  };
+
+  walk(root, false, 'p');
+  close();
+  return out;
+}
+
+/**
+ * The list a line-start marker asks for once the space lands — the Apple Notes
+ * / Notion gesture ("* " or "- " for bullets, "1. " for numbers). `prefix` is
+ * the text between the start of the line and the caret.
+ */
+export function listTriggerFor(prefix) {
+  const marker = String(prefix ?? '').trim();
+  if (marker !== String(prefix ?? '')) return null; // the marker must be alone
+  if (/^[-*+•]$/.test(marker)) return 'ul';
+  if (/^\d{1,3}[.)]$/.test(marker)) return 'ol';
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // Normalizers
 
 export function normalizeNote(raw) {
   if (!raw || typeof raw !== 'object') return null;
-  const text = String(raw.text ?? '').trim();
+  // A rich body is authoritative when present; `text` is its projection, so the
+  // two can never drift apart in the store.
+  const rich = normalizeRich(raw.rich);
+  const text = rich ? richToText(rich) : String(raw.text ?? '').trim();
   if (!text) return null;
   const created = raw.createdAt || nowIso();
   return {
     id: String(raw.id || randomId()),
     text,
+    rich,
     colorKey: COLOR_KEYS.includes(raw.colorKey) ? raw.colorKey : null,
     iconKey: ICON_KEYS.includes(raw.iconKey) ? raw.iconKey : null,
     status: raw.status === 'memory' ? 'memory' : 'board',
@@ -131,6 +355,26 @@ export function normalizeCollection(raw) {
   };
 }
 
+/**
+ * Board ink — text written straight onto the board, not a note. It is working
+ * scaffolding: labels over a cluster, a word between two arrows. It has no
+ * status, so it can never be filed, and a wipe deletes it outright.
+ */
+export function normalizeInk(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const text = String(raw.text ?? '').replace(/\r/g, '').trim();
+  if (!text) return null;
+  const created = raw.createdAt || nowIso();
+  return {
+    id: String(raw.id || randomId()),
+    text,
+    x: num(raw.x, 24),
+    y: num(raw.y, 24),
+    createdAt: created,
+    updatedAt: raw.updatedAt || created,
+  };
+}
+
 export function normalizeArrow(raw) {
   if (!raw || typeof raw !== 'object') return null;
   if (!raw.fromId || !raw.toId || String(raw.fromId) === String(raw.toId)) return null;
@@ -156,7 +400,14 @@ export function normalizeLegend(raw) {
 }
 
 export function emptyState() {
-  return { version: 2, notes: [], collections: [], arrows: [], legend: { colors: {}, icons: {} } };
+  return {
+    version: 2,
+    notes: [],
+    collections: [],
+    arrows: [],
+    ink: [],
+    legend: { colors: {}, icons: {} },
+  };
 }
 
 export function normalizeState(raw) {
@@ -172,7 +423,8 @@ export function normalizeState(raw) {
         .filter(Boolean)
         .filter((a) => noteIds.has(a.fromId) && noteIds.has(a.toId))
     : [];
-  return { version: 2, notes, collections, arrows, legend: normalizeLegend(raw.legend) };
+  const ink = Array.isArray(raw.ink) ? raw.ink.map(normalizeInk).filter(Boolean) : [];
+  return { version: 2, notes, collections, arrows, ink, legend: normalizeLegend(raw.legend) };
 }
 
 // ---------------------------------------------------------------------------
@@ -247,6 +499,7 @@ export function mergeStates(base, incoming) {
     notes: lww(a.notes, b.notes),
     collections: lww(a.collections, b.collections),
     arrows: [...arrowsById.values()],
+    ink: lww(a.ink, b.ink),
     legend: {
       colors: { ...a.legend.colors, ...b.legend.colors },
       icons: { ...a.legend.icons, ...b.legend.icons },
@@ -267,6 +520,7 @@ export function applyOps(state, ops) {
     notes: [...state.notes],
     collections: [...state.collections],
     arrows: [...state.arrows],
+    ink: [...(state.ink || [])],
     legend: { colors: { ...state.legend.colors }, icons: { ...state.legend.icons } },
   };
   for (const op of Array.isArray(ops) ? ops : []) {
@@ -324,6 +578,28 @@ function applyOp(state, op) {
         notes: state.notes.filter((n) => !gone.has(n.id)),
         arrows: state.arrows.filter((a) => !gone.has(a.fromId) && !gone.has(a.toId)),
       };
+    }
+    case 'ink.upsert': {
+      const ink = normalizeInk(op.ink);
+      if (!ink) return state;
+      const list = state.ink || [];
+      const idx = list.findIndex((i) => i.id === ink.id);
+      if (idx === -1) return { ...state, ink: [...list, ink] };
+      if ((Date.parse(ink.updatedAt) || 0) < (Date.parse(list[idx].updatedAt) || 0)) return state;
+      const ink2 = [...list];
+      ink2[idx] = ink;
+      return { ...state, ink: ink2 };
+    }
+    case 'ink.move':
+      return {
+        ...state,
+        ink: (state.ink || []).map((i) =>
+          i.id === op.id ? { ...i, x: num(op.x, i.x), y: num(op.y, i.y), updatedAt: ts } : i,
+        ),
+      };
+    case 'ink.delete': {
+      const gone = new Set(op.ids || []);
+      return { ...state, ink: (state.ink || []).filter((i) => !gone.has(i.id)) };
     }
     case 'arrow.create': {
       const arrow = normalizeArrow({ id: op.id, fromId: op.fromId, toId: op.toId, createdAt: ts });
@@ -388,6 +664,9 @@ function applyOp(state, op) {
             ? { ...c, status: 'memory', filedAt: ts, updatedAt: ts }
             : c,
         ),
+        // Board ink is scaffolding for the arrangement being wiped, so it goes
+        // with it. It is never filed — memory holds notes, not annotations.
+        ink: [],
       };
       return next;
     }
@@ -431,7 +710,11 @@ function transition(state, op, toStatus, ts) {
   return next;
 }
 
-/** Ids a wipe would file — the client captures these before wiping for Undo. */
+/**
+ * What a wipe would take — the client captures this before wiping for Undo.
+ * Notes and collections are filed and can be restored; ink is deleted, so undo
+ * re-upserts the rows themselves.
+ */
 export function wipeTargets(state) {
   const noteIds = state.notes.filter((n) => n.status === 'board' && !n.pinned).map((n) => n.id);
   const filing = new Set(noteIds);
@@ -444,7 +727,7 @@ export function wipeTargets(state) {
   const collectionIds = state.collections
     .filter((c) => c.status === 'board' && !keepsCollection.has(c.id))
     .map((c) => c.id);
-  return { noteIds, collectionIds };
+  return { noteIds, collectionIds, ink: [...(state.ink || [])] };
 }
 
 // ---------------------------------------------------------------------------

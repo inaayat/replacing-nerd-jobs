@@ -10,13 +10,18 @@ import { createStore } from './sync.js';
 import { createBoard } from './board.js';
 import { createMemory } from './memory.js';
 import { drainPendingImport } from './extension-bridge.js';
-import { PIN_SVG, TAG_SVG, TRASH_SVG } from './notes.js';
+import { BOLD_SVG, BULLET_LIST_SVG, PEN_SVG, PIN_SVG, TAG_SVG, TRASH_SVG } from './notes.js';
 
 const $ = (sel) => document.querySelector(sel);
 
 const HINTS_KEY = 'sticky-notes-hints-v1';
 const SIDEBAR_KEY = 'sticky-notes-sidebar';
 const VIEW_KEY = 'sticky-notes-view';
+
+// Home-screen install: iOS reports it on navigator, everyone else in CSS.
+if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+  document.documentElement.classList.add('sn-standalone');
+}
 
 const wide = window.matchMedia('(min-width: 1100px)');
 const sheetMode = window.matchMedia('(max-width: 719px)');
@@ -192,6 +197,13 @@ function guideGroups() {
       title: 'Toolbar',
       rows: [
         { glyph: '+', name: 'New note', text: 'Drops a note in the first free space and opens it for typing.' },
+        {
+          svg: PEN_SVG,
+          name: 'Write on the board',
+          text: touch
+            ? 'Then tap the board to write there. Board text is scaffolding — labels, headings, a word between two arrows. Wiping the board removes it; it never goes to memory.'
+            : 'Then click the board to write there (or press T). Board text is scaffolding — labels, headings, a word between two arrows. Wiping the board removes it; it never goes to memory.',
+        },
         touch
           ? { glyph: '⋯', name: 'More', text: 'Fit every note on screen, or wipe the board.' }
           : { glyph: '±', name: 'Zoom', text: 'Ctrl/⌘ + scroll does the same. The middle button fits every note on screen.' },
@@ -203,7 +215,18 @@ function guideGroups() {
       rows: [
         { svg: TRASH_SVG, name: 'Delete', text: 'Removes the note for good. You get ten seconds to undo.' },
         { svg: PIN_SVG, name: 'Pin', text: 'Pinned notes stay put when you wipe the board.' },
-        { glyph: '●', name: 'Colour', text: 'Colours are yours to mean anything; rename them from the memory filters.' },
+        { glyph: '●', name: 'Colour', text: 'Fills the whole note. Colours are yours to mean anything; rename them from the memory filters.' },
+        { svg: TAG_SVG, name: 'Icon', text: 'Same idea as colour, in the corner of the note — and filterable in memory.' },
+        {
+          svg: BOLD_SVG,
+          name: 'Bold',
+          text: '⌘/Ctrl+B works too. Formatting is deliberately just this, plus the two list buttons.',
+        },
+        {
+          svg: BULLET_LIST_SVG,
+          name: 'Lists',
+          text: 'Or type “* ” at the start of a line for bullets, “1. ” for numbers — the marker turns into the list.',
+        },
         { glyph: '✓', name: 'Done', text: 'Closes the note. Clicking anywhere else saves it too.' },
       ],
     },
@@ -230,7 +253,7 @@ function guideGroups() {
             { glyph: '⇢', name: 'Click a note', text: 'Types into it, with the caret where you clicked. Drag instead to move it.' },
             { glyph: '⇲', name: 'Drag empty board', text: 'Rubber-band selects. Scroll to pan, hold Space to drag the canvas.' },
             { glyph: '○', name: 'Edge dots', text: 'Drag a dot from one note onto another to draw an arrow.' },
-            { glyph: 'N', name: 'Keyboard', text: 'N makes a note, P pins the selection, Delete files it, Esc clears.' },
+            { glyph: 'N', name: 'Keyboard', text: 'N makes a note, T writes on the board, P pins the selection, Delete files it, Esc clears.' },
           ],
     },
   ];
@@ -367,12 +390,18 @@ async function init() {
       abHint: $('#ab-hint'),
       collectionNames: $('#collection-names'),
       zoomLabel: $('#zoom-fit'),
+      addText: $('#add-text'),
       editbar: $('#editbar'),
       ebTrash: $('#eb-trash'),
       ebPin: $('#eb-pin'),
       ebColor: $('#eb-color'),
+      ebIcon: $('#eb-icon'),
+      ebBold: $('#eb-bold'),
+      ebBullets: $('#eb-bullets'),
+      ebNumbers: $('#eb-numbers'),
       ebDone: $('#eb-done'),
       ebPalette: $('#eb-palette'),
+      ebIconPop: $('#eb-iconpop'),
     },
   });
 
@@ -454,7 +483,9 @@ async function init() {
 
   // ------------------------------------------------------------ toolbar
 
+  $('.sn-pen-glyph').innerHTML = PEN_SVG;
   $('#add-note').addEventListener('click', () => board.createNote());
+  $('#add-text').addEventListener('click', () => board.startText());
   $('#wipe-board').addEventListener('click', () => board.wipe());
   $('#zoom-in').addEventListener('click', board.zoomIn);
   $('#zoom-out').addEventListener('click', board.zoomOut);

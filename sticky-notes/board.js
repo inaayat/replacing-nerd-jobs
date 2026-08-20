@@ -13,9 +13,13 @@
  * cards.
  */
 import {
+  BOLD_SVG,
+  BULLET_LIST_SVG,
   COLOR_KEYS,
+  DEFAULT_COLOR_KEY,
   ICON_KEYS,
   ICON_SVGS,
+  NUMBER_LIST_SVG,
   PIN_SVG,
   TAG_SVG,
   TRASH_SVG,
@@ -28,8 +32,13 @@ import {
   fitViewport,
   isLoneUrl,
   legendLabel,
+  listTriggerFor,
+  noteBlocks,
+  normalizeRich,
   randomId,
   rectsIntersect,
+  richFromNode,
+  richToText,
   screenToWorld,
   urlDomain,
   wipeTargets,
@@ -37,6 +46,10 @@ import {
 } from './notes.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
+
+// The elements the body uses for one line, for caret questions like "what is
+// the text before the caret on this line".
+const LINE_TAGS = new Set(['DIV', 'P', 'LI']);
 
 // Touch fingers wobble; a mouse does not.
 const SLOP_MOUSE = 4;
@@ -51,12 +64,17 @@ export function createBoard({ store, els, showToast, onEdit }) {
   let vp = loadViewport();
   let vpFrame = 0;
   const cardEls = new Map(); // note id -> element
+  const bodyStamps = new Map(); // note id -> serialized body last painted
   const chipEls = new Map(); // collection id -> element
+  const inkEls = new Map(); // board-ink id -> element
   const selection = new Set();
   let spaceHeld = false;
-  let drag = null; // { kind: 'move'|'pan'|'rubber'|'resize'|'arrow'|'pinch', ... }
+  let drag = null; // { kind: 'move'|'pan'|'rubber'|'resize'|'arrow'|'pinch'|'ink', ... }
   let editingId = null;
   let endEdit = null; // commit/cancel the open edit from outside startEditing
+  let inkEditingId = null;
+  let endInkEdit = null;
+  let textMode = false; // the pen is armed: the next press writes on the board
 
   const pointers = new Map(); // live pointerId -> client point, for pinch
   let longPressTimer = 0;
@@ -139,6 +157,54 @@ export function createBoard({ store, els, showToast, onEdit }) {
     return Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
   }
 
+  // ------------------------------------------------------------------ body
+  //
+  // The body is a list of lines (notes.js). It paints as `<div>` paragraphs and
+  // `<ul>`/`<ol>` runs, built element by element — never from an HTML string —
+  // so a note can hold formatting without anything having to be sanitized.
+
+  function appendSpans(host, spans) {
+    for (const span of spans) {
+      if (span.bold) {
+        const b = document.createElement('b');
+        b.textContent = span.text;
+        host.appendChild(b);
+      } else {
+        host.appendChild(document.createTextNode(span.text));
+      }
+    }
+  }
+
+  function renderBody(host, blocks) {
+    host.innerHTML = '';
+    let list = null;
+    for (const block of blocks) {
+      if (block.type === 'p') {
+        list = null;
+        const line = document.createElement('div');
+        appendSpans(line, block.spans);
+        // An empty line needs something in it or it collapses to nothing.
+        if (!line.childNodes.length) line.appendChild(document.createElement('br'));
+        host.appendChild(line);
+        continue;
+      }
+      const tag = block.type === 'ul' ? 'UL' : 'OL';
+      if (!list || list.tagName !== tag) {
+        list = document.createElement(tag.toLowerCase());
+        host.appendChild(list);
+      }
+      const item = document.createElement('li');
+      appendSpans(item, block.spans);
+      list.appendChild(item);
+    }
+    if (!host.childNodes.length) host.appendChild(document.createElement('div'));
+  }
+
+  /** Read the body back out of the DOM the browser has been editing. */
+  function readBody(host) {
+    return normalizeRich(richFromNode(host));
+  }
+
   // ------------------------------------------------------------------ cards
 
   function renderCard(note) {
@@ -148,7 +214,6 @@ export function createBoard({ store, els, showToast, onEdit }) {
       el.className = 'sn-card';
       el.dataset.id = note.id;
       el.innerHTML = `
-        <span class="sn-card-color"></span>
         <span class="sn-card-pin">${PIN_SVG}</span>
         <span class="sn-card-icon"></span>
         <div class="sn-card-body"></div>
@@ -167,14 +232,21 @@ export function createBoard({ store, els, showToast, onEdit }) {
     el.style.minHeight = `${note.h}px`;
     el.classList.toggle('is-pinned', note.pinned);
     el.classList.toggle('is-selected', selection.has(note.id));
-    const colorBar = el.querySelector('.sn-card-color');
-    colorBar.style.background = note.colorKey ? colorHex(note.colorKey) : 'transparent';
-    colorBar.title = note.colorKey ? legendLabel(store.state.legend, 'color', note.colorKey) : '';
+    // The colour is the card, not a stripe on it.
+    el.style.setProperty('--note-fill', note.colorKey ? colorHex(note.colorKey) : '');
+    el.title = note.colorKey ? legendLabel(store.state.legend, 'color', note.colorKey) : '';
     const icon = el.querySelector('.sn-card-icon');
     icon.innerHTML = note.iconKey ? ICON_SVGS[note.iconKey] : '';
     icon.title = note.iconKey ? legendLabel(store.state.legend, 'icon', note.iconKey) : '';
     const body = el.querySelector('.sn-card-body');
-    if (body.textContent !== note.text && el.dataset.id !== editingId) body.textContent = note.text;
+    if (note.id !== editingId) {
+      const blocks = noteBlocks(note);
+      const stamp = JSON.stringify(blocks);
+      if (bodyStamps.get(note.id) !== stamp) {
+        renderBody(body, blocks);
+        bodyStamps.set(note.id, stamp);
+      }
+    }
     const source = el.querySelector('.sn-card-source');
     if (note.sourceUrl) {
       source.innerHTML = '';
@@ -195,6 +267,7 @@ export function createBoard({ store, els, showToast, onEdit }) {
     const el = cardEls.get(id);
     if (!el) return;
     cardEls.delete(id);
+    bodyStamps.delete(id);
     selection.delete(id);
     if (animate) {
       el.classList.add('is-filing');
@@ -207,16 +280,132 @@ export function createBoard({ store, els, showToast, onEdit }) {
   function fullRender() {
     for (const el of cardEls.values()) el.remove();
     cardEls.clear();
+    bodyStamps.clear();
     selection.clear();
     for (const note of boardNotes()) renderCard(note);
     renderArrows();
     renderChips();
+    renderAllInk();
     renderSelection();
     renderEmpty();
   }
 
   function renderEmpty() {
-    empty.hidden = cardEls.size > 0;
+    empty.hidden = cardEls.size > 0 || inkEls.size > 0;
+  }
+
+  // ------------------------------------------------------------------ board ink
+  //
+  // Text written on the board itself: a label over a cluster, a word between
+  // two arrows. It is not a note — no card, no colour, no pin, and it never
+  // reaches memory. A wipe takes it away with the arrangement it described.
+
+  function inkById(id) {
+    return (store.state.ink || []).find((i) => i.id === id);
+  }
+
+  function renderInk(ink) {
+    let el = inkEls.get(ink.id);
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'sn-ink';
+      el.dataset.ink = ink.id;
+      world.appendChild(el);
+      inkEls.set(ink.id, el);
+    }
+    el.style.left = `${ink.x}px`;
+    el.style.top = `${ink.y}px`;
+    if (ink.id !== inkEditingId && el.textContent !== ink.text) el.textContent = ink.text;
+    return el;
+  }
+
+  function removeInk(id) {
+    const el = inkEls.get(id);
+    if (!el) return;
+    inkEls.delete(id);
+    el.remove();
+  }
+
+  function renderAllInk() {
+    for (const el of inkEls.values()) el.remove();
+    inkEls.clear();
+    for (const ink of store.state.ink || []) renderInk(ink);
+  }
+
+  /** Arm the pen: the next press on empty board writes there. */
+  function setTextMode(on) {
+    textMode = Boolean(on);
+    viewport.classList.toggle('is-writing', textMode);
+    els.addText?.setAttribute('aria-pressed', String(textMode));
+  }
+
+  function createInk(at) {
+    const ink = { id: randomId(), text: 'Text', x: at.x, y: at.y };
+    store.dispatch([{ op: 'ink.upsert', ink }]);
+    if (inkById(ink.id)) startEditingInk(ink.id, { selectAll: true });
+  }
+
+  function startEditingInk(id, { selectAll = false, caretAt = null } = {}) {
+    const el = inkEls.get(id);
+    const ink = inkById(id);
+    if (!el || !ink || inkEditingId) return;
+    if (editingId) endEdit?.(false);
+    inkEditingId = id;
+    el.classList.add('is-editing');
+    try {
+      el.contentEditable = 'plaintext-only';
+    } catch {
+      el.contentEditable = 'true';
+    }
+    el.focus();
+    let range = caretAt ? caretRangeAt(caretAt.x, caretAt.y) : null;
+    if (!range || !el.contains(range.startContainer)) {
+      range = document.createRange();
+      range.selectNodeContents(el);
+      if (!selectAll) range.collapse(false);
+    }
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    revealCard(el);
+    onEdit?.();
+
+    const onVisualResize = () => revealCard(el);
+    window.visualViewport?.addEventListener('resize', onVisualResize);
+
+    const finish = (cancel = false) => {
+      el.contentEditable = 'false';
+      el.classList.remove('is-editing');
+      el.removeEventListener('blur', onBlur);
+      el.removeEventListener('keydown', onKey);
+      window.visualViewport?.removeEventListener('resize', onVisualResize);
+      inkEditingId = null;
+      endInkEdit = null;
+      const text = cancel ? ink.text : el.textContent.trim();
+      if (!text) {
+        store.dispatch([{ op: 'ink.delete', ids: [id] }]);
+        return;
+      }
+      if (text !== ink.text) {
+        store.dispatch([
+          { op: 'ink.upsert', ink: { ...ink, text, updatedAt: new Date().toISOString() } },
+        ]);
+      } else {
+        el.textContent = ink.text;
+      }
+    };
+    endInkEdit = finish;
+    const onBlur = () => finish(false);
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        el.textContent = ink.text;
+        finish(true);
+      }
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) finish(false);
+    };
+    el.addEventListener('blur', onBlur);
+    el.addEventListener('keydown', onKey);
   }
 
   // ------------------------------------------------------------------ arrows
@@ -477,16 +666,20 @@ export function createBoard({ store, els, showToast, onEdit }) {
 
   function wipe() {
     const targets = wipeTargets(store.state);
-    if (!targets.noteIds.length) {
+    if (!targets.noteIds.length && !targets.ink.length) {
       showToast('Nothing to wipe — pinned notes stay');
       return;
     }
+    if (inkEditingId) endInkEdit?.(true);
     store.dispatch([{ op: 'wipe', ts: new Date().toISOString() }], { kind: 'file' });
-    showToast(`Board wiped — ${targets.noteIds.length} note${targets.noteIds.length === 1 ? '' : 's'} filed`, {
+    const filed = `${targets.noteIds.length} note${targets.noteIds.length === 1 ? '' : 's'} filed`;
+    showToast(`Board wiped — ${filed}`, {
       undo: () => {
         store.dispatch([
           { op: 'restore', ids: targets.noteIds },
           ...targets.collectionIds.map((id) => ({ op: 'restore', collectionId: id })),
+          // Ink was deleted rather than filed, so undo puts the rows back.
+          ...targets.ink.map((ink) => ({ op: 'ink.upsert', ink })),
         ]);
       },
     });
@@ -494,11 +687,17 @@ export function createBoard({ store, els, showToast, onEdit }) {
 
   // ------------------------------------------------------------------ edit bar (tier 1)
 
+  function closeEditPopovers(except = null) {
+    for (const pop of [els.ebPalette, els.ebIconPop]) {
+      if (pop && pop !== except) pop.hidden = true;
+    }
+  }
+
   function renderEditBar() {
     const note = editingId ? noteById(editingId) : null;
     if (!note) {
       editbar.hidden = true;
-      els.ebPalette.hidden = true;
+      closeEditPopovers();
       return;
     }
     editbar.hidden = false;
@@ -509,8 +708,23 @@ export function createBoard({ store, els, showToast, onEdit }) {
     els.ebColor.title = note.colorKey
       ? `Colour: ${legendLabel(store.state.legend, 'color', note.colorKey)}`
       : 'Colour';
+    els.ebIcon.innerHTML = note.iconKey ? ICON_SVGS[note.iconKey] : TAG_SVG;
+    els.ebIcon.title = note.iconKey
+      ? `Icon: ${legendLabel(store.state.legend, 'icon', note.iconKey)}`
+      : 'Icon';
+    els.ebIcon.setAttribute('aria-pressed', String(Boolean(note.iconKey)));
     if (!els.ebPalette.hidden) renderPalette(note);
+    if (!els.ebIconPop.hidden) renderIconPicker(note);
+    renderFormatState();
     positionEditBar();
+  }
+
+  /** Bold / bullets / numbers light up for whatever the caret is inside. */
+  function renderFormatState() {
+    if (editbar.hidden) return;
+    els.ebBold.setAttribute('aria-pressed', String(commandState('bold')));
+    els.ebBullets.setAttribute('aria-pressed', String(commandState('insertUnorderedList')));
+    els.ebNumbers.setAttribute('aria-pressed', String(commandState('insertOrderedList')));
   }
 
   function renderPalette(note) {
@@ -536,6 +750,33 @@ export function createBoard({ store, els, showToast, onEdit }) {
         els.ebPalette.hidden = true;
       });
       els.ebPalette.appendChild(b);
+    }
+  }
+
+  /** Same gesture as the colour swatches, one tier up from the selection bar. */
+  function renderIconPicker(note) {
+    els.ebIconPop.innerHTML = '';
+    for (const key of ICON_KEYS) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'sn-eb-icon';
+      b.innerHTML = ICON_SVGS[key];
+      const label = legendLabel(store.state.legend, 'icon', key);
+      b.title = label;
+      b.setAttribute('aria-label', label);
+      b.setAttribute('aria-pressed', String(note.iconKey === key));
+      onPress(b, () => {
+        store.dispatch([
+          {
+            op: 'note.categorize',
+            ids: [note.id],
+            iconKey: note.iconKey === key ? null : key,
+            ts: new Date().toISOString(),
+          },
+        ]);
+        els.ebIconPop.hidden = true;
+      });
+      els.ebIconPop.appendChild(b);
     }
   }
 
@@ -593,6 +834,9 @@ export function createBoard({ store, els, showToast, onEdit }) {
     const note = {
       id: randomId(),
       text: text || 'New note',
+      // Every new note starts as a light grey card; colour is something you
+      // choose, not something you have to undo.
+      colorKey: DEFAULT_COLOR_KEY,
       x: spot.x,
       y: spot.y,
       sourceUrl,
@@ -626,17 +870,93 @@ export function createBoard({ store, els, showToast, onEdit }) {
     return null;
   }
 
+  /** The block element the caret sits in — one line of the body. */
+  function caretLine(host) {
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount || !sel.isCollapsed) return null;
+    let node = sel.getRangeAt(0).startContainer;
+    if (node.nodeType !== 1) node = node.parentNode;
+    while (node && node !== host) {
+      if (LINE_TAGS.has(node.tagName)) return node;
+      node = node.parentNode;
+    }
+    return node === host ? host : null;
+  }
+
+  /** Text between the start of the caret's line and the caret. */
+  function caretLinePrefix(host) {
+    const line = caretLine(host);
+    if (!line) return null;
+    const sel = window.getSelection();
+    const caret = sel.getRangeAt(0);
+    const before = document.createRange();
+    before.selectNodeContents(line);
+    try {
+      before.setEnd(caret.startContainer, caret.startOffset);
+    } catch {
+      return null;
+    }
+    return before.toString();
+  }
+
+  /** Swallow the marker the user typed, so "* " leaves no asterisk behind. */
+  function dropLinePrefix(host) {
+    const line = caretLine(host);
+    if (!line) return;
+    const sel = window.getSelection();
+    const caret = sel.getRangeAt(0);
+    const kill = document.createRange();
+    kill.selectNodeContents(line);
+    kill.setEnd(caret.startContainer, caret.startOffset);
+    kill.deleteContents();
+    sel.removeAllRanges();
+    sel.addRange(kill);
+  }
+
+  function exec(command) {
+    try {
+      document.execCommand(command);
+    } catch {
+      /* an unsupported command just does nothing */
+    }
+  }
+
+  /**
+   * Formatting state for the edit bar. `queryCommandState` is the only way to
+   * ask a contenteditable what the caret is sitting inside.
+   */
+  function commandState(command) {
+    try {
+      return document.queryCommandState(command);
+    } catch {
+      return false;
+    }
+  }
+
+  function applyFormat(kind) {
+    const el = editingId ? cardEls.get(editingId) : null;
+    if (!el) return;
+    const body = el.querySelector('.sn-card-body');
+    body.focus();
+    exec(kind === 'bold' ? 'bold' : kind === 'ul' ? 'insertUnorderedList' : 'insertOrderedList');
+    renderFormatState();
+  }
+
   function startEditing(id, { selectAll = false, caretAt = null } = {}) {
     const el = cardEls.get(id);
     const note = noteById(id);
     if (!el || !note || editingId) return;
+    if (inkEditingId) endInkEdit?.(false);
     editingId = id;
     const body = el.querySelector('.sn-card-body');
+    const blocks = noteBlocks(note);
     el.classList.add('is-editing');
+    // Bold, bullets and numbers only — a note is not a document.
+    body.contentEditable = 'true';
     try {
-      body.contentEditable = 'plaintext-only';
+      document.execCommand('styleWithCSS', false, false);
     } catch {
-      body.contentEditable = 'true';
+      /* Firefox already writes <b> rather than a style attribute */
     }
     body.focus();
     let range = caretAt ? caretRangeAt(caretAt.x, caretAt.y) : null;
@@ -666,23 +986,32 @@ export function createBoard({ store, els, showToast, onEdit }) {
       el.classList.remove('is-editing');
       body.removeEventListener('blur', onBlur);
       body.removeEventListener('keydown', onKey);
+      body.removeEventListener('beforeinput', onBeforeInput);
+      body.removeEventListener('paste', onEditPaste);
+      document.removeEventListener('selectionchange', renderFormatState);
       window.visualViewport?.removeEventListener('resize', onVisualResize);
       window.visualViewport?.removeEventListener('scroll', onVisualResize);
       editingId = null;
       endEdit = null;
-      els.ebPalette.hidden = true;
+      closeEditPopovers();
       editbar.hidden = true;
-      const text = cancel ? note.text : body.textContent.trim();
+      const rich = cancel ? blocks : readBody(body);
+      const text = cancel ? note.text : richToText(rich || []);
       if (!text) {
         store.dispatch([{ op: 'note.delete', ids: [id] }]);
         return;
       }
-      if (text !== note.text) {
+      const stamp = JSON.stringify(rich);
+      if (text !== note.text || stamp !== JSON.stringify(blocks)) {
+        bodyStamps.set(id, stamp);
         store.dispatch([
-          { op: 'note.upsert', note: { ...note, text, updatedAt: new Date().toISOString() } },
+          { op: 'note.upsert', note: { ...note, text, rich, updatedAt: new Date().toISOString() } },
         ]);
       } else {
-        body.textContent = note.text;
+        // Nothing changed in the model, but the browser may have left its own
+        // markup behind — repaint from the note so the DOM matches the store.
+        renderBody(body, blocks);
+        bodyStamps.set(id, JSON.stringify(blocks));
       }
       renderChips();
     };
@@ -696,13 +1025,51 @@ export function createBoard({ store, els, showToast, onEdit }) {
     const onKey = (e) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
-        body.textContent = note.text;
         finish(true);
+        return;
       }
-      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) finish(false);
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+        finish(false);
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'b' || e.key === 'B')) {
+        e.preventDefault();
+        applyFormat('bold');
+      }
+    };
+    /**
+     * "* " or "1. " at the start of a line becomes a list, the way Apple Notes
+     * and Notion do it — the marker plus a space, and the marker disappears.
+     */
+    const onBeforeInput = (e) => {
+      if (e.inputType !== 'insertText' || e.data !== ' ') return;
+      const prefix = caretLinePrefix(body);
+      const kind = listTriggerFor(prefix);
+      if (!kind) return;
+      if (caretLine(body)?.tagName === 'LI') return; // already in a list
+      e.preventDefault();
+      dropLinePrefix(body);
+      exec(kind === 'ul' ? 'insertUnorderedList' : 'insertOrderedList');
+      renderFormatState();
+    };
+    // Pasted rich text arrives as whatever the source page was; take the words.
+    const onEditPaste = (e) => {
+      const text = e.clipboardData?.getData('text/plain');
+      if (text === undefined || text === null) return;
+      e.preventDefault();
+      e.stopPropagation();
+      try {
+        document.execCommand('insertText', false, text);
+      } catch {
+        /* ignore — the browser refused the insert */
+      }
     };
     body.addEventListener('blur', onBlur);
     body.addEventListener('keydown', onKey);
+    body.addEventListener('beforeinput', onBeforeInput);
+    body.addEventListener('paste', onEditPaste);
+    document.addEventListener('selectionchange', renderFormatState);
+    renderFormatState();
   }
 
   // ------------------------------------------------------------------ pointer machinery
@@ -780,12 +1147,17 @@ export function createBoard({ store, els, showToast, onEdit }) {
     if (pointers.size > 1) return;
 
     const card = e.target.closest('.sn-card');
+    const ink = e.target.closest('.sn-ink');
     if (editingId) {
       // Inside the note being edited the pointer belongs to the caret and to
       // native text selection. Anywhere else commits, then behaves normally —
       // so the next click lands where the user aimed it.
       if (card && card.dataset.id === editingId) return;
       endEdit?.(false);
+    }
+    if (inkEditingId) {
+      if (ink && ink.dataset.ink === inkEditingId) return;
+      endInkEdit?.(false);
     }
 
     const touch = e.pointerType === 'touch';
@@ -797,6 +1169,20 @@ export function createBoard({ store, els, showToast, onEdit }) {
       drag = { kind: 'pan', startX: e.clientX, startY: e.clientY, panX: vp.panX, panY: vp.panY, pointerId: e.pointerId };
       capturePointer(e);
       viewport.classList.add('is-panning');
+      e.preventDefault();
+      return;
+    }
+
+    if (ink) {
+      const row = inkById(ink.dataset.ink);
+      if (!row) return;
+      drag = {
+        kind: 'ink', id: row.id, el: ink, startX: e.clientX, startY: e.clientY,
+        x: row.x, y: row.y, moved: false, pointerId: e.pointerId, frame: 0, dx: 0, dy: 0,
+        slop: touch ? SLOP_TOUCH : SLOP_MOUSE,
+        wantsEdit: e.button === 0,
+      };
+      capturePointer(e);
       e.preventDefault();
       return;
     }
@@ -873,6 +1259,18 @@ export function createBoard({ store, els, showToast, onEdit }) {
       return;
     }
 
+    // The pen is armed, so this press writes on the board instead of selecting
+    // or panning. One press, one label — the pen disarms itself.
+    if (textMode) {
+      e.preventDefault();
+      const p = toWorld(e);
+      setTextMode(false);
+      selection.clear();
+      renderSelection();
+      createInk({ x: p.x, y: p.y - 12 });
+      return;
+    }
+
     // Empty board. Touch drags the canvas; the mouse rubber-band selects.
     if (touch) {
       drag = {
@@ -942,6 +1340,19 @@ export function createBoard({ store, els, showToast, onEdit }) {
           rect.y = origin.y + drag.dy;
         }
         repathArrowsTouching(drag.ids, drag.liveRects);
+      });
+      return;
+    }
+    if (drag.kind === 'ink') {
+      if (!drag.moved && Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) < drag.slop) return;
+      drag.moved = true;
+      drag.dx = (e.clientX - drag.startX) / vp.zoom;
+      drag.dy = (e.clientY - drag.startY) / vp.zoom;
+      if (drag.frame) return;
+      drag.frame = requestAnimationFrame(() => {
+        drag.frame = 0;
+        drag.el.classList.add('is-dragging');
+        drag.el.style.transform = `translate(${drag.dx}px, ${drag.dy}px)`;
       });
       return;
     }
@@ -1060,6 +1471,18 @@ export function createBoard({ store, els, showToast, onEdit }) {
       }
       return;
     }
+    if (d.kind === 'ink') {
+      d.el.classList.remove('is-dragging');
+      d.el.style.transform = '';
+      if (d.moved) {
+        store.dispatch([
+          { op: 'ink.move', id: d.id, x: d.x + d.dx, y: d.y + d.dy, ts: new Date().toISOString() },
+        ]);
+      } else if (d.wantsEdit) {
+        startEditingInk(d.id, { caretAt: { x: e.clientX, y: e.clientY } });
+      }
+      return;
+    }
     if (d.kind === 'resize') {
       const w = clamp(d.w + (d.dw || 0), 160, 480);
       const h = Math.max(48, d.h + (d.dh || 0));
@@ -1106,6 +1529,11 @@ export function createBoard({ store, els, showToast, onEdit }) {
     // Touch double-taps are handled by tappedEmptyBoard; browsers also synthesise
     // dblclick from them, which would create the note twice.
     if (lastPointerType === 'touch') return;
+    const ink = e.target.closest('.sn-ink');
+    if (ink) {
+      startEditingInk(ink.dataset.ink);
+      return;
+    }
     const card = e.target.closest('.sn-card');
     if (card) {
       if (!e.target.closest('a, button')) startEditing(card.dataset.id);
@@ -1161,6 +1589,7 @@ export function createBoard({ store, els, showToast, onEdit }) {
     const el = document.activeElement;
     return (
       editingId ||
+      inkEditingId ||
       (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable))
     );
   }
@@ -1174,6 +1603,9 @@ export function createBoard({ store, els, showToast, onEdit }) {
     if (e.key === 'n' || e.key === 'N') {
       e.preventDefault();
       createNote();
+    } else if (e.key === 't' || e.key === 'T') {
+      e.preventDefault();
+      setTextMode(!textMode);
     } else if (e.key === 'p' || e.key === 'P') {
       if (selection.size) {
         const allPinned = selectedNotes().every((n) => n.pinned);
@@ -1181,6 +1613,7 @@ export function createBoard({ store, els, showToast, onEdit }) {
       }
     } else if (e.key === 'Escape') {
       setSelectMode(false);
+      setTextMode(false);
       selection.clear();
       renderSelection();
     } else if ((e.key === 'Delete' || e.key === 'Backspace') && selection.size) {
@@ -1252,6 +1685,19 @@ export function createBoard({ store, els, showToast, onEdit }) {
         case 'arrow.delete':
           arrowsDirty = true;
           break;
+        case 'ink.upsert': {
+          const ink = (state.ink || []).find((i) => i.id === op.ink?.id);
+          if (ink) renderInk(ink);
+          break;
+        }
+        case 'ink.move': {
+          const ink = (state.ink || []).find((i) => i.id === op.id);
+          if (ink) renderInk(ink);
+          break;
+        }
+        case 'ink.delete':
+          for (const id of op.ids || []) removeInk(id);
+          break;
         case 'collection.create':
         case 'collection.rename':
         case 'collection.delete':
@@ -1264,6 +1710,7 @@ export function createBoard({ store, els, showToast, onEdit }) {
             const note = state.notes.find((n) => n.id === id);
             if (!note || note.status !== 'board') removeCard(id, { animate });
           }
+          if (op.op === 'wipe') renderAllInk();
           chipsDirty = true;
           arrowsDirty = true;
           break;
@@ -1316,17 +1763,33 @@ export function createBoard({ store, els, showToast, onEdit }) {
 
   els.ebTrash.innerHTML = TRASH_SVG;
   els.ebPin.innerHTML = PIN_SVG;
+  els.ebBold.innerHTML = BOLD_SVG;
+  els.ebBullets.innerHTML = BULLET_LIST_SVG;
+  els.ebNumbers.innerHTML = NUMBER_LIST_SVG;
   onPress(els.ebTrash, () => deleteNotes([editingId]));
   onPress(els.ebPin, () => {
     const note = noteById(editingId);
     if (!note) return;
     store.dispatch([{ op: 'note.pin', ids: [note.id], pinned: !note.pinned, ts: new Date().toISOString() }]);
   });
+  onPress(els.ebBold, () => applyFormat('bold'));
+  onPress(els.ebBullets, () => applyFormat('ul'));
+  onPress(els.ebNumbers, () => applyFormat('ol'));
   onPress(els.ebColor, () => {
     const note = noteById(editingId);
     if (!note) return;
-    els.ebPalette.hidden = !els.ebPalette.hidden;
-    if (!els.ebPalette.hidden) renderPalette(note);
+    const open = els.ebPalette.hidden;
+    closeEditPopovers();
+    els.ebPalette.hidden = !open;
+    if (open) renderPalette(note);
+  });
+  onPress(els.ebIcon, () => {
+    const note = noteById(editingId);
+    if (!note) return;
+    const open = els.ebIconPop.hidden;
+    closeEditPopovers();
+    els.ebIconPop.hidden = !open;
+    if (open) renderIconPicker(note);
   });
   onPress(els.ebDone, () => endEdit?.(false));
 
@@ -1344,6 +1807,8 @@ export function createBoard({ store, els, showToast, onEdit }) {
 
   return {
     createNote,
+    /** Arm the pen; the next press on the board writes there. */
+    startText: () => setTextMode(!textMode),
     wipe,
     zoomIn: () => zoomBy(1.2),
     zoomOut: () => zoomBy(1 / 1.2),
@@ -1357,6 +1822,7 @@ export function createBoard({ store, els, showToast, onEdit }) {
     },
     clearSelection: () => {
       setSelectMode(false);
+      setTextMode(false);
       selection.clear();
       renderSelection();
     },
