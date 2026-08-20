@@ -46,6 +46,7 @@ export function theatricalCutoffISO(today = todayISO(), now = new Date()) {
  * Unknown dates stay on Coming Soon — we can't claim they're out or at home.
  */
 export function watchlistBucket(item, today = todayISO()) {
+  if (item.watch_at_home_override === true) return 'watch-at-home';
   const state = releaseState(item, today);
   if (state === 'upcoming') return 'coming-soon';
   if (state === 'unknown') return 'unknown';
@@ -441,6 +442,16 @@ function sameWatchlistId(a, b) {
   return a != null && b != null && String(a) === String(b);
 }
 
+function mergeWatchlistApiItem(previous, item) {
+  const sameTmdb = item.tmdb_id === previous?.tmdb_id;
+  return {
+    ...item,
+    poster_path: item.poster_path ?? (sameTmdb ? previous?.poster_path : null),
+    release_date: item.release_date ?? (sameTmdb ? previous?.release_date : null),
+    year: item.year ?? (sameTmdb ? previous?.year : null),
+  };
+}
+
 function watchlistDetailPanelHtml(item, state, { detailsKind = 'movie', detailClass = '' } = {}) {
   const wrap = (content) => `
     <div class="al-log-detail${detailClass}">
@@ -540,6 +551,11 @@ function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detai
     ? (bucket === 'in-theaters' || bucket === 'watch-at-home')
     : isAlreadyOut(item);
   const logBtn = hideLog ? '' : `<button type="button" class="al-link-btn" data-log-watchlist="${item.id}">${escapeHtml(logLabel)}</button>`;
+  const bucketBtn = view === 'coming-soon'
+    ? `<button type="button" class="al-link-btn" data-watchlist-home-override="true" data-watchlist-id="${item.id}">Watch at home</button>`
+    : (view === 'watch-at-home' && item.watch_at_home_override === true
+      ? `<button type="button" class="al-link-btn" data-watchlist-home-override="false" data-watchlist-id="${item.id}">Use automatic</button>`
+      : '');
   return `
     <div class="al-log-entry ${expanded ? 'is-expanded' : ''}${out ? ' is-already-out' : ''}" data-entry-id="${item.id}">
       <article class="al-log-row al-log-row--watchlist al-log-row--clickable ${expanded ? 'is-expanded' : ''}" data-expand-row data-entry-id="${item.id}" tabindex="0" aria-expanded="${expanded}" aria-label="Toggle details">
@@ -552,6 +568,7 @@ function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detai
         <div class="al-log-col al-log-col--desktop al-muted">${escapeHtml(item.notes || '—')}</div>
         <div class="al-log-col al-row-actions">
           ${logBtn}
+          ${bucketBtn}
           <button type="button" class="al-link-btn" data-edit-watchlist="${item.id}">Edit</button>
           <button type="button" class="al-link-btn" data-remove-watchlist="${item.id}">Remove</button>
         </div>
@@ -729,6 +746,41 @@ function wireWatchlistLogActions(auth, state, render, {
     });
   });
 
+  listEl.querySelectorAll('[data-watchlist-home-override]').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.watchlistId;
+      const useHomeOverride = btn.dataset.watchlistHomeOverride === 'true';
+      const previous = state.watchlist.find((item) => sameWatchlistId(item.id, id));
+      if (!previous) return;
+
+      btn.disabled = true;
+      if (statusEl) statusEl.textContent = useHomeOverride
+        ? `Moving ${previous.title} to Watch at Home…`
+        : `Returning ${previous.title} to automatic sorting…`;
+      try {
+        const { item } = await api.update(auth.token, {
+          id,
+          watch_at_home_override: useHomeOverride,
+        });
+        const merged = mergeWatchlistApiItem(previous, item);
+        state.watchlist = state.watchlist.map((entry) => (
+          sameWatchlistId(entry.id, id) ? merged : entry
+        ));
+        if (sameWatchlistId(state.expandedId, id)) state.expandedId = null;
+        render();
+        if (statusEl) {
+          statusEl.textContent = useHomeOverride
+            ? `${previous.title} moved to Watch at Home.`
+            : `${previous.title} now follows its release date automatically.`;
+        }
+      } catch (err) {
+        btn.disabled = false;
+        if (statusEl) statusEl.textContent = err.message || 'Could not update the list.';
+      }
+    });
+  });
+
   listEl.querySelectorAll('[data-remove-watchlist]').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -774,13 +826,7 @@ function wireWatchlistLogActions(auth, state, render, {
       try {
         const { item } = await api.update(auth.token, payload);
         const prev = state.watchlist.find((w) => w.id === id);
-        const sameTmdb = item.tmdb_id === prev?.tmdb_id;
-        const merged = {
-          ...item,
-          poster_path: item.poster_path ?? (sameTmdb ? prev?.poster_path : null),
-          release_date: item.release_date ?? (sameTmdb ? prev?.release_date : null),
-          year: item.year ?? (sameTmdb ? prev?.year : null),
-        };
+        const merged = mergeWatchlistApiItem(prev, item);
         if (item.tmdb_id !== prev?.tmdb_id) {
           state.detailsCache.delete(id);
         }
