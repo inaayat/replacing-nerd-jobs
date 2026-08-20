@@ -88,6 +88,8 @@ export const PEN_SVG = `${SVG_OPEN}<path d="M4 20l3.5-.8L19 7.7a2 2 0 0 0 0-2.8l
 export const BOLD_SVG =
   '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.6h5.6c2.6 0 4.2 1.3 4.2 3.4 0 1.4-.7 2.5-2 3 1.7.4 2.7 1.6 2.7 3.3 0 2.4-1.8 3.9-4.7 3.9H7zm2.7 2.2v3.1h2.5c1.2 0 1.9-.6 1.9-1.6s-.7-1.5-1.9-1.5zm0 5.2v3.6h2.9c1.3 0 2.1-.7 2.1-1.8s-.8-1.8-2.1-1.8z"/></svg>';
 
+export const LINK_SVG = ICON_SVGS.link;
+
 export const BULLET_LIST_SVG = `${SVG_OPEN}<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.4" fill="currentColor" stroke="none"/><circle cx="4.5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="4.5" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg>`;
 
 export const NUMBER_LIST_SVG = `${SVG_OPEN}<path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.4 4.6h1.2V9"/><path d="M3 10.9h2.2L3 14.1h2.4"/><path d="M3.1 16.2h2.1l-1.1 1.4h.2a1 1 0 1 1-1 1.1"/></svg>`;
@@ -117,11 +119,11 @@ const num = (v, fallback) => (Number.isFinite(v) ? v : fallback);
 // Rich body
 //
 // A note body is a flat list of lines, because that is what a sticky note is:
-//   { type: 'p' | 'ul' | 'ol', spans: [{ text, bold }] }
+//   { type: 'p' | 'ul' | 'ol', spans: [{ text, bold, href? }] }
 // Consecutive `ul` / `ol` lines render as one list, so a run of them numbers
 // from 1. The formatting model is deliberately this small — bold, bullets,
-// numbers — and it is stored as data rather than HTML, so nothing has to be
-// sanitized on the way in or out.
+// numbers, and http(s) link pills — and it is stored as data rather than HTML,
+// so nothing has to be sanitized on the way in or out.
 //
 // `note.text` stays the plain-text projection of the body: it is what memory
 // search, the memory table, and the extension bridge read.
@@ -129,6 +131,7 @@ const num = (v, fallback) => (Number.isFinite(v) ? v : fallback);
 const BLOCK_TYPES = ['p', 'ul', 'ol'];
 const RICH_MAX_BLOCKS = 400;
 const RICH_MAX_SPANS = 120;
+export const HREF_MAX = 2048;
 
 /** A bullet or number marker at the start of a line, in the plain projection. */
 const BULLET_LINE = /^\s*[-*+•]\s+(.*)$/;
@@ -140,15 +143,23 @@ function spanText(raw) {
   return text.replace(/[\r\n\t]+/g, ' ');
 }
 
+/** http(s) only, capped — the same lone-URL check paste-to-card uses. */
+export function normalizeHref(raw) {
+  const href = typeof raw === 'string' ? raw.trim() : '';
+  if (!href || href.length > HREF_MAX) return null;
+  return isLoneUrl(href) ? href : null;
+}
+
 function normalizeSpans(raw) {
   const out = [];
   for (const span of Array.isArray(raw) ? raw.slice(0, RICH_MAX_SPANS) : []) {
     const text = spanText(span);
     if (!text) continue;
     const bold = typeof span === 'object' && span !== null ? Boolean(span.bold) : false;
+    const href = typeof span === 'object' && span !== null ? normalizeHref(span.href) : null;
     const last = out[out.length - 1];
-    if (last && last.bold === bold) last.text += text;
-    else out.push({ text, bold });
+    if (last && last.bold === bold && (last.href || null) === href) last.text += text;
+    else out.push(href ? { text, bold, href } : { text, bold });
   }
   return out;
 }
@@ -257,6 +268,16 @@ export function richFromNode(root) {
     line = null;
   };
 
+  const nodeText = (node) => {
+    if (typeof node.textContent === 'string') return node.textContent;
+    let out = '';
+    for (const child of node.childNodes || []) {
+      if (child.nodeType === 3) out += child.nodeValue || '';
+      else if (child.nodeType === 1) out += nodeText(child);
+    }
+    return out;
+  };
+
   const walk = (node, bold, type) => {
     for (const child of node.childNodes || []) {
       if (child.nodeType === 3) {
@@ -266,6 +287,14 @@ export function richFromNode(root) {
         continue;
       }
       if (child.nodeType !== 1) continue;
+      if (child.tagName === 'A') {
+        const href = normalizeHref(child.getAttribute?.('href') || child.href || '');
+        if (href) {
+          open(type);
+          line.push({ text: nodeText(child), bold: bold || isBoldNode(child), href });
+          continue;
+        }
+      }
       if (child.tagName === 'BR') {
         open(type);
         close();

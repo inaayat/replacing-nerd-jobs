@@ -19,12 +19,14 @@ import {
   emptyState,
   findFreeSlot,
   fitViewport,
+  HREF_MAX,
   isLoneUrl,
   legendLabel,
   listTriggerFor,
   mergeStates,
   migrateLegacyStore,
   noteBlocks,
+  normalizeHref,
   normalizeNote,
   normalizeRich,
   normalizeState,
@@ -40,6 +42,7 @@ import {
   worldToScreen,
   zoomAt,
 } from '../sticky-notes/notes.js';
+import { sortBoardNotes } from '../sticky-notes/table.js';
 
 let failures = 0;
 function assert(cond, label) {
@@ -582,6 +585,112 @@ function note(id, extra = {}) {
   assert(!isLoneUrl('see https://example.com now'), 'url inside prose rejected');
   assert(!isLoneUrl('ftp://example.com'), 'non-http rejected');
   eq(urlDomain('https://www.nytimes.com/2025/x'), 'nytimes.com', 'domain strips www');
+}
+
+// 17. span href — pills: normalize, merge, reject, project display text
+{
+  eq(normalizeHref('https://example.com/a'), 'https://example.com/a', 'http(s) href kept');
+  eq(normalizeHref('http://ok.com'), 'http://ok.com', 'http kept');
+  assert(normalizeHref('ftp://example.com') === null, 'ftp rejected');
+  assert(normalizeHref('javascript:alert(1)') === null, 'javascript rejected');
+  assert(normalizeHref(`https://ok.com/${'a'.repeat(HREF_MAX)}`) === null, 'overlong href rejected');
+  assert(normalizeHref('  https://ok.com  ') === 'https://ok.com', 'href is trimmed');
+
+  const linked = normalizeRich([
+    {
+      type: 'p',
+      spans: [
+        { text: 'See ' },
+        { text: 'Example', href: 'https://example.com' },
+        { text: ' now' },
+      ],
+    },
+  ]);
+  eq(linked[0].spans[1].href, 'https://example.com', 'normalizeRich keeps a valid href');
+  eq(richToText(linked), 'See Example now', 'richToText projects display text only');
+  assert(!JSON.stringify(richToText(linked)).includes('https://'), 'the URL is not in the projection');
+
+  const merged = normalizeRich([
+    {
+      type: 'p',
+      spans: [
+        { text: 'ab', href: 'https://a.com', bold: true },
+        { text: 'cd', href: 'https://a.com', bold: true },
+      ],
+    },
+  ]);
+  eq(merged[0].spans.length, 1, 'adjacent spans merge when bold and href match');
+  eq(merged[0].spans[0].text, 'abcd', 'merged href span concatenates text');
+
+  const split = normalizeRich([
+    {
+      type: 'p',
+      spans: [
+        { text: 'ab', href: 'https://a.com' },
+        { text: 'cd', href: 'https://b.com' },
+        { text: 'ef', bold: true, href: 'https://a.com' },
+        { text: 'gh', href: 'https://a.com' },
+        { text: 'ij' },
+      ],
+    },
+  ]);
+  eq(split[0].spans.length, 5, 'different href or bold do not merge');
+  assert(!split[0].spans[4].href, 'a plain span has no href key');
+
+  const bad = normalizeRich([
+    {
+      type: 'p',
+      spans: [
+        { text: 'x', href: 'ftp://example.com', bold: true },
+        { text: 'y', href: 'javascript:alert(1)' },
+        { text: 'good', href: 'http://ok.com' },
+      ],
+    },
+  ]);
+  assert(!bad[0].spans[0].href, 'ftp dropped from the span');
+  eq(bad[0].spans[0].text, 'x', 'rejected href keeps the display text');
+  assert(!bad[0].spans[1].href, 'javascript dropped from the span');
+  eq(bad[0].spans[2].href, 'http://ok.com', 'valid href survives a mixed line');
+
+  const el = (tagName, childNodes = [], extra = {}) => ({
+    nodeType: 1, tagName, childNodes, style: extra.style || null,
+    href: extra.href, getAttribute: (n) => (n === 'href' ? extra.href : null),
+    textContent: extra.textContent,
+  });
+  const text = (nodeValue) => ({ nodeType: 3, nodeValue });
+  const anchored = el('DIV', [
+    el('DIV', [
+      text('See '),
+      el('A', [text('Example')], { href: 'https://example.com', textContent: 'Example' }),
+    ]),
+  ]);
+  const fromDom = normalizeRich(richFromNode(anchored));
+  eq(fromDom[0].spans.length, 2, 'richFromNode splits the anchor into its own span');
+  eq(fromDom[0].spans[1].href, 'https://example.com', 'richFromNode reads the href');
+  eq(fromDom[0].spans[1].text, 'Example', 'anchor display text is the span text');
+  eq(richToText(fromDom), 'See Example', 'DOM-read pills project display text');
+}
+
+// 18. table view sort — colour legend order, then collection A→Z, loose last
+{
+  const s = {
+    collections: [
+      { id: 'zeta', name: 'Zeta' },
+      { id: 'alpha', name: 'Alpha' },
+    ],
+  };
+  const notes = [
+    { id: 'loose-c1', colorKey: 'c1', collectionId: null, updatedAt: '2026-01-01T00:00:00.000Z' },
+    { id: 'zeta-c7', colorKey: 'c7', collectionId: 'zeta', updatedAt: '2026-01-01T00:00:00.000Z' },
+    { id: 'alpha-c7-old', colorKey: 'c7', collectionId: 'alpha', updatedAt: '2026-01-01T00:00:00.000Z' },
+    { id: 'alpha-c7-new', colorKey: 'c7', collectionId: 'alpha', updatedAt: '2026-06-01T00:00:00.000Z' },
+    { id: 'none', colorKey: null, collectionId: null, updatedAt: '2026-01-01T00:00:00.000Z' },
+  ];
+  eq(
+    sortBoardNotes(s, notes).map((n) => n.id).join(','),
+    'alpha-c7-new,alpha-c7-old,zeta-c7,loose-c1,none',
+    'c7 before c1 before uncoloured; Alpha before Zeta; loose last; newer first',
+  );
 }
 
 if (failures) {

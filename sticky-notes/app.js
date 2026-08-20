@@ -14,10 +14,12 @@ import { initAuth, wireAuthLink, loginUrl } from './engine/auth.js';
 import { clearGuestState, createStore, readGuestState } from './sync.js';
 import { createBoard } from './board.js';
 import { createMemory } from './memory.js';
+import { createTable } from './table.js';
 import { drainPendingImport } from './extension-bridge.js';
 import {
   BOLD_SVG,
   BULLET_LIST_SVG,
+  LINK_SVG,
   PEN_SVG,
   PIN_SVG,
   TAG_SVG,
@@ -26,11 +28,17 @@ import {
   stateToOps,
 } from './notes.js';
 
+const CANVAS_VIEW_SVG =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="7" height="6" rx="1.2"/><rect x="13" y="5" width="7" height="6" rx="1.2"/><rect x="4" y="13" width="7" height="6" rx="1.2"/><rect x="13" y="13" width="7" height="6" rx="1.2"/></svg>';
+const TABLE_VIEW_SVG =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/><path d="M8 4v16"/></svg>';
+
 const $ = (sel) => document.querySelector(sel);
 
 const HINTS_KEY = 'sticky-notes-hints-v1';
 const SIDEBAR_KEY = 'sticky-notes-sidebar';
 const VIEW_KEY = 'sticky-notes-view';
+const BOARD_VIEW_KEY = 'sticky-notes-board-view';
 const GUESTBAR_KEY = 'sticky-notes-guestbar';
 
 // Set at boot; the guide and the empty state both have something extra to say
@@ -215,7 +223,8 @@ function guideGroups() {
     {
       title: 'Toolbar',
       rows: [
-        { glyph: '+', name: 'Add a note', text: 'Drops a blank note in the first free space and opens it for typing.' },
+        { glyph: '+', name: 'Add a note', text: 'Drops a blank note in the first free space and opens it for typing. In the table view it creates a row and focuses it.' },
+        { glyph: '▦', name: 'Canvas or table', text: 'The same board notes, as cards or as a list. Switching does not move or file anything.' },
         {
           svg: PEN_SVG,
           name: 'Write on the board',
@@ -252,6 +261,11 @@ function guideGroups() {
           svg: BULLET_LIST_SVG,
           name: 'Lists',
           text: 'Or type “* ” at the start of a line for bullets, “1. ” for numbers — the marker turns into the list.',
+        },
+        {
+          svg: LINK_SVG,
+          name: 'Link',
+          text: '⌘/Ctrl+K, or paste a URL while editing — it becomes a pill. Display text starts as the domain and picks up the page title unless you rename it.',
         },
         { glyph: '✓', name: 'Done', text: 'Closes the note. Clicking anywhere else saves it too.' },
       ],
@@ -515,6 +529,8 @@ async function init() {
       ebBold: $('#eb-bold'),
       ebBullets: $('#eb-bullets'),
       ebNumbers: $('#eb-numbers'),
+      ebLink: $('#eb-link'),
+      ebLinkPop: $('#eb-linkpop'),
       ebDone: $('#eb-done'),
       ebPalette: $('#eb-palette'),
       ebIconPop: $('#eb-iconpop'),
@@ -551,14 +567,35 @@ async function init() {
   const memoryPane = $('#memory-pane');
   const boardActions = $('#board-actions');
   const sidebarToggle = $('#sidebar-toggle');
+  const tablePane = $('#table-pane');
+  const viewCanvas = $('#view-canvas');
+  const viewTable = $('#view-table');
 
   let tab = readLocal(VIEW_KEY) === 'memory' ? 'memory' : 'board';
   let collapsed = readLocal(SIDEBAR_KEY) === 'collapsed';
+  let boardView = readLocal(BOARD_VIEW_KEY) === 'table' ? 'table' : 'canvas';
+
+  const table = createTable({
+    store,
+    showToast,
+    onViewCanvas: () => setBoardView('canvas'),
+    els: { root: $('#table-root') },
+  });
+
+  function applyBoardViewChrome() {
+    const tableOn = boardView === 'table';
+    document.documentElement.classList.toggle('sn-table-view', tableOn);
+    viewCanvas.setAttribute('aria-pressed', String(!tableOn));
+    viewTable.setAttribute('aria-pressed', String(tableOn));
+  }
 
   function applyLayout() {
+    const tableOn = boardView === 'table';
+    applyBoardViewChrome();
     if (wide.matches) {
       // Board and memory are both on screen; the tabs have nothing to do.
-      viewport.hidden = false;
+      viewport.hidden = tableOn;
+      tablePane.hidden = !tableOn;
       sidebar.hidden = false;
       boardActions.hidden = false;
       sidebar.classList.toggle('is-collapsed', collapsed);
@@ -569,7 +606,8 @@ async function init() {
       sidebarToggle.title = label;
     } else {
       const onBoard = tab === 'board';
-      viewport.hidden = !onBoard;
+      viewport.hidden = !onBoard || tableOn;
+      tablePane.hidden = !onBoard || !tableOn;
       sidebar.hidden = onBoard;
       sidebar.classList.remove('is-collapsed');
       memoryPane.hidden = false;
@@ -579,7 +617,15 @@ async function init() {
     tabBoard.setAttribute('aria-selected', String(tab === 'board'));
     tabMemory.setAttribute('aria-selected', String(tab === 'memory'));
     if (!memoryPane.hidden && !sidebar.hidden) memory.rerender();
+    if (!tablePane.hidden) table.rerender();
     board.relayout();
+  }
+
+  function setBoardView(which) {
+    boardView = which === 'table' ? 'table' : 'canvas';
+    writeLocal(BOARD_VIEW_KEY, boardView);
+    if (boardView === 'table') board.clearSelection();
+    applyLayout();
   }
 
   function setTab(which) {
@@ -600,7 +646,14 @@ async function init() {
   // ------------------------------------------------------------ toolbar
 
   $('.sn-pen-glyph').innerHTML = PEN_SVG;
-  $('#add-note').addEventListener('click', () => board.createNote());
+  viewCanvas.innerHTML = CANVAS_VIEW_SVG;
+  viewTable.innerHTML = TABLE_VIEW_SVG;
+  viewCanvas.addEventListener('click', () => setBoardView('canvas'));
+  viewTable.addEventListener('click', () => setBoardView('table'));
+  $('#add-note').addEventListener('click', () => {
+    if (boardView === 'table') table.createNote();
+    else board.createNote();
+  });
   $('#add-text').addEventListener('click', () => board.startText());
   $('#select-all').addEventListener('click', () => board.selectAll());
   $('#wipe-board').addEventListener('click', () => board.wipe());
