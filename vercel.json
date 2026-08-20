@@ -130,6 +130,10 @@
       "destination": "/api/alist?route=user-search"
     },
     {
+      "source": "/api/alist-ranks",
+      "destination": "/api/alist?route=ranks"
+    },
+    {
       "source": "/api/pc-cubes",
       "destination": "/api/packing-cubes?route=cubes"
     },

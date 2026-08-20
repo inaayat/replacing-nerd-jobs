@@ -6,12 +6,14 @@ import { escapeHtml } from './format.js';
 
 const NAV_ACTIVE = document.body.dataset.page || '';
 const TV_BETA_KEY = 'alist.beta.tv';
+const RANK_BETA_KEY = 'alist.beta.rank';
 
 const PAGES = [
   { href: '/amc-a-lister/', label: 'Log', id: 'log' },
   { href: '/amc-a-lister/what-to-watch.html', label: 'Coming Soon', id: 'what-to-watch' },
   { href: '/amc-a-lister/tv.html', label: 'TV', id: 'tv', beta: 'tv' },
-  { href: '/amc-a-lister/statistics.html', label: 'Statistics', id: 'statistics' },
+  { href: '/amc-a-lister/rank.html', label: 'Rank', id: 'rank', beta: 'rank' },
+  { href: '/amc-a-lister/statistics.html', label: 'Stats', id: 'statistics' },
   { href: '/amc-a-lister/leaderboard.html', label: 'Leaderboard', id: 'leaderboard' },
   { href: '/amc-a-lister/settings.html', label: 'Settings', id: 'settings', mobileIcon: 'settings' },
 ];
@@ -32,9 +34,26 @@ export function setTvBetaEnabled(enabled) {
   }
 }
 
+export function isRankBetaEnabled() {
+  try {
+    return localStorage.getItem(RANK_BETA_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function setRankBetaEnabled(enabled) {
+  try {
+    localStorage.setItem(RANK_BETA_KEY, enabled ? '1' : '0');
+  } catch {
+    // ignore storage failures
+  }
+}
+
 function visiblePages() {
   return PAGES.filter((p) => {
     if (p.beta === 'tv') return isTvBetaEnabled();
+    if (p.beta === 'rank') return isRankBetaEnabled();
     return true;
   });
 }
@@ -290,7 +309,7 @@ export function requireSignIn(auth, root) {
           <ul class="al-bullets">
             <li>Log a screening in under 30 seconds</li>
             <li>See billed vs. ticket savings each month</li>
-            <li>Theater habits, format premiums, and rewatch stats on Statistics</li>
+            <li>Theater habits, format premiums, and rewatch stats on Stats</li>
           </ul>
           <p class="al-muted">Billing uses calendar months (1st–end), not the old sheet's 28th roll.</p>
           ${auth.configured ? `<p style="margin-top:12px"><a class="al-btn al-btn-primary" href="${loginHref}">Sign in to your log</a></p>` : ''}

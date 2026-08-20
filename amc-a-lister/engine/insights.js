@@ -7,7 +7,7 @@ bootPage(async ({ root, auth }) => {
   if (!requireSignIn(auth, root)) return;
 
   root.innerHTML = renderShell({
-    title: 'Statistics',
+    title: 'Stats',
     subtitle: 'Where you watch, what you reward, and whether A-List is earning its keep.',
     body: `<main class="al-main al-main--insights" id="insights-main"><p class="al-muted">Loading…</p></main>`,
     signedIn: true,
@@ -83,7 +83,7 @@ function renderSpotlight({ summary, ratings, theaters, theatersByRating, watchLi
   const topRated = theatersByRating[0] || null;
 
   return `
-    <section class="al-insights-spotlight" aria-label="Statistics highlights">
+    <section class="al-insights-spotlight" aria-label="Stats highlights">
       ${spotlightCard({
     label: 'Avg rating',
     value: avgRating != null ? `${avgRating}★` : '—',

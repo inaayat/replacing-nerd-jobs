@@ -21,7 +21,7 @@ function howToUseSteps() {
         details you get in your watch log.
       </li>
       <li>
-        <strong><a href="/amc-a-lister/statistics.html">Statistics</a></strong>
+        <strong><a href="/amc-a-lister/statistics.html">Stats</a></strong>
         shows where you watch, what you rate highly, and whether A-List is paying for itself.
         Sidebar totals update as you log.
       </li>

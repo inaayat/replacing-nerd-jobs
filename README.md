@@ -5,7 +5,8 @@ Live on [inaayat.xyz](https://inaayat.xyz).
 ### AMC A-Lister — `/amc-a-lister`
 
 AMC A-List membership value tracker: log screenings, compare billed vs. ticket
-prices, watchlist, TV log, leaderboard, showing invites. Fully Neon Auth + Neon
+prices, watchlist, TV log, leaderboard, showing invites. Optional **Rank** beta
+(Settings) is a Beli-style movie stack, stored separately from the watch log. Fully Neon Auth + Neon
 Postgres; movie/TV metadata from TMDB via `lib/tmdb.js`.
 
 ### Packing Cubes — `/packing-cubes`
@@ -316,7 +317,7 @@ Current roster (9/12):
 | `api/auth-config.js` | Returns `{ url: NEON_AUTH_BASE_URL }` so the browser can talk to Neon Auth without a hardcoded URL. |
 | `api/auth-login.js` | Server-side Neon Auth sign-in/sign-up; returns a JWT (needed for mobile PWAs that block third-party auth cookies). |
 | `api/me.js` | Authed account sync: GET upserts the Neon Auth user into Postgres; DELETE wipes app data + Neon Auth account. |
-| `api/alist.js` | **AMC A-Lister router** (`?route=` / `/api/alist-*` rewrites): watches, summary, membership, import, poster backfill, movie/TV lookup & details, watchlists, leaderboard, compare, public profiles, showing invites, user search. |
+| `api/alist.js` | **AMC A-Lister router** (`?route=` / `/api/alist-*` rewrites): watches, summary, membership, import, poster backfill, movie/TV lookup & details, watchlists, movie stack ranks, leaderboard, compare, public profiles, showing invites, user search. |
 | `api/packing-cubes.js` | **Packing Cubes router** (`/api/pc-*`): cloud cubes CRUD, publish-to-catalog, suitcase state sync for signed-in users. |
 | `api/plot-points.js` | **Plot Points router** (`/api/plot-points-*`): TMDB person/collection search, genres, query build, legacy presets. |
 | `api/save-quiz.js` | Sporcle Spinoff: quiz + tag submissions open a GitHub review PR. |
@@ -461,6 +462,7 @@ only runs the code that talks to it). Accessed from serverless functions via
 | `alist_tv_watches` | A-Lister | TV episode log |
 | `alist_tv_watchlist` | A-Lister | TV to watch |
 | `alist_tv_cache` | A-Lister | TMDB TV payloads |
+| `alist_movie_ranks` | A-Lister | Per-user movie stack rank (beta); independent of the watch log |
 | `pc_cubes` | Packing Cubes | Per-user cubes (private + publish metadata) |
 | `pc_suitcase_state` | Packing Cubes | Active suitcase + packed state JSON |
 | `plot_points_cache` | Plot Points | Query/result cache keyed by `cache_key` |
@@ -617,6 +619,7 @@ node scripts/test-plot-points-query.mjs
 node scripts/test-public-imports.mjs   # guards against browser code importing /lib/
 node scripts/test-alist-watchlist-sort.mjs
 node scripts/test-alist-showing.mjs
+node scripts/test-amc-alist-rank.mjs
 node scripts/test-fortune500-extract.mjs
 node scripts/test-fortune500-insights.mjs
 node scripts/test-financial-modeler-engine.mjs
