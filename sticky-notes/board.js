@@ -32,6 +32,7 @@ import {
   blankNote,
   clamp,
   colorHex,
+  displayedKeyboardSlice,
   emptyState,
   findFreeSlot,
   fitViewport,
@@ -47,7 +48,6 @@ import {
   richToText,
   screenToWorld,
   urlDomain,
-  visibleSlice,
   wipeTargets,
   zoomAt,
 } from './notes.js';
@@ -166,7 +166,14 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
    * so every "is this on screen" question has to ask visualViewport.
    */
   function visibleBounds() {
-    return visibleSlice(window.visualViewport, window.innerHeight);
+    const html = document.documentElement;
+    const displayed = html.classList.contains('sn-kb-inset')
+      ? {
+          height: parseFloat(html.style.getPropertyValue('--sn-vv-height')),
+          offsetTop: parseFloat(html.style.getPropertyValue('--sn-vv-top')),
+        }
+      : null;
+    return displayedKeyboardSlice(window.visualViewport, window.innerHeight, displayed);
   }
 
   function keyboardInset() {
