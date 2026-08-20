@@ -575,6 +575,10 @@ a { color: var(--ink); }
 .sn-ink {
   position: absolute;
   z-index: 1;
+  /* The world layer is a 0×0 transform origin, so an absolutely positioned
+     child has no width to lay text out in — it has to size to its content
+     before max-width can cap it, or every word breaks to its own line. */
+  width: max-content;
   max-width: 340px;
   padding: 2px 5px;
   margin: -2px -5px;
@@ -699,6 +703,7 @@ a { color: var(--ink); }
   box-shadow: 0 6px 18px rgba(28, 28, 28, 0.28);
   touch-action: manipulation;
 }
+/* placePopover overrides top/bottom once it can measure the bar. */
 
 .sn-eb-palette {
   display: flex;
@@ -1435,6 +1440,14 @@ a { color: var(--ink); }
   .sn-mem-search,
   .sn-mem-select { font-size: 16px; }
   .sn-ink { font-size: 17px; }
+
+  /* Toolbar targets match the 44 px the note bar uses. */
+  .sn-btn,
+  .sn-iconbtn,
+  .sn-tab,
+  .sn-zoom-btn,
+  .sn-zoom-label { min-height: 44px; }
+  .sn-iconbtn { width: 44px; }
 
   /* Buttons outside the (touch-action: none) canvas still need to opt out of
      double-tap zoom. */

@@ -234,7 +234,6 @@ export function createBoard({ store, els, showToast, onEdit }) {
     el.classList.toggle('is-selected', selection.has(note.id));
     // The colour is the card, not a stripe on it.
     el.style.setProperty('--note-fill', note.colorKey ? colorHex(note.colorKey) : '');
-    el.title = note.colorKey ? legendLabel(store.state.legend, 'color', note.colorKey) : '';
     const icon = el.querySelector('.sn-card-icon');
     icon.innerHTML = note.iconKey ? ICON_SVGS[note.iconKey] : '';
     icon.title = note.iconKey ? legendLabel(store.state.legend, 'icon', note.iconKey) : '';
@@ -693,6 +692,46 @@ export function createBoard({ store, els, showToast, onEdit }) {
     }
   }
 
+  /**
+   * The edit bar follows the note, so its popovers can end up hanging off the
+   * left edge or above the top of the window. Nudge them back in after they
+   * open, and flip below the bar when there is no room above it.
+   */
+  function placePopover(pop) {
+    if (!pop || pop.hidden) return;
+    pop.style.transform = 'translateX(-50%)';
+    // Offsets are relative to the button's wrapper, but the popover has to
+    // clear the whole bar — which is two rows tall on a phone.
+    const wrap = pop.parentElement.getBoundingClientRect();
+    const bar = editbar.getBoundingClientRect();
+    const box = pop.getBoundingClientRect();
+    // Stay inside the canvas: a popover over the toolbar is both ugly and a
+    // target for stray taps.
+    const ceiling = Math.max(visibleBounds().top, viewport.getBoundingClientRect().top) + 4;
+    if (bar.top - box.height - 8 >= ceiling) {
+      pop.style.top = 'auto';
+      pop.style.bottom = `${Math.round(wrap.bottom - bar.top + 8)}px`;
+    } else {
+      pop.style.bottom = 'auto';
+      pop.style.top = `${Math.round(bar.bottom - wrap.top + 8)}px`;
+    }
+    const margin = 6;
+    const after = pop.getBoundingClientRect();
+    const shift = after.left < margin
+      ? margin - after.left
+      : Math.min(0, window.innerWidth - margin - after.right);
+    pop.style.transform = `translateX(calc(-50% + ${Math.round(shift)}px))`;
+  }
+
+  function openPopover(pop, render) {
+    const open = pop.hidden;
+    closeEditPopovers();
+    pop.hidden = !open;
+    if (!open) return;
+    render();
+    placePopover(pop);
+  }
+
   function renderEditBar() {
     const note = editingId ? noteById(editingId) : null;
     if (!note) {
@@ -713,18 +752,33 @@ export function createBoard({ store, els, showToast, onEdit }) {
       ? `Icon: ${legendLabel(store.state.legend, 'icon', note.iconKey)}`
       : 'Icon';
     els.ebIcon.setAttribute('aria-pressed', String(Boolean(note.iconKey)));
-    if (!els.ebPalette.hidden) renderPalette(note);
-    if (!els.ebIconPop.hidden) renderIconPicker(note);
+    syncPopovers(note);
     renderFormatState();
     positionEditBar();
+  }
+
+  /**
+   * An open popover is updated in place rather than rebuilt — the button the
+   * finger is still on has to survive its own press.
+   */
+  function syncPopovers(note) {
+    for (const [pop, active] of [
+      [els.ebPalette, note.colorKey],
+      [els.ebIconPop, note.iconKey],
+    ]) {
+      if (pop.hidden) continue;
+      for (const b of pop.children) b.setAttribute('aria-pressed', String(b.dataset.key === active));
+    }
   }
 
   /** Bold / bullets / numbers light up for whatever the caret is inside. */
   function renderFormatState() {
     if (editbar.hidden) return;
+    const body = editingBody();
+    const list = body ? caretListTag(body) : null;
     els.ebBold.setAttribute('aria-pressed', String(commandState('bold')));
-    els.ebBullets.setAttribute('aria-pressed', String(commandState('insertUnorderedList')));
-    els.ebNumbers.setAttribute('aria-pressed', String(commandState('insertOrderedList')));
+    els.ebBullets.setAttribute('aria-pressed', String(list === 'UL'));
+    els.ebNumbers.setAttribute('aria-pressed', String(list === 'OL'));
   }
 
   function renderPalette(note) {
@@ -733,11 +787,15 @@ export function createBoard({ store, els, showToast, onEdit }) {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'sn-eb-swatch';
+      b.dataset.key = key;
       b.style.background = colorHex(key);
       const label = legendLabel(store.state.legend, 'color', key);
       b.title = label;
       b.setAttribute('aria-label', label);
       b.setAttribute('aria-pressed', String(note.colorKey === key));
+      // The popover stays open: the note repaints behind it, and a tap that
+      // tore its own target out of the page would leave the follow-up click to
+      // land on whatever ended up under the finger — the toolbar, on a phone.
       onPress(b, () => {
         store.dispatch([
           {
@@ -747,7 +805,6 @@ export function createBoard({ store, els, showToast, onEdit }) {
             ts: new Date().toISOString(),
           },
         ]);
-        els.ebPalette.hidden = true;
       });
       els.ebPalette.appendChild(b);
     }
@@ -760,6 +817,7 @@ export function createBoard({ store, els, showToast, onEdit }) {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'sn-eb-icon';
+      b.dataset.key = key;
       b.innerHTML = ICON_SVGS[key];
       const label = legendLabel(store.state.legend, 'icon', key);
       b.title = label;
@@ -774,7 +832,6 @@ export function createBoard({ store, els, showToast, onEdit }) {
             ts: new Date().toISOString(),
           },
         ]);
-        els.ebIconPop.hidden = true;
       });
       els.ebIconPop.appendChild(b);
     }
@@ -799,6 +856,8 @@ export function createBoard({ store, els, showToast, onEdit }) {
       vr.left + 4,
       Math.max(vr.left + 4, vr.right - w - 4),
     )}px`;
+    placePopover(els.ebPalette);
+    placePopover(els.ebIconPop);
   }
 
   /**
@@ -874,7 +933,18 @@ export function createBoard({ store, els, showToast, onEdit }) {
   function caretLine(host) {
     const sel = window.getSelection();
     if (!sel || !sel.rangeCount || !sel.isCollapsed) return null;
-    let node = sel.getRangeAt(0).startContainer;
+    const range = sel.getRangeAt(0);
+    let node = range.startContainer;
+    // A caret can park on the body itself, between lines — clicking a card's
+    // padding does it. Resolve that to the line it sits at, or bold and the
+    // list buttons have nothing to work on.
+    if (node === host) {
+      const kids = [...host.children];
+      if (!kids.length) return host;
+      const kid = kids[clamp(range.startOffset, 0, kids.length - 1)];
+      if (kid.tagName === 'UL' || kid.tagName === 'OL') return kid.lastElementChild || kid;
+      return kid;
+    }
     if (node.nodeType !== 1) node = node.parentNode;
     while (node && node !== host) {
       if (LINE_TAGS.has(node.tagName)) return node;
@@ -921,10 +991,7 @@ export function createBoard({ store, els, showToast, onEdit }) {
     }
   }
 
-  /**
-   * Formatting state for the edit bar. `queryCommandState` is the only way to
-   * ask a contenteditable what the caret is sitting inside.
-   */
+  /** Bold is the one thing execCommand gets right; it also owns undo history. */
   function commandState(command) {
     try {
       return document.queryCommandState(command);
@@ -933,12 +1000,123 @@ export function createBoard({ store, els, showToast, onEdit }) {
     }
   }
 
-  function applyFormat(kind) {
+  function caretToEnd(el) {
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(false);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+
+  /** Wrap loose text the browser left at the top level, so every child is a line. */
+  function ensureLines(host) {
+    let run = null;
+    for (const node of [...host.childNodes]) {
+      const tag = node.nodeType === 1 ? node.tagName : '';
+      if (tag === 'UL' || tag === 'OL' || LINE_TAGS.has(tag)) {
+        run = null;
+        continue;
+      }
+      if (!run) {
+        run = document.createElement('div');
+        host.insertBefore(run, node);
+      }
+      run.appendChild(node);
+    }
+  }
+
+  function lineElements(host) {
+    const out = [];
+    for (const child of host.children) {
+      if (child.tagName === 'UL' || child.tagName === 'OL') out.push(...child.children);
+      else out.push(child);
+    }
+    return out;
+  }
+
+  function selectedLines(host) {
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return [];
+    const range = sel.getRangeAt(0);
+    const hit = lineElements(host).filter((el) => range.intersectsNode(el));
+    if (hit.length) return hit;
+    const line = caretLine(host);
+    return line && line !== host ? [line] : [];
+  }
+
+  /** Take a line out of its list, splitting the list when it was in the middle. */
+  function unlist(line) {
+    const div = document.createElement('div');
+    while (line.firstChild) div.appendChild(line.firstChild);
+    if (line.tagName !== 'LI') {
+      line.replaceWith(div);
+      return div;
+    }
+    const list = line.parentNode;
+    const items = [...list.children];
+    const after = items.slice(items.indexOf(line) + 1);
+    list.parentNode.insertBefore(div, list.nextSibling);
+    if (after.length) {
+      const tail = document.createElement(list.tagName.toLowerCase());
+      for (const item of after) tail.appendChild(item);
+      div.parentNode.insertBefore(tail, div.nextSibling);
+    }
+    line.remove();
+    if (!list.children.length) list.remove();
+    return div;
+  }
+
+  /**
+   * Make one line a list item. Rolled by hand rather than through
+   * `insertUnorderedList`: Chrome's version reaches into the list above the
+   * caret and drags its last item into the new one, so typing "1. " under a
+   * bullet list stole the bullet.
+   */
+  function enlist(line, tag) {
+    const from = line.tagName === 'LI' ? unlist(line) : line;
+    const item = document.createElement('li');
+    while (from.firstChild) item.appendChild(from.firstChild);
+    const prev = from.previousElementSibling;
+    if (prev && prev.tagName === tag) {
+      prev.appendChild(item);
+    } else {
+      const list = document.createElement(tag.toLowerCase());
+      list.appendChild(item);
+      from.parentNode.insertBefore(list, from);
+    }
+    from.remove();
+    return item;
+  }
+
+  function toggleList(host, tag) {
+    ensureLines(host);
+    const lines = selectedLines(host);
+    if (!lines.length) return;
+    const already = lines.every((el) => el.tagName === 'LI' && el.parentNode.tagName === tag);
+    let last = null;
+    for (const line of lines) last = already ? unlist(line) : enlist(line, tag);
+    if (last) caretToEnd(last);
+  }
+
+  /** 'UL' / 'OL' / null — what kind of line the caret is on. */
+  function caretListTag(host) {
+    const line = caretLine(host);
+    if (!line || line.tagName !== 'LI') return null;
+    return line.parentNode.tagName;
+  }
+
+  function editingBody() {
     const el = editingId ? cardEls.get(editingId) : null;
-    if (!el) return;
-    const body = el.querySelector('.sn-card-body');
+    return el ? el.querySelector('.sn-card-body') : null;
+  }
+
+  function applyFormat(kind) {
+    const body = editingBody();
+    if (!body) return;
     body.focus();
-    exec(kind === 'bold' ? 'bold' : kind === 'ul' ? 'insertUnorderedList' : 'insertOrderedList');
+    if (kind === 'bold') exec('bold');
+    else toggleList(body, kind === 'ul' ? 'UL' : 'OL');
     renderFormatState();
   }
 
@@ -962,7 +1140,11 @@ export function createBoard({ store, els, showToast, onEdit }) {
     let range = caretAt ? caretRangeAt(caretAt.x, caretAt.y) : null;
     if (!range || !body.contains(range.startContainer)) {
       range = document.createRange();
-      range.selectNodeContents(body);
+      // Land inside the last line rather than on the body between lines: a
+      // caret parked on the body types into a bare text node and formats
+      // nothing.
+      const last = selectAll ? body : body.lastElementChild || body;
+      range.selectNodeContents(last);
       if (!selectAll) range.collapse(false);
     }
     const sel = window.getSelection();
@@ -1049,7 +1231,7 @@ export function createBoard({ store, els, showToast, onEdit }) {
       if (caretLine(body)?.tagName === 'LI') return; // already in a list
       e.preventDefault();
       dropLinePrefix(body);
-      exec(kind === 'ul' ? 'insertUnorderedList' : 'insertOrderedList');
+      toggleList(body, kind === 'ul' ? 'UL' : 'OL');
       renderFormatState();
     };
     // Pasted rich text arrives as whatever the source page was; take the words.
@@ -1777,19 +1959,11 @@ export function createBoard({ store, els, showToast, onEdit }) {
   onPress(els.ebNumbers, () => applyFormat('ol'));
   onPress(els.ebColor, () => {
     const note = noteById(editingId);
-    if (!note) return;
-    const open = els.ebPalette.hidden;
-    closeEditPopovers();
-    els.ebPalette.hidden = !open;
-    if (open) renderPalette(note);
+    if (note) openPopover(els.ebPalette, () => renderPalette(note));
   });
   onPress(els.ebIcon, () => {
     const note = noteById(editingId);
-    if (!note) return;
-    const open = els.ebIconPop.hidden;
-    closeEditPopovers();
-    els.ebIconPop.hidden = !open;
-    if (open) renderIconPicker(note);
+    if (note) openPopover(els.ebIconPop, () => renderIconPicker(note));
   });
   onPress(els.ebDone, () => endEdit?.(false));
 
