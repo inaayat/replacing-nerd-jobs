@@ -16,6 +16,10 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
+/* Chrome here is toggled with the `hidden` attribute, and most of it is a flex
+   or grid box — which would otherwise beat the user-agent `display: none`. */
+[hidden] { display: none !important; }
+
 html, body {
   margin: 0;
   height: 100%;
@@ -199,7 +203,6 @@ a { color: var(--ink); }
 }
 
 .sn-board-actions { display: flex; gap: 8px; align-items: center; min-width: 0; }
-.sn-board-actions[hidden] { display: none; }
 
 .sn-btn {
   font-family: var(--mono);
@@ -321,7 +324,6 @@ a { color: var(--ink); }
   outline: none;
   cursor: default;
 }
-.sn-viewport[hidden] { display: none; }
 .sn-viewport.is-pan-ready { cursor: grab; }
 .sn-viewport.is-panning { cursor: grabbing; }
 /* Long-press selection mode: taps add notes instead of opening the editor. */
@@ -655,11 +657,16 @@ a { color: var(--ink); }
 
 /* ------------------------------------------- tier 2: the selection bar, docked low */
 
+/* Centred with auto margins rather than left:50% — an absolutely positioned
+   box only shrink-wraps to the space on one side of a 50% offset, which made
+   the bar wrap onto two rows on a wide canvas. */
 .sn-selbar {
   position: absolute;
-  left: 50%;
+  left: 8px;
+  right: 8px;
   bottom: 12px;
-  transform: translateX(-50%);
+  margin: 0 auto;
+  width: fit-content;
   z-index: 20;
   display: flex;
   align-items: center;
@@ -809,7 +816,6 @@ a { color: var(--ink); }
   background: var(--panel);
   overflow: hidden;
 }
-.sn-sidebar[hidden] { display: none; }
 
 .sn-side-head { display: none; }
 
@@ -1009,9 +1015,6 @@ a { color: var(--ink); }
   max-height: min(72vh, 620px);
   overflow: hidden;
 }
-.sn-guide[hidden],
-.sn-sheet[hidden],
-.sn-scrim[hidden] { display: none; }
 
 .sn-guide-head,
 .sn-sheet-head {
@@ -1259,10 +1262,8 @@ a { color: var(--ink); }
   .sn-mem-row.is-open .sn-mem-actions { width: 100%; margin-left: 0; justify-content: flex-end; }
 
   .sn-selbar {
-    left: 8px;
-    right: 8px;
     bottom: calc(8px + env(safe-area-inset-bottom, 0px));
-    transform: none;
+    width: auto;
     max-width: none;
     border-radius: 16px;
     padding: 8px 10px;

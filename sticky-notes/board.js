@@ -732,6 +732,15 @@ export function createBoard({ store, els, showToast, onEdit }) {
     drag = null;
   }
 
+  /** Pointer capture is best-effort: a synthetic or already-released pointer throws. */
+  function capturePointer(e) {
+    try {
+      viewport.setPointerCapture(e.pointerId);
+    } catch {
+      /* the gesture still works without capture */
+    }
+  }
+
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
 
@@ -786,7 +795,7 @@ export function createBoard({ store, els, showToast, onEdit }) {
 
     if (wantPan) {
       drag = { kind: 'pan', startX: e.clientX, startY: e.clientY, panX: vp.panX, panY: vp.panY, pointerId: e.pointerId };
-      viewport.setPointerCapture(e.pointerId);
+      capturePointer(e);
       viewport.classList.add('is-panning');
       e.preventDefault();
       return;
@@ -799,7 +808,7 @@ export function createBoard({ store, els, showToast, onEdit }) {
       arrowLayer.appendChild(ghost);
       const from = noteRect(noteById(fromId));
       drag = { kind: 'arrow', fromId, ghost, from, pointerId: e.pointerId };
-      viewport.setPointerCapture(e.pointerId);
+      capturePointer(e);
       e.preventDefault();
       return;
     }
@@ -810,7 +819,7 @@ export function createBoard({ store, els, showToast, onEdit }) {
         kind: 'resize', id: note.id, el: card, startX: e.clientX, startY: e.clientY,
         w: note.w, h: Math.max(note.h, card.offsetHeight), pointerId: e.pointerId, frame: 0,
       };
-      viewport.setPointerCapture(e.pointerId);
+      capturePointer(e);
       e.preventDefault();
       return;
     }
@@ -849,7 +858,7 @@ export function createBoard({ store, els, showToast, onEdit }) {
         // A press that never becomes a drag is a request to type.
         wantsEdit: e.button === 0,
       };
-      viewport.setPointerCapture(e.pointerId);
+      capturePointer(e);
       if (touch) {
         longPressTimer = setTimeout(() => {
           longPressTimer = 0;
@@ -870,7 +879,7 @@ export function createBoard({ store, els, showToast, onEdit }) {
         kind: 'pan', startX: e.clientX, startY: e.clientY, panX: vp.panX, panY: vp.panY,
         pointerId: e.pointerId, fromEmpty: true, moved: false,
       };
-      viewport.setPointerCapture(e.pointerId);
+      capturePointer(e);
       return;
     }
     selection.clear();
@@ -878,7 +887,7 @@ export function createBoard({ store, els, showToast, onEdit }) {
     const start = toWorld(e);
     const rects = boardNotes().map((n) => ({ id: n.id, ...noteRect(n) }));
     drag = { kind: 'rubber', start, rects, pointerId: e.pointerId, startClient: { x: e.clientX, y: e.clientY } };
-    viewport.setPointerCapture(e.pointerId);
+    capturePointer(e);
   });
 
   viewport.addEventListener('pointermove', (e) => {
