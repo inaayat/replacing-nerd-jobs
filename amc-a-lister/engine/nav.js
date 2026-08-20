@@ -351,7 +351,6 @@ export function requireSignIn(auth, root) {
             <li>See billed vs. ticket savings each month</li>
             <li>Theater habits, format premiums, and rewatch stats on Stats</li>
           </ul>
-          <p class="al-muted">Billing uses calendar months (1st–end), not the old sheet's 28th roll.</p>
           ${auth.configured ? `<p style="margin-top:12px"><a class="al-btn al-btn-primary" href="${loginHref}">Sign in to your log</a></p>` : ''}
         </section>
       </main>
