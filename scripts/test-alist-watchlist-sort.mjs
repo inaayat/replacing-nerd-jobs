@@ -100,22 +100,22 @@ assert(releaseState({ year: 2020 }, today) === 'released', 'past year is release
 assert(releaseState({ year: 2026 }, today) === 'upcoming', 'current year is still upcoming');
 assert(isAlreadyOut({ title: 'Unlinked' }, today) === false, 'unknown is not badged as already out');
 
-assertEqual(monthsBeforeISO(3, new Date(2026, 7, 11)), '2026-05-11', '3 calendar months before Aug 11');
-assertEqual(theatricalCutoffISO(today), '2026-05-11', 'theatrical cutoff is 3 months back');
+assertEqual(monthsBeforeISO(2, new Date(2026, 7, 11)), '2026-06-11', '2 calendar months before Aug 11');
+assertEqual(theatricalCutoffISO(today), '2026-06-11', 'theatrical cutoff is 2 months back');
 
 const bucketItems = [
   { id: 'future', title: 'Future', release_date: '2026-09-01' },
   { id: 'recent', title: 'Recent', release_date: '2026-07-01' },
-  { id: 'edge', title: 'Edge', release_date: '2026-05-11' },
-  { id: 'old', title: 'Old', release_date: '2026-05-10' },
+  { id: 'edge', title: 'Edge', release_date: '2026-06-11' },
+  { id: 'old', title: 'Old', release_date: '2026-06-10' },
   { id: 'classic', title: 'Classic', release_date: '2020-01-01' },
   { id: 'undated', title: 'Undated' },
 ];
 
 assert(watchlistBucket(bucketItems[0], today) === 'coming-soon', 'future is coming soon');
 assert(watchlistBucket(bucketItems[1], today) === 'in-theaters', 'July release is in theaters');
-assert(watchlistBucket(bucketItems[2], today) === 'in-theaters', 'exactly 3 months is still in theaters');
-assert(watchlistBucket(bucketItems[3], today) === 'watch-at-home', 'just over 3 months is watch at home');
+assert(watchlistBucket(bucketItems[2], today) === 'in-theaters', 'exactly 2 months is still in theaters');
+assert(watchlistBucket(bucketItems[3], today) === 'watch-at-home', 'just over 2 months is watch at home');
 assert(watchlistBucket(bucketItems[4], today) === 'watch-at-home', 'classic is watch at home');
 assert(watchlistBucket(bucketItems[5], today) === 'unknown', 'undated stays unknown');
 
@@ -142,7 +142,7 @@ assertEqual(
 
 assertEqual(
   sortComingSoonTab(bucketItems, today).map((i) => i.release_date || i.title),
-  ['2026-05-11', '2026-07-01', '2026-09-01', 'Undated'],
+  ['2026-06-11', '2026-07-01', '2026-09-01', 'Undated'],
   'coming soon tab sort is ascending by release',
 );
 
