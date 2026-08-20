@@ -10,6 +10,7 @@ import {
   removeByTmdbId,
   placeWithOracle,
   uniqueLoggedMovies,
+  firstRunMovies,
   isTheaterWatch,
   eligibleTmdbIds,
   dropIneligibleRanks,
@@ -163,6 +164,22 @@ function placeWithAnswers(rankedLength, answers) {
     { tmdb_id: 33, title: 'Walked out' },
   ];
   assert.deepEqual(dropIneligibleRanks(stored, watches).map((m) => m.tmdb_id), [11, 33]);
+}
+
+// First-run queue is every unique theater title — no subset, home/streaming out.
+{
+  const watches = [
+    { tmdb_id: 11, title: 'Dune', in_theaters: true },
+    { tmdb_id: 11, title: 'Dune again', in_theaters: true },
+    { tmdb_id: 22, title: 'Heat at home', in_theaters: false },
+    { tmdb_id: 33, title: 'Walked out', in_theaters: true, dnf: true },
+    { tmdb_id: 44, title: 'Legacy theater row' },
+  ];
+  const queue = firstRunMovies(watches);
+  assert.deepEqual(queue.map((m) => m.tmdb_id), [11, 33, 44]);
+  assert.equal(queue.length, uniqueLoggedMovies(watches).length);
+  assert.deepEqual(firstRunMovies([]), []);
+  assert.deepEqual(firstRunMovies(null), []);
 }
 
 console.log('amc alist rank tests passed');

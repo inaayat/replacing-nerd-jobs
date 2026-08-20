@@ -7,6 +7,7 @@ import {
   applyInsertAnswer,
   removeByTmdbId,
   uniqueLoggedMovies,
+  firstRunMovies,
   eligibleTmdbIds,
   dropIneligibleRanks,
 } from './rank-insert.js';
@@ -68,7 +69,6 @@ async function loadPage(auth) {
   const state = {
     ranks,
     watches: watches || [],
-    selected: new Set(),
     pending: null,
     candidate: null,
     insertState: null,
@@ -93,12 +93,18 @@ async function loadPage(auth) {
   const addId = Number(new URLSearchParams(location.search).get('add'));
   if (addId) {
     history.replaceState({}, '', '/amc-a-lister/rank.html');
-    const movie = movieFromLogged(state, addId);
-    if (movie) {
-      askToRank(state, movie, render);
-      return;
+    // After-add on an existing stack ranks that one title. Empty stack is first
+    // setup: every eligible theater watch goes into the compare queue.
+    if (state.ranks.length) {
+      const movie = movieFromLogged(state, addId);
+      if (movie) {
+        askToRank(state, movie, render);
+        return;
+      }
     }
   }
+
+  if (!state.ranks.length && startFirstRunQueue(state)) return;
   render();
 }
 
@@ -116,23 +122,15 @@ function viewHtml(state) {
 }
 
 function firstRunHtml(state) {
-  const logged = uniqueLoggedMovies(state.watches);
-  const selectedCount = [...state.selected].length;
+  const logged = firstRunMovies(state.watches);
+  const n = logged.length;
 
-  const loggedBlock = logged.length
+  const loggedBlock = n
     ? `
-      <p class="al-muted">Pick theater movies from your log to stack-rank. DNFs count; home and streaming watches do not. You do not have to rank all of them.</p>
-      <div class="al-rank-picker-tools">
-        <input class="al-input" id="rank-picker-filter" type="search" placeholder="Filter logged titles…" />
-        <button class="al-btn" type="button" id="rank-select-all">Select all</button>
-        <button class="al-btn" type="button" id="rank-select-none">Clear</button>
-      </div>
-      <div class="al-rank-picker" id="rank-picker">
-        ${logged.map((movie) => pickerRowHtml(movie, state.selected.has(movie.tmdb_id))).join('')}
-      </div>
+      <p class="al-muted">First setup ranks all theater movies you've watched (DNFs count). Home and streaming stay out.</p>
       <div class="al-toolbar" style="margin-top:12px">
-        <button class="al-btn al-btn-primary" type="button" id="rank-start" ${selectedCount ? '' : 'disabled'}>
-          Rank ${selectedCount || ''} movie${selectedCount === 1 ? '' : 's'}
+        <button class="al-btn al-btn-primary" type="button" id="rank-start">
+          Rank ${n} movie${n === 1 ? '' : 's'}
         </button>
       </div>
     `
@@ -146,11 +144,8 @@ function firstRunHtml(state) {
     <section class="al-panel al-rank-panel">
       <h2 class="al-section-title">Start a stack</h2>
       ${state.error ? `<p class="al-error">${escapeHtml(state.error)}</p>` : ''}
+      ${state.status ? `<p class="al-muted" aria-live="polite">${escapeHtml(state.status)}</p>` : ''}
       ${loggedBlock}
-      <div class="al-rank-add" style="margin-top:16px">
-        <h3 class="al-rank-add-title">Search TMDB</h3>
-        ${searchFieldHtml('Find a theater movie from your log')}
-      </div>
     </section>
   `;
 }
@@ -196,19 +191,6 @@ function searchFieldHtml(placeholder) {
         <div class="al-search-results" id="rank-search-results" hidden></div>
       </div>
     </form>
-  `;
-}
-
-function pickerRowHtml(movie, checked) {
-  return `
-    <button type="button" class="al-rank-pick${checked ? ' is-selected' : ''}" data-pick="${movie.tmdb_id}" aria-pressed="${checked ? 'true' : 'false'}">
-      ${posterHtml(movie, { size: 'w154', width: 48, height: 72, className: 'al-poster al-rank-thumb' })}
-      <span class="al-rank-pick-meta">
-        <span class="al-rank-pick-title">${escapeHtml(movie.title)}</span>
-        ${movie.year ? `<span class="al-muted">${movie.year}</span>` : ''}
-      </span>
-      <span class="al-rank-pick-mark" aria-hidden="true">${checked ? '✓' : ''}</span>
-    </button>
   `;
 }
 
@@ -317,7 +299,7 @@ function movieFromLogged(state, tmdbId) {
 
 function wire(auth, state, render) {
   wireSearch(auth, state, render);
-  wirePicker(state, render);
+  wireStart(state);
   wireList(auth, state, render);
   wireConfirm(state, render);
   wireCompare(state);
@@ -377,42 +359,16 @@ function wireSearch(auth, state, render) {
   document.getElementById('rank-search-form')?.addEventListener('submit', (e) => e.preventDefault());
 }
 
-function wirePicker(state, render) {
-  const filter = document.getElementById('rank-picker-filter');
-  if (filter) {
-    filter.addEventListener('input', () => {
-      const q = filter.value.trim().toLowerCase();
-      document.querySelectorAll('[data-pick]').forEach((btn) => {
-        const title = btn.querySelector('.al-rank-pick-title')?.textContent.toLowerCase() || '';
-        btn.hidden = Boolean(q) && !title.includes(q);
-      });
-    });
-  }
+function startFirstRunQueue(state) {
+  const movies = firstRunMovies(state.watches);
+  if (!movies.length) return false;
+  state.runQueue(movies);
+  return true;
+}
 
-  document.getElementById('rank-select-all')?.addEventListener('click', () => {
-    uniqueLoggedMovies(state.watches).forEach((m) => state.selected.add(m.tmdb_id));
-    render();
-  });
-  document.getElementById('rank-select-none')?.addEventListener('click', () => {
-    state.selected.clear();
-    render();
-  });
-
-  document.querySelectorAll('[data-pick]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const id = Number(btn.dataset.pick);
-      if (state.selected.has(id)) state.selected.delete(id);
-      else state.selected.add(id);
-      render();
-    });
-  });
-
+function wireStart(state) {
   document.getElementById('rank-start')?.addEventListener('click', () => {
-    const byId = new Map(uniqueLoggedMovies(state.watches).map((m) => [m.tmdb_id, m]));
-    const movies = [...state.selected].map((id) => byId.get(id)).filter(Boolean);
-    if (!movies.length) return;
-    state.selected.clear();
-    state.runQueue(movies);
+    startFirstRunQueue(state);
   });
 }
 

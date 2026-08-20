@@ -4342,78 +4342,12 @@ table.al-table {
   gap: 12px;
 }
 
-.al-rank-picker-tools {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-}
-
-.al-rank-picker-tools .al-input {
-  flex: 1 1 160px;
-  min-width: 0;
-}
-
-.al-rank-picker {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.al-rank-pick {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  min-height: 72px;
-  padding: 8px 10px;
-  border: 1px solid var(--al-line);
-  border-radius: 12px;
-  background: var(--al-panel);
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-  font: inherit;
-}
-
-.al-rank-pick.is-selected {
-  border-color: var(--al-burgundy);
-  background: color-mix(in srgb, var(--al-burgundy) 8%, var(--al-panel));
-}
-
-.al-rank-pick-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-  min-width: 0;
-}
-
-.al-rank-pick-title {
-  font-weight: 600;
-  line-height: 1.25;
-}
-
-.al-rank-pick-mark {
-  font-size: 1.1rem;
-  color: var(--al-burgundy);
-  width: 1.25rem;
-  text-align: center;
-}
-
-.al-rank-thumb,
 .al-rank-poster,
 .al-rank-chip-poster {
   border-radius: 8px;
   object-fit: cover;
   flex-shrink: 0;
   background: var(--al-panel-2);
-}
-
-.al-rank-add-title {
-  margin: 0 0 8px;
-  font-size: 0.95rem;
 }
 
 .al-rank-search {
