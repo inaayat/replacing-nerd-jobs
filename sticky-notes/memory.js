@@ -1,6 +1,6 @@
 /**
  * Sticky Notes memory — the collapsed table view. Collections plus loose
- * notes, filters by color/icon/collection, client-side full-text search,
+ * notes, filters by collection, client-side full-text search,
  * restore / move / delete actions, plus a pointer drag onto the board that
  * restores a note at the drop point. Renders at most PAGE rows at a time.
  *
@@ -8,8 +8,6 @@
  * or the Memory tab below that; only the surrounding chrome differs.
  */
 import {
-  COLOR_KEYS,
-  ICON_KEYS,
   ICON_SVGS,
   colorHex,
   legendLabel,
@@ -31,7 +29,7 @@ export function createMemory({
   onRestoreDragHover,
   onRestoreDrop,
 }) {
-  const filters = { search: '', color: null, icon: null, collection: '' };
+  const filters = { search: '', collection: '' };
   let limit = PAGE;
   let searchTimer = null;
   let lastTotal = null;
@@ -47,8 +45,6 @@ export function createMemory({
   }
 
   function matches(note) {
-    if (filters.color && note.colorKey !== filters.color) return false;
-    if (filters.icon && note.iconKey !== filters.icon) return false;
     if (filters.collection === '__loose__') {
       if (note.collectionId) return false;
     } else if (filters.collection && note.collectionId !== filters.collection) {
@@ -60,37 +56,7 @@ export function createMemory({
 
   // ---------------------------------------------------------------- filters UI
 
-  function renderFilterChips() {
-    els.colorChips.innerHTML = '';
-    for (const key of COLOR_KEYS) {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'sn-mem-chip';
-      b.innerHTML = `<span class="sn-mem-dot" style="background:${colorHex(key)}"></span>${legendLabel(store.state.legend, 'color', key)}`;
-      b.setAttribute('aria-pressed', String(filters.color === key));
-      b.title = 'Click to filter · double-click to rename';
-      b.addEventListener('click', () => {
-        filters.color = filters.color === key ? null : key;
-        rerender();
-      });
-      b.addEventListener('dblclick', () => renameLegend('color', key));
-      els.colorChips.appendChild(b);
-    }
-    els.iconChips.innerHTML = '';
-    for (const key of ICON_KEYS) {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'sn-mem-chip';
-      b.innerHTML = `<span class="sn-mem-icon">${ICON_SVGS[key]}</span>${legendLabel(store.state.legend, 'icon', key)}`;
-      b.setAttribute('aria-pressed', String(filters.icon === key));
-      b.title = 'Click to filter · double-click to rename';
-      b.addEventListener('click', () => {
-        filters.icon = filters.icon === key ? null : key;
-        rerender();
-      });
-      b.addEventListener('dblclick', () => renameLegend('icon', key));
-      els.iconChips.appendChild(b);
-    }
+  function renderCollectionFilter() {
     const current = filters.collection;
     els.collectionSelect.innerHTML = '<option value="">All collections</option><option value="__loose__">Loose notes</option>';
     for (const col of store.state.collections) {
@@ -100,15 +66,6 @@ export function createMemory({
       els.collectionSelect.appendChild(opt);
     }
     els.collectionSelect.value = current;
-  }
-
-  function renameLegend(kind, key) {
-    const label = window.prompt(
-      `Rename this ${kind} (applies everywhere):`,
-      legendLabel(store.state.legend, kind, key),
-    );
-    if (label === null) return;
-    store.saveLegendLabel(kind, key, label.trim());
   }
 
   // ---------------------------------------------------------------- rows
@@ -359,7 +316,7 @@ export function createMemory({
   // ---------------------------------------------------------------- render
 
   function rerender() {
-    renderFilterChips();
+    renderCollectionFilter();
     els.list.innerHTML = '';
     const notes = memoryNotes().filter(matches);
     const shown = notes.slice(0, limit);
@@ -380,7 +337,7 @@ export function createMemory({
       .filter((c) => {
         if (byCollection.has(c.id)) return true;
         if (c.status !== 'memory') return false;
-        if (filters.color || filters.icon || filters.search) return false;
+        if (filters.search) return false;
         if (filters.collection && filters.collection !== c.id) return false;
         return true;
       })
@@ -409,7 +366,7 @@ export function createMemory({
     if (!shown.length && !cols.length) {
       const emptyEl = document.createElement('p');
       emptyEl.className = 'sn-mem-empty';
-      emptyEl.textContent = filters.search || filters.color || filters.icon || filters.collection
+      emptyEl.textContent = filters.search || filters.collection
         ? 'Nothing in memory matches these filters.'
         : 'Memory is empty. Select notes on the board, name them to make a collection, then File — they land here and can always come back.';
       els.list.appendChild(emptyEl);
