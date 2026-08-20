@@ -977,6 +977,80 @@ export function zoomAt(viewport, point, factor) {
   };
 }
 
+/**
+ * The slice of the layout viewport the user can actually see. A phone
+ * keyboard shrinks `visualViewport.height` (and may shift `offsetTop`)
+ * without changing `window.innerHeight`.
+ */
+export function visibleSlice(visual, innerHeight) {
+  const fallback = Number.isFinite(innerHeight) ? innerHeight : 0;
+  if (!visual || !Number.isFinite(visual.height)) {
+    return { top: 0, bottom: fallback, height: fallback };
+  }
+  const top = Number.isFinite(visual.offsetTop) ? visual.offsetTop : 0;
+  return { top, bottom: top + visual.height, height: visual.height };
+}
+
+/** How much of the layout viewport is hidden below the visual slice. */
+export function keyboardInset(visual, innerHeight) {
+  return Math.max(0, (Number.isFinite(innerHeight) ? innerHeight : 0) - visibleSlice(visual, innerHeight).bottom);
+}
+
+/**
+ * Board pan + edit-bar position for the note (or ink) being typed.
+ *
+ * Phone / coarse: keep the caret in the top third of what the keyboard
+ * leaves, and put a slim bar above the note when that fits. If the
+ * remaining slice is too short, dock the bar just above the keyboard
+ * (`visible.bottom`) instead of parking a slab in the middle of the
+ * canvas. Desktop is the existing float-above / flip-below behaviour.
+ *
+ * `dy` is a screen-space delta to add to `panY`. The document scale
+ * stays 1 — only the board pans.
+ */
+export function planEditSession({ card, barW, barH, canvas, visible, phone }) {
+  const width = Number.isFinite(barW) ? barW : 0;
+  const height = Number.isFinite(barH) ? barH : 0;
+  const clipTop = Math.max(canvas.top, visible.top);
+  const clipBottom = Math.min(canvas.bottom, visible.bottom);
+  const clipH = clipBottom - clipTop;
+  const minTop = clipTop + 4;
+  const maxTop = clipBottom - height - 4;
+  const docked = Boolean(phone && clipH < height + 72);
+
+  const reserveTop = phone ? (docked ? 8 : height + 8) : 44;
+  const bandTop = clipTop + reserveTop;
+  const bandBottom = (docked ? clipBottom - height - 8 : clipBottom) - 12;
+  const bandH = bandBottom - bandTop;
+
+  let dy = 0;
+  if (phone) {
+    const targetTop = bandH > 0 ? bandTop + Math.min(bandH / 6, 20) : clipTop + 8;
+    const inBand = card.top >= bandTop - 6 && card.top <= bandTop + Math.max(32, bandH / 3);
+    const limit = (docked ? bandBottom : clipBottom) - 20;
+    if (!(inBand && card.top < limit)) dy = targetTop - card.top;
+  } else if (!(card.top >= bandTop && card.bottom <= bandBottom)) {
+    dy = card.bottom > bandBottom ? bandBottom - card.bottom : 0;
+    if (card.top + dy < bandTop) dy = bandTop - card.top;
+  }
+
+  const nextTop = card.top + dy;
+  const nextBottom = card.bottom + dy;
+  const above = nextTop - height - 8;
+  let top;
+  if (phone) {
+    top = !docked && above >= minTop ? above : clipBottom - height - 4;
+  } else {
+    top = above < minTop ? nextBottom + 8 : above;
+    top = clamp(top, minTop, Math.max(minTop, maxTop));
+  }
+
+  const minLeft = canvas.left + 4;
+  const maxLeft = Math.max(minLeft, canvas.right - width - 4);
+  const left = docked ? minLeft : clamp(card.left + (card.width || 0) / 2 - width / 2, minLeft, maxLeft);
+  return { dy, top, left, docked };
+}
+
 /** Rect intersection where touching edges count as a hit. */
 export function rectsIntersect(a, b) {
   return a.x <= b.x + b.w && b.x <= a.x + a.w && a.y <= b.y + b.h && b.y <= a.y + a.h;

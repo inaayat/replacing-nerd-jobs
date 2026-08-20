@@ -261,8 +261,9 @@
       </div>
     </main>
 
-    <!-- Tier 1 chrome: rides the note being edited, in screen space. Formatting
-         is its own group so it can drop to a second row on a phone. -->
+    <!-- Tier 1 chrome: rides the note being edited, in screen space. On a
+         phone the bar stays one slim row (format wraps only if it must) and
+         docks above the keyboard when there is no room above the note. -->
     <div class="sn-editbar" id="editbar" hidden role="toolbar" aria-label="Note actions">
       <button type="button" class="sn-eb-btn sn-eb-danger" id="eb-trash" aria-label="Delete note" title="Delete for good"></button>
       <button type="button" class="sn-eb-btn" id="eb-pin" aria-label="Pin note" title="Pin — survives a wipe"></button>

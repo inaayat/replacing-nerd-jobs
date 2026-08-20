@@ -26,6 +26,7 @@ import {
   headingTriggerFor,
   HREF_MAX,
   isLoneUrl,
+  keyboardInset,
   legendLabel,
   listTriggerFor,
   mergeStates,
@@ -36,6 +37,7 @@ import {
   normalizeNote,
   normalizeRich,
   normalizeState,
+  planEditSession,
   rectsIntersect,
   richFromNode,
   richToText,
@@ -44,6 +46,7 @@ import {
   stateToOps,
   textToRich,
   urlDomain,
+  visibleSlice,
   wipeTargets,
   worldToScreen,
   zoomAt,
@@ -842,6 +845,86 @@ function note(id, extra = {}) {
   const filtered = memorySections([inbox, filed], [note], { search: 'milk' });
   eq(filtered.cols.length, 1, 'a search hides empty memory collections');
   eq(filtered.cols[0].col.id, 'filed', 'the collection that still has a matching note remains');
+}
+
+// 21. Phone edit chrome — visualViewport slice, caret band, dock vs float
+{
+  const slice = visibleSlice({ offsetTop: 200, height: 360 }, 800);
+  eq(slice.top, 200, 'visibleSlice uses visualViewport.offsetTop');
+  eq(slice.bottom, 560, 'visibleSlice bottom is offset + height');
+  eq(keyboardInset({ offsetTop: 200, height: 360 }, 800), 240, 'keyboardInset is layout below the visual slice');
+  eq(keyboardInset(null, 800), 0, 'no visualViewport means no keyboard inset');
+
+  const canvas = { top: 80, left: 8, right: 382, bottom: 800 };
+  const desktop = planEditSession({
+    card: { top: 300, bottom: 400, left: 80, width: 220 },
+    barW: 200,
+    barH: 32,
+    canvas,
+    visible: { top: 0, bottom: 800 },
+    phone: false,
+  });
+  eq(desktop.dy, 0, 'desktop leaves a fully visible card unmoved');
+  eq(desktop.docked, false, 'desktop never docks');
+  eq(desktop.top, 260, 'desktop floats the bar above the card');
+
+  const desktopTop = planEditSession({
+    card: { top: 82, bottom: 160, left: 80, width: 220 },
+    barW: 200,
+    barH: 32,
+    canvas,
+    visible: { top: 0, bottom: 800 },
+    phone: false,
+  });
+  eq(desktopTop.dy, 42, 'desktop nudges a top-edge card down for the bar');
+  eq(desktopTop.top, 84, 'desktop then sits the bar on the canvas top');
+
+  const phoneKb = planEditSession({
+    card: { top: 400, bottom: 480, left: 80, width: 220 },
+    barW: 280,
+    barH: 36,
+    canvas,
+    visible: { top: 0, bottom: 360 },
+    phone: true,
+  });
+  assert(phoneKb.dy < 0, 'phone pans a mid-canvas note up above the keyboard');
+  assert(phoneKb.top + 36 <= 400 + phoneKb.dy, 'phone bar sits above the parked note');
+  eq(phoneKb.docked, false, 'phone floats the bar when the remaining slice is tall enough');
+  assert(400 + phoneKb.dy < 200, 'phone parks the caret in the top third of the remaining slice');
+
+  const alreadyUp = planEditSession({
+    card: { top: 140, bottom: 420, left: 80, width: 220 },
+    barW: 280,
+    barH: 36,
+    canvas,
+    visible: { top: 0, bottom: 360 },
+    phone: true,
+  });
+  eq(alreadyUp.dy, 0, 'phone does not require a tall note to fit above the keyboard');
+  eq(alreadyUp.docked, false, 'phone still floats the bar when the caret is already in the top band');
+
+  const iosScroll = planEditSession({
+    card: { top: 420, bottom: 500, left: 80, width: 220 },
+    barW: 280,
+    barH: 36,
+    canvas,
+    visible: { top: 200, bottom: 560 },
+    phone: true,
+  });
+  assert(iosScroll.dy < 0, 'phone counters a visualViewport.offsetTop scroll');
+  assert(420 + iosScroll.dy < 320, 'phone parks into the visual slice, not the layout viewport');
+  eq(iosScroll.docked, false, 'a 360 px visual slice still has room to float the bar');
+
+  const cramped = planEditSession({
+    card: { top: 50, bottom: 120, left: 80, width: 220 },
+    barW: 280,
+    barH: 36,
+    canvas,
+    visible: { top: 0, bottom: 90 },
+    phone: true,
+  });
+  eq(cramped.docked, true, 'phone docks when the keyboard leaves no room above the note');
+  eq(cramped.top, 50, 'docked bar sits just above the visual bottom, not mid-canvas');
 }
 
 if (failures) {
