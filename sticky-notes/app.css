@@ -733,9 +733,10 @@ html.sn-table-view #menu-fit { display: none !important; }
   padding: 3px 8px 3px 10px;
 }
 .sn-chip-wiki {
-  padding: 3px 8px 3px 0;
+  padding: 3px 10px 3px 4px;
   min-width: 18px;
   min-height: 18px;
+  border-left: 1px solid currentColor;
 }
 .sn-chip-wiki svg { width: 12px; height: 12px; }
 
@@ -1080,13 +1081,26 @@ html.sn-table-view #menu-fit { display: none !important; }
   max-width: calc(100vw - 16px);
 }
 .sn-wiki-format .sn-eb-btn { color: var(--cream); }
-.sn-mem-toolbar { padding: 0 0 4px; }
+.sn-mem-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  padding: 0 0 4px;
+}
 .sn-mem-newcol {
   padding: 4px 10px;
   min-height: 28px;
   font-size: 0.62rem;
   letter-spacing: 0.04em;
   border-color: var(--line);
+}
+.sn-mem-newcol-hint {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  line-height: 1.4;
+  color: var(--muted);
+  max-width: 28ch;
 }
 
 @media (min-width: 1100px) {
@@ -1414,7 +1428,7 @@ html.sn-table-view #menu-fit { display: none !important; }
 .sn-ab-icongrid[aria-pressed="true"] { background: var(--cream); color: var(--ink); }
 
 /* The collection control says what it is — the model is not guessable. */
-.sn-ab-collection { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.sn-ab-collection { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; min-width: 0; }
 
 .sn-ab-label {
   font-family: var(--mono);
@@ -1439,6 +1453,21 @@ html.sn-table-view #menu-fit { display: none !important; }
 }
 .sn-ab-name::placeholder { color: rgba(250, 243, 227, 0.5); }
 .sn-ab-name:focus { outline: none; border-color: var(--cream); }
+
+.sn-ab-page {
+  border: 1.5px solid var(--cream);
+  background: var(--cream);
+  color: var(--ink);
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 10px;
+  cursor: pointer;
+  min-height: 28px;
+  white-space: nowrap;
+}
 
 .sn-ab-file {
   border: 0;
@@ -1588,6 +1617,15 @@ html.sn-table-view #menu-fit { display: none !important; }
   border-bottom: 0;
 }
 
+.sn-mem-colhead-main {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
 .sn-mem-colname {
   font-family: var(--mono);
   font-size: 0.62rem;
@@ -1660,6 +1698,18 @@ html.sn-table-view #menu-fit { display: none !important; }
 
 .sn-mem-actions { display: inline-flex; gap: 2px; flex: none; margin-left: auto; }
 .sn-mem-colhead .sn-mem-actions { margin-left: auto; }
+
+/* Page is the way into the wiki — keep it on the collection name, not in a
+   hover-only or overflow cluster. Loose notes never get one. */
+.sn-mem-page {
+  opacity: 1;
+  border: 1.5px solid var(--ink);
+  background: var(--ink);
+  color: var(--cream);
+  padding: 5px 10px;
+  letter-spacing: 0.05em;
+}
+.sn-mem-page:hover { opacity: 1; background: var(--ink); filter: brightness(1.08); }
 
 /* Actions stay out of the way until the row is wanted. */
 .sn-mem-row .sn-mem-actions { opacity: 0; }
@@ -2065,10 +2115,12 @@ html.sn-table-view #menu-fit { display: none !important; }
   .sn-ab-swatch { width: 28px; height: 28px; }
   .sn-ab-iconbtn,
   .sn-ab-pin,
+  .sn-ab-page,
   .sn-ab-file,
   .sn-ab-delete,
   .sn-ab-name,
-  .sn-mem-action { min-height: 44px; }
+  .sn-mem-action,
+  .sn-mem-page { min-height: 44px; }
   .sn-mem-action { padding: 9px 12px; }
   .sn-mem-row { min-height: 44px; padding: 8px 2px; }
   .sn-ab-icongrid { width: 40px; height: 40px; }
@@ -2093,7 +2145,7 @@ html.sn-table-view #menu-fit { display: none !important; }
   .sn-wiki-notes-toggle,
   .sn-wiki-back { min-height: 44px; }
   .sn-wiki-back { width: 44px; }
-  .sn-chip-wiki { min-width: 28px; min-height: 28px; padding: 6px 8px; }
+  .sn-chip-wiki { min-width: 28px; min-height: 28px; padding: 6px 10px; }
   .sn-ink { font-size: 17px; }
 
   /* Toolbar targets match the 44 px the note bar uses. */
@@ -2116,6 +2168,8 @@ html.sn-table-view #menu-fit { display: none !important; }
   .sn-tab,
   .sn-menu-item,
   .sn-mem-action,
+  .sn-mem-page,
+  .sn-ab-page,
   .sn-mem-chip,
   .sn-navchip,
   .sn-guestbar-cta,

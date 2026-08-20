@@ -167,6 +167,13 @@
                   placeholder="Name these notes to group them…"
                   title="Naming a selection makes a collection you can file as one unit"
                 />
+                <button
+                  type="button"
+                  class="sn-ab-page"
+                  id="ab-page"
+                  hidden
+                  title="Open page"
+                >Open page</button>
               </span>
               <datalist id="collection-names"></datalist>
               <button type="button" class="sn-ab-file" id="ab-file" title="Send to memory — nothing is lost">File</button>
@@ -230,12 +237,19 @@
                 </select>
               </div>
               <p class="sn-mem-note">
-                A <b>collection</b> is a named group of notes. Select notes on the board, name them
-                in the bar at the bottom, then File — the whole group lands here together. Every
-                collection has a <b>page</b>.
+                Name notes as a collection (the board bar, or <b>+ New collection</b>), then open
+                <b>Page</b>. That is the wiki.
               </p>
               <div class="sn-mem-toolbar">
-                <button type="button" class="sn-btn sn-mem-newcol" id="mem-new-col">+ New collection</button>
+                <button
+                  type="button"
+                  class="sn-btn sn-mem-newcol"
+                  id="mem-new-col"
+                  title="Create a named group with its own page"
+                >+ New collection</button>
+                <span class="sn-mem-newcol-hint" id="mem-new-col-hint">
+                  Creates a named group with its own page
+                </span>
               </div>
               <div class="sn-mem-list" id="mem-list"></div>
               <div class="sn-mem-more">

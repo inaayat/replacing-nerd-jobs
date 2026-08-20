@@ -469,9 +469,9 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
       const wikiBtn = document.createElement('button');
       wikiBtn.type = 'button';
       wikiBtn.className = 'sn-chip-wiki';
-      wikiBtn.innerHTML = BOOK_SVG;
-      wikiBtn.setAttribute('aria-label', `Open page for ${col.name}`);
-      wikiBtn.title = `Open the page for “${col.name}”`;
+      wikiBtn.innerHTML = `${BOOK_SVG}<span>Page</span>`;
+      wikiBtn.setAttribute('aria-label', 'Page');
+      wikiBtn.title = 'Page';
       wikiBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         onOpenWiki?.(col.id);
@@ -582,6 +582,13 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     const shared = notes.every((n) => n.collectionId === colId) ? colId : null;
     const col = store.state.collections.find((c) => c.id === shared);
     els.abName.value = col ? col.name : '';
+    if (els.abPage) {
+      els.abPage.hidden = !col;
+      if (col) {
+        els.abPage.title = `Open the page for “${col.name}”`;
+        els.abPage.setAttribute('aria-label', `Open page for ${col.name}`);
+      }
+    }
     els.collectionNames.innerHTML = '';
     for (const c of store.state.collections) {
       const opt = document.createElement('option');
@@ -1770,6 +1777,14 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
   });
   onPress(els.abFile, fileSelection);
   onPress(els.abDelete, deleteSelection);
+  if (els.abPage) {
+    onPress(els.abPage, () => {
+      const notes = selectedNotes();
+      const colId = notes[0]?.collectionId;
+      const shared = notes.length && notes.every((n) => n.collectionId === colId) ? colId : null;
+      if (shared) onOpenWiki?.(shared);
+    });
+  }
 
   els.ebTrash.innerHTML = TRASH_SVG;
   els.ebPin.innerHTML = PIN_SVG;
