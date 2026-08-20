@@ -6,6 +6,107 @@ import { ratingStarBucket } from './billing.js';
 import { wireUserSuggest } from './user-suggest.js';
 
 let reloadLog;
+let logFiltersMq;
+
+function filterIconSvg() {
+  return `
+    <svg class="al-log-filter-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path fill="currentColor" d="M3 5.75A.75.75 0 0 1 3.75 5h16.5a.75.75 0 0 1 .53 1.28L14.5 12.4v5.85a.75.75 0 0 1-1.14.64l-3-1.8A.75.75 0 0 1 10 16.4v-4L3.22 6.28A.75.75 0 0 1 3 5.75Z"/>
+    </svg>
+  `;
+}
+
+function logFiltersMobile() {
+  return window.matchMedia('(max-width: 767px)').matches;
+}
+
+function logFiltersAreActive() {
+  const theater = document.getElementById('log-theater')?.value;
+  const format = document.getElementById('log-format')?.value;
+  const rating = document.getElementById('log-rating')?.value;
+  const includeHome = document.getElementById('log-include-home')?.getAttribute('aria-pressed') === 'true';
+  return Boolean(theater || format || rating || includeHome);
+}
+
+function syncLogFilterBtn() {
+  const btn = document.getElementById('log-filter-btn');
+  const dot = btn?.querySelector('.al-log-filter-dot');
+  if (!btn) return;
+  const active = logFiltersAreActive();
+  btn.classList.toggle('is-filtered', active);
+  btn.setAttribute('aria-label', active ? 'Filters (on)' : 'Filters');
+  if (dot) dot.hidden = !active;
+}
+
+function setLogFiltersOpen(open) {
+  const wrap = document.getElementById('log-filters');
+  const btn = document.getElementById('log-filter-btn');
+  const sheet = document.getElementById('log-filters-sheet');
+  if (!wrap || !btn) return;
+
+  const next = Boolean(open) && logFiltersMobile();
+  const wasOpen = wrap.classList.contains('is-open');
+  wrap.classList.toggle('is-open', next);
+  btn.setAttribute('aria-expanded', next ? 'true' : 'false');
+  document.body.classList.toggle('al-log-filters-open', next);
+
+  if (sheet) {
+    if (next) {
+      sheet.setAttribute('role', 'dialog');
+      sheet.setAttribute('aria-modal', 'true');
+      sheet.setAttribute('aria-labelledby', 'log-filters-title');
+    } else {
+      sheet.removeAttribute('role');
+      sheet.removeAttribute('aria-modal');
+      sheet.removeAttribute('aria-labelledby');
+    }
+  }
+
+  if (next) {
+    sheet?.setAttribute('tabindex', '-1');
+    sheet?.focus();
+  } else if (wasOpen && logFiltersMobile()) {
+    btn.focus();
+  }
+}
+
+function wireLogFilterSheet() {
+  const btn = document.getElementById('log-filter-btn');
+  const wrap = document.getElementById('log-filters');
+  const backdrop = document.getElementById('log-filters-backdrop');
+  const done = document.getElementById('log-filters-done');
+  if (!btn || !wrap) return;
+
+  const close = () => setLogFiltersOpen(false);
+
+  btn.addEventListener('click', () => {
+    const open = btn.getAttribute('aria-expanded') === 'true';
+    setLogFiltersOpen(!open);
+  });
+  backdrop?.addEventListener('click', close);
+  done?.addEventListener('click', close);
+
+  if (!logFiltersMq) {
+    logFiltersMq = window.matchMedia('(max-width: 767px)');
+    const onChange = () => {
+      if (!logFiltersMq.matches) setLogFiltersOpen(false);
+    };
+    if (typeof logFiltersMq.addEventListener === 'function') {
+      logFiltersMq.addEventListener('change', onChange);
+    } else if (typeof logFiltersMq.addListener === 'function') {
+      logFiltersMq.addListener(onChange);
+    }
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      const openWrap = document.getElementById('log-filters');
+      if (!openWrap?.classList.contains('is-open')) return;
+      e.preventDefault();
+      setLogFiltersOpen(false);
+    });
+  }
+
+  syncLogFilterBtn();
+}
 
 bootPage(async ({ root, auth }) => {
   if (!requireSignIn(auth, root)) return;
@@ -26,6 +127,7 @@ bootPage(async ({ root, auth }) => {
 async function loadLog(auth) {
   const main = document.getElementById('log-main');
   if (!main) return;
+  document.body.classList.remove('al-log-filters-open');
 
   const [{ watches }, invites] = await Promise.all([
     watchesApi.list(auth.token),
@@ -38,26 +140,43 @@ async function loadLog(auth) {
     <section class="al-panel al-panel--invites" id="showing-invites-panel" hidden></section>
     <section class="al-panel al-panel--log">
       <div class="al-toolbar al-toolbar--log">
-        <input class="al-input al-toolbar-search" id="log-search" type="search" placeholder="Search title or theater…" />
-        <select class="al-select al-toolbar-filter" id="log-theater">
-          <option value="">All theaters</option>
-          ${theaters.map((t) => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('')}
-        </select>
-        <select class="al-select al-toolbar-filter al-toolbar-filter--format" id="log-format">
-          <option value="">All formats</option>
-          ${formats.map((f) => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('')}
-        </select>
-        <select class="al-select al-toolbar-filter" id="log-rating">
-          <option value="">All ratings</option>
-          <option value="5">5★</option>
-          <option value="4">4★</option>
-          <option value="3">3★</option>
-          <option value="2">2★</option>
-          <option value="1">1★</option>
-          <option value="dnf">DNF</option>
-          <option value="unrated">Unrated</option>
-        </select>
-        <button type="button" class="al-toggle-btn" id="log-include-home" aria-pressed="false">Include watched at home</button>
+        <div class="al-log-search-row">
+          <input class="al-input al-toolbar-search" id="log-search" type="search" placeholder="Search title or theater…" />
+          <button type="button" class="al-log-filter-btn" id="log-filter-btn" aria-label="Filters" aria-expanded="false" aria-controls="log-filters" aria-haspopup="dialog">
+            ${filterIconSvg()}
+            <span class="al-log-filter-dot" hidden></span>
+          </button>
+        </div>
+        <div class="al-log-filters" id="log-filters">
+          <button type="button" class="al-log-filters-backdrop" id="log-filters-backdrop" tabindex="-1" aria-label="Close filters"></button>
+          <div class="al-log-filters-sheet" id="log-filters-sheet">
+            <div class="al-log-filters-head">
+              <h2 class="al-log-filters-title" id="log-filters-title">Filters</h2>
+              <button type="button" class="al-btn al-btn-primary" id="log-filters-done">Done</button>
+            </div>
+            <div class="al-log-filters-body">
+              <select class="al-select al-toolbar-filter" id="log-theater">
+                <option value="">All theaters</option>
+                ${theaters.map((t) => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('')}
+              </select>
+              <select class="al-select al-toolbar-filter al-toolbar-filter--format" id="log-format">
+                <option value="">All formats</option>
+                ${formats.map((f) => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('')}
+              </select>
+              <select class="al-select al-toolbar-filter" id="log-rating">
+                <option value="">All ratings</option>
+                <option value="5">5★</option>
+                <option value="4">4★</option>
+                <option value="3">3★</option>
+                <option value="2">2★</option>
+                <option value="1">1★</option>
+                <option value="dnf">DNF</option>
+                <option value="unrated">Unrated</option>
+              </select>
+              <button type="button" class="al-toggle-btn" id="log-include-home" aria-pressed="false">Include watched at home</button>
+            </div>
+          </div>
+        </div>
         <a href="/amc-a-lister/bulk-ratings.html" class="al-btn">Bulk edit ratings</a>
         <a href="/amc-a-lister/bulk-add.html" class="al-btn">Bulk add viewer</a>
         <span class="al-muted" id="log-count"></span>
@@ -118,7 +237,10 @@ async function loadLog(auth) {
       return true;
     });
     render();
+    syncLogFilterBtn();
   };
+
+  wireLogFilterSheet();
 
   includeHomeEl.addEventListener('click', () => {
     const next = !includeHomeOn();

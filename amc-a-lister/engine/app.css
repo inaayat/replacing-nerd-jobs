@@ -1912,6 +1912,20 @@ table.al-table {
   font-size: 0.78rem;
 }
 
+/* Desktop: search + filters stay inline in the toolbar flex wrap. */
+.al-log-search-row,
+.al-log-filters,
+.al-log-filters-sheet,
+.al-log-filters-body {
+  display: contents;
+}
+
+.al-log-filter-btn,
+.al-log-filters-backdrop,
+.al-log-filters-head {
+  display: none;
+}
+
 .al-bulk-ratings-list {
   display: flex;
   flex-direction: column;
@@ -3588,6 +3602,149 @@ table.al-table {
     flex: 1 1 auto;
   }
 
+  .al-log-search-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .al-toolbar--log .al-log-search-row .al-toolbar-search {
+    flex: 1 1 auto;
+    width: auto;
+    max-width: none;
+    min-width: 0;
+  }
+
+  .al-log-filter-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    align-self: stretch;
+    width: 40px;
+    min-height: 40px;
+    height: auto;
+    padding: 0;
+    border-radius: 8px;
+    border: 1px solid var(--al-line);
+    background: var(--al-white);
+    color: var(--al-text);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .al-log-filter-btn:hover {
+    border-color: var(--al-charcoal);
+  }
+
+  .al-log-filter-btn.is-filtered {
+    background: var(--al-black);
+    border-color: var(--al-black);
+    color: #fff;
+  }
+
+  .al-log-filter-icon {
+    width: 18px;
+    height: 18px;
+    display: block;
+  }
+
+  .al-log-filter-dot {
+    position: absolute;
+    display: block;
+    top: 6px;
+    right: 6px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--al-red);
+    box-shadow: 0 0 0 2px var(--al-white);
+  }
+
+  .al-log-filter-btn.is-filtered .al-log-filter-dot {
+    background: #fff;
+    box-shadow: 0 0 0 2px var(--al-black);
+  }
+
+  .al-log-filters {
+    display: none;
+  }
+
+  .al-log-filters.is-open {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+  }
+
+  .al-log-filters-backdrop {
+    display: block;
+    position: absolute;
+    inset: 0;
+    border: 0;
+    padding: 0;
+    background: rgba(28, 28, 28, 0.45);
+    cursor: pointer;
+  }
+
+  .al-log-filters-sheet {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    max-height: min(80vh, calc(100% - 24px));
+    overflow: auto;
+    padding: 16px;
+    border-radius: 16px;
+    background: var(--al-panel);
+    border: 1px solid var(--al-line);
+    box-shadow: 0 8px 28px rgba(28, 28, 28, 0.22);
+  }
+
+  .al-log-filters-sheet:focus {
+    outline: none;
+  }
+
+  .al-log-filters-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .al-log-filters-title {
+    margin: 0;
+    font-family: var(--al-font-display);
+    font-size: 1.35rem;
+    font-weight: 600;
+  }
+
+  .al-log-filters-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .al-toolbar--log .al-log-filters-body .al-toolbar-filter,
+  .al-toolbar--log .al-log-filters-body .al-toggle-btn {
+    flex: none;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+  }
+
+  .al-log-filters-body .al-toggle-btn {
+    grid-column: 1 / -1;
+    min-height: 40px;
+  }
+
   .al-mobile-nav {
     display: flex;
     position: fixed;
@@ -4589,11 +4746,13 @@ table.al-table {
   flex-wrap: wrap;
 }
 
-body.al-rank-comparing {
+body.al-rank-comparing,
+body.al-log-filters-open {
   overflow: hidden;
 }
 
-body.al-rank-comparing .al-mobile-nav {
+body.al-rank-comparing .al-mobile-nav,
+body.al-log-filters-open .al-mobile-nav {
   visibility: hidden;
   pointer-events: none;
 }
