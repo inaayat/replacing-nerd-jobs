@@ -380,17 +380,18 @@ export function createBoard({ store, els, showToast, onEdit }) {
       window.visualViewport?.removeEventListener('resize', onVisualResize);
       inkEditingId = null;
       endInkEdit = null;
-      const text = cancel ? ink.text : el.textContent.trim();
+      const current = inkById(id) || ink;
+      const text = cancel ? current.text : el.textContent.trim();
       if (!text) {
         store.dispatch([{ op: 'ink.delete', ids: [id] }]);
         return;
       }
-      if (text !== ink.text) {
+      if (text !== current.text) {
         store.dispatch([
-          { op: 'ink.upsert', ink: { ...ink, text, updatedAt: new Date().toISOString() } },
+          { op: 'ink.upsert', ink: { ...current, text, updatedAt: new Date().toISOString() } },
         ]);
       } else {
-        el.textContent = ink.text;
+        el.textContent = current.text;
       }
     };
     endInkEdit = finish;
@@ -398,7 +399,6 @@ export function createBoard({ store, els, showToast, onEdit }) {
     const onKey = (e) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
-        el.textContent = ink.text;
         finish(true);
       }
       if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) finish(false);
@@ -1127,7 +1127,6 @@ export function createBoard({ store, els, showToast, onEdit }) {
     if (inkEditingId) endInkEdit?.(false);
     editingId = id;
     const body = el.querySelector('.sn-card-body');
-    const blocks = noteBlocks(note);
     el.classList.add('is-editing');
     // Bold, bullets and numbers only — a note is not a document.
     body.contentEditable = 'true';
@@ -1178,23 +1177,29 @@ export function createBoard({ store, els, showToast, onEdit }) {
       endEdit = null;
       closeEditPopovers();
       editbar.hidden = true;
-      const rich = cancel ? blocks : readBody(body);
-      const text = cancel ? note.text : richToText(rich || []);
+      // Read the note back out of the store rather than trusting the snapshot
+      // taken when the edit opened: the colour, icon and pin all change from the
+      // bar *while* the note is open, and an upsert of the stale copy would
+      // quietly undo them.
+      const current = noteById(id) || note;
+      const stored = noteBlocks(current);
+      const rich = cancel ? stored : readBody(body);
+      const text = cancel ? current.text : richToText(rich || []);
       if (!text) {
         store.dispatch([{ op: 'note.delete', ids: [id] }]);
         return;
       }
       const stamp = JSON.stringify(rich);
-      if (text !== note.text || stamp !== JSON.stringify(blocks)) {
+      if (text !== current.text || stamp !== JSON.stringify(stored)) {
         bodyStamps.set(id, stamp);
         store.dispatch([
-          { op: 'note.upsert', note: { ...note, text, rich, updatedAt: new Date().toISOString() } },
+          { op: 'note.upsert', note: { ...current, text, rich, updatedAt: new Date().toISOString() } },
         ]);
       } else {
         // Nothing changed in the model, but the browser may have left its own
         // markup behind — repaint from the note so the DOM matches the store.
-        renderBody(body, blocks);
-        bodyStamps.set(id, JSON.stringify(blocks));
+        renderBody(body, stored);
+        bodyStamps.set(id, JSON.stringify(stored));
       }
       renderChips();
     };
