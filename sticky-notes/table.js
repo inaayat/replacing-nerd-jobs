@@ -14,6 +14,7 @@ import {
   colorHex,
   findFreeSlot,
   legendLabel,
+  noteCreateSize,
   noteBlocks,
   randomId,
   richToText,
@@ -360,13 +361,17 @@ export function createTable({ store, els, showToast, onViewCanvas }) {
   function createNote() {
     const existing = boardNotes();
     const rects = existing.map((n) => ({ x: n.x, y: n.y, w: n.w, h: n.h }));
-    const spot = findFreeSlot({ x: 0, y: 0, w: 2400, h: 1600 }, rects);
+    const phone = window.matchMedia('(pointer: coarse)').matches && window.innerWidth <= 720;
+    const size = noteCreateSize(phone);
+    const spot = findFreeSlot({ x: 0, y: 0, w: 2400, h: 1600 }, rects, size.w + 16, size.h + 24);
     const note = {
       id: randomId(),
       text: 'New note',
       colorKey: DEFAULT_COLOR_KEY,
       x: spot.x,
       y: spot.y,
+      w: size.w,
+      h: size.h,
     };
     focusId = note.id;
     store.dispatch([{ op: 'note.upsert', note }]);

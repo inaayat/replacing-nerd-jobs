@@ -6,7 +6,9 @@ import {
   GUEST_STORAGE_KEY,
   LEGEND_DEFAULTS,
   NOTE_H_DEFAULT,
+  NOTE_H_PHONE,
   NOTE_W_DEFAULT,
+  NOTE_W_PHONE,
   NOTE_W_MAX,
   NOTE_W_MIN,
   OPLOG_KEY,
@@ -25,9 +27,12 @@ import {
   fitViewport,
   headingTriggerFor,
   HREF_MAX,
+  defaultBoardView,
   isLoneUrl,
   keyboardInset,
+  keyboardLayout,
   legendLabel,
+  noteCreateSize,
   listTriggerFor,
   mergeStates,
   migrateLegacyStore,
@@ -37,6 +42,7 @@ import {
   normalizeNote,
   normalizeRich,
   normalizeState,
+  phoneNoteZoom,
   planEditSession,
   rectsIntersect,
   richFromNode,
@@ -511,6 +517,15 @@ function note(id, extra = {}) {
   eq(blank.status, 'board', 'a blank note is on the board');
   eq(blank.w, NOTE_W_DEFAULT, 'a blank note gets the default width');
   eq(blank.h, NOTE_H_DEFAULT, 'a blank note gets the default height');
+  eq(noteCreateSize(false).w, NOTE_W_DEFAULT, 'desktop create keeps the small card');
+  eq(noteCreateSize(false).h, NOTE_H_DEFAULT, 'desktop create keeps the short card');
+  eq(noteCreateSize(true).w, NOTE_W_PHONE, 'phone create is a wider sticky');
+  eq(noteCreateSize(true).h, NOTE_H_PHONE, 'phone create is a taller sticky');
+  assert(NOTE_W_PHONE > NOTE_W_DEFAULT, 'phone width is larger than desktop');
+  assert(NOTE_H_PHONE > NOTE_H_DEFAULT, 'phone height is larger than desktop');
+  const phoneBlank = blankNote({ ...noteCreateSize(true), colorKey: DEFAULT_COLOR_KEY });
+  eq(phoneBlank.w, NOTE_W_PHONE, 'blankNote honors the phone create width');
+  eq(phoneBlank.h, NOTE_H_PHONE, 'blankNote honors the phone create height');
   eq(blank.x, 120, 'a blank note keeps the slot it was given');
   assert(Boolean(blank.id), 'a blank note has an id to render and edit against');
   eq(noteBlocks(blank).length, 1, 'a blank note renders as one empty line');
@@ -847,13 +862,21 @@ function note(id, extra = {}) {
   eq(filtered.cols[0].col.id, 'filed', 'the collection that still has a matching note remains');
 }
 
-// 21. Phone edit chrome — visualViewport slice, caret band, dock vs float
+// 21. Phone edit chrome — keyboard is a layout inset; bar docks; no pan
 {
   const slice = visibleSlice({ offsetTop: 200, height: 360 }, 800);
   eq(slice.top, 200, 'visibleSlice uses visualViewport.offsetTop');
   eq(slice.bottom, 560, 'visibleSlice bottom is offset + height');
   eq(keyboardInset({ offsetTop: 200, height: 360 }, 800), 240, 'keyboardInset is layout below the visual slice');
   eq(keyboardInset(null, 800), 0, 'no visualViewport means no keyboard inset');
+
+  const kb = keyboardLayout({ offsetTop: 200, height: 360 }, 800);
+  eq(kb.height, 360, 'keyboardLayout height is the visual slice');
+  eq(kb.offsetTop, 200, 'keyboardLayout keeps visualViewport.offsetTop');
+  eq(kb.inset, 240, 'keyboardLayout inset is layout below the slice');
+  eq(kb.active, true, 'a 240 px keyboard is an active inset');
+  eq(keyboardLayout(null, 800).active, false, 'no visualViewport means no layout inset');
+  eq(keyboardLayout({ offsetTop: 0, height: 790 }, 800).active, false, 'a tiny chrome shrink is not a keyboard');
 
   const canvas = { top: 80, left: 8, right: 382, bottom: 800 };
   const desktop = planEditSession({
@@ -887,10 +910,10 @@ function note(id, extra = {}) {
     visible: { top: 0, bottom: 360 },
     phone: true,
   });
-  assert(phoneKb.dy < 0, 'phone pans a mid-canvas note up above the keyboard');
-  assert(phoneKb.top + 36 <= 400 + phoneKb.dy, 'phone bar sits above the parked note');
-  eq(phoneKb.docked, false, 'phone floats the bar when the remaining slice is tall enough');
-  assert(400 + phoneKb.dy < 200, 'phone parks the caret in the top third of the remaining slice');
+  eq(phoneKb.dy, 0, 'phone never pans the camera for the keyboard');
+  eq(phoneKb.docked, true, 'phone docks the slim bar on the remaining canvas');
+  eq(phoneKb.top, 320, 'phone bar sits just above the visual bottom');
+  eq(phoneKb.left, 12, 'docked bar starts at the canvas left');
 
   const alreadyUp = planEditSession({
     card: { top: 140, bottom: 420, left: 80, width: 220 },
@@ -900,8 +923,9 @@ function note(id, extra = {}) {
     visible: { top: 0, bottom: 360 },
     phone: true,
   });
-  eq(alreadyUp.dy, 0, 'phone does not require a tall note to fit above the keyboard');
-  eq(alreadyUp.docked, false, 'phone still floats the bar when the caret is already in the top band');
+  eq(alreadyUp.dy, 0, 'phone does not chase a note that is already high');
+  eq(alreadyUp.docked, true, 'phone still docks when the caret is already in view');
+  eq(alreadyUp.top, 320, 'phone bar stays at the remaining-canvas bottom');
 
   const iosScroll = planEditSession({
     card: { top: 420, bottom: 500, left: 80, width: 220 },
@@ -911,9 +935,9 @@ function note(id, extra = {}) {
     visible: { top: 200, bottom: 560 },
     phone: true,
   });
-  assert(iosScroll.dy < 0, 'phone counters a visualViewport.offsetTop scroll');
-  assert(420 + iosScroll.dy < 320, 'phone parks into the visual slice, not the layout viewport');
-  eq(iosScroll.docked, false, 'a 360 px visual slice still has room to float the bar');
+  eq(iosScroll.dy, 0, 'phone does not counter visualViewport.offsetTop with a pan');
+  eq(iosScroll.docked, true, 'phone docks into the visual slice');
+  eq(iosScroll.top, 520, 'docked bar uses visible.bottom, not the layout viewport');
 
   const cramped = planEditSession({
     card: { top: 50, bottom: 120, left: 80, width: 220 },
@@ -923,8 +947,31 @@ function note(id, extra = {}) {
     visible: { top: 0, bottom: 90 },
     phone: true,
   });
-  eq(cramped.docked, true, 'phone docks when the keyboard leaves no room above the note');
+  eq(cramped.docked, true, 'phone docks when the remaining slice is short');
   eq(cramped.top, 50, 'docked bar sits just above the visual bottom, not mid-canvas');
+}
+
+// 22. Phone board-view default and note zoom
+{
+  eq(defaultBoardView(null, { coarse: true, width: 390 }), 'table', 'unset phone view is the table');
+  eq(defaultBoardView(undefined, { coarse: true, width: 720 }), 'table', 'unset coarse 720 is the table');
+  eq(defaultBoardView(null, { coarse: false, width: 390 }), 'canvas', 'unset desktop-pointer stays canvas even if narrow');
+  eq(defaultBoardView(null, { coarse: true, width: 1024 }), 'canvas', 'unset coarse tablet/desktop width stays canvas');
+  eq(defaultBoardView('canvas', { coarse: true, width: 390 }), 'canvas', 'a stored canvas pick wins on the phone');
+  eq(defaultBoardView('table', { coarse: false, width: 1440 }), 'table', 'a stored table pick wins on desktop');
+  eq(defaultBoardView('nope', { coarse: true, width: 390 }), 'table', 'garbage stored value is treated as unset');
+
+  const tiny = phoneNoteZoom({ zoom: 1, noteW: 220, viewW: 390, minScreenW: 260 });
+  eq(tiny.changed, true, 'a 220 px card at zoom 1 is lifted on a phone');
+  assert(tiny.zoom > 1, 'phone zoom rises so the card is tap-sized');
+  assert(220 * tiny.zoom >= 260 - 0.01, 'lifted card meets the min on-screen width');
+
+  const already = phoneNoteZoom({ zoom: 1, noteW: 288, viewW: 390, minScreenW: 260 });
+  eq(already.changed, false, 'a phone-sized card at zoom 1 is left alone');
+  eq(already.zoom, 1, 'phone-sized card keeps zoom 1');
+
+  const desktopZoom = phoneNoteZoom({ zoom: 1, noteW: 220, viewW: 1200, minScreenW: 260 });
+  assert(desktopZoom.zoom <= 1.2, 'wide viewports do not explode the zoom');
 }
 
 if (failures) {

@@ -30,11 +30,28 @@ html, body {
   line-height: 1.5;
 }
 
-/* Phone editing: iOS must not scroll or scale the document. The board pans. */
+/* Phone editing: iOS must not scroll or scale the document. */
 html.sn-editing,
 html.sn-editing body {
   overflow: hidden;
   overscroll-behavior: none;
+}
+
+/* Keyboard is a layout inset: the shell fills the visual viewport, so the
+   dotted canvas is the remaining space above the keys. No camera pan. */
+html.sn-kb-inset,
+html.sn-kb-inset body {
+  height: var(--sn-vv-height);
+  min-height: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+html.sn-kb-inset body {
+  position: fixed;
+  top: var(--sn-vv-top, 0px);
+  left: 0;
+  right: 0;
+  width: 100%;
 }
 
 /* The board is the page: column shell, no page scroll, canvas takes the rest. */

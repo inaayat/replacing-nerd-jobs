@@ -39,6 +39,8 @@ import {
   keyboardInset as visualKeyboardInset,
   legendLabel,
   noteBlocks,
+  noteCreateSize,
+  phoneNoteZoom,
   planEditSession,
   randomId,
   rectsIntersect,
@@ -87,6 +89,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
   let lastPointerType = 'mouse';
 
   const coarse = () => window.matchMedia('(pointer: coarse)').matches;
+  const phone = () => coarse() && window.innerWidth <= 720;
 
   // ------------------------------------------------------------------ helpers
 
@@ -628,6 +631,11 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
 
   /** Keep the docked bar above a phone keyboard while the collection input is live. */
   function liftActionBar() {
+    // When the keyboard is a layout inset the canvas already ends above it.
+    if (document.documentElement.classList.contains('sn-kb-inset')) {
+      actionbar.style.bottom = '';
+      return;
+    }
     const lift = document.activeElement === els.abName ? keyboardInset() : 0;
     actionbar.style.bottom = lift ? `${lift + 12}px` : '';
   }
@@ -898,30 +906,52 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
   }
 
   /**
-   * Keep the note being typed into on screen. On touch the keyboard claims the
-   * bottom half, so the note is pulled into the top third of what is left.
-   * The page scale stays 1 — only the board pans.
+   * Keep the note being typed into on screen. Desktop may nudge the camera
+   * so the floating bar has room. Phone never pans — the keyboard is a
+   * layout inset, and the slim bar docks at the bottom of what is left.
    */
   function revealCard(el) {
-    const barH = !editbar.hidden && editingId ? editbar.offsetHeight || 32 : 0;
-    const plan = editSessionPlan(el, barH);
-    if (plan.dy) {
-      vp.panY += plan.dy;
-      applyViewport();
-      saveViewport();
+    if (!phone()) {
+      const barH = !editbar.hidden && editingId ? editbar.offsetHeight || 32 : 0;
+      const plan = editSessionPlan(el, barH);
+      if (plan.dy) {
+        vp.panY += plan.dy;
+        applyViewport();
+        saveViewport();
+      }
     }
     if (!editbar.hidden && editingId) positionEditBar();
+  }
+
+  /** On a phone, lift a postage-stamp card to a usable on-screen size. */
+  function fitPhoneNote(el) {
+    if (!phone() || !el) return;
+    const note = noteById(el.dataset.id);
+    const r = viewport.getBoundingClientRect();
+    const plan = phoneNoteZoom({
+      zoom: vp.zoom,
+      noteW: note?.w || el.offsetWidth,
+      viewW: r.width,
+    });
+    if (!plan.changed) return;
+    const card = el.getBoundingClientRect();
+    const ax = card.left - r.left + card.width / 2;
+    const ay = card.top - r.top + Math.min(card.height / 2, 48);
+    vp = zoomAt(vp, { x: ax, y: ay }, plan.zoom / vp.zoom);
+    applyViewport();
+    saveViewport();
   }
 
   // ------------------------------------------------------------------ create + edit
 
   function createNote({ text = '', at = null, sourceUrl = null } = {}) {
+    const size = noteCreateSize(phone());
     const region = viewportWorldRect();
     const rects = boardNotes().map(noteRect);
-    const spot = at || findFreeSlot(region, rects);
+    const spot = at || findFreeSlot(region, rects, size.w + 16, size.h + 24);
     // Every new note starts as a light grey card; colour is something you
     // choose, not something you have to undo.
-    const fields = { colorKey: DEFAULT_COLOR_KEY, x: spot.x, y: spot.y };
+    const fields = { colorKey: DEFAULT_COLOR_KEY, x: spot.x, y: spot.y, w: size.w, h: size.h };
     // Nothing to type over: a note you are about to write in arrives blank.
     if (!text) {
       startDraft(fields);
@@ -954,6 +984,8 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     draft = blankNote(fields);
     renderCard(draft);
     renderEmpty();
+    const el = cardEls.get(draft.id);
+    if (el) fitPhoneNote(el);
     startEditing(draft.id);
   }
 
@@ -1011,6 +1043,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     el.classList.add('is-editing');
     setEditingChrome(true);
     renderEditBar();
+    fitPhoneNote(el);
     revealCard(el);
 
     const onVisualResize = () => {
@@ -1422,7 +1455,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     if (lastTap && now - lastTap.t < DOUBLE_TAP_MS && dist(lastTap, { x: e.clientX, y: e.clientY }) < DOUBLE_TAP_PX) {
       lastTap = null;
       const p = toWorld(e);
-      createNote({ at: { x: p.x - 110, y: p.y - 24 } });
+      createNote({ at: { x: p.x - noteCreateSize(phone()).w / 2, y: p.y - 24 } });
       return;
     }
     lastTap = { t: now, x: e.clientX, y: e.clientY };
@@ -1551,7 +1584,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
       return;
     }
     const p = toWorld(e);
-    createNote({ at: { x: p.x - 110, y: p.y - 24 } });
+    createNote({ at: { x: p.x - noteCreateSize(phone()).w / 2, y: p.y - 24 } });
   });
 
   // ------------------------------------------------------------------ zoom controls

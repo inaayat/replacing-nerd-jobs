@@ -26,6 +26,8 @@ import {
   PIN_SVG,
   TAG_SVG,
   TRASH_SVG,
+  defaultBoardView,
+  keyboardLayout,
   stateIsEmpty,
   stateToOps,
 } from './notes.js';
@@ -226,7 +228,13 @@ function guideGroups() {
       title: 'Toolbar',
       rows: [
         { glyph: '+', name: 'Add a note', text: 'Drops a blank note in the first free space and opens it for typing. In the table view it creates a row and focuses it.' },
-        { glyph: '▦', name: 'Canvas or table', text: 'The same board notes, as cards or as a list. Switching does not move or file anything.' },
+        {
+          glyph: '▦',
+          name: 'Canvas or table',
+          text: touch
+            ? 'Same notes, as a list or as cards. The table is the default for writing; switch to the canvas to move notes, write on the board, or zoom.'
+            : 'The same board notes, as cards or as a list. Switching does not move or file anything.',
+        },
         {
           svg: PEN_SVG,
           name: 'Write on the board',
@@ -303,8 +311,8 @@ function guideGroups() {
       title: touch ? 'Touch' : 'Mouse and keyboard',
       rows: touch
         ? [
-            { glyph: '⇢', name: 'Tap a note', text: 'Types into it, right where you tapped.' },
-            { glyph: '⇲', name: 'Drag the board', text: 'Pans. Pinch with two fingers to zoom.' },
+            { glyph: '⇢', name: 'Tap a note', text: 'Types into it. Drag past a small slop to move it.' },
+            { glyph: '⇲', name: 'Drag a note or the board', text: 'A note moves; empty board pans. Pinch with two fingers to zoom.' },
             { glyph: '⏱', name: 'Long-press a note', text: 'Starts a selection — then tap notes to add, and tap the board when you are done.' },
             { glyph: '⊕', name: 'Double-tap the board', text: 'Makes a new note there.' },
           ]
@@ -384,7 +392,7 @@ const hintText = $('#hint-text');
 
 function hintCopy() {
   return coarse()
-    ? 'Tap a note to type · drag the board to pan · pinch to zoom · long-press to select'
+    ? 'Tap to type · drag to move · table is the default for writing'
     : 'Click a note to type · drag it to move · select a few and name them to make a collection';
 }
 
@@ -682,7 +690,10 @@ async function init() {
 
   let tab = readLocal(VIEW_KEY) === 'memory' ? 'memory' : 'board';
   let collapsed = readLocal(SIDEBAR_KEY) === 'collapsed';
-  let boardView = readLocal(BOARD_VIEW_KEY) === 'table' ? 'table' : 'canvas';
+  let boardView = defaultBoardView(readLocal(BOARD_VIEW_KEY), {
+    coarse: coarse(),
+    width: window.innerWidth,
+  });
 
   const table = createTable({
     store,
@@ -812,7 +823,30 @@ async function init() {
     showToast('Notes from the extension were added to your board');
   });
 
+  function applyKeyboardInset() {
+    const html = document.documentElement;
+    const onPhone = coarse() && window.innerWidth <= 720;
+    const layout = keyboardLayout(window.visualViewport, window.innerHeight);
+    if (!onPhone || !layout.active) {
+      if (!html.classList.contains('sn-kb-inset')) return;
+      html.classList.remove('sn-kb-inset');
+      html.style.removeProperty('--sn-vv-height');
+      html.style.removeProperty('--sn-vv-top');
+      board.relayout();
+      return;
+    }
+    html.style.setProperty('--sn-vv-height', `${Math.round(layout.height)}px`);
+    html.style.setProperty('--sn-vv-top', `${Math.round(layout.offsetTop)}px`);
+    html.classList.add('sn-kb-inset');
+    board.relayout();
+  }
+
+  window.visualViewport?.addEventListener('resize', applyKeyboardInset);
+  window.visualViewport?.addEventListener('scroll', applyKeyboardInset);
+  window.addEventListener('resize', applyKeyboardInset);
+
   applyLayout();
+  applyKeyboardInset();
   if (readLocal(HINTS_KEY) !== 'dismissed') showHints();
 
   window.addEventListener('hashchange', () => {
