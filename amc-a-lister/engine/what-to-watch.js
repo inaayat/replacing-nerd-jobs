@@ -106,7 +106,7 @@ async function loadPage(auth) {
         <input class="al-input al-toolbar-search" id="wtw-search" type="search" placeholder="Search title or notes…" />
         <span class="al-muted" id="wtw-filter-count"></span>
       </div>
-      <div class="al-log-list-wrap" id="watchlist-list" data-wtw-view="coming-soon"></div>
+      <div class="al-log-list-wrap" id="watchlist-list" data-wtw-list-view="coming-soon"></div>
     </section>
   `;
 
@@ -157,7 +157,7 @@ async function loadPage(auth) {
     if (soonCountEl) soonCountEl.textContent = String(soon.length);
     if (homeCountEl) homeCountEl.textContent = String(home.length);
     if (countEl) countEl.textContent = String(viewItems.length);
-    if (listWrap) listWrap.dataset.wtwView = state.view;
+    if (listWrap) listWrap.dataset.wtwListView = state.view;
 
     if (summaryEl) {
       const parts = [];
@@ -205,12 +205,17 @@ async function loadPage(auth) {
     renderList();
   });
 
-  document.querySelectorAll('[data-wtw-view]').forEach((btn) => {
+  // Scope to the segment buttons: a bare [data-wtw-view] query would also match
+  // the list wrapper, so every tap inside the list would run this handler and
+  // clear expandedId right after the row expanded it.
+  const viewButtons = () => document.querySelectorAll('.al-segment-btn[data-wtw-view]');
+
+  viewButtons().forEach((btn) => {
     btn.addEventListener('click', () => {
       state.view = btn.dataset.wtwView;
       state.expandedId = null;
       state.editingId = null;
-      document.querySelectorAll('[data-wtw-view]').forEach((b) => {
+      viewButtons().forEach((b) => {
         const active = b.dataset.wtwView === state.view;
         b.classList.toggle('is-active', active);
         b.setAttribute('aria-selected', active ? 'true' : 'false');

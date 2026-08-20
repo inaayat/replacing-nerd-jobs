@@ -2,6 +2,7 @@
  * Pure-function tests for A-Lister watchlist release sorting.
  * Run: node scripts/test-alist-watchlist-sort.mjs
  */
+import { readFileSync } from 'node:fs';
 import {
   sortAlreadyOut,
   sortComingSoon,
@@ -212,6 +213,30 @@ assert(expandedHome.includes('Watch at home'), 'Watch at Home keeps its badge wh
 const collapsedAgain = watchlistLogTableHtml(expandItems, detailsState({ expandedId: null }), { view: 'coming-soon' });
 assert(!collapsedAgain.includes('is-expanded'), 'clearing expandedId collapses Coming Soon again');
 assert(!collapsedAgain.includes('al-log-detail'), 'collapsed Coming Soon hides the detail panel');
+
+// The row markup above was already right; expand still did nothing because the
+// Coming Soon / Watch at Home tab handler was bound with a bare [data-wtw-view]
+// query that also matched the list wrapper. Every tap inside the list therefore
+// ran the tab handler, which sets expandedId = null and re-renders.
+const wtwSource = readFileSync(new URL('../amc-a-lister/engine/what-to-watch.js', import.meta.url), 'utf8');
+
+const listWrapTag = wtwSource.match(/<div[^>]*id="watchlist-list"[^>]*>/)?.[0] || '';
+assert(listWrapTag !== '', 'what-to-watch renders a #watchlist-list wrapper');
+const wrapDataAttrs = [...listWrapTag.matchAll(/\s(data-[\w-]+)=/g)].map((m) => m[1]);
+
+const bareAttrSelectors = [...wtwSource.matchAll(/querySelectorAll\('\[(data-[\w-]+)\]'\)/g)].map((m) => m[1]);
+for (const attr of bareAttrSelectors) {
+  assert(
+    !wrapDataAttrs.includes(attr),
+    `unscoped [${attr}] query also matches the row list wrapper, so list taps run that handler`,
+  );
+}
+
+const uiSource = readFileSync(new URL('../amc-a-lister/engine/watchlist-ui.js', import.meta.url), 'utf8');
+assert(
+  /wireWatchlistRowExpand\(listEl, toggleExpand\);/.test(uiSource),
+  'watchlist rows rebind expand after every render, like the watch log',
+);
 
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
