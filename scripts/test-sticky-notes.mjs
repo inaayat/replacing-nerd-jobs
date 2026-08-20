@@ -3,12 +3,18 @@
 import {
   COLOR_KEYS,
   DEFAULT_COLOR_KEY,
+  GUEST_STORAGE_KEY,
   LEGEND_DEFAULTS,
+  NOTE_H_DEFAULT,
+  NOTE_W_DEFAULT,
   NOTE_W_MAX,
   NOTE_W_MIN,
+  OPLOG_KEY,
+  STORAGE_KEY,
   applyOps,
   arrowEndpoints,
   bbox,
+  blankNote,
   colorHex,
   emptyState,
   findFreeSlot,
@@ -26,6 +32,8 @@ import {
   richFromNode,
   richToText,
   screenToWorld,
+  stateIsEmpty,
+  stateToOps,
   textToRich,
   urlDomain,
   wipeTargets,
@@ -469,6 +477,103 @@ function note(id, extra = {}) {
   eq(merged.ink.find((i) => i.id === 'i1').text, 'new', 'newer ink wins the merge');
   eq(merged.ink.length, 2, 'unknown ink ids append');
   eq(normalizeState({}).ink.length, 0, 'a state with no ink normalizes to an empty list');
+}
+
+// 17. a new note is blank — the card being composed is not a note yet
+{
+  const blank = blankNote({ colorKey: DEFAULT_COLOR_KEY, x: 120, y: 48 });
+  eq(blank.text, '', 'a blank note carries no placeholder text');
+  eq(blank.rich, null, 'a blank note has no body');
+  eq(blank.colorKey, DEFAULT_COLOR_KEY, 'a blank note is already the default grey');
+  eq(blank.status, 'board', 'a blank note is on the board');
+  eq(blank.w, NOTE_W_DEFAULT, 'a blank note gets the default width');
+  eq(blank.h, NOTE_H_DEFAULT, 'a blank note gets the default height');
+  eq(blank.x, 120, 'a blank note keeps the slot it was given');
+  assert(Boolean(blank.id), 'a blank note has an id to render and edit against');
+  eq(noteBlocks(blank).length, 1, 'a blank note renders as one empty line');
+  eq(noteBlocks(blank)[0].spans.length, 0, 'that line holds nothing');
+
+  // The store still refuses it: text is what makes a note real, which is why
+  // the board keeps the draft to itself until the first character lands.
+  eq(applyOps(emptyState(), [{ op: 'note.upsert', note: blank }]).notes.length, 0,
+    'upserting a blank note stores nothing');
+  const typed = applyOps(emptyState(), [
+    { op: 'note.upsert', note: { ...blank, text: 'first words' } },
+  ]);
+  eq(typed.notes.length, 1, 'the same note stores once it has text');
+  eq(typed.notes[0].colorKey, DEFAULT_COLOR_KEY, 'the colour chosen while composing survives');
+  eq(typed.notes[0].id, blank.id, 'and it keeps the id the card was drawn with');
+}
+
+// 18. mass delete — a selection discarded, not filed, and undoable
+{
+  let s = state(note('a'), note('b'), note('c', { pinned: true }), note('keep'));
+  s = applyOps(s, [
+    { op: 'arrow.create', id: 'ar1', fromId: 'a', toId: 'b' },
+    { op: 'arrow.create', id: 'ar2', fromId: 'b', toId: 'keep' },
+  ]);
+  const selection = ['a', 'b', 'c'];
+  const doomed = s.notes.filter((n) => selection.includes(n.id));
+  const gone = new Set(selection);
+  const orphaned = s.arrows.filter((a) => gone.has(a.fromId) || gone.has(a.toId));
+  const deleted = applyOps(s, [{ op: 'note.delete', ids: selection }]);
+  eq(deleted.notes.length, 1, 'every selected note is removed at once');
+  eq(deleted.notes[0].id, 'keep', 'the unselected note is untouched');
+  assert(!deleted.notes.some((n) => n.status === 'memory'), 'a mass delete files nothing to memory');
+  assert(
+    !applyOps(s, [{ op: 'note.delete', ids: selection }]).notes.some((n) => n.pinned),
+    'a pinned note in the selection goes too — this is not a wipe',
+  );
+  eq(deleted.arrows.length, 0, 'arrows into and out of the deleted notes go with them');
+
+  const undone = applyOps(deleted, [
+    ...doomed.map((n) => ({ op: 'note.upsert', note: n })),
+    ...orphaned.map((a) => ({ op: 'arrow.create', id: a.id, fromId: a.fromId, toId: a.toId })),
+  ]);
+  eq(undone.notes.length, 4, 'undo brings the whole selection back');
+  eq(undone.arrows.length, 2, 'undo redraws every arrow that died with it');
+  assert(undone.notes.find((n) => n.id === 'c').pinned, 'undo restores the pin');
+}
+
+// 19. the guest hand-off — a signed-out board replayed into an account
+{
+  assert(GUEST_STORAGE_KEY !== STORAGE_KEY, 'a guest board is not the account mirror');
+  assert(GUEST_STORAGE_KEY !== OPLOG_KEY, 'and it is not the op queue either');
+
+  assert(stateIsEmpty(emptyState()), 'an untouched board is empty');
+  assert(stateIsEmpty(null), 'so is no board at all');
+  assert(!stateIsEmpty(state(note('a'))), 'one note is not empty');
+  assert(
+    !stateIsEmpty(applyOps(emptyState(), [{ op: 'ink.upsert', ink: { id: 'i', text: 'label' } }])),
+    'board ink alone is worth keeping too',
+  );
+
+  let guest = state(
+    note('g1', { colorKey: 'c1', iconKey: 'idea', x: 40, y: 60, pinned: true }),
+    note('g2'),
+    note('g3'),
+    { op: 'collection.create', id: 'col', name: 'Guest trip' },
+    { op: 'ink.upsert', ink: { id: 'i1', text: 'over here', x: 12, y: 8 } },
+    { op: 'legend.set', kind: 'color', key: 'c1', label: 'Urgent' },
+  );
+  guest = applyOps(guest, [
+    { op: 'collection.assign', ids: ['g2', 'g3'], collectionId: 'col' },
+    { op: 'arrow.create', id: 'ar1', fromId: 'g1', toId: 'g2' },
+    { op: 'file', collectionId: 'col', ids: ['g2', 'g3'], ts: '2025-09-09T00:00:00.000Z' },
+  ]);
+
+  const adopted = applyOps(emptyState(), stateToOps(guest));
+  const shape = (st) => JSON.stringify({
+    notes: st.notes.map((n) => [n.id, n.text, n.colorKey, n.iconKey, n.status, n.collectionId, n.pinned, n.x]),
+    collections: st.collections.map((c) => [c.id, c.name, c.status]),
+    arrows: st.arrows.map((a) => [a.fromId, a.toId]),
+    ink: (st.ink || []).map((i) => [i.id, i.text, i.x]),
+    legend: st.legend,
+  });
+  eq(shape(adopted), shape(guest), 'replaying a guest board reproduces it exactly');
+  // Replaying twice is what a double sign-in would do, and it must not clone.
+  eq(applyOps(adopted, stateToOps(guest)).notes.length, guest.notes.length, 'a replay is idempotent');
+  eq(applyOps(adopted, stateToOps(guest)).arrows.length, 1, 'and draws no duplicate arrows');
 }
 
 // misc: URL helpers

@@ -1,22 +1,41 @@
 /**
- * Sticky Notes boot: auth gate → store → board + memory + chrome.
+ * Sticky Notes boot: auth → store → board + memory + chrome.
+ *
+ * Signing in is what saves a board, not what opens one: a signed-out visitor
+ * gets the same app over a local-only store (sync.js `guest`), told plainly
+ * that nothing here reaches an account, and offered the chance to keep those
+ * notes the first time they do sign in.
  *
  * Layout has one breakpoint that matters. At ≥1100px memory is a permanent
  * right-hand sidebar and the Board/Memory tabs are pointless, so they go away;
  * below that memory is a tab and the board owns the whole canvas.
  */
 import { initAuth, wireAuthLink, loginUrl } from './engine/auth.js';
-import { createStore } from './sync.js';
+import { clearGuestState, createStore, readGuestState } from './sync.js';
 import { createBoard } from './board.js';
 import { createMemory } from './memory.js';
 import { drainPendingImport } from './extension-bridge.js';
-import { BOLD_SVG, BULLET_LIST_SVG, PEN_SVG, PIN_SVG, TAG_SVG, TRASH_SVG } from './notes.js';
+import {
+  BOLD_SVG,
+  BULLET_LIST_SVG,
+  PEN_SVG,
+  PIN_SVG,
+  TAG_SVG,
+  TRASH_SVG,
+  stateIsEmpty,
+  stateToOps,
+} from './notes.js';
 
 const $ = (sel) => document.querySelector(sel);
 
 const HINTS_KEY = 'sticky-notes-hints-v1';
 const SIDEBAR_KEY = 'sticky-notes-sidebar';
 const VIEW_KEY = 'sticky-notes-view';
+const GUESTBAR_KEY = 'sticky-notes-guestbar';
+
+// Set at boot; the guide and the empty state both have something extra to say
+// when the board cannot be saved.
+let guestMode = false;
 
 // Home-screen install: iOS reports it on navigator, everyone else in CSS.
 if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
@@ -196,7 +215,7 @@ function guideGroups() {
     {
       title: 'Toolbar',
       rows: [
-        { glyph: '+', name: 'New note', text: 'Drops a note in the first free space and opens it for typing.' },
+        { glyph: '+', name: 'Add a note', text: 'Drops a blank note in the first free space and opens it for typing.' },
         {
           svg: PEN_SVG,
           name: 'Write on the board',
@@ -205,10 +224,17 @@ function guideGroups() {
             : 'Then click the board to write there (or press T). Board text is scaffolding — labels, headings, a word between two arrows. Wiping the board removes it; it never goes to memory.',
         },
         touch
-          ? { glyph: '⋯', name: 'More', text: 'Fit every note on screen, or wipe the board.' }
+          ? { glyph: '⋯', name: 'More', text: 'Select every note, fit them all on screen, or wipe the board.' }
           : { glyph: '±', name: 'Zoom', text: 'Ctrl/⌘ + scroll does the same. The middle button fits every note on screen.' },
+        touch
+          ? null
+          : {
+              glyph: '⧉',
+              name: 'Select all',
+              text: 'Every note on the board at once (⌘/Ctrl+A). File them to memory, or Delete them for good.',
+            },
         { glyph: '?', name: 'This guide', text: 'Also brings the board hint back.' },
-      ],
+      ].filter(Boolean),
     },
     {
       title: 'On the note you are editing',
@@ -231,12 +257,19 @@ function guideGroups() {
       ],
     },
     {
-      title: 'Collections',
+      title: 'A selection',
       rows: [
         {
           svg: TAG_SVG,
           name: 'Group notes under a name',
           text: 'Select a few notes, type a name in the bar at the bottom of the board, and they become a collection. File it and the whole group moves to memory together — nothing is deleted, and anything can come back.',
+        },
+        {
+          svg: TRASH_SVG,
+          name: 'Delete the selection',
+          text: touch
+            ? 'Delete on that bar throws the selected notes away for good — ten seconds to undo. File keeps them, in memory.'
+            : 'Delete on that bar (or Shift+Delete) throws the selected notes away for good — ten seconds to undo. File keeps them, in memory.',
         },
       ],
     },
@@ -253,10 +286,26 @@ function guideGroups() {
             { glyph: '⇢', name: 'Click a note', text: 'Types into it, with the caret where you clicked. Drag instead to move it.' },
             { glyph: '⇲', name: 'Drag empty board', text: 'Rubber-band selects. Scroll to pan, hold Space to drag the canvas.' },
             { glyph: '○', name: 'Edge dots', text: 'Drag a dot from one note onto another to draw an arrow.' },
-            { glyph: 'N', name: 'Keyboard', text: 'N makes a note, T writes on the board, P pins the selection, Delete files it, Esc clears.' },
+            {
+              glyph: 'N',
+              name: 'Keyboard',
+              text: 'N makes a note, T writes on the board, P pins the selection, ⌘/Ctrl+A selects every note, Delete files the selection, Shift+Delete throws it away, Esc clears.',
+            },
           ],
     },
-  ];
+    guestMode
+      ? {
+          title: 'Saving',
+          rows: [
+            {
+              glyph: '⌂',
+              name: 'This board is local',
+              text: 'Everything you make stays in this browser and syncs nowhere. Create an account from the top of the page to save it and open it on your other devices — the notes you already made come with you.',
+            },
+          ],
+        }
+      : null,
+  ].filter(Boolean);
 }
 
 function renderGuide() {
@@ -330,41 +379,107 @@ $('#guide-hints').addEventListener('click', () => {
   closeGuide();
 });
 
+// ---------------------------------------------------------------- guest strip
+
+const guestbar = $('#guestbar');
+const guestChip = $('#guest-chip');
+
+/**
+ * A signed-out board is honest about itself. The strip can be dismissed — it
+ * sits above the canvas and would wear out its welcome — but the nav chip that
+ * brings it back does not go away, so "local only" is always on screen.
+ */
+function showGuestNotice({ expired }) {
+  guestChip.hidden = false;
+  guestChip.textContent = expired ? 'Not saving' : 'Local only';
+  $('#guestbar-text').textContent = expired
+    ? 'Your session expired. Changes stay on this device until you sign in again.'
+    : 'This board is only on this device. Nothing is saved to an account, and it is not synced anywhere.';
+  const cta = $('#guestbar-cta');
+  cta.textContent = expired ? 'Sign in' : 'Create an account or sign in';
+  cta.href = loginUrl();
+  const guest = $('#board-empty-guest');
+  guest.hidden = false;
+  guest.textContent = expired
+    ? 'Sign in again to load and save your board.'
+    : 'Local only — create an account to save what you write here.';
+  if (readLocal(GUESTBAR_KEY) !== 'dismissed') guestbar.hidden = false;
+}
+
+$('#guestbar-close').addEventListener('click', () => {
+  guestbar.hidden = true;
+  writeLocal(GUESTBAR_KEY, 'dismissed');
+});
+
+guestChip.addEventListener('click', () => {
+  const open = guestbar.hidden;
+  guestbar.hidden = !open;
+  writeLocal(GUESTBAR_KEY, open ? '' : 'dismissed');
+});
+
+/**
+ * The first sign-in after a guest session. A local board is never adopted
+ * behind the user's back and never thrown away without asking; either answer
+ * clears it, so the question is asked once.
+ */
+function offerGuestNotes(store) {
+  const guest = readGuestState();
+  if (!guest || stateIsEmpty(guest)) {
+    clearGuestState();
+    return;
+  }
+  const count = guest.notes.length;
+  const label = count === 1 ? '1 note' : `${count} notes`;
+  openSheet({
+    title: 'Keep the notes you made before signing in?',
+    hint: `${label} were made on this device without an account, so they were never saved. Keeping them adds them to this board.`,
+    options: [
+      {
+        label: `Keep ${label}`,
+        onSelect: () => {
+          store.dispatch(stateToOps(guest));
+          clearGuestState();
+          showToast(`${label} added to your board`);
+        },
+      },
+      {
+        label: 'Discard them',
+        onSelect: () => {
+          clearGuestState();
+          showToast('Those local notes were discarded');
+        },
+      },
+    ],
+  });
+}
+
 // ---------------------------------------------------------------- boot
 
 async function init() {
-  // ?local=1 skips auth for static-server dev (python3 -m http.server); the
-  // store runs local-only (no token → the sync queue never flushes).
+  // ?local=1 skips the auth round-trip for static-server dev (python3 -m
+  // http.server). Signed out is the same path: a local-only store.
   const localMode = new URLSearchParams(location.search).has('local');
   const auth = localMode
-    ? { configured: false, signedIn: true, token: null }
+    ? { configured: false, signedIn: false, token: null }
     : await initAuth();
-  if (!localMode) wireAuthLink(auth);
+  wireAuthLink(auth);
 
-  const gate = $('#gate');
-  const app = $('#app');
+  // No token, nothing to sync. An expired session keeps its own mirror (and its
+  // pending ops) so re-signing in picks up where it left off; everyone else
+  // gets the guest board, which lives under a key of its own.
+  const expired = Boolean(auth.needsReauth);
+  guestMode = !auth.token;
 
-  if (!auth.signedIn) {
-    gate.hidden = false;
-    if (auth.needsReauth) {
-      const note = $('#gate-note');
-      note.hidden = false;
-      note.textContent = 'Your session expired — sign in again to load your board.';
-      $('#gate-signin').href = loginUrl();
-    }
-    return;
-  }
-
-  gate.hidden = true;
-  app.hidden = false;
+  $('#app').hidden = false;
 
   $('#board-empty-sub').textContent = coarse()
     ? 'Tap + above, or double-tap the board. Then tap a note to type into it.'
     : 'Press N, double-click the board, or paste something. Then click a note to type into it.';
 
-  const store = createStore({ token: auth.token });
+  const store = createStore({ token: auth.token, guest: guestMode && !expired });
   store.migrateLegacy();
   drainPendingImport();
+  if (guestMode) showGuestNotice({ expired });
 
   const board = createBoard({
     store,
@@ -387,6 +502,7 @@ async function init() {
       abPin: $('#ab-pin'),
       abName: $('#ab-name'),
       abFile: $('#ab-file'),
+      abDelete: $('#ab-delete'),
       abHint: $('#ab-hint'),
       collectionNames: $('#collection-names'),
       zoomLabel: $('#zoom-fit'),
@@ -486,6 +602,7 @@ async function init() {
   $('.sn-pen-glyph').innerHTML = PEN_SVG;
   $('#add-note').addEventListener('click', () => board.createNote());
   $('#add-text').addEventListener('click', () => board.startText());
+  $('#select-all').addEventListener('click', () => board.selectAll());
   $('#wipe-board').addEventListener('click', () => board.wipe());
   $('#zoom-in').addEventListener('click', board.zoomIn);
   $('#zoom-out').addEventListener('click', board.zoomOut);
@@ -495,6 +612,10 @@ async function init() {
     const open = moreMenu.hidden;
     moreMenu.hidden = !open;
     moreBtn.setAttribute('aria-expanded', String(open));
+  });
+  $('#menu-select-all').addEventListener('click', () => {
+    closeMenu();
+    board.selectAll();
   });
   $('#menu-fit').addEventListener('click', () => {
     closeMenu();
@@ -513,6 +634,8 @@ async function init() {
   if (readLocal(HINTS_KEY) !== 'dismissed') showHints();
 
   await store.loadFromServer();
+  // Signed in with a guest board still in the browser: ask before touching it.
+  if (!guestMode) offerGuestNotes(store);
 }
 
 init();

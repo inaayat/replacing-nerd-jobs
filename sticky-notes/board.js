@@ -24,10 +24,13 @@ import {
   TAG_SVG,
   TRASH_SVG,
   VIEWPORT_KEY,
+  applyOps,
   arrowEndpoints,
   bbox,
+  blankNote,
   clamp,
   colorHex,
+  emptyState,
   findFreeSlot,
   fitViewport,
   isLoneUrl,
@@ -72,6 +75,7 @@ export function createBoard({ store, els, showToast, onEdit }) {
   let drag = null; // { kind: 'move'|'pan'|'rubber'|'resize'|'arrow'|'pinch'|'ink', ... }
   let editingId = null;
   let endEdit = null; // commit/cancel the open edit from outside startEditing
+  let draft = null; // the blank note being composed; not in the store yet
   let inkEditingId = null;
   let endInkEdit = null;
   let textMode = false; // the pen is armed: the next press writes on the board
@@ -91,6 +95,7 @@ export function createBoard({ store, els, showToast, onEdit }) {
   }
 
   function noteById(id) {
+    if (draft && draft.id === id) return draft;
     return store.state.notes.find((n) => n.id === id);
   }
 
@@ -277,6 +282,7 @@ export function createBoard({ store, els, showToast, onEdit }) {
   }
 
   function fullRender() {
+    discardDraft();
     for (const el of cardEls.values()) el.remove();
     cardEls.clear();
     bodyStamps.clear();
@@ -525,6 +531,27 @@ export function createBoard({ store, els, showToast, onEdit }) {
     renderSelection();
   }
 
+  /**
+   * Every note on the board at once. Board ink is not a note — it has no
+   * status and cannot be filed — so it stays out of the selection; a wipe is
+   * what clears it.
+   */
+  function selectAll() {
+    if (editingId) endEdit?.(false);
+    if (inkEditingId) endInkEdit?.(false);
+    const notes = boardNotes();
+    if (!notes.length) {
+      showToast('Nothing on the board to select');
+      return;
+    }
+    selection.clear();
+    for (const note of notes) selection.add(note.id);
+    // On touch this is an entry point to multi-select, so stay in it: the next
+    // tap should take a note out of the selection, not open it for typing.
+    if (coarse()) setSelectMode(true);
+    renderSelection();
+  }
+
   /** Tier 2 — docked at the bottom of the canvas whenever a selection exists. */
   function renderActionBar() {
     const notes = selectedNotes();
@@ -663,6 +690,18 @@ export function createBoard({ store, els, showToast, onEdit }) {
     });
   }
 
+  /**
+   * The discard path for a selection, next to File. Filing keeps the notes in
+   * memory; this throws them away, so it is the same 10s undo the per-note
+   * trash uses.
+   */
+  function deleteSelection() {
+    const ids = [...selection];
+    if (!ids.length) return;
+    setSelectMode(false);
+    deleteNotes(ids);
+  }
+
   function wipe() {
     const targets = wipeTargets(store.state);
     if (!targets.noteIds.length && !targets.ink.length) {
@@ -797,7 +836,7 @@ export function createBoard({ store, els, showToast, onEdit }) {
       // tore its own target out of the page would leave the follow-up click to
       // land on whatever ended up under the finger — the toolbar, on a phone.
       onPress(b, () => {
-        store.dispatch([
+        editNote([
           {
             op: 'note.categorize',
             ids: [note.id],
@@ -824,7 +863,7 @@ export function createBoard({ store, els, showToast, onEdit }) {
       b.setAttribute('aria-label', label);
       b.setAttribute('aria-pressed', String(note.iconKey === key));
       onPress(b, () => {
-        store.dispatch([
+        editNote([
           {
             op: 'note.categorize',
             ids: [note.id],
@@ -890,16 +929,15 @@ export function createBoard({ store, els, showToast, onEdit }) {
     const region = viewportWorldRect();
     const rects = boardNotes().map(noteRect);
     const spot = at || findFreeSlot(region, rects);
-    const note = {
-      id: randomId(),
-      text: text || 'New note',
-      // Every new note starts as a light grey card; colour is something you
-      // choose, not something you have to undo.
-      colorKey: DEFAULT_COLOR_KEY,
-      x: spot.x,
-      y: spot.y,
-      sourceUrl,
-    };
+    // Every new note starts as a light grey card; colour is something you
+    // choose, not something you have to undo.
+    const fields = { colorKey: DEFAULT_COLOR_KEY, x: spot.x, y: spot.y };
+    // Nothing to type over: a note you are about to write in arrives blank.
+    if (!text) {
+      startDraft(fields);
+      return;
+    }
+    const note = { id: randomId(), text, ...fields, sourceUrl };
     store.dispatch([{ op: 'note.upsert', note }]);
     const saved = noteById(note.id);
     if (!saved) return;
@@ -912,7 +950,46 @@ export function createBoard({ store, els, showToast, onEdit }) {
         }
       });
     }
-    if (!text) startEditing(note.id, { selectAll: true });
+  }
+
+  /**
+   * Open a blank card for typing. A note with no text is not a note — the store
+   * refuses one (notes.js) — so the card is composed here and the first
+   * character is what commits it, carrying whatever colour, icon or pin was
+   * chosen in the meantime.
+   */
+  function startDraft(fields) {
+    if (editingId) endEdit?.(false);
+    if (inkEditingId) endInkEdit?.(false);
+    draft = blankNote(fields);
+    renderCard(draft);
+    renderEmpty();
+    startEditing(draft.id);
+  }
+
+  function discardDraft() {
+    if (!draft) return;
+    const id = draft.id;
+    draft = null;
+    removeCard(id);
+    renderEmpty();
+  }
+
+  const composing = () => Boolean(draft) && draft.id === editingId;
+
+  /**
+   * Colour, icon and pin for the note under the caret. While a note is still
+   * being composed there is nothing in the store to stamp, so the ops land on
+   * the draft instead and ride along when it becomes real.
+   */
+  function editNote(ops) {
+    if (!composing()) {
+      store.dispatch(ops);
+      return;
+    }
+    draft = applyOps({ ...emptyState(), notes: [draft] }, ops).notes[0] || draft;
+    renderCard(draft);
+    renderEditBar();
   }
 
   /** Caret at a screen point, across the two vendor spellings of the API. */
@@ -1181,14 +1258,18 @@ export function createBoard({ store, els, showToast, onEdit }) {
       // taken when the edit opened: the colour, icon and pin all change from the
       // bar *while* the note is open, and an upsert of the stale copy would
       // quietly undo them.
+      const wasDraft = draft?.id === id;
       const current = noteById(id) || note;
       const stored = noteBlocks(current);
       const rich = cancel ? stored : readBody(body);
       const text = cancel ? current.text : richToText(rich || []);
       if (!text) {
-        store.dispatch([{ op: 'note.delete', ids: [id] }]);
+        // A blank card nobody typed into was never a note; anything else is.
+        if (wasDraft) discardDraft();
+        else store.dispatch([{ op: 'note.delete', ids: [id] }]);
         return;
       }
+      if (wasDraft) draft = null; // the text is what makes it real
       const stamp = JSON.stringify(rich);
       if (text !== current.text || stamp !== JSON.stringify(stored)) {
         bodyStamps.set(id, stamp);
@@ -1803,6 +1884,11 @@ export function createBoard({ store, els, showToast, onEdit }) {
       viewport.classList.add('is-pan-ready');
     }
     if (isTyping()) return;
+    if ((e.metaKey || e.ctrlKey) && (e.key === 'a' || e.key === 'A')) {
+      e.preventDefault();
+      selectAll();
+      return;
+    }
     if (e.key === 'n' || e.key === 'N') {
       e.preventDefault();
       createNote();
@@ -1821,7 +1907,9 @@ export function createBoard({ store, els, showToast, onEdit }) {
       renderSelection();
     } else if ((e.key === 'Delete' || e.key === 'Backspace') && selection.size) {
       e.preventDefault();
-      fileSelection();
+      // Delete files the selection (nothing is lost); Shift+Delete discards it.
+      if (e.shiftKey) deleteSelection();
+      else fileSelection();
     }
   }
 
@@ -1963,17 +2051,22 @@ export function createBoard({ store, els, showToast, onEdit }) {
     actionbar.style.bottom = '';
   });
   onPress(els.abFile, fileSelection);
+  onPress(els.abDelete, deleteSelection);
 
   els.ebTrash.innerHTML = TRASH_SVG;
   els.ebPin.innerHTML = PIN_SVG;
   els.ebBold.innerHTML = BOLD_SVG;
   els.ebBullets.innerHTML = BULLET_LIST_SVG;
   els.ebNumbers.innerHTML = NUMBER_LIST_SVG;
-  onPress(els.ebTrash, () => deleteNotes([editingId]));
+  onPress(els.ebTrash, () => {
+    // Throwing away a card nobody has typed into is not a deletion to undo.
+    if (composing()) endEdit?.(true);
+    else deleteNotes([editingId]);
+  });
   onPress(els.ebPin, () => {
     const note = noteById(editingId);
     if (!note) return;
-    store.dispatch([{ op: 'note.pin', ids: [note.id], pinned: !note.pinned, ts: new Date().toISOString() }]);
+    editNote([{ op: 'note.pin', ids: [note.id], pinned: !note.pinned, ts: new Date().toISOString() }]);
   });
   onPress(els.ebBold, () => applyFormat('bold'));
   onPress(els.ebBullets, () => applyFormat('ul'));
@@ -2009,6 +2102,8 @@ export function createBoard({ store, els, showToast, onEdit }) {
     zoomOut: () => zoomBy(1 / 1.2),
     zoomFit,
     revealNotes,
+    selectAll,
+    deleteSelection,
     refresh: fullRender,
     /** Called when the board becomes visible again — layout may have changed. */
     relayout: () => {
@@ -2016,6 +2111,8 @@ export function createBoard({ store, els, showToast, onEdit }) {
       liftActionBar();
     },
     clearSelection: () => {
+      // Leaving the board is as final as clicking off the note.
+      if (editingId) endEdit?.(false);
       setSelectMode(false);
       setTextMode(false);
       selection.clear();

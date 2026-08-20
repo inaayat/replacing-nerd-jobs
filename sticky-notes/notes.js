@@ -12,6 +12,14 @@ export const OPLOG_KEY = 'sticky-notes-oplog-v2';
 export const VIEWPORT_KEY = 'sticky-notes-viewport';
 export const LEGACY_KEY = 'sticky-notes-v1';
 
+/**
+ * A signed-out visitor's board. It is a key of its own so a guest session and
+ * an account's mirror can never read each other: logging out does not leave the
+ * previous board on screen, and signing in hands the guest board over
+ * deliberately (app.js) instead of silently adopting it.
+ */
+export const GUEST_STORAGE_KEY = 'sticky-notes-guest-v2';
+
 export const NOTE_W_DEFAULT = 220;
 export const NOTE_H_DEFAULT = 64;
 export const NOTE_W_MIN = 160;
@@ -317,6 +325,20 @@ export function normalizeNote(raw) {
   const rich = normalizeRich(raw.rich);
   const text = rich ? richToText(rich) : String(raw.text ?? '').trim();
   if (!text) return null;
+  return noteShape(raw, text, rich);
+}
+
+/**
+ * The blank card you are composing. A note with no text is nothing, so the
+ * store refuses one (`normalizeNote` above) — this shape lives in the board
+ * until the first character makes it real, carrying whatever colour, icon, or
+ * pin was chosen in the meantime.
+ */
+export function blankNote(partial = {}) {
+  return noteShape(partial || {}, '', null);
+}
+
+function noteShape(raw, text, rich) {
   const created = raw.createdAt || nowIso();
   return {
     id: String(raw.id || randomId()),
@@ -504,6 +526,37 @@ export function mergeStates(base, incoming) {
       icons: { ...a.legend.icons, ...b.legend.icons },
     },
   });
+}
+
+/** True when a state holds nothing worth keeping — no notes, no ink. */
+export function stateIsEmpty(state) {
+  const s = normalizeState(state);
+  return !s.notes.length && !(s.ink || []).length;
+}
+
+/**
+ * Every row of a state as the ops that would recreate it. Used when a guest
+ * signs in: their local board is replayed into the account's queue, so it lands
+ * on the server the same way anything else does.
+ */
+export function stateToOps(state) {
+  const s = normalizeState(state);
+  const ops = [];
+  for (const col of s.collections) {
+    ops.push({ op: 'collection.create', id: col.id, name: col.name, ts: col.createdAt });
+    if (col.status === 'memory') ops.push({ op: 'file', collectionId: col.id, ts: col.filedAt || col.updatedAt });
+  }
+  for (const note of s.notes) ops.push({ op: 'note.upsert', note });
+  for (const arrow of s.arrows) {
+    ops.push({ op: 'arrow.create', id: arrow.id, fromId: arrow.fromId, toId: arrow.toId, ts: arrow.createdAt });
+  }
+  for (const ink of s.ink || []) ops.push({ op: 'ink.upsert', ink });
+  for (const kind of ['colors', 'icons']) {
+    for (const [key, label] of Object.entries(s.legend[kind])) {
+      ops.push({ op: 'legend.set', kind: kind === 'colors' ? 'color' : 'icon', key, label });
+    }
+  }
+  return ops;
 }
 
 // ---------------------------------------------------------------------------
