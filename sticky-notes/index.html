@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <base href="/sticky-notes/" />
     <title>Sticky Notes — Beep boop</title>
     <meta
@@ -53,62 +53,156 @@
 
       <div class="sn-app" id="app" hidden>
         <div class="sn-toolbar">
-          <div class="sn-tabs" role="tablist">
+          <div class="sn-tabs" role="tablist" id="tabs">
             <button type="button" class="sn-tab" id="tab-board" role="tab" aria-selected="true">Board</button>
             <button type="button" class="sn-tab" id="tab-memory" role="tab" aria-selected="false">
               Memory <span class="sn-tab-count" id="memory-count"></span>
             </button>
           </div>
-          <div class="sn-toolbar-actions" id="board-actions">
-            <button type="button" class="sn-btn sn-btn-primary" id="add-note">+ New note</button>
-            <div class="sn-zoom">
-              <button type="button" class="sn-zoom-btn" id="zoom-out" aria-label="Zoom out">−</button>
-              <button type="button" class="sn-zoom-label" id="zoom-fit" title="Zoom to fit">100%</button>
-              <button type="button" class="sn-zoom-btn" id="zoom-in" aria-label="Zoom in">+</button>
+          <div class="sn-toolbar-actions">
+            <div class="sn-board-actions" id="board-actions">
+            <button type="button" class="sn-btn sn-btn-primary" id="add-note">
+              <span aria-hidden="true">+</span> <span class="sn-btn-label">New note</span>
+            </button>
+            <div class="sn-zoom" id="zoom-controls">
+              <button type="button" class="sn-zoom-btn" id="zoom-out" aria-label="Zoom out" title="Zoom out">−</button>
+              <button type="button" class="sn-zoom-label" id="zoom-fit" title="Fit every note on screen">100%</button>
+              <button type="button" class="sn-zoom-btn" id="zoom-in" aria-label="Zoom in" title="Zoom in">+</button>
             </div>
-            <button type="button" class="sn-btn" id="wipe-board">Wipe board</button>
+            <button type="button" class="sn-btn sn-wide-only" id="wipe-board" title="File everything except pinned notes">
+              Wipe board
+            </button>
+            <div class="sn-more">
+              <button
+                type="button"
+                class="sn-iconbtn"
+                id="more-btn"
+                aria-expanded="false"
+                aria-label="More board actions"
+                title="More"
+              >⋯</button>
+              <div class="sn-menu" id="more-menu" hidden>
+                <button type="button" class="sn-menu-item" id="menu-fit">Fit every note on screen</button>
+                <button type="button" class="sn-menu-item" id="menu-wipe">Wipe board</button>
+              </div>
+            </div>
+            </div>
+            <button
+              type="button"
+              class="sn-iconbtn"
+              id="board-help"
+              aria-expanded="false"
+              aria-label="What the buttons do"
+              title="What the buttons do"
+            >?</button>
           </div>
         </div>
 
-        <div class="sn-viewport" id="viewport" tabindex="0" aria-label="Sticky note board">
-          <div class="sn-world" id="world">
-            <svg class="sn-arrows" id="arrow-layer"></svg>
+        <div class="sn-workspace" id="workspace">
+          <div class="sn-viewport" id="viewport" tabindex="0" aria-label="Sticky note board">
+            <div class="sn-world" id="world">
+              <svg class="sn-arrows" id="arrow-layer"></svg>
+            </div>
+            <div class="sn-rubber" id="rubber" hidden></div>
+            <div class="sn-empty" id="board-empty" hidden>
+              <p class="sn-empty-line">Nothing on the board yet.</p>
+              <p class="sn-empty-sub" id="board-empty-sub"></p>
+            </div>
+            <div class="sn-hintstrip" id="hint-strip" hidden>
+              <span id="hint-text"></span>
+              <button type="button" class="sn-hint-dismiss" id="hint-dismiss">Got it</button>
+            </div>
+
+            <div class="sn-selbar" id="actionbar" hidden>
+              <span class="sn-ab-count" id="ab-count"></span>
+              <span class="sn-ab-swatches" id="ab-swatches"></span>
+              <span class="sn-ab-iconwrap">
+                <button type="button" class="sn-ab-iconbtn" id="ab-icon" title="Tag with an icon" aria-label="Tag with an icon">◇</button>
+                <span class="sn-ab-iconpop" id="ab-iconpop" hidden></span>
+              </span>
+              <button type="button" class="sn-ab-pin" id="ab-pin" title="Pinned notes survive a wipe">Pin</button>
+              <span class="sn-ab-collection">
+                <label class="sn-ab-label" for="ab-name">Collection</label>
+                <input
+                  class="sn-ab-name"
+                  id="ab-name"
+                  list="collection-names"
+                  placeholder="Name these notes to group them…"
+                  title="Naming a selection makes a collection you can file as one unit"
+                />
+              </span>
+              <datalist id="collection-names"></datalist>
+              <button type="button" class="sn-ab-file" id="ab-file" title="Send to memory — nothing is lost">File</button>
+              <span class="sn-ab-hint" id="ab-hint" hidden></span>
+            </div>
           </div>
-          <div class="sn-rubber" id="rubber" hidden></div>
-          <div class="sn-empty" id="board-empty" hidden>
-            Press <kbd>N</kbd>, double-click anywhere, or paste — the board is yours.
-          </div>
+
+          <aside class="sn-sidebar" id="sidebar" aria-label="Memory">
+            <div class="sn-side-head">
+              <span class="sn-side-title">Memory</span>
+              <span class="sn-side-count" id="sidebar-count"></span>
+              <button
+                type="button"
+                class="sn-side-toggle"
+                id="sidebar-toggle"
+                aria-expanded="true"
+                aria-label="Collapse memory"
+                title="Collapse memory"
+              >›</button>
+            </div>
+
+            <section class="sn-memory" id="memory-pane">
+              <div class="sn-mem-filters" id="mem-filters">
+                <input type="search" class="sn-mem-search" id="mem-search" placeholder="Search memory…" />
+                <div class="sn-mem-chiprow" id="mem-color-chips" aria-label="Filter by color"></div>
+                <div class="sn-mem-chiprow" id="mem-icon-chips" aria-label="Filter by icon"></div>
+                <select class="sn-mem-select" id="mem-collection" aria-label="Filter by collection">
+                  <option value="">All collections</option>
+                </select>
+              </div>
+              <p class="sn-mem-note">
+                A <b>collection</b> is a named group of notes. Select notes on the board, name them
+                in the bar at the bottom, then File — the whole group lands here together.
+              </p>
+              <div class="sn-mem-list" id="mem-list"></div>
+              <div class="sn-mem-more">
+                <button type="button" class="sn-btn" id="mem-more" hidden>Show more</button>
+              </div>
+            </section>
+          </aside>
         </div>
-
-        <section class="sn-memory" id="memory-pane" hidden>
-          <div class="sn-mem-filters" id="mem-filters">
-            <input type="search" class="sn-mem-search" id="mem-search" placeholder="Search memory…" />
-            <div class="sn-mem-chiprow" id="mem-color-chips" aria-label="Filter by color"></div>
-            <div class="sn-mem-chiprow" id="mem-icon-chips" aria-label="Filter by icon"></div>
-            <select class="sn-mem-select" id="mem-collection" aria-label="Filter by collection">
-              <option value="">All collections</option>
-            </select>
-          </div>
-          <div class="sn-mem-list" id="mem-list"></div>
-          <div class="sn-mem-more">
-            <button type="button" class="sn-btn" id="mem-more" hidden>Show more</button>
-          </div>
-        </section>
-      </div>
-
-      <div class="sn-actionbar" id="actionbar" hidden>
-        <span class="sn-ab-count" id="ab-count"></span>
-        <span class="sn-ab-swatches" id="ab-swatches"></span>
-        <span class="sn-ab-iconwrap">
-          <button type="button" class="sn-ab-iconbtn" id="ab-icon" title="Icon">◇</button>
-          <span class="sn-ab-iconpop" id="ab-iconpop" hidden></span>
-        </span>
-        <button type="button" class="sn-ab-pin" id="ab-pin" title="Pin (survives wipes)">Pin</button>
-        <input class="sn-ab-name" id="ab-name" list="collection-names" placeholder="Collection…" />
-        <datalist id="collection-names"></datalist>
-        <button type="button" class="sn-ab-file" id="ab-file">File</button>
       </div>
     </main>
+
+    <!-- Tier 1 chrome: rides the note being edited, in screen space. -->
+    <div class="sn-editbar" id="editbar" hidden role="toolbar" aria-label="Note actions">
+      <button type="button" class="sn-eb-btn sn-eb-danger" id="eb-trash" aria-label="Delete note" title="Delete for good"></button>
+      <button type="button" class="sn-eb-btn" id="eb-pin" aria-label="Pin note" title="Pin — survives a wipe"></button>
+      <button type="button" class="sn-eb-btn" id="eb-color" aria-label="Note colour" title="Colour"><span class="sn-eb-dot"></span></button>
+      <button type="button" class="sn-eb-btn sn-eb-done" id="eb-done" aria-label="Done editing" title="Done">✓</button>
+      <div class="sn-eb-palette" id="eb-palette" hidden></div>
+    </div>
+
+    <div class="sn-scrim" id="scrim" hidden></div>
+
+    <aside class="sn-guide" id="guide" hidden aria-label="What the buttons do">
+      <div class="sn-guide-head">
+        <h2 class="sn-guide-title">What everything does</h2>
+        <button type="button" class="sn-guide-close" id="guide-close" aria-label="Close">×</button>
+      </div>
+      <div class="sn-guide-body" id="guide-body"></div>
+      <div class="sn-guide-foot">
+        <button type="button" class="sn-btn" id="guide-hints">Show the board hint again</button>
+      </div>
+    </aside>
+
+    <div class="sn-sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-label="Move to collection">
+      <div class="sn-sheet-head">
+        <span class="sn-sheet-title" id="sheet-title"></span>
+        <button type="button" class="sn-guide-close" id="sheet-close" aria-label="Close">×</button>
+      </div>
+      <div class="sn-sheet-body" id="sheet-body"></div>
+    </div>
 
     <div class="sn-toast" id="toast" role="status" aria-live="polite">
       <span id="toast-text"></span>

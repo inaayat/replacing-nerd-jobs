@@ -66,6 +66,10 @@ export const ICON_SVGS = {
 
 export const PIN_SVG = `${SVG_OPEN}<path d="M9 4h6l-1 6 3 3v2H7v-2l3-3z"/><path d="M12 15v6"/></svg>`;
 
+export const TRASH_SVG = `${SVG_OPEN}<path d="M4 7h16"/><path d="M10 4h4"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/></svg>`;
+
+export const TAG_SVG = `${SVG_OPEN}<path d="M3 12V4h8l9 9-8 8z"/><circle cx="7.5" cy="7.5" r="1.2"/></svg>`;
+
 export const COLOR_KEYS = Object.keys(LEGEND_DEFAULTS.colors);
 export const ICON_KEYS = Object.keys(LEGEND_DEFAULTS.icons);
 
@@ -457,6 +461,20 @@ export function worldToScreen(point, viewport) {
   return {
     x: point.x * viewport.zoom + viewport.panX,
     y: point.y * viewport.zoom + viewport.panY,
+  };
+}
+
+/**
+ * Scale a viewport about a fixed screen point — the world coordinate under
+ * `point` stays under `point`. Shared by Ctrl/Cmd+wheel, the ± buttons and
+ * two-finger pinch so all three anchor identically.
+ */
+export function zoomAt(viewport, point, factor) {
+  const zoom = clamp(viewport.zoom * factor, ZOOM_MIN, ZOOM_MAX);
+  return {
+    panX: point.x - ((point.x - viewport.panX) / viewport.zoom) * zoom,
+    panY: point.y - ((point.y - viewport.panY) / viewport.zoom) * zoom,
+    zoom,
   };
 }
 

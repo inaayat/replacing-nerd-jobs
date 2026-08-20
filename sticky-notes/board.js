@@ -1,19 +1,25 @@
 /**
  * Sticky Notes board — pannable/zoomable canvas, drag, resize, rubber-band
- * selection, arrows, action bar, filing animations.
+ * selection, arrows, note chrome, filing animations.
  *
- * Performance rules (docs/sticky-notes-plan.md §4.8): drag/pan/zoom write one
- * transform per rAF; no full re-renders after initial paint — store
- * notifications patch only the touched cards.
+ * Two tiers of chrome (docs/sticky-notes-plan.md):
+ *   1. The edit bar rides the note being edited, in screen space, and exists
+ *      only while that note is open. Idle notes are just notes.
+ *   2. The selection bar is docked at the bottom of the canvas and appears
+ *      only when something is selected.
+ *
+ * Performance rules (§4.8): drag/pan/zoom write one transform per rAF; no full
+ * re-renders after initial paint — store notifications patch only the touched
+ * cards.
  */
 import {
   COLOR_KEYS,
   ICON_KEYS,
   ICON_SVGS,
   PIN_SVG,
+  TAG_SVG,
+  TRASH_SVG,
   VIEWPORT_KEY,
-  ZOOM_MAX,
-  ZOOM_MIN,
   arrowEndpoints,
   bbox,
   clamp,
@@ -27,12 +33,20 @@ import {
   screenToWorld,
   urlDomain,
   wipeTargets,
+  zoomAt,
 } from './notes.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-export function createBoard({ store, els, showToast }) {
-  const { viewport, world, arrowLayer, rubber, empty, actionbar } = els;
+// Touch fingers wobble; a mouse does not.
+const SLOP_MOUSE = 4;
+const SLOP_TOUCH = 8;
+const LONG_PRESS_MS = 400;
+const DOUBLE_TAP_MS = 350;
+const DOUBLE_TAP_PX = 28;
+
+export function createBoard({ store, els, showToast, onEdit }) {
+  const { viewport, world, arrowLayer, rubber, empty, actionbar, editbar } = els;
 
   let vp = loadViewport();
   let vpFrame = 0;
@@ -40,8 +54,17 @@ export function createBoard({ store, els, showToast }) {
   const chipEls = new Map(); // collection id -> element
   const selection = new Set();
   let spaceHeld = false;
-  let drag = null; // { kind: 'move'|'pan'|'rubber'|'resize'|'arrow', ... }
+  let drag = null; // { kind: 'move'|'pan'|'rubber'|'resize'|'arrow'|'pinch', ... }
   let editingId = null;
+  let endEdit = null; // commit/cancel the open edit from outside startEditing
+
+  const pointers = new Map(); // live pointerId -> client point, for pinch
+  let longPressTimer = 0;
+  let selectMode = false; // touch: long-press opened a multi-select session
+  let lastTap = null;
+  let lastPointerType = 'mouse';
+
+  const coarse = () => window.matchMedia('(pointer: coarse)').matches;
 
   // ------------------------------------------------------------------ helpers
 
@@ -62,7 +85,7 @@ export function createBoard({ store, els, showToast }) {
     try {
       const raw = JSON.parse(localStorage.getItem(VIEWPORT_KEY) || 'null');
       if (raw && Number.isFinite(raw.panX) && Number.isFinite(raw.zoom)) {
-        return { panX: raw.panX, panY: raw.panY, zoom: clamp(raw.zoom, ZOOM_MIN, ZOOM_MAX) };
+        return { panX: raw.panX, panY: raw.panY, zoom: clamp(raw.zoom, 0.4, 2) };
       }
     } catch {
       /* fall through */
@@ -84,7 +107,7 @@ export function createBoard({ store, els, showToast }) {
       vpFrame = 0;
       world.style.transform = `translate(${vp.panX}px, ${vp.panY}px) scale(${vp.zoom})`;
       if (els.zoomLabel) els.zoomLabel.textContent = `${Math.round(vp.zoom * 100)}%`;
-      positionActionBar();
+      positionEditBar();
     });
   }
 
@@ -97,6 +120,23 @@ export function createBoard({ store, els, showToast }) {
   function toWorld(e) {
     const r = viewport.getBoundingClientRect();
     return screenToWorld({ x: e.clientX - r.left, y: e.clientY - r.top }, vp);
+  }
+
+  /**
+   * The slice of the window the user can actually see. A phone keyboard eats
+   * the bottom of the visual viewport without changing the layout viewport,
+   * so every "is this on screen" question has to ask visualViewport.
+   */
+  function visibleBounds() {
+    const vv = window.visualViewport;
+    if (!vv) return { top: 0, bottom: window.innerHeight };
+    return { top: vv.offsetTop, bottom: vv.offsetTop + vv.height };
+  }
+
+  function keyboardInset() {
+    const vv = window.visualViewport;
+    if (!vv) return 0;
+    return Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
   }
 
   // ------------------------------------------------------------------ cards
@@ -255,13 +295,18 @@ export function createBoard({ store, els, showToast }) {
       const chip = document.createElement('button');
       chip.type = 'button';
       chip.className = 'sn-chip';
-      chip.textContent = col.name;
+      chip.innerHTML = `${TAG_SVG}<span></span>`;
+      chip.querySelector('span').textContent = col.name;
+      chip.title = `Collection “${col.name}” — ${rects.length} note${rects.length === 1 ? '' : 's'}. Select them all, then File to send the collection to memory.`;
       chip.style.left = `${box.x}px`;
       chip.style.top = `${box.y - 30}px`;
       chip.addEventListener('pointerdown', (e) => e.stopPropagation());
       chip.addEventListener('click', () => {
+        if (editingId) endEdit?.(false);
         selection.clear();
         for (const n of boardNotes()) if (n.collectionId === col.id) selection.add(n.id);
+        // On touch this is the entry point to multi-select, so stay in it.
+        if (coarse()) setSelectMode(true);
         renderSelection();
       });
       world.appendChild(chip);
@@ -269,7 +314,7 @@ export function createBoard({ store, els, showToast }) {
     }
   }
 
-  // ------------------------------------------------------------------ selection + action bar
+  // ------------------------------------------------------------------ selection + bars
 
   function renderSelection() {
     for (const [id, el] of cardEls) el.classList.toggle('is-selected', selection.has(id));
@@ -280,6 +325,19 @@ export function createBoard({ store, els, showToast }) {
     return [...selection].map(noteById).filter(Boolean);
   }
 
+  function setSelectMode(on) {
+    selectMode = on;
+    viewport.classList.toggle('is-selecting', on);
+  }
+
+  function exitSelectMode() {
+    if (!selectMode) return;
+    setSelectMode(false);
+    selection.clear();
+    renderSelection();
+  }
+
+  /** Tier 2 — docked at the bottom of the canvas whenever a selection exists. */
   function renderActionBar() {
     const notes = selectedNotes();
     if (!notes.length) {
@@ -297,8 +355,9 @@ export function createBoard({ store, els, showToast }) {
       b.className = 'sn-ab-swatch';
       b.style.background = colorHex(key);
       b.title = legendLabel(store.state.legend, 'color', key);
+      b.setAttribute('aria-label', `Colour: ${legendLabel(store.state.legend, 'color', key)}`);
       b.setAttribute('aria-pressed', String(key === activeColor));
-      b.addEventListener('click', () => {
+      onPress(b, () => {
         const ids = [...selection];
         store.dispatch([
           { op: 'note.categorize', ids, colorKey: key === activeColor ? null : key, ts: new Date().toISOString() },
@@ -317,7 +376,7 @@ export function createBoard({ store, els, showToast }) {
       b.innerHTML = ICON_SVGS[key];
       b.title = legendLabel(store.state.legend, 'icon', key);
       b.setAttribute('aria-pressed', String(key === activeIcon));
-      b.addEventListener('click', () => {
+      onPress(b, () => {
         els.abIconPop.hidden = true;
         store.dispatch([
           { op: 'note.categorize', ids: [...selection], iconKey: key === activeIcon ? null : key, ts: new Date().toISOString() },
@@ -340,20 +399,14 @@ export function createBoard({ store, els, showToast }) {
       opt.value = c.name;
       els.collectionNames.appendChild(opt);
     }
-    positionActionBar();
+    els.abHint.hidden = !selectMode;
+    if (selectMode) els.abHint.textContent = 'Tap more notes to add · tap the board when you’re done';
   }
 
-  function positionActionBar() {
-    if (actionbar.hidden) return;
-    const notes = selectedNotes();
-    if (!notes.length) return;
-    const box = bbox(notes.map(noteRect));
-    const r = viewport.getBoundingClientRect();
-    const x = box.x * vp.zoom + vp.panX + r.left + (box.w * vp.zoom) / 2;
-    const y = box.y * vp.zoom + vp.panY + r.top;
-    const barW = actionbar.offsetWidth || 420;
-    actionbar.style.left = `${clamp(x - barW / 2, 8, window.innerWidth - barW - 8)}px`;
-    actionbar.style.top = `${clamp(y - actionbar.offsetHeight - 12, 60, window.innerHeight - 80)}px`;
+  /** Keep the docked bar above a phone keyboard while the collection input is live. */
+  function liftActionBar() {
+    const lift = document.activeElement === els.abName ? keyboardInset() : 0;
+    actionbar.style.bottom = lift ? `${lift + 12}px` : '';
   }
 
   function commitCollectionName() {
@@ -388,9 +441,37 @@ export function createBoard({ store, els, showToast }) {
       ops.push({ op: 'file', ids, ts });
     }
     selection.clear();
+    setSelectMode(false);
     store.dispatch(ops, { kind: 'file' });
     showToast(`${ids.length === 1 ? '1 note' : `${ids.length} notes`} filed to memory`, {
       undo: () => store.dispatch(colId ? [{ op: 'restore', collectionId: colId, ids }] : [{ op: 'restore', ids }]),
+    });
+  }
+
+  /**
+   * The board's one destructive action. `note.delete` really removes the rows
+   * — filing only moves them to memory — so it leans on a 10s undo rather than
+   * a confirm dialog. Undo re-upserts the notes and redraws their arrows.
+   */
+  function deleteNotes(ids) {
+    const notes = ids.map(noteById).filter(Boolean);
+    if (!notes.length) return;
+    const gone = new Set(notes.map((n) => n.id));
+    const arrows = store.state.arrows.filter((a) => gone.has(a.fromId) || gone.has(a.toId));
+    if (editingId && gone.has(editingId)) endEdit?.(true);
+    for (const id of gone) selection.delete(id);
+    store.dispatch([{ op: 'note.delete', ids: [...gone] }]);
+    renderSelection();
+    showToast(notes.length === 1 ? 'Note deleted' : `${notes.length} notes deleted`, {
+      ms: 10000,
+      undo: () => {
+        store.dispatch([
+          ...notes.map((note) => ({ op: 'note.upsert', note })),
+          ...arrows.map((a) => ({
+            op: 'arrow.create', id: a.id, fromId: a.fromId, toId: a.toId, ts: a.createdAt,
+          })),
+        ]);
+      },
     });
   }
 
@@ -409,6 +490,98 @@ export function createBoard({ store, els, showToast }) {
         ]);
       },
     });
+  }
+
+  // ------------------------------------------------------------------ edit bar (tier 1)
+
+  function renderEditBar() {
+    const note = editingId ? noteById(editingId) : null;
+    if (!note) {
+      editbar.hidden = true;
+      els.ebPalette.hidden = true;
+      return;
+    }
+    editbar.hidden = false;
+    els.ebPin.setAttribute('aria-pressed', String(note.pinned));
+    els.ebPin.title = note.pinned ? 'Unpin' : 'Pin — survives a wipe';
+    const dot = els.ebColor.querySelector('.sn-eb-dot');
+    dot.style.background = note.colorKey ? colorHex(note.colorKey) : 'transparent';
+    els.ebColor.title = note.colorKey
+      ? `Colour: ${legendLabel(store.state.legend, 'color', note.colorKey)}`
+      : 'Colour';
+    if (!els.ebPalette.hidden) renderPalette(note);
+    positionEditBar();
+  }
+
+  function renderPalette(note) {
+    els.ebPalette.innerHTML = '';
+    for (const key of COLOR_KEYS) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'sn-eb-swatch';
+      b.style.background = colorHex(key);
+      const label = legendLabel(store.state.legend, 'color', key);
+      b.title = label;
+      b.setAttribute('aria-label', label);
+      b.setAttribute('aria-pressed', String(note.colorKey === key));
+      onPress(b, () => {
+        store.dispatch([
+          {
+            op: 'note.categorize',
+            ids: [note.id],
+            colorKey: note.colorKey === key ? null : key,
+            ts: new Date().toISOString(),
+          },
+        ]);
+        els.ebPalette.hidden = true;
+      });
+      els.ebPalette.appendChild(b);
+    }
+  }
+
+  function positionEditBar() {
+    if (editbar.hidden || !editingId) return;
+    const el = cardEls.get(editingId);
+    if (!el) return;
+    const card = el.getBoundingClientRect();
+    const vr = viewport.getBoundingClientRect();
+    const seen = visibleBounds();
+    const w = editbar.offsetWidth || 124;
+    const h = editbar.offsetHeight || 32;
+    const minTop = Math.max(vr.top, seen.top) + 4;
+    const maxTop = Math.min(vr.bottom, seen.bottom) - h - 4;
+    let top = card.top - h - 8;
+    if (top < minTop) top = card.bottom + 8;
+    editbar.style.top = `${clamp(top, minTop, Math.max(minTop, maxTop))}px`;
+    editbar.style.left = `${clamp(
+      card.left + card.width / 2 - w / 2,
+      vr.left + 4,
+      Math.max(vr.left + 4, vr.right - w - 4),
+    )}px`;
+  }
+
+  /**
+   * Keep the note being typed into on screen. On touch the keyboard claims the
+   * bottom half, so the note is pulled into the top third of what is left.
+   */
+  function revealCard(el) {
+    const vr = viewport.getBoundingClientRect();
+    const seen = visibleBounds();
+    const top = Math.max(vr.top, seen.top) + 44; // room for the edit bar above
+    const bottom = Math.min(vr.bottom, seen.bottom) - 12;
+    const card = el.getBoundingClientRect();
+    if (card.top >= top && card.bottom <= bottom) return;
+    // Touch parks the note near the top of what the keyboard leaves visible;
+    // a mouse gets the smallest nudge that brings it fully into view.
+    let dy = top - card.top;
+    if (!coarse()) {
+      dy = card.bottom > bottom ? bottom - card.bottom : 0;
+      if (card.top + dy < top) dy = top - card.top;
+    }
+    if (!dy) return;
+    vp.panY += dy;
+    applyViewport();
+    saveViewport();
   }
 
   // ------------------------------------------------------------------ create + edit
@@ -439,28 +612,66 @@ export function createBoard({ store, els, showToast }) {
     if (!text) startEditing(note.id, { selectAll: true });
   }
 
-  function startEditing(id, { selectAll = false } = {}) {
+  /** Caret at a screen point, across the two vendor spellings of the API. */
+  function caretRangeAt(x, y) {
+    if (document.caretRangeFromPoint) return document.caretRangeFromPoint(x, y);
+    if (document.caretPositionFromPoint) {
+      const pos = document.caretPositionFromPoint(x, y);
+      if (!pos) return null;
+      const range = document.createRange();
+      range.setStart(pos.offsetNode, pos.offset);
+      range.collapse(true);
+      return range;
+    }
+    return null;
+  }
+
+  function startEditing(id, { selectAll = false, caretAt = null } = {}) {
     const el = cardEls.get(id);
     const note = noteById(id);
     if (!el || !note || editingId) return;
     editingId = id;
     const body = el.querySelector('.sn-card-body');
     el.classList.add('is-editing');
-    body.contentEditable = 'plaintext-only';
+    try {
+      body.contentEditable = 'plaintext-only';
+    } catch {
+      body.contentEditable = 'true';
+    }
     body.focus();
-    const range = document.createRange();
-    range.selectNodeContents(body);
-    if (!selectAll) range.collapse(false);
+    let range = caretAt ? caretRangeAt(caretAt.x, caretAt.y) : null;
+    if (!range || !body.contains(range.startContainer)) {
+      range = document.createRange();
+      range.selectNodeContents(body);
+      if (!selectAll) range.collapse(false);
+    }
     const sel = window.getSelection();
     sel.removeAllRanges();
     sel.addRange(range);
+    renderEditBar();
+    revealCard(el);
+    onEdit?.();
+
+    // The phone keyboard slides in after focus, so re-measure when it lands.
+    const onVisualResize = () => {
+      revealCard(el);
+      positionEditBar();
+      liftActionBar();
+    };
+    window.visualViewport?.addEventListener('resize', onVisualResize);
+    window.visualViewport?.addEventListener('scroll', onVisualResize);
 
     const finish = (cancel = false) => {
       body.contentEditable = 'false';
       el.classList.remove('is-editing');
       body.removeEventListener('blur', onBlur);
       body.removeEventListener('keydown', onKey);
+      window.visualViewport?.removeEventListener('resize', onVisualResize);
+      window.visualViewport?.removeEventListener('scroll', onVisualResize);
       editingId = null;
+      endEdit = null;
+      els.ebPalette.hidden = true;
+      editbar.hidden = true;
       const text = cancel ? note.text : body.textContent.trim();
       if (!text) {
         store.dispatch([{ op: 'note.delete', ids: [id] }]);
@@ -475,7 +686,13 @@ export function createBoard({ store, els, showToast }) {
       }
       renderChips();
     };
-    const onBlur = () => finish(false);
+    endEdit = finish;
+    const onBlur = (e) => {
+      // Chrome buttons keep focus by cancelling mousedown; anything that does
+      // reach here (tab away, tap elsewhere) commits.
+      if (e.relatedTarget && (editbar.contains(e.relatedTarget) || actionbar.contains(e.relatedTarget))) return;
+      finish(false);
+    };
     const onKey = (e) => {
       if (e.key === 'Escape') {
         e.stopPropagation();
@@ -490,9 +707,79 @@ export function createBoard({ store, els, showToast }) {
 
   // ------------------------------------------------------------------ pointer machinery
 
+  function clearLongPress() {
+    if (!longPressTimer) return;
+    clearTimeout(longPressTimer);
+    longPressTimer = 0;
+  }
+
+  /** Drop an in-flight gesture without committing it (a second finger landed). */
+  function abortDrag() {
+    if (!drag) return;
+    if (drag.frame) cancelAnimationFrame(drag.frame);
+    if (drag.kind === 'move' && drag.origins) {
+      for (const id of drag.origins.keys()) {
+        const el = cardEls.get(id);
+        if (!el) continue;
+        el.classList.remove('is-dragging');
+        el.style.willChange = '';
+        el.style.transform = '';
+      }
+    }
+    if (drag.kind === 'arrow') drag.ghost.remove();
+    if (drag.kind === 'rubber') rubber.hidden = true;
+    viewport.classList.remove('is-panning');
+    drag = null;
+  }
+
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+
+  /**
+   * Chrome buttons act on pointerdown, with the default prevented, so pressing
+   * one never moves focus out of the note being edited — a blur would commit
+   * the edit and tear the bar down before the press resolved. `click` stays
+   * bound for keyboard activation, guarded against firing twice.
+   */
+  function onPress(el, handler) {
+    let pressedAt = 0;
+    el.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      pressedAt = performance.now();
+      handler(e);
+    });
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (performance.now() - pressedAt < 700) return;
+      handler(e);
+    });
+  }
+
   viewport.addEventListener('pointerdown', (e) => {
-    if (editingId) return;
+    lastPointerType = e.pointerType;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    // Two fingers: pinch to zoom, wherever they landed.
+    if (e.pointerType === 'touch' && pointers.size === 2) {
+      clearLongPress();
+      abortDrag();
+      const [a, b] = [...pointers.values()];
+      drag = { kind: 'pinch', lastDist: dist(a, b), lastMid: mid(a, b) };
+      return;
+    }
+    if (pointers.size > 1) return;
+
     const card = e.target.closest('.sn-card');
+    if (editingId) {
+      // Inside the note being edited the pointer belongs to the caret and to
+      // native text selection. Anywhere else commits, then behaves normally —
+      // so the next click lands where the user aimed it.
+      if (card && card.dataset.id === editingId) return;
+      endEdit?.(false);
+    }
+
+    const touch = e.pointerType === 'touch';
     const dot = e.target.closest('.sn-dot');
     const resize = e.target.closest('.sn-card-resize');
     const wantPan = spaceHeld || e.button === 1;
@@ -531,18 +818,24 @@ export function createBoard({ store, els, showToast }) {
     if (card) {
       if (e.target.closest('button, a')) return;
       const id = card.dataset.id;
-      if (e.shiftKey) {
+
+      // Shift-click, or a tap during a touch selection session, toggles membership.
+      if (e.shiftKey || (touch && selectMode)) {
         if (selection.has(id)) selection.delete(id);
         else selection.add(id);
         renderSelection();
         return;
       }
-      if (!selection.has(id)) {
+
+      // A mouse click selects as it presses; a tap does not, so tapping to type
+      // never summons the selection bar.
+      if (!touch && !selection.has(id)) {
         selection.clear();
         selection.add(id);
         renderSelection();
       }
-      const ids = [...selection];
+
+      const ids = selection.has(id) ? [...selection] : [id];
       const origins = new Map(ids.map((nid) => {
         const n = noteById(nid);
         return [nid, { x: n.x, y: n.y }];
@@ -550,14 +843,36 @@ export function createBoard({ store, els, showToast }) {
       const liveRects = new Map(ids.map((nid) => [nid, noteRect(noteById(nid))]));
       world.appendChild(card);
       drag = {
-        kind: 'move', ids, origins, liveRects, startX: e.clientX, startY: e.clientY,
+        kind: 'move', id, ids, origins, liveRects, startX: e.clientX, startY: e.clientY,
         moved: false, pointerId: e.pointerId, frame: 0, dx: 0, dy: 0,
+        slop: touch ? SLOP_TOUCH : SLOP_MOUSE,
+        // A press that never becomes a drag is a request to type.
+        wantsEdit: e.button === 0,
+      };
+      viewport.setPointerCapture(e.pointerId);
+      if (touch) {
+        longPressTimer = setTimeout(() => {
+          longPressTimer = 0;
+          if (!drag || drag.kind !== 'move' || drag.moved) return;
+          drag.wantsEdit = false;
+          setSelectMode(true);
+          selection.clear();
+          selection.add(id);
+          renderSelection();
+        }, LONG_PRESS_MS);
+      }
+      return;
+    }
+
+    // Empty board. Touch drags the canvas; the mouse rubber-band selects.
+    if (touch) {
+      drag = {
+        kind: 'pan', startX: e.clientX, startY: e.clientY, panX: vp.panX, panY: vp.panY,
+        pointerId: e.pointerId, fromEmpty: true, moved: false,
       };
       viewport.setPointerCapture(e.pointerId);
       return;
     }
-
-    // empty board → rubber band
     selection.clear();
     renderSelection();
     const start = toWorld(e);
@@ -567,8 +882,28 @@ export function createBoard({ store, els, showToast }) {
   });
 
   viewport.addEventListener('pointermove', (e) => {
+    if (pointers.has(e.pointerId)) pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (drag?.kind === 'pinch') {
+      if (pointers.size < 2) return;
+      const [a, b] = [...pointers.values()];
+      const nextDist = dist(a, b);
+      const nextMid = mid(a, b);
+      const r = viewport.getBoundingClientRect();
+      if (drag.lastDist > 0) {
+        vp = zoomAt(vp, { x: nextMid.x - r.left, y: nextMid.y - r.top }, nextDist / drag.lastDist);
+      }
+      vp.panX += nextMid.x - drag.lastMid.x;
+      vp.panY += nextMid.y - drag.lastMid.y;
+      drag.lastDist = nextDist;
+      drag.lastMid = nextMid;
+      applyViewport();
+      return;
+    }
+
     if (!drag || drag.pointerId !== e.pointerId) return;
     if (drag.kind === 'pan') {
+      if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) > SLOP_TOUCH) drag.moved = true;
       vp.panX = drag.panX + (e.clientX - drag.startX);
       vp.panY = drag.panY + (e.clientY - drag.startY);
       applyViewport();
@@ -577,7 +912,8 @@ export function createBoard({ store, els, showToast }) {
     if (drag.kind === 'move') {
       const dx = (e.clientX - drag.startX) / vp.zoom;
       const dy = (e.clientY - drag.startY) / vp.zoom;
-      if (!drag.moved && Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) < 4) return;
+      if (!drag.moved && Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) < drag.slop) return;
+      clearLongPress();
       drag.moved = true;
       drag.dx = dx;
       drag.dy = dy;
@@ -645,7 +981,37 @@ export function createBoard({ store, els, showToast }) {
     }
   });
 
+  function tappedEmptyBoard(e) {
+    if (selectMode) {
+      exitSelectMode();
+      lastTap = null;
+      return;
+    }
+    const now = performance.now();
+    if (lastTap && now - lastTap.t < DOUBLE_TAP_MS && dist(lastTap, { x: e.clientX, y: e.clientY }) < DOUBLE_TAP_PX) {
+      lastTap = null;
+      const p = toWorld(e);
+      createNote({ at: { x: p.x - 110, y: p.y - 24 } });
+      return;
+    }
+    lastTap = { t: now, x: e.clientX, y: e.clientY };
+    if (selection.size) {
+      selection.clear();
+      renderSelection();
+    }
+  }
+
   function endDrag(e) {
+    pointers.delete(e.pointerId);
+    clearLongPress();
+
+    if (drag?.kind === 'pinch') {
+      if (pointers.size < 2) {
+        drag = null;
+        saveViewport();
+      }
+      return;
+    }
     if (!drag || drag.pointerId !== e.pointerId) return;
     const d = drag;
     drag = null;
@@ -658,6 +1024,7 @@ export function createBoard({ store, els, showToast }) {
     if (d.kind === 'pan') {
       viewport.classList.remove('is-panning');
       saveViewport();
+      if (d.fromEmpty && !d.moved) tappedEmptyBoard(e);
       return;
     }
     if (d.kind === 'move') {
@@ -673,7 +1040,15 @@ export function createBoard({ store, els, showToast }) {
         if (d.moved) ops.push({ op: 'note.move', id, x: origin.x + d.dx, y: origin.y + d.dy, ts });
       }
       if (ops.length) store.dispatch(ops);
-      else renderActionBar();
+      if (!d.moved && d.wantsEdit) {
+        // A press that went nowhere: type into the note under the pointer.
+        if (selection.size > 1) {
+          selection.clear();
+          selection.add(d.id);
+          renderSelection();
+        }
+        startEditing(d.id, { caretAt: { x: e.clientX, y: e.clientY } });
+      }
       return;
     }
     if (d.kind === 'resize') {
@@ -705,15 +1080,9 @@ export function createBoard({ store, els, showToast }) {
     'wheel',
     (e) => {
       e.preventDefault();
+      const r = viewport.getBoundingClientRect();
       if (e.ctrlKey || e.metaKey) {
-        const factor = Math.exp(-e.deltaY * 0.0015);
-        const next = clamp(vp.zoom * factor, ZOOM_MIN, ZOOM_MAX);
-        const r = viewport.getBoundingClientRect();
-        const cx = e.clientX - r.left;
-        const cy = e.clientY - r.top;
-        vp.panX = cx - ((cx - vp.panX) / vp.zoom) * next;
-        vp.panY = cy - ((cy - vp.panY) / vp.zoom) * next;
-        vp.zoom = next;
+        vp = zoomAt(vp, { x: e.clientX - r.left, y: e.clientY - r.top }, Math.exp(-e.deltaY * 0.0015));
       } else {
         vp.panX -= e.deltaX;
         vp.panY -= e.deltaY;
@@ -725,6 +1094,9 @@ export function createBoard({ store, els, showToast }) {
   );
 
   viewport.addEventListener('dblclick', (e) => {
+    // Touch double-taps are handled by tappedEmptyBoard; browsers also synthesise
+    // dblclick from them, which would create the note twice.
+    if (lastPointerType === 'touch') return;
     const card = e.target.closest('.sn-card');
     if (card) {
       if (!e.target.closest('a, button')) startEditing(card.dataset.id);
@@ -738,12 +1110,7 @@ export function createBoard({ store, els, showToast }) {
 
   function zoomBy(factor) {
     const r = viewport.getBoundingClientRect();
-    const cx = r.width / 2;
-    const cy = r.height / 2;
-    const next = clamp(vp.zoom * factor, ZOOM_MIN, ZOOM_MAX);
-    vp.panX = cx - ((cx - vp.panX) / vp.zoom) * next;
-    vp.panY = cy - ((cy - vp.panY) / vp.zoom) * next;
-    vp.zoom = next;
+    vp = zoomAt(vp, { x: r.width / 2, y: r.height / 2 }, factor);
     applyViewport();
     saveViewport();
   }
@@ -754,6 +1121,29 @@ export function createBoard({ store, els, showToast }) {
     vp = fitViewport(rects, r.width, r.height);
     applyViewport();
     saveViewport();
+  }
+
+  /** Bring restored notes into view and flash them, so a Restore is visible. */
+  function revealNotes(ids) {
+    const rects = ids
+      .map(noteById)
+      .filter((n) => n && n.status === 'board')
+      .map(noteRect);
+    if (!rects.length) return;
+    const box = bbox(rects);
+    const r = viewport.getBoundingClientRect();
+    vp.panX = r.width / 2 - (box.x + box.w / 2) * vp.zoom;
+    vp.panY = r.height / 2 - (box.y + box.h / 2) * vp.zoom;
+    applyViewport();
+    saveViewport();
+    for (const id of ids) {
+      const el = cardEls.get(id);
+      if (!el) continue;
+      el.classList.remove('is-pulsing');
+      void el.offsetWidth;
+      el.classList.add('is-pulsing');
+      setTimeout(() => el.classList.remove('is-pulsing'), 950);
+    }
   }
 
   // ------------------------------------------------------------------ keyboard
@@ -781,6 +1171,7 @@ export function createBoard({ store, els, showToast }) {
         store.dispatch([{ op: 'note.pin', ids: [...selection], pinned: !allPinned, ts: new Date().toISOString() }]);
       }
     } else if (e.key === 'Escape') {
+      setSelectMode(false);
       selection.clear();
       renderSelection();
     } else if ((e.key === 'Delete' || e.key === 'Backspace') && selection.size) {
@@ -883,15 +1274,21 @@ export function createBoard({ store, els, showToast }) {
     if (chipsDirty) renderChips();
     renderSelection();
     renderEmpty();
+    if (editingId) renderEditBar();
   });
 
   // ------------------------------------------------------------------ wiring + public API
 
-  els.abPin.addEventListener('click', () => {
+  // Chrome sits inside the canvas, so its presses must not reach the board.
+  for (const el of [actionbar, els.hintStrip].filter(Boolean)) {
+    el.addEventListener('pointerdown', (e) => e.stopPropagation());
+  }
+
+  onPress(els.abPin, () => {
     const allPinned = selectedNotes().every((n) => n.pinned);
     store.dispatch([{ op: 'note.pin', ids: [...selection], pinned: !allPinned, ts: new Date().toISOString() }]);
   });
-  els.abIcon.addEventListener('click', () => {
+  onPress(els.abIcon, () => {
     els.abIconPop.hidden = !els.abIconPop.hidden;
   });
   els.abName.addEventListener('keydown', (e) => {
@@ -902,11 +1299,36 @@ export function createBoard({ store, els, showToast }) {
     }
   });
   els.abName.addEventListener('change', () => commitCollectionName());
-  els.abFile.addEventListener('click', fileSelection);
+  els.abName.addEventListener('focus', liftActionBar);
+  els.abName.addEventListener('blur', () => {
+    actionbar.style.bottom = '';
+  });
+  onPress(els.abFile, fileSelection);
+
+  els.ebTrash.innerHTML = TRASH_SVG;
+  els.ebPin.innerHTML = PIN_SVG;
+  onPress(els.ebTrash, () => deleteNotes([editingId]));
+  onPress(els.ebPin, () => {
+    const note = noteById(editingId);
+    if (!note) return;
+    store.dispatch([{ op: 'note.pin', ids: [note.id], pinned: !note.pinned, ts: new Date().toISOString() }]);
+  });
+  onPress(els.ebColor, () => {
+    const note = noteById(editingId);
+    if (!note) return;
+    els.ebPalette.hidden = !els.ebPalette.hidden;
+    if (!els.ebPalette.hidden) renderPalette(note);
+  });
+  onPress(els.ebDone, () => endEdit?.(false));
 
   document.addEventListener('keydown', onKeyDown);
   document.addEventListener('keyup', onKeyUp);
   document.addEventListener('paste', onPaste);
+  window.addEventListener('resize', () => {
+    positionEditBar();
+    liftActionBar();
+  });
+  window.visualViewport?.addEventListener('resize', liftActionBar);
 
   fullRender();
   applyViewport();
@@ -917,8 +1339,15 @@ export function createBoard({ store, els, showToast }) {
     zoomIn: () => zoomBy(1.2),
     zoomOut: () => zoomBy(1 / 1.2),
     zoomFit,
+    revealNotes,
     refresh: fullRender,
+    /** Called when the board becomes visible again — layout may have changed. */
+    relayout: () => {
+      positionEditBar();
+      liftActionBar();
+    },
     clearSelection: () => {
+      setSelectMode(false);
       selection.clear();
       renderSelection();
     },
