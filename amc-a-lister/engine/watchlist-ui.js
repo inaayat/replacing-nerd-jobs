@@ -542,7 +542,7 @@ function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detai
   const logBtn = hideLog ? '' : `<button type="button" class="al-link-btn" data-log-watchlist="${item.id}">${escapeHtml(logLabel)}</button>`;
   return `
     <div class="al-log-entry ${expanded ? 'is-expanded' : ''}${out ? ' is-already-out' : ''}" data-entry-id="${item.id}">
-      <article class="al-log-row al-log-row--watchlist al-log-row--clickable ${expanded ? 'is-expanded' : ''}" data-expand-row role="button" tabindex="0" aria-expanded="${expanded ? 'true' : 'false'}" aria-label="Show details for ${escapeHtml(item.title)}">
+      <article class="al-log-row al-log-row--watchlist al-log-row--clickable ${expanded ? 'is-expanded' : ''}" data-expand-row data-entry-id="${item.id}" tabindex="0" aria-expanded="${expanded}" aria-label="Toggle details">
         <div class="al-log-col al-col-poster">${posterHtml(item, { size: 'w92', width: 28, height: 42 })}</div>
         <div class="al-log-col al-log-col--desktop">${escapeHtml(releaseLabel(item))}</div>
         <div class="al-log-col--body">
@@ -650,20 +650,7 @@ export function wireWatchlistLogList(auth, state, {
     });
   };
 
-  render();
-  return render;
-}
-
-function wireWatchlistLogActions(auth, state, render, {
-  listEl,
-  api,
-  detailsApi,
-  detailsKind,
-  onLogItem,
-  statusEl,
-}) {
-  const toggleExpand = (entry) => {
-    const id = entry?.dataset.entryId;
+  const toggleExpand = (id) => {
     if (!id) return;
 
     if (sameWatchlistId(state.expandedId, id)) {
@@ -685,22 +672,49 @@ function wireWatchlistLogActions(auth, state, render, {
     }
   };
 
-  // Delegate from the list root so taps work even when rows re-render, and so
-  // mobile Safari reliably hits the row (not only the text node).
-  listEl.querySelectorAll('[data-expand-row]').forEach((row) => {
-    row.addEventListener('click', (e) => {
-      if (e.target.closest('.al-row-actions')) return;
-      const entry = e.target.closest('.al-log-entry') || row.closest('.al-log-entry');
-      toggleExpand(entry);
-    });
-    row.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        toggleExpand(row.closest('.al-log-entry'));
-      }
-    });
+  // Delegate from the list root (same idea as the watch log): innerHTML re-renders
+  // drop per-row listeners, and Safari often targets a text node instead of the
+  // article. Do not use role="button" on the row — action buttons live inside it.
+  listEl.addEventListener('click', (e) => {
+    const id = watchlistExpandIdFromEvent(e, listEl);
+    if (!id) return;
+    toggleExpand(id);
+  });
+  listEl.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const id = watchlistExpandIdFromEvent(e, listEl);
+    if (!id) return;
+    e.preventDefault();
+    toggleExpand(id);
   });
 
+  render();
+  return render;
+}
+
+function eventElement(e) {
+  const t = e.target;
+  return t instanceof Element ? t : t?.parentElement || null;
+}
+
+/** Row id for a Coming Soon / Watch at Home tap; null if the tap was on actions. */
+export function watchlistExpandIdFromEvent(e, listEl) {
+  const el = eventElement(e);
+  if (!el || (listEl && !listEl.contains(el))) return null;
+  if (el.closest('.al-row-actions')) return null;
+  const row = el.closest('[data-expand-row]');
+  if (!row || (listEl && !listEl.contains(row))) return null;
+  return row.dataset.entryId || row.closest('.al-log-entry')?.dataset.entryId || null;
+}
+
+function wireWatchlistLogActions(auth, state, render, {
+  listEl,
+  api,
+  detailsApi,
+  detailsKind,
+  onLogItem,
+  statusEl,
+}) {
   listEl.querySelectorAll('[data-log-watchlist]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();

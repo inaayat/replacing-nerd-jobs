@@ -17,6 +17,7 @@ import {
   itemsForWatchlistView,
   theatricalCutoffISO,
   watchlistMatchesLogged,
+  watchlistLogTableHtml,
 } from '../amc-a-lister/engine/watchlist-ui.js';
 import { monthsBeforeISO } from '../amc-a-lister/engine/dates.js';
 
@@ -165,6 +166,52 @@ assert(!watchlistMatchesLogged(
   { id: '1', title: 'Dune', tmdb_id: 1 },
   { tmdb_id: 2, title: 'Something Else' },
 ), 'unrelated log does not match');
+
+function detailsState(overrides = {}) {
+  return {
+    expandedId: null,
+    editingId: null,
+    detailsCache: new Map(),
+    detailsLoading: null,
+    detailsError: null,
+    ...overrides,
+  };
+}
+
+function articleTag(html) {
+  const m = html.match(/<article\b[^>]*>/);
+  return m ? m[0] : '';
+}
+
+const expandItems = [
+  { id: 'cs1', title: 'Future Film', release_date: '2026-09-01', notes: 'IMAX', tmdb_id: 11 },
+  { id: 'home1', title: 'Old Film', release_date: '2020-01-01', tmdb_id: 22 },
+];
+
+for (const view of ['coming-soon', 'watch-at-home']) {
+  const html = watchlistLogTableHtml(expandItems, detailsState(), { view });
+  const row = articleTag(html);
+  assert(row.includes('data-expand-row'), `${view} row is marked expandable like the watch log`);
+  assert(row.includes('al-log-row--clickable'), `${view} row is clickable like the watch log`);
+  assert(row.includes('data-entry-id="cs1"'), `${view} clickable row carries the entry id`);
+  assert(row.includes('aria-label="Toggle details"'), `${view} row uses the log toggle label`);
+  assert(!row.includes('role="button"'), `${view} row is not role=button (action buttons live inside it)`);
+  assert(!html.includes('al-log-detail'), `${view} collapsed row has no detail panel`);
+}
+
+const expandedSoon = watchlistLogTableHtml(expandItems, detailsState({ expandedId: 'cs1' }), { view: 'coming-soon' });
+assert(expandedSoon.includes('is-expanded'), 'Coming Soon expanded row is marked');
+assert(expandedSoon.includes('al-log-detail'), 'Coming Soon expand shows the detail panel');
+assert((expandedSoon.match(/is-expanded/g) || []).length >= 2, 'Coming Soon expand marks entry and row');
+
+const expandedHome = watchlistLogTableHtml(expandItems, detailsState({ expandedId: 'home1' }), { view: 'watch-at-home' });
+assert(expandedHome.includes('is-expanded'), 'Watch at Home expanded row is marked');
+assert(expandedHome.includes('al-log-detail'), 'Watch at Home expand shows the detail panel');
+assert(expandedHome.includes('Watch at home'), 'Watch at Home keeps its badge when expanded');
+
+const collapsedAgain = watchlistLogTableHtml(expandItems, detailsState({ expandedId: null }), { view: 'coming-soon' });
+assert(!collapsedAgain.includes('is-expanded'), 'clearing expandedId collapses Coming Soon again');
+assert(!collapsedAgain.includes('al-log-detail'), 'collapsed Coming Soon hides the detail panel');
 
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
