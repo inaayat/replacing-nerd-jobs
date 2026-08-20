@@ -180,9 +180,16 @@ brainstorm fragments, and things to remember. **v1** is a signed-in two-tier app
 (Neon Auth + Postgres): a pan/zoom **board** where you dump notes, drag them into
 clusters, draw arrows, pin, resize, and rope-select to stamp a color + icon and
 name a **collection** — and a **memory** table (collections + loose notes,
-filters, full-text search) that the board files into. **Wipe board** files
-everything except pinned notes and offers Undo; nothing is destroyed, and
-collections restore with their arrangement intact. Local-first: every action
+filters, full-text search) that the board files into. **Click or tap a note to
+type into it**, caret where you pressed; drag it instead to move it. The note
+being edited raises a small bar with trash / pin / colour / done — trash really
+deletes the note, with ten seconds of Undo — and a selection raises a bar docked
+at the bottom of the canvas. **Wipe board** files everything except pinned notes
+and offers Undo; nothing is destroyed, and collections restore with their
+arrangement intact. The canvas is full-bleed; at ≥1100px memory is a permanent
+right-hand sidebar (collapsible to a rail), below that it stays a tab. Touch gets
+the whole map: tap to edit, one-finger pan, pinch zoom, long-press to multi-select.
+A **?** in the toolbar explains every icon and gesture. Local-first: every action
 commits to `localStorage` instantly and syncs to `api/sticky-notes.js` in the
 background as ops. The v0 **Chrome extension** in `sticky-notes/extension/`
 still quick-captures from any tab and merges in when you open the board;

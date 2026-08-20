@@ -9,13 +9,20 @@
   --mono: "DM Mono", ui-monospace, monospace;
   --nav-h: calc(3.25rem + env(safe-area-inset-top, 0px));
   --gutter: clamp(18px, 2.4vw, 40px);
+  /* Where a filed card flies to. Overridden when the memory sidebar is open. */
+  --file-x: 40px;
+  --file-y: -40px;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
 
+/* Chrome here is toggled with the `hidden` attribute, and most of it is a flex
+   or grid box — which would otherwise beat the user-agent `display: none`. */
+[hidden] { display: none !important; }
+
 html, body {
   margin: 0;
-  min-height: 100%;
+  height: 100%;
   background: var(--cream);
   color: var(--ink);
   font-family: var(--font);
@@ -23,23 +30,29 @@ html, body {
   line-height: 1.5;
 }
 
+/* The board is the page: column shell, no page scroll, canvas takes the rest. */
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
 a { color: var(--ink); }
 
 /* ---------------------------------------------------------------- nav */
 
 .sn-nav {
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   height: var(--nav-h);
-  padding: 0 var(--gutter);
+  padding: 0 clamp(12px, 2vw, 24px);
   padding-top: env(safe-area-inset-top, 0px);
   border-bottom: 1.5px solid var(--line);
   background: rgba(250, 243, 227, 0.92);
   backdrop-filter: blur(8px);
-  position: sticky;
-  top: 0;
   z-index: 30;
 }
 
@@ -63,7 +76,7 @@ a { color: var(--ink); }
 }
 .sn-nav-logo:hover { opacity: 1; }
 
-.sn-nav-section { font-family: var(--display); font-size: 1.15rem; }
+.sn-nav-section { font-family: var(--display); font-size: 1.15rem; white-space: nowrap; }
 
 .sn-nav-links {
   display: flex;
@@ -88,12 +101,18 @@ a { color: var(--ink); }
 /* ---------------------------------------------------------------- shell + gate */
 
 .sn-shell {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 18px var(--gutter) 40px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
-.sn-gate { padding: clamp(32px, 8vh, 96px) 0; max-width: 720px; }
+/* Signed out there is no canvas, so the prose keeps its comfortable measure. */
+.sn-gate {
+  padding: clamp(32px, 8vh, 96px) var(--gutter);
+  max-width: 760px;
+  margin: 0 auto;
+}
 
 .sn-kicker {
   font-family: var(--mono);
@@ -115,32 +134,44 @@ a { color: var(--ink); }
 
 .sn-gate-note { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); }
 
+.sn-app {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px 10px;
+  overflow: hidden;
+}
+
 /* ---------------------------------------------------------------- toolbar */
 
 .sn-toolbar {
+  flex: none;
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  flex-wrap: nowrap;
+  gap: 8px;
   align-items: center;
   justify-content: space-between;
-  margin: 6px 0 12px;
+  min-height: 44px;
 }
 
-.sn-tabs { display: inline-flex; gap: 4px; }
+.sn-tabs { display: inline-flex; gap: 4px; flex: none; }
 
 .sn-tab {
   font-family: var(--mono);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   border: 1.5px solid var(--line);
   background: transparent;
   color: var(--ink);
   border-radius: 999px;
-  padding: 10px 18px;
+  padding: 8px 14px;
   cursor: pointer;
-  min-height: 44px;
+  min-height: 40px;
   opacity: 0.6;
+  white-space: nowrap;
 }
 .sn-tab[aria-selected="true"] { border-color: var(--ink); background: var(--panel); opacity: 1; }
 
@@ -154,26 +185,64 @@ a { color: var(--ink); }
 }
 .sn-tab-count:empty { display: none; }
 
-.sn-toolbar-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+/* A note landing in memory should be noticed even when memory is off screen. */
+.sn-tab-count.is-bumped,
+.sn-side-count.is-bumped { animation: sn-bump 420ms ease; }
+@keyframes sn-bump {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.45); }
+  100% { transform: scale(1); }
+}
+
+.sn-toolbar-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-left: auto;
+  min-width: 0;
+}
+
+.sn-board-actions { display: flex; gap: 8px; align-items: center; min-width: 0; }
 
 .sn-btn {
   font-family: var(--mono);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   border: 1.5px solid var(--ink);
   background: var(--panel);
   color: var(--ink);
   border-radius: 999px;
-  padding: 10px 16px;
+  padding: 8px 14px;
   cursor: pointer;
-  min-height: 44px;
+  min-height: 40px;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
+  gap: 5px;
+  white-space: nowrap;
 }
 .sn-btn:hover { filter: brightness(0.98); }
 .sn-btn-primary { background: var(--ink); color: var(--cream); }
+
+.sn-iconbtn {
+  border: 1.5px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  border-radius: 999px;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.sn-iconbtn:hover,
+.sn-iconbtn[aria-expanded="true"] { border-color: var(--ink); background: var(--ink); color: var(--cream); }
 
 .sn-zoom {
   display: inline-flex;
@@ -182,29 +251,71 @@ a { color: var(--ink); }
   border-radius: 999px;
   background: var(--panel);
   overflow: hidden;
+  flex: none;
 }
 .sn-zoom-btn,
 .sn-zoom-label {
   border: 0;
   background: transparent;
   font-family: var(--mono);
-  font-size: 0.72rem;
-  min-height: 44px;
+  font-size: 0.7rem;
+  min-height: 40px;
   padding: 0 12px;
   cursor: pointer;
   color: var(--ink);
 }
-.sn-zoom-label { border-left: 1.5px solid var(--line); border-right: 1.5px solid var(--line); min-width: 64px; }
+.sn-zoom-label { border-left: 1.5px solid var(--line); border-right: 1.5px solid var(--line); min-width: 60px; }
 .sn-zoom-btn:hover, .sn-zoom-label:hover { background: rgba(28, 28, 28, 0.04); }
 
-/* ---------------------------------------------------------------- board canvas */
+.sn-more { position: relative; display: inline-flex; }
+
+.sn-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  min-width: 190px;
+  background: var(--panel);
+  border: 1.5px solid var(--ink);
+  border-radius: 12px;
+  padding: 4px;
+  box-shadow: 0 10px 28px rgba(28, 28, 28, 0.22);
+}
+
+.sn-menu-item {
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-align: left;
+  padding: 11px 12px;
+  min-height: 44px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.sn-menu-item:hover { background: rgba(28, 28, 28, 0.06); }
+
+/* ---------------------------------------------------------------- workspace */
+
+.sn-workspace {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 10px;
+}
 
 .sn-viewport {
   position: relative;
-  height: calc(100vh - var(--nav-h) - 132px);
-  min-height: 520px;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
   border: 1.5px solid var(--line);
-  border-radius: 18px;
+  border-radius: 12px;
   overflow: hidden;
   background-color: var(--panel);
   background-image: radial-gradient(rgba(28, 28, 28, 0.07) 1px, transparent 1px);
@@ -215,6 +326,8 @@ a { color: var(--ink); }
 }
 .sn-viewport.is-pan-ready { cursor: grab; }
 .sn-viewport.is-panning { cursor: grabbing; }
+/* Long-press selection mode: taps add notes instead of opening the editor. */
+.sn-viewport.is-selecting { background-color: #fbf7ec; }
 
 .sn-world {
   position: absolute;
@@ -260,7 +373,9 @@ a { color: var(--ink); }
   position: absolute;
   inset: 0;
   display: grid;
+  place-content: center;
   place-items: center;
+  gap: 6px;
   text-align: center;
   padding: 24px;
   pointer-events: none;
@@ -269,12 +384,52 @@ a { color: var(--ink); }
   font-size: 0.82rem;
   letter-spacing: 0.04em;
 }
+.sn-empty p { margin: 0; }
+.sn-empty-line { font-size: 0.95rem; color: rgba(28, 28, 28, 0.65); }
+.sn-empty-sub { max-width: 34ch; line-height: 1.7; }
 .sn-empty kbd {
   border: 1px solid var(--line);
   border-radius: 4px;
   padding: 1px 5px;
   background: var(--cream);
 }
+
+/* ---------------------------------------------------------------- first-use hint */
+
+.sn-hintstrip {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 18;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 20px);
+  background: var(--cream);
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  padding: 5px 6px 5px 14px;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.03em;
+  box-shadow: 0 4px 14px rgba(28, 28, 28, 0.1);
+}
+.sn-hintstrip span { min-width: 0; }
+
+.sn-hint-dismiss {
+  flex: none;
+  border: 1.5px solid var(--line);
+  background: var(--panel);
+  color: var(--ink);
+  border-radius: 999px;
+  font: inherit;
+  text-transform: uppercase;
+  padding: 6px 12px;
+  min-height: 32px;
+  cursor: pointer;
+}
+.sn-hint-dismiss:hover { background: var(--ink); color: var(--cream); }
 
 /* ---------------------------------------------------------------- cards */
 
@@ -288,17 +443,31 @@ a { color: var(--ink); }
   padding: 10px 12px 8px 16px;
   cursor: grab;
   user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
   contain: layout style;
 }
 .sn-card.is-dragging { cursor: grabbing; box-shadow: 0 6px 18px rgba(28, 28, 28, 0.16); }
-.sn-card.is-editing { cursor: text; user-select: text; }
+.sn-card.is-editing {
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+  box-shadow: 0 8px 22px rgba(28, 28, 28, 0.18);
+  z-index: 6;
+}
 .sn-card.is-selected { outline: 2px solid var(--ink); outline-offset: 2px; }
 .sn-card.is-pinned { box-shadow: 0 3px 10px rgba(28, 28, 28, 0.18); }
 .sn-card.is-filing {
   transition: transform 200ms ease, opacity 200ms ease;
-  transform: translate(40px, -40px) scale(0.6);
+  transform: translate(var(--file-x), var(--file-y)) scale(0.6);
   opacity: 0;
   pointer-events: none;
+}
+/* Restored from memory — say where it landed. */
+.sn-card.is-pulsing { animation: sn-pulse 900ms ease; }
+@keyframes sn-pulse {
+  0%, 100% { box-shadow: 0 1px 4px rgba(28, 28, 28, 0.08); }
+  25%, 75% { box-shadow: 0 0 0 6px rgba(28, 28, 28, 0.14); }
 }
 
 .sn-card-color {
@@ -344,6 +513,8 @@ a { color: var(--ink); }
   word-break: break-word;
   outline: none;
   padding-right: 16px;
+  /* Click the body and you type — say so before the click. */
+  cursor: text;
 }
 
 .sn-card-source {
@@ -393,6 +564,9 @@ a { color: var(--ink); }
 
 .sn-chip {
   position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-family: var(--mono);
   font-size: 0.62rem;
   text-transform: uppercase;
@@ -407,25 +581,109 @@ a { color: var(--ink); }
   z-index: 4;
 }
 .sn-chip:hover { background: var(--ink); color: var(--cream); }
+.sn-chip svg { width: 11px; height: 11px; }
 
-/* ---------------------------------------------------------------- action bar */
+/* ------------------------------------------------- tier 1: the editing note's bar */
 
-.sn-actionbar {
+.sn-editbar {
   position: fixed;
-  z-index: 40;
+  z-index: 46;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 2px;
   background: var(--ink);
   color: var(--cream);
   border-radius: 999px;
-  padding: 8px 12px;
+  padding: 3px;
+  box-shadow: 0 6px 18px rgba(28, 28, 28, 0.28);
+}
+
+.sn-eb-btn {
+  width: 26px;
+  height: 26px;
+  padding: 5px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--cream);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  line-height: 1;
+}
+.sn-eb-btn svg { width: 100%; height: 100%; }
+.sn-eb-btn:hover { background: rgba(250, 243, 227, 0.18); }
+.sn-eb-btn[aria-pressed="true"] { background: var(--cream); color: var(--ink); }
+.sn-eb-danger:hover { background: #a02020; color: #fff; }
+.sn-eb-done { font-size: 0.85rem; }
+
+.sn-eb-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  background: transparent;
+}
+
+.sn-eb-palette {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+  background: var(--ink);
+  border-radius: 999px;
+  padding: 5px 7px;
+  box-shadow: 0 6px 18px rgba(28, 28, 28, 0.28);
+}
+
+.sn-eb-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+.sn-eb-swatch[aria-pressed="true"] { border-color: var(--cream); }
+.sn-eb-swatch.sn-eb-none {
+  background: transparent;
+  border: 1.5px dashed rgba(250, 243, 227, 0.6);
+  color: var(--cream);
+}
+
+/* ------------------------------------------- tier 2: the selection bar, docked low */
+
+/* Centred with auto margins rather than left:50% — an absolutely positioned
+   box only shrink-wraps to the space on one side of a 50% offset, which made
+   the bar wrap onto two rows on a wide canvas. */
+.sn-selbar {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 12px;
+  margin: 0 auto;
+  width: fit-content;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 16px);
+  flex-wrap: wrap;
+  justify-content: center;
+  background: var(--ink);
+  color: var(--cream);
+  border-radius: 999px;
+  padding: 6px 12px;
   box-shadow: 0 8px 24px rgba(28, 28, 28, 0.25);
 }
 
 .sn-ab-count {
   font-family: var(--mono);
-  font-size: 0.66rem;
+  font-size: 0.64rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   opacity: 0.7;
@@ -435,8 +693,8 @@ a { color: var(--ink); }
 .sn-ab-swatches { display: inline-flex; gap: 5px; }
 
 .sn-ab-swatch {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   border: 2px solid transparent;
   cursor: pointer;
@@ -453,7 +711,7 @@ a { color: var(--ink); }
   color: var(--cream);
   border-radius: 999px;
   font-family: var(--mono);
-  font-size: 0.66rem;
+  font-size: 0.64rem;
   text-transform: uppercase;
   padding: 4px 10px;
   cursor: pointer;
@@ -495,15 +753,28 @@ a { color: var(--ink); }
 .sn-ab-icongrid:hover { border-color: rgba(250, 243, 227, 0.4); }
 .sn-ab-icongrid[aria-pressed="true"] { background: var(--cream); color: var(--ink); }
 
+/* The collection control says what it is — the model is not guessable. */
+.sn-ab-collection { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+
+.sn-ab-label {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.65;
+  white-space: nowrap;
+}
+
 .sn-ab-name {
   border: 1.5px solid rgba(250, 243, 227, 0.4);
   background: transparent;
   color: var(--cream);
   border-radius: 999px;
   font-family: var(--font);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   padding: 4px 12px;
-  width: 130px;
+  width: 190px;
+  max-width: 44vw;
   min-height: 28px;
 }
 .sn-ab-name::placeholder { color: rgba(250, 243, 227, 0.5); }
@@ -515,7 +786,7 @@ a { color: var(--ink); }
   color: var(--ink);
   border-radius: 999px;
   font-family: var(--mono);
-  font-size: 0.66rem;
+  font-size: 0.64rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   padding: 6px 14px;
@@ -523,16 +794,45 @@ a { color: var(--ink); }
   min-height: 28px;
 }
 
-/* ---------------------------------------------------------------- memory table */
+.sn-ab-hint {
+  flex-basis: 100%;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.03em;
+  opacity: 0.7;
+}
 
-.sn-memory { margin-top: 4px; }
+/* ---------------------------------------------------------------- memory sidebar */
+
+.sn-sidebar {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  width: 100%;
+  min-height: 0;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.sn-side-head { display: none; }
+
+.sn-memory {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 12px 14px 20px;
+}
 
 .sn-mem-filters {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .sn-mem-search {
@@ -541,13 +841,19 @@ a { color: var(--ink); }
   background: var(--panel);
   font-family: var(--font);
   font-size: 0.88rem;
-  padding: 10px 16px;
-  min-width: 220px;
-  min-height: 44px;
+  padding: 9px 14px;
+  flex: 1;
+  min-width: 180px;
+  min-height: 40px;
 }
 .sn-mem-search:focus { outline: none; border-color: var(--ink); }
 
-.sn-mem-chiprow { display: flex; flex-wrap: wrap; gap: 5px; }
+/* Chip rows scroll sideways rather than stacking into a wall on a phone. */
+.sn-mem-chiprow {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
 
 .sn-mem-chip {
   display: inline-flex;
@@ -564,6 +870,8 @@ a { color: var(--ink); }
   padding: 5px 10px;
   cursor: pointer;
   opacity: 0.75;
+  white-space: nowrap;
+  flex: none;
 }
 .sn-mem-chip:hover { opacity: 1; }
 .sn-mem-chip[aria-pressed="true"] { border-color: var(--ink); opacity: 1; }
@@ -577,7 +885,17 @@ a { color: var(--ink); }
   text-transform: uppercase;
   padding: 8px 12px;
   min-height: 40px;
+  max-width: 100%;
 }
+
+.sn-mem-note {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  line-height: 1.6;
+  color: var(--muted);
+  margin: 0 0 12px;
+}
+.sn-mem-note b { color: var(--ink); font-weight: 500; }
 
 .sn-mem-list { border-top: 1.5px solid var(--line); }
 
@@ -586,19 +904,21 @@ a { color: var(--ink); }
 .sn-mem-colhead {
   display: flex;
   align-items: baseline;
-  gap: 14px;
-  padding: 16px 4px 8px;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding: 14px 2px 8px;
   border-bottom: 1px solid var(--line);
 }
 
-.sn-mem-colname { font-family: var(--display); font-size: 1.15rem; }
+.sn-mem-colname { font-family: var(--display); font-size: 1.05rem; }
 .sn-mem-loose .sn-mem-colname { opacity: 0.6; }
 
 .sn-mem-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 9px 4px;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 9px 2px;
   border-bottom: 1px solid var(--line);
 }
 .sn-mem-row:hover { background: rgba(28, 28, 28, 0.025); }
@@ -618,7 +938,7 @@ a { color: var(--ink); }
 .sn-mem-text {
   flex: 1;
   min-width: 0;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -639,6 +959,12 @@ a { color: var(--ink); }
 .sn-mem-actions { display: inline-flex; gap: 2px; flex: none; margin-left: auto; }
 .sn-mem-colhead .sn-mem-actions { margin-left: auto; }
 
+/* Actions stay out of the way until the row is wanted. */
+.sn-mem-row .sn-mem-actions { opacity: 0; }
+.sn-mem-row:hover .sn-mem-actions,
+.sn-mem-row:focus-within .sn-mem-actions,
+.sn-mem-row.is-open .sn-mem-actions { opacity: 1; }
+
 .sn-mem-action {
   border: 0;
   background: transparent;
@@ -649,7 +975,7 @@ a { color: var(--ink); }
   letter-spacing: 0.04em;
   padding: 6px 8px;
   cursor: pointer;
-  opacity: 0.45;
+  opacity: 0.55;
   border-radius: 6px;
 }
 .sn-mem-action:hover { opacity: 1; background: rgba(28, 28, 28, 0.05); }
@@ -657,20 +983,146 @@ a { color: var(--ink); }
 
 .sn-mem-empty {
   font-family: var(--mono);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
+  line-height: 1.7;
   color: var(--muted);
-  padding: 32px 4px;
+  padding: 28px 4px;
   text-align: center;
 }
 
 .sn-mem-more { text-align: center; padding: 16px 0; }
+
+/* ---------------------------------------------------------------- guide + sheet */
+
+.sn-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  background: rgba(28, 28, 28, 0.35);
+}
+
+.sn-guide,
+.sn-sheet {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1.5px solid var(--ink);
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(28, 28, 28, 0.28);
+  width: min(380px, calc(100vw - 24px));
+  max-height: min(72vh, 620px);
+  overflow: hidden;
+}
+
+.sn-guide-head,
+.sn-sheet-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px 8px 16px;
+  border-bottom: 1.5px solid var(--line);
+}
+
+.sn-guide-title,
+.sn-sheet-title {
+  font-family: var(--display);
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.sn-guide-close {
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 1.4rem;
+  line-height: 1;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.sn-guide-close:hover { background: rgba(28, 28, 28, 0.07); }
+
+.sn-guide-body,
+.sn-sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 12px 16px 16px;
+}
+
+.sn-guide-group + .sn-guide-group { margin-top: 16px; }
+
+.sn-guide-grouptitle {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin: 0 0 8px;
+}
+
+.sn-guide-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.sn-guide-glyph {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid var(--line);
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  background: var(--cream);
+}
+.sn-guide-glyph svg { width: 15px; height: 15px; }
+
+.sn-guide-text { font-size: 0.85rem; line-height: 1.45; }
+.sn-guide-text b { font-weight: 600; }
+.sn-guide-text span { display: block; color: var(--muted); font-size: 0.8rem; }
+
+.sn-guide-foot {
+  flex: none;
+  padding: 10px 16px 14px;
+  border-top: 1.5px solid var(--line);
+}
+
+/* The sheet is a centred dialog on web and a bottom sheet on phones. */
+.sn-sheet { top: 50%; left: 50%; transform: translate(-50%, -50%); }
+
+.sn-sheet-body .sn-menu-item {
+  width: 100%;
+  border: 1.5px solid var(--line);
+  margin-bottom: 6px;
+  text-transform: none;
+  font-family: var(--font);
+  font-size: 0.9rem;
+  letter-spacing: 0;
+}
+.sn-sheet-body .sn-menu-item[aria-pressed="true"] { border-color: var(--ink); background: var(--cream); }
+
+.sn-sheet-form { display: flex; gap: 8px; margin-top: 12px; }
+.sn-sheet-form .sn-mem-search { flex: 1; min-width: 0; }
 
 /* ---------------------------------------------------------------- toast */
 
 .sn-toast {
   position: fixed;
   left: 50%;
-  bottom: 24px;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%) translateY(120%);
   background: var(--ink);
   color: var(--cream);
@@ -681,10 +1133,11 @@ a { color: var(--ink); }
   border-radius: 999px;
   opacity: 0;
   transition: transform 180ms ease, opacity 180ms ease;
-  z-index: 50;
+  z-index: 70;
   display: flex;
   align-items: center;
   gap: 12px;
+  max-width: calc(100vw - 24px);
   /* A faded-out toast must never swallow clicks meant for the page. */
   pointer-events: none;
 }
@@ -697,15 +1150,176 @@ a { color: var(--ink); }
   border-radius: 999px;
   font: inherit;
   text-transform: uppercase;
-  padding: 3px 12px;
+  padding: 5px 14px;
+  min-height: 32px;
   cursor: pointer;
+  flex: none;
 }
 .sn-toast button:hover { background: var(--cream); color: var(--ink); }
 
-/* ---------------------------------------------------------------- responsive */
+/* ---------------------------------------------------------------- breakpoints */
 
-@media (max-width: 720px) {
-  .sn-viewport { min-height: 60vh; height: calc(100vh - var(--nav-h) - 170px); }
-  .sn-actionbar { flex-wrap: wrap; border-radius: 18px; max-width: calc(100vw - 16px); }
-  .sn-mem-meta { display: none; }
+/* Wide: memory lives beside the board, so the tabs have nothing to switch. */
+@media (min-width: 1100px) {
+  :root { --file-x: 120px; --file-y: 0px; }
+
+  .sn-tabs { display: none; }
+
+  .sn-sidebar { width: 320px; }
+  .sn-sidebar.is-collapsed { width: 42px; }
+
+  .sn-side-head {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 8px 8px 14px;
+    border-bottom: 1.5px solid var(--line);
+    background: var(--cream);
+  }
+
+  .sn-side-title {
+    font-family: var(--mono);
+    font-size: 0.66rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .sn-side-count {
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    background: var(--ink);
+    color: var(--cream);
+    border-radius: 999px;
+    padding: 1px 7px;
+  }
+  .sn-side-count:empty { display: none; }
+
+  .sn-side-toggle {
+    margin-left: auto;
+    border: 1.5px solid var(--line);
+    background: var(--panel);
+    color: var(--ink);
+    border-radius: 50%;
+    width: 26px;
+    height: 26px;
+    flex: none;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .sn-side-toggle:hover { background: var(--ink); color: var(--cream); }
+
+  .sn-sidebar.is-collapsed .sn-side-head {
+    flex-direction: column;
+    padding: 8px 6px;
+    gap: 10px;
+    height: 100%;
+    border-bottom: 0;
+    align-items: center;
+  }
+  .sn-sidebar.is-collapsed .sn-side-title { writing-mode: vertical-rl; letter-spacing: 0.14em; }
+  .sn-sidebar.is-collapsed .sn-side-toggle { margin-left: 0; transform: rotate(180deg); }
+}
+
+/* Narrow: the ⋯ menu carries what the toolbar cannot. */
+@media (max-width: 1099px) {
+  .sn-wide-only { display: none; }
+}
+@media (min-width: 1100px) {
+  .sn-narrow-only { display: none; }
+  .sn-more { display: none; }
+}
+
+@media (max-width: 719px) {
+  .sn-app { padding: 6px 6px 8px; gap: 6px; }
+  .sn-viewport { border-radius: 10px; }
+  .sn-sidebar { border-radius: 10px; }
+  .sn-memory { padding: 10px 10px 24px; }
+
+  .sn-nav-section span { display: none; }
+  .sn-nav-links a { padding: 0 8px; }
+
+  /* One line of controls, scrollable rather than wrapped. */
+  .sn-toolbar { gap: 6px; }
+  .sn-toolbar-actions { gap: 6px; }
+  .sn-btn-label { display: none; }
+  .sn-btn { padding: 8px 13px; }
+  .sn-zoom { display: none; }
+
+  .sn-mem-chiprow {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+    max-width: 100%;
+  }
+  .sn-mem-chiprow::-webkit-scrollbar { display: none; }
+  .sn-mem-meta { max-width: 100%; }
+  .sn-mem-row .sn-mem-actions { opacity: 1; }
+  /* Tap a row to reveal its actions instead of hovering. */
+  .sn-mem-row:not(.is-open) .sn-mem-actions { display: none; }
+  .sn-mem-row.is-open { background: rgba(28, 28, 28, 0.04); }
+  .sn-mem-row.is-open .sn-mem-actions { width: 100%; margin-left: 0; justify-content: flex-end; }
+
+  .sn-selbar {
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    width: auto;
+    max-width: none;
+    border-radius: 16px;
+    padding: 8px 10px;
+    row-gap: 8px;
+  }
+  .sn-ab-name { width: 100%; max-width: none; }
+  .sn-ab-collection { flex: 1 1 100%; }
+
+  /* Guide and pickers arrive as bottom sheets. */
+  .sn-guide,
+  .sn-sheet {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    width: auto;
+    max-height: 82dvh;
+    border-radius: 18px 18px 0 0;
+    border-bottom: 0;
+    transform: none;
+  }
+  .sn-guide-body,
+  .sn-sheet-body { padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)); }
+  .sn-guide-foot { padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+
+  .sn-hintstrip {
+    left: 8px;
+    right: 8px;
+    transform: none;
+    max-width: none;
+    border-radius: 14px;
+  }
+}
+
+/* Fingers need bigger targets than a cursor does. */
+@media (pointer: coarse) {
+  .sn-eb-btn { width: 44px; height: 44px; padding: 11px; }
+  .sn-eb-swatch { width: 30px; height: 30px; }
+  .sn-eb-palette { gap: 6px; padding: 7px 9px; }
+  .sn-ab-swatch { width: 28px; height: 28px; }
+  .sn-ab-iconbtn,
+  .sn-ab-pin,
+  .sn-ab-file,
+  .sn-ab-name,
+  .sn-mem-action { min-height: 40px; }
+  .sn-mem-action { padding: 9px 12px; }
+  .sn-ab-icongrid { width: 40px; height: 40px; }
+  /* Connector dots and the resize grip are mouse affordances. */
+  .sn-dot,
+  .sn-card-resize { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sn-card.is-filing,
+  .sn-toast { transition: none; }
+  .sn-card.is-pulsing,
+  .sn-tab-count.is-bumped,
+  .sn-side-count.is-bumped { animation: none; }
 }

@@ -5,6 +5,7 @@
   "dependencies": {
     "@neondatabase/auth": "^0.4.2-beta",
     "@neondatabase/serverless": "^1.1.0",
-    "jose": "^6.2.3"
+    "jose": "^6.2.3",
+    "playwright-core": "^1.62.1"
   }
 }

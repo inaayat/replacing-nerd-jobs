@@ -21,6 +21,7 @@ import {
   urlDomain,
   wipeTargets,
   worldToScreen,
+  zoomAt,
 } from '../sticky-notes/notes.js';
 
 let failures = 0;
@@ -175,6 +176,24 @@ function note(id, extra = {}) {
   eq(seg.x2, 300, 'arrow ends at target left edge');
 }
 
+// 5b. delete undo round-trip — the board's trash restores notes and their arrows
+{
+  let s = state(note('a'), note('b'));
+  s = applyOps(s, [{ op: 'arrow.create', id: 'ar1', fromId: 'a', toId: 'b' }]);
+  const doomed = s.notes.filter((n) => n.id === 'a');
+  const orphaned = s.arrows.filter((a) => a.fromId === 'a' || a.toId === 'a');
+  const deleted = applyOps(s, [{ op: 'note.delete', ids: ['a'] }]);
+  eq(deleted.notes.length, 1, 'note.delete removes the note outright, not to memory');
+  assert(!deleted.notes.some((n) => n.status === 'memory'), 'delete is not a disguised file');
+  const undone = applyOps(deleted, [
+    ...doomed.map((n) => ({ op: 'note.upsert', note: n })),
+    ...orphaned.map((a) => ({ op: 'arrow.create', id: a.id, fromId: a.fromId, toId: a.toId })),
+  ]);
+  eq(undone.notes.length, 2, 'undo brings the note back');
+  eq(undone.arrows.length, 1, 'undo redraws the arrows that died with it');
+  eq(undone.notes.find((n) => n.id === 'a').text, 'note a', 'undo keeps the text');
+}
+
 // 6. wipe undo round-trip
 {
   let s = state(note('a'), note('b', { pinned: true }), {
@@ -249,6 +268,33 @@ function note(id, extra = {}) {
   const box = bbox([{ x: 0, y: 0, w: 10, h: 10 }, { x: 20, y: 30, w: 10, h: 10 }]);
   eq(box.w, 30, 'bbox width');
   eq(box.h, 40, 'bbox height');
+}
+
+// 11. zoomAt — pinch / wheel / button zoom all anchor the same way
+{
+  const vp = { panX: 40, panY: -25, zoom: 1 };
+  const anchor = { x: 300, y: 180 };
+  const before = screenToWorld(anchor, vp);
+  const zoomed = zoomAt(vp, anchor, 1.5);
+  eq(zoomed.zoom, 1.5, 'factor applied');
+  const after = screenToWorld(anchor, zoomed);
+  assert(
+    Math.abs(after.x - before.x) < 1e-9 && Math.abs(after.y - before.y) < 1e-9,
+    'world point under the anchor is unmoved',
+  );
+
+  // Two half-steps equal one whole step: pinch accumulates without drift.
+  const stepped = zoomAt(zoomAt(vp, anchor, 1.2), anchor, 1.25);
+  const once = zoomAt(vp, anchor, 1.5);
+  assert(
+    Math.abs(stepped.zoom - once.zoom) < 1e-9 && Math.abs(stepped.panX - once.panX) < 1e-9,
+    'incremental pinch matches a single step',
+  );
+
+  eq(zoomAt(vp, anchor, 100).zoom, 2, 'zoom clamped to max');
+  eq(zoomAt(vp, anchor, 0.001).zoom, 0.4, 'zoom clamped to min');
+  const pinned = zoomAt({ panX: 0, panY: 0, zoom: 2 }, anchor, 4);
+  eq(pinned.panX, 0, 'a clamped zoom does not pan');
 }
 
 // misc: URL helpers

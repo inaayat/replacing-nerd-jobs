@@ -2,6 +2,9 @@
  * Sticky Notes memory — the collapsed table view. Collections plus loose
  * notes, filters by color/icon/collection, client-side full-text search,
  * restore / move / delete actions. Renders at most PAGE rows at a time.
+ *
+ * Renders into the same element whether it is the right-hand sidebar (≥1100px)
+ * or the Memory tab below that; only the surrounding chrome differs.
  */
 import {
   COLOR_KEYS,
@@ -14,10 +17,13 @@ import {
 
 const PAGE = 200;
 
-export function createMemory({ store, els, showToast }) {
+export function createMemory({ store, els, showToast, openSheet, onRestore }) {
   const filters = { search: '', color: null, icon: null, collection: '' };
   let limit = PAGE;
   let searchTimer = null;
+  let lastTotal = null;
+
+  const coarse = () => window.matchMedia('(pointer: coarse)').matches;
 
   function memoryNotes() {
     return store.state.notes
@@ -125,6 +131,7 @@ export function createMemory({ store, els, showToast }) {
       actionBtn('Restore', () => {
         store.dispatch([{ op: 'restore', ids: [note.id] }]);
         showToast('Restored to board');
+        onRestore?.([note.id]);
       }),
       actionBtn('Move…', () => moveNote(note)),
       actionBtn('Delete', () => {
@@ -133,30 +140,51 @@ export function createMemory({ store, els, showToast }) {
       }, 'sn-mem-danger'),
     );
     row.append(dot, icon, text, meta, actions);
+    // No hover on a phone: tapping the row is what reveals its actions.
+    row.addEventListener('click', (e) => {
+      if (!coarse() || e.target.closest('button, a')) return;
+      row.classList.toggle('is-open');
+    });
     return row;
   }
 
+  function assignCollection(noteId, collectionId) {
+    store.dispatch([
+      { op: 'collection.assign', ids: [noteId], collectionId, ts: new Date().toISOString() },
+    ]);
+  }
+
   function moveNote(note) {
-    const names = store.state.collections.map((c) => c.name);
-    const answer = window.prompt(
-      `Move to which collection? (blank = loose)\nExisting: ${names.join(', ') || '(none yet)'}`,
-      '',
-    );
-    if (answer === null) return;
-    const name = answer.trim();
-    const ts = new Date().toISOString();
-    if (!name) {
-      store.dispatch([{ op: 'collection.assign', ids: [note.id], collectionId: null, ts }]);
-      return;
-    }
-    let col = store.state.collections.find((c) => c.name.toLowerCase() === name.toLowerCase());
-    const ops = [];
-    if (!col) {
-      col = { id: randomId(), name };
-      ops.push({ op: 'collection.create', id: col.id, name, ts });
-    }
-    ops.push({ op: 'collection.assign', ids: [note.id], collectionId: col.id, ts });
-    store.dispatch(ops);
+    const options = store.state.collections.map((col) => ({
+      label: col.name,
+      selected: note.collectionId === col.id,
+      onSelect: () => assignCollection(note.id, col.id),
+    }));
+    openSheet({
+      title: 'Move to collection',
+      hint: 'A collection is a named group of notes you can restore or file together.',
+      options: [
+        ...options,
+        { label: 'Loose (no collection)', selected: !note.collectionId, onSelect: () => assignCollection(note.id, null) },
+      ],
+      input: {
+        placeholder: 'New collection…',
+        submitLabel: 'Create',
+        onSubmit: (name) => {
+          const ts = new Date().toISOString();
+          const existing = store.state.collections.find((c) => c.name.toLowerCase() === name.toLowerCase());
+          if (existing) {
+            assignCollection(note.id, existing.id);
+            return;
+          }
+          const id = randomId();
+          store.dispatch([
+            { op: 'collection.create', id, name, ts },
+            { op: 'collection.assign', ids: [note.id], collectionId: id, ts },
+          ]);
+        },
+      },
+    });
   }
 
   function actionBtn(label, onClick, extra = '') {
@@ -181,8 +209,10 @@ export function createMemory({ store, els, showToast }) {
     actions.className = 'sn-mem-actions';
     actions.append(
       actionBtn('Restore all', () => {
+        const ids = store.state.notes.filter((n) => n.collectionId === col.id).map((n) => n.id);
         store.dispatch([{ op: 'restore', collectionId: col.id }]);
         showToast(`"${col.name}" is back on the board`);
+        onRestore?.(ids);
       }),
       actionBtn('Rename', () => {
         const next = window.prompt('Rename collection:', col.name);
@@ -256,7 +286,7 @@ export function createMemory({ store, els, showToast }) {
       emptyEl.className = 'sn-mem-empty';
       emptyEl.textContent = filters.search || filters.color || filters.icon || filters.collection
         ? 'Nothing in memory matches these filters.'
-        : 'Memory is empty — file some notes from the board.';
+        : 'Memory is empty. Select notes on the board, name them to make a collection, then File — they land here and can always come back.';
       els.list.appendChild(emptyEl);
     }
 
@@ -265,7 +295,18 @@ export function createMemory({ store, els, showToast }) {
 
   function updateCount() {
     const total = store.state.notes.filter((n) => n.status === 'memory').length;
-    els.count.textContent = total ? String(total) : '';
+    const text = total ? String(total) : '';
+    const grew = lastTotal !== null && total > lastTotal;
+    for (const el of [els.count, els.sideCount]) {
+      if (!el) continue;
+      el.textContent = text;
+      // Memory is often off screen; a bump is the only signal a note landed.
+      if (!grew) continue;
+      el.classList.remove('is-bumped');
+      void el.offsetWidth;
+      el.classList.add('is-bumped');
+    }
+    lastTotal = total;
   }
 
   // ---------------------------------------------------------------- wiring
