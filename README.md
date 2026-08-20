@@ -192,7 +192,10 @@ editing (or ⌘/Ctrl+K) and it becomes a cream pill — display text starts as t
 domain and picks up the page title unless you rename it. **Colour fills the
 whole card**, and a new note arrives light grey. The toolbar sits on the left.
 A canvas | table toggle next to **+** shows the same board notes as cards or as
-a grouped list (`sticky-notes/table.js`); switching writes no ops. **Write on
+a grouped list (`sticky-notes/table.js`); switching writes no ops. Every
+**collection has a page** (`#wiki/<id>`): a live outline of its notes plus a
+house-edited body (headings, lists, link pills). Open it from the book on the
+board chip or Memory → Page; there is no “create wiki” step. **Write on
 the board** (the pen, or `T`) puts text on the cork board itself — labels over
 a cluster, a word between two arrows. That text is scaffolding: it is never
 filed, and **Wipe board** takes it away.
@@ -497,6 +500,7 @@ only runs the code that talks to it). Accessed from serverless functions via
 | `sn_arrows` | Sticky Notes | Directed connectors between two notes |
 | `sn_ink` | Sticky Notes | Text written on the board itself; no status, deleted by a wipe |
 | `sn_legend` | Sticky Notes | Per-user colour/icon label overrides |
+| `sn_wiki` | Sticky Notes | One page per collection (`doc` JSONB); cascade-deleted with the collection |
 
 Neon Auth also keeps its own auth tables in the same Neon project (managed by
 Neon Auth, not by `ensureSchema()`).

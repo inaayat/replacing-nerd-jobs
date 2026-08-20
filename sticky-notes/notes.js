@@ -81,6 +81,10 @@ export const TRASH_SVG = `${SVG_OPEN}<path d="M4 7h16"/><path d="M10 4h4"/><path
 
 export const TAG_SVG = `${SVG_OPEN}<path d="M3 12V4h8l9 9-8 8z"/><circle cx="7.5" cy="7.5" r="1.2"/></svg>`;
 
+export const BOOK_SVG = `${SVG_OPEN}<path d="M4 5a2 2 0 0 1 2-2h6v18H6a2 2 0 0 0-2 2z"/><path d="M20 5a2 2 0 0 0-2-2h-6v18h6a2 2 0 0 1 2 2z"/><path d="M12 3v18"/></svg>`;
+
+export const RULE_SVG = `${SVG_OPEN}<path d="M4 12h16"/></svg>`;
+
 // Formatting controls. Bold is drawn filled — a stroked "B" reads as an outline
 // letter next to the stroked icons either side of it.
 export const PEN_SVG = `${SVG_OPEN}<path d="M4 20l3.5-.8L19 7.7a2 2 0 0 0 0-2.8l-.9-.9a2 2 0 0 0-2.8 0L3.8 15.5z"/><path d="M14.5 6.5l3 3"/></svg>`;
@@ -132,6 +136,11 @@ const BLOCK_TYPES = ['p', 'ul', 'ol'];
 const RICH_MAX_BLOCKS = 400;
 const RICH_MAX_SPANS = 120;
 export const HREF_MAX = 2048;
+
+// Wiki pages are a slightly larger document than a note: headings and a rule,
+// plus a higher block cap. Notes still refuse those types (BLOCK_TYPES above).
+export const DOC_BLOCK_TYPES = ['h1', 'h2', 'p', 'ul', 'ol', 'hr'];
+export const DOC_MAX_BLOCKS = 600;
 
 /** A bullet or number marker at the start of a line, in the plain projection. */
 const BULLET_LINE = /^\s*[-*+•]\s+(.*)$/;
@@ -233,6 +242,72 @@ export function noteBlocks(note) {
   return note?.rich || textToRich(note?.text);
 }
 
+export function emptyDoc() {
+  return { blocks: [] };
+}
+
+/**
+ * A collection wiki body. Headings and a rule are allowed here; they are not
+ * allowed on a note (`normalizeRich`). `noteId` is provenance from a pull —
+ * a copy, not a live embed — and is kept even after the note is deleted so
+ * the renderer can hide the chip rather than rewrite the page.
+ */
+export function normalizeDoc(raw) {
+  const source = Array.isArray(raw) ? raw : raw && typeof raw === 'object' ? raw.blocks : null;
+  if (!Array.isArray(source)) return emptyDoc();
+  const blocks = [];
+  for (const block of source.slice(0, DOC_MAX_BLOCKS)) {
+    if (!block || typeof block !== 'object') continue;
+    const type = DOC_BLOCK_TYPES.includes(block.type) ? block.type : 'p';
+    if (type === 'hr') {
+      blocks.push({ type: 'hr' });
+      continue;
+    }
+    const next = { type, spans: normalizeSpans(block.spans) };
+    if (block.noteId) next.noteId = String(block.noteId);
+    blocks.push(next);
+  }
+  return { blocks };
+}
+
+export function docIsEmpty(doc) {
+  const blocks = normalizeDoc(doc).blocks;
+  return !blocks.some((block) => {
+    if (block.type === 'hr') return true;
+    return (block.spans || []).some((span) => span.text);
+  });
+}
+
+/** One heading per colour group, one bullet per note. Notes stay raw. */
+export function draftDocFromNotes(notes, legend) {
+  const groups = new Map();
+  for (const key of COLOR_KEYS) groups.set(key, []);
+  groups.set(null, []);
+  for (const note of Array.isArray(notes) ? notes : []) {
+    const key = COLOR_KEYS.includes(note.colorKey) ? note.colorKey : null;
+    groups.get(key).push(note);
+  }
+  const blocks = [];
+  for (const [key, list] of groups) {
+    if (!list.length) continue;
+    const label = key ? legendLabel(legend, 'color', key) : 'Uncoloured';
+    blocks.push({ type: 'h2', spans: [{ text: label, bold: false }] });
+    for (const note of list) {
+      const text = String(note.text || '').replace(/[\r\n]+/g, ' ').trim() || 'Note';
+      blocks.push({ type: 'ul', spans: [{ text, bold: false }], noteId: note.id });
+    }
+  }
+  return normalizeDoc({ blocks });
+}
+
+export function normalizeWiki(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const collectionId = String(raw.collectionId || '');
+  if (!collectionId) return null;
+  const updatedAt = raw.updatedAt || nowIso();
+  return { collectionId, doc: normalizeDoc(raw.doc), updatedAt };
+}
+
 // Tags that end the current line, and the ones that make their contents bold.
 const LINE_TAGS = new Set([
   'DIV', 'P', 'LI', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'PRE', 'SECTION',
@@ -295,9 +370,15 @@ export function richFromNode(root) {
           continue;
         }
       }
+      if (child.classList?.contains?.('sn-wiki-src')) continue;
       if (child.tagName === 'BR') {
         open(type);
         close();
+        continue;
+      }
+      if (child.tagName === 'HR') {
+        close();
+        out.push({ type: 'hr', spans: [] });
         continue;
       }
       if (child.tagName === 'UL' || child.tagName === 'OL') {
@@ -311,7 +392,8 @@ export function richFromNode(root) {
       }
       if (LINE_TAGS.has(child.tagName)) {
         close();
-        walkLine(child, bold, type);
+        const heading = child.tagName === 'H1' ? 'h1' : child.tagName === 'H2' ? 'h2' : type;
+        walkLine(child, bold, heading);
         continue;
       }
       walk(child, bold || isBoldNode(child), type);
@@ -341,6 +423,18 @@ export function listTriggerFor(prefix) {
   if (marker !== String(prefix ?? '')) return null; // the marker must be alone
   if (/^[-*+•]$/.test(marker)) return 'ul';
   if (/^\d{1,3}[.)]$/.test(marker)) return 'ol';
+  return null;
+}
+
+/**
+ * Wiki-only: "# " becomes a heading, "## " a subheading. Notes never call this
+ * — their body whitelist has no headings.
+ */
+export function headingTriggerFor(prefix) {
+  const marker = String(prefix ?? '').trim();
+  if (marker !== String(prefix ?? '')) return null;
+  if (marker === '#') return 'h1';
+  if (marker === '##') return 'h2';
   return null;
 }
 
@@ -456,6 +550,7 @@ export function emptyState() {
     collections: [],
     arrows: [],
     ink: [],
+    wikis: [],
     legend: { colors: {}, icons: {} },
   };
 }
@@ -474,7 +569,11 @@ export function normalizeState(raw) {
         .filter((a) => noteIds.has(a.fromId) && noteIds.has(a.toId))
     : [];
   const ink = Array.isArray(raw.ink) ? raw.ink.map(normalizeInk).filter(Boolean) : [];
-  return { version: 2, notes, collections, arrows, ink, legend: normalizeLegend(raw.legend) };
+  const colIds = new Set(collections.map((c) => c.id));
+  const wikis = Array.isArray(raw.wikis)
+    ? raw.wikis.map(normalizeWiki).filter(Boolean).filter((w) => colIds.has(w.collectionId))
+    : [];
+  return { version: 2, notes, collections, arrows, ink, wikis, legend: normalizeLegend(raw.legend) };
 }
 
 // ---------------------------------------------------------------------------
@@ -525,17 +624,17 @@ export function migrateLegacyStore(rawV0) {
 // Merge (last-write-wins by updatedAt) — used when reconciling server state
 // with the localStorage mirror.
 
-function lww(list, incoming) {
-  const byId = new Map(list.map((item) => [item.id, item]));
+function lww(list, incoming, key = 'id') {
+  const byId = new Map(list.map((item) => [item[key], item]));
   for (const item of incoming) {
-    const existing = byId.get(item.id);
+    const existing = byId.get(item[key]);
     if (!existing) {
-      byId.set(item.id, item);
+      byId.set(item[key], item);
       continue;
     }
     const a = Date.parse(existing.updatedAt) || 0;
     const b = Date.parse(item.updatedAt) || 0;
-    if (b >= a) byId.set(item.id, item);
+    if (b >= a) byId.set(item[key], item);
   }
   return [...byId.values()];
 }
@@ -550,6 +649,7 @@ export function mergeStates(base, incoming) {
     collections: lww(a.collections, b.collections),
     arrows: [...arrowsById.values()],
     ink: lww(a.ink, b.ink),
+    wikis: lww(a.wikis, b.wikis, 'collectionId'),
     legend: {
       colors: { ...a.legend.colors, ...b.legend.colors },
       icons: { ...a.legend.icons, ...b.legend.icons },
@@ -560,7 +660,7 @@ export function mergeStates(base, incoming) {
 /** True when a state holds nothing worth keeping — no notes, no ink. */
 export function stateIsEmpty(state) {
   const s = normalizeState(state);
-  return !s.notes.length && !(s.ink || []).length;
+  return !s.notes.length && !(s.ink || []).length && !s.collections.length && !(s.wikis || []).length;
 }
 
 /**
@@ -572,7 +672,13 @@ export function stateToOps(state) {
   const s = normalizeState(state);
   const ops = [];
   for (const col of s.collections) {
-    ops.push({ op: 'collection.create', id: col.id, name: col.name, ts: col.createdAt });
+    ops.push({
+      op: 'collection.create',
+      id: col.id,
+      name: col.name,
+      status: col.status,
+      ts: col.createdAt,
+    });
     if (col.status === 'memory') ops.push({ op: 'file', collectionId: col.id, ts: col.filedAt || col.updatedAt });
   }
   for (const note of s.notes) ops.push({ op: 'note.upsert', note });
@@ -584,6 +690,9 @@ export function stateToOps(state) {
     for (const [key, label] of Object.entries(s.legend[kind])) {
       ops.push({ op: 'legend.set', kind: kind === 'colors' ? 'color' : 'icon', key, label });
     }
+  }
+  for (const wiki of s.wikis || []) {
+    ops.push({ op: 'wiki.set', collectionId: wiki.collectionId, doc: wiki.doc, ts: wiki.updatedAt });
   }
   return ops;
 }
@@ -602,6 +711,7 @@ export function applyOps(state, ops) {
     collections: [...state.collections],
     arrows: [...state.arrows],
     ink: [...(state.ink || [])],
+    wikis: [...(state.wikis || [])],
     legend: { colors: { ...state.legend.colors }, icons: { ...state.legend.icons } },
   };
   for (const op of Array.isArray(ops) ? ops : []) {
@@ -696,7 +806,14 @@ function applyOp(state, op) {
       return { ...state, arrows: state.arrows.filter((a) => !gone.has(a.id)) };
     }
     case 'collection.create': {
-      const col = normalizeCollection({ id: op.id, name: op.name, createdAt: ts, updatedAt: ts });
+      const col = normalizeCollection({
+        id: op.id,
+        name: op.name,
+        status: op.status,
+        createdAt: ts,
+        updatedAt: ts,
+        filedAt: op.status === 'memory' ? ts : null,
+      });
       if (!col) return state;
       if (state.collections.some((c) => c.id === col.id)) return state;
       return { ...state, collections: [...state.collections, col] };
@@ -718,13 +835,31 @@ function applyOp(state, op) {
     case 'collection.delete': {
       const id = String(op.id || '');
       const memberIds = state.notes.filter((n) => n.collectionId === id).map((n) => n.id);
-      let next = { ...state, collections: state.collections.filter((c) => c.id !== id) };
+      let next = {
+        ...state,
+        collections: state.collections.filter((c) => c.id !== id),
+        wikis: (state.wikis || []).filter((w) => w.collectionId !== id),
+      };
       if (op.deleteNotes) {
         next = applyOp(next, { op: 'note.delete', ids: memberIds });
       } else {
         next = mapNotes(next, memberIds, (n) => touch({ ...n, collectionId: null }, ts));
       }
       return next;
+    }
+    case 'wiki.set': {
+      const collectionId = String(op.collectionId || '');
+      if (!collectionId) return state;
+      if (!state.collections.some((c) => c.id === collectionId)) return state;
+      const wiki = normalizeWiki({ collectionId, doc: op.doc, updatedAt: ts });
+      if (!wiki) return state;
+      const list = state.wikis || [];
+      const idx = list.findIndex((w) => w.collectionId === collectionId);
+      if (idx === -1) return { ...state, wikis: [...list, wiki] };
+      if ((Date.parse(wiki.updatedAt) || 0) < (Date.parse(list[idx].updatedAt) || 0)) return state;
+      const wikis = [...list];
+      wikis[idx] = wiki;
+      return { ...state, wikis };
     }
     case 'file':
       return transition(state, op, 'memory', ts);

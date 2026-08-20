@@ -14,15 +14,17 @@ import {
   HREF_MAX,
   ICON_SVGS,
   clamp,
+  headingTriggerFor,
   isLoneUrl,
   listTriggerFor,
+  normalizeDoc,
   normalizeHref,
   normalizeRich,
   richFromNode,
   urlDomain,
 } from './notes.js';
 
-const LINE_TAGS = new Set(['DIV', 'P', 'LI']);
+const LINE_TAGS = new Set(['DIV', 'P', 'LI', 'H1', 'H2']);
 
 function exec(command, value = null) {
   try {
@@ -188,6 +190,48 @@ export function toggleList(host, tag) {
   if (last) caretToEnd(last);
 }
 
+function setLineType(line, type) {
+  let from = line.tagName === 'LI' ? unlist(line) : line;
+  const tag = type === 'p' ? 'DIV' : type.toUpperCase();
+  if (from.tagName === tag) return from;
+  const next = document.createElement(tag.toLowerCase());
+  while (from.firstChild) next.appendChild(from.firstChild);
+  if (from.dataset.noteId) next.dataset.noteId = from.dataset.noteId;
+  from.replaceWith(next);
+  return next;
+}
+
+/** Wiki-only: turn the caret line into h1/h2, or back into a paragraph. */
+export function toggleHeading(host, type, { force = false } = {}) {
+  ensureLines(host);
+  const lines = selectedLines(host);
+  if (!lines.length) return;
+  const tag = type.toUpperCase();
+  const already = !force && lines.every((el) => el.tagName === tag);
+  let last = null;
+  for (const line of lines) last = setLineType(line, already ? 'p' : type);
+  if (last) caretToEnd(last);
+}
+
+export function insertRule(host) {
+  ensureLines(host);
+  const hr = document.createElement('hr');
+  const line = caretLine(host);
+  if (line && line !== host) line.after(hr);
+  else host.appendChild(hr);
+  const next = document.createElement('div');
+  next.appendChild(document.createElement('br'));
+  hr.after(next);
+  caretToEnd(next);
+}
+
+export function caretHeadingTag(host) {
+  const line = caretLine(host);
+  if (!line) return null;
+  if (line.tagName === 'H1' || line.tagName === 'H2') return line.tagName.toLowerCase();
+  return null;
+}
+
 /** 'UL' / 'OL' / null — what kind of line the caret is on. */
 export function caretListTag(host) {
   const line = caretLine(host);
@@ -230,15 +274,44 @@ export function appendSpans(host, spans) {
   }
 }
 
-export function renderBody(host, blocks) {
+function stampNoteId(el, block, liveNoteIds) {
+  if (!block.noteId) return;
+  el.dataset.noteId = block.noteId;
+  if (liveNoteIds && liveNoteIds.has(block.noteId)) {
+    const chip = document.createElement('span');
+    chip.className = 'sn-wiki-src';
+    chip.contentEditable = 'false';
+    chip.textContent = 'from note';
+    chip.dataset.noteId = block.noteId;
+    el.appendChild(chip);
+  }
+}
+
+export function renderBody(host, blocks, options = {}) {
   host.innerHTML = '';
+  const liveNoteIds = options.liveNoteIds || null;
   let list = null;
   for (const block of blocks || []) {
+    if (block.type === 'hr') {
+      list = null;
+      host.appendChild(document.createElement('hr'));
+      continue;
+    }
+    if (block.type === 'h1' || block.type === 'h2') {
+      list = null;
+      const line = document.createElement(block.type);
+      appendSpans(line, block.spans);
+      if (!line.childNodes.length) line.appendChild(document.createElement('br'));
+      stampNoteId(line, block, liveNoteIds);
+      host.appendChild(line);
+      continue;
+    }
     if (block.type === 'p') {
       list = null;
       const line = document.createElement('div');
       appendSpans(line, block.spans);
       if (!line.childNodes.length) line.appendChild(document.createElement('br'));
+      stampNoteId(line, block, liveNoteIds);
       host.appendChild(line);
       continue;
     }
@@ -249,6 +322,7 @@ export function renderBody(host, blocks) {
     }
     const item = document.createElement('li');
     appendSpans(item, block.spans);
+    stampNoteId(item, block, liveNoteIds);
     list.appendChild(item);
   }
   if (!host.childNodes.length) host.appendChild(document.createElement('div'));
@@ -257,6 +331,46 @@ export function renderBody(host, blocks) {
 /** Read the body back out of the DOM the browser has been editing. */
 export function readBody(host) {
   return normalizeRich(richFromNode(host));
+}
+
+function spansFromLine(el) {
+  const tmp = el.cloneNode(true);
+  for (const chip of tmp.querySelectorAll('.sn-wiki-src')) chip.remove();
+  const blocks = richFromNode(tmp);
+  const spans = [];
+  for (const block of blocks) spans.push(...(block.spans || []));
+  return spans;
+}
+
+/** Wiki document read — headings, rules, and pull provenance survive. */
+export function readDoc(host) {
+  const blocks = [];
+  for (const child of host.children) {
+    if (child.tagName === 'HR') {
+      blocks.push({ type: 'hr' });
+      continue;
+    }
+    if (child.tagName === 'H1' || child.tagName === 'H2') {
+      const block = { type: child.tagName.toLowerCase(), spans: spansFromLine(child) };
+      if (child.dataset.noteId) block.noteId = child.dataset.noteId;
+      blocks.push(block);
+      continue;
+    }
+    if (child.tagName === 'UL' || child.tagName === 'OL') {
+      const type = child.tagName === 'UL' ? 'ul' : 'ol';
+      for (const item of child.children) {
+        if (item.tagName !== 'LI') continue;
+        const block = { type, spans: spansFromLine(item) };
+        if (item.dataset.noteId) block.noteId = item.dataset.noteId;
+        blocks.push(block);
+      }
+      continue;
+    }
+    const block = { type: 'p', spans: spansFromLine(child) };
+    if (child.dataset.noteId) block.noteId = child.dataset.noteId;
+    blocks.push(block);
+  }
+  return normalizeDoc({ blocks });
 }
 
 function pillLabel(pill) {
@@ -352,6 +466,7 @@ export function attachBodyEditor(host, options = {}) {
     placePopover,
     linkPop,
     extraKeydown,
+    wiki = false,
   } = options;
 
   let linkOpen = false;
@@ -371,6 +486,12 @@ export function attachBodyEditor(host, options = {}) {
     host.focus();
     if (kind === 'bold') exec('bold');
     else if (kind === 'ul' || kind === 'ol') toggleList(host, kind === 'ul' ? 'UL' : 'OL');
+    else if (kind === 'h1' || kind === 'h2') toggleHeading(host, kind);
+    else if (kind === 'p') {
+      const line = caretLine(host);
+      if (line && line !== host) caretToEnd(setLineType(line, 'p'));
+    }
+    else if (kind === 'hr') insertRule(host);
     onFormatChange?.();
   };
 
@@ -483,6 +604,24 @@ export function attachBodyEditor(host, options = {}) {
       openLink();
       return;
     }
+    if (
+      wiki &&
+      e.key === 'Enter' &&
+      !e.shiftKey &&
+      !e.metaKey &&
+      !e.ctrlKey
+    ) {
+      const line = caretLine(host);
+      if (line && (line.tagName === 'H1' || line.tagName === 'H2')) {
+        e.preventDefault();
+        const p = document.createElement('div');
+        p.appendChild(document.createElement('br'));
+        line.after(p);
+        caretToEnd(p);
+        onFormatChange?.();
+        return;
+      }
+    }
     extraKeydown?.(e);
   };
 
@@ -492,8 +631,22 @@ export function attachBodyEditor(host, options = {}) {
     onFormatChange?.();
   };
 
+  const startHeading = (kind) => {
+    dropLinePrefix(host);
+    toggleHeading(host, kind, { force: true });
+    onFormatChange?.();
+  };
+
   const onBeforeInput = (e) => {
     if (e.inputType !== 'insertText' || e.data !== ' ') return;
+    if (wiki) {
+      const heading = headingTriggerFor(caretLinePrefix(host));
+      if (heading) {
+        e.preventDefault();
+        startHeading(heading);
+        return;
+      }
+    }
     const kind = listTriggerFor(caretLinePrefix(host));
     if (!kind) return;
     if (caretLine(host)?.tagName === 'LI') return;
@@ -502,6 +655,16 @@ export function attachBodyEditor(host, options = {}) {
   };
 
   const onInput = () => {
+    if (wiki) {
+      const prefix = caretLinePrefix(host);
+      if (prefix && /[ \u00a0]$/.test(prefix)) {
+        const heading = headingTriggerFor(prefix.slice(0, -1));
+        if (heading) {
+          startHeading(heading);
+          return;
+        }
+      }
+    }
     if (caretLine(host)?.tagName === 'LI') return;
     const prefix = caretLinePrefix(host);
     if (!prefix || !/[ \u00a0]$/.test(prefix)) return;
@@ -602,7 +765,8 @@ export function attachBodyEditor(host, options = {}) {
     closeLink,
     commandState,
     caretListTag: () => caretListTag(host),
+    caretHeadingTag: () => caretHeadingTag(host),
     linkAtCaret: () => pillNearCaret(host),
-    read: () => readBody(host),
+    read: () => (wiki ? readDoc(host) : readBody(host)),
   };
 }

@@ -19,7 +19,7 @@ import { renderBody } from './body.js';
 
 const PAGE = 200;
 
-export function createMemory({ store, els, showToast, openSheet, onRestore }) {
+export function createMemory({ store, els, showToast, openSheet, onRestore, onOpenWiki }) {
   const filters = { search: '', color: null, icon: null, collection: '' };
   let limit = PAGE;
   let searchTimer = null;
@@ -221,9 +221,10 @@ export function createMemory({ store, els, showToast, openSheet, onRestore }) {
         if (next === null || !next.trim()) return;
         store.dispatch([{ op: 'collection.rename', id: col.id, name: next.trim(), ts: new Date().toISOString() }]);
       }),
+      actionBtn('Page', () => onOpenWiki?.(col.id)),
       actionBtn('Delete', () => {
         const deleteNotes = window.confirm(
-          `Delete collection "${col.name}"?\n\nOK — delete the collection AND its notes (permanent)\nCancel — just ungroup (notes become loose)`,
+          `Delete collection "${col.name}" and its page?\n\nOK — delete the collection, its page, AND its notes (permanent)\nCancel — just ungroup (notes become loose; the page is still deleted)`,
         );
         if (deleteNotes && !window.confirm('Really delete the notes too? This cannot be undone.')) return;
         store.dispatch([{ op: 'collection.delete', id: col.id, deleteNotes }]);
@@ -260,7 +261,13 @@ export function createMemory({ store, els, showToast, openSheet, onRestore }) {
     }
 
     const cols = store.state.collections
-      .filter((c) => byCollection.has(c.id))
+      .filter((c) => {
+        if (byCollection.has(c.id)) return true;
+        if (c.status !== 'memory') return false;
+        if (filters.color || filters.icon || filters.search) return false;
+        if (filters.collection && filters.collection !== c.id) return false;
+        return true;
+      })
       .sort((a, b) => (Date.parse(b.filedAt || b.updatedAt) || 0) - (Date.parse(a.filedAt || a.updatedAt) || 0));
 
     for (const col of cols) {
@@ -283,7 +290,7 @@ export function createMemory({ store, els, showToast, openSheet, onRestore }) {
       els.list.appendChild(section);
     }
 
-    if (!shown.length) {
+    if (!shown.length && !cols.length) {
       const emptyEl = document.createElement('p');
       emptyEl.className = 'sn-mem-empty';
       emptyEl.textContent = filters.search || filters.color || filters.icon || filters.collection
@@ -329,6 +336,27 @@ export function createMemory({ store, els, showToast, openSheet, onRestore }) {
   els.more.addEventListener('click', () => {
     limit += PAGE;
     rerender();
+  });
+  els.newCollection?.addEventListener('click', () => {
+    openSheet({
+      title: 'New collection',
+      hint: 'A named group with its own page. It starts in memory so wiping the board will not file an empty shell.',
+      input: {
+        placeholder: 'Collection name…',
+        submitLabel: 'Create',
+        onSubmit: (name) => {
+          const existing = store.state.collections.find((c) => c.name.toLowerCase() === name.toLowerCase());
+          if (existing) {
+            onOpenWiki?.(existing.id);
+            return;
+          }
+          const id = randomId();
+          const ts = new Date().toISOString();
+          store.dispatch([{ op: 'collection.create', id, name, status: 'memory', ts }]);
+          onOpenWiki?.(id);
+        },
+      },
+    });
   });
 
   store.subscribe((kind) => {

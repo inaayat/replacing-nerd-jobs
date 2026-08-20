@@ -15,8 +15,10 @@ import { clearGuestState, createStore, readGuestState } from './sync.js';
 import { createBoard } from './board.js';
 import { createMemory } from './memory.js';
 import { createTable } from './table.js';
+import { createWiki } from './wiki.js';
 import { drainPendingImport } from './extension-bridge.js';
 import {
+  BOOK_SVG,
   BOLD_SVG,
   BULLET_LIST_SVG,
   LINK_SVG,
@@ -271,6 +273,16 @@ function guideGroups() {
       ],
     },
     {
+      title: 'A collection page',
+      rows: [
+        {
+          svg: BOOK_SVG,
+          name: 'Page',
+          text: 'Every collection has one page. Open it from the book on the board chip, or Page in memory. The outline lists every note; pull copies a note into the page. Empty pages can draft from the notes once. Escape or Back returns to the board.',
+        },
+      ],
+    },
+    {
       title: 'A selection',
       rows: [
         {
@@ -495,9 +507,27 @@ async function init() {
   drainPendingImport();
   if (guestMode) showGuestNotice({ expired });
 
+  function wikiIdFromHash() {
+    const match = /^#wiki\/(.+)$/.exec(location.hash);
+    if (!match) return null;
+    try {
+      return decodeURIComponent(match[1]);
+    } catch {
+      return match[1];
+    }
+  }
+
+  function setWikiHash(id) {
+    const next = id ? `#wiki/${encodeURIComponent(id)}` : '';
+    if ((location.hash || '') === next) return;
+    if (id) location.hash = next;
+    else history.replaceState(null, '', `${location.pathname}${location.search}`);
+  }
+
   const board = createBoard({
     store,
     showToast,
+    onOpenWiki: (id) => openWiki(id),
     onEdit: () => {
       if (!hintStrip.hidden) dismissHints();
     },
@@ -541,7 +571,9 @@ async function init() {
     store,
     showToast,
     openSheet,
+    onOpenWiki: (id) => openWiki(id),
     onRestore: (ids) => {
+      closeWiki();
       if (!wide.matches) setTab('board');
       board.revealNotes(ids);
     },
@@ -553,6 +585,7 @@ async function init() {
       iconChips: $('#mem-icon-chips'),
       collectionSelect: $('#mem-collection'),
       more: $('#mem-more'),
+      newCollection: $('#mem-new-col'),
       count: $('#memory-count'),
       sideCount: $('#sidebar-count'),
     },
@@ -568,8 +601,64 @@ async function init() {
   const boardActions = $('#board-actions');
   const sidebarToggle = $('#sidebar-toggle');
   const tablePane = $('#table-pane');
+  const wikiPane = $('#wiki-pane');
   const viewCanvas = $('#view-canvas');
   const viewTable = $('#view-table');
+
+  const wiki = createWiki({
+    store,
+    showToast,
+    onBack: () => closeWiki(),
+    onJumpNote: (note) => {
+      closeWiki();
+      if (note.status === 'board') {
+        if (!wide.matches) setTab('board');
+        board.revealNotes([note.id]);
+      } else if (!wide.matches) {
+        setTab('memory');
+      }
+    },
+    onRename: (col) => {
+      const next = window.prompt('Rename collection:', col.name);
+      if (next === null || !next.trim()) return;
+      store.dispatch([{ op: 'collection.rename', id: col.id, name: next.trim(), ts: new Date().toISOString() }]);
+    },
+    els: {
+      pane: wikiPane,
+      back: $('#wiki-back'),
+      title: $('#wiki-title'),
+      notesToggle: $('#wiki-notes-toggle'),
+      outline: $('#wiki-outline'),
+      toc: $('#wiki-toc'),
+      draft: $('#wiki-draft'),
+      editor: $('#wiki-editor'),
+      format: $('#wiki-format'),
+      btnH1: $('#wiki-h1'),
+      btnH2: $('#wiki-h2'),
+      btnBold: $('#wiki-bold'),
+      btnBullets: $('#wiki-bullets'),
+      btnNumbers: $('#wiki-numbers'),
+      btnLink: $('#wiki-link'),
+      btnHr: $('#wiki-hr'),
+      linkPop: $('#wiki-linkpop'),
+    },
+  });
+
+  function openWiki(id) {
+    if (!id) return;
+    if (!(wiki.isOpen() && wiki.collectionId() === id)) wiki.open(id);
+    setWikiHash(id);
+    document.documentElement.classList.add('sn-wiki-open');
+    applyLayout();
+  }
+
+  function closeWiki() {
+    wiki.flush();
+    wiki.close();
+    setWikiHash('');
+    document.documentElement.classList.remove('sn-wiki-open');
+    applyLayout();
+  }
 
   let tab = readLocal(VIEW_KEY) === 'memory' ? 'memory' : 'board';
   let collapsed = readLocal(SIDEBAR_KEY) === 'collapsed';
@@ -591,8 +680,28 @@ async function init() {
 
   function applyLayout() {
     const tableOn = boardView === 'table';
+    const wikiOn = wiki.isOpen();
     applyBoardViewChrome();
-    if (wide.matches) {
+    wikiPane.hidden = !wikiOn;
+    document.documentElement.classList.toggle('sn-wiki-open', wikiOn);
+    if (wikiOn) {
+      viewport.hidden = true;
+      tablePane.hidden = true;
+      boardActions.hidden = true;
+      if (wide.matches) {
+        sidebar.hidden = false;
+        sidebar.classList.toggle('is-collapsed', collapsed);
+        memoryPane.hidden = collapsed;
+        sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+        const label = collapsed ? 'Expand memory' : 'Collapse memory';
+        sidebarToggle.setAttribute('aria-label', label);
+        sidebarToggle.title = label;
+      } else {
+        sidebar.hidden = true;
+        sidebar.classList.remove('is-collapsed');
+        memoryPane.hidden = false;
+      }
+    } else if (wide.matches) {
       // Board and memory are both on screen; the tabs have nothing to do.
       viewport.hidden = tableOn;
       tablePane.hidden = !tableOn;
@@ -686,9 +795,26 @@ async function init() {
   applyLayout();
   if (readLocal(HINTS_KEY) !== 'dismissed') showHints();
 
+  window.addEventListener('hashchange', () => {
+    const id = wikiIdFromHash();
+    if (id) openWiki(id);
+    else if (wiki.isOpen()) closeWiki();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || !wiki.isOpen()) return;
+    if (e.target.closest?.('#wiki-editor, .sn-linkpop, #wiki-format')) return;
+    e.preventDefault();
+    if (wiki.isDrawer()) wiki.setDrawer(false);
+    else closeWiki();
+  });
+
   await store.loadFromServer();
   // Signed in with a guest board still in the browser: ask before touching it.
   if (!guestMode) offerGuestNotes(store);
+
+  const bootWiki = wikiIdFromHash();
+  if (bootWiki) openWiki(bootWiki);
 }
 
 init();
