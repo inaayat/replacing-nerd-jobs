@@ -16,6 +16,7 @@ import {
   sortComingSoonTab,
   itemsForWatchlistView,
   theatricalCutoffISO,
+  watchlistMatchesLogged,
 } from '../amc-a-lister/engine/watchlist-ui.js';
 import { monthsBeforeISO } from '../amc-a-lister/engine/dates.js';
 
@@ -151,6 +152,19 @@ assertEqual(
   ['Old', 'Classic'],
   'watch at home tab',
 );
+
+assert(watchlistMatchesLogged(
+  { id: '1', title: 'Dune', tmdb_id: 438631 },
+  { tmdb_id: 438631, title: 'Other name' },
+), 'tmdb id match clears want-list row');
+assert(watchlistMatchesLogged(
+  { id: '1', title: 'Dune', tmdb_id: null },
+  { title: 'dune' },
+), 'title match clears unlinked want-list row');
+assert(!watchlistMatchesLogged(
+  { id: '1', title: 'Dune', tmdb_id: 1 },
+  { tmdb_id: 2, title: 'Something Else' },
+), 'unrelated log does not match');
 
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

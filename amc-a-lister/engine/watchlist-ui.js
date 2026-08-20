@@ -6,6 +6,8 @@ import { wireComboboxKeys } from './combobox.js';
 
 export { todayISO };
 
+export { watchlistItemMatchesLogged as watchlistMatchesLogged } from './watchlist-match.js';
+
 /**
  * 'upcoming' | 'released' | 'unknown'.
  *
