@@ -30,6 +30,13 @@ html, body {
   line-height: 1.5;
 }
 
+/* Phone editing: iOS must not scroll or scale the document. The board pans. */
+html.sn-editing,
+html.sn-editing body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 /* The board is the page: column shell, no page scroll, canvas takes the rest. */
 body {
   display: flex;
@@ -762,8 +769,8 @@ html.sn-table-view #menu-fit { display: none !important; }
 
 .sn-eb-wrap { position: relative; display: inline-flex; }
 
-/* Formatting is a group so a phone can give it its own row (see the coarse
-   block below) instead of squeezing seven 44 px targets onto one line. */
+/* Formatting is a group so a very narrow phone can wrap it without a
+   desktop-sized second slab (see the coarse / 719 blocks below). */
 .sn-eb-group { display: inline-flex; align-items: center; gap: 2px; }
 .sn-eb-format { border-left: 1px solid rgba(250, 243, 227, 0.25); padding-left: 3px; margin-left: 2px; }
 
@@ -2100,18 +2107,8 @@ html.sn-table-view #menu-fit { display: none !important; }
   .sn-eb-palette { gap: 6px; padding: 7px 9px; }
   .sn-eb-icon { width: 44px; height: 44px; padding: 12px; }
   .sn-eb-iconpop { grid-template-columns: repeat(4, 44px); gap: 4px; }
-  /* Five 44 px actions fit a phone row; formatting takes the next one rather
-     than pushing the bar wider than the screen. `order` keeps Done last on the
-     first row without reordering the markup. */
-  .sn-eb-format {
-    order: 5;
-    flex-basis: 100%;
-    justify-content: center;
-    border-left: 0;
-    border-top: 1px solid rgba(250, 243, 227, 0.25);
-    padding: 2px 0 0;
-    margin: 0;
-  }
+  /* A tablet fits nine 44 px targets on one row. Phones use the compact
+     block below — do not force a second fat row here. */
   .sn-ab-swatch { width: 28px; height: 28px; }
   .sn-ab-iconbtn,
   .sn-ab-pin,
@@ -2178,6 +2175,50 @@ html.sn-table-view #menu-fit { display: none !important; }
   .sn-toast button { touch-action: manipulation; }
 }
 
+/* Phone edit chrome: one slim row of small glyphs, 44 px hits via slop.
+   Never a 120 px floating slab over the dotted canvas. */
+@media (pointer: coarse) and (max-width: 719px) {
+  .sn-editbar {
+    padding: 2px 3px;
+    gap: 0;
+    border-radius: 14px;
+    box-shadow: 0 4px 12px rgba(28, 28, 28, 0.22);
+  }
+  .sn-eb-btn {
+    position: relative;
+    width: 32px;
+    height: 32px;
+    padding: 7px;
+  }
+  .sn-eb-btn::after {
+    content: "";
+    position: absolute;
+    inset: -6px; /* 32 + 12 = 44 px hit */
+  }
+  .sn-eb-format {
+    order: 0;
+    flex-basis: auto;
+    justify-content: center;
+    border: 0;
+    padding: 0;
+    margin: 0;
+  }
+  .sn-eb-dot { width: 12px; height: 12px; }
+  .sn-editbar.is-docked {
+    left: 8px;
+    right: 8px;
+    width: auto;
+    max-width: none;
+    justify-content: space-around;
+    border-radius: 12px;
+  }
+}
+
+@media (max-width: 719px) {
+  html.sn-editing .sn-nav,
+  html.sn-editing .sn-guestbar { display: none; }
+}
+
 /* ---------------------------------------------------------------- installed app */
 
 /* Added to <html> when the page is running from the home screen (matchMedia on
@@ -2204,6 +2245,8 @@ html.sn-table-view #menu-fit { display: none !important; }
 .sn-standalone .sn-selbar {
   bottom: calc(8px + env(safe-area-inset-bottom, 0px));
 }
+.sn-standalone .sn-guestbar { display: none; }
+html.sn-standalone.sn-editing .sn-nav { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .sn-card.is-filing,

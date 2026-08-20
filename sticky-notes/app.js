@@ -528,8 +528,9 @@ async function init() {
     store,
     showToast,
     onOpenWiki: (id) => openWiki(id),
-    onEdit: () => {
-      if (!hintStrip.hidden) dismissHints();
+    onEdit: (active) => {
+      document.documentElement.classList.toggle('sn-editing', Boolean(active));
+      if (active && !hintStrip.hidden) dismissHints();
     },
     els: {
       viewport: $('#viewport'),

@@ -36,13 +36,16 @@ import {
   findFreeSlot,
   fitViewport,
   isLoneUrl,
+  keyboardInset as visualKeyboardInset,
   legendLabel,
   noteBlocks,
+  planEditSession,
   randomId,
   rectsIntersect,
   richToText,
   screenToWorld,
   urlDomain,
+  visibleSlice,
   wipeTargets,
   zoomAt,
 } from './notes.js';
@@ -160,15 +163,36 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
    * so every "is this on screen" question has to ask visualViewport.
    */
   function visibleBounds() {
-    const vv = window.visualViewport;
-    if (!vv) return { top: 0, bottom: window.innerHeight };
-    return { top: vv.offsetTop, bottom: vv.offsetTop + vv.height };
+    return visibleSlice(window.visualViewport, window.innerHeight);
   }
 
   function keyboardInset() {
-    const vv = window.visualViewport;
-    if (!vv) return 0;
-    return Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    return visualKeyboardInset(window.visualViewport, window.innerHeight);
+  }
+
+  function focusWithoutScroll(el) {
+    if (!el) return;
+    try {
+      el.focus({ preventScroll: true });
+    } catch {
+      el.focus();
+    }
+  }
+
+  function setEditingChrome(on) {
+    onEdit?.(Boolean(on));
+  }
+
+  function editSessionPlan(el, barH) {
+    const card = el.getBoundingClientRect();
+    return planEditSession({
+      card: { top: card.top, bottom: card.bottom, left: card.left, width: card.width },
+      barW: editbar.hidden ? 0 : editbar.offsetWidth || 0,
+      barH,
+      canvas: viewport.getBoundingClientRect(),
+      visible: visibleBounds(),
+      phone: coarse(),
+    });
   }
 
   // ------------------------------------------------------------------ cards
@@ -323,7 +347,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     } catch {
       el.contentEditable = 'true';
     }
-    el.focus();
+    focusWithoutScroll(el);
     let range = caretAt ? caretRangeAt(caretAt.x, caretAt.y) : null;
     if (!range || !el.contains(range.startContainer)) {
       range = document.createRange();
@@ -333,11 +357,12 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     const sel = window.getSelection();
     sel.removeAllRanges();
     sel.addRange(range);
+    setEditingChrome(true);
     revealCard(el);
-    onEdit?.();
 
     const onVisualResize = () => revealCard(el);
     window.visualViewport?.addEventListener('resize', onVisualResize);
+    window.visualViewport?.addEventListener('scroll', onVisualResize);
 
     const finish = (cancel = false) => {
       el.contentEditable = 'false';
@@ -345,6 +370,8 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
       el.removeEventListener('blur', onBlur);
       el.removeEventListener('keydown', onKey);
       window.visualViewport?.removeEventListener('resize', onVisualResize);
+      window.visualViewport?.removeEventListener('scroll', onVisualResize);
+      setEditingChrome(false);
       inkEditingId = null;
       endInkEdit = null;
       const current = inkById(id) || ink;
@@ -721,7 +748,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     if (!pop || pop.hidden) return;
     pop.style.transform = 'translateX(-50%)';
     // Offsets are relative to the button's wrapper, but the popover has to
-    // clear the whole bar — which is two rows tall on a phone.
+    // clear the whole bar — which may wrap on a very narrow phone.
     const wrap = pop.parentElement.getBoundingClientRect();
     const bar = editbar.getBoundingClientRect();
     const box = pop.getBoundingClientRect();
@@ -861,21 +888,10 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     if (editbar.hidden || !editingId) return;
     const el = cardEls.get(editingId);
     if (!el) return;
-    const card = el.getBoundingClientRect();
-    const vr = viewport.getBoundingClientRect();
-    const seen = visibleBounds();
-    const w = editbar.offsetWidth || 124;
-    const h = editbar.offsetHeight || 32;
-    const minTop = Math.max(vr.top, seen.top) + 4;
-    const maxTop = Math.min(vr.bottom, seen.bottom) - h - 4;
-    let top = card.top - h - 8;
-    if (top < minTop) top = card.bottom + 8;
-    editbar.style.top = `${clamp(top, minTop, Math.max(minTop, maxTop))}px`;
-    editbar.style.left = `${clamp(
-      card.left + card.width / 2 - w / 2,
-      vr.left + 4,
-      Math.max(vr.left + 4, vr.right - w - 4),
-    )}px`;
+    const plan = editSessionPlan(el, editbar.offsetHeight || 32);
+    editbar.classList.toggle('is-docked', plan.docked);
+    editbar.style.top = `${plan.top}px`;
+    editbar.style.left = `${plan.left}px`;
     placePopover(els.ebPalette);
     placePopover(els.ebIconPop);
     placePopover(els.ebLinkPop);
@@ -884,25 +900,17 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
   /**
    * Keep the note being typed into on screen. On touch the keyboard claims the
    * bottom half, so the note is pulled into the top third of what is left.
+   * The page scale stays 1 — only the board pans.
    */
   function revealCard(el) {
-    const vr = viewport.getBoundingClientRect();
-    const seen = visibleBounds();
-    const top = Math.max(vr.top, seen.top) + 44; // room for the edit bar above
-    const bottom = Math.min(vr.bottom, seen.bottom) - 12;
-    const card = el.getBoundingClientRect();
-    if (card.top >= top && card.bottom <= bottom) return;
-    // Touch parks the note near the top of what the keyboard leaves visible;
-    // a mouse gets the smallest nudge that brings it fully into view.
-    let dy = top - card.top;
-    if (!coarse()) {
-      dy = card.bottom > bottom ? bottom - card.bottom : 0;
-      if (card.top + dy < top) dy = top - card.top;
+    const barH = !editbar.hidden && editingId ? editbar.offsetHeight || 32 : 0;
+    const plan = editSessionPlan(el, barH);
+    if (plan.dy) {
+      vp.panY += plan.dy;
+      applyViewport();
+      saveViewport();
     }
-    if (!dy) return;
-    vp.panY += dy;
-    applyViewport();
-    saveViewport();
+    if (!editbar.hidden && editingId) positionEditBar();
   }
 
   // ------------------------------------------------------------------ create + edit
@@ -1001,13 +1009,12 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     editingId = id;
     const body = el.querySelector('.sn-card-body');
     el.classList.add('is-editing');
+    setEditingChrome(true);
     renderEditBar();
     revealCard(el);
-    onEdit?.();
 
     const onVisualResize = () => {
       revealCard(el);
-      positionEditBar();
       liftActionBar();
     };
     window.visualViewport?.addEventListener('resize', onVisualResize);
@@ -1029,6 +1036,8 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
       endEdit = null;
       closeEditPopovers();
       editbar.hidden = true;
+      editbar.classList.remove('is-docked');
+      setEditingChrome(false);
       if (!text) {
         // A blank card nobody typed into was never a note; anything else is.
         if (wasDraft) discardDraft();
@@ -1060,7 +1069,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
       shouldIgnoreBlur: (target) =>
         Boolean(target && (editbar.contains(target) || actionbar.contains(target))),
     });
-    body.focus();
+    focusWithoutScroll(body);
     let range = caretAt ? caretRangeAt(caretAt.x, caretAt.y) : null;
     if (!range || !body.contains(range.startContainer)) {
       range = document.createRange();
