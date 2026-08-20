@@ -26,7 +26,9 @@ import {
   PIN_SVG,
   TAG_SVG,
   TRASH_SVG,
+  approach,
   defaultBoardView,
+  KEYBOARD_INSET_TAU,
   keyboardLayout,
   stateIsEmpty,
   stateToOps,
@@ -823,22 +825,101 @@ async function init() {
     showToast('Notes from the extension were added to your board');
   });
 
+  const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+  let kbDisplay = null;
+  let kbTarget = null;
+  let kbRaf = 0;
+  let kbLast = 0;
+  let kbClosing = false;
+
+  function writeKbVars(html, next) {
+    html.style.setProperty('--sn-vv-height', `${next.height}px`);
+    html.style.setProperty('--sn-vv-top', `${next.offsetTop}px`);
+  }
+
+  function clearKbInset(html) {
+    html.classList.remove('sn-kb-inset');
+    html.style.removeProperty('--sn-vv-height');
+    html.style.removeProperty('--sn-vv-top');
+    kbDisplay = null;
+    kbTarget = null;
+    kbClosing = false;
+    board.relayout();
+  }
+
+  function tickKeyboardInset(ts) {
+    const html = document.documentElement;
+    if (!kbTarget || !kbDisplay) {
+      kbRaf = 0;
+      kbLast = 0;
+      return;
+    }
+    const dt = kbLast ? Math.min(0.05, (ts - kbLast) / 1000) : 1 / 60;
+    kbLast = ts;
+    kbDisplay = {
+      height: approach(kbDisplay.height, kbTarget.height, dt, KEYBOARD_INSET_TAU),
+      offsetTop: approach(kbDisplay.offsetTop, kbTarget.offsetTop, dt, KEYBOARD_INSET_TAU),
+    };
+    writeKbVars(html, kbDisplay);
+    board.relayout();
+    const settled =
+      Math.abs(kbTarget.height - kbDisplay.height) < 0.5
+      && Math.abs(kbTarget.offsetTop - kbDisplay.offsetTop) < 0.5;
+    if (!settled) {
+      kbRaf = requestAnimationFrame(tickKeyboardInset);
+      return;
+    }
+    writeKbVars(html, kbTarget);
+    kbDisplay = { ...kbTarget };
+    kbRaf = 0;
+    kbLast = 0;
+    if (kbClosing) clearKbInset(html);
+    else board.relayout();
+  }
+
   function applyKeyboardInset() {
     const html = document.documentElement;
     const onPhone = coarse() && window.innerWidth <= 720;
     const layout = keyboardLayout(window.visualViewport, window.innerHeight);
     if (!onPhone || !layout.active) {
-      if (!html.classList.contains('sn-kb-inset')) return;
-      html.classList.remove('sn-kb-inset');
-      html.style.removeProperty('--sn-vv-height');
-      html.style.removeProperty('--sn-vv-top');
+      if (!html.classList.contains('sn-kb-inset') && !kbClosing) return;
+      if (reducedMotion()) {
+        if (kbRaf) cancelAnimationFrame(kbRaf);
+        kbRaf = 0;
+        kbLast = 0;
+        clearKbInset(html);
+        return;
+      }
+      kbClosing = true;
+      kbTarget = { height: window.innerHeight, offsetTop: 0 };
+      if (!kbDisplay) kbDisplay = { ...kbTarget };
+      if (!kbRaf) kbRaf = requestAnimationFrame(tickKeyboardInset);
+      return;
+    }
+
+    const next = { height: layout.height, offsetTop: layout.offsetTop };
+    kbClosing = false;
+    if (!html.classList.contains('sn-kb-inset')) {
+      kbDisplay = { height: window.innerHeight, offsetTop: 0 };
+      writeKbVars(html, kbDisplay);
+      html.classList.add('sn-kb-inset');
+    } else if (!kbDisplay) {
+      kbDisplay = {
+        height: parseFloat(html.style.getPropertyValue('--sn-vv-height')) || next.height,
+        offsetTop: parseFloat(html.style.getPropertyValue('--sn-vv-top')) || 0,
+      };
+    }
+    kbTarget = next;
+    if (reducedMotion()) {
+      if (kbRaf) cancelAnimationFrame(kbRaf);
+      kbRaf = 0;
+      kbLast = 0;
+      kbDisplay = { ...next };
+      writeKbVars(html, kbDisplay);
       board.relayout();
       return;
     }
-    html.style.setProperty('--sn-vv-height', `${Math.round(layout.height)}px`);
-    html.style.setProperty('--sn-vv-top', `${Math.round(layout.offsetTop)}px`);
-    html.classList.add('sn-kb-inset');
-    board.relayout();
+    if (!kbRaf) kbRaf = requestAnimationFrame(tickKeyboardInset);
   }
 
   window.visualViewport?.addEventListener('resize', applyKeyboardInset);

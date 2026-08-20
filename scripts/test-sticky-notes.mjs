@@ -29,6 +29,9 @@ import {
   HREF_MAX,
   defaultBoardView,
   isLoneUrl,
+  approach,
+  displayedKeyboardSlice,
+  KEYBOARD_INSET_TAU,
   keyboardInset,
   keyboardLayout,
   legendLabel,
@@ -949,6 +952,22 @@ function note(id, extra = {}) {
   });
   eq(cramped.docked, true, 'phone docks when the remaining slice is short');
   eq(cramped.top, 50, 'docked bar sits just above the visual bottom, not mid-canvas');
+
+  const stepped = approach(0, 100, KEYBOARD_INSET_TAU, KEYBOARD_INSET_TAU);
+  assert(Math.abs(stepped - (100 * (1 - Math.exp(-1)))) < 1e-6, 'one tau closes ~63% of the keyboard gap');
+  eq(approach(40, 40, 0.016), 40, 'approach of an already-there value stays put');
+  eq(approach(10, 80, 0), 10, 'zero dt does not jump the inset');
+  eq(approach(10, 80, 0.016, 0), 80, 'zero tau snaps (reduced-motion path)');
+
+  const mid = displayedKeyboardSlice({ offsetTop: 0, height: 360 }, 800, { height: 520, offsetTop: 0 });
+  eq(mid.height, 520, 'in-flight shell height wins over visualViewport');
+  eq(mid.bottom, 520, 'docked chrome uses the interpolated bottom');
+  eq(mid.top, 0, 'in-flight offsetTop is kept');
+  eq(
+    displayedKeyboardSlice({ offsetTop: 200, height: 360 }, 800, null).height,
+    360,
+    'no in-flight size falls back to the visual slice',
+  );
 }
 
 // 22. Phone board-view default and note zoom

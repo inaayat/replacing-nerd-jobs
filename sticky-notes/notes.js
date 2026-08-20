@@ -1034,6 +1034,33 @@ export function keyboardLayout(visual, innerHeight) {
 }
 
 /**
+ * Time constant for the phone keyboard shell lerp. One tau closes ~63% of
+ * the remaining gap; the canvas settles in about four taus (~220 ms).
+ */
+export const KEYBOARD_INSET_TAU = 0.055;
+
+/** Exponential approach. `dt` and `tau` are seconds. */
+export function approach(current, target, dt, tau = KEYBOARD_INSET_TAU) {
+  if (!Number.isFinite(target)) return current;
+  if (!Number.isFinite(current)) return target;
+  if (!(tau > 0)) return target;
+  if (!(dt > 0)) return current;
+  return current + (target - current) * (1 - Math.exp(-dt / tau));
+}
+
+/**
+ * Visible slice used while the shell height is interpolating toward
+ * visualViewport. When `displayed` has a finite height, that in-flight
+ * size wins so the docked edit bar slides with the canvas.
+ */
+export function displayedKeyboardSlice(visual, innerHeight, displayed) {
+  const slice = visibleSlice(visual, innerHeight);
+  if (!displayed || !Number.isFinite(displayed.height)) return slice;
+  const top = Number.isFinite(displayed.offsetTop) ? displayed.offsetTop : slice.top;
+  return { top, bottom: top + displayed.height, height: displayed.height };
+}
+
+/**
  * Zoom a world-sized card up to a usable on-screen width on the phone.
  * Desktop callers should not use this — it never shrinks, only lifts a
  * postage-stamp card toward `minScreenW` without exceeding the viewport.
