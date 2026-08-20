@@ -619,6 +619,7 @@ node scripts/test-tmdb.mjs
 node scripts/test-plot-points.mjs
 node scripts/test-plot-points-query.mjs
 node scripts/test-public-imports.mjs   # guards against browser code importing /lib/
+node scripts/test-alist-statistics.mjs
 node scripts/test-alist-watchlist-sort.mjs
 node scripts/test-alist-showing.mjs
 node scripts/test-amc-alist-rank.mjs

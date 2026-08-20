@@ -1,14 +1,21 @@
 import { bootPage, renderShell, requireSignIn, populateSidebarStats } from './nav.js';
 import { summaryApi, watchesApi } from './api.js';
-import { chargeMonth, topActorsByRating, topTheatersByRating, ratingStarBucket, isExcludedTheaterLocation, theaterKey } from './billing.js';
+import { chargeMonth, topActorsByRating, ratingStarBucket } from './billing.js';
 import { money, escapeHtml, monthLabel, shortDate } from './format.js';
+import {
+  buildDayStats,
+  buildFormatStats,
+  buildHabitStats,
+  buildTheaterStats,
+  buildValueStats,
+} from './statistics.js';
 
 bootPage(async ({ root, auth }) => {
   if (!requireSignIn(auth, root)) return;
 
   root.innerHTML = renderShell({
     title: 'Stats',
-    subtitle: 'Where you watch, what you reward, and whether A-List is earning its keep.',
+    subtitle: 'Your membership value, movie taste, theaters, formats, cast, and watching habits.',
     body: `<main class="al-main al-main--insights" id="insights-main"><p class="al-muted">Loading…</p></main>`,
     signedIn: true,
   });
@@ -18,35 +25,40 @@ bootPage(async ({ root, auth }) => {
     summaryApi.get(auth.token),
     watchesApi.list(auth.token),
   ]);
-  const { summary = {}, theaters = [], formats = [], rewatches = [], ratings = {}, actors = [] } = data;
+  const { summary = {}, rewatches = [], ratings = {}, actors = [] } = data;
   const byMonth = summary.byMonth || [];
-  const watchList = (watches || []).filter((w) => w.in_theaters !== false);
-  const moviesByMonth = groupMoviesByMonth(watchList);
-  const moviesByRating = groupMoviesByRating(watchList);
-  const moviesByTheater = groupMoviesByTheater(watchList);
+  const watchList = (watches || []).filter((watch) => watch.in_theaters !== false);
+  const moviesByMonth = groupMovies(watchList, (watch) => chargeMonth(watch.watched_on));
+  const moviesByRating = groupMovies(
+    watchList.filter((watch) => !watch.dnf && watch.rating != null),
+    (watch) => ratingStarBucket(watch.rating),
+  );
+  const moviesByTheater = groupMovies(watchList, (watch) => normalizeGroup(watch.location, 'Unknown theater'));
+  const moviesByFormat = groupMovies(watchList, (watch) => normalizeGroup(watch.format, 'Standard'));
   const ratingBuckets = ratings.buckets || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-  const theatersByRating = topTheatersByRating(theaters, { minRated: 2, limit: 8 });
+  const theaterStats = buildTheaterStats(watchList);
+  const formatStats = buildFormatStats(watchList);
+  const dayStats = buildDayStats(watchList);
+  const habitStats = buildHabitStats(watchList);
+  const valueStats = buildValueStats(summary);
 
   main.innerHTML = `
-    ${renderSpotlight({ summary, ratings, theaters, theatersByRating, watchList })}
-    <div class="al-insight-stack">
+    <div class="al-insights-overview" aria-label="Stats overview">
       ${renderByMonthSection(byMonth, moviesByMonth)}
-      ${renderRatingProfileSection(ratings, ratingBuckets, moviesByRating)}
-      ${renderTheaterRatingSection(theatersByRating, moviesByTheater)}
-      ${renderTheaterRankingSection(theaters, moviesByTheater)}
-      ${renderFormatPremiumsSection(formats)}
-      ${renderActorsMostSeenSection(actors)}
-      ${renderActorsBestRatedSection(actors)}
-      ${renderRewatchesSection(rewatches)}
+      ${renderRatingSection(ratings, ratingBuckets, moviesByRating, watchList)}
     </div>
+    ${renderValueCategory(summary, valueStats)}
+    ${renderTheaterCategory(theaterStats, moviesByTheater)}
+    ${renderFormatCategory(formatStats, moviesByFormat)}
+    ${renderCastCategory(actors)}
+    ${renderHabitsCategory(habitStats, dayStats, rewatches)}
   `;
 
   wireInsightSections(main);
   wireByMonthYear(byMonth, moviesByMonth);
   requestAnimationFrame(() => {
-    main.querySelectorAll('.al-meter-fill, .al-rating-bar-fill').forEach((el) => {
-      const width = el.dataset.width || '0';
-      el.style.width = `${width}%`;
+    main.querySelectorAll('.al-meter-fill, .al-rating-bar-fill').forEach((element) => {
+      element.style.width = `${element.dataset.width || '0'}%`;
     });
   });
 }, { quickLogOnSuccess: (auth) => populateSidebarStats(auth) });
@@ -74,49 +86,29 @@ function insightSection(title, body, {
   `;
 }
 
-function renderSpotlight({ summary, ratings, theaters, theatersByRating, watchList }) {
-  const avgRating = averageWatchRating(watchList);
-  const walkout = ratings.total
-    ? Math.round(((ratings.dnf || 0) / ratings.total) * 100)
-    : 0;
-  const topVisited = theaters[0] || null;
-  const topRated = theatersByRating[0] || null;
-
+function statCategory(id, title, description, body) {
   return `
-    <section class="al-insights-spotlight" aria-label="Stats highlights">
-      ${spotlightCard({
-    label: 'Avg rating',
-    value: avgRating != null ? `${avgRating}★` : '—',
-    note: `${ratings.rated || 0} rated films`,
-  })}
-      ${spotlightCard({
-    label: 'Walk-out rate',
-    value: `${walkout}%`,
-    note: `${ratings.dnf || 0} DNF`,
-    tone: walkout >= 15 ? 'warn' : '',
-  })}
-      ${spotlightCard({
-    label: 'Top theater',
-    value: topVisited ? shortTheaterName(topVisited.location) : '—',
-    note: topVisited ? `${topVisited.count} visits` : 'No visits yet',
-  })}
-      ${spotlightCard({
-    label: 'Highest rated house',
-    value: topRated ? shortTheaterName(topRated.location) : '—',
-    note: topRated ? `${topRated.avgRating}★ · ${topRated.ratedCount} rated` : 'Need 2+ ratings',
-    tone: 'accent',
-  })}
-      ${spotlightCard({
-    label: 'All-time savings',
-    value: summary.totalSavings != null ? formatSavings(summary.totalSavings) : '—',
-    note: summary.totalSeen ? `${summary.totalSeen} screenings` : 'No screenings yet',
-    tone: (summary.totalSavings || 0) >= 0 ? 'good' : 'warn',
-  })}
+    <section class="al-stat-category" aria-labelledby="${id}-title">
+      <header class="al-stat-category-head">
+        <p class="al-stat-category-kicker">By ${escapeHtml(id)}</p>
+        <h2 class="serif" id="${id}-title">${escapeHtml(title)}</h2>
+        <p>${escapeHtml(description)}</p>
+      </header>
+      ${body}
     </section>
   `;
 }
 
-function spotlightCard({ label, value, note, tone = '' }) {
+function statBlock(title, body, { className = '' } = {}) {
+  return `
+    <article class="al-panel al-insight al-stat-block ${className}">
+      <h3 class="serif">${escapeHtml(title)}</h3>
+      ${body}
+    </article>
+  `;
+}
+
+function metricCard({ label, value, note, tone = '' }) {
   return `
     <article class="al-insights-spot${tone ? ` is-${tone}` : ''}">
       <p class="al-insights-spot-label">${escapeHtml(label)}</p>
@@ -126,188 +118,242 @@ function spotlightCard({ label, value, note, tone = '' }) {
   `;
 }
 
-function renderRatingProfileSection(ratings, ratingBuckets, moviesByRating) {
-  const maxCount = Math.max(1, ...[5, 4, 3, 2, 1].map((n) => ratingBuckets[n] || 0));
+function renderValueCategory(summary, valueStats) {
+  const bestMonth = valueStats.bestMonth;
+  return statCategory(
+    'value',
+    'Membership value',
+    'What A-List has cost, what your tickets were worth, and how often the plan came out ahead.',
+    `<div class="al-insights-spotlight al-insights-spotlight--value">
+      ${metricCard({
+    label: 'All-time savings',
+    value: summary.totalSavings != null ? formatSavings(summary.totalSavings) : '—',
+    note: `${summary.totalSeen || 0} screenings`,
+    tone: (summary.totalSavings || 0) >= 0 ? 'good' : 'warn',
+  })}
+      ${metricCard({
+    label: 'Effective cost / visit',
+    value: summary.totalSeen ? money(summary.costPerMovie) : '—',
+    note: `${money(summary.totalBilled || 0)} billed`,
+  })}
+      ${metricCard({
+    label: 'Avg ticket value',
+    value: summary.totalSeen ? money(summary.avgTicket) : '—',
+    note: `${money(summary.totalCharged || 0)} total value`,
+  })}
+      ${metricCard({
+    label: 'Months ahead',
+    value: valueStats.monthCount ? `${valueStats.positiveMonths} / ${valueStats.monthCount}` : '—',
+    note: bestMonth
+      ? `Best: ${monthLabel(bestMonth.month)} (${formatSavings(bestMonth.savings)})`
+      : 'No billing months yet',
+    tone: valueStats.positiveMonths ? 'good' : '',
+  })}
+    </div>`,
+  );
+}
 
-  return insightSection('Rating profile', `
-    <p class="al-muted al-insight-lede">
-      ${ratings.rated || 0} rated · ${ratings.dnf || 0} DNF ·
-      ${((ratings.dnf || 0) / Math.max(1, ratings.total || 0) * 100).toFixed(0)}% walk-out rate
-    </p>
+function renderTheaterCategory(theaters, moviesByTheater) {
+  const body = theaters.length
+    ? `
+      <p class="al-muted al-insight-lede">Top 10 by visits. Average ticket uses screenings with a recorded ticket price.</p>
+      ${rankTable({
+    headers: [
+      { label: 'Theater' },
+      { label: 'Visits', className: 'num' },
+      { label: 'Avg ticket', className: 'num' },
+      { label: 'Avg rating', className: 'num' },
+      { label: 'Ticket value', className: 'num' },
+    ],
+    rows: theaters.slice(0, 10).map((theater, index) => `
+          <tr class="al-rank-row">
+            <td class="al-card-primary">
+              <span class="al-card-rank">${index + 1}</span>
+              <span class="al-hover-target al-hover-target--label" tabindex="0">
+                ${escapeHtml(theater.location)}
+                ${renderMoviesPopup(moviesByTheater.get(theater.key) || [], {
+      empty: 'No films at this theater.',
+      scrollable: true,
+    })}
+              </span>
+            </td>
+            <td class="num" data-label="Visits">${theater.count}</td>
+            <td class="num" data-label="Avg ticket">${theater.avgTicket == null ? '—' : money(theater.avgTicket)}</td>
+            <td class="num" data-label="Avg rating">${theater.avgRating == null ? '—' : `${theater.avgRating}★`}</td>
+            <td class="num" data-label="Ticket value">${money(theater.charged)}</td>
+          </tr>
+        `),
+  })}
+    `
+    : '<div class="al-empty">No theater data yet.</div>';
+
+  return statCategory(
+    'theater',
+    'Theaters',
+    'Compare where you go by frequency, ticket value, and how highly you rated the movies there.',
+    statBlock('Theater scorecard', body, { className: 'al-stat-block--wide' }),
+  );
+}
+
+function renderFormatCategory(formats, moviesByFormat) {
+  const body = formats.length
+    ? `
+      <p class="al-muted al-insight-lede">See which formats fill your calendar and carry the biggest ticket value.</p>
+      ${rankTable({
+    headers: [
+      { label: 'Format' },
+      { label: 'Visits', className: 'num' },
+      { label: 'Share', className: 'num' },
+      { label: 'Avg ticket', className: 'num' },
+      { label: 'Avg rating', className: 'num' },
+    ],
+    rows: formats.map((format, index) => `
+          <tr class="al-rank-row">
+            <td class="al-card-primary">
+              <span class="al-card-rank">${index + 1}</span>
+              <span class="al-hover-target al-hover-target--label" tabindex="0">
+                ${escapeHtml(format.format)}
+                ${renderMoviesPopup(moviesByFormat.get(format.key) || [], {
+      empty: 'No films in this format.',
+      scrollable: true,
+    })}
+              </span>
+            </td>
+            <td class="num" data-label="Visits">${format.count}</td>
+            <td class="num" data-label="Share">${formatPercent(format.share)}</td>
+            <td class="num" data-label="Avg ticket">${format.avgTicket == null ? '—' : money(format.avgTicket)}</td>
+            <td class="num" data-label="Avg rating">${format.avgRating == null ? '—' : `${format.avgRating}★`}</td>
+          </tr>
+        `),
+  })}
+    `
+    : '<div class="al-empty">No format data yet.</div>';
+
+  return statCategory(
+    'format',
+    'Formats',
+    'Standard, IMAX, Dolby, 70mm, and everything else you have logged.',
+    statBlock('Format scorecard', body, { className: 'al-stat-block--wide' }),
+  );
+}
+
+function renderCastCategory(actors) {
+  const mostSeen = actors.length
+    ? `
+      <p class="al-muted al-insight-lede">Top 10 by unique films.</p>
+      ${actorRankTable(actors.slice(0, 10))}
+    `
+    : '<div class="al-empty">No cast data yet — link movies to TMDB when logging or expand a row in your log.</div>';
+  const highestRated = topActorsByRating(actors, { minRated: 2, limit: 10 });
+  const bestRated = highestRated.length
+    ? `
+      <p class="al-muted al-insight-lede">At least two rated films per cast member.</p>
+      ${actorRankTable(highestRated, { sortByRating: true })}
+    `
+    : '<div class="al-empty">Rate at least two films per cast member to build this list.</div>';
+
+  return statCategory(
+    'cast',
+    'Cast',
+    'The performers who recur most often in your log and the ones whose movies you rate highest.',
+    `<div class="al-stat-category-grid">
+      ${statBlock('Most seen', mostSeen)}
+      ${statBlock('Best rated', bestRated)}
+    </div>`,
+  );
+}
+
+function renderHabitsCategory(habits, days, rewatches) {
+  const runtimeValue = habits.runtimeCount ? formatRuntime(habits.totalRuntimeMin) : '—';
+  const dayBody = days.length
+    ? rankTable({
+      headers: [
+        { label: 'Day' },
+        { label: 'Visits', className: 'num' },
+        { label: 'Share', className: 'num' },
+        { label: 'Avg rating', className: 'num' },
+      ],
+      rows: days.map((day, index) => `
+        <tr class="al-rank-row">
+          <td class="al-card-primary"><span class="al-card-rank">${index + 1}</span>${escapeHtml(day.day)}</td>
+          <td class="num" data-label="Visits">${day.count}</td>
+          <td class="num" data-label="Share">${formatPercent(day.share)}</td>
+          <td class="num" data-label="Avg rating">${day.avgRating == null ? '—' : `${day.avgRating}★`}</td>
+        </tr>
+      `),
+    })
+    : '<div class="al-empty">No day-of-week data yet.</div>';
+
+  return statCategory(
+    'habit',
+    'Watching habits',
+    'When you go, who you go with, how much time you spend, and which movies bring you back.',
+    `<div class="al-insights-spotlight al-insights-spotlight--habits">
+      ${metricCard({
+    label: 'Screen time',
+    value: runtimeValue,
+    note: habits.runtimeCount ? `${habits.runtimeCount} films with runtime` : 'Runtime data unavailable',
+  })}
+      ${metricCard({
+    label: 'Solo trips',
+    value: habits.total ? `${formatPercent(habits.soloShare)}` : '—',
+    note: `${habits.soloCount} of ${habits.total} screenings`,
+  })}
+      ${metricCard({
+    label: 'Weekend share',
+    value: habits.total ? `${formatPercent(habits.weekendShare)}` : '—',
+    note: `${habits.weekendCount} weekend screenings`,
+  })}
+      ${metricCard({
+    label: 'Repeat screenings',
+    value: habits.total ? `${formatPercent(habits.repeatShare)}` : '—',
+    note: `${habits.repeatScreenings} beyond ${habits.uniqueTitles} unique titles`,
+  })}
+    </div>
+    <div class="al-stat-category-grid">
+      ${statBlock('Favorite days', dayBody)}
+      ${statBlock('Rewatches', renderRewatches(rewatches))}
+    </div>`,
+  );
+}
+
+function renderRatingSection(ratings, ratingBuckets, moviesByRating, watches) {
+  const maxCount = Math.max(1, ...[5, 4, 3, 2, 1].map((rating) => ratingBuckets[rating] || 0));
+  const avgRating = averageWatchRating(watches);
+  const walkoutRate = (ratings.dnf || 0) / Math.max(1, ratings.total || 0);
+
+  return insightSection('Ratings', `
+    <div class="al-rating-summary" aria-label="Rating summary">
+      <div><span>Average</span><strong>${avgRating == null ? '—' : `${avgRating}★`}</strong></div>
+      <div><span>Rated</span><strong>${ratings.rated || 0}</strong></div>
+      <div><span>DNF</span><strong>${ratings.dnf || 0}</strong></div>
+      <div><span>Walk-out rate</span><strong>${formatPercent(walkoutRate)}</strong></div>
+    </div>
     <p class="al-muted al-insight-hint">
-      Ratings round down to whole stars (4.5 counts as 4★).
-      <span class="al-hint-hover">Hover a rating to see films.</span>
-      <span class="al-hint-touch">Tap a rating to see films.</span>
+      Ratings round down to whole-star groups.
+      <span class="al-hint-hover">Hover a row to see films.</span>
+      <span class="al-hint-touch">Tap a row to see films.</span>
     </p>
     <div class="al-rating-bars" role="list">
-      ${[5, 4, 3, 2, 1].map((n) => {
-    const count = ratingBuckets[n] || 0;
-    const pct = Math.round((count / maxCount) * 100);
+      ${[5, 4, 3, 2, 1].map((rating) => {
+    const count = ratingBuckets[rating] || 0;
+    const width = Math.round((count / maxCount) * 100);
     return `
           <div class="al-rating-bar-row al-hover-target" tabindex="0" role="listitem">
-            <span class="al-rating-bar-label">${n}★</span>
+            <span class="al-rating-bar-label">${rating}★</span>
             <div class="al-rating-bar-track" aria-hidden="true">
-              <i class="al-rating-bar-fill" data-width="${pct}" style="width:0%"></i>
+              <i class="al-rating-bar-fill" data-width="${width}" style="width:0%"></i>
             </div>
             <span class="al-rating-bar-count">${count}</span>
-            ${renderMoviesPopup(moviesByRating.get(n) || [], { empty: 'No films at this rating.', scrollable: true })}
+            ${renderMoviesPopup(moviesByRating.get(rating) || [], {
+      empty: 'No films at this rating.',
+      scrollable: true,
+    })}
           </div>
         `;
   }).join('')}
     </div>
-  `, { className: 'al-insight--rating', expanded: true, kicker: 'Taste' });
-}
-
-function renderTheaterRatingSection(theatersByRating, moviesByTheater) {
-  if (!theatersByRating.length) {
-    return insightSection('Avg rating by theater', `
-      <div class="al-empty">Rate at least two films at a theater to rank houses here.</div>
-    `, { className: 'al-insight--theater-rating', expanded: true, kicker: 'Venues' });
-  }
-
-  return insightSection('Avg rating by theater', `
-    <p class="al-muted al-insight-lede">
-      Sorted by average personal rating. Needs at least 2 rated films per theater.
-    </p>
-    <p class="al-muted al-insight-hint">
-      <span class="al-hint-hover">Hover a theater to see films.</span>
-      <span class="al-hint-touch">Tap a theater to see films.</span>
-    </p>
-    <ol class="al-theater-rating-list">
-      ${theatersByRating.map((theater, i) => {
-    const width = Math.max(8, Math.round((theater.avgRating / 5) * 100));
-    return `
-          <li class="al-theater-rating-row">
-            <span class="al-theater-rating-rank">${i + 1}</span>
-            <div class="al-theater-rating-body">
-              <div class="al-theater-rating-top">
-                <span class="al-hover-target al-hover-target--label" tabindex="0">
-                  ${escapeHtml(theater.location)}
-                  ${renderMoviesPopup(moviesByTheater.get(theaterKey(theater.location)) || [], {
-      empty: 'No films at this theater.',
-      scrollable: true,
-    })}
-                </span>
-                <span class="al-theater-rating-score">${theater.avgRating}★</span>
-              </div>
-              <div class="al-theater-rating-meta al-muted">
-                ${theater.ratedCount} rated · ${theater.count} visit${theater.count === 1 ? '' : 's'}
-              </div>
-              <div class="al-meter al-meter--theater" aria-hidden="true">
-                <span class="al-meter-fill" data-width="${width}" style="width:0%"></span>
-              </div>
-            </div>
-          </li>
-        `;
-  }).join('')}
-    </ol>
-  `, { className: 'al-insight--theater-rating', expanded: true, kicker: 'Venues' });
-}
-
-function renderTheaterRankingSection(theaters, moviesByTheater) {
-  return insightSection('Most visited', theaters.length
-    ? `
-      <p class="al-muted al-insight-hint">
-        <span class="al-hint-hover">Hover a theater to see films.</span>
-        <span class="al-hint-touch">Tap a theater to see films.</span>
-      </p>
-      ${rankTable({
-      headers: [
-        { label: 'Theater' },
-        { label: 'Visits', className: 'num' },
-        { label: 'Avg', className: 'num' },
-        { label: 'Charged', className: 'num' },
-      ],
-      rows: theaters.slice(0, 6).map((t, i) => `
-          <tr class="al-rank-row">
-            <td class="al-card-primary">
-              <span class="al-card-rank">${i + 1}</span>
-              <span class="al-hover-target al-hover-target--label" tabindex="0">
-                ${escapeHtml(t.location)}
-                ${renderMoviesPopup(moviesByTheater.get(theaterKey(t.location)) || [], { empty: 'No films at this theater.', scrollable: true })}
-              </span>
-            </td>
-            <td class="num" data-label="Visits">${t.count}</td>
-            <td class="num" data-label="Avg">${t.avgRating != null ? `${t.avgRating}★` : '—'}</td>
-            <td class="num" data-label="Charged">${money(t.charged)}</td>
-          </tr>
-        `),
-    })}
-    `
-    : '<div class="al-empty">No theater data yet.</div>',
-  { className: 'al-insight--theater-visits', kicker: 'Venues' });
-}
-
-function renderFormatPremiumsSection(formats) {
-  return insightSection('Format premiums', formats.length
-    ? `
-      <div class="al-format-list">
-        ${formats.map((f) => {
-    const maxCharged = Math.max(...formats.map((row) => row.charged), 1);
-    const width = Math.round((f.charged / maxCharged) * 100);
-    return `
-            <div class="al-format-row">
-              <div class="al-format-row-top">
-                <span class="al-format-name">${escapeHtml(f.format)}</span>
-                <span class="al-format-charged">${money(f.charged)}</span>
-              </div>
-              <div class="al-format-meta al-muted">${f.count} visit${f.count === 1 ? '' : 's'}</div>
-              <div class="al-meter al-meter--format" aria-hidden="true">
-                <span class="al-meter-fill" data-width="${width}" style="width:0%"></span>
-              </div>
-            </div>
-          `;
-  }).join('')}
-      </div>
-    `
-    : '<div class="al-empty">No format data yet.</div>',
-  { className: 'al-insight--formats', kicker: 'Spend' });
-}
-
-function renderActorsMostSeenSection(actors) {
-  if (!actors.length) {
-    return insightSection('Most seen', `
-      <div class="al-empty">No actor data yet — link movies to TMDB when logging or expand a row in your log.</div>
-    `, { className: 'al-actors-most-seen', kicker: 'Cast' });
-  }
-
-  return insightSection('Most seen', `
-    <p class="al-muted al-by-actor-hint">Top 10 by unique films. Hover a name to see titles.</p>
-    ${actorRankTable(actors.slice(0, 10))}
-  `, { className: 'al-actors-most-seen', kicker: 'Cast' });
-}
-
-function renderActorsBestRatedSection(actors) {
-  if (!actors.length) {
-    return insightSection('Best rated', `
-      <div class="al-empty">No actor data yet — link movies to TMDB when logging or expand a row in your log.</div>
-    `, { className: 'al-actors-best-rated', kicker: 'Cast' });
-  }
-
-  const highestRated = topActorsByRating(actors, { minRated: 2, limit: 10 });
-
-  return insightSection('Best rated', highestRated.length
-    ? `
-      <p class="al-muted al-by-actor-hint">Top 10 with at least 2 rated films. Hover a name to see titles.</p>
-      ${actorRankTable(highestRated, { sortByRating: true })}
-    `
-    : '<div class="al-empty">Rate at least two films per actor to rank them here.</div>',
-  { className: 'al-actors-best-rated', kicker: 'Cast' });
-}
-
-function renderRewatchesSection(rewatches) {
-  return insightSection('Rewatches', rewatches.length
-    ? `<div class="al-table-wrap al-table-wrap--cards"><table class="al-table al-card-table al-rewatch-table"><thead><tr><th>Title</th><th class="num">Times</th><th>Dates</th></tr></thead><tbody>
-        ${rewatches.map((r) => `
-          <tr>
-            <td class="al-card-primary">${escapeHtml(r.title)}</td>
-            <td class="num" data-label="Times">${r.count}</td>
-            <td class="al-muted al-card-span" data-label="Dates">${r.dates.map((d) => escapeHtml(shortDate(d))).join(', ')}</td>
-          </tr>
-        `).join('')}
-      </tbody></table></div>`
-    : '<div class="al-empty">No rewatches logged yet.</div>',
-  { kicker: 'Habits' });
+  `, { className: 'al-insight--rating', expanded: true, kicker: 'Top summary' });
 }
 
 function renderByMonthSection(byMonth, moviesByMonth) {
@@ -315,16 +361,15 @@ function renderByMonthSection(byMonth, moviesByMonth) {
   if (!rows.length) {
     return insightSection('By month', `
       <div class="al-empty">No monthly data yet — log a screening to get started.</div>
-    `, { className: 'al-by-month', expanded: true, kicker: 'Ledger' });
+    `, { className: 'al-by-month', expanded: true, kicker: 'Top summary' });
   }
 
-  // The ledger grows without bound across years; let people narrow it.
   const years = [...new Set(rows.map((row) => row.month.slice(0, 4)))].sort((a, b) => b.localeCompare(a));
   const yearFilter = years.length > 1
     ? `
       <select class="al-select al-by-month-year" id="by-month-year" aria-label="Filter by year">
         <option value="">All years</option>
-        ${years.map((y) => `<option value="${y}">${y}</option>`).join('')}
+        ${years.map((year) => `<option value="${year}">${year}</option>`).join('')}
       </select>
     `
     : '';
@@ -338,35 +383,27 @@ function renderByMonthSection(byMonth, moviesByMonth) {
       ${yearFilter}
     </div>
     <div id="by-month-table">${renderMonthTable(rows, moviesByMonth)}</div>
-  `, { className: 'al-by-month', expanded: true, kicker: 'Ledger' });
+  `, { className: 'al-by-month', expanded: true, kicker: 'Top summary' });
 }
 
-function wireByMonthYear(byMonth, moviesByMonth) {
-  const select = document.getElementById('by-month-year');
-  const target = document.getElementById('by-month-table');
-  if (!select || !target) return;
-
-  select.addEventListener('change', () => {
-    const year = select.value;
-    const rows = year ? byMonth.filter((row) => row.month.startsWith(year)) : byMonth;
-    target.innerHTML = rows.length
-      ? renderMonthTable(rows, moviesByMonth)
-      : '<div class="al-empty">No months in that year.</div>';
-  });
-}
-
-function wireInsightSections(root) {
-  root.querySelectorAll('.al-insight').forEach((section) => {
-    const btn = section.querySelector('.al-insight-toggle');
-    const body = section.querySelector('.al-insight-body');
-    if (!btn || !body) return;
-
-    btn.addEventListener('click', () => {
-      const open = section.classList.toggle('is-expanded');
-      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-      body.hidden = !open;
-    });
-  });
+function renderRewatches(rewatches) {
+  if (!rewatches.length) return '<div class="al-empty">No rewatches logged yet.</div>';
+  return `
+    <div class="al-table-wrap al-table-wrap--cards">
+      <table class="al-table al-card-table al-rewatch-table">
+        <thead><tr><th>Title</th><th class="num">Times</th><th>Dates</th></tr></thead>
+        <tbody>
+          ${rewatches.map((rewatch) => `
+            <tr>
+              <td class="al-card-primary">${escapeHtml(rewatch.title)}</td>
+              <td class="num" data-label="Times">${rewatch.count}</td>
+              <td class="al-muted al-card-span" data-label="Dates">${rewatch.dates.map((date) => escapeHtml(shortDate(date))).join(', ')}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
 }
 
 function actorRankTable(actors, { sortByRating = false } = {}) {
@@ -377,17 +414,17 @@ function actorRankTable(actors, { sortByRating = false } = {}) {
       { label: 'Films', className: 'num' },
       { label: ratingLabel, className: 'num' },
     ],
-    rows: actors.map((actor, i) => `
+    rows: actors.map((actor, index) => `
       <tr class="al-rank-row">
         <td class="al-card-primary">
-          <span class="al-card-rank">${i + 1}</span>
+          <span class="al-card-rank">${index + 1}</span>
           <span class="al-hover-target al-hover-target--label" tabindex="0">
             ${escapeHtml(actor.actor)}
             ${renderMoviesPopup(actor.films, { empty: 'No films found.' })}
           </span>
         </td>
         <td class="num" data-label="Films">${actor.count}</td>
-        <td class="num" data-label="${escapeHtml(ratingLabel)}">${actor.avgRating != null ? `${actor.avgRating}★` : '—'}</td>
+        <td class="num" data-label="${escapeHtml(ratingLabel)}">${actor.avgRating == null ? '—' : `${actor.avgRating}★`}</td>
       </tr>
     `),
   });
@@ -398,66 +435,12 @@ function rankTable({ headers, rows }) {
     <div class="al-table-wrap al-table-wrap--cards">
       <table class="al-table al-rank-table al-card-table">
         <thead>
-          <tr>
-            ${headers.map((header) => `
-              <th${header.className ? ` class="${header.className}"` : ''}>${header.label}</th>
-            `).join('')}
-          </tr>
+          <tr>${headers.map((header) => `<th${header.className ? ` class="${header.className}"` : ''}>${header.label}</th>`).join('')}</tr>
         </thead>
         <tbody>${rows.join('')}</tbody>
       </table>
     </div>
   `;
-}
-
-function groupMoviesByMonth(watches) {
-  const map = new Map();
-  for (const watch of watches) {
-    const month = chargeMonth(watch.watched_on);
-    if (!map.has(month)) map.set(month, []);
-    map.get(month).push({
-      title: watch.title,
-      watched_on: watch.watched_on,
-    });
-  }
-  for (const movies of map.values()) {
-    movies.sort((a, b) => b.watched_on.localeCompare(a.watched_on));
-  }
-  return map;
-}
-
-function groupMoviesByRating(watches) {
-  const map = new Map([[1, []], [2, []], [3, []], [4, []], [5, []]]);
-  for (const watch of watches) {
-    if (watch.dnf || watch.rating == null) continue;
-    const bucket = ratingStarBucket(watch.rating);
-    map.get(bucket).push({
-      title: watch.title,
-      watched_on: watch.watched_on,
-    });
-  }
-  for (const movies of map.values()) {
-    movies.sort((a, b) => b.watched_on.localeCompare(a.watched_on));
-  }
-  return map;
-}
-
-function groupMoviesByTheater(watches) {
-  const map = new Map();
-  for (const watch of watches) {
-    const location = (watch.location || 'Unknown').trim() || 'Unknown';
-    if (isExcludedTheaterLocation(location)) continue;
-    const key = theaterKey(location);
-    if (!map.has(key)) map.set(key, []);
-    map.get(key).push({
-      title: watch.title,
-      watched_on: watch.watched_on,
-    });
-  }
-  for (const movies of map.values()) {
-    movies.sort((a, b) => b.watched_on.localeCompare(a.watched_on));
-  }
-  return map;
 }
 
 function renderMonthTable(byMonth, moviesByMonth) {
@@ -517,10 +500,7 @@ function renderMonthRow(row, movies) {
 
 function renderMoviesPopup(items, { empty = 'No movies.', scrollable = false } = {}) {
   const popupClass = `al-hover-popup${scrollable ? ' al-hover-popup--scroll' : ''}`;
-  if (!items.length) {
-    return `<span class="${popupClass}" role="tooltip">${escapeHtml(empty)}</span>`;
-  }
-
+  if (!items.length) return `<span class="${popupClass}" role="tooltip">${escapeHtml(empty)}</span>`;
   return `
     <span class="${popupClass}" role="tooltip">
       <span class="al-hover-popup-title">Movies</span>
@@ -536,22 +516,67 @@ function renderMoviesPopup(items, { empty = 'No movies.', scrollable = false } =
   `;
 }
 
-/**
- * Averages the actual ratings, not the whole-star buckets. Averaging buckets
- * rounded every 4.5 down to 4 first, so a viewer who rated everything 4.5 saw
- * "4★" — biased low by up to half a star.
- */
+function groupMovies(watches, keyFor) {
+  const map = new Map();
+  for (const watch of watches) {
+    const key = keyFor(watch);
+    if (key == null) continue;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push({ title: watch.title, watched_on: watch.watched_on });
+  }
+  for (const movies of map.values()) {
+    movies.sort((a, b) => b.watched_on.localeCompare(a.watched_on));
+  }
+  return map;
+}
+
+function wireByMonthYear(byMonth, moviesByMonth) {
+  const select = document.getElementById('by-month-year');
+  const target = document.getElementById('by-month-table');
+  if (!select || !target) return;
+  select.addEventListener('change', () => {
+    const rows = select.value
+      ? byMonth.filter((row) => row.month.startsWith(select.value))
+      : byMonth;
+    target.innerHTML = rows.length
+      ? renderMonthTable(rows, moviesByMonth)
+      : '<div class="al-empty">No months in that year.</div>';
+  });
+}
+
+function wireInsightSections(root) {
+  root.querySelectorAll('.al-insight-toggle').forEach((button) => {
+    const section = button.closest('.al-insight');
+    const body = section?.querySelector('.al-insight-body');
+    if (!section || !body) return;
+    button.addEventListener('click', () => {
+      const open = section.classList.toggle('is-expanded');
+      button.setAttribute('aria-expanded', open ? 'true' : 'false');
+      body.hidden = !open;
+    });
+  });
+}
+
 function averageWatchRating(watches) {
-  const rated = watches.filter((w) => !w.dnf && w.rating != null);
+  const rated = watches.filter((watch) => !watch.dnf && watch.rating != null);
   if (!rated.length) return null;
-  const sum = rated.reduce((total, w) => total + Number(w.rating), 0);
+  const sum = rated.reduce((total, watch) => total + Number(watch.rating), 0);
   return Math.round((sum / rated.length) * 10) / 10;
 }
 
-function shortTheaterName(name) {
-  const cleaned = String(name || '').replace(/^AMC\s+/i, '').trim();
-  if (cleaned.length <= 22) return cleaned || name;
-  return `${cleaned.slice(0, 20)}…`;
+function normalizeGroup(value, fallback) {
+  return (String(value || '').trim() || fallback).toLowerCase().replace(/\s+/g, ' ');
+}
+
+function formatRuntime(minutes) {
+  const rounded = Math.round(minutes);
+  const hours = Math.floor(rounded / 60);
+  const remainder = rounded % 60;
+  return remainder ? `${hours}h ${remainder}m` : `${hours}h`;
+}
+
+function formatPercent(value) {
+  return `${Math.round(Number(value || 0) * 100)}%`;
 }
 
 function savingsClass(cents) {
