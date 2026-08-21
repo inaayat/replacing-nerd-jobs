@@ -42,6 +42,7 @@ import {
   noteBlocks,
   noteCreateSize,
   phoneNoteZoom,
+  placeEditPopover,
   planEditSession,
   randomId,
   rectsIntersect,
@@ -757,10 +758,13 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
   /**
    * The edit bar follows the note, so its popovers can end up hanging off the
    * left edge or above the top of the window. Nudge them back in after they
-   * open, and flip below the bar when there is no room above it.
+   * open. Desktop flips below the bar when there is no room above it; a
+   * docked phone bar never does — below it is the keyboard.
    */
   function placePopover(pop) {
     if (!pop || pop.hidden) return;
+    pop.style.maxHeight = '';
+    pop.style.overflowY = '';
     pop.style.transform = 'translateX(-50%)';
     // Offsets are relative to the button's wrapper, but the popover has to
     // clear the whole bar — which may wrap on a very narrow phone.
@@ -770,19 +774,21 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     // Stay inside the canvas: a popover over the toolbar is both ugly and a
     // target for stray taps.
     const ceiling = Math.max(visibleBounds().top, viewport.getBoundingClientRect().top) + 4;
-    if (bar.top - box.height - 8 >= ceiling) {
-      pop.style.top = 'auto';
-      pop.style.bottom = `${Math.round(wrap.bottom - bar.top + 8)}px`;
-    } else {
-      pop.style.bottom = 'auto';
-      pop.style.top = `${Math.round(bar.bottom - wrap.top + 8)}px`;
+    const plan = placeEditPopover({
+      wrap: { top: wrap.top, bottom: wrap.bottom, left: wrap.left, right: wrap.right },
+      bar: { top: bar.top, bottom: bar.bottom },
+      pop: { width: box.width, height: box.height },
+      ceiling,
+      viewW: window.innerWidth,
+      preferAbove: editbar.classList.contains('is-docked') || coarse(),
+    });
+    pop.style.top = plan.top == null ? 'auto' : `${plan.top}px`;
+    pop.style.bottom = plan.bottom == null ? 'auto' : `${plan.bottom}px`;
+    pop.style.transform = `translateX(calc(-50% + ${plan.shift}px))`;
+    if (plan.maxHeight != null) {
+      pop.style.maxHeight = `${plan.maxHeight}px`;
+      pop.style.overflowY = 'auto';
     }
-    const margin = 6;
-    const after = pop.getBoundingClientRect();
-    const shift = after.left < margin
-      ? margin - after.left
-      : Math.min(0, window.innerWidth - margin - after.right);
-    pop.style.transform = `translateX(calc(-50% + ${Math.round(shift)}px))`;
   }
 
   function openPopover(pop, render) {

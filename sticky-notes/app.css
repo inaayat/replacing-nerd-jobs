@@ -786,9 +786,11 @@ html.sn-table-view #menu-fit { display: none !important; }
   box-shadow: 0 6px 18px rgba(28, 28, 28, 0.28);
   /* A press on the bar must never be read as a double-tap-to-zoom. */
   touch-action: manipulation;
+  /* Colour / icon / link popovers hang outside this box. */
+  overflow: visible;
 }
 
-.sn-eb-wrap { position: relative; display: inline-flex; }
+.sn-eb-wrap { position: relative; display: inline-flex; overflow: visible; }
 
 /* Formatting is a group so a very narrow phone can wrap it without a
    desktop-sized second slab (see the coarse / 719 blocks below). */
@@ -1335,13 +1337,17 @@ html.sn-table-view #menu-fit { display: none !important; }
   background: transparent;
 }
 
-/* Colour and icon are the same gesture: a compact popover over the bar. */
+/* Colour and icon are the same gesture: a compact popover over the bar.
+   width: max-content so shrink-to-fit does not collapse to the 32 px wrap
+   (a column of swatches, then placePopover flips the stack under the keyboard). */
 .sn-eb-palette,
 .sn-eb-iconpop {
   position: absolute;
   bottom: calc(100% + 8px);
   left: 50%;
   transform: translateX(-50%);
+  width: max-content;
+  z-index: 48;
   background: var(--ink);
   box-shadow: 0 6px 18px rgba(28, 28, 28, 0.28);
   touch-action: manipulation;
@@ -2291,6 +2297,13 @@ html.sn-table-view #menu-fit { display: none !important; }
     max-width: none;
     justify-content: space-around;
     border-radius: var(--sn-radius);
+  }
+  /* One useful row above the docked bar — never a 32 px-wide column
+     that placePopover would measure as too tall and flip below the keys. */
+  .sn-eb-palette {
+    flex-wrap: nowrap;
+    width: max-content;
+    max-width: calc(100vw - 24px);
   }
 }
 
