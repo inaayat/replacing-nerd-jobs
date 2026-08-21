@@ -215,6 +215,7 @@ a { color: var(--ink); }
 
 /* ---------------------------------------------------------------- toolbar */
 
+/* Desktop: one left-aligned row. Phone (max-width 719px) wraps to two rows. */
 .sn-toolbar {
   flex: none;
   display: flex;
@@ -2082,14 +2083,25 @@ html.sn-table-view #menu-fit { display: none !important; }
 }
 
 @media (max-width: 719px) {
-  .sn-app { padding: 6px 6px 8px; gap: 6px; }
+  .sn-app { padding: 8px 8px 10px; gap: 8px; }
   .sn-viewport { border-radius: 10px; }
   .sn-sidebar { border-radius: 10px; }
   .sn-memory { padding: 10px 10px 24px; }
 
+  .sn-nav {
+    --nav-h: calc(3.5rem + env(safe-area-inset-top, 0px));
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .sn-nav-logo,
+  .sn-nav-section {
+    min-height: 44px;
+  }
+  .sn-nav-logo { font-size: 0.78rem; }
+  .sn-nav-links { font-size: 0.72rem; }
   .sn-nav-section span { display: none; }
-  .sn-nav-links a { padding: 0 8px; }
-  .sn-navchip { padding: 5px 8px; }
+  .sn-nav-links a { padding: 0 10px; min-height: 44px; }
+  .sn-navchip { padding: 8px 10px; min-height: 44px; }
 
   /* Rounded rectangles, not capsules — note cards stay 10px on their own. */
   .sn-tab,
@@ -2114,12 +2126,61 @@ html.sn-table-view #menu-fit { display: none !important; }
   .sn-guestbar-cta { margin-left: 0; }
   .sn-guestbar-close { margin-left: auto; }
 
-  /* One line of controls, scrollable rather than wrapped. */
-  .sn-toolbar { gap: 6px; }
-  .sn-toolbar-actions { gap: 6px; }
-  .sn-view-toggle button { width: 40px; height: 40px; }
+  /* Two rows, not eight-across: tabs (+ ?) then the board actions.
+     Desktop above this breakpoint stays a single left-aligned row. */
+  .sn-toolbar {
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+  .sn-tabs {
+    flex: 1 1 auto;
+    gap: 8px;
+    min-width: 0;
+    order: 1;
+  }
+  .sn-tab {
+    flex: 1 1 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 10px 14px;
+    font-size: 0.78rem;
+  }
+  #board-help {
+    order: 2;
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+  .sn-toolbar-actions {
+    order: 3;
+    flex: 1 1 100%;
+    gap: 10px;
+  }
+  .sn-toolbar-actions:not(:has(#board-actions:not([hidden]))) {
+    display: none;
+  }
+  .sn-board-actions {
+    gap: 10px;
+    justify-content: flex-start;
+  }
+  .sn-view-toggle button { width: 44px; height: 44px; }
   .sn-btn-label { display: none; }
-  .sn-btn { padding: 8px 13px; }
+  .sn-btn-pen {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+  .sn-iconbtn,
+  .sn-btn.sn-btn-add {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
   .sn-zoom { display: none; }
 
   .sn-mem-chiprow {
@@ -2319,7 +2380,7 @@ html.sn-table-view #menu-fit { display: none !important; }
    it just got back. Safe-area insets matter here — black-translucent means the
    status bar and the home indicator overlap the page. */
 .sn-standalone {
-  --nav-h: calc(2.4rem + env(safe-area-inset-top, 0px));
+  --nav-h: calc(2.75rem + env(safe-area-inset-top, 0px));
 }
 .sn-standalone .sn-nav {
   background: var(--cream);
