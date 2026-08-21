@@ -11,12 +11,12 @@ import {
   DEFAULT_COLOR_KEY,
   ICON_SVGS,
   PIN_SVG,
+  blankNote,
   colorHex,
   findFreeSlot,
   legendLabel,
-  noteCreateSize,
   noteBlocks,
-  randomId,
+  noteCreateSize,
   richToText,
 } from './notes.js';
 import { attachBodyEditor, renderBody } from './body.js';
@@ -109,10 +109,6 @@ export function createTable({ store, els, showToast, onViewCanvas }) {
     const projected = cancel ? current?.text || '' : richToText(rich || []);
     ed.detach();
     if (!current) return;
-    if (!projected) {
-      store.dispatch([{ op: 'note.delete', ids: [id] }]);
-      return;
-    }
     if (projected !== current.text || JSON.stringify(rich) !== JSON.stringify(stored)) {
       store.dispatch([
         {
@@ -353,15 +349,13 @@ export function createTable({ store, els, showToast, onViewCanvas }) {
     const phone = window.matchMedia('(pointer: coarse)').matches && window.innerWidth <= 720;
     const size = noteCreateSize(phone);
     const spot = findFreeSlot({ x: 0, y: 0, w: 2400, h: 1600 }, rects, size.w + 16, size.h + 24);
-    const note = {
-      id: randomId(),
-      text: 'New note',
+    const note = blankNote({
       colorKey: DEFAULT_COLOR_KEY,
       x: spot.x,
       y: spot.y,
       w: size.w,
       h: size.h,
-    };
+    });
     focusId = note.id;
     store.dispatch([{ op: 'note.upsert', note }]);
     if (editingId !== note.id) rerender();
