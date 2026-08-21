@@ -51,6 +51,40 @@ function caretToEnd(el) {
   sel.addRange(range);
 }
 
+function caretToStart(el) {
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  range.collapse(true);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+function padIfEmpty(el) {
+  if (el && !el.childNodes.length) el.appendChild(document.createElement('br'));
+}
+
+/**
+ * An empty list item is one with no typed text and no link pill. A lone <br>
+ * or nbsp (what contenteditable leaves behind) still counts as empty, so Enter
+ * can exit the list instead of trapping the user on blank bullets.
+ */
+export function lineLooksEmpty(el) {
+  if (!el) return true;
+  if (typeof el.querySelector === 'function' && el.querySelector('a.sn-pill')) return false;
+  const text = String(el.textContent || '').replace(/[\u00a0\u200b\ufeff]/g, '').trim();
+  return !text;
+}
+
+/**
+ * What Enter does on this line: keep the list (`split`), leave it (`exit`),
+ * or let the browser handle a non-list line (`null`).
+ */
+export function listEnterAction(line) {
+  if (!line || line.tagName !== 'LI') return null;
+  return lineLooksEmpty(line) ? 'exit' : 'split';
+}
+
 /** The block element the caret sits in — one line of the body. */
 export function caretLine(host) {
   const sel = window.getSelection();
@@ -177,6 +211,7 @@ function enlist(line, tag) {
     from.parentNode.insertBefore(list, from);
   }
   from.remove();
+  padIfEmpty(item);
   return item;
 }
 
@@ -188,6 +223,42 @@ export function toggleList(host, tag) {
   let last = null;
   for (const line of lines) last = already ? unlist(line) : enlist(line, tag);
   if (last) caretToEnd(last);
+}
+
+/**
+ * Enter in a list: a typed item stays in the list (new bullet / next number),
+ * an empty item becomes a paragraph. Shift+Enter is left to the browser as a
+ * soft break. Notes have no heading shortcut — `# ` is wiki-only — so this
+ * never invents a heading.
+ */
+export function continueListEnter(host) {
+  const line = caretLine(host);
+  const action = listEnterAction(line);
+  if (!action) return false;
+  if (action === 'exit') {
+    const div = unlist(line);
+    padIfEmpty(div);
+    caretToStart(div);
+    return true;
+  }
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return false;
+  const caret = sel.getRangeAt(0);
+  const rest = document.createRange();
+  rest.selectNodeContents(line);
+  try {
+    rest.setStart(caret.startContainer, caret.startOffset);
+  } catch {
+    return false;
+  }
+  const extracted = rest.extractContents();
+  const next = document.createElement('li');
+  if (extracted.childNodes.length) next.appendChild(extracted);
+  padIfEmpty(next);
+  padIfEmpty(line);
+  line.after(next);
+  caretToStart(next);
+  return true;
 }
 
 function setLineType(line, type) {
@@ -579,6 +650,18 @@ export function attachBodyEditor(host, options = {}) {
     onCommit?.();
   };
 
+  let listEnterLock = false;
+  const handleListEnter = () => {
+    if (listEnterLock) return true;
+    if (!continueListEnter(host)) return false;
+    listEnterLock = true;
+    requestAnimationFrame(() => {
+      listEnterLock = false;
+    });
+    onFormatChange?.();
+    return true;
+  };
+
   const onKey = (e) => {
     if (e.key === 'Escape') {
       e.stopPropagation();
@@ -604,21 +687,21 @@ export function attachBodyEditor(host, options = {}) {
       openLink();
       return;
     }
-    if (
-      wiki &&
-      e.key === 'Enter' &&
-      !e.shiftKey &&
-      !e.metaKey &&
-      !e.ctrlKey
-    ) {
-      const line = caretLine(host);
-      if (line && (line.tagName === 'H1' || line.tagName === 'H2')) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+      if (wiki) {
+        const line = caretLine(host);
+        if (line && (line.tagName === 'H1' || line.tagName === 'H2')) {
+          e.preventDefault();
+          const p = document.createElement('div');
+          p.appendChild(document.createElement('br'));
+          line.after(p);
+          caretToEnd(p);
+          onFormatChange?.();
+          return;
+        }
+      }
+      if (handleListEnter()) {
         e.preventDefault();
-        const p = document.createElement('div');
-        p.appendChild(document.createElement('br'));
-        line.after(p);
-        caretToEnd(p);
-        onFormatChange?.();
         return;
       }
     }
@@ -638,6 +721,10 @@ export function attachBodyEditor(host, options = {}) {
   };
 
   const onBeforeInput = (e) => {
+    if (e.inputType === 'insertParagraph') {
+      if (handleListEnter()) e.preventDefault();
+      return;
+    }
     if (e.inputType !== 'insertText' || e.data !== ' ') return;
     if (wiki) {
       const heading = headingTriggerFor(caretLinePrefix(host));
