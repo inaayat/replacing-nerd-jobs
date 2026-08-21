@@ -66,6 +66,7 @@ import {
   worldToScreen,
   zoomAt,
 } from '../sticky-notes/notes.js';
+import { lineLooksEmpty, listEnterAction } from '../sticky-notes/body.js';
 import { sortBoardNotes } from '../sticky-notes/table.js';
 import { memorySections } from '../sticky-notes/memory.js';
 
@@ -434,6 +435,27 @@ function note(id, extra = {}) {
   eq(listTriggerFor('milk *'), null, 'a marker mid-line is not a trigger');
   eq(listTriggerFor('**'), null, 'two asterisks are not a list');
   eq(listTriggerFor('word'), null, 'a word is not a trigger');
+  eq(listTriggerFor('#'), null, '"#" is not a list marker — notes have no heading shortcut');
+}
+
+// 13b. Enter in a list — continue a typed item, exit an empty one
+{
+  const el = (tagName, textContent, pill = false) => ({
+    tagName,
+    textContent,
+    querySelector: (sel) => (pill && sel === 'a.sn-pill' ? {} : null),
+  });
+  eq(listEnterAction(el('LI', 'milk')), 'split', 'Enter after a typed bullet stays in the list');
+  eq(listEnterAction(el('LI', 'eggs')), 'split', 'Enter after a typed numbered item stays in the list');
+  eq(listEnterAction(el('LI', '')), 'exit', 'Enter on an empty bullet leaves the list');
+  eq(listEnterAction(el('LI', '   ')), 'exit', 'whitespace-only is an empty item');
+  eq(listEnterAction(el('LI', '\u00a0')), 'exit', 'a lone nbsp is an empty item');
+  eq(listEnterAction(el('LI', '', true)), 'split', 'a link pill counts as content');
+  eq(listEnterAction(el('DIV', 'milk')), null, 'Enter on a paragraph is not a list action');
+  eq(listEnterAction(el('H1', '')), null, 'Enter on a heading is not a list action');
+  eq(listEnterAction(null), null, 'no line, no action');
+  assert(lineLooksEmpty(el('LI', '')), 'an empty <li> looks empty');
+  assert(!lineLooksEmpty(el('LI', 'hello')), 'a typed <li> does not look empty');
 }
 
 // 14. reading a body back out of the editor's DOM
