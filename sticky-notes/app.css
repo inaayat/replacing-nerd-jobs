@@ -75,6 +75,7 @@ a { color: var(--ink); }
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-height: var(--nav-h);
   height: var(--nav-h);
   padding: 0 clamp(12px, 2vw, 24px);
   padding-top: env(safe-area-inset-top, 0px);
@@ -2089,9 +2090,12 @@ html.sn-table-view #menu-fit { display: none !important; }
   .sn-memory { padding: 10px 10px 24px; }
 
   .sn-nav {
-    --nav-h: calc(3.5rem + env(safe-area-inset-top, 0px));
+    --nav-h: calc(3.75rem + env(safe-area-inset-top, 0px));
+    height: auto;
     padding-left: 12px;
     padding-right: 12px;
+    padding-top: calc(4px + env(safe-area-inset-top, 0px));
+    padding-bottom: 4px;
   }
   .sn-nav-logo,
   .sn-nav-section {
