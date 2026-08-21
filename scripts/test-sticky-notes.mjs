@@ -94,7 +94,9 @@ function note(id, extra = {}) {
   eq(n.h, 48, 'h clamped to min');
   eq(n.status, 'board', 'default status board');
   eq(n.pinned, false, 'default unpinned');
-  assert(normalizeNote({ text: '   ' }) === null, 'empty text rejected');
+  const blankish = normalizeNote({ text: '   ', id: 'empty' });
+  eq(blankish.text, '', 'whitespace-only text is kept as a blank note');
+  eq(blankish.rich, null, 'a blank note stores no body');
   const ok = normalizeNote({ text: 'x', colorKey: 'c3', iconKey: 'star', w: 200 });
   eq(ok.colorKey, 'c3', 'valid colorKey kept');
   eq(ok.iconKey, 'star', 'valid iconKey kept');
@@ -415,7 +417,9 @@ function note(id, extra = {}) {
   const note = normalizeNote({ id: 'n', text: 'stale', rich });
   eq(note.text, richToText(rich), 'rich body is authoritative over text');
   eq(note.rich.length, 5, 'rich body is kept on the note');
-  assert(normalizeNote({ id: 'n', rich: [{ type: 'p', spans: [] }] }) === null, 'empty body rejected');
+  const emptyBody = normalizeNote({ id: 'n', rich: [{ type: 'p', spans: [] }] });
+  eq(emptyBody.text, '', 'an empty body is a blank note');
+  eq(emptyBody.rich, null, 'an all-empty body stores as no body');
   eq(normalizeNote({ id: 'n', text: 'plain' }).rich, null, 'a plain note stores no body');
   const bad = normalizeNote({ id: 'n', text: 'kept', rich: { not: 'an array' } });
   eq(bad.text, 'kept', 'an unusable body falls back to the text');
@@ -515,7 +519,7 @@ function note(id, extra = {}) {
   eq(normalizeState({}).ink.length, 0, 'a state with no ink normalizes to an empty list');
 }
 
-// 17. a new note is blank — the card being composed is not a note yet
+// 17. a new note is blank — creating it still puts it on the board
 {
   const blank = blankNote({ colorKey: DEFAULT_COLOR_KEY, x: 120, y: 48 });
   eq(blank.text, '', 'a blank note carries no placeholder text');
@@ -538,16 +542,34 @@ function note(id, extra = {}) {
   eq(noteBlocks(blank).length, 1, 'a blank note renders as one empty line');
   eq(noteBlocks(blank)[0].spans.length, 0, 'that line holds nothing');
 
-  // The store still refuses it: text is what makes a note real, which is why
-  // the board keeps the draft to itself until the first character lands.
-  eq(applyOps(emptyState(), [{ op: 'note.upsert', note: blank }]).notes.length, 0,
-    'upserting a blank note stores nothing');
-  const typed = applyOps(emptyState(), [
+  // A create is a real note even if nobody types. Ending the edit with an
+  // empty body must upsert, not delete.
+  const created = applyOps(emptyState(), [{ op: 'note.upsert', note: blank }]);
+  eq(created.notes.length, 1, 'upserting a blank note stores it');
+  eq(created.notes[0].text, '', 'the stored note stays empty');
+  eq(created.notes[0].colorKey, DEFAULT_COLOR_KEY, 'the default grey survives the upsert');
+  eq(created.notes[0].id, blank.id, 'and it keeps the id the card was drawn with');
+  const committed = applyOps(created, [
+    { op: 'note.upsert', note: { ...created.notes[0], text: '', rich: null, updatedAt: '2026-08-21T00:00:00.000Z' } },
+  ]);
+  eq(committed.notes.length, 1, 'committing an empty body does not delete the note');
+  eq(committed.notes[0].text, '', 'the committed note is still blank');
+  const typed = applyOps(created, [
     { op: 'note.upsert', note: { ...blank, text: 'first words' } },
   ]);
   eq(typed.notes.length, 1, 'the same note stores once it has text');
   eq(typed.notes[0].colorKey, DEFAULT_COLOR_KEY, 'the colour chosen while composing survives');
   eq(typed.notes[0].id, blank.id, 'and it keeps the id the card was drawn with');
+
+  const guestBlank = applyOps(emptyState(), [{ op: 'note.upsert', note: blank }]);
+  const adoptedBlank = applyOps(emptyState(), stateToOps(guestBlank));
+  eq(adoptedBlank.notes.length, 1, 'a guest blank note survives the sign-in replay');
+  eq(adoptedBlank.notes[0].text, '', 'and it is still blank');
+
+  const wiped = applyOps(created, [{ op: 'wipe' }]);
+  eq(wiped.notes[0].status, 'memory', 'wipe files a blank board note rather than deleting it');
+  eq(applyOps(created, [{ op: 'note.delete', ids: [blank.id] }]).notes.length, 0,
+    'trash still deletes a blank note');
 }
 
 // 18. mass delete — a selection discarded, not filed, and undoable

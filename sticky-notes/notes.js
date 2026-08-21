@@ -452,18 +452,16 @@ export function headingTriggerFor(prefix) {
 export function normalizeNote(raw) {
   if (!raw || typeof raw !== 'object') return null;
   // A rich body is authoritative when present; `text` is its projection, so the
-  // two can never drift apart in the store.
+  // two can never drift apart in the store. Empty text is allowed: a card the
+  // user created is a note even if they never type into it.
   const rich = normalizeRich(raw.rich);
   const text = rich ? richToText(rich) : String(raw.text ?? '').trim();
-  if (!text) return null;
   return noteShape(raw, text, rich);
 }
 
 /**
- * The blank card you are composing. A note with no text is nothing, so the
- * store refuses one (`normalizeNote` above) — this shape lives in the board
- * until the first character makes it real, carrying whatever colour, icon, or
- * pin was chosen in the meantime.
+ * The blank card a create path draws. Empty text is a real note — the store
+ * keeps it — so this is also a valid upsert payload.
  */
 export function blankNote(partial = {}) {
   return noteShape(partial || {}, '', null);
@@ -639,6 +637,8 @@ export function migrateLegacyStore(rawV0) {
   const out = [];
   for (const old of rawV0.notes) {
     if (!old || typeof old !== 'object') continue;
+    // v0 had no intentional blank stickies; leftover empty rows stay dropped.
+    if (!String(old.text ?? '').trim()) continue;
     const note = normalizeNote({
       id: old.id,
       text: old.text,

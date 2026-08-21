@@ -323,8 +323,8 @@ Errors follow house style: `{ error: string }` with 401/400/405/502/503.
   default; destruction only in the table).
 - Editing: a click or tap that does not become a drag opens the body as
   `contentEditable`, with the caret at the pressed point
-  (`caretRangeFromPoint`); double-click still works. Blur commits; committing
-  empty text deletes the note (`note.delete`). While a note is open its own
+  (`caretRangeFromPoint`); double-click still works. Blur commits; an empty
+  body stays on the board (`note.upsert`). While a note is open its own
   small bar (trash / pin / colour / done) floats above it in screen space and
   the board pans to keep the note clear of a phone keyboard.
 - Deleting: the tier-1 trash emits `note.delete` immediately — a real delete,
@@ -358,7 +358,7 @@ Errors follow house style: `{ error: string }` with 401/400/405/502/503.
 
 Assert at minimum:
 
-1. `normalizeNote` fills defaults, rejects empty text, coerces bad keys to
+1. `normalizeNote` fills defaults, keeps empty text as a blank note, coerces bad keys to
    null, clamps `w`/`h`
 2. v0-store migration maps the five legacy colors, keeps width/height/pinned,
    drops rotation
