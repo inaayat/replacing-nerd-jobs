@@ -35,6 +35,8 @@ export const PHONE_VIEW_MAX = 720;
 /** Canvas | table toggle. v2 so a leftover #276 phone `table` can be ignored. */
 export const BOARD_VIEW_KEY = 'sticky-notes-board-view-v2';
 export const BOARD_VIEW_KEY_V1 = 'sticky-notes-board-view';
+/** Board | Memory tab. Phone boot ignores a leftover `memory` pick. */
+export const TAB_KEY = 'sticky-notes-view';
 
 // Keys are stored on notes; labels are the renameable defaults. Insertion order
 // is the order every palette and filter row shows, which is why the neutral a
@@ -497,6 +499,20 @@ export function phoneBoardViewNeedsReset(stored, { coarse = false, width = 1024,
     width <= PHONE_VIEW_MAX &&
     legacy === 'table'
   );
+}
+
+/**
+ * Board | Memory tab. Phone first paint is always the board — a leftover
+ * `sticky-notes-view` of `memory` is ignored so a new session does not open
+ * on Memory search. Desktop still honors a stored pick. Tapping Memory this
+ * visit still writes the key; the next phone load ignores it again.
+ *
+ * Phone here is a coarse pointer and/or a viewport ≤ `PHONE_VIEW_MAX`.
+ */
+export function defaultTab(stored, { coarse = false, width = 1024 } = {}) {
+  const phone = coarse || width <= PHONE_VIEW_MAX;
+  if (phone) return 'board';
+  return stored === 'memory' ? 'memory' : 'board';
 }
 
 function noteShape(raw, text, rich) {

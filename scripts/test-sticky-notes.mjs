@@ -29,7 +29,9 @@ import {
   HREF_MAX,
   BOARD_VIEW_KEY,
   BOARD_VIEW_KEY_V1,
+  TAB_KEY,
   defaultBoardView,
+  defaultTab,
   phoneBoardViewNeedsReset,
   isLoneUrl,
   approach,
@@ -1016,6 +1018,22 @@ function note(id, extra = {}) {
     false,
     'desktop leftover table is not reset',
   );
+
+  eq(TAB_KEY, 'sticky-notes-view', 'tab key is the live Board | Memory preference');
+  eq(defaultTab(null, { coarse: true, width: 390 }), 'board', 'unset phone tab is the board');
+  eq(defaultTab(undefined, { coarse: true, width: 390 }), 'board', 'undefined phone tab is the board');
+  eq(defaultTab('memory', { coarse: true, width: 390 }), 'board', 'leftover memory is ignored on the phone');
+  eq(defaultTab('board', { coarse: true, width: 390 }), 'board', 'stored board stays board on the phone');
+  eq(defaultTab('memory', { coarse: false, width: 390 }), 'board', 'narrow viewport opens on the board even with a mouse');
+  eq(defaultTab('memory', { coarse: true, width: 1024 }), 'board', 'coarse tablet ignores leftover memory');
+  eq(defaultTab('memory', { coarse: true, width: 720 }), 'board', 'coarse 720 ignores leftover memory');
+  eq(defaultTab('memory', { coarse: false, width: 720 }), 'board', 'width 720 without coarse still opens on the board');
+  eq(defaultTab(null, { coarse: false, width: 1440 }), 'board', 'unset desktop tab is the board');
+  eq(defaultTab('board', { coarse: false, width: 1440 }), 'board', 'desktop honors a stored board pick');
+  eq(defaultTab('memory', { coarse: false, width: 1440 }), 'memory', 'desktop honors a stored memory pick');
+  eq(defaultTab('memory', { coarse: false, width: 900 }), 'memory', 'narrow desktop with a mouse still honors memory');
+  eq(defaultTab('memory', { coarse: false, width: 721 }), 'memory', 'just above phone width honors memory on a mouse');
+  eq(defaultTab('nope', { coarse: false, width: 1440 }), 'board', 'garbage stored value is treated as board');
 
   const tiny = phoneNoteZoom({ zoom: 1, noteW: 220, viewW: 390, minScreenW: 260 });
   eq(tiny.changed, true, 'a 220 px card at zoom 1 is lifted on a phone');

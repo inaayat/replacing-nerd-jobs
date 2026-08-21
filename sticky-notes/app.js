@@ -29,7 +29,9 @@ import {
   approach,
   BOARD_VIEW_KEY,
   BOARD_VIEW_KEY_V1,
+  TAB_KEY,
   defaultBoardView,
+  defaultTab,
   phoneBoardViewNeedsReset,
   KEYBOARD_INSET_TAU,
   keyboardLayout,
@@ -46,7 +48,6 @@ const $ = (sel) => document.querySelector(sel);
 
 const HINTS_KEY = 'sticky-notes-hints-v1';
 const SIDEBAR_KEY = 'sticky-notes-sidebar';
-const VIEW_KEY = 'sticky-notes-view';
 const GUESTBAR_KEY = 'sticky-notes-guestbar';
 
 // Set at boot; the guide and the empty state both have something extra to say
@@ -692,7 +693,7 @@ async function init() {
     applyLayout();
   }
 
-  let tab = readLocal(VIEW_KEY) === 'memory' ? 'memory' : 'board';
+  let tab = defaultTab(readLocal(TAB_KEY), { coarse: coarse(), width: window.innerWidth });
   let collapsed = readLocal(SIDEBAR_KEY) === 'collapsed';
   const boardViewOpts = {
     coarse: coarse(),
@@ -780,7 +781,7 @@ async function init() {
 
   function setTab(which) {
     tab = which === 'memory' ? 'memory' : 'board';
-    writeLocal(VIEW_KEY, tab);
+    writeLocal(TAB_KEY, tab);
     applyLayout();
   }
 
