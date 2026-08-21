@@ -1146,6 +1146,70 @@ export function planEditSession({ card, barW, barH, canvas, visible, phone }) {
   return { dy, top, left, docked: false };
 }
 
+/**
+ * Edit-bar popover offsets (colour, icon, link) relative to the trigger wrap.
+ *
+ * The wrap is only as wide as the button, so callers must size the popover
+ * themselves (`width: max-content`) — this helper only places a measured box.
+ *
+ * Desktop flips below the bar when there is no room above the canvas ceiling.
+ * A docked phone bar sits on the remaining-canvas floor (just above the
+ * keyboard): below it is off-screen, so `preferAbove` always opens upward
+ * and, when the box is taller than the slice, caps `maxHeight` so it stays
+ * in the remaining canvas instead of sliding under the keys.
+ */
+export function placeEditPopover({
+  wrap,
+  bar,
+  pop,
+  ceiling,
+  viewW,
+  preferAbove = false,
+  gap = 8,
+  margin = 6,
+} = {}) {
+  const wrapTop = Number.isFinite(wrap?.top) ? wrap.top : 0;
+  const wrapBottom = Number.isFinite(wrap?.bottom) ? wrap.bottom : 0;
+  const wrapLeft = Number.isFinite(wrap?.left) ? wrap.left : 0;
+  const wrapRight = Number.isFinite(wrap?.right) ? wrap.right : 0;
+  const barTop = Number.isFinite(bar?.top) ? bar.top : 0;
+  const barBottom = Number.isFinite(bar?.bottom) ? bar.bottom : 0;
+  const popH = Number.isFinite(pop?.height) ? pop.height : 0;
+  const popW = Number.isFinite(pop?.width) ? pop.width : 0;
+  const ceil = Number.isFinite(ceiling) ? ceiling : 0;
+  const width = Number.isFinite(viewW) ? viewW : 0;
+  const space = Number.isFinite(gap) ? gap : 8;
+  const pad = Number.isFinite(margin) ? margin : 6;
+
+  const availAbove = barTop - space - ceil;
+  const maxHeight = preferAbove && popH > availAbove && availAbove > 0
+    ? Math.floor(availAbove)
+    : null;
+  const openAbove = preferAbove || availAbove >= popH;
+
+  let top = null;
+  let bottom = null;
+  if (openAbove) {
+    bottom = Math.round(wrapBottom - barTop + space);
+  } else {
+    top = Math.round(barBottom - wrapTop + space);
+  }
+
+  const mid = (wrapLeft + wrapRight) / 2;
+  const centeredLeft = mid - popW / 2;
+  const shift = centeredLeft < pad
+    ? pad - centeredLeft
+    : Math.min(0, width - pad - (centeredLeft + popW));
+
+  return {
+    top,
+    bottom,
+    shift: Math.round(shift),
+    above: openAbove,
+    maxHeight,
+  };
+}
+
 /** Rect intersection where touching edges count as a hit. */
 export function rectsIntersect(a, b) {
   return a.x <= b.x + b.w && b.x <= a.x + a.w && a.y <= b.y + b.h && b.y <= a.y + a.h;

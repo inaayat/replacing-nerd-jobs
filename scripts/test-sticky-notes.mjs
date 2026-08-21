@@ -49,6 +49,7 @@ import {
   normalizeRich,
   normalizeState,
   phoneNoteZoom,
+  placeEditPopover,
   planEditSession,
   rectsIntersect,
   richFromNode,
@@ -1027,6 +1028,70 @@ function note(id, extra = {}) {
 
   const desktopZoom = phoneNoteZoom({ zoom: 1, noteW: 220, viewW: 1200, minScreenW: 260 });
   assert(desktopZoom.zoom <= 1.2, 'wide viewports do not explode the zoom');
+}
+
+// 23. Edit-bar popovers — phone stays above the docked bar
+{
+  const wrap = { top: 328, bottom: 360, left: 80, right: 112 };
+  const bar = { top: 324, bottom: 360 };
+  const swatches = { width: 260, height: 46 };
+  const ceiling = 84;
+  const viewW = 390;
+
+  const desktopRoom = placeEditPopover({
+    wrap, bar, pop: swatches, ceiling, viewW, preferAbove: false,
+  });
+  eq(desktopRoom.above, true, 'desktop with room opens above the bar');
+  eq(desktopRoom.bottom, 44, 'desktop above sits 8px over the whole bar');
+  eq(desktopRoom.top, null, 'desktop above does not set top');
+  eq(desktopRoom.maxHeight, null, 'a short swatch row needs no max-height');
+
+  const desktopTight = placeEditPopover({
+    wrap: { top: 90, bottom: 122, left: 80, right: 112 },
+    bar: { top: 86, bottom: 122 },
+    pop: { width: 260, height: 160 },
+    ceiling: 84,
+    viewW,
+    preferAbove: false,
+  });
+  eq(desktopTight.above, false, 'desktop flips below when the ceiling is tight');
+  eq(desktopTight.top, 40, 'desktop below sits 8px under the bar');
+  eq(desktopTight.bottom, null, 'desktop below does not set bottom');
+
+  const phoneKb = placeEditPopover({
+    wrap, bar, pop: swatches, ceiling, viewW, preferAbove: true,
+  });
+  eq(phoneKb.above, true, 'phone colour popover opens above the docked bar');
+  eq(phoneKb.bottom, 44, 'phone colour popover clears the whole bar');
+  eq(phoneKb.top, null, 'phone colour popover does not flip to top');
+
+  const phoneIcons = placeEditPopover({
+    wrap, bar, pop: { width: 200, height: 280 }, ceiling, viewW, preferAbove: true,
+  });
+  eq(phoneIcons.above, true, 'phone icon popover stays above even when taller than the slice');
+  eq(phoneIcons.bottom, 44, 'phone icon popover still clears the bar, never the keyboard');
+  eq(phoneIcons.top, null, 'phone does not flip a tall picker below the docked bar');
+  eq(phoneIcons.maxHeight, 232, 'phone caps a tall picker to the remaining canvas');
+
+  const phoneLeft = placeEditPopover({
+    wrap: { top: 328, bottom: 360, left: 4, right: 36 },
+    bar,
+    pop: swatches,
+    ceiling,
+    viewW,
+    preferAbove: true,
+  });
+  eq(phoneLeft.shift, 116, 'phone nudges a left-edge swatch row back into the canvas');
+
+  const phoneRight = placeEditPopover({
+    wrap: { top: 328, bottom: 360, left: 350, right: 382 },
+    bar,
+    pop: swatches,
+    ceiling,
+    viewW,
+    preferAbove: true,
+  });
+  eq(phoneRight.shift, -112, 'phone nudges a right-edge swatch row back into the canvas');
 }
 
 if (failures) {
