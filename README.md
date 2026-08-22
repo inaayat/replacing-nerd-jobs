@@ -43,10 +43,11 @@ Pick columns from public JSON APIs and download a fresh Excel workbook. Catalog
 covers CORS-open sources (World Bank, REST Countries, NYC Open Data, Open-Meteo,
 USGS, ECB FX, …), same-origin snapshots already on this site (Fortune 500 10-K
 headlines, World in NYC enclaves), optional `/api/f500-prices` when deployed,
-plus paste-JSON / fetch-a-URL. The browser flattens the payload, you uncheck
-fields, stack sheets, and `takeout/workbook.js` writes Office Open XML — no new
-Vercel function. `takeout/flatten.js` and `takeout/catalog.js` are dependency-free
-ESM; do not move them under `/lib/`.
+plus paste-JSON / fetch-a-URL. Fetch pulls live JSON in the browser. Each field
+lists sample values; open it to see every distinct value as a checkbox (numeric
+series show min–max instead). `takeout/workbook.js` writes Office Open XML — no
+new Vercel function. `takeout/flatten.js` and `takeout/catalog.js` are
+dependency-free ESM; do not move them under `/lib/`.
 
 ### Plot Points — `/plot-points`
 

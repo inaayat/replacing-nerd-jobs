@@ -11,6 +11,11 @@ import {
   recordsFromParallel,
   parseFetchUrl,
   MAX_ROWS,
+  summarizeField,
+  summarizeFields,
+  filterTable,
+  valueKey,
+  displayValue,
 } from '../takeout/flatten.js';
 
 assert.equal(cellValue(null), '');
@@ -93,6 +98,54 @@ const projected = projectTable(fromDocs, ['title', 'nope']);
 assert.deepEqual(projected.columns, ['title']);
 assert.equal(projected.rows[1].title, 'B');
 assert.equal('author_name' in projected.rows[0], false);
+
+assert.equal(valueKey(''), '');
+assert.equal(valueKey(true), 'true');
+assert.equal(displayValue(''), '(blank)');
+assert.equal(displayValue(false), 'FALSE');
+
+const cats = tableFromJson([
+  { region: 'Europe', name: 'France', pop: 67 },
+  { region: 'Europe', name: 'Germany', pop: 83 },
+  { region: 'Asia', name: 'Japan', pop: 125 },
+  { region: '', name: 'Unknown', pop: 1 },
+]);
+const region = summarizeField(cats, 'region');
+assert.equal(region.asOptions, true);
+assert.equal(region.uniqueCount, 3);
+assert.equal(region.blanks, 1);
+assert.deepEqual(region.examples.slice(0, 2), ['Europe', 'Asia']);
+assert.equal(region.options.find((o) => o.key === 'Europe').count, 2);
+
+const pop = summarizeField(cats, 'pop');
+assert.equal(pop.asOptions, true);
+assert.equal(pop.min, 1);
+assert.equal(pop.max, 125);
+
+const measures = tableFromJson(
+  Array.from({ length: 80 }, (_, i) => ({ name: `Co ${i}`, revenue: 1000 + i }))
+);
+const rev = summarizeField(measures, 'revenue');
+assert.equal(rev.asOptions, false);
+assert.equal(rev.mostlyNumeric, true);
+assert.equal(rev.min, 1000);
+assert.equal(rev.max, 1079);
+const names = summarizeField(measures, 'name');
+assert.equal(names.asOptions, true);
+assert.equal(names.uniqueCount, 80);
+
+const europeOnly = filterTable(cats, { region: new Set(['Europe']) });
+assert.equal(europeOnly.rows.length, 2);
+assert.ok(europeOnly.rows.every((r) => r.region === 'Europe'));
+const noFilter = filterTable(cats, {});
+assert.equal(noFilter.rows.length, 4);
+const none = filterTable(cats, { region: new Set() });
+assert.equal(none.rows.length, 0);
+const blank = filterTable(cats, { region: new Set(['']) });
+assert.equal(blank.rows.length, 1);
+
+const allSum = summarizeFields(cats);
+assert.ok(allSum.region && allSum.name && allSum.pop);
 
 const one = tableFromJson({ hello: 'world', n: 3 });
 assert.equal(one.rows.length, 1);

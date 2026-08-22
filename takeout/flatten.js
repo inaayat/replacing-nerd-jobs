@@ -222,6 +222,108 @@ export function projectTable(table, selectedKeys) {
   };
 }
 
+export const MAX_VALUE_OPTIONS = 800;
+
+export function valueKey(value) {
+  if (value == null || value === '') return '';
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  return String(value);
+}
+
+export function displayValue(value) {
+  if (value == null || value === '') return '(blank)';
+  if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE';
+  return String(value);
+}
+
+function isNumericCell(value) {
+  if (typeof value === 'boolean') return false;
+  if (typeof value === 'number') return Number.isFinite(value);
+  if (typeof value !== 'string') return false;
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  return Number.isFinite(Number(trimmed));
+}
+
+/**
+ * Unique values in one column, plus whether they are worth listing as
+ * checkboxes (categories) or treating as a numeric series (min / max).
+ */
+export function summarizeField(table, col) {
+  const counts = new Map();
+  const samples = new Map();
+  let blanks = 0;
+  let numeric = 0;
+  let min = null;
+  let max = null;
+  const rows = table?.rows || [];
+  for (const row of rows) {
+    const value = row?.[col];
+    if (value == null || value === '') {
+      blanks += 1;
+      counts.set('', (counts.get('') || 0) + 1);
+      samples.set('', '');
+      continue;
+    }
+    const key = valueKey(value);
+    counts.set(key, (counts.get(key) || 0) + 1);
+    if (!samples.has(key)) samples.set(key, value);
+    if (isNumericCell(value)) {
+      numeric += 1;
+      const n = typeof value === 'number' ? value : Number(value);
+      if (min == null || n < min) min = n;
+      if (max == null || n > max) max = n;
+    }
+  }
+  const filled = rows.length - blanks;
+  const uniqueCount = counts.size;
+  const mostlyNumeric = filled > 0 && numeric / filled >= 0.8;
+  const highCard = uniqueCount > 60 && uniqueCount / Math.max(1, rows.length) > 0.45;
+  const asOptions = uniqueCount <= MAX_VALUE_OPTIONS && !(mostlyNumeric && highCard);
+  const options = [...counts.entries()]
+    .map(([key, count]) => ({
+      key,
+      value: samples.get(key),
+      count,
+      label: displayValue(samples.get(key)),
+    }))
+    .sort((a, b) => {
+      if (a.key === '' && b.key !== '') return 1;
+      if (b.key === '' && a.key !== '') return -1;
+      return b.count - a.count || a.label.localeCompare(b.label, undefined, { numeric: true });
+    });
+  return {
+    uniqueCount,
+    blanks,
+    filled,
+    mostlyNumeric,
+    asOptions,
+    min,
+    max,
+    options,
+    examples: options.filter((opt) => opt.key !== '').slice(0, 3).map((opt) => opt.label),
+  };
+}
+
+export function summarizeFields(table) {
+  const out = {};
+  for (const col of table?.columns || []) out[col] = summarizeField(table, col);
+  return out;
+}
+
+/**
+ * Keep rows whose value in each filtered column is in that column's allowed set.
+ * A missing / non-Set entry means "all values".
+ */
+export function filterTable(table, allowedByCol) {
+  const checks = Object.entries(allowedByCol || {}).filter(([, allowed]) => allowed instanceof Set);
+  if (!checks.length) return table;
+  const rows = (table.rows || []).filter((row) =>
+    checks.every(([col, allowed]) => allowed.has(valueKey(row[col])))
+  );
+  return { ...table, rows };
+}
+
 export function parseFetchUrl(raw) {
   const trimmed = String(raw || '').trim();
   if (!trimmed) return { error: 'Paste an https URL.' };

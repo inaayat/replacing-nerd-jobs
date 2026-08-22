@@ -42,7 +42,8 @@
           <p class="tk-kicker">Public APIs · column picker · .xlsx</p>
           <h1 class="tk-brand">Takeout</h1>
           <p class="tk-lede">
-            Fetch a source, uncheck the fields you don’t want, stack sheets, leave with Excel.
+            Fetch live rows, then pick columns <em>and</em> the values in them.
+            Export is Excel of exactly that selection.
           </p>
         </header>
         <div class="tk-source-list" id="source-list"></div>
@@ -66,9 +67,9 @@
         <section class="tk-pick" id="pick" hidden>
           <div class="tk-pick-head">
             <div>
-              <p class="tk-kicker">Columns</p>
-              <h2 id="pick-title">Pick the values</h2>
-              <p class="tk-meta" id="pick-meta"></p>
+            <p class="tk-kicker">Columns &amp; values</p>
+            <h2 id="pick-title">What to keep</h2>
+            <p class="tk-meta" id="pick-meta"></p>
             </div>
             <div class="tk-pick-tools">
               <input type="search" id="col-filter" placeholder="Filter columns" aria-label="Filter columns" />
@@ -76,10 +77,26 @@
               <button type="button" class="tk-btn tk-btn-ghost" id="cols-none">None</button>
             </div>
           </div>
-          <div class="tk-cols" id="cols" role="group" aria-label="Columns to export"></div>
+          <div class="tk-cols" id="cols" role="list" aria-label="Fields in this fetch"></div>
+          <div class="tk-values" id="values" hidden>
+            <div class="tk-values-head">
+              <div>
+                <p class="tk-kicker">Values in this field</p>
+                <h3 id="values-title">Field</h3>
+                <p class="tk-meta" id="values-meta"></p>
+              </div>
+              <button type="button" class="tk-btn tk-btn-ghost" id="values-close">Done</button>
+            </div>
+            <div class="tk-values-tools" id="values-tools">
+              <input type="search" id="value-filter" placeholder="Search values" aria-label="Search values" />
+              <button type="button" class="tk-btn tk-btn-ghost" id="vals-all">All values</button>
+              <button type="button" class="tk-btn tk-btn-ghost" id="vals-none">None</button>
+            </div>
+            <div class="tk-value-list" id="value-list" role="group" aria-label="Values to keep"></div>
+          </div>
           <div class="tk-preview-wrap">
             <div class="tk-preview-head">
-              <p class="tk-kicker">Preview</p>
+              <p class="tk-kicker">Every matching row</p>
               <span class="tk-meta" id="preview-meta"></span>
             </div>
             <div class="tk-table-scroll">
@@ -87,6 +104,11 @@
                 <thead></thead>
                 <tbody></tbody>
               </table>
+            </div>
+            <div class="tk-pager" id="pager" hidden>
+              <button type="button" class="tk-btn tk-btn-ghost tk-btn-tiny" id="page-prev">Previous</button>
+              <span id="pager-info"></span>
+              <button type="button" class="tk-btn tk-btn-ghost tk-btn-tiny" id="page-next">Next</button>
             </div>
           </div>
           <div class="tk-actions">
