@@ -194,10 +194,51 @@ button, input, select, textarea { font: inherit; }
   padding: 18px 18px 16px;
   margin-bottom: 16px;
 }
-.tk-setup h2 {
-  font-family: var(--tk-display);
-  font-size: 1.45rem;
-  margin: 0 0 6px;
+.tk-step-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+}
+.tk-step-row .tk-kicker { margin: 0; }
+.tk-step {
+  display: inline-flex;
+  width: 1.55rem;
+  height: 1.55rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--tk-green);
+  color: #faf3e3;
+  font-weight: 700;
+  font-size: 0.82rem;
+  flex-shrink: 0;
+}
+.tk-source-picker {
+  display: block;
+  margin: 0 0 12px;
+}
+.tk-source-picker select {
+  width: 100%;
+  min-height: 52px;
+  font-size: 1.15rem;
+  font-weight: 650;
+  border: 2px solid var(--tk-green);
+  border-radius: 12px;
+  padding: 10px 14px;
+  background: #fff;
+  color: var(--tk-ink);
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .tk-params {
@@ -499,24 +540,11 @@ button, input, select, textarea { font: inherit; }
   .tk-app {
     grid-template-columns: 1fr;
   }
-  .tk-rail, .tk-tray {
+  .tk-rail { display: none; }
+  .tk-tray {
     border-right: 0;
     border-left: 0;
-    border-bottom: 1.5px solid var(--tk-line);
-  }
-  .tk-source-blurb { display: none; }
-  .tk-source-list {
-    display: flex;
-    gap: 6px;
-    overflow-x: auto;
-    padding-bottom: 6px;
-  }
-  .tk-group { display: contents; }
-  .tk-group-name { display: none; }
-  .tk-source {
-    flex: 0 0 auto;
-    border: 1.5px solid var(--tk-line);
-    background: #fff;
+    border-top: 1.5px solid var(--tk-line);
   }
 }
 
@@ -524,6 +552,7 @@ button, input, select, textarea { font: inherit; }
   .tk-field input,
   .tk-field select,
   .tk-field textarea,
+  .tk-source-picker select,
   .tk-pick-tools input,
   .tk-values-tools input,
   .tk-sheet-name input {

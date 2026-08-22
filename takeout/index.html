@@ -42,24 +42,27 @@
           <p class="tk-kicker">Public APIs · column picker · .xlsx</p>
           <h1 class="tk-brand">Takeout</h1>
           <p class="tk-lede">
-            Fetch live rows, then pick columns <em>and</em> the values in them.
-            Export is Excel of exactly that selection.
+            First choose a source, then pick the fields and values to keep.
           </p>
         </header>
         <div class="tk-source-list" id="source-list"></div>
       </aside>
 
       <main class="tk-main">
-        <section class="tk-setup" aria-labelledby="setup-title">
-          <div class="tk-setup-copy">
-            <p class="tk-kicker" id="setup-kicker">Source</p>
-            <h2 id="setup-title">Demo posts</h2>
-            <p class="tk-blurb" id="setup-blurb"></p>
-            <p class="tk-docs" id="setup-docs"></p>
+        <section class="tk-setup" aria-labelledby="source-label">
+          <div class="tk-step-row">
+            <span class="tk-step" aria-hidden="true">1</span>
+            <p class="tk-kicker" id="source-label">Choose a source</p>
           </div>
+          <label class="tk-source-picker">
+            <span class="visually-hidden">Source</span>
+            <select id="source-select" aria-labelledby="source-label"></select>
+          </label>
+          <p class="tk-blurb" id="setup-blurb"></p>
+          <p class="tk-docs" id="setup-docs"></p>
           <form class="tk-params" id="params-form" autocomplete="off"></form>
           <div class="tk-cta">
-            <button type="button" class="tk-btn tk-btn-fetch" id="fetch-btn">Fetch</button>
+            <button type="button" class="tk-btn tk-btn-fetch" id="fetch-btn">Fetch live data</button>
             <p class="tk-status" id="status" role="status"></p>
           </div>
         </section>
@@ -67,8 +70,11 @@
         <section class="tk-pick" id="pick" hidden>
           <div class="tk-pick-head">
             <div>
-            <p class="tk-kicker">Columns &amp; values</p>
-            <h2 id="pick-title">What to keep</h2>
+            <div class="tk-step-row">
+              <span class="tk-step" aria-hidden="true">2</span>
+              <p class="tk-kicker">Pick fields from this source</p>
+            </div>
+            <h2 id="pick-title">Fields</h2>
             <p class="tk-meta" id="pick-meta"></p>
             </div>
             <div class="tk-pick-tools">

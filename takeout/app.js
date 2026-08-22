@@ -16,13 +16,14 @@ const PAGE_SIZE = 25;
 
 const els = {
   sourceList: document.getElementById('source-list'),
-  setupTitle: document.getElementById('setup-title'),
+  sourceSelect: document.getElementById('source-select'),
   setupBlurb: document.getElementById('setup-blurb'),
   setupDocs: document.getElementById('setup-docs'),
   paramsForm: document.getElementById('params-form'),
   fetchBtn: document.getElementById('fetch-btn'),
   status: document.getElementById('status'),
   pick: document.getElementById('pick'),
+  pickTitle: document.getElementById('pick-title'),
   pickMeta: document.getElementById('pick-meta'),
   colFilter: document.getElementById('col-filter'),
   cols: document.getElementById('cols'),
@@ -140,11 +141,23 @@ function renderSources() {
     </div>`
     )
     .join('');
+  els.sourceSelect.innerHTML = groups
+    .map(
+      (group) => `<optgroup label="${escapeHtml(group.name)}">
+      ${group.sources
+        .map((source) => {
+          const sel = source.id === state.sourceId ? ' selected' : '';
+          return `<option value="${escapeHtml(source.id)}"${sel}>${escapeHtml(source.name)}</option>`;
+        })
+        .join('')}
+    </optgroup>`
+    )
+    .join('');
+  els.sourceSelect.value = state.sourceId;
 }
 
 function renderSetup() {
   const source = currentSource();
-  els.setupTitle.textContent = source.name;
   els.setupBlurb.textContent = source.blurb;
   els.setupDocs.innerHTML = source.docs
     ? `<a href="${escapeHtml(source.docs)}" ${source.docs.startsWith('http') ? 'target="_blank" rel="noopener"' : ''}>About this source</a>`
@@ -345,6 +358,7 @@ function showResult(result) {
   els.colFilter.value = '';
   els.valueFilter.value = '';
   els.sheetName.value = sheetTabName(result.name);
+  els.pickTitle.textContent = `Fields in ${currentSource().name}`;
   els.pick.hidden = false;
   renderAll();
 }
@@ -431,16 +445,45 @@ function openValues(col) {
   renderValues();
 }
 
+function canAutoLoad(source) {
+  return source.kind === 'http' && source.id !== 'custom-url';
+}
+
+function pickSource(id, { load = false } = {}) {
+  const source = sourceById(id);
+  if (!source) return;
+  const changed = source.id !== state.sourceId;
+  state.sourceId = source.id;
+  if (changed) {
+    state.params = defaultParams(source);
+    state.result = null;
+    els.pick.hidden = true;
+  }
+  renderSources();
+  renderSetup();
+  if (load && canAutoLoad(source)) {
+    fetchCurrent();
+    return;
+  }
+  if (changed) {
+    setStatus(
+      source.kind === 'paste'
+        ? 'Paste JSON, then tap Use JSON.'
+        : source.id === 'custom-url'
+          ? 'Paste a JSON URL, then fetch.'
+          : 'Fetch to pull live rows for this source.'
+    );
+  }
+}
+
+els.sourceSelect.addEventListener('change', () => {
+  pickSource(els.sourceSelect.value, { load: true });
+});
+
 els.sourceList.addEventListener('click', (event) => {
   const btn = event.target.closest('[data-source]');
   if (!btn) return;
-  const source = sourceById(btn.getAttribute('data-source'));
-  if (!source) return;
-  state.sourceId = source.id;
-  state.params = defaultParams(source);
-  renderSources();
-  renderSetup();
-  setStatus('Fetch to pull live rows for this source.');
+  pickSource(btn.getAttribute('data-source'), { load: true });
 });
 
 els.paramsForm.addEventListener('submit', (event) => {
