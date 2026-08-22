@@ -1,0 +1,435 @@
+:root {
+  --tk-cream: #faf3e3;
+  --tk-ink: #1c1c1c;
+  --tk-muted: #6b5f5e;
+  --tk-line: rgba(28, 28, 28, 0.12);
+  --tk-panel: #fffdf8;
+  --tk-panel-2: #f3ebda;
+  --tk-green: #3f7a3a;
+  --tk-green-soft: #d7e8c8;
+  --tk-red: #cf4520;
+  --tk-font: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --tk-display: "Fraunces", Georgia, serif;
+  --tk-mono: "DM Mono", ui-monospace, monospace;
+  --tk-radius: 14px;
+  --tk-nav-h: 56px;
+  --tk-rail-w: min(280px, 32vw);
+  --tk-tray-w: min(260px, 28vw);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--tk-cream);
+  color: var(--tk-ink);
+  font-family: var(--tk-font);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+body {
+  background:
+    radial-gradient(ellipse 70% 45% at 8% -8%, rgba(63, 122, 58, 0.16), transparent 55%),
+    radial-gradient(ellipse 50% 35% at 100% 0%, rgba(207, 69, 32, 0.1), transparent 50%),
+    linear-gradient(180deg, #f7efe0 0%, var(--tk-cream) 42%, #f4ead6 100%);
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+a { color: var(--tk-red); }
+button, input, select, textarea { font: inherit; }
+
+.tk-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: calc(var(--tk-nav-h) + env(safe-area-inset-top));
+  padding: 10px 16px;
+  padding-top: max(10px, env(safe-area-inset-top));
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+  border-bottom: 1.5px solid var(--tk-line);
+  background: rgba(250, 243, 227, 0.94);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.tk-nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.tk-nav-logo,
+.tk-nav-section {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: var(--tk-ink);
+}
+
+.tk-nav-logo {
+  font-family: var(--tk-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.65;
+}
+.tk-nav-logo:hover { opacity: 1; }
+
+.tk-nav-section {
+  font-family: var(--tk-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+  padding-left: 10px;
+  border-left: 1px solid var(--tk-line);
+}
+
+.tk-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tk-nav-links a {
+  color: var(--tk-muted);
+  text-decoration: none;
+  font-size: 0.82rem;
+}
+.tk-nav-links a:hover { color: var(--tk-ink); }
+
+.tk-app {
+  flex: 1;
+  display: grid;
+  grid-template-columns: var(--tk-rail-w) minmax(0, 1fr) var(--tk-tray-w);
+  min-height: 0;
+}
+
+.tk-rail,
+.tk-tray {
+  background: rgba(255, 253, 248, 0.72);
+  border-right: 1.5px solid var(--tk-line);
+  padding: 18px 16px 28px;
+  overflow: auto;
+}
+.tk-tray {
+  border-right: 0;
+  border-left: 1.5px solid var(--tk-line);
+}
+
+.tk-kicker {
+  font-family: var(--tk-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tk-muted);
+  margin: 0 0 6px;
+}
+.tk-brand {
+  font-family: var(--tk-display);
+  font-size: 2rem;
+  font-weight: 650;
+  margin: 0 0 8px;
+  letter-spacing: -0.02em;
+}
+.tk-lede, .tk-blurb, .tk-meta, .tk-empty {
+  color: var(--tk-muted);
+  font-size: 0.88rem;
+  margin: 0 0 12px;
+}
+.tk-docs { margin: 0; font-size: 0.82rem; }
+.tk-docs a { text-decoration: none; border-bottom: 1px solid currentColor; }
+
+.tk-group {
+  margin: 16px 0 8px;
+}
+.tk-group-name {
+  font-family: var(--tk-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tk-muted);
+  margin: 0 0 6px;
+}
+
+.tk-source {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: 8px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  color: var(--tk-ink);
+}
+.tk-source:hover { background: rgba(28, 28, 28, 0.05); }
+.tk-source.is-on {
+  background: var(--tk-green-soft);
+}
+.tk-source-name { display: block; font-weight: 650; font-size: 0.9rem; }
+.tk-source-blurb {
+  display: block;
+  color: var(--tk-muted);
+  font-size: 0.75rem;
+  margin-top: 2px;
+}
+
+.tk-main {
+  min-width: 0;
+  padding: 20px 22px 40px;
+  overflow: auto;
+}
+
+.tk-setup {
+  background: var(--tk-panel);
+  border: 1.5px solid var(--tk-line);
+  border-radius: var(--tk-radius);
+  padding: 18px 18px 16px;
+  margin-bottom: 16px;
+}
+.tk-setup h2 {
+  font-family: var(--tk-display);
+  font-size: 1.45rem;
+  margin: 0 0 6px;
+}
+
+.tk-params {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin: 14px 0;
+}
+.tk-field { display: flex; flex-direction: column; gap: 5px; }
+.tk-field span {
+  font-size: 0.75rem;
+  color: var(--tk-muted);
+  font-weight: 650;
+}
+.tk-field input,
+.tk-field select,
+.tk-field textarea,
+.tk-pick-tools input,
+.tk-sheet-name input {
+  border: 1.5px solid var(--tk-line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fff;
+  color: var(--tk-ink);
+  min-height: 40px;
+}
+.tk-field textarea {
+  min-height: 140px;
+  font-family: var(--tk-mono);
+  font-size: 0.78rem;
+  grid-column: 1 / -1;
+}
+.tk-field:has(textarea) { grid-column: 1 / -1; }
+
+.tk-cta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.tk-status { margin: 0; font-size: 0.85rem; color: var(--tk-muted); }
+.tk-status.is-bad { color: var(--tk-red); }
+.tk-status.is-ok { color: var(--tk-green); }
+
+.tk-btn {
+  appearance: none;
+  border: 0;
+  border-radius: 9px;
+  padding: 9px 14px;
+  font-weight: 650;
+  cursor: pointer;
+  font-size: 0.88rem;
+}
+.tk-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.tk-btn-fetch, .tk-btn-export {
+  background: var(--tk-green);
+  color: #faf3e3;
+}
+.tk-btn-fetch:hover:not(:disabled),
+.tk-btn-export:hover:not(:disabled) { filter: brightness(1.06); }
+.tk-btn-ghost {
+  background: transparent;
+  color: var(--tk-ink);
+  border: 1.5px solid var(--tk-line);
+}
+.tk-btn-ghost:hover:not(:disabled) { background: var(--tk-panel-2); }
+.tk-btn-block { width: 100%; margin-top: 12px; }
+.tk-btn-tiny {
+  padding: 4px 8px;
+  font-size: 0.75rem;
+}
+
+.tk-pick {
+  background: var(--tk-panel);
+  border: 1.5px solid var(--tk-line);
+  border-radius: var(--tk-radius);
+  padding: 18px;
+}
+.tk-pick-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+.tk-pick h2, .tk-tray h2 {
+  font-family: var(--tk-display);
+  font-size: 1.25rem;
+  margin: 0 0 4px;
+}
+.tk-pick-tools {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.tk-pick-tools input { min-width: 160px; }
+
+.tk-cols {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 18px;
+}
+.tk-col {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1.5px solid var(--tk-line);
+  border-radius: 999px;
+  padding: 5px 10px 5px 8px;
+  background: #fff;
+  font-size: 0.8rem;
+  cursor: pointer;
+  max-width: 100%;
+}
+.tk-col input { accent-color: var(--tk-green); }
+.tk-col.is-off { opacity: 0.45; }
+.tk-col code {
+  font-family: var(--tk-mono);
+  font-size: 0.72rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+
+.tk-preview-wrap { margin-top: 4px; }
+.tk-preview-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+}
+.tk-table-scroll {
+  overflow: auto;
+  max-height: min(48vh, 520px);
+  border: 1.5px solid var(--tk-line);
+  border-radius: 10px;
+  background: #fff;
+}
+.tk-table {
+  border-collapse: collapse;
+  width: max-content;
+  min-width: 100%;
+  font-size: 0.78rem;
+}
+.tk-table th, .tk-table td {
+  border-bottom: 1px solid var(--tk-line);
+  border-right: 1px solid rgba(28, 28, 28, 0.06);
+  padding: 6px 8px;
+  text-align: left;
+  white-space: nowrap;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tk-table th {
+  position: sticky;
+  top: 0;
+  background: var(--tk-panel-2);
+  font-family: var(--tk-mono);
+  font-size: 0.68rem;
+  font-weight: 500;
+}
+
+.tk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: end;
+  margin-top: 14px;
+}
+.tk-sheet-name {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--tk-muted);
+  font-weight: 650;
+}
+
+.tk-sheets {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tk-sheet {
+  background: #fff;
+  border: 1.5px solid var(--tk-line);
+  border-radius: 10px;
+  padding: 10px 10px 8px;
+}
+.tk-sheet strong { display: block; font-size: 0.9rem; }
+.tk-sheet p { margin: 4px 0 8px; font-size: 0.75rem; color: var(--tk-muted); }
+.tk-sheet-tools { display: flex; gap: 6px; }
+
+@media (max-width: 980px) {
+  .tk-app {
+    grid-template-columns: 1fr;
+  }
+  .tk-rail, .tk-tray {
+    border-right: 0;
+    border-left: 0;
+    border-bottom: 1.5px solid var(--tk-line);
+  }
+  .tk-source-blurb { display: none; }
+  .tk-source-list {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+  }
+  .tk-group { display: contents; }
+  .tk-group-name { display: none; }
+  .tk-source {
+    flex: 0 0 auto;
+    border: 1.5px solid var(--tk-line);
+    background: #fff;
+  }
+}
+
+@media (pointer: coarse) {
+  .tk-field input,
+  .tk-field select,
+  .tk-field textarea,
+  .tk-pick-tools input,
+  .tk-sheet-name input {
+    font-size: 16px;
+  }
+  .tk-btn { min-height: 44px; }
+}

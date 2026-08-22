@@ -37,6 +37,17 @@ Excel download (browser OOXML). Neon JSONB on `users.id` via `api/table-manners.
 (`/api/tm-sheet`). Browser modules stay under `table-manners/engine/` — do not
 import `/lib/` from the page. See `table-manners/PLAN.md`.
 
+### Takeout — `/takeout`
+
+Pick columns from public JSON APIs and download a fresh Excel workbook. Catalog
+covers CORS-open sources (World Bank, REST Countries, NYC Open Data, Open-Meteo,
+USGS, ECB FX, …), same-origin snapshots already on this site (Fortune 500 10-K
+headlines, World in NYC enclaves), optional `/api/f500-prices` when deployed,
+plus paste-JSON / fetch-a-URL. The browser flattens the payload, you uncheck
+fields, stack sheets, and `takeout/workbook.js` writes Office Open XML — no new
+Vercel function. `takeout/flatten.js` and `takeout/catalog.js` are dependency-free
+ESM; do not move them under `/lib/`.
+
 ### Plot Points — `/plot-points`
 
 Cinema list / query explorer on TMDB. `plot-points/query-engine.js` is imported
@@ -265,8 +276,8 @@ python3 -m http.server 8080
 
 Works for catalog/player pages like Sporcle Spinoff, Plot Points shells, the
 Fortune 500 EDGAR explainer (`/fortune-500/`), Financial Modeler
-(`/financial-modeler/`), the AI buildout money monitor (`/ai-buildout/`), and
-World in NYC (`/world-in-nyc/`).
+(`/financial-modeler/`), the AI buildout money monitor (`/ai-buildout/`),
+World in NYC (`/world-in-nyc/`), and Takeout (`/takeout/`).
 `api/*` routes do **not** run under a plain static server.
 
 **Full stack** (API routes + env secrets):
@@ -672,4 +683,7 @@ node scripts/test-world-in-nyc.mjs
 node scripts/test-sticky-notes.mjs
 node scripts/test-table-manners-sheet.mjs
 node scripts/test-table-manners-workbook.mjs
+node scripts/test-takeout-flatten.mjs
+node scripts/test-takeout-workbook.mjs
+node scripts/test-takeout-catalog.mjs
 ```

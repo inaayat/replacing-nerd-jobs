@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <base href="/takeout/" />
+    <title>Takeout — Beep boop</title>
+    <meta
+      name="description"
+      content="Pick fields from public APIs and download a fresh Excel workbook. No paste-from-a-dashboard, no extra serverless function."
+    />
+    <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap"
+    />
+    <link rel="stylesheet" href="./app.css" />
+  </head>
+  <body>
+    <nav class="tk-nav">
+      <div class="tk-nav-brand">
+        <a href="/" class="tk-nav-logo" aria-label="Beep boop home">
+          <img src="/ugly-dog-images/dog-3.png" alt="" width="18" height="18" />
+          <span>Beep boop</span>
+        </a>
+        <a href="/takeout/" class="tk-nav-section">
+          <img src="/takeout/icon.svg" alt="" width="22" height="22" />
+          <span>Takeout</span>
+        </a>
+      </div>
+      <div class="tk-nav-links">
+        <button type="button" class="tk-btn tk-btn-export" id="export-nav" disabled>Export Excel</button>
+        <a href="/#projects">Projects</a>
+      </div>
+    </nav>
+
+    <div class="tk-app">
+      <aside class="tk-rail" aria-label="Sources">
+        <header class="tk-rail-head">
+          <p class="tk-kicker">Public APIs · column picker · .xlsx</p>
+          <h1 class="tk-brand">Takeout</h1>
+          <p class="tk-lede">
+            Fetch a source, uncheck the fields you don’t want, stack sheets, leave with Excel.
+          </p>
+        </header>
+        <div class="tk-source-list" id="source-list"></div>
+      </aside>
+
+      <main class="tk-main">
+        <section class="tk-setup" aria-labelledby="setup-title">
+          <div class="tk-setup-copy">
+            <p class="tk-kicker" id="setup-kicker">Source</p>
+            <h2 id="setup-title">Demo posts</h2>
+            <p class="tk-blurb" id="setup-blurb"></p>
+            <p class="tk-docs" id="setup-docs"></p>
+          </div>
+          <form class="tk-params" id="params-form" autocomplete="off"></form>
+          <div class="tk-cta">
+            <button type="button" class="tk-btn tk-btn-fetch" id="fetch-btn">Fetch</button>
+            <p class="tk-status" id="status" role="status"></p>
+          </div>
+        </section>
+
+        <section class="tk-pick" id="pick" hidden>
+          <div class="tk-pick-head">
+            <div>
+              <p class="tk-kicker">Columns</p>
+              <h2 id="pick-title">Pick the values</h2>
+              <p class="tk-meta" id="pick-meta"></p>
+            </div>
+            <div class="tk-pick-tools">
+              <input type="search" id="col-filter" placeholder="Filter columns" aria-label="Filter columns" />
+              <button type="button" class="tk-btn tk-btn-ghost" id="cols-all">All</button>
+              <button type="button" class="tk-btn tk-btn-ghost" id="cols-none">None</button>
+            </div>
+          </div>
+          <div class="tk-cols" id="cols" role="group" aria-label="Columns to export"></div>
+          <div class="tk-preview-wrap">
+            <div class="tk-preview-head">
+              <p class="tk-kicker">Preview</p>
+              <span class="tk-meta" id="preview-meta"></span>
+            </div>
+            <div class="tk-table-scroll">
+              <table class="tk-table" id="preview">
+                <thead></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="tk-actions">
+            <label class="tk-sheet-name">
+              <span>Sheet name</span>
+              <input type="text" id="sheet-name" maxlength="31" />
+            </label>
+            <button type="button" class="tk-btn tk-btn-ghost" id="add-sheet">Add to workbook</button>
+            <button type="button" class="tk-btn tk-btn-export" id="export-this">Export this sheet</button>
+          </div>
+        </section>
+      </main>
+
+      <aside class="tk-tray" aria-label="Workbook">
+        <header class="tk-tray-head">
+          <p class="tk-kicker">Workbook</p>
+          <h2>Sheets to take home</h2>
+          <p class="tk-lede">Each fetch you keep becomes a tab. Sources is always included.</p>
+        </header>
+        <ol class="tk-sheets" id="sheets"></ol>
+        <p class="tk-empty" id="tray-empty">Nothing stacked yet. Fetch, pick columns, then add a sheet.</p>
+        <button type="button" class="tk-btn tk-btn-export tk-btn-block" id="export-book" disabled>
+          Export workbook
+        </button>
+      </aside>
+    </div>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
