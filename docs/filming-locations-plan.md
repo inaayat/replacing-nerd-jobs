@@ -93,6 +93,22 @@ A run chained through a fork can double back on itself, which would draw a block
 face as a mile-long detour. A path more than 2.5× the straight-line distance
 between its ends is demoted to `span` instead.
 
+### Dots and lines
+
+Every placed stretch is drawn twice: a **dot** at its midpoint and, when there is
+a stretch to draw, the **line** along the street. The dot is not decoration. A
+block face is a couple of hundred metres, which at city zoom is a hairline that
+reads as empty map — the first version looked like nothing had ever been shot in
+most of Manhattan. The dot answers "was anything shot here" at any zoom; the line
+answers "how much of the street was closed" once you are near enough to care.
+Both are sized by permit count.
+
+For the same reason the page opens on the **whole window the city still holds**
+rather than a trailing year. A year is 837 permits and 2,165 stretches; the full
+window is 3,260 and 5,214. Of the ~1,030 250m cells in Manhattan that contain any
+street at all, 67% contain at least one shoot — the remaining third is genuinely
+empty, not missing.
+
 **97.5% of segment mentions place**, 86% as exact block faces. The rest are
 reported in the rail with the street names behind them — mostly shoots in another
 borough filed on a Manhattan permit. A map that silently drops a chunk of its
