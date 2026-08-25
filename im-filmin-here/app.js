@@ -7,6 +7,14 @@
 
 import { createStreetIndex } from './streets.js';
 import {
+  DOT_SOURCE,
+  INTERACTIVE_LAYERS,
+  LINE_SOURCE,
+  PERMIT_LAYERS,
+  SELECTION_LAYERS,
+  selectionFilter,
+} from './layers.js';
+import {
   CATEGORIES,
   CATEGORY_IDS,
   DATASET_URL,
@@ -280,9 +288,10 @@ function renderDetail(props) {
 function select(props) {
   state.selected = props;
   renderDetail(props);
-  const filter = props ? ['==', ['get', 'key'], props.key] : ['==', ['get', 'key'], '__none__'];
-  if (state.map.getLayer('permits-selected')) state.map.setFilter('permits-selected', filter);
-  if (state.map.getLayer('permits-selected-point')) state.map.setFilter('permits-selected-point', filter);
+  const filter = selectionFilter(props?.key);
+  for (const id of SELECTION_LAYERS) {
+    if (state.map.getLayer(id)) state.map.setFilter(id, filter);
+  }
   if (props) {
     // The card is the first thing in the rail, so showing it means scrolling
     // back to the top — a click on the map should never answer off-screen.
@@ -297,84 +306,21 @@ function openRail(open) {
 }
 
 function addLayers(map) {
-  map.addSource('permit-lines', { type: 'geojson', data: EMPTY });
-  map.addSource('permit-dots', { type: 'geojson', data: EMPTY });
+  map.addSource(LINE_SOURCE, { type: 'geojson', data: EMPTY });
+  map.addSource(DOT_SOURCE, { type: 'geojson', data: EMPTY });
 
-  // Width carries volume: one permit is a hairline, a repeatedly-closed block is
-  // heavy. Anything above ~25 permits stops growing so Midtown does not become
-  // a single blob.
-  const width = [
-    'interpolate',
-    ['linear'],
-    ['get', 'permitCount'],
-    1,
-    ['interpolate', ['linear'], ['zoom'], 11, 1.8, 14, 3, 16, 4],
-    25,
-    ['interpolate', ['linear'], ['zoom'], 11, 5, 14, 9, 16, 13],
-  ];
-
-  map.addLayer({
-    id: 'permits-hit',
-    type: 'line',
-    source: 'permit-lines',
-    paint: { 'line-color': '#000', 'line-opacity': 0, 'line-width': 14 },
+  // A layer MapLibre rejects is not added and does not throw, so a silent style
+  // error would leave a blank map behind a working sidebar. Surface it.
+  map.on('error', (event) => {
+    if (event?.error) setStatus(`Map error: ${event.error.message}`, 'error');
   });
 
-  map.addLayer({
-    id: 'permits',
-    type: 'line',
-    source: 'permit-lines',
-    layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: {
-      'line-color': ['get', 'color'],
-      'line-width': width,
-      'line-opacity': 0.82,
-    },
-  });
+  for (const layer of PERMIT_LAYERS) {
+    map.addLayer(layer);
+    if (!map.getLayer(layer.id)) setStatus(`Map layer "${layer.id}" was rejected.`, 'error');
+  }
 
-  map.addLayer({
-    id: 'permits-selected',
-    type: 'line',
-    source: 'permit-lines',
-    layout: { 'line-cap': 'round', 'line-join': 'round' },
-    filter: ['==', ['get', 'key'], '__none__'],
-    paint: { 'line-color': '#1c1c1c', 'line-width': ['+', width, 3], 'line-opacity': 0.95 },
-  });
-
-  // One dot per stretch that was closed for a shoot, so presence is legible at
-  // every zoom instead of only where a line happens to be thick.
-  const dotRadius = [
-    '*',
-    ['interpolate', ['linear'], ['zoom'], 10, 1.5, 12, 2.2, 14, 3.2, 16, 4.6],
-    ['interpolate', ['linear'], ['get', 'permitCount'], 1, 1, 25, 2.2],
-  ];
-
-  map.addLayer({
-    id: 'permit-dots',
-    type: 'circle',
-    source: 'permit-dots',
-    paint: {
-      'circle-color': ['get', 'color'],
-      'circle-radius': dotRadius,
-      'circle-opacity': 0.9,
-      'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 12, 0.4, 15, 1],
-      'circle-stroke-color': 'rgba(250,243,227,0.9)',
-    },
-  });
-
-  map.addLayer({
-    id: 'permits-selected-point',
-    type: 'circle',
-    source: 'permit-dots',
-    filter: ['==', ['get', 'key'], '__none__'],
-    paint: {
-      'circle-color': '#1c1c1c',
-      'circle-radius': ['+', dotRadius, 2.5],
-      'circle-opacity': 0.95,
-    },
-  });
-
-  for (const layer of ['permits-hit', 'permit-dots']) {
+  for (const layer of INTERACTIVE_LAYERS) {
     map.on('mouseenter', layer, () => {
       map.getCanvas().style.cursor = 'pointer';
     });
@@ -388,7 +334,8 @@ function addLayers(map) {
   }
 
   map.on('click', (event) => {
-    const hits = map.queryRenderedFeatures(event.point, { layers: ['permits-hit', 'permit-dots'] });
+    const layers = INTERACTIVE_LAYERS.filter((id) => map.getLayer(id));
+    const hits = layers.length ? map.queryRenderedFeatures(event.point, { layers }) : [];
     if (!hits.length) select(null);
   });
 }
@@ -396,7 +343,7 @@ function addLayers(map) {
 async function refresh() {
   // The map's sources only exist after `load`, and a filter can be touched
   // before the style finishes.
-  if (!state.index || !state.map?.getSource('permit-lines')) return;
+  if (!state.index || !state.map?.getSource(LINE_SOURCE)) return;
   const requestId = ++state.requestId;
   setStatus('Fetching permits…');
 
@@ -430,8 +377,8 @@ async function refresh() {
   }
 
   state.data = built;
-  state.map.getSource('permit-lines').setData(built.lines);
-  state.map.getSource('permit-dots').setData(built.dots);
+  state.map.getSource(LINE_SOURCE).setData(built.lines);
+  state.map.getSource(DOT_SOURCE).setData(built.dots);
   renderStats({ ...built.stats, byCategory, shootDays });
 
   if (state.selected) {

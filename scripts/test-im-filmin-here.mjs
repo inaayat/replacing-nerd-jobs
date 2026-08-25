@@ -32,6 +32,15 @@ import {
   CATEGORIES,
   EVENT_TYPES,
 } from '../im-filmin-here/permits.js';
+import {
+  PERMIT_LAYERS,
+  INTERACTIVE_LAYERS,
+  SELECTION_LAYERS,
+  LINE_SOURCE,
+  DOT_SOURCE,
+  NO_SELECTION,
+  selectionFilter,
+} from '../im-filmin-here/layers.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -290,6 +299,83 @@ const asText = JSON.stringify(built.lines);
 assert.ok(!/title/i.test(asText));
 
 assert.deepEqual(buildFeatures([], index).stats.tiers, { block: 0, span: 0, point: 0 });
+
+/* ---- map layers ---- */
+
+// This section exists because a bad paint expression is silent: MapLibre
+// validates the layer, fires an error event, and does not add it. The page loads,
+// the sidebar fills in from the same data, and the map is simply blank. That
+// shipped once — `["zoom"]` nested inside a property interpolation, and again
+// inside `["*", ...]`. Both are invalid, both looked fine in the code.
+assert.ok(PERMIT_LAYERS.length >= 4);
+assert.deepEqual(
+  PERMIT_LAYERS.map((l) => l.id),
+  ['permits-hit', 'permits', 'permits-selected', 'permit-dots', 'permits-selected-dot'],
+);
+// Every layer points at a source that app.js actually creates.
+assert.ok(PERMIT_LAYERS.every((l) => [LINE_SOURCE, DOT_SOURCE].includes(l.source)));
+// Interactive and selection-driven layers must exist, or clicks land on nothing.
+assert.ok(INTERACTIVE_LAYERS.every((id) => PERMIT_LAYERS.some((l) => l.id === id)));
+assert.ok(SELECTION_LAYERS.every((id) => PERMIT_LAYERS.some((l) => l.id === id)));
+// A hit target under the hairlines, or a one-permit block face is unclickable.
+assert.equal(PERMIT_LAYERS[0].paint['line-opacity'], 0);
+assert.ok(PERMIT_LAYERS[0].paint['line-width'] >= 10);
+assert.deepEqual(selectionFilter('abc'), ['==', ['get', 'key'], 'abc']);
+assert.deepEqual(selectionFilter(null), ['==', ['get', 'key'], '__none__']);
+for (const id of SELECTION_LAYERS) {
+  assert.deepEqual(PERMIT_LAYERS.find((l) => l.id === id).filter, NO_SELECTION);
+}
+
+/**
+ * `["zoom"]` may only be the input to the outermost step/interpolate of a
+ * property value. Walk every expression and fail on a nested one.
+ */
+function zoomDepths(expr, depth = 0, out = []) {
+  if (!Array.isArray(expr)) return out;
+  const [op] = expr;
+  if (op === 'zoom') out.push(depth);
+  const isInterpolation = op === 'interpolate' || op === 'step' || op === 'interpolate-hcl' || op === 'interpolate-lab';
+  for (let i = 1; i < expr.length; i += 1) {
+    // An interpolation's own input sits at the same depth; its outputs are nested.
+    const childDepth = isInterpolation && i <= 2 ? depth : depth + 1;
+    zoomDepths(expr[i], childDepth, out);
+  }
+  return out;
+}
+
+// The exact shapes that broke, as a check on the checker.
+assert.deepEqual(zoomDepths(['interpolate', ['linear'], ['zoom'], 11, 2, 16, 4]), [0]);
+assert.deepEqual(
+  zoomDepths(['interpolate', ['linear'], ['get', 'n'], 1, ['interpolate', ['linear'], ['zoom'], 11, 2, 16, 4]]),
+  [1],
+);
+assert.deepEqual(zoomDepths(['*', ['interpolate', ['linear'], ['zoom'], 11, 2, 16, 4], 2]), [1]);
+
+let zoomProps = 0;
+for (const layer of PERMIT_LAYERS) {
+  for (const [property, value] of Object.entries({ ...(layer.paint || {}), ...(layer.layout || {}) })) {
+    const depths = zoomDepths(value);
+    if (depths.length) zoomProps += 1;
+    for (const depth of depths) {
+      assert.equal(
+        depth,
+        0,
+        `${layer.id}.${property}: "zoom" is nested ${depth} level(s) deep. MapLibre allows it only as the outermost step/interpolate input, and rejects the whole layer otherwise.`,
+      );
+    }
+    // At most one zoom curve per property, which is the other half of the rule.
+    assert.ok(depths.length <= 1, `${layer.id}.${property}: more than one zoom expression`);
+  }
+}
+// If nothing scales with zoom, this check has quietly stopped checking anything.
+assert.ok(zoomProps >= 3, 'expected several zoom-scaled paint properties');
+
+// Property-driven sizing still has to be there: a busy block should read heavier.
+const dots = PERMIT_LAYERS.find((l) => l.id === 'permit-dots');
+assert.ok(JSON.stringify(dots.paint['circle-radius']).includes('permitCount'));
+const lines = PERMIT_LAYERS.find((l) => l.id === 'permits');
+assert.ok(JSON.stringify(lines.paint['line-width']).includes('permitCount'));
+assert.deepEqual(lines.paint['line-color'], ['get', 'color']);
 
 /* ---- the committed street index ---- */
 
