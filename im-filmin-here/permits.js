@@ -10,7 +10,7 @@
 //
 // Dependency-free ESM. No `node:` imports.
 
-import { normalizeStreetName } from './streets.js';
+import { normalizeStreetName, pathMidpoint } from './streets.js';
 
 export const DATASET_ID = 'tg4x-b46p';
 export const DATASET_URL = `https://data.cityofnewyork.us/resource/${DATASET_ID}.json`;
@@ -196,7 +196,7 @@ export function buildFeatures(rows, index) {
   }
 
   const lines = [];
-  const points = [];
+  const dots = [];
   for (const group of groups.values()) {
     const permits = [...group.permits.values()].sort((a, b) => String(b.start).localeCompare(String(a.start)));
     const counts = {};
@@ -206,27 +206,29 @@ export function buildFeatures(rows, index) {
       days += p.days;
     }
     const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
-    const feature = {
-      type: 'Feature',
-      geometry:
-        group.tier === 'point'
-          ? { type: 'Point', coordinates: group.coords[0] }
-          : { type: 'LineString', coordinates: group.coords },
-      properties: {
-        key: group.key,
-        tier: group.tier,
-        street: group.street,
-        from: group.from,
-        to: group.to,
-        label: group.to ? `${group.street} between ${group.from} and ${group.to}` : `${group.street} at ${group.from}`,
-        permitCount: permits.length,
-        shootDays: days,
-        topCategory: top ? top[0] : null,
-        color: categoryColor(top ? top[0] : null),
-        permits,
-      },
+    const properties = {
+      key: group.key,
+      tier: group.tier,
+      street: group.street,
+      from: group.from,
+      to: group.to,
+      label: group.to ? `${group.street} between ${group.from} and ${group.to}` : `${group.street} at ${group.from}`,
+      permitCount: permits.length,
+      shootDays: days,
+      topCategory: top ? top[0] : null,
+      color: categoryColor(top ? top[0] : null),
+      permits,
     };
-    (group.tier === 'point' ? points : lines).push(feature);
+
+    // Every placed stretch gets a dot as well as its line. A block face drawn as
+    // a hairline reads as empty map at city zoom, which is the opposite of true:
+    // the dot says "something was shot here" at any zoom, and the line says
+    // exactly how much of the street was closed once you are near enough to care.
+    const anchor = pathMidpoint(group.coords);
+    if (anchor) dots.push({ type: 'Feature', geometry: { type: 'Point', coordinates: anchor }, properties });
+    if (group.coords.length > 1) {
+      lines.push({ type: 'Feature', geometry: { type: 'LineString', coordinates: group.coords }, properties });
+    }
   }
 
   const unplaced = [...unplacedByStreet.values()]
@@ -235,7 +237,7 @@ export function buildFeatures(rows, index) {
 
   return {
     lines: { type: 'FeatureCollection', features: lines },
-    points: { type: 'FeatureCollection', features: points },
+    dots: { type: 'FeatureCollection', features: dots },
     stats: {
       permits: (rows || []).length,
       mentions: mentions.length,
@@ -243,8 +245,8 @@ export function buildFeatures(rows, index) {
       unplacedMentions,
       unparsed,
       tiers,
+      stretches: dots.length,
       blockFaces: lines.length,
-      intersections: points.length,
       unplaced,
       placedShare: mentions.length ? placedMentions / mentions.length : 0,
     },

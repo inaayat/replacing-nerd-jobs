@@ -149,7 +149,7 @@ function renderStats(stats) {
   dl.textContent = '';
   const rows = [
     ['Permits', number(stats.permits)],
-    ['Street stretches', number(stats.blockFaces + stats.intersections)],
+    ['Street stretches', number(stats.stretches)],
     ['Shoot days', number(stats.shootDays)],
     ['Segments placed', `${number(stats.placedMentions)} of ${number(stats.mentions)}`],
   ];
@@ -274,7 +274,7 @@ function openRail(open) {
 
 function addLayers(map) {
   map.addSource('permit-lines', { type: 'geojson', data: EMPTY });
-  map.addSource('permit-points', { type: 'geojson', data: EMPTY });
+  map.addSource('permit-dots', { type: 'geojson', data: EMPTY });
 
   // Width carries volume: one permit is a hairline, a repeatedly-closed block is
   // heavy. Anything above ~25 permits stops growing so Midtown does not become
@@ -284,7 +284,7 @@ function addLayers(map) {
     ['linear'],
     ['get', 'permitCount'],
     1,
-    ['interpolate', ['linear'], ['zoom'], 11, 1.2, 14, 2.4, 16, 3.4],
+    ['interpolate', ['linear'], ['zoom'], 11, 1.8, 14, 3, 16, 4],
     25,
     ['interpolate', ['linear'], ['zoom'], 11, 5, 14, 9, 16, 13],
   ];
@@ -317,32 +317,40 @@ function addLayers(map) {
     paint: { 'line-color': '#1c1c1c', 'line-width': ['+', width, 3], 'line-opacity': 0.95 },
   });
 
+  // One dot per stretch that was closed for a shoot, so presence is legible at
+  // every zoom instead of only where a line happens to be thick.
+  const dotRadius = [
+    '*',
+    ['interpolate', ['linear'], ['zoom'], 10, 1.5, 12, 2.2, 14, 3.2, 16, 4.6],
+    ['interpolate', ['linear'], ['get', 'permitCount'], 1, 1, 25, 2.2],
+  ];
+
   map.addLayer({
-    id: 'permit-points',
+    id: 'permit-dots',
     type: 'circle',
-    source: 'permit-points',
+    source: 'permit-dots',
     paint: {
       'circle-color': ['get', 'color'],
-      'circle-radius': ['interpolate', ['linear'], ['get', 'permitCount'], 1, 3, 25, 8],
-      'circle-opacity': 0.75,
-      'circle-stroke-width': 1,
-      'circle-stroke-color': 'rgba(28,28,28,0.35)',
+      'circle-radius': dotRadius,
+      'circle-opacity': 0.9,
+      'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 12, 0.4, 15, 1],
+      'circle-stroke-color': 'rgba(250,243,227,0.9)',
     },
   });
 
   map.addLayer({
     id: 'permits-selected-point',
     type: 'circle',
-    source: 'permit-points',
+    source: 'permit-dots',
     filter: ['==', ['get', 'key'], '__none__'],
     paint: {
       'circle-color': '#1c1c1c',
-      'circle-radius': ['interpolate', ['linear'], ['get', 'permitCount'], 1, 5, 25, 10],
+      'circle-radius': ['+', dotRadius, 2.5],
       'circle-opacity': 0.95,
     },
   });
 
-  for (const layer of ['permits-hit', 'permit-points']) {
+  for (const layer of ['permits-hit', 'permit-dots']) {
     map.on('mouseenter', layer, () => {
       map.getCanvas().style.cursor = 'pointer';
     });
@@ -356,7 +364,7 @@ function addLayers(map) {
   }
 
   map.on('click', (event) => {
-    const hits = map.queryRenderedFeatures(event.point, { layers: ['permits-hit', 'permit-points'] });
+    const hits = map.queryRenderedFeatures(event.point, { layers: ['permits-hit', 'permit-dots'] });
     if (!hits.length) select(null);
   });
 }
@@ -392,19 +400,18 @@ async function refresh() {
   for (const row of rows) {
     byCategory[row.category] = (byCategory[row.category] || 0) + 1;
   }
-  for (const feature of built.lines.features.concat(built.points.features)) {
+  // Every stretch has a dot, so the dots are the complete set to count over.
+  for (const feature of built.dots.features) {
     shootDays += feature.properties.shootDays;
   }
 
   state.data = built;
   state.map.getSource('permit-lines').setData(built.lines);
-  state.map.getSource('permit-points').setData(built.points);
+  state.map.getSource('permit-dots').setData(built.dots);
   renderStats({ ...built.stats, byCategory, shootDays });
 
   if (state.selected) {
-    const still = built.lines.features
-      .concat(built.points.features)
-      .find((f) => f.properties.key === state.selected.key);
+    const still = built.dots.features.find((f) => f.properties.key === state.selected.key);
     select(still ? still.properties : null);
   }
 
@@ -449,7 +456,6 @@ function wireControls() {
 async function main() {
   renderCategoryChecks();
   wireControls();
-  applyPreset('12');
 
   const [style, payload, coverage] = await Promise.all([
     loadStyle(),
@@ -468,6 +474,10 @@ async function main() {
   if (!payload) return;
   state.index = createStreetIndex(payload);
   state.coverage = coverage;
+  // Open on everything the city still holds. A trailing-year default hid three
+  // quarters of the permits and made most of Manhattan look like nothing was
+  // ever shot there.
+  applyPreset('all');
 
   el('coverage-note').textContent = coverage
     ? `The city's table currently holds ${number(coverage.rows)} Manhattan shooting permits, from ${formatDateRange(coverage.first, coverage.last)}. Older shoots age out of it.`

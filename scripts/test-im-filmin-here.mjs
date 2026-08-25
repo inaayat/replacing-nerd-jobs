@@ -17,6 +17,7 @@ import {
   isNonStreet,
   slicePart,
   pathLength,
+  pathMidpoint,
   createStreetIndex,
   STREETS_SCHEMA,
 } from '../im-filmin-here/streets.js';
@@ -242,10 +243,38 @@ assert.equal(shared.properties.permits.length, 2);
 // closed repeatedly should read as heavier than one closed once.
 assert.equal(shared.properties.shootDays, 3);
 assert.equal(built.lines.features.length, 2);
-assert.equal(built.points.features.length, 0);
 assert.ok(built.lines.features.every((f) => f.geometry.type === 'LineString'));
 assert.ok(built.lines.features.every((f) => f.properties.color));
 assert.ok(built.lines.features.every((f) => f.properties.label.includes('between')));
+
+// Every placed stretch also gets a dot, so presence is visible at any zoom
+// instead of only where a line is thick enough to see.
+assert.equal(built.dots.features.length, built.stats.stretches);
+assert.equal(built.dots.features.length, 2);
+assert.ok(built.dots.features.every((f) => f.geometry.type === 'Point'));
+// A dot sits on its own stretch, not at an averaged corner.
+const dotFor = built.dots.features.find((f) => f.properties.key === shared.properties.key);
+assert.ok(dotFor, 'each line should have a dot with the same key');
+const [dx, dy] = dotFor.geometry.coordinates;
+const xs = shared.geometry.coordinates.map((c) => c[0]);
+const ys = shared.geometry.coordinates.map((c) => c[1]);
+assert.ok(dx >= Math.min(...xs) && dx <= Math.max(...xs));
+assert.ok(dy >= Math.min(...ys) && dy <= Math.max(...ys));
+
+// An intersection-only placement has a dot and no line, because there is no
+// stretch to draw.
+const oneEnded = buildFeatures(
+  [{ eventid: '7', category: 'Film', subcategoryname: 'Feature', startdatetime: '2025-01-01T08:00:00.000', enddatetime: '2025-01-01T18:00:00.000', parkingheld: 'W 48 STREET between 6 AVENUE and DEAD END' }],
+  index,
+);
+assert.equal(oneEnded.dots.features.length, 1);
+assert.equal(oneEnded.lines.features.length, 0);
+assert.equal(oneEnded.stats.tiers.point, 1);
+
+// Midpoint is by distance along the path, not by vertex count.
+assert.deepEqual(pathMidpoint([[0, 0], [0, 1], [0, 9]]), [0, 4.5]);
+assert.deepEqual(pathMidpoint([[2, 3]]), [2, 3]);
+assert.equal(pathMidpoint([]), null);
 
 // A permit is never given a title, because the dataset has none.
 const asText = JSON.stringify(built.lines);

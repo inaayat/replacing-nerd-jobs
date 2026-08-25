@@ -155,6 +155,26 @@ export function pathLength(coords) {
   return total;
 }
 
+/** The point half-way along a path by distance, not by vertex count. */
+export function pathMidpoint(coords) {
+  if (!coords?.length) return null;
+  if (coords.length === 1) return coords[0].slice();
+  const half = pathLength(coords) / 2;
+  let walked = 0;
+  for (let i = 0; i < coords.length - 1; i += 1) {
+    const step = pathLength([coords[i], coords[i + 1]]);
+    if (walked + step >= half) {
+      const frac = step ? (half - walked) / step : 0;
+      return [
+        coords[i][0] + (coords[i + 1][0] - coords[i][0]) * frac,
+        coords[i][1] + (coords[i + 1][1] - coords[i][1]) * frac,
+      ];
+    }
+    walked += step;
+  }
+  return coords[coords.length - 1].slice();
+}
+
 function interpolate(coords, at) {
   const last = coords.length - 1;
   if (at <= 0) return coords[0].slice();
