@@ -28,7 +28,8 @@ drawn on the stretch of street it actually closed.
 | Map | MapLibre GL + OpenFreeMap `positron`, same idiom as `/world-in-nyc/` |
 | Categories | Television, Film, Music Video |
 | Event types | Shooting Permit, DCAS Prep/Shoot/Wrap Permit |
-| Excluded | Theater load-in/load-out, Rigging, and `subcategoryname = News` |
+| Excluded | Theater load-in/load-out, Rigging, and `subcategoryname` in News / Short / Student Film |
+| Date presets | Anchored on the **newest permit in the data**, never on today |
 | Street geometry | **Committed** Manhattan centerline + intersection index (`data/streets.json`) |
 | Production titles | **There are none.** The dataset has no titles and the UI never implies otherwise |
 | Curated famous-scene layer | Dropped. Permits are measurement; curation was going to be a different product |
@@ -125,6 +126,8 @@ input looks exactly like a map that doesn't.
 | `zipcode_s` lists every ZIP a permit touches | Never filter geography by ZIP — an East Side shoot leaks into a West Side query. Filter on parsed segments |
 | Parking is held for **trucks**, not the set | A pin is where the crew parked, which is routinely around the corner from the camera. The About panel says this too |
 | Theater is the second-largest Manhattan category | Excluded, or the map is just Broadway load-ins |
+| Permits stop being filed **weeks before the present** (latest is ~3 months back) | Windows anchor on the newest row in the data. Anchored on today, "3 months" returned **one permit** |
+| 121 permits have no `startdatetime` and 31 no `enddatetime` | A plain overlap test drops all 152 from every window in silence. Each is judged on the timestamp it has |
 
 ---
 

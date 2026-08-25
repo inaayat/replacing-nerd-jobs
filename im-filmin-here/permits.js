@@ -29,8 +29,9 @@ export const CATEGORIES = [
 ];
 
 // News crews shoot constantly and everywhere; including them buries scripted
-// production under daily coverage.
-export const EXCLUDED_SUBCATEGORIES = ['News'];
+// production under daily coverage. Shorts and student films are excluded for the
+// opposite reason — one-day shoots that say little about where production works.
+export const EXCLUDED_SUBCATEGORIES = ['News', 'Short', 'Student Film'];
 
 export const CATEGORY_IDS = CATEGORIES.map((c) => c.id);
 
@@ -63,8 +64,19 @@ export function buildWhere({ from, to, categories = CATEGORY_IDS } = {}) {
     orList('eventtype', EVENT_TYPES),
     ...EXCLUDED_SUBCATEGORIES.map((s) => `subcategoryname!=${quote(s)}`),
   ];
-  if (from) clauses.push(`enddatetime>=${quote(stamp(from, false))}`);
-  if (to) clauses.push(`startdatetime<=${quote(stamp(to, true))}`);
+  // Overlap, and null-tolerant on both ends. Some rows carry only one of the two
+  // timestamps (121 Manhattan permits have no start, 31 no end), and a plain
+  // `enddatetime >= from AND startdatetime <= to` drops every one of them from
+  // every window without saying so. A row missing one end is judged on the end
+  // it has; a row with neither can't be placed in time at all.
+  if (from) {
+    const at = quote(stamp(from, false));
+    clauses.push(`(enddatetime>=${at} OR (enddatetime IS NULL AND startdatetime>=${at}))`);
+  }
+  if (to) {
+    const at = quote(stamp(to, true));
+    clauses.push(`(startdatetime<=${at} OR (startdatetime IS NULL AND enddatetime<=${at}))`);
+  }
   return clauses.join(' AND ');
 }
 
@@ -77,9 +89,16 @@ export function buildPermitUrl(options = {}) {
   return `${DATASET_URL}?${params.toString()}`;
 }
 
-/** Date range the UI opens on: the trailing `months` up to `today`. */
-export function defaultWindow(today = new Date(), months = 12) {
-  const end = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+/**
+ * A trailing window of `months` ending at `anchor`.
+ *
+ * The anchor is the newest date the dataset actually holds, not today. Permits
+ * stop being filed weeks before the present, so anchoring on today spends part
+ * of every window on a stretch of calendar with nothing in it.
+ */
+export function defaultWindow(anchor = new Date(), months = 12) {
+  const at = anchor instanceof Date ? anchor : new Date(`${anchor}T00:00:00Z`);
+  const end = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()));
   const start = new Date(end);
   start.setUTCMonth(start.getUTCMonth() - months);
   const iso = (d) => d.toISOString().slice(0, 10);

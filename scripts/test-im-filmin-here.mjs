@@ -101,6 +101,8 @@ assert.match(where, /category='Television'/);
 assert.match(where, /eventtype='Shooting Permit'/);
 assert.match(where, /eventtype='DCAS Prep\/Shoot\/Wrap Permit'/);
 assert.match(where, /subcategoryname!='News'/);
+assert.match(where, /subcategoryname!='Short'/);
+assert.match(where, /subcategoryname!='Student Film'/);
 // Theater load-ins and rigging must never be in the cut.
 assert.ok(!where.includes('Theater'));
 assert.ok(!where.includes('Rigging'));
@@ -108,6 +110,10 @@ assert.ok(!where.includes('Rigging'));
 // window still happened during it.
 assert.match(where, /enddatetime>='2025-01-01T00:00:00'/);
 assert.match(where, /startdatetime<='2025-12-31T23:59:59'/);
+// Rows carrying only one of the two timestamps are judged on the one they have,
+// rather than dropped from every window in silence.
+assert.match(where, /enddatetime IS NULL AND startdatetime>='2025-01-01T00:00:00'/);
+assert.match(where, /startdatetime IS NULL AND enddatetime<='2025-12-31T23:59:59'/);
 assert.match(buildWhere({ categories: ['Film'] }), /\(category='Film'\)/);
 assert.ok(!buildWhere({ categories: ['Film'] }).includes('Television'));
 // An empty pick is treated as "all", never as a query for nothing.
@@ -123,6 +129,9 @@ assert.match(url, /parkingheld/);
 
 assert.deepEqual(defaultWindow(new Date('2026-08-25T00:00:00Z'), 12), { from: '2025-08-25', to: '2026-08-25' });
 assert.deepEqual(defaultWindow(new Date('2026-01-15T00:00:00Z'), 1), { from: '2025-12-15', to: '2026-01-15' });
+// The anchor is the newest date in the data, which arrives as an ISO string.
+assert.deepEqual(defaultWindow('2026-05-25', 3), { from: '2026-02-25', to: '2026-05-25' });
+assert.deepEqual(defaultWindow('2026-05-25', 12), { from: '2025-05-25', to: '2026-05-25' });
 assert.equal(formatDateRange('2025-06-02T08:00:00', '2025-06-02T20:00:00'), 'Jun 2, 2025');
 assert.match(formatDateRange('2025-06-02T08:00:00', '2025-06-04T20:00:00'), /Jun 2, 2025 – Jun 4, 2025/);
 

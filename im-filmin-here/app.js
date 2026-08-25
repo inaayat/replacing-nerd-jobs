@@ -132,7 +132,9 @@ function applyPreset(preset) {
     state.from = state.coverage?.first || '2023-01-01';
     state.to = state.coverage?.last || new Date().toISOString().slice(0, 10);
   } else {
-    const win = defaultWindow(new Date(), Number(preset));
+    // Anchored on the newest permit the city holds, not today: filing stops
+    // weeks before the present, so "3 months" from today would be part empty.
+    const win = defaultWindow(state.coverage?.last || new Date(), Number(preset));
     state.from = win.from;
     state.to = win.to;
   }
