@@ -202,23 +202,45 @@ function renderDetail(props) {
   }
   block.hidden = false;
 
+  const body = document.createElement('div');
+  body.className = 'ifh-detail-body';
+
   const head = document.createElement('p');
   head.className = 'ifh-detail-head';
   head.textContent = props.label;
-  host.append(head);
+  body.append(head);
+
+  const figures = document.createElement('div');
+  figures.className = 'ifh-detail-figures';
+  for (const [value, label] of [
+    [props.permitCount, props.permitCount === 1 ? 'permit' : 'permits'],
+    [props.shootDays, props.shootDays === 1 ? 'shoot day' : 'shoot days'],
+  ]) {
+    const figure = document.createElement('div');
+    figure.className = 'ifh-figure';
+    const num = document.createElement('span');
+    num.className = 'ifh-figure-num';
+    num.textContent = number(value);
+    const caption = document.createElement('span');
+    caption.className = 'ifh-figure-label';
+    caption.textContent = label;
+    figure.append(num, caption);
+    figures.append(figure);
+  }
+  body.append(figures);
 
   const meta = document.createElement('p');
   meta.className = 'ifh-detail-meta';
   const tier = document.createElement('span');
   tier.className = 'ifh-tier';
   tier.textContent = TIER_LABEL[props.tier] || props.tier;
-  meta.append(
-    document.createTextNode(
-      `${props.permitCount} permit${props.permitCount === 1 ? '' : 's'} · ${props.shootDays} shoot day${props.shootDays === 1 ? '' : 's'} · `,
-    ),
-    tier,
-  );
-  host.append(meta);
+  meta.append(document.createTextNode('placed as a '), tier);
+  body.append(meta);
+
+  const listHead = document.createElement('p');
+  listHead.className = 'ifh-permits-head';
+  listHead.textContent = props.permitCount === 1 ? 'The permit' : 'Every permit here';
+  body.append(listHead);
 
   const list = document.createElement('ul');
   list.className = 'ifh-permits';
@@ -245,19 +267,14 @@ function renderDetail(props) {
     li.append(top, when);
     list.append(li);
   }
-  host.append(list);
+  body.append(list);
 
   const note = document.createElement('p');
   note.className = 'ifh-note';
   note.textContent = 'The city does not release production titles, so these are shoots without names.';
-  host.append(note);
+  body.append(note);
 
-  const clear = document.createElement('button');
-  clear.type = 'button';
-  clear.className = 'ifh-clear';
-  clear.textContent = 'Clear selection';
-  clear.addEventListener('click', () => select(null));
-  host.append(clear);
+  host.append(body);
 }
 
 function select(props) {
@@ -266,7 +283,12 @@ function select(props) {
   const filter = props ? ['==', ['get', 'key'], props.key] : ['==', ['get', 'key'], '__none__'];
   if (state.map.getLayer('permits-selected')) state.map.setFilter('permits-selected', filter);
   if (state.map.getLayer('permits-selected-point')) state.map.setFilter('permits-selected-point', filter);
-  if (props && window.matchMedia('(max-width: 900px)').matches) openRail(true);
+  if (props) {
+    // The card is the first thing in the rail, so showing it means scrolling
+    // back to the top — a click on the map should never answer off-screen.
+    el('rail-scroll').scrollTo({ top: 0, behavior: 'smooth' });
+    if (window.matchMedia('(max-width: 900px)').matches) openRail(true);
+  }
 }
 
 function openRail(open) {
@@ -453,6 +475,8 @@ function wireControls() {
   el('panel-toggle').addEventListener('click', () => {
     openRail(!el('rail').classList.contains('is-open'));
   });
+
+  el('detail-close').addEventListener('click', () => select(null));
 }
 
 async function main() {

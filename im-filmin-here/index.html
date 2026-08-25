@@ -60,7 +60,15 @@
       </main>
 
       <aside class="ifh-rail" id="rail">
-        <div class="ifh-rail-scroll">
+        <div class="ifh-rail-scroll" id="rail-scroll">
+          <section class="ifh-detail-card" id="detail-block" hidden aria-live="polite">
+            <div class="ifh-detail-bar">
+              <h2 class="ifh-detail-kicker">Selected stretch</h2>
+              <button type="button" class="ifh-detail-close" id="detail-close" aria-label="Clear selection">×</button>
+            </div>
+            <div id="detail"></div>
+          </section>
+
           <section class="ifh-block">
             <h1 class="ifh-title">I'm Filmin Here</h1>
             <p class="ifh-lede">
@@ -110,11 +118,6 @@
               </p>
               <ul class="ifh-unplaced" id="unplaced-list"></ul>
             </details>
-          </section>
-
-          <section class="ifh-block" id="detail-block" hidden>
-            <h2 class="ifh-h2">Selected stretch</h2>
-            <div id="detail"></div>
           </section>
 
           <section class="ifh-block">
