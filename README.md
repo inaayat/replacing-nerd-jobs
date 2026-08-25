@@ -542,8 +542,8 @@ Neon Auth, not by `ensureSchema()`).
 |---|---|---|
 | [inaayat/dumpster](https://github.com/inaayat/dumpster) | macOS productivity / personal knowledge dump (`dumpster.inaayat.xyz`) | External card on `index.html`; listed in the Projects panel |
 | [inaayat/dumpsteriOS](https://github.com/inaayat/dumpsteriOS) | iOS companion (“brain vomit” capture app) | Projects panel only (failed; not a homepage tile) |
-| [inaayat/dynamic-database-builder](https://github.com/inaayat/dynamic-database-builder) | Schema-driven database builder (`databaser.inaayat.xyz`) | External card on `index.html`; listed in the Projects panel |
-| [inaayat/one-more-column](https://github.com/inaayat/one-more-column) | Flexible capacity planning | Proxied card on `index.html`; listed in the Projects panel |
+| [inaayat/dynamic-database-builder](https://github.com/inaayat/dynamic-database-builder) | Schema-driven database builder (`databaser.inaayat.xyz`) | Projects panel only (not a homepage tile) |
+| [inaayat/one-more-column](https://github.com/inaayat/one-more-column) | Flexible capacity planning | Projects panel only; still proxied at `/one-more-column/` |
 | [inaayat/my-brain-vomit-sorter](https://github.com/inaayat/my-brain-vomit-sorter) | First macOS SwiftUI brain-vomit sorter (superseded by Dumpster) | Projects panel (failed) |
 | [inaayat/ollama-aider](https://github.com/inaayat/ollama-aider) | Local Aider + Ollama toolkit (GitHub-archived) | Projects panel (failed) |
 | [inaayat/setup-aider-ollama](https://github.com/inaayat/setup-aider-ollama) | Earlier Aider/Ollama setup helper (GitHub-archived) | Projects panel (failed) |
