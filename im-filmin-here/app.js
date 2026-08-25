@@ -1,4 +1,4 @@
-// Establishing Shot — Manhattan film permits on the streets they closed.
+// I'm Filmin Here — Manhattan film permits on the streets they closed.
 //
 // Permits are fetched live from NYC Open Data on every filter change. The street
 // grid and its intersections are the one committed file, because the grid does
@@ -92,7 +92,7 @@ function renderCategoryChecks() {
   wrap.textContent = '';
   for (const cat of CATEGORIES) {
     const label = document.createElement('label');
-    label.className = 'es-check';
+    label.className = 'ifh-check';
 
     const input = document.createElement('input');
     input.type = 'checkbox';
@@ -115,7 +115,7 @@ function renderCategoryChecks() {
     text.textContent = cat.label;
 
     const count = document.createElement('span');
-    count.className = 'es-check-count';
+    count.className = 'ifh-check-count';
     count.dataset.category = cat.id;
 
     label.append(input, swatch, text, count);
@@ -161,7 +161,7 @@ function renderStats(stats) {
     dl.append(dt, dd);
   }
 
-  for (const node of document.querySelectorAll('.es-check-count')) {
+  for (const node of document.querySelectorAll('.ifh-check-count')) {
     const n = stats.byCategory[node.dataset.category] || 0;
     node.textContent = n ? number(n) : '';
   }
@@ -201,14 +201,14 @@ function renderDetail(props) {
   block.hidden = false;
 
   const head = document.createElement('p');
-  head.className = 'es-detail-head';
+  head.className = 'ifh-detail-head';
   head.textContent = props.label;
   host.append(head);
 
   const meta = document.createElement('p');
-  meta.className = 'es-detail-meta';
+  meta.className = 'ifh-detail-meta';
   const tier = document.createElement('span');
-  tier.className = 'es-tier';
+  tier.className = 'ifh-tier';
   tier.textContent = TIER_LABEL[props.tier] || props.tier;
   meta.append(
     document.createTextNode(
@@ -219,25 +219,25 @@ function renderDetail(props) {
   host.append(meta);
 
   const list = document.createElement('ul');
-  list.className = 'es-permits';
+  list.className = 'ifh-permits';
   const permits = typeof props.permits === 'string' ? JSON.parse(props.permits) : props.permits;
   for (const permit of permits) {
     const li = document.createElement('li');
-    li.className = 'es-permit';
+    li.className = 'ifh-permit';
     li.style.borderLeftColor = CATEGORIES.find((c) => c.id === permit.category)?.color || '#6b5f5e';
 
     const top = document.createElement('div');
-    top.className = 'es-permit-top';
+    top.className = 'ifh-permit-top';
     const cat = document.createElement('span');
-    cat.className = 'es-permit-cat';
+    cat.className = 'ifh-permit-cat';
     cat.textContent = permit.subcategory && permit.subcategory !== 'Not Applicable' ? permit.subcategory : permit.category;
     const id = document.createElement('span');
-    id.className = 'es-permit-id';
+    id.className = 'ifh-permit-id';
     id.textContent = `#${permit.eventid}`;
     top.append(cat, id);
 
     const when = document.createElement('div');
-    when.className = 'es-permit-when';
+    when.className = 'ifh-permit-when';
     when.textContent = formatDateRange(permit.start, permit.end);
 
     li.append(top, when);
@@ -246,13 +246,13 @@ function renderDetail(props) {
   host.append(list);
 
   const note = document.createElement('p');
-  note.className = 'es-note';
+  note.className = 'ifh-note';
   note.textContent = 'The city does not release production titles, so these are shoots without names.';
   host.append(note);
 
   const clear = document.createElement('button');
   clear.type = 'button';
-  clear.className = 'es-clear';
+  clear.className = 'ifh-clear';
   clear.textContent = 'Clear selection';
   clear.addEventListener('click', () => select(null));
   host.append(clear);
@@ -362,7 +362,9 @@ function addLayers(map) {
 }
 
 async function refresh() {
-  if (!state.index || !state.map) return;
+  // The map's sources only exist after `load`, and a filter can be touched
+  // before the style finishes.
+  if (!state.index || !state.map?.getSource('permit-lines')) return;
   const requestId = ++state.requestId;
   setStatus('Fetching permits…');
 

@@ -30,6 +30,21 @@
       "permanent": true
     },
     {
+      "source": "/establishing-shot",
+      "destination": "/im-filmin-here/",
+      "permanent": true
+    },
+    {
+      "source": "/establishing-shot/",
+      "destination": "/im-filmin-here/",
+      "permanent": true
+    },
+    {
+      "source": "/establishing-shot/:path*",
+      "destination": "/im-filmin-here/:path*",
+      "permanent": true
+    },
+    {
       "source": "/private",
       "destination": "/",
       "permanent": true

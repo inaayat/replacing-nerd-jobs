@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Build establishing-shot/data/streets.json — the Manhattan street geometry and
+// Build im-filmin-here/data/streets.json — the Manhattan street geometry and
 // intersection index the browser uses to place film permits.
 //
 // Source: NYC Street Centerline (CSCL), Socrata dataset inkn-q76z.
@@ -9,7 +9,7 @@
 // intersection math (all-pairs geometry over ~10k segments) is not something to
 // redo in a phone browser on every page load. Refresh with:
 //
-//   node scripts/pull-establishing-shot-streets.mjs
+//   node scripts/pull-im-filmin-here-streets.mjs
 //
 // CSCL has no cross-street columns, so intersections are computed here from the
 // geometry: real segment crossings, plus endpoints that land on another street
@@ -18,10 +18,10 @@
 import { writeFile, mkdir } from 'node:fs/promises';
 import { dirname, resolve as resolvePath } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { normalizeStreetName, STREETS_SCHEMA } from '../establishing-shot/streets.js';
+import { normalizeStreetName, STREETS_SCHEMA } from '../im-filmin-here/streets.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const OUT = resolvePath(HERE, '../establishing-shot/data/streets.json');
+const OUT = resolvePath(HERE, '../im-filmin-here/data/streets.json');
 
 const DATASET = 'inkn-q76z';
 const DATASET_URL = `https://data.cityofnewyork.us/resource/${DATASET}.json`;

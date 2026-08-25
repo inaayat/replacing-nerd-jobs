@@ -1,5 +1,5 @@
 /**
- * Establishing Shot: street-name normalization, ParkingHeld parsing, block-face
+ * I'm Filmin Here: street-name normalization, ParkingHeld parsing, block-face
  * resolution, and the permit rollup.
  *
  * The fixtures here are real strings from both datasets, because every one of
@@ -19,7 +19,7 @@ import {
   pathLength,
   createStreetIndex,
   STREETS_SCHEMA,
-} from '../establishing-shot/streets.js';
+} from '../im-filmin-here/streets.js';
 import {
   buildWhere,
   buildPermitUrl,
@@ -30,7 +30,7 @@ import {
   formatDateRange,
   CATEGORIES,
   EVENT_TYPES,
-} from '../establishing-shot/permits.js';
+} from '../im-filmin-here/permits.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -255,8 +255,8 @@ assert.deepEqual(buildFeatures([], index).stats.tiers, { block: 0, span: 0, poin
 
 /* ---- the committed street index ---- */
 
-const streetsPath = resolve(ROOT, 'establishing-shot/data/streets.json');
-assert.ok(existsSync(streetsPath), 'run: node scripts/pull-establishing-shot-streets.mjs');
+const streetsPath = resolve(ROOT, 'im-filmin-here/data/streets.json');
+assert.ok(existsSync(streetsPath), 'run: node scripts/pull-im-filmin-here-streets.mjs');
 const payload = JSON.parse(readFileSync(streetsPath, 'utf8'));
 assert.equal(payload.schema, STREETS_SCHEMA);
 assert.equal(payload.source.dataset, 'inkn-q76z');
@@ -293,4 +293,4 @@ const oneBlock = real.resolve({ street: 'WEST   78 STREET', from: 'COLUMBUS AVEN
 const metres = pathLength(oneBlock.coords);
 assert.ok(metres > 100 && metres < 400, `crosstown block measured ${Math.round(metres)}m`);
 
-console.log('establishing shot tests passed');
+console.log('im filmin here tests passed');

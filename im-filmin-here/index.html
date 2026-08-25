@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <base href="/establishing-shot/" />
-    <title>Establishing Shot — Beep boop</title>
+    <base href="/im-filmin-here/" />
+    <title>I'm Filmin Here — Beep boop</title>
     <meta
       name="description"
       content="Where film and TV crews actually shoot in Manhattan: live NYC film permits placed on the street segments they close, block by block."
@@ -20,113 +20,113 @@
     <link rel="stylesheet" href="./app.css" />
   </head>
   <body>
-    <nav class="es-nav">
-      <div class="es-nav-brand">
-        <a href="/" class="es-nav-logo" aria-label="Beep boop home">
+    <nav class="ifh-nav">
+      <div class="ifh-nav-brand">
+        <a href="/" class="ifh-nav-logo" aria-label="Beep boop home">
           <img src="/ugly-dog-images/dog-3.png" alt="" width="18" height="18" />
           <span>Beep boop</span>
         </a>
-        <a href="/establishing-shot/" class="es-nav-section" aria-label="Establishing Shot">
-          <img src="/establishing-shot/icon.svg" alt="" width="22" height="22" />
-          <span>Establishing Shot</span>
+        <a href="/im-filmin-here/" class="ifh-nav-section" aria-label="I'm Filmin Here">
+          <img src="/im-filmin-here/icon.svg" alt="" width="22" height="22" />
+          <span>I'm Filmin Here</span>
         </a>
       </div>
-      <div class="es-nav-links">
+      <div class="ifh-nav-links">
         <a href="/#projects">Projects</a>
       </div>
-      <button type="button" class="es-panel-btn" id="panel-toggle" aria-expanded="false" aria-controls="rail">
+      <button type="button" class="ifh-panel-btn" id="panel-toggle" aria-expanded="false" aria-controls="rail">
         Filters
       </button>
     </nav>
 
-    <div class="es-app">
-      <main class="es-map-wrap">
+    <div class="ifh-app">
+      <main class="ifh-map-wrap">
         <div id="map" role="application" aria-label="Map of Manhattan film permit locations"></div>
 
-        <div class="es-legend" id="legend">
-          <p class="es-legend-title">Permit category</p>
-          <ul class="es-legend-list">
+        <div class="ifh-legend" id="legend">
+          <p class="ifh-legend-title">Permit category</p>
+          <ul class="ifh-legend-list">
             <li><i style="background: #cf4520"></i>Television</li>
             <li><i style="background: #3d6ea8"></i>Film</li>
             <li><i style="background: #e3a72e"></i>Music video</li>
           </ul>
-          <p class="es-legend-note">Thicker line = more permits on that stretch.</p>
+          <p class="ifh-legend-note">Thicker line = more permits on that stretch.</p>
         </div>
 
-        <div class="es-status" id="status" role="status" aria-live="polite">Loading the street grid…</div>
+        <div class="ifh-status" id="status" role="status" aria-live="polite">Loading the street grid…</div>
       </main>
 
-      <aside class="es-rail" id="rail">
-        <div class="es-rail-scroll">
-          <section class="es-block">
-            <h1 class="es-title">Establishing Shot</h1>
-            <p class="es-lede">
+      <aside class="ifh-rail" id="rail">
+        <div class="ifh-rail-scroll">
+          <section class="ifh-block">
+            <h1 class="ifh-title">I'm Filmin Here</h1>
+            <p class="ifh-lede">
               Every film, TV, and music-video shooting permit the city issued in Manhattan, drawn on the
               stretch of street it closed.
             </p>
           </section>
 
-          <section class="es-block">
-            <h2 class="es-h2">Dates</h2>
-            <div class="es-presets" role="group" aria-label="Date presets">
-              <button type="button" class="es-chip" data-preset="1">30 days</button>
-              <button type="button" class="es-chip" data-preset="3">3 months</button>
-              <button type="button" class="es-chip is-on" data-preset="12">12 months</button>
-              <button type="button" class="es-chip" data-preset="all">All</button>
+          <section class="ifh-block">
+            <h2 class="ifh-h2">Dates</h2>
+            <div class="ifh-presets" role="group" aria-label="Date presets">
+              <button type="button" class="ifh-chip" data-preset="1">1 month</button>
+              <button type="button" class="ifh-chip" data-preset="3">3 months</button>
+              <button type="button" class="ifh-chip is-on" data-preset="12">12 months</button>
+              <button type="button" class="ifh-chip" data-preset="all">All</button>
             </div>
-            <div class="es-dates">
-              <label class="es-field">
+            <div class="ifh-dates">
+              <label class="ifh-field">
                 <span>From</span>
                 <input type="date" id="date-from" />
               </label>
-              <label class="es-field">
+              <label class="ifh-field">
                 <span>To</span>
                 <input type="date" id="date-to" />
               </label>
             </div>
-            <p class="es-note" id="coverage-note">Checking what the dataset covers…</p>
+            <p class="ifh-note" id="coverage-note">Checking what the dataset covers…</p>
           </section>
 
-          <section class="es-block">
-            <h2 class="es-h2">Categories</h2>
-            <div class="es-checks" id="category-checks"></div>
-            <p class="es-note">
+          <section class="ifh-block">
+            <h2 class="ifh-h2">Categories</h2>
+            <div class="ifh-checks" id="category-checks"></div>
+            <p class="ifh-note">
               Shooting permits only — theater load-ins, rigging, and news crews are excluded.
             </p>
           </section>
 
-          <section class="es-block" id="summary-block">
-            <h2 class="es-h2">In this window</h2>
-            <dl class="es-stats" id="stats"></dl>
-            <details class="es-details" id="unplaced-details">
+          <section class="ifh-block" id="summary-block">
+            <h2 class="ifh-h2">In this window</h2>
+            <dl class="ifh-stats" id="stats"></dl>
+            <details class="ifh-details" id="unplaced-details">
               <summary><span id="unplaced-summary">Unplaced segments</span></summary>
-              <p class="es-note">
+              <p class="ifh-note">
                 Street names the Manhattan grid could not match. Most are shoots in another borough
                 filed on a Manhattan permit; the rest are spellings the matcher misses.
               </p>
-              <ul class="es-unplaced" id="unplaced-list"></ul>
+              <ul class="ifh-unplaced" id="unplaced-list"></ul>
             </details>
           </section>
 
-          <section class="es-block" id="detail-block" hidden>
-            <h2 class="es-h2">Selected stretch</h2>
+          <section class="ifh-block" id="detail-block" hidden>
+            <h2 class="ifh-h2">Selected stretch</h2>
             <div id="detail"></div>
           </section>
 
-          <section class="es-block">
-            <h2 class="es-h2">About the data</h2>
-            <p class="es-note">
+          <section class="ifh-block">
+            <h2 class="ifh-h2">About the data</h2>
+            <p class="ifh-note">
               Live from
               <a href="https://data.cityofnewyork.us/City-Government/Film-Permits/tg4x-b46p" target="_blank" rel="noopener">
                 NYC Open Data film permits</a>, fetched in your browser when you change a filter.
               The city's table is a rolling window, so older shoots age out of it.
             </p>
-            <p class="es-note">
+            <p class="ifh-note">
               <strong>There are no production titles here.</strong> The Mayor's Office of Media &amp;
               Entertainment withholds them, so a permit says an episodic TV shoot held a block — never
               which show.
             </p>
-            <p class="es-note">
+            <p class="ifh-note">
               Permits name a stretch of street in prose, with no coordinates. Locations come from
               matching that prose against the
               <a href="https://data.cityofnewyork.us/City-Government/NYC-Street-Centerline-CSCL-/inkn-q76z" target="_blank" rel="noopener">

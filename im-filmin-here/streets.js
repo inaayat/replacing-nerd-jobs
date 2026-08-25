@@ -1,4 +1,4 @@
-// Street naming and geometry for Establishing Shot.
+// Street naming and geometry for I'm Filmin Here.
 //
 // Film permits describe a location as prose ("WEST   48 STREET between 6 AVENUE
 // and 7 AVENUE") and carry no coordinates. The Street Centerline dataset has the

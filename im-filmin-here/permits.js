@@ -1,4 +1,4 @@
-// Film permit query + rollup for Establishing Shot.
+// Film permit query + rollup for I'm Filmin Here.
 //
 // Source: NYC Open Data "Film Permits" (Socrata dataset tg4x-b46p), queried live
 // from the browser. The dataset is CORS-open, so there is no serverless function
