@@ -39,6 +39,7 @@ import {
   isDefaultAddOn,
   expandContents,
   absorbItemIntoCube,
+  fileIntoCube,
   ensureListItem,
   uniqueItemsById,
   addItemToOutfit,
@@ -201,7 +202,9 @@ async function fetchCube(id) {
 
   const promise = (async () => {
     const listed = catalog.find((c) => c.id === id);
-    if (listed?.items) {
+    // `items: []` is truthy — do not treat an empty catalog stub as the
+    // official cube. Absorb must GET pc_cubes when labels are missing.
+    if (Array.isArray(listed?.items) && listed.items.length) {
       cubeCache.set(id, listed);
       return listed;
     }
@@ -644,15 +647,50 @@ async function createBlankAddOn(cubeId, title) {
   }
 }
 
+async function fetchOfficialCube(id) {
+  if (!auth?.token) throw new Error('Sign in to load your cubes.');
+  const { cube } = await cubesApi.get(auth.token, id);
+  rememberCube(cube);
+  return cube;
+}
+
 async function absorbFiledItem(cubeId, label, addOnId) {
-  if (!cubeId || !label) return;
+  if (!cubeId || !label) return false;
   try {
-    const cube = await fetchCube(cubeId);
-    if (!absorbItemIntoCube(cube, label, addOnId)) return;
+    // Always read pc_cubes first. Catalog/cache stubs (empty Basics, stale
+    // includeByDefault rows) must not be the write source.
+    const cube = await fetchOfficialCube(cubeId);
+    if (!absorbItemIntoCube(cube, label, addOnId)) return false;
     rememberCube(cube);
-    persistCubeSoon(cubeId);
+    const data = await cubesApi.update(auth.token, cubePayload(cube));
+    rememberCube(data.cube);
     renderCubeList();
-  } catch { /* list already shows the filed row */ }
+    return true;
+  } catch (err) {
+    showToast(`Couldn't save that item to the cube: ${err.message}`);
+    return false;
+  }
+}
+
+async function addItemToCubeGroup(cubeId, label, addOnId) {
+  const name = String(label || '').trim();
+  if (!cubeId || !name) return;
+  const suitcase = activeSuitcase();
+  try {
+    const cube = await fetchOfficialCube(cubeId);
+    const filed = fileIntoCube(suitcase, cube, name, addOnId || null);
+    if (!filed) return;
+    rememberCube(cube);
+    saveState();
+    if (filed.absorbed) {
+      const data = await cubesApi.update(auth.token, cubePayload(cube));
+      rememberCube(data.cube);
+    }
+    renderCubeList();
+    renderList();
+  } catch (err) {
+    showToast(`Couldn't save that item to the cube: ${err.message}`);
+  }
 }
 
 async function toggleCubeDefault(cubeId) {
@@ -1536,6 +1574,13 @@ function renderList() {
             }).join('')}
           </div>
         ` : ''}
+        ${!isUnsorted && !isOutfitGroup && group.cubeId && !collapsed ? `
+          <form class="pc-quick-add pc-addon-add in-group" data-file-cube="${escapeAttr(group.cubeId)}" data-file-addon="${escapeAttr(group.addOnId || '')}">
+            <label class="pc-sr-only" for="file-cube-${escapeAttr(group.key)}">Add an item to this cube</label>
+            <input type="text" id="file-cube-${escapeAttr(group.key)}" class="pc-input" placeholder="Add an item to this cube…" autocomplete="off">
+            <button type="submit" class="pc-btn sm">Add</button>
+          </form>
+        ` : ''}
         ${canAddAddOn && !collapsed ? `
           <form class="pc-quick-add pc-addon-add in-group" data-blank-addon="${escapeAttr(group.cubeId)}">
             <label class="pc-sr-only" for="blank-addon-group-${escapeAttr(group.cubeId)}">Add a blank add-on</label>
@@ -1578,6 +1623,14 @@ function renderList() {
   if (saveUnsorted) saveUnsorted.addEventListener('click', saveUnsortedAsCube);
 
   bindBlankAddOnForms(mount);
+  mount.querySelectorAll('form[data-file-cube]').forEach((form) => {
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = form.querySelector('input');
+      addItemToCubeGroup(form.dataset.fileCube, input?.value, form.dataset.fileAddon || null);
+      if (input) input.value = '';
+    });
+  });
   bindItemRows(mount, suitcase);
 
   // Fetch full cubes we only know by title so add-on chips appear once loaded.
@@ -1599,7 +1652,7 @@ async function loadCatalog() {
   if (!auth?.token) return [];
   const { cubes = [] } = await cubesApi.list(auth.token);
   for (const cube of cubes) {
-    if (cube.items) cubeCache.set(cube.id, cube);
+    if (Array.isArray(cube.items) && cube.items.length) cubeCache.set(cube.id, cube);
   }
   return cubes;
 }

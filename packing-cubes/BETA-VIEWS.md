@@ -407,11 +407,12 @@ suitcase**. It is not a cube, not in `pc_cubes`, not in My Cubes, not
   under the outfit, not Unsorted.
 - **Cube templates are additive across trips.** Assigning or creating an
   item into a cube / add-on on a trip **appends** that label to
-  `pc_cubes` (`absorbItemIntoCube`) so the next trip gets it. Removing
-  or unassigning on List / By cube / Organize / outfits is suitcase-only
-  (`removeItem` or `assignItem(..., null)`). It never strips `pc_cubes`
-  or an add-on definition. **The only place that deletes an item from
-  the reusable cube is Edit cube** (the builder).
+  `pc_cubes` (`fileIntoCube` / `absorbItemIntoCube`) so the next trip
+  gets it — including Basics / `includeByDefault` / tagged cubes. The
+  write always GETs the official row first, then PATCHes; catalog stubs
+  with `items: []` are not the write source. Removing or unassigning on
+  List / By cube / Organize / outfits is suitcase-only. **The only place
+  that deletes an item from the reusable cube is Edit cube.**
 - **Locked:** names only for v1. No photo field.
 - Remove outfit: grouping gone; items stay on the list and on their dates.
 - Delete trip: outfits go with the suitcase.

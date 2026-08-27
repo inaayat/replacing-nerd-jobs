@@ -302,6 +302,20 @@ export function expandContents(suitcase, cube) {
   };
 }
 
+function definitionLabels(list) {
+  return Array.isArray(list) ? list : [];
+}
+
+function definitionHasLabel(list, key) {
+  return definitionLabels(list).some((i) => itemKey(typeof i === 'string' ? i : i?.label) === key);
+}
+
+function appendDefinitionLabel(list, trimmed) {
+  const next = definitionLabels(list);
+  next.push({ label: trimmed });
+  return next;
+}
+
 /** Copy a filed label onto the cube (or add-on). Appends only — never strips. */
 export function absorbItemIntoCube(cube, label, addOnId = null) {
   if (!cube) return false;
@@ -311,15 +325,28 @@ export function absorbItemIntoCube(cube, label, addOnId = null) {
   if (addOnId) {
     const addOn = cubeAddOns(cube).find((a) => a.id === addOnId);
     if (!addOn) return false;
-    if (!Array.isArray(addOn.items)) addOn.items = [];
-    if (addOn.items.some((i) => itemKey(i.label) === key)) return false;
-    addOn.items.push({ label: trimmed });
+    if (definitionHasLabel(addOn.items, key)) return false;
+    addOn.items = appendDefinitionLabel(addOn.items, trimmed);
     return true;
   }
-  if (!Array.isArray(cube.items)) cube.items = [];
-  if (cube.items.some((i) => itemKey(i.label) === key)) return false;
-  cube.items.push({ label: trimmed });
+  if (definitionHasLabel(cube.items, key)) return false;
+  cube.items = appendDefinitionLabel(cube.items, trimmed);
   return true;
+}
+
+/**
+ * Put a label on this trip under a cube/add-on and append it to the cube
+ * definition. includeByDefault / basics tags do not skip the append.
+ * Returns { item, absorbed } or null if the label is empty.
+ */
+export function fileIntoCube(suitcase, cube, label, addOnId = null) {
+  if (!suitcase || !cube?.id) return null;
+  const trimmed = String(label || '').trim();
+  if (!trimmed) return null;
+  const item = ensureListItem(suitcase, trimmed);
+  if (!item) return null;
+  assignItem(suitcase, item.id, cube.id, addOnId);
+  return { item, absorbed: absorbItemIntoCube(cube, item.label, addOnId) };
 }
 
 /** Catalog search covers title, blurb, tags, item labels, and add-on titles. */

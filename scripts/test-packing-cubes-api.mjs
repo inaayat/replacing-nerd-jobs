@@ -111,6 +111,28 @@ check(
   })(),
   [true, true, 'beauty-basics'],
 );
+check(
+  'Basics-style cube keeps a trip-filed label on the official record',
+  normalizeCubeInput({
+    id: 'basics',
+    title: 'Basics',
+    tags: ['basics'],
+    includeByDefault: true,
+    items: [{ label: 'Socks' }, { label: 'Passport' }],
+  }).items.map((i) => i.label),
+  ['Socks', 'Passport'],
+);
+check(
+  'Basics-style cube with a new label still validates',
+  validateCube({
+    id: 'basics',
+    title: 'Basics',
+    tags: ['basics'],
+    includeByDefault: true,
+    items: [{ label: 'Socks' }, { label: 'Passport' }],
+  }),
+  null,
+);
 
 if (failures) {
   console.error(`\n${failures} failure(s)`);

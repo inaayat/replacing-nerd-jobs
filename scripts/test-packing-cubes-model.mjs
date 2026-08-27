@@ -36,6 +36,7 @@ import {
   seedDefaults,
   expandContents,
   absorbItemIntoCube,
+  fileIntoCube,
   filedInCube,
   isIsoDate,
   datesInRange,
@@ -287,6 +288,35 @@ removeItem(growTrip, belt.id);
 removeItem(growTrip, balm.id);
 check('trip delete does not shrink the grown cube', growCube.items.map((i) => i.label), ['Socks', 'Belt']);
 check('trip delete does not shrink the add-on', growCube.addOns[0].items.map((i) => i.label), ['Lip balm']);
+
+const basicsCube = {
+  id: 'basics',
+  title: 'Basics',
+  tags: ['basics'],
+  includeByDefault: true,
+  items: [{ label: 'Socks' }, { label: 'Underwear' }],
+  addOns: [],
+};
+const basicsTrip = newSuitcase('Paris', [basicsCube]);
+check('Basics-style cube seeds a new trip', basicsTrip.cubeIds, ['basics']);
+const filedBasics = fileIntoCube(basicsTrip, basicsCube, '  Passport ');
+check('fileIntoCube assigns the trip row to Basics', filedBasics.item.cubeId, 'basics');
+check('fileIntoCube reports an official append', filedBasics.absorbed, true);
+check(
+  'assigning a new label to a Basics-style cube persists it on the cube record',
+  basicsCube.items.map((i) => i.label),
+  ['Socks', 'Underwear', 'Passport'],
+);
+check('includeByDefault does not skip absorb', isDefaultCube(basicsCube), true);
+const basicsAgain = fileIntoCube(basicsTrip, basicsCube, 'passport');
+check('second file of the same label is trip-only', basicsAgain.absorbed, false);
+check('Basics definition is not cloned on a duplicate file', basicsCube.items.length, 3);
+const emptiedCache = { id: 'basics', title: 'Basics', tags: ['basics'], includeByDefault: true, items: [] };
+check(
+  'absorb onto an empty stub still appends',
+  absorbItemIntoCube(emptiedCache, 'Passport') && emptiedCache.items.map((i) => i.label),
+  ['Passport'],
+);
 
 // Enabling an add-on for an unattached cube attaches it first.
 const s3 = newSuitcase('Weekend');
