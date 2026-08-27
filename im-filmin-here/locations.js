@@ -1,4 +1,4 @@
-// Curated Upper West Side film & TV locations for I'm Filmin Here.
+// Curated Manhattan film & TV locations for I'm Filmin Here (W 59th–W 145th).
 //
 // This is the default page's catalog: named productions on a small map, not
 // the live city permit layer. Browser-safe ESM. No `node:` imports.
@@ -21,13 +21,16 @@ export const PRECISION_LABEL = {
   corridor: 'neighborhood corridor (approximate)',
 };
 
-/** Tight box around today's UWS list. Tests use this so a stray Brooklyn pin fails. */
-export const UWS_BOX = {
+/** Tight box around today's 59th–145th list. Tests use this so a stray Brooklyn pin fails. */
+export const MAP_BOX = {
   west: -74.0,
-  east: -73.95,
+  east: -73.93,
   south: 40.76,
-  north: 40.81,
+  north: 40.83,
 };
+
+/** @deprecated use MAP_BOX — kept so older tests/imports keep working. */
+export const UWS_BOX = MAP_BOX;
 
 const APPROXIMATE = new Set(['street', 'corridor', 'neighborhood']);
 
@@ -61,11 +64,13 @@ function isLngLat(value) {
   );
 }
 
-export function inUwsBox(lngLat, box = UWS_BOX) {
+export function inMapBox(lngLat, box = MAP_BOX) {
   if (!isLngLat(lngLat)) return false;
   const [lng, lat] = lngLat;
   return lng >= box.west && lng <= box.east && lat >= box.south && lat <= box.north;
 }
+
+export const inUwsBox = inMapBox;
 
 export function normalizeShoot(raw, index = 0) {
   const production = String(raw?.production || '').trim();

@@ -202,9 +202,10 @@ are those EDs, not voter ethnicity. No new Vercel function.
 
 ### I'm Filmin Here — `/im-filmin-here`
 
-Default page is a **curated Upper West Side** map of named film and TV locations
-(W 59th–W 110th). In beta and a growing list: the camera fits the current pins
-so the map stays walkable, and it will zoom out as farther places are added.
+Default page is a **curated mid-and-up Manhattan** map of named film and TV
+locations (W 59th–W 145th). In beta and a growing list: the camera fits the
+current pins so the map stays walkable, and it will zoom out as farther places
+are added.
 Catalog is committed JSON (`im-filmin-here/data/locations.json`); grouping,
 filters, and bounds live in `im-filmin-here/locations.js` (browser-safe ESM).
 
