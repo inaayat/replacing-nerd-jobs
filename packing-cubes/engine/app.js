@@ -48,6 +48,9 @@ import {
   normalizeDefinitionItems,
   listItemMembership,
   sortedListItems,
+  groupUnits,
+  orderUnitsForCubeView,
+  reorderCubeIdsInBand,
   addItemToOutfit,
   normalizePrefs,
   needsCubeTemplateBackfill,
@@ -105,6 +108,8 @@ const BAG_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" str
 const EDIT_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
 const CHECK_SVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
 const CHEVRON_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
+const GRIP_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>`;
+const FLIP_MS = 280;
 const PIN_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M8 4h8l-1.2 6.5A3 3 0 0 1 12 13a3 3 0 0 1-2.8-2.5L8 4z"/><path d="M7 4h10"/></svg>`;
 
 // A packed little suitcase for the sign-in gate: two cubes inside, a couple of
@@ -1148,6 +1153,217 @@ function itemRowHtml(item, { showCubeChip, cubeMap }) {
     </li>`;
 }
 
+function prefersReducedMotion() {
+  return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+function flipKey(el) {
+  return el?.dataset?.flipKey || el?.dataset?.itemId || el?.dataset?.groupKey || '';
+}
+
+function flipFirst(els) {
+  const map = new Map();
+  for (const el of els) {
+    const key = flipKey(el);
+    if (key) map.set(key, el.getBoundingClientRect());
+  }
+  return map;
+}
+
+function playFlip(els, first, duration = FLIP_MS) {
+  if (!first?.size || prefersReducedMotion()) return;
+  for (const el of els) {
+    const prev = first.get(flipKey(el));
+    if (!prev) continue;
+    const next = el.getBoundingClientRect();
+    const dx = prev.left - next.left;
+    const dy = prev.top - next.top;
+    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) continue;
+    el.classList.add('pc-flipping');
+    el.style.transition = 'none';
+    el.style.transform = `translate(${dx}px, ${dy}px)`;
+    void el.offsetWidth;
+    el.style.transition = `transform ${duration}ms ease`;
+    el.style.transform = '';
+    const clear = (ev) => {
+      if (ev && ev.propertyName && ev.propertyName !== 'transform') return;
+      el.style.transition = '';
+      el.style.transform = '';
+      el.classList.remove('pc-flipping');
+      el.removeEventListener('transitionend', clear);
+    };
+    el.addEventListener('transitionend', clear);
+    window.setTimeout(clear, duration + 80);
+  }
+}
+
+function applyPackedClass(mount, itemId, packed) {
+  mount.querySelectorAll(`li[data-item-id="${CSS.escape(itemId)}"]`).forEach((row) => {
+    row.classList.toggle('packed', packed);
+    const box = row.querySelector('input[type="checkbox"]');
+    if (box) box.checked = packed;
+  });
+}
+
+function animateCondensedListOrder(mount, suitcase) {
+  const ul = mount.querySelector('ul.pc-checklist');
+  if (!ul) return;
+  const rows = [...ul.querySelectorAll('li[data-item-id]')];
+  if (!rows.length) return;
+  const first = flipFirst(rows);
+  const byId = new Map(rows.map((row) => [row.dataset.itemId, row]));
+  for (const item of visibleItems(sortedListItems(suitcase, cubesById()))) {
+    const row = byId.get(item.id);
+    if (row) ul.appendChild(row);
+  }
+  playFlip(rows, first);
+}
+
+function cubeViewUnits(suitcase) {
+  return orderUnitsForCubeView(groupUnits(groupedItems(suitcase, cubesById(), {
+    includeEmptyAddOns: organizeMode,
+    exclusive: false,
+  })));
+}
+
+function cubeViewNodeMap(mount) {
+  const byKey = new Map();
+  for (const el of mount.children) {
+    if (el.classList.contains('pc-cube-stack')) byKey.set(`cube:${el.dataset.cubeId}`, el);
+    else if (el.dataset.groupKey) byKey.set(el.dataset.groupKey, el);
+  }
+  return byKey;
+}
+
+function desiredCubeViewNodes(mount, suitcase) {
+  const byKey = cubeViewNodeMap(mount);
+  const ordered = [];
+  for (const unit of cubeViewUnits(suitcase)) {
+    if (unit.kind === 'cube') {
+      const el = byKey.get(`cube:${unit.cubeId}`);
+      if (el) ordered.push(el);
+    } else {
+      const key = unit.groups[0]?.key;
+      const el = key ? byKey.get(key) : null;
+      if (el) ordered.push(el);
+    }
+  }
+  return ordered;
+}
+
+function syncCubeViewPackedState(mount, suitcase) {
+  for (const unit of groupUnits(groupedItems(suitcase, cubesById(), {
+    includeEmptyAddOns: organizeMode,
+    exclusive: false,
+  }))) {
+    if (unit.kind === 'cube') {
+      const el = mount.querySelector(`.pc-cube-stack[data-cube-id="${CSS.escape(unit.cubeId)}"]`);
+      if (el) el.classList.toggle('is-packed', unit.packed);
+    } else if (unit.groups[0]?.key) {
+      const el = mount.querySelector(`[data-group-key="${CSS.escape(unit.groups[0].key)}"]`);
+      if (el) el.classList.toggle('is-packed', unit.packed);
+      const count = el?.querySelector('.pc-group-count');
+      if (count) {
+        const items = unit.groups[0].items || [];
+        count.textContent = `${items.filter((i) => i.packed).length}/${items.length}`;
+      }
+    }
+    if (unit.kind === 'cube') {
+      for (const group of unit.groups) {
+        const el = mount.querySelector(`[data-group-key="${CSS.escape(group.key)}"]`);
+        const count = el?.querySelector('.pc-group-count');
+        if (count) {
+          const items = group.items || [];
+          count.textContent = `${items.filter((i) => i.packed).length}/${items.length}`;
+        }
+      }
+    }
+  }
+}
+
+function animateCubeViewOrder(mount, suitcase) {
+  const nodes = [...mount.children];
+  if (!nodes.length) return;
+  const first = flipFirst(nodes);
+  for (const node of desiredCubeViewNodes(mount, suitcase)) {
+    mount.appendChild(node);
+  }
+  playFlip([...mount.children], first);
+}
+
+function animateCubeViewAfterPack(mount, suitcase) {
+  syncCubeViewPackedState(mount, suitcase);
+  animateCubeViewOrder(mount, suitcase);
+}
+
+function bindCubeDrag(mount, suitcase) {
+  mount.querySelectorAll('[data-cube-drag]').forEach((handle) => {
+    handle.addEventListener('pointerdown', (e) => {
+      if (e.button) return;
+      const stack = handle.closest('.pc-cube-stack');
+      if (!stack) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const pointerId = e.pointerId;
+      const startY = e.clientY;
+      const slop = e.pointerType === 'touch' ? 8 : 5;
+      let dragging = false;
+      const sameBand = () => [...mount.querySelectorAll('.pc-cube-stack')]
+        .filter((el) => el.classList.contains('is-packed') === stack.classList.contains('is-packed'));
+
+      const onMove = (ev) => {
+        if (ev.pointerId !== pointerId) return;
+        if (!dragging) {
+          if (Math.abs(ev.clientY - startY) < slop) return;
+          dragging = true;
+          stack.classList.add('dragging');
+          document.documentElement.classList.add('pc-reordering');
+          try { handle.setPointerCapture(pointerId); } catch { /* ignore */ }
+        }
+        const y = ev.clientY;
+        const peers = sameBand().filter((el) => el !== stack);
+        let placed = false;
+        for (const other of peers) {
+          const box = other.getBoundingClientRect();
+          if (y < box.top + box.height / 2) {
+            mount.insertBefore(stack, other);
+            placed = true;
+            break;
+          }
+        }
+        if (!placed && peers.length) {
+          const last = peers[peers.length - 1];
+          if (last.nextSibling) mount.insertBefore(stack, last.nextSibling);
+          else mount.appendChild(stack);
+        }
+      };
+
+      const onUp = (ev) => {
+        if (ev.pointerId !== pointerId) return;
+        handle.removeEventListener('pointermove', onMove);
+        handle.removeEventListener('pointerup', onUp);
+        handle.removeEventListener('pointercancel', onUp);
+        try { handle.releasePointerCapture(pointerId); } catch { /* ignore */ }
+        document.documentElement.classList.remove('pc-reordering');
+        stack.classList.remove('dragging');
+        if (!dragging) return;
+        const incompleteIds = [...mount.querySelectorAll('.pc-cube-stack:not(.is-packed)')]
+          .map((el) => el.dataset.cubeId);
+        const packedIds = [...mount.querySelectorAll('.pc-cube-stack.is-packed')]
+          .map((el) => el.dataset.cubeId);
+        reorderCubeIdsInBand(suitcase, incompleteIds);
+        reorderCubeIdsInBand(suitcase, packedIds);
+        saveState();
+        animateCubeViewOrder(mount, suitcase);
+      };
+
+      handle.addEventListener('pointermove', onMove);
+      handle.addEventListener('pointerup', onUp);
+      handle.addEventListener('pointercancel', onUp);
+    });
+  });
+}
+
 function bindItemRows(mount, suitcase) {
   mount.querySelectorAll('li[data-item-id]').forEach((li) => {
     const itemId = li.dataset.itemId;
@@ -1157,8 +1373,24 @@ function bindItemRows(mount, suitcase) {
       checkbox.addEventListener('change', () => {
         setItemPacked(suitcase, itemId, checkbox.checked);
         saveState();
+        if (hidePacked) {
+          renderList();
+          return;
+        }
+        if (listView === 'list' && !organizeMode) {
+          applyPackedClass(mount, itemId, checkbox.checked);
+          updateHud(suitcase);
+          animateCondensedListOrder(mount, suitcase);
+          return;
+        }
+        if (listView === 'cube' && !organizeMode) {
+          applyPackedClass(mount, itemId, checkbox.checked);
+          updateHud(suitcase);
+          animateCubeViewAfterPack(mount, suitcase);
+          return;
+        }
         const sharedRows = mount.querySelectorAll(`li[data-item-id="${CSS.escape(itemId)}"]`);
-        if (hidePacked || sharedRows.length > 1) {
+        if (sharedRows.length > 1) {
           renderList();
         } else {
           li.classList.toggle('packed', checkbox.checked);
@@ -1616,8 +1848,10 @@ function renderCubeGroups(mount, suitcase, cubeMap) {
     includeEmptyAddOns: organizeMode,
     exclusive: false,
   });
+  const units = orderUnitsForCubeView(groupUnits(groups));
   let anyVisible = false;
-  mount.innerHTML = groups.map((group) => {
+
+  const groupHtml = (group, { draggable = false, packed = false } = {}) => {
     const items = visibleItems(uniqueItemsById(group.items));
     const isUnsorted = group.key === UNSORTED_KEY;
     const isAddOnGroup = !!group.addOnId;
@@ -1637,8 +1871,9 @@ function renderCubeGroups(mount, suitcase, cubeMap) {
           ? 'No items in this outfit yet.'
           : 'No items in this cube yet.';
     return `
-      <div class="pc-item-group ${collapsed ? 'collapsed' : ''} ${isUnsorted ? 'unsorted' : ''} ${isAddOnGroup ? 'addon' : ''} ${isOutfitGroup ? 'outfit' : ''}" data-group-key="${escapeAttr(group.key)}">
+      <div class="pc-item-group ${collapsed ? 'collapsed' : ''} ${isUnsorted ? 'unsorted' : ''} ${isAddOnGroup ? 'addon' : ''} ${isOutfitGroup ? 'outfit' : ''} ${packed ? 'is-packed' : ''}" data-group-key="${escapeAttr(group.key)}" data-flip-key="${escapeAttr(group.key)}">
         <div class="pc-group-row">
+          ${draggable ? `<button type="button" class="pc-group-drag" data-cube-drag aria-label="Reorder ${escapeAttr(group.title)}">${GRIP_SVG}</button>` : ''}
           <button type="button" class="pc-group-header">
             <span class="chevron">${CHEVRON_SVG}</span>
             <span class="pc-group-title">${escapeHtml(group.title)}</span>
@@ -1672,6 +1907,19 @@ function renderCubeGroups(mount, suitcase, cubeMap) {
           </ul>
         ` : ''}
       </div>`;
+  };
+
+  mount.innerHTML = units.map((unit) => {
+    if (unit.kind === 'cube') {
+      const body = unit.groups.map((group, idx) => groupHtml(group, {
+        draggable: idx === 0 && suitcase.cubeIds.includes(unit.cubeId),
+        packed: unit.packed,
+      })).join('');
+      if (!body.trim()) return '';
+      anyVisible = true;
+      return `<div class="pc-cube-stack ${unit.packed ? 'is-packed' : ''}" data-cube-id="${escapeAttr(unit.cubeId)}" data-flip-key="cube:${escapeAttr(unit.cubeId)}">${body}</div>`;
+    }
+    return unit.groups.map((group) => groupHtml(group, { packed: unit.packed })).join('');
   }).join('');
 
   if (!anyVisible) {
@@ -1708,6 +1956,7 @@ function renderCubeGroups(mount, suitcase, cubeMap) {
     });
   });
   bindItemRows(mount, suitcase);
+  bindCubeDrag(mount, suitcase);
 
   for (const group of groups) {
     if (group.key === UNSORTED_KEY || group.addOnId || group.outfitId) continue;

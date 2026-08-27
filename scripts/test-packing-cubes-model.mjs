@@ -44,6 +44,12 @@ import {
   normalizeDefinitionItems,
   listItemMembership,
   sortedListItems,
+  groupAllPacked,
+  groupUnits,
+  orderGroupsForCubeView,
+  orderUnitsForCubeView,
+  reorderCubeIds,
+  reorderCubeIdsInBand,
   filedInCube,
   isIsoDate,
   datesInRange,
@@ -613,6 +619,73 @@ check('cube row chip is the cube title', listItemMembership(condensed[0], sLooks
 check('outfit-only row chip is the outfit name', listItemMembership(condensed[1], sLooks, cubesById).kind, 'outfit');
 check('outfit-only row chip label', listItemMembership(condensed[1], sLooks, cubesById).label, 'Ceremony');
 check('unsorted row has no chip', listItemMembership(condensed[2], sLooks, cubesById).label, '');
+
+setItemPacked(sLooks, 'blazer', true);
+const packedCondensed = sortedListItems(sLooks, cubesById);
+check('List keeps unpacked items first after a check', packedCondensed.map((i) => i.id), ['shoes', 'passport', 'blazer']);
+setItemPacked(sLooks, 'blazer', false);
+check('List restores cube/outfit order when unchecked', sortedListItems(sLooks, cubesById).map((i) => i.id), ['blazer', 'shoes', 'passport']);
+
+check('empty group is not all packed', groupAllPacked({ items: [] }), false);
+check('partial group is not all packed', groupAllPacked({ items: [{ packed: true }, { packed: false }] }), false);
+check('complete group is all packed', groupAllPacked({ items: [{ packed: true }, { packed: true }] }), true);
+
+const sinkTrip = normalizeSuitcase({
+  id: 's-sink',
+  name: 'Sink',
+  cubeIds: ['beach', 'toiletries'],
+  items: [
+    { id: 'suit', label: 'Swimsuit', cubeId: 'beach', packed: true },
+    { id: 'brush', label: 'Toothbrush', cubeId: 'toiletries', packed: false },
+    { id: 'keys', label: 'Keys', cubeId: null, packed: false },
+  ],
+});
+const sinkOutfit = addOutfit(sinkTrip, { name: 'Dinner', itemIds: ['brush'] });
+const sinkGroups = groupedItems(sinkTrip, cubesById);
+check(
+  'By cube raw order is outfits then cubes',
+  sinkGroups.map((g) => g.key),
+  [outfitGroupKey(sinkOutfit.id), 'beach', 'toiletries', UNSORTED_KEY],
+);
+const sunk = orderGroupsForCubeView(sinkGroups);
+check(
+  'completed cube sinks below incomplete groups',
+  sunk.map((g) => g.key),
+  [outfitGroupKey(sinkOutfit.id), 'toiletries', 'beach', UNSORTED_KEY],
+);
+setItemPacked(sinkTrip, 'brush', true);
+const afterOutfitPacked = orderGroupsForCubeView(groupedItems(sinkTrip, cubesById)).map((g) => g.key);
+check(
+  'packed outfits and cubes keep relative order above Unsorted',
+  afterOutfitPacked,
+  [outfitGroupKey(sinkOutfit.id), 'beach', 'toiletries', UNSORTED_KEY],
+);
+check('Unsorted stays last even when it is the only incomplete group', afterOutfitPacked[afterOutfitPacked.length - 1], UNSORTED_KEY);
+
+const addonSink = normalizeSuitcase({
+  id: 's-addon-sink',
+  cubeIds: ['toiletries'],
+  items: [
+    { id: 'tp', label: 'Toothpaste', cubeId: 'toiletries', packed: true },
+    { id: 'meds', label: 'Ibuprofen', cubeId: 'toiletries', addOnId: 'travel-meds', packed: false },
+  ],
+  addOns: { toiletries: ['travel-meds'] },
+});
+const addonUnits = groupUnits(groupedItems(addonSink, cubesById));
+check('cube + add-on is one unit', addonUnits[0].kind, 'cube');
+check('cube unit stays up while an add-on item is unpacked', addonUnits[0].packed, false);
+setItemPacked(addonSink, 'meds', true);
+check('cube unit packs only when every cube and add-on item is packed', groupUnits(groupedItems(addonSink, cubesById))[0].packed, true);
+
+const orderTrip = normalizeSuitcase({ id: 's-order', cubeIds: ['a', 'b', 'c'] });
+check('reorderCubeIds writes the new order', reorderCubeIds(orderTrip, ['c', 'a']), ['c', 'a', 'b']);
+const bandTrip = normalizeSuitcase({ id: 's-band', cubeIds: ['a', 'b', 'c', 'd'] });
+check('reorderCubeIdsInBand permutes only the dragged band', reorderCubeIdsInBand(bandTrip, ['c', 'a']), ['c', 'b', 'a', 'd']);
+check('orderUnitsForCubeView keeps Unsorted last', orderUnitsForCubeView([
+  { kind: 'unsorted', packed: false, groups: [{ key: UNSORTED_KEY }] },
+  { kind: 'cube', packed: true, groups: [{ key: 'done' }] },
+  { kind: 'cube', packed: false, groups: [{ key: 'open' }] },
+]).map((u) => u.groups[0].key), ['open', 'done', UNSORTED_KEY]);
 
 // --- removeItem ---
 check('removeItem deletes by id', removeItem(s4, 'c'), true);

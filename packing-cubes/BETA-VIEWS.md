@@ -65,11 +65,15 @@ trip never edits `pc_cubes`.
 - As a packer in List (beta off), I see a condensed packing list: one row
   per item, sorted by cube then outfit, Unsorted last, with a chip of the
   cube or outfit. No collapsible sections. Shared items appear once.
+  Checking an item slides it to the bottom; unchecking puts it back in
+  cube / outfit order.
 - As a packer in By cube, I see outfits and cubes as collapsible groups
   (including empty ones). Outfit groups are not My Cubes cubes. Collapse
   all folds every group. An item may sit under its outfit and its cube.
-  One item id, one packed checkbox. Blank add-ins are created from My Cubes
-  / Edit cube, not from this list.
+  One item id, one packed checkbox. When every item in a cube (including
+  its add-ons) or an outfit is packed, that group moves to the bottom
+  (Unsorted stays last). Cubes can be dragged to set `cubeIds` order.
+  Blank add-ins are created from My Cubes / Edit cube, not from this list.
 
 ### Beta
 

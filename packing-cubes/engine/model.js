@@ -1017,15 +1017,130 @@ export function listItemMembership(item, suitcase, cubesById) {
 }
 
 /**
- * List view rows: one row per item id, cube items first (A–Z cube, then
- * label), then outfit-only items, Unsorted last.
+ * List view rows: one row per item id, unpacked first (cube, then outfit,
+ * Unsorted last), then packed items in the same membership order.
  */
 export function sortedListItems(suitcase, cubesById) {
   return uniqueItemsById(suitcase?.items).slice().sort((a, b) => {
+    const packed = (a.packed ? 1 : 0) - (b.packed ? 1 : 0);
+    if (packed) return packed;
     const ma = listItemMembership(a, suitcase, cubesById);
     const mb = listItemMembership(b, suitcase, cubesById);
     return ma.sort.localeCompare(mb.sort);
   });
+}
+
+/** A group is complete only when it has items and every one is packed. */
+export function groupAllPacked(group) {
+  return Array.isArray(group?.items) && group.items.length > 0 && group.items.every((i) => i.packed);
+}
+
+/**
+ * Walk By cube groups into display units: each outfit, each cube plus its
+ * following add-on groups, orphan add-ons, Unsorted last as its own unit.
+ */
+export function groupUnits(groups) {
+  const units = [];
+  const list = Array.isArray(groups) ? groups : [];
+  let i = 0;
+  while (i < list.length) {
+    const g = list[i];
+    if (!g) {
+      i += 1;
+      continue;
+    }
+    if (g.key === UNSORTED_KEY) {
+      units.push({ kind: 'unsorted', groups: [g], packed: false });
+      i += 1;
+      continue;
+    }
+    if (g.outfitId) {
+      units.push({ kind: 'outfit', groups: [g], packed: groupAllPacked(g), outfitId: g.outfitId });
+      i += 1;
+      continue;
+    }
+    if (g.cubeId && !g.addOnId) {
+      const bundle = [g];
+      i += 1;
+      while (i < list.length && list[i].cubeId === g.cubeId && list[i].addOnId) {
+        bundle.push(list[i]);
+        i += 1;
+      }
+      const items = bundle.flatMap((row) => row.items || []);
+      units.push({
+        kind: 'cube',
+        cubeId: g.cubeId,
+        groups: bundle,
+        packed: items.length > 0 && items.every((row) => row.packed),
+      });
+      continue;
+    }
+    units.push({ kind: 'addon', groups: [g], packed: groupAllPacked(g), cubeId: g.cubeId || null });
+    i += 1;
+  }
+  return units;
+}
+
+/** Incomplete units in input order, then complete units, Unsorted last. */
+export function orderUnitsForCubeView(units) {
+  const unsorted = [];
+  const incomplete = [];
+  const packed = [];
+  for (const unit of Array.isArray(units) ? units : []) {
+    if (unit.kind === 'unsorted') unsorted.push(unit);
+    else if (unit.packed) packed.push(unit);
+    else incomplete.push(unit);
+  }
+  return [...incomplete, ...packed, ...unsorted];
+}
+
+export function orderGroupsForCubeView(groups) {
+  return orderUnitsForCubeView(groupUnits(groups)).flatMap((unit) => unit.groups);
+}
+
+/** Replace suitcase.cubeIds with orderedIds, appending any omitted ids. */
+export function reorderCubeIds(suitcase, orderedIds) {
+  if (!suitcase) return [];
+  const current = Array.isArray(suitcase.cubeIds) ? suitcase.cubeIds.filter(Boolean) : [];
+  const currentSet = new Set(current);
+  const seen = new Set();
+  const next = [];
+  for (const id of orderedIds || []) {
+    if (!id || !currentSet.has(id) || seen.has(id)) continue;
+    seen.add(id);
+    next.push(id);
+  }
+  for (const id of current) {
+    if (!seen.has(id)) next.push(id);
+  }
+  suitcase.cubeIds = next;
+  return next;
+}
+
+/**
+ * Reorder only the ids in bandOrderedIds; every other cubeId keeps its slot.
+ * Used when dragging among incomplete cubes or among packed cubes so the
+ * stored preference order is not rewritten as "packed last".
+ */
+export function reorderCubeIdsInBand(suitcase, bandOrderedIds) {
+  if (!suitcase) return [];
+  const current = Array.isArray(suitcase.cubeIds) ? suitcase.cubeIds.filter(Boolean) : [];
+  const currentSet = new Set(current);
+  const seen = new Set();
+  const queue = [];
+  for (const id of bandOrderedIds || []) {
+    if (!id || !currentSet.has(id) || seen.has(id)) continue;
+    seen.add(id);
+    queue.push(id);
+  }
+  if (!queue.length) return current;
+  const next = [];
+  for (const id of current) {
+    if (seen.has(id)) next.push(queue.shift());
+    else next.push(id);
+  }
+  suitcase.cubeIds = next;
+  return next;
 }
 
 /** Count of items still unassigned — drives the Organize affordance. */
