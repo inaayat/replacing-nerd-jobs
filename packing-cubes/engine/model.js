@@ -339,6 +339,19 @@ export function normalizeDefinitionItems(list) {
   }).filter(Boolean);
 }
 
+/** First label wins; later rows with the same itemKey are dropped. */
+export function uniqueDefinitionItems(list) {
+  const seen = new Set();
+  const out = [];
+  for (const row of normalizeDefinitionItems(list)) {
+    const key = itemKey(row.label);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ label: row.label });
+  }
+  return out;
+}
+
 /**
  * Official cube from GET /api/pc-cubes?id=. A rewrite that drops `id`
  * returns the list payload `{ cubes }` with no `cube` — recover by id.
@@ -629,6 +642,11 @@ export function normalizeSuitcase(raw) {
 export function addItem(suitcase, label, { cubeId = null } = {}) {
   const trimmed = String(label || '').trim();
   if (!trimmed) return null;
+  const existing = (suitcase.items || []).find((i) => itemKey(i.label) === itemKey(trimmed));
+  if (existing) {
+    if (cubeId) assignItem(suitcase, existing.id, cubeId);
+    return existing;
+  }
   const item = newItem(trimmed, { cubeId });
   suitcase.items.push(item);
   return item;
@@ -636,11 +654,19 @@ export function addItem(suitcase, label, { cubeId = null } = {}) {
 
 /** First list row with this label, or a new row. Never a second inventory line. */
 export function ensureListItem(suitcase, label, { cubeId = null } = {}) {
-  const trimmed = String(label || '').trim();
-  if (!trimmed) return null;
-  const existing = (suitcase.items || []).find((i) => itemKey(i.label) === itemKey(trimmed));
-  if (existing) return existing;
-  return addItem(suitcase, trimmed, { cubeId });
+  return addItem(suitcase, label, { cubeId });
+}
+
+/** True if this trip already has that label filed in the cube / add-on. */
+export function listItemInCube(suitcase, label, cubeId, addOnId = null) {
+  if (!suitcase || !cubeId) return false;
+  const key = itemKey(label);
+  const addon = addOnId || null;
+  return (suitcase.items || []).some((i) => (
+    itemKey(i.label) === key
+    && i.cubeId === cubeId
+    && (i.addOnId || null) === addon
+  ));
 }
 
 /** Keep the first occurrence of each item id — outfits share rows, they do not clone them. */

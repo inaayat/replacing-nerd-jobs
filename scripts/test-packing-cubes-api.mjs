@@ -139,6 +139,19 @@ check(
   normalizeCubeInput({ id: 'basics', title: 'Basics', items: ['Passport', { label: 'Socks' }] }).items,
   [{ label: 'Passport' }, { label: 'Socks' }],
 );
+check(
+  'official cube PATCH drops case-insensitive duplicate labels',
+  normalizeCubeInput({ id: 'basics', title: 'Basics', items: [{ label: 'Socks' }, { label: 'socks' }, { label: 'Hat' }] }).items,
+  [{ label: 'Socks' }, { label: 'Hat' }],
+);
+check(
+  'add-on PATCH drops case-insensitive duplicate labels',
+  normalizeCubeInput({
+    title: 'X',
+    addOns: [{ title: 'Pouch', items: [{ label: 'Lip balm' }, { label: 'LIP BALM' }] }],
+  }).addOns[0].items,
+  [{ label: 'Lip balm' }],
+);
 
 if (failures) {
   console.error(`\n${failures} failure(s)`);

@@ -5,7 +5,7 @@
 // inline inside a modal on the main packing-cubes page.
 import { initAuth, wireAuthLink, refreshToken, renderPackingSignIn } from './auth.js';
 import { cubesApi } from './api.js';
-import { officialCubeFromApi, normalizeDefinitionItems } from './model.js';
+import { officialCubeFromApi, normalizeDefinitionItems, uniqueDefinitionItems } from './model.js';
 
 export function initBuilder({ root, editId = null, auth: passedAuth = null, onSaved, onClose } = {}) {
   const isEditing = !!editId;
@@ -292,13 +292,13 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onSa
       blurb: (cube.blurb || '').trim(),
       tags: cube.tags || [],
       // Edit cube is the only place that may drop labels from the reusable cube.
-      items: filledItems().map((i) => ({ label: i.label.trim() })),
+      items: uniqueDefinitionItems(filledItems()),
       includeByDefault: !!cube.includeByDefault,
       addOns: cube.addOns
         .map((addOn) => ({
           ...(addOn.id ? { id: addOn.id } : {}),
           title: addOn.title.trim(),
-          items: addOn.items.filter((i) => i.label.trim()).map((i) => ({ label: i.label.trim() })),
+          items: uniqueDefinitionItems(addOn.items),
           includeByDefault: !!addOn.includeByDefault,
         }))
         .filter((addOn) => addOn.title),

@@ -65,6 +65,8 @@ import {
   copyOutfit,
   ensureListItem,
   uniqueItemsById,
+  uniqueDefinitionItems,
+  listItemInCube,
   addItemToOutfit,
   normalizePrefs,
   CUBE_TEMPLATE_BACKFILL,
@@ -167,6 +169,9 @@ const passport = addItem(s, '  Passport ');
 check('addItem trims and returns the item', passport.label, 'Passport');
 check('typed items start unsorted', passport.cubeId, null);
 check('addItem rejects empty labels', addItem(s, '   '), null);
+const passportAgain = addItem(s, 'passport');
+check('addItem does not clone a case-insensitive duplicate', passportAgain.id, passport.id);
+check('addItem keeps one row for Passport / passport', s.items.filter((i) => itemKey(i.label) === 'passport').length, 1);
 check('unsortedCount counts unassigned', unsortedCount(s), 1);
 
 updateItemLabel(s, passport.id, 'Passport + visas');
@@ -323,6 +328,12 @@ check('includeByDefault does not skip absorb', isDefaultCube(basicsCube), true);
 const basicsAgain = fileIntoCube(basicsTrip, basicsCube, 'passport');
 check('second file of the same label is trip-only', basicsAgain.absorbed, false);
 check('Basics definition is not cloned on a duplicate file', basicsCube.items.length, 3);
+check('fileIntoCube case-insensitive already-in-cube is not a new trip row', basicsTrip.items.filter((i) => itemKey(i.label) === 'passport').length, 1);
+check('listItemInCube is case-insensitive', listItemInCube(basicsTrip, 'PASSPORT', 'basics'), true);
+check('uniqueDefinitionItems drops case duplicates', uniqueDefinitionItems([{ label: 'Socks' }, { label: 'socks' }, { label: 'Hat' }]), [
+  { label: 'Socks' },
+  { label: 'Hat' },
+]);
 const emptiedCache = { id: 'basics', title: 'Basics', tags: ['basics'], includeByDefault: true, items: [] };
 check(
   'absorb onto an empty stub still appends',

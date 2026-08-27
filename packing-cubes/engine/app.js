@@ -39,6 +39,8 @@ import {
   isDefaultAddOn,
   expandContents,
   ensureListItem,
+  listItemInCube,
+  uniqueDefinitionItems,
   uniqueItemsById,
   officialCubeFromApi,
   syncOfficialCubeFromTrip,
@@ -577,12 +579,12 @@ function cubePayload(cube) {
     title: cube.title,
     blurb: cube.blurb || '',
     tags: cube.tags || [],
-    items: normalizeDefinitionItems(cube.items),
+    items: uniqueDefinitionItems(cube.items),
     includeByDefault: !!cube.includeByDefault,
     addOns: cubeAddOns(cube).map((a) => ({
       id: a.id,
       title: a.title,
-      items: normalizeDefinitionItems(a.items),
+      items: uniqueDefinitionItems(a.items),
       includeByDefault: !!a.includeByDefault,
     })),
   };
@@ -688,6 +690,10 @@ async function addItemToCubeGroup(cubeId, label, addOnId) {
   const name = String(label || '').trim();
   if (!cubeId || !name) return;
   const suitcase = activeSuitcase();
+  if (listItemInCube(suitcase, name, cubeId, addOnId || null)) {
+    showToast('Already in this cube');
+    return;
+  }
   const item = ensureListItem(suitcase, name);
   if (!item) return;
   assignItem(suitcase, item.id, cubeId, addOnId || null);
@@ -931,10 +937,15 @@ function renderListPanel() {
     e.preventDefault();
     const input = document.getElementById('quick-add-input');
     const suitcaseNow = activeSuitcase();
+    const before = suitcaseNow.items.length;
     const item = addItem(suitcaseNow, input.value);
     if (!item) return;
     input.value = '';
     input.focus();
+    if (suitcaseNow.items.length === before) {
+      showToast('Already on the list');
+      return;
+    }
     saveState();
     renderList();
   });
