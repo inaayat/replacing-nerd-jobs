@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { CITATIONS, citationText } from '../asc-606/citations.js';
 import { TREE, STEPS } from '../asc-606/tree.js';
 import { QUIZZES, quizById } from '../asc-606/quiz.js';
+import { TERMS, termById, termsFor } from '../asc-606/glossary.js';
 import {
   START_ID,
   walk,
@@ -23,6 +24,15 @@ assert.deepEqual(errors, [], errors.join('\n'));
 assert.equal(START_ID, 'start');
 assert.ok(nodeById(TREE, 'start'));
 assert.equal(STEPS.length, 6);
+assert.equal(STEPS[0].short, 'Does this guide apply?');
+
+assert.ok(TERMS.length >= 15);
+assert.match(termById('performance-obligation').plain, /promise/i);
+assert.equal(termById('missing'), null);
+assert.deepEqual(
+  termsFor('Allocate the transaction price to each performance obligation').map((item) => item.id),
+  ['performance-obligation', 'transaction-price']
+);
 
 const reachable = reachableIds(TREE);
 const missingReach = TREE.filter((n) => !reachable.has(n.id)).map((n) => n.id);
