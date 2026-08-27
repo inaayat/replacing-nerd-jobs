@@ -67,6 +67,11 @@ import {
   uniqueItemsById,
   addItemToOutfit,
   normalizePrefs,
+  CUBE_TEMPLATE_BACKFILL,
+  needsCubeTemplateBackfill,
+  markCubeTemplateBackfill,
+  cubeIdsOnTrips,
+  backfillOfficialCubeFromTrips,
   MAX_DAYS,
   UNSORTED_KEY,
 } from '../packing-cubes/engine/model.js';
@@ -398,6 +403,33 @@ check('propagate reports how many rows were added', gained >= 3, true);
 const propagatedAgain = propagateOfficialCubeToTrips([paris, gym, home], officialAfter, officialBefore);
 check('second propagate of the same add is a no-op', propagatedAgain, 0);
 
+const officialBehind = { id: 'basics', title: 'Basics', items: [{ label: 'Socks' }], addOns: [] };
+const sfo = newSuitcase('SFO + Seattle');
+attachCube(sfo, officialBehind);
+fileIntoCube(sfo, officialBehind, 'Passport');
+const seattleExtras = { id: 'basics', title: 'Basics', items: [{ label: 'Socks' }], addOns: [] };
+const otherTrip = newSuitcase('Other');
+attachCube(otherTrip, seattleExtras);
+fileIntoCube(otherTrip, seattleExtras, 'Charger');
+const skipped = newSuitcase('No cube');
+addItem(skipped, 'House keys');
+const template = { id: 'basics', title: 'Basics', items: [{ label: 'Socks' }], addOns: [] };
+check('cubeIdsOnTrips sees attached and filed cubes', cubeIdsOnTrips([sfo, otherTrip, skipped]).sort(), ['basics']);
+check('one-time backfill unions trip-filed labels onto the official cube', backfillOfficialCubeFromTrips(template, [sfo, otherTrip, skipped]), true);
+check(
+  'official cube gained labels from every trip that includes it',
+  template.items.map((i) => i.label),
+  ['Socks', 'Passport', 'Charger'],
+);
+check('backfill does not invent items from a trip without the cube', template.items.some((i) => i.label === 'House keys'), false);
+const alreadyFilled = { id: 'basics', title: 'Basics', items: [...template.items], addOns: [] };
+check('second backfill is a no-op', backfillOfficialCubeFromTrips(alreadyFilled, [sfo, otherTrip]), false);
+removeItem(sfo, sfo.items.find((i) => i.label === 'Passport').id);
+check('trip delete still does not shrink the backfilled official cube', [
+  backfillOfficialCubeFromTrips(template, [sfo, otherTrip]),
+  template.items.map((i) => i.label),
+], [false, ['Socks', 'Passport', 'Charger']]);
+
 // Enabling an add-on for an unattached cube attaches it first.
 const s3 = newSuitcase('Weekend');
 setAddOn(s3, toiletries, 'travel-meds', true);
@@ -708,8 +740,12 @@ check('uniqueItemsById keeps one row', uniqueItemsById([blazer, blazer, again]).
 const duped = { ...shared, items: [shared.items[0], { ...shared.items[0] }] };
 check('List/By cube would see one row', uniqueItemsById(duped.items).length, 1);
 
-check('prefs default off', normalizePrefs(null), { betaViews: false });
-check('prefs reads the flag', normalizePrefs({ betaViews: true }), { betaViews: true });
+check('prefs default off', normalizePrefs(null), { betaViews: false, cubeTemplateBackfill: 0 });
+check('prefs reads the flag', normalizePrefs({ betaViews: true }), { betaViews: true, cubeTemplateBackfill: 0 });
+check('prefs keeps a finished backfill', normalizePrefs({ cubeTemplateBackfill: 1 }).cubeTemplateBackfill, 1);
+check('needsCubeTemplateBackfill when unset', needsCubeTemplateBackfill(null), true);
+check('needsCubeTemplateBackfill after mark', needsCubeTemplateBackfill(markCubeTemplateBackfill(null)), false);
+check('CUBE_TEMPLATE_BACKFILL is 1', CUBE_TEMPLATE_BACKFILL, 1);
 check('MAX_DAYS is 31', MAX_DAYS, 31);
 
 const cap = newSuitcase('Long');

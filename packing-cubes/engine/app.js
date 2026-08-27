@@ -48,6 +48,10 @@ import {
   sortedListItems,
   addItemToOutfit,
   normalizePrefs,
+  needsCubeTemplateBackfill,
+  markCubeTemplateBackfill,
+  cubeIdsOnTrips,
+  backfillOfficialCubeFromTrips,
   addDay,
   removeDay,
   setTripDates,
@@ -75,7 +79,7 @@ const params = new URLSearchParams(location.search);
 const addCubeId = params.get('add');
 
 let catalog = [];
-let state = { activeSuitcaseId: null, suitcases: [], prefs: { betaViews: false } };
+let state = { activeSuitcaseId: null, suitcases: [], prefs: normalizePrefs(null) };
 let auth = null;
 
 let searchQuery = '';
@@ -135,7 +139,7 @@ function loadLocalState() {
       return parsed;
     }
   } catch { /* ignore */ }
-  return { activeSuitcaseId: null, suitcases: [], prefs: { betaViews: false } };
+  return { activeSuitcaseId: null, suitcases: [], prefs: normalizePrefs(null) };
 }
 
 function betaOn() {
@@ -150,7 +154,7 @@ function snapViewIfNeeded() {
 }
 
 function setBetaViews(on) {
-  state.prefs = normalizePrefs({ betaViews: !!on });
+  state.prefs = normalizePrefs({ ...state.prefs, betaViews: !!on });
   snapViewIfNeeded();
   saveState();
   renderListPanel();
@@ -1718,6 +1722,34 @@ async function hydrateSuitcases() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
+/**
+ * One-time: copy trip-filed labels onto official pc_cubes so My Cubes
+ * matches what people already packed. Additive; does not shrink cubes
+ * or re-add rows a trip deleted. Retries on the next boot if a write fails.
+ */
+async function backfillOfficialCubesFromTrips() {
+  if (!auth?.token || !needsCubeTemplateBackfill(state.prefs)) return;
+  const ids = cubeIdsOnTrips(state.suitcases);
+  let updated = 0;
+  for (const id of ids) {
+    try {
+      const cube = await fetchOfficialCube(id);
+      if (!backfillOfficialCubeFromTrips(cube, state.suitcases)) continue;
+      const data = await cubesApi.update(auth.token, cubePayload(cube));
+      const saved = officialCubeFromApi(data, id) || data.cube;
+      if (!saved) throw new Error('Cube did not save.');
+      rememberCube(saved);
+      updated += 1;
+    } catch (err) {
+      showToast(`Couldn't save trip items onto your cubes: ${err.message}`);
+      return;
+    }
+  }
+  state.prefs = markCubeTemplateBackfill(state.prefs);
+  saveState();
+  if (updated) showToast('Saved trip items onto your cubes');
+}
+
 /** Upgrade any v1 suitcases to the flat-list model, then normalize all. */
 async function migrateLegacySuitcases() {
   const legacy = state.suitcases.filter(isLegacySuitcase);
@@ -1781,6 +1813,7 @@ async function boot() {
     await hydrateSuitcases();
     catalog = await loadCatalog();
     await migrateLegacySuitcases();
+    await backfillOfficialCubesFromTrips();
     ensureSuitcase();
     await prefetchSuitcaseCubes(activeSuitcase());
 

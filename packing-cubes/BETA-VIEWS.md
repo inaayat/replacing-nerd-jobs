@@ -423,7 +423,10 @@ suitcase**. It is not a cube, not in `pc_cubes`, not in My Cubes, not
   whose `cubeIds` already include the cube (`propagateOfficialCubeToTrips`,
   deduped by `itemKey`). Add-on items go only to trips that have that
   add-on enabled. Trips that do not include the cube are left alone.
-  A trip-list delete is not re-added. Removing or unassigning on List /
+  A trip-list delete is not re-added. A one-time boot backfill
+  (`CUBE_TEMPLATE_BACKFILL` on `prefs`) unions already-filed trip labels
+  onto official cubes so My Cubes catches up after the persist miss;
+  it does not re-add rows a trip deleted. Removing or unassigning on List /
   By cube / Organize / outfits is suitcase-only. **The only place that
   deletes an item from the reusable cube is Edit cube.**
 - **Locked:** names only for v1. No photo field.

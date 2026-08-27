@@ -97,8 +97,23 @@ export function dayLabel(suitcase, date) {
   return n ? `${pretty} · Day ${n}` : pretty;
 }
 
+/** Bump when a one-time official-cube backfill should run again. */
+export const CUBE_TEMPLATE_BACKFILL = 1;
+
 export function normalizePrefs(raw) {
-  return { betaViews: !!(raw && raw.betaViews) };
+  const n = Number(raw && raw.cubeTemplateBackfill);
+  return {
+    betaViews: !!(raw && raw.betaViews),
+    cubeTemplateBackfill: Number.isFinite(n) && n > 0 ? Math.floor(n) : 0,
+  };
+}
+
+export function needsCubeTemplateBackfill(prefs) {
+  return normalizePrefs(prefs).cubeTemplateBackfill < CUBE_TEMPLATE_BACKFILL;
+}
+
+export function markCubeTemplateBackfill(prefs) {
+  return { ...normalizePrefs(prefs), cubeTemplateBackfill: CUBE_TEMPLATE_BACKFILL };
 }
 
 export function newId() {
@@ -373,6 +388,29 @@ export function syncOfficialCubeFromTrip(cube, suitcase, cubeId = cube?.id) {
   for (const item of suitcase.items || []) {
     if (!item || item.cubeId !== cubeId) continue;
     if (absorbItemIntoCube(cube, item.label, item.addOnId || null)) changed = true;
+  }
+  return changed;
+}
+
+/** Cube ids that appear on any trip (attached or filed). */
+export function cubeIdsOnTrips(suitcases) {
+  const ids = new Set();
+  for (const suitcase of suitcases || []) {
+    for (const id of suitcase?.cubeIds || []) if (id) ids.add(id);
+    for (const item of suitcase?.items || []) if (item?.cubeId) ids.add(item.cubeId);
+  }
+  return [...ids];
+}
+
+/**
+ * One-time repair: union every trip-filed label onto the official cube.
+ * Additive only — never strips a definition label.
+ */
+export function backfillOfficialCubeFromTrips(cube, suitcases) {
+  if (!cube?.id || !Array.isArray(suitcases)) return false;
+  let changed = false;
+  for (const suitcase of suitcases) {
+    if (syncOfficialCubeFromTrip(cube, suitcase, cube.id)) changed = true;
   }
   return changed;
 }
