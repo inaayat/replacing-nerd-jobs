@@ -424,6 +424,9 @@ Karan asked for two extra packing views as beta. Locked:
   (`days[].n` / `item.dayIds` / `outfit.dayId`) is dropped in
   `normalizeSuitcase`. Stay on suitcase `v: 2`.
 - **Outfits:** `{ id, name, event?, date?, itemIds[] }` on the trip record.
+  `date` is optional (null is valid; never required, never auto-assigned).
+  Create/edit can quick-add a label onto the packing list and the outfit.
   Search past outfits across `state.suitcases`; copy grouping + optionally
   add missing labels to this list; never create a cube. Names only (no
-  photo). An item may sit on two outfits the same day.
+  photo). An item may sit on two outfits — List / By cube still show that
+  item once (dedupe by item id).

@@ -38,6 +38,9 @@ import {
   isDefaultAddOn,
   expandContents,
   absorbItemIntoCube,
+  ensureListItem,
+  uniqueItemsById,
+  addItemToOutfit,
   normalizePrefs,
   addDay,
   removeDay,
@@ -48,6 +51,7 @@ import {
   outfitsForDate,
   addOutfit,
   updateOutfit,
+  setOutfitDate,
   removeOutfit,
   searchPastOutfits,
   copyOutfit,
@@ -1298,18 +1302,43 @@ function copyPastOutfit(fromId, outfitId) {
   showToast(`Copied "${copied.name}" onto this trip`);
 }
 
+function selectedOutfitItemIds(rootEl) {
+  return uniqueItemsById(
+    [...rootEl.querySelectorAll('[data-outfit-item]:checked')].map((el) => ({ id: el.dataset.outfitItem })),
+  ).map((i) => i.id);
+}
+
+function outfitPicksHtml(suitcase, selectedIds) {
+  const selected = new Set(selectedIds);
+  const items = uniqueItemsById(suitcase.items);
+  if (!items.length) {
+    return '<p class="pc-muted" id="outfit-picks-empty">Type an item below to add it to this look and the packing list.</p>';
+  }
+  return items.map((item) => `
+    <label class="pc-toggle-chip">
+      <input type="checkbox" data-outfit-item="${escapeAttr(item.id)}" ${selected.has(item.id) ? 'checked' : ''}>
+      ${escapeHtml(item.label)}
+    </label>`).join('');
+}
+
+function refreshOutfitPicks(rootEl, suitcase, selectedIds) {
+  const mount = rootEl.querySelector('#outfit-picks');
+  if (mount) mount.innerHTML = outfitPicksHtml(suitcase, selectedIds);
+}
+
 function openOutfitModal(editId) {
   const suitcase = activeSuitcase();
-  const existing = editId ? suitcase.outfits.find((o) => o.id === editId) : null;
+  let existing = editId ? suitcase.outfits.find((o) => o.id === editId) : null;
   const overlay = document.getElementById('outfit-overlay');
   const rootEl = document.getElementById('outfit-modal-root');
   if (!overlay || !rootEl) return;
+  const days = suitcase.days || [];
   rootEl.innerHTML = `
     <div class="b-head-row">
       <h2 class="b-h1">${existing ? 'Edit outfit' : 'New outfit'}</h2>
       <button type="button" class="pc-preview-close" id="outfit-close" aria-label="Close">&times;</button>
     </div>
-    <p class="b-lede">An outfit is a look on this trip — it is not saved to My Cubes.</p>
+    <p class="b-lede">An outfit is a look on this trip — it is not saved to My Cubes. A date is optional.</p>
     <div class="b-field">
       <label for="outfit-name">Name</label>
       <input type="text" id="outfit-name" class="pc-input" value="${escapeAttr(existing?.name || '')}" placeholder="Ceremony, rehearsal dinner…" maxlength="80">
@@ -1318,22 +1347,23 @@ function openOutfitModal(editId) {
       <label for="outfit-event">Event <span class="b-optional">optional</span></label>
       <input type="text" id="outfit-event" class="pc-input" value="${escapeAttr(existing?.event || '')}" placeholder="Saturday wedding" maxlength="80">
     </div>
-    <div class="b-field">
-      <label for="outfit-date">Date <span class="b-optional">optional</span></label>
-      <select id="outfit-date" class="pc-input">
-        <option value="">No date yet</option>
-        ${(suitcase.days || []).map((d) => `<option value="${escapeAttr(d.date)}" ${existing?.date === d.date ? 'selected' : ''}>${escapeHtml(dayLabel(suitcase, d.date))}</option>`).join('')}
-      </select>
-    </div>
-    <p class="pc-section-label">Items on this list</p>
-    <div class="pc-outfit-picks">
-      ${suitcase.items.length
-        ? suitcase.items.map((item) => `
-            <label class="pc-toggle-chip">
-              <input type="checkbox" data-outfit-item="${escapeAttr(item.id)}" ${(existing?.itemIds || []).includes(item.id) ? 'checked' : ''}>
-              ${escapeHtml(item.label)}
-            </label>`).join('')
-        : '<p class="pc-muted">Add items to the packing list first, then file them into this look.</p>'}
+    ${days.length ? `
+      <div class="b-field">
+        <label for="outfit-date">Date <span class="b-optional">optional — looks do not need a day</span></label>
+        <select id="outfit-date" class="pc-input">
+          <option value="">No date</option>
+          ${days.map((d) => `<option value="${escapeAttr(d.date)}" ${existing?.date === d.date ? 'selected' : ''}>${escapeHtml(dayLabel(suitcase, d.date))}</option>`).join('')}
+        </select>
+      </div>
+    ` : '<input type="hidden" id="outfit-date" value="">'}
+    <p class="pc-section-label">Items</p>
+    <form class="pc-quick-add pc-outfit-add" id="outfit-quick-add">
+      <label class="pc-sr-only" for="outfit-new-item">Add an item to this outfit</label>
+      <input type="text" id="outfit-new-item" class="pc-input" placeholder="Add an item — navy suit, dress shoes…" autocomplete="off">
+      <button type="submit" class="pc-btn sm">Add</button>
+    </form>
+    <div class="pc-outfit-picks" id="outfit-picks">
+      ${outfitPicksHtml(suitcase, existing?.itemIds || [])}
     </div>
     <div class="b-save-bar">
       <button type="button" class="pc-btn primary" id="outfit-save">${existing ? 'Save' : 'Create outfit'}</button>
@@ -1341,22 +1371,38 @@ function openOutfitModal(editId) {
   `;
   overlay.classList.remove('hidden');
   document.getElementById('outfit-close').addEventListener('click', closeOutfitModal);
+  document.getElementById('outfit-quick-add').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const input = document.getElementById('outfit-new-item');
+    const selected = new Set(selectedOutfitItemIds(rootEl));
+    const item = existing
+      ? addItemToOutfit(suitcase, existing.id, input.value)
+      : ensureListItem(suitcase, input.value);
+    if (!item) return;
+    selected.add(item.id);
+    input.value = '';
+    input.focus();
+    saveState();
+    refreshOutfitPicks(rootEl, suitcase, [...selected]);
+  });
   document.getElementById('outfit-save').addEventListener('click', () => {
     const name = document.getElementById('outfit-name').value;
     const event = document.getElementById('outfit-event').value;
-    const date = document.getElementById('outfit-date').value || null;
-    const itemIds = [...rootEl.querySelectorAll('[data-outfit-item]:checked')].map((el) => el.dataset.outfitItem);
+    const dateField = document.getElementById('outfit-date');
+    const date = (dateField && dateField.value) ? dateField.value : null;
+    const itemIds = selectedOutfitItemIds(rootEl);
     if (existing) {
       if (!updateOutfit(suitcase, existing.id, { name, event, date, itemIds })) {
         showToast('An outfit needs a name.');
         return;
       }
     } else {
-      const created = addOutfit(suitcase, { name, event, date, itemIds });
+      const created = addOutfit(suitcase, { name, event, date: null, itemIds });
       if (!created) {
         showToast(name.trim() ? `Trips hold at most 40 outfits.` : 'An outfit needs a name.');
         return;
       }
+      if (date) setOutfitDate(suitcase, created.id, date);
     }
     saveState();
     closeOutfitModal();
@@ -1393,7 +1439,7 @@ function renderList() {
   }
 
   if (listView === 'list') {
-    const items = visibleItems(suitcase.items);
+    const items = visibleItems(uniqueItemsById(suitcase.items));
     mount.innerHTML = items.length
       ? `<ul class="pc-checklist ${organizeMode ? 'organizing' : ''}">
           ${items.map((item) => itemRowHtml(item, { showCubeChip: true, cubeMap })).join('')}
@@ -1407,7 +1453,7 @@ function renderList() {
   const groups = groupedItems(suitcase, cubeMap, { includeEmptyAddOns: organizeMode });
   let anyVisible = false;
   mount.innerHTML = groups.map((group) => {
-    const items = visibleItems(group.items);
+    const items = visibleItems(uniqueItemsById(group.items));
     const isUnsorted = group.key === UNSORTED_KEY;
     const isAddOnGroup = !!group.addOnId;
     // Hide groups whose items were all filtered away; keep genuinely empty

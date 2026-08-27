@@ -436,17 +436,19 @@ export function normalizeSuitcase(raw) {
   const dayDates = new Set(days.map((d) => d.date));
   const startDate = isIsoDate(s.startDate) ? s.startDate : null;
   const endDate = isIsoDate(s.endDate) && (!startDate || s.endDate >= startDate) ? s.endDate : null;
-  const items = (Array.isArray(s.items) ? s.items : [])
-    .filter((i) => i && typeof i.label === 'string')
-    .map((i) => ({
-      id: i.id || newId(),
-      label: i.label,
-      cubeId: i.cubeId || null,
-      addOnId: i.addOnId || null,
-      packed: !!i.packed,
-      // Discard numbered-day draft (`dayIds`). Keep only ISO dates on this trip.
-      dates: normalizeDateList(i.dates).filter((d) => dayDates.has(d)),
-    }));
+  const items = uniqueItemsById(
+    (Array.isArray(s.items) ? s.items : [])
+      .filter((i) => i && typeof i.label === 'string')
+      .map((i) => ({
+        id: i.id || newId(),
+        label: i.label,
+        cubeId: i.cubeId || null,
+        addOnId: i.addOnId || null,
+        packed: !!i.packed,
+        // Discard numbered-day draft (`dayIds`). Keep only ISO dates on this trip.
+        dates: normalizeDateList(i.dates).filter((d) => dayDates.has(d)),
+      })),
+  );
   return {
     v: SUITCASE_VERSION,
     id: s.id || newId(),
@@ -471,6 +473,27 @@ export function addItem(suitcase, label, { cubeId = null } = {}) {
   const item = newItem(trimmed, { cubeId });
   suitcase.items.push(item);
   return item;
+}
+
+/** First list row with this label, or a new row. Never a second inventory line. */
+export function ensureListItem(suitcase, label, { cubeId = null } = {}) {
+  const trimmed = String(label || '').trim();
+  if (!trimmed) return null;
+  const existing = (suitcase.items || []).find((i) => itemKey(i.label) === itemKey(trimmed));
+  if (existing) return existing;
+  return addItem(suitcase, trimmed, { cubeId });
+}
+
+/** Keep the first occurrence of each item id — outfits share rows, they do not clone them. */
+export function uniqueItemsById(items) {
+  const seen = new Set();
+  const out = [];
+  for (const item of items || []) {
+    if (!item || !item.id || seen.has(item.id)) continue;
+    seen.add(item.id);
+    out.push(item);
+  }
+  return out;
 }
 
 export function removeItem(suitcase, itemId) {
@@ -661,19 +684,21 @@ export function groupedItems(suitcase, cubesById, { includeEmptyAddOns = false }
   for (const cubeId of suitcase.cubeIds) addCubeGroups(cubeId);
 
   const unsorted = [];
-  for (const item of suitcase.items) {
+  for (const item of uniqueItemsById(suitcase.items)) {
     if (!item.cubeId) {
       unsorted.push(item);
     } else if (item.addOnId) {
       const cube = cubesById?.get?.(item.cubeId);
       const addOn = cubeAddOns(cube).find((a) => a.id === item.addOnId);
-      ensure(
+      const group = ensure(
         addonGroupKey(item.cubeId, item.addOnId),
         addOn ? addOnLabel(cube || { id: item.cubeId }, addOn) : addOnLabel({ title: cube?.title || item.cubeId }, { title: item.addOnId }),
         { cubeId: item.cubeId, addOnId: item.addOnId },
-      ).items.push(item);
+      );
+      if (!group.items.some((row) => row.id === item.id)) group.items.push(item);
     } else {
-      ensure(item.cubeId, cubesById?.get?.(item.cubeId)?.title || item.cubeId, { cubeId: item.cubeId }).items.push(item);
+      const group = ensure(item.cubeId, cubesById?.get?.(item.cubeId)?.title || item.cubeId, { cubeId: item.cubeId });
+      if (!group.items.some((row) => row.id === item.id)) group.items.push(item);
     }
   }
   if (unsorted.length) {
@@ -838,8 +863,24 @@ export function setOutfitItems(suitcase, outfitId, itemIds) {
 export function setOutfitDate(suitcase, outfitId, date) {
   const outfit = (suitcase.outfits || []).find((o) => o.id === outfitId);
   if (!outfit) return false;
+  // Date is optional. Empty / invalid / unknown day → null. Never invent a date.
   outfit.date = isIsoDate(date) && hasDay(suitcase, date) ? date : null;
   return true;
+}
+
+/**
+ * Add a label to the trip list (reuse an existing row by name) and attach it
+ * to this outfit. Does not invent a date.
+ */
+export function addItemToOutfit(suitcase, outfitId, label) {
+  const item = ensureListItem(suitcase, label);
+  if (!item) return null;
+  const outfit = (suitcase.outfits || []).find((o) => o.id === outfitId);
+  if (!outfit) return item;
+  if (!outfit.itemIds.includes(item.id) && outfit.itemIds.length < MAX_OUTFIT_ITEMS) {
+    outfit.itemIds.push(item.id);
+  }
+  return item;
 }
 
 export function searchPastOutfits(suitcases, currentId, query) {

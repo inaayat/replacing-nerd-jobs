@@ -52,7 +52,11 @@ truth** — days and outfits never invent a second inventory.
   as outfits **on this trip**. They do not appear in My Cubes and are not
   cubes.
 - As a packer, I build an outfit by picking items already on this trip's
-  list (grouping, not a second stock).
+  list **or typing new ones in the create/edit view**. A typed item is added
+  to the packing list once and attached to the outfit. Two outfits can share
+  that same list row.
+- As a packer, I can save an outfit with **no date**. A look does not need
+  a day. The date field is optional and never auto-filled.
 - As a packer, I optionally label the event ("Saturday wedding").
 - As a packer, I search outfits I used on past trips ("navy suit",
   "rehearsal") and copy one onto the current trip. Copying never creates a
@@ -145,9 +149,15 @@ Rehearsal dinner
 
 - Name (required)
 - Event label (optional)
-- Date (optional select of this trip's dates)
-- Checklist of **this trip's packing-list items** (multi-select). Creating
-  an outfit never writes `pc_cubes`.
+- Date (optional select of this trip's dates — hidden if the trip has no
+  days yet). **Never required. Never auto-assigned.** Saving with no date
+  is the normal path.
+- Quick-add: type a label, Add. That creates the item on the trip packing
+  list (or reuses the existing row with the same name) **and** attaches it
+  to this outfit. Existing list items stay selectable as chips.
+- Creating an outfit never writes `pc_cubes`.
+- List and By cube show each packing-list item **once** (dedupe by item
+  id). Sharing an item across outfits does not clone the row.
 
 **Search past outfits** is a typeahead over every other suitcase in
 `state.suitcases` (see §8). Picking a hit opens a confirm:
@@ -366,9 +376,13 @@ if the stored view is a beta view and beta is off, treat it as `list`.
 suitcase**. It is not a cube, not in `pc_cubes`, not in My Cubes, not
 `includeByDefault`, not publishable.
 
-- Create from items already on the list. Empty outfits are allowed.
-- Optional `event` string. Optional `date`.
-- **Locked:** an item **may** sit on two outfits the same day.
+- Build from items already on the list **or** quick-add in the create/edit
+  view (`ensureListItem` / `addItemToOutfit`). Empty outfits are allowed.
+- Optional `event` string. **Optional `date` — null is valid. Do not
+  require a date. Do not auto-assign the first trip day.**
+- **Locked:** an item **may** sit on two outfits. That is one packing-list
+  row (`uniqueItemsById`), one packed checkbox. Outfits are groupings, not
+  extra inventory.
 - **Locked:** names only for v1. No photo field.
 - Remove outfit: grouping gone; items stay on the list and on their dates.
 - Delete trip: outfits go with the suitcase.

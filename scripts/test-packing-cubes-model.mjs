@@ -53,6 +53,9 @@ import {
   setOutfitDate,
   searchPastOutfits,
   copyOutfit,
+  ensureListItem,
+  uniqueItemsById,
+  addItemToOutfit,
   normalizePrefs,
   MAX_DAYS,
   UNSORTED_KEY,
@@ -435,6 +438,30 @@ addItem(skip, 'Navy suit');
 const partial = copyOutfit(past, past.outfits[0], skip, { addMissing: false });
 check('copy grouping only skips missing', skip.items.map((i) => i.label), ['Navy suit']);
 check('partial copy has one item', partial.itemIds.length, 1);
+
+const undated = newSuitcase('No dates yet');
+const bare = addOutfit(undated, { name: 'Ceremony' });
+check('outfit saves with no date', [bare.date, bare.itemIds], [null, []]);
+check('empty-string date stays unset', addOutfit(undated, { name: 'Dinner', date: '' }).date, null);
+check('updateOutfit can clear a date', (() => {
+  addDay(undated, '2026-06-13');
+  setOutfitDate(undated, bare.id, '2026-06-13');
+  updateOutfit(undated, bare.id, { date: null });
+  return undated.outfits.find((o) => o.id === bare.id).date;
+})(), null);
+
+const shared = newSuitcase('Shared item');
+const lookA = addOutfit(shared, { name: 'Ceremony' });
+const lookB = addOutfit(shared, { name: 'Dinner' });
+const blazer = addItemToOutfit(shared, lookA.id, 'Navy blazer');
+const again = addItemToOutfit(shared, lookB.id, '  navy blazer ');
+check('addItemToOutfit reuses the list row', [blazer.id, again.id], [again.id, blazer.id]);
+check('two outfits share one list item', shared.items.filter((i) => itemKey(i.label) === 'navy blazer').length, 1);
+check('both outfits point at the same id', [lookA.itemIds, lookB.itemIds], [[blazer.id], [blazer.id]]);
+check('ensureListItem does not clone a label', ensureListItem(shared, 'Navy blazer').id, blazer.id);
+check('uniqueItemsById keeps one row', uniqueItemsById([blazer, blazer, again]).map((i) => i.id), [blazer.id]);
+const duped = { ...shared, items: [shared.items[0], { ...shared.items[0] }] };
+check('List/By cube would see one row', uniqueItemsById(duped.items).length, 1);
 
 check('prefs default off', normalizePrefs(null), { betaViews: false });
 check('prefs reads the flag', normalizePrefs({ betaViews: true }), { betaViews: true });
