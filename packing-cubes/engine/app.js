@@ -1207,27 +1207,71 @@ function outfitSummary(suitcase, outfit) {
 }
 
 function renderDayView(mount, suitcase) {
+  // Keep the date toolbar mounted. Chrome fires `change` when you leave the
+  // day/month segment and start the year; wiping innerHTML would steal focus.
+  if (!mount.querySelector('.pc-day-toolbar')) {
+    mount.innerHTML = `
+      <div class="pc-day-toolbar">
+        <label class="pc-auth-field">
+          <span>Start</span>
+          <input type="date" class="pc-input" id="trip-start" value="${escapeAttr(suitcase.startDate || '')}">
+        </label>
+        <label class="pc-auth-field">
+          <span>End</span>
+          <input type="date" class="pc-input" id="trip-end" value="${escapeAttr(suitcase.endDate || '')}">
+        </label>
+        <label class="pc-auth-field">
+          <span>Add a date</span>
+          <input type="date" class="pc-input" id="add-day-date" value="">
+        </label>
+        <button type="button" class="pc-btn sm" id="add-day-btn">Add</button>
+      </div>
+      <div id="pc-day-cards"></div>`;
+    bindDayToolbar(mount);
+  } else {
+    const start = mount.querySelector('#trip-start');
+    const end = mount.querySelector('#trip-end');
+    if (start && document.activeElement !== start) start.value = suitcase.startDate || '';
+    if (end && document.activeElement !== end) end.value = suitcase.endDate || '';
+  }
+  paintDayCards(mount.querySelector('#pc-day-cards'), suitcase);
+}
+
+function bindDayToolbar(mount) {
+  const applyRange = () => {
+    const suitcase = activeSuitcase();
+    const start = mount.querySelector('#trip-start').value || null;
+    const end = mount.querySelector('#trip-end').value || null;
+    const added = setTripDates(suitcase, { startDate: start, endDate: end });
+    saveState();
+    renderList();
+    if (start && end && start <= end && suitcase.days.length >= MAX_DAYS && added === 0 && datesLongerThanCap(start, end)) {
+      showToast(`Trips show at most ${MAX_DAYS} days.`);
+    }
+  };
+  mount.querySelector('#trip-start').addEventListener('change', applyRange);
+  mount.querySelector('#trip-end').addEventListener('change', applyRange);
+  mount.querySelector('#add-day-btn').addEventListener('click', () => {
+    const suitcase = activeSuitcase();
+    const date = mount.querySelector('#add-day-date').value;
+    if (!date) return;
+    if (!addDay(suitcase, date)) {
+      showToast(suitcase.days.some((d) => d.date === date) ? 'That date is already on the trip.' : `Trips show at most ${MAX_DAYS} days.`);
+      return;
+    }
+    saveState();
+    renderList();
+  });
+}
+
+function paintDayCards(cards, suitcase) {
+  if (!cards) return;
   const q = listFilter.trim().toLowerCase();
   const match = (label) => !q || String(label || '').toLowerCase().includes(q);
   const unassigned = unassignedDateItems(suitcase).filter((i) => match(i.label));
   const days = suitcase.days || [];
 
-  mount.innerHTML = `
-    <div class="pc-day-toolbar">
-      <label class="pc-auth-field">
-        <span>Start</span>
-        <input type="date" class="pc-input" id="trip-start" value="${escapeAttr(suitcase.startDate || '')}">
-      </label>
-      <label class="pc-auth-field">
-        <span>End</span>
-        <input type="date" class="pc-input" id="trip-end" value="${escapeAttr(suitcase.endDate || '')}">
-      </label>
-      <label class="pc-auth-field">
-        <span>Add a date</span>
-        <input type="date" class="pc-input" id="add-day-date" value="">
-      </label>
-      <button type="button" class="pc-btn sm" id="add-day-btn">Add</button>
-    </div>
+  cards.innerHTML = `
     ${days.length ? days.map((day) => {
       const outfits = outfitsForDate(suitcase, day.date);
       const inOutfit = new Set(outfits.flatMap((o) => o.itemIds || []));
@@ -1277,52 +1321,30 @@ function renderDayView(mount, suitcase) {
     </section>
   `;
 
-  const applyRange = () => {
-    const start = document.getElementById('trip-start').value || null;
-    const end = document.getElementById('trip-end').value || null;
-    const added = setTripDates(suitcase, { startDate: start, endDate: end });
-    saveState();
-    renderList();
-    if (start && end && start <= end && suitcase.days.length >= MAX_DAYS && added === 0 && datesLongerThanCap(start, end)) {
-      showToast(`Trips show at most ${MAX_DAYS} days.`);
-    }
-  };
-  document.getElementById('trip-start').addEventListener('change', applyRange);
-  document.getElementById('trip-end').addEventListener('change', applyRange);
-  document.getElementById('add-day-btn').addEventListener('click', () => {
-    const date = document.getElementById('add-day-date').value;
-    if (!date) return;
-    if (!addDay(suitcase, date)) {
-      showToast(suitcase.days.some((d) => d.date === date) ? 'That date is already on the trip.' : `Trips show at most ${MAX_DAYS} days.`);
-      return;
-    }
-    saveState();
-    renderList();
-  });
-  mount.querySelectorAll('.pc-remove-day').forEach((btn) => {
+  cards.querySelectorAll('.pc-remove-day').forEach((btn) => {
     btn.addEventListener('click', () => {
-      removeDay(suitcase, btn.dataset.date);
+      removeDay(activeSuitcase(), btn.dataset.date);
       saveState();
       renderList();
     });
   });
-  mount.querySelectorAll('.pc-assign-item').forEach((sel) => {
+  cards.querySelectorAll('.pc-assign-item').forEach((sel) => {
     sel.addEventListener('change', () => {
       if (!sel.value) return;
-      assignItemDate(suitcase, sel.value, sel.dataset.date, true);
+      assignItemDate(activeSuitcase(), sel.value, sel.dataset.date, true);
       saveState();
       renderList();
     });
   });
-  mount.querySelectorAll('.pc-unassign-day').forEach((btn) => {
+  cards.querySelectorAll('.pc-unassign-day').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      assignItemDate(suitcase, btn.dataset.itemId, btn.dataset.date, false);
+      assignItemDate(activeSuitcase(), btn.dataset.itemId, btn.dataset.date, false);
       saveState();
       renderList();
     });
   });
-  bindItemRows(mount, suitcase);
+  bindItemRows(cards, activeSuitcase());
 }
 
 function datesLongerThanCap(start, end) {
