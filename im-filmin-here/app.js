@@ -1,4 +1,4 @@
-// I'm Filmin Here — curated Upper West Side film & TV locations.
+// I'm Filmin Here — curated Manhattan film & TV locations (W 59th–W 145th).
 //
 // The default page is a small, walkable map of named places. Live city
 // permits live on /im-filmin-here/permits/. The camera fits the current
@@ -406,7 +406,7 @@ async function main() {
     bounds: camera,
     fitBoundsOptions: { padding: FIT_PAD },
     maxBounds: paddedBounds(camera, 0.018),
-    minZoom: 12,
+    minZoom: 11,
     attributionControl: { compact: true },
   });
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
@@ -417,7 +417,7 @@ async function main() {
     addLayers(map);
     refresh();
     const stats = statsOf(state.places);
-    setStatus(`${number(stats.places)} Upper West Side places · in beta`);
+    setStatus(`${number(stats.places)} places, 59th to 145th · in beta`);
     window.setTimeout(() => setStatus(''), 2800);
   });
 }

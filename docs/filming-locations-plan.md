@@ -5,10 +5,11 @@ Auth: **none.** Static pages, no serverless function, no Neon.
 
 Two pages, one product:
 
-1. **Locations** (`/im-filmin-here/`) — the default. A curated Upper West Side
-   map of named film and TV places (W 59th–W 110th). In beta and a growing
-   list. The camera fits the current pins so the map stays walkable; it zooms
-   out only when farther places are added.
+1. **Locations** (`/im-filmin-here/`) — the default. A curated map of named
+   film and TV places from W 59th to W 145th (Upper West Side, Central Park,
+   Morningside Heights, Harlem). In beta and a growing list. The camera fits
+   the current pins so the map stays walkable; it zooms out only when farther
+   places are added.
 2. **NYC Film Permit Map** (`/im-filmin-here/permits/`) — the original
    city-wide layer: every Manhattan shooting permit, live from the city's API,
    no production titles.
@@ -23,7 +24,7 @@ walk and still cannot name a show. Both stay.
 
 | Decision | Call |
 |----------|------|
-| Geography | Upper West Side, W 59th–W 110th |
+| Geography | W 59th–W 145th (UWS, Central Park, Morningside, Harlem) |
 | Data | Committed catalog `data/locations.json` (one place, many productions) |
 | Camera | `boundsOf` the current pins, padded. Corridor-precision pins stay visible but do not set the view |
 | Copy | “In beta and a growing list” |
@@ -164,7 +165,7 @@ input looks exactly like a map that doesn't.
 
 ```
 /im-filmin-here/
-├── index.html          ← UWS locations shell (default)
+├── index.html          ← locations shell (default, 59th–145th)
 ├── app.js              ← MapLibre wiring for the curated pins
 ├── locations.js        ← catalog helpers: filter, bounds, GeoJSON
 ├── app.css             ← shared chrome
@@ -176,7 +177,7 @@ input looks exactly like a map that doesn't.
 │   ├── index.html      ← NYC Film Permit Map
 │   └── app.js          ← live fetch + rollup rendering
 └── data/
-    ├── locations.json  ← curated UWS catalog
+    ├── locations.json  ← curated 59th–145th catalog
     └── streets.json    ← generated; refresh with the pull script
 ```
 
@@ -192,7 +193,7 @@ Site conventions this respects:
 Tests: `node scripts/test-im-filmin-here.mjs` covers normalization, ParkingHeld
 parsing, the SoQL cut (including that theater, rigging, and News cannot get in),
 slicing, the rollup, landmark spot-checks against the committed grid, and the
-UWS catalog (45 scenes, bounds stay neighborhood-scale, a farther pin opens
+location catalog (108 scenes, bounds stay 59th–145th, a farther pin opens
 the camera).
 
 ---
