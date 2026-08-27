@@ -355,14 +355,21 @@ signed-out visitor had nothing to look at and a list that silently lived on one 
 
 - `renderSignInGate()` is the default view when signed out (or when Neon Auth isn't configured):
   a centered card with a small packed-suitcase illustration (`SUITCASE_ART`, inline SVG —
-  decorative, `role="img"` + label), one sentence of what the app does, and a single
-  "Log in to start packing" button that carries `?next=` back here. Sign-up is the same button,
-  since `/account.html` handles both.
+  decorative, `role="img"` + label) and one sentence of what the app does. Sign in / Sign up
+  are on the card itself (see Round 10). `/account.html` is only for manage-account / delete.
 - Guest mode is gone entirely: no device-only list, no guest footer banner, no signed-out branch
   in the cube rail's empty state, `canEditCube`, `loadCatalog`, or `fetchCube`. `localStorage`
   stays as the instant-read cache and the local→cloud migration source on first sign-in.
 - A 401 (at boot **or** mid-edit during a sync) now returns to the gate with "Your session
   expired", instead of quietly demoting the session to device-local. The pending change is still
   in `localStorage`, so signing back in picks it up.
-- Nav's "+ New cube" from the gate redirects to sign-in rather than no-opping against a modal
+- Nav's "+ New cube" from the gate focuses the inline form rather than no-opping against a modal
   that isn't in the DOM.
+
+## Round 10 — sign-in form on the gate
+
+The bounce to `/account.html?next=` was a second page for a two-field form. The gate now
+mounts the shared `engine/sign-in-form.js` helper (email / password, plus name on sign-up)
+and stays on `/packing-cubes/` after `loginViaApi` + `storeAuthToken`. Nav "Log in" focuses
+the form; a small "Manage account" link still goes to `/account.html` for deletion. The same
+card is used on the standalone builder and cube pages when signed out.

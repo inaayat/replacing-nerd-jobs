@@ -350,7 +350,8 @@ button:focus-visible {
   .b-field select,
   .b-field textarea,
   .pc-list-controls select,
-  .pc-item-cube-select {
+  .pc-item-cube-select,
+  .pc-auth input {
     font-size: 16px;
   }
 }
@@ -458,6 +459,131 @@ button:focus-visible {
 }
 
 .hidden { display: none !important; }
+
+/* ── Sign-in gate (inline form; used on the app, builder, and cube pages) ── */
+.pc-gate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 130px);
+  padding: 24px 16px 48px;
+}
+
+.pc-gate-card {
+  background: var(--card);
+  border: var(--outline);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 32px 28px 26px;
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+}
+
+.pc-gate-art {
+  display: block;
+  margin: 0 auto 14px;
+  max-width: 60%;
+  height: auto;
+}
+
+.pc-gate-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 8px;
+}
+
+.pc-gate-copy {
+  font-size: 0.88rem;
+  color: var(--muted);
+  line-height: 1.55;
+  margin: 0 0 20px;
+}
+
+.pc-gate-error {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--danger-soft);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  margin: 0 0 16px;
+  text-align: left;
+}
+
+.pc-gate-btn {
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 0.92rem;
+}
+
+.pc-gate-small {
+  font-size: 0.76rem;
+  color: var(--faint);
+  margin: 12px 0 0;
+  line-height: 1.45;
+}
+
+.pc-gate-small a { color: var(--ink); }
+
+.pc-auth { text-align: left; }
+
+.pc-auth-tabs {
+  display: flex;
+  border: var(--outline);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--chip);
+  margin: 0 0 16px;
+}
+
+.pc-auth-tab {
+  flex: 1;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.pc-auth-tab.is-active {
+  background: var(--ink);
+  color: var(--card);
+}
+
+.pc-auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pc-auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+}
+
+.pc-auth-field span {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.pc-auth-error {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--danger);
+  margin: 10px 0 0;
+}
+
+.pc-auth .pc-gate-btn { margin-top: 4px; }
 
 /* Toast */
 .pc-toast {

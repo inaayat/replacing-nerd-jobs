@@ -5,7 +5,7 @@
 // All list/cube semantics live in the pure module ./model.js (tested by
 // scripts/test-packing-cubes-model.mjs); this file is fetch + DOM only.
 import { initBuilder } from './builder.js';
-import { initAuth, wireAuthLink, refreshToken } from './auth.js';
+import { initAuth, wireAuthLink, refreshToken, renderPackingSignIn, focusPackingAuthForm } from './auth.js';
 import { cubesApi, suitcasesApi } from './api.js';
 import {
   matchesQuery,
@@ -531,7 +531,7 @@ async function deleteCubeEverywhere(cubeId) {
 
 function openBuilderModal(editId) {
   if (!auth?.signedIn || !auth.token) {
-    location.href = `/account.html?next=${encodeURIComponent('/packing-cubes/')}`;
+    if (!focusPackingAuthForm()) location.href = '/packing-cubes/';
     return;
   }
   const overlay = document.getElementById('builder-overlay');
@@ -997,23 +997,21 @@ document.addEventListener('click', (e) => {
  * account, so there is nothing meaningful to show a stranger.
  */
 function renderSignInGate() {
-  const loginHref = `/account.html?next=${encodeURIComponent(location.pathname + location.search)}`;
   const note = !auth?.configured
     ? '<p class="pc-gate-error">Sign-in isn’t configured on this deployment yet.</p>'
     : (auth?.needsReauth ? '<p class="pc-gate-error">Your session expired. Sign in again to pick up where you left off.</p>' : '');
 
-  root.innerHTML = `
-    <div class="pc-gate">
-      <div class="pc-gate-card">
-        ${SUITCASE_ART}
-        <h1 class="pc-gate-title">Packing Cubes</h1>
-        <p class="pc-gate-copy">Write your packing list, tick things off as they go in the bag, and save the groups you repeat every trip.</p>
-        ${note}
-        <a class="pc-btn primary pc-gate-btn" href="${loginHref}">Log in to start packing</a>
-        <p class="pc-gate-small">New here? The same button signs you up.</p>
-      </div>
-    </div>
-  `;
+  renderPackingSignIn(root, {
+    art: SUITCASE_ART,
+    title: 'Packing Cubes',
+    copy: 'Write your packing list, tick things off as they go in the bag, and save the groups you repeat every trip.',
+    note,
+    onSuccess: () => location.reload(),
+  });
+  if (!auth?.configured) {
+    const form = root.querySelector('#pc-auth');
+    if (form) form.hidden = true;
+  }
   wireAuthLink(auth || { configured: true, signedIn: false });
 }
 

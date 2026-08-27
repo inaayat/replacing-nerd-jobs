@@ -33,8 +33,9 @@ All list/cube semantics live in the pure module `packing-cubes/engine/model.js`
 (`v: 2`) and v1 suitcases migrate client-side. Cubes and suitcase state sync to
 Neon (`pc_cubes`, with an `add_ons` JSONB column, and `pc_suitcase_state`) via
 `api/packing-cubes.js`. **Signing in is required** — the default view is a
-centered log-in card with a suitcase illustration, since both lists and cubes
-live on the account. Installable PWA (`manifest.webmanifest`, icons via
+centered card with the Sign in / Sign up form on the page (same Neon Auth JWT
+as the rest of the site; account delete stays on `/account.html`). Installable
+PWA (`manifest.webmanifest`, icons via
 `node scripts/generate-packing-cubes-icons.mjs`), same pattern as A-Lister /
 Sticky Notes.
 
@@ -496,7 +497,8 @@ deletion, etc.
 
 | Piece | Role |
 |---|---|
-| `account.html` | Sign-in / sign-up / account / delete UI |
+| `account.html` | Site-wide account page (sign-in / sign-up / profile / delete) |
+| `engine/sign-in-form.js` | Shared Sign in / Sign up form markup + submit wiring (Packing Cubes gate; A-Lister still has its own page) |
 | `engine/neon-browser-auth.js` | Shared browser helper: load Neon client, store JWT in `localStorage`, PWA-friendly API login |
 | `api/auth-config.js` | Returns `{ url: NEON_AUTH_BASE_URL }` so the browser never hardcodes it |
 | `api/auth-login.js` | Server-side sign-in/sign-up that returns a JWT (needed because mobile PWAs often block third-party auth cookies) |
@@ -631,7 +633,8 @@ so the catalog stays consistent without hand-editing the manifest in PRs.
 │
 ├── fonts/                      ← Atkinson Hyperlegible
 ├── engine/
-│   └── neon-browser-auth.js    ← shared browser Neon Auth helpers
+│   ├── neon-browser-auth.js    ← shared browser Neon Auth helpers
+│   └── sign-in-form.js         ← shared Sign in / Sign up form (used by Packing Cubes)
 │
 ├── api/                        ← serverless functions (10/12 Hobby slots used)
 │   ├── auth-config.js          ← exposes NEON_AUTH_BASE_URL

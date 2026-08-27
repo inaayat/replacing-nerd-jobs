@@ -3,7 +3,7 @@
 // publish, so there is no id field and no visibility choice here.
 // Exported as initBuilder() so it can run standalone on builder.html or
 // inline inside a modal on the main packing-cubes page.
-import { initAuth, wireAuthLink, refreshToken } from './auth.js';
+import { initAuth, wireAuthLink, refreshToken, renderPackingSignIn } from './auth.js';
 import { cubesApi } from './api.js';
 
 export function initBuilder({ root, editId = null, auth: passedAuth = null, onSaved, onClose } = {}) {
@@ -325,8 +325,17 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onSa
       if (auth.configured && auth.user && !auth.token) await refreshToken(auth);
     }
     if (!auth.signedIn || !auth.token) {
-      const loginHref = `/account.html?next=${encodeURIComponent(location.pathname + location.search)}`;
-      root.innerHTML = `<p class="b-signin">Sign in to build cubes. <a href="${loginHref}">Log in</a></p>`;
+      renderPackingSignIn(root, {
+        title: 'Sign in to build cubes',
+        copy: 'Cubes live on your account so you can reuse them on every trip.',
+        note: !auth.configured
+          ? '<p class="pc-gate-error">Sign-in isn’t configured on this deployment yet.</p>'
+          : '',
+      });
+      if (!auth.configured) {
+        const form = root.querySelector('#pc-auth');
+        if (form) form.hidden = true;
+      }
       wireAuthLink(auth);
       return;
     }
