@@ -66,7 +66,7 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onSa
         <div class="b-block-head">
           <h2 class="b-h2">Add-ons <span class="b-optional">optional</span></h2>
         </div>
-        <p class="b-hint">Extras you only sometimes take, grouped and named — travel meds, hair tools. You can switch them on per trip instead of building another cube.</p>
+        <p class="b-hint">Extras you only sometimes take, grouped and named — travel meds, hair tools. Leave the items blank to create the add-on first and file into it later. You can switch them on per trip instead of building another cube.</p>
         <div id="addons-mount"></div>
         <button type="button" class="b-add-row-btn" id="add-addon-btn">+ Add an add-on</button>
       </div>
@@ -91,7 +91,7 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onSa
       focusItem(cube.items.length - 1);
     });
     root.querySelector('#add-addon-btn').addEventListener('click', () => {
-      cube.addOns.push({ title: '', items: [{ label: '' }], includeByDefault: false });
+      cube.addOns.push({ title: '', items: [], includeByDefault: false });
       renderAddOnsEditor();
     });
     root.querySelector('#paste-toggle').addEventListener('click', () => setPasteMode(true));
@@ -208,8 +208,7 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onSa
             <div class="b-item-row" data-item-idx="${ii}">
               <input type="text" class="b-mini-input b-addon-item-label" value="${escapeAttr(item.label)}"
                 placeholder="Item ${ii + 1}" autocomplete="off">
-              <button type="button" class="b-remove-btn b-addon-item-remove" title="Remove" aria-label="Remove item"
-                ${addOn.items.length <= 1 ? 'disabled' : ''}>&times;</button>
+              <button type="button" class="b-remove-btn b-addon-item-remove" title="Remove" aria-label="Remove item">&times;</button>
             </div>`).join('')}
         </div>
         <button type="button" class="b-add-row-btn b-addon-item-add">+ Add item</button>
@@ -239,7 +238,6 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onSa
     mount.querySelectorAll('.b-addon-item-remove').forEach((btn) => {
       btn.addEventListener('click', () => {
         const addOn = addOnAt(btn);
-        if (addOn.items.length <= 1) return;
         addOn.items.splice(Number(btn.closest('.b-item-row').dataset.itemIdx), 1);
         renderAddOnsEditor();
         updateState();
@@ -300,7 +298,7 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onSa
           items: addOn.items.filter((i) => i.label.trim()).map((i) => ({ label: i.label.trim() })),
           includeByDefault: !!addOn.includeByDefault,
         }))
-        .filter((addOn) => addOn.title && addOn.items.length),
+        .filter((addOn) => addOn.title),
     };
   }
 

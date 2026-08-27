@@ -141,6 +141,46 @@ export function addonGroupKey(cubeId, addOnId) {
   return `${cubeId}${ADDON_KEY_SEP}${addOnId}`;
 }
 
+export function outfitGroupKey(outfitId) {
+  return `outfit:${outfitId}`;
+}
+
+function addOnHasTemplateItems(addOn) {
+  return (addOn?.items || []).some((i) => i && String(i.label || '').trim());
+}
+
+function slugishAddOnId(title, taken) {
+  const base = String(title || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '') || 'add-on';
+  let id = base;
+  let n = 2;
+  while (taken.has(id)) {
+    id = `${base}-${n}`;
+    n += 1;
+  }
+  return id;
+}
+
+/** Name an add-on with no items — a bucket to file into later. */
+export function addEmptyAddOn(cube, title) {
+  const name = String(title || '').trim();
+  if (!cube || !name) return null;
+  if (!Array.isArray(cube.addOns)) cube.addOns = [];
+  const existing = cube.addOns.find((a) => itemKey(a.title) === itemKey(name));
+  if (existing) return existing;
+  const addOn = {
+    id: slugishAddOnId(name, new Set(cube.addOns.map((a) => a.id).filter(Boolean))),
+    title: name,
+    items: [],
+    includeByDefault: false,
+  };
+  cube.addOns.push(addOn);
+  return addOn;
+}
+
 export function parseAddonGroupKey(key) {
   const sep = String(key || '').indexOf(ADDON_KEY_SEP);
   if (sep < 0) return { cubeId: key || null, addOnId: null };
@@ -647,32 +687,60 @@ export function releaseDeletedCube(suitcase, cubeId) {
 // ---------------------------------------------------------------------------
 
 /**
- * Group the list by cube for the "By cube" view: attached cubes in suitcase
- * order (kept even when empty, so Organize has drop targets), then each
- * add-on as its own group titled "Parent - Add-on". Items assigned to a
+ * Group the list by cube for the "By cube" view: trip outfits as cube-like
+ * groups first (not real cubes — never pc_cubes), then attached cubes in
+ * suitcase order (kept even when empty, so Organize has drop targets), then
+ * each add-on as its own group titled "Parent - Add-on". Items assigned to a
  * no-longer-attached cube grouped under it too, unsorted last.
  *
- * Pass `{ includeEmptyAddOns: true }` in Organize so unused add-ons still
- * appear as filing targets.
+ * An item in an outfit also sits in its cube/add-on group when filed.
+ * Unsorted items that only belong to an outfit stay under that outfit —
+ * they do not also appear in Unsorted.
+ *
+ * Blank add-ons (no template items) always show, like empty cubes.
+ * Pass `{ includeEmptyAddOns: true }` in Organize so unused seeded add-ons
+ * still appear as filing targets.
  */
 export function groupedItems(suitcase, cubesById, { includeEmptyAddOns = false } = {}) {
   const groups = [];
   const byKey = new Map();
   const ensure = (key, title, meta = {}) => {
     if (!byKey.has(key)) {
-      const g = { key, title, items: [], cubeId: meta.cubeId || null, addOnId: meta.addOnId || null };
+      const g = {
+        key,
+        title,
+        items: [],
+        cubeId: meta.cubeId || null,
+        addOnId: meta.addOnId || null,
+        outfitId: meta.outfitId || null,
+      };
       byKey.set(key, g);
       groups.push(g);
     }
     return byKey.get(key);
   };
 
+  const items = uniqueItemsById(suitcase.items);
+  const byId = new Map(items.map((i) => [i.id, i]));
+  const outfitItemIds = new Set();
+
+  for (const outfit of suitcase.outfits || []) {
+    if (!outfit || !outfit.id) continue;
+    const group = ensure(outfitGroupKey(outfit.id), outfit.name || 'Outfit', { outfitId: outfit.id });
+    for (const id of outfit.itemIds || []) {
+      const item = byId.get(id);
+      if (!item || group.items.some((row) => row.id === item.id)) continue;
+      group.items.push(item);
+      outfitItemIds.add(item.id);
+    }
+  }
+
   const addCubeGroups = (cubeId) => {
     const cube = cubesById?.get?.(cubeId);
     ensure(cubeId, cube?.title || cubeId, { cubeId });
     for (const addOn of cubeAddOns(cube)) {
-      const hasItems = suitcase.items.some((i) => i.cubeId === cubeId && i.addOnId === addOn.id);
-      if (includeEmptyAddOns || hasItems) {
+      const hasItems = items.some((i) => i.cubeId === cubeId && i.addOnId === addOn.id);
+      if (includeEmptyAddOns || hasItems || !addOnHasTemplateItems(addOn)) {
         ensure(addonGroupKey(cubeId, addOn.id), addOnLabel(cube || { id: cubeId }, addOn), {
           cubeId,
           addOnId: addOn.id,
@@ -684,9 +752,9 @@ export function groupedItems(suitcase, cubesById, { includeEmptyAddOns = false }
   for (const cubeId of suitcase.cubeIds) addCubeGroups(cubeId);
 
   const unsorted = [];
-  for (const item of uniqueItemsById(suitcase.items)) {
+  for (const item of items) {
     if (!item.cubeId) {
-      unsorted.push(item);
+      if (!outfitItemIds.has(item.id)) unsorted.push(item);
     } else if (item.addOnId) {
       const cube = cubesById?.get?.(item.cubeId);
       const addOn = cubeAddOns(cube).find((a) => a.id === item.addOnId);

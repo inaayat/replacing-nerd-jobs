@@ -29,6 +29,8 @@ import {
   parseAssignment,
   addOnLabel,
   addonGroupKey,
+  outfitGroupKey,
+  addEmptyAddOn,
   isDefaultCube,
   isDefaultAddOn,
   seedDefaults,
@@ -325,6 +327,74 @@ check(
   organizeGroups.map((g) => g.title),
   ['Toiletries', 'Toiletries - Travel meds', 'Toiletries - Hair tools', 'Toiletries - Beauty Basics'],
 );
+
+const blankCube = {
+  id: 'toiletries',
+  title: 'Toiletries',
+  items: [{ label: 'Toothbrush' }],
+  addOns: [
+    { id: 'travel-meds', title: 'Travel meds', items: [{ label: 'Ibuprofen' }] },
+    { id: 'beauty-basics', title: 'Beauty Basics', items: [{ label: 'Moisturizer' }] },
+  ],
+};
+const createdAddOn = addEmptyAddOn(blankCube, '  Hair tools ');
+check('addEmptyAddOn names a blank add-in', [createdAddOn.title, createdAddOn.items], ['Hair tools', []]);
+check('addEmptyAddOn stamps an id', !!createdAddOn.id, true);
+check('addEmptyAddOn reuses the same title', addEmptyAddOn(blankCube, 'hair tools').id, createdAddOn.id);
+check('addEmptyAddOn rejects a blank name', addEmptyAddOn(blankCube, '   '), null);
+
+const sBlankAddOn = normalizeSuitcase({
+  id: 's-blank-addon',
+  cubeIds: ['toiletries'],
+  items: [{ id: 'a', label: 'Toothbrush', cubeId: 'toiletries' }],
+});
+const blankAddOnCube = {
+  id: 'toiletries',
+  title: 'Toiletries',
+  addOns: [
+    { id: 'travel-meds', title: 'Travel meds', items: [{ label: 'Ibuprofen' }] },
+    { id: 'empty-pouch', title: 'Empty pouch', items: [] },
+  ],
+};
+const blankAddOnGroups = groupedItems(sBlankAddOn, new Map([['toiletries', blankAddOnCube]]));
+check(
+  'blank add-in shows as a By cube group',
+  blankAddOnGroups.map((g) => g.key),
+  ['toiletries', addonGroupKey('toiletries', 'empty-pouch')],
+);
+check('seeded unused add-on stays hidden until Organize', blankAddOnGroups.some((g) => g.addOnId === 'travel-meds'), false);
+
+const sLooks = normalizeSuitcase({
+  id: 's-looks',
+  name: 'Wedding',
+  cubeIds: ['toiletries'],
+  items: [
+    { id: 'blazer', label: 'Navy blazer', cubeId: 'toiletries' },
+    { id: 'shoes', label: 'Dress shoes', cubeId: null },
+    { id: 'passport', label: 'Passport', cubeId: null },
+  ],
+});
+const cubeLookA = addOutfit(sLooks, { name: 'Ceremony', itemIds: ['blazer', 'shoes'] });
+const cubeLookB = addOutfit(sLooks, { name: 'Dinner', itemIds: ['blazer'] });
+const lookGroups = groupedItems(sLooks, cubesById);
+check(
+  'By cube lists outfits then cubes',
+  lookGroups.map((g) => g.key),
+  [outfitGroupKey(cubeLookA.id), outfitGroupKey(cubeLookB.id), 'toiletries', UNSORTED_KEY],
+);
+check('empty outfits still show as a group', groupedItems(
+  (() => { const s = normalizeSuitcase({ id: 'empty-look', outfits: [{ id: 'o1', name: 'Rehearsal' }] }); return s; })(),
+  cubesById,
+).map((g) => [g.key, g.items.length]), [['outfit:o1', 0]]);
+check('outfit group is not a cube', lookGroups[0].cubeId, null);
+check('outfit group keeps the outfit id', lookGroups[0].outfitId, cubeLookA.id);
+check('shared item sits in both outfits', [
+  lookGroups[0].items.map((i) => i.id),
+  lookGroups[1].items.map((i) => i.id),
+], [['blazer', 'shoes'], ['blazer']]);
+check('filed outfit item also sits in its cube', lookGroups[2].items.map((i) => i.id), ['blazer']);
+check('unsorted-only-in-outfit stays out of Unsorted', lookGroups[3].items.map((i) => i.id), ['passport']);
+check('List still shows a shared item once', uniqueItemsById(sLooks.items).length, 3);
 
 // --- removeItem ---
 check('removeItem deletes by id', removeItem(s4, 'c'), true);

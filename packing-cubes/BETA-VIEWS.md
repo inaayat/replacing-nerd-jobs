@@ -62,6 +62,9 @@ truth** — days and outfits never invent a second inventory.
   "rehearsal") and copy one onto the current trip. Copying never creates a
   cube. If a copied item isn't on this list, I am offered the chance to add
   those missing labels to the list.
+- As a packer in By cube, I see each outfit as a cube-like group (including
+  empty ones). That group is not a My Cubes cube. An item in an outfit can
+  also sit in its cube section; the flat List still shows it once.
 
 ### Beta
 
@@ -156,8 +159,15 @@ Rehearsal dinner
   list (or reuses the existing row with the same name) **and** attaches it
   to this outfit. Existing list items stay selectable as chips.
 - Creating an outfit never writes `pc_cubes`.
-- List and By cube show each packing-list item **once** (dedupe by item
-  id). Sharing an item across outfits does not clone the row.
+- **List** shows each packing-list item **once** (dedupe by item id).
+  Sharing an item across outfits does not clone the row.
+- **By cube** lists each outfit as a **cube-like group** (same card /
+  section chrome as a cube). Outfits are still not cubes — they never
+  appear in My Cubes, `pc_cubes`, or the cube library. Empty outfits
+  still show as a group. An item in an outfit may also sit in its cube
+  (or add-on) section as the **same** item / same packed checkbox.
+  Unsorted items that only belong to an outfit appear under that outfit
+  group, not in Unsorted.
 
 **Search past outfits** is a typeahead over every other suitcase in
 `state.suitcases` (see §8). Picking a hit opens a confirm:
@@ -380,9 +390,14 @@ suitcase**. It is not a cube, not in `pc_cubes`, not in My Cubes, not
   view (`ensureListItem` / `addItemToOutfit`). Empty outfits are allowed.
 - Optional `event` string. **Optional `date` — null is valid. Do not
   require a date. Do not auto-assign the first trip day.**
-- **Locked:** an item **may** sit on two outfits. That is one packing-list
-  row (`uniqueItemsById`), one packed checkbox. Outfits are groupings, not
-  extra inventory.
+- **Locked:** an item **may** sit on two outfits. On **List** that is one
+  packing-list row (`uniqueItemsById`), one packed checkbox. Outfits are
+  groupings, not extra inventory.
+- **By cube** treats outfits as cube-like groups (same section language).
+  They are **not** real cubes. Empty outfits still render. A shared item
+  can appear under its outfit group **and** its cube group; packed is
+  still one flag on that item id. Unsorted-only-in-outfit rows stay
+  under the outfit, not Unsorted.
 - **Locked:** names only for v1. No photo field.
 - Remove outfit: grouping gone; items stay on the list and on their dates.
 - Delete trip: outfits go with the suitcase.

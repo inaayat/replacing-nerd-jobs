@@ -540,6 +540,14 @@
 
 .pc-quick-add .pc-input { flex: 1; }
 
+.pc-addon-add.in-group {
+  margin: 8px 10px 0;
+}
+
+.pc-addon-section .pc-addon-add {
+  margin-top: 10px;
+}
+
 /* HUD */
 .pc-hud {
   display: flex;

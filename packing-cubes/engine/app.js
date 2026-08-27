@@ -29,6 +29,7 @@ import {
   setAddOn,
   releaseDeletedCube,
   groupedItems,
+  addEmptyAddOn,
   unsortedCount,
   organizeTargets,
   assignmentKey,
@@ -491,7 +492,7 @@ function expandBodyHtml(cubeId) {
              ${itemList(a.items)}
            </div>`).join('')}`
       : `<ul class="pc-expand-items"><li class="pc-expand-empty">${emptyCopy}</li></ul>`}
-    ${addOns.length ? `
+    ${addOns.length || mine ? `
       <div class="pc-addon-section">
         <div class="pc-section-label">Add-ons for this trip</div>
         <div class="pc-addon-chips">
@@ -509,6 +510,13 @@ function expandBodyHtml(cubeId) {
             </div>`;
           }).join('')}
         </div>
+        ${mine ? `
+          <form class="pc-quick-add pc-addon-add" data-blank-addon="${escapeAttr(cubeId)}">
+            <label class="pc-sr-only" for="blank-addon-${escapeAttr(cubeId)}">Add a blank add-on</label>
+            <input type="text" id="blank-addon-${escapeAttr(cubeId)}" class="pc-input" placeholder="Add a blank add-on…" autocomplete="off">
+            <button type="submit" class="pc-btn sm">Add</button>
+          </form>
+        ` : ''}
       </div>
     ` : ''}
     <div class="pc-expand-actions">
@@ -560,6 +568,7 @@ function bindExpandInteractions(cubeId) {
   if (editLink) editLink.addEventListener('click', () => openBuilderModal(cubeId));
   const deleteBtn = document.getElementById(`delete-cube-btn-${cubeId}`);
   if (deleteBtn) deleteBtn.addEventListener('click', () => deleteCubeEverywhere(cubeId));
+  bindBlankAddOnForms(container);
 }
 
 function cubePayload(cube) {
@@ -600,6 +609,39 @@ function persistCubeSoon(cubeId) {
       showToast(`Couldn't save "${cube.title}": ${err.message}`);
     }
   }, 400));
+}
+
+function bindBlankAddOnForms(root) {
+  if (!root) return;
+  root.querySelectorAll('form[data-blank-addon]').forEach((form) => {
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = form.querySelector('input');
+      createBlankAddOn(form.dataset.blankAddon, input?.value);
+      if (input) input.value = '';
+    });
+  });
+}
+
+async function createBlankAddOn(cubeId, title) {
+  const name = String(title || '').trim();
+  if (!cubeId || !name) {
+    if (!name) showToast('An add-on needs a name.');
+    return;
+  }
+  try {
+    const cube = await fetchCube(cubeId);
+    const addOn = addEmptyAddOn(cube, name);
+    if (!addOn) return;
+    rememberCube(cube);
+    const data = await cubesApi.update(auth.token, cubePayload(cube));
+    rememberCube(data.cube);
+    renderCubeList();
+    renderList();
+    showToast(`"${addOn.title}" is on ${cube.title} — file items into it`);
+  } catch (err) {
+    showToast(`Couldn't add that add-on: ${err.message}`);
+  }
 }
 
 async function absorbFiledItem(cubeId, label, addOnId) {
@@ -1036,7 +1078,8 @@ function bindItemRows(mount, suitcase) {
       checkbox.addEventListener('change', () => {
         setItemPacked(suitcase, itemId, checkbox.checked);
         saveState();
-        if (hidePacked) {
+        const sharedRows = mount.querySelectorAll(`li[data-item-id="${CSS.escape(itemId)}"]`);
+        if (hidePacked || sharedRows.length > 1) {
           renderList();
         } else {
           li.classList.toggle('packed', checkbox.checked);
@@ -1456,17 +1499,27 @@ function renderList() {
     const items = visibleItems(uniqueItemsById(group.items));
     const isUnsorted = group.key === UNSORTED_KEY;
     const isAddOnGroup = !!group.addOnId;
+    const isOutfitGroup = !!group.outfitId;
     // Hide groups whose items were all filtered away; keep genuinely empty
-    // attached cubes (and, in Organize, empty add-ons) visible as filing targets.
+    // attached cubes, outfits, and (in Organize) empty add-ons as filing targets.
     if (!organizeMode && group.items.length && !items.length) return '';
     anyVisible = true;
     const collapsed = collapsedGroups.has(group.key) && !organizeMode;
     const cube = group.cubeId ? cubeMap.get(group.cubeId) : null;
-    const addOns = cube && !isAddOnGroup ? cubeAddOns(cube) : [];
-    const removable = !isUnsorted && !isAddOnGroup && suitcase.cubeIds.includes(group.cubeId);
+    const addOns = cube && !isAddOnGroup && !isOutfitGroup ? cubeAddOns(cube) : [];
+    const removable = !isUnsorted && !isAddOnGroup && !isOutfitGroup && suitcase.cubeIds.includes(group.cubeId);
     const canSaveAsCube = isUnsorted && group.items.length >= 1;
+    const canAddAddOn = !isUnsorted && !isAddOnGroup && !isOutfitGroup && group.cubeId
+      && (canEditCube(cube) || catalog.some((c) => c.id === group.cubeId));
+    const emptyCopy = isUnsorted
+      ? 'Nothing unsorted.'
+      : isAddOnGroup
+        ? 'No items in this add-on yet.'
+        : isOutfitGroup
+          ? 'No items in this outfit yet.'
+          : 'No items in this cube yet.';
     return `
-      <div class="pc-item-group ${collapsed ? 'collapsed' : ''} ${isUnsorted ? 'unsorted' : ''} ${isAddOnGroup ? 'addon' : ''}" data-group-key="${escapeAttr(group.key)}">
+      <div class="pc-item-group ${collapsed ? 'collapsed' : ''} ${isUnsorted ? 'unsorted' : ''} ${isAddOnGroup ? 'addon' : ''} ${isOutfitGroup ? 'outfit' : ''}" data-group-key="${escapeAttr(group.key)}">
         <div class="pc-group-row">
           <button type="button" class="pc-group-header">
             <span class="chevron">${CHEVRON_SVG}</span>
@@ -1487,10 +1540,17 @@ function renderList() {
             }).join('')}
           </div>
         ` : ''}
+        ${canAddAddOn && !collapsed ? `
+          <form class="pc-quick-add pc-addon-add in-group" data-blank-addon="${escapeAttr(group.cubeId)}">
+            <label class="pc-sr-only" for="blank-addon-group-${escapeAttr(group.cubeId)}">Add a blank add-on</label>
+            <input type="text" id="blank-addon-group-${escapeAttr(group.cubeId)}" class="pc-input" placeholder="Add a blank add-on…" autocomplete="off">
+            <button type="submit" class="pc-btn sm">Add</button>
+          </form>
+        ` : ''}
         ${!collapsed ? `
           <ul class="pc-checklist ${organizeMode ? 'organizing' : ''}">
             ${items.map((item) => itemRowHtml(item, { showCubeChip: false, cubeMap })).join('')}
-            ${!items.length ? `<li class="pc-group-empty">${isUnsorted ? 'Nothing unsorted.' : isAddOnGroup ? 'No items in this add-on yet.' : 'No items in this cube yet.'}</li>` : ''}
+            ${!items.length ? `<li class="pc-group-empty">${emptyCopy}</li>` : ''}
           </ul>
         ` : ''}
       </div>`;
@@ -1521,11 +1581,12 @@ function renderList() {
   const saveUnsorted = document.getElementById('save-unsorted-cube');
   if (saveUnsorted) saveUnsorted.addEventListener('click', saveUnsortedAsCube);
 
+  bindBlankAddOnForms(mount);
   bindItemRows(mount, suitcase);
 
   // Fetch full cubes we only know by title so add-on chips appear once loaded.
   for (const group of groups) {
-    if (group.key === UNSORTED_KEY || group.addOnId) continue;
+    if (group.key === UNSORTED_KEY || group.addOnId || group.outfitId) continue;
     const cubeId = group.cubeId || group.key;
     if (!cubeCache.has(cubeId) && suitcase.cubeIds.includes(cubeId)) {
       fetchCube(cubeId).then(() => renderList()).catch(() => {});

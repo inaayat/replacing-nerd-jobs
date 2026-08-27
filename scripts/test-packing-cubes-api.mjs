@@ -49,10 +49,12 @@ check('tags must be a list', validateCube({ ...valid, tags: 'summer' }), 'Tags m
 check('no add-ons is fine', validateCube({ ...valid, addOns: [] }), null);
 check('add-ons must be a list', validateCube({ ...valid, addOns: {} }), 'Add-ons must be a list.');
 check('add-on needs a title', validateCube({ ...valid, addOns: [{ items: [{ label: 'a' }] }] }), 'Every add-on needs a title.');
+check('empty add-on is allowed', validateCube({ ...valid, addOns: [{ title: 'Meds', items: [] }] }), null);
+check('add-on items can be omitted', validateCube({ ...valid, addOns: [{ title: 'Meds' }] }), null);
 check(
-  'add-on needs an item',
-  validateCube({ ...valid, addOns: [{ title: 'Meds', items: [] }] }),
-  'Add-on "Meds" needs at least 1 item.',
+  'add-on items must be a list',
+  validateCube({ ...valid, addOns: [{ title: 'Meds', items: 'pills' }] }),
+  'Add-on "Meds" items must be a list.',
 );
 check(
   'add-on items need labels',
@@ -94,6 +96,7 @@ check(
 check('explicit id wins over the title', normalizeCubeInput({ id: 'Custom ID', title: 'Other', items: [] }).id, 'custom-id');
 check('fallbackId used when no id or title slug', normalizeCubeInput({ title: '!!!', items: [] }, { fallbackId: 'kept-id' }).id, 'kept-id');
 check('add-ons default to an empty list', normalizeCubeInput({ title: 'X', items: [] }).addOns, []);
+check('empty add-on items stay empty', normalizeCubeInput({ title: 'X', addOns: [{ title: 'Pouch' }] }).addOns[0].items, []);
 check('includeByDefault defaults false', normalizeCubeInput({ title: 'X', items: [] }).includeByDefault, false);
 check(
   'includeByDefault preserved on cube and add-on',

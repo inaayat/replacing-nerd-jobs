@@ -428,5 +428,7 @@ Karan asked for two extra packing views as beta. Locked:
   Create/edit can quick-add a label onto the packing list and the outfit.
   Search past outfits across `state.suitcases`; copy grouping + optionally
   add missing labels to this list; never create a cube. Names only (no
-  photo). An item may sit on two outfits — List / By cube still show that
-  item once (dedupe by item id).
+  photo). An item may sit on two outfits — List still shows that item
+  once (dedupe by item id). By cube lists outfits as cube-like groups
+  (not `pc_cubes`); a shared item may appear under its outfit and its
+  cube, one packed checkbox.
