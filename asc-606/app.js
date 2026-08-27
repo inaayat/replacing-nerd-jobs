@@ -320,7 +320,7 @@ function renderMap() {
     <section class="story">
       <p class="kicker">Map</p>
       <h1>The whole tree, one screen</h1>
-      <p>Scope first, then the five steps. Click a question to jump the company walk there (later answers clear). Outcomes are the four places a walk can end.</p>
+      <p>Scope first, then the five steps. Hover a paragraph number for the official excerpt. Outcomes are the four places a walk can end.</p>
     </section>
     <div class="map">
       ${groups
