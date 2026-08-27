@@ -47,7 +47,7 @@ This repo is a no-build Vercel site (see `README.md` for structure/deploy). Non-
  - `node scripts/test-takeout-workbook.mjs` — Takeout Excel download (`takeout/workbook.js`)
  - `node scripts/test-takeout-catalog.mjs` — Takeout source catalog (`takeout/catalog.js`)
  - `node scripts/test-im-filmin-here.mjs` — I'm Filmin Here street matching, permit SoQL, rollup, UWS location catalog (`im-filmin-here/streets.js`, `im-filmin-here/permits.js`, `im-filmin-here/locations.js`)
- - `node scripts/test-packing-cubes-model.mjs` — Packing Cubes list-first model: flat list, organize, user-built cubes, add-ons, v1 migration (`packing-cubes/engine/model.js`)
+ - `node scripts/test-packing-cubes-model.mjs` — Packing Cubes list-first model: flat list, organize, add-on cubes, default-on-new-trips, v1 migration (`packing-cubes/engine/model.js`)
  - `node scripts/test-packing-cubes-api.mjs` — Packing Cubes server helpers: cube validation, normalization, automatic id resolution (`lib/packing-cubes.js`)
  - `node scripts/test-sign-in-form.mjs` — shared Sign in / Sign up form markup (`engine/sign-in-form.js`)
 - `packing-cubes/` has **no static catalog and no publish path**: cubes are private rows in `pc_cubes`, created by the user (Unsorted → "Save as cube", or the builder). There is no `packing-cubes/cubes/` directory, no cube index script/Action, and no `/api/pc-publish` — do not reintroduce them. Cube ids are title slugs, never shown in the UI; `pc_cubes.id` is a global primary key, so `api/packing-cubes.js` resolves collisions with `nextFreeId` instead of asking for an id. Signing in is required (no guest mode): the signed-out view is a centered log-in gate.

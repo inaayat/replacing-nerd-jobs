@@ -1,7 +1,8 @@
 // Packing Cubes app: a flat packing list first (the source of truth), with
 // cubes as an organization layer. Every cube is one the user built — there is
-// no shared catalog and nothing to publish. Cubes may carry optional add-ons,
-// and Organize files list items into cubes.
+// no shared catalog and nothing to publish. Cubes may carry optional add-ons
+// (shown in Organize as "Toiletries - Beauty Basics"), and any cube or add-on
+// can be marked include-by-default so it seeds new trips.
 // All list/cube semantics live in the pure module ./model.js (tested by
 // scripts/test-packing-cubes-model.mjs); this file is fetch + DOM only.
 import { initBuilder } from './builder.js';
@@ -29,6 +30,14 @@ import {
   releaseDeletedCube,
   groupedItems,
   unsortedCount,
+  organizeTargets,
+  assignmentKey,
+  parseAssignment,
+  addOnLabel,
+  isDefaultCube,
+  isDefaultAddOn,
+  expandContents,
+  absorbItemIntoCube,
   UNSORTED_KEY,
 } from './model.js';
 
@@ -62,6 +71,7 @@ const BAG_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" str
 const EDIT_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
 const CHECK_SVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
 const CHEVRON_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
+const PIN_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M8 4h8l-1.2 6.5A3 3 0 0 1 12 13a3 3 0 0 1-2.8-2.5L8 4z"/><path d="M7 4h10"/></svg>`;
 
 // A packed little suitcase for the sign-in gate: two cubes inside, a couple of
 // travel stickers, and a handle. Decorative only.
@@ -122,7 +132,7 @@ function scheduleCloudSave() {
 
 function ensureSuitcase() {
   if (!state.suitcases.length) {
-    const suitcase = newSuitcase('My trip');
+    const suitcase = newSuitcase('My trip', catalog);
     state.suitcases.push(suitcase);
     state.activeSuitcaseId = suitcase.id;
     saveState();
@@ -303,9 +313,16 @@ function renderCubeList() {
              aria-label="${expanded ? 'Collapse' : 'Expand'} ${escapeAttr(c.title)}">
           <div class="pc-cube-icon">${BAG_SVG}</div>
           <div class="pc-cube-info">
-            <div class="title">${escapeHtml(c.title)}</div>
+            <div class="title">
+              ${escapeHtml(c.title)}
+              ${isDefaultCube(c) ? '<span class="pc-cube-badge default">On new trips</span>' : ''}
+            </div>
             <div class="blurb">${escapeHtml(c.blurb || '')}</div>
           </div>
+          <button type="button" class="pc-cube-pin ${isDefaultCube(c) ? 'on' : ''}" data-default-id="${escapeAttr(c.id)}"
+            title="${isDefaultCube(c) ? 'Stop including on new trips' : 'Include by default for any new trips'}"
+            aria-label="${isDefaultCube(c) ? 'Stop including' : 'Include'} ${escapeAttr(c.title)} on new trips"
+            aria-pressed="${isDefaultCube(c)}">${PIN_SVG}</button>
           ${canEditCube(c) ? `<button type="button" class="pc-cube-edit" data-edit-id="${escapeAttr(c.id)}" title="Edit cube" aria-label="Edit ${escapeAttr(c.title)}">${EDIT_SVG}</button>` : ''}
           <button type="button" class="pc-cube-quick-add ${attached ? 'added' : ''}" data-quick-id="${escapeAttr(c.id)}"
             title="${attached ? 'Remove from packing list' : 'Add to packing list'}"
@@ -324,6 +341,13 @@ function renderCubeList() {
         e.preventDefault();
         toggle();
       }
+    });
+  });
+
+  mount.querySelectorAll('.pc-cube-pin').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleCubeDefault(btn.dataset.defaultId);
     });
   });
 
@@ -391,24 +415,47 @@ function expandBodyHtml(cubeId) {
   const mine = canEditCube(catalog.find((c) => c.id === cubeId) || cube);
   const tags = (cube.tags || []).map((t) => `<span class="pc-tag">${escapeHtml(t)}</span>`).join('');
   const addOns = cubeAddOns(cube);
+  const contents = expandContents(suitcase, cube);
+  const addOnBlocks = contents.addOns.filter((a) => a.items.length);
+  const hasItems = contents.items.length || addOnBlocks.length;
+
+  function itemList(items) {
+    return `<ul class="pc-expand-items">
+      ${items.map((item) => `<li>${escapeHtml(item.label)}</li>`).join('')}
+    </ul>`;
+  }
+
+  const emptyCopy = attached
+    ? 'Nothing filed into this cube on this list yet.'
+    : 'Empty — file list items into it from Organize.';
 
   return `
     ${cube.blurb ? `<p class="pc-expand-blurb">${escapeHtml(cube.blurb)}</p>` : ''}
     ${tags ? `<div class="pc-tags">${tags}</div>` : ''}
-    <ul class="pc-expand-items">
-      ${(cube.items || []).length
-        ? cube.items.map((item) => `<li>${escapeHtml(item.label)}</li>`).join('')
-        : '<li class="pc-expand-empty">Empty — file list items into it from Organize.</li>'}
-    </ul>
+    ${hasItems
+      ? `${contents.items.length ? itemList(contents.items) : ''}
+         ${addOnBlocks.map((a) => `
+           <div class="pc-expand-addon">
+             <div class="pc-section-label">${escapeHtml(addOnLabel(cube, a))}</div>
+             ${itemList(a.items)}
+           </div>`).join('')}`
+      : `<ul class="pc-expand-items"><li class="pc-expand-empty">${emptyCopy}</li></ul>`}
     ${addOns.length ? `
       <div class="pc-addon-section">
         <div class="pc-section-label">Add-ons for this trip</div>
         <div class="pc-addon-chips">
           ${addOns.map((a) => {
             const on = addOnEnabled(suitcase, cubeId, a.id);
-            return `<button type="button" class="pc-addon-chip ${on ? 'on' : ''}" data-addon-cube="${escapeAttr(cubeId)}" data-addon-id="${escapeAttr(a.id)}" aria-pressed="${on}">
-              ${on ? CHECK_SVG : '+'} ${escapeHtml(a.title)} <span class="count">${(a.items || []).length}</span>
-            </button>`;
+            const isDefault = isDefaultAddOn(a);
+            return `<div class="pc-addon-wrap">
+              <button type="button" class="pc-addon-chip ${on ? 'on' : ''}" data-addon-cube="${escapeAttr(cubeId)}" data-addon-id="${escapeAttr(a.id)}" aria-pressed="${on}">
+                ${on ? CHECK_SVG : '+'} ${escapeHtml(a.title)} <span class="count">${(a.items || []).length}</span>
+              </button>
+              <button type="button" class="pc-addon-pin ${isDefault ? 'on' : ''}" data-addon-cube="${escapeAttr(cubeId)}" data-addon-id="${escapeAttr(a.id)}"
+                title="${isDefault ? 'Stop including on new trips' : 'Include by default for any new trips'}"
+                aria-label="${isDefault ? 'Stop including' : 'Include'} ${escapeAttr(addOnLabel(cube, a))} on new trips"
+                aria-pressed="${isDefault}">${PIN_SVG}</button>
+            </div>`;
           }).join('')}
         </div>
       </div>
@@ -451,10 +498,102 @@ function bindExpandInteractions(cubeId) {
     });
   });
 
+  container.querySelectorAll('.pc-addon-pin').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleAddOnDefault(btn.dataset.addonCube, btn.dataset.addonId);
+    });
+  });
+
   const editLink = document.getElementById(`edit-cube-link-${cubeId}`);
   if (editLink) editLink.addEventListener('click', () => openBuilderModal(cubeId));
   const deleteBtn = document.getElementById(`delete-cube-btn-${cubeId}`);
   if (deleteBtn) deleteBtn.addEventListener('click', () => deleteCubeEverywhere(cubeId));
+}
+
+function cubePayload(cube) {
+  return {
+    id: cube.id,
+    title: cube.title,
+    blurb: cube.blurb || '',
+    tags: cube.tags || [],
+    items: cube.items || [],
+    includeByDefault: !!cube.includeByDefault,
+    addOns: cubeAddOns(cube).map((a) => ({
+      id: a.id,
+      title: a.title,
+      items: a.items || [],
+      includeByDefault: !!a.includeByDefault,
+    })),
+  };
+}
+
+function rememberCube(cube) {
+  cubeCache.set(cube.id, cube);
+  const idx = catalog.findIndex((c) => c.id === cube.id);
+  if (idx >= 0) catalog[idx] = { ...catalog[idx], ...cube };
+  else catalog.push(cube);
+}
+
+const cubeSaveTimers = new Map();
+function persistCubeSoon(cubeId) {
+  if (!auth?.signedIn || !auth.token) return;
+  clearTimeout(cubeSaveTimers.get(cubeId));
+  cubeSaveTimers.set(cubeId, setTimeout(async () => {
+    const cube = cubeCache.get(cubeId);
+    if (!cube) return;
+    try {
+      const data = await cubesApi.update(auth.token, cubePayload(cube));
+      rememberCube(data.cube);
+    } catch (err) {
+      showToast(`Couldn't save "${cube.title}": ${err.message}`);
+    }
+  }, 400));
+}
+
+async function absorbFiledItem(cubeId, label, addOnId) {
+  if (!cubeId || !label) return;
+  try {
+    const cube = await fetchCube(cubeId);
+    if (!absorbItemIntoCube(cube, label, addOnId)) return;
+    rememberCube(cube);
+    persistCubeSoon(cubeId);
+    renderCubeList();
+  } catch { /* list already shows the filed row */ }
+}
+
+async function toggleCubeDefault(cubeId) {
+  try {
+    const cube = await fetchCube(cubeId);
+    const next = cubePayload(cube);
+    next.includeByDefault = !isDefaultCube(cube);
+    const data = await cubesApi.update(auth.token, next);
+    rememberCube(data.cube);
+    renderCubeList();
+    showToast(next.includeByDefault
+      ? `"${cube.title}" will be on every new trip`
+      : `"${cube.title}" won’t auto-add to new trips`);
+  } catch (err) {
+    showToast(`Couldn't update: ${err.message}`);
+  }
+}
+
+async function toggleAddOnDefault(cubeId, addOnId) {
+  try {
+    const cube = await fetchCube(cubeId);
+    const next = cubePayload(cube);
+    const addOn = next.addOns.find((a) => a.id === addOnId);
+    if (!addOn) return;
+    addOn.includeByDefault = !addOn.includeByDefault;
+    const data = await cubesApi.update(auth.token, next);
+    rememberCube(data.cube);
+    renderCubeList();
+    showToast(addOn.includeByDefault
+      ? `"${addOnLabel(cube, addOn)}" will be on every new trip`
+      : `"${addOnLabel(cube, addOn)}" won’t auto-add to new trips`);
+  } catch (err) {
+    showToast(`Couldn't update: ${err.message}`);
+  }
 }
 
 function toggleAddOn(cubeId, addOnId) {
@@ -498,6 +637,7 @@ async function saveUnsortedAsCube() {
       tags: [],
       items: unsorted.map((i) => ({ label: i.label.trim() })).filter((i) => i.label),
       addOns: [],
+      includeByDefault: false,
     });
     cubeCache.set(cube.id, cube);
     catalog.push(cube);
@@ -668,7 +808,7 @@ function renderListPanel() {
   });
 
   document.getElementById('new-suitcase-btn').addEventListener('click', () => {
-    const suitcaseNew = newSuitcase('New trip');
+    const suitcaseNew = newSuitcase('New trip', catalog);
     state.suitcases.push(suitcaseNew);
     state.activeSuitcaseId = suitcaseNew.id;
     saveState();
@@ -752,7 +892,7 @@ function updateHud(suitcase) {
     organizeBtn.textContent = organizeMode
       ? 'Done'
       : (unsorted ? `Organize (${unsorted})` : 'Organize');
-    organizeBtn.title = 'Assign items to cubes, rename, or remove them';
+    organizeBtn.title = 'Assign items to cubes or add-ons, rename, or remove them';
   }
 }
 
@@ -764,29 +904,51 @@ function visibleItems(items) {
   return out;
 }
 
+function itemAssignmentLabel(item, cubeMap) {
+  if (!item.cubeId) return '';
+  const cube = cubeMap.get(item.cubeId);
+  if (item.addOnId) {
+    const addOn = cubeAddOns(cube).find((a) => a.id === item.addOnId);
+    if (addOn) return addOnLabel(cube || { id: item.cubeId, title: item.cubeId }, addOn);
+    return addOnLabel({ title: cube?.title || item.cubeId }, { title: item.addOnId });
+  }
+  return cube?.title || item.cubeId;
+}
+
+function organizeSelectHtml(item, cubeMap) {
+  const suitcase = activeSuitcase();
+  const targets = organizeTargets(catalog.map((c) => cubeCache.get(c.id) || c), suitcase);
+  const selected = assignmentKey(item.cubeId, item.addOnId);
+  const known = new Set([...targets.onList, ...targets.others].map((t) => t.value));
+  const option = (t) => `<option value="${escapeAttr(t.value)}" ${t.value === selected ? 'selected' : ''}>${escapeHtml(t.label)}</option>`;
+  const onListOpts = targets.onList.map(option).join('');
+  const otherOpts = targets.others.map(option).join('');
+  let fallback = '';
+  if (selected && !known.has(selected)) {
+    fallback = `<option value="${escapeAttr(selected)}" selected>${escapeHtml(itemAssignmentLabel(item, cubeMap))}</option>`;
+  }
+  return `
+    <select class="pc-item-cube-select" aria-label="Cube for ${escapeAttr(item.label)}">
+      <option value="" ${!selected ? 'selected' : ''}>No cube</option>
+      ${onListOpts && otherOpts
+        ? `<optgroup label="On this list">${onListOpts}</optgroup><optgroup label="My other cubes">${otherOpts}</optgroup>`
+        : `${onListOpts}${otherOpts}`}
+      ${fallback}
+    </select>`;
+}
+
 function itemRowHtml(item, { showCubeChip, cubeMap }) {
   if (organizeMode) {
-    const suitcase = activeSuitcase();
-    const options = suitcase.cubeIds.map((id) => {
-      const title = cubeMap.get(id)?.title || id;
-      return `<option value="${escapeAttr(id)}" ${item.cubeId === id ? 'selected' : ''}>${escapeHtml(title)}</option>`;
-    }).join('');
     return `
       <li class="organize" data-item-id="${escapeAttr(item.id)}">
         <input type="text" class="pc-input sm pc-item-label-input" value="${escapeAttr(item.label)}" aria-label="Item name">
-        <select class="pc-item-cube-select" aria-label="Cube for ${escapeAttr(item.label)}">
-          <option value="" ${!item.cubeId ? 'selected' : ''}>No cube</option>
-          ${options}
-          ${item.cubeId && !suitcase.cubeIds.includes(item.cubeId)
-            ? `<option value="${escapeAttr(item.cubeId)}" selected>${escapeHtml(cubeMap.get(item.cubeId)?.title || item.cubeId)}</option>`
-            : ''}
-        </select>
+        ${organizeSelectHtml(item, cubeMap)}
         <button type="button" class="pc-item-remove" title="Remove item" aria-label="Remove ${escapeAttr(item.label)}">&times;</button>
       </li>`;
   }
 
   const chip = showCubeChip && item.cubeId
-    ? `<span class="pc-cube-chip">${escapeHtml(cubeMap.get(item.cubeId)?.title || item.cubeId)}</span>`
+    ? `<span class="pc-cube-chip">${escapeHtml(itemAssignmentLabel(item, cubeMap))}</span>`
     : '';
   return `
     <li class="${item.packed ? 'packed' : ''}" data-item-id="${escapeAttr(item.id)}">
@@ -839,9 +1001,13 @@ function bindItemRows(mount, suitcase) {
     const select = li.querySelector('.pc-item-cube-select');
     if (select) {
       select.addEventListener('change', () => {
-        assignItem(suitcase, itemId, select.value || null);
+        const { cubeId, addOnId } = parseAssignment(select.value);
+        const item = suitcase.items.find((i) => i.id === itemId);
+        assignItem(suitcase, itemId, cubeId, addOnId);
         saveState();
+        renderCubeList();
         renderList();
+        if (cubeId && item) absorbFiledItem(cubeId, item.label, addOnId);
       });
     }
 
@@ -881,22 +1047,23 @@ function renderList() {
   }
 
   // By-cube view
-  const groups = groupedItems(suitcase, cubeMap);
+  const groups = groupedItems(suitcase, cubeMap, { includeEmptyAddOns: organizeMode });
   let anyVisible = false;
   mount.innerHTML = groups.map((group) => {
     const items = visibleItems(group.items);
     const isUnsorted = group.key === UNSORTED_KEY;
+    const isAddOnGroup = !!group.addOnId;
     // Hide groups whose items were all filtered away; keep genuinely empty
-    // attached cubes visible as organize targets.
+    // attached cubes (and, in Organize, empty add-ons) visible as filing targets.
     if (!organizeMode && group.items.length && !items.length) return '';
     anyVisible = true;
     const collapsed = collapsedGroups.has(group.key) && !organizeMode;
-    const cube = !isUnsorted ? cubeMap.get(group.key) : null;
-    const addOns = cube ? cubeAddOns(cube) : [];
-    const removable = !isUnsorted && suitcase.cubeIds.includes(group.key);
+    const cube = group.cubeId ? cubeMap.get(group.cubeId) : null;
+    const addOns = cube && !isAddOnGroup ? cubeAddOns(cube) : [];
+    const removable = !isUnsorted && !isAddOnGroup && suitcase.cubeIds.includes(group.cubeId);
     const canSaveAsCube = isUnsorted && group.items.length >= 1;
     return `
-      <div class="pc-item-group ${collapsed ? 'collapsed' : ''} ${isUnsorted ? 'unsorted' : ''}" data-group-key="${escapeAttr(group.key)}">
+      <div class="pc-item-group ${collapsed ? 'collapsed' : ''} ${isUnsorted ? 'unsorted' : ''} ${isAddOnGroup ? 'addon' : ''}" data-group-key="${escapeAttr(group.key)}">
         <div class="pc-group-row">
           <button type="button" class="pc-group-header">
             <span class="chevron">${CHEVRON_SVG}</span>
@@ -904,14 +1071,14 @@ function renderList() {
             <span class="pc-group-count">${group.items.filter((i) => i.packed).length}/${group.items.length}</span>
           </button>
           ${canSaveAsCube ? `<button type="button" class="pc-group-action" id="save-unsorted-cube">Save as cube</button>` : ''}
-          ${removable ? `<button type="button" class="pc-group-remove" data-remove-cube="${escapeAttr(group.key)}"
+          ${removable ? `<button type="button" class="pc-group-remove" data-remove-cube="${escapeAttr(group.cubeId)}"
             title="Remove this cube and its items from the list" aria-label="Remove ${escapeAttr(group.title)} from the list">&times;</button>` : ''}
         </div>
         ${addOns.length && !collapsed ? `
           <div class="pc-addon-chips in-group">
             ${addOns.map((a) => {
-              const on = addOnEnabled(suitcase, group.key, a.id);
-              return `<button type="button" class="pc-addon-chip ${on ? 'on' : ''}" data-addon-cube="${escapeAttr(group.key)}" data-addon-id="${escapeAttr(a.id)}" aria-pressed="${on}">
+              const on = addOnEnabled(suitcase, group.cubeId, a.id);
+              return `<button type="button" class="pc-addon-chip ${on ? 'on' : ''}" data-addon-cube="${escapeAttr(group.cubeId)}" data-addon-id="${escapeAttr(a.id)}" aria-pressed="${on}">
                 ${on ? CHECK_SVG : '+'} ${escapeHtml(a.title)}
               </button>`;
             }).join('')}
@@ -920,7 +1087,7 @@ function renderList() {
         ${!collapsed ? `
           <ul class="pc-checklist ${organizeMode ? 'organizing' : ''}">
             ${items.map((item) => itemRowHtml(item, { showCubeChip: false, cubeMap })).join('')}
-            ${!items.length ? `<li class="pc-group-empty">${isUnsorted ? 'Nothing unsorted.' : 'No items in this cube yet.'}</li>` : ''}
+            ${!items.length ? `<li class="pc-group-empty">${isUnsorted ? 'Nothing unsorted.' : isAddOnGroup ? 'No items in this add-on yet.' : 'No items in this cube yet.'}</li>` : ''}
           </ul>
         ` : ''}
       </div>`;
@@ -955,9 +1122,10 @@ function renderList() {
 
   // Fetch full cubes we only know by title so add-on chips appear once loaded.
   for (const group of groups) {
-    if (group.key === UNSORTED_KEY) continue;
-    if (!cubeCache.has(group.key) && suitcase.cubeIds.includes(group.key)) {
-      fetchCube(group.key).then(() => renderList()).catch(() => {});
+    if (group.key === UNSORTED_KEY || group.addOnId) continue;
+    const cubeId = group.cubeId || group.key;
+    if (!cubeCache.has(cubeId) && suitcase.cubeIds.includes(cubeId)) {
+      fetchCube(cubeId).then(() => renderList()).catch(() => {});
     }
   }
 }

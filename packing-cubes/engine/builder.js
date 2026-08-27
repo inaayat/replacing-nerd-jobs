@@ -9,7 +9,7 @@ import { cubesApi } from './api.js';
 export function initBuilder({ root, editId = null, auth: passedAuth = null, onSaved, onClose } = {}) {
   const isEditing = !!editId;
 
-  let cube = { title: '', blurb: '', tags: [], items: [{ label: '' }], addOns: [] };
+  let cube = { title: '', blurb: '', tags: [], items: [{ label: '' }], addOns: [], includeByDefault: false };
   let auth = passedAuth;
   let savedId = null;
 
@@ -36,6 +36,10 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onSa
           <label for="f-blurb">Note <span class="b-optional">optional</span></label>
           <input type="text" id="f-blurb" placeholder="A reminder of what this cube is for" autocomplete="off">
         </div>
+        <label class="pc-toggle-chip" for="f-default">
+          <input type="checkbox" id="f-default">
+          Include by default for any new trips
+        </label>
       </div>
 
       <div class="b-block">
@@ -77,6 +81,9 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onSa
     ['f-title', 'f-blurb'].forEach((id) => {
       root.querySelector('#' + id).addEventListener('input', onFieldsChange);
     });
+    root.querySelector('#f-default').addEventListener('change', (e) => {
+      cube.includeByDefault = e.target.checked;
+    });
     root.querySelector('#save-btn').addEventListener('click', save);
     root.querySelector('#add-item-btn').addEventListener('click', () => {
       cube.items.push({ label: '' });
@@ -84,7 +91,7 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onSa
       focusItem(cube.items.length - 1);
     });
     root.querySelector('#add-addon-btn').addEventListener('click', () => {
-      cube.addOns.push({ title: '', items: [{ label: '' }] });
+      cube.addOns.push({ title: '', items: [{ label: '' }], includeByDefault: false });
       renderAddOnsEditor();
     });
     root.querySelector('#paste-toggle').addEventListener('click', () => setPasteMode(true));
@@ -189,9 +196,13 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onSa
       <div class="b-addon" data-addon-idx="${ai}">
         <div class="b-addon-head">
           <input type="text" class="b-mini-input b-addon-title" value="${escapeAttr(addOn.title)}"
-            placeholder="Add-on name (e.g. Travel meds)" autocomplete="off">
+            placeholder="Add-on name (e.g. Beauty Basics)" autocomplete="off">
           <button type="button" class="b-remove-btn b-addon-remove" title="Remove add-on" aria-label="Remove add-on">&times;</button>
         </div>
+        <label class="pc-toggle-chip">
+          <input type="checkbox" class="b-addon-default" ${addOn.includeByDefault ? 'checked' : ''}>
+          Include by default for any new trips
+        </label>
         <div class="b-addon-items">
           ${addOn.items.map((item, ii) => `
             <div class="b-item-row" data-item-idx="${ii}">
@@ -208,6 +219,9 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onSa
     const addOnAt = (el2) => cube.addOns[Number(el2.closest('.b-addon').dataset.addonIdx)];
     mount.querySelectorAll('.b-addon-title').forEach((input) => {
       input.addEventListener('input', () => { addOnAt(input).title = input.value; updateState(); });
+    });
+    mount.querySelectorAll('.b-addon-default').forEach((input) => {
+      input.addEventListener('change', () => { addOnAt(input).includeByDefault = input.checked; });
     });
     mount.querySelectorAll('.b-addon-remove').forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -278,11 +292,13 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onSa
       blurb: (cube.blurb || '').trim(),
       tags: cube.tags || [],
       items: filledItems().map((i) => ({ label: i.label.trim() })),
+      includeByDefault: !!cube.includeByDefault,
       addOns: cube.addOns
         .map((addOn) => ({
           ...(addOn.id ? { id: addOn.id } : {}),
           title: addOn.title.trim(),
           items: addOn.items.filter((i) => i.label.trim()).map((i) => ({ label: i.label.trim() })),
+          includeByDefault: !!addOn.includeByDefault,
         }))
         .filter((addOn) => addOn.title && addOn.items.length),
     };
@@ -354,11 +370,14 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onSa
             id: a.id,
             title: a.title || '',
             items: (a.items || []).map((i) => ({ label: String(i.label || '') })),
+            includeByDefault: !!a.includeByDefault,
           })),
+          includeByDefault: !!loaded.includeByDefault,
         };
         if (!cube.items.length) cube.items = [{ label: '' }];
         root.querySelector('#f-title').value = cube.title;
         root.querySelector('#f-blurb').value = cube.blurb;
+        root.querySelector('#f-default').checked = cube.includeByDefault;
         renderEditor();
         renderAddOnsEditor();
         updateState();

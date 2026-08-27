@@ -382,3 +382,25 @@ requires two items: the builder saves on a name alone, `validateCube` accepts
 open Organize + By cube) so existing rows can be filed into it. Unsorted →
 "Save as cube" works from a single leftover item. Add-ons still need at least
 one item if you add one.
+
+## Round 12 — add-on cubes in Organize, and include-by-default on new trips
+
+Two product gaps after add-ons shipped as chips-only:
+
+- **Organize picker lists add-ons as cubes.** Filing a row is no longer limited
+  to the parent cube: the dropdown shows every add-on as `Toiletries - Beauty
+  Basics` (attached cubes first, then the rest of My cubes). Picking one tags
+  the item with that cube + add-on, attaches the parent if needed without
+  re-importing its bundle, and records the add-on as enabled for the trip.
+  The By-cube view splits those rows into their own group with the same title;
+  Organize also keeps empty add-on groups visible as filing targets.
+- **Include by default for any new trips.** A pin on the cube card (and on each
+  add-on in the expanded card) plus a builder checkbox persist
+  `includeByDefault` — a boolean column on `pc_cubes`, and a flag on each
+  add-on object. `newSuitcase(name, cubes)` attaches those cubes and enables
+  those add-ons. Opt-in per cube, not a shared catalog of "standard" cubes.
+- **My Cubes shows what you filed.** The expanded card was reading the cube's
+  saved template (`cube.items`), so an empty cube you then filled from Organize
+  still said "Empty". It now lists the items on this packing list that live in
+  that cube (and its add-ons). Filing also copies new labels onto the cube so
+  Edit / the next trip keep them.

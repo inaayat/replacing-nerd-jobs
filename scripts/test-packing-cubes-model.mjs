@@ -24,6 +24,17 @@ import {
   releaseDeletedCube,
   groupedItems,
   unsortedCount,
+  organizeTargets,
+  assignmentKey,
+  parseAssignment,
+  addOnLabel,
+  addonGroupKey,
+  isDefaultCube,
+  isDefaultAddOn,
+  seedDefaults,
+  expandContents,
+  absorbItemIntoCube,
+  filedInCube,
   UNSORTED_KEY,
 } from '../packing-cubes/engine/model.js';
 
@@ -47,6 +58,7 @@ const toiletries = {
   addOns: [
     { id: 'travel-meds', title: 'Travel meds', items: [{ label: 'Ibuprofen' }, { label: 'Band-aids' }] },
     { id: 'hair-tools', title: 'Hair tools', items: [{ label: 'Hair dryer' }, { label: 'Toothpaste' }] },
+    { id: 'beauty-basics', title: 'Beauty Basics', items: [{ label: 'Moisturizer' }, { label: 'Sunscreen stick' }] },
   ],
 };
 const legacyBasics = {
@@ -67,7 +79,13 @@ const catalog = [beach, toiletries, legacyBasics];
 // --- cube basics ---
 check('itemKey normalizes case + whitespace', itemKey('  T-Shirt '), 't-shirt');
 check('cubeAddOns tolerates missing', cubeAddOns(beach), []);
-check('cubeAddOns reads bundles', cubeAddOns(toiletries).map((a) => a.id), ['travel-meds', 'hair-tools']);
+check('cubeAddOns reads bundles', cubeAddOns(toiletries).map((a) => a.id), ['travel-meds', 'hair-tools', 'beauty-basics']);
+check('addOnLabel is parent - add-on', addOnLabel(toiletries, toiletries.addOns[2]), 'Toiletries - Beauty Basics');
+check('assignmentKey cube', assignmentKey('toiletries', null), 'c:toiletries');
+check('assignmentKey add-on', assignmentKey('toiletries', 'beauty-basics'), 'a:toiletries:beauty-basics');
+check('parseAssignment empty', parseAssignment(''), { cubeId: null, addOnId: null });
+check('parseAssignment cube', parseAssignment('c:toiletries'), { cubeId: 'toiletries', addOnId: null });
+check('parseAssignment add-on', parseAssignment('a:toiletries:beauty-basics'), { cubeId: 'toiletries', addOnId: 'beauty-basics' });
 
 // --- search ---
 check('matchesQuery hits item labels', matchesQuery(beach, 'sunscreen'), true);
@@ -162,6 +180,38 @@ check('add-on recorded as disabled', addOnEnabled(s, 'toiletries', 'travel-meds'
 check('other add-ons untouched', s.items.some((i) => i.addOnId === 'hair-tools'), true);
 check('unknown add-on is a no-op', setAddOn(s, toiletries, 'nope', true), 0);
 
+// Organize can file a row into an add-on cube, including one not yet on the list.
+const sOrg = newSuitcase('Organize');
+const filed = addItem(sOrg, 'Moisturizer');
+assignItem(sOrg, filed.id, 'toiletries', 'beauty-basics');
+check('assigning to an add-on attaches the parent cube', sOrg.cubeIds, ['toiletries']);
+check('assigning to an add-on does not import the parent bundle', sOrg.items.map((i) => i.label), ['Moisturizer']);
+check('assigned addOnId sticks', sOrg.items[0].addOnId, 'beauty-basics');
+check('filing records the add-on as enabled', addOnEnabled(sOrg, 'toiletries', 'beauty-basics'), true);
+assignItem(sOrg, filed.id, 'toiletries', null);
+check('moving to the parent cube clears addOnId', sOrg.items[0].addOnId, null);
+
+const targets = organizeTargets(catalog, sOrg);
+check(
+  'organizeTargets lists add-ons as Parent - Add-on',
+  targets.onList.map((t) => t.label),
+  ['Toiletries', 'Toiletries - Travel meds', 'Toiletries - Hair tools', 'Toiletries - Beauty Basics'],
+);
+check('organizeTargets puts unattached cubes in others', targets.others.map((t) => t.label).includes('Beach'), true);
+
+const listed = expandContents(sOrg, toiletries);
+check('expandContents uses the packing list when the cube is attached', listed.source, 'list');
+check('expandContents lists filed items, not the empty template', listed.items.map((i) => i.label), ['Moisturizer']);
+const templateView = expandContents(newSuitcase('No cubes'), toiletries);
+check('expandContents falls back to the cube template off-list', templateView.source, 'cube');
+check('template view shows saved cube items', templateView.items.map((i) => i.label), ['Toothbrush', 'Toothpaste', 'Deodorant']);
+
+const absorbed = { id: 'toiletries', title: 'Toiletries', items: [], addOns: [{ id: 'beauty-basics', title: 'Beauty Basics', items: [{ label: 'Moisturizer' }] }] };
+check('absorbItemIntoCube adds a new label to an empty cube', absorbItemIntoCube(absorbed, 'Toothbrush'), true);
+check('absorbItemIntoCube skips duplicates', absorbItemIntoCube(absorbed, 'toothbrush'), false);
+check('absorbItemIntoCube writes add-on items', absorbItemIntoCube(absorbed, 'Lip balm', 'beauty-basics'), true);
+check('filedInCube filters by cube', filedInCube(sOrg, 'toiletries').map((i) => i.label), ['Moisturizer']);
+
 // Enabling an add-on for an unattached cube attaches it first.
 const s3 = newSuitcase('Weekend');
 setAddOn(s3, toiletries, 'travel-meds', true);
@@ -171,6 +221,33 @@ check(
   s3.items.map((i) => i.label),
   ['Toothbrush', 'Toothpaste', 'Deodorant', 'Ibuprofen', 'Band-aids'],
 );
+
+// Default cubes / add-ons seed new trips.
+const defaultToiletries = {
+  ...toiletries,
+  includeByDefault: true,
+  addOns: toiletries.addOns.map((a) => (
+    a.id === 'beauty-basics' ? { ...a, includeByDefault: true } : a
+  )),
+};
+check('isDefaultCube reads the flag', isDefaultCube(defaultToiletries), true);
+check('isDefaultAddOn reads the flag', isDefaultAddOn(defaultToiletries.addOns[2]), true);
+const seeded = newSuitcase('Always', [defaultToiletries, beach]);
+check('default cube attaches on a new trip', seeded.cubeIds, ['toiletries']);
+check(
+  'default cube imports base items',
+  seeded.items.filter((i) => !i.addOnId).map((i) => i.label),
+  ['Toothbrush', 'Toothpaste', 'Deodorant'],
+);
+check(
+  'default add-on imports its items too',
+  seeded.items.filter((i) => i.addOnId === 'beauty-basics').map((i) => i.label),
+  ['Moisturizer', 'Sunscreen stick'],
+);
+check('non-default cubes stay off the new trip', seeded.cubeIds.includes('beach'), false);
+check('cubes without the flag do not seed', newSuitcase('Blank', catalog).cubeIds, []);
+seedDefaults(seeded, [defaultToiletries]);
+check('reseeding a trip does not duplicate items', seeded.items.filter((i) => i.label === 'Toothbrush').length, 1);
 
 // --- deleting a cube from the account keeps the list intact ---
 const changed = releaseDeletedCube(s, 'toiletries');
@@ -201,6 +278,30 @@ check('group titles resolve from the catalog', groups[0].title, 'Toiletries');
 check('missing cubes fall back to their id', groups[1].title, 'ghost-cube');
 check('empty attached group kept as organize target', groups[1].items, []);
 check('unsorted group holds unassigned items', groups[3].items.map((i) => i.label), ['Passport']);
+
+const sAddOnView = normalizeSuitcase({
+  id: 's-addon',
+  name: 'Add-on view',
+  cubeIds: ['toiletries'],
+  items: [
+    { id: 'a', label: 'Toothbrush', cubeId: 'toiletries' },
+    { id: 'b', label: 'Moisturizer', cubeId: 'toiletries', addOnId: 'beauty-basics' },
+  ],
+});
+const packedGroups = groupedItems(sAddOnView, cubesById);
+check(
+  'by-cube view splits add-on items into Parent - Add-on',
+  packedGroups.map((g) => g.key),
+  ['toiletries', addonGroupKey('toiletries', 'beauty-basics')],
+);
+check('add-on group title', packedGroups[1].title, 'Toiletries - Beauty Basics');
+check('parent group keeps base items', packedGroups[0].items.map((i) => i.label), ['Toothbrush']);
+const organizeGroups = groupedItems(sAddOnView, cubesById, { includeEmptyAddOns: true });
+check(
+  'organize shows empty add-on cubes as filing targets',
+  organizeGroups.map((g) => g.title),
+  ['Toiletries', 'Toiletries - Travel meds', 'Toiletries - Hair tools', 'Toiletries - Beauty Basics'],
+);
 
 // --- removeItem ---
 check('removeItem deletes by id', removeItem(s4, 'c'), true);

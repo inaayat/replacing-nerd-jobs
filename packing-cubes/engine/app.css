@@ -224,12 +224,14 @@
   letter-spacing: 0.03em;
 }
 
-.pc-cube-badge.standard {
+.pc-cube-badge.standard,
+.pc-cube-badge.default {
   color: var(--accent);
   background: var(--accent-soft);
 }
 
-.pc-cube-edit {
+.pc-cube-edit,
+.pc-cube-pin {
   flex-shrink: 0;
   width: 26px;
   height: 26px;
@@ -244,7 +246,14 @@
   padding: 0;
 }
 
-.pc-cube-edit:hover { background: var(--chip); color: var(--ink); }
+.pc-cube-edit:hover,
+.pc-cube-pin:hover { background: var(--chip); color: var(--ink); }
+
+.pc-cube-pin.on {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
 
 .pc-cube-quick-add {
   flex-shrink: 0;
@@ -280,7 +289,8 @@
 
 @media (pointer: coarse) {
   .pc-cube-quick-add,
-  .pc-cube-edit {
+  .pc-cube-edit,
+  .pc-cube-pin {
     width: 34px;
     height: 34px;
   }
@@ -319,9 +329,10 @@
 
 .pc-expand-items li:last-child { border-bottom: none; }
 
-.pc-expand-empty {
-  color: var(--faint);
-  font-style: italic;
+.pc-expand-addon { margin-bottom: 10px; }
+
+.pc-expand-addon .pc-section-label {
+  margin: 8px 2px 4px;
 }
 
 .pc-expand-loading {
@@ -399,6 +410,35 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.pc-addon-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.pc-addon-pin {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: var(--outline);
+  border-radius: 99px;
+  background: var(--card);
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.pc-addon-pin:hover { border-color: var(--accent); color: var(--accent); }
+
+.pc-addon-pin.on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-strong);
 }
 
 .pc-addon-chips.in-group {
@@ -660,7 +700,7 @@
   border-radius: var(--radius-sm);
   background: var(--card);
   color: var(--ink);
-  max-width: 150px;
+  max-width: 220px;
 }
 
 @media (max-width: 480px) {

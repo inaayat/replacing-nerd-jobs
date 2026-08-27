@@ -24,15 +24,17 @@ it, then file existing list items into it from Organize. The other way to make
 one is **Unsorted → "Save as cube"** — keep the useful part of a list you already
 typed — or the builder (name, optional items, optional add-ons; paste a newline
 list to bulk-fill). Cube ids are slugs derived from the title, never shown, and
-collisions resolve server-side (`nextFreeId`). A cube can carry **add-ons** —
-named optional bundles (travel meds, hair tools) toggled per trip instead of
-extra cubes. Any cube detaches from a list from the rail, the expanded card,
+collisions resolve server-side (`nextFreeId`). A cube can carry **add-ons** — named optional bundles (travel meds, beauty
+basics) toggled per trip instead of extra cubes. In **Organize**, add-ons show
+up as pickable cubes named like `Toiletries - Beauty Basics`. Pin any cube or
+add-on as **included by default for any new trips**. Any cube detaches from a list from the rail, the expanded card,
 or the × on its group.
 
 All list/cube semantics live in the pure module `packing-cubes/engine/model.js`
 (browser + `scripts/test-packing-cubes-model.mjs`); suitcase JSON is versioned
 (`v: 2`) and v1 suitcases migrate client-side. Cubes and suitcase state sync to
-Neon (`pc_cubes`, with an `add_ons` JSONB column, and `pc_suitcase_state`) via
+Neon (`pc_cubes`, with `add_ons` JSONB and `include_by_default`, and
+`pc_suitcase_state`) via
 `api/packing-cubes.js`. **Signing in is required** — the default view is a
 centered card with the Sign in / Sign up form on the page (same Neon Auth JWT
 as the rest of the site; account delete stays on `/account.html`). Installable
@@ -554,7 +556,7 @@ only runs the code that talks to it). Accessed from serverless functions via
 | `alist_tv_watchlist` | A-Lister | TV to watch |
 | `alist_tv_cache` | A-Lister | TMDB TV payloads |
 | `alist_movie_ranks` | A-Lister | Per-user movie stack rank (beta); independent of the watch log |
-| `pc_cubes` | Packing Cubes | Per-user private cubes (`add_ons` JSONB; `is_public`/`github_pr_url`/`published_at` are vestigial) |
+| `pc_cubes` | Packing Cubes | Per-user private cubes (`add_ons` JSONB, `include_by_default`; `is_public`/`github_pr_url`/`published_at` are vestigial) |
 | `pc_suitcase_state` | Packing Cubes | Active suitcase + packed state JSON |
 | `plot_points_cache` | Plot Points | Query/result cache keyed by `cache_key` |
 | `sn_notes` | Sticky Notes | Board/memory notes; `rich` JSONB holds the formatted body, `text` its plain projection |

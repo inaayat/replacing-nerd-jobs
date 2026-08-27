@@ -94,6 +94,20 @@ check(
 check('explicit id wins over the title', normalizeCubeInput({ id: 'Custom ID', title: 'Other', items: [] }).id, 'custom-id');
 check('fallbackId used when no id or title slug', normalizeCubeInput({ title: '!!!', items: [] }, { fallbackId: 'kept-id' }).id, 'kept-id');
 check('add-ons default to an empty list', normalizeCubeInput({ title: 'X', items: [] }).addOns, []);
+check('includeByDefault defaults false', normalizeCubeInput({ title: 'X', items: [] }).includeByDefault, false);
+check(
+  'includeByDefault preserved on cube and add-on',
+  (() => {
+    const n = normalizeCubeInput({
+      title: 'Toiletries',
+      items: [{ label: 'Toothbrush' }],
+      includeByDefault: true,
+      addOns: [{ title: 'Beauty Basics', items: [{ label: 'Moisturizer' }], includeByDefault: true }],
+    });
+    return [n.includeByDefault, n.addOns[0].includeByDefault, n.addOns[0].id];
+  })(),
+  [true, true, 'beauty-basics'],
+);
 
 if (failures) {
   console.error(`\n${failures} failure(s)`);
