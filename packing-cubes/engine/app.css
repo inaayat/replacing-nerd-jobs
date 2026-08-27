@@ -319,6 +319,11 @@
 
 .pc-expand-items li:last-child { border-bottom: none; }
 
+.pc-expand-empty {
+  color: var(--faint);
+  font-style: italic;
+}
+
 .pc-expand-loading {
   text-align: center;
   color: var(--muted);
