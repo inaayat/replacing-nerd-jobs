@@ -153,10 +153,6 @@
       "destination": "/api/packing-cubes?route=cubes"
     },
     {
-      "source": "/api/pc-publish",
-      "destination": "/api/packing-cubes?route=publish"
-    },
-    {
       "source": "/api/pc-suitcases",
       "destination": "/api/packing-cubes?route=suitcases"
     },

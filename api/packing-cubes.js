@@ -3,25 +3,22 @@ import { upsertUser } from '../lib/a-list.js';
 import {
   validateCube,
   normalizeCubeInput,
-  listVisibleCubes,
+  listOwnCubes,
   getCube,
-  getOwnedCube,
   insertCube,
   updateOwnedCube,
-  markCubePublic,
   deleteOwnedCube,
+  nextFreeId,
+  takenCubeIds,
   getSuitcaseState,
   putSuitcaseState,
 } from '../lib/packing-cubes.js';
-import { publishCubeViaAutoMergedPr, unpublishCubeFromGithub } from '../lib/github-cubes.js';
 
 export default async function handler(req, res) {
   const route = String(req.query?.route || 'cubes').trim();
   switch (route) {
     case 'cubes':
       return handleCubes(req, res);
-    case 'publish':
-      return handlePublish(req, res);
     case 'suitcases':
       return handleSuitcases(req, res);
     default:
@@ -74,7 +71,7 @@ async function handleCubes(req, res) {
         res.status(200).json({ cube });
         return;
       }
-      const cubes = await listVisibleCubes(userId);
+      const cubes = await listOwnCubes(userId);
       res.status(200).json({ cubes });
     } catch (err) {
       res.status(502).json({ error: err.message });
@@ -91,22 +88,16 @@ async function handleCubes(req, res) {
     }
     const cube = normalizeCubeInput(body);
     if (!cube.id) {
-      res.status(400).json({ error: 'Could not derive a cube id from the title.' });
+      res.status(400).json({ error: 'Give the cube a name first.' });
       return;
     }
     try {
-      const existing = await getCube(cube.id, userId);
-      if (existing) {
-        res.status(409).json({ error: `A cube with id "${cube.id}" already exists. Pick another id.` });
-        return;
-      }
+      // Ids are derived from the title and never shown, so resolve collisions
+      // (including with other users' cubes) instead of asking for a new id.
+      cube.id = nextFreeId(cube.id, await takenCubeIds(cube.id));
       const created = await insertCube(userId, cube);
       res.status(201).json({ cube: created });
     } catch (err) {
-      if (String(err.message || '').includes('duplicate key')) {
-        res.status(409).json({ error: `A cube with id "${cube.id}" already exists.` });
-        return;
-      }
       res.status(502).json({ error: err.message });
     }
     return;
@@ -130,22 +121,6 @@ async function handleCubes(req, res) {
         res.status(404).json({ error: 'Cube not found, or you do not own it.' });
         return;
       }
-      // Keep the GitHub catalog in sync when the owner edits a public cube.
-      if (updated.is_public) {
-        try {
-          const publish = await publishCubeViaAutoMergedPr(updated, {
-            authorLabel: session.auth.email || session.auth.name,
-          });
-          updated.github_pr_url = publish.prUrl;
-          await markCubePublic(userId, updated.id, { prUrl: publish.prUrl });
-        } catch (err) {
-          res.status(200).json({
-            cube: updated,
-            warning: `Saved privately, but GitHub sync failed: ${err.message}`,
-          });
-          return;
-        }
-      }
       res.status(200).json({ cube: updated });
     } catch (err) {
       res.status(502).json({ error: err.message });
@@ -165,17 +140,6 @@ async function handleCubes(req, res) {
         res.status(404).json({ error: 'Cube not found, or you do not own it.' });
         return;
       }
-      if (deleted.is_public) {
-        try {
-          await unpublishCubeFromGithub(id);
-        } catch (err) {
-          res.status(200).json({
-            id,
-            warning: `Deleted from your account, but GitHub cleanup failed: ${err.message}`,
-          });
-          return;
-        }
-      }
       res.status(200).json({ id });
     } catch (err) {
       res.status(502).json({ error: err.message });
@@ -184,48 +148,6 @@ async function handleCubes(req, res) {
   }
 
   res.status(405).json({ error: 'Use GET, POST, PATCH, or DELETE.' });
-}
-
-async function handlePublish(req, res) {
-  if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Use POST.' });
-    return;
-  }
-  if (!requireDb(res)) return;
-  const session = await requireUser(req, res);
-  if (!session) return;
-  const { userId, auth } = session;
-
-  const id = String((req.body || {}).id || '').trim();
-  if (!id) {
-    res.status(400).json({ error: 'Missing cube id.' });
-    return;
-  }
-
-  try {
-    const owned = await getOwnedCube(id, userId);
-    if (!owned) {
-      res.status(404).json({ error: 'Cube not found, or you do not own it.' });
-      return;
-    }
-    const validationError = validateCube(owned);
-    if (validationError) {
-      res.status(400).json({ error: validationError });
-      return;
-    }
-
-    const publish = await publishCubeViaAutoMergedPr(owned, {
-      authorLabel: auth.email || auth.name,
-    });
-    const cube = await markCubePublic(userId, id, { prUrl: publish.prUrl });
-    res.status(200).json({
-      cube,
-      prUrl: publish.prUrl,
-      url: `/packing-cubes/cube.html?cube=${encodeURIComponent(id)}`,
-    });
-  } catch (err) {
-    res.status(502).json({ error: err.message });
-  }
 }
 
 async function handleSuitcases(req, res) {

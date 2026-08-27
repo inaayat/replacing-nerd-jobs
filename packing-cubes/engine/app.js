@@ -1,15 +1,13 @@
 // Packing Cubes app: a flat packing list first (the source of truth), with
-// cubes as an organization layer — every cube is the user's own choice, the
-// catalog offers common starter cubes (never auto-attached), optional add-ons
-// per cube, and an Organize mode that files list items into cubes.
+// cubes as an organization layer. Every cube is one the user built — there is
+// no shared catalog and nothing to publish. Cubes may carry optional add-ons,
+// and Organize files list items into cubes.
 // All list/cube semantics live in the pure module ./model.js (tested by
 // scripts/test-packing-cubes-model.mjs); this file is fetch + DOM only.
-import { catalogUrl, cubeJsonUrl } from './paths.js';
 import { initBuilder } from './builder.js';
 import { initAuth, wireAuthLink, refreshToken } from './auth.js';
 import { cubesApi, suitcasesApi } from './api.js';
 import {
-  isCommonCube,
   matchesQuery,
   sortCatalog,
   newSuitcase,
@@ -133,19 +131,8 @@ async function fetchCube(id) {
       cubeCache.set(id, listed);
       return listed;
     }
-    if (!guestMode && auth?.token) {
-      try {
-        const { cube } = await cubesApi.get(auth.token, id);
-        cubeCache.set(id, cube);
-        return cube;
-      } catch (err) {
-        if (err.status !== 404) throw err;
-      }
-    }
-    const res = await fetch(cubeJsonUrl(id));
-    if (!res.ok) throw new Error(`Could not load cube "${id}"`);
-    const cube = await res.json();
-    cube.source = cube.source || 'static';
+    if (guestMode || !auth?.token) throw new Error('Sign in to load your cubes.');
+    const { cube } = await cubesApi.get(auth.token, id);
     cubeCache.set(id, cube);
     return cube;
   })().finally(() => cubeFetches.delete(id));
@@ -198,7 +185,7 @@ function render() {
         </div>
         <div class="pc-pane-tabs" role="tablist" aria-label="Panel">
           <button type="button" role="tab" data-pane="list" aria-selected="${mobilePane === 'list'}">Packing list</button>
-          <button type="button" role="tab" data-pane="cubes" aria-selected="${mobilePane === 'cubes'}">Cube library</button>
+          <button type="button" role="tab" data-pane="cubes" aria-selected="${mobilePane === 'cubes'}">My cubes</button>
         </div>
       </header>
 
@@ -209,7 +196,7 @@ function render() {
       <aside class="pc-cubes-panel">
         <div class="pc-panel-head">
           <div class="pc-panel-head-row">
-            <h2>Cube library</h2>
+            <h2>My cubes</h2>
             <a href="/packing-cubes/builder.html" class="pc-btn primary sm">+ New cube</a>
           </div>
           <label class="pc-sr-only" for="cube-search">Search cubes</label>
@@ -259,7 +246,7 @@ function render() {
 }
 
 // ---------------------------------------------------------------------------
-// Cube library (left rail)
+// My cubes (side rail)
 // ---------------------------------------------------------------------------
 
 function canEditCube(cube) {
@@ -275,13 +262,23 @@ function renderCubeList() {
   const cubes = sortCatalog(catalog).filter((c) => matchesQuery(cubeCache.get(c.id) || c, q));
 
   if (!cubes.length) {
-    mount.innerHTML = `<p class="pc-no-results">No cubes match "${escapeHtml(searchQuery)}".</p>`;
+    mount.innerHTML = catalog.length
+      ? `<p class="pc-no-results">No cubes match "${escapeHtml(searchQuery)}".</p>`
+      : `<div class="pc-cubes-empty">
+           <p><b>No cubes yet.</b></p>
+           <p>A cube is a reusable group of items — “Toiletries”, “Beach”, “Work trip”. Build one and you can drop it onto any future list.</p>
+           ${guestMode
+             ? `<p class="pc-cubes-empty-note">Sign in to create cubes. You can still build a packing list on this device.</p>`
+             : `<button type="button" class="pc-btn primary" id="empty-create-cube">Build my first cube</button>
+                <p class="pc-cubes-empty-note">Already have a list going? Use <b>Organize</b> to turn part of it into a cube later.</p>`}
+         </div>`;
+    const cta = document.getElementById('empty-create-cube');
+    if (cta) cta.addEventListener('click', () => openBuilderModal(null));
     return;
   }
 
   mount.innerHTML = cubes.map((c) => {
     const attached = suitcase.cubeIds.includes(c.id);
-    const common = isCommonCube(c);
     const expanded = expandedCubeIds.has(c.id);
     return `
       <div class="pc-cube-card ${attached ? 'in-suitcase' : ''} ${expanded ? 'expanded' : ''}" data-cube-id="${escapeAttr(c.id)}">
@@ -289,12 +286,7 @@ function renderCubeList() {
              aria-label="${expanded ? 'Collapse' : 'Expand'} ${escapeAttr(c.title)}">
           <div class="pc-cube-icon">${BAG_SVG}</div>
           <div class="pc-cube-info">
-            <div class="title">
-              ${escapeHtml(c.title)}
-              ${common ? '<span class="pc-cube-badge standard">Common</span>' : ''}
-              ${c.mine && !c.is_public && c.source === 'db' ? '<span class="pc-cube-badge">Private</span>' : ''}
-              ${c.mine && c.is_public ? '<span class="pc-cube-badge">Public</span>' : ''}
-            </div>
+            <div class="title">${escapeHtml(c.title)}</div>
             <div class="blurb">${escapeHtml(c.blurb || '')}</div>
           </div>
           ${canEditCube(c) ? `<button type="button" class="pc-cube-edit" data-edit-id="${escapeAttr(c.id)}" title="Edit cube" aria-label="Edit ${escapeAttr(c.title)}">${EDIT_SVG}</button>` : ''}
@@ -401,10 +393,8 @@ function expandBodyHtml(cubeId) {
       <button type="button" class="pc-btn ${attached ? '' : 'primary'}" id="attach-btn-${escapeAttr(cubeId)}" style="width:100%">
         ${attached ? 'Remove from packing list' : 'Add to packing list'}
       </button>
-      ${!mine ? `<button type="button" class="pc-expand-link" id="template-cube-link-${escapeAttr(cubeId)}">Copy into a cube of my own</button>` : ''}
       ${mine ? `
         <button type="button" class="pc-expand-link" id="edit-cube-link-${escapeAttr(cubeId)}">Edit this cube</button>
-        ${!cube.is_public ? `<button type="button" class="pc-expand-link" id="publish-cube-btn-${escapeAttr(cubeId)}">Make public</button>` : ''}
         <button type="button" class="pc-delete-cube-btn" id="delete-cube-btn-${escapeAttr(cubeId)}">Delete this cube</button>
       ` : ''}
     </div>
@@ -439,10 +429,6 @@ function bindExpandInteractions(cubeId) {
 
   const editLink = document.getElementById(`edit-cube-link-${cubeId}`);
   if (editLink) editLink.addEventListener('click', () => openBuilderModal(cubeId));
-  const templateLink = document.getElementById(`template-cube-link-${cubeId}`);
-  if (templateLink) templateLink.addEventListener('click', () => openBuilderModal(null, cubeId));
-  const publishBtn = document.getElementById(`publish-cube-btn-${cubeId}`);
-  if (publishBtn) publishBtn.addEventListener('click', () => makeCubePublic(cubeId));
   const deleteBtn = document.getElementById(`delete-cube-btn-${cubeId}`);
   if (deleteBtn) deleteBtn.addEventListener('click', () => deleteCubeEverywhere(cubeId));
 }
@@ -461,25 +447,52 @@ function toggleAddOn(cubeId, addOnId) {
   else showToast(`Removed "${addOn?.title}"${count ? ` — ${count} item${count === 1 ? '' : 's'} off the list` : ''}`);
 }
 
-async function makeCubePublic(cubeId) {
-  if (!confirm('Make this cube public? It will be added to the site catalog (GitHub PR auto-merged).')) return;
+/**
+ * Turn the unsorted items into a reusable cube. This is how most cubes get
+ * built: you type a real list first, then keep the useful part of it.
+ */
+async function saveUnsortedAsCube() {
+  const suitcase = activeSuitcase();
+  const unsorted = suitcase.items.filter((i) => !i.cubeId);
+  if (unsorted.length < 2) {
+    showToast('Add at least two unsorted items first.');
+    return;
+  }
+
+  const name = prompt(`Name this cube (${unsorted.length} items):`, '');
+  if (name === null) return;
+  const title = name.trim();
+  if (!title) {
+    showToast('A cube needs a name.');
+    return;
+  }
+
   try {
-    const data = await cubesApi.publish(auth.token, cubeId);
-    cubeCache.set(cubeId, data.cube);
-    const idx = catalog.findIndex((c) => c.id === cubeId);
-    if (idx >= 0) catalog[idx] = { ...catalog[idx], ...data.cube };
+    const { cube } = await cubesApi.create(auth.token, {
+      title,
+      blurb: '',
+      tags: [],
+      items: unsorted.map((i) => ({ label: i.label.trim() })).filter((i) => i.label),
+      addOns: [],
+    });
+    cubeCache.set(cube.id, cube);
+    catalog.push(cube);
+    // The items are already on the list — file them rather than re-importing.
+    if (!suitcase.cubeIds.includes(cube.id)) suitcase.cubeIds.push(cube.id);
+    for (const item of unsorted) assignItem(suitcase, item.id, cube.id);
+    saveState();
     renderCubeList();
-    showToast('Published — live for everyone after deploy');
+    renderList();
+    showToast(`Saved "${cube.title}" — reuse it on any trip`);
   } catch (err) {
-    showToast(`Couldn't publish: ${err.message}`);
+    showToast(`Couldn't save that cube: ${err.message}`);
   }
 }
 
 async function deleteCubeEverywhere(cubeId) {
   const cube = cubeCache.get(cubeId) || catalog.find((c) => c.id === cubeId);
   const title = cube?.title || cubeId;
-  const isPublic = !!cube?.is_public;
-  if (!confirm(`Delete "${title}"? This removes it from your account${isPublic ? ' and the public catalog' : ''}. Items already on your lists stay (they just become unsorted).`)) return;
+  if (!confirm(`Delete the cube "${title}"? Items already on your lists stay — they just become unsorted.`)) return;
 
   try {
     await cubesApi.remove(auth.token, cubeId);
@@ -499,7 +512,7 @@ async function deleteCubeEverywhere(cubeId) {
   }
 }
 
-function openBuilderModal(editId, templateId = null) {
+function openBuilderModal(editId) {
   if (guestMode || !auth?.signedIn) {
     location.href = `/account.html?next=${encodeURIComponent('/packing-cubes/')}`;
     return;
@@ -512,10 +525,9 @@ function openBuilderModal(editId, templateId = null) {
   initBuilder({
     root: builderRoot,
     editId: editId || null,
-    templateId,
     auth,
     onClose: closeBuilderModal,
-    onPublished: refreshCatalog,
+    onSaved: refreshCatalog,
   });
 }
 
@@ -822,7 +834,7 @@ function renderList() {
   const cubeMap = cubesById();
 
   if (!suitcase.items.length) {
-    mount.innerHTML = `<p class="pc-list-empty">Your list is empty. Type items above, or start from a common cube in the library.</p>`;
+    mount.innerHTML = `<p class="pc-list-empty">Your list is empty. Start typing items above — you can group them into cubes later.</p>`;
     return;
   }
 
@@ -851,6 +863,7 @@ function renderList() {
     const cube = !isUnsorted ? cubeMap.get(group.key) : null;
     const addOns = cube ? cubeAddOns(cube) : [];
     const removable = !isUnsorted && suitcase.cubeIds.includes(group.key);
+    const canSaveAsCube = isUnsorted && !guestMode && group.items.length > 1;
     return `
       <div class="pc-item-group ${collapsed ? 'collapsed' : ''} ${isUnsorted ? 'unsorted' : ''}" data-group-key="${escapeAttr(group.key)}">
         <div class="pc-group-row">
@@ -859,6 +872,7 @@ function renderList() {
             <span class="pc-group-title">${escapeHtml(group.title)}</span>
             <span class="pc-group-count">${group.items.filter((i) => i.packed).length}/${group.items.length}</span>
           </button>
+          ${canSaveAsCube ? `<button type="button" class="pc-group-action" id="save-unsorted-cube">Save as cube</button>` : ''}
           ${removable ? `<button type="button" class="pc-group-remove" data-remove-cube="${escapeAttr(group.key)}"
             title="Remove this cube and its items from the list" aria-label="Remove ${escapeAttr(group.title)} from the list">&times;</button>` : ''}
         </div>
@@ -903,6 +917,9 @@ function renderList() {
     btn.addEventListener('click', () => quickToggleCube(btn.dataset.removeCube));
   });
 
+  const saveUnsorted = document.getElementById('save-unsorted-cube');
+  if (saveUnsorted) saveUnsorted.addEventListener('click', saveUnsortedAsCube);
+
   bindItemRows(mount, suitcase);
 
   // Fetch full cubes we only know by title so add-on chips appear once loaded.
@@ -918,30 +935,14 @@ function renderList() {
 // Catalog + hydration
 // ---------------------------------------------------------------------------
 
-async function loadStaticCatalog() {
-  try {
-    const res = await fetch(catalogUrl, { cache: 'no-store' });
-    if (!res.ok) return [];
-    const list = await res.json();
-    if (!Array.isArray(list)) return [];
-    return list.map((c) => ({ ...c, source: 'static', mine: false, is_public: true }));
-  } catch {
-    return [];
-  }
-}
-
+/** Your cubes, and only yours — there is no shared catalog. */
 async function loadCatalog() {
-  const staticCubes = await loadStaticCatalog();
-  if (guestMode || !auth?.token) return staticCubes;
-
-  const dbPayload = await cubesApi.list(auth.token);
-  const byId = new Map();
-  for (const cube of staticCubes) byId.set(cube.id, cube);
-  for (const cube of dbPayload.cubes || []) {
-    byId.set(cube.id, cube);
+  if (guestMode || !auth?.token) return [];
+  const { cubes = [] } = await cubesApi.list(auth.token);
+  for (const cube of cubes) {
     if (cube.items) cubeCache.set(cube.id, cube);
   }
-  return [...byId.values()];
+  return cubes;
 }
 
 async function hydrateSuitcases() {

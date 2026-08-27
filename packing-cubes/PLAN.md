@@ -310,3 +310,40 @@ cube set; the site's job is to offer good starting material, not to preload anyo
 - **Removable everywhere.** Any cube — common or not — detaches from a list via the library
   toggle, the expanded card button, or a new × on its group header in the By-cube view
   (detaching removes the rows it brought; the toast reports the count).
+
+## Round 8 — no catalog at all: private, user-built cubes; publishing retired
+
+Second correction: don't show common cubes either, and drop "make public". Cubes are now
+purely personal, and the app's job is to make *building your own* easy.
+
+### The shared catalog is gone
+- `packing-cubes/cubes/` (all cube JSON + index), `scripts/build-cube-index.mjs`, the
+  `build-cube-index.yml` Action, and `engine/paths.js` are deleted. The app never fetches static
+  cube JSON; `loadCatalog()` returns your rows and nothing else, and `listVisibleCubes`
+  (`user_id = … OR is_public = true`) became `listOwnCubes` (`user_id = …`), so no other user's
+  cube can appear even in principle.
+- The rail is now **My cubes** with a real empty state that explains what a cube is and offers
+  "Build my first cube" — rather than a list of other people's cubes.
+
+### Publishing retired
+- Removed the "Make public" checkbox and link, the `publish` route, the `/api/pc-publish`
+  rewrite, `cubesApi.publish`, and `lib/github-cubes.js` (auto-merged publish PRs, catalog file
+  writes, unpublish-on-delete). Edit and delete no longer touch GitHub, so cube writes are pure
+  Neon and can't fail on a GitHub quota. `is_public` / `github_pr_url` / `published_at` stay as
+  vestigial columns (dropping columns is a Neon-console change), documented as such in `db.js`;
+  the now-pointless partial index is dropped. `GITHUB_TOKEN` is only used by Sporcle now.
+- `cube.html` is a signed-in view of **your** cube (API only, no static fallback) with Add /
+  Edit actions, since there are no public cube pages to link to.
+
+### Building your own, made easy
+- **Unsorted → "Save as cube"** is the primary path: type a real list, then keep the useful part.
+  It creates the cube from the unsorted items and files those existing rows into it (no
+  re-import, no duplicates).
+- **Builder rewritten** for humans instead of catalog maintainers: no cube-ID field (ids are
+  title slugs resolved server-side by `nextFreeId`, since `pc_cubes.id` is a global primary
+  key and two people may both make a "Toiletries"), no visibility choice, no numbered
+  step scaffolding, no tags field. Enter moves to the next item; "Paste a list instead" accepts
+  a newline list and strips `-`/`*`/`1.` bullets; validation stays quiet until there's something
+  to fix, and saving from the modal closes it.
+- Removed the Round 7 "Copy into a cube of my own" template flow — with only your own cubes in
+  the rail, Edit already covers it.

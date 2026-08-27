@@ -7,10 +7,9 @@
 //   - Cubes are an organization layer on top. Attaching a cube imports its item
 //     labels into the list (tagged with the cubeId); "Organize" re-assigns any
 //     item's cubeId after the fact.
-//   - Every list starts empty and every cube is the user's own choice. The
-//     catalog offers "common" cubes (tag "common"; legacy "standard"/"basics"
-//     read the same) as starter templates — never auto-attached, always
-//     removable like any other cube.
+//   - Every list starts empty and every cube is one the user built. There is
+//     no shared catalog: cubes are private, never auto-attached, and always
+//     removable from a list.
 //   - A cube may carry optional add-ons: named item bundles (travel meds, hair
 //     tools, …) toggled per trip instead of creating one-off extra cubes.
 
@@ -32,13 +31,6 @@ export function itemKey(label) {
 // Cubes
 // ---------------------------------------------------------------------------
 
-/** Common cubes are curated starter templates in the catalog. They are never
- *  auto-attached — "standard" / "basics" are legacy tags read the same way. */
-export function isCommonCube(cube) {
-  const tags = (cube?.tags || []).map((t) => String(t).toLowerCase());
-  return tags.includes('common') || tags.includes('standard') || tags.includes('basics');
-}
-
 export function cubeAddOns(cube) {
   return Array.isArray(cube?.addOns) ? cube.addOns : [];
 }
@@ -57,13 +49,9 @@ export function matchesQuery(cube, query) {
   return haystack.includes(q);
 }
 
-/** Own cubes first, then common templates, then alphabetical. */
+/** Alphabetical by title — every cube here belongs to the viewer. */
 export function sortCatalog(cubes) {
-  return [...(cubes || [])].sort((a, b) => {
-    if (!!a.mine !== !!b.mine) return a.mine ? -1 : 1;
-    if (isCommonCube(a) !== isCommonCube(b)) return isCommonCube(a) ? -1 : 1;
-    return String(a.title || '').localeCompare(String(b.title || ''));
-  });
+  return [...(cubes || [])].sort((a, b) => String(a.title || '').localeCompare(String(b.title || '')));
 }
 
 // ---------------------------------------------------------------------------

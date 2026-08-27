@@ -369,6 +369,24 @@
   color: var(--muted);
 }
 
+.pc-cubes-empty {
+  padding: 20px 14px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.pc-cubes-empty p { margin: 0 0 10px; }
+.pc-cubes-empty b { color: var(--ink); }
+
+.pc-cubes-empty-note {
+  font-size: 0.78rem;
+  color: var(--faint);
+  margin-top: 12px !important;
+  margin-bottom: 0 !important;
+}
+
 /* Add-on chips */
 .pc-addon-section { margin-bottom: 4px; }
 
@@ -683,6 +701,22 @@
   text-align: left;
   font: inherit;
 }
+
+.pc-group-action {
+  flex-shrink: 0;
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--info);
+  background: none;
+  border: none;
+  padding: 0 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: underline;
+}
+
+.pc-group-action:hover { color: var(--ink); }
 
 .pc-group-remove {
   flex-shrink: 0;
