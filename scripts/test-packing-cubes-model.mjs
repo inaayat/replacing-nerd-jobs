@@ -226,7 +226,11 @@ check('organizeTargets puts unattached cubes in others', targets.others.map((t) 
 
 const listed = expandContents(sOrg, toiletries);
 check('expandContents uses the packing list when the cube is attached', listed.source, 'list');
-check('expandContents lists filed items, not the empty template', listed.items.map((i) => i.label), ['Moisturizer']);
+check(
+  'expandContents keeps the cube template plus trip-filed extras',
+  listed.items.map((i) => i.label),
+  ['Toothbrush', 'Toothpaste', 'Deodorant', 'Moisturizer'],
+);
 const templateView = expandContents(newSuitcase('No cubes'), toiletries);
 check('expandContents falls back to the cube template off-list', templateView.source, 'cube');
 check('template view shows saved cube items', templateView.items.map((i) => i.label), ['Toothbrush', 'Toothpaste', 'Deodorant']);
@@ -236,6 +240,53 @@ check('absorbItemIntoCube adds a new label to an empty cube', absorbItemIntoCube
 check('absorbItemIntoCube skips duplicates', absorbItemIntoCube(absorbed, 'toothbrush'), false);
 check('absorbItemIntoCube writes add-on items', absorbItemIntoCube(absorbed, 'Lip balm', 'beauty-basics'), true);
 check('filedInCube filters by cube', filedInCube(sOrg, 'toiletries').map((i) => i.label), ['Moisturizer']);
+
+function cubeDefSnap(cube) {
+  return JSON.stringify({
+    items: (cube.items || []).map((i) => i.label),
+    addOns: cubeAddOns(cube).map((a) => ({ id: a.id, items: (a.items || []).map((i) => i.label) })),
+  });
+}
+const tripLocal = newSuitcase('This trip only');
+attachCube(tripLocal, toiletries);
+setAddOn(tripLocal, toiletries, 'travel-meds', true);
+const defBefore = cubeDefSnap(toiletries);
+const brushRow = tripLocal.items.find((i) => i.label === 'Toothbrush');
+const medsRow = tripLocal.items.find((i) => i.addOnId === 'travel-meds');
+removeItem(tripLocal, brushRow.id);
+assignItem(tripLocal, medsRow.id, null);
+check('removeItem drops the row from this trip', tripLocal.items.some((i) => i.id === brushRow.id), false);
+check('unassign clears cubeId on this trip', tripLocal.items.find((i) => i.id === medsRow.id).cubeId, null);
+check('remove/unassign do not edit the cube definition', cubeDefSnap(toiletries), defBefore);
+const nextTrip = newSuitcase('Next trip');
+attachCube(nextTrip, toiletries);
+check(
+  'next attach still imports the cube item',
+  nextTrip.items.some((i) => i.label === 'Toothbrush'),
+  true,
+);
+const afterDisable = cubeDefSnap(toiletries);
+setAddOn(tripLocal, toiletries, 'hair-tools', false);
+check('disabling an add-on on a trip does not strip its definition', cubeDefSnap(toiletries), afterDisable);
+
+const growCube = {
+  id: 'grow',
+  title: 'Grow',
+  items: [{ label: 'Socks' }],
+  addOns: [{ id: 'pouch', title: 'Pouch', items: [] }],
+};
+const growTrip = newSuitcase('Grow trip');
+const belt = addItem(growTrip, 'Belt');
+assignItem(growTrip, belt.id, 'grow');
+check('assign+absorb grows the cube', absorbItemIntoCube(growCube, belt.label), true);
+check('grown cube keeps prior labels', growCube.items.map((i) => i.label), ['Socks', 'Belt']);
+const balm = addItem(growTrip, 'Lip balm');
+assignItem(growTrip, balm.id, 'grow', 'pouch');
+check('assign+absorb grows the add-on', absorbItemIntoCube(growCube, balm.label, 'pouch'), true);
+removeItem(growTrip, belt.id);
+removeItem(growTrip, balm.id);
+check('trip delete does not shrink the grown cube', growCube.items.map((i) => i.label), ['Socks', 'Belt']);
+check('trip delete does not shrink the add-on', growCube.addOns[0].items.map((i) => i.label), ['Lip balm']);
 
 // Enabling an add-on for an unattached cube attaches it first.
 const s3 = newSuitcase('Weekend');
@@ -395,6 +446,24 @@ check('shared item sits in both outfits', [
 check('filed outfit item also sits in its cube', lookGroups[2].items.map((i) => i.id), ['blazer']);
 check('unsorted-only-in-outfit stays out of Unsorted', lookGroups[3].items.map((i) => i.id), ['passport']);
 check('List still shows a shared item once', uniqueItemsById(sLooks.items).length, 3);
+
+const listGroups = groupedItems(sLooks, cubesById, { exclusive: true });
+check(
+  'List groups outfits then cubes then unsorted',
+  listGroups.map((g) => g.key),
+  [outfitGroupKey(cubeLookA.id), outfitGroupKey(cubeLookB.id), 'toiletries', UNSORTED_KEY],
+);
+check('List puts a shared item only under its first outfit', [
+  listGroups[0].items.map((i) => i.id),
+  listGroups[1].items.map((i) => i.id),
+], [['blazer', 'shoes'], []]);
+check('List does not also show an outfit item under its cube', listGroups[2].items.map((i) => i.id), []);
+check('List leftover unsorted stays at the bottom', listGroups[3].items.map((i) => i.id), ['passport']);
+check(
+  'List exclusive still one packed row per id',
+  listGroups.flatMap((g) => g.items.map((i) => i.id)).sort(),
+  ['blazer', 'passport', 'shoes'],
+);
 
 // --- removeItem ---
 check('removeItem deletes by id', removeItem(s4, 'c'), true);

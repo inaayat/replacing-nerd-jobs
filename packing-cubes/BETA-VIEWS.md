@@ -13,20 +13,20 @@ rewrite that. Days and outfits are extra groupings over the same list.
 
 ## 1. What ships
 
-Two **beta** views on the current packing list:
-
-1. **Plan by day** — look at this trip by **calendar date**. A day is a
+1. **Outfits** (main-line) — named looks that live **on this trip**, not in
+   My Cubes. Example: a wedding trip with one outfit for the ceremony and
+   another for the rehearsal dinner. Always on List / By cube / the Outfits
+   tab — not behind Beta.
+2. **Plan by day** (beta) — look at this trip by **calendar date**. A day is a
    `YYYY-MM-DD` on the trip, displayed as weekday + date (e.g. Fri 13 Jun).
    A "Day 2" suffix may be derived from `startDate` if useful; it is **not**
    the identity.
-2. **Outfits** — named looks that live **on this trip**, not in My Cubes.
-   Example: a wedding trip with one outfit for the ceremony and another for
-   the rehearsal dinner.
 
-They are extra tabs, not a rewrite of packing. List + Organize stay the
-default. Login stays required. No guest mode. No public / catalog cubes.
-Users still build their own cubes. **The packing list remains the source of
-truth** — days and outfits never invent a second inventory.
+They are extra groupings, not a rewrite of packing. List + Organize stay.
+Login stays required. No guest mode. No public / catalog cubes. Users still
+build their own cubes. **The packing list remains the source of truth** —
+days and outfits never invent a second inventory. Removing an item on a
+trip never edits `pc_cubes`.
 
 ---
 
@@ -62,15 +62,18 @@ truth** — days and outfits never invent a second inventory.
   "rehearsal") and copy one onto the current trip. Copying never creates a
   cube. If a copied item isn't on this list, I am offered the chance to add
   those missing labels to the list.
-- As a packer in By cube, I see each outfit as a cube-like group (including
-  empty ones). That group is not a My Cubes cube. An item in an outfit can
-  also sit in its cube section; the flat List still shows it once.
+- As a packer in List and By cube (beta off), I see each outfit as a
+  cube-like group (including empty ones). That group is not a My Cubes cube.
+  List shows an item under its outfit if it belongs to one, otherwise under
+  its cube, Unsorted last. By cube may also show the same item under its
+  cube. One item id, one packed checkbox.
 
 ### Beta
 
-- As a packer who doesn't want this yet, I never see the extra tabs.
-- As a packer who does, I turn beta on once (per account) and get Days +
-  Outfits on every trip, still next to List / By cube.
+- As a packer who doesn't want Plan by day yet, I never see that tab.
+  Outfits stay visible.
+- As a packer who does, I turn beta on once (per account) and get **By day**
+  next to List / By cube / Outfits.
 
 ---
 
@@ -79,20 +82,21 @@ truth** — days and outfits never invent a second inventory.
 The list pane toolbar today (`renderListPanel` in `app.js`):
 
 ```
-[ Filter items… ]  [ List | By cube ]  [ Hide packed ]  [ Organize ]
+[ Filter items… ]  [ List | By cube | Outfits ]  [ Hide packed ]  [ Organize ]
 ```
 
-**Default (beta off):** unchanged. No Days, no Outfits.
+**Default (beta off):** List, By cube, and Outfits. List is grouped (outfit
+or cube, then Unsorted). No By day.
 
-**Beta on:** the same toggle grows two extra buttons. Organize and Hide
-packed still apply to List / By cube. They do **not** run inside Days or
-Outfits (those views have their own assign controls).
+**Beta on:** By day appears. Organize and Hide packed still apply to List /
+By cube. They do **not** run inside Days or Outfits (those views have their
+own assign controls).
 
 ```
 [ Filter items… ]  [ List | By cube | By day | Outfits ]  [ Hide packed ]  [ Organize ]
                                                               ^
-                                              "Beta" text badge on the
-                                              toggle group (see §6)
+                                              "Beta" text badge — gates
+                                              By day only (see §6)
 ```
 
 Mobile (`max-width: 899px`) stays **Packing list | My cubes** as the pane
@@ -159,8 +163,10 @@ Rehearsal dinner
   list (or reuses the existing row with the same name) **and** attaches it
   to this outfit. Existing list items stay selectable as chips.
 - Creating an outfit never writes `pc_cubes`.
-- **List** shows each packing-list item **once** (dedupe by item id).
-  Sharing an item across outfits does not clone the row.
+- **List** is grouped, not a flat dump: outfit groups (sorted by name),
+  then cube / add-on groups, Unsorted last. An item that belongs to an
+  outfit sits **only** under that outfit (first outfit if shared).
+  Otherwise it sits under its cube. One item id, one packed checkbox.
 - **By cube** lists each outfit as a **cube-like group** (same card /
   section chrome as a cube). Outfits are still not cubes — they never
   appear in My Cubes, `pc_cubes`, or the cube library. Empty outfits
@@ -188,7 +194,7 @@ match by `itemKey` on this list. It never creates a cube.
 | `items[]` is the inventory | Still the only inventory |
 | `cubeId` / `addOnId` file into My Cubes | Unchanged. Days/outfits do not set these |
 | Organize dropdown = cubes + add-ons | Stays. Day/outfit assign is **inside** those views |
-| List / By cube (`listView`) | Add `'day'` and `'outfits'` when beta is on |
+| List / By cube (`listView`) | `'outfits'` is always on. Add `'day'` when beta is on |
 | `pc_cubes` / My Cubes rail | Outfits **never** appear here |
 | `includeByDefault` cubes seed new trips | Outfits do not seed. Days start empty until dates are set |
 | Sign-in gate, no guest | Unchanged |
@@ -341,18 +347,19 @@ outfit's `itemIds`.
 **Locked:** a **Beta** badge on the List / By cube switcher.
 
 - Off: badge is a button, `aria-pressed="false"`, label `Beta`. Clicking
-  it sets `prefs.betaViews = true`, saves, and reveals By day + Outfits.
-  First click does **not** navigate away from List.
-- On: By day + Outfits are visible. The badge stays as `Beta · on` and
-  can be clicked again to turn off. Turning off hides the extra tabs and,
-  if `listView` is `day` or `outfits`, snaps back to `list`. Data on the
-  suitcases is **kept** (days, outfits, `dates`) so turning beta back on
-  is lossless.
+  it sets `prefs.betaViews = true`, saves, and reveals **By day** only.
+  Outfits stay visible either way. First click does **not** navigate
+  away from List.
+- On: By day is visible. The badge stays as `Beta · on` and can be
+  clicked again to turn off. Turning off hides By day and, if
+  `listView` is `day`, snaps back to `list`. `outfits` is never snapped
+  away. Data on the suitcases is **kept** (days, outfits, `dates`).
 - Not a secret URL flag. Not a trip-level switch. Not a setting buried
   only on `/account.html`.
 
-`localStorage` view key may store `day` / `outfits` only while beta is on;
-if the stored view is a beta view and beta is off, treat it as `list`.
+`localStorage` view key may store `outfits` always. Store `day` only
+while beta is on; if the stored view is `day` and beta is off, treat it
+as `list`.
 
 ---
 
@@ -390,14 +397,21 @@ suitcase**. It is not a cube, not in `pc_cubes`, not in My Cubes, not
   view (`ensureListItem` / `addItemToOutfit`). Empty outfits are allowed.
 - Optional `event` string. **Optional `date` — null is valid. Do not
   require a date. Do not auto-assign the first trip day.**
-- **Locked:** an item **may** sit on two outfits. On **List** that is one
-  packing-list row (`uniqueItemsById`), one packed checkbox. Outfits are
-  groupings, not extra inventory.
+- **Locked:** an item **may** sit on two outfits. **List** is exclusive:
+  first outfit that owns it, else cube, else Unsorted — one packed
+  checkbox. Outfits are groupings, not extra inventory.
 - **By cube** treats outfits as cube-like groups (same section language).
   They are **not** real cubes. Empty outfits still render. A shared item
   can appear under its outfit group **and** its cube group; packed is
   still one flag on that item id. Unsorted-only-in-outfit rows stay
   under the outfit, not Unsorted.
+- **Cube templates are additive across trips.** Assigning or creating an
+  item into a cube / add-on on a trip **appends** that label to
+  `pc_cubes` (`absorbItemIntoCube`) so the next trip gets it. Removing
+  or unassigning on List / By cube / Organize / outfits is suitcase-only
+  (`removeItem` or `assignItem(..., null)`). It never strips `pc_cubes`
+  or an add-on definition. **The only place that deletes an item from
+  the reusable cube is Edit cube** (the builder).
 - **Locked:** names only for v1. No photo field.
 - Remove outfit: grouping gone; items stay on the list and on their dates.
 - Delete trip: outfits go with the suitcase.
@@ -437,8 +451,10 @@ Sort: array order of trips (already how they are listed).
 ## 9. Edge cases
 
 - **Beta off with leftover data.** Days/outfits remain in JSON. List /
-  By cube ignore `dates`. Turning beta on restores the views.
+  By cube ignore `dates`. Outfits stay visible. Turning beta on restores
+  By day.
 - **Stored view is `day` while beta is off.** Snap to `list`.
+  Stored `outfits` is kept.
 - **Item deleted.** Strip from outfits inside `removeItem`.
 - **Date deleted.** That date only; outfits on it become `date: null`;
   items lose that one date and may remain on other dates.

@@ -289,6 +289,7 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onSa
       title: cube.title.trim(),
       blurb: (cube.blurb || '').trim(),
       tags: cube.tags || [],
+      // Edit cube is the only place that may drop labels from the reusable cube.
       items: filledItems().map((i) => ({ label: i.label.trim() })),
       includeByDefault: !!cube.includeByDefault,
       addOns: cube.addOns

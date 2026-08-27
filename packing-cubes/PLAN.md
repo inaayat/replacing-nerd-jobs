@@ -414,8 +414,8 @@ Karan asked for two extra packing views as beta. Locked:
 - **List stays the source of truth.** Days and outfits are groupings. Login
   required; no guest mode; no catalog cubes; outfits are **not** My Cubes.
 - **Beta:** per-user `prefs.betaViews` (off). A **Beta** badge on the existing
-  List / By cube switcher reveals **By day** and **Outfits**. Extra tabs, not
-  a rewrite. Data is kept if beta is turned off.
+  List / By cube / Outfits switcher reveals **By day** only. Outfits are
+  main-line. Data for days is kept if beta is turned off.
 - **Plan by day is calendar-first** (Karan, same day): a day is a
   `YYYY-MM-DD`. Display is weekday + date; optional "Day N" is derived from
   `startDate` only. `startDate` / `endDate` fill that inclusive span into
@@ -428,7 +428,11 @@ Karan asked for two extra packing views as beta. Locked:
   Create/edit can quick-add a label onto the packing list and the outfit.
   Search past outfits across `state.suitcases`; copy grouping + optionally
   add missing labels to this list; never create a cube. Names only (no
-  photo). An item may sit on two outfits — List still shows that item
-  once (dedupe by item id). By cube lists outfits as cube-like groups
-  (not `pc_cubes`); a shared item may appear under its outfit and its
-  cube, one packed checkbox.
+  photo). List groups by outfit or cube (exclusive: outfit, else cube,
+  else Unsorted). By cube lists outfits as cube-like groups (not
+  `pc_cubes`); a shared item may appear under its outfit and its cube,
+  one packed checkbox. Outfits are not behind the Beta badge. Removing
+  an item on a trip is suitcase-only — it does not strip `pc_cubes` or
+  add-on templates. Filing a new label onto a cube/add-on from a trip
+  **appends** it so the next trip gets it. Only Edit cube deletes from
+  the reusable cube.

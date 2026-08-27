@@ -138,7 +138,7 @@ function betaOn() {
 }
 
 function snapViewIfNeeded() {
-  if (!betaOn() && (listView === 'day' || listView === 'outfits')) {
+  if (!betaOn() && listView === 'day') {
     listView = 'list';
     try { localStorage.setItem(VIEW_KEY, listView); } catch { /* ignore */ }
   }
@@ -861,10 +861,8 @@ function renderListPanel() {
         <div class="pc-view-toggle" role="group" aria-label="List view">
           <button type="button" data-view="list" class="${listView === 'list' ? 'selected' : ''}">List</button>
           <button type="button" data-view="cube" class="${listView === 'cube' ? 'selected' : ''}">By cube</button>
-          ${betaOn() ? `
-            <button type="button" data-view="day" class="${listView === 'day' ? 'selected' : ''}">By day</button>
-            <button type="button" data-view="outfits" class="${listView === 'outfits' ? 'selected' : ''}">Outfits</button>
-          ` : ''}
+          ${betaOn() ? `<button type="button" data-view="day" class="${listView === 'day' ? 'selected' : ''}">By day</button>` : ''}
+          <button type="button" data-view="outfits" class="${listView === 'outfits' ? 'selected' : ''}">Outfits</button>
         </div>
         <button type="button" class="pc-beta-badge ${betaOn() ? 'on' : ''}" id="beta-toggle"
           aria-pressed="${betaOn()}">${betaOn() ? 'Beta · on' : 'Beta'}</button>
@@ -955,7 +953,7 @@ function renderListPanel() {
 
   document.getElementById('beta-toggle').addEventListener('click', () => {
     setBetaViews(!betaOn());
-    showToast(betaOn() ? 'Beta views on — Plan by day and Outfits' : 'Beta views off');
+    showToast(betaOn() ? 'Beta on — Plan by day' : 'Beta off — Plan by day hidden');
   });
 
   const organizeBtn = document.getElementById('organize-btn');
@@ -1125,6 +1123,7 @@ function bindItemRows(mount, suitcase) {
     const removeBtn = li.querySelector('.pc-item-remove');
     if (removeBtn) {
       removeBtn.addEventListener('click', () => {
+        // Trip-local only. Do not persistCube — only Edit cube shrinks pc_cubes.
         removeItem(suitcase, itemId);
         saveState();
         renderList();
@@ -1476,24 +1475,21 @@ function renderList() {
     return;
   }
 
-  if (!suitcase.items.length) {
-    mount.innerHTML = `<p class="pc-list-empty">Your list is empty. Start typing items above — you can group them into cubes later.</p>`;
+  const hasGroups = suitcase.items.length
+    || (suitcase.outfits || []).length
+    || (suitcase.cubeIds || []).length;
+  if (!hasGroups) {
+    mount.innerHTML = `<p class="pc-list-empty">Your list is empty. Start typing items above — you can group them into cubes or outfits later.</p>`;
     return;
   }
 
-  if (listView === 'list') {
-    const items = visibleItems(uniqueItemsById(suitcase.items));
-    mount.innerHTML = items.length
-      ? `<ul class="pc-checklist ${organizeMode ? 'organizing' : ''}">
-          ${items.map((item) => itemRowHtml(item, { showCubeChip: true, cubeMap })).join('')}
-        </ul>`
-      : `<p class="pc-list-empty">No items match.</p>`;
-    bindItemRows(mount, suitcase);
-    return;
-  }
-
-  // By-cube view
-  const groups = groupedItems(suitcase, cubeMap, { includeEmptyAddOns: organizeMode });
+  // List and By cube share the same group chrome. List is exclusive (one
+  // row per item id: outfit, else cube, else Unsorted). By cube can show
+  // the same item under an outfit and its cube.
+  const groups = groupedItems(suitcase, cubeMap, {
+    includeEmptyAddOns: organizeMode,
+    exclusive: listView === 'list',
+  });
   let anyVisible = false;
   mount.innerHTML = groups.map((group) => {
     const items = visibleItems(uniqueItemsById(group.items));

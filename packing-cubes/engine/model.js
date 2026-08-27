@@ -244,27 +244,47 @@ export function filedInCube(suitcase, cubeId) {
   return (suitcase?.items || []).filter((i) => i.cubeId === cubeId);
 }
 
+function mergeLabels(template, extras) {
+  const out = [];
+  const seen = new Set();
+  for (const row of [...(template || []), ...(extras || [])]) {
+    const label = String(row?.label || '').trim();
+    if (!label) continue;
+    const key = itemKey(label);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ label });
+  }
+  return out;
+}
+
 /**
- * What My Cubes should show inside a card. If the cube is on this packing
- * list (or already has rows filed into it), the list is the source of truth —
- * that's how Organize fills an empty cube. Otherwise fall back to the cube's
- * saved template.
+ * What My Cubes should show inside a card. The cube (and add-on) definition
+ * always stays: trip-local remove / unassign must not hide those labels.
+ * Extra labels filed on this trip still appear so an empty cube you fill
+ * from Organize is visible. Off-list, this is just the saved template.
  */
 export function expandContents(suitcase, cube) {
   if (!cube?.id) return { source: 'cube', items: [], addOns: [] };
   const filed = filedInCube(suitcase, cube.id);
   const onList = (suitcase?.cubeIds || []).includes(cube.id) || filed.length > 0;
+  const extras = onList
+    ? filed.filter((i) => !i.addOnId).map((i) => ({ label: i.label }))
+    : [];
+  const addOns = [];
+  const seen = new Set();
+  for (const addOn of cubeAddOns(cube)) {
+    seen.add(addOn.id);
+    const extra = onList
+      ? filed.filter((i) => i.addOnId === addOn.id).map((i) => ({ label: i.label }))
+      : [];
+    addOns.push({
+      id: addOn.id,
+      title: addOn.title,
+      items: mergeLabels(addOn.items, extra),
+    });
+  }
   if (onList) {
-    const addOns = [];
-    const seen = new Set();
-    for (const addOn of cubeAddOns(cube)) {
-      seen.add(addOn.id);
-      addOns.push({
-        id: addOn.id,
-        title: addOn.title,
-        items: filed.filter((i) => i.addOnId === addOn.id).map((i) => ({ label: i.label })),
-      });
-    }
     for (const item of filed) {
       if (!item.addOnId || seen.has(item.addOnId)) continue;
       seen.add(item.addOnId);
@@ -274,24 +294,15 @@ export function expandContents(suitcase, cube) {
         items: filed.filter((i) => i.addOnId === item.addOnId).map((i) => ({ label: i.label })),
       });
     }
-    return {
-      source: 'list',
-      items: filed.filter((i) => !i.addOnId).map((i) => ({ label: i.label })),
-      addOns,
-    };
   }
   return {
-    source: 'cube',
-    items: (cube.items || []).map((i) => ({ label: i.label })),
-    addOns: cubeAddOns(cube).map((a) => ({
-      id: a.id,
-      title: a.title,
-      items: (a.items || []).map((i) => ({ label: i.label })),
-    })),
+    source: onList ? 'list' : 'cube',
+    items: mergeLabels(cube.items, extras),
+    addOns,
   };
 }
 
-/** Copy a filed label onto the cube (or add-on) so the group keeps it. */
+/** Copy a filed label onto the cube (or add-on). Appends only — never strips. */
 export function absorbItemIntoCube(cube, label, addOnId = null) {
   if (!cube) return false;
   const trimmed = String(label || '').trim();
@@ -693,7 +704,11 @@ export function releaseDeletedCube(suitcase, cubeId) {
  * each add-on as its own group titled "Parent - Add-on". Items assigned to a
  * no-longer-attached cube grouped under it too, unsorted last.
  *
- * An item in an outfit also sits in its cube/add-on group when filed.
+ * An item in an outfit also sits in its cube/add-on group when filed
+ * (By cube). Pass `{ exclusive: true }` for List: each item id appears in
+ * one group — first outfit that owns it, otherwise its cube/add-on,
+ * otherwise Unsorted.
+ *
  * Unsorted items that only belong to an outfit stay under that outfit —
  * they do not also appear in Unsorted.
  *
@@ -701,7 +716,7 @@ export function releaseDeletedCube(suitcase, cubeId) {
  * Pass `{ includeEmptyAddOns: true }` in Organize so unused seeded add-ons
  * still appear as filing targets.
  */
-export function groupedItems(suitcase, cubesById, { includeEmptyAddOns = false } = {}) {
+export function groupedItems(suitcase, cubesById, { includeEmptyAddOns = false, exclusive = false } = {}) {
   const groups = [];
   const byKey = new Map();
   const ensure = (key, title, meta = {}) => {
@@ -730,6 +745,7 @@ export function groupedItems(suitcase, cubesById, { includeEmptyAddOns = false }
     for (const id of outfit.itemIds || []) {
       const item = byId.get(id);
       if (!item || group.items.some((row) => row.id === item.id)) continue;
+      if (exclusive && outfitItemIds.has(item.id)) continue;
       group.items.push(item);
       outfitItemIds.add(item.id);
     }
@@ -755,6 +771,8 @@ export function groupedItems(suitcase, cubesById, { includeEmptyAddOns = false }
   for (const item of items) {
     if (!item.cubeId) {
       if (!outfitItemIds.has(item.id)) unsorted.push(item);
+    } else if (exclusive && outfitItemIds.has(item.id)) {
+      continue;
     } else if (item.addOnId) {
       const cube = cubesById?.get?.(item.cubeId);
       const addOn = cubeAddOns(cube).find((a) => a.id === item.addOnId);
@@ -773,7 +791,11 @@ export function groupedItems(suitcase, cubesById, { includeEmptyAddOns = false }
     const g = ensure(UNSORTED_KEY, 'Unsorted');
     g.items = unsorted;
   }
-  return groups;
+  if (!exclusive) return groups;
+  const outfits = groups.filter((g) => g.outfitId);
+  const rest = groups.filter((g) => !g.outfitId);
+  outfits.sort((a, b) => String(a.title).localeCompare(String(b.title)));
+  return [...outfits, ...rest];
 }
 
 /** Count of items still unassigned — drives the Organize affordance. */
@@ -782,7 +804,7 @@ export function unsortedCount(suitcase) {
 }
 
 // ---------------------------------------------------------------------------
-// Calendar days + trip outfits (beta views)
+// Calendar days (beta) + trip outfits (main-line)
 // Days are YYYY-MM-DD identities. The discarded numbered-day draft
 // ({ id, n } / item.dayIds / outfit.dayId) is dropped in normalizeSuitcase.
 // ---------------------------------------------------------------------------
