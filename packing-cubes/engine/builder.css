@@ -9,7 +9,6 @@
 }
 
 .b-h1 {
-  font-family: 'Nunito', sans-serif;
   font-size: 1.2rem;
   font-weight: 800;
   color: var(--ink);
@@ -25,7 +24,6 @@
   font-size: 0.62rem; font-weight: 700; flex-shrink: 0;
 }
 .b-step-title {
-  font-family: 'Nunito', sans-serif;
   font-size: 0.72rem; font-weight: 800;
   color: var(--ink); text-transform: uppercase; letter-spacing: 0.03em;
 }
@@ -66,7 +64,6 @@ textarea.b-mini-input { resize: vertical; font-family: ui-monospace, SFMono-Regu
   margin: 0;
 }
 .b-preview-frame h2 {
-  font-family: 'Nunito', sans-serif;
   font-size: 0.9rem; font-weight: 800;
   color: var(--ink); margin: 0 0 2px;
 }
@@ -89,6 +86,29 @@ textarea.b-mini-input { resize: vertical; font-family: ui-monospace, SFMono-Regu
 }
 .b-toast.ok { display: block; background: #e9f0e8; color: var(--ink); border-color: var(--green); }
 .b-toast.err { display: block; background: var(--pink-soft); color: var(--ink); border-color: var(--pink); }
+
+/* Add-ons editor */
+.b-addon {
+  border: var(--outline);
+  border-radius: var(--radius-sm);
+  background: var(--cream);
+  padding: 8px;
+  margin-bottom: 8px;
+}
+
+.b-addon-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.b-addon-head .b-addon-title { font-weight: 700; }
+
+.b-addon-items { margin-bottom: 4px; }
+
+.b-addon .b-add-row-btn { font-size: 0.7rem; padding: 4px 8px; }
 
 /* Inline modal — even tighter */
 .pc-builder-modal .b-h1 {

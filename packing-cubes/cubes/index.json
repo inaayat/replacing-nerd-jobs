@@ -4,6 +4,7 @@
     "title": "Basics: Boy Tops",
     "blurb": "",
     "tags": [
+      "standard",
       "karan",
       "daily wear"
     ]
@@ -13,6 +14,7 @@
     "title": "Basics: Boy Undergarments",
     "blurb": "undergarments for every trip",
     "tags": [
+      "standard",
       "karan"
     ]
   },
@@ -25,6 +27,15 @@
       "pants",
       "shorts",
       "daily wear"
+    ]
+  },
+  {
+    "id": "toiletries",
+    "title": "Toiletries",
+    "blurb": "The bathroom bag that goes on every trip.",
+    "tags": [
+      "standard",
+      "hygiene"
     ]
   }
 ]

@@ -1,0 +1,32 @@
+{
+  "name": "Packing Cubes",
+  "short_name": "Packing",
+  "description": "Build a packing list, then organize it into reusable cubes.",
+  "start_url": "/packing-cubes/",
+  "scope": "/packing-cubes/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f3f4f6",
+  "theme_color": "#ffffff",
+  "categories": ["travel", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/packing-cubes/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/packing-cubes/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/packing-cubes/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

@@ -2,40 +2,47 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <base href="/packing-cubes/" />
-    <title>Packing Cubes — Beep boop</title>
-    <meta name="description" content="Reusable packing checklists for every trip." />
-    <link rel="icon" type="image/png" href="/ugly-dog-images/dog-5.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" />
+    <title>Packing Cubes</title>
+    <meta name="description" content="Build a packing list, then organize it into reusable cubes." />
+    <link rel="icon" type="image/svg+xml" href="/packing-cubes/icon.svg" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Packing" />
+    <link rel="apple-touch-icon" href="./icons/icon-192.png" />
     <link rel="stylesheet" href="./engine/cube.css" />
     <link rel="stylesheet" href="./engine/app.css" />
     <link rel="stylesheet" href="./engine/builder.css" />
+    <script>
+      // Home-screen install: iOS reports it on navigator, everyone else in CSS.
+      if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+        document.documentElement.classList.add('pc-standalone');
+      }
+    </script>
   </head>
   <body class="pc-body">
 
     <nav class="pc-nav">
       <div class="pc-nav-brand">
-        <a href="/" class="pc-nav-logo">
-          <img src="/ugly-dog-images/dog-5.png" alt="" width="20" height="20" style="object-fit:contain;flex-shrink:0;" />
-          Beep boop
-        </a>
+        <a href="/" class="pc-nav-logo">Beep boop</a>
         <a href="/packing-cubes/" class="pc-nav-section">
-          <img src="/packing-cubes/icon.svg" alt="" width="22" height="22" style="object-fit:contain;flex-shrink:0;filter:brightness(0) invert(1);">
+          <img src="/packing-cubes/icon.svg" alt="" width="22" height="22" style="object-fit:contain;flex-shrink:0;">
           <span>Packing Cubes</span>
         </a>
       </div>
       <div class="pc-nav-links">
-        <a href="/packing-cubes/builder.html">+ Create a cube</a>
+        <a href="/packing-cubes/builder.html">+ New cube</a>
         <a href="/#projects">Projects</a>
         <a href="/account.html?next=%2Fpacking-cubes%2F" id="nav-auth-link">Log in</a>
       </div>
     </nav>
 
     <div class="pc-app" id="app-root">
-      <p style="padding:40px;text-align:center;font-weight:700;color:var(--brown)">Loading…</p>
+      <p class="pc-boot-message">Loading…</p>
     </div>
 
     <div class="pc-toast" id="toast" role="status" aria-live="polite"></div>

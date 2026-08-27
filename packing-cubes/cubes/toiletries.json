@@ -1,0 +1,76 @@
+{
+  "id": "toiletries",
+  "title": "Toiletries",
+  "blurb": "The bathroom bag that goes on every trip.",
+  "tags": [
+    "standard",
+    "hygiene"
+  ],
+  "items": [
+    {
+      "label": "Toothbrush"
+    },
+    {
+      "label": "Toothpaste"
+    },
+    {
+      "label": "Deodorant"
+    },
+    {
+      "label": "Razor"
+    },
+    {
+      "label": "Contact lenses / glasses"
+    }
+  ],
+  "addOns": [
+    {
+      "id": "travel-meds",
+      "title": "Travel meds",
+      "items": [
+        {
+          "label": "Ibuprofen"
+        },
+        {
+          "label": "Band-aids"
+        },
+        {
+          "label": "Motion sickness tablets"
+        },
+        {
+          "label": "Prescriptions"
+        }
+      ]
+    },
+    {
+      "id": "hair-tools",
+      "title": "Hair tools",
+      "items": [
+        {
+          "label": "Hair dryer"
+        },
+        {
+          "label": "Comb / brush"
+        },
+        {
+          "label": "Hair product"
+        }
+      ]
+    },
+    {
+      "id": "skincare",
+      "title": "Skincare",
+      "items": [
+        {
+          "label": "Face wash"
+        },
+        {
+          "label": "Moisturizer"
+        },
+        {
+          "label": "Sunscreen (face)"
+        }
+      ]
+    }
+  ]
+}

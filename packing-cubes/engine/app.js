@@ -1,11 +1,40 @@
-// Unified packing app: catalog (left) + suitcase builder (right)
+// Packing Cubes app: a flat packing list first (the source of truth), with
+// cubes as an organization layer — standard cubes on every trip, optional
+// add-ons per cube, and an Organize mode that files list items into cubes.
+// All list/cube semantics live in the pure module ./model.js (tested by
+// scripts/test-packing-cubes-model.mjs); this file is fetch + DOM only.
 import { catalogUrl, cubeJsonUrl } from './paths.js';
 import { initBuilder } from './builder.js';
 import { initAuth, wireAuthLink, refreshToken } from './auth.js';
 import { cubesApi, suitcasesApi } from './api.js';
+import {
+  isStandardCube,
+  matchesQuery,
+  sortCatalog,
+  newSuitcase,
+  isLegacySuitcase,
+  migrateSuitcase,
+  normalizeSuitcase,
+  addItem,
+  removeItem,
+  updateItemLabel,
+  setItemPacked,
+  assignItem,
+  packedStats,
+  allPacked,
+  attachCube,
+  detachCube,
+  cubeAddOns,
+  addOnEnabled,
+  setAddOn,
+  releaseDeletedCube,
+  groupedItems,
+  unsortedCount,
+  UNSORTED_KEY,
+} from './model.js';
 
 const STORAGE_KEY = 'packing-cubes:suitcases';
-const DENSE_CHECKLIST_THRESHOLD = 7;
+const VIEW_KEY = 'packing-cubes:list-view';
 
 const root = document.getElementById('app-root');
 const toastEl = document.getElementById('toast');
@@ -15,50 +44,31 @@ const addCubeId = params.get('add');
 let catalog = [];
 let state = { activeSuitcaseId: null, suitcases: [] };
 let auth = null;
+let guestMode = false;
+
 let searchQuery = '';
-let checklistFilter = '';
+let listFilter = '';
 let hidePacked = false;
-let showHiddenItems = false;
+let organizeMode = false;
+let listView = localStorage.getItem(VIEW_KEY) === 'cube' ? 'cube' : 'list';
+let mobilePane = 'list';
 let saveTimer = null;
+let wasAllPacked = false;
 const collapsedGroups = new Set();
-
-// Accordion: which cubes are expanded inline, and staged items per cube.
-let expandedCubeIds = new Set();
-const stagedItemsByCube = new Map();
-
-function stagedItemsFor(cubeId) {
-  if (!stagedItemsByCube.has(cubeId)) stagedItemsByCube.set(cubeId, []);
-  return stagedItemsByCube.get(cubeId);
-}
-
-function expandCubesInSuitcase() {
-  const suitcase = activeSuitcase();
-  for (const cubeId of suitcase.cubeIds) {
-    expandedCubeIds.add(cubeId);
-    fetchCube(cubeId).catch(() => {});
-  }
-}
+const expandedCubeIds = new Set();
 
 const cubeCache = new Map();
 const cubeFetches = new Map();
 
-const CUBE_COLORS = ['green', 'purple', 'pink', 'blue', 'gold', 'grey'];
-const TAG_COLORS = {
-  basics: 'purple',
-  summer: 'gold',
-  winter: 'blue',
-  business: 'green',
-  season: 'pink',
-  work: 'green',
-  clothing: 'pink',
-  electronics: 'blue',
-  hygiene: 'grey',
-};
-
-const BAG_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="3"/><path d="M8 8V6a4 4 0 0 1 8 0v2"/><line x1="12" y1="12" x2="12" y2="16"/></svg>`;
+const BAG_SVG = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="12" rx="3"/><path d="M8 8V6a4 4 0 0 1 8 0v2"/><line x1="12" y1="12" x2="12" y2="16"/></svg>`;
 const EDIT_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
 const CHECK_SVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
-const CHEVRON_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
+const CHEVRON_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
+
+// ---------------------------------------------------------------------------
+// State persistence: localStorage always (instant + guest mode), cloud when
+// signed in, debounced.
+// ---------------------------------------------------------------------------
 
 function loadLocalState() {
   try {
@@ -69,59 +79,40 @@ function loadLocalState() {
 }
 
 function saveState() {
-  // Keep a local cache for instant UI, and debounce cloud sync.
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   scheduleCloudSave();
 }
 
 function scheduleCloudSave() {
-  if (!auth?.signedIn || !auth.token) return;
+  if (guestMode || !auth?.signedIn || !auth.token) return;
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     suitcasesApi.put(auth.token, state).catch((err) => {
+      if (err.status === 401) {
+        auth.needsReauth = true;
+        auth.signedIn = false;
+        guestMode = true;
+        renderFooter();
+        showToast('Session expired — changes are staying on this device.');
+        return;
+      }
       console.warn('Suitcase sync failed:', err);
-      showToast(`Couldn't sync suitcase: ${err.message}`);
+      showToast(`Couldn't sync: ${err.message}`);
     });
   }, 450);
 }
 
-function canEditCube(cubeOrId) {
-  const cube = typeof cubeOrId === 'string'
-    ? (catalog.find((c) => c.id === cubeOrId) || cubeCache.get(cubeOrId))
-    : cubeOrId;
-  return !!(cube && cube.mine);
-}
-
-function isBasicCube(cube) {
-  return (cube.tags || []).includes('basics');
-}
-
-function basicCubeIds() {
-  return catalog.filter(isBasicCube).map((c) => c.id);
-}
-
-function newSuitcase(name) {
-  return {
-    id: crypto.randomUUID(),
-    name,
-    cubeIds: [...basicCubeIds()],
-    customItems: [],
-    packed: {},
-    excludedItems: [],
-  };
-}
-
 function ensureSuitcase() {
   if (!state.suitcases.length) {
-    const suitcase = newSuitcase('My trip');
+    // Standard cubes were prefetched in boot(), so their items materialize.
+    const standardCubes = catalog.filter(isStandardCube).map((c) => cubeCache.get(c.id) || c);
+    const suitcase = newSuitcase('My trip', standardCubes);
     state.suitcases.push(suitcase);
     state.activeSuitcaseId = suitcase.id;
     saveState();
     return;
   }
   if (!state.activeSuitcaseId) state.activeSuitcaseId = state.suitcases[0].id;
-  const suitcase = state.suitcases.find((s) => s.id === state.activeSuitcaseId) || state.suitcases[0];
-  if (!suitcase.excludedItems) suitcase.excludedItems = [];
 }
 
 function activeSuitcase() {
@@ -129,9 +120,9 @@ function activeSuitcase() {
   return state.suitcases.find((s) => s.id === state.activeSuitcaseId) || state.suitcases[0];
 }
 
-function itemKey(label) {
-  return label.toLowerCase().trim();
-}
+// ---------------------------------------------------------------------------
+// Cube resolution
+// ---------------------------------------------------------------------------
 
 async function fetchCube(id) {
   if (cubeCache.has(id)) return cubeCache.get(id);
@@ -143,7 +134,7 @@ async function fetchCube(id) {
       cubeCache.set(id, listed);
       return listed;
     }
-    if (auth?.token) {
+    if (!guestMode && auth?.token) {
       try {
         const { cube } = await cubesApi.get(auth.token, id);
         cubeCache.set(id, cube);
@@ -158,101 +149,36 @@ async function fetchCube(id) {
     cube.source = cube.source || 'static';
     cubeCache.set(id, cube);
     return cube;
-  })()
-    .then((cube) => {
-      cubeFetches.delete(id);
-      return cube;
-    })
-    .catch((err) => {
-      cubeFetches.delete(id);
-      throw err;
-    });
+  })().finally(() => cubeFetches.delete(id));
 
   cubeFetches.set(id, promise);
   return promise;
 }
 
-// Groups the suitcase's merged items by the cube they came from, so the
-// checklist doesn't repeat the same cube name on every row. Shared items
-// (present in more than one selected cube) are placed under the first
-// cube (in suitcase order) that contains them; their other sources are
-// still recorded for a small "also in ..." note.
-async function mergeItemsGrouped(suitcase) {
-  const merged = new Map();
-  const cubeTitles = new Map();
-
-  for (const cubeId of suitcase.cubeIds) {
-    let cube;
-    try { cube = await fetchCube(cubeId); } catch { continue; }
-    cubeTitles.set(cubeId, cube.title);
-    for (const item of cube.items || []) {
-      const label = item.label.trim();
-      if (!label) continue;
-      const key = itemKey(label);
-      if (!merged.has(key)) {
-        merged.set(key, { label, sources: [cube.title], itemKey: key, cubeId });
-      } else {
-        const existing = merged.get(key);
-        if (!existing.sources.includes(cube.title)) existing.sources.push(cube.title);
-      }
-    }
-  }
-
-  for (const item of suitcase.customItems || []) {
-    const label = item.label.trim();
-    if (!label) continue;
-    const key = itemKey(label);
-    if (!merged.has(key)) {
-      merged.set(key, { label, sources: ['Custom'], itemKey: key, cubeId: item.cubeId || null });
-    }
-  }
-
-  const groupByKey = new Map();
-  const groups = [];
-  function ensureGroup(key, title) {
-    if (!groupByKey.has(key)) {
-      const g = { key, title, items: [] };
-      groupByKey.set(key, g);
-      groups.push(g);
-    }
-    return groupByKey.get(key);
-  }
-
-  for (const item of merged.values()) {
-    const key = item.cubeId && cubeTitles.has(item.cubeId) ? item.cubeId : '__custom__';
-    const title = key === '__custom__' ? 'Custom items' : cubeTitles.get(key);
-    ensureGroup(key, title).items.push(item);
-  }
-
-  for (const g of groups) g.items.sort((a, b) => a.label.localeCompare(b.label));
-  return groups;
+/** Titles resolve from cache or the catalog index; items need the cache. */
+function cubesById() {
+  const map = new Map();
+  for (const cube of catalog) map.set(cube.id, cubeCache.get(cube.id) || cube);
+  for (const [id, cube] of cubeCache) map.set(id, cube);
+  return map;
 }
 
-function packedCount(suitcase, items) {
-  return items.filter((i) => suitcase.packed[i.itemKey]).length;
+async function prefetchSuitcaseCubes(suitcase) {
+  const wanted = new Set(suitcase.cubeIds);
+  for (const item of suitcase.items) if (item.cubeId) wanted.add(item.cubeId);
+  await Promise.all([...wanted].map((id) => fetchCube(id).catch(() => null)));
 }
 
-function primaryTag(cube) {
-  const tags = cube.tags || [];
-  for (const t of ['basics', 'summer', 'winter', 'business']) {
-    if (tags.includes(t)) return t;
-  }
-  return tags[0] || 'other';
+// ---------------------------------------------------------------------------
+// Shell
+// ---------------------------------------------------------------------------
+
+function escapeHtml(s) {
+  return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function cubeColor(cube, index) {
-  return TAG_COLORS[primaryTag(cube)] || CUBE_COLORS[index % CUBE_COLORS.length];
-}
-
-function matchesQuery(cube, query) {
-  const haystack = [cube.title, cube.blurb, ...(cube.tags || [])].join(' ').toLowerCase();
-  return haystack.includes(query);
-}
-
-function filteredCatalog() {
-  const q = searchQuery.trim().toLowerCase();
-  if (!q) return catalog;
-  return catalog.filter((c) => matchesQuery(c, q));
+function escapeAttr(s) {
+  return escapeHtml(s).replace(/"/g, '&quot;');
 }
 
 function showToast(msg) {
@@ -265,19 +191,27 @@ function showToast(msg) {
 
 function render() {
   root.innerHTML = `
-    <div class="pc-app-inner">
+    <div class="pc-app-inner pane-${mobilePane}">
       <header class="pc-app-header">
         <div>
           <h1 class="pc-app-title">Packing Cubes</h1>
-          <p class="pc-app-subtitle">Mix cubes into your suitcase. Basics start included — remove any you don't need.</p>
+          <p class="pc-app-subtitle">Build your packing list first. Organize it into cubes whenever you're ready.</p>
+        </div>
+        <div class="pc-pane-tabs" role="tablist" aria-label="Panel">
+          <button type="button" role="tab" data-pane="list" aria-selected="${mobilePane === 'list'}">Packing list</button>
+          <button type="button" role="tab" data-pane="cubes" aria-selected="${mobilePane === 'cubes'}">Cube library</button>
         </div>
       </header>
+
+      <main class="pc-list-panel" id="list-panel">
+        <div id="list-content"></div>
+      </main>
 
       <aside class="pc-cubes-panel">
         <div class="pc-panel-head">
           <div class="pc-panel-head-row">
-            <h2>Available Cubes</h2>
-            <a href="/packing-cubes/builder.html" class="pc-btn primary sm">+ Create a cube</a>
+            <h2>Cube library</h2>
+            <a href="/packing-cubes/builder.html" class="pc-btn primary sm">+ New cube</a>
           </div>
           <label class="pc-sr-only" for="cube-search">Search cubes</label>
           <input type="search" class="pc-search-input" id="cube-search"
@@ -285,20 +219,28 @@ function render() {
         </div>
         <div class="pc-cube-list" id="cube-list"></div>
       </aside>
-
-      <main class="pc-suitcase-panel" id="suitcase-panel">
-        <div id="suitcase-content"></div>
-      </main>
     </div>
 
-    <div class="pc-preview-overlay hidden" id="builder-overlay">
-      <div class="pc-preview-modal pc-builder-modal" id="builder-modal-root" role="dialog" aria-modal="true"></div>
+    <div class="pc-modal-overlay hidden" id="builder-overlay">
+      <div class="pc-modal pc-builder-modal" id="builder-modal-root" role="dialog" aria-modal="true"></div>
     </div>
   `;
 
   document.getElementById('cube-search').addEventListener('input', (e) => {
     searchQuery = e.target.value;
     renderCubeList();
+  });
+
+  root.querySelectorAll('.pc-pane-tabs [data-pane]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      mobilePane = btn.dataset.pane;
+      const inner = root.querySelector('.pc-app-inner');
+      inner.classList.toggle('pane-list', mobilePane === 'list');
+      inner.classList.toggle('pane-cubes', mobilePane === 'cubes');
+      root.querySelectorAll('.pc-pane-tabs [data-pane]').forEach((b) => {
+        b.setAttribute('aria-selected', String(b.dataset.pane === mobilePane));
+      });
+    });
   });
 
   document.getElementById('builder-overlay').addEventListener('click', (e) => {
@@ -309,13 +251,20 @@ function render() {
     closeBuilderModal();
     if (expandedCubeIds.size) {
       expandedCubeIds.clear();
-      stagedItemsByCube.clear();
       renderCubeList();
     }
   });
 
   renderCubeList();
-  renderSuitcase();
+  renderListPanel();
+}
+
+// ---------------------------------------------------------------------------
+// Cube library (left rail)
+// ---------------------------------------------------------------------------
+
+function canEditCube(cube) {
+  return !guestMode && !!cube?.mine;
 }
 
 function renderCubeList() {
@@ -323,39 +272,39 @@ function renderCubeList() {
   if (!mount) return;
 
   const suitcase = activeSuitcase();
-  const cubes = filteredCatalog();
+  const q = searchQuery.trim().toLowerCase();
+  const cubes = sortCatalog(catalog).filter((c) => matchesQuery(cubeCache.get(c.id) || c, q));
 
   if (!cubes.length) {
     mount.innerHTML = `<p class="pc-no-results">No cubes match "${escapeHtml(searchQuery)}".</p>`;
     return;
   }
 
-  mount.innerHTML = cubes.map((c, i) => {
-    const inSuitcase = suitcase.cubeIds.includes(c.id);
-    const basic = isBasicCube(c);
-    const color = cubeColor(c, i);
+  mount.innerHTML = cubes.map((c) => {
+    const attached = suitcase.cubeIds.includes(c.id);
+    const standard = isStandardCube(c);
     const expanded = expandedCubeIds.has(c.id);
     return `
-      <div class="pc-cube-card ${inSuitcase ? 'in-suitcase' : ''} ${basic ? 'is-basic' : ''} ${expanded ? 'expanded' : ''}"
-           data-color="${color}" data-cube-id="${c.id}">
+      <div class="pc-cube-card ${attached ? 'in-suitcase' : ''} ${expanded ? 'expanded' : ''}" data-cube-id="${escapeAttr(c.id)}">
         <div class="pc-cube-card-header" role="button" tabindex="0" aria-expanded="${expanded}"
              aria-label="${expanded ? 'Collapse' : 'Expand'} ${escapeAttr(c.title)}">
           <div class="pc-cube-icon">${BAG_SVG}</div>
           <div class="pc-cube-info">
             <div class="title">
               ${escapeHtml(c.title)}
-              ${basic ? '<span class="pc-cube-badge">Basic</span>' : ''}
+              ${standard ? '<span class="pc-cube-badge standard">Standard</span>' : ''}
               ${c.mine && !c.is_public && c.source === 'db' ? '<span class="pc-cube-badge">Private</span>' : ''}
               ${c.mine && c.is_public ? '<span class="pc-cube-badge">Public</span>' : ''}
             </div>
             <div class="blurb">${escapeHtml(c.blurb || '')}</div>
           </div>
-          ${canEditCube(c) ? `<button type="button" class="pc-cube-edit" data-edit-id="${c.id}" title="Edit cube" aria-label="Edit ${escapeAttr(c.title)}">${EDIT_SVG}</button>` : ''}
-          <button type="button" class="pc-cube-quick-add ${inSuitcase ? 'added' : ''}" data-quick-id="${c.id}"
-            title="${inSuitcase ? 'Remove from suitcase' : 'Add to suitcase'}" aria-label="${inSuitcase ? 'Remove' : 'Add'} ${escapeAttr(c.title)}">${inSuitcase ? CHECK_SVG : '+'}</button>
+          ${canEditCube(c) ? `<button type="button" class="pc-cube-edit" data-edit-id="${escapeAttr(c.id)}" title="Edit cube" aria-label="Edit ${escapeAttr(c.title)}">${EDIT_SVG}</button>` : ''}
+          <button type="button" class="pc-cube-quick-add ${attached ? 'added' : ''}" data-quick-id="${escapeAttr(c.id)}"
+            title="${attached ? 'Remove from packing list' : 'Add to packing list'}"
+            aria-label="${attached ? 'Remove' : 'Add'} ${escapeAttr(c.title)}">${attached ? CHECK_SVG : '+'}</button>
           <span class="pc-cube-chevron">${CHEVRON_SVG}</span>
         </div>
-        ${expanded ? `<div class="pc-cube-expand" id="cube-expand-${c.id}">${expandBodyHtml(c.id)}</div>` : ''}
+        ${expanded ? `<div class="pc-cube-expand" id="cube-expand-${escapeAttr(c.id)}">${expandBodyHtml(c.id)}</div>` : ''}
       </div>`;
   }).join('');
 
@@ -387,36 +336,30 @@ function renderCubeList() {
   for (const cubeId of expandedCubeIds) bindExpandInteractions(cubeId);
 }
 
-function addCubeToSuitcase(cubeId) {
-  const suitcase = activeSuitcase();
-  if (!suitcase.cubeIds.includes(cubeId)) suitcase.cubeIds.push(cubeId);
-  saveState();
-}
-
-function removeCubeFromSuitcase(cubeId) {
-  const suitcase = activeSuitcase();
-  suitcase.cubeIds = suitcase.cubeIds.filter((x) => x !== cubeId);
-  saveState();
-}
-
-function quickToggleCube(cubeId) {
+async function quickToggleCube(cubeId) {
   const suitcase = activeSuitcase();
   if (suitcase.cubeIds.includes(cubeId)) {
-    removeCubeFromSuitcase(cubeId);
-    expandedCubeIds.delete(cubeId);
-    stagedItemsByCube.delete(cubeId);
-  } else {
-    addCubeToSuitcase(cubeId);
-    expandedCubeIds.add(cubeId);
+    detachCube(suitcase, cubeId);
+    saveState();
+    renderCubeList();
+    renderList();
+    return;
   }
-  renderCubeList();
-  renderPackList();
+  try {
+    const cube = await fetchCube(cubeId);
+    const imported = attachCube(suitcase, cube);
+    saveState();
+    renderCubeList();
+    renderList();
+    showToast(imported ? `Added ${imported} item${imported === 1 ? '' : 's'} from "${cube.title}"` : `"${cube.title}" attached — its items were already on your list`);
+  } catch (err) {
+    showToast(err.message);
+  }
 }
 
 function toggleCubeExpand(cubeId) {
   if (expandedCubeIds.has(cubeId)) {
     expandedCubeIds.delete(cubeId);
-    stagedItemsByCube.delete(cubeId);
   } else {
     expandedCubeIds.add(cubeId);
   }
@@ -425,43 +368,41 @@ function toggleCubeExpand(cubeId) {
 
 function expandBodyHtml(cubeId) {
   const cube = cubeCache.get(cubeId);
-  if (!cube) return `<p class="pc-preview-loading">Loading…</p>`;
-  return buildExpandContent(cubeId, cube);
-}
+  if (!cube) return `<p class="pc-expand-loading">Loading…</p>`;
 
-function buildExpandContent(cubeId, cube) {
-  const catalogEntry = catalog.find((c) => c.id === cubeId);
-  const mine = canEditCube(catalogEntry || cube);
-  const tags = (catalogEntry?.tags || cube.tags || []).map((t) => `<span class="pc-tag">${escapeHtml(t)}</span>`).join('');
-  const visibility = (catalogEntry?.is_public || cube.is_public)
-    ? '<span class="pc-cube-badge">Public</span>'
-    : (mine ? '<span class="pc-cube-badge">Private</span>' : '');
+  const suitcase = activeSuitcase();
+  const attached = suitcase.cubeIds.includes(cubeId);
+  const mine = canEditCube(catalog.find((c) => c.id === cubeId) || cube);
+  const tags = (cube.tags || []).map((t) => `<span class="pc-tag">${escapeHtml(t)}</span>`).join('');
+  const addOns = cubeAddOns(cube);
+
   return `
-    <p class="pc-preview-blurb">${escapeHtml(cube.blurb || '')} ${visibility}</p>
-    <div class="pc-tags">${tags}</div>
-    <ul class="pc-preview-items">
+    ${cube.blurb ? `<p class="pc-expand-blurb">${escapeHtml(cube.blurb)}</p>` : ''}
+    ${tags ? `<div class="pc-tags">${tags}</div>` : ''}
+    <ul class="pc-expand-items">
       ${(cube.items || []).map((item) => `<li>${escapeHtml(item.label)}</li>`).join('')}
     </ul>
-    <div class="pc-stage-section">
-      <div class="pc-stage-label">Add an item</div>
-      <div class="pc-stage-row">
-        <input type="text" id="stage-input-${cubeId}" class="b-mini-input" placeholder="e.g. Travel pillow">
-        <button type="button" class="pc-btn sm" id="stage-add-btn-${cubeId}">+ Add</button>
+    ${addOns.length ? `
+      <div class="pc-addon-section">
+        <div class="pc-section-label">Add-ons for this trip</div>
+        <div class="pc-addon-chips">
+          ${addOns.map((a) => {
+            const on = addOnEnabled(suitcase, cubeId, a.id);
+            return `<button type="button" class="pc-addon-chip ${on ? 'on' : ''}" data-addon-cube="${escapeAttr(cubeId)}" data-addon-id="${escapeAttr(a.id)}" aria-pressed="${on}">
+              ${on ? CHECK_SVG : '+'} ${escapeHtml(a.title)} <span class="count">${(a.items || []).length}</span>
+            </button>`;
+          }).join('')}
+        </div>
       </div>
-      <ul class="pc-stage-list" id="stage-list-${cubeId}"></ul>
-      ${mine ? `
-        <label class="pc-toggle-chip" id="stage-permanent-row-${cubeId}">
-          <input type="checkbox" id="stage-permanent-${cubeId}" disabled>
-          Also save this item on the cube itself
-        </label>
-      ` : `<input type="checkbox" id="stage-permanent-${cubeId}" class="hidden" disabled>`}
-    </div>
+    ` : ''}
     <div class="pc-expand-actions">
-      <button type="button" class="pc-btn primary" id="preview-commit-${cubeId}" style="width:100%"></button>
+      <button type="button" class="pc-btn ${attached ? '' : 'primary'}" id="attach-btn-${escapeAttr(cubeId)}" style="width:100%">
+        ${attached ? 'Remove from packing list' : 'Add to packing list'}
+      </button>
       ${mine ? `
-        <button type="button" class="pc-expand-link" id="edit-cube-link-${cubeId}">Edit this cube</button>
-        ${!(catalogEntry?.is_public || cube.is_public) ? `<button type="button" class="pc-expand-link" id="publish-cube-btn-${cubeId}">Make public</button>` : ''}
-        <button type="button" class="pc-delete-cube-btn" id="delete-cube-btn-${cubeId}">Delete this cube</button>
+        <button type="button" class="pc-expand-link" id="edit-cube-link-${escapeAttr(cubeId)}">Edit this cube</button>
+        ${!cube.is_public ? `<button type="button" class="pc-expand-link" id="publish-cube-btn-${escapeAttr(cubeId)}">Make public</button>` : ''}
+        <button type="button" class="pc-delete-cube-btn" id="delete-cube-btn-${escapeAttr(cubeId)}">Delete this cube</button>
       ` : ''}
     </div>
   `;
@@ -471,8 +412,7 @@ function bindExpandInteractions(cubeId) {
   const container = document.getElementById(`cube-expand-${cubeId}`);
   if (!container) return;
 
-  const cube = cubeCache.get(cubeId);
-  if (!cube) {
+  if (!cubeCache.has(cubeId)) {
     fetchCube(cubeId)
       .then(() => {
         if (!expandedCubeIds.has(cubeId)) return;
@@ -480,85 +420,40 @@ function bindExpandInteractions(cubeId) {
         bindExpandInteractions(cubeId);
       })
       .catch(() => {
-        container.innerHTML = `<p class="pc-preview-loading">Could not load that cube.</p>`;
+        container.innerHTML = `<p class="pc-expand-loading">Could not load that cube.</p>`;
       });
     return;
   }
 
-  document.getElementById(`stage-add-btn-${cubeId}`).addEventListener('click', () => addStagedItem(cubeId));
-  document.getElementById(`stage-input-${cubeId}`).addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); addStagedItem(cubeId); }
+  const attachBtn = document.getElementById(`attach-btn-${cubeId}`);
+  if (attachBtn) attachBtn.addEventListener('click', () => quickToggleCube(cubeId));
+
+  container.querySelectorAll('.pc-addon-chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      toggleAddOn(chip.dataset.addonCube, chip.dataset.addonId);
+    });
   });
-  document.getElementById(`preview-commit-${cubeId}`).addEventListener('click', () => commitExpand(cubeId));
+
   const editLink = document.getElementById(`edit-cube-link-${cubeId}`);
   if (editLink) editLink.addEventListener('click', () => openBuilderModal(cubeId));
   const publishBtn = document.getElementById(`publish-cube-btn-${cubeId}`);
   if (publishBtn) publishBtn.addEventListener('click', () => makeCubePublic(cubeId));
   const deleteBtn = document.getElementById(`delete-cube-btn-${cubeId}`);
-  if (deleteBtn) deleteBtn.addEventListener('click', () => deleteCubeEverywhere(cubeId, cube.title));
-
-  renderStagedList(cubeId);
+  if (deleteBtn) deleteBtn.addEventListener('click', () => deleteCubeEverywhere(cubeId));
 }
 
-function addStagedItem(cubeId) {
-  const input = document.getElementById(`stage-input-${cubeId}`);
-  const label = input.value.trim();
-  if (!label) return;
-  stagedItemsFor(cubeId).push(label);
-  input.value = '';
-  input.focus();
-  renderStagedList(cubeId);
-}
-
-function renderStagedList(cubeId) {
-  const stagedItems = stagedItemsFor(cubeId);
-  const list = document.getElementById(`stage-list-${cubeId}`);
-  const permanentCheckbox = document.getElementById(`stage-permanent-${cubeId}`);
-  const commitBtn = document.getElementById(`preview-commit-${cubeId}`);
-  if (!list || !commitBtn) return;
-
-  list.innerHTML = stagedItems.map((label, i) => `
-    <li class="pc-stage-item" data-idx="${i}">
-      <span>${escapeHtml(label)}</span>
-      <button type="button" class="pc-item-hide" title="Remove">&times;</button>
-    </li>`).join('');
-
-  list.querySelectorAll('.pc-item-hide').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const idx = Number(btn.closest('.pc-stage-item').dataset.idx);
-      stagedItems.splice(idx, 1);
-      renderStagedList(cubeId);
-    });
-  });
-
-  permanentCheckbox.disabled = stagedItems.length === 0;
-  if (stagedItems.length === 0) permanentCheckbox.checked = false;
-
+function toggleAddOn(cubeId, addOnId) {
+  const cube = cubeCache.get(cubeId);
+  if (!cube) return;
   const suitcase = activeSuitcase();
-  const inSuitcase = suitcase.cubeIds.includes(cubeId);
-  if (!inSuitcase) {
-    commitBtn.textContent = 'Add to suitcase';
-  } else if (stagedItems.length) {
-    commitBtn.textContent = `Add item${stagedItems.length > 1 ? 's' : ''} to suitcase`;
-  } else {
-    commitBtn.textContent = 'Remove from suitcase';
-  }
-}
-
-async function publishItemsToCube(cubeId, newLabels) {
-  const cube = await fetchCube(cubeId);
-  const updatedCube = {
-    id: cubeId,
-    title: cube.title,
-    blurb: cube.blurb || '',
-    tags: cube.tags || [],
-    items: [...(cube.items || []), ...newLabels.map((label) => ({ label }))],
-  };
-  const data = await cubesApi.update(auth.token, updatedCube);
-  cubeCache.set(cubeId, data.cube);
-  const idx = catalog.findIndex((c) => c.id === cubeId);
-  if (idx >= 0) catalog[idx] = { ...catalog[idx], ...data.cube };
-  return data;
+  const enabled = addOnEnabled(suitcase, cubeId, addOnId);
+  const count = setAddOn(suitcase, cube, addOnId, !enabled);
+  saveState();
+  renderCubeList();
+  renderList();
+  const addOn = cubeAddOns(cube).find((a) => a.id === addOnId);
+  if (!enabled) showToast(`Added "${addOn?.title}" — ${count} item${count === 1 ? '' : 's'}`);
+  else showToast(`Removed "${addOn?.title}"${count ? ` — ${count} item${count === 1 ? '' : 's'} off the list` : ''}`);
 }
 
 async function makeCubePublic(cubeId) {
@@ -570,46 +465,40 @@ async function makeCubePublic(cubeId) {
     if (idx >= 0) catalog[idx] = { ...catalog[idx], ...data.cube };
     renderCubeList();
     showToast('Published — live for everyone after deploy');
-    if (data.prUrl) console.info('Published via', data.prUrl);
   } catch (err) {
     showToast(`Couldn't publish: ${err.message}`);
   }
 }
 
-async function commitExpand(cubeId) {
-  const suitcase = activeSuitcase();
-  const wasInSuitcase = suitcase.cubeIds.includes(cubeId);
-  const permanentCheckbox = document.getElementById(`stage-permanent-${cubeId}`);
-  const makePermanent = !!permanentCheckbox && permanentCheckbox.checked && stagedItemsFor(cubeId).length > 0;
-  const itemsToStage = [...stagedItemsFor(cubeId)];
+async function deleteCubeEverywhere(cubeId) {
+  const cube = cubeCache.get(cubeId) || catalog.find((c) => c.id === cubeId);
+  const title = cube?.title || cubeId;
+  const isPublic = !!cube?.is_public;
+  if (!confirm(`Delete "${title}"? This removes it from your account${isPublic ? ' and the public catalog' : ''}. Items already on your lists stay (they just become unsorted).`)) return;
 
-  if (!wasInSuitcase) {
-    addCubeToSuitcase(cubeId);
-    expandedCubeIds.add(cubeId);
-    for (const label of itemsToStage) suitcase.customItems.push({ label, cubeId });
-  } else if (itemsToStage.length) {
-    for (const label of itemsToStage) suitcase.customItems.push({ label, cubeId });
-  } else {
-    removeCubeFromSuitcase(cubeId);
-    expandedCubeIds.delete(cubeId);
-  }
-  saveState();
-
-  stagedItemsByCube.delete(cubeId);
-  renderCubeList();
-  renderPackList();
-
-  if (makePermanent) {
-    try {
-      await publishItemsToCube(cubeId, itemsToStage);
-      showToast('Saved on the cube');
-    } catch (err) {
-      showToast(`Couldn't update cube: ${err.message}`);
+  try {
+    await cubesApi.remove(auth.token, cubeId);
+    let changed = false;
+    for (const s of state.suitcases) {
+      if (releaseDeletedCube(s, cubeId)) changed = true;
     }
+    if (changed) saveState();
+    cubeCache.delete(cubeId);
+    expandedCubeIds.delete(cubeId);
+    catalog = catalog.filter((c) => c.id !== cubeId);
+    renderCubeList();
+    renderList();
+    showToast(`Deleted "${title}" — its list items were kept`);
+  } catch (err) {
+    showToast(`Couldn't delete: ${err.message}`);
   }
 }
 
 function openBuilderModal(editId) {
+  if (guestMode || !auth?.signedIn) {
+    location.href = `/account.html?next=${encodeURIComponent('/packing-cubes/')}`;
+    return;
+  }
   const overlay = document.getElementById('builder-overlay');
   const builderRoot = document.getElementById('builder-modal-root');
   if (!overlay || !builderRoot) return;
@@ -631,113 +520,76 @@ function closeBuilderModal() {
 
 async function refreshCatalog() {
   try {
-    catalog = await loadMergedCatalog();
-    cubeCache.clear();
+    catalog = await loadCatalog();
     renderCubeList();
-    renderSuitcase();
+    renderList();
   } catch { /* ignore */ }
 }
 
-async function labelsCoveredByCubes(cubeIds) {
-  const labels = new Set();
-  for (const id of cubeIds) {
-    let cube;
-    try { cube = await fetchCube(id); } catch { continue; }
-    for (const item of cube.items || []) {
-      const label = (item.label || '').trim();
-      if (label) labels.add(label.toLowerCase());
-    }
-  }
-  return labels;
-}
+// ---------------------------------------------------------------------------
+// Packing list (right panel)
+// ---------------------------------------------------------------------------
 
-async function deleteCubeEverywhere(cubeId, title) {
-  if (!confirm(`Delete "${title}"? This removes it from your account${catalog.find((c) => c.id === cubeId)?.is_public ? ' and the public catalog' : ''}. Items already in your suitcases will be kept as custom items.`)) return;
-
-  let cubeItems = [];
-  try {
-    const cube = await fetchCube(cubeId);
-    cubeItems = cube.items || [];
-  } catch { /* nothing to preserve if we can't read it */ }
-
-  try {
-    await cubesApi.remove(auth.token, cubeId);
-
-    for (const s of state.suitcases) {
-      if (!s.cubeIds.includes(cubeId)) continue;
-      const remainingCubeIds = s.cubeIds.filter((id) => id !== cubeId);
-      const covered = await labelsCoveredByCubes(remainingCubeIds);
-      const existingCustomLabels = new Set((s.customItems || []).map((i) => i.label.trim().toLowerCase()));
-      for (const item of cubeItems) {
-        const label = (item.label || '').trim();
-        if (!label) continue;
-        const lower = label.toLowerCase();
-        if (covered.has(lower) || existingCustomLabels.has(lower)) continue;
-        s.customItems.push({ label });
-        existingCustomLabels.add(lower);
-      }
-      s.cubeIds = remainingCubeIds;
-    }
-    saveState();
-    cubeCache.delete(cubeId);
-    expandedCubeIds.delete(cubeId);
-    stagedItemsByCube.delete(cubeId);
-    catalog = catalog.filter((c) => c.id !== cubeId);
-    await refreshCatalog();
-    showToast(`Deleted "${title}" — its items were kept as custom items`);
-  } catch (err) {
-    showToast(`Couldn't delete: ${err.message}`);
-  }
-}
-
-function renderSuitcase() {
+function renderListPanel() {
   const suitcase = activeSuitcase();
-  const content = document.getElementById('suitcase-content');
+  const content = document.getElementById('list-content');
   if (!content) return;
 
   content.innerHTML = `
-    <div class="pc-suitcase-head">
-      <h2>Your Suitcase</h2>
-      <div class="pc-suitcase-controls">
-        <input type="text" id="trip-name" class="b-mini-input" style="width:auto;min-width:130px"
-          value="${escapeAttr(suitcase.name)}" placeholder="Trip name" aria-label="Trip name">
-        <select id="suitcase-select" aria-label="Load a saved suitcase">
+    <div class="pc-list-head">
+      <h2>Packing list</h2>
+      <div class="pc-list-controls">
+        <input type="text" id="trip-name" class="pc-input" value="${escapeAttr(suitcase.name)}"
+          placeholder="Trip name" aria-label="Trip name">
+        <select id="suitcase-select" aria-label="Switch packing list">
           ${state.suitcases.map((s) => `<option value="${s.id}" ${s.id === suitcase.id ? 'selected' : ''}>${escapeHtml(s.name || 'Untitled')}</option>`).join('')}
         </select>
         <button type="button" class="pc-btn sm" id="new-suitcase-btn">+ New</button>
         <button type="button" class="pc-btn sm" id="delete-suitcase-btn" ${state.suitcases.length <= 1 ? 'disabled' : ''}>Delete</button>
       </div>
     </div>
-    <div class="pc-suitcase-body">
+
+    <div class="pc-list-body">
+      <form class="pc-quick-add" id="quick-add-form">
+        <label class="pc-sr-only" for="quick-add-input">Add an item to the list</label>
+        <input type="text" id="quick-add-input" class="pc-input" placeholder="Add an item — passport, chargers, that one hat…" autocomplete="off">
+        <button type="submit" class="pc-btn primary">Add</button>
+      </form>
+
       <div class="pc-hud" id="pack-hud">
         <div class="pc-stat"><b id="packed-num">0</b><span>packed</span></div>
-        <div class="pc-stat"><b id="total-num">0</b><span>total</span></div>
+        <div class="pc-stat"><b id="total-num">0</b><span>items</span></div>
         <div class="pc-spacer"></div>
-        <span style="font-size:0.75rem;font-weight:700;color:var(--brown)">${suitcase.cubeIds.length} cube${suitcase.cubeIds.length === 1 ? '' : 's'}</span>
+        <span class="pc-hud-note" id="hud-note"></span>
       </div>
       <div class="pc-progress-bar"><i id="progress-bar"></i></div>
 
-      <div class="pc-checklist-toolbar">
-        <input type="search" id="checklist-filter" class="pc-search-input sm" placeholder="Filter items…" aria-label="Filter packing checklist" value="${escapeAttr(checklistFilter)}">
+      <div class="pc-list-toolbar">
+        <input type="search" id="list-filter" class="pc-input sm grow" placeholder="Filter items…"
+          aria-label="Filter the packing list" value="${escapeAttr(listFilter)}">
+        <div class="pc-view-toggle" role="group" aria-label="List view">
+          <button type="button" data-view="list" class="${listView === 'list' ? 'selected' : ''}">List</button>
+          <button type="button" data-view="cube" class="${listView === 'cube' ? 'selected' : ''}">By cube</button>
+        </div>
         <label class="pc-toggle-chip"><input type="checkbox" id="hide-packed-toggle" ${hidePacked ? 'checked' : ''}> Hide packed</label>
+        <button type="button" class="pc-btn sm ${organizeMode ? 'primary' : ''}" id="organize-btn"></button>
       </div>
-      <div id="pack-list-groups"></div>
-      <button type="button" class="pc-hidden-toggle hidden" id="hidden-items-toggle"></button>
-      <div id="hidden-items-wrap"></div>
+
+      <div id="pack-list"></div>
     </div>
-    <div class="pc-suitcase-footer">
-      <p class="pc-footer-note">Saved to your account — available on any device after you sign in.</p>
-    </div>
+    <div class="pc-list-footer" id="list-footer"></div>
   `;
 
-  document.getElementById('suitcase-select').addEventListener('change', (e) => {
-    state.activeSuitcaseId = e.target.value;
+  document.getElementById('quick-add-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const input = document.getElementById('quick-add-input');
+    const suitcaseNow = activeSuitcase();
+    const item = addItem(suitcaseNow, input.value);
+    if (!item) return;
+    input.value = '';
+    input.focus();
     saveState();
-    expandedCubeIds.clear();
-    stagedItemsByCube.clear();
-    expandCubesInSuitcase();
-    renderCubeList();
-    renderSuitcase();
+    renderList();
   });
 
   document.getElementById('trip-name').addEventListener('input', (e) => {
@@ -747,17 +599,28 @@ function renderSuitcase() {
     if (opt) opt.textContent = suitcase.name || 'Untitled';
   });
 
-  document.getElementById('new-suitcase-btn').addEventListener('click', () => {
-    const suitcase = newSuitcase('New trip');
-    state.suitcases.push(suitcase);
-    state.activeSuitcaseId = suitcase.id;
+  document.getElementById('suitcase-select').addEventListener('change', async (e) => {
+    state.activeSuitcaseId = e.target.value;
     saveState();
-    expandedCubeIds.clear();
-    stagedItemsByCube.clear();
-    expandCubesInSuitcase();
+    organizeMode = false;
+    wasAllPacked = allPacked(activeSuitcase());
+    await prefetchSuitcaseCubes(activeSuitcase());
     renderCubeList();
-    renderSuitcase();
-    showToast('New suitcase created');
+    renderListPanel();
+  });
+
+  document.getElementById('new-suitcase-btn').addEventListener('click', async () => {
+    const standardCubes = catalog.filter(isStandardCube);
+    await Promise.all(standardCubes.map((c) => fetchCube(c.id).catch(() => null)));
+    const suitcaseNew = newSuitcase('New trip', standardCubes.map((c) => cubeCache.get(c.id)).filter(Boolean));
+    state.suitcases.push(suitcaseNew);
+    state.activeSuitcaseId = suitcaseNew.id;
+    saveState();
+    organizeMode = false;
+    wasAllPacked = false;
+    renderCubeList();
+    renderListPanel();
+    showToast('New packing list — standard cubes are already on it');
   });
 
   document.getElementById('delete-suitcase-btn').addEventListener('click', () => {
@@ -767,255 +630,280 @@ function renderSuitcase() {
     state.activeSuitcaseId = state.suitcases[0].id;
     saveState();
     renderCubeList();
-    renderSuitcase();
-    showToast('Suitcase deleted');
+    renderListPanel();
+    showToast('Packing list deleted');
   });
 
-  document.getElementById('checklist-filter').addEventListener('input', (e) => {
-    checklistFilter = e.target.value;
-    renderPackList();
+  document.getElementById('list-filter').addEventListener('input', (e) => {
+    listFilter = e.target.value;
+    renderList();
   });
 
   document.getElementById('hide-packed-toggle').addEventListener('change', (e) => {
     hidePacked = e.target.checked;
-    renderPackList();
+    renderList();
   });
 
-  renderPackList();
+  content.querySelectorAll('.pc-view-toggle [data-view]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      listView = btn.dataset.view;
+      localStorage.setItem(VIEW_KEY, listView);
+      content.querySelectorAll('.pc-view-toggle [data-view]').forEach((b) => {
+        b.classList.toggle('selected', b.dataset.view === listView);
+      });
+      renderList();
+    });
+  });
+
+  document.getElementById('organize-btn').addEventListener('click', () => {
+    organizeMode = !organizeMode;
+    renderListPanel();
+  });
+
+  renderFooter();
+  renderList();
 }
 
-function updateHud(suitcase, items) {
-  const packed = packedCount(suitcase, items);
+function renderFooter() {
+  const footer = document.getElementById('list-footer');
+  if (!footer) return;
+  if (guestMode) {
+    const loginHref = `/account.html?next=${encodeURIComponent(location.pathname)}`;
+    footer.innerHTML = `
+      <p class="pc-footer-note guest">
+        ${auth?.needsReauth ? 'Your session expired — this list is saved on this device only.' : 'Saved on this device.'}
+        <a href="${loginHref}">Sign in</a> to sync across devices and create your own cubes.
+      </p>`;
+  } else {
+    footer.innerHTML = `<p class="pc-footer-note">Saved to your account automatically.</p>`;
+  }
+}
+
+function updateHud(suitcase) {
+  const { packed, total } = packedStats(suitcase);
   const packedEl = document.getElementById('packed-num');
   const totalEl = document.getElementById('total-num');
   const barEl = document.getElementById('progress-bar');
+  const noteEl = document.getElementById('hud-note');
   if (packedEl) packedEl.textContent = packed;
-  if (totalEl) totalEl.textContent = items.length;
-  if (barEl) barEl.style.width = items.length ? `${(packed / items.length) * 100}%` : '0%';
-  if (items.length && packed === items.length) {
-    showToast('All packed! 🧳');
+  if (totalEl) totalEl.textContent = total;
+  if (barEl) barEl.style.width = total ? `${(packed / total) * 100}%` : '0%';
+  if (noteEl) {
+    const unsorted = unsortedCount(suitcase);
+    const parts = [`${suitcase.cubeIds.length} cube${suitcase.cubeIds.length === 1 ? '' : 's'}`];
+    if (unsorted) parts.push(`${unsorted} unsorted`);
+    noteEl.textContent = parts.join(' · ');
+  }
+
+  const nowAllPacked = allPacked(suitcase);
+  if (nowAllPacked && !wasAllPacked) showToast('All packed.');
+  wasAllPacked = nowAllPacked;
+
+  const organizeBtn = document.getElementById('organize-btn');
+  if (organizeBtn) {
+    const unsorted = unsortedCount(suitcase);
+    organizeBtn.textContent = organizeMode
+      ? 'Done'
+      : (unsorted ? `Organize (${unsorted})` : 'Organize');
+    organizeBtn.title = 'Assign items to cubes, rename, or remove them';
   }
 }
 
-function itemRowHtml(item, groupTitle, isPacked) {
-  const otherSources = item.sources.filter((s) => s !== groupTitle);
+function visibleItems(items) {
+  const q = listFilter.trim().toLowerCase();
+  let out = items;
+  if (q) out = out.filter((i) => i.label.toLowerCase().includes(q));
+  if (hidePacked && !organizeMode) out = out.filter((i) => !i.packed);
+  return out;
+}
+
+function itemRowHtml(item, { showCubeChip, cubeMap }) {
+  if (organizeMode) {
+    const suitcase = activeSuitcase();
+    const options = suitcase.cubeIds.map((id) => {
+      const title = cubeMap.get(id)?.title || id;
+      return `<option value="${escapeAttr(id)}" ${item.cubeId === id ? 'selected' : ''}>${escapeHtml(title)}</option>`;
+    }).join('');
+    return `
+      <li class="organize" data-item-id="${escapeAttr(item.id)}">
+        <input type="text" class="pc-input sm pc-item-label-input" value="${escapeAttr(item.label)}" aria-label="Item name">
+        <select class="pc-item-cube-select" aria-label="Cube for ${escapeAttr(item.label)}">
+          <option value="" ${!item.cubeId ? 'selected' : ''}>No cube</option>
+          ${options}
+          ${item.cubeId && !suitcase.cubeIds.includes(item.cubeId)
+            ? `<option value="${escapeAttr(item.cubeId)}" selected>${escapeHtml(cubeMap.get(item.cubeId)?.title || item.cubeId)}</option>`
+            : ''}
+        </select>
+        <button type="button" class="pc-item-remove" title="Remove item" aria-label="Remove ${escapeAttr(item.label)}">&times;</button>
+      </li>`;
+  }
+
+  const chip = showCubeChip && item.cubeId
+    ? `<span class="pc-cube-chip">${escapeHtml(cubeMap.get(item.cubeId)?.title || item.cubeId)}</span>`
+    : '';
   return `
-    <li class="${isPacked ? 'packed' : ''}" data-key="${escapeAttr(item.itemKey)}">
-      <input type="checkbox" data-key="${escapeAttr(item.itemKey)}" ${isPacked ? 'checked' : ''}
-        aria-label="Mark ${escapeAttr(item.label)} as packed">
-      <span>${escapeHtml(item.label)}</span>
-      ${otherSources.length ? `<span class="pc-source">also in ${escapeHtml(otherSources.join(', '))}</span>` : ''}
-      <button type="button" class="pc-item-hide" title="Hide item" aria-label="Hide ${escapeAttr(item.label)}">&times;</button>
+    <li class="${item.packed ? 'packed' : ''}" data-item-id="${escapeAttr(item.id)}">
+      <input type="checkbox" ${item.packed ? 'checked' : ''} aria-label="Mark ${escapeAttr(item.label)} as packed">
+      <span class="pc-item-label">${escapeHtml(item.label)}</span>
+      ${chip}
+      <button type="button" class="pc-item-remove" title="Remove item" aria-label="Remove ${escapeAttr(item.label)}">&times;</button>
     </li>`;
 }
 
-function bindItemRow(li, suitcase) {
-  const cb = li.querySelector('input[type="checkbox"]');
-  cb.addEventListener('change', (e) => {
-    suitcase.packed[e.target.dataset.key] = e.target.checked;
-    saveState();
-    if (hidePacked) {
-      renderPackList();
-    } else {
-      li.classList.toggle('packed', e.target.checked);
-      renderPackList(true);
+function bindItemRows(mount, suitcase) {
+  mount.querySelectorAll('li[data-item-id]').forEach((li) => {
+    const itemId = li.dataset.itemId;
+
+    const checkbox = li.querySelector('input[type="checkbox"]');
+    if (checkbox) {
+      checkbox.addEventListener('change', () => {
+        setItemPacked(suitcase, itemId, checkbox.checked);
+        saveState();
+        if (hidePacked) {
+          renderList();
+        } else {
+          li.classList.toggle('packed', checkbox.checked);
+          updateHud(suitcase);
+        }
+      });
+      // The whole row is a tap target; ignore clicks on controls.
+      li.addEventListener('click', (e) => {
+        if (e.target.closest('input, button, select, a')) return;
+        checkbox.checked = !checkbox.checked;
+        checkbox.dispatchEvent(new Event('change'));
+      });
     }
-  });
-  li.querySelector('.pc-item-hide').addEventListener('click', () => {
-    const key = li.dataset.key;
-    if (!suitcase.excludedItems.includes(key)) suitcase.excludedItems.push(key);
-    saveState();
-    renderPackList();
+
+    const labelInput = li.querySelector('.pc-item-label-input');
+    if (labelInput) {
+      labelInput.addEventListener('input', () => {
+        updateItemLabel(suitcase, itemId, labelInput.value);
+        saveState();
+      });
+      labelInput.addEventListener('blur', () => {
+        if (!labelInput.value.trim()) {
+          removeItem(suitcase, itemId);
+          saveState();
+          renderList();
+        }
+      });
+    }
+
+    const select = li.querySelector('.pc-item-cube-select');
+    if (select) {
+      select.addEventListener('change', () => {
+        assignItem(suitcase, itemId, select.value || null);
+        saveState();
+        renderList();
+      });
+    }
+
+    const removeBtn = li.querySelector('.pc-item-remove');
+    if (removeBtn) {
+      removeBtn.addEventListener('click', () => {
+        removeItem(suitcase, itemId);
+        saveState();
+        renderList();
+      });
+    }
   });
 }
 
-async function renderPackList(hudOnly) {
+function renderList() {
   const suitcase = activeSuitcase();
-  const groupsMount = document.getElementById('pack-list-groups');
-  if (!groupsMount) return;
+  const mount = document.getElementById('pack-list');
+  if (!mount) return;
 
-  const groups = await mergeItemsGrouped(suitcase);
-  const allItems = groups.flatMap((g) => g.items);
-  const visibleItems = allItems.filter((i) => !suitcase.excludedItems.includes(i.itemKey));
+  updateHud(suitcase);
+  const cubeMap = cubesById();
 
-  if (hudOnly) {
-    updateHud(suitcase, visibleItems);
+  if (!suitcase.items.length) {
+    mount.innerHTML = `<p class="pc-list-empty">Your list is empty. Type an item above, or add a whole cube from the library.</p>`;
     return;
   }
 
-  updateHud(suitcase, visibleItems);
-
-  const hiddenCount = allItems.length - visibleItems.length;
-  const hiddenToggle = document.getElementById('hidden-items-toggle');
-  const hiddenWrap = document.getElementById('hidden-items-wrap');
-  if (hiddenToggle) {
-    if (hiddenCount > 0) {
-      hiddenToggle.classList.remove('hidden');
-      hiddenToggle.textContent = showHiddenItems ? 'Hide hidden items' : `Show ${hiddenCount} hidden item${hiddenCount === 1 ? '' : 's'}`;
-      hiddenToggle.onclick = () => { showHiddenItems = !showHiddenItems; renderPackList(); };
-    } else {
-      hiddenToggle.classList.add('hidden');
-      showHiddenItems = false;
-    }
-  }
-
-  const q = checklistFilter.trim().toLowerCase();
-
-  if (!allItems.length) {
-    groupsMount.innerHTML = '<p class="pc-checklist-empty">Add cubes from the left to build your packing list.</p>';
-    if (hiddenWrap) hiddenWrap.innerHTML = '';
+  if (listView === 'list') {
+    const items = visibleItems(suitcase.items);
+    mount.innerHTML = items.length
+      ? `<ul class="pc-checklist ${organizeMode ? 'organizing' : ''}">
+          ${items.map((item) => itemRowHtml(item, { showCubeChip: true, cubeMap })).join('')}
+        </ul>`
+      : `<p class="pc-list-empty">No items match.</p>`;
+    bindItemRows(mount, suitcase);
     return;
   }
 
+  // By-cube view
+  const groups = groupedItems(suitcase, cubeMap);
   let anyVisible = false;
-  groupsMount.innerHTML = groups.map((group) => {
-    let items = group.items.filter((i) => !suitcase.excludedItems.includes(i.itemKey));
-    items = items.filter((i) => !q || i.label.toLowerCase().includes(q));
-    if (hidePacked) items = items.filter((i) => !suitcase.packed[i.itemKey]);
-    if (!items.length) return '';
+  mount.innerHTML = groups.map((group) => {
+    const items = visibleItems(group.items);
+    const isUnsorted = group.key === UNSORTED_KEY;
+    // Hide groups whose items were all filtered away; keep genuinely empty
+    // attached cubes visible as organize targets.
+    if (!organizeMode && group.items.length && !items.length) return '';
     anyVisible = true;
-    const collapsed = collapsedGroups.has(group.key);
+    const collapsed = collapsedGroups.has(group.key) && !organizeMode;
+    const cube = !isUnsorted ? cubeMap.get(group.key) : null;
+    const addOns = cube ? cubeAddOns(cube) : [];
     return `
-      <div class="pc-item-group ${collapsed ? 'collapsed' : ''}" data-group-key="${escapeAttr(group.key)}">
+      <div class="pc-item-group ${collapsed ? 'collapsed' : ''} ${isUnsorted ? 'unsorted' : ''}" data-group-key="${escapeAttr(group.key)}">
         <button type="button" class="pc-group-header">
           <span class="chevron">${CHEVRON_SVG}</span>
           <span class="pc-group-title">${escapeHtml(group.title)}</span>
-          <span class="pc-group-count">${items.length}</span>
+          <span class="pc-group-count">${group.items.filter((i) => i.packed).length}/${group.items.length}</span>
         </button>
-        <ul class="pc-checklist">
-          ${items.map((item) => itemRowHtml(item, group.title, !!suitcase.packed[item.itemKey])).join('')}
-        </ul>
+        ${addOns.length && !collapsed ? `
+          <div class="pc-addon-chips in-group">
+            ${addOns.map((a) => {
+              const on = addOnEnabled(suitcase, group.key, a.id);
+              return `<button type="button" class="pc-addon-chip ${on ? 'on' : ''}" data-addon-cube="${escapeAttr(group.key)}" data-addon-id="${escapeAttr(a.id)}" aria-pressed="${on}">
+                ${on ? CHECK_SVG : '+'} ${escapeHtml(a.title)}
+              </button>`;
+            }).join('')}
+          </div>
+        ` : ''}
+        ${!collapsed ? `
+          <ul class="pc-checklist ${organizeMode ? 'organizing' : ''}">
+            ${items.map((item) => itemRowHtml(item, { showCubeChip: false, cubeMap })).join('')}
+            ${!items.length ? `<li class="pc-group-empty">${isUnsorted ? 'Nothing unsorted.' : 'No items in this cube yet.'}</li>` : ''}
+          </ul>
+        ` : ''}
       </div>`;
   }).join('');
 
   if (!anyVisible) {
-    groupsMount.innerHTML = `<p class="pc-checklist-empty">${q || hidePacked ? 'No items match.' : 'Nothing here yet.'}</p>`;
+    mount.innerHTML = `<p class="pc-list-empty">No items match.</p>`;
+    return;
   }
 
-  groupsMount.querySelectorAll('.pc-group-header').forEach((btn) => {
+  mount.querySelectorAll('.pc-group-header').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const groupEl = btn.closest('.pc-item-group');
-      const key = groupEl.dataset.groupKey;
+      const key = btn.closest('.pc-item-group').dataset.groupKey;
       if (collapsedGroups.has(key)) collapsedGroups.delete(key);
       else collapsedGroups.add(key);
-      groupEl.classList.toggle('collapsed');
+      renderList();
     });
   });
 
-  groupsMount.querySelectorAll('li[data-key]').forEach((li) => bindItemRow(li, suitcase));
+  mount.querySelectorAll('.pc-addon-chip').forEach((chip) => {
+    chip.addEventListener('click', () => toggleAddOn(chip.dataset.addonCube, chip.dataset.addonId));
+  });
 
-  if (hiddenWrap) {
-    const hiddenItems = showHiddenItems
-      ? allItems.filter((i) => suitcase.excludedItems.includes(i.itemKey) && (!q || i.label.toLowerCase().includes(q)))
-      : [];
-    hiddenWrap.innerHTML = hiddenItems.length ? `
-      <div class="pc-item-group">
-        <ul class="pc-checklist">
-          ${hiddenItems.map((item) => `
-            <li class="pc-item-hidden-row" data-key="${escapeAttr(item.itemKey)}">
-              <span>${escapeHtml(item.label)}</span>
-              <span class="pc-source">${escapeHtml(item.sources.join(', '))}</span>
-              <button type="button" class="pc-item-restore" data-restore-key="${escapeAttr(item.itemKey)}">Restore</button>
-            </li>`).join('')}
-        </ul>
-      </div>` : '';
+  bindItemRows(mount, suitcase);
 
-    hiddenWrap.querySelectorAll('.pc-item-restore').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const key = btn.dataset.restoreKey;
-        suitcase.excludedItems = suitcase.excludedItems.filter((k) => k !== key);
-        saveState();
-        renderPackList();
-      });
-    });
+  // Fetch full cubes we only know by title so add-on chips appear once loaded.
+  for (const group of groups) {
+    if (group.key === UNSORTED_KEY) continue;
+    if (!cubeCache.has(group.key) && suitcase.cubeIds.includes(group.key)) {
+      fetchCube(group.key).then(() => renderList()).catch(() => {});
+    }
   }
-
-  renderCustomItemsEditor();
 }
 
-function renderCustomItemsEditor() {
-  let mount = document.getElementById('custom-items-editor');
-  const body = document.querySelector('.pc-suitcase-body');
-  if (!mount && body) {
-    mount = document.createElement('div');
-    mount.id = 'custom-items-editor';
-    body.appendChild(mount);
-  }
-  if (!mount) return;
-
-  const suitcase = activeSuitcase();
-  mount.innerHTML = `
-    <div class="pc-section-label">Custom items</div>
-    <div id="custom-items"></div>
-    <button type="button" class="b-add-row-btn" id="add-custom-btn" style="margin-top:6px">+ Add custom item</button>
-  `;
-
-  document.getElementById('add-custom-btn').addEventListener('click', () => {
-    suitcase.customItems.push({ label: '' });
-    saveState();
-    renderCustomItemRows();
-    renderPackList();
-  });
-
-  renderCustomItemRows();
-}
-
-function renderCustomItemRows() {
-  const suitcase = activeSuitcase();
-  const mount = document.getElementById('custom-items');
-  if (!mount) return;
-
-  mount.innerHTML = (suitcase.customItems || []).map((item, i) => `
-    <div class="b-item-row" data-idx="${i}">
-      <input type="text" class="b-mini-input custom-label"
-        value="${escapeAttr(item.label)}" placeholder="One-off item">
-      <button type="button" class="b-remove-btn custom-remove" title="Remove">&times;</button>
-    </div>
-  `).join('');
-
-  mount.querySelectorAll('.custom-label').forEach((input) => {
-    input.addEventListener('input', (e) => {
-      const idx = Number(e.target.closest('.b-item-row').dataset.idx);
-      suitcase.customItems[idx].label = e.target.value;
-      saveState();
-      renderPackList();
-    });
-  });
-
-  mount.querySelectorAll('.custom-remove').forEach((btn) => {
-    btn.addEventListener('click', (e) => {
-      const idx = Number(e.target.closest('.b-item-row').dataset.idx);
-      suitcase.customItems.splice(idx, 1);
-      saveState();
-      renderCustomItemRows();
-      renderPackList();
-    });
-  });
-}
-
-function escapeHtml(s) {
-  return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-function escapeAttr(s) {
-  return escapeHtml(s).replace(/"/g, '&quot;');
-}
-
-function renderSignInGate() {
-  const loginHref = `/account.html?next=${encodeURIComponent(location.pathname + location.search)}`;
-  const reauth = auth?.needsReauth
-    ? '<p style="color:#cf4520;font-weight:700;margin-bottom:10px">Your session expired. Sign in again.</p>'
-    : '';
-  root.innerHTML = `
-    <div class="pc-app-inner" style="display:block;max-width:560px;margin:40px auto;padding:24px">
-      <h1 class="pc-app-title">Packing Cubes</h1>
-      <p class="pc-app-subtitle" style="margin:12px 0 20px">Sign in to keep private cubes and suitcases synced to your account. Make any cube public to share it with the whole site.</p>
-      ${reauth}
-      <a class="pc-btn primary" href="${loginHref}">Sign in to Packing Cubes</a>
-    </div>
-  `;
-  wireAuthLink(auth || { configured: true, signedIn: false });
-}
+// ---------------------------------------------------------------------------
+// Catalog + hydration
+// ---------------------------------------------------------------------------
 
 async function loadStaticCatalog() {
   try {
@@ -1029,11 +917,11 @@ async function loadStaticCatalog() {
   }
 }
 
-async function loadMergedCatalog() {
-  const [staticCubes, dbPayload] = await Promise.all([
-    loadStaticCatalog(),
-    cubesApi.list(auth.token),
-  ]);
+async function loadCatalog() {
+  const staticCubes = await loadStaticCatalog();
+  if (guestMode || !auth?.token) return staticCubes;
+
+  const dbPayload = await cubesApi.list(auth.token);
   const byId = new Map();
   for (const cube of staticCubes) byId.set(cube.id, cube);
   for (const cube of dbPayload.cubes || []) {
@@ -1060,17 +948,25 @@ async function hydrateSuitcases() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
-// Open the inline "create a cube" modal instead of navigating away, for
-// any link that points at the standalone builder page (nav bar + header
-// button both use this href).
+/** Upgrade any v1 suitcases to the flat-list model, then normalize all. */
+async function migrateLegacySuitcases() {
+  const legacy = state.suitcases.filter(isLegacySuitcase);
+  if (legacy.length) {
+    const wanted = new Set(legacy.flatMap((s) => s.cubeIds || []));
+    await Promise.all([...wanted].map((id) => fetchCube(id).catch(() => null)));
+  }
+  const map = cubesById();
+  let changed = legacy.length > 0;
+  state.suitcases = state.suitcases.map((s) => (isLegacySuitcase(s) ? migrateSuitcase(s, map) : normalizeSuitcase(s)));
+  if (changed) saveState();
+}
+
+// Open the inline "create a cube" modal instead of navigating away, for any
+// link that points at the standalone builder page.
 document.addEventListener('click', (e) => {
   const link = e.target.closest('a[href="/packing-cubes/builder.html"]');
   if (!link) return;
   e.preventDefault();
-  if (!auth?.signedIn) {
-    location.href = `/account.html?next=${encodeURIComponent('/packing-cubes/')}`;
-    return;
-  }
   openBuilderModal(null);
 });
 
@@ -1081,50 +977,53 @@ async function boot() {
   if (auth.configured && auth.user && !auth.token) {
     await refreshToken(auth);
   }
-
-  if (!auth.configured) {
-    root.innerHTML = `<p style="padding:40px;text-align:center;font-weight:700;color:var(--brown)">Sign-in isn't configured yet.</p>`;
-    wireAuthLink(auth);
-    return;
-  }
-
-  if (!auth.signedIn || !auth.token) {
-    renderSignInGate();
-    return;
-  }
-
+  guestMode = !auth.configured || !auth.signedIn || !auth.token;
   wireAuthLink(auth);
 
   try {
-    await hydrateSuitcases();
-    catalog = await loadMergedCatalog();
+    if (guestMode) {
+      state = loadLocalState();
+      catalog = await loadCatalog();
+    } else {
+      await hydrateSuitcases();
+      catalog = await loadCatalog();
+    }
+
+    await migrateLegacySuitcases();
+    await Promise.all(catalog.filter(isStandardCube).map((c) => fetchCube(c.id).catch(() => null)));
     ensureSuitcase();
-    expandCubesInSuitcase();
+    await prefetchSuitcaseCubes(activeSuitcase());
+
     if (addCubeId) {
-      const suitcase = activeSuitcase();
-      if (!suitcase.cubeIds.includes(addCubeId)) {
-        suitcase.cubeIds.push(addCubeId);
+      try {
+        const cube = await fetchCube(addCubeId);
+        const suitcase = activeSuitcase();
+        const imported = attachCube(suitcase, cube);
         saveState();
-      }
-      expandedCubeIds.add(addCubeId);
-      fetchCube(addCubeId).catch(() => {});
+        showToast(imported
+          ? `Added "${cube.title}" — ${imported} item${imported === 1 ? '' : 's'}`
+          : `"${cube.title}" is on your list`);
+      } catch { /* unknown cube id in the link */ }
       const url = new URL(location.href);
       url.searchParams.delete('add');
       history.replaceState(null, '', url.pathname + url.search + url.hash);
     }
+
+    wasAllPacked = allPacked(activeSuitcase());
     render();
-    if (addCubeId) {
-      const added = catalog.find((c) => c.id === addCubeId);
-      if (added) showToast(`Added "${added.title}" to your suitcase`);
-    }
   } catch (err) {
     console.error('Packing cubes boot error:', err);
     if (err.status === 401) {
-      auth.signedIn = false;
+      guestMode = true;
       auth.needsReauth = true;
-      renderSignInGate();
+      state = loadLocalState();
+      catalog = await loadCatalog();
+      await migrateLegacySuitcases();
+      await Promise.all(catalog.filter(isStandardCube).map((c) => fetchCube(c.id).catch(() => null)));
+      ensureSuitcase();
+      render();
       return;
     }
-    root.innerHTML = `<p style="padding:40px;text-align:center;font-weight:700;color:var(--brown)">Could not load Packing Cubes: ${escapeHtml(err.message)}</p>`;
+    root.innerHTML = `<p class="pc-boot-message">Could not load Packing Cubes: ${escapeHtml(err.message)}</p>`;
   }
 }

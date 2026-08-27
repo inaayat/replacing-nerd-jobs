@@ -13,11 +13,23 @@ Postgres; movie/TV metadata from TMDB via `lib/tmdb.js`.
 
 ### Packing Cubes — `/packing-cubes`
 
-Reusable packing checklists (“cubes”) composed into suitcases. Public catalog is
-static JSON in git; signed-in users get cloud-synced private cubes / suitcase
-state in Neon (`pc_cubes`, `pc_suitcase_state`). Making a cube public goes through
-Neon Auth + `api/packing-cubes.js` / `lib/github-cubes.js` (auto-merged PR into
-the static catalog).
+List-first packing app. You build a **flat packing list** (the source of
+truth — type items straight in, no cube required), then use **Organize** to
+file items into cubes whenever you're ready. Cubes are reusable checklists
+kept as an organization layer: **standard cubes** (tag `standard`, legacy
+`basics`) attach to every new list automatically, and a cube can carry
+**add-ons** — named optional bundles (travel meds, hair tools) toggled per
+trip instead of one-off extra cubes. All list/cube semantics live in the pure
+module `packing-cubes/engine/model.js` (browser + `scripts/test-packing-cubes-model.mjs`);
+suitcase JSON is versioned (`v: 2`) and v1 suitcases migrate client-side.
+Public catalog is static JSON in git; signed-in users get cloud-synced private
+cubes / suitcase state in Neon (`pc_cubes` — with an `add_ons` JSONB column —
+and `pc_suitcase_state`). Signed-out visitors get a **guest mode** (browse the
+catalog, keep a device-local list) instead of a hard login gate. Making a cube
+public goes through Neon Auth + `api/packing-cubes.js` / `lib/github-cubes.js`
+(auto-merged PR into the static catalog). Installable PWA
+(`manifest.webmanifest`, icons via `node scripts/generate-packing-cubes-icons.mjs`),
+same pattern as A-Lister / Sticky Notes.
 
 ### Sporcle Spinoff — `/sporcle-spinoff`
 
@@ -707,4 +719,5 @@ node scripts/test-takeout-flatten.mjs
 node scripts/test-takeout-workbook.mjs
 node scripts/test-takeout-catalog.mjs
 node scripts/test-im-filmin-here.mjs
+node scripts/test-packing-cubes-model.mjs
 ```

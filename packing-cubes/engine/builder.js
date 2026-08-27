@@ -8,7 +8,7 @@ import { cubesApi } from './api.js';
 export function initBuilder({ root, editId = null, auth: passedAuth = null, onPublished, onClose } = {}) {
   const isEditing = !!editId;
 
-  let cube = { title: '', blurb: '', tags: [], items: [{ label: '' }, { label: '' }], is_public: false };
+  let cube = { title: '', blurb: '', tags: [], items: [{ label: '' }, { label: '' }], addOns: [], is_public: false };
   let idManuallyEdited = isEditing;
   let auth = passedAuth;
   let buildMode = 'form';
@@ -43,7 +43,7 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onPu
           <div class="b-field" style="grid-column:1/-1"><label>Tags (comma-separated)</label><input type="text" id="f-tags" placeholder="basics, summer, beach"></div>
           <label class="pc-toggle-chip" style="grid-column:1/-1">
             <input type="checkbox" id="f-basic">
-            Mark as a Basic (included in every new suitcase by default)
+            Standard cube — comes with every new packing list automatically
           </label>
         </div>
       </div>
@@ -69,7 +69,14 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onPu
       </div>
 
       <div class="b-step">
-        <div class="b-step-head"><span class="b-step-num">3</span><span class="b-step-title">Preview</span></div>
+        <div class="b-step-head"><span class="b-step-num">3</span><span class="b-step-title">Add-ons (optional)</span></div>
+        <p class="b-upload-hint">Named bundles people can toggle onto a trip — travel meds, hair tools — instead of making a whole extra cube.</p>
+        <div id="addons-mount"></div>
+        <button type="button" class="b-add-row-btn" id="add-addon-btn">+ Add an add-on</button>
+      </div>
+
+      <div class="b-step">
+        <div class="b-step-head"><span class="b-step-num">4</span><span class="b-step-title">Preview</span></div>
         <div class="b-preview-frame">
           <h2 id="prev-title">Untitled cube</h2>
           <p id="prev-blurb"></p>
@@ -78,7 +85,7 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onPu
       </div>
 
       <div class="b-step">
-        <div class="b-step-head"><span class="b-step-num">4</span><span id="publish-step-title" class="b-step-title">Save</span></div>
+        <div class="b-step-head"><span class="b-step-num">5</span><span id="publish-step-title" class="b-step-title">Save</span></div>
         <div class="b-publish-card">
           <div class="b-field" id="id-field"><label>${isEditing ? 'Cube ID (fixed while editing)' : 'Cube ID (auto, editable)'}</label><input type="text" id="f-id" ${isEditing ? 'disabled' : ''}></div>
           <div class="b-id-preview" id="id-preview"></div>
@@ -95,8 +102,10 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onPu
 
     ['f-title', 'f-blurb', 'f-tags'].forEach((id) => root.querySelector('#' + id).addEventListener('input', onFieldsChange));
     root.querySelector('#f-basic').addEventListener('change', (e) => {
+      // "standard" is the tag; legacy "basics" is recognized but not written.
       const tags = new Set(cube.tags.map((t) => t.toLowerCase()));
-      if (e.target.checked) tags.add('basics'); else tags.delete('basics');
+      if (e.target.checked) tags.add('standard');
+      else { tags.delete('standard'); tags.delete('basics'); }
       cube.tags = [...tags];
       root.querySelector('#f-tags').value = cube.tags.join(', ');
       updatePreview();
@@ -105,6 +114,10 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onPu
     root.querySelector('#f-public').addEventListener('change', updatePreview);
     root.querySelector('#publish-btn').addEventListener('click', save);
     root.querySelector('#add-item-btn').addEventListener('click', () => { cube.items.push({ label: '' }); renderEditor(); });
+    root.querySelector('#add-addon-btn').addEventListener('click', () => {
+      cube.addOns.push({ title: '', items: [{ label: '' }] });
+      renderAddOnsEditor();
+    });
     root.querySelector('#build-mode').addEventListener('click', (e) => {
       const b = e.target.closest('.b-mode-btn');
       if (b) setBuildMode(b.dataset.mode);
@@ -120,6 +133,7 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onPu
     if (onClose) root.querySelector('#b-close').addEventListener('click', onClose);
 
     renderEditor();
+    renderAddOnsEditor();
     applyAuthUi();
   }
 
@@ -137,11 +151,15 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onPu
     updatePreview();
   }
 
+  function isStandardTagged() {
+    return cube.tags.some((t) => ['standard', 'basics'].includes(t.toLowerCase()));
+  }
+
   function onFieldsChange() {
     cube.title = root.querySelector('#f-title').value;
     cube.blurb = root.querySelector('#f-blurb').value;
     cube.tags = dedupeTags(root.querySelector('#f-tags').value.split(',').map((s) => s.trim()).filter(Boolean));
-    root.querySelector('#f-basic').checked = cube.tags.some((t) => t.toLowerCase() === 'basics');
+    root.querySelector('#f-basic').checked = isStandardTagged();
     updatePreview();
   }
 
@@ -172,6 +190,60 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onPu
     });
   }
 
+  function renderAddOnsEditor() {
+    const mount = root.querySelector('#addons-mount');
+    if (!mount) return;
+    mount.innerHTML = cube.addOns.map((addOn, ai) => `
+      <div class="b-addon" data-addon-idx="${ai}">
+        <div class="b-addon-head">
+          <input type="text" class="b-mini-input b-addon-title" value="${escapeAttr(addOn.title)}" placeholder="Add-on name (e.g. Travel meds)">
+          <button type="button" class="b-remove-btn b-addon-remove" title="Remove add-on">&times;</button>
+        </div>
+        <div class="b-addon-items">
+          ${addOn.items.map((item, ii) => `
+            <div class="b-item-row" data-item-idx="${ii}">
+              <input type="text" class="b-mini-input b-addon-item-label" value="${escapeAttr(item.label)}" placeholder="Item ${ii + 1}">
+              <button type="button" class="b-remove-btn b-addon-item-remove" title="Remove" ${addOn.items.length <= 1 ? 'disabled' : ''}>&times;</button>
+            </div>`).join('')}
+        </div>
+        <button type="button" class="b-add-row-btn b-addon-item-add">+ Add item</button>
+      </div>
+    `).join('');
+
+    const addOnAt = (el) => cube.addOns[Number(el.closest('.b-addon').dataset.addonIdx)];
+    mount.querySelectorAll('.b-addon-title').forEach((input) => {
+      input.addEventListener('input', () => { addOnAt(input).title = input.value; updatePreview(); });
+    });
+    mount.querySelectorAll('.b-addon-remove').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        cube.addOns.splice(Number(btn.closest('.b-addon').dataset.addonIdx), 1);
+        renderAddOnsEditor();
+        updatePreview();
+      });
+    });
+    mount.querySelectorAll('.b-addon-item-label').forEach((input) => {
+      input.addEventListener('input', () => {
+        addOnAt(input).items[Number(input.closest('.b-item-row').dataset.itemIdx)].label = input.value;
+        updatePreview();
+      });
+    });
+    mount.querySelectorAll('.b-addon-item-remove').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const addOn = addOnAt(btn);
+        if (addOn.items.length <= 1) return;
+        addOn.items.splice(Number(btn.closest('.b-item-row').dataset.itemIdx), 1);
+        renderAddOnsEditor();
+        updatePreview();
+      });
+    });
+    mount.querySelectorAll('.b-addon-item-add').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        addOnAt(btn).items.push({ label: '' });
+        renderAddOnsEditor();
+      });
+    });
+  }
+
   function escapeAttr(s) {
     return (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
   }
@@ -188,8 +260,9 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onPu
     root.querySelector('#f-title').value = cube.title || '';
     root.querySelector('#f-blurb').value = cube.blurb || '';
     root.querySelector('#f-tags').value = (cube.tags || []).join(', ');
-    root.querySelector('#f-basic').checked = (cube.tags || []).some((t) => t.toLowerCase() === 'basics');
+    root.querySelector('#f-basic').checked = isStandardTagged();
     renderEditor();
+    renderAddOnsEditor();
   }
 
   function setUploadStatus(kind, text) {
@@ -206,6 +279,16 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onPu
     for (const item of parsed.items) {
       if (!item || !item.label || !String(item.label).trim()) return 'Every item needs a "label".';
     }
+    if (parsed.addOns != null) {
+      if (!Array.isArray(parsed.addOns)) return '"addOns" must be a list.';
+      for (const addOn of parsed.addOns) {
+        if (!addOn || !addOn.title || !String(addOn.title).trim()) return 'Every add-on needs a "title".';
+        if (!Array.isArray(addOn.items) || !addOn.items.length) return `Add-on "${addOn.title}" needs an "items" array.`;
+        for (const item of addOn.items) {
+          if (!item || !item.label || !String(item.label).trim()) return 'Every add-on item needs a "label".';
+        }
+      }
+    }
     return null;
   }
 
@@ -215,6 +298,11 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onPu
       blurb: parsed.blurb || '',
       tags: Array.isArray(parsed.tags) ? dedupeTags(parsed.tags) : [],
       items: parsed.items.map((item) => ({ label: String(item.label).trim() })),
+      addOns: (Array.isArray(parsed.addOns) ? parsed.addOns : []).map((addOn) => ({
+        id: addOn.id || undefined,
+        title: String(addOn.title || '').trim(),
+        items: (addOn.items || []).map((item) => ({ label: String(item.label).trim() })),
+      })),
       is_public: !!parsed.is_public,
     };
   }
@@ -249,11 +337,14 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onPu
     if (!titleEl) return;
 
     const count = cube.items.filter((i) => i.label.trim()).length;
+    const addOnCount = cube.addOns.filter((a) => a.title.trim() && a.items.some((i) => i.label.trim())).length;
     const makePublic = wantsPublic();
 
     titleEl.textContent = cube.title || 'Untitled cube';
     blurbEl.textContent = cube.blurb || '';
-    metaEl.textContent = `${count} item${count === 1 ? '' : 's'}${makePublic || existingPublic ? ' · public' : ' · private'}`;
+    metaEl.textContent = `${count} item${count === 1 ? '' : 's'}`
+      + (addOnCount ? ` · ${addOnCount} add-on${addOnCount === 1 ? '' : 's'}` : '')
+      + (makePublic || existingPublic ? ' · public' : ' · private');
 
     if (!idManuallyEdited) idInput.value = slugify(cube.title);
     root.querySelector('#id-preview').innerHTML = makePublic || existingPublic
@@ -286,6 +377,13 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onPu
       blurb: (cube.blurb || '').trim(),
       tags: cube.tags || [],
       items: cube.items.filter((i) => i.label.trim()).map((i) => ({ label: i.label.trim() })),
+      addOns: cube.addOns
+        .map((addOn) => ({
+          id: addOn.id,
+          title: addOn.title.trim(),
+          items: addOn.items.filter((i) => i.label.trim()).map((i) => ({ label: i.label.trim() })),
+        }))
+        .filter((addOn) => addOn.title && addOn.items.length),
     };
   }
 

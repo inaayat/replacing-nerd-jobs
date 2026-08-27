@@ -221,3 +221,70 @@ inline accordion over a slide-out side panel when shown both as mockups.
 - Cubes are private per user in `pc_cubes` by default. "Make public" opens a GitHub PR that is
   auto-merged into `packing-cubes/cubes/` so the static site catalog picks it up on deploy.
 - Legacy static catalog cubes remain available to everyone; owned DB cubes overlay them by id.
+
+## Round 6 — list-first rebuild: flat list → Organize, standard cubes + add-ons, guest mode, PWA, functional restyle
+
+The product flipped from cube-first to **list-first**, and this round rebuilt the app around it.
+
+### The list is the source of truth (suitcase v2)
+- A suitcase now owns a flat item list — `items: [{ id, label, cubeId|null, addOnId|null, packed }]` —
+  instead of deriving its checklist from `cubeIds + customItems + label-keyed packed/excluded state.
+  Items are typed straight into a quick-add box with no cube decision required; each row can be
+  checked, renamed, or removed. Deleting is real deletion now, so the old "hidden items" reveal UI
+  (which existed because virtual cube items couldn't be deleted) is gone.
+- **Organize** is an explicit mode on the list: every row grows a cube dropdown (plus rename +
+  remove), and the toolbar button shows how many items are still unsorted. The By-cube view keeps
+  attached-but-empty cubes visible as filing targets, with an Unsorted group pinned last.
+- Attaching a cube imports its item labels into the list (case-insensitively deduped); detaching
+  removes the rows it brought. Deleting a cube from the account keeps the rows and just unassigns
+  them — the list outlives its organization layer.
+- v1 suitcases migrate client-side on load (`migrateSuitcase`): cube items materialize from the
+  fetched cubes, label-keyed packed state carries over, excluded items migrate as deleted, and
+  unfetchable cubes stay attached so their items can be re-imported later. The server never needed
+  to know — `pc_suitcase_state.suitcases` is opaque JSONB.
+- All of this lives in the dependency-free `engine/model.js`, tested by
+  `scripts/test-packing-cubes-model.mjs` (the repo's pure-node-test pattern); `app.js` is fetch +
+  DOM only.
+
+### Standard cubes + add-ons (one mechanism, no third cube type)
+- "Always take these" = the existing basics-tag mechanism, promoted: tag `standard` (legacy
+  `basics` still honored) attaches the cube to every new list and imports its base items. The
+  builder checkbox writes `standard`; the rail badge says "Standard".
+- "Add this to that cube" = **add-ons**: `addOns: [{ id, title, items }]` nested in the cube, not
+  standalone cubes. They render as toggle chips in the expanded library card *and* under the
+  cube's group header in the By-cube view; enabling imports the bundle's items tagged with the
+  parent cube (auto-attaching it if needed), disabling removes exactly those rows. Off by default
+  on new lists. Server: `pc_cubes.add_ons` JSONB (additive ALTER), validation caps in
+  `lib/packing-cubes.js`, included in published cube JSON by `lib/github-cubes.js`, editable in a
+  builder step, and shown read-only on `cube.html`. Seeded example: `cubes/toiletries.json`
+  (standard, with travel-meds / hair-tools / skincare add-ons); the two "Basics:" cubes were
+  retagged `standard`.
+
+### Account behavior: guest mode instead of a hard gate
+- Signed-out (or auth-unconfigured, e.g. a plain static dev server) no longer dead-ends at a
+  sign-in wall: the catalog browses, the list works device-locally, and a footer banner offers
+  sign-in for sync + cube creation. Owner-only actions (create/edit/publish/delete cubes) still
+  require the account; the existing local→cloud migration on first sign-in is unchanged. A 401
+  mid-session drops to guest mode with a "session expired" banner instead of an endless toast loop.
+
+### Navigation / mobile / PWA
+- Below 900px the two stacked panels became **Packing list | Cube library** tabs (list first) —
+  no more scrolling past the whole catalog to reach your checklist.
+- Every focusable field is ≥16px on coarse pointers (the iOS focus-zoom rule the rest of the site
+  follows); rows, chips, and icon buttons got 34–44px touch targets; whole checklist rows toggle.
+- Installable: `manifest.webmanifest` + `icons/` (regenerate with
+  `npm install --no-save sharp && node scripts/generate-packing-cubes-icons.mjs`), SVG favicon,
+  `pc-standalone` class hides the site pill when launched from a home screen. No service worker,
+  same as A-Lister / Sticky Notes.
+
+### Functional restyle
+- Dropped Google-Fonts Nunito for the locally-shipped Atkinson Hyperlegible (`/fonts/`), dropped
+  the ugly-dog favicons for the suitcase icon, dropped the 🧳 emoji toast, and replaced the
+  cocoa/topaz "cutesy" palette with neutral grays + one green accent (legacy token names are
+  aliased in `cube.css` so builder styles didn't need a rewrite). The all-packed toast also only
+  fires on the transition to fully packed now, instead of on every re-render.
+
+### Fixed along the way
+- Quick-add (+) no longer force-expands the card; suitcase cubes no longer all auto-expand on boot.
+- Unchecking an item no longer stores `packed: false` forever (v2 stores a bool per item row).
+- Catalog search covers item labels and add-ons, and the rail sorts mine → standard → A-Z.
