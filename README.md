@@ -32,9 +32,9 @@ All list/cube semantics live in the pure module `packing-cubes/engine/model.js`
 (browser + `scripts/test-packing-cubes-model.mjs`); suitcase JSON is versioned
 (`v: 2`) and v1 suitcases migrate client-side. Cubes and suitcase state sync to
 Neon (`pc_cubes`, with an `add_ons` JSONB column, and `pc_suitcase_state`) via
-`api/packing-cubes.js`. Signed-out visitors get a **guest mode** — a
-device-local packing list — instead of a hard login gate; cubes need an
-account. Installable PWA (`manifest.webmanifest`, icons via
+`api/packing-cubes.js`. **Signing in is required** — the default view is a
+centered log-in card with a suitcase illustration, since both lists and cubes
+live on the account. Installable PWA (`manifest.webmanifest`, icons via
 `node scripts/generate-packing-cubes-icons.mjs`), same pattern as A-Lister /
 Sticky Notes.
 

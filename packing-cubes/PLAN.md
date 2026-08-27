@@ -347,3 +347,22 @@ purely personal, and the app's job is to make *building your own* easy.
   to fix, and saving from the modal closes it.
 - Removed the Round 7 "Copy into a cube of my own" template flow — with only your own cubes in
   the rail, Edit already covers it.
+
+## Round 9 — sign-in is the front door
+
+Guest mode was the wrong default once cubes went private: with no catalog to browse, a
+signed-out visitor had nothing to look at and a list that silently lived on one device.
+
+- `renderSignInGate()` is the default view when signed out (or when Neon Auth isn't configured):
+  a centered card with a small packed-suitcase illustration (`SUITCASE_ART`, inline SVG —
+  decorative, `role="img"` + label), one sentence of what the app does, and a single
+  "Log in to start packing" button that carries `?next=` back here. Sign-up is the same button,
+  since `/account.html` handles both.
+- Guest mode is gone entirely: no device-only list, no guest footer banner, no signed-out branch
+  in the cube rail's empty state, `canEditCube`, `loadCatalog`, or `fetchCube`. `localStorage`
+  stays as the instant-read cache and the local→cloud migration source on first sign-in.
+- A 401 (at boot **or** mid-edit during a sync) now returns to the gate with "Your session
+  expired", instead of quietly demoting the session to device-local. The pending change is still
+  in `localStorage`, so signing back in picks it up.
+- Nav's "+ New cube" from the gate redirects to sign-in rather than no-opping against a modal
+  that isn't in the DOM.

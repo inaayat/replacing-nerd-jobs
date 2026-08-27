@@ -43,7 +43,6 @@ const addCubeId = params.get('add');
 let catalog = [];
 let state = { activeSuitcaseId: null, suitcases: [] };
 let auth = null;
-let guestMode = false;
 
 let searchQuery = '';
 let listFilter = '';
@@ -64,9 +63,29 @@ const EDIT_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" st
 const CHECK_SVG = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
 const CHEVRON_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
 
+// A packed little suitcase for the sign-in gate: two cubes inside, a couple of
+// travel stickers, and a handle. Decorative only.
+const SUITCASE_ART = `
+<svg class="pc-gate-art" viewBox="0 0 120 110" width="132" height="121" role="img" aria-label="A packed suitcase">
+  <ellipse cx="60" cy="99" rx="38" ry="5" fill="#23282d" opacity="0.07"/>
+  <path d="M46 26v-6a8 8 0 0 1 8-8h12a8 8 0 0 1 8 8v6" fill="none" stroke="#23282d" stroke-width="3.5" stroke-linecap="round"/>
+  <rect x="18" y="26" width="84" height="66" rx="11" fill="#2f6b4f"/>
+  <rect x="18" y="26" width="84" height="66" rx="11" fill="none" stroke="#23282d" stroke-width="3"/>
+  <rect x="27" y="35" width="66" height="48" rx="6" fill="#ffffff" opacity="0.94"/>
+  <rect x="34" y="43" width="24" height="15" rx="3" fill="#2f6b4f" opacity="0.22"/>
+  <rect x="62" y="43" width="24" height="15" rx="3" fill="#3d6c96" opacity="0.22"/>
+  <path d="M36 68h20" stroke="#23282d" stroke-width="3" stroke-linecap="round" opacity="0.32"/>
+  <path d="M36 75h32" stroke="#23282d" stroke-width="3" stroke-linecap="round" opacity="0.18"/>
+  <circle cx="79" cy="72" r="7" fill="#f0a24a"/>
+  <path d="M76 72.2l2.2 2.2 4-4.4" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="14" y="46" width="8" height="16" rx="3" fill="#23282d" opacity="0.85"/>
+  <circle cx="36" cy="97" r="5" fill="#23282d"/>
+  <circle cx="84" cy="97" r="5" fill="#23282d"/>
+</svg>`;
+
 // ---------------------------------------------------------------------------
-// State persistence: localStorage always (instant + guest mode), cloud when
-// signed in, debounced.
+// State persistence: localStorage for instant local reads, cloud (debounced)
+// as the real store. Signing in is required, so there is no offline-only mode.
 // ---------------------------------------------------------------------------
 
 function loadLocalState() {
@@ -83,16 +102,16 @@ function saveState() {
 }
 
 function scheduleCloudSave() {
-  if (guestMode || !auth?.signedIn || !auth.token) return;
+  if (!auth?.signedIn || !auth.token) return;
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     suitcasesApi.put(auth.token, state).catch((err) => {
       if (err.status === 401) {
+        // The session died mid-edit. The last change is still in localStorage,
+        // so send them back through the gate rather than pretending it saved.
         auth.needsReauth = true;
         auth.signedIn = false;
-        guestMode = true;
-        renderFooter();
-        showToast('Session expired — changes are staying on this device.');
+        renderSignInGate();
         return;
       }
       console.warn('Suitcase sync failed:', err);
@@ -131,7 +150,7 @@ async function fetchCube(id) {
       cubeCache.set(id, listed);
       return listed;
     }
-    if (guestMode || !auth?.token) throw new Error('Sign in to load your cubes.');
+    if (!auth?.token) throw new Error('Sign in to load your cubes.');
     const { cube } = await cubesApi.get(auth.token, id);
     cubeCache.set(id, cube);
     return cube;
@@ -250,7 +269,7 @@ function render() {
 // ---------------------------------------------------------------------------
 
 function canEditCube(cube) {
-  return !guestMode && !!cube?.mine;
+  return !!cube?.mine;
 }
 
 function renderCubeList() {
@@ -267,10 +286,8 @@ function renderCubeList() {
       : `<div class="pc-cubes-empty">
            <p><b>No cubes yet.</b></p>
            <p>A cube is a reusable group of items — “Toiletries”, “Beach”, “Work trip”. Build one and you can drop it onto any future list.</p>
-           ${guestMode
-             ? `<p class="pc-cubes-empty-note">Sign in to create cubes. You can still build a packing list on this device.</p>`
-             : `<button type="button" class="pc-btn primary" id="empty-create-cube">Build my first cube</button>
-                <p class="pc-cubes-empty-note">Already have a list going? Use <b>Organize</b> to turn part of it into a cube later.</p>`}
+           <button type="button" class="pc-btn primary" id="empty-create-cube">Build my first cube</button>
+           <p class="pc-cubes-empty-note">Already have a list going? Use <b>Organize</b> to turn part of it into a cube later.</p>
          </div>`;
     const cta = document.getElementById('empty-create-cube');
     if (cta) cta.addEventListener('click', () => openBuilderModal(null));
@@ -513,7 +530,7 @@ async function deleteCubeEverywhere(cubeId) {
 }
 
 function openBuilderModal(editId) {
-  if (guestMode || !auth?.signedIn) {
+  if (!auth?.signedIn || !auth.token) {
     location.href = `/account.html?next=${encodeURIComponent('/packing-cubes/')}`;
     return;
   }
@@ -683,16 +700,7 @@ function renderListPanel() {
 function renderFooter() {
   const footer = document.getElementById('list-footer');
   if (!footer) return;
-  if (guestMode) {
-    const loginHref = `/account.html?next=${encodeURIComponent(location.pathname)}`;
-    footer.innerHTML = `
-      <p class="pc-footer-note guest">
-        ${auth?.needsReauth ? 'Your session expired — this list is saved on this device only.' : 'Saved on this device.'}
-        <a href="${loginHref}">Sign in</a> to sync across devices and create your own cubes.
-      </p>`;
-  } else {
-    footer.innerHTML = `<p class="pc-footer-note">Saved to your account automatically.</p>`;
-  }
+  footer.innerHTML = `<p class="pc-footer-note">Saved to your account automatically.</p>`;
 }
 
 function updateHud(suitcase) {
@@ -863,7 +871,7 @@ function renderList() {
     const cube = !isUnsorted ? cubeMap.get(group.key) : null;
     const addOns = cube ? cubeAddOns(cube) : [];
     const removable = !isUnsorted && suitcase.cubeIds.includes(group.key);
-    const canSaveAsCube = isUnsorted && !guestMode && group.items.length > 1;
+    const canSaveAsCube = isUnsorted && group.items.length > 1;
     return `
       <div class="pc-item-group ${collapsed ? 'collapsed' : ''} ${isUnsorted ? 'unsorted' : ''}" data-group-key="${escapeAttr(group.key)}">
         <div class="pc-group-row">
@@ -937,7 +945,7 @@ function renderList() {
 
 /** Your cubes, and only yours — there is no shared catalog. */
 async function loadCatalog() {
-  if (guestMode || !auth?.token) return [];
+  if (!auth?.token) return [];
   const { cubes = [] } = await cubesApi.list(auth.token);
   for (const cube of cubes) {
     if (cube.items) cubeCache.set(cube.id, cube);
@@ -984,6 +992,31 @@ document.addEventListener('click', (e) => {
   openBuilderModal(null);
 });
 
+/**
+ * Signing in is the front door: packing lists and cubes both live on the
+ * account, so there is nothing meaningful to show a stranger.
+ */
+function renderSignInGate() {
+  const loginHref = `/account.html?next=${encodeURIComponent(location.pathname + location.search)}`;
+  const note = !auth?.configured
+    ? '<p class="pc-gate-error">Sign-in isn’t configured on this deployment yet.</p>'
+    : (auth?.needsReauth ? '<p class="pc-gate-error">Your session expired. Sign in again to pick up where you left off.</p>' : '');
+
+  root.innerHTML = `
+    <div class="pc-gate">
+      <div class="pc-gate-card">
+        ${SUITCASE_ART}
+        <h1 class="pc-gate-title">Packing Cubes</h1>
+        <p class="pc-gate-copy">Write your packing list, tick things off as they go in the bag, and save the groups you repeat every trip.</p>
+        ${note}
+        <a class="pc-btn primary pc-gate-btn" href="${loginHref}">Log in to start packing</a>
+        <p class="pc-gate-small">New here? The same button signs you up.</p>
+      </div>
+    </div>
+  `;
+  wireAuthLink(auth || { configured: true, signedIn: false });
+}
+
 boot();
 
 async function boot() {
@@ -991,18 +1024,16 @@ async function boot() {
   if (auth.configured && auth.user && !auth.token) {
     await refreshToken(auth);
   }
-  guestMode = !auth.configured || !auth.signedIn || !auth.token;
   wireAuthLink(auth);
 
-  try {
-    if (guestMode) {
-      state = loadLocalState();
-      catalog = await loadCatalog();
-    } else {
-      await hydrateSuitcases();
-      catalog = await loadCatalog();
-    }
+  if (!auth.configured || !auth.signedIn || !auth.token) {
+    renderSignInGate();
+    return;
+  }
 
+  try {
+    await hydrateSuitcases();
+    catalog = await loadCatalog();
     await migrateLegacySuitcases();
     ensureSuitcase();
     await prefetchSuitcaseCubes(activeSuitcase());
@@ -1027,13 +1058,9 @@ async function boot() {
   } catch (err) {
     console.error('Packing cubes boot error:', err);
     if (err.status === 401) {
-      guestMode = true;
       auth.needsReauth = true;
-      state = loadLocalState();
-      catalog = await loadCatalog();
-      await migrateLegacySuitcases();
-      ensureSuitcase();
-      render();
+      auth.signedIn = false;
+      renderSignInGate();
       return;
     }
     root.innerHTML = `<p class="pc-boot-message">Could not load Packing Cubes: ${escapeHtml(err.message)}</p>`;
