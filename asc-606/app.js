@@ -224,6 +224,7 @@ function renderWalk() {
         <p class="kicker">Company walk</p>
         <h1>Walk a contract through ASC 606</h1>
         <p>Answer as if this is a real deal. Each question is plain English; the chips are the Codification. The memo on the right is the conclusion you are building.</p>
+        ${Object.keys(bag).length ? '<p><button type="button" class="btn ghost" data-reset>Start this walk over</button></p>' : ''}
       </section>`;
 
   const path = `
