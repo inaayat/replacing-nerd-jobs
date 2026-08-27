@@ -47,6 +47,7 @@ import {
   boundsOf,
   filterPlaces,
   formatColor,
+  mapInteractionOptions,
   inMapBox,
   normalizeCatalog,
   paddedBounds,
@@ -510,5 +511,12 @@ assert.ok(withFar[1][1] > withoutFar[1][1], 'a farther pin must open the camera'
 
 const padded = paddedBounds(tight, 0.002);
 assert.ok(padded[0][0] < tight[0][0] && padded[1][1] > tight[1][1]);
+
+const interaction = mapInteractionOptions();
+assert.equal(interaction.scrollZoom, true);
+assert.ok(interaction.minZoom <= 10);
+assert.ok(interaction.maxZoom >= 16);
+assert.equal(interaction.dragRotate, false);
+assert.equal('maxBounds' in interaction, false, 'a pin-tight maxBounds blocks trackpad zoom-out');
 
 console.log('im filmin here tests passed');

@@ -468,9 +468,15 @@ async function main() {
     bounds: MANHATTAN,
     fitBoundsOptions: { padding: 24 },
     attributionControl: { compact: true },
+    scrollZoom: true,
+    dragRotate: false,
+    touchPitch: false,
+    minZoom: 10,
+    maxZoom: 18,
   });
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
   map.addControl(new maplibregl.ScaleControl({ unit: 'imperial' }), 'top-right');
+  map.scrollZoom.enable();
   state.map = map;
 
   map.on('load', () => {

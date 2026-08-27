@@ -11,6 +11,7 @@ import {
   boundsOf,
   filterPlaces,
   formatColor,
+  mapInteractionOptions,
   normalizeCatalog,
   paddedBounds,
   placeColor,
@@ -405,12 +406,12 @@ async function main() {
     style,
     bounds: camera,
     fitBoundsOptions: { padding: FIT_PAD },
-    maxBounds: paddedBounds(camera, 0.018),
-    minZoom: 11,
     attributionControl: { compact: true },
+    ...mapInteractionOptions(),
   });
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
   map.addControl(new maplibregl.ScaleControl({ unit: 'imperial' }), 'top-right');
+  map.scrollZoom.enable();
   state.map = map;
 
   map.on('load', () => {

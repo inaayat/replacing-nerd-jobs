@@ -209,6 +209,25 @@ export function paddedBounds(bounds, pad = 0.0024) {
   ];
 }
 
+/**
+ * MapLibre interaction limits for the locations page.
+ *
+ * Do not pass a pin-tight `maxBounds`. That box is already the starting camera,
+ * so any trackpad zoom-out would show land outside it and MapLibre swallows
+ * the gesture. Scroll/trackpad zoom stays on; rotate stays off so a two-finger
+ * swipe zooms instead of spinning the map.
+ */
+export function mapInteractionOptions() {
+  return {
+    scrollZoom: true,
+    dragRotate: false,
+    pitchWithRotate: false,
+    touchPitch: false,
+    minZoom: 10,
+    maxZoom: 18,
+  };
+}
+
 export function toFeatures(places) {
   return {
     type: 'FeatureCollection',
