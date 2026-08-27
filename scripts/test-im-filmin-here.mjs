@@ -1,6 +1,6 @@
 /**
  * I'm Filmin Here: street-name normalization, ParkingHeld parsing, block-face
- * resolution, and the permit rollup.
+ * resolution, the permit rollup, and the curated UWS location catalog.
  *
  * The fixtures here are real strings from both datasets, because every one of
  * them broke a naive matcher: irregular whitespace, cross streets in the wrong
@@ -41,6 +41,19 @@ import {
   NO_SELECTION,
   selectionFilter,
 } from '../im-filmin-here/layers.js';
+import {
+  LOCATIONS_SCHEMA,
+  UWS_BOX,
+  boundsOf,
+  filterPlaces,
+  formatColor,
+  inUwsBox,
+  normalizeCatalog,
+  paddedBounds,
+  placeColor,
+  statsOf,
+  toFeatures,
+} from '../im-filmin-here/locations.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -416,5 +429,80 @@ for (const segment of cases) {
 const oneBlock = real.resolve({ street: 'WEST   78 STREET', from: 'COLUMBUS AVENUE', to: 'AMSTERDAM AVENUE' });
 const metres = pathLength(oneBlock.coords);
 assert.ok(metres > 100 && metres < 400, `crosstown block measured ${Math.round(metres)}m`);
+
+/* ---- curated UWS location catalog ---- */
+
+const locationsPath = resolve(ROOT, 'im-filmin-here/data/locations.json');
+assert.ok(existsSync(locationsPath), 'commit im-filmin-here/data/locations.json');
+const locationPayload = JSON.parse(readFileSync(locationsPath, 'utf8'));
+assert.equal(locationPayload.schema, LOCATIONS_SCHEMA);
+const catalog = normalizeCatalog(locationPayload);
+assert.ok(catalog.places.length >= 20, 'UWS list should be a neighborhood set, not three pins');
+assert.equal(catalog.places.length, new Set(catalog.places.map((p) => p.id)).size);
+
+const shootCount = catalog.places.reduce((n, place) => n + place.shoots.length, 0);
+assert.equal(shootCount, 45, 'spreadsheet had 45 production–location rows');
+assert.ok(catalog.places.every((place) => inUwsBox(place.lngLat)), 'every pin must stay on the Upper West Side');
+
+for (const place of catalog.places) {
+  assert.ok(place.name);
+  assert.ok(place.address);
+  assert.ok(place.lngLat[0] >= UWS_BOX.west && place.lngLat[0] <= UWS_BOX.east);
+  assert.ok(place.lngLat[1] >= UWS_BOX.south && place.lngLat[1] <= UWS_BOX.north);
+  for (const shoot of place.shoots) {
+    assert.ok(['Film', 'TV'].includes(shoot.format), shoot.production);
+    assert.ok(shoot.production);
+    assert.ok(/^https?:\/\//.test(shoot.source), `${shoot.production} needs a source URL`);
+  }
+}
+
+const lincoln = catalog.places.find((p) => p.id === 'lincoln-center');
+assert.ok(lincoln);
+assert.equal(lincoln.shoots.length, 5);
+assert.equal(placeColor(lincoln), formatColor('Film'));
+assert.ok(lincoln.shoots.some((s) => s.production === 'Ghostbusters'));
+
+const filmsOnly = filterPlaces(catalog.places, { formats: new Set(['Film']) });
+assert.ok(filmsOnly.every((p) => p.shoots.some((s) => s.format === 'Film')));
+assert.ok(filterPlaces(catalog.places, { query: "zabar" }).some((p) => p.id === 'zabars'));
+assert.equal(filterPlaces(catalog.places, { query: 'no-such-place' }).length, 0);
+
+const stats = statsOf(catalog.places);
+assert.equal(stats.places, catalog.places.length);
+assert.equal(stats.shoots, 45);
+assert.ok(stats.films > stats.tv);
+
+const features = toFeatures(catalog.places);
+assert.equal(features.features.length, catalog.places.length);
+assert.equal(features.features[0].geometry.type, 'Point');
+assert.ok(features.features.every((f) => f.properties.id && f.properties.color));
+
+const tight = boundsOf(catalog.places);
+assert.ok(tight);
+const [[west, south], [east, north]] = tight;
+assert.ok(west < east && south < north);
+// Fit the listed pins, not all of Manhattan — that is the whole point of the default page.
+assert.ok(east - west < 0.04, `lng span ${east - west} is wider than the UWS list`);
+assert.ok(north - south < 0.05, `lat span ${north - south} is wider than the UWS list`);
+const corridor = catalog.places.find((p) => p.id === 'riverside-park');
+assert.equal(corridor.precision, 'corridor');
+const withoutFar = boundsOf(catalog.places);
+const withFar = boundsOf([
+  ...catalog.places,
+  {
+    id: 'harlem-future',
+    name: 'Future pin',
+    address: 'W 125th St',
+    band: 'W 125th',
+    precision: 'address',
+    approximate: false,
+    lngLat: [-73.95, 40.81],
+    shoots: [{ id: 'x', production: 'X', format: 'Film', scene: '', source: '' }],
+  },
+]);
+assert.ok(withFar[1][1] > withoutFar[1][1], 'a farther pin must open the camera');
+
+const padded = paddedBounds(tight, 0.002);
+assert.ok(padded[0][0] < tight[0][0] && padded[1][1] > tight[1][1]);
 
 console.log('im filmin here tests passed');

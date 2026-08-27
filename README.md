@@ -202,13 +202,19 @@ are those EDs, not voter ethnicity. No new Vercel function.
 
 ### I'm Filmin Here — `/im-filmin-here`
 
-Map of every film, TV, and music-video **shooting permit** the city issued in
-Manhattan, drawn on the stretch of street it closed. Permits are fetched **live**
-from the NYC Open Data SODA API (`tg4x-b46p`) in the browser on every filter
-change — the dataset is CORS-open, so there is no Vercel function and no
-committed copy. Date range, category, theater/rigging/News exclusions, and a
-per-stretch permit list. The dataset has **no production titles** (MOME withholds
-them) and the UI never implies otherwise.
+Default page is a **curated Upper West Side** map of named film and TV locations
+(W 59th–W 110th). In beta and a growing list: the camera fits the current pins
+so the map stays walkable, and it will zoom out as farther places are added.
+Catalog is committed JSON (`im-filmin-here/data/locations.json`); grouping,
+filters, and bounds live in `im-filmin-here/locations.js` (browser-safe ESM).
+
+The previous city-wide map is now **NYC Film Permit Map** at
+`/im-filmin-here/permits/`: every film, TV, and music-video **shooting permit**
+the city issued in Manhattan, drawn on the stretch of street it closed. Permits
+are fetched **live** from the NYC Open Data SODA API (`tg4x-b46p`) in the
+browser on every filter change — the dataset is CORS-open, so there is no
+Vercel function and no committed copy. The dataset has **no production titles**
+(MOME withholds them) and that page never implies otherwise.
 
 Permits carry no coordinates — a location is prose like `WEST 88 STREET between
 WEST END AVENUE and RIVERSIDE DRIVE` — and the Street Centerline dataset has no

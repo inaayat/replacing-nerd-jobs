@@ -1,27 +1,57 @@
 # I'm Filmin Here — product notes
 
 Status: **live** at `/im-filmin-here/` on [inaayat.xyz](https://inaayat.xyz)
-Auth: **none.** Static page, no serverless function, no Neon.
+Auth: **none.** Static pages, no serverless function, no Neon.
 
-This started as a plan for a hand-curated map of 36 Upper West Side blocks. That
-was too light, and the pivot was to build the real thing: all of Manhattan, live
-from the city's API, no curation step. What follows is what shipped and why —
-the UWS-box plan is gone, not deferred.
+Two pages, one product:
+
+1. **Locations** (`/im-filmin-here/`) — the default. A curated Upper West Side
+   map of named film and TV places (W 59th–W 110th). In beta and a growing
+   list. The camera fits the current pins so the map stays walkable; it zooms
+   out only when farther places are added.
+2. **NYC Film Permit Map** (`/im-filmin-here/permits/`) — the original
+   city-wide layer: every Manhattan shooting permit, live from the city's API,
+   no production titles.
+
+The permit map shipped first because a 36-block curated list felt too light.
+The curated list is back as the default because the city-wide map is hard to
+walk and still cannot name a show. Both stay.
 
 ---
 
-## One sentence
+## Locations (default)
+
+| Decision | Call |
+|----------|------|
+| Geography | Upper West Side, W 59th–W 110th |
+| Data | Committed catalog `data/locations.json` (one place, many productions) |
+| Camera | `boundsOf` the current pins, padded. Corridor-precision pins stay visible but do not set the view |
+| Copy | “In beta and a growing list” |
+| Titles | Yes — this page is researched examples with sources |
+| Serverless | Zero |
+
+`locations.js` is dependency-free ESM: normalize, filter, stats, bounds,
+GeoJSON. The browser and `scripts/test-im-filmin-here.mjs` both import it.
+Do not put it under `/lib/`.
+
+Adding a place is an edit to `data/locations.json`. A pin farther north or
+south than today's list is what opens the camera — there is no hardcoded
+neighborhood box in the page besides a test-time UWS sanity range.
+
+---
+
+## NYC Film Permit Map
+
+### One sentence
 
 Every film, TV, and music-video shooting permit the city issued in Manhattan,
 drawn on the stretch of street it actually closed.
 
----
-
-## Decisions
+### Decisions
 
 | Decision | Call |
 |----------|------|
-| Name | **I'm Filmin Here** (`/im-filmin-here/`) |
+| Path | `/im-filmin-here/permits/` |
 | Geography | **All of Manhattan** |
 | Permit data | **Live** from the NYC Open Data SODA API on every filter change — not a committed snapshot |
 | Serverless functions | **Zero.** The dataset sends `Access-Control-Allow-Origin: *`, so the browser queries it directly |
@@ -31,8 +61,7 @@ drawn on the stretch of street it actually closed.
 | Excluded | Theater load-in/load-out, Rigging, and `subcategoryname` in News / Short / Student Film |
 | Date presets | Anchored on the **newest permit in the data**, never on today |
 | Street geometry | **Committed** Manhattan centerline + intersection index (`data/streets.json`) |
-| Production titles | **There are none.** The dataset has no titles and the UI never implies otherwise |
-| Curated famous-scene layer | Dropped. Permits are measurement; curation was going to be a different product |
+| Production titles | **There are none.** The dataset has no titles and this page never implies otherwise |
 
 Two things are deliberately split. Permits are live because they change daily and
 are the reason to visit. The street grid is committed because it does not change
@@ -104,11 +133,11 @@ most of Manhattan. The dot answers "was anything shot here" at any zoom; the lin
 answers "how much of the street was closed" once you are near enough to care.
 Both are sized by permit count.
 
-For the same reason the page opens on the **whole window the city still holds**
-rather than a trailing year. A year is 837 permits and 2,165 stretches; the full
-window is 3,260 and 5,214. Of the ~1,030 250m cells in Manhattan that contain any
-street at all, 67% contain at least one shoot — the remaining third is genuinely
-empty, not missing.
+For the same reason the permit page opens on the **whole window the city still
+holds** rather than a trailing year. A year is 837 permits and 2,165 stretches;
+the full window is 3,260 and 5,214. Of the ~1,030 250m cells in Manhattan that
+contain any street at all, 67% contain at least one shoot — the remaining third
+is genuinely empty, not missing.
 
 **97.5% of segment mentions place**, 86% as exact block faces. The rest are
 reported in the rail with the street names behind them — mostly shoots in another
@@ -117,11 +146,11 @@ input looks exactly like a map that doesn't.
 
 ---
 
-## What the data is, and isn't
+## What the permit data is, and isn't
 
 | Reality | Consequence |
 |---------|-------------|
-| **No production titles, ever.** MOME withholds them | The map says an episodic TV shoot held a block, never which show. The About panel says so out loud |
+| **No production titles, ever.** MOME withholds them | The permit map says an episodic TV shoot held a block, never which show. Named scenes live on the Locations page |
 | The table is a **rolling window** (currently 2023-01 onward, ~3,400 Manhattan shooting permits in the cut) | Older shoots age out. The page reports the window the city currently holds rather than implying full history |
 | `zipcode_s` lists every ZIP a permit touches | Never filter geography by ZIP — an East Side shoot leaks into a West Side query. Filter on parsed segments |
 | Parking is held for **trucks**, not the set | A pin is where the crew parked, which is routinely around the corner from the camera. The About panel says this too |
@@ -135,13 +164,19 @@ input looks exactly like a map that doesn't.
 
 ```
 /im-filmin-here/
-├── index.html          ← map shell, filters, detail rail
-├── app.css
-├── app.js              ← MapLibre wiring, live fetch, rollup rendering
+├── index.html          ← UWS locations shell (default)
+├── app.js              ← MapLibre wiring for the curated pins
+├── locations.js        ← catalog helpers: filter, bounds, GeoJSON
+├── app.css             ← shared chrome
 ├── streets.js          ← name normalizer + intersection index (pure, tested)
 ├── permits.js          ← SoQL, ParkingHeld parsing, rollup (pure, tested)
+├── layers.js           ← MapLibre layer defs for the permit map
 ├── icon.svg
+├── permits/
+│   ├── index.html      ← NYC Film Permit Map
+│   └── app.js          ← live fetch + rollup rendering
 └── data/
+    ├── locations.json  ← curated UWS catalog
     └── streets.json    ← generated; refresh with the pull script
 ```
 
@@ -150,28 +185,25 @@ Site conventions this respects:
 - Browser modules stay under `/im-filmin-here/`. **Nothing in `/lib/`** —
   `middleware.js` 404s that path in production, and
   `node scripts/test-public-imports.mjs` guards it.
-- `streets.js` and `permits.js` are dependency-free ESM with no `node:` imports,
-  because the pull script and the browser both load them.
+- `streets.js`, `permits.js`, and `locations.js` are dependency-free ESM with
+  no `node:` imports.
 - No new `api/*.js`. Still 10 of the 12 functions the Hobby plan allows.
 
 Tests: `node scripts/test-im-filmin-here.mjs` covers normalization, ParkingHeld
 parsing, the SoQL cut (including that theater, rigging, and News cannot get in),
-slicing, the rollup, and landmark spot-checks against the committed grid with a
-bound on how long a crosstown block may measure.
+slicing, the rollup, landmark spot-checks against the committed grid, and the
+UWS catalog (45 scenes, bounds stay neighborhood-scale, a farther pin opens
+the camera).
 
 ---
 
 ## Ideas not taken
 
-- **Guessing titles.** Cluster permits into campaigns, score against production
-  windows scraped from Wikipedia, show a confidence badge. Interesting, and still
-  a guess on top of a guess. It needs a bridge source (the sites that publish
-  daily filming schedules carry title + street + date) to validate against before
-  it earns a place.
-- **A curated famous-scene layer.** Editorial, not measurement. It was the
-  original plan and it is a different product; the contrast between "blocks
-  tourists visit" and "blocks that get closed" only works if the second one is
-  real first.
-- **Other boroughs.** The parser is borough-agnostic; only the committed grid is
-  Manhattan. Brooklyn is a re-run of the pull script and a bigger JSON file.
-- **IMDb locations.** Richest source by far, and their terms prohibit scraping.
+- **Guessing titles on the permit map.** Cluster permits into campaigns, score
+  against production windows scraped from Wikipedia, show a confidence badge.
+  Interesting, and still a guess on top of a guess.
+- **Other boroughs on the permit map.** The parser is borough-agnostic; only
+  the committed grid is Manhattan. Brooklyn is a re-run of the pull script and
+  a bigger JSON file.
+- **IMDb locations as a live scrape.** Richest source by far, and their terms
+  prohibit scraping. The Locations catalog cites public IMDb pages by URL.

@@ -7,7 +7,7 @@
     <title>I'm Filmin Here — Beep boop</title>
     <meta
       name="description"
-      content="Where film and TV crews actually shoot in Manhattan: live NYC film permits placed on the street segments they close, block by block."
+      content="Named film and TV locations on the Upper West Side. In beta and a growing list — the map stays zoomed to these blocks so it is easy to walk."
     />
     <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -31,114 +31,81 @@
           <span>I'm Filmin Here</span>
         </a>
       </div>
+      <div class="ifh-view-toggle" role="navigation" aria-label="I'm Filmin Here pages">
+        <a href="/im-filmin-here/" class="is-on" aria-current="page">Locations</a>
+        <a href="/im-filmin-here/permits/">Permit map</a>
+      </div>
       <div class="ifh-nav-links">
         <a href="/#projects">Projects</a>
       </div>
       <button type="button" class="ifh-panel-btn" id="panel-toggle" aria-expanded="false" aria-controls="rail">
-        Filters
+        Places
       </button>
     </nav>
 
     <div class="ifh-app">
       <main class="ifh-map-wrap">
-        <div id="map" role="application" aria-label="Map of Manhattan film permit locations"></div>
+        <div id="map" role="application" aria-label="Map of Upper West Side film and TV locations"></div>
 
         <div class="ifh-legend" id="legend">
-          <p class="ifh-legend-title">Permit category</p>
+          <p class="ifh-legend-title">Format</p>
           <ul class="ifh-legend-list">
-            <li><i style="background: #cf4520"></i>Television</li>
-            <li><i style="background: #3d6ea8"></i>Film</li>
-            <li><i style="background: #e3a72e"></i>Music video</li>
+            <li><i class="ifh-swatch-dot" style="background: #3d6ea8"></i>Film</li>
+            <li><i class="ifh-swatch-dot" style="background: #cf4520"></i>TV</li>
           </ul>
           <p class="ifh-legend-note">
-            One dot per stretch of street that was closed for a shoot. Bigger dot and thicker
-            line = more permits.
+            One pin per place. Bigger pin = more productions on the list. Hollow pins are
+            approximate (a street or corridor, not a doorway).
           </p>
         </div>
 
-        <div class="ifh-status" id="status" role="status" aria-live="polite">Loading the street grid…</div>
+        <div class="ifh-status" id="status" role="status" aria-live="polite">Loading locations…</div>
       </main>
 
       <aside class="ifh-rail" id="rail">
         <div class="ifh-rail-scroll" id="rail-scroll">
           <section class="ifh-detail-card" id="detail-block" hidden aria-live="polite">
             <div class="ifh-detail-bar">
-              <h2 class="ifh-detail-kicker">Selected stretch</h2>
+              <h2 class="ifh-detail-kicker">Selected place</h2>
               <button type="button" class="ifh-detail-close" id="detail-close" aria-label="Clear selection">×</button>
             </div>
             <div id="detail"></div>
           </section>
 
           <section class="ifh-block">
+            <p class="ifh-beta">In beta · a growing list</p>
             <h1 class="ifh-title">I'm Filmin Here</h1>
             <p class="ifh-lede">
-              Every film, TV, and music-video shooting permit the city issued in Manhattan, drawn on the
-              stretch of street it closed.
+              Named film and TV locations on the Upper West Side, from W 59th to W 110th. The map
+              stays zoomed to these pins so it is easy to walk. As more places are added, the view
+              will open up.
             </p>
           </section>
 
           <section class="ifh-block">
-            <h2 class="ifh-h2">Dates</h2>
-            <div class="ifh-presets" role="group" aria-label="Date presets">
-              <button type="button" class="ifh-chip" data-preset="1">1 month</button>
-              <button type="button" class="ifh-chip" data-preset="3">3 months</button>
-              <button type="button" class="ifh-chip" data-preset="12">12 months</button>
-              <button type="button" class="ifh-chip is-on" data-preset="all">All</button>
-            </div>
-            <div class="ifh-dates">
-              <label class="ifh-field">
-                <span>From</span>
-                <input type="date" id="date-from" />
-              </label>
-              <label class="ifh-field">
-                <span>To</span>
-                <input type="date" id="date-to" />
-              </label>
-            </div>
-            <p class="ifh-note" id="coverage-note">Checking what the dataset covers…</p>
+            <h2 class="ifh-h2">Formats</h2>
+            <div class="ifh-checks" id="format-checks"></div>
           </section>
 
           <section class="ifh-block">
-            <h2 class="ifh-h2">Categories</h2>
-            <div class="ifh-checks" id="category-checks"></div>
-            <p class="ifh-note">
-              Shooting permits only. Theater load-ins, rigging, news crews, shorts, and student
-              films are excluded.
-            </p>
-          </section>
-
-          <section class="ifh-block" id="summary-block">
-            <h2 class="ifh-h2">In this window</h2>
+            <h2 class="ifh-h2">On this map</h2>
+            <label class="ifh-field">
+              <span>Search</span>
+              <input type="search" id="place-search" placeholder="Zabar's, Ghostbusters…" autocomplete="off" />
+            </label>
             <dl class="ifh-stats" id="stats"></dl>
-            <details class="ifh-details" id="unplaced-details">
-              <summary><span id="unplaced-summary">Unplaced segments</span></summary>
-              <p class="ifh-note">
-                Street names the Manhattan grid could not match. Most are shoots in another borough
-                filed on a Manhattan permit; the rest are spellings the matcher misses.
-              </p>
-              <ul class="ifh-unplaced" id="unplaced-list"></ul>
-            </details>
+            <ol class="ifh-places" id="place-list"></ol>
           </section>
 
           <section class="ifh-block">
-            <h2 class="ifh-h2">About the data</h2>
+            <h2 class="ifh-h2">About the list</h2>
             <p class="ifh-note">
-              Live from
-              <a href="https://data.cityofnewyork.us/City-Government/Film-Permits/tg4x-b46p" target="_blank" rel="noopener">
-                NYC Open Data film permits</a>, fetched in your browser when you change a filter.
-              The city's table is a rolling window, so older shoots age out of it.
+              A researched set of known examples, not a complete history. Some sources name a
+              corridor rather than the camera position — those pins are marked approximate.
             </p>
             <p class="ifh-note">
-              <strong>There are no production titles here.</strong> The Mayor's Office of Media &amp;
-              Entertainment withholds them, so a permit says an episodic TV shoot held a block — never
-              which show.
-            </p>
-            <p class="ifh-note">
-              Permits name a stretch of street in prose, with no coordinates. Locations come from
-              matching that prose against the
-              <a href="https://data.cityofnewyork.us/City-Government/NYC-Street-Centerline-CSCL-/inkn-q76z" target="_blank" rel="noopener">
-                NYC Street Centerline</a>, so a parked truck's block is where the pin is — not
-              necessarily where the camera pointed.
+              For every shooting permit the city issued in Manhattan, without titles, open the
+              <a href="/im-filmin-here/permits/">NYC Film Permit Map</a>.
             </p>
           </section>
         </div>

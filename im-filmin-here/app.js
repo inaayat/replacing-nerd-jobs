@@ -1,35 +1,28 @@
-// I'm Filmin Here — Manhattan film permits on the streets they closed.
+// I'm Filmin Here — curated Upper West Side film & TV locations.
 //
-// Permits are fetched live from NYC Open Data on every filter change. The street
-// grid and its intersections are the one committed file, because the grid does
-// not change daily and the all-pairs intersection math is not something to redo
-// in a phone browser.
+// The default page is a small, walkable map of named places. Live city
+// permits live on /im-filmin-here/permits/. The camera fits the current
+// catalog, so adding a farther pin is what zooms the map out.
 
-import { createStreetIndex } from './streets.js';
 import {
-  DOT_SOURCE,
-  INTERACTIVE_LAYERS,
-  LINE_SOURCE,
-  PERMIT_LAYERS,
-  SELECTION_LAYERS,
-  selectionFilter,
-} from './layers.js';
-import {
-  CATEGORIES,
-  CATEGORY_IDS,
-  DATASET_URL,
-  buildPermitUrl,
-  buildWhere,
-  buildFeatures,
-  defaultWindow,
-  formatDateRange,
-} from './permits.js';
+  FORMATS,
+  FORMAT_IDS,
+  PRECISION_LABEL,
+  boundsOf,
+  filterPlaces,
+  formatColor,
+  normalizeCatalog,
+  paddedBounds,
+  placeColor,
+  placeProductions,
+  statsOf,
+  toFeatures,
+} from './locations.js';
 
 const EMPTY = { type: 'FeatureCollection', features: [] };
-const MANHATTAN = [
-  [-74.03, 40.68],
-  [-73.9, 40.88],
-];
+const SOURCE = 'location-dots';
+const LAYERS = ['location-dots', 'location-selected'];
+const FIT_PAD = { top: 36, bottom: 36, left: 36, right: 36 };
 
 const OSM_FALLBACK = {
   version: 8,
@@ -46,16 +39,12 @@ const OSM_FALLBACK = {
 
 const el = (id) => document.getElementById(id);
 const state = {
-  index: null,
-  map: null,
-  categories: new Set(CATEGORY_IDS),
-  from: null,
-  to: null,
-  preset: '12',
-  coverage: null,
-  data: null,
+  places: [],
+  formats: new Set(FORMAT_IDS),
+  query: '',
   selected: null,
-  requestId: 0,
+  map: null,
+  cameraBounds: null,
 };
 
 function setStatus(text, kind) {
@@ -79,132 +68,122 @@ async function loadStyle() {
   }
 }
 
-/** What the city's rolling window actually covers right now. */
-async function loadCoverage() {
-  const params = new URLSearchParams();
-  params.set('$select', 'min(startdatetime) as first,max(startdatetime) as last,count(1) as rows');
-  params.set('$where', buildWhere({ categories: CATEGORY_IDS }));
-  try {
-    const res = await fetch(`${DATASET_URL}?${params.toString()}`);
-    if (!res.ok) throw new Error(String(res.status));
-    const [row] = await res.json();
-    if (!row?.first) return null;
-    return { first: row.first.slice(0, 10), last: row.last.slice(0, 10), rows: Number(row.rows) };
-  } catch {
-    return null;
-  }
-}
-
-function renderCategoryChecks() {
-  const wrap = el('category-checks');
-  wrap.textContent = '';
-  for (const cat of CATEGORIES) {
-    const label = document.createElement('label');
-    label.className = 'ifh-check';
-
-    const input = document.createElement('input');
-    input.type = 'checkbox';
-    input.checked = state.categories.has(cat.id);
-    input.addEventListener('change', () => {
-      if (input.checked) state.categories.add(cat.id);
-      else state.categories.delete(cat.id);
-      if (!state.categories.size) {
-        state.categories.add(cat.id);
-        input.checked = true;
-        return;
-      }
-      void refresh();
-    });
-
-    const swatch = document.createElement('i');
-    swatch.style.background = cat.color;
-
-    const text = document.createElement('span');
-    text.textContent = cat.label;
-
-    const count = document.createElement('span');
-    count.className = 'ifh-check-count';
-    count.dataset.category = cat.id;
-
-    label.append(input, swatch, text, count);
-    wrap.append(label);
-  }
-}
-
-function applyPreset(preset) {
-  state.preset = preset;
-  for (const chip of document.querySelectorAll('[data-preset]')) {
-    chip.classList.toggle('is-on', chip.dataset.preset === preset);
-  }
-  if (preset === 'all') {
-    state.from = state.coverage?.first || '2023-01-01';
-    state.to = state.coverage?.last || new Date().toISOString().slice(0, 10);
-  } else {
-    // Anchored on the newest permit the city holds, not today: filing stops
-    // weeks before the present, so "3 months" from today would be part empty.
-    const win = defaultWindow(state.coverage?.last || new Date(), Number(preset));
-    state.from = win.from;
-    state.to = win.to;
-  }
-  el('date-from').value = state.from;
-  el('date-to').value = state.to;
+function visiblePlaces() {
+  return filterPlaces(state.places, { formats: state.formats, query: state.query });
 }
 
 function number(n) {
   return n.toLocaleString('en-US');
 }
 
-function renderStats(stats) {
+function renderFormatChecks() {
+  const wrap = el('format-checks');
+  wrap.textContent = '';
+  for (const format of FORMATS) {
+    const label = document.createElement('label');
+    label.className = 'ifh-check';
+
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.checked = state.formats.has(format.id);
+    input.addEventListener('change', () => {
+      if (input.checked) state.formats.add(format.id);
+      else state.formats.delete(format.id);
+      if (!state.formats.size) {
+        state.formats.add(format.id);
+        input.checked = true;
+        return;
+      }
+      refresh();
+    });
+
+    const swatch = document.createElement('i');
+    swatch.className = 'ifh-swatch-dot';
+    swatch.style.background = format.color;
+
+    const text = document.createElement('span');
+    text.textContent = format.label;
+
+    const count = document.createElement('span');
+    count.className = 'ifh-check-count';
+    count.dataset.format = format.id;
+
+    label.append(input, swatch, text, count);
+    wrap.append(label);
+  }
+}
+
+function renderStats(places) {
+  const stats = statsOf(places);
   const dl = el('stats');
   dl.textContent = '';
-  const rows = [
-    ['Permits', number(stats.permits)],
-    ['Street stretches', number(stats.stretches)],
-    ['Shoot days', number(stats.shootDays)],
-    ['Segments placed', `${number(stats.placedMentions)} of ${number(stats.mentions)}`],
-  ];
-  for (const [term, value] of rows) {
+  for (const [term, value] of [
+    ['Places', number(stats.places)],
+    ['Productions', number(stats.productions)],
+    ['Listed scenes', number(stats.shoots)],
+  ]) {
     const dt = document.createElement('dt');
     dt.textContent = term;
     const dd = document.createElement('dd');
     dd.textContent = value;
     dl.append(dt, dd);
   }
-
   for (const node of document.querySelectorAll('.ifh-check-count')) {
-    const n = stats.byCategory[node.dataset.category] || 0;
+    const n = node.dataset.format === 'Film' ? stats.films : stats.tv;
     node.textContent = n ? number(n) : '';
-  }
-
-  const summary = el('unplaced-summary');
-  const pct = stats.mentions ? Math.round((stats.unplacedMentions / stats.mentions) * 100) : 0;
-  summary.textContent = `${number(stats.unplacedMentions)} segments unplaced (${pct}%)`;
-  el('unplaced-details').hidden = stats.unplacedMentions === 0;
-
-  const list = el('unplaced-list');
-  list.textContent = '';
-  for (const row of stats.unplaced.slice(0, 60)) {
-    const li = document.createElement('li');
-    const name = document.createElement('span');
-    name.textContent = row.street || '(no street named)';
-    const count = document.createElement('span');
-    count.textContent = number(row.mentions);
-    li.append(name, count);
-    list.append(li);
   }
 }
 
-const TIER_LABEL = {
-  block: 'block face',
-  span: 'approximate span',
-  point: 'intersection only',
-};
+function renderList(places) {
+  const list = el('place-list');
+  list.textContent = '';
+  if (!places.length) {
+    const empty = document.createElement('li');
+    empty.className = 'ifh-place-empty';
+    empty.textContent = state.query ? 'Nothing on the list matches that.' : 'No places in this cut.';
+    list.append(empty);
+    return;
+  }
+  for (const place of places) {
+    const item = document.createElement('li');
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'ifh-place';
+    btn.dataset.id = place.id;
+    btn.setAttribute('aria-current', place.id === state.selected?.id ? 'true' : 'false');
 
-function renderDetail(props) {
+    const swatch = document.createElement('i');
+    swatch.className = 'ifh-swatch-dot';
+    swatch.style.background = placeColor(place);
+
+    const body = document.createElement('span');
+    body.className = 'ifh-place-body';
+
+    const name = document.createElement('span');
+    name.className = 'ifh-place-name';
+    name.textContent = place.name;
+
+    const meta = document.createElement('span');
+    meta.className = 'ifh-place-meta';
+    const titles = placeProductions(place);
+    meta.textContent = titles.length > 2 ? `${titles[0]} + ${titles.length - 1}` : titles.join(' · ');
+
+    body.append(name, meta);
+    const count = document.createElement('span');
+    count.className = 'ifh-place-count';
+    count.textContent = String(place.shoots.length);
+    btn.append(swatch, body, count);
+    btn.addEventListener('click', () => select(place, { fly: true }));
+    item.append(btn);
+    list.append(item);
+  }
+}
+
+function renderDetail(place) {
   const block = el('detail-block');
   const host = el('detail');
   host.textContent = '';
-  if (!props) {
+  if (!place) {
     block.hidden = true;
     return;
   }
@@ -215,88 +194,83 @@ function renderDetail(props) {
 
   const head = document.createElement('p');
   head.className = 'ifh-detail-head';
-  head.textContent = props.label;
+  head.textContent = place.name;
   body.append(head);
 
-  const figures = document.createElement('div');
-  figures.className = 'ifh-detail-figures';
-  for (const [value, label] of [
-    [props.permitCount, props.permitCount === 1 ? 'permit' : 'permits'],
-    [props.shootDays, props.shootDays === 1 ? 'shoot day' : 'shoot days'],
-  ]) {
-    const figure = document.createElement('div');
-    figure.className = 'ifh-figure';
-    const num = document.createElement('span');
-    num.className = 'ifh-figure-num';
-    num.textContent = number(value);
-    const caption = document.createElement('span');
-    caption.className = 'ifh-figure-label';
-    caption.textContent = label;
-    figure.append(num, caption);
-    figures.append(figure);
-  }
-  body.append(figures);
+  const addr = document.createElement('p');
+  addr.className = 'ifh-detail-meta';
+  addr.textContent = place.address;
+  body.append(addr);
 
   const meta = document.createElement('p');
   meta.className = 'ifh-detail-meta';
   const tier = document.createElement('span');
   tier.className = 'ifh-tier';
-  tier.textContent = TIER_LABEL[props.tier] || props.tier;
-  meta.append(document.createTextNode('placed as a '), tier);
+  tier.textContent = PRECISION_LABEL[place.precision] || place.precision;
+  meta.append(document.createTextNode(place.band ? `${place.band} · placed as a ` : 'placed as a '), tier);
   body.append(meta);
 
   const listHead = document.createElement('p');
   listHead.className = 'ifh-permits-head';
-  listHead.textContent = props.permitCount === 1 ? 'The permit' : 'Every permit here';
+  listHead.textContent = place.shoots.length === 1 ? 'The scene' : 'Scenes here';
   body.append(listHead);
 
   const list = document.createElement('ul');
   list.className = 'ifh-permits';
-  const permits = typeof props.permits === 'string' ? JSON.parse(props.permits) : props.permits;
-  for (const permit of permits) {
+  for (const shoot of place.shoots) {
     const li = document.createElement('li');
     li.className = 'ifh-permit';
-    li.style.borderLeftColor = CATEGORIES.find((c) => c.id === permit.category)?.color || '#6b5f5e';
+    li.style.borderLeftColor = formatColor(shoot.format);
 
     const top = document.createElement('div');
     top.className = 'ifh-permit-top';
-    const cat = document.createElement('span');
-    cat.className = 'ifh-permit-cat';
-    cat.textContent = permit.subcategory && permit.subcategory !== 'Not Applicable' ? permit.subcategory : permit.category;
-    const id = document.createElement('span');
-    id.className = 'ifh-permit-id';
-    id.textContent = `#${permit.eventid}`;
-    top.append(cat, id);
+    const title = document.createElement('span');
+    title.className = 'ifh-permit-cat';
+    title.textContent = shoot.production;
+    const format = document.createElement('span');
+    format.className = 'ifh-permit-id';
+    format.textContent = shoot.format;
+    top.append(title, format);
 
-    const when = document.createElement('div');
-    when.className = 'ifh-permit-when';
-    when.textContent = formatDateRange(permit.start, permit.end);
-
-    li.append(top, when);
+    li.append(top);
+    if (shoot.scene) {
+      const scene = document.createElement('div');
+      scene.className = 'ifh-permit-when';
+      scene.textContent = shoot.scene;
+      li.append(scene);
+    }
+    if (shoot.source) {
+      const link = document.createElement('a');
+      link.className = 'ifh-permit-source';
+      link.href = shoot.source;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.textContent = 'Source';
+      li.append(link);
+    }
     list.append(li);
   }
   body.append(list);
-
-  const note = document.createElement('p');
-  note.className = 'ifh-note';
-  note.textContent = 'The city does not release production titles, so these are shoots without names.';
-  body.append(note);
-
   host.append(body);
 }
 
-function select(props) {
-  state.selected = props;
-  renderDetail(props);
-  const filter = selectionFilter(props?.key);
-  for (const id of SELECTION_LAYERS) {
-    if (state.map.getLayer(id)) state.map.setFilter(id, filter);
+function select(place, { fly = false } = {}) {
+  state.selected = place;
+  renderDetail(place);
+  renderList(visiblePlaces());
+  if (state.map?.getLayer('location-selected')) {
+    state.map.setFilter('location-selected', ['==', ['get', 'id'], place?.id || '__none__']);
   }
-  if (props) {
-    // The card is the first thing in the rail, so showing it means scrolling
-    // back to the top — a click on the map should never answer off-screen.
+  if (place) {
     el('rail-scroll').scrollTo({ top: 0, behavior: 'smooth' });
     if (window.matchMedia('(max-width: 900px)').matches) openRail(true);
+    if (fly && state.map) {
+      state.map.easeTo({
+        center: place.lngLat,
+        zoom: Math.max(state.map.getZoom(), 15.2),
+        duration: 450,
+      });
+    }
   }
 }
 
@@ -306,167 +280,133 @@ function openRail(open) {
 }
 
 function addLayers(map) {
-  map.addSource(LINE_SOURCE, { type: 'geojson', data: EMPTY });
-  map.addSource(DOT_SOURCE, { type: 'geojson', data: EMPTY });
-
-  // A layer MapLibre rejects is not added and does not throw, so a silent style
-  // error would leave a blank map behind a working sidebar. Surface it.
+  map.addSource(SOURCE, { type: 'geojson', data: EMPTY });
   map.on('error', (event) => {
     if (event?.error) setStatus(`Map error: ${event.error.message}`, 'error');
   });
 
-  for (const layer of PERMIT_LAYERS) {
-    map.addLayer(layer);
-    if (!map.getLayer(layer.id)) setStatus(`Map layer "${layer.id}" was rejected.`, 'error');
-  }
+  const radius = [
+    'interpolate',
+    ['linear'],
+    ['zoom'],
+    12,
+    ['interpolate', ['linear'], ['get', 'shootCount'], 1, 6, 5, 10],
+    15,
+    ['interpolate', ['linear'], ['get', 'shootCount'], 1, 8, 5, 14],
+  ];
+  const selectedRadius = [
+    'interpolate',
+    ['linear'],
+    ['zoom'],
+    12,
+    ['interpolate', ['linear'], ['get', 'shootCount'], 1, 9, 5, 13],
+    15,
+    ['interpolate', ['linear'], ['get', 'shootCount'], 1, 11, 5, 17],
+  ];
 
-  for (const layer of INTERACTIVE_LAYERS) {
-    map.on('mouseenter', layer, () => {
+  map.addLayer({
+    id: 'location-dots',
+    type: 'circle',
+    source: SOURCE,
+    paint: {
+      'circle-color': ['get', 'color'],
+      'circle-radius': radius,
+      'circle-opacity': ['case', ['==', ['get', 'approximate'], 1], 0.55, 0.92],
+      'circle-stroke-width': ['case', ['==', ['get', 'approximate'], 1], 2, 1.4],
+      'circle-stroke-color': [
+        'case',
+        ['==', ['get', 'approximate'], 1],
+        ['get', 'color'],
+        'rgba(250,243,227,0.95)',
+      ],
+    },
+  });
+  map.addLayer({
+    id: 'location-selected',
+    type: 'circle',
+    source: SOURCE,
+    filter: ['==', ['get', 'id'], '__none__'],
+    paint: {
+      'circle-color': '#1c1c1c',
+      'circle-radius': selectedRadius,
+      'circle-opacity': 0.95,
+    },
+  });
+
+  for (const id of LAYERS) {
+    map.on('mouseenter', id, () => {
       map.getCanvas().style.cursor = 'pointer';
     });
-    map.on('mouseleave', layer, () => {
+    map.on('mouseleave', id, () => {
       map.getCanvas().style.cursor = '';
     });
-    map.on('click', layer, (event) => {
-      const feature = event.features?.[0];
-      if (feature) select(feature.properties);
-    });
   }
-
+  map.on('click', 'location-dots', (event) => {
+    const id = event.features?.[0]?.properties?.id;
+    const place = state.places.find((row) => row.id === id);
+    if (place) select(place);
+  });
   map.on('click', (event) => {
-    const layers = INTERACTIVE_LAYERS.filter((id) => map.getLayer(id));
-    const hits = layers.length ? map.queryRenderedFeatures(event.point, { layers }) : [];
+    const hits = map.getLayer('location-dots')
+      ? map.queryRenderedFeatures(event.point, { layers: ['location-dots'] })
+      : [];
     if (!hits.length) select(null);
   });
 }
 
-async function refresh() {
-  // The map's sources only exist after `load`, and a filter can be touched
-  // before the style finishes.
-  if (!state.index || !state.map?.getSource(LINE_SOURCE)) return;
-  const requestId = ++state.requestId;
-  setStatus('Fetching permits…');
-
-  const url = buildPermitUrl({
-    from: state.from,
-    to: state.to,
-    categories: [...state.categories],
-  });
-
-  let rows;
-  try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-    rows = await res.json();
-  } catch (err) {
-    if (requestId !== state.requestId) return;
-    setStatus(`Could not reach NYC Open Data (${err.message}). Try again.`, 'error');
-    return;
-  }
-  if (requestId !== state.requestId) return;
-
-  const built = buildFeatures(rows, state.index);
-  const byCategory = {};
-  let shootDays = 0;
-  for (const row of rows) {
-    byCategory[row.category] = (byCategory[row.category] || 0) + 1;
-  }
-  // Every stretch has a dot, so the dots are the complete set to count over.
-  for (const feature of built.dots.features) {
-    shootDays += feature.properties.shootDays;
-  }
-
-  state.data = built;
-  state.map.getSource(LINE_SOURCE).setData(built.lines);
-  state.map.getSource(DOT_SOURCE).setData(built.dots);
-  renderStats({ ...built.stats, byCategory, shootDays });
-
-  if (state.selected) {
-    const still = built.dots.features.find((f) => f.properties.key === state.selected.key);
-    select(still ? still.properties : null);
-  }
-
-  setStatus(
-    rows.length
-      ? `${number(rows.length)} permits · ${formatDateRange(state.from, state.to)}`
-      : `No permits match ${formatDateRange(state.from, state.to)}`,
-  );
-  if (rows.length) window.setTimeout(() => setStatus(''), 2600);
+function refresh() {
+  const places = visiblePlaces();
+  renderStats(places);
+  renderList(places);
+  if (state.selected && !places.some((place) => place.id === state.selected.id)) select(null);
+  if (state.map?.getSource(SOURCE)) state.map.getSource(SOURCE).setData(toFeatures(places));
 }
 
 function wireControls() {
-  for (const chip of document.querySelectorAll('[data-preset]')) {
-    chip.addEventListener('click', () => {
-      applyPreset(chip.dataset.preset);
-      void refresh();
-    });
-  }
-
-  const onDate = () => {
-    const from = el('date-from').value;
-    const to = el('date-to').value;
-    if (!from || !to) return;
-    if (from > to) {
-      setStatus('That date range runs backwards.', 'error');
-      return;
-    }
-    state.from = from;
-    state.to = to;
-    state.preset = 'custom';
-    for (const chip of document.querySelectorAll('[data-preset]')) chip.classList.remove('is-on');
-    void refresh();
-  };
-  el('date-from').addEventListener('change', onDate);
-  el('date-to').addEventListener('change', onDate);
-
   el('panel-toggle').addEventListener('click', () => {
     openRail(!el('rail').classList.contains('is-open'));
   });
-
   el('detail-close').addEventListener('click', () => select(null));
+  el('place-search').addEventListener('input', (event) => {
+    state.query = event.target.value;
+    refresh();
+  });
 }
 
 async function main() {
-  renderCategoryChecks();
+  renderFormatChecks();
   wireControls();
 
-  const [style, payload, coverage] = await Promise.all([
+  const [style, payload] = await Promise.all([
     loadStyle(),
-    fetch('./data/streets.json')
+    fetch('./data/locations.json')
       .then((res) => {
-        if (!res.ok) throw new Error(`streets.json ${res.status}`);
+        if (!res.ok) throw new Error(`locations.json ${res.status}`);
         return res.json();
       })
       .catch((err) => {
-        setStatus(`Could not load the street grid (${err.message}).`, 'error');
+        setStatus(`Could not load the location list (${err.message}).`, 'error');
         return null;
       }),
-    loadCoverage(),
   ]);
-
   if (!payload) return;
-  state.index = createStreetIndex(payload);
-  state.coverage = coverage;
-  // Open on everything the city still holds. A trailing-year default hid three
-  // quarters of the permits and made most of Manhattan look like nothing was
-  // ever shot there.
-  applyPreset('all');
 
-  el('coverage-note').textContent = coverage
-    ? `The city's table currently holds ${number(coverage.rows)} Manhattan shooting permits, from ${formatDateRange(coverage.first, coverage.last)}. Older shoots age out of it.`
-    : 'Dataset coverage is unavailable right now.';
-  if (coverage) {
-    for (const id of ['date-from', 'date-to']) {
-      el(id).min = coverage.first;
-      el(id).max = coverage.last;
-    }
+  const catalog = normalizeCatalog(payload);
+  state.places = catalog.places;
+  const camera = paddedBounds(boundsOf(state.places));
+  state.cameraBounds = camera;
+  if (!camera) {
+    setStatus('The location list has no mappable pins.', 'error');
+    return;
   }
 
   const map = new maplibregl.Map({
     container: 'map',
     style,
-    bounds: MANHATTAN,
-    fitBoundsOptions: { padding: 24 },
+    bounds: camera,
+    fitBoundsOptions: { padding: FIT_PAD },
+    maxBounds: paddedBounds(camera, 0.018),
+    minZoom: 12,
     attributionControl: { compact: true },
   });
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
@@ -475,7 +415,10 @@ async function main() {
 
   map.on('load', () => {
     addLayers(map);
-    void refresh();
+    refresh();
+    const stats = statsOf(state.places);
+    setStatus(`${number(stats.places)} Upper West Side places · in beta`);
+    window.setTimeout(() => setStatus(''), 2800);
   });
 }
 

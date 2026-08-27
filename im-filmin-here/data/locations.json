@@ -1,0 +1,599 @@
+{
+  "schema": 1,
+  "source": {
+    "title": "Upper West Side film & TV locations, W 59th to W 110th",
+    "note": "Researched examples, not a complete NYC film-permit history. Some sources name a corridor rather than the camera position."
+  },
+  "places": [
+    {
+      "id": "lincoln-center",
+      "name": "Lincoln Center",
+      "address": "Amsterdam Ave between W 65th St and W 70th St",
+      "band": "W 65th-W 70th",
+      "precision": "landmark",
+      "lngLat": [-73.98386, 40.77272],
+      "shoots": [
+        {
+          "production": "Moonstruck",
+          "format": "Film",
+          "scene": "Lincoln Center complex/location filming",
+          "source": "https://onlocationtours.com/locations/upper-west-side-tours-nyc/"
+        },
+        {
+          "production": "Ghostbusters",
+          "format": "Film",
+          "scene": "Lincoln Center appears in the film",
+          "source": "https://onlocationtours.com/locations/upper-west-side-tours-nyc/"
+        },
+        {
+          "production": "Sweet Home Alabama",
+          "format": "Film",
+          "scene": "Lincoln Center appears in the film",
+          "source": "https://onlocationtours.com/locations/upper-west-side-tours-nyc/"
+        },
+        {
+          "production": "Pitch Perfect 2",
+          "format": "Film",
+          "scene": "Used as the venue for the a cappella championship",
+          "source": "https://onlocationtours.com/locations/upper-west-side-tours-nyc/"
+        },
+        {
+          "production": "Black Swan",
+          "format": "Film",
+          "scene": "Exterior/steps; final stage material was not filmed on the actual stage",
+          "source": "https://www.ilovetheupperwestside.com/movies-filmed-on-the-upper-west-side/"
+        }
+      ]
+    },
+    {
+      "id": "holy-trinity-lutheran",
+      "name": "Holy Trinity Lutheran Church",
+      "address": "3 W 65th St; Central Park West at W 65th St",
+      "band": "W 65th",
+      "precision": "address",
+      "lngLat": [-73.979598, 40.772156],
+      "shoots": [
+        {
+          "production": "Ghostbusters",
+          "format": "Film",
+          "scene": "Church appears in the Stay Puft sequence",
+          "source": "https://www.ilovetheupperwestside.com/movies-filmed-on-the-upper-west-side/"
+        }
+      ]
+    },
+    {
+      "id": "55-central-park-west",
+      "name": "55 Central Park West",
+      "address": "Central Park West between W 65th St and W 66th St",
+      "band": "W 65th-W 66th",
+      "precision": "address",
+      "lngLat": [-73.979213, 40.772204],
+      "shoots": [
+        {
+          "production": "Ghostbusters",
+          "format": "Film",
+          "scene": "Exterior of Dana Barrett's building, known as Spook Central",
+          "source": "https://www.ilovetheupperwestside.com/upper-west-side-buildings-featured-in-movies/"
+        },
+        {
+          "production": "Elf",
+          "format": "Film",
+          "scene": "Exterior of Walter and family's apartment.",
+          "source": "https://www.imdb.com/title/tt0319343/locations/"
+        }
+      ]
+    },
+    {
+      "id": "tavern-on-the-green",
+      "name": "Tavern on the Green",
+      "address": "Central Park West at W 67th St",
+      "band": "W 67th",
+      "precision": "landmark",
+      "lngLat": [-73.977782, 40.772148],
+      "shoots": [
+        {
+          "production": "Ghostbusters",
+          "format": "Film",
+          "scene": "Louis runs to the restaurant while being chased",
+          "source": "https://onlocationtours.com/locations/upper-west-side-tours-nyc/"
+        },
+        {
+          "production": "Wall Street",
+          "format": "Film",
+          "scene": "Bud enters the restaurant after a Central Park confrontation",
+          "source": "https://onlocationtours.com/locations/upper-west-side-tours-nyc/"
+        }
+      ]
+    },
+    {
+      "id": "lincoln-towers",
+      "name": "Former San Juan Hill / Lincoln Towers",
+      "address": "W 68th St between Amsterdam Ave and West End Ave",
+      "band": "W 68th",
+      "precision": "neighborhood",
+      "lngLat": [-73.98635, 40.77726],
+      "shoots": [
+        {
+          "production": "West Side Story",
+          "format": "Film",
+          "scene": "Street scenes filmed before redevelopment",
+          "source": "https://www.ilovetheupperwestside.com/movies-filmed-on-the-upper-west-side/"
+        }
+      ]
+    },
+    {
+      "id": "amc-lincoln-square",
+      "name": "AMC Lincoln Square area",
+      "address": "Broadway at W 68th St",
+      "band": "W 68th",
+      "precision": "intersection",
+      "lngLat": [-73.98227, 40.77554],
+      "shoots": [
+        {
+          "production": "30 Rock",
+          "format": "TV",
+          "scene": "Liz Lemon and Criss visit the theater",
+          "source": "https://onlocationtours.com/locations/upper-west-side-tours-nyc/"
+        }
+      ]
+    },
+    {
+      "id": "cafe-luxembourg",
+      "name": "Cafe Luxembourg",
+      "address": "200 W 70th St; near Amsterdam Ave",
+      "band": "W 70th",
+      "precision": "address",
+      "lngLat": [-73.983086, 40.777267],
+      "shoots": [
+        {
+          "production": "When Harry Met Sally",
+          "format": "Film",
+          "scene": "Restaurant scene with Harry, Sally, Jess and Marie",
+          "source": "https://www.ilovetheupperwestside.com/movies-filmed-on-the-upper-west-side/"
+        }
+      ]
+    },
+    {
+      "id": "the-dakota",
+      "name": "The Dakota",
+      "address": "1 W 72nd St; Central Park West at W 72nd St",
+      "band": "W 72nd",
+      "precision": "address",
+      "lngLat": [-73.975905, 40.776785],
+      "shoots": [
+        {
+          "production": "Rosemary's Baby",
+          "format": "Film",
+          "scene": "Exterior of the fictional Bramford",
+          "source": "https://www.ilovetheupperwestside.com/upper-west-side-buildings-featured-in-movies/"
+        },
+        {
+          "production": "Serpico",
+          "format": "Film",
+          "scene": "Party scenes.",
+          "source": "https://www.imdb.com/title/tt0070666/locations/"
+        }
+      ]
+    },
+    {
+      "id": "sherman-square",
+      "name": "Sherman Square",
+      "address": "Broadway at W 70th-W 71st St, near W 72nd St",
+      "band": "W 70th-W 72nd",
+      "precision": "landmark",
+      "lngLat": [-73.982732, 40.777772],
+      "shoots": [
+        {
+          "production": "The Panic in Needle Park",
+          "format": "Film",
+          "scene": "Principal neighborhood setting; period sources often identify the broader Sherman Square/72nd and Broadway area",
+          "source": "https://exploringtheupperwestside.com/the-upper-west-side-at-a-glance/"
+        }
+      ]
+    },
+    {
+      "id": "verdi-square",
+      "name": "Verdi Square",
+      "address": "Broadway at W 72nd-W 73rd St",
+      "band": "W 72nd-W 73rd",
+      "precision": "landmark",
+      "lngLat": [-73.98149, 40.77918],
+      "shoots": [
+        {
+          "production": "You've Got Mail",
+          "format": "Film",
+          "scene": "Joe and Kathleen nearly cross paths",
+          "source": "https://www.ilovetheupperwestside.com/movies-filmed-on-the-upper-west-side/"
+        }
+      ]
+    },
+    {
+      "id": "grays-papaya",
+      "name": "Gray's Papaya",
+      "address": "2090 Broadway; Broadway at W 72nd St",
+      "band": "W 72nd",
+      "precision": "address",
+      "lngLat": [-73.98161, 40.778285],
+      "shoots": [
+        {
+          "production": "You've Got Mail",
+          "format": "Film",
+          "scene": "Joe and Kathleen eat and discuss NY152",
+          "source": "https://www.ilovetheupperwestside.com/movies-filmed-on-the-upper-west-side/"
+        }
+      ]
+    },
+    {
+      "id": "zabars",
+      "name": "Zabar's",
+      "address": "2245 Broadway; Broadway at W 80th St",
+      "band": "W 80th",
+      "precision": "address",
+      "lngLat": [-73.979668, 40.784911],
+      "shoots": [
+        {
+          "production": "You've Got Mail",
+          "format": "Film",
+          "scene": "Cash-only checkout scene",
+          "source": "https://www.ilovetheupperwestside.com/movies-filmed-on-the-upper-west-side/"
+        },
+        {
+          "production": "Manhattan",
+          "format": "Film",
+          "scene": "Isaac and Mary walk through the store",
+          "source": "https://onlocationtours.com/locations/upper-west-side-tours-nyc/"
+        }
+      ]
+    },
+    {
+      "id": "amnh",
+      "name": "American Museum of Natural History",
+      "address": "Central Park West at W 79th-W 81st St",
+      "band": "W 79th-W 81st",
+      "precision": "landmark",
+      "lngLat": [-73.97406, 40.78136],
+      "shoots": [
+        {
+          "production": "Night at the Museum",
+          "format": "Film",
+          "scene": "Museum exterior featured extensively; interiors were recreated elsewhere",
+          "source": "https://onlocationtours.com/locations/upper-west-side-tours-nyc/"
+        },
+        {
+          "production": "Splash",
+          "format": "Film",
+          "scene": "Tom Hanks's character helps Madison escape",
+          "source": "https://onlocationtours.com/locations/upper-west-side-tours-nyc/"
+        },
+        {
+          "production": "Miracle on 34th Street",
+          "format": "Film",
+          "scene": "Museum visible during the Thanksgiving parade sequence",
+          "source": "https://onlocationtours.com/locations/upper-west-side-tours-nyc/"
+        },
+        {
+          "production": "Bringing Up Baby",
+          "format": "Film",
+          "scene": "IMDb identifies the museum exterior as a filming location.",
+          "source": "https://www.imdb.com/title/tt0029947/locations/"
+        },
+        {
+          "production": "Manhattan",
+          "format": "Film",
+          "scene": "IMDb lists the museum as a filming location.",
+          "source": "https://www.imdb.com/title/tt0079522/locations/"
+        }
+      ]
+    },
+    {
+      "id": "hayden-planetarium",
+      "name": "Hayden Planetarium",
+      "address": "American Museum of Natural History; Central Park West at W 79th St",
+      "band": "W 79th",
+      "precision": "landmark",
+      "lngLat": [-73.9735, 40.78185],
+      "shoots": [
+        {
+          "production": "Manhattan",
+          "format": "Film",
+          "scene": "IMDb separately lists the Hayden Planetarium.",
+          "source": "https://www.imdb.com/title/tt0079522/locations/"
+        }
+      ]
+    },
+    {
+      "id": "cafe-lalo",
+      "name": "Cafe Lalo",
+      "address": "201 W 83rd St; Amsterdam Ave at W 83rd St",
+      "band": "W 83rd",
+      "precision": "address",
+      "lngLat": [-73.976687, 40.785974],
+      "shoots": [
+        {
+          "production": "You've Got Mail",
+          "format": "Film",
+          "scene": "Planned first in-person meeting location",
+          "source": "https://www.ilovetheupperwestside.com/movies-filmed-on-the-upper-west-side/"
+        }
+      ]
+    },
+    {
+      "id": "w89-apartment",
+      "name": "West 89th Street apartment",
+      "address": "W 89th St; exact building/cross avenue not specified by source",
+      "band": "W 89th",
+      "precision": "street",
+      "lngLat": [-73.97426, 40.7899],
+      "shoots": [
+        {
+          "production": "When Harry Met Sally",
+          "format": "Film",
+          "scene": "Apartment scene involving Jess and Marie's wagon-wheel table",
+          "source": "https://www.ilovetheupperwestside.com/movies-filmed-on-the-upper-west-side/"
+        }
+      ]
+    },
+    {
+      "id": "riverside-91-garden",
+      "name": "91st Street Garden, Riverside Park",
+      "address": "Riverside Park at W 91st St; entrance near Riverside Dr",
+      "band": "W 91st",
+      "precision": "landmark",
+      "lngLat": [-73.9784, 40.7924],
+      "shoots": [
+        {
+          "production": "You've Got Mail",
+          "format": "Film",
+          "scene": "Final reveal scene",
+          "source": "https://www.ilovetheupperwestside.com/movies-filmed-on-the-upper-west-side/"
+        }
+      ]
+    },
+    {
+      "id": "uncle-robs",
+      "name": "Uncle Rob's brownstone",
+      "address": "51 W 95th St; between Central Park West and Columbus Ave",
+      "band": "W 95th",
+      "precision": "address",
+      "lngLat": [-73.96677, 40.791868],
+      "shoots": [
+        {
+          "production": "Home Alone 2: Lost in New York",
+          "format": "Film",
+          "scene": "Exterior used for Uncle Rob's residence",
+          "source": "https://www.ilovetheupperwestside.com/movies-filmed-on-the-upper-west-side/"
+        }
+      ]
+    },
+    {
+      "id": "plantshed",
+      "name": "PlantShed",
+      "address": "209 W 96th St; between Amsterdam Ave and Broadway",
+      "band": "W 96th",
+      "precision": "address",
+      "lngLat": [-73.971044, 40.794647],
+      "shoots": [
+        {
+          "production": "When Harry Met Sally",
+          "format": "Film",
+          "scene": "Christmas-tree purchase/dragging sequence",
+          "source": "https://www.ilovetheupperwestside.com/movies-filmed-on-the-upper-west-side/"
+        }
+      ]
+    },
+    {
+      "id": "riverside-corridor",
+      "name": "Riverside Drive / Riverside Park corridor",
+      "address": "Riverside Dr between W 72nd St and W 110th St; specific block not stated by source",
+      "band": "W 72nd-W 110th",
+      "precision": "corridor",
+      "lngLat": [-73.9815, 40.7862],
+      "shoots": [
+        {
+          "production": "Will & Grace",
+          "format": "TV",
+          "scene": "The corridor is associated with the show's UWS location filming; exact scene/block not specified",
+          "source": "https://onlocationtours.com/locations/upper-west-side-tours-nyc/"
+        },
+        {
+          "production": "30 Rock",
+          "format": "TV",
+          "scene": "The corridor is associated with Liz Lemon; exact scene/block not specified",
+          "source": "https://onlocationtours.com/locations/upper-west-side-tours-nyc/"
+        }
+      ]
+    },
+    {
+      "id": "riverside-park",
+      "name": "Riverside Park",
+      "address": "Riverside Park; specific cross street not stated by source",
+      "band": "W 59th-W 110th corridor",
+      "precision": "corridor",
+      "lngLat": [-73.9845, 40.7825],
+      "shoots": [
+        {
+          "production": "The Panic in Needle Park",
+          "format": "Film",
+          "scene": "Additional scenes were filmed in Riverside Park",
+          "source": "https://exploringtheupperwestside.com/the-upper-west-side-at-a-glance/"
+        }
+      ]
+    },
+    {
+      "id": "empire-hotel",
+      "name": "Empire Hotel",
+      "address": "44 W 63rd St; between Broadway and Columbus Ave",
+      "band": "W 63rd",
+      "precision": "address",
+      "lngLat": [-73.982719, 40.771381],
+      "shoots": [
+        {
+          "production": "Gossip Girl",
+          "format": "TV",
+          "scene": "The Empire Hotel is associated with Chuck Bass in the series",
+          "source": "https://onlocationtours.com/locations/upper-west-side-tours-nyc/"
+        }
+      ]
+    },
+    {
+      "id": "wills-apartment",
+      "name": "Will's apartment exterior",
+      "address": "155 Riverside Dr; Riverside Dr at W 88th St",
+      "band": "W 88th",
+      "precision": "address",
+      "lngLat": [-73.979232, 40.79097],
+      "shoots": [
+        {
+          "production": "Will & Grace",
+          "format": "TV",
+          "scene": "Exterior of Will's apartment.",
+          "source": "https://www.imdb.com/title/tt0157246/locations/"
+        }
+      ]
+    },
+    {
+      "id": "210-riverside",
+      "name": "210 Riverside Drive",
+      "address": "210 Riverside Dr; Riverside Dr at W 93rd-W 94th St",
+      "band": "W 93rd-W 94th",
+      "precision": "address",
+      "lngLat": [-73.97601, 40.794072],
+      "shoots": [
+        {
+          "production": "You've Got Mail",
+          "format": "Film",
+          "scene": "Lobby scene leading to the stuck-elevator scene.",
+          "source": "https://www.imdb.com/title/tt0128853/locations/"
+        }
+      ]
+    },
+    {
+      "id": "dorchester",
+      "name": "The Dorchester Apartments",
+      "address": "131 Riverside Dr; Riverside Dr at W 85th St",
+      "band": "W 85th",
+      "precision": "address",
+      "lngLat": [-73.980294, 40.789325],
+      "shoots": [
+        {
+          "production": "The Odd Couple",
+          "format": "Film",
+          "scene": "Exterior/location for Oscar's apartment.",
+          "source": "https://www.imdb.com/title/tt0063374/locations/"
+        }
+      ]
+    },
+    {
+      "id": "soldiers-sailors",
+      "name": "Soldiers' and Sailors' Memorial Monument",
+      "address": "Riverside Park at W 89th St",
+      "band": "W 89th",
+      "precision": "landmark",
+      "lngLat": [-73.9792, 40.7919],
+      "shoots": [
+        {
+          "production": "The Odd Couple",
+          "format": "Film",
+          "scene": "Park-bench scene.",
+          "source": "https://www.imdb.com/title/tt0063374/locations/"
+        }
+      ]
+    },
+    {
+      "id": "190-riverside",
+      "name": "190 Riverside Drive",
+      "address": "190 Riverside Dr; Riverside Dr at W 91st St",
+      "band": "W 91st",
+      "precision": "address",
+      "lngLat": [-73.976675, 40.79276],
+      "shoots": [
+        {
+          "production": "The Odd Couple",
+          "format": "Film",
+          "scene": "Rooftop scene.",
+          "source": "https://www.imdb.com/title/tt0063374/locations/"
+        }
+      ]
+    },
+    {
+      "id": "schinasi",
+      "name": "Schinasi Mansion / June's manor",
+      "address": "351 Riverside Dr; Riverside Dr at W 107th St",
+      "band": "W 107th",
+      "precision": "address",
+      "lngLat": [-73.969278, 40.802988],
+      "shoots": [
+        {
+          "production": "White Collar",
+          "format": "TV",
+          "scene": "Exterior/location for June's manor.",
+          "source": "https://www.imdb.com/title/tt1358522/locations/"
+        }
+      ]
+    },
+    {
+      "id": "200-riverside",
+      "name": "200 Riverside Drive",
+      "address": "200 Riverside Dr; Riverside Dr at W 92nd St",
+      "band": "W 92nd",
+      "precision": "address",
+      "lngLat": [-73.976264, 40.793364],
+      "shoots": [
+        {
+          "production": "The First Wives Club",
+          "format": "Film",
+          "scene": "IMDb lists the residential building as a filming location.",
+          "source": "https://www.imdb.com/title/tt0116313/locations/"
+        }
+      ]
+    },
+    {
+      "id": "ardsley",
+      "name": "The Ardsley",
+      "address": "320 Central Park West; CPW between W 91st and W 92nd St",
+      "band": "W 91st-W 92nd",
+      "precision": "address",
+      "lngLat": [-73.967216, 40.789175],
+      "shoots": [
+        {
+          "production": "Jessie",
+          "format": "TV",
+          "scene": "Exterior of the Ross family's penthouse building.",
+          "source": "https://www.imdb.com/title/tt1865769/locations/"
+        }
+      ]
+    },
+    {
+      "id": "1-central-park-west",
+      "name": "1 Central Park West",
+      "address": "1 Central Park West; Columbus Circle at W 60th St",
+      "band": "W 60th",
+      "precision": "address",
+      "lngLat": [-73.981539, 40.769149],
+      "shoots": [
+        {
+          "production": "Tower Heist",
+          "format": "Film",
+          "scene": "IMDb lists the hotel and tower as a filming location.",
+          "source": "https://www.imdb.com/title/tt0471042/locations/"
+        }
+      ]
+    },
+    {
+      "id": "w72-street",
+      "name": "West 72nd Street",
+      "address": "W 72nd St; exact cross avenue not specified by IMDb",
+      "band": "W 72nd",
+      "precision": "street",
+      "lngLat": [-73.98184, 40.77871],
+      "shoots": [
+        {
+          "production": "Night at the Museum",
+          "format": "Film",
+          "scene": "IMDb lists West 72nd Street as an additional filming location.",
+          "source": "https://www.imdb.com/title/tt0477347/locations/"
+        }
+      ]
+    }
+  ]
+}
