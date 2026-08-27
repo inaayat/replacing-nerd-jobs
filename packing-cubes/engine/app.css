@@ -600,10 +600,32 @@
 
 .pc-view-toggle {
   display: inline-flex;
+  flex-wrap: wrap;
   border: var(--outline);
   border-radius: var(--radius-sm);
   overflow: hidden;
   flex-shrink: 0;
+}
+
+.pc-beta-badge {
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 6px 8px;
+  border: var(--outline);
+  border-radius: 99px;
+  background: var(--chip);
+  color: var(--muted);
+  cursor: pointer;
+  min-height: 32px;
+}
+
+.pc-beta-badge.on {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  border-color: var(--accent);
 }
 
 .pc-view-toggle button {
@@ -887,6 +909,92 @@
 }
 
 .pc-preview-close:hover { background: var(--chip); color: var(--ink); }
+
+.pc-day-toolbar,
+.pc-outfit-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+
+.pc-day-toolbar .pc-auth-field { min-width: 140px; flex: 1; }
+.pc-outfit-toolbar .grow { flex: 1; min-width: 160px; }
+
+.pc-day-card {
+  background: var(--bg);
+  border: var(--outline);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.pc-day-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.pc-day-head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.pc-day-card .pc-muted,
+.pc-muted {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.pc-outfit-mini {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+}
+
+.pc-outfit-mini li { margin-bottom: 6px; }
+
+.pc-day-assign { margin-top: 8px; }
+
+.pc-unassign-day {
+  border: none;
+  background: transparent;
+  color: var(--faint);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.pc-past-outfits {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.pc-past-hit {
+  text-align: left;
+  font: inherit;
+  border: var(--outline);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.pc-past-hit:hover { border-color: var(--accent); }
+
+.pc-outfit-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 16px;
+}
+
+.pc-outfit-modal { max-width: 480px; }
 
 @media (max-width: 640px) {
   .pc-modal-overlay {

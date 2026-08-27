@@ -405,25 +405,25 @@ Two product gaps after add-ons shipped as chips-only:
   that cube (and its add-ons). Filing also copies new labels onto the cube so
   Edit / the next trip keep them.
 
-## Round 13 — plan only: beta views (Plan by day + Outfits) · 27 Aug 2026
+## Round 13 — beta views (Plan by day + Outfits) · 27 Aug 2026
 
-Product + engineering spec: [`BETA-VIEWS.md`](./BETA-VIEWS.md). **Not built.**
-Karan asked for two extra packing views as beta. Locked defaults (implement
-these if he does not answer the open questions):
+Product + engineering spec: [`BETA-VIEWS.md`](./BETA-VIEWS.md).
+
+Karan asked for two extra packing views as beta. Locked:
 
 - **List stays the source of truth.** Days and outfits are groupings. Login
   required; no guest mode; no catalog cubes; outfits are **not** My Cubes.
 - **Beta:** per-user `prefs.betaViews` (off). A **Beta** badge on the existing
   List / By cube switcher reveals **By day** and **Outfits**. Extra tabs, not
   a rewrite. Data is kept if beta is turned off.
-- **Plan by day:** numbered Day 1…N with stable ids. Optional `startDate` /
-  `endDate` are labels only. Items have `dayIds[]` (rewear = several days).
-  Unassigned items stay on the main list. Stay on suitcase `v: 2`;
-  `normalizeSuitcase` fills the new fields.
-- **Outfits:** `{ id, name, event?, dayId?, itemIds[] }` on the trip record.
+- **Plan by day is calendar-first** (Karan, same day): a day is a
+  `YYYY-MM-DD`. Display is weekday + date; optional "Day N" is derived from
+  `startDate` only. `startDate` / `endDate` fill that inclusive span into
+  `days`. Adding a day picks a date; removing a date does not renumber
+  neighbors. Items have `dates[]` (rewear). The discarded numbered-day draft
+  (`days[].n` / `item.dayIds` / `outfit.dayId`) is dropped in
+  `normalizeSuitcase`. Stay on suitcase `v: 2`.
+- **Outfits:** `{ id, name, event?, date?, itemIds[] }` on the trip record.
   Search past outfits across `state.suitcases`; copy grouping + optionally
   add missing labels to this list; never create a cube. Names only (no
   photo). An item may sit on two outfits the same day.
-
-Open questions (numbered vs calendar-first days, outfit exclusivity, photos,
-beta control placement) are recorded in that file and do not block v1.

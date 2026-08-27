@@ -35,6 +35,26 @@ import {
   expandContents,
   absorbItemIntoCube,
   filedInCube,
+  isIsoDate,
+  datesInRange,
+  dayLabel,
+  weekdayDateLabel,
+  addDay,
+  removeDay,
+  setTripDates,
+  assignItemDate,
+  itemsForDate,
+  unassignedDateItems,
+  outfitsForDate,
+  addOutfit,
+  updateOutfit,
+  removeOutfit,
+  setOutfitItems,
+  setOutfitDate,
+  searchPastOutfits,
+  copyOutfit,
+  normalizePrefs,
+  MAX_DAYS,
   UNSORTED_KEY,
 } from '../packing-cubes/engine/model.js';
 
@@ -339,6 +359,90 @@ const junk = normalizeSuitcase({ items: [{ label: 'Ok' }, null, { nope: true }],
 check('normalize drops malformed items', junk.items.map((i) => i.label), ['Ok']);
 check('normalize defaults collections', [junk.cubeIds, junk.addOns], [[], {}]);
 check('normalize stamps ids', typeof junk.items[0].id === 'string' && junk.items[0].id.length > 0, true);
+check('normalize defaults empty days and outfits', [junk.days, junk.outfits, junk.startDate, junk.items[0].dates], [[], [], null, []]);
+
+// --- calendar days (identity is YYYY-MM-DD, not Day n) ---
+check('isIsoDate accepts a real date', isIsoDate('2026-06-13'), true);
+check('isIsoDate rejects 31 Feb', isIsoDate('2026-02-31'), false);
+check('datesInRange is inclusive', datesInRange('2026-06-12', '2026-06-14'), ['2026-06-12', '2026-06-13', '2026-06-14']);
+check('datesInRange rejects inverted span', datesInRange('2026-06-14', '2026-06-12'), []);
+
+const trip = newSuitcase('Wedding');
+check('fresh trip has no days', [trip.days, trip.outfits, trip.startDate], [[], [], null]);
+check('setTripDates fills the span', setTripDates(trip, { startDate: '2026-06-12', endDate: '2026-06-14' }), 3);
+check('days are date records', trip.days.map((d) => d.date), ['2026-06-12', '2026-06-13', '2026-06-14']);
+check('addDay outside the range is allowed', addDay(trip, '2026-06-16'), true);
+check('duplicate addDay is a no-op', addDay(trip, '2026-06-13'), false);
+check('weekdayDateLabel is calendar-local', weekdayDateLabel('2026-06-13'), 'Sat 13 Jun');
+check('dayLabel derives Day N from start', dayLabel(trip, '2026-06-13'), 'Sat 13 Jun · Day 2');
+
+const shirt = addItem(trip, 'Navy blazer');
+const shoes = addItem(trip, 'Dress shoes');
+check('assign to a date', assignItemDate(trip, shirt.id, '2026-06-12', true), true);
+check('rewear on a second date', assignItemDate(trip, shirt.id, '2026-06-14', true), true);
+check('unknown date is ignored', assignItemDate(trip, shirt.id, '2026-07-01', true), false);
+check('item dates list both days', shirt.dates, ['2026-06-12', '2026-06-14']);
+check('itemsForDate sees rewear', itemsForDate(trip, '2026-06-12').map((i) => i.label), ['Navy blazer']);
+check('unassigned tray', unassignedDateItems(trip).map((i) => i.label), ['Dress shoes']);
+
+const ceremony = addOutfit(trip, { name: 'Ceremony', event: 'Saturday wedding', date: '2026-06-13', itemIds: [shirt.id, shoes.id] });
+check('outfit lives on the trip', ceremony.name, 'Ceremony');
+check('outfit date is a calendar date', ceremony.date, '2026-06-13');
+check('outfit does not create a cube', trip.cubeIds, []);
+check('outfitsForDate', outfitsForDate(trip, '2026-06-13').map((o) => o.name), ['Ceremony']);
+
+check('removeDay does not renumber neighbors', removeDay(trip, '2026-06-13'), true);
+check('neighbors keep their dates', trip.days.map((d) => d.date), ['2026-06-12', '2026-06-14', '2026-06-16']);
+check('outfit date cleared, outfit kept', [ceremony.date, trip.outfits[0].name], [null, 'Ceremony']);
+check('item loses only that date', shirt.dates, ['2026-06-12', '2026-06-14']);
+
+check('removeItem prunes outfit membership', removeItem(trip, shoes.id), true);
+check('outfit kept the remaining item', trip.outfits[0].itemIds, [shirt.id]);
+
+check('setOutfitDate rejects dates not on the trip', setOutfitDate(trip, ceremony.id, '2026-06-13'), true);
+check('cleared because 13 Jun was removed', trip.outfits[0].date, null);
+check('setOutfitItems', setOutfitItems(trip, ceremony.id, [shirt.id, 'nope']), true);
+check('unknown item ids dropped', trip.outfits[0].itemIds, [shirt.id]);
+check('updateOutfit renames', updateOutfit(trip, ceremony.id, { name: 'Vows', event: '' }), true);
+check('removeOutfit keeps list items', [removeOutfit(trip, ceremony.id), trip.items.some((i) => i.id === shirt.id)], [true, true]);
+
+const discarded = normalizeSuitcase({
+  name: 'Old draft',
+  items: [{ id: 'i1', label: 'Hat', dayIds: ['day-1'] }],
+  days: [{ id: 'day-1', n: 1 }, { id: 'day-2', n: 2, date: '2026-06-12' }],
+  outfits: [{ id: 'o1', name: 'Look', dayId: 'day-1', itemIds: ['i1'] }],
+});
+check('numbered days without a date are dropped', discarded.days, [{ date: '2026-06-12' }]);
+check('item.dayIds discarded', discarded.items[0].dates, []);
+check('outfit.dayId discarded', discarded.outfits[0].date, null);
+
+const past = newSuitcase('Jaipur wedding');
+const pastSuit = addItem(past, 'Navy suit');
+const pastSq = addItem(past, 'Pocket square');
+addOutfit(past, { name: 'Ceremony', event: 'Shaadi', itemIds: [pastSuit.id, pastSq.id] });
+const now = newSuitcase('This weekend');
+addItem(now, 'Navy suit');
+const hits = searchPastOutfits([past, now], now.id, 'shaadi');
+check('search past outfits by event', hits.map((h) => h.name), ['Ceremony']);
+check('search hides the current trip', searchPastOutfits([past, now], past.id, 'ceremony').length, 0);
+const copied = copyOutfit(past, past.outfits[0], now, { addMissing: true });
+check('copy never creates a cube', now.cubeIds, []);
+check('copy adds missing labels', now.items.map((i) => i.label), ['Navy suit', 'Pocket square']);
+check('copy grouping uses current ids', copied.itemIds.length, 2);
+check('copy date stays unset', copied.date, null);
+const skip = newSuitcase('Skip missing');
+addItem(skip, 'Navy suit');
+const partial = copyOutfit(past, past.outfits[0], skip, { addMissing: false });
+check('copy grouping only skips missing', skip.items.map((i) => i.label), ['Navy suit']);
+check('partial copy has one item', partial.itemIds.length, 1);
+
+check('prefs default off', normalizePrefs(null), { betaViews: false });
+check('prefs reads the flag', normalizePrefs({ betaViews: true }), { betaViews: true });
+check('MAX_DAYS is 31', MAX_DAYS, 31);
+
+const cap = newSuitcase('Long');
+setTripDates(cap, { startDate: '2026-01-01', endDate: '2026-12-31' });
+check('range fill stops at the cap', cap.days.length, 31);
 
 if (failures) {
   console.error(`\n${failures} failure(s)`);

@@ -38,6 +38,21 @@ import {
   isDefaultAddOn,
   expandContents,
   absorbItemIntoCube,
+  normalizePrefs,
+  addDay,
+  removeDay,
+  setTripDates,
+  assignItemDate,
+  itemsForDate,
+  unassignedDateItems,
+  outfitsForDate,
+  addOutfit,
+  updateOutfit,
+  removeOutfit,
+  searchPastOutfits,
+  copyOutfit,
+  dayLabel,
+  MAX_DAYS,
   UNSORTED_KEY,
 } from './model.js';
 
@@ -50,14 +65,17 @@ const params = new URLSearchParams(location.search);
 const addCubeId = params.get('add');
 
 let catalog = [];
-let state = { activeSuitcaseId: null, suitcases: [] };
+let state = { activeSuitcaseId: null, suitcases: [], prefs: { betaViews: false } };
 let auth = null;
 
 let searchQuery = '';
 let listFilter = '';
 let hidePacked = false;
 let organizeMode = false;
-let listView = localStorage.getItem(VIEW_KEY) === 'cube' ? 'cube' : 'list';
+let listView = ['cube', 'day', 'outfits'].includes(localStorage.getItem(VIEW_KEY))
+  ? localStorage.getItem(VIEW_KEY)
+  : 'list';
+let outfitSearchQuery = '';
 let mobilePane = 'list';
 let saveTimer = null;
 let wasAllPacked = false;
@@ -101,9 +119,31 @@ const SUITCASE_ART = `
 function loadLocalState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      parsed.prefs = normalizePrefs(parsed.prefs);
+      return parsed;
+    }
   } catch { /* ignore */ }
-  return { activeSuitcaseId: null, suitcases: [] };
+  return { activeSuitcaseId: null, suitcases: [], prefs: { betaViews: false } };
+}
+
+function betaOn() {
+  return !!(state.prefs && state.prefs.betaViews);
+}
+
+function snapViewIfNeeded() {
+  if (!betaOn() && (listView === 'day' || listView === 'outfits')) {
+    listView = 'list';
+    try { localStorage.setItem(VIEW_KEY, listView); } catch { /* ignore */ }
+  }
+}
+
+function setBetaViews(on) {
+  state.prefs = normalizePrefs({ betaViews: !!on });
+  snapViewIfNeeded();
+  saveState();
+  renderListPanel();
 }
 
 function saveState() {
@@ -239,6 +279,9 @@ function render() {
     <div class="pc-modal-overlay hidden" id="builder-overlay">
       <div class="pc-modal pc-builder-modal" id="builder-modal-root" role="dialog" aria-modal="true"></div>
     </div>
+    <div class="pc-modal-overlay hidden" id="outfit-overlay">
+      <div class="pc-modal pc-outfit-modal" id="outfit-modal-root" role="dialog" aria-modal="true"></div>
+    </div>
   `;
 
   document.getElementById('cube-search').addEventListener('input', (e) => {
@@ -261,9 +304,13 @@ function render() {
   document.getElementById('builder-overlay').addEventListener('click', (e) => {
     if (e.target.id === 'builder-overlay') closeBuilderModal();
   });
+  document.getElementById('outfit-overlay').addEventListener('click', (e) => {
+    if (e.target.id === 'outfit-overlay') closeOutfitModal();
+  });
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     closeBuilderModal();
+    closeOutfitModal();
     if (expandedCubeIds.size) {
       expandedCubeIds.clear();
       renderCubeList();
@@ -768,9 +815,17 @@ function renderListPanel() {
         <div class="pc-view-toggle" role="group" aria-label="List view">
           <button type="button" data-view="list" class="${listView === 'list' ? 'selected' : ''}">List</button>
           <button type="button" data-view="cube" class="${listView === 'cube' ? 'selected' : ''}">By cube</button>
+          ${betaOn() ? `
+            <button type="button" data-view="day" class="${listView === 'day' ? 'selected' : ''}">By day</button>
+            <button type="button" data-view="outfits" class="${listView === 'outfits' ? 'selected' : ''}">Outfits</button>
+          ` : ''}
         </div>
-        <label class="pc-toggle-chip"><input type="checkbox" id="hide-packed-toggle" ${hidePacked ? 'checked' : ''}> Hide packed</label>
-        <button type="button" class="pc-btn sm ${organizeMode ? 'primary' : ''}" id="organize-btn"></button>
+        <button type="button" class="pc-beta-badge ${betaOn() ? 'on' : ''}" id="beta-toggle"
+          aria-pressed="${betaOn()}">${betaOn() ? 'Beta · on' : 'Beta'}</button>
+        ${listView === 'list' || listView === 'cube' ? `
+          <label class="pc-toggle-chip"><input type="checkbox" id="hide-packed-toggle" ${hidePacked ? 'checked' : ''}> Hide packed</label>
+          <button type="button" class="pc-btn sm ${organizeMode ? 'primary' : ''}" id="organize-btn"></button>
+        ` : ''}
       </div>
 
       <div id="pack-list"></div>
@@ -835,26 +890,35 @@ function renderListPanel() {
     renderList();
   });
 
-  document.getElementById('hide-packed-toggle').addEventListener('change', (e) => {
-    hidePacked = e.target.checked;
-    renderList();
-  });
+  const hidePackedToggle = document.getElementById('hide-packed-toggle');
+  if (hidePackedToggle) {
+    hidePackedToggle.addEventListener('change', (e) => {
+      hidePacked = e.target.checked;
+      renderList();
+    });
+  }
 
   content.querySelectorAll('.pc-view-toggle [data-view]').forEach((btn) => {
     btn.addEventListener('click', () => {
       listView = btn.dataset.view;
       localStorage.setItem(VIEW_KEY, listView);
-      content.querySelectorAll('.pc-view-toggle [data-view]').forEach((b) => {
-        b.classList.toggle('selected', b.dataset.view === listView);
-      });
-      renderList();
+      if (listView === 'day' || listView === 'outfits') organizeMode = false;
+      renderListPanel();
     });
   });
 
-  document.getElementById('organize-btn').addEventListener('click', () => {
-    organizeMode = !organizeMode;
-    renderListPanel();
+  document.getElementById('beta-toggle').addEventListener('click', () => {
+    setBetaViews(!betaOn());
+    showToast(betaOn() ? 'Beta views on — Plan by day and Outfits' : 'Beta views off');
   });
+
+  const organizeBtn = document.getElementById('organize-btn');
+  if (organizeBtn) {
+    organizeBtn.addEventListener('click', () => {
+      organizeMode = !organizeMode;
+      renderListPanel();
+    });
+  }
 
   renderFooter();
   renderList();
@@ -1022,6 +1086,290 @@ function bindItemRows(mount, suitcase) {
   });
 }
 
+function outfitSummary(suitcase, outfit) {
+  const labels = (outfit.itemIds || []).map((id) => suitcase.items.find((i) => i.id === id)?.label).filter(Boolean);
+  return labels.length ? labels.join(', ') : 'No items yet';
+}
+
+function renderDayView(mount, suitcase) {
+  const q = listFilter.trim().toLowerCase();
+  const match = (label) => !q || String(label || '').toLowerCase().includes(q);
+  const unassigned = unassignedDateItems(suitcase).filter((i) => match(i.label));
+  const days = suitcase.days || [];
+
+  mount.innerHTML = `
+    <div class="pc-day-toolbar">
+      <label class="pc-auth-field">
+        <span>Start</span>
+        <input type="date" class="pc-input" id="trip-start" value="${escapeAttr(suitcase.startDate || '')}">
+      </label>
+      <label class="pc-auth-field">
+        <span>End</span>
+        <input type="date" class="pc-input" id="trip-end" value="${escapeAttr(suitcase.endDate || '')}">
+      </label>
+      <label class="pc-auth-field">
+        <span>Add a date</span>
+        <input type="date" class="pc-input" id="add-day-date" value="">
+      </label>
+      <button type="button" class="pc-btn sm" id="add-day-btn">Add</button>
+    </div>
+    ${days.length ? days.map((day) => {
+      const outfits = outfitsForDate(suitcase, day.date);
+      const inOutfit = new Set(outfits.flatMap((o) => o.itemIds || []));
+      const loose = itemsForDate(suitcase, day.date).filter((i) => !inOutfit.has(i.id) && match(i.label));
+      const addable = suitcase.items.filter((i) => !(i.dates || []).includes(day.date) && match(i.label));
+      return `
+        <section class="pc-day-card" data-date="${escapeAttr(day.date)}">
+          <div class="pc-day-head">
+            <h3>${escapeHtml(dayLabel(suitcase, day.date))}</h3>
+            <button type="button" class="pc-group-remove pc-remove-day" data-date="${escapeAttr(day.date)}" aria-label="Remove ${escapeAttr(day.date)}">&times;</button>
+          </div>
+          ${outfits.length ? `
+            <p class="pc-section-label">Outfits this day</p>
+            <ul class="pc-outfit-mini">
+              ${outfits.map((o) => `<li><b>${escapeHtml(o.name)}</b>${o.event ? ` · ${escapeHtml(o.event)}` : ''}<div class="pc-muted">${escapeHtml(outfitSummary(suitcase, o))}</div></li>`).join('')}
+            </ul>
+          ` : ''}
+          <p class="pc-section-label">Items</p>
+          <ul class="pc-checklist">
+            ${loose.length
+              ? loose.map((item) => `
+                  <li class="${item.packed ? 'packed' : ''}" data-item-id="${escapeAttr(item.id)}">
+                    <input type="checkbox" ${item.packed ? 'checked' : ''} aria-label="Mark ${escapeAttr(item.label)} packed">
+                    <span class="pc-item-label">${escapeHtml(item.label)}</span>
+                    <button type="button" class="pc-unassign-day" data-item-id="${escapeAttr(item.id)}" data-date="${escapeAttr(day.date)}" aria-label="Remove from this day">&times;</button>
+                  </li>`).join('')
+              : '<li class="pc-group-empty">Nothing assigned to this date.</li>'}
+          </ul>
+          ${addable.length ? `
+            <div class="pc-day-assign">
+              <select class="pc-input pc-assign-item" data-date="${escapeAttr(day.date)}" aria-label="Assign an item to ${escapeAttr(day.date)}">
+                <option value="">Assign an item…</option>
+                ${addable.map((i) => `<option value="${escapeAttr(i.id)}">${escapeHtml(i.label)}</option>`).join('')}
+              </select>
+            </div>
+          ` : ''}
+        </section>`;
+    }).join('') : `<p class="pc-list-empty">Set a start and end date, or add a date, to plan this trip day by day.</p>`}
+    <section class="pc-day-card unassigned">
+      <h3>Unassigned</h3>
+      <p class="pc-muted">These stay on your packing list. Assigning them to a date does not hide them from List / By cube.</p>
+      <ul class="pc-checklist">
+        ${unassigned.length
+          ? unassigned.map((item) => `<li><span>${escapeHtml(item.label)}</span></li>`).join('')
+          : '<li class="pc-group-empty">Everything has a date, or the list is empty.</li>'}
+      </ul>
+    </section>
+  `;
+
+  const applyRange = () => {
+    const start = document.getElementById('trip-start').value || null;
+    const end = document.getElementById('trip-end').value || null;
+    const added = setTripDates(suitcase, { startDate: start, endDate: end });
+    saveState();
+    renderList();
+    if (start && end && start <= end && suitcase.days.length >= MAX_DAYS && added === 0 && datesLongerThanCap(start, end)) {
+      showToast(`Trips show at most ${MAX_DAYS} days.`);
+    }
+  };
+  document.getElementById('trip-start').addEventListener('change', applyRange);
+  document.getElementById('trip-end').addEventListener('change', applyRange);
+  document.getElementById('add-day-btn').addEventListener('click', () => {
+    const date = document.getElementById('add-day-date').value;
+    if (!date) return;
+    if (!addDay(suitcase, date)) {
+      showToast(suitcase.days.some((d) => d.date === date) ? 'That date is already on the trip.' : `Trips show at most ${MAX_DAYS} days.`);
+      return;
+    }
+    saveState();
+    renderList();
+  });
+  mount.querySelectorAll('.pc-remove-day').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      removeDay(suitcase, btn.dataset.date);
+      saveState();
+      renderList();
+    });
+  });
+  mount.querySelectorAll('.pc-assign-item').forEach((sel) => {
+    sel.addEventListener('change', () => {
+      if (!sel.value) return;
+      assignItemDate(suitcase, sel.value, sel.dataset.date, true);
+      saveState();
+      renderList();
+    });
+  });
+  mount.querySelectorAll('.pc-unassign-day').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      assignItemDate(suitcase, btn.dataset.itemId, btn.dataset.date, false);
+      saveState();
+      renderList();
+    });
+  });
+  bindItemRows(mount, suitcase);
+}
+
+function datesLongerThanCap(start, end) {
+  if (!start || !end || start > end) return false;
+  const a = new Date(start + 'T00:00:00');
+  const b = new Date(end + 'T00:00:00');
+  return Math.round((b - a) / 86400000) + 1 > MAX_DAYS;
+}
+
+function renderOutfitsView(mount, suitcase) {
+  const q = listFilter.trim().toLowerCase();
+  const outfits = (suitcase.outfits || []).filter((o) => {
+    if (!q) return true;
+    return [o.name, o.event, outfitSummary(suitcase, o)].join(' ').toLowerCase().includes(q);
+  });
+  const pastHits = searchPastOutfits(state.suitcases, suitcase.id, outfitSearchQuery);
+
+  mount.innerHTML = `
+    <div class="pc-outfit-toolbar">
+      <input type="search" class="pc-input grow" id="outfit-search" placeholder="Search past outfits…"
+        value="${escapeAttr(outfitSearchQuery)}" aria-label="Search outfits from other trips">
+      <button type="button" class="pc-btn primary sm" id="new-outfit-btn">+ New outfit</button>
+    </div>
+    ${pastHits.length && outfitSearchQuery.trim() ? `
+      <div class="pc-past-outfits">
+        <p class="pc-section-label">From other trips</p>
+        ${pastHits.map((hit) => `
+          <button type="button" class="pc-past-hit" data-from="${escapeAttr(hit.suitcaseId)}" data-outfit="${escapeAttr(hit.outfitId)}">
+            <b>${escapeHtml(hit.name)}</b>
+            ${hit.event ? ` · ${escapeHtml(hit.event)}` : ''}
+            <div class="pc-muted">${escapeHtml(hit.suitcaseName || 'Untitled')} · ${escapeHtml(hit.labels.join(', ') || 'empty')}</div>
+          </button>
+        `).join('')}
+      </div>
+    ` : ''}
+    ${outfits.length ? outfits.map((o) => `
+      <section class="pc-day-card" data-outfit-id="${escapeAttr(o.id)}">
+        <div class="pc-day-head">
+          <h3>${escapeHtml(o.name)}${o.event ? ` <span class="pc-muted">· ${escapeHtml(o.event)}</span>` : ''}</h3>
+          <button type="button" class="pc-group-remove pc-remove-outfit" data-outfit-id="${escapeAttr(o.id)}" aria-label="Remove ${escapeAttr(o.name)}">&times;</button>
+        </div>
+        <p class="pc-muted">${o.date ? escapeHtml(dayLabel(suitcase, o.date)) : 'No date yet'} · ${escapeHtml(outfitSummary(suitcase, o))}</p>
+        <div class="pc-expand-actions">
+          <button type="button" class="pc-btn sm pc-edit-outfit" data-outfit-id="${escapeAttr(o.id)}">Edit</button>
+        </div>
+      </section>
+    `).join('') : `<p class="pc-list-empty">No outfits on this trip yet. Create one from items already on the list — it will not become a cube.</p>`}
+  `;
+
+  document.getElementById('outfit-search').addEventListener('input', (e) => {
+    outfitSearchQuery = e.target.value;
+    renderList();
+  });
+  document.getElementById('new-outfit-btn').addEventListener('click', () => openOutfitModal(null));
+  mount.querySelectorAll('.pc-edit-outfit').forEach((btn) => {
+    btn.addEventListener('click', () => openOutfitModal(btn.dataset.outfitId));
+  });
+  mount.querySelectorAll('.pc-remove-outfit').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      removeOutfit(suitcase, btn.dataset.outfitId);
+      saveState();
+      renderList();
+    });
+  });
+  mount.querySelectorAll('.pc-past-hit').forEach((btn) => {
+    btn.addEventListener('click', () => copyPastOutfit(btn.dataset.from, btn.dataset.outfit));
+  });
+}
+
+function copyPastOutfit(fromId, outfitId) {
+  const suitcase = activeSuitcase();
+  const from = state.suitcases.find((s) => s.id === fromId);
+  const outfit = from?.outfits?.find((o) => o.id === outfitId);
+  if (!from || !outfit) return;
+  const missing = (outfit.itemIds || [])
+    .map((id) => from.items.find((i) => i.id === id)?.label)
+    .filter((label) => label && !suitcase.items.some((i) => i.label.toLowerCase() === label.toLowerCase()));
+  const addMissing = missing.length
+    ? confirm(`Copy "${outfit.name}" from ${from.name || 'that trip'}?\n\nMissing from this list: ${missing.join(', ')}\n\nOK adds those items to this list. Cancel copies only the items you already have.`)
+    : true;
+  const copied = copyOutfit(from, outfit, suitcase, { addMissing: missing.length ? addMissing : false });
+  if (!copied) {
+    showToast("Couldn't copy that outfit.");
+    return;
+  }
+  saveState();
+  renderList();
+  showToast(`Copied "${copied.name}" onto this trip`);
+}
+
+function openOutfitModal(editId) {
+  const suitcase = activeSuitcase();
+  const existing = editId ? suitcase.outfits.find((o) => o.id === editId) : null;
+  const overlay = document.getElementById('outfit-overlay');
+  const rootEl = document.getElementById('outfit-modal-root');
+  if (!overlay || !rootEl) return;
+  rootEl.innerHTML = `
+    <div class="b-head-row">
+      <h2 class="b-h1">${existing ? 'Edit outfit' : 'New outfit'}</h2>
+      <button type="button" class="pc-preview-close" id="outfit-close" aria-label="Close">&times;</button>
+    </div>
+    <p class="b-lede">An outfit is a look on this trip — it is not saved to My Cubes.</p>
+    <div class="b-field">
+      <label for="outfit-name">Name</label>
+      <input type="text" id="outfit-name" class="pc-input" value="${escapeAttr(existing?.name || '')}" placeholder="Ceremony, rehearsal dinner…" maxlength="80">
+    </div>
+    <div class="b-field">
+      <label for="outfit-event">Event <span class="b-optional">optional</span></label>
+      <input type="text" id="outfit-event" class="pc-input" value="${escapeAttr(existing?.event || '')}" placeholder="Saturday wedding" maxlength="80">
+    </div>
+    <div class="b-field">
+      <label for="outfit-date">Date <span class="b-optional">optional</span></label>
+      <select id="outfit-date" class="pc-input">
+        <option value="">No date yet</option>
+        ${(suitcase.days || []).map((d) => `<option value="${escapeAttr(d.date)}" ${existing?.date === d.date ? 'selected' : ''}>${escapeHtml(dayLabel(suitcase, d.date))}</option>`).join('')}
+      </select>
+    </div>
+    <p class="pc-section-label">Items on this list</p>
+    <div class="pc-outfit-picks">
+      ${suitcase.items.length
+        ? suitcase.items.map((item) => `
+            <label class="pc-toggle-chip">
+              <input type="checkbox" data-outfit-item="${escapeAttr(item.id)}" ${(existing?.itemIds || []).includes(item.id) ? 'checked' : ''}>
+              ${escapeHtml(item.label)}
+            </label>`).join('')
+        : '<p class="pc-muted">Add items to the packing list first, then file them into this look.</p>'}
+    </div>
+    <div class="b-save-bar">
+      <button type="button" class="pc-btn primary" id="outfit-save">${existing ? 'Save' : 'Create outfit'}</button>
+    </div>
+  `;
+  overlay.classList.remove('hidden');
+  document.getElementById('outfit-close').addEventListener('click', closeOutfitModal);
+  document.getElementById('outfit-save').addEventListener('click', () => {
+    const name = document.getElementById('outfit-name').value;
+    const event = document.getElementById('outfit-event').value;
+    const date = document.getElementById('outfit-date').value || null;
+    const itemIds = [...rootEl.querySelectorAll('[data-outfit-item]:checked')].map((el) => el.dataset.outfitItem);
+    if (existing) {
+      if (!updateOutfit(suitcase, existing.id, { name, event, date, itemIds })) {
+        showToast('An outfit needs a name.');
+        return;
+      }
+    } else {
+      const created = addOutfit(suitcase, { name, event, date, itemIds });
+      if (!created) {
+        showToast(name.trim() ? `Trips hold at most 40 outfits.` : 'An outfit needs a name.');
+        return;
+      }
+    }
+    saveState();
+    closeOutfitModal();
+    renderList();
+    showToast(existing ? 'Outfit saved' : 'Outfit added to this trip');
+  });
+}
+
+function closeOutfitModal() {
+  const overlay = document.getElementById('outfit-overlay');
+  if (overlay) overlay.classList.add('hidden');
+}
+
 function renderList() {
   const suitcase = activeSuitcase();
   const mount = document.getElementById('pack-list');
@@ -1029,6 +1377,15 @@ function renderList() {
 
   updateHud(suitcase);
   const cubeMap = cubesById();
+
+  if (listView === 'day') {
+    renderDayView(mount, suitcase);
+    return;
+  }
+  if (listView === 'outfits') {
+    renderOutfitsView(mount, suitcase);
+    return;
+  }
 
   if (!suitcase.items.length) {
     mount.innerHTML = `<p class="pc-list-empty">Your list is empty. Start typing items above — you can group them into cubes later.</p>`;
@@ -1151,13 +1508,19 @@ async function hydrateSuitcases() {
     state = {
       activeSuitcaseId: remote.activeSuitcaseId || remote.suitcases[0].id,
       suitcases: remote.suitcases,
+      prefs: normalizePrefs(remote.prefs != null ? remote.prefs : local.prefs),
     };
   } else if (local.suitcases?.length) {
-    state = local;
+    state = { ...local, prefs: normalizePrefs(local.prefs) };
     await suitcasesApi.put(auth.token, state);
   } else {
-    state = { activeSuitcaseId: null, suitcases: [] };
+    state = {
+      activeSuitcaseId: null,
+      suitcases: [],
+      prefs: normalizePrefs(remote.prefs || local.prefs),
+    };
   }
+  snapViewIfNeeded();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 

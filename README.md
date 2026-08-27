@@ -37,7 +37,9 @@ Neon (`pc_cubes`, with `add_ons` JSONB and `include_by_default`, and
 `pc_suitcase_state`) via
 `api/packing-cubes.js`. **Signing in is required** — the default view is a
 centered card with the Sign in / Sign up form on the page (same Neon Auth JWT
-as the rest of the site; account delete stays on `/account.html`). Installable
+as the rest of the site; account delete stays on `/account.html`). Optional
+**beta views** (per-user badge, off by default): Plan by day (calendar dates
+on the trip) and trip-local Outfits, which never become cubes. Installable
 PWA (`manifest.webmanifest`, icons via
 `node scripts/generate-packing-cubes-icons.mjs`), same pattern as A-Lister /
 Sticky Notes.

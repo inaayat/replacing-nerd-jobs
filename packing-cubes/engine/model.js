@@ -18,6 +18,88 @@ export const SUITCASE_VERSION = 2;
 export const UNSORTED_KEY = '__unsorted__';
 /** Group-key separator for "parent cube + add-on" rows. Cube ids are slugs. */
 export const ADDON_KEY_SEP = '::';
+export const MAX_DAYS = 31;
+export const MAX_OUTFITS = 40;
+export const MAX_OUTFIT_ITEMS = 40;
+export const MAX_OUTFIT_NAME = 80;
+const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+export function isIsoDate(value) {
+  const m = String(value || '').match(ISO_DATE);
+  if (!m) return false;
+  const y = Number(m[1]);
+  const month = Number(m[2]);
+  const d = Number(m[3]);
+  const dt = new Date(y, month - 1, d);
+  return dt.getFullYear() === y && dt.getMonth() === month - 1 && dt.getDate() === d;
+}
+
+export function addCalendarDays(iso, n) {
+  if (!isIsoDate(iso)) return null;
+  const [y, month, d] = iso.split('-').map(Number);
+  const dt = new Date(y, month - 1, d + Number(n || 0));
+  return formatIsoLocal(dt);
+}
+
+export function formatIsoLocal(dt) {
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, '0');
+  const d = String(dt.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+export function datesInRange(start, end) {
+  if (!isIsoDate(start) || !isIsoDate(end) || start > end) return [];
+  const out = [];
+  let cur = start;
+  while (cur <= end && out.length < MAX_DAYS) {
+    out.push(cur);
+    cur = addCalendarDays(cur, 1);
+  }
+  return out;
+}
+
+export function normalizeDateList(raw) {
+  const seen = new Set();
+  const out = [];
+  for (const value of Array.isArray(raw) ? raw : []) {
+    if (!isIsoDate(value) || seen.has(value)) continue;
+    seen.add(value);
+    out.push(value);
+  }
+  out.sort();
+  return out;
+}
+
+export function weekdayDateLabel(iso) {
+  if (!isIsoDate(iso)) return '';
+  const [y, month, d] = iso.split('-').map(Number);
+  const dt = new Date(y, month - 1, d);
+  const weekday = dt.toLocaleDateString('en-GB', { weekday: 'short' });
+  const mon = dt.toLocaleDateString('en-GB', { month: 'short' });
+  return `${weekday} ${dt.getDate()} ${mon}`;
+}
+
+export function dayOrdinal(suitcase, date) {
+  if (!isIsoDate(suitcase?.startDate) || !isIsoDate(date) || date < suitcase.startDate) return null;
+  let n = 1;
+  let cur = suitcase.startDate;
+  while (cur < date && n < 400) {
+    cur = addCalendarDays(cur, 1);
+    n += 1;
+  }
+  return cur === date ? n : null;
+}
+
+export function dayLabel(suitcase, date) {
+  const pretty = weekdayDateLabel(date);
+  const n = dayOrdinal(suitcase, date);
+  return n ? `${pretty} · Day ${n}` : pretty;
+}
+
+export function normalizePrefs(raw) {
+  return { betaViews: !!(raw && raw.betaViews) };
+}
 
 export function newId() {
   return globalThis.crypto?.randomUUID
@@ -212,8 +294,15 @@ export function sortCatalog(cubes) {
 // Suitcase shape + migration
 // ---------------------------------------------------------------------------
 
-export function newItem(label, { cubeId = null, addOnId = null, packed = false } = {}) {
-  return { id: newId(), label: String(label || '').trim(), cubeId, addOnId, packed: !!packed };
+export function newItem(label, { cubeId = null, addOnId = null, packed = false, dates = [] } = {}) {
+  return {
+    id: newId(),
+    label: String(label || '').trim(),
+    cubeId,
+    addOnId,
+    packed: !!packed,
+    dates: normalizeDateList(dates),
+  };
 }
 
 /**
@@ -229,6 +318,10 @@ export function newSuitcase(name, cubes = []) {
     items: [],
     cubeIds: [],
     addOns: {},
+    startDate: null,
+    endDate: null,
+    days: [],
+    outfits: [],
   };
   seedDefaults(suitcase, cubes);
   return suitcase;
@@ -284,34 +377,87 @@ export function migrateSuitcase(raw, cubesById) {
     takeLabel(custom.label, custom.cubeId || null);
   }
 
-  return {
+  return normalizeSuitcase({
     v: SUITCASE_VERSION,
     id: raw.id || newId(),
     name: raw.name || 'My trip',
     items,
     cubeIds: [...(raw.cubeIds || [])],
     addOns: {},
-  };
+  });
+}
+
+function normalizeDays(raw) {
+  const seen = new Set();
+  const days = [];
+  for (const row of Array.isArray(raw) ? raw : []) {
+    const date = typeof row === 'string' ? row : row?.date;
+    if (!isIsoDate(date) || seen.has(date)) continue;
+    seen.add(date);
+    days.push({ date });
+  }
+  days.sort((a, b) => a.date.localeCompare(b.date));
+  return days;
+}
+
+function normalizeOutfits(raw, itemIds, dayDates) {
+  const outfits = [];
+  const knownItems = new Set(itemIds);
+  for (const row of Array.isArray(raw) ? raw : []) {
+    if (!row || typeof row !== 'object') continue;
+    const name = String(row.name || '').trim().slice(0, MAX_OUTFIT_NAME);
+    if (!name) continue;
+    const event = String(row.event || '').trim().slice(0, MAX_OUTFIT_NAME);
+    const date = isIsoDate(row.date) && dayDates.has(row.date) ? row.date : null;
+    const ids = [];
+    const seen = new Set();
+    for (const id of Array.isArray(row.itemIds) ? row.itemIds : []) {
+      if (!id || seen.has(id) || !knownItems.has(id)) continue;
+      if (ids.length >= MAX_OUTFIT_ITEMS) break;
+      seen.add(id);
+      ids.push(id);
+    }
+    outfits.push({
+      id: row.id && String(row.id).trim() ? String(row.id) : newId(),
+      name,
+      event,
+      date,
+      itemIds: ids,
+    });
+    if (outfits.length >= MAX_OUTFITS) break;
+  }
+  return outfits;
 }
 
 /** Fill defaults on an already-v2 suitcase (tolerates hand-rolled JSON). */
 export function normalizeSuitcase(raw) {
   const s = raw && typeof raw === 'object' ? raw : {};
+  const days = normalizeDays(s.days);
+  const dayDates = new Set(days.map((d) => d.date));
+  const startDate = isIsoDate(s.startDate) ? s.startDate : null;
+  const endDate = isIsoDate(s.endDate) && (!startDate || s.endDate >= startDate) ? s.endDate : null;
+  const items = (Array.isArray(s.items) ? s.items : [])
+    .filter((i) => i && typeof i.label === 'string')
+    .map((i) => ({
+      id: i.id || newId(),
+      label: i.label,
+      cubeId: i.cubeId || null,
+      addOnId: i.addOnId || null,
+      packed: !!i.packed,
+      // Discard numbered-day draft (`dayIds`). Keep only ISO dates on this trip.
+      dates: normalizeDateList(i.dates).filter((d) => dayDates.has(d)),
+    }));
   return {
     v: SUITCASE_VERSION,
     id: s.id || newId(),
     name: s.name || 'My trip',
-    items: (Array.isArray(s.items) ? s.items : [])
-      .filter((i) => i && typeof i.label === 'string')
-      .map((i) => ({
-        id: i.id || newId(),
-        label: i.label,
-        cubeId: i.cubeId || null,
-        addOnId: i.addOnId || null,
-        packed: !!i.packed,
-      })),
+    items,
     cubeIds: Array.isArray(s.cubeIds) ? s.cubeIds.filter(Boolean) : [],
     addOns: s.addOns && typeof s.addOns === 'object' ? s.addOns : {},
+    startDate,
+    endDate,
+    days,
+    outfits: normalizeOutfits(s.outfits, items.map((i) => i.id), dayDates),
   };
 }
 
@@ -330,7 +476,9 @@ export function addItem(suitcase, label, { cubeId = null } = {}) {
 export function removeItem(suitcase, itemId) {
   const before = suitcase.items.length;
   suitcase.items = suitcase.items.filter((i) => i.id !== itemId);
-  return suitcase.items.length !== before;
+  if (suitcase.items.length === before) return false;
+  pruneOutfitItems(suitcase);
+  return true;
 }
 
 export function updateItemLabel(suitcase, itemId, label) {
@@ -407,6 +555,7 @@ export function detachCube(suitcase, cubeId) {
   suitcase.cubeIds = suitcase.cubeIds.filter((id) => id !== cubeId);
   suitcase.items = suitcase.items.filter((i) => i.cubeId !== cubeId);
   if (suitcase.addOns) delete suitcase.addOns[cubeId];
+  pruneOutfitItems(suitcase);
 }
 
 export function addOnEnabled(suitcase, cubeId, addOnId) {
@@ -537,4 +686,206 @@ export function groupedItems(suitcase, cubesById, { includeEmptyAddOns = false }
 /** Count of items still unassigned — drives the Organize affordance. */
 export function unsortedCount(suitcase) {
   return suitcase.items.filter((i) => !i.cubeId).length;
+}
+
+// ---------------------------------------------------------------------------
+// Calendar days + trip outfits (beta views)
+// Days are YYYY-MM-DD identities. The discarded numbered-day draft
+// ({ id, n } / item.dayIds / outfit.dayId) is dropped in normalizeSuitcase.
+// ---------------------------------------------------------------------------
+
+function ensureDayCollections(suitcase) {
+  if (!Array.isArray(suitcase.days)) suitcase.days = [];
+  if (!Array.isArray(suitcase.outfits)) suitcase.outfits = [];
+  if (!Array.isArray(suitcase.items)) suitcase.items = [];
+}
+
+function pruneOutfitItems(suitcase) {
+  const known = new Set((suitcase.items || []).map((i) => i.id));
+  for (const outfit of suitcase.outfits || []) {
+    outfit.itemIds = (outfit.itemIds || []).filter((id) => known.has(id));
+  }
+}
+
+function hasDay(suitcase, date) {
+  return (suitcase.days || []).some((d) => d.date === date);
+}
+
+export function addDay(suitcase, date) {
+  ensureDayCollections(suitcase);
+  if (!isIsoDate(date)) return false;
+  if (hasDay(suitcase, date)) return false;
+  if (suitcase.days.length >= MAX_DAYS) return false;
+  suitcase.days.push({ date });
+  suitcase.days.sort((a, b) => a.date.localeCompare(b.date));
+  return true;
+}
+
+export function removeDay(suitcase, date) {
+  ensureDayCollections(suitcase);
+  const before = suitcase.days.length;
+  suitcase.days = suitcase.days.filter((d) => d.date !== date);
+  if (suitcase.days.length === before) return false;
+  for (const item of suitcase.items) {
+    if (Array.isArray(item.dates)) item.dates = item.dates.filter((d) => d !== date);
+  }
+  for (const outfit of suitcase.outfits) {
+    if (outfit.date === date) outfit.date = null;
+  }
+  return true;
+}
+
+export function setTripDates(suitcase, { startDate = null, endDate = null } = {}) {
+  ensureDayCollections(suitcase);
+  suitcase.startDate = isIsoDate(startDate) ? startDate : null;
+  suitcase.endDate = isIsoDate(endDate) && (!suitcase.startDate || endDate >= suitcase.startDate)
+    ? endDate
+    : null;
+  let added = 0;
+  if (suitcase.startDate && suitcase.endDate) {
+    for (const date of datesInRange(suitcase.startDate, suitcase.endDate)) {
+      if (addDay(suitcase, date)) added += 1;
+    }
+  }
+  return added;
+}
+
+export function assignItemDate(suitcase, itemId, date, on) {
+  ensureDayCollections(suitcase);
+  const item = suitcase.items.find((i) => i.id === itemId);
+  if (!item || !isIsoDate(date) || !hasDay(suitcase, date)) return false;
+  if (!Array.isArray(item.dates)) item.dates = [];
+  const has = item.dates.includes(date);
+  if (on && !has) {
+    item.dates.push(date);
+    item.dates.sort();
+    return true;
+  }
+  if (!on && has) {
+    item.dates = item.dates.filter((d) => d !== date);
+    return true;
+  }
+  return false;
+}
+
+export function itemsForDate(suitcase, date) {
+  return (suitcase.items || []).filter((i) => (i.dates || []).includes(date));
+}
+
+export function unassignedDateItems(suitcase) {
+  return (suitcase.items || []).filter((i) => !(i.dates || []).length);
+}
+
+export function outfitsForDate(suitcase, date) {
+  return (suitcase.outfits || []).filter((o) => o.date === date);
+}
+
+export function addOutfit(suitcase, { name, event = '', date = null, itemIds = [] } = {}) {
+  ensureDayCollections(suitcase);
+  const title = String(name || '').trim().slice(0, MAX_OUTFIT_NAME);
+  if (!title) return null;
+  if (suitcase.outfits.length >= MAX_OUTFITS) return null;
+  const outfit = {
+    id: newId(),
+    name: title,
+    event: String(event || '').trim().slice(0, MAX_OUTFIT_NAME),
+    date: isIsoDate(date) && hasDay(suitcase, date) ? date : null,
+    itemIds: [],
+  };
+  suitcase.outfits.push(outfit);
+  setOutfitItems(suitcase, outfit.id, itemIds);
+  return outfit;
+}
+
+export function updateOutfit(suitcase, outfitId, patch = {}) {
+  const outfit = (suitcase.outfits || []).find((o) => o.id === outfitId);
+  if (!outfit) return false;
+  if (patch.name != null) {
+    const title = String(patch.name).trim().slice(0, MAX_OUTFIT_NAME);
+    if (!title) return false;
+    outfit.name = title;
+  }
+  if (patch.event != null) outfit.event = String(patch.event).trim().slice(0, MAX_OUTFIT_NAME);
+  if (Object.prototype.hasOwnProperty.call(patch, 'date')) {
+    setOutfitDate(suitcase, outfitId, patch.date);
+  }
+  if (patch.itemIds) setOutfitItems(suitcase, outfitId, patch.itemIds);
+  return true;
+}
+
+export function removeOutfit(suitcase, outfitId) {
+  const before = (suitcase.outfits || []).length;
+  suitcase.outfits = (suitcase.outfits || []).filter((o) => o.id !== outfitId);
+  return suitcase.outfits.length !== before;
+}
+
+export function setOutfitItems(suitcase, outfitId, itemIds) {
+  const outfit = (suitcase.outfits || []).find((o) => o.id === outfitId);
+  if (!outfit) return false;
+  const known = new Set((suitcase.items || []).map((i) => i.id));
+  const next = [];
+  const seen = new Set();
+  for (const id of Array.isArray(itemIds) ? itemIds : []) {
+    if (!id || seen.has(id) || !known.has(id)) continue;
+    if (next.length >= MAX_OUTFIT_ITEMS) break;
+    seen.add(id);
+    next.push(id);
+  }
+  outfit.itemIds = next;
+  return true;
+}
+
+export function setOutfitDate(suitcase, outfitId, date) {
+  const outfit = (suitcase.outfits || []).find((o) => o.id === outfitId);
+  if (!outfit) return false;
+  outfit.date = isIsoDate(date) && hasDay(suitcase, date) ? date : null;
+  return true;
+}
+
+export function searchPastOutfits(suitcases, currentId, query) {
+  const q = String(query || '').trim().toLowerCase();
+  const hits = [];
+  for (const suitcase of Array.isArray(suitcases) ? suitcases : []) {
+    if (!suitcase || suitcase.id === currentId) continue;
+    for (const outfit of suitcase.outfits || []) {
+      const labels = (outfit.itemIds || []).map((id) => {
+        const item = (suitcase.items || []).find((i) => i.id === id);
+        return item?.label || '';
+      }).filter(Boolean);
+      const haystack = [outfit.name, outfit.event, suitcase.name, ...labels].join(' ').toLowerCase();
+      if (q && !haystack.includes(q)) continue;
+      hits.push({
+        suitcaseId: suitcase.id,
+        suitcaseName: suitcase.name || '',
+        outfitId: outfit.id,
+        name: outfit.name,
+        event: outfit.event || '',
+        labels,
+      });
+    }
+  }
+  return hits;
+}
+
+export function copyOutfit(fromSuitcase, outfit, toSuitcase, { addMissing = false } = {}) {
+  if (!fromSuitcase || !outfit || !toSuitcase) return null;
+  const labels = (outfit.itemIds || []).map((id) => {
+    const item = (fromSuitcase.items || []).find((i) => i.id === id);
+    return item?.label || '';
+  }).filter(Boolean);
+  const itemIds = [];
+  for (const label of labels) {
+    const existing = (toSuitcase.items || []).find((i) => itemKey(i.label) === itemKey(label));
+    if (existing) {
+      itemIds.push(existing.id);
+    } else if (addMissing) {
+      const added = addItem(toSuitcase, label);
+      if (added) itemIds.push(added.id);
+    }
+  }
+  return addOutfit(toSuitcase, {
+    name: outfit.name,
+    event: outfit.event || '',
+    itemIds,
+  });
 }
