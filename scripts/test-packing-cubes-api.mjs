@@ -133,6 +133,12 @@ check(
   }),
   null,
 );
+check('string items still validate', validateCube({ title: 'Basics', items: ['Passport'] }), null);
+check(
+  'string items normalize to { label } for the PATCH body Edit cube reads',
+  normalizeCubeInput({ id: 'basics', title: 'Basics', items: ['Passport', { label: 'Socks' }] }).items,
+  [{ label: 'Passport' }, { label: 'Socks' }],
+);
 
 if (failures) {
   console.error(`\n${failures} failure(s)`);

@@ -20,7 +20,10 @@ export async function apiFetch(path, { method = 'GET', body, token } = {}) {
 
 export const cubesApi = {
   list: (token) => apiFetch('/api/pc-cubes', { token }),
-  get: (token, id) => apiFetch(`/api/pc-cubes?id=${encodeURIComponent(id)}`, { token }),
+  // Hit the function URL with route+id together. A rewrite of /api/pc-cubes
+  // → /api/packing-cubes?route=cubes can drop `id`, so GET returns the list
+  // and persist never sees `{ cube }`.
+  get: (token, id) => apiFetch(`/api/packing-cubes?route=cubes&id=${encodeURIComponent(id)}`, { token }),
   create: (token, cube) => apiFetch('/api/pc-cubes', { method: 'POST', body: cube, token }),
   update: (token, cube) => apiFetch('/api/pc-cubes', { method: 'PATCH', body: cube, token }),
   remove: (token, id) => apiFetch('/api/pc-cubes', { method: 'DELETE', body: { id }, token }),

@@ -428,11 +428,13 @@ Karan asked for two extra packing views as beta. Locked:
   Create/edit can quick-add a label onto the packing list and the outfit.
   Search past outfits across `state.suitcases`; copy grouping + optionally
   add missing labels to this list; never create a cube. Names only (no
-  photo). List groups by outfit or cube (exclusive: outfit, else cube,
-  else Unsorted). By cube lists outfits as cube-like groups (not
-  `pc_cubes`); a shared item may appear under its outfit and its cube,
-  one packed checkbox. Outfits are not behind the Beta badge. Removing
-  an item on a trip is suitcase-only — it does not strip `pc_cubes` or
-  add-on templates. Filing a new label onto a cube/add-on from a trip
+  photo). List is condensed (sort by cube, then outfit, Unsorted last;
+  chip on each row; no section headers). By cube lists outfits as
+  collapsible cube-like groups (not `pc_cubes`) with Collapse all; a
+  shared item may appear under its outfit and its cube, one packed
+  checkbox. Outfits are not behind the Beta badge. Removing an item on
+  a trip is suitcase-only — it does not strip `pc_cubes` or add-on
+  templates. Filing a new label onto a cube/add-on from a trip
   **appends** it so the next trip gets it. Only Edit cube deletes from
-  the reusable cube.
+  the reusable cube. Blank add-ins are created from My Cubes / Edit
+  cube, not from List.

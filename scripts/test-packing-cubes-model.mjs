@@ -37,6 +37,11 @@ import {
   expandContents,
   absorbItemIntoCube,
   fileIntoCube,
+  officialCubeFromApi,
+  syncOfficialCubeFromTrip,
+  normalizeDefinitionItems,
+  listItemMembership,
+  sortedListItems,
   filedInCube,
   isIsoDate,
   datesInRange,
@@ -318,6 +323,45 @@ check(
   ['Passport'],
 );
 
+const officialX = { id: 'x', title: 'X', items: [], addOns: [] };
+const tripX = newSuitcase('File into X');
+const filedX = fileIntoCube(tripX, officialX, 'Passport');
+check('file into cube X writes the label onto the official record', officialX.items.map((i) => i.label), ['Passport']);
+check('filed trip row is assigned to X', filedX.item.cubeId, 'x');
+removeItem(tripX, filedX.item.id);
+check('removing the item from the trip does not shrink the official cube', officialX.items.map((i) => i.label), ['Passport']);
+const nextX = newSuitcase('Next X');
+attachCube(nextX, officialX);
+check('next trip attach still imports the filed label', nextX.items.some((i) => i.label === 'Passport'), true);
+
+const officialSync = { id: 'basics', title: 'Basics', includeByDefault: true, items: [], addOns: [] };
+const tripSync = newSuitcase('Sync');
+const hat = addItem(tripSync, 'Hat');
+assignItem(tripSync, hat.id, 'basics');
+check('syncOfficialCubeFromTrip appends trip-filed labels', syncOfficialCubeFromTrip(officialSync, tripSync), true);
+check('synced official cube contains the label', officialSync.items.map((i) => i.label), ['Hat']);
+removeItem(tripSync, hat.id);
+check('sync after trip delete does not drop the official label', [
+  syncOfficialCubeFromTrip(officialSync, tripSync),
+  officialSync.items.map((i) => i.label),
+], [false, ['Hat']]);
+
+check(
+  'officialCubeFromApi reads data.cube',
+  officialCubeFromApi({ cube: { id: 'x', items: [] } }, 'x')?.id,
+  'x',
+);
+check(
+  'officialCubeFromApi recovers from a list-shaped GET (rewrite dropped id)',
+  officialCubeFromApi({ cubes: [{ id: 'x', items: [{ label: 'Socks' }] }, { id: 'y', items: [] }] }, 'x')?.items[0].label,
+  'Socks',
+);
+check('officialCubeFromApi misses an unknown id', officialCubeFromApi({ cubes: [{ id: 'y' }] }, 'x'), null);
+check('normalizeDefinitionItems coerces string rows', normalizeDefinitionItems(['Socks', { label: 'Hat' }]), [
+  { label: 'Socks' },
+  { label: 'Hat' },
+]);
+
 // Enabling an add-on for an unattached cube attaches it first.
 const s3 = newSuitcase('Weekend');
 setAddOn(s3, toiletries, 'travel-meds', true);
@@ -477,23 +521,19 @@ check('filed outfit item also sits in its cube', lookGroups[2].items.map((i) => 
 check('unsorted-only-in-outfit stays out of Unsorted', lookGroups[3].items.map((i) => i.id), ['passport']);
 check('List still shows a shared item once', uniqueItemsById(sLooks.items).length, 3);
 
-const listGroups = groupedItems(sLooks, cubesById, { exclusive: true });
-check(
-  'List groups outfits then cubes then unsorted',
-  listGroups.map((g) => g.key),
-  [outfitGroupKey(cubeLookA.id), outfitGroupKey(cubeLookB.id), 'toiletries', UNSORTED_KEY],
-);
-check('List puts a shared item only under its first outfit', [
-  listGroups[0].items.map((i) => i.id),
-  listGroups[1].items.map((i) => i.id),
-], [['blazer', 'shoes'], []]);
-check('List does not also show an outfit item under its cube', listGroups[2].items.map((i) => i.id), []);
-check('List leftover unsorted stays at the bottom', listGroups[3].items.map((i) => i.id), ['passport']);
-check(
-  'List exclusive still one packed row per id',
-  listGroups.flatMap((g) => g.items.map((i) => i.id)).sort(),
-  ['blazer', 'passport', 'shoes'],
-);
+const condensed = sortedListItems(sLooks, cubesById);
+check('condensed List is one row per item id', condensed.map((i) => i.id), ['blazer', 'shoes', 'passport']);
+check('condensed List sorts cube items first', condensed[0].id, 'blazer');
+check('condensed List then outfit-only items', condensed[1].id, 'shoes');
+check('condensed List keeps Unsorted last', condensed[2].id, 'passport');
+check('cube row chip is the cube title', listItemMembership(condensed[0], sLooks, cubesById), {
+  kind: 'cube',
+  label: 'Toiletries',
+  sort: '0\ttoiletries\tnavy blazer',
+});
+check('outfit-only row chip is the outfit name', listItemMembership(condensed[1], sLooks, cubesById).kind, 'outfit');
+check('outfit-only row chip label', listItemMembership(condensed[1], sLooks, cubesById).label, 'Ceremony');
+check('unsorted row has no chip', listItemMembership(condensed[2], sLooks, cubesById).label, '');
 
 // --- removeItem ---
 check('removeItem deletes by id', removeItem(s4, 'c'), true);

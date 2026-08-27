@@ -62,11 +62,14 @@ trip never edits `pc_cubes`.
   "rehearsal") and copy one onto the current trip. Copying never creates a
   cube. If a copied item isn't on this list, I am offered the chance to add
   those missing labels to the list.
-- As a packer in List and By cube (beta off), I see each outfit as a
-  cube-like group (including empty ones). That group is not a My Cubes cube.
-  List shows an item under its outfit if it belongs to one, otherwise under
-  its cube, Unsorted last. By cube may also show the same item under its
-  cube. One item id, one packed checkbox.
+- As a packer in List (beta off), I see a condensed packing list: one row
+  per item, sorted by cube then outfit, Unsorted last, with a chip of the
+  cube or outfit. No collapsible sections. Shared items appear once.
+- As a packer in By cube, I see outfits and cubes as collapsible groups
+  (including empty ones). Outfit groups are not My Cubes cubes. Collapse
+  all folds every group. An item may sit under its outfit and its cube.
+  One item id, one packed checkbox. Blank add-ins are created from My Cubes
+  / Edit cube, not from this list.
 
 ### Beta
 
@@ -163,17 +166,19 @@ Rehearsal dinner
   list (or reuses the existing row with the same name) **and** attaches it
   to this outfit. Existing list items stay selectable as chips.
 - Creating an outfit never writes `pc_cubes`.
-- **List** is grouped, not a flat dump: outfit groups (sorted by name),
-  then cube / add-on groups, Unsorted last. An item that belongs to an
-  outfit sits **only** under that outfit (first outfit if shared).
-  Otherwise it sits under its cube. One item id, one packed checkbox.
-- **By cube** lists each outfit as a **cube-like group** (same card /
-  section chrome as a cube). Outfits are still not cubes — they never
+- **List** is condensed, not sections: one row per item id, sorted by
+  cube (then outfit if the item has no cube), Unsorted last. Each row
+  shows the label plus a chip of the cube or outfit. No collapsible
+  headers. Shared items appear once.
+- **By cube** lists each outfit as a **cube-like collapsible group**
+  (same card / section chrome as a cube). **Collapse all** (and Expand
+  all) toggles every group. Outfits are still not cubes — they never
   appear in My Cubes, `pc_cubes`, or the cube library. Empty outfits
   still show as a group. An item in an outfit may also sit in its cube
   (or add-on) section as the **same** item / same packed checkbox.
   Unsorted items that only belong to an outfit appear under that outfit
-  group, not in Unsorted.
+  group, not in Unsorted. Blank add-on create lives on My Cubes / Edit
+  cube / the builder — not on List or By cube.
 
 **Search past outfits** is a typeahead over every other suitcase in
 `state.suitcases` (see §8). Picking a hit opens a confirm:
@@ -407,12 +412,15 @@ suitcase**. It is not a cube, not in `pc_cubes`, not in My Cubes, not
   under the outfit, not Unsorted.
 - **Cube templates are additive across trips.** Assigning or creating an
   item into a cube / add-on on a trip **appends** that label to
-  `pc_cubes` (`fileIntoCube` / `absorbItemIntoCube`) so the next trip
-  gets it — including Basics / `includeByDefault` / tagged cubes. The
-  write always GETs the official row first, then PATCHes; catalog stubs
-  with `items: []` are not the write source. Removing or unassigning on
-  List / By cube / Organize / outfits is suitcase-only. **The only place
-  that deletes an item from the reusable cube is Edit cube.**
+  `pc_cubes` (`syncOfficialCubeFromTrip`) so the next trip gets it —
+  including Basics / `includeByDefault` / tagged cubes. The write GETs
+  the official row via `/api/packing-cubes?route=cubes&id=` (so a
+  `/api/pc-cubes` rewrite cannot drop `id`), recovers `{ cube }` or the
+  matching row from a list-shaped `{ cubes }` response, appends missing
+  labels, PATCHes immediately, and updates catalog/cache from the
+  response. Errors toast. Removing or unassigning on List / By cube /
+  Organize / outfits is suitcase-only. **The only place that deletes an
+  item from the reusable cube is Edit cube.**
 - **Locked:** names only for v1. No photo field.
 - Remove outfit: grouping gone; items stay on the list and on their dates.
 - Delete trip: outfits go with the suitcase.

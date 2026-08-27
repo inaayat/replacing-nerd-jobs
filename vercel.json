@@ -150,7 +150,7 @@
     },
     {
       "source": "/api/pc-cubes",
-      "destination": "/api/packing-cubes?route=cubes"
+      "destination": "/api/packing-cubes"
     },
     {
       "source": "/api/pc-suitcases",

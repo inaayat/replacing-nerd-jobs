@@ -316,6 +316,31 @@ function appendDefinitionLabel(list, trimmed) {
   return next;
 }
 
+/** Coerce string-or-object definition rows to `{ label }` for PATCH bodies. */
+export function normalizeDefinitionItems(list) {
+  return definitionLabels(list).map((raw) => {
+    const label = String(typeof raw === 'string' ? raw : raw?.label || '').trim();
+    return label ? { label } : null;
+  }).filter(Boolean);
+}
+
+/**
+ * Official cube from GET /api/pc-cubes?id=. A rewrite that drops `id`
+ * returns the list payload `{ cubes }` with no `cube` — recover by id.
+ */
+export function officialCubeFromApi(data, id) {
+  const want = String(id || '').trim();
+  if (data?.cube && typeof data.cube === 'object') {
+    if (!want || data.cube.id === want) return data.cube;
+  }
+  const cubes = Array.isArray(data?.cubes) ? data.cubes : [];
+  if (want) {
+    const hit = cubes.find((c) => c && c.id === want);
+    if (hit) return hit;
+  }
+  return null;
+}
+
 /** Copy a filed label onto the cube (or add-on). Appends only — never strips. */
 export function absorbItemIntoCube(cube, label, addOnId = null) {
   if (!cube) return false;
@@ -324,14 +349,32 @@ export function absorbItemIntoCube(cube, label, addOnId = null) {
   const key = itemKey(trimmed);
   if (addOnId) {
     const addOn = cubeAddOns(cube).find((a) => a.id === addOnId);
-    if (!addOn) return false;
-    if (definitionHasLabel(addOn.items, key)) return false;
-    addOn.items = appendDefinitionLabel(addOn.items, trimmed);
-    return true;
+    if (addOn) {
+      addOn.items = normalizeDefinitionItems(addOn.items);
+      if (definitionHasLabel(addOn.items, key)) return false;
+      addOn.items = appendDefinitionLabel(addOn.items, trimmed);
+      return true;
+    }
+    // Add-on missing on the official record — still persist onto the cube.
   }
+  cube.items = normalizeDefinitionItems(cube.items);
   if (definitionHasLabel(cube.items, key)) return false;
   cube.items = appendDefinitionLabel(cube.items, trimmed);
   return true;
+}
+
+/**
+ * Append every trip-filed label for this cube onto the official record.
+ * Does not remove labels that are no longer on the trip.
+ */
+export function syncOfficialCubeFromTrip(cube, suitcase, cubeId = cube?.id) {
+  if (!cube || !suitcase || !cubeId) return false;
+  let changed = false;
+  for (const item of suitcase.items || []) {
+    if (!item || item.cubeId !== cubeId) continue;
+    if (absorbItemIntoCube(cube, item.label, item.addOnId || null)) changed = true;
+  }
+  return changed;
 }
 
 /**
@@ -823,6 +866,53 @@ export function groupedItems(suitcase, cubesById, { includeEmptyAddOns = false, 
   const rest = groups.filter((g) => !g.outfitId);
   outfits.sort((a, b) => String(a.title).localeCompare(String(b.title)));
   return [...outfits, ...rest];
+}
+
+/** First outfit on this trip that owns the item, if any. */
+export function firstOutfitForItem(suitcase, itemId) {
+  if (!itemId) return null;
+  for (const outfit of suitcase.outfits || []) {
+    if ((outfit.itemIds || []).includes(itemId)) return outfit;
+  }
+  return null;
+}
+
+/**
+ * Condensed List membership: cube (or add-on) first, else the first outfit,
+ * else unsorted. Used for sort order and the row chip — not section headers.
+ */
+export function listItemMembership(item, suitcase, cubesById) {
+  if (item?.cubeId) {
+    const cube = cubesById?.get?.(item.cubeId);
+    let label;
+    if (item.addOnId) {
+      const addOn = cubeAddOns(cube).find((a) => a.id === item.addOnId);
+      label = addOn
+        ? addOnLabel(cube || { id: item.cubeId, title: item.cubeId }, addOn)
+        : addOnLabel({ title: cube?.title || item.cubeId }, { title: item.addOnId });
+    } else {
+      label = cube?.title || item.cubeId;
+    }
+    return { kind: 'cube', label, sort: `0\t${String(label).toLowerCase()}\t${itemKey(item.label)}` };
+  }
+  const outfit = firstOutfitForItem(suitcase, item?.id);
+  if (outfit) {
+    const label = outfit.name || 'Outfit';
+    return { kind: 'outfit', label, sort: `1\t${String(label).toLowerCase()}\t${itemKey(item.label)}` };
+  }
+  return { kind: 'unsorted', label: '', sort: `2\t${itemKey(item?.label)}` };
+}
+
+/**
+ * List view rows: one row per item id, cube items first (A–Z cube, then
+ * label), then outfit-only items, Unsorted last.
+ */
+export function sortedListItems(suitcase, cubesById) {
+  return uniqueItemsById(suitcase?.items).slice().sort((a, b) => {
+    const ma = listItemMembership(a, suitcase, cubesById);
+    const mb = listItemMembership(b, suitcase, cubesById);
+    return ma.sort.localeCompare(mb.sort);
+  });
 }
 
 /** Count of items still unassigned — drives the Organize affordance. */

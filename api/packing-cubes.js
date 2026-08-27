@@ -60,7 +60,8 @@ async function handleCubes(req, res) {
   const { userId } = session;
 
   if (req.method === 'GET') {
-    const id = String(req.query?.id || '').trim();
+    const rawId = req.query?.id;
+    const id = String(Array.isArray(rawId) ? rawId[0] : rawId || '').trim();
     try {
       if (id) {
         const cube = await getCube(id, userId);

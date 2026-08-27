@@ -684,6 +684,28 @@
   text-overflow: ellipsis;
 }
 
+.pc-cube-chip.outfit {
+  color: var(--info);
+  background: var(--accent-soft);
+}
+
+.pc-checklist.pc-condensed {
+  border: var(--outline);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--card);
+}
+
+.pc-checklist.pc-condensed li[data-item-id] {
+  padding: 6px 10px;
+}
+
+.pc-save-unsorted {
+  display: inline-block;
+  margin: 0 0 8px;
+  padding: 0;
+}
+
 .pc-item-remove {
   flex-shrink: 0;
   width: 22px;
