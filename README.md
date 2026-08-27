@@ -181,6 +181,22 @@ segments snapshot for filing metadata plus inline-XBRL fact element IDs.
 line anchors. Reported facts link directly to the corresponding line in the
 human-readable filing; calculated values fall back to the filing viewer.
 
+### ASC 606 — `/asc-606`
+
+Plain-English decision tree for **revenue from a contract with a customer**.
+Scope first, then the five steps (identify the contract, identify performance
+obligations, transaction price, allocate, recognize). Each question cites the
+Codification; hover a paragraph number for a short official excerpt. A **Map**
+shows the whole tree; **Quiz** walks seven fact patterns (SaaS, construction,
+marketplace agent, returns, collectibility fail, brand license, gift card)
+against a teaching path.
+
+Static only: `asc-606/tree.js`, `engine.js`, `citations.js`, and `quiz.js` are
+browser-safe ESM. Do not put them under `/lib/`. No new Vercel function. This
+is a study map, not a reprint of Topic 606 — excerpts stay short and attributed
+to the Financial Accounting Foundation; the official text is at
+[asc.fasb.org](https://asc.fasb.org).
+
 ### AI buildout money — `/ai-buildout`
 
 How Amazon, Microsoft, Alphabet, Meta, and Oracle (plus Nvidia and Apple as
@@ -329,7 +345,8 @@ python3 -m http.server 8080
 Works for catalog/player pages like Sporcle Spinoff, Plot Points shells, the
 Fortune 500 EDGAR explainer (`/fortune-500/`), Financial Modeler
 (`/financial-modeler/`), the AI buildout money monitor (`/ai-buildout/`),
-World in NYC (`/world-in-nyc/`), and Takeout (`/takeout/`).
+World in NYC (`/world-in-nyc/`), Takeout (`/takeout/`), and the ASC 606
+decision tree (`/asc-606/`).
 `api/*` routes do **not** run under a plain static server.
 
 **Full stack** (API routes + env secrets):
@@ -668,6 +685,7 @@ so the catalog stays consistent without hand-editing the manifest in PRs.
 ├── sporcle-spinoff/            ← trivia quiz platform
 ├── plot-points/                ← TMDB cinema query explorer
 ├── table-manners/              ← signed-in grid + card face + Excel download
+├── asc-606/                    ← ASC 606 revenue decision tree + quiz
 ├── world-cup/                  ← FIFA World Cup 2026 (static; live scores retired)
 │
 ├── scripts/                    ← index builders + pure-function tests
@@ -737,6 +755,7 @@ node scripts/test-table-manners-workbook.mjs
 node scripts/test-takeout-flatten.mjs
 node scripts/test-takeout-workbook.mjs
 node scripts/test-takeout-catalog.mjs
+node scripts/test-asc-606.mjs
 node scripts/test-im-filmin-here.mjs
 node scripts/test-packing-cubes-model.mjs
 node scripts/test-packing-cubes-api.mjs
