@@ -285,7 +285,7 @@ function renderCubeList() {
       ? `<p class="pc-no-results">No cubes match "${escapeHtml(searchQuery)}".</p>`
       : `<div class="pc-cubes-empty">
            <p><b>No cubes yet.</b></p>
-           <p>A cube is a reusable group of items — “Toiletries”, “Beach”, “Work trip”. Build one and you can drop it onto any future list.</p>
+           <p>A cube is a named group — “Toiletries”, “Beach”, “Work trip”. Name one even if it’s empty, then file list items into it.</p>
            <button type="button" class="pc-btn primary" id="empty-create-cube">Build my first cube</button>
            <p class="pc-cubes-empty-note">Already have a list going? Use <b>Organize</b> to turn part of it into a cube later.</p>
          </div>`;
@@ -362,7 +362,12 @@ async function quickToggleCube(cubeId) {
     saveState();
     renderCubeList();
     renderList();
-    showToast(imported ? `Added ${imported} item${imported === 1 ? '' : 's'} from "${cube.title}"` : `"${cube.title}" attached — its items were already on your list`);
+    const itemCount = (cube.items || []).length;
+    showToast(imported
+      ? `Added ${imported} item${imported === 1 ? '' : 's'} from "${cube.title}"`
+      : itemCount
+        ? `"${cube.title}" attached — its items were already on your list`
+        : `"${cube.title}" is on this list — file items into it`);
   } catch (err) {
     showToast(err.message);
   }
@@ -391,7 +396,9 @@ function expandBodyHtml(cubeId) {
     ${cube.blurb ? `<p class="pc-expand-blurb">${escapeHtml(cube.blurb)}</p>` : ''}
     ${tags ? `<div class="pc-tags">${tags}</div>` : ''}
     <ul class="pc-expand-items">
-      ${(cube.items || []).map((item) => `<li>${escapeHtml(item.label)}</li>`).join('')}
+      ${(cube.items || []).length
+        ? cube.items.map((item) => `<li>${escapeHtml(item.label)}</li>`).join('')
+        : '<li class="pc-expand-empty">Empty — file list items into it from Organize.</li>'}
     </ul>
     ${addOns.length ? `
       <div class="pc-addon-section">
@@ -471,8 +478,8 @@ function toggleAddOn(cubeId, addOnId) {
 async function saveUnsortedAsCube() {
   const suitcase = activeSuitcase();
   const unsorted = suitcase.items.filter((i) => !i.cubeId);
-  if (unsorted.length < 2) {
-    showToast('Add at least two unsorted items first.');
+  if (!unsorted.length) {
+    showToast('Add an unsorted item first, or create an empty cube with + New cube.');
     return;
   }
 
@@ -544,8 +551,24 @@ function openBuilderModal(editId) {
     editId: editId || null,
     auth,
     onClose: closeBuilderModal,
-    onSaved: refreshCatalog,
+    onSaved: afterCubeSaved,
   });
+}
+
+function afterCubeSaved({ isEditing, cube }) {
+  refreshCatalog();
+  if (isEditing || !cube?.id) return;
+  const suitcase = activeSuitcase();
+  attachCube(suitcase, cube);
+  saveState();
+  if (!(cube.items || []).length) {
+    organizeMode = true;
+    listView = 'cube';
+    try { localStorage.setItem(VIEW_KEY, listView); } catch { /* ignore */ }
+  }
+  renderCubeList();
+  renderList();
+  showToast(`"${cube.title}" is on this list — file items into it`);
 }
 
 function closeBuilderModal() {
@@ -871,7 +894,7 @@ function renderList() {
     const cube = !isUnsorted ? cubeMap.get(group.key) : null;
     const addOns = cube ? cubeAddOns(cube) : [];
     const removable = !isUnsorted && suitcase.cubeIds.includes(group.key);
-    const canSaveAsCube = isUnsorted && group.items.length > 1;
+    const canSaveAsCube = isUnsorted && group.items.length >= 1;
     return `
       <div class="pc-item-group ${collapsed ? 'collapsed' : ''} ${isUnsorted ? 'unsorted' : ''}" data-group-key="${escapeAttr(group.key)}">
         <div class="pc-group-row">

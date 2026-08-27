@@ -19,10 +19,11 @@ file items into cubes whenever you're ready.
 
 **Cubes are private and entirely user-built.** There is no shared catalog, no
 seeded cubes, and nothing to publish: the rail is "My cubes", it starts empty,
-and every cube is one you made. The usual way to make one is
-**Unsorted → "Save as cube"** — keep the useful part of a list you already
-typed — or the builder (name, items, optional add-ons; paste a newline list to
-bulk-fill). Cube ids are slugs derived from the title, never shown, and
+and every cube is one you made. A cube can be **empty** — name it first, attach
+it, then file existing list items into it from Organize. The other way to make
+one is **Unsorted → "Save as cube"** — keep the useful part of a list you already
+typed — or the builder (name, optional items, optional add-ons; paste a newline
+list to bulk-fill). Cube ids are slugs derived from the title, never shown, and
 collisions resolve server-side (`nextFreeId`). A cube can carry **add-ons** —
 named optional bundles (travel meds, hair tools) toggled per trip instead of
 extra cubes. Any cube detaches from a list from the rail, the expanded card,

@@ -373,3 +373,12 @@ mounts the shared `engine/sign-in-form.js` helper (email / password, plus name o
 and stays on `/packing-cubes/` after `loginViaApi` + `storeAuthToken`. Nav "Log in" focuses
 the form; a small "Manage account" link still goes to `/account.html` for deletion. The same
 card is used on the standalone builder and cube pages when signed out.
+
+## Round 11 — empty cubes as filing targets
+
+A cube is a named group, not a pre-filled checklist. Creating one no longer
+requires two items: the builder saves on a name alone, `validateCube` accepts
+`items: []`, and a newly created cube attaches to the current list (empty ones
+open Organize + By cube) so existing rows can be filed into it. Unsorted →
+"Save as cube" works from a single leftover item. Add-ons still need at least
+one item if you add one.

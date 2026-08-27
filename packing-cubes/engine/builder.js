@@ -9,7 +9,7 @@ import { cubesApi } from './api.js';
 export function initBuilder({ root, editId = null, auth: passedAuth = null, onSaved, onClose } = {}) {
   const isEditing = !!editId;
 
-  let cube = { title: '', blurb: '', tags: [], items: [{ label: '' }, { label: '' }], addOns: [] };
+  let cube = { title: '', blurb: '', tags: [], items: [{ label: '' }], addOns: [] };
   let auth = passedAuth;
   let savedId = null;
 
@@ -25,7 +25,7 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onSa
         <h1 class="b-h1">${isEditing ? 'Edit cube' : 'New cube'}</h1>
         ${onClose ? '<button type="button" class="pc-preview-close" id="b-close" aria-label="Close">&times;</button>' : ''}
       </div>
-      <p class="b-lede">A cube is a reusable group of items you can drop onto any packing list.</p>
+      <p class="b-lede">A cube is a named group you can file list items into. Leave the items blank if you just want a bucket to sort into.</p>
 
       <div class="b-block">
         <div class="b-field">
@@ -261,9 +261,6 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onSa
     // not an error, it's just empty.
     if (!cube.title.trim()) {
       setValidation(count ? 'Give the cube a name to save it.' : '');
-      btn.disabled = true;
-    } else if (count < 2) {
-      setValidation('Add at least two items.');
       btn.disabled = true;
     } else if (!auth?.signedIn || !auth.token) {
       setValidation('Sign in to save cubes.');

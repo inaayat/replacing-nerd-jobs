@@ -37,7 +37,10 @@ check('unrelated ids do not block', nextFreeId('beach', ['beach-house']), 'beach
 // --- validation ---
 check('valid cube passes', validateCube(valid), null);
 check('title required', validateCube({ items: valid.items }), 'Title is required.');
-check('two items required', validateCube({ title: 'X', items: [{ label: 'One' }] }), 'Add at least 2 items.');
+check('empty cube is allowed', validateCube({ title: 'Beach', items: [] }), null);
+check('items can be omitted', validateCube({ title: 'Beach' }), null);
+check('one item is enough', validateCube({ title: 'X', items: [{ label: 'One' }] }), null);
+check('items must be a list', validateCube({ title: 'X', items: 'socks' }), 'Items must be a list.');
 check('items need labels', validateCube({ title: 'X', items: [{ label: 'a' }, { label: '  ' }] }), 'Every item needs a label.');
 check('title length capped', validateCube({ ...valid, title: 'x'.repeat(121) }), 'Title must be under 120 characters.');
 check('tags must be a list', validateCube({ ...valid, tags: 'summer' }), 'Tags must be a list.');

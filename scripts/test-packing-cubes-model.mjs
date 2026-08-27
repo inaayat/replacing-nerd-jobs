@@ -128,6 +128,12 @@ check('attachCube imports only missing labels', imported, 2); // Toothbrush alre
 check('attachCube records the cube', s.cubeIds.includes('beach'), true);
 check('attachCube is idempotent', attachCube(s, beach), 0);
 
+const emptyShell = newSuitcase('Empty attach');
+const emptyCube = { id: 'beach-bag', title: 'Beach bag', items: [] };
+check('empty attach imports nothing', attachCube(emptyShell, emptyCube), 0);
+check('empty attach still records the cube', emptyShell.cubeIds, ['beach-bag']);
+check('empty attach leaves the list untouched', emptyShell.items, []);
+
 // Organize: move the typed item into the beach cube, then back out.
 assignItem(s, passport.id, 'beach');
 check('assignItem sets the cube', s.items.find((i) => i.id === passport.id).cubeId, 'beach');
