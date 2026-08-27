@@ -16,10 +16,13 @@ Postgres; movie/TV metadata from TMDB via `lib/tmdb.js`.
 List-first packing app. You build a **flat packing list** (the source of
 truth — type items straight in, no cube required), then use **Organize** to
 file items into cubes whenever you're ready. Cubes are reusable checklists
-kept as an organization layer: **standard cubes** (tag `standard`, legacy
-`basics`) attach to every new list automatically, and a cube can carry
-**add-ons** — named optional bundles (travel meds, hair tools) toggled per
-trip instead of one-off extra cubes. All list/cube semantics live in the pure
+kept as an organization layer, and **every cube is the user's own choice** —
+nothing is auto-attached, and any cube can be removed from a list (library
+toggle or the × on its group). The catalog seeds **common cubes** (tag
+`common`; legacy `standard`/`basics` read the same) as starter templates:
+attach one as-is or "Copy into a cube of my own" to fork it in the builder.
+A cube can carry **add-ons** — named optional bundles (travel meds, hair
+tools) toggled per trip instead of one-off extra cubes. All list/cube semantics live in the pure
 module `packing-cubes/engine/model.js` (browser + `scripts/test-packing-cubes-model.mjs`);
 suitcase JSON is versioned (`v: 2`) and v1 suitcases migrate client-side.
 Public catalog is static JSON in git; signed-in users get cloud-synced private

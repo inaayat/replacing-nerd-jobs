@@ -288,3 +288,25 @@ The product flipped from cube-first to **list-first**, and this round rebuilt th
 - Quick-add (+) no longer force-expands the card; suitcase cubes no longer all auto-expand on boot.
 - Unchecking an item no longer stores `packed: false` forever (v2 stores a bool per item row).
 - Catalog search covers item labels and add-ons, and the rail sorts mine → standard → A-Z.
+
+## Round 7 — no auto-attached cubes: common templates instead of standard cubes
+
+Direct user correction to Round 6: **don't have standard cubes** — each user builds their own
+cube set; the site's job is to offer good starting material, not to preload anyone's list.
+
+- **No auto-attach.** `newSuitcase()` creates an empty list with no cubes. The `standard` tag's
+  auto-attach behavior is gone entirely (the builder checkbox too); `isStandardCube` became
+  `isCommonCube`.
+- **Common cubes** are curated catalog templates tagged `common` (legacy `standard`/`basics`
+  still read as common for old data): badged "Common", sorted after the user's own cubes, and
+  attached only when the user chooses. Seeded set (each one JSON file in `cubes/`, confirmed
+  with the user): Toiletries (add-ons: travel meds / hair tools / skincare), Clothing Essentials,
+  Electronics & Chargers (add-ons: work setup / camera kit), Travel Documents, Beach & Swim,
+  Cold Weather (add-on: snow gear), Workout. The two personal "Basics:" cubes went back to
+  plain personal tags.
+- **"Copy into a cube of my own."** Every non-owned cube's expanded card offers a template
+  fork: `initBuilder({ templateId })` (also `builder.html?template=<id>`) prefills the builder
+  from that cube, drops curation tags, starts private, and saves under the user's own id.
+- **Removable everywhere.** Any cube — common or not — detaches from a list via the library
+  toggle, the expanded card button, or a new × on its group header in the By-cube view
+  (detaching removes the rows it brought; the toast reports the count).

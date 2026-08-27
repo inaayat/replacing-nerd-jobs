@@ -1,0 +1,23 @@
+{
+  "id": "workout",
+  "title": "Workout",
+  "blurb": "Gym and running gear on the road.",
+  "tags": [
+    "common",
+    "fitness"
+  ],
+  "items": [
+    {
+      "label": "Sneakers"
+    },
+    {
+      "label": "Gym shorts / leggings"
+    },
+    {
+      "label": "Workout tops"
+    },
+    {
+      "label": "Sports socks"
+    }
+  ]
+}

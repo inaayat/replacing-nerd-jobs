@@ -5,7 +5,7 @@ import { cubeJsonUrl } from './paths.js';
 import { initAuth, wireAuthLink, refreshToken } from './auth.js';
 import { cubesApi } from './api.js';
 
-export function initBuilder({ root, editId = null, auth: passedAuth = null, onPublished, onClose } = {}) {
+export function initBuilder({ root, editId = null, templateId = null, auth: passedAuth = null, onPublished, onClose } = {}) {
   const isEditing = !!editId;
 
   let cube = { title: '', blurb: '', tags: [], items: [{ label: '' }, { label: '' }], addOns: [], is_public: false };
@@ -40,11 +40,7 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onPu
         <div class="b-field-row">
           <div class="b-field" style="grid-column:1/-1"><label>Title</label><input type="text" id="f-title" placeholder="e.g. Summer beach essentials"></div>
           <div class="b-field" style="grid-column:1/-1"><label>Blurb</label><input type="text" id="f-blurb" placeholder="Short description"></div>
-          <div class="b-field" style="grid-column:1/-1"><label>Tags (comma-separated)</label><input type="text" id="f-tags" placeholder="basics, summer, beach"></div>
-          <label class="pc-toggle-chip" style="grid-column:1/-1">
-            <input type="checkbox" id="f-basic">
-            Standard cube — comes with every new packing list automatically
-          </label>
+          <div class="b-field" style="grid-column:1/-1"><label>Tags (comma-separated)</label><input type="text" id="f-tags" placeholder="summer, beach, work"></div>
         </div>
       </div>
 
@@ -101,15 +97,6 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onPu
     `));
 
     ['f-title', 'f-blurb', 'f-tags'].forEach((id) => root.querySelector('#' + id).addEventListener('input', onFieldsChange));
-    root.querySelector('#f-basic').addEventListener('change', (e) => {
-      // "standard" is the tag; legacy "basics" is recognized but not written.
-      const tags = new Set(cube.tags.map((t) => t.toLowerCase()));
-      if (e.target.checked) tags.add('standard');
-      else { tags.delete('standard'); tags.delete('basics'); }
-      cube.tags = [...tags];
-      root.querySelector('#f-tags').value = cube.tags.join(', ');
-      updatePreview();
-    });
     root.querySelector('#f-id').addEventListener('input', () => { idManuallyEdited = true; updatePreview(); });
     root.querySelector('#f-public').addEventListener('change', updatePreview);
     root.querySelector('#publish-btn').addEventListener('click', save);
@@ -151,15 +138,10 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onPu
     updatePreview();
   }
 
-  function isStandardTagged() {
-    return cube.tags.some((t) => ['standard', 'basics'].includes(t.toLowerCase()));
-  }
-
   function onFieldsChange() {
     cube.title = root.querySelector('#f-title').value;
     cube.blurb = root.querySelector('#f-blurb').value;
     cube.tags = dedupeTags(root.querySelector('#f-tags').value.split(',').map((s) => s.trim()).filter(Boolean));
-    root.querySelector('#f-basic').checked = isStandardTagged();
     updatePreview();
   }
 
@@ -260,7 +242,6 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onPu
     root.querySelector('#f-title').value = cube.title || '';
     root.querySelector('#f-blurb').value = cube.blurb || '';
     root.querySelector('#f-tags').value = (cube.tags || []).join(', ');
-    root.querySelector('#f-basic').checked = isStandardTagged();
     renderEditor();
     renderAddOnsEditor();
   }
@@ -456,6 +437,32 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onPu
     wireAuthLink(auth);
     updatePreview();
 
+    if (templateId && !isEditing) {
+      // Prefill from an existing cube as a starting point for the user's own.
+      try {
+        let source = null;
+        try {
+          source = (await cubesApi.get(auth.token, templateId)).cube;
+        } catch (err) {
+          if (err.status !== 404) throw err;
+        }
+        if (!source) {
+          const res = await fetch(cubeJsonUrl(templateId));
+          if (!res.ok) throw new Error('template cube not found');
+          source = await res.json();
+        }
+        cube = normalizeLoaded(source);
+        // The copy is a personal cube: drop curation tags and start private.
+        cube.tags = cube.tags.filter((t) => !['common', 'standard', 'basics'].includes(t.toLowerCase()));
+        cube.is_public = false;
+        idManuallyEdited = false; // id follows whatever title the user picks
+        fillFormFromCube();
+        updatePreview();
+      } catch (err) {
+        setUploadStatus('err', `Couldn't load the template: ${err.message}`);
+      }
+    }
+
     if (isEditing) {
       const btn = root.querySelector('#publish-btn');
       btn.disabled = true;
@@ -486,5 +493,10 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onPu
 // #builder-root and reads ?edit= from the page URL.
 const standaloneRoot = document.getElementById('builder-root');
 if (standaloneRoot) {
-  initBuilder({ root: standaloneRoot, editId: new URLSearchParams(location.search).get('edit') });
+  const pageParams = new URLSearchParams(location.search);
+  initBuilder({
+    root: standaloneRoot,
+    editId: pageParams.get('edit'),
+    templateId: pageParams.get('template'),
+  });
 }

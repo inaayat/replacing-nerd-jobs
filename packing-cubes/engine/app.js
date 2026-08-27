@@ -1,6 +1,7 @@
 // Packing Cubes app: a flat packing list first (the source of truth), with
-// cubes as an organization layer — standard cubes on every trip, optional
-// add-ons per cube, and an Organize mode that files list items into cubes.
+// cubes as an organization layer — every cube is the user's own choice, the
+// catalog offers common starter cubes (never auto-attached), optional add-ons
+// per cube, and an Organize mode that files list items into cubes.
 // All list/cube semantics live in the pure module ./model.js (tested by
 // scripts/test-packing-cubes-model.mjs); this file is fetch + DOM only.
 import { catalogUrl, cubeJsonUrl } from './paths.js';
@@ -8,7 +9,7 @@ import { initBuilder } from './builder.js';
 import { initAuth, wireAuthLink, refreshToken } from './auth.js';
 import { cubesApi, suitcasesApi } from './api.js';
 import {
-  isStandardCube,
+  isCommonCube,
   matchesQuery,
   sortCatalog,
   newSuitcase,
@@ -104,9 +105,7 @@ function scheduleCloudSave() {
 
 function ensureSuitcase() {
   if (!state.suitcases.length) {
-    // Standard cubes were prefetched in boot(), so their items materialize.
-    const standardCubes = catalog.filter(isStandardCube).map((c) => cubeCache.get(c.id) || c);
-    const suitcase = newSuitcase('My trip', standardCubes);
+    const suitcase = newSuitcase('My trip');
     state.suitcases.push(suitcase);
     state.activeSuitcaseId = suitcase.id;
     saveState();
@@ -282,7 +281,7 @@ function renderCubeList() {
 
   mount.innerHTML = cubes.map((c) => {
     const attached = suitcase.cubeIds.includes(c.id);
-    const standard = isStandardCube(c);
+    const common = isCommonCube(c);
     const expanded = expandedCubeIds.has(c.id);
     return `
       <div class="pc-cube-card ${attached ? 'in-suitcase' : ''} ${expanded ? 'expanded' : ''}" data-cube-id="${escapeAttr(c.id)}">
@@ -292,7 +291,7 @@ function renderCubeList() {
           <div class="pc-cube-info">
             <div class="title">
               ${escapeHtml(c.title)}
-              ${standard ? '<span class="pc-cube-badge standard">Standard</span>' : ''}
+              ${common ? '<span class="pc-cube-badge standard">Common</span>' : ''}
               ${c.mine && !c.is_public && c.source === 'db' ? '<span class="pc-cube-badge">Private</span>' : ''}
               ${c.mine && c.is_public ? '<span class="pc-cube-badge">Public</span>' : ''}
             </div>
@@ -339,10 +338,13 @@ function renderCubeList() {
 async function quickToggleCube(cubeId) {
   const suitcase = activeSuitcase();
   if (suitcase.cubeIds.includes(cubeId)) {
+    const removed = suitcase.items.filter((i) => i.cubeId === cubeId).length;
+    const title = (cubeCache.get(cubeId) || catalog.find((c) => c.id === cubeId))?.title || cubeId;
     detachCube(suitcase, cubeId);
     saveState();
     renderCubeList();
     renderList();
+    showToast(`Removed "${title}"${removed ? ` — ${removed} item${removed === 1 ? '' : 's'} off the list` : ''}`);
     return;
   }
   try {
@@ -399,6 +401,7 @@ function expandBodyHtml(cubeId) {
       <button type="button" class="pc-btn ${attached ? '' : 'primary'}" id="attach-btn-${escapeAttr(cubeId)}" style="width:100%">
         ${attached ? 'Remove from packing list' : 'Add to packing list'}
       </button>
+      ${!mine ? `<button type="button" class="pc-expand-link" id="template-cube-link-${escapeAttr(cubeId)}">Copy into a cube of my own</button>` : ''}
       ${mine ? `
         <button type="button" class="pc-expand-link" id="edit-cube-link-${escapeAttr(cubeId)}">Edit this cube</button>
         ${!cube.is_public ? `<button type="button" class="pc-expand-link" id="publish-cube-btn-${escapeAttr(cubeId)}">Make public</button>` : ''}
@@ -436,6 +439,8 @@ function bindExpandInteractions(cubeId) {
 
   const editLink = document.getElementById(`edit-cube-link-${cubeId}`);
   if (editLink) editLink.addEventListener('click', () => openBuilderModal(cubeId));
+  const templateLink = document.getElementById(`template-cube-link-${cubeId}`);
+  if (templateLink) templateLink.addEventListener('click', () => openBuilderModal(null, cubeId));
   const publishBtn = document.getElementById(`publish-cube-btn-${cubeId}`);
   if (publishBtn) publishBtn.addEventListener('click', () => makeCubePublic(cubeId));
   const deleteBtn = document.getElementById(`delete-cube-btn-${cubeId}`);
@@ -494,7 +499,7 @@ async function deleteCubeEverywhere(cubeId) {
   }
 }
 
-function openBuilderModal(editId) {
+function openBuilderModal(editId, templateId = null) {
   if (guestMode || !auth?.signedIn) {
     location.href = `/account.html?next=${encodeURIComponent('/packing-cubes/')}`;
     return;
@@ -507,6 +512,7 @@ function openBuilderModal(editId) {
   initBuilder({
     root: builderRoot,
     editId: editId || null,
+    templateId,
     auth,
     onClose: closeBuilderModal,
     onPublished: refreshCatalog,
@@ -609,10 +615,8 @@ function renderListPanel() {
     renderListPanel();
   });
 
-  document.getElementById('new-suitcase-btn').addEventListener('click', async () => {
-    const standardCubes = catalog.filter(isStandardCube);
-    await Promise.all(standardCubes.map((c) => fetchCube(c.id).catch(() => null)));
-    const suitcaseNew = newSuitcase('New trip', standardCubes.map((c) => cubeCache.get(c.id)).filter(Boolean));
+  document.getElementById('new-suitcase-btn').addEventListener('click', () => {
+    const suitcaseNew = newSuitcase('New trip');
     state.suitcases.push(suitcaseNew);
     state.activeSuitcaseId = suitcaseNew.id;
     saveState();
@@ -620,7 +624,7 @@ function renderListPanel() {
     wasAllPacked = false;
     renderCubeList();
     renderListPanel();
-    showToast('New packing list — standard cubes are already on it');
+    showToast('New packing list');
   });
 
   document.getElementById('delete-suitcase-btn').addEventListener('click', () => {
@@ -818,7 +822,7 @@ function renderList() {
   const cubeMap = cubesById();
 
   if (!suitcase.items.length) {
-    mount.innerHTML = `<p class="pc-list-empty">Your list is empty. Type an item above, or add a whole cube from the library.</p>`;
+    mount.innerHTML = `<p class="pc-list-empty">Your list is empty. Type items above, or start from a common cube in the library.</p>`;
     return;
   }
 
@@ -846,13 +850,18 @@ function renderList() {
     const collapsed = collapsedGroups.has(group.key) && !organizeMode;
     const cube = !isUnsorted ? cubeMap.get(group.key) : null;
     const addOns = cube ? cubeAddOns(cube) : [];
+    const removable = !isUnsorted && suitcase.cubeIds.includes(group.key);
     return `
       <div class="pc-item-group ${collapsed ? 'collapsed' : ''} ${isUnsorted ? 'unsorted' : ''}" data-group-key="${escapeAttr(group.key)}">
-        <button type="button" class="pc-group-header">
-          <span class="chevron">${CHEVRON_SVG}</span>
-          <span class="pc-group-title">${escapeHtml(group.title)}</span>
-          <span class="pc-group-count">${group.items.filter((i) => i.packed).length}/${group.items.length}</span>
-        </button>
+        <div class="pc-group-row">
+          <button type="button" class="pc-group-header">
+            <span class="chevron">${CHEVRON_SVG}</span>
+            <span class="pc-group-title">${escapeHtml(group.title)}</span>
+            <span class="pc-group-count">${group.items.filter((i) => i.packed).length}/${group.items.length}</span>
+          </button>
+          ${removable ? `<button type="button" class="pc-group-remove" data-remove-cube="${escapeAttr(group.key)}"
+            title="Remove this cube and its items from the list" aria-label="Remove ${escapeAttr(group.title)} from the list">&times;</button>` : ''}
+        </div>
         ${addOns.length && !collapsed ? `
           <div class="pc-addon-chips in-group">
             ${addOns.map((a) => {
@@ -888,6 +897,10 @@ function renderList() {
 
   mount.querySelectorAll('.pc-addon-chip').forEach((chip) => {
     chip.addEventListener('click', () => toggleAddOn(chip.dataset.addonCube, chip.dataset.addonId));
+  });
+
+  mount.querySelectorAll('.pc-group-remove').forEach((btn) => {
+    btn.addEventListener('click', () => quickToggleCube(btn.dataset.removeCube));
   });
 
   bindItemRows(mount, suitcase);
@@ -990,7 +1003,6 @@ async function boot() {
     }
 
     await migrateLegacySuitcases();
-    await Promise.all(catalog.filter(isStandardCube).map((c) => fetchCube(c.id).catch(() => null)));
     ensureSuitcase();
     await prefetchSuitcaseCubes(activeSuitcase());
 
@@ -1019,7 +1031,6 @@ async function boot() {
       state = loadLocalState();
       catalog = await loadCatalog();
       await migrateLegacySuitcases();
-      await Promise.all(catalog.filter(isStandardCube).map((c) => fetchCube(c.id).catch(() => null)));
       ensureSuitcase();
       render();
       return;

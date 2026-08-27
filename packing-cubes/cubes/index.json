@@ -4,7 +4,6 @@
     "title": "Basics: Boy Tops",
     "blurb": "",
     "tags": [
-      "standard",
       "karan",
       "daily wear"
     ]
@@ -14,8 +13,16 @@
     "title": "Basics: Boy Undergarments",
     "blurb": "undergarments for every trip",
     "tags": [
-      "standard",
       "karan"
+    ]
+  },
+  {
+    "id": "beach-swim",
+    "title": "Beach & Swim",
+    "blurb": "Warm-weather water trips.",
+    "tags": [
+      "common",
+      "summer"
     ]
   },
   {
@@ -30,12 +37,57 @@
     ]
   },
   {
+    "id": "clothing-essentials",
+    "title": "Clothing Essentials",
+    "blurb": "The everyday clothes layer for any trip length.",
+    "tags": [
+      "common",
+      "clothing"
+    ]
+  },
+  {
+    "id": "cold-weather",
+    "title": "Cold Weather",
+    "blurb": "Layers for winter and mountain trips.",
+    "tags": [
+      "common",
+      "winter"
+    ]
+  },
+  {
+    "id": "electronics-chargers",
+    "title": "Electronics & Chargers",
+    "blurb": "Everything with a battery, and what feeds it.",
+    "tags": [
+      "common",
+      "electronics"
+    ]
+  },
+  {
     "id": "toiletries",
     "title": "Toiletries",
     "blurb": "The bathroom bag that goes on every trip.",
     "tags": [
-      "standard",
+      "common",
       "hygiene"
+    ]
+  },
+  {
+    "id": "travel-documents",
+    "title": "Travel Documents",
+    "blurb": "The things you cannot board, drive, or check in without.",
+    "tags": [
+      "common",
+      "documents"
+    ]
+  },
+  {
+    "id": "workout",
+    "title": "Workout",
+    "blurb": "Gym and running gear on the road.",
+    "tags": [
+      "common",
+      "fitness"
     ]
   }
 ]

@@ -33,7 +33,7 @@
       import { cubeJsonUrl } from './engine/paths.js';
       import { initAuth, wireAuthLink, refreshToken } from './engine/auth.js';
       import { cubesApi } from './engine/api.js';
-      import { cubeAddOns, isStandardCube } from './engine/model.js';
+      import { cubeAddOns, isCommonCube } from './engine/model.js';
 
       const root = document.getElementById('cube-root');
       const id = new URLSearchParams(location.search).get('cube');
@@ -74,7 +74,7 @@
             const meta = [
               `${cube.items.length} item${cube.items.length === 1 ? '' : 's'}`,
               addOns.length ? `${addOns.length} add-on${addOns.length === 1 ? '' : 's'}` : null,
-              isStandardCube(cube) ? 'standard — on every new list' : null,
+              isCommonCube(cube) ? 'common starter cube' : null,
               cube.is_public === false ? 'private' : null,
             ].filter(Boolean).join(' · ');
             root.innerHTML = `

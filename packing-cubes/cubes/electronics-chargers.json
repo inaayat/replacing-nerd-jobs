@@ -1,0 +1,55 @@
+{
+  "id": "electronics-chargers",
+  "title": "Electronics & Chargers",
+  "blurb": "Everything with a battery, and what feeds it.",
+  "tags": [
+    "common",
+    "electronics"
+  ],
+  "items": [
+    {
+      "label": "Phone charger"
+    },
+    {
+      "label": "Power bank"
+    },
+    {
+      "label": "Headphones"
+    },
+    {
+      "label": "Travel adapter"
+    }
+  ],
+  "addOns": [
+    {
+      "id": "work-setup",
+      "title": "Work setup",
+      "items": [
+        {
+          "label": "Laptop"
+        },
+        {
+          "label": "Laptop charger"
+        },
+        {
+          "label": "Mouse"
+        }
+      ]
+    },
+    {
+      "id": "camera-kit",
+      "title": "Camera kit",
+      "items": [
+        {
+          "label": "Camera"
+        },
+        {
+          "label": "Camera charger / batteries"
+        },
+        {
+          "label": "Memory cards"
+        }
+      ]
+    }
+  ]
+}

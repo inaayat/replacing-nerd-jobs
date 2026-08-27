@@ -7,8 +7,10 @@
 //   - Cubes are an organization layer on top. Attaching a cube imports its item
 //     labels into the list (tagged with the cubeId); "Organize" re-assigns any
 //     item's cubeId after the fact.
-//   - Standard cubes (tag "standard", legacy "basics") are attached to every new
-//     suitcase automatically.
+//   - Every list starts empty and every cube is the user's own choice. The
+//     catalog offers "common" cubes (tag "common"; legacy "standard"/"basics"
+//     read the same) as starter templates — never auto-attached, always
+//     removable like any other cube.
 //   - A cube may carry optional add-ons: named item bundles (travel meds, hair
 //     tools, …) toggled per trip instead of creating one-off extra cubes.
 
@@ -30,14 +32,11 @@ export function itemKey(label) {
 // Cubes
 // ---------------------------------------------------------------------------
 
-/** Standard cubes come with every new packing list. "basics" is the legacy tag. */
-export function isStandardCube(cube) {
+/** Common cubes are curated starter templates in the catalog. They are never
+ *  auto-attached — "standard" / "basics" are legacy tags read the same way. */
+export function isCommonCube(cube) {
   const tags = (cube?.tags || []).map((t) => String(t).toLowerCase());
-  return tags.includes('standard') || tags.includes('basics');
-}
-
-export function standardCubeIds(catalog) {
-  return (catalog || []).filter(isStandardCube).map((c) => c.id);
+  return tags.includes('common') || tags.includes('standard') || tags.includes('basics');
 }
 
 export function cubeAddOns(cube) {
@@ -58,11 +57,11 @@ export function matchesQuery(cube, query) {
   return haystack.includes(q);
 }
 
-/** Own cubes first, then standard, then alphabetical — a scannable rail. */
+/** Own cubes first, then common templates, then alphabetical. */
 export function sortCatalog(cubes) {
   return [...(cubes || [])].sort((a, b) => {
     if (!!a.mine !== !!b.mine) return a.mine ? -1 : 1;
-    if (isStandardCube(a) !== isStandardCube(b)) return isStandardCube(a) ? -1 : 1;
+    if (isCommonCube(a) !== isCommonCube(b)) return isCommonCube(a) ? -1 : 1;
     return String(a.title || '').localeCompare(String(b.title || ''));
   });
 }
@@ -75,9 +74,9 @@ export function newItem(label, { cubeId = null, addOnId = null, packed = false }
   return { id: newId(), label: String(label || '').trim(), cubeId, addOnId, packed: !!packed };
 }
 
-/** Fresh suitcase: standard cubes attached, their base items imported. */
-export function newSuitcase(name, catalog) {
-  const suitcase = {
+/** Fresh suitcase: an empty list. Cubes are attached only by the user. */
+export function newSuitcase(name) {
+  return {
     v: SUITCASE_VERSION,
     id: newId(),
     name,
@@ -85,10 +84,6 @@ export function newSuitcase(name, catalog) {
     cubeIds: [],
     addOns: {},
   };
-  for (const cube of (catalog || []).filter(isStandardCube)) {
-    attachCube(suitcase, cube);
-  }
-  return suitcase;
 }
 
 export function isLegacySuitcase(raw) {

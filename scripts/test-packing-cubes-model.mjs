@@ -1,10 +1,9 @@
 // Tests for the pure Packing Cubes logic (packing-cubes/engine/model.js):
-// the list-first suitcase, standard cubes, add-ons, organize, and v1 migration.
+// the list-first suitcase, common cubes, add-ons, organize, and v1 migration.
 //   node scripts/test-packing-cubes-model.mjs
 import {
   itemKey,
-  isStandardCube,
-  standardCubeIds,
+  isCommonCube,
   cubeAddOns,
   matchesQuery,
   sortCatalog,
@@ -44,7 +43,7 @@ function check(name, actual, expected) {
 const toiletries = {
   id: 'toiletries',
   title: 'Toiletries',
-  tags: ['standard'],
+  tags: ['common'],
   items: [{ label: 'Toothbrush' }, { label: 'Toothpaste' }, { label: 'Deodorant' }],
   addOns: [
     { id: 'travel-meds', title: 'Travel meds', items: [{ label: 'Ibuprofen' }, { label: 'Band-aids' }] },
@@ -68,10 +67,10 @@ const catalog = [beach, toiletries, legacyBasics];
 
 // --- cube classification ---
 check('itemKey normalizes case + whitespace', itemKey('  T-Shirt '), 't-shirt');
-check('standard tag detected', isStandardCube(toiletries), true);
-check('legacy basics tag still standard', isStandardCube(legacyBasics), true);
-check('non-standard cube', isStandardCube(beach), false);
-check('standardCubeIds filters catalog', standardCubeIds(catalog), ['toiletries', 'boy-tops']);
+check('common tag detected', isCommonCube(toiletries), true);
+check('legacy standard tag reads as common', isCommonCube({ tags: ['standard'] }), true);
+check('legacy basics tag reads as common', isCommonCube(legacyBasics), true);
+check('non-common cube', isCommonCube(beach), false);
 check('cubeAddOns tolerates missing', cubeAddOns(beach), []);
 check('cubeAddOns reads bundles', cubeAddOns(toiletries).map((a) => a.id), ['travel-meds', 'hair-tools']);
 
@@ -85,21 +84,33 @@ check('matchesQuery misses', matchesQuery(beach, 'winter'), false);
 const sorted = sortCatalog([
   { id: 'z', title: 'Zeta', tags: [] },
   { id: 'm', title: 'Mine', tags: [], mine: true },
-  { id: 's', title: 'Standard', tags: ['standard'] },
+  { id: 'c', title: 'Common', tags: ['common'] },
   { id: 'a', title: 'Alpha', tags: [] },
 ]);
-check('sortCatalog: mine, standard, then alphabetical', sorted.map((c) => c.id), ['m', 's', 'a', 'z']);
+check('sortCatalog: mine, common, then alphabetical', sorted.map((c) => c.id), ['m', 'c', 'a', 'z']);
 
-// --- new suitcase: standard cubes come along, add-ons stay off ---
-const s = newSuitcase('Trip', catalog);
-check('new suitcase attaches standard cubes', s.cubeIds, ['toiletries', 'boy-tops']);
+// --- new suitcase: empty, nothing auto-attached ---
+const s = newSuitcase('Trip');
+check('new suitcase starts with no cubes', s.cubeIds, []);
+check('new suitcase starts with an empty list', s.items, []);
+check('no add-ons enabled by default', s.addOns, {});
+
+// The user chooses cubes — attaching common cubes works like any other cube.
+attachCube(s, toiletries);
+attachCube(s, legacyBasics);
+check('user-attached cubes recorded', s.cubeIds, ['toiletries', 'boy-tops']);
 check(
-  'new suitcase imports standard base items only',
+  'attaching imports base items only',
   s.items.map((i) => i.label),
   ['Toothbrush', 'Toothpaste', 'Deodorant', 'T-shirt', 'Crew neck'],
 );
 check('imported items carry their cube', s.items[0].cubeId, 'toiletries');
-check('no add-ons enabled by default', s.addOns, {});
+
+// Any cube — including a common one — can be removed from the list again.
+const throwaway = newSuitcase('Detach check');
+attachCube(throwaway, toiletries);
+detachCube(throwaway, 'toiletries');
+check('common cubes detach like any other', [throwaway.cubeIds, throwaway.items], [[], []]);
 
 // --- the flat list is the source of truth ---
 const passport = addItem(s, '  Passport ');
@@ -152,7 +163,7 @@ check('other add-ons untouched', s.items.some((i) => i.addOnId === 'hair-tools')
 check('unknown add-on is a no-op', setAddOn(s, toiletries, 'nope', true), 0);
 
 // Enabling an add-on for an unattached cube attaches it first.
-const s3 = newSuitcase('Weekend', []);
+const s3 = newSuitcase('Weekend');
 setAddOn(s3, toiletries, 'travel-meds', true);
 check('add-on auto-attaches its cube', s3.cubeIds, ['toiletries']);
 check(
