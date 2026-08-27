@@ -15,24 +15,28 @@ Postgres; movie/TV metadata from TMDB via `lib/tmdb.js`.
 
 List-first packing app. You build a **flat packing list** (the source of
 truth — type items straight in, no cube required), then use **Organize** to
-file items into cubes whenever you're ready. Cubes are reusable checklists
-kept as an organization layer, and **every cube is the user's own choice** —
-nothing is auto-attached, and any cube can be removed from a list (library
-toggle or the × on its group). The catalog seeds **common cubes** (tag
-`common`; legacy `standard`/`basics` read the same) as starter templates:
-attach one as-is or "Copy into a cube of my own" to fork it in the builder.
-A cube can carry **add-ons** — named optional bundles (travel meds, hair
-tools) toggled per trip instead of one-off extra cubes. All list/cube semantics live in the pure
-module `packing-cubes/engine/model.js` (browser + `scripts/test-packing-cubes-model.mjs`);
-suitcase JSON is versioned (`v: 2`) and v1 suitcases migrate client-side.
-Public catalog is static JSON in git; signed-in users get cloud-synced private
-cubes / suitcase state in Neon (`pc_cubes` — with an `add_ons` JSONB column —
-and `pc_suitcase_state`). Signed-out visitors get a **guest mode** (browse the
-catalog, keep a device-local list) instead of a hard login gate. Making a cube
-public goes through Neon Auth + `api/packing-cubes.js` / `lib/github-cubes.js`
-(auto-merged PR into the static catalog). Installable PWA
-(`manifest.webmanifest`, icons via `node scripts/generate-packing-cubes-icons.mjs`),
-same pattern as A-Lister / Sticky Notes.
+file items into cubes whenever you're ready.
+
+**Cubes are private and entirely user-built.** There is no shared catalog, no
+seeded cubes, and nothing to publish: the rail is "My cubes", it starts empty,
+and every cube is one you made. The usual way to make one is
+**Unsorted → "Save as cube"** — keep the useful part of a list you already
+typed — or the builder (name, items, optional add-ons; paste a newline list to
+bulk-fill). Cube ids are slugs derived from the title, never shown, and
+collisions resolve server-side (`nextFreeId`). A cube can carry **add-ons** —
+named optional bundles (travel meds, hair tools) toggled per trip instead of
+extra cubes. Any cube detaches from a list from the rail, the expanded card,
+or the × on its group.
+
+All list/cube semantics live in the pure module `packing-cubes/engine/model.js`
+(browser + `scripts/test-packing-cubes-model.mjs`); suitcase JSON is versioned
+(`v: 2`) and v1 suitcases migrate client-side. Cubes and suitcase state sync to
+Neon (`pc_cubes`, with an `add_ons` JSONB column, and `pc_suitcase_state`) via
+`api/packing-cubes.js`. **Signing in is required** — the default view is a
+centered log-in card with a suitcase illustration, since both lists and cubes
+live on the account. Installable PWA (`manifest.webmanifest`, icons via
+`node scripts/generate-packing-cubes-icons.mjs`), same pattern as A-Lister /
+Sticky Notes.
 
 ### Sporcle Spinoff — `/sporcle-spinoff`
 
@@ -400,7 +404,7 @@ Current roster (10/12):
 | `api/auth-login.js` | Server-side Neon Auth sign-in/sign-up; returns a JWT (needed for mobile PWAs that block third-party auth cookies). |
 | `api/me.js` | Authed account sync: GET upserts the Neon Auth user into Postgres; DELETE wipes app data + Neon Auth account. |
 | `api/alist.js` | **AMC A-Lister router** (`?route=` / `/api/alist-*` rewrites): watches, summary, membership, import, poster backfill, movie/TV lookup & details, watchlists, movie stack ranks, leaderboard, compare, public profiles, showing invites, user search. |
-| `api/packing-cubes.js` | **Packing Cubes router** (`/api/pc-*`): cloud cubes CRUD, publish-to-catalog, suitcase state sync for signed-in users. |
+| `api/packing-cubes.js` | **Packing Cubes router** (`/api/pc-*`): private cubes CRUD + suitcase state sync for signed-in users. |
 | `api/plot-points.js` | **Plot Points router** (`/api/plot-points-*`): TMDB person/collection search, genres, query build, legacy presets. |
 | `api/save-quiz.js` | Sporcle Spinoff: quiz + tag submissions open a GitHub review PR. |
 | `api/fortune-500.js` | **Fortune 500** (`/api/f500-headlines`, `/api/f500-prices`): SEC Company Facts → slim 10-K headline metrics; Yahoo v8 chart proxy for last price + daily OHLCV. |
@@ -416,7 +420,7 @@ Storage integration usually provisions the first two automatically into Vercel.
 |---|---|---|
 | `DATABASE_URL` | Neon → injected into Vercel | Neon Postgres connection string |
 | `NEON_AUTH_BASE_URL` | Neon → injected into Vercel | Hosted Neon Auth endpoint (Better Auth) |
-| `GITHUB_TOKEN` | Vercel env only | Opens PRs / commits quiz & cube content via GitHub API |
+| `GITHUB_TOKEN` | Vercel env only | Opens PRs / commits quiz content via GitHub API |
 | `TMDB_API_KEY` | Vercel env only | The Movie Database — A-Lister + Plot Points |
 | `SEC_USER_AGENT` | Vercel env only | EDGAR fair-access header (`AppName contact@domain`). Falls back to the public site URL if unset. |
 | `NEON_PROJECT_ID` | GitHub Actions var | Preview DB branch cleanup |
@@ -546,7 +550,7 @@ only runs the code that talks to it). Accessed from serverless functions via
 | `alist_tv_watchlist` | A-Lister | TV to watch |
 | `alist_tv_cache` | A-Lister | TMDB TV payloads |
 | `alist_movie_ranks` | A-Lister | Per-user movie stack rank (beta); independent of the watch log |
-| `pc_cubes` | Packing Cubes | Per-user cubes (private + publish metadata) |
+| `pc_cubes` | Packing Cubes | Per-user private cubes (`add_ons` JSONB; `is_public`/`github_pr_url`/`published_at` are vestigial) |
 | `pc_suitcase_state` | Packing Cubes | Active suitcase + packed state JSON |
 | `plot_points_cache` | Plot Points | Query/result cache keyed by `cache_key` |
 | `sn_notes` | Sticky Notes | Board/memory notes; `rich` JSONB holds the formatted body, `text` its plain projection |
@@ -563,9 +567,9 @@ Neon Auth, not by `ensureSchema()`).
 
 - Preview DB branches: Vercel Neon integration creates `preview/<branch>`;
   `.github/workflows/cleanup-neon-preview-branch.yml` deletes them on PR close.
-- Quiz/cube static catalogs are **not** in Postgres — they are JSON files in git,
-  with indexes rebuilt by GitHub Actions (`build-quiz-index.yml`,
-  `build-cube-index.yml`).
+- The Sporcle quiz catalog is **not** in Postgres — quizzes are JSON files in
+  git, with the index rebuilt by GitHub Actions (`build-quiz-index.yml`).
+  Packing cubes have no static catalog: they live only in `pc_cubes`.
 
 ---
 
@@ -599,11 +603,9 @@ Several API routes use `GITHUB_TOKEN` against **this same repository**
 | Route | Action |
 |---|---|
 | `api/save-quiz.js` | Open a review PR for a quiz or tag suggestion |
-| `lib/github-cubes.js` | Helpers for packing-cube publish/merge (used by `packing-cubes.js`) |
 
 After merge to `main`, Actions regenerate `sporcle-spinoff/quizzes/index.json`
-and `packing-cubes/cubes/index.json` so catalogs stay consistent without
-hand-editing the manifest in PRs.
+so the catalog stays consistent without hand-editing the manifest in PRs.
 
 ### External APIs (not repos, but integrations)
 
@@ -650,11 +652,10 @@ hand-editing the manifest in PRs.
 │   ├── a-list*.js              ← A-Lister domain logic
 │   ├── packing-cubes.js
 │   ├── plot-points.js
-│   ├── table-manners.js
-│   └── github-cubes.js
+│   └── table-manners.js
 │
 ├── amc-a-lister/               ← AMC A-List watch log & savings tracker
-├── packing-cubes/              ← reusable travel checklists
+├── packing-cubes/              ← packing lists + user-built cubes
 ├── sporcle-spinoff/            ← trivia quiz platform
 ├── plot-points/                ← TMDB cinema query explorer
 ├── table-manners/              ← signed-in grid + card face + Excel download
@@ -729,4 +730,5 @@ node scripts/test-takeout-workbook.mjs
 node scripts/test-takeout-catalog.mjs
 node scripts/test-im-filmin-here.mjs
 node scripts/test-packing-cubes-model.mjs
+node scripts/test-packing-cubes-api.mjs
 ```

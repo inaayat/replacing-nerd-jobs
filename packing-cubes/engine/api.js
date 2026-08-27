@@ -24,7 +24,6 @@ export const cubesApi = {
   create: (token, cube) => apiFetch('/api/pc-cubes', { method: 'POST', body: cube, token }),
   update: (token, cube) => apiFetch('/api/pc-cubes', { method: 'PATCH', body: cube, token }),
   remove: (token, id) => apiFetch('/api/pc-cubes', { method: 'DELETE', body: { id }, token }),
-  publish: (token, id) => apiFetch('/api/pc-publish', { method: 'POST', body: { id }, token }),
 };
 
 export const suitcasesApi = {

@@ -20,7 +20,7 @@
         </a>
       </div>
       <div class="pc-nav-links">
-        <a href="/packing-cubes/">All cubes</a>
+        <a href="/packing-cubes/">My cubes</a>
         <a href="/account.html?next=%2Fpacking-cubes%2F" id="nav-auth-link">Log in</a>
       </div>
     </nav>
@@ -30,30 +30,15 @@
     </div>
 
     <script type="module">
-      import { cubeJsonUrl } from './engine/paths.js';
       import { initAuth, wireAuthLink, refreshToken } from './engine/auth.js';
       import { cubesApi } from './engine/api.js';
-      import { cubeAddOns, isCommonCube } from './engine/model.js';
+      import { cubeAddOns } from './engine/model.js';
 
       const root = document.getElementById('cube-root');
       const id = new URLSearchParams(location.search).get('cube');
 
       function escapeHtml(s) {
         return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      }
-
-      async function loadCube(auth) {
-        if (auth.signedIn && auth.token) {
-          try {
-            const data = await cubesApi.get(auth.token, id);
-            return data.cube;
-          } catch (err) {
-            if (err.status !== 404) throw err;
-          }
-        }
-        const res = await fetch(cubeJsonUrl(id));
-        if (!res.ok) throw new Error('not found');
-        return res.json();
       }
 
       if (!id) {
@@ -63,47 +48,48 @@
         if (auth.configured && auth.user && !auth.token) await refreshToken(auth);
         wireAuthLink(auth);
 
-        loadCube(auth)
-          .then((cube) => {
-            document.title = `${cube.title} — Packing Cubes`;
-            const tags = (cube.tags || []).map((t) => `<span class="pc-tag">${escapeHtml(t)}</span>`).join('');
-            const addOns = cubeAddOns(cube);
-            const editLink = cube.mine
-              ? `<a class="pc-btn" href="/packing-cubes/builder.html?edit=${encodeURIComponent(id)}">Edit cube</a>`
-              : '';
-            const meta = [
-              `${cube.items.length} item${cube.items.length === 1 ? '' : 's'}`,
-              addOns.length ? `${addOns.length} add-on${addOns.length === 1 ? '' : 's'}` : null,
-              isCommonCube(cube) ? 'common starter cube' : null,
-              cube.is_public === false ? 'private' : null,
-            ].filter(Boolean).join(' · ');
-            root.innerHTML = `
-              <div class="pc-card" style="text-align:center;max-width:520px;margin:0 auto">
-                <h1>${escapeHtml(cube.title)}</h1>
-                <p class="blurb">${escapeHtml(cube.blurb || '')}</p>
-                <div class="pc-tags">${tags}</div>
-                <p class="pc-meta">${meta}</p>
-                <div class="pc-actions">
-                  <a class="pc-btn primary" href="/packing-cubes/?add=${encodeURIComponent(id)}">Add to my packing list</a>
-                  <a class="pc-btn" href="/packing-cubes/">Back to app</a>
-                  ${editLink}
+        const loginHref = `/account.html?next=${encodeURIComponent(location.pathname + location.search)}`;
+        if (!auth.signedIn || !auth.token) {
+          root.innerHTML = `<p class="pc-boot-message">Cubes are private to your account. <a href="${loginHref}">Sign in</a> to open this one.</p>`;
+        } else {
+          cubesApi.get(auth.token, id)
+            .then(({ cube }) => {
+              document.title = `${cube.title} — Packing Cubes`;
+              const tags = (cube.tags || []).map((t) => `<span class="pc-tag">${escapeHtml(t)}</span>`).join('');
+              const addOns = cubeAddOns(cube);
+              const meta = [
+                `${cube.items.length} item${cube.items.length === 1 ? '' : 's'}`,
+                addOns.length ? `${addOns.length} add-on${addOns.length === 1 ? '' : 's'}` : null,
+              ].filter(Boolean).join(' · ');
+              root.innerHTML = `
+                <div class="pc-card" style="text-align:center;max-width:520px;margin:0 auto">
+                  <h1>${escapeHtml(cube.title)}</h1>
+                  <p class="blurb">${escapeHtml(cube.blurb || '')}</p>
+                  <div class="pc-tags">${tags}</div>
+                  <p class="pc-meta">${meta}</p>
+                  <div class="pc-actions">
+                    <a class="pc-btn primary" href="/packing-cubes/?add=${encodeURIComponent(id)}">Add to my packing list</a>
+                    <a class="pc-btn" href="/packing-cubes/builder.html?edit=${encodeURIComponent(id)}">Edit cube</a>
+                    <a class="pc-btn" href="/packing-cubes/">Back to app</a>
+                  </div>
                 </div>
-              </div>
-              <ul class="pc-checklist pc-card" style="padding:0;margin-top:16px;max-width:520px;margin-left:auto;margin-right:auto">
-                ${cube.items.map((item) => `<li><span>${escapeHtml(item.label)}</span></li>`).join('')}
-              </ul>
-              ${addOns.map((addOn) => `
-                <div class="pc-card" style="padding:0;margin-top:12px;max-width:520px;margin-left:auto;margin-right:auto;overflow:hidden">
-                  <p class="pc-meta" style="margin:10px 12px 4px;text-align:left">Add-on · ${escapeHtml(addOn.title)}</p>
-                  <ul class="pc-checklist">
-                    ${(addOn.items || []).map((item) => `<li><span>${escapeHtml(item.label)}</span></li>`).join('')}
-                  </ul>
-                </div>`).join('')}`;
-          })
-          .catch(() => {
-            const loginHref = `/account.html?next=${encodeURIComponent(location.pathname + location.search)}`;
-            root.innerHTML = `<p class="pc-boot-message">Could not find that cube.${auth.signedIn ? '' : ` <a href="${loginHref}">Sign in</a> if it's private.`}</p>`;
-          });
+                <ul class="pc-checklist pc-card" style="padding:0;margin-top:16px;max-width:520px;margin-left:auto;margin-right:auto">
+                  ${cube.items.map((item) => `<li><span>${escapeHtml(item.label)}</span></li>`).join('')}
+                </ul>
+                ${addOns.map((addOn) => `
+                  <div class="pc-card" style="padding:0;margin-top:12px;max-width:520px;margin-left:auto;margin-right:auto;overflow:hidden">
+                    <p class="pc-meta" style="margin:10px 12px 4px;text-align:left">Add-on · ${escapeHtml(addOn.title)}</p>
+                    <ul class="pc-checklist">
+                      ${(addOn.items || []).map((item) => `<li><span>${escapeHtml(item.label)}</span></li>`).join('')}
+                    </ul>
+                  </div>`).join('')}`;
+            })
+            .catch((err) => {
+              root.innerHTML = `<p class="pc-boot-message">${err.status === 404
+                ? 'That cube no longer exists.'
+                : `Could not load that cube: ${escapeHtml(err.message)}`}</p>`;
+            });
+        }
       }
     </script>
   </body>
