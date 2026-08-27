@@ -5,6 +5,7 @@
 // inline inside a modal on the main packing-cubes page.
 import { initAuth, wireAuthLink, refreshToken, renderPackingSignIn } from './auth.js';
 import { cubesApi } from './api.js';
+import { officialCubeFromApi, normalizeDefinitionItems } from './model.js';
 
 export function initBuilder({ root, editId = null, auth: passedAuth = null, onSaved, onClose } = {}) {
   const isEditing = !!editId;
@@ -12,6 +13,7 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onSa
   let cube = { title: '', blurb: '', tags: [], items: [{ label: '' }], addOns: [], includeByDefault: false };
   let auth = passedAuth;
   let savedId = null;
+  let previousOfficial = { items: [], addOns: [] };
 
   function el(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content; }
   function escapeAttr(s) {
@@ -319,7 +321,7 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onSa
       savedId = saved.id;
       toast.textContent = isUpdate ? 'Saved.' : 'Cube created.';
       toast.className = 'b-toast ok';
-      if (onSaved) onSaved({ id: saved.id, isEditing, cube: saved });
+      if (onSaved) onSaved({ id: saved.id, isEditing, cube: saved, previous: previousOfficial });
       if (onClose) setTimeout(onClose, 550);
       else btn.disabled = false;
     } catch (err) {
@@ -358,8 +360,18 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onSa
       const btn = root.querySelector('#save-btn');
       btn.disabled = true;
       try {
-        const { cube: loaded } = await cubesApi.get(auth.token, editId);
+        const data = await cubesApi.get(auth.token, editId);
+        const loaded = officialCubeFromApi(data, editId);
+        if (!loaded) throw new Error('Cube not found.');
         if (!loaded.mine) throw new Error('You can only edit your own cubes.');
+        previousOfficial = {
+          id: loaded.id,
+          items: normalizeDefinitionItems(loaded.items),
+          addOns: (loaded.addOns || []).map((a) => ({
+            id: a.id,
+            items: normalizeDefinitionItems(a.items),
+          })),
+        };
         cube = {
           title: loaded.title || '',
           blurb: loaded.blurb || '',

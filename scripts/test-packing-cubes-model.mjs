@@ -39,6 +39,8 @@ import {
   fileIntoCube,
   officialCubeFromApi,
   syncOfficialCubeFromTrip,
+  propagateOfficialCubeToTrips,
+  addedDefinitionLabels,
   normalizeDefinitionItems,
   listItemMembership,
   sortedListItems,
@@ -361,6 +363,40 @@ check('normalizeDefinitionItems coerces string rows', normalizeDefinitionItems([
   { label: 'Socks' },
   { label: 'Hat' },
 ]);
+
+const officialBefore = {
+  id: 'basics',
+  title: 'Basics',
+  items: [{ label: 'Socks' }],
+  addOns: [{ id: 'pouch', title: 'Pouch', items: [{ label: 'Lip balm' }] }],
+};
+const officialAfter = {
+  id: 'basics',
+  title: 'Basics',
+  items: [{ label: 'Socks' }, { label: 'Passport' }],
+  addOns: [{ id: 'pouch', title: 'Pouch', items: [{ label: 'Lip balm' }, { label: 'Nail clippers' }] }],
+};
+check('addedDefinitionLabels is the new official rows', addedDefinitionLabels(officialBefore.items, officialAfter.items).map((i) => i.label), ['Passport']);
+const paris = newSuitcase('Paris');
+attachCube(paris, officialBefore);
+setAddOn(paris, officialBefore, 'pouch', true);
+const gym = newSuitcase('Gym');
+attachCube(gym, officialBefore);
+const home = newSuitcase('Home');
+addItem(home, 'Keys');
+const socksRow = paris.items.find((i) => i.label === 'Socks');
+removeItem(paris, socksRow.id);
+const gained = propagateOfficialCubeToTrips([paris, gym, home], officialAfter, officialBefore);
+check('attached trip gained the new official item', paris.items.some((i) => i.label === 'Passport' && i.cubeId === 'basics'), true);
+check('other attached trip also gained the item', gym.items.some((i) => i.label === 'Passport' && i.cubeId === 'basics'), true);
+check('suitcase without the cube does not gain the item', home.items.some((i) => i.label === 'Passport'), false);
+check('trip-list delete is not undone by an official add', paris.items.some((i) => i.label === 'Socks'), false);
+check('enabled add-on trip gained the new add-on item', paris.items.some((i) => i.label === 'Nail clippers' && i.addOnId === 'pouch'), true);
+check('cube-attached trip without the add-on does not gain add-on items', gym.items.some((i) => i.label === 'Nail clippers'), false);
+check('unattached trip does not gain add-on items', home.items.some((i) => i.label === 'Nail clippers'), false);
+check('propagate reports how many rows were added', gained >= 3, true);
+const propagatedAgain = propagateOfficialCubeToTrips([paris, gym, home], officialAfter, officialBefore);
+check('second propagate of the same add is a no-op', propagatedAgain, 0);
 
 // Enabling an add-on for an unattached cube attaches it first.
 const s3 = newSuitcase('Weekend');

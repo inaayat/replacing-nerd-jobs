@@ -418,9 +418,14 @@ suitcase**. It is not a cube, not in `pc_cubes`, not in My Cubes, not
   `/api/pc-cubes` rewrite cannot drop `id`), recovers `{ cube }` or the
   matching row from a list-shaped `{ cubes }` response, appends missing
   labels, PATCHes immediately, and updates catalog/cache from the
-  response. Errors toast. Removing or unassigning on List / By cube /
-  Organize / outfits is suitcase-only. **The only place that deletes an
-  item from the reusable cube is Edit cube.**
+  response. Errors toast. Adding a label on the official cube (Edit
+  cube / My Cubes) copies **only that new label** onto every suitcase
+  whose `cubeIds` already include the cube (`propagateOfficialCubeToTrips`,
+  deduped by `itemKey`). Add-on items go only to trips that have that
+  add-on enabled. Trips that do not include the cube are left alone.
+  A trip-list delete is not re-added. Removing or unassigning on List /
+  By cube / Organize / outfits is suitcase-only. **The only place that
+  deletes an item from the reusable cube is Edit cube.**
 - **Locked:** names only for v1. No photo field.
 - Remove outfit: grouping gone; items stay on the list and on their dates.
 - Delete trip: outfits go with the suitcase.

@@ -42,6 +42,7 @@ import {
   uniqueItemsById,
   officialCubeFromApi,
   syncOfficialCubeFromTrip,
+  propagateOfficialCubeToTrips,
   normalizeDefinitionItems,
   listItemMembership,
   sortedListItems,
@@ -653,6 +654,14 @@ async function persistOfficialCubeNow(cubeId) {
   }
   try {
     const cube = await fetchOfficialCube(cubeId);
+    const previous = {
+      id: cube.id,
+      items: normalizeDefinitionItems(cube.items),
+      addOns: cubeAddOns(cube).map((a) => ({
+        id: a.id,
+        items: normalizeDefinitionItems(a.items),
+      })),
+    };
     const changed = syncOfficialCubeFromTrip(cube, activeSuitcase(), cubeId);
     rememberCube(cube);
     if (!changed) return true;
@@ -660,7 +669,10 @@ async function persistOfficialCubeNow(cubeId) {
     const saved = officialCubeFromApi(data, cubeId) || data.cube;
     if (!saved) throw new Error('Cube did not save.');
     rememberCube(saved);
+    const added = propagateOfficialCubeToTrips(state.suitcases, saved, previous);
+    if (added) saveState();
     renderCubeList();
+    renderList();
     return true;
   } catch (err) {
     showToast(`Couldn't save that item to the cube: ${err.message}`);
@@ -814,20 +826,24 @@ function openBuilderModal(editId) {
   });
 }
 
-function afterCubeSaved({ isEditing, cube }) {
+function afterCubeSaved({ isEditing, cube, previous }) {
+  const before = previous
+    || (cube?.id ? cubeCache.get(cube.id) || catalog.find((c) => c.id === cube.id) : null);
+  if (cube) rememberCube(cube);
   refreshCatalog();
-  if (isEditing || !cube?.id) return;
-  const suitcase = activeSuitcase();
-  attachCube(suitcase, cube);
-  saveState();
-  if (!(cube.items || []).length) {
+  if (!cube?.id) return;
+  if (!isEditing) attachCube(activeSuitcase(), cube);
+  const added = propagateOfficialCubeToTrips(state.suitcases, cube, before);
+  if (added || !isEditing) saveState();
+  if (!isEditing && !(cube.items || []).length) {
     organizeMode = true;
     listView = 'cube';
     try { localStorage.setItem(VIEW_KEY, listView); } catch { /* ignore */ }
   }
   renderCubeList();
   renderList();
-  showToast(`"${cube.title}" is on this list — file items into it`);
+  if (!isEditing) showToast(`"${cube.title}" is on this list — file items into it`);
+  else if (added) showToast(`Updated "${cube.title}" — added to trips that include it`);
 }
 
 function closeBuilderModal() {

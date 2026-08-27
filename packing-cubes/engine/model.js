@@ -694,6 +694,55 @@ export function attachCube(suitcase, cube) {
   return imported;
 }
 
+/** Labels on `next` that are not on `previous` (itemKey). */
+export function addedDefinitionLabels(previous, next) {
+  const prev = new Set(normalizeDefinitionItems(previous).map((i) => itemKey(i.label)));
+  return normalizeDefinitionItems(next).filter((i) => !prev.has(itemKey(i.label)));
+}
+
+/**
+ * When the official cube gains labels (Edit cube / persist), copy only those
+ * new labels onto trips that already include the cube. Does not re-add
+ * labels a trip deleted. Does not touch trips that do not attach the cube.
+ * Add-on items go only to trips that have that add-on enabled.
+ */
+export function propagateOfficialCubeToTrips(suitcases, nextCube, previousCube = null) {
+  if (!nextCube?.id || !Array.isArray(suitcases)) return 0;
+  const newBase = addedDefinitionLabels(previousCube?.items, nextCube.items);
+  const prevAddOns = new Map(cubeAddOns(previousCube).map((a) => [a.id, a]));
+  const newAddOnItems = [];
+  for (const addOn of cubeAddOns(nextCube)) {
+    if (!addOn?.id) continue;
+    for (const row of addedDefinitionLabels(prevAddOns.get(addOn.id)?.items, addOn.items)) {
+      newAddOnItems.push({ addOnId: addOn.id, label: row.label });
+    }
+  }
+  if (!newBase.length && !newAddOnItems.length) return 0;
+
+  let added = 0;
+  for (const suitcase of suitcases) {
+    if (!suitcase?.cubeIds?.includes(nextCube.id)) continue;
+    if (!Array.isArray(suitcase.items)) suitcase.items = [];
+    const seen = existingKeys(suitcase);
+    for (const row of newBase) {
+      const key = itemKey(row.label);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      suitcase.items.push(newItem(row.label, { cubeId: nextCube.id }));
+      added += 1;
+    }
+    for (const row of newAddOnItems) {
+      if (!addOnEnabled(suitcase, nextCube.id, row.addOnId)) continue;
+      const key = itemKey(row.label);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      suitcase.items.push(newItem(row.label, { cubeId: nextCube.id, addOnId: row.addOnId }));
+      added += 1;
+    }
+  }
+  return added;
+}
+
 /** Detach a cube: its imported/assigned items leave the list with it. */
 export function detachCube(suitcase, cubeId) {
   suitcase.cubeIds = suitcase.cubeIds.filter((id) => id !== cubeId);
