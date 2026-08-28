@@ -74,7 +74,10 @@ trip never edits `pc_cubes`.
   all folds every group. An item may sit under its outfit and its cube.
   One item id, one packed checkbox, one trip-local worn mark. When every item in a cube (including
   its add-ons) or an outfit is packed, that group moves to the bottom
-  (Unsorted stays last). Cubes can be dragged to set `cubeIds` order.
+  (Unsorted stays last). Cubes, outfits, and add-ons each have a compact
+  drag handle in the same left slot so titles line up. Cubes set `cubeIds`,
+  outfits set array order, add-ons set trip-local `addOnOrder` under the
+  parent cube.
   Blank add-ins are created from My Cubes / Edit cube, not from this list.
 
 ### Beta

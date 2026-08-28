@@ -493,6 +493,7 @@ export function newSuitcase(name, cubes = []) {
     items: [],
     cubeIds: [],
     addOns: {},
+    addOnOrder: {},
     startDate: null,
     endDate: null,
     days: [],
@@ -559,6 +560,7 @@ export function migrateSuitcase(raw, cubesById) {
     items,
     cubeIds: [...(raw.cubeIds || [])],
     addOns: {},
+    addOnOrder: {},
   });
 }
 
@@ -632,11 +634,45 @@ export function normalizeSuitcase(raw) {
     items,
     cubeIds: Array.isArray(s.cubeIds) ? s.cubeIds.filter(Boolean) : [],
     addOns: s.addOns && typeof s.addOns === 'object' ? s.addOns : {},
+    addOnOrder: normalizeIdOrderMap(s.addOnOrder),
     startDate,
     endDate,
     days,
     outfits: normalizeOutfits(s.outfits, items.map((i) => i.id), dayDates),
   };
+}
+
+/** `{ cubeId: [addOnId, ...] }` display order. Does not enable add-ons. */
+function normalizeIdOrderMap(raw) {
+  if (!raw || typeof raw !== 'object') return {};
+  const out = {};
+  for (const [key, ids] of Object.entries(raw)) {
+    if (!key || !Array.isArray(ids)) continue;
+    const seen = new Set();
+    const list = [];
+    for (const id of ids) {
+      const next = String(id || '').trim();
+      if (!next || seen.has(next)) continue;
+      seen.add(next);
+      list.push(next);
+    }
+    if (list.length) out[key] = list;
+  }
+  return out;
+}
+
+function permuteBand(currentIds, bandOrderedIds) {
+  const current = Array.isArray(currentIds) ? currentIds.filter(Boolean) : [];
+  const currentSet = new Set(current);
+  const seen = new Set();
+  const queue = [];
+  for (const id of bandOrderedIds || []) {
+    if (!id || !currentSet.has(id) || seen.has(id)) continue;
+    seen.add(id);
+    queue.push(id);
+  }
+  if (!queue.length) return current;
+  return current.map((id) => (seen.has(id) ? queue.shift() : id));
 }
 
 // ---------------------------------------------------------------------------
@@ -859,6 +895,7 @@ export function detachCube(suitcase, cubeId) {
   suitcase.cubeIds = suitcase.cubeIds.filter((id) => id !== cubeId);
   suitcase.items = suitcase.items.filter((i) => i.cubeId !== cubeId);
   if (suitcase.addOns) delete suitcase.addOns[cubeId];
+  if (suitcase.addOnOrder) delete suitcase.addOnOrder[cubeId];
   pruneOutfitItems(suitcase);
 }
 
@@ -918,6 +955,10 @@ export function releaseDeletedCube(suitcase, cubeId) {
   }
   if (suitcase.addOns?.[cubeId]) {
     delete suitcase.addOns[cubeId];
+    changed = true;
+  }
+  if (suitcase.addOnOrder?.[cubeId]) {
+    delete suitcase.addOnOrder[cubeId];
     changed = true;
   }
   return changed;
@@ -984,14 +1025,14 @@ export function groupedItems(suitcase, cubesById, { includeEmptyAddOns = false, 
   const addCubeGroups = (cubeId) => {
     const cube = cubesById?.get?.(cubeId);
     ensure(cubeId, cube?.title || cubeId, { cubeId });
-    for (const addOn of cubeAddOns(cube)) {
-      const hasItems = items.some((i) => i.cubeId === cubeId && i.addOnId === addOn.id);
-      if (includeEmptyAddOns || hasItems || !addOnHasTemplateItems(addOn)) {
-        ensure(addonGroupKey(cubeId, addOn.id), addOnLabel(cube || { id: cubeId }, addOn), {
-          cubeId,
-          addOnId: addOn.id,
-        });
-      }
+    for (const addOnId of visibleAddOnIds(suitcase, cube, cubeId, items, includeEmptyAddOns)) {
+      const addOn = cubeAddOns(cube).find((a) => a.id === addOnId);
+      ensure(addonGroupKey(cubeId, addOnId), addOn
+        ? addOnLabel(cube || { id: cubeId }, addOn)
+        : addOnLabel({ title: cube?.title || cubeId }, { title: addOnId }), {
+        cubeId,
+        addOnId,
+      });
     }
   };
 
@@ -1172,22 +1213,94 @@ export function reorderCubeIds(suitcase, orderedIds) {
 export function reorderCubeIdsInBand(suitcase, bandOrderedIds) {
   if (!suitcase) return [];
   const current = Array.isArray(suitcase.cubeIds) ? suitcase.cubeIds.filter(Boolean) : [];
-  const currentSet = new Set(current);
+  suitcase.cubeIds = permuteBand(current, bandOrderedIds);
+  return suitcase.cubeIds;
+}
+
+/** Replace suitcase.outfits with the given id order, appending any omitted. */
+export function reorderOutfits(suitcase, orderedIds) {
+  if (!suitcase) return [];
+  const current = Array.isArray(suitcase.outfits) ? suitcase.outfits : [];
+  const byId = new Map(current.map((o) => [o.id, o]));
   const seen = new Set();
-  const queue = [];
-  for (const id of bandOrderedIds || []) {
-    if (!id || !currentSet.has(id) || seen.has(id)) continue;
-    seen.add(id);
-    queue.push(id);
-  }
-  if (!queue.length) return current;
   const next = [];
-  for (const id of current) {
-    if (seen.has(id)) next.push(queue.shift());
-    else next.push(id);
+  for (const id of orderedIds || []) {
+    const outfit = byId.get(id);
+    if (!outfit || seen.has(id)) continue;
+    seen.add(id);
+    next.push(outfit);
   }
-  suitcase.cubeIds = next;
+  for (const outfit of current) {
+    if (!seen.has(outfit.id)) next.push(outfit);
+  }
+  suitcase.outfits = next;
+  return next.map((o) => o.id);
+}
+
+/** Permute only the dragged outfit band; other outfits keep their slots. */
+export function reorderOutfitsInBand(suitcase, bandOrderedIds) {
+  if (!suitcase) return [];
+  const current = Array.isArray(suitcase.outfits) ? suitcase.outfits : [];
+  const nextIds = permuteBand(current.map((o) => o.id), bandOrderedIds);
+  const byId = new Map(current.map((o) => [o.id, o]));
+  suitcase.outfits = nextIds.map((id) => byId.get(id)).filter(Boolean);
+  return nextIds;
+}
+
+/**
+ * Trip-local add-on display order under a cube. Does not enable or disable
+ * add-ons and does not write pc_cubes.
+ */
+export function reorderAddOns(suitcase, cubeId, orderedIds) {
+  if (!suitcase || !cubeId) return [];
+  if (!suitcase.addOnOrder || typeof suitcase.addOnOrder !== 'object') suitcase.addOnOrder = {};
+  const current = Array.isArray(suitcase.addOnOrder[cubeId])
+    ? suitcase.addOnOrder[cubeId].filter(Boolean)
+    : [];
+  const seen = new Set();
+  const next = [];
+  for (const id of orderedIds || []) {
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    next.push(id);
+  }
+  for (const id of current) {
+    if (!seen.has(id)) next.push(id);
+  }
+  suitcase.addOnOrder[cubeId] = next;
   return next;
+}
+
+function visibleAddOnIds(suitcase, cube, cubeId, items, includeEmptyAddOns) {
+  const defined = cubeAddOns(cube);
+  const candidates = [];
+  const seen = new Set();
+  const add = (id) => {
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    candidates.push(id);
+  };
+  for (const addOn of defined) {
+    const hasItems = (items || []).some((i) => i.cubeId === cubeId && i.addOnId === addOn.id);
+    if (includeEmptyAddOns || hasItems || !addOnHasTemplateItems(addOn)) add(addOn.id);
+  }
+  for (const item of items || []) {
+    if (item.cubeId === cubeId && item.addOnId) add(item.addOnId);
+  }
+  const prefer = suitcase?.addOnOrder?.[cubeId] || [];
+  const out = [];
+  const used = new Set();
+  for (const id of prefer) {
+    if (!seen.has(id) || used.has(id)) continue;
+    used.add(id);
+    out.push(id);
+  }
+  for (const id of candidates) {
+    if (used.has(id)) continue;
+    used.add(id);
+    out.push(id);
+  }
+  return out;
 }
 
 /** Count of items still unassigned — drives the Organize affordance. */

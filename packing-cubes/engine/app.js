@@ -55,6 +55,8 @@ import {
   groupUnits,
   orderUnitsForCubeView,
   reorderCubeIdsInBand,
+  reorderOutfitsInBand,
+  reorderAddOns,
   addItemToOutfit,
   normalizePrefs,
   needsCubeTemplateBackfill,
@@ -1364,45 +1366,60 @@ function animateCubeViewAfterPack(mount, suitcase) {
   animateCubeViewOrder(mount, suitcase);
 }
 
-function bindCubeDrag(mount, suitcase) {
-  mount.querySelectorAll('[data-cube-drag]').forEach((handle) => {
+function bindGroupDrag(mount, suitcase) {
+  mount.querySelectorAll('[data-group-drag]').forEach((handle) => {
     handle.addEventListener('pointerdown', (e) => {
       if (e.button) return;
+      const kind = handle.dataset.groupDrag;
+      const group = handle.closest('.pc-item-group');
       const stack = handle.closest('.pc-cube-stack');
-      if (!stack) return;
+      const moving = kind === 'cube' ? stack : group;
+      if (!moving) return;
+      const parent = kind === 'addon' ? stack : mount;
+      if (!parent) return;
       e.preventDefault();
       e.stopPropagation();
       const pointerId = e.pointerId;
       const startY = e.clientY;
       const slop = e.pointerType === 'touch' ? 8 : 5;
       let dragging = false;
-      const sameBand = () => [...mount.querySelectorAll('.pc-cube-stack')]
-        .filter((el) => el.classList.contains('is-packed') === stack.classList.contains('is-packed'));
+
+      const peersOf = () => {
+        if (kind === 'cube') {
+          return [...mount.querySelectorAll('.pc-cube-stack')]
+            .filter((el) => el.classList.contains('is-packed') === moving.classList.contains('is-packed'));
+        }
+        if (kind === 'outfit') {
+          return [...mount.querySelectorAll(':scope > .pc-item-group.outfit')]
+            .filter((el) => el.classList.contains('is-packed') === moving.classList.contains('is-packed'));
+        }
+        return [...parent.querySelectorAll(':scope > .pc-item-group.addon')];
+      };
 
       const onMove = (ev) => {
         if (ev.pointerId !== pointerId) return;
         if (!dragging) {
           if (Math.abs(ev.clientY - startY) < slop) return;
           dragging = true;
-          stack.classList.add('dragging');
+          moving.classList.add('dragging');
           document.documentElement.classList.add('pc-reordering');
           try { handle.setPointerCapture(pointerId); } catch { /* ignore */ }
         }
         const y = ev.clientY;
-        const peers = sameBand().filter((el) => el !== stack);
+        const peers = peersOf().filter((el) => el !== moving);
         let placed = false;
         for (const other of peers) {
           const box = other.getBoundingClientRect();
           if (y < box.top + box.height / 2) {
-            mount.insertBefore(stack, other);
+            parent.insertBefore(moving, other);
             placed = true;
             break;
           }
         }
         if (!placed && peers.length) {
           const last = peers[peers.length - 1];
-          if (last.nextSibling) mount.insertBefore(stack, last.nextSibling);
-          else mount.appendChild(stack);
+          if (last.nextSibling) parent.insertBefore(moving, last.nextSibling);
+          else parent.appendChild(moving);
         }
       };
 
@@ -1413,14 +1430,27 @@ function bindCubeDrag(mount, suitcase) {
         handle.removeEventListener('pointercancel', onUp);
         try { handle.releasePointerCapture(pointerId); } catch { /* ignore */ }
         document.documentElement.classList.remove('pc-reordering');
-        stack.classList.remove('dragging');
+        moving.classList.remove('dragging');
         if (!dragging) return;
-        const incompleteIds = [...mount.querySelectorAll('.pc-cube-stack:not(.is-packed)')]
-          .map((el) => el.dataset.cubeId);
-        const packedIds = [...mount.querySelectorAll('.pc-cube-stack.is-packed')]
-          .map((el) => el.dataset.cubeId);
-        reorderCubeIdsInBand(suitcase, incompleteIds);
-        reorderCubeIdsInBand(suitcase, packedIds);
+        if (kind === 'cube') {
+          const incompleteIds = [...mount.querySelectorAll('.pc-cube-stack:not(.is-packed)')]
+            .map((el) => el.dataset.cubeId);
+          const packedIds = [...mount.querySelectorAll('.pc-cube-stack.is-packed')]
+            .map((el) => el.dataset.cubeId);
+          reorderCubeIdsInBand(suitcase, incompleteIds);
+          reorderCubeIdsInBand(suitcase, packedIds);
+        } else if (kind === 'outfit') {
+          const incompleteIds = [...mount.querySelectorAll(':scope > .pc-item-group.outfit:not(.is-packed)')]
+            .map((el) => el.dataset.outfitId);
+          const packedIds = [...mount.querySelectorAll(':scope > .pc-item-group.outfit.is-packed')]
+            .map((el) => el.dataset.outfitId);
+          reorderOutfitsInBand(suitcase, incompleteIds);
+          reorderOutfitsInBand(suitcase, packedIds);
+        } else if (kind === 'addon' && stack) {
+          const ids = [...stack.querySelectorAll(':scope > .pc-item-group.addon')]
+            .map((el) => el.dataset.addOnId);
+          reorderAddOns(suitcase, stack.dataset.cubeId, ids);
+        }
         saveState();
         animateCubeViewOrder(mount, suitcase);
       };
@@ -1940,7 +1970,7 @@ function renderCubeGroups(mount, suitcase, cubeMap) {
   const units = orderUnitsForCubeView(groupUnits(groups));
   let anyVisible = false;
 
-  const groupHtml = (group, { draggable = false, packed = false } = {}) => {
+  const groupHtml = (group, { packed = false } = {}) => {
     const items = visibleItems(uniqueItemsById(group.items));
     const isUnsorted = group.key === UNSORTED_KEY;
     const isAddOnGroup = !!group.addOnId;
@@ -1952,6 +1982,11 @@ function renderCubeGroups(mount, suitcase, cubeMap) {
     const addOns = cube && !isAddOnGroup && !isOutfitGroup ? cubeAddOns(cube) : [];
     const removable = !isUnsorted && !isAddOnGroup && !isOutfitGroup && suitcase.cubeIds.includes(group.cubeId);
     const canSaveAsCube = isUnsorted && group.items.length >= 1;
+    const dragKind = isOutfitGroup
+      ? 'outfit'
+      : isAddOnGroup
+        ? 'addon'
+        : (!isUnsorted && group.cubeId && suitcase.cubeIds.includes(group.cubeId) ? 'cube' : '');
     const emptyCopy = isUnsorted
       ? 'Nothing unsorted.'
       : isAddOnGroup
@@ -1960,9 +1995,11 @@ function renderCubeGroups(mount, suitcase, cubeMap) {
           ? 'No items in this outfit yet.'
           : 'No items in this cube yet.';
     return `
-      <div class="pc-item-group ${collapsed ? 'collapsed' : ''} ${isUnsorted ? 'unsorted' : ''} ${isAddOnGroup ? 'addon' : ''} ${isOutfitGroup ? 'outfit' : ''} ${packed ? 'is-packed' : ''}" data-group-key="${escapeAttr(group.key)}" data-flip-key="${escapeAttr(group.key)}">
+      <div class="pc-item-group ${collapsed ? 'collapsed' : ''} ${isUnsorted ? 'unsorted' : ''} ${isAddOnGroup ? 'addon' : ''} ${isOutfitGroup ? 'outfit' : ''} ${packed ? 'is-packed' : ''}" data-group-key="${escapeAttr(group.key)}" data-flip-key="${escapeAttr(group.key)}"${isOutfitGroup ? ` data-outfit-id="${escapeAttr(group.outfitId)}"` : ''}${isAddOnGroup ? ` data-add-on-id="${escapeAttr(group.addOnId)}"` : ''}>
         <div class="pc-group-row">
-          ${draggable ? `<button type="button" class="pc-group-drag" data-cube-drag aria-label="Reorder ${escapeAttr(group.title)}">${GRIP_SVG}</button>` : ''}
+          ${dragKind
+            ? `<button type="button" class="pc-group-drag" data-group-drag="${dragKind}" aria-label="Reorder ${escapeAttr(group.title)}">${GRIP_SVG}</button>`
+            : `<span class="pc-group-drag pc-group-drag-slot" aria-hidden="true"></span>`}
           <button type="button" class="pc-group-header">
             <span class="chevron">${CHEVRON_SVG}</span>
             <span class="pc-group-title">${escapeHtml(group.title)}</span>
@@ -2001,8 +2038,7 @@ function renderCubeGroups(mount, suitcase, cubeMap) {
 
   mount.innerHTML = units.map((unit) => {
     if (unit.kind === 'cube') {
-      const body = unit.groups.map((group, idx) => groupHtml(group, {
-        draggable: idx === 0 && suitcase.cubeIds.includes(unit.cubeId),
+      const body = unit.groups.map((group) => groupHtml(group, {
         packed: unit.packed,
       })).join('');
       if (!body.trim()) return '';
@@ -2047,7 +2083,7 @@ function renderCubeGroups(mount, suitcase, cubeMap) {
   });
   bindItemRows(mount, suitcase);
   bindOutfitWornButtons(mount, suitcase);
-  bindCubeDrag(mount, suitcase);
+  bindGroupDrag(mount, suitcase);
 
   for (const group of groups) {
     if (group.key === UNSORTED_KEY || group.addOnId || group.outfitId) continue;

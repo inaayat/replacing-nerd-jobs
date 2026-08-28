@@ -55,6 +55,9 @@ import {
   orderUnitsForCubeView,
   reorderCubeIds,
   reorderCubeIdsInBand,
+  reorderOutfits,
+  reorderOutfitsInBand,
+  reorderAddOns,
   filedInCube,
   isIsoDate,
   datesInRange,
@@ -692,6 +695,55 @@ check('orderUnitsForCubeView keeps Unsorted last', orderUnitsForCubeView([
   { kind: 'cube', packed: false, groups: [{ key: 'open' }] },
 ]).map((u) => u.groups[0].key), ['open', 'done', UNSORTED_KEY]);
 
+const lookOrder = normalizeSuitcase({
+  id: 's-look-order',
+  outfits: [
+    { id: 'o-a', name: 'Ceremony' },
+    { id: 'o-b', name: 'Dinner' },
+    { id: 'o-c', name: 'Brunch' },
+  ],
+});
+check('reorderOutfits writes outfit array order', reorderOutfits(lookOrder, ['o-c', 'o-a']), ['o-c', 'o-a', 'o-b']);
+const lookBand = normalizeSuitcase({
+  id: 's-look-band',
+  outfits: [
+    { id: 'o-a', name: 'Ceremony' },
+    { id: 'o-b', name: 'Dinner' },
+    { id: 'o-c', name: 'Brunch' },
+    { id: 'o-d', name: 'After' },
+  ],
+});
+check('reorderOutfitsInBand permutes only the dragged band', reorderOutfitsInBand(lookBand, ['o-c', 'o-a']), ['o-c', 'o-b', 'o-a', 'o-d']);
+
+const addOnOrderTrip = normalizeSuitcase({
+  id: 's-addon-order',
+  cubeIds: ['toiletries'],
+  items: [
+    { id: 'tb', label: 'Toothbrush', cubeId: 'toiletries' },
+    { id: 'ib', label: 'Ibuprofen', cubeId: 'toiletries', addOnId: 'travel-meds' },
+    { id: 'mz', label: 'Moisturizer', cubeId: 'toiletries', addOnId: 'beauty-basics' },
+  ],
+});
+check(
+  'add-ons follow cube definition until dragged',
+  groupedItems(addOnOrderTrip, cubesById).map((g) => g.key),
+  ['toiletries', addonGroupKey('toiletries', 'travel-meds'), addonGroupKey('toiletries', 'beauty-basics')],
+);
+check(
+  'reorderAddOns writes suitcase addOnOrder',
+  reorderAddOns(addOnOrderTrip, 'toiletries', ['beauty-basics', 'travel-meds']),
+  ['beauty-basics', 'travel-meds'],
+);
+check(
+  'By cube add-ons follow trip addOnOrder',
+  groupedItems(addOnOrderTrip, cubesById).map((g) => g.key),
+  ['toiletries', addonGroupKey('toiletries', 'beauty-basics'), addonGroupKey('toiletries', 'travel-meds')],
+);
+check('addOnOrder survives normalize', normalizeSuitcase(addOnOrderTrip).addOnOrder.toiletries, ['beauty-basics', 'travel-meds']);
+check('addOnOrder is not the enabled list', addOnOrderTrip.addOns, {});
+detachCube(addOnOrderTrip, 'toiletries');
+check('detach drops addOnOrder for that cube', addOnOrderTrip.addOnOrder.toiletries, undefined);
+
 // --- removeItem ---
 check('removeItem deletes by id', removeItem(s4, 'c'), true);
 check('removeItem unknown id is false', removeItem(s4, 'zzz'), false);
@@ -726,7 +778,7 @@ check('migrating a v2 suitcase is a normalize pass', migrateSuitcase(s4, cubesBy
 // --- normalize tolerates junk ---
 const junk = normalizeSuitcase({ items: [{ label: 'Ok' }, null, { nope: true }], cubeIds: null, addOns: null });
 check('normalize drops malformed items', junk.items.map((i) => i.label), ['Ok']);
-check('normalize defaults collections', [junk.cubeIds, junk.addOns], [[], {}]);
+check('normalize defaults collections', [junk.cubeIds, junk.addOns, junk.addOnOrder], [[], {}, {}]);
 check('normalize stamps ids', typeof junk.items[0].id === 'string' && junk.items[0].id.length > 0, true);
 check('normalize defaults empty days and outfits', [junk.days, junk.outfits, junk.startDate, junk.items[0].dates], [[], [], null, []]);
 
