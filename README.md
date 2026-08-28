@@ -577,6 +577,7 @@ only runs the code that talks to it). Accessed from serverless functions via
 | `alist_tv_watchlist` | A-Lister | TV to watch |
 | `alist_tv_cache` | A-Lister | TMDB TV payloads |
 | `alist_movie_ranks` | A-Lister | Per-user movie stack rank (beta); independent of the watch log |
+| `alist_tv_ranks` | A-Lister | Per-user TV stack rank (beta); independent of the TV log; TMDB TV ids, not movie ids |
 | `pc_cubes` | Packing Cubes | Per-user private cubes (`add_ons` JSONB, `include_by_default`; `is_public`/`github_pr_url`/`published_at` are vestigial) |
 | `pc_suitcase_state` | Packing Cubes | Active suitcase + packed state JSON |
 | `plot_points_cache` | Plot Points | Query/result cache keyed by `cache_key` |

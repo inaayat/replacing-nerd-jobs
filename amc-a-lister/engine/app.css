@@ -4710,6 +4710,10 @@ table.al-table {
   gap: 12px;
 }
 
+.al-rank-panel .al-watchlist-segment {
+  margin-bottom: 2px;
+}
+
 .al-rank-poster,
 .al-rank-chip-poster {
   border-radius: 8px;
