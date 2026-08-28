@@ -14,6 +14,11 @@ import {
   removeItem,
   updateItemLabel,
   setItemPacked,
+  setItemWorn,
+  wornItems,
+  wornStats,
+  outfitWornState,
+  setOutfitWorn,
   assignItem,
   packedStats,
   allPacked,
@@ -835,6 +840,97 @@ check('MAX_DAYS is 31', MAX_DAYS, 31);
 const cap = newSuitcase('Long');
 setTripDates(cap, { startDate: '2026-01-01', endDate: '2026-12-31' });
 check('range fill stops at the cap', cap.days.length, 31);
+
+// --- worn (trip-local; packed ≠ worn; never on pc_cubes) ---
+const woreTrip = normalizeSuitcase({
+  id: 's-wore',
+  name: 'What I wore',
+  items: [
+    { id: 'dress', label: 'Black dress', packed: true, worn: true },
+    { id: 'heels', label: 'Heels', packed: true },
+    { id: 'scarf', label: 'Scarf', worn: true },
+  ],
+});
+check('normalize keeps worn', woreTrip.items.find((i) => i.id === 'dress').worn, true);
+check('worn defaults false', woreTrip.items.find((i) => i.id === 'heels').worn, false);
+check('worn without packed is allowed', [
+  woreTrip.items.find((i) => i.id === 'scarf').packed,
+  woreTrip.items.find((i) => i.id === 'scarf').worn,
+], [false, true]);
+check('packed and worn stay independent', [
+  woreTrip.items.find((i) => i.id === 'dress').packed,
+  woreTrip.items.find((i) => i.id === 'dress').worn,
+], [true, true]);
+check('setItemWorn marks an item', setItemWorn(woreTrip, 'heels', true), true);
+check('setItemWorn unknown id is false', setItemWorn(woreTrip, 'zzz', true), false);
+check('wornItems lists trip-local flags', wornItems(woreTrip).map((i) => i.id).sort(), ['dress', 'heels', 'scarf']);
+check('wornStats counts worn rows', wornStats(woreTrip), { worn: 3, total: 3 });
+setItemPacked(woreTrip, 'heels', false);
+check('unpacking does not clear worn', woreTrip.items.find((i) => i.id === 'heels').worn, true);
+
+const lookTrip = newSuitcase('Dinner out');
+const blazerW = addItem(lookTrip, 'Navy blazer');
+const shoesW = addItem(lookTrip, 'Dress shoes');
+const dinner = addOutfit(lookTrip, { name: 'Dinner', itemIds: [blazerW.id, shoesW.id] });
+check('outfit-mark-worn needs no date', dinner.date, null);
+check('setOutfitWorn marks every item', setOutfitWorn(lookTrip, dinner.id, true), 2);
+check('outfit items are worn', [blazerW.worn, shoesW.worn], [true, true]);
+check('outfitWornState all', outfitWornState(lookTrip, dinner), { total: 2, worn: 2, all: true, some: false });
+setItemWorn(lookTrip, shoesW.id, false);
+check('outfitWornState some', outfitWornState(lookTrip, dinner).some, true);
+check('setOutfitWorn clears', setOutfitWorn(lookTrip, dinner.id, false), 2);
+check('outfit worn cleared', [blazerW.worn, shoesW.worn], [false, false]);
+check('setOutfitWorn unknown outfit is 0', setOutfitWorn(lookTrip, 'nope', true), 0);
+
+const persistTrip = normalizeSuitcase({
+  items: [{ id: 'w1', label: 'Socks', cubeId: 'basics', packed: true, worn: true }],
+  cubeIds: ['basics'],
+});
+const persistAgain = normalizeSuitcase(persistTrip);
+check('worn persists on the suitcase item', persistAgain.items[0].worn, true);
+check('worn persist does not invent a cube field', persistAgain.items[0].cubeId, 'basics');
+
+const official = { id: 'basics', title: 'Basics', items: [] };
+check('syncOfficialCubeFromTrip appends the label', syncOfficialCubeFromTrip(official, persistTrip), true);
+check('official cube stores only { label }', official.items, [{ label: 'Socks' }]);
+check('official cube has no worn key', Object.prototype.hasOwnProperty.call(official.items[0], 'worn'), false);
+check(
+  'normalizeDefinitionItems strips worn/packed',
+  normalizeDefinitionItems([{ label: 'Socks', worn: true, packed: true }]),
+  [{ label: 'Socks' }],
+);
+check(
+  'uniqueDefinitionItems strips worn',
+  uniqueDefinitionItems([{ label: 'Socks', worn: true }]),
+  [{ label: 'Socks' }],
+);
+const filedCube = { id: 'basics', title: 'Basics', items: [] };
+const filedTrip = newSuitcase('File worn');
+const filedRow = fileIntoCube(filedTrip, filedCube, 'Tee');
+setItemWorn(filedTrip, filedRow.item.id, true);
+syncOfficialCubeFromTrip(filedCube, filedTrip);
+check('filing a worn item still writes only the label', filedCube.items, [{ label: 'Tee' }]);
+
+setItemWorn(past, pastSuit.id, true);
+const destFresh = newSuitcase('Fresh copy');
+copyOutfit(past, past.outfits[0], destFresh, { addMissing: true });
+check('copy does not copy worn onto this trip', destFresh.items.every((i) => !i.worn), true);
+check('source trip keeps worn', past.items.find((i) => i.id === pastSuit.id).worn, true);
+
+const worePast = newSuitcase('Last beach');
+const unusedShirt = addItem(worePast, 'Linen shirt');
+const usedShorts = addItem(worePast, 'Swim shorts');
+setItemWorn(worePast, usedShorts.id, true);
+addOutfit(worePast, { name: 'Swim day', itemIds: [unusedShirt.id, usedShorts.id] });
+const otherPast = newSuitcase('Other trip');
+const sunHat = addItem(otherPast, 'Sun hat');
+addOutfit(otherPast, { name: 'Pool', event: 'beach', itemIds: [sunHat.id] });
+const currentTrip = newSuitcase('Now');
+const beachHits = searchPastOutfits([worePast, otherPast, currentTrip], currentTrip.id, 'beach');
+check('past-outfit search prefers worn outfits', beachHits.map((h) => h.name), ['Swim day', 'Pool']);
+check('worn labels listed first', beachHits[0].labels, ['Swim shorts', 'Linen shirt']);
+check('wornCount is on the hit', beachHits[0].wornCount, 1);
+check('unworn past outfit ranks later', beachHits[1].wornCount, 0);
 
 if (failures) {
   console.error(`\n${failures} failure(s)`);

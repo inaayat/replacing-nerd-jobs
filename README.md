@@ -38,7 +38,9 @@ Neon (`pc_cubes`, with `add_ons` JSONB and `include_by_default`, and
 `api/packing-cubes.js`. **Signing in is required** — the default view is a
 centered card with the Sign in / Sign up form on the page (same Neon Auth JWT
 as the rest of the site; account delete stays on `/account.html`). Trip-local **Outfits** (named looks, never cubes) are on by default, including
-as groups on List and By cube. Optional **beta** (per-user badge, off by
+as groups on List and By cube. After the trip you can mark what you actually
+**wore** (`item.worn` on the suitcase list — not on `pc_cubes`); an outfit
+can be marked worn in one tap. Optional **beta** (per-user badge, off by
 default) adds Plan by day (calendar dates on the trip). Installable
 PWA (`manifest.webmanifest`, icons via
 `node scripts/generate-packing-cubes-icons.mjs`), same pattern as A-Lister /

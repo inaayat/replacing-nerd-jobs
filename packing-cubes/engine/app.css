@@ -670,6 +670,36 @@
   overflow-wrap: anywhere;
 }
 
+.pc-worn-toggle {
+  flex-shrink: 0;
+  font: inherit;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border: var(--outline);
+  border-radius: 99px;
+  background: transparent;
+  color: var(--faint);
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.pc-worn-toggle.on {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  border-color: var(--accent);
+}
+
+.pc-worn-toggle:hover { color: var(--ink); }
+
+.pc-worn-toggle.on:hover { color: var(--accent-strong); }
+
+.pc-mark-outfit-worn.on {
+  color: var(--accent-strong);
+}
+
 .pc-cube-chip {
   flex-shrink: 0;
   font-size: 0.68rem;
@@ -732,6 +762,7 @@
   .pc-checklist li { padding-top: 8px; padding-bottom: 8px; }
   .pc-checklist input[type="checkbox"] { width: 20px; height: 20px; }
   .pc-item-remove { width: 34px; height: 34px; opacity: 1; }
+  .pc-worn-toggle { min-height: 32px; padding: 4px 8px; font-size: 0.68rem; }
 }
 
 /* Organize mode rows */

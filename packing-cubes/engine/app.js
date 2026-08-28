@@ -19,6 +19,10 @@ import {
   removeItem,
   updateItemLabel,
   setItemPacked,
+  setItemWorn,
+  setOutfitWorn,
+  outfitWornState,
+  wornStats,
   assignItem,
   packedStats,
   allPacked,
@@ -90,6 +94,7 @@ let auth = null;
 let searchQuery = '';
 let listFilter = '';
 let hidePacked = false;
+let wornOnly = false;
 let organizeMode = false;
 let listView = ['cube', 'day', 'outfits'].includes(localStorage.getItem(VIEW_KEY))
   ? localStorage.getItem(VIEW_KEY)
@@ -925,7 +930,11 @@ function renderListPanel() {
           aria-pressed="${betaOn()}">${betaOn() ? 'Beta · on' : 'Beta'}</button>
         ${listView === 'list' || listView === 'cube' ? `
           <label class="pc-toggle-chip"><input type="checkbox" id="hide-packed-toggle" ${hidePacked ? 'checked' : ''}> Hide packed</label>
+          <label class="pc-toggle-chip"><input type="checkbox" id="worn-only-toggle" ${wornOnly ? 'checked' : ''}> Worn</label>
           <button type="button" class="pc-btn sm ${organizeMode ? 'primary' : ''}" id="organize-btn"></button>
+        ` : ''}
+        ${listView === 'outfits' ? `
+          <label class="pc-toggle-chip"><input type="checkbox" id="worn-only-toggle" ${wornOnly ? 'checked' : ''}> Worn</label>
         ` : ''}
         ${listView === 'cube' ? `
           <button type="button" class="pc-btn sm" id="collapse-all-groups">Collapse all</button>
@@ -1008,6 +1017,14 @@ function renderListPanel() {
     });
   }
 
+  const wornOnlyToggle = document.getElementById('worn-only-toggle');
+  if (wornOnlyToggle) {
+    wornOnlyToggle.addEventListener('change', (e) => {
+      wornOnly = e.target.checked;
+      renderList();
+    });
+  }
+
   content.querySelectorAll('.pc-view-toggle [data-view]').forEach((btn) => {
     btn.addEventListener('click', () => {
       listView = btn.dataset.view;
@@ -1067,8 +1084,10 @@ function updateHud(suitcase) {
   if (barEl) barEl.style.width = total ? `${(packed / total) * 100}%` : '0%';
   if (noteEl) {
     const unsorted = unsortedCount(suitcase);
+    const { worn } = wornStats(suitcase);
     const parts = [`${suitcase.cubeIds.length} cube${suitcase.cubeIds.length === 1 ? '' : 's'}`];
     if (unsorted) parts.push(`${unsorted} unsorted`);
+    if (worn) parts.push(`${worn} worn`);
     noteEl.textContent = parts.join(' · ');
   }
 
@@ -1091,6 +1110,7 @@ function visibleItems(items) {
   let out = items;
   if (q) out = out.filter((i) => i.label.toLowerCase().includes(q));
   if (hidePacked && !organizeMode) out = out.filter((i) => !i.packed);
+  if (wornOnly && !organizeMode) out = out.filter((i) => i.worn);
   return out;
 }
 
@@ -1145,12 +1165,30 @@ function itemRowHtml(item, { showCubeChip, cubeMap }) {
 
   const chip = showCubeChip ? itemChipHtml(item, cubeMap) : '';
   return `
-    <li class="${item.packed ? 'packed' : ''}" data-item-id="${escapeAttr(item.id)}">
+    <li class="${item.packed ? 'packed' : ''} ${item.worn ? 'worn' : ''}" data-item-id="${escapeAttr(item.id)}">
       <input type="checkbox" ${item.packed ? 'checked' : ''} aria-label="Mark ${escapeAttr(item.label)} as packed">
       <span class="pc-item-label">${escapeHtml(item.label)}</span>
+      ${wornToggleHtml(item)}
       ${chip}
       <button type="button" class="pc-item-remove" title="Remove item" aria-label="Remove ${escapeAttr(item.label)}">&times;</button>
     </li>`;
+}
+
+function wornToggleHtml(item) {
+  const on = !!item.worn;
+  return `<button type="button" class="pc-worn-toggle ${on ? 'on' : ''}" data-worn-toggle
+    aria-pressed="${on}" title="${on ? 'Unmark worn' : 'Mark worn'}"
+    aria-label="${on ? 'Unmark' : 'Mark'} ${escapeAttr(item.label)} as worn">Worn</button>`;
+}
+
+function outfitWornButtonHtml(suitcase, outfit, { compact = false } = {}) {
+  if (!outfit?.id) return '';
+  const state = outfitWornState(suitcase, outfit);
+  if (!state.total) return '';
+  const label = state.all ? 'Worn' : (state.some ? `Worn ${state.worn}/${state.total}` : 'Mark worn');
+  const cls = compact ? 'pc-group-action pc-mark-outfit-worn' : 'pc-btn sm pc-mark-outfit-worn';
+  return `<button type="button" class="${cls} ${state.all ? 'on' : ''}" data-outfit-worn="${escapeAttr(outfit.id)}"
+    aria-pressed="${state.all}">${escapeHtml(label)}</button>`;
 }
 
 function prefersReducedMotion() {
@@ -1202,6 +1240,36 @@ function applyPackedClass(mount, itemId, packed) {
     row.classList.toggle('packed', packed);
     const box = row.querySelector('input[type="checkbox"]');
     if (box) box.checked = packed;
+  });
+}
+
+function applyWornClass(mount, itemId, worn) {
+  mount.querySelectorAll(`li[data-item-id="${CSS.escape(itemId)}"]`).forEach((row) => {
+    row.classList.toggle('worn', worn);
+    const btn = row.querySelector('[data-worn-toggle]');
+    if (btn) {
+      btn.classList.toggle('on', worn);
+      btn.setAttribute('aria-pressed', worn ? 'true' : 'false');
+      const label = row.querySelector('.pc-item-label')?.textContent || '';
+      btn.title = worn ? 'Unmark worn' : 'Mark worn';
+      btn.setAttribute('aria-label', `${worn ? 'Unmark' : 'Mark'} ${label} as worn`);
+    }
+  });
+}
+
+function bindOutfitWornButtons(mount, suitcase) {
+  mount.querySelectorAll('[data-outfit-worn]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const outfitId = btn.dataset.outfitWorn;
+      const outfit = (suitcase.outfits || []).find((o) => o.id === outfitId);
+      if (!outfit) return;
+      const next = !outfitWornState(suitcase, outfit).all;
+      setOutfitWorn(suitcase, outfitId, next);
+      saveState();
+      renderList();
+    });
   });
 }
 
@@ -1367,6 +1435,23 @@ function bindCubeDrag(mount, suitcase) {
 function bindItemRows(mount, suitcase) {
   mount.querySelectorAll('li[data-item-id]').forEach((li) => {
     const itemId = li.dataset.itemId;
+
+    const wornBtn = li.querySelector('[data-worn-toggle]');
+    if (wornBtn) {
+      wornBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const next = !wornBtn.classList.contains('on');
+        setItemWorn(suitcase, itemId, next);
+        saveState();
+        if (wornOnly) {
+          renderList();
+          return;
+        }
+        applyWornClass(mount, itemId, next);
+        updateHud(suitcase);
+      });
+    }
 
     const checkbox = li.querySelector('input[type="checkbox"]');
     if (checkbox) {
@@ -1536,9 +1621,10 @@ function paintDayCards(cards, suitcase) {
           <ul class="pc-checklist">
             ${loose.length
               ? loose.map((item) => `
-                  <li class="${item.packed ? 'packed' : ''}" data-item-id="${escapeAttr(item.id)}">
+                  <li class="${item.packed ? 'packed' : ''} ${item.worn ? 'worn' : ''}" data-item-id="${escapeAttr(item.id)}">
                     <input type="checkbox" ${item.packed ? 'checked' : ''} aria-label="Mark ${escapeAttr(item.label)} packed">
                     <span class="pc-item-label">${escapeHtml(item.label)}</span>
+                    ${wornToggleHtml(item)}
                     <button type="button" class="pc-unassign-day" data-item-id="${escapeAttr(item.id)}" data-date="${escapeAttr(day.date)}" aria-label="Remove from this day">&times;</button>
                   </li>`).join('')
               : '<li class="pc-group-empty">Nothing assigned to this date.</li>'}
@@ -1600,6 +1686,7 @@ function datesLongerThanCap(start, end) {
 function renderOutfitsView(mount, suitcase) {
   const q = listFilter.trim().toLowerCase();
   const outfits = (suitcase.outfits || []).filter((o) => {
+    if (wornOnly && !outfitWornState(suitcase, o).worn) return false;
     if (!q) return true;
     return [o.name, o.event, outfitSummary(suitcase, o)].join(' ').toLowerCase().includes(q);
   });
@@ -1618,7 +1705,7 @@ function renderOutfitsView(mount, suitcase) {
           <button type="button" class="pc-past-hit" data-from="${escapeAttr(hit.suitcaseId)}" data-outfit="${escapeAttr(hit.outfitId)}">
             <b>${escapeHtml(hit.name)}</b>
             ${hit.event ? ` · ${escapeHtml(hit.event)}` : ''}
-            <div class="pc-muted">${escapeHtml(hit.suitcaseName || 'Untitled')} · ${escapeHtml(hit.labels.join(', ') || 'empty')}</div>
+            <div class="pc-muted">${escapeHtml(hit.suitcaseName || 'Untitled')}${hit.wornCount ? ` · ${hit.wornCount} worn` : ''} · ${escapeHtml(hit.labels.join(', ') || 'empty')}</div>
           </button>
         `).join('')}
       </div>
@@ -1631,6 +1718,7 @@ function renderOutfitsView(mount, suitcase) {
         </div>
         <p class="pc-muted">${o.date ? escapeHtml(dayLabel(suitcase, o.date)) : 'No date yet'} · ${escapeHtml(outfitSummary(suitcase, o))}</p>
         <div class="pc-expand-actions">
+          ${outfitWornButtonHtml(suitcase, o)}
           <button type="button" class="pc-btn sm pc-edit-outfit" data-outfit-id="${escapeAttr(o.id)}">Edit</button>
         </div>
       </section>
@@ -1655,6 +1743,7 @@ function renderOutfitsView(mount, suitcase) {
   mount.querySelectorAll('.pc-past-hit').forEach((btn) => {
     btn.addEventListener('click', () => copyPastOutfit(btn.dataset.from, btn.dataset.outfit));
   });
+  bindOutfitWornButtons(mount, suitcase);
 }
 
 function copyPastOutfit(fromId, outfitId) {
@@ -1879,6 +1968,7 @@ function renderCubeGroups(mount, suitcase, cubeMap) {
             <span class="pc-group-title">${escapeHtml(group.title)}</span>
             <span class="pc-group-count">${group.items.filter((i) => i.packed).length}/${group.items.length}</span>
           </button>
+          ${isOutfitGroup ? outfitWornButtonHtml(suitcase, (suitcase.outfits || []).find((o) => o.id === group.outfitId), { compact: true }) : ''}
           ${canSaveAsCube ? `<button type="button" class="pc-group-action" id="save-unsorted-cube">Save as cube</button>` : ''}
           ${removable ? `<button type="button" class="pc-group-remove" data-remove-cube="${escapeAttr(group.cubeId)}"
             title="Remove this cube and its items from the list" aria-label="Remove ${escapeAttr(group.title)} from the list">&times;</button>` : ''}
@@ -1956,6 +2046,7 @@ function renderCubeGroups(mount, suitcase, cubeMap) {
     });
   });
   bindItemRows(mount, suitcase);
+  bindOutfitWornButtons(mount, suitcase);
   bindCubeDrag(mount, suitcase);
 
   for (const group of groups) {

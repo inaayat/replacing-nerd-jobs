@@ -2,7 +2,9 @@
 // Keep this dependency-free ESM: no `node:` imports, no npm packages, no DOM.
 //
 // The data model (v2) is list-first:
-//   - A suitcase owns a flat packing list: items[{ id, label, cubeId, addOnId, packed }].
+//   - A suitcase owns a flat packing list: items[{ id, label, cubeId, addOnId, packed, worn }].
+//     packed ≠ worn: packed is what you put in the bag; worn is what you
+//     actually put on. Worn is trip-local and never written to pc_cubes.
 //     The list is the source of truth — items can be typed straight in with no cube.
 //   - Cubes are an organization layer on top. Attaching a cube imports its item
 //     labels into the list (tagged with the cubeId); "Organize" re-assigns any
@@ -466,13 +468,14 @@ export function sortCatalog(cubes) {
 // Suitcase shape + migration
 // ---------------------------------------------------------------------------
 
-export function newItem(label, { cubeId = null, addOnId = null, packed = false, dates = [] } = {}) {
+export function newItem(label, { cubeId = null, addOnId = null, packed = false, worn = false, dates = [] } = {}) {
   return {
     id: newId(),
     label: String(label || '').trim(),
     cubeId,
     addOnId,
     packed: !!packed,
+    worn: !!worn,
     dates: normalizeDateList(dates),
   };
 }
@@ -617,6 +620,7 @@ export function normalizeSuitcase(raw) {
         cubeId: i.cubeId || null,
         addOnId: i.addOnId || null,
         packed: !!i.packed,
+        worn: !!i.worn,
         // Discard numbered-day draft (`dayIds`). Keep only ISO dates on this trip.
         dates: normalizeDateList(i.dates).filter((d) => dayDates.has(d)),
       })),
@@ -701,6 +705,49 @@ export function setItemPacked(suitcase, itemId, packed) {
   if (!item) return false;
   item.packed = !!packed;
   return true;
+}
+
+/** Trip-local. Does not change packed, and never writes pc_cubes. */
+export function setItemWorn(suitcase, itemId, worn) {
+  const item = suitcase.items.find((i) => i.id === itemId);
+  if (!item) return false;
+  item.worn = !!worn;
+  return true;
+}
+
+export function wornItems(suitcase) {
+  return (suitcase?.items || []).filter((i) => i.worn);
+}
+
+export function wornStats(suitcase) {
+  const total = (suitcase?.items || []).length;
+  const worn = wornItems(suitcase).length;
+  return { worn, total };
+}
+
+/** What this outfit actually wore on this trip. Date is irrelevant. */
+export function outfitWornState(suitcase, outfit) {
+  const items = (outfit?.itemIds || [])
+    .map((id) => (suitcase?.items || []).find((i) => i.id === id))
+    .filter(Boolean);
+  const worn = items.filter((i) => i.worn).length;
+  return {
+    total: items.length,
+    worn,
+    all: items.length > 0 && worn === items.length,
+    some: worn > 0 && worn < items.length,
+  };
+}
+
+/** One tap: mark (or clear) worn on every item in the outfit. No date needed. */
+export function setOutfitWorn(suitcase, outfitId, worn) {
+  const outfit = (suitcase?.outfits || []).find((o) => o.id === outfitId);
+  if (!outfit) return 0;
+  let n = 0;
+  for (const id of outfit.itemIds || []) {
+    if (setItemWorn(suitcase, id, worn)) n += 1;
+  }
+  return n;
 }
 
 /** Organize: assign (or unassign, cubeId = null) an item to a cube or add-on. */
@@ -1324,10 +1371,13 @@ export function searchPastOutfits(suitcases, currentId, query) {
   for (const suitcase of Array.isArray(suitcases) ? suitcases : []) {
     if (!suitcase || suitcase.id === currentId) continue;
     for (const outfit of suitcase.outfits || []) {
-      const labels = (outfit.itemIds || []).map((id) => {
-        const item = (suitcase.items || []).find((i) => i.id === id);
-        return item?.label || '';
+      const rows = (outfit.itemIds || []).map((id) => {
+        return (suitcase.items || []).find((i) => i.id === id);
       }).filter(Boolean);
+      const wornRows = rows.filter((i) => i.worn);
+      const otherRows = rows.filter((i) => !i.worn);
+      const labels = [...wornRows, ...otherRows].map((i) => i.label).filter(Boolean);
+      const wornLabels = wornRows.map((i) => i.label).filter(Boolean);
       const haystack = [outfit.name, outfit.event, suitcase.name, ...labels].join(' ').toLowerCase();
       if (q && !haystack.includes(q)) continue;
       hits.push({
@@ -1337,9 +1387,15 @@ export function searchPastOutfits(suitcases, currentId, query) {
         name: outfit.name,
         event: outfit.event || '',
         labels,
+        wornLabels,
+        wornCount: wornLabels.length,
       });
     }
   }
+  hits.sort((a, b) => {
+    if (b.wornCount !== a.wornCount) return b.wornCount - a.wornCount;
+    return String(a.name || '').localeCompare(String(b.name || ''));
+  });
   return hits;
 }
 

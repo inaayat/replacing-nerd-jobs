@@ -66,11 +66,13 @@ trip never edits `pc_cubes`.
   per item, sorted by cube then outfit, Unsorted last, with a chip of the
   cube or outfit. No collapsible sections. Shared items appear once.
   Checking an item slides it to the bottom; unchecking puts it back in
-  cube / outfit order.
+  cube / outfit order. Each row has a compact Worn toggle (`item.worn`,
+  trip-local, not on `pc_cubes`). Packed ≠ worn. A Worn filter shows
+  what you actually put on.
 - As a packer in By cube, I see outfits and cubes as collapsible groups
   (including empty ones). Outfit groups are not My Cubes cubes. Collapse
   all folds every group. An item may sit under its outfit and its cube.
-  One item id, one packed checkbox. When every item in a cube (including
+  One item id, one packed checkbox, one trip-local worn mark. When every item in a cube (including
   its add-ons) or an outfit is packed, that group moves to the bottom
   (Unsorted stays last). Cubes can be dragged to set `cubeIds` order.
   Blank add-ins are created from My Cubes / Edit cube, not from this list.
@@ -300,14 +302,14 @@ stay until they remove them.
 
 ```js
 {
-  id, label, cubeId, addOnId, packed,  // existing
+  id, label, cubeId, addOnId, packed, worn,  // worn is trip-local, not pc_cubes
   dates: [],                           // 0..N ISO dates; rewear = multiple
 }
 ```
 
-`dates` is the only new item field. Outfits do **not** get a back-pointer
+`dates` and `worn` are trip-local. Outfits do **not** get a back-pointer
 on the item (the outfit owns `itemIds`). One packed flag still covers every
-date the item appears on.
+date the item appears on. Packed ≠ worn.
 
 ### 5.5 Caps (keep the JSONB blob small)
 
