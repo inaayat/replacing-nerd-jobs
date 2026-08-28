@@ -150,6 +150,7 @@ function selectedChoice(node, answers) {
 }
 
 function renderDecisionFlow(result, answers) {
+  const visiblePath = result.path.slice(-3);
   return `
     <section class="flow-panel" aria-labelledby="flow-title">
       <div class="flow-head">
@@ -157,28 +158,32 @@ function renderDecisionFlow(result, answers) {
           <p class="eyebrow">Your path</p>
           <h2 id="flow-title">See how each answer leads to the next question</h2>
         </div>
-        <p>Choose an earlier card to change that answer. Everything after it will update.</p>
+        <div class="flow-tools">
+          <p>The latest decisions stay here. Earlier answers remain in your summary.</p>
+          <button type="button" class="flow-reset" data-reset ${Object.keys(answers).length ? '' : 'disabled'}>Start over</button>
+        </div>
       </div>
       <div class="flow-viewport">
         <div class="flow-track" id="decision-flow">
-          ${result.path
-            .map((node) => {
+          ${visiblePath
+            .map((node, index) => {
               const isCurrent = node === result.current;
               const choice = selectedChoice(node, answers);
               const step = STEPS.find((item) => item.id === node.step);
+              const hideOnPhone = visiblePath.length === 3 && index === 0 ? ' flow-phone-oldest' : '';
               const nodeMarkup = isCurrent
-                ? `<article class="flow-node is-current" aria-current="step">
+                ? `<article class="flow-node is-current${hideOnPhone}" aria-current="step">
                     <span class="flow-state">You are here</span>
                     <span class="flow-step">${escapeHtml(step?.label || 'Result')}</span>
                     <strong>${escapeHtml(node.title)}</strong>
                   </article>`
-                : `<button type="button" class="flow-node is-done" data-rewind="${escapeAttr(node.id)}">
+                : `<button type="button" class="flow-node is-done${hideOnPhone}" data-rewind="${escapeAttr(node.id)}">
                     <span class="flow-state">Answered</span>
                     <span class="flow-step">${escapeHtml(step?.label || 'Result')}</span>
                     <strong>${escapeHtml(node.title)}</strong>
                   </button>`;
               const connector = choice
-                ? `<div class="flow-connector" aria-label="Your answer was ${escapeAttr(choice.label)}">
+                ? `<div class="flow-connector${hideOnPhone}" aria-label="Your answer was ${escapeAttr(choice.label)}">
                     <span>${escapeHtml(choice.label)}</span>
                     <b aria-hidden="true">→</b>
                   </div>`
@@ -319,7 +324,6 @@ function renderWalk() {
         <p class="kicker">Guided revenue check</p>
         <h1>When should this customer sale become revenue?</h1>
         <p>Answer one question at a time. We will connect your answers into a visible path and explain the accounting in everyday language.</p>
-        ${Object.keys(bag).length ? '<p><button type="button" class="btn ghost" data-reset>Start this walk over</button></p>' : ''}
       </section>`;
 
   const score =
@@ -477,15 +481,6 @@ function render() {
     ${body}
     ${renderCiteLayer()}
   `;
-  requestAnimationFrame(() => {
-    const viewport = root.querySelector('.flow-viewport');
-    if (!viewport) return;
-    if (window.matchMedia('(max-width: 640px)').matches) {
-      viewport.scrollTop = viewport.scrollHeight;
-    } else {
-      viewport.scrollLeft = viewport.scrollWidth;
-    }
-  });
 }
 
 function hideCite() {
@@ -566,7 +561,6 @@ root.addEventListener('click', (event) => {
   if (choice) {
     setAnswer(choice.getAttribute('data-node'), choice.getAttribute('data-choice'));
     hideCite();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
     return;
   }
 
