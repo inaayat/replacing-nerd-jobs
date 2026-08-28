@@ -6,9 +6,11 @@ Live on [inaayat.xyz](https://inaayat.xyz).
 
 AMC A-List membership value tracker: log screenings, compare billed vs. ticket
 prices, watchlist, TV log, leaderboard, showing invites. Optional **Rank** beta
-(Settings) is a Beli-style movie stack of unique theater watches (DNFs included,
-home/streaming excluded), stored separately from the watch log. First setup ranks
-every eligible title; later adds use compare, search, or unranked chips. Fully Neon Auth + Neon
+(Settings) is a Beli-style stack with Movies and TV tabs. Movies are unique
+theater watches (DNFs included, home/streaming excluded). TV is unique logged
+shows (episodes of one series count once). Both stacks are stored separately
+from the watch logs. First setup ranks every eligible title; later adds use
+compare, search, or unranked chips. Fully Neon Auth + Neon
 Postgres; movie/TV metadata from TMDB via `lib/tmdb.js`.
 
 ### Packing Cubes — `/packing-cubes`
@@ -429,7 +431,7 @@ Current roster (10/12):
 | `api/auth-config.js` | Returns `{ url: NEON_AUTH_BASE_URL }` so the browser can talk to Neon Auth without a hardcoded URL. |
 | `api/auth-login.js` | Server-side Neon Auth sign-in/sign-up; returns a JWT (needed for mobile PWAs that block third-party auth cookies). |
 | `api/me.js` | Authed account sync: GET upserts the Neon Auth user into Postgres; DELETE wipes app data + Neon Auth account. |
-| `api/alist.js` | **AMC A-Lister router** (`?route=` / `/api/alist-*` rewrites): watches, summary, membership, import, poster backfill, movie/TV lookup & details, watchlists, movie stack ranks, leaderboard, compare, public profiles, showing invites, user search. |
+| `api/alist.js` | **AMC A-Lister router** (`?route=` / `/api/alist-*` rewrites): watches, summary, membership, import, poster backfill, movie/TV lookup & details, watchlists, movie and TV stack ranks, leaderboard, compare, public profiles, showing invites, user search. |
 | `api/packing-cubes.js` | **Packing Cubes router** (`/api/pc-*`): private cubes CRUD + suitcase state sync for signed-in users. |
 | `api/plot-points.js` | **Plot Points router** (`/api/plot-points-*`): TMDB person/collection search, genres, query build, legacy presets. |
 | `api/save-quiz.js` | Sporcle Spinoff: quiz + tag submissions open a GitHub review PR. |
