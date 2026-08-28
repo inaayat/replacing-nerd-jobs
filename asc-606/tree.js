@@ -8,26 +8,26 @@ function f(key, value, text, citations, step) {
 }
 
 export const STEPS = [
-  { id: 'scope', label: 'Scope', short: 'In or out?' },
-  { id: '1', label: 'Step 1', short: 'The contract' },
-  { id: '2', label: 'Step 2', short: 'What you promised' },
-  { id: '3', label: 'Step 3', short: 'The price' },
-  { id: '4', label: 'Step 4', short: 'Split the price' },
-  { id: '5', label: 'Step 5', short: 'When it is revenue' },
+  { id: 'scope', label: 'First check', short: 'Does this guide apply?' },
+  { id: '1', label: 'Step 1', short: 'Do you have a real deal?' },
+  { id: '2', label: 'Step 2', short: 'What did you promise?' },
+  { id: '3', label: 'Step 3', short: 'How much will you get?' },
+  { id: '4', label: 'Step 4', short: 'Split the total price' },
+  { id: '5', label: 'Step 5', short: 'When do you earn it?' },
 ];
 
 export const TREE = [
   {
     id: 'start',
     step: 'scope',
-    title: 'How should this contract turn into revenue?',
+    title: 'When can you count this sale as revenue?',
     plain:
-      'ASC 606 is a five-step recipe. You only use it for a contract with a customer. Walk the questions as if you are looking at one real deal. Hover any paragraph number to read the Codification itself. This is a map, not a sign-off — the official text still wins.',
+      'ASC 606 is a five-step recipe for deciding how much revenue to record and when to record it. Answer these questions for one real customer deal. The small numbered buttons open the official accounting rule behind each question.',
     citations: ['606-10-05-3', '606-10-05-4', '606-10-10-2'],
     choices: [
       {
         id: 'begin',
-        label: 'Start with whether 606 even applies',
+        label: 'Start — check whether this guide applies',
         next: 'scope-customer',
       },
     ],
@@ -36,9 +36,9 @@ export const TREE = [
   {
     id: 'scope-customer',
     step: 'scope',
-    title: 'Is the other party a customer?',
+    title: 'Are they buying something your business normally sells?',
     plain:
-      'A customer is buying an output of your ordinary business in exchange for consideration. A research collaborator sharing risk, a donor making a contribution, or a counterparty in a same-line inventory swap is usually not a customer. If they are not a customer, stop — 606 is the wrong Topic.',
+      'This guide is for sales to customers. Say yes when the other party is paying for a product or service your business normally provides. A research partner sharing risk, a donor, or another business swapping similar inventory is usually not a customer for this rule.',
     citations: ['606-10-15-3', '606-10-15-2A'],
     choices: [
       {
@@ -63,9 +63,9 @@ export const TREE = [
   {
     id: 'scope-kind',
     step: 'scope',
-    title: 'Is the whole deal (or a piece of it) carved out of 606?',
+    title: 'Is this a normal sale, rather than a lease, insurance policy, or financial instrument?',
     plain:
-      '606 covers contracts with customers unless another Topic owns the arrangement. Leases go to 842. Insurance goes to 944. Most financial instruments, guarantees that are not product warranties, and same-line nonmonetary swaps are out. A contract can be split: apply the other Topic first, then run 606 on what is left.',
+      'Most sales of products and services use ASC 606. Leases, insurance policies, loans, investments, derivatives, and most guarantees use different accounting rules. If a deal contains both kinds, separate the other piece first and use this guide for the customer-sale piece that remains.',
     citations: ['606-10-15-2', '606-10-15-4'],
     choices: [
       {
@@ -291,9 +291,9 @@ export const TREE = [
   {
     id: 's1-collect',
     step: '1',
-    title: 'Is it probable you will collect substantially all of what you will be entitled to?',
+    title: 'Do you expect the customer to pay what they owe?',
     plain:
-      '“Probable” here is the US GAAP meaning: likely to occur. Look only at the customer’s ability and intention to pay when due. If you already expect to knock the list price down (a price concession), collectibility is tested on the reduced amount, not the sticker. Do not confuse this with credit-loss accounting later — this gate decides whether a 606 contract exists at all.',
+      'Ask whether the customer is likely to have both the ability and the intention to pay. If you already expect to lower the price, test whether they can pay that realistic lower amount — not the price printed on the contract.',
     citations: ['606-10-25-1', '606-10-55-3A'],
     choices: [
       {
@@ -441,9 +441,9 @@ export const TREE = [
   {
     id: 's2-promises',
     step: '2',
-    title: 'What did you actually promise the customer?',
+    title: 'What exactly did you promise to deliver?',
     plain:
-      'List every promise to transfer a good or service — not just the ones typed in the SOW. Customary practice, published policies, and specific statements count if they create a reasonable expectation. Tiny items can be ignored as immaterial, except a customer option that is a material right. Admin “setup” that does not transfer anything to the customer is not a promise.',
+      'Make a list of every product, service, future discount, and support promise the customer reasonably expects — including promises created by your normal business practice or sales statements. Leave out internal admin work that gives the customer nothing.',
     citations: ['606-10-25-14', '606-10-25-16', '606-10-25-16A', '606-10-25-16B', '606-10-25-17', '606-10-25-18'],
     choices: [
       {
@@ -617,9 +617,9 @@ export const TREE = [
   {
     id: 's2-capable',
     step: '2',
-    title: 'Can the customer benefit from this promise on its own?',
+    title: 'Could the customer use this product or service on its own?',
     plain:
-      '“Capable of being distinct” means the customer could use, consume, sell, or hold the good or service — alone or with something they can already get (including something you sell separately). If you regularly sell it by itself, that is strong evidence. A brick that is useless without the rest of the custom wall may fail this test.',
+      'Say yes if the customer could use it, consume it, resell it, or combine it with something they already have. If you regularly sell it by itself, that is strong evidence. A component that is useless without the rest of one custom build is probably not separate.',
     citations: ['606-10-25-19', '606-10-25-20'],
     choices: [
       {
@@ -645,9 +645,9 @@ export const TREE = [
   {
     id: 's2-separable',
     step: '2',
-    title: 'Is this promise separately identifiable in this contract?',
+    title: 'Did the customer buy this separately, or did they buy one combined result?',
     plain:
-      'Even if the customer could use it alone, you may still have promised a combined output. You are not separately identifiable when you are integrating pieces into one thing the customer bought, when one piece significantly customizes another, or when the pieces are so interdependent you could not fulfill one without the other. A software license plus an unrelated year of support is often two obligations. A license plus heavy unique customization that produces one working system is often one.',
+      'Treat it separately only when you are truly delivering it on its own. Combine it with the rest when your job is to integrate several pieces into one result, one piece heavily changes another, or the pieces depend on each other. For example, software plus ordinary support may be two promises; software plus heavy customization into one working system may be one.',
     citations: ['606-10-25-19', '606-10-25-21', '606-10-25-22'],
     choices: [
       {
@@ -701,9 +701,9 @@ export const TREE = [
   {
     id: 's3-variable',
     step: '3',
-    title: 'Is any of the consideration variable?',
+    title: 'Could the amount you get paid change?',
     plain:
-      'Variable means the amount can change: discounts, rebates, refunds, returns, credits, bonuses, penalties, concessions, or an amount that depends on a future event. A right of return makes the sale variable even if the sticker is fixed. Also treat an unstated concession you know you will give as variable. Sales tax you collect for the government is not yours — and you may elect to drop those taxes out of the price entirely.',
+      'Say yes for returns, refunds, rebates, discounts, bonuses, penalties, usage fees, or any payment that depends on a future event. A return right makes the price uncertain even when the price tag is fixed. Sales tax collected for the government is not your revenue.',
     citations: ['606-10-32-2', '606-10-32-2A', '606-10-32-3', '606-10-32-5', '606-10-32-6'],
     choices: [
       {
@@ -755,9 +755,9 @@ export const TREE = [
   {
     id: 's3-constraint',
     step: '3',
-    title: 'Can you include that estimate without risking a big reversal later?',
+    title: 'Are you confident you will not have to reverse a large amount later?',
     plain:
-      'Include variable consideration only to the extent it is probable there will not be a significant reversal of cumulative revenue when the uncertainty lifts. High dependence on other people or the weather, a long wait, thin history, a habit of extra discounts, or a wide range of outcomes all push you to include less. Sales- or usage-based royalties for a license of IP are special: usually wait for the later of the sale/usage and satisfaction of the related obligation.',
+      'Only count the uncertain amount you are likely to keep. Include less when the result depends on other people, weather, a long wait, limited history, frequent extra discounts, or many possible outcomes. Royalties based on sales or usage of licensed intellectual property have a special rule: usually wait until the sale or usage happens.',
     citations: ['606-10-32-11', '606-10-32-12', '606-10-32-13', '606-10-55-65'],
     choices: [
       {
@@ -867,9 +867,9 @@ export const TREE = [
   {
     id: 's4-ssp',
     step: '4',
-    title: 'How will you get a standalone selling price for each obligation?',
+    title: 'What would you normally charge for each promise on its own?',
     plain:
-      'Split the transaction price in proportion to standalone selling prices — what you would charge for each distinct promise by itself. Best evidence is an observable price in similar circumstances. If you do not have one, estimate (adjusted market, cost plus margin). Residual is allowed only when the price is highly variable or the item has never been sold alone. One obligation? Allocation is a no-op — the whole price sits on that one promise.',
+      'When a deal includes several separate promises, divide the total price using the normal separate price of each one. Use actual separate sales when you have them. Otherwise estimate from the market or from cost plus a reasonable profit. If there is only one promise, there is nothing to divide.',
     citations: ['606-10-32-28', '606-10-32-29', '606-10-32-31', '606-10-32-32', '606-10-32-33', '606-10-32-34', '606-10-32-35'],
     choices: [
       {
@@ -964,9 +964,9 @@ export const TREE = [
   {
     id: 's5-overtime-a',
     step: '5',
-    title: 'Does the customer consume the benefit as you perform?',
+    title: 'Does the customer receive the benefit while you work?',
     plain:
-      'This is the typical service test. A cleaning crew, a stand-ready support line, or monthly SaaS access usually qualifies: the customer receives and uses the benefit while you work. If another vendor would not have to substantially re-perform what you already did, that is the same idea. Goods sitting in a warehouse waiting for delivery usually fail this test.',
+      'This is common for services. Cleaning, ready-to-help support, and monthly software access usually qualify because the customer benefits every day. Another clue: a replacement provider would not need to redo most of the work already completed. A product waiting in your warehouse usually does not qualify.',
     citations: ['606-10-25-23', '606-10-25-24', '606-10-25-27'],
     choices: [
       {
@@ -1070,9 +1070,9 @@ export const TREE = [
   {
     id: 's5-progress',
     step: '5',
-    title: 'How will you measure progress — and can you measure it?',
+    title: 'What is the clearest way to show how much work is finished?',
     plain:
-      'Pick one method per obligation and keep it: output (surveys, units delivered, time elapsed) or input (cost, labor hours). The method has to depict transfer of control, not just effort. Exclude inputs that do not transfer control (wasted materials). If you cannot reasonably measure progress, you cannot recognize over-time revenue — except zero-profit cost recovery when you expect to recover costs.',
+      'Use completed results, units delivered, or time passed when those show progress clearly. Otherwise use resources such as labor hours or cost. Use the same method consistently. Do not count waste as progress. If you cannot measure progress reliably yet, record revenue only up to recoverable costs until you can.',
     citations: ['606-10-25-31', '606-10-25-32', '606-10-25-33', '606-10-25-36', '606-10-25-37'],
     choices: [
       {
@@ -1105,9 +1105,9 @@ export const TREE = [
   {
     id: 's5-point',
     step: '5',
-    title: 'When does the customer get control?',
+    title: 'What event shows the customer now has the product?',
     plain:
-      'If none of the over-time tests passed, you recognize at the moment control transfers. Look at the indicators together: present right to payment, title, physical possession, risks and rewards, and acceptance. None is a trump card. Bill-and-hold, consignment, and repurchase deals can separate possession from control — read those implementation paragraphs before you book the sale.',
+      'If the customer did not receive the benefit over time, record revenue when they gain the ability to use and benefit from the product. Look at whether payment is due, title and possession moved, major risks moved, and the customer accepted it. No single clue always decides the answer.',
     citations: ['606-10-25-23', '606-10-25-25', '606-10-25-30'],
     choices: [
       {
@@ -1124,9 +1124,9 @@ export const TREE = [
   {
     id: 's5-license',
     step: '5',
-    title: 'If this is a license of IP, is it a right to use or a right to access?',
+    title: 'For a license, does the customer get today’s IP or ongoing access as it changes?',
     plain:
-      'A license is a right to use the IP as it exists today (point in time) unless all three access tests are met: you will undertake activities that significantly affect the IP, the customer is exposed to those effects, and those activities are not themselves a promised good or service. Symbolic IP (brands, team names) often is access. Functional software as it exists on day one is often a right to use — then PCS or unspecified upgrades may be a separate over-time obligation. Sales-based royalties on a license wait for the later of usage and satisfaction.',
+      '“Use” means the customer receives the intellectual property as it exists today, often at one point in time. “Access” means your ongoing work significantly changes or supports the IP and the customer is exposed to those changes, so revenue is usually earned over time. Brands often mean access; finished software often means use. Sales-based royalties normally wait until the related sales happen.',
     citations: ['606-10-55-54', '606-10-55-57', '606-10-55-58', '606-10-55-58A', '606-10-55-58C', '606-10-55-62', '606-10-55-65'],
     choices: [
       {

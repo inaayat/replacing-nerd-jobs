@@ -186,15 +186,17 @@ human-readable filing; calculated values fall back to the filing viewer.
 Plain-English decision tree for **revenue from a contract with a customer**.
 Scope first, then the five steps (identify the contract, identify performance
 obligations, transaction price, allocate, recognize). Each question cites the
-Codification; hover a paragraph number for a short official excerpt. A **Map**
-shows the whole tree; **Quiz** walks seven fact patterns (SaaS, construction,
-marketplace agent, returns, collectibility fail, brand license, gift card)
-against a teaching path.
+Codification; hover a paragraph number for a short official excerpt. The
+**Guided walk** draws each answer as a labelled connection to the next question,
+keeps recent conclusions beside the active question, and translates accounting
+terms through `glossary.js`. A **Full map** shows every question; **Practice**
+walks seven examples (SaaS, construction, marketplace agent, returns,
+collectibility fail, brand license, gift card) against a teaching path.
 
-Static only: `asc-606/tree.js`, `engine.js`, `citations.js`, and `quiz.js` are
-browser-safe ESM. Do not put them under `/lib/`. No new Vercel function. This
-is a study map, not a reprint of Topic 606 — excerpts stay short and attributed
-to the Financial Accounting Foundation; the official text is at
+Static only: `asc-606/tree.js`, `engine.js`, `citations.js`, `glossary.js`, and
+`quiz.js` are browser-safe ESM. Do not put them under `/lib/`. No new Vercel
+function. This is a study map, not a reprint of Topic 606 — excerpts stay short
+and attributed to the Financial Accounting Foundation; the official text is at
 [asc.fasb.org](https://asc.fasb.org).
 
 ### AI buildout money — `/ai-buildout`

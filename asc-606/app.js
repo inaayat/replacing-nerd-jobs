@@ -1,6 +1,7 @@
 import { CITATIONS, CITATION_SOURCE } from './citations.js';
 import { TREE, STEPS } from './tree.js';
 import { QUIZZES, quizById } from './quiz.js';
+import { TERMS, termsFor } from './glossary.js';
 import {
   walk,
   memoLines,
@@ -43,7 +44,7 @@ function parseHash() {
   const [mode, extra] = raw.split('/');
   if (mode === 'quiz') {
     state.mode = 'quiz';
-    state.quizId = extra || QUIZZES[0].id;
+    state.quizId = extra || null;
     return;
   }
   if (mode === 'map') {
@@ -107,13 +108,13 @@ function resetWalk() {
 function citeChip(id) {
   const text = CITATIONS[id];
   if (!text) return '';
-  return `<button type="button" class="cite" data-cite="${escapeAttr(id)}" aria-expanded="false">${escapeHtml(id)}</button>`;
+  return `<button type="button" class="cite" data-cite="${escapeAttr(id)}" aria-expanded="false" aria-label="Open the official rule ${escapeAttr(id)}">${escapeHtml(id)}</button>`;
 }
 
-function citeList(ids) {
+function citeList(ids, label = 'See the official rule') {
   const unique = [...new Set(ids || [])].filter((id) => CITATIONS[id]);
   if (!unique.length) return '';
-  return `<div class="cites">${unique.map(citeChip).join('')}</div>`;
+  return `<div class="cite-row"><span>${escapeHtml(label)}</span><div class="cites">${unique.map(citeChip).join('')}</div></div>`;
 }
 
 function escapeHtml(value) {
@@ -144,26 +145,116 @@ function renderNav(activeStep) {
   `;
 }
 
+function selectedChoice(node, answers) {
+  return node?.choices?.find((choice) => choice.id === answers[node.id]) || null;
+}
+
+function renderDecisionFlow(result, answers) {
+  return `
+    <section class="flow-panel" aria-labelledby="flow-title">
+      <div class="flow-head">
+        <div>
+          <p class="eyebrow">Your path</p>
+          <h2 id="flow-title">See how each answer leads to the next question</h2>
+        </div>
+        <p>Choose an earlier card to change that answer. Everything after it will update.</p>
+      </div>
+      <div class="flow-viewport">
+        <div class="flow-track" id="decision-flow">
+          ${result.path
+            .map((node) => {
+              const isCurrent = node === result.current;
+              const choice = selectedChoice(node, answers);
+              const step = STEPS.find((item) => item.id === node.step);
+              const nodeMarkup = isCurrent
+                ? `<article class="flow-node is-current" aria-current="step">
+                    <span class="flow-state">You are here</span>
+                    <span class="flow-step">${escapeHtml(step?.label || 'Result')}</span>
+                    <strong>${escapeHtml(node.title)}</strong>
+                  </article>`
+                : `<button type="button" class="flow-node is-done" data-rewind="${escapeAttr(node.id)}">
+                    <span class="flow-state">Answered</span>
+                    <span class="flow-step">${escapeHtml(step?.label || 'Result')}</span>
+                    <strong>${escapeHtml(node.title)}</strong>
+                  </button>`;
+              const connector = choice
+                ? `<div class="flow-connector" aria-label="Your answer was ${escapeAttr(choice.label)}">
+                    <span>${escapeHtml(choice.label)}</span>
+                    <b aria-hidden="true">→</b>
+                  </div>`
+                : '';
+              return `${nodeMarkup}${connector}`;
+            })
+            .join('')}
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderTerms(node) {
+  const detected = termsFor(`${node?.title || ''} ${node?.plain || ''}`);
+  const items = detected.length ? detected : TERMS.slice(0, 3);
+  return `
+    <section class="translations">
+      <p class="eyebrow">Accounting words, translated</p>
+      <h2>What the jargon means</h2>
+      <dl>
+        ${items
+          .map(
+            (item) => `
+          <div>
+            <dt>${escapeHtml(item.term)}</dt>
+            <dd>${escapeHtml(item.plain)}</dd>
+          </div>`
+          )
+          .join('')}
+      </dl>
+    </section>
+  `;
+}
+
 function renderMemo(result) {
   const lines = memoLines(result);
   if (!lines.length) {
-    return `<aside class="memo"><h2>Running memo</h2><p class="quiet">Answers land here as a paper trail you can rewind.</p></aside>`;
+    return `
+      <section class="memo">
+        <p class="eyebrow">What this means</p>
+        <h2>Your answer will build a plain-English summary</h2>
+        <p class="quiet">We will explain each choice here as you move through the questions.</p>
+      </section>`;
   }
+  const recent = lines.slice(-4);
   return `
-    <aside class="memo">
-      <h2>Running memo</h2>
-      <ol>
-        ${lines
+    <section class="memo">
+      <p class="eyebrow">What this means</p>
+      <h2>Your latest conclusions</h2>
+      <ol class="memo-recent">
+        ${recent
           .map(
-            (line, i) => `
+            (line) => `
           <li>
             <p>${escapeHtml(line.text)}</p>
-            ${citeList(line.citations)}
+            ${citeList(line.citations, 'Why?')}
           </li>`
           )
           .join('')}
       </ol>
-    </aside>
+      ${
+        lines.length > recent.length
+          ? `<details class="memo-all">
+              <summary>See all ${lines.length} conclusions</summary>
+              <ol>
+                ${lines
+                  .map(
+                    (line) => `<li><p>${escapeHtml(line.text)}</p>${citeList(line.citations, 'Why?')}</li>`
+                  )
+                  .join('')}
+              </ol>
+            </details>`
+          : ''
+      }
+    </section>
   `;
 }
 
@@ -186,17 +277,22 @@ function renderOutcome(result) {
 
 function renderQuestion(node, picked) {
   return `
-    <article class="card">
-      <p class="kicker">${escapeHtml(STEPS.find((s) => s.id === node.step)?.label || node.step)}</p>
+    <article class="card question-card">
+      <div class="question-number">${escapeHtml(STEPS.find((s) => s.id === node.step)?.label || node.step)}</div>
+      <p class="eyebrow">Choose what is true for this deal</p>
       <h2>${escapeHtml(node.title)}</h2>
-      <p class="plain">${escapeHtml(node.plain)}</p>
+      <div class="plain-help">
+        <strong>Why we’re asking</strong>
+        <p>${escapeHtml(node.plain)}</p>
+      </div>
       ${citeList(node.citations)}
       <div class="choices" role="group" aria-label="Choose the next branch">
         ${node.choices
-          .map((choice) => {
+          .map((choice, index) => {
             const on = picked === choice.id ? ' is-on' : '';
             return `
               <button type="button" class="choice${on}" data-node="${escapeAttr(node.id)}" data-choice="${escapeAttr(choice.id)}">
+                <span class="choice-key">${String.fromCharCode(65 + index)}</span>
                 <span class="choice-label">${escapeHtml(choice.label)}</span>
                 ${citeList(choice.citations || [])}
               </button>`;
@@ -212,35 +308,19 @@ function renderWalk() {
   const bag = answersForMode();
   const result = walk(TREE, bag);
   const current = result.current;
-  const crumb = result.path.filter((n) => n.kind !== 'outcome' || n === current);
 
   const story = quiz
     ? `<section class="story">
-        <p class="kicker">${escapeHtml(quiz.industry)} · quiz</p>
+        <p class="kicker">${escapeHtml(quiz.industry)} · practice example</p>
         <h1>${escapeHtml(quiz.title)}</h1>
         <p>${escapeHtml(quiz.story)}</p>
       </section>`
     : `<section class="story">
-        <p class="kicker">Company walk</p>
-        <h1>Walk a contract through ASC 606</h1>
-        <p>Answer as if this is a real deal. Each question is plain English; the chips are the Codification. The memo on the right is the conclusion you are building.</p>
+        <p class="kicker">Guided revenue check</p>
+        <h1>When should this customer sale become revenue?</h1>
+        <p>Answer one question at a time. We will connect your answers into a visible path and explain the accounting in everyday language.</p>
         ${Object.keys(bag).length ? '<p><button type="button" class="btn ghost" data-reset>Start this walk over</button></p>' : ''}
       </section>`;
-
-  const path = `
-    <ol class="crumb">
-      ${crumb
-        .map((node, i) => {
-          const last = i === crumb.length - 1;
-          return `<li>${
-            last
-              ? `<span>${escapeHtml(node.title)}</span>`
-              : `<button type="button" data-rewind="${escapeAttr(node.id)}">${escapeHtml(node.title)}</button>`
-          }</li>`;
-        })
-        .join('<li class="crumb-sep" aria-hidden="true">/</li>')}
-    </ol>
-  `;
 
   const score =
     quiz && result.complete
@@ -254,12 +334,17 @@ function renderWalk() {
       : renderQuestion(current, bag[current.id]);
 
   return `
-    ${story}
-    ${renderNav(current?.step === 'done' ? '5' : current?.step)}
-    ${path}
-    <div class="split">
+    <div class="walk-head">
+      ${story}
+      ${renderNav(current?.step === 'done' ? '5' : current?.step)}
+    </div>
+    ${renderDecisionFlow(result, bag)}
+    <div class="workbench">
       <div class="main">${body}</div>
-      ${renderMemo(result)}
+      <aside class="guide">
+        ${renderTerms(current)}
+        ${renderMemo(result)}
+      </aside>
     </div>
   `;
 }
@@ -294,9 +379,9 @@ function renderScore(quiz, bag, result) {
 function renderQuizPicker() {
   return `
     <section class="story">
-      <p class="kicker">Quiz</p>
-      <h1>Work a fact pattern, then see the tree</h1>
-      <p>Same questions as the company walk. Each case has a teaching path. Finish the tree, then compare. Hover the chips if you want the raw paragraph before you pick.</p>
+      <p class="kicker">Practice with examples</p>
+      <h1>Choose a familiar business situation</h1>
+      <p>Try the guided questions on a realistic example. At the end, compare your path with the teaching answer. Open any numbered rule to see where the answer comes from.</p>
     </section>
     <div class="quiz-grid">
       ${QUIZZES.map(
@@ -320,8 +405,8 @@ function renderMap() {
   return `
     <section class="story">
       <p class="kicker">Map</p>
-      <h1>The whole tree, one screen</h1>
-      <p>Scope first, then the five steps. Hover a paragraph number for the official excerpt. Outcomes are the four places a walk can end.</p>
+      <h1>See every decision in the guide</h1>
+      <p>Start by checking whether the guide applies, then move through the five steps. Open a numbered rule to see the official accounting language behind a question.</p>
     </section>
     <div class="map">
       ${groups
@@ -376,9 +461,9 @@ function renderCiteLayer() {
 function render() {
   const tabs = `
     <div class="modes" role="tablist">
-      <button type="button" class="mode${state.mode === 'walk' ? ' is-on' : ''}" data-mode="walk">Walk</button>
-      <button type="button" class="mode${state.mode === 'map' ? ' is-on' : ''}" data-mode="map">Map</button>
-      <button type="button" class="mode${state.mode === 'quiz' && !state.quizId ? ' is-on' : ''}${state.mode === 'quiz' && state.quizId ? ' is-on' : ''}" data-mode="quiz">Quiz</button>
+      <button type="button" class="mode${state.mode === 'walk' ? ' is-on' : ''}" data-mode="walk">Guided walk</button>
+      <button type="button" class="mode${state.mode === 'map' ? ' is-on' : ''}" data-mode="map">Full map</button>
+      <button type="button" class="mode${state.mode === 'quiz' && !state.quizId ? ' is-on' : ''}${state.mode === 'quiz' && state.quizId ? ' is-on' : ''}" data-mode="quiz">Practice examples</button>
     </div>
   `;
 
@@ -392,6 +477,15 @@ function render() {
     ${body}
     ${renderCiteLayer()}
   `;
+  requestAnimationFrame(() => {
+    const viewport = root.querySelector('.flow-viewport');
+    if (!viewport) return;
+    if (window.matchMedia('(max-width: 640px)').matches) {
+      viewport.scrollTop = viewport.scrollHeight;
+    } else {
+      viewport.scrollLeft = viewport.scrollWidth;
+    }
+  });
 }
 
 function hideCite() {
