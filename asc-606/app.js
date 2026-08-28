@@ -44,7 +44,7 @@ function parseHash() {
   const [mode, extra] = raw.split('/');
   if (mode === 'quiz') {
     state.mode = 'quiz';
-    state.quizId = extra || QUIZZES[0].id;
+    state.quizId = extra || null;
     return;
   }
   if (mode === 'map') {
