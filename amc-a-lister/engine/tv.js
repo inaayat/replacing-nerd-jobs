@@ -1,4 +1,4 @@
-import { bootPage, renderShell, requireSignIn, isTvBetaEnabled } from './nav.js';
+import { bootPage, renderShell, requireSignIn, isTvBetaEnabled, offerRankAfterLog } from './nav.js';
 import { tvWatchesApi, tvWatchlistApi, tvApi } from './api.js';
 import {
   sortAlreadyOut,
@@ -485,6 +485,7 @@ function wireTvAddForm(auth, state, {
       dateInput.value = todayISO();
       statusEl.textContent = `Added ${title}`;
       onAdded?.();
+      offerRankAfterLog(watch, { kind: 'tv' });
       setTimeout(() => { statusEl.textContent = ''; }, 2000);
     } catch (err) {
       statusEl.textContent = err.message || 'Could not add.';

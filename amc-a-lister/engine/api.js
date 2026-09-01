@@ -184,3 +184,18 @@ export const ranksApi = {
   }),
 };
 
+export const tvRanksApi = {
+  list: (token) => apiFetch('/api/alist-tv-ranks', { token }),
+  upsert: (token, show) => apiFetch('/api/alist-tv-ranks', { method: 'POST', body: show, token }),
+  replace: (token, shows) => apiFetch('/api/alist-tv-ranks', {
+    method: 'PUT',
+    body: { shows },
+    token,
+  }),
+  remove: (token, tmdb_id) => apiFetch('/api/alist-tv-ranks', {
+    method: 'DELETE',
+    body: { tmdb_id },
+    token,
+  }),
+};
+

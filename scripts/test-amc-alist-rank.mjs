@@ -1,5 +1,5 @@
 /**
- * Pure-function tests for A-Lister Beli-style movie stack insertion.
+ * Pure-function tests for A-Lister Beli-style movie and TV stack insertion.
  * Run: node scripts/test-amc-alist-rank.mjs
  */
 import assert from 'node:assert/strict';
@@ -14,6 +14,10 @@ import {
   isTheaterWatch,
   eligibleTmdbIds,
   dropIneligibleRanks,
+  uniqueLoggedShows,
+  firstRunShows,
+  eligibleShowTmdbIds,
+  dropIneligibleShowRanks,
 } from '../amc-a-lister/engine/rank-insert.js';
 
 function movie(id, title = `M${id}`) {
@@ -180,6 +184,48 @@ function placeWithAnswers(rankedLength, answers) {
   assert.equal(queue.length, uniqueLoggedMovies(watches).length);
   assert.deepEqual(firstRunMovies([]), []);
   assert.deepEqual(firstRunMovies(null), []);
+}
+
+// TV: unique shows, DNFs included, episodes of one series count once.
+{
+  const watches = [
+    { tmdb_id: 1396, title: 'Breaking Bad', year: 2008, poster_path: '/bb.jpg' },
+    { tmdb_id: 1396, title: 'Breaking Bad S5', year: 2008 },
+    { tmdb_id: null, title: 'Untagged sitcom' },
+    { tmdb_id: 1399, title: 'Game of Thrones', year: 2011, dnf: true },
+    { tmdb_id: 2316, title: 'The Office', year: 2005 },
+    { tmdb_id: 1408, title: 'Already ranked' },
+  ];
+  const unique = uniqueLoggedShows(watches, [1408]);
+  assert.deepEqual(unique.map((s) => s.tmdb_id), [1396, 1399, 2316]);
+  assert.equal(unique[0].title, 'Breaking Bad');
+  assert.equal(unique[0].year, 2008);
+  assert.equal(unique[1].title, 'Game of Thrones');
+
+  const ids = [...eligibleShowTmdbIds(watches)].sort((a, b) => a - b);
+  assert.deepEqual(ids, [1396, 1399, 1408, 2316]);
+
+  const stored = [
+    { tmdb_id: 1396, title: 'Breaking Bad' },
+    { tmdb_id: 1408, title: 'Already ranked' },
+    { tmdb_id: 9999, title: 'Deleted from log' },
+  ];
+  assert.deepEqual(dropIneligibleShowRanks(stored, watches).map((s) => s.tmdb_id), [1396, 1408]);
+
+  const queue = firstRunShows(watches);
+  assert.deepEqual(queue.map((s) => s.tmdb_id), [1396, 1399, 2316, 1408]);
+  assert.equal(queue.length, uniqueLoggedShows(watches).length);
+  assert.deepEqual(firstRunShows([]), []);
+  assert.deepEqual(firstRunShows(null), []);
+}
+
+// TV helpers ignore in_theaters — that flag is movie-log only.
+{
+  const watches = [
+    { tmdb_id: 1396, title: 'Breaking Bad', in_theaters: false },
+  ];
+  assert.deepEqual(uniqueLoggedShows(watches).map((s) => s.tmdb_id), [1396]);
+  assert.ok(eligibleShowTmdbIds(watches).has(1396));
 }
 
 console.log('amc alist rank tests passed');

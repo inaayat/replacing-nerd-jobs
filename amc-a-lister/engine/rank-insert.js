@@ -1,5 +1,5 @@
 /**
- * Binary-search insertion for a best-first movie stack (1 = favorite).
+ * Binary-search insertion for a best-first stack (1 = favorite).
  * Browser-safe ESM — no node: imports, no npm packages.
  *
  * `better` means the candidate belongs closer to #1 than the pivot.
@@ -87,30 +87,12 @@ export function isTheaterWatch(watch) {
   return watch != null && watch.in_theaters !== false;
 }
 
-/** Unique tmdb_ids the user has watched in a theater (DNF included). */
-export function eligibleTmdbIds(watches) {
-  const ids = new Set();
-  for (const watch of watches || []) {
-    if (!isTheaterWatch(watch)) continue;
-    const tmdbId = Number(watch.tmdb_id);
-    if (tmdbId > 0) ids.add(tmdbId);
-  }
-  return ids;
-}
-
-/** Drop stored ranks that are not theater watches, keeping relative order. */
-export function dropIneligibleRanks(ranks, watches) {
-  const eligible = eligibleTmdbIds(watches);
-  return (ranks || []).filter((movie) => eligible.has(Number(movie.tmdb_id)));
-}
-
-/** Unique theater-logged titles that have a tmdb_id, excluding those already ranked. */
-export function uniqueLoggedMovies(watches, rankedTmdbIds = []) {
+function uniqueLoggedItems(watches, rankedTmdbIds = [], eligibleWatch = null) {
   const ranked = new Set((rankedTmdbIds || []).map(Number).filter((id) => id > 0));
   const seen = new Set();
   const out = [];
   for (const watch of watches || []) {
-    if (!isTheaterWatch(watch)) continue;
+    if (eligibleWatch && !eligibleWatch(watch)) continue;
     const tmdbId = Number(watch.tmdb_id);
     if (!tmdbId || seen.has(tmdbId) || ranked.has(tmdbId)) continue;
     seen.add(tmdbId);
@@ -124,10 +106,63 @@ export function uniqueLoggedMovies(watches, rankedTmdbIds = []) {
   return out;
 }
 
+function eligibleIdsFromWatches(watches, eligibleWatch = null) {
+  const ids = new Set();
+  for (const watch of watches || []) {
+    if (eligibleWatch && !eligibleWatch(watch)) continue;
+    const tmdbId = Number(watch.tmdb_id);
+    if (tmdbId > 0) ids.add(tmdbId);
+  }
+  return ids;
+}
+
+function dropIneligible(ranks, watches, eligibleWatch = null) {
+  const eligible = eligibleIdsFromWatches(watches, eligibleWatch);
+  return (ranks || []).filter((item) => eligible.has(Number(item.tmdb_id)));
+}
+
+/** Unique tmdb_ids the user has watched in a theater (DNF included). */
+export function eligibleTmdbIds(watches) {
+  return eligibleIdsFromWatches(watches, isTheaterWatch);
+}
+
+/** Drop stored ranks that are not theater watches, keeping relative order. */
+export function dropIneligibleRanks(ranks, watches) {
+  return dropIneligible(ranks, watches, isTheaterWatch);
+}
+
+/** Unique theater-logged titles that have a tmdb_id, excluding those already ranked. */
+export function uniqueLoggedMovies(watches, rankedTmdbIds = []) {
+  return uniqueLoggedItems(watches, rankedTmdbIds, isTheaterWatch);
+}
+
 /**
  * First ranking setup: every unique theater-watched title (DNFs included).
  * No subset — later adds use unranked chips / search / after-add instead.
  */
 export function firstRunMovies(watches) {
   return uniqueLoggedMovies(watches);
+}
+
+/** Unique tmdb_ids from the TV log (DNF included). Episodes of one show count once. */
+export function eligibleShowTmdbIds(watches) {
+  return eligibleIdsFromWatches(watches);
+}
+
+/** Drop stored TV ranks that are not in the TV log, keeping relative order. */
+export function dropIneligibleShowRanks(ranks, watches) {
+  return dropIneligible(ranks, watches);
+}
+
+/** Unique logged shows that have a tmdb_id, excluding those already ranked. */
+export function uniqueLoggedShows(watches, rankedTmdbIds = []) {
+  return uniqueLoggedItems(watches, rankedTmdbIds);
+}
+
+/**
+ * First TV ranking setup: every unique logged show (DNFs included).
+ * Multiple episodes of the same series become one stack entry.
+ */
+export function firstRunShows(watches) {
+  return uniqueLoggedShows(watches);
 }

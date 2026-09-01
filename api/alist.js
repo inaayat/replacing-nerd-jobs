@@ -86,6 +86,8 @@ export default async function handler(req, res) {
       return handleUserSearch(req, res);
     case 'ranks':
       return handleRanks(req, res);
+    case 'tv-ranks':
+      return handleTvRanks(req, res);
     default:
       res.status(404).json({ error: 'Unknown A-List route.' });
   }
@@ -1800,6 +1802,16 @@ async function listMovieRanks(userId) {
   return rows.map(rankFromRow);
 }
 
+async function listTvRanks(userId) {
+  const rows = await db()`
+    SELECT tmdb_id, position, title, year, poster_path, updated_at
+    FROM alist_tv_ranks
+    WHERE user_id = ${userId}
+    ORDER BY position ASC, updated_at ASC
+  `;
+  return rows.map(rankFromRow);
+}
+
 async function replaceMovieRanks(userId, movies) {
   const sql = db();
   const queries = [
@@ -1821,7 +1833,28 @@ async function replaceMovieRanks(userId, movies) {
   return listMovieRanks(userId);
 }
 
-async function fillRankMovie(body) {
+async function replaceTvRanks(userId, shows) {
+  const sql = db();
+  const queries = [
+    sql`DELETE FROM alist_tv_ranks WHERE user_id = ${userId}`,
+    ...shows.map((show, i) => sql`
+      INSERT INTO alist_tv_ranks (
+        user_id, tmdb_id, position, title, year, poster_path, updated_at
+      ) VALUES (
+        ${userId}, ${show.tmdb_id}, ${i + 1}, ${show.title},
+        ${show.year}, ${show.poster_path}, now()
+      )
+    `),
+  ];
+  if (typeof sql.transaction === 'function') {
+    await sql.transaction(queries);
+  } else {
+    for (const query of queries) await query;
+  }
+  return listTvRanks(userId);
+}
+
+async function fillRankItem(body, getDetails) {
   const tmdbId = Number(body?.tmdb_id);
   if (!Number.isInteger(tmdbId) || tmdbId <= 0) return { error: 'tmdb_id is required.' };
   const title = String(body?.title || '').trim();
@@ -1831,13 +1864,13 @@ async function fillRankMovie(body) {
 
   if ((!title || year == null || !posterPath) && process.env.TMDB_API_KEY) {
     try {
-      const movie = await getMovieDetails(tmdbId);
-      if (movie) {
+      const details = await getDetails(tmdbId);
+      if (details) {
         return {
           tmdb_id: tmdbId,
-          title: title || movie.title,
-          year: year ?? movie.year ?? null,
-          poster_path: posterPath || movie.poster_path || null,
+          title: title || details.title,
+          year: year ?? details.year ?? null,
+          poster_path: posterPath || details.poster_path || null,
         };
       }
     } catch {
@@ -1849,7 +1882,15 @@ async function fillRankMovie(body) {
   return { tmdb_id: tmdbId, title, year, poster_path: posterPath };
 }
 
-async function handleRanks(req, res) {
+function fillRankMovie(body) {
+  return fillRankItem(body, getMovieDetails);
+}
+
+function fillRankShow(body) {
+  return fillRankItem(body, getTvDetails);
+}
+
+async function handleRankCollection(req, res, { listFn, replaceFn, fillFn, replaceKey }) {
   if (!requireDb(res)) return;
   const session = await requireUser(req, res);
   if (!session) return;
@@ -1857,7 +1898,7 @@ async function handleRanks(req, res) {
 
   if (req.method === 'GET') {
     try {
-      const ranks = await listMovieRanks(userId);
+      const ranks = await listFn(userId);
       res.status(200).json({ ranks });
     } catch (err) {
       res.status(502).json({ error: err.message });
@@ -1867,19 +1908,19 @@ async function handleRanks(req, res) {
 
   if (req.method === 'POST') {
     try {
-      const movie = await fillRankMovie(req.body || {});
-      if (movie.error) {
-        res.status(400).json({ error: movie.error });
+      const item = await fillFn(req.body || {});
+      if (item.error) {
+        res.status(400).json({ error: item.error });
         return;
       }
-      const existing = await listMovieRanks(userId);
-      const without = existing.filter((row) => row.tmdb_id !== movie.tmdb_id);
+      const existing = await listFn(userId);
+      const without = existing.filter((row) => row.tmdb_id !== item.tmdb_id);
       const rawPosition = Number(req.body?.position);
       const position = Number.isInteger(rawPosition)
         ? Math.max(1, Math.min(rawPosition, without.length + 1))
         : without.length + 1;
-      without.splice(position - 1, 0, movie);
-      const ranks = await replaceMovieRanks(userId, without);
+      without.splice(position - 1, 0, item);
+      const ranks = await replaceFn(userId, without);
       res.status(200).json({ ranks });
     } catch (err) {
       res.status(502).json({ error: err.message });
@@ -1888,25 +1929,25 @@ async function handleRanks(req, res) {
   }
 
   if (req.method === 'PUT') {
-    const list = req.body?.movies;
+    const list = req.body?.[replaceKey];
     if (!Array.isArray(list)) {
-      res.status(400).json({ error: 'movies array is required.' });
+      res.status(400).json({ error: `${replaceKey} array is required.` });
       return;
     }
     try {
-      const movies = [];
+      const items = [];
       const seen = new Set();
-      for (const item of list) {
-        const movie = await fillRankMovie(item || {});
-        if (movie.error) {
-          res.status(400).json({ error: movie.error });
+      for (const raw of list) {
+        const item = await fillFn(raw || {});
+        if (item.error) {
+          res.status(400).json({ error: item.error });
           return;
         }
-        if (seen.has(movie.tmdb_id)) continue;
-        seen.add(movie.tmdb_id);
-        movies.push(movie);
+        if (seen.has(item.tmdb_id)) continue;
+        seen.add(item.tmdb_id);
+        items.push(item);
       }
-      const ranks = await replaceMovieRanks(userId, movies);
+      const ranks = await replaceFn(userId, items);
       res.status(200).json({ ranks });
     } catch (err) {
       res.status(502).json({ error: err.message });
@@ -1921,13 +1962,13 @@ async function handleRanks(req, res) {
       return;
     }
     try {
-      const existing = await listMovieRanks(userId);
+      const existing = await listFn(userId);
       const remaining = existing.filter((row) => row.tmdb_id !== tmdbId);
       if (remaining.length === existing.length) {
         res.status(404).json({ error: 'Rank not found.' });
         return;
       }
-      const ranks = await replaceMovieRanks(userId, remaining);
+      const ranks = await replaceFn(userId, remaining);
       res.status(200).json({ ok: true, ranks });
     } catch (err) {
       res.status(502).json({ error: err.message });
@@ -1936,6 +1977,24 @@ async function handleRanks(req, res) {
   }
 
   res.status(405).json({ error: 'Method not allowed.' });
+}
+
+function handleRanks(req, res) {
+  return handleRankCollection(req, res, {
+    listFn: listMovieRanks,
+    replaceFn: replaceMovieRanks,
+    fillFn: fillRankMovie,
+    replaceKey: 'movies',
+  });
+}
+
+function handleTvRanks(req, res) {
+  return handleRankCollection(req, res, {
+    listFn: listTvRanks,
+    replaceFn: replaceTvRanks,
+    fillFn: fillRankShow,
+    replaceKey: 'shows',
+  });
 }
 
 function parseMoney(value) {

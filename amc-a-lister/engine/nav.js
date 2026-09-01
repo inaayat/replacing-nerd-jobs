@@ -50,15 +50,16 @@ export function setRankBetaEnabled(enabled) {
   }
 }
 
-/** After logging a theater watch (DNF included), offer to put it on the Rank stack. */
-function offerRankAfterLog(logged) {
+/** After logging a theater movie or a TV show, offer to put it on the Rank stack. */
+export function offerRankAfterLog(logged, { kind = 'movies' } = {}) {
   if (!isRankBetaEnabled()) return;
-  if (!logged || logged.in_theaters === false) return;
-  const tmdbId = Number(logged.tmdb_id);
+  if (kind === 'movies' && logged?.in_theaters === false) return;
+  const tmdbId = Number(logged?.tmdb_id);
   if (!tmdbId) return;
   if (document.body.dataset.page === 'rank') return;
   if (document.getElementById('rank-after-add')) return;
 
+  const isTv = kind === 'tv';
   const overlay = document.createElement('div');
   overlay.id = 'rank-after-add';
   overlay.className = 'al-rank-modal';
@@ -69,8 +70,10 @@ function offerRankAfterLog(logged) {
     <div class="al-rank-modal-card">
       <div>
         <h2 class="al-rank-modal-title" id="rank-after-add-title">Stack rank this?</h2>
-        <p class="al-rank-modal-film">${escapeHtml(logged.title || 'This movie')}</p>
-        <p class="al-muted">Add it to your theater stack. Your watch log stays as it is.</p>
+        <p class="al-rank-modal-film">${escapeHtml(logged.title || (isTv ? 'This show' : 'This movie'))}</p>
+        <p class="al-muted">${isTv
+          ? 'Add it to your TV stack. Your watch log stays as it is.'
+          : 'Add it to your theater stack. Your watch log stays as it is.'}</p>
         <div class="al-rank-modal-actions">
           <button type="button" class="al-btn al-btn-primary" id="rank-after-yes">Yes, compare</button>
           <button type="button" class="al-btn" id="rank-after-no">Not now</button>
@@ -80,7 +83,8 @@ function offerRankAfterLog(logged) {
   `;
   document.body.appendChild(overlay);
   overlay.querySelector('#rank-after-yes')?.addEventListener('click', () => {
-    location.href = `/amc-a-lister/rank.html?add=${tmdbId}`;
+    const tab = isTv ? '&tab=tv' : '';
+    location.href = `/amc-a-lister/rank.html?add=${tmdbId}${tab}`;
   });
   overlay.querySelector('#rank-after-no')?.addEventListener('click', () => overlay.remove());
 }

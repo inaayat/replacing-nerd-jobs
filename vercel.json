@@ -149,6 +149,10 @@
       "destination": "/api/alist?route=ranks"
     },
     {
+      "source": "/api/alist-tv-ranks",
+      "destination": "/api/alist?route=tv-ranks"
+    },
+    {
       "source": "/api/pc-cubes",
       "destination": "/api/packing-cubes"
     },
