@@ -24,6 +24,8 @@ export const MAX_DAYS = 31;
 export const MAX_OUTFITS = 40;
 export const MAX_OUTFIT_ITEMS = 40;
 export const MAX_OUTFIT_NAME = 80;
+/** Dress code is a short note, not a title — longer than name/event. */
+export const MAX_OUTFIT_DRESS_CODE = 400;
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 export function isIsoDate(value) {
@@ -585,7 +587,7 @@ function normalizeOutfits(raw, itemIds, dayDates) {
     const name = String(row.name || '').trim().slice(0, MAX_OUTFIT_NAME);
     if (!name) continue;
     const event = String(row.event || '').trim().slice(0, MAX_OUTFIT_NAME);
-    const dressCode = String(row.dressCode || '').trim().slice(0, MAX_OUTFIT_NAME);
+    const dressCode = String(row.dressCode || '').trim().slice(0, MAX_OUTFIT_DRESS_CODE);
     const date = isIsoDate(row.date) && dayDates.has(row.date) ? row.date : null;
     const ids = [];
     const seen = new Set();
@@ -1411,7 +1413,7 @@ export function addOutfit(suitcase, { name, event = '', dressCode = '', date = n
     id: newId(),
     name: title,
     event: String(event || '').trim().slice(0, MAX_OUTFIT_NAME),
-    dressCode: String(dressCode || '').trim().slice(0, MAX_OUTFIT_NAME),
+    dressCode: String(dressCode || '').trim().slice(0, MAX_OUTFIT_DRESS_CODE),
     date: isIsoDate(date) && hasDay(suitcase, date) ? date : null,
     itemIds: [],
   };
@@ -1429,7 +1431,7 @@ export function updateOutfit(suitcase, outfitId, patch = {}) {
     outfit.name = title;
   }
   if (patch.event != null) outfit.event = String(patch.event).trim().slice(0, MAX_OUTFIT_NAME);
-  if (patch.dressCode != null) outfit.dressCode = String(patch.dressCode).trim().slice(0, MAX_OUTFIT_NAME);
+  if (patch.dressCode != null) outfit.dressCode = String(patch.dressCode).trim().slice(0, MAX_OUTFIT_DRESS_CODE);
   if (Object.prototype.hasOwnProperty.call(patch, 'date')) {
     setOutfitDate(suitcase, outfitId, patch.date);
   }

@@ -57,8 +57,8 @@ trip never edits `pc_cubes`.
   that same list row.
 - As a packer, I can save an outfit with **no date**. A look does not need
   a day. The date field is optional and never auto-filled.
-- As a packer, I optionally label the event ("Saturday wedding") and the
-  dress code ("Black tie").
+- As a packer, I optionally label the event ("Saturday wedding") and write
+  a dress-code note (a short paragraph, not just "Black tie").
 - As a packer, I search outfits I used on past trips ("navy suit",
   "rehearsal") and copy one onto the current trip. Copying never creates a
   cube. If a copied item isn't on this list, I am offered the chance to add
@@ -291,7 +291,7 @@ column on `pc_suitcase_state`, plus the localStorage cache).
       id: 'outfit-uuid',
       name: 'Ceremony',
       event: 'Saturday wedding',  // '' if unused
-      dressCode: 'Black tie',     // '' if unused
+      dressCode: 'Black tie optional.\nNo jeans.',  // '' if unused; note, not a title
       date: '2026-06-13' | null,  // at most one calendar date in v1
       itemIds: ['item-uuid', …],  // ids of suitcase.items
     },
@@ -323,7 +323,8 @@ date the item appears on. Packed ≠ worn.
 | Days per trip | 31 | Refuse + toast |
 | Outfits per trip | 40 | Refuse + toast |
 | Items per outfit | 40 | Refuse + toast |
-| `event` / `dressCode` / outfit `name` | 80 chars | Same trim/cap style as cube titles |
+| `event` / outfit `name` | 80 chars | Same trim/cap style as cube titles |
+| `dressCode` | 400 chars | Longer note; newlines kept; trim ends only |
 
 ### 5.6 New model helpers (pure, tested)
 
@@ -411,8 +412,8 @@ suitcase**. It is not a cube, not in `pc_cubes`, not in My Cubes, not
 
 - Build from items already on the list **or** quick-add in the create/edit
   view (`ensureListItem` / `addItemToOutfit`). Empty outfits are allowed.
-- Optional `event` string. Optional `dressCode` string (same trim/cap).
-  **Optional `date` — null is valid. Do not require a date. Do not
+- Optional `event` string (80). Optional `dressCode` note (400, newlines
+  kept). **Optional `date` — null is valid. Do not require a date. Do not
   auto-assign the first trip day.**
 - **Locked:** an item **may** sit on two outfits. **List** is exclusive:
   first outfit that owns it, else cube, else Unsorted — one packed

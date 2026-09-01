@@ -78,6 +78,7 @@ import {
   copyOutfit,
   dayLabel,
   MAX_DAYS,
+  MAX_OUTFIT_DRESS_CODE,
   UNSORTED_KEY,
 } from './model.js';
 
@@ -1564,8 +1565,20 @@ function outfitSummary(suitcase, outfit) {
   return labels.length ? labels.join(', ') : 'No items yet';
 }
 
+function outfitDressCodePreview(text, max = 56) {
+  const s = String(text || '').trim().replace(/\s+/g, ' ');
+  if (!s) return '';
+  return s.length > max ? `${s.slice(0, max).trimEnd()}…` : s;
+}
+
 function outfitMetaBits(outfit) {
-  return [outfit?.event, outfit?.dressCode].filter(Boolean);
+  return [outfit?.event, outfitDressCodePreview(outfit?.dressCode)].filter(Boolean);
+}
+
+function outfitDressCodeHtml(outfit) {
+  const text = String(outfit?.dressCode || '').trim();
+  if (!text) return '';
+  return `<p class="pc-outfit-dress">${escapeHtml(text)}</p>`;
 }
 
 function renderDayView(mount, suitcase) {
@@ -1648,7 +1661,7 @@ function paintDayCards(cards, suitcase) {
           ${outfits.length ? `
             <p class="pc-section-label">Outfits this day</p>
             <ul class="pc-outfit-mini">
-              ${outfits.map((o) => `<li><b>${escapeHtml(o.name)}</b>${outfitMetaBits(o).length ? ` · ${escapeHtml(outfitMetaBits(o).join(' · '))}` : ''}<div class="pc-muted">${escapeHtml(outfitSummary(suitcase, o))}</div></li>`).join('')}
+              ${outfits.map((o) => `<li><b>${escapeHtml(o.name)}</b>${o.event ? ` · ${escapeHtml(o.event)}` : ''}${outfitDressCodeHtml(o)}<div class="pc-muted">${escapeHtml(outfitSummary(suitcase, o))}</div></li>`).join('')}
             </ul>
           ` : ''}
           <p class="pc-section-label">Items</p>
@@ -1738,7 +1751,7 @@ function renderOutfitsView(mount, suitcase) {
         ${pastHits.map((hit) => `
           <button type="button" class="pc-past-hit" data-from="${escapeAttr(hit.suitcaseId)}" data-outfit="${escapeAttr(hit.outfitId)}">
             <b>${escapeHtml(hit.name)}</b>
-            ${hit.event ? ` · ${escapeHtml(hit.event)}` : ''}${hit.dressCode ? ` · ${escapeHtml(hit.dressCode)}` : ''}
+            ${hit.event ? ` · ${escapeHtml(hit.event)}` : ''}${hit.dressCode ? ` · ${escapeHtml(outfitDressCodePreview(hit.dressCode))}` : ''}
             <div class="pc-muted">${escapeHtml(hit.suitcaseName || 'Untitled')}${hit.wornCount ? ` · ${hit.wornCount} worn` : ''} · ${escapeHtml(hit.labels.join(', ') || 'empty')}</div>
           </button>
         `).join('')}
@@ -1750,7 +1763,8 @@ function renderOutfitsView(mount, suitcase) {
           <h3>${escapeHtml(o.name)}${o.event ? ` <span class="pc-muted">· ${escapeHtml(o.event)}</span>` : ''}</h3>
           <button type="button" class="pc-group-remove pc-remove-outfit" data-outfit-id="${escapeAttr(o.id)}" aria-label="Remove ${escapeAttr(o.name)}">&times;</button>
         </div>
-        <p class="pc-muted">${o.dressCode ? `${escapeHtml(o.dressCode)} · ` : ''}${o.date ? escapeHtml(dayLabel(suitcase, o.date)) : 'No date yet'} · ${escapeHtml(outfitSummary(suitcase, o))}</p>
+        <p class="pc-muted">${o.date ? escapeHtml(dayLabel(suitcase, o.date)) : 'No date yet'} · ${escapeHtml(outfitSummary(suitcase, o))}</p>
+        ${outfitDressCodeHtml(o)}
         <div class="pc-expand-actions">
           ${outfitWornButtonHtml(suitcase, o)}
           <button type="button" class="pc-btn sm pc-edit-outfit" data-outfit-id="${escapeAttr(o.id)}">Edit</button>
@@ -1848,7 +1862,7 @@ function openOutfitModal(editId) {
     </div>
     <div class="b-field">
       <label for="outfit-dress-code">Dress code <span class="b-optional">optional</span></label>
-      <input type="text" id="outfit-dress-code" class="pc-input" value="${escapeAttr(existing?.dressCode || '')}" placeholder="Black tie, cocktail, beach casual…" maxlength="80">
+      <textarea id="outfit-dress-code" class="pc-input" rows="4" maxlength="${MAX_OUTFIT_DRESS_CODE}" placeholder="Black tie optional. Cocktail or long dress; gentlemen dark suit. Ceremony is on grass — skip stilettos.">${escapeHtml(existing?.dressCode || '')}</textarea>
     </div>
     ${days.length ? `
       <div class="b-field">

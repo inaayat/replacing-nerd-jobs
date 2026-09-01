@@ -89,6 +89,7 @@ import {
   cubeIdsOnTrips,
   backfillOfficialCubeFromTrips,
   MAX_DAYS,
+  MAX_OUTFIT_DRESS_CODE,
   UNSORTED_KEY,
 } from '../packing-cubes/engine/model.js';
 
@@ -875,7 +876,9 @@ check('partial copy has one item', partial.itemIds.length, 1);
 const undated = newSuitcase('No dates yet');
 const bare = addOutfit(undated, { name: 'Ceremony' });
 check('outfit saves with no date', [bare.date, bare.itemIds], [null, []]);
-check('dress code cap is 80', addOutfit(undated, { name: 'Gala', dressCode: 'x'.repeat(90) }).dressCode.length, 80);
+check('dress code keeps a paragraph', addOutfit(undated, { name: 'Notes', dressCode: 'Black tie optional.\nNo jeans.' }).dressCode, 'Black tie optional.\nNo jeans.');
+check('dress code cap is 400', addOutfit(undated, { name: 'Gala', dressCode: 'x'.repeat(MAX_OUTFIT_DRESS_CODE + 20) }).dressCode.length, MAX_OUTFIT_DRESS_CODE);
+check('MAX_OUTFIT_DRESS_CODE is 400', MAX_OUTFIT_DRESS_CODE, 400);
 check('empty-string date stays unset', addOutfit(undated, { name: 'Dinner', date: '' }).date, null);
 check('updateOutfit can clear a date', (() => {
   addDay(undated, '2026-06-13');

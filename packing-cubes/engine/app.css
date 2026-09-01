@@ -1095,6 +1095,23 @@ html.pc-reordering * {
 
 .pc-outfit-mini li { margin-bottom: 6px; }
 
+.pc-outfit-dress {
+  margin: 4px 0 8px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.pc-outfit-mini .pc-outfit-dress { margin: 4px 0 2px; }
+
+.pc-outfit-modal textarea.pc-input {
+  min-height: 5.5rem;
+  resize: vertical;
+  line-height: 1.45;
+}
+
 .pc-day-assign { margin-top: 8px; }
 
 .pc-unassign-day {

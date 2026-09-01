@@ -445,3 +445,9 @@ Same optional-string pattern as `event` (trim, 80-char cap, default `''`).
 Create/edit modal has a Dress code field after Event. Cards, By-cube group
 titles, By-day mini list, Outfits filter, and past-outfit search/copy all
 read it. Still suitcase JSONB only — no new column, not a cube.
+
+## Round 15 — dress code is a longer note · 1 Sep 2026
+
+Name and event stay 80-character titles. Dress code is a wrapping textarea
+capped at 400 characters so a real note fits (newlines kept). Outfit cards
+and By-day show the full note; compact titles / past-search hits preview it.
