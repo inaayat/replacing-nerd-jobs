@@ -1,4 +1,5 @@
 const PATH = '/api/wd-board';
+const UNFURL = '/api/wd-unfurl';
 
 export async function loadBoard(token) {
   const res = await fetch(PATH, {
@@ -26,6 +27,19 @@ export async function saveBoard(token, board, { keepalive = false } = {}) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const err = new Error(data.error || `Could not save board (${res.status})`);
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
+export async function unfurlUrl(token, url) {
+  const res = await fetch(`${UNFURL}?url=${encodeURIComponent(url)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.error || `Could not unfurl (${res.status})`);
     err.status = res.status;
     throw err;
   }

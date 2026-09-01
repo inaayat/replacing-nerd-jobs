@@ -350,7 +350,7 @@ a { color: inherit; }
   border-radius: 12px;
   overflow: hidden;
   background: var(--gold-soft);
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 4 / 5;
 }
 
 .wd-card-image img {
@@ -359,6 +359,72 @@ a { color: inherit; }
   object-fit: cover;
   display: block;
 }
+
+.wd-preview {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #241c19;
+  aspect-ratio: 4 / 5;
+}
+
+.wd-preview[data-kind="youtube"] { aspect-ratio: 16 / 9; }
+.wd-preview[data-kind="video"] { aspect-ratio: 16 / 9; }
+
+.wd-preview-play {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  min-height: 0;
+}
+
+.wd-preview-img,
+.wd-preview-frame {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border: 0;
+  background: #111;
+}
+
+.wd-preview-ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 180px;
+  font-family: var(--display);
+  font-size: 1.15rem;
+  color: var(--paper);
+  background:
+    radial-gradient(800px 240px at 20% 0%, rgba(201, 123, 123, 0.45), transparent 55%),
+    #2a221e;
+}
+
+.wd-preview-ph.wd-kind-pinterest { background: #7a1f28; }
+.wd-preview-ph.wd-kind-tiktok { background: #111; }
+.wd-preview-ph.wd-kind-instagram {
+  background: linear-gradient(135deg, #833ab4, #fd1d1d 55%, #fcb045);
+}
+
+.wd-preview-btn {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.wd-preview-play:hover .wd-preview-btn { transform: scale(1.06); }
+.wd-preview-play:hover .wd-preview-btn svg circle { fill: rgba(42, 34, 30, 0.88); }
 
 .wd-card-link {
   display: grid;

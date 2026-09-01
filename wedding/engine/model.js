@@ -26,6 +26,7 @@ export const SUGGESTED_BUCKETS = [
 
 const ID_RE = /^[A-Za-z][A-Za-z0-9_]{0,47}$/;
 const IMAGE_EXT = /\.(avif|bmp|gif|jpe?g|png|svg|webp)(\?|#|$)/i;
+const VIDEO_EXT = /\.(m4v|mov|mp4|webm)(\?|#|$)/i;
 
 export function newId(prefix) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -108,6 +109,16 @@ export function isImageUrl(url) {
   }
 }
 
+export function isVideoFileUrl(url) {
+  const href = cleanUrl(url);
+  if (!href) return false;
+  try {
+    return VIDEO_EXT.test(new URL(href).pathname);
+  } catch {
+    return false;
+  }
+}
+
 export function linkKind(url) {
   const href = cleanUrl(url);
   if (!href) return null;
@@ -118,6 +129,7 @@ export function linkKind(url) {
   } catch {
     return 'link';
   }
+  if (isVideoFileUrl(href)) return 'video';
   if (host === 'tiktok.com' || host.endsWith('.tiktok.com') || host === 'vm.tiktok.com') return 'tiktok';
   if (host === 'instagram.com' || host.endsWith('.instagram.com')) return 'instagram';
   if (host === 'youtube.com' || host.endsWith('.youtube.com') || host === 'youtu.be') return 'youtube';
@@ -132,8 +144,139 @@ export function linkKindLabel(kind) {
     youtube: 'YouTube',
     pinterest: 'Pinterest',
     image: 'Image',
+    video: 'Video',
     link: 'Link',
   })[kind] || 'Link';
+}
+
+function hostOf(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * How a clip can be previewed in the board: a direct photo/video file, a
+ * YouTube poster, or an official embed player (TikTok / Instagram / Pinterest).
+ * Short links (pin.it, vm.tiktok) have no id until a server unfurl follows them.
+ */
+export function mediaPreview(url) {
+  const href = cleanUrl(url);
+  if (!href) return null;
+  const kind = linkKind(href);
+  if (!kind) return null;
+  let parsed;
+  try {
+    parsed = new URL(href);
+  } catch {
+    return null;
+  }
+  const path = parsed.pathname;
+
+  if (kind === 'image') {
+    return { kind: 'image', src: href, thumbnail: href, embedUrl: null, playable: false };
+  }
+  if (kind === 'video') {
+    return { kind: 'video', src: href, thumbnail: null, embedUrl: null, playable: true };
+  }
+  if (kind === 'youtube') {
+    let id = '';
+    if (hostOf(href) === 'youtu.be') id = path.replace(/^\//, '').split('/')[0] || '';
+    else if (path.startsWith('/shorts/')) id = path.split('/')[2] || '';
+    else if (path.startsWith('/embed/')) id = path.split('/')[2] || '';
+    else id = parsed.searchParams.get('v') || '';
+    id = id.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 20);
+    if (!id) return { kind: 'youtube', src: href, thumbnail: null, embedUrl: null, playable: false };
+    return {
+      kind: 'youtube',
+      src: href,
+      thumbnail: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+      embedUrl: `https://www.youtube.com/embed/${id}?rel=0`,
+      playable: true,
+    };
+  }
+  if (kind === 'tiktok') {
+    const m = path.match(/\/video\/(\d{5,})/) || path.match(/\/embed\/v2\/(\d{5,})/) || path.match(/\/player\/v1\/(\d{5,})/);
+    const id = m ? m[1] : '';
+    return {
+      kind: 'tiktok',
+      src: href,
+      thumbnail: null,
+      embedUrl: id ? `https://www.tiktok.com/player/v1/${id}` : null,
+      playable: true,
+    };
+  }
+  if (kind === 'instagram') {
+    const m = path.match(/\/(reels?|p|tv)\/([A-Za-z0-9_-]+)/);
+    const type = m ? (m[1] === 'reels' ? 'reel' : m[1]) : '';
+    const id = m ? m[2] : '';
+    return {
+      kind: 'instagram',
+      src: href,
+      thumbnail: null,
+      embedUrl: id ? `https://www.instagram.com/${type}/${id}/embed/` : null,
+      playable: true,
+    };
+  }
+  if (kind === 'pinterest') {
+    const m = path.match(/\/pin\/(\d{5,})/);
+    const id = m ? m[1] : '';
+    return {
+      kind: 'pinterest',
+      src: href,
+      thumbnail: null,
+      embedUrl: id ? `https://assets.pinterest.com/ext/embed.html?id=${id}` : null,
+      playable: Boolean(id),
+    };
+  }
+  return { kind: 'link', src: href, thumbnail: null, embedUrl: null, playable: false };
+}
+
+export function decodeEntities(text) {
+  return String(text || '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&mdash;/g, '—')
+    .replace(/&ndash;/g, '–');
+}
+
+export function extractOpenGraph(html) {
+  const source = String(html || '').slice(0, 200_000);
+  const pick = (prop) => {
+    const escaped = prop.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const a = source.match(new RegExp(`<meta[^>]+(?:property|name)=["']${escaped}["'][^>]*content=["']([^"']*)["']`, 'i'));
+    if (a) return decodeEntities(a[1]).trim();
+    const b = source.match(new RegExp(`<meta[^>]+content=["']([^"']*)["'][^>]*(?:property|name)=["']${escaped}["']`, 'i'));
+    if (b) return decodeEntities(b[1]).trim();
+    return '';
+  };
+  return {
+    title: pick('og:title') || pick('twitter:title'),
+    image: pick('og:image') || pick('twitter:image') || pick('og:image:url'),
+  };
+}
+
+export function normalizePreview(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const thumbnail = cleanUrl(raw.thumbnail);
+  const canonical = cleanUrl(raw.canonical);
+  const title = clipStr(raw.title, 200).trim();
+  if (!thumbnail && !canonical && !title) return null;
+  return { thumbnail, canonical, title };
+}
+
+/** Local posters we can stamp without a server (YouTube, direct photos). */
+export function localPreview(url) {
+  const media = mediaPreview(url);
+  if (!media?.thumbnail) return null;
+  return normalizePreview({ thumbnail: media.thumbnail, canonical: url });
 }
 
 export function defaultUrlLabel(url) {
@@ -189,11 +332,13 @@ function normalizeClip(raw, used, bucketIds) {
   if (bucketId && !bucketIds.has(bucketId)) bucketId = null;
   const urlLabel = url ? clipStr(rec.urlLabel, BOARD_LIMITS.urlLabel).trim() : '';
   const createdAt = nowIso(rec.createdAt);
+  const preview = url ? normalizePreview(rec.preview) : null;
   return {
     id: cleanId(rec.id, 'c', used),
     body,
     url,
     urlLabel,
+    preview,
     bucketId,
     createdAt,
     updatedAt: nowIso(rec.updatedAt || rec.createdAt) || createdAt,
@@ -303,6 +448,7 @@ export function addClip(board, { body = '', url = '', urlLabel = '', bucketId = 
     body: clipStr(text, BOARD_LIMITS.body),
     url: href,
     urlLabel: href ? clipStr(urlLabel, BOARD_LIMITS.urlLabel).trim() : '',
+    preview: href ? localPreview(href) : null,
     bucketId: dest,
     createdAt: ts,
     updatedAt: ts,
@@ -315,7 +461,12 @@ export function updateClip(board, id, patch = {}) {
   const clip = next.clips.find((c) => c.id === id);
   if (!clip) throw new Error('Unknown note.');
   if ('body' in patch) clip.body = clipStr(patch.body, BOARD_LIMITS.body);
-  if ('url' in patch) clip.url = cleanUrl(patch.url);
+  if ('url' in patch) {
+    const nextUrl = cleanUrl(patch.url);
+    if (nextUrl !== clip.url) clip.preview = nextUrl ? localPreview(nextUrl) : null;
+    clip.url = nextUrl;
+  }
+  if ('preview' in patch) clip.preview = clip.url ? normalizePreview(patch.preview) : null;
   if ('urlLabel' in patch) clip.urlLabel = clip.url ? clipStr(patch.urlLabel, BOARD_LIMITS.urlLabel).trim() : '';
   if ('bucketId' in patch) {
     let dest = patch.bucketId == null || patch.bucketId === '' || patch.bucketId === 'inbox'
@@ -327,7 +478,10 @@ export function updateClip(board, id, patch = {}) {
   if (!clip.body.trim() && !clip.url) {
     throw new Error('Write a note or paste a link.');
   }
-  if (!clip.url) clip.urlLabel = '';
+  if (!clip.url) {
+    clip.urlLabel = '';
+    clip.preview = null;
+  }
   clip.updatedAt = new Date().toISOString();
   return next;
 }
@@ -368,6 +522,7 @@ export function searchClips(board, query) {
       clip.url || '',
       urlDomain(clip.url),
       clipDisplayLabel(clip),
+      clip.preview?.title || '',
     ].join(' ').toLowerCase();
     return hay.includes(q);
   });
@@ -375,6 +530,23 @@ export function searchClips(board, query) {
 
 export function bucketById(board, id) {
   return (board?.buckets || []).find((b) => b.id === id) || null;
+}
+
+export function previewHref(clip) {
+  return clip?.preview?.canonical || clip?.url || null;
+}
+
+export function clipNeedsUnfurl(clip) {
+  if (!clip?.url) return false;
+  if (clip.preview?.thumbnail) return false;
+  const media = mediaPreview(previewHref(clip));
+  if (media?.kind === 'image' || media?.kind === 'video') return false;
+  if (media?.thumbnail) return false;
+  return media?.kind === 'tiktok'
+    || media?.kind === 'instagram'
+    || media?.kind === 'pinterest'
+    || media?.kind === 'link'
+    || !media?.embedUrl;
 }
 
 export function seedSuggestedBuckets(board, names = SUGGESTED_BUCKETS.map((b) => b.name)) {

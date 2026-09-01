@@ -193,6 +193,10 @@
       "destination": "/api/wedding?route=board"
     },
     {
+      "source": "/api/wd-unfurl",
+      "destination": "/api/wedding?route=unfurl"
+    },
+    {
       "source": "/api/sn-state",
       "destination": "/api/sticky-notes?route=state"
     },

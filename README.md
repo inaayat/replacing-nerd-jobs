@@ -263,7 +263,10 @@ Packing Cubes. An **Inbox** catches loose notes; **buckets** (Venue, Looks, …)
 are added over time, not prescribed. Every clip can be a sentence, a labelled
 link (TikTok, Instagram Reel, image URL, or anything http(s) — the URL always
 has its own display text), or both. File a clip from Inbox into a bucket, or
-leave it loose. Search looks at notes, link text, and hostnames.
+leave it loose. Search looks at notes, link text, and hostnames. Photo and
+video links preview on the card (Pinterest as a picture; TikTok, Instagram
+Reels, and YouTube behind play, using each site’s embed). Thumbnails unfurl
+through `/api/wd-unfurl` on the same `api/wedding.js` function.
 
 `wedding/engine/model.js` is the one document model (browser + `lib/wedding.js`);
 keep it dependency-free ESM and out of `/lib/`. Persistence is one JSONB row per
