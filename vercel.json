@@ -189,6 +189,10 @@
       "destination": "/api/table-manners?route=sheet"
     },
     {
+      "source": "/api/wd-board",
+      "destination": "/api/wedding?route=board"
+    },
+    {
       "source": "/api/sn-state",
       "destination": "/api/sticky-notes?route=state"
     },

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <base href="/wedding/" />
+    <title>Wedding</title>
+    <meta name="description" content="Private notes, links, and buckets for a future wedding." />
+    <link rel="icon" type="image/svg+xml" href="/wedding/icon.svg" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <meta name="theme-color" content="#f3ebe3" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Wedding" />
+    <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&display=swap" />
+    <link rel="stylesheet" href="./app.css" />
+    <script>
+      if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+        document.documentElement.classList.add('wd-standalone');
+      }
+    </script>
+  </head>
+  <body class="wd-body">
+    <nav class="wd-nav">
+      <div class="wd-nav-brand">
+        <a href="/" class="wd-nav-logo">Beep boop</a>
+        <a href="/wedding/" class="wd-nav-section">
+          <img src="/wedding/icon.svg" alt="" width="22" height="22">
+          <span>Wedding</span>
+        </a>
+      </div>
+      <input class="wd-search" id="wd-search" type="search" placeholder="Search notes &amp; links" hidden autocomplete="off" enterkeyhint="search" />
+      <div class="wd-nav-links">
+        <span class="wd-status" id="wd-status" hidden></span>
+        <a href="/#projects">Projects</a>
+        <a href="#wd-auth" id="nav-auth-link">Log in</a>
+      </div>
+    </nav>
+
+    <div id="app-root">
+      <p class="wd-boot">Loading…</p>
+    </div>
+
+    <div class="wd-toast" id="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="./engine/app.js"></script>
+  </body>
+</html>
