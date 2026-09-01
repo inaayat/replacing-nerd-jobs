@@ -448,6 +448,13 @@ read it. Still suitcase JSONB only — no new column, not a cube.
 
 ## Round 15 — dress code is a longer note · 1 Sep 2026
 
-Name and event stay 80-character titles. Dress code is a wrapping textarea
+Name and Event stay 80-character titles. Dress code is a wrapping textarea
 capped at 400 characters so a real note fits (newlines kept). Outfit cards
 and By-day show the full note; compact titles / past-search hits preview it.
+
+## Round 16 — Date field instead of Event · 1 Sep 2026
+
+The create/edit modal dropped Event. Date is a calendar picker under Name
+(always shown, still optional). Picking a date adds that day to the trip
+so outfits do not depend on Plan by day first. `event` remains on old
+suitcase rows for search/copy; the form no longer collects it.

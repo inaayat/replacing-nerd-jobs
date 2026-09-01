@@ -75,6 +75,7 @@ import {
   removeOutfit,
   setOutfitItems,
   setOutfitDate,
+  ensureOutfitDate,
   searchPastOutfits,
   copyOutfit,
   ensureListItem,
@@ -880,6 +881,23 @@ check('dress code keeps a paragraph', addOutfit(undated, { name: 'Notes', dressC
 check('dress code cap is 400', addOutfit(undated, { name: 'Gala', dressCode: 'x'.repeat(MAX_OUTFIT_DRESS_CODE + 20) }).dressCode.length, MAX_OUTFIT_DRESS_CODE);
 check('MAX_OUTFIT_DRESS_CODE is 400', MAX_OUTFIT_DRESS_CODE, 400);
 check('empty-string date stays unset', addOutfit(undated, { name: 'Dinner', date: '' }).date, null);
+check('addOutfit date adds the day to the trip', (() => {
+  const picker = newSuitcase('Picker');
+  const dinner = addOutfit(picker, { name: 'Dinner', date: '2026-07-04' });
+  return [dinner.date, picker.days.map((d) => d.date)];
+})(), ['2026-07-04', ['2026-07-04']]);
+check('ensureOutfitDate clears without dropping the day', (() => {
+  const picker = newSuitcase('Clear date');
+  const dinner = addOutfit(picker, { name: 'Dinner', date: '2026-07-04' });
+  ensureOutfitDate(picker, dinner.id, '');
+  return [dinner.date, picker.days.map((d) => d.date)];
+})(), [null, ['2026-07-04']]);
+check('updateOutfit date adds a missing day', (() => {
+  const picker = newSuitcase('Update date');
+  const dinner = addOutfit(picker, { name: 'Dinner' });
+  updateOutfit(picker, dinner.id, { date: '2026-08-01' });
+  return [dinner.date, picker.days.map((d) => d.date)];
+})(), ['2026-08-01', ['2026-08-01']]);
 check('updateOutfit can clear a date', (() => {
   addDay(undated, '2026-06-13');
   setOutfitDate(undated, bare.id, '2026-06-13');

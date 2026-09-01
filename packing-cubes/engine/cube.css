@@ -314,6 +314,7 @@ button:focus-visible {
 .pc-search-input,
 .b-field input[type="text"],
 .b-field input[type="number"],
+.b-field input[type="date"],
 .b-field select,
 .b-field textarea {
   font: inherit;
@@ -347,6 +348,7 @@ button:focus-visible {
   .pc-search-input,
   .b-field input[type="text"],
   .b-field input[type="number"],
+  .b-field input[type="date"],
   .b-field select,
   .b-field textarea,
   .pc-list-controls select,

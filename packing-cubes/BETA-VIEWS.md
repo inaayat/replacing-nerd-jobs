@@ -56,9 +56,11 @@ trip never edits `pc_cubes`.
   to the packing list once and attached to the outfit. Two outfits can share
   that same list row.
 - As a packer, I can save an outfit with **no date**. A look does not need
-  a day. The date field is optional and never auto-filled.
-- As a packer, I optionally label the event ("Saturday wedding") and write
-  a dress-code note (a short paragraph, not just "Black tie").
+  a day. The date field is an optional calendar picker (not a list of
+  days already on the trip) and never auto-filled. Picking a date adds
+  that day to the trip.
+- As a packer, I write a dress-code note (a short paragraph, not just
+  "Black tie").
 - As a packer, I search outfits I used on past trips ("navy suit",
   "rehearsal") and copy one onto the current trip. Copying never creates a
   cube. If a copied item isn't on this list, I am offered the chance to add
@@ -290,7 +292,7 @@ column on `pc_suitcase_state`, plus the localStorage cache).
     {
       id: 'outfit-uuid',
       name: 'Ceremony',
-      event: 'Saturday wedding',  // '' if unused
+      event: '',  // legacy; not collected on the form
       dressCode: 'Black tie optional.\nNo jeans.',  // '' if unused; note, not a title
       date: '2026-06-13' | null,  // at most one calendar date in v1
       itemIds: ['item-uuid', …],  // ids of suitcase.items
@@ -412,9 +414,11 @@ suitcase**. It is not a cube, not in `pc_cubes`, not in My Cubes, not
 
 - Build from items already on the list **or** quick-add in the create/edit
   view (`ensureListItem` / `addItemToOutfit`). Empty outfits are allowed.
-- Optional `event` string (80). Optional `dressCode` note (400, newlines
-  kept). **Optional `date` — null is valid. Do not require a date. Do not
-  auto-assign the first trip day.**
+- Optional `dressCode` note (400, newlines kept). **Optional `date` —
+  null is valid. Calendar picker on create/edit; picking a date adds
+  that day to the trip. Do not require a date. Do not auto-assign the
+  first trip day.** `event` is legacy (still normalized) and is not on
+  the form.
 - **Locked:** an item **may** sit on two outfits. **List** is exclusive:
   first outfit that owns it, else cube, else Unsorted — one packed
   checkbox. Outfits are groupings, not extra inventory.
@@ -453,14 +457,14 @@ suitcase**. It is not a cube, not in `pc_cubes`, not in My Cubes, not
 Search corpus: every `outfit` on every suitcase in `state.suitcases`
 except the current one. (Same-user, already loaded — no extra API.)
 
-Haystack per hit: outfit `name`, `event`, `dressCode`, parent suitcase
-`name`, and the **labels** of its `itemIds`. Case-insensitive `includes`,
-same idea as `matchesQuery`.
+Haystack per hit: outfit `name`, `event` (legacy), `dressCode`, `date`,
+parent suitcase `name`, and the **labels** of its `itemIds`.
+Case-insensitive `includes`, same idea as `matchesQuery`.
 
 ```js
 {
   suitcaseId, suitcaseName,
-  outfitId, name, event, dressCode,
+  outfitId, name, event, date, dressCode,
   labels: ['Navy suit', 'White shirt'],
 }
 ```

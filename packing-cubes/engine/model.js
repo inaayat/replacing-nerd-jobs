@@ -1414,11 +1414,12 @@ export function addOutfit(suitcase, { name, event = '', dressCode = '', date = n
     name: title,
     event: String(event || '').trim().slice(0, MAX_OUTFIT_NAME),
     dressCode: String(dressCode || '').trim().slice(0, MAX_OUTFIT_DRESS_CODE),
-    date: isIsoDate(date) && hasDay(suitcase, date) ? date : null,
+    date: null,
     itemIds: [],
   };
   suitcase.outfits.push(outfit);
   setOutfitItems(suitcase, outfit.id, itemIds);
+  if (date) ensureOutfitDate(suitcase, outfit.id, date);
   return outfit;
 }
 
@@ -1433,7 +1434,7 @@ export function updateOutfit(suitcase, outfitId, patch = {}) {
   if (patch.event != null) outfit.event = String(patch.event).trim().slice(0, MAX_OUTFIT_NAME);
   if (patch.dressCode != null) outfit.dressCode = String(patch.dressCode).trim().slice(0, MAX_OUTFIT_DRESS_CODE);
   if (Object.prototype.hasOwnProperty.call(patch, 'date')) {
-    setOutfitDate(suitcase, outfitId, patch.date);
+    ensureOutfitDate(suitcase, outfitId, patch.date);
   }
   if (patch.itemIds) setOutfitItems(suitcase, outfitId, patch.itemIds);
   return true;
@@ -1464,8 +1465,29 @@ export function setOutfitItems(suitcase, outfitId, itemIds) {
 export function setOutfitDate(suitcase, outfitId, date) {
   const outfit = (suitcase.outfits || []).find((o) => o.id === outfitId);
   if (!outfit) return false;
-  // Date is optional. Empty / invalid / unknown day → null. Never invent a date.
+  // Date is optional. Empty / invalid / unknown day → null. Does not add days.
   outfit.date = isIsoDate(date) && hasDay(suitcase, date) ? date : null;
+  return true;
+}
+
+/**
+ * Date field on an outfit: empty clears it. A new ISO date is added to the
+ * trip so the form does not require Plan by day first. Returns false if the
+ * outfit is missing or a new day would exceed MAX_DAYS (date is left as-is).
+ */
+export function ensureOutfitDate(suitcase, outfitId, date) {
+  const outfit = (suitcase.outfits || []).find((o) => o.id === outfitId);
+  if (!outfit) return false;
+  if (!date) {
+    outfit.date = null;
+    return true;
+  }
+  if (!isIsoDate(date)) {
+    outfit.date = null;
+    return true;
+  }
+  if (!hasDay(suitcase, date) && !addDay(suitcase, date)) return false;
+  outfit.date = date;
   return true;
 }
 
@@ -1497,7 +1519,7 @@ export function searchPastOutfits(suitcases, currentId, query) {
       const otherRows = rows.filter((i) => !i.worn);
       const labels = [...wornRows, ...otherRows].map((i) => i.label).filter(Boolean);
       const wornLabels = wornRows.map((i) => i.label).filter(Boolean);
-      const haystack = [outfit.name, outfit.event, outfit.dressCode, suitcase.name, ...labels].join(' ').toLowerCase();
+      const haystack = [outfit.name, outfit.event, outfit.dressCode, outfit.date, suitcase.name, ...labels].join(' ').toLowerCase();
       if (q && !haystack.includes(q)) continue;
       hits.push({
         suitcaseId: suitcase.id,
@@ -1505,6 +1527,7 @@ export function searchPastOutfits(suitcases, currentId, query) {
         outfitId: outfit.id,
         name: outfit.name,
         event: outfit.event || '',
+        date: outfit.date || '',
         dressCode: outfit.dressCode || '',
         labels,
         wornLabels,
