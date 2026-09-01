@@ -8,14 +8,12 @@ import {
   refreshToken,
   renderWeddingSignIn,
 } from './auth.js';
-import { loadBoard, saveBoard, debounceSave } from './store.js';
+import { loadBoard, saveBoard, debounceSave, unfurlUrl } from './store.js';
 import {
   SUGGESTED_BUCKETS,
   emptyBoard,
   normalizeBoard,
-  cleanUrl,
   urlDomain,
-  isImageUrl,
   linkKind,
   linkKindLabel,
   extractPastedUrl,
@@ -34,6 +32,9 @@ import {
   searchClips,
   bucketById,
   seedSuggestedBuckets,
+  mediaPreview,
+  previewHref,
+  clipNeedsUnfurl,
 } from './model.js';
 
 const STORAGE_KEY = 'wedding:board';
@@ -47,6 +48,7 @@ let board = emptyBoard();
 let view = { kind: 'inbox' };
 let query = '';
 let composerOpen = false;
+const previewTried = new Set();
 
 const persist = debounceSave(async (next, opts) => {
   if (localMode || !auth?.token) {
@@ -65,6 +67,8 @@ const persist = debounceSave(async (next, opts) => {
     showToast(err.message || 'Could not save');
   }
 }, 650);
+
+const PLAY_SVG = `<svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true"><circle cx="14" cy="14" r="13" fill="rgba(42,34,30,0.72)"/><path d="M11 8.5v11l9-5.5-9-5.5z" fill="#fbf6ef"/></svg>`;
 
 const RING_ART = `
 <svg class="wd-gate-art" viewBox="0 0 120 92" width="132" height="101" role="img" aria-label="Two rings">
@@ -154,6 +158,46 @@ function commit(next, { instant = false } = {}) {
   if (instant) persist.flush();
 }
 
+function playPreview(card, clip) {
+  const wrap = card.querySelector('.wd-preview');
+  if (!wrap) {
+    if (clip.url) window.open(clip.url, '_blank', 'noopener,noreferrer');
+    return;
+  }
+  const media = mediaPreview(previewHref(clip)) || mediaPreview(clip.url);
+  if (media?.kind === 'video' && clip.url) {
+    wrap.innerHTML = `<video class="wd-preview-frame" src="${escapeHtml(clip.url)}" controls autoplay playsinline></video>`;
+    return;
+  }
+  if (media?.embedUrl) {
+    wrap.innerHTML = `<iframe class="wd-preview-frame" src="${escapeHtml(media.embedUrl)}" allow="encrypted-media; fullscreen; picture-in-picture; autoplay" allowfullscreen loading="lazy" title="Preview" referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+    return;
+  }
+  if (clip.url) window.open(clip.url, '_blank', 'noopener,noreferrer');
+}
+
+async function requestPreview(clip) {
+  if (!clipNeedsUnfurl(clip)) return;
+  if (localMode || !auth?.token) return;
+  const key = `${clip.id}:${clip.url}`;
+  if (previewTried.has(key)) return;
+  previewTried.add(key);
+  try {
+    const data = await unfurlUrl(auth.token, clip.url);
+    const current = board.clips.find((row) => row.id === clip.id);
+    if (!current || current.url !== clip.url) return;
+    if (data?.thumbnail || data?.title || data?.canonical) {
+      commit(updateClip(board, clip.id, { preview: data }));
+    }
+  } catch {
+    /* play placeholder still works */
+  }
+}
+
+function fillPreviews() {
+  for (const clip of visibleClips()) requestPreview(clip);
+}
+
 function destinationId() {
   if (view.kind === 'bucket') return view.id;
   return null;
@@ -196,14 +240,50 @@ function kindChip(url) {
   return `<span class="wd-kind wd-kind-${kind}">${escapeHtml(linkKindLabel(kind))}</span>`;
 }
 
+function previewBlock(clip) {
+  if (!clip.url) return '';
+  const media = mediaPreview(previewHref(clip)) || mediaPreview(clip.url);
+  const thumb = clip.preview?.thumbnail || media?.thumbnail || null;
+  const href = escapeHtml(clip.url);
+
+  if (media?.kind === 'image' || (thumb && (media?.kind === 'pinterest' || media?.kind === 'link' || !media?.playable))) {
+    if (!thumb) return '';
+    return `<a class="wd-card-image" href="${href}" target="_blank" rel="noopener noreferrer"><img src="${escapeHtml(thumb)}" alt="" referrerpolicy="no-referrer" loading="lazy"></a>`;
+  }
+
+  if (media?.kind === 'video') {
+    return `
+      <div class="wd-preview" data-kind="video">
+        <button type="button" class="wd-preview-play" data-act="play" aria-label="Play video">
+          <span class="wd-preview-ph">Video</span>
+          <span class="wd-preview-btn">${PLAY_SVG}</span>
+        </button>
+      </div>`;
+  }
+
+  if (media?.playable || media?.embedUrl) {
+    const poster = thumb
+      ? `<img class="wd-preview-img" src="${escapeHtml(thumb)}" alt="" referrerpolicy="no-referrer" loading="lazy">`
+      : `<span class="wd-preview-ph wd-kind-${escapeHtml(media.kind)}">${escapeHtml(linkKindLabel(media.kind))}</span>`;
+    return `
+      <div class="wd-preview" data-kind="${escapeHtml(media.kind)}">
+        <button type="button" class="wd-preview-play" data-act="play" aria-label="Play preview">
+          ${poster}
+          <span class="wd-preview-btn">${PLAY_SVG}</span>
+        </button>
+      </div>`;
+  }
+
+  return '';
+}
+
 function clipCard(clip) {
   const label = clipDisplayLabel(clip);
   const domain = urlDomain(clip.url);
-  const image = clip.url && isImageUrl(clip.url);
   const href = clip.url ? escapeHtml(clip.url) : '';
   return `
     <article class="wd-card" data-clip="${escapeHtml(clip.id)}">
-      ${image ? `<a class="wd-card-image" href="${href}" target="_blank" rel="noopener noreferrer"><img src="${href}" alt="" referrerpolicy="no-referrer" loading="lazy"></a>` : ''}
+      ${previewBlock(clip)}
       ${clip.url ? `
         <a class="wd-card-link" href="${href}" target="_blank" rel="noopener noreferrer">
           ${kindChip(clip.url)}
@@ -385,6 +465,7 @@ function renderApp() {
     composerOpen = true;
     document.getElementById('wd-composer')?.classList.add('is-open');
   }
+  fillPreviews();
 }
 
 function wireApp() {
@@ -530,9 +611,24 @@ function wireApp() {
         },
       });
     });
-    card.querySelector('.wd-card-image img')?.addEventListener('error', (e) => {
-      const wrap = e.target.closest('.wd-card-image');
-      if (wrap) wrap.hidden = true;
+    card.querySelector('[data-act="play"]')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      const clip = board.clips.find((c) => c.id === id);
+      if (clip) playPreview(card, clip);
+    });
+    card.querySelectorAll('.wd-card-image img, .wd-preview-img').forEach((img) => {
+      img.addEventListener('error', () => {
+        const photo = img.closest('.wd-card-image');
+        if (photo) photo.hidden = true;
+        const preview = img.closest('.wd-preview');
+        if (preview && img.parentElement) {
+          const kind = preview.getAttribute('data-kind') || 'link';
+          img.replaceWith(Object.assign(document.createElement('span'), {
+            className: `wd-preview-ph wd-kind-${kind}`,
+            textContent: linkKindLabel(kind),
+          }));
+        }
+      });
     });
   });
 

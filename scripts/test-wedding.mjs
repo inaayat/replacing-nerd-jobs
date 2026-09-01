@@ -30,6 +30,12 @@ import {
   bucketCount,
   searchClips,
   seedSuggestedBuckets,
+  isVideoFileUrl,
+  mediaPreview,
+  extractOpenGraph,
+  localPreview,
+  clipNeedsUnfurl,
+  previewHref,
 } from '../wedding/engine/model.js';
 
 function eq(actual, expected, msg) {
@@ -158,5 +164,51 @@ const deadClip = normalizeBoard({
 });
 eq(deadClip.clips.length, 1, 'empty / invalid clips drop');
 eq(deadClip.clips[0].bucketId, null, 'unknown bucket becomes inbox');
+
+eq(isVideoFileUrl('https://cdn.example.com/look.mp4'), true);
+eq(linkKind('https://cdn.example.com/look.mp4'), 'video');
+
+const tiktok = mediaPreview('https://www.tiktok.com/@x/video/1234567890123456789');
+eq(tiktok.kind, 'tiktok');
+eq(tiktok.embedUrl, 'https://www.tiktok.com/player/v1/1234567890123456789');
+eq(tiktok.playable, true);
+
+const reel = mediaPreview('https://www.instagram.com/reel/AbC_12-x/');
+eq(reel.kind, 'instagram');
+eq(reel.embedUrl, 'https://www.instagram.com/reel/AbC_12-x/embed/');
+eq(mediaPreview('https://www.instagram.com/reels/AbC_12-x/').embedUrl, reel.embedUrl);
+
+const pin = mediaPreview('https://www.pinterest.com/pin/9876543210/');
+eq(pin.kind, 'pinterest');
+eq(pin.embedUrl, 'https://assets.pinterest.com/ext/embed.html?id=9876543210');
+eq(mediaPreview('https://pin.it/abc').embedUrl, null, 'short Pin links need an unfurl to get an id');
+
+const yt = mediaPreview('https://youtu.be/dQw4w9wgXcQ');
+eq(yt.kind, 'youtube');
+eq(yt.thumbnail, 'https://i.ytimg.com/vi/dQw4w9wgXcQ/hqdefault.jpg');
+eq(yt.embedUrl.includes('dQw4w9wgXcQ'), true);
+eq(localPreview('https://youtu.be/dQw4w9wgXcQ').thumbnail, yt.thumbnail);
+
+const og = extractOpenGraph(`
+  <meta property="og:title" content="Veil ideas &amp; more">
+  <meta name="twitter:image" content="https://i.pinimg.com/look.jpg">
+`);
+eq(og.title, 'Veil ideas & more');
+eq(og.image, 'https://i.pinimg.com/look.jpg');
+
+let previewBoard = addClip(emptyBoard(), { url: 'https://www.tiktok.com/@x/video/1', urlLabel: 'aisle' });
+eq(clipNeedsUnfurl(previewBoard.clips[0]), true, 'TikTok posters come from oEmbed');
+previewBoard = updateClip(previewBoard, previewBoard.clips[0].id, {
+  preview: { thumbnail: 'https://p16-sign.tiktokcdn-us.com/tos/cover.jpg', title: 'the walk', canonical: 'https://www.tiktok.com/@x/video/1' },
+});
+eq(previewBoard.clips[0].preview.thumbnail.includes('tiktokcdn'), true);
+eq(clipNeedsUnfurl(previewBoard.clips[0]), false);
+eq(searchClips(previewBoard, 'the walk').length, 1, 'search reads preview titles');
+eq(previewHref(previewBoard.clips[0]), 'https://www.tiktok.com/@x/video/1');
+
+const kept = normalizeBoard({
+  clips: [{ body: 'x', url: 'https://example.com/a', preview: { thumbnail: 'javascript:alert(1)', title: 'nope' } }],
+});
+eq(kept.clips[0].preview?.thumbnail ?? null, null, 'non-http preview thumbs drop');
 
 console.log('wedding board tests passed');
