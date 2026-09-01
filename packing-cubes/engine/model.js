@@ -585,6 +585,7 @@ function normalizeOutfits(raw, itemIds, dayDates) {
     const name = String(row.name || '').trim().slice(0, MAX_OUTFIT_NAME);
     if (!name) continue;
     const event = String(row.event || '').trim().slice(0, MAX_OUTFIT_NAME);
+    const dressCode = String(row.dressCode || '').trim().slice(0, MAX_OUTFIT_NAME);
     const date = isIsoDate(row.date) && dayDates.has(row.date) ? row.date : null;
     const ids = [];
     const seen = new Set();
@@ -598,6 +599,7 @@ function normalizeOutfits(raw, itemIds, dayDates) {
       id: row.id && String(row.id).trim() ? String(row.id) : newId(),
       name,
       event,
+      dressCode,
       date,
       itemIds: ids,
     });
@@ -1400,7 +1402,7 @@ export function outfitsForDate(suitcase, date) {
   return (suitcase.outfits || []).filter((o) => o.date === date);
 }
 
-export function addOutfit(suitcase, { name, event = '', date = null, itemIds = [] } = {}) {
+export function addOutfit(suitcase, { name, event = '', dressCode = '', date = null, itemIds = [] } = {}) {
   ensureDayCollections(suitcase);
   const title = String(name || '').trim().slice(0, MAX_OUTFIT_NAME);
   if (!title) return null;
@@ -1409,6 +1411,7 @@ export function addOutfit(suitcase, { name, event = '', date = null, itemIds = [
     id: newId(),
     name: title,
     event: String(event || '').trim().slice(0, MAX_OUTFIT_NAME),
+    dressCode: String(dressCode || '').trim().slice(0, MAX_OUTFIT_NAME),
     date: isIsoDate(date) && hasDay(suitcase, date) ? date : null,
     itemIds: [],
   };
@@ -1426,6 +1429,7 @@ export function updateOutfit(suitcase, outfitId, patch = {}) {
     outfit.name = title;
   }
   if (patch.event != null) outfit.event = String(patch.event).trim().slice(0, MAX_OUTFIT_NAME);
+  if (patch.dressCode != null) outfit.dressCode = String(patch.dressCode).trim().slice(0, MAX_OUTFIT_NAME);
   if (Object.prototype.hasOwnProperty.call(patch, 'date')) {
     setOutfitDate(suitcase, outfitId, patch.date);
   }
@@ -1491,7 +1495,7 @@ export function searchPastOutfits(suitcases, currentId, query) {
       const otherRows = rows.filter((i) => !i.worn);
       const labels = [...wornRows, ...otherRows].map((i) => i.label).filter(Boolean);
       const wornLabels = wornRows.map((i) => i.label).filter(Boolean);
-      const haystack = [outfit.name, outfit.event, suitcase.name, ...labels].join(' ').toLowerCase();
+      const haystack = [outfit.name, outfit.event, outfit.dressCode, suitcase.name, ...labels].join(' ').toLowerCase();
       if (q && !haystack.includes(q)) continue;
       hits.push({
         suitcaseId: suitcase.id,
@@ -1499,6 +1503,7 @@ export function searchPastOutfits(suitcases, currentId, query) {
         outfitId: outfit.id,
         name: outfit.name,
         event: outfit.event || '',
+        dressCode: outfit.dressCode || '',
         labels,
         wornLabels,
         wornCount: wornLabels.length,
@@ -1531,6 +1536,7 @@ export function copyOutfit(fromSuitcase, outfit, toSuitcase, { addMissing = fals
   return addOutfit(toSuitcase, {
     name: outfit.name,
     event: outfit.event || '',
+    dressCode: outfit.dressCode || '',
     itemIds,
   });
 }

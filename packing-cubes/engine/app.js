@@ -1564,6 +1564,10 @@ function outfitSummary(suitcase, outfit) {
   return labels.length ? labels.join(', ') : 'No items yet';
 }
 
+function outfitMetaBits(outfit) {
+  return [outfit?.event, outfit?.dressCode].filter(Boolean);
+}
+
 function renderDayView(mount, suitcase) {
   // Keep the date toolbar mounted. Chrome fires `change` when you leave the
   // day/month segment and start the year; wiping innerHTML would steal focus.
@@ -1644,7 +1648,7 @@ function paintDayCards(cards, suitcase) {
           ${outfits.length ? `
             <p class="pc-section-label">Outfits this day</p>
             <ul class="pc-outfit-mini">
-              ${outfits.map((o) => `<li><b>${escapeHtml(o.name)}</b>${o.event ? ` · ${escapeHtml(o.event)}` : ''}<div class="pc-muted">${escapeHtml(outfitSummary(suitcase, o))}</div></li>`).join('')}
+              ${outfits.map((o) => `<li><b>${escapeHtml(o.name)}</b>${outfitMetaBits(o).length ? ` · ${escapeHtml(outfitMetaBits(o).join(' · '))}` : ''}<div class="pc-muted">${escapeHtml(outfitSummary(suitcase, o))}</div></li>`).join('')}
             </ul>
           ` : ''}
           <p class="pc-section-label">Items</p>
@@ -1718,7 +1722,7 @@ function renderOutfitsView(mount, suitcase) {
   const outfits = (suitcase.outfits || []).filter((o) => {
     if (wornOnly && !outfitWornState(suitcase, o).worn) return false;
     if (!q) return true;
-    return [o.name, o.event, outfitSummary(suitcase, o)].join(' ').toLowerCase().includes(q);
+    return [o.name, o.event, o.dressCode, outfitSummary(suitcase, o)].join(' ').toLowerCase().includes(q);
   });
   const pastHits = searchPastOutfits(state.suitcases, suitcase.id, outfitSearchQuery);
 
@@ -1734,7 +1738,7 @@ function renderOutfitsView(mount, suitcase) {
         ${pastHits.map((hit) => `
           <button type="button" class="pc-past-hit" data-from="${escapeAttr(hit.suitcaseId)}" data-outfit="${escapeAttr(hit.outfitId)}">
             <b>${escapeHtml(hit.name)}</b>
-            ${hit.event ? ` · ${escapeHtml(hit.event)}` : ''}
+            ${hit.event ? ` · ${escapeHtml(hit.event)}` : ''}${hit.dressCode ? ` · ${escapeHtml(hit.dressCode)}` : ''}
             <div class="pc-muted">${escapeHtml(hit.suitcaseName || 'Untitled')}${hit.wornCount ? ` · ${hit.wornCount} worn` : ''} · ${escapeHtml(hit.labels.join(', ') || 'empty')}</div>
           </button>
         `).join('')}
@@ -1746,7 +1750,7 @@ function renderOutfitsView(mount, suitcase) {
           <h3>${escapeHtml(o.name)}${o.event ? ` <span class="pc-muted">· ${escapeHtml(o.event)}</span>` : ''}</h3>
           <button type="button" class="pc-group-remove pc-remove-outfit" data-outfit-id="${escapeAttr(o.id)}" aria-label="Remove ${escapeAttr(o.name)}">&times;</button>
         </div>
-        <p class="pc-muted">${o.date ? escapeHtml(dayLabel(suitcase, o.date)) : 'No date yet'} · ${escapeHtml(outfitSummary(suitcase, o))}</p>
+        <p class="pc-muted">${o.dressCode ? `${escapeHtml(o.dressCode)} · ` : ''}${o.date ? escapeHtml(dayLabel(suitcase, o.date)) : 'No date yet'} · ${escapeHtml(outfitSummary(suitcase, o))}</p>
         <div class="pc-expand-actions">
           ${outfitWornButtonHtml(suitcase, o)}
           <button type="button" class="pc-btn sm pc-edit-outfit" data-outfit-id="${escapeAttr(o.id)}">Edit</button>
@@ -1842,6 +1846,10 @@ function openOutfitModal(editId) {
       <label for="outfit-event">Event <span class="b-optional">optional</span></label>
       <input type="text" id="outfit-event" class="pc-input" value="${escapeAttr(existing?.event || '')}" placeholder="Saturday wedding" maxlength="80">
     </div>
+    <div class="b-field">
+      <label for="outfit-dress-code">Dress code <span class="b-optional">optional</span></label>
+      <input type="text" id="outfit-dress-code" class="pc-input" value="${escapeAttr(existing?.dressCode || '')}" placeholder="Black tie, cocktail, beach casual…" maxlength="80">
+    </div>
     ${days.length ? `
       <div class="b-field">
         <label for="outfit-date">Date <span class="b-optional">optional — looks do not need a day</span></label>
@@ -1883,16 +1891,17 @@ function openOutfitModal(editId) {
   document.getElementById('outfit-save').addEventListener('click', () => {
     const name = document.getElementById('outfit-name').value;
     const event = document.getElementById('outfit-event').value;
+    const dressCode = document.getElementById('outfit-dress-code').value;
     const dateField = document.getElementById('outfit-date');
     const date = (dateField && dateField.value) ? dateField.value : null;
     const itemIds = selectedOutfitItemIds(rootEl);
     if (existing) {
-      if (!updateOutfit(suitcase, existing.id, { name, event, date, itemIds })) {
+      if (!updateOutfit(suitcase, existing.id, { name, event, dressCode, date, itemIds })) {
         showToast('An outfit needs a name.');
         return;
       }
     } else {
-      const created = addOutfit(suitcase, { name, event, date: null, itemIds });
+      const created = addOutfit(suitcase, { name, event, dressCode, date: null, itemIds });
       if (!created) {
         showToast(name.trim() ? `Trips hold at most 40 outfits.` : 'An outfit needs a name.');
         return;
@@ -1975,6 +1984,8 @@ function renderCubeGroups(mount, suitcase, cubeMap) {
     const isUnsorted = group.key === UNSORTED_KEY;
     const isAddOnGroup = !!group.addOnId;
     const isOutfitGroup = !!group.outfitId;
+    const outfit = isOutfitGroup ? (suitcase.outfits || []).find((o) => o.id === group.outfitId) : null;
+    const outfitMeta = isOutfitGroup ? outfitMetaBits(outfit).join(' · ') : '';
     if (!organizeMode && group.items.length && !items.length) return '';
     anyVisible = true;
     const collapsed = collapsedGroups.has(group.key) && !organizeMode;
@@ -2002,10 +2013,10 @@ function renderCubeGroups(mount, suitcase, cubeMap) {
             : `<span class="pc-group-drag pc-group-drag-slot" aria-hidden="true"></span>`}
           <button type="button" class="pc-group-header">
             <span class="chevron">${CHEVRON_SVG}</span>
-            <span class="pc-group-title">${escapeHtml(group.title)}</span>
+            <span class="pc-group-title">${escapeHtml(group.title)}${outfitMeta ? ` <span class="pc-muted">${escapeHtml(outfitMeta)}</span>` : ''}</span>
             <span class="pc-group-count">${group.items.filter((i) => i.packed).length}/${group.items.length}</span>
           </button>
-          ${isOutfitGroup ? outfitWornButtonHtml(suitcase, (suitcase.outfits || []).find((o) => o.id === group.outfitId), { compact: true }) : ''}
+          ${isOutfitGroup ? outfitWornButtonHtml(suitcase, outfit, { compact: true }) : ''}
           ${canSaveAsCube ? `<button type="button" class="pc-group-action" id="save-unsorted-cube">Save as cube</button>` : ''}
           ${removable ? `<button type="button" class="pc-group-remove" data-remove-cube="${escapeAttr(group.cubeId)}"
             title="Remove this cube and its items from the list" aria-label="Remove ${escapeAttr(group.title)} from the list">&times;</button>` : ''}

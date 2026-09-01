@@ -423,7 +423,7 @@ Karan asked for two extra packing views as beta. Locked:
   neighbors. Items have `dates[]` (rewear). The discarded numbered-day draft
   (`days[].n` / `item.dayIds` / `outfit.dayId`) is dropped in
   `normalizeSuitcase`. Stay on suitcase `v: 2`.
-- **Outfits:** `{ id, name, event?, date?, itemIds[] }` on the trip record.
+- **Outfits:** `{ id, name, event?, dressCode?, date?, itemIds[] }` on the trip record.
   `date` is optional (null is valid; never required, never auto-assigned).
   Create/edit can quick-add a label onto the packing list and the outfit.
   Search past outfits across `state.suitcases`; copy grouping + optionally
@@ -438,3 +438,10 @@ Karan asked for two extra packing views as beta. Locked:
   **appends** it so the next trip gets it. Only Edit cube deletes from
   the reusable cube. Blank add-ins are created from My Cubes / Edit
   cube, not from List.
+
+## Round 14 — optional Dress code on outfits · 1 Sep 2026
+
+Same optional-string pattern as `event` (trim, 80-char cap, default `''`).
+Create/edit modal has a Dress code field after Event. Cards, By-cube group
+titles, By-day mini list, Outfits filter, and past-outfit search/copy all
+read it. Still suitcase JSONB only — no new column, not a cube.

@@ -809,8 +809,15 @@ check('unassigned tray', unassignedDateItems(trip).map((i) => i.label), ['Dress 
 const ceremony = addOutfit(trip, { name: 'Ceremony', event: 'Saturday wedding', date: '2026-06-13', itemIds: [shirt.id, shoes.id] });
 check('outfit lives on the trip', ceremony.name, 'Ceremony');
 check('outfit date is a calendar date', ceremony.date, '2026-06-13');
+check('outfit dress code defaults empty', ceremony.dressCode, '');
 check('outfit does not create a cube', trip.cubeIds, []);
 check('outfitsForDate', outfitsForDate(trip, '2026-06-13').map((o) => o.name), ['Ceremony']);
+check('updateOutfit sets dress code', updateOutfit(trip, ceremony.id, { dressCode: '  Black tie  ' }), true);
+check('dress code trimmed', trip.outfits[0].dressCode, 'Black tie');
+check('updateOutfit clears dress code', (() => {
+  updateOutfit(trip, ceremony.id, { dressCode: '' });
+  return trip.outfits[0].dressCode;
+})(), '');
 
 check('removeDay does not renumber neighbors', removeDay(trip, '2026-06-13'), true);
 check('neighbors keep their dates', trip.days.map((d) => d.date), ['2026-06-12', '2026-06-14', '2026-06-16']);
@@ -836,21 +843,29 @@ const discarded = normalizeSuitcase({
 check('numbered days without a date are dropped', discarded.days, [{ date: '2026-06-12' }]);
 check('item.dayIds discarded', discarded.items[0].dates, []);
 check('outfit.dayId discarded', discarded.outfits[0].date, null);
+check('missing dress code normalizes empty', discarded.outfits[0].dressCode, '');
+check(
+  'normalize keeps dress code',
+  normalizeSuitcase({ outfits: [{ id: 'o2', name: 'Dinner', dressCode: 'Cocktail' }] }).outfits[0].dressCode,
+  'Cocktail',
+);
 
 const past = newSuitcase('Jaipur wedding');
 const pastSuit = addItem(past, 'Navy suit');
 const pastSq = addItem(past, 'Pocket square');
-addOutfit(past, { name: 'Ceremony', event: 'Shaadi', itemIds: [pastSuit.id, pastSq.id] });
+addOutfit(past, { name: 'Ceremony', event: 'Shaadi', dressCode: 'Bandhgala', itemIds: [pastSuit.id, pastSq.id] });
 const now = newSuitcase('This weekend');
 addItem(now, 'Navy suit');
 const hits = searchPastOutfits([past, now], now.id, 'shaadi');
 check('search past outfits by event', hits.map((h) => h.name), ['Ceremony']);
+check('search past outfits by dress code', searchPastOutfits([past, now], now.id, 'bandhgala').map((h) => h.dressCode), ['Bandhgala']);
 check('search hides the current trip', searchPastOutfits([past, now], past.id, 'ceremony').length, 0);
 const copied = copyOutfit(past, past.outfits[0], now, { addMissing: true });
 check('copy never creates a cube', now.cubeIds, []);
 check('copy adds missing labels', now.items.map((i) => i.label), ['Navy suit', 'Pocket square']);
 check('copy grouping uses current ids', copied.itemIds.length, 2);
 check('copy date stays unset', copied.date, null);
+check('copy preserves dress code', copied.dressCode, 'Bandhgala');
 const skip = newSuitcase('Skip missing');
 addItem(skip, 'Navy suit');
 const partial = copyOutfit(past, past.outfits[0], skip, { addMissing: false });
@@ -860,6 +875,7 @@ check('partial copy has one item', partial.itemIds.length, 1);
 const undated = newSuitcase('No dates yet');
 const bare = addOutfit(undated, { name: 'Ceremony' });
 check('outfit saves with no date', [bare.date, bare.itemIds], [null, []]);
+check('dress code cap is 80', addOutfit(undated, { name: 'Gala', dressCode: 'x'.repeat(90) }).dressCode.length, 80);
 check('empty-string date stays unset', addOutfit(undated, { name: 'Dinner', date: '' }).date, null);
 check('updateOutfit can clear a date', (() => {
   addDay(undated, '2026-06-13');
