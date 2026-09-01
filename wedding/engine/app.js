@@ -210,9 +210,7 @@ function clipCard(clip) {
           <span class="wd-card-link-text">${escapeHtml(label)}</span>
           <span class="wd-card-link-host">${escapeHtml(domain)}</span>
         </a>` : ''}
-      <label class="wd-sr">Note
-        <textarea class="wd-card-body" data-act="body" rows="2" placeholder="A loose note…">${escapeHtml(clip.body)}</textarea>
-      </label>
+      <textarea class="wd-card-body" data-act="body" rows="${clip.body.trim() ? 2 : 1}" aria-label="Note" placeholder="${clip.url ? 'Add a note' : 'A loose note…'}">${escapeHtml(clip.body)}</textarea>
       ${clip.url ? `
         <label class="wd-card-label-row">Link text
           <input class="wd-input" data-act="label" type="text" maxlength="120" value="${escapeHtml(clip.urlLabel)}" placeholder="${escapeHtml(label)}">
