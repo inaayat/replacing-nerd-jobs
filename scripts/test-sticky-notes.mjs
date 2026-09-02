@@ -8,6 +8,7 @@ import {
   ICON_SVGS,
   LEGEND_DEFAULTS,
   NOTE_H_DEFAULT,
+  NOTE_H_MIN,
   NOTE_H_PHONE,
   NOTE_W_DEFAULT,
   NOTE_W_PHONE,
@@ -70,6 +71,7 @@ import {
   placeEditPopover,
   planEditSession,
   rectsIntersect,
+  resizeNoteSize,
   richFromNode,
   richToText,
   resolveHashtagLabel,
@@ -274,6 +276,11 @@ function note(id, extra = {}) {
   s = applyOps(s, [{ op: 'note.resize', id: 'p', w: 5, h: 10000 }]);
   eq(s.notes.find((n) => n.id === 'p').w, NOTE_W_MIN, 'resize clamps width');
   eq(s.notes.find((n) => n.id === 'p').h, 10000, 'resize allows tall');
+  eq(resizeNoteSize(5, 10).w, NOTE_W_MIN, 'resizeNoteSize clamps width min');
+  eq(resizeNoteSize(5, 10).h, NOTE_H_MIN, 'resizeNoteSize clamps height min');
+  eq(resizeNoteSize(9999, 80).w, NOTE_W_MAX, 'resizeNoteSize clamps width max');
+  eq(resizeNoteSize(200, 400).h, 400, 'resizeNoteSize allows tall');
+  eq(resizeNoteSize(220, 64).w, 220, 'resizeNoteSize keeps in-range width');
 
   // collection lifecycle
   let c = state(note('x'), note('y'), { op: 'collection.create', id: 'col', name: 'Japan trip' });
