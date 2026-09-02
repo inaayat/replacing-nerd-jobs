@@ -131,3 +131,43 @@ export function uniqueLoggedMovies(watches, rankedTmdbIds = []) {
 export function firstRunMovies(watches) {
   return uniqueLoggedMovies(watches);
 }
+
+/** Unique tmdb_ids from any TV watch log row (episode logs dedupe to show level). */
+export function eligibleTvTmdbIds(watches) {
+  const ids = new Set();
+  for (const watch of watches || []) {
+    const tmdbId = Number(watch.tmdb_id);
+    if (tmdbId > 0) ids.add(tmdbId);
+  }
+  return ids;
+}
+
+/** Drop stored TV ranks that are no longer in the user's TV log. */
+export function dropIneligibleTvRanks(ranks, watches) {
+  const eligible = eligibleTvTmdbIds(watches);
+  return (ranks || []).filter((show) => eligible.has(Number(show.tmdb_id)));
+}
+
+/** Unique logged TV shows with a tmdb_id, excluding those already ranked. */
+export function uniqueLoggedShows(watches, rankedTmdbIds = []) {
+  const ranked = new Set((rankedTmdbIds || []).map(Number).filter((id) => id > 0));
+  const seen = new Set();
+  const out = [];
+  for (const watch of watches || []) {
+    const tmdbId = Number(watch.tmdb_id);
+    if (!tmdbId || seen.has(tmdbId) || ranked.has(tmdbId)) continue;
+    seen.add(tmdbId);
+    out.push({
+      tmdb_id: tmdbId,
+      title: watch.title,
+      year: watch.year != null && watch.year !== '' ? Number(watch.year) : null,
+      poster_path: watch.poster_path || null,
+    });
+  }
+  return out;
+}
+
+/** First TV ranking setup: every unique logged show. */
+export function firstRunShows(watches) {
+  return uniqueLoggedShows(watches);
+}

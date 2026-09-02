@@ -1,5 +1,5 @@
-import { bootPage, renderShell, requireSignIn, isRankBetaEnabled } from './nav.js';
-import { ranksApi, watchesApi, movieApi } from './api.js';
+import { bootPage, renderShell, requireSignIn, isRankBetaEnabled, isTvBetaEnabled } from './nav.js';
+import { ranksApi, tvRanksApi, watchesApi, tvWatchesApi, movieApi, tvApi } from './api.js';
 import { escapeHtml, posterHtml } from './format.js';
 import { wireComboboxKeys } from './combobox.js';
 import {
@@ -10,7 +10,50 @@ import {
   firstRunMovies,
   eligibleTmdbIds,
   dropIneligibleRanks,
+  uniqueLoggedShows,
+  firstRunShows,
+  eligibleTvTmdbIds,
+  dropIneligibleTvRanks,
 } from './rank-insert.js';
+
+const RANK_KIND_KEY = 'alist.rank.kind';
+
+const KIND_CONFIG = {
+  movies: {
+    ranksApi,
+    searchApi: movieApi,
+    uniqueLogged: uniqueLoggedMovies,
+    firstRun: firstRunMovies,
+    dropIneligible: dropIneligibleRanks,
+    eligibleIds: eligibleTmdbIds,
+    searchPlaceholder: 'Add a theater movie from your log',
+    unrankedLabel: 'Theater movies from your log, not yet ranked',
+    firstRunIntro: 'First setup ranks all theater movies you\'ve watched (DNFs count). Home and streaming stay out.',
+    emptyFirstRun: 'No theater movies in your log yet. Rank only includes titles you watched in theaters (including DNFs).',
+    stackLabel: (n) => `${n} movie${n === 1 ? '' : 's'}`,
+    firstRunButton: (n) => `Rank ${n} movie${n === 1 ? '' : 's'}`,
+    ineligibleError: 'Rank only includes movies you watched in theaters.',
+    skipLabel: 'Skip this movie',
+    subtitle: 'Stack-rank movies with pairwise compares. Star ratings on your log stay separate.',
+  },
+  tv: {
+    ranksApi: tvRanksApi,
+    searchApi: tvApi,
+    uniqueLogged: uniqueLoggedShows,
+    firstRun: firstRunShows,
+    dropIneligible: dropIneligibleTvRanks,
+    eligibleIds: eligibleTvTmdbIds,
+    searchPlaceholder: 'Add a show from your log',
+    unrankedLabel: 'Shows from your log, not yet ranked',
+    firstRunIntro: 'First setup ranks every show you\'ve logged (DNFs count).',
+    emptyFirstRun: 'No TV shows in your log yet. Rank only includes titles on your TV watch log.',
+    stackLabel: (n) => `${n} show${n === 1 ? '' : 's'}`,
+    firstRunButton: (n) => `Rank ${n} show${n === 1 ? '' : 's'}`,
+    ineligibleError: 'Rank only includes shows on your TV watch log.',
+    skipLabel: 'Skip this show',
+    subtitle: 'Stack-rank TV shows with pairwise compares. Episode ratings on your log stay separate.',
+  },
+};
 
 bootPage(async ({ root, auth }) => {
   if (!isRankBetaEnabled()) {
@@ -22,7 +65,7 @@ bootPage(async ({ root, auth }) => {
       body: `
         <main class="al-main">
           <section class="al-panel">
-            <p class="al-muted">Movie stack rank is off for your account.</p>
+            <p class="al-muted">Stack rank is off for your account.</p>
             <p style="margin-top:12px">
               <a class="al-btn al-btn-primary" href="/amc-a-lister/settings.html">Turn it on in Settings</a>
             </p>
@@ -35,40 +78,45 @@ bootPage(async ({ root, auth }) => {
 
   if (!requireSignIn(auth, root)) return;
 
+  const tvEnabled = isTvBetaEnabled();
+  const defaultKind = readStoredKind(tvEnabled);
+  const subtitle = tvEnabled
+    ? 'Stack-rank movies and TV with pairwise compares. Star ratings on your log stay separate.'
+    : KIND_CONFIG.movies.subtitle;
+
   root.innerHTML = renderShell({
     title: 'Rank',
-    subtitle: 'Stack-rank movies with pairwise compares. Star ratings on your log stay separate.',
+    subtitle,
     body: `<main class="al-main" id="rank-main"><p class="al-muted">Loading…</p></main>`,
     hideLogBar: true,
     signedIn: true,
   });
 
-  await loadPage(auth);
+  await loadPage(auth, tvEnabled, defaultKind);
 });
 
-async function loadPage(auth) {
-  const main = document.getElementById('rank-main');
-  if (!main) return;
-
-  const [{ ranks: storedRanks }, { watches }] = await Promise.all([
-    ranksApi.list(auth.token),
-    watchesApi.list(auth.token),
-  ]);
-
-  let ranks = storedRanks || [];
-  const pruned = dropIneligibleRanks(ranks, watches || []);
-  if (pruned.length !== ranks.length) {
-    try {
-      const saved = await ranksApi.replace(auth.token, pruned);
-      ranks = saved.ranks || pruned;
-    } catch {
-      ranks = pruned;
-    }
+function readStoredKind(tvEnabled) {
+  if (!tvEnabled) return 'movies';
+  try {
+    const stored = localStorage.getItem(RANK_KIND_KEY);
+    return stored === 'tv' ? 'tv' : 'movies';
+  } catch {
+    return 'movies';
   }
+}
 
-  const state = {
+function storeKind(kind) {
+  try {
+    localStorage.setItem(RANK_KIND_KEY, kind);
+  } catch {
+    // ignore storage failures
+  }
+}
+
+function createKindState(ranks, watches) {
+  return {
     ranks,
-    watches: watches || [],
+    watches,
     pending: null,
     candidate: null,
     insertState: null,
@@ -80,63 +128,141 @@ async function loadPage(auth) {
     busy: false,
     compareResolve: null,
   };
+}
 
-  const render = () => {
-    const comparing = !!(state.candidate && state.insertState && !state.insertState.done);
-    document.body.classList.toggle('al-rank-comparing', comparing);
-    main.innerHTML = viewHtml(state);
-    wire(auth, state, render);
+async function loadPage(auth, tvEnabled, initialKind) {
+  const main = document.getElementById('rank-main');
+  if (!main) return;
+
+  const fetches = [
+    ranksApi.list(auth.token),
+    watchesApi.list(auth.token),
+  ];
+  if (tvEnabled) {
+    fetches.push(tvRanksApi.list(auth.token), tvWatchesApi.list(auth.token));
+  }
+
+  const results = await Promise.all(fetches);
+  const [{ ranks: movieRanks }, { watches }] = results;
+  let tvRanks = [];
+  let tvWatches = [];
+  if (tvEnabled) {
+    tvRanks = results[2]?.ranks || [];
+    tvWatches = results[3]?.watches || [];
+  }
+
+  const page = {
+    kind: initialKind === 'tv' && tvEnabled ? 'tv' : 'movies',
+    tvEnabled,
+    movies: createKindState(await pruneRanks('movies', movieRanks || [], watches || [], auth)),
+    tv: createKindState(await pruneRanks('tv', tvRanks, tvWatches, auth)),
   };
 
-  state.runQueue = (movies) => rankQueue(auth, state, movies, render);
+  const render = () => {
+    const state = activeState(page);
+    const cfg = kindConfig(page.kind);
+    const comparing = !!(state.candidate && state.insertState && !state.insertState.done);
+    document.body.classList.toggle('al-rank-comparing', comparing);
+    main.innerHTML = viewHtml(page, cfg);
+    wire(auth, page, render);
+  };
 
-  const addId = Number(new URLSearchParams(location.search).get('add'));
+  const wireQueue = (kind) => {
+    page[kind].runQueue = (items) => rankQueue(auth, page, kind, items, render);
+  };
+  wireQueue('movies');
+  if (tvEnabled) wireQueue('tv');
+
+  const params = new URLSearchParams(location.search);
+  const addId = Number(params.get('add'));
+  const addKind = params.get('kind') === 'tv' && tvEnabled ? 'tv' : 'movies';
   if (addId) {
     history.replaceState({}, '', '/amc-a-lister/rank.html');
-    // After-add on an existing stack ranks that one title. Empty stack is first
-    // setup: every eligible theater watch goes into the compare queue.
+    page.kind = addKind;
+    storeKind(page.kind);
+    const state = activeState(page);
+    const cfg = kindConfig(page.kind);
     if (state.ranks.length) {
-      const movie = movieFromLogged(state, addId);
-      if (movie) {
-        askToRank(state, movie, render);
+      const item = itemFromLogged(state, cfg, addId);
+      if (item) {
+        askToRank(page, cfg, item, render);
         return;
       }
     }
   }
 
-  if (!state.ranks.length && startFirstRunQueue(state)) return;
+  if (!activeState(page).ranks.length && startFirstRunQueue(page, page.kind)) return;
   render();
 }
 
-function viewHtml(state) {
-  const overlay = state.candidate && state.insertState && !state.insertState.done
-    ? compareHtml(state)
-    : '';
-  const confirm = state.pending ? confirmHtml(state.pending) : '';
-
-  if (!state.ranks.length && !state.candidate && !state.saving) {
-    return `${firstRunHtml(state)}${confirm}${overlay}`;
+async function pruneRanks(kind, ranks, watches, auth) {
+  const cfg = kindConfig(kind);
+  const pruned = cfg.dropIneligible(ranks, watches);
+  if (pruned.length === ranks.length) return ranks;
+  try {
+    const saved = await cfg.ranksApi.replace(auth.token, pruned);
+    return saved.ranks || pruned;
+  } catch {
+    return pruned;
   }
-
-  return `${listHtml(state)}${confirm}${overlay}`;
 }
 
-function firstRunHtml(state) {
-  const logged = firstRunMovies(state.watches);
+function kindConfig(kind) {
+  return KIND_CONFIG[kind] || KIND_CONFIG.movies;
+}
+
+function activeState(page) {
+  return page[page.kind];
+}
+
+function viewHtml(page, cfg) {
+  const state = activeState(page);
+  const overlay = state.candidate && state.insertState && !state.insertState.done
+    ? compareHtml(state, cfg)
+    : '';
+  const confirm = state.pending ? confirmHtml(state.pending) : '';
+  const tabs = page.tvEnabled ? segmentHtml(page) : '';
+
+  if (!state.ranks.length && !state.candidate && !state.saving) {
+    return `${tabs}${firstRunHtml(state, cfg)}${confirm}${overlay}`;
+  }
+
+  return `${tabs}${listHtml(state, cfg)}${confirm}${overlay}`;
+}
+
+function segmentHtml(page) {
+  const moviesActive = page.kind === 'movies';
+  const tvActive = page.kind === 'tv';
+  const movieCount = page.movies.ranks.length;
+  const tvCount = page.tv.ranks.length;
+  return `
+    <div class="al-segment al-watchlist-segment al-rank-segment" role="tablist" aria-label="Rank kind">
+      <button type="button" class="al-segment-btn${moviesActive ? ' is-active' : ''}" data-rank-kind="movies" role="tab" aria-selected="${moviesActive}">
+        Movies <span class="al-segment-count">${movieCount}</span>
+      </button>
+      <button type="button" class="al-segment-btn${tvActive ? ' is-active' : ''}" data-rank-kind="tv" role="tab" aria-selected="${tvActive}">
+        TV <span class="al-segment-count">${tvCount}</span>
+      </button>
+    </div>
+  `;
+}
+
+function firstRunHtml(state, cfg) {
+  const logged = cfg.firstRun(state.watches);
   const n = logged.length;
 
   const loggedBlock = n
     ? `
-      <p class="al-muted">First setup ranks all theater movies you've watched (DNFs count). Home and streaming stay out.</p>
+      <p class="al-muted">${cfg.firstRunIntro}</p>
       <div class="al-toolbar" style="margin-top:12px">
         <button class="al-btn al-btn-primary" type="button" id="rank-start">
-          Rank ${n} movie${n === 1 ? '' : 's'}
+          ${cfg.firstRunButton(n)}
         </button>
       </div>
     `
     : `
       <div class="al-empty al-empty--first-run">
-        <p>No theater movies in your log yet. Rank only includes titles you watched in theaters (including DNFs).</p>
+        <p>${cfg.emptyFirstRun}</p>
       </div>
     `;
 
@@ -150,27 +276,27 @@ function firstRunHtml(state) {
   `;
 }
 
-function listHtml(state) {
-  const unranked = uniqueLoggedMovies(state.watches, state.ranks.map((r) => r.tmdb_id));
-  const rows = state.ranks.map((movie, i) => rankRowHtml(movie, i + 1)).join('');
+function listHtml(state, cfg) {
+  const unranked = cfg.uniqueLogged(state.watches, state.ranks.map((r) => r.tmdb_id));
+  const rows = state.ranks.map((item, i) => rankRowHtml(item, i + 1)).join('');
 
   return `
     <section class="al-panel al-rank-panel">
       <div class="al-watchlist-header al-watchlist-header--compact">
         <h2 class="al-section-title">Your stack</h2>
         <div class="al-rank-header-actions">
-          <span class="al-muted">${state.ranks.length} movie${state.ranks.length === 1 ? '' : 's'}</span>
+          <span class="al-muted">${cfg.stackLabel(state.ranks.length)}</span>
           <button class="al-btn" type="button" id="rank-clear">Clear ranking</button>
         </div>
       </div>
       ${state.error ? `<p class="al-error">${escapeHtml(state.error)}</p>` : ''}
       ${state.status ? `<p class="al-muted" aria-live="polite">${escapeHtml(state.status)}</p>` : ''}
       <div class="al-rank-add">
-        ${searchFieldHtml('Add a theater movie from your log')}
+        ${searchFieldHtml(cfg.searchPlaceholder)}
       </div>
       ${unranked.length ? `
         <div class="al-rank-unranked">
-          <p class="al-rank-unranked-label">Theater movies from your log, not yet ranked</p>
+          <p class="al-rank-unranked-label">${cfg.unrankedLabel}</p>
           <div class="al-rank-unranked-list">
             ${unranked.slice(0, 12).map(unrankedChipHtml).join('')}
           </div>
@@ -194,41 +320,41 @@ function searchFieldHtml(placeholder) {
   `;
 }
 
-function unrankedChipHtml(movie) {
+function unrankedChipHtml(item) {
   return `
-    <button type="button" class="al-rank-chip" data-add-logged="${movie.tmdb_id}">
-      ${posterHtml(movie, { size: 'w92', width: 28, height: 42, className: 'al-poster al-rank-chip-poster' })}
-      <span>${escapeHtml(movie.title)}</span>
+    <button type="button" class="al-rank-chip" data-add-logged="${item.tmdb_id}">
+      ${posterHtml(item, { size: 'w92', width: 28, height: 42, className: 'al-poster al-rank-chip-poster' })}
+      <span>${escapeHtml(item.title)}</span>
     </button>
   `;
 }
 
-function rankRowHtml(movie, position) {
+function rankRowHtml(item, position) {
   return `
     <article class="al-rank-row">
       <div class="al-rank-num" aria-hidden="true">${position}</div>
-      ${posterHtml(movie, { size: 'w154', width: 56, height: 84, className: 'al-poster al-rank-poster' })}
+      ${posterHtml(item, { size: 'w154', width: 56, height: 84, className: 'al-poster al-rank-poster' })}
       <div class="al-rank-meta">
-        <div class="al-rank-title">${escapeHtml(movie.title)}</div>
-        <div class="al-muted">${movie.year || ''}</div>
+        <div class="al-rank-title">${escapeHtml(item.title)}</div>
+        <div class="al-muted">${item.year || ''}</div>
         <div class="al-rank-row-actions">
-          <button type="button" class="al-link-btn" data-rerank="${movie.tmdb_id}">Re-rank</button>
-          <button type="button" class="al-link-btn" data-unrank="${movie.tmdb_id}">Remove</button>
+          <button type="button" class="al-link-btn" data-rerank="${item.tmdb_id}">Re-rank</button>
+          <button type="button" class="al-link-btn" data-unrank="${item.tmdb_id}">Remove</button>
         </div>
       </div>
     </article>
   `;
 }
 
-function confirmHtml(movie) {
-  const rerank = !!movie.alreadyRanked;
+function confirmHtml(item) {
+  const rerank = !!item.alreadyRanked;
   return `
     <div class="al-rank-modal" role="dialog" aria-modal="true" aria-labelledby="rank-confirm-title">
       <div class="al-rank-modal-card">
-        ${posterHtml(movie, { size: 'w185', width: 80, height: 120, className: 'al-poster al-rank-poster' })}
+        ${posterHtml(item, { size: 'w185', width: 80, height: 120, className: 'al-poster al-rank-poster' })}
         <div>
           <h2 class="al-rank-modal-title" id="rank-confirm-title">${rerank ? 'Re-rank this?' : 'Stack rank this?'}</h2>
-          <p class="al-rank-modal-film">${escapeHtml(movie.title)}${movie.year ? ` (${movie.year})` : ''}</p>
+          <p class="al-rank-modal-film">${escapeHtml(item.title)}${item.year ? ` (${item.year})` : ''}</p>
           <p class="al-muted">${rerank
             ? 'Run compares again to place it in the stack. Your watch log is unchanged.'
             : 'This adds it to your stack, not your watch log. Star ratings stay as they are.'}</p>
@@ -242,7 +368,7 @@ function confirmHtml(movie) {
   `;
 }
 
-function compareHtml(state) {
+function compareHtml(state, cfg) {
   const pivot = state.comparePool[state.insertState.pivotIndex];
   const candidate = state.candidate;
   if (!pivot || !candidate) return '';
@@ -273,7 +399,7 @@ function compareHtml(state) {
         </button>
       </div>
       <div class="al-rank-compare-actions">
-        <button type="button" class="al-btn" data-compare-skip>Skip this movie</button>
+        <button type="button" class="al-btn" data-compare-skip>${cfg.skipLabel}</button>
         <button type="button" class="al-btn" data-compare-finish>Finish for now</button>
       </div>
       ${state.saving ? '<p class="al-muted">Saving…</p>' : ''}
@@ -281,7 +407,7 @@ function compareHtml(state) {
   `;
 }
 
-function movieFromSearch(btn) {
+function itemFromSearch(btn) {
   return {
     tmdb_id: Number(btn.dataset.id),
     title: btn.dataset.title,
@@ -290,23 +416,40 @@ function movieFromSearch(btn) {
   };
 }
 
-function movieFromLogged(state, tmdbId) {
+function itemFromLogged(state, cfg, tmdbId) {
   const id = Number(tmdbId);
-  return uniqueLoggedMovies(state.watches).find((m) => m.tmdb_id === id)
+  return cfg.uniqueLogged(state.watches).find((m) => m.tmdb_id === id)
     || state.ranks.find((m) => m.tmdb_id === id)
     || null;
 }
 
-function wire(auth, state, render) {
-  wireSearch(auth, state, render);
-  wireStart(state);
-  wireList(auth, state, render);
-  wireConfirm(state, render);
-  wireCompare(state);
-  wireClear(auth, state, render);
+function wire(auth, page, render) {
+  wireSegments(page, render);
+  wireSearch(auth, page, render);
+  wireStart(page);
+  wireList(auth, page, render);
+  wireConfirm(page, render);
+  wireCompare(page, render);
+  wireClear(auth, page, render);
 }
 
-function wireSearch(auth, state, render) {
+function wireSegments(page, render) {
+  document.querySelectorAll('[data-rank-kind]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const next = btn.dataset.rankKind;
+      if (!next || next === page.kind) return;
+      const state = activeState(page);
+      if (state.busy || state.candidate) return;
+      page.kind = next;
+      storeKind(next);
+      render();
+    });
+  });
+}
+
+function wireSearch(auth, page, render) {
+  const cfg = kindConfig(page.kind);
+  const state = activeState(page);
   const input = document.getElementById('rank-search');
   const resultsEl = document.getElementById('rank-search-results');
   if (!input || !resultsEl) return;
@@ -323,8 +466,8 @@ function wireSearch(auth, state, render) {
     }
     searchTimer = setTimeout(async () => {
       try {
-        const { results } = await movieApi.search(auth.token, q);
-        const eligible = results.filter((m) => isEligibleToRank(state, m));
+        const { results } = await cfg.searchApi.search(auth.token, q);
+        const eligible = results.filter((m) => isEligibleToRank(state, cfg, m));
         if (!eligible.length) {
           resultsEl.hidden = true;
           return;
@@ -341,13 +484,13 @@ function wireSearch(auth, state, render) {
           btn.addEventListener('click', () => {
             resultsEl.hidden = true;
             input.value = '';
-            const movie = movieFromSearch(btn);
-            if (!isEligibleToRank(state, movie)) {
-              state.error = 'Rank only includes movies you watched in theaters.';
+            const item = itemFromSearch(btn);
+            if (!isEligibleToRank(state, cfg, item)) {
+              state.error = cfg.ineligibleError;
               render();
               return;
             }
-            askToRank(state, movie, render);
+            askToRank(page, cfg, item, render);
           });
         });
       } catch {
@@ -359,44 +502,49 @@ function wireSearch(auth, state, render) {
   document.getElementById('rank-search-form')?.addEventListener('submit', (e) => e.preventDefault());
 }
 
-function startFirstRunQueue(state) {
-  const movies = firstRunMovies(state.watches);
-  if (!movies.length) return false;
-  state.runQueue(movies);
+function startFirstRunQueue(page, kind) {
+  const cfg = kindConfig(kind);
+  const state = page[kind];
+  const items = cfg.firstRun(state.watches);
+  if (!items.length) return false;
+  state.runQueue(items);
   return true;
 }
 
-function wireStart(state) {
+function wireStart(page) {
   document.getElementById('rank-start')?.addEventListener('click', () => {
-    startFirstRunQueue(state);
+    startFirstRunQueue(page, page.kind);
   });
 }
 
-function wireList(auth, state, render) {
+function wireList(auth, page, render) {
+  const cfg = kindConfig(page.kind);
+  const state = activeState(page);
+
   document.querySelectorAll('[data-add-logged]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const movie = movieFromLogged(state, btn.dataset.addLogged);
-      if (movie) askToRank(state, movie, render);
+      const item = itemFromLogged(state, cfg, btn.dataset.addLogged);
+      if (item) askToRank(page, cfg, item, render);
     });
   });
 
   document.querySelectorAll('[data-rerank]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const movie = state.ranks.find((m) => m.tmdb_id === Number(btn.dataset.rerank));
-      if (movie) state.runQueue([movie]);
+      const item = state.ranks.find((m) => m.tmdb_id === Number(btn.dataset.rerank));
+      if (item) state.runQueue([item]);
     });
   });
 
   document.querySelectorAll('[data-unrank]').forEach((btn) => {
     btn.addEventListener('click', async () => {
-      const movie = state.ranks.find((m) => m.tmdb_id === Number(btn.dataset.unrank));
-      if (!movie) return;
-      if (!confirm(`Remove “${movie.title}” from your stack? Your watch log is unchanged.`)) return;
+      const item = state.ranks.find((m) => m.tmdb_id === Number(btn.dataset.unrank));
+      if (!item) return;
+      if (!confirm(`Remove “${item.title}” from your stack? Your watch log is unchanged.`)) return;
       try {
         state.saving = true;
-        const { ranks } = await ranksApi.remove(auth.token, movie.tmdb_id);
+        const { ranks } = await cfg.ranksApi.remove(auth.token, item.tmdb_id);
         state.ranks = ranks;
-        state.status = `Removed ${movie.title} from the stack.`;
+        state.status = `Removed ${item.title} from the stack.`;
         state.error = '';
       } catch (err) {
         state.error = err.message || 'Could not remove that title.';
@@ -408,13 +556,16 @@ function wireList(auth, state, render) {
   });
 }
 
-function wireClear(auth, state, render) {
+function wireClear(auth, page, render) {
+  const cfg = kindConfig(page.kind);
+  const state = activeState(page);
+
   document.getElementById('rank-clear')?.addEventListener('click', async () => {
     if (!state.ranks.length) return;
     if (!confirm('Clear your entire ranking? This cannot be undone. Your watch log is unchanged.')) return;
     try {
       state.saving = true;
-      const { ranks } = await ranksApi.replace(auth.token, []);
+      const { ranks } = await cfg.ranksApi.replace(auth.token, []);
       state.ranks = ranks || [];
       state.status = 'Ranking cleared.';
       state.error = '';
@@ -427,11 +578,13 @@ function wireClear(auth, state, render) {
   });
 }
 
-function wireConfirm(state, render) {
+function wireConfirm(page, render) {
+  const state = activeState(page);
+
   document.getElementById('rank-confirm-yes')?.addEventListener('click', () => {
-    const movie = state.pending;
+    const item = state.pending;
     state.pending = null;
-    if (movie) state.runQueue([movie]);
+    if (item) state.runQueue([item]);
     else render();
   });
   document.getElementById('rank-confirm-no')?.addEventListener('click', () => {
@@ -440,7 +593,8 @@ function wireConfirm(state, render) {
   });
 }
 
-function wireCompare(state) {
+function wireCompare(page, render) {
+  const state = activeState(page);
   const overlay = document.getElementById('rank-compare');
   if (!overlay) return;
 
@@ -464,8 +618,6 @@ function wireCompare(state) {
   };
   document.addEventListener('keydown', onKey);
   overlay.addEventListener('remove', () => document.removeEventListener('keydown', onKey), { once: true });
-  // overlay isn't removed via the 'remove' event unless we use a MutationObserver;
-  // drop the listener on the next compare resolve by storing it.
   state._compareKey = onKey;
 
   wireSwipe(overlay, {
@@ -492,41 +644,44 @@ function waitForCompare(state, render) {
   });
 }
 
-function isEligibleToRank(state, movie) {
-  return eligibleTmdbIds(state.watches).has(Number(movie?.tmdb_id));
+function isEligibleToRank(state, cfg, item) {
+  return cfg.eligibleIds(state.watches).has(Number(item?.tmdb_id));
 }
 
-function askToRank(state, movie, render) {
-  if (!movie?.tmdb_id) return;
-  if (!isEligibleToRank(state, movie)) {
-    state.error = 'Rank only includes movies you watched in theaters.';
+function askToRank(page, cfg, item, render) {
+  const state = activeState(page);
+  if (!item?.tmdb_id) return;
+  if (!isEligibleToRank(state, cfg, item)) {
+    state.error = cfg.ineligibleError;
     state.pending = null;
     render();
     return;
   }
   state.pending = {
-    ...movie,
-    alreadyRanked: state.ranks.some((r) => r.tmdb_id === movie.tmdb_id),
+    ...item,
+    alreadyRanked: state.ranks.some((r) => r.tmdb_id === item.tmdb_id),
   };
   render();
 }
 
-async function rankQueue(auth, state, movies, render) {
+async function rankQueue(auth, page, kind, items, render) {
+  const cfg = kindConfig(kind);
+  const state = page[kind];
   if (state.busy) return;
   state.busy = true;
   state.error = '';
   state.status = '';
-  const queue = movies.filter((m) => m?.tmdb_id && isEligibleToRank(state, m));
+  const queue = items.filter((m) => m?.tmdb_id && isEligibleToRank(state, cfg, m));
   state.remaining = Math.max(0, queue.length - 1);
 
   try {
     for (let i = 0; i < queue.length; i += 1) {
-      const movie = queue[i];
+      const item = queue[i];
       state.remaining = queue.length - 1 - i;
-      const pool = removeByTmdbId(state.ranks, movie.tmdb_id);
+      const pool = removeByTmdbId(state.ranks, item.tmdb_id);
       let insert = createInsertSearch(pool.length);
       if (!insert.done) {
-        state.candidate = movie;
+        state.candidate = item;
         state.comparePool = pool.map((m, idx) => ({ ...m, position: idx + 1 }));
         let outcome = null;
         while (!insert.done) {
@@ -551,15 +706,15 @@ async function rankQueue(auth, state, movies, render) {
       try {
         state.saving = true;
         render();
-        const { ranks } = await ranksApi.upsert(auth.token, {
-          tmdb_id: movie.tmdb_id,
-          title: movie.title,
-          year: movie.year,
-          poster_path: movie.poster_path,
+        const { ranks } = await cfg.ranksApi.upsert(auth.token, {
+          tmdb_id: item.tmdb_id,
+          title: item.title,
+          year: item.year,
+          poster_path: item.poster_path,
           position: insert.insertIndex + 1,
         });
         state.ranks = ranks;
-        state.status = `Placed ${movie.title} at #${insert.insertIndex + 1}.`;
+        state.status = `Placed ${item.title} at #${insert.insertIndex + 1}.`;
       } catch (err) {
         state.error = err.message || 'Could not save that rank.';
         state.saving = false;

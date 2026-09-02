@@ -86,6 +86,8 @@ export default async function handler(req, res) {
       return handleUserSearch(req, res);
     case 'ranks':
       return handleRanks(req, res);
+    case 'tv-ranks':
+      return handleTvRanks(req, res);
     default:
       res.status(404).json({ error: 'Unknown A-List route.' });
   }
@@ -1928,6 +1930,154 @@ async function handleRanks(req, res) {
         return;
       }
       const ranks = await replaceMovieRanks(userId, remaining);
+      res.status(200).json({ ok: true, ranks });
+    } catch (err) {
+      res.status(502).json({ error: err.message });
+    }
+    return;
+  }
+
+  res.status(405).json({ error: 'Method not allowed.' });
+}
+
+async function listTvRanks(userId) {
+  const rows = await db()`
+    SELECT tmdb_id, position, title, year, poster_path, updated_at
+    FROM alist_tv_ranks
+    WHERE user_id = ${userId}
+    ORDER BY position ASC, updated_at ASC
+  `;
+  return rows.map(rankFromRow);
+}
+
+async function replaceTvRanks(userId, shows) {
+  const sql = db();
+  const queries = [
+    sql`DELETE FROM alist_tv_ranks WHERE user_id = ${userId}`,
+    ...shows.map((show, i) => sql`
+      INSERT INTO alist_tv_ranks (
+        user_id, tmdb_id, position, title, year, poster_path, updated_at
+      ) VALUES (
+        ${userId}, ${show.tmdb_id}, ${i + 1}, ${show.title},
+        ${show.year}, ${show.poster_path}, now()
+      )
+    `),
+  ];
+  if (typeof sql.transaction === 'function') {
+    await sql.transaction(queries);
+  } else {
+    for (const query of queries) await query;
+  }
+  return listTvRanks(userId);
+}
+
+async function fillRankShow(body) {
+  const tmdbId = Number(body?.tmdb_id);
+  if (!Number.isInteger(tmdbId) || tmdbId <= 0) return { error: 'tmdb_id is required.' };
+  const title = String(body?.title || '').trim();
+  let year = body?.year != null && body.year !== '' ? Number(body.year) : null;
+  if (year != null && !Number.isInteger(year)) year = null;
+  let posterPath = body?.poster_path ? String(body.poster_path) : null;
+
+  if ((!title || year == null || !posterPath) && process.env.TMDB_API_KEY) {
+    try {
+      const show = await getTvDetails(tmdbId);
+      if (show) {
+        return {
+          tmdb_id: tmdbId,
+          title: title || show.title,
+          year: year ?? show.year ?? null,
+          poster_path: posterPath || show.poster_path || null,
+        };
+      }
+    } catch {
+      // Fall through to the fields the client sent.
+    }
+  }
+
+  if (!title) return { error: 'title is required.' };
+  return { tmdb_id: tmdbId, title, year, poster_path: posterPath };
+}
+
+async function handleTvRanks(req, res) {
+  if (!requireDb(res)) return;
+  const session = await requireUser(req, res);
+  if (!session) return;
+  const { userId } = session;
+
+  if (req.method === 'GET') {
+    try {
+      const ranks = await listTvRanks(userId);
+      res.status(200).json({ ranks });
+    } catch (err) {
+      res.status(502).json({ error: err.message });
+    }
+    return;
+  }
+
+  if (req.method === 'POST') {
+    try {
+      const show = await fillRankShow(req.body || {});
+      if (show.error) {
+        res.status(400).json({ error: show.error });
+        return;
+      }
+      const existing = await listTvRanks(userId);
+      const without = existing.filter((row) => row.tmdb_id !== show.tmdb_id);
+      const rawPosition = Number(req.body?.position);
+      const position = Number.isInteger(rawPosition)
+        ? Math.max(1, Math.min(rawPosition, without.length + 1))
+        : without.length + 1;
+      without.splice(position - 1, 0, show);
+      const ranks = await replaceTvRanks(userId, without);
+      res.status(200).json({ ranks });
+    } catch (err) {
+      res.status(502).json({ error: err.message });
+    }
+    return;
+  }
+
+  if (req.method === 'PUT') {
+    const list = req.body?.shows;
+    if (!Array.isArray(list)) {
+      res.status(400).json({ error: 'shows array is required.' });
+      return;
+    }
+    try {
+      const shows = [];
+      const seen = new Set();
+      for (const item of list) {
+        const show = await fillRankShow(item || {});
+        if (show.error) {
+          res.status(400).json({ error: show.error });
+          return;
+        }
+        if (seen.has(show.tmdb_id)) continue;
+        seen.add(show.tmdb_id);
+        shows.push(show);
+      }
+      const ranks = await replaceTvRanks(userId, shows);
+      res.status(200).json({ ranks });
+    } catch (err) {
+      res.status(502).json({ error: err.message });
+    }
+    return;
+  }
+
+  if (req.method === 'DELETE') {
+    const tmdbId = Number(req.body?.tmdb_id || req.query?.tmdb_id);
+    if (!Number.isInteger(tmdbId) || tmdbId <= 0) {
+      res.status(400).json({ error: 'tmdb_id is required.' });
+      return;
+    }
+    try {
+      const existing = await listTvRanks(userId);
+      const remaining = existing.filter((row) => row.tmdb_id !== tmdbId);
+      if (remaining.length === existing.length) {
+        res.status(404).json({ error: 'Rank not found.' });
+        return;
+      }
+      const ranks = await replaceTvRanks(userId, remaining);
       res.status(200).json({ ok: true, ranks });
     } catch (err) {
       res.status(502).json({ error: err.message });

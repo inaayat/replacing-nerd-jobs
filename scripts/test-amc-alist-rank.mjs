@@ -14,6 +14,10 @@ import {
   isTheaterWatch,
   eligibleTmdbIds,
   dropIneligibleRanks,
+  eligibleTvTmdbIds,
+  dropIneligibleTvRanks,
+  uniqueLoggedShows,
+  firstRunShows,
 } from '../amc-a-lister/engine/rank-insert.js';
 
 function movie(id, title = `M${id}`) {
@@ -180,6 +184,32 @@ function placeWithAnswers(rankedLength, answers) {
   assert.equal(queue.length, uniqueLoggedMovies(watches).length);
   assert.deepEqual(firstRunMovies([]), []);
   assert.deepEqual(firstRunMovies(null), []);
+}
+
+// TV shows: episode logs dedupe to show level; any logged tmdb_id is eligible.
+{
+  const watches = [
+    { tmdb_id: 100, title: 'Severance', poster_path: '/s.jpg' },
+    { tmdb_id: 100, title: 'Severance S2E1', season: 2, episode: 1 },
+    { tmdb_id: 200, title: 'The Bear', dnf: true },
+    { tmdb_id: null, title: 'Untagged' },
+  ];
+  const unique = uniqueLoggedShows(watches, [200]);
+  assert.deepEqual(unique.map((s) => s.tmdb_id), [100]);
+  assert.equal(unique[0].title, 'Severance');
+  assert.equal(unique[0].poster_path, '/s.jpg');
+
+  const ids = [...eligibleTvTmdbIds(watches)].sort((a, b) => a - b);
+  assert.deepEqual(ids, [100, 200]);
+
+  const stored = [
+    { tmdb_id: 100, title: 'Severance' },
+    { tmdb_id: 300, title: 'Gone show' },
+  ];
+  assert.deepEqual(dropIneligibleTvRanks(stored, watches).map((s) => s.tmdb_id), [100]);
+
+  const queue = firstRunShows(watches);
+  assert.deepEqual(queue.map((s) => s.tmdb_id), [100, 200]);
 }
 
 console.log('amc alist rank tests passed');

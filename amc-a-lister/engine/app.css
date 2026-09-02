@@ -4704,6 +4704,10 @@ table.al-table {
 }
 
 /* Rank — Beli-style stack */
+.al-rank-segment {
+  margin-bottom: 12px;
+}
+
 .al-rank-panel {
   display: flex;
   flex-direction: column;

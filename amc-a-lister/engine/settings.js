@@ -110,7 +110,7 @@ bootPage(async ({ root, auth }) => {
         </label>
         <label class="al-check al-check--block">
           <input type="checkbox" id="beta-rank" ${isRankBetaEnabled() ? 'checked' : ''} />
-          Rank — Beli-style stack rank for movies (beta)
+          Rank — Beli-style stack rank for movies and TV (beta)
         </label>
         <p class="al-muted" id="beta-tv-status" style="margin-top:8px"></p>
         <p class="al-muted" id="beta-rank-status" style="margin-top:8px"></p>
