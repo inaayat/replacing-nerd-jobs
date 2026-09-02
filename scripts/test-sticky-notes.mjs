@@ -40,6 +40,10 @@ import {
   keyboardInset,
   keyboardLayout,
   legendLabel,
+  localMedia,
+  localMediaDetails,
+  mediaKind,
+  mediaPresentation,
   noteCreateSize,
   listTriggerFor,
   mergeStates,
@@ -47,6 +51,7 @@ import {
   noteBlocks,
   normalizeDoc,
   normalizeHref,
+  normalizeMedia,
   normalizeNote,
   normalizeRich,
   normalizeState,
@@ -104,6 +109,47 @@ function note(id, extra = {}) {
   eq(ok.colorKey, 'c3', 'valid colorKey kept');
   eq(ok.iconKey, 'star', 'valid iconKey kept');
   assert(ok.w >= NOTE_W_MIN, 'valid width kept above min');
+}
+
+// 1b. compact image / video attachments
+{
+  eq(mediaKind('https://example.com/photo.webp?size=2'), 'image', 'image extensions are visual');
+  eq(mediaKind('https://www.instagram.com/reel/ABC_123/'), 'instagram', 'Instagram reels are recognized');
+  eq(mediaKind('https://vm.tiktok.com/ZMshort/'), 'tiktok', 'TikTok short links are recognized');
+  eq(mediaKind('https://pin.it/short'), 'pinterest', 'Pinterest short links are recognized');
+  eq(mediaKind('javascript:alert(1)'), null, 'non-http media URLs are rejected');
+
+  const youtube = localMediaDetails('https://youtu.be/dQw4w9WgXcQ');
+  eq(youtube.kind, 'youtube', 'YouTube kind is derived locally');
+  assert(youtube.thumbnail.includes('dQw4w9WgXcQ'), 'YouTube poster is derived locally');
+  assert(youtube.embedUrl.includes('dQw4w9WgXcQ'), 'YouTube embed is derived locally');
+
+  const reel = localMediaDetails('https://www.instagram.com/reel/ABC_123/');
+  eq(reel.embedUrl, 'https://www.instagram.com/reel/ABC_123/embed/', 'Instagram embed uses the official URL');
+  const pin = localMediaDetails('https://www.pinterest.com/pin/1234567890/');
+  eq(pin.still, true, 'Pinterest remains a non-playable still');
+
+  const image = localMedia('https://cdn.example.com/cat.jpg');
+  eq(image.thumbnail, image.url, 'direct image previews need no unfurl');
+  eq(mediaPresentation(image).mode, 'image', 'direct image paints as a still');
+  const video = localMedia('https://cdn.example.com/clip.mp4');
+  eq(mediaPresentation(video).directVideo, video.url, 'direct video paints through the source URL');
+
+  const unfurled = normalizeMedia({
+    url: 'https://example.com/story',
+    thumbnail: 'https://cdn.example.com/story.jpg',
+    title: ' Story\nTitle ',
+    canonical: 'https://example.com/story?canonical=1',
+    embedUrl: 'javascript:alert(1)',
+  });
+  eq(unfurled.kind, 'link', 'generic pages can carry an unfurled image');
+  eq(unfurled.title, 'Story Title', 'media titles are normalized');
+  eq(mediaPresentation(unfurled).mode, 'image', 'an OG image paints as a still');
+  assert(!('embedUrl' in unfurled), 'stored embed URLs are never trusted');
+
+  const withMedia = normalizeNote({ id: 'media', text: 'caption', media: unfurled });
+  eq(withMedia.media.thumbnail, unfurled.thumbnail, 'normalized notes retain media');
+  eq(normalizeNote({ id: 'bad-media', media: { url: 'file:///etc/passwd' } }).media, null, 'invalid media clears');
 }
 
 // 2. v0 migration

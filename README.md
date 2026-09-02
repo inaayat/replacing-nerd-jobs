@@ -290,8 +290,12 @@ A note body holds **bold, bullet lists, numbered lists, and link pills**,
 and nothing else: type `* ` or `1. ` at the start of a line and the marker
 becomes the list, the way Apple Notes and Notion do it. Paste a URL while
 editing (or ⌘/Ctrl+K) and it becomes a cream pill — display text starts as the
-domain and picks up the page title unless you rename it. **Colour fills the
-whole card**, and a new note arrives light grey. The toolbar sits on the left.
+domain and picks up the page title unless you rename it. A separate image
+button adds one compact visual preview below the body: direct image/video URLs,
+Pinterest images, Instagram posts/Reels, TikToks, and YouTube. Social video
+stays behind a play control so the card keeps its sticky-note shape; the media
+attachment is data, not rich-body HTML. **Colour fills the whole card**, and a
+new note arrives light grey. The toolbar sits on the left.
 A canvas | table toggle next to **+** shows the same board notes as cards or as
 a grouped list (`sticky-notes/table.js`); switching writes no ops. On a phone
 the whiteboard is the default (unset `sticky-notes-board-view-v2`); a leftover
@@ -600,7 +604,7 @@ only runs the code that talks to it). Accessed from serverless functions via
 | `pc_cubes` | Packing Cubes | Per-user private cubes (`add_ons` JSONB, `include_by_default`; `is_public`/`github_pr_url`/`published_at` are vestigial) |
 | `pc_suitcase_state` | Packing Cubes | Active suitcase + packed state JSON |
 | `plot_points_cache` | Plot Points | Query/result cache keyed by `cache_key` |
-| `sn_notes` | Sticky Notes | Board/memory notes; `rich` JSONB holds the formatted body, `text` its plain projection |
+| `sn_notes` | Sticky Notes | Board/memory notes; `rich` JSONB holds the formatted body, `media` one compact preview, `text` the plain projection |
 | `sn_collections` | Sticky Notes | Named groups of notes |
 | `sn_arrows` | Sticky Notes | Directed connectors between two notes |
 | `sn_ink` | Sticky Notes | Text written on the board itself; no status, deleted by a wipe |

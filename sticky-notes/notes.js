@@ -104,6 +104,8 @@ export const BOLD_SVG =
 
 export const LINK_SVG = ICON_SVGS.link;
 
+export const MEDIA_SVG = `${SVG_OPEN}<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="M5 17l4.5-4 3 2.5 2.5-2 4 3.5"/></svg>`;
+
 export const BULLET_LIST_SVG = `${SVG_OPEN}<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.4" fill="currentColor" stroke="none"/><circle cx="4.5" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="4.5" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg>`;
 
 export const NUMBER_LIST_SVG = `${SVG_OPEN}<path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.4 4.6h1.2V9"/><path d="M3 10.9h2.2L3 14.1h2.4"/><path d="M3.1 16.2h2.1l-1.1 1.4h.2a1 1 0 1 1-1 1.1"/></svg>`;
@@ -167,6 +169,160 @@ export function normalizeHref(raw) {
   const href = typeof raw === 'string' ? raw.trim() : '';
   if (!href || href.length > HREF_MAX) return null;
   return isLoneUrl(href) ? href : null;
+}
+
+const IMAGE_EXT = /\.(?:avif|gif|jpe?g|png|webp)$/i;
+const VIDEO_EXT = /\.(?:m4v|mov|mp4|webm)$/i;
+const MEDIA_TITLE_MAX = 300;
+
+function mediaHost(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '').toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+/** Supported visual URL family. Generic pages can still preview an OG image. */
+export function mediaKind(url) {
+  const href = normalizeHref(url);
+  if (!href) return null;
+  const parsed = new URL(href);
+  const host = mediaHost(href);
+  if (IMAGE_EXT.test(parsed.pathname)) return 'image';
+  if (VIDEO_EXT.test(parsed.pathname)) return 'video';
+  if (host === 'tiktok.com' || host.endsWith('.tiktok.com')) return 'tiktok';
+  if (host === 'instagram.com' || host.endsWith('.instagram.com')) return 'instagram';
+  if (host === 'youtube.com' || host.endsWith('.youtube.com') || host === 'youtu.be') return 'youtube';
+  if (host === 'pinterest.com' || host.endsWith('.pinterest.com') || host === 'pin.it') return 'pinterest';
+  return 'link';
+}
+
+export function mediaKindLabel(kind) {
+  return ({
+    image: 'Image',
+    video: 'Video',
+    tiktok: 'TikTok',
+    instagram: 'Instagram',
+    youtube: 'YouTube',
+    pinterest: 'Pinterest',
+    link: 'Preview',
+  })[kind] || 'Preview';
+}
+
+function pinterestPinId(url) {
+  const match = String(url || '').match(/\/pin\/(\d{5,})/) || String(url || '').match(/[?&](?:pin_)?id=(\d{5,})/);
+  return match ? match[1] : '';
+}
+
+/**
+ * Local visual facts that do not need an unfurl request. Embed URLs are always
+ * derived from the normalized source rather than accepted from stored data.
+ */
+export function localMediaDetails(url) {
+  const href = normalizeHref(url);
+  const kind = mediaKind(href);
+  if (!href || !kind) return null;
+  const parsed = new URL(href);
+  const path = parsed.pathname;
+  if (kind === 'image') return { kind, thumbnail: href, embedUrl: null, playable: false, still: true };
+  if (kind === 'video') return { kind, thumbnail: null, embedUrl: null, playable: true, still: false };
+  if (kind === 'youtube') {
+    let id = '';
+    if (mediaHost(href) === 'youtu.be') id = path.replace(/^\//, '').split('/')[0] || '';
+    else if (path.startsWith('/shorts/') || path.startsWith('/embed/')) id = path.split('/')[2] || '';
+    else id = parsed.searchParams.get('v') || '';
+    id = id.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 20);
+    return {
+      kind,
+      thumbnail: id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : null,
+      embedUrl: id ? `https://www.youtube.com/embed/${id}?rel=0` : null,
+      playable: Boolean(id),
+      still: false,
+    };
+  }
+  if (kind === 'tiktok') {
+    const match = path.match(/\/video\/(\d{5,})/) || path.match(/\/(?:embed\/v2|player\/v1)\/(\d{5,})/);
+    const id = match ? match[1] : '';
+    return {
+      kind,
+      thumbnail: null,
+      embedUrl: id ? `https://www.tiktok.com/player/v1/${id}` : null,
+      playable: true,
+      still: false,
+    };
+  }
+  if (kind === 'instagram') {
+    const match = path.match(/\/(reels?|p|tv)\/([A-Za-z0-9_-]+)/);
+    const type = match ? (match[1] === 'reels' ? 'reel' : match[1]) : '';
+    const id = match ? match[2] : '';
+    return {
+      kind,
+      thumbnail: null,
+      embedUrl: id ? `https://www.instagram.com/${type}/${id}/embed/` : null,
+      playable: true,
+      still: false,
+    };
+  }
+  if (kind === 'pinterest') {
+    const id = pinterestPinId(href);
+    return {
+      kind,
+      thumbnail: null,
+      embedUrl: id ? `https://assets.pinterest.com/ext/embed.html?id=${id}` : null,
+      playable: false,
+      still: true,
+    };
+  }
+  return { kind, thumbnail: null, embedUrl: null, playable: false, still: false };
+}
+
+/** One compact visual attachment per note. Invalid or empty input clears it. */
+export function normalizeMedia(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const url = normalizeHref(raw.url);
+  if (!url) return null;
+  const canonical = normalizeHref(raw.canonical) || url;
+  const local = localMediaDetails(canonical) || localMediaDetails(url);
+  const thumbnail = normalizeHref(raw.thumbnail) || local?.thumbnail || null;
+  const title = String(raw.title || '').replace(/[\r\n\t]+/g, ' ').trim().slice(0, MEDIA_TITLE_MAX);
+  return {
+    url,
+    canonical,
+    thumbnail,
+    title,
+    kind: local?.kind || mediaKind(url) || 'link',
+  };
+}
+
+export function localMedia(url) {
+  return normalizeMedia({ url, canonical: url });
+}
+
+/** Small-card presentation: a still, a play control, or a branded fallback. */
+export function mediaPresentation(raw) {
+  const media = normalizeMedia(raw);
+  if (!media) return { mode: 'none' };
+  const details = localMediaDetails(media.canonical) || localMediaDetails(media.url);
+  const thumbnail = media.thumbnail || details?.thumbnail || null;
+  if (media.kind === 'image' || media.kind === 'link') {
+    return thumbnail
+      ? { mode: 'image', kind: media.kind, src: thumbnail, playable: false }
+      : { mode: 'placeholder', kind: media.kind, playable: false };
+  }
+  if (media.kind === 'pinterest') {
+    if (thumbnail) return { mode: 'image', kind: media.kind, src: thumbnail, playable: false };
+    if (details?.embedUrl) return { mode: 'embed', kind: media.kind, embedUrl: details.embedUrl, playable: false };
+    return { mode: 'placeholder', kind: media.kind, playable: false };
+  }
+  return {
+    mode: thumbnail ? 'image' : 'placeholder',
+    kind: media.kind,
+    src: thumbnail,
+    embedUrl: details?.embedUrl || null,
+    playable: true,
+    directVideo: media.kind === 'video' ? media.canonical : null,
+  };
 }
 
 function normalizeSpans(raw) {
@@ -528,6 +684,7 @@ function noteShape(raw, text, rich) {
     w: clamp(num(raw.w, NOTE_W_DEFAULT), NOTE_W_MIN, NOTE_W_MAX),
     h: Math.max(NOTE_H_MIN, num(raw.h, NOTE_H_DEFAULT)),
     pinned: Boolean(raw.pinned),
+    media: normalizeMedia(raw.media),
     sourceUrl: raw.sourceUrl ? String(raw.sourceUrl) : null,
     sourceTitle: raw.sourceTitle ? String(raw.sourceTitle) : null,
     createdAt: created,

@@ -21,6 +21,7 @@ import {
   ICON_KEYS,
   ICON_SVGS,
   LINK_SVG,
+  MEDIA_SVG,
   NUMBER_LIST_SVG,
   PIN_SVG,
   TAG_SVG,
@@ -37,6 +38,8 @@ import {
   isLoneUrl,
   keyboardInset as visualKeyboardInset,
   legendLabel,
+  localMedia,
+  mediaKind,
   noteBlocks,
   noteCreateSize,
   phoneNoteZoom,
@@ -45,12 +48,13 @@ import {
   randomId,
   rectsIntersect,
   richToText,
+  normalizeHref,
   screenToWorld,
   urlDomain,
   wipeTargets,
   zoomAt,
 } from './notes.js';
-import { attachBodyEditor, renderBody } from './body.js';
+import { attachBodyEditor, renderBody, renderMedia } from './body.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -214,6 +218,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
         <span class="sn-card-pin">${PIN_SVG}</span>
         <span class="sn-card-icon"></span>
         <div class="sn-card-body"></div>
+        <div class="sn-card-media" hidden></div>
         <div class="sn-card-source"></div>
         <span class="sn-dot" data-side="n"></span>
         <span class="sn-dot" data-side="e"></span>
@@ -243,6 +248,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
         bodyStamps.set(note.id, stamp);
       }
     }
+    renderMedia(el.querySelector('.sn-card-media'), note.media);
     const source = el.querySelector('.sn-card-source');
     if (note.sourceUrl) {
       source.innerHTML = '';
@@ -745,7 +751,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
   // ------------------------------------------------------------------ edit bar (tier 1)
 
   function closeEditPopovers(except = null) {
-    for (const pop of [els.ebPalette, els.ebIconPop, els.ebLinkPop]) {
+    for (const pop of [els.ebPalette, els.ebIconPop, els.ebLinkPop, els.ebMediaPop]) {
       if (pop && pop !== except) pop.hidden = true;
     }
   }
@@ -842,6 +848,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     els.ebBullets.setAttribute('aria-pressed', String(list === 'UL'));
     els.ebNumbers.setAttribute('aria-pressed', String(list === 'OL'));
     if (els.ebLink) els.ebLink.setAttribute('aria-pressed', String(Boolean(bodyEditor?.linkAtCaret())));
+    if (els.ebMedia) els.ebMedia.setAttribute('aria-pressed', String(Boolean(noteById(editingId)?.media)));
   }
 
   function renderPalette(note) {
@@ -911,6 +918,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     placePopover(els.ebPalette);
     placePopover(els.ebIconPop);
     placePopover(els.ebLinkPop);
+    placePopover(els.ebMediaPop);
   }
 
   /**
@@ -963,16 +971,30 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     if (editingId) endEdit?.(false);
     if (inkEditingId) endInkEdit?.(false);
     // A create is a real note immediately, even when the body is still blank.
-    const note = text ? { id: randomId(), text, ...fields, sourceUrl } : blankNote(fields);
+    const local = sourceUrl && mediaKind(sourceUrl) !== 'link' ? localMedia(sourceUrl) : null;
+    const note = text
+      ? { id: randomId(), text, ...fields, sourceUrl, media: local }
+      : blankNote(fields);
     store.dispatch([{ op: 'note.upsert', note }]);
     const saved = noteById(note.id);
     if (!saved) return;
     if (sourceUrl) {
-      store.unfurl(sourceUrl).then((title) => {
-        if (!title) return;
+      store.unfurlData(sourceUrl).then((data) => {
+        if (!data) return;
         const current = noteById(note.id);
         if (current) {
-          store.dispatch([{ op: 'note.upsert', note: { ...current, sourceTitle: title, updatedAt: new Date().toISOString() } }]);
+          const media = data.media && (data.media.kind !== 'link' || data.media.thumbnail)
+            ? data.media
+            : current.media;
+          store.dispatch([{
+            op: 'note.upsert',
+            note: {
+              ...current,
+              media,
+              sourceTitle: data.title || current.sourceTitle,
+              updatedAt: new Date().toISOString(),
+            },
+          }]);
         }
       });
     }
@@ -986,6 +1008,47 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
   /** Colour, icon and pin for the note under the caret. */
   function editNote(ops) {
     store.dispatch(ops);
+  }
+
+  function renderMediaPopover(note) {
+    if (!els.ebMediaPop) return;
+    els.ebMediaUrl.value = note.media?.url || '';
+    els.ebMediaRemove.hidden = !note.media;
+    els.ebMediaError.hidden = true;
+  }
+
+  function saveMedia() {
+    const url = normalizeHref(els.ebMediaUrl?.value || '');
+    if (!url || !editingId) {
+      if (els.ebMediaError) els.ebMediaError.hidden = false;
+      return;
+    }
+    const current = noteById(editingId);
+    if (!current) return;
+    const media = localMedia(url);
+    store.dispatch([{
+      op: 'note.upsert',
+      note: { ...current, media, updatedAt: new Date().toISOString() },
+    }]);
+    els.ebMediaPop.hidden = true;
+    store.unfurlData(url).then((data) => {
+      const latest = noteById(current.id);
+      if (!data?.media || !latest || latest.media?.url !== url) return;
+      store.dispatch([{
+        op: 'note.upsert',
+        note: { ...latest, media: data.media, updatedAt: new Date().toISOString() },
+      }]);
+    });
+  }
+
+  function removeMedia() {
+    const current = noteById(editingId);
+    if (!current) return;
+    store.dispatch([{
+      op: 'note.upsert',
+      note: { ...current, media: null, updatedAt: new Date().toISOString() },
+    }]);
+    els.ebMediaPop.hidden = true;
   }
 
   /** Caret at a screen point, across the two vendor spellings of the API. */
@@ -1802,6 +1865,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
   els.ebBullets.innerHTML = BULLET_LIST_SVG;
   els.ebNumbers.innerHTML = NUMBER_LIST_SVG;
   if (els.ebLink) els.ebLink.innerHTML = LINK_SVG;
+  if (els.ebMedia) els.ebMedia.innerHTML = MEDIA_SVG;
   onPress(els.ebTrash, () => {
     deleteNotes([editingId]);
   });
@@ -1817,6 +1881,20 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     onPress(els.ebLink, () => {
       closeEditPopovers(els.ebLinkPop);
       bodyEditor?.openLink();
+    });
+  }
+  if (els.ebMedia) {
+    onPress(els.ebMedia, () => {
+      const note = noteById(editingId);
+      if (note) openPopover(els.ebMediaPop, () => renderMediaPopover(note));
+    });
+    onPress(els.ebMediaSave, saveMedia);
+    onPress(els.ebMediaRemove, removeMedia);
+    els.ebMediaUrl?.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        saveMedia();
+      }
     });
   }
   onPress(els.ebColor, () => {

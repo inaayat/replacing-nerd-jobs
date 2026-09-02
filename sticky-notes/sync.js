@@ -161,19 +161,23 @@ export function createStore({ token = null, guest = false } = {}) {
         /* ignore */
       }
     },
-    /** Fetch a pasted URL's title (server-side unfurl); returns null on any failure. */
-    async unfurl(url) {
+    /** Fetch title + compact visual metadata for a URL; local-only still works. */
+    async unfurlData(url) {
       if (!token) return null;
       try {
         const res = await fetch(`/api/sn-unfurl?url=${encodeURIComponent(url)}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) return null;
-        const { title } = await res.json();
-        return title || null;
+        return await res.json();
       } catch {
         return null;
       }
+    },
+    /** Existing link-pill contract: only return the page title. */
+    async unfurl(url) {
+      const data = await store.unfurlData(url);
+      return data?.title || null;
     },
     async saveLegendLabel(kind, key, label) {
       store.dispatch([{ op: 'legend.set', kind, key, label }], { kind: 'legend' });

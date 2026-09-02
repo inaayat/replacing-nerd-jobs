@@ -17,6 +17,8 @@ import {
   headingTriggerFor,
   isLoneUrl,
   listTriggerFor,
+  mediaKindLabel,
+  mediaPresentation,
   normalizeDoc,
   normalizeHref,
   normalizeRich,
@@ -397,6 +399,107 @@ export function renderBody(host, blocks, options = {}) {
     list.appendChild(item);
   }
   if (!host.childNodes.length) host.appendChild(document.createElement('div'));
+}
+
+function mediaFallback(frame, presentation, media) {
+  frame.innerHTML = '';
+  const label = document.createElement('span');
+  label.className = `sn-media-placeholder sn-media-${presentation.kind || 'link'}`;
+  label.textContent = mediaKindLabel(presentation.kind || media?.kind);
+  frame.appendChild(label);
+}
+
+function mediaFrame(media, presentation) {
+  const frame = document.createElement('span');
+  frame.className = 'sn-media-frame';
+  if (presentation.mode === 'image') {
+    const img = document.createElement('img');
+    img.src = presentation.src;
+    img.alt = media.title || '';
+    img.loading = 'lazy';
+    img.referrerPolicy = 'no-referrer';
+    img.addEventListener('error', () => mediaFallback(frame, presentation, media), { once: true });
+    frame.appendChild(img);
+  } else if (presentation.mode === 'embed' && presentation.embedUrl) {
+    const iframe = document.createElement('iframe');
+    iframe.src = presentation.embedUrl;
+    iframe.loading = 'lazy';
+    iframe.tabIndex = -1;
+    iframe.title = media.title || `${mediaKindLabel(presentation.kind)} preview`;
+    iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+    frame.appendChild(iframe);
+  } else {
+    mediaFallback(frame, presentation, media);
+  }
+  return frame;
+}
+
+/** Paint one restrained visual attachment without expanding the rich-text model. */
+export function renderMedia(host, media) {
+  host.innerHTML = '';
+  const presentation = mediaPresentation(media);
+  if (!media || presentation.mode === 'none') {
+    host.hidden = true;
+    return;
+  }
+  host.hidden = false;
+  const href = media.canonical || media.url;
+  let visual = mediaFrame(media, presentation);
+
+  if (presentation.playable) {
+    const play = document.createElement('button');
+    play.type = 'button';
+    play.className = 'sn-media-play';
+    play.setAttribute('aria-label', `Play ${mediaKindLabel(presentation.kind)} preview`);
+    play.appendChild(visual);
+    const glyph = document.createElement('span');
+    glyph.className = 'sn-media-play-glyph';
+    glyph.setAttribute('aria-hidden', 'true');
+    play.appendChild(glyph);
+    play.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (presentation.directVideo) {
+        const video = document.createElement('video');
+        video.className = 'sn-media-player';
+        video.src = presentation.directVideo;
+        video.controls = true;
+        video.autoplay = true;
+        video.playsInline = true;
+        play.replaceWith(video);
+        return;
+      }
+      if (presentation.embedUrl) {
+        const iframe = document.createElement('iframe');
+        iframe.className = 'sn-media-player';
+        iframe.src = presentation.embedUrl;
+        iframe.title = media.title || `${mediaKindLabel(presentation.kind)} preview`;
+        iframe.loading = 'lazy';
+        iframe.allow = 'encrypted-media; fullscreen; picture-in-picture; autoplay';
+        iframe.allowFullscreen = true;
+        iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+        play.replaceWith(iframe);
+        return;
+      }
+      window.open(href, '_blank', 'noopener,noreferrer');
+    });
+    visual = play;
+  } else {
+    const link = document.createElement('a');
+    link.className = 'sn-media-link';
+    link.href = href;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.setAttribute('aria-label', `Open ${media.title || mediaKindLabel(presentation.kind)}`);
+    link.appendChild(visual);
+    visual = link;
+  }
+
+  host.appendChild(visual);
+  const caption = document.createElement('span');
+  caption.className = 'sn-media-caption';
+  caption.textContent = media.title || mediaKindLabel(presentation.kind);
+  host.appendChild(caption);
 }
 
 /** Read the body back out of the DOM the browser has been editing. */
