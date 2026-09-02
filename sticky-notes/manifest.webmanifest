@@ -6,7 +6,6 @@
   "start_url": "/sticky-notes/",
   "scope": "/sticky-notes/",
   "display": "standalone",
-  "display_override": ["window-controls-overlay", "standalone"],
   "launch_handler": { "client_mode": "navigate-existing" },
   "orientation": "any",
   "background_color": "#faf3e3",
