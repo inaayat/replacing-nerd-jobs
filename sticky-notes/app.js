@@ -42,6 +42,7 @@ import {
   phoneBoardViewNeedsReset,
   KEYBOARD_INSET_TAU,
   keyboardLayout,
+  RECENTER_SVG,
   sharedNoteInput,
   stateIsEmpty,
   stateToOps,
@@ -346,8 +347,8 @@ function guideGroups() {
             : 'Then click the board to write there (or press T). Board text is scaffolding — labels, headings, a word between two arrows. Wiping the board removes it; it never goes to memory.',
         },
         touch
-          ? { glyph: '⋯', name: 'More', text: 'Select every note, fit them all on screen, or wipe the board.' }
-          : { glyph: '±', name: 'Zoom', text: 'Ctrl/⌘ + scroll does the same. The middle button fits every note on screen.' },
+          ? { glyph: '⋯', name: 'More', text: 'Select every note, fit or recenter the board on your notes, or wipe the board.' }
+          : { glyph: '±', name: 'Zoom', text: 'Ctrl/⌘ + scroll zooms. The middle label fits every note on screen. The crosshair recenters on your notes at the current zoom if you panned away.' },
         touch
           ? null
           : {
@@ -934,6 +935,8 @@ async function init() {
   $('.sn-pen-glyph').innerHTML = PEN_SVG;
   viewCanvas.innerHTML = CANVAS_VIEW_SVG;
   viewTable.innerHTML = TABLE_VIEW_SVG;
+  const zoomCenter = $('#zoom-center');
+  if (zoomCenter) zoomCenter.innerHTML = RECENTER_SVG;
   viewCanvas.addEventListener('click', () => setBoardView('canvas'));
   viewTable.addEventListener('click', () => setBoardView('table'));
   $('#add-note').addEventListener('click', () => {
@@ -946,6 +949,7 @@ async function init() {
   $('#zoom-in').addEventListener('click', board.zoomIn);
   $('#zoom-out').addEventListener('click', board.zoomOut);
   $('#zoom-fit').addEventListener('click', board.zoomFit);
+  $('#zoom-center').addEventListener('click', board.recenterBoard);
 
   moreBtn.addEventListener('click', () => {
     const open = moreMenu.hidden;
@@ -959,6 +963,10 @@ async function init() {
   $('#menu-fit').addEventListener('click', () => {
     closeMenu();
     board.zoomFit();
+  });
+  $('#menu-recenter').addEventListener('click', () => {
+    closeMenu();
+    board.recenterBoard();
   });
   $('#menu-wipe').addEventListener('click', () => {
     closeMenu();

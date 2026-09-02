@@ -34,6 +34,7 @@ import {
   displayedKeyboardSlice,
   findFreeSlot,
   fitViewport,
+  centerViewportOnRects,
   isLoneUrl,
   keyboardInset as visualKeyboardInset,
   legendLabel,
@@ -1825,6 +1826,21 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     saveViewport();
   }
 
+  function recenterBoard() {
+    const rects = boardNotes().map(noteRect);
+    const r = viewport.getBoundingClientRect();
+    if (!rects.length) {
+      vp.panX = 0;
+      vp.panY = 0;
+    } else {
+      const next = centerViewportOnRects(rects, r.width, r.height, vp.zoom);
+      vp.panX = next.panX;
+      vp.panY = next.panY;
+    }
+    applyViewport();
+    saveViewport();
+  }
+
   /** Flash restored cards so a Restore is visible. */
   function pulseNotes(ids) {
     for (const id of ids) {
@@ -1844,10 +1860,10 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
       .filter((n) => n && n.status === 'board')
       .map(noteRect);
     if (!rects.length) return;
-    const box = bbox(rects);
     const r = viewport.getBoundingClientRect();
-    vp.panX = r.width / 2 - (box.x + box.w / 2) * vp.zoom;
-    vp.panY = r.height / 2 - (box.y + box.h / 2) * vp.zoom;
+    const next = centerViewportOnRects(rects, r.width, r.height, vp.zoom);
+    vp.panX = next.panX;
+    vp.panY = next.panY;
     applyViewport();
     saveViewport();
     pulseNotes(ids);
@@ -2117,6 +2133,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     zoomIn: () => zoomBy(1.2),
     zoomOut: () => zoomBy(1 / 1.2),
     zoomFit,
+    recenterBoard,
     revealNotes,
     pulseNotes,
     clientToWorld,
