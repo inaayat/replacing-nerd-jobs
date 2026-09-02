@@ -1,6 +1,6 @@
 # Sticky Notes — product plan + implementation spec
 
-Status: **v0 shipped (localStorage cork board), v1 specced below, not started**
+Status: **v1 shipped and evolving**
 Site: `/sticky-notes/` on [inaayat.xyz](https://inaayat.xyz) (this repo)
 Auth: Neon Auth + Postgres (same pattern as A-Lister / Packing Cubes / Table Manners)
 
@@ -27,14 +27,15 @@ thinking surface and memory does the remembering.
 | Collections | First-class named objects. Openable, appendable later, restorable as a unit. Memory is a list of collections plus loose notes |
 | Recall | Two-way. Filing keeps `x`/`y`, so restoring a collection reproduces the arrangement |
 | Wipe | Files everything, destroys nothing, no confirm dialog, 10-second Undo toast. Delete is separate and lives only in the memory table |
-| Categorizing | Two optional axes per note: one **color** key and one **icon** key. Renameable per-user legend; notes store keys, never labels. No free-text tags |
+| Categorizing | Two optional axes per note: one **color** key and one **icon** key. The icon may be a built-in SVG or a named custom http(s) image tag. Notes store keys, never labels; Memory search includes custom tag names. No free-text tags |
 | Typography | No handwriting font. Body text in the site sans, metadata in `DM Mono`, `Fraunces` for page headings only |
 | Cards | Light card, color as a left edge bar. **User-resizable** by a bottom-right handle: width 160–480 px, stored height acts as min-height so content never clips. Default 220 px wide |
 | Board bounds | **Pannable, zoomable canvas.** Wheel/trackpad pans, Ctrl/Cmd+wheel zooms at the cursor (40 %–200 %), Space+drag or middle-drag pans, a Fit button frames all notes. Note coordinates are world coordinates, unbounded |
 | Arrows / connectors | **In v1.** Drag from a card's edge handle onto another card to connect them. Arrows are first-class rows that survive filing and reappear when both endpoints are back on the board |
 | Pinned notes | **In v1.** A pinned note survives Wipe. Pin is a toggle on the card and in the action bar. Explicitly filing a pinned note (select → File) still works — pin guards against bulk wipe, not intent |
 | Mobile | Memory table must be usable on phones; the board is desktop-first (it renders, but drag ergonomics are not a v1 goal) |
-| Collaboration, images, reminders, due dates | Not in v1. This is deliberately not a todo app |
+| Media | One optional compact visual attachment per note: direct image/video, Pinterest, Instagram, TikTok, YouTube, or an Open Graph image. It stays separate from rich text; video plays on demand |
+| Collaboration, reminders, due dates | Not in v1. This is deliberately not a todo app |
 
 ## 3. UX walkthrough
 
@@ -102,12 +103,16 @@ MUST NOT import anything under `/lib/` (middleware 404s it in production).
   id: string,            // crypto.randomUUID()
   text: string,          // plain text, may contain newlines
   colorKey: string|null, // 'c1'..'c6'
-  iconKey: string|null,  // key from LEGEND_DEFAULTS.icons
+  iconKey: string|null,  // built-in key or `custom:<id>` from legend.customIcons
   status: 'board'|'memory',
   collectionId: string|null,
   x: number, y: number,  // world coordinates on the canvas; kept after filing
   w: number, h: number,  // card size; w clamped 160–480, h is a min-height
   pinned: boolean,       // pinned notes are skipped by wipe
+  media: {               // optional; embed URL is always derived, never stored
+    url: string, canonical: string, thumbnail: string|null,
+    title: string, kind: 'image'|'video'|'pinterest'|'instagram'|'tiktok'|'youtube'|'link'
+  }|null,
   sourceUrl: string|null, sourceTitle: string|null,
   createdAt: ISO string, updatedAt: ISO string, filedAt: ISO string|null
 }
@@ -117,8 +122,12 @@ MUST NOT import anything under `/lib/` (middleware 404s it in production).
 { id, fromId, toId, createdAt }
 // Viewport (client-only, localStorage, never synced)
 { panX: number, panY: number, zoom: number }  // zoom clamped 0.4–2.0
-// Legend overrides (per user)
-{ colors: { c1: 'Work', ... }, icons: { star: 'Important', ... } }  // sparse
+// Legend overrides + user-created image tags (per user)
+{
+  colors: { c1: 'Work', ... },
+  icons: { star: 'Important', ... },
+  customIcons: { 'custom:<id>': { label: 'Coffee', imageUrl: 'https://…' } }
+}
 ```
 
 `LEGEND_DEFAULTS` (exact keys; labels are the renameable defaults):
@@ -159,7 +168,7 @@ ops as SQL. Op `ts` is the client ISO timestamp used for LWW.
 | `file` | `{ ids?, collectionId?, ts }` | Status → `memory`, stamp `filedAt`; with `collectionId`, files the collection row too |
 | `restore` | `{ ids?, collectionId?, ts }` | Status → `board`, clear `filedAt`; restores the collection row too |
 | `wipe` | `{ ts }` | `file` for every board note **except pinned ones** and every board collection whose notes all filed. Arrows are untouched (they render only when both endpoints are on the board) |
-| `legend.set` | `{ kind: 'color'|'icon', key, label }` | Upsert override |
+| `legend.set` | `{ kind: 'color'|'icon'|'custom-icon', key, label, imageUrl? }` | Upsert an override or custom image tag; an empty custom label deletes it and clears that key from notes |
 
 Wipe undo = the client remembers the ids it just filed and emits `restore` ops.
 No special undo machinery.
@@ -227,6 +236,7 @@ CREATE TABLE IF NOT EXISTS sn_legend (
   kind    TEXT NOT NULL,
   key     TEXT NOT NULL,
   label   TEXT NOT NULL,
+  image_url TEXT,
   PRIMARY KEY (user_id, kind, key)
 );
 ```
@@ -239,8 +249,8 @@ CREATE TABLE IF NOT EXISTS sn_legend (
 |---------|-------------|-------------------|
 | `/api/sn-state` | `?route=state` | GET → `{ state: { notes, collections, arrows, legend } }` — the user's **complete** state, both statuses. The client is fully local-first and filters memory client-side, so one payload is the whole sync surface (hundreds of notes is nothing; revisit with a paginated memory route only if real data says so) |
 | `/api/sn-ops` | `?route=ops` | POST `{ ops }` → `{ ok: true, applied: n }`. Applied in order; every statement scoped `WHERE user_id = $user`. Upserts use `ON CONFLICT (id) DO UPDATE … WHERE sn_notes.updated_at <= EXCLUDED.updated_at` for LWW. Unknown op kinds are skipped (an older server must not reject a newer client's queue). Cap 200 ops/request |
-| `/api/sn-legend` | `?route=legend` | PUT `{ kind, key, label }` → `{ ok: true }`. Reject unknown keys (validate against `LEGEND_DEFAULTS` — import from `sticky-notes/notes.js`, which is browser-safe and legal for the server to import) |
-| `/api/sn-unfurl` | `?route=unfurl` | GET `?url=` → `{ title }`. Server-side fetch, 5 s timeout, `<title>` regex, http(s) only; on any failure `{ title: null }`. Client follows up with a `note.upsert` setting `sourceTitle` |
+| `/api/sn-legend` | `?route=legend` | PUT `{ kind, key, label, imageUrl? }` → `{ ok: true }`. Built-ins validate against `LEGEND_DEFAULTS`; custom images require normalized `custom:<id>` keys and http(s) URLs |
+| `/api/sn-unfurl` | `?route=unfurl` | GET `?url=` → `{ title, media }`. Server-side OG/platform unfurl with a 5 s timeout and http(s)-only normalized output; failures stay soft |
 
 Errors follow house style: `{ error: string }` with 401/400/405/502/503.
 

@@ -1,6 +1,12 @@
 import { getAuth } from '../lib/neon-auth.js';
 import { upsertUser } from '../lib/a-list.js';
 import { getState, applyOps } from '../lib/sticky-notes.js';
+import {
+  localMediaDetails,
+  mediaKind,
+  normalizeHref,
+  normalizeMedia,
+} from '../sticky-notes/notes.js';
 
 export default async function handler(req, res) {
   const route = String(req.query?.route || '').trim();
@@ -87,9 +93,9 @@ async function handleLegend(req, res) {
     res.status(405).json({ error: 'Use PUT.' });
     return;
   }
-  const { kind, key, label } = req.body || {};
+  const { kind, key, label, imageUrl } = req.body || {};
   try {
-    const applied = await applyOps(session.userId, [{ op: 'legend.set', kind, key, label }]);
+    const applied = await applyOps(session.userId, [{ op: 'legend.set', kind, key, label, imageUrl }]);
     res.status(200).json({ ok: true, applied });
   } catch (err) {
     res.status(502).json({ error: err.message });
@@ -97,6 +103,52 @@ async function handleLegend(req, res) {
 }
 
 const TITLE_RE = /<title[^>]*>([\s\S]*?)<\/title>/i;
+const META_RE = /<meta\s+[^>]*>/gi;
+const BROWSER_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
+
+function metaContent(html, names) {
+  for (const tag of String(html || '').match(META_RE) || []) {
+    const key = /\b(?:property|name)=["']([^"']+)["']/i.exec(tag)?.[1]?.toLowerCase();
+    if (!key || !names.includes(key)) continue;
+    const value = /\bcontent=["']([^"']*)["']/i.exec(tag)?.[1];
+    if (value) return decodeEntities(value).trim();
+  }
+  return '';
+}
+
+function pageMetadata(html) {
+  const titleMatch = TITLE_RE.exec(String(html || ''));
+  return {
+    title: metaContent(html, ['og:title', 'twitter:title'])
+      || (titleMatch ? decodeEntities(titleMatch[1]).replace(/\s+/g, ' ').trim() : ''),
+    thumbnail: metaContent(html, ['og:image', 'twitter:image', 'og:image:url']),
+    canonical: metaContent(html, ['og:url']),
+  };
+}
+
+async function fetchPreview(url, { json = false } = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000);
+  try {
+    const page = await fetch(url, {
+      signal: controller.signal,
+      redirect: 'follow',
+      headers: {
+        'User-Agent': BROWSER_UA,
+        Accept: json ? 'application/json' : 'text/html,application/xhtml+xml',
+      },
+    });
+    if (!page.ok) return { ok: false, url: page.url || url, data: null };
+    const data = json
+      ? await page.json().catch(() => null)
+      : (await page.text()).slice(0, 200000);
+    return { ok: true, url: page.url || url, data };
+  } catch {
+    return { ok: false, url, data: null };
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 async function handleUnfurl(req, res) {
   const session = await requireUser(req, res);
@@ -105,39 +157,59 @@ async function handleUnfurl(req, res) {
     res.status(405).json({ error: 'Use GET.' });
     return;
   }
-  const url = String(req.query?.url || '');
-  let parsed;
-  try {
-    parsed = new URL(url);
-  } catch {
-    res.status(200).json({ title: null });
+  const url = normalizeHref(req.query?.url);
+  if (!url) {
+    res.status(200).json({ title: null, media: null });
     return;
   }
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    res.status(200).json({ title: null });
-    return;
-  }
+
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 5000);
-    const page = await fetch(parsed.href, {
-      signal: controller.signal,
-      redirect: 'follow',
-      headers: { 'User-Agent': 'Mozilla/5.0 (sticky-notes unfurl)' },
-    });
-    clearTimeout(timer);
-    if (!page.ok) {
-      res.status(200).json({ title: null });
-      return;
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./, '').toLowerCase();
+    const isShort = host === 'pin.it'
+      || host === 'vm.tiktok.com'
+      || /\/(?:t|share)\//.test(parsed.pathname);
+    const followed = isShort ? await fetchPreview(url) : null;
+    let canonical = normalizeHref(followed?.url) || url;
+    let kind = mediaKind(canonical) || mediaKind(url);
+    let title = '';
+    let thumbnail = localMediaDetails(canonical)?.thumbnail || null;
+    let html = typeof followed?.data === 'string' ? followed.data : '';
+
+    if (kind === 'tiktok') {
+      const oembed = await fetchPreview(
+        `https://www.tiktok.com/oembed?url=${encodeURIComponent(canonical)}`,
+        { json: true },
+      );
+      thumbnail = oembed.data?.thumbnail_url || thumbnail;
+      title = oembed.data?.title || oembed.data?.author_name || '';
+    } else if (kind === 'pinterest') {
+      const oembed = await fetchPreview(
+        `https://www.pinterest.com/oembed.json?url=${encodeURIComponent(canonical)}`,
+        { json: true },
+      );
+      thumbnail = oembed.data?.thumbnail_url || thumbnail;
+      title = oembed.data?.title || '';
+      if (!thumbnail && typeof oembed.data?.html === 'string') {
+        thumbnail = /https?:\/\/i\.pinimg\.com\/[^"'\\\s<>]+/i.exec(oembed.data.html)?.[0] || null;
+      }
     }
-    const html = (await page.text()).slice(0, 200000);
-    const match = TITLE_RE.exec(html);
-    const title = match
-      ? decodeEntities(match[1]).replace(/\s+/g, ' ').trim().slice(0, 300)
-      : null;
-    res.status(200).json({ title: title || null });
+
+    if (!html && !['image', 'video', 'youtube', 'tiktok'].includes(kind)) {
+      const page = await fetchPreview(canonical);
+      html = typeof page.data === 'string' ? page.data : '';
+      canonical = normalizeHref(page.url) || canonical;
+      kind = mediaKind(canonical) || kind;
+    }
+
+    const meta = pageMetadata(html);
+    title = String(title || meta.title || '').replace(/\s+/g, ' ').trim().slice(0, 300);
+    thumbnail = normalizeHref(thumbnail) || normalizeHref(meta.thumbnail) || null;
+    canonical = normalizeHref(meta.canonical) || canonical;
+    const media = normalizeMedia({ url, canonical, thumbnail, title });
+    res.status(200).json({ title: title || null, media });
   } catch {
-    res.status(200).json({ title: null });
+    res.status(200).json({ title: null, media: normalizeMedia({ url }) });
   }
 }
 

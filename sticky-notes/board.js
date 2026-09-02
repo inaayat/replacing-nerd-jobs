@@ -19,8 +19,8 @@ import {
   COLOR_KEYS,
   DEFAULT_COLOR_KEY,
   ICON_KEYS,
-  ICON_SVGS,
   LINK_SVG,
+  MEDIA_SVG,
   NUMBER_LIST_SVG,
   PIN_SVG,
   TAG_SVG,
@@ -37,6 +37,8 @@ import {
   isLoneUrl,
   keyboardInset as visualKeyboardInset,
   legendLabel,
+  localMedia,
+  mediaKind,
   noteBlocks,
   noteCreateSize,
   phoneNoteZoom,
@@ -45,12 +47,13 @@ import {
   randomId,
   rectsIntersect,
   richToText,
+  normalizeHref,
   screenToWorld,
   urlDomain,
   wipeTargets,
   zoomAt,
 } from './notes.js';
-import { attachBodyEditor, renderBody } from './body.js';
+import { attachBodyEditor, renderBody, renderIcon, renderMedia } from './body.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -214,6 +217,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
         <span class="sn-card-pin">${PIN_SVG}</span>
         <span class="sn-card-icon"></span>
         <div class="sn-card-body"></div>
+        <div class="sn-card-media" hidden></div>
         <div class="sn-card-source"></div>
         <span class="sn-dot" data-side="n"></span>
         <span class="sn-dot" data-side="e"></span>
@@ -232,8 +236,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     // The colour is the card, not a stripe on it.
     el.style.setProperty('--note-fill', note.colorKey ? colorHex(note.colorKey) : '');
     const icon = el.querySelector('.sn-card-icon');
-    icon.innerHTML = note.iconKey ? ICON_SVGS[note.iconKey] : '';
-    icon.title = note.iconKey ? legendLabel(store.state.legend, 'icon', note.iconKey) : '';
+    renderIcon(icon, store.state.legend, note.iconKey);
     const body = el.querySelector('.sn-card-body');
     if (note.id !== editingId) {
       const blocks = noteBlocks(note);
@@ -243,6 +246,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
         bodyStamps.set(note.id, stamp);
       }
     }
+    renderMedia(el.querySelector('.sn-card-media'), note.media);
     const source = el.querySelector('.sn-card-source');
     if (note.sourceUrl) {
       source.innerHTML = '';
@@ -588,14 +592,16 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
       els.abSwatches.appendChild(b);
     }
     // icon popover
+    els.abIconPop.classList.remove('has-custom-form');
     els.abIconPop.innerHTML = '';
     const activeIcon = notes.every((n) => n.iconKey === notes[0].iconKey) ? notes[0].iconKey : undefined;
-    els.abIcon.innerHTML = activeIcon ? ICON_SVGS[activeIcon] : '◇';
-    for (const key of ICON_KEYS) {
+    if (activeIcon) renderIcon(els.abIcon, store.state.legend, activeIcon);
+    else els.abIcon.textContent = '◇';
+    for (const key of allIconKeys()) {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'sn-ab-icongrid';
-      b.innerHTML = ICON_SVGS[key];
+      renderIcon(b, store.state.legend, key);
       b.title = legendLabel(store.state.legend, 'icon', key);
       b.setAttribute('aria-pressed', String(key === activeIcon));
       onPress(b, () => {
@@ -606,6 +612,12 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
       });
       els.abIconPop.appendChild(b);
     }
+    appendCustomIconButton(els.abIconPop, (key, definition) => {
+      store.dispatch([
+        { op: 'legend.set', kind: 'custom-icon', key, ...definition },
+        { op: 'note.categorize', ids: [...selection], iconKey: key, ts: new Date().toISOString() },
+      ]);
+    });
     // pin
     const allPinned = notes.every((n) => n.pinned);
     els.abPin.setAttribute('aria-pressed', String(allPinned));
@@ -745,7 +757,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
   // ------------------------------------------------------------------ edit bar (tier 1)
 
   function closeEditPopovers(except = null) {
-    for (const pop of [els.ebPalette, els.ebIconPop, els.ebLinkPop]) {
+    for (const pop of [els.ebPalette, els.ebIconPop, els.ebLinkPop, els.ebMediaPop]) {
       if (pop && pop !== except) pop.hidden = true;
     }
   }
@@ -810,7 +822,8 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     els.ebColor.title = note.colorKey
       ? `Colour: ${legendLabel(store.state.legend, 'color', note.colorKey)}`
       : 'Colour';
-    els.ebIcon.innerHTML = note.iconKey ? ICON_SVGS[note.iconKey] : TAG_SVG;
+    if (note.iconKey) renderIcon(els.ebIcon, store.state.legend, note.iconKey);
+    else els.ebIcon.innerHTML = TAG_SVG;
     els.ebIcon.title = note.iconKey
       ? `Icon: ${legendLabel(store.state.legend, 'icon', note.iconKey)}`
       : 'Icon';
@@ -842,6 +855,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     els.ebBullets.setAttribute('aria-pressed', String(list === 'UL'));
     els.ebNumbers.setAttribute('aria-pressed', String(list === 'OL'));
     if (els.ebLink) els.ebLink.setAttribute('aria-pressed', String(Boolean(bodyEditor?.linkAtCaret())));
+    if (els.ebMedia) els.ebMedia.setAttribute('aria-pressed', String(Boolean(noteById(editingId)?.media)));
   }
 
   function renderPalette(note) {
@@ -874,14 +888,97 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
   }
 
   /** Same gesture as the colour swatches, one tier up from the selection bar. */
+  function allIconKeys() {
+    return [...ICON_KEYS, ...Object.keys(store.state.legend.customIcons || {})];
+  }
+
+  function appendCustomIconButton(pop, onCreate) {
+    const add = document.createElement('button');
+    add.type = 'button';
+    add.className = pop === els.ebIconPop ? 'sn-eb-icon sn-custom-icon-add' : 'sn-ab-icongrid sn-custom-icon-add';
+    add.textContent = '+';
+    add.title = 'Create a custom image tag';
+    add.setAttribute('aria-label', 'Create a custom image tag');
+    add.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      renderCustomIconForm(pop, onCreate);
+    });
+    pop.appendChild(add);
+  }
+
+  function renderCustomIconForm(pop, onCreate) {
+    pop.innerHTML = '';
+    pop.classList.add('has-custom-form');
+    const form = document.createElement('div');
+    form.className = 'sn-custom-icon-form';
+    const name = document.createElement('input');
+    name.className = 'sn-custom-icon-input';
+    name.type = 'text';
+    name.maxLength = 60;
+    name.placeholder = 'Tag name';
+    name.setAttribute('aria-label', 'Custom tag name');
+    const image = document.createElement('input');
+    image.className = 'sn-custom-icon-input';
+    image.type = 'url';
+    image.inputMode = 'url';
+    image.placeholder = 'Image URL';
+    image.setAttribute('aria-label', 'Custom tag image URL');
+    const error = document.createElement('span');
+    error.className = 'sn-custom-icon-error';
+    error.hidden = true;
+    error.textContent = 'Add a name and full http(s) image URL.';
+    const actions = document.createElement('span');
+    actions.className = 'sn-custom-icon-actions';
+    const save = document.createElement('button');
+    save.type = 'button';
+    save.className = 'sn-btn sn-btn-primary';
+    save.textContent = 'Create';
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = 'sn-btn';
+    cancel.textContent = 'Cancel';
+    const submit = () => {
+      const label = name.value.trim();
+      const imageUrl = normalizeHref(image.value);
+      if (!label || !imageUrl) {
+        error.hidden = false;
+        return;
+      }
+      const key = `custom:${randomId().replace(/^sn-/, '').toLowerCase()}`;
+      pop.hidden = true;
+      pop.classList.remove('has-custom-form');
+      onCreate(key, { label, imageUrl });
+    };
+    save.addEventListener('click', submit);
+    cancel.addEventListener('click', () => {
+      pop.hidden = true;
+      pop.classList.remove('has-custom-form');
+    });
+    for (const input of [name, image]) {
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          submit();
+        }
+      });
+    }
+    actions.append(save, cancel);
+    form.append(name, image, error, actions);
+    pop.appendChild(form);
+    if (pop === els.ebIconPop) placePopover(pop);
+    focusWithoutScroll(name);
+  }
+
   function renderIconPicker(note) {
+    els.ebIconPop.classList.remove('has-custom-form');
     els.ebIconPop.innerHTML = '';
-    for (const key of ICON_KEYS) {
+    for (const key of allIconKeys()) {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'sn-eb-icon';
       b.dataset.key = key;
-      b.innerHTML = ICON_SVGS[key];
+      renderIcon(b, store.state.legend, key);
       const label = legendLabel(store.state.legend, 'icon', key);
       b.title = label;
       b.setAttribute('aria-label', label);
@@ -898,6 +995,14 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
       });
       els.ebIconPop.appendChild(b);
     }
+    appendCustomIconButton(els.ebIconPop, (key, definition) => {
+      const current = noteById(note.id);
+      if (!current) return;
+      store.dispatch([
+        { op: 'legend.set', kind: 'custom-icon', key, ...definition },
+        { op: 'note.categorize', ids: [current.id], iconKey: key, ts: new Date().toISOString() },
+      ]);
+    });
   }
 
   function positionEditBar() {
@@ -911,6 +1016,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     placePopover(els.ebPalette);
     placePopover(els.ebIconPop);
     placePopover(els.ebLinkPop);
+    placePopover(els.ebMediaPop);
   }
 
   /**
@@ -963,16 +1069,30 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     if (editingId) endEdit?.(false);
     if (inkEditingId) endInkEdit?.(false);
     // A create is a real note immediately, even when the body is still blank.
-    const note = text ? { id: randomId(), text, ...fields, sourceUrl } : blankNote(fields);
+    const local = sourceUrl && mediaKind(sourceUrl) !== 'link' ? localMedia(sourceUrl) : null;
+    const note = text
+      ? { id: randomId(), text, ...fields, sourceUrl, media: local }
+      : blankNote(fields);
     store.dispatch([{ op: 'note.upsert', note }]);
     const saved = noteById(note.id);
     if (!saved) return;
     if (sourceUrl) {
-      store.unfurl(sourceUrl).then((title) => {
-        if (!title) return;
+      store.unfurlData(sourceUrl).then((data) => {
+        if (!data) return;
         const current = noteById(note.id);
         if (current) {
-          store.dispatch([{ op: 'note.upsert', note: { ...current, sourceTitle: title, updatedAt: new Date().toISOString() } }]);
+          const media = data.media && (data.media.kind !== 'link' || data.media.thumbnail)
+            ? data.media
+            : current.media;
+          store.dispatch([{
+            op: 'note.upsert',
+            note: {
+              ...current,
+              media,
+              sourceTitle: data.title || current.sourceTitle,
+              updatedAt: new Date().toISOString(),
+            },
+          }]);
         }
       });
     }
@@ -986,6 +1106,47 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
   /** Colour, icon and pin for the note under the caret. */
   function editNote(ops) {
     store.dispatch(ops);
+  }
+
+  function renderMediaPopover(note) {
+    if (!els.ebMediaPop) return;
+    els.ebMediaUrl.value = note.media?.url || '';
+    els.ebMediaRemove.hidden = !note.media;
+    els.ebMediaError.hidden = true;
+  }
+
+  function saveMedia() {
+    const url = normalizeHref(els.ebMediaUrl?.value || '');
+    if (!url || !editingId) {
+      if (els.ebMediaError) els.ebMediaError.hidden = false;
+      return;
+    }
+    const current = noteById(editingId);
+    if (!current) return;
+    const media = localMedia(url);
+    store.dispatch([{
+      op: 'note.upsert',
+      note: { ...current, media, updatedAt: new Date().toISOString() },
+    }]);
+    els.ebMediaPop.hidden = true;
+    store.unfurlData(url).then((data) => {
+      const latest = noteById(current.id);
+      if (!data?.media || !latest || latest.media?.url !== url) return;
+      store.dispatch([{
+        op: 'note.upsert',
+        note: { ...latest, media: data.media, updatedAt: new Date().toISOString() },
+      }]);
+    });
+  }
+
+  function removeMedia() {
+    const current = noteById(editingId);
+    if (!current) return;
+    store.dispatch([{
+      op: 'note.upsert',
+      note: { ...current, media: null, updatedAt: new Date().toISOString() },
+    }]);
+    els.ebMediaPop.hidden = true;
   }
 
   /** Caret at a screen point, across the two vendor spellings of the API. */
@@ -1802,6 +1963,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
   els.ebBullets.innerHTML = BULLET_LIST_SVG;
   els.ebNumbers.innerHTML = NUMBER_LIST_SVG;
   if (els.ebLink) els.ebLink.innerHTML = LINK_SVG;
+  if (els.ebMedia) els.ebMedia.innerHTML = MEDIA_SVG;
   onPress(els.ebTrash, () => {
     deleteNotes([editingId]);
   });
@@ -1817,6 +1979,20 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     onPress(els.ebLink, () => {
       closeEditPopovers(els.ebLinkPop);
       bodyEditor?.openLink();
+    });
+  }
+  if (els.ebMedia) {
+    onPress(els.ebMedia, () => {
+      const note = noteById(editingId);
+      if (note) openPopover(els.ebMediaPop, () => renderMediaPopover(note));
+    });
+    onPress(els.ebMediaSave, saveMedia);
+    onPress(els.ebMediaRemove, removeMedia);
+    els.ebMediaUrl?.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        saveMedia();
+      }
     });
   }
   onPress(els.ebColor, () => {

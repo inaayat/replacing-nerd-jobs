@@ -9,7 +9,6 @@
 import {
   COLOR_KEYS,
   DEFAULT_COLOR_KEY,
-  ICON_SVGS,
   PIN_SVG,
   blankNote,
   colorHex,
@@ -19,7 +18,7 @@ import {
   noteCreateSize,
   richToText,
 } from './notes.js';
-import { attachBodyEditor, renderBody } from './body.js';
+import { attachBodyEditor, renderBody, renderIcon } from './body.js';
 
 const NARROW = '(max-width: 719px)';
 
@@ -247,8 +246,7 @@ export function createTable({ store, els, showToast, onViewCanvas }) {
 
         const iconTd = document.createElement('td');
         iconTd.className = 'sn-tbl-icon';
-        iconTd.innerHTML = note.iconKey ? ICON_SVGS[note.iconKey] : '';
-        iconTd.title = note.iconKey ? legendLabel(store.state.legend, 'icon', note.iconKey) : '';
+        renderIcon(iconTd, store.state.legend, note.iconKey);
 
         const pinTd = document.createElement('td');
         pinTd.className = 'sn-tbl-pin';
@@ -282,7 +280,7 @@ export function createTable({ store, els, showToast, onViewCanvas }) {
       row.style.setProperty('--note-fill', note.colorKey ? colorHex(note.colorKey) : '');
       const icon = document.createElement('span');
       icon.className = 'sn-mem-icon';
-      icon.innerHTML = note.iconKey ? ICON_SVGS[note.iconKey] : '';
+      renderIcon(icon, store.state.legend, note.iconKey);
       const text = document.createElement('span');
       text.className = 'sn-mem-text sn-tbl-body';
       paintPreview(text, note);
