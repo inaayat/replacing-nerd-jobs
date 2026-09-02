@@ -371,6 +371,11 @@ a { color: inherit; }
 .wd-preview[data-kind="youtube"] { aspect-ratio: 16 / 9; }
 .wd-preview[data-kind="video"] { aspect-ratio: 16 / 9; }
 
+.wd-card-image .wd-preview-ph {
+  min-height: 0;
+  height: 100%;
+}
+
 .wd-preview-play {
   position: relative;
   display: block;

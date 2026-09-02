@@ -8,6 +8,9 @@ import {
   localPreview,
   mediaPreview,
   normalizePreview,
+  pinterestPinId,
+  pinterestThumbFromHtml,
+  pinterestWidgetThumbnail,
 } from '../wedding/engine/model.js';
 
 export default async function handler(req, res) {
@@ -114,6 +117,65 @@ function previewPayload(url, extra = {}) {
   }) || { thumbnail: null, title: '', canonical: cleanUrl(canonical) };
 }
 
+function applyPinPage(html, current) {
+  if (!html || typeof html !== 'string') return current;
+  const og = extractOpenGraph(html);
+  const thumbnail = current.thumbnail
+    || og.image
+    || pinterestThumbFromHtml(html)
+    || null;
+  const title = current.title || og.title || '';
+  const canonical = (og.url && cleanUrl(og.url)) || current.canonical;
+  return { thumbnail, title, canonical };
+}
+
+async function unfurlPinterest(startUrl, canonical, followedHtml) {
+  let next = {
+    thumbnail: null,
+    title: '',
+    canonical,
+  };
+  next = applyPinPage(followedHtml, next);
+
+  const tryOembed = async (u) => {
+    if (!u) return;
+    const oembed = await fetchWithTimeout(
+      `https://www.pinterest.com/oembed.json?url=${encodeURIComponent(u)}`,
+      { json: true },
+    );
+    if (!oembed.data) return;
+    next.thumbnail = next.thumbnail
+      || oembed.data.thumbnail_url
+      || pinterestThumbFromHtml(oembed.data.html)
+      || null;
+    next.title = next.title || oembed.data.title || '';
+    if (oembed.data.url) next.canonical = cleanUrl(oembed.data.url) || next.canonical;
+  };
+
+  if (!next.thumbnail) await tryOembed(next.canonical);
+  if (!next.thumbnail && startUrl !== next.canonical) await tryOembed(startUrl);
+
+  if (!next.thumbnail || !pinterestPinId(next.canonical)) {
+    const page = await fetchWithTimeout(next.canonical);
+    if (page.url) {
+      const landed = cleanUrl(page.url) || next.canonical;
+      if (pinterestPinId(landed)) next.canonical = landed;
+    }
+    next = applyPinPage(page.data, next);
+  }
+
+  const pinId = pinterestPinId(next.canonical);
+  if (pinId && !next.thumbnail) {
+    const widget = await fetchWithTimeout(
+      `https://widgets.pinterest.com/v3/pidgets/pins/info/?pin_ids=${encodeURIComponent(pinId)}`,
+      { json: true },
+    );
+    next.thumbnail = pinterestWidgetThumbnail(widget.data) || next.thumbnail;
+  }
+
+  return next;
+}
+
 async function handleUnfurl(req, res) {
   if (req.method !== 'GET') {
     res.status(405).json({ error: 'Use GET.' });
@@ -136,10 +198,11 @@ async function handleUnfurl(req, res) {
       || host === 'vm.tiktok.com'
       || /\/t\//.test(parsed.pathname)
       || /\/share\//.test(parsed.pathname);
-    let canonical = url;
+    let followedHtml = '';
     if (short) {
       const followed = await fetchWithTimeout(url, { timeout: 5000 });
       if (followed.url) canonical = cleanUrl(followed.url) || url;
+      if (followed.ok && typeof followed.data === 'string') followedHtml = followed.data;
     }
 
     let thumbnail = null;
@@ -153,12 +216,10 @@ async function handleUnfurl(req, res) {
       thumbnail = oembed.data?.thumbnail_url || null;
       title = oembed.data?.title || oembed.data?.author_name || '';
     } else if (kind === 'pinterest' || linkKind(canonical) === 'pinterest') {
-      const oembed = await fetchWithTimeout(
-        `https://www.pinterest.com/oembed.json?url=${encodeURIComponent(canonical)}`,
-        { json: true },
-      );
-      thumbnail = oembed.data?.thumbnail_url || null;
-      title = oembed.data?.title || '';
+      const pin = await unfurlPinterest(url, canonical, followedHtml);
+      thumbnail = pin.thumbnail;
+      title = pin.title;
+      canonical = pin.canonical;
     } else if (kind === 'youtube' || linkKind(canonical) === 'youtube') {
       thumbnail = mediaPreview(canonical)?.thumbnail || null;
     } else if (kind !== 'image' && kind !== 'video') {

@@ -157,10 +157,41 @@ function hostOf(url) {
   }
 }
 
+/** Numeric pin id from a pinterest.com or assets.pinterest.com URL. */
+export function pinterestPinId(url) {
+  const href = String(url || '');
+  const m = href.match(/\/pin\/(\d{5,})/)
+    || href.match(/[?&](?:pin_)?id=(\d{5,})/);
+  return m ? m[1] : '';
+}
+
+export function pinterestThumbFromHtml(html) {
+  const m = String(html || '').match(/https?:\/\/i\.pinimg\.com\/[^"'\\\s<>]+/i);
+  return m ? decodeEntities(m[0]) : '';
+}
+
+/** Best still from widgets.pinterest.com/v3/pidgets/pins/info/. */
+export function pinterestWidgetThumbnail(payload) {
+  const row = Array.isArray(payload?.data) ? payload.data[0] : payload?.data;
+  const images = row?.images && typeof row.images === 'object' ? row.images : null;
+  if (!images) return '';
+  const prefer = ['564x', '474x', '236x', '237x', 'orig'];
+  for (const key of prefer) {
+    const src = images[key]?.url;
+    if (typeof src === 'string' && /^https?:\/\//i.test(src)) return src;
+  }
+  for (const value of Object.values(images)) {
+    const src = value?.url;
+    if (typeof src === 'string' && /^https?:\/\//i.test(src)) return src;
+  }
+  return '';
+}
+
 /**
  * How a clip can be previewed in the board: a direct photo/video file, a
  * YouTube poster, or an official embed player (TikTok / Instagram / Pinterest).
  * Short links (pin.it, vm.tiktok) have no id until a server unfurl follows them.
+ * Pinterest is a still — never a playable video.
  */
 export function mediaPreview(url) {
   const href = cleanUrl(url);
@@ -176,10 +207,10 @@ export function mediaPreview(url) {
   const path = parsed.pathname;
 
   if (kind === 'image') {
-    return { kind: 'image', src: href, thumbnail: href, embedUrl: null, playable: false };
+    return { kind: 'image', src: href, thumbnail: href, embedUrl: null, playable: false, still: true };
   }
   if (kind === 'video') {
-    return { kind: 'video', src: href, thumbnail: null, embedUrl: null, playable: true };
+    return { kind: 'video', src: href, thumbnail: null, embedUrl: null, playable: true, still: false };
   }
   if (kind === 'youtube') {
     let id = '';
@@ -188,13 +219,14 @@ export function mediaPreview(url) {
     else if (path.startsWith('/embed/')) id = path.split('/')[2] || '';
     else id = parsed.searchParams.get('v') || '';
     id = id.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 20);
-    if (!id) return { kind: 'youtube', src: href, thumbnail: null, embedUrl: null, playable: false };
+    if (!id) return { kind: 'youtube', src: href, thumbnail: null, embedUrl: null, playable: false, still: false };
     return {
       kind: 'youtube',
       src: href,
       thumbnail: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
       embedUrl: `https://www.youtube.com/embed/${id}?rel=0`,
       playable: true,
+      still: false,
     };
   }
   if (kind === 'tiktok') {
@@ -206,6 +238,7 @@ export function mediaPreview(url) {
       thumbnail: null,
       embedUrl: id ? `https://www.tiktok.com/player/v1/${id}` : null,
       playable: true,
+      still: false,
     };
   }
   if (kind === 'instagram') {
@@ -218,20 +251,52 @@ export function mediaPreview(url) {
       thumbnail: null,
       embedUrl: id ? `https://www.instagram.com/${type}/${id}/embed/` : null,
       playable: true,
+      still: false,
     };
   }
   if (kind === 'pinterest') {
-    const m = path.match(/\/pin\/(\d{5,})/);
-    const id = m ? m[1] : '';
+    const id = pinterestPinId(href);
     return {
       kind: 'pinterest',
       src: href,
       thumbnail: null,
       embedUrl: id ? `https://assets.pinterest.com/ext/embed.html?id=${id}` : null,
-      playable: Boolean(id),
+      playable: false,
+      still: true,
     };
   }
-  return { kind: 'link', src: href, thumbnail: null, embedUrl: null, playable: false };
+  return { kind: 'link', src: href, thumbnail: null, embedUrl: null, playable: false, still: false };
+}
+
+export function isStillMedia(media) {
+  return media?.kind === 'image' || media?.kind === 'pinterest' || media?.still === true;
+}
+
+/**
+ * What the card should paint: a photo, an auto-loaded still embed, a branded
+ * placeholder, or a play control for real video.
+ */
+export function previewPresentation(clip) {
+  if (!clip?.url) return { mode: 'none' };
+  const media = mediaPreview(previewHref(clip)) || mediaPreview(clip.url);
+  const thumb = clip.preview?.thumbnail || media?.thumbnail || '';
+  if (!media) return thumb ? { mode: 'image', src: thumb } : { mode: 'none' };
+  if (media.kind === 'image') {
+    return { mode: 'image', src: thumb || media.src };
+  }
+  if (isStillMedia(media)) {
+    if (thumb) return { mode: 'image', src: thumb };
+    if (media.embedUrl) return { mode: 'embed', embedUrl: media.embedUrl, kind: media.kind };
+    return { mode: 'placeholder', kind: media.kind };
+  }
+  if (media.kind === 'video') {
+    return { mode: 'play', kind: 'video', poster: thumb, embedUrl: null };
+  }
+  if (media.playable || media.embedUrl) {
+    return { mode: 'play', kind: media.kind, poster: thumb, embedUrl: media.embedUrl };
+  }
+  if (thumb) return { mode: 'image', src: thumb };
+  return { mode: 'none' };
 }
 
 export function decodeEntities(text) {
@@ -260,6 +325,7 @@ export function extractOpenGraph(html) {
   return {
     title: pick('og:title') || pick('twitter:title'),
     image: pick('og:image') || pick('twitter:image') || pick('og:image:url'),
+    url: pick('og:url'),
   };
 }
 

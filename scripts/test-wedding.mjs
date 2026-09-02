@@ -36,6 +36,11 @@ import {
   localPreview,
   clipNeedsUnfurl,
   previewHref,
+  previewPresentation,
+  isStillMedia,
+  pinterestPinId,
+  pinterestThumbFromHtml,
+  pinterestWidgetThumbnail,
 } from '../wedding/engine/model.js';
 
 function eq(actual, expected, msg) {
@@ -181,7 +186,38 @@ eq(mediaPreview('https://www.instagram.com/reels/AbC_12-x/').embedUrl, reel.embe
 const pin = mediaPreview('https://www.pinterest.com/pin/9876543210/');
 eq(pin.kind, 'pinterest');
 eq(pin.embedUrl, 'https://assets.pinterest.com/ext/embed.html?id=9876543210');
+eq(pin.playable, false, 'pins are stills, not videos');
+eq(pin.still, true);
+eq(isStillMedia(pin), true);
+eq(isStillMedia(tiktok), false);
+eq(pinterestPinId('https://www.pinterest.com/pin/9876543210/sent/'), '9876543210');
+eq(pinterestPinId('https://assets.pinterest.com/ext/embed.html?id=9876543210'), '9876543210');
 eq(mediaPreview('https://pin.it/abc').embedUrl, null, 'short Pin links need an unfurl to get an id');
+eq(previewPresentation({ url: 'https://pin.it/abc' }).mode, 'placeholder', 'pin.it with no id is a still block, not play');
+
+const pinNoThumb = {
+  url: 'https://pin.it/GreenLook',
+  preview: {
+    title: 'Green High Neck Sharara',
+    canonical: 'https://www.pinterest.com/pin/123456789012345678/',
+    thumbnail: null,
+  },
+};
+eq(previewPresentation(pinNoThumb).mode, 'embed', 'a resolved pin without a poster auto-loads the still embed');
+eq(previewPresentation(pinNoThumb).kind, 'pinterest');
+eq(clipNeedsUnfurl(pinNoThumb), true, 'still fetch a pin image when oEmbed omitted the thumbnail');
+eq(
+  previewPresentation({
+    ...pinNoThumb,
+    preview: { ...pinNoThumb.preview, thumbnail: 'https://i.pinimg.com/564x/look.jpg' },
+  }).mode,
+  'image',
+);
+eq(pinterestThumbFromHtml('<iframe src="x"></iframe><img src="https://i.pinimg.com/564x/ab.jpg">'), 'https://i.pinimg.com/564x/ab.jpg');
+eq(pinterestWidgetThumbnail({
+  data: [{ images: { '237x': { url: 'https://i.pinimg.com/237x/a.jpg' }, '564x': { url: 'https://i.pinimg.com/564x/a.jpg' } } }],
+}), 'https://i.pinimg.com/564x/a.jpg');
+eq(previewPresentation({ url: 'https://www.tiktok.com/@x/video/1' }).mode, 'play');
 
 const yt = mediaPreview('https://youtu.be/dQw4w9wgXcQ');
 eq(yt.kind, 'youtube');
@@ -192,9 +228,11 @@ eq(localPreview('https://youtu.be/dQw4w9wgXcQ').thumbnail, yt.thumbnail);
 const og = extractOpenGraph(`
   <meta property="og:title" content="Veil ideas &amp; more">
   <meta name="twitter:image" content="https://i.pinimg.com/look.jpg">
+  <meta property="og:url" content="https://www.pinterest.com/pin/9876543210/">
 `);
 eq(og.title, 'Veil ideas & more');
 eq(og.image, 'https://i.pinimg.com/look.jpg');
+eq(og.url, 'https://www.pinterest.com/pin/9876543210/');
 
 let previewBoard = addClip(emptyBoard(), { url: 'https://www.tiktok.com/@x/video/1', urlLabel: 'aisle' });
 eq(clipNeedsUnfurl(previewBoard.clips[0]), true, 'TikTok posters come from oEmbed');

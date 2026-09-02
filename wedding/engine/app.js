@@ -34,6 +34,7 @@ import {
   seedSuggestedBuckets,
   mediaPreview,
   previewHref,
+  previewPresentation,
   clipNeedsUnfurl,
 } from './model.js';
 
@@ -190,7 +191,7 @@ async function requestPreview(clip) {
       commit(updateClip(board, clip.id, { preview: data }));
     }
   } catch {
-    /* play placeholder still works */
+    /* still embed or branded placeholder still works */
   }
 }
 
@@ -241,32 +242,39 @@ function kindChip(url) {
 }
 
 function previewBlock(clip) {
-  if (!clip.url) return '';
-  const media = mediaPreview(previewHref(clip)) || mediaPreview(clip.url);
-  const thumb = clip.preview?.thumbnail || media?.thumbnail || null;
+  const shown = previewPresentation(clip);
   const href = escapeHtml(clip.url);
 
-  if (media?.kind === 'image' || (thumb && (media?.kind === 'pinterest' || media?.kind === 'link' || !media?.playable))) {
-    if (!thumb) return '';
-    return `<a class="wd-card-image" href="${href}" target="_blank" rel="noopener noreferrer"><img src="${escapeHtml(thumb)}" alt="" referrerpolicy="no-referrer" loading="lazy"></a>`;
+  if (shown.mode === 'image') {
+    return `<a class="wd-card-image" href="${href}" target="_blank" rel="noopener noreferrer"><img src="${escapeHtml(shown.src)}" alt="" referrerpolicy="no-referrer" loading="lazy"></a>`;
   }
 
-  if (media?.kind === 'video') {
+  if (shown.mode === 'embed') {
     return `
+      <div class="wd-preview wd-preview-still" data-kind="${escapeHtml(shown.kind)}">
+        <iframe class="wd-preview-frame" src="${escapeHtml(shown.embedUrl)}" allow="encrypted-media" loading="lazy" title="Preview" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+      </div>`;
+  }
+
+  if (shown.mode === 'placeholder') {
+    return `<a class="wd-card-image" href="${href}" target="_blank" rel="noopener noreferrer"><span class="wd-preview-ph wd-kind-${escapeHtml(shown.kind)}">${escapeHtml(linkKindLabel(shown.kind))}</span></a>`;
+  }
+
+  if (shown.mode === 'play') {
+    if (shown.kind === 'video') {
+      return `
       <div class="wd-preview" data-kind="video">
         <button type="button" class="wd-preview-play" data-act="play" aria-label="Play video">
           <span class="wd-preview-ph">Video</span>
           <span class="wd-preview-btn">${PLAY_SVG}</span>
         </button>
       </div>`;
-  }
-
-  if (media?.playable || media?.embedUrl) {
-    const poster = thumb
-      ? `<img class="wd-preview-img" src="${escapeHtml(thumb)}" alt="" referrerpolicy="no-referrer" loading="lazy">`
-      : `<span class="wd-preview-ph wd-kind-${escapeHtml(media.kind)}">${escapeHtml(linkKindLabel(media.kind))}</span>`;
+    }
+    const poster = shown.poster
+      ? `<img class="wd-preview-img" src="${escapeHtml(shown.poster)}" alt="" referrerpolicy="no-referrer" loading="lazy">`
+      : `<span class="wd-preview-ph wd-kind-${escapeHtml(shown.kind)}">${escapeHtml(linkKindLabel(shown.kind))}</span>`;
     return `
-      <div class="wd-preview" data-kind="${escapeHtml(media.kind)}">
+      <div class="wd-preview" data-kind="${escapeHtml(shown.kind)}">
         <button type="button" class="wd-preview-play" data-act="play" aria-label="Play preview">
           ${poster}
           <span class="wd-preview-btn">${PLAY_SVG}</span>
