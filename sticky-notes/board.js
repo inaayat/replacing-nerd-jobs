@@ -47,6 +47,7 @@ import {
   planEditSession,
   randomId,
   rectsIntersect,
+  resizeNoteSize,
   richToText,
   normalizeHref,
   screenToWorld,
@@ -225,7 +226,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
         <span class="sn-dot" data-side="e"></span>
         <span class="sn-dot" data-side="s"></span>
         <span class="sn-dot" data-side="w"></span>
-        <span class="sn-card-resize" title="Resize"></span>`;
+        <span class="sn-card-resize" title="Resize" aria-label="Resize" tabindex="-1"></span>`;
       world.appendChild(el);
       cardEls.set(note.id, el);
     }
@@ -1322,7 +1323,12 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
       linkPop: els.ebLinkPop,
       placePopover,
       shouldIgnoreBlur: (target) =>
-        Boolean(target && (editbar.contains(target) || actionbar.contains(target))),
+        Boolean(
+          target &&
+            (editbar.contains(target) ||
+              actionbar.contains(target) ||
+              target.closest?.('.sn-card-resize')),
+        ),
     });
     focusWithoutScroll(body);
     let range = caretAt ? caretRangeAt(caretAt.x, caretAt.y) : null;
@@ -1358,6 +1364,10 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
         el.style.willChange = '';
         el.style.transform = '';
       }
+    }
+    if (drag.kind === 'resize' && drag.el) {
+      drag.el.style.width = `${drag.w}px`;
+      drag.el.style.minHeight = `${drag.h}px`;
     }
     if (drag.kind === 'arrow') drag.ghost.remove();
     if (drag.kind === 'rubber') rubber.hidden = true;
@@ -1414,6 +1424,25 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
 
     const card = e.target.closest('.sn-card');
     const ink = e.target.closest('.sn-ink');
+    const resize = e.target.closest('.sn-card-resize');
+
+    // Phone shows a 44px handle on the selected/editing card; desktop keeps
+    // the 14px hover grip. Hit it before the edit early-return so one finger
+    // resizes without panning, moving, or committing the caret. Idle notes
+    // keep the handle `display: none`, so one-finger pan still works.
+    if (resize && card) {
+      const note = noteById(card.dataset.id);
+      if (note && (!phone() || selection.has(note.id) || editingId === note.id)) {
+        drag = {
+          kind: 'resize', id: note.id, el: card, startX: e.clientX, startY: e.clientY,
+          w: note.w, h: Math.max(note.h, card.offsetHeight), pointerId: e.pointerId, frame: 0,
+        };
+        capturePointer(e);
+        e.preventDefault();
+        return;
+      }
+    }
+
     if (editingId) {
       // Inside the note being edited the pointer belongs to the caret and to
       // native text selection. Anywhere else commits, then behaves normally —
@@ -1428,7 +1457,6 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
 
     const touch = e.pointerType === 'touch';
     const dot = e.target.closest('.sn-dot');
-    const resize = e.target.closest('.sn-card-resize');
     const wantPan = spaceHeld || e.button === 1;
 
     if (wantPan) {
@@ -1460,17 +1488,6 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
       arrowLayer.appendChild(ghost);
       const from = noteRect(noteById(fromId));
       drag = { kind: 'arrow', fromId, ghost, from, pointerId: e.pointerId };
-      capturePointer(e);
-      e.preventDefault();
-      return;
-    }
-
-    if (resize && card) {
-      const note = noteById(card.dataset.id);
-      drag = {
-        kind: 'resize', id: note.id, el: card, startX: e.clientX, startY: e.clientY,
-        w: note.w, h: Math.max(note.h, card.offsetHeight), pointerId: e.pointerId, frame: 0,
-      };
       capturePointer(e);
       e.preventDefault();
       return;
@@ -1628,8 +1645,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
       if (drag.frame) return;
       drag.frame = requestAnimationFrame(() => {
         drag.frame = 0;
-        const w = clamp(drag.w + (drag.dw || 0), 160, 480);
-        const h = Math.max(48, drag.h + (drag.dh || 0));
+        const { w, h } = resizeNoteSize(drag.w + (drag.dw || 0), drag.h + (drag.dh || 0));
         drag.el.style.width = `${w}px`;
         drag.el.style.minHeight = `${h}px`;
         repathArrowsTouching([drag.id]);
@@ -1750,8 +1766,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
       return;
     }
     if (d.kind === 'resize') {
-      const w = clamp(d.w + (d.dw || 0), 160, 480);
-      const h = Math.max(48, d.h + (d.dh || 0));
+      const { w, h } = resizeNoteSize(d.w + (d.dw || 0), d.h + (d.dh || 0));
       store.dispatch([{ op: 'note.resize', id: d.id, w, h, ts: new Date().toISOString() }]);
       return;
     }

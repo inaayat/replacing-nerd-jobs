@@ -797,6 +797,14 @@ export function noteCreateSize(phone) {
   return phone ? { w: NOTE_W_PHONE, h: NOTE_H_PHONE } : { w: NOTE_W_DEFAULT, h: NOTE_H_DEFAULT };
 }
 
+/** Live drag and `note.resize` share this clamp: width 160–480, height ≥ 48. */
+export function resizeNoteSize(w, h) {
+  return {
+    w: clamp(w, NOTE_W_MIN, NOTE_W_MAX),
+    h: Math.max(NOTE_H_MIN, h),
+  };
+}
+
 /**
  * Canvas | table preference. `stored` is the v2 key — a v2 pick always wins.
  * Unset opens the whiteboard, phone and desktop. On desktop only, a leftover
@@ -1142,16 +1150,10 @@ function applyOp(state, op) {
     case 'note.move':
       return mapNotes(state, [op.id], (n) => touch({ ...n, x: num(op.x, n.x), y: num(op.y, n.y) }, ts));
     case 'note.resize':
-      return mapNotes(state, [op.id], (n) =>
-        touch(
-          {
-            ...n,
-            w: clamp(num(op.w, n.w), NOTE_W_MIN, NOTE_W_MAX),
-            h: Math.max(NOTE_H_MIN, num(op.h, n.h)),
-          },
-          ts,
-        ),
-      );
+      return mapNotes(state, [op.id], (n) => {
+        const size = resizeNoteSize(num(op.w, n.w), num(op.h, n.h));
+        return touch({ ...n, w: size.w, h: size.h }, ts);
+      });
     case 'note.pin':
       return mapNotes(state, op.ids || [], (n) => touch({ ...n, pinned: Boolean(op.pinned) }, ts));
     case 'note.categorize':
