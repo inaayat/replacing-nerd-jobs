@@ -135,16 +135,20 @@ async function fetchPreview(url, { json = false } = {}) {
       redirect: 'follow',
       headers: {
         'User-Agent': BROWSER_UA,
-        Accept: json ? 'application/json' : 'text/html,application/xhtml+xml',
+        Accept: json ? 'application/json' : 'text/html,application/xhtml+xml,image/*,*/*;q=0.8',
       },
     });
-    if (!page.ok) return { ok: false, url: page.url || url, data: null };
-    const data = json
-      ? await page.json().catch(() => null)
-      : (await page.text()).slice(0, 200000);
-    return { ok: true, url: page.url || url, data };
+    if (!page.ok) return { ok: false, url: page.url || url, data: null, contentType: '' };
+    const contentType = String(page.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+    let data = null;
+    if (json) {
+      data = await page.json().catch(() => null);
+    } else if (!contentType.startsWith('image/') && !contentType.startsWith('video/')) {
+      data = (await page.text()).slice(0, 200000);
+    }
+    return { ok: true, url: page.url || url, data, contentType };
   } catch {
-    return { ok: false, url, data: null };
+    return { ok: false, url, data: null, contentType: '' };
   } finally {
     clearTimeout(timer);
   }
@@ -197,9 +201,16 @@ async function handleUnfurl(req, res) {
 
     if (!html && !['image', 'video', 'youtube', 'tiktok'].includes(kind)) {
       const page = await fetchPreview(canonical);
-      html = typeof page.data === 'string' ? page.data : '';
       canonical = normalizeHref(page.url) || canonical;
-      kind = mediaKind(canonical) || kind;
+      if (page.contentType?.startsWith('image/')) {
+        kind = 'image';
+        thumbnail = canonical;
+      } else if (page.contentType?.startsWith('video/')) {
+        kind = 'video';
+      } else {
+        html = typeof page.data === 'string' ? page.data : '';
+        kind = mediaKind(canonical) || kind;
+      }
     }
 
     const meta = pageMetadata(html);

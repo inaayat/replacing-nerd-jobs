@@ -217,13 +217,21 @@ function mediaHost(url) {
   }
 }
 
+/** Paths and hosts that serve a still image without a file extension in the URL. */
+function directImagePath(pathname, host) {
+  if (IMAGE_EXT.test(pathname)) return true;
+  // Google thumbnail/search CDN — e.g. encrypted-tbn0.gstatic.com/images?q=tbn:…
+  if (host.endsWith('.gstatic.com') && /^\/images(?:\/|$)/.test(pathname)) return true;
+  return false;
+}
+
 /** Supported visual URL family. Generic pages can still preview an OG image. */
 export function mediaKind(url) {
   const href = normalizeHref(url);
   if (!href) return null;
   const parsed = new URL(href);
   const host = mediaHost(href);
-  if (IMAGE_EXT.test(parsed.pathname)) return 'image';
+  if (directImagePath(parsed.pathname, host)) return 'image';
   if (VIDEO_EXT.test(parsed.pathname)) return 'video';
   if (host === 'tiktok.com' || host.endsWith('.tiktok.com')) return 'tiktok';
   if (host === 'instagram.com' || host.endsWith('.instagram.com')) return 'instagram';

@@ -119,6 +119,11 @@ function note(id, extra = {}) {
 // 1b. compact image / video attachments
 {
   eq(mediaKind('https://example.com/photo.webp?size=2'), 'image', 'image extensions are visual');
+  eq(
+    mediaKind('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR-2oyD2dunmgd3xqd1PWrxVy7SYMJzmCwz0yvxK_zjNz68gIVbvFMHkrxz&s=10'),
+    'image',
+    'Google gstatic /images URLs are direct images',
+  );
   eq(mediaKind('https://www.instagram.com/reel/ABC_123/'), 'instagram', 'Instagram reels are recognized');
   eq(mediaKind('https://vm.tiktok.com/ZMshort/'), 'tiktok', 'TikTok short links are recognized');
   eq(mediaKind('https://pin.it/short'), 'pinterest', 'Pinterest short links are recognized');
@@ -137,6 +142,10 @@ function note(id, extra = {}) {
   const image = localMedia('https://cdn.example.com/cat.jpg');
   eq(image.thumbnail, image.url, 'direct image previews need no unfurl');
   eq(mediaPresentation(image).mode, 'image', 'direct image paints as a still');
+  const gstatic = localMedia('https://encrypted-tbn0.gstatic.com/images?q=tbn:abc&s=10');
+  eq(gstatic.kind, 'image', 'gstatic thumbnails classify as image');
+  eq(gstatic.thumbnail, gstatic.url, 'gstatic thumbnails paint locally without unfurl');
+  eq(mediaPresentation(gstatic).mode, 'image', 'gstatic thumbnails render as a still');
   const video = localMedia('https://cdn.example.com/clip.mp4');
   eq(mediaPresentation(video).directVideo, video.url, 'direct video paints through the source URL');
 
