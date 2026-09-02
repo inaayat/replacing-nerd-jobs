@@ -940,6 +940,50 @@ video.sn-media-player { object-fit: contain; }
 }
 .sn-chip-wiki svg { width: 12px; height: 12px; }
 
+/* ------------------------------------------------- phone compose (outside #world) */
+
+/* Untransformed typing surface. iOS will open the keyboard into this;
+   a contentEditable card inside a CSS-transformed #world will not. */
+.sn-compose {
+  position: fixed;
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  min-height: 96px;
+  max-height: 40vh;
+  padding: 10px 12px;
+  background: var(--note-fill, var(--panel));
+  border: 1.5px solid var(--ink);
+  border-radius: var(--sn-radius);
+  box-shadow: 0 8px 22px rgba(28, 28, 28, 0.2);
+  transform: none;
+  touch-action: manipulation;
+}
+.sn-compose-body {
+  flex: 1 1 auto;
+  min-height: 4.2em;
+  overflow-y: auto;
+  font-size: 16px;
+  line-height: 1.4;
+  word-break: break-word;
+  outline: none;
+  cursor: text;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.sn-compose-body b { font-weight: 700; }
+.sn-compose-body > div { white-space: pre-wrap; min-height: 1.4em; }
+.sn-compose-body ul,
+.sn-compose-body ol {
+  margin: 0;
+  padding-left: 1.2em;
+}
+.sn-compose-body li { white-space: pre-wrap; }
+.sn-compose-body ul { list-style: disc; }
+.sn-compose-body ol { list-style: decimal; }
+.sn-compose-body li::marker { color: rgba(28, 28, 28, 0.55); }
+
 /* ------------------------------------------------- tier 1: the editing note's bar */
 
 .sn-editbar {
@@ -2775,6 +2819,7 @@ video.sn-media-player { object-fit: contain; }
      Board pan and pinch are unaffected — they are canvas transforms, not page
      scale. */
   .sn-card-body,
+  .sn-compose-body,
   .sn-ink,
   .sn-ab-name,
   .sn-mem-search,
@@ -2827,6 +2872,8 @@ video.sn-media-player { object-fit: contain; }
   .sn-tbl-row,
   .sn-tbl-card,
   .sn-tbl-body { touch-action: manipulation; }
+  .sn-compose,
+  .sn-compose-body { touch-action: manipulation; }
 }
 
 /* Phone edit chrome: one slim row of small glyphs, 44 px hits via slop.
@@ -2865,6 +2912,11 @@ video.sn-media-player { object-fit: contain; }
     max-width: none;
     justify-content: space-around;
     border-radius: var(--sn-radius);
+  }
+  .sn-compose {
+    left: 8px;
+    right: 8px;
+    width: auto;
   }
   /* One useful row above the docked bar — never a 32 px-wide column
      that placePopover would measure as too tall and flip below the keys. */

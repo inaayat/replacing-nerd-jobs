@@ -45,6 +45,7 @@ import {
   phoneNoteZoom,
   placeEditPopover,
   planEditSession,
+  usesPhoneCompose,
   randomId,
   rectsIntersect,
   resizeNoteSize,
@@ -63,11 +64,11 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 const SLOP_MOUSE = 4;
 const SLOP_TOUCH = 8;
 const LONG_PRESS_MS = 400;
-const DOUBLE_TAP_MS = 350;
-const DOUBLE_TAP_PX = 28;
 
 export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
   const { viewport, world, arrowLayer, rubber, empty, actionbar, editbar } = els;
+  const compose = els.compose || null;
+  const composeBody = els.composeBody || null;
 
   let vp = loadViewport();
   let vpFrame = 0;
@@ -88,11 +89,11 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
   const pointers = new Map(); // live pointerId -> client point, for pinch
   let longPressTimer = 0;
   let selectMode = false; // touch: long-press opened a multi-select session
-  let lastTap = null;
   let lastPointerType = 'mouse';
 
   const coarse = () => window.matchMedia('(pointer: coarse)').matches;
   const phone = () => coarse() && window.innerWidth <= 720;
+  const useCompose = () => usesPhoneCompose({ coarse: coarse(), width: window.innerWidth });
 
   // ------------------------------------------------------------------ helpers
 
@@ -196,14 +197,18 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
   }
 
   function editSessionPlan(el, barH) {
-    const card = el.getBoundingClientRect();
+    const card = el
+      ? el.getBoundingClientRect()
+      : { top: 0, bottom: 0, left: 0, width: 0 };
+    const composing = Boolean(compose && !compose.hidden);
     return planEditSession({
       card: { top: card.top, bottom: card.bottom, left: card.left, width: card.width },
       barW: editbar.hidden ? 0 : editbar.offsetWidth || 0,
       barH,
       canvas: viewport.getBoundingClientRect(),
       visible: visibleBounds(),
-      phone: coarse(),
+      phone: coarse() || composing,
+      composeH: composing ? compose.offsetHeight : 0,
     });
   }
 
@@ -243,6 +248,9 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     const tags = el.querySelector('.sn-card-tags');
     renderTags(tags, note.tags);
     const body = el.querySelector('.sn-card-body');
+    if (note.id === editingId && compose && !compose.hidden) {
+      compose.style.setProperty('--note-fill', note.colorKey ? colorHex(note.colorKey) : '');
+    }
     if (note.id !== editingId) {
       const blocks = noteBlocks(note);
       const stamp = JSON.stringify(blocks);
@@ -1096,11 +1104,19 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
   function positionEditBar() {
     if (editbar.hidden || !editingId) return;
     const el = cardEls.get(editingId);
-    if (!el) return;
     const plan = editSessionPlan(el, editbar.offsetHeight || 32);
     editbar.classList.toggle('is-docked', plan.docked);
     editbar.style.top = `${plan.top}px`;
     editbar.style.left = `${plan.left}px`;
+    if (compose && !compose.hidden) {
+      if (plan.composeTop != null) {
+        compose.style.top = `${plan.composeTop}px`;
+        compose.style.height = `${plan.composeHeight}px`;
+      }
+      compose.style.left = `${viewport.getBoundingClientRect().left + 8}px`;
+      compose.style.right = '8px';
+      compose.style.width = 'auto';
+    }
     placePopover(els.ebPalette);
     placePopover(els.ebIconPop);
     placePopover(els.ebLinkPop);
@@ -1186,7 +1202,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     }
     if (!text) {
       const el = cardEls.get(saved.id);
-      if (el) fitPhoneNote(el);
+      if (el && !useCompose()) fitPhoneNote(el);
       startEditing(saved.id);
     }
   }
@@ -1268,21 +1284,34 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     if (!el || !note || editingId) return;
     if (inkEditingId) endInkEdit?.(false);
     editingId = id;
-    const body = el.querySelector('.sn-card-body');
+    const composing = Boolean(useCompose() && compose && composeBody);
+    const body = composing ? composeBody : el.querySelector('.sn-card-body');
     el.classList.add('is-editing');
     setEditingChrome(true);
+    if (composing) {
+      compose.hidden = false;
+      compose.style.setProperty('--note-fill', note.colorKey ? colorHex(note.colorKey) : '');
+      renderBody(composeBody, noteBlocks(note));
+    }
     renderEditBar();
-    fitPhoneNote(el);
-    revealCard(el);
+    if (composing) positionEditBar();
+    else {
+      fitPhoneNote(el);
+      revealCard(el);
+    }
 
     const onVisualResize = () => {
-      revealCard(el);
+      if (!composing) revealCard(el);
+      else positionEditBar();
       liftActionBar();
     };
     window.visualViewport?.addEventListener('resize', onVisualResize);
     window.visualViewport?.addEventListener('scroll', onVisualResize);
 
+    let closed = false;
     const finish = (cancel = false) => {
+      if (closed) return;
+      closed = true;
       // Read before detach: the editor is what knows the live DOM.
       const current = noteById(id) || note;
       const stored = noteBlocks(current);
@@ -1300,6 +1329,12 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
       closeEditPopovers();
       editbar.hidden = true;
       editbar.classList.remove('is-docked');
+      if (composing) {
+        compose.hidden = true;
+        compose.style.removeProperty('--note-fill');
+        compose.style.height = '';
+        composeBody.replaceChildren();
+      }
       setEditingChrome(false);
       const stamp = JSON.stringify(rich);
       if (text !== current.text || stamp !== JSON.stringify(stored)) {
@@ -1308,7 +1343,8 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
           { op: 'note.upsert', note: { ...current, text, rich, updatedAt: new Date().toISOString() } },
         ]);
       } else {
-        renderBody(body, stored);
+        const cardBody = el.querySelector('.sn-card-body');
+        if (cardBody) renderBody(cardBody, stored);
         bodyStamps.set(id, JSON.stringify(stored));
       }
       renderChips();
@@ -1327,11 +1363,14 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
           target &&
             (editbar.contains(target) ||
               actionbar.contains(target) ||
+              (compose && compose.contains(target)) ||
               target.closest?.('.sn-card-resize')),
         ),
     });
+    // Focus in this same user gesture. A delay, or preventDefault on the
+    // opener, is what keeps iOS from opening the keyboard.
     focusWithoutScroll(body);
-    let range = caretAt ? caretRangeAt(caretAt.x, caretAt.y) : null;
+    let range = !composing && caretAt ? caretRangeAt(caretAt.x, caretAt.y) : null;
     if (!range || !body.contains(range.startContainer)) {
       range = document.createRange();
       const last = selectAll ? body : body.lastElementChild || body;
@@ -1444,10 +1483,11 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     }
 
     if (editingId) {
-      // Inside the note being edited the pointer belongs to the caret and to
-      // native text selection. Anywhere else commits, then behaves normally —
-      // so the next click lands where the user aimed it.
-      if (card && card.dataset.id === editingId) return;
+      // Inside the desktop note being edited the pointer belongs to the caret.
+      // Phone compose lives outside #world, so a press on the canvas (including
+      // the card) commits, then behaves normally.
+      const composing = Boolean(compose && !compose.hidden);
+      if (!composing && card && card.dataset.id === editingId) return;
       endEdit?.(false);
     }
     if (inkEditingId) {
@@ -1683,24 +1723,17 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     }
   });
 
-  function tappedEmptyBoard(e) {
+  function tappedEmptyBoard() {
     if (selectMode) {
       exitSelectMode();
-      lastTap = null;
       return;
     }
-    const now = performance.now();
-    if (lastTap && now - lastTap.t < DOUBLE_TAP_MS && dist(lastTap, { x: e.clientX, y: e.clientY }) < DOUBLE_TAP_PX) {
-      lastTap = null;
-      const p = toWorld(e);
-      createNote({ at: { x: p.x - noteCreateSize(phone()).w / 2, y: p.y - 24 } });
-      return;
-    }
-    lastTap = { t: now, x: e.clientX, y: e.clientY };
     if (selection.size) {
       selection.clear();
       renderSelection();
     }
+    // Phone create is + → compose. Empty-board tap still pans; it is not a
+    // create path. Desktop create is double-click (see dblclick below).
   }
 
   function endDrag(e) {
@@ -1807,8 +1840,8 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
   );
 
   viewport.addEventListener('dblclick', (e) => {
-    // Touch double-taps are handled by tappedEmptyBoard; browsers also synthesise
-    // dblclick from them, which would create the note twice.
+    // Touch empty-board create used to live on double-tap; that path is gone.
+    // Browsers also synthesise dblclick from a touch double-tap, so skip it.
     if (lastPointerType === 'touch') return;
     const ink = e.target.closest('.sn-ink');
     if (ink) {
@@ -2142,6 +2175,10 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
 
   return {
     createNote,
+    /** Re-focus the phone compose field after +'s click default. */
+    focusCompose() {
+      if (composeBody && compose && !compose.hidden) focusWithoutScroll(composeBody);
+    },
     /** Arm the pen; the next press on the board writes there. */
     startText: () => setTextMode(!textMode),
     wipe,
