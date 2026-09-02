@@ -249,21 +249,25 @@ function stripHashtagsFromText(text) {
 
 /**
  * On commit, promote `#tags` out of the rich body. Icon matches become
- * `iconKey`; everything else becomes compact pills in `tags`. The `#…` tokens
- * leave the stored body so they are not duplicated in text and pills.
+ * `iconKey`; everything else becomes compact pills in `tags`. Existing
+ * `note.tags` are kept and unioned with newly extracted pills (case-insensitive
+ * dedupe, `TAG_LIMIT`). A commit with no `#` tokens leaves pills as they were.
+ * The `#…` tokens leave the stored body so they are not duplicated in text and
+ * pills, and an icon token is not also stored as a pill.
  */
 export function applyHashtags(note, legend) {
+  const existingTags = normalizeTags(note.tags);
   let rich = note.rich;
   if (!rich && note.text) rich = textToRich(note.text);
-  if (!rich) return { ...note, tags: normalizeTags(note.tags) };
+  if (!rich) return { ...note, tags: existingTags };
 
   rich = rich.map((block) => ({
     type: block.type,
     spans: (block.spans || []).map((span) => ({ ...span })),
   }));
 
-  const pills = [];
-  const pillSeen = new Set();
+  const pills = [...existingTags];
+  const pillSeen = new Set(existingTags.map((label) => label.toLowerCase()));
   let iconKey = note.iconKey;
   let iconFromHashtag = false;
 

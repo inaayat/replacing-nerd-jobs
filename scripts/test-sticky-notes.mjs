@@ -1339,6 +1339,85 @@ function note(id, extra = {}) {
     id: 'n3',
     rich: [{ type: 'p', spans: [{ text: 'pack #travel', bold: false }] }],
   }), legend), legend, 'travel'), 'memory search finds hashtag pills');
+
+  const keepWork = applyHashtags(normalizeNote({
+    id: 'keep-work',
+    tags: ['work'],
+    rich: [{ type: 'p', spans: [{ text: '#star hello', bold: false }] }],
+  }), legend);
+  eq(keepWork.iconKey, 'star', 'icon hashtag sets iconKey without wiping pills');
+  eq(keepWork.tags.join(','), 'work', 'existing pills survive an icon hashtag');
+  eq(keepWork.text, 'hello', 'icon hashtag still leaves the stored body');
+  assert(!keepWork.tags.includes('star'), 'icon token is not also stored as a pill');
+
+  const keepBoth = applyHashtags(normalizeNote({
+    id: 'keep-both',
+    tags: ['work', 'urgent'],
+    iconKey: 'star',
+    rich: [{ type: 'p', spans: [{ text: 'no tags in this commit', bold: false }] }],
+  }), legend);
+  eq(keepBoth.tags.join(','), 'work,urgent', 'a commit with no hashtags leaves pills unchanged');
+  eq(keepBoth.iconKey, 'star', 'a commit with no hashtags leaves iconKey unchanged');
+
+  const twoPills = applyHashtags(normalizeNote({
+    id: 'two-pills',
+    rich: [{ type: 'p', spans: [{ text: '#budget #urgent', bold: false }] }],
+  }), legend);
+  eq(twoPills.tags.join(','), 'budget,urgent', 'two text hashtags both land in tags');
+  eq(twoPills.iconKey, null, 'text hashtags do not set iconKey');
+
+  const workUrgent = applyHashtags(normalizeNote({
+    id: 'work-urgent',
+    tags: ['inbox'],
+    rich: [{ type: 'p', spans: [{ text: '#work #urgent', bold: false }] }],
+  }), legend);
+  eq(workUrgent.iconKey, 'work', '#work is a built-in icon, not a duplicate pill');
+  eq(workUrgent.tags.join(','), 'inbox,urgent', '#urgent unions in while prior pills stay');
+
+  const unioned = applyHashtags(normalizeNote({
+    id: 'union',
+    tags: ['work'],
+    rich: [{ type: 'p', spans: [{ text: '#urgent hello', bold: false }] }],
+  }), legend);
+  eq(unioned.tags.join(','), 'work,urgent', 'new text hashtags union with existing pills');
+
+  let categorized = applyOps(emptyState(), [
+    { op: 'note.upsert', note: { id: 'picked', text: 'hello', tags: ['work'] } },
+    { op: 'note.categorize', ids: ['picked'], iconKey: 'star' },
+  ]);
+  eq(categorized.notes[0].iconKey, 'star', 'categorize stamps iconKey');
+  eq(categorized.notes[0].tags.join(','), 'work', 'categorize does not clear pills');
+  categorized = applyOps(categorized, [{
+    op: 'note.upsert',
+    note: { ...categorized.notes[0], text: 'hello', updatedAt: '2099-01-01T00:00:00.000Z' },
+  }]);
+  eq(categorized.notes[0].iconKey, 'star', 'upsert after categorize keeps iconKey');
+  eq(categorized.notes[0].tags.join(','), 'work', 'upsert after categorize keeps existing pills');
+
+  const customKey = 'custom:mug';
+  const customLegend = {
+    icons: {},
+    customIcons: { [customKey]: { label: 'Mug', imageUrl: 'https://example.com/mug.png' } },
+  };
+  const customHash = applyHashtags(normalizeNote({
+    id: 'custom-hash',
+    tags: ['work'],
+    rich: [{ type: 'p', spans: [{ text: '#mug hello', bold: false }] }],
+  }), customLegend);
+  eq(customHash.iconKey, customKey, 'custom icon hashtag sets iconKey');
+  eq(customHash.tags.join(','), 'work', 'custom icon hashtag does not wipe pills');
+
+  let customPicked = applyOps(emptyState(), [
+    { op: 'legend.set', kind: 'custom-icon', key: customKey, label: 'Mug', imageUrl: 'https://example.com/mug.png' },
+    { op: 'note.upsert', note: { id: 'custom-picked', text: 'hello', tags: ['work', 'urgent'] } },
+    { op: 'note.categorize', ids: ['custom-picked'], iconKey: customKey },
+  ]);
+  customPicked = applyOps(customPicked, [{
+    op: 'note.upsert',
+    note: { ...customPicked.notes[0], text: 'hello', updatedAt: '2099-01-01T00:00:00.000Z' },
+  }]);
+  eq(customPicked.notes[0].iconKey, customKey, 'custom picker icon survives the following upsert');
+  eq(customPicked.notes[0].tags.join(','), 'work,urgent', 'custom picker icon does not wipe pills');
 }
 
 {
