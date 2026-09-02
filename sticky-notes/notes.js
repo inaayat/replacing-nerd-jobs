@@ -334,6 +334,9 @@ export function normalizeMedia(raw) {
     thumbnail,
     title,
     kind: local?.kind || mediaKind(url) || 'link',
+    // Existing attachments predate placement and stay below the body. The
+    // media picker defaults new attachments to `before`, so text can follow.
+    position: raw.position === 'before' ? 'before' : 'after',
   };
 }
 

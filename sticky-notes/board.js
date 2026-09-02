@@ -246,7 +246,12 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
         bodyStamps.set(note.id, stamp);
       }
     }
-    renderMedia(el.querySelector('.sn-card-media'), note.media);
+    const media = el.querySelector('.sn-card-media');
+    const mediaBefore = note.media?.position === 'before';
+    media.classList.toggle('is-before', mediaBefore);
+    if (mediaBefore && media.nextElementSibling !== body) el.insertBefore(media, body);
+    if (!mediaBefore && body.nextElementSibling !== media) body.after(media);
+    renderMedia(media, note.media);
     const source = el.querySelector('.sn-card-source');
     if (note.sourceUrl) {
       source.innerHTML = '';
@@ -1111,6 +1116,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
   function renderMediaPopover(note) {
     if (!els.ebMediaPop) return;
     els.ebMediaUrl.value = note.media?.url || '';
+    els.ebMediaPosition.value = note.media?.position || 'before';
     els.ebMediaRemove.hidden = !note.media;
     els.ebMediaError.hidden = true;
   }
@@ -1123,7 +1129,8 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     }
     const current = noteById(editingId);
     if (!current) return;
-    const media = localMedia(url);
+    const position = els.ebMediaPosition?.value === 'after' ? 'after' : 'before';
+    const media = { ...localMedia(url), position };
     store.dispatch([{
       op: 'note.upsert',
       note: { ...current, media, updatedAt: new Date().toISOString() },
@@ -1134,7 +1141,11 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
       if (!data?.media || !latest || latest.media?.url !== url) return;
       store.dispatch([{
         op: 'note.upsert',
-        note: { ...latest, media: data.media, updatedAt: new Date().toISOString() },
+        note: {
+          ...latest,
+          media: { ...data.media, position: latest.media.position },
+          updatedAt: new Date().toISOString(),
+        },
       }]);
     });
   }

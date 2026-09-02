@@ -294,8 +294,9 @@ and nothing else: type `* ` or `1. ` at the start of a line and the marker
 becomes the list, the way Apple Notes and Notion do it. Paste a URL while
 editing (or ⌘/Ctrl+K) and it becomes a cream pill — display text starts as the
 domain and picks up the page title unless you rename it. A separate image
-button adds one compact visual preview below the body: direct image/video URLs,
-Pinterest images, Instagram posts/Reels, TikToks, and YouTube. Social video
+button adds one compact visual preview above or below the body, so a note can
+keep its text underneath an image: direct image/video URLs, Pinterest images,
+Instagram posts/Reels, TikToks, and YouTube. Social video
 stays behind a play control so the card keeps its sticky-note shape; the media
 attachment is data, not rich-body HTML. **Colour fills the whole card**, and a
 new note arrives light grey. The toolbar sits on the left.

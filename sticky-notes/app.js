@@ -334,7 +334,7 @@ function guideGroups() {
         {
           svg: MEDIA_SVG,
           name: 'Image or video',
-          text: 'Adds one tidy preview below the note: direct images or video, Pinterest images, Instagram posts and Reels, TikToks, or YouTube.',
+          text: 'Adds one tidy preview above or below the text. Put it above to keep typing underneath it.',
         },
         { glyph: '✓', name: 'Done', text: 'Closes the note. Clicking anywhere else saves it too.' },
       ],
@@ -633,6 +633,7 @@ async function init() {
       ebMedia: $('#eb-media'),
       ebMediaPop: $('#eb-media-pop'),
       ebMediaUrl: $('#eb-media-url'),
+      ebMediaPosition: $('#eb-media-position'),
       ebMediaSave: $('#eb-media-save'),
       ebMediaRemove: $('#eb-media-remove'),
       ebMediaError: $('#eb-media-error'),

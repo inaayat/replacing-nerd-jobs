@@ -35,7 +35,7 @@ thinking surface and memory does the remembering.
 | Pinned notes | **In v1.** A pinned note survives Wipe. Pin is a toggle on the card and in the action bar. Explicitly filing a pinned note (select → File) still works — pin guards against bulk wipe, not intent |
 | Mobile | Memory table must be usable on phones; the board is desktop-first (it renders, but drag ergonomics are not a v1 goal) |
 | Installed app | The browser version remains canonical; the manifest + scoped static-shell service worker add offline launch, install prompting, a New note shortcut, and an OS share target. API responses are never cached |
-| Media | One optional compact visual attachment per note: direct image/video, Pinterest, Instagram, TikTok, YouTube, or an Open Graph image. It stays separate from rich text; video plays on demand |
+| Media | One optional compact visual attachment per note: direct image/video, Pinterest, Instagram, TikTok, YouTube, or an Open Graph image. It stays separate from rich text, can sit before or after the body, and video plays on demand |
 | Collaboration, reminders, due dates | Not in v1. This is deliberately not a todo app |
 
 ## 3. UX walkthrough
@@ -112,7 +112,8 @@ MUST NOT import anything under `/lib/` (middleware 404s it in production).
   pinned: boolean,       // pinned notes are skipped by wipe
   media: {               // optional; embed URL is always derived, never stored
     url: string, canonical: string, thumbnail: string|null,
-    title: string, kind: 'image'|'video'|'pinterest'|'instagram'|'tiktok'|'youtube'|'link'
+    title: string, kind: 'image'|'video'|'pinterest'|'instagram'|'tiktok'|'youtube'|'link',
+    position: 'before'|'after'
   }|null,
   sourceUrl: string|null, sourceTitle: string|null,
   createdAt: ISO string, updatedAt: ISO string, filedAt: ISO string|null

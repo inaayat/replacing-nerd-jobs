@@ -143,6 +143,7 @@ function note(id, extra = {}) {
 
   const image = localMedia('https://cdn.example.com/cat.jpg');
   eq(image.thumbnail, image.url, 'direct image previews need no unfurl');
+  eq(image.position, 'after', 'existing media defaults below the body');
   eq(mediaPresentation(image).mode, 'image', 'direct image paints as a still');
   const gstatic = localMedia('https://encrypted-tbn0.gstatic.com/images?q=tbn:abc&s=10');
   eq(gstatic.kind, 'image', 'gstatic thumbnails classify as image');
@@ -164,6 +165,11 @@ function note(id, extra = {}) {
     embedUrl: 'javascript:alert(1)',
   });
   eq(unfurled.kind, 'link', 'generic pages can carry an unfurled image');
+  eq(
+    normalizeMedia({ ...unfurled, position: 'before' }).position,
+    'before',
+    'media can sit before the body so text renders below it',
+  );
   eq(unfurled.title, 'Story Title', 'media titles are normalized');
   eq(mediaPresentation(unfurled).mode, 'image', 'an OG image paints as a still');
   assert(!('embedUrl' in unfurled), 'stored embed URLs are never trusted');
