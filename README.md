@@ -631,7 +631,7 @@ Neon Auth, not by `ensureSchema()`).
 
 | Repo | What | Link style |
 |---|---|---|
-| [inaayat/dumpster](https://github.com/inaayat/dumpster) | macOS productivity / personal knowledge dump (`dumpster.inaayat.xyz`) | External card on `index.html`; listed in the Projects panel |
+| [inaayat/dumpster](https://github.com/inaayat/dumpster) | macOS productivity / personal knowledge dump (`dumpster.inaayat.xyz`) | Projects panel only (not a homepage tile) |
 | [inaayat/dumpsteriOS](https://github.com/inaayat/dumpsteriOS) | iOS companion (“brain vomit” capture app) | Projects panel only (failed; not a homepage tile) |
 | [inaayat/dynamic-database-builder](https://github.com/inaayat/dynamic-database-builder) | Schema-driven database builder (`databaser.inaayat.xyz`) | Projects panel only (not a homepage tile) |
 | [inaayat/one-more-column](https://github.com/inaayat/one-more-column) | Flexible capacity planning | Projects panel only; still proxied at `/one-more-column/` |
