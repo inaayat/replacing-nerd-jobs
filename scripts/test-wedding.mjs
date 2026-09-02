@@ -37,6 +37,7 @@ import {
   clipNeedsUnfurl,
   previewHref,
   previewPresentation,
+  clipHasVisual,
   isStillMedia,
   pinterestPinId,
   pinterestThumbFromHtml,
@@ -218,6 +219,10 @@ eq(pinterestWidgetThumbnail({
   data: [{ images: { '237x': { url: 'https://i.pinimg.com/237x/a.jpg' }, '564x': { url: 'https://i.pinimg.com/564x/a.jpg' } } }],
 }), 'https://i.pinimg.com/564x/a.jpg');
 eq(previewPresentation({ url: 'https://www.tiktok.com/@x/video/1' }).mode, 'play');
+eq(clipHasVisual({ url: 'https://cdn.example.com/look.jpg' }), true);
+eq(clipHasVisual({ url: 'https://www.pinterest.com/pin/9876543210/' }), true);
+eq(clipHasVisual({ url: 'https://example.com/just-a-page' }), false);
+eq(clipHasVisual({ body: 'garden if it rains', url: '' }), false);
 
 const yt = mediaPreview('https://youtu.be/dQw4w9wgXcQ');
 eq(yt.kind, 'youtube');

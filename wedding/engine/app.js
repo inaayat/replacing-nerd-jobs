@@ -36,6 +36,7 @@ import {
   previewHref,
   previewPresentation,
   clipNeedsUnfurl,
+  clipHasVisual,
 } from './model.js';
 
 const STORAGE_KEY = 'wedding:board';
@@ -50,6 +51,7 @@ let view = { kind: 'inbox' };
 let query = '';
 let composerOpen = false;
 const previewTried = new Set();
+let inspectId = null;
 
 const persist = debounceSave(async (next, opts) => {
   if (localMode || !auth?.token) {
@@ -221,9 +223,13 @@ function viewTitle() {
 
 function viewCopy() {
   if (query.trim()) return `Notes and links that match “${query.trim()}”.`;
-  if (view.kind === 'all') return 'Every loose note and saved link, in one place.';
-  if (view.kind === 'bucket') return 'Ideas filed here. Move anything back to Inbox whenever you like.';
+  if (view.kind === 'all') return 'Every picture, pin, and clip in one collage. Notes without a picture sit underneath.';
+  if (view.kind === 'bucket') return 'Ideas filed here, as a collage when they have a picture. Move anything back to Inbox whenever you like.';
   return 'Drop a thought or a link. File it into a bucket when it belongs somewhere.';
+}
+
+function usesCollage() {
+  return view.kind === 'all' || view.kind === 'bucket';
 }
 
 function bucketOptions(selected) {
@@ -283,6 +289,68 @@ function previewBlock(clip) {
   }
 
   return '';
+}
+
+function collageShape(clip) {
+  const shown = previewPresentation(clip);
+  if (shown.kind === 'youtube' || shown.kind === 'video') return 'wide';
+  if (shown.kind === 'tiktok' || shown.kind === 'instagram') return 'tall';
+  let n = 0;
+  for (const ch of String(clip.id || '')) n += ch.charCodeAt(0);
+  return ['port', 'tall', 'sq'][n % 3];
+}
+
+function collageMedia(clip) {
+  const shown = previewPresentation(clip);
+  if (shown.mode === 'image') {
+    return `<img src="${escapeHtml(shown.src)}" alt="" referrerpolicy="no-referrer" loading="lazy">`;
+  }
+  const kind = shown.kind || 'link';
+  const label = linkKindLabel(kind);
+  if (shown.mode === 'play' && shown.poster) {
+    return `
+      <span class="wd-collage-play">
+        <img src="${escapeHtml(shown.poster)}" alt="" referrerpolicy="no-referrer" loading="lazy">
+        <span class="wd-preview-btn">${PLAY_SVG}</span>
+      </span>`;
+  }
+  const ph = `<span class="wd-collage-ph wd-kind-${escapeHtml(kind)}">${escapeHtml(label)}</span>`;
+  if (shown.mode === 'play') {
+    return `<span class="wd-collage-play">${ph}<span class="wd-preview-btn">${PLAY_SVG}</span></span>`;
+  }
+  return ph;
+}
+
+function collageTile(clip) {
+  const label = clipDisplayLabel(clip);
+  const open = inspectId === clip.id ? ' is-open' : '';
+  return `
+    <button type="button" class="wd-collage-tile${open}" data-clip="${escapeHtml(clip.id)}" data-act="inspect" data-shape="${collageShape(clip)}" aria-pressed="${inspectId === clip.id ? 'true' : 'false'}" aria-label="${escapeHtml(label || 'Saved preview')}">
+      ${collageMedia(clip)}
+      ${label ? `<span class="wd-collage-cap">${escapeHtml(label)}</span>` : ''}
+    </button>`;
+}
+
+function feedHtml(clips) {
+  if (!clips.length) return `<section class="wd-feed">${emptyStateHtml()}</section>`;
+  if (!usesCollage()) {
+    return `<section class="wd-feed">${clips.map(clipCard).join('')}</section>`;
+  }
+  const visual = clips.filter(clipHasVisual);
+  const notes = clips.filter((clip) => !clipHasVisual(clip));
+  const inspect = inspectId ? clips.find((clip) => clip.id === inspectId) : null;
+  if (inspectId && !inspect) inspectId = null;
+  return `
+    ${inspect ? `
+      <section class="wd-inspect" aria-label="Selected clip">
+        ${clipCard(inspect)}
+        <button type="button" class="wd-btn wd-btn-ghost" data-act="close-inspect">Done</button>
+      </section>` : ''}
+    ${visual.length ? `<section class="wd-collage" aria-label="Previews">${visual.map(collageTile).join('')}</section>` : ''}
+    ${notes.length ? `
+      <h2 class="wd-notes-h">${visual.length ? 'Notes' : 'Notes & links'}</h2>
+      <section class="wd-feed wd-feed-notes">${notes.map(clipCard).join('')}</section>` : ''}
+  `;
 }
 
 function clipCard(clip) {
@@ -454,9 +522,7 @@ function renderApp() {
           <button type="submit" class="wd-btn wd-btn-ghost">Add</button>
         </form>
         ${composerHtml()}
-        <section class="wd-feed" aria-live="polite">
-          ${clips.map(clipCard).join('') || emptyStateHtml()}
-        </section>
+        ${feedHtml(clips)}
       </main>
     </div>
   `;
@@ -534,6 +600,7 @@ function wireApp() {
       view = kind === 'bucket'
         ? { kind: 'bucket', id: el.getAttribute('data-id') }
         : { kind };
+      inspectId = null;
       setHash(view);
       render();
     });
@@ -610,6 +677,7 @@ function wireApp() {
     });
     card.querySelector('[data-act="delete"]')?.addEventListener('click', () => {
       const clip = board.clips.find((c) => c.id === id);
+      if (inspectId === id) inspectId = null;
       commit(removeClip(board, id), { instant: true });
       showToast('Removed', {
         undo: () => {
@@ -640,6 +708,30 @@ function wireApp() {
     });
   });
 
+  root.querySelector('[data-act="close-inspect"]')?.addEventListener('click', () => {
+    inspectId = null;
+    render();
+  });
+
+  root.querySelectorAll('.wd-collage-tile[data-act="inspect"]').forEach((tile) => {
+    tile.addEventListener('click', () => {
+      const id = tile.getAttribute('data-clip');
+      inspectId = inspectId === id ? null : id;
+      render();
+      if (inspectId) {
+        root.querySelector('.wd-inspect')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    });
+    tile.querySelectorAll('img').forEach((img) => {
+      img.addEventListener('error', () => {
+        const kind = linkKind(board.clips.find((c) => c.id === tile.getAttribute('data-clip'))?.url) || 'link';
+        img.replaceWith(Object.assign(document.createElement('span'), {
+          className: `wd-collage-ph wd-kind-${kind}`,
+          textContent: linkKindLabel(kind),
+        }));
+      });
+    });
+  });
 }
 
 function onSearchInput(e) {
@@ -684,6 +776,7 @@ function wireSearch() {
 
 window.addEventListener('hashchange', () => {
   query = '';
+  inspectId = null;
   const search = document.getElementById('wd-search');
   if (search) search.value = '';
   render();

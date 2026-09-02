@@ -299,6 +299,11 @@ export function previewPresentation(clip) {
   return { mode: 'none' };
 }
 
+/** Photo, pin, embed, or playable clip — anything the collage can paint. */
+export function clipHasVisual(clip) {
+  return previewPresentation(clip).mode !== 'none';
+}
+
 export function decodeEntities(text) {
   return String(text || '')
     .replace(/&amp;/g, '&')
