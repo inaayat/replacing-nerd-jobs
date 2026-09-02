@@ -1,5 +1,13 @@
 # AGENTS.md
 
+## Verification policy
+
+Do **not** use Computer Use, browser automation, screenshots, or screen recordings to verify changes unless the user **explicitly asks** for GUI or walkthrough verification.
+
+- Do not launch the `computerUse` subagent unless asked.
+- Verify with existing unit tests and shell commands only (see the test list below).
+- Skip walkthrough artifacts (screenshots, screen recordings, demo videos) unless explicitly requested.
+
 ## Cursor Cloud specific instructions
 
 ### Service: Vercel static site + serverless API
