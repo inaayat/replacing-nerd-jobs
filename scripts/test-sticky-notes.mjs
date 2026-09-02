@@ -44,8 +44,10 @@ import {
   isIconKey,
   localMedia,
   localMediaDetails,
+  mediaAspectRatio,
   mediaKind,
   mediaPresentation,
+  mediaShape,
   noteCreateSize,
   listTriggerFor,
   mergeStates,
@@ -146,6 +148,11 @@ function note(id, extra = {}) {
   eq(gstatic.kind, 'image', 'gstatic thumbnails classify as image');
   eq(gstatic.thumbnail, gstatic.url, 'gstatic thumbnails paint locally without unfurl');
   eq(mediaPresentation(gstatic).mode, 'image', 'gstatic thumbnails render as a still');
+  eq(mediaAspectRatio('youtube', 'https://youtu.be/dQw4w9WgXcQ'), '16 / 9', 'YouTube previews are widescreen');
+  eq(mediaAspectRatio('instagram', 'https://www.instagram.com/reel/ABC/'), '9 / 16', 'Instagram reels are tall');
+  eq(mediaAspectRatio('instagram', 'https://www.instagram.com/p/ABC/'), '4 / 5', 'Instagram posts are portrait');
+  eq(mediaAspectRatio('image', 'https://cdn.example.com/cat.jpg'), null, 'direct images defer to natural size');
+  eq(mediaShape('instagram', 'https://www.instagram.com/reels/ABC/'), 'reel', 'reel URLs carry reel shape');
   const video = localMedia('https://cdn.example.com/clip.mp4');
   eq(mediaPresentation(video).directVideo, video.url, 'direct video paints through the source URL');
 

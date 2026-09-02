@@ -367,6 +367,22 @@ export function mediaPresentation(raw) {
   };
 }
 
+/** Fallback frame shape before a thumbnail loads, or for embed-only previews. */
+export function mediaAspectRatio(kind, url) {
+  const href = String(url || '');
+  if (kind === 'youtube') return '16 / 9';
+  if (kind === 'tiktok') return '9 / 16';
+  if (kind === 'instagram') return /\/reels?\//i.test(href) ? '9 / 16' : '4 / 5';
+  if (kind === 'pinterest') return '2 / 3';
+  if (kind === 'video') return '16 / 9';
+  return null;
+}
+
+export function mediaShape(kind, url) {
+  if (kind === 'instagram' && /\/reels?\//i.test(String(url || ''))) return 'reel';
+  return '';
+}
+
 function normalizeSpans(raw) {
   const out = [];
   for (const span of Array.isArray(raw) ? raw.slice(0, RICH_MAX_SPANS) : []) {

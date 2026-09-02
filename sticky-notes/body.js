@@ -19,8 +19,10 @@ import {
   isLoneUrl,
   legendLabel,
   listTriggerFor,
+  mediaAspectRatio,
   mediaKindLabel,
   mediaPresentation,
+  mediaShape,
   normalizeDoc,
   normalizeHref,
   normalizeRich,
@@ -431,6 +433,49 @@ function mediaFallback(frame, presentation, media) {
   frame.appendChild(label);
 }
 
+function fitMediaHostToImage(host, img, fallbackRatio) {
+  if (fallbackRatio) host.style.aspectRatio = fallbackRatio;
+  const apply = () => {
+    const { naturalWidth, naturalHeight } = img;
+    if (naturalWidth > 0 && naturalHeight > 0) {
+      host.style.aspectRatio = `${naturalWidth} / ${naturalHeight}`;
+      host.style.minHeight = '';
+      host.dataset.natural = '1';
+    }
+  };
+  if (img.complete) apply();
+  else img.addEventListener('load', apply, { once: true });
+}
+
+function layoutMediaHost(host, media, presentation) {
+  const kind = presentation.kind || media?.kind || 'link';
+  const href = media?.canonical || media?.url || '';
+  host.dataset.kind = kind;
+  const shape = mediaShape(kind, href);
+  if (shape) host.dataset.shape = shape;
+  else delete host.dataset.shape;
+  delete host.dataset.natural;
+  host.style.aspectRatio = '';
+  host.style.minHeight = '';
+
+  const fallbackRatio = mediaAspectRatio(kind, href);
+
+  if (presentation.mode === 'placeholder') {
+    host.style.minHeight = '72px';
+    return;
+  }
+  if (presentation.mode === 'embed') {
+    host.style.aspectRatio = fallbackRatio || '2 / 3';
+    return;
+  }
+
+  host.style.minHeight = '48px';
+  if (fallbackRatio) host.style.aspectRatio = fallbackRatio;
+
+  const img = host.querySelector('.sn-media-frame img');
+  if (img) fitMediaHostToImage(host, img, fallbackRatio);
+}
+
 function mediaFrame(media, presentation) {
   const frame = document.createElement('span');
   frame.className = 'sn-media-frame';
@@ -522,6 +567,7 @@ export function renderMedia(host, media) {
   caption.className = 'sn-media-caption';
   caption.textContent = media.title || mediaKindLabel(presentation.kind);
   host.appendChild(caption);
+  layoutMediaHost(host, media, presentation);
 }
 
 /** Read the body back out of the DOM the browser has been editing. */
