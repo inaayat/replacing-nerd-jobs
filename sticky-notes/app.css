@@ -652,6 +652,34 @@ html.sn-table-view #menu-fit { display: none !important; }
   object-fit: cover;
 }
 
+.sn-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px;
+  margin: 0 0 5px;
+  max-height: 2.6em;
+  overflow: hidden;
+}
+
+.sn-tag-pill {
+  display: inline-block;
+  max-width: 9ch;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--cream);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
 .sn-card-body {
   font-size: 0.92rem;
   line-height: 1.4;

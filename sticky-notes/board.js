@@ -53,7 +53,7 @@ import {
   wipeTargets,
   zoomAt,
 } from './notes.js';
-import { attachBodyEditor, renderBody, renderIcon, renderMedia } from './body.js';
+import { attachBodyEditor, renderBody, renderIcon, renderMedia, renderTags } from './body.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -216,6 +216,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
       el.innerHTML = `
         <span class="sn-card-pin">${PIN_SVG}</span>
         <span class="sn-card-icon"></span>
+        <div class="sn-card-tags" hidden></div>
         <div class="sn-card-body"></div>
         <div class="sn-card-media" hidden></div>
         <div class="sn-card-source"></div>
@@ -237,6 +238,8 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     el.style.setProperty('--note-fill', note.colorKey ? colorHex(note.colorKey) : '');
     const icon = el.querySelector('.sn-card-icon');
     renderIcon(icon, store.state.legend, note.iconKey);
+    const tags = el.querySelector('.sn-card-tags');
+    renderTags(tags, note.tags);
     const body = el.querySelector('.sn-card-body');
     if (note.id !== editingId) {
       const blocks = noteBlocks(note);

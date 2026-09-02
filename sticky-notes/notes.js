@@ -119,6 +119,10 @@ export const CUSTOM_ICON_LIMIT = 48;
 const CUSTOM_ICON_LABEL_MAX = 60;
 const CUSTOM_ICON_KEY_RE = /^custom:[a-z0-9][a-z0-9-]{0,79}$/;
 
+export const TAG_LABEL_MAX = 40;
+export const TAG_LIMIT = 12;
+const HASHTAG_TOKEN = /#([a-zA-Z][\w-]*)/g;
+
 /** A note nobody has coloured yet is light grey, not white. */
 export const DEFAULT_COLOR_KEY = 'c7';
 
@@ -198,6 +202,103 @@ export function normalizeCustomIconKey(raw) {
 
 export function isIconKey(raw) {
   return ICON_KEYS.includes(raw) || Boolean(normalizeCustomIconKey(raw));
+}
+
+export function normalizeTags(raw) {
+  if (!Array.isArray(raw)) return [];
+  const out = [];
+  const seen = new Set();
+  for (const item of raw.slice(0, TAG_LIMIT)) {
+    const label = String(item ?? '').replace(/[\r\n\t#]+/g, ' ').trim().slice(0, TAG_LABEL_MAX);
+    if (!label) continue;
+    const key = label.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(label);
+  }
+  return out;
+}
+
+/** Match a `#label` token to a built-in/custom icon key or a free-text pill. */
+export function resolveHashtagLabel(label, legend) {
+  const trimmed = String(label || '').trim();
+  if (!trimmed) return null;
+  const lower = trimmed.toLowerCase();
+  if (ICON_KEYS.includes(lower)) return { kind: 'icon', key: lower };
+  for (const key of ICON_KEYS) {
+    const name = String(legend?.icons?.[key] ?? LEGEND_DEFAULTS.icons[key] ?? '').trim().toLowerCase();
+    if (name && name === lower) return { kind: 'icon', key };
+  }
+  for (const [key, icon] of Object.entries(legend?.customIcons || {})) {
+    if (icon.label.toLowerCase() === lower) return { kind: 'icon', key };
+  }
+  return { kind: 'pill', label: trimmed.slice(0, TAG_LABEL_MAX) };
+}
+
+function stripHashtagsFromText(text) {
+  const tokens = [];
+  const cleaned = String(text ?? '').replace(HASHTAG_TOKEN, (match, label) => {
+    tokens.push(label);
+    return ' ';
+  }).replace(/ {2,}/g, ' ');
+  return { text: cleaned.trim(), tokens };
+}
+
+/**
+ * On commit, promote `#tags` out of the rich body. Icon matches become
+ * `iconKey`; everything else becomes compact pills in `tags`. The `#…` tokens
+ * leave the stored body so they are not duplicated in text and pills.
+ */
+export function applyHashtags(note, legend) {
+  let rich = note.rich;
+  if (!rich && note.text) rich = textToRich(note.text);
+  if (!rich) return { ...note, tags: normalizeTags(note.tags) };
+
+  rich = rich.map((block) => ({
+    type: block.type,
+    spans: (block.spans || []).map((span) => ({ ...span })),
+  }));
+
+  const pills = [];
+  const pillSeen = new Set();
+  let iconKey = note.iconKey;
+  let iconFromHashtag = false;
+
+  for (const block of rich) {
+    const nextSpans = [];
+    for (const span of block.spans || []) {
+      if (span.href) {
+        nextSpans.push(span);
+        continue;
+      }
+      const { text, tokens } = stripHashtagsFromText(span.text);
+      for (const token of tokens) {
+        const resolved = resolveHashtagLabel(token, legend);
+        if (!resolved) continue;
+        if (resolved.kind === 'icon') {
+          iconKey = resolved.key;
+          iconFromHashtag = true;
+          continue;
+        }
+        const dedupe = resolved.label.toLowerCase();
+        if (pillSeen.has(dedupe) || pills.length >= TAG_LIMIT) continue;
+        pillSeen.add(dedupe);
+        pills.push(resolved.label);
+      }
+      if (text || span.bold) nextSpans.push({ ...span, text });
+    }
+    block.spans = nextSpans.length ? nextSpans : [{ text: '', bold: false }];
+  }
+
+  const normalizedRich = normalizeRich(rich);
+  const text = normalizedRich ? richToText(normalizedRich) : '';
+  return {
+    ...note,
+    rich: normalizedRich,
+    text,
+    tags: pills,
+    iconKey: iconFromHashtag ? iconKey : note.iconKey,
+  };
 }
 
 export function normalizeCustomIcon(raw) {
@@ -740,6 +841,7 @@ function noteShape(raw, text, rich) {
     rich,
     colorKey: COLOR_KEYS.includes(raw.colorKey) ? raw.colorKey : null,
     iconKey: ICON_KEYS.includes(raw.iconKey) ? raw.iconKey : normalizeCustomIconKey(raw.iconKey),
+    tags: normalizeTags(raw.tags),
     status: raw.status === 'memory' ? 'memory' : 'board',
     collectionId: raw.collectionId ? String(raw.collectionId) : null,
     x: num(raw.x, 24),
@@ -1023,8 +1125,9 @@ function applyOp(state, op) {
   const ts = op.ts || nowIso();
   switch (op.op) {
     case 'note.upsert': {
-      const note = normalizeNote(op.note);
+      let note = normalizeNote(op.note);
       if (!note) return state;
+      note = applyHashtags(note, state.legend);
       const idx = state.notes.findIndex((n) => n.id === note.id);
       if (idx === -1) return { ...state, notes: [...state.notes, note] };
       const existing = state.notes[idx];

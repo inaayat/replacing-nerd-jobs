@@ -18,7 +18,7 @@ import {
   noteCreateSize,
   richToText,
 } from './notes.js';
-import { attachBodyEditor, renderBody, renderIcon, renderMediaThumb } from './body.js';
+import { attachBodyEditor, renderBody, renderIcon, renderMediaThumb, renderTags } from './body.js';
 
 const NARROW = '(max-width: 719px)';
 
@@ -206,6 +206,13 @@ export function createTable({ store, els, showToast, onViewCanvas }) {
 
   function paintPreview(host, note) {
     renderBody(host, noteBlocks(note));
+    const existing = host.previousElementSibling;
+    if (existing?.classList.contains('sn-card-tags')) existing.remove();
+    if (!note.tags?.length) return;
+    const tags = document.createElement('div');
+    tags.className = 'sn-card-tags';
+    renderTags(tags, note.tags);
+    host.before(tags);
   }
 
   function colorHeading(key) {

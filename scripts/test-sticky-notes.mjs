@@ -15,6 +15,7 @@ import {
   NOTE_W_MIN,
   OPLOG_KEY,
   STORAGE_KEY,
+  applyHashtags,
   applyOps,
   arrowEndpoints,
   bbox,
@@ -63,12 +64,14 @@ import {
   normalizeNote,
   normalizeRich,
   normalizeState,
+  normalizeTags,
   phoneNoteZoom,
   placeEditPopover,
   planEditSession,
   rectsIntersect,
   richFromNode,
   richToText,
+  resolveHashtagLabel,
   screenToWorld,
   sharedNoteInput,
   stateIsEmpty,
@@ -1300,6 +1303,37 @@ function note(id, extra = {}) {
     preferAbove: true,
   });
   eq(phoneRight.shift, -112, 'phone nudges a right-edge swatch row back into the canvas');
+}
+
+{
+  const legend = { icons: { wedding: 'Our wedding' }, customIcons: {} };
+  eq(resolveHashtagLabel('wedding', legend).kind, 'icon', 'hashtag matches icon key');
+  eq(resolveHashtagLabel('Our-wedding', { icons: {}, customIcons: {} }).kind, 'pill', 'unknown token becomes a pill');
+  eq(resolveHashtagLabel('wedding', { icons: { wedding: 'Our wedding' } }).key, 'wedding', 'key match wins over renamed label');
+  eq(normalizeTags(['Budget', 'budget', '  ', '#x']).join(','), 'Budget,x', 'tags dedupe case-insensitively');
+
+  const rich = [{ type: 'p', spans: [{ text: 'Buy flowers #wedding and track #budget #budget', bold: false }] }];
+  const out = applyHashtags(normalizeNote({ id: 'n1', rich }), legend);
+  eq(out.iconKey, 'wedding', 'icon hashtag sets iconKey');
+  eq(out.tags.join(','), 'budget', 'free hashtags become pills once');
+  eq(out.text, 'Buy flowers and track', 'hashtag tokens leave the stored body');
+  eq(richToText(out.rich), 'Buy flowers and track', 'rich projection matches text');
+
+  const viaUpsert = applyOps(emptyState(), [{
+    op: 'note.upsert',
+    note: {
+      id: 'n2',
+      rich: [{ type: 'p', spans: [{ text: '#idea Ship it', bold: false }] }],
+    },
+  }]).notes[0];
+  eq(viaUpsert.iconKey, 'idea', 'note.upsert applies hashtags through the reducer');
+  eq(viaUpsert.text, 'Ship it', 'reducer strips hashtag text on upsert');
+
+  const note = { id: 'n3', text: 'pack #travel', tags: ['old'] };
+  assert(noteMatchesSearch(applyHashtags(normalizeNote({
+    id: 'n3',
+    rich: [{ type: 'p', spans: [{ text: 'pack #travel', bold: false }] }],
+  }), legend), legend, 'travel'), 'memory search finds hashtag pills');
 }
 
 {

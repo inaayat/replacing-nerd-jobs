@@ -355,6 +355,20 @@ export function renderIcon(host, legend, key) {
   host.innerHTML = ICON_SVGS[key] || '';
 }
 
+/** Compact hashtag pills extracted from the body on commit. */
+export function renderTags(host, tags) {
+  host.replaceChildren();
+  const list = Array.isArray(tags) ? tags.filter(Boolean) : [];
+  host.hidden = !list.length;
+  for (const label of list) {
+    const pill = document.createElement('span');
+    pill.className = 'sn-tag-pill';
+    pill.textContent = label;
+    pill.title = label;
+    host.appendChild(pill);
+  }
+}
+
 export function appendSpans(host, spans) {
   for (const span of spans || []) {
     if (span.href) {

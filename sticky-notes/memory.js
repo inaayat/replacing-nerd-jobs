@@ -21,7 +21,8 @@ export function noteMatchesSearch(note, legend, search) {
   const query = String(search || '').trim().toLowerCase();
   if (!query) return true;
   const tag = note?.iconKey ? legendLabel(legend, 'icon', note.iconKey) : '';
-  return `${note?.text || ''}\n${tag}`.toLowerCase().includes(query);
+  const pills = Array.isArray(note?.tags) ? note.tags.join('\n') : '';
+  return `${note?.text || ''}\n${tag}\n${pills}`.toLowerCase().includes(query);
 }
 
 /**
