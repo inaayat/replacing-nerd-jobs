@@ -259,13 +259,13 @@ mentions place; the rest are reported in the UI rather than dropped. Notes in
 ### Wedding — `/wedding`
 
 Private idea board for a future wedding, behind the same Neon Auth login as
-Packing Cubes. An **Inbox** catches loose notes; **buckets** (Venue, Looks, …)
-are added over time, not prescribed. Every clip can be a sentence, a labelled
+Packing Cubes. An **Inbox** catches loose notes; **tags** (Looks, Venue, …)
+are quiet pills you create over time, not a folder list. Pick a tag in the
+composer when you keep a clip. Every clip can be a sentence, a labelled
 link (TikTok, Instagram Reel, image URL, or anything http(s) — the URL always
-has its own display text), or both. File a clip from Inbox into a bucket, or
-leave it loose. Search looks at notes, link text, and hostnames. **Everything**
-and each **bucket** show photo/preview clips in a collage; Inbox stays a card
-feed. Photo and video links preview on the card (Pinterest as a picture, never
+has its own display text), or both. Search looks at notes, link text, and
+hostnames. **Everything** and each **tag** show photo/preview clips in a
+collage; Inbox stays a card feed. Photo and video links preview on the card (Pinterest as a picture, never
 play; TikTok, Instagram Reels, and YouTube behind play, using each site’s
 embed). Thumbnails unfurl through `/api/wd-unfurl` on the same `api/wedding.js`
 function.

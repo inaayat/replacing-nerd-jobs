@@ -122,7 +122,7 @@ a { color: inherit; }
 /* ── Shell ── */
 .wd-shell {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: 200px minmax(0, 1fr);
   gap: 0;
   max-width: 1280px;
   margin: 0 auto;
@@ -186,6 +186,77 @@ a { color: inherit; }
 }
 
 .wd-new-bucket .wd-input { flex: 1; min-width: 0; }
+
+.wd-tagbar {
+  margin: -8px 0 16px;
+}
+
+.wd-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.wd-tag {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: color-mix(in srgb, var(--paper) 70%, transparent);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.wd-tag:hover {
+  color: var(--ink);
+  background: var(--paper);
+}
+
+.wd-tag.is-on {
+  background: var(--blush-soft);
+  color: var(--blush-deep);
+}
+
+.wd-new-tag {
+  display: inline-flex;
+  min-width: 0;
+}
+
+.wd-tag-input {
+  width: 7.5rem;
+  min-width: 0;
+  padding: 4px 10px;
+  border: 1px dashed var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.wd-tag-input::placeholder { color: var(--faint); font-weight: 500; }
+.wd-tag-input:focus {
+  outline: none;
+  border-style: solid;
+  border-color: var(--line-strong);
+  background: var(--paper);
+}
+
+.wd-composer-tags { flex: 1; min-width: 0; }
+.wd-composer-bar { flex-wrap: wrap; }
+
+.wd-card-bar .wd-tags { flex: 1; }
 
 .wd-main {
   padding: 28px 28px 72px;
@@ -632,10 +703,11 @@ a { color: inherit; }
 
 .wd-card-bar {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
   margin-top: auto;
+  flex-wrap: wrap;
 }
 
 .wd-file .wd-input { min-width: 0; }
@@ -885,7 +957,6 @@ a { color: inherit; }
   .wd-bucket-tools { justify-content: flex-start; }
   .wd-nav-links a[href="/#projects"] { display: none; }
   .wd-search { max-width: none; }
-  .wd-new-bucket-mobile { display: flex; margin: 0 0 16px; }
 }
 
 @media (max-width: 640px) {
@@ -898,9 +969,11 @@ a { color: inherit; }
   .wd-search,
   .wd-composer-body,
   .wd-card-body,
-  .wd-auth input {
+  .wd-auth input,
+  .wd-tag-input {
     font-size: 16px;
   }
+  .wd-tag { padding: 6px 12px; font-size: 0.8rem; }
 }
 
 .wd-standalone .wd-nav-logo span,

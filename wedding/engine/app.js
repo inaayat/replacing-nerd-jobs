@@ -28,7 +28,6 @@ import {
   moveClip,
   clipsIn,
   inboxCount,
-  bucketCount,
   searchClips,
   bucketById,
   seedSuggestedBuckets,
@@ -225,21 +224,46 @@ function viewTitle() {
 function viewCopy() {
   if (query.trim()) return `Notes and links that match “${query.trim()}”.`;
   if (view.kind === 'all') return 'Every picture, pin, and clip in one collage. Notes without a picture sit underneath.';
-  if (view.kind === 'bucket') return 'Ideas filed here, as a collage when they have a picture. Move anything back to Inbox whenever you like.';
-  return 'Drop a thought or a link. File it into a bucket when it belongs somewhere.';
+  if (view.kind === 'bucket') return 'Everything tagged here. Tap another tag to switch, or Inbox / Everything to zoom out.';
+  return 'Drop a thought or a link. Tag it when it belongs somewhere.';
 }
 
 function usesCollage() {
   return view.kind === 'all' || view.kind === 'bucket';
 }
 
-function bucketOptions(selected) {
-  const cur = selected === undefined ? 'inbox' : (selected || 'inbox');
-  const rows = [`<option value="inbox"${cur === 'inbox' ? ' selected' : ''}>Inbox</option>`];
+function composerDest(snapDest) {
+  if (snapDest) return snapDest;
+  if (view.kind === 'bucket') return view.id;
+  return 'inbox';
+}
+
+function tagPills({ selected, nav, act, includeInbox = false }) {
+  const pill = (id, label, on, extra) => `
+    <button type="button" class="wd-tag${on ? ' is-on' : ''}" ${extra} aria-pressed="${on ? 'true' : 'false'}">${escapeHtml(label)}</button>`;
+  const rows = [];
+  if (includeInbox) {
+    const on = !selected || selected === 'inbox';
+    const extra = nav
+      ? `data-nav="inbox"`
+      : `data-act="${act}" data-id="inbox"`;
+    rows.push(pill('inbox', 'Inbox', on, extra));
+  }
   for (const bucket of board.buckets) {
-    rows.push(`<option value="${escapeHtml(bucket.id)}"${cur === bucket.id ? ' selected' : ''}>${escapeHtml(bucket.name)}</option>`);
+    const on = selected === bucket.id;
+    const extra = nav
+      ? `data-nav="bucket" data-id="${escapeHtml(bucket.id)}"`
+      : `data-act="${act}" data-id="${escapeHtml(bucket.id)}"`;
+    rows.push(pill(bucket.id, bucket.name, on, extra));
   }
   return rows.join('');
+}
+
+function newTagForm() {
+  return `
+    <form class="wd-new-tag" data-act="new-bucket">
+      <input class="wd-tag-input" name="name" type="text" maxlength="48" placeholder="New tag" aria-label="New tag" autocomplete="off">
+    </form>`;
 }
 
 function kindChip(url) {
@@ -370,10 +394,9 @@ function clipCard(clip) {
           <input class="wd-input" data-act="label" type="text" maxlength="120" value="${escapeHtml(clip.urlLabel)}" placeholder="${escapeHtml(label)}">
         </label>` : ''}
       <div class="wd-card-bar">
-        <label class="wd-file">
-          <span>File in</span>
-          <select class="wd-input" data-act="file">${bucketOptions(clip.bucketId)}</select>
-        </label>
+        <div class="wd-tags" role="group" aria-label="Tag">
+          ${tagPills({ selected: clip.bucketId || 'inbox', act: 'file', includeInbox: true })}
+        </div>
         <button type="button" class="wd-icon-btn" data-act="delete" aria-label="Remove">×</button>
       </div>
     </article>
@@ -383,13 +406,8 @@ function clipCard(clip) {
 function railHtml() {
   const inbox = inboxCount(board);
   const all = board.clips.length;
-  const bucketBtn = (id, name, count, active) => `
-    <a class="wd-rail-item${active ? ' is-active' : ''}" href="#b/${encodeURIComponent(id)}" data-nav="bucket" data-id="${escapeHtml(id)}">
-      <span class="wd-rail-name">${escapeHtml(name)}</span>
-      <span class="wd-rail-count">${count}</span>
-    </a>`;
   return `
-    <nav class="wd-rail" aria-label="Buckets">
+    <nav class="wd-rail" aria-label="Views">
       <a class="wd-rail-item${view.kind === 'inbox' && !query ? ' is-active' : ''}" href="#inbox" data-nav="inbox">
         <span class="wd-rail-name">Inbox</span>
         <span class="wd-rail-count">${inbox}</span>
@@ -398,34 +416,33 @@ function railHtml() {
         <span class="wd-rail-name">Everything</span>
         <span class="wd-rail-count">${all}</span>
       </a>
-      <p class="wd-rail-label">Buckets</p>
-      ${board.buckets.map((b) => bucketBtn(b.id, b.name, bucketCount(board, b.id), view.kind === 'bucket' && view.id === b.id && !query)).join('') || '<p class="wd-rail-empty">None yet — add one when a theme shows up.</p>'}
-      <form class="wd-new-bucket" data-act="new-bucket">
-        <input class="wd-input" name="name" type="text" maxlength="48" placeholder="New bucket" aria-label="New bucket name">
-        <button type="submit" class="wd-btn wd-btn-ghost">Add</button>
-      </form>
     </nav>
   `;
 }
 
 function chipsHtml() {
-  const chip = (href, label, active, count, nav, id = '') => `
-    <a class="wd-chip${active ? ' is-active' : ''}" href="${href}" data-nav="${nav}"${id ? ` data-id="${escapeHtml(id)}"` : ''}>${escapeHtml(label)} <em>${count}</em></a>`;
+  const chip = (href, label, active, count, nav) => `
+    <a class="wd-chip${active ? ' is-active' : ''}" href="${href}" data-nav="${nav}">${escapeHtml(label)} <em>${count}</em></a>`;
   return `
-    <div class="wd-chips" aria-label="Buckets">
+    <div class="wd-chips" aria-label="Views">
       ${chip('#inbox', 'Inbox', view.kind === 'inbox' && !query, inboxCount(board), 'inbox')}
       ${chip('#all', 'All', view.kind === 'all' && !query, board.clips.length, 'all')}
-      ${board.buckets.map((b) => chip(`#b/${encodeURIComponent(b.id)}`, b.name, view.kind === 'bucket' && view.id === b.id && !query, bucketCount(board, b.id), 'bucket', b.id)).join('')}
     </div>
   `;
 }
 
-function composerHtml() {
-  const dest = view.kind === 'all' ? `
-    <label class="wd-file wd-composer-file">
-      <span>Save to</span>
-      <select class="wd-input" id="wd-dest">${bucketOptions(null)}</select>
-    </label>` : '';
+function tagBarHtml() {
+  return `
+    <div class="wd-tagbar">
+      <div class="wd-tags" role="navigation" aria-label="Tags">
+        ${tagPills({ selected: view.kind === 'bucket' ? view.id : '', nav: true, includeInbox: false })}
+        ${newTagForm()}
+      </div>
+    </div>`;
+}
+
+function composerHtml(dest) {
+  const selected = dest || 'inbox';
   return `
     <form class="wd-composer${composerOpen ? ' is-open' : ''}" id="wd-composer">
       <textarea class="wd-composer-body" id="wd-body" rows="3" placeholder="A thought, a maybe, a sentence you don’t want to lose…"></textarea>
@@ -438,7 +455,12 @@ function composerHtml() {
         </label>
       </div>
       <div class="wd-composer-bar">
-        ${dest}
+        <div class="wd-composer-tags">
+          <input type="hidden" id="wd-dest" value="${escapeHtml(selected)}">
+          <div class="wd-tags" role="group" aria-label="Tag this">
+            ${tagPills({ selected, act: 'composer-tag', includeInbox: true })}
+          </div>
+        </div>
         <button type="submit" class="wd-btn wd-btn-keep">Keep</button>
       </div>
     </form>
@@ -450,7 +472,7 @@ function emptyStateHtml() {
     return `<p class="wd-empty">Nothing matches that yet.</p>`;
   }
   if (view.kind === 'bucket') {
-    return `<p class="wd-empty">This bucket is empty. Keep a note or a link above, or file something in from Inbox.</p>`;
+    return `<p class="wd-empty">Nothing with this tag yet. Keep a note or a link above, or retag something from Inbox.</p>`;
   }
   if (view.kind === 'all' && board.clips.length === 0) {
     return emptyInboxHtml();
@@ -466,7 +488,7 @@ function emptyInboxHtml() {
     ? ''
     : `
       <div class="wd-suggest">
-        <p>Start with a few buckets, or skip and stay in Inbox.</p>
+        <p>Start with a few tags, or skip and stay in Inbox.</p>
         <div class="wd-suggest-row">
           ${SUGGESTED_BUCKETS.map((b) => `<button type="button" class="wd-chip-btn" data-act="suggest" data-name="${escapeHtml(b.name)}">${escapeHtml(b.name)}</button>`).join('')}
         </div>
@@ -475,7 +497,7 @@ function emptyInboxHtml() {
   return `
     <div class="wd-empty-card">
       <p class="wd-empty-lead">Inbox is the catch-all.</p>
-      <p>Paste a TikTok, a Reel, a photo URL, or just a sentence. Give the link a name so you remember why you saved it. Buckets can wait until a theme is actually a theme.</p>
+      <p>Paste a TikTok, a Reel, a photo URL, or just a sentence. Give the link a name so you remember why you saved it. Tag it when a theme is actually a theme.</p>
       ${suggestions}
     </div>`;
 }
@@ -502,6 +524,7 @@ function renderApp() {
     dest: document.getElementById('wd-dest')?.value || '',
   };
   const clips = visibleClips();
+  const dest = composerDest(snap.dest);
   root.innerHTML = `
     <div class="wd-shell">
       ${railHtml()}
@@ -515,11 +538,8 @@ function renderApp() {
           </div>
           ${bucketToolsHtml()}
         </header>
-        <form class="wd-new-bucket wd-new-bucket-mobile" data-act="new-bucket">
-          <input class="wd-input" name="name" type="text" maxlength="48" placeholder="New bucket" aria-label="New bucket name">
-          <button type="submit" class="wd-btn wd-btn-ghost">Add</button>
-        </form>
-        ${composerHtml()}
+        ${tagBarHtml()}
+        ${composerHtml(dest)}
         ${feedHtml(clips)}
       </main>
     </div>
@@ -528,11 +548,9 @@ function renderApp() {
   const body = document.getElementById('wd-body');
   const url = document.getElementById('wd-url');
   const label = document.getElementById('wd-label');
-  const dest = document.getElementById('wd-dest');
   if (body) body.value = snap.body;
   if (url) url.value = snap.url;
   if (label) label.value = snap.label;
-  if (dest && snap.dest) dest.value = snap.dest;
   if (snap.body || snap.url || snap.label) {
     composerOpen = true;
     document.getElementById('wd-composer')?.classList.add('is-open');
@@ -604,13 +622,29 @@ function wireApp() {
     });
   });
 
-  root.querySelectorAll('.wd-new-bucket').forEach((form) => {
+  root.querySelectorAll('[data-act="composer-tag"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const destEl = document.getElementById('wd-dest');
+      if (destEl) destEl.value = btn.getAttribute('data-id') || 'inbox';
+      root.querySelectorAll('[data-act="composer-tag"]').forEach((el) => {
+        const on = el === btn;
+        el.classList.toggle('is-on', on);
+        el.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+    });
+  });
+
+  root.querySelectorAll('.wd-new-tag').forEach((form) => {
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       const input = e.currentTarget.querySelector('input');
       try {
-        commit(addBucket(board, input.value), { instant: true });
+        const next = addBucket(board, input.value);
+        const created = next.buckets.find((b) => !board.buckets.some((row) => row.id === b.id));
+        const destEl = document.getElementById('wd-dest');
+        if (destEl && created) destEl.value = created.id;
         input.value = '';
+        commit(next, { instant: true });
       } catch (err) {
         showToast(err.message);
       }
@@ -633,7 +667,7 @@ function wireApp() {
 
   root.querySelector('[data-act="rename"]')?.addEventListener('click', () => {
     const current = bucketById(board, view.id);
-    const name = window.prompt('Rename this bucket', current?.name || '');
+    const name = window.prompt('Rename this tag', current?.name || '');
     if (name == null) return;
     try {
       commit(renameBucket(board, view.id, name), { instant: true });
@@ -650,7 +684,7 @@ function wireApp() {
   });
   root.querySelector('[data-act="remove-bucket"]')?.addEventListener('click', () => {
     const current = bucketById(board, view.id);
-    if (!window.confirm(`Remove “${current?.name || 'this bucket'}”? Notes inside go back to Inbox.`)) return;
+    if (!window.confirm(`Remove “${current?.name || 'this tag'}”? Items go back to Inbox.`)) return;
     commit(removeBucket(board, view.id), { instant: true });
     view = { kind: 'inbox' };
     setHash(view);
@@ -670,8 +704,10 @@ function wireApp() {
     card.querySelector('[data-act="label"]')?.addEventListener('change', (e) => {
       commit(updateClip(board, id, { urlLabel: e.target.value }));
     });
-    card.querySelector('[data-act="file"]')?.addEventListener('change', (e) => {
-      commit(moveClip(board, id, e.target.value), { instant: true });
+    card.querySelectorAll('[data-act="file"]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        commit(moveClip(board, id, btn.getAttribute('data-id')), { instant: true });
+      });
     });
     card.querySelector('[data-act="delete"]')?.addEventListener('click', () => {
       const clip = board.clips.find((c) => c.id === id);
