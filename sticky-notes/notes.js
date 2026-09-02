@@ -63,6 +63,7 @@ export const LEGEND_DEFAULTS = {
     home: 'Home',
     work: 'Work',
     media: 'Media',
+    wedding: 'Wedding',
     star: 'Starred',
   },
 };
@@ -82,6 +83,7 @@ export const ICON_SVGS = {
   home: `${SVG_OPEN}<path d="M4 11l8-7 8 7"/><path d="M6 10v10h12V10"/></svg>`,
   work: `${SVG_OPEN}<rect x="3" y="8" width="18" height="12" rx="2"/><path d="M9 8V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>`,
   media: `${SVG_OPEN}<circle cx="12" cy="12" r="9"/><path d="M10 9l5 3-5 3z"/></svg>`,
+  wedding: `${SVG_OPEN}<circle cx="9" cy="14" r="5"/><circle cx="15" cy="14" r="5"/><path d="M12 3l2.4 3L12 9 9.6 6z"/></svg>`,
   star: `${SVG_OPEN}<path d="M12 3l2.7 5.6 6.1.8-4.5 4.2 1.1 6-5.4-3-5.4 3 1.1-6L3.2 9.4l6.1-.8z"/></svg>`,
 };
 

@@ -4,6 +4,8 @@ import {
   COLOR_KEYS,
   DEFAULT_COLOR_KEY,
   GUEST_STORAGE_KEY,
+  ICON_KEYS,
+  ICON_SVGS,
   LEGEND_DEFAULTS,
   NOTE_H_DEFAULT,
   NOTE_H_PHONE,
@@ -392,6 +394,9 @@ function note(id, extra = {}) {
   eq(legendLabel(legend, 'color', 'c1'), 'Work', 'override lookup');
   eq(legendLabel(legend, 'color', 'c2'), LEGEND_DEFAULTS.colors.c2.label, 'fallback to default');
   eq(legendLabel(legend, 'icon', 'star'), 'Starred', 'icon default');
+  assert(ICON_KEYS.includes('wedding'), 'Wedding is a built-in tag');
+  assert(ICON_SVGS.wedding.includes('<svg'), 'Wedding has a built-in icon image');
+  eq(legendLabel(legend, 'icon', 'wedding'), 'Wedding', 'Wedding has the requested default name');
   const cleared = applyOps(
     { ...emptyState(), legend },
     [{ op: 'legend.set', kind: 'color', key: 'c1', label: '' }],
@@ -399,6 +404,14 @@ function note(id, extra = {}) {
   assert(!('c1' in cleared.legend.colors), 'empty label clears override');
   const bad = applyOps(emptyState(), [{ op: 'legend.set', kind: 'color', key: 'zz', label: 'X' }]);
   assert(!('zz' in bad.legend.colors), 'legend.set rejects unknown key');
+
+  let renamed = applyOps(emptyState(), [
+    { op: 'legend.set', kind: 'icon', key: 'wedding', label: 'Big day' },
+    note('wedding-note'),
+    { op: 'note.categorize', ids: ['wedding-note'], iconKey: 'wedding' },
+  ]);
+  eq(legendLabel(renamed.legend, 'icon', 'wedding'), 'Big day', 'built-in tag names can be customized');
+  assert(noteMatchesSearch(renamed.notes[0], renamed.legend, 'big day'), 'renamed built-in tags are searchable');
 
   const customKey = 'custom:coffee-break';
   eq(normalizeCustomIconKey('CUSTOM:COFFEE-BREAK'), customKey, 'custom icon keys normalize');

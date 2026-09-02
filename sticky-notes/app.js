@@ -314,7 +314,7 @@ function guideGroups() {
         {
           svg: TAG_SVG,
           name: 'Icon tag',
-          text: 'Pick a built-in, or + makes a named tag from an image URL. Custom tag names are searchable in Memory.',
+          text: 'Pick a built-in (including Wedding), use + for an image URL, or Edit tag names to rename any tag. Names are searchable in Memory.',
         },
         {
           svg: BOLD_SVG,

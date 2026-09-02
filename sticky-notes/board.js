@@ -914,6 +914,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
 
   function renderCustomIconForm(pop, onCreate) {
     pop.innerHTML = '';
+    pop.classList.remove('has-name-editor');
     pop.classList.add('has-custom-form');
     const form = document.createElement('div');
     form.className = 'sn-custom-icon-form';
@@ -975,8 +976,75 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     focusWithoutScroll(name);
   }
 
+  function renderIconNameEditor(pop) {
+    pop.innerHTML = '';
+    pop.classList.remove('has-custom-form');
+    pop.classList.add('has-name-editor');
+    const editor = document.createElement('div');
+    editor.className = 'sn-icon-name-editor';
+    const heading = document.createElement('span');
+    heading.className = 'sn-icon-name-title';
+    heading.textContent = 'Tag names';
+    editor.appendChild(heading);
+    for (const key of allIconKeys()) {
+      const row = document.createElement('label');
+      row.className = 'sn-icon-name-row';
+      const picture = document.createElement('span');
+      picture.className = 'sn-icon-name-picture';
+      renderIcon(picture, store.state.legend, key);
+      const input = document.createElement('input');
+      input.className = 'sn-icon-name-input';
+      input.maxLength = 60;
+      input.value = legendLabel(store.state.legend, 'icon', key);
+      input.dataset.key = key;
+      row.append(picture, input);
+      editor.appendChild(row);
+    }
+    const error = document.createElement('span');
+    error.className = 'sn-custom-icon-error';
+    error.hidden = true;
+    error.textContent = 'Every tag needs a name.';
+    const actions = document.createElement('span');
+    actions.className = 'sn-custom-icon-actions';
+    const save = document.createElement('button');
+    save.type = 'button';
+    save.className = 'sn-btn sn-btn-primary';
+    save.textContent = 'Save names';
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = 'sn-btn';
+    cancel.textContent = 'Cancel';
+    save.addEventListener('click', () => {
+      const fields = [...editor.querySelectorAll('.sn-icon-name-input')];
+      if (fields.some((input) => !input.value.trim())) {
+        error.hidden = false;
+        return;
+      }
+      const ops = fields.map((input) => {
+        const key = input.dataset.key;
+        const label = input.value.trim();
+        const custom = store.state.legend.customIcons?.[key];
+        return custom
+          ? { op: 'legend.set', kind: 'custom-icon', key, label, imageUrl: custom.imageUrl }
+          : { op: 'legend.set', kind: 'icon', key, label };
+      });
+      pop.hidden = true;
+      pop.classList.remove('has-name-editor');
+      store.dispatch(ops, { kind: 'legend' });
+    });
+    cancel.addEventListener('click', () => {
+      pop.hidden = true;
+      pop.classList.remove('has-name-editor');
+    });
+    actions.append(save, cancel);
+    editor.append(error, actions);
+    pop.appendChild(editor);
+    placePopover(pop);
+    focusWithoutScroll(editor.querySelector('.sn-icon-name-input'));
+  }
+
   function renderIconPicker(note) {
-    els.ebIconPop.classList.remove('has-custom-form');
+    els.ebIconPop.classList.remove('has-custom-form', 'has-name-editor');
     els.ebIconPop.innerHTML = '';
     for (const key of allIconKeys()) {
       const b = document.createElement('button');
@@ -1008,6 +1076,16 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
         { op: 'note.categorize', ids: [current.id], iconKey: key, ts: new Date().toISOString() },
       ]);
     });
+    const rename = document.createElement('button');
+    rename.type = 'button';
+    rename.className = 'sn-icon-name-edit';
+    rename.textContent = 'Edit tag names';
+    rename.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      renderIconNameEditor(els.ebIconPop);
+    });
+    els.ebIconPop.appendChild(rename);
   }
 
   function positionEditBar() {

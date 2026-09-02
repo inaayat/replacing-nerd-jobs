@@ -286,9 +286,10 @@ type into it**, caret where you pressed; drag it instead to move it. The note
 being edited raises a small bar with trash / pin / colour / icon / done plus
 bold, bullets, and numbers — trash really deletes the note, with ten seconds of
 Undo — and a selection raises a bar docked at the bottom of the canvas.
-The icon picker also makes **custom image tags** from a name plus an http(s)
-image URL. They sync with the account, paint anywhere the built-in icons do,
-and Memory search matches their names.
+The icon picker includes a **Wedding** tag and lets you rename any built-in tag.
+It also makes custom image tags from a name plus an http(s) image URL. Names
+and images sync with the account, paint anywhere the built-ins do, and Memory
+search matches the current tag name.
 A note body holds **bold, bullet lists, numbered lists, and link pills**,
 and nothing else: type `* ` or `1. ` at the start of a line and the marker
 becomes the list, the way Apple Notes and Notion do it. Paste a URL while

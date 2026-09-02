@@ -140,7 +140,8 @@ colors: { c1: ['Yellow', '#ffea56'], c2: ['Pink',   '#fe9ec6'],
           c5: ['Purple', '#d4b8ff'], c6: ['Orange', '#ffc48a'] }
 icons:  { link: 'Link', idea: 'Idea', remember: 'Remember', errand: 'Errand',
           read: 'Read', food: 'Food', travel: 'Travel', money: 'Money',
-          home: 'Home', work: 'Work', media: 'Media', star: 'Starred' }
+          home: 'Home', work: 'Work', media: 'Media', wedding: 'Wedding',
+          star: 'Starred' }
 ```
 
 Icons are inline SVGs defined in `notes.js` as strings: 24×24 viewBox,
