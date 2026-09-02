@@ -1980,17 +1980,14 @@
 
         // Pieces tile the whole stage, so the card count sets how big each one is.
         // Fillers only top the count up to a readable piece size — on a small
-        // viewport the real projects already fill the canvas and none are shown.
+        // viewport the live tiles already consume the area budget and none show.
         function fillerCount(W, H) {
           const targetR = Math.max(95, Math.min(150, Math.sqrt(W * H) / 7.5));
           const budget = (W * H) / (Math.PI * targetR * targetR);
-          // Placeholders are there to keep the real projects from ballooning, not
-          // to be the page. Hold them to a minority of the pieces on screen.
-          const cap = Math.round(live.length * 0.4);
           let used = live.reduce((s, c) => s + c.weight, 0);
           let count = 0;
           for (const c of fillers) {
-            if (count >= cap || used + c.weight > budget) break;
+            if (used + c.weight > budget) break;
             used += c.weight;
             count += 1;
           }
