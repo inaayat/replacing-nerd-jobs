@@ -259,16 +259,15 @@ mentions place; the rest are reported in the UI rather than dropped. Notes in
 ### Wedding — `/wedding`
 
 Private idea board for a future wedding, behind the same Neon Auth login as
-Packing Cubes. An **Inbox** catches loose notes; **tags** (Looks, Venue, …)
-are quiet pills you create over time, not a folder list. Pick a tag in the
-composer when you keep a clip. Every clip can be a sentence, a labelled
-link (TikTok, Instagram Reel, image URL, or anything http(s) — the URL always
-has its own display text), or both. Search looks at notes, link text, and
-hostnames. **Everything** and each **tag** show photo/preview clips in a
-collage; Inbox stays a card feed. Photo and video links preview on the card (Pinterest as a picture, never
-play; TikTok, Instagram Reels, and YouTube behind play, using each site’s
-embed). Thumbnails unfurl through `/api/wd-unfurl` on the same `api/wedding.js`
-function.
+Packing Cubes. **Home** surfaces recent inspiration, inbox counts, and next
+steps. **Inspiration** holds Inbox, Everything, Favorites, Shortlist, Chosen,
+and user-created **tags** (Looks, Venue, …) as quiet pills — clips can carry
+multiple tags. **Plan** adds Someday / Next up tasks and Decisions you can
+link to clips. Every clip can be a sentence, a labelled link (TikTok,
+Instagram Reel, image URL, or anything http(s)), or both. Search looks at
+notes, link text, and hostnames. Photo and video links preview on the card;
+Everything and tag views show a collage. Thumbnails unfurl through
+`/api/wd-unfurl` on the same `api/wedding.js` function.
 
 `wedding/engine/model.js` is the one document model (browser + `lib/wedding.js`);
 keep it dependency-free ESM and out of `/lib/`. Persistence is one JSONB row per
@@ -784,4 +783,5 @@ node scripts/test-im-filmin-here.mjs
 node scripts/test-packing-cubes-model.mjs
 node scripts/test-packing-cubes-api.mjs
 node scripts/test-wedding.mjs
+node scripts/test-wedding-routes.mjs
 ```

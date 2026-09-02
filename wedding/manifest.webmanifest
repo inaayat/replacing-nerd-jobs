@@ -1,7 +1,7 @@
 {
   "name": "Wedding",
   "short_name": "Wedding",
-  "description": "Private notes, links, and buckets for a future wedding.",
+  "description": "Private wedding inspiration board — save links, tag ideas, and plan slowly.",
   "start_url": "/wedding/",
   "scope": "/wedding/",
   "display": "standalone",
