@@ -48,7 +48,7 @@
         >Local only</button>
         <span class="sn-nav-status" id="connection-status" hidden>Offline</span>
         <button type="button" class="sn-nav-install" id="install-app" hidden>Install app</button>
-        <a href="#" data-nav-auth class="sn-nav-keep">Sign in</a>
+        <a href="#signin" data-nav-auth class="sn-nav-keep">Sign in</a>
         <a href="/#projects">Projects</a>
       </div>
     </nav>
@@ -58,7 +58,7 @@
            says so, and stays reachable from the toolbar chip once dismissed. -->
       <div class="sn-guestbar" id="guestbar" hidden>
         <span class="sn-guestbar-text" id="guestbar-text"></span>
-        <a class="sn-guestbar-cta" id="guestbar-cta" href="/account.html?next=/sticky-notes/">Create an account</a>
+        <button type="button" class="sn-guestbar-cta" id="guestbar-cta">Create an account or sign in</button>
         <button type="button" class="sn-guestbar-close" id="guestbar-close" aria-label="Hide this notice">×</button>
       </div>
 
@@ -350,6 +350,11 @@
     </div>
 
     <div class="sn-scrim" id="scrim" hidden></div>
+
+    <aside class="sn-auth-pane" id="auth-pane" hidden aria-label="Sign in">
+      <button type="button" class="sn-auth-close" id="auth-close" aria-label="Close">×</button>
+      <div class="sn-auth-card" id="auth-card"></div>
+    </aside>
 
     <aside class="sn-guide" id="guide" hidden aria-label="What the buttons do">
       <div class="sn-guide-head">

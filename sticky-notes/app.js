@@ -10,7 +10,13 @@
  * right-hand sidebar and the Board/Memory tabs are pointless, so they go away;
  * below that memory is a tab and the board owns the whole canvas.
  */
-import { initAuth, wireAuthLink, loginUrl } from './engine/auth.js';
+import {
+  initAuth,
+  wireAuthLink,
+  renderStickySignIn,
+  focusStickyAuthForm,
+  loginUrl,
+} from './engine/auth.js';
 import { clearGuestState, createStore, readGuestState } from './sync.js';
 import { createBoard } from './board.js';
 import { createMemory } from './memory.js';
@@ -156,11 +162,55 @@ const helpBtn = $('#board-help');
 const sheet = $('#sheet');
 const sheetTitle = $('#sheet-title');
 const sheetBody = $('#sheet-body');
+const authPane = $('#auth-pane');
+const authCard = $('#auth-card');
+const authClose = $('#auth-close');
 const moreBtn = $('#more-btn');
 const moreMenu = $('#more-menu');
 
+let authFormReady = false;
+let authConfigured = false;
+
 function syncScrim() {
-  scrim.hidden = sheet.hidden && (guide.hidden || !sheetMode.matches);
+  scrim.hidden = sheet.hidden && authPane.hidden && (guide.hidden || !sheetMode.matches);
+}
+
+function closeAuthPane() {
+  authPane.hidden = true;
+  syncScrim();
+  if (location.hash === '#signin') {
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+}
+
+function openAuthPane({ expired = false } = {}) {
+  if (!authConfigured) {
+    location.href = loginUrl();
+    return;
+  }
+  closeGuide();
+  closeSheet();
+  if (!authFormReady) {
+    const note = expired
+      ? '<p class="sn-auth-note">Your session expired. Sign in again to load and save your board.</p>'
+      : '';
+    renderStickySignIn(authCard, {
+      note,
+      onSuccess: () => location.reload(),
+    });
+    authFormReady = true;
+  } else if (expired) {
+    const intro = authCard.querySelector('.sn-auth-intro');
+    if (intro && !intro.querySelector('.sn-auth-note')) {
+      intro.insertAdjacentHTML('beforeend', '<p class="sn-auth-note">Your session expired. Sign in again to load and save your board.</p>');
+    }
+  }
+  authPane.hidden = false;
+  syncScrim();
+  if (location.hash !== '#signin') {
+    history.replaceState(null, '', `${location.pathname}${location.search}#signin`);
+  }
+  focusStickyAuthForm();
 }
 
 function closeGuide() {
@@ -244,13 +294,16 @@ function openSheet({ title, hint = '', options = [], input = null }) {
 scrim.addEventListener('click', () => {
   closeSheet();
   closeGuide();
+  closeAuthPane();
 });
 $('#sheet-close').addEventListener('click', closeSheet);
+authClose.addEventListener('click', closeAuthPane);
 $('#guide-close').addEventListener('click', closeGuide);
 
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
-  if (!sheet.hidden) closeSheet();
+  if (!authPane.hidden) closeAuthPane();
+  else if (!sheet.hidden) closeSheet();
   else if (!guide.hidden) closeGuide();
   else closeMenu();
 });
@@ -490,7 +543,7 @@ function showGuestNotice({ expired }) {
     : 'This board is only on this device. Nothing is saved to an account, and it is not synced anywhere.';
   const cta = $('#guestbar-cta');
   cta.textContent = expired ? 'Sign in' : 'Create an account or sign in';
-  cta.href = loginUrl();
+  cta.onclick = () => openAuthPane({ expired });
   const guest = $('#board-empty-guest');
   guest.hidden = false;
   guest.textContent = expired
@@ -555,7 +608,8 @@ async function init() {
   const auth = localMode
     ? { configured: false, signedIn: false, token: null }
     : await initAuth();
-  wireAuthLink(auth);
+  authConfigured = Boolean(auth.configured);
+  wireAuthLink(auth, { openSignIn: openAuthPane });
 
   // No token, nothing to sync. An expired session keeps its own mirror (and its
   // pending ops) so re-signing in picks up where it left off; everyone else
@@ -1021,10 +1075,16 @@ async function init() {
   if (readLocal(HINTS_KEY) !== 'dismissed') showHints();
 
   window.addEventListener('hashchange', () => {
+    if (location.hash === '#signin' && guestMode) {
+      openAuthPane({ expired });
+      return;
+    }
     const id = wikiIdFromHash();
     if (id) openWiki(id);
     else if (wiki.isOpen()) closeWiki();
   });
+
+  if (location.hash === '#signin' && guestMode) openAuthPane({ expired });
 
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape' || !wiki.isOpen()) return;

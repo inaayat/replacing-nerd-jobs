@@ -1302,6 +1302,16 @@ function note(id, extra = {}) {
   eq(phoneRight.shift, -112, 'phone nudges a right-edge swatch row back into the canvas');
 }
 
+{
+  const { stickySignInCardHtml, AUTH_FORM_ID, STICKY_AUTH_CLASS_NAMES } = await import('../sticky-notes/engine/auth.js');
+  const html = stickySignInCardHtml({ note: '<p class="sn-auth-note">Expired</p>' });
+  ok(html.includes(`id="${AUTH_FORM_ID}"`), 'sign-in card reserves the form mount point');
+  ok(html.includes('Save your board'), 'sign-in card has a title');
+  ok(html.includes('Expired'), 'sign-in card accepts a note');
+  eq(STICKY_AUTH_CLASS_NAMES.wrap, 'sn-auth-form');
+  eq(STICKY_AUTH_CLASS_NAMES.submit, 'sn-btn sn-btn-primary sn-auth-submit');
+}
+
 if (failures) {
   console.error(`${failures} sticky-notes test(s) failed`);
   process.exit(1);

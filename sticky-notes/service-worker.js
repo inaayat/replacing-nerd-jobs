@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'sticky-notes-shell-';
-const CACHE_NAME = `${CACHE_PREFIX}v1`;
+const CACHE_NAME = `${CACHE_PREFIX}v2`;
 const ROOT = '/sticky-notes/';
 const APP_SHELL = [
   ROOT,
@@ -19,6 +19,7 @@ const APP_SHELL = [
   `${ROOT}icons/icon-192.png`,
   `${ROOT}icons/icon-512.png`,
   '/engine/neon-browser-auth.js',
+  '/engine/sign-in-form.js',
   '/ugly-dog-images/dog-3.png',
 ];
 
