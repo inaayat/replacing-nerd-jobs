@@ -43,7 +43,7 @@ export const TAB_KEY = 'sticky-notes-view';
 // new note starts as comes first.
 export const LEGEND_DEFAULTS = {
   colors: {
-    c7: { label: 'Grey', hex: '#e5e2da' },
+    c7: { label: 'Grey', hex: '#f0eee8' },
     c1: { label: 'Yellow', hex: '#ffea56' },
     c2: { label: 'Pink', hex: '#fe9ec6' },
     c3: { label: 'Blue', hex: '#9ed4ff' },

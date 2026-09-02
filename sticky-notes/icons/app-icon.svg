@@ -13,7 +13,7 @@
   </g>
   <!-- the grey note a new note starts as, filed behind -->
   <g transform="rotate(-8 30 32)">
-    <rect x="12" y="16" width="24" height="24" rx="3" fill="#e5e2da" stroke="#1c1c1c" stroke-opacity="0.18" stroke-width="1"/>
+    <rect x="12" y="16" width="24" height="24" rx="3" fill="#f0eee8" stroke="#1c1c1c" stroke-opacity="0.18" stroke-width="1"/>
     <path d="M17 23h13M17 28h10" stroke="#1c1c1c" stroke-opacity="0.3" stroke-width="1.6" stroke-linecap="round"/>
   </g>
   <!-- the note on top, with a corner peeled up -->
