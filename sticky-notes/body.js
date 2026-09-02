@@ -570,6 +570,53 @@ export function renderMedia(host, media) {
   layoutMediaHost(host, media, presentation);
 }
 
+function tableThumbPlaceholder(kind) {
+  const el = document.createElement('span');
+  el.className = `sn-tbl-thumb-ph sn-tbl-thumb-${kind || 'link'}`;
+  el.textContent = mediaKindLabel(kind).slice(0, 1);
+  el.title = mediaKindLabel(kind);
+  return el;
+}
+
+/** Compact still for the board table — no caption, play, or layout chrome. */
+export function renderMediaThumb(host, media) {
+  host.replaceChildren();
+  const presentation = mediaPresentation(media);
+  if (!media || presentation.mode === 'none') return false;
+
+  const href = media.canonical || media.url;
+  if (presentation.mode === 'image' && presentation.src) {
+    const link = document.createElement('a');
+    link.className = 'sn-tbl-thumb-link';
+    link.href = href;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.setAttribute('aria-label', media.title || mediaKindLabel(presentation.kind));
+    const img = document.createElement('img');
+    img.className = 'sn-tbl-thumb-img';
+    img.src = presentation.src;
+    img.alt = '';
+    img.loading = 'lazy';
+    img.referrerPolicy = 'no-referrer';
+    img.addEventListener('error', () => {
+      link.replaceWith(tableThumbPlaceholder(presentation.kind || media.kind));
+    }, { once: true });
+    link.appendChild(img);
+    if (presentation.playable) {
+      link.classList.add('is-playable');
+      const play = document.createElement('span');
+      play.className = 'sn-tbl-thumb-play';
+      play.setAttribute('aria-hidden', 'true');
+      link.appendChild(play);
+    }
+    host.appendChild(link);
+    return true;
+  }
+
+  host.appendChild(tableThumbPlaceholder(presentation.kind || media.kind));
+  return true;
+}
+
 /** Read the body back out of the DOM the browser has been editing. */
 export function readBody(host) {
   return normalizeRich(richFromNode(host));

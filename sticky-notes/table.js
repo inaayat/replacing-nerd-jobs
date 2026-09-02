@@ -18,7 +18,7 @@ import {
   noteCreateSize,
   richToText,
 } from './notes.js';
-import { attachBodyEditor, renderBody, renderIcon } from './body.js';
+import { attachBodyEditor, renderBody, renderIcon, renderMediaThumb } from './body.js';
 
 const NARROW = '(max-width: 719px)';
 
@@ -189,6 +189,21 @@ export function createTable({ store, els, showToast, onViewCanvas }) {
     return actions;
   }
 
+  function paintPreviewCell(note) {
+    const cell = document.createElement('td');
+    cell.className = 'sn-tbl-preview';
+    if (note.media && renderMediaThumb(cell, note.media)) return cell;
+    cell.innerHTML = '<span class="sn-tbl-preview-empty" aria-hidden="true"></span>';
+    return cell;
+  }
+
+  function paintPreviewChip(note) {
+    const chip = document.createElement('span');
+    chip.className = 'sn-tbl-preview';
+    if (!note.media || !renderMediaThumb(chip, note.media)) chip.hidden = true;
+    return chip;
+  }
+
   function paintPreview(host, note) {
     renderBody(host, noteBlocks(note));
   }
@@ -212,6 +227,7 @@ export function createTable({ store, els, showToast, onViewCanvas }) {
     table.className = 'sn-tbl';
     table.innerHTML =
       '<thead><tr>' +
+      '<th class="sn-tbl-preview-head" aria-label="Preview"></th>' +
       '<th>Note</th><th>Collection</th><th>Icon</th><th>Pin</th><th>Updated</th><th></th>' +
       '</tr></thead>';
     const tbody = document.createElement('tbody');
@@ -220,7 +236,7 @@ export function createTable({ store, els, showToast, onViewCanvas }) {
       head.className = 'sn-tbl-grouprow';
       const cell = document.createElement('th');
       cell.scope = 'rowgroup';
-      cell.colSpan = 6;
+      cell.colSpan = 7;
       cell.appendChild(colorHeading(group.key));
       head.appendChild(cell);
       tbody.appendChild(head);
@@ -262,7 +278,7 @@ export function createTable({ store, els, showToast, onViewCanvas }) {
         const actTd = document.createElement('td');
         actTd.appendChild(rowActions(note));
 
-        tr.append(noteTd, colTd, iconTd, pinTd, dateTd, actTd);
+        tr.append(paintPreviewCell(note), noteTd, colTd, iconTd, pinTd, dateTd, actTd);
         tbody.appendChild(tr);
       }
     }
@@ -281,15 +297,18 @@ export function createTable({ store, els, showToast, onViewCanvas }) {
       const icon = document.createElement('span');
       icon.className = 'sn-mem-icon';
       renderIcon(icon, store.state.legend, note.iconKey);
+      const lead = document.createElement('div');
+      lead.className = 'sn-tbl-card-lead';
       const text = document.createElement('span');
       text.className = 'sn-mem-text sn-tbl-body';
       paintPreview(text, note);
+      lead.append(icon, paintPreviewChip(note), text);
       const meta = document.createElement('span');
       meta.className = 'sn-mem-meta';
       const col = collectionName(store.state, note);
       meta.textContent = `${col || 'Loose'} · ${formatDate(note.updatedAt)}`;
       const actions = rowActions(note);
-      row.append(icon, text, meta, actions);
+      row.append(lead, meta, actions);
       row.addEventListener('click', (e) => {
         if (e.target.closest('button, a')) return;
         if (coarse()) row.classList.toggle('is-open');
