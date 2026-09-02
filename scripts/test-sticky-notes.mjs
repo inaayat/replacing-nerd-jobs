@@ -66,6 +66,7 @@ import {
   richFromNode,
   richToText,
   screenToWorld,
+  sharedNoteInput,
   stateIsEmpty,
   stateToOps,
   textToRich,
@@ -154,6 +155,21 @@ function note(id, extra = {}) {
   const withMedia = normalizeNote({ id: 'media', text: 'caption', media: unfurled });
   eq(withMedia.media.thumbnail, unfurled.thumbnail, 'normalized notes retain media');
   eq(normalizeNote({ id: 'bad-media', media: { url: 'file:///etc/passwd' } }).media, null, 'invalid media clears');
+}
+
+// 1c. installed-app share target
+{
+  const shared = sharedNoteInput({
+    title: 'Read this',
+    text: 'Useful context',
+    url: 'https://example.com/article',
+  });
+  eq(shared.text, 'Read this\nUseful context', 'shared title and text become the note body');
+  eq(shared.sourceUrl, 'https://example.com/article', 'shared URL becomes the note source');
+  const linkOnly = sharedNoteInput({ text: 'https://example.com/photo.jpg' });
+  eq(linkOnly.text, 'https://example.com/photo.jpg', 'a shared lone URL remains visible');
+  eq(linkOnly.sourceUrl, linkOnly.text, 'a URL delivered as share text is still recognized');
+  eq(sharedNoteInput({ url: 'javascript:alert(1)' }), null, 'unsafe shared URLs are ignored');
 }
 
 // 2. v0 migration

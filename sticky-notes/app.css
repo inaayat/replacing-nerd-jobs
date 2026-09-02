@@ -144,6 +144,28 @@ a { color: var(--ink); }
   white-space: nowrap;
 }
 .sn-navchip:hover { background: var(--ink); color: var(--cream); }
+.sn-nav-install,
+.sn-nav-status {
+  align-self: center;
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1.5px solid var(--ink);
+  border-radius: var(--sn-radius);
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.sn-nav-install { cursor: pointer; }
+.sn-nav-install:hover { background: var(--ink); color: var(--cream); }
+.sn-nav-status {
+  border-style: dashed;
+  opacity: 0.72;
+}
 
 /* ---------------------------------------------------------------- shell */
 
@@ -2451,6 +2473,7 @@ video.sn-media-player { object-fit: contain; }
   .sn-zoom-btn,
   .sn-zoom-label,
   .sn-navchip,
+  .sn-nav-install,
   .sn-guestbar-cta,
   .sn-guestbar-close { min-height: 44px; }
   .sn-iconbtn,
@@ -2468,6 +2491,7 @@ video.sn-media-player { object-fit: contain; }
   .sn-ab-page,
   .sn-mem-chip,
   .sn-navchip,
+  .sn-nav-install,
   .sn-guestbar-cta,
   .sn-guestbar-close,
   .sn-selbar,
@@ -2549,6 +2573,7 @@ video.sn-media-player { object-fit: contain; }
 }
 .sn-standalone .sn-nav-logo span,
 .sn-standalone .sn-nav-section span { display: none; }
+.sn-standalone .sn-nav-install { display: none !important; }
 .sn-standalone .sn-nav-links { font-size: 0.62rem; }
 .sn-standalone .sn-app {
   padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));

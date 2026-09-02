@@ -36,6 +36,7 @@ import {
   phoneBoardViewNeedsReset,
   KEYBOARD_INSET_TAU,
   keyboardLayout,
+  sharedNoteInput,
   stateIsEmpty,
   stateToOps,
 } from './notes.js';
@@ -102,6 +103,49 @@ toastUndo.addEventListener('click', () => {
   undoAction = null;
   toastEl.classList.remove('is-visible');
 });
+
+// ---------------------------------------------------------------- installed app
+
+const installApp = $('#install-app');
+const connectionStatus = $('#connection-status');
+let deferredInstall = null;
+
+function updateConnectionStatus() {
+  connectionStatus.hidden = navigator.onLine;
+}
+
+updateConnectionStatus();
+window.addEventListener('online', updateConnectionStatus);
+window.addEventListener('offline', updateConnectionStatus);
+
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  deferredInstall = event;
+  if (!document.documentElement.classList.contains('sn-standalone')) installApp.hidden = false;
+});
+
+installApp.addEventListener('click', async () => {
+  if (!deferredInstall) return;
+  deferredInstall.prompt();
+  const choice = await deferredInstall.userChoice;
+  if (choice.outcome === 'accepted') installApp.hidden = true;
+  deferredInstall = null;
+});
+
+window.addEventListener('appinstalled', () => {
+  installApp.hidden = true;
+  deferredInstall = null;
+  document.documentElement.classList.add('sn-standalone');
+  showToast('Sticky Notes installed');
+});
+
+if ('serviceWorker' in navigator && window.isSecureContext) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js', { scope: './' }).catch(() => {
+      /* The browser version remains fully usable when registration is blocked. */
+    });
+  });
+}
 
 // ---------------------------------------------------------------- overlays
 
@@ -598,6 +642,26 @@ async function init() {
     },
   });
 
+  const launch = new URLSearchParams(location.search);
+  if (launch.get('share') === '1') {
+    const shared = sharedNoteInput({
+      title: launch.get('title'),
+      text: launch.get('text'),
+      url: launch.get('url'),
+    });
+    if (shared) {
+      board.createNote(shared);
+      showToast('Shared item added to your board');
+    }
+  } else if (launch.get('new') === '1') {
+    board.createNote();
+  }
+  if (launch.has('share') || launch.has('new')) {
+    const clean = new URL(location.href);
+    for (const key of ['share', 'new', 'title', 'text', 'url']) clean.searchParams.delete(key);
+    history.replaceState(null, '', `${clean.pathname}${clean.search}${clean.hash}`);
+  }
+
   const memory = createMemory({
     store,
     showToast,
@@ -970,6 +1034,14 @@ async function init() {
   });
 
   await store.loadFromServer();
+  window.addEventListener('online', () => {
+    if (auth.token) {
+      store.loadFromServer();
+      showToast('Back online — syncing changes');
+    } else {
+      showToast('Back online');
+    }
+  });
   // Signed in with a guest board still in the browser: ask before touching it.
   if (!guestMode) offerGuestNotes(store);
 

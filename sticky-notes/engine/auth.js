@@ -5,6 +5,13 @@ let _client = null;
 
 export { storeAuthToken } from '../../engine/neon-browser-auth.js';
 
+function offlineAuth() {
+  const token = readStoredToken();
+  return token
+    ? { configured: true, signedIn: true, user: null, token, client: null, offline: true }
+    : { configured: false, signedIn: false, user: null, token: null, client: null, offline: true };
+}
+
 export function loginUrl() {
   return `/account.html?next=${encodeURIComponent(location.pathname + location.search)}`;
 }
@@ -15,14 +22,18 @@ export async function initAuth() {
     const res = await fetch('/api/auth-config');
     url = (await res.json()).url;
   } catch {
-    return { configured: false, signedIn: false, user: null, token: null };
+    return offlineAuth();
   }
   if (!url) return { configured: false, signedIn: false, user: null, token: null };
 
-  _neonAuth = await loadNeonAuth(url);
-  _client = _neonAuth.adapter;
-
-  const { data } = await _client.getSession();
+  let data;
+  try {
+    _neonAuth = await loadNeonAuth(url);
+    _client = _neonAuth.adapter;
+    ({ data } = await _client.getSession());
+  } catch {
+    return offlineAuth();
+  }
   let user = data?.user || null;
   let token = user ? await resolveNeonJwt(_neonAuth, _client) : null;
   if (!token && user) token = readStoredToken();
@@ -71,7 +82,7 @@ export function wireAuthLink(state) {
       link.onclick = async (e) => {
         e.preventDefault();
         storeAuthToken(null);
-        await state.client.signOut();
+        if (state.client) await state.client.signOut();
         location.href = '/sticky-notes/';
       };
     } else {

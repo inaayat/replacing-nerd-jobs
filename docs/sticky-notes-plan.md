@@ -34,6 +34,7 @@ thinking surface and memory does the remembering.
 | Arrows / connectors | **In v1.** Drag from a card's edge handle onto another card to connect them. Arrows are first-class rows that survive filing and reappear when both endpoints are back on the board |
 | Pinned notes | **In v1.** A pinned note survives Wipe. Pin is a toggle on the card and in the action bar. Explicitly filing a pinned note (select → File) still works — pin guards against bulk wipe, not intent |
 | Mobile | Memory table must be usable on phones; the board is desktop-first (it renders, but drag ergonomics are not a v1 goal) |
+| Installed app | The browser version remains canonical; the manifest + scoped static-shell service worker add offline launch, install prompting, a New note shortcut, and an OS share target. API responses are never cached |
 | Media | One optional compact visual attachment per note: direct image/video, Pinterest, Instagram, TikTok, YouTube, or an Open Graph image. It stays separate from rich text; video plays on demand |
 | Collaboration, reminders, due dates | Not in v1. This is deliberately not a todo app |
 

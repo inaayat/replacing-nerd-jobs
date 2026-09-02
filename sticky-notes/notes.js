@@ -175,6 +175,20 @@ export function normalizeHref(raw) {
   return isLoneUrl(href) ? href : null;
 }
 
+/** Turn a Web Share Target GET payload into the existing create-note shape. */
+export function sharedNoteInput(raw) {
+  const title = String(raw?.title || '').replace(/[\r\t]+/g, ' ').trim().slice(0, 300);
+  let text = String(raw?.text || '').trim();
+  let sourceUrl = normalizeHref(raw?.url);
+  if (!sourceUrl && isLoneUrl(text)) {
+    sourceUrl = normalizeHref(text);
+    text = '';
+  }
+  const body = [title, text].filter(Boolean).join('\n').trim();
+  if (!body && !sourceUrl) return null;
+  return { text: body || sourceUrl, sourceUrl };
+}
+
 export function normalizeCustomIconKey(raw) {
   const key = String(raw || '').trim().toLowerCase();
   return CUSTOM_ICON_KEY_RE.test(key) ? key : null;
