@@ -35,6 +35,7 @@ import {
   mediaPreview,
   previewHref,
   previewPresentation,
+  previewPaint,
   clipNeedsUnfurl,
   clipHasVisual,
 } from './model.js';
@@ -182,7 +183,7 @@ function playPreview(card, clip) {
 async function requestPreview(clip) {
   if (!clipNeedsUnfurl(clip)) return;
   if (localMode || !auth?.token) return;
-  const key = `${clip.id}:${clip.url}`;
+  const key = `v2:${clip.id}:${clip.url}`;
   if (previewTried.has(key)) return;
   previewTried.add(key);
   try {
@@ -255,10 +256,10 @@ function previewBlock(clip) {
     return `<a class="wd-card-image" href="${href}" target="_blank" rel="noopener noreferrer"><img src="${escapeHtml(shown.src)}" alt="" referrerpolicy="no-referrer" loading="lazy"></a>`;
   }
 
-  if (shown.mode === 'embed') {
+  if (shown.mode === 'embed' || (shown.mode === 'play' && shown.embedUrl && !shown.poster && shown.kind !== 'video')) {
     return `
       <div class="wd-preview wd-preview-still" data-kind="${escapeHtml(shown.kind)}">
-        <iframe class="wd-preview-frame" src="${escapeHtml(shown.embedUrl)}" allow="encrypted-media" loading="lazy" title="Preview" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+        <iframe class="wd-preview-frame" src="${escapeHtml(shown.embedUrl)}" allow="encrypted-media; fullscreen; picture-in-picture" loading="lazy" title="Preview" referrerpolicy="strict-origin-when-cross-origin"></iframe>
       </div>`;
   }
 
@@ -301,21 +302,18 @@ function collageShape(clip) {
 }
 
 function collageMedia(clip) {
-  const shown = previewPresentation(clip);
-  if (shown.mode === 'image') {
-    return `<img src="${escapeHtml(shown.src)}" alt="" referrerpolicy="no-referrer" loading="lazy">`;
+  const painted = previewPaint(clip);
+  const kind = painted.kind || 'link';
+  if (painted.paint === 'image') {
+    const img = `<img src="${escapeHtml(painted.src)}" alt="" referrerpolicy="no-referrer" loading="lazy">`;
+    if (!painted.play) return img;
+    return `<span class="wd-collage-play">${img}<span class="wd-preview-btn">${PLAY_SVG}</span></span>`;
   }
-  const kind = shown.kind || 'link';
-  const label = linkKindLabel(kind);
-  if (shown.mode === 'play' && shown.poster) {
-    return `
-      <span class="wd-collage-play">
-        <img src="${escapeHtml(shown.poster)}" alt="" referrerpolicy="no-referrer" loading="lazy">
-        <span class="wd-preview-btn">${PLAY_SVG}</span>
-      </span>`;
+  if (painted.paint === 'embed') {
+    return `<span class="wd-collage-frame" data-kind="${escapeHtml(kind)}"><iframe src="${escapeHtml(painted.embedUrl)}" loading="lazy" tabindex="-1" title="" referrerpolicy="strict-origin-when-cross-origin"></iframe></span>`;
   }
-  const ph = `<span class="wd-collage-ph wd-kind-${escapeHtml(kind)}">${escapeHtml(label)}</span>`;
-  if (shown.mode === 'play') {
+  const ph = `<span class="wd-collage-ph wd-kind-${escapeHtml(kind)}">${escapeHtml(linkKindLabel(kind))}</span>`;
+  if (painted.play) {
     return `<span class="wd-collage-play">${ph}<span class="wd-preview-btn">${PLAY_SVG}</span></span>`;
   }
   return ph;
@@ -325,10 +323,10 @@ function collageTile(clip) {
   const label = clipDisplayLabel(clip);
   const open = inspectId === clip.id ? ' is-open' : '';
   return `
-    <button type="button" class="wd-collage-tile${open}" data-clip="${escapeHtml(clip.id)}" data-act="inspect" data-shape="${collageShape(clip)}" aria-pressed="${inspectId === clip.id ? 'true' : 'false'}" aria-label="${escapeHtml(label || 'Saved preview')}">
+    <div class="wd-collage-tile${open}" role="button" tabindex="0" data-clip="${escapeHtml(clip.id)}" data-act="inspect" data-shape="${collageShape(clip)}" aria-pressed="${inspectId === clip.id ? 'true' : 'false'}" aria-label="${escapeHtml(label || 'Saved preview')}">
       ${collageMedia(clip)}
       ${label ? `<span class="wd-collage-cap">${escapeHtml(label)}</span>` : ''}
-    </button>`;
+    </div>`;
 }
 
 function feedHtml(clips) {
@@ -714,13 +712,19 @@ function wireApp() {
   });
 
   root.querySelectorAll('.wd-collage-tile[data-act="inspect"]').forEach((tile) => {
-    tile.addEventListener('click', () => {
+    const open = () => {
       const id = tile.getAttribute('data-clip');
       inspectId = inspectId === id ? null : id;
       render();
       if (inspectId) {
         root.querySelector('.wd-inspect')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       }
+    };
+    tile.addEventListener('click', open);
+    tile.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      open();
     });
     tile.querySelectorAll('img').forEach((img) => {
       img.addEventListener('error', () => {

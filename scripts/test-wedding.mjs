@@ -37,6 +37,7 @@ import {
   clipNeedsUnfurl,
   previewHref,
   previewPresentation,
+  previewPaint,
   clipHasVisual,
   isStillMedia,
   pinterestPinId,
@@ -223,6 +224,14 @@ eq(clipHasVisual({ url: 'https://cdn.example.com/look.jpg' }), true);
 eq(clipHasVisual({ url: 'https://www.pinterest.com/pin/9876543210/' }), true);
 eq(clipHasVisual({ url: 'https://example.com/just-a-page' }), false);
 eq(clipHasVisual({ body: 'garden if it rains', url: '' }), false);
+eq(previewPaint({ url: 'https://www.instagram.com/reel/AbC_12-x/' }).paint, 'embed', 'reels show the official embed, not an Instagram label');
+eq(previewPaint({ url: 'https://www.pinterest.com/pin/9876543210/' }).paint, 'embed', 'pins show the pin embed until a poster lands');
+eq(previewPaint({ url: 'https://pin.it/abc' }).paint, 'placeholder');
+eq(previewPaint({
+  url: 'https://pin.it/GreenLook',
+  preview: { canonical: 'https://www.pinterest.com/pin/9876543210/', thumbnail: 'https://i.pinimg.com/564x/look.jpg', title: 'Green' },
+}).paint, 'image');
+eq(previewPaint({ url: 'https://cdn.example.com/look.jpg' }).paint, 'image');
 
 const yt = mediaPreview('https://youtu.be/dQw4w9wgXcQ');
 eq(yt.kind, 'youtube');

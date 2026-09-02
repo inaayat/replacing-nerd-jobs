@@ -418,6 +418,28 @@ a { color: inherit; }
   display: block;
 }
 
+.wd-collage-frame {
+  display: block;
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: #111;
+  pointer-events: none;
+}
+
+.wd-collage-frame iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+  pointer-events: none;
+}
+
+.wd-collage-tile[data-shape="tall"] .wd-collage-frame { aspect-ratio: 9 / 16; }
+.wd-collage-tile[data-shape="port"] .wd-collage-frame { aspect-ratio: 4 / 5; }
+.wd-collage-tile[data-shape="sq"] .wd-collage-frame { aspect-ratio: 1 / 1; }
+.wd-collage-tile[data-shape="wide"] .wd-collage-frame { aspect-ratio: 16 / 9; }
+
 .wd-collage-cap {
   position: absolute;
   left: 0;

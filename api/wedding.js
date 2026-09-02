@@ -198,6 +198,7 @@ async function handleUnfurl(req, res) {
       || host === 'vm.tiktok.com'
       || /\/t\//.test(parsed.pathname)
       || /\/share\//.test(parsed.pathname);
+    let canonical = url;
     let followedHtml = '';
     if (short) {
       const followed = await fetchWithTimeout(url, { timeout: 5000 });

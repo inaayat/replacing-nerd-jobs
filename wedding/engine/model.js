@@ -299,6 +299,24 @@ export function previewPresentation(clip) {
   return { mode: 'none' };
 }
 
+/** How the collage (and any image-forward surface) should paint a clip. */
+export function previewPaint(clip) {
+  const shown = previewPresentation(clip);
+  if (shown.mode === 'image' && shown.src) {
+    return { paint: 'image', src: shown.src, kind: shown.kind || 'image', play: false };
+  }
+  if (shown.mode === 'play' && shown.poster) {
+    return { paint: 'image', src: shown.poster, kind: shown.kind, play: true };
+  }
+  if (shown.embedUrl && (shown.mode === 'embed' || shown.mode === 'play')) {
+    return { paint: 'embed', embedUrl: shown.embedUrl, kind: shown.kind, play: shown.mode === 'play' };
+  }
+  if (shown.mode === 'placeholder' || shown.mode === 'play') {
+    return { paint: 'placeholder', kind: shown.kind || 'link', play: shown.mode === 'play' };
+  }
+  return { paint: 'none' };
+}
+
 /** Photo, pin, embed, or playable clip — anything the collage can paint. */
 export function clipHasVisual(clip) {
   return previewPresentation(clip).mode !== 'none';
