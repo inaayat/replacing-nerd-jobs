@@ -6,6 +6,7 @@ import {
   wireAuthLink,
   refreshToken,
   renderWeddingSignIn,
+  weddingGateFeaturesHtml,
 } from './auth.js';
 import { loadBoard, saveBoard, debounceSave, unfurlUrl } from './store.js';
 import {
@@ -1166,7 +1167,8 @@ function renderSignInGate() {
   renderWeddingSignIn(root, {
     art: RING_ART,
     title: 'Wedding',
-    copy: 'A private place for the ideas, links, and loose notes that will eventually become a wedding.',
+    copy: 'Save inspiration as you find it — links, photos, and loose notes — then tag, shortlist, and plan at your own pace.',
+    features: weddingGateFeaturesHtml(),
     note,
     onSuccess: () => location.reload(),
   });

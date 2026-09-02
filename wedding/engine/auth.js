@@ -21,13 +21,24 @@ export const WEDDING_AUTH_CLASS_NAMES = {
   error: 'wd-auth-error',
 };
 
-export function weddingSignInCardHtml({ title, copy, note = '', art = '' } = {}) {
+export function weddingGateFeaturesHtml() {
+  return `
+    <ul class="wd-gate-features">
+      <li><strong>Inspiration</strong> — paste TikToks, Reels, Pinterest pins, and photos into an inbox; tag when a theme emerges</li>
+      <li><strong>Collage</strong> — browse saved looks in a visual grid; heart favorites and shortlist contenders</li>
+      <li><strong>Plan slowly</strong> — Someday / Next tasks and Decisions linked to clips — no timeline pressure</li>
+    </ul>
+    <p class="wd-gate-private">Private to your account. One board, synced across devices.</p>`;
+}
+
+export function weddingSignInCardHtml({ title, copy, note = '', art = '', features = '' } = {}) {
   return `
     <div class="wd-gate">
       <div class="wd-gate-card">
         ${art}
         <h1 class="wd-gate-title">${title}</h1>
         <p class="wd-gate-copy">${copy}</p>
+        ${features}
         ${note}
         <div id="${AUTH_FORM_ID}"></div>
         <p class="wd-gate-small">Forgotten your password? There's no self-serve reset yet — get in touch and it can be changed for you.</p>
