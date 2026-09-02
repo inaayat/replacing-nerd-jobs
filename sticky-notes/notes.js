@@ -112,6 +112,9 @@ export const BULLET_LIST_SVG = `${SVG_OPEN}<path d="M9 6h11M9 12h11M9 18h11"/><c
 
 export const NUMBER_LIST_SVG = `${SVG_OPEN}<path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.4 4.6h1.2V9"/><path d="M3 10.9h2.2L3 14.1h2.4"/><path d="M3.1 16.2h2.1l-1.1 1.4h.2a1 1 0 1 1-1 1.1"/></svg>`;
 
+export const RECENTER_SVG =
+  `${SVG_OPEN}<circle cx="12" cy="12" r="2.6"/><path d="M12 4v3M12 17v3M4 12h3M17 12h3"/></svg>`;
+
 export const COLOR_KEYS = Object.keys(LEGEND_DEFAULTS.colors);
 export const ICON_KEYS = Object.keys(LEGEND_DEFAULTS.icons);
 export const CUSTOM_ICON_PREFIX = 'custom:';
@@ -1645,10 +1648,18 @@ export function fitViewport(rects, viewportW, viewportH, pad = 48) {
     ZOOM_MIN,
     ZOOM_MAX,
   );
+  return centerViewportOnRects(rects, viewportW, viewportH, zoom);
+}
+
+/** Pan so the bounding box of `rects` sits in the middle at the current zoom. */
+export function centerViewportOnRects(rects, viewportW, viewportH, zoom) {
+  const box = bbox(rects);
+  const z = clamp(zoom, ZOOM_MIN, ZOOM_MAX);
+  if (!box) return { panX: 0, panY: 0, zoom: z };
   return {
-    panX: (viewportW - box.w * zoom) / 2 - box.x * zoom,
-    panY: (viewportH - box.h * zoom) / 2 - box.y * zoom,
-    zoom,
+    panX: viewportW / 2 - (box.x + box.w / 2) * z,
+    panY: viewportH / 2 - (box.y + box.h / 2) * z,
+    zoom: z,
   };
 }
 

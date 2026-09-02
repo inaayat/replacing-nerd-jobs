@@ -28,6 +28,7 @@ import {
   emptyState,
   findFreeSlot,
   fitViewport,
+  centerViewportOnRects,
   headingTriggerFor,
   HREF_MAX,
   BOARD_VIEW_KEY,
@@ -472,6 +473,10 @@ function note(id, extra = {}) {
   }
   const fit = fitViewport([{ x: 0, y: 0, w: 100, h: 100 }, { x: 900, y: 500, w: 100, h: 100 }], 1000, 700);
   assert(fit.zoom >= 0.4 && fit.zoom <= 2, 'fit zoom clamped');
+  const centered = centerViewportOnRects([{ x: 100, y: 50, w: 80, h: 40 }], 400, 300, 1);
+  eq(centered.panX, 60, 'recenter pans bbox midpoint to viewport center at zoom 1');
+  eq(centered.panY, 80, 'recenter vertical pan');
+  eq(centered.zoom, 1, 'recenter keeps zoom');
   const box = bbox([{ x: 0, y: 0, w: 10, h: 10 }, { x: 20, y: 30, w: 10, h: 10 }]);
   eq(box.w, 30, 'bbox width');
   eq(box.h, 40, 'bbox height');

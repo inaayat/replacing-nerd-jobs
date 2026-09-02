@@ -408,6 +408,14 @@ html.sn-table-view #menu-fit { display: none !important; }
   color: var(--ink);
 }
 .sn-zoom-label { border-left: 1.5px solid var(--line); border-right: 1.5px solid var(--line); min-width: 60px; }
+.sn-zoom-center {
+  border-left: 1.5px solid var(--line);
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.sn-zoom-center svg { width: 15px; height: 15px; display: block; }
 .sn-zoom-btn:hover, .sn-zoom-label:hover { background: rgba(28, 28, 28, 0.04); }
 
 .sn-more { position: relative; display: inline-flex; }
