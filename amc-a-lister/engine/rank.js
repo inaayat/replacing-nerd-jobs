@@ -1,5 +1,5 @@
 import { bootPage, renderShell, requireSignIn, isRankBetaEnabled, isTvBetaEnabled } from './nav.js';
-import { ranksApi, tvRanksApi, watchesApi, tvWatchesApi, movieApi, tvApi } from './api.js';
+import { ranksApi, tvRanksApi, watchesApi, tvWatchesApi, movieApi, tvApi, invalidateReadCache } from './api.js';
 import { escapeHtml, posterHtml } from './format.js';
 import { wireComboboxKeys } from './combobox.js';
 import {
@@ -14,6 +14,7 @@ import {
   firstRunShows,
   eligibleTvTmdbIds,
   dropIneligibleTvRanks,
+  unlinkedTvShowCount,
 } from './rank-insert.js';
 
 const RANK_KIND_KEY = 'alist.rank.kind';
@@ -47,6 +48,7 @@ const KIND_CONFIG = {
     unrankedLabel: 'Shows from your log, not yet ranked',
     firstRunIntro: 'First setup ranks every show you\'ve logged (DNFs count).',
     emptyFirstRun: 'No TV shows in your log yet. Rank only includes titles on your TV watch log.',
+    emptyUnlinked: (n) => `You have ${n} show${n === 1 ? '' : 's'} on your TV log, but Rank needs each one linked to TMDB. We tried to match them automatically — edit any remaining titles on the TV page and pick from the search dropdown.`,
     stackLabel: (n) => `${n} show${n === 1 ? '' : 's'}`,
     firstRunButton: (n) => `Rank ${n} show${n === 1 ? '' : 's'}`,
     ineligibleError: 'Rank only includes shows on your TV watch log.',
@@ -148,7 +150,7 @@ async function loadPage(auth, tvEnabled, initialKind) {
   let tvWatches = [];
   if (tvEnabled) {
     tvRanks = results[2]?.ranks || [];
-    tvWatches = results[3]?.watches || [];
+    tvWatches = await linkTvWatchesForRank(auth, results[3]?.watches || []);
   }
 
   const page = {
@@ -195,6 +197,49 @@ async function loadPage(auth, tvEnabled, initialKind) {
   render();
 }
 
+async function linkTvWatchesForRank(auth, watches) {
+  const list = (watches || []).map((w) => ({ ...w }));
+  const pending = new Map();
+  for (const watch of list) {
+    if (Number(watch.tmdb_id) > 0) continue;
+    const title = String(watch.title || '').trim();
+    if (!title) continue;
+    const key = title.toLowerCase();
+    if (!pending.has(key)) pending.set(key, { title, watches: [] });
+    pending.get(key).watches.push(watch);
+  }
+  if (!pending.size) return list;
+
+  let changed = false;
+  for (const { title, watches: group } of pending.values()) {
+    const tmdbId = await tvApi.resolve(auth.token, title);
+    if (!tmdbId) continue;
+    for (const watch of group) {
+      try {
+        const { watch: saved } = await tvWatchesApi.update(auth.token, {
+          id: watch.id,
+          title: watch.title,
+          watched_on: watch.watched_on,
+          tmdb_id: tmdbId,
+          season: watch.season,
+          episode: watch.episode,
+          rating: watch.rating,
+          dnf: watch.dnf,
+          notes: watch.notes,
+        });
+        const idx = list.findIndex((row) => row.id === watch.id);
+        if (idx >= 0) list[idx] = saved;
+        changed = true;
+      } catch {
+        const idx = list.findIndex((row) => row.id === watch.id);
+        if (idx >= 0) list[idx] = { ...list[idx], tmdb_id: tmdbId };
+      }
+    }
+  }
+  if (changed) invalidateReadCache();
+  return list;
+}
+
 async function pruneRanks(kind, ranks, watches, auth) {
   const cfg = kindConfig(kind);
   const pruned = cfg.dropIneligible(ranks, watches);
@@ -224,7 +269,7 @@ function viewHtml(page, cfg) {
   const tabs = page.tvEnabled ? segmentHtml(page) : '';
 
   if (!state.ranks.length && !state.candidate && !state.saving) {
-    return `${tabs}${firstRunHtml(state, cfg)}${confirm}${overlay}`;
+    return `${tabs}${firstRunHtml(state, cfg, page.kind)}${confirm}${overlay}`;
   }
 
   return `${tabs}${listHtml(state, cfg)}${confirm}${overlay}`;
@@ -247,24 +292,36 @@ function segmentHtml(page) {
   `;
 }
 
-function firstRunHtml(state, cfg) {
+function firstRunHtml(state, cfg, kind) {
   const logged = cfg.firstRun(state.watches);
   const n = logged.length;
+  const totalEntries = (state.watches || []).length;
+  const unlinked = kind === 'tv' ? unlinkedTvShowCount(state.watches) : 0;
 
-  const loggedBlock = n
-    ? `
+  let loggedBlock;
+  if (n) {
+    loggedBlock = `
       <p class="al-muted">${cfg.firstRunIntro}</p>
       <div class="al-toolbar" style="margin-top:12px">
         <button class="al-btn al-btn-primary" type="button" id="rank-start">
           ${cfg.firstRunButton(n)}
         </button>
       </div>
-    `
-    : `
+    `;
+  } else if (totalEntries > 0 && unlinked > 0 && cfg.emptyUnlinked) {
+    loggedBlock = `
+      <div class="al-empty al-empty--first-run">
+        <p>${cfg.emptyUnlinked(unlinked)}</p>
+        <p style="margin-top:12px"><a class="al-btn al-btn-primary" href="/amc-a-lister/tv.html">Go to TV log</a></p>
+      </div>
+    `;
+  } else {
+    loggedBlock = `
       <div class="al-empty al-empty--first-run">
         <p>${cfg.emptyFirstRun}</p>
       </div>
     `;
+  }
 
   return `
     <section class="al-panel al-rank-panel">

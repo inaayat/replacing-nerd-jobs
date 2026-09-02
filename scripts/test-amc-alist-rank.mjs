@@ -18,6 +18,7 @@ import {
   dropIneligibleTvRanks,
   uniqueLoggedShows,
   firstRunShows,
+  unlinkedTvShowCount,
 } from '../amc-a-lister/engine/rank-insert.js';
 
 function movie(id, title = `M${id}`) {
@@ -210,6 +211,17 @@ function placeWithAnswers(rankedLength, answers) {
 
   const queue = firstRunShows(watches);
   assert.deepEqual(queue.map((s) => s.tmdb_id), [100, 200]);
+}
+
+// Unlinked TV shows: titles without tmdb_id.
+{
+  const watches = [
+    { title: 'Ted Lasso' },
+    { title: 'Ted Lasso', tmdb_id: null },
+    { title: 'The Bear', tmdb_id: 200 },
+  ];
+  assert.equal(unlinkedTvShowCount(watches), 1);
+  assert.equal(unlinkedTvShowCount([]), 0);
 }
 
 console.log('amc alist rank tests passed');

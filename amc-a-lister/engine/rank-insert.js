@@ -167,6 +167,17 @@ export function uniqueLoggedShows(watches, rankedTmdbIds = []) {
   return out;
 }
 
+/** Count unique show titles in the log that have no tmdb_id. */
+export function unlinkedTvShowCount(watches) {
+  const titles = new Set();
+  for (const watch of watches || []) {
+    if (Number(watch.tmdb_id) > 0) continue;
+    const title = String(watch.title || '').trim();
+    if (title) titles.add(title.toLowerCase());
+  }
+  return titles.size;
+}
+
 /** First TV ranking setup: every unique logged show. */
 export function firstRunShows(watches) {
   return uniqueLoggedShows(watches);
