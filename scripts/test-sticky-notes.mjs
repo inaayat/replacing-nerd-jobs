@@ -70,6 +70,9 @@ import {
   phoneNoteZoom,
   placeEditPopover,
   planEditSession,
+  usesPhoneCompose,
+  boardCreatePath,
+  PHONE_COMPOSE_H,
   rectsIntersect,
   resizeNoteSize,
   richFromNode,
@@ -1315,6 +1318,59 @@ function note(id, extra = {}) {
     preferAbove: true,
   });
   eq(phoneRight.shift, -112, 'phone nudges a right-edge swatch row back into the canvas');
+}
+
+// 24. Phone create opens compose; it does not depend on double-tap
+{
+  const phone = boardCreatePath({ coarse: true, width: 390 });
+  eq(phone.compose, true, 'phone opens an untransformed compose field');
+  eq(phone.doubleTapCreates, false, 'phone create does not depend on double-tap');
+  eq(phone.dblclickCreates, false, 'touch dblclick is ignored so a pan is not a create');
+  eq(phone.primaryGesture, 'add', 'phone primary create is +');
+  eq(usesPhoneCompose({ coarse: true, width: 390 }), true, 'usesPhoneCompose is true on a phone');
+
+  const ipad = boardCreatePath({ coarse: true, width: 1024 });
+  eq(ipad.compose, true, 'coarse tablet still uses compose (Safari keyboard)');
+  eq(ipad.doubleTapCreates, false, 'coarse tablet does not double-tap to create');
+
+  const narrow = boardCreatePath({ coarse: false, width: 390 });
+  eq(narrow.compose, true, 'narrow viewport uses compose even with a mouse');
+  eq(narrow.dblclickCreates, true, 'a mouse still double-clicks to create');
+
+  const desktop = boardCreatePath({ coarse: false, width: 1440 });
+  eq(desktop.compose, false, 'desktop types on the card');
+  eq(desktop.doubleTapCreates, false, 'empty-board double-tap is never the create path');
+  eq(desktop.dblclickCreates, true, 'desktop double-click still creates');
+  eq(desktop.primaryGesture, 'dblclick', 'desktop primary empty-board create is double-click');
+  eq(usesPhoneCompose({ coarse: false, width: 1440 }), false, 'usesPhoneCompose is false on desktop');
+
+  const canvas = { top: 80, left: 8, right: 382, bottom: 800 };
+  const withSheet = planEditSession({
+    card: { top: 400, bottom: 480, left: 80, width: 220 },
+    barW: 280,
+    barH: 36,
+    canvas,
+    visible: { top: 0, bottom: 360 },
+    phone: true,
+    composeH: PHONE_COMPOSE_H,
+  });
+  eq(withSheet.dy, 0, 'compose session still never pans');
+  eq(withSheet.docked, true, 'compose session still docks the bar');
+  eq(withSheet.composeHeight, 128, 'compose sheet uses the requested height when it fits');
+  eq(withSheet.composeTop, 232, 'compose sheet sits on the remaining-canvas floor');
+  eq(withSheet.top, 192, 'docked bar sits just above the compose sheet');
+
+  const noSheet = planEditSession({
+    card: { top: 400, bottom: 480, left: 80, width: 220 },
+    barW: 280,
+    barH: 36,
+    canvas,
+    visible: { top: 0, bottom: 360 },
+    phone: true,
+  });
+  eq(noSheet.top, 320, 'without a compose sheet the bar still docks on the canvas floor');
+  eq(noSheet.composeTop, null, 'no compose sheet means no composeTop');
+  eq(noSheet.composeHeight, 0, 'no compose sheet means zero compose height');
 }
 
 {

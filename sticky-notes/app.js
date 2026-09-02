@@ -33,6 +33,7 @@ import {
   PIN_SVG,
   TAG_SVG,
   TRASH_SVG,
+  boardCreatePath,
   approach,
   BOARD_VIEW_KEY,
   BOARD_VIEW_KEY_V1,
@@ -331,7 +332,9 @@ function guideGroups() {
     {
       title: 'Toolbar',
       rows: [
-        { glyph: '+', name: 'Add a note', text: 'Drops a blank note in the first free space and opens it for typing. In the table view it creates a row and focuses it.' },
+        { glyph: '+', name: 'Add a note', text: touch
+          ? 'Drops a blank note and opens a typing field above the keyboard — not on the scaled card. In the table view it creates a row and focuses it.'
+          : 'Drops a blank note in the first free space and opens it for typing. In the table view it creates a row and focuses it.' },
         {
           glyph: '▦',
           name: 'Canvas or table',
@@ -424,10 +427,10 @@ function guideGroups() {
       title: touch ? 'Touch' : 'Mouse and keyboard',
       rows: touch
         ? [
-            { glyph: '⇢', name: 'Tap a note', text: 'Types into it. Drag past a small slop to move it.' },
+            { glyph: '⇢', name: 'Tap a note', text: 'Opens a typing field above the keyboard. Drag past a small slop to move it.' },
             { glyph: '⇲', name: 'Drag a note or the board', text: 'A note moves; empty board pans. Pinch with two fingers to zoom.' },
             { glyph: '⏱', name: 'Long-press a note', text: 'Starts a selection — then tap notes to add, and tap the board when you are done.' },
-            { glyph: '⊕', name: 'Double-tap the board', text: 'Makes a new note there.' },
+            { glyph: '✎', name: 'Typing', text: 'Happens in a field above the keyboard, not on the scaled card. Tap + to start. Done, or tapping the board, saves it.' },
           ]
         : [
             { glyph: '⇢', name: 'Click a note', text: 'Types into it, with the caret where you clicked. Drag instead to move it.' },
@@ -621,7 +624,7 @@ async function init() {
   $('#app').hidden = false;
 
   $('#board-empty-sub').textContent = coarse()
-    ? 'Tap + above, or double-tap the board. Then tap a note to type into it.'
+    ? 'Tap + above to write a note. Tap a note to keep typing.'
     : 'Press N, double-click the board, or paste something. Then click a note to type into it.';
 
   const store = createStore({ token: auth.token, guest: guestMode && !expired });
@@ -676,6 +679,8 @@ async function init() {
       zoomLabel: $('#zoom-fit'),
       addText: $('#add-text'),
       editbar: $('#editbar'),
+      compose: $('#compose'),
+      composeBody: $('#compose-body'),
       ebTrash: $('#eb-trash'),
       ebPin: $('#eb-pin'),
       ebColor: $('#eb-color'),
@@ -939,9 +944,27 @@ async function init() {
   if (zoomCenter) zoomCenter.innerHTML = RECENTER_SVG;
   viewCanvas.addEventListener('click', () => setBoardView('canvas'));
   viewTable.addEventListener('click', () => setBoardView('table'));
-  $('#add-note').addEventListener('click', () => {
+  const addNote = $('#add-note');
+  let addNoteAt = 0;
+  function addNoteNow() {
     if (boardView === 'table') table.createNote();
     else board.createNote();
+  }
+  // Phone: open compose on pointerup in this same gesture, without
+  // preventDefault, so iOS will actually raise the keyboard. Click stays
+  // for desktop / keyboard activation and is ignored if pointerup already ran.
+  addNote.addEventListener('pointerup', (e) => {
+    if (e.button) return;
+    if (!boardCreatePath({ coarse: coarse(), width: window.innerWidth }).compose) return;
+    addNoteAt = performance.now();
+    addNoteNow();
+  });
+  addNote.addEventListener('click', () => {
+    if (performance.now() - addNoteAt < 700) {
+      board.focusCompose?.();
+      return;
+    }
+    addNoteNow();
   });
   $('#add-text').addEventListener('click', () => board.startText());
   $('#select-all').addEventListener('click', () => board.selectAll());

@@ -32,6 +32,11 @@ export const ZOOM_MIN = 0.4;
 export const ZOOM_MAX = 2;
 /** Coarse viewports this wide are a phone: leftover v1 `table` is reset once. */
 export const PHONE_VIEW_MAX = 720;
+/**
+ * Default height of the phone compose sheet. It sits outside `#world` so iOS
+ * will type into it; the scaled card is not the editor.
+ */
+export const PHONE_COMPOSE_H = 128;
 /** Canvas | table toggle. v2 so a leftover #276 phone `table` can be ignored. */
 export const BOARD_VIEW_KEY = 'sticky-notes-board-view-v2';
 export const BOARD_VIEW_KEY_V1 = 'sticky-notes-board-view';
@@ -1494,17 +1499,44 @@ export function phoneNoteZoom({ zoom, noteW, viewW, minScreenW = 260 } = {}) {
 }
 
 /**
+ * Phone typing uses an untransformed compose field (not inside `#world`).
+ * Coarse pointer and/or a viewport at the phone width — the Safari / PWA
+ * keyboard will not reliably open on a CSS-transformed card.
+ */
+export function usesPhoneCompose({ coarse = false, width = 1024 } = {}) {
+  return Boolean(coarse) || (Number(width) <= PHONE_VIEW_MAX);
+}
+
+/**
+ * How a note is created and opened for typing.
+ * Phone: `+` opens the compose field in the same gesture; empty-board
+ * double-tap is not a create path. Desktop: double-click empty board
+ * (and N / +) types on the card.
+ */
+export function boardCreatePath({ coarse = false, width = 1024 } = {}) {
+  const compose = usesPhoneCompose({ coarse, width });
+  return {
+    compose,
+    doubleTapCreates: false,
+    dblclickCreates: !Boolean(coarse),
+    primaryGesture: compose ? 'add' : 'dblclick',
+  };
+}
+
+/**
  * Edit-bar position for the note (or ink) being typed.
  *
  * Phone / coarse: the keyboard is a layout inset, so the remaining canvas
  * is already the space above it. Do not pan (`dy` is 0). Dock the slim
- * bar at the bottom of that slice, just above the keyboard.
+ * bar at the bottom of that slice, just above the keyboard. When a compose
+ * sheet is open (`composeH`), it occupies the floor and the bar sits
+ * immediately above it.
  * Desktop is the existing float-above / flip-below behaviour (`dy` may
  * nudge a card that sits under the floating bar).
  *
  * The document scale stays 1.
  */
-export function planEditSession({ card, barW, barH, canvas, visible, phone }) {
+export function planEditSession({ card, barW, barH, canvas, visible, phone, composeH = 0 }) {
   const width = Number.isFinite(barW) ? barW : 0;
   const height = Number.isFinite(barH) ? barH : 0;
   const clipTop = Math.max(canvas.top, visible.top);
@@ -1513,11 +1545,18 @@ export function planEditSession({ card, barW, barH, canvas, visible, phone }) {
   const maxLeft = Math.max(minLeft, canvas.right - width - 4);
 
   if (phone) {
+    const wanted = Math.max(0, Number.isFinite(composeH) ? composeH : 0);
+    const maxCompose = Math.max(0, clipBottom - clipTop - height - 8);
+    const compose = Math.min(wanted, maxCompose);
+    const composeTop = compose ? clipBottom - compose : null;
+    const floor = composeTop != null ? composeTop : clipBottom;
     return {
       dy: 0,
-      top: clipBottom - height - 4,
+      top: floor - height - 4,
       left: minLeft,
       docked: true,
+      composeTop,
+      composeHeight: compose,
     };
   }
 

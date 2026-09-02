@@ -271,9 +271,24 @@
       </div>
     </main>
 
+    <!-- Phone compose: untransformed typing surface, not inside #world.
+         iOS will type into this; a scaled .sn-card-body will not. Desktop
+         still types on the card. -->
+    <div class="sn-compose" id="compose" hidden>
+      <div
+        class="sn-compose-body"
+        id="compose-body"
+        role="textbox"
+        aria-multiline="true"
+        aria-label="Note text"
+        inputmode="text"
+        enterkeyhint="enter"
+      ></div>
+    </div>
+
     <!-- Tier 1 chrome: rides the note being edited, in screen space. On a
          phone the bar stays one slim row and docks at the bottom of the
-         remaining canvas (just above the keyboard). Desktop floats it. -->
+         remaining canvas (just above the compose sheet / keyboard). Desktop floats it. -->
     <div class="sn-editbar" id="editbar" hidden role="toolbar" aria-label="Note actions">
       <button type="button" class="sn-eb-btn sn-eb-danger" id="eb-trash" aria-label="Delete note" title="Delete for good"></button>
       <button type="button" class="sn-eb-btn" id="eb-pin" aria-label="Pin note" title="Pin — survives a wipe"></button>
