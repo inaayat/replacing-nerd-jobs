@@ -14,18 +14,16 @@ import {
 import { emptyBoard, addBucket } from '../wedding/engine/model.js';
 
 assert.equal(viewHash(defaultView()), '#home');
-assert.equal(parseViewHash('#plan/next').kind, 'plan');
-assert.equal(parseViewHash('#plan/next').section, 'next');
 assert.equal(parseViewHash('#favorites').kind, 'favorites');
+assert.equal(parseViewHash('#plan/someday').kind, 'home', 'plan hash redirects home');
 
 let board = emptyBoard();
 board = addBucket(board, 'Venue');
 const id = board.buckets[0].id;
 assert.equal(parseViewHash(`#tag/${id}`, { tagIds: [id] }).kind, 'tag');
-assert.equal(parseViewHash(`#b/${id}`, { tagIds: [id] }).kind, 'tag', 'legacy b/ hash works');
 
-assert.match(viewCopy({ kind: 'home' }), /Recent inspiration/);
-assert.equal(viewTitle({ kind: 'plan', section: 'decisions' }, board), 'Decisions');
+assert.match(viewCopy({ kind: 'home' }), /Recent saves/);
+assert.equal(viewTitle({ kind: 'favorites' }, board), 'Favorites');
 assert.equal(usesCollage({ kind: 'shortlist' }), true);
 
 console.log('wedding routes tests passed');

@@ -49,18 +49,7 @@ import {
   clipNeedsUnfurl,
   clipHasVisual,
   CLIP_STATUSES,
-  addTask,
-  updateTask,
-  removeTask,
-  addDecision,
-  updateDecision,
-  removeDecision,
-  tasksIn,
-  taskById,
-  decisionById,
 } from './model.js';
-
-const STORAGE_KEY = 'wedding:board';
 const SORT_KEY = 'wedding-sort-v1';
 const MEDIA_KEY = 'wedding-media-v1';
 const root = document.getElementById('app-root');
@@ -208,7 +197,7 @@ function commit(next, { instant = false } = {}) {
 
 function filterViewArg() {
   if (view.kind === 'tag') return { kind: 'tag', id: view.id };
-  if (view.kind === 'home' || view.kind === 'plan') return 'all';
+  if (view.kind === 'home') return 'all';
   return view.kind;
 }
 
@@ -410,10 +399,6 @@ function clipCard(clip) {
           ${tagPills({ selected: tags, act: 'tag-toggle', includeInbox: false, multi: true })}
         </div>
       </div>
-      <div class="wd-card-actions">
-        <button type="button" class="wd-btn wd-btn-ghost" data-act="make-decision">Turn into decision</button>
-        <button type="button" class="wd-btn wd-btn-ghost" data-act="make-task">Add next step</button>
-      </div>
     </article>
   `;
 }
@@ -451,9 +436,6 @@ function railItem(href, label, count, active, nav) {
 
 function railHtml() {
   const summary = homeSummary(board);
-  const nextCount = tasksIn(board, 'next').length;
-  const somedayCount = tasksIn(board, 'someday').length;
-  const doneCount = tasksIn(board, 'done').length;
   const archivedCount = board.clips.filter((c) => c.status === 'archived').length;
   const tagRows = board.buckets.map((b) => railItem(
     `#tag/${encodeURIComponent(b.id)}`,
@@ -467,44 +449,27 @@ function railHtml() {
       ${railItem('#home', 'Home', null, view.kind === 'home' && !query, 'home')}
       <p class="wd-rail-label">Inspiration</p>
       ${railItem('#inbox', 'Inbox', summary.inbox, view.kind === 'inbox' && !query, 'inbox')}
-      ${railItem('#all', 'Everything', board.clips.filter((c) => c.status !== 'archived').length, view.kind === 'all' && !query, 'all')}
+      ${railItem('#all', 'Everything', summary.total, view.kind === 'all' && !query, 'all')}
       ${railItem('#favorites', 'Favorites', summary.favorites, view.kind === 'favorites' && !query, 'favorites')}
       ${railItem('#shortlist', 'Shortlist', summary.shortlist, view.kind === 'shortlist' && !query, 'shortlist')}
       ${railItem('#chosen', 'Chosen', board.clips.filter((c) => c.status === 'chosen').length, view.kind === 'chosen' && !query, 'chosen')}
       ${tagRows || '<p class="wd-rail-empty">Tags appear as you create them.</p>'}
       ${archivedCount ? railItem('#archived', 'Archived', archivedCount, view.kind === 'archived' && !query, 'archived') : ''}
-      <p class="wd-rail-label">Plan</p>
-      ${railItem('#plan/next', 'Next up', nextCount, view.kind === 'plan' && view.section === 'next' && !query, 'plan-next')}
-      ${railItem('#plan/someday', 'Someday', somedayCount, view.kind === 'plan' && view.section === 'someday' && !query, 'plan-someday')}
-      ${railItem('#plan/decisions', 'Decisions', summary.openDecisions, view.kind === 'plan' && view.section === 'decisions' && !query, 'plan-decisions')}
-      ${railItem('#plan/done', 'Done', doneCount, view.kind === 'plan' && view.section === 'done' && !query, 'plan-done')}
     </nav>
   `;
 }
 
 function mobileNavHtml() {
-  const section = view.kind === 'plan' ? 'plan' : (view.kind === 'home' ? 'home' : 'inspiration');
+  const onHome = view.kind === 'home';
   return `
     <nav class="wd-tabbar" aria-label="Sections">
-      <a class="wd-tab${section === 'home' ? ' is-active' : ''}" href="#home" data-nav="home">Home</a>
-      <a class="wd-tab${section === 'inspiration' ? ' is-active' : ''}" href="#inbox" data-nav="inbox">Inspiration</a>
-      <a class="wd-tab${section === 'plan' ? ' is-active' : ''}" href="#plan/next" data-nav="plan-next">Plan</a>
+      <a class="wd-tab${onHome ? ' is-active' : ''}" href="#home" data-nav="home">Home</a>
+      <a class="wd-tab${onHome ? '' : ' is-active'}" href="#inbox" data-nav="inbox">Inspiration</a>
     </nav>`;
 }
 
 function chipsHtml() {
   if (view.kind === 'home') return '';
-  if (view.kind === 'plan') {
-    const chip = (section, label) => `
-      <a class="wd-chip${view.section === section ? ' is-active' : ''}" href="#plan/${section}" data-nav="plan-${section}">${escapeHtml(label)}</a>`;
-    return `
-      <div class="wd-chips" aria-label="Plan">
-        ${chip('next', 'Next')}
-        ${chip('someday', 'Someday')}
-        ${chip('decisions', 'Decisions')}
-        ${chip('done', 'Done')}
-      </div>`;
-  }
   const chip = (href, label, active, count, nav) => `
     <a class="wd-chip${active ? ' is-active' : ''}" href="${href}" data-nav="${nav}">${escapeHtml(label)} <em>${count}</em></a>`;
   const summary = homeSummary(board);
@@ -518,7 +483,7 @@ function chipsHtml() {
 }
 
 function filterBarHtml() {
-  if (view.kind === 'home' || view.kind === 'plan') return '';
+  if (view.kind === 'home') return '';
   return `
     <div class="wd-filters">
       <label class="wd-filter">Sort
@@ -539,7 +504,7 @@ function filterBarHtml() {
 }
 
 function tagBarHtml() {
-  if (view.kind === 'home' || view.kind === 'plan') return '';
+  if (view.kind === 'home') return '';
   return `
     <div class="wd-tagbar">
       <div class="wd-tags" role="navigation" aria-label="Tags">
@@ -550,7 +515,6 @@ function tagBarHtml() {
 }
 
 function composerHtml() {
-  if (view.kind === 'plan') return planComposerHtml();
   const expanded = composerExpanded ? ' is-open' : '';
   const tags = composerTags.size ? composerTags : defaultComposerTags();
   return `
@@ -580,25 +544,6 @@ function composerHtml() {
   `;
 }
 
-function planComposerHtml() {
-  if (view.section === 'decisions') {
-    return `
-      <form class="wd-plan-form" data-act="add-decision">
-        <input class="wd-input" name="title" type="text" maxlength="120" placeholder="A decision you are weighing…" aria-label="Decision title" required>
-        <textarea class="wd-input wd-plan-notes" name="notes" rows="2" placeholder="Notes (optional)" aria-label="Decision notes"></textarea>
-        <button type="submit" class="wd-btn wd-btn-keep">Add decision</button>
-      </form>`;
-  }
-  const status = view.section === 'done' ? 'done' : (view.section === 'next' ? 'next' : 'someday');
-  return `
-    <form class="wd-plan-form" data-act="add-task">
-      <input type="hidden" name="status" value="${status}">
-      <input class="wd-input" name="title" type="text" maxlength="120" placeholder="${status === 'next' ? 'Something to do soon…' : 'Something for later…'}" aria-label="Task title" required>
-      <textarea class="wd-input wd-plan-notes" name="notes" rows="2" placeholder="Notes (optional)" aria-label="Task notes"></textarea>
-      <button type="submit" class="wd-btn wd-btn-keep">Add task</button>
-    </form>`;
-}
-
 function homeHtml() {
   const summary = homeSummary(board);
   const stat = (href, label, count, copy) => `
@@ -610,81 +555,19 @@ function homeHtml() {
   const recent = summary.recent.length
     ? `<section class="wd-feed wd-feed-home">${summary.recent.map(clipCard).join('')}</section>`
     : `<p class="wd-empty">Nothing saved yet. Paste a link above, or open Inbox to start.</p>`;
-  const tasks = summary.nextTasks.length
-    ? `<ul class="wd-task-list">${summary.nextTasks.map(taskRow).join('')}</ul>`
-    : `<p class="wd-empty-inline">No next steps yet — add one under <a href="#plan/next">Plan → Next up</a>.</p>`;
   return `
     <div class="wd-home">
       <div class="wd-stats">
-        ${stat('#inbox', 'Inbox', summary.inbox, 'Untagged clips waiting for a home')}
+        ${stat('#inbox', 'Inbox', summary.inbox, 'Untagged — ready to tag when you are')}
+        ${stat('#all', 'Saved', summary.total, 'Everything in one place')}
         ${stat('#favorites', 'Favorites', summary.favorites, 'Ones you have hearted')}
         ${stat('#shortlist', 'Shortlist', summary.shortlist, 'Strong contenders')}
-        ${stat('#plan/decisions', 'Decisions', summary.openDecisions, 'Still exploring')}
       </div>
       <section class="wd-home-block">
-        <h2 class="wd-home-h">Recent inspiration</h2>
+        <h2 class="wd-home-h">Recent <a class="wd-home-link" href="#all">See everything</a></h2>
         ${recent}
       </section>
-      <section class="wd-home-block">
-        <h2 class="wd-home-h">Next up <a class="wd-home-link" href="#plan/next">See all</a></h2>
-        ${tasks}
-      </section>
     </div>`;
-}
-
-function taskRow(task) {
-  const next = task.status === 'next';
-  const done = task.status === 'done';
-  return `
-    <li class="wd-task${done ? ' is-done' : ''}" data-task="${escapeHtml(task.id)}">
-      <label class="wd-task-check">
-        <input type="checkbox" data-act="task-done" ${done ? 'checked' : ''}>
-        <span>${escapeHtml(task.title)}</span>
-      </label>
-      ${next ? `<button type="button" class="wd-btn wd-btn-ghost" data-act="task-someday">Later</button>` : ''}
-      ${!done && task.status === 'someday' ? `<button type="button" class="wd-btn wd-btn-ghost" data-act="task-next">Next</button>` : ''}
-      <button type="button" class="wd-icon-btn" data-act="task-delete" aria-label="Remove">×</button>
-    </li>`;
-}
-
-function decisionRow(decision) {
-  const decided = decision.status === 'decided';
-  const linked = (decision.clipIds || [])
-    .map((id) => board.clips.find((c) => c.id === id))
-    .filter(Boolean);
-  return `
-    <article class="wd-decision${decided ? ' is-decided' : ''}" data-decision="${escapeHtml(decision.id)}">
-      <div class="wd-decision-head">
-        <h3 class="wd-decision-title">${escapeHtml(decision.title)}</h3>
-        <div class="wd-decision-actions">
-          ${decided
-    ? `<button type="button" class="wd-btn wd-btn-ghost" data-act="decision-explore">Reopen</button>`
-    : `<button type="button" class="wd-btn wd-btn-ghost" data-act="decision-decide">Decided</button>`}
-          <button type="button" class="wd-icon-btn" data-act="decision-delete" aria-label="Remove">×</button>
-        </div>
-      </div>
-      ${decision.notes.trim() ? `<p class="wd-decision-notes">${escapeHtml(decision.notes)}</p>` : ''}
-      ${linked.length ? `
-        <div class="wd-decision-clips">
-          ${linked.slice(0, 4).map((clip) => `<a href="#all" data-nav="all" class="wd-decision-clip">${escapeHtml(clipDisplayLabel(clip) || 'Linked clip')}</a>`).join('')}
-        </div>` : ''}
-    </article>`;
-}
-
-function planHtml() {
-  if (view.section === 'decisions') {
-    const rows = board.decisions || [];
-    return `
-      <section class="wd-plan-list">
-        ${rows.length ? rows.map(decisionRow).join('') : `<p class="wd-empty">No decisions yet. Name one above — link inspiration from a clip when you are ready.</p>`}
-      </section>`;
-  }
-  const status = view.section === 'done' ? 'done' : (view.section === 'next' ? 'next' : 'someday');
-  const rows = tasksIn(board, status);
-  return `
-    <ul class="wd-task-list wd-plan-list">
-      ${rows.length ? rows.map(taskRow).join('') : `<p class="wd-empty">Nothing here yet.</p>`}
-    </ul>`;
 }
 
 function emptyStateHtml() {
@@ -735,7 +618,6 @@ function bucketToolsHtml() {
 
 function mainContentHtml() {
   if (view.kind === 'home') return homeHtml();
-  if (view.kind === 'plan') return planHtml();
   return feedHtml(visibleClips());
 }
 
@@ -761,9 +643,7 @@ function renderApp() {
         </header>
         ${filterBarHtml()}
         ${tagBarHtml()}
-        ${view.kind === 'plan' || view.kind === 'home' ? '' : composerHtml()}
-        ${view.kind === 'plan' ? composerHtml() : ''}
-        ${view.kind === 'home' ? composerHtml() : ''}
+        ${composerHtml()}
         ${mainContentHtml()}
       </main>
     </div>
@@ -793,10 +673,6 @@ function navFromEl(el) {
   if (nav === 'chosen') return { kind: 'chosen' };
   if (nav === 'archived') return { kind: 'archived' };
   if (nav === 'tag') return { kind: 'tag', id: el.getAttribute('data-id') };
-  if (nav === 'plan-next') return { kind: 'plan', section: 'next' };
-  if (nav === 'plan-someday') return { kind: 'plan', section: 'someday' };
-  if (nav === 'plan-decisions') return { kind: 'plan', section: 'decisions' };
-  if (nav === 'plan-done') return { kind: 'plan', section: 'done' };
   return defaultView();
 }
 
@@ -996,30 +872,6 @@ function wireApp() {
       const clip = board.clips.find((c) => c.id === id);
       if (clip) playPreview(card, clip);
     });
-    card.querySelector('[data-act="make-decision"]')?.addEventListener('click', () => {
-      const clip = board.clips.find((c) => c.id === id);
-      const title = clipDisplayLabel(clip) || clip.body.trim().slice(0, 80) || 'New decision';
-      try {
-        commit(addDecision(board, { title, clipIds: [id] }), { instant: true });
-        setHash({ kind: 'plan', section: 'decisions' });
-        showToast('Added to Decisions');
-        render();
-      } catch (err) {
-        showToast(err.message);
-      }
-    });
-    card.querySelector('[data-act="make-task"]')?.addEventListener('click', () => {
-      const clip = board.clips.find((c) => c.id === id);
-      const title = clipDisplayLabel(clip) || clip.body.trim().slice(0, 80) || 'Follow up';
-      try {
-        commit(addTask(board, { title, status: 'next', clipIds: [id] }), { instant: true });
-        setHash({ kind: 'plan', section: 'next' });
-        showToast('Added to Next up');
-        render();
-      } catch (err) {
-        showToast(err.message);
-      }
-    });
     card.querySelectorAll('.wd-card-image img, .wd-preview-img, .wd-collage-tile img').forEach((img) => {
       img.addEventListener('error', () => {
         const photo = img.closest('.wd-card-image');
@@ -1065,88 +917,6 @@ function wireApp() {
       open();
     });
   });
-
-  root.querySelectorAll('[data-act="add-task"]').forEach((form) => {
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const fd = new FormData(form);
-      try {
-        commit(addTask(board, {
-          title: fd.get('title'),
-          notes: fd.get('notes'),
-          status: fd.get('status') || 'someday',
-        }), { instant: true });
-        form.reset();
-      } catch (err) {
-        showToast(err.message);
-      }
-    });
-  });
-
-  root.querySelectorAll('[data-act="add-decision"]').forEach((form) => {
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const fd = new FormData(form);
-      try {
-        commit(addDecision(board, {
-          title: fd.get('title'),
-          notes: fd.get('notes'),
-        }), { instant: true });
-        form.reset();
-      } catch (err) {
-        showToast(err.message);
-      }
-    });
-  });
-
-  root.querySelectorAll('.wd-task').forEach((row) => {
-    const id = row.getAttribute('data-task');
-    row.querySelector('[data-act="task-done"]')?.addEventListener('change', (e) => {
-      try {
-        commit(updateTask(board, id, { status: e.target.checked ? 'done' : 'next' }), { instant: true });
-      } catch (err) {
-        showToast(err.message);
-      }
-    });
-    row.querySelector('[data-act="task-next"]')?.addEventListener('click', () => {
-      commit(updateTask(board, id, { status: 'next' }), { instant: true });
-    });
-    row.querySelector('[data-act="task-someday"]')?.addEventListener('click', () => {
-      commit(updateTask(board, id, { status: 'someday' }), { instant: true });
-    });
-    row.querySelector('[data-act="task-delete"]')?.addEventListener('click', () => {
-      const task = taskById(board, id);
-      commit(removeTask(board, id), { instant: true });
-      showToast('Removed', {
-        undo: () => {
-          const next = normalizeBoard(board);
-          next.tasks.unshift(task);
-          commit(next, { instant: true });
-        },
-      });
-    });
-  });
-
-  root.querySelectorAll('.wd-decision').forEach((row) => {
-    const id = row.getAttribute('data-decision');
-    row.querySelector('[data-act="decision-decide"]')?.addEventListener('click', () => {
-      commit(updateDecision(board, id, { status: 'decided' }), { instant: true });
-    });
-    row.querySelector('[data-act="decision-explore"]')?.addEventListener('click', () => {
-      commit(updateDecision(board, id, { status: 'exploring' }), { instant: true });
-    });
-    row.querySelector('[data-act="decision-delete"]')?.addEventListener('click', () => {
-      const decision = decisionById(board, id);
-      commit(removeDecision(board, id), { instant: true });
-      showToast('Removed', {
-        undo: () => {
-          const next = normalizeBoard(board);
-          next.decisions.unshift(decision);
-          commit(next, { instant: true });
-        },
-      });
-    });
-  });
 }
 
 function onSearchInput(e) {
@@ -1167,7 +937,7 @@ function renderSignInGate() {
   renderWeddingSignIn(root, {
     art: RING_ART,
     title: 'Wedding',
-    copy: 'Save inspiration as you find it — links, photos, and loose notes — then tag, shortlist, and plan at your own pace.',
+    copy: 'Save inspiration as you find it — links, photos, and loose notes in one private board. Tag and browse when you are ready.',
     features: weddingGateFeaturesHtml(),
     note,
     onSuccess: () => location.reload(),

@@ -1,7 +1,7 @@
 {
   "name": "Wedding",
   "short_name": "Wedding",
-  "description": "Private wedding inspiration board — save links, tag ideas, and plan slowly.",
+  "description": "Private wedding inspiration board — save links, tag ideas, compile in one place.",
   "start_url": "/wedding/",
   "scope": "/wedding/",
   "display": "standalone",

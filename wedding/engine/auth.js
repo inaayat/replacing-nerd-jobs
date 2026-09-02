@@ -26,7 +26,7 @@ export function weddingGateFeaturesHtml() {
     <ul class="wd-gate-features">
       <li><strong>Inspiration</strong> — paste TikToks, Reels, Pinterest pins, and photos into an inbox; tag when a theme emerges</li>
       <li><strong>Collage</strong> — browse saved looks in a visual grid; heart favorites and shortlist contenders</li>
-      <li><strong>Plan slowly</strong> — Someday / Next tasks and Decisions linked to clips — no timeline pressure</li>
+      <li><strong>Search</strong> — find anything by note, link text, or site name</li>
     </ul>
     <p class="wd-gate-private">Private to your account. One board, synced across devices.</p>`;
 }

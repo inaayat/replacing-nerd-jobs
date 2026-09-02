@@ -12,18 +12,10 @@ export const BOARD_LIMITS = {
   body: 4000,
   url: 2048,
   urlLabel: 120,
-  tasks: 400,
-  taskTitle: 120,
-  taskNotes: 2000,
-  decisions: 120,
-  decisionTitle: 120,
-  decisionNotes: 4000,
   json: 500_000,
 };
 
 export const CLIP_STATUSES = ['saved', 'shortlist', 'chosen', 'archived'];
-export const TASK_STATUSES = ['someday', 'next', 'done'];
-export const DECISION_STATUSES = ['exploring', 'decided'];
 
 export const SUGGESTED_BUCKETS = [
   { name: 'Venue', hint: 'places, rooms, outdoor spots' },
@@ -48,9 +40,6 @@ export function emptyBoard() {
     title: 'Wedding',
     buckets: [],
     clips: [],
-    tasks: [],
-    decisions: [],
-    meta: { weddingDate: null },
   };
 }
 
@@ -469,58 +458,6 @@ function normalizeClip(raw, used, bucketIds) {
   };
 }
 
-function normalizeTask(raw, used, clipIds) {
-  const rec = raw && typeof raw === 'object' ? raw : {};
-  const title = clipStr(rec.title, BOARD_LIMITS.taskTitle).trim();
-  if (!title) return null;
-  const status = TASK_STATUSES.includes(rec.status) ? rec.status : 'someday';
-  const notes = clipStr(rec.notes, BOARD_LIMITS.taskNotes);
-  const due = rec.due == null || rec.due === '' ? null : nowIso(rec.due);
-  let linked = Array.isArray(rec.clipIds) ? rec.clipIds.map(String) : [];
-  linked = linked.filter((id) => clipIds.has(id)).slice(0, 24);
-  const decisionId = rec.decisionId ? String(rec.decisionId) : null;
-  const createdAt = nowIso(rec.createdAt);
-  return {
-    id: cleanId(rec.id, 't', used),
-    title,
-    notes,
-    status,
-    due,
-    clipIds: linked,
-    decisionId: decisionId || null,
-    createdAt,
-    updatedAt: nowIso(rec.updatedAt || rec.createdAt) || createdAt,
-  };
-}
-
-function normalizeDecision(raw, used, clipIds) {
-  const rec = raw && typeof raw === 'object' ? raw : {};
-  const title = clipStr(rec.title, BOARD_LIMITS.decisionTitle).trim();
-  if (!title) return null;
-  const status = DECISION_STATUSES.includes(rec.status) ? rec.status : 'exploring';
-  const notes = clipStr(rec.notes, BOARD_LIMITS.decisionNotes);
-  let linked = Array.isArray(rec.clipIds) ? rec.clipIds.map(String) : [];
-  linked = linked.filter((id) => clipIds.has(id)).slice(0, 48);
-  const createdAt = nowIso(rec.createdAt);
-  const decidedAt = status === 'decided' ? nowIso(rec.decidedAt || rec.updatedAt || rec.createdAt) : null;
-  return {
-    id: cleanId(rec.id, 'd', used),
-    title,
-    notes,
-    status,
-    clipIds: linked,
-    decidedAt,
-    createdAt,
-    updatedAt: nowIso(rec.updatedAt || rec.createdAt) || createdAt,
-  };
-}
-
-function normalizeMeta(raw) {
-  const rec = raw && typeof raw === 'object' ? raw : {};
-  const weddingDate = rec.weddingDate == null || rec.weddingDate === '' ? null : nowIso(rec.weddingDate);
-  return { weddingDate };
-}
-
 export function normalizeBoard(raw) {
   const src = raw && typeof raw === 'object' ? raw : {};
   const usedBuckets = new Set();
@@ -539,36 +476,11 @@ export function normalizeBoard(raw) {
     .map((row) => normalizeClip(row, usedClips, bucketIds))
     .filter(Boolean);
 
-  const clipIdSet = new Set(clips.map((c) => c.id));
-  const usedTasks = new Set();
-  let tasks = Array.isArray(src.tasks) ? src.tasks : [];
-  tasks = tasks
-    .slice(0, BOARD_LIMITS.tasks)
-    .map((row) => normalizeTask(row, usedTasks, clipIdSet))
-    .filter(Boolean);
-
-  const decisionIds = new Set();
-  const usedDecisions = new Set();
-  let decisions = Array.isArray(src.decisions) ? src.decisions : [];
-  decisions = decisions
-    .slice(0, BOARD_LIMITS.decisions)
-    .map((row) => normalizeDecision(row, usedDecisions, clipIdSet))
-    .filter(Boolean);
-  for (const row of decisions) decisionIds.add(row.id);
-
-  tasks = tasks.map((task) => ({
-    ...task,
-    decisionId: task.decisionId && decisionIds.has(task.decisionId) ? task.decisionId : null,
-  }));
-
   const board = {
     v: 2,
     title: clipStr(src.title, BOARD_LIMITS.title).trim() || 'Wedding',
     buckets,
     clips,
-    tasks,
-    decisions,
-    meta: normalizeMeta(src.meta),
   };
   const json = JSON.stringify(board);
   if (json.length > BOARD_LIMITS.json) {
@@ -798,143 +710,10 @@ export function homeSummary(board) {
   return {
     inbox: inboxCount(src),
     recent: sortClips(src.clips.filter((c) => c.status !== 'archived'), 'newest').slice(0, 6),
-    nextTasks: (src.tasks || []).filter((t) => t.status === 'next').slice(0, 4),
-    openDecisions: (src.decisions || []).filter((d) => d.status === 'exploring').length,
     favorites: src.clips.filter((c) => c.favorite && c.status !== 'archived').length,
     shortlist: src.clips.filter((c) => c.status === 'shortlist').length,
+    total: src.clips.filter((c) => c.status !== 'archived').length,
   };
-}
-
-export function tasksIn(board, status) {
-  const src = board && typeof board === 'object' ? board : emptyBoard();
-  return (src.tasks || []).filter((t) => t.status === status);
-}
-
-export function decisionById(board, id) {
-  return (board?.decisions || []).find((d) => d.id === id) || null;
-}
-
-export function taskById(board, id) {
-  return (board?.tasks || []).find((t) => t.id === id) || null;
-}
-
-export function addTask(board, { title = '', notes = '', status = 'someday', due = null, clipIds = [], decisionId = null } = {}) {
-  const next = clone(board);
-  if ((next.tasks || []).length >= BOARD_LIMITS.tasks) throw new Error('Too many tasks.');
-  const trimmed = clipStr(title, BOARD_LIMITS.taskTitle).trim();
-  if (!trimmed) throw new Error('Name the task first.');
-  const used = new Set(next.tasks.map((t) => t.id));
-  const clipSet = new Set(next.clips.map((c) => c.id));
-  const ts = new Date().toISOString();
-  next.tasks.unshift({
-    id: cleanId('', 't', used),
-    title: trimmed,
-    notes: clipStr(notes, BOARD_LIMITS.taskNotes),
-    status: TASK_STATUSES.includes(status) ? status : 'someday',
-    due: due ? nowIso(due) : null,
-    clipIds: (Array.isArray(clipIds) ? clipIds : []).filter((id) => clipSet.has(String(id))).slice(0, 24),
-    decisionId: decisionId && next.decisions.some((d) => d.id === decisionId) ? decisionId : null,
-    createdAt: ts,
-    updatedAt: ts,
-  });
-  return next;
-}
-
-export function updateTask(board, id, patch = {}) {
-  const next = clone(board);
-  const task = next.tasks.find((t) => t.id === id);
-  if (!task) throw new Error('Unknown task.');
-  if ('title' in patch) {
-    const trimmed = clipStr(patch.title, BOARD_LIMITS.taskTitle).trim();
-    if (!trimmed) throw new Error('Name the task first.');
-    task.title = trimmed;
-  }
-  if ('notes' in patch) task.notes = clipStr(patch.notes, BOARD_LIMITS.taskNotes);
-  if ('status' in patch && TASK_STATUSES.includes(patch.status)) task.status = patch.status;
-  if ('due' in patch) task.due = patch.due ? nowIso(patch.due) : null;
-  if ('clipIds' in patch) {
-    const clipSet = new Set(next.clips.map((c) => c.id));
-    task.clipIds = (Array.isArray(patch.clipIds) ? patch.clipIds : [])
-      .filter((cid) => clipSet.has(String(cid))).slice(0, 24);
-  }
-  if ('decisionId' in patch) {
-    task.decisionId = patch.decisionId && next.decisions.some((d) => d.id === patch.decisionId)
-      ? patch.decisionId
-      : null;
-  }
-  task.updatedAt = new Date().toISOString();
-  return next;
-}
-
-export function removeTask(board, id) {
-  const next = clone(board);
-  if (!next.tasks.some((t) => t.id === id)) throw new Error('Unknown task.');
-  next.tasks = next.tasks.filter((t) => t.id !== id);
-  return next;
-}
-
-export function addDecision(board, { title = '', notes = '', status = 'exploring', clipIds = [] } = {}) {
-  const next = clone(board);
-  if ((next.decisions || []).length >= BOARD_LIMITS.decisions) throw new Error('Too many decisions.');
-  const trimmed = clipStr(title, BOARD_LIMITS.decisionTitle).trim();
-  if (!trimmed) throw new Error('Name the decision first.');
-  const used = new Set(next.decisions.map((d) => d.id));
-  const clipSet = new Set(next.clips.map((c) => c.id));
-  const ts = new Date().toISOString();
-  next.decisions.unshift({
-    id: cleanId('', 'd', used),
-    title: trimmed,
-    notes: clipStr(notes, BOARD_LIMITS.decisionNotes),
-    status: DECISION_STATUSES.includes(status) ? status : 'exploring',
-    clipIds: (Array.isArray(clipIds) ? clipIds : []).filter((id) => clipSet.has(String(id))).slice(0, 48),
-    decidedAt: null,
-    createdAt: ts,
-    updatedAt: ts,
-  });
-  return next;
-}
-
-export function updateDecision(board, id, patch = {}) {
-  const next = clone(board);
-  const decision = next.decisions.find((d) => d.id === id);
-  if (!decision) throw new Error('Unknown decision.');
-  if ('title' in patch) {
-    const trimmed = clipStr(patch.title, BOARD_LIMITS.decisionTitle).trim();
-    if (!trimmed) throw new Error('Name the decision first.');
-    decision.title = trimmed;
-  }
-  if ('notes' in patch) decision.notes = clipStr(patch.notes, BOARD_LIMITS.decisionNotes);
-  if ('status' in patch && DECISION_STATUSES.includes(patch.status)) {
-    decision.status = patch.status;
-    decision.decidedAt = patch.status === 'decided'
-      ? nowIso(patch.decidedAt || new Date().toISOString())
-      : null;
-  }
-  if ('clipIds' in patch) {
-    const clipSet = new Set(next.clips.map((c) => c.id));
-    decision.clipIds = (Array.isArray(patch.clipIds) ? patch.clipIds : [])
-      .filter((cid) => clipSet.has(String(cid))).slice(0, 48);
-  }
-  decision.updatedAt = new Date().toISOString();
-  return next;
-}
-
-export function removeDecision(board, id) {
-  const next = clone(board);
-  if (!next.decisions.some((d) => d.id === id)) throw new Error('Unknown decision.');
-  next.decisions = next.decisions.filter((d) => d.id !== id);
-  for (const task of next.tasks) {
-    if (task.decisionId === id) task.decisionId = null;
-  }
-  return next;
-}
-
-export function setMeta(board, patch = {}) {
-  const next = clone(board);
-  if ('weddingDate' in patch) {
-    next.meta.weddingDate = patch.weddingDate ? nowIso(patch.weddingDate) : null;
-  }
-  return next;
 }
 
 export function searchClips(board, query) {
