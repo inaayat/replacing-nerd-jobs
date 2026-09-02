@@ -46,7 +46,7 @@ This repo is a no-build Vercel site (see `README.md` for structure/deploy). Non-
   - `node scripts/test-alist-statistics.mjs` — A-Lister theater, format, day, habit, and value summaries
   - `node scripts/test-alist-watchlist-sort.mjs` — Coming Soon watchlist ordering
   - `node scripts/test-alist-showing.mjs` — watched-together / showing-invite match rules
-  - `node scripts/test-amc-alist-rank.mjs` — A-Lister Beli-style movie stack insertion
+  - `node scripts/test-amc-alist-rank.mjs` — A-Lister Beli-style movie and TV stack insertion
   - `node scripts/test-ai-buildout.mjs` — AI buildout extractor, iceberg math, 424B/8-K watch list
   - `node scripts/test-world-in-nyc.mjs` — World in NYC enclave catalog, election-district join, origin-country map, 2025 mayor ED join
   - `node scripts/test-sticky-notes.mjs` — Sticky Notes model, op reducer, merge, canvas math, span href, wiki docs (`sticky-notes/notes.js`)
