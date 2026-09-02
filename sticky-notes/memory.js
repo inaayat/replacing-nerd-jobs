@@ -8,15 +8,21 @@
  * or the Memory tab below that; only the surrounding chrome differs.
  */
 import {
-  ICON_SVGS,
   colorHex,
   legendLabel,
   noteBlocks,
   randomId,
 } from './notes.js';
-import { renderBody } from './body.js';
+import { renderBody, renderIcon } from './body.js';
 
 const PAGE = 200;
+
+export function noteMatchesSearch(note, legend, search) {
+  const query = String(search || '').trim().toLowerCase();
+  if (!query) return true;
+  const tag = note?.iconKey ? legendLabel(legend, 'icon', note.iconKey) : '';
+  return `${note?.text || ''}\n${tag}`.toLowerCase().includes(query);
+}
 
 /**
  * Split Memory notes into collection sections plus loose notes.
@@ -83,7 +89,7 @@ export function createMemory({
     } else if (filters.collection && note.collectionId !== filters.collection) {
       return false;
     }
-    if (filters.search && !note.text.toLowerCase().includes(filters.search)) return false;
+    if (!noteMatchesSearch(note, store.state.legend, filters.search)) return false;
     return true;
   }
 
@@ -112,7 +118,7 @@ export function createMemory({
     dot.title = note.colorKey ? legendLabel(store.state.legend, 'color', note.colorKey) : '';
     const icon = document.createElement('span');
     icon.className = 'sn-mem-icon';
-    icon.innerHTML = note.iconKey ? ICON_SVGS[note.iconKey] : '';
+    renderIcon(icon, store.state.legend, note.iconKey);
     const text = document.createElement('span');
     text.className = 'sn-mem-text';
     renderBody(text, noteBlocks(note));

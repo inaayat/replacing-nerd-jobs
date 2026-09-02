@@ -40,6 +40,8 @@ import {
   keyboardInset,
   keyboardLayout,
   legendLabel,
+  iconImageUrl,
+  isIconKey,
   localMedia,
   localMediaDetails,
   mediaKind,
@@ -50,6 +52,8 @@ import {
   migrateLegacyStore,
   noteBlocks,
   normalizeDoc,
+  normalizeCustomIcon,
+  normalizeCustomIconKey,
   normalizeHref,
   normalizeMedia,
   normalizeNote,
@@ -73,7 +77,7 @@ import {
 } from '../sticky-notes/notes.js';
 import { lineLooksEmpty, listEnterAction } from '../sticky-notes/body.js';
 import { sortBoardNotes } from '../sticky-notes/table.js';
-import { memorySections } from '../sticky-notes/memory.js';
+import { memorySections, noteMatchesSearch } from '../sticky-notes/memory.js';
 
 let failures = 0;
 function assert(cond, label) {
@@ -357,6 +361,51 @@ function note(id, extra = {}) {
   assert(!('c1' in cleared.legend.colors), 'empty label clears override');
   const bad = applyOps(emptyState(), [{ op: 'legend.set', kind: 'color', key: 'zz', label: 'X' }]);
   assert(!('zz' in bad.legend.colors), 'legend.set rejects unknown key');
+
+  const customKey = 'custom:coffee-break';
+  eq(normalizeCustomIconKey('CUSTOM:COFFEE-BREAK'), customKey, 'custom icon keys normalize');
+  eq(normalizeCustomIconKey('custom:bad key'), null, 'custom icon keys reject spaces');
+  assert(isIconKey(customKey), 'custom icon key is a valid note icon');
+  eq(
+    normalizeCustomIcon({ label: ' Coffee ', imageUrl: 'https://example.com/coffee.png' }).label,
+    'Coffee',
+    'custom icon definitions normalize',
+  );
+  eq(
+    normalizeCustomIcon({ label: 'Coffee', imageUrl: 'data:image/png;base64,nope' }),
+    null,
+    'custom icons require an http image URL',
+  );
+
+  let custom = applyOps(emptyState(), [{
+    op: 'legend.set',
+    kind: 'custom-icon',
+    key: customKey,
+    label: 'Coffee break',
+    imageUrl: 'https://example.com/coffee.png',
+  }]);
+  custom = applyOps(custom, [
+    note('custom-tagged'),
+    { op: 'note.categorize', ids: ['custom-tagged'], iconKey: customKey },
+  ]);
+  eq(custom.notes[0].iconKey, customKey, 'custom icon tags can be assigned to notes');
+  eq(legendLabel(custom.legend, 'icon', customKey), 'Coffee break', 'custom icon label is searchable metadata');
+  eq(iconImageUrl(custom.legend, customKey), 'https://example.com/coffee.png', 'custom icon image resolves');
+  assert(
+    noteMatchesSearch(custom.notes[0], custom.legend, 'coffee break'),
+    'memory search finds a note by its custom tag name',
+  );
+  assert(
+    !noteMatchesSearch(custom.notes[0], custom.legend, 'airport'),
+    'unrelated custom tag search does not match',
+  );
+  assert(
+    stateToOps(custom).some((op) => op.kind === 'custom-icon' && op.key === customKey),
+    'custom icon definitions replay into an account',
+  );
+  custom = applyOps(custom, [{ op: 'legend.set', kind: 'custom-icon', key: customKey, label: '' }]);
+  eq(custom.notes[0].iconKey, null, 'deleting a custom icon clears it from tagged notes');
+  assert(!custom.legend.customIcons[customKey], 'deleting a custom icon removes its definition');
 }
 
 // 10. screen/world round-trip + fit

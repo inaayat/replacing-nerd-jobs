@@ -267,7 +267,11 @@ function guideGroups() {
         { svg: TRASH_SVG, name: 'Delete', text: 'Removes the note for good. You get ten seconds to undo.' },
         { svg: PIN_SVG, name: 'Pin', text: 'Pinned notes stay put when you wipe the board.' },
         { glyph: '●', name: 'Colour', text: 'Fills the whole note. Colours are yours to mean anything; rename them from the memory filters.' },
-        { svg: TAG_SVG, name: 'Icon', text: 'Same idea as colour, in the corner of the note — and filterable in memory.' },
+        {
+          svg: TAG_SVG,
+          name: 'Icon tag',
+          text: 'Pick a built-in, or + makes a named tag from an image URL. Custom tag names are searchable in Memory.',
+        },
         {
           svg: BOLD_SVG,
           name: 'Bold',

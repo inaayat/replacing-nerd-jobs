@@ -93,9 +93,9 @@ async function handleLegend(req, res) {
     res.status(405).json({ error: 'Use PUT.' });
     return;
   }
-  const { kind, key, label } = req.body || {};
+  const { kind, key, label, imageUrl } = req.body || {};
   try {
-    const applied = await applyOps(session.userId, [{ op: 'legend.set', kind, key, label }]);
+    const applied = await applyOps(session.userId, [{ op: 'legend.set', kind, key, label, imageUrl }]);
     res.status(200).json({ ok: true, applied });
   } catch (err) {
     res.status(502).json({ error: err.message });

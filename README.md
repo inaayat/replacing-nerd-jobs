@@ -286,6 +286,9 @@ type into it**, caret where you pressed; drag it instead to move it. The note
 being edited raises a small bar with trash / pin / colour / icon / done plus
 bold, bullets, and numbers — trash really deletes the note, with ten seconds of
 Undo — and a selection raises a bar docked at the bottom of the canvas.
+The icon picker also makes **custom image tags** from a name plus an http(s)
+image URL. They sync with the account, paint anywhere the built-in icons do,
+and Memory search matches their names.
 A note body holds **bold, bullet lists, numbered lists, and link pills**,
 and nothing else: type `* ` or `1. ` at the start of a line and the marker
 becomes the list, the way Apple Notes and Notion do it. Paste a URL while
@@ -608,7 +611,7 @@ only runs the code that talks to it). Accessed from serverless functions via
 | `sn_collections` | Sticky Notes | Named groups of notes |
 | `sn_arrows` | Sticky Notes | Directed connectors between two notes |
 | `sn_ink` | Sticky Notes | Text written on the board itself; no status, deleted by a wipe |
-| `sn_legend` | Sticky Notes | Per-user colour/icon label overrides |
+| `sn_legend` | Sticky Notes | Per-user colour/icon labels plus named custom image tags |
 | `sn_wiki` | Sticky Notes | One page per collection (`doc` JSONB); cascade-deleted with the collection |
 
 Neon Auth also keeps its own auth tables in the same Neon project (managed by

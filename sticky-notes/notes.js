@@ -112,6 +112,10 @@ export const NUMBER_LIST_SVG = `${SVG_OPEN}<path d="M10 6h10M10 12h10M10 18h10"/
 
 export const COLOR_KEYS = Object.keys(LEGEND_DEFAULTS.colors);
 export const ICON_KEYS = Object.keys(LEGEND_DEFAULTS.icons);
+export const CUSTOM_ICON_PREFIX = 'custom:';
+export const CUSTOM_ICON_LIMIT = 48;
+const CUSTOM_ICON_LABEL_MAX = 60;
+const CUSTOM_ICON_KEY_RE = /^custom:[a-z0-9][a-z0-9-]{0,79}$/;
 
 /** A note nobody has coloured yet is light grey, not white. */
 export const DEFAULT_COLOR_KEY = 'c7';
@@ -169,6 +173,22 @@ export function normalizeHref(raw) {
   const href = typeof raw === 'string' ? raw.trim() : '';
   if (!href || href.length > HREF_MAX) return null;
   return isLoneUrl(href) ? href : null;
+}
+
+export function normalizeCustomIconKey(raw) {
+  const key = String(raw || '').trim().toLowerCase();
+  return CUSTOM_ICON_KEY_RE.test(key) ? key : null;
+}
+
+export function isIconKey(raw) {
+  return ICON_KEYS.includes(raw) || Boolean(normalizeCustomIconKey(raw));
+}
+
+export function normalizeCustomIcon(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const label = String(raw.label || '').replace(/[\r\n\t]+/g, ' ').trim().slice(0, CUSTOM_ICON_LABEL_MAX);
+  const imageUrl = normalizeHref(raw.imageUrl);
+  return label && imageUrl ? { label, imageUrl } : null;
 }
 
 const IMAGE_EXT = /\.(?:avif|gif|jpe?g|png|webp)$/i;
@@ -676,7 +696,7 @@ function noteShape(raw, text, rich) {
     text,
     rich,
     colorKey: COLOR_KEYS.includes(raw.colorKey) ? raw.colorKey : null,
-    iconKey: ICON_KEYS.includes(raw.iconKey) ? raw.iconKey : null,
+    iconKey: ICON_KEYS.includes(raw.iconKey) ? raw.iconKey : normalizeCustomIconKey(raw.iconKey),
     status: raw.status === 'memory' ? 'memory' : 'board',
     collectionId: raw.collectionId ? String(raw.collectionId) : null,
     x: num(raw.x, 24),
@@ -740,13 +760,18 @@ export function normalizeArrow(raw) {
 }
 
 export function normalizeLegend(raw) {
-  const out = { colors: {}, icons: {} };
+  const out = { colors: {}, icons: {}, customIcons: {} };
   if (raw && typeof raw === 'object') {
     for (const [key, label] of Object.entries(raw.colors || {})) {
       if (COLOR_KEYS.includes(key) && String(label).trim()) out.colors[key] = String(label).trim();
     }
     for (const [key, label] of Object.entries(raw.icons || {})) {
       if (ICON_KEYS.includes(key) && String(label).trim()) out.icons[key] = String(label).trim();
+    }
+    for (const [rawKey, value] of Object.entries(raw.customIcons || {}).slice(0, CUSTOM_ICON_LIMIT)) {
+      const key = normalizeCustomIconKey(rawKey);
+      const icon = normalizeCustomIcon(value);
+      if (key && icon) out.customIcons[key] = icon;
     }
   }
   return out;
@@ -760,7 +785,7 @@ export function emptyState() {
     arrows: [],
     ink: [],
     wikis: [],
-    legend: { colors: {}, icons: {} },
+    legend: { colors: {}, icons: {}, customIcons: {} },
   };
 }
 
@@ -793,7 +818,13 @@ export function legendLabel(legend, kind, key) {
   const overrides = legend?.[kind === 'color' ? 'colors' : 'icons'] || {};
   if (overrides[key]) return overrides[key];
   if (kind === 'color') return LEGEND_DEFAULTS.colors[key]?.label || key;
+  if (normalizeCustomIconKey(key)) return legend?.customIcons?.[key]?.label || 'Custom tag';
   return LEGEND_DEFAULTS.icons[key] || key;
+}
+
+export function iconImageUrl(legend, key) {
+  const customKey = normalizeCustomIconKey(key);
+  return customKey ? legend?.customIcons?.[customKey]?.imageUrl || null : null;
 }
 
 export function colorHex(key) {
@@ -864,6 +895,7 @@ export function mergeStates(base, incoming) {
     legend: {
       colors: { ...a.legend.colors, ...b.legend.colors },
       icons: { ...a.legend.icons, ...b.legend.icons },
+      customIcons: { ...a.legend.customIcons, ...b.legend.customIcons },
     },
   });
 }
@@ -902,6 +934,9 @@ export function stateToOps(state) {
       ops.push({ op: 'legend.set', kind: kind === 'colors' ? 'color' : 'icon', key, label });
     }
   }
+  for (const [key, icon] of Object.entries(s.legend.customIcons)) {
+    ops.push({ op: 'legend.set', kind: 'custom-icon', key, label: icon.label, imageUrl: icon.imageUrl });
+  }
   for (const wiki of s.wikis || []) {
     ops.push({ op: 'wiki.set', collectionId: wiki.collectionId, doc: wiki.doc, ts: wiki.updatedAt });
   }
@@ -923,7 +958,11 @@ export function applyOps(state, ops) {
     arrows: [...state.arrows],
     ink: [...(state.ink || [])],
     wikis: [...(state.wikis || [])],
-    legend: { colors: { ...state.legend.colors }, icons: { ...state.legend.icons } },
+    legend: {
+      colors: { ...state.legend.colors },
+      icons: { ...state.legend.icons },
+      customIcons: { ...(state.legend.customIcons || {}) },
+    },
   };
   for (const op of Array.isArray(ops) ? ops : []) {
     next = applyOp(next, op);
@@ -970,7 +1009,9 @@ function applyOp(state, op) {
       return mapNotes(state, op.ids || [], (n) => {
         const next = { ...n };
         if ('colorKey' in op) next.colorKey = COLOR_KEYS.includes(op.colorKey) ? op.colorKey : null;
-        if ('iconKey' in op) next.iconKey = ICON_KEYS.includes(op.iconKey) ? op.iconKey : null;
+        if ('iconKey' in op) {
+          next.iconKey = ICON_KEYS.includes(op.iconKey) ? op.iconKey : normalizeCustomIconKey(op.iconKey);
+        }
         return touch(next, ts);
       });
     case 'note.delete': {
@@ -1098,12 +1139,38 @@ function applyOp(state, op) {
       return next;
     }
     case 'legend.set': {
-      const kind = op.kind === 'color' ? 'colors' : op.kind === 'icon' ? 'icons' : null;
+      const kind = op.kind === 'color'
+        ? 'colors'
+        : op.kind === 'icon'
+          ? 'icons'
+          : op.kind === 'custom-icon'
+            ? 'customIcons'
+            : null;
       if (!kind) return state;
-      const valid = kind === 'colors' ? COLOR_KEYS : ICON_KEYS;
-      if (!valid.includes(op.key)) return state;
+      if (kind === 'colors' && !COLOR_KEYS.includes(op.key)) return state;
+      if (kind === 'icons' && !ICON_KEYS.includes(op.key)) return state;
+      const customKey = kind === 'customIcons' ? normalizeCustomIconKey(op.key) : null;
+      if (kind === 'customIcons' && !customKey) return state;
       const label = String(op.label ?? '').trim();
-      const legend = { colors: { ...state.legend.colors }, icons: { ...state.legend.icons } };
+      const legend = {
+        colors: { ...state.legend.colors },
+        icons: { ...state.legend.icons },
+        customIcons: { ...(state.legend.customIcons || {}) },
+      };
+      if (kind === 'customIcons') {
+        const icon = normalizeCustomIcon({ label, imageUrl: op.imageUrl });
+        if (icon) {
+          if (!legend.customIcons[customKey] && Object.keys(legend.customIcons).length >= CUSTOM_ICON_LIMIT) return state;
+          legend.customIcons[customKey] = icon;
+          return { ...state, legend };
+        }
+        delete legend.customIcons[customKey];
+        return {
+          ...state,
+          notes: state.notes.map((note) => note.iconKey === customKey ? touch({ ...note, iconKey: null }, op.ts) : note),
+          legend,
+        };
+      }
       if (label) legend[kind][op.key] = label;
       else delete legend[kind][op.key];
       return { ...state, legend };

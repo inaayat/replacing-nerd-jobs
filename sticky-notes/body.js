@@ -15,7 +15,9 @@ import {
   ICON_SVGS,
   clamp,
   headingTriggerFor,
+  iconImageUrl,
   isLoneUrl,
+  legendLabel,
   listTriggerFor,
   mediaKindLabel,
   mediaPresentation,
@@ -329,6 +331,26 @@ export function createPill(span) {
   label.textContent = span.text || urlDomain(span.href) || span.href;
   a.append(icon, label);
   return a;
+}
+
+/** Built-in SVG or user-defined image, rendered without injecting URL markup. */
+export function renderIcon(host, legend, key) {
+  host.innerHTML = '';
+  host.title = key ? legendLabel(legend, 'icon', key) : '';
+  if (!key) return;
+  const imageUrl = iconImageUrl(legend, key);
+  if (imageUrl) {
+    const img = document.createElement('img');
+    img.className = 'sn-custom-icon-image';
+    img.src = imageUrl;
+    img.alt = '';
+    img.loading = 'lazy';
+    img.referrerPolicy = 'no-referrer';
+    img.addEventListener('error', () => img.remove(), { once: true });
+    host.appendChild(img);
+    return;
+  }
+  host.innerHTML = ICON_SVGS[key] || '';
 }
 
 export function appendSpans(host, spans) {
