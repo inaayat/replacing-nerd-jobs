@@ -152,6 +152,43 @@ function note(id, extra = {}) {
   const pin = localMediaDetails('https://www.pinterest.com/pin/1234567890/');
   eq(pin.still, true, 'Pinterest remains a non-playable still');
 
+  const igPost = localMedia('https://www.instagram.com/p/ABC/');
+  const igPostFace = mediaPresentation(igPost);
+  eq(igPostFace.mode, 'placeholder', 'Instagram without a thumb is a compact placeholder');
+  assert(igPostFace.mode !== 'embed', 'Instagram without a thumb is not the embed widget');
+  eq(igPostFace.playable, false, 'Instagram posts do not iframe the official embed as the card face');
+  const igPostThumb = normalizeMedia({
+    url: 'https://www.instagram.com/p/ABC/',
+    thumbnail: 'https://scontent.cdninstagram.com/v/t51.71878-15/photo.jpg',
+    title: 'Hanaut Paul - Dark Bridal Lengha',
+  });
+  const igPostShown = mediaPresentation(igPostThumb);
+  eq(igPostShown.mode, 'image', 'instagram + thumbnail paints as a still');
+  eq(igPostShown.playable, false, 'Instagram posts rest on the photo, not a playable embed');
+  eq(igPostShown.fit, 'cover', 'Instagram stills cover-crop inside the social frame');
+  eq(igPostShown.src, igPostThumb.thumbnail, 'Instagram still uses the unfurled thumbnail');
+  const igReelThumb = normalizeMedia({
+    url: 'https://www.instagram.com/reel/ABC_123/',
+    thumbnail: 'https://scontent.cdninstagram.com/v/t51.71878-15/reel.jpg',
+  });
+  const igReelShown = mediaPresentation(igReelThumb);
+  eq(igReelShown.mode, 'image', 'Instagram reels rest on the photo');
+  eq(igReelShown.playable, true, 'Instagram reels can swap the still for the embed on tap');
+  eq(igReelShown.fit, 'cover', 'Instagram reels cover-crop inside the 9/16 frame');
+  const igBareReel = mediaPresentation(localMedia('https://www.instagram.com/reels/ABC/'));
+  eq(igBareReel.mode, 'placeholder', 'a reel without a thumb is still not the embed widget');
+  eq(igBareReel.playable, false, 'a reel without a thumb does not iframe as the idle preview');
+
+  const ytShown = mediaPresentation(localMedia('https://youtu.be/dQw4w9WgXcQ'));
+  eq(ytShown.mode, 'image', 'YouTube still paints as a still');
+  eq(ytShown.playable, true, 'YouTube stays playable');
+  assert(ytShown.fit !== 'cover', 'YouTube does not cover-crop the 16/9 poster');
+  const ttShown = mediaPresentation(localMedia('https://www.tiktok.com/@x/video/12345678901'));
+  eq(ttShown.mode, 'placeholder', 'TikTok without a thumb stays a playable placeholder');
+  eq(ttShown.playable, true, 'TikTok stays playable');
+  const pinShown = mediaPresentation(localMedia('https://www.pinterest.com/pin/1234567890/'));
+  eq(pinShown.mode, 'embed', 'Pinterest without a thumb still uses its embed');
+
   const image = localMedia('https://cdn.example.com/cat.jpg');
   eq(image.thumbnail, image.url, 'direct image previews need no unfurl');
   eq(image.position, 'after', 'existing media defaults below the body');

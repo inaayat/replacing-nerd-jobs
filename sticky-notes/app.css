@@ -750,6 +750,7 @@ html.sn-table-view #menu-fit { display: none !important; }
   height: 100%;
 }
 .sn-media-frame img { object-fit: contain; }
+.sn-card-media[data-fit="cover"] .sn-media-frame img { object-fit: cover; }
 video.sn-media-player { object-fit: contain; }
 .sn-media-frame iframe,
 .sn-media-player {
