@@ -75,7 +75,9 @@ import {
   normalizeTags,
   phoneNoteZoom,
   pinchAfterLift,
+  pinchNoteSize,
   pinchStep,
+  pinchTarget,
   placeEditPopover,
   previewUrlsFromBody,
   planEditSession,
@@ -804,6 +806,41 @@ function note(id, extra = {}) {
   eq(pinchAfterLift([]).kind, 'none', 'a hand off the glass ends the gesture');
   eq(pinchAfterLift().kind, 'none', 'no pointer list ends the gesture');
   eq(pinchAfterLift([{ id: 4 }]).kind, 'none', 'a pointer with no position is not a finger');
+}
+
+// 11d. pinchTarget / pinchNoteSize — two fingers on one note resize it
+{
+  const onCard = (id, x) => ({ id: x, x, y: 0, cardId: id });
+  eq(pinchTarget([onCard('n1', 10), onCard('n1', 90)]).kind, 'note', 'both fingers in one note resize it');
+  eq(pinchTarget([onCard('n1', 10), onCard('n1', 90)]).id, 'n1', 'the pinched note is named');
+  eq(pinchTarget([onCard('n1', 10), onCard('n2', 90)]).kind, 'board', 'fingers on two notes zoom the board');
+  eq(pinchTarget([onCard('n1', 10), onCard(null, 90)]).kind, 'board', 'one finger off the note zooms the board');
+  eq(pinchTarget([onCard(null, 10), onCard(null, 90)]).kind, 'board', 'bare canvas zooms the board');
+  eq(pinchTarget([onCard('n1', 10)]).kind, 'board', 'one finger is not a pinch');
+  eq(pinchTarget().kind, 'board', 'no fingers is not a pinch');
+
+  const base = { w: 240, h: 120 };
+  eq(pinchNoteSize(base, 1).w, 240, 'no spread, no change');
+  eq(pinchNoteSize(base, 1).h, 120, 'no spread, no change in height');
+  const grown = pinchNoteSize(base, 1.5);
+  eq(grown.w, 360, 'spreading the fingers widens the note');
+  eq(grown.h, 180, 'height scales with width, so the card keeps its shape');
+
+  // The factor is measured from the spread the fingers started with, so
+  // pinching back to where you began restores the size you began with.
+  eq(pinchNoteSize(base, 2 / 3).w, 160, 'pinching in narrows the note');
+  eq(pinchNoteSize(pinchNoteSize(base, 1.5), 1 / 1.5).w, 240, 'undoing the spread restores the width');
+
+  // Past the clamp the note stops rather than stretching into a column.
+  const maxed = pinchNoteSize(base, 10);
+  eq(maxed.w, NOTE_W_MAX, 'width clamps at the maximum');
+  eq(maxed.h, 120 * (NOTE_W_MAX / 240), 'height stops with the width, not at 10x');
+  const tiny = pinchNoteSize(base, 0.01);
+  eq(tiny.w, NOTE_W_MIN, 'width clamps at the minimum');
+  eq(tiny.h, 120 * (NOTE_W_MIN / 240), 'a shrunk note keeps its shape too');
+  eq(pinchNoteSize({ w: 240, h: 60 }, 0.01).h, NOTE_H_MIN, 'height never goes below the floor');
+  eq(pinchNoteSize(base, 0).w, NOTE_W_MIN, 'a zero factor is the minimum, not a collapse');
+  eq(pinchNoteSize({ w: 0, h: 0 }, 2).w, NOTE_W_MIN, 'a sizeless note does not divide by zero');
 }
 
 // 11c. canStartResize — who may grab a card's corner

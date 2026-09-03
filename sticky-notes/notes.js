@@ -1654,10 +1654,41 @@ export function pinchAfterLift(remaining = []) {
 }
 
 /**
+ * What a two-finger gesture is aimed at. Both fingers inside the same card
+ * resize that note; anything else — one finger on a card and one on the
+ * board, fingers on two different cards, bare canvas — zooms the board. The
+ * board keeps its ± buttons, so a note big enough to swallow both fingers
+ * never traps the zoom.
+ */
+export function pinchTarget(pointers = []) {
+  const live = (Array.isArray(pointers) ? pointers : []).filter(Boolean);
+  if (live.length < 2) return { kind: 'board' };
+  const [a, b] = live;
+  if (a.cardId && a.cardId === b.cardId) return { kind: 'note', id: a.cardId };
+  return { kind: 'board' };
+}
+
+/**
+ * Scale a note by a pinch. The factor is measured against the spread the
+ * fingers started with, not the previous frame, so pinching back returns the
+ * note to the size it was. Width and height move together, and once the width
+ * hits its clamp the height stops with it rather than stretching the card into
+ * a column.
+ */
+export function pinchNoteSize(base, factor) {
+  const w0 = Math.max(1, Number(base?.w) || 0);
+  const h0 = Math.max(0, Number(base?.h) || 0);
+  const f = Math.max(0, Number(factor) || 0);
+  const w = clamp(w0 * f, NOTE_W_MIN, NOTE_W_MAX);
+  return { w, h: Math.max(NOTE_H_MIN, h0 * (w / w0)) };
+}
+
+/**
  * May a press on a card's corner grip start a resize? A mouse can always grab
  * the 14px hover grip. Touch shows a 44px handle only on the selected or
  * editing card — an idle note keeps its corner free so one finger there pans
- * the board instead of reshaping whatever it landed on.
+ * the board instead of reshaping whatever it landed on. Touch has the second
+ * way in that does not need the handle at all: pinch the note itself.
  */
 export function canStartResize({ coarse = false, selected = false, editing = false } = {}) {
   return !coarse || Boolean(selected) || Boolean(editing);

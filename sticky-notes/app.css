@@ -603,6 +603,14 @@ html.sn-table-view #menu-fit { display: none !important; }
   contain: layout style;
 }
 .sn-card.is-dragging { cursor: grabbing; box-shadow: 0 6px 18px rgba(28, 28, 28, 0.16); }
+/* Two fingers are resizing this note: say so, since the card is under a hand
+   and the only other feedback is its own edge moving. */
+.sn-card.is-pinching {
+  box-shadow: 0 10px 26px rgba(28, 28, 28, 0.22);
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+  z-index: 7;
+}
 .sn-card.is-editing {
   cursor: text;
   user-select: text;

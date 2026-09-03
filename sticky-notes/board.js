@@ -46,7 +46,9 @@ import {
   noteCreateSize,
   phoneNoteZoom,
   pinchAfterLift,
+  pinchNoteSize,
   pinchStep,
+  pinchTarget,
   placeEditPopover,
   planEditSession,
   usesPhoneCompose,
@@ -82,7 +84,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
   const inkEls = new Map(); // board-ink id -> element
   const selection = new Set();
   let spaceHeld = false;
-  let drag = null; // { kind: 'move'|'pan'|'rubber'|'resize'|'arrow'|'pinch'|'ink', ... }
+  let drag = null; // { kind: 'move'|'pan'|'rubber'|'resize'|'arrow'|'pinch'|'notepinch'|'ink', ... }
   let editingId = null;
   let endEdit = null; // commit/cancel the open edit from outside startEditing
   let bodyEditor = null;
@@ -90,7 +92,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
   let endInkEdit = null;
   let textMode = false; // the pen is armed: the next press writes on the board
 
-  const pointers = new Map(); // live pointerId -> client point, for pinch
+  const pointers = new Map(); // live pointerId -> { x, y, cardId }, for pinch
   let longPressTimer = 0;
   let selectMode = false; // touch: long-press opened a multi-select session
   let lastPointerType = 'mouse';
@@ -1388,9 +1390,10 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
         el.style.transform = '';
       }
     }
-    if (drag.kind === 'resize' && drag.el) {
+    if ((drag.kind === 'resize' || drag.kind === 'notepinch') && drag.el) {
       drag.el.style.width = `${drag.w}px`;
       drag.el.style.minHeight = `${drag.h}px`;
+      drag.el.classList.remove('is-pinching');
     }
     if (drag.kind === 'arrow') drag.ghost.remove();
     if (drag.kind === 'rubber') rubber.hidden = true;
@@ -1414,7 +1417,13 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
   const pinchFrame = (a, b) => ({ dist: dist(a, b), mid: mid(a, b) });
-  const livePointers = () => [...pointers].map(([id, p]) => ({ id, x: p.x, y: p.y }));
+  const livePointers = () =>
+    [...pointers].map(([id, p]) => ({ id, x: p.x, y: p.y, cardId: p.cardId }));
+
+  /** Live size of a note mid-pinch, from the spread the fingers started with. */
+  function pinchedSize(d) {
+    return pinchNoteSize({ w: d.w, h: d.h }, d.scale);
+  }
 
   /**
    * Chrome buttons act on pointerdown, with the default prevented, so pressing
@@ -1439,14 +1448,35 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
 
   viewport.addEventListener('pointerdown', (e) => {
     lastPointerType = e.pointerType;
-    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    pointers.set(e.pointerId, {
+      x: e.clientX,
+      y: e.clientY,
+      cardId: e.target.closest?.('.sn-card')?.dataset.id || null,
+    });
 
-    // Two fingers: pinch to zoom, wherever they landed — on the empty board or
-    // on a card, mid-drag or not. Whatever the first finger started is dropped.
+    // Two fingers, wherever they landed, mid-drag or not: whatever the first
+    // finger started is dropped. Both inside one note resizes that note — the
+    // corner handle is a small target that only appears once a note is
+    // selected, so the note itself is the handle. Otherwise the board zooms.
     if (e.pointerType === 'touch' && pointers.size === 2) {
       clearLongPress();
       abortDrag();
-      const [a, b] = [...pointers.values()];
+      const live = livePointers();
+      const [a, b] = live;
+      const target = pinchTarget(live);
+      const note = target.kind === 'note' ? noteById(target.id) : null;
+      const el = note ? cardEls.get(note.id) : null;
+      if (note && el) {
+        world.appendChild(el); // a growing note belongs over its neighbours
+        el.classList.add('is-pinching');
+        drag = {
+          kind: 'notepinch', id: note.id, el, ids: [a.id, b.id],
+          startDist: dist(a, b) || 1, scale: 1,
+          w: note.w, h: Math.max(note.h, el.offsetHeight), frame: 0,
+        };
+        e.preventDefault();
+        return;
+      }
       drag = { kind: 'pinch', last: pinchFrame(a, b) };
       return;
     }
@@ -1610,7 +1640,28 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
   });
 
   viewport.addEventListener('pointermove', (e) => {
-    if (pointers.has(e.pointerId)) pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const held = pointers.get(e.pointerId);
+    // Mutate in place: the card each finger landed on is part of the entry.
+    if (held) {
+      held.x = e.clientX;
+      held.y = e.clientY;
+    }
+
+    if (drag?.kind === 'notepinch') {
+      const a = pointers.get(drag.ids[0]);
+      const b = pointers.get(drag.ids[1]);
+      if (!a || !b) return;
+      drag.scale = dist(a, b) / drag.startDist;
+      if (drag.frame) return;
+      drag.frame = requestAnimationFrame(() => {
+        drag.frame = 0;
+        const { w, h } = pinchedSize(drag);
+        drag.el.style.width = `${w}px`;
+        drag.el.style.minHeight = `${h}px`;
+        repathArrowsTouching([drag.id]);
+      });
+      return;
+    }
 
     if (drag?.kind === 'pinch') {
       if (pointers.size < 2) return;
@@ -1731,6 +1782,22 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
   function endDrag(e) {
     pointers.delete(e.pointerId);
     clearLongPress();
+
+    // A note pinch ends with the first finger up: the note keeps the size it
+    // was at that moment, and the finger still down does nothing until it
+    // lifts. Panning the board out from under a note that just changed size
+    // would be a second, unasked-for change.
+    if (drag?.kind === 'notepinch') {
+      const d = drag;
+      drag = null;
+      if (d.frame) cancelAnimationFrame(d.frame);
+      d.el.classList.remove('is-pinching');
+      const { w, h } = pinchedSize(d);
+      if (w !== d.w || h !== d.h) {
+        store.dispatch([{ op: 'note.resize', id: d.id, w, h, ts: new Date().toISOString() }]);
+      }
+      return;
+    }
 
     if (drag?.kind === 'pinch') {
       const next = pinchAfterLift(livePointers());
