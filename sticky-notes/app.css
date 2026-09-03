@@ -2807,10 +2807,33 @@ video.sn-media-player { object-fit: contain; }
   .sn-mem-action { padding: 9px 12px; }
   .sn-mem-row { min-height: 44px; padding: 8px 2px; }
   .sn-ab-icongrid { width: 40px; height: 40px; }
-  /* Connector dots and the 14px hover grip are mouse affordances.
-     Phone resize is a 44px handle on the selected/editing card, not hover. */
+  /* Connector dots and the 14px hover grip are mouse affordances. Touch
+     resize is a 44px handle on the selected/editing card, not hover — on a
+     tablet as much as a phone, since neither has a pointer to hover with. */
   .sn-dot,
   .sn-card-resize { display: none; }
+
+  .sn-card.is-selected .sn-card-resize,
+  .sn-card.is-editing .sn-card-resize {
+    display: block;
+    width: 44px;
+    height: 44px;
+    opacity: 1;
+    right: 2px;
+    bottom: 2px;
+    border-radius: 8px;
+    background-color: rgba(255, 252, 245, 0.92);
+    background-image:
+      linear-gradient(135deg, transparent 52%, rgba(28, 28, 28, 0.5) 52%, rgba(28, 28, 28, 0.5) 58%, transparent 58%,
+        transparent 66%, rgba(28, 28, 28, 0.5) 66%, rgba(28, 28, 28, 0.5) 72%, transparent 72%);
+    box-shadow: inset 0 0 0 1.5px rgba(28, 28, 28, 0.28);
+    z-index: 8;
+    /* The handle owns the finger on it: no page pan, no double-tap zoom. */
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: nwse-resize;
+  }
 
   /* iOS Safari zooms the whole document when focus lands on editable text
      smaller than 16 px, and the page never zooms back. Everything you can type
@@ -2925,28 +2948,6 @@ video.sn-media-player { object-fit: contain; }
     flex-wrap: nowrap;
     width: max-content;
     max-width: calc(100vw - 24px);
-  }
-
-  /* Selected or editing card: a tappable 44×44 corner, not the 14px hover grip. */
-  .sn-card.is-selected .sn-card-resize,
-  .sn-card.is-editing .sn-card-resize {
-    display: block;
-    width: 44px;
-    height: 44px;
-    opacity: 1;
-    right: 2px;
-    bottom: 2px;
-    border-radius: 8px;
-    background-color: rgba(255, 252, 245, 0.92);
-    background-image:
-      linear-gradient(135deg, transparent 52%, rgba(28, 28, 28, 0.5) 52%, rgba(28, 28, 28, 0.5) 58%, transparent 58%,
-        transparent 66%, rgba(28, 28, 28, 0.5) 66%, rgba(28, 28, 28, 0.5) 72%, transparent 72%);
-    box-shadow: inset 0 0 0 1.5px rgba(28, 28, 28, 0.28);
-    z-index: 8;
-    touch-action: none;
-    user-select: none;
-    -webkit-user-select: none;
-    cursor: nwse-resize;
   }
 }
 

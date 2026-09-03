@@ -1618,6 +1618,52 @@ export function zoomAt(viewport, point, factor) {
 }
 
 /**
+ * One frame of a two-finger gesture: scale about the fingers' midpoint and
+ * pan by however far that midpoint travelled, so spreading zooms and sliding
+ * both fingers drags the board. `prev`/`next` carry the finger spread
+ * (`dist`) and midpoint in client coordinates; `origin` is the canvas corner,
+ * used only to place the zoom anchor. Keeping the midpoints in client space
+ * means a canvas that moves under the fingers (the keyboard inset resizing
+ * the shell) does not read as a pan.
+ */
+export function pinchStep(viewport, prev, next, origin = { x: 0, y: 0 }) {
+  const factor = prev && prev.dist > 0 ? next.dist / prev.dist : 1;
+  const anchor = { x: next.mid.x - (origin.x || 0), y: next.mid.y - (origin.y || 0) };
+  const scaled = zoomAt(viewport, anchor, factor);
+  return {
+    panX: scaled.panX + (next.mid.x - prev.mid.x),
+    panY: scaled.panY + (next.mid.y - prev.mid.y),
+    zoom: scaled.zoom,
+  };
+}
+
+/**
+ * What a pinch becomes when one finger leaves the glass. Two or more still
+ * down keeps pinching (against the fingers that remain, so dropping the third
+ * finger of an awkward grip does not jump the board); exactly one keeps
+ * panning from where that finger is, rather than freezing the canvas until
+ * both are up; none ends the gesture.
+ */
+export function pinchAfterLift(remaining = []) {
+  const live = (Array.isArray(remaining) ? remaining : []).filter(
+    (p) => p && Number.isFinite(p.x) && Number.isFinite(p.y),
+  );
+  if (live.length >= 2) return { kind: 'pinch', a: live[0], b: live[1] };
+  if (live.length === 1) return { kind: 'pan', pointerId: live[0].id, x: live[0].x, y: live[0].y };
+  return { kind: 'none' };
+}
+
+/**
+ * May a press on a card's corner grip start a resize? A mouse can always grab
+ * the 14px hover grip. Touch shows a 44px handle only on the selected or
+ * editing card — an idle note keeps its corner free so one finger there pans
+ * the board instead of reshaping whatever it landed on.
+ */
+export function canStartResize({ coarse = false, selected = false, editing = false } = {}) {
+  return !coarse || Boolean(selected) || Boolean(editing);
+}
+
+/**
  * The slice of the layout viewport the user can actually see. A phone
  * keyboard shrinks `visualViewport.height` (and may shift `offsetTop`)
  * without changing `window.innerHeight`.
