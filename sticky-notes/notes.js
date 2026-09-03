@@ -475,6 +475,24 @@ export function mediaPresentation(raw) {
     if (details?.embedUrl) return { mode: 'embed', kind: media.kind, embedUrl: details.embedUrl, playable: false };
     return { mode: 'placeholder', kind: media.kind, playable: false };
   }
+  if (media.kind === 'instagram') {
+    const href = media.canonical || media.url;
+    const reel = mediaShape('instagram', href) === 'reel';
+    // Resting face is always a still (oEmbed thumb) or a compact branded
+    // placeholder — never Instagram's official embed widget, which letterboxes
+    // a mini post inside the card. Reels may swap the still for the embed on tap.
+    if (thumbnail) {
+      return {
+        mode: 'image',
+        kind: 'instagram',
+        src: thumbnail,
+        embedUrl: reel ? (details?.embedUrl || null) : null,
+        playable: reel,
+        fit: 'cover',
+      };
+    }
+    return { mode: 'placeholder', kind: 'instagram', playable: false };
+  }
   return {
     mode: thumbnail ? 'image' : 'placeholder',
     kind: media.kind,

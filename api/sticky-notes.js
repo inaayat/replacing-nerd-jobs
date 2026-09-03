@@ -197,9 +197,22 @@ async function handleUnfurl(req, res) {
       if (!thumbnail && typeof oembed.data?.html === 'string') {
         thumbnail = /https?:\/\/i\.pinimg\.com\/[^"'\\\s<>]+/i.exec(oembed.data.html)?.[0] || null;
       }
+    } else if (kind === 'instagram') {
+      // Public /oembed/ redirects to login. /api/v1/oembed/ is the equivalent
+      // that still returns thumbnail_url + title for public posts and reels.
+      const oembed = await fetchPreview(
+        `https://www.instagram.com/api/v1/oembed/?url=${encodeURIComponent(canonical)}`,
+        { json: true },
+      );
+      thumbnail = oembed.data?.thumbnail_url || thumbnail;
+      title = oembed.data?.title || oembed.data?.author_name || '';
+      if (!thumbnail && typeof oembed.data?.html === 'string') {
+        thumbnail = /https?:\/\/(?:scontent[^"'\\\s<>]*\.cdninstagram\.com|[^"'\\\s<>]*cdninstagram\.com\/v\/)[^"'\\\s<>]*/i
+          .exec(oembed.data.html)?.[0] || null;
+      }
     }
 
-    if (!html && !['image', 'video', 'youtube', 'tiktok'].includes(kind)) {
+    if (!html && !['image', 'video', 'youtube', 'tiktok', 'instagram'].includes(kind)) {
       const page = await fetchPreview(canonical);
       canonical = normalizeHref(page.url) || canonical;
       if (page.contentType?.startsWith('image/')) {

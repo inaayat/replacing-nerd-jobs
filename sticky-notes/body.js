@@ -445,6 +445,13 @@ function mediaFallback(frame, presentation, media) {
   label.className = `sn-media-placeholder sn-media-${presentation.kind || 'link'}`;
   label.textContent = mediaKindLabel(presentation.kind || media?.kind);
   frame.appendChild(label);
+  const host = frame.closest('.sn-card-media');
+  if (host) {
+    host.style.aspectRatio = '';
+    host.style.minHeight = '72px';
+    delete host.dataset.natural;
+    delete host.dataset.fit;
+  }
 }
 
 function fitMediaHostToImage(host, img, fallbackRatio) {
@@ -473,6 +480,9 @@ function layoutMediaHost(host, media, presentation) {
   host.style.minHeight = '';
 
   const fallbackRatio = mediaAspectRatio(kind, href);
+  const cover = presentation.fit === 'cover';
+  if (cover) host.dataset.fit = 'cover';
+  else delete host.dataset.fit;
 
   if (presentation.mode === 'placeholder') {
     host.style.minHeight = '72px';
@@ -485,6 +495,10 @@ function layoutMediaHost(host, media, presentation) {
 
   host.style.minHeight = '48px';
   if (fallbackRatio) host.style.aspectRatio = fallbackRatio;
+  // Instagram stills cover-crop inside the 4/5 (post) or 9/16 (reel) frame so
+  // the photo fills the card the way a direct Image attachment does — instead
+  // of letterboxing a square thumb or Instagram's padded embed widget.
+  if (cover) return;
 
   const img = host.querySelector('.sn-media-frame img');
   if (img) fitMediaHostToImage(host, img, fallbackRatio);
