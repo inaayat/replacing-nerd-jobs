@@ -644,7 +644,7 @@ export function renderMedia(host, media, options = {}) {
         play.replaceWith(video);
         return;
       }
-      if (presentation.embedUrl) {
+      if (presentation.embedUrl && presentation.kind !== 'instagram') {
         const iframe = document.createElement('iframe');
         iframe.className = 'sn-media-player';
         iframe.src = presentation.embedUrl;

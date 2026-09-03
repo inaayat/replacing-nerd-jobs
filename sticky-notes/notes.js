@@ -527,19 +527,16 @@ export function mediaPresentation(raw) {
     return { mode: 'placeholder', kind: media.kind, playable: false };
   }
   if (media.kind === 'instagram') {
-    const href = media.canonical || media.url;
-    const reel = mediaShape('instagram', href) === 'reel';
-    // Resting face is always a still (`media/?size=l` after unfurl) or a compact
-    // branded placeholder — never Instagram's official embed widget, which
-    // letterboxes a mini post inside the card. Reels may swap the still for the
-    // embed on tap.
+    // Always a still (`media/?size=l` after unfurl) or a compact branded
+    // placeholder. Instagram's official embed is a mini profile page (View
+    // profile, audio, letterboxed video) and does not fit a card — do not
+    // iframe it on tap.
     if (thumbnail) {
       return {
         mode: 'image',
         kind: 'instagram',
         src: thumbnail,
-        embedUrl: reel ? (details?.embedUrl || null) : null,
-        playable: reel,
+        playable: false,
         fit: 'cover',
       };
     }

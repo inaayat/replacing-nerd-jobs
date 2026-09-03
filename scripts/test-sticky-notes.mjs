@@ -255,7 +255,8 @@ function note(id, extra = {}) {
   });
   const igReelShown = mediaPresentation(igReelThumb);
   eq(igReelShown.mode, 'image', 'Instagram reels rest on the photo');
-  eq(igReelShown.playable, true, 'Instagram reels can swap the still for the embed on tap');
+  eq(igReelShown.playable, false, 'Instagram reels do not iframe the official embed');
+  assert(!igReelShown.embedUrl, 'Instagram embed URLs are not attached for in-card playback');
   eq(igReelShown.fit, 'cover', 'Instagram reels cover-crop inside the 9/16 frame');
   const igBareReel = mediaPresentation(localMedia('https://www.instagram.com/reels/ABC/'));
   eq(igBareReel.mode, 'placeholder', 'a reel without a thumb is still not the embed widget');
