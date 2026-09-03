@@ -15,6 +15,7 @@ export default async function handler(req, res) {
   if (route === 'ops') return handleOps(req, res);
   if (route === 'legend') return handleLegend(req, res);
   if (route === 'unfurl') return handleUnfurl(req, res);
+  if (route === 'ig-still') return handleIgStill(req, res);
   res.status(404).json({ error: 'Unknown sticky-notes route.' });
 }
 
@@ -259,6 +260,56 @@ async function handleUnfurl(req, res) {
     res.status(200).json({ title: title || null, media });
   } catch {
     res.status(200).json({ title: null, media: normalizeMedia({ url }) });
+  }
+}
+
+/**
+ * Stream the Instagram still jpeg through this origin. Do not 302 the
+ * browser to scontent — `<img src>` from inaayat.xyz is hotlink-blocked.
+ */
+async function handleIgStill(req, res) {
+  const session = await requireUser(req, res);
+  if (!session) return;
+  if (req.method !== 'GET') {
+    res.status(405).json({ error: 'Use GET.' });
+    return;
+  }
+  const stillUrl = instagramStillUrl(normalizeHref(req.query?.url));
+  if (!stillUrl) {
+    res.status(400).json({ error: 'Not an Instagram post.' });
+    return;
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const page = await fetch(stillUrl, {
+      signal: controller.signal,
+      redirect: 'follow',
+      headers: {
+        'User-Agent': BROWSER_UA,
+        Accept: 'image/jpeg,image/*,*/*;q=0.8',
+      },
+    });
+    const contentType = String(page.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+    if (!page.ok || !contentType.startsWith('image/')) {
+      try { await page.body?.cancel?.(); } catch { /* ignore */ }
+      res.status(502).json({ error: 'Instagram still unavailable.' });
+      return;
+    }
+    const bytes = Buffer.from(await page.arrayBuffer());
+    if (!bytes.length) {
+      res.status(502).json({ error: 'Instagram still unavailable.' });
+      return;
+    }
+    res.setHeader('Content-Type', contentType || 'image/jpeg');
+    res.setHeader('Cache-Control', 'private, max-age=86400');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.status(200).end(bytes);
+  } catch {
+    res.status(502).json({ error: 'Instagram still unavailable.' });
+  } finally {
+    clearTimeout(timer);
   }
 }
 

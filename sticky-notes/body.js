@@ -16,6 +16,7 @@ import {
   clamp,
   headingTriggerFor,
   iconImageUrl,
+  instagramStillApiPath,
   isLoneUrl,
   legendLabel,
   listTriggerFor,
@@ -454,6 +455,73 @@ function mediaFallback(frame, presentation, media) {
   }
 }
 
+const stillObjectUrls = new Map();
+
+/**
+ * `<img>` cannot send Authorization, so Instagram stills are fetched as a
+ * blob with the store token and painted from an object URL.
+ */
+function bindAuthImage(img, apiPath, token, onError) {
+  const fail = () => { onError?.(); };
+  if (!apiPath || !token || !img) {
+    fail();
+    return;
+  }
+  const apply = (objectUrl) => {
+    if (!objectUrl) {
+      fail();
+      return;
+    }
+    img.src = objectUrl;
+  };
+  const cached = stillObjectUrls.get(apiPath);
+  if (cached?.url) {
+    apply(cached.url);
+    return;
+  }
+  if (cached?.inflight) {
+    cached.inflight.then(apply).catch(fail);
+    return;
+  }
+  const inflight = fetch(apiPath, {
+    headers: { Authorization: `Bearer ${token}` },
+  }).then(async (res) => {
+    if (!res.ok) return null;
+    const type = String(res.headers.get('content-type') || '');
+    if (!type.startsWith('image/')) return null;
+    const blob = await res.blob();
+    if (!blob || !blob.size) return null;
+    const objectUrl = URL.createObjectURL(blob);
+    stillObjectUrls.set(apiPath, { url: objectUrl });
+    return objectUrl;
+  }).catch(() => null);
+  stillObjectUrls.set(apiPath, { inflight });
+  inflight.then((objectUrl) => {
+    if (!objectUrl) stillObjectUrls.delete(apiPath);
+    apply(objectUrl);
+  }).catch(fail);
+}
+
+/** Signed-in Instagram cards paint through `/api/sn-ig-still`, even before unfurl stores a thumb. */
+function instagramStillPresentation(media, authToken) {
+  const href = media?.canonical || media?.url;
+  const stillPath = authToken ? instagramStillApiPath(href) : null;
+  if (!stillPath) return { stillPath: null, presentation: mediaPresentation(media) };
+  return {
+    stillPath,
+    presentation: mediaPresentation({ ...media, thumbnail: media.thumbnail || href }),
+  };
+}
+
+function bindMediaImage(img, presentation, stillPath, authToken, onError) {
+  img.alt = img.alt || '';
+  img.loading = 'lazy';
+  img.referrerPolicy = 'no-referrer';
+  img.addEventListener('error', onError, { once: true });
+  if (stillPath && authToken) bindAuthImage(img, stillPath, authToken, onError);
+  else img.src = presentation.src;
+}
+
 function fitMediaHostToImage(host, img, fallbackRatio) {
   if (fallbackRatio) host.style.aspectRatio = fallbackRatio;
   const apply = () => {
@@ -504,16 +572,13 @@ function layoutMediaHost(host, media, presentation) {
   if (img) fitMediaHostToImage(host, img, fallbackRatio);
 }
 
-function mediaFrame(media, presentation) {
+function mediaFrame(media, presentation, { stillPath = null, authToken = '' } = {}) {
   const frame = document.createElement('span');
   frame.className = 'sn-media-frame';
-  if (presentation.mode === 'image') {
+  if (presentation.mode === 'image' && (presentation.src || stillPath)) {
     const img = document.createElement('img');
-    img.src = presentation.src;
     img.alt = media.title || '';
-    img.loading = 'lazy';
-    img.referrerPolicy = 'no-referrer';
-    img.addEventListener('error', () => mediaFallback(frame, presentation, media), { once: true });
+    bindMediaImage(img, presentation, stillPath, authToken, () => mediaFallback(frame, presentation, media));
     frame.appendChild(img);
   } else if (presentation.mode === 'embed' && presentation.embedUrl) {
     const iframe = document.createElement('iframe');
@@ -530,16 +595,16 @@ function mediaFrame(media, presentation) {
 }
 
 /** Paint one restrained visual attachment without expanding the rich-text model. */
-export function renderMedia(host, media) {
+export function renderMedia(host, media, options = {}) {
   host.innerHTML = '';
-  const presentation = mediaPresentation(media);
+  const { stillPath, presentation } = instagramStillPresentation(media, options.authToken);
   if (!media || presentation.mode === 'none') {
     host.hidden = true;
     return;
   }
   host.hidden = false;
   const href = media.canonical || media.url;
-  let visual = mediaFrame(media, presentation);
+  let visual = mediaFrame(media, presentation, { stillPath, authToken: options.authToken });
 
   if (presentation.playable) {
     const play = document.createElement('button');
@@ -607,13 +672,13 @@ function tableThumbPlaceholder(kind) {
 }
 
 /** Compact still for the board table — no caption, play, or layout chrome. */
-export function renderMediaThumb(host, media) {
+export function renderMediaThumb(host, media, options = {}) {
   host.replaceChildren();
-  const presentation = mediaPresentation(media);
+  const { stillPath, presentation } = instagramStillPresentation(media, options.authToken);
   if (!media || presentation.mode === 'none') return false;
 
   const href = media.canonical || media.url;
-  if (presentation.mode === 'image' && presentation.src) {
+  if (presentation.mode === 'image' && (presentation.src || stillPath)) {
     const link = document.createElement('a');
     link.className = 'sn-tbl-thumb-link';
     link.href = href;
@@ -622,13 +687,9 @@ export function renderMediaThumb(host, media) {
     link.setAttribute('aria-label', media.title || mediaKindLabel(presentation.kind));
     const img = document.createElement('img');
     img.className = 'sn-tbl-thumb-img';
-    img.src = presentation.src;
-    img.alt = '';
-    img.loading = 'lazy';
-    img.referrerPolicy = 'no-referrer';
-    img.addEventListener('error', () => {
+    bindMediaImage(img, presentation, stillPath, options.authToken, () => {
       link.replaceWith(tableThumbPlaceholder(presentation.kind || media.kind));
-    }, { once: true });
+    });
     link.appendChild(img);
     if (presentation.playable) {
       link.classList.add('is-playable');

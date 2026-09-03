@@ -254,6 +254,7 @@ CREATE TABLE IF NOT EXISTS sn_legend (
 | `/api/sn-ops` | `?route=ops` | POST `{ ops }` → `{ ok: true, applied: n }`. Applied in order; every statement scoped `WHERE user_id = $user`. Upserts use `ON CONFLICT (id) DO UPDATE … WHERE sn_notes.updated_at <= EXCLUDED.updated_at` for LWW. Unknown op kinds are skipped (an older server must not reject a newer client's queue). Cap 200 ops/request |
 | `/api/sn-legend` | `?route=legend` | PUT `{ kind, key, label, imageUrl? }` → `{ ok: true }`. Built-ins validate against `LEGEND_DEFAULTS`; custom images require normalized `custom:<id>` keys and http(s) URLs |
 | `/api/sn-unfurl` | `?route=unfurl` | GET `?url=` → `{ title, media }`. Server-side OG/platform unfurl with a 5 s timeout and http(s)-only normalized output; failures stay soft |
+| `/api/sn-ig-still` | `?route=ig-still` | GET `?url=` → `image/jpeg` (signed-in). Server fetches `instagramStillUrl(url)` with a browser UA, follows redirects, and **streams the bytes** — never 302 to scontent. Instagram `<img>` tags cannot use that URL (or the signed Location) from this origin |
 
 Errors follow house style: `{ error: string }` with 401/400/405/502/503.
 

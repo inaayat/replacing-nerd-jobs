@@ -25,6 +25,11 @@ for (const icon of manifest.icons || []) {
 }
 
 assert(worker.includes("url.pathname.startsWith('/api/')"), 'service worker never caches API responses');
+assert(worker.includes("sticky-notes-shell-v3"), 'shell cache name busts the v2 cache-first worker');
+assert(!worker.includes("sticky-notes-shell-v2"), 'the stale v2 cache name is gone');
+assert(worker.includes('function networkFirst'), 'JS/CSS are network-first so deploys land on the next open');
+assert(worker.includes('function cacheFirst'), 'icons stay cache-first');
+assert(worker.includes('function isScriptOrStyle'), 'network-first applies to JS and CSS, not icons');
 assert(worker.includes('navigationResponse'), 'service worker has an offline navigation fallback');
 assert(worker.includes('/engine/neon-browser-auth.js'), 'offline shell includes shared auth code');
 assert(app.includes("serviceWorker.register('./service-worker.js'"), 'app registers its scoped worker');

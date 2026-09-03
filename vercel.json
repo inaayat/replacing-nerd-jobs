@@ -217,6 +217,10 @@
       "destination": "/api/sticky-notes?route=unfurl"
     },
     {
+      "source": "/api/sn-ig-still",
+      "destination": "/api/sticky-notes?route=ig-still"
+    },
+    {
       "source": "/api/f500-filed",
       "destination": "/api/fortune-500?route=filed"
     },

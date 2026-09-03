@@ -194,7 +194,7 @@ export function createTable({ store, els, showToast, onViewCanvas }) {
     const cell = document.createElement('td');
     cell.className = 'sn-tbl-preview';
     store.refreshMissingThumb(note);
-    if (note.media && renderMediaThumb(cell, note.media)) return cell;
+    if (note.media && renderMediaThumb(cell, note.media, { authToken: store.authToken })) return cell;
     cell.innerHTML = '<span class="sn-tbl-preview-empty" aria-hidden="true"></span>';
     return cell;
   }
@@ -203,7 +203,7 @@ export function createTable({ store, els, showToast, onViewCanvas }) {
     const chip = document.createElement('span');
     chip.className = 'sn-tbl-preview';
     store.refreshMissingThumb(note);
-    if (!note.media || !renderMediaThumb(chip, note.media)) chip.hidden = true;
+    if (!note.media || !renderMediaThumb(chip, note.media, { authToken: store.authToken })) chip.hidden = true;
     return chip;
   }
 

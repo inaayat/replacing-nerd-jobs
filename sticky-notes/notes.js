@@ -398,6 +398,19 @@ export function instagramStillUrl(url) {
   return `https://www.instagram.com/${post.type}/${post.id}/media/?size=l`;
 }
 
+/**
+ * Same-origin still bytes. Instagram's `media/?size=l` (and the signed
+ * scontent Location it 302s to) cannot be used as `<img src>` from this
+ * origin — Safari / hotlink checks fail and the card falls back to a
+ * placeholder. The API streams the jpeg; callers attach the session token
+ * (an `<img>` cannot send Authorization).
+ */
+export function instagramStillApiPath(url) {
+  const href = normalizeHref(url);
+  if (!href || !instagramStillUrl(href)) return null;
+  return `/api/sn-ig-still?url=${encodeURIComponent(href)}`;
+}
+
 const SOCIAL_THUMB_KINDS = new Set(['instagram', 'tiktok', 'pinterest']);
 
 /** True when a stored social attachment still needs a server unfurl for its still. */
