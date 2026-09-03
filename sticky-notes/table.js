@@ -10,6 +10,7 @@ import {
   COLOR_KEYS,
   DEFAULT_COLOR_KEY,
   PIN_SVG,
+  applyAutoPreview,
   blankNote,
   colorHex,
   findFreeSlot,
@@ -109,12 +110,12 @@ export function createTable({ store, els, showToast, onViewCanvas }) {
     ed.detach();
     if (!current) return;
     if (projected !== current.text || JSON.stringify(rich) !== JSON.stringify(stored)) {
-      store.dispatch([
-        {
-          op: 'note.upsert',
-          note: { ...current, text: projected, rich, updatedAt: new Date().toISOString() },
-        },
-      ]);
+      const applied = applyAutoPreview(
+        { ...current, text: projected, rich, updatedAt: new Date().toISOString() },
+        current,
+      );
+      store.dispatch([{ op: 'note.upsert', note: applied.note }]);
+      if (applied.unfurlUrl) store.queueUnfurl(id, applied.unfurlUrl);
     }
   }
 
