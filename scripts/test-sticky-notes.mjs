@@ -16,8 +16,10 @@ import {
   NOTE_W_MIN,
   OPLOG_KEY,
   STORAGE_KEY,
+  applyAutoPreview,
   applyHashtags,
   applyOps,
+  autoPreviewUrl,
   arrowEndpoints,
   bbox,
   blankNote,
@@ -69,6 +71,7 @@ import {
   normalizeTags,
   phoneNoteZoom,
   placeEditPopover,
+  previewUrlsFromBody,
   planEditSession,
   usesPhoneCompose,
   boardCreatePath,
@@ -80,6 +83,7 @@ import {
   resolveHashtagLabel,
   screenToWorld,
   sharedNoteInput,
+  shouldAcceptUnfurl,
   stateIsEmpty,
   stateToOps,
   textToRich,
@@ -225,6 +229,124 @@ function note(id, extra = {}) {
   const withMedia = normalizeNote({ id: 'media', text: 'caption', media: unfurled });
   eq(withMedia.media.thumbnail, unfurled.thumbnail, 'normalized notes retain media');
   eq(normalizeNote({ id: 'bad-media', media: { url: 'file:///etc/passwd' } }).media, null, 'invalid media clears');
+}
+
+// 1b2. auto-preview URL from body text / pills; manual media stays put
+{
+  eq(
+    autoPreviewUrl({ text: 'See https://example.com/a and https://example.com/b now' }),
+    'https://example.com/b',
+    'most recent raw https URL is the auto-preview target',
+  );
+  eq(
+    autoPreviewUrl({ text: 'no links here' }),
+    null,
+    'a body with no URLs has no auto-preview',
+  );
+  const pillRich = [{
+    type: 'p',
+    spans: [
+      { text: 'Look at ', bold: false },
+      { text: 'instagram.com', bold: false, href: 'https://www.instagram.com/p/AbC_123/' },
+      { text: ' today', bold: false },
+    ],
+  }];
+  eq(
+    autoPreviewUrl({ rich: pillRich, text: 'Look at instagram.com today' }),
+    'https://www.instagram.com/p/AbC_123/',
+    'href pills are auto-preview URLs even when display text is not the URL',
+  );
+  const mixed = previewUrlsFromBody({
+    rich: [{
+      type: 'p',
+      spans: [
+        { text: 'https://example.com/og plus ', bold: false },
+        { text: 'youtu.be', bold: false, href: 'https://youtu.be/dQw4w9WgXcQ' },
+      ],
+    }],
+  });
+  eq(mixed[0], 'https://example.com/og', 'raw https in a span is collected');
+  eq(mixed[1], 'https://youtu.be/dQw4w9WgXcQ', 'href pills are collected');
+  eq(autoPreviewUrl({ text: 'see (https://example.com/x).' }), 'https://example.com/x', 'trailing punctuation is stripped');
+  eq(autoPreviewUrl({ text: 'ftp://example.com/x' }), null, 'non-http URLs are ignored');
+
+  const og = applyAutoPreview({
+    id: 'og',
+    text: 'Read https://example.com/story tonight',
+  });
+  eq(og.note.sourceUrl, 'https://example.com/story', 'generic pages set sourceUrl for OG unfurl');
+  eq(og.note.media, null, 'generic pages wait for an OG thumbnail');
+  eq(og.unfurlUrl, 'https://example.com/story', 'generic pages still queue an unfurl');
+  eq(og.note.text, 'Read https://example.com/story tonight', 'auto-preview leaves the URL text in the body');
+
+  const pending = applyAutoPreview({
+    id: 'og',
+    text: 'Read https://example.com/story tonight',
+    sourceUrl: 'https://example.com/story',
+  });
+  eq(pending.unfurlUrl, null, 'a pending generic unfurl is not reset on the next commit');
+  eq(pending.note.sourceUrl, 'https://example.com/story', 'pending generic sourceUrl is kept');
+
+  const sharedKeep = applyAutoPreview({
+    id: 'share',
+    text: 'Read this useful context',
+    sourceUrl: 'https://example.com/article',
+  });
+  eq(sharedKeep.note.sourceUrl, 'https://example.com/article', 'a share sourceUrl not in the body is not cleared');
+  eq(sharedKeep.unfurlUrl, null, 'share sourceUrl without body links does not auto-attach');
+
+  const instagram = applyAutoPreview({ id: 'ig', rich: pillRich, text: 'Look at instagram.com today' });
+  eq(instagram.note.media?.url, 'https://www.instagram.com/p/AbC_123/', 'known hosts attach local media immediately');
+  eq(instagram.note.rich, pillRich, 'href pills stay in the body after a preview attaches');
+  eq(instagram.unfurlUrl, 'https://www.instagram.com/p/AbC_123/', 'known hosts still unfurl for title/thumbnail');
+
+  const manual = applyAutoPreview({
+    id: 'manual',
+    text: 'also https://example.com/a',
+    media: { url: 'https://cdn.example.com/manual.jpg' },
+  });
+  eq(manual.note.media.url, 'https://cdn.example.com/manual.jpg', 'manual picker media is not overwritten by a body link');
+  eq(manual.unfurlUrl, null, 'manual media does not queue an auto unfurl');
+
+  const stillThere = applyAutoPreview(
+    {
+      id: 'keep',
+      text: 'https://example.com/a and https://example.com/b',
+      media: { url: 'https://example.com/a' },
+      sourceUrl: 'https://example.com/a',
+    },
+    { id: 'keep', text: 'https://example.com/a', media: { url: 'https://example.com/a' } },
+  );
+  eq(stillThere.note.media.url, 'https://example.com/a', 'an auto URL still in the body is not replaced by a newer link');
+  eq(stillThere.unfurlUrl, null, 'unchanged auto media does not re-unfurl');
+
+  const fallback = applyAutoPreview(
+    { id: 'fb', text: 'left https://example.com/b', media: { url: 'https://example.com/a' } },
+    { id: 'fb', text: 'https://example.com/a and https://example.com/b', media: { url: 'https://example.com/a' } },
+  );
+  eq(fallback.note.sourceUrl, 'https://example.com/b', 'removing the auto URL falls back to the remaining link');
+  eq(fallback.unfurlUrl, 'https://example.com/b', 'fallback queues unfurl for the remaining link');
+
+  const cleared = applyAutoPreview(
+    { id: 'clr', text: 'no links left', media: { url: 'https://example.com/a' }, sourceUrl: 'https://example.com/a' },
+    { id: 'clr', text: 'https://example.com/a', media: { url: 'https://example.com/a' }, sourceUrl: 'https://example.com/a' },
+  );
+  eq(cleared.note.media, null, 'removing the last auto URL clears media');
+  eq(cleared.note.sourceUrl, null, 'removing the last auto URL clears sourceUrl');
+  eq(cleared.unfurlUrl, null, 'a cleared preview does not unfurl');
+
+  assert(
+    shouldAcceptUnfurl({ sourceUrl: 'https://example.com/a', media: null }, 'https://example.com/a'),
+    'unfurl of a pending generic preview is accepted',
+  );
+  assert(
+    shouldAcceptUnfurl({ media: { url: 'https://cdn.example.com/manual.jpg' } }, 'https://cdn.example.com/manual.jpg'),
+    'unfurl of picker media is accepted',
+  );
+  assert(
+    !shouldAcceptUnfurl({ media: { url: 'https://cdn.example.com/manual.jpg' } }, 'https://example.com/a'),
+    'unfurl must not overwrite picker media with a different URL',
+  );
 }
 
 // 1c. installed-app share target

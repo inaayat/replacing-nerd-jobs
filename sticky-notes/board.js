@@ -35,6 +35,7 @@ import {
   findFreeSlot,
   fitViewport,
   centerViewportOnRects,
+  applyAutoPreview,
   isLoneUrl,
   keyboardInset as visualKeyboardInset,
   legendLabel,
@@ -1174,32 +1175,19 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     if (inkEditingId) endInkEdit?.(false);
     // A create is a real note immediately, even when the body is still blank.
     const local = sourceUrl && mediaKind(sourceUrl) !== 'link' ? localMedia(sourceUrl) : null;
-    const note = text
+    let note = text
       ? { id: randomId(), text, ...fields, sourceUrl, media: local }
       : blankNote(fields);
+    let unfurlUrl = sourceUrl;
+    if (text) {
+      const applied = applyAutoPreview(note);
+      note = applied.note;
+      unfurlUrl = sourceUrl || applied.unfurlUrl;
+    }
     store.dispatch([{ op: 'note.upsert', note }]);
     const saved = noteById(note.id);
     if (!saved) return;
-    if (sourceUrl) {
-      store.unfurlData(sourceUrl).then((data) => {
-        if (!data) return;
-        const current = noteById(note.id);
-        if (current) {
-          const media = data.media && (data.media.kind !== 'link' || data.media.thumbnail)
-            ? data.media
-            : current.media;
-          store.dispatch([{
-            op: 'note.upsert',
-            note: {
-              ...current,
-              media,
-              sourceTitle: data.title || current.sourceTitle,
-              updatedAt: new Date().toISOString(),
-            },
-          }]);
-        }
-      });
-    }
+    if (unfurlUrl) store.queueUnfurl(saved.id, unfurlUrl);
     if (!text) {
       const el = cardEls.get(saved.id);
       if (el && !useCompose()) fitPhoneNote(el);
@@ -1235,18 +1223,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
       note: { ...current, media, updatedAt: new Date().toISOString() },
     }]);
     els.ebMediaPop.hidden = true;
-    store.unfurlData(url).then((data) => {
-      const latest = noteById(current.id);
-      if (!data?.media || !latest || latest.media?.url !== url) return;
-      store.dispatch([{
-        op: 'note.upsert',
-        note: {
-          ...latest,
-          media: { ...data.media, position: latest.media.position },
-          updatedAt: new Date().toISOString(),
-        },
-      }]);
-    });
+    store.queueUnfurl(current.id, url);
   }
 
   function removeMedia() {
@@ -1339,9 +1316,12 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
       const stamp = JSON.stringify(rich);
       if (text !== current.text || stamp !== JSON.stringify(stored)) {
         bodyStamps.set(id, stamp);
-        store.dispatch([
-          { op: 'note.upsert', note: { ...current, text, rich, updatedAt: new Date().toISOString() } },
-        ]);
+        const applied = applyAutoPreview(
+          { ...current, text, rich, updatedAt: new Date().toISOString() },
+          current,
+        );
+        store.dispatch([{ op: 'note.upsert', note: applied.note }]);
+        if (applied.unfurlUrl) store.queueUnfurl(id, applied.unfurlUrl);
       } else {
         const cardBody = el.querySelector('.sn-card-body');
         if (cardBody) renderBody(cardBody, stored);

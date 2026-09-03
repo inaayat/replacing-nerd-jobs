@@ -19,7 +19,9 @@ import {
   emptyState,
   mergeStates,
   migrateLegacyStore,
+  normalizeHref,
   normalizeState,
+  shouldAcceptUnfurl,
 } from './notes.js';
 
 const MIRROR_DEBOUNCE_MS = 200;
@@ -178,6 +180,36 @@ export function createStore({ token = null, guest = false } = {}) {
     async unfurl(url) {
       const data = await store.unfurlData(url);
       return data?.title || null;
+    },
+    /**
+     * Attach server unfurl metadata if this note still wants `url`. Known
+     * kinds already have local media; generic pages keep waiting for an OG image.
+     */
+    queueUnfurl(id, url) {
+      const href = normalizeHref(url);
+      if (!href) return;
+      store.unfurlData(href).then((data) => {
+        if (!data) return;
+        const current = store.state.notes.find((n) => n.id === id);
+        if (!shouldAcceptUnfurl(current, href)) return;
+        const incoming = data.media && (data.media.kind !== 'link' || data.media.thumbnail)
+          ? data.media
+          : null;
+        const media = incoming
+          ? { ...incoming, position: current.media?.position || incoming.position }
+          : current.media;
+        const sourceTitle = data.title || current.sourceTitle;
+        if (media === current.media && sourceTitle === current.sourceTitle) return;
+        store.dispatch([{
+          op: 'note.upsert',
+          note: {
+            ...current,
+            media,
+            sourceTitle,
+            updatedAt: new Date().toISOString(),
+          },
+        }]);
+      });
     },
     async saveLegendLabel(kind, key, label) {
       store.dispatch([{ op: 'legend.set', kind, key, label }], { kind: 'legend' });

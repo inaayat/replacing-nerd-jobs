@@ -602,6 +602,143 @@ export function noteBlocks(note) {
   return note?.rich || textToRich(note?.text);
 }
 
+/** Strip trailing sentence punctuation that is rarely part of a pasted URL. */
+function trimPreviewHref(raw) {
+  return String(raw || '').replace(/[)\]},.;:!?]+$/g, '');
+}
+
+function pushPreviewUrl(found, raw) {
+  const href = normalizeHref(trimPreviewHref(raw));
+  if (href) found.push(href);
+}
+
+function collectRawHrefs(text, found) {
+  const re = /https?:\/\/[^\s<>"'`]+/gi;
+  let match;
+  while ((match = re.exec(String(text || '')))) pushPreviewUrl(found, match[0]);
+}
+
+function collectRichHrefs(blocks, found) {
+  for (const block of Array.isArray(blocks) ? blocks : []) {
+    for (const span of block?.spans || []) {
+      if (span?.href) pushPreviewUrl(found, span.href);
+      collectRawHrefs(span?.text, found);
+    }
+  }
+}
+
+/**
+ * http(s) URLs in a note body, in document order, last occurrence winning.
+ * Href pills and raw `https://…` text that `normalizeHref` would accept.
+ */
+export function previewUrlsFromBody(note) {
+  const found = [];
+  if (typeof note === 'string') collectRawHrefs(note, found);
+  else if (Array.isArray(note)) collectRichHrefs(note, found);
+  else if (note && typeof note === 'object') {
+    if (Array.isArray(note.rich)) collectRichHrefs(note.rich, found);
+    else collectRawHrefs(note.text, found);
+  }
+  const urls = [];
+  const seen = new Set();
+  for (let i = found.length - 1; i >= 0; i -= 1) {
+    const href = found[i];
+    if (seen.has(href)) continue;
+    seen.add(href);
+    urls.push(href);
+  }
+  urls.reverse();
+  return urls;
+}
+
+/** Most recent eligible URL in the body — the one auto-preview would attach. */
+export function autoPreviewUrl(note) {
+  const urls = previewUrlsFromBody(note);
+  return urls[urls.length - 1] || null;
+}
+
+function mediaUrlOf(note) {
+  return normalizeHref(note?.media?.url);
+}
+
+/**
+ * Decide auto-preview media on body commit. Manual picker attachments (a
+ * media URL that is not, and was not, in the body) are left alone. When an
+ * auto-attached URL leaves the body, fall back to the remaining link or clear.
+ * Returns `{ note, unfurlUrl }`; `unfurlUrl` is set when the caller should
+ * fetch title + OG image (signed-in) after attaching local media immediately.
+ */
+export function applyAutoPreview(note, previous = null) {
+  if (!note || typeof note !== 'object') return { note, unfurlUrl: null };
+  const urls = previewUrlsFromBody(note);
+  const pick = urls[urls.length - 1] || null;
+  const mediaUrl = mediaUrlOf(note);
+  const prevUrls = previous ? previewUrlsFromBody(previous) : [];
+
+  let target = mediaUrl;
+  let attach = false;
+  let clear = false;
+
+  if (!mediaUrl) {
+    if (pick) {
+      // Already waiting on this URL's unfurl (generic OG page) — don't reset title.
+      if (normalizeHref(note.sourceUrl) === pick) return { note, unfurlUrl: null };
+      target = pick;
+      attach = true;
+    } else {
+      const source = normalizeHref(note.sourceUrl);
+      if (source && prevUrls.includes(source) && !urls.includes(source)) {
+        clear = true;
+        target = null;
+      }
+    }
+  } else if (urls.includes(mediaUrl)) {
+    target = mediaUrl;
+  } else if (prevUrls.includes(mediaUrl)) {
+    target = pick;
+    attach = Boolean(pick);
+    clear = !pick;
+  }
+
+  if (!attach && !clear) return { note, unfurlUrl: null };
+
+  if (clear) {
+    const source = normalizeHref(note.sourceUrl);
+    const dropSource = !source || source === mediaUrl || prevUrls.includes(source);
+    return {
+      note: {
+        ...note,
+        media: null,
+        sourceUrl: dropSource ? null : note.sourceUrl,
+        sourceTitle: dropSource ? null : note.sourceTitle,
+      },
+      unfurlUrl: null,
+    };
+  }
+
+  const kind = mediaKind(target);
+  const local = kind && kind !== 'link' ? localMedia(target) : null;
+  return {
+    note: {
+      ...note,
+      media: local,
+      sourceUrl: target,
+      sourceTitle: mediaUrl === target ? note.sourceTitle : null,
+    },
+    unfurlUrl: target,
+  };
+}
+
+/** True when an in-flight unfurl still matches this note's auto or picker media. */
+export function shouldAcceptUnfurl(note, url) {
+  if (!note) return false;
+  const href = normalizeHref(url);
+  if (!href) return false;
+  const mediaUrl = mediaUrlOf(note);
+  if (mediaUrl) return mediaUrl === href;
+  return normalizeHref(note.sourceUrl) === href;
+}
+
 export function emptyDoc() {
   return { blocks: [] };
 }
