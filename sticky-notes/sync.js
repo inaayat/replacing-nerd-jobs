@@ -117,6 +117,9 @@ export function createStore({ token = null, guest = false } = {}) {
     },
     /** True when nothing here can reach the server. The UI has to say so. */
     guest,
+    get authToken() {
+      return guest ? null : token;
+    },
     subscribe(fn) {
       subscribers.add(fn);
       return () => subscribers.delete(fn);
@@ -225,7 +228,9 @@ export function createStore({ token = null, guest = false } = {}) {
     /**
      * Existing Instagram (and other social) cards stored `kind` with no
      * thumbnail because unfurl used to miss. Idle cards never refetch on
-     * their own — call this from board/table render, once per note id.
+     * their own — call this from board/table render. The id is held while a
+     * request is in flight; it stays only after a thumbnail arrives, so a
+     * failed unfurl can try again.
      */
     refreshMissingThumb(note) {
       if (guest || !token) return;
@@ -233,8 +238,48 @@ export function createStore({ token = null, guest = false } = {}) {
       if (!mediaNeedsThumbRefresh(note.media)) return;
       const href = normalizeHref(note.media.url || note.media.canonical);
       if (!href) return;
-      thumbRefresh.add(note.id);
-      store.queueUnfurl(note.id, href);
+      const id = note.id;
+      thumbRefresh.add(id);
+      store.unfurlData(href).then((data) => {
+        const thumbnail = data?.media?.thumbnail;
+        if (!thumbnail) {
+          thumbRefresh.delete(id);
+          return;
+        }
+        const current = store.state.notes.find((n) => n.id === id);
+        if (!shouldAcceptUnfurl(current, href)) {
+          thumbRefresh.delete(id);
+          return;
+        }
+        const incoming = data.media && (data.media.kind !== 'link' || data.media.thumbnail)
+          ? data.media
+          : null;
+        const media = incoming
+          ? {
+              ...incoming,
+              position: current.media?.position || incoming.position,
+              title: incoming.title || current.media?.title || '',
+              thumbnail: incoming.thumbnail || current.media?.thumbnail || null,
+            }
+          : current.media;
+        const sourceTitle = data.title || current.sourceTitle;
+        if (
+          media?.thumbnail === current.media?.thumbnail
+          && media?.title === current.media?.title
+          && sourceTitle === current.sourceTitle
+        ) return;
+        store.dispatch([{
+          op: 'note.upsert',
+          note: {
+            ...current,
+            media,
+            sourceTitle,
+            updatedAt: new Date().toISOString(),
+          },
+        }]);
+      }).catch(() => {
+        thumbRefresh.delete(id);
+      });
     },
     async saveLegendLabel(kind, key, label) {
       store.dispatch([{ op: 'legend.set', kind, key, label }], { kind: 'legend' });

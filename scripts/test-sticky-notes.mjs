@@ -50,6 +50,7 @@ import {
   iconImageUrl,
   isIconKey,
   instagramStillUrl,
+  instagramStillApiPath,
   localMedia,
   localMediaDetails,
   mediaAspectRatio,
@@ -196,6 +197,18 @@ function note(id, extra = {}) {
   );
   eq(instagramStillUrl('https://www.instagram.com/hanautpaul/'), null, 'profile URLs have no still');
   eq(instagramStillUrl('https://youtu.be/dQw4w9WgXcQ'), null, 'YouTube is not an Instagram still');
+  eq(
+    instagramStillApiPath('https://www.instagram.com/p/ABC/'),
+    `/api/sn-ig-still?url=${encodeURIComponent('https://www.instagram.com/p/ABC/')}`,
+    'Instagram stills are fetched from the same-origin API',
+  );
+  eq(
+    instagramStillApiPath('https://www.instagram.com/reel/ABC_123/'),
+    `/api/sn-ig-still?url=${encodeURIComponent('https://www.instagram.com/reel/ABC_123/')}`,
+    'reel stills use the same proxy path',
+  );
+  eq(instagramStillApiPath('https://www.instagram.com/hanautpaul/'), null, 'profiles have no still API');
+  eq(instagramStillApiPath('https://youtu.be/dQw4w9WgXcQ'), null, 'YouTube is not proxied');
 
   const igPost = localMedia('https://www.instagram.com/p/ABC/');
   const igPostFace = mediaPresentation(igPost);

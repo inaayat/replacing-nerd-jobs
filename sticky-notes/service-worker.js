@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'sticky-notes-shell-';
-const CACHE_NAME = `${CACHE_PREFIX}v2`;
+const CACHE_NAME = 'sticky-notes-shell-v3';
 const ROOT = '/sticky-notes/';
 const APP_SHELL = [
   ROOT,
@@ -43,6 +43,10 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+function isScriptOrStyle(url) {
+  return /\.(?:js|css)$/i.test(url.pathname);
+}
+
 async function navigationResponse(request) {
   try {
     const response = await fetch(request);
@@ -56,18 +60,40 @@ async function navigationResponse(request) {
   }
 }
 
-async function assetResponse(request) {
+async function putIfBasicOk(request, response) {
+  if (response.ok && response.type === 'basic') {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.put(request, response.clone());
+  }
+}
+
+/** JS/CSS must pick up deploys on the next open; stale Cache API entries are a fallback. */
+async function networkFirst(request) {
+  try {
+    const response = await fetch(request, { cache: 'no-cache' });
+    await putIfBasicOk(request, response);
+    return response;
+  } catch {
+    return (await caches.match(request)) || Response.error();
+  }
+}
+
+/** Icons and other static shell files stay cache-first. */
+async function cacheFirst(request) {
   const cached = await caches.match(request);
   const network = fetch(request)
     .then(async (response) => {
-      if (response.ok && response.type === 'basic') {
-        const cache = await caches.open(CACHE_NAME);
-        await cache.put(request, response.clone());
-      }
+      await putIfBasicOk(request, response);
       return response;
     })
     .catch(() => null);
   return cached || network || Response.error();
+}
+
+async function assetResponse(request) {
+  const url = new URL(request.url);
+  if (isScriptOrStyle(url)) return networkFirst(request);
+  return cacheFirst(request);
 }
 
 self.addEventListener('fetch', (event) => {
