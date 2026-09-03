@@ -23,6 +23,7 @@ import {
   arrowEndpoints,
   bbox,
   blankNote,
+  canStartResize,
   colorHex,
   docIsEmpty,
   DOC_MAX_BLOCKS,
@@ -73,6 +74,8 @@ import {
   normalizeState,
   normalizeTags,
   phoneNoteZoom,
+  pinchAfterLift,
+  pinchStep,
   placeEditPopover,
   previewUrlsFromBody,
   planEditSession,
@@ -736,6 +739,80 @@ function note(id, extra = {}) {
   eq(zoomAt(vp, anchor, 0.001).zoom, 0.4, 'zoom clamped to min');
   const pinned = zoomAt({ panX: 0, panY: 0, zoom: 2 }, anchor, 4);
   eq(pinned.panX, 0, 'a clamped zoom does not pan');
+}
+
+// 11b. pinchStep / pinchAfterLift — the two-finger gesture on a phone
+{
+  const origin = { x: 12, y: 60 }; // the canvas is not at the top-left of the screen
+  const vp = { panX: 40, panY: -25, zoom: 1 };
+
+  // Spread the fingers in place: the world point under the midpoint stays put.
+  const held = { dist: 100, mid: { x: 212, y: 260 } };
+  const spread = pinchStep(vp, held, { dist: 150, mid: held.mid }, origin);
+  eq(spread.zoom, 1.5, 'spreading the fingers scales by their spread');
+  const anchor = { x: held.mid.x - origin.x, y: held.mid.y - origin.y };
+  const before = screenToWorld(anchor, vp);
+  const after = screenToWorld(anchor, spread);
+  assert(
+    Math.abs(after.x - before.x) < 1e-9 && Math.abs(after.y - before.y) < 1e-9,
+    'the world point between the fingers is unmoved',
+  );
+
+  // Slide both fingers without changing the spread: a pure pan, no zoom.
+  const slid = pinchStep(vp, held, { dist: 100, mid: { x: 242, y: 300 } }, origin);
+  eq(slid.zoom, 1, 'sliding two fingers does not zoom');
+  eq(slid.panX, 70, 'the board follows the midpoint horizontally');
+  eq(slid.panY, 15, 'the board follows the midpoint vertically');
+
+  // Frame by frame equals one big step, so a slow pinch lands where a quick
+  // one does. (Only the spread has to accumulate cleanly: a midpoint that
+  // travels anchors each frame where the fingers were for that frame.)
+  const half = { dist: 120, mid: held.mid };
+  const whole = { dist: 150, mid: held.mid };
+  const stepped = pinchStep(pinchStep(vp, held, half, origin), half, whole, origin);
+  assert(
+    Math.abs(stepped.zoom - spread.zoom) < 1e-9 &&
+      Math.abs(stepped.panX - spread.panX) < 1e-6 &&
+      Math.abs(stepped.panY - spread.panY) < 1e-6,
+    'an incremental pinch matches a single step',
+  );
+
+  // The same for a two-finger drag: split it across frames and it lands where
+  // the single frame did.
+  const partway = { dist: 100, mid: { x: 222, y: 270 } };
+  const walked = pinchStep(pinchStep(vp, held, partway, origin), partway, { dist: 100, mid: { x: 242, y: 300 } }, origin);
+  assert(
+    Math.abs(walked.panX - slid.panX) < 1e-9 && Math.abs(walked.panY - slid.panY) < 1e-9,
+    'a two-finger drag split across frames matches one frame',
+  );
+
+  // A first frame with no spread to compare against must not divide by zero.
+  const seeded = pinchStep(vp, { dist: 0, mid: held.mid }, { dist: 90, mid: held.mid }, origin);
+  eq(seeded.zoom, 1, 'a zero starting spread holds the zoom');
+
+  const a = { id: 1, x: 100, y: 100 };
+  const b = { id: 2, x: 200, y: 140 };
+  const c = { id: 3, x: 260, y: 300 };
+  eq(pinchAfterLift([a, b, c]).kind, 'pinch', 'three fingers keep pinching');
+  const regrip = pinchAfterLift([b, c]);
+  eq(regrip.a.id, 2, 'the pinch re-seeds against the fingers still down');
+  eq(regrip.b.id, 3, 'both remaining fingers are reported');
+  const handoff = pinchAfterLift([b]);
+  eq(handoff.kind, 'pan', 'the last finger down keeps panning');
+  eq(handoff.pointerId, 2, 'the pan follows the finger that stayed');
+  eq(handoff.x, 200, 'the pan starts where that finger is, so the board does not jump');
+  eq(pinchAfterLift([]).kind, 'none', 'a hand off the glass ends the gesture');
+  eq(pinchAfterLift().kind, 'none', 'no pointer list ends the gesture');
+  eq(pinchAfterLift([{ id: 4 }]).kind, 'none', 'a pointer with no position is not a finger');
+}
+
+// 11c. canStartResize — who may grab a card's corner
+{
+  assert(canStartResize({ coarse: false }), 'a mouse can always grab the hover grip');
+  assert(!canStartResize({ coarse: true }), 'touch does not resize an idle note — that corner pans');
+  assert(canStartResize({ coarse: true, selected: true }), 'touch resizes the selected note');
+  assert(canStartResize({ coarse: true, editing: true }), 'touch resizes the note being edited');
+  assert(canStartResize(), 'no context reads as a mouse');
 }
 
 // 12. rich bodies — bold, bullets, numbers, and the plain projection

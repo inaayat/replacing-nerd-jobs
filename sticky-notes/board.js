@@ -29,6 +29,7 @@ import {
   arrowEndpoints,
   bbox,
   blankNote,
+  canStartResize,
   clamp,
   colorHex,
   displayedKeyboardSlice,
@@ -44,6 +45,8 @@ import {
   noteBlocks,
   noteCreateSize,
   phoneNoteZoom,
+  pinchAfterLift,
+  pinchStep,
   placeEditPopover,
   planEditSession,
   usesPhoneCompose,
@@ -1396,16 +1399,22 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
   }
 
   /** Pointer capture is best-effort: a synthetic or already-released pointer throws. */
-  function capturePointer(e) {
+  function capturePointerId(pointerId) {
     try {
-      viewport.setPointerCapture(e.pointerId);
+      viewport.setPointerCapture(pointerId);
     } catch {
       /* the gesture still works without capture */
     }
   }
 
+  function capturePointer(e) {
+    capturePointerId(e.pointerId);
+  }
+
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+  const pinchFrame = (a, b) => ({ dist: dist(a, b), mid: mid(a, b) });
+  const livePointers = () => [...pointers].map(([id, p]) => ({ id, x: p.x, y: p.y }));
 
   /**
    * Chrome buttons act on pointerdown, with the default prevented, so pressing
@@ -1432,12 +1441,13 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     lastPointerType = e.pointerType;
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-    // Two fingers: pinch to zoom, wherever they landed.
+    // Two fingers: pinch to zoom, wherever they landed — on the empty board or
+    // on a card, mid-drag or not. Whatever the first finger started is dropped.
     if (e.pointerType === 'touch' && pointers.size === 2) {
       clearLongPress();
       abortDrag();
       const [a, b] = [...pointers.values()];
-      drag = { kind: 'pinch', lastDist: dist(a, b), lastMid: mid(a, b) };
+      drag = { kind: 'pinch', last: pinchFrame(a, b) };
       return;
     }
     if (pointers.size > 1) return;
@@ -1446,13 +1456,20 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     const ink = e.target.closest('.sn-ink');
     const resize = e.target.closest('.sn-card-resize');
 
-    // Phone shows a 44px handle on the selected/editing card; desktop keeps
+    // Touch shows a 44px handle on the selected/editing card; the mouse keeps
     // the 14px hover grip. Hit it before the edit early-return so one finger
     // resizes without panning, moving, or committing the caret. Idle notes
     // keep the handle `display: none`, so one-finger pan still works.
     if (resize && card) {
       const note = noteById(card.dataset.id);
-      if (note && (!phone() || selection.has(note.id) || editingId === note.id)) {
+      const allowed =
+        note &&
+        canStartResize({
+          coarse: coarse(),
+          selected: selection.has(note.id),
+          editing: editingId === note.id,
+        });
+      if (allowed) {
         drag = {
           kind: 'resize', id: note.id, el: card, startX: e.clientX, startY: e.clientY,
           w: note.w, h: Math.max(note.h, card.offsetHeight), pointerId: e.pointerId, frame: 0,
@@ -1598,16 +1615,10 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     if (drag?.kind === 'pinch') {
       if (pointers.size < 2) return;
       const [a, b] = [...pointers.values()];
-      const nextDist = dist(a, b);
-      const nextMid = mid(a, b);
+      const next = pinchFrame(a, b);
       const r = viewport.getBoundingClientRect();
-      if (drag.lastDist > 0) {
-        vp = zoomAt(vp, { x: nextMid.x - r.left, y: nextMid.y - r.top }, nextDist / drag.lastDist);
-      }
-      vp.panX += nextMid.x - drag.lastMid.x;
-      vp.panY += nextMid.y - drag.lastMid.y;
-      drag.lastDist = nextDist;
-      drag.lastMid = nextMid;
+      vp = pinchStep(vp, drag.last, next, { x: r.left, y: r.top });
+      drag.last = next;
       applyViewport();
       return;
     }
@@ -1722,10 +1733,26 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     clearLongPress();
 
     if (drag?.kind === 'pinch') {
-      if (pointers.size < 2) {
-        drag = null;
-        saveViewport();
+      const next = pinchAfterLift(livePointers());
+      if (next.kind === 'pinch') {
+        // Re-seed against the fingers still down, or the first frame after the
+        // lift reads the departed finger's spread as a jump in scale.
+        drag.last = pinchFrame(next.a, next.b);
+        return;
       }
+      if (next.kind === 'pan') {
+        // One finger left: keep dragging the board with it instead of going
+        // dead until the hand is off the glass. `moved` is already true, so
+        // the lift is not mistaken for a tap on the empty board.
+        drag = {
+          kind: 'pan', startX: next.x, startY: next.y, panX: vp.panX, panY: vp.panY,
+          pointerId: next.pointerId, moved: true,
+        };
+        capturePointerId(next.pointerId);
+        return;
+      }
+      drag = null;
+      saveViewport();
       return;
     }
     if (!drag || drag.pointerId !== e.pointerId) return;
@@ -1802,6 +1829,19 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
 
   viewport.addEventListener('pointerup', endDrag);
   viewport.addEventListener('pointercancel', endDrag);
+
+  // A finger can leave the glass over chrome that is not inside the canvas —
+  // the edit bar and the compose sheet are siblings of #viewport — and that
+  // pointerup never reaches the board. The forgotten finger would sit in
+  // `pointers` forever, so the next single touch counts as two and the board
+  // pinches against a ghost instead of panning. Viewport lifts get here too,
+  // already emptied out by the listeners above.
+  const forgetPointer = (e) => {
+    if (!pointers.has(e.pointerId)) return;
+    endDrag(e);
+  };
+  window.addEventListener('pointerup', forgetPointer);
+  window.addEventListener('pointercancel', forgetPointer);
 
   viewport.addEventListener(
     'wheel',
