@@ -377,10 +377,13 @@ function instagramPermalink(url) {
   const href = normalizeHref(url);
   if (!href) return null;
   try {
-    const match = new URL(href).pathname.match(/\/(reels?|p|tv)\/([A-Za-z0-9_-]+)/);
+    const path = new URL(href).pathname;
+    const match = path.match(/\/(?:(?:share\/)?(?:reels?|p|tv))\/([A-Za-z0-9_-]+)/i);
     if (!match) return null;
-    const type = match[1] === 'reels' ? 'reel' : match[1];
-    return { type, id: match[2] };
+    const typeMatch = path.match(/\/(?:(?:share\/)?(reels?|p|tv))\//i);
+    const rawType = (typeMatch?.[1] || '').toLowerCase();
+    const type = rawType === 'reels' ? 'reel' : rawType;
+    return type ? { type, id: match[1] } : null;
   } catch {
     return null;
   }
@@ -495,8 +498,8 @@ export function normalizeMedia(raw) {
     thumbnail,
     title,
     kind: local?.kind || mediaKind(url) || 'link',
-    // Existing attachments predate placement and stay below the body. The
-    // media picker defaults new attachments to `before`, so text can follow.
+    // New attachments default to "text above, preview below"; legacy rows that
+    // explicitly requested `before` keep that layout.
     position: raw.position === 'before' ? 'before' : 'after',
   };
 }

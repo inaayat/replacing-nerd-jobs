@@ -695,7 +695,6 @@ async function init() {
       ebMedia: $('#eb-media'),
       ebMediaPop: $('#eb-media-pop'),
       ebMediaUrl: $('#eb-media-url'),
-      ebMediaPosition: $('#eb-media-position'),
       ebMediaSave: $('#eb-media-save'),
       ebMediaRemove: $('#eb-media-remove'),
       ebMediaError: $('#eb-media-error'),

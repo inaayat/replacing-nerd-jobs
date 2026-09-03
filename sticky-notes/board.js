@@ -1239,7 +1239,6 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
   function renderMediaPopover(note) {
     if (!els.ebMediaPop) return;
     els.ebMediaUrl.value = note.media?.url || '';
-    els.ebMediaPosition.value = note.media?.position || 'before';
     els.ebMediaRemove.hidden = !note.media;
     els.ebMediaError.hidden = true;
   }
@@ -1252,8 +1251,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     }
     const current = noteById(editingId);
     if (!current) return;
-    const position = els.ebMediaPosition?.value === 'after' ? 'after' : 'before';
-    const media = { ...localMedia(url), position };
+    const media = { ...localMedia(url), position: 'after' };
     store.dispatch([{
       op: 'note.upsert',
       note: { ...current, media, updatedAt: new Date().toISOString() },

@@ -192,6 +192,16 @@ function note(id, extra = {}) {
     'reels plural normalizes to /reel/ before media',
   );
   eq(
+    instagramStillUrl('https://www.instagram.com/share/reel/ABC_123/'),
+    'https://www.instagram.com/reel/ABC_123/media/?size=l',
+    'shared reel links resolve to the same still endpoint',
+  );
+  eq(
+    instagramStillUrl('https://www.instagram.com/share/p/ABC_123/'),
+    'https://www.instagram.com/p/ABC_123/media/?size=l',
+    'shared post links resolve to the same still endpoint',
+  );
+  eq(
     instagramStillUrl('https://www.instagram.com/tv/ABC_123/'),
     'https://www.instagram.com/tv/ABC_123/media/?size=l',
     'IGTV canonical becomes the public still URL',
