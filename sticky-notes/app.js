@@ -431,6 +431,7 @@ function guideGroups() {
             { glyph: '⇲', name: 'Drag a note or the board', text: 'A note moves; empty board pans. Two fingers on the board zoom and drag it at once — lift one and the other keeps dragging.' },
             { glyph: '⏱', name: 'Long-press a note', text: 'Starts a selection — then tap notes to add, and tap the board when you are done.' },
             { glyph: '⤡', name: 'Resize a note', text: 'Pinch it with both fingers on the note — no handle to find. Two fingers anywhere else zoom the board instead.' },
+            { glyph: '↗', name: 'Open a link preview', text: 'Tap the ↗ in the corner of the picture. The picture itself moves the note, so dragging one never sends you to the site.' },
             { glyph: '✎', name: 'Typing', text: 'Happens in a field above the keyboard, not on the scaled card. Tap + to start. Done, or tapping the board, saves it.' },
           ]
         : [

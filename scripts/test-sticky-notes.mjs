@@ -42,6 +42,7 @@ import {
   defaultTab,
   phoneBoardViewNeedsReset,
   isLoneUrl,
+  noteIsOnlyMedia,
   approach,
   displayedKeyboardSlice,
   KEYBOARD_INSET_TAU,
@@ -101,7 +102,7 @@ import {
   worldToScreen,
   zoomAt,
 } from '../sticky-notes/notes.js';
-import { lineLooksEmpty, listEnterAction } from '../sticky-notes/body.js';
+import { lineLooksEmpty, listEnterAction, mediaShowsStill } from '../sticky-notes/body.js';
 import { sortBoardNotes } from '../sticky-notes/table.js';
 import { memorySections, noteMatchesSearch } from '../sticky-notes/memory.js';
 
@@ -294,6 +295,30 @@ function note(id, extra = {}) {
   const withMedia = normalizeNote({ id: 'media', text: 'caption', media: unfurled });
   eq(withMedia.media.thumbnail, unfurled.thumbnail, 'normalized notes retain media');
   eq(normalizeNote({ id: 'bad-media', media: { url: 'file:///etc/passwd' } }).media, null, 'invalid media clears');
+
+  // A clip with nothing written on it is shown as the picture alone, with no
+  // card under it. Anything else on the note keeps the card.
+  const clip = normalizeNote({ id: 'clip', text: '', media: unfurled });
+  assert(noteIsOnlyMedia(clip), 'an attachment and no words is just the picture');
+  assert(!noteIsOnlyMedia({ ...clip, text: 'venue?' }), 'words bring the card back');
+  assert(!noteIsOnlyMedia({ ...clip, tags: ['venue'] }), 'a tag pill needs a card to sit on');
+  assert(!noteIsOnlyMedia({ ...clip, sourceUrl: 'https://example.com/story' }), 'a source line needs a card');
+  assert(!noteIsOnlyMedia({ ...clip, media: null }), 'a note with no attachment is not a picture');
+  assert(!noteIsOnlyMedia(null), 'no note is not a picture');
+
+  // Only a real still can stand on the board without a card around it.
+  assert(mediaShowsStill(unfurled), 'an unfurled OG image is a still');
+  assert(mediaShowsStill(localMedia('https://cdn.example.com/cat.jpg')), 'a direct image is a still');
+  assert(!mediaShowsStill(localMedia('https://example.com/story')), 'an un-unfurled link is a placeholder');
+  assert(
+    !mediaShowsStill(localMedia('https://www.pinterest.com/pin/1234567890/')),
+    'an embed widget is not a still',
+  );
+  assert(!mediaShowsStill(null), 'no attachment shows no still');
+  // Instagram paints through the same-origin still endpoint, which needs a token.
+  const igBare = localMedia('https://www.instagram.com/p/ABC/');
+  assert(!mediaShowsStill(igBare), 'signed out, a bare Instagram post has no still');
+  assert(mediaShowsStill(igBare, 'jwt'), 'signed in, it paints the still endpoint');
 }
 
 // 1b2. auto-preview URL from body text / pills; manual media stays put

@@ -299,7 +299,13 @@ button adds one compact visual preview above or below the body, so a note can
 keep its text underneath an image: direct image/video URLs, Pinterest images,
 Instagram posts/Reels, TikToks, and YouTube. Social video
 stays behind a play control so the card keeps its sticky-note shape; the media
-attachment is data, not rich-body HTML. **Colour fills the whole card**, and a
+attachment is data, not rich-body HTML. **A note that is only a picture is
+drawn as the picture** — no padding, border, or paper behind it, just the image
+wearing the card's rounded corners; it gets its card back the moment you type
+into it. On touch the preview is not a link (a finger on a picture is nearly
+always moving the note): drag it like any other note and tap the **↗** in its
+corner to open the source. A mouse still clicks the picture to open it, and
+drags the note by it. **Colour fills the whole card**, and a
 new note arrives light grey. The toolbar sits on the left.
 A canvas | table toggle next to **+** shows the same board notes as cards or as
 a grouped list (`sticky-notes/table.js`); switching writes no ops. On a phone

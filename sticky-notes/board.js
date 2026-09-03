@@ -38,6 +38,7 @@ import {
   centerViewportOnRects,
   applyAutoPreview,
   isLoneUrl,
+  noteIsOnlyMedia,
   keyboardInset as visualKeyboardInset,
   legendLabel,
   localMedia,
@@ -62,7 +63,14 @@ import {
   wipeTargets,
   zoomAt,
 } from './notes.js';
-import { attachBodyEditor, renderBody, renderIcon, renderMedia, renderTags } from './body.js';
+import {
+  attachBodyEditor,
+  mediaShowsStill,
+  renderBody,
+  renderIcon,
+  renderMedia,
+  renderTags,
+} from './body.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -70,6 +78,8 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 const SLOP_MOUSE = 4;
 const SLOP_TOUCH = 8;
 const LONG_PRESS_MS = 400;
+// A click arrives right after the mouseup that ended a drag, or not at all.
+const CLICK_AFTER_DRAG_MS = 300;
 
 export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
   const { viewport, world, arrowLayer, rubber, empty, actionbar, editbar } = els;
@@ -94,6 +104,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
 
   const pointers = new Map(); // live pointerId -> { x, y, cardId }, for pinch
   let longPressTimer = 0;
+  let draggedAt = 0; // when a note last finished moving, to swallow the trailing click
   let selectMode = false; // touch: long-press opened a multi-select session
   let lastPointerType = 'mouse';
 
@@ -220,6 +231,25 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
 
   // ------------------------------------------------------------------ cards
 
+  /**
+   * A picture with nothing else on it is shown as the picture: no padding, no
+   * border, the note's own rounded corners on the image. The card comes back
+   * while the note is being edited, because an empty body is nowhere to type.
+   */
+  function applyPhotoLayout(el, note) {
+    const bare =
+      note.id !== editingId &&
+      noteIsOnlyMedia(note) &&
+      mediaShowsStill(note.media, store.authToken);
+    el.classList.toggle('is-photo', bare);
+  }
+
+  /** The image sets a photo note's height; every other card is held open by `h`. */
+  function applyCardSize(el, w, h) {
+    el.style.width = `${w}px`;
+    el.style.minHeight = el.classList.contains('is-photo') ? '0px' : `${h}px`;
+  }
+
   function renderCard(note) {
     let el = cardEls.get(note.id);
     if (!el) {
@@ -243,8 +273,8 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     }
     el.style.left = `${note.x}px`;
     el.style.top = `${note.y}px`;
-    el.style.width = `${note.w}px`;
-    el.style.minHeight = `${note.h}px`;
+    applyPhotoLayout(el, note);
+    applyCardSize(el, note.w, note.h);
     el.classList.toggle('is-pinned', note.pinned);
     el.classList.toggle('is-selected', selection.has(note.id));
     // The colour is the card, not a stripe on it.
@@ -1270,6 +1300,9 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     const composing = Boolean(useCompose() && compose && composeBody);
     const body = composing ? composeBody : el.querySelector('.sn-card-body');
     el.classList.add('is-editing');
+    // A photo note has no card while it rests; typing needs one back.
+    applyPhotoLayout(el, note);
+    applyCardSize(el, note.w, note.h);
     setEditingChrome(true);
     if (composing) {
       compose.hidden = false;
@@ -1333,6 +1366,12 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
         if (cardBody) renderBody(cardBody, stored);
         bodyStamps.set(id, JSON.stringify(stored));
       }
+      // Left with a picture and no words again: back to the bare picture.
+      const after = noteById(id);
+      if (after) {
+        applyPhotoLayout(el, after);
+        applyCardSize(el, after.w, after.h);
+      }
       renderChips();
     };
     endEdit = finish;
@@ -1391,8 +1430,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
       }
     }
     if ((drag.kind === 'resize' || drag.kind === 'notepinch') && drag.el) {
-      drag.el.style.width = `${drag.w}px`;
-      drag.el.style.minHeight = `${drag.h}px`;
+      applyCardSize(drag.el, drag.w, drag.h);
       drag.el.classList.remove('is-pinching');
     }
     if (drag.kind === 'arrow') drag.ghost.remove();
@@ -1562,7 +1600,14 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     }
 
     if (card) {
-      if (e.target.closest('button, a')) return;
+      // The picture is part of the note, not a link sitting on top of it: a
+      // mouse drags the card by it (and the click that would have opened the
+      // site is swallowed below if the pointer moved), while a plain click
+      // still opens the site. Touch never gets here — the preview is not a
+      // hit target on a coarse pointer. Real chrome, the source line and body
+      // pills still own their own press.
+      const onMedia = Boolean(e.target.closest('.sn-media-link'));
+      if (e.target.closest('button, a') && !onMedia) return;
       const id = card.dataset.id;
 
       // Shift-click, or a tap during a touch selection session, toggles membership.
@@ -1592,8 +1637,9 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
         kind: 'move', id, ids, origins, liveRects, startX: e.clientX, startY: e.clientY,
         moved: false, pointerId: e.pointerId, frame: 0, dx: 0, dy: 0,
         slop: touch ? SLOP_TOUCH : SLOP_MOUSE,
-        // A press that never becomes a drag is a request to type.
-        wantsEdit: e.button === 0,
+        // A press that never becomes a drag is a request to type — unless it
+        // landed on the picture, where a click means "open this".
+        wantsEdit: e.button === 0 && !onMedia,
       };
       capturePointer(e);
       if (touch) {
@@ -1656,8 +1702,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
       drag.frame = requestAnimationFrame(() => {
         drag.frame = 0;
         const { w, h } = pinchedSize(drag);
-        drag.el.style.width = `${w}px`;
-        drag.el.style.minHeight = `${h}px`;
+        applyCardSize(drag.el, w, h);
         repathArrowsTouching([drag.id]);
       });
       return;
@@ -1729,8 +1774,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
       drag.frame = requestAnimationFrame(() => {
         drag.frame = 0;
         const { w, h } = resizeNoteSize(drag.w + (drag.dw || 0), drag.h + (drag.dh || 0));
-        drag.el.style.width = `${w}px`;
-        drag.el.style.minHeight = `${h}px`;
+        applyCardSize(drag.el, w, h);
         repathArrowsTouching([drag.id]);
       });
       return;
@@ -1838,6 +1882,10 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
       return;
     }
     if (d.kind === 'move') {
+      // The card travels with the pointer, so a note dragged by its picture
+      // ends the gesture with the cursor still over that link and the browser
+      // fires a click. That click is not a request to leave the board.
+      if (d.moved) draggedAt = performance.now();
       const ts = new Date().toISOString();
       const ops = [];
       for (const [id, origin] of d.origins) {
@@ -1896,6 +1944,17 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
 
   viewport.addEventListener('pointerup', endDrag);
   viewport.addEventListener('pointercancel', endDrag);
+
+  viewport.addEventListener(
+    'click',
+    (e) => {
+      if (performance.now() - draggedAt > CLICK_AFTER_DRAG_MS) return;
+      if (!e.target.closest?.('a')) return;
+      e.preventDefault();
+      e.stopPropagation();
+    },
+    true,
+  );
 
   // A finger can leave the glass over chrome that is not inside the canvas —
   // the edit bar and the compose sheet are siblings of #viewport — and that

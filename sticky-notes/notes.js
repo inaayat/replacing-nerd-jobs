@@ -1003,6 +1003,21 @@ export function blankNote(partial = {}) {
   return noteShape(partial || {}, '', null);
 }
 
+/**
+ * Is the attachment the only thing on this note — no words, no tag pills, no
+ * source line? Such a note is drawn as its picture alone, with no card under
+ * it, so a clipped image reads as the image rather than as a photo pasted onto
+ * stationery. Whether the attachment actually paints a still is the renderer's
+ * question (`mediaShowsStill`), and a note being edited keeps its card either
+ * way — an empty body is nowhere to type.
+ */
+export function noteIsOnlyMedia(note) {
+  if (!note || !note.media) return false;
+  if (String(note.text || '').trim()) return false;
+  if (Array.isArray(note.tags) && note.tags.length) return false;
+  return !note.sourceUrl;
+}
+
 /** World-space size stamped on a new note. Phone cards are larger; desktop is not. */
 export function noteCreateSize(phone) {
   return phone ? { w: NOTE_W_PHONE, h: NOTE_H_PHONE } : { w: NOTE_W_DEFAULT, h: NOTE_H_DEFAULT };

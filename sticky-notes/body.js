@@ -513,9 +513,24 @@ function instagramStillPresentation(media, authToken) {
   };
 }
 
+/**
+ * Will this attachment paint an actual still, rather than a placeholder or an
+ * embed widget? Only a still can stand on the board without a card around it,
+ * and for Instagram the answer depends on the token that reaches the
+ * same-origin still endpoint — which is why this lives with the renderer.
+ */
+export function mediaShowsStill(media, authToken = '') {
+  if (!media) return false;
+  const { stillPath, presentation } = instagramStillPresentation(media, authToken);
+  return presentation.mode === 'image' && Boolean(presentation.src || stillPath);
+}
+
 function bindMediaImage(img, presentation, stillPath, authToken, onError) {
   img.alt = img.alt || '';
   img.loading = 'lazy';
+  // A mouse drags the note by its picture; the browser's own image drag would
+  // grab that gesture and start a file drop instead.
+  img.draggable = false;
   img.referrerPolicy = 'no-referrer';
   img.addEventListener('error', onError, { once: true });
   if (stillPath && authToken) bindAuthImage(img, stillPath, authToken, onError);
@@ -650,6 +665,7 @@ export function renderMedia(host, media, options = {}) {
     link.href = href;
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
+    link.draggable = false;
     link.setAttribute('aria-label', `Open ${media.title || mediaKindLabel(presentation.kind)}`);
     link.appendChild(visual);
     visual = link;
@@ -660,6 +676,18 @@ export function renderMedia(host, media, options = {}) {
   caption.className = 'sn-media-caption';
   caption.textContent = media.title || mediaKindLabel(presentation.kind);
   host.appendChild(caption);
+  // Touch drags a note by its picture, so the picture itself does not open the
+  // site (see `pointer: coarse` in app.css) — this small chip does. A mouse
+  // keeps clicking the preview and never sees the chip.
+  const open = document.createElement('a');
+  open.className = 'sn-media-open';
+  open.href = href;
+  open.target = '_blank';
+  open.rel = 'noopener noreferrer';
+  open.title = 'Open link';
+  open.setAttribute('aria-label', `Open ${media.title || mediaKindLabel(presentation.kind)}`);
+  open.textContent = '↗';
+  host.appendChild(open);
   layoutMediaHost(host, media, presentation);
 }
 

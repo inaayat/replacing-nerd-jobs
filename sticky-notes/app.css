@@ -619,6 +619,34 @@ html.sn-table-view #menu-fit { display: none !important; }
   z-index: 6;
 }
 .sn-card.is-selected { outline: 2px solid var(--ink); outline-offset: 2px; }
+/* A clipped picture with nothing written on it is shown as the picture: no
+   padding, no border, no paper behind it — just the image, wearing the card's
+   own corner radius. Board.js only sets this when the note is purely a still
+   (isPhotoNote), and takes it off again while the note is being edited. */
+/* Not `overflow: hidden` — the pin hangs over the top edge. The media host
+   clips the image itself, and inherits the radius to do it. */
+.sn-card.is-photo {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  min-height: 0;
+}
+.sn-card.is-photo .sn-card-body,
+.sn-card.is-photo .sn-card-source { display: none; }
+.sn-card.is-photo .sn-card-media {
+  margin: 0;
+  border: 0;
+  border-radius: inherit;
+}
+/* An icon tag has to read against a photograph, not a cream card. */
+.sn-card.is-photo .sn-card-icon {
+  padding: 3px;
+  width: 22px;
+  height: 22px;
+  background: rgba(250, 243, 227, 0.9);
+  border-radius: 50%;
+  opacity: 1;
+}
 .sn-card.is-pinned { box-shadow: 0 3px 10px rgba(28, 28, 28, 0.18); }
 .sn-card.is-filing {
   transition: transform 200ms ease, opacity 200ms ease;
@@ -817,6 +845,34 @@ video.sn-media-player { object-fit: contain; }
   text-overflow: ellipsis;
   white-space: nowrap;
   pointer-events: none;
+}
+
+/* Deliberate way out to the source, for pointers that cannot click the
+   preview itself. Hidden until a coarse pointer asks for it. */
+.sn-media-open {
+  display: none;
+  position: absolute;
+  /* Top-left: the caption owns the bottom-left, the resize handle the
+     bottom-right, and an icon tag the top-right of the card. */
+  left: 6px;
+  top: 6px;
+  z-index: 2;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(28, 28, 28, 0.35);
+  border-radius: 50%;
+  background: rgba(250, 243, 227, 0.93);
+  color: var(--ink);
+  font-size: 0.82rem;
+  line-height: 1;
+  text-decoration: none;
+}
+.sn-media-open::after {
+  content: "";
+  position: absolute;
+  inset: -7px; /* 30 + 14 = 44px hit */
 }
 
 .sn-card-source {
@@ -2820,6 +2876,21 @@ video.sn-media-player { object-fit: contain; }
      tablet as much as a phone, since neither has a pointer to hover with. */
   .sn-dot,
   .sn-card-resize { display: none; }
+
+  /* A finger that lands on a preview is almost always trying to move the note,
+     and a link under the whole picture turns every one of those into a trip to
+     another site. On touch the preview is inert — presses fall through to the
+     board's drag/tap machinery — and the corner chip is the way out to the
+     source. Video keeps its centre glyph so the rest of the still still drags. */
+  .sn-media-link,
+  .sn-media-play { pointer-events: none; }
+  .sn-media-play-glyph {
+    pointer-events: auto;
+    width: 44px;
+    height: 44px;
+  }
+  .sn-media-play-glyph::after { left: 17px; top: 13px; }
+  .sn-media-open { display: inline-flex; }
 
   .sn-card.is-selected .sn-card-resize,
   .sn-card.is-editing .sn-card-resize {
