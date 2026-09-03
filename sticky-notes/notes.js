@@ -372,18 +372,20 @@ function pinterestPinId(url) {
   return match ? match[1] : '';
 }
 
-/** Post / reel / IGTV id from an Instagram permalink (not a profile or share URL). */
+/** Post / reel / IGTV id from an Instagram permalink, including `/share/…` copies. */
 function instagramPermalink(url) {
   const href = normalizeHref(url);
   if (!href) return null;
   try {
     const path = new URL(href).pathname;
-    const match = path.match(/\/(?:(?:share\/)?(?:reels?|p|tv))\/([A-Za-z0-9_-]+)/i);
-    if (!match) return null;
-    const typeMatch = path.match(/\/(?:(?:share\/)?(reels?|p|tv))\//i);
-    const rawType = (typeMatch?.[1] || '').toLowerCase();
-    const type = rawType === 'reels' ? 'reel' : rawType;
-    return type ? { type, id: match[1] } : null;
+    const typed = path.match(/\/(?:share\/)?(reels?|p|tv)\/([A-Za-z0-9_-]+)/i);
+    if (typed) {
+      const rawType = typed[1].toLowerCase();
+      return { type: rawType === 'reels' ? 'reel' : rawType, id: typed[2] };
+    }
+    const shared = path.match(/\/share\/([A-Za-z0-9_-]+)\/?$/i);
+    if (shared) return { type: 'p', id: shared[1] };
+    return null;
   } catch {
     return null;
   }

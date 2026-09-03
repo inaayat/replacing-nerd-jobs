@@ -1289,11 +1289,33 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     renderFormatState();
   }
 
+  /**
+   * Click above the preview keeps text there (`after`). Click on or below the
+   * preview moves the body under it so typing continues beneath the image.
+   */
+  function mediaPositionFromClick(el, point) {
+    const media = el.querySelector('.sn-card-media');
+    if (!media || media.hidden || !point) return null;
+    return point.y >= media.getBoundingClientRect().top ? 'before' : 'after';
+  }
+
   function startEditing(id, { selectAll = false, caretAt = null } = {}) {
     const el = cardEls.get(id);
-    const note = noteById(id);
+    let note = noteById(id);
     if (!el || !note || editingId) return;
     if (inkEditingId) endInkEdit?.(false);
+    const clickPosition = note.media ? mediaPositionFromClick(el, caretAt) : null;
+    if (clickPosition && clickPosition !== note.media.position) {
+      store.dispatch([{
+        op: 'note.upsert',
+        note: {
+          ...note,
+          media: { ...note.media, position: clickPosition },
+          updatedAt: new Date().toISOString(),
+        },
+      }]);
+      note = noteById(id) || note;
+    }
     editingId = id;
     const composing = Boolean(useCompose() && compose && composeBody);
     const body = composing ? composeBody : el.querySelector('.sn-card-body');

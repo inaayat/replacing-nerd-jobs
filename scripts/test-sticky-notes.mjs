@@ -202,6 +202,11 @@ function note(id, extra = {}) {
     'shared post links resolve to the same still endpoint',
   );
   eq(
+    instagramStillUrl('https://www.instagram.com/share/ABC_123/'),
+    'https://www.instagram.com/p/ABC_123/media/?size=l',
+    'bare /share/id copies still resolve to a still endpoint',
+  );
+  eq(
     instagramStillUrl('https://www.instagram.com/tv/ABC_123/'),
     'https://www.instagram.com/tv/ABC_123/media/?size=l',
     'IGTV canonical becomes the public still URL',
