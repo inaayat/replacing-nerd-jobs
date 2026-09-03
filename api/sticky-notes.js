@@ -2,6 +2,7 @@ import { getAuth } from '../lib/neon-auth.js';
 import { upsertUser } from '../lib/a-list.js';
 import { getState, applyOps } from '../lib/sticky-notes.js';
 import {
+  instagramStillUrl,
   localMediaDetails,
   mediaKind,
   normalizeHref,
@@ -138,20 +139,35 @@ async function fetchPreview(url, { json = false } = {}) {
         Accept: json ? 'application/json' : 'text/html,application/xhtml+xml,image/*,*/*;q=0.8',
       },
     });
-    if (!page.ok) return { ok: false, url: page.url || url, data: null, contentType: '' };
     const contentType = String(page.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+    const finalUrl = page.url || url;
+    if (contentType.startsWith('image/') || contentType.startsWith('video/')) {
+      try { await page.body?.cancel?.(); } catch { /* ignore */ }
+      return { ok: page.ok, url: finalUrl, data: null, contentType };
+    }
+    if (!page.ok) return { ok: false, url: finalUrl, data: null, contentType };
     let data = null;
     if (json) {
       data = await page.json().catch(() => null);
-    } else if (!contentType.startsWith('image/') && !contentType.startsWith('video/')) {
+    } else {
       data = (await page.text()).slice(0, 200000);
     }
-    return { ok: true, url: page.url || url, data, contentType };
+    return { ok: true, url: finalUrl, data, contentType };
   } catch {
     return { ok: false, url, data: null, contentType: '' };
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** Login walls and bare site titles are not a post caption. */
+function usableInstagramTitle(title) {
+  const t = String(title || '').replace(/\s+/g, ' ').trim();
+  if (!t) return '';
+  if (/^(?:log\s*in|sign\s*up)?\s*[•·|\-]?\s*instagram\s*[•·|\-]?\s*(?:log\s*in|sign\s*up)?$/i.test(t)) {
+    return '';
+  }
+  return t;
 }
 
 async function handleUnfurl(req, res) {
@@ -198,17 +214,18 @@ async function handleUnfurl(req, res) {
         thumbnail = /https?:\/\/i\.pinimg\.com\/[^"'\\\s<>]+/i.exec(oembed.data.html)?.[0] || null;
       }
     } else if (kind === 'instagram') {
-      // Public /oembed/ redirects to login. /api/v1/oembed/ is the equivalent
-      // that still returns thumbnail_url + title for public posts and reels.
-      const oembed = await fetchPreview(
-        `https://www.instagram.com/api/v1/oembed/?url=${encodeURIComponent(canonical)}`,
-        { json: true },
-      );
-      thumbnail = oembed.data?.thumbnail_url || thumbnail;
-      title = oembed.data?.title || oembed.data?.author_name || '';
-      if (!thumbnail && typeof oembed.data?.html === 'string') {
-        thumbnail = /https?:\/\/(?:scontent[^"'\\\s<>]*\.cdninstagram\.com|[^"'\\\s<>]*cdninstagram\.com\/v\/)[^"'\\\s<>]*/i
-          .exec(oembed.data.html)?.[0] || null;
+      // oEmbed no longer carries thumbnail_url (404 / embed-only HTML). The
+      // public still is `{permalink}/media/?size=l`, which 302s to a jpeg.
+      // Store that stable URL — the signed scontent Location expires via `oe=`.
+      const stillUrl = instagramStillUrl(canonical) || instagramStillUrl(url);
+      const stillPromise = stillUrl ? fetchPreview(stillUrl) : Promise.resolve(null);
+      const pagePromise = html ? Promise.resolve(null) : fetchPreview(canonical);
+      const [still, page] = await Promise.all([stillPromise, pagePromise]);
+      if (stillUrl && still?.contentType?.startsWith('image/')) thumbnail = stillUrl;
+      if (page) {
+        const followed = normalizeHref(page.url);
+        if (followed && instagramStillUrl(followed)) canonical = followed;
+        if (typeof page.data === 'string') html = page.data;
       }
     }
 
@@ -228,8 +245,16 @@ async function handleUnfurl(req, res) {
 
     const meta = pageMetadata(html);
     title = String(title || meta.title || '').replace(/\s+/g, ' ').trim().slice(0, 300);
-    thumbnail = normalizeHref(thumbnail) || normalizeHref(meta.thumbnail) || null;
-    canonical = normalizeHref(meta.canonical) || canonical;
+    if (kind === 'instagram') {
+      title = usableInstagramTitle(title);
+      // og:image is a signed scontent URL; keep only the verified still.
+      thumbnail = normalizeHref(thumbnail);
+      const metaCanonical = normalizeHref(meta.canonical);
+      if (metaCanonical && instagramStillUrl(metaCanonical)) canonical = metaCanonical;
+    } else {
+      thumbnail = normalizeHref(thumbnail) || normalizeHref(meta.thumbnail) || null;
+      canonical = normalizeHref(meta.canonical) || canonical;
+    }
     const media = normalizeMedia({ url, canonical, thumbnail, title });
     res.status(200).json({ title: title || null, media });
   } catch {

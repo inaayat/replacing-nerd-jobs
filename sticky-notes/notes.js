@@ -372,6 +372,41 @@ function pinterestPinId(url) {
   return match ? match[1] : '';
 }
 
+/** Post / reel / IGTV id from an Instagram permalink (not a profile or share URL). */
+function instagramPermalink(url) {
+  const href = normalizeHref(url);
+  if (!href) return null;
+  try {
+    const match = new URL(href).pathname.match(/\/(reels?|p|tv)\/([A-Za-z0-9_-]+)/);
+    if (!match) return null;
+    const type = match[1] === 'reels' ? 'reel' : match[1];
+    return { type, id: match[2] };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Public still endpoint. `…/p/X/` → `…/p/X/media/?size=l` (trailing slash
+ * before `media`). The signed scontent URL that endpoint 302s to expires
+ * (`oe=`); callers should store this stable URL after verifying it is an image.
+ * The client must not invent this as a local thumbnail.
+ */
+export function instagramStillUrl(url) {
+  const post = instagramPermalink(url);
+  if (!post) return null;
+  return `https://www.instagram.com/${post.type}/${post.id}/media/?size=l`;
+}
+
+const SOCIAL_THUMB_KINDS = new Set(['instagram', 'tiktok', 'pinterest']);
+
+/** True when a stored social attachment still needs a server unfurl for its still. */
+export function mediaNeedsThumbRefresh(media) {
+  const m = normalizeMedia(media);
+  if (!m || m.thumbnail) return false;
+  return SOCIAL_THUMB_KINDS.has(m.kind);
+}
+
 /**
  * Local visual facts that do not need an unfurl request. Embed URLs are always
  * derived from the normalized source rather than accepted from stored data.
@@ -410,13 +445,11 @@ export function localMediaDetails(url) {
     };
   }
   if (kind === 'instagram') {
-    const match = path.match(/\/(reels?|p|tv)\/([A-Za-z0-9_-]+)/);
-    const type = match ? (match[1] === 'reels' ? 'reel' : match[1]) : '';
-    const id = match ? match[2] : '';
+    const post = instagramPermalink(href);
     return {
       kind,
       thumbnail: null,
-      embedUrl: id ? `https://www.instagram.com/${type}/${id}/embed/` : null,
+      embedUrl: post ? `https://www.instagram.com/${post.type}/${post.id}/embed/` : null,
       playable: true,
       still: false,
     };
@@ -478,9 +511,10 @@ export function mediaPresentation(raw) {
   if (media.kind === 'instagram') {
     const href = media.canonical || media.url;
     const reel = mediaShape('instagram', href) === 'reel';
-    // Resting face is always a still (oEmbed thumb) or a compact branded
-    // placeholder — never Instagram's official embed widget, which letterboxes
-    // a mini post inside the card. Reels may swap the still for the embed on tap.
+    // Resting face is always a still (`media/?size=l` after unfurl) or a compact
+    // branded placeholder — never Instagram's official embed widget, which
+    // letterboxes a mini post inside the card. Reels may swap the still for the
+    // embed on tap.
     if (thumbnail) {
       return {
         mode: 'image',

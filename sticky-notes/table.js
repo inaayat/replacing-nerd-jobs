@@ -193,6 +193,7 @@ export function createTable({ store, els, showToast, onViewCanvas }) {
   function paintPreviewCell(note) {
     const cell = document.createElement('td');
     cell.className = 'sn-tbl-preview';
+    store.refreshMissingThumb(note);
     if (note.media && renderMediaThumb(cell, note.media)) return cell;
     cell.innerHTML = '<span class="sn-tbl-preview-empty" aria-hidden="true"></span>';
     return cell;
@@ -201,6 +202,7 @@ export function createTable({ store, els, showToast, onViewCanvas }) {
   function paintPreviewChip(note) {
     const chip = document.createElement('span');
     chip.className = 'sn-tbl-preview';
+    store.refreshMissingThumb(note);
     if (!note.media || !renderMediaThumb(chip, note.media)) chip.hidden = true;
     return chip;
   }
