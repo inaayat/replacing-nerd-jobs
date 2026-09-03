@@ -265,6 +265,7 @@ export function createBoard({ store, els, showToast, onEdit, onOpenWiki }) {
     media.classList.toggle('is-before', mediaBefore);
     if (mediaBefore && media.nextElementSibling !== body) el.insertBefore(media, body);
     if (!mediaBefore && body.nextElementSibling !== media) body.after(media);
+    store.refreshMissingThumb(note);
     renderMedia(media, note.media);
     const source = el.querySelector('.sn-card-source');
     if (note.sourceUrl) {

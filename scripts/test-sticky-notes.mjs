@@ -49,10 +49,12 @@ import {
   legendLabel,
   iconImageUrl,
   isIconKey,
+  instagramStillUrl,
   localMedia,
   localMediaDetails,
   mediaAspectRatio,
   mediaKind,
+  mediaNeedsThumbRefresh,
   mediaPresentation,
   mediaShape,
   noteCreateSize,
@@ -153,27 +155,69 @@ function note(id, extra = {}) {
 
   const reel = localMediaDetails('https://www.instagram.com/reel/ABC_123/');
   eq(reel.embedUrl, 'https://www.instagram.com/reel/ABC_123/embed/', 'Instagram embed uses the official URL');
+  eq(reel.thumbnail, null, 'local Instagram details cannot invent a CDN thumb');
   const pin = localMediaDetails('https://www.pinterest.com/pin/1234567890/');
   eq(pin.still, true, 'Pinterest remains a non-playable still');
+
+  eq(
+    instagramStillUrl('https://www.instagram.com/p/ABC/'),
+    'https://www.instagram.com/p/ABC/media/?size=l',
+    'post canonical becomes the public still URL',
+  );
+  eq(
+    instagramStillUrl('https://www.instagram.com/p/ABC'),
+    'https://www.instagram.com/p/ABC/media/?size=l',
+    'a post without a trailing slash still gets one before media',
+  );
+  eq(
+    instagramStillUrl('https://instagram.com/p/ABC/?img_index=1'),
+    'https://www.instagram.com/p/ABC/media/?size=l',
+    'query strings are stripped from the still URL',
+  );
+  eq(
+    instagramStillUrl('https://www.instagram.com/reel/ABC_123/'),
+    'https://www.instagram.com/reel/ABC_123/media/?size=l',
+    'reel canonical becomes the public still URL',
+  );
+  eq(
+    instagramStillUrl('https://www.instagram.com/reels/ABC_123/'),
+    'https://www.instagram.com/reel/ABC_123/media/?size=l',
+    'reels plural normalizes to /reel/ before media',
+  );
+  eq(
+    instagramStillUrl('https://www.instagram.com/tv/ABC_123/'),
+    'https://www.instagram.com/tv/ABC_123/media/?size=l',
+    'IGTV canonical becomes the public still URL',
+  );
+  eq(
+    instagramStillUrl('https://www.instagram.com/p/ABC/embed/'),
+    'https://www.instagram.com/p/ABC/media/?size=l',
+    'embed URLs still resolve to the still endpoint',
+  );
+  eq(instagramStillUrl('https://www.instagram.com/hanautpaul/'), null, 'profile URLs have no still');
+  eq(instagramStillUrl('https://youtu.be/dQw4w9WgXcQ'), null, 'YouTube is not an Instagram still');
 
   const igPost = localMedia('https://www.instagram.com/p/ABC/');
   const igPostFace = mediaPresentation(igPost);
   eq(igPostFace.mode, 'placeholder', 'Instagram without a thumb is a compact placeholder');
   assert(igPostFace.mode !== 'embed', 'Instagram without a thumb is not the embed widget');
   eq(igPostFace.playable, false, 'Instagram posts do not iframe the official embed as the card face');
+  assert(mediaNeedsThumbRefresh(igPost), 'instagram without a thumb should refetch on render');
+  const igStill = instagramStillUrl('https://www.instagram.com/p/ABC/');
   const igPostThumb = normalizeMedia({
     url: 'https://www.instagram.com/p/ABC/',
-    thumbnail: 'https://scontent.cdninstagram.com/v/t51.71878-15/photo.jpg',
+    thumbnail: igStill,
     title: 'Hanaut Paul - Dark Bridal Lengha',
   });
   const igPostShown = mediaPresentation(igPostThumb);
   eq(igPostShown.mode, 'image', 'instagram + thumbnail paints as a still');
   eq(igPostShown.playable, false, 'Instagram posts rest on the photo, not a playable embed');
   eq(igPostShown.fit, 'cover', 'Instagram stills cover-crop inside the social frame');
-  eq(igPostShown.src, igPostThumb.thumbnail, 'Instagram still uses the unfurled thumbnail');
+  eq(igPostShown.src, igStill, 'Instagram still uses the stable media/?size=l URL');
+  assert(!mediaNeedsThumbRefresh(igPostThumb), 'instagram with a still does not refetch');
   const igReelThumb = normalizeMedia({
     url: 'https://www.instagram.com/reel/ABC_123/',
-    thumbnail: 'https://scontent.cdninstagram.com/v/t51.71878-15/reel.jpg',
+    thumbnail: instagramStillUrl('https://www.instagram.com/reel/ABC_123/'),
   });
   const igReelShown = mediaPresentation(igReelThumb);
   eq(igReelShown.mode, 'image', 'Instagram reels rest on the photo');
@@ -187,11 +231,14 @@ function note(id, extra = {}) {
   eq(ytShown.mode, 'image', 'YouTube still paints as a still');
   eq(ytShown.playable, true, 'YouTube stays playable');
   assert(ytShown.fit !== 'cover', 'YouTube does not cover-crop the 16/9 poster');
+  assert(!mediaNeedsThumbRefresh(localMedia('https://youtu.be/dQw4w9WgXcQ')), 'YouTube posters are local');
   const ttShown = mediaPresentation(localMedia('https://www.tiktok.com/@x/video/12345678901'));
   eq(ttShown.mode, 'placeholder', 'TikTok without a thumb stays a playable placeholder');
   eq(ttShown.playable, true, 'TikTok stays playable');
+  assert(mediaNeedsThumbRefresh(localMedia('https://www.tiktok.com/@x/video/12345678901')), 'TikTok without a thumb refetches');
   const pinShown = mediaPresentation(localMedia('https://www.pinterest.com/pin/1234567890/'));
   eq(pinShown.mode, 'embed', 'Pinterest without a thumb still uses its embed');
+  assert(!mediaNeedsThumbRefresh(localMedia('https://cdn.example.com/cat.jpg')), 'direct images do not refetch');
 
   const image = localMedia('https://cdn.example.com/cat.jpg');
   eq(image.thumbnail, image.url, 'direct image previews need no unfurl');

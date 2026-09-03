@@ -21,6 +21,7 @@ import {
   migrateLegacyStore,
   normalizeHref,
   normalizeState,
+  mediaNeedsThumbRefresh,
   shouldAcceptUnfurl,
 } from './notes.js';
 
@@ -58,6 +59,7 @@ export function createStore({ token = null, guest = false } = {}) {
   let state = normalizeState(readJson(stateKey, null));
   let queue = !guest && Array.isArray(readJson(OPLOG_KEY, [])) ? readJson(OPLOG_KEY, []) : [];
   const subscribers = new Set();
+  const thumbRefresh = new Set();
 
   let mirrorTimer = null;
   let flushTimer = null;
@@ -196,10 +198,19 @@ export function createStore({ token = null, guest = false } = {}) {
           ? data.media
           : null;
         const media = incoming
-          ? { ...incoming, position: current.media?.position || incoming.position }
+          ? {
+              ...incoming,
+              position: current.media?.position || incoming.position,
+              title: incoming.title || current.media?.title || '',
+              thumbnail: incoming.thumbnail || current.media?.thumbnail || null,
+            }
           : current.media;
         const sourceTitle = data.title || current.sourceTitle;
-        if (media === current.media && sourceTitle === current.sourceTitle) return;
+        if (
+          media?.thumbnail === current.media?.thumbnail
+          && media?.title === current.media?.title
+          && sourceTitle === current.sourceTitle
+        ) return;
         store.dispatch([{
           op: 'note.upsert',
           note: {
@@ -210,6 +221,20 @@ export function createStore({ token = null, guest = false } = {}) {
           },
         }]);
       });
+    },
+    /**
+     * Existing Instagram (and other social) cards stored `kind` with no
+     * thumbnail because unfurl used to miss. Idle cards never refetch on
+     * their own — call this from board/table render, once per note id.
+     */
+    refreshMissingThumb(note) {
+      if (guest || !token) return;
+      if (!note?.id || thumbRefresh.has(note.id)) return;
+      if (!mediaNeedsThumbRefresh(note.media)) return;
+      const href = normalizeHref(note.media.url || note.media.canonical);
+      if (!href) return;
+      thumbRefresh.add(note.id);
+      store.queueUnfurl(note.id, href);
     },
     async saveLegendLabel(kind, key, label) {
       store.dispatch([{ op: 'legend.set', kind, key, label }], { kind: 'legend' });
