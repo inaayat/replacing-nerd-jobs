@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'sticky-notes-shell-';
-const CACHE_NAME = `${CACHE_PREFIX}v3`;
+const CACHE_NAME = 'sticky-notes-shell-v3';
 const ROOT = '/sticky-notes/';
 const APP_SHELL = [
   ROOT,
