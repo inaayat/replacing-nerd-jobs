@@ -2,6 +2,8 @@ name: Cleanup Neon preview branch
 
 # Deletes the Neon database branch created by the Vercel integration when a
 # PR is closed or merged. Vercel names those branches preview/<git-branch>.
+# Most PRs never create one (static/JS-only changes), so a missing name is
+# success, not a red X.
 on:
   pull_request:
     types: [closed]
@@ -10,8 +12,23 @@ jobs:
   delete-branch:
     runs-on: ubuntu-latest
     steps:
-      - uses: neondatabase/delete-branch-action@v3
+      - uses: actions/setup-node@v4
         with:
-          project_id: ${{ vars.NEON_PROJECT_ID }}
-          branch: preview/${{ github.head_ref }}
-          api_key: ${{ secrets.NEON_API_KEY }}
+          node-version: '22'
+      - name: Delete Neon preview branch if it exists
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
+          BRANCH: preview/${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+          npm i -g neonctl@v2
+          neonctl branches list --project-id "$PROJECT_ID" --output json > /tmp/neon-branches.json
+          if jq -e --arg b "$BRANCH" '
+            (if type == "array" then . else (.branches // .items // []) end)
+            | any(.[]; .name == $b)
+          ' /tmp/neon-branches.json; then
+            neonctl branches delete "$BRANCH" --project-id "$PROJECT_ID"
+          else
+            echo "No Neon preview branch named $BRANCH; skipping."
+          fi
