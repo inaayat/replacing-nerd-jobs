@@ -274,6 +274,14 @@ user (`wedding_boards`) via `api/wedding.js` (`/api/wd-board`). Signing in is
 required; static-server UI work uses `/wedding/?local=1`. Installable PWA
 (`manifest.webmanifest`, icons via `node scripts/generate-wedding-icons.mjs`).
 
+### make a demo — `/make-a-demo`
+
+A blank product shell that says **make a demo** and swaps filler page options
+(Overview, Features, Pricing, About, Contact) via hash routes. Static HTML/CSS/JS
+— no API, no auth. Use it as a URL to copy when a new experiment needs a page
+before it has a personality. `make-a-demo/app.js` is browser-safe ESM; keep it
+out of `/lib/`.
+
 ### Sticky Notes — `/sticky-notes`
 
 Dumping ground for the chronically disorganized: thoughts, links to read later,
