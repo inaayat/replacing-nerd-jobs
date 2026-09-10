@@ -201,6 +201,21 @@ function. This is a study map, not a reprint of Topic 606 — excerpts stay shor
 and attributed to the Financial Accounting Foundation; the official text is at
 [asc.fasb.org](https://asc.fasb.org).
 
+### Seattle property taxes — `/seattle-property-taxes`
+
+Enter a Seattle address (or a 10-digit King County PIN) and see **where each
+dollar of the property-tax bill goes**. Live parcel lookup is King County GIS
+`parcel_address_area` (CORS-open); the current billed amount is the Open Data
+tax-receivables table. Destination rates are a committed snapshot of the
+Assessor’s annual Codes and Levies books (`seattle-property-taxes/data/levy-rates.json`)
+for Seattle levy codes 2019–2026 (hand-curated; `scripts/pull-seattle-levy-rates.mjs`
+is a noisy PDF scrape and must not overwrite the snapshot unless you pass
+`--write`). A year range sums those dollars. Tax-roll
+history, when the deploy rewrite can reach eReal Property, uses that year’s
+taxable value instead of today’s. Browser-safe ESM in
+`seattle-property-taxes/engine.js` — do not put it under `/lib/`. No new Vercel
+function. Outside Seattle city limits is rejected.
+
 ### AI buildout money — `/ai-buildout`
 
 How Amazon, Microsoft, Alphabet, Meta, and Oracle (plus Nvidia and Apple as
@@ -732,6 +747,7 @@ so the catalog stays consistent without hand-editing the manifest in PRs.
 ├── plot-points/                ← TMDB cinema query explorer
 ├── table-manners/              ← signed-in grid + card face + Excel download
 ├── asc-606/                    ← ASC 606 revenue decision tree + quiz
+├── seattle-property-taxes/     ← Seattle levy-code dollar split + multi-year sum
 ├── world-cup/                  ← FIFA World Cup 2026 (static; live scores retired)
 │
 ├── scripts/                    ← index builders + pure-function tests
@@ -803,6 +819,7 @@ node scripts/test-takeout-flatten.mjs
 node scripts/test-takeout-workbook.mjs
 node scripts/test-takeout-catalog.mjs
 node scripts/test-asc-606.mjs
+node scripts/test-seattle-property-taxes.mjs
 node scripts/test-im-filmin-here.mjs
 node scripts/test-packing-cubes-model.mjs
 node scripts/test-packing-cubes-api.mjs

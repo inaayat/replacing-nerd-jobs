@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <base href="/seattle-property-taxes/" />
+    <title>Seattle property taxes — Beep boop</title>
+    <meta
+      name="description"
+      content="Enter a Seattle address to see where each dollar of property tax goes, and add up those dollars across years."
+    />
+    <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap"
+    />
+    <link rel="stylesheet" href="./app.css" />
+  </head>
+  <body>
+    <nav class="nav">
+      <div class="nav-brand">
+        <a href="/" class="nav-logo" aria-label="Beep boop home">
+          <img src="/ugly-dog-images/dog-3.png" alt="" width="18" height="18" />
+          <span>Beep boop</span>
+        </a>
+        <a href="/seattle-property-taxes/" class="nav-section">
+          <img src="/seattle-property-taxes/icon.svg" alt="" width="22" height="22" />
+          <span>Seattle property taxes</span>
+        </a>
+      </div>
+      <div class="nav-links">
+        <a href="#lookup">Look up</a>
+        <a href="#dollar">One dollar</a>
+        <a href="#years">Years</a>
+        <a href="/archive/seattle-budget/">City budget</a>
+        <a href="/#projects">Projects</a>
+      </div>
+    </nav>
+
+    <header class="hero" id="lookup">
+      <p class="kicker">King County levy rates · Seattle city limits</p>
+      <h1>Where each dollar of property tax goes</h1>
+      <p class="lede">
+        Type an address inside Seattle. The page splits the tax bill the way the
+        county’s levy code does — state schools, the city, Seattle Public Schools,
+        the Port, Sound Transit, parks, EMS, flood control — then lets you add
+        those dollars up across years.
+      </p>
+
+      <form class="lookup" id="lookup-form" autocomplete="off">
+        <label class="lookup-field">
+          <span>Seattle address or parcel number</span>
+          <input
+            id="address"
+            name="address"
+            type="search"
+            placeholder="400 Broad St, or 1985200495"
+            enterkeyhint="search"
+            required
+          />
+        </label>
+        <button type="submit" id="lookup-btn">See the bill</button>
+      </form>
+      <p class="status" id="status" role="status"></p>
+      <div class="matches" id="matches" hidden></div>
+    </header>
+
+    <main class="shell" id="result" hidden>
+      <section class="summary" aria-labelledby="place-title">
+        <div>
+          <p class="kicker" id="place-kicker">Parcel</p>
+          <h2 id="place-title"></h2>
+          <p class="meta" id="place-meta"></p>
+        </div>
+        <dl class="facts" id="place-facts"></dl>
+      </section>
+
+      <section class="year-bar" aria-labelledby="range-label">
+        <div>
+          <p class="kicker" id="range-label">Add up the years</p>
+          <p class="blurb">
+            One year shows that year’s bill. A range sums the dollars actually
+            (or estimated) paid in each year of the levy-rate snapshot.
+          </p>
+        </div>
+        <div class="range">
+          <label>
+            From
+            <select id="year-from"></select>
+          </label>
+          <label>
+            To
+            <select id="year-to"></select>
+          </label>
+        </div>
+      </section>
+
+      <section class="bill" aria-labelledby="bill-title">
+        <div class="bill-head">
+          <p class="kicker" id="bill-kicker">This bill</p>
+          <h2 id="bill-title"></h2>
+          <p class="bill-amount" id="bill-amount"></p>
+          <p class="meta" id="bill-note"></p>
+        </div>
+        <div class="dollar" id="dollar">
+          <p class="kicker">One dollar of this tax</p>
+          <div class="cent-grid" id="cent-grid" aria-hidden="true"></div>
+          <p class="visually-hidden" id="cent-caption"></p>
+        </div>
+      </section>
+
+      <section class="dest" aria-labelledby="dest-title">
+        <h2 id="dest-title">Destinations</h2>
+        <p class="meta" id="dest-note"></p>
+        <ol class="dest-list" id="dest-list"></ol>
+      </section>
+
+      <section class="history" id="years" aria-labelledby="hist-title">
+        <h2 id="hist-title">By year</h2>
+        <div class="year-chart" id="year-chart"></div>
+        <table class="year-table" id="year-table"></table>
+      </section>
+
+      <section class="sources">
+        <h2>Sources</h2>
+        <p>
+          Parcel and current taxable value come live from King County GIS
+          (<code>parcel_address_area</code>). The current billed amount is King
+          County Open Data
+          <a href="https://data.kingcounty.gov/Property-Assessments/Real-Property-Tax-Receivables/dkna-i698" rel="noopener noreferrer">Real Property Tax Receivables</a>.
+          Destination rates are the Assessor’s annual
+          <a href="https://kingcounty.gov/en/dept/assessor/buildings-and-property/property-value-and-information/reports/levy-rate-reports/taxing-districts-codes-and-levies" rel="noopener noreferrer">Codes and Levies</a>
+          books. Tax-year taxable history, when the rewrite can reach it, is
+          eReal Property’s tax roll. This is a reading of public levy tables, not
+          a tax bill and not advice.
+        </p>
+        <p class="links" id="official-links"></p>
+      </section>
+    </main>
+
+    <footer class="legal">
+      King County and City of Seattle data remain theirs. Levy rates are per
+      $1,000 of taxable value. Senior / disabled rates are listed on the
+      Assessor’s site and are not applied automatically here.
+    </footer>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
