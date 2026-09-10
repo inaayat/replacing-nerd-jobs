@@ -239,6 +239,10 @@
     {
       "source": "/api/omc-:route",
       "destination": "https://one-more-column.vercel.app/api/omc-:route"
+    },
+    {
+      "source": "/api/kc-dashboard",
+      "destination": "https://blue.kingcounty.com/Assessor/eRealProperty/Dashboard.aspx"
     }
   ]
 }
