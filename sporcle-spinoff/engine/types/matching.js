@@ -1,8 +1,6 @@
-// Matching. Drag a right-column tile onto its matching left-column prompt.
-// A correct drop locks the pair in green; a wrong drop shakes and the tile
-// returns. items: [{ left, right }, ...] — left/right within one object are
-// the correct pair. Each column is shuffled independently of the pairing,
-// which is tracked by the original array index.
+// Matching. Select one tile in each column, or drag a right-column tile onto
+// its matching left-column prompt. Correct pairs lock in green; wrong pairs
+// shake. items: [{ left, right }, ...].
 export default {
   render(root, quiz, engine) {
     const items = quiz.items;
@@ -18,25 +16,92 @@ export default {
     // Left column = fixed drop targets. Right column = draggable answer tiles.
     const leftEls = [];
     shuffle(items.map((it, i) => ({ label: it.left, idx: i }))).forEach(({ label, idx }) => {
-      const el = document.createElement('div');
+      const el = document.createElement('button');
+      el.type = 'button';
       el.className = 'q-match-item q-match-target';
       el.textContent = label;
       el.dataset.idx = idx;
+      el.setAttribute('aria-label', `Prompt: ${label}`);
+      el.setAttribute('aria-pressed', 'false');
+      el.addEventListener('click', () => selectTile(el, 'left'));
       colL.appendChild(el);
       leftEls.push(el);
     });
     const rightEls = [];
     shuffle(items.map((it, i) => ({ label: it.right, idx: i }))).forEach(({ label, idx }) => {
-      const el = document.createElement('div');
+      const el = document.createElement('button');
+      el.type = 'button';
       el.className = 'q-match-item q-match-drag';
       el.textContent = label;
       el.dataset.idx = idx;
+      el.setAttribute('aria-label', `Answer: ${label}`);
+      el.setAttribute('aria-pressed', 'false');
       el.addEventListener('pointerdown', (e) => startDrag(e, el, idx));
+      el.addEventListener('click', () => {
+        if (Date.now() < suppressClickUntil) return;
+        selectTile(el, 'right');
+      });
       colR.appendChild(el);
       rightEls.push(el);
     });
 
     let dragEl = null, clone = null, dragIdx = null, hoverTarget = null, offsetX = 0, offsetY = 0;
+    let selectedEl = null, selectedSide = null, suppressClickUntil = 0;
+
+    function clearSelection() {
+      if (selectedEl) {
+        selectedEl.classList.remove('selected');
+        selectedEl.setAttribute('aria-pressed', 'false');
+      }
+      selectedEl = null;
+      selectedSide = null;
+    }
+
+    function markPair(left, right, idx) {
+      matched[idx] = true;
+      left.classList.add('matched');
+      right.classList.add('matched');
+      left.disabled = true;
+      right.disabled = true;
+      clearSelection();
+      engine.correct();
+    }
+
+    function shakePair(first, second) {
+      first.classList.add('badmatch');
+      second.classList.add('badmatch');
+      setTimeout(() => {
+        first.classList.remove('badmatch');
+        second.classList.remove('badmatch');
+      }, 350);
+      clearSelection();
+    }
+
+    function selectTile(el, side) {
+      const idx = Number(el.dataset.idx);
+      if (ended || matched[idx]) return;
+      if (selectedEl === el) {
+        clearSelection();
+        return;
+      }
+      if (!selectedEl || selectedSide === side) {
+        clearSelection();
+        selectedEl = el;
+        selectedSide = side;
+        el.classList.add('selected');
+        el.setAttribute('aria-pressed', 'true');
+        return;
+      }
+
+      const first = selectedEl;
+      const left = side === 'left' ? el : first;
+      const right = side === 'right' ? el : first;
+      if (Number(left.dataset.idx) === Number(right.dataset.idx)) {
+        markPair(left, right, Number(left.dataset.idx));
+      } else {
+        shakePair(first, el);
+      }
+    }
 
     function moveClone(x, y) {
       clone.style.left = `${x - offsetX}px`;
@@ -77,31 +142,28 @@ export default {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       const target = hoverTarget;
+      if (target) suppressClickUntil = Date.now() + 400;
       if (hoverTarget) hoverTarget.classList.remove('drop-hover');
       if (clone) { clone.remove(); clone = null; }
       dragEl.classList.remove('dragging-src');
 
       if (target && Number(target.dataset.idx) === dragIdx) {
-        matched[dragIdx] = true;
-        target.classList.add('matched');
-        dragEl.classList.add('matched');
-        engine.correct();
+        markPair(target, dragEl, dragIdx);
       } else if (target) {
-        const src = dragEl;
-        src.classList.add('badmatch'); target.classList.add('badmatch');
-        setTimeout(() => { src.classList.remove('badmatch'); target.classList.remove('badmatch'); }, 350);
+        shakePair(dragEl, target);
       }
       dragEl = null; dragIdx = null; hoverTarget = null;
     }
 
     engine.registerReveal(() => {
       ended = true;
+      clearSelection();
       items.forEach((it, idx) => {
         if (matched[idx]) return;
         const l = leftEls.find((e) => Number(e.dataset.idx) === idx);
         const r = rightEls.find((e) => Number(e.dataset.idx) === idx);
-        if (l) l.classList.add('matched');
-        if (r) r.classList.add('matched');
+        if (l) { l.classList.add('matched'); l.disabled = true; }
+        if (r) { r.classList.add('matched'); r.disabled = true; }
         engine.advance();
       });
     });

@@ -270,12 +270,16 @@ tr.missed .q-table-input { border-color: var(--red); background: #fef2f2; color:
   border: var(--border);
   border-radius: var(--radius-sm);
   padding: 10px 12px;
+  width: 100%;
+  min-height: 44px;
+  font: inherit;
   font-weight: 600;
   cursor: pointer;
   background: var(--panel);
   color: var(--ink);
   text-align: center;
 }
+.q-match-item:focus-visible { outline: 3px solid var(--orange); outline-offset: 2px; }
 .q-match-item.selected { background: var(--accent); color: #fdf3e7; border-color: var(--accent); }
 .q-match-item.matched { background: #ecfdf5; border-color: var(--green); color: #14532d; cursor: default; }
 .q-match-item.badmatch { animation: qshake .35s; }
@@ -397,4 +401,9 @@ tr.missed .q-table-input { border-color: var(--red); background: #fef2f2; color:
   .q-match { grid-template-columns: 1fr 1fr; gap: 12px; }
   .q-card { padding: 20px; }
   .q-card h1 { font-size: 1.35rem; }
+  .q-hud { gap: 8px; padding: 9px 10px; }
+  .q-hud .q-stat b { font-size: 18px; }
+  .q-hud .q-spacer { display: none; }
+  .q-hud .q-btn { margin-left: auto; padding: 8px 10px; font-size: 0.78rem; }
+  .q-hud .q-btn + .q-btn { margin-left: 0; }
 }

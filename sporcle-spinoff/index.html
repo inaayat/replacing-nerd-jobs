@@ -12,41 +12,45 @@
     <link rel="stylesheet" href="./engine/shell.css" />
   </head>
   <body class="text-gray-900 flex flex-col">
+    <a class="skip-link" href="#main-content">Skip to quizzes</a>
 
     <div class="page-main">
 
-      <aside class="sidebar">
-        <div>
-          <a href="/" class="serif font-semibold text-2xl md:text-3xl text-gray-900 no-underline flex items-center gap-2">
-            <img src="/ugly-dog-images/dog-3.png" alt="" width="28" height="28" style="object-fit:contain;flex-shrink:0;" />
-            Beep boop
+      <aside class="sidebar" aria-label="App navigation">
+        <div class="sidebar-top">
+          <a href="/sporcle-spinoff/" class="site-brand">
+            <img src="/sporcle-spinoff/icon.png" alt="" width="30" height="30" />
+            <span>Sporcle Spinoff</span>
           </a>
-          <div class="flex flex-col gap-2 mt-6 brand-mono">
+          <nav class="sidebar-nav" aria-label="Primary">
             <a href="/sporcle-spinoff/" class="sidebar-link is-active">Quizzes</a>
             <a href="./builder.html" class="sidebar-link">Create a quiz</a>
-            <a href="/#projects" class="sidebar-link">Projects</a>
+            <a href="/#projects" class="sidebar-link">Home</a>
             <a href="/account.html" class="sidebar-link">Account</a>
-          </div>
+          </nav>
           <div class="sidebar-project">
-            <img src="/sporcle-spinoff/icon.png" alt="" width="22" height="22" style="object-fit:contain;flex-shrink:0;">
-            <span class="sidebar-project-title">Sporcle Spinoff</span>
+            <img src="/ugly-dog-images/dog-3.png" alt="" width="22" height="22">
+            <span class="sidebar-project-title">Beep boop trivia</span>
           </div>
         </div>
-        <div class="sidebar-tagline mt-6 md:mt-0">
+        <div class="sidebar-tagline">
           Quick trivia quizzes. Pick one and see how you do.
         </div>
       </aside>
 
-      <div class="content-scroll">
+      <main class="content-scroll" id="main-content">
         <div class="page-header">
           <div>
             <h1 class="page-title">
-              Quizzes
-              <button type="button" id="info-btn" class="info-btn" aria-label="How to add a quiz" title="How to add a quiz">i</button>
+              Find your next quiz
+              <button type="button" id="info-btn" class="info-btn" aria-label="How to add a quiz" aria-expanded="false" title="How to add a quiz">i</button>
             </h1>
-            <p class="page-sub">Browse by quiz type, or search by title and tag.</p>
+            <p class="page-sub">Search, filter, or let us pick one for you.</p>
           </div>
-          <a href="./builder.html" class="ss-btn">+ Create a quiz</a>
+          <div class="page-header-actions">
+            <button type="button" id="random-quiz" class="ss-btn secondary">Surprise me</button>
+            <a href="./builder.html" class="ss-btn">+ Create a quiz</a>
+          </div>
         </div>
 
         <div id="info-popover" class="hidden info-popover">
@@ -55,113 +59,71 @@
           Prefer GitHub? Add a new file under <code>sporcle-spinoff/quizzes/</code> plus an entry in <code>quizzes/index.json</code>, then open a pull request.
         </div>
 
-        <input type="text" id="quiz-search" class="ss-input" placeholder="Search by title or tag (e.g. Geography, Matching)…" style="margin-bottom: 20px;" />
+        <section class="catalog-controls" aria-label="Quiz filters">
+          <label class="search-field" for="quiz-search">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <span class="sr-only">Search quizzes</span>
+            <input type="search" id="quiz-search" class="ss-input" placeholder="Search quizzes, topics, or formats…" autocomplete="off" />
+          </label>
+          <label class="type-filter" for="quiz-type">
+            <span>Format</span>
+            <select id="quiz-type" class="ss-select">
+              <option value="">All formats</option>
+            </select>
+          </label>
+        </section>
 
-        <div id="quiz-sections" class="quiz-sections"></div>
-        <p id="quiz-no-results" class="hidden no-results"></p>
-      </div>
+        <div id="quiz-tags" class="filter-chips" aria-label="Filter by topic"></div>
+
+        <div class="catalog-status">
+          <p id="quiz-count" aria-live="polite">Loading quizzes…</p>
+          <button type="button" id="clear-filters" class="clear-filters hidden">Clear filters</button>
+        </div>
+
+        <section id="recent-section" class="recent-section hidden" aria-labelledby="recent-heading">
+          <h2 id="recent-heading" class="section-title">Jump back in</h2>
+          <div id="recent-quizzes" class="quiz-grid quiz-grid-recent"></div>
+        </section>
+
+        <section aria-labelledby="all-heading">
+          <h2 id="all-heading" class="section-title">All quizzes</h2>
+          <div id="quiz-grid" class="quiz-grid"></div>
+        </section>
+        <div id="quiz-no-results" class="hidden no-results">
+          <h2>No quizzes found</h2>
+          <p>Try a different search or clear your filters.</p>
+          <button type="button" class="ss-btn" id="empty-clear">Show all quizzes</button>
+        </div>
+      </main>
 
     </div>
 
+    <script type="module" src="./engine/catalog.js"></script>
     <script>
-      const CARD_COLORS = ['card-red', 'card-orange', 'card-peach', 'card-teal', 'card-gold'];
       const infoBtn = document.getElementById('info-btn');
       const infoPopover = document.getElementById('info-popover');
       infoBtn.addEventListener('click', (e) => {
         e.stopPropagation();
+        const isOpen = infoPopover.classList.contains('hidden');
+        infoPopover.classList.toggle('hidden', !isOpen);
+        infoBtn.setAttribute('aria-expanded', String(isOpen));
+        if (!isOpen) return;
         const rect = infoBtn.getBoundingClientRect();
         infoPopover.style.top = `${rect.bottom + 6}px`;
-        infoPopover.style.left = `${Math.max(8, rect.left)}px`;
-        infoPopover.classList.toggle('hidden');
+        infoPopover.style.left = `${Math.min(window.innerWidth - infoPopover.offsetWidth - 8, Math.max(8, rect.left))}px`;
       });
       document.addEventListener('click', (e) => {
         if (!infoPopover.classList.contains('hidden') && !infoPopover.contains(e.target) && e.target !== infoBtn) {
           infoPopover.classList.add('hidden');
+          infoBtn.setAttribute('aria-expanded', 'false');
         }
       });
-
-      const TYPE_ORDER = ['text-entry', 'multiple-choice', 'image', 'matching', 'ranking', 'map', 'map-highlight'];
-      const TYPE_LABELS = {
-        'text-entry': 'Type the Answer',
-        'multiple-choice': 'Multiple Choice',
-        image: 'Picture Round',
-        matching: 'Matching',
-        ranking: 'Put in Order',
-        map: 'Click the Map',
-        'map-highlight': 'Name the Highlight',
-      };
-
-      const SUBMITTED_ICON = `<span title="User submitted" style="flex-shrink:0;display:inline-flex;">
-        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.55"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4 4-6 8-6s8 2 8 6"></path></svg>
-      </span>`;
-
-      function cardHtml(q, colorClass) {
-        return `
-          <a href="./play.html?quiz=${encodeURIComponent(q.id)}" class="quiz-card ${colorClass}">
-            <div class="quiz-card-title">
-              <span>${q.title}</span>
-              ${q.submitted ? SUBMITTED_ICON : ''}
-            </div>
-            ${q.blurb ? `<div class="quiz-card-blurb">${q.blurb}</div>` : ''}
-          </a>`;
-      }
-
-      function typeBlockHtml(type, quizzes, dogNum) {
-        return `
-          <div class="type-block">
-            <h2 class="type-block-title">
-              <img src="/ugly-dog-images/dog-${dogNum}.png" alt="" width="16" height="16" style="object-fit:contain;flex-shrink:0;">
-              ${TYPE_LABELS[type] || type}
-            </h2>
-            <div class="type-block-list">${quizzes.map((q, i) => cardHtml(q, CARD_COLORS[i % CARD_COLORS.length])).join('')}</div>
-          </div>`;
-      }
-
-      function renderQuizzes(quizzes) {
-        const sections = document.getElementById('quiz-sections');
-        const noResults = document.getElementById('quiz-no-results');
-        if (!quizzes.length) {
-          sections.classList.add('hidden');
-          noResults.textContent = `No quizzes match "${document.getElementById('quiz-search').value}".`;
-          noResults.classList.remove('hidden');
-          return;
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          infoPopover.classList.add('hidden');
+          infoBtn.setAttribute('aria-expanded', 'false');
         }
-        sections.classList.remove('hidden');
-        noResults.classList.add('hidden');
-
-        const byType = new Map();
-        quizzes.forEach((q) => {
-          if (!byType.has(q.type)) byType.set(q.type, []);
-          byType.get(q.type).push(q);
-        });
-        const types = [
-          ...TYPE_ORDER.filter((t) => byType.has(t)),
-          ...[...byType.keys()].filter((t) => !TYPE_ORDER.includes(t)),
-        ];
-        sections.innerHTML = types.map((type, i) => typeBlockHtml(type, byType.get(type), (i % 6) + 1)).join('');
-      }
-
-      function matchesQuery(q, query) {
-        const haystack = [q.title, q.blurb, ...(q.tags || []), TYPE_LABELS[q.type] || q.type]
-          .join(' ').toLowerCase();
-        return haystack.includes(query);
-      }
-
-      let allQuizzes = [];
-      document.getElementById('quiz-search').addEventListener('input', (e) => {
-        const query = e.target.value.trim().toLowerCase();
-        renderQuizzes(query ? allQuizzes.filter((q) => matchesQuery(q, query)) : allQuizzes);
       });
-
-      fetch('./quizzes/index.json')
-        .then((r) => r.json())
-        .then((quizzes) => {
-          allQuizzes = quizzes;
-          renderQuizzes(allQuizzes);
-        })
-        .catch(() => {
-          document.getElementById('quiz-sections').innerHTML = '<p class="no-results">Couldn\'t load the quiz catalog.</p>';
-        });
     </script>
 
   </body>
