@@ -14,6 +14,17 @@ const fmtTime = (s) => {
 const bestKey = (id) => `sporcle:best:${id}`;
 const getBest = (id) => { const v = +localStorage.getItem(bestKey(id)); return Number.isFinite(v) ? v : 0; };
 const setBest = (id, v) => { if (v > getBest(id)) localStorage.setItem(bestKey(id), String(v)); };
+const recentKey = 'sporcle:recent';
+const rememberQuiz = (id) => {
+  if (!id) return;
+  try {
+    const stored = JSON.parse(localStorage.getItem(recentKey) || '[]');
+    const recent = [id, ...(Array.isArray(stored) ? stored : []).filter((value) => value !== id)].slice(0, 3);
+    localStorage.setItem(recentKey, JSON.stringify(recent));
+  } catch {
+    localStorage.setItem(recentKey, JSON.stringify([id]));
+  }
+};
 
 function el(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; }
 
@@ -49,6 +60,7 @@ async function boot() {
 }
 
 function showStart(quiz, isPreview = false) {
+  if (!isPreview) rememberQuiz(quiz.id);
   const total = quiz.items ? quiz.items.length : 0;
   const best = getBest(quiz.id);
   const meta = [
