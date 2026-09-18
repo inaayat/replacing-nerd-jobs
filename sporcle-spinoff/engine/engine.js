@@ -60,6 +60,7 @@ async function boot() {
 }
 
 function showStart(quiz, isPreview = false) {
+  document.body.classList.remove('quiz-running');
   if (!isPreview) rememberQuiz(quiz.id);
   const total = quiz.items ? quiz.items.length : 0;
   const best = getBest(quiz.id);
@@ -159,19 +160,20 @@ async function runQuiz(quiz) {
   const total = quiz.items.length;
   const state = { score: 0, done: 0, total, ended: false, startedAt: Date.now(), revealFn: null, timer: null };
 
+  document.body.classList.add('quiz-running');
   root.innerHTML = '';
   const hud = el(`
     <div>
       <h2 class="q-hud-title"></h2>
       <div class="q-hud">
         <div class="q-stat"><b id="q-score">0</b><span>Score</span></div>
-        <div class="q-stat"><b id="q-count">0/${total}</b><span>Found</span></div>
+        <div class="q-stat"><b id="q-count" aria-live="polite">0/${total}</b><span>Found</span></div>
         <div class="q-stat"><b id="q-time">${quiz.timeLimitSec ? fmtTime(quiz.timeLimitSec) : '0:00'}</b><span>Time</span></div>
         <div class="q-spacer"></div>
         <a class="q-btn" href="./">🏠 Quizzes</a>
         <button class="q-btn danger" id="q-giveup">Give up</button>
       </div>
-      <div class="q-progress-bar"><i id="q-bar"></i></div>
+      <div class="q-progress-bar" role="progressbar" aria-label="Quiz progress" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="0"><i id="q-bar"></i></div>
       <div id="q-body" style="margin-top:16px"></div>
     </div>`);
   hud.querySelector('.q-hud-title').textContent = quiz.title;
@@ -181,12 +183,15 @@ async function runQuiz(quiz) {
   const $count = hud.querySelector('#q-count');
   const $time = hud.querySelector('#q-time');
   const $bar = hud.querySelector('#q-bar');
+  const $progress = hud.querySelector('.q-progress-bar');
   const body = hud.querySelector('#q-body');
 
   function refresh() {
     $score.textContent = state.score;
     $count.textContent = `${state.done}/${state.total}`;
     $bar.style.width = state.total ? `${(state.done / state.total) * 100}%` : '0%';
+    $progress.setAttribute('aria-valuemax', String(state.total));
+    $progress.setAttribute('aria-valuenow', String(state.done));
   }
 
   // Timer: countdown when timeLimitSec set, else count up.
@@ -228,7 +233,9 @@ async function runQuiz(quiz) {
     showResults(quiz, state, reason, elapsed);
   }
 
-  hud.querySelector('#q-giveup').addEventListener('click', () => finish('gaveup'));
+  hud.querySelector('#q-giveup').addEventListener('click', () => {
+    if (window.confirm('Give up and reveal the remaining answers?')) finish('gaveup');
+  });
 
   refresh();
   try {
@@ -241,6 +248,7 @@ async function runQuiz(quiz) {
 }
 
 function showResults(quiz, state, reason, elapsed) {
+  document.body.classList.remove('quiz-running');
   const pct = state.total ? Math.round((state.score / state.total) * 100) : 0;
   const headline = reason === 'time' ? "⏱ Time's up!" : reason === 'complete' ? '🎉 Perfect!' : 'Results';
   const results = el(`
@@ -254,6 +262,8 @@ function showResults(quiz, state, reason, elapsed) {
       </div>
     </div>`);
   root.appendChild(results);
+  results.setAttribute('tabindex', '-1');
+  results.focus({ preventScroll: true });
   results.scrollIntoView({ behavior: 'smooth', block: 'center' });
   results.querySelector('#q-again').addEventListener('click', () => showStart(quiz));
 }

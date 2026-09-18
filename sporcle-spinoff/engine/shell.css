@@ -42,6 +42,22 @@ html, body {
   border: 0;
 }
 
+.skip-link {
+  position: fixed;
+  z-index: 100;
+  top: 8px;
+  left: 8px;
+  transform: translateY(-150%);
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: var(--ink);
+  color: var(--cream);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.skip-link:focus { transform: translateY(0); }
+
 /* Layout: sidebar + scrollable content (mirrors index.html) */
 .page-main {
   flex: 1 1 auto;
@@ -561,6 +577,8 @@ html, body {
   .ss-select { font-size: 16px; }
   .quiz-grid { grid-template-columns: 1fr; }
   .quiz-card { min-height: 160px; }
+  body.quiz-running .sidebar { display: none; }
+  body.quiz-running .page-main { padding-top: 8px; }
 }
 
 @media (max-width: 430px) {
