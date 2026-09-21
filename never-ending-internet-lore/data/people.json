@@ -46,7 +46,7 @@
     "name": "Matt Hoss (MattHossZone)",
     "role": "YouTuber and plaintiff in the Kleins' fair-use case",
     "tags": ["legal"],
-    "links": [{ "label": "EFF case page", "url": "https://www.eff.org/cases/hoss-v-klein" }]
+    "links": [{ "label": "CourtListener docket", "url": "https://www.courtlistener.com/docket/4356997/hosseinzadeh-v-klein/" }]
   },
   {
     "id": "ryan-kavanaugh",
@@ -130,7 +130,7 @@
     "name": "Anisa Jomha",
     "role": "Creator whose public disputes have been discussed on H3",
     "tags": ["recent"],
-    "links": [{ "label": "Profile", "url": "https://en.wikipedia.org/wiki/Anisa_Jomha" }]
+    "links": [{ "label": "YouTube", "url": "https://www.youtube.com/@AnisaJ/videos" }]
   },
   {
     "id": "xqc",

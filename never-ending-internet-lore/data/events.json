@@ -23,8 +23,8 @@
     "people": ["ethan-klein", "hila-klein", "trisha-paytas", "dan-swerdlove"],
     "links": [
       {
-        "label": "Insider recap",
-        "url": "https://www.insider.com/trisha-paytas-h3-podcast-drama-explained-2021-6",
+        "label": "Business Insider timeline",
+        "url": "https://www.businessinsider.com/frenemies-trisha-paytas-quit-ethan-klein-podcast-leaving-stepping-down-2021-6",
         "type": "article"
       }
     ]
@@ -53,8 +53,8 @@
     "people": ["ethan-klein", "hila-klein", "trisha-paytas"],
     "links": [
       {
-        "label": "Dexerto summary",
-        "url": "https://www.dexerto.com/youtube/trisha-paytas-slams-ethan-klein-over-h3-merch-drama-1664552/",
+        "label": "Business Insider timeline",
+        "url": "https://www.businessinsider.com/trisha-paytas-h3h3-ethan-klein-drama-timeline-what-happened-2020-4",
         "type": "article"
       }
     ]
@@ -133,9 +133,9 @@
     "people": ["ethan-klein", "hila-klein", "matt-hoss"],
     "links": [
       {
-        "label": "EFF — case overview",
-        "url": "https://www.eff.org/cases/hoss-v-klein",
-        "type": "reference"
+        "label": "Court opinion",
+        "url": "https://storage.courtlistener.com/recap/gov.uscourts.nysd.456608.116.0.pdf",
+        "type": "legal"
       },
       {
         "label": "CourtListener opinion",
@@ -288,8 +288,8 @@
     "people": ["ethan-klein", "david-dobrik"],
     "links": [
       {
-        "label": "Rolling Stone report",
-        "url": "https://www.rollingstone.com/culture/culture-news/jeff-wittek-david-dobrik-lawsuit-1352943/",
+        "label": "People report",
+        "url": "https://people.com/tv/jeff-wittek-sues-david-dobrik-for-10-million-over-stunt-injury/",
         "type": "article"
       }
     ]
@@ -318,8 +318,8 @@
     "people": ["ethan-klein", "hila-klein", "matt-hoss"],
     "links": [
       {
-        "label": "EFF case overview",
-        "url": "https://www.eff.org/cases/hoss-v-klein",
+        "label": "CourtListener docket",
+        "url": "https://www.courtlistener.com/docket/4356997/hosseinzadeh-v-klein/",
         "type": "legal"
       }
     ]
