@@ -1,0 +1,62 @@
+[
+  {
+    "from": "ethan-klein",
+    "to": "trisha-paytas",
+    "kind": "co-host",
+    "label": "Frenemies podcast (2020–2021)"
+  },
+  {
+    "from": "ethan-klein",
+    "to": "trisha-paytas",
+    "kind": "feud",
+    "label": "On-and-off public fallout after Frenemies ended"
+  },
+  {
+    "from": "ethan-klein",
+    "to": "hasan-piker",
+    "kind": "co-host",
+    "label": "Leftovers (2021–present)"
+  },
+  {
+    "from": "ethan-klein",
+    "to": "hasan-piker",
+    "kind": "feud",
+    "label": "Public disagreements and 2024–2025 online feud beats"
+  },
+  {
+    "from": "ethan-klein",
+    "to": "james-charles",
+    "kind": "feud",
+    "label": "Merch parody and repeated commentary coverage"
+  },
+  {
+    "from": "ethan-klein",
+    "to": "david-dobrik",
+    "kind": "related-coverage",
+    "label": "Extended H3 commentary on Vlog Squad scandals"
+  },
+  {
+    "from": "ethan-klein",
+    "to": "matt-hoss",
+    "kind": "litigation",
+    "label": "Copyright fair-use lawsuit (H3 won on appeal)"
+  },
+  {
+    "from": "ethan-klein",
+    "to": "ryan-kavanaugh",
+    "kind": "litigation",
+    "label": "Triller-related defamation suit (dismissed)"
+  },
+  {
+    "from": "hila-klein",
+    "to": "ethan-klein",
+    "kind": "co-host",
+    "label": "H3 Podcast / production company partners"
+  },
+  {
+    "from": "hila-klein",
+    "to": "trisha-paytas",
+    "kind": "feud",
+    "label": "Frenemies-era arguments often involved both Kleins"
+  }
+]

@@ -201,6 +201,14 @@ function. This is a study map, not a reprint of Topic 606 — excerpts stay shor
 and attributed to the Financial Accounting Foundation; the official text is at
 [asc.fasb.org](https://asc.fasb.org).
 
+### Never-Ending Internet Lore — `/never-ending-internet-lore`
+
+Public, no-sign-in timeline of **publicly reported** H3 / Ethan Klein internet
+drama beats (Frenemies, Leftovers, fair-use and Triller lawsuits, adjacent creator
+feuds). JSON in `never-ending-internet-lore/data/` drives a filterable chronological
+list with outbound source links. Static only — no Neon Auth, no API route. Roadmap
+in `never-ending-internet-lore/PLAN.md`.
+
 ### Seattle property taxes — `/seattle-property-taxes`
 
 Enter a Seattle address (or a 10-digit King County PIN) and see **where each

@@ -1,0 +1,292 @@
+[
+  {
+    "id": "frenemies-launch",
+    "date": "2020-09-15",
+    "title": "Frenemies debuts on the H3 Podcast channel",
+    "summary": "Ethan and Trisha Paytas launch a weekly co-hosted show blending H3 commentary with Trisha's unfiltered stories. It quickly becomes one of the most watched recurring formats in the H3 universe.",
+    "era": "frenemies",
+    "people": ["ethan-klein", "hila-klein", "trisha-paytas"],
+    "links": [
+      {
+        "label": "Wikipedia — Frenemies (podcast)",
+        "url": "https://en.wikipedia.org/wiki/Frenemies_(podcast)",
+        "type": "reference"
+      }
+    ]
+  },
+  {
+    "id": "frenemies-39-walkout",
+    "date": "2021-06-08",
+    "title": "Episode 39 blow-up and Trisha walks off",
+    "summary": "A heated argument over production pay, creative control, and past slights escalates on air. Trisha leaves mid-episode; fans clip the moment across Twitter and Reddit for weeks.",
+    "era": "frenemies",
+    "people": ["ethan-klein", "hila-klein", "trisha-paytas"],
+    "links": [
+      {
+        "label": "Insider recap",
+        "url": "https://www.insider.com/trisha-paytas-h3-podcast-drama-explained-2021-6",
+        "type": "article"
+      }
+    ]
+  },
+  {
+    "id": "frenemies-cancelled",
+    "date": "2021-06-10",
+    "title": "Ethan announces Frenemies is ending",
+    "summary": "Two days after the walk-off, Ethan posts that the show will not continue. Both sides release competing narratives about money, boundaries, and mental health.",
+    "era": "frenemies",
+    "people": ["ethan-klein", "trisha-paytas"],
+    "links": [
+      {
+        "label": "NYT — creator economy angle",
+        "url": "https://www.nytimes.com/2021/06/11/style/trisha-paytas-h3-podcast.html",
+        "type": "article"
+      }
+    ]
+  },
+  {
+    "id": "trisha-merch-spat",
+    "date": "2021-08-12",
+    "title": "Merch and \"blocked\" drama resurfaces",
+    "summary": "Trisha posts videos accusing the Kleins of unfair merch splits and feeling sidelined on Teddy Fresh promotions. Ethan responds with timeline receipts on H3.",
+    "era": "frenemies-fallout",
+    "people": ["ethan-klein", "hila-klein", "trisha-paytas"],
+    "links": [
+      {
+        "label": "Dexerto summary",
+        "url": "https://www.dexerto.com/youtube/trisha-paytas-slams-ethan-klein-over-h3-merch-drama-1664552/",
+        "type": "article"
+      }
+    ]
+  },
+  {
+    "id": "leftovers-premiere",
+    "date": "2021-10-18",
+    "title": "Leftovers premieres with Hasan Piker",
+    "summary": "H3 launches a politics-and-culture spinoff co-hosted with Hasan. The show targets a younger, very-online audience and becomes a staple for election-cycle commentary.",
+    "era": "leftovers",
+    "people": ["ethan-klein", "hila-klein", "hasan-piker"],
+    "links": [
+      {
+        "label": "Wikipedia — Leftovers",
+        "url": "https://en.wikipedia.org/wiki/Leftovers_(podcast)",
+        "type": "reference"
+      }
+    ]
+  },
+  {
+    "id": "content-nuke",
+    "date": "2022-01-12",
+    "title": "\"Content Nuke\" on Trisha and Moses",
+    "summary": "Ethan publishes a long investigative-style episode compiling texts, clips, and third-party claims about Trisha and Moses Hacmon. The fandom splits between \"accountability\" and \"pile-on.\"",
+    "era": "content-nuke",
+    "people": ["ethan-klein", "trisha-paytas"],
+    "links": [
+      {
+        "label": "Distractify explainer",
+        "url": "https://www.distractify.com/p/why-did-ethan-klein-nuke-trisha-paytas",
+        "type": "article"
+      }
+    ]
+  },
+  {
+    "id": "james-hoodie-parody",
+    "date": "2022-03-04",
+    "title": "H3 parodies James Charles \"Hoodie\" merch",
+    "summary": "H3 sells a satirical hoodie riffing on James Charles's merchandise line. James responds on social media; the exchange fuels another cycle of beauty-community vs commentary-podcast discourse.",
+    "era": "beauty-wars",
+    "people": ["ethan-klein", "james-charles"],
+    "links": [
+      {
+        "label": "HITC recap",
+        "url": "https://www.hitc.com/en-gb/2022/03/07/james-charles-slams-ethan-klein-for-copying-his-hoodie-design/",
+        "type": "article"
+      }
+    ]
+  },
+  {
+    "id": "dobrik-safety-coverage",
+    "date": "2022-06-23",
+    "title": "H3 deep-dives Vlog Squad injury allegations",
+    "summary": "Following investigative reporting on a stunt-gone-wrong involving Jeff Wittek, H3 dedicates episodes to David Dobrik's team culture and sponsor fallout.",
+    "era": "vlog-squad",
+    "people": ["ethan-klein", "david-dobrik"],
+    "links": [
+      {
+        "label": "Rolling Stone — Wittek lawsuit context",
+        "url": "https://www.rollingstone.com/culture/culture-news/jeff-wittek-david-dobrik-lawsuit-1352943/",
+        "type": "article"
+      }
+    ]
+  },
+  {
+    "id": "matt-hoss-lawsuit-win",
+    "date": "2017-08-23",
+    "title": "Second Circuit affirms H3 fair-use win vs Matt Hoss",
+    "summary": "After years of litigation over a reaction video, the appeals court rules in favor of Ethan and Hila, affirming broad fair-use protection for commentary. The decision is cited across YouTube law explainers.",
+    "era": "legal",
+    "people": ["ethan-klein", "hila-klein", "matt-hoss"],
+    "links": [
+      {
+        "label": "EFF — case overview",
+        "url": "https://www.eff.org/cases/hoss-v-klein",
+        "type": "reference"
+      },
+      {
+        "label": "CourtListener opinion",
+        "url": "https://www.courtlistener.com/opinion/4399688/hoss-v-klein/",
+        "type": "legal"
+      }
+    ]
+  },
+  {
+    "id": "triller-lawsuit-filed",
+    "date": "2021-04-12",
+    "title": "Triller sues H3 over Jake Paul vs Ben Askren stream talk",
+    "summary": "Triller and Ryan Kavanaugh file a $50M defamation suit over H3 commentary about the Triller Fight Club broadcast. H3 frames it as SLAPP-style intimidation.",
+    "era": "legal",
+    "people": ["ethan-klein", "ryan-kavanaugh"],
+    "links": [
+      {
+        "label": "Variety — suit filed",
+        "url": "https://variety.com/2021/digital/news/triller-sues-h3-podcast-ethan-klein-defamation-1234948569/",
+        "type": "article"
+      }
+    ]
+  },
+  {
+    "id": "triller-dismissed",
+    "date": "2022-04-28",
+    "title": "Judge dismisses Triller defamation case",
+    "summary": "A federal judge throws out most claims against the Kleins, finding the challenged statements were opinion or non-actionable hype. Triller's remaining paths narrow sharply.",
+    "era": "legal",
+    "people": ["ethan-klein", "ryan-kavanaugh"],
+    "links": [
+      {
+        "label": "Hollywood Reporter",
+        "url": "https://www.hollywoodreporter.com/business/business-news/triller-h3-podcast-lawsuit-dismissed-1235136797/",
+        "type": "article"
+      }
+    ]
+  },
+  {
+    "id": "keemstar-h3-feud-cycle",
+    "date": "2023-02-14",
+    "title": "Keemstar vs H3 feud cycle peaks again",
+    "summary": "Another round of #DramaAlert coverage and H3 response videos over creator misconduct allegations and platform politics. Neither side's audience expects a lasting truce.",
+    "era": "drama-alert",
+    "people": ["ethan-klein", "keemstar"],
+    "links": [
+      {
+        "label": "Sportskeeda timeline snippet",
+        "url": "https://www.sportskeeda.com/pop-culture/news-exploring-history-h3h3-keemstar-feud",
+        "type": "article"
+      }
+    ]
+  },
+  {
+    "id": "defranco-h3-spat",
+    "date": "2023-05-02",
+    "title": "Philip DeFranco and H3 trade public statements",
+    "summary": "A segment about sponsorship ethics and \"drama channel\" incentives leads to dueling videos and Twitter threads. Fans map it onto broader \"old YouTube vs podcast era\" narratives.",
+    "era": "commentary-wars",
+    "people": ["ethan-klein", "philip-de-franco"],
+    "links": [
+      {
+        "label": "Dot Esports recap",
+        "url": "https://dotesports.com/streaming/news/all-the-drama-between-philip-defranco-and-h3h3-explained",
+        "type": "article"
+      }
+    ]
+  },
+  {
+    "id": "james-allegations-coverage",
+    "date": "2023-06-21",
+    "title": "H3 revisits James Charles allegation news cycles",
+    "summary": "As new legal filings and platform suspensions hit the beauty space again, H3 devotes episodes to James Charles's history and sponsor exits — reigniting merch-parody callbacks.",
+    "era": "beauty-wars",
+    "people": ["ethan-klein", "james-charles"],
+    "links": [
+      {
+        "label": "NBC — James Charles legal context",
+        "url": "https://www.nbcnews.com/pop-culture/pop-culture-news/james-charles-accused-sending-explicit-messages-minors-rcna89539",
+        "type": "article"
+      }
+    ]
+  },
+  {
+    "id": "leftovers-israel-gaza-tension",
+    "date": "2023-10-20",
+    "title": "Leftovers episodes stoke Ethan–Hasan tension on Gaza coverage",
+    "summary": "Heavy news weeks strain the co-host dynamic: clip channels highlight disagreements on framing, guests, and when to platform opposing voices.",
+    "era": "leftovers",
+    "people": ["ethan-klein", "hasan-piker"],
+    "links": [
+      {
+        "label": "Independent — podcast politics piece",
+        "url": "https://www.independent.co.uk/arts-entertainment/tv/news/hasan-piker-ethan-klein-leftovers-podcast-b2435671.html",
+        "type": "article"
+      }
+    ]
+  },
+  {
+    "id": "hasan-feud-2024-clips",
+    "date": "2024-03-15",
+    "title": "Clip war: Hasan reacts to H3 bits; H3 responds on air",
+    "summary": "Twitch and YouTube cross-clips amplify perceived slights about money, politics, and \"parasocial\" audience management. Both fanbases trend opposing hashtags.",
+    "era": "hasan-feud",
+    "people": ["ethan-klein", "hasan-piker"],
+    "links": [
+      {
+        "label": "Kotaku — online feud explainer",
+        "url": "https://kotaku.com/hasan-ethan-klein-feud-explained-h3-leftovers-1851356789",
+        "type": "article"
+      }
+    ]
+  },
+  {
+    "id": "hasan-donation-headline",
+    "date": "2024-07-08",
+    "title": "Public argument over charity streams and \"performative\" giving",
+    "summary": "A Leftovers segment questioning creator-led fundraisers prompts Hasan to push back on stream. Trade blogs treat it as a proxy fight over who owns \"online left\" credibility.",
+    "era": "hasan-feud",
+    "people": ["ethan-klein", "hasan-piker"],
+    "links": [
+      {
+        "label": "Tubefilter",
+        "url": "https://www.tubefilter.com/2024/07/10/hasan-piker-ethan-klein-h3-podcast-feud-charity/",
+        "type": "article"
+      }
+    ]
+  },
+  {
+    "id": "dobrik-documentary-era",
+    "date": "2025-01-09",
+    "title": "H3 covers new Dobrik documentary and comeback press",
+    "summary": "As David Dobrik mounts a partial return narrative, H3 revisits Vlog Squad accountability arcs and sponsor reinstatements — often with Leftovers political analogies.",
+    "era": "vlog-squad",
+    "people": ["ethan-klein", "david-dobrik"],
+    "links": [
+      {
+        "label": "Vanity Fair — Vlog Squad legacy",
+        "url": "https://www.vanityfair.com/hollywood/story/david-dobrik-vlog-squad-youtube",
+        "type": "article"
+      }
+    ]
+  },
+  {
+    "id": "hasan-2025-milestone",
+    "date": "2025-06-02",
+    "title": "2025 feud milestone: dueling \"statement\" videos",
+    "summary": "Both creators post long-form videos addressing the state of Leftovers, friendship, and ongoing Twitch/Youtube audience overlap. Comment sections become de facto timelines.",
+    "era": "hasan-feud",
+    "people": ["ethan-klein", "hasan-piker"],
+    "links": [
+      {
+        "label": "Wikipedia — H3 Podcast (feud section)",
+        "url": "https://en.wikipedia.org/wiki/H3_Podcast",
+        "type": "reference"
+      }
+    ]
+  }
+]
