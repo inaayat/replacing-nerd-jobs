@@ -205,9 +205,12 @@ and attributed to the Financial Accounting Foundation; the official text is at
 
 Public, no-sign-in timeline of **publicly reported** H3 / Ethan Klein internet
 drama beats (Frenemies, Leftovers, fair-use and Triller lawsuits, adjacent creator
-feuds). JSON in `never-ending-internet-lore/data/` drives a filterable chronological
-list with outbound source links. Static only — no Neon Auth, no API route. Roadmap
-in `never-ending-internet-lore/PLAN.md`.
+feuds). JSON in `never-ending-internet-lore/data/` drives a searchable, deep-linkable
+timeline and a pan/zoom relationship web with synchronized era and people filters.
+Expandable cards include source chips and lazy YouTube previews. Static only — no
+Neon Auth, no API route. Data contract and roadmap are in
+`never-ending-internet-lore/PLAN.md`; validate edits with
+`node scripts/test-never-ending-internet-lore.mjs`.
 
 ### Seattle property taxes — `/seattle-property-taxes`
 
