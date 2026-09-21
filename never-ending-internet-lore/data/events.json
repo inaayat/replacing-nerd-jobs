@@ -5,23 +5,28 @@
     "title": "Frenemies debuts on the H3 Podcast channel",
     "summary": "Ethan and Trisha Paytas launch a weekly co-hosted show blending H3 commentary with Trisha's unfiltered stories. It quickly becomes one of the most watched recurring formats in the H3 universe.",
     "era": "frenemies",
-    "people": ["ethan-klein", "hila-klein", "trisha-paytas", "dan-swerdlove"],
+    "people": ["ethan-klein", "trisha-paytas"],
     "links": [
       {
-        "label": "Wikipedia — Frenemies (podcast)",
-        "url": "https://en.wikipedia.org/wiki/Frenemies_(podcast)",
-        "type": "reference"
+        "label": "Watch Frenemies #1",
+        "url": "https://www.youtube.com/watch?v=Mtblz3KPYT0",
+        "type": "video"
       }
     ]
   },
   {
     "id": "frenemies-39-walkout",
     "date": "2021-06-08",
-    "title": "Episode 39 blow-up and Trisha walks off",
-    "summary": "A heated argument over production pay, creative control, and past slights escalates on air. Trisha leaves mid-episode; fans clip the moment across Twitter and Reddit for weeks.",
+    "title": "Frenemies #39 ends in a production dispute",
+    "summary": "A disagreement over production, staffing, creative control, and revenue escalates near the end of the episode. Trisha leaves the set and announces the next day that they are stepping down.",
     "era": "frenemies",
-    "people": ["ethan-klein", "hila-klein", "trisha-paytas", "dan-swerdlove"],
+    "people": ["ethan-klein", "trisha-paytas", "dan-swerdlove"],
     "links": [
+      {
+        "label": "Watch Frenemies #39",
+        "url": "https://www.youtube.com/watch?v=poqMtuBVHU4",
+        "type": "video"
+      },
       {
         "label": "Business Insider timeline",
         "url": "https://www.businessinsider.com/frenemies-trisha-paytas-quit-ethan-klein-podcast-leaving-stepping-down-2021-6",
@@ -32,30 +37,30 @@
   {
     "id": "frenemies-cancelled",
     "date": "2021-06-10",
-    "title": "Ethan announces Frenemies is ending",
-    "summary": "Two days after the walk-off, Ethan posts that the show will not continue. Both sides release competing narratives about money, boundaries, and mental health.",
-    "era": "frenemies",
+    "title": "Ethan publishes his response to the Frenemies breakup",
+    "summary": "Ethan disputes Trisha's account and explains H3's production costs, the crew's role, and the proposed business structure as both former co-hosts post competing narratives.",
+    "era": "frenemies-fallout",
     "people": ["ethan-klein", "trisha-paytas"],
     "links": [
       {
-        "label": "NYT — creator economy angle",
-        "url": "https://www.nytimes.com/2021/06/11/style/trisha-paytas-h3-podcast.html",
-        "type": "article"
+        "label": "Watch Ethan's response",
+        "url": "https://www.youtube.com/watch?v=v8YqLShLJiI",
+        "type": "video"
       }
     ]
   },
   {
     "id": "trisha-merch-spat",
-    "date": "2021-08-12",
-    "title": "Merch and \"blocked\" drama resurfaces",
-    "summary": "Trisha posts videos accusing the Kleins of unfair merch splits and feeling sidelined on Teddy Fresh promotions. Ethan responds with timeline receipts on H3.",
+    "date": "2021-07-09",
+    "title": "Frenemies merchandise launches after the show ends",
+    "summary": "Teddy Fresh releases the collaboration that was already in production when Frenemies ended. The launch keeps the show's disputed finances and ownership in public view.",
     "era": "frenemies-fallout",
     "people": ["ethan-klein", "hila-klein", "trisha-paytas"],
     "links": [
       {
-        "label": "Business Insider timeline",
-        "url": "https://www.businessinsider.com/trisha-paytas-h3h3-ethan-klein-drama-timeline-what-happened-2020-4",
-        "type": "article"
+        "label": "H3 launch post",
+        "url": "https://www.instagram.com/h3h3productions/p/CRHipzAjY6f/",
+        "type": "primary"
       }
     ]
   },
@@ -68,9 +73,9 @@
     "people": ["ethan-klein", "hila-klein", "hasan-piker"],
     "links": [
       {
-        "label": "Wikipedia — Leftovers",
-        "url": "https://en.wikipedia.org/wiki/Leftovers_(podcast)",
-        "type": "reference"
+        "label": "Watch Leftovers #1",
+        "url": "https://www.youtube.com/watch?v=uASzNUFT5Dk",
+        "type": "video"
       }
     ]
   },
@@ -112,14 +117,14 @@
   {
     "id": "dobrik-safety-coverage",
     "date": "2021-03-21",
-    "title": "Frenemies examines the Vlog Squad excavator accident",
-    "summary": "Ethan and Trisha hold an emergency Frenemies episode about footage surrounding Jeff Wittek's serious injury during a David Dobrik stunt and interview Wittek about his response.",
+    "title": "Jeff Wittek calls into Frenemies during Vlog Squad coverage",
+    "summary": "Ethan and Trisha hold an emergency episode about Wittek's response to the Insider investigation and review new footage connected to the night described in the report.",
     "era": "vlog-squad",
     "people": ["ethan-klein", "trisha-paytas", "david-dobrik"],
     "links": [
       {
         "label": "Watch Frenemies #26",
-        "url": "https://www.youtube.com/watch?v=9oj17cM1UPQ",
+        "url": "https://www.youtube.com/watch?v=0XCZ-t5e-fI",
         "type": "video"
       }
     ]
@@ -456,16 +461,16 @@
   },
   {
     "id": "ethan-hasan-twitch-debate",
-    "date": "2023-11-10",
+    "date": "2023-11-09",
     "title": "Ethan and Hasan hold a second, emotional Israel–Palestine debate",
     "summary": "Ethan joins Hasan's Twitch stream for a multi-hour discussion about Zionism, slogans, moderation, and each host's audience. The conversation confirms the depth of their post-Leftovers split.",
     "era": "hasan-feud",
     "people": ["ethan-klein", "hasan-piker"],
     "links": [
       {
-        "label": "Contemporary report",
-        "url": "https://archive.ph/qwdBL",
-        "type": "article"
+        "label": "Watch the full stream",
+        "url": "https://www.youtube.com/live/h1ZVcdERxmw",
+        "type": "video"
       }
     ]
   },
@@ -655,6 +660,51 @@
       {
         "label": "CourtListener docket",
         "url": "https://www.courtlistener.com/docket/70583512/ted-entertainment-inc-v-morgan-kamal-majed/",
+        "type": "legal"
+      }
+    ]
+  },
+  {
+    "id": "kavanaugh-defamation-suit",
+    "date": "2021-11-29",
+    "title": "Ryan Kavanaugh personally sues Ethan for defamation",
+    "summary": "Kavanaugh files a separate state-court case alleging that Ethan repeated a retracted accusation about his business practices. The filing begins litigation distinct from Triller's copyright claims.",
+    "era": "legal",
+    "people": ["ethan-klein", "ryan-kavanaugh"],
+    "links": [
+      {
+        "label": "California appellate opinion",
+        "url": "https://courts.ca.gov/opinion/unpublished/2025-04-03/b327155",
+        "type": "legal"
+      }
+    ]
+  },
+  {
+    "id": "triller-federal-case-settled",
+    "date": "2024-11-22",
+    "title": "The federal Triller copyright case settles",
+    "summary": "The parties dismiss all claims and counterclaims with prejudice, with each side bearing its own costs and fees. The settlement closes the federal case filed over the 2021 fight broadcast.",
+    "era": "legal",
+    "people": ["ethan-klein", "hila-klein", "ryan-kavanaugh"],
+    "links": [
+      {
+        "label": "Joint dismissal stipulation",
+        "url": "https://storage.courtlistener.com/recap/gov.uscourts.cacd.820177/gov.uscourts.cacd.820177.82.0.pdf",
+        "type": "legal"
+      }
+    ]
+  },
+  {
+    "id": "kavanaugh-anti-slapp-appeal",
+    "date": "2025-04-03",
+    "title": "Appeals court keeps Kavanaugh's defamation case alive",
+    "summary": "A California Court of Appeal affirms the denial of Ethan's anti-SLAPP motion. The procedural ruling allows Kavanaugh's claims to continue but does not decide whether Ethan is liable for defamation.",
+    "era": "legal",
+    "people": ["ethan-klein", "ryan-kavanaugh"],
+    "links": [
+      {
+        "label": "California appellate opinion",
+        "url": "https://courts.ca.gov/opinion/unpublished/2025-04-03/b327155",
         "type": "legal"
       }
     ]

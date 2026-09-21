@@ -1,6 +1,6 @@
 # Never-Ending Internet Lore — status and next chunks
 
-Chunk 2 shipped: 40-event sourced timeline, searchable era/person filters, sticky
+Chunk 2 shipped: 43-event sourced timeline, searchable era/person filters, sticky
 year markers, deep links, expandable media/source cards, and an SVG relationship
 web derived from the same JSON. The web supports pointer pan/zoom, keyboard
 navigation, and a compact connection list. No auth, API, or server-only imports.

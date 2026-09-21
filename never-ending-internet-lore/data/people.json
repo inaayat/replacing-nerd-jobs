@@ -31,14 +31,14 @@
     "id": "james-charles",
     "name": "James Charles",
     "role": "Beauty creator repeatedly covered by H3",
-    "tags": ["subject", "rival"],
+    "tags": ["subject"],
     "links": [{ "label": "Profile", "url": "https://en.wikipedia.org/wiki/James_Charles" }]
   },
   {
     "id": "david-dobrik",
     "name": "David Dobrik",
     "role": "Vlog Squad creator repeatedly covered by H3",
-    "tags": ["subject", "rival"],
+    "tags": ["subject"],
     "links": [{ "label": "Profile", "url": "https://en.wikipedia.org/wiki/David_Dobrik" }]
   },
   {
@@ -80,7 +80,7 @@
     "id": "logan-paul",
     "name": "Logan Paul",
     "role": "Creator and wrestler covered across several H3 controversy cycles",
-    "tags": ["rival", "subject"],
+    "tags": ["subject"],
     "links": [{ "label": "Profile", "url": "https://en.wikipedia.org/wiki/Logan_Paul" }]
   },
   {
@@ -94,7 +94,7 @@
     "id": "jordan-peterson",
     "name": "Jordan Peterson",
     "role": "Author and commentator whose H3 appearances were later removed",
-    "tags": ["subject", "rival"],
+    "tags": ["subject"],
     "links": [{ "label": "Profile", "url": "https://en.wikipedia.org/wiki/Jordan_Peterson" }]
   },
   {
@@ -108,7 +108,7 @@
     "id": "fresh-and-fit",
     "name": "Fresh & Fit",
     "role": "Podcast duo covered and debated by H3",
-    "tags": ["subject", "rival"],
+    "tags": ["subject"],
     "links": [{ "label": "Profile", "url": "https://en.wikipedia.org/wiki/Fresh_and_Fit_Podcast" }]
   },
   {
@@ -136,7 +136,7 @@
     "id": "xqc",
     "name": "xQc",
     "role": "Streamer who debated Ethan during the reaction-content dispute",
-    "tags": ["recent", "rival"],
+    "tags": ["recent", "subject"],
     "links": [{ "label": "Profile", "url": "https://en.wikipedia.org/wiki/XQc" }]
   },
   {

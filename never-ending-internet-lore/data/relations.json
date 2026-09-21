@@ -45,7 +45,7 @@
     "from": "ethan-klein",
     "to": "ryan-kavanaugh",
     "kind": "litigation",
-    "label": "Triller-related defamation suit (dismissed)"
+    "label": "Triller and personal litigation beginning in 2021"
   },
   {
     "from": "hila-klein",
@@ -110,14 +110,14 @@
   {
     "from": "ethan-klein",
     "to": "fresh-and-fit",
-    "kind": "coverage",
-    "label": "H3 commentary and debate coverage"
+    "kind": "debate",
+    "label": "Remote debate on Off The Rails #108"
   },
   {
     "from": "ethan-klein",
     "to": "justpearlythings",
-    "kind": "coverage",
-    "label": "H3 debate and response coverage"
+    "kind": "debate",
+    "label": "Studio debate on Off The Rails #76"
   },
   {
     "from": "ethan-klein",
@@ -134,8 +134,8 @@
   {
     "from": "ethan-klein",
     "to": "xqc",
-    "kind": "feud",
-    "label": "Reaction-content debate and public response cycle"
+    "kind": "debate",
+    "label": "Reaction-content and copyright debate"
   },
   {
     "from": "ethan-klein",
