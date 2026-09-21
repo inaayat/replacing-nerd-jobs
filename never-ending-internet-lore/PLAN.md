@@ -1,11 +1,28 @@
-# Never-Ending Internet Lore — next chunks
+# Never-Ending Internet Lore — status and next chunks
 
-MVP shipped: static JSON timeline, person filter chips, expandable rows with outbound links. No auth, no API.
+Chunk 2 shipped: 43-event sourced timeline, searchable era/person filters, sticky
+year markers, deep links, expandable media/source cards, and an SVG relationship
+web derived from the same JSON. The web supports pointer pan/zoom, keyboard
+navigation, and a compact connection list. No auth, API, or server-only imports.
+
+## Current data contract
+
+- `events.json` is the source of truth for both views. Events have stable `id`,
+  ISO `date`, `title`, `summary`, `era`, known `people`, and one or more links.
+  Optional `tease` and `media.thumbnail` fields enhance cards without being
+  required.
+- `people.json` holds display copy, filter tags, and optional profile links.
+- `relations.json` names public relationship context. Multiple relations may
+  share a pair; the web consolidates them visually.
+- `engine.js` stays dependency-free browser-safe ESM. The Node test imports it.
 
 ## Planned follow-ups
 
-1. **Richer timeline UI** — era lanes, month grouping, search, and deep-linkable event ids in the hash.
-2. **Media embeds** — optional YouTube/Twitch clip ids per event (still no server unfurl in v1).
-3. **Relationship web viz** — force-directed or simple SVG graph from `relations.json`, toggled beside the list.
-4. **Source quality** — primary links (court PDFs, official posts) prioritized over recap blogs where possible.
-5. **Editor workflow** — validate JSON schema in CI (`scripts/test-never-ending-internet-lore.mjs`) before expanding past ~50 events.
+1. **Source maintenance** — periodically verify outbound links and prefer court
+   records, official uploads, and first-party statements over recap sites.
+2. **Editorial workflow** — add
+   `scripts/test-never-ending-internet-lore.mjs` to CI if the archive grows past
+   roughly 50 events.
+3. **Optional portraits** — add licensed or creator-provided image URLs only;
+   the current node labels and YouTube thumbnails intentionally work without
+   scraping.

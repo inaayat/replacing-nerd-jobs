@@ -49,6 +49,7 @@ This repo is a no-build Vercel site (see `README.md` for structure/deploy). Non-
   - `node scripts/test-amc-alist-rank.mjs` — A-Lister Beli-style movie and TV stack insertion
   - `node scripts/test-ai-buildout.mjs` — AI buildout extractor, iceberg math, 424B/8-K watch list
   - `node scripts/test-world-in-nyc.mjs` — World in NYC enclave catalog, election-district join, origin-country map, 2025 mayor ED join
+ - `node scripts/test-never-ending-internet-lore.mjs` — lore data integrity, filters, deep links, graph layout, YouTube ids
   - `node scripts/test-sticky-notes.mjs` — Sticky Notes model, op reducer, merge, canvas math, span href, wiki docs (`sticky-notes/notes.js`)
  - `node scripts/test-sticky-notes-pwa.mjs` — Sticky Notes manifest, offline shell, share target, and offline-auth contract
  - `node scripts/test-table-manners-sheet.mjs` — Table Manners sheet document (`table-manners/engine/sheet.js`)
