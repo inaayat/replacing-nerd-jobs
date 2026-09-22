@@ -1329,9 +1329,10 @@
 
         Cells are then inset by half a gutter and corner-cut into curves, so the
         cream page shows through as an even seam between neighbouring pieces.
-        Each corner is a circular fillet: the curve meets the edge where the
-        old cut did, so the seam stays the same width, and an acute join rounds
-        off instead of spiking.
+        Short Voronoi edges (the little nicks at triple points) are dropped
+        before the cut, so a tight join can use a real radius instead of a
+        10-pixel spike. Contact points stay on the remaining edges, which is
+        what keeps the gutter — and the label box — the same width.
 
         Seeds persist between layouts, which is what makes the pieces draggable:
         a drag pins one seed to the cursor and re-runs a few solver rounds, and
@@ -1606,20 +1607,75 @@
           return shifted.area > centred.area ? shifted : centred;
         }
 
-        // Corner-cut every vertex into a curve so the cell reads as a pebble.
-        // The cut is capped at half the shorter edge, so adjacent corners never
-        // eat into each other and the curve always stays inside the cell. The
-        // contact points stay on the inset edge, which is what keeps the gutter
-        // between neighbouring pieces the same width.
+        // Collapse short edges to their midpoint so a triple-point nick cannot
+        // cap the corner radius at a handful of pixels. The long edges that
+        // remain still carry the gutter. Nearly-colinear leftovers are dropped.
+        function smoothPoly(poly) {
+          const box = bboxOf(poly);
+          const minLen = Math.max(40, 0.14 * Math.min(box.x1 - box.x0, box.y1 - box.y0));
+          let pts = poly.slice();
+          let guard = 0;
+          while (pts.length > 3 && guard++ < 24) {
+            const n = pts.length;
+            let edge = -1;
+            let shortest = minLen;
+            for (let i = 0; i < n; i++) {
+              const a = pts[i];
+              const b = pts[(i + 1) % n];
+              const len = Math.hypot(b.x - a.x, b.y - a.y);
+              if (len < shortest) {
+                shortest = len;
+                edge = i;
+              }
+            }
+            if (edge < 0) break;
+            const a = pts[edge];
+            const b = pts[(edge + 1) % n];
+            const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+            if (edge === n - 1) {
+              pts.splice(edge, 1);
+              pts[0] = mid;
+            } else {
+              pts.splice(edge, 2, mid);
+            }
+          }
+          guard = 0;
+          while (pts.length > 3 && guard++ < 24) {
+            let drop = -1;
+            const n = pts.length;
+            for (let i = 0; i < n; i++) {
+              const prev = pts[(i - 1 + n) % n];
+              const v = pts[i];
+              const next = pts[(i + 1) % n];
+              const ex = next.x - prev.x;
+              const ey = next.y - prev.y;
+              const len = Math.hypot(ex, ey) || 1;
+              const dist = Math.abs(ex * (v.y - prev.y) - ey * (v.x - prev.x)) / len;
+              if (dist < 6) {
+                drop = i;
+                break;
+              }
+            }
+            if (drop < 0) break;
+            pts.splice(drop, 1);
+          }
+          return pts;
+        }
+
+        // Corner-cut every remaining vertex into a circular fillet. The cut is
+        // capped at half the shorter edge, so adjacent corners never eat into
+        // each other. Contact points stay on the inset edge, which is what
+        // keeps the gutter between neighbouring pieces the same width.
         function piecePath(poly, seed, ox, oy) {
-          const n = poly.length;
+          const shape = smoothPoly(poly);
+          const n = shape.length;
           if (n < 3) return "";
           const num = (v) => Math.round(v * 10) / 10;
           let d = "";
           for (let k = 0; k < n; k++) {
-            const prev = poly[(k - 1 + n) % n];
-            const v = poly[k];
-            const next = poly[(k + 1) % n];
+            const prev = shape[(k - 1 + n) % n];
+            const v = shape[k];
+            const next = shape[(k + 1) % n];
             const px = prev.x - v.x;
             const py = prev.y - v.y;
             const nx = next.x - v.x;
@@ -1629,15 +1685,11 @@
             // Spend nearly the whole budget so the curve starts close to the
             // midpoint of each edge. Held just under 1 so two corners sharing a
             // short edge cannot quite meet and kink it.
-            const cut = Math.min(lp, ln) * 0.5 * (0.88 + noise(seed * 17 + k, 3.1) * 0.1);
+            const cut = Math.min(lp, ln) * 0.5 * (0.9 + noise(seed * 17 + k, 3.1) * 0.08);
             const ax = v.x + (px / lp) * cut;
             const ay = v.y + (py / lp) * cut;
             const bx = v.x + (nx / ln) * cut;
             const by = v.y + (ny / ln) * cut;
-            // A quadratic with its control on the vertex still spikes on an acute
-            // join. Handles sized for a circular fillet keep the tangents on the
-            // edges (so the seam stays smooth) and swing the corner wide of the
-            // point. h is that handle length as a fraction of the cut.
             const cos = Math.max(-1, Math.min(1, (px * nx + py * ny) / (lp * ln)));
             const theta = Math.acos(cos);
             const kappa = (4 / 3) * Math.tan((Math.PI - theta) / 4);
@@ -1910,9 +1962,9 @@
               card.placed = false;
               released = true;
             }
-            // Corner-cutting draws a curve strictly inside the cell, so measure
-            // text room against a shrunken cell rather than the straight edges.
-            const inner = insetPoly(shape, 6);
+            // The pebble curve sits well inside each vertex, so measure text
+            // room against a shrunken cell rather than the straight edges.
+            const inner = insetPoly(shape, 10);
             const fit = inner.length > 2 ? inner : shape;
             const slot = labelSlot(fit, visible, avoid, spot);
             const width = Math.max(44, slot.w);
