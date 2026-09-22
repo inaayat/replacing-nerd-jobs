@@ -1329,6 +1329,9 @@
 
         Cells are then inset by half a gutter and corner-cut into curves, so the
         cream page shows through as an even seam between neighbouring pieces.
+        Each corner is a circular fillet: the curve meets the edge where the
+        old cut did, so the seam stays the same width, and an acute join rounds
+        off instead of spiking.
 
         Seeds persist between layouts, which is what makes the pieces draggable:
         a drag pins one seed to the cursor and re-runs a few solver rounds, and
@@ -1603,9 +1606,11 @@
           return shifted.area > centred.area ? shifted : centred;
         }
 
-        // Corner-cut every vertex into a curve so the cell reads as hand-cut. The
-        // cut is capped at half the shorter edge, so adjacent corners never eat
-        // into each other and the curve always stays inside the cell.
+        // Corner-cut every vertex into a curve so the cell reads as a pebble.
+        // The cut is capped at half the shorter edge, so adjacent corners never
+        // eat into each other and the curve always stays inside the cell. The
+        // contact points stay on the inset edge, which is what keeps the gutter
+        // between neighbouring pieces the same width.
         function piecePath(poly, seed, ox, oy) {
           const n = poly.length;
           if (n < 3) return "";
@@ -1622,16 +1627,32 @@
             const lp = Math.hypot(px, py) || 1;
             const ln = Math.hypot(nx, ny) || 1;
             // Spend nearly the whole budget so the curve starts close to the
-            // midpoint of each edge and the vertex reads as a pebble corner
-            // rather than a point. Held just under 1 so two corners sharing a
+            // midpoint of each edge. Held just under 1 so two corners sharing a
             // short edge cannot quite meet and kink it.
             const cut = Math.min(lp, ln) * 0.5 * (0.88 + noise(seed * 17 + k, 3.1) * 0.1);
             const ax = v.x + (px / lp) * cut;
             const ay = v.y + (py / lp) * cut;
             const bx = v.x + (nx / ln) * cut;
             const by = v.y + (ny / ln) * cut;
+            // A quadratic with its control on the vertex still spikes on an acute
+            // join. Handles sized for a circular fillet keep the tangents on the
+            // edges (so the seam stays smooth) and swing the corner wide of the
+            // point. h is that handle length as a fraction of the cut.
+            const cos = Math.max(-1, Math.min(1, (px * nx + py * ny) / (lp * ln)));
+            const theta = Math.acos(cos);
+            const kappa = (4 / 3) * Math.tan((Math.PI - theta) / 4);
+            const tanHalf = Math.tan(theta / 2);
+            let handle = kappa * tanHalf;
+            if (!Number.isFinite(handle)) handle = 2 / 3;
+            handle = Math.min(1, Math.max(0, handle));
+            const c1x = ax + (v.x - ax) * handle;
+            const c1y = ay + (v.y - ay) * handle;
+            const c2x = bx + (v.x - bx) * handle;
+            const c2y = by + (v.y - by) * handle;
             d += (k === 0 ? "M" : "L") + num(ax - ox) + " " + num(ay - oy);
-            d += "Q" + num(v.x - ox) + " " + num(v.y - oy) + " " + num(bx - ox) + " " + num(by - oy);
+            d += "C" + num(c1x - ox) + " " + num(c1y - oy);
+            d += " " + num(c2x - ox) + " " + num(c2y - oy);
+            d += " " + num(bx - ox) + " " + num(by - oy);
           }
           return d + "Z";
         }
