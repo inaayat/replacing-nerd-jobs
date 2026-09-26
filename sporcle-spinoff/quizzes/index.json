@@ -54,6 +54,16 @@
     ]
   },
   {
+    "id": "best-100-tv-shows-21st-century",
+    "title": "Best 100 TV Shows of the 21st Century",
+    "type": "text-entry",
+    "blurb": "Type as many of The New York Times' 100 best TV shows of the 21st century as you can. From a 2026 poll of more than 500 stars, showrunners, and critics.",
+    "tags": [
+      "Pop Culture",
+      "Television"
+    ]
+  },
+  {
     "id": "oscars-best-picture-2020-2024",
     "title": "Best Picture Nominees (2020–2024 Oscars)",
     "type": "text-entry",
