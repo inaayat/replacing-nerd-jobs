@@ -1,0 +1,807 @@
+{
+  "id": "best-100-tv-shows-21st-century",
+  "title": "Best 100 TV Shows of the 21st Century",
+  "type": "text-entry",
+  "blurb": "Type as many of The New York Times' 100 best TV shows of the 21st century as you can. From a 2026 poll of more than 500 stars, showrunners, and critics.",
+  "tags": [
+    "Pop Culture",
+    "Television"
+  ],
+  "timeLimitSec": 960,
+  "prompt": "Type a TV show…",
+  "items": [
+    {
+      "group": "1–10",
+      "clue": "1",
+      "accept": [
+        "Breaking Bad"
+      ]
+    },
+    {
+      "group": "1–10",
+      "clue": "2",
+      "accept": [
+        "The Wire",
+        "Wire"
+      ]
+    },
+    {
+      "group": "1–10",
+      "clue": "3",
+      "accept": [
+        "Mad Men"
+      ]
+    },
+    {
+      "group": "1–10",
+      "clue": "4",
+      "accept": [
+        "Succession"
+      ]
+    },
+    {
+      "group": "1–10",
+      "clue": "5",
+      "accept": [
+        "Fleabag"
+      ]
+    },
+    {
+      "group": "1–10",
+      "clue": "6",
+      "accept": [
+        "Game of Thrones",
+        "GoT"
+      ]
+    },
+    {
+      "group": "1–10",
+      "clue": "7",
+      "accept": [
+        "Veep"
+      ]
+    },
+    {
+      "group": "1–10",
+      "clue": "8",
+      "accept": [
+        "30 Rock",
+        "Thirty Rock"
+      ]
+    },
+    {
+      "group": "1–10",
+      "clue": "9",
+      "accept": [
+        "Curb Your Enthusiasm",
+        "Curb"
+      ]
+    },
+    {
+      "group": "1–10",
+      "clue": "10",
+      "accept": [
+        "Atlanta"
+      ]
+    },
+    {
+      "group": "11–20",
+      "clue": "11",
+      "accept": [
+        "The Office (U.S.)",
+        "The Office US",
+        "The Office USA",
+        "US Office",
+        "USA Office",
+        "American Office",
+        "The Office",
+        "Office"
+      ]
+    },
+    {
+      "group": "11–20",
+      "clue": "12",
+      "accept": [
+        "Arrested Development"
+      ]
+    },
+    {
+      "group": "11–20",
+      "clue": "13",
+      "accept": [
+        "Girls"
+      ]
+    },
+    {
+      "group": "11–20",
+      "clue": "14",
+      "accept": [
+        "Friday Night Lights",
+        "FNL"
+      ]
+    },
+    {
+      "group": "11–20",
+      "clue": "15",
+      "accept": [
+        "Six Feet Under"
+      ]
+    },
+    {
+      "group": "11–20",
+      "clue": "16",
+      "accept": [
+        "The Office (U.K.)",
+        "The Office UK",
+        "UK Office",
+        "British Office",
+        "The Office British"
+      ]
+    },
+    {
+      "group": "11–20",
+      "clue": "17",
+      "accept": [
+        "The Americans",
+        "Americans"
+      ]
+    },
+    {
+      "group": "11–20",
+      "clue": "18",
+      "accept": [
+        "I May Destroy You"
+      ]
+    },
+    {
+      "group": "11–20",
+      "clue": "19",
+      "accept": [
+        "Chernobyl"
+      ]
+    },
+    {
+      "group": "11–20",
+      "clue": "20",
+      "accept": [
+        "The Crown",
+        "Crown"
+      ]
+    },
+    {
+      "group": "21–30",
+      "clue": "21",
+      "accept": [
+        "The White Lotus",
+        "White Lotus"
+      ]
+    },
+    {
+      "group": "21–30",
+      "clue": "22",
+      "accept": [
+        "Lost"
+      ]
+    },
+    {
+      "group": "21–30",
+      "clue": "23",
+      "accept": [
+        "The Comeback",
+        "Comeback"
+      ]
+    },
+    {
+      "group": "21–30",
+      "clue": "24",
+      "accept": [
+        "Deadwood"
+      ]
+    },
+    {
+      "group": "21–30",
+      "clue": "25",
+      "accept": [
+        "The Leftovers",
+        "Leftovers"
+      ]
+    },
+    {
+      "group": "21–30",
+      "clue": "26",
+      "accept": [
+        "Black Mirror"
+      ]
+    },
+    {
+      "group": "21–30",
+      "clue": "27",
+      "accept": [
+        "Better Call Saul",
+        "BCS"
+      ]
+    },
+    {
+      "group": "21–30",
+      "clue": "28",
+      "accept": [
+        "Band of Brothers"
+      ]
+    },
+    {
+      "group": "21–30",
+      "clue": "29",
+      "accept": [
+        "Key & Peele",
+        "Key and Peele"
+      ]
+    },
+    {
+      "group": "21–30",
+      "clue": "30",
+      "accept": [
+        "Severance"
+      ]
+    },
+    {
+      "group": "31–40",
+      "clue": "31",
+      "accept": [
+        "Survivor"
+      ]
+    },
+    {
+      "group": "31–40",
+      "clue": "32",
+      "accept": [
+        "Andor"
+      ]
+    },
+    {
+      "group": "31–40",
+      "clue": "33",
+      "accept": [
+        "Enlightened"
+      ]
+    },
+    {
+      "group": "31–40",
+      "clue": "34",
+      "accept": [
+        "Schitt's Creek",
+        "Schitts Creek"
+      ]
+    },
+    {
+      "group": "31–40",
+      "clue": "35",
+      "accept": [
+        "True Detective — Season 1",
+        "True Detective S1",
+        "True Detective"
+      ]
+    },
+    {
+      "group": "31–40",
+      "clue": "36",
+      "accept": [
+        "The Pitt",
+        "Pitt"
+      ]
+    },
+    {
+      "group": "31–40",
+      "clue": "37",
+      "accept": [
+        "Battlestar Galactica",
+        "Battlestar",
+        "BSG"
+      ]
+    },
+    {
+      "group": "31–40",
+      "clue": "38",
+      "accept": [
+        "Homeland"
+      ]
+    },
+    {
+      "group": "31–40",
+      "clue": "39",
+      "accept": [
+        "Watchmen"
+      ]
+    },
+    {
+      "group": "31–40",
+      "clue": "40",
+      "accept": [
+        "Adolescence"
+      ]
+    },
+    {
+      "group": "41–50",
+      "clue": "41",
+      "accept": [
+        "Louie"
+      ]
+    },
+    {
+      "group": "41–50",
+      "clue": "42",
+      "accept": [
+        "Hacks"
+      ]
+    },
+    {
+      "group": "41–50",
+      "clue": "43",
+      "accept": [
+        "Peaky Blinders"
+      ]
+    },
+    {
+      "group": "41–50",
+      "clue": "44",
+      "accept": [
+        "BoJack Horseman",
+        "BoJack"
+      ]
+    },
+    {
+      "group": "41–50",
+      "clue": "45",
+      "accept": [
+        "Happy Valley"
+      ]
+    },
+    {
+      "group": "41–50",
+      "clue": "46",
+      "accept": [
+        "Broad City"
+      ]
+    },
+    {
+      "group": "41–50",
+      "clue": "47",
+      "accept": [
+        "Twin Peaks: The Return",
+        "Twin Peaks Return",
+        "Twin Peaks Season 3",
+        "Twin Peaks"
+      ]
+    },
+    {
+      "group": "41–50",
+      "clue": "48",
+      "accept": [
+        "House of Cards"
+      ]
+    },
+    {
+      "group": "41–50",
+      "clue": "49",
+      "accept": [
+        "Normal People"
+      ]
+    },
+    {
+      "group": "41–50",
+      "clue": "50",
+      "accept": [
+        "Parks and Recreation",
+        "Parks and Rec",
+        "Parks & Rec",
+        "Parks & Recreation",
+        "PnR"
+      ]
+    },
+    {
+      "group": "51–60",
+      "clue": "51",
+      "accept": [
+        "The Good Place",
+        "Good Place"
+      ]
+    },
+    {
+      "group": "51–60",
+      "clue": "52",
+      "accept": [
+        "Downton Abbey",
+        "Downtown Abbey"
+      ]
+    },
+    {
+      "group": "51–60",
+      "clue": "53",
+      "accept": [
+        "Stranger Things"
+      ]
+    },
+    {
+      "group": "51–60",
+      "clue": "54",
+      "accept": [
+        "The Bureau",
+        "Bureau",
+        "Le Bureau",
+        "Le Bureau des Legendes",
+        "The Bureau des Legendes"
+      ]
+    },
+    {
+      "group": "51–60",
+      "clue": "55",
+      "accept": [
+        "Insecure"
+      ]
+    },
+    {
+      "group": "51–60",
+      "clue": "56",
+      "accept": [
+        "Nathan for You"
+      ]
+    },
+    {
+      "group": "51–60",
+      "clue": "57",
+      "accept": [
+        "I Think You Should Leave",
+        "ITYSL"
+      ]
+    },
+    {
+      "group": "51–60",
+      "clue": "58",
+      "accept": [
+        "Chappelle's Show",
+        "Chappelles Show",
+        "Chapelle's Show",
+        "Chapelles Show",
+        "Dave Chappelle Show"
+      ]
+    },
+    {
+      "group": "51–60",
+      "clue": "59",
+      "accept": [
+        "PEN15",
+        "Pen 15",
+        "Pen Fifteen"
+      ]
+    },
+    {
+      "group": "51–60",
+      "clue": "60",
+      "accept": [
+        "Peep Show"
+      ]
+    },
+    {
+      "group": "61–70",
+      "clue": "61",
+      "accept": [
+        "RuPaul's Drag Race",
+        "Rupauls Drag Race",
+        "RuPaul Drag Race",
+        "Drag Race",
+        "RPDR"
+      ]
+    },
+    {
+      "group": "61–70",
+      "clue": "62",
+      "accept": [
+        "Slow Horses"
+      ]
+    },
+    {
+      "group": "61–70",
+      "clue": "63",
+      "accept": [
+        "The Thick of It",
+        "Thick of It"
+      ]
+    },
+    {
+      "group": "61–70",
+      "clue": "64",
+      "accept": [
+        "Anthony Bourdain: Parts Unknown",
+        "Parts Unknown",
+        "Bourdain Parts Unknown"
+      ]
+    },
+    {
+      "group": "61–70",
+      "clue": "65",
+      "accept": [
+        "Mare of Easttown"
+      ]
+    },
+    {
+      "group": "61–70",
+      "clue": "66",
+      "accept": [
+        "The Rehearsal",
+        "Rehearsal"
+      ]
+    },
+    {
+      "group": "61–70",
+      "clue": "67",
+      "accept": [
+        "The Handmaid's Tale",
+        "The Handmaids Tale",
+        "Handmaid's Tale",
+        "Handmaids Tale"
+      ]
+    },
+    {
+      "group": "61–70",
+      "clue": "68",
+      "accept": [
+        "Ozark"
+      ]
+    },
+    {
+      "group": "61–70",
+      "clue": "69",
+      "accept": [
+        "Anthony Bourdain: No Reservations",
+        "No Reservations",
+        "Bourdain No Reservations"
+      ]
+    },
+    {
+      "group": "61–70",
+      "clue": "70",
+      "accept": [
+        "The Shield",
+        "Shield"
+      ]
+    },
+    {
+      "group": "71–80",
+      "clue": "71",
+      "accept": [
+        "Beef",
+        "Beef Season 1"
+      ]
+    },
+    {
+      "group": "71–80",
+      "clue": "72",
+      "accept": [
+        "Squid Game"
+      ]
+    },
+    {
+      "group": "71–80",
+      "clue": "73",
+      "accept": [
+        "Barry"
+      ]
+    },
+    {
+      "group": "71–80",
+      "clue": "74",
+      "accept": [
+        "The Bear",
+        "Bear"
+      ]
+    },
+    {
+      "group": "71–80",
+      "clue": "75",
+      "accept": [
+        "Ted Lasso"
+      ]
+    },
+    {
+      "group": "71–80",
+      "clue": "76",
+      "accept": [
+        "Somebody Somewhere"
+      ]
+    },
+    {
+      "group": "71–80",
+      "clue": "77",
+      "accept": [
+        "Modern Family"
+      ]
+    },
+    {
+      "group": "71–80",
+      "clue": "78",
+      "accept": [
+        "It's Always Sunny in Philadelphia",
+        "Its Always Sunny in Philadelphia",
+        "It's Always Sunny",
+        "Its Always Sunny",
+        "Always Sunny in Philadelphia",
+        "Always Sunny",
+        "IASIP"
+      ]
+    },
+    {
+      "group": "71–80",
+      "clue": "79",
+      "accept": [
+        "The Good Wife",
+        "Good Wife"
+      ]
+    },
+    {
+      "group": "71–80",
+      "clue": "80",
+      "accept": [
+        "How to with John Wilson",
+        "John Wilson"
+      ]
+    },
+    {
+      "group": "81–90",
+      "clue": "81",
+      "accept": [
+        "The Queen's Gambit",
+        "The Queens Gambit",
+        "Queen's Gambit",
+        "Queens Gambit"
+      ]
+    },
+    {
+      "group": "81–90",
+      "clue": "82",
+      "accept": [
+        "Better Things"
+      ]
+    },
+    {
+      "group": "81–90",
+      "clue": "83",
+      "accept": [
+        "Justified"
+      ]
+    },
+    {
+      "group": "81–90",
+      "clue": "84",
+      "accept": [
+        "Planet Earth",
+        "Planet Earth I",
+        "Planet Earth 1"
+      ]
+    },
+    {
+      "group": "81–90",
+      "clue": "85",
+      "accept": [
+        "The Great British Baking Show",
+        "Great British Baking Show",
+        "The Great British Bake Off",
+        "Great British Bake Off",
+        "GBBO",
+        "Bake Off",
+        "Baking Show"
+      ]
+    },
+    {
+      "group": "81–90",
+      "clue": "86",
+      "accept": [
+        "Shōgun"
+      ]
+    },
+    {
+      "group": "81–90",
+      "clue": "87",
+      "accept": [
+        "Reservation Dogs"
+      ]
+    },
+    {
+      "group": "81–90",
+      "clue": "88",
+      "accept": [
+        "Dexter"
+      ]
+    },
+    {
+      "group": "81–90",
+      "clue": "89",
+      "accept": [
+        "Baby Reindeer"
+      ]
+    },
+    {
+      "group": "81–90",
+      "clue": "90",
+      "accept": [
+        "Eastbound & Down",
+        "Eastbound and Down"
+      ]
+    },
+    {
+      "group": "91–100",
+      "clue": "91",
+      "accept": [
+        "Catastrophe"
+      ]
+    },
+    {
+      "group": "91–100",
+      "clue": "92",
+      "accept": [
+        "The Night Of",
+        "Night Of"
+      ]
+    },
+    {
+      "group": "91–100",
+      "clue": "93",
+      "accept": [
+        "Station Eleven",
+        "Station 11"
+      ]
+    },
+    {
+      "group": "91–100",
+      "clue": "94",
+      "accept": [
+        "The Diplomat",
+        "Diplomat"
+      ]
+    },
+    {
+      "group": "91–100",
+      "clue": "95",
+      "accept": [
+        "House M.D.",
+        "House MD",
+        "House"
+      ]
+    },
+    {
+      "group": "91–100",
+      "clue": "96",
+      "accept": [
+        "Halt and Catch Fire",
+        "Halt & Catch Fire"
+      ]
+    },
+    {
+      "group": "91–100",
+      "clue": "97",
+      "accept": [
+        "Community"
+      ]
+    },
+    {
+      "group": "91–100",
+      "clue": "98",
+      "accept": [
+        "The OA",
+        "OA"
+      ]
+    },
+    {
+      "group": "91–100",
+      "clue": "99",
+      "accept": [
+        "Gilmore Girls"
+      ]
+    },
+    {
+      "group": "91–100",
+      "clue": "100",
+      "accept": [
+        "Scandal"
+      ]
+    }
+  ]
+}
