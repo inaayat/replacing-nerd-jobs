@@ -258,7 +258,7 @@ assert(
   comingSoonActions.includes('data-watchlist-home-override="true"'),
   'Coming Soon row has an in-place Watch at Home action',
 );
-assert(comingSoonActions.includes('Watch at home</button>'), 'home override action has a clear label');
+assert(comingSoonActions.includes('Move to Watch at Home</button>'), 'home override action has a clear label');
 
 const overriddenHomeActions = watchlistLogTableHtml(
   [overriddenFuture],
@@ -269,7 +269,7 @@ assert(
   overriddenHomeActions.includes('data-watchlist-home-override="false"'),
   'overridden Watch at Home row can return to automatic sorting',
 );
-assert(overriddenHomeActions.includes('Use automatic</button>'), 'undo action has a clear label');
+assert(overriddenHomeActions.includes('Back to Coming Soon</button>'), 'undo action has a clear label');
 
 const automaticHomeActions = watchlistLogTableHtml(
   [bucketItems[4]],
