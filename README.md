@@ -190,8 +190,9 @@ Scope first, then the five steps (identify the contract, identify performance
 obligations, transaction price, allocate, recognize). Each question cites the
 Codification; hover a paragraph number for a short official excerpt. The
 **Guided walk** draws each answer as a labelled connection to the next question,
-keeps recent conclusions beside the active question, and translates accounting
-terms through `glossary.js`. A **Full map** shows every question; **Practice**
+keeps the latest path in a fixed-height strip (answering never scrolls or moves
+the page), keeps recent conclusions beside the active question, and translates
+accounting terms through `glossary.js`. A **Full map** shows every question; **Practice**
 walks seven examples (SaaS, construction, marketplace agent, returns,
 collectibility fail, brand license, gift card) against a teaching path.
 
