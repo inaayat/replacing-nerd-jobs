@@ -552,9 +552,9 @@ function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detai
     : isAlreadyOut(item);
   const logBtn = hideLog ? '' : `<button type="button" class="al-link-btn" data-log-watchlist="${item.id}">${escapeHtml(logLabel)}</button>`;
   const bucketBtn = view === 'coming-soon'
-    ? `<button type="button" class="al-link-btn" data-watchlist-home-override="true" data-watchlist-id="${item.id}">Watch at home</button>`
+    ? `<button type="button" class="al-link-btn" data-watchlist-home-override="true" data-watchlist-id="${item.id}">Move to Watch at Home</button>`
     : (view === 'watch-at-home' && item.watch_at_home_override === true
-      ? `<button type="button" class="al-link-btn" data-watchlist-home-override="false" data-watchlist-id="${item.id}">Use automatic</button>`
+      ? `<button type="button" class="al-link-btn" data-watchlist-home-override="false" data-watchlist-id="${item.id}">Back to Coming Soon</button>`
       : '');
   return `
     <div class="al-log-entry ${expanded ? 'is-expanded' : ''}${out ? ' is-already-out' : ''}" data-entry-id="${item.id}">
