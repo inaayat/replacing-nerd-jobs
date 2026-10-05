@@ -30,6 +30,21 @@
       "permanent": true
     },
     {
+      "source": "/interview-buddy",
+      "destination": "/brag-book/",
+      "permanent": false
+    },
+    {
+      "source": "/interview-buddy/",
+      "destination": "/brag-book/",
+      "permanent": false
+    },
+    {
+      "source": "/interview-buddy/:path*",
+      "destination": "/brag-book/:path*",
+      "permanent": false
+    },
+    {
       "source": "/establishing-shot",
       "destination": "/im-filmin-here/",
       "permanent": true

@@ -183,6 +183,18 @@ segments snapshot for filing metadata plus inline-XBRL fact element IDs.
 line anchors. Reported facts link directly to the corresponding line in the
 human-readable filing; calculated values fall back to the filing viewer.
 
+### Brag Book — `/brag-book`
+
+Interview prep plus a running **brag sheet**. Log experiences (STAR), projects,
+and skillsets as they happen. When a posting shows up, paste the requirements
+and pin resume bullets, stories from the book, and potential questions onto
+each one. **Prep** walks the cue cards; **Resume** copies the compiled bullets.
+
+Static only: `brag-book/engine.js` and `brag-book/routes.js` are browser-safe
+ESM. The book lives in `localStorage` (export/import JSON for a backup). Do not
+put the modules under `/lib/`. No new Vercel function. Local UI:
+`http://127.0.0.1:8080/brag-book/`.
+
 ### ASC 606 — `/asc-606`
 
 Plain-English decision tree for **revenue from a contract with a customer**.
@@ -830,6 +842,7 @@ node scripts/test-takeout-flatten.mjs
 node scripts/test-takeout-workbook.mjs
 node scripts/test-takeout-catalog.mjs
 node scripts/test-asc-606.mjs
+node scripts/test-brag-book.mjs
 node scripts/test-seattle-property-taxes.mjs
 node scripts/test-im-filmin-here.mjs
 node scripts/test-packing-cubes-model.mjs
