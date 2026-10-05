@@ -209,17 +209,12 @@ function countRow() {
 
 function toolbar(view) {
   if (view.kind === 'home') return homeHero();
-  return el('header', { class: 'hero' }, [
-    el('button', { type: 'button', class: 'btn ghost', onClick: () => go({ kind: 'home' }) }, '← Start'),
-    el('p', { class: 'kicker' }, view.kind === 'jobs' ? '1. Paste a posting  ·  2. Fill each requirement  ·  3. Resume + Prep' : 'The book · beta'),
+  return el('header', { class: 'hero is-compact' }, [
     el('div', { class: 'hero-row' }, [
-      el('div', {}, [
-        el('h1', {}, viewTitle(view, store)),
-        el('p', { class: 'lede' },
-          view.kind === 'jobs'
-            ? 'Paste the job. Review the bullets. For each requirement: a resume line, a potential question, and a STAR answer.'
-            : 'Paste several experiences at once. Pin them onto a posting when you need a resume bullet or a STAR answer.'
-        ),
+      el('div', { class: 'crumb' }, [
+        el('button', { type: 'button', class: 'btn ghost', onClick: () => go({ kind: 'home' }) }, '← Start'),
+        el('span', { class: 'kicker' }, view.kind === 'jobs' ? 'Posting' : 'Book · beta'),
+        el('strong', { class: 'page-title' }, viewTitle(view, store)),
       ]),
       el('div', { class: 'actions' }, [
         btn(view.kind === 'jobs' ? 'New job posting' : 'Add experiences', {
@@ -230,7 +225,6 @@ function toolbar(view) {
         btn('Import', { class: 'btn ghost', onClick: () => fileInput.click() }),
       ]),
     ]),
-    countRow(),
     statusNote ? el('p', { class: 'status', id: 'status-note' }, statusNote) : el('p', { class: 'status', id: 'status-note' }, ''),
   ]);
 }
@@ -552,22 +546,17 @@ function jobForm() {
   });
   form.append(
     el('div', { class: 'panel-head' }, [
-      el('div', {}, [
-        el('h2', {}, 'New job posting'),
-        el('p', { class: 'tiny' }, 'Step 1 of 3 — paste. We do not fetch the link yet.'),
-      ]),
+      el('h2', {}, 'Paste the job posting'),
+      el('span', { class: 'tiny' }, 'Bullets become rows. We do not fetch the link yet.'),
     ]),
     el('div', { class: 'panel-body' }, [
-      el('p', { class: 'lede' }, 'Paste the posting. Each bullet becomes a requirement you fill one at a time.'),
-      field('Paste the job posting',
-        el('textarea', { name: 'sourceText', class: 'tall', placeholder: SAMPLE_JD })
-      ),
-      el('div', { class: 'grid-2' }, [
-        field('Role', el('input', { name: 'title', maxlength: '160', placeholder: 'Product engineer — or leave blank' })),
+      el('div', { class: 'grid-3' }, [
+        field('Role', el('input', { name: 'title', maxlength: '160', placeholder: 'Product engineer' })),
         field('Company', el('input', { name: 'company', maxlength: '160', placeholder: 'Beep boop' })),
+        field('Posting link', el('input', { name: 'url', type: 'url', placeholder: 'https://…' })),
       ]),
-      field('Posting link — kept for later',
-        el('input', { name: 'url', type: 'url', placeholder: 'https://boards.example.com/jobs/product-engineer' })
+      field('Job description',
+        el('textarea', { name: 'sourceText', class: 'tall', placeholder: SAMPLE_JD })
       ),
       el('div', { class: 'actions' }, [
         el('button', { type: 'submit', class: 'btn' }, 'Pull requirements'),
@@ -1143,12 +1132,12 @@ function render() {
     detail = job ? jobDetail(job) : emptyDetail('jobs');
   } else detail = emptyDetail('jobs');
 
+  const hideRail = (view.kind === 'jobs' && (view.id === 'new' || view.mode || !store.postings.length))
+    || (view.kind === 'log' && (view.id === 'new' || !store.entries.length));
   const next = el('div', {}, [
     toolbar(view),
-    el('div', { class: view.mode === 'fill' || view.mode === 'resume' || view.mode === 'prep' ? 'layout is-wide' : 'layout' }, [
-      view.mode === 'fill' || view.mode === 'resume' || view.mode === 'prep'
-        ? null
-        : (view.kind === 'jobs' ? jobList(view.id) : entryList(view.id)),
+    el('div', { class: hideRail ? 'layout is-wide' : 'layout' }, [
+      hideRail ? null : (view.kind === 'jobs' ? jobList(view.id) : entryList(view.id)),
       detail,
     ]),
   ]);
