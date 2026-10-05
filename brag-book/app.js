@@ -33,6 +33,9 @@ import {
   starFill,
   starScript,
   bookIsEmpty,
+  asUrl,
+  titleFromJobUrl,
+  hostFromJobUrl,
 } from './engine.js';
 import { parseViewHash, viewHash, viewTitle } from './routes.js';
 import { loadBook, saveBook } from './store.js';
@@ -249,10 +252,10 @@ function homeView() {
         onClick: () => go({ kind: 'jobs', id: 'new' }),
       }, [
         el('span', { class: 'kicker' }, 'A posting'),
-        el('strong', {}, 'Paste a job'),
+        el('strong', {}, 'Save a posting'),
         el('p', {}, summary.postings
-          ? `${summary.postings} posting${summary.postings === 1 ? '' : 's'} on file. Or drop in a new description.`
-          : 'Requirements become cue cards: resume bullets, stories, and questions.'),
+          ? `${summary.postings} posting${summary.postings === 1 ? '' : 's'} on file. Keep the job link, or paste the description.`
+          : 'Keep the posting URL for later, then paste requirements into cue cards.'),
       ]),
     ]),
     recentWins.length ? el('section', { class: 'recent' }, [
@@ -280,7 +283,7 @@ function homeView() {
         }, [
           el('span', { class: 'kicker' }, job.status),
           el('strong', {}, job.title),
-          el('p', {}, [job.company, `${cover.ready}/${cover.total || 0} ready`].filter(Boolean).join(' · ')),
+          el('p', {}, [job.company, hostFromJobUrl(job.url), `${cover.ready}/${cover.total || 0} ready`].filter(Boolean).join(' · ')),
         ]);
       })),
     ]) : null,
@@ -347,10 +350,10 @@ function jobList(selectedId) {
           onClick: () => go({ kind: 'jobs', id: job.id }),
         }, [
           el('div', { class: 'row-title' }, job.title),
-          el('div', { class: 'row-meta' }, [job.company, job.status, `${cover.ready}/${cover.total || 0} ready`].filter(Boolean).join(' · ')),
+          el('div', { class: 'row-meta' }, [job.company, hostFromJobUrl(job.url), job.status, `${cover.ready}/${cover.total || 0} ready`].filter(Boolean).join(' · ')),
         ]);
       }))
-      : el('p', { class: 'empty' }, 'No postings yet. Paste a job and the requirements become cue cards.'),
+      : el('p', { class: 'empty' }, 'No postings yet. Save a job link, or paste the description.'),
   ]);
 }
 
@@ -432,34 +435,64 @@ function starField(label, name, value, placeholder) {
   ]);
 }
 
+async function copyText(text, ok = 'Copied.') {
+  try {
+    await navigator.clipboard.writeText(text);
+    setNote(ok);
+  } catch {
+    setNote('Select and copy.');
+  }
+}
+
+function jobLinkBar(job) {
+  if (!job.url) return el('p', { class: 'tiny' }, 'No posting link saved yet.');
+  return el('div', { class: 'job-link' }, [
+    el('a', { class: 'job-link-url', href: job.url, target: '_blank', rel: 'noopener noreferrer' }, job.url),
+    el('div', { class: 'actions' }, [
+      el('a', { class: 'btn ghost', href: job.url, target: '_blank', rel: 'noopener noreferrer' }, 'Open'),
+      btn('Copy link', { class: 'btn ghost', onClick: () => copyText(job.url, 'Copied the posting link.') }),
+    ]),
+  ]);
+}
+
 function jobForm() {
   const form = el('form', {
     class: 'panel',
     onSubmit: (event) => {
       event.preventDefault();
       const data = Object.fromEntries(new FormData(form));
+      data.url = asUrl(data.url);
+      if (!data.title) data.title = titleFromJobUrl(data.url);
+      if (!data.title) {
+        setNote('Need a role name or a posting link.');
+        return;
+      }
       const lines = parseRequirements(data.sourceText);
       store = addPosting(store, data);
       const job = store.postings[0];
       store = addRequirements(store, job.id, lines);
       saveStore();
       go({ kind: 'jobs', id: job.id });
-      setNote(lines.length ? `Pulled ${lines.length} requirement${lines.length === 1 ? '' : 's'} from the posting.` : 'Saved the posting. Add requirements by hand.');
+      if (lines.length) setNote(`Pulled ${lines.length} requirement${lines.length === 1 ? '' : 's'} from the posting.`);
+      else if (job.url) setNote('Saved the posting link. Add requirements whenever you want.');
+      else setNote('Saved the posting. Add requirements by hand.');
     },
   });
   form.append(
     el('div', { class: 'panel-head' }, [el('h2', {}, 'New posting')]),
     el('div', { class: 'panel-body' }, [
+      field('Posting link — kept for safekeeping (we do not fetch it yet)',
+        el('input', { name: 'url', type: 'url', placeholder: 'https://boards.example.com/jobs/product-engineer' })
+      ),
       el('div', { class: 'grid-2' }, [
-        field('Role', el('input', { name: 'title', required: true, maxlength: '160', placeholder: 'Product engineer' })),
+        field('Role', el('input', { name: 'title', maxlength: '160', placeholder: 'Product engineer — or leave blank to use the link' })),
         field('Company', el('input', { name: 'company', maxlength: '160', placeholder: 'Beep boop' })),
       ]),
-      field('Posting URL', el('input', { name: 'url', type: 'url', placeholder: 'https://' })),
-      field('Paste the posting — bullets become requirement cards',
+      field('Paste the posting — optional; bullets become requirement cards',
         el('textarea', { name: 'sourceText', class: 'tall', placeholder: 'Requirements:\n- Ship production Javascript…\n- Comfortable with Postgres' })
       ),
       el('div', { class: 'actions' }, [
-        el('button', { type: 'submit', class: 'btn' }, 'Create posting'),
+        el('button', { type: 'submit', class: 'btn' }, 'Save posting'),
         btn('Cancel', { class: 'btn ghost', onClick: () => go({ kind: 'jobs' }) }),
       ]),
     ])
@@ -475,7 +508,7 @@ function jobDetail(job) {
     el('div', { class: 'panel-head' }, [
       el('div', {}, [
         el('h2', {}, job.title),
-        el('p', { class: 'tiny' }, [job.company, job.status].filter(Boolean).join(' · ')),
+        el('p', { class: 'tiny' }, [job.company, hostFromJobUrl(job.url), job.status].filter(Boolean).join(' · ')),
       ]),
       el('div', { class: 'actions' }, [
         btn('Prep', { class: 'btn ghost', onClick: () => go({ kind: 'jobs', id: job.id, mode: 'prep' }) }),
@@ -486,6 +519,8 @@ function jobDetail(job) {
       el('div', { class: 'banner' },
         `${cover.withBullet} bullets · ${cover.withStory} stories · ${cover.withQuestion} question sets · ${cover.ready}/${cover.total || 0} marked ready`
       ),
+      el('p', { class: 'subhead' }, 'Posting link'),
+      jobLinkBar(job),
       el('div', { class: 'grid-2' }, [
         field('Role', el('input', {
           value: job.title,
@@ -497,10 +532,12 @@ function jobDetail(job) {
         })),
       ]),
       el('div', { class: 'grid-2' }, [
-        field('URL', el('input', {
+        field('Edit posting link', el('input', {
           type: 'url',
           value: job.url,
+          placeholder: 'https://',
           onChange: (event) => { store = updatePosting(store, job.id, { url: event.target.value }); saveStore(); },
+          onBlur: () => render(),
         })),
         field('Status', el('select', {
           onChange: (event) => { store = updatePosting(store, job.id, { status: event.target.value }); saveStore(); render(); },

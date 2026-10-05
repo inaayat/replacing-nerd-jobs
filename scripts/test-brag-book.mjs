@@ -42,6 +42,9 @@ import {
   postingById,
   serializeBook,
   bookIsEmpty,
+  asUrl,
+  titleFromJobUrl,
+  hostFromJobUrl,
 } from '../brag-book/engine.js';
 import { parseViewHash, viewHash, viewTitle, defaultView } from '../brag-book/routes.js';
 
@@ -91,6 +94,16 @@ store = updateEntry(store, packing.id, { result: 'Signed-in trips survive a new 
 assert.match(entryById(store, packing.id).result, /without a catalog/);
 
 const dropped = store.entries[1].id;
+assert.equal(asUrl('https://boards.example.com/jobs/1'), 'https://boards.example.com/jobs/1');
+assert.equal(asUrl('ftp://nope'), '');
+assert.equal(titleFromJobUrl('https://boards.example.com/jobs/product-engineer'), 'product engineer · boards.example.com');
+assert.equal(hostFromJobUrl('https://www.example.com/jobs/1'), 'example.com');
+
+const fromLink = addPosting(emptyStore(), { url: 'https://boards.example.com/jobs/product-engineer' }, clock);
+assert.equal(fromLink.postings[0].title, 'product engineer · boards.example.com');
+assert.equal(fromLink.postings[0].url, 'https://boards.example.com/jobs/product-engineer');
+assert.equal(addPosting(emptyStore(), { url: 'not-a-url' }, clock).postings.length, 0);
+
 store = addPosting(store, { title: 'Product engineer', company: 'Beep boop', url: 'https://example.com/jobs/1' }, clock);
 const jobId = store.postings[0].id;
 store = addRequirement(store, jobId, 'Ship production Javascript without a build step', clock);

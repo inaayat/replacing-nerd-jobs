@@ -38,13 +38,39 @@ function asString(value, max) {
   return text.length > max ? text.slice(0, max) : text;
 }
 
-function asUrl(value) {
+export function asUrl(value) {
   const text = asString(value, URL_MAX);
   if (!text) return '';
   try {
     const url = new URL(text);
     if (url.protocol !== 'http:' && url.protocol !== 'https:') return '';
     return url.toString();
+  } catch {
+    return '';
+  }
+}
+
+export function titleFromJobUrl(value) {
+  const href = asUrl(value);
+  if (!href) return '';
+  try {
+    const url = new URL(href);
+    const host = url.hostname.replace(/^www\./, '');
+    const last = url.pathname.split('/').filter(Boolean).pop() || '';
+    const slug = decodeURIComponent(last).replace(/[-_]+/g, ' ').trim();
+    if (slug && slug !== last) return asString(`${slug} · ${host}`, TITLE_MAX);
+    if (slug) return asString(`${slug} · ${host}`, TITLE_MAX);
+    return host;
+  } catch {
+    return '';
+  }
+}
+
+export function hostFromJobUrl(value) {
+  const href = asUrl(value);
+  if (!href) return '';
+  try {
+    return new URL(href).hostname.replace(/^www\./, '');
   } catch {
     return '';
   }
@@ -140,7 +166,8 @@ export function normalizeRequirement(raw, clock = Date.now) {
 
 export function normalizePosting(raw, clock = Date.now) {
   if (!raw || typeof raw !== 'object') return null;
-  const title = asString(raw.title, TITLE_MAX);
+  const url = asUrl(raw.url);
+  const title = asString(raw.title, TITLE_MAX) || titleFromJobUrl(url);
   if (!title) return null;
   const createdAt = asString(raw.createdAt, 40) || nowIso(clock);
   const requirements = [];
@@ -155,7 +182,7 @@ export function normalizePosting(raw, clock = Date.now) {
     id: asString(raw.id, 64) || newId('job', clock),
     title,
     company: asString(raw.company, TITLE_MAX),
-    url: asUrl(raw.url),
+    url,
     status: asStatus(raw.status),
     notes: asString(raw.notes, TEXT_MAX),
     sourceText: asString(raw.sourceText, 20000),

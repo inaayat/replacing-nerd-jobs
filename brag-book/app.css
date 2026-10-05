@@ -531,6 +531,28 @@ a:focus-visible {
   color: var(--muted);
 }
 
+.job-link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  background: #fff;
+}
+
+.job-link-url {
+  color: var(--gold);
+  font-size: 0.78rem;
+  word-break: break-all;
+  text-decoration: none;
+  max-width: 100%;
+}
+
+.job-link-url:hover { box-shadow: inset 0 -1px 0 var(--gold); }
+
 .banner {
   background: rgba(232, 196, 122, 0.08);
   border: 1px solid rgba(232, 196, 122, 0.35);
