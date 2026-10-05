@@ -612,7 +612,7 @@ a:focus-visible {
 .job-table td + td { border-left: 1px solid var(--line); }
 
 .job-table td {
-  padding: 8px;
+  padding: 5px 7px;
   vertical-align: top;
   border-bottom: 1px solid var(--line);
 }
@@ -637,11 +637,11 @@ a:focus-visible {
 
 .table-req-text {
   border-color: transparent;
-  padding: 2px 4px;
+  padding: 1px 3px;
   resize: none;
   overflow: hidden;
   field-sizing: content;
-  min-height: 46px;
+  min-height: 25px;
 }
 
 .table-req-text:hover { background: var(--panel); }
@@ -653,10 +653,10 @@ a:focus-visible {
 .table-row-tools {
   display: flex;
   align-items: center;
-  gap: 6px;
-  min-height: 24px;
-  margin-top: 3px;
-  padding: 0 3px;
+  gap: 5px;
+  min-height: 20px;
+  margin-top: 1px;
+  padding: 0 2px;
 }
 
 .ready-check {
@@ -669,6 +669,18 @@ a:focus-visible {
 }
 
 .ready-check input { margin: 0; }
+
+.row-text-action {
+  appearance: none;
+  min-height: 0;
+  padding: 1px 4px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.62rem;
+  cursor: pointer;
+}
+.row-text-action:hover { color: var(--gold); }
 
 .req-position {
   margin-left: auto;
@@ -688,7 +700,7 @@ a:focus-visible {
 .req-action {
   appearance: none;
   width: 24px;
-  height: 22px;
+  height: 20px;
   min-height: 0;
   padding: 0;
   border: 0;
@@ -842,8 +854,8 @@ a:focus-visible {
 .requirement-questions {
   display: grid;
   gap: 5px;
-  margin-top: 7px;
-  padding-top: 7px;
+  margin-top: 4px;
+  padding-top: 4px;
   border-top: 1px solid var(--line);
   font-family: var(--content-font);
 }

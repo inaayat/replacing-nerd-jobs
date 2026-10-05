@@ -67,6 +67,7 @@ let query = '';
 let kindFilter = 'all';
 let statusNote = '';
 let expandedBulletKey = '';
+let questionComposerKey = '';
 
 function loadCached() {
   try {
@@ -638,9 +639,11 @@ function pasteMore(job) {
 
 function requirementQuestions(job, req) {
   const box = el('div', { class: 'requirement-questions' });
-  box.append(el('div', { class: 'requirement-subhead' }, [
-    el('span', {}, `Potential questions${req.questions.length ? ` (${req.questions.length})` : ''}`),
-  ]));
+  if (req.questions.length) {
+    box.append(el('div', { class: 'requirement-subhead' }, [
+      el('span', {}, `Potential questions (${req.questions.length})`),
+    ]));
+  }
   for (const question of req.questions) {
     const answered = Boolean(question.answer || starFill(question).filled);
     const text = el('input', { value: question.text, placeholder: 'They might ask…' });
@@ -709,26 +712,36 @@ function requirementQuestions(job, req) {
       ]),
     ]));
   }
-  const fresh = el('input', {
-    class: 'question-add-input',
-    placeholder: 'Add a potential interview question…',
-  });
-  const add = () => {
-    if (!fresh.value.trim()) return;
-    store = addQuestion(store, job.id, req.id, fresh.value);
-    saveStore();
-    render();
-    setNote('Question added under the requirement.');
-  };
-  fresh.addEventListener('keydown', (event) => {
-    if (event.key !== 'Enter') return;
-    event.preventDefault();
-    add();
-  });
-  box.append(el('div', { class: 'question-add' }, [
-    fresh,
-    btn('+', { class: 'btn ghost', title: 'Add question', 'aria-label': 'Add question', onClick: add }),
-  ]));
+  const composerKey = `${job.id}:${req.id}`;
+  if (questionComposerKey === composerKey) {
+    const fresh = el('input', {
+      class: 'question-add-input',
+      placeholder: 'Potential interview question…',
+      autofocus: true,
+    });
+    const add = () => {
+      if (!fresh.value.trim()) return;
+      store = addQuestion(store, job.id, req.id, fresh.value);
+      questionComposerKey = '';
+      saveStore();
+      render();
+      setNote('Question added under the requirement.');
+    };
+    fresh.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        questionComposerKey = '';
+        render();
+        return;
+      }
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      add();
+    });
+    box.append(el('div', { class: 'question-add' }, [
+      fresh,
+      btn('+', { class: 'btn ghost', title: 'Add question', 'aria-label': 'Add question', onClick: add }),
+    ]));
+  }
   return box;
 }
 
@@ -896,7 +909,7 @@ function experienceAdder(job, req) {
 function requirementTableRow(job, req, index) {
   const requirement = el('textarea', {
     class: 'table-req-text',
-    rows: '2',
+    rows: '1',
     title: 'Edit requirement — saves when you leave the field',
     onChange: (event) => {
       const text = event.target.value.trim();
@@ -907,6 +920,7 @@ function requirementTableRow(job, req, index) {
     },
   }, req.text);
   requirement.value = req.text;
+  const composerKey = `${job.id}:${req.id}`;
   const bullets = el('div', { class: 'table-bullets' });
   for (const bullet of req.bullets) {
     const entry = bulletEntry(store, bullet);
@@ -949,6 +963,13 @@ function requirementTableRow(job, req, index) {
           }),
           'Ready',
         ]),
+        btn('+ Question', {
+          class: 'row-text-action',
+          onClick: () => {
+            questionComposerKey = questionComposerKey === composerKey ? '' : composerKey;
+            render();
+          },
+        }),
         el('span', { class: 'req-position' }, `${index + 1}/${job.requirements.length}`),
         el('div', { class: 'req-actions', role: 'group', 'aria-label': 'Requirement actions' }, [
           btn('↑', {
@@ -978,7 +999,9 @@ function requirementTableRow(job, req, index) {
           }),
         ]),
       ]),
-      requirementQuestions(job, req),
+      req.questions.length || questionComposerKey === composerKey
+        ? requirementQuestions(job, req)
+        : null,
     ]),
     el('td', { class: 'bullets-cell', 'data-label': 'Resume bullets / experiences' }, [bullets]),
   ]);
