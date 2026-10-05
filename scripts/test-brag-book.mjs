@@ -20,6 +20,8 @@ import {
   updateRequirement,
   deleteRequirement,
   addBullet,
+  addEntryBullet,
+  createEntryBullet,
   updateBullet,
   deleteBullet,
   addQuestion,
@@ -43,6 +45,8 @@ import {
   searchEntries,
   scoreEntry,
   suggestEntries,
+  linkedEntries,
+  bulletEntry,
   compileResume,
   compileResumeText,
   compilePrep,
@@ -232,6 +236,39 @@ assert.deepEqual(pasted.map((item) => item.title), [
 ]);
 const many = addEntries(emptyStore(), pasted, clock);
 assert.equal(many.entries[0].title, 'Shipped packing cubes sync');
+
+let shared = addPosting(emptyStore(), { title: 'Shared experience test' }, clock);
+const sharedJobId = shared.postings[0].id;
+shared = addRequirement(shared, sharedJobId, 'Lead a cross-functional launch', clock);
+shared = addRequirement(shared, sharedJobId, 'Communicate measurable results', clock);
+const [sharedReqA, sharedReqB] = shared.postings[0].requirements;
+shared = createEntryBullet(shared, sharedJobId, sharedReqA.id, 'Launched the finance workflow', clock);
+const sharedEntry = shared.entries[0];
+assert.equal(sharedEntry.kind, 'experience');
+assert.equal(postingById(shared, sharedJobId).requirements[0].bullets[0].entryId, sharedEntry.id);
+shared = addEntryBullet(shared, sharedJobId, sharedReqB.id, sharedEntry.id, 'Cut review time by 40%', clock);
+assert.equal(postingById(shared, sharedJobId).requirements[1].bullets[0].entryId, sharedEntry.id);
+assert.equal(linkedEntries(shared, postingById(shared, sharedJobId).requirements[1])[0].id, sharedEntry.id);
+assert.equal(bulletEntry(shared, postingById(shared, sharedJobId).requirements[1].bullets[0]).title, 'Launched the finance workflow');
+shared = updateEntry(shared, sharedEntry.id, { result: 'Cut review time by 40%.' }, clock);
+assert.equal(
+  bulletEntry(shared, postingById(shared, sharedJobId).requirements[0].bullets[0]).result,
+  'Cut review time by 40%.'
+);
+const sharedPrep = compilePrep(shared, postingById(shared, sharedJobId));
+assert.equal(sharedPrep[0].bulletDetails[0].result, 'Cut review time by 40%.');
+assert.equal(sharedPrep[0].stories.length, 0);
+const sharedReloaded = normalizeStore(JSON.parse(JSON.stringify(shared)), clock);
+assert.equal(sharedReloaded.postings[0].requirements[0].bullets[0].entryId, sharedEntry.id);
+const staleShared = normalizeStore({
+  entries: [],
+  postings: [{ title: 'Stale', requirements: [{ text: 'Need it', bullets: [{ text: 'Keep the line', entryId: 'missing' }] }] }],
+}, clock);
+assert.equal(staleShared.postings[0].requirements[0].bullets[0].entryId, '');
+shared = deleteEntry(shared, sharedEntry.id);
+assert.equal(shared.entries.length, 0);
+assert.equal(shared.postings[0].requirements[0].bullets.length, 0);
+assert.equal(shared.postings[0].requirements[1].bullets.length, 0);
 
 store = moveRequirement(store, jobId, gisReq.id, -1, clock);
 assert.ok(postingById(store, jobId).requirements.findIndex((req) => req.id === gisReq.id) >= 0);

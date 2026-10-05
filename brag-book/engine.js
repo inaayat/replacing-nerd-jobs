@@ -166,6 +166,7 @@ export function normalizeBullet(raw, clock = Date.now) {
       task: '',
       action: '',
       result: '',
+      entryId: '',
     };
   }
   if (!raw || typeof raw !== 'object') return null;
@@ -179,6 +180,7 @@ export function normalizeBullet(raw, clock = Date.now) {
     task: asString(raw.task, TEXT_MAX),
     action: asString(raw.action, TEXT_MAX),
     result: asString(raw.result, TEXT_MAX),
+    entryId: asString(raw.entryId, 64),
   };
 }
 
@@ -315,6 +317,14 @@ export function normalizeStore(raw, clock = Date.now) {
     posting.requirements = posting.requirements.map((req) => ({
       ...req,
       entryIds: req.entryIds.filter((id) => seenEntries.has(id)),
+      bullets: req.bullets.map((bullet) => ({
+        ...bullet,
+        entryId: seenEntries.has(bullet.entryId) ? bullet.entryId : '',
+      })),
+    }));
+    posting.requirements = posting.requirements.map((req) => ({
+      ...req,
+      experiences: req.bullets,
     }));
     store.postings.push(posting);
   }
@@ -380,6 +390,8 @@ export function deleteEntry(store, id) {
       requirements: job.requirements.map((req) => ({
         ...req,
         entryIds: req.entryIds.filter((entryId) => entryId !== id),
+        bullets: req.bullets.filter((bullet) => bullet.entryId !== id),
+        experiences: req.bullets.filter((bullet) => bullet.entryId !== id),
       })),
     })),
   };
@@ -487,6 +499,34 @@ export function addBullet(store, postingId, requirementId, text, clock = Date.no
     (req) => withBullets(req, [...req.bullets, line]),
     clock
   );
+}
+
+export function addEntryBullet(store, postingId, requirementId, entryId, text = '', clock = Date.now) {
+  const entry = entryById(store, entryId);
+  const job = postingById(store, postingId);
+  const req = requirementById(job, requirementId);
+  if (!entry || !req || req.bullets.some((bullet) => bullet.entryId === entryId)) return store;
+  const line = normalizeBullet({
+    id: newId('ln', clock),
+    entryId,
+    text: asString(text, TEXT_MAX) || draftBulletFromEntry(entry) || entry.title,
+  }, clock);
+  if (!line) return store;
+  return mapRequirement(
+    store,
+    postingId,
+    requirementId,
+    (current) => withBullets(current, [...current.bullets, line]),
+    clock
+  );
+}
+
+export function createEntryBullet(store, postingId, requirementId, text, clock = Date.now) {
+  const title = asString(text, TITLE_MAX);
+  if (!title) return store;
+  const entryId = newId('en', clock);
+  const next = addEntry(store, { id: entryId, title, kind: 'experience' }, clock);
+  return addEntryBullet(next, postingId, requirementId, entryId, text, clock);
 }
 
 export function updateBullet(store, postingId, requirementId, bulletId, patch, clock = Date.now) {
@@ -750,9 +790,17 @@ export function suggestEntries(store, requirement, limit = 6) {
 }
 
 export function linkedEntries(store, requirement) {
-  return (requirement?.entryIds || [])
+  const ids = [
+    ...(requirement?.entryIds || []),
+    ...(requirement?.bullets || []).map((bullet) => bullet.entryId).filter(Boolean),
+  ];
+  return [...new Set(ids)]
     .map((id) => entryById(store, id))
     .filter(Boolean);
+}
+
+export function bulletEntry(store, bullet) {
+  return bullet?.entryId ? entryById(store, bullet.entryId) : null;
 }
 
 export function draftBulletFromEntry(entry) {
@@ -837,7 +885,8 @@ ${summary}${skills}${sections || '<p>Add resume bullets on the posting first.</p
 
 export function compilePrep(store, posting) {
   return (posting?.requirements || []).map((req) => {
-    const stories = linkedEntries(store, req).map((entry) => ({
+    const bulletEntryIds = new Set((req.bullets || []).map((bullet) => bullet.entryId).filter(Boolean));
+    const stories = linkedEntries(store, req).filter((entry) => !bulletEntryIds.has(entry.id)).map((entry) => ({
       id: entry.id,
       title: entry.title,
       kind: entry.kind,
@@ -863,17 +912,23 @@ export function compilePrep(store, posting) {
       result: question.result,
       answered: questionAnswered(question),
     }));
-    const bulletDetails = (req.bullets || []).map((bullet) => ({
-      id: bullet.id,
-      text: bullet.text,
-      notes: bullet.notes,
-      fill: starFill(bullet),
-      script: starScript(bullet),
-      situation: bullet.situation,
-      task: bullet.task,
-      action: bullet.action,
-      result: bullet.result,
-    }));
+    const bulletDetails = (req.bullets || []).map((bullet) => {
+      const entry = bulletEntry(store, bullet);
+      const detail = entry || bullet;
+      return {
+        id: bullet.id,
+        entryId: entry?.id || '',
+        title: entry?.title || bullet.text,
+        text: bullet.text,
+        notes: detail.notes,
+        fill: starFill(detail),
+        script: starScript(detail),
+        situation: detail.situation,
+        task: detail.task,
+        action: detail.action,
+        result: detail.result,
+      };
+    });
     return {
       id: req.id,
       text: req.text,
