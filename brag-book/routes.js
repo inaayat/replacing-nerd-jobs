@@ -3,13 +3,14 @@
  */
 
 export function defaultView() {
-  return { kind: 'log' };
+  return { kind: 'home' };
 }
 
 export function viewHash(view) {
-  if (!view || view.kind === 'log') {
-    if (view?.id === 'new') return '#log/new';
-    if (view?.id) return `#log/${encodeURIComponent(view.id)}`;
+  if (!view || view.kind === 'home') return '#home';
+  if (view.kind === 'log') {
+    if (view.id === 'new') return '#log/new';
+    if (view.id) return `#log/${encodeURIComponent(view.id)}`;
     return '#log';
   }
   if (view.kind === 'jobs') {
@@ -19,12 +20,13 @@ export function viewHash(view) {
     if (view.id) return `#jobs/${encodeURIComponent(view.id)}`;
     return '#jobs';
   }
-  return '#log';
+  return '#home';
 }
 
 export function parseViewHash(raw, { entryIds = [], postingIds = [] } = {}) {
-  const hash = String(raw || '#log').replace(/^#/, '').trim();
-  if (!hash || hash === 'log' || hash === 'home' || hash === 'brag') return { kind: 'log' };
+  const hash = String(raw || '').replace(/^#/, '').trim();
+  if (!hash || hash === 'home' || hash === 'start' || hash === 'pick') return { kind: 'home' };
+  if (hash === 'log' || hash === 'brag') return { kind: 'log' };
   if (hash === 'log/new') return { kind: 'log', id: 'new' };
   if (hash.startsWith('log/')) {
     const id = decodeURIComponent(hash.slice(4));
@@ -42,16 +44,17 @@ export function parseViewHash(raw, { entryIds = [], postingIds = [] } = {}) {
     if (mode === 'prep' || mode === 'resume') return { kind: 'jobs', id, mode };
     return { kind: 'jobs', id };
   }
-  return { kind: 'log' };
+  return { kind: 'home' };
 }
 
 export function viewTitle(view, store) {
+  if (!view || view.kind === 'home') return 'Brag Book';
   if (view.kind === 'log' && view.id === 'new') return 'New win';
   if (view.kind === 'log' && view.id) {
     const entry = (store?.entries || []).find((item) => item.id === view.id);
     return entry?.title || 'Win';
   }
-  if (view.kind === 'log') return 'Brag sheet';
+  if (view.kind === 'log') return 'The book';
   if (view.kind === 'jobs' && view.id === 'new') return 'New posting';
   if (view.kind === 'jobs' && view.id) {
     const job = (store?.postings || []).find((item) => item.id === view.id);
@@ -60,5 +63,5 @@ export function viewTitle(view, store) {
     if (view.mode === 'resume') return `Resume · ${name}`;
     return name;
   }
-  return 'Jobs';
+  return 'Job postings';
 }

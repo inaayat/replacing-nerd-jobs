@@ -186,9 +186,12 @@ const packed = serializeBook(store);
 assert.equal(packed.book.v, 1);
 assert.throws(() => serializeBook(store, { maxChars: 8 }), /too large/);
 
-assert.deepEqual(defaultView(), { kind: 'log' });
+assert.deepEqual(defaultView(), { kind: 'home' });
+assert.equal(viewHash({ kind: 'home' }), '#home');
 assert.equal(viewHash({ kind: 'log' }), '#log');
 assert.equal(viewHash({ kind: 'jobs', id: 'job_1', mode: 'prep' }), '#jobs/job_1/prep');
+assert.deepEqual(parseViewHash(''), { kind: 'home' });
+assert.deepEqual(parseViewHash('#home'), { kind: 'home' });
 assert.deepEqual(parseViewHash('#jobs/job_1/resume', { postingIds: ['job_1'] }), {
   kind: 'jobs',
   id: 'job_1',
@@ -196,6 +199,7 @@ assert.deepEqual(parseViewHash('#jobs/job_1/resume', { postingIds: ['job_1'] }),
 });
 assert.deepEqual(parseViewHash('#jobs/nope', { postingIds: ['job_1'] }), { kind: 'jobs' });
 assert.deepEqual(parseViewHash('#log/en_1', { entryIds: ['en_1'] }), { kind: 'log', id: 'en_1' });
+assert.equal(viewTitle({ kind: 'home' }), 'Brag Book');
 assert.equal(viewTitle({ kind: 'jobs', id: 'job_1', mode: 'prep' }, { postings: [{ id: 'job_1', title: 'PM' }] }), 'Prep · PM');
 
 // ids stay unique even when the clock is pinned

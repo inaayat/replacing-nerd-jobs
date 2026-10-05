@@ -186,10 +186,12 @@ human-readable filing; calculated values fall back to the filing viewer.
 ### Brag Book — `/brag-book`
 
 Interview prep plus a running **brag sheet**, on the same Neon Auth account as
-Packing Cubes. Log experiences (STAR), projects, and skillsets as they happen.
-When a posting shows up, paste the requirements and pin resume bullets, stories
-from the book, and potential questions onto each one. **Prep** walks the cue
-cards; **Resume** copies the compiled bullets.
+Packing Cubes. The home screen is two ways in — **the book** (log a win) or
+**a posting** (paste a job). Experiences use STAR; projects and skillsets sit
+in the same log. On a posting, pin resume bullets, stories from the book, and
+potential questions onto each requirement. **Prep** walks the cue cards;
+**Resume** copies the compiled bullets. The page is styled after
+[Plotmaniac](https://plotmaniac.com/) (dark paper, gold, Fraunces + IBM Plex Mono).
 
 Signing in is required — the signed-out view is a centered log-in gate. One
 JSONB row per user (`brag_books`) via `api/brag-book.js` (`/api/bb-book`).

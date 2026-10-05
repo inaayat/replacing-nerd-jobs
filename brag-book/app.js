@@ -153,7 +153,7 @@ function importStore(file) {
     try {
       store = normalizeStore(JSON.parse(String(reader.result || '')));
       saveStore();
-      go({ kind: 'log' });
+      go({ kind: 'home' });
       setNote('Imported the book.');
     } catch {
       setNote('That file was not a Brag Book JSON.');
@@ -162,10 +162,36 @@ function importStore(file) {
   reader.readAsText(file);
 }
 
-function toolbar(view) {
+function markSvg() {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('class', 'mark');
+  svg.setAttribute('viewBox', '0 9 420 67');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.innerHTML = `
+    <path class="arc" d="M8 70 C 70 70, 92 62, 126 48 S 186 18, 214 14 S 268 22, 302 40 S 368 70, 412 70"/>
+    <circle cx="8" cy="70" r="3.5"/>
+    <circle cx="214" cy="14" r="3.5"/>
+    <circle cx="412" cy="70" r="3.5"/>
+  `;
+  return svg;
+}
+
+function countRow() {
   const summary = listingSummary(store);
+  return el('div', { class: 'counts' }, [
+    chip(summary.entries, 'in the book'),
+    chip(summary.stories, 'experiences'),
+    chip(summary.projects, 'projects'),
+    chip(summary.skillsets, 'skillsets'),
+    chip(summary.postings, 'jobs'),
+  ]);
+}
+
+function toolbar(view) {
+  if (view.kind === 'home') return homeHero();
   return el('header', { class: 'hero' }, [
-    el('p', { class: 'kicker' }, 'Win log · job postings · STAR cue cards'),
+    el('button', { type: 'button', class: 'btn ghost', onClick: () => go({ kind: 'home' }) }, '← Start'),
+    el('p', { class: 'kicker' }, view.kind === 'jobs' ? 'Start from a posting' : 'Start from the book'),
     el('div', { class: 'hero-row' }, [
       el('div', {}, [
         el('h1', {}, viewTitle(view, store)),
@@ -184,14 +210,84 @@ function toolbar(view) {
         btn('Import', { class: 'btn ghost', onClick: () => fileInput.click() }),
       ]),
     ]),
-    el('div', { class: 'counts' }, [
-      chip(summary.entries, 'in the book'),
-      chip(summary.stories, 'experiences'),
-      chip(summary.projects, 'projects'),
-      chip(summary.skillsets, 'skillsets'),
-      chip(summary.postings, 'jobs'),
-    ]),
+    countRow(),
     statusNote ? el('p', { class: 'status', id: 'status-note' }, statusNote) : el('p', { class: 'status', id: 'status-note' }, ''),
+  ]);
+}
+
+function homeHero() {
+  return el('header', { class: 'hero is-home' }, [
+    el('p', { class: 'eyebrow' }, 'Two ways in'),
+    el('h1', { class: 'mast-title' }, 'Brag Book'),
+    markSvg(),
+    el('p', { class: 'lede' }, 'Collect wins as you work, or start from a job posting and pull stories from the book when you need them.'),
+    countRow(),
+    statusNote ? el('p', { class: 'status', id: 'status-note' }, statusNote) : el('p', { class: 'status', id: 'status-note' }, ''),
+  ]);
+}
+
+function homeView() {
+  const summary = listingSummary(store);
+  const recentWins = store.entries.slice(0, 4);
+  const recentJobs = store.postings.slice(0, 4);
+  return el('div', {}, [
+    el('div', { class: 'start-grid' }, [
+      el('button', {
+        type: 'button',
+        class: 'start-card',
+        onClick: () => go({ kind: 'log', id: store.entries.length ? undefined : 'new' }),
+      }, [
+        el('span', { class: 'kicker' }, 'The book'),
+        el('strong', {}, 'Log a win'),
+        el('p', {}, summary.entries
+          ? `${summary.entries} already in the book. Add another STAR story, project, or skillset.`
+          : 'Start the running log: a meeting, a ship, a skill you just learned.'),
+      ]),
+      el('button', {
+        type: 'button',
+        class: 'start-card',
+        onClick: () => go({ kind: 'jobs', id: 'new' }),
+      }, [
+        el('span', { class: 'kicker' }, 'A posting'),
+        el('strong', {}, 'Paste a job'),
+        el('p', {}, summary.postings
+          ? `${summary.postings} posting${summary.postings === 1 ? '' : 's'} on file. Or drop in a new description.`
+          : 'Requirements become cue cards: resume bullets, stories, and questions.'),
+      ]),
+    ]),
+    recentWins.length ? el('section', { class: 'recent' }, [
+      el('h2', {}, 'Recent in the book'),
+      el('div', { class: 'plot-cards' }, recentWins.map((entry) =>
+        el('button', {
+          type: 'button',
+          class: 'plot-card',
+          onClick: () => go({ kind: 'log', id: entry.id }),
+        }, [
+          el('span', { class: 'kicker' }, kindLabel(entry.kind)),
+          el('strong', {}, entry.title),
+          el('p', {}, [entry.when, starFill(entry).ready ? 'STAR ready' : entry.tags.slice(0, 3).join(' · ')].filter(Boolean).join(' · ') || 'Open to fill in STAR'),
+        ])
+      )),
+    ]) : null,
+    recentJobs.length ? el('section', { class: 'recent' }, [
+      el('h2', {}, 'Recent postings'),
+      el('div', { class: 'plot-cards' }, recentJobs.map((job) => {
+        const cover = prepCoverage(store, job);
+        return el('button', {
+          type: 'button',
+          class: 'plot-card',
+          onClick: () => go({ kind: 'jobs', id: job.id }),
+        }, [
+          el('span', { class: 'kicker' }, job.status),
+          el('strong', {}, job.title),
+          el('p', {}, [job.company, `${cover.ready}/${cover.total || 0} ready`].filter(Boolean).join(' · ')),
+        ]);
+      })),
+    ]) : null,
+    el('div', { class: 'actions' }, [
+      btn('Export', { class: 'btn ghost', onClick: exportStore }),
+      btn('Import', { class: 'btn ghost', onClick: () => fileInput.click() }),
+    ]),
   ]);
 }
 
@@ -648,9 +744,16 @@ function emptyDetail(kind) {
 function render() {
   const view = currentView();
   document.title = `${viewTitle(view, store)} — Brag Book`;
+  document.body.dataset.view = view.kind;
   document.querySelectorAll('[data-nav]').forEach((link) => {
-    link.classList.toggle('is-on', link.getAttribute('data-nav') === view.kind);
+    const key = link.getAttribute('data-nav');
+    link.classList.toggle('is-on', key === view.kind || (key === 'home' && view.kind === 'home'));
   });
+
+  if (view.kind === 'home') {
+    root.replaceChildren(el('div', {}, [toolbar(view), homeView()]));
+    return;
+  }
 
   let detail;
   if (view.kind === 'log' && view.id === 'new') detail = entryForm(null);
@@ -719,7 +822,7 @@ function escapeHtml(value) {
 function showBook(note) {
   unlocked = true;
   setAppNav(true);
-  if (!location.hash) location.hash = '#log';
+  if (!location.hash) location.hash = '#home';
   render();
   if (note) setNote(note);
 }
