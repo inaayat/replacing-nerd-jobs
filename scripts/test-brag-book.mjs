@@ -8,6 +8,7 @@ import {
   normalizeStore,
   normalizeEntry,
   addEntry,
+  addEntries,
   updateEntry,
   deleteEntry,
   addPosting,
@@ -21,7 +22,16 @@ import {
   updateBullet,
   deleteBullet,
   addQuestion,
+  updateQuestion,
   deleteQuestion,
+  moveRequirement,
+  answerQuestionFromEntry,
+  draftBulletFromEntry,
+  applyStoryToQuestion,
+  questionAnswered,
+  parseExperiences,
+  compileResumeHtml,
+  updateProfile,
   linkEntry,
   unlinkEntry,
   parseRequirements,
@@ -56,7 +66,12 @@ const random = () => {
 };
 
 assert.equal(SCHEMA, 1);
-assert.deepEqual(emptyStore(), { v: 1, entries: [], postings: [] });
+assert.deepEqual(emptyStore(), {
+  v: 1,
+  entries: [],
+  postings: [],
+  profile: { name: '', email: '', location: '', summary: '', skills: '' },
+});
 assert.deepEqual(normalizeStore(null), emptyStore());
 assert.equal(normalizeEntry({ title: '   ' }), null);
 
@@ -154,18 +169,69 @@ assert.ok(scoreEntry(suggestions[0], gisReq.text) > 0);
 store = updateBullet(store, jobId, req0.id, postingById(store, jobId).requirements[0].bullets[0].id, 'Static files plus a Hobby-plan function budget.', clock);
 store = updateRequirement(store, jobId, req0.id, { ready: true }, clock);
 
-const compiled = compileResume(postingById(store, jobId));
+const compiled = compileResume(postingById(store, jobId), store);
 assert.equal(compiled.bullets.length, 1);
-assert.match(compileResumeText(postingById(store, jobId)), /• Static files/);
+assert.match(compileResumeText(postingById(store, jobId), store), /• Static files/);
+assert.match(compileResumeHtml(postingById(store, jobId), store), /<li>Static files/);
+
+store = updateProfile(store, { name: 'Karan', email: 'k@example.com', summary: 'Ships small tools.', skills: 'javascript, postgres' });
+assert.ok(compileResume(postingById(store, jobId), store).skills.includes('javascript'));
+assert.match(compileResumeText(postingById(store, jobId), store), /Karan/);
+assert.match(compileResumeText(postingById(store, jobId), store), /Ships small tools/);
+
+const q0 = postingById(store, jobId).requirements[0].questions[0];
+assert.equal(q0.text, 'Walk me through a change that had to stay dependency-free ESM.');
+assert.equal(q0.answer, '');
+store = updateQuestion(store, jobId, req0.id, q0.id, {
+  answer: 'Kept the engine dependency-free ESM.',
+  situation: 'Hobby plan was full.',
+  task: 'Add another app.',
+  action: 'Branched ?route=.',
+  result: 'Stayed on Hobby.',
+}, clock);
+assert.equal(questionAnswered(postingById(store, jobId).requirements[0].questions[0]), true);
+
+const story = store.entries.find((entry) => entry.kind === 'experience');
+assert.match(draftBulletFromEntry(story), /without a catalog/);
+store = answerQuestionFromEntry(store, jobId, req0.id, q0.id, story.id, clock);
+assert.match(postingById(store, jobId).requirements[0].questions[0].situation, /local-only/);
+
+const fromStrings = normalizeStore({
+  postings: [{
+    title: 'Legacy',
+    requirements: [{ text: 'Need SQL', questions: ['Tell me about SQL'], bullets: ['Wrote the join'] }],
+  }],
+}, clock);
+assert.equal(fromStrings.postings[0].requirements[0].questions[0].text, 'Tell me about SQL');
+assert.equal(fromStrings.postings[0].requirements[0].questions[0].answer, '');
+assert.equal(fromStrings.postings[0].requirements[0].experiences[0].text, 'Wrote the join');
+
+const pasted = parseExperiences(`
+- Shipped packing cubes sync
+- Hobby-plan function budget
+`);
+assert.deepEqual(pasted.map((item) => item.title), [
+  'Shipped packing cubes sync',
+  'Hobby-plan function budget',
+]);
+const many = addEntries(emptyStore(), pasted, clock);
+assert.equal(many.entries[0].title, 'Shipped packing cubes sync');
+
+store = moveRequirement(store, jobId, gisReq.id, -1, clock);
+assert.ok(postingById(store, jobId).requirements.findIndex((req) => req.id === gisReq.id) >= 0);
 
 const prep = compilePrep(store, postingById(store, jobId));
 assert.equal(prep[0].stories[0].title, 'Shipped packing cubes sync');
 assert.equal(prep[0].questions.length, 1);
+assert.equal(prep[0].questions[0].answered, true);
+assert.match(prep[0].questions[0].script, /Situation:/);
 const coverage = prepCoverage(store, postingById(store, jobId));
 assert.equal(coverage.total, parsed.length);
 assert.equal(coverage.withBullet, 1);
 assert.equal(coverage.withStory, 1);
+assert.equal(coverage.withAnswer, 1);
 assert.equal(coverage.ready, 1);
+assert.ok(coverage.hints.some((hint) => /need a resume bullet/.test(hint)));
 
 const hits = searchEntries(store, 'neon suitcase');
 assert.equal(hits[0].kind, 'experience');
@@ -203,6 +269,14 @@ assert.deepEqual(defaultView(), { kind: 'home' });
 assert.equal(viewHash({ kind: 'home' }), '#home');
 assert.equal(viewHash({ kind: 'log' }), '#log');
 assert.equal(viewHash({ kind: 'jobs', id: 'job_1', mode: 'prep' }), '#jobs/job_1/prep');
+assert.equal(viewHash({ kind: 'jobs', id: 'job_1', mode: 'fill', reqId: 'rq_1' }), '#jobs/job_1/fill/rq_1');
+assert.deepEqual(parseViewHash('#jobs/job_1/fill/rq_1', { postingIds: ['job_1'] }), {
+  kind: 'jobs',
+  id: 'job_1',
+  mode: 'fill',
+  reqId: 'rq_1',
+});
+assert.equal(viewTitle({ kind: 'jobs', id: 'new' }), 'New job posting');
 assert.deepEqual(parseViewHash(''), { kind: 'home' });
 assert.deepEqual(parseViewHash('#home'), { kind: 'home' });
 assert.deepEqual(parseViewHash('#jobs/job_1/resume', { postingIds: ['job_1'] }), {

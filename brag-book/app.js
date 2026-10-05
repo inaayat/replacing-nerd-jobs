@@ -2,9 +2,11 @@ import {
   STORE_KEY,
   ENTRY_KINDS,
   POSTING_STATUSES,
+  SAMPLE_JD,
   emptyStore,
   normalizeStore,
   addEntry,
+  addEntries,
   updateEntry,
   deleteEntry,
   addPosting,
@@ -14,28 +16,34 @@ import {
   addRequirements,
   updateRequirement,
   deleteRequirement,
+  moveRequirement,
   addBullet,
   updateBullet,
   deleteBullet,
   addQuestion,
   updateQuestion,
   deleteQuestion,
+  answerQuestionFromEntry,
   linkEntry,
   unlinkEntry,
   parseRequirements,
+  parseExperiences,
   searchEntries,
   suggestEntries,
   linkedEntries,
   compileResumeText,
+  compileResumeHtml,
   compilePrep,
   prepCoverage,
   listingSummary,
   starFill,
   starScript,
+  draftBulletFromEntry,
   bookIsEmpty,
   asUrl,
   titleFromJobUrl,
   hostFromJobUrl,
+  updateProfile,
 } from './engine.js';
 import { parseViewHash, viewHash, viewTitle } from './routes.js';
 import { loadBook, saveBook } from './store.js';
@@ -56,6 +64,7 @@ let persistTimer = null;
 let query = '';
 let kindFilter = 'all';
 let statusNote = '';
+let showAllReqs = false;
 
 function loadCached() {
   try {
@@ -165,6 +174,16 @@ function importStore(file) {
   reader.readAsText(file);
 }
 
+function downloadText(name, text, type = 'text/plain') {
+  const blob = new Blob([text], { type });
+  const url = URL.createObjectURL(blob);
+  const a = el('a', { href: url, download: name });
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 function markSvg() {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('class', 'mark');
@@ -182,11 +201,9 @@ function markSvg() {
 function countRow() {
   const summary = listingSummary(store);
   return el('div', { class: 'counts' }, [
+    chip(summary.postings, 'postings'),
     chip(summary.entries, 'in the book'),
     chip(summary.stories, 'experiences'),
-    chip(summary.projects, 'projects'),
-    chip(summary.skillsets, 'skillsets'),
-    chip(summary.postings, 'jobs'),
   ]);
 }
 
@@ -194,18 +211,18 @@ function toolbar(view) {
   if (view.kind === 'home') return homeHero();
   return el('header', { class: 'hero' }, [
     el('button', { type: 'button', class: 'btn ghost', onClick: () => go({ kind: 'home' }) }, '← Start'),
-    el('p', { class: 'kicker' }, view.kind === 'jobs' ? 'Start from a posting' : 'Start from the book'),
+    el('p', { class: 'kicker' }, view.kind === 'jobs' ? '1. Paste a posting  ·  2. Fill each requirement  ·  3. Resume + Prep' : 'The book · beta'),
     el('div', { class: 'hero-row' }, [
       el('div', {}, [
         el('h1', {}, viewTitle(view, store)),
         el('p', { class: 'lede' },
           view.kind === 'jobs'
-            ? 'Paste a posting, map each requirement to a resume bullet, a story from the book, and a question you might get.'
-            : 'Collect wins while you work. Later, pin them to a job when you are writing a resume or prepping an interview.'
+            ? 'Paste the job. Review the bullets. For each requirement: a resume line, a potential question, and a STAR answer.'
+            : 'Paste several experiences at once. Pin them onto a posting when you need a resume bullet or a STAR answer.'
         ),
       ]),
       el('div', { class: 'actions' }, [
-        btn(view.kind === 'jobs' ? 'New posting' : 'New win', {
+        btn(view.kind === 'jobs' ? 'New job posting' : 'Add experiences', {
           class: 'btn',
           onClick: () => go(view.kind === 'jobs' ? { kind: 'jobs', id: 'new' } : { kind: 'log', id: 'new' }),
         }),
@@ -220,10 +237,10 @@ function toolbar(view) {
 
 function homeHero() {
   return el('header', { class: 'hero is-home' }, [
-    el('p', { class: 'eyebrow' }, 'Two ways in'),
+    el('p', { class: 'eyebrow' }, [el('span', { class: 'beta-pill' }, 'beta'), ' Interview prep']),
     el('h1', { class: 'mast-title' }, 'Brag Book'),
     markSvg(),
-    el('p', { class: 'lede' }, 'Collect wins as you work, or start from a job posting and pull stories from the book when you need them.'),
+    el('p', { class: 'lede' }, 'Paste a job posting. Turn each requirement into a resume bullet, a question they might ask, and a STAR answer. Then copy a resume and walk the cue cards.'),
     countRow(),
     statusNote ? el('p', { class: 'status', id: 'status-note' }, statusNote) : el('p', { class: 'status', id: 'status-note' }, ''),
   ]);
@@ -234,30 +251,45 @@ function homeView() {
   const recentWins = store.entries.slice(0, 4);
   const recentJobs = store.postings.slice(0, 4);
   return el('div', {}, [
-    el('div', { class: 'start-grid' }, [
+    el('div', { class: 'start-grid is-focus' }, [
       el('button', {
         type: 'button',
-        class: 'start-card',
-        onClick: () => go({ kind: 'log', id: store.entries.length ? undefined : 'new' }),
+        class: 'start-card is-primary',
+        onClick: () => go({ kind: 'jobs', id: store.postings.length ? undefined : 'new' }),
       }, [
-        el('span', { class: 'kicker' }, 'The book'),
-        el('strong', {}, 'Log a win'),
-        el('p', {}, summary.entries
-          ? `${summary.entries} already in the book. Add another STAR story, project, or skillset.`
-          : 'Start the running log: a meeting, a ship, a skill you just learned.'),
+        el('span', { class: 'kicker' }, 'The loop'),
+        el('strong', {}, store.postings.length ? 'Open a posting' : 'New job posting'),
+        el('p', {}, store.postings.length
+          ? `${summary.postings} on file. Paste another, or keep filling bullets, questions, and STAR answers.`
+          : 'Paste the description. We pull the requirement bullets. You add a resume line, a question, and a STAR answer on each.'),
       ]),
       el('button', {
         type: 'button',
-        class: 'start-card',
-        onClick: () => go({ kind: 'jobs', id: 'new' }),
+        class: 'start-card is-beta',
+        onClick: () => go({ kind: 'log', id: 'new' }),
       }, [
-        el('span', { class: 'kicker' }, 'A posting'),
-        el('strong', {}, 'Save a posting'),
-        el('p', {}, summary.postings
-          ? `${summary.postings} posting${summary.postings === 1 ? '' : 's'} on file. Keep the job link, or paste the description.`
-          : 'Keep the posting URL for later, then paste requirements into cue cards.'),
+        el('span', { class: 'kicker' }, [el('span', { class: 'beta-pill' }, 'beta'), ' The book']),
+        el('strong', {}, 'Add experiences'),
+        el('p', {}, summary.entries
+          ? `${summary.entries} already in the book. Paste more in one go, then pin them onto a posting.`
+          : 'Optional. Paste several wins at once so a posting can steal a resume bullet or a STAR answer.'),
       ]),
     ]),
+    recentJobs.length ? el('section', { class: 'recent' }, [
+      el('h2', {}, 'Recent postings'),
+      el('div', { class: 'plot-cards' }, recentJobs.map((job) => {
+        const cover = prepCoverage(store, job);
+        return el('button', {
+          type: 'button',
+          class: 'plot-card',
+          onClick: () => go({ kind: 'jobs', id: job.id, mode: job.requirements.length ? 'fill' : undefined }),
+        }, [
+          el('span', { class: 'kicker' }, job.status),
+          el('strong', {}, job.title),
+          el('p', {}, [job.company, cover.hints[0] || `${cover.ready}/${cover.total || 0} ready`].filter(Boolean).join(' · ')),
+        ]);
+      })),
+    ]) : null,
     recentWins.length ? el('section', { class: 'recent' }, [
       el('h2', {}, 'Recent in the book'),
       el('div', { class: 'plot-cards' }, recentWins.map((entry) =>
@@ -268,24 +300,9 @@ function homeView() {
         }, [
           el('span', { class: 'kicker' }, kindLabel(entry.kind)),
           el('strong', {}, entry.title),
-          el('p', {}, [entry.when, starFill(entry).ready ? 'STAR ready' : entry.tags.slice(0, 3).join(' · ')].filter(Boolean).join(' · ') || 'Open to fill in STAR'),
+          el('p', {}, [entry.when, starFill(entry).ready ? 'STAR ready' : 'Open to fill STAR'].filter(Boolean).join(' · ')),
         ])
       )),
-    ]) : null,
-    recentJobs.length ? el('section', { class: 'recent' }, [
-      el('h2', {}, 'Recent postings'),
-      el('div', { class: 'plot-cards' }, recentJobs.map((job) => {
-        const cover = prepCoverage(store, job);
-        return el('button', {
-          type: 'button',
-          class: 'plot-card',
-          onClick: () => go({ kind: 'jobs', id: job.id }),
-        }, [
-          el('span', { class: 'kicker' }, job.status),
-          el('strong', {}, job.title),
-          el('p', {}, [job.company, hostFromJobUrl(job.url), `${cover.ready}/${cover.total || 0} ready`].filter(Boolean).join(' · ')),
-        ]);
-      })),
     ]) : null,
     el('div', { class: 'actions' }, [
       btn('Export', { class: 'btn ghost', onClick: exportStore }),
@@ -328,10 +345,9 @@ function entryList(selectedId) {
         }, [
           el('div', { class: 'row-title' }, entry.title),
           el('div', { class: 'row-meta' }, [kindLabel(entry.kind), entry.when, starFill(entry).ready ? 'STAR ready' : null].filter(Boolean).join(' · ')),
-          entry.tags.length ? el('div', { class: 'tags' }, entry.tags.map((tag) => el('span', { class: 'tag' }, tag))) : null,
         ])
       ))
-      : el('p', { class: 'empty' }, query ? 'Nothing in the book matches that.' : 'No wins yet. Add one after a good meeting, a ship, or a skill you just learned.'),
+      : el('p', { class: 'empty' }, query ? 'Nothing in the book matches that.' : 'Paste several experiences — then pin them onto a posting.'),
   ]);
 }
 
@@ -350,10 +366,51 @@ function jobList(selectedId) {
           onClick: () => go({ kind: 'jobs', id: job.id }),
         }, [
           el('div', { class: 'row-title' }, job.title),
-          el('div', { class: 'row-meta' }, [job.company, hostFromJobUrl(job.url), job.status, `${cover.ready}/${cover.total || 0} ready`].filter(Boolean).join(' · ')),
+          el('div', { class: 'row-meta' }, [job.company, `${cover.ready}/${cover.total || 0} ready`].filter(Boolean).join(' · ')),
         ]);
       }))
-      : el('p', { class: 'empty' }, 'No postings yet. Save a job link, or paste the description.'),
+      : el('p', { class: 'empty' }, 'No postings yet. Paste a job description — that is the start of the loop.'),
+  ]);
+}
+
+function bulkEntryForm() {
+  const paste = el('textarea', {
+    class: 'tall',
+    placeholder: 'One experience per line, or a STAR block:\n\n- Shipped packing cubes sync\n- Hobby-plan function budget\n\nTitle: Multiplexed the API\nSituation: Twelve functions already used.\nTask: Add another signed-in app.\nAction: Branched ?route= on the existing handler.\nResult: Stayed on Hobby.',
+  });
+  const kind = el('select', {}, ENTRY_KINDS.map((value) =>
+    el('option', { value, selected: value === 'experience' || undefined }, kindLabel(value))
+  ));
+  return el('section', { class: 'panel' }, [
+    el('div', { class: 'panel-head' }, [
+      el('div', {}, [
+        el('h2', {}, 'Add experiences'),
+        el('p', { class: 'tiny' }, 'Beta — paste many at once. Open one later to fill STAR.'),
+      ]),
+      el('span', { class: 'beta-pill' }, 'beta'),
+    ]),
+    el('div', { class: 'panel-body' }, [
+      el('p', { class: 'lede' }, 'Dump a resume, a review doc, or notes. Each line becomes a win a posting can pin.'),
+      field('Kind for this paste', kind),
+      field('Paste experiences', paste),
+      el('div', { class: 'actions' }, [
+        btn('Add to the book', {
+          class: 'btn',
+          onClick: () => {
+            const drafts = parseExperiences(paste.value).map((draft) => ({ ...draft, kind: kind.value }));
+            if (!drafts.length) {
+              setNote('Paste at least one experience — one per line, or a STAR block.');
+              return;
+            }
+            store = addEntries(store, drafts);
+            saveStore();
+            go({ kind: 'log' });
+            setNote(`Added ${drafts.length} experience${drafts.length === 1 ? '' : 's'}. Pin one onto a posting next.`);
+          },
+        }),
+        btn('Cancel', { class: 'btn ghost', onClick: () => go({ kind: 'log' }) }),
+      ]),
+    ]),
   ]);
 }
 
@@ -391,7 +448,7 @@ function entryForm(entry) {
   });
   form.append(
     el('div', { class: 'panel-head' }, [
-      el('h2', {}, isNew ? 'Add a win' : 'Edit win'),
+      el('h2', {}, isNew ? 'Add one win' : 'Edit win'),
       entry ? el('span', { class: `tag kind-${entry.kind}` }, kindLabel(entry.kind)) : null,
     ]),
     el('div', { class: 'panel-body' }, [
@@ -445,7 +502,7 @@ async function copyText(text, ok = 'Copied.') {
 }
 
 function jobLinkBar(job) {
-  if (!job.url) return el('p', { class: 'tiny' }, 'No posting link saved yet.');
+  if (!job.url) return el('p', { class: 'tiny' }, 'No posting link saved yet — paste still works.');
   return el('div', { class: 'job-link' }, [
     el('a', { class: 'job-link-url', href: job.url, target: '_blank', rel: 'noopener noreferrer' }, job.url),
     el('div', { class: 'actions' }, [
@@ -453,6 +510,22 @@ function jobLinkBar(job) {
       btn('Copy link', { class: 'btn ghost', onClick: () => copyText(job.url, 'Copied the posting link.') }),
     ]),
   ]);
+}
+
+function pullRequirements(job, text, { replace = false } = {}) {
+  const lines = parseRequirements(text);
+  if (!lines.length && String(text || '').trim()) lines.push(String(text).trim());
+  if (!lines.length) {
+    setNote('Paste the posting — bullets become rows. Try the sample in the box.');
+    return 0;
+  }
+  if (replace) {
+    for (const req of [...job.requirements]) store = deleteRequirement(store, job.id, req.id);
+  }
+  store = addRequirements(store, job.id, lines);
+  store = updatePosting(store, job.id, { sourceText: text, status: job.status === 'draft' ? 'prepping' : job.status });
+  saveStore();
+  return lines.length;
 }
 
 function jobForm() {
@@ -463,36 +536,41 @@ function jobForm() {
       const data = Object.fromEntries(new FormData(form));
       data.url = asUrl(data.url);
       if (!data.title) data.title = titleFromJobUrl(data.url);
-      if (!data.title) {
-        setNote('Need a role name or a posting link.');
-        return;
-      }
-      const lines = parseRequirements(data.sourceText);
+      if (!data.title) data.title = 'New job posting';
       store = addPosting(store, data);
       const job = store.postings[0];
-      store = addRequirements(store, job.id, lines);
-      saveStore();
-      go({ kind: 'jobs', id: job.id });
-      if (lines.length) setNote(`Pulled ${lines.length} requirement${lines.length === 1 ? '' : 's'} from the posting.`);
-      else if (job.url) setNote('Saved the posting link. Add requirements whenever you want.');
-      else setNote('Saved the posting. Add requirements by hand.');
+      const count = pullRequirements(job, data.sourceText);
+      const next = store.postings.find((item) => item.id === job.id);
+      if (count) {
+        go({ kind: 'jobs', id: job.id, mode: 'fill', reqId: next.requirements[0]?.id });
+        setNote(`Pulled ${count} requirement${count === 1 ? '' : 's'}. Fill this one: a resume bullet, then a question + STAR.`);
+      } else {
+        go({ kind: 'jobs', id: job.id });
+        setNote('Saved the posting. Paste the job description to pull requirement rows.');
+      }
     },
   });
   form.append(
-    el('div', { class: 'panel-head' }, [el('h2', {}, 'New posting')]),
+    el('div', { class: 'panel-head' }, [
+      el('div', {}, [
+        el('h2', {}, 'New job posting'),
+        el('p', { class: 'tiny' }, 'Step 1 of 3 — paste. We do not fetch the link yet.'),
+      ]),
+    ]),
     el('div', { class: 'panel-body' }, [
-      field('Posting link — kept for safekeeping (we do not fetch it yet)',
-        el('input', { name: 'url', type: 'url', placeholder: 'https://boards.example.com/jobs/product-engineer' })
+      el('p', { class: 'lede' }, 'Paste the posting. Each bullet becomes a requirement you fill one at a time.'),
+      field('Paste the job posting',
+        el('textarea', { name: 'sourceText', class: 'tall', placeholder: SAMPLE_JD })
       ),
       el('div', { class: 'grid-2' }, [
-        field('Role', el('input', { name: 'title', maxlength: '160', placeholder: 'Product engineer — or leave blank to use the link' })),
+        field('Role', el('input', { name: 'title', maxlength: '160', placeholder: 'Product engineer — or leave blank' })),
         field('Company', el('input', { name: 'company', maxlength: '160', placeholder: 'Beep boop' })),
       ]),
-      field('Paste the posting — optional; bullets become requirement cards',
-        el('textarea', { name: 'sourceText', class: 'tall', placeholder: 'Requirements:\n- Ship production Javascript…\n- Comfortable with Postgres' })
+      field('Posting link — kept for later',
+        el('input', { name: 'url', type: 'url', placeholder: 'https://boards.example.com/jobs/product-engineer' })
       ),
       el('div', { class: 'actions' }, [
-        el('button', { type: 'submit', class: 'btn' }, 'Save posting'),
+        el('button', { type: 'submit', class: 'btn' }, 'Pull requirements'),
         btn('Cancel', { class: 'btn ghost', onClick: () => go({ kind: 'jobs' }) }),
       ]),
     ])
@@ -500,10 +578,106 @@ function jobForm() {
   return form;
 }
 
-function jobDetail(job) {
+function coverageBanner(job) {
   const cover = prepCoverage(store, job);
+  return el('div', { class: 'banner' }, [
+    el('p', {}, cover.hints[0] || `${cover.ready}/${cover.total || 0} marked ready`),
+    el('p', { class: 'tiny' }, [
+      `${cover.withBullet}/${cover.total || 0} bullets`,
+      `${cover.withQuestion}/${cover.total || 0} questions`,
+      `${cover.withAnswer}/${cover.total || 0} answers`,
+      `${cover.ready}/${cover.total || 0} ready`,
+    ].join(' · ')),
+  ]);
+}
+
+function jobMeta(job) {
+  return el('div', {}, [
+    jobLinkBar(job),
+    el('div', { class: 'grid-2' }, [
+      field('Role', el('input', {
+        value: job.title,
+        onChange: (event) => { store = updatePosting(store, job.id, { title: event.target.value }); saveStore(); },
+      })),
+      field('Company', el('input', {
+        value: job.company,
+        onChange: (event) => { store = updatePosting(store, job.id, { company: event.target.value }); saveStore(); },
+      })),
+    ]),
+    el('div', { class: 'grid-2' }, [
+      field('Posting link', el('input', {
+        type: 'url',
+        value: job.url,
+        placeholder: 'https://',
+        onChange: (event) => { store = updatePosting(store, job.id, { url: event.target.value }); saveStore(); },
+        onBlur: () => render(),
+      })),
+      field('Status', el('select', {
+        onChange: (event) => { store = updatePosting(store, job.id, { status: event.target.value }); saveStore(); render(); },
+      }, POSTING_STATUSES.map((status) =>
+        el('option', { value: status, selected: job.status === status || undefined }, status)
+      ))),
+    ]),
+  ]);
+}
+
+function pasteMore(job) {
+  const source = el('textarea', { class: 'tall', placeholder: SAMPLE_JD });
+  return el('div', { class: 'paste-more' }, [
+    el('p', { class: 'subhead' }, 'Paste more'),
+    source,
+    el('div', { class: 'actions' }, [
+      btn('Add these bullets', {
+        class: 'btn',
+        onClick: () => {
+          const count = pullRequirements(job, source.value);
+          if (count) {
+            render();
+            setNote(`Added ${count} requirement${count === 1 ? '' : 's'}.`);
+          }
+        },
+      }),
+    ]),
+  ]);
+}
+
+function requirementRow(job, req, index) {
+  const cover = {
+    bullet: req.bullets.length,
+    question: req.questions.length,
+    answer: req.questions.some((question) => question.answer || starFill(question).filled),
+  };
+  return el('div', { class: `req-row${req.ready ? ' is-ready' : ''}` }, [
+    el('div', { class: 'req-row-main' }, [
+      el('p', {}, req.text),
+      el('p', { class: 'tiny' }, [
+        cover.bullet ? 'bullet' : 'needs a bullet',
+        cover.question ? 'question' : 'needs a question',
+        cover.answer ? 'STAR' : 'needs a STAR answer',
+      ].join(' · ')),
+    ]),
+    el('div', { class: 'actions' }, [
+      btn('Fill', { class: 'btn', onClick: () => go({ kind: 'jobs', id: job.id, mode: 'fill', reqId: req.id }) }),
+      btn('↑', {
+        class: 'btn ghost',
+        disabled: index === 0,
+        onClick: () => { store = moveRequirement(store, job.id, req.id, -1); saveStore(); render(); },
+      }),
+      btn('↓', {
+        class: 'btn ghost',
+        disabled: index === job.requirements.length - 1,
+        onClick: () => { store = moveRequirement(store, job.id, req.id, 1); saveStore(); render(); },
+      }),
+      btn('×', {
+        class: 'btn danger',
+        onClick: () => { store = deleteRequirement(store, job.id, req.id); saveStore(); render(); },
+      }),
+    ]),
+  ]);
+}
+
+function jobDetail(job) {
   const wrap = el('section', { class: 'panel' });
-  const source = el('textarea', { class: 'tall', placeholder: 'One requirement per line, or paste more bullets' });
   wrap.append(
     el('div', { class: 'panel-head' }, [
       el('div', {}, [
@@ -511,58 +685,35 @@ function jobDetail(job) {
         el('p', { class: 'tiny' }, [job.company, hostFromJobUrl(job.url), job.status].filter(Boolean).join(' · ')),
       ]),
       el('div', { class: 'actions' }, [
+        job.requirements.length
+          ? btn('Fill one at a time', { class: 'btn', onClick: () => go({ kind: 'jobs', id: job.id, mode: 'fill', reqId: job.requirements[0].id }) })
+          : null,
         btn('Prep', { class: 'btn ghost', onClick: () => go({ kind: 'jobs', id: job.id, mode: 'prep' }) }),
         btn('Resume', { class: 'btn ghost', onClick: () => go({ kind: 'jobs', id: job.id, mode: 'resume' }) }),
       ]),
     ]),
     el('div', { class: 'panel-body' }, [
-      el('div', { class: 'banner' },
-        `${cover.withBullet} bullets · ${cover.withStory} stories · ${cover.withQuestion} question sets · ${cover.ready}/${cover.total || 0} marked ready`
-      ),
-      el('p', { class: 'subhead' }, 'Posting link'),
-      jobLinkBar(job),
-      el('div', { class: 'grid-2' }, [
-        field('Role', el('input', {
-          value: job.title,
-          onChange: (event) => { store = updatePosting(store, job.id, { title: event.target.value }); saveStore(); },
-        })),
-        field('Company', el('input', {
-          value: job.company,
-          onChange: (event) => { store = updatePosting(store, job.id, { company: event.target.value }); saveStore(); },
-        })),
-      ]),
-      el('div', { class: 'grid-2' }, [
-        field('Edit posting link', el('input', {
-          type: 'url',
-          value: job.url,
-          placeholder: 'https://',
-          onChange: (event) => { store = updatePosting(store, job.id, { url: event.target.value }); saveStore(); },
-          onBlur: () => render(),
-        })),
-        field('Status', el('select', {
-          onChange: (event) => { store = updatePosting(store, job.id, { status: event.target.value }); saveStore(); render(); },
-        }, POSTING_STATUSES.map((status) =>
-          el('option', { value: status, selected: job.status === status || undefined }, status)
-        ))),
-      ]),
-      ...job.requirements.map((req) => requirementCard(job, req)),
-      el('h3', { class: 'subhead' }, 'Add requirements'),
-      source,
+      coverageBanner(job),
+      jobMeta(job),
+      el('p', { class: 'subhead' }, 'Requirements'),
+      job.requirements.length
+        ? el('div', { class: 'req-list' }, job.requirements.map((req, index) => requirementRow(job, req, index)))
+        : el('p', { class: 'empty' }, 'Paste the posting below. Each bullet becomes a row you fill one at a time.'),
+      pasteMore(job),
+      job.requirements.length
+        ? el('div', { class: 'actions' }, [
+          btn(showAllReqs ? 'Hide full cards' : 'Power user — show full cards', {
+            class: 'btn ghost',
+            onClick: () => { showAllReqs = !showAllReqs; render(); },
+          }),
+        ])
+        : null,
+      showAllReqs ? el('div', {}, job.requirements.map((req) => requirementCard(job, req))) : null,
       el('div', { class: 'actions' }, [
-        btn('Add from paste', {
-          class: 'btn',
-          onClick: () => {
-            const lines = parseRequirements(source.value);
-            if (!lines.length && source.value.trim()) lines.push(source.value.trim());
-            store = addRequirements(store, job.id, lines);
-            saveStore();
-            render();
-          },
-        }),
         btn('Delete posting', {
           class: 'btn danger',
           onClick: () => {
-            if (!confirm('Delete this posting and its cue cards? The book stays.')) return;
+            if (!confirm('Delete this posting? The book stays.')) return;
             store = deletePosting(store, job.id);
             saveStore();
             go({ kind: 'jobs' });
@@ -575,7 +726,7 @@ function jobDetail(job) {
 }
 
 function lineEditor(items, { onAdd, onEdit, onDelete, placeholder }) {
-  const box = el('div');
+  const box = el('div', { class: 'cell-stack' });
   for (const item of items) {
     const input = el('textarea', { value: item.text });
     input.value = item.text;
@@ -586,26 +737,150 @@ function lineEditor(items, { onAdd, onEdit, onDelete, placeholder }) {
     ]));
   }
   const fresh = el('input', { placeholder });
+  const add = () => {
+    if (!fresh.value.trim()) return;
+    onAdd(fresh.value);
+  };
+  fresh.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      add();
+    }
+  });
   box.append(el('div', { class: 'line-row' }, [
     fresh,
-    btn('Add', { class: 'btn ghost', onClick: () => { onAdd(fresh.value); fresh.value = ''; } }),
+    btn('Add', { class: 'btn ghost', onClick: add }),
   ]));
   return box;
 }
 
-function requirementCard(job, req) {
+function questionEditor(job, req) {
+  const box = el('div', { class: 'cell-stack' });
+  const stories = linkedEntries(store, req);
+  for (const question of req.questions) {
+    const text = el('textarea', { placeholder: 'They might ask…' }, question.text);
+    text.value = question.text;
+    const answer = el('textarea', { placeholder: 'Your answer in a sentence, or fill STAR below.' }, question.answer);
+    answer.value = question.answer;
+    const fields = {
+      situation: el('textarea', { placeholder: 'Situation' }, question.situation),
+      task: el('textarea', { placeholder: 'Task' }, question.task),
+      action: el('textarea', { placeholder: 'Action' }, question.action),
+      result: el('textarea', { placeholder: 'Result' }, question.result),
+    };
+    const save = () => {
+      store = updateQuestion(store, job.id, req.id, question.id, {
+        text: text.value,
+        answer: answer.value,
+        situation: fields.situation.value,
+        task: fields.task.value,
+        action: fields.action.value,
+        result: fields.result.value,
+      });
+      saveStore();
+      render();
+    };
+    box.append(el('article', { class: 'q-card' }, [
+      el('p', { class: 'subhead' }, 'Potential question'),
+      text,
+      el('p', { class: 'subhead' }, 'Answer / STAR'),
+      answer,
+      el('div', { class: 'star' }, ['situation', 'task', 'action', 'result'].map((key) =>
+        el('label', { class: 'star-card' }, [el('b', {}, key[0].toUpperCase()), fields[key]])
+      )),
+      el('div', { class: 'actions' }, [
+        btn('Save', { class: 'btn ghost', onClick: save }),
+        stories.length
+          ? btn('Use pinned story', {
+            class: 'btn ghost',
+            onClick: () => {
+              store = answerQuestionFromEntry(store, job.id, req.id, question.id, stories[0].id);
+              saveStore();
+              render();
+              setNote('Copied that story into the STAR answer.');
+            },
+          })
+          : null,
+        btn('Remove', {
+          class: 'btn danger',
+          onClick: () => { store = deleteQuestion(store, job.id, req.id, question.id); saveStore(); render(); },
+        }),
+      ]),
+    ]));
+  }
+  const fresh = el('input', { placeholder: 'Tell me about a time you…' });
+  box.append(el('div', { class: 'line-row' }, [
+    fresh,
+    btn('Add question', {
+      class: 'btn ghost',
+      onClick: () => {
+        if (!fresh.value.trim()) return;
+        store = addQuestion(store, job.id, req.id, fresh.value);
+        saveStore();
+        render();
+      },
+    }),
+  ]));
+  return box;
+}
+
+function storyBlock(job, req) {
   const stories = linkedEntries(store, req);
   const suggested = suggestEntries(store, req);
-  const card = el('article', { class: `req${req.ready ? ' is-ready' : ''}` });
   const picker = el('select', {}, [
     el('option', { value: '' }, 'Pin a win from the book…'),
     ...store.entries
       .filter((entry) => !req.entryIds.includes(entry.id))
       .map((entry) => el('option', { value: entry.id }, `${entry.title} (${kindLabel(entry.kind)})`)),
   ]);
+  picker.addEventListener('change', () => {
+    if (!picker.value) return;
+    store = linkEntry(store, job.id, req.id, picker.value);
+    saveStore();
+    render();
+  });
+  return el('div', { class: 'cell-stack' }, [
+    stories.length
+      ? el('div', {}, stories.map((entry) => el('div', { class: 'story' }, [
+        el('div', { class: 'row-title' }, entry.title),
+        el('pre', { class: 'tiny' }, starScript(entry) || entry.notes || 'No STAR yet — open it in the book.'),
+        el('div', { class: 'actions' }, [
+          btn('Use as resume bullet', {
+            class: 'btn ghost',
+            onClick: () => {
+              const line = draftBulletFromEntry(entry);
+              if (!line) return;
+              store = addBullet(store, job.id, req.id, line);
+              saveStore();
+              render();
+              setNote('Drafted a resume bullet from that story.');
+            },
+          }),
+          btn('Open', { class: 'btn ghost', onClick: () => go({ kind: 'log', id: entry.id }) }),
+          btn('Unpin', { class: 'btn ghost', onClick: () => { store = unlinkEntry(store, job.id, req.id, entry.id); saveStore(); render(); } }),
+        ]),
+      ])))
+      : el('p', { class: 'empty' }, store.entries.length
+        ? 'Pin a win from the book, or skip and write the STAR on the question.'
+        : 'No wins in the book yet. Write the STAR on the question, or paste experiences in the book.'),
+    picker,
+    suggested.length
+      ? el('div', { class: 'tags' }, suggested.map((entry) => el('button', {
+        type: 'button',
+        class: 'tag kind-experience',
+        onClick: () => { store = linkEntry(store, job.id, req.id, entry.id); saveStore(); render(); },
+      }, `+ ${entry.title}`)))
+      : null,
+  ]);
+}
+
+function requirementCard(job, req) {
+  const card = el('article', { class: `req${req.ready ? ' is-ready' : ''}` });
+  const text = el('textarea', { class: 'req-text' }, req.text);
+  text.value = req.text;
   card.append(
     el('div', { class: 'req-head' }, [
-      el('p', {}, req.text),
+      text,
       el('label', { class: 'tiny' }, [
         el('input', {
           type: 'checkbox',
@@ -620,56 +895,79 @@ function requirementCard(job, req) {
       ]),
     ]),
     el('p', { class: 'subhead' }, 'Resume bullets'),
+    req.bullets.length ? null : el('p', { class: 'tiny' }, 'Write the line you want on the resume, or pin a story and tap “Use as resume bullet”.'),
     lineEditor(req.bullets, {
-      placeholder: 'Wrote a multiplexed API so the Hobby plan stayed under 12 functions.',
-      onAdd: (text) => { store = addBullet(store, job.id, req.id, text); saveStore(); render(); },
-      onEdit: (id, text) => { store = updateBullet(store, job.id, req.id, id, text); saveStore(); render(); },
+      placeholder: 'Kept every public page on static files plus 11 serverless functions.',
+      onAdd: (value) => { store = addBullet(store, job.id, req.id, value); saveStore(); render(); },
+      onEdit: (id, value) => { store = updateBullet(store, job.id, req.id, id, value); saveStore(); render(); },
       onDelete: (id) => { store = deleteBullet(store, job.id, req.id, id); saveStore(); render(); },
     }),
     el('p', { class: 'subhead' }, 'Stories from the book'),
-    stories.length
-      ? el('div', {}, stories.map((entry) => el('div', { class: 'story' }, [
-        el('div', { class: 'row-title' }, entry.title),
-        el('div', { class: 'tiny' }, starScript(entry) || entry.notes || 'No STAR yet — open it in the book.'),
-        el('div', { class: 'actions' }, [
-          btn('Open', { class: 'btn ghost', onClick: () => go({ kind: 'log', id: entry.id }) }),
-          btn('Unpin', { class: 'btn ghost', onClick: () => { store = unlinkEntry(store, job.id, req.id, entry.id); saveStore(); render(); } }),
-        ]),
-      ])))
-      : el('p', { class: 'tiny' }, 'Nothing pinned yet. Add wins on the brag sheet, then attach them here.'),
-    picker,
-    suggested.length
-      ? el('div', { class: 'tags' }, suggested.map((entry) => el('button', {
-        type: 'button',
-        class: 'tag kind-experience',
-        onClick: () => { store = linkEntry(store, job.id, req.id, entry.id); saveStore(); render(); },
-      }, `+ ${entry.title}`)))
-      : null,
-    el('p', { class: 'subhead' }, 'Potential questions'),
-    lineEditor(req.questions, {
-      placeholder: 'Tell me about a time you shipped without a build pipeline.',
-      onAdd: (text) => { store = addQuestion(store, job.id, req.id, text); saveStore(); render(); },
-      onEdit: (id, text) => { store = updateQuestion(store, job.id, req.id, id, text); saveStore(); render(); },
-      onDelete: (id) => { store = deleteQuestion(store, job.id, req.id, id); saveStore(); render(); },
-    }),
+    storyBlock(job, req),
+    el('p', { class: 'subhead' }, 'Potential questions + STAR'),
+    req.questions.length ? null : el('p', { class: 'tiny' }, 'Add the question they will ask, then write the STAR answer on it.'),
+    questionEditor(job, req),
     el('div', { class: 'actions' }, [
-      btn('Remove requirement', {
-        class: 'btn danger',
+      btn('Save requirement', {
+        class: 'btn ghost',
         onClick: () => {
-          store = deleteRequirement(store, job.id, req.id);
+          store = updateRequirement(store, job.id, req.id, { text: text.value });
           saveStore();
           render();
         },
       }),
     ])
   );
-  picker.addEventListener('change', () => {
-    if (!picker.value) return;
-    store = linkEntry(store, job.id, req.id, picker.value);
-    saveStore();
-    render();
-  });
   return card;
+}
+
+function fillView(job, reqId) {
+  const list = job.requirements;
+  let index = list.findIndex((req) => req.id === reqId);
+  if (index < 0) index = 0;
+  const req = list[index];
+  const wrap = el('section', { class: 'panel' });
+  wrap.append(el('div', { class: 'panel-head' }, [
+    el('div', {}, [
+      el('h2', {}, `Requirement ${list.length ? index + 1 : 0} of ${list.length}`),
+      el('p', { class: 'tiny' }, 'Bullet → story → question + STAR. Arrow keys move. Then Resume or Prep.'),
+    ]),
+    el('div', { class: 'actions' }, [
+      btn('All requirements', { class: 'btn ghost', onClick: () => go({ kind: 'jobs', id: job.id }) }),
+      btn('Resume', { class: 'btn ghost', onClick: () => go({ kind: 'jobs', id: job.id, mode: 'resume' }) }),
+      btn('Prep', { class: 'btn ghost', onClick: () => go({ kind: 'jobs', id: job.id, mode: 'prep' }) }),
+    ]),
+  ]));
+  if (!req) {
+    wrap.append(el('div', { class: 'panel-body' }, [
+      el('p', { class: 'empty' }, 'Paste the posting first so there is a requirement to fill.'),
+      pasteMore(job),
+    ]));
+    return wrap;
+  }
+  const step = (next) => {
+    const target = list[next];
+    if (!target) return;
+    go({ kind: 'jobs', id: job.id, mode: 'fill', reqId: target.id });
+  };
+  wrap.append(el('div', { class: 'panel-body' }, [
+    coverageBanner(job),
+    el('p', { class: 'kicker' }, job.company || job.title),
+    requirementCard(job, req),
+    el('div', { class: 'prep-nav' }, [
+      btn('Previous', { class: 'btn ghost', disabled: index <= 0, onClick: () => step(index - 1) }),
+      btn(index >= list.length - 1 ? 'Resume' : 'Next requirement', {
+        class: 'btn',
+        onClick: () => {
+          if (index >= list.length - 1) go({ kind: 'jobs', id: job.id, mode: 'resume' });
+          else step(index + 1);
+        },
+      }),
+    ]),
+  ]));
+  wrap.dataset.fillIndex = String(index);
+  wrap.dataset.fillJob = job.id;
+  return wrap;
 }
 
 function prepKey(jobId) {
@@ -687,7 +985,7 @@ function prepView(job) {
     btn('Back to posting', { class: 'btn ghost', onClick: () => go({ kind: 'jobs', id: job.id }) }),
   ]));
   if (!card) {
-    wrap.append(el('p', { class: 'empty' }, 'Add a requirement first, then walk the cards.'));
+    wrap.append(el('p', { class: 'empty' }, 'Add a requirement first, then walk the cards. Arrow keys once you have some.'));
     return wrap;
   }
   const step = (next) => {
@@ -695,22 +993,28 @@ function prepView(job) {
     render();
   };
   wrap.append(el('div', { class: 'panel-body' }, [
+    coverageBanner(job),
     el('p', { class: 'kicker' }, job.company || 'Interview'),
     el('h3', {}, card.text),
-    card.bullets.length ? el('div', {}, [
-      el('p', { class: 'subhead' }, 'Say it as a resume line'),
-      ...card.bullets.map((text) => el('p', {}, `• ${text}`)),
-    ]) : null,
+    card.questions.length ? el('div', {}, [
+      el('p', { class: 'subhead' }, 'They might ask'),
+      ...card.questions.map((question) => el('div', { class: 'q-card' }, [
+        el('p', {}, `? ${question.text}`),
+        question.script || question.answer
+          ? el('pre', { class: 'tiny' }, question.script || question.answer)
+          : el('p', { class: 'tiny' }, 'No STAR answer yet. Jump back and write one on this question.'),
+      ])),
+    ]) : el('p', { class: 'empty' }, 'No question on this requirement yet. Add one, then come back.'),
     card.stories.length ? el('div', {}, [
-      el('p', { class: 'subhead' }, 'STAR stories'),
+      el('p', { class: 'subhead' }, 'From the book'),
       ...card.stories.map((story) => el('div', { class: 'story' }, [
         el('div', { class: 'row-title' }, story.title),
         el('pre', { class: 'tiny' }, story.script || story.notes || 'Open the book and fill STAR.'),
       ])),
-    ]) : el('p', { class: 'tiny' }, 'No story pinned. Jump back and attach one from the book.'),
-    card.questions.length ? el('div', {}, [
-      el('p', { class: 'subhead' }, 'They might ask'),
-      ...card.questions.map((text) => el('p', {}, `? ${text}`)),
+    ]) : null,
+    card.bullets.length ? el('div', {}, [
+      el('p', { class: 'subhead' }, 'Resume line'),
+      ...card.bullets.map((text) => el('p', {}, `• ${text}`)),
     ]) : null,
     el('div', { class: 'actions' }, [
       btn(card.ready ? 'Ready' : 'Mark ready', {
@@ -721,48 +1025,74 @@ function prepView(job) {
           render();
         },
       }),
+      btn('Edit this requirement', {
+        class: 'btn ghost',
+        onClick: () => go({ kind: 'jobs', id: job.id, mode: 'fill', reqId: card.id }),
+      }),
     ]),
+    el('p', { class: 'tiny' }, '← → on the keyboard walks the cards.'),
     el('div', { class: 'prep-nav' }, [
-      btn('Previous', {
-        class: 'btn ghost',
-        disabled: index <= 0,
-        onClick: () => step(index - 1),
-      }),
-      btn('Next', {
-        class: 'btn ghost',
-        disabled: index >= cards.length - 1,
-        onClick: () => step(index + 1),
-      }),
+      btn('Previous', { class: 'btn ghost', disabled: index <= 0, onClick: () => step(index - 1) }),
+      btn('Next', { class: 'btn ghost', disabled: index >= cards.length - 1, onClick: () => step(index + 1) }),
     ]),
   ]));
+  wrap.dataset.prepJob = job.id;
+  wrap.dataset.prepIndex = String(index);
+  wrap.dataset.prepMax = String(cards.length - 1);
   return wrap;
 }
 
 function resumeView(job) {
-  const text = compileResumeText(job) || 'Add resume bullets on the posting first.';
+  const profile = store.profile || {};
+  const text = compileResumeText(job, store) || 'Add resume bullets on a requirement first.';
+  const html = compileResumeHtml(job, store);
   const area = el('textarea', { class: 'resume', readonly: true });
   area.value = text;
+  const stamp = (key, value) => {
+    store = updateProfile(store, { [key]: value });
+    saveStore();
+  };
   return el('section', { class: 'panel' }, [
     el('div', { class: 'panel-head' }, [
-      el('h2', {}, 'Compiled resume lines'),
+      el('h2', {}, 'Resume'),
       el('div', { class: 'actions' }, [
-        btn('Copy', {
-          class: 'btn',
-          onClick: async () => {
-            try {
-              await navigator.clipboard.writeText(text);
-              setNote('Copied.');
-            } catch {
-              area.select();
-              setNote('Select and copy.');
+        btn('Copy', { class: 'btn', onClick: () => copyText(text, 'Copied the resume.') }),
+        btn('Download .txt', {
+          class: 'btn ghost',
+          onClick: () => {
+            downloadText(`${job.title || 'resume'}.txt`, text);
+            setNote('Downloaded a text resume.');
+          },
+        }),
+        btn('Print / PDF', {
+          class: 'btn ghost',
+          onClick: () => {
+            const win = window.open('', '_blank');
+            if (!win) {
+              downloadText(`${job.title || 'resume'}.html`, html, 'text/html');
+              setNote('Download the HTML and print it.');
+              return;
             }
+            win.document.write(html);
+            win.document.close();
+            win.focus();
+            win.print();
           },
         }),
         btn('Back to posting', { class: 'btn ghost', onClick: () => go({ kind: 'jobs', id: job.id }) }),
       ]),
     ]),
     el('div', { class: 'panel-body' }, [
-      el('p', { class: 'lede' }, 'One block per requirement. Edit the bullets on the posting — this page is just the clean copy.'),
+      el('p', { class: 'lede' }, 'Optional header, then one section per requirement. Edit bullets on the posting — this is the clean copy.'),
+      el('div', { class: 'grid-2' }, [
+        field('Name', el('input', { value: profile.name, placeholder: 'Your name', onChange: (event) => stamp('name', event.target.value) })),
+        field('Email', el('input', { value: profile.email, placeholder: 'you@example.com', onChange: (event) => stamp('email', event.target.value) })),
+      ]),
+      el('div', { class: 'grid-2' }, [
+        field('Location', el('input', { value: profile.location, placeholder: 'New York, NY', onChange: (event) => stamp('location', event.target.value) })),
+        field('Skills', el('input', { value: profile.skills, placeholder: 'javascript, postgres — or leave blank to use skillsets in the book', onChange: (event) => stamp('skills', event.target.value) })),
+      ]),
+      field('Summary', el('textarea', { onChange: (event) => stamp('summary', event.target.value) }, profile.summary)),
       area,
     ]),
   ]);
@@ -772,8 +1102,8 @@ function emptyDetail(kind) {
   return el('section', { class: 'panel' }, [
     el('div', { class: 'panel-body empty' },
       kind === 'jobs'
-        ? 'Pick a posting, or start one from a pasted job description.'
-        : 'Pick a win, or add whatever you just did — ship, story, or skill.'
+        ? 'Paste a job posting. That is the first click — requirements, then bullets, then questions + STAR.'
+        : 'Paste several experiences, or pick one to fill STAR.'
     ),
   ]);
 }
@@ -793,11 +1123,11 @@ function render() {
   }
 
   let detail;
-  if (view.kind === 'log' && view.id === 'new') detail = entryForm(null);
+  if (view.kind === 'log' && view.id === 'new') detail = bulkEntryForm();
   else if (view.kind === 'log' && view.id) {
     const entry = store.entries.find((item) => item.id === view.id);
     detail = entry ? entryForm(entry) : emptyDetail('log');
-  } else if (view.kind === 'log') detail = emptyDetail('log');
+  } else if (view.kind === 'log') detail = bulkEntryForm();
   else if (view.kind === 'jobs' && view.id === 'new') detail = jobForm();
   else if (view.kind === 'jobs' && view.id && view.mode === 'prep') {
     const job = store.postings.find((item) => item.id === view.id);
@@ -805,6 +1135,9 @@ function render() {
   } else if (view.kind === 'jobs' && view.id && view.mode === 'resume') {
     const job = store.postings.find((item) => item.id === view.id);
     detail = job ? resumeView(job) : emptyDetail('jobs');
+  } else if (view.kind === 'jobs' && view.id && view.mode === 'fill') {
+    const job = store.postings.find((item) => item.id === view.id);
+    detail = job ? fillView(job, view.reqId) : emptyDetail('jobs');
   } else if (view.kind === 'jobs' && view.id) {
     const job = store.postings.find((item) => item.id === view.id);
     detail = job ? jobDetail(job) : emptyDetail('jobs');
@@ -812,8 +1145,10 @@ function render() {
 
   const next = el('div', {}, [
     toolbar(view),
-    el('div', { class: 'layout' }, [
-      view.kind === 'jobs' ? jobList(view.id) : entryList(view.id),
+    el('div', { class: view.mode === 'fill' || view.mode === 'resume' || view.mode === 'prep' ? 'layout is-wide' : 'layout' }, [
+      view.mode === 'fill' || view.mode === 'resume' || view.mode === 'prep'
+        ? null
+        : (view.kind === 'jobs' ? jobList(view.id) : entryList(view.id)),
       detail,
     ]),
   ]);
@@ -837,7 +1172,7 @@ function renderSignInGate() {
   renderBragSignIn(root, {
     art: '<img class="bb-gate-art" src="/brag-book/icon.svg" alt="" width="72" height="72">',
     title: 'Brag Book',
-    copy: 'Sign in with the same account as Packing Cubes. Your wins, postings, and cue cards stay on that account.',
+    copy: 'Sign in with the same account as Packing Cubes. Paste a posting, fill each requirement, then copy a resume and walk Prep.',
     note,
     onSuccess: () => location.reload(),
   });
@@ -925,6 +1260,44 @@ fileInput.addEventListener('change', () => {
 
 window.addEventListener('hashchange', () => {
   if (unlocked) render();
+});
+
+window.addEventListener('keydown', (event) => {
+  if (!unlocked) return;
+  if (event.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName)) return;
+  const view = currentView();
+  if (view.kind !== 'jobs' || !view.id) return;
+  const job = store.postings.find((item) => item.id === view.id);
+  if (!job) return;
+  if (view.mode === 'prep') {
+    const max = Math.max(job.requirements.length - 1, 0);
+    let index = Number(sessionStorage.getItem(prepKey(job.id)) || '0');
+    if (event.key === 'ArrowRight' || event.key === 'j') {
+      event.preventDefault();
+      sessionStorage.setItem(prepKey(job.id), String(Math.min(index + 1, max)));
+      render();
+    }
+    if (event.key === 'ArrowLeft' || event.key === 'k') {
+      event.preventDefault();
+      sessionStorage.setItem(prepKey(job.id), String(Math.max(index - 1, 0)));
+      render();
+    }
+  }
+  if (view.mode === 'fill') {
+    const list = job.requirements;
+    let index = list.findIndex((req) => req.id === view.reqId);
+    if (index < 0) index = 0;
+    if (event.key === 'ArrowRight' || event.key === 'j') {
+      event.preventDefault();
+      const next = list[Math.min(index + 1, list.length - 1)];
+      if (next) go({ kind: 'jobs', id: job.id, mode: 'fill', reqId: next.id });
+    }
+    if (event.key === 'ArrowLeft' || event.key === 'k') {
+      event.preventDefault();
+      const prev = list[Math.max(index - 1, 0)];
+      if (prev) go({ kind: 'jobs', id: job.id, mode: 'fill', reqId: prev.id });
+    }
+  }
 });
 
 window.addEventListener('pagehide', () => {
