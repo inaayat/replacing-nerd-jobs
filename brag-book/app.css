@@ -618,22 +618,72 @@ a:focus-visible {
 .table-req-text {
   border-color: transparent;
   padding: 2px 4px;
-  resize: vertical;
+  resize: none;
+  overflow: hidden;
   field-sizing: content;
   min-height: 46px;
 }
 
-.table-req-text:focus { border-color: var(--gold); }
+.table-req-text:hover { background: var(--panel); }
+.table-req-text:focus {
+  border-color: var(--gold);
+  background: #fff;
+}
 
 .table-row-tools {
   display: flex;
   align-items: center;
-  gap: 4px;
-  flex-wrap: wrap;
-  margin-top: 5px;
+  gap: 6px;
+  min-height: 24px;
+  margin-top: 3px;
+  padding: 0 3px;
 }
 
-.ready-check { display: inline-flex; align-items: center; gap: 4px; margin-right: auto; }
+.ready-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  cursor: pointer;
+}
+
+.ready-check input { margin: 0; }
+
+.req-position {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.62rem;
+}
+
+.req-actions {
+  display: inline-flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.req-action {
+  appearance: none;
+  width: 24px;
+  height: 22px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-right: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  font: 11px/1 var(--content-font);
+  cursor: pointer;
+}
+
+.req-action:last-child { border-right: 0; }
+.req-action:hover:not(:disabled) { color: var(--ink); background: var(--panel-hover); }
+.req-action.is-danger:hover:not(:disabled) { color: var(--red); }
+.req-action:disabled { opacity: 0.25; cursor: default; }
 
 .table-bullets { display: grid; gap: 6px; }
 

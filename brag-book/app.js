@@ -629,7 +629,18 @@ function pasteMore(job) {
 }
 
 function requirementTableRow(job, req, index) {
-  const requirement = el('textarea', { class: 'table-req-text', rows: '2' }, req.text);
+  const requirement = el('textarea', {
+    class: 'table-req-text',
+    rows: '2',
+    title: 'Edit requirement — saves when you leave the field',
+    onChange: (event) => {
+      const text = event.target.value.trim();
+      if (!text || text === req.text) return;
+      store = updateRequirement(store, job.id, req.id, { text });
+      saveStore();
+      setNote('Requirement saved.');
+    },
+  }, req.text);
   requirement.value = req.text;
   const bullets = el('div', { class: 'table-bullets' });
   for (const bullet of req.bullets) {
@@ -680,7 +691,7 @@ function requirementTableRow(job, req, index) {
     el('td', { class: 'requirement-cell', 'data-label': 'Requirement' }, [
       requirement,
       el('div', { class: 'table-row-tools' }, [
-        el('label', { class: 'tiny ready-check' }, [
+        el('label', { class: 'ready-check' }, [
           el('input', {
             type: 'checkbox',
             checked: req.ready,
@@ -690,30 +701,36 @@ function requirementTableRow(job, req, index) {
               render();
             },
           }),
-          ' ready',
+          'Ready',
         ]),
-        btn('Save', {
-          class: 'btn ghost',
-          onClick: () => {
-            store = updateRequirement(store, job.id, req.id, { text: requirement.value });
-            saveStore();
-            render();
-          },
-        }),
-        btn('↑', {
-          class: 'btn ghost',
-          disabled: index === 0,
-          onClick: () => { store = moveRequirement(store, job.id, req.id, -1); saveStore(); render(); },
-        }),
-        btn('↓', {
-          class: 'btn ghost',
-          disabled: index === job.requirements.length - 1,
-          onClick: () => { store = moveRequirement(store, job.id, req.id, 1); saveStore(); render(); },
-        }),
-        btn('Remove', {
-          class: 'btn danger',
-          onClick: () => { store = deleteRequirement(store, job.id, req.id); saveStore(); render(); },
-        }),
+        el('span', { class: 'req-position' }, `${index + 1}/${job.requirements.length}`),
+        el('div', { class: 'req-actions', role: 'group', 'aria-label': 'Requirement actions' }, [
+          btn('↑', {
+            class: 'req-action',
+            title: 'Move requirement up',
+            'aria-label': 'Move requirement up',
+            disabled: index === 0,
+            onClick: () => { store = moveRequirement(store, job.id, req.id, -1); saveStore(); render(); },
+          }),
+          btn('↓', {
+            class: 'req-action',
+            title: 'Move requirement down',
+            'aria-label': 'Move requirement down',
+            disabled: index === job.requirements.length - 1,
+            onClick: () => { store = moveRequirement(store, job.id, req.id, 1); saveStore(); render(); },
+          }),
+          btn('×', {
+            class: 'req-action is-danger',
+            title: 'Remove requirement',
+            'aria-label': 'Remove requirement',
+            onClick: () => {
+              if (!confirm('Remove this requirement and its resume bullets?')) return;
+              store = deleteRequirement(store, job.id, req.id);
+              saveStore();
+              render();
+            },
+          }),
+        ]),
       ]),
     ]),
     el('td', { class: 'bullets-cell', 'data-label': 'Resume bullets / experiences' }, [bullets]),
