@@ -154,6 +154,47 @@ function normalizeLines(value, clock) {
   return out;
 }
 
+export function normalizeBullet(raw, clock = Date.now) {
+  if (typeof raw === 'string') {
+    const text = asString(raw, TEXT_MAX);
+    if (!text) return null;
+    return {
+      id: newId('ln', clock),
+      text,
+      notes: '',
+      situation: '',
+      task: '',
+      action: '',
+      result: '',
+    };
+  }
+  if (!raw || typeof raw !== 'object') return null;
+  const text = asString(raw.text, TEXT_MAX);
+  if (!text) return null;
+  return {
+    id: asString(raw.id, 64) || newId('ln', clock),
+    text,
+    notes: asString(raw.notes, TEXT_MAX),
+    situation: asString(raw.situation, TEXT_MAX),
+    task: asString(raw.task, TEXT_MAX),
+    action: asString(raw.action, TEXT_MAX),
+    result: asString(raw.result, TEXT_MAX),
+  };
+}
+
+function normalizeBullets(value, clock) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  const seen = new Set();
+  for (const item of value) {
+    const bullet = normalizeBullet(item, clock);
+    if (!bullet || seen.has(bullet.id)) continue;
+    seen.add(bullet.id);
+    out.push(bullet);
+  }
+  return out;
+}
+
 export function normalizeEntry(raw, clock = Date.now) {
   if (!raw || typeof raw !== 'object') return null;
   const title = asString(raw.title, TITLE_MAX);
@@ -216,7 +257,7 @@ export function normalizeRequirement(raw, clock = Date.now) {
     ? [...new Set(raw.entryIds.map((id) => asString(id, 64)).filter(Boolean))]
     : [];
   const source = Array.isArray(raw.experiences) && raw.experiences.length ? raw.experiences : raw.bullets;
-  const bullets = normalizeLines(source, clock);
+  const bullets = normalizeBullets(source, clock);
   return {
     id: asString(raw.id, 64) || newId('rq', clock),
     text,
@@ -432,29 +473,35 @@ export function moveRequirement(store, postingId, requirementId, delta, clock = 
   return { ...store, postings: replaceById(store.postings, postingId, touched({ ...job, requirements }, clock)) };
 }
 
+function withBullets(req, bullets) {
+  return { ...req, bullets, experiences: bullets };
+}
+
 export function addBullet(store, postingId, requirementId, text, clock = Date.now) {
-  const line = normalizeLine({ text, id: newId('ln', clock) }, clock);
+  const line = normalizeBullet({ text, id: newId('ln', clock) }, clock);
   if (!line) return store;
   return mapRequirement(
     store,
     postingId,
     requirementId,
-    (req) => ({ ...req, bullets: [...req.bullets, line] }),
+    (req) => withBullets(req, [...req.bullets, line]),
     clock
   );
 }
 
-export function updateBullet(store, postingId, requirementId, bulletId, text, clock = Date.now) {
+export function updateBullet(store, postingId, requirementId, bulletId, patch, clock = Date.now) {
+  const nextPatch = typeof patch === 'string' ? { text: patch } : (patch || {});
   return mapRequirement(
     store,
     postingId,
     requirementId,
-    (req) => ({
-      ...req,
-      bullets: req.bullets.map((line) =>
-        line.id === bulletId ? { ...line, text: asString(text, TEXT_MAX) } : line
-      ).filter((line) => line.text),
-    }),
+    (req) => withBullets(
+      req,
+      req.bullets.map((line) => {
+        if (line.id !== bulletId) return line;
+        return normalizeBullet({ ...line, ...nextPatch, id: line.id }, clock) || line;
+      }).filter((line) => line.text)
+    ),
     clock
   );
 }
@@ -464,7 +511,7 @@ export function deleteBullet(store, postingId, requirementId, bulletId, clock = 
     store,
     postingId,
     requirementId,
-    (req) => ({ ...req, bullets: dropById(req.bullets, bulletId) }),
+    (req) => withBullets(req, dropById(req.bullets, bulletId)),
     clock
   );
 }
@@ -816,11 +863,23 @@ export function compilePrep(store, posting) {
       result: question.result,
       answered: questionAnswered(question),
     }));
+    const bulletDetails = (req.bullets || []).map((bullet) => ({
+      id: bullet.id,
+      text: bullet.text,
+      notes: bullet.notes,
+      fill: starFill(bullet),
+      script: starScript(bullet),
+      situation: bullet.situation,
+      task: bullet.task,
+      action: bullet.action,
+      result: bullet.result,
+    }));
     return {
       id: req.id,
       text: req.text,
       ready: Boolean(req.ready),
       bullets: (req.bullets || []).map((line) => line.text),
+      bulletDetails,
       questions,
       stories,
     };
@@ -831,14 +890,24 @@ export function prepCoverage(store, posting) {
   const cards = compilePrep(store, posting);
   const total = cards.length;
   const withBullet = cards.filter((card) => card.bullets.length).length;
-  const withStory = cards.filter((card) => card.stories.length).length;
+  const withStory = cards.filter((card) =>
+    card.stories.length || card.bulletDetails.some((bullet) => bullet.fill.filled || bullet.notes)
+  ).length;
   const withQuestion = cards.filter((card) => card.questions.length).length;
-  const withAnswer = cards.filter((card) => card.questions.some((question) => question.answered) || card.stories.some((story) => story.fill.filled)).length;
+  const withAnswer = cards.filter((card) =>
+    card.questions.some((question) => question.answered)
+    || card.stories.some((story) => story.fill.filled)
+    || card.bulletDetails.some((bullet) => bullet.fill.filled)
+  ).length;
   const ready = cards.filter((card) => card.ready).length;
   const needBullet = total - withBullet;
   const needStory = total - withStory;
   const needQuestion = total - withQuestion;
-  const needAnswer = cards.filter((card) => !card.questions.some((question) => question.answered) && !card.stories.some((story) => story.fill.filled)).length;
+  const needAnswer = cards.filter((card) =>
+    !card.questions.some((question) => question.answered)
+    && !card.stories.some((story) => story.fill.filled)
+    && !card.bulletDetails.some((bullet) => bullet.fill.filled)
+  ).length;
   const hints = [];
   if (needBullet) hints.push(`${needBullet} requirement${needBullet === 1 ? '' : 's'} need a resume bullet`);
   if (needStory) hints.push(`${needStory} need a story`);

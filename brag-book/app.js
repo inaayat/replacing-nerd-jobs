@@ -64,7 +64,6 @@ let persistTimer = null;
 let query = '';
 let kindFilter = 'all';
 let statusNote = '';
-let showAllReqs = false;
 
 function loadCached() {
   try {
@@ -276,7 +275,7 @@ function homeView() {
         return el('button', {
           type: 'button',
           class: 'plot-card',
-          onClick: () => go({ kind: 'jobs', id: job.id, mode: job.requirements.length ? 'fill' : undefined }),
+          onClick: () => go({ kind: 'jobs', id: job.id }),
         }, [
           el('span', { class: 'kicker' }, job.status),
           el('strong', {}, job.title),
@@ -534,10 +533,9 @@ function jobForm() {
       store = addPosting(store, data);
       const job = store.postings[0];
       const count = pullRequirements(job, data.sourceText);
-      const next = store.postings.find((item) => item.id === job.id);
       if (count) {
-        go({ kind: 'jobs', id: job.id, mode: 'fill', reqId: next.requirements[0]?.id });
-        setNote(`Pulled ${count} requirement${count === 1 ? '' : 's'}. Fill this one: a resume bullet, then a question + STAR.`);
+        go({ kind: 'jobs', id: job.id });
+        setNote(`Pulled ${count} requirement${count === 1 ? '' : 's'} into the table. Add resume bullets beside them.`);
       } else {
         go({ kind: 'jobs', id: job.id });
         setNote('Saved the posting. Paste the job description to pull requirement rows.');
@@ -630,74 +628,119 @@ function pasteMore(job) {
   ]);
 }
 
-function requirementRow(job, req, index) {
-  const cover = {
-    bullet: req.bullets.length,
-    question: req.questions.length,
-    answer: req.questions.some((question) => question.answer || starFill(question).filled),
-  };
-  return el('div', { class: `req-row${req.ready ? ' is-ready' : ''}` }, [
-    el('div', { class: 'req-row-main' }, [
-      el('p', {}, req.text),
-      el('p', { class: 'tiny' }, [
-        cover.bullet ? 'bullet' : 'needs a bullet',
-        cover.question ? 'question' : 'needs a question',
-        cover.answer ? 'STAR' : 'needs a STAR answer',
+function requirementTableRow(job, req, index) {
+  const requirement = el('textarea', { class: 'table-req-text', rows: '2' }, req.text);
+  requirement.value = req.text;
+  const bullets = el('div', { class: 'table-bullets' });
+  for (const bullet of req.bullets) {
+    const answered = req.questions.filter((question) => question.answer || starFill(question).filled).length;
+    bullets.append(el('button', {
+      type: 'button',
+      class: 'bullet-link',
+      onClick: () => go({
+        kind: 'jobs',
+        id: job.id,
+        mode: 'bullet',
+        reqId: req.id,
+        bulletId: bullet.id,
+      }),
+    }, [
+      el('span', { class: 'bullet-copy' }, bullet.text),
+      el('span', { class: 'bullet-meta' }, [
+        `${linkedEntries(store, req).length} experience${linkedEntries(store, req).length === 1 ? '' : 's'}`,
+        `${req.questions.length} question${req.questions.length === 1 ? '' : 's'}`,
+        answered ? `${answered} answered` : 'needs STAR',
       ].join(' · ')),
+      el('span', { class: 'bullet-open' }, 'Open →'),
+    ]));
+  }
+
+  const fresh = el('input', {
+    class: 'table-add-input',
+    placeholder: 'Add a resume bullet / experience…',
+  });
+  const add = () => {
+    if (!fresh.value.trim()) return;
+    store = addBullet(store, job.id, req.id, fresh.value);
+    saveStore();
+    render();
+    setNote('Added the bullet. Click it for experience details and interview questions.');
+  };
+  fresh.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    add();
+  });
+  bullets.append(el('div', { class: 'table-add' }, [
+    fresh,
+    btn('+ Add', { class: 'btn ghost', onClick: add }),
+  ]));
+
+  return el('tr', { class: req.ready ? 'is-ready' : '' }, [
+    el('td', { class: 'requirement-cell', 'data-label': 'Requirement' }, [
+      requirement,
+      el('div', { class: 'table-row-tools' }, [
+        el('label', { class: 'tiny ready-check' }, [
+          el('input', {
+            type: 'checkbox',
+            checked: req.ready,
+            onChange: (event) => {
+              store = updateRequirement(store, job.id, req.id, { ready: event.target.checked });
+              saveStore();
+              render();
+            },
+          }),
+          ' ready',
+        ]),
+        btn('Save', {
+          class: 'btn ghost',
+          onClick: () => {
+            store = updateRequirement(store, job.id, req.id, { text: requirement.value });
+            saveStore();
+            render();
+          },
+        }),
+        btn('↑', {
+          class: 'btn ghost',
+          disabled: index === 0,
+          onClick: () => { store = moveRequirement(store, job.id, req.id, -1); saveStore(); render(); },
+        }),
+        btn('↓', {
+          class: 'btn ghost',
+          disabled: index === job.requirements.length - 1,
+          onClick: () => { store = moveRequirement(store, job.id, req.id, 1); saveStore(); render(); },
+        }),
+        btn('Remove', {
+          class: 'btn danger',
+          onClick: () => { store = deleteRequirement(store, job.id, req.id); saveStore(); render(); },
+        }),
+      ]),
     ]),
-    el('div', { class: 'actions' }, [
-      btn('Fill', { class: 'btn', onClick: () => go({ kind: 'jobs', id: job.id, mode: 'fill', reqId: req.id }) }),
-      btn('↑', {
-        class: 'btn ghost',
-        disabled: index === 0,
-        onClick: () => { store = moveRequirement(store, job.id, req.id, -1); saveStore(); render(); },
-      }),
-      btn('↓', {
-        class: 'btn ghost',
-        disabled: index === job.requirements.length - 1,
-        onClick: () => { store = moveRequirement(store, job.id, req.id, 1); saveStore(); render(); },
-      }),
-      btn('×', {
-        class: 'btn danger',
-        onClick: () => { store = deleteRequirement(store, job.id, req.id); saveStore(); render(); },
-      }),
-    ]),
+    el('td', { class: 'bullets-cell', 'data-label': 'Resume bullets / experiences' }, [bullets]),
   ]);
 }
 
-function jobDetail(job) {
-  const wrap = el('section', { class: 'panel' });
-  wrap.append(
-    el('div', { class: 'panel-head' }, [
-      el('div', {}, [
-        el('h2', {}, job.title),
-        el('p', { class: 'tiny' }, [job.company, hostFromJobUrl(job.url), job.status].filter(Boolean).join(' · ')),
-      ]),
-      el('div', { class: 'actions' }, [
-        job.requirements.length
-          ? btn('Fill one at a time', { class: 'btn', onClick: () => go({ kind: 'jobs', id: job.id, mode: 'fill', reqId: job.requirements[0].id }) })
-          : null,
-        btn('Prep', { class: 'btn ghost', onClick: () => go({ kind: 'jobs', id: job.id, mode: 'prep' }) }),
-        btn('Resume', { class: 'btn ghost', onClick: () => go({ kind: 'jobs', id: job.id, mode: 'resume' }) }),
-      ]),
+function requirementTable(job) {
+  const table = el('table', { class: 'job-table' });
+  table.append(el('thead', {}, [
+    el('tr', {}, [
+      el('th', {}, 'Job requirement'),
+      el('th', {}, 'Resume bullets / experiences'),
     ]),
-    el('div', { class: 'panel-body' }, [
-      coverageBanner(job),
+  ]));
+  const body = el('tbody');
+  for (const [index, req] of job.requirements.entries()) {
+    body.append(requirementTableRow(job, req, index));
+  }
+  table.append(body);
+  return el('div', { class: 'job-table-wrap' }, [table]);
+}
+
+function jobDetailsDisclosure(job) {
+  return el('details', { class: 'utility-box' }, [
+    el('summary', {}, 'Job details'),
+    el('div', { class: 'utility-body' }, [
       jobMeta(job),
-      el('p', { class: 'subhead' }, 'Requirements'),
-      job.requirements.length
-        ? el('div', { class: 'req-list' }, job.requirements.map((req, index) => requirementRow(job, req, index)))
-        : el('p', { class: 'empty' }, 'Paste the posting below. Each bullet becomes a row you fill one at a time.'),
-      pasteMore(job),
-      job.requirements.length
-        ? el('div', { class: 'actions' }, [
-          btn(showAllReqs ? 'Hide full cards' : 'Power user — show full cards', {
-            class: 'btn ghost',
-            onClick: () => { showAllReqs = !showAllReqs; render(); },
-          }),
-        ])
-        : null,
-      showAllReqs ? el('div', {}, job.requirements.map((req) => requirementCard(job, req))) : null,
       el('div', { class: 'actions' }, [
         btn('Delete posting', {
           class: 'btn danger',
@@ -709,6 +752,39 @@ function jobDetail(job) {
           },
         }),
       ]),
+    ]),
+  ]);
+}
+
+function pasteMoreDisclosure(job) {
+  return el('details', { class: 'utility-box' }, [
+    el('summary', {}, '+ Paste more requirements'),
+    el('div', { class: 'utility-body' }, [pasteMore(job)]),
+  ]);
+}
+
+function jobDetail(job) {
+  const wrap = el('section', { class: 'panel job-workspace' });
+  wrap.append(
+    el('div', { class: 'panel-head' }, [
+      el('div', {}, [
+        el('h2', {}, job.title),
+        el('p', { class: 'tiny' }, [job.company, hostFromJobUrl(job.url), job.status].filter(Boolean).join(' · ')),
+      ]),
+      el('div', { class: 'actions' }, [
+        btn('Prep', { class: 'btn ghost', onClick: () => go({ kind: 'jobs', id: job.id, mode: 'prep' }) }),
+        btn('Resume', { class: 'btn', onClick: () => go({ kind: 'jobs', id: job.id, mode: 'resume' }) }),
+      ]),
+    ]),
+    el('div', { class: 'workspace-status' }, [coverageBanner(job)]),
+    job.requirements.length
+      ? requirementTable(job)
+      : el('div', { class: 'panel-body' }, [
+        el('p', { class: 'empty' }, 'Paste the posting below. Each requirement becomes one row; add resume bullets beside it.'),
+      ]),
+    el('div', { class: 'workspace-utilities' }, [
+      pasteMoreDisclosure(job),
+      jobDetailsDisclosure(job),
     ])
   );
   return wrap;
@@ -813,7 +889,7 @@ function questionEditor(job, req) {
   return box;
 }
 
-function storyBlock(job, req) {
+function storyBlock(job, req, activeBullet = null) {
   const stories = linkedEntries(store, req);
   const suggested = suggestEntries(store, req);
   const picker = el('select', {}, [
@@ -834,15 +910,28 @@ function storyBlock(job, req) {
         el('div', { class: 'row-title' }, entry.title),
         el('pre', { class: 'tiny' }, starScript(entry) || entry.notes || 'No STAR yet — open it in the book.'),
         el('div', { class: 'actions' }, [
-          btn('Use as resume bullet', {
+          btn(activeBullet ? 'Use story details' : 'Use as resume bullet', {
             class: 'btn ghost',
             onClick: () => {
-              const line = draftBulletFromEntry(entry);
-              if (!line) return;
-              store = addBullet(store, job.id, req.id, line);
+              if (activeBullet) {
+                store = updateBullet(store, job.id, req.id, activeBullet.id, {
+                  text: activeBullet.text || draftBulletFromEntry(entry),
+                  notes: entry.notes,
+                  situation: entry.situation,
+                  task: entry.task,
+                  action: entry.action,
+                  result: entry.result,
+                });
+              } else {
+                const line = draftBulletFromEntry(entry);
+                if (!line) return;
+                store = addBullet(store, job.id, req.id, line);
+              }
               saveStore();
               render();
-              setNote('Drafted a resume bullet from that story.');
+              setNote(activeBullet
+                ? 'Copied that experience into this bullet.'
+                : 'Drafted a resume bullet from that story.');
             },
           }),
           btn('Open', { class: 'btn ghost', onClick: () => go({ kind: 'log', id: entry.id }) }),
@@ -908,6 +997,93 @@ function requirementCard(job, req) {
     ])
   );
   return card;
+}
+
+function bulletDetailView(job, reqId, bulletId) {
+  const req = job.requirements.find((item) => item.id === reqId);
+  const bullet = req?.bullets.find((item) => item.id === bulletId);
+  if (!req || !bullet) {
+    return el('section', { class: 'panel detail-panel' }, [
+      el('div', { class: 'panel-body' }, [
+        el('p', { class: 'empty' }, 'That bullet is no longer here. Return to the table and pick another.'),
+        btn('Back to table', { class: 'btn', onClick: () => go({ kind: 'jobs', id: job.id }) }),
+      ]),
+    ]);
+  }
+
+  const text = el('textarea', { class: 'detail-bullet-text', rows: '3' }, bullet.text);
+  text.value = bullet.text;
+  const notes = el('textarea', {
+    placeholder: 'Context, scope, metrics, links, or the longer version of this experience.',
+    rows: '4',
+  }, bullet.notes);
+  notes.value = bullet.notes;
+  const fields = {
+    situation: el('textarea', { placeholder: 'Situation — what was going on?', rows: '3' }, bullet.situation),
+    task: el('textarea', { placeholder: 'Task — what were you responsible for?', rows: '3' }, bullet.task),
+    action: el('textarea', { placeholder: 'Action — what did you do?', rows: '3' }, bullet.action),
+    result: el('textarea', { placeholder: 'Result — what changed? Add numbers when you can.', rows: '3' }, bullet.result),
+  };
+  const save = () => {
+    store = updateBullet(store, job.id, req.id, bullet.id, {
+      text: text.value,
+      notes: notes.value,
+      situation: fields.situation.value,
+      task: fields.task.value,
+      action: fields.action.value,
+      result: fields.result.value,
+    });
+    saveStore();
+    render();
+    setNote('Saved the experience details.');
+  };
+
+  return el('section', { class: 'panel detail-panel' }, [
+    el('div', { class: 'panel-head' }, [
+      el('div', {}, [
+        el('p', { class: 'kicker' }, 'Resume bullet / experience'),
+        el('h2', {}, req.text),
+      ]),
+      el('div', { class: 'actions' }, [
+        btn('← Table', { class: 'btn ghost', onClick: () => go({ kind: 'jobs', id: job.id }) }),
+        btn('Save', { class: 'btn', onClick: save }),
+      ]),
+    ]),
+    el('div', { class: 'panel-body bullet-detail-grid' }, [
+      el('div', { class: 'detail-column' }, [
+        el('section', { class: 'section-box' }, [
+          el('h3', {}, 'Resume bullet'),
+          el('p', { class: 'tiny' }, 'This is the concise line shown in the table and exported to Resume.'),
+          text,
+        ]),
+        el('section', { class: 'section-box' }, [
+          el('h3', {}, 'Experience details'),
+          el('p', { class: 'tiny' }, 'Keep the longer context here; it does not appear on the resume.'),
+          notes,
+          el('div', { class: 'star detail-star' }, [
+            ...['situation', 'task', 'action', 'result'].map((key) =>
+              el('label', { class: 'star-card' }, [
+                el('b', {}, key),
+                fields[key],
+              ])
+            ),
+          ]),
+        ]),
+        el('section', { class: 'section-box' }, [
+          el('h3', {}, 'Experience from the book'),
+          el('p', { class: 'tiny' }, 'Optional: pin an existing win, then copy its details into this bullet.'),
+          storyBlock(job, req, bullet),
+        ]),
+      ]),
+      el('div', { class: 'detail-column' }, [
+        el('section', { class: 'section-box questions-box' }, [
+          el('h3', {}, 'Potential interview questions'),
+          el('p', { class: 'tiny' }, 'Questions are shared by the requirement. Each question keeps its own answer / STAR.'),
+          questionEditor(job, req),
+        ]),
+      ]),
+    ]),
+  ]);
 }
 
 function fillView(job, reqId) {
@@ -994,6 +1170,15 @@ function prepView(job) {
           : el('p', { class: 'tiny' }, 'No STAR answer yet. Jump back and write one on this question.'),
       ])),
     ]) : el('p', { class: 'empty' }, 'No question on this requirement yet. Add one, then come back.'),
+    card.bulletDetails.some((bullet) => bullet.script || bullet.notes) ? el('div', {}, [
+      el('p', { class: 'subhead' }, 'Experience details'),
+      ...card.bulletDetails
+        .filter((bullet) => bullet.script || bullet.notes)
+        .map((bullet) => el('div', { class: 'story' }, [
+          el('div', { class: 'row-title' }, bullet.text),
+          el('pre', { class: 'tiny' }, bullet.script || bullet.notes),
+        ])),
+    ]) : null,
     card.stories.length ? el('div', {}, [
       el('p', { class: 'subhead' }, 'From the book'),
       ...card.stories.map((story) => el('div', { class: 'story' }, [
@@ -1124,6 +1309,9 @@ function render() {
   } else if (view.kind === 'jobs' && view.id && view.mode === 'resume') {
     const job = store.postings.find((item) => item.id === view.id);
     detail = job ? resumeView(job) : emptyDetail('jobs');
+  } else if (view.kind === 'jobs' && view.id && view.mode === 'bullet') {
+    const job = store.postings.find((item) => item.id === view.id);
+    detail = job ? bulletDetailView(job, view.reqId, view.bulletId) : emptyDetail('jobs');
   } else if (view.kind === 'jobs' && view.id && view.mode === 'fill') {
     const job = store.postings.find((item) => item.id === view.id);
     detail = job ? fillView(job, view.reqId) : emptyDetail('jobs');
@@ -1132,7 +1320,7 @@ function render() {
     detail = job ? jobDetail(job) : emptyDetail('jobs');
   } else detail = emptyDetail('jobs');
 
-  const hideRail = (view.kind === 'jobs' && (view.id === 'new' || view.mode || !store.postings.length))
+  const hideRail = (view.kind === 'jobs' && (Boolean(view.id) || !store.postings.length))
     || (view.kind === 'log' && (view.id === 'new' || !store.entries.length));
   const next = el('div', {}, [
     toolbar(view),
@@ -1161,7 +1349,7 @@ function renderSignInGate() {
   renderBragSignIn(root, {
     art: '<img class="bb-gate-art" src="/brag-book/icon.svg" alt="" width="72" height="72">',
     title: 'Brag Book',
-    copy: 'Sign in with the same account as Packing Cubes. Paste a posting, fill each requirement, then copy a resume and walk Prep.',
+    copy: 'Sign in with the same account as Packing Cubes. Compare requirements and resume bullets in one table; open a bullet for STAR and questions.',
     note,
     onSuccess: () => location.reload(),
   });

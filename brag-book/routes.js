@@ -17,6 +17,12 @@ export function viewHash(view) {
     if (view.id === 'new') return '#jobs/new';
     if (view.id && view.mode === 'prep') return `#jobs/${encodeURIComponent(view.id)}/prep`;
     if (view.id && view.mode === 'resume') return `#jobs/${encodeURIComponent(view.id)}/resume`;
+    if (view.id && view.mode === 'bullet') {
+      const base = `#jobs/${encodeURIComponent(view.id)}/bullet`;
+      if (!view.reqId) return base;
+      const req = `${base}/${encodeURIComponent(view.reqId)}`;
+      return view.bulletId ? `${req}/${encodeURIComponent(view.bulletId)}` : req;
+    }
     if (view.id && view.mode === 'fill') {
       const base = `#jobs/${encodeURIComponent(view.id)}/fill`;
       return view.reqId ? `${base}/${encodeURIComponent(view.reqId)}` : base;
@@ -41,11 +47,18 @@ export function parseViewHash(raw, { entryIds = [], postingIds = [] } = {}) {
   if (hash === 'jobs/new') return { kind: 'jobs', id: 'new' };
   if (hash.startsWith('jobs/')) {
     const rest = hash.slice(5);
-    const [rawId, mode, rawReq] = rest.split('/');
+    const [rawId, mode, rawReq, rawBullet] = rest.split('/');
     const id = decodeURIComponent(rawId || '');
     if (id === 'new') return { kind: 'jobs', id: 'new' };
     if (!postingIds.includes(id)) return { kind: 'jobs' };
     if (mode === 'prep' || mode === 'resume') return { kind: 'jobs', id, mode };
+    if (mode === 'bullet') {
+      const reqId = rawReq ? decodeURIComponent(rawReq) : '';
+      const bulletId = rawBullet ? decodeURIComponent(rawBullet) : '';
+      if (reqId && bulletId) return { kind: 'jobs', id, mode: 'bullet', reqId, bulletId };
+      if (reqId) return { kind: 'jobs', id, mode: 'bullet', reqId };
+      return { kind: 'jobs', id };
+    }
     if (mode === 'fill') {
       const reqId = rawReq ? decodeURIComponent(rawReq) : '';
       return reqId ? { kind: 'jobs', id, mode: 'fill', reqId } : { kind: 'jobs', id, mode: 'fill' };
@@ -69,6 +82,7 @@ export function viewTitle(view, store) {
     const name = job?.title || 'Posting';
     if (view.mode === 'prep') return `Prep · ${name}`;
     if (view.mode === 'resume') return `Resume · ${name}`;
+    if (view.mode === 'bullet') return `Experience · ${name}`;
     if (view.mode === 'fill') return `Fill · ${name}`;
     return name;
   }

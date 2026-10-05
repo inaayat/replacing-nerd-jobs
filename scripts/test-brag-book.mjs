@@ -7,6 +7,7 @@ import {
   emptyStore,
   normalizeStore,
   normalizeEntry,
+  normalizeBullet,
   addEntry,
   addEntries,
   updateEntry,
@@ -166,6 +167,20 @@ assert.equal(suggestions[0].title, 'World in NYC ED join');
 assert.ok(scoreEntry(suggestions[0], gisReq.text) > 0);
 
 store = updateBullet(store, jobId, req0.id, postingById(store, jobId).requirements[0].bullets[0].id, 'Static files plus a Hobby-plan function budget.', clock);
+const bulletId = postingById(store, jobId).requirements[0].bullets[0].id;
+store = updateBullet(store, jobId, req0.id, bulletId, {
+  notes: 'The longer version stays out of the resume.',
+  situation: 'The function limit was close.',
+  task: 'Ship another app.',
+  action: 'Kept the browser engine dependency-free.',
+  result: 'Shipped without another function.',
+}, clock);
+assert.equal(postingById(store, jobId).requirements[0].bullets[0].notes, 'The longer version stays out of the resume.');
+assert.equal(starFill(postingById(store, jobId).requirements[0].bullets[0]).ready, true);
+const reloadedBullet = normalizeStore(JSON.parse(JSON.stringify(store)), clock)
+  .postings[0].requirements[0].bullets[0];
+assert.equal(reloadedBullet.notes, 'The longer version stays out of the resume.');
+assert.equal(reloadedBullet.result, 'Shipped without another function.');
 store = updateRequirement(store, jobId, req0.id, { ready: true }, clock);
 
 const compiled = compileResume(postingById(store, jobId), store);
@@ -204,6 +219,8 @@ const fromStrings = normalizeStore({
 assert.equal(fromStrings.postings[0].requirements[0].questions[0].text, 'Tell me about SQL');
 assert.equal(fromStrings.postings[0].requirements[0].questions[0].answer, '');
 assert.equal(fromStrings.postings[0].requirements[0].experiences[0].text, 'Wrote the join');
+assert.equal(fromStrings.postings[0].requirements[0].bullets[0].notes, '');
+assert.equal(normalizeBullet('Legacy line', clock).text, 'Legacy line');
 
 const pasted = parseExperiences(`
 - Shipped packing cubes sync
@@ -221,6 +238,8 @@ assert.ok(postingById(store, jobId).requirements.findIndex((req) => req.id === g
 
 const prep = compilePrep(store, postingById(store, jobId));
 assert.equal(prep[0].stories[0].title, 'Shipped packing cubes sync');
+assert.equal(prep[0].bulletDetails[0].notes, 'The longer version stays out of the resume.');
+assert.equal(prep[0].bulletDetails[0].fill.ready, true);
 assert.equal(prep[0].questions.length, 1);
 assert.equal(prep[0].questions[0].answered, true);
 assert.match(prep[0].questions[0].script, /Situation:/);
@@ -269,6 +288,17 @@ assert.equal(viewHash({ kind: 'home' }), '#home');
 assert.equal(viewHash({ kind: 'log' }), '#log');
 assert.equal(viewHash({ kind: 'jobs', id: 'job_1', mode: 'prep' }), '#jobs/job_1/prep');
 assert.equal(viewHash({ kind: 'jobs', id: 'job_1', mode: 'fill', reqId: 'rq_1' }), '#jobs/job_1/fill/rq_1');
+assert.equal(
+  viewHash({ kind: 'jobs', id: 'job_1', mode: 'bullet', reqId: 'rq_1', bulletId: 'ln_1' }),
+  '#jobs/job_1/bullet/rq_1/ln_1'
+);
+assert.deepEqual(parseViewHash('#jobs/job_1/bullet/rq_1/ln_1', { postingIds: ['job_1'] }), {
+  kind: 'jobs',
+  id: 'job_1',
+  mode: 'bullet',
+  reqId: 'rq_1',
+  bulletId: 'ln_1',
+});
 assert.deepEqual(parseViewHash('#jobs/job_1/fill/rq_1', { postingIds: ['job_1'] }), {
   kind: 'jobs',
   id: 'job_1',
@@ -287,6 +317,7 @@ assert.deepEqual(parseViewHash('#jobs/nope', { postingIds: ['job_1'] }), { kind:
 assert.deepEqual(parseViewHash('#log/en_1', { entryIds: ['en_1'] }), { kind: 'log', id: 'en_1' });
 assert.equal(viewTitle({ kind: 'home' }), 'Brag Book');
 assert.equal(viewTitle({ kind: 'jobs', id: 'job_1', mode: 'prep' }, { postings: [{ id: 'job_1', title: 'PM' }] }), 'Prep · PM');
+assert.equal(viewTitle({ kind: 'jobs', id: 'job_1', mode: 'bullet' }, { postings: [{ id: 'job_1', title: 'PM' }] }), 'Experience · PM');
 
 // ids stay unique even when the clock is pinned
 const a = addEntry(emptyStore(), { title: 'One' }, clock, random);

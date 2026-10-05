@@ -186,9 +186,10 @@ human-readable filing; calculated values fall back to the filing viewer.
 ### Brag Book — `/brag-book`
 
 Interview prep on the same Neon Auth account as Packing Cubes. Currently
-**beta**. **New job posting** is the main path: paste a description, review the
-extracted requirements, then fill one at a time (resume bullet, optional story
-from the book, potential question + STAR answer). **Resume** adds an optional
+**beta**. **New job posting** is the main path: paste a description, then use
+one compact table with requirements on the left and resume bullets / experiences
+on the right. Clicking a bullet opens its longer notes, STAR fields, optional
+book story, and potential questions + answers. **Resume** adds an optional
 name/summary/skills header, copies, and downloads text or a print-friendly
 page. **Prep** walks question + STAR with keyboard next/prev. The running book
 is a side door — paste several experiences at once. The posting link is kept
