@@ -185,13 +185,13 @@ human-readable filing; calculated values fall back to the filing viewer.
 
 ### Brag Book — `/brag-book`
 
-Interview prep plus a running **brag sheet**, on the same Neon Auth account as
-Packing Cubes. The home screen is two ways in — **the book** (log a win) or
-**New job posting** (a draft table). Paste the job description; each bullet
-becomes a row. On a row, add experiences, potential questions, and STAR
-responses. The posting link is kept for later — nothing is fetched yet.
-**Prep** walks the cue cards; **Resume** copies the compiled experience lines.
-The page is styled after
+Interview prep on the same Neon Auth account as Packing Cubes. Currently
+**beta** — **New job posting** is the main path (a draft table). Paste the job
+description; each bullet becomes a row. On a row, add experiences, potential
+questions, and STAR responses. The running book is a side door: paste several
+experiences at once (one line, or a STAR block, per win). The posting link is
+kept for later — nothing is fetched yet. **Prep** walks the cue cards;
+**Resume** copies the compiled experience lines. The page is styled after
 [Plotmaniac](https://plotmaniac.com/) (same type and rules, flipped to black
 on white, full page width).
 

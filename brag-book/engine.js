@@ -280,6 +280,73 @@ export function addEntry(store, draft, clock = Date.now) {
   return { ...store, entries: [entry, ...store.entries] };
 }
 
+export function addEntries(store, drafts, clock = Date.now) {
+  let next = store;
+  // addEntry prepends, so walk last-to-first and keep paste order on top.
+  for (const draft of [...(drafts || [])].reverse()) next = addEntry(next, draft, clock);
+  return next;
+}
+
+const STAR_FIELD_RE = /^(title|situation|task|action|result|notes|when|tags|kind)\s*:\s*(.*)$/im;
+
+function uniqueDrafts(drafts) {
+  const seen = new Set();
+  const out = [];
+  for (const draft of drafts) {
+    const title = asString(draft?.title, TITLE_MAX);
+    if (!title) continue;
+    const key = title.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ ...draft, title });
+  }
+  return out;
+}
+
+function starBlockToDraft(chunk) {
+  const draft = { kind: 'experience' };
+  const leftover = [];
+  for (const rawLine of String(chunk || '').split('\n')) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    const match = line.match(STAR_FIELD_RE);
+    if (match) {
+      draft[match[1].toLowerCase()] = match[2];
+      continue;
+    }
+    const cleaned = stripBullet(line);
+    if (cleaned && !isRequirementHeader(cleaned)) leftover.push(cleaned);
+  }
+  if (!draft.title) draft.title = leftover[0] || asString(draft.situation, TITLE_MAX) || asString(draft.notes, TITLE_MAX);
+  if (!draft.notes && leftover.length) {
+    draft.notes = (leftover[0] === draft.title ? leftover.slice(1) : leftover).join('\n');
+  }
+  return draft.title ? draft : null;
+}
+
+export function parseExperiences(text) {
+  const raw = String(text || '').replace(/\r\n/g, '\n').trim();
+  if (!raw) return [];
+  if (STAR_FIELD_RE.test(raw)) {
+    return uniqueDrafts(raw.split(/\n{2,}/).map(starBlockToDraft).filter(Boolean));
+  }
+  const blocks = raw.split(/\n{2,}/).map((block) => block.trim()).filter(Boolean);
+  if (blocks.length >= 2) {
+    return uniqueDrafts(blocks.map((block) => {
+      const lines = block.split('\n').map(stripBullet).filter((line) => line && !isRequirementHeader(line));
+      if (!lines.length) return null;
+      return { title: lines[0], notes: lines.slice(1).join('\n'), kind: 'experience' };
+    }).filter(Boolean));
+  }
+  const lines = [];
+  for (const line of raw.split('\n')) {
+    const cleaned = stripBullet(line);
+    if (!cleaned || isRequirementHeader(cleaned)) continue;
+    lines.push({ title: cleaned, kind: 'experience' });
+  }
+  return uniqueDrafts(lines);
+}
+
 export function updateEntry(store, id, patch, clock = Date.now) {
   const current = entryById(store, id);
   if (!current) return store;

@@ -5,6 +5,7 @@ import {
   emptyStore,
   normalizeStore,
   addEntry,
+  addEntries,
   updateEntry,
   deleteEntry,
   updatePosting,
@@ -26,6 +27,7 @@ import {
   linkEntry,
   unlinkEntry,
   parseRequirements,
+  parseExperiences,
   searchEntries,
   suggestEntries,
   linkedEntries,
@@ -196,18 +198,18 @@ function toolbar(view) {
   if (view.kind === 'home') return homeHero();
   return el('header', { class: 'hero' }, [
     el('button', { type: 'button', class: 'btn ghost', onClick: () => go({ kind: 'home' }) }, '← Start'),
-    el('p', { class: 'kicker' }, view.kind === 'jobs' ? 'Start from a posting' : 'Start from the book'),
+    el('p', { class: 'kicker' }, view.kind === 'jobs' ? 'Job posting' : 'The book · beta'),
     el('div', { class: 'hero-row' }, [
       el('div', {}, [
         el('h1', {}, viewTitle(view, store)),
         el('p', { class: 'lede' },
           view.kind === 'jobs'
             ? 'Paste the posting. Each bullet becomes a row. Add experiences, potential questions, and STAR responses per requirement.'
-            : 'Collect wins while you work. Later, pin them to a job when you are writing a resume or prepping an interview.'
+            : 'Paste several experiences at once. Open one later if you want to fill STAR. The book is beta — job postings are the main path.'
         ),
       ]),
       el('div', { class: 'actions' }, [
-        btn(view.kind === 'jobs' ? 'New job posting' : 'New win', {
+        btn(view.kind === 'jobs' ? 'New job posting' : 'Add experiences', {
           class: 'btn',
           onClick: () => go(view.kind === 'jobs' ? { kind: 'jobs', id: 'new' } : { kind: 'log', id: 'new' }),
         }),
@@ -222,10 +224,10 @@ function toolbar(view) {
 
 function homeHero() {
   return el('header', { class: 'hero is-home' }, [
-    el('p', { class: 'eyebrow' }, 'Two ways in'),
+    el('p', { class: 'eyebrow' }, [el('span', { class: 'beta-pill' }, 'beta'), ' Job posting first']),
     el('h1', { class: 'mast-title' }, 'Brag Book'),
     markSvg(),
-    el('p', { class: 'lede' }, 'Collect wins as you work, or start from a job posting and pull stories from the book when you need them.'),
+    el('p', { class: 'lede' }, 'Start from a job posting. Paste the requirements into a table, then add experiences, questions, and STAR responses on each row. The running book is beta.'),
     countRow(),
     statusNote ? el('p', { class: 'status', id: 'status-note' }, statusNote) : el('p', { class: 'status', id: 'status-note' }, ''),
   ]);
@@ -236,44 +238,30 @@ function homeView() {
   const recentWins = store.entries.slice(0, 4);
   const recentJobs = store.postings.slice(0, 4);
   return el('div', {}, [
-    el('div', { class: 'start-grid' }, [
+    el('div', { class: 'start-grid is-focus' }, [
       el('button', {
         type: 'button',
-        class: 'start-card',
-        onClick: () => go({ kind: 'log', id: store.entries.length ? undefined : 'new' }),
-      }, [
-        el('span', { class: 'kicker' }, 'The book'),
-        el('strong', {}, 'Log a win'),
-        el('p', {}, summary.entries
-          ? `${summary.entries} already in the book. Add another STAR story, project, or skillset.`
-          : 'Start the running log: a meeting, a ship, a skill you just learned.'),
-      ]),
-      el('button', {
-        type: 'button',
-        class: 'start-card',
+        class: 'start-card is-primary',
         onClick: () => go({ kind: 'jobs', id: 'new' }),
       }, [
-        el('span', { class: 'kicker' }, 'A posting'),
+        el('span', { class: 'kicker' }, 'The main path'),
         el('strong', {}, 'New job posting'),
         el('p', {}, summary.postings
           ? `${summary.postings} posting${summary.postings === 1 ? '' : 's'} on file. Open the table, or start another.`
           : 'Paste the requirements. Each bullet is a row — add experiences, questions, and STAR responses.'),
       ]),
+      el('button', {
+        type: 'button',
+        class: 'start-card is-beta',
+        onClick: () => go({ kind: 'log', id: 'new' }),
+      }, [
+        el('span', { class: 'kicker' }, [el('span', { class: 'beta-pill' }, 'beta'), ' The book']),
+        el('strong', {}, 'Add experiences'),
+        el('p', {}, summary.entries
+          ? `${summary.entries} already in the book. Paste more in one go — not one by one.`
+          : 'Paste several wins at once. One line (or a STAR block) per experience.'),
+      ]),
     ]),
-    recentWins.length ? el('section', { class: 'recent' }, [
-      el('h2', {}, 'Recent in the book'),
-      el('div', { class: 'plot-cards' }, recentWins.map((entry) =>
-        el('button', {
-          type: 'button',
-          class: 'plot-card',
-          onClick: () => go({ kind: 'log', id: entry.id }),
-        }, [
-          el('span', { class: 'kicker' }, kindLabel(entry.kind)),
-          el('strong', {}, entry.title),
-          el('p', {}, [entry.when, starFill(entry).ready ? 'STAR ready' : entry.tags.slice(0, 3).join(' · ')].filter(Boolean).join(' · ') || 'Open to fill in STAR'),
-        ])
-      )),
-    ]) : null,
     recentJobs.length ? el('section', { class: 'recent' }, [
       el('h2', {}, 'Recent postings'),
       el('div', { class: 'plot-cards' }, recentJobs.map((job) => {
@@ -288,6 +276,20 @@ function homeView() {
           el('p', {}, [job.company, hostFromJobUrl(job.url), `${cover.ready}/${cover.total || 0} ready`].filter(Boolean).join(' · ')),
         ]);
       })),
+    ]) : null,
+    recentWins.length ? el('section', { class: 'recent' }, [
+      el('h2', {}, 'Recent in the book'),
+      el('div', { class: 'plot-cards' }, recentWins.map((entry) =>
+        el('button', {
+          type: 'button',
+          class: 'plot-card',
+          onClick: () => go({ kind: 'log', id: entry.id }),
+        }, [
+          el('span', { class: 'kicker' }, kindLabel(entry.kind)),
+          el('strong', {}, entry.title),
+          el('p', {}, [entry.when, starFill(entry).ready ? 'STAR ready' : entry.tags.slice(0, 3).join(' · ')].filter(Boolean).join(' · ') || 'Open to fill in STAR'),
+        ])
+      )),
     ]) : null,
     el('div', { class: 'actions' }, [
       btn('Export', { class: 'btn ghost', onClick: exportStore }),
@@ -333,7 +335,7 @@ function entryList(selectedId) {
           entry.tags.length ? el('div', { class: 'tags' }, entry.tags.map((tag) => el('span', { class: 'tag' }, tag))) : null,
         ])
       ))
-      : el('p', { class: 'empty' }, query ? 'Nothing in the book matches that.' : 'No wins yet. Add one after a good meeting, a ship, or a skill you just learned.'),
+      : el('p', { class: 'empty' }, query ? 'Nothing in the book matches that.' : 'No experiences yet. Paste several at once — one line, or a STAR block, per win.'),
   ]);
 }
 
@@ -356,6 +358,47 @@ function jobList(selectedId) {
         ]);
       }))
       : el('p', { class: 'empty' }, 'No postings yet. Start a new job posting and paste the requirements.'),
+  ]);
+}
+
+function bulkEntryForm() {
+  const paste = el('textarea', {
+    class: 'tall',
+    placeholder: 'One experience per line, or a blank line between blocks.\n\n- Shipped packing cubes sync\n- Hobby-plan function budget\n\nOr a STAR block:\nTitle: Shipped packing cubes\nSituation: Suitcases were local-only.\nTask: Sync private cubes.\nAction: Wrote a multiplexed router.\nResult: Trips survive a new phone.',
+  });
+  const kind = el('select', { name: 'kind' }, ENTRY_KINDS.map((value) =>
+    el('option', { value, selected: value === 'experience' || undefined }, kindLabel(value))
+  ));
+  return el('section', { class: 'panel' }, [
+    el('div', { class: 'panel-head' }, [
+      el('div', {}, [
+        el('h2', {}, 'Add experiences'),
+        el('p', { class: 'tiny' }, 'Beta — paste many at once. Open one later to fill STAR.'),
+      ]),
+      el('span', { class: 'beta-pill' }, 'beta'),
+    ]),
+    el('div', { class: 'panel-body' }, [
+      el('p', { class: 'lede' }, 'Dump the list from a resume, a review doc, or notes. Each line (or blank-line block) becomes a win. Job postings can pin these later.'),
+      field('Kind for this paste', kind),
+      field('Paste experiences', paste),
+      el('div', { class: 'actions' }, [
+        btn('Add to the book', {
+          class: 'btn',
+          onClick: () => {
+            const drafts = parseExperiences(paste.value).map((draft) => ({ ...draft, kind: kind.value }));
+            if (!drafts.length) {
+              setNote('Paste at least one experience — one per line, or a STAR block.');
+              return;
+            }
+            store = addEntries(store, drafts);
+            saveStore();
+            go({ kind: 'log' });
+            setNote(`Added ${drafts.length} experience${drafts.length === 1 ? '' : 's'} to the book.`);
+          },
+        }),
+        btn('Cancel', { class: 'btn ghost', onClick: () => go({ kind: 'log' }) }),
+      ]),
+    ]),
   ]);
 }
 
@@ -885,7 +928,7 @@ function emptyDetail(kind) {
     el('div', { class: 'panel-body empty' },
       kind === 'jobs'
         ? 'Pick a posting, or start a new job posting and paste the requirements into the table.'
-        : 'Pick a win, or add whatever you just did — ship, story, or skill.'
+        : 'Pick a win, or paste several experiences at once.'
     ),
   ]);
 }
@@ -905,11 +948,11 @@ function render() {
   }
 
   let detail;
-  if (view.kind === 'log' && view.id === 'new') detail = entryForm(null);
+  if (view.kind === 'log' && view.id === 'new') detail = bulkEntryForm();
   else if (view.kind === 'log' && view.id) {
     const entry = store.entries.find((item) => item.id === view.id);
     detail = entry ? entryForm(entry) : emptyDetail('log');
-  } else if (view.kind === 'log') detail = emptyDetail('log');
+  } else if (view.kind === 'log') detail = bulkEntryForm();
   else if (view.kind === 'jobs' && view.id === 'new') {
     const job = startNewPosting();
     view = { kind: 'jobs', id: job.id };
@@ -956,7 +999,7 @@ function renderSignInGate() {
   renderBragSignIn(root, {
     art: '<img class="bb-gate-art" src="/brag-book/icon.svg" alt="" width="72" height="72">',
     title: 'Brag Book',
-    copy: 'Sign in with the same account as Packing Cubes. Your wins, postings, and cue cards stay on that account.',
+    copy: 'Sign in with the same account as Packing Cubes. Job postings are the main path; the running book is beta.',
     note,
     onSuccess: () => location.reload(),
   });

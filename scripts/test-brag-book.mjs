@@ -8,6 +8,7 @@ import {
   normalizeStore,
   normalizeEntry,
   addEntry,
+  addEntries,
   updateEntry,
   deleteEntry,
   addPosting,
@@ -32,6 +33,7 @@ import {
   linkEntry,
   unlinkEntry,
   parseRequirements,
+  parseExperiences,
   stripBullet,
   isRequirementHeader,
   tokenize,
@@ -259,6 +261,49 @@ assert.deepEqual(parseViewHash('#jobs/nope', { postingIds: ['job_1'] }), { kind:
 assert.deepEqual(parseViewHash('#log/en_1', { entryIds: ['en_1'] }), { kind: 'log', id: 'en_1' });
 assert.equal(viewTitle({ kind: 'home' }), 'Brag Book');
 assert.equal(viewTitle({ kind: 'jobs', id: 'new' }), 'New job posting');
+assert.equal(viewTitle({ kind: 'log', id: 'new' }), 'Add experiences');
+
+const pasted = parseExperiences(`
+- Shipped packing cubes sync
+- Hobby-plan function budget
+- World in NYC ED join
+`);
+assert.deepEqual(pasted.map((item) => item.title), [
+  'Shipped packing cubes sync',
+  'Hobby-plan function budget',
+  'World in NYC ED join',
+]);
+
+const blocks = parseExperiences(`
+Shipped packing cubes sync
+Suitcases were local-only.
+
+Hobby-plan function budget
+Prefer ?route= branches.
+`);
+assert.equal(blocks[0].notes, 'Suitcases were local-only.');
+assert.equal(blocks[1].title, 'Hobby-plan function budget');
+
+const stars = parseExperiences(`
+Title: Multiplexed the API
+Situation: Twelve functions already used.
+Task: Add another signed-in app.
+Action: Branched ?route= on the existing handler.
+Result: Stayed on Hobby.
+
+GIS join
+Situation: Neighborhood blobs were too coarse.
+`);
+assert.equal(stars[0].title, 'Multiplexed the API');
+assert.equal(stars[0].result, 'Stayed on Hobby.');
+assert.equal(stars[1].title, 'GIS join');
+assert.equal(stars[1].situation, 'Neighborhood blobs were too coarse.');
+assert.deepEqual(parseExperiences(''), []);
+
+let many = addEntries(emptyStore(), pasted, clock);
+assert.equal(many.entries.length, 3);
+assert.equal(many.entries[0].title, 'Shipped packing cubes sync');
+assert.equal(many.entries[2].title, 'World in NYC ED join');
 assert.equal(viewTitle({ kind: 'jobs', id: 'job_1', mode: 'prep' }, { postings: [{ id: 'job_1', title: 'PM' }] }), 'Prep · PM');
 
 // ids stay unique even when the clock is pinned

@@ -49,7 +49,7 @@ export function parseViewHash(raw, { entryIds = [], postingIds = [] } = {}) {
 
 export function viewTitle(view, store) {
   if (!view || view.kind === 'home') return 'Brag Book';
-  if (view.kind === 'log' && view.id === 'new') return 'New win';
+  if (view.kind === 'log' && view.id === 'new') return 'Add experiences';
   if (view.kind === 'log' && view.id) {
     const entry = (store?.entries || []).find((item) => item.id === view.id);
     return entry?.title || 'Win';
