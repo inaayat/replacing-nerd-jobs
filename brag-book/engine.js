@@ -1,13 +1,15 @@
 /**
  * Brag Book document model. Browser-safe ESM — no node: imports.
  *
- * One local store: a running win log (`entries`) plus job postings that pin
- * resume bullets, STAR stories, and practice questions onto each requirement.
+ * One local store: a running win log (`entries`) plus job postings. Each
+ * posting is a table of requirements; a row holds experiences, potential
+ * questions, and STAR responses. Linked book entries stay optional.
  */
 
 export const SCHEMA = 1;
 export const STORE_KEY = 'brag-book-store-v1';
 export const BOOK_MAX_CHARS = 1_500_000;
+export const NEW_POSTING_TITLE = 'New job posting';
 
 export const ENTRY_KINDS = ['experience', 'project', 'skillset'];
 export const POSTING_STATUSES = ['draft', 'prepping', 'applied', 'archived'];
@@ -147,6 +149,34 @@ export function normalizeEntry(raw, clock = Date.now) {
   };
 }
 
+export function normalizeStarResponse(raw, clock = Date.now) {
+  if (!raw || typeof raw !== 'object') return null;
+  const id = asString(raw.id, 64);
+  const next = {
+    id: id || newId('st', clock),
+    title: asString(raw.title, TITLE_MAX),
+    situation: asString(raw.situation, TEXT_MAX),
+    task: asString(raw.task, TEXT_MAX),
+    action: asString(raw.action, TEXT_MAX),
+    result: asString(raw.result, TEXT_MAX),
+  };
+  if (!id && !next.title && !next.situation && !next.task && !next.action && !next.result) return null;
+  return next;
+}
+
+function normalizeResponses(value, clock) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  const seen = new Set();
+  for (const item of value) {
+    const star = normalizeStarResponse(item, clock);
+    if (!star || seen.has(star.id)) continue;
+    seen.add(star.id);
+    out.push(star);
+  }
+  return out;
+}
+
 export function normalizeRequirement(raw, clock = Date.now) {
   if (!raw || typeof raw !== 'object') return null;
   const text = asString(raw.text, TEXT_MAX);
@@ -154,11 +184,15 @@ export function normalizeRequirement(raw, clock = Date.now) {
   const entryIds = Array.isArray(raw.entryIds)
     ? [...new Set(raw.entryIds.map((id) => asString(id, 64)).filter(Boolean))]
     : [];
+  const source = Array.isArray(raw.experiences) && raw.experiences.length ? raw.experiences : raw.bullets;
+  const experiences = normalizeLines(source, clock);
   return {
     id: asString(raw.id, 64) || newId('rq', clock),
     text,
-    bullets: normalizeLines(raw.bullets, clock),
+    experiences,
+    bullets: experiences,
     questions: normalizeLines(raw.questions, clock),
+    responses: normalizeResponses(raw.responses, clock),
     entryIds,
     ready: Boolean(raw.ready),
   };
@@ -278,6 +312,24 @@ export function addPosting(store, draft, clock = Date.now) {
   return { ...store, postings: [posting, ...store.postings] };
 }
 
+export function isBlankPosting(job) {
+  return Boolean(
+    job &&
+    !job.company &&
+    !job.url &&
+    !job.sourceText &&
+    !(job.requirements || []).length &&
+    (!job.title || job.title === NEW_POSTING_TITLE)
+  );
+}
+
+export function openNewPosting(store, clock = Date.now) {
+  const existing = (store?.postings || []).find(isBlankPosting);
+  if (existing) return { store, posting: existing, created: false };
+  const next = addPosting(store, { title: NEW_POSTING_TITLE, status: 'draft' }, clock);
+  return { store: next, posting: next.postings[0], created: true };
+}
+
 export function updatePosting(store, id, patch, clock = Date.now) {
   const current = postingById(store, id);
   if (!current) return store;
@@ -344,6 +396,10 @@ export function deleteRequirement(store, postingId, requirementId, clock = Date.
   return { ...store, postings: replaceById(store.postings, postingId, nextJob) };
 }
 
+function withExperiences(req, experiences) {
+  return { ...req, experiences, bullets: experiences };
+}
+
 export function addBullet(store, postingId, requirementId, text, clock = Date.now) {
   const line = normalizeLine({ text, id: newId('ln', clock) }, clock);
   if (!line) return store;
@@ -351,32 +407,76 @@ export function addBullet(store, postingId, requirementId, text, clock = Date.no
     store,
     postingId,
     requirementId,
-    (req) => ({ ...req, bullets: [...req.bullets, line] }),
+    (req) => withExperiences(req, [...req.experiences, line]),
     clock
   );
 }
+
+export const addExperience = addBullet;
 
 export function updateBullet(store, postingId, requirementId, bulletId, text, clock = Date.now) {
   return mapRequirement(
     store,
     postingId,
     requirementId,
-    (req) => ({
-      ...req,
-      bullets: req.bullets.map((line) =>
+    (req) => withExperiences(
+      req,
+      req.experiences.map((line) =>
         line.id === bulletId ? { ...line, text: asString(text, TEXT_MAX) } : line
-      ).filter((line) => line.text),
-    }),
+      ).filter((line) => line.text)
+    ),
     clock
   );
 }
+
+export const updateExperience = updateBullet;
 
 export function deleteBullet(store, postingId, requirementId, bulletId, clock = Date.now) {
   return mapRequirement(
     store,
     postingId,
     requirementId,
-    (req) => ({ ...req, bullets: dropById(req.bullets, bulletId) }),
+    (req) => withExperiences(req, dropById(req.experiences, bulletId)),
+    clock
+  );
+}
+
+export const deleteExperience = deleteBullet;
+
+export function addResponse(store, postingId, requirementId, draft = {}, clock = Date.now) {
+  const star = normalizeStarResponse({ ...draft, id: draft.id || newId('st', clock) }, clock);
+  if (!star) return store;
+  return mapRequirement(
+    store,
+    postingId,
+    requirementId,
+    (req) => ({ ...req, responses: [...req.responses, star] }),
+    clock
+  );
+}
+
+export function updateResponse(store, postingId, requirementId, responseId, patch, clock = Date.now) {
+  return mapRequirement(
+    store,
+    postingId,
+    requirementId,
+    (req) => ({
+      ...req,
+      responses: req.responses.map((star) => {
+        if (star.id !== responseId) return star;
+        return normalizeStarResponse({ ...star, ...patch, id: star.id }, clock) || star;
+      }),
+    }),
+    clock
+  );
+}
+
+export function deleteResponse(store, postingId, requirementId, responseId, clock = Date.now) {
+  return mapRequirement(
+    store,
+    postingId,
+    requirementId,
+    (req) => ({ ...req, responses: dropById(req.responses, responseId) }),
     clock
   );
 }
@@ -602,7 +702,7 @@ export function compileResume(posting) {
   const sections = (posting?.requirements || []).map((req) => ({
     id: req.id,
     requirement: req.text,
-    bullets: req.bullets.map((line) => line.text),
+    bullets: (req.experiences || req.bullets || []).map((line) => line.text),
   }));
   return {
     title: posting?.title || '',
@@ -626,8 +726,19 @@ export function compilePrep(store, posting) {
     id: req.id,
     text: req.text,
     ready: Boolean(req.ready),
-    bullets: req.bullets.map((line) => line.text),
+    experiences: (req.experiences || req.bullets || []).map((line) => line.text),
+    bullets: (req.experiences || req.bullets || []).map((line) => line.text),
     questions: req.questions.map((line) => line.text),
+    responses: (req.responses || []).map((star) => ({
+      id: star.id,
+      title: star.title,
+      fill: starFill(star),
+      script: starScript(star),
+      situation: star.situation,
+      task: star.task,
+      action: star.action,
+      result: star.result,
+    })),
     stories: linkedEntries(store, req).map((entry) => ({
       id: entry.id,
       title: entry.title,
@@ -648,11 +759,13 @@ export function compilePrep(store, posting) {
 export function prepCoverage(store, posting) {
   const cards = compilePrep(store, posting);
   const total = cards.length;
-  const withBullet = cards.filter((card) => card.bullets.length).length;
+  const withExperience = cards.filter((card) => card.experiences.length).length;
+  const withBullet = withExperience;
   const withStory = cards.filter((card) => card.stories.length).length;
   const withQuestion = cards.filter((card) => card.questions.length).length;
+  const withResponse = cards.filter((card) => card.responses.length).length;
   const ready = cards.filter((card) => card.ready).length;
-  return { total, withBullet, withStory, withQuestion, ready };
+  return { total, withExperience, withBullet, withStory, withQuestion, withResponse, ready };
 }
 
 export function serializeBook(raw, { maxChars = BOOK_MAX_CHARS } = {}) {

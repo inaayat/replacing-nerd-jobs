@@ -20,8 +20,15 @@ import {
   addBullet,
   updateBullet,
   deleteBullet,
+  addExperience,
+  addResponse,
+  updateResponse,
+  deleteResponse,
   addQuestion,
   deleteQuestion,
+  openNewPosting,
+  isBlankPosting,
+  NEW_POSTING_TITLE,
   linkEntry,
   unlinkEntry,
   parseRequirements,
@@ -141,7 +148,9 @@ store = addRequirements(store, jobId, parsed.slice(1), clock);
 const req0 = store.postings[0].requirements[0];
 store = addBullet(store, jobId, req0.id, 'Kept every public page on static files plus 11 serverless functions.', clock);
 store = addBullet(store, jobId, req0.id, '  ', clock);
+assert.equal(postingById(store, jobId).requirements[0].experiences.length, 1);
 assert.equal(postingById(store, jobId).requirements[0].bullets.length, 1);
+assert.equal(postingById(store, jobId).requirements[0].experiences, postingById(store, jobId).requirements[0].bullets);
 store = addQuestion(store, jobId, req0.id, 'Walk me through a change that had to stay dependency-free ESM.', clock);
 store = linkEntry(store, jobId, req0.id, store.entries.find((e) => e.kind === 'experience').id, clock);
 
@@ -158,14 +167,50 @@ const compiled = compileResume(postingById(store, jobId));
 assert.equal(compiled.bullets.length, 1);
 assert.match(compileResumeText(postingById(store, jobId)), /• Static files/);
 
+store = addExperience(store, jobId, req0.id, 'Wrote the packing-cubes sync as a dependency-free model.', clock);
+store = addResponse(store, jobId, req0.id, {
+  title: 'Hobby-plan multiplex',
+  situation: 'Twelve functions already used.',
+  task: 'Add another signed-in app.',
+  action: 'Branched ?route= on the existing handler.',
+  result: 'Stayed on the Hobby plan.',
+}, clock);
+const starId = postingById(store, jobId).requirements[0].responses[0].id;
+store = updateResponse(store, jobId, req0.id, starId, { result: 'Stayed on Hobby with room for one more.' }, clock);
+assert.match(postingById(store, jobId).requirements[0].responses[0].result, /room for one more/);
+
 const prep = compilePrep(store, postingById(store, jobId));
 assert.equal(prep[0].stories[0].title, 'Shipped packing cubes sync');
 assert.equal(prep[0].questions.length, 1);
+assert.equal(prep[0].experiences.length, 2);
+assert.equal(prep[0].responses[0].title, 'Hobby-plan multiplex');
+assert.equal(prep[0].responses[0].fill.ready, true);
 const coverage = prepCoverage(store, postingById(store, jobId));
 assert.equal(coverage.total, parsed.length);
+assert.equal(coverage.withExperience, 1);
 assert.equal(coverage.withBullet, 1);
 assert.equal(coverage.withStory, 1);
+assert.equal(coverage.withResponse, 1);
 assert.equal(coverage.ready, 1);
+
+const fromBullets = normalizeStore({
+  postings: [{
+    title: 'Legacy',
+    requirements: [{ text: 'Need SQL', bullets: ['My old resume line'] }],
+  }],
+}, clock);
+assert.equal(fromBullets.postings[0].requirements[0].experiences[0].text, 'My old resume line');
+assert.equal(fromBullets.postings[0].requirements[0].bullets[0].text, 'My old resume line');
+
+const opened = openNewPosting(emptyStore(), clock);
+assert.equal(opened.created, true);
+assert.equal(opened.posting.title, NEW_POSTING_TITLE);
+assert.equal(isBlankPosting(opened.posting), true);
+const reused = openNewPosting(opened.store, clock);
+assert.equal(reused.created, false);
+assert.equal(reused.posting.id, opened.posting.id);
+store = deleteResponse(store, jobId, req0.id, starId, clock);
+assert.equal(postingById(store, jobId).requirements[0].responses.length, 0);
 
 const hits = searchEntries(store, 'neon suitcase');
 assert.equal(hits[0].kind, 'experience');
@@ -213,6 +258,7 @@ assert.deepEqual(parseViewHash('#jobs/job_1/resume', { postingIds: ['job_1'] }),
 assert.deepEqual(parseViewHash('#jobs/nope', { postingIds: ['job_1'] }), { kind: 'jobs' });
 assert.deepEqual(parseViewHash('#log/en_1', { entryIds: ['en_1'] }), { kind: 'log', id: 'en_1' });
 assert.equal(viewTitle({ kind: 'home' }), 'Brag Book');
+assert.equal(viewTitle({ kind: 'jobs', id: 'new' }), 'New job posting');
 assert.equal(viewTitle({ kind: 'jobs', id: 'job_1', mode: 'prep' }, { postings: [{ id: 'job_1', title: 'PM' }] }), 'Prep · PM');
 
 // ids stay unique even when the clock is pinned

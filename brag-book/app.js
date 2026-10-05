@@ -7,19 +7,22 @@ import {
   addEntry,
   updateEntry,
   deleteEntry,
-  addPosting,
   updatePosting,
   deletePosting,
   addRequirement,
   addRequirements,
   updateRequirement,
   deleteRequirement,
-  addBullet,
-  updateBullet,
-  deleteBullet,
+  addExperience,
+  updateExperience,
+  deleteExperience,
   addQuestion,
   updateQuestion,
   deleteQuestion,
+  addResponse,
+  updateResponse,
+  deleteResponse,
+  openNewPosting,
   linkEntry,
   unlinkEntry,
   parseRequirements,
@@ -33,7 +36,6 @@ import {
   starFill,
   starScript,
   bookIsEmpty,
-  asUrl,
   titleFromJobUrl,
   hostFromJobUrl,
 } from './engine.js';
@@ -200,12 +202,12 @@ function toolbar(view) {
         el('h1', {}, viewTitle(view, store)),
         el('p', { class: 'lede' },
           view.kind === 'jobs'
-            ? 'Paste a posting, map each requirement to a resume bullet, a story from the book, and a question you might get.'
+            ? 'Paste the posting. Each bullet becomes a row. Add experiences, potential questions, and STAR responses per requirement.'
             : 'Collect wins while you work. Later, pin them to a job when you are writing a resume or prepping an interview.'
         ),
       ]),
       el('div', { class: 'actions' }, [
-        btn(view.kind === 'jobs' ? 'New posting' : 'New win', {
+        btn(view.kind === 'jobs' ? 'New job posting' : 'New win', {
           class: 'btn',
           onClick: () => go(view.kind === 'jobs' ? { kind: 'jobs', id: 'new' } : { kind: 'log', id: 'new' }),
         }),
@@ -252,10 +254,10 @@ function homeView() {
         onClick: () => go({ kind: 'jobs', id: 'new' }),
       }, [
         el('span', { class: 'kicker' }, 'A posting'),
-        el('strong', {}, 'Save a posting'),
+        el('strong', {}, 'New job posting'),
         el('p', {}, summary.postings
-          ? `${summary.postings} posting${summary.postings === 1 ? '' : 's'} on file. Keep the job link, or paste the description.`
-          : 'Keep the posting URL for later, then paste requirements into cue cards.'),
+          ? `${summary.postings} posting${summary.postings === 1 ? '' : 's'} on file. Open the table, or start another.`
+          : 'Paste the requirements. Each bullet is a row — add experiences, questions, and STAR responses.'),
       ]),
     ]),
     recentWins.length ? el('section', { class: 'recent' }, [
@@ -353,7 +355,7 @@ function jobList(selectedId) {
           el('div', { class: 'row-meta' }, [job.company, hostFromJobUrl(job.url), job.status, `${cover.ready}/${cover.total || 0} ready`].filter(Boolean).join(' · ')),
         ]);
       }))
-      : el('p', { class: 'empty' }, 'No postings yet. Save a job link, or paste the description.'),
+      : el('p', { class: 'empty' }, 'No postings yet. Start a new job posting and paste the requirements.'),
   ]);
 }
 
@@ -455,60 +457,48 @@ function jobLinkBar(job) {
   ]);
 }
 
-function jobForm() {
-  const form = el('form', {
-    class: 'panel',
-    onSubmit: (event) => {
-      event.preventDefault();
-      const data = Object.fromEntries(new FormData(form));
-      data.url = asUrl(data.url);
-      if (!data.title) data.title = titleFromJobUrl(data.url);
-      if (!data.title) {
-        setNote('Need a role name or a posting link.');
-        return;
-      }
-      const lines = parseRequirements(data.sourceText);
-      store = addPosting(store, data);
-      const job = store.postings[0];
-      store = addRequirements(store, job.id, lines);
-      saveStore();
-      go({ kind: 'jobs', id: job.id });
-      if (lines.length) setNote(`Pulled ${lines.length} requirement${lines.length === 1 ? '' : 's'} from the posting.`);
-      else if (job.url) setNote('Saved the posting link. Add requirements whenever you want.');
-      else setNote('Saved the posting. Add requirements by hand.');
-    },
-  });
-  form.append(
-    el('div', { class: 'panel-head' }, [el('h2', {}, 'New posting')]),
-    el('div', { class: 'panel-body' }, [
-      field('Posting link — kept for safekeeping (we do not fetch it yet)',
-        el('input', { name: 'url', type: 'url', placeholder: 'https://boards.example.com/jobs/product-engineer' })
-      ),
-      el('div', { class: 'grid-2' }, [
-        field('Role', el('input', { name: 'title', maxlength: '160', placeholder: 'Product engineer — or leave blank to use the link' })),
-        field('Company', el('input', { name: 'company', maxlength: '160', placeholder: 'Beep boop' })),
-      ]),
-      field('Paste the posting — optional; bullets become requirement cards',
-        el('textarea', { name: 'sourceText', class: 'tall', placeholder: 'Requirements:\n- Ship production Javascript…\n- Comfortable with Postgres' })
-      ),
-      el('div', { class: 'actions' }, [
-        el('button', { type: 'submit', class: 'btn' }, 'Save posting'),
-        btn('Cancel', { class: 'btn ghost', onClick: () => go({ kind: 'jobs' }) }),
-      ]),
-    ])
-  );
-  return form;
+function startNewPosting() {
+  const opened = openNewPosting(store);
+  store = opened.store;
+  if (opened.created) saveStore();
+  const next = { kind: 'jobs', id: opened.posting.id };
+  const hash = viewHash(next);
+  if (location.hash !== hash) history.replaceState(null, '', hash);
+  return opened.posting;
 }
 
-function jobDetail(job) {
+function pullRequirements(job, text) {
+  const lines = parseRequirements(text);
+  if (!lines.length && String(text || '').trim()) lines.push(String(text).trim());
+  if (!lines.length) {
+    setNote('Paste bullets from the posting — one requirement per line.');
+    return;
+  }
+  store = addRequirements(store, job.id, lines);
+  store = updatePosting(store, job.id, { sourceText: text, status: job.status === 'draft' ? 'prepping' : job.status });
+  if (!job.title || job.title === 'New job posting') {
+    const fromUrl = titleFromJobUrl(job.url);
+    if (fromUrl) store = updatePosting(store, job.id, { title: fromUrl });
+  }
+  saveStore();
+  render();
+  setNote(`Added ${lines.length} requirement${lines.length === 1 ? '' : 's'} to the table.`);
+}
+
+function jobSheet(job) {
   const cover = prepCoverage(store, job);
-  const wrap = el('section', { class: 'panel' });
-  const source = el('textarea', { class: 'tall', placeholder: 'One requirement per line, or paste more bullets' });
+  const paste = el('textarea', {
+    class: 'tall',
+    placeholder: 'Paste the posting here.\n- Ship production Javascript…\n- Comfortable with Postgres\n\nEach bullet becomes a row. Parsing from the link comes later.',
+  });
+  if (job.sourceText && !job.requirements.length) paste.value = job.sourceText;
+
+  const wrap = el('section', { class: 'panel job-sheet' });
   wrap.append(
     el('div', { class: 'panel-head' }, [
       el('div', {}, [
-        el('h2', {}, job.title),
-        el('p', { class: 'tiny' }, [job.company, hostFromJobUrl(job.url), job.status].filter(Boolean).join(' · ')),
+        el('h2', {}, job.title || 'New job posting'),
+        el('p', { class: 'tiny' }, [job.company, hostFromJobUrl(job.url), job.status].filter(Boolean).join(' · ') || 'Fill in the role, then paste requirements into the table.'),
       ]),
       el('div', { class: 'actions' }, [
         btn('Prep', { class: 'btn ghost', onClick: () => go({ kind: 'jobs', id: job.id, mode: 'prep' }) }),
@@ -517,25 +507,25 @@ function jobDetail(job) {
     ]),
     el('div', { class: 'panel-body' }, [
       el('div', { class: 'banner' },
-        `${cover.withBullet} bullets · ${cover.withStory} stories · ${cover.withQuestion} question sets · ${cover.ready}/${cover.total || 0} marked ready`
+        `${cover.total || 0} requirements · ${cover.withExperience} with experiences · ${cover.withQuestion} with questions · ${cover.withResponse} with STAR responses · ${cover.ready}/${cover.total || 0} ready`
       ),
-      el('p', { class: 'subhead' }, 'Posting link'),
-      jobLinkBar(job),
       el('div', { class: 'grid-2' }, [
         field('Role', el('input', {
           value: job.title,
+          placeholder: 'Product engineer',
           onChange: (event) => { store = updatePosting(store, job.id, { title: event.target.value }); saveStore(); },
         })),
         field('Company', el('input', {
           value: job.company,
+          placeholder: 'Beep boop',
           onChange: (event) => { store = updatePosting(store, job.id, { company: event.target.value }); saveStore(); },
         })),
       ]),
       el('div', { class: 'grid-2' }, [
-        field('Edit posting link', el('input', {
+        field('Posting link — kept for later (we do not fetch it yet)', el('input', {
           type: 'url',
           value: job.url,
-          placeholder: 'https://',
+          placeholder: 'https://boards.example.com/jobs/product-engineer',
           onChange: (event) => { store = updatePosting(store, job.id, { url: event.target.value }); saveStore(); },
           onBlur: () => render(),
         })),
@@ -545,16 +535,18 @@ function jobDetail(job) {
           el('option', { value: status, selected: job.status === status || undefined }, status)
         ))),
       ]),
-      ...job.requirements.map((req) => requirementCard(job, req)),
-      el('h3', { class: 'subhead' }, 'Add requirements'),
-      source,
+      job.url ? jobLinkBar(job) : null,
+      el('p', { class: 'subhead' }, 'Paste requirements'),
+      paste,
       el('div', { class: 'actions' }, [
-        btn('Add from paste', {
+        btn('Add rows from paste', {
           class: 'btn',
+          onClick: () => pullRequirements(job, paste.value),
+        }),
+        btn('Add a blank row', {
+          class: 'btn ghost',
           onClick: () => {
-            const lines = parseRequirements(source.value);
-            if (!lines.length && source.value.trim()) lines.push(source.value.trim());
-            store = addRequirements(store, job.id, lines);
+            store = addRequirement(store, job.id, 'New requirement');
             saveStore();
             render();
           },
@@ -562,20 +554,21 @@ function jobDetail(job) {
         btn('Delete posting', {
           class: 'btn danger',
           onClick: () => {
-            if (!confirm('Delete this posting and its cue cards? The book stays.')) return;
+            if (!confirm('Delete this posting and its table? The book stays.')) return;
             store = deletePosting(store, job.id);
             saveStore();
             go({ kind: 'jobs' });
           },
         }),
       ]),
-    ])
+    ]),
+    requirementTable(job)
   );
   return wrap;
 }
 
 function lineEditor(items, { onAdd, onEdit, onDelete, placeholder }) {
-  const box = el('div');
+  const box = el('div', { class: 'cell-stack' });
   for (const item of items) {
     const input = el('textarea', { value: item.text });
     input.value = item.text;
@@ -586,47 +579,105 @@ function lineEditor(items, { onAdd, onEdit, onDelete, placeholder }) {
     ]));
   }
   const fresh = el('input', { placeholder });
+  const add = () => {
+    if (!fresh.value.trim()) return;
+    onAdd(fresh.value);
+    fresh.value = '';
+  };
+  fresh.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      add();
+    }
+  });
   box.append(el('div', { class: 'line-row' }, [
     fresh,
-    btn('Add', { class: 'btn ghost', onClick: () => { onAdd(fresh.value); fresh.value = ''; } }),
+    btn('Add', { class: 'btn ghost', onClick: add }),
   ]));
   return box;
 }
 
-function requirementCard(job, req) {
+function starResponseEditor(job, req) {
+  const box = el('div', { class: 'cell-stack' });
+  for (const star of req.responses) {
+    const form = el('div', { class: 'star-mini' });
+    const title = el('input', { value: star.title, placeholder: 'Story title' });
+    const fields = {
+      situation: el('textarea', { placeholder: 'Situation — what was going on?' }, star.situation),
+      task: el('textarea', { placeholder: 'Task — what were you on the hook for?' }, star.task),
+      action: el('textarea', { placeholder: 'Action — what did you do?' }, star.action),
+      result: el('textarea', { placeholder: 'Result — what changed?' }, star.result),
+    };
+    form.append(
+      el('div', { class: 'line-row' }, [
+        title,
+        btn('Save', {
+          class: 'btn ghost',
+          onClick: () => {
+            store = updateResponse(store, job.id, req.id, star.id, {
+              title: title.value,
+              situation: fields.situation.value,
+              task: fields.task.value,
+              action: fields.action.value,
+              result: fields.result.value,
+            });
+            saveStore();
+            render();
+          },
+        }),
+        el('button', {
+          type: 'button',
+          class: 'icon-btn',
+          title: 'Remove',
+          onClick: () => {
+            store = deleteResponse(store, job.id, req.id, star.id);
+            saveStore();
+            render();
+          },
+        }, '×'),
+      ]),
+      ...['situation', 'task', 'action', 'result'].map((key) =>
+        el('label', { class: 'star-mini-field' }, [
+          el('b', {}, key[0].toUpperCase()),
+          fields[key],
+        ])
+      )
+    );
+    box.append(form);
+  }
+  box.append(btn('Add STAR response', {
+    class: 'btn ghost',
+    onClick: () => {
+      store = addResponse(store, job.id, req.id, {});
+      saveStore();
+      render();
+    },
+  }));
+  return box;
+}
+
+function experienceCell(job, req) {
   const stories = linkedEntries(store, req);
   const suggested = suggestEntries(store, req);
-  const card = el('article', { class: `req${req.ready ? ' is-ready' : ''}` });
   const picker = el('select', {}, [
     el('option', { value: '' }, 'Pin a win from the book…'),
     ...store.entries
       .filter((entry) => !req.entryIds.includes(entry.id))
       .map((entry) => el('option', { value: entry.id }, `${entry.title} (${kindLabel(entry.kind)})`)),
   ]);
-  card.append(
-    el('div', { class: 'req-head' }, [
-      el('p', {}, req.text),
-      el('label', { class: 'tiny' }, [
-        el('input', {
-          type: 'checkbox',
-          checked: req.ready,
-          onChange: (event) => {
-            store = updateRequirement(store, job.id, req.id, { ready: event.target.checked });
-            saveStore();
-            render();
-          },
-        }),
-        ' ready',
-      ]),
-    ]),
-    el('p', { class: 'subhead' }, 'Resume bullets'),
-    lineEditor(req.bullets, {
-      placeholder: 'Wrote a multiplexed API so the Hobby plan stayed under 12 functions.',
-      onAdd: (text) => { store = addBullet(store, job.id, req.id, text); saveStore(); render(); },
-      onEdit: (id, text) => { store = updateBullet(store, job.id, req.id, id, text); saveStore(); render(); },
-      onDelete: (id) => { store = deleteBullet(store, job.id, req.id, id); saveStore(); render(); },
+  picker.addEventListener('change', () => {
+    if (!picker.value) return;
+    store = linkEntry(store, job.id, req.id, picker.value);
+    saveStore();
+    render();
+  });
+  return el('div', { class: 'cell-stack' }, [
+    lineEditor(req.experiences, {
+      placeholder: 'An experience that maps to this requirement',
+      onAdd: (text) => { store = addExperience(store, job.id, req.id, text); saveStore(); render(); },
+      onEdit: (id, text) => { store = updateExperience(store, job.id, req.id, id, text); saveStore(); render(); },
+      onDelete: (id) => { store = deleteExperience(store, job.id, req.id, id); saveStore(); render(); },
     }),
-    el('p', { class: 'subhead' }, 'Stories from the book'),
     stories.length
       ? el('div', {}, stories.map((entry) => el('div', { class: 'story' }, [
         el('div', { class: 'row-title' }, entry.title),
@@ -636,7 +687,7 @@ function requirementCard(job, req) {
           btn('Unpin', { class: 'btn ghost', onClick: () => { store = unlinkEntry(store, job.id, req.id, entry.id); saveStore(); render(); } }),
         ]),
       ])))
-      : el('p', { class: 'tiny' }, 'Nothing pinned yet. Add wins on the brag sheet, then attach them here.'),
+      : null,
     picker,
     suggested.length
       ? el('div', { class: 'tags' }, suggested.map((entry) => el('button', {
@@ -645,31 +696,82 @@ function requirementCard(job, req) {
         onClick: () => { store = linkEntry(store, job.id, req.id, entry.id); saveStore(); render(); },
       }, `+ ${entry.title}`)))
       : null,
-    el('p', { class: 'subhead' }, 'Potential questions'),
-    lineEditor(req.questions, {
-      placeholder: 'Tell me about a time you shipped without a build pipeline.',
-      onAdd: (text) => { store = addQuestion(store, job.id, req.id, text); saveStore(); render(); },
-      onEdit: (id, text) => { store = updateQuestion(store, job.id, req.id, id, text); saveStore(); render(); },
-      onDelete: (id) => { store = deleteQuestion(store, job.id, req.id, id); saveStore(); render(); },
-    }),
-    el('div', { class: 'actions' }, [
-      btn('Remove requirement', {
-        class: 'btn danger',
-        onClick: () => {
-          store = deleteRequirement(store, job.id, req.id);
-          saveStore();
-          render();
-        },
-      }),
+  ]);
+}
+
+function requirementTable(job) {
+  const table = el('table', { class: 'req-table' });
+  table.append(
+    el('thead', {}, [
+      el('tr', {}, [
+        el('th', {}, 'Requirement'),
+        el('th', {}, 'Experiences'),
+        el('th', {}, 'Potential questions'),
+        el('th', {}, 'Responses (STAR)'),
+      ]),
     ])
   );
-  picker.addEventListener('change', () => {
-    if (!picker.value) return;
-    store = linkEntry(store, job.id, req.id, picker.value);
-    saveStore();
-    render();
-  });
-  return card;
+  const body = el('tbody');
+  if (!job.requirements.length) {
+    body.append(el('tr', {}, [
+      el('td', { class: 'req-empty', colspan: '4' },
+        'Paste the posting above — each bullet becomes a row. Or add a blank row and type the requirement.'
+      ),
+    ]));
+  }
+  for (const req of job.requirements) {
+    const text = el('textarea', { class: 'req-text' }, req.text);
+    text.value = req.text;
+    body.append(el('tr', { class: req.ready ? 'is-ready' : '' }, [
+      el('td', { 'data-label': 'Requirement' }, [
+        text,
+        el('div', { class: 'req-head' }, [
+          el('label', { class: 'tiny' }, [
+            el('input', {
+              type: 'checkbox',
+              checked: req.ready,
+              onChange: (event) => {
+                store = updateRequirement(store, job.id, req.id, { ready: event.target.checked });
+                saveStore();
+                render();
+              },
+            }),
+            ' ready',
+          ]),
+          el('div', { class: 'actions' }, [
+            btn('Save', {
+              class: 'btn ghost',
+              onClick: () => {
+                store = updateRequirement(store, job.id, req.id, { text: text.value });
+                saveStore();
+                render();
+              },
+            }),
+            btn('Remove', {
+              class: 'btn danger',
+              onClick: () => {
+                store = deleteRequirement(store, job.id, req.id);
+                saveStore();
+                render();
+              },
+            }),
+          ]),
+        ]),
+      ]),
+      el('td', { 'data-label': 'Experiences' }, [experienceCell(job, req)]),
+      el('td', { 'data-label': 'Potential questions' }, [
+        lineEditor(req.questions, {
+          placeholder: 'Tell me about a time you…',
+          onAdd: (textValue) => { store = addQuestion(store, job.id, req.id, textValue); saveStore(); render(); },
+          onEdit: (id, textValue) => { store = updateQuestion(store, job.id, req.id, id, textValue); saveStore(); render(); },
+          onDelete: (id) => { store = deleteQuestion(store, job.id, req.id, id); saveStore(); render(); },
+        }),
+      ]),
+      el('td', { 'data-label': 'Responses (STAR)' }, [starResponseEditor(job, req)]),
+    ]));
+  }
+  table.append(body);
+  return el('div', { class: 'req-table-wrap' }, [table]);
 }
 
 function prepKey(jobId) {
@@ -697,17 +799,27 @@ function prepView(job) {
   wrap.append(el('div', { class: 'panel-body' }, [
     el('p', { class: 'kicker' }, job.company || 'Interview'),
     el('h3', {}, card.text),
-    card.bullets.length ? el('div', {}, [
-      el('p', { class: 'subhead' }, 'Say it as a resume line'),
-      ...card.bullets.map((text) => el('p', {}, `• ${text}`)),
+    card.experiences.length ? el('div', {}, [
+      el('p', { class: 'subhead' }, 'Experiences'),
+      ...card.experiences.map((text) => el('p', {}, `• ${text}`)),
+    ]) : null,
+    card.responses.length ? el('div', {}, [
+      el('p', { class: 'subhead' }, 'STAR responses'),
+      ...card.responses.map((star) => el('div', { class: 'story' }, [
+        el('div', { class: 'row-title' }, star.title || 'Untitled response'),
+        el('pre', { class: 'tiny' }, star.script || 'Open the table and fill STAR.'),
+      ])),
     ]) : null,
     card.stories.length ? el('div', {}, [
-      el('p', { class: 'subhead' }, 'STAR stories'),
+      el('p', { class: 'subhead' }, 'From the book'),
       ...card.stories.map((story) => el('div', { class: 'story' }, [
         el('div', { class: 'row-title' }, story.title),
         el('pre', { class: 'tiny' }, story.script || story.notes || 'Open the book and fill STAR.'),
       ])),
-    ]) : el('p', { class: 'tiny' }, 'No story pinned. Jump back and attach one from the book.'),
+    ]) : null,
+    !card.experiences.length && !card.responses.length && !card.stories.length
+      ? el('p', { class: 'tiny' }, 'No experiences or STAR responses yet. Jump back to the table.')
+      : null,
     card.questions.length ? el('div', {}, [
       el('p', { class: 'subhead' }, 'They might ask'),
       ...card.questions.map((text) => el('p', {}, `? ${text}`)),
@@ -739,7 +851,7 @@ function prepView(job) {
 }
 
 function resumeView(job) {
-  const text = compileResumeText(job) || 'Add resume bullets on the posting first.';
+  const text = compileResumeText(job) || 'Add experiences on the table first.';
   const area = el('textarea', { class: 'resume', readonly: true });
   area.value = text;
   return el('section', { class: 'panel' }, [
@@ -762,7 +874,7 @@ function resumeView(job) {
       ]),
     ]),
     el('div', { class: 'panel-body' }, [
-      el('p', { class: 'lede' }, 'One block per requirement. Edit the bullets on the posting — this page is just the clean copy.'),
+      el('p', { class: 'lede' }, 'One block per requirement. Edit experiences on the table — this page is just the clean copy.'),
       area,
     ]),
   ]);
@@ -772,7 +884,7 @@ function emptyDetail(kind) {
   return el('section', { class: 'panel' }, [
     el('div', { class: 'panel-body empty' },
       kind === 'jobs'
-        ? 'Pick a posting, or start one from a pasted job description.'
+        ? 'Pick a posting, or start a new job posting and paste the requirements into the table.'
         : 'Pick a win, or add whatever you just did — ship, story, or skill.'
     ),
   ]);
@@ -798,8 +910,12 @@ function render() {
     const entry = store.entries.find((item) => item.id === view.id);
     detail = entry ? entryForm(entry) : emptyDetail('log');
   } else if (view.kind === 'log') detail = emptyDetail('log');
-  else if (view.kind === 'jobs' && view.id === 'new') detail = jobForm();
-  else if (view.kind === 'jobs' && view.id && view.mode === 'prep') {
+  else if (view.kind === 'jobs' && view.id === 'new') {
+    const job = startNewPosting();
+    view = { kind: 'jobs', id: job.id };
+    document.title = `${viewTitle(view, store)} — Brag Book`;
+    detail = jobSheet(job);
+  } else if (view.kind === 'jobs' && view.id && view.mode === 'prep') {
     const job = store.postings.find((item) => item.id === view.id);
     detail = job ? prepView(job) : emptyDetail('jobs');
   } else if (view.kind === 'jobs' && view.id && view.mode === 'resume') {
@@ -807,15 +923,18 @@ function render() {
     detail = job ? resumeView(job) : emptyDetail('jobs');
   } else if (view.kind === 'jobs' && view.id) {
     const job = store.postings.find((item) => item.id === view.id);
-    detail = job ? jobDetail(job) : emptyDetail('jobs');
+    detail = job ? jobSheet(job) : emptyDetail('jobs');
   } else detail = emptyDetail('jobs');
 
+  const wideJob = view.kind === 'jobs' && view.id && view.id !== 'new';
   const next = el('div', {}, [
     toolbar(view),
-    el('div', { class: 'layout' }, [
-      view.kind === 'jobs' ? jobList(view.id) : entryList(view.id),
-      detail,
-    ]),
+    wideJob
+      ? el('div', { class: 'layout is-wide' }, [detail])
+      : el('div', { class: 'layout' }, [
+        view.kind === 'jobs' ? jobList(view.id) : entryList(view.id),
+        detail,
+      ]),
   ]);
   root.replaceChildren(next);
 }

@@ -153,6 +153,10 @@ a:focus-visible {
   width: 100%;
 }
 
+.layout.is-wide {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .hero { margin-bottom: 28px; text-align: left; }
 .hero.is-home { text-align: center; }
 
@@ -407,6 +411,8 @@ a:focus-visible {
 .search,
 .line-row input,
 .line-row textarea,
+.star-mini textarea,
+.req-text,
 .resume,
 .bb-input {
   width: 100%;
@@ -482,6 +488,90 @@ a:focus-visible {
   color: var(--gold);
   margin-bottom: 4px;
 }
+
+.job-sheet .panel-body { padding-bottom: 8px; }
+
+.req-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border-top: 1px solid var(--line-strong);
+  background: #fff;
+}
+
+.req-table {
+  width: 100%;
+  min-width: 880px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.req-table th {
+  text-align: left;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line-strong);
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+  font-weight: 400;
+}
+
+.req-table th:last-child,
+.req-table td:last-child { border-right: 0; }
+
+.req-table td {
+  vertical-align: top;
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  width: 25%;
+}
+
+.req-table tr.is-ready td:first-child {
+  box-shadow: inset 3px 0 0 var(--green);
+}
+
+.req-empty {
+  color: var(--muted);
+  text-align: center;
+  padding: 36px 16px !important;
+}
+
+.req-text {
+  width: 100%;
+  min-height: 88px;
+  border: 1px solid var(--line-strong);
+  background: #fff;
+  padding: 10px 12px;
+  color: var(--ink);
+}
+
+.cell-stack { display: grid; gap: 8px; }
+
+.star-mini {
+  border: 1px dashed var(--line-strong);
+  padding: 8px;
+  background: rgba(232, 196, 122, 0.04);
+}
+
+.star-mini-field {
+  display: grid;
+  grid-template-columns: 1.2rem minmax(0, 1fr);
+  gap: 6px;
+  align-items: start;
+  margin-top: 6px;
+}
+
+.star-mini-field b {
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  color: var(--gold);
+  padding-top: 10px;
+}
+
+.star-mini-field textarea { min-height: 64px; }
 
 .req {
   border: 1px solid var(--line);
@@ -672,4 +762,24 @@ a:focus-visible {
   .grid-2,
   .start-grid { grid-template-columns: 1fr; }
   .nav-links { font-size: 12px; }
+  .req-table { min-width: 0; }
+  .req-table thead { display: none; }
+  .req-table,
+  .req-table tbody,
+  .req-table tr,
+  .req-table td { display: block; width: 100%; }
+  .req-table td {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .req-table td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 0.58rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 6px;
+  }
+  .req-table tr { border-bottom: 1px solid var(--line-strong); margin-bottom: 12px; }
 }

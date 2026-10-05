@@ -187,11 +187,11 @@ human-readable filing; calculated values fall back to the filing viewer.
 
 Interview prep plus a running **brag sheet**, on the same Neon Auth account as
 Packing Cubes. The home screen is two ways in — **the book** (log a win) or
-**a posting** (save the job URL and/or paste the description). Experiences use
-STAR; projects and skillsets sit in the same log. The posting link is kept for
-safekeeping — nothing is fetched yet. On a posting, pin resume bullets, stories
-from the book, and potential questions onto each requirement. **Prep** walks the cue cards;
-**Resume** copies the compiled bullets. The page is styled after
+**New job posting** (a draft table). Paste the job description; each bullet
+becomes a row. On a row, add experiences, potential questions, and STAR
+responses. The posting link is kept for later — nothing is fetched yet.
+**Prep** walks the cue cards; **Resume** copies the compiled experience lines.
+The page is styled after
 [Plotmaniac](https://plotmaniac.com/) (same type and rules, flipped to black
 on white, full page width).
 

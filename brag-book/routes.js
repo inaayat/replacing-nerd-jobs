@@ -55,7 +55,7 @@ export function viewTitle(view, store) {
     return entry?.title || 'Win';
   }
   if (view.kind === 'log') return 'The book';
-  if (view.kind === 'jobs' && view.id === 'new') return 'New posting';
+  if (view.kind === 'jobs' && view.id === 'new') return 'New job posting';
   if (view.kind === 'jobs' && view.id) {
     const job = (store?.postings || []).find((item) => item.id === view.id);
     const name = job?.title || 'Posting';
