@@ -185,15 +185,17 @@ human-readable filing; calculated values fall back to the filing viewer.
 
 ### Brag Book — `/brag-book`
 
-Interview prep plus a running **brag sheet**. Log experiences (STAR), projects,
-and skillsets as they happen. When a posting shows up, paste the requirements
-and pin resume bullets, stories from the book, and potential questions onto
-each one. **Prep** walks the cue cards; **Resume** copies the compiled bullets.
+Interview prep plus a running **brag sheet**, on the same Neon Auth account as
+Packing Cubes. Log experiences (STAR), projects, and skillsets as they happen.
+When a posting shows up, paste the requirements and pin resume bullets, stories
+from the book, and potential questions onto each one. **Prep** walks the cue
+cards; **Resume** copies the compiled bullets.
 
-Static only: `brag-book/engine.js` and `brag-book/routes.js` are browser-safe
-ESM. The book lives in `localStorage` (export/import JSON for a backup). Do not
-put the modules under `/lib/`. No new Vercel function. Local UI:
-`http://127.0.0.1:8080/brag-book/`.
+Signing in is required — the signed-out view is a centered log-in gate. One
+JSONB row per user (`brag_books`) via `api/brag-book.js` (`/api/bb-book`).
+`brag-book/engine.js` is the document model (browser + `lib/brag-book.js`);
+keep it dependency-free ESM and out of `/lib/`. Static-server UI work uses
+`/brag-book/?local=1`. Export/import JSON is the backup.
 
 ### ASC 606 — `/asc-606`
 
@@ -499,12 +501,12 @@ Four things are easy to break:
 ### Hobby plan constraint (important)
 
 Vercel Hobby allows at most **12 serverless functions** per deployment, and this
-repo currently uses **10 of 12** files under `api/`. Prefer adding a `?route=`
-branch to an existing handler and a matching rewrite in `vercel.json` (this is
-why A-Lister and Plot Points are multiplexed routers) before burning a free slot
-on a new top-level file.
+repo currently uses **12 of 12** files under `api/`. Do not add another
+`api/*.js` file. Add a `?route=` branch to an existing handler and a matching
+rewrite in `vercel.json` (this is why A-Lister and Plot Points are multiplexed
+routers).
 
-Current roster (10/12):
+Current roster (12/12):
 
 | File | Used for |
 |---|---|
@@ -518,6 +520,8 @@ Current roster (10/12):
 | `api/fortune-500.js` | **Fortune 500** (`/api/f500-headlines`, `/api/f500-prices`): SEC Company Facts → slim 10-K headline metrics; Yahoo v8 chart proxy for last price + daily OHLCV. |
 | `api/table-manners.js` | **Table Manners** (`/api/tm-sheet`): signed-in one-sheet JSONB load/save. |
 | `api/sticky-notes.js` | **Sticky Notes router** (`/api/sn-*`): board state, the op queue, legend renames, link unfurl. |
+| `api/wedding.js` | **Wedding router** (`/api/wd-board`, `/api/wd-unfurl`): signed-in board JSONB plus link unfurl. |
+| `api/brag-book.js` | **Brag Book** (`/api/bb-book`): signed-in win log + job postings, one JSONB row on `brag_books`. |
 
 ### Environment variables
 
@@ -668,6 +672,7 @@ only runs the code that talks to it). Accessed from serverless functions via
 | `sn_ink` | Sticky Notes | Text written on the board itself; no status, deleted by a wipe |
 | `sn_legend` | Sticky Notes | Per-user colour/icon labels plus named custom image tags |
 | `sn_wiki` | Sticky Notes | One page per collection (`doc` JSONB); cascade-deleted with the collection |
+| `brag_books` | Brag Book | One JSONB book per user (wins + job postings); deleted with the account |
 
 Neon Auth also keeps its own auth tables in the same Neon project (managed by
 Neon Auth, not by `ensureSchema()`).

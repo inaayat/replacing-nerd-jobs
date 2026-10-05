@@ -5,7 +5,7 @@
 // future features can join their tables against users.id without a
 // separate webhook pipeline.
 //
-// DELETE removes app data (cascades to A-Lister, packing cubes, Table Manners, Wedding, etc.) and
+// DELETE removes app data (cascades to A-Lister, packing cubes, Table Manners, Wedding, Brag Book, etc.) and
 // then deletes the Neon Auth account when password verification succeeds.
 import { getAuth } from '../lib/neon-auth.js';
 import { db, ensureSchema } from '../lib/db.js';
@@ -137,6 +137,7 @@ async function handleDelete(req, res, auth) {
     `;
     await db()`DELETE FROM table_manners_sheets WHERE user_id = ${auth.sub}`;
     await db()`DELETE FROM wedding_boards WHERE user_id = ${auth.sub}`;
+    await db()`DELETE FROM brag_books WHERE user_id = ${auth.sub}`;
     await db()`DELETE FROM users WHERE id = ${auth.sub}`;
 
     const authDelete = await deleteAuthUser(req, token, password);

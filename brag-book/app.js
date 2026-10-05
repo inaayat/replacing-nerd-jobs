@@ -32,22 +32,29 @@ import {
   listingSummary,
   starFill,
   starScript,
+  bookIsEmpty,
 } from './engine.js';
 import { parseViewHash, viewHash, viewTitle } from './routes.js';
+import { loadBook, saveBook } from './store.js';
+import { initAuth, refreshToken, renderBragSignIn, wireAuthLink } from './auth.js';
 
 const root = document.getElementById('app');
+const localMode = new URLSearchParams(location.search).has('local');
 const fileInput = document.createElement('input');
 fileInput.type = 'file';
 fileInput.accept = 'application/json';
 fileInput.hidden = true;
 document.body.appendChild(fileInput);
 
-let store = loadStore();
+let store = emptyStore();
+let auth = null;
+let unlocked = false;
+let persistTimer = null;
 let query = '';
 let kindFilter = 'all';
 let statusNote = '';
 
-function loadStore() {
+function loadCached() {
   try {
     return normalizeStore(JSON.parse(localStorage.getItem(STORE_KEY) || 'null'));
   } catch {
@@ -55,8 +62,28 @@ function loadStore() {
   }
 }
 
-function saveStore() {
+function cacheStore() {
   localStorage.setItem(STORE_KEY, JSON.stringify(store));
+}
+
+function saveStore() {
+  cacheStore();
+  if (localMode || !auth?.token) return;
+  if (persistTimer) clearTimeout(persistTimer);
+  persistTimer = setTimeout(() => {
+    persistTimer = null;
+    pushStore();
+  }, 500);
+}
+
+async function pushStore({ keepalive = false } = {}) {
+  if (localMode || !auth?.token) return;
+  try {
+    await saveBook(auth.token, store, { keepalive });
+    setNote('Saved to your account.');
+  } catch (err) {
+    setNote(err.message || 'Could not save to your account.');
+  }
 }
 
 function currentView() {
@@ -653,11 +680,118 @@ function render() {
   root.replaceChildren(next);
 }
 
+function setAppNav(on) {
+  document.querySelectorAll('[data-nav]').forEach((link) => {
+    link.hidden = !on;
+  });
+}
+
+function renderSignInGate() {
+  unlocked = false;
+  setAppNav(false);
+  const note = !auth?.configured
+    ? '<p class="bb-gate-error">Sign-in isn’t configured on this server yet. Open <a href="/brag-book/?local=1">?local=1</a> to use this browser only.</p>'
+    : (auth?.needsReauth
+      ? '<p class="bb-gate-error">Your session expired. Sign in again to open your book.</p>'
+      : '');
+  renderBragSignIn(root, {
+    art: '<img class="bb-gate-art" src="/brag-book/icon.svg" alt="" width="72" height="72">',
+    title: 'Brag Book',
+    copy: 'Sign in with the same account as Packing Cubes. Your wins, postings, and cue cards stay on that account.',
+    note,
+    onSuccess: () => location.reload(),
+  });
+  if (!auth?.configured) {
+    const form = root.querySelector('#bb-auth');
+    if (form) form.hidden = true;
+  }
+  wireAuthLink(auth || { configured: false, signedIn: false });
+  const legal = document.querySelector('.legal');
+  if (legal) legal.textContent = 'Sign in to keep the book on your account. Nothing is stored until you do.';
+}
+
+function escapeHtml(value) {
+  return String(value || '').replace(/[&<>"']/g, (ch) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[ch]));
+}
+
+function showBook(note) {
+  unlocked = true;
+  setAppNav(true);
+  if (!location.hash) location.hash = '#log';
+  render();
+  if (note) setNote(note);
+}
+
+async function boot() {
+  if (localMode) {
+    auth = { configured: true, signedIn: true, token: null, local: true };
+    store = loadCached();
+    const legal = document.querySelector('.legal');
+    if (legal) legal.textContent = 'This device only (?local=1). Sign in without that flag to keep the book on your account.';
+    showBook('This device only');
+    const link = document.getElementById('nav-auth-link');
+    if (link) {
+      link.textContent = 'Local';
+      link.href = '/brag-book/';
+    }
+    return;
+  }
+
+  auth = await initAuth();
+  if (auth.configured && auth.user && !auth.token) await refreshToken(auth);
+  wireAuthLink(auth);
+
+  if (!auth.configured || !auth.signedIn || !auth.token) {
+    renderSignInGate();
+    return;
+  }
+
+  const cached = loadCached();
+
+  try {
+    const data = await loadBook(auth.token);
+    const remote = normalizeStore(data.book);
+    if (data.created && bookIsEmpty(remote) && !bookIsEmpty(cached)) {
+      store = cached;
+      showBook('Moved this browser’s book onto your account.');
+      await pushStore();
+      return;
+    }
+    store = remote;
+    cacheStore();
+    showBook(data.created ? 'New book' : 'Saved to your account.');
+  } catch (err) {
+    if (err.status === 401) {
+      auth.needsReauth = true;
+      auth.signedIn = false;
+      renderSignInGate();
+      return;
+    }
+    if (!bookIsEmpty(cached)) {
+      store = cached;
+      showBook('Cloud copy unavailable — showing this device.');
+      return;
+    }
+    root.innerHTML = `<p class="quiet">Could not load Brag Book: ${escapeHtml(err.message)}</p>`;
+  }
+}
+
 fileInput.addEventListener('change', () => {
   importStore(fileInput.files?.[0]);
   fileInput.value = '';
 });
 
-window.addEventListener('hashchange', render);
-if (!location.hash) location.hash = '#log';
-else render();
+window.addEventListener('hashchange', () => {
+  if (unlocked) render();
+});
+
+window.addEventListener('pagehide', () => {
+  if (!persistTimer) return;
+  clearTimeout(persistTimer);
+  persistTimer = null;
+  if (auth?.token) saveBook(auth.token, store, { keepalive: true });
+});
+
+boot();

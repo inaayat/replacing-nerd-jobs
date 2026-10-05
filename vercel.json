@@ -212,6 +212,10 @@
       "destination": "/api/wedding?route=board"
     },
     {
+      "source": "/api/bb-book",
+      "destination": "/api/brag-book?route=book"
+    },
+    {
       "source": "/api/wd-unfurl",
       "destination": "/api/wedding?route=unfurl"
     },

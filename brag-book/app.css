@@ -408,6 +408,90 @@ textarea { resize: vertical; }
   color: var(--green);
 }
 
+.hidden { display: none !important; }
+
+.bb-gate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100dvh - 140px);
+  padding: 24px 0 48px;
+}
+
+.bb-gate-card {
+  background: var(--paper-2);
+  border: 1.5px solid var(--rule-strong);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 32px 28px 26px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+}
+
+.bb-gate-art { display: block; margin: 0 auto 12px; }
+.bb-gate-title {
+  font-family: Fraunces, Georgia, serif;
+  font-size: 1.6rem;
+  margin: 0 0 8px;
+}
+.bb-gate-copy {
+  color: var(--ink-soft);
+  font-size: 13px;
+  margin: 0 0 18px;
+}
+.bb-gate-error {
+  font-size: 12px;
+  text-align: left;
+  background: #fff1c4;
+  border: 1.5px solid #e6c65a;
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin: 0 0 14px;
+}
+.bb-gate-error a { color: var(--ink); }
+.bb-gate-small {
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin: 12px 0 0;
+}
+.bb-gate-small a { color: var(--ink); }
+.bb-gate-btn { width: 100%; margin-top: 4px; }
+
+.bb-auth { text-align: left; }
+.bb-auth-tabs {
+  display: flex;
+  border: 1.5px solid var(--rule-strong);
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 0 0 14px;
+}
+.bb-auth-tab {
+  flex: 1;
+  font: inherit;
+  font-size: 13px;
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  min-height: 44px;
+}
+.bb-auth-tab.is-active { background: var(--ink); color: var(--paper); }
+.bb-auth-form { display: flex; flex-direction: column; gap: 12px; }
+.bb-auth-field { display: flex; flex-direction: column; gap: 4px; text-align: left; }
+.bb-auth-field span { font-size: 12px; color: var(--ink-soft); }
+.bb-input {
+  width: 100%;
+  border: 1.5px solid var(--rule-strong);
+  border-radius: 10px;
+  background: #fff;
+  padding: 10px 12px;
+  min-height: 44px;
+  font: inherit;
+}
+.bb-auth-error { color: var(--red); font-size: 12px; margin: 8px 0 0; }
+
 @media (max-width: 860px) {
   .layout { grid-template-columns: 1fr; }
   .grid-2 { grid-template-columns: 1fr; }

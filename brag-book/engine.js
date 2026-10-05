@@ -7,6 +7,7 @@
 
 export const SCHEMA = 1;
 export const STORE_KEY = 'brag-book-store-v1';
+export const BOOK_MAX_CHARS = 1_500_000;
 
 export const ENTRY_KINDS = ['experience', 'project', 'skillset'];
 export const POSTING_STATUSES = ['draft', 'prepping', 'applied', 'archived'];
@@ -625,6 +626,22 @@ export function prepCoverage(store, posting) {
   const withQuestion = cards.filter((card) => card.questions.length).length;
   const ready = cards.filter((card) => card.ready).length;
   return { total, withBullet, withStory, withQuestion, ready };
+}
+
+export function serializeBook(raw, { maxChars = BOOK_MAX_CHARS } = {}) {
+  const book = normalizeStore(raw);
+  const json = JSON.stringify(book);
+  if (json.length > maxChars) {
+    const err = new Error('Book is too large.');
+    err.status = 400;
+    throw err;
+  }
+  return { book, json };
+}
+
+export function bookIsEmpty(store) {
+  const book = store || emptyStore();
+  return !book.entries?.length && !book.postings?.length;
 }
 
 export function listingSummary(store) {
