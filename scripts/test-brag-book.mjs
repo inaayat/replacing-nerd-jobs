@@ -27,7 +27,6 @@ import {
   moveRequirement,
   answerQuestionFromEntry,
   draftBulletFromEntry,
-  applyStoryToQuestion,
   questionAnswered,
   parseExperiences,
   compileResumeHtml,
