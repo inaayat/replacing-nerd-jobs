@@ -16,7 +16,6 @@ import {
   addRequirements,
   updateRequirement,
   deleteRequirement,
-  moveRequirement,
   addEntryBullet,
   createEntryBullet,
   updateBullet,
@@ -906,7 +905,7 @@ function experienceAdder(job, req) {
   return wrap;
 }
 
-function requirementTableRow(job, req, index) {
+function requirementTableRow(job, req) {
   const requirement = el('textarea', {
     class: 'table-req-text',
     rows: '1',
@@ -970,34 +969,6 @@ function requirementTableRow(job, req, index) {
             render();
           },
         }),
-        el('span', { class: 'req-position' }, `${index + 1}/${job.requirements.length}`),
-        el('div', { class: 'req-actions', role: 'group', 'aria-label': 'Requirement actions' }, [
-          btn('↑', {
-            class: 'req-action',
-            title: 'Move requirement up',
-            'aria-label': 'Move requirement up',
-            disabled: index === 0,
-            onClick: () => { store = moveRequirement(store, job.id, req.id, -1); saveStore(); render(); },
-          }),
-          btn('↓', {
-            class: 'req-action',
-            title: 'Move requirement down',
-            'aria-label': 'Move requirement down',
-            disabled: index === job.requirements.length - 1,
-            onClick: () => { store = moveRequirement(store, job.id, req.id, 1); saveStore(); render(); },
-          }),
-          btn('×', {
-            class: 'req-action is-danger',
-            title: 'Remove requirement',
-            'aria-label': 'Remove requirement',
-            onClick: () => {
-              if (!confirm('Remove this requirement and its resume bullets?')) return;
-              store = deleteRequirement(store, job.id, req.id);
-              saveStore();
-              render();
-            },
-          }),
-        ]),
       ]),
       req.questions.length || questionComposerKey === composerKey
         ? requirementQuestions(job, req)
@@ -1016,8 +987,8 @@ function requirementTable(job) {
     ]),
   ]));
   const body = el('tbody');
-  for (const [index, req] of job.requirements.entries()) {
-    body.append(requirementTableRow(job, req, index));
+  for (const req of job.requirements) {
+    body.append(requirementTableRow(job, req));
   }
   table.append(body);
   return el('div', { class: 'job-table-wrap' }, [table]);
