@@ -191,7 +191,8 @@ Packing Cubes. The home screen is two ways in — **the book** (log a win) or
 in the same log. On a posting, pin resume bullets, stories from the book, and
 potential questions onto each requirement. **Prep** walks the cue cards;
 **Resume** copies the compiled bullets. The page is styled after
-[Plotmaniac](https://plotmaniac.com/) (dark paper, gold, Fraunces + IBM Plex Mono).
+[Plotmaniac](https://plotmaniac.com/) (same type and rules, flipped to black
+on white, full page width).
 
 Signing in is required — the signed-out view is a centered log-in gate. One
 JSONB row per user (`brag_books`) via `api/brag-book.js` (`/api/bb-book`).
