@@ -208,8 +208,11 @@ bullet is one line; use Bold / Ctrl+B instead of separate lead and body
 fields. ↑↓ reorder roles, sub-headings, and bullets (↑/↓ at a group edge
 moves the bullet into the next heading). **Under** picks another
 sub-heading. **+ Sub-heading here** inserts a sub-heading under that block.
-**Import resume (JSON)** loads `brag-book/data/inaayat-gill-resume.json` (or any
-file in that schema) into the signed-in book. Plain-text Copy / `.txt` / older
+New empty books (no header or career yet) show a **John Doe** classic-serif
+starter (`brag-book/starter-resume.js` / `data/john-doe-resume.json`) in Resume
+basics so the editor and print layout work immediately. Existing books with
+any profile or career rows are not seeded. **Import resume (JSON)** still
+loads any classic-serif file. Plain-text Copy / `.txt` / older
 `.doc` remain under a disclosure. **Prep** walks question + STAR with keyboard
 next/prev. **Resume bullets** (`#log`) is the TL;DR catalog of saved experience
 lines — list rows render the same bold spans as the job-posting table, and
