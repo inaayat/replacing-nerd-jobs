@@ -24,6 +24,8 @@ import {
   patchResumeVariant,
   importResumeDoc,
   moveListItem,
+  moveKey,
+  insertKeyAfter,
   compileResumeDoc,
   addLocalJob,
   updateLocalJob,
@@ -67,10 +69,15 @@ export {
   parseBulletText,
   boldMetrics,
   bulletPlainText,
+  bulletLineText,
+  bulletFromLine,
+  markdownToSpans,
+  spansToMarkdown,
   visibleResumeDoc,
   headerFromProfile,
   moveListItem,
   moveKey,
+  insertKeyAfter,
   toggleId,
   findResumeBullet,
   writeBulletBackToSource,
@@ -740,6 +747,44 @@ export function movePostingJob(store, postingId, jobId, delta) {
   });
 }
 
+export function compiledJobGroups(store, postingId, jobId) {
+  const posting = postingId ? postingById(store, postingId) : null;
+  const jobs = posting
+    ? compileResumeDoc(posting, store).sections.experience.jobs
+    : (store?.jobs || []);
+  return (jobs.find((job) => job.id === jobId)?.groups || []).map((group) => group.id);
+}
+
+export function moveResumeGroup(store, postingId, jobId, groupId, delta, clock = Date.now) {
+  if (!postingId) return moveCareerGroup(store, jobId, groupId, delta, clock);
+  const ids = compiledJobGroups(store, postingId, jobId);
+  return updatePostingResume(store, postingId, {
+    groupOrder: { [jobId]: moveKey(ids, groupId, delta) },
+  }, clock);
+}
+
+export function addResumeGroup(store, postingId, career, { afterId } = {}, clock = Date.now, random = Math.random) {
+  const jobId = career?.id;
+  if (!jobId) return { store, groupId: null };
+  const groupId = newId('rg', clock, random);
+  let next = adoptCompiledJob(store, postingId || null, career, clock, random);
+  if (postingId) {
+    next = addPostingLocalGroup(next, postingId, jobId, { id: groupId }, clock, random);
+    const ids = insertKeyAfter(compiledJobGroups(next, postingId, jobId), groupId, afterId);
+    next = updatePostingResume(next, postingId, { groupOrder: { [jobId]: ids } }, clock);
+  } else {
+    next = addCareerGroup(next, jobId, { id: groupId }, clock, random);
+    if (afterId) {
+      const job = (next.jobs || []).find((item) => item.id === jobId);
+      const ordered = insertKeyAfter((job?.groups || []).map((group) => group.id), groupId, afterId)
+        .map((id) => (job?.groups || []).find((group) => group.id === id))
+        .filter(Boolean);
+      next = updateCareerJob(next, jobId, { groups: ordered }, clock);
+    }
+  }
+  return { store: next, groupId };
+}
+
 export function addPostingLocalEducation(store, postingId, draft = {}, clock = Date.now, random = Math.random) {
   return patchPostingVariant(store, postingId, (variant) => addLocalEducation(variant, {
     ...draft,
@@ -857,6 +902,43 @@ function mapCareerJob(store, jobId, fn, clock = Date.now) {
   const next = normalizeCareerJob(fn(current), clock);
   if (!next) return store;
   return { ...store, jobs: replaceById(store.jobs, jobId, next) };
+}
+
+function careerDraftFromCompiled(career) {
+  return {
+    id: career?.id,
+    company: career?.company || '',
+    title: career?.title || '',
+    location: career?.location || '',
+    start: career?.start || '',
+    end: career?.end || '',
+    current: Boolean(career?.current),
+    groups: (career?.groups || []).map((group) => ({
+      id: group.id,
+      heading: group.heading || '',
+      bullets: (group.bullets || []).map((bullet) => ({
+        id: bullet.id,
+        lead: bullet.lead || '',
+        body: bullet.body || '',
+        priority: bullet.priority,
+        pinned: bullet.pinned,
+      })),
+    })),
+  };
+}
+
+export function adoptCompiledJob(store, postingId, career, clock = Date.now, random = Math.random) {
+  const id = String(career?.id || '').trim();
+  if (!id) return store;
+  if ((store?.jobs || []).some((job) => job.id === id)) return store;
+  const draft = careerDraftFromCompiled(career);
+  if (postingId) {
+    const posting = postingById(store, postingId);
+    if (!posting) return store;
+    if ((posting.resume?.localJobs || []).some((job) => job.id === id)) return store;
+    return addPostingLocalJob(store, postingId, draft, {}, clock, random);
+  }
+  return addCareerJob(store, draft, clock, random);
 }
 
 export function addCareerJob(store, draft = {}, clock = Date.now, random = Math.random) {
@@ -1045,6 +1127,19 @@ export function updateAdditionalGroup(store, rowId, groupId, patch, clock = Date
             group.id === groupId ? { ...group, ...patch, id: group.id } : group
           )),
         };
+      }),
+      clock
+    ),
+  };
+}
+
+export function moveAdditionalGroup(store, rowId, groupId, delta, clock = Date.now) {
+  return {
+    ...store,
+    additional: normalizeAdditional(
+      (store?.additional || []).map((row) => {
+        if (row.id !== rowId) return row;
+        return { ...row, groups: moveListItem(row.groups || [], groupId, delta) };
       }),
       clock
     ),
@@ -1778,6 +1873,39 @@ export function shouldPullRemoteBook({
   return visible !== false && !dirty && !persistPending && !pushing;
 }
 
+export function resumeRoleKey(scopeId, roleId) {
+  const id = String(roleId || '').trim();
+  if (!id) return '';
+  return `${String(scopeId || 'basics').trim() || 'basics'}:${id}`;
+}
+
+export function roleIsCollapsed(keys, scopeId, roleId) {
+  const key = resumeRoleKey(scopeId, roleId);
+  return Boolean(key && (keys || []).includes(key));
+}
+
+export function toggleRoleCollapsed(keys, scopeId, roleId) {
+  const key = resumeRoleKey(scopeId, roleId);
+  const items = [...(keys || [])].filter(Boolean);
+  if (!key) return items;
+  return items.includes(key) ? items.filter((item) => item !== key) : [...items, key];
+}
+
+export function resumeRoleSummary(career) {
+  const company = String(career?.company || '').trim();
+  const title = String(career?.title || '').trim();
+  const bullets = (career?.groups || []).reduce((sum, group) => sum + (group.bullets || []).length, 0);
+  return {
+    title: [company, title].filter(Boolean).join(' · ') || 'Untitled role',
+    bullets,
+  };
+}
+
+export function isRoleHeaderToggleTarget(tagName, closestInteractive = false) {
+  if (closestInteractive) return false;
+  return !['input', 'textarea', 'select', 'button', 'option', 'label', 'a'].includes(String(tagName || '').toLowerCase());
+}
+
 export function applyBookWrite(record, expectedUpdatedAt, nextBook, clock = Date.now) {
   const serverAt = record?.updatedAt ?? null;
   const guard = bookSaveGuard(serverAt, expectedUpdatedAt);
@@ -1801,6 +1929,23 @@ export function bookConflictError(latest) {
   err.revision = latest?.revision ?? null;
   err.book = latest?.book ?? null;
   return err;
+}
+
+function postingBulletCount(store) {
+  let n = 0;
+  for (const posting of store?.postings || []) {
+    for (const req of posting.requirements || []) {
+      n += (req.bullets || []).length;
+    }
+  }
+  return n;
+}
+
+export function shouldBlockEmptyOverwrite(next, previous) {
+  if (!previous) return false;
+  const hadLog = (previous.entries || []).length > 0 || postingBulletCount(previous) > 0;
+  if (!hadLog) return false;
+  return (next?.entries || []).length === 0 && postingBulletCount(next) === 0;
 }
 
 export function bookIsEmpty(store) {

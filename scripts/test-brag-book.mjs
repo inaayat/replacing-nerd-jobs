@@ -63,6 +63,7 @@ import {
   moveCareerBullet,
   moveCareerJob,
   addPostingLocalJob,
+  updatePostingLocalJob,
   addPostingLocalBullet,
   deletePostingLocalJob,
   startPostingResumeFresh,
@@ -92,8 +93,23 @@ import {
   bookSaveGuard,
   applyBookWrite,
   shouldPullRemoteBook,
+  shouldBlockEmptyOverwrite,
   bookConflictError,
   STALE_BOOK_MESSAGE,
+  resumeRoleKey,
+  roleIsCollapsed,
+  toggleRoleCollapsed,
+  resumeRoleSummary,
+  isRoleHeaderToggleTarget,
+  adoptCompiledJob,
+  addResumeGroup,
+  moveResumeGroup,
+  moveAdditionalGroup,
+  insertKeyAfter,
+  bulletLineText,
+  bulletFromLine,
+  markdownToSpans,
+  spansToMarkdown,
   asUrl,
   titleFromJobUrl,
   hostFromJobUrl,
@@ -825,5 +841,122 @@ assert.equal(shouldPullRemoteBook({ dirty: true, visible: true }), false);
 assert.equal(shouldPullRemoteBook({ persistPending: true }), false);
 assert.equal(shouldPullRemoteBook({ pushing: true }), false);
 assert.equal(shouldPullRemoteBook({ visible: false }), false);
+
+assert.equal(resumeRoleKey('job-1', 'role-a'), 'job-1:role-a');
+assert.equal(resumeRoleKey('', 'role-a'), 'basics:role-a');
+assert.equal(resumeRoleKey(null, ''), '');
+assert.equal(roleIsCollapsed([], 'job-1', 'role-a'), false);
+const folded = toggleRoleCollapsed([], 'job-1', 'role-a');
+assert.equal(roleIsCollapsed(folded, 'job-1', 'role-a'), true);
+assert.equal(roleIsCollapsed(folded, 'basics', 'role-a'), false);
+assert.equal(roleIsCollapsed(toggleRoleCollapsed(folded, 'job-1', 'role-a'), 'job-1', 'role-a'), false);
+assert.deepEqual(resumeRoleSummary({
+  company: 'PricewaterhouseCoopers LLC',
+  title: 'Senior Associate',
+  groups: [{ bullets: [{}, {}, {}] }, { bullets: [{}] }],
+}), { title: 'PricewaterhouseCoopers LLC · Senior Associate', bullets: 4 });
+assert.deepEqual(resumeRoleSummary({}), { title: 'Untitled role', bullets: 0 });
+assert.equal(isRoleHeaderToggleTarget('DIV', false), true);
+assert.equal(isRoleHeaderToggleTarget('BUTTON', false), false);
+assert.equal(isRoleHeaderToggleTarget('LABEL', false), false);
+assert.equal(isRoleHeaderToggleTarget('DIV', true), false);
+
+assert.equal(bulletLineText({ lead: 'Led team', body: 'Built it' }), '**Led team:** Built it');
+assert.equal(bulletLineText({ lead: '', body: 'Plain **bold** line' }), 'Plain **bold** line');
+assert.deepEqual(bulletFromLine('**Led team:** Built **100+** controls'), {
+  lead: '',
+  body: '**Led team:** Built **100+** controls',
+});
+assert.deepEqual(markdownToSpans('**Led team:** Built it'), [
+  { text: 'Led team:', bold: true },
+  { text: ' Built it', bold: false },
+]);
+assert.equal(spansToMarkdown([
+  { text: 'Led team:', bold: true },
+  { text: ' Built it', bold: false },
+]), '**Led team:** Built it');
+
+const ghostRole = {
+  id: 'job_role_godaddy',
+  company: 'GoDaddy',
+  title: '',
+  location: 'New York, NY / Seattle, WA',
+  start: 'October 2021',
+  end: 'Present',
+  groups: [{ id: 'g1', heading: '', bullets: [{ id: 'b1', lead: '', body: 'Did a thing' }] }],
+};
+let adopted = adoptCompiledJob(addPosting(emptyStore(), { title: 'Open' }, clock), 'missing', ghostRole, clock, random);
+assert.equal((adopted.postings || []).length, 1);
+adopted = addPosting(emptyStore(), { title: 'Open' }, clock);
+const postingId = adopted.postings[0].id;
+adopted = adoptCompiledJob(adopted, postingId, ghostRole, clock, random);
+assert.equal(adopted.jobs.some((job) => job.id === 'job_role_godaddy'), false);
+assert.equal(adopted.postings[0].resume.localJobs.some((job) => job.id === 'job_role_godaddy' && job.company === 'GoDaddy'), true);
+const adoptedAgain = adoptCompiledJob(adopted, postingId, ghostRole, clock, random);
+assert.equal(adoptedAgain.postings[0].resume.localJobs.length, adopted.postings[0].resume.localJobs.length);
+adopted = updatePostingLocalJob(adopted, postingId, 'job_role_godaddy', { title: 'Senior Analyst' }, clock);
+assert.equal(compileResumeDoc(postingById(adopted, postingId), adopted).sections.experience.jobs
+  .find((job) => job.id === 'job_role_godaddy').title, 'Senior Analyst');
+const basicsAdopt = adoptCompiledJob(emptyStore(), null, ghostRole, clock, random);
+assert.equal(basicsAdopt.jobs[0].company, 'GoDaddy');
+assert.equal(adoptCompiledJob(basicsAdopt, null, ghostRole, clock, random).jobs.length, 1);
+
+assert.deepEqual(insertKeyAfter(['a', 'b', 'c'], 'x', 'a'), ['a', 'x', 'b', 'c']);
+assert.deepEqual(insertKeyAfter(['a', 'b'], 'x'), ['a', 'b', 'x']);
+assert.deepEqual(insertKeyAfter(['a', 'x', 'b'], 'x', 'b'), ['a', 'b', 'x']);
+
+let ordered = applyImportedResume(emptyStore(), sampleResume, clock);
+ordered = addPosting(ordered, { title: 'Order posting' }, clock);
+const orderedJobId = ordered.postings[0].id;
+const pwc = ordered.jobs.find((job) => job.company.startsWith('PricewaterhouseCoopers'));
+const pwcGroups = pwc.groups.map((group) => group.id);
+assert.ok(pwcGroups.length >= 2);
+ordered = moveResumeGroup(ordered, orderedJobId, pwc.id, pwcGroups[0], 1, clock);
+const afterMove = compileResumeDoc(postingById(ordered, orderedJobId), ordered)
+  .sections.experience.jobs.find((job) => job.id === pwc.id).groups.map((group) => group.id);
+assert.equal(afterMove[0], pwcGroups[1]);
+assert.equal(afterMove[1], pwcGroups[0]);
+const inserted = addResumeGroup(ordered, orderedJobId, pwc, { afterId: afterMove[0] }, clock, random);
+ordered = inserted.store;
+const afterInsert = compileResumeDoc(postingById(ordered, orderedJobId), ordered)
+  .sections.experience.jobs.find((job) => job.id === pwc.id).groups.map((group) => group.id);
+assert.equal(afterInsert[1], inserted.groupId);
+const basicsInsert = addResumeGroup(applyImportedResume(emptyStore(), sampleResume, clock), null, pwc, {
+  afterId: pwcGroups[0],
+}, clock, random);
+assert.equal(basicsInsert.store.jobs.find((job) => job.id === pwc.id).groups[1].id, basicsInsert.groupId);
+
+let addl = applyImportedResume(emptyStore(), sampleResume, clock);
+addl = addAdditionalGroup(addl, addl.additional[0].id, { label: 'First' }, clock, random);
+addl = addAdditionalGroup(addl, addl.additional[0].id, { label: 'Second' }, clock, random);
+const addlIds = addl.additional[0].groups.map((group) => group.id);
+addl = moveAdditionalGroup(addl, addl.additional[0].id, addlIds[0], 1, clock);
+assert.equal(addl.additional[0].groups[0].id, addlIds[1]);
+assert.equal(addl.additional[0].groups[1].id, addlIds[0]);
+
+let logged = addEntries(addPosting(emptyStore(), { title: 'Open' }, clock), [
+  { title: 'Led a walkthrough', kind: 'experience' },
+], clock);
+logged = addRequirement(logged, logged.postings[0].id, 'Need a walkthrough', clock);
+logged = addEntryBullet(
+  logged,
+  logged.postings[0].id,
+  logged.postings[0].requirements[0].id,
+  logged.entries[0].id,
+  'Led a walkthrough',
+  clock
+);
+assert.ok(logged.entries.length >= 1);
+assert.ok(logged.postings[0].requirements[0].bullets.length >= 1);
+const packedLog = serializeBook(logged);
+const reloadedLog = normalizeStore(JSON.parse(packedLog.json), clock);
+assert.equal(reloadedLog.entries[0].title, 'Led a walkthrough');
+assert.equal(reloadedLog.postings[0].requirements[0].bullets[0].text, 'Led a walkthrough');
+assert.equal(shouldBlockEmptyOverwrite(emptyStore(), reloadedLog), true);
+assert.equal(shouldBlockEmptyOverwrite(reloadedLog, reloadedLog), false);
+assert.equal(shouldBlockEmptyOverwrite(emptyStore(), emptyStore()), false);
+const movedLog = moveResumeGroup(reloadedLog, reloadedLog.postings[0].id, 'nope', 'g', 1, clock);
+assert.equal(movedLog.entries[0].title, 'Led a walkthrough');
+assert.equal(movedLog.postings[0].requirements[0].bullets[0].text, 'Led a walkthrough');
 
 console.log('ok');

@@ -492,6 +492,7 @@ a:focus-visible {
 .field input,
 .field textarea,
 .field select,
+.field .bb-rb-line,
 .search,
 .line-row input,
 .line-row textarea,
@@ -1392,10 +1393,80 @@ a:focus-visible {
   margin: 8px 0;
   background: #fff;
 }
+.bb-job-card.is-role {
+  padding: 0;
+  background: #efe8d8;
+  border-color: rgba(12, 11, 9, 0.18);
+  box-shadow: inset 3px 0 0 var(--gold);
+}
+.bb-job-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #e6dcc8;
+  cursor: pointer;
+}
+.bb-job-fold {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 14rem;
+  min-width: 0;
+  margin: 0;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.bb-job-fold:hover { color: var(--ink); }
+.bb-job-chevron {
+  flex: 0 0 1rem;
+  width: 1rem;
+  color: var(--gold);
+}
+.bb-job-summary {
+  min-width: 0;
+  font-family: var(--content-font);
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+.bb-job-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.bb-job-body {
+  padding: 8px 12px 12px;
+}
+.bb-job-card.is-role .bb-rb {
+  background: #fff;
+  margin: 8px 0;
+}
+.bb-rb-line-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+.bb-rb-line {
+  min-height: 2.6em;
+  white-space: pre-wrap;
+  font-family: var(--content-font);
+}
 .bb-job-card.is-excluded,
 .bb-rb.is-excluded {
   opacity: 0.48;
   background: var(--panel);
+}
+.bb-job-card.is-role.is-excluded {
+  background: #efe8d8;
 }
 .bb-rb.is-dropped { box-shadow: inset 3px 0 0 var(--gold); }
 .bb-rb.is-on { box-shadow: inset 3px 0 0 var(--ink); }
@@ -1423,8 +1494,21 @@ a:focus-visible {
 }
 .bb-group-head {
   display: grid;
-  gap: 6px;
-  margin-top: 8px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: end;
+  margin-top: 10px;
+  padding: 8px;
+  background: rgba(12, 11, 9, 0.045);
+  border-radius: 6px;
+}
+.bb-group-head .field { margin-bottom: 0; }
+.bb-group-head .bb-order-btns,
+.bb-group-head .actions {
+  flex-wrap: wrap;
+}
+.bb-order-btns .btn {
+  min-width: 36px;
 }
 .bb-addl-group {
   border-top: 1px solid var(--line);

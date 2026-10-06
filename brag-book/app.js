@@ -47,6 +47,8 @@ import {
   deleteCareerBullet,
   moveCareerBullet,
   moveCareerGroup,
+  addResumeGroup,
+  moveResumeGroup,
   addPostingLocalJob,
   updatePostingLocalJob,
   deletePostingLocalJob,
@@ -84,6 +86,7 @@ import {
   addAdditionalRow,
   deleteAdditionalRow,
   moveAdditionalRow,
+  moveAdditionalGroup,
   addAdditionalGroup,
   updateAdditionalGroup,
   deleteAdditionalGroup,
@@ -93,6 +96,11 @@ import {
   toggleId,
   writeBulletBackToSource,
   clearBulletOverride,
+  adoptCompiledJob,
+  bulletLineText,
+  bulletFromLine,
+  markdownToSpans,
+  spansToMarkdown,
   DEFAULT_SECTION_ORDER,
   compilePrep,
   prepCoverage,
@@ -105,6 +113,11 @@ import {
   updateProfile,
   normalizeBookRevision,
   shouldPullRemoteBook,
+  shouldBlockEmptyOverwrite,
+  roleIsCollapsed,
+  toggleRoleCollapsed,
+  resumeRoleSummary,
+  isRoleHeaderToggleTarget,
 } from './engine.js';
 import { renderResumeHtml, resumeDocument } from './resume-template.js';
 import { fitOnePage, dropOrderFromDoc, applyDroppedIds, PAGE_HEIGHT_PX } from './resume-fit.js';
@@ -133,10 +146,12 @@ let persistTimer = null;
 let bookRevision = null;
 let bookDirty = false;
 let bookPushing = false;
+let lastServerBook = null;
 let query = '';
 let kindFilter = 'all';
 let statusNote = '';
 let expandedBulletKey = '';
+let collapsedResumeRoles = [];
 let questionComposerKey = '';
 const openQuestionIds = new Set();
 let resumeFit = { fits: true, fontPt: 10, bulletLineHeight: 1.32, droppedBulletIds: [], overflowPx: 0, vars: {} };
@@ -157,6 +172,7 @@ function cacheStore() {
 function rememberServerBook(data) {
   bookRevision = normalizeBookRevision(data?.updatedAt);
   bookDirty = false;
+  if (data?.book) lastServerBook = normalizeStore(data.book);
 }
 
 function saveStore() {
@@ -184,6 +200,18 @@ async function adoptServerBook(data, note) {
 
 async function pushStore({ keepalive = false } = {}) {
   if (localMode || !auth?.token) return;
+  if (shouldBlockEmptyOverwrite(store, lastServerBook)) {
+    try {
+      const latest = await loadBook(auth.token);
+      await adoptServerBook(
+        latest,
+        'Save blocked — this tab was missing logged experiences or bullets. Reloaded the account copy.'
+      );
+    } catch {
+      setNote('Save blocked: this tab is missing logged experiences or bullets from the account.');
+    }
+    return;
+  }
   bookPushing = true;
   try {
     const data = await saveBook(auth.token, store, { keepalive, updatedAt: bookRevision });
@@ -1747,13 +1775,22 @@ async function refreshResumePreview(posting) {
   scaleResumeFrame(wrap, frame);
   frame.contentDocument?.addEventListener('click', (event) => {
     const li = event.target.closest?.('li[data-bullet-id]');
-    if (!li) return;
-    const id = li.getAttribute('data-bullet-id');
-    const field = root.querySelector(`[data-focus-key="rb-${id}-body"]`)
-      || root.querySelector(`[data-focus-key="rb-${id}-lead"]`);
+    const jobNode = event.target.closest?.('[data-job-id]');
+    const bulletId = li?.getAttribute('data-bullet-id');
+    const jobId = li?.getAttribute('data-job-id') || jobNode?.getAttribute('data-job-id');
+    if (!bulletId && !jobId) return;
+    const focusKey = bulletId ? `rb-${bulletId}-line` : `rj-${jobId}-company`;
+    if (jobId && roleIsCollapsed(collapsedResumeRoles, current?.id, jobId)) {
+      collapsedResumeRoles = toggleRoleCollapsed(collapsedResumeRoles, current?.id, jobId);
+      render({ focusKey });
+      return;
+    }
+    const field = root.querySelector(`[data-focus-key="${focusKey}"]`)
+      || root.querySelector(`[data-focus-key="rb-${bulletId}-body"]`)
+      || root.querySelector(`[data-focus-key="rb-${bulletId}-lead"]`);
     field?.focus();
     root.querySelectorAll('.bb-rb.is-on').forEach((node) => node.classList.remove('is-on'));
-    root.querySelector(`[data-bullet-wrap="${id}"]`)?.classList.add('is-on');
+    if (bulletId) root.querySelector(`[data-bullet-wrap="${bulletId}"]`)?.classList.add('is-on');
   });
 }
 
@@ -1914,15 +1951,17 @@ function resumeSectionHead(title, action) {
 }
 
 function resumeMoveBtns(label, { index, length, onMove }) {
-  return el('div', { class: 'actions' }, [
+  return el('div', { class: 'actions bb-order-btns' }, [
     btn('↑', {
       class: 'btn ghost compact-action',
+      title: `Move ${label} up`,
       'aria-label': `Move ${label} up`,
       disabled: index <= 0,
       onClick: () => onMove(-1),
     }),
     btn('↓', {
       class: 'btn ghost compact-action',
+      title: `Move ${label} down`,
       'aria-label': `Move ${label} down`,
       disabled: index >= length - 1,
       onClick: () => onMove(1),
@@ -1930,53 +1969,62 @@ function resumeMoveBtns(label, { index, length, onMove }) {
   ]);
 }
 
+function addSubheadingButton(posting, career, { afterId } = {}) {
+  return btn(afterId ? '+ Sub-heading here' : '+ Add sub-heading', {
+    class: 'btn ghost compact-action',
+    onClick: () => {
+      const added = addResumeGroup(store, posting?.id || null, career, { afterId });
+      store = added.store;
+      saveStore();
+      render({ focusKey: added.groupId ? `rg-${added.groupId}-heading` : `rj-${career.id}-company` });
+    },
+  });
+}
+
 function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0) {
   const dropped = (resumeFit.droppedBulletIds || []).includes(bullet.id);
   const shared = isSharedJob(career.id);
   const localBullet = Boolean(bullet.local) || isLocalOnlyJob(posting, career.id);
   const canEdit = !posting || shared || localBullet || Boolean(career.local);
-  const lead = el('input', {
-    value: bullet.lead,
-    placeholder: 'Bold lead phrase',
-    'aria-label': 'Bold lead',
-    'data-focus-key': `rb-${bullet.id}-lead`,
-  });
-  const body = el('textarea', {
-    rows: '3',
-    placeholder: 'Body. Wrap metrics in **like this**.',
-    'aria-label': 'Bullet body',
-    'data-focus-key': `rb-${bullet.id}-body`,
-  }, bullet.body);
-  body.value = bullet.body;
-  const commitWording = () => {
-    if (!posting) {
+  const lineText = bulletLineText(bullet);
+  const commitWording = (spans) => {
+    const next = bulletFromLine(spansToMarkdown(spans));
+    store = adoptCompiledJob(store, posting?.id || null, career);
+    const adoptedLocal = Boolean(posting && localJobById(livePosting(posting.id)?.resume, career.id) && !isSharedJob(career.id));
+    if (!posting || isSharedJob(career.id)) {
+      const job = careerJobById(career.id) || career;
       store = updateCareerJob(store, career.id, {
-        groups: career.groups.map((item) => (
+        groups: (job.groups || career.groups).map((item) => (
           item.id === group.id
             ? {
               ...item,
               bullets: item.bullets.map((row) => (
-                row.id === bullet.id ? { ...row, lead: lead.value, body: body.value } : row
+                row.id === bullet.id ? { ...row, ...next } : row
               )),
             }
             : item
         )),
       });
-    } else if (localBullet) {
-      store = updatePostingLocalBullet(store, posting.id, career.id, group.id, bullet.id, {
-        lead: lead.value,
-        body: body.value,
-      });
+    } else if (localBullet || adoptedLocal) {
+      store = updatePostingLocalBullet(store, posting.id, career.id, group.id, bullet.id, next);
     } else {
       store = updatePostingResume(store, posting.id, {
-        overrides: { [bullet.id]: { lead: lead.value, body: body.value } },
+        overrides: { [bullet.id]: next },
       });
     }
     saveStore();
     scheduleResumePreview(posting);
   };
-  lead.addEventListener('input', commitWording);
-  body.addEventListener('input', commitWording);
+  const line = richLine({
+    class: 'bb-rb-line',
+    'aria-label': 'Bullet',
+    'aria-multiline': 'true',
+    'data-focus-key': `rb-${bullet.id}-line`,
+  }, {
+    text: lineText,
+    rich: markdownToSpans(lineText),
+    onChange: commitWording,
+  });
   const wrap = el('div', {
     class: `bb-rb${bullet.included === false ? ' is-excluded' : ''}${dropped ? ' is-dropped' : ''}${bullet.hasOverride ? ' is-override' : ''}`,
     dataset: { bulletWrap: bullet.id },
@@ -2036,7 +2084,7 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0) {
             store = updatePostingResume(store, posting.id, { bulletOrder: { [group.id]: moved } });
           }
           saveStore();
-          render({ focusKey: `rb-${bullet.id}-lead` });
+          render({ focusKey: `rb-${bullet.id}-line` });
         },
       }) : null,
       canEdit ? btn(localBullet || !posting ? 'Remove' : (bullet.included !== false ? 'Remove' : 'Delete'), {
@@ -2065,8 +2113,17 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0) {
         },
       }) : null,
     ]),
-    field('Bold lead', lead),
-    field('Body', body),
+    el('div', { class: 'bb-rb-line-head' }, [
+      field('Bullet', line),
+      btn('Bold', {
+        class: 'btn ghost compact-action',
+        onClick: () => {
+          line.focus();
+          document.execCommand('bold');
+          commitWording(readRich(line));
+        },
+      }),
+    ]),
     posting ? el('div', { class: 'actions' }, [
       btn('Reset to source', {
         class: 'btn ghost compact-action',
@@ -2081,7 +2138,7 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0) {
       btn('Save back to source', {
         class: 'btn ghost compact-action',
         onClick: () => {
-          const nextBullet = { ...bullet, lead: lead.value, body: body.value };
+          const nextBullet = { ...bullet, ...bulletFromLine(spansToMarkdown(readRich(line))) };
           store = writeBulletBackToSource(store, posting.id, nextBullet);
           const current = livePosting(posting.id);
           store = replacePostingResume(store, posting.id, clearBulletOverride(current.resume, bullet.id));
@@ -2121,33 +2178,28 @@ function addRoleButton(posting, { afterId } = {}) {
 function resumeJobEditor(posting, career) {
   const shared = isSharedJob(career.id);
   const localOnly = Boolean(career.local) || isLocalOnlyJob(posting, career.id);
-  const canEditFields = !posting ? shared : (shared || localOnly);
   const company = el('input', {
     value: career.company,
     placeholder: 'Company',
     'aria-label': 'Company',
-    disabled: !canEditFields,
     'data-focus-key': `rj-${career.id}-company`,
   });
   const title = el('input', {
     value: career.title,
     placeholder: 'Title',
     'aria-label': 'Job title',
-    disabled: !canEditFields,
     'data-focus-key': `rj-${career.id}-title`,
   });
   const dates = el('input', {
     value: [career.start, career.end].filter(Boolean).join(' – '),
     placeholder: 'October 2021 – Present',
     'aria-label': 'Dates',
-    disabled: !canEditFields,
     'data-focus-key': `rj-${career.id}-dates`,
   });
   const location = el('input', {
     value: career.location,
     placeholder: 'New York, NY / Seattle, WA',
     'aria-label': 'Location',
-    disabled: !canEditFields,
     'data-focus-key': `rj-${career.id}-location`,
   });
   const stampJob = () => {
@@ -2159,9 +2211,12 @@ function resumeJobEditor(posting, career) {
       start: (start || dates.value).trim(),
       end: (end || '').trim(),
     };
-    if (posting && localOnly && !shared) {
+    store = adoptCompiledJob(store, posting?.id || null, career);
+    const nowShared = isSharedJob(career.id);
+    const nowLocal = Boolean(posting && localJobById(livePosting(posting.id)?.resume, career.id) && !nowShared);
+    if (posting && nowLocal) {
       store = updatePostingLocalJob(store, posting.id, career.id, patch);
-    } else if (shared) {
+    } else if (nowShared) {
       store = updateCareerJob(store, career.id, patch);
     } else return;
     saveStore();
@@ -2172,65 +2227,112 @@ function resumeJobEditor(posting, career) {
   const jobIndex = jobs.findIndex((item) => item.id === career.id);
   const groups = career.groups || [];
   const allowStructure = Boolean(posting) || shared;
-  return el('div', { class: `bb-job-card${career.included === false ? ' is-excluded' : ''}` }, [
-    el('div', { class: 'bb-rb-tools' }, [
-      el('label', { class: 'bb-check' }, [
-        el('input', {
-          type: 'checkbox',
-          checked: career.included !== false,
-          disabled: !posting,
-          onChange: () => {
-            if (!posting) return;
-            store = updatePostingResume(store, posting.id, {
-              excludedJobIds: toggleId(posting.resume.excludedJobIds, career.id),
-            });
+  const collapsed = roleIsCollapsed(collapsedResumeRoles, posting?.id, career.id);
+  const summary = resumeRoleSummary(career);
+  const toggleRole = () => {
+    collapsedResumeRoles = toggleRoleCollapsed(collapsedResumeRoles, posting?.id, career.id);
+    render();
+  };
+  const onHeadActivate = (event) => {
+    const target = event.target;
+    const tag = target?.tagName || '';
+    const interactive = Boolean(target?.closest?.('.bb-job-controls, input, textarea, select, a, label, button:not(.bb-job-fold)'));
+    if (!isRoleHeaderToggleTarget(tag, interactive) && target?.closest?.('.bb-job-fold') == null) return;
+    if (event.type === 'keydown') event.preventDefault();
+    toggleRole();
+  };
+  return el('div', {
+    class: `bb-job-card is-role${career.included === false ? ' is-excluded' : ''}${collapsed ? ' is-collapsed' : ''}`,
+  }, [
+    el('div', {
+      class: 'bb-job-head',
+      onClick: onHeadActivate,
+    }, [
+      el('button', {
+        type: 'button',
+        class: 'bb-job-fold',
+        'aria-expanded': collapsed ? 'false' : 'true',
+        'aria-controls': `role-body-${career.id}`,
+        'aria-label': collapsed
+          ? `Expand ${summary.title}`
+          : `Collapse ${summary.title}`,
+        onClick: (event) => {
+          event.stopPropagation();
+          toggleRole();
+        },
+      }, [
+        el('span', { class: 'bb-job-chevron', 'aria-hidden': 'true' }, collapsed ? '▸' : '▾'),
+        el('span', { class: 'bb-job-summary' }, [
+          el('strong', {}, summary.title),
+          collapsed
+            ? el('span', { class: 'tiny' }, ` · ${summary.bullets} bullet${summary.bullets === 1 ? '' : 's'}`)
+            : null,
+        ]),
+      ]),
+      el('div', { class: 'bb-job-controls' }, [
+        el('label', { class: 'bb-check' }, [
+          el('input', {
+            type: 'checkbox',
+            checked: career.included !== false,
+            disabled: !posting,
+            onChange: () => {
+              if (!posting) return;
+              store = updatePostingResume(store, posting.id, {
+                excludedJobIds: toggleId(posting.resume.excludedJobIds, career.id),
+              });
+              saveStore();
+              render();
+            },
+          }),
+          ' Include this role',
+        ]),
+        localOnly ? el('span', { class: 'tiny' }, 'This posting only') : null,
+        allowStructure ? resumeMoveBtns('role', {
+          index: jobIndex,
+          length: jobs.length,
+          onMove: (delta) => {
+            if (posting) store = movePostingJob(store, posting.id, career.id, delta);
+            else store = moveCareerJob(store, career.id, delta);
+            saveStore();
+            render({ focusKey: `rj-${career.id}-company` });
+          },
+        }) : null,
+        allowStructure ? btn('Remove', {
+          class: 'btn ghost compact-action is-danger',
+          onClick: () => {
+            if (posting && localOnly) {
+              const n = bulletCount(career);
+              if (!confirm(n
+                ? `Remove this role and its ${n} bullet${n === 1 ? '' : 's'} from this posting’s resume? Resume basics is unchanged.`
+                : 'Remove this role from this posting’s resume? Resume basics is unchanged.')) return;
+              store = deletePostingLocalJob(store, posting.id, career.id);
+              saveStore();
+              render();
+              return;
+            }
+            if (posting) {
+              store = updatePostingResume(store, posting.id, {
+                excludedJobIds: toggleId(posting.resume.excludedJobIds, career.id),
+              });
+              saveStore();
+              render();
+              setNote('Hidden on this posting. It stays in Resume basics.');
+              return;
+            }
+            const n = bulletCount(career);
+            if (n && !confirm(`Delete this role and its ${n} bullet${n === 1 ? '' : 's'} from the shared career history?`)) return;
+            store = deleteCareerJob(store, career.id);
             saveStore();
             render();
           },
-        }),
-        ' Include this role',
+        }) : null,
       ]),
-      localOnly ? el('span', { class: 'tiny' }, 'This posting only') : null,
-      allowStructure ? resumeMoveBtns('role', {
-        index: jobIndex,
-        length: jobs.length,
-        onMove: (delta) => {
-          if (posting) store = movePostingJob(store, posting.id, career.id, delta);
-          else store = moveCareerJob(store, career.id, delta);
-          saveStore();
-          render({ focusKey: `rj-${career.id}-company` });
-        },
-      }) : null,
-      allowStructure ? btn('Remove', {
-        class: 'btn ghost compact-action is-danger',
-        onClick: () => {
-          if (posting && localOnly) {
-            const n = bulletCount(career);
-            if (!confirm(n
-              ? `Remove this role and its ${n} bullet${n === 1 ? '' : 's'} from this posting’s resume? Resume basics is unchanged.`
-              : 'Remove this role from this posting’s resume? Resume basics is unchanged.')) return;
-            store = deletePostingLocalJob(store, posting.id, career.id);
-            saveStore();
-            render();
-            return;
-          }
-          if (posting) {
-            store = updatePostingResume(store, posting.id, {
-              excludedJobIds: toggleId(posting.resume.excludedJobIds, career.id),
-            });
-            saveStore();
-            render();
-            setNote('Hidden on this posting. It stays in Resume basics.');
-            return;
-          }
-          const n = bulletCount(career);
-          if (n && !confirm(`Delete this role and its ${n} bullet${n === 1 ? '' : 's'} from the shared career history?`)) return;
-          store = deleteCareerJob(store, career.id);
-          saveStore();
-          render();
-        },
-      }) : null,
     ]),
+    el('div', {
+      class: 'bb-job-body',
+      id: `role-body-${career.id}`,
+      hidden: collapsed,
+    }, [
     el('div', { class: 'grid-2' }, [
       field('Company', company),
       field('Dates', dates),
@@ -2271,11 +2373,7 @@ function resumeJobEditor(posting, career) {
             index: groupIndex,
             length: groups.length,
             onMove: (delta) => {
-              if (posting && localGroup) {
-                store = movePostingLocalGroup(store, posting.id, career.id, group.id, delta);
-              } else if (!posting) {
-                store = moveCareerGroup(store, career.id, group.id, delta);
-              }
+              store = moveResumeGroup(store, posting?.id || null, career.id, group.id, delta);
               saveStore();
               render({ focusKey: `rg-${group.id}-heading` });
             },
@@ -2328,11 +2426,12 @@ function resumeJobEditor(posting, career) {
           btn('+ Add bullet', {
             class: 'btn ghost compact-action',
             onClick: () => {
+              store = adoptCompiledJob(store, posting?.id || null, career);
               if (posting) {
                 store = addPostingLocalBullet(store, posting.id, career.id, group.id);
                 const last = lastLocalBullet(posting.id, career.id, group.id);
                 saveStore();
-                render({ focusKey: last ? `rb-${last.id}-lead` : `rg-${group.id}-heading` });
+                render({ focusKey: last ? `rb-${last.id}-line` : `rg-${group.id}-heading` });
                 return;
               }
               store = addCareerBullet(store, career.id, group.id);
@@ -2340,30 +2439,15 @@ function resumeJobEditor(posting, career) {
               const g = added?.groups.find((item) => item.id === group.id);
               const last = g?.bullets[g.bullets.length - 1];
               saveStore();
-              render({ focusKey: last ? `rb-${last.id}-lead` : `rg-${group.id}-heading` });
+              render({ focusKey: last ? `rb-${last.id}-line` : `rg-${group.id}-heading` });
             },
           }),
+          addSubheadingButton(posting, career, { afterId: group.id }),
         ]) : null,
       ];
     }),
     allowStructure ? el('div', { class: 'bb-add-row' }, [
-      btn('+ Add sub-heading', {
-        class: 'btn ghost compact-action',
-        onClick: () => {
-          if (posting) {
-            store = addPostingLocalGroup(store, posting.id, career.id);
-            const last = lastLocalGroup(posting.id, career.id);
-            saveStore();
-            render({ focusKey: last ? `rg-${last.id}-heading` : `rj-${career.id}-company` });
-            return;
-          }
-          store = addCareerGroup(store, career.id);
-          const added = careerJobById(career.id);
-          const last = added?.groups[added.groups.length - 1];
-          saveStore();
-          render({ focusKey: last ? `rg-${last.id}-heading` : `rj-${career.id}-company` });
-        },
-      }),
+      addSubheadingButton(posting, career),
       groups.length ? null : btn('+ Add bullet', {
         class: 'btn ghost compact-action',
         onClick: () => {
@@ -2371,7 +2455,7 @@ function resumeJobEditor(posting, career) {
             store = addPostingLocalBullet(store, posting.id, career.id, '');
             const last = lastLocalBullet(posting.id, career.id, '');
             saveStore();
-            render({ focusKey: last ? `rb-${last.id}-lead` : `rj-${career.id}-company` });
+            render({ focusKey: last ? `rb-${last.id}-line` : `rj-${career.id}-company` });
             return;
           }
           store = addCareerBullet(store, career.id, '');
@@ -2379,10 +2463,11 @@ function resumeJobEditor(posting, career) {
           const lastGroup = added?.groups[added.groups.length - 1];
           const last = lastGroup?.bullets[lastGroup.bullets.length - 1];
           saveStore();
-          render({ focusKey: last ? `rb-${last.id}-lead` : `rj-${career.id}-company` });
+          render({ focusKey: last ? `rb-${last.id}-line` : `rj-${career.id}-company` });
         },
       }),
     ]) : null,
+    ]),
   ]);
 }
 
@@ -2684,16 +2769,27 @@ function resumeEditorPane(posting, doc) {
             glabel.addEventListener('input', stampGroup);
             gitems.addEventListener('input', stampGroup);
             return el('div', { class: 'bb-addl-group' }, [
-              field('Sub-label', glabel),
+              el('div', { class: 'bb-group-head' }, [
+                field('Sub-label', glabel),
+                resumeMoveBtns('sub-label', {
+                  index: row.groups.findIndex((item) => item.id === group.id),
+                  length: row.groups.length,
+                  onMove: (delta) => {
+                    store = moveAdditionalGroup(store, row.id, group.id, delta);
+                    saveStore();
+                    render({ focusKey: `sg-${group.id}-label` });
+                  },
+                }),
+                btn('Remove sub-label', {
+                  class: 'btn ghost compact-action is-danger',
+                  onClick: () => {
+                    store = deleteAdditionalGroup(store, row.id, group.id);
+                    saveStore();
+                    render();
+                  },
+                }),
+              ]),
               field('Items', gitems),
-              btn('Remove sub-label', {
-                class: 'btn ghost compact-action is-danger',
-                onClick: () => {
-                  store = deleteAdditionalGroup(store, row.id, group.id);
-                  saveStore();
-                  render();
-                },
-              }),
             ]);
           })
           : [field('Items', items)];
@@ -3163,7 +3259,8 @@ window.addEventListener('pagehide', () => {
   if (!persistTimer) return;
   clearTimeout(persistTimer);
   persistTimer = null;
-  if (auth?.token) saveBook(auth.token, store, { keepalive: true, updatedAt: bookRevision });
+  if (!auth?.token || shouldBlockEmptyOverwrite(store, lastServerBook)) return;
+  saveBook(auth.token, store, { keepalive: true, updatedAt: bookRevision });
 });
 
 document.addEventListener('visibilitychange', () => {
