@@ -19,6 +19,7 @@ import {
   knowledgeById,
   parseKnowledge,
   searchKnowledge,
+  experienceCatalog,
   addPosting,
   updatePosting,
   deletePosting,
@@ -485,7 +486,7 @@ assert.throws(() => serializeBook(store, { maxChars: 8 }), /too large/);
 
 assert.deepEqual(defaultView(), { kind: 'home' });
 assert.equal(viewHash({ kind: 'home' }), '#home');
-assert.equal(viewHash({ kind: 'log' }), '#log');
+assert.equal(viewHash({ kind: 'log' }), '#experiences');
 assert.equal(viewHash({ kind: 'jobs', id: 'job_1', mode: 'prep' }), '#jobs/job_1/prep');
 assert.equal(viewHash({ kind: 'jobs', id: 'job_1', mode: 'fill', reqId: 'rq_1' }), '#jobs/job_1/fill/rq_1');
 assert.equal(
@@ -716,10 +717,14 @@ assert.equal(logLayout({ kind: 'log' }), 'catalog');
 assert.equal(logLayout({ kind: 'log', id: 'new' }), 'catalog-add');
 assert.equal(logLayout({ kind: 'log', id: 'en_1' }), 'detail');
 assert.equal(hideBookRail({ kind: 'log', id: 'new' }, { entries: [{ id: 'e' }] }), false);
-assert.equal(viewHash({ kind: 'log' }), '#log');
-assert.equal(viewTitle({ kind: 'log' }), 'Resume bullets');
+assert.equal(viewHash({ kind: 'log' }), '#experiences');
+assert.equal(viewTitle({ kind: 'log' }), 'Experiences');
+assert.equal(viewHash({ kind: 'log', id: 'en_1' }), '#experiences/en_1');
+assert.deepEqual(parseViewHash('#experiences'), { kind: 'log' });
+assert.deepEqual(parseViewHash('#experiences/en_1', { entryIds: ['en_1'] }), { kind: 'log', id: 'en_1' });
+assert.deepEqual(parseViewHash('#log'), { kind: 'log' });
 assert.equal(viewHash({ kind: 'kb' }), '#kb');
-assert.equal(viewTitle({ kind: 'kb' }), 'Knowledge base');
+assert.equal(viewTitle({ kind: 'kb' }), 'Experiences');
 assert.deepEqual(parseViewHash('#kb'), { kind: 'kb' });
 assert.deepEqual(parseViewHash('#knowledge'), { kind: 'kb' });
 assert.deepEqual(parseViewHash('#kb/note_1', { knowledgeIds: ['note_1'] }), { kind: 'kb', id: 'note_1' });
@@ -1017,6 +1022,22 @@ assert.equal(movedLog.postings[0].requirements[0].bullets[0].text, 'Led a walkth
 const boldTitle = normalizeEntry({ title: 'Led **3** associates on access reviews' }, clock);
 assert.equal(boldTitle.title, 'Led 3 associates on access reviews');
 assert.equal(boldTitle.rich.some((span) => span.bold && span.text === '3'), true);
+assert.equal(normalizeEntry({ title: 'Led it' }, clock).company, '');
+let companyBook = addEntry(emptyStore(), { title: 'Led it', role: 'Analyst', when: '2021' }, clock);
+companyBook = updateEntry(companyBook, companyBook.entries[0].id, { company: 'GoDaddy' }, clock);
+assert.equal(companyBook.entries[0].title, 'Led it');
+assert.equal(companyBook.entries[0].role, 'Analyst');
+assert.equal(companyBook.entries[0].company, 'GoDaddy');
+
+let catalogStore = addEntry(emptyStore(), { title: 'Resume line', kind: 'project' }, () => Date.parse('2026-01-01T00:00:00.000Z'));
+catalogStore = addKnowledge(catalogStore, { title: 'Longer note', body: 'Context about the work' }, () => Date.parse('2026-06-01T00:00:00.000Z'));
+assert.deepEqual(experienceCatalog(catalogStore).map((row) => row.type), ['note', 'entry']);
+assert.equal(experienceCatalog(catalogStore, { kind: 'note' }).length, 1);
+assert.equal(experienceCatalog(catalogStore, { kind: 'note' })[0].type, 'note');
+assert.equal(experienceCatalog(catalogStore, { kind: 'project' }).length, 1);
+assert.equal(experienceCatalog(catalogStore, { kind: 'experience' }).length, 0);
+assert.equal(experienceCatalog(catalogStore, { query: 'longer' })[0].type, 'note');
+assert.equal(experienceCatalog(catalogStore, { query: 'resume' })[0].type, 'entry');
 
 const oldNoKnowledge = normalizeStore({ entries: [{ title: 'Legacy win' }] }, clock);
 assert.equal(oldNoKnowledge.knowledge.length, 0);

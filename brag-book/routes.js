@@ -9,9 +9,9 @@ export function defaultView() {
 export function viewHash(view) {
   if (!view || view.kind === 'home') return '#home';
   if (view.kind === 'log') {
-    if (view.id === 'new') return '#log/new';
-    if (view.id) return `#log/${encodeURIComponent(view.id)}`;
-    return '#log';
+    if (view.id === 'new') return '#experiences/new';
+    if (view.id) return `#experiences/${encodeURIComponent(view.id)}`;
+    return '#experiences';
   }
   if (view.kind === 'kb') {
     if (view.id === 'new') return '#kb/new';
@@ -43,10 +43,10 @@ export function parseViewHash(raw, { entryIds = [], postingIds = [], knowledgeId
   const hash = String(raw || '').replace(/^#/, '').trim();
   if (!hash || hash === 'home' || hash === 'start' || hash === 'pick') return { kind: 'home' };
   if (hash === 'profile' || hash === 'resume-basics') return { kind: 'profile' };
-  if (hash === 'log' || hash === 'brag' || hash === 'bullets') return { kind: 'log' };
-  if (hash === 'log/new') return { kind: 'log', id: 'new' };
-  if (hash.startsWith('log/')) {
-    const id = decodeURIComponent(hash.slice(4));
+  if (hash === 'log' || hash === 'brag' || hash === 'bullets' || hash === 'experiences') return { kind: 'log' };
+  if (hash === 'log/new' || hash === 'experiences/new') return { kind: 'log', id: 'new' };
+  if (hash.startsWith('log/') || hash.startsWith('experiences/')) {
+    const id = decodeURIComponent(hash.slice(hash.indexOf('/') + 1));
     if (id === 'new' || entryIds.includes(id)) return { kind: 'log', id };
     return { kind: 'log' };
   }
@@ -85,18 +85,18 @@ export function parseViewHash(raw, { entryIds = [], postingIds = [], knowledgeId
 export function viewTitle(view, store) {
   if (!view || view.kind === 'home') return 'Brag Book';
   if (view.kind === 'profile') return 'Resume basics';
-  if (view.kind === 'log' && view.id === 'new') return 'Add resume bullets';
+  if (view.kind === 'log' && view.id === 'new') return 'Add a resume line';
   if (view.kind === 'log' && view.id) {
     const entry = (store?.entries || []).find((item) => item.id === view.id);
-    return entry?.title || 'Resume bullet';
+    return entry?.title || 'Resume line';
   }
-  if (view.kind === 'log') return 'Resume bullets';
-  if (view.kind === 'kb' && view.id === 'new') return 'Add knowledge';
+  if (view.kind === 'log') return 'Experiences';
+  if (view.kind === 'kb' && view.id === 'new') return 'Add a note';
   if (view.kind === 'kb' && view.id) {
     const note = (store?.knowledge || []).find((item) => item.id === view.id);
     return note?.title || 'Note';
   }
-  if (view.kind === 'kb') return 'Knowledge base';
+  if (view.kind === 'kb') return 'Experiences';
   if (view.kind === 'jobs' && view.id === 'new') return 'New job posting';
   if (view.kind === 'jobs' && view.id) {
     const job = (store?.postings || []).find((item) => item.id === view.id);

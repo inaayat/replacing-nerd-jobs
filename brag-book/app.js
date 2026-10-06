@@ -33,7 +33,7 @@ import {
   parseKnowledge,
   cleanPastedText,
   searchEntries,
-  searchKnowledge,
+  experienceCatalog,
   suggestEntries,
   linkedEntries,
   bulletEntry,
@@ -158,7 +158,6 @@ let bookDirty = false;
 let bookPushing = false;
 let lastServerBook = null;
 let query = '';
-let kbQuery = '';
 let kindFilter = 'all';
 let statusNote = '';
 let expandedBulletKey = '';
@@ -646,8 +645,7 @@ function countRow() {
   const summary = listingSummary(store);
   return el('div', { class: 'counts' }, [
     chip(summary.postings, 'postings'),
-    chip(summary.entries, 'resume bullets'),
-    chip(summary.knowledge || 0, 'knowledge'),
+    chip(summary.entries + (summary.knowledge || 0), 'experiences'),
   ]);
 }
 
@@ -674,9 +672,8 @@ function toolbar(view) {
       statusNote ? el('p', { class: 'status', id: 'status-note' }, statusNote) : el('p', { class: 'status', id: 'status-note' }, ''),
     ]);
   }
-  const lane = view.kind === 'jobs' ? 'jobs' : view.kind === 'kb' ? 'kb' : 'log';
-  const backLabel = lane === 'jobs' ? 'Job postings' : lane === 'kb' ? 'Knowledge' : 'Resume bullets';
-  const addLabel = lane === 'jobs' ? '+ New posting' : lane === 'kb' ? '+ Add knowledge' : '+ Add resume bullets';
+  const book = view.kind === 'log' || view.kind === 'kb';
+  const backLabel = view.kind === 'jobs' ? 'Job postings' : 'Experiences';
   const hasRecord = Boolean(view.id && view.id !== 'new');
   return el('header', { class: 'hero is-compact' }, [
     el('div', { class: 'hero-row' }, [
@@ -685,16 +682,18 @@ function toolbar(view) {
           ? el('button', {
             type: 'button',
             class: 'context-back',
-            onClick: () => go({ kind: view.kind }),
+            onClick: () => go(book ? { kind: 'log' } : { kind: view.kind }),
           }, `← ${backLabel}`)
           : null,
         el('strong', { class: 'page-title' }, viewTitle(view, store)),
       ]),
       el('div', { class: 'actions' }, [
-        btn(addLabel, {
-          class: 'btn ghost compact-action',
-          onClick: () => go({ kind: lane, id: 'new' }),
-        }),
+        view.kind === 'jobs'
+          ? btn('+ New posting', {
+            class: 'btn ghost compact-action',
+            onClick: () => go({ kind: 'jobs', id: 'new' }),
+          })
+          : null,
       ]),
     ]),
     statusNote ? el('p', { class: 'status', id: 'status-note' }, statusNote) : el('p', { class: 'status', id: 'status-note' }, ''),
@@ -714,8 +713,10 @@ function homeHero() {
 
 function homeView() {
   const summary = listingSummary(store);
-  const recentWins = store.entries.slice(0, 4);
+  const recentWins = experienceCatalog(store).slice(0, 4);
   const recentJobs = store.postings.slice(0, 4);
+  const lineCount = summary.entries;
+  const noteCount = summary.knowledge || 0;
   return el('div', {}, [
     el('div', { class: 'start-grid is-focus' }, [
       el('button', {
@@ -742,25 +743,14 @@ function homeView() {
       ]),
       el('button', {
         type: 'button',
-        class: 'start-card is-beta',
+        class: 'start-card',
         onClick: () => go({ kind: 'log' }),
       }, [
-        el('span', { class: 'kicker' }, [el('span', { class: 'beta-pill' }, 'beta'), ' TL;DR']),
-        el('strong', {}, 'Resume bullets'),
-        el('p', {}, summary.entries
-          ? `${summary.entries} saved line${summary.entries === 1 ? '' : 's'}. Open one to edit bolding or STAR, then pin it onto a posting.`
-          : 'The short lines you reuse on a posting. Paste several at once, then bold metrics the same way as on a job.'),
-      ]),
-      el('button', {
-        type: 'button',
-        class: 'start-card is-beta',
-        onClick: () => go({ kind: 'kb' }),
-      }, [
-        el('span', { class: 'kicker' }, [el('span', { class: 'beta-pill' }, 'beta'), ' Everything else']),
-        el('strong', {}, 'Knowledge base'),
-        el('p', {}, summary.knowledge
-          ? `${summary.knowledge} note${summary.knowledge === 1 ? '' : 's'}. Free-form context about work, tools, and what you know.`
-          : 'Free-form notes about everything you know or have worked on — longer than a resume line.'),
+        el('span', { class: 'kicker' }, 'The book'),
+        el('strong', {}, 'Experiences'),
+        el('p', {}, lineCount || noteCount
+          ? `${lineCount} resume line${lineCount === 1 ? '' : 's'} and ${noteCount} note${noteCount === 1 ? '' : 's'}. Lines pin onto a posting and take a STAR answer. Notes stay in the same list.`
+          : 'Resume lines and longer notes in one list. A line can be pinned on a posting and filled out as STAR.'),
       ]),
     ]),
     recentJobs.length ? el('section', { class: 'recent' }, [
@@ -779,18 +769,33 @@ function homeView() {
       })),
     ]) : null,
     recentWins.length ? el('section', { class: 'recent' }, [
-      el('h2', {}, 'Recent resume bullets'),
-      el('div', { class: 'plot-cards' }, recentWins.map((entry) =>
-        el('button', {
+      el('h2', {}, 'Recent experiences'),
+      el('div', { class: 'plot-cards' }, recentWins.map((row) => {
+        if (row.type === 'note') {
+          const note = (store.knowledge || []).find((item) => item.id === row.id);
+          if (!note) return null;
+          return el('button', {
+            type: 'button',
+            class: 'plot-card',
+            onClick: () => go({ kind: 'kb', id: note.id }),
+          }, [
+            el('span', { class: 'kicker' }, 'Note'),
+            el('strong', {}, note.title || 'Note'),
+            el('p', {}, note.body || 'Open to edit'),
+          ]);
+        }
+        const entry = store.entries.find((item) => item.id === row.id);
+        if (!entry) return null;
+        return el('button', {
           type: 'button',
           class: 'plot-card',
           onClick: () => go({ kind: 'log', id: entry.id }),
         }, [
           el('span', { class: 'kicker' }, kindLabel(entry.kind)),
           richPreview('bb-card-line', entry.title, entry.rich),
-          el('p', {}, [entry.when, starFill(entry).ready ? 'STAR ready' : 'Open to fill STAR'].filter(Boolean).join(' · ')),
-        ])
-      )),
+          el('p', {}, [entry.company, entry.role, entry.when, starFill(entry).ready ? 'STAR ready' : 'Open to fill STAR'].filter(Boolean).join(' · ')),
+        ]);
+      })),
     ]) : null,
     el('div', { class: 'actions' }, [
       btn('Export', { class: 'btn ghost', onClick: exportStore }),
@@ -804,73 +809,160 @@ function chip(n, label) {
   return el('span', { class: 'chip' }, [el('strong', {}, String(n)), ` ${label}`]);
 }
 
-function bookLaneTabs(active) {
-  return el('div', { class: 'bb-book-tabs', role: 'tablist' }, [
-    el('button', {
-      type: 'button',
-      role: 'tab',
-      class: `bb-book-tab${active === 'log' ? ' is-on' : ''}`,
-      'aria-selected': String(active === 'log'),
-      onClick: () => go({ kind: 'log' }),
-    }, 'Resume bullets'),
-    el('button', {
-      type: 'button',
-      role: 'tab',
-      class: `bb-book-tab${active === 'kb' ? ' is-on' : ''}`,
-      'aria-selected': String(active === 'kb'),
-      onClick: () => go({ kind: 'kb' }),
-    }, 'Knowledge base'),
+const KIND_FILTERS = [
+  ['all', 'All'],
+  ['experience', 'Experience'],
+  ['project', 'Project'],
+  ['skillset', 'Skillset'],
+  ['note', 'Notes'],
+];
+
+function patchEntry(id, patch) {
+  store = updateEntry(store, id, patch);
+  saveStore();
+}
+
+function patchNote(id, patch) {
+  store = updateKnowledge(store, id, patch);
+  saveStore();
+}
+
+function cellInput(label, value, focusKey, onValue) {
+  return el('input', {
+    class: 'bb-cell-input',
+    value: value || '',
+    'aria-label': label,
+    placeholder: label,
+    'data-focus-key': focusKey,
+    onInput: (event) => onValue(event.target.value),
+  });
+}
+
+function experienceTools(view) {
+  const addingLine = view.kind === 'log' && view.id === 'new';
+  const addingNote = view.kind === 'kb' && view.id === 'new';
+  return el('div', { class: 'bb-exp-tools' }, [
+    el('input', {
+      class: 'search',
+      type: 'search',
+      placeholder: 'Search resume lines, notes, roles, STAR…',
+      value: query,
+      'aria-label': 'Search experiences',
+      'data-focus-key': 'book-search',
+      onInput: (event) => { query = event.target.value; render(); },
+    }),
+    el('select', {
+      class: 'bb-kind',
+      'aria-label': 'Kind',
+      onChange: (event) => { kindFilter = event.target.value; render(); },
+    }, KIND_FILTERS.map(([value, label]) =>
+      el('option', { value, selected: kindFilter === value || undefined }, label)
+    )),
+    btn(addingLine ? 'Close' : '+ Add resume bullet', {
+      class: 'btn ghost compact-action',
+      onClick: () => go(addingLine ? { kind: 'log' } : { kind: 'log', id: 'new' }),
+    }),
+    btn(addingNote ? 'Close' : '+ Add knowledge', {
+      class: 'btn ghost compact-action',
+      onClick: () => go(addingNote ? { kind: 'log' } : { kind: 'kb', id: 'new' }),
+    }),
   ]);
 }
 
-function entryList(selectedId, { variant = 'rail' } = {}) {
-  const rows = searchEntries(store, query).filter((entry) => kindFilter === 'all' || entry.kind === kindFilter);
-  const isMain = variant === 'main';
-  return el(isMain ? 'section' : 'aside', { class: isMain ? 'panel bb-book-catalog' : 'panel' }, [
-    el('div', { class: 'panel-head' }, [
-      el('div', {}, [
-        isMain ? bookLaneTabs('log') : el('h2', {}, 'Resume bullets'),
-        isMain ? el('p', { class: 'tiny' }, 'The TL;DR lines. Bolding matches the job posting table.') : null,
-      ]),
-      el('span', { class: 'tiny' }, `${rows.length}`),
-    ]),
-    el('div', { class: 'panel-body' }, [
-      el('input', {
-        class: 'search',
-        type: 'search',
-        placeholder: 'Search resume bullets, roles, STAR…',
-        value: query,
-        'data-focus-key': 'book-search',
-        onInput: (event) => { query = event.target.value; render(); },
-      }),
-      field('Kind', el('select', {
-        onChange: (event) => { kindFilter = event.target.value; render(); },
-      }, ['all', ...ENTRY_KINDS].map((kind) =>
-        el('option', { value: kind, selected: kindFilter === kind || undefined }, kind === 'all' ? 'All kinds' : kindLabel(kind))
-      ))),
-    ]),
+function experienceLineCell(entry) {
+  return richLine({
+    class: 'experience-compose bb-exp-line',
+    'aria-label': 'Resume line',
+    'data-focus-key': `exp-line-${entry.id}`,
+  }, {
+    text: entry.title,
+    rich: entry.rich,
+    onChange: (spans) => {
+      const text = spans.map((span) => span.text).join('');
+      if (!text.trim()) return;
+      patchEntry(entry.id, { title: text, rich: spans });
+    },
+  });
+}
+
+function noteLineCell(note) {
+  return el('div', { class: 'bb-exp-note' }, [
+    cellInput('Title', note.title, `exp-note-title-${note.id}`, (value) => patchNote(note.id, { title: value })),
+    richLine({
+      class: 'experience-compose bb-exp-line',
+      'aria-label': 'Note',
+      'data-focus-key': `exp-note-body-${note.id}`,
+    }, {
+      text: note.body,
+      rich: note.rich,
+      onChange: (spans) => {
+        patchNote(note.id, { body: spans.map((span) => span.text).join(''), rich: spans });
+      },
+    }),
+  ]);
+}
+
+function experienceRow(entry) {
+  const star = starFill(entry);
+  return el('tr', { class: 'bb-exp-row' }, [
+    el('td', { 'data-label': 'Line' }, experienceLineCell(entry)),
+    el('td', { 'data-label': 'Kind' }, el('select', {
+      class: 'bb-cell-input',
+      'aria-label': 'Kind',
+      onChange: (event) => {
+        patchEntry(entry.id, { kind: event.target.value });
+        render();
+      },
+    }, ENTRY_KINDS.map((kind) =>
+      el('option', { value: kind, selected: entry.kind === kind || undefined }, kindLabel(kind))
+    ))),
+    el('td', { 'data-label': 'Company' }, cellInput('Company', entry.company, `exp-co-${entry.id}`, (value) => patchEntry(entry.id, { company: value }))),
+    el('td', { 'data-label': 'Role' }, cellInput('Role', entry.role, `exp-role-${entry.id}`, (value) => patchEntry(entry.id, { role: value }))),
+    el('td', { 'data-label': 'Dates' }, cellInput('Dates', entry.when, `exp-when-${entry.id}`, (value) => patchEntry(entry.id, { when: value }))),
+    el('td', { 'data-label': 'STAR' }, btn(star.ready ? 'STAR ready' : 'STAR open', {
+      class: `btn ghost compact-action bb-exp-star${star.ready ? ' is-ready' : ''}`,
+      onClick: () => go({ kind: 'log', id: entry.id }),
+    })),
+  ]);
+}
+
+function noteRow(note) {
+  return el('tr', { class: 'bb-exp-row is-note' }, [
+    el('td', { 'data-label': 'Line' }, noteLineCell(note)),
+    el('td', { 'data-label': 'Kind' }, el('span', { class: 'bb-exp-kind' }, 'Note')),
+    el('td', { 'data-label': 'Company' }, el('span', { class: 'bb-exp-na' }, '—')),
+    el('td', { 'data-label': 'Role' }, el('span', { class: 'bb-exp-na' }, '—')),
+    el('td', { 'data-label': 'Dates' }, el('span', { class: 'bb-exp-na' }, '—')),
+    el('td', { 'data-label': 'STAR' }, btn('Open', {
+      class: 'btn ghost compact-action',
+      onClick: () => go({ kind: 'kb', id: note.id }),
+    })),
+  ]);
+}
+
+function experienceTable(view) {
+  const rows = experienceCatalog(store, { query, kind: kindFilter });
+  return el('section', { class: 'panel bb-book-catalog' }, [
+    experienceTools(view),
     rows.length
-      ? el('div', { class: isMain ? 'list bb-book-list' : 'list' }, rows.map((entry) =>
-        el('button', {
-          type: 'button',
-          class: `row${isMain ? ' bb-book-row' : ''}${selectedId === entry.id ? ' is-on' : ''}`,
-          onClick: () => go({ kind: 'log', id: entry.id }),
-        }, [
-          el('div', { class: 'bb-book-line' }, [
-            el('span', { class: 'bullet-mark', 'aria-hidden': 'true' }, '•'),
-            richPreview('row-title bb-book-title', entry.title, entry.rich),
-          ]),
-          el('div', { class: 'row-meta' }, [
-            kindLabel(entry.kind),
-            entry.when,
-            entry.role,
-            starFill(entry).ready ? 'STAR ready' : 'STAR open',
-          ].filter(Boolean).join(' · ')),
-        ])
-      ))
+      ? el('div', { class: 'bb-exp-wrap' }, [
+        el('table', { class: 'bb-exp-table' }, [
+          el('thead', {}, el('tr', {}, ['Line', 'Kind', 'Company', 'Role', 'Dates', 'STAR'].map((label) => el('th', { scope: 'col' }, label)))),
+          el('tbody', {}, rows.map((row) => {
+            if (row.type === 'note') {
+              const note = (store.knowledge || []).find((item) => item.id === row.id);
+              return note ? noteRow(note) : null;
+            }
+            const entry = store.entries.find((item) => item.id === row.id);
+            return entry ? experienceRow(entry) : null;
+          })),
+        ]),
+      ])
       : el('p', { class: 'empty' }, query
         ? 'Nothing matches that.'
-        : 'No resume bullets yet. Use + Add resume bullets to paste several at once.'),
+        : kindFilter === 'note'
+          ? 'No notes yet. Use + Add knowledge to write or paste.'
+          : 'No experiences yet. Add a resume line, or a longer note.'),
   ]);
 }
 
@@ -901,7 +993,6 @@ function bulkEntryForm({ compact = false } = {}) {
         el('h2', {}, 'Add resume bullets'),
         el('p', { class: 'tiny' }, 'Paste many at once. **bold** is kept. The list stays in view.'),
       ]),
-      el('span', { class: 'beta-pill' }, 'beta'),
     ]),
     el('div', { class: 'panel-body' }, [
       compact
@@ -1028,8 +1119,9 @@ function entryForm(entry) {
         field('Kind', el('select', { name: 'kind' }, ENTRY_KINDS.map((kind) =>
           el('option', { value: kind, selected: draft.kind === kind || undefined }, kindLabel(kind))
         ))),
-        field('Role', el('input', { name: 'role', value: draft.role || '', placeholder: 'Product engineer, Beep boop' })),
+        field('Company', el('input', { name: 'company', value: draft.company || '', placeholder: 'GoDaddy' })),
       ]),
+      field('Role', el('input', { name: 'role', value: draft.role || '', placeholder: 'Product engineer' })),
       store.jobs.length ? field('Resume job', el('select', { name: 'jobId' }, [
         el('option', { value: '', selected: !draft.jobId || undefined }, 'Not linked'),
         ...store.jobs.map((job) =>
@@ -1046,7 +1138,7 @@ function entryForm(entry) {
         starField('Action', 'action', draft.action, 'What did you actually do?'),
         starField('Result', 'result', draft.result, 'What changed? Numbers help.'),
       ]),
-      field('STAR / interview notes', el('textarea', { name: 'notes', placeholder: 'Extra color, links, or a longer version. Broader notes belong in Knowledge.' }, draft.notes)),
+      field('STAR / interview notes', el('textarea', { name: 'notes', placeholder: 'Extra color, links, or a longer version. A free-form write-up can also be a note in Experiences.' }, draft.notes)),
       el('div', { class: 'actions' }, [
         el('button', { type: 'submit', class: 'btn' }, isNew ? 'Save resume bullet' : 'Save'),
         btn('Cancel', { class: 'btn ghost', onClick: () => go({ kind: 'log' }) }),
@@ -1063,52 +1155,6 @@ function entryForm(entry) {
     ])
   );
   return form;
-}
-
-function knowledgeList(selectedId) {
-  const rows = searchKnowledge(store, kbQuery);
-  return el('section', { class: 'panel bb-book-catalog' }, [
-    el('div', { class: 'panel-head' }, [
-      el('div', {}, [
-        bookLaneTabs('kb'),
-        el('p', { class: 'tiny' }, 'Free-form notes about work, tools, and what you know.'),
-      ]),
-      el('span', { class: 'tiny' }, `${rows.length}`),
-    ]),
-    el('div', { class: 'panel-body' }, [
-      el('input', {
-        class: 'search',
-        type: 'search',
-        placeholder: 'Search knowledge…',
-        value: kbQuery,
-        'data-focus-key': 'kb-search',
-        onInput: (event) => { kbQuery = event.target.value; render(); },
-      }),
-    ]),
-    rows.length
-      ? el('div', { class: 'list bb-book-list' }, rows.map((note) =>
-        el('button', {
-          type: 'button',
-          class: `row bb-book-row bb-kb-row${selectedId === note.id ? ' is-on' : ''}`,
-          onClick: () => go({ kind: 'kb', id: note.id }),
-        }, [
-          el('div', { class: 'row-title bb-kb-title' }, note.title),
-          note.body
-            ? (() => {
-              const excerpt = el('div', { class: 'bb-kb-excerpt' });
-              fillRich(excerpt, note.rich, note.body);
-              return excerpt;
-            })()
-            : null,
-          note.tags.length
-            ? el('div', { class: 'row-meta' }, note.tags.join(' · '))
-            : null,
-        ])
-      ))
-      : el('p', { class: 'empty' }, kbQuery
-        ? 'Nothing matches that.'
-        : 'No knowledge notes yet. Use + Add knowledge to write or paste.'),
-  ]);
 }
 
 function bulkKnowledgeForm() {
@@ -1135,13 +1181,12 @@ function bulkKnowledgeForm() {
         el('h2', {}, 'Add knowledge'),
         el('p', { class: 'tiny' }, 'Free-form. **bold** is kept. Blank lines start a new note.'),
       ]),
-      el('span', { class: 'beta-pill' }, 'beta'),
     ]),
     el('div', { class: 'panel-body' }, [
       field('Paste notes', paste),
       el('div', { class: 'actions' }, [
         btn('Add to knowledge', { class: 'btn', onClick: add }),
-        btn('Done', { class: 'btn ghost', onClick: () => go({ kind: 'kb' }) }),
+        btn('Done', { class: 'btn ghost', onClick: () => go({ kind: 'log' }) }),
       ]),
     ]),
   ]);
@@ -1241,14 +1286,14 @@ function knowledgeForm(note) {
       field('Tags', tags),
       el('div', { class: 'actions' }, [
         el('button', { type: 'submit', class: 'btn' }, isNew ? 'Save note' : 'Save'),
-        btn('Cancel', { class: 'btn ghost', onClick: () => go({ kind: 'kb' }) }),
+        btn('Cancel', { class: 'btn ghost', onClick: () => go({ kind: 'log' }) }),
         note ? btn('Delete', {
           class: 'btn danger',
           onClick: () => {
             if (!confirm('Delete this knowledge note?')) return;
             store = deleteKnowledge(store, note.id);
             saveStore();
-            go({ kind: 'kb' });
+            go({ kind: 'log' });
           },
         }) : null,
       ]),
@@ -3385,7 +3430,8 @@ function render(options = {}) {
   document.body.dataset.view = view.kind;
   document.querySelectorAll('[data-nav]').forEach((link) => {
     const key = link.getAttribute('data-nav');
-    link.classList.toggle('is-on', key === view.kind || (key === 'home' && view.kind === 'home'));
+    const book = view.kind === 'log' || view.kind === 'kb';
+    link.classList.toggle('is-on', key === view.kind || (key === 'log' && book));
   });
 
   if (view.kind === 'home') {
@@ -3403,38 +3449,17 @@ function render(options = {}) {
   if (view.kind === 'log' || view.kind === 'kb') {
     const layoutKind = logLayout(view);
     let body;
-    if (view.kind === 'kb') {
-      if (layoutKind === 'catalog-add') {
-        body = el('div', { class: 'layout is-book-add' }, [
-          knowledgeList(null),
-          bulkKnowledgeForm(),
-        ]);
-      } else if (layoutKind === 'detail') {
-        const note = (store.knowledge || []).find((item) => item.id === view.id);
-        body = el('div', { class: 'layout is-book-detail' }, [
-          knowledgeList(view.id),
-          note ? knowledgeForm(note) : emptyDetail('kb'),
-        ]);
-      } else {
-        body = el('div', { class: 'layout is-wide' }, [
-          knowledgeList(null),
-        ]);
-      }
-    } else if (layoutKind === 'catalog-add') {
-      body = el('div', { class: 'layout is-book-add' }, [
-        entryList(null, { variant: 'main' }),
-        bulkEntryForm({ compact: true }),
-      ]);
+    if (layoutKind === 'detail' && view.kind === 'kb') {
+      const note = (store.knowledge || []).find((item) => item.id === view.id);
+      body = note ? knowledgeForm(note) : emptyDetail('kb');
     } else if (layoutKind === 'detail') {
       const entry = store.entries.find((item) => item.id === view.id);
-      body = el('div', { class: 'layout is-book-detail' }, [
-        entryList(view.id, { variant: 'main' }),
-        entry ? entryForm(entry) : emptyDetail('log'),
-      ]);
+      body = entry ? entryForm(entry) : emptyDetail('log');
     } else {
-      body = el('div', { class: 'layout is-wide' }, [
-        entryList(null, { variant: 'main' }),
-      ]);
+      const adder = layoutKind === 'catalog-add'
+        ? (view.kind === 'kb' ? bulkKnowledgeForm() : bulkEntryForm({ compact: true }))
+        : null;
+      body = el('div', { class: 'bb-exp-stack' }, [adder, experienceTable(view)]);
     }
     root.replaceChildren(el('div', {}, [toolbar(view), body]));
     finishRender(captured, options, scroll);
@@ -3466,7 +3491,7 @@ function render(options = {}) {
   const next = el('div', {}, [
     toolbar(view),
     el('div', { class: hideRail ? 'layout is-wide' : 'layout' }, [
-      hideRail ? null : (view.kind === 'jobs' ? jobList(view.id) : entryList(view.id)),
+      hideRail || view.kind !== 'jobs' ? null : jobList(view.id),
       detail,
     ]),
   ]);

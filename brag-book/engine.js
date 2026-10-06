@@ -381,6 +381,7 @@ export function normalizeEntry(raw, clock = Date.now) {
     title: formatted.text,
     rich: formatted.rich,
     role: asString(raw.role, TITLE_MAX),
+    company: asString(raw.company, TITLE_MAX),
     jobId: asString(raw.jobId, 64),
     when: asString(raw.when, 80),
     tags: asTags(raw.tags),
@@ -1692,6 +1693,20 @@ export function searchKnowledge(store, query) {
     if (hay.includes(q)) return true;
     return tokens.every((token) => hay.includes(token));
   });
+}
+
+// One catalog for the Experiences list. Resume lines and notes stay separate records.
+export function experienceCatalog(store, { query = '', kind = 'all' } = {}) {
+  const wanted = asString(kind, 40) || 'all';
+  const entries = wanted === 'note'
+    ? []
+    : searchEntries(store, query)
+      .filter((entry) => wanted === 'all' || entry.kind === wanted)
+      .map((entry) => ({ type: 'entry', id: entry.id, updatedAt: entry.updatedAt || '' }));
+  const notes = wanted === 'all' || wanted === 'note'
+    ? searchKnowledge(store, query).map((note) => ({ type: 'note', id: note.id, updatedAt: note.updatedAt || '' }))
+    : [];
+  return [...entries, ...notes].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
 }
 
 export function scoreEntry(entry, requirementText) {
