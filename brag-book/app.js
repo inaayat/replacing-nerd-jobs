@@ -113,6 +113,7 @@ import {
   updateProfile,
   normalizeBookRevision,
   shouldPullRemoteBook,
+  shouldBlockEmptyOverwrite,
   roleIsCollapsed,
   toggleRoleCollapsed,
   resumeRoleSummary,
@@ -145,6 +146,7 @@ let persistTimer = null;
 let bookRevision = null;
 let bookDirty = false;
 let bookPushing = false;
+let lastServerBook = null;
 let query = '';
 let kindFilter = 'all';
 let statusNote = '';
@@ -170,6 +172,7 @@ function cacheStore() {
 function rememberServerBook(data) {
   bookRevision = normalizeBookRevision(data?.updatedAt);
   bookDirty = false;
+  if (data?.book) lastServerBook = normalizeStore(data.book);
 }
 
 function saveStore() {
@@ -197,6 +200,18 @@ async function adoptServerBook(data, note) {
 
 async function pushStore({ keepalive = false } = {}) {
   if (localMode || !auth?.token) return;
+  if (shouldBlockEmptyOverwrite(store, lastServerBook)) {
+    try {
+      const latest = await loadBook(auth.token);
+      await adoptServerBook(
+        latest,
+        'Save blocked — this tab was missing logged experiences or bullets. Reloaded the account copy.'
+      );
+    } catch {
+      setNote('Save blocked: this tab is missing logged experiences or bullets from the account.');
+    }
+    return;
+  }
   bookPushing = true;
   try {
     const data = await saveBook(auth.token, store, { keepalive, updatedAt: bookRevision });
@@ -3244,7 +3259,8 @@ window.addEventListener('pagehide', () => {
   if (!persistTimer) return;
   clearTimeout(persistTimer);
   persistTimer = null;
-  if (auth?.token) saveBook(auth.token, store, { keepalive: true, updatedAt: bookRevision });
+  if (!auth?.token || shouldBlockEmptyOverwrite(store, lastServerBook)) return;
+  saveBook(auth.token, store, { keepalive: true, updatedAt: bookRevision });
 });
 
 document.addEventListener('visibilitychange', () => {

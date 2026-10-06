@@ -1931,6 +1931,23 @@ export function bookConflictError(latest) {
   return err;
 }
 
+function postingBulletCount(store) {
+  let n = 0;
+  for (const posting of store?.postings || []) {
+    for (const req of posting.requirements || []) {
+      n += (req.bullets || []).length;
+    }
+  }
+  return n;
+}
+
+export function shouldBlockEmptyOverwrite(next, previous) {
+  if (!previous) return false;
+  const hadLog = (previous.entries || []).length > 0 || postingBulletCount(previous) > 0;
+  if (!hadLog) return false;
+  return (next?.entries || []).length === 0 && postingBulletCount(next) === 0;
+}
+
 export function bookIsEmpty(store) {
   const book = store || emptyStore();
   return !book.entries?.length

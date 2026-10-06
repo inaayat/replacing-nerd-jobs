@@ -93,6 +93,7 @@ import {
   bookSaveGuard,
   applyBookWrite,
   shouldPullRemoteBook,
+  shouldBlockEmptyOverwrite,
   bookConflictError,
   STALE_BOOK_MESSAGE,
   resumeRoleKey,
@@ -932,5 +933,30 @@ const addlIds = addl.additional[0].groups.map((group) => group.id);
 addl = moveAdditionalGroup(addl, addl.additional[0].id, addlIds[0], 1, clock);
 assert.equal(addl.additional[0].groups[0].id, addlIds[1]);
 assert.equal(addl.additional[0].groups[1].id, addlIds[0]);
+
+let logged = addEntries(addPosting(emptyStore(), { title: 'Open' }, clock), [
+  { title: 'Led a walkthrough', kind: 'experience' },
+], clock);
+logged = addRequirement(logged, logged.postings[0].id, 'Need a walkthrough', clock);
+logged = addEntryBullet(
+  logged,
+  logged.postings[0].id,
+  logged.postings[0].requirements[0].id,
+  logged.entries[0].id,
+  'Led a walkthrough',
+  clock
+);
+assert.ok(logged.entries.length >= 1);
+assert.ok(logged.postings[0].requirements[0].bullets.length >= 1);
+const packedLog = serializeBook(logged);
+const reloadedLog = normalizeStore(JSON.parse(packedLog.json), clock);
+assert.equal(reloadedLog.entries[0].title, 'Led a walkthrough');
+assert.equal(reloadedLog.postings[0].requirements[0].bullets[0].text, 'Led a walkthrough');
+assert.equal(shouldBlockEmptyOverwrite(emptyStore(), reloadedLog), true);
+assert.equal(shouldBlockEmptyOverwrite(reloadedLog, reloadedLog), false);
+assert.equal(shouldBlockEmptyOverwrite(emptyStore(), emptyStore()), false);
+const movedLog = moveResumeGroup(reloadedLog, reloadedLog.postings[0].id, 'nope', 'g', 1, clock);
+assert.equal(movedLog.entries[0].title, 'Led a walkthrough');
+assert.equal(movedLog.postings[0].requirements[0].bullets[0].text, 'Led a walkthrough');
 
 console.log('ok');
