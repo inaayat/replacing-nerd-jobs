@@ -33,6 +33,7 @@ import {
   questionAnswered,
   parseExperiences,
   compileResumeHtml,
+  resumeTextToWordHtml,
   updateProfile,
   linkEntry,
   unlinkEntry,
@@ -194,6 +195,26 @@ store = updateProfile(store, { name: 'Karan', email: 'k@example.com', summary: '
 assert.ok(compileResume(postingById(store, jobId), store).skills.includes('javascript'));
 assert.match(compileResumeText(postingById(store, jobId), store), /Karan/);
 assert.match(compileResumeText(postingById(store, jobId), store), /Ships small tools/);
+assert.match(resumeTextToWordHtml('Karan\n• Static files', 'Resume'), /xmlns:w/);
+assert.match(resumeTextToWordHtml('Karan\n• Static files', 'Resume'), /Karan/);
+
+let grouped = addPosting(emptyStore(), { title: 'Target role' }, clock);
+const groupedJobId = grouped.postings[0].id;
+grouped = addEntry(grouped, { title: 'Launched billing', role: 'Product engineer, Beep', result: 'Cut review time' }, clock);
+const groupedEntryId = grouped.entries[0].id;
+grouped = addRequirement(grouped, groupedJobId, 'Requirement A', clock);
+grouped = addRequirement(grouped, groupedJobId, 'Requirement B', clock);
+const [groupA, groupB] = grouped.postings[0].requirements;
+grouped = addEntryBullet(grouped, groupedJobId, groupA.id, groupedEntryId, 'Shipped billing for signed-in users', clock);
+grouped = addEntryBullet(grouped, groupedJobId, groupB.id, groupedEntryId, 'A different line for the same experience', clock);
+const groupedResume = compileResume(postingById(grouped, groupedJobId), grouped);
+assert.equal(groupedResume.sections.length, 1);
+assert.equal(groupedResume.sections[0].role, 'Product engineer, Beep');
+assert.equal(groupedResume.bullets.length, 1);
+assert.match(compileResumeText(postingById(grouped, groupedJobId), grouped), /Product engineer, Beep/);
+assert.doesNotMatch(compileResumeText(postingById(grouped, groupedJobId), grouped), /Requirement A/);
+const withRole = normalizeStore({ entries: [{ title: 'Keep', role: 'Analyst' }] }, clock);
+assert.equal(withRole.entries[0].role, 'Analyst');
 
 const q0 = postingById(store, jobId).requirements[0].questions[0];
 assert.equal(q0.text, 'Walk me through a change that had to stay dependency-free ESM.');

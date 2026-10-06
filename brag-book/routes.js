@@ -83,7 +83,7 @@ export function viewTitle(view, store) {
     if (view.mode === 'prep') return `Prep · ${name}`;
     if (view.mode === 'resume') return `Resume · ${name}`;
     if (view.mode === 'bullet') return `Experience · ${name}`;
-    if (view.mode === 'fill') return `Fill · ${name}`;
+    if (view.mode === 'fill') return name;
     return name;
   }
   return 'Job postings';

@@ -646,6 +646,8 @@ a:focus-visible {
 }
 
 .job-table th:first-child { width: 42%; }
+.job-table th:last-child,
+.row-actions-cell { width: 92px; }
 .job-table th + th,
 .job-table td + td { border-left: 1px solid var(--line); }
 
@@ -702,17 +704,18 @@ a:focus-visible {
 }
 
 .table-req-text {
-  border-color: transparent;
-  padding: 2px 4px;
+  border-color: var(--line-strong);
+  padding: 6px 8px;
   resize: none;
   overflow: hidden;
   field-sizing: content;
   min-height: 28px;
   font-size: 14px;
   line-height: 1.55;
+  background: #fff;
 }
 
-.table-req-text:hover { background: var(--panel); }
+.table-req-text:hover,
 .table-req-text:focus {
   border-color: var(--gold);
   background: #fff;
@@ -737,6 +740,19 @@ a:focus-visible {
   cursor: pointer;
 }
 .row-text-action:hover { color: var(--gold); }
+.row-text-action.is-danger:hover { color: var(--red); }
+
+.row-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.row-actions .row-text-action {
+  padding: 0;
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+}
 
 .table-bullets { display: grid; gap: 6px; }
 
@@ -838,7 +854,20 @@ a:focus-visible {
 }
 .experience-match:last-child { border-bottom: 0; }
 .experience-match:hover,
-.experience-match:focus-visible { background: var(--panel-hover); }
+.experience-match:focus-visible,
+.experience-match.is-active { background: rgba(232, 196, 122, 0.2); }
+
+.adder-label {
+  display: grid;
+  gap: 3px;
+}
+.adder-label > span {
+  color: var(--gold);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.56rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
 .experience-match small { color: var(--muted); font-size: 11px; }
 
 .experience-editor {
@@ -953,6 +982,8 @@ a:focus-visible {
   border-top: 1px solid var(--line);
   background: var(--panel);
 }
+.table-question-body .field textarea,
+.experience-editor .field textarea { min-height: 52px; }
 .table-question-star {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1135,7 +1166,8 @@ a:focus-visible {
   margin: 10px 0;
 }
 
-.resume {
+.resume,
+.field textarea.resume {
   min-height: 320px;
   white-space: pre-wrap;
   font-family: var(--content-font);
@@ -1252,6 +1284,7 @@ a:focus-visible {
   }
   .job-table td { border: 0; }
   .job-table td + td { border-left: 0; border-top: 1px solid var(--line); }
+  .row-actions { flex-direction: row; justify-content: flex-end; }
   .job-table td::before {
     content: attr(data-label);
     display: block;

@@ -1,7 +1,7 @@
 /**
  * Brag Book document model. Browser-safe ESM — no node: imports.
  *
- * One local store: a running win log (`entries`) plus job postings.
+ * One local store: experiences (`entries`) plus job postings.
  * Each requirement holds resume bullets, pinned stories, and questions
  * that each carry their own STAR answer. A slim `profile` rides on the
  * store for resume contact / summary / skills.
@@ -206,6 +206,7 @@ export function normalizeEntry(raw, clock = Date.now) {
     id: asString(raw.id, 64) || newId('en', clock),
     kind: asKind(raw.kind),
     title,
+    role: asString(raw.role, TITLE_MAX),
     when: asString(raw.when, 80),
     tags: asTags(raw.tags),
     situation: asString(raw.situation, TEXT_MAX),
@@ -292,6 +293,7 @@ export function normalizePosting(raw, clock = Date.now) {
     status: asStatus(raw.status),
     notes: asString(raw.notes, TEXT_MAX),
     sourceText: asString(raw.sourceText, 20000),
+    resumeText: asString(raw.resumeText, 20000),
     requirements,
     createdAt,
     updatedAt: asString(raw.updatedAt, 40) || createdAt,
@@ -732,6 +734,7 @@ export function searchEntries(store, query) {
   return list.filter((entry) => {
     const hay = [
       entry.title,
+      entry.role,
       entry.kind,
       entry.when,
       entry.notes,
@@ -756,6 +759,7 @@ export function scoreEntry(entry, requirementText) {
   ]);
   const hay = [
     entry.title,
+    entry.role,
     ...(entry.tags || []),
     entry.situation,
     entry.task,
@@ -824,6 +828,10 @@ export function questionAnswered(question) {
   return Boolean(asString(question.answer, TEXT_MAX) || starFill(question).filled);
 }
 
+function resumeGroup(entry) {
+  return asString(entry?.role, TITLE_MAX) || asString(entry?.when, 80) || 'Experience';
+}
+
 export function compileResume(posting, store) {
   const profile = normalizeProfile(store?.profile || posting?.profile);
   const skillTags = [
@@ -833,11 +841,24 @@ export function compileResume(posting, store) {
       .flatMap((entry) => [entry.title, ...(entry.tags || [])]),
   ];
   const skills = [...new Set(skillTags.map((item) => String(item || '').trim()).filter(Boolean))];
-  const sections = (posting?.requirements || []).map((req) => ({
-    id: req.id,
-    requirement: req.text,
-    bullets: (req.bullets || req.experiences || []).map((line) => line.text),
-  }));
+  const seen = new Set();
+  const groups = new Map();
+  for (const req of posting?.requirements || []) {
+    for (const bullet of req.bullets || req.experiences || []) {
+      const text = asString(bullet?.text, TEXT_MAX);
+      if (!text) continue;
+      const entry = bullet?.entryId ? entryById(store, bullet.entryId) : null;
+      const textKey = `text:${text.toLowerCase()}`;
+      const idKey = bullet?.entryId ? `id:${bullet.entryId}` : '';
+      if (seen.has(textKey) || (idKey && seen.has(idKey))) continue;
+      seen.add(textKey);
+      if (idKey) seen.add(idKey);
+      const role = resumeGroup(entry);
+      if (!groups.has(role)) groups.set(role, { id: role, role, bullets: [] });
+      groups.get(role).bullets.push(text);
+    }
+  }
+  const sections = [...groups.values()];
   return {
     title: posting?.title || '',
     company: posting?.company || '',
@@ -855,7 +876,7 @@ export function compileResumeText(posting, store) {
   const skillLine = compiled.skills.length ? `Skills: ${compiled.skills.join(', ')}` : '';
   const blocks = compiled.sections
     .filter((section) => section.bullets.length)
-    .map((section) => `${section.requirement}\n${section.bullets.map((b) => `• ${b}`).join('\n')}`);
+    .map((section) => `${section.role}\n${section.bullets.map((b) => `• ${b}`).join('\n')}`);
   return [...who, compiled.profile.summary, head, skillLine, ...blocks].filter(Boolean).join('\n\n');
 }
 
@@ -867,7 +888,7 @@ export function compileResumeHtml(posting, store) {
   const who = [compiled.profile.name, compiled.profile.email, compiled.profile.location].filter(Boolean).map(esc);
   const sections = compiled.sections
     .filter((section) => section.bullets.length)
-    .map((section) => `<h2>${esc(section.requirement)}</h2><ul>${section.bullets.map((b) => `<li>${esc(b)}</li>`).join('')}</ul>`)
+    .map((section) => `<h2>${esc(section.role)}</h2><ul>${section.bullets.map((b) => `<li>${esc(b)}</li>`).join('')}</ul>`)
     .join('');
   const skills = compiled.skills.length ? `<p><strong>Skills.</strong> ${esc(compiled.skills.join(', '))}</p>` : '';
   const summary = compiled.profile.summary ? `<p>${esc(compiled.profile.summary)}</p>` : '';
@@ -878,8 +899,16 @@ export function compileResumeHtml(posting, store) {
 <h1>${esc(compiled.profile.name || role || 'Resume')}</h1>
 ${who.length ? `<p class="meta">${who.join(' · ')}</p>` : ''}
 ${role && compiled.profile.name ? `<p class="meta">${role}</p>` : ''}
-${summary}${skills}${sections || '<p>Add resume bullets on the posting first.</p>'}
+${summary}${skills}${sections || '<p>Add a resume bullet on a requirement first.</p>'}
 </body></html>`;
+}
+
+export function resumeTextToWordHtml(text, title = 'Resume') {
+  const esc = (value) => String(value || '').replace(/[&<>"']/g, (ch) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[ch]));
+  const body = esc(text).replace(/\n/g, '<br>');
+  return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>${esc(title)}</title></head><body style="font:12pt Georgia,serif">${body}</body></html>`;
 }
 
 export function compilePrep(store, posting) {
@@ -962,7 +991,7 @@ export function prepCoverage(store, posting) {
   ).length;
   const hints = [];
   if (needBullet) hints.push(`${needBullet} requirement${needBullet === 1 ? '' : 's'} need a resume bullet`);
-  if (needStory) hints.push(`${needStory} need a story`);
+  if (needStory) hints.push(`${needStory} need an experience`);
   if (needQuestion) hints.push(`${needQuestion} need a question`);
   if (needAnswer) hints.push(`${needAnswer} need a STAR answer`);
   if (!hints.length && total) hints.push('Every requirement has something to say. Walk Prep, then copy the resume.');

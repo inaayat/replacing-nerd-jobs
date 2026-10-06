@@ -24,8 +24,6 @@ import {
   updateQuestion,
   deleteQuestion,
   answerQuestionFromEntry,
-  linkEntry,
-  unlinkEntry,
   parseRequirements,
   parseExperiences,
   searchEntries,
@@ -34,12 +32,11 @@ import {
   bulletEntry,
   compileResumeText,
   compileResumeHtml,
+  resumeTextToWordHtml,
   compilePrep,
   prepCoverage,
   listingSummary,
   starFill,
-  starScript,
-  draftBulletFromEntry,
   bookIsEmpty,
   asUrl,
   titleFromJobUrl,
@@ -67,6 +64,7 @@ let kindFilter = 'all';
 let statusNote = '';
 let expandedBulletKey = '';
 let questionComposerKey = '';
+const openQuestionIds = new Set();
 
 function loadCached() {
   try {
@@ -265,8 +263,8 @@ function homeView() {
         el('span', { class: 'kicker' }, 'The loop'),
         el('strong', {}, store.postings.length ? 'Open a posting' : 'New job posting'),
         el('p', {}, store.postings.length
-          ? `${summary.postings} on file. Paste another, or keep filling bullets, questions, and STAR answers.`
-          : 'Paste the description. We pull the requirement bullets. You add a resume line, a question, and a STAR answer on each.'),
+          ? `${summary.postings} on file. Paste another, or keep adding experiences, questions, and STAR answers.`
+          : 'Paste the description. We pull the requirements. You add an experience, a resume bullet, and a question with a STAR answer.'),
       ]),
       el('button', {
         type: 'button',
@@ -277,7 +275,7 @@ function homeView() {
         el('strong', {}, 'Add experiences'),
         el('p', {}, summary.entries
           ? `${summary.entries} already in the book. Paste more in one go, then pin them onto a posting.`
-          : 'Optional. Paste several wins at once so a posting can steal a resume bullet or a STAR answer.'),
+          : 'Optional. Paste several experiences at once so a posting can reuse one on more than one requirement.'),
       ]),
     ]),
     recentJobs.length ? el('section', { class: 'recent' }, [
@@ -331,8 +329,9 @@ function entryList(selectedId) {
       el('input', {
         class: 'search',
         type: 'search',
-        placeholder: 'Search wins, tags, STAR…',
+        placeholder: 'Search experiences, roles, STAR…',
         value: query,
+        'data-focus-key': 'book-search',
         onInput: (event) => { query = event.target.value; render(); },
       }),
       field('Kind', el('select', {
@@ -352,7 +351,7 @@ function entryList(selectedId) {
           el('div', { class: 'row-meta' }, [kindLabel(entry.kind), entry.when, starFill(entry).ready ? 'STAR ready' : null].filter(Boolean).join(' · ')),
         ])
       ))
-      : el('p', { class: 'empty' }, query ? 'Nothing in the book matches that.' : 'Paste several experiences — then pin them onto a posting.'),
+      : el('p', { class: 'empty' }, query ? 'Nothing in the book matches that.' : 'Paste several experiences, then link one from a requirement.'),
   ]);
 }
 
@@ -395,7 +394,7 @@ function bulkEntryForm() {
       el('span', { class: 'beta-pill' }, 'beta'),
     ]),
     el('div', { class: 'panel-body' }, [
-      el('p', { class: 'lede' }, 'Dump a resume, a review doc, or notes. Each line becomes a win a posting can pin.'),
+      el('p', { class: 'lede' }, 'Dump a resume, a review doc, or notes. Each line becomes an experience a posting can link.'),
       field('Kind for this paste', kind),
       field('Paste experiences', paste),
       el('div', { class: 'actions' }, [
@@ -410,7 +409,7 @@ function bulkEntryForm() {
             store = addEntries(store, drafts);
             saveStore();
             go({ kind: 'log' });
-            setNote(`Added ${drafts.length} experience${drafts.length === 1 ? '' : 's'}. Pin one onto a posting next.`);
+            setNote(`Added ${drafts.length} experience${drafts.length === 1 ? '' : 's'}. Link one from a posting next.`);
           },
         }),
         btn('Cancel', { class: 'btn ghost', onClick: () => go({ kind: 'log' }) }),
@@ -453,7 +452,7 @@ function entryForm(entry) {
   });
   form.append(
     el('div', { class: 'panel-head' }, [
-      el('h2', {}, isNew ? 'Add one win' : 'Edit win'),
+      el('h2', {}, isNew ? 'Add one experience' : 'Edit experience'),
       entry ? el('span', { class: `tag kind-${entry.kind}` }, kindLabel(entry.kind)) : null,
     ]),
     el('div', { class: 'panel-body' }, [
@@ -462,6 +461,7 @@ function entryForm(entry) {
         field('Kind', el('select', { name: 'kind' }, ENTRY_KINDS.map((kind) =>
           el('option', { value: kind, selected: draft.kind === kind || undefined }, kindLabel(kind))
         ))),
+        field('Role', el('input', { name: 'role', value: draft.role || '', placeholder: 'Product engineer, Beep boop' })),
         field('When', el('input', { name: 'when', value: draft.when, placeholder: '2026 · A-Lister, or last Tuesday' })),
       ]),
       field('Tags', el('input', { name: 'tags', value: draft.tags.join(', '), placeholder: 'neon, auth, postgres' })),
@@ -478,7 +478,7 @@ function entryForm(entry) {
         entry ? btn('Delete', {
           class: 'btn danger',
           onClick: () => {
-            if (!confirm('Remove this win from the book? Jobs will drop the link.')) return;
+            if (!confirm('Remove this experience from the book? Requirements will drop the link.')) return;
             store = deleteEntry(store, entry.id);
             saveStore();
             go({ kind: 'log' });
@@ -521,7 +521,7 @@ function pullRequirements(job, text, { replace = false } = {}) {
   const lines = parseRequirements(text);
   if (!lines.length && String(text || '').trim()) lines.push(String(text).trim());
   if (!lines.length) {
-    setNote('Paste the posting — bullets become rows. Try the sample in the box.');
+    setNote('Paste the job description. Requirement lines become rows. Try Use sample.');
     return 0;
   }
   if (replace) {
@@ -547,7 +547,7 @@ function jobForm() {
       const count = pullRequirements(job, data.sourceText);
       if (count) {
         go({ kind: 'jobs', id: job.id });
-        setNote(`Pulled ${count} requirement${count === 1 ? '' : 's'} into the table. Add resume bullets beside them.`);
+        setNote(`Pulled ${count} requirement${count === 1 ? '' : 's'} into the table. Add an experience beside each one.`);
       } else {
         go({ kind: 'jobs', id: job.id });
         setNote('Saved the posting. Paste the job description to pull requirement rows.');
@@ -586,7 +586,7 @@ function coverageBanner(job) {
   return el('div', { class: 'banner banner-progress' }, [
     el('p', { class: 'banner-hint' }, cover.hints[0] || `${cover.withAnswer}/${cover.total || 0} requirements have an answer`),
     el('div', { class: 'progress-chips' }, [
-      chip(cover.withBullet, cover.total, 'bullets'),
+      chip(cover.withBullet, cover.total, 'resume bullets'),
       chip(cover.withQuestion, cover.total, 'questions'),
       chip(cover.withAnswer, cover.total, 'answers'),
     ]),
@@ -624,12 +624,23 @@ function jobMeta(job) {
 }
 
 function pasteMore(job) {
-  const source = el('textarea', { class: 'tall', placeholder: SAMPLE_JD });
+  const source = el('textarea', {
+    class: 'tall',
+    placeholder: SAMPLE_JD,
+    'aria-label': 'Job description',
+  });
   return el('div', { class: 'paste-more' }, [
-    el('p', { class: 'subhead' }, 'Paste more'),
-    source,
+    field('Job description', source),
+    el('p', { class: 'tiny' }, 'Each requirement line becomes a row. The sample shows the shape.'),
     el('div', { class: 'actions' }, [
-      btn('Add these bullets', {
+      btn('Use sample', {
+        class: 'btn ghost',
+        onClick: () => {
+          source.value = SAMPLE_JD;
+          source.focus();
+        },
+      }),
+      btn('Pull requirements', {
         class: 'btn',
         onClick: () => {
           const count = pullRequirements(job, source.value);
@@ -643,6 +654,12 @@ function pasteMore(job) {
   ]);
 }
 
+function latestQuestion(jobId, reqId) {
+  const job = store.postings.find((item) => item.id === jobId);
+  const requirement = job?.requirements.find((item) => item.id === reqId);
+  return requirement?.questions[requirement.questions.length - 1] || null;
+}
+
 function requirementQuestions(job, req) {
   const box = el('div', { class: 'requirement-questions' });
   if (req.questions.length) {
@@ -652,19 +669,21 @@ function requirementQuestions(job, req) {
   }
   for (const question of req.questions) {
     const answered = Boolean(question.answer || starFill(question).filled);
-    const text = el('input', { value: question.text, placeholder: 'They might ask…' });
+    const text = el('input', { value: question.text, placeholder: 'They might ask…', 'aria-label': 'Question' });
     const answer = el('textarea', {
       rows: '2',
       placeholder: 'Short answer, or fill STAR below.',
+      'aria-label': 'Answer',
     }, question.answer);
     answer.value = question.answer;
     const fields = {
-      situation: el('textarea', { rows: '2', placeholder: 'Situation' }, question.situation),
-      task: el('textarea', { rows: '2', placeholder: 'Task' }, question.task),
-      action: el('textarea', { rows: '2', placeholder: 'Action' }, question.action),
-      result: el('textarea', { rows: '2', placeholder: 'Result' }, question.result),
+      situation: el('textarea', { rows: '2', placeholder: 'What was going on?', 'aria-label': 'Situation' }, question.situation),
+      task: el('textarea', { rows: '2', placeholder: 'What were you responsible for?', 'aria-label': 'Task' }, question.task),
+      action: el('textarea', { rows: '2', placeholder: 'What did you do?', 'aria-label': 'Action' }, question.action),
+      result: el('textarea', { rows: '2', placeholder: 'What changed?', 'aria-label': 'Result' }, question.result),
     };
     const save = () => {
+      if (!text.value.trim()) return;
       store = updateQuestion(store, job.id, req.id, question.id, {
         text: text.value,
         answer: answer.value,
@@ -674,26 +693,31 @@ function requirementQuestions(job, req) {
         result: fields.result.value,
       });
       saveStore();
-      render();
-      setNote('Question saved.');
     };
+    [text, answer, ...Object.values(fields)].forEach((node) => node.addEventListener('input', save));
     const stories = linkedEntries(store, req);
-    box.append(el('details', { class: 'table-question' }, [
+    box.append(el('details', {
+      class: 'table-question',
+      open: openQuestionIds.has(question.id),
+      onToggle: (event) => {
+        if (event.target.open) openQuestionIds.add(question.id);
+        else openQuestionIds.delete(question.id);
+      },
+    }, [
       el('summary', {}, [
         el('span', { class: 'table-question-text' }, question.text),
         el('span', { class: answered ? 'question-status is-answered' : 'question-status' }, answered ? 'Answered' : 'Needs answer'),
       ]),
       el('div', { class: 'table-question-body' }, [
-        text,
-        answer,
-        el('div', { class: 'table-question-star' }, ['situation', 'task', 'action', 'result'].map((key) =>
-          el('label', {}, [
-            el('span', {}, key[0].toUpperCase()),
-            fields[key],
-          ])
-        )),
+        field('Question', text),
+        field('Answer', answer),
+        el('div', { class: 'table-question-star' }, [
+          ['situation', 'Situation'],
+          ['task', 'Task'],
+          ['action', 'Action'],
+          ['result', 'Result'],
+        ].map(([key, label]) => field(label, fields[key]))),
         el('div', { class: 'actions' }, [
-          btn('Save', { class: 'btn ghost', onClick: save }),
           stories.length
             ? btn('Use first experience', {
               class: 'btn ghost',
@@ -722,15 +746,17 @@ function requirementQuestions(job, req) {
   if (questionComposerKey === composerKey) {
     const fresh = el('input', {
       class: 'question-add-input',
-      placeholder: 'Potential interview question…',
-      autofocus: true,
+      placeholder: 'They might ask…',
+      'aria-label': 'Potential question',
+      'data-focus-key': `add-q-${req.id}`,
     });
     const add = () => {
       if (!fresh.value.trim()) return;
       store = addQuestion(store, job.id, req.id, fresh.value);
-      questionComposerKey = '';
+      const created = latestQuestion(job.id, req.id);
+      if (created) openQuestionIds.add(created.id);
       saveStore();
-      render();
+      render({ focusKey: `add-q-${req.id}` });
       setNote('Question added under the requirement.');
     };
     fresh.addEventListener('keydown', (event) => {
@@ -757,25 +783,35 @@ function experienceEditor(job, req, bullet) {
   const title = entry ? el('input', {
     value: entry.title,
     placeholder: 'Experience title',
+    'aria-label': 'Experience name',
+  }) : null;
+  const role = entry ? el('input', {
+    value: entry.role || '',
+    placeholder: 'Product engineer, Beep boop',
+    'aria-label': 'Role',
   }) : null;
   const resumeLine = el('textarea', {
     rows: '2',
-    placeholder: 'Concise resume bullet for this requirement.',
+    placeholder: 'The line that should appear on the resume.',
+    'aria-label': 'Resume bullet',
   }, bullet.text);
   resumeLine.value = bullet.text;
   const notes = el('textarea', {
     rows: '3',
     placeholder: 'Context, scope, metrics, links, or a longer description.',
+    'aria-label': 'Description',
   }, detail.notes);
   notes.value = detail.notes;
   const fields = {
-    situation: el('textarea', { rows: '2', placeholder: 'What was going on?' }, detail.situation),
-    task: el('textarea', { rows: '2', placeholder: 'What were you responsible for?' }, detail.task),
-    action: el('textarea', { rows: '2', placeholder: 'What did you do?' }, detail.action),
-    result: el('textarea', { rows: '2', placeholder: 'What changed? Add numbers when you can.' }, detail.result),
+    situation: el('textarea', { rows: '2', placeholder: 'What was going on?', 'aria-label': 'Situation' }, detail.situation),
+    task: el('textarea', { rows: '2', placeholder: 'What were you responsible for?', 'aria-label': 'Task' }, detail.task),
+    action: el('textarea', { rows: '2', placeholder: 'What did you do?', 'aria-label': 'Action' }, detail.action),
+    result: el('textarea', { rows: '2', placeholder: 'What changed? Add numbers when you can.', 'aria-label': 'Result' }, detail.result),
   };
   const save = () => {
-    store = updateBullet(store, job.id, req.id, bullet.id, { text: resumeLine.value });
+    if (resumeLine.value.trim()) {
+      store = updateBullet(store, job.id, req.id, bullet.id, { text: resumeLine.value });
+    }
     const patch = {
       notes: notes.value,
       situation: fields.situation.value,
@@ -783,12 +819,13 @@ function experienceEditor(job, req, bullet) {
       action: fields.action.value,
       result: fields.result.value,
     };
-    if (entry) store = updateEntry(store, entry.id, { ...patch, title: title.value });
-    else store = updateBullet(store, job.id, req.id, bullet.id, patch);
+    if (entry && title.value.trim()) store = updateEntry(store, entry.id, { ...patch, title: title.value, role: role.value });
+    else if (!entry) store = updateBullet(store, job.id, req.id, bullet.id, patch);
     saveStore();
-    render();
-    setNote(entry ? 'Saved to the shared experience.' : 'Saved the legacy experience.');
   };
+  [resumeLine, notes, ...Object.values(fields), title, role].filter(Boolean).forEach((node) => {
+    node.addEventListener('input', save);
+  });
   return el('div', { class: 'experience-editor' }, [
     el('div', { class: 'experience-editor-head' }, [
       el('div', {}, [
@@ -803,16 +840,16 @@ function experienceEditor(job, req, bullet) {
       }),
     ]),
     entry ? field('Experience name', title) : null,
-    field('Resume bullet for this requirement', resumeLine),
-    field('Description / notes', notes),
-    el('div', { class: 'experience-star' }, ['situation', 'task', 'action', 'result'].map((key) =>
-      el('label', {}, [
-        el('span', {}, key),
-        fields[key],
-      ])
-    )),
+    entry ? field('Role', role) : null,
+    field('Resume bullet', resumeLine),
+    field('Description', notes),
+    el('div', { class: 'experience-star' }, [
+      ['situation', 'Situation'],
+      ['task', 'Task'],
+      ['action', 'Action'],
+      ['result', 'Result'],
+    ].map(([key, label]) => field(label, fields[key]))),
     el('div', { class: 'actions experience-actions' }, [
-      btn('Save', { class: 'btn', onClick: save }),
       btn('Remove here', {
         class: 'btn ghost',
         onClick: () => {
@@ -852,17 +889,21 @@ function experienceAdder(job, req) {
   const wrap = el('div', { class: 'experience-add' });
   const fresh = el('input', {
     class: 'table-add-input',
-    placeholder: 'Search or add an experience…',
+    placeholder: 'Search experiences, or type a new one',
     autocomplete: 'off',
+    'aria-label': 'Add an experience',
+    'data-focus-key': `add-exp-${req.id}`,
   });
-  const matches = el('div', { class: 'experience-matches', hidden: true });
+  const matches = el('div', { class: 'experience-matches', hidden: true, role: 'listbox' });
   const linked = new Set(req.bullets.map((bullet) => bullet.entryId).filter(Boolean));
+  let choices = [];
+  let activeIndex = -1;
 
   const addExisting = (entry) => {
     store = addEntryBullet(store, job.id, req.id, entry.id);
     saveStore();
-    render();
-    setNote('Linked the existing Brag Book experience.');
+    render({ focusKey: `add-exp-${req.id}` });
+    setNote('Linked the existing experience.');
   };
   const addNew = () => {
     const text = fresh.value.trim();
@@ -878,37 +919,78 @@ function experienceAdder(job, req) {
     }
     store = createEntryBullet(store, job.id, req.id, text);
     saveStore();
-    render();
+    render({ focusKey: `add-exp-${req.id}` });
     setNote('Added the experience here and to the Brag Book.');
   };
-  const showMatches = () => {
-    const value = fresh.value.trim();
-    const rows = searchEntries(store, value)
-      .filter((entry) => entry.kind === 'experience' && !linked.has(entry.id))
-      .slice(0, 5);
-    matches.replaceChildren(...rows.map((entry) =>
+  const paintMatches = () => {
+    matches.replaceChildren(...choices.map((entry, index) =>
       el('button', {
         type: 'button',
-        class: 'experience-match',
+        class: `experience-match${index === activeIndex ? ' is-active' : ''}`,
+        role: 'option',
+        onMouseDown: (event) => event.preventDefault(),
         onClick: () => addExisting(entry),
       }, [
         el('span', {}, entry.title),
-        el('small', {}, [entry.when, starFill(entry).ready ? 'STAR ready' : 'Add STAR'].filter(Boolean).join(' · ')),
+        el('small', {}, [entry.role, entry.when, starFill(entry).ready ? 'STAR ready' : 'Add STAR'].filter(Boolean).join(' · ')),
       ])
     ));
-    matches.hidden = !rows.length || !value;
+    matches.hidden = !choices.length;
   };
-  fresh.addEventListener('input', showMatches);
-  fresh.addEventListener('focus', showMatches);
+  const showMatches = () => {
+    const value = fresh.value.trim();
+    const pool = value
+      ? searchEntries(store, value)
+      : (suggestEntries(store, req).length
+        ? suggestEntries(store, req)
+        : store.entries);
+    choices = pool
+      .filter((entry) => entry.kind === 'experience' && !linked.has(entry.id))
+      .slice(0, 6);
+    if (activeIndex >= choices.length) activeIndex = choices.length - 1;
+    paintMatches();
+  };
+  fresh.addEventListener('input', () => {
+    activeIndex = -1;
+    showMatches();
+  });
+  fresh.addEventListener('focus', () => {
+    activeIndex = -1;
+    showMatches();
+  });
   fresh.addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowDown' && choices.length) {
+      event.preventDefault();
+      activeIndex = Math.min(activeIndex + 1, choices.length - 1);
+      paintMatches();
+      return;
+    }
+    if (event.key === 'ArrowUp' && choices.length) {
+      event.preventDefault();
+      activeIndex = Math.max(activeIndex - 1, 0);
+      paintMatches();
+      return;
+    }
+    if (event.key === 'Escape') {
+      matches.hidden = true;
+      activeIndex = -1;
+      return;
+    }
     if (event.key !== 'Enter') return;
     event.preventDefault();
-    addNew();
+    if (activeIndex >= 0 && choices[activeIndex]) addExisting(choices[activeIndex]);
+    else addNew();
   });
-  wrap.append(el('div', { class: 'table-add' }, [
-    fresh,
-    btn('+ New', { class: 'btn ghost', onClick: addNew }),
-  ]), matches);
+  wrap.append(
+    el('label', { class: 'adder-label' }, [
+      el('span', {}, 'Add an experience'),
+      el('div', { class: 'table-add' }, [
+        fresh,
+        btn('+ New', { class: 'btn ghost', onClick: addNew }),
+      ]),
+    ]),
+    matches,
+  );
   return wrap;
 }
 
@@ -916,6 +998,7 @@ function requirementTableRow(job, req) {
   const requirement = el('textarea', {
     class: 'table-req-text',
     rows: '1',
+    'aria-label': 'Requirement',
     title: 'Edit requirement — saves when you leave the field',
     onChange: (event) => {
       const text = event.target.value.trim();
@@ -959,22 +1042,34 @@ function requirementTableRow(job, req) {
         el('span', { class: 'cell-label' }, 'Requirement'),
         requirement,
       ]),
-      el('div', { class: 'table-row-tools' }, [
-        btn('+ Question', {
-          class: 'row-text-action',
-          onClick: () => {
-            questionComposerKey = questionComposerKey === composerKey ? '' : composerKey;
-            render();
-          },
-        }),
-      ]),
       req.questions.length || questionComposerKey === composerKey
         ? requirementQuestions(job, req)
         : null,
     ]),
-    el('td', { class: 'bullets-cell', 'data-label': 'Resume bullets / experiences' }, [
+    el('td', { class: 'bullets-cell', 'data-label': 'Experiences' }, [
       el('span', { class: 'cell-label' }, 'Experiences'),
       el('div', { class: 'bullets-stack' }, [bullets]),
+    ]),
+    el('td', { class: 'row-actions-cell', 'data-label': 'Actions' }, [
+      el('div', { class: 'row-actions' }, [
+        btn('+ Question', {
+          class: 'row-text-action',
+          onClick: () => {
+            const opening = questionComposerKey !== composerKey;
+            questionComposerKey = opening ? composerKey : '';
+            render(opening ? { focusKey: `add-q-${req.id}` } : undefined);
+          },
+        }),
+        btn('Delete', {
+          class: 'row-text-action is-danger',
+          onClick: () => {
+            if (!confirm('Delete this requirement and its questions? Experiences stay in the Brag Book.')) return;
+            store = deleteRequirement(store, job.id, req.id);
+            saveStore();
+            render();
+          },
+        }),
+      ]),
     ]),
   ]);
 }
@@ -984,7 +1079,8 @@ function requirementTable(job) {
   table.append(el('thead', {}, [
     el('tr', {}, [
       el('th', {}, 'Job requirement'),
-      el('th', {}, 'Resume bullets / experiences'),
+      el('th', {}, 'Experiences'),
+      el('th', { class: 'actions-heading' }, ''),
     ]),
   ]));
   const body = el('tbody');
@@ -1038,345 +1134,15 @@ function jobDetail(job) {
     el('div', { class: 'workspace-status' }, [coverageBanner(job)]),
     job.requirements.length
       ? requirementTable(job)
-      : el('div', { class: 'panel-body' }, [
-        el('p', { class: 'empty' }, 'Paste the posting below. Each requirement becomes one row; add resume bullets beside it.'),
+      : el('div', { class: 'panel-body empty-posting' }, [
+        el('p', { class: 'empty' }, 'Paste the job description. Each requirement becomes a row, then add an experience beside it.'),
+        pasteMore(job),
       ]),
     el('div', { class: 'workspace-utilities' }, [
-      pasteMoreDisclosure(job),
+      job.requirements.length ? pasteMoreDisclosure(job) : null,
       jobDetailsDisclosure(job),
     ])
   );
-  return wrap;
-}
-
-function lineEditor(items, { onAdd, onEdit, onDelete, placeholder }) {
-  const box = el('div', { class: 'cell-stack' });
-  for (const item of items) {
-    const input = el('textarea', { value: item.text });
-    input.value = item.text;
-    box.append(el('div', { class: 'line-row' }, [
-      input,
-      btn('Save', { class: 'btn ghost', onClick: () => onEdit(item.id, input.value) }),
-      el('button', { type: 'button', class: 'icon-btn', title: 'Remove', onClick: () => onDelete(item.id) }, '×'),
-    ]));
-  }
-  const fresh = el('input', { placeholder });
-  const add = () => {
-    if (!fresh.value.trim()) return;
-    onAdd(fresh.value);
-  };
-  fresh.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      add();
-    }
-  });
-  box.append(el('div', { class: 'line-row' }, [
-    fresh,
-    btn('Add', { class: 'btn ghost', onClick: add }),
-  ]));
-  return box;
-}
-
-function questionEditor(job, req) {
-  const box = el('div', { class: 'cell-stack' });
-  const stories = linkedEntries(store, req);
-  for (const question of req.questions) {
-    const text = el('textarea', { placeholder: 'They might ask…' }, question.text);
-    text.value = question.text;
-    const answer = el('textarea', { placeholder: 'Your answer in a sentence, or fill STAR below.' }, question.answer);
-    answer.value = question.answer;
-    const fields = {
-      situation: el('textarea', { placeholder: 'Situation' }, question.situation),
-      task: el('textarea', { placeholder: 'Task' }, question.task),
-      action: el('textarea', { placeholder: 'Action' }, question.action),
-      result: el('textarea', { placeholder: 'Result' }, question.result),
-    };
-    const save = () => {
-      store = updateQuestion(store, job.id, req.id, question.id, {
-        text: text.value,
-        answer: answer.value,
-        situation: fields.situation.value,
-        task: fields.task.value,
-        action: fields.action.value,
-        result: fields.result.value,
-      });
-      saveStore();
-      render();
-    };
-    box.append(el('article', { class: 'q-card' }, [
-      el('p', { class: 'subhead' }, 'Potential question'),
-      text,
-      el('p', { class: 'subhead' }, 'Answer / STAR'),
-      answer,
-      el('div', { class: 'star' }, ['situation', 'task', 'action', 'result'].map((key) =>
-        el('label', { class: 'star-card' }, [el('b', {}, key[0].toUpperCase()), fields[key]])
-      )),
-      el('div', { class: 'actions' }, [
-        btn('Save', { class: 'btn ghost', onClick: save }),
-        stories.length
-          ? btn('Use pinned story', {
-            class: 'btn ghost',
-            onClick: () => {
-              store = answerQuestionFromEntry(store, job.id, req.id, question.id, stories[0].id);
-              saveStore();
-              render();
-              setNote('Copied that story into the STAR answer.');
-            },
-          })
-          : null,
-        btn('Remove', {
-          class: 'btn danger',
-          onClick: () => { store = deleteQuestion(store, job.id, req.id, question.id); saveStore(); render(); },
-        }),
-      ]),
-    ]));
-  }
-  const fresh = el('input', { placeholder: 'Tell me about a time you…' });
-  box.append(el('div', { class: 'line-row' }, [
-    fresh,
-    btn('Add question', {
-      class: 'btn ghost',
-      onClick: () => {
-        if (!fresh.value.trim()) return;
-        store = addQuestion(store, job.id, req.id, fresh.value);
-        saveStore();
-        render();
-      },
-    }),
-  ]));
-  return box;
-}
-
-function storyBlock(job, req, activeBullet = null) {
-  const stories = linkedEntries(store, req);
-  const suggested = suggestEntries(store, req);
-  const picker = el('select', {}, [
-    el('option', { value: '' }, 'Pin a win from the book…'),
-    ...store.entries
-      .filter((entry) => !req.entryIds.includes(entry.id))
-      .map((entry) => el('option', { value: entry.id }, `${entry.title} (${kindLabel(entry.kind)})`)),
-  ]);
-  picker.addEventListener('change', () => {
-    if (!picker.value) return;
-    store = linkEntry(store, job.id, req.id, picker.value);
-    saveStore();
-    render();
-  });
-  return el('div', { class: 'cell-stack' }, [
-    stories.length
-      ? el('div', {}, stories.map((entry) => el('div', { class: 'story' }, [
-        el('div', { class: 'row-title' }, entry.title),
-        el('pre', { class: 'tiny' }, starScript(entry) || entry.notes || 'No STAR yet — open it in the book.'),
-        el('div', { class: 'actions' }, [
-          btn(activeBullet ? 'Use story details' : 'Use as resume bullet', {
-            class: 'btn ghost',
-            onClick: () => {
-              if (activeBullet) {
-                store = updateBullet(store, job.id, req.id, activeBullet.id, {
-                  text: activeBullet.text || draftBulletFromEntry(entry),
-                  notes: entry.notes,
-                  situation: entry.situation,
-                  task: entry.task,
-                  action: entry.action,
-                  result: entry.result,
-                });
-              } else {
-                store = addEntryBullet(store, job.id, req.id, entry.id);
-              }
-              saveStore();
-              render();
-              setNote(activeBullet
-                ? 'Copied that experience into this bullet.'
-                : 'Drafted a resume bullet from that story.');
-            },
-          }),
-          btn('Open', { class: 'btn ghost', onClick: () => go({ kind: 'log', id: entry.id }) }),
-          btn('Unpin', { class: 'btn ghost', onClick: () => { store = unlinkEntry(store, job.id, req.id, entry.id); saveStore(); render(); } }),
-        ]),
-      ])))
-      : el('p', { class: 'empty' }, store.entries.length
-        ? 'Pin a win from the book, or skip and write the STAR on the question.'
-        : 'No wins in the book yet. Write the STAR on the question, or paste experiences in the book.'),
-    picker,
-    suggested.length
-      ? el('div', { class: 'tags' }, suggested.map((entry) => el('button', {
-        type: 'button',
-        class: 'tag kind-experience',
-        onClick: () => { store = linkEntry(store, job.id, req.id, entry.id); saveStore(); render(); },
-      }, `+ ${entry.title}`)))
-      : null,
-  ]);
-}
-
-function requirementCard(job, req) {
-  const card = el('article', { class: 'req' });
-  const text = el('textarea', { class: 'req-text' }, req.text);
-  text.value = req.text;
-  card.append(
-    el('div', { class: 'req-head' }, [
-      text,
-    ]),
-    el('p', { class: 'subhead' }, 'Resume bullets'),
-    req.bullets.length ? null : el('p', { class: 'tiny' }, 'Write the line you want on the resume, or pin a story and tap “Use as resume bullet”.'),
-    lineEditor(req.bullets, {
-      placeholder: 'Kept every public page on static files plus 11 serverless functions.',
-      onAdd: (value) => { store = createEntryBullet(store, job.id, req.id, value); saveStore(); render(); },
-      onEdit: (id, value) => { store = updateBullet(store, job.id, req.id, id, value); saveStore(); render(); },
-      onDelete: (id) => { store = deleteBullet(store, job.id, req.id, id); saveStore(); render(); },
-    }),
-    el('p', { class: 'subhead' }, 'Stories from the book'),
-    storyBlock(job, req),
-    el('p', { class: 'subhead' }, 'Potential questions + STAR'),
-    req.questions.length ? null : el('p', { class: 'tiny' }, 'Add the question they will ask, then write the STAR answer on it.'),
-    questionEditor(job, req),
-    el('div', { class: 'actions' }, [
-      btn('Save requirement', {
-        class: 'btn ghost',
-        onClick: () => {
-          store = updateRequirement(store, job.id, req.id, { text: text.value });
-          saveStore();
-          render();
-        },
-      }),
-    ])
-  );
-  return card;
-}
-
-function bulletDetailView(job, reqId, bulletId) {
-  const req = job.requirements.find((item) => item.id === reqId);
-  const bullet = req?.bullets.find((item) => item.id === bulletId);
-  if (!req || !bullet) {
-    return el('section', { class: 'panel detail-panel' }, [
-      el('div', { class: 'panel-body' }, [
-        el('p', { class: 'empty' }, 'That bullet is no longer here. Return to the table and pick another.'),
-        btn('Back to table', { class: 'btn', onClick: () => go({ kind: 'jobs', id: job.id }) }),
-      ]),
-    ]);
-  }
-
-  const text = el('textarea', { class: 'detail-bullet-text', rows: '3' }, bullet.text);
-  text.value = bullet.text;
-  const notes = el('textarea', {
-    placeholder: 'Context, scope, metrics, links, or the longer version of this experience.',
-    rows: '4',
-  }, bullet.notes);
-  notes.value = bullet.notes;
-  const fields = {
-    situation: el('textarea', { placeholder: 'Situation — what was going on?', rows: '3' }, bullet.situation),
-    task: el('textarea', { placeholder: 'Task — what were you responsible for?', rows: '3' }, bullet.task),
-    action: el('textarea', { placeholder: 'Action — what did you do?', rows: '3' }, bullet.action),
-    result: el('textarea', { placeholder: 'Result — what changed? Add numbers when you can.', rows: '3' }, bullet.result),
-  };
-  const save = () => {
-    store = updateBullet(store, job.id, req.id, bullet.id, {
-      text: text.value,
-      notes: notes.value,
-      situation: fields.situation.value,
-      task: fields.task.value,
-      action: fields.action.value,
-      result: fields.result.value,
-    });
-    saveStore();
-    render();
-    setNote('Saved the experience details.');
-  };
-
-  return el('section', { class: 'panel detail-panel' }, [
-    el('div', { class: 'panel-head' }, [
-      el('div', {}, [
-        el('p', { class: 'kicker' }, 'Resume bullet / experience'),
-        el('h2', {}, req.text),
-      ]),
-      el('div', { class: 'actions' }, [
-        btn('← Table', { class: 'btn ghost', onClick: () => go({ kind: 'jobs', id: job.id }) }),
-        btn('Save', { class: 'btn', onClick: save }),
-      ]),
-    ]),
-    el('div', { class: 'panel-body bullet-detail-grid' }, [
-      el('div', { class: 'detail-column' }, [
-        el('section', { class: 'section-box' }, [
-          el('h3', {}, 'Resume bullet'),
-          el('p', { class: 'tiny' }, 'This is the concise line shown in the table and exported to Resume.'),
-          text,
-        ]),
-        el('section', { class: 'section-box' }, [
-          el('h3', {}, 'Experience details'),
-          el('p', { class: 'tiny' }, 'Keep the longer context here; it does not appear on the resume.'),
-          notes,
-          el('div', { class: 'star detail-star' }, [
-            ...['situation', 'task', 'action', 'result'].map((key) =>
-              el('label', { class: 'star-card' }, [
-                el('b', {}, key),
-                fields[key],
-              ])
-            ),
-          ]),
-        ]),
-        el('section', { class: 'section-box' }, [
-          el('h3', {}, 'Experience from the book'),
-          el('p', { class: 'tiny' }, 'Optional: pin an existing win, then copy its details into this bullet.'),
-          storyBlock(job, req, bullet),
-        ]),
-      ]),
-      el('div', { class: 'detail-column' }, [
-        el('section', { class: 'section-box questions-box' }, [
-          el('h3', {}, 'Potential interview questions'),
-          el('p', { class: 'tiny' }, 'Questions are shared by the requirement. Each question keeps its own answer / STAR.'),
-          questionEditor(job, req),
-        ]),
-      ]),
-    ]),
-  ]);
-}
-
-function fillView(job, reqId) {
-  const list = job.requirements;
-  let index = list.findIndex((req) => req.id === reqId);
-  if (index < 0) index = 0;
-  const req = list[index];
-  const wrap = el('section', { class: 'panel' });
-  wrap.append(el('div', { class: 'panel-head' }, [
-    el('div', {}, [
-      el('h2', {}, `Requirement ${list.length ? index + 1 : 0} of ${list.length}`),
-      el('p', { class: 'tiny' }, 'Bullet → story → question + STAR. Arrow keys move. Then Resume or Prep.'),
-    ]),
-    el('div', { class: 'actions' }, [
-      btn('All requirements', { class: 'btn ghost', onClick: () => go({ kind: 'jobs', id: job.id }) }),
-      btn('Resume', { class: 'btn ghost', onClick: () => go({ kind: 'jobs', id: job.id, mode: 'resume' }) }),
-      btn('Prep', { class: 'btn ghost', onClick: () => go({ kind: 'jobs', id: job.id, mode: 'prep' }) }),
-    ]),
-  ]));
-  if (!req) {
-    wrap.append(el('div', { class: 'panel-body' }, [
-      el('p', { class: 'empty' }, 'Paste the posting first so there is a requirement to fill.'),
-      pasteMore(job),
-    ]));
-    return wrap;
-  }
-  const step = (next) => {
-    const target = list[next];
-    if (!target) return;
-    go({ kind: 'jobs', id: job.id, mode: 'fill', reqId: target.id });
-  };
-  wrap.append(el('div', { class: 'panel-body' }, [
-    coverageBanner(job),
-    el('p', { class: 'kicker' }, job.company || job.title),
-    requirementCard(job, req),
-    el('div', { class: 'prep-nav' }, [
-      btn('Previous', { class: 'btn ghost', disabled: index <= 0, onClick: () => step(index - 1) }),
-      btn(index >= list.length - 1 ? 'Resume' : 'Next requirement', {
-        class: 'btn',
-        onClick: () => {
-          if (index >= list.length - 1) go({ kind: 'jobs', id: job.id, mode: 'resume' });
-          else step(index + 1);
-        },
-      }),
-    ]),
-  ]));
-  wrap.dataset.fillIndex = String(index);
-  wrap.dataset.fillJob = job.id;
   return wrap;
 }
 
@@ -1425,20 +1191,20 @@ function prepView(job) {
         ])),
     ]) : null,
     card.stories.length ? el('div', {}, [
-      el('p', { class: 'subhead' }, 'From the book'),
+      el('p', { class: 'subhead' }, 'Linked experiences'),
       ...card.stories.map((story) => el('div', { class: 'story' }, [
         el('div', { class: 'row-title' }, story.title),
         el('pre', { class: 'tiny' }, story.script || story.notes || 'Open the book and fill STAR.'),
       ])),
     ]) : null,
     card.bullets.length ? el('div', {}, [
-      el('p', { class: 'subhead' }, 'Resume line'),
+      el('p', { class: 'subhead' }, 'Resume bullet'),
       ...card.bullets.map((text) => el('p', {}, `• ${text}`)),
     ]) : null,
     el('div', { class: 'actions' }, [
-      btn('Edit this requirement', {
+      btn('Edit in the table', {
         class: 'btn ghost',
-        onClick: () => go({ kind: 'jobs', id: job.id, mode: 'fill', reqId: card.id }),
+        onClick: () => go({ kind: 'jobs', id: job.id }),
       }),
     ]),
     el('p', { class: 'tiny' }, '← → on the keyboard walks the cards.'),
@@ -1455,29 +1221,49 @@ function prepView(job) {
 
 function resumeView(job) {
   const profile = store.profile || {};
-  const text = compileResumeText(job, store) || 'Add resume bullets on a requirement first.';
-  const html = compileResumeHtml(job, store);
-  const area = el('textarea', { class: 'resume', readonly: true });
-  area.value = text;
+  const area = el('textarea', { class: 'resume', 'aria-label': 'Resume preview' });
+  let generated = compileResumeText(job, store) || 'Add a resume bullet on a requirement first.';
+  let custom = Boolean(job.resumeText);
+  area.value = custom ? job.resumeText : generated;
+  const currentText = () => area.value;
+  const refreshGenerated = () => {
+    generated = compileResumeText(job, store) || 'Add a resume bullet on a requirement first.';
+    if (!custom) area.value = generated;
+  };
   const stamp = (key, value) => {
     store = updateProfile(store, { [key]: value });
     saveStore();
+    refreshGenerated();
   };
+  area.addEventListener('input', () => {
+    custom = area.value !== generated;
+    store = updatePosting(store, job.id, { resumeText: custom ? area.value : '' });
+    saveStore();
+  });
+  const wordHtml = () => resumeTextToWordHtml(currentText(), job.title || 'Resume');
   return el('section', { class: 'panel' }, [
     el('div', { class: 'panel-head' }, [
       el('h2', {}, 'Resume'),
       el('div', { class: 'actions' }, [
-        btn('Copy', { class: 'btn', onClick: () => copyText(text, 'Copied the resume.') }),
+        btn('Copy', { class: 'btn', onClick: () => copyText(currentText(), 'Copied the resume.') }),
         btn('Download .txt', {
           class: 'btn ghost',
           onClick: () => {
-            downloadText(`${job.title || 'resume'}.txt`, text);
+            downloadText(`${job.title || 'resume'}.txt`, currentText());
             setNote('Downloaded a text resume.');
+          },
+        }),
+        btn('Download Word', {
+          class: 'btn ghost',
+          onClick: () => {
+            downloadText(`${job.title || 'resume'}.doc`, wordHtml(), 'application/msword');
+            setNote('Downloaded a Word resume.');
           },
         }),
         btn('Print / PDF', {
           class: 'btn ghost',
           onClick: () => {
+            const html = wordHtml();
             const win = window.open('', '_blank');
             if (!win) {
               downloadText(`${job.title || 'resume'}.html`, html, 'text/html');
@@ -1490,21 +1276,31 @@ function resumeView(job) {
             win.print();
           },
         }),
+        btn('Rebuild', {
+          class: 'btn ghost',
+          onClick: () => {
+            custom = false;
+            store = updatePosting(store, job.id, { resumeText: '' });
+            saveStore();
+            refreshGenerated();
+            setNote('Rebuilt the resume from experiences.');
+          },
+        }),
         btn('Back to posting', { class: 'btn ghost', onClick: () => go({ kind: 'jobs', id: job.id }) }),
       ]),
     ]),
     el('div', { class: 'panel-body' }, [
-      el('p', { class: 'lede' }, 'Optional header, then one section per requirement. Edit bullets on the posting — this is the clean copy.'),
+      el('p', { class: 'lede' }, 'Grouped by role, with each experience listed once. Edits in the preview are what Copy and Download use. Rebuild starts again from the posting.'),
       el('div', { class: 'grid-2' }, [
-        field('Name', el('input', { value: profile.name, placeholder: 'Your name', onChange: (event) => stamp('name', event.target.value) })),
-        field('Email', el('input', { value: profile.email, placeholder: 'you@example.com', onChange: (event) => stamp('email', event.target.value) })),
+        field('Name', el('input', { value: profile.name, placeholder: 'Your name', 'aria-label': 'Name', onInput: (event) => stamp('name', event.target.value) })),
+        field('Email', el('input', { value: profile.email, placeholder: 'you@example.com', 'aria-label': 'Email', onInput: (event) => stamp('email', event.target.value) })),
       ]),
       el('div', { class: 'grid-2' }, [
-        field('Location', el('input', { value: profile.location, placeholder: 'New York, NY', onChange: (event) => stamp('location', event.target.value) })),
-        field('Skills', el('input', { value: profile.skills, placeholder: 'javascript, postgres — or leave blank to use skillsets in the book', onChange: (event) => stamp('skills', event.target.value) })),
+        field('Location', el('input', { value: profile.location, placeholder: 'New York, NY', 'aria-label': 'Location', onInput: (event) => stamp('location', event.target.value) })),
+        field('Skills', el('input', { value: profile.skills, placeholder: 'javascript, postgres', 'aria-label': 'Skills', onInput: (event) => stamp('skills', event.target.value) })),
       ]),
-      field('Summary', el('textarea', { onChange: (event) => stamp('summary', event.target.value) }, profile.summary)),
-      area,
+      field('Summary', el('textarea', { 'aria-label': 'Summary', onInput: (event) => stamp('summary', event.target.value) }, profile.summary)),
+      field('Preview', area),
     ]),
   ]);
 }
@@ -1513,13 +1309,33 @@ function emptyDetail(kind) {
   return el('section', { class: 'panel' }, [
     el('div', { class: 'panel-body empty' },
       kind === 'jobs'
-        ? 'Paste a job posting. That is the first click — requirements, then bullets, then questions + STAR.'
+        ? 'Paste a job posting. That is the first click — requirements, then experiences, then questions + STAR.'
         : 'Paste several experiences, or pick one to fill STAR.'
     ),
   ]);
 }
 
-function render() {
+function captureFocus() {
+  const active = document.activeElement;
+  if (!(active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement)) return null;
+  const key = active.dataset.focusKey;
+  if (!key) return null;
+  return { key, start: active.selectionStart, end: active.selectionEnd };
+}
+
+function restoreFocus(captured, focusKey) {
+  const key = focusKey || captured?.key;
+  if (!key) return;
+  const node = root.querySelector(`[data-focus-key="${key.replace(/"/g, '')}"]`);
+  if (!node) return;
+  node.focus();
+  if (focusKey || typeof captured?.start !== 'number' || !node.setSelectionRange) return;
+  const max = node.value.length;
+  node.setSelectionRange(Math.min(captured.start, max), Math.min(captured.end, max));
+}
+
+function render(options = {}) {
+  const captured = options.focusKey ? null : captureFocus();
   const view = currentView();
   document.title = `${viewTitle(view, store)} — Brag Book`;
   document.body.dataset.view = view.kind;
@@ -1554,9 +1370,6 @@ function render() {
     } else {
       detail = emptyDetail('jobs');
     }
-  } else if (view.kind === 'jobs' && view.id && view.mode === 'fill') {
-    const job = store.postings.find((item) => item.id === view.id);
-    detail = job ? fillView(job, view.reqId) : emptyDetail('jobs');
   } else if (view.kind === 'jobs' && view.id) {
     const job = store.postings.find((item) => item.id === view.id);
     detail = job ? jobDetail(job) : emptyDetail('jobs');
@@ -1572,6 +1385,7 @@ function render() {
     ]),
   ]);
   root.replaceChildren(next);
+  restoreFocus(captured, options.focusKey);
 }
 
 function setAppNav(on) {
@@ -1591,7 +1405,7 @@ function renderSignInGate() {
   renderBragSignIn(root, {
     art: '<img class="bb-gate-art" src="/brag-book/icon.svg" alt="" width="72" height="72">',
     title: 'Brag Book',
-    copy: 'Sign in with the same account as Packing Cubes. Compare requirements and resume bullets in one table; open a bullet for STAR and questions.',
+    copy: 'Sign in with the same account as Packing Cubes. Compare requirements and experiences in one table, then open an experience for STAR and questions.',
     note,
     onSuccess: () => location.reload(),
   });
@@ -1700,21 +1514,6 @@ window.addEventListener('keydown', (event) => {
       event.preventDefault();
       sessionStorage.setItem(prepKey(job.id), String(Math.max(index - 1, 0)));
       render();
-    }
-  }
-  if (view.mode === 'fill') {
-    const list = job.requirements;
-    let index = list.findIndex((req) => req.id === view.reqId);
-    if (index < 0) index = 0;
-    if (event.key === 'ArrowRight' || event.key === 'j') {
-      event.preventDefault();
-      const next = list[Math.min(index + 1, list.length - 1)];
-      if (next) go({ kind: 'jobs', id: job.id, mode: 'fill', reqId: next.id });
-    }
-    if (event.key === 'ArrowLeft' || event.key === 'k') {
-      event.preventDefault();
-      const prev = list[Math.max(index - 1, 0)];
-      if (prev) go({ kind: 'jobs', id: job.id, mode: 'fill', reqId: prev.id });
     }
   }
 });
