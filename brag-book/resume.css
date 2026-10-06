@@ -1,0 +1,92 @@
+@page { size: 8.5in 11in; margin: 0.5in; }
+
+.page {
+  --fs: 10pt;
+  --lh: 1.17;
+  --lh-bullet: 1.32;
+  --sec-gap: 8pt;
+  --group-gap: 9pt;
+  --job-gap: 6pt;
+  box-sizing: border-box;
+  width: 7.5in;
+  font-family: Cambria, Caladea, "Times New Roman", serif;
+  color: #000;
+  font-size: var(--fs);
+  line-height: var(--lh);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.page * { box-sizing: border-box; }
+
+.sheet {
+  box-sizing: border-box;
+  width: 8.5in;
+  min-height: 11in;
+  padding: 0.5in;
+  background: #fff;
+}
+
+.page header { text-align: center; }
+.page h1 {
+  font-size: 14pt;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.17;
+}
+.page .contact { font-size: 11pt; line-height: 1.17; }
+.page a { color: #0000FF; text-decoration: underline; }
+.page h2 {
+  font-size: 10.5pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.7pt;
+  margin: var(--sec-gap) 0 0;
+  border-bottom: 0.72pt solid #000;
+  line-height: 1.1;
+  padding-bottom: 0;
+}
+.page header + .sec h2 { margin-top: 3pt; }
+.page .lr { display: flex; justify-content: space-between; gap: 12pt; }
+.page .lr .r { white-space: nowrap; text-align: right; }
+.page .title { color: #1F497D; }
+.page .job + .job { margin-top: var(--job-gap); }
+.page .subhead { font-style: italic; margin-top: var(--group-gap); }
+.page ul { margin: 0; padding-left: 36pt; list-style: none; }
+.page li {
+  position: relative;
+  line-height: var(--lh-bullet);
+  text-align: left;
+}
+.page li::before {
+  content: "\2022";
+  position: absolute;
+  left: -18pt;
+  font-family: Symbol, "DejaVu Sans", sans-serif;
+}
+.page .addl { line-height: var(--lh); }
+.page li.is-fit-drop { outline: 1px dashed transparent; }
+
+html, body.bb-resume-print {
+  margin: 0;
+  padding: 0;
+  background: #fff;
+}
+
+@media screen {
+  body.bb-resume-print { background: #d8d4cc; }
+  body.bb-resume-print .sheet {
+    margin: 0 auto;
+    box-shadow: 0 1px 8px rgba(0, 0, 0, 0.18);
+  }
+}
+
+@media print {
+  html, body.bb-resume-print { background: #fff; }
+  body.bb-resume-print .sheet {
+    width: 7.5in;
+    min-height: 0;
+    padding: 0;
+    box-shadow: none;
+  }
+}

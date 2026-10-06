@@ -294,7 +294,7 @@ a:focus-visible {
 }
 
 .start-grid.is-focus {
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr);
 }
 
 .start-card.is-primary {
@@ -1313,4 +1313,89 @@ a:focus-visible {
   .nav-links { font-size: 12px; }
   .experience-star,
   .table-question-star { grid-template-columns: 1fr; }
+  .bb-resume-split { grid-template-columns: 1fr; }
+  .bb-resume-preview { position: static; }
+}
+
+.bb-resume { background: #fff; }
+.bb-resume > .bb-resume-split { padding: 10px 12px 12px; }
+.bb-resume-split {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(0, 1.2fr);
+  gap: 12px;
+  align-items: start;
+}
+.bb-resume-editor {
+  max-height: calc(100dvh - 150px);
+  overflow: auto;
+  padding-right: 4px;
+}
+.bb-resume-editor h3 {
+  margin: 14px 0 6px;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.bb-resume-preview { position: sticky; top: 56px; }
+.bb-resume-preview-wrap {
+  overflow: hidden;
+  background: #d8d4cc;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+}
+.bb-resume-frame {
+  width: 8.5in;
+  height: 11in;
+  border: 0;
+  transform-origin: top left;
+  background: #fff;
+}
+.bb-fit-chip {
+  margin: 0 0 8px;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.bb-fit-chip.is-warn { color: var(--gold); }
+.bb-resume-order { margin: 0 0 10px; }
+.bb-order-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line);
+}
+.bb-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  margin: 0 10px 8px 0;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink);
+}
+.bb-job-card,
+.bb-rb {
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 10px;
+  margin: 8px 0;
+  background: #fff;
+}
+.bb-job-card.is-excluded,
+.bb-rb.is-excluded {
+  opacity: 0.48;
+  background: var(--panel);
+}
+.bb-rb.is-dropped { box-shadow: inset 3px 0 0 var(--gold); }
+.bb-rb.is-on { box-shadow: inset 3px 0 0 var(--ink); }
+.bb-rb.is-override .tiny { color: var(--gold); }
+.bb-rb-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
 }

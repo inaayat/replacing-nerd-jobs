@@ -1,0 +1,203 @@
+{
+  "v": 1,
+  "template": "classic-serif",
+  "header": {
+    "name": "Inaayat Gill",
+    "suffix": "CPA",
+    "locations": ["New York, NY", "Seattle, WA"],
+    "email": "inaayat@gmail.com",
+    "links": [{ "label": "LinkedIn", "url": "https://www.linkedin.com/in/inaayat/" }]
+  },
+  "sectionOrder": ["experience", "credentials", "education", "additional"],
+  "sections": {
+    "experience": {
+      "title": "Work Experience",
+      "jobs": [
+        {
+          "id": "job_pwc",
+          "company": "PricewaterhouseCoopers LLC",
+          "title": "Senior Associate | Cyber, Risk, and Regulatory Advisory",
+          "location": "New York, NY / Seattle, WA",
+          "start": "October 2021",
+          "end": "Present",
+          "groups": [
+            {
+              "id": "grp_pwc_audit",
+              "heading": "Internal Audit & Compliance Program Leadership",
+              "bullets": [
+                {
+                  "id": "b_pwc_walkthroughs",
+                  "lead": "Lead 30+ Walkthroughs to Complete Testing & Remediation of 200+ IT General and Application SOX Controls",
+                  "body": "Developed and monitored project plan in AuditBoard & managed communications with External Audit team",
+                  "priority": 1
+                },
+                {
+                  "id": "b_pwc_reg_team",
+                  "lead": "Led 11-person Regulatory Compliance Team",
+                  "body": "Built & executed comprehensive project roadmap to design **100+ controls** and document **13+ processes** to evaluate current state compliance in preparation for External Audit",
+                  "priority": 1
+                },
+                {
+                  "id": "b_pwc_risk",
+                  "lead": "Designed Data-Driven Risk Assessment",
+                  "body": "Automated Risk Assessment survey using Power Query to automate data extraction and transformation; resulting **140+ engineering hours** saved annually & enhanced data-driven decision making and risk visibility for **70+** service teams",
+                  "priority": 2
+                },
+                {
+                  "id": "b_pwc_dsa",
+                  "lead": "Built Scalable Compliance Framework for New Regulation",
+                  "body": "Designed a comprehensive framework for compliance with the EU Digital Services Act (DSA), including policies, procedures, and controls, positioning the firm as a leader in the regulatory space, resulting in a **$1.6M** contract extension",
+                  "priority": 1
+                }
+              ]
+            },
+            {
+              "id": "grp_pwc_auto",
+              "heading": "Automation & Efficiency in Compliance",
+              "bullets": [
+                {
+                  "id": "b_pwc_ccf",
+                  "lead": "Common Controls Framework for Technology Company",
+                  "body": "Leading pilot project to map **900+** existing company Operational Security Standards against external frameworks; designing process to ensure ongoing compliance with emerging regulatory requirements and create foundation for long-term audit readiness",
+                  "priority": 2
+                },
+                {
+                  "id": "b_pwc_tools",
+                  "lead": "Developed 8+ Tools & Dashboards for Continuous Monitoring",
+                  "body": "Enabled tracking of critical tasks and KPIs to facilitate real-time risk identification and remediation across IT and business operations",
+                  "priority": 2
+                },
+                {
+                  "id": "b_pwc_reporting",
+                  "lead": "Streamlined Executive-Level Reporting",
+                  "body": "Automated status report generation and distribution for **35+** geographic regions using Power Platform, reducing manual effort by **420 hours per quarter**",
+                  "priority": 1
+                },
+                {
+                  "id": "b_pwc_genai",
+                  "lead": "Leveraged Generative AI to Reduce Manual Effort by 110 Hours",
+                  "body": "Optimized prompts to redraft **260+** risk statements and **180+** control objectives, enabling team to meet external audit deadlines",
+                  "priority": 1
+                }
+              ]
+            },
+            {
+              "id": "grp_pwc_collab",
+              "heading": "Training & Cross-Functional Collaboration",
+              "bullets": [
+                {
+                  "id": "b_pwc_training",
+                  "lead": "Lead Compliance Training for 65+ Employees",
+                  "body": "Developed & conducted training program to educate employees across Legal, Privacy, and Engineering functions on their role in compliance with new regulation",
+                  "priority": 2
+                },
+                {
+                  "id": "b_pwc_budget",
+                  "lead": "Optimized Project Budgeting and Resources",
+                  "body": "Monitored project budget and strategically reallocated & prioritized resources to enable project to stay on track and within budget; received early promotion in July 2023 as a result of contract extension of **$1.2M** secured",
+                  "priority": 2
+                },
+                {
+                  "id": "b_pwc_rfp",
+                  "lead": "Secured New Business of $5.8M",
+                  "body": "Defined scope, pricing, and built slideware for several Request for Proposals (RFPs); resulted in successful outcomes for **5** projects valued at a total combined revenue of **$5.8M**",
+                  "priority": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "job_alaska",
+          "company": "Alaska Airlines",
+          "title": "Internal Audit Intern",
+          "location": "Seattle, WA",
+          "start": "June 2019",
+          "end": "September 2019",
+          "groups": [
+            {
+              "id": "grp_alaska",
+              "heading": "",
+              "bullets": [
+                {
+                  "id": "b_alaska_sox",
+                  "lead": "",
+                  "body": "Assessed financial and operational controls, ensuring key SOX controls were effective; received internship return offer",
+                  "priority": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "credentials": {
+      "title": "Credentials",
+      "enabled": true,
+      "items": [
+        {
+          "id": "cred_cpa",
+          "name": "Certified Public Accountant (CPA)",
+          "issuer": "Washington State Board of Accountancy",
+          "credentialId": "55864",
+          "issued": "May 2024"
+        }
+      ]
+    },
+    "education": {
+      "title": "Education",
+      "items": [
+        {
+          "id": "edu_uw",
+          "school": "University of Washington, Michael G. Foster School of Business",
+          "location": "Seattle, WA",
+          "degree": "Bachelor of Arts in Business Administration",
+          "details": "Concentrations: Accounting, Information Systems",
+          "gpa": "3.7/4.0"
+        }
+      ]
+    },
+    "additional": {
+      "title": "Additional Info",
+      "rows": [
+        {
+          "id": "add_reg",
+          "label": "Regulatory Knowledge",
+          "items": [
+            "Sarbanes Oxley (SOX)",
+            "NIST Cybersecurity Framework",
+            "Digital Services Act (DSA)",
+            "Digital Markets Act (DMA)",
+            "Cybersecurity Maturity Model Certification (CMMC)",
+            "GDPR & Privacy"
+          ]
+        },
+        {
+          "id": "add_tech",
+          "label": "Technical Skills",
+          "groups": [
+            { "id": "add_tech_comp", "label": "Compliance Tools", "items": ["AuditBoard", "Dynamics 365"] },
+            { "id": "add_tech_data", "label": "Data Analytics", "items": ["Advanced Excel", "Dynamics 365", "Alteryx", "SQL", "Kusto"] },
+            { "id": "add_tech_power", "label": "Microsoft Power Platform", "items": ["PowerBI", "Power Automate", "Power Query"] },
+            { "id": "add_tech_dev", "label": "Development Tools", "items": ["AzureDevOps", "PowerShell"] }
+          ]
+        },
+        {
+          "id": "add_core",
+          "label": "Core Expertise",
+          "items": [
+            "Governance Risk & Compliance",
+            "Data Visualizations",
+            "Data Modeling & Governance",
+            "Design Validation",
+            "Prompt Engineering",
+            "Workflow Design",
+            "Agile Project Management",
+            "Operational Excellence",
+            "ITBCS & ITGCs"
+          ]
+        }
+      ]
+    }
+  }
+}

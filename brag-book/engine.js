@@ -11,6 +11,50 @@ export const SCHEMA = 1;
 export const STORE_KEY = 'brag-book-store-v1';
 export const BOOK_MAX_CHARS = 1_500_000;
 
+import {
+  emptyResumeSettings,
+  normalizeResumeSettings,
+  normalizeResumeVariant,
+  normalizeProfileResume,
+  normalizeCareerJobs,
+  normalizeCareerJob,
+  normalizeEducation,
+  normalizeCredentials,
+  normalizeAdditional,
+  patchResumeVariant,
+  importResumeDoc,
+  moveListItem,
+} from './resume-model.js';
+
+export {
+  RESUME_SECTION_KEYS,
+  DEFAULT_SECTION_ORDER,
+  emptyResumeSettings,
+  emptyResumeVariant,
+  normalizeResumeSettings,
+  normalizeResumeVariant,
+  normalizeCareerJob,
+  normalizeCareerJobs,
+  normalizeEducation,
+  normalizeCredentials,
+  normalizeAdditional,
+  compileResumeDoc,
+  importResumeDoc,
+  isResumeDoc,
+  parseBulletText,
+  boldMetrics,
+  bulletPlainText,
+  visibleResumeDoc,
+  headerFromProfile,
+  moveListItem,
+  moveKey,
+  toggleId,
+  findResumeBullet,
+  writeBulletBackToSource,
+  patchResumeVariant,
+  clearBulletOverride,
+} from './resume-model.js';
+
 export const ENTRY_KINDS = ['experience', 'project', 'skillset'];
 export const POSTING_STATUSES = ['draft', 'prepping', 'applied', 'archived'];
 
@@ -21,20 +65,45 @@ const TAGS_MAX = 16;
 const URL_MAX = 2048;
 
 export function emptyProfile() {
-  return { name: '', email: '', location: '', summary: '', skills: '' };
+  return {
+    name: '',
+    email: '',
+    location: '',
+    summary: '',
+    skills: '',
+    suffix: '',
+    locations: [],
+    phone: '',
+    links: [],
+  };
 }
 
 export function emptyStore() {
-  return { v: SCHEMA, entries: [], postings: [], profile: emptyProfile() };
+  return {
+    v: SCHEMA,
+    entries: [],
+    postings: [],
+    profile: emptyProfile(),
+    jobs: [],
+    education: [],
+    credentials: [],
+    additional: [],
+    resumeSettings: emptyResumeSettings(),
+  };
 }
 
 export function normalizeProfile(raw) {
+  const extra = normalizeProfileResume(raw);
   return {
     name: asString(raw?.name, TITLE_MAX),
     email: asString(raw?.email, TITLE_MAX),
-    location: asString(raw?.location, TITLE_MAX),
+    location: extra.locations.join(' / '),
     summary: asString(raw?.summary, TEXT_MAX),
     skills: asString(raw?.skills, TEXT_MAX),
+    suffix: extra.suffix,
+    locations: extra.locations,
+    phone: extra.phone,
+    links: extra.links,
   };
 }
 
@@ -254,6 +323,7 @@ export function normalizeEntry(raw, clock = Date.now) {
     kind: asKind(raw.kind),
     title,
     role: asString(raw.role, TITLE_MAX),
+    jobId: asString(raw.jobId, 64),
     when: asString(raw.when, 80),
     tags: asTags(raw.tags),
     situation: asString(raw.situation, TEXT_MAX),
@@ -341,6 +411,7 @@ export function normalizePosting(raw, clock = Date.now) {
     notes: asString(raw.notes, TEXT_MAX),
     sourceText: asString(raw.sourceText, 20000),
     resumeText: asString(raw.resumeText, 20000),
+    resume: normalizeResumeVariant(raw.resume),
     requirements,
     createdAt,
     updatedAt: asString(raw.updatedAt, 40) || createdAt,
@@ -377,6 +448,11 @@ export function normalizeStore(raw, clock = Date.now) {
     store.postings.push(posting);
   }
   store.profile = normalizeProfile(raw.profile);
+  store.jobs = normalizeCareerJobs(raw.jobs, clock);
+  store.education = normalizeEducation(raw.education, clock);
+  store.credentials = normalizeCredentials(raw.credentials, clock);
+  store.additional = normalizeAdditional(raw.additional, clock);
+  store.resumeSettings = normalizeResumeSettings(raw.resumeSettings);
   return alignExperienceLines(store, clock);
 }
 
@@ -544,6 +620,71 @@ export function updatePosting(store, id, patch, clock = Date.now) {
   );
   if (!next) return store;
   return { ...store, postings: replaceById(store.postings, id, touched(next, clock)) };
+}
+
+export function updatePostingResume(store, id, patch, clock = Date.now) {
+  const current = postingById(store, id);
+  if (!current) return store;
+  return updatePosting(store, id, { resume: patchResumeVariant(current.resume, patch) }, clock);
+}
+
+export function replacePostingResume(store, id, resume, clock = Date.now) {
+  const current = postingById(store, id);
+  if (!current) return store;
+  return updatePosting(store, id, { resume: normalizeResumeVariant(resume) }, clock);
+}
+
+export function applyImportedResume(store, raw, clock = Date.now) {
+  return normalizeStore(importResumeDoc(store || emptyStore(), raw, clock), clock);
+}
+
+export function updateCareerJob(store, id, patch, clock = Date.now) {
+  const jobs = (store?.jobs || []).map((job) => {
+    if (job.id !== id) return job;
+    return normalizeCareerJob({ ...job, ...patch, id: job.id }, clock) || job;
+  });
+  return { ...store, jobs };
+}
+
+export function moveCareerJob(store, id, delta) {
+  return { ...store, jobs: moveListItem(store?.jobs || [], id, delta) };
+}
+
+export function updateResumeSettings(store, patch) {
+  return {
+    ...store,
+    resumeSettings: normalizeResumeSettings({ ...(store?.resumeSettings || emptyResumeSettings()), ...patch }),
+  };
+}
+
+export function updateEducationItem(store, id, patch, clock = Date.now) {
+  return {
+    ...store,
+    education: normalizeEducation(
+      (store?.education || []).map((item) => (item.id === id ? { ...item, ...patch, id: item.id } : item)),
+      clock
+    ),
+  };
+}
+
+export function updateCredentialItem(store, id, patch, clock = Date.now) {
+  return {
+    ...store,
+    credentials: normalizeCredentials(
+      (store?.credentials || []).map((item) => (item.id === id ? { ...item, ...patch, id: item.id } : item)),
+      clock
+    ),
+  };
+}
+
+export function updateAdditionalRow(store, id, patch, clock = Date.now) {
+  return {
+    ...store,
+    additional: normalizeAdditional(
+      (store?.additional || []).map((item) => (item.id === id ? { ...item, ...patch, id: item.id } : item)),
+      clock
+    ),
+  };
 }
 
 export function deletePosting(store, id) {
@@ -1213,7 +1354,11 @@ export function serializeBook(raw, { maxChars = BOOK_MAX_CHARS } = {}) {
 
 export function bookIsEmpty(store) {
   const book = store || emptyStore();
-  return !book.entries?.length && !book.postings?.length;
+  return !book.entries?.length
+    && !book.postings?.length
+    && !book.jobs?.length
+    && !book.education?.length
+    && !book.credentials?.length;
 }
 
 export function listingSummary(store) {

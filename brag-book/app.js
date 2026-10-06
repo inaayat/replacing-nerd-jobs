@@ -31,8 +31,24 @@ import {
   linkedEntries,
   bulletEntry,
   compileResumeText,
-  compileResumeHtml,
   resumeTextToWordHtml,
+  compileResumeDoc,
+  applyImportedResume,
+  updatePostingResume,
+  replacePostingResume,
+  updateCareerJob,
+  moveCareerJob,
+  updateResumeSettings,
+  updateEducationItem,
+  updateCredentialItem,
+  updateAdditionalRow,
+  isResumeDoc,
+  visibleResumeDoc,
+  moveKey,
+  toggleId,
+  writeBulletBackToSource,
+  clearBulletOverride,
+  DEFAULT_SECTION_ORDER,
   compilePrep,
   prepCoverage,
   listingSummary,
@@ -43,6 +59,9 @@ import {
   hostFromJobUrl,
   updateProfile,
 } from './engine.js';
+import { renderResumeHtml, resumeDocument } from './resume-template.js';
+import { fitOnePage, dropOrderFromDoc, applyDroppedIds, PAGE_HEIGHT_PX } from './resume-fit.js';
+import { resumeDocxBlob } from './resume-docx.js';
 import { parseViewHash, viewHash, viewTitle } from './routes.js';
 import { loadBook, saveBook } from './store.js';
 import { initAuth, refreshToken, renderBragSignIn, wireAuthLink } from './auth.js';
@@ -54,6 +73,11 @@ fileInput.type = 'file';
 fileInput.accept = 'application/json';
 fileInput.hidden = true;
 document.body.appendChild(fileInput);
+const resumeFileInput = document.createElement('input');
+resumeFileInput.type = 'file';
+resumeFileInput.accept = 'application/json';
+resumeFileInput.hidden = true;
+document.body.appendChild(resumeFileInput);
 
 let store = emptyStore();
 let auth = null;
@@ -65,6 +89,8 @@ let statusNote = '';
 let expandedBulletKey = '';
 let questionComposerKey = '';
 const openQuestionIds = new Set();
+let resumeFit = { fits: true, fontPt: 10, bulletLineHeight: 1.32, droppedBulletIds: [], overflowPx: 0, vars: {} };
+let resumePreviewTimer = null;
 
 function loadCached() {
   try {
@@ -257,7 +283,13 @@ function importStore(file) {
   const reader = new FileReader();
   reader.onload = () => {
     try {
-      store = normalizeStore(JSON.parse(String(reader.result || '')));
+      const data = JSON.parse(String(reader.result || ''));
+      const looksLikeBook = Array.isArray(data?.entries) || Array.isArray(data?.postings);
+      if (isResumeDoc(data) && !looksLikeBook) {
+        applyResumeImport(data);
+        return;
+      }
+      store = normalizeStore(data);
       saveStore();
       go({ kind: 'home' });
       setNote('Imported the book.');
@@ -266,6 +298,42 @@ function importStore(file) {
     }
   };
   reader.readAsText(file);
+}
+
+function applyResumeImport(data) {
+  store = applyImportedResume(store, data);
+  saveStore();
+  const posting = store.postings[0];
+  if (posting) go({ kind: 'jobs', id: posting.id, mode: 'resume' });
+  else go({ kind: 'profile' });
+  setNote('Imported the resume. It is saved on this account. Open Resume on a posting to tailor a one-page copy.');
+}
+
+function importResumeFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(String(reader.result || ''));
+      if (!isResumeDoc(data)) {
+        setNote('That file is not a resume JSON. Use the classic-serif schema (see brag-book/data/inaayat-gill-resume.json).');
+        return;
+      }
+      applyResumeImport(data);
+    } catch {
+      setNote('That file was not valid resume JSON.');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function downloadBlob(name, blob) {
+  const url = URL.createObjectURL(blob);
+  const a = el('a', { href: url, download: name });
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 function downloadText(name, text, type = 'text/plain') {
@@ -303,6 +371,27 @@ function countRow() {
 
 function toolbar(view) {
   if (view.kind === 'home') return homeHero();
+  if (view.kind === 'profile') {
+    return el('header', { class: 'hero is-compact' }, [
+      el('div', { class: 'hero-row' }, [
+        el('div', { class: 'crumb' }, [
+          el('button', {
+            type: 'button',
+            class: 'context-back',
+            onClick: () => go({ kind: 'home' }),
+          }, '← Start'),
+          el('strong', { class: 'page-title' }, 'Resume basics'),
+        ]),
+        el('div', { class: 'actions' }, [
+          btn('Import resume (JSON)', {
+            class: 'btn ghost compact-action',
+            onClick: () => resumeFileInput.click(),
+          }),
+        ]),
+      ]),
+      statusNote ? el('p', { class: 'status', id: 'status-note' }, statusNote) : el('p', { class: 'status', id: 'status-note' }, ''),
+    ]);
+  }
   const isJob = view.kind === 'jobs';
   const hasRecord = Boolean(view.id && view.id !== 'new');
   return el('header', { class: 'hero is-compact' }, [
@@ -358,6 +447,17 @@ function homeView() {
       ]),
       el('button', {
         type: 'button',
+        class: 'start-card',
+        onClick: () => go({ kind: 'profile' }),
+      }, [
+        el('span', { class: 'kicker' }, 'One page'),
+        el('strong', {}, 'Resume basics'),
+        el('p', {}, store.jobs.length
+          ? `${store.jobs.length} role${store.jobs.length === 1 ? '' : 's'} on the classic-serif resume. Import JSON or open a posting to tailor a copy.`
+          : 'Import a resume JSON, or fill jobs, credentials, and education, then open a posting to export a one-page PDF.'),
+      ]),
+      el('button', {
+        type: 'button',
         class: 'start-card is-beta',
         onClick: () => go({ kind: 'log', id: 'new' }),
       }, [
@@ -399,7 +499,8 @@ function homeView() {
     ]) : null,
     el('div', { class: 'actions' }, [
       btn('Export', { class: 'btn ghost', onClick: exportStore }),
-      btn('Import', { class: 'btn ghost', onClick: () => fileInput.click() }),
+      btn('Import book', { class: 'btn ghost', onClick: () => fileInput.click() }),
+      btn('Import resume (JSON)', { class: 'btn ghost', onClick: () => resumeFileInput.click() }),
     ]),
   ]);
 }
@@ -552,9 +653,17 @@ function entryForm(entry) {
           el('option', { value: kind, selected: draft.kind === kind || undefined }, kindLabel(kind))
         ))),
         field('Role', el('input', { name: 'role', value: draft.role || '', placeholder: 'Product engineer, Beep boop' })),
-        field('When', el('input', { name: 'when', value: draft.when, placeholder: '2026 · A-Lister, or last Tuesday' })),
       ]),
-      field('Tags', el('input', { name: 'tags', value: draft.tags.join(', '), placeholder: 'neon, auth, postgres' })),
+      store.jobs.length ? field('Resume job', el('select', { name: 'jobId' }, [
+        el('option', { value: '', selected: !draft.jobId || undefined }, 'Not linked'),
+        ...store.jobs.map((job) =>
+          el('option', { value: job.id, selected: draft.jobId === job.id || undefined }, [job.company, job.title].filter(Boolean).join(' · '))
+        ),
+      ])) : null,
+      el('div', { class: 'grid-2' }, [
+        field('When', el('input', { name: 'when', value: draft.when, placeholder: '2026 · A-Lister, or last Tuesday' })),
+        field('Tags', el('input', { name: 'tags', value: draft.tags.join(', '), placeholder: 'neon, auth, postgres' })),
+      ]),
       el('div', { class: 'star' }, [
         starField('Situation', 'situation', draft.situation, 'What was going on?'),
         starField('Task', 'task', draft.task, 'What were you on the hook for?'),
@@ -1311,9 +1420,622 @@ function prepView(job) {
   return wrap;
 }
 
+function sectionOrderFor(posting) {
+  if (posting?.resume?.sectionOrder?.length) return posting.resume.sectionOrder.slice();
+  if (store.resumeSettings?.sectionOrder?.length) return store.resumeSettings.sectionOrder.slice();
+  return DEFAULT_SECTION_ORDER.slice();
+}
+
+function showCredentialsFor(posting) {
+  if (posting?.resume?.showCredentials === true || posting?.resume?.showCredentials === false) {
+    return posting.resume.showCredentials;
+  }
+  return store.resumeSettings?.showCredentials !== false;
+}
+
+function livePosting(id) {
+  return store.postings.find((item) => item.id === id) || null;
+}
+
+function paintFitChip() {
+  const node = document.getElementById('resume-fit-chip');
+  if (!node) return;
+  const dropped = resumeFit.droppedBulletIds || [];
+  if (!resumeFit.fits) {
+    node.textContent = `Over by ${Math.max(1, Math.ceil((resumeFit.overflowPx || 0) / 16))} lines — hide or shorten bullets`;
+    node.className = 'bb-fit-chip is-warn';
+  } else if (dropped.length) {
+    node.textContent = `Fits on one page · ${resumeFit.fontPt}pt · hid ${dropped.length} bullet${dropped.length === 1 ? '' : 's'} to fit`;
+    node.className = 'bb-fit-chip is-warn';
+  } else {
+    node.textContent = `Fits on one page · ${resumeFit.fontPt}pt`;
+    node.className = 'bb-fit-chip';
+  }
+  root.querySelectorAll('[data-bullet-wrap]').forEach((wrap) => {
+    const id = wrap.getAttribute('data-bullet-wrap');
+    wrap.classList.toggle('is-dropped', dropped.includes(id));
+  });
+}
+
+function scaleResumeFrame(wrap, frame) {
+  if (!wrap || !frame) return;
+  const page = 8.5 * 96;
+  const scale = Math.max(0.28, Math.min(1, (wrap.clientWidth - 8) / page));
+  frame.style.transform = `scale(${scale})`;
+  wrap.style.height = `${11 * 96 * scale + 12}px`;
+}
+
+async function refreshResumePreview(posting) {
+  const frame = document.getElementById('resume-preview-frame');
+  const wrap = document.getElementById('resume-preview-wrap');
+  if (!frame) return;
+  const current = posting?.id ? livePosting(posting.id) : posting;
+  const doc = compileResumeDoc(current, store);
+  const html = resumeDocument(renderResumeHtml(doc, { droppedBulletIds: [] }));
+  await new Promise((resolve) => {
+    frame.onload = () => resolve();
+    frame.srcdoc = html;
+  });
+  const page = frame.contentDocument?.getElementById('page');
+  if (!page) return;
+  try { await frame.contentDocument.fonts.ready; } catch { /* ignore */ }
+  const result = fitOnePage(page, {
+    pageHeightPx: PAGE_HEIGHT_PX,
+    dropOrder: dropOrderFromDoc(doc),
+  });
+  resumeFit = result;
+  if (current?.id) {
+    store = updatePostingResume(store, current.id, {
+      fit: {
+        fontPt: result.fontPt,
+        bulletLineHeight: result.bulletLineHeight,
+        droppedBulletIds: result.droppedBulletIds,
+        fits: result.fits,
+      },
+    });
+    saveStore();
+  }
+  paintFitChip();
+  scaleResumeFrame(wrap, frame);
+  frame.contentDocument?.addEventListener('click', (event) => {
+    const li = event.target.closest?.('li[data-bullet-id]');
+    if (!li) return;
+    const id = li.getAttribute('data-bullet-id');
+    const field = root.querySelector(`[data-focus-key="rb-${id}-body"]`)
+      || root.querySelector(`[data-focus-key="rb-${id}-lead"]`);
+    field?.focus();
+    root.querySelectorAll('.bb-rb.is-on').forEach((node) => node.classList.remove('is-on'));
+    root.querySelector(`[data-bullet-wrap="${id}"]`)?.classList.add('is-on');
+  });
+}
+
+function scheduleResumePreview(posting) {
+  if (resumePreviewTimer) clearTimeout(resumePreviewTimer);
+  resumePreviewTimer = setTimeout(() => {
+    resumePreviewTimer = null;
+    refreshResumePreview(posting);
+  }, 140);
+}
+
+function exportResumePdf(posting) {
+  const frame = document.getElementById('resume-preview-frame');
+  if (frame?.contentWindow) {
+    frame.contentWindow.focus();
+    frame.contentWindow.print();
+    setNote('Use the print dialog → Save as PDF.');
+    return;
+  }
+  const doc = compileResumeDoc(posting, store);
+  const html = resumeDocument(renderResumeHtml(doc, { droppedBulletIds: resumeFit.droppedBulletIds }), {
+    fittedVars: resumeFit.vars,
+    print: true,
+  });
+  const win = window.open('', '_blank');
+  if (!win) {
+    downloadText('resume.html', html, 'text/html');
+    setNote('Download the HTML and print it.');
+    return;
+  }
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  win.print();
+}
+
+function exportResumeDocx(posting) {
+  const compiled = compileResumeDoc(posting, store);
+  const doc = applyDroppedIds(
+    visibleResumeDoc(compiled, { includeFitDrops: true }),
+    resumeFit.droppedBulletIds || []
+  );
+  doc.fit = {
+    fontPt: resumeFit.fontPt,
+    bulletLineHeight: resumeFit.bulletLineHeight,
+    droppedBulletIds: resumeFit.droppedBulletIds || [],
+    fits: resumeFit.fits,
+  };
+  const name = (posting?.title || store.profile?.name || 'resume').replace(/[^\w.-]+/g, '_');
+  downloadBlob(`${name}.docx`, resumeDocxBlob(doc));
+  setNote('Downloaded a Word resume.');
+}
+
+function resumePreviewPane() {
+  const chip = el('p', { class: 'bb-fit-chip', id: 'resume-fit-chip' }, 'Measuring one page…');
+  const frame = el('iframe', {
+    id: 'resume-preview-frame',
+    class: 'bb-resume-frame',
+    title: 'Resume preview',
+  });
+  const wrap = el('div', { class: 'bb-resume-preview-wrap', id: 'resume-preview-wrap' }, [frame]);
+  return el('div', { class: 'bb-resume-preview' }, [chip, wrap]);
+}
+
+function resumeSectionOrder(posting) {
+  const order = sectionOrderFor(posting);
+  const labels = {
+    experience: 'Work Experience',
+    credentials: 'Credentials',
+    education: 'Education',
+    additional: 'Additional Info',
+  };
+  return el('div', { class: 'bb-resume-order' }, [
+    el('p', { class: 'subhead' }, 'Section order'),
+    ...order.map((key, index) => el('div', { class: 'bb-order-row' }, [
+      el('span', {}, labels[key] || key),
+      el('div', { class: 'actions' }, [
+        btn('↑', {
+          class: 'btn ghost compact-action',
+          disabled: index === 0,
+          'aria-label': `Move ${labels[key]} up`,
+          onClick: () => {
+            if (!posting) {
+              store = updateResumeSettings(store, { sectionOrder: moveKey(order, key, -1) });
+            } else {
+              store = updatePostingResume(store, posting.id, { sectionOrder: moveKey(order, key, -1) });
+            }
+            saveStore();
+            render();
+          },
+        }),
+        btn('↓', {
+          class: 'btn ghost compact-action',
+          disabled: index === order.length - 1,
+          'aria-label': `Move ${labels[key]} down`,
+          onClick: () => {
+            if (!posting) {
+              store = updateResumeSettings(store, { sectionOrder: moveKey(order, key, 1) });
+            } else {
+              store = updatePostingResume(store, posting.id, { sectionOrder: moveKey(order, key, 1) });
+            }
+            saveStore();
+            render();
+          },
+        }),
+      ]),
+    ])),
+  ]);
+}
+
+function resumeBulletEditor(posting, career, group, bullet) {
+  const dropped = (resumeFit.droppedBulletIds || []).includes(bullet.id);
+  const lead = el('input', {
+    value: bullet.lead,
+    placeholder: 'Bold lead phrase',
+    'aria-label': 'Bold lead',
+    'data-focus-key': `rb-${bullet.id}-lead`,
+  });
+  const body = el('textarea', {
+    rows: '3',
+    placeholder: 'Body. Wrap metrics in **like this**.',
+    'aria-label': 'Bullet body',
+    'data-focus-key': `rb-${bullet.id}-body`,
+  }, bullet.body);
+  body.value = bullet.body;
+  const commitWording = () => {
+    if (!posting) {
+      store = updateCareerJob(store, career.id, {
+        groups: career.groups.map((item) => (
+          item.id === group.id
+            ? {
+              ...item,
+              bullets: item.bullets.map((row) => (
+                row.id === bullet.id ? { ...row, lead: lead.value, body: body.value } : row
+              )),
+            }
+            : item
+        )),
+      });
+    } else {
+      store = updatePostingResume(store, posting.id, {
+        overrides: { [bullet.id]: { lead: lead.value, body: body.value } },
+      });
+    }
+    saveStore();
+    scheduleResumePreview(posting);
+  };
+  lead.addEventListener('input', commitWording);
+  body.addEventListener('input', commitWording);
+  const wrap = el('div', {
+    class: `bb-rb${bullet.included === false ? ' is-excluded' : ''}${dropped ? ' is-dropped' : ''}${bullet.hasOverride ? ' is-override' : ''}`,
+    dataset: { bulletWrap: bullet.id },
+  }, [
+    el('div', { class: 'bb-rb-tools' }, [
+      el('label', { class: 'bb-check' }, [
+        el('input', {
+          type: 'checkbox',
+          checked: bullet.included !== false,
+          disabled: !posting,
+          onChange: () => {
+            if (!posting) return;
+            store = updatePostingResume(store, posting.id, {
+              excludedBulletIds: toggleId(posting.resume.excludedBulletIds, bullet.id),
+            });
+            saveStore();
+            render();
+          },
+        }),
+        ' Include',
+      ]),
+      el('label', { class: 'bb-check' }, [
+        el('input', {
+          type: 'checkbox',
+          checked: Boolean(bullet.pinned),
+          disabled: !posting,
+          onChange: () => {
+            if (!posting) return;
+            store = updatePostingResume(store, posting.id, {
+              pinnedBulletIds: toggleId(posting.resume.pinnedBulletIds, bullet.id),
+            });
+            saveStore();
+            render();
+          },
+        }),
+        ' Pin',
+      ]),
+      dropped ? el('span', { class: 'tiny' }, 'Hidden to fit') : null,
+      bullet.hasOverride ? el('span', { class: 'tiny' }, 'Resume wording') : null,
+    ]),
+    field('Bold lead', lead),
+    field('Body', body),
+    posting ? el('div', { class: 'actions' }, [
+      btn('Reset to source', {
+        class: 'btn ghost compact-action',
+        disabled: !bullet.hasOverride,
+        onClick: () => {
+          store = replacePostingResume(store, posting.id, clearBulletOverride(livePosting(posting.id).resume, bullet.id));
+          saveStore();
+          render();
+          setNote('Restored this bullet from the source.');
+        },
+      }),
+      btn('Save back to source', {
+        class: 'btn ghost compact-action',
+        onClick: () => {
+          const nextBullet = { ...bullet, lead: lead.value, body: body.value };
+          store = writeBulletBackToSource(store, posting.id, nextBullet);
+          const current = livePosting(posting.id);
+          store = replacePostingResume(store, posting.id, clearBulletOverride(current.resume, bullet.id));
+          saveStore();
+          render();
+          setNote('Wrote this wording back to the source bullet.');
+        },
+      }),
+    ]) : null,
+  ]);
+  return wrap;
+}
+
+function resumeJobEditor(posting, career) {
+  const isCareer = store.jobs.some((item) => item.id === career.id);
+  const company = el('input', {
+    value: career.company,
+    placeholder: 'Company',
+    'aria-label': 'Company',
+    disabled: !isCareer,
+    'data-focus-key': `rj-${career.id}-company`,
+  });
+  const title = el('input', {
+    value: career.title,
+    placeholder: 'Title',
+    'aria-label': 'Job title',
+    disabled: !isCareer,
+    'data-focus-key': `rj-${career.id}-title`,
+  });
+  const dates = el('input', {
+    value: [career.start, career.end].filter(Boolean).join(' – '),
+    placeholder: 'October 2021 – Present',
+    'aria-label': 'Dates',
+    disabled: !isCareer,
+    'data-focus-key': `rj-${career.id}-dates`,
+  });
+  const location = el('input', {
+    value: career.location,
+    placeholder: 'New York, NY / Seattle, WA',
+    'aria-label': 'Location',
+    disabled: !isCareer,
+    'data-focus-key': `rj-${career.id}-location`,
+  });
+  const stampJob = () => {
+    if (!isCareer) return;
+    const [start, end] = dates.value.split(/\s+[–-]\s+/);
+    store = updateCareerJob(store, career.id, {
+      company: company.value,
+      title: title.value,
+      location: location.value,
+      start: (start || dates.value).trim(),
+      end: (end || '').trim(),
+    });
+    saveStore();
+    scheduleResumePreview(posting);
+  };
+  [company, title, dates, location].forEach((node) => node.addEventListener('input', stampJob));
+  return el('div', { class: `bb-job-card${career.included === false ? ' is-excluded' : ''}` }, [
+    el('div', { class: 'bb-rb-tools' }, [
+      el('label', { class: 'bb-check' }, [
+        el('input', {
+          type: 'checkbox',
+          checked: career.included !== false,
+          disabled: !posting,
+          onChange: () => {
+            if (!posting) return;
+            store = updatePostingResume(store, posting.id, {
+              excludedJobIds: toggleId(posting.resume.excludedJobIds, career.id),
+            });
+            saveStore();
+            render();
+          },
+        }),
+        ' Include this role',
+      ]),
+      posting ? el('div', { class: 'actions' }, [
+        btn('↑', {
+          class: 'btn ghost compact-action',
+          'aria-label': 'Move role up',
+          onClick: () => {
+            store = moveCareerJob(store, career.id, -1);
+            saveStore();
+            render();
+          },
+        }),
+        btn('↓', {
+          class: 'btn ghost compact-action',
+          'aria-label': 'Move role down',
+          onClick: () => {
+            store = moveCareerJob(store, career.id, 1);
+            saveStore();
+            render();
+          },
+        }),
+      ]) : null,
+    ]),
+    el('div', { class: 'grid-2' }, [
+      field('Company', company),
+      field('Dates', dates),
+    ]),
+    el('div', { class: 'grid-2' }, [
+      field('Title', title),
+      field('Location', location),
+    ]),
+    ...career.groups.flatMap((group) => {
+      const heading = el('input', {
+        value: group.heading,
+        placeholder: 'Optional italic sub-heading',
+        'aria-label': 'Group heading',
+        'data-focus-key': `rg-${group.id}-heading`,
+      });
+      heading.addEventListener('input', () => {
+        if (posting) {
+          store = updatePostingResume(store, posting.id, { groupHeadings: { [group.id]: heading.value } });
+        } else if (isCareer) {
+          store = updateCareerJob(store, career.id, {
+            groups: career.groups.map((item) => (item.id === group.id ? { ...item, heading: heading.value } : item)),
+          });
+        }
+        saveStore();
+        scheduleResumePreview(posting);
+      });
+      return [
+        field('Sub-heading', heading),
+        ...group.bullets.map((bullet) => resumeBulletEditor(posting, career, group, bullet)),
+      ];
+    }),
+  ]);
+}
+
+function resumeEditorPane(posting, doc) {
+  const profile = store.profile || {};
+  const stampProfile = (key, value) => {
+    store = updateProfile(store, { [key]: value });
+    saveStore();
+    scheduleResumePreview(posting);
+  };
+  const credToggle = el('label', { class: 'bb-check' }, [
+    el('input', {
+      type: 'checkbox',
+      checked: showCredentialsFor(posting),
+      onChange: (event) => {
+        if (posting) store = updatePostingResume(store, posting.id, { showCredentials: event.target.checked });
+        else store = updateResumeSettings(store, { showCredentials: event.target.checked });
+        saveStore();
+        render();
+      },
+    }),
+    ' Include credentials',
+  ]);
+  return el('div', { class: 'bb-resume-editor' }, [
+    el('p', { class: 'lede' }, posting
+      ? 'Left edits this posting’s resume. Wording stays on the resume unless you save it back. Exclude greys an item without deleting it from the posting.'
+      : 'This is the shared career history. Open a job posting → Resume to include/exclude and override wording per posting.'),
+    resumeSectionOrder(posting),
+    credToggle,
+    posting ? btn('Save order as my default', {
+      class: 'btn ghost compact-action',
+      onClick: () => {
+        store = updateResumeSettings(store, {
+          sectionOrder: sectionOrderFor(posting),
+          showCredentials: showCredentialsFor(posting),
+        });
+        saveStore();
+        setNote('Saved as your default section order.');
+      },
+    }) : null,
+    el('h3', {}, 'Header'),
+    el('div', { class: 'grid-2' }, [
+      field('Name', el('input', {
+        value: profile.name,
+        placeholder: 'Inaayat Gill',
+        'aria-label': 'Name',
+        'data-focus-key': 'resume-name',
+        onInput: (event) => stampProfile('name', event.target.value),
+      })),
+      field('Suffix', el('input', {
+        value: profile.suffix || '',
+        placeholder: 'CPA',
+        'aria-label': 'Suffix',
+        'data-focus-key': 'resume-suffix',
+        onInput: (event) => stampProfile('suffix', event.target.value),
+      })),
+    ]),
+    el('div', { class: 'grid-2' }, [
+      field('Locations', el('input', {
+        value: (profile.locations || []).join(' / ') || profile.location || '',
+        placeholder: 'New York, NY / Seattle, WA',
+        'aria-label': 'Locations',
+        'data-focus-key': 'resume-locations',
+        onInput: (event) => stampProfile('locations', event.target.value.split(/\s*\/\s*/).map((part) => part.trim()).filter(Boolean)),
+      })),
+      field('Email', el('input', {
+        value: profile.email,
+        placeholder: 'you@example.com',
+        'aria-label': 'Email',
+        'data-focus-key': 'resume-email',
+        onInput: (event) => stampProfile('email', event.target.value),
+      })),
+    ]),
+    field('LinkedIn', el('input', {
+      value: (profile.links || [])[0]?.url || '',
+      placeholder: 'https://www.linkedin.com/in/you',
+      'aria-label': 'LinkedIn',
+      'data-focus-key': 'resume-linkedin',
+      onInput: (event) => stampProfile('links', event.target.value.trim()
+        ? [{ label: 'LinkedIn', url: event.target.value.trim() }]
+        : []),
+    })),
+    el('h3', {}, 'Work experience'),
+    ...(doc.sections.experience.jobs.length
+      ? doc.sections.experience.jobs.map((career) => resumeJobEditor(posting, career))
+      : [el('p', { class: 'empty' }, 'Import a resume JSON, or add resume bullets on a posting.')]),
+    el('h3', {}, 'Credentials'),
+    ...(doc.sections.credentials.items.length
+      ? doc.sections.credentials.items.map((item) => {
+        const name = el('input', { value: item.name, 'aria-label': 'Credential name', 'data-focus-key': `cr-${item.id}-name` });
+        const issued = el('input', { value: item.issued, 'aria-label': 'Issued', 'data-focus-key': `cr-${item.id}-issued` });
+        const issuer = el('input', { value: item.issuer, 'aria-label': 'Issuer', 'data-focus-key': `cr-${item.id}-issuer` });
+        const cid = el('input', { value: item.credentialId, 'aria-label': 'Credential ID', 'data-focus-key': `cr-${item.id}-id` });
+        const stamp = () => {
+          store = updateCredentialItem(store, item.id, {
+            name: name.value, issued: issued.value, issuer: issuer.value, credentialId: cid.value,
+          });
+          saveStore();
+          scheduleResumePreview(posting);
+        };
+        [name, issued, issuer, cid].forEach((node) => node.addEventListener('input', stamp));
+        return el('div', { class: 'bb-job-card' }, [
+          el('div', { class: 'grid-2' }, [field('Name', name), field('Issued', issued)]),
+          el('div', { class: 'grid-2' }, [field('Issuer', issuer), field('Credential ID', cid)]),
+        ]);
+      })
+      : [el('p', { class: 'empty' }, 'None yet. Import a resume or add one under Resume basics.')]),
+    el('h3', {}, 'Education'),
+    ...(doc.sections.education.items.length
+      ? doc.sections.education.items.map((item) => {
+        const school = el('input', { value: item.school, 'aria-label': 'School', 'data-focus-key': `ed-${item.id}-school` });
+        const loc = el('input', { value: item.location, 'aria-label': 'School location', 'data-focus-key': `ed-${item.id}-loc` });
+        const degree = el('input', { value: item.degree, 'aria-label': 'Degree', 'data-focus-key': `ed-${item.id}-degree` });
+        const details = el('input', { value: item.details, 'aria-label': 'Details', 'data-focus-key': `ed-${item.id}-details` });
+        const gpa = el('input', { value: item.gpa, 'aria-label': 'GPA', 'data-focus-key': `ed-${item.id}-gpa` });
+        const stamp = () => {
+          store = updateEducationItem(store, item.id, {
+            school: school.value, location: loc.value, degree: degree.value, details: details.value, gpa: gpa.value,
+          });
+          saveStore();
+          scheduleResumePreview(posting);
+        };
+        [school, loc, degree, details, gpa].forEach((node) => node.addEventListener('input', stamp));
+        return el('div', { class: 'bb-job-card' }, [
+          el('div', { class: 'grid-2' }, [field('School', school), field('Location', loc)]),
+          field('Degree', degree),
+          field('Details', details),
+          field('GPA', gpa),
+        ]);
+      })
+      : [el('p', { class: 'empty' }, 'None yet.')]),
+    el('h3', {}, 'Additional info'),
+    ...(doc.sections.additional.rows.length
+      ? doc.sections.additional.rows.map((row) => {
+        const label = el('input', { value: row.label, 'aria-label': 'Row label', 'data-focus-key': `ad-${row.id}-label` });
+        const items = el('textarea', {
+          rows: '2',
+          'aria-label': 'Items',
+          'data-focus-key': `ad-${row.id}-items`,
+        }, row.groups?.length
+          ? row.groups.map((group) => `${group.label}: ${group.items.join(', ')}`).join(' · ')
+          : (row.items || []).join(' · '));
+        items.value = items.textContent;
+        if (row.groups?.length) items.disabled = true;
+        const stamp = () => {
+          if (row.groups?.length) {
+            store = updateAdditionalRow(store, row.id, { label: label.value });
+          } else {
+            store = updateAdditionalRow(store, row.id, {
+              label: label.value,
+              items: items.value.split(/\s*·\s*|\n/).map((part) => part.trim()).filter(Boolean),
+            });
+          }
+          saveStore();
+          scheduleResumePreview(posting);
+        };
+        label.addEventListener('input', stamp);
+        items.addEventListener('input', stamp);
+        return el('div', { class: 'bb-job-card' }, [
+          field('Label', label),
+          field(row.groups?.length ? 'Groups (label is shared; items stay grouped)' : 'Items', items),
+        ]);
+      })
+      : [el('p', { class: 'empty' }, 'None yet.')]),
+  ]);
+}
+
+function resumeWorkspace(posting) {
+  const doc = compileResumeDoc(posting, store);
+  const wrap = el('section', { class: 'panel bb-resume' });
+  wrap.append(
+    el('div', { class: 'panel-head' }, [
+      el('div', {}, [
+        el('h2', {}, posting ? 'Resume' : 'Resume basics'),
+        el('p', { class: 'tiny' }, posting
+          ? [posting.title, posting.company].filter(Boolean).join(' · ')
+          : 'Shared header, jobs, credentials, education'),
+      ]),
+      el('div', { class: 'actions' }, [
+        btn('Import resume (JSON)', { class: 'btn ghost', onClick: () => resumeFileInput.click() }),
+        btn('Print / PDF', { class: 'btn', onClick: () => exportResumePdf(posting) }),
+        btn('Download Word', { class: 'btn ghost', onClick: () => exportResumeDocx(posting) }),
+        posting ? btn('Back to posting', { class: 'btn ghost', onClick: () => go({ kind: 'jobs', id: posting.id }) }) : null,
+      ]),
+    ]),
+    el('div', { class: 'bb-resume-split' }, [
+      resumeEditorPane(posting, doc),
+      resumePreviewPane(),
+    ])
+  );
+  queueMicrotask(() => refreshResumePreview(posting));
+  return wrap;
+}
+
 function resumeView(job) {
   const profile = store.profile || {};
-  const area = el('textarea', { class: 'resume', 'aria-label': 'Resume preview' });
+  const area = el('textarea', { class: 'resume', 'aria-label': 'Plain text resume' });
   let generated = compileResumeText(job, store) || 'Add a resume bullet on a requirement first.';
   let custom = Boolean(job.resumeText);
   area.value = custom ? job.resumeText : generated;
@@ -1322,22 +2044,19 @@ function resumeView(job) {
     generated = compileResumeText(job, store) || 'Add a resume bullet on a requirement first.';
     if (!custom) area.value = generated;
   };
-  const stamp = (key, value) => {
-    store = updateProfile(store, { [key]: value });
-    saveStore();
-    refreshGenerated();
-  };
   area.addEventListener('input', () => {
     custom = area.value !== generated;
     store = updatePosting(store, job.id, { resumeText: custom ? area.value : '' });
     saveStore();
   });
   const wordHtml = () => resumeTextToWordHtml(currentText(), job.title || 'Resume');
-  return el('section', { class: 'panel' }, [
-    el('div', { class: 'panel-head' }, [
-      el('h2', {}, 'Resume'),
+  const workspace = resumeWorkspace(job);
+  workspace.append(el('details', { class: 'utility-box' }, [
+    el('summary', {}, 'Plain text copy (.txt / older Word)'),
+    el('div', { class: 'utility-body' }, [
+      el('p', { class: 'tiny' }, 'Grouped by role. Edits here are what Copy and .txt use. They do not change the one-page layout above.'),
       el('div', { class: 'actions' }, [
-        btn('Copy', { class: 'btn', onClick: () => copyText(currentText(), 'Copied the resume.') }),
+        btn('Copy', { class: 'btn ghost', onClick: () => copyText(currentText(), 'Copied the resume.') }),
         btn('Download .txt', {
           class: 'btn ghost',
           onClick: () => {
@@ -1345,56 +2064,44 @@ function resumeView(job) {
             setNote('Downloaded a text resume.');
           },
         }),
-        btn('Download Word', {
+        btn('Download .doc', {
           class: 'btn ghost',
           onClick: () => {
             downloadText(`${job.title || 'resume'}.doc`, wordHtml(), 'application/msword');
             setNote('Downloaded a Word resume.');
           },
         }),
-        btn('Print / PDF', {
-          class: 'btn ghost',
-          onClick: () => {
-            const html = wordHtml();
-            const win = window.open('', '_blank');
-            if (!win) {
-              downloadText(`${job.title || 'resume'}.html`, html, 'text/html');
-              setNote('Download the HTML and print it.');
-              return;
-            }
-            win.document.write(html);
-            win.document.close();
-            win.focus();
-            win.print();
-          },
-        }),
-        btn('Rebuild', {
+        btn('Rebuild text', {
           class: 'btn ghost',
           onClick: () => {
             custom = false;
             store = updatePosting(store, job.id, { resumeText: '' });
             saveStore();
             refreshGenerated();
-            setNote('Rebuilt the resume from experiences.');
+            setNote('Rebuilt the plain-text resume from experiences.');
           },
         }),
-        btn('Back to posting', { class: 'btn ghost', onClick: () => go({ kind: 'jobs', id: job.id }) }),
-      ]),
-    ]),
-    el('div', { class: 'panel-body' }, [
-      el('p', { class: 'lede' }, 'Grouped by role, with each experience listed once. Edits in the preview are what Copy and Download use. Rebuild starts again from the posting.'),
-      el('div', { class: 'grid-2' }, [
-        field('Name', el('input', { value: profile.name, placeholder: 'Your name', 'aria-label': 'Name', onInput: (event) => stamp('name', event.target.value) })),
-        field('Email', el('input', { value: profile.email, placeholder: 'you@example.com', 'aria-label': 'Email', onInput: (event) => stamp('email', event.target.value) })),
       ]),
       el('div', { class: 'grid-2' }, [
-        field('Location', el('input', { value: profile.location, placeholder: 'New York, NY', 'aria-label': 'Location', onInput: (event) => stamp('location', event.target.value) })),
-        field('Skills', el('input', { value: profile.skills, placeholder: 'javascript, postgres', 'aria-label': 'Skills', onInput: (event) => stamp('skills', event.target.value) })),
+        field('Name', el('input', { value: profile.name, placeholder: 'Your name', 'aria-label': 'Plain-text name', onInput: (event) => {
+          store = updateProfile(store, { name: event.target.value });
+          saveStore();
+          refreshGenerated();
+        } })),
+        field('Email', el('input', { value: profile.email, placeholder: 'you@example.com', 'aria-label': 'Plain-text email', onInput: (event) => {
+          store = updateProfile(store, { email: event.target.value });
+          saveStore();
+          refreshGenerated();
+        } })),
       ]),
-      field('Summary', el('textarea', { 'aria-label': 'Summary', onInput: (event) => stamp('summary', event.target.value) }, profile.summary)),
       field('Preview', area),
     ]),
-  ]);
+  ]));
+  return workspace;
+}
+
+function profileView() {
+  return resumeWorkspace(null);
 }
 
 function emptyDetail(kind) {
@@ -1440,6 +2147,13 @@ function render(options = {}) {
 
   if (view.kind === 'home') {
     root.replaceChildren(el('div', {}, [toolbar(view), homeView()]));
+    restoreFocus(captured, options.focusKey);
+    return;
+  }
+
+  if (view.kind === 'profile') {
+    root.replaceChildren(el('div', {}, [toolbar(view), profileView()]));
+    restoreFocus(captured, options.focusKey);
     return;
   }
 
@@ -1583,6 +2297,15 @@ async function boot() {
 fileInput.addEventListener('change', () => {
   importStore(fileInput.files?.[0]);
   fileInput.value = '';
+});
+
+resumeFileInput.addEventListener('change', () => {
+  importResumeFile(resumeFileInput.files?.[0]);
+  resumeFileInput.value = '';
+});
+
+window.addEventListener('resize', () => {
+  scaleResumeFrame(document.getElementById('resume-preview-wrap'), document.getElementById('resume-preview-frame'));
 });
 
 window.addEventListener('hashchange', () => {

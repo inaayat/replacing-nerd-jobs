@@ -13,6 +13,7 @@ export function viewHash(view) {
     if (view.id) return `#log/${encodeURIComponent(view.id)}`;
     return '#log';
   }
+  if (view.kind === 'profile') return '#profile';
   if (view.kind === 'jobs') {
     if (view.id === 'new') return '#jobs/new';
     if (view.id && view.mode === 'prep') return `#jobs/${encodeURIComponent(view.id)}/prep`;
@@ -36,6 +37,7 @@ export function viewHash(view) {
 export function parseViewHash(raw, { entryIds = [], postingIds = [] } = {}) {
   const hash = String(raw || '').replace(/^#/, '').trim();
   if (!hash || hash === 'home' || hash === 'start' || hash === 'pick') return { kind: 'home' };
+  if (hash === 'profile' || hash === 'resume-basics') return { kind: 'profile' };
   if (hash === 'log' || hash === 'brag') return { kind: 'log' };
   if (hash === 'log/new') return { kind: 'log', id: 'new' };
   if (hash.startsWith('log/')) {
@@ -70,6 +72,7 @@ export function parseViewHash(raw, { entryIds = [], postingIds = [] } = {}) {
 
 export function viewTitle(view, store) {
   if (!view || view.kind === 'home') return 'Brag Book';
+  if (view.kind === 'profile') return 'Resume basics';
   if (view.kind === 'log' && view.id === 'new') return 'Add experiences';
   if (view.kind === 'log' && view.id) {
     const entry = (store?.entries || []).find((item) => item.id === view.id);
