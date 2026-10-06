@@ -9,6 +9,10 @@ import {
   addEntries,
   updateEntry,
   deleteEntry,
+  addKnowledge,
+  addKnowledgeNotes,
+  updateKnowledge,
+  deleteKnowledge,
   addPosting,
   updatePosting,
   deletePosting,
@@ -26,8 +30,10 @@ import {
   answerQuestionFromEntry,
   parseRequirements,
   parseExperiences,
+  parseKnowledge,
   cleanPastedText,
   searchEntries,
+  searchKnowledge,
   suggestEntries,
   linkedEntries,
   bulletEntry,
@@ -148,6 +154,7 @@ let bookDirty = false;
 let bookPushing = false;
 let lastServerBook = null;
 let query = '';
+let kbQuery = '';
 let kindFilter = 'all';
 let statusNote = '';
 let expandedBulletKey = '';
@@ -274,6 +281,7 @@ function currentView() {
   return parseViewHash(location.hash, {
     entryIds: store.entries.map((entry) => entry.id),
     postingIds: store.postings.map((job) => job.id),
+    knowledgeIds: (store.knowledge || []).map((note) => note.id),
   });
 }
 
@@ -315,6 +323,14 @@ function kindLabel(kind) {
 
 function displayExperienceLine(text) {
   return String(text || '').replace(/^\s*[-*•–—●▪‣∙]\s+/, '').trim() || String(text || '').trim();
+}
+
+function richPreview(className, text, rich) {
+  const shown = displayExperienceLine(text);
+  const node = el('div', { class: className });
+  const useRich = shown === String(text || '').trim() ? rich : null;
+  fillRich(node, useRich, shown);
+  return node;
 }
 
 function fillRich(node, rich, plain) {
@@ -622,8 +638,8 @@ function countRow() {
   const summary = listingSummary(store);
   return el('div', { class: 'counts' }, [
     chip(summary.postings, 'postings'),
-    chip(summary.entries, 'in the book'),
-    chip(summary.stories, 'experiences'),
+    chip(summary.entries, 'resume bullets'),
+    chip(summary.knowledge || 0, 'knowledge'),
   ]);
 }
 
@@ -650,7 +666,9 @@ function toolbar(view) {
       statusNote ? el('p', { class: 'status', id: 'status-note' }, statusNote) : el('p', { class: 'status', id: 'status-note' }, ''),
     ]);
   }
-  const isJob = view.kind === 'jobs';
+  const lane = view.kind === 'jobs' ? 'jobs' : view.kind === 'kb' ? 'kb' : 'log';
+  const backLabel = lane === 'jobs' ? 'Job postings' : lane === 'kb' ? 'Knowledge' : 'Resume bullets';
+  const addLabel = lane === 'jobs' ? '+ New posting' : lane === 'kb' ? '+ Add knowledge' : '+ Add resume bullets';
   const hasRecord = Boolean(view.id && view.id !== 'new');
   return el('header', { class: 'hero is-compact' }, [
     el('div', { class: 'hero-row' }, [
@@ -660,14 +678,14 @@ function toolbar(view) {
             type: 'button',
             class: 'context-back',
             onClick: () => go({ kind: view.kind }),
-          }, `← ${isJob ? 'Job postings' : 'Experiences'}`)
+          }, `← ${backLabel}`)
           : null,
         el('strong', { class: 'page-title' }, viewTitle(view, store)),
       ]),
       el('div', { class: 'actions' }, [
-        btn(isJob ? '+ New posting' : '+ Add experiences', {
+        btn(addLabel, {
           class: 'btn ghost compact-action',
-          onClick: () => go(isJob ? { kind: 'jobs', id: 'new' } : { kind: 'log', id: 'new' }),
+          onClick: () => go({ kind: lane, id: 'new' }),
         }),
       ]),
     ]),
@@ -717,13 +735,24 @@ function homeView() {
       el('button', {
         type: 'button',
         class: 'start-card is-beta',
-        onClick: () => go({ kind: 'log', id: 'new' }),
+        onClick: () => go({ kind: 'log' }),
       }, [
-        el('span', { class: 'kicker' }, [el('span', { class: 'beta-pill' }, 'beta'), ' The book']),
-        el('strong', {}, 'Add experiences'),
+        el('span', { class: 'kicker' }, [el('span', { class: 'beta-pill' }, 'beta'), ' TL;DR']),
+        el('strong', {}, 'Resume bullets'),
         el('p', {}, summary.entries
-          ? `${summary.entries} already in the book. Paste more in one go, then pin them onto a posting.`
-          : 'Optional. Paste several experiences at once so a posting can reuse one on more than one requirement.'),
+          ? `${summary.entries} saved line${summary.entries === 1 ? '' : 's'}. Open one to edit bolding or STAR, then pin it onto a posting.`
+          : 'The short lines you reuse on a posting. Paste several at once, then bold metrics the same way as on a job.'),
+      ]),
+      el('button', {
+        type: 'button',
+        class: 'start-card is-beta',
+        onClick: () => go({ kind: 'kb' }),
+      }, [
+        el('span', { class: 'kicker' }, [el('span', { class: 'beta-pill' }, 'beta'), ' Everything else']),
+        el('strong', {}, 'Knowledge base'),
+        el('p', {}, summary.knowledge
+          ? `${summary.knowledge} note${summary.knowledge === 1 ? '' : 's'}. Free-form context about work, tools, and what you know.`
+          : 'Free-form notes about everything you know or have worked on — longer than a resume line.'),
       ]),
     ]),
     recentJobs.length ? el('section', { class: 'recent' }, [
@@ -742,7 +771,7 @@ function homeView() {
       })),
     ]) : null,
     recentWins.length ? el('section', { class: 'recent' }, [
-      el('h2', {}, 'Recent in the book'),
+      el('h2', {}, 'Recent resume bullets'),
       el('div', { class: 'plot-cards' }, recentWins.map((entry) =>
         el('button', {
           type: 'button',
@@ -750,7 +779,7 @@ function homeView() {
           onClick: () => go({ kind: 'log', id: entry.id }),
         }, [
           el('span', { class: 'kicker' }, kindLabel(entry.kind)),
-          el('strong', {}, entry.title),
+          richPreview('bb-card-line', entry.title, entry.rich),
           el('p', {}, [entry.when, starFill(entry).ready ? 'STAR ready' : 'Open to fill STAR'].filter(Boolean).join(' · ')),
         ])
       )),
@@ -767,14 +796,33 @@ function chip(n, label) {
   return el('span', { class: 'chip' }, [el('strong', {}, String(n)), ` ${label}`]);
 }
 
+function bookLaneTabs(active) {
+  return el('div', { class: 'bb-book-tabs', role: 'tablist' }, [
+    el('button', {
+      type: 'button',
+      role: 'tab',
+      class: `bb-book-tab${active === 'log' ? ' is-on' : ''}`,
+      'aria-selected': String(active === 'log'),
+      onClick: () => go({ kind: 'log' }),
+    }, 'Resume bullets'),
+    el('button', {
+      type: 'button',
+      role: 'tab',
+      class: `bb-book-tab${active === 'kb' ? ' is-on' : ''}`,
+      'aria-selected': String(active === 'kb'),
+      onClick: () => go({ kind: 'kb' }),
+    }, 'Knowledge base'),
+  ]);
+}
+
 function entryList(selectedId, { variant = 'rail' } = {}) {
   const rows = searchEntries(store, query).filter((entry) => kindFilter === 'all' || entry.kind === kindFilter);
   const isMain = variant === 'main';
   return el(isMain ? 'section' : 'aside', { class: isMain ? 'panel bb-book-catalog' : 'panel' }, [
     el('div', { class: 'panel-head' }, [
       el('div', {}, [
-        el('h2', {}, 'The book'),
-        isMain ? el('p', { class: 'tiny' }, 'Every pasted win. Open one to fill STAR.') : null,
+        isMain ? bookLaneTabs('log') : el('h2', {}, 'Resume bullets'),
+        isMain ? el('p', { class: 'tiny' }, 'The TL;DR lines. Bolding matches the job posting table.') : null,
       ]),
       el('span', { class: 'tiny' }, `${rows.length}`),
     ]),
@@ -782,7 +830,7 @@ function entryList(selectedId, { variant = 'rail' } = {}) {
       el('input', {
         class: 'search',
         type: 'search',
-        placeholder: 'Search experiences, roles, STAR…',
+        placeholder: 'Search resume bullets, roles, STAR…',
         value: query,
         'data-focus-key': 'book-search',
         onInput: (event) => { query = event.target.value; render(); },
@@ -800,7 +848,10 @@ function entryList(selectedId, { variant = 'rail' } = {}) {
           class: `row${isMain ? ' bb-book-row' : ''}${selectedId === entry.id ? ' is-on' : ''}`,
           onClick: () => go({ kind: 'log', id: entry.id }),
         }, [
-          el('div', { class: 'row-title' }, displayExperienceLine(entry.title)),
+          el('div', { class: 'bb-book-line' }, [
+            el('span', { class: 'bullet-mark', 'aria-hidden': 'true' }, '•'),
+            richPreview('row-title bb-book-title', entry.title, entry.rich),
+          ]),
           el('div', { class: 'row-meta' }, [
             kindLabel(entry.kind),
             entry.when,
@@ -810,8 +861,8 @@ function entryList(selectedId, { variant = 'rail' } = {}) {
         ])
       ))
       : el('p', { class: 'empty' }, query
-        ? 'Nothing in the book matches that.'
-        : 'Nothing in the book yet. Use + Add experiences to paste several at once.'),
+        ? 'Nothing matches that.'
+        : 'No resume bullets yet. Use + Add resume bullets to paste several at once.'),
   ]);
 }
 
@@ -819,7 +870,7 @@ function bulkEntryForm({ compact = false } = {}) {
   const paste = el('textarea', {
     class: compact ? 'bb-add-paste' : 'tall',
     rows: compact ? '7' : undefined,
-    placeholder: 'One experience per line, or a STAR block:\n\n- Shipped packing cubes sync\n- Hobby-plan function budget\n\nTitle: Multiplexed the API\nSituation: Twelve functions already used.\nTask: Add another signed-in app.\nAction: Branched ?route= on the existing handler.\nResult: Stayed on Hobby.',
+    placeholder: 'One resume bullet per line, or a STAR block:\n\n- Led **3** associates on access reviews\n- Shipped packing cubes sync\n\nTitle: Multiplexed the API\nSituation: Twelve functions already used.\nTask: Add another signed-in app.\nAction: Branched ?route= on the existing handler.\nResult: Stayed on Hobby.',
     'data-focus-key': 'book-paste',
   });
   const kind = el('select', {}, ENTRY_KINDS.map((value) =>
@@ -828,28 +879,28 @@ function bulkEntryForm({ compact = false } = {}) {
   const addToBook = () => {
     const drafts = parseExperiences(paste.value).map((draft) => ({ ...draft, kind: kind.value }));
     if (!drafts.length) {
-      setNote('Paste at least one experience — one per line, or a STAR block.');
+      setNote('Paste at least one resume bullet — one per line, or a STAR block.');
       return;
     }
     store = addEntries(store, drafts);
     saveStore();
     render({ focusKey: 'book-paste' });
-    setNote(`Added ${drafts.length} experience${drafts.length === 1 ? '' : 's'}. They are in the list.`);
+    setNote(`Added ${drafts.length} resume bullet${drafts.length === 1 ? '' : 's'}. They are in the list.`);
   };
   return el('section', { class: compact ? 'panel bb-add-compact' : 'panel' }, [
     el('div', { class: 'panel-head' }, [
       el('div', {}, [
-        el('h2', {}, 'Add experiences'),
-        el('p', { class: 'tiny' }, 'Paste many at once. The list stays in view.'),
+        el('h2', {}, 'Add resume bullets'),
+        el('p', { class: 'tiny' }, 'Paste many at once. **bold** is kept. The list stays in view.'),
       ]),
       el('span', { class: 'beta-pill' }, 'beta'),
     ]),
     el('div', { class: 'panel-body' }, [
       compact
         ? null
-        : el('p', { class: 'lede' }, 'Dump a resume, a review doc, or notes. Each line becomes an experience a posting can link.'),
+        : el('p', { class: 'lede' }, 'Dump resume lines. Each line becomes a TL;DR a posting can reuse. Use **this** for bold.'),
       field('Kind for this paste', kind),
-      field('Paste experiences', paste),
+      field('Paste resume bullets', paste),
       el('div', { class: 'actions' }, [
         btn('Add to the book', {
           class: 'btn',
@@ -889,6 +940,7 @@ function entryForm(entry) {
   const isNew = !entry;
   const draft = entry || {
     title: '',
+    rich: null,
     kind: 'experience',
     when: '',
     tags: [],
@@ -898,19 +950,40 @@ function entryForm(entry) {
     result: '',
     notes: '',
   };
+  let titleText = draft.title;
+  let titleRich = draft.rich || markdownToSpans(draft.title);
+  const titleNode = richLine({
+    class: 'experience-compose bb-entry-title',
+    'aria-label': 'Resume bullet',
+    'data-focus-key': `entry-title-${entry?.id || 'new'}`,
+  }, {
+    text: titleText,
+    rich: titleRich,
+    onChange: (spans) => {
+      const text = spans.map((span) => span.text).join('');
+      if (!text.trim()) return;
+      titleText = text;
+      titleRich = spans;
+      if (!isNew) {
+        store = updateEntry(store, entry.id, { title: text, rich: spans });
+        saveStore();
+      }
+    },
+  });
   const form = el('form', {
     class: 'panel',
     onSubmit: (event) => {
       event.preventDefault();
       const data = Object.fromEntries(new FormData(form));
+      const patch = { ...data, title: titleText, rich: titleRich };
       if (isNew) {
-        store = addEntry(store, data);
+        store = addEntry(store, patch);
         const created = store.entries[0];
         saveStore();
         go({ kind: 'log', id: created.id });
-        setNote('Saved to the book.');
+        setNote('Saved resume bullet.');
       } else {
-        store = updateEntry(store, entry.id, data);
+        store = updateEntry(store, entry.id, patch);
         saveStore();
         render();
         setNote('Updated.');
@@ -919,11 +992,30 @@ function entryForm(entry) {
   });
   form.append(
     el('div', { class: 'panel-head' }, [
-      el('h2', {}, isNew ? 'Add one experience' : 'Edit experience'),
+      el('h2', {}, isNew ? 'Add one resume bullet' : 'Edit resume bullet'),
       entry ? el('span', { class: `tag kind-${entry.kind}` }, kindLabel(entry.kind)) : null,
     ]),
     el('div', { class: 'panel-body' }, [
-      field('Experience', el('input', { name: 'title', required: true, maxlength: '4000', value: draft.title, placeholder: 'Shipped the suitcase sync' })),
+      el('div', { class: 'bb-rb-line-head' }, [
+        field('Resume bullet', titleNode),
+        btn('Bold', {
+          class: 'btn ghost compact-action',
+          onClick: () => {
+            titleNode.focus();
+            document.execCommand('bold');
+            const spans = readRich(titleNode);
+            const text = spans.map((span) => span.text).join('');
+            if (!text.trim()) return;
+            titleText = text;
+            titleRich = spans;
+            if (!isNew) {
+              store = updateEntry(store, entry.id, { title: text, rich: spans });
+              saveStore();
+            }
+          },
+        }),
+      ]),
+      el('p', { class: 'tiny' }, 'Same as the posting table: select a word and Bold / Ctrl+B.'),
       el('div', { class: 'grid-2' }, [
         field('Kind', el('select', { name: 'kind' }, ENTRY_KINDS.map((kind) =>
           el('option', { value: kind, selected: draft.kind === kind || undefined }, kindLabel(kind))
@@ -946,17 +1038,209 @@ function entryForm(entry) {
         starField('Action', 'action', draft.action, 'What did you actually do?'),
         starField('Result', 'result', draft.result, 'What changed? Numbers help.'),
       ]),
-      field('Notes', el('textarea', { name: 'notes', placeholder: 'Extra color, links, or a one-line version.' }, draft.notes)),
+      field('STAR / interview notes', el('textarea', { name: 'notes', placeholder: 'Extra color, links, or a longer version. Broader notes belong in Knowledge.' }, draft.notes)),
       el('div', { class: 'actions' }, [
-        el('button', { type: 'submit', class: 'btn' }, isNew ? 'Save to the book' : 'Save'),
+        el('button', { type: 'submit', class: 'btn' }, isNew ? 'Save resume bullet' : 'Save'),
         btn('Cancel', { class: 'btn ghost', onClick: () => go({ kind: 'log' }) }),
         entry ? btn('Delete', {
           class: 'btn danger',
           onClick: () => {
-            if (!confirm('Remove this experience from the book? Requirements will drop the link.')) return;
+            if (!confirm('Remove this resume bullet? Postings that used it will drop the link.')) return;
             store = deleteEntry(store, entry.id);
             saveStore();
             go({ kind: 'log' });
+          },
+        }) : null,
+      ]),
+    ])
+  );
+  return form;
+}
+
+function knowledgeList(selectedId) {
+  const rows = searchKnowledge(store, kbQuery);
+  return el('section', { class: 'panel bb-book-catalog' }, [
+    el('div', { class: 'panel-head' }, [
+      el('div', {}, [
+        bookLaneTabs('kb'),
+        el('p', { class: 'tiny' }, 'Free-form notes about work, tools, and what you know.'),
+      ]),
+      el('span', { class: 'tiny' }, `${rows.length}`),
+    ]),
+    el('div', { class: 'panel-body' }, [
+      el('input', {
+        class: 'search',
+        type: 'search',
+        placeholder: 'Search knowledge…',
+        value: kbQuery,
+        'data-focus-key': 'kb-search',
+        onInput: (event) => { kbQuery = event.target.value; render(); },
+      }),
+    ]),
+    rows.length
+      ? el('div', { class: 'list bb-book-list' }, rows.map((note) =>
+        el('button', {
+          type: 'button',
+          class: `row bb-book-row bb-kb-row${selectedId === note.id ? ' is-on' : ''}`,
+          onClick: () => go({ kind: 'kb', id: note.id }),
+        }, [
+          el('div', { class: 'row-title bb-kb-title' }, note.title),
+          note.body
+            ? (() => {
+              const excerpt = el('div', { class: 'bb-kb-excerpt' });
+              fillRich(excerpt, note.rich, note.body);
+              return excerpt;
+            })()
+            : null,
+          note.tags.length
+            ? el('div', { class: 'row-meta' }, note.tags.join(' · '))
+            : null,
+        ])
+      ))
+      : el('p', { class: 'empty' }, kbQuery
+        ? 'Nothing matches that.'
+        : 'No knowledge notes yet. Use + Add knowledge to write or paste.'),
+  ]);
+}
+
+function bulkKnowledgeForm() {
+  const paste = el('textarea', {
+    class: 'bb-add-paste',
+    rows: '8',
+    placeholder: 'One note per blank line.\n\nNeon Auth\nSame JWT as Packing Cubes. Session lives in localStorage.\n\nHobby-plan functions\nTwelve serverless functions max. Branch ?route= instead of adding api/*.js.',
+    'data-focus-key': 'kb-paste',
+  });
+  const add = () => {
+    const drafts = parseKnowledge(paste.value);
+    if (!drafts.length) {
+      setNote('Paste at least one note. Blank lines split notes; the first line is the title.');
+      return;
+    }
+    store = addKnowledgeNotes(store, drafts);
+    saveStore();
+    render({ focusKey: 'kb-paste' });
+    setNote(`Added ${drafts.length} knowledge note${drafts.length === 1 ? '' : 's'}.`);
+  };
+  return el('section', { class: 'panel bb-add-compact' }, [
+    el('div', { class: 'panel-head' }, [
+      el('div', {}, [
+        el('h2', {}, 'Add knowledge'),
+        el('p', { class: 'tiny' }, 'Free-form. **bold** is kept. Blank lines start a new note.'),
+      ]),
+      el('span', { class: 'beta-pill' }, 'beta'),
+    ]),
+    el('div', { class: 'panel-body' }, [
+      field('Paste notes', paste),
+      el('div', { class: 'actions' }, [
+        btn('Add to knowledge', { class: 'btn', onClick: add }),
+        btn('Done', { class: 'btn ghost', onClick: () => go({ kind: 'kb' }) }),
+      ]),
+    ]),
+  ]);
+}
+
+function knowledgeForm(note) {
+  const isNew = !note;
+  const draft = note || { title: '', body: '', rich: [], tags: [] };
+  let bodyText = draft.body;
+  let bodyRich = draft.rich?.length ? draft.rich : markdownToSpans(draft.body);
+  const title = el('input', {
+    name: 'title',
+    maxlength: '4000',
+    value: draft.title,
+    placeholder: 'Neon Auth, Hobby-plan functions, Packing cubes sync…',
+    'data-focus-key': `kb-title-${note?.id || 'new'}`,
+    onChange: (event) => {
+      if (isNew) return;
+      store = updateKnowledge(store, note.id, { title: event.target.value });
+      saveStore();
+    },
+  });
+  const body = richLine({
+    class: 'experience-compose bb-kb-body',
+    'aria-label': 'Knowledge',
+    'data-focus-key': `kb-body-${note?.id || 'new'}`,
+  }, {
+    text: bodyText,
+    rich: bodyRich,
+    onChange: (spans) => {
+      bodyText = spans.map((span) => span.text).join('');
+      bodyRich = spans;
+      if (!isNew) {
+        store = updateKnowledge(store, note.id, { body: bodyText, rich: spans });
+        saveStore();
+      }
+    },
+  });
+  const tags = el('input', {
+    name: 'tags',
+    value: (draft.tags || []).join(', '),
+    placeholder: 'neon, auth, postgres',
+    onChange: (event) => {
+      if (isNew) return;
+      store = updateKnowledge(store, note.id, { tags: event.target.value });
+      saveStore();
+    },
+  });
+  const form = el('form', {
+    class: 'panel',
+    onSubmit: (event) => {
+      event.preventDefault();
+      const heading = title.value.trim();
+      if (!heading && !bodyText.trim()) {
+        setNote('Add a title or some notes.');
+        return;
+      }
+      const patch = { title: heading, body: bodyText, rich: bodyRich, tags: tags.value };
+      if (isNew) {
+        store = addKnowledge(store, patch);
+        const created = store.knowledge[0];
+        saveStore();
+        go({ kind: 'kb', id: created.id });
+        setNote('Saved to knowledge.');
+      } else {
+        store = updateKnowledge(store, note.id, patch);
+        saveStore();
+        render();
+        setNote('Updated.');
+      }
+    },
+  });
+  form.append(
+    el('div', { class: 'panel-head' }, [
+      el('h2', {}, isNew ? 'New knowledge note' : 'Edit knowledge'),
+    ]),
+    el('div', { class: 'panel-body' }, [
+      field('Title', title),
+      el('div', { class: 'bb-rb-line-head' }, [
+        field('Notes', body),
+        btn('Bold', {
+          class: 'btn ghost compact-action',
+          onClick: () => {
+            body.focus();
+            document.execCommand('bold');
+            const spans = readRich(body);
+            bodyText = spans.map((span) => span.text).join('');
+            bodyRich = spans;
+            if (!isNew) {
+              store = updateKnowledge(store, note.id, { body: bodyText, rich: spans });
+              saveStore();
+            }
+          },
+        }),
+      ]),
+      el('p', { class: 'tiny' }, 'Write freely. Select a word and Bold / Ctrl+B, same as a posting bullet.'),
+      field('Tags', tags),
+      el('div', { class: 'actions' }, [
+        el('button', { type: 'submit', class: 'btn' }, isNew ? 'Save note' : 'Save'),
+        btn('Cancel', { class: 'btn ghost', onClick: () => go({ kind: 'kb' }) }),
+        note ? btn('Delete', {
+          class: 'btn danger',
+          onClick: () => {
+            if (!confirm('Delete this knowledge note?')) return;
+            store = deleteKnowledge(store, note.id);
+            saveStore();
+            go({ kind: 'kb' });
           },
         }) : null,
       ]),
@@ -3009,7 +3293,9 @@ function emptyDetail(kind) {
     el('div', { class: 'panel-body empty' },
       kind === 'jobs'
         ? 'Paste a job posting. That is the first click — requirements, then experiences, then questions + STAR.'
-        : 'Paste several experiences, or pick one to fill STAR.'
+        : kind === 'kb'
+          ? 'Write a knowledge note, or pick one from the list.'
+          : 'Paste several resume bullets, or pick one to fill STAR.')
     ),
   ]);
 }
@@ -3057,10 +3343,27 @@ function render(options = {}) {
     return;
   }
 
-  if (view.kind === 'log') {
+  if (view.kind === 'log' || view.kind === 'kb') {
     const layoutKind = logLayout(view);
     let body;
-    if (layoutKind === 'catalog-add') {
+    if (view.kind === 'kb') {
+      if (layoutKind === 'catalog-add') {
+        body = el('div', { class: 'layout is-book-add' }, [
+          knowledgeList(null),
+          bulkKnowledgeForm(),
+        ]);
+      } else if (layoutKind === 'detail') {
+        const note = (store.knowledge || []).find((item) => item.id === view.id);
+        body = el('div', { class: 'layout is-book-detail' }, [
+          knowledgeList(view.id),
+          note ? knowledgeForm(note) : emptyDetail('kb'),
+        ]);
+      } else {
+        body = el('div', { class: 'layout is-wide' }, [
+          knowledgeList(null),
+        ]);
+      }
+    } else if (layoutKind === 'catalog-add') {
       body = el('div', { class: 'layout is-book-add' }, [
         entryList(null, { variant: 'main' }),
         bulkEntryForm({ compact: true }),

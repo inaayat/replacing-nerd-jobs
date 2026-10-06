@@ -13,6 +13,11 @@ export function viewHash(view) {
     if (view.id) return `#log/${encodeURIComponent(view.id)}`;
     return '#log';
   }
+  if (view.kind === 'kb') {
+    if (view.id === 'new') return '#kb/new';
+    if (view.id) return `#kb/${encodeURIComponent(view.id)}`;
+    return '#kb';
+  }
   if (view.kind === 'profile') return '#profile';
   if (view.kind === 'jobs') {
     if (view.id === 'new') return '#jobs/new';
@@ -34,16 +39,23 @@ export function viewHash(view) {
   return '#home';
 }
 
-export function parseViewHash(raw, { entryIds = [], postingIds = [] } = {}) {
+export function parseViewHash(raw, { entryIds = [], postingIds = [], knowledgeIds = [] } = {}) {
   const hash = String(raw || '').replace(/^#/, '').trim();
   if (!hash || hash === 'home' || hash === 'start' || hash === 'pick') return { kind: 'home' };
   if (hash === 'profile' || hash === 'resume-basics') return { kind: 'profile' };
-  if (hash === 'log' || hash === 'brag') return { kind: 'log' };
+  if (hash === 'log' || hash === 'brag' || hash === 'bullets') return { kind: 'log' };
   if (hash === 'log/new') return { kind: 'log', id: 'new' };
   if (hash.startsWith('log/')) {
     const id = decodeURIComponent(hash.slice(4));
     if (id === 'new' || entryIds.includes(id)) return { kind: 'log', id };
     return { kind: 'log' };
+  }
+  if (hash === 'kb' || hash === 'knowledge') return { kind: 'kb' };
+  if (hash === 'kb/new') return { kind: 'kb', id: 'new' };
+  if (hash.startsWith('kb/')) {
+    const id = decodeURIComponent(hash.slice(3));
+    if (id === 'new' || knowledgeIds.includes(id)) return { kind: 'kb', id };
+    return { kind: 'kb' };
   }
   if (hash === 'jobs' || hash === 'jobs/' || hash === 'postings') return { kind: 'jobs' };
   if (hash === 'jobs/new') return { kind: 'jobs', id: 'new' };
@@ -73,12 +85,18 @@ export function parseViewHash(raw, { entryIds = [], postingIds = [] } = {}) {
 export function viewTitle(view, store) {
   if (!view || view.kind === 'home') return 'Brag Book';
   if (view.kind === 'profile') return 'Resume basics';
-  if (view.kind === 'log' && view.id === 'new') return 'Add experiences';
+  if (view.kind === 'log' && view.id === 'new') return 'Add resume bullets';
   if (view.kind === 'log' && view.id) {
     const entry = (store?.entries || []).find((item) => item.id === view.id);
-    return entry?.title || 'Win';
+    return entry?.title || 'Resume bullet';
   }
-  if (view.kind === 'log') return 'The book';
+  if (view.kind === 'log') return 'Resume bullets';
+  if (view.kind === 'kb' && view.id === 'new') return 'Add knowledge';
+  if (view.kind === 'kb' && view.id) {
+    const note = (store?.knowledge || []).find((item) => item.id === view.id);
+    return note?.title || 'Note';
+  }
+  if (view.kind === 'kb') return 'Knowledge base';
   if (view.kind === 'jobs' && view.id === 'new') return 'New job posting';
   if (view.kind === 'jobs' && view.id) {
     const job = (store?.postings || []).find((item) => item.id === view.id);
@@ -93,7 +111,7 @@ export function viewTitle(view, store) {
 }
 
 export function logLayout(view) {
-  if (!view || view.kind !== 'log') return 'none';
+  if (!view || (view.kind !== 'log' && view.kind !== 'kb')) return 'none';
   if (view.id === 'new') return 'catalog-add';
   if (view.id) return 'detail';
   return 'catalog';
@@ -102,6 +120,6 @@ export function logLayout(view) {
 export function hideBookRail(view, store) {
   if (!view) return true;
   if (view.kind === 'jobs') return Boolean(view.id) || !(store?.postings || []).length;
-  if (view.kind === 'log') return false;
+  if (view.kind === 'log' || view.kind === 'kb') return false;
   return true;
 }

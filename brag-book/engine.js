@@ -1,10 +1,11 @@
 /**
  * Brag Book document model. Browser-safe ESM — no node: imports.
  *
- * One local store: experiences (`entries`) plus job postings.
- * Each requirement holds resume bullets, pinned stories, and questions
- * that each carry their own STAR answer. A slim `profile` rides on the
- * store for resume contact / summary / skills.
+ * One local store: resume-bullet experiences (`entries`), freeform
+ * knowledge notes (`knowledge`), plus job postings. Each requirement
+ * holds resume bullets, pinned stories, and questions that each carry
+ * their own STAR answer. A slim `profile` rides on the store for resume
+ * contact / summary / skills.
  */
 
 export const SCHEMA = 1;
@@ -48,6 +49,7 @@ import {
   deleteLocalAdditional,
   freshPostingResume,
   basicsPostingResume,
+  markdownToSpans,
 } from './resume-model.js';
 
 export {
@@ -115,6 +117,7 @@ export function emptyStore() {
   return {
     v: SCHEMA,
     entries: [],
+    knowledge: [],
     postings: [],
     profile: emptyProfile(),
     jobs: [],
@@ -345,16 +348,26 @@ function normalizeBullets(value, clock) {
   return out;
 }
 
+function richFromText(text) {
+  const formatted = normalizeRichSpans(markdownToSpans(text), text);
+  return formatted || { text: asString(text, TEXT_MAX), rich: [{ text: asString(text, TEXT_MAX), bold: false }] };
+}
+
 export function normalizeEntry(raw, clock = Date.now) {
   if (!raw || typeof raw !== 'object') return null;
   // The title is the resume line, so it can be as long as a bullet.
   const title = asString(raw.title, TEXT_MAX);
   if (!title) return null;
+  const formatted = Array.isArray(raw.rich) && raw.rich.length
+    ? normalizeRichSpans(raw.rich, title)
+    : richFromText(title);
+  if (!formatted?.text) return null;
   const createdAt = asString(raw.createdAt, 40) || nowIso(clock);
   return {
     id: asString(raw.id, 64) || newId('en', clock),
     kind: asKind(raw.kind),
-    title,
+    title: formatted.text,
+    rich: formatted.rich,
     role: asString(raw.role, TITLE_MAX),
     jobId: asString(raw.jobId, 64),
     when: asString(raw.when, 80),
@@ -364,6 +377,26 @@ export function normalizeEntry(raw, clock = Date.now) {
     action: asString(raw.action, TEXT_MAX),
     result: asString(raw.result, TEXT_MAX),
     notes: asString(raw.notes, TEXT_MAX),
+    createdAt,
+    updatedAt: asString(raw.updatedAt, 40) || createdAt,
+  };
+}
+
+export function normalizeKnowledge(raw, clock = Date.now) {
+  if (!raw || typeof raw !== 'object') return null;
+  const title = asString(raw.title, TEXT_MAX);
+  const formatted = Array.isArray(raw.rich) && raw.rich.length
+    ? normalizeRichSpans(raw.rich, raw.body || title)
+    : richFromText(asString(raw.body, TEXT_MAX));
+  const body = formatted?.text || asString(raw.body, TEXT_MAX);
+  if (!title && !body) return null;
+  const createdAt = asString(raw.createdAt, 40) || nowIso(clock);
+  return {
+    id: asString(raw.id, 64) || newId('kb', clock),
+    title: title || asString(body.split('\n')[0], TEXT_MAX) || 'Note',
+    body,
+    rich: formatted?.rich || (body ? [{ text: body, bold: false }] : []),
+    tags: asTags(raw.tags),
     createdAt,
     updatedAt: asString(raw.updatedAt, 40) || createdAt,
   };
@@ -461,6 +494,13 @@ export function normalizeStore(raw, clock = Date.now) {
     seenEntries.add(entry.id);
     store.entries.push(entry);
   }
+  const seenKnowledge = new Set();
+  for (const item of Array.isArray(raw.knowledge) ? raw.knowledge : []) {
+    const note = normalizeKnowledge(item, clock);
+    if (!note || seenKnowledge.has(note.id)) continue;
+    seenKnowledge.add(note.id);
+    store.knowledge.push(note);
+  }
   const seenJobs = new Set();
   for (const item of Array.isArray(raw.postings) ? raw.postings : []) {
     const posting = normalizePosting(item, clock);
@@ -518,7 +558,7 @@ function sameRich(a, b) {
 // One experience has one line. That line is the entry title and every resume bullet that points at it.
 function experienceLineMatches(store, entryId, formatted) {
   const entry = entryById(store, entryId);
-  if (!entry || entry.title !== formatted.text) return false;
+  if (!entry || entry.title !== formatted.text || !sameRich(entry.rich, formatted.rich)) return false;
   for (const job of store.postings || []) {
     for (const req of job.requirements || []) {
       for (const line of req.bullets || []) {
@@ -533,7 +573,7 @@ function applyExperienceLine(store, entryId, text, rich, clock) {
   const formatted = normalizeRichSpans(rich, text);
   if (!entryId || !formatted) return store;
   if (experienceLineMatches(store, entryId, formatted)) return store;
-  let next = replaceEntry(store, entryId, { title: formatted.text }, clock);
+  let next = replaceEntry(store, entryId, { title: formatted.text, rich: formatted.rich }, clock);
   next = {
     ...next,
     postings: (next.postings || []).map((job) => ({
@@ -613,9 +653,39 @@ export function updateEntry(store, id, patch, clock = Date.now) {
   if (!patch || !Object.prototype.hasOwnProperty.call(patch, 'title')) return next;
   const entry = entryById(next, id);
   if (!entry) return next;
-  const bullet = firstBulletForEntry(next, id);
-  const rich = bullet && bullet.text === entry.title ? bullet.rich : null;
+  const rich = Object.prototype.hasOwnProperty.call(patch, 'rich')
+    ? patch.rich
+    : entry.rich;
   return applyExperienceLine(next, id, entry.title, rich, clock);
+}
+
+export function knowledgeById(store, id) {
+  return (store?.knowledge || []).find((note) => note.id === id) || null;
+}
+
+export function addKnowledge(store, draft, clock = Date.now) {
+  const note = normalizeKnowledge({ ...draft, id: draft?.id || newId('kb', clock), createdAt: nowIso(clock) }, clock);
+  if (!note) return store;
+  return { ...store, knowledge: [note, ...(store.knowledge || [])] };
+}
+
+export function addKnowledgeNotes(store, drafts, clock = Date.now) {
+  let next = store;
+  for (const draft of [...(drafts || [])].reverse()) next = addKnowledge(next, draft, clock);
+  return next;
+}
+
+export function updateKnowledge(store, id, patch, clock = Date.now) {
+  const current = knowledgeById(store, id);
+  if (!current) return store;
+  const next = normalizeKnowledge({ ...current, ...patch, id: current.id, createdAt: current.createdAt }, clock);
+  if (!next) return store;
+  return { ...store, knowledge: replaceById(store.knowledge, id, touched(next, clock)) };
+}
+
+export function deleteKnowledge(store, id) {
+  if (!knowledgeById(store, id)) return store;
+  return { ...store, knowledge: dropById(store.knowledge || [], id) };
 }
 
 export function deleteEntry(store, id) {
@@ -1266,8 +1336,10 @@ export function addEntryBullet(store, postingId, requirementId, entryId, text = 
     (current) => withBullets(current, [...current.bullets, line]),
     clock
   );
-  if (!sibling && line.text !== entry.title) next = replaceEntry(next, entryId, { title: line.text }, clock);
-  return next;
+  if (!sibling && (line.text !== entry.title || !sameRich(line.rich, entry.rich))) {
+    next = replaceEntry(next, entryId, { title: line.text, rich: line.rich }, clock);
+  }
+  return applyExperienceLine(next, entryId, line.text, line.rich, clock);
 }
 
 export function createEntryBullet(store, postingId, requirementId, text, clock = Date.now, rich) {
@@ -1275,7 +1347,7 @@ export function createEntryBullet(store, postingId, requirementId, text, clock =
   const title = asString(formatted?.text || text, TEXT_MAX);
   if (!title || !formatted) return store;
   const entryId = newId('en', clock);
-  const next = addEntry(store, { id: entryId, title, kind: 'experience' }, clock);
+  const next = addEntry(store, { id: entryId, title: formatted.text, rich: formatted.rich, kind: 'experience' }, clock);
   return addEntryBullet(next, postingId, requirementId, entryId, formatted.text, clock, formatted.rich);
 }
 
@@ -1518,6 +1590,18 @@ export function searchEntries(store, query) {
     ]
       .join(' ')
       .toLowerCase();
+    if (hay.includes(q)) return true;
+    return tokens.every((token) => hay.includes(token));
+  });
+}
+
+export function searchKnowledge(store, query) {
+  const q = asString(query, 200).toLowerCase();
+  const list = store?.knowledge || [];
+  if (!q) return list;
+  const tokens = tokenize(q);
+  return list.filter((note) => {
+    const hay = [note.title, note.body, ...(note.tags || [])].join(' ').toLowerCase();
     if (hay.includes(q)) return true;
     return tokens.every((token) => hay.includes(token));
   });
@@ -1776,7 +1860,7 @@ function uniqueDrafts(drafts) {
   const seen = new Set();
   const out = [];
   for (const draft of drafts) {
-    const title = asString(draft?.title, TITLE_MAX);
+    const title = asString(draft?.title, TEXT_MAX);
     if (!title) continue;
     const key = title.toLowerCase();
     if (seen.has(key)) continue;
@@ -1828,6 +1912,18 @@ export function parseExperiences(text) {
     lines.push({ title: cleaned, kind: 'experience' });
   }
   return uniqueDrafts(lines);
+}
+
+export function parseKnowledge(text) {
+  const raw = String(text || '').replace(/\r\n/g, '\n').trim();
+  if (!raw) return [];
+  return raw.split(/\n{2,}/).map((chunk) => {
+    const lines = chunk.split('\n').map((line) => line.replace(/^\s*[-*•–—●▪‣∙]\s+/, '').trim()).filter(Boolean);
+    if (!lines.length) return null;
+    const title = lines[0];
+    const body = lines.slice(1).join('\n');
+    return { title, body };
+  }).filter(Boolean);
 }
 
 export function serializeBook(raw, { maxChars = BOOK_MAX_CHARS } = {}) {
@@ -1943,14 +2039,19 @@ function postingBulletCount(store) {
 
 export function shouldBlockEmptyOverwrite(next, previous) {
   if (!previous) return false;
-  const hadLog = (previous.entries || []).length > 0 || postingBulletCount(previous) > 0;
+  const hadLog = (previous.entries || []).length > 0
+    || postingBulletCount(previous) > 0
+    || (previous.knowledge || []).length > 0;
   if (!hadLog) return false;
-  return (next?.entries || []).length === 0 && postingBulletCount(next) === 0;
+  return (next?.entries || []).length === 0
+    && postingBulletCount(next) === 0
+    && (next?.knowledge || []).length === 0;
 }
 
 export function bookIsEmpty(store) {
   const book = store || emptyStore();
   return !book.entries?.length
+    && !book.knowledge?.length
     && !book.postings?.length
     && !book.jobs?.length
     && !book.education?.length
@@ -1960,6 +2061,7 @@ export function bookIsEmpty(store) {
 export function listingSummary(store) {
   return {
     entries: store.entries.length,
+    knowledge: (store.knowledge || []).length,
     postings: store.postings.length,
     stories: store.entries.filter((entry) => entry.kind === 'experience').length,
     projects: store.entries.filter((entry) => entry.kind === 'project').length,
