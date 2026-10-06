@@ -50,6 +50,16 @@ import {
   bulletEntry,
   compileResume,
   compileResumeText,
+  compileResumeDoc,
+  applyImportedResume,
+  updatePostingResume,
+  replacePostingResume,
+  isResumeDoc,
+  parseBulletText,
+  toggleId,
+  clearBulletOverride,
+  writeBulletBackToSource,
+  DEFAULT_SECTION_ORDER,
   compilePrep,
   prepCoverage,
   listingSummary,
@@ -62,6 +72,12 @@ import {
   hostFromJobUrl,
 } from '../brag-book/engine.js';
 import { parseViewHash, viewHash, viewTitle, defaultView } from '../brag-book/routes.js';
+import { renderResumeHtml } from '../brag-book/resume-template.js';
+import { dropOrderFromDoc, FONT_FLOOR_PT, FIT_STEPS } from '../brag-book/resume-fit.js';
+import { resumeDocxBytes } from '../brag-book/resume-docx.js';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const clock = () => Date.parse('2026-10-05T12:00:00.000Z');
 let rand = 0;
@@ -75,7 +91,12 @@ assert.deepEqual(emptyStore(), {
   v: 1,
   entries: [],
   postings: [],
-  profile: { name: '', email: '', location: '', summary: '', skills: '' },
+  profile: { name: '', email: '', location: '', summary: '', skills: '', suffix: '', locations: [], phone: '', links: [] },
+  jobs: [],
+  education: [],
+  credentials: [],
+  additional: [],
+  resumeSettings: { template: 'classic-serif', sectionOrder: DEFAULT_SECTION_ORDER.slice(), showCredentials: true },
 });
 assert.deepEqual(normalizeStore(null), emptyStore());
 assert.equal(normalizeEntry({ title: '   ' }), null);
@@ -376,9 +397,127 @@ assert.equal(viewTitle({ kind: 'home' }), 'Brag Book');
 assert.equal(viewTitle({ kind: 'jobs', id: 'job_1', mode: 'prep' }, { postings: [{ id: 'job_1', title: 'PM' }] }), 'Prep · PM');
 assert.equal(viewTitle({ kind: 'jobs', id: 'job_1', mode: 'bullet' }, { postings: [{ id: 'job_1', title: 'PM' }] }), 'Experience · PM');
 
+assert.equal(viewHash({ kind: 'profile' }), '#profile');
+assert.deepEqual(parseViewHash('#profile'), { kind: 'profile' });
+assert.equal(viewTitle({ kind: 'profile' }), 'Resume basics');
+
 // ids stay unique even when the clock is pinned
 const a = addEntry(emptyStore(), { title: 'One' }, clock, random);
 const b = addEntry(a, { title: 'Two' }, clock, random);
 assert.notEqual(b.entries[0].id, b.entries[1].id);
+
+const samplePath = join(dirname(fileURLToPath(import.meta.url)), '../brag-book/data/inaayat-gill-resume.json');
+const sampleResume = JSON.parse(readFileSync(samplePath, 'utf8'));
+assert.equal(isResumeDoc(sampleResume), true);
+assert.equal(isResumeDoc({ entries: [], postings: [] }), false);
+
+const oldBook = normalizeStore({
+  entries: [{ title: 'Legacy win', role: 'Analyst' }],
+  postings: [{ title: 'Legacy job', resumeText: 'plain' }],
+  profile: { name: 'Ada', location: 'Seattle, WA' },
+}, clock);
+assert.equal(oldBook.jobs.length, 0);
+assert.equal(oldBook.education.length, 0);
+assert.equal(oldBook.credentials.length, 0);
+assert.deepEqual(oldBook.profile.locations, ['Seattle, WA']);
+assert.equal(oldBook.profile.location, 'Seattle, WA');
+assert.equal(oldBook.postings[0].resumeText, 'plain');
+assert.deepEqual(oldBook.postings[0].resume.excludedBulletIds, []);
+assert.equal(oldBook.resumeSettings.showCredentials, true);
+assert.equal(bookIsEmpty(oldBook), false);
+assert.equal(bookIsEmpty(emptyStore()), true);
+
+let seeded = applyImportedResume(emptyStore(), sampleResume, clock);
+assert.equal(seeded.profile.name, 'Inaayat Gill');
+assert.equal(seeded.profile.suffix, 'CPA');
+assert.deepEqual(seeded.profile.locations, ['New York, NY', 'Seattle, WA']);
+assert.equal(seeded.jobs[0].company, 'PricewaterhouseCoopers LLC');
+assert.equal(seeded.jobs[1].company, 'Alaska Airlines');
+assert.equal(seeded.credentials[0].name, 'Certified Public Accountant (CPA)');
+assert.equal(seeded.education[0].gpa, '3.7/4.0');
+assert.equal(seeded.additional[1].groups[0].label, 'Compliance Tools');
+assert.equal(bookIsEmpty(seeded), false);
+
+seeded = addPosting(seeded, { title: 'Sample posting', company: 'Example' }, clock);
+const seedJobId = seeded.postings[0].id;
+const resumeDoc = compileResumeDoc(postingById(seeded, seedJobId), seeded);
+assert.equal(resumeDoc.header.name, 'Inaayat Gill');
+assert.equal(resumeDoc.sectionOrder[0], 'experience');
+assert.equal(resumeDoc.sections.experience.jobs[0].groups[0].bullets[0].lead.includes('Walkthroughs'), true);
+assert.equal(resumeDoc.sections.credentials.enabled, true);
+
+const html = renderResumeHtml(resumeDoc, { droppedBulletIds: [] });
+assert.match(html, /Inaayat Gill, CPA/);
+assert.match(html, /Work Experience/);
+assert.match(html, /PricewaterhouseCoopers LLC/);
+assert.match(html, /class="title"/);
+assert.match(html, /Issued May 2024/);
+assert.match(html, /Cumulative GPA: 3\.7\/4\.0/);
+assert.match(html, /100\+ controls/);
+assert.match(html, /mailto:inaayat@gmail.com/);
+
+seeded = updatePostingResume(seeded, seedJobId, {
+  excludedJobIds: ['job_alaska'],
+  excludedBulletIds: ['b_pwc_risk'],
+  showCredentials: false,
+  sectionOrder: ['education', 'experience', 'additional', 'credentials'],
+  overrides: { b_pwc_rfp: { lead: 'Won new work', body: 'Closed **$5.8M**.' } },
+}, clock);
+const tailored = compileResumeDoc(postingById(seeded, seedJobId), seeded);
+assert.equal(tailored.sectionOrder[0], 'education');
+assert.equal(tailored.sections.credentials.enabled, false);
+assert.equal(tailored.sections.experience.jobs.find((job) => job.id === 'job_alaska').included, false);
+const rfp = tailored.sections.experience.jobs[0].groups.flatMap((g) => g.bullets).find((b) => b.id === 'b_pwc_rfp');
+assert.equal(rfp.lead, 'Won new work');
+assert.equal(rfp.hasOverride, true);
+assert.equal(seeded.jobs[0].groups[2].bullets.find((b) => b.id === 'b_pwc_rfp').lead, 'Secured New Business of $5.8M');
+const hidden = renderResumeHtml(tailored, { droppedBulletIds: [] });
+assert.doesNotMatch(hidden, /Alaska Airlines/);
+assert.doesNotMatch(hidden, /Issued May 2024/);
+assert.match(hidden, /Won new work/);
+
+const sourceLead = seeded.jobs[0].groups[2].bullets.find((b) => b.id === 'b_pwc_rfp').lead;
+seeded = replacePostingResume(seeded, seedJobId, clearBulletOverride(postingById(seeded, seedJobId).resume, 'b_pwc_rfp'));
+const resetDoc = compileResumeDoc(postingById(seeded, seedJobId), seeded);
+const resetBullet = resetDoc.sections.experience.jobs[0].groups.flatMap((g) => g.bullets).find((b) => b.id === 'b_pwc_rfp');
+assert.equal(resetBullet.lead, sourceLead);
+assert.equal(resetBullet.hasOverride, false);
+
+seeded = updatePostingResume(seeded, seedJobId, { overrides: { b_pwc_rfp: { lead: 'Saved back', body: 'Wrote it down.' } } }, clock);
+const live = compileResumeDoc(postingById(seeded, seedJobId), seeded).sections.experience.jobs[0].groups
+  .flatMap((g) => g.bullets).find((b) => b.id === 'b_pwc_rfp');
+seeded = writeBulletBackToSource(seeded, seedJobId, live);
+assert.equal(seeded.jobs[0].groups[2].bullets.find((b) => b.id === 'b_pwc_rfp').lead, 'Saved back');
+
+assert.deepEqual(parseBulletText('Led 11-person team: Built **100+ controls**'), {
+  lead: 'Led 11-person team',
+  body: 'Built **100+ controls**',
+});
+assert.match(parseBulletText('Saved 140+ engineering hours last year').body, /\*\*140\+ engineering hours/);
+
+const overflowDoc = compileResumeDoc(postingById(seeded, seedJobId), applyImportedResume(emptyStore(), sampleResume, clock));
+overflowDoc.sections.experience.jobs[0].groups[0].bullets.forEach((b, i) => { b.priority = i === 0 ? 1 : 2; b.pinned = false; });
+const drops = dropOrderFromDoc(overflowDoc);
+assert.ok(drops.includes('b_pwc_risk') || drops.length >= 1);
+assert.equal(FIT_STEPS.at(-1)['--fs'], '9.5pt');
+assert.equal(FONT_FLOOR_PT, 9.5);
+const lastAlaska = overflowDoc.sections.experience.jobs.find((j) => j.id === 'job_alaska')
+  .groups.flatMap((g) => g.bullets);
+assert.equal(lastAlaska.length, 1);
+assert.ok(!drops.includes(lastAlaska[0].id));
+
+const bytes = resumeDocxBytes(resumeDoc);
+assert.equal(bytes[0], 0x50);
+assert.equal(bytes[1], 0x4b);
+const docxText = new TextDecoder().decode(bytes);
+assert.match(docxText, /Inaayat Gill/);
+assert.match(docxText, /1F497D/);
+
+assert.deepEqual(toggleId(['a'], 'b'), ['a', 'b']);
+assert.deepEqual(toggleId(['a', 'b'], 'a'), ['b']);
+
+const packedSeed = serializeBook(seeded);
+assert.equal(packedSeed.book.jobs[0].company, 'PricewaterhouseCoopers LLC');
+assert.ok(packedSeed.book.postings[0].resume.excludedJobIds.includes('job_alaska'));
 
 console.log('ok');
