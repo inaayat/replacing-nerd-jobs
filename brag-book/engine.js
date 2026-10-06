@@ -1746,6 +1746,63 @@ export function serializeBook(raw, { maxChars = BOOK_MAX_CHARS } = {}) {
   return { book, json };
 }
 
+export const STALE_BOOK_MESSAGE = 'This book was saved somewhere else. Reload to keep the latest copy.';
+
+export function normalizeBookRevision(value) {
+  if (value == null || value === '') return null;
+  if (value instanceof Date) {
+    const t = value.getTime();
+    return Number.isFinite(t) ? value.toISOString() : null;
+  }
+  const text = String(value).trim();
+  if (!text) return null;
+  const t = Date.parse(text);
+  return Number.isFinite(t) ? new Date(t).toISOString() : null;
+}
+
+export function bookSaveGuard(serverUpdatedAt, expectedUpdatedAt) {
+  const server = normalizeBookRevision(serverUpdatedAt);
+  const expected = normalizeBookRevision(expectedUpdatedAt);
+  if (!server) return { ok: true, reason: 'create' };
+  if (expectedUpdatedAt === undefined) return { ok: true, reason: 'legacy' };
+  if (!expected || server !== expected) return { ok: false, status: 409, reason: 'stale' };
+  return { ok: true, reason: 'match' };
+}
+
+export function shouldPullRemoteBook({
+  dirty = false,
+  persistPending = false,
+  pushing = false,
+  visible = true,
+} = {}) {
+  return visible !== false && !dirty && !persistPending && !pushing;
+}
+
+export function applyBookWrite(record, expectedUpdatedAt, nextBook, clock = Date.now) {
+  const serverAt = record?.updatedAt ?? null;
+  const guard = bookSaveGuard(serverAt, expectedUpdatedAt);
+  if (!guard.ok) {
+    return { ok: false, status: 409, record, reason: guard.reason };
+  }
+  const ms = typeof clock === 'function' ? clock() : clock;
+  return {
+    ok: true,
+    status: 200,
+    reason: guard.reason,
+    record: { book: nextBook, updatedAt: new Date(ms).toISOString() },
+  };
+}
+
+export function bookConflictError(latest) {
+  const err = new Error(STALE_BOOK_MESSAGE);
+  err.status = 409;
+  err.conflict = true;
+  err.updatedAt = normalizeBookRevision(latest?.updatedAt) || null;
+  err.revision = latest?.revision ?? null;
+  err.book = latest?.book ?? null;
+  return err;
+}
+
 export function bookIsEmpty(store) {
   const book = store || emptyStore();
   return !book.entries?.length

@@ -88,6 +88,12 @@ import {
   postingById,
   serializeBook,
   bookIsEmpty,
+  normalizeBookRevision,
+  bookSaveGuard,
+  applyBookWrite,
+  shouldPullRemoteBook,
+  bookConflictError,
+  STALE_BOOK_MESSAGE,
   asUrl,
   titleFromJobUrl,
   hostFromJobUrl,
@@ -757,5 +763,67 @@ const packedLocal = serializeBook(overlay);
 const reloadedLocal = normalizeStore(JSON.parse(packedLocal.json), clock);
 assert.ok(reloadedLocal.postings[0].resume.localJobs.length >= 0);
 assert.equal(reloadedLocal.postings[0].resume.mode, 'basics');
+
+const loadedAt = '2026-01-01T00:00:00.000Z';
+assert.equal(normalizeBookRevision(new Date(loadedAt)), loadedAt);
+assert.equal(normalizeBookRevision(loadedAt), loadedAt);
+assert.equal(normalizeBookRevision('2026-01-01T00:00:00+00:00'), loadedAt);
+assert.equal(normalizeBookRevision(null), null);
+assert.equal(normalizeBookRevision(''), null);
+assert.deepEqual(bookSaveGuard(new Date(loadedAt), loadedAt), { ok: true, reason: 'match' });
+assert.deepEqual(bookSaveGuard(null, null), { ok: true, reason: 'create' });
+assert.deepEqual(bookSaveGuard(loadedAt, undefined), { ok: true, reason: 'legacy' });
+assert.deepEqual(bookSaveGuard(loadedAt, null), { ok: false, status: 409, reason: 'stale' });
+assert.deepEqual(bookSaveGuard(loadedAt, '2026-01-02T00:00:00.000Z'), { ok: false, status: 409, reason: 'stale' });
+assert.deepEqual(bookSaveGuard(loadedAt, 'not-a-date'), { ok: false, status: 409, reason: 'stale' });
+
+const created = applyBookWrite(null, null, { profile: { name: 'New' } }, Date.parse(loadedAt));
+assert.equal(created.ok, true);
+assert.equal(created.reason, 'create');
+assert.equal(created.record.updatedAt, loadedAt);
+
+const legacyRow = { book: emptyStore(), updatedAt: loadedAt };
+const legacySave = applyBookWrite(legacyRow, undefined, applyImportedResume(emptyStore(), sampleResume, clock), Date.parse('2026-01-01T01:00:00.000Z'));
+assert.equal(legacySave.ok, true);
+assert.equal(legacySave.reason, 'legacy');
+assert.ok(legacySave.record.book.jobs.length > 0);
+assert.ok(legacySave.record.book.education.length > 0);
+assert.ok(legacySave.record.book.credentials.length > 0);
+
+let server = { book: emptyStore(), updatedAt: loadedAt };
+const tabB = applyBookWrite(
+  server,
+  loadedAt,
+  applyImportedResume(emptyStore(), sampleResume, clock),
+  Date.parse('2026-01-01T01:00:00.000Z'),
+);
+assert.equal(tabB.ok, true);
+assert.equal(tabB.reason, 'match');
+assert.ok(tabB.record.book.jobs.length > 0);
+server = tabB.record;
+
+const staleTab = emptyStore();
+staleTab.profile = { ...staleTab.profile, name: 'Stale header' };
+const tabA = applyBookWrite(server, loadedAt, staleTab, Date.parse('2026-01-01T02:00:00.000Z'));
+assert.equal(tabA.ok, false);
+assert.equal(tabA.status, 409);
+assert.equal(tabA.reason, 'stale');
+assert.ok(tabA.record.book.jobs.length > 0);
+assert.ok(tabA.record.book.education.length > 0);
+assert.ok(tabA.record.book.credentials.length > 0);
+assert.notEqual(tabA.record.book.profile.name, 'Stale header');
+const conflict = bookConflictError(tabA.record);
+assert.equal(conflict.status, 409);
+assert.equal(conflict.conflict, true);
+assert.match(conflict.message, /somewhere else/);
+assert.equal(conflict.message, STALE_BOOK_MESSAGE);
+assert.equal(conflict.updatedAt, server.updatedAt);
+assert.ok(conflict.book.jobs.length > 0);
+
+assert.equal(shouldPullRemoteBook({ dirty: false, visible: true }), true);
+assert.equal(shouldPullRemoteBook({ dirty: true, visible: true }), false);
+assert.equal(shouldPullRemoteBook({ persistPending: true }), false);
+assert.equal(shouldPullRemoteBook({ pushing: true }), false);
+assert.equal(shouldPullRemoteBook({ visible: false }), false);
 
 console.log('ok');

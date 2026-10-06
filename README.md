@@ -209,6 +209,10 @@ next/prev. **Experiences** (`#log`) is a list-first catalog; **+ Add experiences
 
 Signing in is required — the signed-out view is a centered log-in gate. One
 JSONB row per user (`brag_books`) via `api/brag-book.js` (`/api/bb-book`).
+Saves send the `updatedAt` loaded with the book; a stale tab gets 409 and
+reloads the newer server copy instead of overwriting it. Rows that predate
+`rev` still load, and clients that omit `updatedAt` can still save. Focus /
+visibility refetch when there are no unsaved local edits.
 `brag-book/engine.js` is the document model (browser + `lib/brag-book.js`);
 keep it dependency-free ESM and out of `/lib/`. Resume render/fit/docx live in
 `resume-template.js`, `resume-fit.js`, and `resume-docx.js`. Static-server UI
@@ -538,7 +542,7 @@ Current roster (12/12):
 | `api/table-manners.js` | **Table Manners** (`/api/tm-sheet`): signed-in one-sheet JSONB load/save. |
 | `api/sticky-notes.js` | **Sticky Notes router** (`/api/sn-*`): board state, the op queue, legend renames, link unfurl. |
 | `api/wedding.js` | **Wedding router** (`/api/wd-board`, `/api/wd-unfurl`): signed-in board JSONB plus link unfurl. |
-| `api/brag-book.js` | **Brag Book** (`/api/bb-book`): signed-in win log + job postings, one JSONB row on `brag_books`. |
+| `api/brag-book.js` | **Brag Book** (`/api/bb-book`): signed-in win log + job postings, one JSONB row on `brag_books` with `updatedAt`/`rev` stale-write 409. |
 
 ### Environment variables
 
@@ -689,7 +693,7 @@ only runs the code that talks to it). Accessed from serverless functions via
 | `sn_ink` | Sticky Notes | Text written on the board itself; no status, deleted by a wipe |
 | `sn_legend` | Sticky Notes | Per-user colour/icon labels plus named custom image tags |
 | `sn_wiki` | Sticky Notes | One page per collection (`doc` JSONB); cascade-deleted with the collection |
-| `brag_books` | Brag Book | One JSONB book per user (wins + job postings); deleted with the account |
+| `brag_books` | Brag Book | One JSONB book per user (wins + job postings) plus `updated_at`/`rev`; deleted with the account |
 
 Neon Auth also keeps its own auth tables in the same Neon project (managed by
 Neon Auth, not by `ensureSchema()`).

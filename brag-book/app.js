@@ -103,6 +103,8 @@ import {
   titleFromJobUrl,
   hostFromJobUrl,
   updateProfile,
+  normalizeBookRevision,
+  shouldPullRemoteBook,
 } from './engine.js';
 import { renderResumeHtml, resumeDocument } from './resume-template.js';
 import { fitOnePage, dropOrderFromDoc, applyDroppedIds, PAGE_HEIGHT_PX } from './resume-fit.js';
@@ -128,6 +130,9 @@ let store = emptyStore();
 let auth = null;
 let unlocked = false;
 let persistTimer = null;
+let bookRevision = null;
+let bookDirty = false;
+let bookPushing = false;
 let query = '';
 let kindFilter = 'all';
 let statusNote = '';
@@ -149,8 +154,14 @@ function cacheStore() {
   localStorage.setItem(STORE_KEY, JSON.stringify(store));
 }
 
+function rememberServerBook(data) {
+  bookRevision = normalizeBookRevision(data?.updatedAt);
+  bookDirty = false;
+}
+
 function saveStore() {
   cacheStore();
+  bookDirty = true;
   if (localMode || !auth?.token) return;
   if (persistTimer) clearTimeout(persistTimer);
   persistTimer = setTimeout(() => {
@@ -159,13 +170,75 @@ function saveStore() {
   }, 500);
 }
 
+async function adoptServerBook(data, note) {
+  if (persistTimer) {
+    clearTimeout(persistTimer);
+    persistTimer = null;
+  }
+  store = normalizeStore(data.book);
+  rememberServerBook(data);
+  cacheStore();
+  render();
+  if (note) setNote(note);
+}
+
 async function pushStore({ keepalive = false } = {}) {
   if (localMode || !auth?.token) return;
+  bookPushing = true;
   try {
-    await saveBook(auth.token, store, { keepalive });
+    const data = await saveBook(auth.token, store, { keepalive, updatedAt: bookRevision });
+    rememberServerBook(data);
     setNote('Saved to your account.');
   } catch (err) {
+    if (err.status === 409) {
+      try {
+        const latest = await loadBook(auth.token);
+        await adoptServerBook(
+          latest,
+          'This book was saved in another tab or browser. Reloaded the latest copy — the edit from this tab was not saved.'
+        );
+      } catch {
+        if (err.book) {
+          await adoptServerBook(
+            { book: err.book, updatedAt: err.updatedAt },
+            'This book was saved in another tab or browser. Reloaded the latest copy — the edit from this tab was not saved.'
+          );
+        } else {
+          setNote(err.message || 'Could not save to your account.');
+        }
+      }
+      return;
+    }
     setNote(err.message || 'Could not save to your account.');
+  } finally {
+    bookPushing = false;
+  }
+}
+
+async function pullBookIfClean() {
+  if (localMode || !auth?.token || !unlocked) return;
+  const visible = !document.visibilityState || document.visibilityState === 'visible';
+  if (!shouldPullRemoteBook({
+    dirty: bookDirty,
+    persistPending: persistTimer != null,
+    pushing: bookPushing,
+    visible,
+  })) return;
+  try {
+    const data = await loadBook(auth.token);
+    if (!shouldPullRemoteBook({
+      dirty: bookDirty,
+      persistPending: persistTimer != null,
+      pushing: bookPushing,
+      visible: !document.visibilityState || document.visibilityState === 'visible',
+    })) return;
+    if (data.created) return;
+    const remoteRev = normalizeBookRevision(data.updatedAt);
+    if (remoteRev && remoteRev === bookRevision) return;
+    if (!remoteRev && bookRevision == null) return;
+    await adoptServerBook(data, 'Loaded a newer copy saved elsewhere.');
+  } catch {
+    /* keep the local copy if the cloud is unavailable */
   }
 }
 
@@ -3020,11 +3093,13 @@ async function boot() {
     const remote = normalizeStore(data.book);
     if (data.created && bookIsEmpty(remote) && !bookIsEmpty(cached)) {
       store = cached;
+      rememberServerBook(data);
       showBook('Moved this browser’s book onto your account.');
       await pushStore();
       return;
     }
     store = remote;
+    rememberServerBook(data);
     cacheStore();
     showBook(data.created ? 'New book' : 'Saved to your account.');
   } catch (err) {
@@ -3088,7 +3163,15 @@ window.addEventListener('pagehide', () => {
   if (!persistTimer) return;
   clearTimeout(persistTimer);
   persistTimer = null;
-  if (auth?.token) saveBook(auth.token, store, { keepalive: true });
+  if (auth?.token) saveBook(auth.token, store, { keepalive: true, updatedAt: bookRevision });
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') pullBookIfClean();
+});
+
+window.addEventListener('focus', () => {
+  pullBookIfClean();
 });
 
 boot();
