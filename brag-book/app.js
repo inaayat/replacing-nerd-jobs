@@ -171,6 +171,96 @@ function displayExperienceLine(text) {
   return String(text || '').replace(/^\s*[-*•–—●▪‣∙]\s+/, '').trim() || String(text || '').trim();
 }
 
+function fillRich(node, rich, plain) {
+  node.replaceChildren();
+  const spans = rich?.length ? rich : [{ text: plain || '', bold: false }];
+  for (const span of spans) {
+    const parts = String(span.text || '').split('\n');
+    parts.forEach((part, index) => {
+      if (part) {
+        const text = document.createTextNode(part);
+        if (span.bold) {
+          const strong = document.createElement('strong');
+          strong.append(text);
+          node.append(strong);
+        } else node.append(text);
+      }
+      if (index < parts.length - 1) node.append(document.createElement('br'));
+    });
+  }
+  node.dataset.empty = node.textContent.trim() ? 'false' : 'true';
+}
+
+function readRich(node) {
+  const spans = [];
+  const push = (text, bold) => {
+    if (!text) return;
+    const last = spans[spans.length - 1];
+    if (last && last.bold === bold) last.text += text;
+    else spans.push({ text, bold });
+  };
+  const walk = (parent, bold) => {
+    for (const child of parent.childNodes) {
+      if (child.nodeType === 3) {
+        push(child.nodeValue.replace(/\u00a0/g, ' ').replace(/\r\n/g, '\n'), bold);
+      } else if (child.nodeType === 1) {
+        const tag = child.tagName;
+        const weight = child.style?.fontWeight;
+        const nextBold = bold || tag === 'B' || tag === 'STRONG' || weight === 'bold' || Number(weight) >= 600;
+        if (tag === 'BR') push('\n', bold);
+        else {
+          if ((tag === 'DIV' || tag === 'P') && spans.length && !spans[spans.length - 1].text.endsWith('\n')) push('\n', false);
+          walk(child, nextBold);
+        }
+      }
+    }
+  };
+  walk(node, false);
+  return spans;
+}
+
+function trimEditableTail(node) {
+  const sel = document.getSelection();
+  const caretInside = (el) => sel && node.contains(sel.anchorNode) && (el === sel.anchorNode || el.contains(sel.anchorNode));
+  let child = node.lastChild;
+  while (child) {
+    const prev = child.previousSibling;
+    const tag = child.nodeType === 1 ? child.tagName : '';
+    const emptyBlock = tag === 'BR' || ((tag === 'DIV' || tag === 'P') && !child.textContent.replace(/\u00a0/g, '').trim());
+    if (!emptyBlock || caretInside(child)) break;
+    child.remove();
+    child = prev;
+  }
+}
+
+function bindRichKeys(node, { onChange, onSubmit } = {}) {
+  const changed = () => {
+    trimEditableTail(node);
+    node.dataset.empty = node.textContent.trim() ? 'false' : 'true';
+    onChange?.(readRich(node));
+  };
+  node.addEventListener('keydown', (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'b') {
+      event.preventDefault();
+      document.execCommand('bold');
+      changed();
+      return;
+    }
+    if (onSubmit && event.key === 'Enter' && !event.shiftKey && !event.metaKey && !event.ctrlKey) {
+      event.preventDefault();
+      onSubmit(readRich(node));
+    }
+  });
+  node.addEventListener('input', changed);
+}
+
+function richLine(attrs, { text, rich, onChange, onSubmit } = {}) {
+  const node = el('div', { contenteditable: 'true', role: 'textbox', 'aria-multiline': 'true', ...attrs });
+  fillRich(node, rich, text);
+  bindRichKeys(node, { onChange, onSubmit });
+  return node;
+}
+
 function setNote(text) {
   statusNote = text;
   const node = document.getElementById('status-note');
@@ -557,7 +647,7 @@ function entryForm(entry) {
       entry ? el('span', { class: `tag kind-${entry.kind}` }, kindLabel(entry.kind)) : null,
     ]),
     el('div', { class: 'panel-body' }, [
-      field('Title', el('input', { name: 'title', required: true, maxlength: '160', value: draft.title, placeholder: 'Shipped the suitcase sync' })),
+      field('Experience', el('input', { name: 'title', required: true, maxlength: '4000', value: draft.title, placeholder: 'Shipped the suitcase sync' })),
       el('div', { class: 'grid-2' }, [
         field('Kind', el('select', { name: 'kind' }, ENTRY_KINDS.map((kind) =>
           el('option', { value: kind, selected: draft.kind === kind || undefined }, kindLabel(kind))
@@ -889,22 +979,11 @@ function requirementQuestions(job, req) {
 function experienceEditor(job, req, bullet) {
   const entry = bulletEntry(store, bullet);
   const detail = entry || bullet;
-  const title = entry ? el('input', {
-    value: entry.title,
-    placeholder: 'Experience title',
-    'aria-label': 'Experience name',
-  }) : null;
   const role = entry ? el('input', {
     value: entry.role || '',
     placeholder: 'Product engineer, Beep boop',
     'aria-label': 'Role',
   }) : null;
-  const resumeLine = el('textarea', {
-    rows: '2',
-    placeholder: 'The line that should appear on the resume.',
-    'aria-label': 'Resume bullet',
-  }, bullet.text);
-  resumeLine.value = bullet.text;
   const notes = el('textarea', {
     rows: '3',
     placeholder: 'Context, scope, metrics, links, or a longer description.',
@@ -918,9 +997,6 @@ function experienceEditor(job, req, bullet) {
     result: el('textarea', { rows: '2', placeholder: 'What changed? Add numbers when you can.', 'aria-label': 'Result' }, detail.result),
   };
   const save = () => {
-    if (resumeLine.value.trim()) {
-      store = updateBullet(store, job.id, req.id, bullet.id, { text: resumeLine.value });
-    }
     const patch = {
       notes: notes.value,
       situation: fields.situation.value,
@@ -928,11 +1004,11 @@ function experienceEditor(job, req, bullet) {
       action: fields.action.value,
       result: fields.result.value,
     };
-    if (entry && title.value.trim()) store = updateEntry(store, entry.id, { ...patch, title: title.value, role: role.value });
+    if (entry) store = updateEntry(store, entry.id, { ...patch, role: role.value });
     else if (!entry) store = updateBullet(store, job.id, req.id, bullet.id, patch);
     saveStore();
   };
-  [resumeLine, notes, ...Object.values(fields), title, role].filter(Boolean).forEach((node) => {
+  [notes, ...Object.values(fields), role].filter(Boolean).forEach((node) => {
     node.addEventListener('input', save);
   });
   return el('div', { class: 'experience-editor' }, [
@@ -948,9 +1024,7 @@ function experienceEditor(job, req, bullet) {
         onClick: () => { expandedBulletKey = ''; render(); },
       }),
     ]),
-    entry ? field('Experience name', title) : null,
     entry ? field('Role', role) : null,
-    field('Resume bullet', resumeLine),
     field('Description', notes),
     el('div', { class: 'experience-star' }, [
       ['situation', 'Situation'],
@@ -996,12 +1070,20 @@ function experienceEditor(job, req, bullet) {
 
 function experienceAdder(job, req) {
   const wrap = el('div', { class: 'experience-add' });
-  const fresh = el('input', {
-    class: 'table-add-input',
-    placeholder: 'Search experiences, or type a new one',
-    autocomplete: 'off',
+  const fresh = richLine({
+    class: 'experience-compose',
+    'data-placeholder': 'Search experiences, or type a new one',
     'aria-label': 'Add an experience',
     'data-focus-key': `add-exp-${req.id}`,
+  }, {
+    onChange: () => {
+      activeIndex = -1;
+      showMatches();
+    },
+    onSubmit: (spans) => {
+      if (activeIndex >= 0 && choices[activeIndex]) addExisting(choices[activeIndex]);
+      else addNew(spans);
+    },
   });
   const matches = el('div', { class: 'experience-matches', hidden: true, role: 'listbox' });
   const linked = new Set(req.bullets.map((bullet) => bullet.entryId).filter(Boolean));
@@ -1014,8 +1096,9 @@ function experienceAdder(job, req) {
     render({ focusKey: `add-exp-${req.id}` });
     setNote('Linked the existing experience.');
   };
-  const addNew = () => {
-    const text = fresh.value.trim();
+  const plain = () => fresh.textContent.replace(/\u00a0/g, ' ').trim();
+  const addNew = (spans = readRich(fresh)) => {
+    const text = spans.map((span) => span.text).join('').trim();
     if (!text) return;
     const exact = store.entries.find((entry) =>
       entry.kind === 'experience'
@@ -1026,7 +1109,7 @@ function experienceAdder(job, req) {
       addExisting(exact);
       return;
     }
-    store = createEntryBullet(store, job.id, req.id, text);
+    store = createEntryBullet(store, job.id, req.id, text, undefined, spans);
     saveStore();
     render({ focusKey: `add-exp-${req.id}` });
     setNote('Added the experience here and to the Brag Book.');
@@ -1047,7 +1130,7 @@ function experienceAdder(job, req) {
     matches.hidden = !choices.length;
   };
   const showMatches = () => {
-    const value = fresh.value.trim();
+    const value = plain();
     const pool = value
       ? searchEntries(store, value)
       : (suggestEntries(store, req).length
@@ -1059,13 +1142,19 @@ function experienceAdder(job, req) {
     if (activeIndex >= choices.length) activeIndex = choices.length - 1;
     paintMatches();
   };
-  fresh.addEventListener('input', () => {
+  const hideMatches = () => {
+    matches.hidden = true;
     activeIndex = -1;
-    showMatches();
-  });
+  };
   fresh.addEventListener('focus', () => {
     activeIndex = -1;
     showMatches();
+  });
+  wrap.addEventListener('focusout', () => {
+    window.setTimeout(() => {
+      if (wrap.contains(document.activeElement)) return;
+      hideMatches();
+    }, 0);
   });
   fresh.addEventListener('keydown', (event) => {
     if (event.key === 'ArrowDown' && choices.length) {
@@ -1080,15 +1169,7 @@ function experienceAdder(job, req) {
       paintMatches();
       return;
     }
-    if (event.key === 'Escape') {
-      matches.hidden = true;
-      activeIndex = -1;
-      return;
-    }
-    if (event.key !== 'Enter') return;
-    event.preventDefault();
-    if (activeIndex >= 0 && choices[activeIndex]) addExisting(choices[activeIndex]);
-    else addNew();
+    if (event.key === 'Escape') hideMatches();
   });
   wrap.append(
     el('div', { class: 'table-add' }, [
@@ -1118,25 +1199,33 @@ function requirementTableRow(job, req) {
   const composerKey = `${job.id}:${req.id}`;
   const bullets = el('div', { class: 'table-bullets' });
   for (const bullet of req.bullets) {
-    const entry = bulletEntry(store, bullet);
-    const answered = req.questions.filter((question) => question.answer || starFill(question).filled).length;
     const bulletKey = `${job.id}:${req.id}:${bullet.id}`;
     const isOpen = expandedBulletKey === bulletKey;
-    bullets.append(el('button', {
-      type: 'button',
-      class: `bullet-link${isOpen ? ' is-open' : ''}`,
-      'aria-expanded': String(isOpen),
-      onClick: () => {
-        expandedBulletKey = isOpen ? '' : bulletKey;
-        render();
+    const shown = displayExperienceLine(bullet.text);
+    const line = richLine({
+      class: 'bullet-copy is-marked',
+      'aria-label': 'Experience',
+    }, {
+      text: shown,
+      rich: shown === String(bullet.text || '').trim() ? bullet.rich : null,
+      onChange: (spans) => {
+        const text = spans.map((span) => span.text).join('');
+        if (!text.trim()) return;
+        store = updateBullet(store, job.id, req.id, bullet.id, { text, rich: spans });
+        saveStore();
       },
-    }, [
-      el('span', { class: 'bullet-copy is-marked' }, displayExperienceLine(bullet.text)),
-      el('span', { class: 'bullet-meta' }, [
-        el('span', {}, entry ? `Brag Book · ${starFill(entry).filled}/4 STAR` : `${starFill(bullet).filled}/4 STAR`),
-        el('span', {}, req.questions.length ? `${answered}/${req.questions.length} questions answered` : 'no questions yet'),
-      ]),
-      el('span', { class: 'bullet-open' }, isOpen ? 'Close ↑' : 'Details ↓'),
+    });
+    bullets.append(el('div', { class: `bullet-link${isOpen ? ' is-open' : ''}` }, [
+      el('span', { class: 'bullet-mark', 'aria-hidden': 'true' }, '•'),
+      line,
+      btn(isOpen ? 'Close ↑' : 'Details ↓', {
+        class: 'bullet-open',
+        'aria-expanded': String(isOpen),
+        onClick: () => {
+          expandedBulletKey = isOpen ? '' : bulletKey;
+          render();
+        },
+      }),
     ]));
     if (isOpen) bullets.append(experienceEditor(job, req, bullet));
   }
@@ -2020,10 +2109,12 @@ function emptyDetail(kind) {
 
 function captureFocus() {
   const active = document.activeElement;
-  if (!(active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement)) return null;
-  const key = active.dataset.focusKey;
-  if (!key) return null;
-  return { key, start: active.selectionStart, end: active.selectionEnd };
+  if (!active?.dataset?.focusKey) return null;
+  if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) {
+    return { key: active.dataset.focusKey, start: active.selectionStart, end: active.selectionEnd };
+  }
+  if (active.isContentEditable) return { key: active.dataset.focusKey, editable: true };
+  return null;
 }
 
 function restoreFocus(captured, focusKey) {

@@ -223,6 +223,50 @@ function normalizeLines(value, clock) {
   return out;
 }
 
+function normalizeRichSpans(value, fallback) {
+  const spans = [];
+  const push = (text, bold) => {
+    if (!text) return;
+    const last = spans[spans.length - 1];
+    if (last && last.bold === Boolean(bold)) last.text += text;
+    else spans.push({ text, bold: Boolean(bold) });
+  };
+  if (Array.isArray(value)) {
+    for (const span of value) {
+      if (!span || typeof span !== 'object') continue;
+      let text = String(span.text ?? '').replace(/\u00a0/g, ' ').replace(/\r\n/g, '\n');
+      if (text.length > TEXT_MAX) text = text.slice(0, TEXT_MAX);
+      push(text, span.bold);
+    }
+  }
+  while (spans.length) {
+    const last = spans[spans.length - 1];
+    const trimmed = last.text.replace(/\n+$/, '');
+    if (trimmed === last.text) break;
+    if (!trimmed) spans.pop();
+    else {
+      last.text = trimmed;
+      break;
+    }
+  }
+  const joined = spans.map((span) => span.text).join('');
+  if (joined.trim()) {
+    if (joined.length <= TEXT_MAX) return { text: joined, rich: spans };
+    let left = TEXT_MAX;
+    const capped = [];
+    for (const span of spans) {
+      if (left <= 0) break;
+      const text = span.text.length > left ? span.text.slice(0, left) : span.text;
+      left -= text.length;
+      if (text) capped.push({ text, bold: span.bold });
+    }
+    return { text: capped.map((span) => span.text).join(''), rich: capped };
+  }
+  const text = asString(fallback, TEXT_MAX);
+  if (!text) return null;
+  return { text, rich: [{ text, bold: false }] };
+}
+
 export function normalizeBullet(raw, clock = Date.now) {
   if (typeof raw === 'string') {
     const text = asString(raw, TEXT_MAX);
@@ -230,6 +274,7 @@ export function normalizeBullet(raw, clock = Date.now) {
     return {
       id: newId('ln', clock),
       text,
+      rich: [{ text, bold: false }],
       notes: '',
       situation: '',
       task: '',
@@ -239,11 +284,12 @@ export function normalizeBullet(raw, clock = Date.now) {
     };
   }
   if (!raw || typeof raw !== 'object') return null;
-  const text = asString(raw.text, TEXT_MAX);
-  if (!text) return null;
+  const formatted = normalizeRichSpans(raw.rich, raw.text);
+  if (!formatted) return null;
   return {
     id: asString(raw.id, 64) || newId('ln', clock),
-    text,
+    text: formatted.text,
+    rich: formatted.rich,
     notes: asString(raw.notes, TEXT_MAX),
     situation: asString(raw.situation, TEXT_MAX),
     task: asString(raw.task, TEXT_MAX),
@@ -268,7 +314,8 @@ function normalizeBullets(value, clock) {
 
 export function normalizeEntry(raw, clock = Date.now) {
   if (!raw || typeof raw !== 'object') return null;
-  const title = asString(raw.title, TITLE_MAX);
+  // The title is the resume line, so it can be as long as a bullet.
+  const title = asString(raw.title, TEXT_MAX);
   if (!title) return null;
   const createdAt = asString(raw.createdAt, 40) || nowIso(clock);
   return {
@@ -406,7 +453,86 @@ export function normalizeStore(raw, clock = Date.now) {
   store.credentials = normalizeCredentials(raw.credentials, clock);
   store.additional = normalizeAdditional(raw.additional, clock);
   store.resumeSettings = normalizeResumeSettings(raw.resumeSettings);
-  return store;
+  return alignExperienceLines(store, clock);
+}
+
+function firstBulletForEntry(store, entryId) {
+  if (!entryId) return null;
+  for (const job of store?.postings || []) {
+    for (const req of job.requirements || []) {
+      const bullet = (req.bullets || []).find((line) => line.entryId === entryId);
+      if (bullet) return bullet;
+    }
+  }
+  return null;
+}
+
+function replaceEntry(store, id, patch, clock) {
+  const current = entryById(store, id);
+  if (!current) return store;
+  const next = normalizeEntry({ ...current, ...patch, id: current.id, createdAt: current.createdAt }, clock);
+  if (!next) return store;
+  return { ...store, entries: replaceById(store.entries, id, touched(next, clock)) };
+}
+
+function sameRich(a, b) {
+  const left = Array.isArray(a) ? a : [];
+  const right = Array.isArray(b) ? b : [];
+  if (left.length !== right.length) return false;
+  return left.every((span, index) => span.text === right[index].text && Boolean(span.bold) === Boolean(right[index].bold));
+}
+
+// One experience has one line. That line is the entry title and every resume bullet that points at it.
+function experienceLineMatches(store, entryId, formatted) {
+  const entry = entryById(store, entryId);
+  if (!entry || entry.title !== formatted.text) return false;
+  for (const job of store.postings || []) {
+    for (const req of job.requirements || []) {
+      for (const line of req.bullets || []) {
+        if (line.entryId === entryId && (line.text !== formatted.text || !sameRich(line.rich, formatted.rich))) return false;
+      }
+    }
+  }
+  return true;
+}
+
+function applyExperienceLine(store, entryId, text, rich, clock) {
+  const formatted = normalizeRichSpans(rich, text);
+  if (!entryId || !formatted) return store;
+  if (experienceLineMatches(store, entryId, formatted)) return store;
+  let next = replaceEntry(store, entryId, { title: formatted.text }, clock);
+  next = {
+    ...next,
+    postings: (next.postings || []).map((job) => ({
+      ...job,
+      requirements: job.requirements.map((req) => {
+        let changed = false;
+        const bullets = req.bullets.map((line) => {
+          if (line.entryId !== entryId) return line;
+          if (line.text === formatted.text && sameRich(line.rich, formatted.rich)) return line;
+          changed = true;
+          return normalizeBullet({ ...line, text: formatted.text, rich: formatted.rich, id: line.id }, clock) || line;
+        });
+        return changed ? withBullets(req, bullets) : req;
+      }),
+    })),
+  };
+  return next;
+}
+
+function alignExperienceLines(store, clock) {
+  let next = store;
+  const seen = new Set();
+  for (const job of store.postings || []) {
+    for (const req of job.requirements || []) {
+      for (const bullet of req.bullets || []) {
+        if (!bullet.entryId || seen.has(bullet.entryId)) continue;
+        seen.add(bullet.entryId);
+        next = applyExperienceLine(next, bullet.entryId, bullet.text, bullet.rich, clock);
+      }
+    }
+  }
+  return next;
 }
 
 function touched(record, clock) {
@@ -450,11 +576,13 @@ export function updateProfile(store, patch) {
 }
 
 export function updateEntry(store, id, patch, clock = Date.now) {
-  const current = entryById(store, id);
-  if (!current) return store;
-  const next = normalizeEntry({ ...current, ...patch, id: current.id, createdAt: current.createdAt }, clock);
-  if (!next) return store;
-  return { ...store, entries: replaceById(store.entries, id, touched(next, clock)) };
+  const next = replaceEntry(store, id, patch, clock);
+  if (!patch || !Object.prototype.hasOwnProperty.call(patch, 'title')) return next;
+  const entry = entryById(next, id);
+  if (!entry) return next;
+  const bullet = firstBulletForEntry(next, id);
+  const rich = bullet && bullet.text === entry.title ? bullet.rich : null;
+  return applyExperienceLine(next, id, entry.title, rich, clock);
 }
 
 export function deleteEntry(store, id) {
@@ -643,37 +771,47 @@ export function addBullet(store, postingId, requirementId, text, clock = Date.no
   );
 }
 
-export function addEntryBullet(store, postingId, requirementId, entryId, text = '', clock = Date.now) {
+export function addEntryBullet(store, postingId, requirementId, entryId, text = '', clock = Date.now, rich) {
   const entry = entryById(store, entryId);
   const job = postingById(store, postingId);
   const req = requirementById(job, requirementId);
   if (!entry || !req || req.bullets.some((bullet) => bullet.entryId === entryId)) return store;
+  const sibling = firstBulletForEntry(store, entryId);
   const line = normalizeBullet({
     id: newId('ln', clock),
     entryId,
-    text: asString(text, TEXT_MAX) || draftBulletFromEntry(entry) || entry.title,
+    text: sibling?.text || asString(text, TEXT_MAX) || entry.title,
+    rich: sibling ? sibling.rich : rich,
   }, clock);
   if (!line) return store;
-  return mapRequirement(
+  let next = mapRequirement(
     store,
     postingId,
     requirementId,
     (current) => withBullets(current, [...current.bullets, line]),
     clock
   );
+  if (!sibling && line.text !== entry.title) next = replaceEntry(next, entryId, { title: line.text }, clock);
+  return next;
 }
 
-export function createEntryBullet(store, postingId, requirementId, text, clock = Date.now) {
-  const title = asString(text, TITLE_MAX);
-  if (!title) return store;
+export function createEntryBullet(store, postingId, requirementId, text, clock = Date.now, rich) {
+  const formatted = normalizeRichSpans(rich, text);
+  const title = asString(formatted?.text || text, TEXT_MAX);
+  if (!title || !formatted) return store;
   const entryId = newId('en', clock);
   const next = addEntry(store, { id: entryId, title, kind: 'experience' }, clock);
-  return addEntryBullet(next, postingId, requirementId, entryId, text, clock);
+  return addEntryBullet(next, postingId, requirementId, entryId, formatted.text, clock, formatted.rich);
 }
 
 export function updateBullet(store, postingId, requirementId, bulletId, patch, clock = Date.now) {
-  const nextPatch = typeof patch === 'string' ? { text: patch } : (patch || {});
-  return mapRequirement(
+  const nextPatch = typeof patch === 'string' ? { text: patch } : { ...(patch || {}) };
+  // A plain-text edit replaces the line. Keeping the previous spans would
+  // ignore the new text, because those spans are the source of the line.
+  if (Object.prototype.hasOwnProperty.call(nextPatch, 'text') && !Object.prototype.hasOwnProperty.call(nextPatch, 'rich')) {
+    nextPatch.rich = null;
+  }
+  const next = mapRequirement(
     store,
     postingId,
     requirementId,
@@ -686,6 +824,10 @@ export function updateBullet(store, postingId, requirementId, bulletId, patch, c
     ),
     clock
   );
+  if (!Object.prototype.hasOwnProperty.call(nextPatch, 'text')) return next;
+  const bullet = requirementById(postingById(next, postingId), requirementId)?.bullets.find((line) => line.id === bulletId);
+  if (!bullet?.entryId) return next;
+  return applyExperienceLine(next, bullet.entryId, bullet.text, bullet.rich, clock);
 }
 
 export function deleteBullet(store, postingId, requirementId, bulletId, clock = Date.now) {

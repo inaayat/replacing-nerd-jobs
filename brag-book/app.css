@@ -621,7 +621,7 @@ a:focus-visible {
 .job-table-wrap {
   width: 100%;
   overflow-x: auto;
-  padding: 10px 12px 12px;
+  padding: 4px 8px 8px;
 }
 
 .job-table {
@@ -656,7 +656,7 @@ a:focus-visible {
 }
 
 .job-table tbody .job-table-row td {
-  padding: 8px 10px 10px;
+  padding: 4px 8px;
   border-bottom: 1px solid var(--line);
   background: #fff;
 }
@@ -696,7 +696,7 @@ a:focus-visible {
 .icon-quiet:hover { background: rgba(12, 11, 9, 0.06); color: var(--ink); }
 .icon-quiet.is-danger:hover { color: var(--red); background: rgba(179, 64, 31, 0.08); }
 
-.bullets-stack { display: grid; gap: 6px; }
+.bullets-stack { display: grid; gap: 4px; }
 .table-req-text,
 .detail-bullet-text,
 .section-box textarea,
@@ -751,20 +751,19 @@ a:focus-visible {
 .row-text-action:hover { color: var(--gold); }
 .row-text-action.is-danger:hover { color: var(--red); }
 
-.table-bullets { display: grid; gap: 6px; }
+.table-bullets { display: grid; gap: 4px; }
 
 .bullet-link {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 3px 10px;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
   width: 100%;
-  padding: 8px 10px;
+  padding: 2px 8px;
   text-align: left;
   color: var(--ink);
   border: 1px solid var(--line-strong);
   border-radius: 7px;
   background: #fff;
-  cursor: pointer;
 }
 
 .bullet-link:hover,
@@ -778,50 +777,76 @@ a:focus-visible {
   background: rgba(232, 196, 122, 0.08);
 }
 
-.bullet-copy { grid-column: 1; }
-.bullet-copy {
-  font-family: var(--content-font);
-  font-size: 14px;
-  line-height: 1.55;
-}
-.bullet-copy.is-marked {
-  display: block;
-  padding-left: 1.05em;
-  text-indent: -1.05em;
-}
-.bullet-copy.is-marked::before {
-  content: "•";
+.bullet-mark {
+  flex: none;
   color: var(--gold);
   font-weight: 700;
-  padding-right: 0.4em;
+  line-height: 1.45;
+  padding-top: 1px;
 }
-.bullet-meta {
-  grid-column: 1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 10px;
-  color: var(--muted);
-  font-size: 0.66rem;
-  line-height: 1.35;
+.bullet-copy,
+.experience-compose {
+  flex: 1;
+  min-width: 0;
+  align-self: flex-start;
+  height: auto;
+  margin: 0;
+  font-family: var(--content-font);
+  font-size: 14px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  outline: none;
 }
-.bullet-meta > span {
+.bullet-copy {
+  min-height: 0;
   padding: 1px 0;
-  border-bottom: 1px dotted transparent;
+}
+.bullet-copy div,
+.bullet-copy p,
+.experience-compose div,
+.experience-compose p {
+  margin: 0;
+  min-height: 0;
+}
+.bullet-copy strong,
+.experience-compose strong { font-weight: 700; }
+.experience-compose {
+  position: relative;
+  min-height: 28px;
+  padding: 4px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: #fff;
+}
+.experience-compose[data-empty="true"]::before {
+  content: attr(data-placeholder);
+  position: absolute;
+  left: 8px;
+  top: 4px;
+  color: var(--muted);
+  pointer-events: none;
 }
 .bullet-open {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  align-self: center;
+  appearance: none;
+  flex: none;
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: var(--gold);
   font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  cursor: pointer;
 }
 
 .table-add {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 5px;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
 }
 
 .experience-add { position: relative; }
