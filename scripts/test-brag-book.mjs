@@ -111,6 +111,9 @@ import {
   adoptCompiledJob,
   addResumeGroup,
   moveResumeGroup,
+  moveResumeBullet,
+  stepResumeBullet,
+  neighborGroupForBullet,
   moveAdditionalGroup,
   insertKeyAfter,
   bulletLineText,
@@ -944,6 +947,36 @@ const basicsInsert = addResumeGroup(applyImportedResume(emptyStore(), sampleResu
   afterId: pwcGroups[0],
 }, clock, random);
 assert.equal(basicsInsert.store.jobs.find((job) => job.id === pwc.id).groups[1].id, basicsInsert.groupId);
+
+assert.deepEqual(
+  neighborGroupForBullet(
+    [{ id: 'a', bullets: [{ id: '1' }] }, { id: 'b', bullets: [{ id: '2' }] }],
+    'b',
+    '2',
+    -1
+  ),
+  { fromGroupId: 'b', toGroupId: 'a', index: 1 }
+);
+let hopped = addCareerJob(emptyStore(), {
+  company: 'Hop',
+  groups: [
+    { id: 'g1', heading: '', bullets: [{ id: 'b1', lead: 'First' }] },
+    { id: 'g2', heading: 'Later', bullets: [{ id: 'b2', lead: 'Second' }] },
+  ],
+}, clock, random);
+const hopJob = hopped.jobs[0];
+assert.equal(hopJob.groups[0].id, 'g1');
+hopped = stepResumeBullet(hopped, null, hopJob, 'g2', 'b2', -1, clock);
+assert.deepEqual(hopped.jobs[0].groups[0].bullets.map((bullet) => bullet.id), ['b1', 'b2']);
+assert.equal(hopped.jobs[0].groups[1].bullets.length, 0);
+hopped = moveResumeBullet(hopped, null, hopJob, 'g1', 'g2', 'b1', { index: 0 }, clock);
+assert.equal(hopped.jobs[0].groups[0].bullets[0].id, 'b2');
+assert.equal(hopped.jobs[0].groups[1].bullets[0].id, 'b1');
+hopped = addPosting(hopped, { title: 'Hop posting' }, clock);
+const hopPosting = hopped.postings[0];
+hopped = stepResumeBullet(hopped, hopPosting.id, hopJob, 'g2', 'b1', -1, clock);
+assert.equal(hopped.jobs[0].groups[0].bullets.map((bullet) => bullet.id).join(','), 'b2,b1');
+assert.equal(hopped.jobs[0].groups[1].bullets.length, 0);
 
 let addl = applyImportedResume(emptyStore(), sampleResume, clock);
 addl = addAdditionalGroup(addl, addl.additional[0].id, { label: 'First' }, clock, random);
