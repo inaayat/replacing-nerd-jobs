@@ -25,6 +25,9 @@ import {
   patchResumeVariant,
   importResumeDoc,
   moveListItem,
+  relocateBullet,
+  neighborGroupForBullet,
+  groupBulletOrders,
   moveKey,
   insertKeyAfter,
   compileResumeDoc,
@@ -37,6 +40,7 @@ import {
   updateLocalBullet,
   deleteLocalBullet,
   moveLocalBullet,
+  relocateLocalBullet,
   moveLocalGroup,
   addLocalEducation,
   updateLocalEducation,
@@ -50,6 +54,7 @@ import {
   freshPostingResume,
   basicsPostingResume,
   markdownToSpans,
+  findLocalBullet,
 } from './resume-model.js';
 
 export {
@@ -78,6 +83,9 @@ export {
   visibleResumeDoc,
   headerFromProfile,
   moveListItem,
+  relocateBullet,
+  neighborGroupForBullet,
+  groupBulletOrders,
   moveKey,
   insertKeyAfter,
   toggleId,
@@ -800,6 +808,53 @@ export function movePostingLocalBullet(store, postingId, jobId, groupId, bulletI
   return patchPostingVariant(store, postingId, (variant) => (
     moveLocalBullet(variant, jobId, groupId, bulletId, delta, clock)
   ), clock);
+}
+
+function compiledExperienceJob(store, postingId, jobId) {
+  const jobs = postingId
+    ? (compileResumeDoc(postingById(store, postingId), store).sections.experience.jobs || [])
+    : (store?.jobs || []);
+  return jobs.find((job) => job.id === jobId) || null;
+}
+
+function relocateCareerBullet(store, jobId, fromGroupId, toGroupId, bulletId, index, clock = Date.now) {
+  return mapCareerJob(store, jobId, (job) => ({
+    ...job,
+    groups: relocateBullet(job.groups, fromGroupId, toGroupId, bulletId, index),
+  }), clock);
+}
+
+export function moveResumeBullet(store, postingId, career, fromGroupId, toGroupId, bulletId, { index } = {}, clock = Date.now) {
+  const jobId = career?.id;
+  if (!jobId || !bulletId || !toGroupId) return store;
+  let next = adoptCompiledJob(store, postingId || null, career, clock);
+  const posting = postingId ? postingById(next, postingId) : null;
+  const localHit = posting ? findLocalBullet(posting.resume, bulletId) : null;
+  const inCareer = (next.jobs || []).some((job) => job.id === jobId);
+  if (localHit) {
+    next = patchPostingVariant(next, postingId, (variant) => (
+      relocateLocalBullet(variant, jobId, fromGroupId, toGroupId, bulletId, index, clock)
+    ), clock);
+  } else if (inCareer) {
+    next = relocateCareerBullet(next, jobId, fromGroupId, toGroupId, bulletId, index, clock);
+  } else {
+    return store;
+  }
+  if (!postingId) return next;
+  const compiled = compiledExperienceJob(next, postingId, jobId);
+  return updatePostingResume(next, postingId, {
+    bulletOrder: {
+      ...(postingById(next, postingId)?.resume?.bulletOrder || {}),
+      ...groupBulletOrders(compiled?.groups),
+    },
+  }, clock);
+}
+
+export function stepResumeBullet(store, postingId, career, groupId, bulletId, delta, clock = Date.now) {
+  const compiled = compiledExperienceJob(store, postingId, career?.id);
+  const step = neighborGroupForBullet(compiled?.groups, groupId, bulletId, delta);
+  if (!step) return store;
+  return moveResumeBullet(store, postingId, career, step.fromGroupId, step.toGroupId, bulletId, { index: step.index }, clock);
 }
 
 export function movePostingLocalGroup(store, postingId, jobId, groupId, delta, clock = Date.now) {

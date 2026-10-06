@@ -861,6 +861,55 @@ export function moveListItem(list, id, delta) {
   return items;
 }
 
+export function relocateBullet(groups, fromGroupId, toGroupId, bulletId, index) {
+  const next = (Array.isArray(groups) ? groups : []).map((group) => ({
+    ...group,
+    bullets: (group.bullets || []).slice(),
+  }));
+  const from = next.find((group) => group.id === fromGroupId);
+  const to = next.find((group) => group.id === toGroupId);
+  if (!from || !to) return groups || [];
+  const at = from.bullets.findIndex((bullet) => bullet.id === bulletId);
+  if (at < 0) return groups || [];
+  const [bullet] = from.bullets.splice(at, 1);
+  const dest = index == null || index === ''
+    ? to.bullets.length
+    : Math.max(0, Math.min(Number(index) || 0, to.bullets.length));
+  to.bullets.splice(dest, 0, bullet);
+  return next;
+}
+
+export function neighborGroupForBullet(groups, groupId, bulletId, delta) {
+  const list = Array.isArray(groups) ? groups : [];
+  const gi = list.findIndex((group) => group.id === groupId);
+  if (gi < 0) return null;
+  const bullets = list[gi].bullets || [];
+  const bi = bullets.findIndex((bullet) => bullet.id === bulletId);
+  if (bi < 0) return null;
+  const step = Number(delta) || 0;
+  const nextBi = bi + step;
+  if (nextBi >= 0 && nextBi < bullets.length) {
+    return { fromGroupId: groupId, toGroupId: groupId, index: nextBi };
+  }
+  if (step < 0 && gi > 0) {
+    const prev = list[gi - 1];
+    return { fromGroupId: groupId, toGroupId: prev.id, index: (prev.bullets || []).length };
+  }
+  if (step > 0 && gi < list.length - 1) {
+    return { fromGroupId: groupId, toGroupId: list[gi + 1].id, index: 0 };
+  }
+  return null;
+}
+
+export function groupBulletOrders(groups) {
+  const order = {};
+  for (const group of groups || []) {
+    if (!group?.id) continue;
+    order[group.id] = (group.bullets || []).map((bullet) => bullet.id);
+  }
+  return order;
+}
+
 export function moveKey(order, key, delta) {
   const items = Array.isArray(order) ? order.slice() : [];
   const index = items.indexOf(key);
@@ -1091,6 +1140,13 @@ export function moveLocalBullet(variant, jobId, groupId, bulletId, delta, clock 
           : group
       )),
     };
+  }, clock);
+}
+
+export function relocateLocalBullet(variant, jobId, fromGroupId, toGroupId, bulletId, index, clock = Date.now) {
+  return mapLocalJobs(variant, (job) => {
+    if (job.id !== jobId) return job;
+    return { ...job, groups: relocateBullet(job.groups, fromGroupId, toGroupId, bulletId, index) };
   }, clock);
 }
 

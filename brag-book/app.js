@@ -53,6 +53,8 @@ import {
   deleteCareerBullet,
   moveCareerBullet,
   moveCareerGroup,
+  moveResumeBullet,
+  stepResumeBullet,
   addResumeGroup,
   moveResumeGroup,
   addPostingLocalJob,
@@ -2234,23 +2236,30 @@ function resumeSectionHead(title, action) {
   ]);
 }
 
-function resumeMoveBtns(label, { index, length, onMove }) {
+function resumeMoveBtns(label, { index, length, onMove, disableUp, disableDown }) {
+  const upOff = disableUp ?? index <= 0;
+  const downOff = disableDown ?? index >= length - 1;
   return el('div', { class: 'actions bb-order-btns' }, [
     btn('↑', {
       class: 'btn ghost compact-action',
       title: `Move ${label} up`,
       'aria-label': `Move ${label} up`,
-      disabled: index <= 0,
+      disabled: upOff,
       onClick: () => onMove(-1),
     }),
     btn('↓', {
       class: 'btn ghost compact-action',
       title: `Move ${label} down`,
       'aria-label': `Move ${label} down`,
-      disabled: index >= length - 1,
+      disabled: downOff,
       onClick: () => onMove(1),
     }),
   ]);
+}
+
+function resumeGroupLabel(group, index) {
+  const heading = String(group?.heading || '').trim();
+  return heading || (index === 0 ? 'Top of role' : `Untitled heading ${index + 1}`);
 }
 
 function addSubheadingButton(posting, career, { afterId } = {}) {
@@ -2265,7 +2274,7 @@ function addSubheadingButton(posting, career, { afterId } = {}) {
   });
 }
 
-function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0) {
+function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0, groups = []) {
   const dropped = (resumeFit.droppedBulletIds || []).includes(bullet.id);
   const shared = isSharedJob(career.id);
   const localBullet = Boolean(bullet.local) || isLocalOnlyJob(posting, career.id);
@@ -2354,25 +2363,34 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0) {
       canEdit ? resumeMoveBtns('bullet', {
         index: bulletIndex,
         length: group.bullets.length,
+        disableUp: bulletIndex <= 0 && groups.findIndex((item) => item.id === group.id) <= 0,
+        disableDown: bulletIndex >= group.bullets.length - 1
+          && groups.findIndex((item) => item.id === group.id) >= groups.length - 1,
         onMove: (delta) => {
-          if (posting && localBullet) {
-            store = movePostingLocalBullet(store, posting.id, career.id, group.id, bullet.id, delta);
-          } else if (!posting && shared) {
-            store = moveCareerBullet(store, career.id, group.id, bullet.id, delta);
-          } else if (posting) {
-            const order = (group.bullets || []).map((item) => item.id);
-            const moved = order.slice();
-            const idx = moved.indexOf(bullet.id);
-            const next = idx + delta;
-            if (idx < 0 || next < 0 || next >= moved.length) return;
-            const [row] = moved.splice(idx, 1);
-            moved.splice(next, 0, row);
-            store = updatePostingResume(store, posting.id, { bulletOrder: { [group.id]: moved } });
-          }
+          store = stepResumeBullet(store, posting?.id || null, career, group.id, bullet.id, delta);
           saveStore();
           render({ focusKey: `rb-${bullet.id}-line` });
         },
       }) : null,
+      canEdit && groups.length > 1 ? el('label', { class: 'bb-move-group' }, [
+        el('span', {}, 'Under'),
+        el('select', {
+          'aria-label': 'Move bullet to sub-heading',
+          'data-focus-key': `rb-${bullet.id}-group`,
+          onChange: (event) => {
+            const toGroupId = event.target.value;
+            if (!toGroupId || toGroupId === group.id) return;
+            store = moveResumeBullet(store, posting?.id || null, career, group.id, toGroupId, bullet.id, {});
+            saveStore();
+            render({ focusKey: `rb-${bullet.id}-line` });
+          },
+        }, groups.map((item, index) =>
+          el('option', {
+            value: item.id,
+            selected: item.id === group.id || undefined,
+          }, resumeGroupLabel(item, index))
+        )),
+      ]) : null,
       canEdit ? btn(localBullet || !posting ? 'Remove' : (bullet.included !== false ? 'Remove' : 'Delete'), {
         class: 'btn ghost compact-action is-danger',
         onClick: () => {
@@ -2708,7 +2726,7 @@ function resumeJobEditor(posting, career) {
             },
           }) : null,
         ]),
-        ...group.bullets.map((bullet, bulletIndex) => resumeBulletEditor(posting, career, group, bullet, bulletIndex)),
+        ...group.bullets.map((bullet, bulletIndex) => resumeBulletEditor(posting, career, group, bullet, bulletIndex, groups)),
         allowStructure ? el('div', { class: 'bb-add-row' }, [
           btn('+ Add bullet', {
             class: 'btn ghost compact-action',
