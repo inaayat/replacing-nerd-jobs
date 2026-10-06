@@ -205,7 +205,8 @@ shaded well; click the role header to collapse its fields and bullets (local
 to that tab, not saved on the book). Compiled-only roles (for example a
 company pulled in from a book story) become editable on first change. Each
 bullet is one line; use Bold / Ctrl+B instead of separate lead and body
-fields.
+fields. ↑↓ reorder roles and sub-headings; **+ Sub-heading here** inserts a
+sub-heading under that block.
 **Import resume (JSON)** loads `brag-book/data/inaayat-gill-resume.json` (or any
 file in that schema) into the signed-in book. Plain-text Copy / `.txt` / older
 `.doc` remain under a disclosure. **Prep** walks question + STAR with keyboard
