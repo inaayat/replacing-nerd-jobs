@@ -687,6 +687,222 @@ export function updateAdditionalRow(store, id, patch, clock = Date.now) {
   };
 }
 
+function mapCareerJob(store, jobId, fn, clock = Date.now) {
+  const current = (store?.jobs || []).find((job) => job.id === jobId);
+  if (!current) return store;
+  const next = normalizeCareerJob(fn(current), clock);
+  if (!next) return store;
+  return { ...store, jobs: replaceById(store.jobs, jobId, next) };
+}
+
+export function addCareerJob(store, draft = {}, clock = Date.now, random = Math.random) {
+  const job = normalizeCareerJob({
+    company: '',
+    title: '',
+    location: '',
+    start: '',
+    end: '',
+    groups: [{ id: newId('rg', clock, random), heading: '', bullets: [] }],
+    ...draft,
+    id: draft.id || newId('rj', clock, random),
+  }, clock);
+  if (!job) return store;
+  return { ...store, jobs: [...(store.jobs || []), job] };
+}
+
+export function deleteCareerJob(store, id) {
+  if (!(store?.jobs || []).some((job) => job.id === id)) return store;
+  return { ...store, jobs: dropById(store.jobs, id) };
+}
+
+export function addCareerGroup(store, jobId, draft = {}, clock = Date.now, random = Math.random) {
+  return mapCareerJob(store, jobId, (job) => ({
+    ...job,
+    groups: [...(job.groups || []), {
+      id: draft.id || newId('rg', clock, random),
+      heading: draft.heading || '',
+      bullets: Array.isArray(draft.bullets) ? draft.bullets : [],
+    }],
+  }), clock);
+}
+
+export function deleteCareerGroup(store, jobId, groupId, clock = Date.now) {
+  return mapCareerJob(store, jobId, (job) => ({
+    ...job,
+    groups: (job.groups || []).filter((group) => group.id !== groupId),
+  }), clock);
+}
+
+export function addCareerBullet(store, jobId, groupId, draft = {}, clock = Date.now, random = Math.random) {
+  const current = (store?.jobs || []).find((job) => job.id === jobId);
+  if (!current) return store;
+  let groups = current.groups || [];
+  if (groupId && !groups.some((group) => group.id === groupId)) return store;
+  if (!groups.length) {
+    groups = [{ id: newId('rg', clock, random), heading: '', bullets: [] }];
+    groupId = groups[0].id;
+  }
+  const targetId = groupId || groups[groups.length - 1].id;
+  const bullet = {
+    id: draft.id || newId('rb', clock, random),
+    lead: draft.lead || '',
+    body: draft.body || '',
+    priority: draft.priority,
+    pinned: draft.pinned,
+  };
+  return mapCareerJob(store, jobId, (job) => ({
+    ...job,
+    groups: (job.groups?.length ? job.groups : groups).map((group) => (
+      group.id === targetId ? { ...group, bullets: [...(group.bullets || []), bullet] } : group
+    )),
+  }), clock);
+}
+
+export function deleteCareerBullet(store, jobId, groupId, bulletId, clock = Date.now) {
+  return mapCareerJob(store, jobId, (job) => ({
+    ...job,
+    groups: (job.groups || []).map((group) => (
+      group.id === groupId
+        ? { ...group, bullets: (group.bullets || []).filter((bullet) => bullet.id !== bulletId) }
+        : group
+    )),
+  }), clock);
+}
+
+export function moveCareerBullet(store, jobId, groupId, bulletId, delta, clock = Date.now) {
+  return mapCareerJob(store, jobId, (job) => ({
+    ...job,
+    groups: (job.groups || []).map((group) => (
+      group.id === groupId
+        ? { ...group, bullets: moveListItem(group.bullets || [], bulletId, delta) }
+        : group
+    )),
+  }), clock);
+}
+
+export function moveCareerGroup(store, jobId, groupId, delta, clock = Date.now) {
+  return mapCareerJob(store, jobId, (job) => ({
+    ...job,
+    groups: moveListItem(job.groups || [], groupId, delta),
+  }), clock);
+}
+
+export function addEducationItem(store, draft = {}, clock = Date.now, random = Math.random) {
+  const row = normalizeEducation(
+    [...(store?.education || []), { school: '', ...draft, id: draft.id || newId('ed', clock, random) }],
+    clock
+  );
+  return { ...store, education: row };
+}
+
+export function deleteEducationItem(store, id) {
+  return { ...store, education: dropById(store?.education || [], id) };
+}
+
+export function moveEducationItem(store, id, delta) {
+  return { ...store, education: moveListItem(store?.education || [], id, delta) };
+}
+
+export function addCredentialItem(store, draft = {}, clock = Date.now, random = Math.random) {
+  const row = normalizeCredentials(
+    [...(store?.credentials || []), { name: '', ...draft, id: draft.id || newId('cr', clock, random) }],
+    clock
+  );
+  return { ...store, credentials: row };
+}
+
+export function deleteCredentialItem(store, id) {
+  return { ...store, credentials: dropById(store?.credentials || [], id) };
+}
+
+export function moveCredentialItem(store, id, delta) {
+  return { ...store, credentials: moveListItem(store?.credentials || [], id, delta) };
+}
+
+export function addAdditionalRow(store, draft = {}, clock = Date.now, random = Math.random) {
+  const row = normalizeAdditional(
+    [...(store?.additional || []), {
+      label: '',
+      items: [],
+      groups: [],
+      ...draft,
+      id: draft.id || newId('ad', clock, random),
+    }],
+    clock
+  );
+  return { ...store, additional: row };
+}
+
+export function deleteAdditionalRow(store, id) {
+  return { ...store, additional: dropById(store?.additional || [], id) };
+}
+
+export function moveAdditionalRow(store, id, delta) {
+  return { ...store, additional: moveListItem(store?.additional || [], id, delta) };
+}
+
+export function addAdditionalGroup(store, rowId, draft = {}, clock = Date.now, random = Math.random) {
+  return {
+    ...store,
+    additional: normalizeAdditional(
+      (store?.additional || []).map((row) => {
+        if (row.id !== rowId) return row;
+        const incoming = {
+          id: draft.id || newId('sg', clock, random),
+          label: draft.label || '',
+          items: Array.isArray(draft.items) ? draft.items : [],
+        };
+        if (row.groups?.length) {
+          return { ...row, items: [], groups: [...row.groups, incoming] };
+        }
+        return {
+          ...row,
+          items: [],
+          groups: [{
+            ...incoming,
+            items: incoming.items.length ? incoming.items : (row.items || []),
+          }],
+        };
+      }),
+      clock
+    ),
+  };
+}
+
+export function updateAdditionalGroup(store, rowId, groupId, patch, clock = Date.now) {
+  return {
+    ...store,
+    additional: normalizeAdditional(
+      (store?.additional || []).map((row) => {
+        if (row.id !== rowId) return row;
+        return {
+          ...row,
+          groups: (row.groups || []).map((group) => (
+            group.id === groupId ? { ...group, ...patch, id: group.id } : group
+          )),
+        };
+      }),
+      clock
+    ),
+  };
+}
+
+export function deleteAdditionalGroup(store, rowId, groupId, clock = Date.now) {
+  return {
+    ...store,
+    additional: normalizeAdditional(
+      (store?.additional || []).map((row) => {
+        if (row.id !== rowId) return row;
+        return {
+          ...row,
+          groups: (row.groups || []).filter((group) => group.id !== groupId),
+        };
+      }),
+      clock
+    ),
+  };
+}
+
 export function deletePosting(store, id) {
   if (!postingById(store, id)) return store;
   return { ...store, postings: dropById(store.postings, id) };

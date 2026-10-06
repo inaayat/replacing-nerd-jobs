@@ -55,6 +55,20 @@ import {
   applyImportedResume,
   updatePostingResume,
   replacePostingResume,
+  addCareerJob,
+  deleteCareerJob,
+  addCareerGroup,
+  addCareerBullet,
+  deleteCareerBullet,
+  moveCareerBullet,
+  moveCareerJob,
+  addEducationItem,
+  deleteEducationItem,
+  addCredentialItem,
+  deleteCredentialItem,
+  addAdditionalRow,
+  deleteAdditionalRow,
+  addAdditionalGroup,
   isResumeDoc,
   parseBulletText,
   toggleId,
@@ -582,5 +596,75 @@ assert.deepEqual(toggleId(['a', 'b'], 'a'), ['b']);
 const packedSeed = serializeBook(seeded);
 assert.equal(packedSeed.book.jobs[0].company, 'PricewaterhouseCoopers LLC');
 assert.ok(packedSeed.book.postings[0].resume.excludedJobIds.includes('job_alaska'));
+
+let handmade = emptyStore();
+handmade = addCareerJob(handmade, { company: 'NewCo', title: 'Analyst' }, clock, random);
+assert.equal(handmade.jobs.length, 1);
+assert.equal(handmade.jobs[0].company, 'NewCo');
+assert.equal(handmade.jobs[0].title, 'Analyst');
+assert.ok(handmade.jobs[0].id);
+const newRoleId = handmade.jobs[0].id;
+const blankGroupId = handmade.jobs[0].groups[0].id;
+handmade = addCareerBullet(handmade, newRoleId, blankGroupId, { lead: 'Shipped it', body: 'Wrote the join.' }, clock, random);
+assert.equal(handmade.jobs[0].groups[0].bullets.length, 1);
+assert.equal(handmade.jobs[0].groups[0].bullets[0].lead, 'Shipped it');
+handmade = addCareerGroup(handmade, newRoleId, { heading: 'Later' }, clock, random);
+assert.equal(handmade.jobs[0].groups.length, 2);
+assert.equal(handmade.jobs[0].groups[1].heading, 'Later');
+const laterGroup = handmade.jobs[0].groups[1].id;
+handmade = addCareerBullet(handmade, newRoleId, laterGroup, { lead: 'Second' }, clock, random);
+handmade = moveCareerBullet(handmade, newRoleId, laterGroup, handmade.jobs[0].groups[1].bullets[0].id, -1, clock);
+handmade = moveCareerJob(handmade, newRoleId, -1);
+handmade = addEducationItem(handmade, { school: 'UW', degree: 'BA' }, clock, random);
+handmade = addCredentialItem(handmade, { name: 'CPA', issued: 'May 2024' }, clock, random);
+handmade = addAdditionalRow(handmade, { label: 'Tools', items: ['Excel', 'SQL'] }, clock, random);
+assert.equal(handmade.education[0].school, 'UW');
+assert.equal(handmade.credentials[0].name, 'CPA');
+assert.deepEqual(handmade.additional[0].items, ['Excel', 'SQL']);
+handmade = addAdditionalGroup(handmade, handmade.additional[0].id, { label: 'Analytics' }, clock, random);
+assert.equal(handmade.additional[0].groups[0].label, 'Analytics');
+assert.deepEqual(handmade.additional[0].groups[0].items, ['Excel', 'SQL']);
+
+const packedHand = serializeBook(handmade);
+const reloadedHand = normalizeStore(JSON.parse(packedHand.json), clock);
+assert.equal(reloadedHand.jobs[0].company, 'NewCo');
+assert.equal(reloadedHand.jobs[0].groups[0].bullets[0].lead, 'Shipped it');
+assert.equal(reloadedHand.education[0].school, 'UW');
+assert.equal(reloadedHand.credentials[0].name, 'CPA');
+assert.equal(reloadedHand.additional[0].groups[0].label, 'Analytics');
+
+const draft = addCareerJob(emptyStore(), {}, clock, random);
+assert.equal(draft.jobs.length, 1);
+assert.equal(draft.jobs[0].company, '');
+const draftAgain = normalizeStore(JSON.parse(serializeBook(draft).json), clock);
+assert.equal(draftAgain.jobs.length, 1);
+assert.ok(draftAgain.jobs[0].id);
+
+handmade = addPosting(handmade, { title: 'Target role' }, clock);
+const fromPosting = addCareerJob(handmade, { company: 'PostingCo' }, clock, random);
+assert.equal(fromPosting.jobs.some((job) => job.company === 'PostingCo'), true);
+const postingDoc = compileResumeDoc(fromPosting.postings[0], fromPosting);
+assert.equal(postingDoc.sections.experience.jobs.some((job) => job.company === 'PostingCo' && job.included !== false), true);
+
+const removed = deleteCareerJob(fromPosting, fromPosting.jobs.find((job) => job.company === 'PostingCo').id);
+assert.equal(removed.jobs.some((job) => job.company === 'PostingCo'), false);
+const afterDrop = deleteCareerBullet(
+  removed,
+  newRoleId,
+  removed.jobs[0].groups[0].id,
+  removed.jobs[0].groups[0].bullets[0].id,
+);
+assert.equal(afterDrop.jobs[0].groups[0].bullets.some((b) => b.lead === 'Shipped it'), false);
+assert.equal(deleteEducationItem(afterDrop, afterDrop.education[0].id).education.length, 0);
+assert.equal(deleteCredentialItem(afterDrop, afterDrop.credentials[0].id).credentials.length, 0);
+assert.equal(deleteAdditionalRow(afterDrop, afterDrop.additional[0].id).additional.length, 0);
+
+const legacyStill = normalizeStore({
+  entries: [{ title: 'Legacy win' }],
+  postings: [{ title: 'Legacy job', resumeText: 'plain' }],
+}, clock);
+assert.equal(legacyStill.jobs.length, 0);
+assert.equal(legacyStill.postings[0].resumeText, 'plain');
+assert.equal(addCareerJob(legacyStill, { company: 'Later' }, clock, random).jobs[0].company, 'Later');
 
 console.log('ok');

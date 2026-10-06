@@ -228,7 +228,8 @@ export function normalizeResumeBullet(raw, clock = Date.now) {
   if (!raw || typeof raw !== 'object') return null;
   const lead = asString(raw.lead, LEAD_MAX);
   const body = asString(raw.body, BODY_MAX);
-  if (!lead && !body) return null;
+  const id = asString(raw.id, ID_MAX);
+  if (!lead && !body && !id) return null;
   return {
     id: asId(raw.id, clock, 'rb'),
     lead,
@@ -250,10 +251,12 @@ export function normalizeResumeGroup(raw, clock = Date.now) {
     seen.add(bullet.id);
     bullets.push(bullet);
   }
-  if (!bullets.length && !asString(raw.heading, TITLE_MAX)) return null;
+  const heading = asString(raw.heading, TITLE_MAX);
+  const id = asString(raw.id, ID_MAX);
+  if (!bullets.length && !heading && !id) return null;
   return {
     id: asId(raw.id, clock, 'rg'),
-    heading: asString(raw.heading, TITLE_MAX),
+    heading,
     bullets,
   };
 }
@@ -261,7 +264,8 @@ export function normalizeResumeGroup(raw, clock = Date.now) {
 export function normalizeCareerJob(raw, clock = Date.now) {
   if (!raw || typeof raw !== 'object') return null;
   const company = asString(raw.company, TITLE_MAX);
-  if (!company) return null;
+  const id = asString(raw.id, ID_MAX);
+  if (!company && !id) return null;
   const groups = [];
   const seen = new Set();
   for (const item of Array.isArray(raw.groups) ? raw.groups : []) {
@@ -299,7 +303,8 @@ export function normalizeCareerJobs(value, clock = Date.now) {
 export function normalizeEducationItem(raw, clock = Date.now) {
   if (!raw || typeof raw !== 'object') return null;
   const school = asString(raw.school, TITLE_MAX);
-  if (!school) return null;
+  const id = asString(raw.id, ID_MAX);
+  if (!school && !id) return null;
   return {
     id: asId(raw.id, clock, 'ed'),
     school,
@@ -326,7 +331,8 @@ export function normalizeEducation(value, clock = Date.now) {
 export function normalizeCredential(raw, clock = Date.now) {
   if (!raw || typeof raw !== 'object') return null;
   const name = asString(raw.name, TITLE_MAX);
-  if (!name) return null;
+  const id = asString(raw.id, ID_MAX);
+  if (!name && !id) return null;
   return {
     id: asId(raw.id, clock, 'cr'),
     name,
@@ -353,14 +359,16 @@ function normalizeSkillGroup(raw, clock = Date.now) {
   if (!raw || typeof raw !== 'object') return null;
   const label = asString(raw.label, TITLE_MAX);
   const items = asStringList(raw.items);
-  if (!label || !items.length) return null;
+  const id = asString(raw.id, ID_MAX);
+  if (!id && !label && !items.length) return null;
   return { id: asId(raw.id, clock, 'sg'), label, items };
 }
 
 export function normalizeAdditionalRow(raw, clock = Date.now) {
   if (!raw || typeof raw !== 'object') return null;
   const label = asString(raw.label, TITLE_MAX);
-  if (!label) return null;
+  const id = asString(raw.id, ID_MAX);
+  if (!label && !id) return null;
   const groups = [];
   const seen = new Set();
   for (const item of Array.isArray(raw.groups) ? raw.groups : []) {
@@ -370,7 +378,6 @@ export function normalizeAdditionalRow(raw, clock = Date.now) {
     groups.push(group);
   }
   const items = asStringList(raw.items);
-  if (!groups.length && !items.length) return null;
   return {
     id: asId(raw.id, clock, 'ad'),
     label,

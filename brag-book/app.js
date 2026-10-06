@@ -39,10 +39,30 @@ import {
   replacePostingResume,
   updateCareerJob,
   moveCareerJob,
+  addCareerJob,
+  deleteCareerJob,
+  addCareerGroup,
+  deleteCareerGroup,
+  addCareerBullet,
+  deleteCareerBullet,
+  moveCareerBullet,
+  moveCareerGroup,
   updateResumeSettings,
   updateEducationItem,
+  addEducationItem,
+  deleteEducationItem,
+  moveEducationItem,
   updateCredentialItem,
+  addCredentialItem,
+  deleteCredentialItem,
+  moveCredentialItem,
   updateAdditionalRow,
+  addAdditionalRow,
+  deleteAdditionalRow,
+  moveAdditionalRow,
+  addAdditionalGroup,
+  updateAdditionalGroup,
+  deleteAdditionalGroup,
   isResumeDoc,
   visibleResumeDoc,
   moveKey,
@@ -1729,8 +1749,45 @@ function resumeSectionOrder(posting) {
   ]);
 }
 
-function resumeBulletEditor(posting, career, group, bullet) {
+function careerJobById(id) {
+  return (store.jobs || []).find((job) => job.id === id) || null;
+}
+
+function bulletCount(career) {
+  return (career.groups || []).reduce((sum, group) => sum + (group.bullets || []).length, 0);
+}
+
+function splitResumeItems(value) {
+  return String(value || '').split(/\s*[·;]\s*|\n/).map((part) => part.trim()).filter(Boolean);
+}
+
+function resumeSectionHead(title, action) {
+  return el('div', { class: 'bb-section-head' }, [
+    el('h3', {}, title),
+    action || null,
+  ]);
+}
+
+function resumeMoveBtns(label, { index, length, onMove }) {
+  return el('div', { class: 'actions' }, [
+    btn('↑', {
+      class: 'btn ghost compact-action',
+      'aria-label': `Move ${label} up`,
+      disabled: index <= 0,
+      onClick: () => onMove(-1),
+    }),
+    btn('↓', {
+      class: 'btn ghost compact-action',
+      'aria-label': `Move ${label} down`,
+      disabled: index >= length - 1,
+      onClick: () => onMove(1),
+    }),
+  ]);
+}
+
+function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0) {
   const dropped = (resumeFit.droppedBulletIds || []).includes(bullet.id);
+  const isCareer = Boolean(careerJobById(career.id));
   const lead = el('input', {
     value: bullet.lead,
     placeholder: 'Bold lead phrase',
@@ -1807,6 +1864,35 @@ function resumeBulletEditor(posting, career, group, bullet) {
       ]),
       dropped ? el('span', { class: 'tiny' }, 'Hidden to fit') : null,
       bullet.hasOverride ? el('span', { class: 'tiny' }, 'Resume wording') : null,
+      isCareer ? resumeMoveBtns('bullet', {
+        index: bulletIndex,
+        length: group.bullets.length,
+        onMove: (delta) => {
+          store = moveCareerBullet(store, career.id, group.id, bullet.id, delta);
+          saveStore();
+          render({ focusKey: `rb-${bullet.id}-lead` });
+        },
+      }) : null,
+      isCareer ? btn(posting && bullet.included !== false ? 'Remove' : 'Delete', {
+        class: 'btn ghost compact-action is-danger',
+        onClick: () => {
+          if (posting && bullet.included !== false) {
+            store = updatePostingResume(store, posting.id, {
+              excludedBulletIds: toggleId(posting.resume.excludedBulletIds, bullet.id),
+            });
+            saveStore();
+            render();
+            setNote('Hidden on this posting. It stays in Resume basics.');
+            return;
+          }
+          if (!confirm(posting
+            ? 'Delete this bullet from the shared career history? It will leave every posting.'
+            : 'Delete this bullet from the shared career history?')) return;
+          store = deleteCareerBullet(store, career.id, group.id, bullet.id);
+          saveStore();
+          render();
+        },
+      }) : null,
     ]),
     field('Bold lead', lead),
     field('Body', body),
@@ -1882,6 +1968,8 @@ function resumeJobEditor(posting, career) {
     scheduleResumePreview(posting);
   };
   [company, title, dates, location].forEach((node) => node.addEventListener('input', stampJob));
+  const jobIndex = store.jobs.findIndex((item) => item.id === career.id);
+  const groups = career.groups || [];
   return el('div', { class: `bb-job-card${career.included === false ? ' is-excluded' : ''}` }, [
     el('div', { class: 'bb-rb-tools' }, [
       el('label', { class: 'bb-check' }, [
@@ -1900,26 +1988,35 @@ function resumeJobEditor(posting, career) {
         }),
         ' Include this role',
       ]),
-      posting ? el('div', { class: 'actions' }, [
-        btn('↑', {
-          class: 'btn ghost compact-action',
-          'aria-label': 'Move role up',
-          onClick: () => {
-            store = moveCareerJob(store, career.id, -1);
+      isCareer ? resumeMoveBtns('role', {
+        index: jobIndex,
+        length: store.jobs.length,
+        onMove: (delta) => {
+          store = moveCareerJob(store, career.id, delta);
+          saveStore();
+          render({ focusKey: `rj-${career.id}-company` });
+        },
+      }) : null,
+      isCareer ? btn(posting && career.included !== false ? 'Remove' : 'Delete', {
+        class: 'btn ghost compact-action is-danger',
+        onClick: () => {
+          if (posting && career.included !== false) {
+            store = updatePostingResume(store, posting.id, {
+              excludedJobIds: toggleId(posting.resume.excludedJobIds, career.id),
+            });
             saveStore();
             render();
-          },
-        }),
-        btn('↓', {
-          class: 'btn ghost compact-action',
-          'aria-label': 'Move role down',
-          onClick: () => {
-            store = moveCareerJob(store, career.id, 1);
-            saveStore();
-            render();
-          },
-        }),
-      ]) : null,
+            setNote('Hidden on this posting. It stays in Resume basics.');
+            return;
+          }
+          const n = bulletCount(career);
+          if (n && !confirm(`Delete this role and its ${n} bullet${n === 1 ? '' : 's'} from the shared career history? It will leave every posting.`)) return;
+          if (!n && posting && !confirm('Delete this role from the shared career history? It will leave every posting.')) return;
+          store = deleteCareerJob(store, career.id);
+          saveStore();
+          render();
+        },
+      }) : null,
     ]),
     el('div', { class: 'grid-2' }, [
       field('Company', company),
@@ -1929,7 +2026,7 @@ function resumeJobEditor(posting, career) {
       field('Title', title),
       field('Location', location),
     ]),
-    ...career.groups.flatMap((group) => {
+    ...groups.flatMap((group, groupIndex) => {
       const heading = el('input', {
         value: group.heading,
         placeholder: 'Optional italic sub-heading',
@@ -1948,10 +2045,87 @@ function resumeJobEditor(posting, career) {
         scheduleResumePreview(posting);
       });
       return [
-        field('Sub-heading', heading),
-        ...group.bullets.map((bullet) => resumeBulletEditor(posting, career, group, bullet)),
+        el('div', { class: 'bb-group-head' }, [
+          field('Sub-heading', heading),
+          isCareer ? resumeMoveBtns('sub-heading', {
+            index: groupIndex,
+            length: groups.length,
+            onMove: (delta) => {
+              store = moveCareerGroup(store, career.id, group.id, delta);
+              saveStore();
+              render({ focusKey: `rg-${group.id}-heading` });
+            },
+          }) : null,
+          isCareer ? btn('Remove sub-heading', {
+            class: 'btn ghost compact-action is-danger',
+            onClick: () => {
+              const n = (group.bullets || []).length;
+              if (groups.length === 1) {
+                if (n && !confirm('Clear this sub-heading? The bullets stay on the role.')) return;
+                store = updateCareerJob(store, career.id, {
+                  groups: career.groups.map((item) => (item.id === group.id ? { ...item, heading: '' } : item)),
+                });
+                saveStore();
+                render();
+                return;
+              }
+              if (n && !confirm('Remove this sub-heading? Its bullets move onto the role above or below.')) return;
+              const sink = groups[groupIndex === 0 ? 1 : groupIndex - 1];
+              let next = store;
+              if (n && sink) {
+                next = updateCareerJob(next, career.id, {
+                  groups: career.groups.map((item) => {
+                    if (item.id === sink.id) return { ...item, bullets: [...item.bullets, ...group.bullets] };
+                    if (item.id === group.id) return { ...item, bullets: [] };
+                    return item;
+                  }),
+                });
+              }
+              store = deleteCareerGroup(next, career.id, group.id);
+              saveStore();
+              render();
+            },
+          }) : null,
+        ]),
+        ...group.bullets.map((bullet, bulletIndex) => resumeBulletEditor(posting, career, group, bullet, bulletIndex)),
+        isCareer ? el('div', { class: 'bb-add-row' }, [
+          btn('+ Add bullet', {
+            class: 'btn ghost compact-action',
+            onClick: () => {
+              store = addCareerBullet(store, career.id, group.id);
+              const added = careerJobById(career.id);
+              const g = added?.groups.find((item) => item.id === group.id);
+              const last = g?.bullets[g.bullets.length - 1];
+              saveStore();
+              render({ focusKey: last ? `rb-${last.id}-lead` : `rg-${group.id}-heading` });
+            },
+          }),
+        ]) : null,
       ];
     }),
+    isCareer ? el('div', { class: 'bb-add-row' }, [
+      btn('+ Add sub-heading', {
+        class: 'btn ghost compact-action',
+        onClick: () => {
+          store = addCareerGroup(store, career.id);
+          const added = careerJobById(career.id);
+          const last = added?.groups[added.groups.length - 1];
+          saveStore();
+          render({ focusKey: last ? `rg-${last.id}-heading` : `rj-${career.id}-company` });
+        },
+      }),
+      groups.length ? null : btn('+ Add bullet', {
+        class: 'btn ghost compact-action',
+        onClick: () => {
+          store = addCareerBullet(store, career.id, '');
+          const added = careerJobById(career.id);
+          const lastGroup = added?.groups[added.groups.length - 1];
+          const last = lastGroup?.bullets[lastGroup.bullets.length - 1];
+          saveStore();
+          render({ focusKey: last ? `rb-${last.id}-lead` : `rj-${career.id}-company` });
+        },
+      }),
+    ]) : null,
   ]);
 }
 
@@ -1977,8 +2151,8 @@ function resumeEditorPane(posting, doc) {
   ]);
   return el('div', { class: 'bb-resume-editor' }, [
     el('p', { class: 'lede' }, posting
-      ? 'Left edits this posting’s resume. Wording stays on the resume unless you save it back. Exclude greys an item without deleting it from the posting.'
-      : 'This is the shared career history. Open a job posting → Resume to include/exclude and override wording per posting.'),
+      ? 'Adds go to the shared career history (Resume basics) and show on this posting. Exclude hides an item here. Remove hides first; Remove again on a hidden item can delete it everywhere after you confirm.'
+      : 'This is the shared career history. Every posting starts from these items. Add roles, bullets, credentials, education, and additional rows here, or import JSON.'),
     resumeSectionOrder(posting),
     credToggle,
     posting ? btn('Save order as my default', {
@@ -2034,13 +2208,30 @@ function resumeEditorPane(posting, doc) {
         ? [{ label: 'LinkedIn', url: event.target.value.trim() }]
         : []),
     })),
-    el('h3', {}, 'Work experience'),
+    resumeSectionHead('Work experience', btn('+ Add role', {
+      class: 'btn ghost compact-action',
+      onClick: () => {
+        store = addCareerJob(store);
+        const added = store.jobs[store.jobs.length - 1];
+        saveStore();
+        render({ focusKey: added ? `rj-${added.id}-company` : undefined });
+        setNote('Added a role to the shared career history.');
+      },
+    })),
     ...(doc.sections.experience.jobs.length
       ? doc.sections.experience.jobs.map((career) => resumeJobEditor(posting, career))
-      : [el('p', { class: 'empty' }, 'Import a resume JSON, or add resume bullets on a posting.')]),
-    el('h3', {}, 'Credentials'),
+      : [el('p', { class: 'empty' }, 'No roles yet. Use + Add role, or import a resume JSON.')]),
+    resumeSectionHead('Credentials', btn('+ Add credential', {
+      class: 'btn ghost compact-action',
+      onClick: () => {
+        store = addCredentialItem(store);
+        const added = store.credentials[store.credentials.length - 1];
+        saveStore();
+        render({ focusKey: added ? `cr-${added.id}-name` : undefined });
+      },
+    })),
     ...(doc.sections.credentials.items.length
-      ? doc.sections.credentials.items.map((item) => {
+      ? doc.sections.credentials.items.map((item, index) => {
         const name = el('input', { value: item.name, 'aria-label': 'Credential name', 'data-focus-key': `cr-${item.id}-name` });
         const issued = el('input', { value: item.issued, 'aria-label': 'Issued', 'data-focus-key': `cr-${item.id}-issued` });
         const issuer = el('input', { value: item.issuer, 'aria-label': 'Issuer', 'data-focus-key': `cr-${item.id}-issuer` });
@@ -2054,14 +2245,44 @@ function resumeEditorPane(posting, doc) {
         };
         [name, issued, issuer, cid].forEach((node) => node.addEventListener('input', stamp));
         return el('div', { class: 'bb-job-card' }, [
+          el('div', { class: 'bb-rb-tools' }, [
+            resumeMoveBtns('credential', {
+              index,
+              length: doc.sections.credentials.items.length,
+              onMove: (delta) => {
+                store = moveCredentialItem(store, item.id, delta);
+                saveStore();
+                render({ focusKey: `cr-${item.id}-name` });
+              },
+            }),
+            btn('Delete', {
+              class: 'btn ghost compact-action is-danger',
+              onClick: () => {
+                if (!confirm(posting
+                  ? 'Delete this credential from the shared career history? It will leave every posting.'
+                  : 'Delete this credential?')) return;
+                store = deleteCredentialItem(store, item.id);
+                saveStore();
+                render();
+              },
+            }),
+          ]),
           el('div', { class: 'grid-2' }, [field('Name', name), field('Issued', issued)]),
           el('div', { class: 'grid-2' }, [field('Issuer', issuer), field('Credential ID', cid)]),
         ]);
       })
-      : [el('p', { class: 'empty' }, 'None yet. Import a resume or add one under Resume basics.')]),
-    el('h3', {}, 'Education'),
+      : [el('p', { class: 'empty' }, 'None yet. Use + Add credential, or import a resume JSON.')]),
+    resumeSectionHead('Education', btn('+ Add education', {
+      class: 'btn ghost compact-action',
+      onClick: () => {
+        store = addEducationItem(store);
+        const added = store.education[store.education.length - 1];
+        saveStore();
+        render({ focusKey: added ? `ed-${added.id}-school` : undefined });
+      },
+    })),
     ...(doc.sections.education.items.length
-      ? doc.sections.education.items.map((item) => {
+      ? doc.sections.education.items.map((item, index) => {
         const school = el('input', { value: item.school, 'aria-label': 'School', 'data-focus-key': `ed-${item.id}-school` });
         const loc = el('input', { value: item.location, 'aria-label': 'School location', 'data-focus-key': `ed-${item.id}-loc` });
         const degree = el('input', { value: item.degree, 'aria-label': 'Degree', 'data-focus-key': `ed-${item.id}-degree` });
@@ -2076,46 +2297,143 @@ function resumeEditorPane(posting, doc) {
         };
         [school, loc, degree, details, gpa].forEach((node) => node.addEventListener('input', stamp));
         return el('div', { class: 'bb-job-card' }, [
+          el('div', { class: 'bb-rb-tools' }, [
+            resumeMoveBtns('education', {
+              index,
+              length: doc.sections.education.items.length,
+              onMove: (delta) => {
+                store = moveEducationItem(store, item.id, delta);
+                saveStore();
+                render({ focusKey: `ed-${item.id}-school` });
+              },
+            }),
+            btn('Delete', {
+              class: 'btn ghost compact-action is-danger',
+              onClick: () => {
+                if (!confirm(posting
+                  ? 'Delete this education row from the shared career history? It will leave every posting.'
+                  : 'Delete this education row?')) return;
+                store = deleteEducationItem(store, item.id);
+                saveStore();
+                render();
+              },
+            }),
+          ]),
           el('div', { class: 'grid-2' }, [field('School', school), field('Location', loc)]),
           field('Degree', degree),
           field('Details', details),
           field('GPA', gpa),
         ]);
       })
-      : [el('p', { class: 'empty' }, 'None yet.')]),
-    el('h3', {}, 'Additional info'),
+      : [el('p', { class: 'empty' }, 'None yet. Use + Add education, or import a resume JSON.')]),
+    resumeSectionHead('Additional info', btn('+ Add row', {
+      class: 'btn ghost compact-action',
+      onClick: () => {
+        store = addAdditionalRow(store);
+        const added = store.additional[store.additional.length - 1];
+        saveStore();
+        render({ focusKey: added ? `ad-${added.id}-label` : undefined });
+      },
+    })),
     ...(doc.sections.additional.rows.length
-      ? doc.sections.additional.rows.map((row) => {
+      ? doc.sections.additional.rows.map((row, index) => {
         const label = el('input', { value: row.label, 'aria-label': 'Row label', 'data-focus-key': `ad-${row.id}-label` });
+        const grouped = Boolean(row.groups?.length);
         const items = el('textarea', {
           rows: '2',
           'aria-label': 'Items',
           'data-focus-key': `ad-${row.id}-items`,
-        }, row.groups?.length
-          ? row.groups.map((group) => `${group.label}: ${group.items.join(', ')}`).join(' · ')
+        }, grouped
+          ? row.groups.map((group) => `${group.label}: ${(group.items || []).join(', ')}`).join(' · ')
           : (row.items || []).join(' · '));
         items.value = items.textContent;
-        if (row.groups?.length) items.disabled = true;
-        const stamp = () => {
-          if (row.groups?.length) {
-            store = updateAdditionalRow(store, row.id, { label: label.value });
-          } else {
-            store = updateAdditionalRow(store, row.id, {
-              label: label.value,
-              items: items.value.split(/\s*·\s*|\n/).map((part) => part.trim()).filter(Boolean),
-            });
-          }
+        const stampLabel = () => {
+          store = updateAdditionalRow(store, row.id, grouped
+            ? { label: label.value, groups: row.groups }
+            : { label: label.value, items: splitResumeItems(items.value) });
           saveStore();
           scheduleResumePreview(posting);
         };
-        label.addEventListener('input', stamp);
-        items.addEventListener('input', stamp);
+        label.addEventListener('input', stampLabel);
+        if (!grouped) items.addEventListener('input', stampLabel);
+        const groupEditors = grouped
+          ? row.groups.map((group) => {
+            const glabel = el('input', {
+              value: group.label,
+              placeholder: 'Italic sub-label',
+              'aria-label': 'Sub-label',
+              'data-focus-key': `sg-${group.id}-label`,
+            });
+            const gitems = el('textarea', {
+              rows: '2',
+              'aria-label': 'Group items',
+              'data-focus-key': `sg-${group.id}-items`,
+            }, (group.items || []).join(' · '));
+            gitems.value = gitems.textContent;
+            const stampGroup = () => {
+              store = updateAdditionalGroup(store, row.id, group.id, {
+                label: glabel.value,
+                items: splitResumeItems(gitems.value),
+              });
+              saveStore();
+              scheduleResumePreview(posting);
+            };
+            glabel.addEventListener('input', stampGroup);
+            gitems.addEventListener('input', stampGroup);
+            return el('div', { class: 'bb-addl-group' }, [
+              field('Sub-label', glabel),
+              field('Items', gitems),
+              btn('Remove sub-label', {
+                class: 'btn ghost compact-action is-danger',
+                onClick: () => {
+                  store = deleteAdditionalGroup(store, row.id, group.id);
+                  saveStore();
+                  render();
+                },
+              }),
+            ]);
+          })
+          : [field('Items', items)];
         return el('div', { class: 'bb-job-card' }, [
+          el('div', { class: 'bb-rb-tools' }, [
+            resumeMoveBtns('row', {
+              index,
+              length: doc.sections.additional.rows.length,
+              onMove: (delta) => {
+                store = moveAdditionalRow(store, row.id, delta);
+                saveStore();
+                render({ focusKey: `ad-${row.id}-label` });
+              },
+            }),
+            btn('Delete', {
+              class: 'btn ghost compact-action is-danger',
+              onClick: () => {
+                if (!confirm(posting
+                  ? 'Delete this additional-info row from the shared career history? It will leave every posting.'
+                  : 'Delete this additional-info row?')) return;
+                store = deleteAdditionalRow(store, row.id);
+                saveStore();
+                render();
+              },
+            }),
+          ]),
           field('Label', label),
-          field(row.groups?.length ? 'Groups (label is shared; items stay grouped)' : 'Items', items),
+          ...groupEditors,
+          el('div', { class: 'bb-add-row' }, [
+            btn('+ Add sub-label', {
+              class: 'btn ghost compact-action',
+              onClick: () => {
+                store = addAdditionalGroup(store, row.id);
+                const added = store.additional.find((item) => item.id === row.id);
+                const last = added?.groups[added.groups.length - 1];
+                saveStore();
+                render({ focusKey: last ? `sg-${last.id}-label` : `ad-${row.id}-label` });
+              },
+            }),
+          ]),
         ]);
       })
-      : [el('p', { class: 'empty' }, 'None yet.')]),
+      : [el('p', { class: 'empty' }, 'None yet. Use + Add row for a label plus items, or import a resume JSON.')]),
   ]);
 }
 

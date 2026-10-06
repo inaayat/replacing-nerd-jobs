@@ -1399,3 +1399,28 @@ a:focus-visible {
   gap: 8px;
   margin-bottom: 6px;
 }
+.bb-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 14px 0 6px;
+}
+.bb-section-head h3 { margin: 0; }
+.bb-add-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 2px;
+}
+.bb-group-head {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+.bb-addl-group {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+  margin-top: 8px;
+}
+.compact-action.is-danger { color: var(--red); }
