@@ -235,7 +235,8 @@ function normalizeBullets(value, clock) {
 
 export function normalizeEntry(raw, clock = Date.now) {
   if (!raw || typeof raw !== 'object') return null;
-  const title = asString(raw.title, TITLE_MAX);
+  // The title is the resume line, so it can be as long as a bullet.
+  const title = asString(raw.title, TEXT_MAX);
   if (!title) return null;
   const createdAt = asString(raw.createdAt, 40) || nowIso(clock);
   return {
@@ -366,7 +367,86 @@ export function normalizeStore(raw, clock = Date.now) {
     store.postings.push(posting);
   }
   store.profile = normalizeProfile(raw.profile);
-  return store;
+  return alignExperienceLines(store, clock);
+}
+
+function firstBulletForEntry(store, entryId) {
+  if (!entryId) return null;
+  for (const job of store?.postings || []) {
+    for (const req of job.requirements || []) {
+      const bullet = (req.bullets || []).find((line) => line.entryId === entryId);
+      if (bullet) return bullet;
+    }
+  }
+  return null;
+}
+
+function replaceEntry(store, id, patch, clock) {
+  const current = entryById(store, id);
+  if (!current) return store;
+  const next = normalizeEntry({ ...current, ...patch, id: current.id, createdAt: current.createdAt }, clock);
+  if (!next) return store;
+  return { ...store, entries: replaceById(store.entries, id, touched(next, clock)) };
+}
+
+function sameRich(a, b) {
+  const left = Array.isArray(a) ? a : [];
+  const right = Array.isArray(b) ? b : [];
+  if (left.length !== right.length) return false;
+  return left.every((span, index) => span.text === right[index].text && Boolean(span.bold) === Boolean(right[index].bold));
+}
+
+// One experience has one line. That line is the entry title and every resume bullet that points at it.
+function experienceLineMatches(store, entryId, formatted) {
+  const entry = entryById(store, entryId);
+  if (!entry || entry.title !== formatted.text) return false;
+  for (const job of store.postings || []) {
+    for (const req of job.requirements || []) {
+      for (const line of req.bullets || []) {
+        if (line.entryId === entryId && (line.text !== formatted.text || !sameRich(line.rich, formatted.rich))) return false;
+      }
+    }
+  }
+  return true;
+}
+
+function applyExperienceLine(store, entryId, text, rich, clock) {
+  const formatted = normalizeRichSpans(rich, text);
+  if (!entryId || !formatted) return store;
+  if (experienceLineMatches(store, entryId, formatted)) return store;
+  let next = replaceEntry(store, entryId, { title: formatted.text }, clock);
+  next = {
+    ...next,
+    postings: (next.postings || []).map((job) => ({
+      ...job,
+      requirements: job.requirements.map((req) => {
+        let changed = false;
+        const bullets = req.bullets.map((line) => {
+          if (line.entryId !== entryId) return line;
+          if (line.text === formatted.text && sameRich(line.rich, formatted.rich)) return line;
+          changed = true;
+          return normalizeBullet({ ...line, text: formatted.text, rich: formatted.rich, id: line.id }, clock) || line;
+        });
+        return changed ? withBullets(req, bullets) : req;
+      }),
+    })),
+  };
+  return next;
+}
+
+function alignExperienceLines(store, clock) {
+  let next = store;
+  const seen = new Set();
+  for (const job of store.postings || []) {
+    for (const req of job.requirements || []) {
+      for (const bullet of req.bullets || []) {
+        if (!bullet.entryId || seen.has(bullet.entryId)) continue;
+        seen.add(bullet.entryId);
+        next = applyExperienceLine(next, bullet.entryId, bullet.text, bullet.rich, clock);
+      }
+    }
+  }
+  return next;
 }
 
 function touched(record, clock) {
@@ -410,11 +490,13 @@ export function updateProfile(store, patch) {
 }
 
 export function updateEntry(store, id, patch, clock = Date.now) {
-  const current = entryById(store, id);
-  if (!current) return store;
-  const next = normalizeEntry({ ...current, ...patch, id: current.id, createdAt: current.createdAt }, clock);
-  if (!next) return store;
-  return { ...store, entries: replaceById(store.entries, id, touched(next, clock)) };
+  const next = replaceEntry(store, id, patch, clock);
+  if (!patch || !Object.prototype.hasOwnProperty.call(patch, 'title')) return next;
+  const entry = entryById(next, id);
+  if (!entry) return next;
+  const bullet = firstBulletForEntry(next, id);
+  const rich = bullet && bullet.text === entry.title ? bullet.rich : null;
+  return applyExperienceLine(next, id, entry.title, rich, clock);
 }
 
 export function deleteEntry(store, id) {
@@ -543,25 +625,28 @@ export function addEntryBullet(store, postingId, requirementId, entryId, text = 
   const job = postingById(store, postingId);
   const req = requirementById(job, requirementId);
   if (!entry || !req || req.bullets.some((bullet) => bullet.entryId === entryId)) return store;
+  const sibling = firstBulletForEntry(store, entryId);
   const line = normalizeBullet({
     id: newId('ln', clock),
     entryId,
-    text: asString(text, TEXT_MAX) || draftBulletFromEntry(entry) || entry.title,
-    rich,
+    text: sibling?.text || asString(text, TEXT_MAX) || entry.title,
+    rich: sibling ? sibling.rich : rich,
   }, clock);
   if (!line) return store;
-  return mapRequirement(
+  let next = mapRequirement(
     store,
     postingId,
     requirementId,
     (current) => withBullets(current, [...current.bullets, line]),
     clock
   );
+  if (!sibling && line.text !== entry.title) next = replaceEntry(next, entryId, { title: line.text }, clock);
+  return next;
 }
 
 export function createEntryBullet(store, postingId, requirementId, text, clock = Date.now, rich) {
   const formatted = normalizeRichSpans(rich, text);
-  const title = asString(formatted?.text || text, TITLE_MAX);
+  const title = asString(formatted?.text || text, TEXT_MAX);
   if (!title || !formatted) return store;
   const entryId = newId('en', clock);
   const next = addEntry(store, { id: entryId, title, kind: 'experience' }, clock);
@@ -575,7 +660,7 @@ export function updateBullet(store, postingId, requirementId, bulletId, patch, c
   if (Object.prototype.hasOwnProperty.call(nextPatch, 'text') && !Object.prototype.hasOwnProperty.call(nextPatch, 'rich')) {
     nextPatch.rich = null;
   }
-  return mapRequirement(
+  const next = mapRequirement(
     store,
     postingId,
     requirementId,
@@ -588,6 +673,10 @@ export function updateBullet(store, postingId, requirementId, bulletId, patch, c
     ),
     clock
   );
+  if (!Object.prototype.hasOwnProperty.call(nextPatch, 'text')) return next;
+  const bullet = requirementById(postingById(next, postingId), requirementId)?.bullets.find((line) => line.id === bulletId);
+  if (!bullet?.entryId) return next;
+  return applyExperienceLine(next, bullet.entryId, bullet.text, bullet.rich, clock);
 }
 
 export function deleteBullet(store, postingId, requirementId, bulletId, clock = Date.now) {

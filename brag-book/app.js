@@ -531,7 +531,7 @@ function entryForm(entry) {
       entry ? el('span', { class: `tag kind-${entry.kind}` }, kindLabel(entry.kind)) : null,
     ]),
     el('div', { class: 'panel-body' }, [
-      field('Title', el('input', { name: 'title', required: true, maxlength: '160', value: draft.title, placeholder: 'Shipped the suitcase sync' })),
+      field('Experience', el('input', { name: 'title', required: true, maxlength: '4000', value: draft.title, placeholder: 'Shipped the suitcase sync' })),
       el('div', { class: 'grid-2' }, [
         field('Kind', el('select', { name: 'kind' }, ENTRY_KINDS.map((kind) =>
           el('option', { value: kind, selected: draft.kind === kind || undefined }, kindLabel(kind))
@@ -855,11 +855,6 @@ function requirementQuestions(job, req) {
 function experienceEditor(job, req, bullet) {
   const entry = bulletEntry(store, bullet);
   const detail = entry || bullet;
-  const title = entry ? el('input', {
-    value: entry.title,
-    placeholder: 'Experience title',
-    'aria-label': 'Experience name',
-  }) : null;
   const role = entry ? el('input', {
     value: entry.role || '',
     placeholder: 'Product engineer, Beep boop',
@@ -885,11 +880,11 @@ function experienceEditor(job, req, bullet) {
       action: fields.action.value,
       result: fields.result.value,
     };
-    if (entry && title.value.trim()) store = updateEntry(store, entry.id, { ...patch, title: title.value, role: role.value });
+    if (entry) store = updateEntry(store, entry.id, { ...patch, role: role.value });
     else if (!entry) store = updateBullet(store, job.id, req.id, bullet.id, patch);
     saveStore();
   };
-  [notes, ...Object.values(fields), title, role].filter(Boolean).forEach((node) => {
+  [notes, ...Object.values(fields), role].filter(Boolean).forEach((node) => {
     node.addEventListener('input', save);
   });
   return el('div', { class: 'experience-editor' }, [
@@ -905,9 +900,7 @@ function experienceEditor(job, req, bullet) {
         onClick: () => { expandedBulletKey = ''; render(); },
       }),
     ]),
-    entry ? field('Experience name', title) : null,
     entry ? field('Role', role) : null,
-    el('p', { class: 'tiny' }, 'The experience line above is the resume bullet. Cmd+B or Ctrl+B bolds the selection.'),
     field('Description', notes),
     el('div', { class: 'experience-star' }, [
       ['situation', 'Situation'],

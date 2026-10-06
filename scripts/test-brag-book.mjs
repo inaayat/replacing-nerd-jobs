@@ -211,6 +211,8 @@ const groupedResume = compileResume(postingById(grouped, groupedJobId), grouped)
 assert.equal(groupedResume.sections.length, 1);
 assert.equal(groupedResume.sections[0].role, 'Product engineer, Beep');
 assert.equal(groupedResume.bullets.length, 1);
+assert.equal(grouped.entries.find((entry) => entry.id === groupedEntryId).title, 'Shipped billing for signed-in users');
+assert.equal(postingById(grouped, groupedJobId).requirements[1].bullets[0].text, 'Shipped billing for signed-in users');
 assert.match(compileResumeText(postingById(grouped, groupedJobId), grouped), /Product engineer, Beep/);
 assert.doesNotMatch(compileResumeText(postingById(grouped, groupedJobId), grouped), /Requirement A/);
 const withRole = normalizeStore({ entries: [{ title: 'Keep', role: 'Analyst' }] }, clock);
@@ -271,6 +273,7 @@ richBook = updateBullet(richBook, richJob, richReq, richBullet.id, 'Plain replac
 richBullet = richBook.postings[0].requirements[0].bullets[0];
 assert.equal(richBullet.text, 'Plain replacement');
 assert.equal(richBullet.rich[0].bold, false);
+assert.equal(richBook.entries[0].title, 'Plain replacement');
 
 const pasted = parseExperiences(`
 - Shipped packing cubes sync
@@ -296,6 +299,34 @@ shared = addEntryBullet(shared, sharedJobId, sharedReqB.id, sharedEntry.id, 'Cut
 assert.equal(postingById(shared, sharedJobId).requirements[1].bullets[0].entryId, sharedEntry.id);
 assert.equal(linkedEntries(shared, postingById(shared, sharedJobId).requirements[1])[0].id, sharedEntry.id);
 assert.equal(bulletEntry(shared, postingById(shared, sharedJobId).requirements[1].bullets[0]).title, 'Launched the finance workflow');
+assert.equal(postingById(shared, sharedJobId).requirements[1].bullets[0].text, 'Launched the finance workflow');
+const longLine = 'Created a framework for determining if an automated solution was appropriate. '.repeat(3).trim();
+let named = addPosting(emptyStore(), { title: 'Name match' }, clock);
+const namedJob = named.postings[0].id;
+named = addRequirement(named, namedJob, 'Own the decision', clock);
+named = addRequirement(named, namedJob, 'Use it again', clock);
+const [namedA, namedB] = named.postings[0].requirements;
+named = createEntryBullet(named, namedJob, namedA.id, longLine, clock);
+assert.equal(named.entries[0].title, longLine);
+assert.equal(named.postings[0].requirements[0].bullets[0].text, longLine);
+named = addEntryBullet(named, namedJob, namedB.id, named.entries[0].id, 'A different name', clock);
+assert.equal(named.postings[0].requirements[1].bullets[0].text, longLine);
+named = updateBullet(named, namedJob, namedA.id, named.postings[0].requirements[0].bullets[0].id, 'Same line everywhere', clock);
+assert.equal(named.entries[0].title, 'Same line everywhere');
+assert.equal(named.postings[0].requirements[1].bullets[0].text, 'Same line everywhere');
+const aligned = normalizeStore({
+  entries: [{ id: 'en_line', title: 'Short name', kind: 'experience' }],
+  postings: [{
+    title: 'Role',
+    requirements: [
+      { text: 'First', bullets: [{ id: 'ln1', text: 'The long resume line', entryId: 'en_line', rich: [{ text: 'The long ', bold: false }, { text: 'resume line', bold: true }] }] },
+      { text: 'Second', bullets: [{ id: 'ln2', text: 'Other line', entryId: 'en_line' }] },
+    ],
+  }],
+}, clock);
+assert.equal(aligned.entries[0].title, 'The long resume line');
+assert.equal(aligned.postings[0].requirements[1].bullets[0].text, 'The long resume line');
+assert.equal(aligned.postings[0].requirements[1].bullets[0].rich[1].bold, true);
 shared = updateEntry(shared, sharedEntry.id, { result: 'Cut review time by 40%.' }, clock);
 assert.equal(
   bulletEntry(shared, postingById(shared, sharedJobId).requirements[0].bullets[0]).result,
