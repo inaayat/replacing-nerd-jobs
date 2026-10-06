@@ -1033,9 +1033,19 @@ function experienceAdder(job, req) {
     if (activeIndex >= choices.length) activeIndex = choices.length - 1;
     paintMatches();
   };
+  const hideMatches = () => {
+    matches.hidden = true;
+    activeIndex = -1;
+  };
   fresh.addEventListener('focus', () => {
     activeIndex = -1;
     showMatches();
+  });
+  wrap.addEventListener('focusout', () => {
+    window.setTimeout(() => {
+      if (wrap.contains(document.activeElement)) return;
+      hideMatches();
+    }, 0);
   });
   fresh.addEventListener('keydown', (event) => {
     if (event.key === 'ArrowDown' && choices.length) {
@@ -1050,10 +1060,7 @@ function experienceAdder(job, req) {
       paintMatches();
       return;
     }
-    if (event.key === 'Escape') {
-      matches.hidden = true;
-      activeIndex = -1;
-    }
+    if (event.key === 'Escape') hideMatches();
   });
   wrap.append(
     el('div', { class: 'table-add' }, [
