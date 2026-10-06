@@ -189,18 +189,26 @@ Interview prep on the same Neon Auth account as Packing Cubes. Currently
 **beta**. **New job posting** is the main path: paste a description, then use
 one compact table with requirements on the left and resume bullets / experiences
 on the right. Clicking a bullet opens its longer notes, STAR fields, optional
-book story, and potential questions + answers. **Resume** adds an optional
-name/summary/skills header, copies, and downloads text or a print-friendly
-page. **Prep** walks question + STAR with keyboard next/prev. The running book
-is a side door — paste several experiences at once. The posting link is kept
-for later; nothing is fetched yet. Styled after
-[Plotmaniac](https://plotmaniac.com/) (black on white, full page width).
+book story, and potential questions + answers. **Resume** (`#jobs/:id/resume`)
+is a side-by-side editor: structured jobs, bullets (bold lead + body),
+include/exclude, pin, and section order on the left; a live one-page
+classic-serif preview (Cambria/Caladea) on the right that tightens spacing,
+will not shrink below 9.5pt, then drops lowest-priority non-pinned bullets to
+stay on one Letter page. Print/PDF uses that preview; **Download Word** writes a
+real `.docx`. Wording edits are per-posting overrides and do not rewrite the
+book unless you **Save back to source**. **Resume basics** (`#profile`) holds
+shared header, jobs, credentials (optional), education, and additional info.
+**Import resume (JSON)** loads `brag-book/data/inaayat-gill-resume.json` (or any
+file in that schema) into the signed-in book. Plain-text Copy / `.txt` / older
+`.doc` remain under a disclosure. **Prep** walks question + STAR with keyboard
+next/prev. The running book is a side door — paste several experiences at once.
 
 Signing in is required — the signed-out view is a centered log-in gate. One
 JSONB row per user (`brag_books`) via `api/brag-book.js` (`/api/bb-book`).
 `brag-book/engine.js` is the document model (browser + `lib/brag-book.js`);
-keep it dependency-free ESM and out of `/lib/`. Static-server UI work uses
-`/brag-book/?local=1`. Export/import JSON is the backup.
+keep it dependency-free ESM and out of `/lib/`. Resume render/fit/docx live in
+`resume-template.js`, `resume-fit.js`, and `resume-docx.js`. Static-server UI
+work uses `/brag-book/?local=1`. Export/import JSON is the backup.
 
 ### ASC 606 — `/asc-606`
 
