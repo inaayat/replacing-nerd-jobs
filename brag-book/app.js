@@ -143,6 +143,10 @@ function kindLabel(kind) {
   return ({ experience: 'Experience', project: 'Project', skillset: 'Skillset' })[kind] || kind;
 }
 
+function displayExperienceLine(text) {
+  return String(text || '').replace(/^\s*[-*•–—●▪‣∙]\s+/, '').trim() || String(text || '').trim();
+}
+
 function setNote(text) {
   statusNote = text;
   const node = document.getElementById('status-note');
@@ -575,13 +579,17 @@ function jobForm() {
 
 function coverageBanner(job) {
   const cover = prepCoverage(store, job);
-  return el('div', { class: 'banner' }, [
-    el('p', {}, cover.hints[0] || `${cover.withAnswer}/${cover.total || 0} requirements have an answer`),
-    el('p', { class: 'tiny' }, [
-      `${cover.withBullet}/${cover.total || 0} bullets`,
-      `${cover.withQuestion}/${cover.total || 0} questions`,
-      `${cover.withAnswer}/${cover.total || 0} answers`,
-    ].join(' · ')),
+  const chip = (value, total, label) => el('span', { class: 'progress-chip' }, [
+    el('strong', {}, `${value}/${total || 0}`),
+    ` ${label}`,
+  ]);
+  return el('div', { class: 'banner banner-progress' }, [
+    el('p', { class: 'banner-hint' }, cover.hints[0] || `${cover.withAnswer}/${cover.total || 0} requirements have an answer`),
+    el('div', { class: 'progress-chips' }, [
+      chip(cover.withBullet, cover.total, 'bullets'),
+      chip(cover.withQuestion, cover.total, 'questions'),
+      chip(cover.withAnswer, cover.total, 'answers'),
+    ]),
   ]);
 }
 
@@ -934,20 +942,23 @@ function requirementTableRow(job, req) {
         render();
       },
     }, [
-      el('span', { class: 'bullet-copy' }, bullet.text),
+      el('span', { class: 'bullet-copy is-marked' }, displayExperienceLine(bullet.text)),
       el('span', { class: 'bullet-meta' }, [
-        entry ? `Brag Book · ${starFill(entry).filled}/4 STAR` : `${starFill(bullet).filled}/4 STAR`,
-        req.questions.length ? `${answered}/${req.questions.length} questions answered` : 'no questions yet',
-      ].join(' · ')),
+        el('span', {}, entry ? `Brag Book · ${starFill(entry).filled}/4 STAR` : `${starFill(bullet).filled}/4 STAR`),
+        el('span', {}, req.questions.length ? `${answered}/${req.questions.length} questions answered` : 'no questions yet'),
+      ]),
       el('span', { class: 'bullet-open' }, isOpen ? 'Close ↑' : 'Details ↓'),
     ]));
     if (isOpen) bullets.append(experienceEditor(job, req, bullet));
   }
   bullets.append(experienceAdder(job, req));
 
-  return el('tr', {}, [
+  return el('tr', { class: 'job-table-row' }, [
     el('td', { class: 'requirement-cell', 'data-label': 'Requirement' }, [
-      requirement,
+      el('div', { class: 'requirement-block' }, [
+        el('span', { class: 'cell-label' }, 'Requirement'),
+        requirement,
+      ]),
       el('div', { class: 'table-row-tools' }, [
         btn('+ Question', {
           class: 'row-text-action',
@@ -961,7 +972,10 @@ function requirementTableRow(job, req) {
         ? requirementQuestions(job, req)
         : null,
     ]),
-    el('td', { class: 'bullets-cell', 'data-label': 'Resume bullets / experiences' }, [bullets]),
+    el('td', { class: 'bullets-cell', 'data-label': 'Resume bullets / experiences' }, [
+      el('span', { class: 'cell-label' }, 'Experiences'),
+      el('div', { class: 'bullets-stack' }, [bullets]),
+    ]),
   ]);
 }
 
