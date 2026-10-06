@@ -47,6 +47,30 @@ import {
   deleteCareerBullet,
   moveCareerBullet,
   moveCareerGroup,
+  addPostingLocalJob,
+  updatePostingLocalJob,
+  deletePostingLocalJob,
+  addPostingLocalGroup,
+  deletePostingLocalGroup,
+  addPostingLocalBullet,
+  updatePostingLocalBullet,
+  deletePostingLocalBullet,
+  movePostingLocalBullet,
+  movePostingLocalGroup,
+  movePostingJob,
+  addPostingLocalEducation,
+  updatePostingLocalEducation,
+  deletePostingLocalEducation,
+  addPostingLocalCredential,
+  updatePostingLocalCredential,
+  deletePostingLocalCredential,
+  addPostingLocalAdditional,
+  updatePostingLocalAdditional,
+  deletePostingLocalAdditional,
+  startPostingResumeFresh,
+  resetPostingResumeToBasics,
+  choosePostingResumeMode,
+  localJobById,
   updateResumeSettings,
   updateEducationItem,
   addEducationItem,
@@ -83,7 +107,7 @@ import {
 import { renderResumeHtml, resumeDocument } from './resume-template.js';
 import { fitOnePage, dropOrderFromDoc, applyDroppedIds, PAGE_HEIGHT_PX } from './resume-fit.js';
 import { resumeDocxBlob } from './resume-docx.js';
-import { parseViewHash, viewHash, viewTitle } from './routes.js';
+import { parseViewHash, viewHash, viewTitle, logLayout } from './routes.js';
 import { loadBook, saveBook } from './store.js';
 import { initAuth, refreshToken, renderBragSignIn, wireAuthLink } from './auth.js';
 
@@ -642,11 +666,15 @@ function chip(n, label) {
   return el('span', { class: 'chip' }, [el('strong', {}, String(n)), ` ${label}`]);
 }
 
-function entryList(selectedId) {
+function entryList(selectedId, { variant = 'rail' } = {}) {
   const rows = searchEntries(store, query).filter((entry) => kindFilter === 'all' || entry.kind === kindFilter);
-  return el('aside', { class: 'panel' }, [
+  const isMain = variant === 'main';
+  return el(isMain ? 'section' : 'aside', { class: isMain ? 'panel bb-book-catalog' : 'panel' }, [
     el('div', { class: 'panel-head' }, [
-      el('h2', {}, 'The book'),
+      el('div', {}, [
+        el('h2', {}, 'The book'),
+        isMain ? el('p', { class: 'tiny' }, 'Every pasted win. Open one to fill STAR.') : null,
+      ]),
       el('span', { class: 'tiny' }, `${rows.length}`),
     ]),
     el('div', { class: 'panel-body' }, [
@@ -665,17 +693,72 @@ function entryList(selectedId) {
       ))),
     ]),
     rows.length
-      ? el('div', { class: 'list' }, rows.map((entry) =>
+      ? el('div', { class: isMain ? 'list bb-book-list' : 'list' }, rows.map((entry) =>
         el('button', {
           type: 'button',
-          class: `row${selectedId === entry.id ? ' is-on' : ''}`,
+          class: `row${isMain ? ' bb-book-row' : ''}${selectedId === entry.id ? ' is-on' : ''}`,
           onClick: () => go({ kind: 'log', id: entry.id }),
         }, [
-          el('div', { class: 'row-title' }, entry.title),
-          el('div', { class: 'row-meta' }, [kindLabel(entry.kind), entry.when, starFill(entry).ready ? 'STAR ready' : null].filter(Boolean).join(' · ')),
+          el('div', { class: 'row-title' }, displayExperienceLine(entry.title)),
+          el('div', { class: 'row-meta' }, [
+            kindLabel(entry.kind),
+            entry.when,
+            entry.role,
+            starFill(entry).ready ? 'STAR ready' : 'STAR open',
+          ].filter(Boolean).join(' · ')),
         ])
       ))
-      : el('p', { class: 'empty' }, query ? 'Nothing in the book matches that.' : 'Paste several experiences, then link one from a requirement.'),
+      : el('p', { class: 'empty' }, query
+        ? 'Nothing in the book matches that.'
+        : 'Nothing in the book yet. Use + Add experiences to paste several at once.'),
+  ]);
+}
+
+function bulkEntryForm({ compact = false } = {}) {
+  const paste = el('textarea', {
+    class: compact ? 'bb-add-paste' : 'tall',
+    rows: compact ? '7' : undefined,
+    placeholder: 'One experience per line, or a STAR block:\n\n- Shipped packing cubes sync\n- Hobby-plan function budget\n\nTitle: Multiplexed the API\nSituation: Twelve functions already used.\nTask: Add another signed-in app.\nAction: Branched ?route= on the existing handler.\nResult: Stayed on Hobby.',
+    'data-focus-key': 'book-paste',
+  });
+  const kind = el('select', {}, ENTRY_KINDS.map((value) =>
+    el('option', { value, selected: value === 'experience' || undefined }, kindLabel(value))
+  ));
+  const addToBook = () => {
+    const drafts = parseExperiences(paste.value).map((draft) => ({ ...draft, kind: kind.value }));
+    if (!drafts.length) {
+      setNote('Paste at least one experience — one per line, or a STAR block.');
+      return;
+    }
+    store = addEntries(store, drafts);
+    saveStore();
+    render({ focusKey: 'book-paste' });
+    setNote(`Added ${drafts.length} experience${drafts.length === 1 ? '' : 's'}. They are in the list.`);
+  };
+  return el('section', { class: compact ? 'panel bb-add-compact' : 'panel' }, [
+    el('div', { class: 'panel-head' }, [
+      el('div', {}, [
+        el('h2', {}, 'Add experiences'),
+        el('p', { class: 'tiny' }, 'Paste many at once. The list stays in view.'),
+      ]),
+      el('span', { class: 'beta-pill' }, 'beta'),
+    ]),
+    el('div', { class: 'panel-body' }, [
+      compact
+        ? null
+        : el('p', { class: 'lede' }, 'Dump a resume, a review doc, or notes. Each line becomes an experience a posting can link.'),
+      field('Kind for this paste', kind),
+      field('Paste experiences', paste),
+      el('div', { class: 'actions' }, [
+        btn('Add to the book', {
+          class: 'btn',
+          onClick: addToBook,
+        }),
+        compact
+          ? btn('Done', { class: 'btn ghost', onClick: () => go({ kind: 'log' }) })
+          : btn('Cancel', { class: 'btn ghost', onClick: () => go({ kind: 'log' }) }),
+      ]),
+    ]),
   ]);
 }
 
@@ -698,47 +781,6 @@ function jobList(selectedId) {
         ]);
       }))
       : el('p', { class: 'empty' }, 'No postings yet. Paste a job description — that is the start of the loop.'),
-  ]);
-}
-
-function bulkEntryForm() {
-  const paste = el('textarea', {
-    class: 'tall',
-    placeholder: 'One experience per line, or a STAR block:\n\n- Shipped packing cubes sync\n- Hobby-plan function budget\n\nTitle: Multiplexed the API\nSituation: Twelve functions already used.\nTask: Add another signed-in app.\nAction: Branched ?route= on the existing handler.\nResult: Stayed on Hobby.',
-  });
-  const kind = el('select', {}, ENTRY_KINDS.map((value) =>
-    el('option', { value, selected: value === 'experience' || undefined }, kindLabel(value))
-  ));
-  return el('section', { class: 'panel' }, [
-    el('div', { class: 'panel-head' }, [
-      el('div', {}, [
-        el('h2', {}, 'Add experiences'),
-        el('p', { class: 'tiny' }, 'Beta — paste many at once. Open one later to fill STAR.'),
-      ]),
-      el('span', { class: 'beta-pill' }, 'beta'),
-    ]),
-    el('div', { class: 'panel-body' }, [
-      el('p', { class: 'lede' }, 'Dump a resume, a review doc, or notes. Each line becomes an experience a posting can link.'),
-      field('Kind for this paste', kind),
-      field('Paste experiences', paste),
-      el('div', { class: 'actions' }, [
-        btn('Add to the book', {
-          class: 'btn',
-          onClick: () => {
-            const drafts = parseExperiences(paste.value).map((draft) => ({ ...draft, kind: kind.value }));
-            if (!drafts.length) {
-              setNote('Paste at least one experience — one per line, or a STAR block.');
-              return;
-            }
-            store = addEntries(store, drafts);
-            saveStore();
-            go({ kind: 'log' });
-            setNote(`Added ${drafts.length} experience${drafts.length === 1 ? '' : 's'}. Link one from a posting next.`);
-          },
-        }),
-        btn('Cancel', { class: 'btn ghost', onClick: () => go({ kind: 'log' }) }),
-      ]),
-    ]),
   ]);
 }
 
@@ -1753,6 +1795,36 @@ function careerJobById(id) {
   return (store.jobs || []).find((job) => job.id === id) || null;
 }
 
+function isSharedJob(id) {
+  return Boolean(careerJobById(id));
+}
+
+function isLocalOnlyJob(posting, id) {
+  if (!posting) return false;
+  return Boolean(localJobById(posting.resume, id)) && !isSharedJob(id);
+}
+
+function isLocalResumeRow(posting, key, id) {
+  return Boolean(posting && (posting.resume?.[key] || []).some((item) => item.id === id));
+}
+
+function lastLocalJob(postingId) {
+  const jobs = livePosting(postingId)?.resume?.localJobs || [];
+  return jobs[jobs.length - 1] || null;
+}
+
+function lastLocalBullet(postingId, jobId, groupId) {
+  const job = localJobById(livePosting(postingId)?.resume, jobId);
+  const group = (job?.groups || []).find((item) => item.id === groupId)
+    || job?.groups[job.groups.length - 1];
+  return group?.bullets[group.bullets.length - 1] || null;
+}
+
+function lastLocalGroup(postingId, jobId) {
+  const job = localJobById(livePosting(postingId)?.resume, jobId);
+  return job?.groups[job.groups.length - 1] || null;
+}
+
 function bulletCount(career) {
   return (career.groups || []).reduce((sum, group) => sum + (group.bullets || []).length, 0);
 }
@@ -1787,7 +1859,9 @@ function resumeMoveBtns(label, { index, length, onMove }) {
 
 function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0) {
   const dropped = (resumeFit.droppedBulletIds || []).includes(bullet.id);
-  const isCareer = Boolean(careerJobById(career.id));
+  const shared = isSharedJob(career.id);
+  const localBullet = Boolean(bullet.local) || isLocalOnlyJob(posting, career.id);
+  const canEdit = !posting || shared || localBullet || Boolean(career.local);
   const lead = el('input', {
     value: bullet.lead,
     placeholder: 'Bold lead phrase',
@@ -1814,6 +1888,11 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0) {
             }
             : item
         )),
+      });
+    } else if (localBullet) {
+      store = updatePostingLocalBullet(store, posting.id, career.id, group.id, bullet.id, {
+        lead: lead.value,
+        body: body.value,
       });
     } else {
       store = updatePostingResume(store, posting.id, {
@@ -1864,19 +1943,40 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0) {
       ]),
       dropped ? el('span', { class: 'tiny' }, 'Hidden to fit') : null,
       bullet.hasOverride ? el('span', { class: 'tiny' }, 'Resume wording') : null,
-      isCareer ? resumeMoveBtns('bullet', {
+      localBullet ? el('span', { class: 'tiny' }, 'This posting only') : null,
+      canEdit ? resumeMoveBtns('bullet', {
         index: bulletIndex,
         length: group.bullets.length,
         onMove: (delta) => {
-          store = moveCareerBullet(store, career.id, group.id, bullet.id, delta);
+          if (posting && localBullet) {
+            store = movePostingLocalBullet(store, posting.id, career.id, group.id, bullet.id, delta);
+          } else if (!posting && shared) {
+            store = moveCareerBullet(store, career.id, group.id, bullet.id, delta);
+          } else if (posting) {
+            const order = (group.bullets || []).map((item) => item.id);
+            const moved = order.slice();
+            const idx = moved.indexOf(bullet.id);
+            const next = idx + delta;
+            if (idx < 0 || next < 0 || next >= moved.length) return;
+            const [row] = moved.splice(idx, 1);
+            moved.splice(next, 0, row);
+            store = updatePostingResume(store, posting.id, { bulletOrder: { [group.id]: moved } });
+          }
           saveStore();
           render({ focusKey: `rb-${bullet.id}-lead` });
         },
       }) : null,
-      isCareer ? btn(posting && bullet.included !== false ? 'Remove' : 'Delete', {
+      canEdit ? btn(localBullet || !posting ? 'Remove' : (bullet.included !== false ? 'Remove' : 'Delete'), {
         class: 'btn ghost compact-action is-danger',
         onClick: () => {
-          if (posting && bullet.included !== false) {
+          if (posting && localBullet) {
+            store = deletePostingLocalBullet(store, posting.id, career.id, group.id, bullet.id);
+            saveStore();
+            render();
+            setNote('Removed this bullet from this posting only.');
+            return;
+          }
+          if (posting) {
             store = updatePostingResume(store, posting.id, {
               excludedBulletIds: toggleId(posting.resume.excludedBulletIds, bullet.id),
             });
@@ -1885,9 +1985,7 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0) {
             setNote('Hidden on this posting. It stays in Resume basics.');
             return;
           }
-          if (!confirm(posting
-            ? 'Delete this bullet from the shared career history? It will leave every posting.'
-            : 'Delete this bullet from the shared career history?')) return;
+          if (!confirm('Delete this bullet from the shared career history?')) return;
           store = deleteCareerBullet(store, career.id, group.id, bullet.id);
           saveStore();
           render();
@@ -1899,7 +1997,7 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0) {
     posting ? el('div', { class: 'actions' }, [
       btn('Reset to source', {
         class: 'btn ghost compact-action',
-        disabled: !bullet.hasOverride,
+        disabled: !bullet.hasOverride || localBullet,
         onClick: () => {
           store = replacePostingResume(store, posting.id, clearBulletOverride(livePosting(posting.id).resume, bullet.id));
           saveStore();
@@ -1916,7 +2014,9 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0) {
           store = replacePostingResume(store, posting.id, clearBulletOverride(current.resume, bullet.id));
           saveStore();
           render();
-          setNote('Wrote this wording back to the source bullet.');
+          setNote(localBullet
+            ? 'Copied this bullet into Resume basics. Other postings can use it now.'
+            : 'Wrote this wording back to the source bullet.');
         },
       }),
     ]) : null,
@@ -1924,52 +2024,81 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0) {
   return wrap;
 }
 
+function addRoleButton(posting, { afterId } = {}) {
+  return btn('+ Add role', {
+    class: 'btn ghost compact-action',
+    onClick: () => {
+      if (posting) {
+        store = addPostingLocalJob(store, posting.id, {}, { afterId });
+        const added = lastLocalJob(posting.id);
+        saveStore();
+        render({ focusKey: added ? `rj-${added.id}-company` : undefined });
+        setNote('Added a role on this posting only. Save back to source to copy it into Resume basics.');
+        return;
+      }
+      store = addCareerJob(store);
+      const added = store.jobs[store.jobs.length - 1];
+      saveStore();
+      render({ focusKey: added ? `rj-${added.id}-company` : undefined });
+      setNote('Added a role to the shared career history.');
+    },
+  });
+}
+
 function resumeJobEditor(posting, career) {
-  const isCareer = store.jobs.some((item) => item.id === career.id);
+  const shared = isSharedJob(career.id);
+  const localOnly = Boolean(career.local) || isLocalOnlyJob(posting, career.id);
+  const canEditFields = !posting ? shared : (shared || localOnly);
   const company = el('input', {
     value: career.company,
     placeholder: 'Company',
     'aria-label': 'Company',
-    disabled: !isCareer,
+    disabled: !canEditFields,
     'data-focus-key': `rj-${career.id}-company`,
   });
   const title = el('input', {
     value: career.title,
     placeholder: 'Title',
     'aria-label': 'Job title',
-    disabled: !isCareer,
+    disabled: !canEditFields,
     'data-focus-key': `rj-${career.id}-title`,
   });
   const dates = el('input', {
     value: [career.start, career.end].filter(Boolean).join(' – '),
     placeholder: 'October 2021 – Present',
     'aria-label': 'Dates',
-    disabled: !isCareer,
+    disabled: !canEditFields,
     'data-focus-key': `rj-${career.id}-dates`,
   });
   const location = el('input', {
     value: career.location,
     placeholder: 'New York, NY / Seattle, WA',
     'aria-label': 'Location',
-    disabled: !isCareer,
+    disabled: !canEditFields,
     'data-focus-key': `rj-${career.id}-location`,
   });
   const stampJob = () => {
-    if (!isCareer) return;
     const [start, end] = dates.value.split(/\s+[–-]\s+/);
-    store = updateCareerJob(store, career.id, {
+    const patch = {
       company: company.value,
       title: title.value,
       location: location.value,
       start: (start || dates.value).trim(),
       end: (end || '').trim(),
-    });
+    };
+    if (posting && localOnly && !shared) {
+      store = updatePostingLocalJob(store, posting.id, career.id, patch);
+    } else if (shared) {
+      store = updateCareerJob(store, career.id, patch);
+    } else return;
     saveStore();
     scheduleResumePreview(posting);
   };
   [company, title, dates, location].forEach((node) => node.addEventListener('input', stampJob));
-  const jobIndex = store.jobs.findIndex((item) => item.id === career.id);
+  const jobs = (compileResumeDoc(posting, store).sections.experience.jobs || []);
+  const jobIndex = jobs.findIndex((item) => item.id === career.id);
   const groups = career.groups || [];
+  const allowStructure = Boolean(posting) || shared;
   return el('div', { class: `bb-job-card${career.included === false ? ' is-excluded' : ''}` }, [
     el('div', { class: 'bb-rb-tools' }, [
       el('label', { class: 'bb-check' }, [
@@ -1988,19 +2117,31 @@ function resumeJobEditor(posting, career) {
         }),
         ' Include this role',
       ]),
-      isCareer ? resumeMoveBtns('role', {
+      localOnly ? el('span', { class: 'tiny' }, 'This posting only') : null,
+      allowStructure ? resumeMoveBtns('role', {
         index: jobIndex,
-        length: store.jobs.length,
+        length: jobs.length,
         onMove: (delta) => {
-          store = moveCareerJob(store, career.id, delta);
+          if (posting) store = movePostingJob(store, posting.id, career.id, delta);
+          else store = moveCareerJob(store, career.id, delta);
           saveStore();
           render({ focusKey: `rj-${career.id}-company` });
         },
       }) : null,
-      isCareer ? btn(posting && career.included !== false ? 'Remove' : 'Delete', {
+      allowStructure ? btn('Remove', {
         class: 'btn ghost compact-action is-danger',
         onClick: () => {
-          if (posting && career.included !== false) {
+          if (posting && localOnly) {
+            const n = bulletCount(career);
+            if (!confirm(n
+              ? `Remove this role and its ${n} bullet${n === 1 ? '' : 's'} from this posting’s resume? Resume basics is unchanged.`
+              : 'Remove this role from this posting’s resume? Resume basics is unchanged.')) return;
+            store = deletePostingLocalJob(store, posting.id, career.id);
+            saveStore();
+            render();
+            return;
+          }
+          if (posting) {
             store = updatePostingResume(store, posting.id, {
               excludedJobIds: toggleId(posting.resume.excludedJobIds, career.id),
             });
@@ -2010,8 +2151,7 @@ function resumeJobEditor(posting, career) {
             return;
           }
           const n = bulletCount(career);
-          if (n && !confirm(`Delete this role and its ${n} bullet${n === 1 ? '' : 's'} from the shared career history? It will leave every posting.`)) return;
-          if (!n && posting && !confirm('Delete this role from the shared career history? It will leave every posting.')) return;
+          if (n && !confirm(`Delete this role and its ${n} bullet${n === 1 ? '' : 's'} from the shared career history?`)) return;
           store = deleteCareerJob(store, career.id);
           saveStore();
           render();
@@ -2034,9 +2174,15 @@ function resumeJobEditor(posting, career) {
         'data-focus-key': `rg-${group.id}-heading`,
       });
       heading.addEventListener('input', () => {
-        if (posting) {
+        if (posting && (localOnly || group.local)) {
+          const job = localJobById(livePosting(posting.id).resume, career.id);
+          const groupsNext = (job?.groups || career.groups).map((item) => (
+            item.id === group.id ? { ...item, heading: heading.value } : item
+          ));
+          store = updatePostingLocalJob(store, posting.id, career.id, { groups: groupsNext });
+        } else if (posting) {
           store = updatePostingResume(store, posting.id, { groupHeadings: { [group.id]: heading.value } });
-        } else if (isCareer) {
+        } else if (shared) {
           store = updateCareerJob(store, career.id, {
             groups: career.groups.map((item) => (item.id === group.id ? { ...item, heading: heading.value } : item)),
           });
@@ -2044,21 +2190,38 @@ function resumeJobEditor(posting, career) {
         saveStore();
         scheduleResumePreview(posting);
       });
+      const localGroup = Boolean(group.local) || localOnly;
       return [
         el('div', { class: 'bb-group-head' }, [
           field('Sub-heading', heading),
-          isCareer ? resumeMoveBtns('sub-heading', {
+          allowStructure ? resumeMoveBtns('sub-heading', {
             index: groupIndex,
             length: groups.length,
             onMove: (delta) => {
-              store = moveCareerGroup(store, career.id, group.id, delta);
+              if (posting && localGroup) {
+                store = movePostingLocalGroup(store, posting.id, career.id, group.id, delta);
+              } else if (!posting) {
+                store = moveCareerGroup(store, career.id, group.id, delta);
+              }
               saveStore();
               render({ focusKey: `rg-${group.id}-heading` });
             },
           }) : null,
-          isCareer ? btn('Remove sub-heading', {
+          allowStructure ? btn('Remove sub-heading', {
             class: 'btn ghost compact-action is-danger',
             onClick: () => {
+              if (posting && localGroup) {
+                store = deletePostingLocalGroup(store, posting.id, career.id, group.id);
+                saveStore();
+                render();
+                return;
+              }
+              if (posting) {
+                store = updatePostingResume(store, posting.id, { groupHeadings: { [group.id]: '' } });
+                saveStore();
+                render();
+                return;
+              }
               const n = (group.bullets || []).length;
               if (groups.length === 1) {
                 if (n && !confirm('Clear this sub-heading? The bullets stay on the role.')) return;
@@ -2088,10 +2251,17 @@ function resumeJobEditor(posting, career) {
           }) : null,
         ]),
         ...group.bullets.map((bullet, bulletIndex) => resumeBulletEditor(posting, career, group, bullet, bulletIndex)),
-        isCareer ? el('div', { class: 'bb-add-row' }, [
+        allowStructure ? el('div', { class: 'bb-add-row' }, [
           btn('+ Add bullet', {
             class: 'btn ghost compact-action',
             onClick: () => {
+              if (posting) {
+                store = addPostingLocalBullet(store, posting.id, career.id, group.id);
+                const last = lastLocalBullet(posting.id, career.id, group.id);
+                saveStore();
+                render({ focusKey: last ? `rb-${last.id}-lead` : `rg-${group.id}-heading` });
+                return;
+              }
               store = addCareerBullet(store, career.id, group.id);
               const added = careerJobById(career.id);
               const g = added?.groups.find((item) => item.id === group.id);
@@ -2103,10 +2273,17 @@ function resumeJobEditor(posting, career) {
         ]) : null,
       ];
     }),
-    isCareer ? el('div', { class: 'bb-add-row' }, [
+    allowStructure ? el('div', { class: 'bb-add-row' }, [
       btn('+ Add sub-heading', {
         class: 'btn ghost compact-action',
         onClick: () => {
+          if (posting) {
+            store = addPostingLocalGroup(store, posting.id, career.id);
+            const last = lastLocalGroup(posting.id, career.id);
+            saveStore();
+            render({ focusKey: last ? `rg-${last.id}-heading` : `rj-${career.id}-company` });
+            return;
+          }
           store = addCareerGroup(store, career.id);
           const added = careerJobById(career.id);
           const last = added?.groups[added.groups.length - 1];
@@ -2117,6 +2294,13 @@ function resumeJobEditor(posting, career) {
       groups.length ? null : btn('+ Add bullet', {
         class: 'btn ghost compact-action',
         onClick: () => {
+          if (posting) {
+            store = addPostingLocalBullet(store, posting.id, career.id, '');
+            const last = lastLocalBullet(posting.id, career.id, '');
+            saveStore();
+            render({ focusKey: last ? `rb-${last.id}-lead` : `rj-${career.id}-company` });
+            return;
+          }
           store = addCareerBullet(store, career.id, '');
           const added = careerJobById(career.id);
           const lastGroup = added?.groups[added.groups.length - 1];
@@ -2151,8 +2335,8 @@ function resumeEditorPane(posting, doc) {
   ]);
   return el('div', { class: 'bb-resume-editor' }, [
     el('p', { class: 'lede' }, posting
-      ? 'Adds go to the shared career history (Resume basics) and show on this posting. Exclude hides an item here. Remove hides first; Remove again on a hidden item can delete it everywhere after you confirm.'
-      : 'This is the shared career history. Every posting starts from these items. Add roles, bullets, credentials, education, and additional rows here, or import JSON.'),
+      ? 'Roles and bullets you add here stay on this posting unless you Save back to source. Exclude hides a shared item here. Start fresh empties this posting only.'
+      : 'This is the shared career history. Every posting can start from these items. Add roles, bullets, credentials, education, and additional rows here, or import JSON.'),
     resumeSectionOrder(posting),
     credToggle,
     posting ? btn('Save order as my default', {
@@ -2208,22 +2392,23 @@ function resumeEditorPane(posting, doc) {
         ? [{ label: 'LinkedIn', url: event.target.value.trim() }]
         : []),
     })),
-    resumeSectionHead('Work experience', btn('+ Add role', {
-      class: 'btn ghost compact-action',
-      onClick: () => {
-        store = addCareerJob(store);
-        const added = store.jobs[store.jobs.length - 1];
-        saveStore();
-        render({ focusKey: added ? `rj-${added.id}-company` : undefined });
-        setNote('Added a role to the shared career history.');
-      },
-    })),
+    resumeSectionHead('Work experience', addRoleButton(posting)),
     ...(doc.sections.experience.jobs.length
-      ? doc.sections.experience.jobs.map((career) => resumeJobEditor(posting, career))
+      ? doc.sections.experience.jobs.flatMap((career) => [
+        resumeJobEditor(posting, career),
+        el('div', { class: 'bb-add-role-slot' }, [addRoleButton(posting, { afterId: career.id })]),
+      ])
       : [el('p', { class: 'empty' }, 'No roles yet. Use + Add role, or import a resume JSON.')]),
     resumeSectionHead('Credentials', btn('+ Add credential', {
       class: 'btn ghost compact-action',
       onClick: () => {
+        if (posting) {
+          store = addPostingLocalCredential(store, posting.id);
+          const added = (livePosting(posting.id).resume.localCredentials || []).slice(-1)[0];
+          saveStore();
+          render({ focusKey: added ? `cr-${added.id}-name` : undefined });
+          return;
+        }
         store = addCredentialItem(store);
         const added = store.credentials[store.credentials.length - 1];
         saveStore();
@@ -2237,9 +2422,14 @@ function resumeEditorPane(posting, doc) {
         const issuer = el('input', { value: item.issuer, 'aria-label': 'Issuer', 'data-focus-key': `cr-${item.id}-issuer` });
         const cid = el('input', { value: item.credentialId, 'aria-label': 'Credential ID', 'data-focus-key': `cr-${item.id}-id` });
         const stamp = () => {
-          store = updateCredentialItem(store, item.id, {
+          const patch = {
             name: name.value, issued: issued.value, issuer: issuer.value, credentialId: cid.value,
-          });
+          };
+          if (posting && isLocalResumeRow(posting, 'localCredentials', item.id)) {
+            store = updatePostingLocalCredential(store, posting.id, item.id, patch);
+          } else {
+            store = updateCredentialItem(store, item.id, patch);
+          }
           saveStore();
           scheduleResumePreview(posting);
         };
@@ -2258,9 +2448,17 @@ function resumeEditorPane(posting, doc) {
             btn('Delete', {
               class: 'btn ghost compact-action is-danger',
               onClick: () => {
-                if (!confirm(posting
-                  ? 'Delete this credential from the shared career history? It will leave every posting.'
-                  : 'Delete this credential?')) return;
+                if (posting && isLocalResumeRow(posting, 'localCredentials', item.id)) {
+                  store = deletePostingLocalCredential(store, posting.id, item.id);
+                  saveStore();
+                  render();
+                  return;
+                }
+                if (posting) {
+                  setNote('This credential is in Resume basics. Start fresh to hide shared credentials on this posting.');
+                  return;
+                }
+                if (!confirm('Delete this credential?')) return;
                 store = deleteCredentialItem(store, item.id);
                 saveStore();
                 render();
@@ -2275,6 +2473,13 @@ function resumeEditorPane(posting, doc) {
     resumeSectionHead('Education', btn('+ Add education', {
       class: 'btn ghost compact-action',
       onClick: () => {
+        if (posting) {
+          store = addPostingLocalEducation(store, posting.id);
+          const added = (livePosting(posting.id).resume.localEducation || []).slice(-1)[0];
+          saveStore();
+          render({ focusKey: added ? `ed-${added.id}-school` : undefined });
+          return;
+        }
         store = addEducationItem(store);
         const added = store.education[store.education.length - 1];
         saveStore();
@@ -2289,9 +2494,14 @@ function resumeEditorPane(posting, doc) {
         const details = el('input', { value: item.details, 'aria-label': 'Details', 'data-focus-key': `ed-${item.id}-details` });
         const gpa = el('input', { value: item.gpa, 'aria-label': 'GPA', 'data-focus-key': `ed-${item.id}-gpa` });
         const stamp = () => {
-          store = updateEducationItem(store, item.id, {
+          const patch = {
             school: school.value, location: loc.value, degree: degree.value, details: details.value, gpa: gpa.value,
-          });
+          };
+          if (posting && isLocalResumeRow(posting, 'localEducation', item.id)) {
+            store = updatePostingLocalEducation(store, posting.id, item.id, patch);
+          } else {
+            store = updateEducationItem(store, item.id, patch);
+          }
           saveStore();
           scheduleResumePreview(posting);
         };
@@ -2310,9 +2520,17 @@ function resumeEditorPane(posting, doc) {
             btn('Delete', {
               class: 'btn ghost compact-action is-danger',
               onClick: () => {
-                if (!confirm(posting
-                  ? 'Delete this education row from the shared career history? It will leave every posting.'
-                  : 'Delete this education row?')) return;
+                if (posting && isLocalResumeRow(posting, 'localEducation', item.id)) {
+                  store = deletePostingLocalEducation(store, posting.id, item.id);
+                  saveStore();
+                  render();
+                  return;
+                }
+                if (posting) {
+                  setNote('This education row is in Resume basics. Start fresh to hide shared education on this posting.');
+                  return;
+                }
+                if (!confirm('Delete this education row?')) return;
                 store = deleteEducationItem(store, item.id);
                 saveStore();
                 render();
@@ -2329,6 +2547,13 @@ function resumeEditorPane(posting, doc) {
     resumeSectionHead('Additional info', btn('+ Add row', {
       class: 'btn ghost compact-action',
       onClick: () => {
+        if (posting) {
+          store = addPostingLocalAdditional(store, posting.id);
+          const added = (livePosting(posting.id).resume.localAdditional || []).slice(-1)[0];
+          saveStore();
+          render({ focusKey: added ? `ad-${added.id}-label` : undefined });
+          return;
+        }
         store = addAdditionalRow(store);
         const added = store.additional[store.additional.length - 1];
         saveStore();
@@ -2348,9 +2573,14 @@ function resumeEditorPane(posting, doc) {
           : (row.items || []).join(' · '));
         items.value = items.textContent;
         const stampLabel = () => {
-          store = updateAdditionalRow(store, row.id, grouped
+          const patch = grouped
             ? { label: label.value, groups: row.groups }
-            : { label: label.value, items: splitResumeItems(items.value) });
+            : { label: label.value, items: splitResumeItems(items.value) };
+          if (posting && isLocalResumeRow(posting, 'localAdditional', row.id)) {
+            store = updatePostingLocalAdditional(store, posting.id, row.id, patch);
+          } else {
+            store = updateAdditionalRow(store, row.id, patch);
+          }
           saveStore();
           scheduleResumePreview(posting);
         };
@@ -2408,9 +2638,17 @@ function resumeEditorPane(posting, doc) {
             btn('Delete', {
               class: 'btn ghost compact-action is-danger',
               onClick: () => {
-                if (!confirm(posting
-                  ? 'Delete this additional-info row from the shared career history? It will leave every posting.'
-                  : 'Delete this additional-info row?')) return;
+                if (posting && isLocalResumeRow(posting, 'localAdditional', row.id)) {
+                  store = deletePostingLocalAdditional(store, posting.id, row.id);
+                  saveStore();
+                  render();
+                  return;
+                }
+                if (posting) {
+                  setNote('This additional-info row is in Resume basics. Start fresh to hide shared rows on this posting.');
+                  return;
+                }
+                if (!confirm('Delete this additional-info row?')) return;
                 store = deleteAdditionalRow(store, row.id);
                 saveStore();
                 render();
@@ -2452,6 +2690,26 @@ function resumeWorkspace(posting) {
         btn('Import resume (JSON)', { class: 'btn ghost', onClick: () => resumeFileInput.click() }),
         btn('Print / PDF', { class: 'btn', onClick: () => exportResumePdf(posting) }),
         btn('Download Word', { class: 'btn ghost', onClick: () => exportResumeDocx(posting) }),
+        posting && posting.resume?.mode !== 'fresh' ? btn('Start fresh', {
+          class: 'btn ghost',
+          onClick: () => {
+            if (!confirm('Empty Work Experience, Education, Credentials, and Additional Info on this posting’s resume? The header stays. Resume basics and other postings are not changed.')) return;
+            store = startPostingResumeFresh(store, posting.id);
+            saveStore();
+            render();
+            setNote('This posting’s resume is blank except for the header. Add roles here, or Reset to Resume basics.');
+          },
+        }) : null,
+        posting && posting.resume?.mode === 'fresh' ? btn('Reset to Resume basics', {
+          class: 'btn ghost',
+          onClick: () => {
+            if (!confirm('Replace this posting’s resume with Resume basics? Local roles and bullets on this posting will be removed. Resume basics is unchanged.')) return;
+            store = resetPostingResumeToBasics(store, posting.id);
+            saveStore();
+            render();
+            setNote('This posting’s resume again starts from Resume basics.');
+          },
+        }) : null,
         posting ? btn('Back to posting', { class: 'btn ghost', onClick: () => go({ kind: 'jobs', id: posting.id }) }) : null,
       ]),
     ]),
@@ -2464,7 +2722,49 @@ function resumeWorkspace(posting) {
   return wrap;
 }
 
+function resumeChooser(job) {
+  return el('section', { class: 'panel bb-resume-choose' }, [
+    el('div', { class: 'panel-head' }, [
+      el('div', {}, [
+        el('h2', {}, 'Start this posting’s resume'),
+        el('p', { class: 'tiny' }, [job.title, job.company].filter(Boolean).join(' · ')),
+      ]),
+      btn('Back to posting', { class: 'btn ghost', onClick: () => go({ kind: 'jobs', id: job.id }) }),
+    ]),
+    el('div', { class: 'panel-body' }, [
+      el('p', { class: 'lede' }, 'The header (name, contact, links) always comes from Resume basics. Choose whether this posting starts from that shared career history or from a blank page.'),
+      el('div', { class: 'bb-choose-cards' }, [
+        el('button', {
+          type: 'button',
+          class: 'start-card is-primary',
+          onClick: () => {
+            store = choosePostingResumeMode(store, job.id, 'basics');
+            saveStore();
+            render();
+          },
+        }, [
+          el('strong', {}, 'Start from Resume basics'),
+          el('p', {}, 'Copy in your shared roles, education, credentials, and additional info. You can still hide items and add posting-only roles.'),
+        ]),
+        el('button', {
+          type: 'button',
+          class: 'start-card',
+          onClick: () => {
+            store = choosePostingResumeMode(store, job.id, 'fresh');
+            saveStore();
+            render();
+          },
+        }, [
+          el('strong', {}, 'Start fresh'),
+          el('p', {}, 'Keep the header. Empty Work Experience, Education, Credentials, and Additional Info on this posting only, then build with + Add role.'),
+        ]),
+      ]),
+    ]),
+  ]);
+}
+
 function resumeView(job) {
+  if ((job.resume?.mode || 'basics') === 'choose') return resumeChooser(job);
   const profile = store.profile || {};
   const area = el('textarea', { class: 'resume', 'aria-label': 'Plain text resume' });
   let generated = compileResumeText(job, store) || 'Add a resume bullet on a requirement first.';
@@ -2588,13 +2888,32 @@ function render(options = {}) {
     return;
   }
 
+  if (view.kind === 'log') {
+    const layoutKind = logLayout(view);
+    let body;
+    if (layoutKind === 'catalog-add') {
+      body = el('div', { class: 'layout is-book-add' }, [
+        entryList(null, { variant: 'main' }),
+        bulkEntryForm({ compact: true }),
+      ]);
+    } else if (layoutKind === 'detail') {
+      const entry = store.entries.find((item) => item.id === view.id);
+      body = el('div', { class: 'layout is-book-detail' }, [
+        entryList(view.id, { variant: 'main' }),
+        entry ? entryForm(entry) : emptyDetail('log'),
+      ]);
+    } else {
+      body = el('div', { class: 'layout is-wide' }, [
+        entryList(null, { variant: 'main' }),
+      ]);
+    }
+    root.replaceChildren(el('div', {}, [toolbar(view), body]));
+    restoreFocus(captured, options.focusKey);
+    return;
+  }
+
   let detail;
-  if (view.kind === 'log' && view.id === 'new') detail = bulkEntryForm();
-  else if (view.kind === 'log' && view.id) {
-    const entry = store.entries.find((item) => item.id === view.id);
-    detail = entry ? entryForm(entry) : emptyDetail('log');
-  } else if (view.kind === 'log') detail = bulkEntryForm();
-  else if (view.kind === 'jobs' && view.id === 'new') detail = jobForm();
+  if (view.kind === 'jobs' && view.id === 'new') detail = jobForm();
   else if (view.kind === 'jobs' && view.id && view.mode === 'prep') {
     const job = store.postings.find((item) => item.id === view.id);
     detail = job ? prepView(job) : emptyDetail('jobs');
@@ -2614,8 +2933,7 @@ function render(options = {}) {
     detail = job ? jobDetail(job) : emptyDetail('jobs');
   } else detail = emptyDetail('jobs');
 
-  const hideRail = (view.kind === 'jobs' && (Boolean(view.id) || !store.postings.length))
-    || (view.kind === 'log' && (view.id === 'new' || !store.entries.length));
+  const hideRail = Boolean(view.id) || !store.postings.length;
   const next = el('div', {}, [
     toolbar(view),
     el('div', { class: hideRail ? 'layout is-wide' : 'layout' }, [

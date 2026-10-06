@@ -196,12 +196,16 @@ classic-serif preview (Cambria/Caladea) on the right that tightens spacing,
 will not shrink below 9.5pt, then drops lowest-priority non-pinned bullets to
 stay on one Letter page. Print/PDF uses that preview; **Download Word** writes a
 real `.docx`. Wording edits are per-posting overrides and do not rewrite the
-book unless you **Save back to source**. **Resume basics** (`#profile`) holds
-shared header, jobs, credentials (optional), education, and additional info.
+book unless you **Save back to source**. Roles and bullets added on a posting
+stay on that posting (`posting.resume.localJobs`) until saved back. New postings
+choose **Start from Resume basics** or **Start fresh** (header only for that
+posting). **Resume basics** (`#profile`) holds shared header, jobs, credentials
+(optional), education, and additional info.
 **Import resume (JSON)** loads `brag-book/data/inaayat-gill-resume.json` (or any
 file in that schema) into the signed-in book. Plain-text Copy / `.txt` / older
 `.doc` remain under a disclosure. **Prep** walks question + STAR with keyboard
-next/prev. The running book is a side door — paste several experiences at once.
+next/prev. **Experiences** (`#log`) is a list-first catalog; **+ Add experiences**
+(`#log/new`) keeps that list visible beside a compact paste panel.
 
 Signing in is required — the signed-out view is a centered log-in gate. One
 JSONB row per user (`brag_books`) via `api/brag-book.js` (`/api/bb-book`).

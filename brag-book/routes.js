@@ -91,3 +91,17 @@ export function viewTitle(view, store) {
   }
   return 'Job postings';
 }
+
+export function logLayout(view) {
+  if (!view || view.kind !== 'log') return 'none';
+  if (view.id === 'new') return 'catalog-add';
+  if (view.id) return 'detail';
+  return 'catalog';
+}
+
+export function hideBookRail(view, store) {
+  if (!view) return true;
+  if (view.kind === 'jobs') return Boolean(view.id) || !(store?.postings || []).length;
+  if (view.kind === 'log') return false;
+  return true;
+}
