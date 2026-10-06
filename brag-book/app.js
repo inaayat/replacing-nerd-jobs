@@ -786,49 +786,56 @@ function requirementQuestions(job, req) {
     };
     [text, answer, ...Object.values(fields)].forEach((node) => node.addEventListener('input', save));
     const stories = linkedEntries(store, req);
-    box.append(el('details', {
-      class: 'table-question',
-      open: openQuestionIds.has(question.id),
-      onToggle: (event) => {
-        if (event.target.open) openQuestionIds.add(question.id);
-        else openQuestionIds.delete(question.id);
-      },
-    }, [
-      el('summary', {}, [
-        el('span', { class: 'table-question-text' }, question.text),
-        el('span', { class: answered ? 'question-status is-answered' : 'question-status' }, answered ? 'Answered' : 'Needs answer'),
-      ]),
-      el('div', { class: 'table-question-body' }, [
-        field('Question', text),
-        field('Answer', answer),
-        el('div', { class: 'table-question-star' }, [
-          ['situation', 'Situation'],
-          ['task', 'Task'],
-          ['action', 'Action'],
-          ['result', 'Result'],
-        ].map(([key, label]) => field(label, fields[key]))),
-        el('div', { class: 'actions' }, [
-          stories.length
-            ? btn('Use first experience', {
-              class: 'btn ghost',
-              onClick: () => {
-                store = answerQuestionFromEntry(store, job.id, req.id, question.id, stories[0].id);
-                saveStore();
-                render();
-                setNote('Used the experience as this answer.');
-              },
-            })
-            : null,
-          btn('Delete', {
-            class: 'btn danger',
-            onClick: () => {
-              if (!confirm('Delete this potential question?')) return;
-              store = deleteQuestion(store, job.id, req.id, question.id);
-              saveStore();
-              render();
-            },
-          }),
+    box.append(el('div', { class: 'table-question-line' }, [
+      el('details', {
+        class: 'table-question',
+        open: openQuestionIds.has(question.id),
+        onToggle: (event) => {
+          if (event.target.open) openQuestionIds.add(question.id);
+          else openQuestionIds.delete(question.id);
+        },
+      }, [
+        el('summary', {}, [
+          el('span', { class: 'table-question-text' }, question.text),
+          el('span', { class: answered ? 'question-status is-answered' : 'question-status' }, answered ? 'Answered' : 'Needs answer'),
         ]),
+        el('div', { class: 'table-question-body' }, [
+          field('Question', text),
+          field('Answer', answer),
+          el('div', { class: 'table-question-star' }, [
+            ['situation', 'Situation'],
+            ['task', 'Task'],
+            ['action', 'Action'],
+            ['result', 'Result'],
+          ].map(([key, label]) => field(label, fields[key]))),
+          stories.length
+            ? el('div', { class: 'actions' }, [
+              btn('Use first experience', {
+                class: 'btn ghost',
+                onClick: () => {
+                  store = answerQuestionFromEntry(store, job.id, req.id, question.id, stories[0].id);
+                  saveStore();
+                  render();
+                  setNote('Used the experience as this answer.');
+                },
+              }),
+            ])
+            : null,
+        ]),
+      ]),
+      el('div', { class: 'row-icons' }, [
+        btn('×', {
+          class: 'icon-quiet is-danger',
+          title: 'Delete question',
+          'aria-label': 'Delete question',
+          onClick: () => {
+            if (!confirm('Delete this question?')) return;
+            openQuestionIds.delete(question.id);
+            store = deleteQuestion(store, job.id, req.id, question.id);
+            saveStore();
+            render();
+          },
+        }),
       ]),
     ]));
   }

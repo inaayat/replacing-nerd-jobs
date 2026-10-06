@@ -933,11 +933,18 @@ a:focus-visible {
 .requirement-questions {
   display: grid;
   gap: 6px;
-  margin-top: 8px;
-  padding: 8px 8px 0;
+  margin-top: 6px;
+  padding: 6px 0 0;
   border-top: 1px dashed var(--line-strong);
   font-family: var(--content-font);
 }
+.table-question-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+.table-question-line .table-question { flex: 1; min-width: 0; }
+.table-question-line .row-icons { padding-top: 4px; }
 .requirement-subhead {
   color: var(--gold);
   font-family: "IBM Plex Mono", ui-monospace, monospace;
