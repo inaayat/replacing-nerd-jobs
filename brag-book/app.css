@@ -492,6 +492,7 @@ a:focus-visible {
 .field input,
 .field textarea,
 .field select,
+.field .bb-rb-line,
 .search,
 .line-row input,
 .line-row textarea,
@@ -1447,6 +1448,17 @@ a:focus-visible {
 .bb-job-card.is-role .bb-rb {
   background: #fff;
   margin: 8px 0;
+}
+.bb-rb-line-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+.bb-rb-line {
+  min-height: 2.6em;
+  white-space: pre-wrap;
+  font-family: var(--content-font);
 }
 .bb-job-card.is-excluded,
 .bb-rb.is-excluded {

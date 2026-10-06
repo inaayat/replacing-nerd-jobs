@@ -67,6 +67,10 @@ export {
   parseBulletText,
   boldMetrics,
   bulletPlainText,
+  bulletLineText,
+  bulletFromLine,
+  markdownToSpans,
+  spansToMarkdown,
   visibleResumeDoc,
   headerFromProfile,
   moveListItem,
@@ -857,6 +861,43 @@ function mapCareerJob(store, jobId, fn, clock = Date.now) {
   const next = normalizeCareerJob(fn(current), clock);
   if (!next) return store;
   return { ...store, jobs: replaceById(store.jobs, jobId, next) };
+}
+
+function careerDraftFromCompiled(career) {
+  return {
+    id: career?.id,
+    company: career?.company || '',
+    title: career?.title || '',
+    location: career?.location || '',
+    start: career?.start || '',
+    end: career?.end || '',
+    current: Boolean(career?.current),
+    groups: (career?.groups || []).map((group) => ({
+      id: group.id,
+      heading: group.heading || '',
+      bullets: (group.bullets || []).map((bullet) => ({
+        id: bullet.id,
+        lead: bullet.lead || '',
+        body: bullet.body || '',
+        priority: bullet.priority,
+        pinned: bullet.pinned,
+      })),
+    })),
+  };
+}
+
+export function adoptCompiledJob(store, postingId, career, clock = Date.now, random = Math.random) {
+  const id = String(career?.id || '').trim();
+  if (!id) return store;
+  if ((store?.jobs || []).some((job) => job.id === id)) return store;
+  const draft = careerDraftFromCompiled(career);
+  if (postingId) {
+    const posting = postingById(store, postingId);
+    if (!posting) return store;
+    if ((posting.resume?.localJobs || []).some((job) => job.id === id)) return store;
+    return addPostingLocalJob(store, postingId, draft, {}, clock, random);
+  }
+  return addCareerJob(store, draft, clock, random);
 }
 
 export function addCareerJob(store, draft = {}, clock = Date.now, random = Math.random) {

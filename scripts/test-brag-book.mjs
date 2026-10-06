@@ -63,6 +63,7 @@ import {
   moveCareerBullet,
   moveCareerJob,
   addPostingLocalJob,
+  updatePostingLocalJob,
   addPostingLocalBullet,
   deletePostingLocalJob,
   startPostingResumeFresh,
@@ -99,6 +100,11 @@ import {
   toggleRoleCollapsed,
   resumeRoleSummary,
   isRoleHeaderToggleTarget,
+  adoptCompiledJob,
+  bulletLineText,
+  bulletFromLine,
+  markdownToSpans,
+  spansToMarkdown,
   asUrl,
   titleFromJobUrl,
   hostFromJobUrl,
@@ -849,5 +855,45 @@ assert.equal(isRoleHeaderToggleTarget('DIV', false), true);
 assert.equal(isRoleHeaderToggleTarget('BUTTON', false), false);
 assert.equal(isRoleHeaderToggleTarget('LABEL', false), false);
 assert.equal(isRoleHeaderToggleTarget('DIV', true), false);
+
+assert.equal(bulletLineText({ lead: 'Led team', body: 'Built it' }), '**Led team:** Built it');
+assert.equal(bulletLineText({ lead: '', body: 'Plain **bold** line' }), 'Plain **bold** line');
+assert.deepEqual(bulletFromLine('**Led team:** Built **100+** controls'), {
+  lead: '',
+  body: '**Led team:** Built **100+** controls',
+});
+assert.deepEqual(markdownToSpans('**Led team:** Built it'), [
+  { text: 'Led team:', bold: true },
+  { text: ' Built it', bold: false },
+]);
+assert.equal(spansToMarkdown([
+  { text: 'Led team:', bold: true },
+  { text: ' Built it', bold: false },
+]), '**Led team:** Built it');
+
+const ghostRole = {
+  id: 'job_role_godaddy',
+  company: 'GoDaddy',
+  title: '',
+  location: 'New York, NY / Seattle, WA',
+  start: 'October 2021',
+  end: 'Present',
+  groups: [{ id: 'g1', heading: '', bullets: [{ id: 'b1', lead: '', body: 'Did a thing' }] }],
+};
+let adopted = adoptCompiledJob(addPosting(emptyStore(), { title: 'Open' }, clock), 'missing', ghostRole, clock, random);
+assert.equal((adopted.postings || []).length, 1);
+adopted = addPosting(emptyStore(), { title: 'Open' }, clock);
+const postingId = adopted.postings[0].id;
+adopted = adoptCompiledJob(adopted, postingId, ghostRole, clock, random);
+assert.equal(adopted.jobs.some((job) => job.id === 'job_role_godaddy'), false);
+assert.equal(adopted.postings[0].resume.localJobs.some((job) => job.id === 'job_role_godaddy' && job.company === 'GoDaddy'), true);
+const adoptedAgain = adoptCompiledJob(adopted, postingId, ghostRole, clock, random);
+assert.equal(adoptedAgain.postings[0].resume.localJobs.length, adopted.postings[0].resume.localJobs.length);
+adopted = updatePostingLocalJob(adopted, postingId, 'job_role_godaddy', { title: 'Senior Analyst' }, clock);
+assert.equal(compileResumeDoc(postingById(adopted, postingId), adopted).sections.experience.jobs
+  .find((job) => job.id === 'job_role_godaddy').title, 'Senior Analyst');
+const basicsAdopt = adoptCompiledJob(emptyStore(), null, ghostRole, clock, random);
+assert.equal(basicsAdopt.jobs[0].company, 'GoDaddy');
+assert.equal(adoptCompiledJob(basicsAdopt, null, ghostRole, clock, random).jobs.length, 1);
 
 console.log('ok');

@@ -93,6 +93,11 @@ import {
   toggleId,
   writeBulletBackToSource,
   clearBulletOverride,
+  adoptCompiledJob,
+  bulletLineText,
+  bulletFromLine,
+  markdownToSpans,
+  spansToMarkdown,
   DEFAULT_SECTION_ORDER,
   compilePrep,
   prepCoverage,
@@ -1752,13 +1757,22 @@ async function refreshResumePreview(posting) {
   scaleResumeFrame(wrap, frame);
   frame.contentDocument?.addEventListener('click', (event) => {
     const li = event.target.closest?.('li[data-bullet-id]');
-    if (!li) return;
-    const id = li.getAttribute('data-bullet-id');
-    const field = root.querySelector(`[data-focus-key="rb-${id}-body"]`)
-      || root.querySelector(`[data-focus-key="rb-${id}-lead"]`);
+    const jobNode = event.target.closest?.('[data-job-id]');
+    const bulletId = li?.getAttribute('data-bullet-id');
+    const jobId = li?.getAttribute('data-job-id') || jobNode?.getAttribute('data-job-id');
+    if (!bulletId && !jobId) return;
+    const focusKey = bulletId ? `rb-${bulletId}-line` : `rj-${jobId}-company`;
+    if (jobId && roleIsCollapsed(collapsedResumeRoles, current?.id, jobId)) {
+      collapsedResumeRoles = toggleRoleCollapsed(collapsedResumeRoles, current?.id, jobId);
+      render({ focusKey });
+      return;
+    }
+    const field = root.querySelector(`[data-focus-key="${focusKey}"]`)
+      || root.querySelector(`[data-focus-key="rb-${bulletId}-body"]`)
+      || root.querySelector(`[data-focus-key="rb-${bulletId}-lead"]`);
     field?.focus();
     root.querySelectorAll('.bb-rb.is-on').forEach((node) => node.classList.remove('is-on'));
-    root.querySelector(`[data-bullet-wrap="${id}"]`)?.classList.add('is-on');
+    if (bulletId) root.querySelector(`[data-bullet-wrap="${bulletId}"]`)?.classList.add('is-on');
   });
 }
 
@@ -1940,48 +1954,45 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0) {
   const shared = isSharedJob(career.id);
   const localBullet = Boolean(bullet.local) || isLocalOnlyJob(posting, career.id);
   const canEdit = !posting || shared || localBullet || Boolean(career.local);
-  const lead = el('input', {
-    value: bullet.lead,
-    placeholder: 'Bold lead phrase',
-    'aria-label': 'Bold lead',
-    'data-focus-key': `rb-${bullet.id}-lead`,
-  });
-  const body = el('textarea', {
-    rows: '3',
-    placeholder: 'Body. Wrap metrics in **like this**.',
-    'aria-label': 'Bullet body',
-    'data-focus-key': `rb-${bullet.id}-body`,
-  }, bullet.body);
-  body.value = bullet.body;
-  const commitWording = () => {
-    if (!posting) {
+  const lineText = bulletLineText(bullet);
+  const commitWording = (spans) => {
+    const next = bulletFromLine(spansToMarkdown(spans));
+    store = adoptCompiledJob(store, posting?.id || null, career);
+    const adoptedLocal = Boolean(posting && localJobById(livePosting(posting.id)?.resume, career.id) && !isSharedJob(career.id));
+    if (!posting || isSharedJob(career.id)) {
+      const job = careerJobById(career.id) || career;
       store = updateCareerJob(store, career.id, {
-        groups: career.groups.map((item) => (
+        groups: (job.groups || career.groups).map((item) => (
           item.id === group.id
             ? {
               ...item,
               bullets: item.bullets.map((row) => (
-                row.id === bullet.id ? { ...row, lead: lead.value, body: body.value } : row
+                row.id === bullet.id ? { ...row, ...next } : row
               )),
             }
             : item
         )),
       });
-    } else if (localBullet) {
-      store = updatePostingLocalBullet(store, posting.id, career.id, group.id, bullet.id, {
-        lead: lead.value,
-        body: body.value,
-      });
+    } else if (localBullet || adoptedLocal) {
+      store = updatePostingLocalBullet(store, posting.id, career.id, group.id, bullet.id, next);
     } else {
       store = updatePostingResume(store, posting.id, {
-        overrides: { [bullet.id]: { lead: lead.value, body: body.value } },
+        overrides: { [bullet.id]: next },
       });
     }
     saveStore();
     scheduleResumePreview(posting);
   };
-  lead.addEventListener('input', commitWording);
-  body.addEventListener('input', commitWording);
+  const line = richLine({
+    class: 'bb-rb-line',
+    'aria-label': 'Bullet',
+    'aria-multiline': 'true',
+    'data-focus-key': `rb-${bullet.id}-line`,
+  }, {
+    text: lineText,
+    rich: markdownToSpans(lineText),
+    onChange: commitWording,
+  });
   const wrap = el('div', {
     class: `bb-rb${bullet.included === false ? ' is-excluded' : ''}${dropped ? ' is-dropped' : ''}${bullet.hasOverride ? ' is-override' : ''}`,
     dataset: { bulletWrap: bullet.id },
@@ -2041,7 +2052,7 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0) {
             store = updatePostingResume(store, posting.id, { bulletOrder: { [group.id]: moved } });
           }
           saveStore();
-          render({ focusKey: `rb-${bullet.id}-lead` });
+          render({ focusKey: `rb-${bullet.id}-line` });
         },
       }) : null,
       canEdit ? btn(localBullet || !posting ? 'Remove' : (bullet.included !== false ? 'Remove' : 'Delete'), {
@@ -2070,8 +2081,17 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0) {
         },
       }) : null,
     ]),
-    field('Bold lead', lead),
-    field('Body', body),
+    el('div', { class: 'bb-rb-line-head' }, [
+      field('Bullet', line),
+      btn('Bold', {
+        class: 'btn ghost compact-action',
+        onClick: () => {
+          line.focus();
+          document.execCommand('bold');
+          commitWording(readRich(line));
+        },
+      }),
+    ]),
     posting ? el('div', { class: 'actions' }, [
       btn('Reset to source', {
         class: 'btn ghost compact-action',
@@ -2086,7 +2106,7 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0) {
       btn('Save back to source', {
         class: 'btn ghost compact-action',
         onClick: () => {
-          const nextBullet = { ...bullet, lead: lead.value, body: body.value };
+          const nextBullet = { ...bullet, ...bulletFromLine(spansToMarkdown(readRich(line))) };
           store = writeBulletBackToSource(store, posting.id, nextBullet);
           const current = livePosting(posting.id);
           store = replacePostingResume(store, posting.id, clearBulletOverride(current.resume, bullet.id));
@@ -2126,33 +2146,28 @@ function addRoleButton(posting, { afterId } = {}) {
 function resumeJobEditor(posting, career) {
   const shared = isSharedJob(career.id);
   const localOnly = Boolean(career.local) || isLocalOnlyJob(posting, career.id);
-  const canEditFields = !posting ? shared : (shared || localOnly);
   const company = el('input', {
     value: career.company,
     placeholder: 'Company',
     'aria-label': 'Company',
-    disabled: !canEditFields,
     'data-focus-key': `rj-${career.id}-company`,
   });
   const title = el('input', {
     value: career.title,
     placeholder: 'Title',
     'aria-label': 'Job title',
-    disabled: !canEditFields,
     'data-focus-key': `rj-${career.id}-title`,
   });
   const dates = el('input', {
     value: [career.start, career.end].filter(Boolean).join(' – '),
     placeholder: 'October 2021 – Present',
     'aria-label': 'Dates',
-    disabled: !canEditFields,
     'data-focus-key': `rj-${career.id}-dates`,
   });
   const location = el('input', {
     value: career.location,
     placeholder: 'New York, NY / Seattle, WA',
     'aria-label': 'Location',
-    disabled: !canEditFields,
     'data-focus-key': `rj-${career.id}-location`,
   });
   const stampJob = () => {
@@ -2164,9 +2179,12 @@ function resumeJobEditor(posting, career) {
       start: (start || dates.value).trim(),
       end: (end || '').trim(),
     };
-    if (posting && localOnly && !shared) {
+    store = adoptCompiledJob(store, posting?.id || null, career);
+    const nowShared = isSharedJob(career.id);
+    const nowLocal = Boolean(posting && localJobById(livePosting(posting.id)?.resume, career.id) && !nowShared);
+    if (posting && nowLocal) {
       store = updatePostingLocalJob(store, posting.id, career.id, patch);
-    } else if (shared) {
+    } else if (nowShared) {
       store = updateCareerJob(store, career.id, patch);
     } else return;
     saveStore();
@@ -2384,7 +2402,7 @@ function resumeJobEditor(posting, career) {
                 store = addPostingLocalBullet(store, posting.id, career.id, group.id);
                 const last = lastLocalBullet(posting.id, career.id, group.id);
                 saveStore();
-                render({ focusKey: last ? `rb-${last.id}-lead` : `rg-${group.id}-heading` });
+                render({ focusKey: last ? `rb-${last.id}-line` : `rg-${group.id}-heading` });
                 return;
               }
               store = addCareerBullet(store, career.id, group.id);
@@ -2392,7 +2410,7 @@ function resumeJobEditor(posting, career) {
               const g = added?.groups.find((item) => item.id === group.id);
               const last = g?.bullets[g.bullets.length - 1];
               saveStore();
-              render({ focusKey: last ? `rb-${last.id}-lead` : `rg-${group.id}-heading` });
+              render({ focusKey: last ? `rb-${last.id}-line` : `rg-${group.id}-heading` });
             },
           }),
         ]) : null,
@@ -2423,7 +2441,7 @@ function resumeJobEditor(posting, career) {
             store = addPostingLocalBullet(store, posting.id, career.id, '');
             const last = lastLocalBullet(posting.id, career.id, '');
             saveStore();
-            render({ focusKey: last ? `rb-${last.id}-lead` : `rj-${career.id}-company` });
+            render({ focusKey: last ? `rb-${last.id}-line` : `rj-${career.id}-company` });
             return;
           }
           store = addCareerBullet(store, career.id, '');
@@ -2431,7 +2449,7 @@ function resumeJobEditor(posting, career) {
           const lastGroup = added?.groups[added.groups.length - 1];
           const last = lastGroup?.bullets[lastGroup.bullets.length - 1];
           saveStore();
-          render({ focusKey: last ? `rb-${last.id}-lead` : `rj-${career.id}-company` });
+          render({ focusKey: last ? `rb-${last.id}-line` : `rj-${career.id}-company` });
         },
       }),
     ]) : null,

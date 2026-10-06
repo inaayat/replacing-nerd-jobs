@@ -202,7 +202,10 @@ choose **Start from Resume basics** or **Start fresh** (header only for that
 posting). **Resume basics** (`#profile`) holds shared header, jobs, credentials
 (optional), education, and additional info. Each work-experience role is a
 shaded well; click the role header to collapse its fields and bullets (local
-to that tab, not saved on the book).
+to that tab, not saved on the book). Compiled-only roles (for example a
+company pulled in from a book story) become editable on first change. Each
+bullet is one line; use Bold / Ctrl+B instead of separate lead and body
+fields.
 **Import resume (JSON)** loads `brag-book/data/inaayat-gill-resume.json` (or any
 file in that schema) into the signed-in book. Plain-text Copy / `.txt` / older
 `.doc` remain under a disclosure. **Prep** walks question + STAR with keyboard

@@ -477,6 +477,41 @@ export function parseBulletText(text) {
   return { lead: '', body: boldMetrics(raw) };
 }
 
+export function bulletLineText(bullet) {
+  const lead = asString(bullet?.lead, LEAD_MAX);
+  const body = asString(bullet?.body, BODY_MAX);
+  if (lead && body) return `**${lead}:** ${body}`;
+  if (lead) return `**${lead}**`;
+  return body;
+}
+
+export function bulletFromLine(text) {
+  return { lead: '', body: asString(text, TEXT_MAX) };
+}
+
+export function markdownToSpans(text) {
+  const raw = String(text || '');
+  const spans = [];
+  const re = /\*\*(.+?)\*\*/g;
+  let last = 0;
+  let match;
+  while ((match = re.exec(raw))) {
+    if (match.index > last) spans.push({ text: raw.slice(last, match.index), bold: false });
+    spans.push({ text: match[1], bold: true });
+    last = match.index + match[0].length;
+  }
+  if (last < raw.length) spans.push({ text: raw.slice(last), bold: false });
+  return spans.length ? spans : [{ text: '', bold: false }];
+}
+
+export function spansToMarkdown(spans) {
+  return (spans || []).map((span) => {
+    const text = String(span?.text || '');
+    if (!text) return '';
+    return span.bold ? `**${text}**` : text;
+  }).join('');
+}
+
 export function bulletPlainText(bullet) {
   const lead = asString(bullet?.lead, LEAD_MAX);
   const body = asString(bullet?.body, BODY_MAX).replace(/\*\*/g, '');
