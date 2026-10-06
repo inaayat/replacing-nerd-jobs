@@ -210,8 +210,11 @@ sub-heading under that block.
 **Import resume (JSON)** loads `brag-book/data/inaayat-gill-resume.json` (or any
 file in that schema) into the signed-in book. Plain-text Copy / `.txt` / older
 `.doc` remain under a disclosure. **Prep** walks question + STAR with keyboard
-next/prev. **Experiences** (`#log`) is a list-first catalog; **+ Add experiences**
-(`#log/new`) keeps that list visible beside a compact paste panel.
+next/prev. **Resume bullets** (`#log`) is the TL;DR catalog of saved experience
+lines — list rows render the same bold spans as the job-posting table, and
+**+ Add resume bullets** (`#log/new`) keeps that list beside a compact paste
+panel (`**bold**` is kept). **Knowledge base** (`#kb`) is free-form notes about
+work, tools, and what you know, separate from the short resume lines.
 
 Signing in is required — the signed-out view is a centered log-in gate. One
 JSONB row per user (`brag_books`) via `api/brag-book.js` (`/api/bb-book`).

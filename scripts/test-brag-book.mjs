@@ -12,6 +12,13 @@ import {
   addEntries,
   updateEntry,
   deleteEntry,
+  addKnowledge,
+  addKnowledgeNotes,
+  updateKnowledge,
+  deleteKnowledge,
+  knowledgeById,
+  parseKnowledge,
+  searchKnowledge,
   addPosting,
   updatePosting,
   deletePosting,
@@ -133,6 +140,7 @@ assert.equal(SCHEMA, 1);
 assert.deepEqual(emptyStore(), {
   v: 1,
   entries: [],
+  knowledge: [],
   postings: [],
   profile: { name: '', email: '', location: '', summary: '', skills: '', suffix: '', locations: [], phone: '', links: [] },
   jobs: [],
@@ -334,6 +342,8 @@ richBook = createEntryBullet(richBook, richJob, richReq, 'Led billing', clock, [
 ]);
 let richBullet = richBook.postings[0].requirements[0].bullets[0];
 assert.equal(richBullet.rich[1].bold, true);
+assert.equal(richBook.entries[0].rich[1].text, 'billing');
+assert.equal(richBook.entries[0].rich[1].bold, true);
 richBook = updateBullet(richBook, richJob, richReq, richBullet.id, { notes: 'kept' }, clock);
 richBullet = richBook.postings[0].requirements[0].bullets[0];
 assert.equal(richBullet.notes, 'kept');
@@ -343,6 +353,7 @@ richBullet = richBook.postings[0].requirements[0].bullets[0];
 assert.equal(richBullet.text, 'Plain replacement');
 assert.equal(richBullet.rich[0].bold, false);
 assert.equal(richBook.entries[0].title, 'Plain replacement');
+assert.equal(richBook.entries[0].rich[0].bold, false);
 
 const pasted = parseExperiences(`
 - Shipped packing cubes sync
@@ -700,7 +711,15 @@ assert.equal(logLayout({ kind: 'log', id: 'new' }), 'catalog-add');
 assert.equal(logLayout({ kind: 'log', id: 'en_1' }), 'detail');
 assert.equal(hideBookRail({ kind: 'log', id: 'new' }, { entries: [{ id: 'e' }] }), false);
 assert.equal(viewHash({ kind: 'log' }), '#log');
-assert.equal(viewTitle({ kind: 'log' }), 'The book');
+assert.equal(viewTitle({ kind: 'log' }), 'Resume bullets');
+assert.equal(viewHash({ kind: 'kb' }), '#kb');
+assert.equal(viewTitle({ kind: 'kb' }), 'Knowledge base');
+assert.deepEqual(parseViewHash('#kb'), { kind: 'kb' });
+assert.deepEqual(parseViewHash('#knowledge'), { kind: 'kb' });
+assert.deepEqual(parseViewHash('#kb/note_1', { knowledgeIds: ['note_1'] }), { kind: 'kb', id: 'note_1' });
+assert.equal(logLayout({ kind: 'kb' }), 'catalog');
+assert.equal(logLayout({ kind: 'kb', id: 'new' }), 'catalog-add');
+assert.equal(hideBookRail({ kind: 'kb' }, { knowledge: [{ id: 'n' }] }), false);
 
 let overlay = applyImportedResume(emptyStore(), sampleResume, clock);
 overlay = addPosting(overlay, { title: 'Local role posting' }, clock);
@@ -958,5 +977,40 @@ assert.equal(shouldBlockEmptyOverwrite(emptyStore(), emptyStore()), false);
 const movedLog = moveResumeGroup(reloadedLog, reloadedLog.postings[0].id, 'nope', 'g', 1, clock);
 assert.equal(movedLog.entries[0].title, 'Led a walkthrough');
 assert.equal(movedLog.postings[0].requirements[0].bullets[0].text, 'Led a walkthrough');
+
+const boldTitle = normalizeEntry({ title: 'Led **3** associates on access reviews' }, clock);
+assert.equal(boldTitle.title, 'Led 3 associates on access reviews');
+assert.equal(boldTitle.rich.some((span) => span.bold && span.text === '3'), true);
+
+const oldNoKnowledge = normalizeStore({ entries: [{ title: 'Legacy win' }] }, clock);
+assert.equal(oldNoKnowledge.knowledge.length, 0);
+assert.equal(oldNoKnowledge.entries[0].title, 'Legacy win');
+assert.equal(oldNoKnowledge.entries[0].rich[0].text, 'Legacy win');
+
+const notes = parseKnowledge('Neon Auth\nSame JWT as Packing Cubes.\n\nHobby plan\nTwelve functions max.');
+assert.deepEqual(notes.map((item) => item.title), ['Neon Auth', 'Hobby plan']);
+assert.equal(notes[0].body, 'Same JWT as Packing Cubes.');
+let kb = addKnowledgeNotes(emptyStore(), notes, clock);
+assert.equal(kb.knowledge.length, 2);
+assert.equal(kb.knowledge[0].title, 'Neon Auth');
+assert.match(kb.knowledge[0].body, /JWT/);
+kb = updateKnowledge(kb, kb.knowledge[0].id, {
+  body: 'Same JWT as Packing Cubes. **Sign-in required.**',
+  rich: [
+    { text: 'Same JWT as Packing Cubes. ', bold: false },
+    { text: 'Sign-in required.', bold: true },
+  ],
+}, clock);
+assert.equal(knowledgeById(kb, kb.knowledge[0].id).rich[1].bold, true);
+assert.equal(searchKnowledge(kb, 'jwt').length, 1);
+assert.equal(bookIsEmpty(kb), false);
+assert.equal(shouldBlockEmptyOverwrite(emptyStore(), kb), true);
+assert.equal(listingSummary(kb).knowledge, 2);
+kb = deleteKnowledge(kb, kb.knowledge[0].id);
+assert.equal(kb.knowledge.length, 1);
+const packedKb = serializeBook(kb);
+const reloadedKb = normalizeStore(JSON.parse(packedKb.json), clock);
+assert.equal(reloadedKb.knowledge[0].title, 'Hobby plan');
+assert.equal(reloadedKb.entries.length, 0);
 
 console.log('ok');
