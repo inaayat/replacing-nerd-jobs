@@ -41,6 +41,8 @@ import {
   resumeTextToWordHtml,
   compileResumeDoc,
   applyImportedResume,
+  careerNeedsSeed,
+  seedStarterResume,
   updatePostingResume,
   replacePostingResume,
   updateCareerJob,
@@ -172,6 +174,10 @@ function loadCached() {
   } catch {
     return emptyStore();
   }
+}
+
+function withStarterCareer(next) {
+  return careerNeedsSeed(next) ? seedStarterResume(next) : next;
 }
 
 function cacheStore() {
@@ -592,7 +598,7 @@ function importResumeFile(file) {
     try {
       const data = JSON.parse(String(reader.result || ''));
       if (!isResumeDoc(data)) {
-        setNote('That file is not a resume JSON. Use the classic-serif schema (see brag-book/data/inaayat-gill-resume.json).');
+        setNote('That file is not a resume JSON. Use the classic-serif schema (see brag-book/data/john-doe-resume.json).');
         return;
       }
       applyResumeImport(data);
@@ -731,8 +737,8 @@ function homeView() {
         el('span', { class: 'kicker' }, 'One page'),
         el('strong', {}, 'Resume basics'),
         el('p', {}, store.jobs.length
-          ? `${store.jobs.length} role${store.jobs.length === 1 ? '' : 's'} on the classic-serif resume. Import JSON or open a posting to tailor a copy.`
-          : 'Import a resume JSON, or fill jobs, credentials, and education, then open a posting to export a one-page PDF.'),
+          ? `${store.jobs.length} role${store.jobs.length === 1 ? '' : 's'} on the classic-serif resume. Edit the John Doe starter, import JSON, or tailor a posting copy.`
+          : 'A John Doe starter fills the classic-serif page. Edit it, or import JSON, then open a posting to export a one-page PDF.'),
       ]),
       el('button', {
         type: 'button',
@@ -2502,7 +2508,7 @@ function resumeJobEditor(posting, career) {
   });
   const location = el('input', {
     value: career.location,
-    placeholder: 'New York, NY / Seattle, WA',
+    placeholder: 'Example City, ST',
     'aria-label': 'Location',
     'data-focus-key': `rj-${career.id}-location`,
   });
@@ -2800,7 +2806,7 @@ function resumeEditorPane(posting, doc) {
   return el('div', { class: 'bb-resume-editor' }, [
     el('p', { class: 'lede' }, posting
       ? 'Roles and bullets you add here stay on this posting unless you Save back to source. Exclude hides a shared item here. Start fresh empties this posting only.'
-      : 'This is the shared career history. Every posting can start from these items. Add roles, bullets, credentials, education, and additional rows here, or import JSON.'),
+      : 'Shared career history. New books start with a John Doe placeholder — replace it. Import JSON remains an option.'),
     resumeSectionOrder(posting),
     credToggle,
     posting ? btn('Save order as my default', {
@@ -2818,7 +2824,7 @@ function resumeEditorPane(posting, doc) {
     el('div', { class: 'grid-2' }, [
       field('Name', el('input', {
         value: profile.name,
-        placeholder: 'Inaayat Gill',
+        placeholder: 'John Doe',
         'aria-label': 'Name',
         'data-focus-key': 'resume-name',
         onInput: (event) => stampProfile('name', event.target.value),
@@ -2834,7 +2840,7 @@ function resumeEditorPane(posting, doc) {
     el('div', { class: 'grid-2' }, [
       field('Locations', el('input', {
         value: (profile.locations || []).join(' / ') || profile.location || '',
-        placeholder: 'New York, NY / Seattle, WA',
+        placeholder: 'Example City, ST',
         'aria-label': 'Locations',
         'data-focus-key': 'resume-locations',
         onInput: (event) => stampProfile('locations', event.target.value.split(/\s*\/\s*/).map((part) => part.trim()).filter(Boolean)),
@@ -3515,7 +3521,8 @@ function showBook(note) {
 async function boot() {
   if (localMode) {
     auth = { configured: true, signedIn: true, token: null, local: true };
-    store = loadCached();
+    store = withStarterCareer(loadCached());
+    cacheStore();
     const legal = document.querySelector('.legal');
     if (legal) legal.textContent = 'This device only (?local=1). Sign in without that flag to keep the book on your account.';
     showBook('This device only');
@@ -3542,16 +3549,16 @@ async function boot() {
     const data = await loadBook(auth.token);
     const remote = normalizeStore(data.book);
     if (data.created && bookIsEmpty(remote) && !bookIsEmpty(cached)) {
-      store = cached;
+      store = withStarterCareer(cached);
       rememberServerBook(data);
       showBook('Moved this browser’s book onto your account.');
       await pushStore();
       return;
     }
-    store = remote;
+    store = withStarterCareer(remote);
     rememberServerBook(data);
     cacheStore();
-    showBook(data.created ? 'New book' : 'Saved to your account.');
+    showBook(data.created ? 'New book — John Doe starter is only on this device until you edit.' : 'Saved to your account.');
   } catch (err) {
     if (err.status === 401) {
       auth.needsReauth = true;

@@ -60,6 +60,9 @@ import {
   compileResumeText,
   compileResumeDoc,
   applyImportedResume,
+  careerNeedsSeed,
+  seedStarterResume,
+  STARTER_RESUME_DOC,
   updatePostingResume,
   replacePostingResume,
   addCareerJob,
@@ -1045,5 +1048,49 @@ const packedKb = serializeBook(kb);
 const reloadedKb = normalizeStore(JSON.parse(packedKb.json), clock);
 assert.equal(reloadedKb.knowledge[0].title, 'Hobby plan');
 assert.equal(reloadedKb.entries.length, 0);
+
+assert.equal(careerNeedsSeed(emptyStore()), true);
+assert.equal(bookIsEmpty(emptyStore()), true);
+const starter = seedStarterResume(emptyStore(), clock);
+assert.equal(starter.profile.name, 'John Doe');
+assert.equal(starter.profile.email, 'john.doe@example.com');
+assert.equal(starter.profile.phone, '(555) 010-0000');
+assert.equal(starter.jobs.length, 2);
+assert.equal(starter.jobs[0].company, 'Example Financial Group');
+assert.ok(starter.jobs[0].groups.length >= 2);
+assert.equal(starter.credentials[0].name, 'Example Professional License');
+assert.equal(starter.education[0].school, 'Example University');
+assert.equal(starter.additional.length, 2);
+assert.deepEqual(starter.resumeSettings.sectionOrder, DEFAULT_SECTION_ORDER.slice());
+const starterDoc = compileResumeDoc(null, starter);
+assert.equal(starterDoc.header.name, 'John Doe');
+assert.equal(starterDoc.sections.experience.jobs.length, 2);
+assert.equal(starterDoc.sections.credentials.items.length, 1);
+assert.equal(isResumeDoc(STARTER_RESUME_DOC), true);
+const namedHeader = { ...emptyStore(), profile: { ...emptyStore().profile, name: 'Ada' } };
+assert.equal(careerNeedsSeed(namedHeader), false);
+assert.equal(seedStarterResume(namedHeader, clock).profile.name, 'Ada');
+assert.equal(seedStarterResume(namedHeader, clock).jobs.length, 0);
+let withWins = addEntry(emptyStore(), { title: 'Kept win' }, clock);
+assert.equal(careerNeedsSeed(withWins), true);
+withWins = seedStarterResume(withWins, clock);
+assert.equal(withWins.entries[0].title, 'Kept win');
+assert.equal(withWins.profile.name, 'John Doe');
+const forbidden = /inaayat|gill|pricewaterhouse|alaska airlines|university of washington|foster school|washington state board|inaayat@gmail|55864|job_pwc|job_alaska/i;
+const starterBlob = JSON.stringify(STARTER_RESUME_DOC);
+assert.equal(forbidden.test(starterBlob), false);
+const previewHtml = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../brag-book/sample-preview.html'), 'utf8');
+assert.equal(forbidden.test(previewHtml), false);
+assert.match(previewHtml, /John Doe/);
+assert.doesNotMatch(previewHtml, /inaayat-gill-resume/);
+
+const liveCareer = applyImportedResume(emptyStore(), sampleResume, clock);
+assert.equal(careerNeedsSeed(liveCareer), false);
+assert.equal(seedStarterResume(liveCareer, clock), liveCareer);
+assert.equal(liveCareer.profile.name, 'Inaayat Gill');
+assert.equal(liveCareer.profile.email, 'inaayat@gmail.com');
+assert.equal(liveCareer.jobs[0].company, 'PricewaterhouseCoopers LLC');
+assert.equal(emptyStore().jobs.length, 0);
+assert.equal(emptyStore().profile.name, '');
 
 console.log('ok');

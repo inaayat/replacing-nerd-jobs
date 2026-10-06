@@ -2,20 +2,22 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Resume preview — Inaayat Gill</title>
+    <title>Resume preview — John Doe</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caladea:ital,wght@0,400;0,700;1,400;1,700&display=swap" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Caladea:ital,wght@0,400;0,700;1,400;1,700&display=swap"
+    />
     <link rel="stylesheet" href="./resume.css" />
   </head>
   <body class="bb-resume-print">
     <div class="sheet"><div class="page" id="page"></div></div>
     <script type="module">
-      import { compileResumeDoc, applyImportedResume, emptyStore } from './engine.js';
+      import { compileResumeDoc, emptyStore, seedStarterResume } from './engine.js';
       import { renderResumeHtml } from './resume-template.js';
       import { fitOnePage, dropOrderFromDoc, PAGE_HEIGHT_PX } from './resume-fit.js';
-      const raw = await fetch('./data/inaayat-gill-resume.json').then((r) => r.json());
-      const store = applyImportedResume(emptyStore(), raw);
+      const store = seedStarterResume(emptyStore());
       const doc = compileResumeDoc(null, store);
       const page = document.getElementById('page');
       page.innerHTML = renderResumeHtml(doc, { droppedBulletIds: [] });

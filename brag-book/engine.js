@@ -57,6 +57,10 @@ import {
   findLocalBullet,
 } from './resume-model.js';
 
+import { STARTER_RESUME_DOC } from './starter-resume.js';
+
+export { STARTER_RESUME_DOC } from './starter-resume.js';
+
 export {
   RESUME_SECTION_KEYS,
   DEFAULT_SECTION_ORDER,
@@ -970,6 +974,34 @@ export function choosePostingResumeMode(store, postingId, mode, clock = Date.now
 
 export function applyImportedResume(store, raw, clock = Date.now) {
   return normalizeStore(importResumeDoc(store || emptyStore(), raw, clock), clock);
+}
+
+function hasCareerText(value) {
+  return String(value || '').trim().length > 0;
+}
+
+export function careerNeedsSeed(store) {
+  const profile = store?.profile || emptyProfile();
+  if ([
+    profile.name,
+    profile.email,
+    profile.phone,
+    profile.suffix,
+    profile.summary,
+    profile.skills,
+    profile.location,
+  ].some(hasCareerText)) return false;
+  if ((profile.locations || []).some(hasCareerText)) return false;
+  if ((profile.links || []).some((link) => hasCareerText(link?.url) || hasCareerText(link?.label))) return false;
+  return !(store?.jobs || []).length
+    && !(store?.education || []).length
+    && !(store?.credentials || []).length
+    && !(store?.additional || []).length;
+}
+
+export function seedStarterResume(store, clock = Date.now) {
+  if (!careerNeedsSeed(store)) return store || emptyStore();
+  return applyImportedResume(store || emptyStore(), STARTER_RESUME_DOC, clock);
 }
 
 export function updateCareerJob(store, id, patch, clock = Date.now) {
