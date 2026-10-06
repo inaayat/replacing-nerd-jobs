@@ -47,6 +47,8 @@ import {
   deleteCareerBullet,
   moveCareerBullet,
   moveCareerGroup,
+  addResumeGroup,
+  moveResumeGroup,
   addPostingLocalJob,
   updatePostingLocalJob,
   deletePostingLocalJob,
@@ -84,6 +86,7 @@ import {
   addAdditionalRow,
   deleteAdditionalRow,
   moveAdditionalRow,
+  moveAdditionalGroup,
   addAdditionalGroup,
   updateAdditionalGroup,
   deleteAdditionalGroup,
@@ -1933,20 +1936,34 @@ function resumeSectionHead(title, action) {
 }
 
 function resumeMoveBtns(label, { index, length, onMove }) {
-  return el('div', { class: 'actions' }, [
+  return el('div', { class: 'actions bb-order-btns' }, [
     btn('↑', {
       class: 'btn ghost compact-action',
+      title: `Move ${label} up`,
       'aria-label': `Move ${label} up`,
       disabled: index <= 0,
       onClick: () => onMove(-1),
     }),
     btn('↓', {
       class: 'btn ghost compact-action',
+      title: `Move ${label} down`,
       'aria-label': `Move ${label} down`,
       disabled: index >= length - 1,
       onClick: () => onMove(1),
     }),
   ]);
+}
+
+function addSubheadingButton(posting, career, { afterId } = {}) {
+  return btn(afterId ? '+ Sub-heading here' : '+ Add sub-heading', {
+    class: 'btn ghost compact-action',
+    onClick: () => {
+      const added = addResumeGroup(store, posting?.id || null, career, { afterId });
+      store = added.store;
+      saveStore();
+      render({ focusKey: added.groupId ? `rg-${added.groupId}-heading` : `rj-${career.id}-company` });
+    },
+  });
 }
 
 function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0) {
@@ -2341,11 +2358,7 @@ function resumeJobEditor(posting, career) {
             index: groupIndex,
             length: groups.length,
             onMove: (delta) => {
-              if (posting && localGroup) {
-                store = movePostingLocalGroup(store, posting.id, career.id, group.id, delta);
-              } else if (!posting) {
-                store = moveCareerGroup(store, career.id, group.id, delta);
-              }
+              store = moveResumeGroup(store, posting?.id || null, career.id, group.id, delta);
               saveStore();
               render({ focusKey: `rg-${group.id}-heading` });
             },
@@ -2398,6 +2411,7 @@ function resumeJobEditor(posting, career) {
           btn('+ Add bullet', {
             class: 'btn ghost compact-action',
             onClick: () => {
+              store = adoptCompiledJob(store, posting?.id || null, career);
               if (posting) {
                 store = addPostingLocalBullet(store, posting.id, career.id, group.id);
                 const last = lastLocalBullet(posting.id, career.id, group.id);
@@ -2413,27 +2427,12 @@ function resumeJobEditor(posting, career) {
               render({ focusKey: last ? `rb-${last.id}-line` : `rg-${group.id}-heading` });
             },
           }),
+          addSubheadingButton(posting, career, { afterId: group.id }),
         ]) : null,
       ];
     }),
     allowStructure ? el('div', { class: 'bb-add-row' }, [
-      btn('+ Add sub-heading', {
-        class: 'btn ghost compact-action',
-        onClick: () => {
-          if (posting) {
-            store = addPostingLocalGroup(store, posting.id, career.id);
-            const last = lastLocalGroup(posting.id, career.id);
-            saveStore();
-            render({ focusKey: last ? `rg-${last.id}-heading` : `rj-${career.id}-company` });
-            return;
-          }
-          store = addCareerGroup(store, career.id);
-          const added = careerJobById(career.id);
-          const last = added?.groups[added.groups.length - 1];
-          saveStore();
-          render({ focusKey: last ? `rg-${last.id}-heading` : `rj-${career.id}-company` });
-        },
-      }),
+      addSubheadingButton(posting, career),
       groups.length ? null : btn('+ Add bullet', {
         class: 'btn ghost compact-action',
         onClick: () => {
@@ -2755,16 +2754,27 @@ function resumeEditorPane(posting, doc) {
             glabel.addEventListener('input', stampGroup);
             gitems.addEventListener('input', stampGroup);
             return el('div', { class: 'bb-addl-group' }, [
-              field('Sub-label', glabel),
+              el('div', { class: 'bb-group-head' }, [
+                field('Sub-label', glabel),
+                resumeMoveBtns('sub-label', {
+                  index: row.groups.findIndex((item) => item.id === group.id),
+                  length: row.groups.length,
+                  onMove: (delta) => {
+                    store = moveAdditionalGroup(store, row.id, group.id, delta);
+                    saveStore();
+                    render({ focusKey: `sg-${group.id}-label` });
+                  },
+                }),
+                btn('Remove sub-label', {
+                  class: 'btn ghost compact-action is-danger',
+                  onClick: () => {
+                    store = deleteAdditionalGroup(store, row.id, group.id);
+                    saveStore();
+                    render();
+                  },
+                }),
+              ]),
               field('Items', gitems),
-              btn('Remove sub-label', {
-                class: 'btn ghost compact-action is-danger',
-                onClick: () => {
-                  store = deleteAdditionalGroup(store, row.id, group.id);
-                  saveStore();
-                  render();
-                },
-              }),
             ]);
           })
           : [field('Items', items)];

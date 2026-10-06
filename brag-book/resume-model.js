@@ -85,6 +85,7 @@ export function emptyResumeVariant() {
     pinnedBulletIds: [],
     jobOrder: [],
     bulletOrder: {},
+    groupOrder: {},
     groupHeadings: {},
     overrides: {},
     localJobs: [],
@@ -196,6 +197,7 @@ export function normalizeResumeVariant(raw) {
     pinnedBulletIds: asIdList(raw.pinnedBulletIds),
     jobOrder: asIdList(raw.jobOrder),
     bulletOrder: normalizeBulletOrder(raw.bulletOrder),
+    groupOrder: normalizeBulletOrder(raw.groupOrder),
     groupHeadings: normalizeGroupHeadings(raw.groupHeadings),
     overrides: normalizeOverrides(raw.overrides),
     localJobs: normalizeCareerJobs(raw.localJobs),
@@ -587,7 +589,7 @@ function decorateJob(job, variant, { local = false } = {}) {
     ...job,
     included: !variant.excludedJobIds.includes(job.id),
     local: Boolean(local),
-    groups,
+    groups: reorder(groups, variant.groupOrder?.[job.id]),
   };
 }
 
@@ -629,13 +631,13 @@ function mergeGroupLists(hostGroups, overlayGroups, variant, jobId) {
       byId.set(overlay.id, groups[groups.length - 1]);
     }
   }
-  return groups.map((group) => ({
+  return reorder(groups.map((group) => ({
     ...group,
     heading: Object.prototype.hasOwnProperty.call(variant.groupHeadings, group.id)
       ? variant.groupHeadings[group.id]
       : group.heading,
     bullets: reorder(group.bullets, variant.bulletOrder[group.id]),
-  }));
+  })), variant.groupOrder?.[jobId]);
 }
 
 function mergeLocalJobs(jobs, variant) {
@@ -866,6 +868,15 @@ export function moveKey(order, key, delta) {
   if (index < 0 || nextIndex < 0 || nextIndex >= items.length) return items;
   const [row] = items.splice(index, 1);
   items.splice(nextIndex, 0, row);
+  return items;
+}
+
+export function insertKeyAfter(order, key, afterId) {
+  const items = (Array.isArray(order) ? order : []).filter((item) => item && item !== key);
+  if (!key) return items;
+  const idx = afterId ? items.indexOf(afterId) : -1;
+  if (idx < 0) return [...items, key];
+  items.splice(idx + 1, 0, key);
   return items;
 }
 
@@ -1321,6 +1332,7 @@ export function patchResumeVariant(current, patch) {
   if (patch && patch.overrides) next.overrides = { ...base.overrides, ...patch.overrides };
   if (patch && patch.groupHeadings) next.groupHeadings = { ...base.groupHeadings, ...patch.groupHeadings };
   if (patch && patch.bulletOrder) next.bulletOrder = { ...base.bulletOrder, ...patch.bulletOrder };
+  if (patch && patch.groupOrder) next.groupOrder = { ...base.groupOrder, ...patch.groupOrder };
   return normalizeResumeVariant(next);
 }
 

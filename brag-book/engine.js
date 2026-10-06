@@ -24,6 +24,8 @@ import {
   patchResumeVariant,
   importResumeDoc,
   moveListItem,
+  moveKey,
+  insertKeyAfter,
   compileResumeDoc,
   addLocalJob,
   updateLocalJob,
@@ -75,6 +77,7 @@ export {
   headerFromProfile,
   moveListItem,
   moveKey,
+  insertKeyAfter,
   toggleId,
   findResumeBullet,
   writeBulletBackToSource,
@@ -744,6 +747,44 @@ export function movePostingJob(store, postingId, jobId, delta) {
   });
 }
 
+export function compiledJobGroups(store, postingId, jobId) {
+  const posting = postingId ? postingById(store, postingId) : null;
+  const jobs = posting
+    ? compileResumeDoc(posting, store).sections.experience.jobs
+    : (store?.jobs || []);
+  return (jobs.find((job) => job.id === jobId)?.groups || []).map((group) => group.id);
+}
+
+export function moveResumeGroup(store, postingId, jobId, groupId, delta, clock = Date.now) {
+  if (!postingId) return moveCareerGroup(store, jobId, groupId, delta, clock);
+  const ids = compiledJobGroups(store, postingId, jobId);
+  return updatePostingResume(store, postingId, {
+    groupOrder: { [jobId]: moveKey(ids, groupId, delta) },
+  }, clock);
+}
+
+export function addResumeGroup(store, postingId, career, { afterId } = {}, clock = Date.now, random = Math.random) {
+  const jobId = career?.id;
+  if (!jobId) return { store, groupId: null };
+  const groupId = newId('rg', clock, random);
+  let next = adoptCompiledJob(store, postingId || null, career, clock, random);
+  if (postingId) {
+    next = addPostingLocalGroup(next, postingId, jobId, { id: groupId }, clock, random);
+    const ids = insertKeyAfter(compiledJobGroups(next, postingId, jobId), groupId, afterId);
+    next = updatePostingResume(next, postingId, { groupOrder: { [jobId]: ids } }, clock);
+  } else {
+    next = addCareerGroup(next, jobId, { id: groupId }, clock, random);
+    if (afterId) {
+      const job = (next.jobs || []).find((item) => item.id === jobId);
+      const ordered = insertKeyAfter((job?.groups || []).map((group) => group.id), groupId, afterId)
+        .map((id) => (job?.groups || []).find((group) => group.id === id))
+        .filter(Boolean);
+      next = updateCareerJob(next, jobId, { groups: ordered }, clock);
+    }
+  }
+  return { store: next, groupId };
+}
+
 export function addPostingLocalEducation(store, postingId, draft = {}, clock = Date.now, random = Math.random) {
   return patchPostingVariant(store, postingId, (variant) => addLocalEducation(variant, {
     ...draft,
@@ -1086,6 +1127,19 @@ export function updateAdditionalGroup(store, rowId, groupId, patch, clock = Date
             group.id === groupId ? { ...group, ...patch, id: group.id } : group
           )),
         };
+      }),
+      clock
+    ),
+  };
+}
+
+export function moveAdditionalGroup(store, rowId, groupId, delta, clock = Date.now) {
+  return {
+    ...store,
+    additional: normalizeAdditional(
+      (store?.additional || []).map((row) => {
+        if (row.id !== rowId) return row;
+        return { ...row, groups: moveListItem(row.groups || [], groupId, delta) };
       }),
       clock
     ),

@@ -1494,8 +1494,21 @@ a:focus-visible {
 }
 .bb-group-head {
   display: grid;
-  gap: 6px;
-  margin-top: 8px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: end;
+  margin-top: 10px;
+  padding: 8px;
+  background: rgba(12, 11, 9, 0.045);
+  border-radius: 6px;
+}
+.bb-group-head .field { margin-bottom: 0; }
+.bb-group-head .bb-order-btns,
+.bb-group-head .actions {
+  flex-wrap: wrap;
+}
+.bb-order-btns .btn {
+  min-width: 36px;
 }
 .bb-addl-group {
   border-top: 1px solid var(--line);

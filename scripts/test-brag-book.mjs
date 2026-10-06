@@ -101,6 +101,10 @@ import {
   resumeRoleSummary,
   isRoleHeaderToggleTarget,
   adoptCompiledJob,
+  addResumeGroup,
+  moveResumeGroup,
+  moveAdditionalGroup,
+  insertKeyAfter,
   bulletLineText,
   bulletFromLine,
   markdownToSpans,
@@ -895,5 +899,38 @@ assert.equal(compileResumeDoc(postingById(adopted, postingId), adopted).sections
 const basicsAdopt = adoptCompiledJob(emptyStore(), null, ghostRole, clock, random);
 assert.equal(basicsAdopt.jobs[0].company, 'GoDaddy');
 assert.equal(adoptCompiledJob(basicsAdopt, null, ghostRole, clock, random).jobs.length, 1);
+
+assert.deepEqual(insertKeyAfter(['a', 'b', 'c'], 'x', 'a'), ['a', 'x', 'b', 'c']);
+assert.deepEqual(insertKeyAfter(['a', 'b'], 'x'), ['a', 'b', 'x']);
+assert.deepEqual(insertKeyAfter(['a', 'x', 'b'], 'x', 'b'), ['a', 'b', 'x']);
+
+let ordered = applyImportedResume(emptyStore(), sampleResume, clock);
+ordered = addPosting(ordered, { title: 'Order posting' }, clock);
+const orderedJobId = ordered.postings[0].id;
+const pwc = ordered.jobs.find((job) => job.company.startsWith('PricewaterhouseCoopers'));
+const pwcGroups = pwc.groups.map((group) => group.id);
+assert.ok(pwcGroups.length >= 2);
+ordered = moveResumeGroup(ordered, orderedJobId, pwc.id, pwcGroups[0], 1, clock);
+const afterMove = compileResumeDoc(postingById(ordered, orderedJobId), ordered)
+  .sections.experience.jobs.find((job) => job.id === pwc.id).groups.map((group) => group.id);
+assert.equal(afterMove[0], pwcGroups[1]);
+assert.equal(afterMove[1], pwcGroups[0]);
+const inserted = addResumeGroup(ordered, orderedJobId, pwc, { afterId: afterMove[0] }, clock, random);
+ordered = inserted.store;
+const afterInsert = compileResumeDoc(postingById(ordered, orderedJobId), ordered)
+  .sections.experience.jobs.find((job) => job.id === pwc.id).groups.map((group) => group.id);
+assert.equal(afterInsert[1], inserted.groupId);
+const basicsInsert = addResumeGroup(applyImportedResume(emptyStore(), sampleResume, clock), null, pwc, {
+  afterId: pwcGroups[0],
+}, clock, random);
+assert.equal(basicsInsert.store.jobs.find((job) => job.id === pwc.id).groups[1].id, basicsInsert.groupId);
+
+let addl = applyImportedResume(emptyStore(), sampleResume, clock);
+addl = addAdditionalGroup(addl, addl.additional[0].id, { label: 'First' }, clock, random);
+addl = addAdditionalGroup(addl, addl.additional[0].id, { label: 'Second' }, clock, random);
+const addlIds = addl.additional[0].groups.map((group) => group.id);
+addl = moveAdditionalGroup(addl, addl.additional[0].id, addlIds[0], 1, clock);
+assert.equal(addl.additional[0].groups[0].id, addlIds[1]);
+assert.equal(addl.additional[0].groups[1].id, addlIds[0]);
 
 console.log('ok');
