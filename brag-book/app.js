@@ -2446,9 +2446,9 @@ function resumeJobEditor(posting, career) {
         ]) : null,
       ];
     }),
-    allowStructure ? el('div', { class: 'bb-add-row' }, [
+    allowStructure && !groups.length ? el('div', { class: 'bb-add-row' }, [
       addSubheadingButton(posting, career),
-      groups.length ? null : btn('+ Add bullet', {
+      btn('+ Add bullet', {
         class: 'btn ghost compact-action',
         onClick: () => {
           if (posting) {
