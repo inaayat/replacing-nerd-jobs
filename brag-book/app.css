@@ -756,7 +756,8 @@ a:focus-visible {
 .bullet-link {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 3px 10px;
+  gap: 6px 10px;
+  align-items: start;
   width: 100%;
   padding: 8px 10px;
   text-align: left;
@@ -764,7 +765,6 @@ a:focus-visible {
   border: 1px solid var(--line-strong);
   border-radius: 7px;
   background: #fff;
-  cursor: pointer;
 }
 
 .bullet-link:hover,
@@ -779,10 +779,19 @@ a:focus-visible {
 }
 
 .bullet-copy { grid-column: 1; }
-.bullet-copy {
+.bullet-copy,
+.experience-compose {
+  min-width: 0;
+  height: auto;
   font-family: var(--content-font);
   font-size: 14px;
   line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  outline: none;
+}
+.bullet-copy {
+  min-height: 1.55em;
 }
 .bullet-copy.is-marked {
   display: block;
@@ -795,33 +804,39 @@ a:focus-visible {
   font-weight: 700;
   padding-right: 0.4em;
 }
-.bullet-meta {
-  grid-column: 1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 10px;
-  color: var(--muted);
-  font-size: 0.66rem;
-  line-height: 1.35;
+.bullet-copy strong,
+.experience-compose strong { font-weight: 700; }
+.experience-compose {
+  min-height: 34px;
+  padding: 7px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: #fff;
 }
-.bullet-meta > span {
-  padding: 1px 0;
-  border-bottom: 1px dotted transparent;
+.experience-compose[data-empty="true"]::before {
+  content: attr(data-placeholder);
+  color: var(--muted);
 }
 .bullet-open {
+  appearance: none;
   grid-column: 2;
-  grid-row: 1 / span 2;
-  align-self: center;
+  align-self: start;
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: var(--gold);
   font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  cursor: pointer;
 }
 
 .table-add {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 5px;
+  align-items: start;
 }
 
 .experience-add { position: relative; }

@@ -245,6 +245,32 @@ assert.equal(fromStrings.postings[0].requirements[0].experiences[0].text, 'Wrote
 assert.equal(fromStrings.postings[0].requirements[0].bullets[0].notes, '');
 assert.equal('ready' in fromStrings.postings[0].requirements[0], false);
 assert.equal(normalizeBullet('Legacy line', clock).text, 'Legacy line');
+assert.equal(normalizeBullet('Legacy line', clock).rich[0].bold, false);
+const marked = normalizeBullet({
+  text: 'plain fallback',
+  rich: [{ text: 'Led ', bold: false }, { text: 'billing', bold: true }],
+}, clock);
+assert.equal(marked.text, 'Led billing');
+assert.equal(marked.rich[1].bold, true);
+assert.equal(marked.rich[1].text, 'billing');
+let richBook = addPosting(emptyStore(), { title: 'Bold line' }, clock);
+const richJob = richBook.postings[0].id;
+richBook = addRequirement(richBook, richJob, 'Own the line', clock);
+const richReq = richBook.postings[0].requirements[0].id;
+richBook = createEntryBullet(richBook, richJob, richReq, 'Led billing', clock, [
+  { text: 'Led ', bold: false },
+  { text: 'billing', bold: true },
+]);
+let richBullet = richBook.postings[0].requirements[0].bullets[0];
+assert.equal(richBullet.rich[1].bold, true);
+richBook = updateBullet(richBook, richJob, richReq, richBullet.id, { notes: 'kept' }, clock);
+richBullet = richBook.postings[0].requirements[0].bullets[0];
+assert.equal(richBullet.notes, 'kept');
+assert.equal(richBullet.rich[1].bold, true);
+richBook = updateBullet(richBook, richJob, richReq, richBullet.id, 'Plain replacement', clock);
+richBullet = richBook.postings[0].requirements[0].bullets[0];
+assert.equal(richBullet.text, 'Plain replacement');
+assert.equal(richBullet.rich[0].bold, false);
 
 const pasted = parseExperiences(`
 - Shipped packing cubes sync

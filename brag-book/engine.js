@@ -154,6 +154,40 @@ function normalizeLines(value, clock) {
   return out;
 }
 
+function normalizeRichSpans(value, fallback) {
+  const spans = [];
+  const push = (text, bold) => {
+    if (!text) return;
+    const last = spans[spans.length - 1];
+    if (last && last.bold === Boolean(bold)) last.text += text;
+    else spans.push({ text, bold: Boolean(bold) });
+  };
+  if (Array.isArray(value)) {
+    for (const span of value) {
+      if (!span || typeof span !== 'object') continue;
+      let text = String(span.text ?? '').replace(/\u00a0/g, ' ').replace(/\r\n/g, '\n');
+      if (text.length > TEXT_MAX) text = text.slice(0, TEXT_MAX);
+      push(text, span.bold);
+    }
+  }
+  const joined = spans.map((span) => span.text).join('');
+  if (joined.trim()) {
+    if (joined.length <= TEXT_MAX) return { text: joined, rich: spans };
+    let left = TEXT_MAX;
+    const capped = [];
+    for (const span of spans) {
+      if (left <= 0) break;
+      const text = span.text.length > left ? span.text.slice(0, left) : span.text;
+      left -= text.length;
+      if (text) capped.push({ text, bold: span.bold });
+    }
+    return { text: capped.map((span) => span.text).join(''), rich: capped };
+  }
+  const text = asString(fallback, TEXT_MAX);
+  if (!text) return null;
+  return { text, rich: [{ text, bold: false }] };
+}
+
 export function normalizeBullet(raw, clock = Date.now) {
   if (typeof raw === 'string') {
     const text = asString(raw, TEXT_MAX);
@@ -161,6 +195,7 @@ export function normalizeBullet(raw, clock = Date.now) {
     return {
       id: newId('ln', clock),
       text,
+      rich: [{ text, bold: false }],
       notes: '',
       situation: '',
       task: '',
@@ -170,11 +205,12 @@ export function normalizeBullet(raw, clock = Date.now) {
     };
   }
   if (!raw || typeof raw !== 'object') return null;
-  const text = asString(raw.text, TEXT_MAX);
-  if (!text) return null;
+  const formatted = normalizeRichSpans(raw.rich, raw.text);
+  if (!formatted) return null;
   return {
     id: asString(raw.id, 64) || newId('ln', clock),
-    text,
+    text: formatted.text,
+    rich: formatted.rich,
     notes: asString(raw.notes, TEXT_MAX),
     situation: asString(raw.situation, TEXT_MAX),
     task: asString(raw.task, TEXT_MAX),
@@ -502,7 +538,7 @@ export function addBullet(store, postingId, requirementId, text, clock = Date.no
   );
 }
 
-export function addEntryBullet(store, postingId, requirementId, entryId, text = '', clock = Date.now) {
+export function addEntryBullet(store, postingId, requirementId, entryId, text = '', clock = Date.now, rich) {
   const entry = entryById(store, entryId);
   const job = postingById(store, postingId);
   const req = requirementById(job, requirementId);
@@ -511,6 +547,7 @@ export function addEntryBullet(store, postingId, requirementId, entryId, text = 
     id: newId('ln', clock),
     entryId,
     text: asString(text, TEXT_MAX) || draftBulletFromEntry(entry) || entry.title,
+    rich,
   }, clock);
   if (!line) return store;
   return mapRequirement(
@@ -522,16 +559,22 @@ export function addEntryBullet(store, postingId, requirementId, entryId, text = 
   );
 }
 
-export function createEntryBullet(store, postingId, requirementId, text, clock = Date.now) {
-  const title = asString(text, TITLE_MAX);
-  if (!title) return store;
+export function createEntryBullet(store, postingId, requirementId, text, clock = Date.now, rich) {
+  const formatted = normalizeRichSpans(rich, text);
+  const title = asString(formatted?.text || text, TITLE_MAX);
+  if (!title || !formatted) return store;
   const entryId = newId('en', clock);
   const next = addEntry(store, { id: entryId, title, kind: 'experience' }, clock);
-  return addEntryBullet(next, postingId, requirementId, entryId, text, clock);
+  return addEntryBullet(next, postingId, requirementId, entryId, formatted.text, clock, formatted.rich);
 }
 
 export function updateBullet(store, postingId, requirementId, bulletId, patch, clock = Date.now) {
-  const nextPatch = typeof patch === 'string' ? { text: patch } : (patch || {});
+  const nextPatch = typeof patch === 'string' ? { text: patch } : { ...(patch || {}) };
+  // A plain-text edit replaces the line. Keeping the previous spans would
+  // ignore the new text, because those spans are the source of the line.
+  if (Object.prototype.hasOwnProperty.call(nextPatch, 'text') && !Object.prototype.hasOwnProperty.call(nextPatch, 'rich')) {
+    nextPatch.rich = null;
+  }
   return mapRequirement(
     store,
     postingId,
