@@ -39,7 +39,9 @@ const SECTIONS = {
   experience: (section, dropped) => (section.jobs || []).map((job) => {
     if (job.included === false) return '';
     const groups = (job.groups || []).map((group) => {
-      const bullets = (group.bullets || []).filter((b) => b.included !== false && !dropped.has(b.id));
+      const bullets = (group.bullets || []).filter((b) => (
+        b.included !== false && !dropped.has(b.id) && (b.lead || b.body)
+      ));
       if (!bullets.length) return '';
       const heading = group.heading ? `<div class="subhead">${esc(group.heading)}</div>` : '';
       const items = bullets.map((b) => {
