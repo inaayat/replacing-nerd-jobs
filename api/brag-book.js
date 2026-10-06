@@ -55,9 +55,21 @@ async function handleBook(req, res) {
 
   if (req.method === 'PUT') {
     try {
-      const data = await putBook(session.userId, req.body?.book);
+      const data = await putBook(session.userId, req.body?.book, {
+        expectedUpdatedAt: req.body?.updatedAt,
+      });
       res.status(200).json(data);
     } catch (err) {
+      if (err.status === 409) {
+        res.status(409).json({
+          error: err.message,
+          conflict: true,
+          updatedAt: err.updatedAt,
+          revision: err.revision ?? null,
+          book: err.book,
+        });
+        return;
+      }
       const bad = err.status === 400 || /too large/i.test(err.message || '');
       res.status(bad ? 400 : 502).json({ error: err.message });
     }
