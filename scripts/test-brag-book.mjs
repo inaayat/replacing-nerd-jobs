@@ -39,6 +39,7 @@ import {
   unlinkEntry,
   parseRequirements,
   stripBullet,
+  cleanPastedText,
   isRequirementHeader,
   tokenize,
   starFill,
@@ -177,6 +178,8 @@ assert.deepEqual(parsed, [
 ]);
 assert.equal(isRequirementHeader('Requirements:'), true);
 assert.equal(stripBullet('•  hello'), 'hello');
+assert.equal(cleanPastedText('  •  Built\t\tthe   platform\n\n\n  across teams  '), 'Built the platform\nacross teams');
+assert.equal(cleanPastedText('hello\u00a0world\r\nnext'), 'hello world\nnext');
 
 store = addRequirements(store, jobId, parsed.slice(1), clock);
 const req0 = store.postings[0].requirements[0];

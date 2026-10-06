@@ -26,6 +26,7 @@ import {
   answerQuestionFromEntry,
   parseRequirements,
   parseExperiences,
+  cleanPastedText,
   searchEntries,
   suggestEntries,
   linkedEntries,
@@ -233,12 +234,124 @@ function trimEditableTail(node) {
   }
 }
 
+function caretOffset(node) {
+  const sel = document.getSelection();
+  if (!sel?.rangeCount || !node.contains(sel.anchorNode)) return (node.textContent || '').length;
+  const range = sel.getRangeAt(0);
+  const pre = range.cloneRange();
+  pre.selectNodeContents(node);
+  pre.setEnd(range.startContainer, range.startOffset);
+  return pre.toString().length;
+}
+
+function setCaretOffset(node, offset) {
+  const sel = document.getSelection();
+  if (!sel) return;
+  const range = document.createRange();
+  const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+  let left = Math.max(0, offset);
+  let last = null;
+  while (walker.nextNode()) {
+    last = walker.currentNode;
+    if (left <= last.nodeValue.length) {
+      range.setStart(last, left);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      return;
+    }
+    left -= last.nodeValue.length;
+  }
+  if (last) {
+    range.setStart(last, last.nodeValue.length);
+  } else {
+    range.selectNodeContents(node);
+  }
+  range.collapse(false);
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+function editableNeedsFlatten(node) {
+  return [...node.childNodes].some((child) => {
+    if (child.nodeType !== 1) return false;
+    const tag = child.tagName;
+    return tag !== 'BR' && tag !== 'STRONG' && tag !== 'B';
+  });
+}
+
+function insertPlainText(text) {
+  if (document.execCommand('insertText', false, text)) return;
+  const sel = document.getSelection();
+  if (!sel?.rangeCount) return;
+  const range = sel.getRangeAt(0);
+  range.deleteContents();
+  const textNode = document.createTextNode(text);
+  range.insertNode(textNode);
+  range.setStartAfter(textNode);
+  range.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
+function tidySpans(spans) {
+  const out = [];
+  const push = (text, bold) => {
+    if (!text) return;
+    const last = out[out.length - 1];
+    if (last && last.bold === bold) last.text += text;
+    else out.push({ text, bold });
+  };
+  let broke = false;
+  for (const span of spans) {
+    for (const bit of String(span.text || '').split(/(\n+)/)) {
+      if (!bit) continue;
+      if (/^\n+$/.test(bit)) {
+        if (out.length) broke = true;
+        continue;
+      }
+      if (broke) {
+        push('\n', false);
+        broke = false;
+      }
+      push(bit.replace(/[ \t]{2,}/g, ' '), Boolean(span.bold));
+    }
+  }
+  while (out.length && /\n$/.test(out[out.length - 1].text)) {
+    out[out.length - 1].text = out[out.length - 1].text.replace(/\n+$/, '');
+    if (!out[out.length - 1].text) out.pop();
+  }
+  if (out[0]) out[0].text = out[0].text.replace(/^[ \t]*[-*•–—●▪‣∙][ \t]+/, '');
+  return out.filter((span) => span.text);
+}
+
+function flattenEditable(node, offset) {
+  const spans = tidySpans(readRich(node));
+  const plain = spans.map((span) => span.text).join('');
+  fillRich(node, spans.length ? spans : null, plain);
+  setCaretOffset(node, offset ?? plain.length);
+}
+
 function bindRichKeys(node, { onChange, onSubmit } = {}) {
   const changed = () => {
     trimEditableTail(node);
     node.dataset.empty = node.textContent.trim() ? 'false' : 'true';
     onChange?.(readRich(node));
   };
+  node.addEventListener('paste', (event) => {
+    event.preventDefault();
+    const text = cleanPastedText(event.clipboardData?.getData('text/plain') || '');
+    if (!text) return;
+    const start = caretOffset(node);
+    insertPlainText(text);
+    if (editableNeedsFlatten(node)) flattenEditable(node, start + text.length);
+    changed();
+  });
+  node.addEventListener('focus', () => {
+    if (!editableNeedsFlatten(node)) return;
+    flattenEditable(node, caretOffset(node));
+    changed();
+  });
   node.addEventListener('keydown', (event) => {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'b') {
       event.preventDefault();

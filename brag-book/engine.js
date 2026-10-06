@@ -934,6 +934,20 @@ export function stripBullet(line) {
     .trim();
 }
 
+// Paste keeps the words and the line breaks the person typed. Source formatting
+// (indent, runs of spaces, blank lines, a copied bullet) does not come along.
+export function cleanPastedText(value) {
+  const text = String(value ?? '')
+    .replace(/\u00a0/g, ' ')
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map((line) => line.replace(/^[ \t]+/, '').replace(/[ \t]+$/, '').replace(/[ \t]{2,}/g, ' '))
+    .join('\n')
+    .replace(/\n{2,}/g, '\n')
+    .replace(/^\n+|\n+$/g, '');
+  return text.replace(/^\s*[-*•–—●▪‣∙]\s+/, '');
+}
+
 export function isRequirementHeader(line) {
   const text = stripBullet(line);
   if (!text) return true;
