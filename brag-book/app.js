@@ -982,12 +982,9 @@ function experienceAdder(job, req) {
     else addNew();
   });
   wrap.append(
-    el('label', { class: 'adder-label' }, [
-      el('span', {}, 'Add an experience'),
-      el('div', { class: 'table-add' }, [
-        fresh,
-        btn('+ New', { class: 'btn ghost', onClick: addNew }),
-      ]),
+    el('div', { class: 'table-add' }, [
+      fresh,
+      btn('+ New', { class: 'btn ghost', onClick: addNew }),
     ]),
     matches,
   );
@@ -1038,38 +1035,38 @@ function requirementTableRow(job, req) {
 
   return el('tr', { class: 'job-table-row' }, [
     el('td', { class: 'requirement-cell', 'data-label': 'Requirement' }, [
-      el('div', { class: 'requirement-block' }, [
-        el('span', { class: 'cell-label' }, 'Requirement'),
+      el('div', { class: 'requirement-line' }, [
         requirement,
+        el('div', { class: 'row-icons' }, [
+          btn('?', {
+            class: 'icon-quiet',
+            title: 'Add a question',
+            'aria-label': 'Add a question',
+            onClick: () => {
+              const opening = questionComposerKey !== composerKey;
+              questionComposerKey = opening ? composerKey : '';
+              render(opening ? { focusKey: `add-q-${req.id}` } : undefined);
+            },
+          }),
+          btn('×', {
+            class: 'icon-quiet is-danger',
+            title: 'Delete requirement',
+            'aria-label': 'Delete requirement',
+            onClick: () => {
+              if (!confirm('Delete this requirement and its questions? Experiences stay in the Brag Book.')) return;
+              store = deleteRequirement(store, job.id, req.id);
+              saveStore();
+              render();
+            },
+          }),
+        ]),
       ]),
       req.questions.length || questionComposerKey === composerKey
         ? requirementQuestions(job, req)
         : null,
     ]),
     el('td', { class: 'bullets-cell', 'data-label': 'Experiences' }, [
-      el('span', { class: 'cell-label' }, 'Experiences'),
       el('div', { class: 'bullets-stack' }, [bullets]),
-    ]),
-    el('td', { class: 'row-actions-cell', 'data-label': 'Actions' }, [
-      el('div', { class: 'row-actions' }, [
-        btn('+ Question', {
-          class: 'row-text-action',
-          onClick: () => {
-            const opening = questionComposerKey !== composerKey;
-            questionComposerKey = opening ? composerKey : '';
-            render(opening ? { focusKey: `add-q-${req.id}` } : undefined);
-          },
-        }),
-        btn('Delete', {
-          class: 'row-text-action is-danger',
-          onClick: () => {
-            if (!confirm('Delete this requirement and its questions? Experiences stay in the Brag Book.')) return;
-            store = deleteRequirement(store, job.id, req.id);
-            saveStore();
-            render();
-          },
-        }),
-      ]),
     ]),
   ]);
 }
@@ -1080,7 +1077,6 @@ function requirementTable(job) {
     el('tr', {}, [
       el('th', {}, 'Job requirement'),
       el('th', {}, 'Experiences'),
-      el('th', { class: 'actions-heading' }, ''),
     ]),
   ]));
   const body = el('tbody');

@@ -645,9 +645,7 @@ a:focus-visible {
   border-bottom: 1px solid var(--line-strong);
 }
 
-.job-table th:first-child { width: 42%; }
-.job-table th:last-child,
-.row-actions-cell { width: 92px; }
+.job-table th:first-child { width: 46%; }
 .job-table th + th,
 .job-table td + td { border-left: 1px solid var(--line); }
 
@@ -658,34 +656,45 @@ a:focus-visible {
 }
 
 .job-table tbody .job-table-row td {
-  padding: 10px 10px 12px;
-  border-bottom: 1px solid var(--line-strong);
+  padding: 8px 10px 10px;
+  border-bottom: 1px solid var(--line);
   background: #fff;
 }
 
 .job-table tbody .job-table-row:nth-child(even) td {
-  background: rgba(12, 11, 9, 0.015);
+  background: #f6f4f0;
 }
 
 .job-table tbody .job-table-row:last-child td { border-bottom: 0; }
 
-.cell-label {
-  display: block;
-  margin: 0 0 4px;
-  color: var(--gold);
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 0.56rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+.requirement-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
 }
+.requirement-line .table-req-text { flex: 1; }
 
-.requirement-block {
-  padding: 8px 10px;
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--gold);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.92);
+.row-icons {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding-top: 2px;
 }
+.icon-quiet {
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(12, 11, 9, 0.38);
+  font: 13px/1 var(--content-font);
+  cursor: pointer;
+}
+.icon-quiet:hover { background: rgba(12, 11, 9, 0.06); color: var(--ink); }
+.icon-quiet.is-danger:hover { color: var(--red); background: rgba(179, 64, 31, 0.08); }
 
 .bullets-stack { display: grid; gap: 6px; }
 .table-req-text,
@@ -704,20 +713,20 @@ a:focus-visible {
 }
 
 .table-req-text {
-  border-color: var(--line-strong);
-  padding: 6px 8px;
+  border-color: transparent;
+  padding: 4px 6px;
   resize: none;
   overflow: hidden;
   field-sizing: content;
   min-height: 28px;
   font-size: 14px;
   line-height: 1.55;
-  background: #fff;
+  background: transparent;
 }
 
 .table-req-text:hover,
 .table-req-text:focus {
-  border-color: var(--gold);
+  border-color: var(--line-strong);
   background: #fff;
 }
 
@@ -741,18 +750,6 @@ a:focus-visible {
 }
 .row-text-action:hover { color: var(--gold); }
 .row-text-action.is-danger:hover { color: var(--red); }
-
-.row-actions {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-}
-.row-actions .row-text-action {
-  padding: 0;
-  font-size: 0.62rem;
-  letter-spacing: 0.04em;
-}
 
 .table-bullets { display: grid; gap: 6px; }
 
@@ -856,18 +853,6 @@ a:focus-visible {
 .experience-match:hover,
 .experience-match:focus-visible,
 .experience-match.is-active { background: rgba(232, 196, 122, 0.2); }
-
-.adder-label {
-  display: grid;
-  gap: 3px;
-}
-.adder-label > span {
-  color: var(--gold);
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 0.56rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
 .experience-match small { color: var(--muted); font-size: 11px; }
 
 .experience-editor {
@@ -1284,7 +1269,6 @@ a:focus-visible {
   }
   .job-table td { border: 0; }
   .job-table td + td { border-left: 0; border-top: 1px solid var(--line); }
-  .row-actions { flex-direction: row; justify-content: flex-end; }
   .job-table td::before {
     content: attr(data-label);
     display: block;
