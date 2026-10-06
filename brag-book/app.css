@@ -618,8 +618,6 @@ a:focus-visible {
 }
 
 .job-table tr:last-child td { border-bottom: 0; }
-.job-table tr.is-ready td:first-child { box-shadow: inset 3px 0 0 var(--green); }
-
 .table-req-text,
 .detail-bullet-text,
 .section-box textarea,
@@ -653,22 +651,10 @@ a:focus-visible {
 .table-row-tools {
   display: flex;
   align-items: center;
-  gap: 5px;
-  min-height: 20px;
-  margin-top: 1px;
+  min-height: 0;
+  margin-top: 0;
   padding: 0 2px;
 }
-
-.ready-check {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--muted);
-  font-size: 0.68rem;
-  cursor: pointer;
-}
-
-.ready-check input { margin: 0; }
 
 .row-text-action {
   appearance: none;
@@ -973,8 +959,6 @@ a:focus-visible {
   margin-bottom: 12px;
   background: #fff;
 }
-
-.req.is-ready { border-color: rgba(125, 206, 160, 0.45); }
 
 .req-head {
   display: flex;

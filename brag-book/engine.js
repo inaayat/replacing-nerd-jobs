@@ -267,7 +267,6 @@ export function normalizeRequirement(raw, clock = Date.now) {
     experiences: bullets,
     questions: normalizeQuestions(raw.questions, clock),
     entryIds,
-    ready: Boolean(raw.ready),
   };
 }
 
@@ -932,7 +931,6 @@ export function compilePrep(store, posting) {
     return {
       id: req.id,
       text: req.text,
-      ready: Boolean(req.ready),
       bullets: (req.bullets || []).map((line) => line.text),
       bulletDetails,
       questions,
@@ -954,7 +952,6 @@ export function prepCoverage(store, posting) {
     || card.stories.some((story) => story.fill.filled)
     || card.bulletDetails.some((bullet) => bullet.fill.filled)
   ).length;
-  const ready = cards.filter((card) => card.ready).length;
   const needBullet = total - withBullet;
   const needStory = total - withStory;
   const needQuestion = total - withQuestion;
@@ -969,7 +966,7 @@ export function prepCoverage(store, posting) {
   if (needQuestion) hints.push(`${needQuestion} need a question`);
   if (needAnswer) hints.push(`${needAnswer} need a STAR answer`);
   if (!hints.length && total) hints.push('Every requirement has something to say. Walk Prep, then copy the resume.');
-  return { total, withBullet, withStory, withQuestion, withAnswer, ready, needBullet, needStory, needQuestion, needAnswer, hints };
+  return { total, withBullet, withStory, withQuestion, withAnswer, needBullet, needStory, needQuestion, needAnswer, hints };
 }
 
 const STAR_FIELD_RE = /^(title|situation|task|action|result|notes|when|tags|kind)\s*:\s*(.*)$/im;

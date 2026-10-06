@@ -185,8 +185,6 @@ const reloadedBullet = normalizeStore(JSON.parse(JSON.stringify(store)), clock)
   .postings[0].requirements[0].bullets[0];
 assert.equal(reloadedBullet.notes, 'The longer version stays out of the resume.');
 assert.equal(reloadedBullet.result, 'Shipped without another function.');
-store = updateRequirement(store, jobId, req0.id, { ready: true }, clock);
-
 const compiled = compileResume(postingById(store, jobId), store);
 assert.equal(compiled.bullets.length, 1);
 assert.match(compileResumeText(postingById(store, jobId), store), /• Static files/);
@@ -217,13 +215,14 @@ assert.match(postingById(store, jobId).requirements[0].questions[0].situation, /
 const fromStrings = normalizeStore({
   postings: [{
     title: 'Legacy',
-    requirements: [{ text: 'Need SQL', questions: ['Tell me about SQL'], bullets: ['Wrote the join'] }],
+    requirements: [{ text: 'Need SQL', questions: ['Tell me about SQL'], bullets: ['Wrote the join'], ready: true }],
   }],
 }, clock);
 assert.equal(fromStrings.postings[0].requirements[0].questions[0].text, 'Tell me about SQL');
 assert.equal(fromStrings.postings[0].requirements[0].questions[0].answer, '');
 assert.equal(fromStrings.postings[0].requirements[0].experiences[0].text, 'Wrote the join');
 assert.equal(fromStrings.postings[0].requirements[0].bullets[0].notes, '');
+assert.equal('ready' in fromStrings.postings[0].requirements[0], false);
 assert.equal(normalizeBullet('Legacy line', clock).text, 'Legacy line');
 
 const pasted = parseExperiences(`
@@ -285,7 +284,7 @@ assert.equal(coverage.total, parsed.length);
 assert.equal(coverage.withBullet, 1);
 assert.equal(coverage.withStory, 1);
 assert.equal(coverage.withAnswer, 1);
-assert.equal(coverage.ready, 1);
+assert.equal('ready' in coverage, false);
 assert.ok(coverage.hints.some((hint) => /need a resume bullet/.test(hint)));
 
 const hits = searchEntries(store, 'neon suitcase');

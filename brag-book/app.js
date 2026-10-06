@@ -287,7 +287,7 @@ function homeView() {
         }, [
           el('span', { class: 'kicker' }, job.status),
           el('strong', {}, job.title),
-          el('p', {}, [job.company, cover.hints[0] || `${cover.ready}/${cover.total || 0} ready`].filter(Boolean).join(' · ')),
+          el('p', {}, [job.company, cover.hints[0] || `${cover.withAnswer}/${cover.total || 0} answered`].filter(Boolean).join(' · ')),
         ]);
       })),
     ]) : null,
@@ -367,7 +367,7 @@ function jobList(selectedId) {
           onClick: () => go({ kind: 'jobs', id: job.id }),
         }, [
           el('div', { class: 'row-title' }, job.title),
-          el('div', { class: 'row-meta' }, [job.company, `${cover.ready}/${cover.total || 0} ready`].filter(Boolean).join(' · ')),
+          el('div', { class: 'row-meta' }, [job.company, `${cover.withAnswer}/${cover.total || 0} answered`].filter(Boolean).join(' · ')),
         ]);
       }))
       : el('p', { class: 'empty' }, 'No postings yet. Paste a job description — that is the start of the loop.'),
@@ -576,12 +576,11 @@ function jobForm() {
 function coverageBanner(job) {
   const cover = prepCoverage(store, job);
   return el('div', { class: 'banner' }, [
-    el('p', {}, cover.hints[0] || `${cover.ready}/${cover.total || 0} marked ready`),
+    el('p', {}, cover.hints[0] || `${cover.withAnswer}/${cover.total || 0} requirements have an answer`),
     el('p', { class: 'tiny' }, [
       `${cover.withBullet}/${cover.total || 0} bullets`,
       `${cover.withQuestion}/${cover.total || 0} questions`,
       `${cover.withAnswer}/${cover.total || 0} answers`,
-      `${cover.ready}/${cover.total || 0} ready`,
     ].join(' · ')),
   ]);
 }
@@ -946,22 +945,10 @@ function requirementTableRow(job, req) {
   }
   bullets.append(experienceAdder(job, req));
 
-  return el('tr', { class: req.ready ? 'is-ready' : '' }, [
+  return el('tr', {}, [
     el('td', { class: 'requirement-cell', 'data-label': 'Requirement' }, [
       requirement,
       el('div', { class: 'table-row-tools' }, [
-        el('label', { class: 'ready-check' }, [
-          el('input', {
-            type: 'checkbox',
-            checked: req.ready,
-            onChange: (event) => {
-              store = updateRequirement(store, job.id, req.id, { ready: event.target.checked });
-              saveStore();
-              render();
-            },
-          }),
-          'Ready',
-        ]),
         btn('+ Question', {
           class: 'row-text-action',
           onClick: () => {
@@ -1209,24 +1196,12 @@ function storyBlock(job, req, activeBullet = null) {
 }
 
 function requirementCard(job, req) {
-  const card = el('article', { class: `req${req.ready ? ' is-ready' : ''}` });
+  const card = el('article', { class: 'req' });
   const text = el('textarea', { class: 'req-text' }, req.text);
   text.value = req.text;
   card.append(
     el('div', { class: 'req-head' }, [
       text,
-      el('label', { class: 'tiny' }, [
-        el('input', {
-          type: 'checkbox',
-          checked: req.ready,
-          onChange: (event) => {
-            store = updateRequirement(store, job.id, req.id, { ready: event.target.checked });
-            saveStore();
-            render();
-          },
-        }),
-        ' ready',
-      ]),
     ]),
     el('p', { class: 'subhead' }, 'Resume bullets'),
     req.bullets.length ? null : el('p', { class: 'tiny' }, 'Write the line you want on the resume, or pin a story and tap “Use as resume bullet”.'),
@@ -1447,14 +1422,6 @@ function prepView(job) {
       ...card.bullets.map((text) => el('p', {}, `• ${text}`)),
     ]) : null,
     el('div', { class: 'actions' }, [
-      btn(card.ready ? 'Ready' : 'Mark ready', {
-        class: card.ready ? 'btn' : 'btn ghost',
-        onClick: () => {
-          store = updateRequirement(store, job.id, card.id, { ready: !card.ready });
-          saveStore();
-          render();
-        },
-      }),
       btn('Edit this requirement', {
         class: 'btn ghost',
         onClick: () => go({ kind: 'jobs', id: job.id, mode: 'fill', reqId: card.id }),
