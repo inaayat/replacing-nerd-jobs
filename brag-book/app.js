@@ -2035,6 +2035,7 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0) {
           type: 'checkbox',
           checked: bullet.included !== false,
           disabled: !posting,
+          'data-focus-key': `rb-${bullet.id}-include`,
           onChange: () => {
             if (!posting) return;
             store = updatePostingResume(store, posting.id, {
@@ -2051,6 +2052,7 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0) {
           type: 'checkbox',
           checked: Boolean(bullet.pinned),
           disabled: !posting,
+          'data-focus-key': `rb-${bullet.id}-pin`,
           onChange: () => {
             if (!posting) return;
             store = updatePostingResume(store, posting.id, {
@@ -2275,6 +2277,7 @@ function resumeJobEditor(posting, career) {
             type: 'checkbox',
             checked: career.included !== false,
             disabled: !posting,
+            'data-focus-key': `rj-${career.id}-include`,
             onChange: () => {
               if (!posting) return;
               store = updatePostingResume(store, posting.id, {
@@ -2482,6 +2485,7 @@ function resumeEditorPane(posting, doc) {
     el('input', {
       type: 'checkbox',
       checked: showCredentialsFor(posting),
+      'data-focus-key': 'resume-include-credentials',
       onChange: (event) => {
         if (posting) store = updatePostingResume(store, posting.id, { showCredentials: event.target.checked });
         else store = updateResumeSettings(store, { showCredentials: event.target.checked });
@@ -3029,15 +3033,44 @@ function restoreFocus(captured, focusKey) {
   if (!key) return;
   const node = root.querySelector(`[data-focus-key="${key.replace(/"/g, '')}"]`);
   if (!node) return;
-  node.focus();
+  node.focus({ preventScroll: true });
   if (focusKey || typeof captured?.start !== 'number' || !node.setSelectionRange) return;
   const max = node.value.length;
   node.setSelectionRange(Math.min(captured.start, max), Math.min(captured.end, max));
 }
 
+const SCROLL_PANES = ['.bb-resume-editor'];
+let lastRenderHash = '';
+
+function captureScroll() {
+  const panes = {};
+  for (const sel of SCROLL_PANES) {
+    const node = document.querySelector(sel);
+    if (node) panes[sel] = node.scrollTop;
+  }
+  return { windowX: window.scrollX, windowY: window.scrollY, panes };
+}
+
+function restoreScroll(snapshot) {
+  if (!snapshot) return;
+  window.scrollTo(snapshot.windowX, snapshot.windowY);
+  for (const [sel, top] of Object.entries(snapshot.panes || {})) {
+    const node = document.querySelector(sel);
+    if (node) node.scrollTop = top;
+  }
+}
+
+function finishRender(captured, options, scroll) {
+  restoreScroll(scroll);
+  restoreFocus(captured, options.focusKey);
+}
+
 function render(options = {}) {
   const captured = options.focusKey ? null : captureFocus();
   const view = currentView();
+  const nextHash = viewHash(view);
+  const scroll = lastRenderHash && lastRenderHash === nextHash ? captureScroll() : null;
+  lastRenderHash = nextHash;
   document.title = `${viewTitle(view, store)} — Brag Book`;
   document.body.dataset.view = view.kind;
   document.querySelectorAll('[data-nav]').forEach((link) => {
@@ -3047,13 +3080,13 @@ function render(options = {}) {
 
   if (view.kind === 'home') {
     root.replaceChildren(el('div', {}, [toolbar(view), homeView()]));
-    restoreFocus(captured, options.focusKey);
+    finishRender(captured, options, scroll);
     return;
   }
 
   if (view.kind === 'profile') {
     root.replaceChildren(el('div', {}, [toolbar(view), profileView()]));
-    restoreFocus(captured, options.focusKey);
+    finishRender(captured, options, scroll);
     return;
   }
 
@@ -3077,7 +3110,7 @@ function render(options = {}) {
       ]);
     }
     root.replaceChildren(el('div', {}, [toolbar(view), body]));
-    restoreFocus(captured, options.focusKey);
+    finishRender(captured, options, scroll);
     return;
   }
 
@@ -3111,7 +3144,7 @@ function render(options = {}) {
     ]),
   ]);
   root.replaceChildren(next);
-  restoreFocus(captured, options.focusKey);
+  finishRender(captured, options, scroll);
 }
 
 function setAppNav(on) {
