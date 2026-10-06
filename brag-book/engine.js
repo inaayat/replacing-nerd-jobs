@@ -24,6 +24,28 @@ import {
   patchResumeVariant,
   importResumeDoc,
   moveListItem,
+  compileResumeDoc,
+  addLocalJob,
+  updateLocalJob,
+  deleteLocalJob,
+  addLocalGroup,
+  deleteLocalGroup,
+  addLocalBullet,
+  updateLocalBullet,
+  deleteLocalBullet,
+  moveLocalBullet,
+  moveLocalGroup,
+  addLocalEducation,
+  updateLocalEducation,
+  deleteLocalEducation,
+  addLocalCredential,
+  updateLocalCredential,
+  deleteLocalCredential,
+  addLocalAdditional,
+  updateLocalAdditional,
+  deleteLocalAdditional,
+  freshPostingResume,
+  basicsPostingResume,
 } from './resume-model.js';
 
 export {
@@ -41,6 +63,7 @@ export {
   compileResumeDoc,
   importResumeDoc,
   isResumeDoc,
+  resumeCompileMode,
   parseBulletText,
   boldMetrics,
   bulletPlainText,
@@ -53,6 +76,9 @@ export {
   writeBulletBackToSource,
   patchResumeVariant,
   clearBulletOverride,
+  findLocalBullet,
+  localJobById,
+  insertJobOrder,
 } from './resume-model.js';
 
 export const ENTRY_KINDS = ['experience', 'project', 'skillset'];
@@ -604,7 +630,12 @@ export function deleteEntry(store, id) {
 
 export function addPosting(store, draft, clock = Date.now) {
   const posting = normalizePosting(
-    { ...draft, id: draft?.id || newId('job', clock), createdAt: nowIso(clock) },
+    {
+      ...draft,
+      id: draft?.id || newId('job', clock),
+      createdAt: nowIso(clock),
+      resume: { mode: 'choose', ...(draft?.resume || {}) },
+    },
     clock
   );
   if (!posting) return store;
@@ -632,6 +663,139 @@ export function replacePostingResume(store, id, resume, clock = Date.now) {
   const current = postingById(store, id);
   if (!current) return store;
   return updatePosting(store, id, { resume: normalizeResumeVariant(resume) }, clock);
+}
+
+function patchPostingVariant(store, postingId, fn, clock = Date.now) {
+  const current = postingById(store, postingId);
+  if (!current) return store;
+  return replacePostingResume(store, postingId, fn(normalizeResumeVariant(current.resume), current), clock);
+}
+
+export function addPostingLocalJob(store, postingId, draft = {}, opts = {}, clock = Date.now, random = Math.random) {
+  return patchPostingVariant(store, postingId, (variant, posting) => {
+    const currentJobIds = compileResumeDoc(posting, store).sections.experience.jobs.map((job) => job.id);
+    return addLocalJob(variant, {
+      ...draft,
+      id: draft.id || newId('rj', clock, random),
+    }, { afterId: opts.afterId, currentJobIds }, clock);
+  }, clock);
+}
+
+export function updatePostingLocalJob(store, postingId, jobId, patch, clock = Date.now) {
+  return patchPostingVariant(store, postingId, (variant) => updateLocalJob(variant, jobId, patch, clock), clock);
+}
+
+export function deletePostingLocalJob(store, postingId, jobId, clock = Date.now) {
+  return patchPostingVariant(store, postingId, (variant) => deleteLocalJob(variant, jobId), clock);
+}
+
+export function addPostingLocalGroup(store, postingId, jobId, draft = {}, clock = Date.now, random = Math.random) {
+  return patchPostingVariant(store, postingId, (variant) => addLocalGroup(variant, jobId, {
+    ...draft,
+    id: draft.id || newId('rg', clock, random),
+  }, clock), clock);
+}
+
+export function deletePostingLocalGroup(store, postingId, jobId, groupId, clock = Date.now) {
+  return patchPostingVariant(store, postingId, (variant) => deleteLocalGroup(variant, jobId, groupId, clock), clock);
+}
+
+export function addPostingLocalBullet(store, postingId, jobId, groupId, draft = {}, clock = Date.now, random = Math.random) {
+  return patchPostingVariant(store, postingId, (variant) => addLocalBullet(variant, jobId, groupId, {
+    ...draft,
+    id: draft.id || newId('rb', clock, random),
+  }, clock), clock);
+}
+
+export function updatePostingLocalBullet(store, postingId, jobId, groupId, bulletId, patch, clock = Date.now) {
+  return patchPostingVariant(store, postingId, (variant) => (
+    updateLocalBullet(variant, jobId, groupId, bulletId, patch, clock)
+  ), clock);
+}
+
+export function deletePostingLocalBullet(store, postingId, jobId, groupId, bulletId, clock = Date.now) {
+  return patchPostingVariant(store, postingId, (variant) => (
+    deleteLocalBullet(variant, jobId, groupId, bulletId, clock)
+  ), clock);
+}
+
+export function movePostingLocalBullet(store, postingId, jobId, groupId, bulletId, delta, clock = Date.now) {
+  return patchPostingVariant(store, postingId, (variant) => (
+    moveLocalBullet(variant, jobId, groupId, bulletId, delta, clock)
+  ), clock);
+}
+
+export function movePostingLocalGroup(store, postingId, jobId, groupId, delta, clock = Date.now) {
+  return patchPostingVariant(store, postingId, (variant) => (
+    moveLocalGroup(variant, jobId, groupId, delta, clock)
+  ), clock);
+}
+
+export function movePostingJob(store, postingId, jobId, delta) {
+  const posting = postingById(store, postingId);
+  if (!posting) return store;
+  const ids = compileResumeDoc(posting, store).sections.experience.jobs.map((job) => ({ id: job.id }));
+  return updatePostingResume(store, postingId, {
+    jobOrder: moveListItem(ids, jobId, delta).map((job) => job.id),
+  });
+}
+
+export function addPostingLocalEducation(store, postingId, draft = {}, clock = Date.now, random = Math.random) {
+  return patchPostingVariant(store, postingId, (variant) => addLocalEducation(variant, {
+    ...draft,
+    id: draft.id || newId('ed', clock, random),
+  }, clock), clock);
+}
+
+export function updatePostingLocalEducation(store, postingId, id, patch, clock = Date.now) {
+  return patchPostingVariant(store, postingId, (variant) => updateLocalEducation(variant, id, patch, clock), clock);
+}
+
+export function deletePostingLocalEducation(store, postingId, id, clock = Date.now) {
+  return patchPostingVariant(store, postingId, (variant) => deleteLocalEducation(variant, id), clock);
+}
+
+export function addPostingLocalCredential(store, postingId, draft = {}, clock = Date.now, random = Math.random) {
+  return patchPostingVariant(store, postingId, (variant) => addLocalCredential(variant, {
+    ...draft,
+    id: draft.id || newId('cr', clock, random),
+  }, clock), clock);
+}
+
+export function updatePostingLocalCredential(store, postingId, id, patch, clock = Date.now) {
+  return patchPostingVariant(store, postingId, (variant) => updateLocalCredential(variant, id, patch, clock), clock);
+}
+
+export function deletePostingLocalCredential(store, postingId, id, clock = Date.now) {
+  return patchPostingVariant(store, postingId, (variant) => deleteLocalCredential(variant, id), clock);
+}
+
+export function addPostingLocalAdditional(store, postingId, draft = {}, clock = Date.now, random = Math.random) {
+  return patchPostingVariant(store, postingId, (variant) => addLocalAdditional(variant, {
+    ...draft,
+    id: draft.id || newId('ad', clock, random),
+  }, clock), clock);
+}
+
+export function updatePostingLocalAdditional(store, postingId, id, patch, clock = Date.now) {
+  return patchPostingVariant(store, postingId, (variant) => updateLocalAdditional(variant, id, patch, clock), clock);
+}
+
+export function deletePostingLocalAdditional(store, postingId, id, clock = Date.now) {
+  return patchPostingVariant(store, postingId, (variant) => deleteLocalAdditional(variant, id), clock);
+}
+
+export function startPostingResumeFresh(store, postingId, clock = Date.now) {
+  return patchPostingVariant(store, postingId, (variant) => freshPostingResume(variant), clock);
+}
+
+export function resetPostingResumeToBasics(store, postingId, clock = Date.now) {
+  return patchPostingVariant(store, postingId, (variant) => basicsPostingResume(variant), clock);
+}
+
+export function choosePostingResumeMode(store, postingId, mode, clock = Date.now) {
+  if (mode === 'fresh') return startPostingResumeFresh(store, postingId, clock);
+  return patchPostingVariant(store, postingId, (variant) => ({ ...variant, mode: 'basics' }), clock);
 }
 
 export function applyImportedResume(store, raw, clock = Date.now) {

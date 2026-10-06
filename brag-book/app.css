@@ -185,6 +185,12 @@ a:focus-visible {
 }
 
 .layout.is-wide { grid-template-columns: minmax(0, 1fr); }
+.layout.is-book-add {
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+}
+.layout.is-book-detail {
+  grid-template-columns: minmax(280px, 1.1fr) minmax(0, 0.9fr);
+}
 
 .hero { margin-bottom: 12px; text-align: left; }
 .hero.is-home { text-align: center; margin-bottom: 18px; }
@@ -1280,6 +1286,8 @@ a:focus-visible {
 
 @media (max-width: 860px) {
   .layout { grid-template-columns: 1fr; }
+  .layout.is-book-add,
+  .layout.is-book-detail { grid-template-columns: 1fr; }
   .grid-2,
   .grid-3,
   .start-grid,
@@ -1424,3 +1432,33 @@ a:focus-visible {
   margin-top: 8px;
 }
 .compact-action.is-danger { color: var(--red); }
+.bb-add-role-slot {
+  display: flex;
+  justify-content: flex-start;
+  margin: 2px 0 10px;
+}
+.bb-book-catalog .panel-head h2 { font-size: 1rem; }
+.bb-book-list { max-height: none; }
+.bb-book-row {
+  padding: 12px 14px;
+}
+.bb-book-row .row-title {
+  font-family: var(--content-font);
+  font-size: 1rem;
+  line-height: 1.35;
+}
+.bb-add-compact .panel-body { padding-top: 8px; }
+.bb-add-paste {
+  min-height: 8rem;
+  max-height: 18rem;
+}
+.bb-resume-choose .lede { max-width: 40rem; }
+.bb-choose-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+@media (max-width: 720px) {
+  .bb-choose-cards { grid-template-columns: 1fr; }
+}

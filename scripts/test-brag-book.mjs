@@ -62,6 +62,12 @@ import {
   deleteCareerBullet,
   moveCareerBullet,
   moveCareerJob,
+  addPostingLocalJob,
+  addPostingLocalBullet,
+  deletePostingLocalJob,
+  startPostingResumeFresh,
+  resetPostingResumeToBasics,
+  choosePostingResumeMode,
   addEducationItem,
   deleteEducationItem,
   addCredentialItem,
@@ -86,7 +92,7 @@ import {
   titleFromJobUrl,
   hostFromJobUrl,
 } from '../brag-book/engine.js';
-import { parseViewHash, viewHash, viewTitle, defaultView } from '../brag-book/routes.js';
+import { parseViewHash, viewHash, viewTitle, defaultView, logLayout, hideBookRail } from '../brag-book/routes.js';
 import { renderResumeHtml } from '../brag-book/resume-template.js';
 import { dropOrderFromDoc, FONT_FLOOR_PT, FIT_STEPS } from '../brag-book/resume-fit.js';
 import { resumeDocxBytes } from '../brag-book/resume-docx.js';
@@ -666,5 +672,90 @@ const legacyStill = normalizeStore({
 assert.equal(legacyStill.jobs.length, 0);
 assert.equal(legacyStill.postings[0].resumeText, 'plain');
 assert.equal(addCareerJob(legacyStill, { company: 'Later' }, clock, random).jobs[0].company, 'Later');
+
+assert.equal(logLayout({ kind: 'log' }), 'catalog');
+assert.equal(logLayout({ kind: 'log', id: 'new' }), 'catalog-add');
+assert.equal(logLayout({ kind: 'log', id: 'en_1' }), 'detail');
+assert.equal(hideBookRail({ kind: 'log', id: 'new' }, { entries: [{ id: 'e' }] }), false);
+assert.equal(viewHash({ kind: 'log' }), '#log');
+assert.equal(viewTitle({ kind: 'log' }), 'The book');
+
+let overlay = applyImportedResume(emptyStore(), sampleResume, clock);
+overlay = addPosting(overlay, { title: 'Local role posting' }, clock);
+overlay = addPosting(overlay, { title: 'Other posting' }, clock);
+overlay = choosePostingResumeMode(overlay, overlay.postings[0].id, 'basics', clock);
+overlay = choosePostingResumeMode(overlay, overlay.postings[1].id, 'basics', clock);
+const overlayJobId = overlay.postings[0].id;
+const otherJobId = overlay.postings[1].id;
+assert.equal(overlay.postings[0].resume.mode, 'basics');
+const sharedCount = overlay.jobs.length;
+overlay = addPostingLocalJob(overlay, overlayJobId, { company: 'Posting Only LLC', title: 'Contractor' }, {}, clock, random);
+assert.equal(overlay.jobs.length, sharedCount);
+assert.equal(overlay.postings[0].resume.localJobs.length, 1);
+assert.equal(overlay.postings[0].resume.localJobs[0].company, 'Posting Only LLC');
+assert.equal(overlay.postings[1].resume.localJobs.length, 0);
+const localDoc = compileResumeDoc(postingById(overlay, overlayJobId), overlay);
+assert.equal(localDoc.sections.experience.jobs.some((job) => job.company === 'Posting Only LLC' && job.local), true);
+const otherDoc = compileResumeDoc(postingById(overlay, otherJobId), overlay);
+assert.equal(otherDoc.sections.experience.jobs.some((job) => job.company === 'Posting Only LLC'), false);
+
+const localRole = overlay.postings[0].resume.localJobs[0];
+overlay = addPostingLocalBullet(overlay, overlayJobId, localRole.id, localRole.groups[0].id, {
+  lead: 'Built a posting-only control',
+  body: 'Did not touch Resume basics.',
+}, clock, random);
+const withBullet = compileResumeDoc(postingById(overlay, overlayJobId), overlay);
+const localCompiled = withBullet.sections.experience.jobs.find((job) => job.id === localRole.id);
+assert.equal(localCompiled.groups[0].bullets.some((b) => b.lead.includes('posting-only')), true);
+assert.equal(overlay.jobs.some((job) => (job.groups || []).some((g) => (g.bullets || []).some((b) => b.lead.includes('posting-only')))), false);
+
+const liveLocal = compileResumeDoc(postingById(overlay, overlayJobId), overlay)
+  .sections.experience.jobs.find((job) => job.id === localRole.id)
+  .groups[0].bullets.find((b) => b.lead.includes('posting-only'));
+overlay = writeBulletBackToSource(overlay, overlayJobId, liveLocal);
+assert.equal(overlay.jobs.some((job) => job.company === 'Posting Only LLC'), true);
+assert.equal(overlay.jobs.some((job) => (job.groups || []).some((g) => (g.bullets || []).some((b) => b.lead.includes('posting-only')))), true);
+
+let freshStore = applyImportedResume(emptyStore(), sampleResume, clock);
+freshStore = addPosting(freshStore, { title: 'Fresh posting', resume: { mode: 'choose' } }, clock);
+assert.equal(freshStore.postings[0].resume.mode, 'choose');
+const missingMode = normalizeStore({
+  entries: [],
+  postings: [{ title: 'Old row', resume: { excludedJobIds: [] } }],
+}, clock);
+assert.equal(missingMode.postings[0].resume.mode, 'basics');
+freshStore = choosePostingResumeMode(freshStore, freshStore.postings[0].id, 'fresh', clock);
+assert.equal(freshStore.postings[0].resume.mode, 'fresh');
+assert.equal(freshStore.jobs[0].company, 'PricewaterhouseCoopers LLC');
+const freshDoc = compileResumeDoc(freshStore.postings[0], freshStore);
+assert.equal(freshDoc.header.name, 'Inaayat Gill');
+assert.equal(freshDoc.sections.experience.jobs.length, 0);
+assert.equal(freshDoc.sections.education.items.length, 0);
+assert.equal(freshDoc.sections.credentials.items.length, 0);
+freshStore = addPostingLocalJob(freshStore, freshStore.postings[0].id, { company: 'Scratch Co' }, {}, clock, random);
+assert.equal(compileResumeDoc(freshStore.postings[0], freshStore).sections.experience.jobs[0].company, 'Scratch Co');
+assert.equal(freshStore.jobs.some((job) => job.company === 'Scratch Co'), false);
+freshStore = resetPostingResumeToBasics(freshStore, freshStore.postings[0].id, clock);
+assert.equal(freshStore.postings[0].resume.mode, 'basics');
+assert.equal(compileResumeDoc(freshStore.postings[0], freshStore).sections.experience.jobs[0].company, 'PricewaterhouseCoopers LLC');
+assert.equal(freshStore.jobs[0].company, 'PricewaterhouseCoopers LLC');
+
+let isolated = applyImportedResume(emptyStore(), sampleResume, clock);
+isolated = addPosting(isolated, { title: 'A' }, clock);
+isolated = addPosting(isolated, { title: 'B' }, clock);
+isolated = choosePostingResumeMode(isolated, isolated.postings[0].id, 'basics', clock);
+isolated = choosePostingResumeMode(isolated, isolated.postings[1].id, 'basics', clock);
+isolated = addPostingLocalJob(isolated, isolated.postings[0].id, { company: 'Only A' }, {}, clock, random);
+isolated = startPostingResumeFresh(isolated, isolated.postings[0].id, clock);
+assert.equal(isolated.postings[0].resume.localJobs.length, 0);
+assert.equal(compileResumeDoc(isolated.postings[0], isolated).sections.experience.jobs.length, 0);
+assert.equal(compileResumeDoc(isolated.postings[1], isolated).sections.experience.jobs[0].company, 'PricewaterhouseCoopers LLC');
+isolated = deletePostingLocalJob(isolated, isolated.postings[1].id, 'nope', clock);
+assert.equal(isolated.jobs.length > 0, true);
+
+const packedLocal = serializeBook(overlay);
+const reloadedLocal = normalizeStore(JSON.parse(packedLocal.json), clock);
+assert.ok(reloadedLocal.postings[0].resume.localJobs.length >= 0);
+assert.equal(reloadedLocal.postings[0].resume.mode, 'basics');
 
 console.log('ok');

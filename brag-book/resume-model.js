@@ -73,8 +73,11 @@ export function emptyResumeSettings() {
   };
 }
 
+export const RESUME_MODES = ['basics', 'fresh', 'choose'];
+
 export function emptyResumeVariant() {
   return {
+    mode: 'basics',
     sectionOrder: [],
     showCredentials: null,
     excludedJobIds: [],
@@ -84,9 +87,22 @@ export function emptyResumeVariant() {
     bulletOrder: {},
     groupHeadings: {},
     overrides: {},
+    localJobs: [],
+    localEducation: [],
+    localCredentials: [],
+    localAdditional: [],
     fit: null,
     updatedAt: '',
   };
+}
+
+export function normalizeResumeMode(value) {
+  if (value === 'fresh' || value === 'choose' || value === 'basics') return value;
+  return 'basics';
+}
+
+export function resumeCompileMode(variant) {
+  return normalizeResumeMode(variant?.mode) === 'fresh' ? 'fresh' : 'basics';
 }
 
 export function normalizeSectionOrder(value) {
@@ -170,6 +186,7 @@ export function normalizeResumeVariant(raw) {
   if (!raw || typeof raw !== 'object') return base;
   const show = raw.showCredentials;
   return {
+    mode: normalizeResumeMode(raw.mode),
     sectionOrder: Array.isArray(raw.sectionOrder) && raw.sectionOrder.length
       ? normalizeSectionOrder(raw.sectionOrder)
       : [],
@@ -181,6 +198,10 @@ export function normalizeResumeVariant(raw) {
     bulletOrder: normalizeBulletOrder(raw.bulletOrder),
     groupHeadings: normalizeGroupHeadings(raw.groupHeadings),
     overrides: normalizeOverrides(raw.overrides),
+    localJobs: normalizeCareerJobs(raw.localJobs),
+    localEducation: normalizeEducation(raw.localEducation),
+    localCredentials: normalizeCredentials(raw.localCredentials),
+    localAdditional: normalizeAdditional(raw.localAdditional),
     fit: raw.fit && typeof raw.fit === 'object' ? {
       fontPt: Number(raw.fit.fontPt) || 10,
       bulletLineHeight: Number(raw.fit.bulletLineHeight) || 1.32,
@@ -516,24 +537,99 @@ function applyBulletVariant(bullet, jobId, variant) {
   };
 }
 
-function jobsFromCareer(store, variant) {
-  const jobs = normalizeCareerJobs(store?.jobs);
-  return reorder(jobs, variant.jobOrder).map((job) => {
-    const groups = job.groups.map((group) => {
-      const heading = Object.prototype.hasOwnProperty.call(variant.groupHeadings, group.id)
-        ? variant.groupHeadings[group.id]
-        : group.heading;
-      const bullets = reorder(group.bullets, variant.bulletOrder[group.id]).map((bullet) =>
-        applyBulletVariant(bullet, job.id, variant)
-      );
-      return { ...group, heading, bullets };
-    });
-    return {
-      ...job,
-      included: !variant.excludedJobIds.includes(job.id),
-      groups,
-    };
+function decorateJob(job, variant, { local = false } = {}) {
+  const groups = (job.groups || []).map((group) => {
+    const heading = Object.prototype.hasOwnProperty.call(variant.groupHeadings, group.id)
+      ? variant.groupHeadings[group.id]
+      : group.heading;
+    const bullets = reorder(group.bullets, variant.bulletOrder[group.id]).map((bullet) => ({
+      ...applyBulletVariant(bullet, job.id, variant),
+      local: Boolean(bullet.local || local),
+    }));
+    return { ...group, heading, bullets, local: Boolean(group.local || local) };
   });
+  return {
+    ...job,
+    included: !variant.excludedJobIds.includes(job.id),
+    local: Boolean(local),
+    groups,
+  };
+}
+
+function jobsFromCareer(store, variant) {
+  return normalizeCareerJobs(store?.jobs).map((job) => decorateJob(job, variant));
+}
+
+function jobsFromLocal(variant) {
+  return normalizeCareerJobs(variant?.localJobs).map((job) => decorateJob(job, variant, { local: true }));
+}
+
+function mergeGroupLists(hostGroups, overlayGroups, variant, jobId) {
+  const groups = (hostGroups || []).map((group) => ({
+    ...group,
+    bullets: (group.bullets || []).slice(),
+  }));
+  const byId = new Map(groups.map((group) => [group.id, group]));
+  for (const overlay of overlayGroups || []) {
+    const host = byId.get(overlay.id);
+    if (host) {
+      const seen = new Set(host.bullets.map((bullet) => bullet.id));
+      for (const bullet of overlay.bullets || []) {
+        if (seen.has(bullet.id)) continue;
+        host.bullets.push({
+          ...applyBulletVariant(bullet, jobId, variant),
+          local: true,
+        });
+        seen.add(bullet.id);
+      }
+    } else {
+      groups.push({
+        ...overlay,
+        local: true,
+        bullets: (overlay.bullets || []).map((bullet) => ({
+          ...applyBulletVariant(bullet, jobId, variant),
+          local: true,
+        })),
+      });
+      byId.set(overlay.id, groups[groups.length - 1]);
+    }
+  }
+  return groups.map((group) => ({
+    ...group,
+    heading: Object.prototype.hasOwnProperty.call(variant.groupHeadings, group.id)
+      ? variant.groupHeadings[group.id]
+      : group.heading,
+    bullets: reorder(group.bullets, variant.bulletOrder[group.id]),
+  }));
+}
+
+function mergeLocalJobs(jobs, variant) {
+  const out = jobs.map((job) => ({
+    ...job,
+    groups: (job.groups || []).map((group) => ({
+      ...group,
+      bullets: (group.bullets || []).slice(),
+    })),
+  }));
+  const byId = new Map(out.map((job) => [job.id, job]));
+  for (const local of normalizeCareerJobs(variant?.localJobs)) {
+    const host = byId.get(local.id);
+    if (host) {
+      host.groups = mergeGroupLists(host.groups, local.groups, variant, host.id);
+      host.hasLocalExtras = true;
+    } else {
+      const job = decorateJob(local, variant, { local: true });
+      out.push(job);
+      byId.set(job.id, job);
+    }
+  }
+  return reorder(out, variant.jobOrder);
+}
+
+function mergeLocalRows(shared, local) {
+  const seen = new Set((shared || []).map((item) => item.id));
+  const extra = (local || []).filter((item) => !seen.has(item.id));
+  return [...(shared || []), ...extra];
 }
 
 function priorityForReqIndex(index, total) {
@@ -624,18 +720,31 @@ export function compileResumeDoc(posting, store) {
   const sectionOrder = variant.sectionOrder.length ? variant.sectionOrder : settings.sectionOrder;
   const showCredentials = variant.showCredentials == null ? settings.showCredentials : variant.showCredentials;
   const header = headerFromProfile(store?.profile);
-  let jobs = jobsFromCareer(store, variant);
-  jobs = mergePostingBullets(jobs, posting, store, variant);
-
-  const credentials = normalizeCredentials(store?.credentials);
-  const education = normalizeEducation(store?.education);
-  const additional = normalizeAdditional(store?.additional);
+  const fresh = resumeCompileMode(variant) === 'fresh';
+  let jobs;
+  let credentials;
+  let education;
+  let additional;
+  if (fresh) {
+    jobs = reorder(jobsFromLocal(variant), variant.jobOrder);
+    credentials = normalizeCredentials(variant.localCredentials);
+    education = normalizeEducation(variant.localEducation);
+    additional = normalizeAdditional(variant.localAdditional);
+  } else {
+    jobs = mergeLocalJobs(jobsFromCareer(store, variant), variant);
+    jobs = mergePostingBullets(jobs, posting, store, variant);
+    jobs = reorder(jobs, variant.jobOrder);
+    credentials = mergeLocalRows(normalizeCredentials(store?.credentials), variant.localCredentials);
+    education = mergeLocalRows(normalizeEducation(store?.education), variant.localEducation);
+    additional = mergeLocalRows(normalizeAdditional(store?.additional), variant.localAdditional);
+  }
 
   return {
     v: 1,
     template: 'classic-serif',
     header,
     sectionOrder,
+    mode: variant.mode,
     sections: {
       experience: { title: 'Work Experience', jobs },
       credentials: { title: 'Credentials', enabled: showCredentials && credentials.length > 0, items: credentials },
@@ -742,35 +851,431 @@ export function findResumeBullet(doc, bulletId) {
   return null;
 }
 
+export function insertJobOrder(order, newId, afterId, currentIds = []) {
+  const seen = new Set();
+  const ids = [];
+  const source = (order?.length ? order : currentIds).concat(currentIds);
+  for (const id of source) {
+    const key = asString(id, ID_MAX);
+    if (!key || seen.has(key) || key === newId) continue;
+    seen.add(key);
+    ids.push(key);
+  }
+  const nid = asString(newId, ID_MAX);
+  if (!nid) return ids;
+  if (!afterId) {
+    ids.push(nid);
+    return ids;
+  }
+  const idx = ids.indexOf(afterId);
+  if (idx >= 0) ids.splice(idx + 1, 0, nid);
+  else ids.push(nid);
+  return ids;
+}
+
+export function findLocalBullet(variant, bulletId) {
+  const jobs = normalizeCareerJobs(variant?.localJobs);
+  for (const job of jobs) {
+    for (const group of job.groups || []) {
+      for (const bullet of group.bullets || []) {
+        if (bullet.id === bulletId) return { job, group, bullet };
+      }
+    }
+  }
+  return null;
+}
+
+export function localJobById(variant, jobId) {
+  return normalizeCareerJobs(variant?.localJobs).find((job) => job.id === jobId) || null;
+}
+
+function stubLocalJob(jobId, groupId, clock) {
+  const groups = [{
+    id: groupId || asId('', clock, 'rg'),
+    heading: '',
+    bullets: [],
+  }];
+  return normalizeCareerJob({
+    id: jobId,
+    company: '',
+    title: '',
+    location: '',
+    start: '',
+    end: '',
+    groups,
+  }, clock);
+}
+
+function mapLocalJobs(variant, fn, clock = Date.now) {
+  const next = normalizeResumeVariant(variant);
+  next.localJobs = normalizeCareerJobs(next.localJobs.map((job) => fn(job) || job), clock);
+  return normalizeResumeVariant(next);
+}
+
+function upsertLocalJob(variant, jobId, fn, clock = Date.now, groupId) {
+  const next = normalizeResumeVariant(variant);
+  const jobs = normalizeCareerJobs(next.localJobs);
+  const index = jobs.findIndex((job) => job.id === jobId);
+  if (index >= 0) {
+    const mapped = fn(jobs[index]);
+    jobs[index] = normalizeCareerJob(mapped || jobs[index], clock) || jobs[index];
+  } else {
+    const stub = stubLocalJob(jobId, groupId, clock);
+    jobs.push(normalizeCareerJob(fn(stub) || stub, clock) || stub);
+  }
+  next.localJobs = normalizeCareerJobs(jobs, clock);
+  return normalizeResumeVariant(next);
+}
+
+export function addLocalJob(variant, draft = {}, { afterId, currentJobIds } = {}, clock = Date.now) {
+  const next = normalizeResumeVariant(variant);
+  const job = normalizeCareerJob({
+    company: '',
+    title: '',
+    location: '',
+    start: '',
+    end: '',
+    groups: [{ id: asId('', clock, 'rg'), heading: '', bullets: [] }],
+    ...draft,
+  }, clock);
+  if (!job) return next;
+  next.localJobs = [...next.localJobs, job];
+  next.jobOrder = insertJobOrder(next.jobOrder, job.id, afterId, currentJobIds);
+  return normalizeResumeVariant(next);
+}
+
+export function updateLocalJob(variant, jobId, patch, clock = Date.now) {
+  return upsertLocalJob(variant, jobId, (job) => ({ ...job, ...patch, id: job.id }), clock);
+}
+
+export function deleteLocalJob(variant, jobId) {
+  const next = normalizeResumeVariant(variant);
+  next.localJobs = next.localJobs.filter((job) => job.id !== jobId);
+  next.jobOrder = next.jobOrder.filter((id) => id !== jobId);
+  return normalizeResumeVariant(next);
+}
+
+export function addLocalGroup(variant, jobId, draft = {}, clock = Date.now) {
+  return upsertLocalJob(variant, jobId, (job) => ({
+    ...job,
+    groups: [...(job.groups || []), {
+      id: asId(draft.id, clock, 'rg'),
+      heading: draft.heading || '',
+      bullets: Array.isArray(draft.bullets) ? draft.bullets : [],
+    }],
+  }), clock);
+}
+
+export function deleteLocalGroup(variant, jobId, groupId, clock = Date.now) {
+  return mapLocalJobs(variant, (job) => {
+    if (job.id !== jobId) return job;
+    return { ...job, groups: (job.groups || []).filter((group) => group.id !== groupId) };
+  }, clock);
+}
+
+export function addLocalBullet(variant, jobId, groupId, draft = {}, clock = Date.now) {
+  return upsertLocalJob(variant, jobId, (job) => {
+    let groups = (job.groups || []).slice();
+    if (groupId && !groups.some((group) => group.id === groupId)) {
+      groups.push({ id: groupId, heading: '', bullets: [] });
+    }
+    if (!groups.length) groups = [{ id: asId('', clock, 'rg'), heading: '', bullets: [] }];
+    const targetId = (groupId && groups.some((group) => group.id === groupId))
+      ? groupId
+      : groups[groups.length - 1].id;
+    const bullet = {
+      id: asId(draft.id, clock, 'rb'),
+      lead: draft.lead || '',
+      body: draft.body || '',
+      priority: draft.priority,
+      pinned: draft.pinned,
+    };
+    return {
+      ...job,
+      groups: groups.map((group) => (
+        group.id === targetId
+          ? { ...group, bullets: [...(group.bullets || []), bullet] }
+          : group
+      )),
+    };
+  }, clock, groupId);
+}
+
+export function updateLocalBullet(variant, jobId, groupId, bulletId, patch, clock = Date.now) {
+  return mapLocalJobs(variant, (job) => {
+    if (job.id !== jobId) return job;
+    return {
+      ...job,
+      groups: (job.groups || []).map((group) => (
+        group.id === groupId
+          ? {
+            ...group,
+            bullets: (group.bullets || []).map((bullet) => (
+              bullet.id === bulletId ? { ...bullet, ...patch, id: bullet.id } : bullet
+            )),
+          }
+          : group
+      )),
+    };
+  }, clock);
+}
+
+export function deleteLocalBullet(variant, jobId, groupId, bulletId, clock = Date.now) {
+  return mapLocalJobs(variant, (job) => {
+    if (job.id !== jobId) return job;
+    return {
+      ...job,
+      groups: (job.groups || []).map((group) => (
+        group.id === groupId
+          ? { ...group, bullets: (group.bullets || []).filter((bullet) => bullet.id !== bulletId) }
+          : group
+      )),
+    };
+  }, clock);
+}
+
+export function moveLocalBullet(variant, jobId, groupId, bulletId, delta, clock = Date.now) {
+  return mapLocalJobs(variant, (job) => {
+    if (job.id !== jobId) return job;
+    return {
+      ...job,
+      groups: (job.groups || []).map((group) => (
+        group.id === groupId
+          ? { ...group, bullets: moveListItem(group.bullets || [], bulletId, delta) }
+          : group
+      )),
+    };
+  }, clock);
+}
+
+export function moveLocalGroup(variant, jobId, groupId, delta, clock = Date.now) {
+  return mapLocalJobs(variant, (job) => {
+    if (job.id !== jobId) return job;
+    return { ...job, groups: moveListItem(job.groups || [], groupId, delta) };
+  }, clock);
+}
+
+function appendLocalRow(list, draft, clock) {
+  return list.concat(draft ? [draft] : []);
+}
+
+export function addLocalEducation(variant, draft = {}, clock = Date.now) {
+  const next = normalizeResumeVariant(variant);
+  next.localEducation = normalizeEducation(appendLocalRow(next.localEducation, {
+    school: '',
+    ...draft,
+    id: asId(draft.id, clock, 'ed'),
+  }, clock), clock);
+  return normalizeResumeVariant(next);
+}
+
+export function updateLocalEducation(variant, id, patch, clock = Date.now) {
+  const next = normalizeResumeVariant(variant);
+  next.localEducation = normalizeEducation(
+    next.localEducation.map((item) => (item.id === id ? { ...item, ...patch, id: item.id } : item)),
+    clock
+  );
+  return normalizeResumeVariant(next);
+}
+
+export function deleteLocalEducation(variant, id) {
+  const next = normalizeResumeVariant(variant);
+  next.localEducation = next.localEducation.filter((item) => item.id !== id);
+  return normalizeResumeVariant(next);
+}
+
+export function addLocalCredential(variant, draft = {}, clock = Date.now) {
+  const next = normalizeResumeVariant(variant);
+  next.localCredentials = normalizeCredentials(appendLocalRow(next.localCredentials, {
+    name: '',
+    ...draft,
+    id: asId(draft.id, clock, 'cr'),
+  }, clock), clock);
+  return normalizeResumeVariant(next);
+}
+
+export function updateLocalCredential(variant, id, patch, clock = Date.now) {
+  const next = normalizeResumeVariant(variant);
+  next.localCredentials = normalizeCredentials(
+    next.localCredentials.map((item) => (item.id === id ? { ...item, ...patch, id: item.id } : item)),
+    clock
+  );
+  return normalizeResumeVariant(next);
+}
+
+export function deleteLocalCredential(variant, id) {
+  const next = normalizeResumeVariant(variant);
+  next.localCredentials = next.localCredentials.filter((item) => item.id !== id);
+  return normalizeResumeVariant(next);
+}
+
+export function addLocalAdditional(variant, draft = {}, clock = Date.now) {
+  const next = normalizeResumeVariant(variant);
+  next.localAdditional = normalizeAdditional(appendLocalRow(next.localAdditional, {
+    label: '',
+    items: [],
+    groups: [],
+    ...draft,
+    id: asId(draft.id, clock, 'ad'),
+  }, clock), clock);
+  return normalizeResumeVariant(next);
+}
+
+export function updateLocalAdditional(variant, id, patch, clock = Date.now) {
+  const next = normalizeResumeVariant(variant);
+  next.localAdditional = normalizeAdditional(
+    next.localAdditional.map((item) => (item.id === id ? { ...item, ...patch, id: item.id } : item)),
+    clock
+  );
+  return normalizeResumeVariant(next);
+}
+
+export function deleteLocalAdditional(variant, id) {
+  const next = normalizeResumeVariant(variant);
+  next.localAdditional = next.localAdditional.filter((item) => item.id !== id);
+  return normalizeResumeVariant(next);
+}
+
+export function freshPostingResume(current) {
+  const base = normalizeResumeVariant(current);
+  return normalizeResumeVariant({
+    ...emptyResumeVariant(),
+    mode: 'fresh',
+    sectionOrder: base.sectionOrder,
+    showCredentials: base.showCredentials,
+  });
+}
+
+export function basicsPostingResume(current) {
+  const base = normalizeResumeVariant(current);
+  return normalizeResumeVariant({
+    ...emptyResumeVariant(),
+    mode: 'basics',
+    sectionOrder: base.sectionOrder,
+    showCredentials: base.showCredentials,
+  });
+}
+
+function careerHasBullet(jobs, bulletId) {
+  for (const job of jobs || []) {
+    for (const group of job.groups || []) {
+      if ((group.bullets || []).some((bullet) => bullet.id === bulletId)) return { job, group };
+    }
+  }
+  return null;
+}
+
+function ensureSharedBullet(jobs, hostJob, hostGroup, bullet, clock) {
+  const list = normalizeCareerJobs(jobs, clock).map((job) => ({
+    ...job,
+    groups: job.groups.map((group) => ({ ...group, bullets: group.bullets.slice() })),
+  }));
+  let job = list.find((item) => item.id === hostJob.id);
+  if (!job) {
+    job = normalizeCareerJob({
+      id: hostJob.id,
+      company: hostJob.company,
+      title: hostJob.title,
+      location: hostJob.location,
+      start: hostJob.start,
+      end: hostJob.end,
+      current: hostJob.current,
+      groups: (hostJob.groups || []).map((group) => ({
+        id: group.id,
+        heading: group.heading,
+        bullets: [],
+      })),
+    }, clock);
+    if (job) list.push(job);
+  }
+  if (!job) return list;
+  if (!job.groups.some((group) => group.id === hostGroup.id)) {
+    job.groups.push({ id: hostGroup.id, heading: hostGroup.heading || '', bullets: [] });
+  }
+  job.groups = job.groups.map((group) => {
+    if (group.id !== hostGroup.id) return group;
+    const index = group.bullets.findIndex((item) => item.id === bullet.id);
+    const nextBullet = {
+      ...(index >= 0 ? group.bullets[index] : {}),
+      id: bullet.id,
+      lead: bullet.lead,
+      body: bullet.body,
+      priority: bullet.priority,
+      pinned: bullet.pinned,
+      sourceBulletIds: bullet.sourceBulletIds,
+      sourceEntryIds: bullet.sourceEntryIds,
+    };
+    if (index >= 0) {
+      const bullets = group.bullets.slice();
+      bullets[index] = nextBullet;
+      return { ...group, bullets };
+    }
+    return { ...group, bullets: [...group.bullets, nextBullet] };
+  });
+  return list;
+}
+
 export function writeBulletBackToSource(store, postingId, bullet) {
   if (!store || !bullet) return store;
   let next = store;
-  const jobs = normalizeCareerJobs(store.jobs).map((job) => ({
-    ...job,
-    groups: job.groups.map((group) => ({
-      ...group,
-      bullets: group.bullets.map((item) => (
-        item.id === bullet.id
-          ? { ...item, lead: bullet.lead, body: bullet.body }
-          : item
-      )),
-    })),
-  }));
-  next = { ...next, jobs };
   const posting = (next.postings || []).find((job) => job.id === postingId);
-  if (!posting) return next;
+  const variant = normalizeResumeVariant(posting?.resume);
+  const localHit = findLocalBullet(variant, bullet.id);
+  const sharedHit = careerHasBullet(next.jobs, bullet.id);
+  if (sharedHit) {
+    const jobs = normalizeCareerJobs(store.jobs).map((job) => ({
+      ...job,
+      groups: job.groups.map((group) => ({
+        ...group,
+        bullets: group.bullets.map((item) => (
+          item.id === bullet.id
+            ? { ...item, lead: bullet.lead, body: bullet.body }
+            : item
+        )),
+      })),
+    }));
+    next = { ...next, jobs };
+  } else if (localHit) {
+    next = {
+      ...next,
+      jobs: ensureSharedBullet(next.jobs, localHit.job, localHit.group, {
+        ...localHit.bullet,
+        lead: bullet.lead,
+        body: bullet.body,
+      }),
+    };
+  } else {
+    const jobs = normalizeCareerJobs(store.jobs).map((job) => ({
+      ...job,
+      groups: job.groups.map((group) => ({
+        ...group,
+        bullets: group.bullets.map((item) => (
+          item.id === bullet.id
+            ? { ...item, lead: bullet.lead, body: bullet.body }
+            : item
+        )),
+      })),
+    }));
+    next = { ...next, jobs };
+  }
+  const current = (next.postings || []).find((job) => job.id === postingId);
+  if (!current) return next;
   const sourceIds = new Set(bullet.sourceBulletIds || [bullet.id]);
   const text = bulletPlainText(bullet);
-  const requirements = posting.requirements.map((req) => {
+  const requirements = current.requirements.map((req) => {
     const bullets = req.bullets.map((line) => (
       sourceIds.has(line.id) ? { ...line, text } : line
     ));
     return { ...req, bullets, experiences: bullets };
   });
+  let resume = current.resume;
+  if (localHit && resumeCompileMode(variant) !== 'fresh') {
+    resume = deleteLocalBullet(variant, localHit.job.id, localHit.group.id, bullet.id);
+  }
   return {
     ...next,
     postings: next.postings.map((job) => (
-      job.id === postingId ? { ...job, requirements } : job
+      job.id === postingId ? { ...job, requirements, resume: normalizeResumeVariant(resume) } : job
     )),
   };
 }
