@@ -94,6 +94,11 @@ import {
   shouldPullRemoteBook,
   bookConflictError,
   STALE_BOOK_MESSAGE,
+  resumeRoleKey,
+  roleIsCollapsed,
+  toggleRoleCollapsed,
+  resumeRoleSummary,
+  isRoleHeaderToggleTarget,
   asUrl,
   titleFromJobUrl,
   hostFromJobUrl,
@@ -825,5 +830,24 @@ assert.equal(shouldPullRemoteBook({ dirty: true, visible: true }), false);
 assert.equal(shouldPullRemoteBook({ persistPending: true }), false);
 assert.equal(shouldPullRemoteBook({ pushing: true }), false);
 assert.equal(shouldPullRemoteBook({ visible: false }), false);
+
+assert.equal(resumeRoleKey('job-1', 'role-a'), 'job-1:role-a');
+assert.equal(resumeRoleKey('', 'role-a'), 'basics:role-a');
+assert.equal(resumeRoleKey(null, ''), '');
+assert.equal(roleIsCollapsed([], 'job-1', 'role-a'), false);
+const folded = toggleRoleCollapsed([], 'job-1', 'role-a');
+assert.equal(roleIsCollapsed(folded, 'job-1', 'role-a'), true);
+assert.equal(roleIsCollapsed(folded, 'basics', 'role-a'), false);
+assert.equal(roleIsCollapsed(toggleRoleCollapsed(folded, 'job-1', 'role-a'), 'job-1', 'role-a'), false);
+assert.deepEqual(resumeRoleSummary({
+  company: 'PricewaterhouseCoopers LLC',
+  title: 'Senior Associate',
+  groups: [{ bullets: [{}, {}, {}] }, { bullets: [{}] }],
+}), { title: 'PricewaterhouseCoopers LLC · Senior Associate', bullets: 4 });
+assert.deepEqual(resumeRoleSummary({}), { title: 'Untitled role', bullets: 0 });
+assert.equal(isRoleHeaderToggleTarget('DIV', false), true);
+assert.equal(isRoleHeaderToggleTarget('BUTTON', false), false);
+assert.equal(isRoleHeaderToggleTarget('LABEL', false), false);
+assert.equal(isRoleHeaderToggleTarget('DIV', true), false);
 
 console.log('ok');

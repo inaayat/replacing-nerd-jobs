@@ -200,7 +200,9 @@ book unless you **Save back to source**. Roles and bullets added on a posting
 stay on that posting (`posting.resume.localJobs`) until saved back. New postings
 choose **Start from Resume basics** or **Start fresh** (header only for that
 posting). **Resume basics** (`#profile`) holds shared header, jobs, credentials
-(optional), education, and additional info.
+(optional), education, and additional info. Each work-experience role is a
+shaded well; click the role header to collapse its fields and bullets (local
+to that tab, not saved on the book).
 **Import resume (JSON)** loads `brag-book/data/inaayat-gill-resume.json` (or any
 file in that schema) into the signed-in book. Plain-text Copy / `.txt` / older
 `.doc` remain under a disclosure. **Prep** walks question + STAR with keyboard

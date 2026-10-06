@@ -1778,6 +1778,39 @@ export function shouldPullRemoteBook({
   return visible !== false && !dirty && !persistPending && !pushing;
 }
 
+export function resumeRoleKey(scopeId, roleId) {
+  const id = String(roleId || '').trim();
+  if (!id) return '';
+  return `${String(scopeId || 'basics').trim() || 'basics'}:${id}`;
+}
+
+export function roleIsCollapsed(keys, scopeId, roleId) {
+  const key = resumeRoleKey(scopeId, roleId);
+  return Boolean(key && (keys || []).includes(key));
+}
+
+export function toggleRoleCollapsed(keys, scopeId, roleId) {
+  const key = resumeRoleKey(scopeId, roleId);
+  const items = [...(keys || [])].filter(Boolean);
+  if (!key) return items;
+  return items.includes(key) ? items.filter((item) => item !== key) : [...items, key];
+}
+
+export function resumeRoleSummary(career) {
+  const company = String(career?.company || '').trim();
+  const title = String(career?.title || '').trim();
+  const bullets = (career?.groups || []).reduce((sum, group) => sum + (group.bullets || []).length, 0);
+  return {
+    title: [company, title].filter(Boolean).join(' · ') || 'Untitled role',
+    bullets,
+  };
+}
+
+export function isRoleHeaderToggleTarget(tagName, closestInteractive = false) {
+  if (closestInteractive) return false;
+  return !['input', 'textarea', 'select', 'button', 'option', 'label', 'a'].includes(String(tagName || '').toLowerCase());
+}
+
 export function applyBookWrite(record, expectedUpdatedAt, nextBook, clock = Date.now) {
   const serverAt = record?.updatedAt ?? null;
   const guard = bookSaveGuard(serverAt, expectedUpdatedAt);

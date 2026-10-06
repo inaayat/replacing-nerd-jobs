@@ -105,6 +105,10 @@ import {
   updateProfile,
   normalizeBookRevision,
   shouldPullRemoteBook,
+  roleIsCollapsed,
+  toggleRoleCollapsed,
+  resumeRoleSummary,
+  isRoleHeaderToggleTarget,
 } from './engine.js';
 import { renderResumeHtml, resumeDocument } from './resume-template.js';
 import { fitOnePage, dropOrderFromDoc, applyDroppedIds, PAGE_HEIGHT_PX } from './resume-fit.js';
@@ -137,6 +141,7 @@ let query = '';
 let kindFilter = 'all';
 let statusNote = '';
 let expandedBulletKey = '';
+let collapsedResumeRoles = [];
 let questionComposerKey = '';
 const openQuestionIds = new Set();
 let resumeFit = { fits: true, fontPt: 10, bulletLineHeight: 1.32, droppedBulletIds: [], overflowPx: 0, vars: {} };
@@ -2172,65 +2177,112 @@ function resumeJobEditor(posting, career) {
   const jobIndex = jobs.findIndex((item) => item.id === career.id);
   const groups = career.groups || [];
   const allowStructure = Boolean(posting) || shared;
-  return el('div', { class: `bb-job-card${career.included === false ? ' is-excluded' : ''}` }, [
-    el('div', { class: 'bb-rb-tools' }, [
-      el('label', { class: 'bb-check' }, [
-        el('input', {
-          type: 'checkbox',
-          checked: career.included !== false,
-          disabled: !posting,
-          onChange: () => {
-            if (!posting) return;
-            store = updatePostingResume(store, posting.id, {
-              excludedJobIds: toggleId(posting.resume.excludedJobIds, career.id),
-            });
+  const collapsed = roleIsCollapsed(collapsedResumeRoles, posting?.id, career.id);
+  const summary = resumeRoleSummary(career);
+  const toggleRole = () => {
+    collapsedResumeRoles = toggleRoleCollapsed(collapsedResumeRoles, posting?.id, career.id);
+    render();
+  };
+  const onHeadActivate = (event) => {
+    const target = event.target;
+    const tag = target?.tagName || '';
+    const interactive = Boolean(target?.closest?.('.bb-job-controls, input, textarea, select, a, label, button:not(.bb-job-fold)'));
+    if (!isRoleHeaderToggleTarget(tag, interactive) && target?.closest?.('.bb-job-fold') == null) return;
+    if (event.type === 'keydown') event.preventDefault();
+    toggleRole();
+  };
+  return el('div', {
+    class: `bb-job-card is-role${career.included === false ? ' is-excluded' : ''}${collapsed ? ' is-collapsed' : ''}`,
+  }, [
+    el('div', {
+      class: 'bb-job-head',
+      onClick: onHeadActivate,
+    }, [
+      el('button', {
+        type: 'button',
+        class: 'bb-job-fold',
+        'aria-expanded': collapsed ? 'false' : 'true',
+        'aria-controls': `role-body-${career.id}`,
+        'aria-label': collapsed
+          ? `Expand ${summary.title}`
+          : `Collapse ${summary.title}`,
+        onClick: (event) => {
+          event.stopPropagation();
+          toggleRole();
+        },
+      }, [
+        el('span', { class: 'bb-job-chevron', 'aria-hidden': 'true' }, collapsed ? '▸' : '▾'),
+        el('span', { class: 'bb-job-summary' }, [
+          el('strong', {}, summary.title),
+          collapsed
+            ? el('span', { class: 'tiny' }, ` · ${summary.bullets} bullet${summary.bullets === 1 ? '' : 's'}`)
+            : null,
+        ]),
+      ]),
+      el('div', { class: 'bb-job-controls' }, [
+        el('label', { class: 'bb-check' }, [
+          el('input', {
+            type: 'checkbox',
+            checked: career.included !== false,
+            disabled: !posting,
+            onChange: () => {
+              if (!posting) return;
+              store = updatePostingResume(store, posting.id, {
+                excludedJobIds: toggleId(posting.resume.excludedJobIds, career.id),
+              });
+              saveStore();
+              render();
+            },
+          }),
+          ' Include this role',
+        ]),
+        localOnly ? el('span', { class: 'tiny' }, 'This posting only') : null,
+        allowStructure ? resumeMoveBtns('role', {
+          index: jobIndex,
+          length: jobs.length,
+          onMove: (delta) => {
+            if (posting) store = movePostingJob(store, posting.id, career.id, delta);
+            else store = moveCareerJob(store, career.id, delta);
+            saveStore();
+            render({ focusKey: `rj-${career.id}-company` });
+          },
+        }) : null,
+        allowStructure ? btn('Remove', {
+          class: 'btn ghost compact-action is-danger',
+          onClick: () => {
+            if (posting && localOnly) {
+              const n = bulletCount(career);
+              if (!confirm(n
+                ? `Remove this role and its ${n} bullet${n === 1 ? '' : 's'} from this posting’s resume? Resume basics is unchanged.`
+                : 'Remove this role from this posting’s resume? Resume basics is unchanged.')) return;
+              store = deletePostingLocalJob(store, posting.id, career.id);
+              saveStore();
+              render();
+              return;
+            }
+            if (posting) {
+              store = updatePostingResume(store, posting.id, {
+                excludedJobIds: toggleId(posting.resume.excludedJobIds, career.id),
+              });
+              saveStore();
+              render();
+              setNote('Hidden on this posting. It stays in Resume basics.');
+              return;
+            }
+            const n = bulletCount(career);
+            if (n && !confirm(`Delete this role and its ${n} bullet${n === 1 ? '' : 's'} from the shared career history?`)) return;
+            store = deleteCareerJob(store, career.id);
             saveStore();
             render();
           },
-        }),
-        ' Include this role',
+        }) : null,
       ]),
-      localOnly ? el('span', { class: 'tiny' }, 'This posting only') : null,
-      allowStructure ? resumeMoveBtns('role', {
-        index: jobIndex,
-        length: jobs.length,
-        onMove: (delta) => {
-          if (posting) store = movePostingJob(store, posting.id, career.id, delta);
-          else store = moveCareerJob(store, career.id, delta);
-          saveStore();
-          render({ focusKey: `rj-${career.id}-company` });
-        },
-      }) : null,
-      allowStructure ? btn('Remove', {
-        class: 'btn ghost compact-action is-danger',
-        onClick: () => {
-          if (posting && localOnly) {
-            const n = bulletCount(career);
-            if (!confirm(n
-              ? `Remove this role and its ${n} bullet${n === 1 ? '' : 's'} from this posting’s resume? Resume basics is unchanged.`
-              : 'Remove this role from this posting’s resume? Resume basics is unchanged.')) return;
-            store = deletePostingLocalJob(store, posting.id, career.id);
-            saveStore();
-            render();
-            return;
-          }
-          if (posting) {
-            store = updatePostingResume(store, posting.id, {
-              excludedJobIds: toggleId(posting.resume.excludedJobIds, career.id),
-            });
-            saveStore();
-            render();
-            setNote('Hidden on this posting. It stays in Resume basics.');
-            return;
-          }
-          const n = bulletCount(career);
-          if (n && !confirm(`Delete this role and its ${n} bullet${n === 1 ? '' : 's'} from the shared career history?`)) return;
-          store = deleteCareerJob(store, career.id);
-          saveStore();
-          render();
-        },
-      }) : null,
     ]),
+    el('div', {
+      class: 'bb-job-body',
+      id: `role-body-${career.id}`,
+      hidden: collapsed,
+    }, [
     el('div', { class: 'grid-2' }, [
       field('Company', company),
       field('Dates', dates),
@@ -2383,6 +2435,7 @@ function resumeJobEditor(posting, career) {
         },
       }),
     ]) : null,
+    ]),
   ]);
 }
 
