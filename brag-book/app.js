@@ -3299,7 +3299,7 @@ function emptyDetail(kind) {
         ? 'Paste a job posting. That is the first click — requirements, then experiences, then questions + STAR.'
         : kind === 'kb'
           ? 'Write a knowledge note, or pick one from the list.'
-          : 'Paste several resume bullets, or pick one to fill STAR.')
+          : 'Paste several resume bullets, or pick one to fill STAR.'
     ),
   ]);
 }
