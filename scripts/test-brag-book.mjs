@@ -255,6 +255,9 @@ const marked = normalizeBullet({
 assert.equal(marked.text, 'Led billing');
 assert.equal(marked.rich[1].bold, true);
 assert.equal(marked.rich[1].text, 'billing');
+const trailed = normalizeBullet({ text: 'ignore', rich: [{ text: 'Led billing\n\n', bold: true }] }, clock);
+assert.equal(trailed.text, 'Led billing');
+assert.equal(trailed.rich[0].bold, true);
 let richBook = addPosting(emptyStore(), { title: 'Bold line' }, clock);
 const richJob = richBook.postings[0].id;
 richBook = addRequirement(richBook, richJob, 'Own the line', clock);

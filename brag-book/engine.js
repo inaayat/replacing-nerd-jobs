@@ -170,6 +170,16 @@ function normalizeRichSpans(value, fallback) {
       push(text, span.bold);
     }
   }
+  while (spans.length) {
+    const last = spans[spans.length - 1];
+    const trimmed = last.text.replace(/\n+$/, '');
+    if (trimmed === last.text) break;
+    if (!trimmed) spans.pop();
+    else {
+      last.text = trimmed;
+      break;
+    }
+  }
   const joined = spans.map((span) => span.text).join('');
   if (joined.trim()) {
     if (joined.length <= TEXT_MAX) return { text: joined, rich: spans };

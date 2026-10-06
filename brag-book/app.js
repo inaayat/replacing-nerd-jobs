@@ -193,8 +193,23 @@ function readRich(node) {
   return spans;
 }
 
+function trimEditableTail(node) {
+  const sel = document.getSelection();
+  const caretInside = (el) => sel && node.contains(sel.anchorNode) && (el === sel.anchorNode || el.contains(sel.anchorNode));
+  let child = node.lastChild;
+  while (child) {
+    const prev = child.previousSibling;
+    const tag = child.nodeType === 1 ? child.tagName : '';
+    const emptyBlock = tag === 'BR' || ((tag === 'DIV' || tag === 'P') && !child.textContent.replace(/\u00a0/g, '').trim());
+    if (!emptyBlock || caretInside(child)) break;
+    child.remove();
+    child = prev;
+  }
+}
+
 function bindRichKeys(node, { onChange, onSubmit } = {}) {
   const changed = () => {
+    trimEditableTail(node);
     node.dataset.empty = node.textContent.trim() ? 'false' : 'true';
     onChange?.(readRich(node));
   };
@@ -1085,6 +1100,7 @@ function requirementTableRow(job, req) {
       },
     });
     bullets.append(el('div', { class: `bullet-link${isOpen ? ' is-open' : ''}` }, [
+      el('span', { class: 'bullet-mark', 'aria-hidden': 'true' }, '•'),
       line,
       btn(isOpen ? 'Close ↑' : 'Details ↓', {
         class: 'bullet-open',
