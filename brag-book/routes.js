@@ -86,17 +86,13 @@ export function viewTitle(view, store) {
   if (!view || view.kind === 'home') return 'Brag Book';
   if (view.kind === 'profile') return 'Resume basics';
   if (view.kind === 'log' && view.id === 'new') return 'Add a resume line';
-  if (view.kind === 'log' && view.id) {
-    const entry = (store?.entries || []).find((item) => item.id === view.id);
-    return entry?.title || 'Resume line';
-  }
   if (view.kind === 'log') return 'Experiences';
-  if (view.kind === 'kb' && view.id === 'new') return 'Add a note';
+  if (view.kind === 'kb' && view.id === 'new') return 'New page';
   if (view.kind === 'kb' && view.id) {
     const note = (store?.knowledge || []).find((item) => item.id === view.id);
-    return note?.title || 'Note';
+    return note?.title || 'Knowledge';
   }
-  if (view.kind === 'kb') return 'Experiences';
+  if (view.kind === 'kb') return 'Knowledge';
   if (view.kind === 'jobs' && view.id === 'new') return 'New job posting';
   if (view.kind === 'jobs' && view.id) {
     const job = (store?.postings || []).find((item) => item.id === view.id);
@@ -112,6 +108,10 @@ export function viewTitle(view, store) {
 
 export function logLayout(view) {
   if (!view || (view.kind !== 'log' && view.kind !== 'kb')) return 'none';
+  if (view.kind === 'log') {
+    if (view.id === 'new') return 'catalog-add';
+    return 'catalog';
+  }
   if (view.id === 'new') return 'catalog-add';
   if (view.id) return 'detail';
   return 'catalog';

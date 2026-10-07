@@ -20,6 +20,13 @@ import {
   parseKnowledge,
   searchKnowledge,
   experienceCatalog,
+  experienceDetailPatch,
+  experienceRowField,
+  postingsUsingEntry,
+  KNOWLEDGE_SAVE_MS,
+  noteKnowledgeInput,
+  knowledgeSaveStatus,
+  mergeBook,
   addPosting,
   updatePosting,
   deletePosting,
@@ -881,7 +888,7 @@ assert.equal(addCareerJob(legacyStill, { company: 'Later' }, clock, random).jobs
 
 assert.equal(logLayout({ kind: 'log' }), 'catalog');
 assert.equal(logLayout({ kind: 'log', id: 'new' }), 'catalog-add');
-assert.equal(logLayout({ kind: 'log', id: 'en_1' }), 'detail');
+assert.equal(logLayout({ kind: 'log', id: 'en_1' }), 'catalog');
 assert.equal(hideBookRail({ kind: 'log', id: 'new' }, { entries: [{ id: 'e' }] }), false);
 assert.equal(viewHash({ kind: 'log' }), '#experiences');
 assert.equal(viewTitle({ kind: 'log' }), 'Experiences');
@@ -890,7 +897,7 @@ assert.deepEqual(parseViewHash('#experiences'), { kind: 'log' });
 assert.deepEqual(parseViewHash('#experiences/en_1', { entryIds: ['en_1'] }), { kind: 'log', id: 'en_1' });
 assert.deepEqual(parseViewHash('#log'), { kind: 'log' });
 assert.equal(viewHash({ kind: 'kb' }), '#kb');
-assert.equal(viewTitle({ kind: 'kb' }), 'Experiences');
+assert.equal(viewTitle({ kind: 'kb' }), 'Knowledge');
 assert.deepEqual(parseViewHash('#kb'), { kind: 'kb' });
 assert.deepEqual(parseViewHash('#knowledge'), { kind: 'kb' });
 assert.deepEqual(parseViewHash('#kb/note_1', { knowledgeIds: ['note_1'] }), { kind: 'kb', id: 'note_1' });
@@ -1197,13 +1204,82 @@ assert.equal(companyBook.entries[0].company, 'GoDaddy');
 
 let catalogStore = addEntry(emptyStore(), { title: 'Resume line', kind: 'project' }, () => Date.parse('2026-01-01T00:00:00.000Z'));
 catalogStore = addKnowledge(catalogStore, { title: 'Longer note', body: 'Context about the work' }, () => Date.parse('2026-06-01T00:00:00.000Z'));
-assert.deepEqual(experienceCatalog(catalogStore).map((row) => row.type), ['note', 'entry']);
-assert.equal(experienceCatalog(catalogStore, { kind: 'note' }).length, 1);
-assert.equal(experienceCatalog(catalogStore, { kind: 'note' })[0].type, 'note');
-assert.equal(experienceCatalog(catalogStore, { kind: 'project' }).length, 1);
-assert.equal(experienceCatalog(catalogStore, { kind: 'experience' }).length, 0);
-assert.equal(experienceCatalog(catalogStore, { query: 'longer' })[0].type, 'note');
+assert.deepEqual(experienceCatalog(catalogStore).map((row) => row.type), ['entry']);
+assert.equal(experienceCatalog(catalogStore).some((row) => row.type === 'note'), false);
+assert.equal(experienceCatalog(catalogStore, { query: 'longer' }).length, 0);
 assert.equal(experienceCatalog(catalogStore, { query: 'resume' })[0].type, 'entry');
+assert.equal(searchKnowledge(catalogStore, 'longer').length, 1);
+assert.equal(searchKnowledge(catalogStore, 'Context about').length, 1);
+assert.equal(searchKnowledge(catalogStore, 'no such page').length, 0);
+assert.equal(experienceRowField('kind'), false);
+assert.equal(experienceRowField('when'), false);
+assert.equal(experienceRowField('situation'), true);
+assert.equal(experienceRowField('company'), true);
+
+let inline = addPosting(emptyStore(), { title: 'Inline row' }, clock);
+const inlineJob = inline.postings[0].id;
+inline = addRequirement(inline, inlineJob, 'Need the story', clock);
+const inlineReq = inline.postings[0].requirements[0].id;
+inline = createEntryBullet(inline, inlineJob, inlineReq, 'Original line', clock);
+const inlineId = inline.entries[0].id;
+inline = updateEntry(inline, inlineId, { when: '2024', kind: 'project', company: 'GoDaddy', role: 'Analyst' }, clock);
+const inlineCount = inline.entries.length;
+const inlinePatch = experienceDetailPatch({
+  title: 'Original line revised',
+  rich: [{ text: 'Original line revised', bold: false }],
+  situation: 'The queue was split across three sheets.',
+  company: 'GoDaddy',
+  role: 'Analyst',
+  when: '1999',
+  kind: 'skillset',
+});
+assert.equal(Object.prototype.hasOwnProperty.call(inlinePatch, 'when'), false);
+assert.equal(Object.prototype.hasOwnProperty.call(inlinePatch, 'kind'), false);
+inline = updateEntry(inline, inlineId, inlinePatch, clock);
+assert.equal(inline.entries.length, inlineCount);
+assert.equal(inline.entries.filter((entry) => entry.id === inlineId).length, 1);
+assert.equal(inline.entries[0].when, '2024');
+assert.equal(inline.entries[0].kind, 'project');
+assert.equal(inline.entries[0].situation, 'The queue was split across three sheets.');
+assert.equal(inline.entries[0].company, 'GoDaddy');
+assert.equal(inline.postings[0].requirements[0].bullets.length, 1);
+assert.equal(inline.postings[0].requirements[0].bullets[0].entryId, inlineId);
+assert.equal(inline.postings[0].requirements[0].bullets[0].text, 'Original line revised');
+assert.equal(postingsUsingEntry(inline, inlineId)[0].id, inlineJob);
+
+let pendingSave = null;
+pendingSave = noteKnowledgeInput(pendingSave, 'kb1', { title: 'A page' }, 1000);
+pendingSave = noteKnowledgeInput(pendingSave, 'kb1', { body: 'Typed later' }, 1200);
+assert.equal(pendingSave.patch.title, 'A page');
+assert.equal(pendingSave.patch.body, 'Typed later');
+assert.equal(pendingSave.due, 1200 + KNOWLEDGE_SAVE_MS);
+assert.equal(knowledgeSaveStatus(pendingSave, 1200 + KNOWLEDGE_SAVE_MS - 1), 'pending');
+assert.equal(knowledgeSaveStatus(pendingSave, 1200 + KNOWLEDGE_SAVE_MS), 'due');
+
+const mergeBase = normalizeStore({
+  entries: [{ id: 'en_base', title: 'Kept line', kind: 'experience', updatedAt: '2026-01-01T00:00:00.000Z' }],
+  knowledge: [{ id: 'kb_base', title: 'Page', body: 'First', updatedAt: '2026-01-01T00:00:00.000Z' }],
+  postings: [],
+}, clock);
+const mergeLocal = updateKnowledge(mergeBase, 'kb_base', {
+  body: 'Draft from this tab',
+  rich: [{ text: 'Draft from this tab', bold: false }],
+}, () => Date.parse('2026-02-01T00:00:00.000Z'));
+let mergeRemote = addEntry(mergeBase, { id: 'en_other', title: 'Added in the other tab' }, () => Date.parse('2026-01-15T00:00:00.000Z'));
+mergeRemote = addPosting(mergeRemote, { id: 'job_other', title: 'Other tab posting' }, () => Date.parse('2026-01-15T00:00:00.000Z'));
+const merged = normalizeStore(mergeBook(mergeBase, mergeLocal, mergeRemote), clock);
+assert.equal(merged.entries.some((entry) => entry.id === 'en_base'), true);
+assert.equal(merged.entries.some((entry) => entry.title === 'Added in the other tab'), true);
+assert.equal(merged.postings.some((job) => job.title === 'Other tab posting'), true);
+assert.equal(merged.knowledge.length, 1);
+assert.match(merged.knowledge[0].body, /this tab/);
+const remoteNewer = updateKnowledge(mergeBase, 'kb_base', {
+  body: 'Newer from the other tab',
+  rich: [{ text: 'Newer from the other tab', bold: false }],
+}, () => Date.parse('2026-03-01T00:00:00.000Z'));
+const mergedNewer = normalizeStore(mergeBook(mergeBase, mergeLocal, remoteNewer), clock);
+assert.match(mergedNewer.knowledge[0].body, /other tab/);
+assert.equal(mergedNewer.entries.some((entry) => entry.id === 'en_base'), true);
 
 const oldNoKnowledge = normalizeStore({ entries: [{ title: 'Legacy win' }] }, clock);
 assert.equal(oldNoKnowledge.knowledge.length, 0);

@@ -1823,6 +1823,7 @@ export function searchEntries(store, query) {
   return list.filter((entry) => {
     const hay = [
       entry.title,
+      entry.company,
       entry.role,
       entry.kind,
       entry.when,
@@ -1852,18 +1853,55 @@ export function searchKnowledge(store, query) {
   });
 }
 
-// One catalog for the Experiences list. Resume lines and notes stay separate records.
-export function experienceCatalog(store, { query = '', kind = 'all' } = {}) {
-  const wanted = asString(kind, 40) || 'all';
-  const entries = wanted === 'note'
-    ? []
-    : searchEntries(store, query)
-      .filter((entry) => wanted === 'all' || entry.kind === wanted)
-      .map((entry) => ({ type: 'entry', id: entry.id, updatedAt: entry.updatedAt || '' }));
-  const notes = wanted === 'all' || wanted === 'note'
-    ? searchKnowledge(store, query).map((note) => ({ type: 'note', id: note.id, updatedAt: note.updatedAt || '' }))
-    : [];
-  return [...entries, ...notes].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+// Fields the Experiences list is allowed to edit. Kind and dates stay on the
+// record for older books, but this view does not show or write them.
+export const EXPERIENCE_ROW_FIELDS = ['title', 'rich', 'company', 'role', 'jobId', 'tags', 'situation', 'task', 'action', 'result', 'notes'];
+
+export function experienceRowField(name) {
+  return EXPERIENCE_ROW_FIELDS.includes(name);
+}
+
+export function experienceDetailPatch(patch) {
+  const source = patch && typeof patch === 'object' ? patch : {};
+  const out = {};
+  for (const key of EXPERIENCE_ROW_FIELDS) {
+    if (Object.prototype.hasOwnProperty.call(source, key)) out[key] = source[key];
+  }
+  return out;
+}
+
+export function postingsUsingEntry(store, entryId) {
+  if (!entryId) return [];
+  const out = [];
+  for (const job of store?.postings || []) {
+    const used = (job.requirements || []).some((req) => (req.bullets || []).some((line) => line.entryId === entryId));
+    if (used) out.push({ id: job.id, title: job.title || 'Posting', company: job.company || '' });
+  }
+  return out;
+}
+
+// Experiences is resume lines only. Knowledge pages have their own section.
+export function experienceCatalog(store, { query = '' } = {}) {
+  return searchEntries(store, query)
+    .map((entry) => ({ type: 'entry', id: entry.id, updatedAt: entry.updatedAt || '' }))
+    .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+}
+
+export const KNOWLEDGE_SAVE_MS = 600;
+
+export function noteKnowledgeInput(state, noteId, patch, now, delay = KNOWLEDGE_SAVE_MS) {
+  const same = state?.noteId === noteId && state.patch;
+  return {
+    noteId,
+    patch: same ? { ...state.patch, ...patch } : { ...(patch || {}) },
+    due: now + delay,
+    status: 'pending',
+  };
+}
+
+export function knowledgeSaveStatus(state, now) {
+  if (!state || state.status !== 'pending') return state?.status || 'saved';
+  return now >= state.due ? 'due' : 'pending';
 }
 
 export function scoreEntry(entry, requirementText) {
@@ -2303,6 +2341,80 @@ function postingBulletCount(store) {
     }
   }
   return n;
+}
+
+function sameBookValue(a, b) {
+  return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+}
+
+function recordStamp(item) {
+  const n = Date.parse(item?.updatedAt || '');
+  return Number.isFinite(n) ? n : 0;
+}
+
+function pickRecord(base, local, remote) {
+  if (!local && !remote) return null;
+  if (!base && !local) return remote;
+  if (!base && !remote) return local;
+  if (!local) return sameBookValue(base, remote) ? null : remote;
+  if (!remote) return sameBookValue(base, local) ? null : local;
+  if (sameBookValue(local, remote)) return local;
+  if (sameBookValue(base, local)) return remote;
+  if (sameBookValue(base, remote)) return local;
+  return recordStamp(remote) > recordStamp(local) ? remote : local;
+}
+
+function mergeRecords(baseList, localList, remoteList) {
+  const base = new Map();
+  const local = new Map();
+  const remote = new Map();
+  for (const item of baseList || []) if (item?.id) base.set(item.id, item);
+  for (const item of localList || []) if (item?.id) local.set(item.id, item);
+  for (const item of remoteList || []) if (item?.id) remote.set(item.id, item);
+  const chosen = new Map();
+  for (const id of new Set([...base.keys(), ...local.keys(), ...remote.keys()])) {
+    const next = pickRecord(base.get(id), local.get(id), remote.get(id));
+    if (next) chosen.set(id, next);
+  }
+  const out = [];
+  const seen = new Set();
+  for (const item of localList || []) {
+    if (!item?.id || !chosen.has(item.id) || remote.has(item.id) || seen.has(item.id)) continue;
+    out.push(chosen.get(item.id));
+    seen.add(item.id);
+  }
+  for (const item of remoteList || []) {
+    if (!item?.id || !chosen.has(item.id) || seen.has(item.id)) continue;
+    out.push(chosen.get(item.id));
+    seen.add(item.id);
+  }
+  for (const item of localList || []) {
+    if (!item?.id || !chosen.has(item.id) || seen.has(item.id)) continue;
+    out.push(chosen.get(item.id));
+    seen.add(item.id);
+  }
+  return out;
+}
+
+function mergePlain(base, local, remote) {
+  if (sameBookValue(local, remote)) return local ?? remote ?? null;
+  if (sameBookValue(base, local)) return remote ?? null;
+  if (sameBookValue(base, remote)) return local ?? null;
+  return remote ?? local ?? null;
+}
+
+const BOOK_LIST_KEYS = ['entries', 'knowledge', 'postings', 'jobs', 'education', 'credentials', 'additional'];
+
+// Three-way merge for a full-book save. A debounced knowledge edit keeps its
+// page, and a newer entry written in another tab stays on the book.
+export function mergeBook(base, local, remote) {
+  const out = { ...(remote || {}) };
+  for (const key of BOOK_LIST_KEYS) {
+    out[key] = mergeRecords(base?.[key], local?.[key], remote?.[key]);
+  }
+  out.profile = mergePlain(base?.profile, local?.profile, remote?.profile);
+  out.resumeSettings = mergePlain(base?.resumeSettings, local?.resumeSettings, remote?.resumeSettings);
+  return out;
 }
 
 export function shouldBlockEmptyOverwrite(next, previous) {
