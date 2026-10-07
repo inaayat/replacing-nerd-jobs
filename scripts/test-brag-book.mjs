@@ -1982,6 +1982,10 @@ hopped = stepResumeBullet(hopped, hopPosting.id, hopJob, 'g2', 'b1', -1, clock);
 assert.equal(JSON.stringify(hopped.jobs), jobsBeforePostingHop);
 assert.equal(hopped.jobs[0].groups[0].bullets.map((bullet) => bullet.id).join(','), 'b2');
 assert.equal(hopped.jobs[0].groups[1].bullets[0].id, 'b1');
+const hoppedPostingDoc = compileResumeDoc(postingById(hopped, hopPosting.id), hopped)
+  .sections.experience.jobs.find((job) => job.id === hopJob.id);
+assert.deepEqual(hoppedPostingDoc.groups.map((group) => group.bullets.map((bullet) => bullet.id)), [['b2', 'b1'], []]);
+assert.equal(postingById(hopped, hopPosting.id).resume.bulletGroup.b1, 'g1');
 
 let addl = applyImportedResume(emptyStore(), sampleResume, clock);
 addl = addAdditionalGroup(addl, addl.additional[0].id, { label: 'First' }, clock, random);
@@ -3675,6 +3679,8 @@ assert.deepEqual(
 );
 assert.deepEqual(resumeBulletArrows(0, 2), { disableUp: true, disableDown: false });
 assert.deepEqual(resumeBulletArrows(1, 2), { disableUp: false, disableDown: true });
+assert.deepEqual(resumeBulletArrows(0, 1, { groupIndex: 0, groupCount: 2 }), { disableUp: true, disableDown: false });
+assert.deepEqual(resumeBulletArrows(0, 1, { groupIndex: 1, groupCount: 2 }), { disableUp: false, disableDown: true });
 assert.equal(JSON.stringify(hideBook.jobs), hideCareerBefore);
 assert.equal(hideBook.entries.find((entry) => entry.id === 'en_hide_b').title, 'Hidden middle: kept B');
 assert.equal(postingById(hideBook, 'job_hide').resume.overrides.rb_hide_a.body, 'posting-local A');
@@ -3795,3 +3801,102 @@ assert.deepEqual(
     .flatMap((group) => (group.bullets || []).map((bullet) => bullet.id)),
   ['rb_head_a', 'rb_head_b']
 );
+
+function compiledGroupIds(book, postingId, jobId) {
+  const job = compileResumeDoc(postingById(book, postingId), book)
+    .sections.experience.jobs.find((item) => item.id === jobId);
+  return (job?.groups || []).map((group) => ({
+    id: group.id,
+    heading: group.heading,
+    bullets: (group.bullets || []).map((bullet) => bullet.id),
+  }));
+}
+
+let moveBook = addCareerJob(emptyStore(), {
+  id: 'rj_move',
+  company: 'Stripe',
+  title: 'Accountant',
+  onResume: true,
+  groups: [
+    { id: 'rg_move_bare', heading: '', bullets: [{ id: 'rb_move_a', lead: 'Bare first', body: 'kept A', sourceEntryIds: ['en_move_a'] }] },
+    { id: 'rg_move_train', heading: 'Training', bullets: [{ id: 'rb_move_b', lead: 'Taught the close', body: 'kept B', sourceEntryIds: ['en_move_b'] }] },
+  ],
+}, clock);
+moveBook = addEntry(moveBook, { id: 'en_move_a', title: 'Bare first: kept A', jobId: 'rj_move' }, clock);
+moveBook = addEntry(moveBook, { id: 'en_move_b', title: 'Taught the close: kept B', jobId: 'rj_move' }, clock);
+moveBook = addEntry(moveBook, { id: 'en_move_c', title: 'Mapped extra unique', jobId: 'rj_move' }, clock);
+moveBook = addPosting(moveBook, { id: 'job_move', title: 'Move posting' }, clock);
+moveBook = addPosting(moveBook, { id: 'job_move_other', title: 'Other move posting' }, clock);
+moveBook = updatePostingResume(moveBook, 'job_move', {
+  includedJobIds: ['rj_move'],
+  excludedBulletIds: ['rb_move_skip'],
+  pinnedBulletIds: ['rb_move_a'],
+  overrides: {
+    rb_move_a: { edited: true, lead: 'Bare first', body: 'posting-local A' },
+  },
+}, clock);
+moveBook = addRequirement(moveBook, 'job_move', 'Need extras', clock);
+moveBook = addEntryBullet(moveBook, 'job_move', postingById(moveBook, 'job_move').requirements[0].id, 'en_move_c', '', clock);
+const moveCareerBefore = JSON.stringify(moveBook.jobs);
+const moveEntriesBefore = JSON.stringify(moveBook.entries);
+const moveOtherBefore = JSON.stringify(postingById(moveBook, 'job_move_other').resume);
+const moveOverrideBefore = JSON.stringify(postingById(moveBook, 'job_move').resume.overrides);
+const moveIncludeBefore = JSON.stringify(postingById(moveBook, 'job_move').resume.excludedBulletIds);
+const movePinBefore = JSON.stringify(postingById(moveBook, 'job_move').resume.pinnedBulletIds);
+const moveJob = { id: 'rj_move' };
+const mappedExtraId = compiledBulletIds(moveBook, 'job_move', 'rj_move').find((id) => id !== 'rb_move_a' && id !== 'rb_move_b');
+assert.ok(mappedExtraId);
+assert.deepEqual(compiledGroupIds(moveBook, 'job_move', 'rj_move').map((group) => group.bullets), [
+  ['rb_move_a'],
+  ['rb_move_b', mappedExtraId],
+]);
+
+moveBook = moveResumeBullet(moveBook, 'job_move', moveJob, 'rg_move_train', 'rg_move_bare', 'rb_move_b', {}, clock);
+assert.deepEqual(compiledGroupIds(moveBook, 'job_move', 'rj_move').map((group) => group.bullets), [
+  ['rb_move_a', 'rb_move_b'],
+  [mappedExtraId],
+]);
+assert.equal(postingById(moveBook, 'job_move').resume.bulletGroup.rb_move_b, 'rg_move_bare');
+assert.equal(JSON.stringify(moveBook.jobs), moveCareerBefore);
+assert.equal(JSON.stringify(moveBook.entries), moveEntriesBefore);
+assert.equal(JSON.stringify(postingById(moveBook, 'job_move_other').resume), moveOtherBefore);
+assert.equal(JSON.stringify(postingById(moveBook, 'job_move').resume.overrides), moveOverrideBefore);
+assert.equal(JSON.stringify(postingById(moveBook, 'job_move').resume.excludedBulletIds), moveIncludeBefore);
+assert.equal(JSON.stringify(postingById(moveBook, 'job_move').resume.pinnedBulletIds), movePinBefore);
+
+moveBook = stepResumeBullet(moveBook, 'job_move', moveJob, 'rg_move_train', mappedExtraId, -1, clock);
+assert.deepEqual(compiledGroupIds(moveBook, 'job_move', 'rj_move').map((group) => group.bullets), [
+  ['rb_move_a', 'rb_move_b', mappedExtraId],
+  [],
+]);
+assert.equal(postingById(moveBook, 'job_move').resume.bulletGroup[mappedExtraId], 'rg_move_bare');
+
+moveBook = moveResumeBullet(moveBook, 'job_move', moveJob, 'rg_move_bare', 'rg_move_train', 'rb_move_a', {}, clock);
+assert.deepEqual(compiledGroupIds(moveBook, 'job_move', 'rj_move').map((group) => group.bullets), [
+  ['rb_move_b', mappedExtraId],
+  ['rb_move_a'],
+]);
+const movedA = compileResumeDoc(postingById(moveBook, 'job_move'), moveBook)
+  .sections.experience.jobs.find((job) => job.id === 'rj_move')
+  .groups.flatMap((group) => group.bullets).find((bullet) => bullet.id === 'rb_move_a');
+assert.equal(movedA.hasOverride, true);
+assert.equal(movedA.body, 'posting-local A');
+assert.equal(movedA.pinned, true);
+assert.equal(movedA.included, true);
+
+const moveHtml = renderResumeHtml(compileResumeDoc(postingById(moveBook, 'job_move'), moveBook));
+assert.ok(moveHtml.indexOf('Taught the close') < moveHtml.indexOf('Bare first'));
+assert.match(moveHtml, /<div class="subhead">Training<\/div>/);
+const moveDocx = new TextDecoder().decode(resumeDocxBytes(compileResumeDoc(postingById(moveBook, 'job_move'), moveBook)));
+assert.ok(moveDocx.indexOf('Taught the close') < moveDocx.indexOf('Bare first'));
+
+const moveReloaded = normalizeStore(JSON.parse(serializeBook(moveBook).json), clock);
+assert.equal(JSON.stringify(moveReloaded.jobs), moveCareerBefore);
+assert.equal(postingById(moveReloaded, 'job_move').resume.bulletGroup.rb_move_a, 'rg_move_train');
+assert.deepEqual(compiledGroupIds(moveReloaded, 'job_move', 'rj_move').map((group) => group.bullets), [
+  ['rb_move_b', mappedExtraId],
+  ['rb_move_a'],
+]);
+assert.equal(compileResumeDoc(postingById(moveReloaded, 'job_move_other'), moveReloaded)
+  .sections.experience.jobs.find((job) => job.id === 'rj_move')
+  .groups.find((group) => group.id === 'rg_move_train').bullets[0].id, 'rb_move_b');

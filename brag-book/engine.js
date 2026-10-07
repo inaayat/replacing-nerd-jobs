@@ -1073,6 +1073,24 @@ function relocateCareerBullet(store, jobId, fromGroupId, toGroupId, bulletId, in
   }), clock);
 }
 
+function postingNeighborStep(groups, groupId, bulletId, delta) {
+  const list = Array.isArray(groups) ? groups : [];
+  const visible = list.map((group) => ({
+    ...group,
+    bullets: visibleResumeBullets(group.bullets),
+  }));
+  const step = neighborGroupForBullet(visible, groupId, bulletId, delta);
+  if (!step || step.fromGroupId === step.toGroupId) return step;
+  const dest = list.find((group) => group.id === step.toGroupId);
+  if (!dest) return null;
+  const visibleDest = visibleResumeBullets(dest.bullets);
+  if (step.index <= 0) return { ...step, index: 0 };
+  if (step.index >= visibleDest.length) return { ...step, index: (dest.bullets || []).length };
+  const target = visibleDest[step.index];
+  const at = (dest.bullets || []).findIndex((bullet) => bullet.id === target.id);
+  return { ...step, index: at < 0 ? (dest.bullets || []).length : at };
+}
+
 export function moveResumeBullet(store, postingId, career, fromGroupId, toGroupId, bulletId, { index } = {}, clock = Date.now) {
   const jobId = career?.id;
   if (!jobId || !bulletId || !toGroupId) return store;
@@ -1080,16 +1098,42 @@ export function moveResumeBullet(store, postingId, career, fromGroupId, toGroupI
     const next = adoptCompiledJob(store, null, career, clock);
     return relocateCareerBullet(next, jobId, fromGroupId, toGroupId, bulletId, index, clock);
   }
-  // Posting order lives on resume.bulletOrder only. Do not relocate the
-  // shared career catalog or rewrite localJobs / overrides.
-  if (fromGroupId !== toGroupId) return store;
+  // Posting placement lives on resume.bulletGroup + bulletOrder. Do not
+  // relocate the shared career catalog or rewrite localJobs / overrides.
   const compiled = compiledExperienceJob(store, postingId, jobId);
   if (!compiled) return store;
-  const moved = relocateBullet(compiled.groups, fromGroupId, toGroupId, bulletId, index);
+  const from = (compiled.groups || []).find((group) => group.id === fromGroupId);
+  const to = (compiled.groups || []).find((group) => group.id === toGroupId);
+  if (!from || !to || !(from.bullets || []).some((bullet) => bullet.id === bulletId)) return store;
+  const posting = postingById(store, postingId);
+  if (fromGroupId === toGroupId) {
+    const visible = visibleResumeBullets(from.bullets);
+    const at = visible.findIndex((bullet) => bullet.id === bulletId);
+    const destIndex = index == null || index === '' ? at : Number(index);
+    const other = destIndex >= 0 && destIndex !== at ? visible[destIndex] : null;
+    if (!other) return store;
+    const current = (from.bullets || []).map((bullet) => bullet.id);
+    const ids = swapIds(current, bulletId, other.id);
+    if (ids === current) return store;
+    return updatePostingResume(store, postingId, {
+      bulletOrder: {
+        ...(posting?.resume?.bulletOrder || {}),
+        [fromGroupId]: ids,
+      },
+    }, clock);
+  }
+  const destIndex = index == null || index === ''
+    ? (to.bullets || []).length
+    : Math.max(0, Math.min(Number(index) || 0, to.bullets.length));
+  const moved = relocateBullet(compiled.groups, fromGroupId, toGroupId, bulletId, destIndex);
   if (moved === compiled.groups) return store;
   return updatePostingResume(store, postingId, {
+    bulletGroup: {
+      ...(posting?.resume?.bulletGroup || {}),
+      [bulletId]: toGroupId,
+    },
     bulletOrder: {
-      ...(postingById(store, postingId)?.resume?.bulletOrder || {}),
+      ...(posting?.resume?.bulletOrder || {}),
       ...groupBulletOrders(moved),
     },
   }, clock);
@@ -1111,20 +1155,9 @@ export function stepResumeBullet(store, postingId, career, groupId, bulletId, de
     if (!step) return store;
     return moveResumeBullet(store, postingId, career, step.fromGroupId, step.toGroupId, bulletId, { index: step.index }, clock);
   }
-  const group = (compiled?.groups || []).find((item) => item.id === groupId);
-  const visible = visibleResumeBullets(group?.bullets);
-  const at = visible.findIndex((bullet) => bullet.id === bulletId);
-  const other = at >= 0 ? visible[at + Number(delta || 0)] : null;
-  if (!other) return store;
-  const current = (group.bullets || []).map((bullet) => bullet.id);
-  const ids = swapIds(current, bulletId, other.id);
-  if (ids === current) return store;
-  return updatePostingResume(store, postingId, {
-    bulletOrder: {
-      ...(postingById(store, postingId)?.resume?.bulletOrder || {}),
-      [groupId]: ids,
-    },
-  }, clock);
+  const step = postingNeighborStep(compiled?.groups || [], groupId, bulletId, delta);
+  if (!step) return store;
+  return moveResumeBullet(store, postingId, career, step.fromGroupId, step.toGroupId, bulletId, { index: step.index }, clock);
 }
 
 export function movePostingLocalGroup(store, postingId, jobId, groupId, delta, clock = Date.now) {
