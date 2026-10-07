@@ -182,13 +182,18 @@ function educationXml(section, bodyPt) {
   ].join('')).join('');
 }
 
+function markedRuns(span, bodyPt) {
+  const parts = String(span?.text || '').split('\n');
+  return parts.map((part, index) => `${index ? '<w:r><w:br/></w:r>' : ''}${run(part, {
+    bold: Boolean(span?.bold),
+    italic: Boolean(span?.italic),
+    pt: bodyPt,
+  })}`).join('');
+}
+
 function additionalXml(section, bodyPt) {
   return (section.rows || []).map((row) => p(
-    `${run(`${row.label}: `, { bold: true, pt: bodyPt })}${(additionalValueSpans(row) || []).map((span) => run(span.text, {
-      bold: Boolean(span.bold),
-      italic: Boolean(span.italic),
-      pt: bodyPt,
-    })).join('')}`
+    `${run(`${row.label}: `, { bold: true, pt: bodyPt })}${(additionalValueSpans(row) || []).map((span) => markedRuns(span, bodyPt)).join('')}`
   )).join('');
 }
 

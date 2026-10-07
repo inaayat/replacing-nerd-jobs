@@ -81,7 +81,7 @@ const SECTIONS = {
 
 function formatSpans(spans) {
   return (spans || []).map((span) => {
-    const text = esc(span?.text);
+    const text = esc(span?.text).replaceAll('\n', '<br>');
     if (span?.bold && span?.italic) return `<b><i>${text}</i></b>`;
     if (span?.bold) return `<b>${text}</b>`;
     if (span?.italic) return `<i>${text}</i>`;

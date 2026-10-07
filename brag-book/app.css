@@ -1928,7 +1928,8 @@ a:focus-visible {
   .bb-exp-jobrole select,
   .bb-job-select,
   .bb-inline-area,
-  .bb-exp-lead .experience-compose {
+  .bb-exp-lead .experience-compose,
+  .field .bb-addl-items {
     font-size: 16px;
   }
 }

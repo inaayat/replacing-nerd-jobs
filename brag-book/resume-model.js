@@ -59,6 +59,50 @@ function asStringList(value, { max = LIST_MAX, itemMax = ITEM_MAX } = {}) {
   return out;
 }
 
+// Additional-info items stay whole. A semicolon or middot inside the text is
+// content, and a long skill line is not cut at 120 characters.
+function verbatimItems(value) {
+  const raw = Array.isArray(value) ? value : (value == null || value === '' ? [] : [value]);
+  const out = [];
+  for (const item of raw) {
+    const text = String(item ?? '').replace(/\r\n/g, '\n').trim();
+    if (!text) continue;
+    out.push(text.length > TEXT_MAX ? text.slice(0, TEXT_MAX) : text);
+    if (out.length >= LIST_MAX) break;
+  }
+  return out;
+}
+
+function additionalTextField(value) {
+  if (typeof value !== 'string') return undefined;
+  const text = value.replace(/\r\n/g, '\n');
+  return text.length > TEXT_MAX ? text.slice(0, TEXT_MAX) : text;
+}
+
+function normalizeInlineSpans(value) {
+  if (!Array.isArray(value)) return undefined;
+  const out = [];
+  let used = 0;
+  for (const span of value) {
+    if (!span || typeof span !== 'object') continue;
+    let text = String(span.text ?? '').replace(/\r\n/g, '\n');
+    if (!text) continue;
+    if (used >= TEXT_MAX) break;
+    if (used + text.length > TEXT_MAX) text = text.slice(0, TEXT_MAX - used);
+    used += text.length;
+    const bold = Boolean(span.bold);
+    const italic = Boolean(span.italic);
+    const last = out[out.length - 1];
+    if (last && last.bold === bold && Boolean(last.italic) === italic) last.text += text;
+    else {
+      const next = { text, bold };
+      if (italic) next.italic = true;
+      out.push(next);
+    }
+  }
+  return out.length ? out : undefined;
+}
+
 function asPriority(value) {
   const n = Number(value);
   if (n === 2 || n === 3) return n;
@@ -416,7 +460,7 @@ export function normalizeCredentials(value, clock = Date.now) {
 function normalizeSkillGroup(raw, clock = Date.now) {
   if (!raw || typeof raw !== 'object') return null;
   const label = asString(raw.label, TITLE_MAX);
-  const items = asStringList(raw.items);
+  const items = verbatimItems(raw.items);
   const id = asString(raw.id, ID_MAX);
   if (!id && !label && !items.length) return null;
   return { id: asId(raw.id, clock, 'sg'), label, items };
@@ -435,13 +479,17 @@ export function normalizeAdditionalRow(raw, clock = Date.now) {
     seen.add(group.id);
     groups.push(group);
   }
-  const items = asStringList(raw.items, { max: LIST_MAX, itemMax: TEXT_MAX });
+  const items = verbatimItems(raw.items);
+  const text = additionalTextField(raw.text);
+  const rich = normalizeInlineSpans(raw.rich);
   const updatedAt = asString(raw.updatedAt, 40);
   return {
     id: asId(raw.id, clock, 'ad'),
     label,
     items: groups.length ? [] : items,
     groups,
+    ...(text !== undefined ? { text } : {}),
+    ...(rich ? { rich } : {}),
     ...(updatedAt ? { updatedAt } : {}),
   };
 }
@@ -624,42 +672,36 @@ export function spansToMarkdown(spans) {
   }).join('');
 }
 
-export function additionalItemsMarkdown(row) {
+function foldedAdditionalText(row) {
   if (row?.groups?.length) {
     return row.groups.map((group) => {
       const items = (group.items || []).join(', ');
-      return group.label ? `*${group.label}*: ${items}` : items;
-    }).join(' · ');
+      const label = String(group.label || '').trim();
+      if (label && items) return `${label}: ${items}`;
+      return label || items;
+    }).filter(Boolean).join(' · ');
   }
   return (row?.items || []).join(' · ');
 }
 
-export function additionalValueSpans(row) {
-  if (row?.groups?.length) {
-    const spans = [];
-    row.groups.forEach((group, index) => {
-      if (index) spans.push({ text: ' · ', bold: false });
-      spans.push({ text: group.label || '', italic: true });
-      spans.push({ text: `: ${(group.items || []).join(', ')}` });
-    });
-    return spans;
+export function additionalItemsSource(row) {
+  if (Array.isArray(row?.rich) && row.rich.some((span) => span && span.text)) {
+    return row.rich.map((span) => String(span.text || '')).join('');
   }
-  const spans = [];
-  (row?.items || []).forEach((item, index) => {
-    if (index) spans.push({ text: ' · ', bold: false });
-    for (const span of markdownToSpans(item)) spans.push(span);
-  });
-  return spans.length ? spans : [{ text: '', bold: false }];
+  if (typeof row?.text === 'string') return row.text;
+  return foldedAdditionalText(row);
+}
+
+export function additionalValueSpans(row) {
+  if (Array.isArray(row?.rich) && row.rich.some((span) => span && span.text)) {
+    return row.rich.filter((span) => span && span.text);
+  }
+  if (typeof row?.text === 'string') return [{ text: row.text, bold: false }];
+  return [{ text: foldedAdditionalText(row), bold: false }];
 }
 
 export function additionalValuePlain(row) {
-  return additionalValueSpans(row)
-    .map((span) => String(span?.text || ''))
-    .join('')
-    .replace(/\*\*/g, '')
-    .replace(/\*/g, '')
-    .replace(/[^\S\n]{2,}/g, ' ')
-    .trim();
+  return additionalValueSpans(row).map((span) => String(span?.text || '')).join('');
 }
 
 export function bulletPlainText(bullet) {

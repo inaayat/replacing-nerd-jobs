@@ -60,6 +60,9 @@ import {
   markdownToSpans,
   bulletFromLine,
   spansToMarkdown,
+  additionalItemsSource,
+  additionalValueSpans,
+  additionalValuePlain,
   findLocalBullet,
   inferEntryJobId,
   insertJobOrder,
@@ -103,7 +106,7 @@ export {
   bulletFromLine,
   markdownToSpans,
   spansToMarkdown,
-  additionalItemsMarkdown,
+  additionalItemsSource,
   additionalValueSpans,
   additionalValuePlain,
   visibleResumeDoc,
@@ -2008,6 +2011,7 @@ function cloneAdditionalRow(row) {
       ...group,
       items: [...(group.items || [])],
     })),
+    ...(Array.isArray(row?.rich) ? { rich: row.rich.map((span) => ({ ...span })) } : {}),
   };
 }
 

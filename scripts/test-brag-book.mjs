@@ -174,7 +174,7 @@ import {
   bulletFromLine,
   markdownToSpans,
   spansToMarkdown,
-  additionalItemsMarkdown,
+  additionalItemsSource,
   additionalValueSpans,
   additionalValuePlain,
   asUrl,
@@ -2034,7 +2034,8 @@ assert.equal(subLabels.additional[0].groups.length, 2);
 assert.equal(subLabels.additional[0].groups[1].label, 'Data Analytics');
 assert.ok(subLabels.additional[0].updatedAt);
 const basicsPreview = renderResumeHtml(compileResumeDoc(null, subLabels));
-assert.match(basicsPreview, /<b>Technical Skills:<\/b> <i><\/i>: AuditBoard, Excel/);
+assert.match(basicsPreview, /<b>Technical Skills:<\/b> AuditBoard, Excel · Data Analytics/);
+assert.doesNotMatch(basicsPreview, /<i>/);
 subLabels = updateResumeAdditionalGroup(subLabels, null, 'ad_tech', subLabels.additional[0].groups[0].id, {
   label: 'Compliance Tools',
   items: ['AuditBoard', 'Dynamics 365'],
@@ -2043,31 +2044,80 @@ subLabels = updateResumeAdditionalGroup(subLabels, null, 'ad_tech', subLabels.ad
   label: 'Data Analytics',
   items: ['Advanced Excel', 'SQL'],
 }, clock);
+const groupedFold = 'Compliance Tools: AuditBoard, Dynamics 365 · Data Analytics: Advanced Excel, SQL';
 const groupedPreview = renderResumeHtml(compileResumeDoc(null, subLabels));
-assert.match(groupedPreview, /<b>Technical Skills:<\/b> <i>Compliance Tools<\/i>: AuditBoard, Dynamics 365 · <i>Data Analytics<\/i>: Advanced Excel, SQL/);
+assert.match(groupedPreview, /<b>Technical Skills:<\/b> Compliance Tools: AuditBoard, Dynamics 365 · Data Analytics: Advanced Excel, SQL/);
+assert.doesNotMatch(groupedPreview, /<i>Compliance Tools<\/i>/);
 const groupedDocx = new TextDecoder().decode(resumeDocxBytes(compileResumeDoc(null, subLabels)));
-assert.match(groupedDocx, /<w:i\/><w:iCs\/>[\s\S]*?<w:t[^>]*>Compliance Tools<\/w:t>/);
-assert.doesNotMatch(groupedDocx, /<w:i\/><w:iCs\/>[\s\S]*?<w:t[^>]*>Compliance Tools:/);
-assert.match(groupedDocx, /<w:t[^>]*>: AuditBoard, Dynamics 365<\/w:t>/);
-assert.equal(additionalItemsMarkdown(subLabels.additional[0]), '*Compliance Tools*: AuditBoard, Dynamics 365 · *Data Analytics*: Advanced Excel, SQL');
-assert.equal(additionalValuePlain(subLabels.additional[0]), 'Compliance Tools: AuditBoard, Dynamics 365 · Data Analytics: Advanced Excel, SQL');
+assert.match(groupedDocx, /<w:t[^>]*>Compliance Tools: AuditBoard, Dynamics 365 · Data Analytics: Advanced Excel, SQL<\/w:t>/);
+assert.doesNotMatch(groupedDocx, /<w:i\/><w:iCs\/>[\s\S]*?<w:t[^>]*>Compliance Tools<\/w:t>/);
+assert.equal(additionalItemsSource(subLabels.additional[0]), groupedFold);
+assert.equal(additionalValuePlain(subLabels.additional[0]), groupedFold);
 const reloadedSubs = normalizeStore(JSON.parse(serializeBook(subLabels).json), clock);
 assert.equal(reloadedSubs.additional[0].groups[0].label, 'Compliance Tools');
 assert.deepEqual(reloadedSubs.additional[0].items, []);
-const inlineAdd = editResumeAdditionalRow(subLabels, null, 'ad_tech', (row) => ({
+const skillsLine = 'AI & Agents: Claude Code, Anthropic API, Model Context Protocol (MCP), Cursor, ChatGPT, Copilot; AI-Assisted Development: Python (pandas, openpyxl, Playwright), SQL, Kusto, Git/GitHub, GitHub Actions, REST APIs, Low-Code & Data: Advanced Excel, Power BI, Power Automate, Power Query, Alteryx; Systems: Workday, Dynamics 365, AuditBoard, Jira, Azure DevOps';
+const skillsTail = 'Low-Code & Data: Advanced Excel, Power BI, Power Automate, Power Query, Alteryx';
+const skillsBook = normalizeStore({
+  additional: [{ id: 'ad_skills', label: 'Technical Skills', items: [skillsLine] }],
+}, clock);
+assert.equal(skillsBook.additional[0].items[0], skillsLine);
+assert.equal(additionalItemsSource(skillsBook.additional[0]), skillsLine);
+const skillsStringBook = normalizeStore({
+  additional: [{ id: 'ad_skills_s', label: 'Technical Skills', items: skillsLine }],
+}, clock);
+assert.deepEqual(skillsStringBook.additional[0].items, [skillsLine]);
+const skillsGroupBook = normalizeStore({
+  additional: [{
+    id: 'ad_skills_g',
+    label: 'Technical Skills',
+    groups: [{ id: 'sg_notes', label: 'Notes', items: [skillsLine] }],
+  }],
+}, clock);
+assert.equal(skillsGroupBook.additional[0].groups[0].items[0], skillsLine);
+assert.equal(additionalItemsSource(skillsGroupBook.additional[0]), `Notes: ${skillsLine}`);
+const skillsHtml = renderResumeHtml(compileResumeDoc(null, skillsBook));
+assert.match(skillsHtml, /Copilot; AI-Assisted Development/);
+assert.ok(skillsHtml.includes(skillsTail.replaceAll('&', '&amp;')));
+assert.match(skillsHtml, /Systems: Workday, Dynamics 365, AuditBoard, Jira, Azure DevOps/);
+assert.doesNotMatch(skillsHtml, /<i>AI &amp; Agents<\/i>/);
+assert.doesNotMatch(skillsHtml, /Low-C</);
+const skillsDocx = new TextDecoder().decode(resumeDocxBytes(compileResumeDoc(null, skillsBook)));
+assert.match(skillsDocx, /Copilot; AI-Assisted Development/);
+assert.ok(skillsDocx.includes(skillsTail.replaceAll('&', '&amp;')));
+assert.match(skillsDocx, /Systems: Workday, Dynamics 365, AuditBoard, Jira, Azure DevOps/);
+const markedItems = editResumeAdditionalRow(subLabels, null, 'ad_tech', (row) => ({
   ...row,
-  items: ['*Compliance Tools*: AuditBoard, Dynamics 365', '**SQL** · *Kusto*'],
-  groups: [],
+  text: `Keep *asterisks* ${skillsLine}`,
+  rich: [
+    { text: 'Keep *asterisks* ', bold: false },
+    { text: 'AI & Agents', bold: true, italic: true },
+    { text: skillsLine.slice('AI & Agents'.length), bold: false },
+    { text: ' SQL', bold: false, italic: true },
+  ],
 }), clock);
-assert.equal(inlineAdd.additional[0].groups.length, 0);
-assert.deepEqual(inlineAdd.additional[0].items, ['*Compliance Tools*: AuditBoard, Dynamics 365', '**SQL**', '*Kusto*']);
-const inlineHtml = renderResumeHtml(compileResumeDoc(null, inlineAdd));
-assert.match(inlineHtml, /<i>Compliance Tools<\/i>: AuditBoard, Dynamics 365/);
-assert.match(inlineHtml, /<b>SQL<\/b> · <i>Kusto<\/i>/);
-const inlineDocx = new TextDecoder().decode(resumeDocxBytes(compileResumeDoc(null, inlineAdd)));
-assert.match(inlineDocx, /<w:i\/><w:iCs\/>[\s\S]*?<w:t[^>]*>Compliance Tools<\/w:t>/);
-assert.match(inlineDocx, /<w:b\/><w:bCs\/>[\s\S]*?<w:t[^>]*>SQL<\/w:t>/);
-assert.equal(additionalValuePlain(inlineAdd.additional[0]), 'Compliance Tools: AuditBoard, Dynamics 365 · SQL · Kusto');
+assert.equal(markedItems.additional[0].groups[0].label, 'Compliance Tools');
+assert.equal(markedItems.additional[0].text, `Keep *asterisks* ${skillsLine}`);
+const markedHtml = renderResumeHtml(compileResumeDoc(null, markedItems));
+assert.match(markedHtml, /Keep \*asterisks\* /);
+assert.match(markedHtml, /<b><i>AI &amp; Agents<\/i><\/b>/);
+assert.match(markedHtml, /<i> SQL<\/i>/);
+assert.ok(markedHtml.includes(skillsTail.replaceAll('&', '&amp;')));
+assert.doesNotMatch(markedHtml, /<i>asterisks<\/i>/);
+assert.doesNotMatch(markedHtml, /<i>Compliance Tools<\/i>/);
+const markedDocx = new TextDecoder().decode(resumeDocxBytes(compileResumeDoc(null, markedItems)));
+assert.match(markedDocx, /<w:b\/><w:bCs\/>\s*<w:i\/><w:iCs\/>[\s\S]*?<w:t[^>]*>AI &amp; Agents<\/w:t>/);
+assert.match(markedDocx, /<w:i\/><w:iCs\/>[\s\S]*?<w:t[^>]*> SQL<\/w:t>/);
+assert.ok(markedDocx.includes(skillsTail.replaceAll('&', '&amp;')));
+assert.match(markedDocx, /Copilot; AI-Assisted Development/);
+const clearedItems = editResumeAdditionalRow(subLabels, null, 'ad_tech', (row) => ({
+  ...row,
+  text: '',
+  rich: [],
+}), clock);
+assert.ok(clearedItems.additional[0].groups.length);
+assert.equal(additionalItemsSource(clearedItems.additional[0]), '');
+assert.doesNotMatch(renderResumeHtml(compileResumeDoc(null, clearedItems)), /Compliance Tools/);
 
 let postingSubs = addAdditionalRow(emptyStore(), {
   id: 'ad_tech',
@@ -2117,7 +2167,8 @@ assert.equal(JSON.stringify(postingSubs.additional), basicsBeforeFork);
 const forkedRow = postingById(postingSubs, 'job_sub').resume.localAdditional.find((row) => row.id === 'ad_tech');
 assert.equal(forkedRow.groups[0].label, 'Compliance Tools');
 const forkedAdditionalDoc = compileResumeDoc(postingById(postingSubs, 'job_sub'), postingSubs);
-assert.match(renderResumeHtml(forkedAdditionalDoc), /<i>Compliance Tools<\/i>: AuditBoard/);
+assert.match(renderResumeHtml(forkedAdditionalDoc), /<b>Technical Skills:<\/b> Compliance Tools: AuditBoard/);
+assert.doesNotMatch(renderResumeHtml(forkedAdditionalDoc), /<i>Compliance Tools<\/i>/);
 const otherPostingDoc = compileResumeDoc(postingById(postingSubs, 'job_other'), postingSubs);
 assert.equal(otherPostingDoc.sections.additional.rows.find((row) => row.id === 'ad_tech').groups.length, 0);
 assert.deepEqual(compileResumeDoc(null, postingSubs).sections.additional.rows.find((row) => row.id === 'ad_tech').items, ['AuditBoard']);
@@ -2719,6 +2770,18 @@ assert.doesNotMatch(appSource, /addResumeAdditionalGroup\(store, posting/);
 assert.doesNotMatch(appSource, /aria-label': 'Sub-label'/);
 assert.match(appSource, /editResumeAdditionalRow\(store, posting\?\.id, row\.id/);
 assert.match(appSource, /execCommand\('italic'\)/);
+const addlEditor = appSource.slice(appSource.indexOf("resumeSectionHead('Additional info'"), appSource.indexOf('function resumeWorkspace'));
+assert.doesNotMatch(addlEditor, /btn\('Bold'/);
+assert.doesNotMatch(addlEditor, /btn\('Italic'/);
+assert.doesNotMatch(addlEditor, /splitResumeItems/);
+assert.doesNotMatch(addlEditor, /groups: \[\]/);
+assert.match(addlEditor, /knowledgeMarkShortcut\(event\)/);
+assert.match(addlEditor, /execCommand\(shortcut\.command\)/);
+assert.match(addlEditor, /event\.stopPropagation\(\)/);
+assert.match(addlEditor, /rich: spans/);
+const addlChange = addlEditor.slice(addlEditor.indexOf('onChange:'), addlEditor.indexOf('const stampLabel'));
+assert.doesNotMatch(addlChange, /render\(/);
+assert.match(addlChange, /scheduleResumePreview\(posting\)/);
 const stampLabelSource = appSource.slice(appSource.indexOf('const stampLabel'), appSource.indexOf('label.addEventListener', appSource.indexOf('const stampLabel')));
 assert.doesNotMatch(stampLabelSource, /render\(/);
 assert.match(stampLabelSource, /scheduleResumePreview\(posting\)/);

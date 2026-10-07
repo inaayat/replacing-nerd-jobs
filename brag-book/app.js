@@ -98,8 +98,7 @@ import {
   deleteAdditionalRow,
   moveAdditionalRow,
   editResumeAdditionalRow,
-  additionalItemsMarkdown,
-  markdownToSpans,
+  additionalValueSpans,
   spansToMarkdown,
   isResumeDoc,
   visibleResumeDoc,
@@ -2689,10 +2688,6 @@ function bulletCount(career) {
   return (career.groups || []).reduce((sum, group) => sum + (group.bullets || []).length, 0);
 }
 
-function splitResumeItems(value) {
-  return String(value || '').split(/\s*[·;]\s*|\n/).map((part) => part.trim()).filter(Boolean);
-}
-
 function resumeSectionHead(title, action) {
   return el('div', { class: 'bb-section-head' }, [
     el('h3', {}, title),
@@ -3775,27 +3770,33 @@ function resumeEditorPane(posting, doc) {
     ...(doc.sections.additional.rows.length
       ? doc.sections.additional.rows.map((row, index) => {
         const label = el('input', { value: row.label, 'aria-label': 'Row label', 'data-focus-key': `ad-${row.id}-label` });
-        const valueMd = additionalItemsMarkdown(row);
         const items = richLine({
-          class: 'bb-rb-line',
+          class: 'bb-rb-line bb-addl-items',
           'aria-label': 'Items',
           'data-focus-key': `ad-${row.id}-items`,
         }, {
-          rich: markdownToSpans(valueMd),
+          rich: additionalValueSpans(row),
           italic: true,
           onChange: (spans) => {
-            const md = spansToMarkdown(tidySpans(spans));
-            if (md.replace(/\s+/g, ' ').trim() === valueMd.replace(/\s+/g, ' ').trim() && row.groups?.length) return;
+            const text = (spans || []).map((span) => span.text).join('');
             store = editResumeAdditionalRow(store, posting?.id, row.id, (current) => ({
               ...current,
               label: label.value,
-              items: splitResumeItems(md),
-              groups: [],
+              text,
+              rich: spans,
             }));
             saveStore();
             scheduleResumePreview(posting);
           },
         });
+        items.addEventListener('keydown', (event) => {
+          const shortcut = knowledgeMarkShortcut(event);
+          if (!shortcut) return;
+          event.preventDefault();
+          event.stopPropagation();
+          document.execCommand(shortcut.command);
+          items.dispatchEvent(new Event('input'));
+        }, true);
         const stampLabel = () => {
           store = editResumeAdditionalRow(store, posting?.id, row.id, (current) => ({
             ...current,
@@ -3805,11 +3806,6 @@ function resumeEditorPane(posting, doc) {
           scheduleResumePreview(posting);
         };
         label.addEventListener('input', stampLabel);
-        const applyMark = (command) => {
-          items.focus();
-          document.execCommand(command);
-          items.dispatchEvent(new Event('input'));
-        };
         return el('div', { class: 'bb-job-card' }, [
           el('div', { class: 'bb-rb-tools' }, [
             resumeMoveBtns('row', {
@@ -3835,25 +3831,7 @@ function resumeEditorPane(posting, doc) {
             }),
           ]),
           field('Label', label),
-          el('div', { class: 'bb-rb-line-head' }, [
-            field('Items', items),
-            el('div', { class: 'actions' }, [
-              btn('Bold', {
-                class: 'btn ghost compact-action',
-                onMouseDown: (event) => {
-                  event.preventDefault();
-                  applyMark('bold');
-                },
-              }),
-              btn('Italic', {
-                class: 'btn ghost compact-action',
-                onMouseDown: (event) => {
-                  event.preventDefault();
-                  applyMark('italic');
-                },
-              }),
-            ]),
-          ]),
+          field('Items', items),
         ]);
       })
       : [el('p', { class: 'empty' }, 'None yet. Use + Add row for a label plus items, or import a resume JSON.')]),
