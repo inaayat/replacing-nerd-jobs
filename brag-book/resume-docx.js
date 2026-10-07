@@ -3,7 +3,7 @@
  * Uncompressed zip writer, same approach as takeout/workbook.js.
  */
 
-import { resumeBulletParts } from './resume-model.js';
+import { additionalParagraphs, resumeBulletParts } from './resume-model.js';
 
 const CRC_TABLE = new Uint32Array(256);
 for (let i = 0; i < 256; i += 1) {
@@ -183,18 +183,13 @@ function educationXml(section, bodyPt) {
 }
 
 function additionalXml(section, bodyPt) {
-  return (section.rows || []).map((row) => {
-    let rest = '';
-    if (row.groups?.length) {
-      rest = row.groups.map((g, i) => {
-        const sep = i ? run(' \u00b7 ', { pt: bodyPt }) : '';
-        return `${sep}${run(`${g.label}: `, { italic: true, pt: bodyPt })}${run((g.items || []).join(', '), { pt: bodyPt })}`;
-      }).join('');
-    } else {
-      rest = run((row.items || []).join(' \u00b7 '), { pt: bodyPt });
-    }
-    return p(`${run(`${row.label}: `, { bold: true, pt: bodyPt })}${rest}`);
-  }).join('');
+  return additionalParagraphs(section.rows).map((para) => p(
+    (para.spans || []).map((span) => run(span.text, {
+      bold: Boolean(span.bold),
+      italic: Boolean(span.italic),
+      pt: bodyPt,
+    })).join('')
+  )).join('');
 }
 
 const RENDER = {

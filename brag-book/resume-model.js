@@ -408,8 +408,121 @@ function normalizeSkillGroup(raw, clock = Date.now) {
   return { id: asId(raw.id, clock, 'sg'), label, items };
 }
 
+const ADDITIONAL_PARA_MAX = 40;
+
+function asSpanText(value, max = TEXT_MAX) {
+  const text = String(value ?? '').replace(/\r\n/g, '\n');
+  if (!text) return '';
+  return text.length > max ? text.slice(0, max) : text;
+}
+
+function mergeFormatSpans(spans) {
+  const out = [];
+  for (const raw of Array.isArray(spans) ? spans : []) {
+    const text = asSpanText(raw?.text);
+    if (!text) continue;
+    const bold = raw?.bold === true;
+    const italic = raw?.italic === true;
+    const last = out[out.length - 1];
+    if (last && last.bold === bold && Boolean(last.italic) === italic) {
+      last.text += text;
+      continue;
+    }
+    const span = { text, bold };
+    if (italic) span.italic = true;
+    out.push(span);
+  }
+  return out;
+}
+
+function spanPlain(spans) {
+  return (spans || []).map((span) => String(span?.text || '')).join('');
+}
+
+export function additionalRowIsRich(row) {
+  return Boolean(row && (row.kind === 'rich' || Array.isArray(row.paragraphs)));
+}
+
+export function normalizeAdditionalParagraphs(value) {
+  const raw = Array.isArray(value)
+    ? value
+    : typeof value === 'string'
+      ? String(value).split('\n')
+      : [];
+  const out = [];
+  for (const item of raw) {
+    let spans = [];
+    if (typeof item === 'string') spans = markdownToSpans(item);
+    else if (Array.isArray(item)) spans = mergeFormatSpans(item);
+    else if (item && typeof item === 'object') {
+      if (Array.isArray(item.spans)) spans = mergeFormatSpans(item.spans);
+      else if (typeof item.text === 'string') spans = markdownToSpans(item.text);
+    }
+    spans = mergeFormatSpans(spans);
+    if (!spanPlain(spans).trim()) continue;
+    out.push({ spans });
+    if (out.length >= ADDITIONAL_PARA_MAX) break;
+  }
+  return out;
+}
+
+export function projectLegacyAdditionalRow(row) {
+  const spans = [];
+  const label = asString(row?.label, TITLE_MAX);
+  if (label) spans.push({ text: `${label}:`, bold: true });
+  if (row?.groups?.length) {
+    row.groups.forEach((group, index) => {
+      spans.push({ text: index === 0 ? ' ' : ' · ' });
+      if (group.label) spans.push({ text: group.label, italic: true });
+      const items = (group.items || []).join(', ');
+      const tail = `${group.label ? ': ' : ''}${items}`;
+      if (tail) spans.push({ text: tail });
+    });
+  } else {
+    const items = (row?.items || []).join(' · ');
+    if (items) spans.push({ text: label ? ` ${items}` : items });
+  }
+  return mergeFormatSpans(spans);
+}
+
+export function additionalParagraphs(rows) {
+  const out = [];
+  for (const row of Array.isArray(rows) ? rows : []) {
+    if (additionalRowIsRich(row)) {
+      for (const para of normalizeAdditionalParagraphs(row.paragraphs)) out.push(para);
+      continue;
+    }
+    const spans = projectLegacyAdditionalRow(row);
+    if (spanPlain(spans).trim()) out.push({ spans });
+  }
+  return out;
+}
+
+export function additionalFromParagraphs(paragraphs, clock = Date.now, id) {
+  const paras = normalizeAdditionalParagraphs(paragraphs);
+  if (!paras.length) return [];
+  return normalizeAdditional([{
+    id,
+    kind: 'rich',
+    paragraphs: paras,
+  }], clock);
+}
+
 export function normalizeAdditionalRow(raw, clock = Date.now) {
   if (!raw || typeof raw !== 'object') return null;
+  if (additionalRowIsRich(raw)) {
+    const paragraphs = normalizeAdditionalParagraphs(raw.paragraphs ?? raw.text ?? raw.body);
+    const id = asString(raw.id, ID_MAX);
+    if (!id && !paragraphs.length) return null;
+    return {
+      id: asId(raw.id, clock, 'ad'),
+      kind: 'rich',
+      paragraphs,
+      label: '',
+      items: [],
+      groups: [],
+    };
+  }
   const label = asString(raw.label, TITLE_MAX);
   const id = asString(raw.id, ID_MAX);
   if (!label && !id) return null;
@@ -552,15 +665,48 @@ export function bulletFromLine(text) {
 export function markdownToSpans(text) {
   const raw = String(text || '');
   const spans = [];
-  const re = /\*\*(.+?)\*\*/g;
-  let last = 0;
-  let match;
-  while ((match = re.exec(raw))) {
-    if (match.index > last) spans.push({ text: raw.slice(last, match.index), bold: false });
-    spans.push({ text: match[1], bold: true });
-    last = match.index + match[0].length;
+  const push = (value, bold, italic) => {
+    if (!value) return;
+    const last = spans[spans.length - 1];
+    if (last && last.bold === bold && Boolean(last.italic) === italic) {
+      last.text += value;
+      return;
+    }
+    const span = { text: value, bold };
+    if (italic) span.italic = true;
+    spans.push(span);
+  };
+  let i = 0;
+  while (i < raw.length) {
+    if (raw.startsWith('***', i)) {
+      const end = raw.indexOf('***', i + 3);
+      if (end !== -1) {
+        push(raw.slice(i + 3, end), true, true);
+        i = end + 3;
+        continue;
+      }
+    }
+    if (raw.startsWith('**', i)) {
+      const end = raw.indexOf('**', i + 2);
+      if (end !== -1) {
+        push(raw.slice(i + 2, end), true, false);
+        i = end + 2;
+        continue;
+      }
+    }
+    if (raw[i] === '*') {
+      const end = raw.indexOf('*', i + 1);
+      if (end !== -1) {
+        push(raw.slice(i + 1, end), false, true);
+        i = end + 1;
+        continue;
+      }
+    }
+    const next = raw.indexOf('*', i);
+    const take = next === -1 ? raw.length : next;
+    push(raw.slice(i, take), false, false);
+    i = take;
   }
-  if (last < raw.length) spans.push({ text: raw.slice(last), bold: false });
   return spans.length ? spans : [{ text: '', bold: false }];
 }
 
@@ -568,7 +714,10 @@ export function spansToMarkdown(spans) {
   return (spans || []).map((span) => {
     const text = String(span?.text || '');
     if (!text) return '';
-    return span.bold ? `**${text}**` : text;
+    if (span.bold && span.italic) return `***${text}***`;
+    if (span.bold) return `**${text}**`;
+    if (span.italic) return `*${text}*`;
+    return text;
   }).join('');
 }
 

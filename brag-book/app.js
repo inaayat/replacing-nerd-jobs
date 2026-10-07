@@ -82,6 +82,10 @@ import {
   addPostingLocalAdditional,
   updatePostingLocalAdditional,
   deletePostingLocalAdditional,
+  setAdditionalRich,
+  additionalParagraphs,
+  additionalFromParagraphs,
+  resumeCompileMode,
   startPostingResumeFresh,
   resetPostingResumeToBasics,
   choosePostingResumeMode,
@@ -95,14 +99,7 @@ import {
   addCredentialItem,
   deleteCredentialItem,
   moveCredentialItem,
-  updateAdditionalRow,
-  addAdditionalRow,
   deleteAdditionalRow,
-  moveAdditionalRow,
-  moveAdditionalGroup,
-  addAdditionalGroup,
-  updateAdditionalGroup,
-  deleteAdditionalGroup,
   isResumeDoc,
   visibleResumeDoc,
   moveKey,
@@ -397,12 +394,18 @@ function fillRich(node, rich, plain) {
     const parts = String(span.text || '').split('\n');
     parts.forEach((part, index) => {
       if (part) {
-        const text = document.createTextNode(part);
+        let painted = document.createTextNode(part);
+        if (span.italic) {
+          const em = document.createElement('em');
+          em.append(painted);
+          painted = em;
+        }
         if (span.bold) {
           const strong = document.createElement('strong');
-          strong.append(text);
-          node.append(strong);
-        } else node.append(text);
+          strong.append(painted);
+          painted = strong;
+        }
+        node.append(painted);
       }
       if (index < parts.length - 1) node.append(document.createElement('br'));
     });
@@ -412,29 +415,36 @@ function fillRich(node, rich, plain) {
 
 function readRich(node) {
   const spans = [];
-  const push = (text, bold) => {
+  const push = (text, bold, italic) => {
     if (!text) return;
     const last = spans[spans.length - 1];
-    if (last && last.bold === bold) last.text += text;
-    else spans.push({ text, bold });
+    if (last && last.bold === bold && Boolean(last.italic) === italic) last.text += text;
+    else {
+      const span = { text, bold };
+      if (italic) span.italic = true;
+      spans.push(span);
+    }
   };
-  const walk = (parent, bold) => {
+  const walk = (parent, bold, italic) => {
     for (const child of parent.childNodes) {
       if (child.nodeType === 3) {
-        push(child.nodeValue.replace(/\u00a0/g, ' ').replace(/\r\n/g, '\n'), bold);
+        push(child.nodeValue.replace(/\u00a0/g, ' ').replace(/\r\n/g, '\n'), bold, italic);
       } else if (child.nodeType === 1) {
         const tag = child.tagName;
         const weight = child.style?.fontWeight;
         const nextBold = bold || tag === 'B' || tag === 'STRONG' || weight === 'bold' || Number(weight) >= 600;
-        if (tag === 'BR') push('\n', bold);
+        const nextItalic = italic || tag === 'I' || tag === 'EM' || child.style?.fontStyle === 'italic';
+        if (tag === 'BR') push('\n', bold, italic);
         else {
-          if ((tag === 'DIV' || tag === 'P') && spans.length && !spans[spans.length - 1].text.endsWith('\n')) push('\n', false);
-          walk(child, nextBold);
+          if ((tag === 'DIV' || tag === 'P') && spans.length && !spans[spans.length - 1].text.endsWith('\n')) {
+            push('\n', false, false);
+          }
+          walk(child, nextBold, nextItalic);
         }
       }
     }
   };
-  walk(node, false);
+  walk(node, false, false);
   return spans;
 }
 
@@ -494,7 +504,7 @@ function editableNeedsFlatten(node) {
   return [...node.childNodes].some((child) => {
     if (child.nodeType !== 1) return false;
     const tag = child.tagName;
-    return tag !== 'BR' && tag !== 'STRONG' && tag !== 'B';
+    return tag !== 'BR' && tag !== 'STRONG' && tag !== 'B' && tag !== 'EM' && tag !== 'I';
   });
 }
 
@@ -514,11 +524,15 @@ function insertPlainText(text) {
 
 function tidySpans(spans) {
   const out = [];
-  const push = (text, bold) => {
+  const push = (text, bold, italic) => {
     if (!text) return;
     const last = out[out.length - 1];
-    if (last && last.bold === bold) last.text += text;
-    else out.push({ text, bold });
+    if (last && last.bold === bold && Boolean(last.italic) === italic) last.text += text;
+    else {
+      const span = { text, bold };
+      if (italic) span.italic = true;
+      out.push(span);
+    }
   };
   let broke = false;
   for (const span of spans) {
@@ -529,10 +543,10 @@ function tidySpans(spans) {
         continue;
       }
       if (broke) {
-        push('\n', false);
+        push('\n', false, false);
         broke = false;
       }
-      push(bit.replace(/[ \t]{2,}/g, ' '), Boolean(span.bold));
+      push(bit.replace(/[ \t]{2,}/g, ' '), Boolean(span.bold), Boolean(span.italic));
     }
   }
   while (out.length && /\n$/.test(out[out.length - 1].text)) {
@@ -550,7 +564,7 @@ function flattenEditable(node, offset) {
   setCaretOffset(node, offset ?? plain.length);
 }
 
-function bindRichKeys(node, { onChange, onSubmit } = {}) {
+function bindRichKeys(node, { onChange, onSubmit, italic = false } = {}) {
   const changed = () => {
     trimEditableTail(node);
     node.dataset.empty = node.textContent.trim() ? 'false' : 'true';
@@ -571,9 +585,16 @@ function bindRichKeys(node, { onChange, onSubmit } = {}) {
     changed();
   });
   node.addEventListener('keydown', (event) => {
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'b') {
+    const key = event.key.toLowerCase();
+    if ((event.metaKey || event.ctrlKey) && key === 'b') {
       event.preventDefault();
       document.execCommand('bold');
+      changed();
+      return;
+    }
+    if (italic && (event.metaKey || event.ctrlKey) && key === 'i') {
+      event.preventDefault();
+      document.execCommand('italic');
       changed();
       return;
     }
@@ -585,10 +606,10 @@ function bindRichKeys(node, { onChange, onSubmit } = {}) {
   node.addEventListener('input', changed);
 }
 
-function richLine(attrs, { text, rich, onChange, onSubmit } = {}) {
+function richLine(attrs, { text, rich, onChange, onSubmit, italic = false } = {}) {
   const node = el('div', { contenteditable: 'true', role: 'textbox', 'aria-multiline': 'true', ...attrs });
   fillRich(node, rich, text);
-  bindRichKeys(node, { onChange, onSubmit });
+  bindRichKeys(node, { onChange, onSubmit, italic });
   return node;
 }
 
@@ -2664,6 +2685,29 @@ function splitResumeItems(value) {
   return String(value || '').split(/\s*[·;]\s*|\n/).map((part) => part.trim()).filter(Boolean);
 }
 
+function additionalEditorParagraphs(spans) {
+  const lines = [[]];
+  for (const span of spans || []) {
+    const parts = String(span?.text || '').split('\n');
+    parts.forEach((part, index) => {
+      if (index) lines.push([]);
+      if (part) lines[lines.length - 1].push({ ...span, text: part });
+    });
+  }
+  return lines
+    .map((line) => ({ spans: markdownToSpans(spansToMarkdown(line)) }))
+    .filter((para) => (para.spans || []).some((span) => String(span.text || '').trim()));
+}
+
+function additionalEditorSpans(paragraphs) {
+  const spans = [];
+  (paragraphs || []).forEach((para, index) => {
+    if (index) spans.push({ text: '\n', bold: false });
+    for (const span of para.spans || []) spans.push(span);
+  });
+  return spans;
+}
+
 function resumeSectionHead(title, action) {
   return el('div', { class: 'bb-section-head' }, [
     el('h3', {}, title),
@@ -3724,134 +3768,64 @@ function resumeEditorPane(posting, doc) {
         ]);
       })
       : [el('p', { class: 'empty' }, 'None yet. Use + Add education, or import a resume JSON.')]),
-    resumeSectionHead('Additional info', btn('+ Add row', {
-      class: 'btn ghost compact-action',
-      onClick: () => {
-        if (posting) {
-          store = addPostingLocalAdditional(store, posting.id);
-          const added = (livePosting(posting.id).resume.localAdditional || []).slice(-1)[0];
-          saveStore();
-          render({ focusKey: added ? `ad-${added.id}-label` : undefined });
-          return;
-        }
-        store = addAdditionalRow(store);
-        const added = store.additional[store.additional.length - 1];
-        saveStore();
-        render({ focusKey: added ? `ad-${added.id}-label` : undefined });
-      },
-    })),
-    ...(doc.sections.additional.rows.length
-      ? doc.sections.additional.rows.map((row, index) => {
-        const label = el('input', { value: row.label, 'aria-label': 'Row label', 'data-focus-key': `ad-${row.id}-label` });
-        const grouped = Boolean(row.groups?.length);
-        const items = el('textarea', {
-          rows: '2',
-          'aria-label': 'Items',
-          'data-focus-key': `ad-${row.id}-items`,
-        }, grouped
-          ? row.groups.map((group) => `${group.label}: ${(group.items || []).join(', ')}`).join(' · ')
-          : (row.items || []).join(' · '));
-        items.value = items.textContent;
-        const stampLabel = () => {
-          const patch = grouped
-            ? { label: label.value, groups: row.groups }
-            : { label: label.value, items: splitResumeItems(items.value) };
-          if (posting && isLocalResumeRow(posting, 'localAdditional', row.id)) {
-            store = updatePostingLocalAdditional(store, posting.id, row.id, patch);
-          } else {
-            store = updateAdditionalRow(store, row.id, patch);
-          }
-          saveStore();
-          scheduleResumePreview(posting);
-        };
-        label.addEventListener('input', stampLabel);
-        if (!grouped) items.addEventListener('input', stampLabel);
-        const groupEditors = grouped
-          ? row.groups.map((group) => {
-            const glabel = el('input', {
-              value: group.label,
-              placeholder: 'Italic sub-label',
-              'aria-label': 'Sub-label',
-              'data-focus-key': `sg-${group.id}-label`,
-            });
-            const gitems = el('textarea', {
-              rows: '2',
-              'aria-label': 'Group items',
-              'data-focus-key': `sg-${group.id}-items`,
-            }, (group.items || []).join(' · '));
-            gitems.value = gitems.textContent;
-            const stampGroup = () => {
-              store = updateAdditionalGroup(store, row.id, group.id, {
-                label: glabel.value,
-                items: splitResumeItems(gitems.value),
-              });
-              saveStore();
-              scheduleResumePreview(posting);
-            };
-            glabel.addEventListener('input', stampGroup);
-            gitems.addEventListener('input', stampGroup);
-            return el('div', { class: 'bb-addl-group' }, [
-              el('div', { class: 'bb-group-head' }, [
-                field('Sub-label', glabel),
-                resumeMoveBtns('sub-label', {
-                  index: row.groups.findIndex((item) => item.id === group.id),
-                  length: row.groups.length,
-                  onMove: (delta) => {
-                    store = moveAdditionalGroup(store, row.id, group.id, delta);
-                    saveStore();
-                    render({ focusKey: `sg-${group.id}-label` });
-                  },
-                }),
-                btn('Remove sub-label', {
-                  class: 'btn ghost compact-action is-danger',
-                  onClick: () => {
-                    store = deleteAdditionalGroup(store, row.id, group.id);
-                    saveStore();
-                    render();
-                  },
-                }),
-              ]),
-              field('Items', gitems),
-            ]);
-          })
-          : [field('Items', items)];
-        return el('div', { class: 'bb-job-card' }, [
-          el('div', { class: 'bb-rb-tools' }, [
-            resumeMoveBtns('row', {
-              index,
-              length: doc.sections.additional.rows.length,
-              onMove: (delta) => {
-                store = moveAdditionalRow(store, row.id, delta);
-                saveStore();
-                render({ focusKey: `ad-${row.id}-label` });
-              },
-            }),
-            ...postingRowDeletes(posting, {
-              local: isLocalResumeRow(posting, 'localAdditional', row.id),
-              kind: 'additional',
-              id: row.id,
-              localDelete: () => { store = deletePostingLocalAdditional(store, posting.id, row.id); },
-              sharedDelete: () => { store = deleteAdditionalRow(store, row.id); },
-              confirmText: 'Delete this additional-info row from Resume basics?',
-            }),
-          ]),
-          field('Label', label),
-          ...groupEditors,
-          el('div', { class: 'bb-add-row' }, [
-            btn('+ Add sub-label', {
-              class: 'btn ghost compact-action',
-              onClick: () => {
-                store = addAdditionalGroup(store, row.id);
-                const added = store.additional.find((item) => item.id === row.id);
-                const last = added?.groups[added.groups.length - 1];
-                saveStore();
-                render({ focusKey: last ? `sg-${last.id}-label` : `ad-${row.id}-label` });
-              },
-            }),
-          ]),
-        ]);
-      })
-      : [el('p', { class: 'empty' }, 'None yet. Use + Add row for a label plus items, or import a resume JSON.')]),
+    resumeSectionHead('Additional info'),
+    additionalInfoEditor(posting, doc),
+  ]);
+}
+
+function additionalInfoEditor(posting, doc) {
+  const paragraphs = additionalParagraphs(doc.sections.additional.rows);
+  let lastSig = JSON.stringify(paragraphs);
+  const box = richLine({
+    class: 'bb-rb-line bb-addl-rich',
+    'aria-label': 'Additional info',
+    'data-focus-key': 'ad-combined',
+    'data-placeholder': '**Regulatory Knowledge:** SOX · ICFR',
+  }, {
+    rich: additionalEditorSpans(paragraphs),
+    italic: true,
+    onChange: (spans) => {
+      const next = additionalEditorParagraphs(spans);
+      const sig = JSON.stringify(next);
+      if (sig === lastSig) return;
+      lastSig = sig;
+      if (posting && resumeCompileMode(posting.resume) === 'fresh') {
+        store = updatePostingResume(store, posting.id, {
+          localAdditional: additionalFromParagraphs(next),
+        });
+      } else {
+        store = setAdditionalRich(store, next);
+      }
+      saveStore();
+      scheduleResumePreview(posting);
+    },
+  });
+  const applyMark = (command) => {
+    box.focus();
+    document.execCommand(command);
+    box.dispatchEvent(new Event('input'));
+  };
+  return el('div', { class: 'bb-job-card bb-addl-card' }, [
+    el('div', { class: 'bb-rb-line-head' }, [
+      field('Additional info', box),
+      el('div', { class: 'actions bb-addl-marks' }, [
+        btn('Bold', {
+          class: 'btn ghost compact-action',
+          onMouseDown: (event) => {
+            event.preventDefault();
+            applyMark('bold');
+          },
+        }),
+        btn('Italic', {
+          class: 'btn ghost compact-action',
+          onMouseDown: (event) => {
+            event.preventDefault();
+            applyMark('italic');
+          },
+        }),
+      ]),
+    ]),
+    el('p', { class: 'tiny' }, 'One line per paragraph. Bold the label, italic for sub-labels. Example: **Regulatory Knowledge:** SOX · ICFR'),
   ]);
 }
 

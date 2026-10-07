@@ -60,6 +60,9 @@ import {
   markdownToSpans,
   bulletFromLine,
   spansToMarkdown,
+  additionalFromParagraphs,
+  additionalParagraphs,
+  additionalRowIsRich,
   findLocalBullet,
   inferEntryJobId,
   insertJobOrder,
@@ -103,6 +106,10 @@ export {
   bulletFromLine,
   markdownToSpans,
   spansToMarkdown,
+  additionalParagraphs,
+  additionalRowIsRich,
+  additionalFromParagraphs,
+  projectLegacyAdditionalRow,
   visibleResumeDoc,
   headerFromProfile,
   moveListItem,
@@ -1875,7 +1882,9 @@ function basicsLayoutBits(doc) {
   }
   const schools = (doc?.sections?.education?.items || []).map((item) => item.school).filter(Boolean);
   const credentials = (doc?.sections?.credentials?.items || []).map((item) => item.name).filter(Boolean);
-  const additional = (doc?.sections?.additional?.rows || []).map((row) => row.label).filter(Boolean);
+  const additional = additionalParagraphs(doc?.sections?.additional?.rows || [])
+    .map((para) => spanPlain(para.spans).trim())
+    .filter(Boolean);
   const bulletLabel = `${bullets} ${bullets === 1 ? 'bullet' : 'bullets'}`;
   return [
     companies.length ? companies.join(', ') : 'no jobs',
@@ -1884,6 +1893,10 @@ function basicsLayoutBits(doc) {
     credentials.length ? credentials.join(', ') : 'no credentials',
     additional.length ? additional.join(', ') : 'no additional info',
   ].join('; ');
+}
+
+function spanPlain(spans) {
+  return (spans || []).map((span) => String(span?.text || '')).join('');
 }
 
 export function hasBasicsBackup(store) {
@@ -1971,6 +1984,14 @@ export function updateAdditionalRow(store, id, patch, clock = Date.now) {
       (store?.additional || []).map((item) => (item.id === id ? { ...item, ...patch, id: item.id } : item)),
       clock
     ),
+  };
+}
+
+export function setAdditionalRich(store, paragraphs, clock = Date.now) {
+  const keepId = (store?.additional || []).find((row) => additionalRowIsRich(row))?.id;
+  return {
+    ...store,
+    additional: additionalFromParagraphs(paragraphs, clock, keepId),
   };
 }
 
