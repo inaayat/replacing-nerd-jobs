@@ -521,6 +521,16 @@ export function bulletPlainText(bullet) {
   return lead || body;
 }
 
+// The experience line (entry title, or the requirement copy) is what the
+// posting editor shows. Resume lead/body is that same line, split on the
+// first colon the way the one-page layout always has.
+export function resumeFieldsFromExperience(text, rich) {
+  const markdown = Array.isArray(rich) && rich.some((span) => span && String(span.text || '').length)
+    ? spansToMarkdown(rich)
+    : asString(text, TEXT_MAX);
+  return parseBulletText(markdown);
+}
+
 function slugKey(text) {
   return asString(text, TITLE_MAX).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'other';
 }
@@ -677,7 +687,162 @@ function priorityForReqIndex(index, total) {
 }
 
 function textKey(bullet) {
-  return bulletPlainText(bullet).toLowerCase().replace(/\s+/g, ' ');
+  return bulletPlainText(bullet).toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function sameIdList(a, b) {
+  const left = a || [];
+  const right = b || [];
+  return left.length === right.length && left.every((id, index) => id === right[index]);
+}
+
+function requirementLines(store) {
+  const lines = [];
+  for (const posting of store?.postings || []) {
+    for (const req of posting.requirements || []) {
+      for (const line of req.bullets || []) {
+        if (line?.id || line?.text || line?.entryId) lines.push(line);
+      }
+    }
+  }
+  return lines;
+}
+
+function requirementIndex(store) {
+  const byId = new Map();
+  for (const line of requirementLines(store)) {
+    if (line?.id) byId.set(line.id, line);
+  }
+  return byId;
+}
+
+function liveFieldsForLine(line, store) {
+  const entry = line?.entryId ? entryById(store, line.entryId) : null;
+  const text = asString(entry?.title || line?.text, TEXT_MAX);
+  if (!text) return null;
+  return {
+    entryId: entry?.id || '',
+    ...resumeFieldsFromExperience(text, entry?.title ? entry.rich : line?.rich),
+  };
+}
+
+function leadOwnerOk(bullet, entryId) {
+  const owners = (bullet?.sourceEntryIds || []).filter(Boolean);
+  if (!owners.length) return true;
+  return Boolean(entryId) && owners.includes(entryId);
+}
+
+// A career bullet is the same experience when it shares an id, the entry,
+// the current wording, or — if nothing else matches — one long lead-in.
+function findClaimTarget(jobs, line, fields) {
+  const leadKey = asString(fields?.lead, LEAD_MAX).toLowerCase();
+  const liveKey = fields ? textKey(fields) : '';
+  let byId = null;
+  let bySource = null;
+  let byEntry = null;
+  let byText = null;
+  const leadHits = [];
+  for (const job of jobs || []) {
+    for (const group of job.groups || []) {
+      for (const bullet of group.bullets || []) {
+        if (!byId && line?.id && bullet.id === line.id) byId = bullet;
+        if (!bySource && line?.id && (bullet.sourceBulletIds || []).includes(line.id)) bySource = bullet;
+        if (!byEntry && line?.entryId && (bullet.sourceEntryIds || []).includes(line.entryId)) byEntry = bullet;
+        if (!byText && liveKey && textKey(bullet) === liveKey) byText = bullet;
+        if (leadKey.length >= 12 && asString(bullet.lead, LEAD_MAX).toLowerCase() === leadKey) leadHits.push(bullet);
+      }
+    }
+  }
+  if (byId) return byId;
+  if (bySource) return bySource;
+  if (byEntry) return byEntry;
+  if (byText) return byText;
+  if (line?.entryId && leadHits.length === 1 && leadOwnerOk(leadHits[0], line.entryId)) return leadHits[0];
+  return null;
+}
+
+function claimExperienceLine(jobs, line, store) {
+  const fields = liveFieldsForLine(line, store);
+  if (!fields) return { found: false, changed: false };
+  const bullet = findClaimTarget(jobs, line, fields);
+  if (!bullet) return { found: false, changed: false };
+  if (bullet.hasOverride) return { found: true, changed: false };
+  const sourceEntryIds = fields.entryId
+    ? [...new Set([...(bullet.sourceEntryIds || []), fields.entryId])]
+    : [...(bullet.sourceEntryIds || [])];
+  const sourceBulletIds = line?.id
+    ? [...new Set([...(bullet.sourceBulletIds || []), line.id])]
+    : [...(bullet.sourceBulletIds || [])];
+  if (
+    bullet.lead === fields.lead
+    && bullet.body === fields.body
+    && sameIdList(bullet.sourceEntryIds, sourceEntryIds)
+    && sameIdList(bullet.sourceBulletIds, sourceBulletIds)
+  ) {
+    return { found: true, changed: false };
+  }
+  bullet.lead = fields.lead;
+  bullet.body = fields.body;
+  bullet.sourceEntryIds = sourceEntryIds;
+  bullet.sourceBulletIds = sourceBulletIds;
+  return { found: true, changed: true };
+}
+
+function fieldsFromLinks(bullet, store, byId) {
+  const entryId = (bullet.sourceEntryIds || [])[0] || '';
+  const linked = entryId ? entryById(store, entryId) : null;
+  if (linked?.title) {
+    return { entryId: linked.id, ...resumeFieldsFromExperience(linked.title, linked.rich) };
+  }
+  const ids = [...(bullet.sourceBulletIds || [])];
+  if (bullet.id) ids.push(bullet.id);
+  for (const id of ids) {
+    const line = byId.get(id);
+    if (!line) continue;
+    const fields = liveFieldsForLine(line, store);
+    if (fields) return fields;
+  }
+  return null;
+}
+
+export function projectExperienceOntoJobs(jobs, store) {
+  const copy = (jobs || []).map((job) => ({
+    ...job,
+    groups: (job.groups || []).map((group) => ({
+      ...group,
+      bullets: (group.bullets || []).map((bullet) => ({
+        ...bullet,
+        sourceEntryIds: [...(bullet.sourceEntryIds || [])],
+        sourceBulletIds: [...(bullet.sourceBulletIds || [])],
+      })),
+    })),
+  }));
+  let changed = false;
+  for (const line of requirementLines(store)) {
+    if (claimExperienceLine(copy, line, store).changed) changed = true;
+  }
+  const byId = requirementIndex(store);
+  for (const job of copy) {
+    for (const group of job.groups || []) {
+      for (const bullet of group.bullets || []) {
+        const fields = fieldsFromLinks(bullet, store, byId);
+        if (!fields) continue;
+        const sourceEntryIds = fields.entryId
+          ? [...new Set([...(bullet.sourceEntryIds || []), fields.entryId])]
+          : [...(bullet.sourceEntryIds || [])];
+        if (
+          bullet.lead === fields.lead
+          && bullet.body === fields.body
+          && sameIdList(bullet.sourceEntryIds, sourceEntryIds)
+        ) continue;
+        bullet.lead = fields.lead;
+        bullet.body = fields.body;
+        bullet.sourceEntryIds = sourceEntryIds;
+        changed = true;
+      }
+    }
+  }
+  return changed ? copy : (jobs || []);
 }
 
 function knownKeys(jobs) {
@@ -720,12 +885,19 @@ function mergePostingBullets(jobs, posting, store, variant) {
   reqs.forEach((req, reqIndex) => {
     const priority = priorityForReqIndex(reqIndex, reqs.length);
     for (const line of req.bullets || []) {
-      const text = asString(line?.text, TEXT_MAX);
-      if (!text) continue;
+      const fields = liveFieldsForLine(line, store);
+      if (!fields) continue;
+      const claim = claimExperienceLine(jobs, line, store);
+      if (claim.found) {
+        keys.add(line.id);
+        keys.add(`src:${line.id}`);
+        if (line.entryId) keys.add(`entry:${line.entryId}`);
+        keys.add(`text:${textKey(fields)}`);
+        continue;
+      }
       if (keys.has(line.id) || keys.has(`src:${line.id}`)) continue;
       if (line.entryId && keys.has(`entry:${line.entryId}`)) continue;
-      const parsed = parseBulletText(text);
-      if (keys.has(`text:${textKey(parsed)}`)) continue;
+      if (keys.has(`text:${textKey(fields)}`)) continue;
       const entry = line.entryId ? entryById(store, line.entryId) : null;
       const matched = matchJobForEntry(jobs, entry);
       const job = matched || ensureJob(jobs, {
@@ -737,8 +909,8 @@ function mergePostingBullets(jobs, posting, store, variant) {
       const group = job.groups[job.groups.length - 1];
       const bullet = applyBulletVariant({
         id: line.id,
-        lead: parsed.lead,
-        body: parsed.body,
+        lead: fields.lead,
+        body: fields.body,
         priority,
         pinned: false,
         sourceBulletIds: [line.id],
@@ -755,22 +927,22 @@ function mergePostingBullets(jobs, posting, store, variant) {
 }
 
 function projectEntryLines(jobs, store) {
+  const byId = requirementIndex(store);
   return (jobs || []).map((job) => ({
     ...job,
     groups: (job.groups || []).map((group) => ({
       ...group,
       bullets: (group.bullets || []).map((bullet) => {
         if (bullet.hasOverride) return bullet;
-        const entryId = (bullet.sourceEntryIds || [])[0];
-        if (!entryId) return bullet;
-        const entry = entryById(store, entryId);
-        if (!entry?.title) return bullet;
-        const markdown = Array.isArray(entry.rich) && entry.rich.length
-          ? spansToMarkdown(entry.rich)
-          : entry.title;
-        const fields = parseBulletText(markdown);
-        if (bullet.lead === fields.lead && bullet.body === fields.body) return bullet;
-        return { ...bullet, lead: fields.lead, body: fields.body };
+        const fields = fieldsFromLinks(bullet, store, byId);
+        if (!fields) return bullet;
+        const sourceEntryIds = fields.entryId
+          ? [...new Set([...(bullet.sourceEntryIds || []), fields.entryId])]
+          : bullet.sourceEntryIds;
+        if (bullet.lead === fields.lead && bullet.body === fields.body && sameIdList(bullet.sourceEntryIds, sourceEntryIds)) {
+          return bullet;
+        }
+        return { ...bullet, lead: fields.lead, body: fields.body, sourceEntryIds };
       }),
     })),
   }));

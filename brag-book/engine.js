@@ -31,6 +31,9 @@ import {
   moveKey,
   insertKeyAfter,
   compileResumeDoc,
+  projectExperienceOntoJobs,
+  resumeFieldsFromExperience,
+  bulletPlainText,
   addLocalJob,
   updateLocalJob,
   deleteLocalJob,
@@ -583,28 +586,183 @@ function experienceLineMatches(store, entryId, formatted) {
   return true;
 }
 
-function applyExperienceLine(store, entryId, text, rich, clock) {
+function experiencePlain(text, rich) {
+  return bulletPlainText(resumeFieldsFromExperience(text, rich)).toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function resumePlain(bullet) {
+  return bulletPlainText(bullet).toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function entryLineIds(store, entryId) {
+  const ids = new Set();
+  for (const posting of store?.postings || []) {
+    for (const req of posting.requirements || []) {
+      for (const line of req.bullets || []) {
+        if (line.entryId === entryId && line.id) ids.add(line.id);
+      }
+    }
+  }
+  return ids;
+}
+
+function plainsForEntry(store, entryId) {
+  const plains = new Set();
+  const entry = entryById(store, entryId);
+  if (entry?.title) plains.add(experiencePlain(entry.title, entry.rich));
+  for (const posting of store?.postings || []) {
+    for (const req of posting.requirements || []) {
+      for (const line of req.bullets || []) {
+        if (line.entryId === entryId && line.text) plains.add(experiencePlain(line.text, line.rich));
+      }
+    }
+  }
+  return plains;
+}
+
+function sameStringList(a, b) {
+  const left = a || [];
+  const right = b || [];
+  return left.length === right.length && left.every((item, index) => item === right[index]);
+}
+
+function withExperienceFields(bullet, fields, entryId, sourceIds) {
+  const sourceEntryIds = entryId
+    ? [...new Set([...(bullet.sourceEntryIds || []), entryId])]
+    : [...(bullet.sourceEntryIds || [])];
+  const sourceBulletIds = sourceIds?.size
+    ? [...new Set([...(bullet.sourceBulletIds || []), ...sourceIds])]
+    : [...(bullet.sourceBulletIds || [])];
+  if (
+    bullet.lead === fields.lead
+    && bullet.body === fields.body
+    && sameStringList(bullet.sourceEntryIds, sourceEntryIds)
+    && sameStringList(bullet.sourceBulletIds, sourceBulletIds)
+  ) return bullet;
+  return { ...bullet, lead: fields.lead, body: fields.body, sourceEntryIds, sourceBulletIds };
+}
+
+function rewriteJobWording(jobs, entryId, fields, previous, sourceIds) {
+  let changed = false;
+  const next = (jobs || []).map((job) => {
+    let jobChanged = false;
+    const groups = (job.groups || []).map((group) => {
+      let groupChanged = false;
+      const bullets = (group.bullets || []).map((bullet) => {
+        const owners = (bullet.sourceEntryIds || []).filter(Boolean);
+        const linkedHere = owners.includes(entryId)
+          || (bullet.sourceBulletIds || []).some((id) => sourceIds.has(id))
+          || sourceIds.has(bullet.id);
+        const plain = resumePlain(bullet);
+        const sameWords = plain && previous.has(plain) && (!owners.length || owners.includes(entryId));
+        if (!linkedHere && !sameWords) return bullet;
+        const updated = withExperienceFields(bullet, fields, entryId, sourceIds);
+        if (updated === bullet) return bullet;
+        groupChanged = true;
+        return updated;
+      });
+      if (!groupChanged) return group;
+      jobChanged = true;
+      return { ...group, bullets };
+    });
+    if (!jobChanged) return job;
+    changed = true;
+    return { ...job, groups };
+  });
+  return changed ? next : jobs;
+}
+
+function rewriteResumeWording(store, entryId, formatted, previous) {
+  const fields = resumeFieldsFromExperience(formatted.text, formatted.rich);
+  const sourceIds = entryLineIds(store, entryId);
+  const jobs = rewriteJobWording(store.jobs, entryId, fields, previous, sourceIds);
+  let postingsChanged = false;
+  const postings = (store.postings || []).map((posting) => {
+    const localJobs = posting.resume?.localJobs;
+    if (!localJobs?.length) return posting;
+    const projected = rewriteJobWording(localJobs, entryId, fields, previous, sourceIds);
+    if (projected === localJobs) return posting;
+    postingsChanged = true;
+    return {
+      ...posting,
+      resume: normalizeResumeVariant({ ...posting.resume, localJobs: projected }),
+    };
+  });
+  if (jobs === store.jobs && !postingsChanged) return store;
+  return { ...store, jobs, postings: postingsChanged ? postings : store.postings };
+}
+
+function clearStaleOverrides(store, previous) {
+  if (!previous?.size) return store;
+  let changed = false;
+  const postings = (store.postings || []).map((posting) => {
+    const overrides = posting.resume?.overrides;
+    if (!overrides || !Object.keys(overrides).length) return posting;
+    let nextOverrides = null;
+    for (const [id, over] of Object.entries(overrides)) {
+      const plain = resumePlain({ lead: over?.lead || '', body: over?.body || '' });
+      if (!plain || !previous.has(plain)) continue;
+      if (!nextOverrides) nextOverrides = { ...overrides };
+      delete nextOverrides[id];
+      changed = true;
+    }
+    if (!nextOverrides) return posting;
+    return {
+      ...posting,
+      resume: normalizeResumeVariant({ ...posting.resume, overrides: nextOverrides }),
+    };
+  });
+  return changed ? { ...store, postings } : store;
+}
+
+function projectResumeStore(store) {
+  const jobs = projectExperienceOntoJobs(store.jobs, store);
+  let postingsChanged = false;
+  const postings = (store.postings || []).map((posting) => {
+    const localJobs = posting.resume?.localJobs;
+    if (!localJobs?.length) return posting;
+    const projected = projectExperienceOntoJobs(localJobs, store);
+    if (projected === localJobs) return posting;
+    postingsChanged = true;
+    return {
+      ...posting,
+      resume: normalizeResumeVariant({ ...posting.resume, localJobs: projected }),
+    };
+  });
+  if (jobs === store.jobs && !postingsChanged) return store;
+  return { ...store, jobs, postings: postingsChanged ? postings : store.postings };
+}
+
+function applyExperienceLine(store, entryId, text, rich, clock, extraPlains) {
   const formatted = normalizeRichSpans(rich, text);
   if (!entryId || !formatted) return store;
-  if (experienceLineMatches(store, entryId, formatted)) return store;
-  let next = replaceEntry(store, entryId, { title: formatted.text, rich: formatted.rich }, clock);
-  next = {
-    ...next,
-    postings: (next.postings || []).map((job) => ({
-      ...job,
-      requirements: job.requirements.map((req) => {
-        let changed = false;
-        const bullets = req.bullets.map((line) => {
-          if (line.entryId !== entryId) return line;
-          if (line.text === formatted.text && sameRich(line.rich, formatted.rich)) return line;
-          changed = true;
-          return normalizeBullet({ ...line, text: formatted.text, rich: formatted.rich, id: line.id }, clock) || line;
-        });
-        return changed ? withBullets(req, bullets) : req;
-      }),
-    })),
-  };
-  return next;
+  const previous = plainsForEntry(store, entryId);
+  for (const plain of extraPlains || []) {
+    if (plain) previous.add(plain);
+  }
+  let next = store;
+  if (!experienceLineMatches(store, entryId, formatted)) {
+    next = replaceEntry(store, entryId, { title: formatted.text, rich: formatted.rich }, clock);
+    next = {
+      ...next,
+      postings: (next.postings || []).map((job) => ({
+        ...job,
+        requirements: job.requirements.map((req) => {
+          let changed = false;
+          const bullets = req.bullets.map((line) => {
+            if (line.entryId !== entryId) return line;
+            if (line.text === formatted.text && sameRich(line.rich, formatted.rich)) return line;
+            changed = true;
+            return normalizeBullet({ ...line, text: formatted.text, rich: formatted.rich, id: line.id }, clock) || line;
+          });
+          return changed ? withBullets(req, bullets) : req;
+        }),
+      })),
+    };
+  }
+  next = rewriteResumeWording(next, entryId, formatted, previous);
+  next = clearStaleOverrides(next, previous);
+  return projectResumeStore(next);
 }
 
 function alignExperienceLines(store, clock) {
@@ -613,7 +771,7 @@ function alignExperienceLines(store, clock) {
     if (!entry?.id) continue;
     next = applyExperienceLine(next, entry.id, entry.title, entry.rich, clock);
   }
-  return next;
+  return projectResumeStore(next);
 }
 
 function touched(record, clock) {
@@ -1075,6 +1233,8 @@ function careerDraftFromCompiled(career) {
         body: bullet.body || '',
         priority: bullet.priority,
         pinned: bullet.pinned,
+        sourceBulletIds: bullet.sourceBulletIds || [],
+        sourceEntryIds: bullet.sourceEntryIds || [],
       })),
     })),
   };
@@ -1441,6 +1601,8 @@ export function updateBullet(store, postingId, requirementId, bulletId, patch, c
   if (Object.prototype.hasOwnProperty.call(nextPatch, 'text') && !Object.prototype.hasOwnProperty.call(nextPatch, 'rich')) {
     nextPatch.rich = null;
   }
+  const before = requirementById(postingById(store, postingId), requirementId)?.bullets.find((line) => line.id === bulletId);
+  const priorPlain = before?.text ? experiencePlain(before.text, before.rich) : '';
   const next = mapRequirement(
     store,
     postingId,
@@ -1456,8 +1618,8 @@ export function updateBullet(store, postingId, requirementId, bulletId, patch, c
   );
   if (!Object.prototype.hasOwnProperty.call(nextPatch, 'text')) return next;
   const bullet = requirementById(postingById(next, postingId), requirementId)?.bullets.find((line) => line.id === bulletId);
-  if (!bullet?.entryId) return next;
-  return applyExperienceLine(next, bullet.entryId, bullet.text, bullet.rich, clock);
+  if (!bullet?.entryId) return projectResumeStore(next);
+  return applyExperienceLine(next, bullet.entryId, bullet.text, bullet.rich, clock, priorPlain ? [priorPlain] : []);
 }
 
 export function deleteBullet(store, postingId, requirementId, bulletId, clock = Date.now) {

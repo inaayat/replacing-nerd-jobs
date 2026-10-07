@@ -429,6 +429,123 @@ assert.equal(propagated.postings[0].requirements[0].bullets[0].text, 'Updated ev
 assert.equal(propagated.postings[0].requirements[1].bullets[0].entryId, propEntryId);
 assert.equal(propagated.postings[0].requirements[1].bullets[0].text, 'Updated everywhere');
 assert.equal(compileResume(postingById(propagated, propJob), propagated).bullets[0], 'Updated everywhere');
+
+let resumeFollows = addPosting(emptyStore(), { title: 'Resume follows posting' }, clock);
+const followJob = resumeFollows.postings[0].id;
+resumeFollows = addRequirement(resumeFollows, followJob, 'Need the line', clock);
+const followReq = resumeFollows.postings[0].requirements[0].id;
+resumeFollows = createEntryBullet(resumeFollows, followJob, followReq, 'Playbook owner: kept the old result', clock);
+const followEntry = resumeFollows.entries[0].id;
+const followLine = resumeFollows.postings[0].requirements[0].bullets[0].id;
+resumeFollows = addCareerJob(resumeFollows, {
+  id: 'rj_follow',
+  company: 'PwC',
+  title: 'Manager',
+  groups: [{
+    id: 'rg_follow',
+    heading: '',
+    bullets: [{
+      id: 'rb_follow',
+      lead: 'Playbook owner',
+      body: 'kept the old result',
+      sourceBulletIds: [followLine],
+    }],
+  }],
+}, clock);
+resumeFollows = updateBullet(resumeFollows, followJob, followReq, followLine, {
+  text: 'Playbook owner: rewrote the result for this posting',
+  rich: [{ text: 'Playbook owner: ', bold: false }, { text: 'rewrote the result', bold: true }, { text: ' for this posting', bold: false }],
+}, clock);
+assert.equal(resumeFollows.entries.length, 1);
+assert.equal(resumeFollows.jobs.length, 1);
+assert.equal(resumeFollows.jobs[0].groups[0].bullets.length, 1);
+assert.equal(resumeFollows.jobs[0].groups[0].bullets[0].lead, 'Playbook owner');
+assert.match(resumeFollows.jobs[0].groups[0].bullets[0].body, /rewrote the result/);
+assert.ok(resumeFollows.jobs[0].groups[0].bullets[0].sourceEntryIds.includes(followEntry));
+const followDoc = compileResumeDoc(postingById(resumeFollows, followJob), resumeFollows);
+const followBullets = followDoc.sections.experience.jobs.flatMap((job) => job.groups.flatMap((group) => group.bullets));
+assert.equal(followBullets.length, 1);
+assert.equal(followBullets[0].lead, 'Playbook owner');
+assert.match(followBullets[0].body, /rewrote the result/);
+assert.equal(compileResumeDoc(null, resumeFollows).sections.experience.jobs[0].groups[0].bullets[0].lead, 'Playbook owner');
+
+const diverged = normalizeStore({
+  entries: [{ id: 'en_div', title: 'Decision framework: the posting now says this', kind: 'experience' }],
+  jobs: [{
+    id: 'rj_div',
+    company: 'PwC',
+    title: 'Manager',
+    groups: [{
+      id: 'rg_div',
+      heading: '',
+      bullets: [{ id: 'rb_div', lead: 'Decision framework', body: 'the resume still says the old line' }],
+    }],
+  }],
+  postings: [{
+    title: 'Role',
+    requirements: [{
+      text: 'Need it',
+      bullets: [{ id: 'ln_div', text: 'Decision framework: the posting now says this', entryId: 'en_div' }],
+    }],
+  }],
+}, clock);
+assert.equal(diverged.jobs.length, 1);
+assert.equal(diverged.jobs[0].groups[0].bullets.length, 1);
+assert.equal(diverged.jobs[0].groups[0].bullets[0].lead, 'Decision framework');
+assert.match(diverged.jobs[0].groups[0].bullets[0].body, /posting now says this/);
+const divergedDoc = compileResumeDoc(diverged.postings[0], diverged);
+const divergedBullets = divergedDoc.sections.experience.jobs.flatMap((job) => job.groups.flatMap((group) => group.bullets));
+assert.equal(divergedBullets.length, 1);
+assert.match(bulletLineText(divergedBullets[0]), /posting now says this/);
+
+let rewritten = addPosting(emptyStore(), { title: 'Full rewrite' }, clock);
+const rewriteJob = rewritten.postings[0].id;
+rewritten = addRequirement(rewritten, rewriteJob, 'Need', clock);
+const rewriteReq = rewritten.postings[0].requirements[0].id;
+rewritten = createEntryBullet(rewritten, rewriteJob, rewriteReq, 'Original line: did the work', clock);
+const rewriteLine = rewritten.postings[0].requirements[0].bullets[0].id;
+rewritten = addCareerJob(rewritten, {
+  id: 'rj_rewrite',
+  company: 'PwC',
+  title: 'Manager',
+  groups: [{
+    id: 'rg_rewrite',
+    heading: '',
+    bullets: [{ id: 'rb_rewrite', lead: 'Original line', body: 'did the work' }],
+  }],
+}, clock);
+rewritten = updateBullet(rewritten, rewriteJob, rewriteReq, rewriteLine, 'Completely different wording from the posting', clock);
+assert.equal(rewritten.jobs[0].groups[0].bullets.length, 1);
+assert.match(bulletLineText(rewritten.jobs[0].groups[0].bullets[0]), /Completely different wording/);
+const rewriteDoc = compileResumeDoc(rewritten.postings[0], rewritten);
+assert.equal(rewriteDoc.sections.experience.jobs.length, 1);
+assert.equal(rewriteDoc.sections.experience.jobs[0].groups[0].bullets.length, 1);
+
+let forked = addPosting(emptyStore(), { title: 'Forked wording' }, clock);
+const forkJob = forked.postings[0].id;
+forked = addRequirement(forked, forkJob, 'Need', clock);
+const forkReq = forked.postings[0].requirements[0].id;
+forked = createEntryBullet(forked, forkJob, forkReq, 'Shared lead in: the source line', clock);
+const forkBulletId = 'rb_fork';
+forked = addCareerJob(forked, {
+  id: 'rj_fork',
+  company: 'PwC',
+  title: 'Manager',
+  groups: [{
+    id: 'rg_fork',
+    heading: '',
+    bullets: [{ id: forkBulletId, lead: 'Shared lead in', body: 'the source line', sourceEntryIds: [forked.entries[0].id] }],
+  }],
+}, clock);
+forked = updatePostingResume(forked, forkJob, {
+  overrides: { [forkBulletId]: { lead: 'Resume only', body: 'a tailored fork that must stay' } },
+}, clock);
+forked = updateBullet(forked, forkJob, forkReq, forked.postings[0].requirements[0].bullets[0].id, 'Shared lead in: the posting changed', clock);
+const forkDoc = compileResumeDoc(forked.postings[0], forked);
+const forkBullet = forkDoc.sections.experience.jobs[0].groups[0].bullets.find((bullet) => bullet.id === forkBulletId);
+assert.equal(forkBullet.lead, 'Resume only');
+assert.equal(forkBullet.hasOverride, true);
+assert.match(forked.jobs[0].groups[0].bullets[0].body, /posting changed/);
 const reloadedProp = normalizeStore(JSON.parse(JSON.stringify(propagated)), clock);
 assert.equal(reloadedProp.entries.length, propCount);
 assert.equal(reloadedProp.entries.find((entry) => entry.id === propEntryId).title, 'Updated everywhere');
