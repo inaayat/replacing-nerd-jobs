@@ -34,6 +34,8 @@ import {
   projectExperienceOntoJobs,
   resumeFieldsFromExperience,
   bulletPlainText,
+  bulletLineText,
+  ignoreBoldMarkers,
   addLocalJob,
   updateLocalJob,
   deleteLocalJob,
@@ -852,7 +854,39 @@ export function addEntry(store, draft, clock = Date.now) {
 
 export function addEntries(store, drafts, clock = Date.now) {
   let next = store;
-  for (const draft of [...(drafts || [])].reverse()) next = addEntry(next, draft, clock);
+  for (const draft of [...(drafts || [])].reverse()) {
+    next = createSharedBullet(next, draft, clock).store;
+  }
+  return next;
+}
+
+export function createSharedBullet(store, draft = {}, clock = Date.now) {
+  const fields = experienceDetailPatch(draft);
+  const jobId = fields.jobId || draft.jobId || '';
+  delete fields.jobId;
+  if (!fields.title && !fields.rich && !draft.title) return { store, entryId: '' };
+  const { jobId: _ignored, ...rest } = draft;
+  let next = addEntry(store, {
+    ...rest,
+    ...fields,
+    jobId: '',
+    kind: draft.kind || 'experience',
+  }, clock);
+  const entryId = next.entries[0]?.id || '';
+  if (entryId && jobId) next = assignEntryJob(next, entryId, jobId, clock);
+  return { store: next, entryId };
+}
+
+export function saveSharedBullet(store, entryId, patch = {}, clock = Date.now) {
+  const entry = entryById(store, entryId);
+  if (!entry) return store;
+  const fields = experienceDetailPatch(patch);
+  let next = store;
+  if (Object.prototype.hasOwnProperty.call(fields, 'jobId')) {
+    next = assignEntryJob(next, entryId, fields.jobId, clock);
+    delete fields.jobId;
+  }
+  if (Object.keys(fields).length) next = updateEntry(next, entryId, fields, clock);
   return next;
 }
 
@@ -1593,9 +1627,9 @@ export function mergeJobs(store, keepId, dropId, clock = Date.now) {
   return next;
 }
 
-// An edit on this posting's resume is the only wording override compile will
-// apply. The experience update runs first. edited: true marks that override
-// so an imported or copied override cannot keep hiding the library line.
+// Going forward, a resume wording edit updates the one shared library record.
+// Existing edited: true overrides still render as stored; this does not write
+// a new override and does not rewrite stored bullets on load.
 export function applyResumeBulletEdit(store, {
   postingId = null,
   jobId,
@@ -1605,39 +1639,112 @@ export function applyResumeBulletEdit(store, {
   local = false,
 } = {}, clock = Date.now) {
   if (!bullet?.id) return store;
-  const next = bulletFromLine(spansToMarkdown(spans));
-  const entryId = (bullet.sourceEntryIds || [])[0];
   const entryText = (spans || []).map((span) => String(span?.text || '')).join('');
+  if (!entryText.trim()) return store;
   let nextStore = store;
-  if (entryId && entryText.trim()) {
-    nextStore = updateEntry(nextStore, entryId, { title: entryText, rich: spans }, clock);
-  }
-  const shared = (nextStore.jobs || []).some((job) => job.id === jobId);
-  if (!postingId || shared) {
-    const job = (nextStore.jobs || []).find((item) => item.id === jobId);
-    if (job) {
-      nextStore = updateCareerJob(nextStore, jobId, {
-        groups: (job.groups || []).map((item) => (
-          item.id === groupId
-            ? {
-              ...item,
-              bullets: (item.bullets || []).map((row) => (
-                row.id === bullet.id ? { ...row, ...next } : row
-              )),
-            }
-            : item
-        )),
+  let entryId = (bullet.sourceEntryIds || [])[0];
+  if (!entryId || !entryById(nextStore, entryId)) {
+    const created = createSharedBullet(nextStore, {
+      title: entryText,
+      rich: spans,
+      jobId: (nextStore.jobs || []).some((job) => job.id === jobId) ? jobId : '',
+    }, clock);
+    nextStore = created.store;
+    entryId = created.entryId;
+    if (entryId) {
+      nextStore = attachResumeBulletSource(nextStore, {
+        postingId,
+        jobId,
+        groupId,
+        bulletId: bullet.id,
+        entryId,
+        local,
       }, clock);
     }
-  } else if (local) {
-    nextStore = updatePostingLocalBullet(nextStore, postingId, jobId, groupId, bullet.id, next, clock);
   }
-  if (postingId) {
-    nextStore = updatePostingResume(nextStore, postingId, {
-      overrides: { [bullet.id]: { ...next, edited: true } },
+  if (!entryId) return nextStore;
+  return updateEntry(nextStore, entryId, { title: entryText, rich: spans }, clock);
+}
+
+function attachResumeBulletSource(store, {
+  postingId,
+  jobId,
+  groupId,
+  bulletId,
+  entryId,
+  local = false,
+} = {}, clock = Date.now) {
+  if (!bulletId || !entryId) return store;
+  const shared = (store.jobs || []).some((job) => job.id === jobId);
+  if (!postingId || shared) {
+    const job = (store.jobs || []).find((item) => item.id === jobId);
+    if (!job) return store;
+    return updateCareerJob(store, jobId, {
+      groups: (job.groups || []).map((item) => (
+        item.id === groupId
+          ? {
+            ...item,
+            bullets: (item.bullets || []).map((row) => (
+              row.id === bulletId
+                ? { ...row, sourceEntryIds: [...new Set([...(row.sourceEntryIds || []), entryId])] }
+                : row
+            )),
+          }
+          : item
+      )),
     }, clock);
   }
-  return nextStore;
+  if (local) {
+    const current = findLocalBullet(postingById(store, postingId)?.resume, bulletId);
+    return updatePostingLocalBullet(store, postingId, jobId, groupId, bulletId, {
+      sourceEntryIds: [...new Set([...(current?.sourceEntryIds || []), entryId])],
+    }, clock);
+  }
+  return store;
+}
+
+export function bulletConsistency(store) {
+  const issues = [];
+  const checkDoc = (posting, doc) => {
+    for (const job of doc?.sections?.experience?.jobs || []) {
+      for (const group of job.groups || []) {
+        for (const bullet of group.bullets || []) {
+          const entryId = (bullet.sourceEntryIds || [])[0];
+          const entry = entryId ? entryById(store, entryId) : null;
+          if (!entry) continue;
+          if (bullet.hasOverride) continue;
+          const compiled = ignoreBoldMarkers(bulletLineText(bullet)).replace(/\s+/g, ' ').trim();
+          const library = ignoreBoldMarkers(entry.title || '').replace(/\s+/g, ' ').trim();
+          if (compiled === library) continue;
+          issues.push({
+            kind: 'resume',
+            postingId: posting?.id || '',
+            bulletId: bullet.id,
+            entryId,
+          });
+        }
+      }
+    }
+  };
+  checkDoc(null, compileResumeDoc(null, store));
+  for (const posting of store?.postings || []) {
+    checkDoc(posting, compileResumeDoc(posting, store));
+    for (const req of posting.requirements || []) {
+      for (const line of req.bullets || []) {
+        if (!line.entryId) continue;
+        const entry = entryById(store, line.entryId);
+        if (!entry) continue;
+        if ((line.text || '') === (entry.title || '')) continue;
+        issues.push({
+          kind: 'requirement',
+          postingId: posting.id,
+          bulletId: line.id,
+          entryId: line.entryId,
+        });
+      }
+    }
+  }
+  return issues;
 }
 
 export function moveCareerJob(store, id, delta) {
@@ -2192,13 +2299,18 @@ export function addEntryBullet(store, postingId, requirementId, entryId, text = 
   return applyExperienceLine(next, entryId, line.text, line.rich, clock);
 }
 
-export function createEntryBullet(store, postingId, requirementId, text, clock = Date.now, rich) {
+export function createEntryBullet(store, postingId, requirementId, text, clock = Date.now, rich, extra = {}) {
   const formatted = normalizeRichSpans(rich, text);
   const title = asString(formatted?.text || text, TEXT_MAX);
   if (!title || !formatted) return store;
-  const entryId = newId('en', clock);
-  const next = addEntry(store, { id: entryId, title: formatted.text, rich: formatted.rich, kind: 'experience' }, clock);
-  return addEntryBullet(next, postingId, requirementId, entryId, formatted.text, clock, formatted.rich);
+  const created = createSharedBullet(store, {
+    ...extra,
+    title: formatted.text,
+    rich: formatted.rich,
+    kind: 'experience',
+  }, clock);
+  if (!created.entryId) return store;
+  return addEntryBullet(created.store, postingId, requirementId, created.entryId, formatted.text, clock, formatted.rich);
 }
 
 export function updateBullet(store, postingId, requirementId, bulletId, patch, clock = Date.now) {
