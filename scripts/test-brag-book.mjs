@@ -172,10 +172,19 @@ import { parseViewHash, viewHash, viewTitle, defaultView, logLayout, hideBookRai
 import { bookPagePlan, experienceRowSpec, sharedBulletSpec, SHARED_BULLET_FIELDS, STAR_FIELDS, experienceAdderChrome, nextExperienceAdderOpen, resumeBulletArrows, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys } from '../brag-book/book-view.js';
 import {
   applyKnowledgeEnter,
+  applyKnowledgeHeadingBreak,
+  applyKnowledgeHeadingMarker,
   applyKnowledgeListMarker,
   applyKnowledgeTab,
   groupKnowledgeBlocks,
+  insertKnowledgeBlocks,
+  knowledgeDocFromHtml,
+  knowledgeDocFromMarkdown,
   knowledgeEditEffects,
+  knowledgeMarkShortcut,
+  knowledgePasteDoc,
+  knowledgePlainText,
+  setKnowledgeHeading,
   toggleKnowledgeMark,
 } from '../brag-book/knowledge-doc.js';
 import { renderResumeHtml } from '../brag-book/resume-template.js';
@@ -2211,7 +2220,117 @@ assert.equal(italicRange.doc[0].spans.find((span) => span.text === 'there').ital
 assert.equal(knowledgeEditEffects('input').render, false);
 assert.equal(knowledgeEditEffects('input').save, true);
 assert.equal(knowledgeEditEffects('keydown').render, false);
+assert.equal(knowledgeEditEffects('keydown').save, true);
 assert.equal(knowledgeEditEffects('toolbar').render, false);
+assert.deepEqual(knowledgeMarkShortcut({ key: 'b', metaKey: true }), { command: 'bold', preventDefault: true });
+assert.deepEqual(knowledgeMarkShortcut({ key: 'B', ctrlKey: true }), { command: 'bold', preventDefault: true });
+assert.deepEqual(knowledgeMarkShortcut({ key: 'i', metaKey: true }), { command: 'italic', preventDefault: true });
+assert.deepEqual(knowledgeMarkShortcut({ key: 'i', ctrlKey: true }), { command: 'italic', preventDefault: true });
+assert.equal(knowledgeMarkShortcut({ key: 'b' }), null);
+assert.equal(knowledgeMarkShortcut({ key: 'b', metaKey: true, altKey: true }), null);
+assert.equal(knowledgeMarkShortcut({ key: 'b', ctrlKey: true, shiftKey: true }), null);
+assert.equal(knowledgeMarkShortcut({ key: 'b', metaKey: true, ctrlKey: true }), null);
+assert.equal(knowledgeMarkShortcut({ key: 'b', metaKey: true, repeat: true }), null);
+assert.equal(knowledgeMarkShortcut({ key: 'u', metaKey: true }), null);
+const caretMark = toggleKnowledgeMark(
+  [{ type: 'p', spans: [{ text: 'hello there', bold: false, italic: false }] }],
+  { index: 0, start: 4, end: 4 },
+  'bold',
+);
+assert.equal(caretMark.changed, false);
+assert.equal(caretMark.doc[0].spans[0].bold, false);
+const h3typed = applyKnowledgeHeadingMarker(
+  [{ type: 'p', spans: [{ text: '### Topic', bold: false, italic: false }] }],
+  { index: 0, offset: 9 },
+);
+assert.equal(h3typed.changed, true);
+assert.equal(h3typed.doc[0].type, 'h3');
+assert.equal(h3typed.doc[0].spans[0].text, 'Topic');
+assert.equal(h3typed.caret.offset, 5);
+assert.equal(applyKnowledgeHeadingMarker(
+  [{ type: 'p', spans: [{ text: '## PwC', bold: false }] }],
+  { index: 0, offset: 6 },
+).doc[0].type, 'h2');
+assert.equal(applyKnowledgeHeadingMarker(
+  [{ type: 'p', spans: [{ text: '# Title', bold: false }] }],
+  { index: 0, offset: 7 },
+).doc[0].type, 'h1');
+assert.equal(applyKnowledgeHeadingMarker(
+  [{ type: 'p', spans: [{ text: '#### Nope', bold: false }] }],
+  { index: 0, offset: 9 },
+).changed, false);
+assert.equal(applyKnowledgeHeadingMarker(
+  [{ type: 'p', spans: [{ text: 'hello # there', bold: false }] }],
+  { index: 0, offset: 13 },
+).changed, false);
+const headingSet = setKnowledgeHeading(
+  [{ type: 'p', spans: [{ text: 'Role', bold: false }] }],
+  { index: 0, offset: 2 },
+  2,
+);
+assert.equal(headingSet.doc[0].type, 'h2');
+assert.equal(setKnowledgeHeading(headingSet.doc, { index: 0, offset: 2 }, 2).doc[0].type, 'p');
+const headingBreak = applyKnowledgeHeadingBreak(headingSet.doc, { index: 0, offset: 4 });
+assert.equal(headingBreak.doc[0].type, 'h2');
+assert.equal(headingBreak.doc[1].type, 'p');
+assert.equal(headingBreak.caret.offset, 0);
+const samplePaste = '# Title\n\n## PwC \u2014 Associate (Oct 2021 \u2013 Jun 2023)\n\n### Topic\n\n- Bullet with $1.6M and 100+ controls';
+const sampleDoc = knowledgeDocFromMarkdown(samplePaste);
+assert.equal(sampleDoc.find((block) => block.type === 'h1').spans[0].text, 'Title');
+assert.equal(sampleDoc.find((block) => block.type === 'h2').spans.map((span) => span.text).join(''), 'PwC \u2014 Associate (Oct 2021 \u2013 Jun 2023)');
+assert.equal(sampleDoc.find((block) => block.type === 'h3').spans[0].text, 'Topic');
+assert.equal(sampleDoc.find((block) => block.type === 'li').spans.map((span) => span.text).join(''), 'Bullet with $1.6M and 100+ controls');
+const samplePlain = knowledgePlainText(sampleDoc);
+assert.equal(samplePlain, 'Title\n\nPwC \u2014 Associate (Oct 2021 \u2013 Jun 2023)\n\nTopic\n\nBullet with $1.6M and 100+ controls');
+assert.equal(samplePlain.includes('#'), false);
+assert.equal(samplePlain.includes('**'), false);
+const sampleStored = normalizeKnowledge({ title: 'Pasted', doc: sampleDoc }, clock);
+assert.equal(sampleStored.body, samplePlain);
+assert.equal(sampleStored.doc.find((block) => block.type === 'h2').type, 'h2');
+const markedLine = knowledgeDocFromMarkdown('- **bold** and *italic* and _also_');
+assert.equal(markedLine[0].type, 'li');
+assert.equal(markedLine[0].spans.find((span) => span.text === 'bold').bold, true);
+assert.equal(markedLine[0].spans.find((span) => span.text === 'italic').italic, true);
+assert.equal(markedLine[0].spans.find((span) => span.text === 'also').italic, true);
+assert.equal(knowledgePlainText(markedLine).includes('**'), false);
+assert.equal(knowledgeDocFromMarkdown('  - nested')[0].indent, 1);
+assert.equal(knowledgeDocFromMarkdown('*italic* stays')[0].type, 'p');
+assert.equal(knowledgeDocFromMarkdown('a_b_c')[0].spans[0].text, 'a_b_c');
+const longLines = ['# Notes'];
+for (let n = 1; n <= 150; n += 1) longLines.push(`- Line ${n} \u2014 \u201cquoted\u201d ${n} with $1.6M`);
+const longDoc = knowledgeDocFromMarkdown(longLines.join('\n'));
+assert.equal(longDoc.length, 151);
+assert.equal(longDoc[0].type, 'h1');
+assert.equal(longDoc[150].type, 'li');
+assert.equal(longDoc[150].spans[0].text, 'Line 150 \u2014 \u201cquoted\u201d 150 with $1.6M');
+const longPlain = knowledgePlainText(longDoc);
+assert.equal(longPlain.split('\n').length, 151);
+assert.equal(longPlain.includes('\u2014'), true);
+assert.equal(longPlain.includes('\u201cquoted\u201d'), true);
+assert.equal(longPlain.includes('**'), false);
+assert.equal(normalizeKnowledge({ title: 'Long', doc: longDoc }, clock).doc.length, 151);
+const htmlDoc = knowledgeDocFromHtml('<h1>Title</h1><p>Hello <b>bold</b> and <i>italic</i></p><ul><li>One<ul><li>Nested</li></ul></li></ul><script>alert(1)</script><img src=x onerror="alert(1)">');
+assert.equal(htmlDoc[0].type, 'h1');
+assert.equal(htmlDoc[0].spans[0].text, 'Title');
+assert.equal(htmlDoc.find((block) => block.type === 'p').spans.find((span) => span.text === 'bold').bold, true);
+assert.equal(htmlDoc.find((block) => block.type === 'p').spans.find((span) => span.text === 'italic').italic, true);
+assert.equal(htmlDoc.filter((block) => block.type === 'li')[0].spans[0].text, 'One');
+assert.equal(htmlDoc.filter((block) => block.type === 'li')[0].indent, 0);
+assert.equal(htmlDoc.filter((block) => block.type === 'li')[1].indent, 1);
+assert.equal(knowledgePlainText(htmlDoc).includes('alert'), false);
+assert.equal(knowledgeDocFromHtml('<p>a &lt; b &mdash; &ldquo;q&rdquo;</p>')[0].spans[0].text, 'a < b \u2014 \u201cq\u201d');
+const docsWrap = knowledgePasteDoc('<b style="font-weight:normal"><h2>Role</h2><p>Say <span style="font-weight:700">yes</span></p></b>', 'Role');
+assert.equal(docsWrap[0].type, 'h2');
+assert.equal(docsWrap[0].spans[0].bold, false);
+assert.equal(docsWrap[1].spans.find((span) => span.text === 'yes').bold, true);
+assert.equal(knowledgePasteDoc('<div># Title</div>', '# Title')[0].type, 'h1');
+const pastedBlocks = insertKnowledgeBlocks(
+  [{ type: 'p', indent: 0, spans: [] }],
+  { index: 0, offset: 0 },
+  sampleDoc,
+);
+assert.equal(pastedBlocks.changed, true);
+assert.equal(pastedBlocks.doc.find((block) => block.type === 'h1').spans[0].text, 'Title');
 const italicPacked = serializeBook({ knowledge: [italicPage] });
 const italicReloaded = normalizeStore(JSON.parse(italicPacked.json), clock);
 assert.equal(italicReloaded.knowledge[0].doc[0].spans[1].italic, true);
@@ -2395,7 +2514,12 @@ assert.match(appSource, /knowledgeEditEffects\('toolbar'\)/);
 assert.match(appSource, /applyKnowledgeListMarker/);
 assert.match(appSource, /applyKnowledgeEnter/);
 assert.match(appSource, /applyKnowledgeTab/);
-assert.match(appSource, /execCommand\(key === 'b' \? 'bold' : 'italic'\)/);
+assert.match(appSource, /knowledgeMarkShortcut\(event\)/);
+assert.match(appSource, /execCommand\(shortcut\.command\)/);
+assert.match(appSource, /event\.stopPropagation\(\)/);
+assert.match(appSource, /knowledgePasteDoc/);
+assert.match(appSource, /setKnowledgeHeading/);
+assert.match(appSource, /H1/);
 assert.match(appSource, /Unassigned/);
 assert.match(appSource, /\+ New job/);
 assert.match(appSource, /tailored for this posting/);
@@ -2408,6 +2532,11 @@ assert.match(appSource, /Edit the Resume basics template here/);
 assert.match(appSource, /basicsReplaceConfirm/);
 assert.match(appSource, /basicsRestoreConfirm/);
 const bookCss = readFileSync(new URL('../brag-book/app.css', import.meta.url), 'utf8');
+const sheetCss = bookCss.match(/\.bb-kb-sheet \{[^}]+\}/);
+assert.ok(sheetCss);
+assert.match(sheetCss[0], /background:\s*#fff/);
+assert.match(sheetCss[0], /box-shadow:/);
+assert.match(bookCss, /\.bb-kb-editor \{[^}]*background:\s*#e7e2da/);
 const jobRoleCss = bookCss.match(/\.bb-exp-jobrole \.bb-cell-input[^{]*\{[^}]+\}/);
 const starCss = bookCss.match(/\.bb-inline-area \{[^}]+\}/);
 assert.ok(jobRoleCss);

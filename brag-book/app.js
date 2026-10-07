@@ -158,15 +158,21 @@ import { parseViewHash, viewHash, viewTitle } from './routes.js';
 import { bookPagePlan, experienceRowSpec, sharedBulletSpec, SHARED_BULLET_FIELDS, STAR_FIELDS, experienceAdderChrome, nextExperienceAdderOpen, resumeBulletArrows, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys } from './book-view.js';
 import {
   applyKnowledgeEnter,
+  applyKnowledgeHeadingBreak,
+  applyKnowledgeHeadingMarker,
   applyKnowledgeListMarker,
   applyKnowledgeTab,
   groupKnowledgeBlocks,
+  insertKnowledgeBlocks,
   knowledgeDocForEditor,
   knowledgeDocFromLegacy,
   knowledgeEditEffects,
+  knowledgeMarkShortcut,
+  knowledgePasteDoc,
   knowledgePlainText,
   knowledgeRichSpans,
   normalizeKnowledgeDoc,
+  setKnowledgeHeading,
 } from './knowledge-doc.js';
 import { loadBook, saveBook } from './store.js';
 import { initAuth, refreshToken, renderBragSignIn, wireAuthLink } from './auth.js';
@@ -1322,10 +1328,11 @@ function paintKnowledgeDoc(node, doc) {
   const grouped = groupKnowledgeBlocks(knowledgeDocForEditor(doc));
   const children = grouped.map((block) => {
     if (block.kind === 'ul') return paintKnowledgeList(block.items);
-    const p = document.createElement('p');
-    p.dataset.kbBlock = String(block.index);
-    appendKnowledgeSpans(p, block.spans);
-    return p;
+    const tag = block.type === 'h1' || block.type === 'h2' || block.type === 'h3' ? block.type : 'p';
+    const node = document.createElement(tag);
+    node.dataset.kbBlock = String(block.index);
+    appendKnowledgeSpans(node, block.spans);
+    return node;
   });
   node.replaceChildren(...children);
 }
@@ -1383,6 +1390,10 @@ function readKnowledgeDoc(root) {
       if (child.nodeType !== 1) continue;
       const tag = child.tagName;
       if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'IFRAME' || tag === 'OBJECT') continue;
+      if (tag === 'H1' || tag === 'H2' || tag === 'H3') {
+        blocks.push({ type: tag.toLowerCase(), indent: 0, spans: readKnowledgeInline(child) });
+        continue;
+      }
       if (tag === 'UL' || tag === 'OL') {
         consume(child, indent);
         continue;
@@ -1500,20 +1511,22 @@ function knowledgeEditor(note) {
   };
   body.addEventListener('paste', (event) => {
     event.preventDefault();
-    const text = cleanPastedText(event.clipboardData?.getData('text/plain') || '');
-    if (!text) return;
-    insertPlainText(text);
-    const caret = knowledgeCaret(body);
-    const marked = applyKnowledgeListMarker(readKnowledgeDoc(body), caret);
-    if (marked.changed) applyStructural(marked);
-    else commitDom();
+    const html = event.clipboardData?.getData('text/html') || '';
+    const text = String(event.clipboardData?.getData('text/plain') || '').replace(/\u00a0/g, ' ');
+    const pasted = knowledgePasteDoc(html, text);
+    if (!pasted.length) return;
+    const next = insertKnowledgeBlocks(readKnowledgeDoc(body), knowledgeCaret(body), pasted);
+    if (next.changed) applyStructural(next);
   });
   body.addEventListener('keydown', (event) => {
-    const key = event.key.toLowerCase();
-    if ((event.metaKey || event.ctrlKey) && !event.altKey && (key === 'b' || key === 'i')) {
+    const shortcut = knowledgeMarkShortcut(event);
+    if (shortcut) {
       event.preventDefault();
-      document.execCommand(key === 'b' ? 'bold' : 'italic');
-      commitDom();
+      event.stopPropagation();
+      document.execCommand(shortcut.command);
+      const plan = knowledgeEditEffects('keydown');
+      if (plan.save) commitDom();
+      if (plan.render) render();
       return;
     }
     if (event.key === 'Tab') {
@@ -1526,14 +1539,26 @@ function knowledgeEditor(note) {
     }
     if (event.key === 'Enter' && !event.shiftKey && !event.metaKey && !event.ctrlKey) {
       const block = knowledgeBlockOf(document.getSelection?.()?.anchorNode);
-      if (block?.tagName !== 'LI') return;
-      event.preventDefault();
-      applyStructural(applyKnowledgeEnter(readKnowledgeDoc(body), knowledgeCaret(body)));
+      if (block?.tagName === 'LI') {
+        event.preventDefault();
+        applyStructural(applyKnowledgeEnter(readKnowledgeDoc(body), knowledgeCaret(body)));
+        return;
+      }
+      if (block?.tagName === 'H1' || block?.tagName === 'H2' || block?.tagName === 'H3') {
+        event.preventDefault();
+        applyStructural(applyKnowledgeHeadingBreak(readKnowledgeDoc(body), knowledgeCaret(body)));
+      }
     }
   });
   body.addEventListener('input', () => {
     const caret = knowledgeCaret(body);
-    const marked = applyKnowledgeListMarker(readKnowledgeDoc(body), caret);
+    const doc = readKnowledgeDoc(body);
+    const headed = applyKnowledgeHeadingMarker(doc, caret);
+    if (headed.changed) {
+      applyStructural(headed);
+      return;
+    }
+    const marked = applyKnowledgeListMarker(doc, caret);
     if (marked.changed) applyStructural(marked);
     else commitDom();
   });
@@ -1548,12 +1573,28 @@ function knowledgeEditor(note) {
       if (plan.render) render();
     },
   });
+  const headingButton = (label, level) => btn(label, {
+    class: 'btn ghost compact-action bb-kb-mark',
+    onMouseDown: (event) => {
+      event.preventDefault();
+      const plan = knowledgeEditEffects('toolbar');
+      const next = setKnowledgeHeading(readKnowledgeDoc(body), knowledgeCaret(body), level);
+      if (next.changed) {
+        paintKnowledgeDoc(body, next.doc);
+        setKnowledgeCaret(body, next.caret);
+        if (plan.save) saveBody(next.doc);
+      }
+      if (plan.render) render();
+    },
+  });
   return el('div', { class: 'bb-kb-editor' }, [
     el('div', { class: 'bb-kb-editor-bar' }, [
-      title,
       el('span', { class: 'bb-kb-status', id: 'kb-save-state' }, 'Saved'),
       markButton('Bold', 'bold'),
       markButton('Italic', 'italic'),
+      headingButton('H1', 1),
+      headingButton('H2', 2),
+      headingButton('H3', 3),
       btn('Delete', {
         class: 'btn ghost compact-action is-danger',
         onClick: () => {
@@ -1565,7 +1606,7 @@ function knowledgeEditor(note) {
         },
       }),
     ]),
-    body,
+    el('div', { class: 'bb-kb-sheet' }, [title, body]),
   ]);
 }
 
