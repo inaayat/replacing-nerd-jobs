@@ -568,7 +568,8 @@ function sameRich(a, b) {
   return left.every((span, index) => span.text === right[index].text && Boolean(span.bold) === Boolean(right[index].bold));
 }
 
-// One experience has one line. That line is the entry title and every resume bullet that points at it.
+// One experience has one line: the entry. Requirement bullets keep a copy for
+// older books, but that copy follows the entry whenever entryId still resolves.
 function experienceLineMatches(store, entryId, formatted) {
   const entry = entryById(store, entryId);
   if (!entry || entry.title !== formatted.text || !sameRich(entry.rich, formatted.rich)) return false;
@@ -608,15 +609,9 @@ function applyExperienceLine(store, entryId, text, rich, clock) {
 
 function alignExperienceLines(store, clock) {
   let next = store;
-  const seen = new Set();
-  for (const job of store.postings || []) {
-    for (const req of job.requirements || []) {
-      for (const bullet of req.bullets || []) {
-        if (!bullet.entryId || seen.has(bullet.entryId)) continue;
-        seen.add(bullet.entryId);
-        next = applyExperienceLine(next, bullet.entryId, bullet.text, bullet.rich, clock);
-      }
-    }
+  for (const entry of next.entries || []) {
+    if (!entry?.id) continue;
+    next = applyExperienceLine(next, entry.id, entry.title, entry.rich, clock);
   }
   return next;
 }
@@ -1764,6 +1759,14 @@ export function bulletEntry(store, bullet) {
   return bullet?.entryId ? entryById(store, bullet.entryId) : null;
 }
 
+// Requirement rows store their own text. When the link still resolves, the
+// entry is the line — the copy is only a fallback for an unlinked bullet.
+export function linkedBulletLine(store, bullet) {
+  const entry = bulletEntry(store, bullet);
+  if (!entry) return { entry: null, text: asString(bullet?.text, TEXT_MAX), rich: bullet?.rich || null };
+  return { entry, text: entry.title, rich: entry.rich || null };
+}
+
 export function draftBulletFromEntry(entry) {
   if (!entry) return '';
   return asString(entry.result || entry.action || entry.notes || entry.title, TEXT_MAX);
@@ -1803,9 +1806,9 @@ export function compileResume(posting, store) {
   const groups = new Map();
   for (const req of posting?.requirements || []) {
     for (const bullet of req.bullets || req.experiences || []) {
-      const text = asString(bullet?.text, TEXT_MAX);
-      if (!text) continue;
       const entry = bullet?.entryId ? entryById(store, bullet.entryId) : null;
+      const text = asString(entry?.title || bullet?.text, TEXT_MAX);
+      if (!text) continue;
       const textKey = `text:${text.toLowerCase()}`;
       const idKey = bullet?.entryId ? `id:${bullet.entryId}` : '';
       if (seen.has(textKey) || (idKey && seen.has(idKey))) continue;
@@ -1899,13 +1902,14 @@ export function compilePrep(store, posting) {
       answered: questionAnswered(question),
     }));
     const bulletDetails = (req.bullets || []).map((bullet) => {
-      const entry = bulletEntry(store, bullet);
+      const linked = linkedBulletLine(store, bullet);
+      const entry = linked.entry;
       const detail = entry || bullet;
       return {
         id: bullet.id,
         entryId: entry?.id || '',
-        title: entry?.title || bullet.text,
-        text: bullet.text,
+        title: linked.text,
+        text: linked.text,
         notes: detail.notes,
         fill: starFill(detail),
         script: starScript(detail),
@@ -1918,7 +1922,7 @@ export function compilePrep(store, posting) {
     return {
       id: req.id,
       text: req.text,
-      bullets: (req.bullets || []).map((line) => line.text),
+      bullets: (req.bullets || []).map((line) => linkedBulletLine(store, line).text),
       bulletDetails,
       questions,
       stories,

@@ -396,11 +396,57 @@ const [namedA, namedB] = named.postings[0].requirements;
 named = createEntryBullet(named, namedJob, namedA.id, longLine, clock);
 assert.equal(named.entries[0].title, longLine);
 assert.equal(named.postings[0].requirements[0].bullets[0].text, longLine);
-named = addEntryBullet(named, namedJob, namedB.id, named.entries[0].id, 'A different name', clock);
+const namedId = named.entries[0].id;
+named = addEntryBullet(named, namedJob, namedB.id, namedId, 'A different name', clock);
 assert.equal(named.postings[0].requirements[1].bullets[0].text, longLine);
 named = updateBullet(named, namedJob, namedA.id, named.postings[0].requirements[0].bullets[0].id, 'Same line everywhere', clock);
+assert.equal(named.entries.length, 1);
+assert.equal(named.entries[0].id, namedId);
 assert.equal(named.entries[0].title, 'Same line everywhere');
 assert.equal(named.postings[0].requirements[1].bullets[0].text, 'Same line everywhere');
+
+let propagated = addPosting(emptyStore(), { title: 'Edit once' }, clock);
+const propJob = propagated.postings[0].id;
+propagated = addRequirement(propagated, propJob, 'First need', clock);
+propagated = addRequirement(propagated, propJob, 'Second need', clock);
+const [propA, propB] = propagated.postings[0].requirements;
+propagated = createEntryBullet(propagated, propJob, propA.id, 'Original line', clock);
+const propEntryId = propagated.entries[0].id;
+propagated = addEntryBullet(propagated, propJob, propB.id, propEntryId, 'A copy that must not win', clock);
+const propCount = propagated.entries.length;
+const propBullet = propagated.postings[0].requirements[0].bullets[0];
+propagated = updateBullet(propagated, propJob, propA.id, propBullet.id, {
+  text: 'Updated everywhere',
+  rich: [{ text: 'Updated ', bold: false }, { text: 'everywhere', bold: true }],
+}, clock);
+assert.equal(propagated.entries.length, propCount);
+assert.equal(propagated.entries.filter((entry) => entry.id === propEntryId).length, 1);
+assert.equal(propagated.entries.find((entry) => entry.id === propEntryId).title, 'Updated everywhere');
+assert.equal(propagated.entries.find((entry) => entry.id === propEntryId).rich[1].bold, true);
+assert.equal(propagated.postings[0].requirements[0].bullets[0].id, propBullet.id);
+assert.equal(propagated.postings[0].requirements[0].bullets[0].entryId, propEntryId);
+assert.equal(propagated.postings[0].requirements[0].bullets[0].text, 'Updated everywhere');
+assert.equal(propagated.postings[0].requirements[1].bullets[0].entryId, propEntryId);
+assert.equal(propagated.postings[0].requirements[1].bullets[0].text, 'Updated everywhere');
+assert.equal(compileResume(postingById(propagated, propJob), propagated).bullets[0], 'Updated everywhere');
+const reloadedProp = normalizeStore(JSON.parse(JSON.stringify(propagated)), clock);
+assert.equal(reloadedProp.entries.length, propCount);
+assert.equal(reloadedProp.entries.find((entry) => entry.id === propEntryId).title, 'Updated everywhere');
+assert.equal(reloadedProp.postings[0].requirements[1].bullets[0].text, 'Updated everywhere');
+
+let unlinked = addPosting(emptyStore(), { title: 'Unlinked' }, clock);
+unlinked = addRequirement(unlinked, unlinked.postings[0].id, 'Need', clock);
+unlinked = addBullet(unlinked, unlinked.postings[0].id, unlinked.postings[0].requirements[0].id, 'Only here', clock);
+unlinked = updateBullet(
+  unlinked,
+  unlinked.postings[0].id,
+  unlinked.postings[0].requirements[0].id,
+  unlinked.postings[0].requirements[0].bullets[0].id,
+  'Still only here',
+  clock,
+);
+assert.equal(unlinked.entries.length, 0);
+assert.equal(unlinked.postings[0].requirements[0].bullets[0].text, 'Still only here');
 const aligned = normalizeStore({
   entries: [{ id: 'en_line', title: 'Short name', kind: 'experience' }],
   postings: [{
@@ -411,9 +457,12 @@ const aligned = normalizeStore({
     ],
   }],
 }, clock);
-assert.equal(aligned.entries[0].title, 'The long resume line');
-assert.equal(aligned.postings[0].requirements[1].bullets[0].text, 'The long resume line');
-assert.equal(aligned.postings[0].requirements[1].bullets[0].rich[1].bold, true);
+assert.equal(aligned.entries.length, 1);
+assert.equal(aligned.entries[0].id, 'en_line');
+assert.equal(aligned.entries[0].title, 'Short name');
+assert.equal(aligned.postings[0].requirements[0].bullets[0].text, 'Short name');
+assert.equal(aligned.postings[0].requirements[1].bullets[0].text, 'Short name');
+assert.equal(aligned.postings[0].requirements[0].bullets[0].entryId, 'en_line');
 shared = updateEntry(shared, sharedEntry.id, { result: 'Cut review time by 40%.' }, clock);
 assert.equal(
   bulletEntry(shared, postingById(shared, sharedJobId).requirements[0].bullets[0]).result,

@@ -37,6 +37,7 @@ import {
   suggestEntries,
   linkedEntries,
   bulletEntry,
+  linkedBulletLine,
   compileResumeText,
   resumeTextToWordHtml,
   compileResumeDoc,
@@ -1821,16 +1822,19 @@ function requirementTableRow(job, req) {
   for (const bullet of req.bullets) {
     const bulletKey = `${job.id}:${req.id}:${bullet.id}`;
     const isOpen = expandedBulletKey === bulletKey;
-    const shown = displayExperienceLine(bullet.text);
+    const linked = linkedBulletLine(store, bullet);
+    const shown = displayExperienceLine(linked.text);
     const line = richLine({
       class: 'bullet-copy is-marked',
       'aria-label': 'Experience',
     }, {
       text: shown,
-      rich: shown === String(bullet.text || '').trim() ? bullet.rich : null,
+      rich: shown === String(linked.text || '').trim() ? linked.rich : null,
       onChange: (spans) => {
         const text = spans.map((span) => span.text).join('');
         if (!text.trim()) return;
+        // Patch the existing bullet. A linked row updates that entry in place
+        // and does not add another experience.
         store = updateBullet(store, job.id, req.id, bullet.id, { text, rich: spans });
         saveStore();
       },
@@ -2333,6 +2337,11 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0, gro
   const lineText = bulletLineText(bullet);
   const commitWording = (spans) => {
     const next = bulletFromLine(spansToMarkdown(spans));
+    const entryId = (bullet.sourceEntryIds || [])[0];
+    const entryText = (spans || []).map((span) => span.text).join('');
+    if (entryId && entryText.trim()) {
+      store = updateEntry(store, entryId, { title: entryText, rich: spans });
+    }
     store = adoptCompiledJob(store, posting?.id || null, career);
     const adoptedLocal = Boolean(posting && localJobById(livePosting(posting.id)?.resume, career.id) && !isSharedJob(career.id));
     if (!posting || isSharedJob(career.id)) {
@@ -2493,8 +2502,14 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0, gro
       btn('Save back to source', {
         class: 'btn ghost compact-action',
         onClick: () => {
-          const nextBullet = { ...bullet, ...bulletFromLine(spansToMarkdown(readRich(line))) };
+          const spans = readRich(line);
+          const nextBullet = { ...bullet, ...bulletFromLine(spansToMarkdown(spans)) };
           store = writeBulletBackToSource(store, posting.id, nextBullet);
+          const entryId = (nextBullet.sourceEntryIds || [])[0];
+          const entryText = spans.map((span) => span.text).join('');
+          if (entryId && entryText.trim()) {
+            store = updateEntry(store, entryId, { title: entryText, rich: spans });
+          }
           const current = livePosting(posting.id);
           store = replacePostingResume(store, posting.id, clearBulletOverride(current.resume, bullet.id));
           saveStore();

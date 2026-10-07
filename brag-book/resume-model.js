@@ -687,6 +687,7 @@ function knownKeys(jobs) {
       for (const bullet of group.bullets || []) {
         keys.add(bullet.id);
         for (const id of bullet.sourceBulletIds || []) keys.add(`src:${id}`);
+        for (const id of bullet.sourceEntryIds || []) keys.add(`entry:${id}`);
         const key = textKey(bullet);
         if (key) keys.add(`text:${key}`);
       }
@@ -722,6 +723,7 @@ function mergePostingBullets(jobs, posting, store, variant) {
       const text = asString(line?.text, TEXT_MAX);
       if (!text) continue;
       if (keys.has(line.id) || keys.has(`src:${line.id}`)) continue;
+      if (line.entryId && keys.has(`entry:${line.entryId}`)) continue;
       const parsed = parseBulletText(text);
       if (keys.has(`text:${textKey(parsed)}`)) continue;
       const entry = line.entryId ? entryById(store, line.entryId) : null;
@@ -745,10 +747,33 @@ function mergePostingBullets(jobs, posting, store, variant) {
       group.bullets.push(bullet);
       keys.add(line.id);
       keys.add(`src:${line.id}`);
+      if (line.entryId) keys.add(`entry:${line.entryId}`);
       keys.add(`text:${textKey(bullet)}`);
     }
   });
   return jobs;
+}
+
+function projectEntryLines(jobs, store) {
+  return (jobs || []).map((job) => ({
+    ...job,
+    groups: (job.groups || []).map((group) => ({
+      ...group,
+      bullets: (group.bullets || []).map((bullet) => {
+        if (bullet.hasOverride) return bullet;
+        const entryId = (bullet.sourceEntryIds || [])[0];
+        if (!entryId) return bullet;
+        const entry = entryById(store, entryId);
+        if (!entry?.title) return bullet;
+        const markdown = Array.isArray(entry.rich) && entry.rich.length
+          ? spansToMarkdown(entry.rich)
+          : entry.title;
+        const fields = parseBulletText(markdown);
+        if (bullet.lead === fields.lead && bullet.body === fields.body) return bullet;
+        return { ...bullet, lead: fields.lead, body: fields.body };
+      }),
+    })),
+  }));
 }
 
 export function compileResumeDoc(posting, store) {
@@ -770,6 +795,7 @@ export function compileResumeDoc(posting, store) {
   } else {
     jobs = mergeLocalJobs(jobsFromCareer(store, variant), variant);
     jobs = mergePostingBullets(jobs, posting, store, variant);
+    jobs = projectEntryLines(jobs, store);
     jobs = reorder(jobs, variant.jobOrder);
     credentials = mergeLocalRows(normalizeCredentials(store?.credentials), variant.localCredentials);
     education = mergeLocalRows(normalizeEducation(store?.education), variant.localEducation);
