@@ -121,6 +121,7 @@ import {
   placeLibraryBullet,
   assignEntryJob,
   placeJobOnResume,
+  addPostingResumeJob,
   suggestJobSetup,
   applyJobSetup,
   dismissJobSetup,
@@ -2333,9 +2334,15 @@ function libraryBulletPicker(posting, career, group) {
   });
   const list = el('div', { class: 'bb-lib-picks', hidden: true });
   const paint = () => {
+    const q = query.value.trim();
+    if (!q) {
+      list.replaceChildren(el('p', { class: 'tiny' }, 'Type to search resume bullets.'));
+      list.hidden = false;
+      return;
+    }
     const taken = resumeTakenEntryIds(store, posting || null);
     const linkedJobId = career.jobId && career.jobId !== career.id ? career.jobId : career.id;
-    const choices = libraryBulletChoices(store, { query: query.value, takenIds: taken, jobId: linkedJobId });
+    const choices = libraryBulletChoices(store, { query: q, takenIds: taken, jobId: linkedJobId });
     list.replaceChildren(...(choices.length
       ? choices.map((entry) => btn(entry.title, {
         class: 'btn ghost compact-action bb-lib-choice',
@@ -2355,10 +2362,9 @@ function libraryBulletPicker(posting, career, group) {
           render({ focusKey: linked ? `rb-${linked.id}-line` : `pick-${group?.id || career.id}` });
         },
       }))
-      : [el('p', { class: 'tiny' }, query.value.trim() ? 'No matching resume bullets.' : 'Every library bullet is already on this resume.')]));
+      : [el('p', { class: 'tiny' }, 'No matching resume bullets.')]));
     list.hidden = false;
   };
-  query.addEventListener('focus', paint);
   query.addEventListener('input', paint);
   query.addEventListener('blur', () => {
     list.hidden = true;
@@ -2582,19 +2588,19 @@ function addRoleButton(posting, { afterId } = {}) {
         store = addCareerJob(store, { onResume: false });
         const added = store.jobs[store.jobs.length - 1];
         if (!added) return;
-        store = placeJobOnResume(store, posting?.id || null, added.id);
+        store = addPostingResumeJob(store, posting?.id || null, added.id, { afterId });
         saveStore();
         render({ focusKey: `rj-${added.id}-company` });
         setNote('Added a new job and placed it on this resume.');
         return;
       }
-      store = placeJobOnResume(store, posting?.id || null, value);
+      store = addPostingResumeJob(store, posting?.id || null, value, { afterId });
       saveStore();
       render({ focusKey: `rj-${value}-company` });
-      setNote(posting ? 'Added that job to this posting.' : 'Added that job to Resume basics.');
+      setNote(posting ? 'Added that job and its mapped bullets to this posting.' : 'Added that job to Resume basics.');
     },
   }, [
-    el('option', { value: '' }, '+ Add role'),
+    el('option', { value: '', disabled: true, selected: true }, '+ Add role'),
     ...choices.map((job) => el('option', { value: job.id }, jobOptionLabel(job))),
     el('option', { value: '__new__' }, '+ New job'),
   ]);
