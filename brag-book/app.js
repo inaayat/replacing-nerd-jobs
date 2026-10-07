@@ -104,8 +104,6 @@ import {
   visibleResumeDoc,
   moveKey,
   toggleId,
-  writeBulletBackToSource,
-  clearBulletOverride,
   clearJobTitle,
   hideResumeRow,
   restoreHiddenResumeRows,
@@ -127,7 +125,6 @@ import {
   visibleResumeBullets,
   adoptCompiledJob,
   resumeBulletSpans,
-  bulletFromLine,
   applyResumeBulletEdit,
   createSharedBullet,
   saveSharedBullet,
@@ -2857,8 +2854,7 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0, gro
         ' Pin',
       ]),
       dropped ? el('span', { class: 'tiny' }, 'Hidden to fit') : null,
-      bullet.hasOverride ? el('span', { class: 'tiny' }, 'Resume wording') : null,
-      localBullet ? el('span', { class: 'tiny' }, 'This posting only') : null,
+      bullet.hasOverride ? el('span', { class: 'tiny' }, 'This posting only') : null,
       canEdit ? resumeMoveBtns('bullet', {
         index: bulletIndex,
         length: group.bullets.length,
@@ -2965,38 +2961,6 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0, gro
         },
       },
     ) : null,
-    posting ? el('div', { class: 'actions' }, [
-      btn('Reset to source', {
-        class: 'btn ghost compact-action',
-        disabled: !bullet.hasOverride || localBullet,
-        onClick: () => {
-          store = replacePostingResume(store, posting.id, clearBulletOverride(livePosting(posting.id).resume, bullet.id));
-          saveStore();
-          render();
-          setNote('Restored this bullet from the source.');
-        },
-      }),
-      btn('Save back to source', {
-        class: 'btn ghost compact-action',
-        onClick: () => {
-          const spans = readRich(line);
-          const nextBullet = { ...bullet, ...bulletFromLine(spansToMarkdown(spans)) };
-          store = writeBulletBackToSource(store, posting.id, nextBullet);
-          const entryId = (nextBullet.sourceEntryIds || [])[0];
-          const entryText = spans.map((span) => span.text).join('');
-          if (entryId && entryText.trim()) {
-            store = updateEntry(store, entryId, { title: entryText, rich: spans });
-          }
-          const current = livePosting(posting.id);
-          store = replacePostingResume(store, posting.id, clearBulletOverride(current.resume, bullet.id));
-          saveStore();
-          render();
-          setNote(localBullet
-            ? 'Copied this bullet into Resume basics. Other postings can use it now.'
-            : 'Wrote this wording back to the source bullet.');
-        },
-      }),
-    ]) : null,
   ]);
   return wrap;
 }

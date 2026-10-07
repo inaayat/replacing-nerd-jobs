@@ -1723,7 +1723,8 @@ export function mergeJobs(store, keepId, dropId, clock = Date.now) {
 
 // Going forward, a resume wording edit updates the one shared library record.
 // Existing edited: true overrides still render as stored; this does not write
-// a new override and does not rewrite stored bullets on load.
+// a new override and does not rewrite stored bullets on load. Editing a leftover
+// override writes the shared record and then drops only that line's override.
 export function applyResumeBulletEdit(store, {
   postingId = null,
   jobId,
@@ -1757,7 +1758,16 @@ export function applyResumeBulletEdit(store, {
     }
   }
   if (!entryId) return nextStore;
-  return updateEntry(nextStore, entryId, { title: entryText, rich: spans }, clock);
+  nextStore = updateEntry(nextStore, entryId, { title: entryText, rich: spans }, clock);
+  if (!postingId) return nextStore;
+  const variant = postingById(nextStore, postingId)?.resume;
+  const over = variant?.overrides?.[bullet.id];
+  // A later edit of a leftover edited:true line writes the shared record
+  // and drops only that line's override. Untouched overrides stay stored.
+  if (over?.edited === true) {
+    nextStore = replacePostingResume(nextStore, postingId, clearBulletOverride(variant, bullet.id), clock);
+  }
+  return nextStore;
 }
 
 function attachResumeBulletSource(store, {
