@@ -1702,9 +1702,13 @@ a:focus-visible {
 .bb-exp-jobrole .bb-cell-input {
   border: 1px solid var(--line);
   border-radius: 4px;
-  padding: 2px 6px;
-  min-height: 1.6em;
+  padding: 3px 6px;
+  min-height: 0;
   background: #fff;
+  font-family: var(--content-font);
+  font-size: 0.82rem;
+  font-weight: 400;
+  line-height: 1.35;
 }
 .bb-exp-stargrid {
   display: grid;
@@ -1734,8 +1738,9 @@ a:focus-visible {
   border: 1px solid var(--line);
   border-radius: 4px;
   padding: 3px 6px;
-  font: inherit;
+  font-family: var(--content-font);
   font-size: 0.82rem;
+  font-weight: 400;
   line-height: 1.35;
   background: #fff;
   color: var(--ink);
