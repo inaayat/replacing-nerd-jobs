@@ -113,6 +113,10 @@ import {
   updateCareerJob,
   assignEntryJob,
   placeJobOnResume,
+  addPostingResumeJob,
+  attachPostingJobBullets,
+  inferEntryJobId,
+  postingTiedJobIds,
   suggestJobSetup,
   applyJobSetup,
   dismissJobSetup,
@@ -2287,7 +2291,17 @@ assert.match(bookCss, /\.bb-job-catalog-row > input,\s*\.bb-new-job > input \{[^
 assert.doesNotMatch(catalogCss[0], /1\.2fr 1\.2fr 1fr 1fr auto/);
 assert.doesNotMatch(appSource, /Start fresh to hide shared/);
 assert.match(appSource, /Search resume bullets/);
+assert.match(appSource, /Type to search resume bullets/);
 assert.match(appSource, /placeLibraryBullet/);
+assert.match(appSource, /addPostingResumeJob/);
+assert.match(appSource, /Added that job and its mapped bullets/);
+assert.match(appSource, /disabled: true, selected: true/);
+const pickerSrc = appSource.slice(
+  appSource.indexOf('function libraryBulletPicker'),
+  appSource.indexOf('function addSubheadingButton'),
+);
+assert.match(pickerSrc, /Type to search resume bullets/);
+assert.doesNotMatch(pickerSrc, /addEventListener\('focus'/);
 assert.match(appSource, /\bInclude\b/);
 assert.match(appSource, /\bPin\b/);
 assert.doesNotMatch(appSource, /experienceIsOpen/);
@@ -2629,7 +2643,7 @@ assert.equal(shown.sections.experience.jobs.some((job) => job.id === 'rj_cat'), 
 assert.equal(compileResumeDoc(linked.postings.find((posting) => posting.id === 'job_b'), linked).sections.experience.jobs.some((job) => job.id === 'rj_cat'), false);
 
 const choices = libraryBulletChoices(linked, { jobId: 'rj_cat' });
-assert.deepEqual(choices.map((entry) => entry.id), ['en_linked']);
+assert.deepEqual(choices.map((entry) => entry.id), []);
 const searched = libraryBulletChoices(linked, { query: 'Elsewhere', jobId: 'rj_cat' });
 assert.equal(searched[0]?.id === 'en_linked' || searched.some((entry) => entry.id === 'en_other'), true);
 
@@ -2652,3 +2666,146 @@ assert.equal(round.book.jobs[0].onResume, false);
 assert.equal(round.book.jobs[0].jobId, '');
 assert.ok(round.book.postings[0].resume.includedJobIds.includes(applied.jobs[0].id));
 assert.equal(normalizeStore(round.book).entries.find((entry) => entry.id === 'en_plain').jobId, '');
+
+let mapped = addCareerJob(emptyStore(), {
+  id: 'rj_mapped',
+  company: 'Stripe',
+  title: 'Revenue Accountant',
+  onResume: false,
+  groups: [{ id: 'rg_mapped', heading: 'Close', bullets: [] }],
+}, clock);
+mapped = addCareerJob(mapped, {
+  id: 'rj_idle',
+  company: 'Idle Co',
+  title: 'Analyst',
+  onResume: false,
+}, clock);
+mapped = addEntry(mapped, {
+  id: 'en_mapped',
+  title: 'Closed the month in two days',
+  company: 'Stripe',
+  role: 'Revenue Accountant',
+  jobId: 'rj_mapped',
+}, clock);
+mapped = addEntry(mapped, {
+  id: 'en_idle',
+  title: 'Filed a quiet report',
+  company: 'Idle Co',
+  role: 'Analyst',
+  jobId: 'rj_idle',
+}, clock);
+mapped = addPosting(mapped, { id: 'job_mapped', title: 'Mapped posting' }, clock);
+mapped = addPosting(mapped, { id: 'job_quiet', title: 'Quiet posting' }, clock);
+mapped = addRequirement(mapped, 'job_mapped', 'Close experience', clock);
+const mappedReqId = mapped.postings.find((posting) => posting.id === 'job_mapped').requirements[0].id;
+mapped = addEntryBullet(mapped, 'job_mapped', mappedReqId, 'en_mapped', '', clock);
+assert.equal(inferEntryJobId(mapped.entries.find((entry) => entry.id === 'en_mapped'), mapped), 'rj_mapped');
+assert.ok(postingTiedJobIds(mapped, postingById(mapped, 'job_mapped')).has('rj_mapped'));
+assert.equal(postingTiedJobIds(mapped, postingById(mapped, 'job_quiet')).size, 0);
+
+const mappedSnapshot = JSON.stringify(mapped);
+const mappedDoc = compileResumeDoc(postingById(mapped, 'job_mapped'), mapped);
+assert.equal(JSON.stringify(mapped), mappedSnapshot);
+assert.deepEqual(mapped.postings.find((posting) => posting.id === 'job_mapped').resume.includedJobIds || [], []);
+assert.equal(mappedDoc.sections.experience.jobs.some((job) => job.id === 'rj_mapped'), true);
+assert.equal(mappedDoc.sections.experience.jobs.some((job) => job.id === 'rj_idle'), false);
+const mappedBullets = mappedDoc.sections.experience.jobs
+  .find((job) => job.id === 'rj_mapped')
+  .groups.flatMap((group) => group.bullets || []);
+assert.equal(mappedBullets.filter((bullet) => (bullet.sourceEntryIds || []).includes('en_mapped')).length, 1);
+assert.ok(mappedBullets.some((bullet) => `${bullet.lead} ${bullet.body}`.includes('Closed the month')));
+assert.equal(compileResumeDoc(postingById(mapped, 'job_quiet'), mapped).sections.experience.jobs.length, 0);
+assert.equal(compileResumeDoc(null, mapped).sections.experience.jobs.some((job) => job.id === 'rj_mapped'), false);
+
+const quietBefore = mapped.postings.find((posting) => posting.id === 'job_quiet').resume;
+const entryCount = mapped.entries.length;
+mapped = addPostingResumeJob(mapped, 'job_mapped', 'rj_mapped', {}, clock, random);
+assert.ok(mapped.postings.find((posting) => posting.id === 'job_mapped').resume.includedJobIds.includes('rj_mapped'));
+assert.equal(mapped.jobs.find((job) => job.id === 'rj_mapped').onResume, false);
+assert.equal(mapped.entries.length, entryCount);
+assert.deepEqual(mapped.postings.find((posting) => posting.id === 'job_quiet').resume, quietBefore);
+const addedDoc = compileResumeDoc(postingById(mapped, 'job_mapped'), mapped);
+const addedBullets = addedDoc.sections.experience.jobs
+  .find((job) => job.id === 'rj_mapped')
+  .groups.flatMap((group) => group.bullets || []);
+assert.equal(addedBullets.filter((bullet) => (bullet.sourceEntryIds || []).includes('en_mapped')).length, 1);
+assert.equal(addedDoc.sections.experience.jobs.find((job) => job.id === 'rj_mapped').company, 'Stripe');
+
+mapped = addPostingResumeJob(mapped, 'job_quiet', 'rj_idle', {}, clock, random);
+assert.ok(mapped.postings.find((posting) => posting.id === 'job_quiet').resume.includedJobIds.includes('rj_idle'));
+assert.equal(compileResumeDoc(postingById(mapped, 'job_quiet'), mapped)
+  .sections.experience.jobs.some((job) => job.id === 'rj_idle'), true);
+assert.equal(compileResumeDoc(postingById(mapped, 'job_quiet'), mapped)
+  .sections.experience.jobs.some((job) => job.id === 'rj_mapped'), false);
+
+assert.deepEqual(libraryBulletChoices(mapped).map((entry) => entry.id), []);
+assert.deepEqual(libraryBulletChoices(mapped, { jobId: 'rj_mapped' }).map((entry) => entry.id), []);
+assert.equal(libraryBulletChoices(mapped, { query: 'Closed the month' })[0]?.id, 'en_mapped');
+assert.ok(libraryBulletChoices(mapped, { query: 'quiet report', jobId: 'rj_idle' }).some((entry) => entry.id === 'en_idle'));
+mapped = placeLibraryBullet(mapped, {
+  postingId: 'job_quiet',
+  jobId: 'rj_idle',
+  groupId: '',
+  entryId: 'en_idle',
+}, clock, random);
+assert.equal(mapped.entries.length, entryCount);
+assert.equal(mapped.entries.some((entry) => entry.title === 'Filed a quiet report' && entry.id !== 'en_idle'), false);
+const searchedDoc = compileResumeDoc(postingById(mapped, 'job_quiet'), mapped);
+const searchedBullets = searchedDoc.sections.experience.jobs
+  .find((job) => job.id === 'rj_idle')
+  .groups.flatMap((group) => group.bullets || []);
+assert.equal(searchedBullets.filter((bullet) => (bullet.sourceEntryIds || []).includes('en_idle')).length, 1);
+assert.equal(mapped.jobs.find((job) => job.id === 'rj_idle').groups?.flatMap((group) => group.bullets || []).length || 0, 0);
+
+let freshMapped = addCareerJob(emptyStore(), {
+  id: 'rj_fresh_on',
+  company: 'Basics Co',
+  title: 'On resume',
+  onResume: true,
+}, clock);
+freshMapped = addCareerJob(freshMapped, {
+  id: 'rj_fresh_tie',
+  company: 'Stripe',
+  title: 'Accountant',
+  onResume: false,
+}, clock);
+freshMapped = addEntry(freshMapped, {
+  id: 'en_fresh_tie',
+  title: 'Reconciled cash daily',
+  company: 'Stripe',
+  role: 'Accountant',
+  jobId: 'rj_fresh_tie',
+}, clock);
+freshMapped = addCredentialItem(freshMapped, { id: 'cr_fresh', name: 'CPA' }, clock);
+freshMapped = addEducationItem(freshMapped, { id: 'ed_fresh', school: 'UW', degree: 'BA' }, clock);
+freshMapped = addPosting(freshMapped, { id: 'job_fresh_map', title: 'Fresh mapped' }, clock);
+freshMapped = startPostingResumeFresh(freshMapped, 'job_fresh_map', clock);
+freshMapped = addRequirement(freshMapped, 'job_fresh_map', 'Cash', clock);
+freshMapped = addEntryBullet(
+  freshMapped,
+  'job_fresh_map',
+  freshMapped.postings[0].requirements[0].id,
+  'en_fresh_tie',
+  '',
+  clock,
+);
+const freshBefore = JSON.stringify(freshMapped);
+const freshMappedDoc = compileResumeDoc(postingById(freshMapped, 'job_fresh_map'), freshMapped);
+assert.equal(JSON.stringify(freshMapped), freshBefore);
+assert.equal(freshMappedDoc.mode, 'fresh');
+assert.equal(freshMappedDoc.sections.experience.jobs.some((job) => job.id === 'rj_fresh_tie'), true);
+assert.equal(freshMappedDoc.sections.experience.jobs.some((job) => job.id === 'rj_fresh_on'), false);
+assert.equal(freshMappedDoc.sections.experience.jobs.find((job) => job.id === 'rj_fresh_tie').company, 'Stripe');
+assert.ok(freshMappedDoc.sections.experience.jobs
+  .find((job) => job.id === 'rj_fresh_tie')
+  .groups.flatMap((group) => group.bullets || [])
+  .some((bullet) => (bullet.sourceEntryIds || []).includes('en_fresh_tie')));
+assert.equal(freshMappedDoc.sections.credentials.items.length, 0);
+assert.equal(freshMappedDoc.sections.education.items.length, 0);
+
+freshMapped = addPostingResumeJob(freshMapped, 'job_fresh_map', 'rj_fresh_on', {}, clock, random);
+const freshAdded = compileResumeDoc(postingById(freshMapped, 'job_fresh_map'), freshMapped);
+assert.ok(freshMapped.postings[0].resume.includedJobIds.includes('rj_fresh_on'));
+assert.equal(freshAdded.sections.experience.jobs.some((job) => job.id === 'rj_fresh_on'), true);
+assert.equal(freshAdded.sections.experience.jobs.find((job) => job.id === 'rj_fresh_on').company, 'Basics Co');
+assert.equal(freshAdded.sections.credentials.items.length, 0);

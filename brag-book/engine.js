@@ -60,6 +60,8 @@ import {
   bulletFromLine,
   spansToMarkdown,
   findLocalBullet,
+  inferEntryJobId,
+  insertJobOrder,
 } from './resume-model.js';
 
 import { STARTER_RESUME_DOC } from './starter-resume.js';
@@ -113,6 +115,8 @@ export {
   findLocalBullet,
   localJobById,
   insertJobOrder,
+  inferEntryJobId,
+  postingTiedJobIds,
 } from './resume-model.js';
 
 export const ENTRY_KINDS = ['experience', 'project', 'skillset'];
@@ -1217,12 +1221,9 @@ export function libraryBulletChoices(store, { query = '', takenIds = [], limit =
   const taken = new Set(takenIds || []);
   const wanted = String(jobId || '').trim();
   const q = String(query || '').trim();
-  let ordered = q
-    ? searchEntries(store, query)
-    : experienceCatalog(store).map((row) => entryById(store, row.id)).filter(Boolean);
-  if (wanted && !q) {
-    ordered = ordered.filter((entry) => entry.jobId === wanted);
-  } else if (wanted) {
+  if (!q) return [];
+  let ordered = searchEntries(store, query);
+  if (wanted) {
     const matched = ordered.filter((entry) => entry.jobId === wanted);
     const rest = ordered.filter((entry) => entry.jobId !== wanted);
     ordered = [...matched, ...rest];
@@ -1324,8 +1325,47 @@ export function placeJobOnResume(store, postingId, jobId, clock = Date.now) {
   const variant = normalizeResumeVariant(posting.resume);
   const excludedJobIds = (variant.excludedJobIds || []).filter((id) => id !== jobId);
   const includedJobIds = variant.includedJobIds.slice();
-  if (job.onResume === false && !includedJobIds.includes(jobId)) includedJobIds.push(jobId);
-  return updatePostingResume(store, postingId, { excludedJobIds, includedJobIds }, clock);
+  if (!includedJobIds.includes(jobId)) includedJobIds.push(jobId);
+  const next = updatePostingResume(store, postingId, { excludedJobIds, includedJobIds }, clock);
+  return attachPostingJobBullets(next, postingId, jobId, clock);
+}
+
+export function attachPostingJobBullets(store, postingId, jobId, clock = Date.now, random = Math.random) {
+  const posting = postingById(store, postingId);
+  const job = (store?.jobs || []).find((item) => item.id === jobId);
+  if (!posting || !job) return store;
+  let next = store;
+  const taken = new Set(resumeTakenEntryIds(next, postingById(next, postingId)));
+  for (const req of posting.requirements || []) {
+    for (const line of req.bullets || []) {
+      const entry = bulletEntry(next, line);
+      if (!entry?.id || taken.has(entry.id)) continue;
+      const tied = inferEntryJobId(entry, next) || entry.jobId;
+      if (tied !== jobId) continue;
+      const groupId = job.groups?.[0]?.id || '';
+      next = placeLibraryBullet(next, {
+        postingId,
+        jobId,
+        groupId,
+        entryId: entry.id,
+      }, clock, random);
+      taken.add(entry.id);
+    }
+  }
+  return next;
+}
+
+export function addPostingResumeJob(store, postingId, jobId, opts = {}, clock = Date.now, random = Math.random) {
+  if (!postingId) return placeJobOnResume(store, null, jobId, clock);
+  let next = placeJobOnResume(store, postingId, jobId, clock);
+  if (opts.afterId) {
+    const posting = postingById(next, postingId);
+    const currentIds = compileResumeDoc(posting, next).sections.experience.jobs.map((job) => job.id);
+    next = updatePostingResume(next, postingId, {
+      jobOrder: insertJobOrder(posting.resume?.jobOrder, jobId, opts.afterId, currentIds),
+    }, clock);
+  }
+  return next;
 }
 
 function normJobLabel(value) {

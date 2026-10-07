@@ -615,9 +615,8 @@ function applyBulletVariant(bullet, jobId, variant) {
   const over = variant.overrides?.[bullet.id] || {};
   const excludedJob = variant.excludedJobIds.includes(jobId);
   const excludedBullet = variant.excludedBulletIds.includes(bullet.id);
-  // A stored override is the posting's wording only after an edit on this
-  // resume. An import or copied override is left in place for Reset, and the
-  // linked library line is what compile shows.
+  // Existing posting-local wording (edited: true) still renders as stored.
+  // New edits do not write overrides; they update the shared library line.
   const applied = over.edited === true && (over.lead != null || over.body != null);
   return {
     ...bullet,
@@ -629,6 +628,49 @@ function applyBulletVariant(bullet, jobId, variant) {
     included: !excludedJob && !excludedBullet,
     hasOverride: applied,
   };
+}
+
+function normJobLabel(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+export function inferEntryJobId(entry, store) {
+  if (!entry) return '';
+  const jobs = normalizeCareerJobs(store?.jobs);
+  if (entry.jobId && jobs.some((job) => job.id === entry.jobId)) return entry.jobId;
+  const role = normJobLabel(entry.role);
+  const company = normJobLabel(entry.company);
+  if (!role && !company) return '';
+  const scored = jobs.filter((job) => {
+    const title = normJobLabel(job.title);
+    const co = normJobLabel(job.company);
+    if (company && co && company === co) return true;
+    if (role && title && (role === title || title.includes(role) || role.includes(title))) return true;
+    return false;
+  });
+  if (scored.length === 1) return scored[0].id;
+  const both = scored.filter((job) => {
+    const title = normJobLabel(job.title);
+    const co = normJobLabel(job.company);
+    return company && co === company && role && (role === title || title.includes(role) || role.includes(title));
+  });
+  return both.length === 1 ? both[0].id : '';
+}
+
+export function postingTiedJobIds(store, posting) {
+  const ids = new Set();
+  for (const req of posting?.requirements || []) {
+    for (const line of req.bullets || []) {
+      const entry = line?.entryId ? entryById(store, line.entryId) : null;
+      const id = inferEntryJobId(entry, store);
+      if (id) ids.add(id);
+    }
+  }
+  return ids;
 }
 
 function decorateJob(job, variant, { local = false } = {}) {
@@ -673,10 +715,15 @@ function overlayCatalogIdentity(job, store) {
   };
 }
 
-function jobsFromCareer(store, variant) {
+function jobsFromCareer(store, variant, posting, { pinnedOnly = false } = {}) {
   const included = new Set(variant?.includedJobIds || []);
+  const tied = postingTiedJobIds(store, posting);
   return normalizeCareerJobs(store?.jobs)
-    .filter((job) => job.onResume !== false || included.has(job.id))
+    .filter((job) => {
+      if (included.has(job.id) || tied.has(job.id)) return true;
+      if (pinnedOnly) return false;
+      return job.onResume !== false;
+    })
     .map((job) => decorateJob(overlayCatalogIdentity(job, store), variant));
 }
 
@@ -978,12 +1025,49 @@ export function projectExperienceOntoJobs(jobs, store) {
 }
 
 function mergePostingBullets(jobs, posting, store) {
-  // A resume role is one the user added. Requirement lines update a bullet
-  // that is already on a role; they never invent a company, title, or dates.
+  // Requirement lines update a bullet that is already on a role, or land on
+  // the catalog job they are tied to. They never invent a company or dates.
+  const out = (jobs || []).map((job) => ({
+    ...job,
+    groups: (job.groups || []).map((group) => ({
+      ...group,
+      bullets: (group.bullets || []).slice(),
+    })),
+  }));
+  const variant = normalizeResumeVariant(posting?.resume);
   for (const req of posting?.requirements || []) {
-    for (const line of req.bullets || []) claimExperienceLine(jobs, line, store);
+    for (const line of req.bullets || []) {
+      const claim = claimExperienceLine(out, line, store);
+      if (claim.found) continue;
+      const entry = line?.entryId ? entryById(store, line.entryId) : null;
+      const jobId = inferEntryJobId(entry, store);
+      if (!jobId) continue;
+      const index = out.findIndex((job) => job.id === jobId || job.jobId === jobId);
+      if (index < 0) continue;
+      const fields = liveFieldsForLine(line, store);
+      if (!fields) continue;
+      const host = out[index];
+      const groups = (host.groups || []).map((group) => ({
+        ...group,
+        bullets: (group.bullets || []).slice(),
+      }));
+      if (!groups.length) groups.push({ id: `${host.id}_g`, heading: '', bullets: [] });
+      const drafted = normalizeResumeBullet({
+        id: line.id ? `rb_${line.id}` : undefined,
+        lead: fields.lead,
+        body: fields.body,
+        sourceEntryIds: fields.entryId ? [fields.entryId] : [],
+        sourceBulletIds: line.id ? [line.id] : [],
+      });
+      if (!drafted) continue;
+      groups[groups.length - 1].bullets.push({
+        ...applyBulletVariant(drafted, host.id, variant),
+        local: true,
+      });
+      out[index] = { ...host, groups, hasLocalExtras: true };
+    }
   }
-  return jobs;
+  return out;
 }
 
 function editorSourceForBullet(bullet, store, byId) {
@@ -1045,12 +1129,15 @@ export function compileResumeDoc(posting, store) {
   let education;
   let additional;
   if (fresh) {
-    jobs = reorder(jobsFromLocal(variant, store), variant.jobOrder);
+    jobs = mergeLocalJobs(jobsFromCareer(store, variant, posting, { pinnedOnly: true }), variant, store);
+    jobs = mergePostingBullets(jobs, posting, store);
+    jobs = projectEntryLines(jobs, store);
+    jobs = reorder(jobs, variant.jobOrder);
     credentials = normalizeCredentials(variant.localCredentials);
     education = normalizeEducation(variant.localEducation);
     additional = normalizeAdditional(variant.localAdditional);
   } else {
-    jobs = mergeLocalJobs(jobsFromCareer(store, variant), variant, store);
+    jobs = mergeLocalJobs(jobsFromCareer(store, variant, posting), variant, store);
     jobs = mergePostingBullets(jobs, posting, store);
     jobs = projectEntryLines(jobs, store);
     jobs = reorder(jobs, variant.jobOrder);
