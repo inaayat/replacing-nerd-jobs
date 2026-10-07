@@ -89,6 +89,31 @@ export function jobCatalogEditEffects(eventType) {
   return { save: true, render: false };
 }
 
+export function experienceAdderChrome(open) {
+  const isOpen = Boolean(open);
+  return {
+    open: isOpen,
+    showForm: isOpen,
+    addLabel: isOpen ? 'Add' : '+ New',
+    showCancel: isOpen,
+  };
+}
+
+export function nextExperienceAdderOpen(action, wasOpen = false) {
+  if (action === 'new' || action === 'compose-new') return true;
+  if (action === 'save' || action === 'cancel' || action === 'pick') return false;
+  return Boolean(wasOpen);
+}
+
+export function resumeBulletArrows(index, length) {
+  const i = Number(index) || 0;
+  const n = Number(length) || 0;
+  return {
+    disableUp: n <= 0 || i <= 0,
+    disableDown: n <= 0 || i >= n - 1,
+  };
+}
+
 export function experienceRowSpec(entry) {
   const spec = sharedBulletSpec(entry);
   return {

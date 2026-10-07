@@ -155,7 +155,7 @@ import { renderResumeHtml, resumeDocument } from './resume-template.js';
 import { fitOnePage, dropOrderFromDoc, applyDroppedIds, droppedBulletLabels, fitStatusLine, PAGE_HEIGHT_PX } from './resume-fit.js';
 import { resumeDocxBlob } from './resume-docx.js';
 import { parseViewHash, viewHash, viewTitle } from './routes.js';
-import { bookPagePlan, experienceRowSpec, sharedBulletSpec, SHARED_BULLET_FIELDS, STAR_FIELDS, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys } from './book-view.js';
+import { bookPagePlan, experienceRowSpec, sharedBulletSpec, SHARED_BULLET_FIELDS, STAR_FIELDS, experienceAdderChrome, nextExperienceAdderOpen, resumeBulletArrows, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys } from './book-view.js';
 import {
   applyKnowledgeEnter,
   applyKnowledgeListMarker,
@@ -197,6 +197,7 @@ let knowledgeQuery = '';
 let knowledgeSaveState = null;
 let statusNote = '';
 let expandedBulletKey = '';
+let expandedAdderKey = '';
 let collapsedResumeRoles = [];
 let pendingJobEntryId = '';
 let questionComposerKey = '';
@@ -1974,6 +1975,8 @@ function experienceEditor(job, req, bullet) {
 
 function experienceAdder(job, req) {
   const wrap = el('div', { class: 'experience-add' });
+  const adderKey = `${job.id}:${req.id}`;
+  const chrome = experienceAdderChrome(expandedAdderKey === adderKey);
   const draft = {};
   const fresh = richLine({
     class: 'experience-compose',
@@ -1987,7 +1990,8 @@ function experienceAdder(job, req) {
     },
     onSubmit: (spans) => {
       if (activeIndex >= 0 && choices[activeIndex]) addExisting(choices[activeIndex]);
-      else addNew(spans);
+      else if (chrome.open) addNew(spans);
+      else openForm();
     },
   });
   const matches = el('div', { class: 'experience-matches', hidden: true, role: 'listbox' });
@@ -1995,7 +1999,16 @@ function experienceAdder(job, req) {
   let choices = [];
   let activeIndex = -1;
 
+  const openForm = () => {
+    expandedAdderKey = nextExperienceAdderOpen('new', chrome.open) ? adderKey : '';
+    render({ focusKey: `add-exp-${req.id}` });
+  };
+  const closeForm = () => {
+    expandedAdderKey = nextExperienceAdderOpen('cancel', chrome.open) ? adderKey : '';
+    render({ focusKey: `add-exp-${req.id}` });
+  };
   const addExisting = (entry) => {
+    expandedAdderKey = nextExperienceAdderOpen('pick', chrome.open) ? adderKey : '';
     store = addEntryBullet(store, job.id, req.id, entry.id);
     saveStore();
     render({ focusKey: `add-exp-${req.id}` });
@@ -2014,6 +2027,7 @@ function experienceAdder(job, req) {
       addExisting(exact);
       return;
     }
+    expandedAdderKey = nextExperienceAdderOpen('save', chrome.open) ? adderKey : '';
     store = createEntryBullet(store, job.id, req.id, text, undefined, spans, draft);
     saveStore();
     render({ focusKey: `add-exp-${req.id}` });
@@ -2079,14 +2093,18 @@ function experienceAdder(job, req) {
   wrap.append(
     el('div', { class: 'table-add' }, [
       fresh,
-      btn('+ New', { class: 'btn ghost', onClick: addNew }),
+      btn(chrome.addLabel, {
+        class: 'btn ghost',
+        onClick: () => chrome.open ? addNew() : openForm(),
+      }),
+      chrome.showCancel ? btn('Cancel', { class: 'btn ghost', onClick: closeForm }) : null,
     ]),
     matches,
-    sharedBulletForm(draft, {
+    chrome.showForm ? sharedBulletForm(draft, {
       focusPrefix: `add-${req.id}`,
       showLine: false,
       onPatch: (patch) => { Object.assign(draft, patch); },
-    }),
+    }) : null,
   );
   return wrap;
 }
@@ -2773,9 +2791,13 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0, gro
       canEdit ? resumeMoveBtns('bullet', {
         index: bulletIndex,
         length: group.bullets.length,
-        disableUp: bulletIndex <= 0 && groups.findIndex((item) => item.id === group.id) <= 0,
-        disableDown: bulletIndex >= group.bullets.length - 1
-          && groups.findIndex((item) => item.id === group.id) >= groups.length - 1,
+        ...(posting
+          ? resumeBulletArrows(bulletIndex, group.bullets.length)
+          : {
+            disableUp: bulletIndex <= 0 && groups.findIndex((item) => item.id === group.id) <= 0,
+            disableDown: bulletIndex >= group.bullets.length - 1
+              && groups.findIndex((item) => item.id === group.id) >= groups.length - 1,
+          }),
         onMove: (delta) => {
           store = stepResumeBullet(store, posting?.id || null, career, group.id, bullet.id, delta);
           saveStore();
