@@ -1506,6 +1506,56 @@ export function neighborGroupForBullet(groups, groupId, bulletId, delta) {
   return null;
 }
 
+// Display order only. A bullet belongs to the nearest named heading above
+// it. Empty, unnamed, and duplicate group records contribute their bullets
+// and do not become headings. Nothing here writes the store.
+export function resumeGroupsByPosition(groups) {
+  const list = Array.isArray(groups) ? groups : [];
+  const out = [];
+  const seenBullets = new Set();
+  let current = null;
+  const named = (group) => Boolean(String(group?.heading || '').trim());
+  const takeBullets = (group) => {
+    const bullets = [];
+    for (const bullet of group?.bullets || []) {
+      if (!bullet) continue;
+      if (bullet.id && seenBullets.has(bullet.id)) continue;
+      if (bullet.id) seenBullets.add(bullet.id);
+      bullets.push(bullet);
+    }
+    return bullets;
+  };
+  for (const group of list) {
+    if (!group) continue;
+    const bullets = takeBullets(group);
+    if (named(group)) {
+      const id = group.id || '';
+      const existing = id ? out.find((item) => item.id === id && named(item)) : null;
+      if (existing) {
+        existing.bullets.push(...bullets);
+        current = existing;
+        continue;
+      }
+      current = { ...group, heading: String(group.heading).trim(), bullets };
+      out.push(current);
+      continue;
+    }
+    if (!bullets.length) continue;
+    if (current && named(current)) {
+      current.bullets.push(...bullets);
+      continue;
+    }
+    let leading = out.find((item) => !named(item));
+    if (!leading) {
+      leading = { ...group, heading: '', bullets: [] };
+      out.push(leading);
+    }
+    leading.bullets.push(...bullets);
+    current = leading;
+  }
+  return out;
+}
+
 // Visual order of one role: a heading row, then its bullets, with unnamed
 // posting groups flushed immediately before the next shown heading.
 export function resumeDragRows(groups, { showHeading, visibleOnly = false } = {}) {

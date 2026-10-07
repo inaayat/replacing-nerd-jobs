@@ -134,18 +134,12 @@ export function resumeGroupChrome(groups, draftGroupId = '', posting = true) {
   return {
     namedCount,
     hasDraft,
-    showUnder: Boolean(posting) && namedCount > 0,
-    showDefaultAdd: Boolean(posting) && namedCount === 0 && !hasDraft,
+    // A bullet's heading is the nearest named one above it. Empty groups
+    // stay hidden on both surfaces, except the heading being typed.
+    showDefaultAdd: namedCount === 0 && !hasDraft,
     showHeading(group) {
-      if (!posting) return true;
       if (resumeGroupHasName(group)) return true;
       return Boolean(draftId && group?.id === draftId);
-    },
-    underLabel(group, index) {
-      const heading = String(group?.heading || '').trim();
-      if (heading) return heading;
-      if (!posting) return index === 0 ? 'Top of role' : `Untitled heading ${index + 1}`;
-      return 'No sub-heading';
     },
   };
 }

@@ -1574,17 +1574,6 @@ a:focus-visible {
 .bb-order-btns .btn {
   min-width: 36px;
 }
-.bb-move-group {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.72rem;
-  color: var(--muted);
-}
-.bb-move-group select {
-  max-width: 14rem;
-  font: inherit;
-}
 .bb-addl-group {
   border-top: 1px solid var(--line);
   padding-top: 8px;

@@ -60,7 +60,6 @@ import {
   deleteCareerBullet,
   moveCareerBullet,
   moveCareerGroup,
-  moveResumeBullet,
   stepResumeBullet,
   applyResumeDrag,
   moveDragRow,
@@ -2717,13 +2716,6 @@ function resumeMoveBtns(label, { index, length, onMove, disableUp, disableDown }
   ]);
 }
 
-function resumeGroupLabel(group, index, posting) {
-  const heading = String(group?.heading || '').trim();
-  if (heading) return heading;
-  if (posting) return 'No sub-heading';
-  return index === 0 ? 'Top of role' : `Untitled heading ${index + 1}`;
-}
-
 function libraryBulletPicker(posting, career, group) {
   const query = el('input', {
     type: 'search',
@@ -2879,25 +2871,6 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0, gro
           render({ focusKey: `rb-${bullet.id}-line` });
         },
       }) : null,
-      canEdit && groups.length > 1 && (!posting || resumeGroupChrome(groups, draftResumeGroupId, true).showUnder) ? el('label', { class: 'bb-move-group' }, [
-        el('span', {}, 'Under'),
-        el('select', {
-          'aria-label': 'Move bullet to sub-heading',
-          'data-focus-key': `rb-${bullet.id}-group`,
-          onChange: (event) => {
-            const toGroupId = event.target.value;
-            if (!toGroupId || toGroupId === group.id) return;
-            store = moveResumeBullet(store, posting?.id || null, career, group.id, toGroupId, bullet.id, {});
-            saveStore();
-            render({ focusKey: `rb-${bullet.id}-line` });
-          },
-        }, groups.map((item, index) =>
-          el('option', {
-            value: item.id,
-            selected: item.id === group.id || undefined,
-          }, resumeGroupLabel(item, index, posting))
-        )),
-      ]) : null,
       canEdit ? btn(localBullet || !posting ? 'Remove' : (bullet.included !== false ? 'Remove' : 'Delete'), {
         class: 'btn ghost compact-action is-danger',
         onClick: () => {
@@ -3248,46 +3221,36 @@ function resumeJobGroupBlocks(posting, career, groups, { allowStructure, shared,
     return allowStructure ? resumeDragRow('heading', group.id, 'sub-heading', head) : head;
   };
 
-  if (!posting) {
-    return [
-      ...groups.flatMap((group, groupIndex) => [
-        paintHeading(group, groupIndex),
-        ...paintBullets(group),
-        allowStructure ? el('div', { class: 'bb-add-row' }, [
-          libraryBulletPicker(posting, career, group),
-          addSubheadingButton(posting, career, { afterId: group.id }),
-        ]) : null,
-      ]),
-      allowStructure && !groups.length ? el('div', { class: 'bb-add-row' }, [
-        addSubheadingButton(posting, career),
-        libraryBulletPicker(posting, career, null),
-      ]) : null,
-    ];
-  }
-
+  // Bullets in an unnamed group belong to the nearest heading above them.
+  // They paint with that heading, and a heading with no name stays hidden.
   const parts = [];
-  let unheaded = [];
-  const flushUnheaded = () => {
-    if (!unheaded.length) return;
-    for (const group of unheaded) parts.push(...paintBullets(group));
-    unheaded = [];
-  };
+  const leading = [];
+  const sections = [];
   groups.forEach((group, groupIndex) => {
     if (chrome.showHeading(group)) {
-      flushUnheaded();
-      parts.push(paintHeading(group, groupIndex));
-      parts.push(...paintBullets(group));
-      if (allowStructure) {
-        parts.push(el('div', { class: 'bb-add-row' }, [
-          libraryBulletPicker(posting, career, group),
-          addSubheadingButton(posting, career, { afterId: group.id }),
-        ]));
+      const prior = group.id && sections.find((section) => section.group.id === group.id);
+      if (prior) {
+        prior.absorbed.push(group);
+        return;
       }
+      sections.push({ group, groupIndex, absorbed: [] });
       return;
     }
-    unheaded.push(group);
+    if (sections.length) sections[sections.length - 1].absorbed.push(group);
+    else leading.push(group);
   });
-  flushUnheaded();
+  for (const group of leading) parts.push(...paintBullets(group));
+  for (const section of sections) {
+    parts.push(paintHeading(section.group, section.groupIndex));
+    parts.push(...paintBullets(section.group));
+    for (const group of section.absorbed) parts.push(...paintBullets(group));
+    if (allowStructure) {
+      parts.push(el('div', { class: 'bb-add-row' }, [
+        libraryBulletPicker(posting, career, section.group),
+        addSubheadingButton(posting, career, { afterId: section.group.id }),
+      ]));
+    }
+  }
   if (allowStructure && (chrome.showDefaultAdd || !groups.length)) {
     parts.push(el('div', { class: 'bb-add-row' }, [
       libraryBulletPicker(posting, career, groups[0] || null),

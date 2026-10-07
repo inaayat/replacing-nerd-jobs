@@ -116,6 +116,7 @@ export {
   moveListItem,
   relocateBullet,
   neighborGroupForBullet,
+  resumeGroupsByPosition,
   resumeDragRows,
   moveDragRow,
   dropIndexAtY,

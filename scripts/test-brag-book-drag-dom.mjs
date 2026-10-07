@@ -347,8 +347,8 @@ async function runReorder(surface, mode) {
     assert.equal(firstGroups[0].heading, '');
     assert.deepEqual(firstGroups[0].bullets, ['b1']);
     assert.deepEqual(firstGroups[1].bullets, ['a1', 'a2']);
-    if (surface === 'basics') assert.equal(rowIds(first.document)[1], 'b1');
-    else assert.equal(rowIds(first.document)[0], 'b1');
+    assert.equal(rowIds(first.document)[0], 'b1');
+    assert.equal(rowIds(first.document).filter((id) => id === 'h1').length, 1);
     assertOrder(firstBook, surface, ['Beta one', 'Alpha one', 'Alpha two']);
     assert.deepEqual(first.errors, []);
 

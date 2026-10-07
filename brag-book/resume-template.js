@@ -3,7 +3,7 @@
  * Preview and print/PDF share this renderer.
  */
 
-import { additionalValueSpans, resumeBulletSpans } from './resume-model.js';
+import { additionalValueSpans, resumeBulletSpans, resumeGroupsByPosition } from './resume-model.js';
 
 export const TOKENS = {
   page: { width: '8.5in', height: '11in', margin: '0.5in' },
@@ -43,7 +43,7 @@ function dateLine(job) {
 const SECTIONS = {
   experience: (section, dropped) => (section.jobs || []).map((job) => {
     if (job.included === false) return '';
-    const groups = (job.groups || []).map((group) => {
+    const groups = resumeGroupsByPosition(job.groups).map((group) => {
       const bullets = (group.bullets || []).filter((b) => (
         b.included !== false && !dropped.has(b.id) && (b.lead || b.body)
       ));

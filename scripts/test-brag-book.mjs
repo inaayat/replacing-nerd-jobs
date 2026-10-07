@@ -166,6 +166,7 @@ import {
   moveResumeBullet,
   stepResumeBullet,
   applyResumeDrag,
+  resumeGroupsByPosition,
   resumeDragRows,
   moveDragRow,
   dropIndexAtY,
@@ -3951,30 +3952,24 @@ const emptyHeads = [
 ];
 const emptyChrome = resumeGroupChrome(emptyHeads, '', true);
 assert.equal(emptyChrome.namedCount, 0);
-assert.equal(emptyChrome.showUnder, false);
 assert.equal(emptyChrome.showDefaultAdd, true);
 assert.equal(emptyChrome.showHeading(emptyHeads[0]), false);
 assert.equal(emptyChrome.showHeading(emptyHeads[1]), false);
-assert.equal(emptyChrome.underLabel(emptyHeads[1], 1), 'No sub-heading');
-assert.equal(emptyChrome.underLabel(emptyHeads[1], 1).includes('Untitled'), false);
 const namedChrome = resumeGroupChrome([
   { id: 'rg_a', heading: '', bullets: [] },
   { id: 'rg_b', heading: 'Training', bullets: [] },
 ], '', true);
 assert.equal(namedChrome.namedCount, 1);
-assert.equal(namedChrome.showUnder, true);
 assert.equal(namedChrome.showDefaultAdd, false);
 assert.equal(namedChrome.showHeading({ id: 'rg_a', heading: '' }), false);
 assert.equal(namedChrome.showHeading({ id: 'rg_b', heading: 'Training' }), true);
-assert.equal(namedChrome.underLabel({ heading: 'Training' }, 1), 'Training');
-assert.equal(namedChrome.underLabel({ heading: '' }, 0), 'No sub-heading');
 const draftChrome = resumeGroupChrome(emptyHeads, 'rg_b', true);
 assert.equal(draftChrome.hasDraft, true);
 assert.equal(draftChrome.showDefaultAdd, false);
 assert.equal(draftChrome.showHeading(emptyHeads[0]), false);
 assert.equal(draftChrome.showHeading(emptyHeads[1]), true);
-assert.equal(resumeGroupChrome(emptyHeads, '', false).showHeading(emptyHeads[0]), true);
-assert.equal(resumeGroupChrome(emptyHeads, '', false).underLabel(emptyHeads[1], 1), 'Untitled heading 2');
+assert.equal(resumeGroupChrome(emptyHeads, '', false).showHeading(emptyHeads[0]), false);
+assert.equal(resumeGroupChrome(emptyHeads, '', false).showDefaultAdd, true);
 
 let headBook = addCareerJob(emptyStore(), {
   id: 'rj_head',
@@ -4021,7 +4016,6 @@ assert.equal(postingById(headBook, 'job_head').resume.groupHeadings.rg_head_b, '
 const afterChrome = resumeGroupChrome(afterRemove.groups, '', true);
 assert.equal(afterChrome.namedCount, 0);
 assert.equal(afterChrome.showDefaultAdd, true);
-assert.equal(afterChrome.showUnder, false);
 assert.equal(afterChrome.showHeading(afterRemove.groups[0]), false);
 assert.equal(afterChrome.showHeading(afterRemove.groups[1]), false);
 const afterHtml = renderResumeHtml(compileResumeDoc(postingById(headBook, 'job_head'), headBook));
@@ -4295,8 +4289,74 @@ assert.match(appSource, /addEventListener\('pointerdown'/);
 assert.match(appSource, /applyResumeDrag\(/);
 assert.match(appSource, /resumeMoveBtns\('bullet'/);
 assert.match(appSource, /resumeMoveBtns\('sub-heading'/);
-assert.match(appSource, /Move bullet to sub-heading/);
+assert.doesNotMatch(appSource, /Move bullet to sub-heading/);
+assert.doesNotMatch(appSource, /No sub-heading/);
+assert.doesNotMatch(appSource, /bb-move-group/);
 assert.match(appSource, /bb-drag-handle/);
 assert.match(appSource, /⠇/);
 assert.match(bookCss, /\.bb-drop-line \{[^}]*height:\s*2px/);
 assert.match(bookCss, /\.bb-drag-handle \{[^}]*cursor:\s*grab/);
+assert.doesNotMatch(bookCss, /\.bb-move-group/);
+
+const phantomGroups = [
+  { id: 'rg_none_a', heading: '', bullets: [{ id: 'rb_loose_a', lead: 'Loose one', body: 'kept' }] },
+  { id: 'rg_none_b', heading: '   ', bullets: [{ id: 'rb_loose_b', lead: 'Loose two', body: 'kept' }, { lead: 'No id bullet', body: 'kept' }] },
+  { id: 'rg_fin', heading: 'Finance Transformation & AI Enablement', bullets: [{ id: 'rb_fin', lead: 'Finance line', body: 'kept' }] },
+  { id: 'rg_fin', heading: 'Finance Transformation & AI Enablement', bullets: [{ id: 'rb_fin_extra', lead: 'Extra finance', body: 'kept' }] },
+  { id: 'rg_stale', heading: '', bullets: [{ id: 'rb_stale', lead: 'Stale middle', body: 'kept' }] },
+  { id: 'rg_empty', heading: '', bullets: [] },
+  { id: 'rg_agent', heading: 'Agentic & Automated Solutions', bullets: [{ id: 'rb_agent', lead: 'Agent line', body: 'kept' }] },
+];
+const phantomShown = resumeGroupsByPosition(phantomGroups);
+assert.deepEqual(phantomShown.map((group) => group.heading), [
+  '',
+  'Finance Transformation & AI Enablement',
+  'Agentic & Automated Solutions',
+]);
+assert.deepEqual(phantomShown.map((group) => group.bullets.map((bullet) => bullet.lead)), [
+  ['Loose one', 'Loose two', 'No id bullet'],
+  ['Finance line', 'Extra finance', 'Stale middle'],
+  ['Agent line'],
+]);
+assert.equal(phantomShown.filter((group) => !String(group.heading || '').trim()).length, 1);
+const phantomChrome = resumeGroupChrome(phantomGroups, '', true);
+assert.equal(phantomGroups.filter((group) => !String(group.heading || '').trim() && phantomChrome.showHeading(group)).length, 0);
+
+let phantomBook = addCareerJob(emptyStore(), {
+  id: 'rj_phantom',
+  company: 'Phantom Co',
+  title: 'Analyst',
+  onResume: true,
+  groups: [
+    { id: 'rg_none_a', heading: '', bullets: [{ id: 'rb_loose_a', lead: 'Loose one', body: 'kept' }] },
+    { id: 'rg_none_b', heading: '', bullets: [{ id: 'rb_loose_b', lead: 'Loose two', body: 'kept' }] },
+    { id: 'rg_fin', heading: 'Finance Transformation & AI Enablement', bullets: [{ id: 'rb_fin', lead: 'Finance line', body: 'kept' }] },
+    { id: 'rg_stale', heading: '', bullets: [{ id: 'rb_stale', lead: 'Stale middle', body: 'kept' }] },
+    { id: 'rg_agent', heading: 'Agentic & Automated Solutions', bullets: [{ id: 'rb_agent', lead: 'Agent line', body: 'kept' }] },
+  ],
+}, clock, random);
+phantomBook = addPosting(phantomBook, { id: 'job_phantom', title: 'Phantom posting' }, clock);
+phantomBook = updatePostingResume(phantomBook, 'job_phantom', { includedJobIds: ['rj_phantom'] }, clock);
+const phantomBefore = JSON.stringify(phantomBook);
+const phantomDoc = compileResumeDoc(postingById(phantomBook, 'job_phantom'), phantomBook);
+assert.equal(JSON.stringify(phantomBook), phantomBefore);
+const phantomJob = phantomDoc.sections.experience.jobs.find((job) => job.id === 'rj_phantom');
+assert.equal(phantomJob.groups.length, 5);
+assert.deepEqual(phantomJob.groups.flatMap((group) => group.bullets.map((bullet) => bullet.id)), [
+  'rb_loose_a', 'rb_loose_b', 'rb_fin', 'rb_stale', 'rb_agent',
+]);
+const phantomHtml = renderResumeHtml(phantomDoc);
+assert.doesNotMatch(phantomHtml, /No sub-heading/);
+assert.equal(phantomHtml.match(/<div class="subhead">/g).length, 2);
+assert.ok(phantomHtml.indexOf('Loose one') < phantomHtml.indexOf('Loose two'));
+assert.ok(phantomHtml.indexOf('Loose two') < phantomHtml.indexOf('Finance Transformation'));
+assert.ok(phantomHtml.indexOf('Finance Transformation') < phantomHtml.indexOf('Finance line'));
+assert.ok(phantomHtml.indexOf('Finance line') < phantomHtml.indexOf('Stale middle'));
+assert.ok(phantomHtml.indexOf('Stale middle') < phantomHtml.indexOf('Agentic &amp; Automated Solutions'));
+assert.ok(phantomHtml.indexOf('Agentic &amp; Automated Solutions') < phantomHtml.indexOf('Agent line'));
+const phantomDocx = new TextDecoder().decode(resumeDocxBytes(phantomDoc));
+assert.doesNotMatch(phantomDocx, /No sub-heading/);
+assert.ok(phantomDocx.indexOf('Loose one') < phantomDocx.indexOf('Finance line'));
+assert.ok(phantomDocx.indexOf('Finance line') < phantomDocx.indexOf('Stale middle'));
+assert.ok(phantomDocx.indexOf('Stale middle') < phantomDocx.indexOf('Agent line'));
+assert.equal(JSON.stringify(phantomBook), phantomBefore);

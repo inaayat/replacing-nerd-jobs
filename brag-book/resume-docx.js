@@ -3,7 +3,7 @@
  * Uncompressed zip writer, same approach as takeout/workbook.js.
  */
 
-import { additionalValueSpans, resumeBulletSpans } from './resume-model.js';
+import { additionalValueSpans, resumeBulletSpans, resumeGroupsByPosition } from './resume-model.js';
 
 const CRC_TABLE = new Uint32Array(256);
 for (let i = 0; i < 256; i += 1) {
@@ -146,7 +146,7 @@ function experienceXml(section, dropped, bodyPt, bulletLine) {
       lrTabs(run(job.company, { bold: true, pt: bodyPt }), run(dates(job), { bold: true, pt: bodyPt })),
       lrTabs(run(job.title, { bold: true, pt: bodyPt, color: '1F497D' }), run(job.location || '', { pt: bodyPt })),
     ];
-    const groups = (job.groups || []).map((group) => {
+    const groups = resumeGroupsByPosition(job.groups).map((group) => {
       const bullets = (group.bullets || []).filter((b) => b.included !== false && !skip.has(b.id));
       if (!bullets.length) return '';
       const heading = group.heading
