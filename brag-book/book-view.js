@@ -1,7 +1,12 @@
 /**
- * Combined Experiences + Knowledge page. Browser-safe, import-free ESM.
- * The list renders these controls immediately — nothing is behind a click.
+ * Resume bullets & knowledge page. Browser-safe, import-free ESM.
+ * One tab is visible at a time. The list renders its controls immediately.
  */
+
+export const BOOK_TABS = [
+  { id: 'experiences', label: 'Resume bullets', kind: 'log' },
+  { id: 'knowledge', label: 'Knowledge', kind: 'kb' },
+];
 
 export const STAR_FIELDS = [
   { key: 'situation', label: 'Situation' },
@@ -25,6 +30,7 @@ export function bookPagePlan(view) {
     experiences: true,
     knowledge: true,
     focus: view.kind === 'kb' ? 'knowledge' : 'experiences',
+    tabs: BOOK_TABS,
     knowledgeId: noteId,
     addExperiences: view.kind === 'log' && view.id === 'new',
     addKnowledge: view.kind === 'kb' && view.id === 'new',

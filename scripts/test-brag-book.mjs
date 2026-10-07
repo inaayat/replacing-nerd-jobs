@@ -1669,14 +1669,14 @@ assert.equal(logLayout({ kind: 'log', id: 'new' }), 'catalog-add');
 assert.equal(logLayout({ kind: 'log', id: 'en_1' }), 'catalog');
 assert.equal(hideBookRail({ kind: 'log', id: 'new' }, { entries: [{ id: 'e' }] }), false);
 assert.equal(viewHash({ kind: 'log' }), '#experiences');
-assert.equal(viewTitle({ kind: 'log' }), 'Experiences & knowledge');
+assert.equal(viewTitle({ kind: 'log' }), 'Resume bullets & knowledge');
 assert.equal(viewHash({ kind: 'log', id: 'en_1' }), '#experiences/en_1');
 assert.deepEqual(parseViewHash('#experiences'), { kind: 'log' });
 assert.deepEqual(parseViewHash('#experiences/en_1', { entryIds: ['en_1'] }), { kind: 'log', id: 'en_1' });
 assert.deepEqual(parseViewHash('#log'), { kind: 'log' });
 assert.equal(viewHash({ kind: 'kb' }), '#kb');
-assert.equal(viewTitle({ kind: 'kb' }), 'Experiences & knowledge');
-assert.equal(viewTitle({ kind: 'kb', id: 'note_1' }, { knowledge: [{ id: 'note_1', title: 'Neon' }] }), 'Experiences & knowledge');
+assert.equal(viewTitle({ kind: 'kb' }), 'Resume bullets & knowledge');
+assert.equal(viewTitle({ kind: 'kb', id: 'note_1' }, { knowledge: [{ id: 'note_1', title: 'Neon' }] }), 'Resume bullets & knowledge');
 assert.deepEqual(parseViewHash('#kb'), { kind: 'kb' });
 assert.deepEqual(parseViewHash('#knowledge'), { kind: 'kb' });
 assert.deepEqual(parseViewHash('#kb/note_1', { knowledgeIds: ['note_1'] }), { kind: 'kb', id: 'note_1' });
@@ -2149,6 +2149,8 @@ for (const hash of ['#kb', '#knowledge', '#experiences']) {
 assert.equal(bookPagePlan(parseViewHash('#kb')).focus, 'knowledge');
 assert.equal(bookPagePlan(parseViewHash('#knowledge')).focus, 'knowledge');
 assert.equal(bookPagePlan(parseViewHash('#experiences')).focus, 'experiences');
+assert.deepEqual(bookPagePlan(parseViewHash('#experiences')).tabs.map((tab) => tab.label), ['Resume bullets', 'Knowledge']);
+assert.deepEqual(bookPagePlan(parseViewHash('#kb')).tabs.map((tab) => tab.kind), ['log', 'kb']);
 const notedPlan = bookPagePlan(parseViewHash('#kb/note_1', { knowledgeIds: ['note_1'] }));
 assert.equal(notedPlan.knowledge, true);
 assert.equal(notedPlan.experiences, true);
@@ -2217,6 +2219,14 @@ assert.match(engineImport, /\bsearchKnowledge\b/);
 assert.match(appSource, /bookPagePlan\(view\)/);
 assert.match(appSource, /experienceRowSpec\(/);
 assert.match(appSource, /homeStartCards\(/);
+assert.match(appSource, /Resume bullets & knowledge/);
+assert.doesNotMatch(appSource, /Experiences & knowledge/);
+assert.match(appSource, /Recent resume bullets/);
+assert.match(appSource, /Search resume bullets, companies, STAR/);
+assert.match(appSource, /aria-label': 'Search resume bullets'/);
+assert.doesNotMatch(appSource, /aria-label': 'Search experiences'/);
+assert.doesNotMatch(appSource, /No experiences yet/);
+assert.match(appSource, /bb-book-tab/);
 assert.match(appSource, /tailored for this posting/);
 assert.match(appSource, /Reset to job title/);
 assert.match(appSource, /Restore hidden rows/);
@@ -2249,6 +2259,10 @@ assert.doesNotMatch(appSource, /Expand experience/);
 
 await renderBookPage('#kb');
 await renderBookPage('#knowledge');
+await renderBookPage('#experiences');
+const navHtml = readFileSync(new URL('../brag-book/index.html', import.meta.url), 'utf8');
+assert.match(navHtml, /Resume bullets/);
+assert.doesNotMatch(navHtml, />Experiences</);
 
 console.log('ok');
 
@@ -2414,16 +2428,36 @@ async function renderBookPage(hash) {
   await import(href);
   const labels = app.querySelectorAll('[aria-label]').map((node) => node.getAttribute('aria-label'));
   const text = app.textContent;
+  const tabs = app.querySelectorAll('.bb-book-tab');
   assert.equal(text.includes('Opening the book'), false);
-  assert.match(text, /Knowledge/);
-  assert.match(text, /Search pages|New page|Neon notes/);
-  assert.match(text, /Led the close/);
-  assert.match(text, /Second line/);
-  for (const label of ['Job', 'Role', 'Situation', 'Task', 'Action', 'Result']) {
-    assert.equal(labels.filter((item) => item === label).length, 2, `${hash} ${label}`);
+  assert.match(text, /Resume bullets & knowledge/);
+  assert.deepEqual(tabs.map((tab) => tab.textContent), ['Resume bullets', 'Knowledge']);
+  const selected = tabs.filter((tab) => String(tab.className).includes('is-on')).map((tab) => tab.textContent);
+  const knowledge = hash === '#kb' || hash === '#knowledge';
+  assert.deepEqual(selected, [knowledge ? 'Knowledge' : 'Resume bullets']);
+  if (knowledge) {
+    assert.match(text, /Search pages|New page|Neon notes/);
+    assert.match(text, /Neon notes/);
+    assert.doesNotMatch(text, /Led the close/);
+    assert.equal(app.querySelectorAll('[data-star="always"]').length, 0);
+    assert.equal(app.querySelector('#book-knowledge') != null, true);
+    assert.equal(app.querySelector('#book-experiences'), null);
+  } else {
+    assert.match(text, /Led the close/);
+    assert.match(text, /Second line/);
+    assert.doesNotMatch(text, /Neon notes/);
+    assert.match(text, /\+ Add resume bullet/);
+    const placeholders = app.querySelectorAll('input').map((node) => node.getAttribute('placeholder'));
+    assert.equal(placeholders.includes('Search resume bullets, companies, STAR…'), true);
+    assert.equal(placeholders.includes('Search pages'), false);
+    for (const label of ['Job', 'Role', 'Situation', 'Task', 'Action', 'Result']) {
+      assert.equal(labels.filter((item) => item === label).length, 2, `${hash} ${label}`);
+    }
+    assert.equal(app.querySelectorAll('[data-star="always"]').length, 2);
+    assert.match(text, /Books were late/);
+    assert.match(text, /Second result/);
+    assert.equal(app.querySelector('#book-experiences') != null, true);
+    assert.equal(app.querySelector('#book-knowledge'), null);
   }
-  assert.equal(app.querySelectorAll('[data-star="always"]').length, 2);
   assert.equal(app.querySelectorAll('[aria-label="Expand experience"]').length, 0);
-  assert.match(text, /Books were late/);
-  assert.match(text, /Second result/);
 }

@@ -665,7 +665,7 @@ function countRow() {
   const summary = listingSummary(store);
   return el('div', { class: 'counts' }, [
     chip(summary.postings, 'postings'),
-    chip(summary.entries, 'experiences'),
+    chip(summary.entries, 'resume bullets'),
     chip(summary.knowledge || 0, 'pages'),
   ]);
 }
@@ -761,7 +761,7 @@ function homeView() {
     book: {
       className: 'start-card',
       kicker: 'The book',
-      title: 'Experiences & knowledge',
+      title: 'Resume bullets & knowledge',
       copy: lineCount || noteCount
         ? `${lineCount} resume line${lineCount === 1 ? '' : 's'} and ${noteCount} knowledge page${noteCount === 1 ? '' : 's'}. STAR, job, and role sit on each line.`
         : 'Resume lines with STAR, job, and role beside them, plus pages for what you learn about a job or a project.',
@@ -798,7 +798,7 @@ function homeView() {
       })),
     ]) : null,
     recentWins.length ? el('section', { class: 'recent' }, [
-      el('h2', {}, 'Recent experiences'),
+      el('h2', {}, 'Recent resume bullets'),
       el('div', { class: 'plot-cards' }, recentWins.map((row) => {
         const entry = store.entries.find((item) => item.id === row.id);
         if (!entry) return null;
@@ -861,9 +861,9 @@ function experienceTools(view) {
     el('input', {
       class: 'search',
       type: 'search',
-      placeholder: 'Search resume lines, companies, STAR…',
+      placeholder: 'Search resume bullets, companies, STAR…',
       value: query,
-      'aria-label': 'Search experiences',
+      'aria-label': 'Search resume bullets',
       'data-focus-key': 'book-search',
       onInput: (event) => { query = event.target.value; render(); },
     }),
@@ -998,7 +998,7 @@ function experienceTable(view) {
       }))
       : el('p', { class: 'empty' }, query
         ? 'Nothing matches that.'
-        : 'No experiences yet. Add a resume line — STAR, job, and role sit on the row.'),
+        : 'No resume bullets yet. Add a resume bullet — STAR, job, and role sit on the row.'),
   ]);
 }
 
@@ -3431,22 +3431,33 @@ function render(options = {}) {
   const plan = bookPagePlan(view);
   if (plan) {
     const knowledgeView = view.kind === 'kb' ? view : { kind: 'kb', id: plan.knowledgeId || undefined };
+    const bulletsOn = plan.focus !== 'knowledge';
     const body = el('div', { class: 'bb-book-page' }, [
-      el('section', { class: 'bb-book-section', id: 'book-experiences' }, [
-        plan.addExperiences ? bulkEntryForm({ compact: true }) : null,
-        experienceTable(view),
-      ]),
-      el('section', { class: 'bb-book-section', id: 'book-knowledge' }, [
-        el('h2', { class: 'bb-section-label' }, 'Knowledge'),
-        plan.addKnowledge ? bulkKnowledgeForm() : null,
-        knowledgeWorkspace(knowledgeView),
-      ]),
+      el('div', { class: 'bb-book-tabs', role: 'tablist', 'aria-label': 'Resume bullets and knowledge' }, plan.tabs.map((tab) => {
+        const on = plan.focus === tab.id;
+        return el('button', {
+          type: 'button',
+          class: `bb-book-tab${on ? ' is-on' : ''}`,
+          role: 'tab',
+          'aria-selected': on ? 'true' : 'false',
+          onClick: () => {
+            if (on) return;
+            go({ kind: tab.kind });
+          },
+        }, tab.label);
+      })),
+      bulletsOn
+        ? el('section', { class: 'bb-book-section', id: 'book-experiences' }, [
+          plan.addExperiences ? bulkEntryForm({ compact: true }) : null,
+          experienceTable(view.kind === 'log' ? view : { kind: 'log' }),
+        ])
+        : el('section', { class: 'bb-book-section', id: 'book-knowledge' }, [
+          plan.addKnowledge ? bulkKnowledgeForm() : null,
+          knowledgeWorkspace(knowledgeView),
+        ]),
     ]);
     root.replaceChildren(el('div', {}, [toolbar(view), body]));
     finishRender(captured, options, scroll);
-    if (plan.focus === 'knowledge' && !scroll) {
-      document.getElementById('book-knowledge')?.scrollIntoView?.({ block: 'start' });
-    }
     return;
   }
 
