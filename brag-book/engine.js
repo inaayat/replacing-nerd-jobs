@@ -45,7 +45,6 @@ import {
   updateLocalBullet,
   deleteLocalBullet,
   moveLocalBullet,
-  relocateLocalBullet,
   moveLocalGroup,
   addLocalEducation,
   updateLocalEducation,
@@ -1075,25 +1074,21 @@ function relocateCareerBullet(store, jobId, fromGroupId, toGroupId, bulletId, in
 export function moveResumeBullet(store, postingId, career, fromGroupId, toGroupId, bulletId, { index } = {}, clock = Date.now) {
   const jobId = career?.id;
   if (!jobId || !bulletId || !toGroupId) return store;
-  let next = adoptCompiledJob(store, postingId || null, career, clock);
-  const posting = postingId ? postingById(next, postingId) : null;
-  const localHit = posting ? findLocalBullet(posting.resume, bulletId) : null;
-  const inCareer = (next.jobs || []).some((job) => job.id === jobId);
-  if (localHit) {
-    next = patchPostingVariant(next, postingId, (variant) => (
-      relocateLocalBullet(variant, jobId, fromGroupId, toGroupId, bulletId, index, clock)
-    ), clock);
-  } else if (inCareer) {
-    next = relocateCareerBullet(next, jobId, fromGroupId, toGroupId, bulletId, index, clock);
-  } else {
-    return store;
+  if (!postingId) {
+    const next = adoptCompiledJob(store, null, career, clock);
+    return relocateCareerBullet(next, jobId, fromGroupId, toGroupId, bulletId, index, clock);
   }
-  if (!postingId) return next;
-  const compiled = compiledExperienceJob(next, postingId, jobId);
-  return updatePostingResume(next, postingId, {
+  // Posting order lives on resume.bulletOrder only. Do not relocate the
+  // shared career catalog or rewrite localJobs / overrides.
+  if (fromGroupId !== toGroupId) return store;
+  const compiled = compiledExperienceJob(store, postingId, jobId);
+  if (!compiled) return store;
+  const moved = relocateBullet(compiled.groups, fromGroupId, toGroupId, bulletId, index);
+  if (moved === compiled.groups) return store;
+  return updatePostingResume(store, postingId, {
     bulletOrder: {
-      ...(postingById(next, postingId)?.resume?.bulletOrder || {}),
-      ...groupBulletOrders(compiled?.groups),
+      ...(postingById(store, postingId)?.resume?.bulletOrder || {}),
+      ...groupBulletOrders(moved),
     },
   }, clock);
 }

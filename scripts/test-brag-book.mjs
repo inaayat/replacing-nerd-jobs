@@ -169,7 +169,7 @@ import {
   hostFromJobUrl,
 } from '../brag-book/engine.js';
 import { parseViewHash, viewHash, viewTitle, defaultView, logLayout, hideBookRail } from '../brag-book/routes.js';
-import { bookPagePlan, experienceRowSpec, sharedBulletSpec, SHARED_BULLET_FIELDS, STAR_FIELDS, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys } from '../brag-book/book-view.js';
+import { bookPagePlan, experienceRowSpec, sharedBulletSpec, SHARED_BULLET_FIELDS, STAR_FIELDS, experienceAdderChrome, nextExperienceAdderOpen, resumeBulletArrows, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys } from '../brag-book/book-view.js';
 import {
   applyKnowledgeEnter,
   applyKnowledgeListMarker,
@@ -1958,9 +1958,11 @@ assert.equal(hopped.jobs[0].groups[0].bullets[0].id, 'b2');
 assert.equal(hopped.jobs[0].groups[1].bullets[0].id, 'b1');
 hopped = addPosting(hopped, { title: 'Hop posting' }, clock);
 const hopPosting = hopped.postings[0];
+const jobsBeforePostingHop = JSON.stringify(hopped.jobs);
 hopped = stepResumeBullet(hopped, hopPosting.id, hopJob, 'g2', 'b1', -1, clock);
-assert.equal(hopped.jobs[0].groups[0].bullets.map((bullet) => bullet.id).join(','), 'b2,b1');
-assert.equal(hopped.jobs[0].groups[1].bullets.length, 0);
+assert.equal(JSON.stringify(hopped.jobs), jobsBeforePostingHop);
+assert.equal(hopped.jobs[0].groups[0].bullets.map((bullet) => bullet.id).join(','), 'b2');
+assert.equal(hopped.jobs[0].groups[1].bullets[0].id, 'b1');
 
 let addl = applyImportedResume(emptyStore(), sampleResume, clock);
 addl = addAdditionalGroup(addl, addl.additional[0].id, { label: 'First' }, clock, random);
@@ -2355,6 +2357,10 @@ assert.match(engineImport, /\bsearchKnowledge\b/);
 assert.match(appSource, /bookPagePlan\(view\)/);
 assert.match(appSource, /experienceRowSpec\(/);
 assert.match(appSource, /sharedBulletForm\(/);
+assert.match(appSource, /experienceAdderChrome\(/);
+assert.match(appSource, /nextExperienceAdderOpen\(/);
+assert.match(appSource, /resumeBulletArrows\(/);
+assert.match(appSource, /chrome\.showForm/);
 assert.match(appSource, /saveSharedBullet/);
 assert.match(appSource, /SHARED_BULLET_FIELDS/);
 assert.doesNotMatch(appSource, /function experienceEditor[\s\S]*aria-label': 'Role'/);
@@ -3072,3 +3078,165 @@ bulkJob = addEntries(bulkJob, [
 ], clock);
 assert.equal(bulkJob.entries.length, 2);
 assert.ok(bulkJob.entries.every((entry) => entry.jobId === 'rj_bulk' && entry.company === 'Bulk Co'));
+
+assert.deepEqual(experienceAdderChrome(false), {
+  open: false,
+  showForm: false,
+  addLabel: '+ New',
+  showCancel: false,
+});
+assert.deepEqual(experienceAdderChrome(true), {
+  open: true,
+  showForm: true,
+  addLabel: 'Add',
+  showCancel: true,
+});
+assert.equal(nextExperienceAdderOpen('new'), true);
+assert.equal(nextExperienceAdderOpen('compose-new'), true);
+assert.equal(nextExperienceAdderOpen('save', true), false);
+assert.equal(nextExperienceAdderOpen('cancel', true), false);
+assert.equal(nextExperienceAdderOpen('pick', true), false);
+assert.equal(nextExperienceAdderOpen('type', true), true);
+assert.deepEqual(resumeBulletArrows(0, 3), { disableUp: true, disableDown: false });
+assert.deepEqual(resumeBulletArrows(1, 3), { disableUp: false, disableDown: false });
+assert.deepEqual(resumeBulletArrows(2, 3), { disableUp: false, disableDown: true });
+assert.deepEqual(resumeBulletArrows(0, 1), { disableUp: true, disableDown: true });
+
+function compiledBulletIds(book, postingId, jobId) {
+  const job = compileResumeDoc(postingById(book, postingId), book)
+    .sections.experience.jobs.find((item) => item.id === jobId);
+  return (job?.groups || []).flatMap((group) => (group.bullets || []).map((bullet) => bullet.id));
+}
+
+function compiledBulletLines(book, postingId, jobId) {
+  const job = compileResumeDoc(postingById(book, postingId), book)
+    .sections.experience.jobs.find((item) => item.id === jobId);
+  return (job?.groups || []).flatMap((group) => (group.bullets || []).map((bullet) => (
+    `${bullet.lead || ''} ${bullet.body || ''}`.replace(/\s+/g, ' ').trim()
+  )));
+}
+
+let orderBook = addCareerJob(emptyStore(), {
+  id: 'rj_ord',
+  company: 'GoDaddy',
+  title: 'Manager',
+  onResume: true,
+  groups: [{
+    id: 'rg_ord',
+    heading: '',
+    bullets: [
+      { id: 'rb_ord_a', lead: 'Alpha posted first line', body: 'kept wording A', sourceEntryIds: ['en_ord_a'] },
+      { id: 'rb_ord_b', lead: 'Bravo posted second line', body: 'kept wording B', sourceEntryIds: ['en_ord_b'] },
+    ],
+  }],
+}, clock);
+orderBook = addEntry(orderBook, {
+  id: 'en_ord_a',
+  title: 'Alpha posted first line: kept wording A',
+  jobId: 'rj_ord',
+}, clock);
+orderBook = addEntry(orderBook, {
+  id: 'en_ord_b',
+  title: 'Bravo posted second line: kept wording B',
+  jobId: 'rj_ord',
+}, clock);
+orderBook = addPosting(orderBook, { id: 'job_ord', title: 'Order posting' }, clock);
+orderBook = addPosting(orderBook, { id: 'job_ord_other', title: 'Other posting' }, clock);
+orderBook = updatePostingResume(orderBook, 'job_ord', {
+  includedJobIds: ['rj_ord'],
+  excludedBulletIds: ['rb_never'],
+  pinnedBulletIds: ['rb_ord_a'],
+  overrides: {
+    rb_ord_a: { edited: true, lead: 'Alpha posted first line', body: 'posting-local A' },
+  },
+}, clock);
+const otherResumeBefore = JSON.parse(JSON.stringify(postingById(orderBook, 'job_ord_other').resume));
+const careerOrderBefore = orderBook.jobs.find((job) => job.id === 'rj_ord').groups[0].bullets.map((bullet) => bullet.id).join(',');
+const overrideBefore = JSON.stringify(postingById(orderBook, 'job_ord').resume.overrides);
+const includeBefore = JSON.stringify(postingById(orderBook, 'job_ord').resume.excludedBulletIds);
+const pinBefore = JSON.stringify(postingById(orderBook, 'job_ord').resume.pinnedBulletIds);
+const entriesBefore = JSON.stringify(orderBook.entries);
+const orderJob = orderBook.jobs.find((job) => job.id === 'rj_ord');
+assert.deepEqual(compiledBulletIds(orderBook, 'job_ord', 'rj_ord'), ['rb_ord_a', 'rb_ord_b']);
+assert.equal(stepResumeBullet(orderBook, 'job_ord', orderJob, 'rg_ord', 'rb_ord_a', -1, clock), orderBook);
+assert.equal(stepResumeBullet(orderBook, 'job_ord', orderJob, 'rg_ord', 'rb_ord_b', 1, clock), orderBook);
+
+orderBook = stepResumeBullet(orderBook, 'job_ord', orderJob, 'rg_ord', 'rb_ord_a', 1, clock);
+assert.deepEqual(compiledBulletIds(orderBook, 'job_ord', 'rj_ord'), ['rb_ord_b', 'rb_ord_a']);
+assert.deepEqual(compiledBulletLines(orderBook, 'job_ord', 'rj_ord'), [
+  'Bravo posted second line kept wording B',
+  'Alpha posted first line posting-local A',
+]);
+assert.equal(orderBook.jobs.find((job) => job.id === 'rj_ord').groups[0].bullets.map((bullet) => bullet.id).join(','), careerOrderBefore);
+assert.deepEqual(postingById(orderBook, 'job_ord_other').resume, otherResumeBefore);
+assert.equal(JSON.stringify(postingById(orderBook, 'job_ord').resume.overrides), overrideBefore);
+assert.equal(JSON.stringify(postingById(orderBook, 'job_ord').resume.excludedBulletIds), includeBefore);
+assert.equal(JSON.stringify(postingById(orderBook, 'job_ord').resume.pinnedBulletIds), pinBefore);
+assert.equal(JSON.stringify(orderBook.entries), entriesBefore);
+assert.deepEqual(postingById(orderBook, 'job_ord').resume.bulletOrder.rg_ord, ['rb_ord_b', 'rb_ord_a']);
+const compiledA = compileResumeDoc(postingById(orderBook, 'job_ord'), orderBook)
+  .sections.experience.jobs.find((job) => job.id === 'rj_ord')
+  .groups[0].bullets.find((bullet) => bullet.id === 'rb_ord_a');
+assert.equal(compiledA.hasOverride, true);
+assert.equal(compiledA.included, true);
+assert.equal(compiledA.pinned, true);
+assert.equal(compileResumeDoc(postingById(orderBook, 'job_ord'), orderBook)
+  .sections.experience.jobs.find((job) => job.id === 'rj_ord')
+  .groups[0].bullets.find((bullet) => bullet.id === 'rb_ord_b').included, true);
+
+const packedOrder = serializeBook(orderBook);
+const reloadedOrder = normalizeStore(JSON.parse(packedOrder.json), clock);
+assert.deepEqual(compiledBulletIds(reloadedOrder, 'job_ord', 'rj_ord'), ['rb_ord_b', 'rb_ord_a']);
+assert.equal(reloadedOrder.jobs.find((job) => job.id === 'rj_ord').groups[0].bullets.map((bullet) => bullet.id).join(','), careerOrderBefore);
+assert.equal(reloadedOrder.postings.find((posting) => posting.id === 'job_ord').resume.overrides.rb_ord_a.body, 'posting-local A');
+
+const previewOrderDoc = compileResumeDoc(postingById(reloadedOrder, 'job_ord'), reloadedOrder);
+const previewOrderHtml = renderResumeHtml(previewOrderDoc);
+assert.ok(previewOrderHtml.indexOf('Bravo posted second line') < previewOrderHtml.indexOf('Alpha posted first line'));
+const previewOrderDocx = new TextDecoder().decode(resumeDocxBytes(previewOrderDoc));
+assert.ok(previewOrderDocx.indexOf('Bravo posted second line') < previewOrderDocx.indexOf('Alpha posted first line'));
+
+let mappedOrder = addCareerJob(emptyStore(), {
+  id: 'rj_map_ord',
+  company: 'Stripe',
+  title: 'Accountant',
+  onResume: false,
+  groups: [{ id: 'rg_map_ord', heading: '', bullets: [] }],
+}, clock);
+mappedOrder = addEntry(mappedOrder, {
+  id: 'en_map_ord_a',
+  title: 'Mapped extra one unique',
+  jobId: 'rj_map_ord',
+}, clock);
+mappedOrder = addEntry(mappedOrder, {
+  id: 'en_map_ord_b',
+  title: 'Mapped extra two unique',
+  jobId: 'rj_map_ord',
+}, clock);
+mappedOrder = addPosting(mappedOrder, { id: 'job_map_ord', title: 'Mapped order' }, clock);
+mappedOrder = addRequirement(mappedOrder, 'job_map_ord', 'Need extras', clock);
+const mappedOrdReq = mappedOrder.postings[0].requirements[0].id;
+mappedOrder = addEntryBullet(mappedOrder, 'job_map_ord', mappedOrdReq, 'en_map_ord_a', '', clock);
+mappedOrder = addEntryBullet(mappedOrder, 'job_map_ord', mappedOrdReq, 'en_map_ord_b', '', clock);
+const mappedOrdSnapshot = JSON.stringify(mappedOrder);
+const mappedOrdLines = compiledBulletLines(mappedOrder, 'job_map_ord', 'rj_map_ord');
+assert.deepEqual(mappedOrdLines, ['Mapped extra one unique', 'Mapped extra two unique']);
+assert.equal(JSON.stringify(mappedOrder), mappedOrdSnapshot);
+const mappedOrdJob = { id: 'rj_map_ord' };
+const mappedOrdIds = compiledBulletIds(mappedOrder, 'job_map_ord', 'rj_map_ord');
+assert.equal(mappedOrdIds.length, 2);
+const mappedOrdGroup = compileResumeDoc(postingById(mappedOrder, 'job_map_ord'), mappedOrder)
+  .sections.experience.jobs.find((job) => job.id === 'rj_map_ord').groups[0];
+mappedOrder = stepResumeBullet(mappedOrder, 'job_map_ord', mappedOrdJob, mappedOrdGroup.id, mappedOrdIds[0], 1, clock);
+assert.deepEqual(compiledBulletLines(mappedOrder, 'job_map_ord', 'rj_map_ord'), [
+  'Mapped extra two unique',
+  'Mapped extra one unique',
+]);
+assert.equal(mappedOrder.jobs.find((job) => job.id === 'rj_map_ord').groups[0].bullets.length, 0);
+assert.equal(mappedOrder.entries.find((entry) => entry.id === 'en_map_ord_a').title, 'Mapped extra one unique');
+assert.equal(mappedOrder.entries.find((entry) => entry.id === 'en_map_ord_b').title, 'Mapped extra two unique');
+const mappedReloaded = normalizeStore(JSON.parse(serializeBook(mappedOrder).json), clock);
+assert.deepEqual(compiledBulletLines(mappedReloaded, 'job_map_ord', 'rj_map_ord'), [
+  'Mapped extra two unique',
+  'Mapped extra one unique',
+]);

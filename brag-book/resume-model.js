@@ -611,6 +611,16 @@ function reorder(list, order) {
   return out;
 }
 
+function applyVariantBulletOrder(jobs, variant) {
+  return (jobs || []).map((job) => ({
+    ...job,
+    groups: (job.groups || []).map((group) => ({
+      ...group,
+      bullets: reorder(group.bullets, variant?.bulletOrder?.[group.id]),
+    })),
+  }));
+}
+
 function applyBulletVariant(bullet, jobId, variant) {
   const over = variant.overrides?.[bullet.id] || {};
   const excludedJob = variant.excludedJobIds.includes(jobId);
@@ -1132,6 +1142,7 @@ export function compileResumeDoc(posting, store) {
     jobs = mergeLocalJobs(jobsFromCareer(store, variant, posting, { pinnedOnly: true }), variant, store);
     jobs = mergePostingBullets(jobs, posting, store);
     jobs = projectEntryLines(jobs, store);
+    jobs = applyVariantBulletOrder(jobs, variant);
     jobs = reorder(jobs, variant.jobOrder);
     credentials = normalizeCredentials(variant.localCredentials);
     education = normalizeEducation(variant.localEducation);
@@ -1140,6 +1151,7 @@ export function compileResumeDoc(posting, store) {
     jobs = mergeLocalJobs(jobsFromCareer(store, variant, posting), variant, store);
     jobs = mergePostingBullets(jobs, posting, store);
     jobs = projectEntryLines(jobs, store);
+    jobs = applyVariantBulletOrder(jobs, variant);
     jobs = reorder(jobs, variant.jobOrder);
     credentials = omitHiddenRows(
       mergeLocalRows(normalizeCredentials(store?.credentials), variant.localCredentials),
