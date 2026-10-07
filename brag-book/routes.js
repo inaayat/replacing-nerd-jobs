@@ -86,13 +86,7 @@ export function viewTitle(view, store) {
   if (!view || view.kind === 'home') return 'Brag Book';
   if (view.kind === 'profile') return 'Resume basics';
   if (view.kind === 'log' && view.id === 'new') return 'Add a resume line';
-  if (view.kind === 'log') return 'Experiences';
-  if (view.kind === 'kb' && view.id === 'new') return 'New page';
-  if (view.kind === 'kb' && view.id) {
-    const note = (store?.knowledge || []).find((item) => item.id === view.id);
-    return note?.title || 'Knowledge';
-  }
-  if (view.kind === 'kb') return 'Knowledge';
+  if (view.kind === 'log' || view.kind === 'kb') return 'Experiences & knowledge';
   if (view.kind === 'jobs' && view.id === 'new') return 'New job posting';
   if (view.kind === 'jobs' && view.id) {
     const job = (store?.postings || []).find((item) => item.id === view.id);

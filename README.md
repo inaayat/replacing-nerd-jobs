@@ -214,11 +214,13 @@ basics so the editor and print layout work immediately. Existing books with
 any profile or career rows are not seeded. **Import resume (JSON)** still
 loads any classic-serif file. Plain-text Copy / `.txt` / older
 `.doc` remain under a disclosure. **Prep** walks question + STAR with keyboard
-next/prev. **Resume bullets** (`#log`) is the TL;DR catalog of saved experience
-lines — list rows render the same bold spans as the job-posting table, and
-**+ Add resume bullets** (`#log/new`) keeps that list beside a compact paste
-panel (`**bold**` is kept). **Knowledge base** (`#kb`) is free-form notes about
-work, tools, and what you know, separate from the short resume lines.
+next/prev. **Experiences & knowledge** is one page from the home card
+(`#experiences`, `#kb`, and `#knowledge`). Each resume line keeps its bullet
+on the left, with Job and Role on that same column, and Situation, Task,
+Action, and Result always visible beside it. Search and **+ Add resume bullet**
+stay next to the search bar (`#experiences/new` pastes several; `**bold**` is
+kept). Knowledge pages on that same page are free-form notes, searchable, and
+saved as you type.
 
 Signing in is required — the signed-out view is a centered log-in gate. One
 JSONB row per user (`brag_books`) via `api/brag-book.js` (`/api/bb-book`).

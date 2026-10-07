@@ -32,6 +32,7 @@ import {
   parseKnowledge,
   cleanPastedText,
   searchEntries,
+  searchKnowledge,
   experienceCatalog,
   experienceDetailPatch,
   postingsUsingEntry,
@@ -137,7 +138,8 @@ import {
 import { renderResumeHtml, resumeDocument } from './resume-template.js';
 import { fitOnePage, dropOrderFromDoc, applyDroppedIds, PAGE_HEIGHT_PX } from './resume-fit.js';
 import { resumeDocxBlob } from './resume-docx.js';
-import { parseViewHash, viewHash, viewTitle, logLayout } from './routes.js';
+import { parseViewHash, viewHash, viewTitle } from './routes.js';
+import { bookPagePlan, experienceRowSpec, homeStartCards } from './book-view.js';
 import { loadBook, saveBook } from './store.js';
 import { initAuth, refreshToken, renderBragSignIn, wireAuthLink } from './auth.js';
 
@@ -164,7 +166,6 @@ let bookPushing = false;
 let lastServerBook = null;
 let query = '';
 let knowledgeQuery = '';
-const openExperienceIds = new Set();
 let knowledgeSaveState = null;
 let statusNote = '';
 let expandedBulletKey = '';
@@ -684,7 +685,7 @@ function toolbar(view) {
     ]);
   }
   const hasRecord = view.kind === 'jobs' && Boolean(view.id && view.id !== 'new');
-  const pageTitle = view.kind === 'kb' && view.id && view.id !== 'new' ? 'Knowledge' : viewTitle(view, store);
+  const pageTitle = viewTitle(view, store);
   return el('header', { class: 'hero is-compact' }, [
     el('div', { class: 'hero-row' }, [
       el('div', { class: 'crumb' }, [
@@ -728,53 +729,50 @@ function homeView() {
   const lineCount = summary.entries;
   const noteCount = summary.knowledge || 0;
   const recentNotes = (store.knowledge || []).slice(0, 4);
+  const cards = homeStartCards();
+  const cardBody = {
+    postings: {
+      className: 'start-card is-primary',
+      kicker: 'The loop',
+      title: store.postings.length ? 'Open a posting' : 'New job posting',
+      copy: store.postings.length
+        ? `${summary.postings} on file. Paste another, or keep adding experiences, questions, and STAR answers.`
+        : 'Paste the description. We pull the requirements. You add an experience, a resume bullet, and a question with a STAR answer.',
+      onClick: () => go({ kind: 'jobs', id: store.postings.length ? undefined : 'new' }),
+    },
+    resume: {
+      className: 'start-card',
+      kicker: 'One page',
+      title: 'Resume basics',
+      copy: store.jobs.length
+        ? `${store.jobs.length} role${store.jobs.length === 1 ? '' : 's'} on the classic-serif resume. Edit the John Doe starter, import JSON, or tailor a posting copy.`
+        : 'A John Doe starter fills the classic-serif page. Edit it, or import JSON, then open a posting to export a one-page PDF.',
+      onClick: () => go({ kind: 'profile' }),
+    },
+    book: {
+      className: 'start-card',
+      kicker: 'The book',
+      title: 'Experiences & knowledge',
+      copy: lineCount || noteCount
+        ? `${lineCount} resume line${lineCount === 1 ? '' : 's'} and ${noteCount} knowledge page${noteCount === 1 ? '' : 's'}. STAR, job, and role sit on each line.`
+        : 'Resume lines with STAR, job, and role beside them, plus pages for what you learn about a job or a project.',
+      onClick: () => go(cards.find((card) => card.combined).view),
+    },
+  };
   return el('div', {}, [
-    el('div', { class: 'start-grid is-focus' }, [
-      el('button', {
+    el('div', { class: 'start-grid is-focus' }, cards.map((card) => {
+      const body = cardBody[card.key];
+      return el('button', {
         type: 'button',
-        class: 'start-card is-primary',
-        onClick: () => go({ kind: 'jobs', id: store.postings.length ? undefined : 'new' }),
+        class: body.className,
+        'data-home-card': card.key,
+        onClick: body.onClick,
       }, [
-        el('span', { class: 'kicker' }, 'The loop'),
-        el('strong', {}, store.postings.length ? 'Open a posting' : 'New job posting'),
-        el('p', {}, store.postings.length
-          ? `${summary.postings} on file. Paste another, or keep adding experiences, questions, and STAR answers.`
-          : 'Paste the description. We pull the requirements. You add an experience, a resume bullet, and a question with a STAR answer.'),
-      ]),
-      el('button', {
-        type: 'button',
-        class: 'start-card',
-        onClick: () => go({ kind: 'profile' }),
-      }, [
-        el('span', { class: 'kicker' }, 'One page'),
-        el('strong', {}, 'Resume basics'),
-        el('p', {}, store.jobs.length
-          ? `${store.jobs.length} role${store.jobs.length === 1 ? '' : 's'} on the classic-serif resume. Edit the John Doe starter, import JSON, or tailor a posting copy.`
-          : 'A John Doe starter fills the classic-serif page. Edit it, or import JSON, then open a posting to export a one-page PDF.'),
-      ]),
-      el('button', {
-        type: 'button',
-        class: 'start-card',
-        onClick: () => go({ kind: 'log' }),
-      }, [
-        el('span', { class: 'kicker' }, 'The book'),
-        el('strong', {}, 'Experiences'),
-        el('p', {}, lineCount
-          ? `${lineCount} resume line${lineCount === 1 ? '' : 's'}. Expand one to edit STAR, company, and role. A line pins onto a posting.`
-          : 'Resume lines you can pin onto a posting. Expand a row to write the STAR answer.'),
-      ]),
-      el('button', {
-        type: 'button',
-        class: 'start-card',
-        onClick: () => go({ kind: 'kb' }),
-      }, [
-        el('span', { class: 'kicker' }, 'Notes'),
-        el('strong', {}, 'Knowledge'),
-        el('p', {}, noteCount
-          ? `${noteCount} page${noteCount === 1 ? '' : 's'}. Free-form notes on jobs and projects, saved as you type.`
-          : 'Pages for dumping what you learn about a job or a project. A new page is one click.'),
-      ]),
-    ]),
+        el('span', { class: 'kicker' }, body.kicker),
+        el('strong', {}, body.title),
+        el('p', {}, body.copy),
+      ]);
+    })),
     recentJobs.length ? el('section', { class: 'recent' }, [
       el('h2', {}, 'Recent postings'),
       el('div', { class: 'plot-cards' }, recentJobs.map((job) => {
@@ -802,7 +800,7 @@ function homeView() {
         }, [
           el('span', { class: 'kicker' }, starFill(entry).ready ? 'STAR ready' : 'Resume line'),
           richPreview('bb-card-line', entry.title, entry.rich),
-          el('p', {}, [entry.company, entry.role, starFill(entry).ready ? 'STAR ready' : 'Expand to fill STAR'].filter(Boolean).join(' · ')),
+          el('p', {}, [entry.company, entry.role, starFill(entry).ready ? 'STAR ready' : 'STAR on the line'].filter(Boolean).join(' · ')),
         ]);
       })),
     ]) : null,
@@ -867,16 +865,13 @@ function experienceTools(view) {
   ]);
 }
 
-function experienceIsOpen(view, id) {
-  return openExperienceIds.has(id) || (view.kind === 'log' && view.id === id);
-}
-
-function toggleExperience(view, id) {
-  const open = experienceIsOpen(view, id);
-  if (open) openExperienceIds.delete(id);
-  else openExperienceIds.add(id);
-  if (view.id === id) go({ kind: 'log' });
-  else render();
+function fitArea(node) {
+  const fit = () => {
+    node.style.height = 'auto';
+    node.style.height = `${node.scrollHeight || 0}px`;
+  };
+  node.addEventListener('input', fit);
+  queueMicrotask(fit);
 }
 
 function experienceLineCell(entry) {
@@ -895,23 +890,22 @@ function experienceLineCell(entry) {
   });
 }
 
-function experienceDetail(entry) {
+function experienceMore(entry) {
   const star = starFill(entry);
-  const area = (label, key, placeholder) => el('label', { class: 'star-card' }, [
-    el('b', {}, label),
-    el('textarea', {
-      'aria-label': label,
-      placeholder,
-      'data-focus-key': `exp-${key}-${entry.id}`,
-      onInput: (event) => patchEntry(entry.id, { [key]: event.target.value }),
-    }, entry[key] || ''),
-  ]);
   const links = postingsUsingEntry(store, entry.id);
-  return el('div', { class: 'bb-exp-detail' }, [
-    el('div', { class: 'grid-2' }, [
-      field('Company', cellInput('Company', entry.company, `exp-co-${entry.id}`, (value) => patchEntry(entry.id, { company: value }))),
-      field('Role', cellInput('Role', entry.role, `exp-role-${entry.id}`, (value) => patchEntry(entry.id, { role: value }))),
-    ]),
+  const notes = el('textarea', {
+    class: 'bb-inline-area',
+    rows: '2',
+    'aria-label': 'Notes',
+    placeholder: 'Extra color, links, or a longer version.',
+    'data-focus-key': `exp-notes-${entry.id}`,
+    onInput: (event) => patchEntry(entry.id, { notes: event.target.value }),
+  }, entry.notes || '');
+  fitArea(notes);
+  return el('details', { class: 'bb-exp-more' }, [
+    el('summary', {}, 'Notes & tags'),
+    field('Notes', notes),
+    field('Tags', cellInput('Tags', (entry.tags || []).join(', '), `exp-tags-${entry.id}`, (value) => patchEntry(entry.id, { tags: value }))),
     store.jobs.length ? field('Resume job', el('select', {
       'aria-label': 'Resume job',
       'data-focus-key': `exp-job-${entry.id}`,
@@ -926,19 +920,6 @@ function experienceDetail(entry) {
         selected: entry.jobId === job.id || undefined,
       }, [job.company, job.title].filter(Boolean).join(' · '))),
     ])) : null,
-    el('div', { class: 'star' }, [
-      area('Situation', 'situation', 'What was going on?'),
-      area('Task', 'task', 'What were you on the hook for?'),
-      area('Action', 'action', 'What did you actually do?'),
-      area('Result', 'result', 'What changed? Numbers help.'),
-    ]),
-    field('Notes', el('textarea', {
-      'aria-label': 'Notes',
-      placeholder: 'Extra color, links, or a longer version.',
-      'data-focus-key': `exp-notes-${entry.id}`,
-      onInput: (event) => patchEntry(entry.id, { notes: event.target.value }),
-    }, entry.notes || '')),
-    field('Tags', cellInput('Tags', (entry.tags || []).join(', '), `exp-tags-${entry.id}`, (value) => patchEntry(entry.id, { tags: value }))),
     el('p', { class: 'tiny' }, star.ready ? 'STAR is filled in.' : `${star.filled} of 4 STAR fields filled.`),
     links.length ? el('div', { class: 'bb-exp-links' }, [
       el('span', { class: 'tiny' }, 'Used on'),
@@ -947,44 +928,53 @@ function experienceDetail(entry) {
         onClick: () => go({ kind: 'jobs', id: job.id }),
       })),
     ]) : el('p', { class: 'tiny' }, 'Not pinned on a posting yet.'),
-    el('div', { class: 'actions' }, [
-      btn('Delete', {
-        class: 'btn danger',
-        onClick: () => {
-          if (!confirm('Remove this resume bullet? Postings that used it will drop the link.')) return;
-          openExperienceIds.delete(entry.id);
-          store = deleteEntry(store, entry.id);
-          saveStore();
-          go({ kind: 'log' });
-        },
-      }),
-    ]),
+    btn('Delete', {
+      class: 'btn danger',
+      onClick: () => {
+        if (!confirm('Remove this resume bullet? Postings that used it will drop the link.')) return;
+        store = deleteEntry(store, entry.id);
+        saveStore();
+        go({ kind: 'log' });
+      },
+    }),
   ]);
 }
 
-function experienceRow(view, entry) {
-  const open = experienceIsOpen(view, entry);
-  const star = starFill(entry);
-  const meta = [entry.company, entry.role, star.ready ? 'STAR ready' : 'STAR'].filter(Boolean).join(' · ');
-  return el('div', { class: `bb-exp-item${open ? ' is-open' : ''}` }, [
-    el('div', { class: 'bb-exp-summary' }, [
-      el('button', {
-        type: 'button',
-        class: 'bb-exp-toggle',
-        'aria-expanded': open ? 'true' : 'false',
-        'aria-label': open ? 'Collapse experience' : 'Expand experience',
-        onClick: () => toggleExperience(view, entry.id),
-      }, open ? '▾' : '▸'),
-      el('div', { class: 'bb-exp-summary-main' }, [
-        experienceLineCell(entry),
-        el('button', {
-          type: 'button',
-          class: 'bb-exp-meta',
-          onClick: () => toggleExperience(view, entry.id),
-        }, meta || 'Expand for STAR'),
-      ]),
+function experienceControl(entry, control) {
+  const focusKey = `exp-${control.key}-${entry.id}`;
+  if (control.column === 'lead') {
+    return cellInput(control.label, control.value, focusKey, (value) => patchEntry(entry.id, { [control.key]: value }));
+  }
+  const area = el('textarea', {
+    class: 'bb-inline-area',
+    rows: '2',
+    'aria-label': control.label,
+    placeholder: control.label,
+    'data-focus-key': focusKey,
+    onInput: (event) => patchEntry(entry.id, { [control.key]: event.target.value }),
+  }, control.value || '');
+  fitArea(area);
+  return el('label', { class: 'bb-star-cell' }, [
+    el('span', {}, control.label),
+    area,
+  ]);
+}
+
+function experienceRow(entry) {
+  const spec = experienceRowSpec(entry);
+  const lead = spec.controls.filter((control) => control.column === 'lead');
+  const star = spec.controls.filter((control) => control.column === 'star');
+  return el('article', {
+    class: 'bb-exp-row',
+    'data-entry-id': spec.id,
+    'data-star': spec.requiresInteraction ? 'hidden' : 'always',
+  }, [
+    el('div', { class: 'bb-exp-lead' }, [
+      experienceLineCell(entry),
+      el('div', { class: 'bb-exp-jobrole' }, lead.map((control) => experienceControl(entry, control))),
+      experienceMore(entry),
     ]),
-    open ? experienceDetail(entry) : null,
+    el('div', { class: 'bb-exp-stargrid' }, star.map((control) => experienceControl(entry, control))),
   ]);
 }
 
@@ -995,11 +985,11 @@ function experienceTable(view) {
     rows.length
       ? el('div', { class: 'bb-exp-list' }, rows.map((row) => {
         const entry = store.entries.find((item) => item.id === row.id);
-        return entry ? experienceRow(view, entry) : null;
+        return entry ? experienceRow(entry) : null;
       }))
       : el('p', { class: 'empty' }, query
         ? 'Nothing matches that.'
-        : 'No experiences yet. Add a resume line, then expand it to write STAR.'),
+        : 'No experiences yet. Add a resume line — STAR, job, and role sit on the row.'),
   ]);
 }
 
@@ -3382,20 +3372,25 @@ function render(options = {}) {
     return;
   }
 
-  if (view.kind === 'kb') {
-    const paste = view.id === 'new' ? bulkKnowledgeForm() : null;
-    const body = el('div', { class: 'bb-exp-stack' }, [paste, knowledgeWorkspace(view)]);
+  const plan = bookPagePlan(view);
+  if (plan) {
+    const knowledgeView = view.kind === 'kb' ? view : { kind: 'kb', id: plan.knowledgeId || undefined };
+    const body = el('div', { class: 'bb-book-page' }, [
+      el('section', { class: 'bb-book-section', id: 'book-experiences' }, [
+        plan.addExperiences ? bulkEntryForm({ compact: true }) : null,
+        experienceTable(view),
+      ]),
+      el('section', { class: 'bb-book-section', id: 'book-knowledge' }, [
+        el('h2', { class: 'bb-section-label' }, 'Knowledge'),
+        plan.addKnowledge ? bulkKnowledgeForm() : null,
+        knowledgeWorkspace(knowledgeView),
+      ]),
+    ]);
     root.replaceChildren(el('div', {}, [toolbar(view), body]));
     finishRender(captured, options, scroll);
-    return;
-  }
-
-  if (view.kind === 'log') {
-    const layoutKind = logLayout(view);
-    const adder = layoutKind === 'catalog-add' ? bulkEntryForm({ compact: true }) : null;
-    const body = el('div', { class: 'bb-exp-stack' }, [adder, experienceTable(view)]);
-    root.replaceChildren(el('div', {}, [toolbar(view), body]));
-    finishRender(captured, options, scroll);
+    if (plan.focus === 'knowledge' && !scroll) {
+      document.getElementById('book-knowledge')?.scrollIntoView?.({ block: 'start' });
+    }
     return;
   }
 

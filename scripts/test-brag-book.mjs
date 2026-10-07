@@ -136,6 +136,7 @@ import {
   hostFromJobUrl,
 } from '../brag-book/engine.js';
 import { parseViewHash, viewHash, viewTitle, defaultView, logLayout, hideBookRail } from '../brag-book/routes.js';
+import { bookPagePlan, experienceRowSpec, homeStartCards } from '../brag-book/book-view.js';
 import { renderResumeHtml } from '../brag-book/resume-template.js';
 import { dropOrderFromDoc, FONT_FLOOR_PT, FIT_STEPS } from '../brag-book/resume-fit.js';
 import { resumeDocxBytes } from '../brag-book/resume-docx.js';
@@ -891,13 +892,14 @@ assert.equal(logLayout({ kind: 'log', id: 'new' }), 'catalog-add');
 assert.equal(logLayout({ kind: 'log', id: 'en_1' }), 'catalog');
 assert.equal(hideBookRail({ kind: 'log', id: 'new' }, { entries: [{ id: 'e' }] }), false);
 assert.equal(viewHash({ kind: 'log' }), '#experiences');
-assert.equal(viewTitle({ kind: 'log' }), 'Experiences');
+assert.equal(viewTitle({ kind: 'log' }), 'Experiences & knowledge');
 assert.equal(viewHash({ kind: 'log', id: 'en_1' }), '#experiences/en_1');
 assert.deepEqual(parseViewHash('#experiences'), { kind: 'log' });
 assert.deepEqual(parseViewHash('#experiences/en_1', { entryIds: ['en_1'] }), { kind: 'log', id: 'en_1' });
 assert.deepEqual(parseViewHash('#log'), { kind: 'log' });
 assert.equal(viewHash({ kind: 'kb' }), '#kb');
-assert.equal(viewTitle({ kind: 'kb' }), 'Knowledge');
+assert.equal(viewTitle({ kind: 'kb' }), 'Experiences & knowledge');
+assert.equal(viewTitle({ kind: 'kb', id: 'note_1' }, { knowledge: [{ id: 'note_1', title: 'Neon' }] }), 'Experiences & knowledge');
 assert.deepEqual(parseViewHash('#kb'), { kind: 'kb' });
 assert.deepEqual(parseViewHash('#knowledge'), { kind: 'kb' });
 assert.deepEqual(parseViewHash('#kb/note_1', { knowledgeIds: ['note_1'] }), { kind: 'kb', id: 'note_1' });
@@ -1356,4 +1358,269 @@ assert.equal(liveCareer.jobs[0].company, 'PricewaterhouseCoopers LLC');
 assert.equal(emptyStore().jobs.length, 0);
 assert.equal(emptyStore().profile.name, '');
 
+const homeCards = homeStartCards();
+assert.equal(homeCards.length, 3);
+assert.equal(homeCards.filter((card) => card.combined).length, 1);
+assert.equal(homeCards.some((card) => card.view?.kind === 'kb'), false);
+assert.deepEqual(homeCards.find((card) => card.combined).view, { kind: 'log' });
+
+for (const hash of ['#kb', '#knowledge', '#experiences']) {
+  const plan = bookPagePlan(parseViewHash(hash));
+  assert.equal(plan.experiences, true);
+  assert.equal(plan.knowledge, true);
+}
+assert.equal(bookPagePlan(parseViewHash('#kb')).focus, 'knowledge');
+assert.equal(bookPagePlan(parseViewHash('#knowledge')).focus, 'knowledge');
+assert.equal(bookPagePlan(parseViewHash('#experiences')).focus, 'experiences');
+const notedPlan = bookPagePlan(parseViewHash('#kb/note_1', { knowledgeIds: ['note_1'] }));
+assert.equal(notedPlan.knowledge, true);
+assert.equal(notedPlan.experiences, true);
+assert.equal(notedPlan.knowledgeId, 'note_1');
+assert.equal(bookPagePlan({ kind: 'home' }), null);
+
+let inlineRows = addEntry(emptyStore(), {
+  title: 'Keep me',
+  company: 'Untouched Co',
+  role: 'Reader',
+  situation: 'Leave this',
+}, clock);
+inlineRows = addEntry(inlineRows, {
+  title: 'Edit me',
+  company: 'Old Co',
+  role: 'Old role',
+  situation: 'Before',
+}, clock);
+const keepId = inlineRows.entries.find((entry) => entry.title === 'Keep me').id;
+const editId = inlineRows.entries.find((entry) => entry.title === 'Edit me').id;
+const beforeCount = inlineRows.entries.length;
+const beforeIds = inlineRows.entries.map((entry) => entry.id).sort();
+for (const entry of inlineRows.entries) {
+  const spec = experienceRowSpec(entry);
+  assert.equal(spec.requiresInteraction, false);
+  assert.deepEqual(spec.controls.map((control) => control.key), ['company', 'role', 'situation', 'task', 'action', 'result']);
+  assert.equal(spec.controls.find((control) => control.key === 'company').label, 'Job');
+  assert.equal(spec.controls.find((control) => control.key === 'role').label, 'Role');
+  assert.equal(spec.controls.filter((control) => control.column === 'star').length, 4);
+}
+inlineRows = updateEntry(inlineRows, editId, experienceDetailPatch({
+  title: 'Edit me revised',
+  rich: [{ text: 'Edit me revised', bold: false }],
+  company: 'GoDaddy',
+  role: 'Analyst',
+  situation: 'The queue was split.',
+  task: 'Close it in one place.',
+  action: 'Wrote the four fields on the row.',
+  result: 'One entry, no duplicate.',
+  kind: 'skillset',
+  when: '1999',
+}), clock);
+assert.equal(inlineRows.entries.length, beforeCount);
+assert.deepEqual(inlineRows.entries.map((entry) => entry.id).sort(), beforeIds);
+assert.equal(inlineRows.entries.filter((entry) => entry.id === editId).length, 1);
+assert.equal(inlineRows.entries.find((entry) => entry.id === keepId).title, 'Keep me');
+assert.equal(inlineRows.entries.find((entry) => entry.id === keepId).situation, 'Leave this');
+const edited = inlineRows.entries.find((entry) => entry.id === editId);
+assert.equal(edited.title, 'Edit me revised');
+assert.equal(edited.company, 'GoDaddy');
+assert.equal(edited.role, 'Analyst');
+assert.equal(edited.kind === 'skillset', false);
+assert.equal(edited.when === '1999', false);
+const editedSpec = experienceRowSpec(edited);
+assert.equal(editedSpec.requiresInteraction, false);
+assert.equal(editedSpec.controls.find((control) => control.key === 'company').value, 'GoDaddy');
+assert.equal(editedSpec.controls.find((control) => control.key === 'role').value, 'Analyst');
+assert.equal(editedSpec.controls.find((control) => control.key === 'situation').value, 'The queue was split.');
+assert.equal(editedSpec.controls.find((control) => control.key === 'task').value, 'Close it in one place.');
+assert.equal(editedSpec.controls.find((control) => control.key === 'action').value, 'Wrote the four fields on the row.');
+assert.equal(editedSpec.controls.find((control) => control.key === 'result').value, 'One entry, no duplicate.');
+
+const appSource = readFileSync(new URL('../brag-book/app.js', import.meta.url), 'utf8');
+const engineImport = appSource.slice(0, appSource.indexOf("from './engine.js'"));
+assert.match(engineImport, /\bsearchKnowledge\b/);
+assert.match(appSource, /bookPagePlan\(view\)/);
+assert.match(appSource, /experienceRowSpec\(/);
+assert.match(appSource, /homeStartCards\(/);
+assert.doesNotMatch(appSource, /experienceIsOpen/);
+assert.doesNotMatch(appSource, /toggleExperience/);
+assert.doesNotMatch(appSource, /Expand experience/);
+
+await renderBookPage('#kb');
+await renderBookPage('#knowledge');
+
 console.log('ok');
+
+function installBookDom(hash) {
+  class El {
+    constructor(tag) {
+      this.tagName = String(tag || '').toUpperCase();
+      this.nodeType = 1;
+      this.children = [];
+      this.attrs = {};
+      this.dataset = {};
+      this.style = {};
+      this.className = '';
+      this.hidden = false;
+      this.value = '';
+      this.parentNode = null;
+      this.nodeValue = '';
+    }
+    get classList() {
+      return { toggle() {}, add() {}, remove() {}, contains() { return false; } };
+    }
+    setAttribute(key, value) {
+      this.attrs[key] = String(value);
+      if (key === 'id') this.id = String(value);
+    }
+    getAttribute(key) { return this.attrs[key] ?? null; }
+    addEventListener() {}
+    append(...nodes) {
+      for (const node of nodes) {
+        if (node == null || node === false) continue;
+        node.parentNode = this;
+        this.children.push(node);
+      }
+    }
+    appendChild(node) { this.append(node); return node; }
+    replaceChildren(...nodes) { this.children = []; this.append(...nodes); }
+    get childNodes() { return this.children; }
+    get textContent() {
+      if (this.nodeType === 3) return this.nodeValue || '';
+      return this.children.map((child) => child.textContent || '').join('');
+    }
+    set textContent(value) {
+      const text = document.createTextNode(String(value));
+      this.children = [text];
+    }
+    querySelector(sel) { return this.querySelectorAll(sel)[0] || null; }
+    querySelectorAll(sel) {
+      const out = [];
+      const walk = (node) => {
+        for (const child of node.children || []) {
+          if (matches(child, sel)) out.push(child);
+          walk(child);
+        }
+      };
+      walk(this);
+      return out;
+    }
+    focus() {}
+    click() {}
+    remove() {}
+    contains() { return false; }
+  }
+  function matches(node, sel) {
+    if (!node || node.nodeType === 3) return false;
+    if (sel.startsWith('#')) return node.id === sel.slice(1);
+    if (sel.startsWith('.')) return String(node.className || '').split(/\s+/).includes(sel.slice(1));
+    if (sel.startsWith('[') && sel.endsWith(']')) {
+      const body = sel.slice(1, -1);
+      const eq = body.indexOf('=');
+      if (eq === -1) return node.attrs[body] != null;
+      const key = body.slice(0, eq);
+      const raw = body.slice(eq + 1).replace(/^"|"$/g, '');
+      return node.attrs[key] === raw;
+    }
+    return node.tagName === sel.toUpperCase();
+  }
+  const app = new El('main');
+  app.id = 'app';
+  const body = new El('body');
+  const legal = new El('p');
+  legal.className = 'legal';
+  const auth = new El('a');
+  auth.id = 'nav-auth-link';
+  body.append(app, legal, auth);
+  const document = {
+    body,
+    activeElement: null,
+    getElementById(id) { return id === 'app' ? app : body.querySelector(`#${id}`); },
+    createElement(tag) { return new El(tag); },
+    createElementNS(_ns, tag) { return new El(tag); },
+    createTextNode(text) {
+      const node = new El('#text');
+      node.nodeType = 3;
+      node.nodeValue = String(text);
+      return node;
+    },
+    querySelector(sel) { return body.querySelector(sel); },
+    querySelectorAll(sel) { return body.querySelectorAll(sel); },
+    addEventListener() {},
+    createRange() {
+      return { selectNodeContents() {}, setStart() {}, setEnd() {}, collapse() {}, toString() { return ''; } };
+    },
+    getSelection() { return null; },
+    execCommand() { return false; },
+  };
+  globalThis.document = document;
+  globalThis.HTMLElement = El;
+  globalThis.HTMLInputElement = class extends El {};
+  globalThis.HTMLTextAreaElement = class extends El {};
+  globalThis.NodeFilter = { SHOW_TEXT: 4 };
+  globalThis.confirm = () => false;
+  globalThis.location = {
+    hash,
+    search: '?local=1',
+    href: `http://127.0.0.1:8080/brag-book/?local=1${hash}`,
+  };
+  globalThis.window = {
+    addEventListener() {},
+    scrollTo() {},
+    scrollX: 0,
+    scrollY: 0,
+    location: globalThis.location,
+  };
+  const mem = new Map();
+  mem.set('brag-book-store-v1', JSON.stringify({
+    entries: [
+      {
+        id: 'en_row',
+        title: 'Led the close',
+        company: 'GoDaddy',
+        role: 'Analyst',
+        situation: 'Books were late',
+        task: 'Close faster',
+        action: 'Rebuilt the checklist',
+        result: 'Cut two days',
+        kind: 'experience',
+      },
+      {
+        id: 'en_two',
+        title: 'Second line',
+        company: 'Other Co',
+        role: 'Associate',
+        situation: 'Second situation',
+        task: 'Second task',
+        action: 'Second action',
+        result: 'Second result',
+      },
+    ],
+    knowledge: [{ id: 'note_1', title: 'Neon notes', body: 'JWT lives in localStorage' }],
+    postings: [],
+  }));
+  globalThis.localStorage = {
+    getItem: (key) => (mem.has(key) ? mem.get(key) : null),
+    setItem: (key, value) => mem.set(key, String(value)),
+    removeItem: (key) => mem.delete(key),
+  };
+  return { app };
+}
+
+async function renderBookPage(hash) {
+  const { app } = installBookDom(hash);
+  const href = new URL(`../brag-book/app.js?hash=${encodeURIComponent(hash)}`, import.meta.url);
+  await import(href);
+  const labels = app.querySelectorAll('[aria-label]').map((node) => node.getAttribute('aria-label'));
+  const text = app.textContent;
+  assert.equal(text.includes('Opening the book'), false);
+  assert.match(text, /Knowledge/);
+  assert.match(text, /Search pages|New page|Neon notes/);
+  assert.match(text, /Led the close/);
+  assert.match(text, /Second line/);
+  for (const label of ['Job', 'Role', 'Situation', 'Task', 'Action', 'Result']) {
+    assert.equal(labels.filter((item) => item === label).length, 2, `${hash} ${label}`);
+  }
+  assert.equal(app.querySelectorAll('[data-star="always"]').length, 2);
+  assert.equal(app.querySelectorAll('[aria-label="Expand experience"]').length, 0);
+  assert.match(text, /Books were late/);
+  assert.match(text, /Second result/);
+}
