@@ -44,8 +44,7 @@ export function experienceRowSpec(entry) {
     bullet: row.title || '',
     requiresInteraction: false,
     controls: [
-      { key: 'company', label: 'Job', column: 'lead', value: row.company || '' },
-      { key: 'role', label: 'Role', column: 'lead', value: row.role || '' },
+      { key: 'jobId', label: 'Job', column: 'lead', kind: 'job', value: row.jobId || '' },
       ...STAR_FIELDS.map((field) => ({
         key: field.key,
         label: field.label,

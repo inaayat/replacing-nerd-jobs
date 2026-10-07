@@ -1696,10 +1696,12 @@ a:focus-visible {
 }
 .bb-exp-jobrole {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 4px;
 }
-.bb-exp-jobrole .bb-cell-input {
+.bb-exp-jobrole .bb-cell-input,
+.bb-exp-jobrole select,
+.bb-job-select {
   border: 1px solid var(--line);
   border-radius: 4px;
   padding: 3px 6px;
@@ -1874,10 +1876,26 @@ a:focus-visible {
   .bb-kb-body,
   .bb-kb-list .search,
   .bb-exp-jobrole .bb-cell-input,
+  .bb-exp-jobrole select,
+  .bb-job-select,
   .bb-inline-area,
   .bb-exp-lead .experience-compose {
     font-size: 16px;
   }
+}
+.bb-new-job,
+.bb-job-catalog-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1.2fr 1fr 1fr auto;
+  gap: 6px;
+  align-items: center;
+}
+.bb-job-catalog-list { display: grid; gap: 8px; }
+.bb-job-setup-row { display: flex; gap: 8px; align-items: baseline; margin: 6px 0; }
+.bb-add-role { max-width: 16rem; }
+@media (max-width: 720px) {
+  .bb-new-job,
+  .bb-job-catalog-row { grid-template-columns: 1fr; }
 }
 .bb-resume-choose .lede { max-width: 40rem; }
 .bb-choose-cards {

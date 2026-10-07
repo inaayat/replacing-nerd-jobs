@@ -151,6 +151,7 @@ export function emptyStore() {
     additional: [],
     resumeSettings: emptyResumeSettings(),
     basicsBackup: null,
+    jobSetup: null,
   };
 }
 
@@ -554,7 +555,15 @@ export function normalizeStore(raw, clock = Date.now) {
   store.additional = normalizeAdditional(raw.additional, clock);
   store.resumeSettings = normalizeResumeSettings(raw.resumeSettings);
   store.basicsBackup = normalizeBasicsBackup(raw.basicsBackup, clock);
+  store.jobSetup = normalizeJobSetup(raw.jobSetup);
   return alignExperienceLines(store, clock);
+}
+
+function normalizeJobSetup(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const status = raw.status === 'done' || raw.status === 'later' ? raw.status : '';
+  if (!status) return null;
+  return { status, savedAt: asString(raw.savedAt, 40) };
 }
 
 function normalizeBasicsBackup(raw, clock = Date.now) {
@@ -1204,11 +1213,20 @@ export function resumeTakenEntryIds(store, posting = null) {
   return ids;
 }
 
-export function libraryBulletChoices(store, { query = '', takenIds = [], limit = 8 } = {}) {
+export function libraryBulletChoices(store, { query = '', takenIds = [], limit = 8, jobId = '' } = {}) {
   const taken = new Set(takenIds || []);
-  const ordered = String(query || '').trim()
+  const wanted = String(jobId || '').trim();
+  const q = String(query || '').trim();
+  let ordered = q
     ? searchEntries(store, query)
     : experienceCatalog(store).map((row) => entryById(store, row.id)).filter(Boolean);
+  if (wanted && !q) {
+    ordered = ordered.filter((entry) => entry.jobId === wanted);
+  } else if (wanted) {
+    const matched = ordered.filter((entry) => entry.jobId === wanted);
+    const rest = ordered.filter((entry) => entry.jobId !== wanted);
+    ordered = [...matched, ...rest];
+  }
   const out = [];
   for (const entry of ordered) {
     if (!entry?.id || !String(entry.title || '').trim() || taken.has(entry.id)) continue;
@@ -1240,12 +1258,281 @@ export function placeLibraryBullet(store, {
   return addCareerBullet(store, jobId, groupId, draft, clock, random);
 }
 
+function jobIdentityChanged(before, after) {
+  return ['company', 'title', 'location', 'start', 'end', 'current'].some((key) => before?.[key] !== after?.[key]);
+}
+
+function syncJobIdentity(store, job, clock) {
+  let next = store;
+  for (const entry of next.entries || []) {
+    if (entry.jobId !== job.id) continue;
+    if (entry.company === job.company && entry.role === job.title) continue;
+    next = updateEntry(next, entry.id, { company: job.company, role: job.title }, clock);
+  }
+  for (const posting of [...(next.postings || [])]) {
+    for (const local of posting.resume?.localJobs || []) {
+      if (local.jobId !== job.id) continue;
+      const same = local.company === job.company
+        && local.title === job.title
+        && local.location === job.location
+        && local.start === job.start
+        && local.end === job.end
+        && Boolean(local.current) === Boolean(job.current);
+      if (same) continue;
+      next = updatePostingLocalJob(next, posting.id, local.id, {
+        company: job.company,
+        title: job.title,
+        location: job.location,
+        start: job.start,
+        end: job.end,
+        current: job.current,
+      }, clock);
+    }
+  }
+  return next;
+}
+
 export function updateCareerJob(store, id, patch, clock = Date.now) {
-  const jobs = (store?.jobs || []).map((job) => {
-    if (job.id !== id) return job;
-    return normalizeCareerJob({ ...job, ...patch, id: job.id }, clock) || job;
-  });
-  return { ...store, jobs };
+  const current = (store?.jobs || []).find((job) => job.id === id);
+  if (!current) return store;
+  const nextJob = normalizeCareerJob({ ...current, ...patch, id: current.id }, clock) || current;
+  const next = { ...store, jobs: (store.jobs || []).map((job) => (job.id === id ? nextJob : job)) };
+  if (!jobIdentityChanged(current, nextJob)) return next;
+  return syncJobIdentity(next, nextJob, clock);
+}
+
+export function assignEntryJob(store, entryId, jobId, clock = Date.now) {
+  const entry = entryById(store, entryId);
+  if (!entry) return store;
+  const id = String(jobId || '').trim();
+  if (!id) return updateEntry(store, entryId, { jobId: '' }, clock);
+  const job = (store?.jobs || []).find((item) => item.id === id);
+  if (!job) return store;
+  return updateEntry(store, entryId, {
+    jobId: job.id,
+    company: job.company,
+    role: job.title,
+  }, clock);
+}
+
+export function placeJobOnResume(store, postingId, jobId, clock = Date.now) {
+  const job = (store?.jobs || []).find((item) => item.id === jobId);
+  if (!job) return store;
+  if (!postingId) return updateCareerJob(store, jobId, { onResume: true }, clock);
+  const posting = postingById(store, postingId);
+  if (!posting) return store;
+  const variant = normalizeResumeVariant(posting.resume);
+  const excludedJobIds = (variant.excludedJobIds || []).filter((id) => id !== jobId);
+  const includedJobIds = variant.includedJobIds.slice();
+  if (job.onResume === false && !includedJobIds.includes(jobId)) includedJobIds.push(jobId);
+  return updatePostingResume(store, postingId, { excludedJobIds, includedJobIds }, clock);
+}
+
+function normJobLabel(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+function editDistance(a, b) {
+  if (a === b) return 0;
+  const left = String(a || '');
+  const right = String(b || '');
+  const prev = Array.from({ length: right.length + 1 }, (_, index) => index);
+  for (let i = 1; i <= left.length; i += 1) {
+    let diagonal = prev[0];
+    prev[0] = i;
+    for (let j = 1; j <= right.length; j += 1) {
+      const next = left[i - 1] === right[j - 1]
+        ? diagonal
+        : Math.min(diagonal, prev[j - 1], prev[j]) + 1;
+      diagonal = prev[j];
+      prev[j] = next;
+    }
+  }
+  return prev[right.length];
+}
+
+function titlesNear(a, b) {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  if (a.includes(b) || b.includes(a)) return Math.abs(a.length - b.length) <= 16;
+  if (Math.abs(a.length - b.length) > 3) return false;
+  return editDistance(a, b) <= 2;
+}
+
+function jobSetupProposals(store) {
+  const clusters = [];
+  const place = (item) => {
+    const companyKey = normJobLabel(item.company);
+    const titleKey = normJobLabel(item.title);
+    if (!companyKey && !titleKey) return;
+    let cluster = clusters.find((row) => row.companyKey === companyKey && titlesNear(row.titleKey, titleKey));
+    if (!cluster) {
+      cluster = {
+        companyKey,
+        titleKey,
+        company: item.company || '',
+        title: item.title || '',
+        location: item.location || '',
+        start: item.start || '',
+        end: item.end || '',
+        entryIds: [],
+        jobIds: [],
+        sources: [],
+        fromJob: false,
+      };
+      clusters.push(cluster);
+    } else if (!cluster.fromJob && titleKey.length > cluster.titleKey.length && titlesNear(cluster.titleKey, titleKey)) {
+      cluster.titleKey = titleKey;
+      cluster.title = item.title || cluster.title;
+    }
+    if (item.fromJob) {
+      if (!cluster.fromJob) {
+        cluster.company = item.company || cluster.company;
+        cluster.title = item.title || cluster.title;
+        cluster.titleKey = titleKey || cluster.titleKey;
+        cluster.companyKey = companyKey;
+        cluster.fromJob = true;
+      }
+      if (item.location && !cluster.location) cluster.location = item.location;
+      if (item.start && !cluster.start) cluster.start = item.start;
+      if (item.end && !cluster.end) cluster.end = item.end;
+      if (item.jobId && !cluster.jobIds.includes(item.jobId)) cluster.jobIds.push(item.jobId);
+    }
+    if (item.entryId && !cluster.entryIds.includes(item.entryId)) cluster.entryIds.push(item.entryId);
+    const label = [item.company, item.title].filter(Boolean).join(' · ');
+    if (label && !cluster.sources.includes(label)) cluster.sources.push(label);
+  };
+  for (const job of store?.jobs || []) {
+    if (job?.jobId) continue;
+    place({
+      company: job.company,
+      title: job.title,
+      location: job.location,
+      start: job.start,
+      end: job.end,
+      jobId: job.id,
+      fromJob: true,
+    });
+  }
+  for (const entry of store?.entries || []) {
+    if (entry?.jobId) continue;
+    if (!String(entry?.company || '').trim() && !String(entry?.role || '').trim()) continue;
+    place({
+      company: entry.company,
+      title: entry.role,
+      entryId: entry.id,
+    });
+  }
+  return clusters
+    .filter((cluster) => cluster.entryIds.length > 0 || cluster.jobIds.length > 1)
+    .map((cluster) => ({
+      id: `js_${normJobLabel(`${cluster.companyKey} ${cluster.titleKey}`).replace(/ /g, '-').slice(0, 48) || 'job'}`,
+      company: cluster.company,
+      title: cluster.title,
+      location: cluster.location,
+      start: cluster.start,
+      end: cluster.end,
+      entryIds: cluster.entryIds,
+      jobIds: cluster.jobIds,
+      sources: cluster.sources,
+    }));
+}
+
+export function suggestJobSetup(store) {
+  const status = store?.jobSetup?.status;
+  if (status === 'done' || status === 'later') return { needed: false, proposals: [] };
+  const proposals = jobSetupProposals(store);
+  return { needed: proposals.length > 0, proposals };
+}
+
+export function applyJobSetup(store, { proposalIds = [] } = {}, clock = Date.now, random = Math.random) {
+  const wanted = new Set(proposalIds || []);
+  let next = store || emptyStore();
+  for (const proposal of jobSetupProposals(next)) {
+    if (!wanted.has(proposal.id)) continue;
+    let keepId = proposal.jobIds[0] || '';
+    if (!keepId) {
+      next = addCareerJob(next, {
+        company: proposal.company,
+        title: proposal.title,
+        location: proposal.location,
+        start: proposal.start,
+        end: proposal.end,
+        onResume: false,
+      }, clock, random);
+      keepId = next.jobs[next.jobs.length - 1]?.id || '';
+    } else {
+      for (const dropId of proposal.jobIds.slice(1)) next = mergeJobs(next, keepId, dropId, clock);
+    }
+    if (!keepId) continue;
+    for (const entryId of proposal.entryIds) next = assignEntryJob(next, entryId, keepId, clock);
+  }
+  return {
+    ...next,
+    jobSetup: { status: 'done', savedAt: nowIso(clock) },
+  };
+}
+
+export function dismissJobSetup(store, clock = Date.now) {
+  return {
+    ...(store || emptyStore()),
+    jobSetup: { status: 'later', savedAt: nowIso(clock) },
+  };
+}
+
+export function mergeJobs(store, keepId, dropId, clock = Date.now) {
+  if (!keepId || !dropId || keepId === dropId) return store;
+  const keep = (store?.jobs || []).find((job) => job.id === keepId);
+  const drop = (store?.jobs || []).find((job) => job.id === dropId);
+  if (!keep || !drop) return store;
+  const seen = new Set((keep.groups || []).map((group) => group.id));
+  const groups = (keep.groups || []).slice();
+  for (const group of drop.groups || []) {
+    if (seen.has(group.id)) continue;
+    seen.add(group.id);
+    groups.push(group);
+  }
+  const onResume = keep.onResume !== false || drop.onResume !== false;
+  let next = updateCareerJob(store, keepId, { groups, onResume }, clock);
+  const keeper = (next.jobs || []).find((job) => job.id === keepId) || keep;
+  next = {
+    ...next,
+    jobs: (next.jobs || []).filter((job) => job.id !== dropId),
+    entries: (next.entries || []).map((entry) => (
+      entry.jobId === dropId
+        ? { ...entry, jobId: keepId, company: keeper.company, role: keeper.title }
+        : entry
+    )),
+    postings: (next.postings || []).map((posting) => {
+      const localJobs = posting.resume?.localJobs;
+      if (!Array.isArray(localJobs) || !localJobs.some((job) => job.jobId === dropId)) return posting;
+      return {
+        ...posting,
+        resume: {
+          ...posting.resume,
+          localJobs: localJobs.map((job) => (
+            job.jobId === dropId
+              ? {
+                ...job,
+                jobId: keepId,
+                company: keeper.company,
+                title: keeper.title,
+                location: keeper.location,
+                start: keeper.start,
+                end: keeper.end,
+                current: keeper.current,
+              }
+              : job
+          )),
+        },
+      };
+    }),
+  };
+  return next;
 }
 
 // An edit on this posting's resume is the only wording override compile will
@@ -2677,6 +2964,7 @@ export function mergeBook(base, local, remote) {
   out.profile = mergePlain(base?.profile, local?.profile, remote?.profile);
   out.resumeSettings = mergePlain(base?.resumeSettings, local?.resumeSettings, remote?.resumeSettings);
   out.basicsBackup = mergePlain(base?.basicsBackup, local?.basicsBackup, remote?.basicsBackup);
+  out.jobSetup = mergePlain(base?.jobSetup, local?.jobSetup, remote?.jobSetup);
   return out;
 }
 

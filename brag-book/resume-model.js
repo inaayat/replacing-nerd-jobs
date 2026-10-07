@@ -81,6 +81,7 @@ export function emptyResumeVariant() {
     sectionOrder: [],
     showCredentials: null,
     excludedJobIds: [],
+    includedJobIds: [],
     excludedBulletIds: [],
     excludedEducationIds: [],
     excludedCredentialIds: [],
@@ -200,6 +201,7 @@ export function normalizeResumeVariant(raw) {
       : [],
     showCredentials: show === true ? true : show === false ? false : null,
     excludedJobIds: asIdList(raw.excludedJobIds),
+    includedJobIds: asIdList(raw.includedJobIds),
     excludedBulletIds: asIdList(raw.excludedBulletIds),
     excludedEducationIds: asIdList(raw.excludedEducationIds),
     excludedCredentialIds: asIdList(raw.excludedCredentialIds),
@@ -298,8 +300,8 @@ export function normalizeResumeGroup(raw, clock = Date.now) {
 export function normalizeCareerJob(raw, clock = Date.now) {
   if (!raw || typeof raw !== 'object') return null;
   const company = asString(raw.company, TITLE_MAX);
-  const id = asString(raw.id, ID_MAX);
-  if (!company && !id) return null;
+  const storedId = asString(raw.id, ID_MAX);
+  if (!company && !storedId) return null;
   const groups = [];
   const seen = new Set();
   for (const item of Array.isArray(raw.groups) ? raw.groups : []) {
@@ -309,8 +311,10 @@ export function normalizeCareerJob(raw, clock = Date.now) {
     groups.push(group);
   }
   const end = asString(raw.end, 80);
+  const id = asId(raw.id, clock, 'rj');
+  const jobId = asString(raw.jobId, ID_MAX);
   return {
-    id: asId(raw.id, clock, 'rj'),
+    id,
     company,
     title: asString(raw.title, TITLE_MAX),
     location: asString(raw.location, TITLE_MAX),
@@ -318,6 +322,12 @@ export function normalizeCareerJob(raw, clock = Date.now) {
     end,
     current: raw.current === true || /^present$/i.test(end),
     groups,
+    // Empty jobId means this record is the catalog job. A posting-local role
+    // stores the catalog id here so company, title, dates, and location follow it.
+    jobId: jobId && jobId !== id ? jobId : '',
+    // Absent or true stays on Resume basics. Explicit false is catalog-only
+    // until the user places the job.
+    onResume: raw.onResume === false ? false : true,
   };
 }
 
@@ -644,12 +654,36 @@ function decorateJob(job, variant, { local = false } = {}) {
   };
 }
 
-function jobsFromCareer(store, variant) {
-  return normalizeCareerJobs(store?.jobs).map((job) => decorateJob(job, variant));
+function catalogJobById(store, id) {
+  if (!id) return null;
+  return normalizeCareerJobs(store?.jobs).find((job) => job.id === id) || null;
 }
 
-function jobsFromLocal(variant) {
-  return normalizeCareerJobs(variant?.localJobs).map((job) => decorateJob(job, variant, { local: true }));
+function overlayCatalogIdentity(job, store) {
+  const source = catalogJobById(store, job?.jobId);
+  if (!source) return job;
+  return {
+    ...job,
+    company: source.company,
+    title: source.title,
+    location: source.location,
+    start: source.start,
+    end: source.end,
+    current: source.current,
+  };
+}
+
+function jobsFromCareer(store, variant) {
+  const included = new Set(variant?.includedJobIds || []);
+  return normalizeCareerJobs(store?.jobs)
+    .filter((job) => job.onResume !== false || included.has(job.id))
+    .map((job) => decorateJob(overlayCatalogIdentity(job, store), variant));
+}
+
+function jobsFromLocal(variant, store) {
+  return normalizeCareerJobs(variant?.localJobs).map((job) => (
+    decorateJob(overlayCatalogIdentity(job, store), variant, { local: true })
+  ));
 }
 
 function mergeGroupLists(hostGroups, overlayGroups, variant, jobId) {
@@ -691,7 +725,7 @@ function mergeGroupLists(hostGroups, overlayGroups, variant, jobId) {
   })), variant.groupOrder?.[jobId]);
 }
 
-function mergeLocalJobs(jobs, variant) {
+function mergeLocalJobs(jobs, variant, store) {
   const out = jobs.map((job) => ({
     ...job,
     groups: (job.groups || []).map((group) => ({
@@ -701,12 +735,13 @@ function mergeLocalJobs(jobs, variant) {
   }));
   const byId = new Map(out.map((job) => [job.id, job]));
   for (const local of normalizeCareerJobs(variant?.localJobs)) {
-    const host = byId.get(local.id);
+    const overlaid = overlayCatalogIdentity(local, store);
+    const host = byId.get(overlaid.id);
     if (host) {
-      host.groups = mergeGroupLists(host.groups, local.groups, variant, host.id);
+      host.groups = mergeGroupLists(host.groups, overlaid.groups, variant, host.id);
       host.hasLocalExtras = true;
     } else {
-      const job = decorateJob(local, variant, { local: true });
+      const job = decorateJob(overlaid, variant, { local: true });
       out.push(job);
       byId.set(job.id, job);
     }
@@ -1010,12 +1045,12 @@ export function compileResumeDoc(posting, store) {
   let education;
   let additional;
   if (fresh) {
-    jobs = reorder(jobsFromLocal(variant), variant.jobOrder);
+    jobs = reorder(jobsFromLocal(variant, store), variant.jobOrder);
     credentials = normalizeCredentials(variant.localCredentials);
     education = normalizeEducation(variant.localEducation);
     additional = normalizeAdditional(variant.localAdditional);
   } else {
-    jobs = mergeLocalJobs(jobsFromCareer(store, variant), variant);
+    jobs = mergeLocalJobs(jobsFromCareer(store, variant), variant, store);
     jobs = mergePostingBullets(jobs, posting, store);
     jobs = projectEntryLines(jobs, store);
     jobs = reorder(jobs, variant.jobOrder);

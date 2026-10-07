@@ -224,8 +224,10 @@ next/prev. **Resume bullets & knowledge** is one page from the home card.
 `#experiences` opens the Resume bullets tab; `#kb` and `#knowledge` open the
 Knowledge tab. The two tabs sit at the top, and each keeps its own search bar
 and add button (`#experiences/new` pastes several; `**bold**` is kept). Each
-resume line keeps its bullet on the left, with Job and Role on that same
-column, and Situation, Task, Action, and Result always visible beside it.
+resume line keeps its bullet on the left and a Job dropdown (or Unassigned)
+on that column; Situation, Task, Action, and Result stay visible beside it.
+Jobs are one list — company, title, dates, and location — and Set up your
+jobs only writes after you confirm a merge.
 Knowledge pages are free-form notes, searchable, and saved as you type.
 
 Signing in is required — the signed-out view is a centered log-in gate. One

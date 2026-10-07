@@ -111,6 +111,12 @@ import {
   hasBasicsBackup,
   tidyResumeJobs,
   updateCareerJob,
+  assignEntryJob,
+  placeJobOnResume,
+  suggestJobSetup,
+  applyJobSetup,
+  dismissJobSetup,
+  mergeJobs,
   updateEducationItem,
   libraryBulletChoices,
   placeLibraryBullet,
@@ -182,6 +188,7 @@ assert.deepEqual(emptyStore(), {
   additional: [],
   resumeSettings: { template: 'classic-serif', sectionOrder: DEFAULT_SECTION_ORDER.slice(), showCredentials: true },
   basicsBackup: null,
+  jobSetup: null,
 });
 assert.deepEqual(normalizeStore(null), emptyStore());
 assert.equal(normalizeEntry({ title: '   ' }), null);
@@ -2176,9 +2183,10 @@ const beforeIds = inlineRows.entries.map((entry) => entry.id).sort();
 for (const entry of inlineRows.entries) {
   const spec = experienceRowSpec(entry);
   assert.equal(spec.requiresInteraction, false);
-  assert.deepEqual(spec.controls.map((control) => control.key), ['company', 'role', 'situation', 'task', 'action', 'result']);
-  assert.equal(spec.controls.find((control) => control.key === 'company').label, 'Job');
-  assert.equal(spec.controls.find((control) => control.key === 'role').label, 'Role');
+  assert.deepEqual(spec.controls.map((control) => control.key), ['jobId', 'situation', 'task', 'action', 'result']);
+  assert.equal(spec.controls.find((control) => control.key === 'jobId').label, 'Job');
+  assert.equal(spec.controls.find((control) => control.key === 'jobId').kind, 'job');
+  assert.equal(spec.controls.some((control) => control.key === 'company' || control.key === 'role'), false);
   assert.equal(spec.controls.filter((control) => control.column === 'star').length, 4);
 }
 inlineRows = updateEntry(inlineRows, editId, experienceDetailPatch({
@@ -2186,6 +2194,7 @@ inlineRows = updateEntry(inlineRows, editId, experienceDetailPatch({
   rich: [{ text: 'Edit me revised', bold: false }],
   company: 'GoDaddy',
   role: 'Analyst',
+  jobId: 'rj_row',
   situation: 'The queue was split.',
   task: 'Close it in one place.',
   action: 'Wrote the four fields on the row.',
@@ -2206,8 +2215,9 @@ assert.equal(edited.kind === 'skillset', false);
 assert.equal(edited.when === '1999', false);
 const editedSpec = experienceRowSpec(edited);
 assert.equal(editedSpec.requiresInteraction, false);
-assert.equal(editedSpec.controls.find((control) => control.key === 'company').value, 'GoDaddy');
-assert.equal(editedSpec.controls.find((control) => control.key === 'role').value, 'Analyst');
+assert.equal(edited.jobId, 'rj_row');
+assert.equal(editedSpec.controls.find((control) => control.key === 'jobId').value, 'rj_row');
+assert.equal(editedSpec.controls.some((control) => control.key === 'company' || control.key === 'role'), false);
 assert.equal(editedSpec.controls.find((control) => control.key === 'situation').value, 'The queue was split.');
 assert.equal(editedSpec.controls.find((control) => control.key === 'task').value, 'Close it in one place.');
 assert.equal(editedSpec.controls.find((control) => control.key === 'action').value, 'Wrote the four fields on the row.');
@@ -2227,6 +2237,9 @@ assert.match(appSource, /aria-label': 'Search resume bullets'/);
 assert.doesNotMatch(appSource, /aria-label': 'Search experiences'/);
 assert.doesNotMatch(appSource, /No experiences yet/);
 assert.match(appSource, /bb-book-tab/);
+assert.match(appSource, /Set up your jobs/);
+assert.match(appSource, /Unassigned/);
+assert.match(appSource, /\+ New job/);
 assert.match(appSource, /tailored for this posting/);
 assert.match(appSource, /Reset to job title/);
 assert.match(appSource, /Restore hidden rows/);
@@ -2237,7 +2250,7 @@ assert.match(appSource, /Edit the Resume basics template here/);
 assert.match(appSource, /basicsReplaceConfirm/);
 assert.match(appSource, /basicsRestoreConfirm/);
 const bookCss = readFileSync(new URL('../brag-book/app.css', import.meta.url), 'utf8');
-const jobRoleCss = bookCss.match(/\.bb-exp-jobrole \.bb-cell-input \{[^}]+\}/);
+const jobRoleCss = bookCss.match(/\.bb-exp-jobrole \.bb-cell-input[^{]*\{[^}]+\}/);
 const starCss = bookCss.match(/\.bb-inline-area \{[^}]+\}/);
 assert.ok(jobRoleCss);
 assert.ok(starCss);
@@ -2450,9 +2463,12 @@ async function renderBookPage(hash) {
     const placeholders = app.querySelectorAll('input').map((node) => node.getAttribute('placeholder'));
     assert.equal(placeholders.includes('Search resume bullets, companies, STAR…'), true);
     assert.equal(placeholders.includes('Search pages'), false);
-    for (const label of ['Job', 'Role', 'Situation', 'Task', 'Action', 'Result']) {
+    for (const label of ['Job', 'Situation', 'Task', 'Action', 'Result']) {
       assert.equal(labels.filter((item) => item === label).length, 2, `${hash} ${label}`);
     }
+    assert.equal(labels.filter((item) => item === 'Role').length, 0);
+    assert.match(text, /Unassigned/);
+    assert.match(text, /Set up your jobs/);
     assert.equal(app.querySelectorAll('[data-star="always"]').length, 2);
     assert.match(text, /Books were late/);
     assert.match(text, /Second result/);
@@ -2461,3 +2477,154 @@ async function renderBookPage(hash) {
   }
   assert.equal(app.querySelectorAll('[aria-label="Expand experience"]').length, 0);
 }
+
+const looseJobs = normalizeStore({
+  entries: [{ id: 'en_loose', title: 'Closed the books', company: 'Acme', role: 'Analyst' }],
+});
+assert.equal(looseJobs.entries[0].jobId, '');
+assert.equal(looseJobs.jobs.length, 0);
+assert.equal(looseJobs.jobSetup, null);
+
+let jobBook = addEntry(emptyStore(), { id: 'en_acme', title: 'Closed the books', company: 'Acme', role: 'Analyst' }, clock);
+jobBook = addEntry(jobBook, { id: 'en_acme_2', title: 'Closed them again', company: 'Acme', role: 'Senior Analyst' }, clock);
+jobBook = addEntry(jobBook, { id: 'en_beta', title: 'Drew the diagram', company: 'Beta', role: 'Designer' }, clock);
+jobBook = addEntry(jobBook, { id: 'en_plain', title: 'No employer yet' }, clock);
+jobBook = addKnowledge(jobBook, { id: 'kb_keep', title: 'Leave this note', body: 'Untouched' }, clock);
+const suggested = suggestJobSetup(jobBook);
+assert.equal(suggested.needed, true);
+assert.equal(suggested.proposals.length, 2);
+const acmeProposal = suggested.proposals.find((proposal) => proposal.company === 'Acme');
+assert.ok(acmeProposal);
+assert.deepEqual(acmeProposal.entryIds.sort(), ['en_acme', 'en_acme_2']);
+assert.equal(acmeProposal.sources.length, 2);
+assert.equal(suggestJobSetup({ ...jobBook, jobSetup: { status: 'done', savedAt: '2026-10-05T12:00:00.000Z' } }).needed, false);
+assert.equal(suggestJobSetup({ ...jobBook, jobSetup: { status: 'later', savedAt: '2026-10-05T12:00:00.000Z' } }).needed, false);
+
+const beforeKnowledge = JSON.stringify(jobBook.knowledge);
+const beforePlain = jobBook.entries.find((entry) => entry.id === 'en_plain');
+const applied = applyJobSetup(jobBook, { proposalIds: suggested.proposals.map((proposal) => proposal.id) }, clock, random);
+assert.equal(applied.jobSetup.status, 'done');
+assert.equal(applied.jobs.length, 2);
+assert.equal(applied.jobs.every((job) => job.onResume === false), true);
+assert.equal(compileResumeDoc(null, applied).sections.experience.jobs.length, 0);
+const acmeJob = applied.jobs.find((job) => job.company === 'Acme');
+const betaJob = applied.jobs.find((job) => job.company === 'Beta');
+assert.equal(applied.entries.find((entry) => entry.id === 'en_acme').jobId, acmeJob.id);
+assert.equal(applied.entries.find((entry) => entry.id === 'en_acme').company, 'Acme');
+assert.equal(applied.entries.find((entry) => entry.id === 'en_acme').role, acmeJob.title);
+assert.equal(applied.entries.find((entry) => entry.id === 'en_acme_2').jobId, acmeJob.id);
+assert.equal(applied.entries.find((entry) => entry.id === 'en_beta').jobId, betaJob.id);
+assert.equal(applied.entries.find((entry) => entry.id === 'en_plain').jobId, '');
+assert.equal(applied.entries.find((entry) => entry.id === 'en_plain').title, beforePlain.title);
+assert.equal(JSON.stringify(applied.knowledge), beforeKnowledge);
+assert.equal(suggestJobSetup(applied).needed, false);
+
+const dismissed = dismissJobSetup(jobBook, clock);
+assert.equal(dismissed.jobSetup.status, 'later');
+assert.equal(dismissed.jobs.length, 0);
+assert.equal(dismissed.entries.find((entry) => entry.id === 'en_acme').jobId, '');
+
+let mergedJobs = addCareerJob(emptyStore(), {
+  id: 'rj_keep',
+  company: 'Acme',
+  title: 'Analyst',
+  onResume: false,
+  groups: [{ id: 'rg_keep', heading: 'Close', bullets: [] }],
+}, clock);
+mergedJobs = addCareerJob(mergedJobs, {
+  id: 'rj_drop',
+  company: 'Acme',
+  title: 'Senior Analyst',
+  onResume: true,
+  groups: [{ id: 'rg_drop', heading: 'Review', bullets: [] }],
+}, clock);
+mergedJobs = addEntry(mergedJobs, { id: 'en_drop', title: 'Reviewed it', company: 'Acme', role: 'Senior Analyst', jobId: 'rj_drop' }, clock);
+mergedJobs = mergeJobs(mergedJobs, 'rj_keep', 'rj_drop', clock);
+assert.deepEqual(mergedJobs.jobs.map((job) => job.id), ['rj_keep']);
+assert.equal(mergedJobs.jobs[0].onResume, true);
+assert.deepEqual(mergedJobs.jobs[0].groups.map((group) => group.id), ['rg_keep', 'rg_drop']);
+assert.equal(mergedJobs.entries[0].jobId, 'rj_keep');
+assert.equal(mergedJobs.entries[0].company, 'Acme');
+assert.equal(mergedJobs.entries[0].role, 'Analyst');
+
+let linked = addCareerJob(emptyStore(), {
+  id: 'rj_cat',
+  company: 'Acme',
+  title: 'Analyst',
+  location: 'NY',
+  start: '2020',
+  end: '2024',
+  onResume: false,
+}, clock);
+linked = addEntry(linked, { id: 'en_linked', title: 'Closed the books', company: 'Acme', role: 'Analyst', jobId: 'rj_cat' }, clock);
+linked = addEntry(linked, { id: 'en_other', title: 'Elsewhere', company: 'Beta', role: 'Designer', jobId: '' }, clock);
+linked = addPosting(linked, { id: 'job_a', title: 'Posting A' }, clock);
+linked = addPosting(linked, { id: 'job_b', title: 'Posting B' }, clock);
+linked = addPostingLocalJob(linked, 'job_a', {
+  id: 'rj_local',
+  company: 'Old Co',
+  title: 'Old title',
+  jobId: 'rj_cat',
+}, {}, clock);
+const otherResume = linked.postings.find((posting) => posting.id === 'job_b').resume;
+let shown = compileResumeDoc(linked.postings.find((posting) => posting.id === 'job_a'), linked);
+let catalogLocal = shown.sections.experience.jobs.find((job) => job.id === 'rj_local');
+assert.equal(catalogLocal.company, 'Acme');
+assert.equal(catalogLocal.title, 'Analyst');
+assert.equal(catalogLocal.location, 'NY');
+assert.equal(compileResumeDoc(null, linked).sections.experience.jobs.some((job) => job.id === 'rj_cat'), false);
+linked = updateCareerJob(linked, 'rj_cat', { company: 'Acme Inc', title: 'Senior Analyst', location: 'Remote' }, clock);
+assert.equal(linked.entries.find((entry) => entry.id === 'en_linked').company, 'Acme Inc');
+assert.equal(linked.entries.find((entry) => entry.id === 'en_linked').role, 'Senior Analyst');
+assert.equal(linked.entries.find((entry) => entry.id === 'en_other').company, 'Beta');
+assert.equal(linked.entries.find((entry) => entry.id === 'en_other').role, 'Designer');
+const storedLocal = linked.postings.find((posting) => posting.id === 'job_a').resume.localJobs.find((job) => job.id === 'rj_local');
+assert.equal(storedLocal.company, 'Acme Inc');
+assert.equal(storedLocal.title, 'Senior Analyst');
+assert.equal(storedLocal.location, 'Remote');
+linked = updatePostingResume(linked, 'job_a', { jobTitles: { rj_local: 'Tailored analyst' } }, clock);
+shown = compileResumeDoc(linked.postings.find((posting) => posting.id === 'job_a'), linked);
+catalogLocal = shown.sections.experience.jobs.find((job) => job.id === 'rj_local');
+assert.equal(catalogLocal.title, 'Tailored analyst');
+assert.equal(catalogLocal.company, 'Acme Inc');
+assert.equal(linked.jobs.find((job) => job.id === 'rj_cat').title, 'Senior Analyst');
+
+assert.equal(compileResumeDoc(null, linked).sections.experience.jobs.some((job) => job.id === 'rj_cat'), false);
+linked = placeJobOnResume(linked, null, 'rj_cat', clock);
+assert.equal(linked.jobs.find((job) => job.id === 'rj_cat').onResume, true);
+assert.equal(compileResumeDoc(null, linked).sections.experience.jobs.some((job) => job.id === 'rj_cat'), true);
+linked = updateCareerJob(linked, 'rj_cat', { onResume: false }, clock);
+const resumeBefore = linked.postings.find((posting) => posting.id === 'job_b').resume;
+linked = placeJobOnResume(linked, 'job_a', 'rj_cat', clock);
+assert.ok(linked.postings.find((posting) => posting.id === 'job_a').resume.includedJobIds.includes('rj_cat'));
+assert.equal(linked.postings.find((posting) => posting.id === 'job_a').resume.localJobs.some((job) => job.company === 'Acme Inc' && job.id !== 'rj_local'), false);
+assert.deepEqual(linked.postings.find((posting) => posting.id === 'job_b').resume, resumeBefore);
+assert.deepEqual(linked.postings.find((posting) => posting.id === 'job_b').resume, otherResume);
+shown = compileResumeDoc(linked.postings.find((posting) => posting.id === 'job_a'), linked);
+assert.equal(shown.sections.experience.jobs.some((job) => job.id === 'rj_cat'), true);
+assert.equal(compileResumeDoc(linked.postings.find((posting) => posting.id === 'job_b'), linked).sections.experience.jobs.some((job) => job.id === 'rj_cat'), false);
+
+const choices = libraryBulletChoices(linked, { jobId: 'rj_cat' });
+assert.deepEqual(choices.map((entry) => entry.id), ['en_linked']);
+const searched = libraryBulletChoices(linked, { query: 'Elsewhere', jobId: 'rj_cat' });
+assert.equal(searched[0]?.id === 'en_linked' || searched.some((entry) => entry.id === 'en_other'), true);
+
+const unassigned = assignEntryJob(linked, 'en_linked', '', clock);
+assert.equal(unassigned.entries.find((entry) => entry.id === 'en_linked').jobId, '');
+assert.equal(unassigned.entries.find((entry) => entry.id === 'en_linked').company, 'Acme Inc');
+assert.equal(unassigned.entries.find((entry) => entry.id === 'en_linked').role, 'Senior Analyst');
+
+const round = serializeBook({
+  ...applied,
+  jobSetup: { status: 'later', savedAt: '2026-10-05T12:00:00.000Z' },
+  postings: [{
+    id: 'job_round',
+    title: 'Round trip',
+    resume: { includedJobIds: [applied.jobs[0].id] },
+  }],
+});
+assert.equal(round.book.jobSetup.status, 'later');
+assert.equal(round.book.jobs[0].onResume, false);
+assert.equal(round.book.jobs[0].jobId, '');
+assert.ok(round.book.postings[0].resume.includedJobIds.includes(applied.jobs[0].id));
+assert.equal(normalizeStore(round.book).entries.find((entry) => entry.id === 'en_plain').jobId, '');
