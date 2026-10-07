@@ -1783,6 +1783,12 @@ a:focus-visible {
 }
 .bb-kb-status { color: var(--muted); font-size: 0.75rem; min-width: 4.5rem; }
 .bb-kb-body { min-height: 50vh; font-size: 1.05rem; }
+.bb-kb-doc { outline: none; white-space: pre-wrap; }
+.bb-kb-doc p { margin: 0 0 0.45rem; }
+.bb-kb-doc ul { margin: 0.15rem 0 0.45rem 1.15rem; padding: 0; }
+.bb-kb-doc li { margin: 0.12rem 0; }
+.bb-kb-doc em { font-style: italic; }
+.bb-kb-mark { min-width: 0; padding: 4px 8px; }
 .bb-exp-wrap { width: 100%; overflow-x: auto; }
 .bb-exp-table {
   width: 100%;

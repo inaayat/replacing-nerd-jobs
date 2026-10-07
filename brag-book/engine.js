@@ -65,6 +65,13 @@ import {
 } from './resume-model.js';
 
 import { STARTER_RESUME_DOC } from './starter-resume.js';
+import {
+  normalizeKnowledgeDoc,
+  knowledgeDocFromLegacy,
+  knowledgePlainText,
+  knowledgeRichSpans,
+  knowledgeSearchText,
+} from './knowledge-doc.js';
 
 export { STARTER_RESUME_DOC } from './starter-resume.js';
 
@@ -417,17 +424,18 @@ export function normalizeEntry(raw, clock = Date.now) {
 export function normalizeKnowledge(raw, clock = Date.now) {
   if (!raw || typeof raw !== 'object') return null;
   const title = asString(raw.title, TEXT_MAX);
-  const formatted = Array.isArray(raw.rich) && raw.rich.length
-    ? normalizeRichSpans(raw.rich, raw.body || title)
-    : richFromText(asString(raw.body, TEXT_MAX));
-  const body = formatted?.text || asString(raw.body, TEXT_MAX);
+  const doc = Array.isArray(raw.doc)
+    ? normalizeKnowledgeDoc(raw.doc, { keepEmpty: true })
+    : knowledgeDocFromLegacy(raw.body, raw.rich);
+  const body = knowledgePlainText(doc);
   if (!title && !body) return null;
   const createdAt = asString(raw.createdAt, 40) || nowIso(clock);
   return {
     id: asString(raw.id, 64) || newId('kb', clock),
     title: title || asString(body.split('\n')[0], TEXT_MAX) || 'Note',
     body,
-    rich: formatted?.rich || (body ? [{ text: body, bold: false }] : []),
+    rich: knowledgeRichSpans(doc),
+    doc,
     tags: asTags(raw.tags),
     createdAt,
     updatedAt: asString(raw.updatedAt, 40) || createdAt,
@@ -882,7 +890,17 @@ export function addKnowledgeNotes(store, drafts, clock = Date.now) {
 export function updateKnowledge(store, id, patch, clock = Date.now) {
   const current = knowledgeById(store, id);
   if (!current) return store;
-  const next = normalizeKnowledge({ ...current, ...patch, id: current.id, createdAt: current.createdAt }, clock);
+  const nextRaw = { ...current, ...patch, id: current.id, createdAt: current.createdAt };
+  // A body/rich patch from an older caller does not carry `doc`. Drop the stored
+  // document so normalize rebuilds from the new text instead of keeping the old blocks.
+  if (
+    patch &&
+    !Object.prototype.hasOwnProperty.call(patch, 'doc') &&
+    (Object.prototype.hasOwnProperty.call(patch, 'body') || Object.prototype.hasOwnProperty.call(patch, 'rich'))
+  ) {
+    delete nextRaw.doc;
+  }
+  const next = normalizeKnowledge(nextRaw, clock);
   if (!next) return store;
   return { ...store, knowledge: replaceById(store.knowledge, id, touched(next, clock)) };
 }
@@ -2436,8 +2454,11 @@ export function searchKnowledge(store, query) {
   if (!q) return list;
   const tokens = tokenize(q);
   return list.filter((note) => {
-    const hay = [note.title, note.body, ...(note.tags || [])].join(' ').toLowerCase();
+    const hay = [note.title, knowledgeSearchText(note), ...(note.tags || [])].join(' ').toLowerCase();
     if (hay.includes(q)) return true;
+    // Markup-only queries (`**`, `<em>`) leave no tokens. An empty token list
+    // would otherwise match every page.
+    if (!tokens.length) return false;
     return tokens.every((token) => hay.includes(token));
   });
 }

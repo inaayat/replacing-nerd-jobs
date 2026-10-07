@@ -14,6 +14,7 @@ import {
   deleteEntry,
   addKnowledge,
   addKnowledgeNotes,
+  normalizeKnowledge,
   updateKnowledge,
   deleteKnowledge,
   knowledgeById,
@@ -165,6 +166,14 @@ import {
 } from '../brag-book/engine.js';
 import { parseViewHash, viewHash, viewTitle, defaultView, logLayout, hideBookRail } from '../brag-book/routes.js';
 import { bookPagePlan, experienceRowSpec, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys } from '../brag-book/book-view.js';
+import {
+  applyKnowledgeEnter,
+  applyKnowledgeListMarker,
+  applyKnowledgeTab,
+  groupKnowledgeBlocks,
+  knowledgeEditEffects,
+  toggleKnowledgeMark,
+} from '../brag-book/knowledge-doc.js';
 import { renderResumeHtml } from '../brag-book/resume-template.js';
 import { dropOrderFromDoc, droppedBulletLabels, fitStatusLine, fitOnePage, FONT_FLOOR_PT, FIT_STEPS } from '../brag-book/resume-fit.js';
 import { resumeDocxBytes } from '../brag-book/resume-docx.js';
@@ -2092,6 +2101,115 @@ kb = updateKnowledge(kb, kb.knowledge[0].id, {
 }, clock);
 assert.equal(knowledgeById(kb, kb.knowledge[0].id).rich[1].bold, true);
 assert.equal(searchKnowledge(kb, 'jwt').length, 1);
+const plainPage = normalizeKnowledge({ id: 'kb_plain', title: 'Old', body: 'Just text\nSecond line' }, clock);
+assert.equal(plainPage.body, 'Just text\nSecond line');
+assert.deepEqual(plainPage.doc.map((block) => block.type), ['p', 'p']);
+assert.equal(plainPage.doc[1].spans[0].text, 'Second line');
+assert.equal(plainPage.doc[0].type === 'li', false);
+const markedPage = normalizeKnowledge({ id: 'kb_mark', title: 'Marked', body: 'See **this**' }, clock);
+assert.equal(markedPage.body, 'See this');
+assert.equal(markedPage.doc[0].spans[1].bold, true);
+assert.equal(searchKnowledge({ knowledge: [markedPage] }, '**').length, 0);
+assert.equal(searchKnowledge({ knowledge: [markedPage] }, 'this').length, 1);
+const italicPage = normalizeKnowledge({
+  id: 'kb_italic',
+  title: 'Italic',
+  doc: [{ type: 'p', indent: 0, spans: [
+    { text: 'hello ', bold: false, italic: false },
+    { text: 'there', bold: true, italic: true },
+  ] }],
+}, clock);
+assert.equal(italicPage.doc[0].spans[1].italic, true);
+assert.equal(italicPage.doc[0].spans[1].bold, true);
+assert.equal(italicPage.body, 'hello there');
+const renamedItalic = updateKnowledge({ knowledge: [italicPage] }, 'kb_italic', { title: 'Renamed' }, clock);
+assert.equal(renamedItalic.knowledge[0].title, 'Renamed');
+assert.equal(renamedItalic.knowledge[0].doc[0].spans[1].italic, true);
+assert.equal(renamedItalic.knowledge[0].body, 'hello there');
+assert.equal(searchKnowledge({ knowledge: [italicPage] }, 'there').length, 1);
+assert.equal(searchKnowledge({ knowledge: [italicPage] }, '<em>').length, 0);
+assert.equal(searchKnowledge({
+  knowledge: [{
+    title: 'T',
+    body: '**secret** <em>nope</em>',
+    doc: [{ type: 'p', spans: [{ text: 'milk', bold: false, italic: true }] }],
+  }],
+}, 'secret').length, 0);
+assert.equal(searchKnowledge({
+  knowledge: [{
+    title: 'T',
+    body: '**secret** <em>nope</em>',
+    doc: [{ type: 'p', spans: [{ text: 'milk', bold: false, italic: true }] }],
+  }],
+}, 'milk').length, 1);
+const nastyPage = normalizeKnowledge({
+  title: 'Nasty',
+  doc: [
+    { type: 'script', spans: [{ text: 'alert(1)' }] },
+    { type: 'p', spans: [{ text: '<img src=x onerror=alert(1)>', bold: false }] },
+  ],
+}, clock);
+assert.equal(nastyPage.doc.length, 1);
+assert.equal(nastyPage.doc[0].type, 'p');
+assert.match(nastyPage.body, /<img/);
+assert.equal(JSON.stringify(nastyPage.doc).includes('"type":"script"'), false);
+const dashed = applyKnowledgeListMarker(
+  [{ type: 'p', indent: 0, spans: [{ text: '- milk', bold: false, italic: false }] }],
+  { index: 0, offset: 6 },
+);
+assert.equal(dashed.changed, true);
+assert.equal(dashed.doc[0].type, 'li');
+assert.equal(dashed.doc[0].spans.map((span) => span.text).join(''), 'milk');
+assert.equal(dashed.caret.offset, 4);
+const starred = applyKnowledgeListMarker(
+  [{ type: 'p', indent: 0, spans: [{ text: '* eggs', bold: false, italic: false }] }],
+  { index: 0, offset: 2 },
+);
+assert.equal(starred.doc[0].type, 'li');
+assert.equal(starred.doc[0].spans[0].text, 'eggs');
+assert.equal(applyKnowledgeListMarker(
+  [{ type: 'p', spans: [{ text: 'hello - there', bold: false }] }],
+  { index: 0, offset: 13 },
+).changed, false);
+const continued = applyKnowledgeEnter(starred.doc, { index: 0, offset: 4 });
+assert.equal(continued.doc.length, 2);
+assert.equal(continued.doc[1].type, 'li');
+assert.equal(continued.doc[1].indent, 0);
+assert.equal(continued.doc[1].spans.length, 0);
+const ended = applyKnowledgeEnter(continued.doc, { index: 1, offset: 0 });
+assert.equal(ended.doc[1].type, 'p');
+const indented = applyKnowledgeTab(starred.doc, { index: 0, offset: 1 }, false);
+assert.equal(indented.doc[0].indent, 1);
+const outdented = applyKnowledgeTab(indented.doc, { index: 0, offset: 1 }, true);
+assert.equal(outdented.doc[0].type, 'li');
+assert.equal(outdented.doc[0].indent, 0);
+assert.equal(applyKnowledgeTab(outdented.doc, { index: 0, offset: 1 }, true).doc[0].type, 'p');
+assert.equal(applyKnowledgeTab(
+  [{ type: 'li', indent: 6, spans: [{ text: 'x', bold: false }] }],
+  { index: 0, offset: 0 },
+  false,
+).changed, false);
+const outline = groupKnowledgeBlocks([
+  { type: 'li', indent: 0, spans: [{ text: 'a', bold: false }] },
+  { type: 'li', indent: 1, spans: [{ text: 'b', bold: false }] },
+]);
+assert.equal(outline[0].kind, 'ul');
+assert.equal(outline[0].items[0].text, 'a');
+assert.equal(outline[0].items[0].children[0].text, 'b');
+const italicRange = toggleKnowledgeMark(
+  [{ type: 'p', spans: [{ text: 'hello there', bold: false, italic: false }] }],
+  { index: 0, start: 6, end: 11 },
+  'italic',
+);
+assert.equal(italicRange.doc[0].spans.find((span) => span.text === 'there').italic, true);
+assert.equal(knowledgeEditEffects('input').render, false);
+assert.equal(knowledgeEditEffects('input').save, true);
+assert.equal(knowledgeEditEffects('keydown').render, false);
+assert.equal(knowledgeEditEffects('toolbar').render, false);
+const italicPacked = serializeBook({ knowledge: [italicPage] });
+const italicReloaded = normalizeStore(JSON.parse(italicPacked.json), clock);
+assert.equal(italicReloaded.knowledge[0].doc[0].spans[1].italic, true);
+assert.equal(italicReloaded.knowledge[0].body, 'hello there');
 assert.equal(bookIsEmpty(kb), false);
 assert.equal(shouldBlockEmptyOverwrite(emptyStore(), kb), true);
 assert.equal(listingSummary(kb).knowledge, 2);
@@ -2257,6 +2375,13 @@ assert.match(appSource, /jobCatalogEditEffects\('blur'\)/);
 assert.match(appSource, /JOB_CATALOG_SAVE_MS/);
 assert.doesNotMatch(appSource, /blur', \(\) => render\(\{ focusKey: node\.getAttribute\('data-focus-key'\) \}\)/);
 assert.match(appSource, /Set up your jobs/);
+assert.match(appSource, /Italic/);
+assert.match(appSource, /knowledgeEditEffects\('input'\)/);
+assert.match(appSource, /knowledgeEditEffects\('toolbar'\)/);
+assert.match(appSource, /applyKnowledgeListMarker/);
+assert.match(appSource, /applyKnowledgeEnter/);
+assert.match(appSource, /applyKnowledgeTab/);
+assert.match(appSource, /execCommand\(key === 'b' \? 'bold' : 'italic'\)/);
 assert.match(appSource, /Unassigned/);
 assert.match(appSource, /\+ New job/);
 assert.match(appSource, /tailored for this posting/);

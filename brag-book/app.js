@@ -154,6 +154,18 @@ import { fitOnePage, dropOrderFromDoc, applyDroppedIds, droppedBulletLabels, fit
 import { resumeDocxBlob } from './resume-docx.js';
 import { parseViewHash, viewHash, viewTitle } from './routes.js';
 import { bookPagePlan, experienceRowSpec, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys } from './book-view.js';
+import {
+  applyKnowledgeEnter,
+  applyKnowledgeListMarker,
+  applyKnowledgeTab,
+  groupKnowledgeBlocks,
+  knowledgeDocForEditor,
+  knowledgeDocFromLegacy,
+  knowledgeEditEffects,
+  knowledgePlainText,
+  knowledgeRichSpans,
+  normalizeKnowledgeDoc,
+} from './knowledge-doc.js';
 import { loadBook, saveBook } from './store.js';
 import { initAuth, refreshToken, renderBragSignIn, wireAuthLink } from './auth.js';
 
@@ -1193,6 +1205,177 @@ function createKnowledgePage() {
   paintKnowledgeStatus('Saved');
 }
 
+function appendKnowledgeSpans(parent, spans) {
+  if (!spans?.length) {
+    parent.append(document.createElement('br'));
+    return;
+  }
+  for (const span of spans) {
+    let node = document.createTextNode(span.text);
+    if (span.italic) {
+      const em = document.createElement('em');
+      em.append(node);
+      node = em;
+    }
+    if (span.bold) {
+      const strong = document.createElement('strong');
+      strong.append(node);
+      node = strong;
+    }
+    parent.append(node);
+  }
+}
+
+function paintKnowledgeList(items) {
+  const ul = document.createElement('ul');
+  for (const item of items) {
+    const li = document.createElement('li');
+    li.dataset.kbBlock = String(item.index);
+    appendKnowledgeSpans(li, item.spans);
+    if (item.children?.length) li.append(paintKnowledgeList(item.children));
+    ul.append(li);
+  }
+  return ul;
+}
+
+function paintKnowledgeDoc(node, doc) {
+  const grouped = groupKnowledgeBlocks(knowledgeDocForEditor(doc));
+  const children = grouped.map((block) => {
+    if (block.kind === 'ul') return paintKnowledgeList(block.items);
+    const p = document.createElement('p');
+    p.dataset.kbBlock = String(block.index);
+    appendKnowledgeSpans(p, block.spans);
+    return p;
+  });
+  node.replaceChildren(...children);
+}
+
+function knowledgeBrIsBreak(node) {
+  for (let sib = node.nextSibling; sib; sib = sib.nextSibling) {
+    if (sib.nodeType === 3 && sib.nodeValue.replace(/\u00a0/g, '').length) return true;
+    if (sib.nodeType === 1 && sib.tagName !== 'BR') return true;
+  }
+  return false;
+}
+
+function readKnowledgeInline(node) {
+  const spans = [];
+  const push = (text, bold, italic) => {
+    const value = String(text || '').replace(/\u00a0/g, ' ');
+    if (!value) return;
+    const last = spans[spans.length - 1];
+    if (last && last.bold === bold && last.italic === italic) last.text += value;
+    else spans.push({ text: value, bold, italic });
+  };
+  const walk = (parent, bold, italic) => {
+    for (const child of parent.childNodes) {
+      if (child.nodeType === 3) push(child.nodeValue, bold, italic);
+      else if (child.nodeType === 1) {
+        const tag = child.tagName;
+        if (tag === 'UL' || tag === 'OL' || tag === 'SCRIPT' || tag === 'STYLE' || tag === 'IFRAME' || tag === 'OBJECT') continue;
+        // A lone or trailing <br> is the caret placeholder browsers insert in an
+        // empty block. Treating it as a newline would save a blank paragraph
+        // on every keystroke. A break with text after it is a real line split.
+        if (tag === 'BR') {
+          if (knowledgeBrIsBreak(child)) push('\n', bold, italic);
+        } else {
+          const weight = child.style?.fontWeight;
+          const nextBold = bold || tag === 'B' || tag === 'STRONG' || weight === 'bold' || Number(weight) >= 600;
+          const nextItalic = italic || tag === 'I' || tag === 'EM' || child.style?.fontStyle === 'italic';
+          walk(child, nextBold, nextItalic);
+        }
+      }
+    }
+  };
+  walk(node, false, false);
+  return spans;
+}
+
+function readKnowledgeDoc(root) {
+  const blocks = [];
+  const consume = (parent, indent) => {
+    for (const child of parent.childNodes) {
+      if (child.nodeType === 3) {
+        const text = child.nodeValue.replace(/\u00a0/g, ' ');
+        if (text.trim()) blocks.push({ type: 'p', indent: 0, spans: [{ text, bold: false, italic: false }] });
+        continue;
+      }
+      if (child.nodeType !== 1) continue;
+      const tag = child.tagName;
+      if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'IFRAME' || tag === 'OBJECT') continue;
+      if (tag === 'UL' || tag === 'OL') {
+        consume(child, indent);
+        continue;
+      }
+      if (tag === 'LI') {
+        blocks.push({ type: 'li', indent, spans: readKnowledgeInline(child) });
+        for (const list of child.children) {
+          if (list.tagName === 'UL' || list.tagName === 'OL') consume(list, indent + 1);
+        }
+        continue;
+      }
+      const lists = [...(child.children || [])].filter((el) => el.tagName === 'UL' || el.tagName === 'OL');
+      const spans = readKnowledgeInline(child);
+      if (spans.length || !lists.length) blocks.push({ type: 'p', indent: 0, spans });
+      for (const list of lists) consume(list, indent);
+    }
+  };
+  consume(root, 0);
+  return normalizeKnowledgeDoc(blocks, { keepEmpty: true });
+}
+
+function knowledgeBlockOf(node) {
+  if (!node) return null;
+  const el = node.nodeType === 1 ? node : node.parentElement;
+  return el?.closest?.('[data-kb-block]') || null;
+}
+
+function knowledgeCaret(root) {
+  const sel = document.getSelection?.();
+  if (!sel?.rangeCount || !root.contains(sel.anchorNode)) return { index: 0, offset: 0 };
+  const block = knowledgeBlockOf(sel.anchorNode);
+  if (!block || !root.contains(block)) return { index: 0, offset: 0 };
+  const index = Number(block.dataset.kbBlock) || 0;
+  const range = sel.getRangeAt(0);
+  const pre = range.cloneRange();
+  pre.selectNodeContents(block);
+  pre.setEnd(range.startContainer, range.startOffset);
+  const holder = document.createElement('div');
+  holder.append(pre.cloneContents());
+  for (const list of holder.querySelectorAll('ul, ol')) list.remove();
+  return { index, offset: holder.textContent.length };
+}
+
+function setKnowledgeCaret(root, caret) {
+  const sel = document.getSelection?.();
+  if (!sel) return;
+  const block = root.querySelector(`[data-kb-block="${Number(caret?.index) || 0}"]`);
+  if (!block) return;
+  const offset = Math.max(0, Number(caret?.offset) || 0);
+  const range = document.createRange();
+  const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+  let left = offset;
+  let last = null;
+  while (walker.nextNode()) {
+    const owner = walker.currentNode.parentElement?.closest?.('[data-kb-block]');
+    if (owner !== block) continue;
+    last = walker.currentNode;
+    if (left <= last.nodeValue.length) {
+      range.setStart(last, left);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      return;
+    }
+    left -= last.nodeValue.length;
+  }
+  if (last) range.setStart(last, last.nodeValue.length);
+  else range.setStart(block, 0);
+  range.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+
 function knowledgeEditor(note) {
   const title = el('input', {
     class: 'bb-kb-title',
@@ -1203,38 +1386,94 @@ function knowledgeEditor(note) {
     'data-focus-key': `kb-title-${note.id}`,
     onInput: (event) => scheduleKnowledgeSave(note.id, { title: event.target.value.trim() || 'Untitled' }),
   });
-  const body = richLine({
-    class: 'experience-compose bb-kb-body',
+  const body = el('div', {
+    class: 'bb-kb-body bb-kb-doc',
+    contenteditable: 'true',
+    role: 'textbox',
+    'aria-multiline': 'true',
     'aria-label': 'Page',
     'data-focus-key': `kb-body-${note.id}`,
-  }, {
-    text: note.body,
-    rich: note.rich,
-    onChange: (spans) => {
-      const text = spans.map((span) => span.text).join('');
-      scheduleKnowledgeSave(note.id, {
-        body: text,
-        rich: text.trim() ? spans : null,
-      });
+  });
+  paintKnowledgeDoc(body, note.doc?.length ? note.doc : knowledgeDocFromLegacy(note.body, note.rich));
+  const saveBody = (doc) => {
+    const plan = knowledgeEditEffects('input');
+    if (!plan.save) return;
+    const blocks = normalizeKnowledgeDoc(doc, { keepEmpty: true });
+    const stored = blocks.some((block) => block.type === 'li' || (block.spans || []).some((span) => span.text))
+      ? blocks
+      : [];
+    scheduleKnowledgeSave(note.id, {
+      doc: stored,
+      body: knowledgePlainText(stored),
+      rich: knowledgeRichSpans(stored),
+    });
+    if (plan.render) render();
+  };
+  const commitDom = () => saveBody(readKnowledgeDoc(body));
+  const applyStructural = (next) => {
+    if (!next?.changed) return;
+    const plan = knowledgeEditEffects('keydown');
+    paintKnowledgeDoc(body, next.doc);
+    setKnowledgeCaret(body, next.caret);
+    if (plan.save) saveBody(next.doc);
+    if (plan.render) render();
+  };
+  body.addEventListener('paste', (event) => {
+    event.preventDefault();
+    const text = cleanPastedText(event.clipboardData?.getData('text/plain') || '');
+    if (!text) return;
+    insertPlainText(text);
+    const caret = knowledgeCaret(body);
+    const marked = applyKnowledgeListMarker(readKnowledgeDoc(body), caret);
+    if (marked.changed) applyStructural(marked);
+    else commitDom();
+  });
+  body.addEventListener('keydown', (event) => {
+    const key = event.key.toLowerCase();
+    if ((event.metaKey || event.ctrlKey) && !event.altKey && (key === 'b' || key === 'i')) {
+      event.preventDefault();
+      document.execCommand(key === 'b' ? 'bold' : 'italic');
+      commitDom();
+      return;
+    }
+    if (event.key === 'Tab') {
+      event.preventDefault();
+      const block = knowledgeBlockOf(document.getSelection?.()?.anchorNode);
+      if (block?.tagName === 'LI') {
+        applyStructural(applyKnowledgeTab(readKnowledgeDoc(body), knowledgeCaret(body), event.shiftKey));
+      }
+      return;
+    }
+    if (event.key === 'Enter' && !event.shiftKey && !event.metaKey && !event.ctrlKey) {
+      const block = knowledgeBlockOf(document.getSelection?.()?.anchorNode);
+      if (block?.tagName !== 'LI') return;
+      event.preventDefault();
+      applyStructural(applyKnowledgeEnter(readKnowledgeDoc(body), knowledgeCaret(body)));
+    }
+  });
+  body.addEventListener('input', () => {
+    const caret = knowledgeCaret(body);
+    const marked = applyKnowledgeListMarker(readKnowledgeDoc(body), caret);
+    if (marked.changed) applyStructural(marked);
+    else commitDom();
+  });
+  const markButton = (label, command) => btn(label, {
+    class: 'btn ghost compact-action bb-kb-mark',
+    onMouseDown: (event) => {
+      event.preventDefault();
+      body.focus();
+      document.execCommand(command);
+      const plan = knowledgeEditEffects('toolbar');
+      if (plan.save) commitDom();
+      if (plan.render) render();
     },
   });
   return el('div', { class: 'bb-kb-editor' }, [
     el('div', { class: 'bb-kb-editor-bar' }, [
       title,
       el('span', { class: 'bb-kb-status', id: 'kb-save-state' }, 'Saved'),
-      btn('Bold', {
-        class: 'btn ghost compact-action',
-        onClick: () => {
-          body.focus();
-          document.execCommand('bold');
-          const spans = readRich(body);
-          const text = spans.map((span) => span.text).join('');
-          scheduleKnowledgeSave(note.id, {
-            body: text,
-            rich: text.trim() ? spans : null,
-          });
-        },
-      }),
+      markButton('Bold', 'bold'),
+      markButton('Italic', 'italic'),
       btn('Delete', {
         class: 'btn ghost compact-action is-danger',
         onClick: () => {
