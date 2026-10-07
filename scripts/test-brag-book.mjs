@@ -99,7 +99,10 @@ import {
   toggleId,
   clearBulletOverride,
   clearJobTitle,
+  tidyResumeJobs,
   updateCareerJob,
+  libraryBulletChoices,
+  placeLibraryBullet,
   writeBulletBackToSource,
   DEFAULT_SECTION_ORDER,
   compilePrep,
@@ -1179,6 +1182,130 @@ assert.equal(resetTitle.titleTailored, false);
 assert.equal(postingById(titleBook, 'job_tailor').resume.jobTitles.rj_title, undefined);
 assert.equal(titleBook.jobs.find((job) => job.id === 'rj_title').title, 'Manager | Risk');
 
+const embeddedLead = 'Embedded Risk, Compliance & Readiness Partner to Finance';
+const embeddedBody = 'Partnered with Finance and kept this sentence intact.';
+let tidyBook = emptyStore();
+tidyBook = {
+  ...tidyBook,
+  profile: { ...tidyBook.profile, name: 'Inaayat Gill' },
+  knowledge: [{ id: 'kn_keep', title: 'Leave this note', body: 'Untouched.' }],
+  education: [{ id: 'ed_keep', school: 'Keep School', degree: 'BS' }],
+};
+tidyBook = addEntry(tidyBook, {
+  id: 'en_embed',
+  title: `${embeddedLead}: ${embeddedBody}`,
+  kind: 'experience',
+}, clock);
+tidyBook = addCareerJob(tidyBook, {
+  id: 'rj_exp',
+  company: 'Experience',
+  title: '',
+  start: 'October 2021',
+  end: 'Present',
+  groups: [{
+    id: 'rg_exp',
+    heading: '',
+    bullets: [{ id: 'rb_embed', lead: embeddedLead, body: embeddedBody, sourceEntryIds: ['en_embed'] }],
+  }],
+}, clock);
+tidyBook = addCareerJob(tidyBook, {
+  id: 'rj_gd_empty',
+  company: 'GoDaddy',
+  title: '',
+  start: 'October 2021',
+  end: 'Present',
+  groups: [{ id: 'rg_gd_empty', heading: '', bullets: [] }],
+}, clock);
+tidyBook = addCareerJob(tidyBook, {
+  id: 'rj_gd',
+  company: 'GoDaddy',
+  title: 'Manager | Risk',
+  groups: [{
+    id: 'rg_gd',
+    heading: 'Automation & Efficiency in Compliance',
+    bullets: [{ id: 'rb_gd', lead: 'Keep GoDaddy', body: 'This bullet stays.' }],
+  }],
+}, clock);
+tidyBook = addCareerJob(tidyBook, {
+  id: 'rj_pwc',
+  company: 'PricewaterhouseCoopers LLC',
+  title: 'Senior Associate',
+  groups: [{
+    id: 'rg_pwc',
+    heading: 'Automation & Efficiency in Compliance',
+    bullets: [{ id: 'rb_pwc', lead: 'Keep PwC', body: 'This bullet stays.' }],
+  }],
+}, clock);
+tidyBook = addPosting(tidyBook, { id: 'job_tidy', title: 'Do not rewrite me' }, clock);
+const tidied = tidyResumeJobs(tidyBook);
+assert.equal(tidied.profile.name, 'Inaayat Gill');
+assert.equal(tidied.knowledge[0].title, 'Leave this note');
+assert.equal(tidied.education[0].school, 'Keep School');
+assert.equal(tidied.entries.find((entry) => entry.id === 'en_embed').title, `${embeddedLead}: ${embeddedBody}`);
+assert.equal(tidied.postings.find((posting) => posting.id === 'job_tidy').title, 'Do not rewrite me');
+assert.equal(tidied.jobs.some((job) => job.company === 'Experience'), false);
+assert.equal(tidied.jobs.some((job) => job.id === 'rj_gd_empty'), false);
+assert.equal(tidied.jobs.find((job) => job.id === 'rj_gd').groups[0].bullets[0].body, 'This bullet stays.');
+const pwcAfter = tidied.jobs.find((job) => job.id === 'rj_pwc');
+assert.equal(pwcAfter.title, 'Senior Associate');
+assert.equal(pwcAfter.groups[0].heading, 'Automation & Efficiency in Compliance');
+assert.equal(pwcAfter.groups[0].bullets[0].body, 'This bullet stays.');
+const moved = pwcAfter.groups[0].bullets.find((bullet) => bullet.id === 'rb_embed');
+assert.equal(moved.lead, embeddedLead);
+assert.equal(moved.body, embeddedBody);
+assert.deepEqual(moved.sourceEntryIds, ['en_embed']);
+const tidiedAgain = tidyResumeJobs(tidied);
+assert.equal(JSON.stringify(tidiedAgain.jobs), JSON.stringify(tidied.jobs));
+
+let unplaced = addPosting(emptyStore(), { id: 'job_unplaced', title: 'No auto role' }, clock);
+unplaced = addEntry(unplaced, { id: 'en_unplaced', title: 'Library only: not a role', kind: 'experience' }, clock);
+unplaced = addRequirement(unplaced, 'job_unplaced', 'Need a line', clock);
+unplaced = addEntryBullet(unplaced, 'job_unplaced', unplaced.postings[0].requirements[0].id, 'en_unplaced', '', clock);
+const unplacedDoc = compileResumeDoc(postingById(unplaced, 'job_unplaced'), unplaced);
+assert.equal(unplacedDoc.sections.experience.jobs.length, 0);
+assert.equal(unplaced.entries.find((entry) => entry.id === 'en_unplaced').title, 'Library only: not a role');
+
+let picked = addCareerJob(emptyStore(), {
+  id: 'rj_pick',
+  company: 'PwC',
+  title: 'Manager',
+  groups: [{ id: 'rg_pick', heading: 'Automation & Efficiency in Compliance', bullets: [] }],
+}, clock);
+picked = addEntry(picked, { id: 'en_pick', title: 'Picked line: stays with the library', kind: 'experience' }, clock);
+picked = addEntry(picked, { id: 'en_other', title: 'Another library line', kind: 'experience' }, clock);
+picked = addPosting(picked, { id: 'job_pick', title: 'Picker' }, clock);
+assert.equal(libraryBulletChoices(picked, { query: 'picked' }).map((entry) => entry.id).includes('en_pick'), true);
+picked = placeLibraryBullet(picked, {
+  postingId: 'job_pick',
+  jobId: 'rj_pick',
+  groupId: 'rg_pick',
+  entryId: 'en_pick',
+}, clock, random);
+const pickedOnce = compileResumeDoc(postingById(picked, 'job_pick'), picked)
+  .sections.experience.jobs.find((job) => job.id === 'rj_pick').groups[0].bullets;
+assert.equal(pickedOnce.length, 1);
+assert.equal(pickedOnce[0].lead, 'Picked line');
+assert.match(pickedOnce[0].body, /stays with the library/);
+assert.deepEqual(pickedOnce[0].sourceEntryIds, ['en_pick']);
+assert.equal(picked.jobs[0].groups[0].bullets.length, 0);
+const pickedAgain = placeLibraryBullet(picked, {
+  postingId: 'job_pick',
+  jobId: 'rj_pick',
+  groupId: 'rg_pick',
+  entryId: 'en_pick',
+}, clock, random);
+assert.equal(compileResumeDoc(postingById(pickedAgain, 'job_pick'), pickedAgain)
+  .sections.experience.jobs.find((job) => job.id === 'rj_pick').groups[0].bullets.length, 1);
+picked = updateEntry(picked, 'en_pick', { title: 'Picked line: rewritten in the library', rich: null }, clock);
+const pickedLive = compileResumeDoc(postingById(picked, 'job_pick'), picked)
+  .sections.experience.jobs.find((job) => job.id === 'rj_pick').groups[0].bullets[0];
+assert.match(pickedLive.body, /rewritten in the library/);
+assert.equal(libraryBulletChoices(picked, { query: 'picked', takenIds: ['en_pick'] }).some((entry) => entry.id === 'en_pick'), false);
+picked = updateCareerJob(picked, 'rj_pick', {
+  groups: [{ id: 'rg_pick', heading: 'Renamed subheader', bullets: [] }],
+}, clock);
+assert.equal(picked.jobs[0].groups[0].heading, 'Renamed subheader');
+
 const strayBullet = {
   lead: 'Migration of Manual Journal Prep',
   body: 'Created auto**mated journals, ** Created a review, closed c**ases annually**, and gener**al controls.',
@@ -1865,6 +1992,10 @@ assert.match(appSource, /experienceRowSpec\(/);
 assert.match(appSource, /homeStartCards\(/);
 assert.match(appSource, /tailored for this posting/);
 assert.match(appSource, /Reset to job title/);
+assert.match(appSource, /Search resume bullets/);
+assert.match(appSource, /placeLibraryBullet/);
+assert.match(appSource, /\bInclude\b/);
+assert.match(appSource, /\bPin\b/);
 assert.doesNotMatch(appSource, /experienceIsOpen/);
 assert.doesNotMatch(appSource, /toggleExperience/);
 assert.doesNotMatch(appSource, /Expand experience/);

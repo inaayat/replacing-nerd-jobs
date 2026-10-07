@@ -57,7 +57,6 @@ import {
   deleteCareerJob,
   addCareerGroup,
   deleteCareerGroup,
-  addCareerBullet,
   deleteCareerBullet,
   moveCareerBullet,
   moveCareerGroup,
@@ -70,8 +69,6 @@ import {
   deletePostingLocalJob,
   addPostingLocalGroup,
   deletePostingLocalGroup,
-  addPostingLocalBullet,
-  updatePostingLocalBullet,
   deletePostingLocalBullet,
   movePostingLocalBullet,
   movePostingLocalGroup,
@@ -113,6 +110,9 @@ import {
   writeBulletBackToSource,
   clearBulletOverride,
   clearJobTitle,
+  libraryBulletChoices,
+  placeLibraryBullet,
+  resumeTakenEntryIds,
   adoptCompiledJob,
   resumeBulletSpans,
   bulletFromLine,
@@ -2183,18 +2183,6 @@ function lastLocalJob(postingId) {
   return jobs[jobs.length - 1] || null;
 }
 
-function lastLocalBullet(postingId, jobId, groupId) {
-  const job = localJobById(livePosting(postingId)?.resume, jobId);
-  const group = (job?.groups || []).find((item) => item.id === groupId)
-    || job?.groups[job.groups.length - 1];
-  return group?.bullets[group.bullets.length - 1] || null;
-}
-
-function lastLocalGroup(postingId, jobId) {
-  const job = localJobById(livePosting(postingId)?.resume, jobId);
-  return job?.groups[job.groups.length - 1] || null;
-}
-
 function bulletCount(career) {
   return (career.groups || []).reduce((sum, group) => sum + (group.bullets || []).length, 0);
 }
@@ -2234,6 +2222,50 @@ function resumeMoveBtns(label, { index, length, onMove, disableUp, disableDown }
 function resumeGroupLabel(group, index) {
   const heading = String(group?.heading || '').trim();
   return heading || (index === 0 ? 'Top of role' : `Untitled heading ${index + 1}`);
+}
+
+function libraryBulletPicker(posting, career, group) {
+  const query = el('input', {
+    type: 'search',
+    placeholder: 'Search resume bullets',
+    'aria-label': 'Search resume bullets',
+    'data-focus-key': `pick-${group?.id || career.id}`,
+  });
+  const list = el('div', { class: 'bb-lib-picks', hidden: true });
+  const paint = () => {
+    const taken = resumeTakenEntryIds(store, posting || null);
+    const choices = libraryBulletChoices(store, { query: query.value, takenIds: taken });
+    list.replaceChildren(...(choices.length
+      ? choices.map((entry) => btn(entry.title, {
+        class: 'btn ghost compact-action bb-lib-choice',
+        onPointerdown: (event) => {
+          event.preventDefault();
+          store = placeLibraryBullet(store, {
+            postingId: posting?.id || null,
+            jobId: career.id,
+            groupId: group?.id || '',
+            entryId: entry.id,
+          });
+          saveStore();
+          const added = compileResumeDoc(posting || null, store).sections.experience.jobs
+            .find((job) => job.id === career.id);
+          const bullets = (added?.groups || []).flatMap((item) => item.bullets || []);
+          const linked = bullets.find((bullet) => (bullet.sourceEntryIds || []).includes(entry.id));
+          render({ focusKey: linked ? `rb-${linked.id}-line` : `pick-${group?.id || career.id}` });
+        },
+      }))
+      : [el('p', { class: 'tiny' }, query.value.trim() ? 'No matching resume bullets.' : 'Every library bullet is already on this resume.')]));
+    list.hidden = false;
+  };
+  query.addEventListener('focus', paint);
+  query.addEventListener('input', paint);
+  query.addEventListener('blur', () => {
+    list.hidden = true;
+  });
+  return el('div', { class: 'bb-lib-pick' }, [
+    query,
+    list,
+  ]);
 }
 
 function addSubheadingButton(posting, career, { afterId } = {}) {
@@ -2721,49 +2753,14 @@ function resumeJobEditor(posting, career) {
         ]),
         ...group.bullets.map((bullet, bulletIndex) => resumeBulletEditor(posting, career, group, bullet, bulletIndex, groups)),
         allowStructure ? el('div', { class: 'bb-add-row' }, [
-          btn('+ Add bullet', {
-            class: 'btn ghost compact-action',
-            onClick: () => {
-              store = adoptCompiledJob(store, posting?.id || null, career);
-              if (posting) {
-                store = addPostingLocalBullet(store, posting.id, career.id, group.id);
-                const last = lastLocalBullet(posting.id, career.id, group.id);
-                saveStore();
-                render({ focusKey: last ? `rb-${last.id}-line` : `rg-${group.id}-heading` });
-                return;
-              }
-              store = addCareerBullet(store, career.id, group.id);
-              const added = careerJobById(career.id);
-              const g = added?.groups.find((item) => item.id === group.id);
-              const last = g?.bullets[g.bullets.length - 1];
-              saveStore();
-              render({ focusKey: last ? `rb-${last.id}-line` : `rg-${group.id}-heading` });
-            },
-          }),
+          libraryBulletPicker(posting, career, group),
           addSubheadingButton(posting, career, { afterId: group.id }),
         ]) : null,
       ];
     }),
     allowStructure && !groups.length ? el('div', { class: 'bb-add-row' }, [
       addSubheadingButton(posting, career),
-      btn('+ Add bullet', {
-        class: 'btn ghost compact-action',
-        onClick: () => {
-          if (posting) {
-            store = addPostingLocalBullet(store, posting.id, career.id, '');
-            const last = lastLocalBullet(posting.id, career.id, '');
-            saveStore();
-            render({ focusKey: last ? `rb-${last.id}-line` : `rj-${career.id}-company` });
-            return;
-          }
-          store = addCareerBullet(store, career.id, '');
-          const added = careerJobById(career.id);
-          const lastGroup = added?.groups[added.groups.length - 1];
-          const last = lastGroup?.bullets[lastGroup.bullets.length - 1];
-          saveStore();
-          render({ focusKey: last ? `rb-${last.id}-line` : `rj-${career.id}-company` });
-        },
-      }),
+      libraryBulletPicker(posting, career, null),
     ]) : null,
     ]),
   ]);
@@ -2792,8 +2789,8 @@ function resumeEditorPane(posting, doc) {
   ]);
   return el('div', { class: 'bb-resume-editor' }, [
     el('p', { class: 'lede' }, posting
-      ? 'Roles and bullets you add here stay on this posting unless you Save back to source. Exclude hides a shared item here. Start fresh empties this posting only.'
-      : 'Shared career history. New books start with a John Doe placeholder — replace it. Import JSON remains an option.'),
+      ? 'Add each role yourself, then a sub-heading and resume bullets from your library. A picked bullet stays linked to that library entry. Include and Pin still apply to this posting.'
+      : 'Add each role yourself: company, dates, title, and location. Under a role, add sub-headings and pick resume bullets from your library. A picked bullet stays linked to that entry.'),
     resumeSectionOrder(posting),
     credToggle,
     posting ? btn('Save order as my default', {

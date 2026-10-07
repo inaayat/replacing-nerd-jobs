@@ -106,6 +106,7 @@ export {
   patchResumeVariant,
   clearBulletOverride,
   clearJobTitle,
+  tidyResumeJobs,
   findLocalBullet,
   localJobById,
   insertJobOrder,
@@ -1164,6 +1165,63 @@ export function seedStarterResume(store, clock = Date.now) {
   return applyImportedResume(store || emptyStore(), STARTER_RESUME_DOC, clock);
 }
 
+export function resumeTakenEntryIds(store, posting = null) {
+  const doc = compileResumeDoc(posting, store);
+  const ids = [];
+  const plains = new Set();
+  for (const job of doc?.sections?.experience?.jobs || []) {
+    for (const group of job.groups || []) {
+      for (const bullet of group.bullets || []) {
+        for (const id of bullet.sourceEntryIds || []) ids.push(id);
+        const plain = resumePlain(bullet);
+        if (plain) plains.add(plain);
+      }
+    }
+  }
+  for (const entry of store?.entries || []) {
+    if (!entry?.id || ids.includes(entry.id)) continue;
+    const plain = experiencePlain(entry.title, entry.rich);
+    if (plain && plains.has(plain)) ids.push(entry.id);
+  }
+  return ids;
+}
+
+export function libraryBulletChoices(store, { query = '', takenIds = [], limit = 8 } = {}) {
+  const taken = new Set(takenIds || []);
+  const ordered = String(query || '').trim()
+    ? searchEntries(store, query)
+    : experienceCatalog(store).map((row) => entryById(store, row.id)).filter(Boolean);
+  const out = [];
+  for (const entry of ordered) {
+    if (!entry?.id || !String(entry.title || '').trim() || taken.has(entry.id)) continue;
+    out.push(entry);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+export function placeLibraryBullet(store, {
+  postingId = null,
+  jobId,
+  groupId,
+  entryId,
+} = {}, clock = Date.now, random = Math.random) {
+  const entry = entryById(store, entryId);
+  if (!entry?.title || !jobId) return store;
+  const posting = postingId ? postingById(store, postingId) : null;
+  if (resumeTakenEntryIds(store, posting).includes(entry.id)) return store;
+  const fields = resumeFieldsFromExperience(entry.title, entry.rich);
+  const draft = {
+    lead: fields.lead,
+    body: fields.body,
+    sourceEntryIds: [entry.id],
+  };
+  if (postingId && posting) {
+    return addPostingLocalBullet(store, postingId, jobId, groupId, draft, clock, random);
+  }
+  return addCareerBullet(store, jobId, groupId, draft, clock, random);
+}
+
 export function updateCareerJob(store, id, patch, clock = Date.now) {
   const jobs = (store?.jobs || []).map((job) => {
     if (job.id !== id) return job;
@@ -1361,6 +1419,8 @@ export function addCareerBullet(store, jobId, groupId, draft = {}, clock = Date.
     body: draft.body || '',
     priority: draft.priority,
     pinned: draft.pinned,
+    sourceBulletIds: draft.sourceBulletIds,
+    sourceEntryIds: draft.sourceEntryIds,
   };
   return mapCareerJob(store, jobId, (job) => ({
     ...job,

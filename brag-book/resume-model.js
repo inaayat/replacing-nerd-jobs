@@ -573,23 +573,8 @@ export function resumeFieldsFromExperience(text, rich) {
   return parseBulletText(markdown);
 }
 
-function slugKey(text) {
-  return asString(text, TITLE_MAX).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'other';
-}
-
 function entryById(store, id) {
   return (store?.entries || []).find((entry) => entry.id === id) || null;
-}
-
-function matchJobForEntry(jobs, entry) {
-  if (!entry) return null;
-  if (entry.jobId) {
-    const hit = jobs.find((job) => job.id === entry.jobId);
-    if (hit) return hit;
-  }
-  const hay = `${entry.role || ''} ${entry.title || ''}`.toLowerCase();
-  if (!hay.trim()) return null;
-  return jobs.find((job) => hay.includes(job.company.toLowerCase()) || (job.title && hay.includes(job.title.toLowerCase()))) || null;
 }
 
 function reorder(list, order) {
@@ -727,13 +712,6 @@ function mergeLocalRows(shared, local) {
   const seen = new Set((shared || []).map((item) => item.id));
   const extra = (local || []).filter((item) => !seen.has(item.id));
   return [...(shared || []), ...extra];
-}
-
-function priorityForReqIndex(index, total) {
-  if (total <= 1) return 1;
-  if (index < Math.ceil(total * 0.45)) return 1;
-  if (index < Math.ceil(total * 0.8)) return 2;
-  return 3;
 }
 
 function textKey(bullet) {
@@ -922,84 +900,12 @@ export function projectExperienceOntoJobs(jobs, store) {
   return changed ? copy : (jobs || []);
 }
 
-function knownKeys(jobs) {
-  const keys = new Set();
-  for (const job of jobs) {
-    for (const group of job.groups || []) {
-      for (const bullet of group.bullets || []) {
-        keys.add(bullet.id);
-        for (const id of bullet.sourceBulletIds || []) keys.add(`src:${id}`);
-        for (const id of bullet.sourceEntryIds || []) keys.add(`entry:${id}`);
-        const key = textKey(bullet);
-        if (key) keys.add(`text:${key}`);
-      }
-    }
+function mergePostingBullets(jobs, posting, store) {
+  // A resume role is one the user added. Requirement lines update a bullet
+  // that is already on a role; they never invent a company, title, or dates.
+  for (const req of posting?.requirements || []) {
+    for (const line of req.bullets || []) claimExperienceLine(jobs, line, store);
   }
-  return keys;
-}
-
-function ensureJob(jobs, spec) {
-  let job = jobs.find((item) => item.id === spec.id);
-  if (job) return job;
-  job = {
-    id: spec.id,
-    company: spec.company,
-    title: spec.title || '',
-    location: spec.location || '',
-    start: spec.start || '',
-    end: spec.end || '',
-    current: Boolean(spec.current),
-    included: true,
-    groups: [{ id: `${spec.id}_g`, heading: '', bullets: [] }],
-  };
-  jobs.push(job);
-  return job;
-}
-
-function mergePostingBullets(jobs, posting, store, variant) {
-  const keys = knownKeys(jobs);
-  const reqs = posting?.requirements || [];
-  reqs.forEach((req, reqIndex) => {
-    const priority = priorityForReqIndex(reqIndex, reqs.length);
-    for (const line of req.bullets || []) {
-      const fields = liveFieldsForLine(line, store);
-      if (!fields) continue;
-      const claim = claimExperienceLine(jobs, line, store);
-      if (claim.found) {
-        keys.add(line.id);
-        keys.add(`src:${line.id}`);
-        if (line.entryId) keys.add(`entry:${line.entryId}`);
-        keys.add(`text:${textKey(fields)}`);
-        continue;
-      }
-      if (keys.has(line.id) || keys.has(`src:${line.id}`)) continue;
-      if (line.entryId && keys.has(`entry:${line.entryId}`)) continue;
-      if (keys.has(`text:${textKey(fields)}`)) continue;
-      const entry = line.entryId ? entryById(store, line.entryId) : null;
-      const matched = matchJobForEntry(jobs, entry);
-      const job = matched || ensureJob(jobs, {
-        id: entry?.jobId || `job_role_${slugKey(entry?.role || entry?.when || 'other')}`,
-        company: entry?.role || 'Experience',
-        title: '',
-      });
-      if (!job.groups.length) job.groups.push({ id: `${job.id}_g`, heading: '', bullets: [] });
-      const group = job.groups[job.groups.length - 1];
-      const bullet = applyBulletVariant({
-        id: line.id,
-        lead: fields.lead,
-        body: fields.body,
-        priority,
-        pinned: false,
-        sourceBulletIds: [line.id],
-        sourceEntryIds: line.entryId ? [line.entryId] : [],
-      }, job.id, variant);
-      group.bullets.push(bullet);
-      keys.add(line.id);
-      keys.add(`src:${line.id}`);
-      if (line.entryId) keys.add(`entry:${line.entryId}`);
-      keys.add(`text:${textKey(bullet)}`);
-    }
-  });
   return jobs;
 }
 
@@ -1068,7 +974,7 @@ export function compileResumeDoc(posting, store) {
     additional = normalizeAdditional(variant.localAdditional);
   } else {
     jobs = mergeLocalJobs(jobsFromCareer(store, variant), variant);
-    jobs = mergePostingBullets(jobs, posting, store, variant);
+    jobs = mergePostingBullets(jobs, posting, store);
     jobs = projectEntryLines(jobs, store);
     jobs = reorder(jobs, variant.jobOrder);
     credentials = mergeLocalRows(normalizeCredentials(store?.credentials), variant.localCredentials);
@@ -1384,6 +1290,8 @@ export function addLocalBullet(variant, jobId, groupId, draft = {}, clock = Date
       body: draft.body || '',
       priority: draft.priority,
       pinned: draft.pinned,
+      sourceBulletIds: draft.sourceBulletIds,
+      sourceEntryIds: draft.sourceEntryIds,
     };
     return {
       ...job,
@@ -1706,6 +1614,195 @@ export function clearJobTitle(variant, jobId) {
   delete jobTitles[jobId];
   next.jobTitles = jobTitles;
   return normalizeResumeVariant(next);
+}
+
+const EMBEDDED_RISK_LEAD = 'Embedded Risk, Compliance & Readiness Partner to Finance';
+
+function tidyBulletText(bullet) {
+  const lead = String(bullet?.lead || '').trim();
+  const body = String(bullet?.body || '').trim();
+  if (lead && body) return `${lead}: ${body}`;
+  return lead || body;
+}
+
+function isEmbeddedRiskBullet(bullet) {
+  const lead = String(bullet?.lead || '').trim();
+  const text = tidyBulletText(bullet);
+  return lead === EMBEDDED_RISK_LEAD || text.startsWith(`${EMBEDDED_RISK_LEAD}:`) || text === EMBEDDED_RISK_LEAD;
+}
+
+function filledBullets(job) {
+  return (job?.groups || [])
+    .flatMap((group) => group.bullets || [])
+    .filter((bullet) => String(bullet?.lead || '').trim() || String(bullet?.body || '').trim());
+}
+
+function isExperiencePlaceholder(job) {
+  if (String(job?.company || '').trim().toLowerCase() !== 'experience') return false;
+  return !String(job?.title || '').trim();
+}
+
+function isGoDaddyJob(job) {
+  return /godaddy/i.test(String(job?.company || ''));
+}
+
+function isPwcJob(job) {
+  const company = String(job?.company || '');
+  return /pricewaterhouse/i.test(company) || /\bpwc\b/i.test(company);
+}
+
+function cloneResumeBullet(bullet) {
+  return {
+    ...bullet,
+    sourceBulletIds: [...(bullet.sourceBulletIds || [])],
+    sourceEntryIds: [...(bullet.sourceEntryIds || [])],
+  };
+}
+
+function cloneJobList(jobs) {
+  return (jobs || []).map((job) => ({
+    ...job,
+    groups: (job.groups || []).map((group) => ({
+      ...group,
+      bullets: (group.bullets || []).map(cloneResumeBullet),
+    })),
+  }));
+}
+
+function collectEmbedded(jobs) {
+  const hits = [];
+  for (const job of jobs || []) {
+    for (const group of job.groups || []) {
+      for (const bullet of group.bullets || []) {
+        if (isEmbeddedRiskBullet(bullet)) hits.push({ jobId: job.id, bullet });
+      }
+    }
+  }
+  return hits;
+}
+
+function withoutEmbedded(jobs, keepJobId, keepBulletId) {
+  return (jobs || []).map((job) => ({
+    ...job,
+    groups: (job.groups || []).map((group) => ({
+      ...group,
+      bullets: (group.bullets || []).filter((bullet) => {
+        if (!isEmbeddedRiskBullet(bullet)) return true;
+        return job.id === keepJobId && bullet.id === keepBulletId;
+      }),
+    })),
+  }));
+}
+
+function pwcTarget(jobs) {
+  const matches = (jobs || []).filter(isPwcJob);
+  if (!matches.length) return null;
+  return matches.slice().sort((a, b) => filledBullets(b).length - filledBullets(a).length)[0];
+}
+
+function placeEmbeddedOnPwc(jobs, bullet) {
+  const target = pwcTarget(jobs);
+  if (!target || !bullet) return jobs;
+  const already = collectEmbedded([target])[0];
+  if (already) return jobs;
+  return jobs.map((job) => {
+    if (job.id !== target.id) return job;
+    const groups = (job.groups || []).map((group) => ({
+      ...group,
+      bullets: (group.bullets || []).slice(),
+    }));
+    if (!groups.length) groups.push({ id: `${job.id}_g`, heading: '', bullets: [] });
+    const host = groups[groups.length - 1];
+    host.bullets = [...host.bullets, cloneResumeBullet(bullet)];
+    return { ...job, groups };
+  });
+}
+
+function dropEmptyResumeRoles(jobs, sharedJobs = []) {
+  const godaddy = [...sharedJobs, ...(jobs || [])].filter(isGoDaddyJob);
+  const filledGoDaddy = godaddy.some((job) => filledBullets(job).length > 0);
+  return (jobs || []).filter((job) => {
+    if (isExperiencePlaceholder(job) && filledBullets(job).length === 0) return false;
+    if (
+      isGoDaddyJob(job)
+      && filledBullets(job).length === 0
+      && filledGoDaddy
+      && godaddy.length > 1
+    ) return false;
+    return true;
+  });
+}
+
+function embeddedFromEntry(store) {
+  const entry = (store?.entries || []).find((item) => {
+    const title = String(item?.title || '').trim();
+    return title === EMBEDDED_RISK_LEAD || title.startsWith(`${EMBEDDED_RISK_LEAD}:`);
+  });
+  if (!entry) return null;
+  const title = String(entry.title).trim();
+  const colon = title.indexOf(':');
+  const split = colon > 0 && colon <= 80;
+  return {
+    id: `rb_${entry.id}`,
+    lead: split ? title.slice(0, colon).trim() : '',
+    body: split ? title.slice(colon + 1).trim() : title,
+    sourceEntryIds: [entry.id],
+  };
+}
+
+// One-time shape fix for a book that grew placeholder roles. Moves the named
+// bullet onto the PwC role, then drops an empty "Experience" role and an empty
+// duplicate GoDaddy role. Every other field is left as it was.
+export function tidyResumeJobs(store) {
+  if (!store || typeof store !== 'object') return store;
+  let jobs = cloneJobList(store.jobs);
+  const postings = (store.postings || []).map((posting) => ({
+    ...posting,
+    resume: posting.resume ? {
+      ...posting.resume,
+      localJobs: cloneJobList(posting.resume.localJobs),
+    } : posting.resume,
+  }));
+  const localLists = postings.map((posting) => posting.resume?.localJobs || []);
+  const hits = [
+    ...collectEmbedded(jobs),
+    ...localLists.flatMap((list) => collectEmbedded(list)),
+  ];
+  const onPwc = hits.find((hit) => isPwcJob(
+    jobs.find((job) => job.id === hit.jobId)
+    || localLists.flat().find((job) => job.id === hit.jobId)
+  ));
+  const keeper = onPwc?.bullet || hits[0]?.bullet || embeddedFromEntry(store);
+  if (keeper && pwcTarget(jobs)) {
+    jobs = placeEmbeddedOnPwc(jobs, keeper);
+    const kept = collectEmbedded([pwcTarget(jobs)])[0];
+    const keepJobId = kept?.jobId || pwcTarget(jobs).id;
+    const keepBulletId = kept?.bullet.id || keeper.id;
+    jobs = withoutEmbedded(jobs, keepJobId, keepBulletId);
+    for (const posting of postings) {
+      if (!posting.resume?.localJobs) continue;
+      posting.resume.localJobs = withoutEmbedded(posting.resume.localJobs, keepJobId, keepBulletId);
+    }
+  } else if (keeper) {
+    const host = postings.find((posting) => pwcTarget(posting.resume?.localJobs));
+    if (host?.resume) {
+      host.resume.localJobs = placeEmbeddedOnPwc(host.resume.localJobs, keeper);
+      const kept = collectEmbedded([pwcTarget(host.resume.localJobs)])[0];
+      const keepJobId = kept?.jobId || pwcTarget(host.resume.localJobs).id;
+      const keepBulletId = kept?.bullet.id || keeper.id;
+      jobs = withoutEmbedded(jobs, keepJobId, keepBulletId);
+      for (const posting of postings) {
+        if (!posting.resume?.localJobs) continue;
+        posting.resume.localJobs = withoutEmbedded(posting.resume.localJobs, keepJobId, keepBulletId);
+      }
+    }
+  }
+  jobs = dropEmptyResumeRoles(jobs);
+  for (const posting of postings) {
+    if (!posting.resume?.localJobs) continue;
+    posting.resume.localJobs = dropEmptyResumeRoles(posting.resume.localJobs, jobs);
+  }
+  return { ...store, jobs, postings };
 }
 
 export function clearBulletOverride(variant, bulletId) {

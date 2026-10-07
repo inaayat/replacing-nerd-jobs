@@ -197,7 +197,7 @@ bullet text currently in the editor, so an edit replaces older wording on
 that bullet. Stray ** markers are ignored: only the title before the first
 colon is bold in the editor, the preview, and Word/PDF. A bullet linked to a
 library entry shows that entry’s current text. A per-posting override applies
-only after an edit on that resume; Reset to source clears it. On a posting, the role title can be tailored for that posting only; the company stays on the shared job, and the editor shows “tailored for this posting” with Reset to job title. Fit tightens spacing and will not shrink below 9.5pt, then hides
+only after an edit on that resume; Reset to source clears it. On a posting, the role title can be tailored for that posting only; the company stays on the shared job, and the editor shows “tailored for this posting” with Reset to job title. Each resume role is one you add (company, dates, title, location). Under a role you can add, rename, reorder, and remove italic sub-headings, then pick resume bullets from the library. A picked bullet stays linked to that library entry, so it is not copied. Fit tightens spacing and will not shrink below 9.5pt, then hides
 included bullets that are not pinned.
 A pinned bullet stays. If those pins still run past one page, the status and
 the preview say so and name any bullets that were hidden. Print/PDF uses that preview; **Download Word** writes a
