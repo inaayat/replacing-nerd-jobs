@@ -1,8 +1,9 @@
 /**
  * One-page fit for the classic-serif resume. Browser-safe ESM.
  *
- * Tighten spacing and body font first (floor 9.5pt), then drop lowest-priority
- * non-pinned bullets. Never drop a job's last remaining bullet.
+ * Tighten spacing and body font first (floor 9.5pt), then hide included
+ * bullets that are not pinned. A pinned bullet stays on the page. A role
+ * keeps its last bullet so the job line does not vanish.
  */
 
 export const PAGE_HEIGHT_IN = 10;
@@ -35,8 +36,13 @@ function includedBullets(job) {
   );
 }
 
+function bulletIsPinned(bullet) {
+  return Boolean(bullet?.pinned);
+}
+
 /**
- * Drop order: priority 3, then 2; oldest job first; skip pinned and a job's last bullet.
+ * Hide order: priority 3, then 2, then 1; oldest job first.
+ * Never a pinned bullet, an excluded bullet, or a job's last remaining bullet.
  */
 export function dropOrderFromDoc(doc) {
   const jobs = [...(doc?.sections?.experience?.jobs || [])].filter((job) => job.included !== false);
@@ -46,11 +52,11 @@ export function dropOrderFromDoc(doc) {
 
   const remaining = (job) => includedBullets(job).filter((b) => !dropped.has(b.id));
 
-  for (const priority of [3, 2]) {
+  for (const priority of [3, 2, 1]) {
     for (const job of oldestFirst) {
       for (const bullet of includedBullets(job)) {
         if (dropped.has(bullet.id)) continue;
-        if (bullet.pinned) continue;
+        if (bulletIsPinned(bullet)) continue;
         if ((bullet.priority ?? 1) !== priority) continue;
         if (remaining(job).length <= 1) continue;
         dropped.add(bullet.id);
@@ -59,6 +65,46 @@ export function dropOrderFromDoc(doc) {
     }
   }
   return ids;
+}
+
+export function droppedBulletLabels(doc, ids) {
+  const byId = new Map();
+  for (const job of doc?.sections?.experience?.jobs || []) {
+    for (const group of job.groups || []) {
+      for (const bullet of group.bullets || []) {
+        if (bullet?.id) byId.set(bullet.id, bullet);
+      }
+    }
+  }
+  return (ids || []).map((id) => {
+    const bullet = byId.get(id);
+    const lead = String(bullet?.lead || '').replace(/\*\*/g, '').trim();
+    if (lead) return lead;
+    const body = String(bullet?.body || '').replace(/\*\*/g, '').replace(/\s+/g, ' ').trim();
+    if (!body) return 'Untitled bullet';
+    return body.length > 80 ? `${body.slice(0, 77)}…` : body;
+  });
+}
+
+export function fitStatusLine({
+  fits = true,
+  fontPt = 10,
+  overflowPx = 0,
+  droppedLabels = [],
+  pinnedBlocked = false,
+} = {}) {
+  const names = (droppedLabels || []).map((label) => String(label || '').trim()).filter(Boolean);
+  const hid = names.length ? ` Hid ${names.join('; ')}.` : '';
+  if (!fits && pinnedBlocked) {
+    return `Over one page: pinned bullets don't fit. Unpin or shorten a bullet.${hid}`;
+  }
+  if (!fits) {
+    const lines = Math.max(1, Math.ceil((overflowPx || 0) / 16));
+    const base = `Over by ${lines} line${lines === 1 ? '' : 's'} — hide or shorten bullets`;
+    return names.length ? `${base}.${hid}` : base;
+  }
+  if (names.length) return `Fits on one page · ${fontPt}pt · hid ${names.join('; ')}`;
+  return `Fits on one page · ${fontPt}pt`;
 }
 
 export function applyDroppedIds(doc, droppedBulletIds) {
@@ -117,6 +163,7 @@ export function fitOnePage(root, { pageHeightPx = PAGE_HEIGHT_PX, dropOrder = []
     if (over() <= 0) break;
     const li = typeof item === 'string' ? root.querySelector(`li[data-bullet-id="${item}"]`) : item;
     if (!li || !li.parentNode) continue;
+    if (li.getAttribute('data-pinned') === '1') continue;
     const job = li.closest('.job');
     const remaining = job ? job.querySelectorAll('li') : [];
     if (remaining.length <= 1) continue;
@@ -132,13 +179,17 @@ export function fitOnePage(root, { pageHeightPx = PAGE_HEIGHT_PX, dropOrder = []
     log.push({ dropped: id || (li.textContent || '').slice(0, 50), over: over() });
   }
 
+  const stillOver = over() > 0;
+  const pinnedBlocked = stillOver && Boolean(root.querySelector('li[data-pinned="1"]'));
+
   return {
-    fits: over() <= 0,
+    fits: !stillOver,
     overflowPx: Math.max(0, over()),
     fontPt: fontPtFromVars(vars),
     bulletLineHeight: bulletLineHeightFromVars(vars),
     vars: { ...vars },
     droppedBulletIds,
+    pinnedBlocked,
     log,
   };
 }

@@ -761,6 +761,23 @@ function findClaimTarget(jobs, line, fields) {
   return null;
 }
 
+function experienceMarkdown(text, rich) {
+  if (Array.isArray(rich) && rich.some((span) => span && String(span.text || '').length)) {
+    return spansToMarkdown(rich);
+  }
+  return asString(text, TEXT_MAX);
+}
+
+// A resume-editor save stores the whole line as the body (no split lead).
+// Compile must keep that text so the preview matches the editor instead of
+// re-splitting the experience and wrapping metrics in **.
+function isResumeEditorLine(bullet, text, rich) {
+  if (asString(bullet?.lead, LEAD_MAX)) return false;
+  const markdown = experienceMarkdown(text, rich);
+  if (!markdown) return false;
+  return asString(bullet.body, BODY_MAX) === asString(markdown, BODY_MAX);
+}
+
 function claimExperienceLine(jobs, line, store) {
   const fields = liveFieldsForLine(line, store);
   if (!fields) return { found: false, changed: false };
@@ -773,6 +790,16 @@ function claimExperienceLine(jobs, line, store) {
   const sourceBulletIds = line?.id
     ? [...new Set([...(bullet.sourceBulletIds || []), line.id])]
     : [...(bullet.sourceBulletIds || [])];
+  const entry = line?.entryId ? entryById(store, line.entryId) : null;
+  const sourceText = entry?.title || line?.text;
+  const sourceRich = entry?.title ? entry.rich : line?.rich;
+  if (isResumeEditorLine(bullet, sourceText, sourceRich)) {
+    const changed = !sameIdList(bullet.sourceEntryIds, sourceEntryIds)
+      || !sameIdList(bullet.sourceBulletIds, sourceBulletIds);
+    bullet.sourceEntryIds = sourceEntryIds;
+    bullet.sourceBulletIds = sourceBulletIds;
+    return { found: true, changed };
+  }
   if (
     bullet.lead === fields.lead
     && bullet.body === fields.body
@@ -926,6 +953,23 @@ function mergePostingBullets(jobs, posting, store, variant) {
   return jobs;
 }
 
+function editorSourceForBullet(bullet, store, byId) {
+  const entryId = (bullet.sourceEntryIds || [])[0] || '';
+  const linked = entryId ? entryById(store, entryId) : null;
+  if (linked?.title) return { entryId: linked.id, text: linked.title, rich: linked.rich };
+  const ids = [...(bullet.sourceBulletIds || [])];
+  if (bullet.id) ids.push(bullet.id);
+  for (const id of ids) {
+    const line = byId.get(id);
+    if (!line) continue;
+    const entry = line.entryId ? entryById(store, line.entryId) : null;
+    const text = entry?.title || line.text;
+    if (!text) continue;
+    return { entryId: entry?.id || '', text, rich: entry?.title ? entry.rich : line.rich };
+  }
+  return null;
+}
+
 function projectEntryLines(jobs, store) {
   const byId = requirementIndex(store);
   return (jobs || []).map((job) => ({
@@ -934,6 +978,14 @@ function projectEntryLines(jobs, store) {
       ...group,
       bullets: (group.bullets || []).map((bullet) => {
         if (bullet.hasOverride) return bullet;
+        const source = editorSourceForBullet(bullet, store, byId);
+        if (source && isResumeEditorLine(bullet, source.text, source.rich)) {
+          const sourceEntryIds = source.entryId
+            ? [...new Set([...(bullet.sourceEntryIds || []), source.entryId])]
+            : bullet.sourceEntryIds;
+          if (sameIdList(bullet.sourceEntryIds, sourceEntryIds)) return bullet;
+          return { ...bullet, sourceEntryIds };
+        }
         const fields = fieldsFromLinks(bullet, store, byId);
         if (!fields) return bullet;
         const sourceEntryIds = fields.entryId

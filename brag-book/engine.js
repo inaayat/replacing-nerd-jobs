@@ -57,6 +57,8 @@ import {
   freshPostingResume,
   basicsPostingResume,
   markdownToSpans,
+  bulletFromLine,
+  spansToMarkdown,
   findLocalBullet,
 } from './resume-model.js';
 
@@ -1164,6 +1166,55 @@ export function updateCareerJob(store, id, patch, clock = Date.now) {
     return normalizeCareerJob({ ...job, ...patch, id: job.id }, clock) || job;
   });
   return { ...store, jobs };
+}
+
+// The resume editor and the preview must show the same line. Experience
+// updates run first: they can drop an override that still matches the old
+// source. The editor line is written onto the career or local bullet, then
+// onto this posting's wording override so compile uses that text instead of
+// a leftover override or a re-parsed experience line.
+export function applyResumeBulletEdit(store, {
+  postingId = null,
+  jobId,
+  groupId,
+  bullet,
+  spans,
+  local = false,
+} = {}, clock = Date.now) {
+  if (!bullet?.id) return store;
+  const next = bulletFromLine(spansToMarkdown(spans));
+  const entryId = (bullet.sourceEntryIds || [])[0];
+  const entryText = (spans || []).map((span) => String(span?.text || '')).join('');
+  let nextStore = store;
+  if (entryId && entryText.trim()) {
+    nextStore = updateEntry(nextStore, entryId, { title: entryText, rich: spans }, clock);
+  }
+  const shared = (nextStore.jobs || []).some((job) => job.id === jobId);
+  if (!postingId || shared) {
+    const job = (nextStore.jobs || []).find((item) => item.id === jobId);
+    if (job) {
+      nextStore = updateCareerJob(nextStore, jobId, {
+        groups: (job.groups || []).map((item) => (
+          item.id === groupId
+            ? {
+              ...item,
+              bullets: (item.bullets || []).map((row) => (
+                row.id === bullet.id ? { ...row, ...next } : row
+              )),
+            }
+            : item
+        )),
+      }, clock);
+    }
+  } else if (local) {
+    nextStore = updatePostingLocalBullet(nextStore, postingId, jobId, groupId, bullet.id, next, clock);
+  }
+  if (postingId) {
+    nextStore = updatePostingResume(nextStore, postingId, {
+      overrides: { [bullet.id]: next },
+    }, clock);
+  }
+  return nextStore;
 }
 
 export function moveCareerJob(store, id, delta) {

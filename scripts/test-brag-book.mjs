@@ -120,6 +120,7 @@ import {
   resumeRoleSummary,
   isRoleHeaderToggleTarget,
   adoptCompiledJob,
+  applyResumeBulletEdit,
   addResumeGroup,
   moveResumeGroup,
   moveResumeBullet,
@@ -138,7 +139,7 @@ import {
 import { parseViewHash, viewHash, viewTitle, defaultView, logLayout, hideBookRail } from '../brag-book/routes.js';
 import { bookPagePlan, experienceRowSpec, homeStartCards } from '../brag-book/book-view.js';
 import { renderResumeHtml } from '../brag-book/resume-template.js';
-import { dropOrderFromDoc, FONT_FLOOR_PT, FIT_STEPS } from '../brag-book/resume-fit.js';
+import { dropOrderFromDoc, droppedBulletLabels, fitStatusLine, fitOnePage, FONT_FLOOR_PT, FIT_STEPS } from '../brag-book/resume-fit.js';
 import { resumeDocxBytes } from '../brag-book/resume-docx.js';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -802,6 +803,260 @@ const lastAlaska = overflowDoc.sections.experience.jobs.find((j) => j.id === 'jo
   .groups.flatMap((g) => g.bullets);
 assert.equal(lastAlaska.length, 1);
 assert.ok(!drops.includes(lastAlaska[0].id));
+
+const pinFitDoc = {
+  sections: {
+    experience: {
+      jobs: [
+        {
+          id: 'job_new',
+          included: true,
+          groups: [{
+            bullets: [
+              { id: 'keep_pin', lead: 'Leading Enterprise AI Governance Maturity Assessment', body: 'Designed the model.', priority: 3, pinned: true, included: true },
+              { id: 'drop_me', lead: 'Shorter unpinned line', body: 'Did the work.', priority: 3, pinned: false, included: true },
+              { id: 'also_drop', lead: 'Another unpinned line', body: 'More work.', priority: 1, pinned: false, included: true },
+              { id: 'off', lead: 'Excluded line', body: 'Not on the page.', priority: 3, pinned: false, included: false },
+            ],
+          }],
+        },
+        {
+          id: 'job_old',
+          included: true,
+          groups: [{
+            bullets: [
+              { id: 'old_only', lead: 'Only bullet on the old role', body: 'Stays.', priority: 3, pinned: false, included: true },
+            ],
+          }],
+        },
+      ],
+    },
+  },
+};
+const pinDrops = dropOrderFromDoc(pinFitDoc);
+assert.deepEqual(pinDrops, ['drop_me', 'also_drop']);
+assert.ok(!pinDrops.includes('keep_pin'));
+assert.ok(!pinDrops.includes('off'));
+assert.ok(!pinDrops.includes('old_only'));
+assert.deepEqual(droppedBulletLabels(pinFitDoc, pinDrops), ['Shorter unpinned line', 'Another unpinned line']);
+assert.equal(
+  fitStatusLine({ fits: true, fontPt: 9.6, droppedLabels: droppedBulletLabels(pinFitDoc, ['keep_pin']) }),
+  'Fits on one page · 9.6pt · hid Leading Enterprise AI Governance Maturity Assessment',
+);
+assert.equal(
+  fitStatusLine({
+    fits: true,
+    fontPt: 9.5,
+    droppedLabels: ['Shorter unpinned line', 'Another unpinned line'],
+  }),
+  'Fits on one page · 9.5pt · hid Shorter unpinned line; Another unpinned line',
+);
+assert.equal(
+  fitStatusLine({ fits: false, fontPt: 9.5, overflowPx: 40, pinnedBlocked: true, droppedLabels: ['Shorter unpinned line'] }),
+  "Over one page: pinned bullets don't fit. Unpin or shorten a bullet. Hid Shorter unpinned line.",
+);
+assert.equal(
+  fitStatusLine({ fits: false, fontPt: 9.5, overflowPx: 20, pinnedBlocked: false, droppedLabels: [] }),
+  'Over by 2 lines — hide or shorten bullets',
+);
+assert.equal(fitStatusLine({ fits: true, fontPt: 10, droppedLabels: [] }), 'Fits on one page · 10pt');
+
+function fakeResumePage(items, { liHeight = 20 } = {}) {
+  function matches(el, sel) {
+    if (sel === '.job') return el.className === 'job';
+    if (sel === 'li') return el.tagName === 'LI';
+    const bullet = /^li\[data-bullet-id="(.*)"\]$/.exec(sel);
+    if (bullet) return el.tagName === 'LI' && el.attrs['data-bullet-id'] === bullet[1];
+    const pinned = /^li\[data-pinned="(.*)"\]$/.exec(sel);
+    if (pinned) return el.tagName === 'LI' && el.attrs['data-pinned'] === pinned[1];
+    return false;
+  }
+  function queryAll(el, sel) {
+    const out = [];
+    const walk = (node) => {
+      if (node !== el && matches(node, sel)) out.push(node);
+      for (const child of node.children || []) walk(child);
+    };
+    walk(el);
+    return out;
+  }
+  function removeNode(node) {
+    const parent = node.parentNode;
+    if (!parent) return;
+    parent.children = parent.children.filter((child) => child !== node);
+  }
+  const lis = items.map((item) => {
+    const li = {
+      tagName: 'LI',
+      attrs: {
+        'data-bullet-id': item.id,
+        'data-pinned': item.pinned ? '1' : '0',
+      },
+      textContent: item.text || '',
+      children: [],
+      classList: { contains() { return false; } },
+      getAttribute(name) { return this.attrs[name] ?? null; },
+    };
+    li.querySelector = (sel) => queryAll(li, sel)[0] || null;
+    li.querySelectorAll = (sel) => queryAll(li, sel);
+    li.remove = () => removeNode(li);
+    li.closest = (sel) => {
+      let node = li;
+      while (node) {
+        if (matches(node, sel)) return node;
+        node = node.parentNode;
+      }
+      return null;
+    };
+    return li;
+  });
+  const ul = {
+    tagName: 'UL',
+    children: lis,
+    previousElementSibling: null,
+    classList: { contains() { return false; } },
+    querySelector(sel) { return queryAll(ul, sel)[0] || null; },
+    querySelectorAll(sel) { return queryAll(ul, sel); },
+    remove() { removeNode(ul); },
+  };
+  lis.forEach((li) => { li.parentNode = ul; });
+  const job = {
+    className: 'job',
+    tagName: 'DIV',
+    children: [ul],
+    classList: { contains(name) { return name === 'job'; } },
+    querySelector(sel) { return queryAll(job, sel)[0] || null; },
+    querySelectorAll(sel) { return queryAll(job, sel); },
+  };
+  ul.parentNode = job;
+  const page = {
+    children: [job],
+    style: { setProperty() {} },
+    querySelector(sel) { return queryAll(page, sel)[0] || null; },
+    querySelectorAll(sel) { return queryAll(page, sel); },
+    get scrollHeight() { return page.querySelectorAll('li').length * liHeight; },
+  };
+  job.parentNode = page;
+  return page;
+}
+
+const fitted = fitOnePage(fakeResumePage([
+  { id: 'keep_pin', job: 'job_new', pinned: true, text: 'Leading Enterprise AI Governance Maturity Assessment' },
+  { id: 'drop_me', job: 'job_new', pinned: false, text: 'Shorter unpinned line' },
+], { liHeight: 400, pageHeight: 500 }), {
+  pageHeightPx: 500,
+  dropOrder: ['keep_pin', 'drop_me'],
+});
+assert.equal(fitted.droppedBulletIds.includes('keep_pin'), false);
+assert.deepEqual(fitted.droppedBulletIds, ['drop_me']);
+assert.equal(fitted.fits, true);
+assert.equal(fitted.pinnedBlocked, false);
+
+const pinnedOverflow = fitOnePage(fakeResumePage([
+  { id: 'keep_pin', job: 'job_new', pinned: true, text: 'Leading Enterprise AI Governance Maturity Assessment' },
+  { id: 'drop_me', job: 'job_new', pinned: false, text: 'Shorter unpinned line' },
+], { liHeight: 400, pageHeight: 300 }), {
+  pageHeightPx: 300,
+  dropOrder: ['drop_me', 'keep_pin'],
+});
+assert.deepEqual(pinnedOverflow.droppedBulletIds, ['drop_me']);
+assert.equal(pinnedOverflow.fits, false);
+assert.equal(pinnedOverflow.pinnedBlocked, true);
+assert.equal(pinnedOverflow.droppedBulletIds.includes('keep_pin'), false);
+
+const editedSentence = 'Leading Enterprise AI Governance Maturity Assessment: Designing the maturity model and scoring criteria, running 15+ accounting evaluations';
+const staleBody = 'Designing the maturity model and scoring criteria, running **stakeholder** evaluations across **Finance**';
+let previewBook = addPosting(emptyStore(), { title: 'Preview follows editor' }, clock);
+const previewPostingId = previewBook.postings[0].id;
+previewBook = addEntry(previewBook, {
+  id: 'en_gov',
+  title: 'Leading Enterprise AI Governance Maturity Assessment: Designing the maturity model and scoring criteria, running stakeholder evaluations across Finance',
+  kind: 'experience',
+}, clock);
+previewBook = addCareerJob(previewBook, {
+  id: 'rj_gov',
+  company: 'GoDaddy',
+  title: 'Senior Manager',
+  groups: [{
+    id: 'rg_gov',
+    heading: '',
+    bullets: [{
+      id: 'rb_gov',
+      lead: 'Leading Enterprise AI Governance Maturity Assessment',
+      body: 'Designing the maturity model and scoring criteria, running **stakeholder** evaluations across Finance',
+      sourceEntryIds: ['en_gov'],
+    }],
+  }],
+}, clock);
+previewBook = updatePostingResume(previewBook, previewPostingId, {
+  overrides: {
+    rb_gov: {
+      lead: 'Leading Enterprise AI Governance Maturity Assessment',
+      body: staleBody,
+    },
+  },
+}, clock);
+const staleHtml = renderResumeHtml(compileResumeDoc(postingById(previewBook, previewPostingId), previewBook));
+assert.match(staleHtml, /\*\*stakeholder\*\*|stakeholder/);
+assert.match(staleHtml, /Finance/);
+const editedSpans = [{ text: editedSentence, bold: false }];
+previewBook = applyResumeBulletEdit(previewBook, {
+  postingId: previewPostingId,
+  jobId: 'rj_gov',
+  groupId: 'rg_gov',
+  bullet: { id: 'rb_gov', sourceEntryIds: ['en_gov'] },
+  spans: editedSpans,
+}, clock);
+const previewDoc = compileResumeDoc(postingById(previewBook, previewPostingId), previewBook);
+const previewBullet = previewDoc.sections.experience.jobs
+  .flatMap((job) => job.groups.flatMap((group) => group.bullets))
+  .find((bullet) => bullet.id === 'rb_gov');
+assert.equal(bulletLineText(previewBullet), editedSentence);
+assert.equal(previewBullet.lead, '');
+assert.equal(previewBullet.body, editedSentence);
+assert.equal(previewBullet.hasOverride, true);
+assert.equal(postingById(previewBook, previewPostingId).resume.overrides.rb_gov.body, editedSentence);
+const editedPreviewHtml = renderResumeHtml(previewDoc, { droppedBulletIds: [] });
+const previewLi = editedPreviewHtml.match(/<li[^>]*data-bullet-id="rb_gov"[^>]*>[\s\S]*?<\/li>/)?.[0] || '';
+assert.match(previewLi, /15\+ accounting evaluations/);
+assert.doesNotMatch(previewLi, /\*\*/);
+assert.doesNotMatch(previewLi, /stakeholder/);
+assert.doesNotMatch(previewLi, /Finance/);
+assert.doesNotMatch(previewLi, /<b>[^<]*15\+/);
+assert.doesNotMatch(previewLi, /<b>Leading Enterprise AI Governance Maturity Assessment/);
+
+const plainBook = applyResumeBulletEdit(addCareerJob(addEntry(emptyStore(), {
+  id: 'en_plain',
+  title: 'Old lead: old **stakeholder** body',
+  kind: 'experience',
+}, clock), {
+  id: 'rj_plain',
+  company: 'GoDaddy',
+  title: 'Senior Manager',
+  groups: [{
+    id: 'rg_plain',
+    bullets: [{
+      id: 'rb_plain',
+      lead: 'Old lead',
+      body: 'old **stakeholder** body',
+      sourceEntryIds: ['en_plain'],
+    }],
+  }],
+}, clock), {
+  postingId: null,
+  jobId: 'rj_plain',
+  groupId: 'rg_plain',
+  bullet: { id: 'rb_plain', sourceEntryIds: ['en_plain'] },
+  spans: editedSpans,
+}, clock);
+const plainDoc = compileResumeDoc(null, plainBook);
+const plainBullet = plainDoc.sections.experience.jobs[0].groups[0].bullets[0];
+assert.equal(bulletLineText(plainBullet), editedSentence);
+const plainHtml = renderResumeHtml(plainDoc, { droppedBulletIds: [] });
+assert.match(plainHtml, /15\+ accounting evaluations/);
+assert.doesNotMatch(plainHtml, /\*\*/);
+assert.doesNotMatch(plainHtml, /stakeholder/);
+assert.doesNotMatch(plainHtml, /<b>Leading Enterprise AI Governance Maturity Assessment/);
 
 const bytes = resumeDocxBytes(resumeDoc);
 assert.equal(bytes[0], 0x50);

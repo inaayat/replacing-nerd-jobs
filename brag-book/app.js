@@ -117,6 +117,7 @@ import {
   bulletFromLine,
   markdownToSpans,
   spansToMarkdown,
+  applyResumeBulletEdit,
   DEFAULT_SECTION_ORDER,
   compilePrep,
   prepCoverage,
@@ -136,7 +137,7 @@ import {
   isRoleHeaderToggleTarget,
 } from './engine.js';
 import { renderResumeHtml, resumeDocument } from './resume-template.js';
-import { fitOnePage, dropOrderFromDoc, applyDroppedIds, PAGE_HEIGHT_PX } from './resume-fit.js';
+import { fitOnePage, dropOrderFromDoc, applyDroppedIds, droppedBulletLabels, fitStatusLine, PAGE_HEIGHT_PX } from './resume-fit.js';
 import { resumeDocxBlob } from './resume-docx.js';
 import { parseViewHash, viewHash, viewTitle } from './routes.js';
 import { bookPagePlan, experienceRowSpec, homeStartCards } from './book-view.js';
@@ -172,7 +173,7 @@ let expandedBulletKey = '';
 let collapsedResumeRoles = [];
 let questionComposerKey = '';
 const openQuestionIds = new Set();
-let resumeFit = { fits: true, fontPt: 10, bulletLineHeight: 1.32, droppedBulletIds: [], overflowPx: 0, vars: {} };
+let resumeFit = { fits: true, fontPt: 10, bulletLineHeight: 1.32, droppedBulletIds: [], droppedLabels: [], pinnedBlocked: false, overflowPx: 0, vars: {} };
 let resumePreviewTimer = null;
 
 function loadCached() {
@@ -1970,20 +1971,22 @@ function paintFitChip() {
   const node = document.getElementById('resume-fit-chip');
   if (!node) return;
   const dropped = resumeFit.droppedBulletIds || [];
-  if (!resumeFit.fits) {
-    node.textContent = `Over by ${Math.max(1, Math.ceil((resumeFit.overflowPx || 0) / 16))} lines — hide or shorten bullets`;
-    node.className = 'bb-fit-chip is-warn';
-  } else if (dropped.length) {
-    node.textContent = `Fits on one page · ${resumeFit.fontPt}pt · hid ${dropped.length} bullet${dropped.length === 1 ? '' : 's'} to fit`;
-    node.className = 'bb-fit-chip is-warn';
-  } else {
-    node.textContent = `Fits on one page · ${resumeFit.fontPt}pt`;
-    node.className = 'bb-fit-chip';
-  }
+  node.textContent = fitStatusLine(resumeFit);
+  node.className = !resumeFit.fits || dropped.length ? 'bb-fit-chip is-warn' : 'bb-fit-chip';
   root.querySelectorAll('[data-bullet-wrap]').forEach((wrap) => {
     const id = wrap.getAttribute('data-bullet-wrap');
     wrap.classList.toggle('is-dropped', dropped.includes(id));
   });
+}
+
+function paintPreviewFitWarning(page) {
+  if (!page?.ownerDocument) return;
+  page.querySelector('.bb-fit-warn')?.remove();
+  if (resumeFit.fits || !resumeFit.pinnedBlocked) return;
+  const banner = page.ownerDocument.createElement('p');
+  banner.className = 'bb-fit-warn';
+  banner.textContent = fitStatusLine(resumeFit);
+  page.prepend(banner);
 }
 
 function scaleResumeFrame(wrap, frame) {
@@ -2012,7 +2015,11 @@ async function refreshResumePreview(posting) {
     pageHeightPx: PAGE_HEIGHT_PX,
     dropOrder: dropOrderFromDoc(doc),
   });
-  resumeFit = result;
+  resumeFit = {
+    ...result,
+    droppedLabels: droppedBulletLabels(doc, result.droppedBulletIds),
+  };
+  paintPreviewFitWarning(page);
   if (current?.id) {
     store = updatePostingResume(store, current.id, {
       fit: {
@@ -2248,35 +2255,16 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0, gro
   const canEdit = !posting || shared || localBullet || Boolean(career.local);
   const lineText = bulletLineText(bullet);
   const commitWording = (spans) => {
-    const next = bulletFromLine(spansToMarkdown(spans));
-    const entryId = (bullet.sourceEntryIds || [])[0];
-    const entryText = (spans || []).map((span) => span.text).join('');
-    if (entryId && entryText.trim()) {
-      store = updateEntry(store, entryId, { title: entryText, rich: spans });
-    }
     store = adoptCompiledJob(store, posting?.id || null, career);
     const adoptedLocal = Boolean(posting && localJobById(livePosting(posting.id)?.resume, career.id) && !isSharedJob(career.id));
-    if (!posting || isSharedJob(career.id)) {
-      const job = careerJobById(career.id) || career;
-      store = updateCareerJob(store, career.id, {
-        groups: (job.groups || career.groups).map((item) => (
-          item.id === group.id
-            ? {
-              ...item,
-              bullets: item.bullets.map((row) => (
-                row.id === bullet.id ? { ...row, ...next } : row
-              )),
-            }
-            : item
-        )),
-      });
-    } else if (localBullet || adoptedLocal) {
-      store = updatePostingLocalBullet(store, posting.id, career.id, group.id, bullet.id, next);
-    } else {
-      store = updatePostingResume(store, posting.id, {
-        overrides: { [bullet.id]: next },
-      });
-    }
+    store = applyResumeBulletEdit(store, {
+      postingId: posting?.id || null,
+      jobId: career.id,
+      groupId: group.id,
+      bullet,
+      spans,
+      local: localBullet || adoptedLocal,
+    });
     saveStore();
     scheduleResumePreview(posting);
   };

@@ -192,9 +192,12 @@ on the right. Clicking a bullet opens its longer notes, STAR fields, optional
 book story, and potential questions + answers. **Resume** (`#jobs/:id/resume`)
 is a side-by-side editor: structured jobs, bullets (bold lead + body),
 include/exclude, pin, and section order on the left; a live one-page
-classic-serif preview (Cambria/Caladea) on the right that tightens spacing,
-will not shrink below 9.5pt, then drops lowest-priority non-pinned bullets to
-stay on one Letter page. Print/PDF uses that preview; **Download Word** writes a
+classic-serif preview (Cambria/Caladea) on the right. The preview renders the
+bullet text currently in the editor, so an edit replaces older wording on
+that bullet. Fit tightens spacing and will not shrink below 9.5pt, then hides
+included bullets that are not pinned.
+A pinned bullet stays. If those pins still run past one page, the status and
+the preview say so and name any bullets that were hidden. Print/PDF uses that preview; **Download Word** writes a
 real `.docx`. Wording edits are per-posting overrides and do not rewrite the
 book unless you **Save back to source**. Roles and bullets added on a posting
 stay on that posting (`posting.resume.localJobs`) until saved back. New postings
