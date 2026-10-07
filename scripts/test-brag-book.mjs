@@ -82,6 +82,8 @@ import {
   moveCareerJob,
   addPostingLocalJob,
   updatePostingLocalJob,
+  addPostingLocalEducation,
+  addPostingLocalAdditional,
   addPostingLocalBullet,
   deletePostingLocalJob,
   startPostingResumeFresh,
@@ -102,8 +104,14 @@ import {
   hideResumeRow,
   restoreHiddenResumeRows,
   hiddenResumeRowCount,
+  replaceBasicsWithPosting,
+  restorePreviousBasics,
+  basicsReplaceConfirm,
+  basicsRestoreConfirm,
+  hasBasicsBackup,
   tidyResumeJobs,
   updateCareerJob,
+  updateEducationItem,
   libraryBulletChoices,
   placeLibraryBullet,
   writeBulletBackToSource,
@@ -173,6 +181,7 @@ assert.deepEqual(emptyStore(), {
   credentials: [],
   additional: [],
   resumeSettings: { template: 'classic-serif', sectionOrder: DEFAULT_SECTION_ORDER.slice(), showCredentials: true },
+  basicsBackup: null,
 });
 assert.deepEqual(normalizeStore(null), emptyStore());
 assert.equal(normalizeEntry({ title: '   ' }), null);
@@ -1354,6 +1363,176 @@ assert.equal(basicsOnly.additional.length, sharedRows.additional.length);
 assert.equal(basicsOnly.jobs.find((job) => job.id === 'rj_keep').company, 'PwC');
 assert.equal(compileResumeDoc(postingById(basicsOnly, 'job_show'), basicsOnly).sections.education.items.some((row) => row.id === 'ed_uw'), false);
 
+let basicsSwap = addEntry(emptyStore(), { id: 'en_lib', title: 'Library lead: stays linked' }, clock);
+basicsSwap = addKnowledge(basicsSwap, { id: 'kb_keep', title: 'Keep this note', body: 'Untouched' }, clock);
+basicsSwap = updateProfile(basicsSwap, { name: 'Ada', email: 'ada@example.com' });
+basicsSwap = addCareerJob(basicsSwap, {
+  id: 'rj_old',
+  company: 'Old Co',
+  title: 'Analyst',
+  groups: [{
+    id: 'rg_old',
+    heading: 'Old head',
+    bullets: [
+      { id: 'rb_old', lead: 'Old lead', body: 'Old body', sourceEntryIds: ['en_old'] },
+      { id: 'rb_hide', lead: 'Hidden lead', body: 'Hidden body' },
+    ],
+  }],
+}, clock);
+basicsSwap = addEducationItem(basicsSwap, { id: 'ed_old', school: 'Old School', degree: 'BA' }, clock);
+basicsSwap = addCredentialItem(basicsSwap, { id: 'cr_old', name: 'Old Cert' }, clock);
+basicsSwap = addAdditionalRow(basicsSwap, { id: 'ad_old', label: 'Old row', items: ['Excel'] }, clock);
+basicsSwap = addPosting(basicsSwap, { id: 'job_src', title: 'Source posting' }, clock);
+basicsSwap = addPosting(basicsSwap, { id: 'job_custom', title: 'Custom posting' }, clock);
+basicsSwap = addPosting(basicsSwap, { id: 'job_plain', title: 'Plain posting' }, clock);
+basicsSwap = addPosting(basicsSwap, { id: 'job_fresh', title: 'Fresh posting' }, clock);
+basicsSwap = updatePostingResume(basicsSwap, 'job_src', {
+  excludedBulletIds: ['rb_hide'],
+  jobTitles: { rj_old: 'Tailored role' },
+  groupHeadings: { rg_old: 'Tailored sub' },
+  overrides: { rb_old: { lead: 'Tailored lead', body: 'Tailored body', edited: true } },
+  sectionOrder: ['education', 'experience', 'additional', 'credentials'],
+  showCredentials: false,
+}, clock);
+basicsSwap = addPostingLocalJob(basicsSwap, 'job_src', {
+  id: 'rj_local',
+  company: 'Local Co',
+  title: 'Local title',
+  groups: [{ id: 'rg_local', heading: 'Local sub', bullets: [] }],
+}, {}, clock, random);
+basicsSwap = placeLibraryBullet(basicsSwap, {
+  postingId: 'job_src',
+  jobId: 'rj_local',
+  groupId: 'rg_local',
+  entryId: 'en_lib',
+}, clock, random);
+basicsSwap = addPostingLocalEducation(basicsSwap, 'job_src', { id: 'ed_new', school: 'New School', degree: 'MS' }, clock, random);
+basicsSwap = addPostingLocalAdditional(basicsSwap, 'job_src', { id: 'ad_new', label: 'New row', items: ['SQL'] }, clock, random);
+basicsSwap = replacePostingResume(basicsSwap, 'job_src', hideResumeRow(postingById(basicsSwap, 'job_src').resume, 'education', 'ed_old'), clock);
+basicsSwap = replacePostingResume(basicsSwap, 'job_src', hideResumeRow(postingById(basicsSwap, 'job_src').resume, 'additional', 'ad_old'), clock);
+basicsSwap = addPostingLocalJob(basicsSwap, 'job_custom', {
+  id: 'rj_custom',
+  company: 'Custom Co',
+  title: 'Custom title',
+  groups: [{ id: 'rg_custom', heading: 'Custom sub', bullets: [{ id: 'rb_custom', lead: 'Custom lead', body: 'Custom body' }] }],
+}, {}, clock, random);
+basicsSwap = updatePostingResume(basicsSwap, 'job_custom', {
+  jobTitles: { rj_old: 'Custom title override' },
+  overrides: { rb_old: { lead: 'Custom wording', body: 'Still custom', edited: true } },
+  sectionOrder: ['experience', 'education', 'credentials', 'additional'],
+  showCredentials: true,
+}, clock);
+basicsSwap = startPostingResumeFresh(basicsSwap, 'job_fresh', clock);
+basicsSwap = addPostingLocalJob(basicsSwap, 'job_fresh', {
+  id: 'rj_fresh',
+  company: 'Fresh Co',
+  title: 'Fresh title',
+  groups: [{ id: 'rg_fresh', heading: 'Fresh sub', bullets: [{ id: 'rb_fresh', lead: 'Fresh lead', body: 'Fresh body' }] }],
+}, {}, clock, random);
+const basicsBefore = basicsSwap;
+const resumeSnapshots = basicsBefore.postings.map((job) => JSON.stringify(job.resume));
+const entrySnapshot = JSON.stringify(basicsBefore.entries);
+const knowledgeSnapshot = JSON.stringify(basicsBefore.knowledge);
+assert.equal(hasBasicsBackup(basicsBefore), false);
+const swapConfirm = basicsReplaceConfirm(basicsBefore, 'job_src');
+assert.match(swapConfirm, /Replace Resume basics with Source posting\?/);
+assert.match(swapConfirm, /Old Co/);
+assert.match(swapConfirm, /Local Co/);
+assert.match(swapConfirm, /Old School/);
+assert.match(swapConfirm, /New School/);
+assert.match(swapConfirm, /Old row/);
+assert.match(swapConfirm, /New row/);
+assert.doesNotMatch(swapConfirm, /Hidden lead/);
+assert.doesNotMatch(swapConfirm, /Tailored lead/);
+assert.match(swapConfirm, /Other postings keep their own edits/);
+assert.equal(replaceBasicsWithPosting(basicsBefore, 'missing', clock), basicsBefore);
+let basicsNext = replaceBasicsWithPosting(basicsBefore, 'job_src', clock);
+assert.equal(basicsNext.profile.name, 'Ada');
+assert.equal(basicsNext.jobs.some((job) => job.company === 'Old Co'), true);
+assert.equal(basicsNext.jobs.find((job) => job.id === 'rj_old').title, 'Tailored role');
+assert.equal(basicsNext.jobs.find((job) => job.id === 'rj_old').groups[0].heading, 'Tailored sub');
+assert.equal(basicsNext.jobs.find((job) => job.id === 'rj_old').groups[0].bullets.some((bullet) => bullet.lead === 'Hidden lead'), false);
+const keptBullet = basicsNext.jobs.find((job) => job.id === 'rj_old').groups[0].bullets.find((bullet) => bullet.id === 'rb_old');
+assert.equal(keptBullet.lead, 'Old lead');
+assert.equal(keptBullet.body, 'Old body');
+assert.deepEqual(keptBullet.sourceEntryIds, ['en_old']);
+const localCopied = basicsNext.jobs.find((job) => job.id === 'rj_local');
+assert.equal(localCopied.company, 'Local Co');
+assert.equal(localCopied.groups[0].heading, 'Local sub');
+assert.equal(localCopied.groups[0].bullets[0].lead, 'Library lead');
+assert.match(localCopied.groups[0].bullets[0].body, /stays linked/);
+assert.deepEqual(localCopied.groups[0].bullets[0].sourceEntryIds, ['en_lib']);
+assert.equal(basicsNext.education.some((row) => row.school === 'Old School'), false);
+assert.equal(basicsNext.education.some((row) => row.id === 'ed_new' && row.school === 'New School'), true);
+assert.equal(basicsNext.credentials.some((row) => row.id === 'cr_old'), true);
+assert.equal(basicsNext.additional.some((row) => row.label === 'Old row'), false);
+assert.equal(basicsNext.additional.some((row) => row.id === 'ad_new' && row.label === 'New row'), true);
+assert.deepEqual(basicsNext.resumeSettings.sectionOrder, ['education', 'experience', 'additional', 'credentials']);
+assert.equal(basicsNext.resumeSettings.showCredentials, false);
+assert.equal(basicsNext.basicsBackup.profile.name, 'Ada');
+assert.equal(basicsNext.basicsBackup.jobs.some((job) => job.company === 'Old Co' && job.title === 'Analyst'), true);
+assert.equal(basicsNext.basicsBackup.education.some((row) => row.school === 'Old School'), true);
+assert.equal(basicsNext.basicsBackup.savedAt, '2026-10-05T12:00:00.000Z');
+assert.equal(JSON.stringify(basicsNext.entries), entrySnapshot);
+assert.equal(JSON.stringify(basicsNext.knowledge), knowledgeSnapshot);
+assert.deepEqual(basicsNext.postings.map((job) => JSON.stringify(job.resume)), resumeSnapshots);
+assert.equal(postingById(basicsNext, 'job_custom').resume.localJobs.some((job) => job.company === 'Custom Co'), true);
+assert.equal(postingById(basicsNext, 'job_custom').resume.jobTitles.rj_old, 'Custom title override');
+assert.equal(postingById(basicsNext, 'job_custom').resume.overrides.rb_old.lead, 'Custom wording');
+assert.deepEqual(postingById(basicsNext, 'job_custom').resume.sectionOrder, ['experience', 'education', 'credentials', 'additional']);
+assert.equal(postingById(basicsNext, 'job_custom').resume.showCredentials, true);
+const customDoc = compileResumeDoc(postingById(basicsNext, 'job_custom'), basicsNext);
+assert.equal(customDoc.sections.experience.jobs.some((job) => job.company === 'Custom Co'), true);
+assert.equal(customDoc.sections.experience.jobs.find((job) => job.id === 'rj_old').title, 'Custom title override');
+assert.equal(customDoc.sections.credentials.enabled, true);
+const plainBasicsDoc = compileResumeDoc(postingById(basicsNext, 'job_plain'), basicsNext);
+assert.equal(plainBasicsDoc.sections.experience.jobs.some((job) => job.company === 'Local Co'), true);
+assert.equal(plainBasicsDoc.sections.experience.jobs.some((job) => job.company === 'Custom Co'), false);
+assert.equal(plainBasicsDoc.sections.education.items.some((row) => row.school === 'New School'), true);
+assert.equal(plainBasicsDoc.sections.education.items.some((row) => row.school === 'Old School'), false);
+const freshBasicsDoc = compileResumeDoc(postingById(basicsNext, 'job_fresh'), basicsNext);
+assert.equal(freshBasicsDoc.sections.experience.jobs.some((job) => job.company === 'Fresh Co'), true);
+assert.equal(freshBasicsDoc.sections.experience.jobs.some((job) => job.company === 'Local Co'), false);
+const editedBasics = updateCareerJob(basicsNext, 'rj_local', { title: 'Edited on basics' }, clock);
+assert.equal(editedBasics.jobs.find((job) => job.id === 'rj_local').title, 'Edited on basics');
+assert.deepEqual(editedBasics.postings.map((job) => job.resume), basicsNext.postings.map((job) => job.resume));
+const editedSchool = updateEducationItem(editedBasics, 'ed_new', { school: 'Edited School' }, clock);
+assert.equal(editedSchool.education.find((row) => row.id === 'ed_new').school, 'Edited School');
+assert.deepEqual(editedSchool.postings.map((job) => job.resume), basicsNext.postings.map((job) => job.resume));
+const packedBasics = serializeBook(basicsNext);
+const reloadedBasics = normalizeStore(JSON.parse(packedBasics.json), clock);
+assert.equal(reloadedBasics.jobs.some((job) => job.company === 'Local Co'), true);
+assert.equal(reloadedBasics.basicsBackup.jobs.some((job) => job.company === 'Old Co'), true);
+assert.equal(reloadedBasics.basicsBackup.education[0].school, 'Old School');
+assert.equal(JSON.stringify(reloadedBasics.postings.map((job) => job.resume)), JSON.stringify(basicsNext.postings.map((job) => job.resume)));
+const remoteRow = addAdditionalRow(basicsBefore, { id: 'ad_remote', label: 'Remote row', items: ['Kept'] }, clock);
+const remoteEntry = addEntry(remoteRow, { id: 'en_remote', title: 'Remote only' }, clock);
+const mergedBasics = normalizeStore(mergeBook(basicsBefore, basicsNext, remoteEntry), clock);
+assert.equal(mergedBasics.entries.some((entry) => entry.id === 'en_remote'), true);
+assert.equal(mergedBasics.entries.some((entry) => entry.id === 'en_lib'), true);
+assert.equal(mergedBasics.additional.some((row) => row.id === 'ad_remote'), true);
+assert.equal(mergedBasics.additional.some((row) => row.id === 'ad_new'), true);
+assert.equal(mergedBasics.jobs.some((job) => job.company === 'Local Co'), true);
+assert.equal(mergedBasics.basicsBackup.jobs.some((job) => job.company === 'Old Co'), true);
+assert.equal(mergedBasics.knowledge.some((note) => note.id === 'kb_keep'), true);
+assert.match(basicsRestoreConfirm(basicsNext), /Restore previous basics \(Old Co\)/);
+assert.match(basicsRestoreConfirm(basicsNext), /Posting edits stay/);
+let basicsBack = updateProfile(basicsNext, { name: 'Bea' });
+basicsBack = restorePreviousBasics(basicsBack, clock);
+assert.equal(hasBasicsBackup(basicsBack), false);
+assert.equal(basicsBack.basicsBackup, null);
+assert.equal(basicsBack.profile.name, 'Ada');
+assert.equal(basicsBack.jobs.some((job) => job.company === 'Old Co' && job.title === 'Analyst'), true);
+assert.equal(basicsBack.jobs.some((job) => job.company === 'Local Co'), false);
+assert.equal(basicsBack.education.some((row) => row.school === 'Old School'), true);
+assert.equal(basicsBack.additional.some((row) => row.label === 'Old row'), true);
+assert.equal(basicsBack.resumeSettings.showCredentials, true);
+assert.deepEqual(basicsBack.postings.map((job) => JSON.stringify(job.resume)), resumeSnapshots);
+assert.equal(JSON.stringify(basicsBack.entries), entrySnapshot);
+const basicsAgain = replaceBasicsWithPosting(basicsNext, 'job_src', clock);
+assert.equal(basicsAgain.basicsBackup.jobs.some((job) => job.company === 'Local Co'), true);
+assert.equal(basicsAgain.basicsBackup.jobs.some((job) => job.title === 'Analyst'), false);
+
 const strayBullet = {
   lead: 'Migration of Manual Journal Prep',
   body: 'Created auto**mated journals, ** Created a review, closed c**ases annually**, and gener**al controls.',
@@ -2042,6 +2221,11 @@ assert.match(appSource, /tailored for this posting/);
 assert.match(appSource, /Reset to job title/);
 assert.match(appSource, /Restore hidden rows/);
 assert.match(appSource, /Delete from Resume basics too/);
+assert.match(appSource, /Replace Resume basics with this posting’s resume/);
+assert.match(appSource, /Restore previous basics/);
+assert.match(appSource, /Edit the Resume basics template here/);
+assert.match(appSource, /basicsReplaceConfirm/);
+assert.match(appSource, /basicsRestoreConfirm/);
 assert.doesNotMatch(appSource, /Start fresh to hide shared/);
 assert.match(appSource, /Search resume bullets/);
 assert.match(appSource, /placeLibraryBullet/);

@@ -113,6 +113,11 @@ import {
   hideResumeRow,
   restoreHiddenResumeRows,
   hiddenResumeRowCount,
+  replaceBasicsWithPosting,
+  restorePreviousBasics,
+  basicsReplaceConfirm,
+  basicsRestoreConfirm,
+  hasBasicsBackup,
   libraryBulletChoices,
   placeLibraryBullet,
   resumeTakenEntryIds,
@@ -2833,7 +2838,7 @@ function resumeEditorPane(posting, doc) {
   return el('div', { class: 'bb-resume-editor' }, [
     el('p', { class: 'lede' }, posting
       ? 'Add each role yourself, then a sub-heading and resume bullets from your library. A picked bullet stays linked to that library entry. Include and Pin still apply to this posting.'
-      : 'Add each role yourself: company, dates, title, and location. Under a role, add sub-headings and pick resume bullets from your library. A picked bullet stays linked to that entry.'),
+      : 'Edit the Resume basics template here: header, jobs, sub-headings, education, credentials, and additional info. A picked bullet stays linked to that library entry. New postings can start from this template.'),
     posting && hiddenResumeRowCount(posting.resume) ? btn('Restore hidden rows', {
       class: 'btn ghost compact-action',
       onClick: () => {
@@ -3168,12 +3173,32 @@ function resumeWorkspace(posting) {
         el('h2', {}, posting ? 'Resume' : 'Resume basics'),
         el('p', { class: 'tiny' }, posting
           ? [posting.title, posting.company].filter(Boolean).join(' · ')
-          : 'Shared header, jobs, credentials, education'),
+          : 'Template for header, jobs, sub-headings, education, credentials, and additional info'),
       ]),
       el('div', { class: 'actions' }, [
         btn('Import resume (JSON)', { class: 'btn ghost', onClick: () => resumeFileInput.click() }),
         btn('Print / PDF', { class: 'btn', onClick: () => exportResumePdf(posting) }),
         btn('Download Word', { class: 'btn ghost', onClick: () => exportResumeDocx(posting) }),
+        posting ? btn('Replace Resume basics with this posting’s resume', {
+          class: 'btn ghost',
+          onClick: () => {
+            if (!confirm(basicsReplaceConfirm(store, posting.id))) return;
+            store = replaceBasicsWithPosting(store, posting.id);
+            saveStore();
+            render();
+            setNote('Resume basics now matches this posting. Other postings keep their own edits.');
+          },
+        }) : null,
+        hasBasicsBackup(store) ? btn('Restore previous basics', {
+          class: 'btn ghost',
+          onClick: () => {
+            if (!confirm(basicsRestoreConfirm(store))) return;
+            store = restorePreviousBasics(store);
+            saveStore();
+            render();
+            setNote('Restored the previous Resume basics.');
+          },
+        }) : null,
         posting && posting.resume?.mode !== 'fresh' ? btn('Start fresh', {
           class: 'btn ghost',
           onClick: () => {

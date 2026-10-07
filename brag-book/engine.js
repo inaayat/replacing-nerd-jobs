@@ -150,6 +150,7 @@ export function emptyStore() {
     credentials: [],
     additional: [],
     resumeSettings: emptyResumeSettings(),
+    basicsBackup: null,
   };
 }
 
@@ -552,7 +553,21 @@ export function normalizeStore(raw, clock = Date.now) {
   store.credentials = normalizeCredentials(raw.credentials, clock);
   store.additional = normalizeAdditional(raw.additional, clock);
   store.resumeSettings = normalizeResumeSettings(raw.resumeSettings);
+  store.basicsBackup = normalizeBasicsBackup(raw.basicsBackup, clock);
   return alignExperienceLines(store, clock);
+}
+
+function normalizeBasicsBackup(raw, clock = Date.now) {
+  if (!raw || typeof raw !== 'object') return null;
+  return {
+    profile: normalizeProfile(raw.profile),
+    jobs: normalizeCareerJobs(raw.jobs, clock),
+    education: normalizeEducation(raw.education, clock),
+    credentials: normalizeCredentials(raw.credentials, clock),
+    additional: normalizeAdditional(raw.additional, clock),
+    resumeSettings: normalizeResumeSettings(raw.resumeSettings),
+    savedAt: asString(raw.savedAt, 40),
+  };
 }
 
 function firstBulletForEntry(store, entryId) {
@@ -1288,6 +1303,137 @@ export function updateResumeSettings(store, patch) {
   return {
     ...store,
     resumeSettings: normalizeResumeSettings({ ...(store?.resumeSettings || emptyResumeSettings()), ...patch }),
+  };
+}
+
+function basicsSnapshot(store, clock) {
+  return normalizeBasicsBackup({
+    profile: store?.profile,
+    jobs: store?.jobs,
+    education: store?.education,
+    credentials: store?.credentials,
+    additional: store?.additional,
+    resumeSettings: store?.resumeSettings,
+    savedAt: nowIso(clock),
+  }, clock);
+}
+
+function careerJobsFromCompiled(doc) {
+  const jobs = [];
+  for (const job of doc?.sections?.experience?.jobs || []) {
+    if (job?.included === false) continue;
+    const groups = [];
+    for (const group of job.groups || []) {
+      const bullets = [];
+      for (const bullet of group.bullets || []) {
+        if (bullet?.included === false) continue;
+        const lead = bullet.hasOverride ? (bullet.originalLead ?? '') : (bullet.lead || '');
+        const body = bullet.hasOverride ? (bullet.originalBody ?? '') : (bullet.body || '');
+        bullets.push({
+          id: bullet.id,
+          lead,
+          body,
+          priority: bullet.priority,
+          pinned: false,
+          sourceBulletIds: bullet.sourceBulletIds || [],
+          sourceEntryIds: bullet.sourceEntryIds || [],
+        });
+      }
+      const heading = String(group.heading || '').trim();
+      if (!heading && !bullets.length) continue;
+      groups.push({ id: group.id, heading: group.heading || '', bullets });
+    }
+    jobs.push({
+      id: job.id,
+      company: job.company || '',
+      title: job.title || '',
+      location: job.location || '',
+      start: job.start || '',
+      end: job.end || '',
+      current: Boolean(job.current),
+      groups,
+    });
+  }
+  return normalizeCareerJobs(jobs);
+}
+
+function basicsLayoutBits(doc) {
+  const jobs = (doc?.sections?.experience?.jobs || []).filter((job) => job?.included !== false);
+  const companies = jobs.map((job) => job.company || job.title || 'Untitled role');
+  let bullets = 0;
+  for (const job of jobs) {
+    for (const group of job.groups || []) {
+      bullets += (group.bullets || []).filter((bullet) => bullet?.included !== false).length;
+    }
+  }
+  const schools = (doc?.sections?.education?.items || []).map((item) => item.school).filter(Boolean);
+  const credentials = (doc?.sections?.credentials?.items || []).map((item) => item.name).filter(Boolean);
+  const additional = (doc?.sections?.additional?.rows || []).map((row) => row.label).filter(Boolean);
+  const bulletLabel = `${bullets} ${bullets === 1 ? 'bullet' : 'bullets'}`;
+  return [
+    companies.length ? companies.join(', ') : 'no jobs',
+    bulletLabel,
+    schools.length ? schools.join(', ') : 'no education',
+    credentials.length ? credentials.join(', ') : 'no credentials',
+    additional.length ? additional.join(', ') : 'no additional info',
+  ].join('; ');
+}
+
+export function hasBasicsBackup(store) {
+  return Boolean(normalizeBasicsBackup(store?.basicsBackup));
+}
+
+export function basicsReplaceConfirm(store, postingId) {
+  const posting = postingById(store, postingId);
+  const title = String(posting?.title || '').trim() || 'this posting';
+  const current = basicsLayoutBits(compileResumeDoc(null, store));
+  const next = basicsLayoutBits(compileResumeDoc(posting, store));
+  return `Replace Resume basics with ${title}? This replaces ${current} with ${next}. Other postings keep their own edits. You can restore the previous basics.`;
+}
+
+export function basicsRestoreConfirm(store) {
+  const backup = normalizeBasicsBackup(store?.basicsBackup);
+  const names = (backup?.jobs || []).map((job) => job.company || job.title || 'Untitled role').filter(Boolean);
+  const named = names.length ? names.join(', ') : 'the saved snapshot';
+  return `Restore previous basics (${named})? This replaces the current Resume basics with that snapshot. Posting edits stay.`;
+}
+
+// Copy one posting's visible resume into the shared template. Posting
+// variants stay as they are. The snapshot is only the basics this call
+// replaces, so Restore undoes the latest replace.
+export function replaceBasicsWithPosting(store, postingId, clock = Date.now) {
+  const posting = postingById(store, postingId);
+  if (!posting) return store;
+  const doc = compileResumeDoc(posting, store);
+  const variant = normalizeResumeVariant(posting.resume);
+  const resumeSettings = {
+    ...(store?.resumeSettings || emptyResumeSettings()),
+    sectionOrder: doc.sectionOrder,
+  };
+  if (variant.showCredentials != null) resumeSettings.showCredentials = variant.showCredentials;
+  return {
+    ...store,
+    jobs: careerJobsFromCompiled(doc),
+    education: normalizeEducation(doc.sections?.education?.items, clock),
+    credentials: normalizeCredentials(doc.sections?.credentials?.items, clock),
+    additional: normalizeAdditional(doc.sections?.additional?.rows, clock),
+    resumeSettings: normalizeResumeSettings(resumeSettings),
+    basicsBackup: basicsSnapshot(store, clock),
+  };
+}
+
+export function restorePreviousBasics(store, clock = Date.now) {
+  const backup = normalizeBasicsBackup(store?.basicsBackup, clock);
+  if (!backup) return store;
+  return {
+    ...store,
+    profile: backup.profile,
+    jobs: backup.jobs,
+    education: backup.education,
+    credentials: backup.credentials,
+    additional: backup.additional,
+    resumeSettings: backup.resumeSettings,
+    basicsBackup: null,
   };
 }
 
@@ -2530,6 +2676,7 @@ export function mergeBook(base, local, remote) {
   }
   out.profile = mergePlain(base?.profile, local?.profile, remote?.profile);
   out.resumeSettings = mergePlain(base?.resumeSettings, local?.resumeSettings, remote?.resumeSettings);
+  out.basicsBackup = mergePlain(base?.basicsBackup, local?.basicsBackup, remote?.basicsBackup);
   return out;
 }
 
