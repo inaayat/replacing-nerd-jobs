@@ -154,6 +154,7 @@ import {
   saveSharedBullet,
   bulletConsistency,
   addResumeGroup,
+  removeResumeGroup,
   moveResumeGroup,
   moveResumeBullet,
   stepResumeBullet,
@@ -171,7 +172,7 @@ import {
   hostFromJobUrl,
 } from '../brag-book/engine.js';
 import { parseViewHash, viewHash, viewTitle, defaultView, logLayout, hideBookRail } from '../brag-book/routes.js';
-import { bookPagePlan, experienceRowSpec, sharedBulletSpec, SHARED_BULLET_FIELDS, STAR_FIELDS, experienceAdderChrome, nextExperienceAdderOpen, resumeBulletArrows, visibleNodes, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys } from '../brag-book/book-view.js';
+import { bookPagePlan, experienceRowSpec, sharedBulletSpec, SHARED_BULLET_FIELDS, STAR_FIELDS, experienceAdderChrome, nextExperienceAdderOpen, resumeBulletArrows, resumeGroupChrome, visibleNodes, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys } from '../brag-book/book-view.js';
 import {
   applyKnowledgeEnter,
   applyKnowledgeHeadingBreak,
@@ -2483,6 +2484,10 @@ assert.match(appSource, /nextExperienceAdderOpen\(/);
 assert.match(appSource, /resumeBulletArrows\(/);
 assert.match(appSource, /visibleNodes\(/);
 assert.match(appSource, /visibleResumeBullets\(/);
+assert.match(appSource, /resumeGroupChrome\(/);
+assert.match(appSource, /removeResumeGroup\(/);
+assert.match(appSource, /\+ Sub-heading/);
+assert.doesNotMatch(appSource, /if \(posting && localGroup\) \{\s*store = deletePostingLocalGroup/);
 assert.match(appSource, /includeExcluded: !posting/);
 assert.match(appSource, /chrome\.showForm/);
 assert.match(appSource, /saveSharedBullet/);
@@ -3536,4 +3541,113 @@ assert.deepEqual(
   visibleResumeBullets(compileResumeDoc(postingById(hideReloaded, 'job_hide'), hideReloaded)
     .sections.experience.jobs.find((job) => job.id === 'rj_hide').groups[0].bullets).map((bullet) => bullet.id),
   ['rb_hide_c', 'rb_hide_a']
+);
+
+const emptyHeads = [
+  { id: 'rg_a', heading: '', bullets: [{ id: 'rb_1' }] },
+  { id: 'rg_b', heading: '', bullets: [{ id: 'rb_2' }] },
+];
+const emptyChrome = resumeGroupChrome(emptyHeads, '', true);
+assert.equal(emptyChrome.namedCount, 0);
+assert.equal(emptyChrome.showUnder, false);
+assert.equal(emptyChrome.showDefaultAdd, true);
+assert.equal(emptyChrome.showHeading(emptyHeads[0]), false);
+assert.equal(emptyChrome.showHeading(emptyHeads[1]), false);
+assert.equal(emptyChrome.underLabel(emptyHeads[1], 1), 'No sub-heading');
+assert.equal(emptyChrome.underLabel(emptyHeads[1], 1).includes('Untitled'), false);
+const namedChrome = resumeGroupChrome([
+  { id: 'rg_a', heading: '', bullets: [] },
+  { id: 'rg_b', heading: 'Training', bullets: [] },
+], '', true);
+assert.equal(namedChrome.namedCount, 1);
+assert.equal(namedChrome.showUnder, true);
+assert.equal(namedChrome.showDefaultAdd, false);
+assert.equal(namedChrome.showHeading({ id: 'rg_a', heading: '' }), false);
+assert.equal(namedChrome.showHeading({ id: 'rg_b', heading: 'Training' }), true);
+assert.equal(namedChrome.underLabel({ heading: 'Training' }, 1), 'Training');
+assert.equal(namedChrome.underLabel({ heading: '' }, 0), 'No sub-heading');
+const draftChrome = resumeGroupChrome(emptyHeads, 'rg_b', true);
+assert.equal(draftChrome.hasDraft, true);
+assert.equal(draftChrome.showDefaultAdd, false);
+assert.equal(draftChrome.showHeading(emptyHeads[0]), false);
+assert.equal(draftChrome.showHeading(emptyHeads[1]), true);
+assert.equal(resumeGroupChrome(emptyHeads, '', false).showHeading(emptyHeads[0]), true);
+assert.equal(resumeGroupChrome(emptyHeads, '', false).underLabel(emptyHeads[1], 1), 'Untitled heading 2');
+
+let headBook = addCareerJob(emptyStore(), {
+  id: 'rj_head',
+  company: 'PwC',
+  title: 'Senior Associate',
+  onResume: true,
+  groups: [
+    { id: 'rg_head_a', heading: '', bullets: [{ id: 'rb_head_a', lead: 'Common Controls', body: 'mapped 900' }] },
+    { id: 'rg_head_b', heading: 'Training', bullets: [{ id: 'rb_head_b', lead: 'Taught the close', body: 'kept' }] },
+  ],
+}, clock);
+headBook = addPosting(headBook, { id: 'job_head', title: 'Head posting' }, clock);
+headBook = addPosting(headBook, { id: 'job_head_other', title: 'Other head' }, clock);
+headBook = updatePostingResume(headBook, 'job_head', { includedJobIds: ['rj_head'] }, clock);
+const headBefore = JSON.stringify(headBook);
+const headDoc = compileResumeDoc(postingById(headBook, 'job_head'), headBook);
+assert.equal(JSON.stringify(headBook), headBefore);
+const headGroups = headDoc.sections.experience.jobs.find((job) => job.id === 'rj_head').groups;
+assert.equal(headGroups.length, 2);
+assert.equal(headGroups[0].heading, '');
+assert.equal(headGroups[1].heading, 'Training');
+const headHtml = renderResumeHtml(headDoc);
+assert.match(headHtml, /Common Controls/);
+assert.match(headHtml, /Taught the close/);
+assert.match(headHtml, /<div class="subhead">Training<\/div>/);
+assert.doesNotMatch(headHtml, /subhead"><\/div>/);
+const headDocx = new TextDecoder().decode(resumeDocxBytes(headDoc));
+assert.match(headDocx, /Training/);
+assert.match(headDocx, /Common Controls/);
+
+const headCareerBefore = JSON.stringify(headBook.jobs);
+const headOtherBefore = JSON.stringify(postingById(headBook, 'job_head_other').resume);
+headBook = removeResumeGroup(headBook, 'job_head', { id: 'rj_head' }, 'rg_head_b', clock);
+assert.equal(JSON.stringify(headBook.jobs), headCareerBefore);
+assert.equal(JSON.stringify(postingById(headBook, 'job_head_other').resume), headOtherBefore);
+const afterRemove = compileResumeDoc(postingById(headBook, 'job_head'), headBook)
+  .sections.experience.jobs.find((job) => job.id === 'rj_head');
+assert.deepEqual(afterRemove.groups.map((group) => group.heading), ['', '']);
+assert.deepEqual(afterRemove.groups.flatMap((group) => (group.bullets || []).map((bullet) => bullet.id)), [
+  'rb_head_a',
+  'rb_head_b',
+]);
+assert.equal(postingById(headBook, 'job_head').resume.groupHeadings.rg_head_b, '');
+const afterChrome = resumeGroupChrome(afterRemove.groups, '', true);
+assert.equal(afterChrome.namedCount, 0);
+assert.equal(afterChrome.showDefaultAdd, true);
+assert.equal(afterChrome.showUnder, false);
+assert.equal(afterChrome.showHeading(afterRemove.groups[0]), false);
+assert.equal(afterChrome.showHeading(afterRemove.groups[1]), false);
+const afterHtml = renderResumeHtml(compileResumeDoc(postingById(headBook, 'job_head'), headBook));
+assert.match(afterHtml, /Common Controls/);
+assert.match(afterHtml, /Taught the close/);
+assert.doesNotMatch(afterHtml, /<div class="subhead">Training<\/div>/);
+headBook = removeResumeGroup(headBook, 'job_head', { id: 'rj_head' }, 'rg_head_a', clock);
+assert.deepEqual(
+  compileResumeDoc(postingById(headBook, 'job_head'), headBook)
+    .sections.experience.jobs.find((job) => job.id === 'rj_head').groups
+    .flatMap((group) => (group.bullets || []).map((bullet) => bullet.id)),
+  ['rb_head_a', 'rb_head_b']
+);
+const addedHead = addResumeGroup(headBook, 'job_head', { id: 'rj_head' }, { afterId: 'rg_head_b' }, clock, random);
+headBook = addedHead.store;
+const withDraft = compileResumeDoc(postingById(headBook, 'job_head'), headBook)
+  .sections.experience.jobs.find((job) => job.id === 'rj_head').groups;
+assert.ok(withDraft.some((group) => group.id === addedHead.groupId));
+const draftAfterAdd = resumeGroupChrome(withDraft, addedHead.groupId, true);
+assert.equal(draftAfterAdd.hasDraft, true);
+assert.equal(draftAfterAdd.showHeading(withDraft.find((group) => group.id === addedHead.groupId)), true);
+assert.equal(draftAfterAdd.showDefaultAdd, false);
+const headReloaded = normalizeStore(JSON.parse(serializeBook(headBook).json), clock);
+assert.equal(headReloaded.jobs.find((job) => job.id === 'rj_head').groups[1].heading, 'Training');
+assert.equal(postingById(headReloaded, 'job_head').resume.groupHeadings.rg_head_b, '');
+assert.deepEqual(
+  compileResumeDoc(postingById(headReloaded, 'job_head'), headReloaded)
+    .sections.experience.jobs.find((job) => job.id === 'rj_head').groups
+    .flatMap((group) => (group.bullets || []).map((bullet) => bullet.id)),
+  ['rb_head_a', 'rb_head_b']
 );

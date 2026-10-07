@@ -1158,6 +1158,15 @@ export function moveResumeGroup(store, postingId, jobId, groupId, delta, clock =
   }, clock);
 }
 
+export function removeResumeGroup(store, postingId, career, groupId, clock = Date.now) {
+  if (!postingId || !groupId || !career?.id) return store;
+  // Posting-only: clear the heading overlay. Groups and bullets stay put so
+  // existing empty groups do not need a load rewrite.
+  return updatePostingResume(store, postingId, {
+    groupHeadings: { [groupId]: '' },
+  }, clock);
+}
+
 export function addResumeGroup(store, postingId, career, { afterId } = {}, clock = Date.now, random = Math.random) {
   const jobId = career?.id;
   if (!jobId) return { store, groupId: null };
