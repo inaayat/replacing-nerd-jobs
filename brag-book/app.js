@@ -80,7 +80,6 @@ import {
   updatePostingLocalCredential,
   deletePostingLocalCredential,
   addPostingLocalAdditional,
-  updatePostingLocalAdditional,
   deletePostingLocalAdditional,
   startPostingResumeFresh,
   resetPostingResumeToBasics,
@@ -95,14 +94,13 @@ import {
   addCredentialItem,
   deleteCredentialItem,
   moveCredentialItem,
-  updateAdditionalRow,
   addAdditionalRow,
   deleteAdditionalRow,
   moveAdditionalRow,
-  moveAdditionalGroup,
-  addAdditionalGroup,
-  updateAdditionalGroup,
-  deleteAdditionalGroup,
+  editResumeAdditionalRow,
+  addResumeAdditionalGroup,
+  moveResumeAdditionalGroup,
+  deleteResumeAdditionalGroup,
   isResumeDoc,
   visibleResumeDoc,
   moveKey,
@@ -2616,6 +2614,14 @@ function isLocalResumeRow(posting, key, id) {
   return Boolean(posting && (posting.resume?.[key] || []).some((item) => item.id === id));
 }
 
+function additionalRowRecord(posting, rowId) {
+  if (posting) {
+    const local = (livePosting(posting.id)?.resume?.localAdditional || []).find((item) => item.id === rowId);
+    if (local) return local;
+  }
+  return (store.additional || []).find((item) => item.id === rowId) || null;
+}
+
 function hideSharedResumeRow(posting, kind, id) {
   store = replacePostingResume(store, posting.id, hideResumeRow(livePosting(posting.id).resume, kind, id));
   saveStore();
@@ -3753,14 +3759,11 @@ function resumeEditorPane(posting, doc) {
           : (row.items || []).join(' · '));
         items.value = items.textContent;
         const stampLabel = () => {
-          const patch = grouped
-            ? { label: label.value, groups: row.groups }
-            : { label: label.value, items: splitResumeItems(items.value) };
-          if (posting && isLocalResumeRow(posting, 'localAdditional', row.id)) {
-            store = updatePostingLocalAdditional(store, posting.id, row.id, patch);
-          } else {
-            store = updateAdditionalRow(store, row.id, patch);
-          }
+          store = editResumeAdditionalRow(store, posting?.id, row.id, (current) => (
+            grouped
+              ? { ...current, label: label.value }
+              : { ...current, label: label.value, items: splitResumeItems(items.value) }
+          ));
           saveStore();
           scheduleResumePreview(posting);
         };
@@ -3781,10 +3784,14 @@ function resumeEditorPane(posting, doc) {
             }, (group.items || []).join(' · '));
             gitems.value = gitems.textContent;
             const stampGroup = () => {
-              store = updateAdditionalGroup(store, row.id, group.id, {
-                label: glabel.value,
-                items: splitResumeItems(gitems.value),
-              });
+              store = editResumeAdditionalRow(store, posting?.id, row.id, (current) => ({
+                ...current,
+                groups: (current.groups || []).map((item) => (
+                  item.id === group.id
+                    ? { ...item, label: glabel.value, items: splitResumeItems(gitems.value) }
+                    : item
+                )),
+              }));
               saveStore();
               scheduleResumePreview(posting);
             };
@@ -3797,7 +3804,7 @@ function resumeEditorPane(posting, doc) {
                   index: row.groups.findIndex((item) => item.id === group.id),
                   length: row.groups.length,
                   onMove: (delta) => {
-                    store = moveAdditionalGroup(store, row.id, group.id, delta);
+                    store = moveResumeAdditionalGroup(store, posting?.id, row.id, group.id, delta);
                     saveStore();
                     render({ focusKey: `sg-${group.id}-label` });
                   },
@@ -3805,9 +3812,9 @@ function resumeEditorPane(posting, doc) {
                 btn('Remove sub-label', {
                   class: 'btn ghost compact-action is-danger',
                   onClick: () => {
-                    store = deleteAdditionalGroup(store, row.id, group.id);
+                    store = deleteResumeAdditionalGroup(store, posting?.id, row.id, group.id);
                     saveStore();
-                    render();
+                    render({ focusKey: `ad-${row.id}-label` });
                   },
                 }),
               ]),
@@ -3827,11 +3834,15 @@ function resumeEditorPane(posting, doc) {
               },
             }),
             ...postingRowDeletes(posting, {
-              local: isLocalResumeRow(posting, 'localAdditional', row.id),
+              local: Boolean(posting) && isLocalResumeRow(posting, 'localAdditional', row.id)
+                && !(store.additional || []).some((item) => item.id === row.id),
               kind: 'additional',
               id: row.id,
               localDelete: () => { store = deletePostingLocalAdditional(store, posting.id, row.id); },
-              sharedDelete: () => { store = deleteAdditionalRow(store, row.id); },
+              sharedDelete: () => {
+                store = deleteAdditionalRow(store, row.id);
+                if (posting) store = deletePostingLocalAdditional(store, posting.id, row.id);
+              },
               confirmText: 'Delete this additional-info row from Resume basics?',
             }),
           ]),
@@ -3841,11 +3852,12 @@ function resumeEditorPane(posting, doc) {
             btn('+ Add sub-label', {
               class: 'btn ghost compact-action',
               onClick: () => {
-                store = addAdditionalGroup(store, row.id);
-                const added = store.additional.find((item) => item.id === row.id);
-                const last = added?.groups[added.groups.length - 1];
+                const before = new Set((additionalRowRecord(posting, row.id)?.groups || []).map((group) => group.id));
+                store = addResumeAdditionalGroup(store, posting?.id, row.id);
+                const saved = additionalRowRecord(posting, row.id);
+                const addedGroup = (saved?.groups || []).find((group) => !before.has(group.id));
                 saveStore();
-                render({ focusKey: last ? `sg-${last.id}-label` : `ad-${row.id}-label` });
+                render({ focusKey: addedGroup ? `sg-${addedGroup.id}-label` : `ad-${row.id}-label` });
               },
             }),
           ]),

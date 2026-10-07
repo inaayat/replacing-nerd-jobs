@@ -188,7 +188,7 @@ function additionalXml(section, bodyPt) {
     if (row.groups?.length) {
       rest = row.groups.map((g, i) => {
         const sep = i ? run(' \u00b7 ', { pt: bodyPt }) : '';
-        return `${sep}${run(`${g.label}: `, { italic: true, pt: bodyPt })}${run((g.items || []).join(', '), { pt: bodyPt })}`;
+        return `${sep}${g.label ? run(g.label, { italic: true, pt: bodyPt }) : ''}${run(`: ${(g.items || []).join(', ')}`, { pt: bodyPt })}`;
       }).join('');
     } else {
       rest = run((row.items || []).join(' \u00b7 '), { pt: bodyPt });

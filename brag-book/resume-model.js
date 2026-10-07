@@ -422,11 +422,13 @@ export function normalizeAdditionalRow(raw, clock = Date.now) {
     groups.push(group);
   }
   const items = asStringList(raw.items);
+  const updatedAt = asString(raw.updatedAt, 40);
   return {
     id: asId(raw.id, clock, 'ad'),
     label,
     items: groups.length ? [] : items,
     groups,
+    ...(updatedAt ? { updatedAt } : {}),
   };
 }
 
@@ -812,6 +814,29 @@ function mergeLocalRows(shared, local) {
   return [...(shared || []), ...extra];
 }
 
+// Additional info can override a Resume basics row on one posting by storing
+// the same id in localAdditional. Education and credentials keep mergeLocalRows,
+// which drops that same-id copy.
+function overlayAdditionalRows(shared, local) {
+  const overrides = new Map();
+  for (const row of local || []) {
+    if (row?.id) overrides.set(row.id, row);
+  }
+  const seen = new Set();
+  const out = [];
+  for (const row of shared || []) {
+    if (!row?.id || seen.has(row.id)) continue;
+    seen.add(row.id);
+    out.push(overrides.get(row.id) || row);
+  }
+  for (const row of local || []) {
+    if (!row?.id || seen.has(row.id)) continue;
+    seen.add(row.id);
+    out.push(row);
+  }
+  return out;
+}
+
 function omitHiddenRows(rows, hiddenIds) {
   if (!hiddenIds?.length) return rows || [];
   const hidden = new Set(hiddenIds);
@@ -1162,7 +1187,7 @@ export function compileResumeDoc(posting, store) {
       variant.excludedEducationIds,
     );
     additional = omitHiddenRows(
-      mergeLocalRows(normalizeAdditional(store?.additional), variant.localAdditional),
+      overlayAdditionalRows(normalizeAdditional(store?.additional), variant.localAdditional),
       variant.excludedAdditionalIds,
     );
   }

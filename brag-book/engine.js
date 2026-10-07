@@ -1964,14 +1964,89 @@ export function updateCredentialItem(store, id, patch, clock = Date.now) {
   };
 }
 
-export function updateAdditionalRow(store, id, patch, clock = Date.now) {
+function cloneAdditionalRow(row) {
   return {
-    ...store,
-    additional: normalizeAdditional(
-      (store?.additional || []).map((item) => (item.id === id ? { ...item, ...patch, id: item.id } : item)),
-      clock
-    ),
+    ...row,
+    items: [...(row.items || [])],
+    groups: (row.groups || []).map((group) => ({
+      ...group,
+      items: [...(group.items || [])],
+    })),
   };
+}
+
+function nextAdditionalGroup(draft, clock, random) {
+  return {
+    id: draft?.id || newId('sg', clock, random),
+    label: draft?.label || '',
+    items: Array.isArray(draft?.items) ? draft.items : [],
+  };
+}
+
+function withAdditionalGroup(row, draft, clock, random) {
+  const incoming = nextAdditionalGroup(draft, clock, random);
+  if (row.groups?.length) {
+    return { ...row, items: [], groups: [...row.groups, incoming] };
+  }
+  return {
+    ...row,
+    items: [],
+    groups: [{
+      ...incoming,
+      items: incoming.items.length ? incoming.items : [...(row.items || [])],
+    }],
+  };
+}
+
+// Basics edits `store.additional`. A posting edits `localAdditional`: an
+// existing local row updates in place, and a Resume basics row is copied
+// under the same id so other postings stay on the shared row.
+export function editResumeAdditionalRow(store, postingId, rowId, fn, clock = Date.now) {
+  const edit = (row) => {
+    const next = fn(cloneAdditionalRow(row));
+    if (!next) return null;
+    return { ...next, id: row.id, updatedAt: nowIso(clock) };
+  };
+  if (!postingId) {
+    let changed = false;
+    const additional = (store?.additional || []).map((row) => {
+      if (row.id !== rowId) return row;
+      const next = edit(row);
+      if (!next) return row;
+      changed = true;
+      return next;
+    });
+    if (!changed) return store;
+    return { ...store, additional: normalizeAdditional(additional, clock) };
+  }
+  const posting = postingById(store, postingId);
+  if (!posting) return store;
+  const variant = normalizeResumeVariant(posting.resume);
+  const local = variant.localAdditional.find((row) => row.id === rowId);
+  if (local) {
+    const next = edit(local);
+    if (!next) return store;
+    return patchPostingVariant(
+      store,
+      postingId,
+      (current) => updateLocalAdditional(current, rowId, next, clock),
+      clock,
+    );
+  }
+  const shared = (store?.additional || []).find((row) => row.id === rowId);
+  if (!shared) return store;
+  const next = edit(shared);
+  if (!next) return store;
+  return patchPostingVariant(
+    store,
+    postingId,
+    (current) => addLocalAdditional(current, next, clock),
+    clock,
+  );
+}
+
+export function updateAdditionalRow(store, id, patch, clock = Date.now) {
+  return editResumeAdditionalRow(store, null, id, (row) => ({ ...row, ...patch }), clock);
 }
 
 function mapCareerJob(store, jobId, fn, clock = Date.now) {
@@ -2169,79 +2244,53 @@ export function moveAdditionalRow(store, id, delta) {
   return { ...store, additional: moveListItem(store?.additional || [], id, delta) };
 }
 
+export function addResumeAdditionalGroup(store, postingId, rowId, draft = {}, clock = Date.now, random = Math.random) {
+  return editResumeAdditionalRow(
+    store,
+    postingId,
+    rowId,
+    (row) => withAdditionalGroup(row, draft, clock, random),
+    clock,
+  );
+}
+
 export function addAdditionalGroup(store, rowId, draft = {}, clock = Date.now, random = Math.random) {
-  return {
-    ...store,
-    additional: normalizeAdditional(
-      (store?.additional || []).map((row) => {
-        if (row.id !== rowId) return row;
-        const incoming = {
-          id: draft.id || newId('sg', clock, random),
-          label: draft.label || '',
-          items: Array.isArray(draft.items) ? draft.items : [],
-        };
-        if (row.groups?.length) {
-          return { ...row, items: [], groups: [...row.groups, incoming] };
-        }
-        return {
-          ...row,
-          items: [],
-          groups: [{
-            ...incoming,
-            items: incoming.items.length ? incoming.items : (row.items || []),
-          }],
-        };
-      }),
-      clock
-    ),
-  };
+  return addResumeAdditionalGroup(store, null, rowId, draft, clock, random);
+}
+
+export function updateResumeAdditionalGroup(store, postingId, rowId, groupId, patch, clock = Date.now) {
+  return editResumeAdditionalRow(store, postingId, rowId, (row) => ({
+    ...row,
+    groups: (row.groups || []).map((group) => (
+      group.id === groupId ? { ...group, ...patch, id: group.id } : group
+    )),
+  }), clock);
 }
 
 export function updateAdditionalGroup(store, rowId, groupId, patch, clock = Date.now) {
-  return {
-    ...store,
-    additional: normalizeAdditional(
-      (store?.additional || []).map((row) => {
-        if (row.id !== rowId) return row;
-        return {
-          ...row,
-          groups: (row.groups || []).map((group) => (
-            group.id === groupId ? { ...group, ...patch, id: group.id } : group
-          )),
-        };
-      }),
-      clock
-    ),
-  };
+  return updateResumeAdditionalGroup(store, null, rowId, groupId, patch, clock);
+}
+
+export function moveResumeAdditionalGroup(store, postingId, rowId, groupId, delta, clock = Date.now) {
+  return editResumeAdditionalRow(store, postingId, rowId, (row) => ({
+    ...row,
+    groups: moveListItem(row.groups || [], groupId, delta),
+  }), clock);
 }
 
 export function moveAdditionalGroup(store, rowId, groupId, delta, clock = Date.now) {
-  return {
-    ...store,
-    additional: normalizeAdditional(
-      (store?.additional || []).map((row) => {
-        if (row.id !== rowId) return row;
-        return { ...row, groups: moveListItem(row.groups || [], groupId, delta) };
-      }),
-      clock
-    ),
-  };
+  return moveResumeAdditionalGroup(store, null, rowId, groupId, delta, clock);
+}
+
+export function deleteResumeAdditionalGroup(store, postingId, rowId, groupId, clock = Date.now) {
+  return editResumeAdditionalRow(store, postingId, rowId, (row) => ({
+    ...row,
+    groups: (row.groups || []).filter((group) => group.id !== groupId),
+  }), clock);
 }
 
 export function deleteAdditionalGroup(store, rowId, groupId, clock = Date.now) {
-  return {
-    ...store,
-    additional: normalizeAdditional(
-      (store?.additional || []).map((row) => {
-        if (row.id !== rowId) return row;
-        return {
-          ...row,
-          groups: (row.groups || []).filter((group) => group.id !== groupId),
-        };
-      }),
-      clock
-    ),
-  };
+  return deleteResumeAdditionalGroup(store, null, rowId, groupId, clock);
 }
 
 export function deletePosting(store, id) {

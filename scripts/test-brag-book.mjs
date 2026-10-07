@@ -95,8 +95,15 @@ import {
   addCredentialItem,
   deleteCredentialItem,
   addAdditionalRow,
+  updateAdditionalRow,
   deleteAdditionalRow,
   addAdditionalGroup,
+  normalizeAdditional,
+  editResumeAdditionalRow,
+  addResumeAdditionalGroup,
+  updateResumeAdditionalGroup,
+  moveResumeAdditionalGroup,
+  deleteResumeAdditionalGroup,
   isResumeDoc,
   parseBulletText,
   toggleId,
@@ -1984,6 +1991,135 @@ addl = moveAdditionalGroup(addl, addl.additional[0].id, addlIds[0], 1, clock);
 assert.equal(addl.additional[0].groups[0].id, addlIds[1]);
 assert.equal(addl.additional[0].groups[1].id, addlIds[0]);
 
+const emptyGroup = normalizeAdditional([{
+  id: 'ad_empty',
+  label: 'Tools',
+  groups: [{ label: '', items: [] }, { id: 'sg_keep', label: '', items: [] }],
+}], clock);
+assert.equal(emptyGroup[0].groups.length, 1);
+assert.equal(emptyGroup[0].groups[0].id, 'sg_keep');
+
+let subLabels = addAdditionalRow(emptyStore(), {
+  id: 'ad_tech',
+  label: 'Technical Skills',
+  items: ['AuditBoard', 'Excel'],
+}, clock, random);
+subLabels = addResumeAdditionalGroup(subLabels, null, 'ad_tech', {}, clock, random);
+assert.equal(subLabels.additional[0].groups.length, 1);
+assert.equal(subLabels.additional[0].groups[0].label, '');
+assert.deepEqual(subLabels.additional[0].groups[0].items, ['AuditBoard', 'Excel']);
+assert.deepEqual(subLabels.additional[0].items, []);
+subLabels = addResumeAdditionalGroup(subLabels, null, 'ad_tech', { label: 'Data Analytics' }, clock, random);
+assert.equal(subLabels.additional[0].groups.length, 2);
+assert.equal(subLabels.additional[0].groups[1].label, 'Data Analytics');
+assert.ok(subLabels.additional[0].updatedAt);
+const basicsPreview = renderResumeHtml(compileResumeDoc(null, subLabels));
+assert.match(basicsPreview, /<b>Technical Skills:<\/b> <i><\/i>: AuditBoard, Excel/);
+subLabels = updateResumeAdditionalGroup(subLabels, null, 'ad_tech', subLabels.additional[0].groups[0].id, {
+  label: 'Compliance Tools',
+  items: ['AuditBoard', 'Dynamics 365'],
+}, clock);
+subLabels = updateResumeAdditionalGroup(subLabels, null, 'ad_tech', subLabels.additional[0].groups[1].id, {
+  label: 'Data Analytics',
+  items: ['Advanced Excel', 'SQL'],
+}, clock);
+const groupedPreview = renderResumeHtml(compileResumeDoc(null, subLabels));
+assert.match(groupedPreview, /<b>Technical Skills:<\/b> <i>Compliance Tools<\/i>: AuditBoard, Dynamics 365 · <i>Data Analytics<\/i>: Advanced Excel, SQL/);
+const groupedDocx = new TextDecoder().decode(resumeDocxBytes(compileResumeDoc(null, subLabels)));
+assert.match(groupedDocx, /<w:i\/><w:iCs\/>[\s\S]*?<w:t[^>]*>Compliance Tools<\/w:t>/);
+assert.doesNotMatch(groupedDocx, /<w:i\/><w:iCs\/>[\s\S]*?<w:t[^>]*>Compliance Tools:/);
+assert.match(groupedDocx, /<w:t[^>]*>: AuditBoard, Dynamics 365<\/w:t>/);
+
+let postingSubs = addAdditionalRow(emptyStore(), {
+  id: 'ad_tech',
+  label: 'Technical Skills',
+  items: ['AuditBoard'],
+}, clock, random);
+postingSubs = addPosting(postingSubs, { id: 'job_sub', title: 'This posting' }, clock);
+postingSubs = addPosting(postingSubs, { id: 'job_other', title: 'Other posting' }, clock);
+postingSubs = addPostingLocalAdditional(postingSubs, 'job_sub', {
+  id: 'ad_local',
+  label: 'Local tools',
+  items: ['Excel'],
+}, clock, random);
+const beforeLocalAdd = JSON.stringify(postingSubs.additional);
+postingSubs = addResumeAdditionalGroup(postingSubs, 'job_sub', 'ad_local', { label: 'Sheets' }, clock, random);
+assert.equal(JSON.stringify(postingSubs.additional), beforeLocalAdd);
+const localRow = postingById(postingSubs, 'job_sub').resume.localAdditional.find((row) => row.id === 'ad_local');
+assert.equal(localRow.groups.length, 1);
+assert.equal(localRow.groups[0].label, 'Sheets');
+assert.deepEqual(localRow.groups[0].items, ['Excel']);
+const localGroupId = localRow.groups[0].id;
+postingSubs = updateResumeAdditionalGroup(postingSubs, 'job_sub', 'ad_local', localGroupId, {
+  label: 'Sheets',
+  items: ['Excel', 'SQL'],
+}, clock);
+postingSubs = addResumeAdditionalGroup(postingSubs, 'job_sub', 'ad_local', { label: 'Second' }, clock, random);
+const localGroups = postingById(postingSubs, 'job_sub').resume.localAdditional.find((row) => row.id === 'ad_local').groups;
+assert.equal(localGroups.length, 2);
+postingSubs = moveResumeAdditionalGroup(postingSubs, 'job_sub', 'ad_local', localGroups[0].id, 1, clock);
+assert.equal(
+  postingById(postingSubs, 'job_sub').resume.localAdditional.find((row) => row.id === 'ad_local').groups[0].label,
+  'Second',
+);
+postingSubs = deleteResumeAdditionalGroup(postingSubs, 'job_sub', 'ad_local', localGroups[1].id, clock);
+assert.equal(
+  postingById(postingSubs, 'job_sub').resume.localAdditional.find((row) => row.id === 'ad_local').groups.length,
+  1,
+);
+assert.equal(postingSubs.additional[0].items[0], 'AuditBoard');
+
+const basicsBeforeFork = JSON.stringify(postingSubs.additional);
+postingSubs = addResumeAdditionalGroup(postingSubs, 'job_sub', 'ad_tech', {
+  label: 'Compliance Tools',
+  items: ['AuditBoard'],
+}, clock, random);
+assert.equal(JSON.stringify(postingSubs.additional), basicsBeforeFork);
+const forkedRow = postingById(postingSubs, 'job_sub').resume.localAdditional.find((row) => row.id === 'ad_tech');
+assert.equal(forkedRow.groups[0].label, 'Compliance Tools');
+const forkedAdditionalDoc = compileResumeDoc(postingById(postingSubs, 'job_sub'), postingSubs);
+assert.match(renderResumeHtml(forkedAdditionalDoc), /<i>Compliance Tools<\/i>: AuditBoard/);
+const otherPostingDoc = compileResumeDoc(postingById(postingSubs, 'job_other'), postingSubs);
+assert.equal(otherPostingDoc.sections.additional.rows.find((row) => row.id === 'ad_tech').groups.length, 0);
+assert.deepEqual(compileResumeDoc(null, postingSubs).sections.additional.rows.find((row) => row.id === 'ad_tech').items, ['AuditBoard']);
+postingSubs = replacePostingResume(
+  postingSubs,
+  'job_sub',
+  hideResumeRow(postingById(postingSubs, 'job_sub').resume, 'additional', 'ad_tech'),
+  clock,
+);
+assert.equal(
+  compileResumeDoc(postingById(postingSubs, 'job_sub'), postingSubs).sections.additional.rows.some((row) => row.id === 'ad_tech'),
+  false,
+);
+assert.equal(postingSubs.additional.some((row) => row.id === 'ad_tech'), true);
+
+let sameId = addEducationItem(emptyStore(), { id: 'ed_same', school: 'Shared U' }, clock, random);
+sameId = addAdditionalRow(sameId, { id: 'ad_same', label: 'Tools', items: ['Excel'] }, clock, random);
+sameId = addPosting(sameId, { id: 'job_same', title: 'Same id' }, clock);
+sameId = addPostingLocalEducation(sameId, 'job_same', { id: 'ed_same', school: 'Override U' }, clock, random);
+sameId = addPostingLocalAdditional(sameId, 'job_same', { id: 'ad_same', label: 'Tools', items: ['SQL'] }, clock, random);
+const sameDoc = compileResumeDoc(postingById(sameId, 'job_same'), sameId);
+assert.equal(sameDoc.sections.education.items.find((row) => row.id === 'ed_same').school, 'Shared U');
+assert.deepEqual(sameDoc.sections.additional.rows.find((row) => row.id === 'ad_same').items, ['SQL']);
+
+const mergeAddBase = addAdditionalRow(emptyStore(), { id: 'ad_merge', label: 'Technical Skills', items: ['Excel'] }, () => Date.parse('2026-01-01T00:00:00.000Z'), random);
+const mergeAddLocal = addAdditionalGroup(mergeAddBase, 'ad_merge', {
+  id: 'sg_merge',
+  label: 'Compliance Tools',
+  items: ['AuditBoard'],
+}, () => Date.parse('2026-02-01T00:00:00.000Z'), random);
+const mergeAddRemote = updateAdditionalRow(mergeAddBase, 'ad_merge', { label: 'Skills' }, () => Date.parse('2026-03-01T00:00:00.000Z'));
+assert.equal(mergeBook(mergeAddBase, mergeAddLocal, mergeAddRemote).additional[0].label, 'Skills');
+const mergeAddNewer = addAdditionalGroup(mergeAddBase, 'ad_merge', {
+  id: 'sg_merge',
+  label: 'Compliance Tools',
+  items: ['AuditBoard'],
+}, () => Date.parse('2026-04-01T00:00:00.000Z'), random);
+const mergedGroups = mergeBook(mergeAddBase, mergeAddNewer, mergeAddRemote).additional[0];
+assert.equal(mergedGroups.groups[0].label, 'Compliance Tools');
+assert.equal(mergedGroups.label, 'Technical Skills');
+
 let logged = addEntries(addPosting(emptyStore(), { title: 'Open' }, clock), [
   { title: 'Led a walkthrough', kind: 'experience' },
 ], clock);
@@ -2539,6 +2675,14 @@ assert.match(appSource, /Delete from Resume basics too/);
 assert.match(appSource, /Replace Resume basics with this posting’s resume/);
 assert.match(appSource, /Restore previous basics/);
 assert.match(appSource, /Edit the Resume basics template here/);
+assert.match(appSource, /addResumeAdditionalGroup\(store, posting\?\.id, row\.id\)/);
+assert.match(appSource, /editResumeAdditionalRow\(store, posting\?\.id, row\.id/);
+const stampLabelSource = appSource.slice(appSource.indexOf('const stampLabel'), appSource.indexOf('label.addEventListener', appSource.indexOf('const stampLabel')));
+const stampGroupSource = appSource.slice(appSource.indexOf('const stampGroup'), appSource.indexOf('glabel.addEventListener'));
+assert.doesNotMatch(stampLabelSource, /render\(/);
+assert.doesNotMatch(stampGroupSource, /render\(/);
+assert.match(stampLabelSource, /scheduleResumePreview\(posting\)/);
+assert.match(stampGroupSource, /scheduleResumePreview\(posting\)/);
 assert.match(appSource, /basicsReplaceConfirm/);
 assert.match(appSource, /basicsRestoreConfirm/);
 const bookCss = readFileSync(new URL('../brag-book/app.css', import.meta.url), 'utf8');
