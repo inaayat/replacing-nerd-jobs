@@ -126,6 +126,7 @@ import {
   applyJobSetup,
   dismissJobSetup,
   resumeTakenEntryIds,
+  visibleResumeBullets,
   adoptCompiledJob,
   resumeBulletSpans,
   bulletFromLine,
@@ -155,7 +156,7 @@ import { renderResumeHtml, resumeDocument } from './resume-template.js';
 import { fitOnePage, dropOrderFromDoc, applyDroppedIds, droppedBulletLabels, fitStatusLine, PAGE_HEIGHT_PX } from './resume-fit.js';
 import { resumeDocxBlob } from './resume-docx.js';
 import { parseViewHash, viewHash, viewTitle } from './routes.js';
-import { bookPagePlan, experienceRowSpec, sharedBulletSpec, SHARED_BULLET_FIELDS, STAR_FIELDS, experienceAdderChrome, nextExperienceAdderOpen, resumeBulletArrows, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys } from './book-view.js';
+import { bookPagePlan, experienceRowSpec, sharedBulletSpec, SHARED_BULLET_FIELDS, STAR_FIELDS, experienceAdderChrome, nextExperienceAdderOpen, resumeBulletArrows, visibleNodes, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys } from './book-view.js';
 import {
   applyKnowledgeEnter,
   applyKnowledgeHeadingBreak,
@@ -2131,7 +2132,7 @@ function experienceAdder(job, req) {
     }
     if (event.key === 'Escape') hideMatches();
   });
-  wrap.append(
+  wrap.append(...visibleNodes(
     el('div', { class: 'table-add' }, [
       fresh,
       btn(chrome.addLabel, {
@@ -2146,7 +2147,7 @@ function experienceAdder(job, req) {
       showLine: false,
       onPatch: (patch) => { Object.assign(draft, patch); },
     }) : null,
-  );
+  ));
   return wrap;
 }
 
@@ -2709,7 +2710,7 @@ function libraryBulletPicker(posting, career, group) {
       list.hidden = false;
       return;
     }
-    const taken = resumeTakenEntryIds(store, posting || null);
+    const taken = resumeTakenEntryIds(store, posting || null, { includeExcluded: !posting });
     const linkedJobId = career.jobId && career.jobId !== career.id ? career.jobId : career.id;
     const choices = libraryBulletChoices(store, { query: q, takenIds: taken, jobId: linkedJobId });
     list.replaceChildren(...(choices.length
@@ -2833,7 +2834,7 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0, gro
         index: bulletIndex,
         length: group.bullets.length,
         ...(posting
-          ? resumeBulletArrows(bulletIndex, group.bullets.length)
+          ? resumeBulletArrows(bulletIndex, visibleResumeBullets(group.bullets).length)
           : {
             disableUp: bulletIndex <= 0 && groups.findIndex((item) => item.id === group.id) <= 0,
             disableDown: bulletIndex >= group.bullets.length - 1
@@ -3287,7 +3288,8 @@ function resumeJobEditor(posting, career) {
             },
           }) : null,
         ]),
-        ...group.bullets.map((bullet, bulletIndex) => resumeBulletEditor(posting, career, group, bullet, bulletIndex, groups)),
+        ...(posting ? visibleResumeBullets(group.bullets) : group.bullets)
+          .map((bullet, bulletIndex) => resumeBulletEditor(posting, career, group, bullet, bulletIndex, groups)),
         allowStructure ? el('div', { class: 'bb-add-row' }, [
           libraryBulletPicker(posting, career, group),
           addSubheadingButton(posting, career, { afterId: group.id }),

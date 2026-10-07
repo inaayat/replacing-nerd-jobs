@@ -125,6 +125,8 @@ import {
   updateEducationItem,
   libraryBulletChoices,
   placeLibraryBullet,
+  resumeTakenEntryIds,
+  visibleResumeBullets,
   writeBulletBackToSource,
   DEFAULT_SECTION_ORDER,
   compilePrep,
@@ -169,7 +171,7 @@ import {
   hostFromJobUrl,
 } from '../brag-book/engine.js';
 import { parseViewHash, viewHash, viewTitle, defaultView, logLayout, hideBookRail } from '../brag-book/routes.js';
-import { bookPagePlan, experienceRowSpec, sharedBulletSpec, SHARED_BULLET_FIELDS, STAR_FIELDS, experienceAdderChrome, nextExperienceAdderOpen, resumeBulletArrows, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys } from '../brag-book/book-view.js';
+import { bookPagePlan, experienceRowSpec, sharedBulletSpec, SHARED_BULLET_FIELDS, STAR_FIELDS, experienceAdderChrome, nextExperienceAdderOpen, resumeBulletArrows, visibleNodes, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys } from '../brag-book/book-view.js';
 import {
   applyKnowledgeEnter,
   applyKnowledgeHeadingBreak,
@@ -2479,6 +2481,9 @@ assert.match(appSource, /sharedBulletForm\(/);
 assert.match(appSource, /experienceAdderChrome\(/);
 assert.match(appSource, /nextExperienceAdderOpen\(/);
 assert.match(appSource, /resumeBulletArrows\(/);
+assert.match(appSource, /visibleNodes\(/);
+assert.match(appSource, /visibleResumeBullets\(/);
+assert.match(appSource, /includeExcluded: !posting/);
 assert.match(appSource, /chrome\.showForm/);
 assert.match(appSource, /saveSharedBullet/);
 assert.match(appSource, /SHARED_BULLET_FIELDS/);
@@ -2579,13 +2584,25 @@ assert.doesNotMatch(appSource, /Expand experience/);
 await renderBookPage('#kb');
 await renderBookPage('#knowledge');
 await renderBookPage('#experiences');
+const reqApp = await renderRequirementsPage();
+const reqHtml = nodeMarkup(reqApp);
+const reqText = reqApp.textContent;
+assert.match(reqText, /Need close experience/);
+assert.match(reqText, /Need a second row/);
+assert.match(reqText, /\+ New/);
+assert.equal(reqApp.querySelectorAll('.experience-add').length, 2);
+assert.equal(reqApp.querySelectorAll('.bb-shared-bullet').length, 0);
+assert.doesNotMatch(reqHtml, /null/);
+assert.doesNotMatch(reqHtml, /undefined/);
+assert.doesNotMatch(reqText, /null/);
+assert.doesNotMatch(reqText, /undefined/);
 const navHtml = readFileSync(new URL('../brag-book/index.html', import.meta.url), 'utf8');
 assert.match(navHtml, /Resume bullets/);
 assert.doesNotMatch(navHtml, />Experiences</);
 
 console.log('ok');
 
-function installBookDom(hash) {
+function installBookDom(hash, extras = {}) {
   class El {
     constructor(tag) {
       this.tagName = String(tag || '').toUpperCase();
@@ -2611,9 +2628,15 @@ function installBookDom(hash) {
     addEventListener() {}
     append(...nodes) {
       for (const node of nodes) {
-        if (node == null || node === false) continue;
-        node.parentNode = this;
-        this.children.push(node);
+        let child = node;
+        if (child == null || typeof child !== 'object') {
+          const text = new El('#text');
+          text.nodeType = 3;
+          text.nodeValue = String(child);
+          child = text;
+        }
+        child.parentNode = this;
+        this.children.push(child);
       }
     }
     appendChild(node) { this.append(node); return node; }
@@ -2731,7 +2754,7 @@ function installBookDom(hash) {
       },
     ],
     knowledge: [{ id: 'note_1', title: 'Neon notes', body: 'JWT lives in localStorage' }],
-    postings: [],
+    postings: extras.postings || [],
   }));
   globalThis.localStorage = {
     getItem: (key) => (mem.has(key) ? mem.get(key) : null),
@@ -2782,6 +2805,32 @@ async function renderBookPage(hash) {
     assert.equal(app.querySelector('#book-knowledge'), null);
   }
   assert.equal(app.querySelectorAll('[aria-label="Expand experience"]').length, 0);
+}
+
+function nodeMarkup(node) {
+  if (!node) return '';
+  if (node.nodeType === 3 || String(node.tagName || '').toLowerCase() === '#text') {
+    return node.nodeValue || '';
+  }
+  const name = String(node.tagName || 'div').toLowerCase();
+  return `<${name}>${(node.children || []).map(nodeMarkup).join('')}</${name}>`;
+}
+
+async function renderRequirementsPage() {
+  const { app } = installBookDom('#jobs/job_req_map', {
+    postings: [{
+      id: 'job_req_map',
+      title: 'Close role',
+      company: 'Acme',
+      requirements: [
+        { id: 'rq_one', text: 'Need close experience', bullets: [] },
+        { id: 'rq_two', text: 'Need a second row', bullets: [] },
+      ],
+    }],
+  });
+  const href = new URL('../brag-book/app.js?hash=%23jobs%2Fjob_req_map', import.meta.url);
+  await import(href);
+  return app;
 }
 
 const looseJobs = normalizeStore({
@@ -3230,6 +3279,14 @@ assert.deepEqual(resumeBulletArrows(0, 3), { disableUp: true, disableDown: false
 assert.deepEqual(resumeBulletArrows(1, 3), { disableUp: false, disableDown: false });
 assert.deepEqual(resumeBulletArrows(2, 3), { disableUp: false, disableDown: true });
 assert.deepEqual(resumeBulletArrows(0, 1), { disableUp: true, disableDown: true });
+assert.deepEqual(visibleNodes(
+  { id: 'keep' },
+  null,
+  undefined,
+  false,
+  { id: 'also' },
+), [{ id: 'keep' }, { id: 'also' }]);
+assert.deepEqual(visibleNodes(null, undefined), []);
 
 function compiledBulletIds(book, postingId, jobId) {
   const job = compileResumeDoc(postingById(book, postingId), book)
@@ -3369,3 +3426,114 @@ assert.deepEqual(compiledBulletLines(mappedReloaded, 'job_map_ord', 'rj_map_ord'
   'Mapped extra two unique',
   'Mapped extra one unique',
 ]);
+
+assert.deepEqual(visibleResumeBullets([
+  { id: 'a', included: true },
+  { id: 'b', included: false },
+  { id: 'c' },
+]), [{ id: 'a', included: true }, { id: 'c' }]);
+assert.deepEqual(visibleResumeBullets(null), []);
+
+let hideBook = addCareerJob(emptyStore(), {
+  id: 'rj_hide',
+  company: 'GoDaddy',
+  title: 'Manager',
+  onResume: true,
+  groups: [{
+    id: 'rg_hide',
+    heading: '',
+    bullets: [
+      { id: 'rb_hide_a', lead: 'Visible first', body: 'kept A', sourceEntryIds: ['en_hide_a'] },
+      { id: 'rb_hide_b', lead: 'Hidden middle', body: 'kept B', sourceEntryIds: ['en_hide_b'] },
+      { id: 'rb_hide_c', lead: 'Visible last', body: 'kept C', sourceEntryIds: ['en_hide_c'] },
+    ],
+  }],
+}, clock);
+hideBook = addEntry(hideBook, { id: 'en_hide_a', title: 'Visible first: kept A', jobId: 'rj_hide' }, clock);
+hideBook = addEntry(hideBook, { id: 'en_hide_b', title: 'Hidden middle: kept B', jobId: 'rj_hide' }, clock);
+hideBook = addEntry(hideBook, { id: 'en_hide_c', title: 'Visible last: kept C', jobId: 'rj_hide' }, clock);
+hideBook = addEntry(hideBook, { id: 'en_hide_other', title: 'Other library line', jobId: '' }, clock);
+hideBook = addPosting(hideBook, { id: 'job_hide', title: 'Hide posting' }, clock);
+hideBook = addPosting(hideBook, { id: 'job_hide_other', title: 'Other hide posting' }, clock);
+hideBook = updatePostingResume(hideBook, 'job_hide', {
+  includedJobIds: ['rj_hide'],
+  excludedBulletIds: ['rb_hide_b'],
+  overrides: {
+    rb_hide_a: { edited: true, lead: 'Visible first', body: 'posting-local A' },
+  },
+}, clock);
+const hideSnapshot = JSON.stringify(hideBook);
+const hideDoc = compileResumeDoc(postingById(hideBook, 'job_hide'), hideBook);
+assert.equal(JSON.stringify(hideBook), hideSnapshot);
+const hideGroup = hideDoc.sections.experience.jobs.find((job) => job.id === 'rj_hide').groups[0];
+assert.deepEqual(hideGroup.bullets.map((bullet) => bullet.id), ['rb_hide_a', 'rb_hide_b', 'rb_hide_c']);
+assert.deepEqual(visibleResumeBullets(hideGroup.bullets).map((bullet) => bullet.id), ['rb_hide_a', 'rb_hide_c']);
+assert.equal(hideGroup.bullets.find((bullet) => bullet.id === 'rb_hide_a').hasOverride, true);
+assert.equal(hideGroup.bullets.find((bullet) => bullet.id === 'rb_hide_a').body, 'posting-local A');
+assert.equal(resumeTakenEntryIds(hideBook, postingById(hideBook, 'job_hide')).includes('en_hide_b'), true);
+assert.equal(resumeTakenEntryIds(hideBook, postingById(hideBook, 'job_hide'), { includeExcluded: false }).includes('en_hide_b'), false);
+assert.equal(resumeTakenEntryIds(hideBook, postingById(hideBook, 'job_hide'), { includeExcluded: false }).includes('en_hide_a'), true);
+const hideChoices = libraryBulletChoices(hideBook, {
+  query: 'Hidden middle',
+  takenIds: resumeTakenEntryIds(hideBook, postingById(hideBook, 'job_hide'), { includeExcluded: false }),
+  jobId: 'rj_hide',
+});
+assert.equal(hideChoices.some((entry) => entry.id === 'en_hide_b'), true);
+assert.equal(libraryBulletChoices(hideBook, {
+  query: 'Other library',
+  takenIds: resumeTakenEntryIds(hideBook, postingById(hideBook, 'job_hide'), { includeExcluded: false }),
+}).some((entry) => entry.id === 'en_hide_other'), true);
+assert.equal(libraryBulletChoices(hideBook, {
+  query: 'Visible first',
+  takenIds: resumeTakenEntryIds(hideBook, postingById(hideBook, 'job_hide'), { includeExcluded: false }),
+}).some((entry) => entry.id === 'en_hide_a'), false);
+
+const hideCareerBefore = JSON.stringify(hideBook.jobs);
+const hideEntriesBefore = JSON.stringify(hideBook.entries);
+const hideOtherBefore = JSON.stringify(postingById(hideBook, 'job_hide_other').resume);
+const hideOverrideBefore = JSON.stringify(postingById(hideBook, 'job_hide').resume.overrides);
+hideBook = placeLibraryBullet(hideBook, {
+  postingId: 'job_hide',
+  jobId: 'rj_hide',
+  groupId: 'rg_hide',
+  entryId: 'en_hide_b',
+}, clock, random);
+assert.equal(postingById(hideBook, 'job_hide').resume.excludedBulletIds.includes('rb_hide_b'), false);
+assert.deepEqual(
+  compileResumeDoc(postingById(hideBook, 'job_hide'), hideBook)
+    .sections.experience.jobs.find((job) => job.id === 'rj_hide').groups[0].bullets.map((bullet) => bullet.id),
+  ['rb_hide_a', 'rb_hide_b', 'rb_hide_c']
+);
+assert.equal(JSON.stringify(hideBook.jobs), hideCareerBefore);
+assert.equal(JSON.stringify(hideBook.entries), hideEntriesBefore);
+assert.equal(JSON.stringify(postingById(hideBook, 'job_hide_other').resume), hideOtherBefore);
+assert.equal(JSON.stringify(postingById(hideBook, 'job_hide').resume.overrides), hideOverrideBefore);
+
+hideBook = updatePostingResume(hideBook, 'job_hide', { excludedBulletIds: ['rb_hide_b'] }, clock);
+const hideJob = hideBook.jobs.find((job) => job.id === 'rj_hide');
+assert.equal(stepResumeBullet(hideBook, 'job_hide', hideJob, 'rg_hide', 'rb_hide_a', -1, clock), hideBook);
+assert.equal(stepResumeBullet(hideBook, 'job_hide', hideJob, 'rg_hide', 'rb_hide_c', 1, clock), hideBook);
+hideBook = stepResumeBullet(hideBook, 'job_hide', hideJob, 'rg_hide', 'rb_hide_a', 1, clock);
+assert.deepEqual(
+  compileResumeDoc(postingById(hideBook, 'job_hide'), hideBook)
+    .sections.experience.jobs.find((job) => job.id === 'rj_hide').groups[0].bullets.map((bullet) => bullet.id),
+  ['rb_hide_c', 'rb_hide_b', 'rb_hide_a']
+);
+assert.deepEqual(
+  visibleResumeBullets(compileResumeDoc(postingById(hideBook, 'job_hide'), hideBook)
+    .sections.experience.jobs.find((job) => job.id === 'rj_hide').groups[0].bullets).map((bullet) => bullet.id),
+  ['rb_hide_c', 'rb_hide_a']
+);
+assert.deepEqual(resumeBulletArrows(0, 2), { disableUp: true, disableDown: false });
+assert.deepEqual(resumeBulletArrows(1, 2), { disableUp: false, disableDown: true });
+assert.equal(JSON.stringify(hideBook.jobs), hideCareerBefore);
+assert.equal(hideBook.entries.find((entry) => entry.id === 'en_hide_b').title, 'Hidden middle: kept B');
+assert.equal(postingById(hideBook, 'job_hide').resume.overrides.rb_hide_a.body, 'posting-local A');
+assert.deepEqual(postingById(hideBook, 'job_hide').resume.excludedBulletIds, ['rb_hide_b']);
+const hideReloaded = normalizeStore(JSON.parse(serializeBook(hideBook).json), clock);
+assert.deepEqual(postingById(hideReloaded, 'job_hide').resume.excludedBulletIds, ['rb_hide_b']);
+assert.deepEqual(
+  visibleResumeBullets(compileResumeDoc(postingById(hideReloaded, 'job_hide'), hideReloaded)
+    .sections.experience.jobs.find((job) => job.id === 'rj_hide').groups[0].bullets).map((bullet) => bullet.id),
+  ['rb_hide_c', 'rb_hide_a']
+);

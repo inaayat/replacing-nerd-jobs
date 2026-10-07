@@ -63,6 +63,7 @@ import {
   findLocalBullet,
   inferEntryJobId,
   insertJobOrder,
+  visibleResumeBullets,
 } from './resume-model.js';
 
 import { STARTER_RESUME_DOC } from './starter-resume.js';
@@ -112,6 +113,7 @@ export {
   insertKeyAfter,
   toggleId,
   findResumeBullet,
+  visibleResumeBullets,
   writeBulletBackToSource,
   patchResumeVariant,
   clearBulletOverride,
@@ -1093,11 +1095,36 @@ export function moveResumeBullet(store, postingId, career, fromGroupId, toGroupI
   }, clock);
 }
 
+function swapIds(ids, a, b) {
+  const next = Array.isArray(ids) ? ids.slice() : [];
+  const i = next.indexOf(a);
+  const j = next.indexOf(b);
+  if (i < 0 || j < 0 || i === j) return ids;
+  [next[i], next[j]] = [next[j], next[i]];
+  return next;
+}
+
 export function stepResumeBullet(store, postingId, career, groupId, bulletId, delta, clock = Date.now) {
   const compiled = compiledExperienceJob(store, postingId, career?.id);
-  const step = neighborGroupForBullet(compiled?.groups, groupId, bulletId, delta);
-  if (!step) return store;
-  return moveResumeBullet(store, postingId, career, step.fromGroupId, step.toGroupId, bulletId, { index: step.index }, clock);
+  if (!postingId) {
+    const step = neighborGroupForBullet(compiled?.groups, groupId, bulletId, delta);
+    if (!step) return store;
+    return moveResumeBullet(store, postingId, career, step.fromGroupId, step.toGroupId, bulletId, { index: step.index }, clock);
+  }
+  const group = (compiled?.groups || []).find((item) => item.id === groupId);
+  const visible = visibleResumeBullets(group?.bullets);
+  const at = visible.findIndex((bullet) => bullet.id === bulletId);
+  const other = at >= 0 ? visible[at + Number(delta || 0)] : null;
+  if (!other) return store;
+  const current = (group.bullets || []).map((bullet) => bullet.id);
+  const ids = swapIds(current, bulletId, other.id);
+  if (ids === current) return store;
+  return updatePostingResume(store, postingId, {
+    bulletOrder: {
+      ...(postingById(store, postingId)?.resume?.bulletOrder || {}),
+      [groupId]: ids,
+    },
+  }, clock);
 }
 
 export function movePostingLocalGroup(store, postingId, jobId, groupId, delta, clock = Date.now) {
@@ -1243,13 +1270,14 @@ export function seedStarterResume(store, clock = Date.now) {
   return applyImportedResume(store || emptyStore(), STARTER_RESUME_DOC, clock);
 }
 
-export function resumeTakenEntryIds(store, posting = null) {
+export function resumeTakenEntryIds(store, posting = null, { includeExcluded = true } = {}) {
   const doc = compileResumeDoc(posting, store);
   const ids = [];
   const plains = new Set();
   for (const job of doc?.sections?.experience?.jobs || []) {
     for (const group of job.groups || []) {
       for (const bullet of group.bullets || []) {
+        if (!includeExcluded && posting && bullet.included === false) continue;
         for (const id of bullet.sourceEntryIds || []) ids.push(id);
         const plain = resumePlain(bullet);
         if (plain) plains.add(plain);
@@ -1262,6 +1290,21 @@ export function resumeTakenEntryIds(store, posting = null) {
     if (plain && plains.has(plain)) ids.push(entry.id);
   }
   return ids;
+}
+
+function findCompiledBulletByEntry(store, posting, entryId) {
+  if (!entryId) return null;
+  const doc = compileResumeDoc(posting, store);
+  for (const job of doc?.sections?.experience?.jobs || []) {
+    for (const group of job.groups || []) {
+      for (const bullet of group.bullets || []) {
+        if ((bullet.sourceEntryIds || []).includes(entryId)) {
+          return { job, group, bullet };
+        }
+      }
+    }
+  }
+  return null;
 }
 
 export function libraryBulletChoices(store, { query = '', takenIds = [], limit = 8, jobId = '' } = {}) {
@@ -1293,6 +1336,14 @@ export function placeLibraryBullet(store, {
   const entry = entryById(store, entryId);
   if (!entry?.title || !jobId) return store;
   const posting = postingId ? postingById(store, postingId) : null;
+  if (posting) {
+    const existing = findCompiledBulletByEntry(store, posting, entry.id);
+    if (existing) {
+      if (existing.bullet.included !== false) return store;
+      const excluded = (posting.resume?.excludedBulletIds || []).filter((id) => id !== existing.bullet.id);
+      return updatePostingResume(store, postingId, { excludedBulletIds: excluded }, clock);
+    }
+  }
   if (resumeTakenEntryIds(store, posting).includes(entry.id)) return store;
   const fields = resumeFieldsFromExperience(entry.title, entry.rich);
   const draft = {
