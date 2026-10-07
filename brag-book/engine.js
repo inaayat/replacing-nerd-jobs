@@ -67,6 +67,7 @@ import {
   inferEntryJobId,
   insertJobOrder,
   visibleResumeBullets,
+  clearBulletOverride,
 } from './resume-model.js';
 
 import { STARTER_RESUME_DOC } from './starter-resume.js';
