@@ -120,6 +120,34 @@ export function visibleNodes(...nodes) {
   return nodes.filter((node) => node != null && node !== false);
 }
 
+export function resumeGroupHasName(group) {
+  return Boolean(String(group?.heading || '').trim());
+}
+
+export function resumeGroupChrome(groups, draftGroupId = '', posting = true) {
+  const list = Array.isArray(groups) ? groups : [];
+  const namedCount = list.filter(resumeGroupHasName).length;
+  const draftId = String(draftGroupId || '');
+  const hasDraft = Boolean(draftId && list.some((group) => group.id === draftId && !resumeGroupHasName(group)));
+  return {
+    namedCount,
+    hasDraft,
+    showUnder: Boolean(posting) && namedCount > 0,
+    showDefaultAdd: Boolean(posting) && namedCount === 0 && !hasDraft,
+    showHeading(group) {
+      if (!posting) return true;
+      if (resumeGroupHasName(group)) return true;
+      return Boolean(draftId && group?.id === draftId);
+    },
+    underLabel(group, index) {
+      const heading = String(group?.heading || '').trim();
+      if (heading) return heading;
+      if (!posting) return index === 0 ? 'Top of role' : `Untitled heading ${index + 1}`;
+      return 'No sub-heading';
+    },
+  };
+}
+
 export function experienceRowSpec(entry) {
   const spec = sharedBulletSpec(entry);
   return {

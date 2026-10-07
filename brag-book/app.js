@@ -63,6 +63,7 @@ import {
   moveResumeBullet,
   stepResumeBullet,
   addResumeGroup,
+  removeResumeGroup,
   moveResumeGroup,
   updatePostingLocalJob,
   deletePostingLocalJob,
@@ -156,7 +157,7 @@ import { renderResumeHtml, resumeDocument } from './resume-template.js';
 import { fitOnePage, dropOrderFromDoc, applyDroppedIds, droppedBulletLabels, fitStatusLine, PAGE_HEIGHT_PX } from './resume-fit.js';
 import { resumeDocxBlob } from './resume-docx.js';
 import { parseViewHash, viewHash, viewTitle } from './routes.js';
-import { bookPagePlan, experienceRowSpec, sharedBulletSpec, SHARED_BULLET_FIELDS, STAR_FIELDS, experienceAdderChrome, nextExperienceAdderOpen, resumeBulletArrows, visibleNodes, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys } from './book-view.js';
+import { bookPagePlan, experienceRowSpec, sharedBulletSpec, SHARED_BULLET_FIELDS, STAR_FIELDS, experienceAdderChrome, nextExperienceAdderOpen, resumeBulletArrows, resumeGroupChrome, visibleNodes, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys } from './book-view.js';
 import {
   applyKnowledgeEnter,
   applyKnowledgeHeadingBreak,
@@ -205,6 +206,7 @@ let knowledgeSaveState = null;
 let statusNote = '';
 let expandedBulletKey = '';
 let expandedAdderKey = '';
+let draftResumeGroupId = '';
 let collapsedResumeRoles = [];
 let pendingJobEntryId = '';
 let questionComposerKey = '';
@@ -2690,9 +2692,11 @@ function resumeMoveBtns(label, { index, length, onMove, disableUp, disableDown }
   ]);
 }
 
-function resumeGroupLabel(group, index) {
+function resumeGroupLabel(group, index, posting) {
   const heading = String(group?.heading || '').trim();
-  return heading || (index === 0 ? 'Top of role' : `Untitled heading ${index + 1}`);
+  if (heading) return heading;
+  if (posting) return 'No sub-heading';
+  return index === 0 ? 'Top of role' : `Untitled heading ${index + 1}`;
 }
 
 function libraryBulletPicker(posting, career, group) {
@@ -2746,11 +2750,12 @@ function libraryBulletPicker(posting, career, group) {
 }
 
 function addSubheadingButton(posting, career, { afterId } = {}) {
-  return btn(afterId ? '+ Sub-heading here' : '+ Add sub-heading', {
+  return btn(afterId ? '+ Sub-heading here' : '+ Sub-heading', {
     class: 'btn ghost compact-action',
     onClick: () => {
       const added = addResumeGroup(store, posting?.id || null, career, { afterId });
       store = added.store;
+      if (added.groupId) draftResumeGroupId = added.groupId;
       saveStore();
       render({ focusKey: added.groupId ? `rg-${added.groupId}-heading` : `rj-${career.id}-company` });
     },
@@ -2846,7 +2851,7 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0, gro
           render({ focusKey: `rb-${bullet.id}-line` });
         },
       }) : null,
-      canEdit && groups.length > 1 ? el('label', { class: 'bb-move-group' }, [
+      canEdit && groups.length > 1 && (!posting || resumeGroupChrome(groups, draftResumeGroupId, true).showUnder) ? el('label', { class: 'bb-move-group' }, [
         el('span', {}, 'Under'),
         el('select', {
           'aria-label': 'Move bullet to sub-heading',
@@ -2862,7 +2867,7 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0, gro
           el('option', {
             value: item.id,
             selected: item.id === group.id || undefined,
-          }, resumeGroupLabel(item, index))
+          }, resumeGroupLabel(item, index, posting))
         )),
       ]) : null,
       canEdit ? btn(localBullet || !posting ? 'Remove' : (bullet.included !== false ? 'Remove' : 'Delete'), {
@@ -3009,6 +3014,138 @@ function addRoleButton(posting, { afterId } = {}) {
     ...choices.map((job) => el('option', { value: job.id }, jobOptionLabel(job))),
     el('option', { value: '__new__' }, '+ New job'),
   ]);
+}
+
+function resumeGroupHeadingInput(posting, career, group, { shared, localOnly }) {
+  const heading = el('input', {
+    value: group.heading,
+    placeholder: 'Optional italic sub-heading',
+    'aria-label': 'Group heading',
+    'data-focus-key': `rg-${group.id}-heading`,
+  });
+  heading.addEventListener('input', () => {
+    if (posting && (localOnly || group.local)) {
+      const job = localJobById(livePosting(posting.id).resume, career.id);
+      const groupsNext = (job?.groups || career.groups).map((item) => (
+        item.id === group.id ? { ...item, heading: heading.value } : item
+      ));
+      store = updatePostingLocalJob(store, posting.id, career.id, { groups: groupsNext });
+    } else if (posting) {
+      store = updatePostingResume(store, posting.id, { groupHeadings: { [group.id]: heading.value } });
+    } else if (shared) {
+      store = updateCareerJob(store, career.id, {
+        groups: career.groups.map((item) => (item.id === group.id ? { ...item, heading: heading.value } : item)),
+      });
+    }
+    saveStore();
+    scheduleResumePreview(posting);
+  });
+  return heading;
+}
+
+function resumeJobGroupBlocks(posting, career, groups, { allowStructure, shared, localOnly }) {
+  const chrome = resumeGroupChrome(groups, draftResumeGroupId, Boolean(posting));
+  const paintBullets = (group) => (
+    (posting ? visibleResumeBullets(group.bullets) : group.bullets)
+      .map((bullet, bulletIndex) => resumeBulletEditor(posting, career, group, bullet, bulletIndex, groups))
+  );
+  const paintHeading = (group, groupIndex) => el('div', { class: 'bb-group-head' }, [
+    field('Sub-heading', resumeGroupHeadingInput(posting, career, group, { shared, localOnly })),
+    allowStructure ? resumeMoveBtns('sub-heading', {
+      index: groupIndex,
+      length: groups.length,
+      onMove: (delta) => {
+        store = moveResumeGroup(store, posting?.id || null, career.id, group.id, delta);
+        saveStore();
+        render({ focusKey: `rg-${group.id}-heading` });
+      },
+    }) : null,
+    allowStructure ? btn('Remove sub-heading', {
+      class: 'btn ghost compact-action is-danger',
+      onClick: () => {
+        if (posting) {
+          store = removeResumeGroup(store, posting.id, career, group.id);
+          if (draftResumeGroupId === group.id) draftResumeGroupId = '';
+          saveStore();
+          render();
+          return;
+        }
+        const n = (group.bullets || []).length;
+        if (groups.length === 1) {
+          if (n && !confirm('Clear this sub-heading? The bullets stay on the role.')) return;
+          store = updateCareerJob(store, career.id, {
+            groups: career.groups.map((item) => (item.id === group.id ? { ...item, heading: '' } : item)),
+          });
+          saveStore();
+          render();
+          return;
+        }
+        if (n && !confirm('Remove this sub-heading? Its bullets move onto the role above or below.')) return;
+        const sink = groups[groupIndex === 0 ? 1 : groupIndex - 1];
+        let next = store;
+        if (n && sink) {
+          next = updateCareerJob(next, career.id, {
+            groups: career.groups.map((item) => {
+              if (item.id === sink.id) return { ...item, bullets: [...item.bullets, ...group.bullets] };
+              if (item.id === group.id) return { ...item, bullets: [] };
+              return item;
+            }),
+          });
+        }
+        store = deleteCareerGroup(next, career.id, group.id);
+        saveStore();
+        render();
+      },
+    }) : null,
+  ]);
+
+  if (!posting) {
+    return [
+      ...groups.flatMap((group, groupIndex) => [
+        paintHeading(group, groupIndex),
+        ...paintBullets(group),
+        allowStructure ? el('div', { class: 'bb-add-row' }, [
+          libraryBulletPicker(posting, career, group),
+          addSubheadingButton(posting, career, { afterId: group.id }),
+        ]) : null,
+      ]),
+      allowStructure && !groups.length ? el('div', { class: 'bb-add-row' }, [
+        addSubheadingButton(posting, career),
+        libraryBulletPicker(posting, career, null),
+      ]) : null,
+    ];
+  }
+
+  const parts = [];
+  let unheaded = [];
+  const flushUnheaded = () => {
+    if (!unheaded.length) return;
+    for (const group of unheaded) parts.push(...paintBullets(group));
+    unheaded = [];
+  };
+  groups.forEach((group, groupIndex) => {
+    if (chrome.showHeading(group)) {
+      flushUnheaded();
+      parts.push(paintHeading(group, groupIndex));
+      parts.push(...paintBullets(group));
+      if (allowStructure) {
+        parts.push(el('div', { class: 'bb-add-row' }, [
+          libraryBulletPicker(posting, career, group),
+          addSubheadingButton(posting, career, { afterId: group.id }),
+        ]));
+      }
+      return;
+    }
+    unheaded.push(group);
+  });
+  flushUnheaded();
+  if (allowStructure && (chrome.showDefaultAdd || !groups.length)) {
+    parts.push(el('div', { class: 'bb-add-row' }, [
+      libraryBulletPicker(posting, career, groups[0] || null),
+      addSubheadingButton(posting, career),
+    ]));
+  }
+  return parts;
 }
 
 function resumeJobEditor(posting, career) {
@@ -3208,98 +3345,7 @@ function resumeJobEditor(posting, career) {
       ]),
       field('Location', location),
     ]),
-    ...groups.flatMap((group, groupIndex) => {
-      const heading = el('input', {
-        value: group.heading,
-        placeholder: 'Optional italic sub-heading',
-        'aria-label': 'Group heading',
-        'data-focus-key': `rg-${group.id}-heading`,
-      });
-      heading.addEventListener('input', () => {
-        if (posting && (localOnly || group.local)) {
-          const job = localJobById(livePosting(posting.id).resume, career.id);
-          const groupsNext = (job?.groups || career.groups).map((item) => (
-            item.id === group.id ? { ...item, heading: heading.value } : item
-          ));
-          store = updatePostingLocalJob(store, posting.id, career.id, { groups: groupsNext });
-        } else if (posting) {
-          store = updatePostingResume(store, posting.id, { groupHeadings: { [group.id]: heading.value } });
-        } else if (shared) {
-          store = updateCareerJob(store, career.id, {
-            groups: career.groups.map((item) => (item.id === group.id ? { ...item, heading: heading.value } : item)),
-          });
-        }
-        saveStore();
-        scheduleResumePreview(posting);
-      });
-      const localGroup = Boolean(group.local) || localOnly;
-      return [
-        el('div', { class: 'bb-group-head' }, [
-          field('Sub-heading', heading),
-          allowStructure ? resumeMoveBtns('sub-heading', {
-            index: groupIndex,
-            length: groups.length,
-            onMove: (delta) => {
-              store = moveResumeGroup(store, posting?.id || null, career.id, group.id, delta);
-              saveStore();
-              render({ focusKey: `rg-${group.id}-heading` });
-            },
-          }) : null,
-          allowStructure ? btn('Remove sub-heading', {
-            class: 'btn ghost compact-action is-danger',
-            onClick: () => {
-              if (posting && localGroup) {
-                store = deletePostingLocalGroup(store, posting.id, career.id, group.id);
-                saveStore();
-                render();
-                return;
-              }
-              if (posting) {
-                store = updatePostingResume(store, posting.id, { groupHeadings: { [group.id]: '' } });
-                saveStore();
-                render();
-                return;
-              }
-              const n = (group.bullets || []).length;
-              if (groups.length === 1) {
-                if (n && !confirm('Clear this sub-heading? The bullets stay on the role.')) return;
-                store = updateCareerJob(store, career.id, {
-                  groups: career.groups.map((item) => (item.id === group.id ? { ...item, heading: '' } : item)),
-                });
-                saveStore();
-                render();
-                return;
-              }
-              if (n && !confirm('Remove this sub-heading? Its bullets move onto the role above or below.')) return;
-              const sink = groups[groupIndex === 0 ? 1 : groupIndex - 1];
-              let next = store;
-              if (n && sink) {
-                next = updateCareerJob(next, career.id, {
-                  groups: career.groups.map((item) => {
-                    if (item.id === sink.id) return { ...item, bullets: [...item.bullets, ...group.bullets] };
-                    if (item.id === group.id) return { ...item, bullets: [] };
-                    return item;
-                  }),
-                });
-              }
-              store = deleteCareerGroup(next, career.id, group.id);
-              saveStore();
-              render();
-            },
-          }) : null,
-        ]),
-        ...(posting ? visibleResumeBullets(group.bullets) : group.bullets)
-          .map((bullet, bulletIndex) => resumeBulletEditor(posting, career, group, bullet, bulletIndex, groups)),
-        allowStructure ? el('div', { class: 'bb-add-row' }, [
-          libraryBulletPicker(posting, career, group),
-          addSubheadingButton(posting, career, { afterId: group.id }),
-        ]) : null,
-      ];
-    }),
-    allowStructure && !groups.length ? el('div', { class: 'bb-add-row' }, [
-      addSubheadingButton(posting, career),
-      libraryBulletPicker(posting, career, null),
-    ]) : null,
+    ...resumeJobGroupBlocks(posting, career, groups, { allowStructure, shared, localOnly }),
     ]),
   ]);
 }
