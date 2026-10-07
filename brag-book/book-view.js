@@ -15,6 +15,39 @@ export const STAR_FIELDS = [
   { key: 'result', label: 'Result' },
 ];
 
+export const SHARED_BULLET_FIELDS = [
+  { key: 'jobId', label: 'Job', kind: 'job' },
+  { key: 'title', label: 'Resume line', kind: 'rich' },
+  ...STAR_FIELDS.map((field) => ({ ...field, kind: 'star' })),
+  { key: 'notes', label: 'Notes', kind: 'notes' },
+];
+
+export function sharedBulletValues(entry) {
+  const row = entry || {};
+  return {
+    id: row.id || '',
+    jobId: row.jobId || '',
+    title: row.title || '',
+    rich: row.rich || null,
+    situation: row.situation || '',
+    task: row.task || '',
+    action: row.action || '',
+    result: row.result || '',
+    notes: row.notes || '',
+  };
+}
+
+export function sharedBulletSpec(entry) {
+  const values = sharedBulletValues(entry);
+  return {
+    ...values,
+    fields: SHARED_BULLET_FIELDS.map((field) => ({
+      ...field,
+      value: field.key === 'title' ? values.title : values[field.key] || '',
+    })),
+  };
+}
+
 export function homeStartCards() {
   return [
     { key: 'postings', view: { kind: 'jobs' } },
@@ -57,19 +90,19 @@ export function jobCatalogEditEffects(eventType) {
 }
 
 export function experienceRowSpec(entry) {
-  const row = entry || {};
+  const spec = sharedBulletSpec(entry);
   return {
-    id: row.id || '',
-    bullet: row.title || '',
+    id: spec.id,
+    bullet: spec.title,
     requiresInteraction: false,
-    controls: [
-      { key: 'jobId', label: 'Job', column: 'lead', kind: 'job', value: row.jobId || '' },
-      ...STAR_FIELDS.map((field) => ({
+    controls: spec.fields
+      .filter((field) => field.kind === 'job' || field.kind === 'star')
+      .map((field) => ({
         key: field.key,
         label: field.label,
-        column: 'star',
-        value: row[field.key] || '',
+        column: field.kind === 'job' ? 'lead' : 'star',
+        kind: field.kind === 'job' ? 'job' : undefined,
+        value: field.value,
       })),
-    ],
   };
 }

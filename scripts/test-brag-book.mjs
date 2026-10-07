@@ -148,6 +148,9 @@ import {
   isRoleHeaderToggleTarget,
   adoptCompiledJob,
   applyResumeBulletEdit,
+  createSharedBullet,
+  saveSharedBullet,
+  bulletConsistency,
   addResumeGroup,
   moveResumeGroup,
   moveResumeBullet,
@@ -156,6 +159,7 @@ import {
   moveAdditionalGroup,
   insertKeyAfter,
   bulletLineText,
+  ignoreBoldMarkers,
   resumeBulletSpans,
   bulletFromLine,
   markdownToSpans,
@@ -165,7 +169,7 @@ import {
   hostFromJobUrl,
 } from '../brag-book/engine.js';
 import { parseViewHash, viewHash, viewTitle, defaultView, logLayout, hideBookRail } from '../brag-book/routes.js';
-import { bookPagePlan, experienceRowSpec, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys } from '../brag-book/book-view.js';
+import { bookPagePlan, experienceRowSpec, sharedBulletSpec, SHARED_BULLET_FIELDS, STAR_FIELDS, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys } from '../brag-book/book-view.js';
 import {
   applyKnowledgeEnter,
   applyKnowledgeListMarker,
@@ -1049,11 +1053,11 @@ const previewDoc = compileResumeDoc(postingById(previewBook, previewPostingId), 
 const previewBullet = previewDoc.sections.experience.jobs
   .flatMap((job) => job.groups.flatMap((group) => group.bullets))
   .find((bullet) => bullet.id === 'rb_gov');
-assert.equal(bulletLineText(previewBullet), editedSentence);
-assert.equal(previewBullet.lead, '');
-assert.equal(previewBullet.body, editedSentence);
-assert.equal(previewBullet.hasOverride, true);
-assert.equal(postingById(previewBook, previewPostingId).resume.overrides.rb_gov.body, editedSentence);
+assert.equal(ignoreBoldMarkers(bulletLineText(previewBullet)), editedSentence);
+assert.match(previewBullet.lead, /Leading Enterprise AI Governance/);
+assert.match(previewBullet.body, /15\+ accounting evaluations/);
+assert.equal(previewBullet.hasOverride, false);
+assert.equal(previewBook.entries.find((entry) => entry.id === 'en_gov').title, editedSentence);
 const editedPreviewHtml = renderResumeHtml(previewDoc, { droppedBulletIds: [] });
 const previewLi = editedPreviewHtml.match(/<li[^>]*data-bullet-id="rb_gov"[^>]*>[\s\S]*?<\/li>/)?.[0] || '';
 assert.match(previewLi, /15\+ accounting evaluations/);
@@ -1089,7 +1093,7 @@ const plainBook = applyResumeBulletEdit(addCareerJob(addEntry(emptyStore(), {
 }, clock);
 const plainDoc = compileResumeDoc(null, plainBook);
 const plainBullet = plainDoc.sections.experience.jobs[0].groups[0].bullets[0];
-assert.equal(bulletLineText(plainBullet), editedSentence);
+assert.equal(ignoreBoldMarkers(bulletLineText(plainBullet)), editedSentence);
 const plainHtml = renderResumeHtml(plainDoc, { droppedBulletIds: [] });
 assert.match(plainHtml, /15\+ accounting evaluations/);
 assert.doesNotMatch(plainHtml, /\*\*/);
@@ -2350,6 +2354,10 @@ const engineImport = appSource.slice(0, appSource.indexOf("from './engine.js'"))
 assert.match(engineImport, /\bsearchKnowledge\b/);
 assert.match(appSource, /bookPagePlan\(view\)/);
 assert.match(appSource, /experienceRowSpec\(/);
+assert.match(appSource, /sharedBulletForm\(/);
+assert.match(appSource, /saveSharedBullet/);
+assert.match(appSource, /SHARED_BULLET_FIELDS/);
+assert.doesNotMatch(appSource, /function experienceEditor[\s\S]*aria-label': 'Role'/);
 assert.match(appSource, /homeStartCards\(/);
 assert.match(appSource, /Resume bullets & knowledge/);
 assert.doesNotMatch(appSource, /Experiences & knowledge/);
@@ -2934,3 +2942,133 @@ assert.ok(freshMapped.postings[0].resume.includedJobIds.includes('rj_fresh_on'))
 assert.equal(freshAdded.sections.experience.jobs.some((job) => job.id === 'rj_fresh_on'), true);
 assert.equal(freshAdded.sections.experience.jobs.find((job) => job.id === 'rj_fresh_on').company, 'Basics Co');
 assert.equal(freshAdded.sections.credentials.items.length, 0);
+
+assert.deepEqual(SHARED_BULLET_FIELDS.map((field) => field.key), [
+  'jobId', 'title', 'situation', 'task', 'action', 'result', 'notes',
+]);
+assert.deepEqual(STAR_FIELDS.map((field) => field.key), ['situation', 'task', 'action', 'result']);
+const sharedSpec = sharedBulletSpec({
+  id: 'en_form',
+  title: 'Shared line',
+  jobId: 'rj_form',
+  situation: 'S',
+  task: 'T',
+  action: 'A',
+  result: 'R',
+  notes: 'N',
+});
+assert.equal(sharedSpec.fields.length, SHARED_BULLET_FIELDS.length);
+assert.equal(sharedSpec.fields.find((field) => field.key === 'jobId').value, 'rj_form');
+
+let oneRecord = addCareerJob(emptyStore(), {
+  id: 'rj_shared',
+  company: 'Acme',
+  title: 'Analyst',
+  onResume: true,
+  groups: [{
+    id: 'rg_shared',
+    heading: '',
+    bullets: [{ id: 'rb_shared', lead: 'Closed', body: 'the books', sourceEntryIds: ['en_shared'] }],
+  }],
+}, clock);
+oneRecord = addEntry(oneRecord, {
+  id: 'en_shared',
+  title: 'Closed: the books',
+  company: 'Acme',
+  role: 'Analyst',
+  jobId: 'rj_shared',
+}, clock);
+oneRecord = addPosting(oneRecord, { id: 'job_shared', title: 'Shared posting' }, clock);
+oneRecord = addPosting(oneRecord, { id: 'job_other', title: 'Other posting' }, clock);
+oneRecord = addRequirement(oneRecord, 'job_shared', 'Close', clock);
+oneRecord = addRequirement(oneRecord, 'job_other', 'Close', clock);
+oneRecord = addEntryBullet(
+  oneRecord,
+  'job_shared',
+  oneRecord.postings.find((posting) => posting.id === 'job_shared').requirements[0].id,
+  'en_shared',
+  '',
+  clock,
+);
+oneRecord = addEntryBullet(
+  oneRecord,
+  'job_other',
+  oneRecord.postings.find((posting) => posting.id === 'job_other').requirements[0].id,
+  'en_shared',
+  '',
+  clock,
+);
+assert.equal(bulletConsistency(oneRecord).length, 0);
+
+oneRecord = applyResumeBulletEdit(oneRecord, {
+  postingId: 'job_shared',
+  jobId: 'rj_shared',
+  groupId: 'rg_shared',
+  bullet: { id: 'rb_shared', sourceEntryIds: ['en_shared'] },
+  spans: [{ text: 'Closed: the month in two days', bold: false }],
+}, clock);
+assert.equal(oneRecord.entries.find((entry) => entry.id === 'en_shared').title, 'Closed: the month in two days');
+assert.equal(oneRecord.postings.find((posting) => posting.id === 'job_shared').resume.overrides?.rb_shared, undefined);
+const oneRecordDoc = compileResumeDoc(postingById(oneRecord, 'job_shared'), oneRecord);
+const oneOtherDoc = compileResumeDoc(postingById(oneRecord, 'job_other'), oneRecord);
+const oneBasicsDoc = compileResumeDoc(null, oneRecord);
+assert.ok(`${oneRecordDoc.sections.experience.jobs[0].groups[0].bullets[0].lead} ${oneRecordDoc.sections.experience.jobs[0].groups[0].bullets[0].body}`.includes('the month'));
+assert.ok(oneOtherDoc.sections.experience.jobs[0].groups.flatMap((group) => group.bullets).some((bullet) => `${bullet.lead} ${bullet.body}`.includes('the month')));
+assert.ok(oneBasicsDoc.sections.experience.jobs[0].groups.flatMap((group) => group.bullets).some((bullet) => `${bullet.lead} ${bullet.body}`.includes('the month')));
+assert.equal(oneRecordDoc.sections.experience.jobs[0].groups[0].bullets[0].hasOverride, false);
+assert.equal(bulletConsistency(oneRecord).length, 0);
+
+oneRecord = updatePostingResume(oneRecord, 'job_shared', {
+  overrides: { rb_shared: { lead: 'Local', body: 'only here', edited: true } },
+}, clock);
+const oneLocalDoc = compileResumeDoc(postingById(oneRecord, 'job_shared'), oneRecord);
+assert.equal(oneLocalDoc.sections.experience.jobs[0].groups[0].bullets[0].hasOverride, true);
+assert.ok(`${oneLocalDoc.sections.experience.jobs[0].groups[0].bullets[0].lead} ${oneLocalDoc.sections.experience.jobs[0].groups[0].bullets[0].body}`.includes('only here'));
+assert.equal(oneRecord.entries.find((entry) => entry.id === 'en_shared').title, 'Closed: the month in two days');
+assert.equal(bulletConsistency(oneRecord).some((issue) => issue.bulletId === 'rb_shared'), false);
+
+const drifted = {
+  ...oneRecord,
+  entries: oneRecord.entries.map((entry) => (
+    entry.id === 'en_shared' ? { ...entry, title: 'Library moved on' } : entry
+  )),
+  postings: oneRecord.postings.map((posting) => ({
+    ...posting,
+    requirements: (posting.requirements || []).map((req) => ({
+      ...req,
+      bullets: (req.bullets || []).map((line) => (
+        line.entryId === 'en_shared' ? { ...line, text: 'Stale requirement copy' } : line
+      )),
+    })),
+  })),
+};
+assert.ok(bulletConsistency(drifted).some((issue) => issue.kind === 'requirement' && issue.entryId === 'en_shared'));
+
+let linkedPick = createSharedBullet(emptyStore(), {
+  title: 'Picked a job on create',
+  jobId: 'missing',
+}, clock);
+assert.equal(linkedPick.store.entries[0].jobId, '');
+linkedPick = addCareerJob(emptyStore(), { id: 'rj_pick_job', company: 'Beta', title: 'Designer', onResume: false }, clock);
+linkedPick = createSharedBullet(linkedPick, {
+  title: 'Picked a job on create',
+  jobId: 'rj_pick_job',
+  situation: 'The board was empty.',
+}, clock).store;
+assert.equal(linkedPick.entries[0].jobId, 'rj_pick_job');
+assert.equal(linkedPick.entries[0].company, 'Beta');
+assert.equal(linkedPick.entries[0].role, 'Designer');
+assert.equal(linkedPick.entries[0].situation, 'The board was empty.');
+linkedPick = saveSharedBullet(linkedPick, linkedPick.entries[0].id, { jobId: '', result: 'Linked everywhere.' }, clock);
+assert.equal(linkedPick.entries[0].jobId, '');
+assert.equal(linkedPick.entries[0].result, 'Linked everywhere.');
+linkedPick = saveSharedBullet(linkedPick, linkedPick.entries[0].id, { jobId: 'rj_pick_job' }, clock);
+assert.equal(linkedPick.entries[0].jobId, 'rj_pick_job');
+
+let bulkJob = addCareerJob(emptyStore(), { id: 'rj_bulk', company: 'Bulk Co', title: 'Lead' }, clock);
+bulkJob = addEntries(bulkJob, [
+  { title: 'First pasted line', jobId: 'rj_bulk' },
+  { title: 'Second pasted line', jobId: 'rj_bulk' },
+], clock);
+assert.equal(bulkJob.entries.length, 2);
+assert.ok(bulkJob.entries.every((entry) => entry.jobId === 'rj_bulk' && entry.company === 'Bulk Co'));

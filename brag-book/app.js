@@ -131,6 +131,8 @@ import {
   bulletFromLine,
   spansToMarkdown,
   applyResumeBulletEdit,
+  createSharedBullet,
+  saveSharedBullet,
   DEFAULT_SECTION_ORDER,
   compilePrep,
   prepCoverage,
@@ -153,7 +155,7 @@ import { renderResumeHtml, resumeDocument } from './resume-template.js';
 import { fitOnePage, dropOrderFromDoc, applyDroppedIds, droppedBulletLabels, fitStatusLine, PAGE_HEIGHT_PX } from './resume-fit.js';
 import { resumeDocxBlob } from './resume-docx.js';
 import { parseViewHash, viewHash, viewTitle } from './routes.js';
-import { bookPagePlan, experienceRowSpec, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys } from './book-view.js';
+import { bookPagePlan, experienceRowSpec, sharedBulletSpec, SHARED_BULLET_FIELDS, STAR_FIELDS, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys } from './book-view.js';
 import {
   applyKnowledgeEnter,
   applyKnowledgeListMarker,
@@ -957,30 +959,33 @@ function jobOptionLabel(job) {
   return [job.company, job.title].filter(Boolean).join(' · ') || 'Untitled job';
 }
 
-function experienceJobSelect(entry) {
-  const pending = pendingJobEntryId === entry.id;
+function sharedJobSelect({
+  jobId = '',
+  focusKey,
+  pendingKey = '',
+  onChange,
+} = {}) {
+  const pending = pendingJobEntryId === pendingKey && pendingKey;
   const select = el('select', {
     class: 'bb-job-select',
     'aria-label': 'Job',
-    value: pending ? '__new__' : (entry.jobId || ''),
-    'data-focus-key': `exp-jobId-${entry.id}`,
+    value: pending ? '__new__' : (jobId || ''),
+    'data-focus-key': focusKey,
     onChange: (event) => {
       const value = event.target.value;
       if (value === '__new__') {
-        pendingJobEntryId = entry.id;
-        render({ focusKey: `exp-new-company-${entry.id}` });
+        pendingJobEntryId = pendingKey || '__draft__';
+        render({ focusKey: `${focusKey}-company` });
         return;
       }
-      pendingJobEntryId = pendingJobEntryId === entry.id ? '' : pendingJobEntryId;
-      store = assignEntryJob(store, entry.id, value);
-      saveStore();
-      render({ focusKey: `exp-jobId-${entry.id}` });
+      pendingJobEntryId = pendingJobEntryId === pendingKey ? '' : pendingJobEntryId;
+      onChange(value);
     },
   }, [
-    el('option', { value: '', selected: !entry.jobId || undefined }, 'Unassigned'),
+    el('option', { value: '', selected: !jobId || undefined }, 'Unassigned'),
     ...store.jobs.map((job) => el('option', {
       value: job.id,
-      selected: entry.jobId === job.id || undefined,
+      selected: jobId === job.id || undefined,
     }, jobOptionLabel(job))),
     el('option', { value: '__new__' }, '+ New job'),
   ]);
@@ -989,13 +994,13 @@ function experienceJobSelect(entry) {
     class: 'bb-cell-input',
     placeholder: 'Company',
     'aria-label': 'New job company',
-    'data-focus-key': `exp-new-company-${entry.id}`,
+    'data-focus-key': `${focusKey}-company`,
   });
   const title = el('input', {
     class: 'bb-cell-input',
     placeholder: 'Title',
     'aria-label': 'New job title',
-    'data-focus-key': `exp-new-title-${entry.id}`,
+    'data-focus-key': `${focusKey}-title`,
   });
   return el('div', { class: 'bb-new-job' }, [
     select,
@@ -1009,12 +1014,80 @@ function experienceJobSelect(entry) {
         if (!companyName && !titleName) return;
         store = addCareerJob(store, { company: companyName, title: titleName, onResume: false });
         const added = store.jobs[store.jobs.length - 1];
-        if (added) store = assignEntryJob(store, entry.id, added.id);
         pendingJobEntryId = '';
-        saveStore();
-        render({ focusKey: `exp-jobId-${entry.id}` });
+        if (added) onChange(added.id);
+        else render();
       },
     }),
+  ]);
+}
+
+function experienceJobSelect(entry) {
+  return sharedJobSelect({
+    jobId: entry.jobId || '',
+    focusKey: `exp-jobId-${entry.id}`,
+    pendingKey: entry.id,
+    onChange: (value) => {
+      store = saveSharedBullet(store, entry.id, { jobId: value });
+      saveStore();
+      render({ focusKey: `exp-jobId-${entry.id}` });
+    },
+  });
+}
+
+function sharedBulletForm(entry, {
+  focusPrefix,
+  showLine = false,
+  showNotes = true,
+  onPatch,
+} = {}) {
+  const spec = sharedBulletSpec(entry);
+  const prefix = focusPrefix || `exp-${spec.id || 'draft'}`;
+  const patch = (partial) => onPatch(partial);
+  const star = STAR_FIELDS.map((item) => {
+    const area = el('textarea', {
+      class: 'bb-inline-area',
+      rows: '2',
+      'aria-label': item.label,
+      placeholder: item.label,
+      'data-focus-key': `${prefix}-${item.key}`,
+      onInput: (event) => patch({ [item.key]: event.target.value }),
+    }, spec[item.key] || '');
+    fitArea(area);
+    return field(item.label, area);
+  });
+  const notes = showNotes ? el('textarea', {
+    class: 'bb-inline-area',
+    rows: '2',
+    'aria-label': 'Notes',
+    placeholder: 'Extra color, links, or a longer version.',
+    'data-focus-key': `${prefix}-notes`,
+    onInput: (event) => patch({ notes: event.target.value }),
+  }, spec.notes || '') : null;
+  if (notes) fitArea(notes);
+  const line = showLine ? richLine({
+    class: 'experience-compose bb-exp-line',
+    'aria-label': 'Resume line',
+    'data-focus-key': `${prefix}-title`,
+  }, {
+    text: spec.title,
+    rich: spec.rich,
+    onChange: (spans) => {
+      const text = spans.map((span) => span.text).join('');
+      if (!text.trim()) return;
+      patch({ title: text, rich: spans });
+    },
+  }) : null;
+  return el('div', { class: 'bb-shared-bullet' }, [
+    line,
+    field('Job', sharedJobSelect({
+      jobId: spec.jobId,
+      focusKey: `${prefix}-jobId`,
+      pendingKey: spec.id || prefix,
+      onChange: (value) => patch({ jobId: value }),
+    })),
+    el('div', { class: 'experience-star' }, star),
+    notes ? field('Notes', notes) : null,
   ]);
 }
 
@@ -1079,8 +1152,9 @@ function bulkEntryForm({ compact = false } = {}) {
     placeholder: 'One resume bullet per line, or a STAR block:\n\n- Led **3** associates on access reviews\n- Shipped packing cubes sync\n\nTitle: Multiplexed the API\nSituation: Twelve functions already used.\nTask: Add another signed-in app.\nAction: Branched ?route= on the existing handler.\nResult: Stayed on Hobby.',
     'data-focus-key': 'book-paste',
   });
+  const draft = {};
   const addToBook = () => {
-    const drafts = parseExperiences(paste.value);
+    const drafts = parseExperiences(paste.value).map((item) => ({ ...item, ...draft }));
     if (!drafts.length) {
       setNote('Paste at least one resume bullet — one per line, or a STAR block.');
       return;
@@ -1094,13 +1168,18 @@ function bulkEntryForm({ compact = false } = {}) {
     el('div', { class: 'panel-head' }, [
       el('div', {}, [
         el('h2', {}, 'Add resume bullets'),
-        el('p', { class: 'tiny' }, 'Paste many at once. **bold** is kept. The list stays in view.'),
+        el('p', { class: 'tiny' }, 'Paste many at once. **bold** is kept. Pick a job and STAR here — every line uses the same shared form.'),
       ]),
     ]),
     el('div', { class: 'panel-body' }, [
       compact
         ? null
         : el('p', { class: 'lede' }, 'Dump resume lines. Each line becomes a TL;DR a posting can reuse. Use **this** for bold.'),
+      sharedBulletForm(draft, {
+        focusPrefix: 'book-bulk',
+        showLine: false,
+        onPatch: (patch) => { Object.assign(draft, patch); },
+      }),
       field('Paste resume bullets', paste),
       el('div', { class: 'actions' }, [
         btn('Add to the book', {
@@ -1818,59 +1897,45 @@ function requirementQuestions(job, req) {
 function experienceEditor(job, req, bullet) {
   const entry = bulletEntry(store, bullet);
   const detail = entry || bullet;
-  const role = entry ? el('input', {
-    value: entry.role || '',
-    placeholder: 'Product engineer, Beep boop',
-    'aria-label': 'Role',
-  }) : null;
-  const notes = el('textarea', {
-    rows: '3',
-    placeholder: 'Context, scope, metrics, links, or a longer description.',
-    'aria-label': 'Description',
-  }, detail.notes);
-  notes.value = detail.notes;
-  const fields = {
-    situation: el('textarea', { rows: '2', placeholder: 'What was going on?', 'aria-label': 'Situation' }, detail.situation),
-    task: el('textarea', { rows: '2', placeholder: 'What were you responsible for?', 'aria-label': 'Task' }, detail.task),
-    action: el('textarea', { rows: '2', placeholder: 'What did you do?', 'aria-label': 'Action' }, detail.action),
-    result: el('textarea', { rows: '2', placeholder: 'What changed? Add numbers when you can.', 'aria-label': 'Result' }, detail.result),
-  };
-  const save = () => {
-    const patch = {
-      notes: notes.value,
-      situation: fields.situation.value,
-      task: fields.task.value,
-      action: fields.action.value,
-      result: fields.result.value,
-    };
-    if (entry) store = updateEntry(store, entry.id, { ...patch, role: role.value });
-    else if (!entry) store = updateBullet(store, job.id, req.id, bullet.id, patch);
+  const commit = (patch) => {
+    if (entry) {
+      store = saveSharedBullet(store, entry.id, patch);
+    } else {
+      const created = createSharedBullet(store, {
+        title: bullet.text,
+        rich: bullet.rich,
+        notes: bullet.notes,
+        situation: bullet.situation,
+        task: bullet.task,
+        action: bullet.action,
+        result: bullet.result,
+        ...patch,
+      });
+      store = created.store;
+      if (created.entryId) {
+        store = updateBullet(store, job.id, req.id, bullet.id, { entryId: created.entryId, text: bullet.text, rich: bullet.rich });
+      }
+    }
     saveStore();
   };
-  [notes, ...Object.values(fields), role].filter(Boolean).forEach((node) => {
-    node.addEventListener('input', save);
-  });
   return el('div', { class: 'experience-editor' }, [
     el('div', { class: 'experience-editor-head' }, [
       el('div', {}, [
         el('strong', {}, entry ? 'Shared experience' : 'Experience details'),
         el('p', { class: 'tiny' }, entry
-          ? 'STAR and notes update everywhere this experience is used.'
-          : 'This older experience is saved only on this requirement.'),
+          ? 'Job, STAR, and notes update everywhere this resume bullet is used.'
+          : 'This older line is saved only on this requirement.'),
       ]),
       btn('Close', {
         class: 'btn ghost compact-action',
         onClick: () => { expandedBulletKey = ''; render(); },
       }),
     ]),
-    entry ? field('Role', role) : null,
-    field('Description', notes),
-    el('div', { class: 'experience-star' }, [
-      ['situation', 'Situation'],
-      ['task', 'Task'],
-      ['action', 'Action'],
-      ['result', 'Result'],
-    ].map(([key, label]) => field(label, fields[key]))),
+    sharedBulletForm(detail, {
+      focusPrefix: `req-${bullet.id}`,
+      showLine: false,
+      onPatch: commit,
+    }),
     el('div', { class: 'actions experience-actions' }, [
       btn('Remove here', {
         class: 'btn ghost',
@@ -1909,6 +1974,7 @@ function experienceEditor(job, req, bullet) {
 
 function experienceAdder(job, req) {
   const wrap = el('div', { class: 'experience-add' });
+  const draft = {};
   const fresh = richLine({
     class: 'experience-compose',
     'data-placeholder': 'Search experiences, or type a new one',
@@ -1948,7 +2014,7 @@ function experienceAdder(job, req) {
       addExisting(exact);
       return;
     }
-    store = createEntryBullet(store, job.id, req.id, text, undefined, spans);
+    store = createEntryBullet(store, job.id, req.id, text, undefined, spans, draft);
     saveStore();
     render({ focusKey: `add-exp-${req.id}` });
     setNote('Added the experience here and to the Brag Book.');
@@ -2016,6 +2082,11 @@ function experienceAdder(job, req) {
       btn('+ New', { class: 'btn ghost', onClick: addNew }),
     ]),
     matches,
+    sharedBulletForm(draft, {
+      focusPrefix: `add-${req.id}`,
+      showLine: false,
+      onPatch: (patch) => { Object.assign(draft, patch); },
+    }),
   );
   return wrap;
 }
@@ -2767,6 +2838,37 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0, gro
         },
       }),
     ]),
+    canEdit ? sharedBulletForm(
+      store.entries.find((item) => item.id === (bullet.sourceEntryIds || [])[0])
+        || { jobId: career.jobId && career.jobId !== career.id ? career.jobId : career.id },
+      {
+        focusPrefix: `rb-${bullet.id}`,
+        showLine: false,
+        onPatch: (patch) => {
+          const entryId = (bullet.sourceEntryIds || [])[0];
+          if (entryId) {
+            store = saveSharedBullet(store, entryId, patch);
+          } else {
+            store = adoptCompiledJob(store, posting?.id || null, career);
+            const adoptedLocal = Boolean(posting && localJobById(livePosting(posting.id)?.resume, career.id) && !isSharedJob(career.id));
+            store = applyResumeBulletEdit(store, {
+              postingId: posting?.id || null,
+              jobId: career.id,
+              groupId: group.id,
+              bullet,
+              spans: readRich(line),
+              local: localBullet || adoptedLocal,
+            });
+            const linkedId = compileResumeDoc(posting || null, store).sections.experience.jobs
+              .flatMap((job) => (job.groups || []).flatMap((item) => item.bullets || []))
+              .find((item) => item.id === bullet.id)?.sourceEntryIds?.[0];
+            if (linkedId) store = saveSharedBullet(store, linkedId, patch);
+          }
+          saveStore();
+          scheduleResumePreview(posting);
+        },
+      },
+    ) : null,
     posting ? el('div', { class: 'actions' }, [
       btn('Reset to source', {
         class: 'btn ghost compact-action',
