@@ -230,7 +230,7 @@ resume line keeps its bullet on the left and a Job dropdown (or Unassigned)
 on that column; Situation, Task, Action, and Result stay visible beside it.
 Jobs are one list — company, title, dates, and location — and Set up your
 jobs only writes after you confirm a merge.
-Knowledge pages are a centered sheet — headings, bold, italics, and bullets — saved as you type. Paste keeps markdown and sanitized Docs or Word formatting. Search uses the plain text, and older plain notes still open.
+Knowledge pages are a white sheet that fills the tan editor — headings, bold, italics, and bullets — saved as you type. Paste keeps markdown and sanitized Docs or Word formatting. Search uses the plain text, and older plain notes still open.
 
 Signing in is required — the signed-out view is a centered log-in gate. One
 JSONB row per user (`brag_books`) via `api/brag-book.js` (`/api/bb-book`).
