@@ -89,6 +89,7 @@ export function emptyResumeVariant() {
     pinnedBulletIds: [],
     jobOrder: [],
     bulletOrder: {},
+    bulletGroup: {},
     groupOrder: {},
     groupHeadings: {},
     jobTitles: {},
@@ -190,6 +191,18 @@ function normalizeBulletOrder(raw) {
   return out;
 }
 
+function normalizeBulletGroup(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const out = {};
+  for (const [id, value] of Object.entries(raw)) {
+    const key = asString(id, ID_MAX);
+    const groupId = asString(value, ID_MAX);
+    if (!key || !groupId) continue;
+    out[key] = groupId;
+  }
+  return out;
+}
+
 export function normalizeResumeVariant(raw) {
   const base = emptyResumeVariant();
   if (!raw || typeof raw !== 'object') return base;
@@ -209,6 +222,7 @@ export function normalizeResumeVariant(raw) {
     pinnedBulletIds: asIdList(raw.pinnedBulletIds),
     jobOrder: asIdList(raw.jobOrder),
     bulletOrder: normalizeBulletOrder(raw.bulletOrder),
+    bulletGroup: normalizeBulletGroup(raw.bulletGroup),
     groupOrder: normalizeBulletOrder(raw.groupOrder),
     groupHeadings: normalizeGroupHeadings(raw.groupHeadings),
     jobTitles: normalizeGroupHeadings(raw.jobTitles),
@@ -609,6 +623,29 @@ function reorder(list, order) {
     out.push(item);
   }
   return out;
+}
+
+function applyVariantBulletGroups(jobs, variant) {
+  const map = variant?.bulletGroup || {};
+  if (!Object.keys(map).length) return jobs;
+  return (jobs || []).map((job) => {
+    const groups = (job.groups || []).map((group) => ({
+      ...group,
+      bullets: (group.bullets || []).slice(),
+    }));
+    const byId = new Map(groups.map((group) => [group.id, group]));
+    const moving = [];
+    for (const group of groups) {
+      group.bullets = group.bullets.filter((bullet) => {
+        const destId = map[bullet.id];
+        if (!destId || destId === group.id || !byId.has(destId)) return true;
+        moving.push({ bullet, destId });
+        return false;
+      });
+    }
+    for (const { bullet, destId } of moving) byId.get(destId).bullets.push(bullet);
+    return { ...job, groups };
+  });
 }
 
 function applyVariantBulletOrder(jobs, variant) {
@@ -1142,6 +1179,7 @@ export function compileResumeDoc(posting, store) {
     jobs = mergeLocalJobs(jobsFromCareer(store, variant, posting, { pinnedOnly: true }), variant, store);
     jobs = mergePostingBullets(jobs, posting, store);
     jobs = projectEntryLines(jobs, store);
+    jobs = applyVariantBulletGroups(jobs, variant);
     jobs = applyVariantBulletOrder(jobs, variant);
     jobs = reorder(jobs, variant.jobOrder);
     credentials = normalizeCredentials(variant.localCredentials);
@@ -1151,6 +1189,7 @@ export function compileResumeDoc(posting, store) {
     jobs = mergeLocalJobs(jobsFromCareer(store, variant, posting), variant, store);
     jobs = mergePostingBullets(jobs, posting, store);
     jobs = projectEntryLines(jobs, store);
+    jobs = applyVariantBulletGroups(jobs, variant);
     jobs = applyVariantBulletOrder(jobs, variant);
     jobs = reorder(jobs, variant.jobOrder);
     credentials = omitHiddenRows(
@@ -1793,6 +1832,7 @@ export function patchResumeVariant(current, patch) {
     next.jobTitles = jobTitles;
   }
   if (patch && patch.bulletOrder) next.bulletOrder = { ...base.bulletOrder, ...patch.bulletOrder };
+  if (patch && patch.bulletGroup) next.bulletGroup = { ...base.bulletGroup, ...patch.bulletGroup };
   if (patch && patch.groupOrder) next.groupOrder = { ...base.groupOrder, ...patch.groupOrder };
   return normalizeResumeVariant(next);
 }

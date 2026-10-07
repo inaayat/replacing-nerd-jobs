@@ -105,12 +105,14 @@ export function nextExperienceAdderOpen(action, wasOpen = false) {
   return Boolean(wasOpen);
 }
 
-export function resumeBulletArrows(index, length) {
+export function resumeBulletArrows(index, length, { groupIndex = 0, groupCount = 1 } = {}) {
   const i = Number(index) || 0;
   const n = Number(length) || 0;
+  const gi = Number(groupIndex) || 0;
+  const gc = Number(groupCount) || 0;
   return {
-    disableUp: n <= 0 || i <= 0,
-    disableDown: n <= 0 || i >= n - 1,
+    disableUp: n <= 0 || (i <= 0 && gi <= 0),
+    disableDown: n <= 0 || (i >= n - 1 && gi >= Math.max(gc, 1) - 1),
   };
 }
 

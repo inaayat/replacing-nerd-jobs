@@ -2839,7 +2839,10 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0, gro
         index: bulletIndex,
         length: group.bullets.length,
         ...(posting
-          ? resumeBulletArrows(bulletIndex, visibleResumeBullets(group.bullets).length)
+          ? resumeBulletArrows(bulletIndex, visibleResumeBullets(group.bullets).length, {
+            groupIndex: groups.findIndex((item) => item.id === group.id),
+            groupCount: groups.length,
+          })
           : {
             disableUp: bulletIndex <= 0 && groups.findIndex((item) => item.id === group.id) <= 0,
             disableDown: bulletIndex >= group.bullets.length - 1
