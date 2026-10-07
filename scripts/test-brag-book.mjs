@@ -98,6 +98,8 @@ import {
   parseBulletText,
   toggleId,
   clearBulletOverride,
+  clearJobTitle,
+  updateCareerJob,
   writeBulletBackToSource,
   DEFAULT_SECTION_ORDER,
   compilePrep,
@@ -129,6 +131,7 @@ import {
   moveAdditionalGroup,
   insertKeyAfter,
   bulletLineText,
+  resumeBulletSpans,
   bulletFromLine,
   markdownToSpans,
   spansToMarkdown,
@@ -547,7 +550,7 @@ forked = addCareerJob(forked, {
   }],
 }, clock);
 forked = updatePostingResume(forked, forkJob, {
-  overrides: { [forkBulletId]: { lead: 'Resume only', body: 'a tailored fork that must stay' } },
+  overrides: { [forkBulletId]: { lead: 'Resume only', body: 'a tailored fork that must stay', edited: true } },
 }, clock);
 forked = updateBullet(forked, forkJob, forkReq, forked.postings[0].requirements[0].bullets[0].id, 'Shared lead in: the posting changed', clock);
 const forkDoc = compileResumeDoc(forked.postings[0], forked);
@@ -759,7 +762,7 @@ seeded = updatePostingResume(seeded, seedJobId, {
   excludedBulletIds: ['b_pwc_risk'],
   showCredentials: false,
   sectionOrder: ['education', 'experience', 'additional', 'credentials'],
-  overrides: { b_pwc_rfp: { lead: 'Won new work', body: 'Closed **$5.8M**.' } },
+  overrides: { b_pwc_rfp: { lead: 'Won new work', body: 'Closed **$5.8M**.', edited: true } },
 }, clock);
 const tailored = compileResumeDoc(postingById(seeded, seedJobId), seeded);
 assert.equal(tailored.sectionOrder[0], 'education');
@@ -781,7 +784,7 @@ const resetBullet = resetDoc.sections.experience.jobs[0].groups.flatMap((g) => g
 assert.equal(resetBullet.lead, sourceLead);
 assert.equal(resetBullet.hasOverride, false);
 
-seeded = updatePostingResume(seeded, seedJobId, { overrides: { b_pwc_rfp: { lead: 'Saved back', body: 'Wrote it down.' } } }, clock);
+seeded = updatePostingResume(seeded, seedJobId, { overrides: { b_pwc_rfp: { lead: 'Saved back', body: 'Wrote it down.', edited: true } } }, clock);
 const live = compileResumeDoc(postingById(seeded, seedJobId), seeded).sections.experience.jobs[0].groups
   .flatMap((g) => g.bullets).find((b) => b.id === 'b_pwc_rfp');
 seeded = writeBulletBackToSource(seeded, seedJobId, live);
@@ -1023,7 +1026,7 @@ assert.doesNotMatch(previewLi, /\*\*/);
 assert.doesNotMatch(previewLi, /stakeholder/);
 assert.doesNotMatch(previewLi, /Finance/);
 assert.doesNotMatch(previewLi, /<b>[^<]*15\+/);
-assert.doesNotMatch(previewLi, /<b>Leading Enterprise AI Governance Maturity Assessment/);
+assert.match(previewLi, /<b>Leading Enterprise AI Governance Maturity Assessment:<\/b>/);
 
 const plainBook = applyResumeBulletEdit(addCareerJob(addEntry(emptyStore(), {
   id: 'en_plain',
@@ -1056,7 +1059,172 @@ const plainHtml = renderResumeHtml(plainDoc, { droppedBulletIds: [] });
 assert.match(plainHtml, /15\+ accounting evaluations/);
 assert.doesNotMatch(plainHtml, /\*\*/);
 assert.doesNotMatch(plainHtml, /stakeholder/);
-assert.doesNotMatch(plainHtml, /<b>Leading Enterprise AI Governance Maturity Assessment/);
+assert.match(plainHtml, /<b>Leading Enterprise AI Governance Maturity Assessment:<\/b>/);
+
+const libraryLine = 'Built Team Capacity-Planning Platform: Created a GitHub-hosted live view that consolidates multiple Jira instances.';
+let libraryBook = addPosting(emptyStore(), { title: 'Library wins' }, clock);
+const libraryPostingId = libraryBook.postings[0].id;
+libraryBook = addEntry(libraryBook, { id: 'en_live', title: libraryLine, kind: 'experience' }, clock);
+libraryBook = addCareerJob(libraryBook, {
+  id: 'rj_live',
+  company: 'GoDaddy',
+  title: 'Manager',
+  groups: [{
+    id: 'rg_live',
+    bullets: [{
+      id: 'rb_live',
+      lead: 'Built Team Capacity-Planning Platform',
+      body: '** Created a GitHub-hosted live view that consolidates c**ases.',
+      sourceEntryIds: ['en_live'],
+    }],
+  }],
+}, clock);
+libraryBook = updatePostingResume(libraryBook, libraryPostingId, {
+  overrides: {
+    rb_live: {
+      lead: 'Built Team Capacity-Planning Platform',
+      body: '** Created a GitHub-hosted live view that consolidates c**ases and auto**mated exports.',
+    },
+  },
+}, clock);
+const libraryDoc = compileResumeDoc(postingById(libraryBook, libraryPostingId), libraryBook);
+const libraryBullet = libraryDoc.sections.experience.jobs
+  .flatMap((job) => job.groups.flatMap((group) => group.bullets))
+  .find((bullet) => bullet.id === 'rb_live');
+assert.equal(libraryBullet.hasOverride, false);
+assert.equal(libraryBullet.lead, 'Built Team Capacity-Planning Platform');
+assert.match(libraryBullet.body, /Created a GitHub-hosted live view/);
+assert.doesNotMatch(`${libraryBullet.lead} ${libraryBullet.body}`, /c\*\*|auto\*\*|\*\* Created/);
+const librarySpans = resumeBulletSpans(libraryBullet);
+assert.equal(librarySpans.map((span) => span.text).join(''), libraryLine);
+assert.equal(librarySpans[0].bold, true);
+assert.equal(librarySpans.slice(1).some((span) => span.bold), false);
+const libraryHtml = renderResumeHtml(libraryDoc, { droppedBulletIds: [] });
+assert.match(libraryHtml, /<b>Built Team Capacity-Planning Platform:<\/b> Created a GitHub-hosted live view/);
+assert.doesNotMatch(libraryHtml, /\*\*/);
+assert.doesNotMatch(libraryHtml, /automated exports/);
+libraryBook = updatePostingResume(libraryBook, libraryPostingId, {
+  overrides: {
+    rb_live: { lead: 'Posting title', body: 'Tailored only on this posting.', edited: true },
+  },
+}, clock);
+const tailoredDoc = compileResumeDoc(postingById(libraryBook, libraryPostingId), libraryBook);
+const tailoredBullet = tailoredDoc.sections.experience.jobs
+  .flatMap((job) => job.groups.flatMap((group) => group.bullets))
+  .find((bullet) => bullet.id === 'rb_live');
+assert.equal(tailoredBullet.hasOverride, true);
+assert.equal(tailoredBullet.lead, 'Posting title');
+assert.match(renderResumeHtml(tailoredDoc), /Tailored only on this posting/);
+libraryBook = replacePostingResume(
+  libraryBook,
+  libraryPostingId,
+  clearBulletOverride(postingById(libraryBook, libraryPostingId).resume, 'rb_live'),
+);
+const resetLibrary = compileResumeDoc(postingById(libraryBook, libraryPostingId), libraryBook);
+const resetLibraryBullet = resetLibrary.sections.experience.jobs
+  .flatMap((job) => job.groups.flatMap((group) => group.bullets))
+  .find((bullet) => bullet.id === 'rb_live');
+assert.equal(resetLibraryBullet.hasOverride, false);
+assert.match(renderResumeHtml(resetLibrary), /Created a GitHub-hosted live view/);
+assert.doesNotMatch(renderResumeHtml(resetLibrary), /Tailored only on this posting/);
+assert.equal(postingById(libraryBook, libraryPostingId).resume.overrides.rb_live, undefined);
+
+let titleBook = addCareerJob(emptyStore(), { id: 'rj_title', company: 'GoDaddy', title: 'Manager | Risk' }, clock);
+titleBook = addPosting(titleBook, { id: 'job_tailor', title: 'Tailor me' }, clock);
+titleBook = addPosting(titleBook, { id: 'job_other', title: 'Other' }, clock);
+titleBook = updatePostingResume(titleBook, 'job_tailor', {
+  jobTitles: { rj_title: 'Senior Manager | Finance' },
+}, clock);
+const tailoredJob = compileResumeDoc(postingById(titleBook, 'job_tailor'), titleBook)
+  .sections.experience.jobs.find((job) => job.id === 'rj_title');
+assert.equal(tailoredJob.title, 'Senior Manager | Finance');
+assert.equal(tailoredJob.company, 'GoDaddy');
+assert.equal(tailoredJob.originalTitle, 'Manager | Risk');
+assert.equal(tailoredJob.titleTailored, true);
+assert.equal(titleBook.jobs.find((job) => job.id === 'rj_title').title, 'Manager | Risk');
+assert.equal(titleBook.jobs.find((job) => job.id === 'rj_title').company, 'GoDaddy');
+assert.equal(postingById(titleBook, 'job_tailor').resume.jobTitles.rj_title, 'Senior Manager | Finance');
+const otherJob = compileResumeDoc(postingById(titleBook, 'job_other'), titleBook)
+  .sections.experience.jobs.find((job) => job.id === 'rj_title');
+assert.equal(otherJob.title, 'Manager | Risk');
+assert.equal(otherJob.company, 'GoDaddy');
+assert.equal(otherJob.titleTailored, false);
+const basicsJob = compileResumeDoc(null, titleBook).sections.experience.jobs
+  .find((job) => job.id === 'rj_title');
+assert.equal(basicsJob.title, 'Manager | Risk');
+assert.equal(basicsJob.titleTailored, false);
+const titleHtml = renderResumeHtml(compileResumeDoc(postingById(titleBook, 'job_tailor'), titleBook), { droppedBulletIds: [] });
+assert.match(titleHtml, /Senior Manager \| Finance/);
+assert.match(titleHtml, /GoDaddy/);
+assert.doesNotMatch(titleHtml, /Manager \| Risk/);
+titleBook = updateCareerJob(titleBook, 'rj_title', { company: 'GoDaddy Inc.' }, clock);
+const afterCompany = compileResumeDoc(postingById(titleBook, 'job_tailor'), titleBook)
+  .sections.experience.jobs.find((job) => job.id === 'rj_title');
+assert.equal(afterCompany.company, 'GoDaddy Inc.');
+assert.equal(afterCompany.title, 'Senior Manager | Finance');
+assert.equal(afterCompany.titleTailored, true);
+assert.equal(compileResumeDoc(postingById(titleBook, 'job_other'), titleBook)
+  .sections.experience.jobs.find((job) => job.id === 'rj_title').title, 'Manager | Risk');
+titleBook = replacePostingResume(
+  titleBook,
+  'job_tailor',
+  clearJobTitle(postingById(titleBook, 'job_tailor').resume, 'rj_title'),
+  clock,
+);
+const resetTitle = compileResumeDoc(postingById(titleBook, 'job_tailor'), titleBook)
+  .sections.experience.jobs.find((job) => job.id === 'rj_title');
+assert.equal(resetTitle.title, 'Manager | Risk');
+assert.equal(resetTitle.company, 'GoDaddy Inc.');
+assert.equal(resetTitle.titleTailored, false);
+assert.equal(postingById(titleBook, 'job_tailor').resume.jobTitles.rj_title, undefined);
+assert.equal(titleBook.jobs.find((job) => job.id === 'rj_title').title, 'Manager | Risk');
+
+const strayBullet = {
+  lead: 'Migration of Manual Journal Prep',
+  body: 'Created auto**mated journals, ** Created a review, closed c**ases annually**, and gener**al controls.',
+};
+const strayHtml = renderResumeHtml({
+  header: { name: 'Ada' },
+  sectionOrder: ['experience'],
+  sections: {
+    experience: {
+      title: 'Work Experience',
+      jobs: [{
+        id: 'job_stray',
+        company: 'GoDaddy',
+        title: 'Manager',
+        included: true,
+        groups: [{ bullets: [{ id: 'b_stray', ...strayBullet, included: true }] }],
+      }],
+    },
+  },
+}, { droppedBulletIds: [] });
+assert.match(strayHtml, /<b>Migration of Manual Journal Prep:<\/b> Created automated journals, Created a review, closed cases annually, and general controls\./);
+assert.doesNotMatch(strayHtml, /\*\*/);
+assert.doesNotMatch(strayHtml, /<b>[^<]*automated/);
+const strayDocx = new TextDecoder().decode(resumeDocxBytes({
+  header: { name: 'Ada' },
+  sectionOrder: ['experience'],
+  sections: {
+    experience: {
+      title: 'Work Experience',
+      jobs: [{
+        id: 'job_stray',
+        company: 'GoDaddy',
+        title: 'Manager',
+        included: true,
+        groups: [{ bullets: [{ id: 'b_stray', ...strayBullet, included: true }] }],
+      }],
+    },
+  },
+}));
+assert.match(strayDocx, /Created automated journals, Created a review, closed cases annually, and general controls\./);
+assert.doesNotMatch(strayDocx, /\*\*/);
+const strayLeadRun = strayDocx.match(/<w:rPr>(?:(?!<\/w:rPr>)[\s\S])*?<\/w:rPr><w:t[^>]*>Migration of Manual Journal Prep:<\/w:t>/);
+assert.match(strayLeadRun[0], /<w:b\/>/);
+const strayBodyRun = strayDocx.match(/<w:rPr>(?:(?!<\/w:rPr>)[\s\S])*?<\/w:rPr><w:t[^>]*>Created automated journals/);
+assert.ok(strayBodyRun);
+assert.doesNotMatch(strayBodyRun[0], /<w:b\/>/);
 
 const bytes = resumeDocxBytes(resumeDoc);
 assert.equal(bytes[0], 0x50);
@@ -1695,6 +1863,8 @@ assert.match(engineImport, /\bsearchKnowledge\b/);
 assert.match(appSource, /bookPagePlan\(view\)/);
 assert.match(appSource, /experienceRowSpec\(/);
 assert.match(appSource, /homeStartCards\(/);
+assert.match(appSource, /tailored for this posting/);
+assert.match(appSource, /Reset to job title/);
 assert.doesNotMatch(appSource, /experienceIsOpen/);
 assert.doesNotMatch(appSource, /toggleExperience/);
 assert.doesNotMatch(appSource, /Expand experience/);

@@ -3,6 +3,8 @@
  * Preview and print/PDF share this renderer.
  */
 
+import { resumeBulletParts } from './resume-model.js';
+
 export const TOKENS = {
   page: { width: '8.5in', height: '11in', margin: '0.5in' },
   font: { family: "Cambria, Caladea, 'Times New Roman', serif", body: 10, name: 14, contact: 11, section: 10.5 },
@@ -22,9 +24,12 @@ export function esc(s) {
   }[c]));
 }
 
-/** Only **bold** is allowed inline; everything else is escaped. */
+/**
+ * Resume text is escaped. ** markers are ignored: they do not become bold
+ * and they are not printed.
+ */
 export function inline(s) {
-  return esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  return esc(String(s ?? '').replace(/\*\*/g, '').replace(/[^\S\n]{2,}/g, ' '));
 }
 
 function lr(left, right, cls = '') {
@@ -45,8 +50,9 @@ const SECTIONS = {
       if (!bullets.length) return '';
       const heading = group.heading ? `<div class="subhead">${esc(group.heading)}</div>` : '';
       const items = bullets.map((b) => {
-        const lead = b.lead ? `<b>${inline(b.lead)}:</b> ` : '';
-        return `<li data-bullet-id="${esc(b.id)}" data-job-id="${esc(job.id)}" data-priority="${b.priority ?? 1}" data-pinned="${b.pinned ? '1' : '0'}">${lead}${inline(b.body)}</li>`;
+        const parts = resumeBulletParts(b);
+        const lead = parts.lead ? `<b>${esc(parts.lead)}:</b> ` : '';
+        return `<li data-bullet-id="${esc(b.id)}" data-job-id="${esc(job.id)}" data-priority="${b.priority ?? 1}" data-pinned="${b.pinned ? '1' : '0'}">${lead}${esc(parts.body)}</li>`;
       }).join('');
       return `${heading}<ul>${items}</ul>`;
     }).join('');

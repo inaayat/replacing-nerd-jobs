@@ -86,6 +86,9 @@ export {
   boldMetrics,
   bulletPlainText,
   bulletLineText,
+  ignoreBoldMarkers,
+  resumeBulletParts,
+  resumeBulletSpans,
   bulletFromLine,
   markdownToSpans,
   spansToMarkdown,
@@ -102,6 +105,7 @@ export {
   writeBulletBackToSource,
   patchResumeVariant,
   clearBulletOverride,
+  clearJobTitle,
   findLocalBullet,
   localJobById,
   insertJobOrder,
@@ -1168,11 +1172,9 @@ export function updateCareerJob(store, id, patch, clock = Date.now) {
   return { ...store, jobs };
 }
 
-// The resume editor and the preview must show the same line. Experience
-// updates run first: they can drop an override that still matches the old
-// source. The editor line is written onto the career or local bullet, then
-// onto this posting's wording override so compile uses that text instead of
-// a leftover override or a re-parsed experience line.
+// An edit on this posting's resume is the only wording override compile will
+// apply. The experience update runs first. edited: true marks that override
+// so an imported or copied override cannot keep hiding the library line.
 export function applyResumeBulletEdit(store, {
   postingId = null,
   jobId,
@@ -1211,7 +1213,7 @@ export function applyResumeBulletEdit(store, {
   }
   if (postingId) {
     nextStore = updatePostingResume(nextStore, postingId, {
-      overrides: { [bullet.id]: next },
+      overrides: { [bullet.id]: { ...next, edited: true } },
     }, clock);
   }
   return nextStore;

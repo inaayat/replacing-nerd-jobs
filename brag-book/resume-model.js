@@ -87,6 +87,7 @@ export function emptyResumeVariant() {
     bulletOrder: {},
     groupOrder: {},
     groupHeadings: {},
+    jobTitles: {},
     overrides: {},
     localJobs: [],
     localEducation: [],
@@ -156,6 +157,9 @@ function normalizeOverrides(raw) {
     out[key] = {};
     if (lead != null) out[key].lead = lead;
     if (body != null) out[key].body = body;
+    // Set only when the user edits the bullet on this posting. Import copies
+    // and other stored overrides stay unmarked so they cannot hide the library.
+    if (value.edited === true) out[key].edited = true;
   }
   return out;
 }
@@ -199,6 +203,7 @@ export function normalizeResumeVariant(raw) {
     bulletOrder: normalizeBulletOrder(raw.bulletOrder),
     groupOrder: normalizeBulletOrder(raw.groupOrder),
     groupHeadings: normalizeGroupHeadings(raw.groupHeadings),
+    jobTitles: normalizeGroupHeadings(raw.jobTitles),
     overrides: normalizeOverrides(raw.overrides),
     localJobs: normalizeCareerJobs(raw.localJobs),
     localEducation: normalizeEducation(raw.localEducation),
@@ -487,6 +492,43 @@ export function bulletLineText(bullet) {
   return body;
 }
 
+/** Drop ** markers. They are not shown and do not toggle bold. */
+export function ignoreBoldMarkers(text) {
+  return String(text ?? '')
+    .replace(/\*\*/g, '')
+    .replace(/[^\S\n]{2,}/g, ' ')
+    .trim();
+}
+
+/**
+ * Resume display: the title is the text before the first colon, and it is the
+ * only bold. Stray ** markers are removed before that split.
+ */
+export function resumeBulletParts(bullet) {
+  let lead = ignoreBoldMarkers(asString(bullet?.lead, LEAD_MAX));
+  let body = ignoreBoldMarkers(asString(bullet?.body, BODY_MAX));
+  if (!lead) {
+    const colon = body.indexOf(':');
+    if (colon > 0 && colon <= 80) {
+      lead = body.slice(0, colon).trim();
+      body = body.slice(colon + 1).trim();
+    }
+  }
+  return { lead, body };
+}
+
+export function resumeBulletSpans(bullet) {
+  const { lead, body } = resumeBulletParts(bullet);
+  if (lead && body) {
+    return [
+      { text: `${lead}:`, bold: true },
+      { text: ` ${body}`, bold: false },
+    ];
+  }
+  if (lead) return [{ text: lead, bold: true }];
+  return [{ text: body, bold: false }];
+}
+
 export function bulletFromLine(text) {
   return { lead: '', body: asString(text, TEXT_MAX) };
 }
@@ -572,15 +614,19 @@ function applyBulletVariant(bullet, jobId, variant) {
   const over = variant.overrides?.[bullet.id] || {};
   const excludedJob = variant.excludedJobIds.includes(jobId);
   const excludedBullet = variant.excludedBulletIds.includes(bullet.id);
+  // A stored override is the posting's wording only after an edit on this
+  // resume. An import or copied override is left in place for Reset, and the
+  // linked library line is what compile shows.
+  const applied = over.edited === true && (over.lead != null || over.body != null);
   return {
     ...bullet,
     originalLead: bullet.lead,
     originalBody: bullet.body,
-    lead: over.lead != null ? over.lead : bullet.lead,
-    body: over.body != null ? over.body : bullet.body,
+    lead: applied && over.lead != null ? over.lead : bullet.lead,
+    body: applied && over.body != null ? over.body : bullet.body,
     pinned: Boolean(bullet.pinned || variant.pinnedBulletIds.includes(bullet.id)),
     included: !excludedJob && !excludedBullet,
-    hasOverride: over.lead != null || over.body != null,
+    hasOverride: applied,
   };
 }
 
@@ -595,8 +641,12 @@ function decorateJob(job, variant, { local = false } = {}) {
     }));
     return { ...group, heading, bullets, local: Boolean(group.local || local) };
   });
+  const titleTailored = Object.prototype.hasOwnProperty.call(variant.jobTitles || {}, job.id);
   return {
     ...job,
+    title: titleTailored ? variant.jobTitles[job.id] : job.title,
+    originalTitle: job.title,
+    titleTailored,
     included: !variant.excludedJobIds.includes(job.id),
     local: Boolean(local),
     groups: reorder(groups, variant.groupOrder?.[job.id]),
@@ -1637,8 +1687,24 @@ export function patchResumeVariant(current, patch) {
   const next = { ...base, ...patch };
   if (patch && patch.overrides) next.overrides = { ...base.overrides, ...patch.overrides };
   if (patch && patch.groupHeadings) next.groupHeadings = { ...base.groupHeadings, ...patch.groupHeadings };
+  if (patch && patch.jobTitles) {
+    const jobTitles = { ...base.jobTitles };
+    for (const [id, value] of Object.entries(patch.jobTitles)) {
+      if (value == null) delete jobTitles[id];
+      else jobTitles[id] = value;
+    }
+    next.jobTitles = jobTitles;
+  }
   if (patch && patch.bulletOrder) next.bulletOrder = { ...base.bulletOrder, ...patch.bulletOrder };
   if (patch && patch.groupOrder) next.groupOrder = { ...base.groupOrder, ...patch.groupOrder };
+  return normalizeResumeVariant(next);
+}
+
+export function clearJobTitle(variant, jobId) {
+  const next = normalizeResumeVariant(variant);
+  const jobTitles = { ...next.jobTitles };
+  delete jobTitles[jobId];
+  next.jobTitles = jobTitles;
   return normalizeResumeVariant(next);
 }
 

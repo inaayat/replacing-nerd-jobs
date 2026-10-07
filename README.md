@@ -194,7 +194,10 @@ is a side-by-side editor: structured jobs, bullets (bold lead + body),
 include/exclude, pin, and section order on the left; a live one-page
 classic-serif preview (Cambria/Caladea) on the right. The preview renders the
 bullet text currently in the editor, so an edit replaces older wording on
-that bullet. Fit tightens spacing and will not shrink below 9.5pt, then hides
+that bullet. Stray ** markers are ignored: only the title before the first
+colon is bold in the editor, the preview, and Word/PDF. A bullet linked to a
+library entry shows that entry’s current text. A per-posting override applies
+only after an edit on that resume; Reset to source clears it. On a posting, the role title can be tailored for that posting only; the company stays on the shared job, and the editor shows “tailored for this posting” with Reset to job title. Fit tightens spacing and will not shrink below 9.5pt, then hides
 included bullets that are not pinned.
 A pinned bullet stays. If those pins still run past one page, the status and
 the preview say so and name any bullets that were hidden. Print/PDF uses that preview; **Download Word** writes a

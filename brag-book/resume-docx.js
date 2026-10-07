@@ -3,6 +3,8 @@
  * Uncompressed zip writer, same approach as takeout/workbook.js.
  */
 
+import { resumeBulletParts } from './resume-model.js';
+
 const CRC_TABLE = new Uint32Array(256);
 for (let i = 0; i < 256; i += 1) {
   let c = i;
@@ -101,17 +103,6 @@ function run(text, opts) {
   return `<w:r>${rPr(opts)}${t(text)}</w:r>`;
 }
 
-function inlineRuns(text, base = {}) {
-  const raw = String(text ?? '');
-  if (!raw) return '';
-  const parts = raw.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((part) => {
-    const m = part.match(/^\*\*([^*]+)\*\*$/);
-    if (m) return run(m[1], { ...base, bold: true });
-    return run(part, base);
-  }).join('');
-}
-
 function p(inner, extraPr = '') {
   return `<w:p><w:pPr>${extraPr}</w:pPr>${inner}</w:p>`;
 }
@@ -162,9 +153,10 @@ function experienceXml(section, dropped, bodyPt, bulletLine) {
         ? p(run(group.heading, { italic: true, pt: bodyPt }), '<w:spacing w:before="180" w:after="0"/>')
         : '';
       const items = bullets.map((b) => {
-        const lead = b.lead ? run(`${b.lead}:`, { bold: true, pt: bodyPt }) : '';
-        const space = b.lead ? run(' ', { pt: bodyPt }) : '';
-        return bulletP(`${lead}${space}${inlineRuns(b.body, { pt: bodyPt })}`, bulletLine);
+        const parts = resumeBulletParts(b);
+        const lead = parts.lead ? run(`${parts.lead}:`, { bold: true, pt: bodyPt }) : '';
+        const space = parts.lead && parts.body ? run(' ', { pt: bodyPt }) : '';
+        return bulletP(`${lead}${space}${run(parts.body, { pt: bodyPt })}`, bulletLine);
       });
       return heading + items.join('');
     });

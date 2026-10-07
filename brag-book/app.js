@@ -112,10 +112,10 @@ import {
   toggleId,
   writeBulletBackToSource,
   clearBulletOverride,
+  clearJobTitle,
   adoptCompiledJob,
-  bulletLineText,
+  resumeBulletSpans,
   bulletFromLine,
-  markdownToSpans,
   spansToMarkdown,
   applyResumeBulletEdit,
   DEFAULT_SECTION_ORDER,
@@ -2253,7 +2253,8 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0, gro
   const shared = isSharedJob(career.id);
   const localBullet = Boolean(bullet.local) || isLocalOnlyJob(posting, career.id);
   const canEdit = !posting || shared || localBullet || Boolean(career.local);
-  const lineText = bulletLineText(bullet);
+  const shownSpans = resumeBulletSpans(bullet);
+  const lineText = shownSpans.map((span) => span.text).join('');
   const commitWording = (spans) => {
     store = adoptCompiledJob(store, posting?.id || null, career);
     const adoptedLocal = Boolean(posting && localJobById(livePosting(posting.id)?.resume, career.id) && !isSharedJob(career.id));
@@ -2275,7 +2276,7 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0, gro
     'data-focus-key': `rb-${bullet.id}-line`,
   }, {
     text: lineText,
-    rich: markdownToSpans(lineText),
+    rich: shownSpans,
     onChange: commitWording,
   });
   const wrap = el('div', {
@@ -2472,11 +2473,25 @@ function resumeJobEditor(posting, career) {
     'aria-label': 'Location',
     'data-focus-key': `rj-${career.id}-location`,
   });
+  const sharedTitle = () => (store.jobs || []).find((job) => job.id === career.id)?.title || career.originalTitle || '';
+  const tailoredNote = el('span', { class: 'tiny' }, 'tailored for this posting');
+  const resetTitle = btn('Reset to job title', {
+    class: 'btn ghost compact-action',
+    onClick: () => {
+      if (!posting) return;
+      store = replacePostingResume(store, posting.id, clearJobTitle(livePosting(posting.id).resume, career.id));
+      saveStore();
+      render({ focusKey: `rj-${career.id}-title` });
+    },
+  });
+  const titleTailor = el('div', {
+    class: 'bb-title-tailor',
+    hidden: !career.titleTailored,
+  }, [tailoredNote, resetTitle]);
   const stampJob = () => {
     const [start, end] = dates.value.split(/\s+[–-]\s+/);
-    const patch = {
+    const sharedPatch = {
       company: company.value,
-      title: title.value,
       location: location.value,
       start: (start || dates.value).trim(),
       end: (end || '').trim(),
@@ -2484,10 +2499,19 @@ function resumeJobEditor(posting, career) {
     store = adoptCompiledJob(store, posting?.id || null, career);
     const nowShared = isSharedJob(career.id);
     const nowLocal = Boolean(posting && localJobById(livePosting(posting.id)?.resume, career.id) && !nowShared);
-    if (posting && nowLocal) {
-      store = updatePostingLocalJob(store, posting.id, career.id, patch);
+    if (posting && nowShared) {
+      store = updateCareerJob(store, career.id, sharedPatch);
+      const source = sharedTitle();
+      if (title.value === source) {
+        store = replacePostingResume(store, posting.id, clearJobTitle(livePosting(posting.id).resume, career.id));
+      } else {
+        store = updatePostingResume(store, posting.id, { jobTitles: { [career.id]: title.value } });
+      }
+      titleTailor.hidden = title.value === source;
+    } else if (posting && nowLocal) {
+      store = updatePostingLocalJob(store, posting.id, career.id, { ...sharedPatch, title: title.value });
     } else if (nowShared) {
-      store = updateCareerJob(store, career.id, patch);
+      store = updateCareerJob(store, career.id, { ...sharedPatch, title: title.value });
     } else return;
     saveStore();
     scheduleResumePreview(posting);
@@ -2609,7 +2633,10 @@ function resumeJobEditor(posting, career) {
       field('Dates', dates),
     ]),
     el('div', { class: 'grid-2' }, [
-      field('Title', title),
+      el('div', {}, [
+        field('Title', title),
+        posting && shared ? titleTailor : null,
+      ]),
       field('Location', location),
     ]),
     ...groups.flatMap((group, groupIndex) => {

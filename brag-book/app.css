@@ -1471,6 +1471,13 @@ a:focus-visible {
 .bb-rb.is-dropped { box-shadow: inset 3px 0 0 var(--gold); }
 .bb-rb.is-on { box-shadow: inset 3px 0 0 var(--ink); }
 .bb-rb.is-override .tiny { color: var(--gold); }
+.bb-title-tailor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
 .bb-rb-tools {
   display: flex;
   flex-wrap: wrap;
