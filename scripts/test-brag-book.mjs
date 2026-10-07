@@ -174,6 +174,9 @@ import {
   bulletFromLine,
   markdownToSpans,
   spansToMarkdown,
+  additionalItemsMarkdown,
+  additionalValueSpans,
+  additionalValuePlain,
   asUrl,
   titleFromJobUrl,
   hostFromJobUrl,
@@ -1896,10 +1899,23 @@ assert.deepEqual(markdownToSpans('**Led team:** Built it'), [
   { text: 'Led team:', bold: true },
   { text: ' Built it', bold: false },
 ]);
+assert.deepEqual(markdownToSpans('*Compliance Tools*: AuditBoard'), [
+  { text: 'Compliance Tools', italic: true, bold: false },
+  { text: ': AuditBoard', bold: false },
+]);
+assert.deepEqual(markdownToSpans('**Regulatory Knowledge:** SOX · *ICFR*'), [
+  { text: 'Regulatory Knowledge:', bold: true },
+  { text: ' SOX · ', bold: false },
+  { text: 'ICFR', italic: true, bold: false },
+]);
 assert.equal(spansToMarkdown([
   { text: 'Led team:', bold: true },
   { text: ' Built it', bold: false },
 ]), '**Led team:** Built it');
+assert.equal(spansToMarkdown([
+  { text: 'Compliance Tools', italic: true },
+  { text: ': AuditBoard', bold: false },
+]), '*Compliance Tools*: AuditBoard');
 
 const ghostRole = {
   id: 'job_role_godaddy',
@@ -2033,6 +2049,25 @@ const groupedDocx = new TextDecoder().decode(resumeDocxBytes(compileResumeDoc(nu
 assert.match(groupedDocx, /<w:i\/><w:iCs\/>[\s\S]*?<w:t[^>]*>Compliance Tools<\/w:t>/);
 assert.doesNotMatch(groupedDocx, /<w:i\/><w:iCs\/>[\s\S]*?<w:t[^>]*>Compliance Tools:/);
 assert.match(groupedDocx, /<w:t[^>]*>: AuditBoard, Dynamics 365<\/w:t>/);
+assert.equal(additionalItemsMarkdown(subLabels.additional[0]), '*Compliance Tools*: AuditBoard, Dynamics 365 · *Data Analytics*: Advanced Excel, SQL');
+assert.equal(additionalValuePlain(subLabels.additional[0]), 'Compliance Tools: AuditBoard, Dynamics 365 · Data Analytics: Advanced Excel, SQL');
+const reloadedSubs = normalizeStore(JSON.parse(serializeBook(subLabels).json), clock);
+assert.equal(reloadedSubs.additional[0].groups[0].label, 'Compliance Tools');
+assert.deepEqual(reloadedSubs.additional[0].items, []);
+const inlineAdd = editResumeAdditionalRow(subLabels, null, 'ad_tech', (row) => ({
+  ...row,
+  items: ['*Compliance Tools*: AuditBoard, Dynamics 365', '**SQL** · *Kusto*'],
+  groups: [],
+}), clock);
+assert.equal(inlineAdd.additional[0].groups.length, 0);
+assert.deepEqual(inlineAdd.additional[0].items, ['*Compliance Tools*: AuditBoard, Dynamics 365', '**SQL**', '*Kusto*']);
+const inlineHtml = renderResumeHtml(compileResumeDoc(null, inlineAdd));
+assert.match(inlineHtml, /<i>Compliance Tools<\/i>: AuditBoard, Dynamics 365/);
+assert.match(inlineHtml, /<b>SQL<\/b> · <i>Kusto<\/i>/);
+const inlineDocx = new TextDecoder().decode(resumeDocxBytes(compileResumeDoc(null, inlineAdd)));
+assert.match(inlineDocx, /<w:i\/><w:iCs\/>[\s\S]*?<w:t[^>]*>Compliance Tools<\/w:t>/);
+assert.match(inlineDocx, /<w:b\/><w:bCs\/>[\s\S]*?<w:t[^>]*>SQL<\/w:t>/);
+assert.equal(additionalValuePlain(inlineAdd.additional[0]), 'Compliance Tools: AuditBoard, Dynamics 365 · SQL · Kusto');
 
 let postingSubs = addAdditionalRow(emptyStore(), {
   id: 'ad_tech',
@@ -2679,14 +2714,14 @@ assert.match(appSource, /Delete from Resume basics too/);
 assert.match(appSource, /Replace Resume basics with this posting’s resume/);
 assert.match(appSource, /Restore previous basics/);
 assert.match(appSource, /Edit the Resume basics template here/);
-assert.match(appSource, /addResumeAdditionalGroup\(store, posting\?\.id, row\.id\)/);
+assert.doesNotMatch(appSource, /Add sub-label/);
+assert.doesNotMatch(appSource, /addResumeAdditionalGroup\(store, posting/);
+assert.doesNotMatch(appSource, /aria-label': 'Sub-label'/);
 assert.match(appSource, /editResumeAdditionalRow\(store, posting\?\.id, row\.id/);
+assert.match(appSource, /execCommand\('italic'\)/);
 const stampLabelSource = appSource.slice(appSource.indexOf('const stampLabel'), appSource.indexOf('label.addEventListener', appSource.indexOf('const stampLabel')));
-const stampGroupSource = appSource.slice(appSource.indexOf('const stampGroup'), appSource.indexOf('glabel.addEventListener'));
 assert.doesNotMatch(stampLabelSource, /render\(/);
-assert.doesNotMatch(stampGroupSource, /render\(/);
 assert.match(stampLabelSource, /scheduleResumePreview\(posting\)/);
-assert.match(stampGroupSource, /scheduleResumePreview\(posting\)/);
 assert.match(appSource, /basicsReplaceConfirm/);
 assert.match(appSource, /basicsRestoreConfirm/);
 const bookCss = readFileSync(new URL('../brag-book/app.css', import.meta.url), 'utf8');

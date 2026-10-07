@@ -3,7 +3,7 @@
  * Preview and print/PDF share this renderer.
  */
 
-import { resumeBulletParts } from './resume-model.js';
+import { additionalValueSpans, resumeBulletParts } from './resume-model.js';
 
 export const TOKENS = {
   page: { width: '8.5in', height: '11in', margin: '0.5in' },
@@ -74,13 +74,20 @@ const SECTIONS = {
     ${item.gpa ? `<div>Cumulative GPA: ${esc(item.gpa)}</div>` : ''}
   `).join(''),
 
-  additional: (section) => (section.rows || []).map((row) => {
-    const body = row.groups?.length
-      ? row.groups.map((g) => `<i>${esc(g.label)}</i>: ${(g.items || []).map(esc).join(', ')}`).join(' \u00b7 ')
-      : (row.items || []).map(esc).join(' \u00b7 ');
-    return `<div class="addl"><b>${esc(row.label)}:</b> ${body}</div>`;
-  }).join(''),
+  additional: (section) => (section.rows || []).map((row) => (
+    `<div class="addl"><b>${esc(row.label)}:</b> ${formatSpans(additionalValueSpans(row))}</div>`
+  )).join(''),
 };
+
+function formatSpans(spans) {
+  return (spans || []).map((span) => {
+    const text = esc(span?.text);
+    if (span?.bold && span?.italic) return `<b><i>${text}</i></b>`;
+    if (span?.bold) return `<b>${text}</b>`;
+    if (span?.italic) return `<i>${text}</i>`;
+    return text;
+  }).join('');
+}
 
 export function renderResumeHtml(resume, { droppedBulletIds } = {}) {
   const dropped = new Set(droppedBulletIds || resume?.fit?.droppedBulletIds || []);

@@ -98,9 +98,9 @@ import {
   deleteAdditionalRow,
   moveAdditionalRow,
   editResumeAdditionalRow,
-  addResumeAdditionalGroup,
-  moveResumeAdditionalGroup,
-  deleteResumeAdditionalGroup,
+  additionalItemsMarkdown,
+  markdownToSpans,
+  spansToMarkdown,
   isResumeDoc,
   visibleResumeDoc,
   moveKey,
@@ -129,7 +129,6 @@ import {
   adoptCompiledJob,
   resumeBulletSpans,
   bulletFromLine,
-  spansToMarkdown,
   applyResumeBulletEdit,
   createSharedBullet,
   saveSharedBullet,
@@ -395,12 +394,18 @@ function fillRich(node, rich, plain) {
     const parts = String(span.text || '').split('\n');
     parts.forEach((part, index) => {
       if (part) {
-        const text = document.createTextNode(part);
+        let painted = document.createTextNode(part);
+        if (span.italic) {
+          const em = document.createElement('em');
+          em.append(painted);
+          painted = em;
+        }
         if (span.bold) {
           const strong = document.createElement('strong');
-          strong.append(text);
-          node.append(strong);
-        } else node.append(text);
+          strong.append(painted);
+          painted = strong;
+        }
+        node.append(painted);
       }
       if (index < parts.length - 1) node.append(document.createElement('br'));
     });
@@ -410,29 +415,36 @@ function fillRich(node, rich, plain) {
 
 function readRich(node) {
   const spans = [];
-  const push = (text, bold) => {
+  const push = (text, bold, italic) => {
     if (!text) return;
     const last = spans[spans.length - 1];
-    if (last && last.bold === bold) last.text += text;
-    else spans.push({ text, bold });
+    if (last && last.bold === bold && Boolean(last.italic) === italic) last.text += text;
+    else {
+      const span = { text, bold };
+      if (italic) span.italic = true;
+      spans.push(span);
+    }
   };
-  const walk = (parent, bold) => {
+  const walk = (parent, bold, italic) => {
     for (const child of parent.childNodes) {
       if (child.nodeType === 3) {
-        push(child.nodeValue.replace(/\u00a0/g, ' ').replace(/\r\n/g, '\n'), bold);
+        push(child.nodeValue.replace(/\u00a0/g, ' ').replace(/\r\n/g, '\n'), bold, italic);
       } else if (child.nodeType === 1) {
         const tag = child.tagName;
         const weight = child.style?.fontWeight;
         const nextBold = bold || tag === 'B' || tag === 'STRONG' || weight === 'bold' || Number(weight) >= 600;
-        if (tag === 'BR') push('\n', bold);
+        const nextItalic = italic || tag === 'I' || tag === 'EM' || child.style?.fontStyle === 'italic';
+        if (tag === 'BR') push('\n', bold, italic);
         else {
-          if ((tag === 'DIV' || tag === 'P') && spans.length && !spans[spans.length - 1].text.endsWith('\n')) push('\n', false);
-          walk(child, nextBold);
+          if ((tag === 'DIV' || tag === 'P') && spans.length && !spans[spans.length - 1].text.endsWith('\n')) {
+            push('\n', false, false);
+          }
+          walk(child, nextBold, nextItalic);
         }
       }
     }
   };
-  walk(node, false);
+  walk(node, false, false);
   return spans;
 }
 
@@ -492,7 +504,7 @@ function editableNeedsFlatten(node) {
   return [...node.childNodes].some((child) => {
     if (child.nodeType !== 1) return false;
     const tag = child.tagName;
-    return tag !== 'BR' && tag !== 'STRONG' && tag !== 'B';
+    return tag !== 'BR' && tag !== 'STRONG' && tag !== 'B' && tag !== 'EM' && tag !== 'I';
   });
 }
 
@@ -512,11 +524,15 @@ function insertPlainText(text) {
 
 function tidySpans(spans) {
   const out = [];
-  const push = (text, bold) => {
+  const push = (text, bold, italic) => {
     if (!text) return;
     const last = out[out.length - 1];
-    if (last && last.bold === bold) last.text += text;
-    else out.push({ text, bold });
+    if (last && last.bold === bold && Boolean(last.italic) === italic) last.text += text;
+    else {
+      const span = { text, bold };
+      if (italic) span.italic = true;
+      out.push(span);
+    }
   };
   let broke = false;
   for (const span of spans) {
@@ -527,10 +543,10 @@ function tidySpans(spans) {
         continue;
       }
       if (broke) {
-        push('\n', false);
+        push('\n', false, false);
         broke = false;
       }
-      push(bit.replace(/[ \t]{2,}/g, ' '), Boolean(span.bold));
+      push(bit.replace(/[ \t]{2,}/g, ' '), Boolean(span.bold), Boolean(span.italic));
     }
   }
   while (out.length && /\n$/.test(out[out.length - 1].text)) {
@@ -548,7 +564,7 @@ function flattenEditable(node, offset) {
   setCaretOffset(node, offset ?? plain.length);
 }
 
-function bindRichKeys(node, { onChange, onSubmit } = {}) {
+function bindRichKeys(node, { onChange, onSubmit, italic = false } = {}) {
   const changed = () => {
     trimEditableTail(node);
     node.dataset.empty = node.textContent.trim() ? 'false' : 'true';
@@ -569,9 +585,16 @@ function bindRichKeys(node, { onChange, onSubmit } = {}) {
     changed();
   });
   node.addEventListener('keydown', (event) => {
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'b') {
+    const key = event.key.toLowerCase();
+    if ((event.metaKey || event.ctrlKey) && key === 'b') {
       event.preventDefault();
       document.execCommand('bold');
+      changed();
+      return;
+    }
+    if (italic && (event.metaKey || event.ctrlKey) && key === 'i') {
+      event.preventDefault();
+      document.execCommand('italic');
       changed();
       return;
     }
@@ -583,10 +606,10 @@ function bindRichKeys(node, { onChange, onSubmit } = {}) {
   node.addEventListener('input', changed);
 }
 
-function richLine(attrs, { text, rich, onChange, onSubmit } = {}) {
+function richLine(attrs, { text, rich, onChange, onSubmit, italic = false } = {}) {
   const node = el('div', { contenteditable: 'true', role: 'textbox', 'aria-multiline': 'true', ...attrs });
   fillRich(node, rich, text);
-  bindRichKeys(node, { onChange, onSubmit });
+  bindRichKeys(node, { onChange, onSubmit, italic });
   return node;
 }
 
@@ -3752,79 +3775,41 @@ function resumeEditorPane(posting, doc) {
     ...(doc.sections.additional.rows.length
       ? doc.sections.additional.rows.map((row, index) => {
         const label = el('input', { value: row.label, 'aria-label': 'Row label', 'data-focus-key': `ad-${row.id}-label` });
-        const grouped = Boolean(row.groups?.length);
-        const items = el('textarea', {
-          rows: '2',
+        const valueMd = additionalItemsMarkdown(row);
+        const items = richLine({
+          class: 'bb-rb-line',
           'aria-label': 'Items',
           'data-focus-key': `ad-${row.id}-items`,
-        }, grouped
-          ? row.groups.map((group) => `${group.label}: ${(group.items || []).join(', ')}`).join(' · ')
-          : (row.items || []).join(' · '));
-        items.value = items.textContent;
+        }, {
+          rich: markdownToSpans(valueMd),
+          italic: true,
+          onChange: (spans) => {
+            const md = spansToMarkdown(tidySpans(spans));
+            if (md.replace(/\s+/g, ' ').trim() === valueMd.replace(/\s+/g, ' ').trim() && row.groups?.length) return;
+            store = editResumeAdditionalRow(store, posting?.id, row.id, (current) => ({
+              ...current,
+              label: label.value,
+              items: splitResumeItems(md),
+              groups: [],
+            }));
+            saveStore();
+            scheduleResumePreview(posting);
+          },
+        });
         const stampLabel = () => {
-          store = editResumeAdditionalRow(store, posting?.id, row.id, (current) => (
-            grouped
-              ? { ...current, label: label.value }
-              : { ...current, label: label.value, items: splitResumeItems(items.value) }
-          ));
+          store = editResumeAdditionalRow(store, posting?.id, row.id, (current) => ({
+            ...current,
+            label: label.value,
+          }));
           saveStore();
           scheduleResumePreview(posting);
         };
         label.addEventListener('input', stampLabel);
-        if (!grouped) items.addEventListener('input', stampLabel);
-        const groupEditors = grouped
-          ? row.groups.map((group) => {
-            const glabel = el('input', {
-              value: group.label,
-              placeholder: 'Italic sub-label',
-              'aria-label': 'Sub-label',
-              'data-focus-key': `sg-${group.id}-label`,
-            });
-            const gitems = el('textarea', {
-              rows: '2',
-              'aria-label': 'Group items',
-              'data-focus-key': `sg-${group.id}-items`,
-            }, (group.items || []).join(' · '));
-            gitems.value = gitems.textContent;
-            const stampGroup = () => {
-              store = editResumeAdditionalRow(store, posting?.id, row.id, (current) => ({
-                ...current,
-                groups: (current.groups || []).map((item) => (
-                  item.id === group.id
-                    ? { ...item, label: glabel.value, items: splitResumeItems(gitems.value) }
-                    : item
-                )),
-              }));
-              saveStore();
-              scheduleResumePreview(posting);
-            };
-            glabel.addEventListener('input', stampGroup);
-            gitems.addEventListener('input', stampGroup);
-            return el('div', { class: 'bb-addl-group' }, [
-              el('div', { class: 'bb-group-head' }, [
-                field('Sub-label', glabel),
-                resumeMoveBtns('sub-label', {
-                  index: row.groups.findIndex((item) => item.id === group.id),
-                  length: row.groups.length,
-                  onMove: (delta) => {
-                    store = moveResumeAdditionalGroup(store, posting?.id, row.id, group.id, delta);
-                    saveStore();
-                    render({ focusKey: `sg-${group.id}-label` });
-                  },
-                }),
-                btn('Remove sub-label', {
-                  class: 'btn ghost compact-action is-danger',
-                  onClick: () => {
-                    store = deleteResumeAdditionalGroup(store, posting?.id, row.id, group.id);
-                    saveStore();
-                    render({ focusKey: `ad-${row.id}-label` });
-                  },
-                }),
-              ]),
-              field('Items', gitems),
-            ]);
-          })
-          : [field('Items', items)];
+        const applyMark = (command) => {
+          items.focus();
+          document.execCommand(command);
+          items.dispatchEvent(new Event('input'));
+        };
         return el('div', { class: 'bb-job-card' }, [
           el('div', { class: 'bb-rb-tools' }, [
             resumeMoveBtns('row', {
@@ -3850,19 +3835,24 @@ function resumeEditorPane(posting, doc) {
             }),
           ]),
           field('Label', label),
-          ...groupEditors,
-          el('div', { class: 'bb-add-row' }, [
-            btn('+ Add sub-label', {
-              class: 'btn ghost compact-action',
-              onClick: () => {
-                const before = new Set((additionalRowRecord(posting, row.id)?.groups || []).map((group) => group.id));
-                store = addResumeAdditionalGroup(store, posting?.id, row.id);
-                const saved = additionalRowRecord(posting, row.id);
-                const addedGroup = (saved?.groups || []).find((group) => !before.has(group.id));
-                saveStore();
-                render({ focusKey: addedGroup ? `sg-${addedGroup.id}-label` : `ad-${row.id}-label` });
-              },
-            }),
+          el('div', { class: 'bb-rb-line-head' }, [
+            field('Items', items),
+            el('div', { class: 'actions' }, [
+              btn('Bold', {
+                class: 'btn ghost compact-action',
+                onMouseDown: (event) => {
+                  event.preventDefault();
+                  applyMark('bold');
+                },
+              }),
+              btn('Italic', {
+                class: 'btn ghost compact-action',
+                onMouseDown: (event) => {
+                  event.preventDefault();
+                  applyMark('italic');
+                },
+              }),
+            ]),
           ]),
         ]);
       })
