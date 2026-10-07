@@ -114,6 +114,12 @@ export function resumeBulletArrows(index, length) {
   };
 }
 
+// Native ParentNode.append(null) becomes the text "null". Drop those
+// before they reach the DOM (collapsed adders, optional chrome).
+export function visibleNodes(...nodes) {
+  return nodes.filter((node) => node != null && node !== false);
+}
+
 export function experienceRowSpec(entry) {
   const spec = sharedBulletSpec(entry);
   return {

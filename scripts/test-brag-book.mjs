@@ -169,7 +169,7 @@ import {
   hostFromJobUrl,
 } from '../brag-book/engine.js';
 import { parseViewHash, viewHash, viewTitle, defaultView, logLayout, hideBookRail } from '../brag-book/routes.js';
-import { bookPagePlan, experienceRowSpec, sharedBulletSpec, SHARED_BULLET_FIELDS, STAR_FIELDS, experienceAdderChrome, nextExperienceAdderOpen, resumeBulletArrows, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys } from '../brag-book/book-view.js';
+import { bookPagePlan, experienceRowSpec, sharedBulletSpec, SHARED_BULLET_FIELDS, STAR_FIELDS, experienceAdderChrome, nextExperienceAdderOpen, resumeBulletArrows, visibleNodes, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys } from '../brag-book/book-view.js';
 import {
   applyKnowledgeEnter,
   applyKnowledgeListMarker,
@@ -2360,6 +2360,7 @@ assert.match(appSource, /sharedBulletForm\(/);
 assert.match(appSource, /experienceAdderChrome\(/);
 assert.match(appSource, /nextExperienceAdderOpen\(/);
 assert.match(appSource, /resumeBulletArrows\(/);
+assert.match(appSource, /visibleNodes\(/);
 assert.match(appSource, /chrome\.showForm/);
 assert.match(appSource, /saveSharedBullet/);
 assert.match(appSource, /SHARED_BULLET_FIELDS/);
@@ -2450,13 +2451,25 @@ assert.doesNotMatch(appSource, /Expand experience/);
 await renderBookPage('#kb');
 await renderBookPage('#knowledge');
 await renderBookPage('#experiences');
+const reqApp = await renderRequirementsPage();
+const reqHtml = nodeMarkup(reqApp);
+const reqText = reqApp.textContent;
+assert.match(reqText, /Need close experience/);
+assert.match(reqText, /Need a second row/);
+assert.match(reqText, /\+ New/);
+assert.equal(reqApp.querySelectorAll('.experience-add').length, 2);
+assert.equal(reqApp.querySelectorAll('.bb-shared-bullet').length, 0);
+assert.doesNotMatch(reqHtml, /null/);
+assert.doesNotMatch(reqHtml, /undefined/);
+assert.doesNotMatch(reqText, /null/);
+assert.doesNotMatch(reqText, /undefined/);
 const navHtml = readFileSync(new URL('../brag-book/index.html', import.meta.url), 'utf8');
 assert.match(navHtml, /Resume bullets/);
 assert.doesNotMatch(navHtml, />Experiences</);
 
 console.log('ok');
 
-function installBookDom(hash) {
+function installBookDom(hash, extras = {}) {
   class El {
     constructor(tag) {
       this.tagName = String(tag || '').toUpperCase();
@@ -2482,9 +2495,15 @@ function installBookDom(hash) {
     addEventListener() {}
     append(...nodes) {
       for (const node of nodes) {
-        if (node == null || node === false) continue;
-        node.parentNode = this;
-        this.children.push(node);
+        let child = node;
+        if (child == null || typeof child !== 'object') {
+          const text = new El('#text');
+          text.nodeType = 3;
+          text.nodeValue = String(child);
+          child = text;
+        }
+        child.parentNode = this;
+        this.children.push(child);
       }
     }
     appendChild(node) { this.append(node); return node; }
@@ -2602,7 +2621,7 @@ function installBookDom(hash) {
       },
     ],
     knowledge: [{ id: 'note_1', title: 'Neon notes', body: 'JWT lives in localStorage' }],
-    postings: [],
+    postings: extras.postings || [],
   }));
   globalThis.localStorage = {
     getItem: (key) => (mem.has(key) ? mem.get(key) : null),
@@ -2653,6 +2672,32 @@ async function renderBookPage(hash) {
     assert.equal(app.querySelector('#book-knowledge'), null);
   }
   assert.equal(app.querySelectorAll('[aria-label="Expand experience"]').length, 0);
+}
+
+function nodeMarkup(node) {
+  if (!node) return '';
+  if (node.nodeType === 3 || String(node.tagName || '').toLowerCase() === '#text') {
+    return node.nodeValue || '';
+  }
+  const name = String(node.tagName || 'div').toLowerCase();
+  return `<${name}>${(node.children || []).map(nodeMarkup).join('')}</${name}>`;
+}
+
+async function renderRequirementsPage() {
+  const { app } = installBookDom('#jobs/job_req_map', {
+    postings: [{
+      id: 'job_req_map',
+      title: 'Close role',
+      company: 'Acme',
+      requirements: [
+        { id: 'rq_one', text: 'Need close experience', bullets: [] },
+        { id: 'rq_two', text: 'Need a second row', bullets: [] },
+      ],
+    }],
+  });
+  const href = new URL('../brag-book/app.js?hash=%23jobs%2Fjob_req_map', import.meta.url);
+  await import(href);
+  return app;
 }
 
 const looseJobs = normalizeStore({
@@ -3101,6 +3146,14 @@ assert.deepEqual(resumeBulletArrows(0, 3), { disableUp: true, disableDown: false
 assert.deepEqual(resumeBulletArrows(1, 3), { disableUp: false, disableDown: false });
 assert.deepEqual(resumeBulletArrows(2, 3), { disableUp: false, disableDown: true });
 assert.deepEqual(resumeBulletArrows(0, 1), { disableUp: true, disableDown: true });
+assert.deepEqual(visibleNodes(
+  { id: 'keep' },
+  null,
+  undefined,
+  false,
+  { id: 'also' },
+), [{ id: 'keep' }, { id: 'also' }]);
+assert.deepEqual(visibleNodes(null, undefined), []);
 
 function compiledBulletIds(book, postingId, jobId) {
   const job = compileResumeDoc(postingById(book, postingId), book)

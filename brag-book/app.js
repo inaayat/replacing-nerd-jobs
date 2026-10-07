@@ -155,7 +155,7 @@ import { renderResumeHtml, resumeDocument } from './resume-template.js';
 import { fitOnePage, dropOrderFromDoc, applyDroppedIds, droppedBulletLabels, fitStatusLine, PAGE_HEIGHT_PX } from './resume-fit.js';
 import { resumeDocxBlob } from './resume-docx.js';
 import { parseViewHash, viewHash, viewTitle } from './routes.js';
-import { bookPagePlan, experienceRowSpec, sharedBulletSpec, SHARED_BULLET_FIELDS, STAR_FIELDS, experienceAdderChrome, nextExperienceAdderOpen, resumeBulletArrows, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys } from './book-view.js';
+import { bookPagePlan, experienceRowSpec, sharedBulletSpec, SHARED_BULLET_FIELDS, STAR_FIELDS, experienceAdderChrome, nextExperienceAdderOpen, resumeBulletArrows, visibleNodes, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys } from './book-view.js';
 import {
   applyKnowledgeEnter,
   applyKnowledgeListMarker,
@@ -2090,7 +2090,7 @@ function experienceAdder(job, req) {
     }
     if (event.key === 'Escape') hideMatches();
   });
-  wrap.append(
+  wrap.append(...visibleNodes(
     el('div', { class: 'table-add' }, [
       fresh,
       btn(chrome.addLabel, {
@@ -2105,7 +2105,7 @@ function experienceAdder(job, req) {
       showLine: false,
       onPatch: (patch) => { Object.assign(draft, patch); },
     }) : null,
-  );
+  ));
   return wrap;
 }
 
