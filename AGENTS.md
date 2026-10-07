@@ -60,6 +60,7 @@ This repo is a no-build Vercel site (see `README.md` for structure/deploy). Non-
  - `node scripts/test-takeout-catalog.mjs` — Takeout source catalog (`takeout/catalog.js`)
  - `node scripts/test-asc-606.mjs` — ASC 606 decision tree, citations, and quiz paths (`asc-606/engine.js`, `tree.js`)
  - `node scripts/test-brag-book.mjs` — Brag Book store, JD parse, STAR compile, hash routes, combined book page, stale-save guards, role collapse (`brag-book/engine.js`, `routes.js`, `book-view.js`)
+ - `node scripts/test-brag-book-drag-dom.mjs` — Resume basics and posting drag handles in jsdom: HTML5 drag and pointer fallback, preview and DOCX order, reload (`brag-book/app.js`)
  - `node scripts/test-seattle-property-taxes.mjs` — Seattle levy allocation, address/PIN helpers, tax-roll parse (`seattle-property-taxes/engine.js`)
  - `node scripts/test-im-filmin-here.mjs` — I'm Filmin Here street matching, permit SoQL, rollup, UWS location catalog (`im-filmin-here/streets.js`, `im-filmin-here/permits.js`, `im-filmin-here/locations.js`)
  - `node scripts/test-packing-cubes-model.mjs` — Packing Cubes list-first model: flat list, organize, add-on cubes, default-on-new-trips, v1 migration (`packing-cubes/engine/model.js`)
