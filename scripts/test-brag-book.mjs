@@ -2828,6 +2828,19 @@ assert.match(pickerSrc, /Type to search resume bullets/);
 assert.doesNotMatch(pickerSrc, /addEventListener\('focus'/);
 assert.match(appSource, /\bInclude\b/);
 assert.match(appSource, /\bPin\b/);
+assert.doesNotMatch(appSource, /Reset to source/);
+assert.doesNotMatch(appSource, /Save back to source/);
+assert.doesNotMatch(appSource, /writeBulletBackToSource/);
+assert.doesNotMatch(appSource, /clearBulletOverride/);
+assert.doesNotMatch(appSource, /Resume wording/);
+const bulletEditorSrc = appSource.slice(
+  appSource.indexOf('function resumeBulletEditor'),
+  appSource.indexOf('function resumeJobIds'),
+);
+assert.doesNotMatch(bulletEditorSrc, /btn\('Reset to source'/);
+assert.doesNotMatch(bulletEditorSrc, /btn\('Save back to source'/);
+assert.match(bulletEditorSrc, /bullet\.hasOverride \? el\('span', \{ class: 'tiny' \}, 'This posting only'\)/);
+assert.doesNotMatch(bulletEditorSrc, /localBullet \? el\('span', \{ class: 'tiny' \}, 'This posting only'\)/);
 assert.doesNotMatch(appSource, /experienceIsOpen/);
 assert.doesNotMatch(appSource, /toggleExperience/);
 assert.doesNotMatch(appSource, /Expand experience/);
@@ -3461,6 +3474,32 @@ assert.equal(oneLocalDoc.sections.experience.jobs[0].groups[0].bullets[0].hasOve
 assert.ok(`${oneLocalDoc.sections.experience.jobs[0].groups[0].bullets[0].lead} ${oneLocalDoc.sections.experience.jobs[0].groups[0].bullets[0].body}`.includes('only here'));
 assert.equal(oneRecord.entries.find((entry) => entry.id === 'en_shared').title, 'Closed: the month in two days');
 assert.equal(bulletConsistency(oneRecord).some((issue) => issue.bulletId === 'rb_shared'), false);
+
+oneRecord = updatePostingResume(oneRecord, 'job_other', {
+  overrides: { rb_shared: { lead: 'Other', body: 'posting still local', edited: true } },
+}, clock);
+const otherOverrideDoc = compileResumeDoc(postingById(oneRecord, 'job_other'), oneRecord);
+assert.equal(otherOverrideDoc.sections.experience.jobs[0].groups[0].bullets[0].hasOverride, true);
+assert.ok(`${otherOverrideDoc.sections.experience.jobs[0].groups[0].bullets[0].lead} ${otherOverrideDoc.sections.experience.jobs[0].groups[0].bullets[0].body}`.includes('posting still local'));
+
+oneRecord = applyResumeBulletEdit(oneRecord, {
+  postingId: 'job_shared',
+  jobId: 'rj_shared',
+  groupId: 'rg_shared',
+  bullet: { id: 'rb_shared', sourceEntryIds: ['en_shared'] },
+  spans: [{ text: 'Closed: the week in one day', bold: false }],
+}, clock);
+assert.equal(oneRecord.entries.find((entry) => entry.id === 'en_shared').title, 'Closed: the week in one day');
+assert.equal(oneRecord.postings.find((posting) => posting.id === 'job_shared').resume.overrides?.rb_shared, undefined);
+assert.equal(oneRecord.postings.find((posting) => posting.id === 'job_other').resume.overrides?.rb_shared?.edited, true);
+const oneEditedDoc = compileResumeDoc(postingById(oneRecord, 'job_shared'), oneRecord);
+const oneOtherKept = compileResumeDoc(postingById(oneRecord, 'job_other'), oneRecord);
+const oneBasicsAfter = compileResumeDoc(null, oneRecord);
+assert.equal(oneEditedDoc.sections.experience.jobs[0].groups[0].bullets[0].hasOverride, false);
+assert.ok(`${oneEditedDoc.sections.experience.jobs[0].groups[0].bullets[0].lead} ${oneEditedDoc.sections.experience.jobs[0].groups[0].bullets[0].body}`.includes('the week'));
+assert.ok(oneBasicsAfter.sections.experience.jobs[0].groups.flatMap((group) => group.bullets).some((bullet) => `${bullet.lead} ${bullet.body}`.includes('the week')));
+assert.equal(oneOtherKept.sections.experience.jobs[0].groups[0].bullets[0].hasOverride, true);
+assert.ok(`${oneOtherKept.sections.experience.jobs[0].groups[0].bullets[0].lead} ${oneOtherKept.sections.experience.jobs[0].groups[0].bullets[0].body}`.includes('posting still local'));
 
 const drifted = {
   ...oneRecord,
