@@ -110,6 +110,9 @@ import {
   writeBulletBackToSource,
   clearBulletOverride,
   clearJobTitle,
+  hideResumeRow,
+  restoreHiddenResumeRows,
+  hiddenResumeRowCount,
   libraryBulletChoices,
   placeLibraryBullet,
   resumeTakenEntryIds,
@@ -2178,6 +2181,46 @@ function isLocalResumeRow(posting, key, id) {
   return Boolean(posting && (posting.resume?.[key] || []).some((item) => item.id === id));
 }
 
+function hideSharedResumeRow(posting, kind, id) {
+  store = replacePostingResume(store, posting.id, hideResumeRow(livePosting(posting.id).resume, kind, id));
+  saveStore();
+  render();
+  setNote('Hidden on this posting. Resume basics is unchanged.');
+}
+
+function postingRowDeletes(posting, { local, kind, id, localDelete, sharedDelete, confirmText }) {
+  return [
+    btn('Delete', {
+      class: 'btn ghost compact-action is-danger',
+      onClick: () => {
+        if (posting && local) {
+          localDelete();
+          saveStore();
+          render();
+          return;
+        }
+        if (posting) {
+          hideSharedResumeRow(posting, kind, id);
+          return;
+        }
+        if (!confirm(confirmText)) return;
+        sharedDelete();
+        saveStore();
+        render();
+      },
+    }),
+    posting && !local ? btn('Delete from Resume basics too', {
+      class: 'btn ghost compact-action is-danger',
+      onClick: () => {
+        if (!confirm(`${confirmText} Other postings that still show it will lose it.`)) return;
+        sharedDelete();
+        saveStore();
+        render();
+      },
+    }) : null,
+  ];
+}
+
 function lastLocalJob(postingId) {
   const jobs = livePosting(postingId)?.resume?.localJobs || [];
   return jobs[jobs.length - 1] || null;
@@ -2791,6 +2834,15 @@ function resumeEditorPane(posting, doc) {
     el('p', { class: 'lede' }, posting
       ? 'Add each role yourself, then a sub-heading and resume bullets from your library. A picked bullet stays linked to that library entry. Include and Pin still apply to this posting.'
       : 'Add each role yourself: company, dates, title, and location. Under a role, add sub-headings and pick resume bullets from your library. A picked bullet stays linked to that entry.'),
+    posting && hiddenResumeRowCount(posting.resume) ? btn('Restore hidden rows', {
+      class: 'btn ghost compact-action',
+      onClick: () => {
+        store = replacePostingResume(store, posting.id, restoreHiddenResumeRows(livePosting(posting.id).resume));
+        saveStore();
+        render();
+        setNote('Restored hidden rows on this posting. Resume basics is unchanged.');
+      },
+    }) : null,
     resumeSectionOrder(posting),
     credToggle,
     posting ? btn('Save order as my default', {
@@ -2899,24 +2951,13 @@ function resumeEditorPane(posting, doc) {
                 render({ focusKey: `cr-${item.id}-name` });
               },
             }),
-            btn('Delete', {
-              class: 'btn ghost compact-action is-danger',
-              onClick: () => {
-                if (posting && isLocalResumeRow(posting, 'localCredentials', item.id)) {
-                  store = deletePostingLocalCredential(store, posting.id, item.id);
-                  saveStore();
-                  render();
-                  return;
-                }
-                if (posting) {
-                  setNote('This credential is in Resume basics. Start fresh to hide shared credentials on this posting.');
-                  return;
-                }
-                if (!confirm('Delete this credential?')) return;
-                store = deleteCredentialItem(store, item.id);
-                saveStore();
-                render();
-              },
+            ...postingRowDeletes(posting, {
+              local: isLocalResumeRow(posting, 'localCredentials', item.id),
+              kind: 'credential',
+              id: item.id,
+              localDelete: () => { store = deletePostingLocalCredential(store, posting.id, item.id); },
+              sharedDelete: () => { store = deleteCredentialItem(store, item.id); },
+              confirmText: 'Delete this credential from Resume basics?',
             }),
           ]),
           el('div', { class: 'grid-2' }, [field('Name', name), field('Issued', issued)]),
@@ -2971,24 +3012,13 @@ function resumeEditorPane(posting, doc) {
                 render({ focusKey: `ed-${item.id}-school` });
               },
             }),
-            btn('Delete', {
-              class: 'btn ghost compact-action is-danger',
-              onClick: () => {
-                if (posting && isLocalResumeRow(posting, 'localEducation', item.id)) {
-                  store = deletePostingLocalEducation(store, posting.id, item.id);
-                  saveStore();
-                  render();
-                  return;
-                }
-                if (posting) {
-                  setNote('This education row is in Resume basics. Start fresh to hide shared education on this posting.');
-                  return;
-                }
-                if (!confirm('Delete this education row?')) return;
-                store = deleteEducationItem(store, item.id);
-                saveStore();
-                render();
-              },
+            ...postingRowDeletes(posting, {
+              local: isLocalResumeRow(posting, 'localEducation', item.id),
+              kind: 'education',
+              id: item.id,
+              localDelete: () => { store = deletePostingLocalEducation(store, posting.id, item.id); },
+              sharedDelete: () => { store = deleteEducationItem(store, item.id); },
+              confirmText: 'Delete this education row from Resume basics?',
             }),
           ]),
           el('div', { class: 'grid-2' }, [field('School', school), field('Location', loc)]),
@@ -3100,24 +3130,13 @@ function resumeEditorPane(posting, doc) {
                 render({ focusKey: `ad-${row.id}-label` });
               },
             }),
-            btn('Delete', {
-              class: 'btn ghost compact-action is-danger',
-              onClick: () => {
-                if (posting && isLocalResumeRow(posting, 'localAdditional', row.id)) {
-                  store = deletePostingLocalAdditional(store, posting.id, row.id);
-                  saveStore();
-                  render();
-                  return;
-                }
-                if (posting) {
-                  setNote('This additional-info row is in Resume basics. Start fresh to hide shared rows on this posting.');
-                  return;
-                }
-                if (!confirm('Delete this additional-info row?')) return;
-                store = deleteAdditionalRow(store, row.id);
-                saveStore();
-                render();
-              },
+            ...postingRowDeletes(posting, {
+              local: isLocalResumeRow(posting, 'localAdditional', row.id),
+              kind: 'additional',
+              id: row.id,
+              localDelete: () => { store = deletePostingLocalAdditional(store, posting.id, row.id); },
+              sharedDelete: () => { store = deleteAdditionalRow(store, row.id); },
+              confirmText: 'Delete this additional-info row from Resume basics?',
             }),
           ]),
           field('Label', label),

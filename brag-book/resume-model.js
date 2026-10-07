@@ -82,6 +82,9 @@ export function emptyResumeVariant() {
     showCredentials: null,
     excludedJobIds: [],
     excludedBulletIds: [],
+    excludedEducationIds: [],
+    excludedCredentialIds: [],
+    excludedAdditionalIds: [],
     pinnedBulletIds: [],
     jobOrder: [],
     bulletOrder: {},
@@ -198,6 +201,9 @@ export function normalizeResumeVariant(raw) {
     showCredentials: show === true ? true : show === false ? false : null,
     excludedJobIds: asIdList(raw.excludedJobIds),
     excludedBulletIds: asIdList(raw.excludedBulletIds),
+    excludedEducationIds: asIdList(raw.excludedEducationIds),
+    excludedCredentialIds: asIdList(raw.excludedCredentialIds),
+    excludedAdditionalIds: asIdList(raw.excludedAdditionalIds),
     pinnedBulletIds: asIdList(raw.pinnedBulletIds),
     jobOrder: asIdList(raw.jobOrder),
     bulletOrder: normalizeBulletOrder(raw.bulletOrder),
@@ -714,6 +720,42 @@ function mergeLocalRows(shared, local) {
   return [...(shared || []), ...extra];
 }
 
+function omitHiddenRows(rows, hiddenIds) {
+  if (!hiddenIds?.length) return rows || [];
+  const hidden = new Set(hiddenIds);
+  return (rows || []).filter((row) => !hidden.has(row.id));
+}
+
+const HIDDEN_ROW_KEYS = {
+  education: 'excludedEducationIds',
+  credential: 'excludedCredentialIds',
+  additional: 'excludedAdditionalIds',
+};
+
+export function hideResumeRow(variant, kind, id) {
+  const next = normalizeResumeVariant(variant);
+  const key = HIDDEN_ROW_KEYS[kind];
+  const rowId = asString(id, ID_MAX);
+  if (!key || !rowId || next[key].includes(rowId)) return next;
+  next[key] = [...next[key], rowId];
+  return normalizeResumeVariant(next);
+}
+
+export function restoreHiddenResumeRows(variant) {
+  const next = normalizeResumeVariant(variant);
+  next.excludedEducationIds = [];
+  next.excludedCredentialIds = [];
+  next.excludedAdditionalIds = [];
+  return normalizeResumeVariant(next);
+}
+
+export function hiddenResumeRowCount(variant) {
+  const next = normalizeResumeVariant(variant);
+  return next.excludedEducationIds.length
+    + next.excludedCredentialIds.length
+    + next.excludedAdditionalIds.length;
+}
+
 function textKey(bullet) {
   return bulletPlainText(bullet).toLowerCase().replace(/\s+/g, ' ').trim();
 }
@@ -977,9 +1019,18 @@ export function compileResumeDoc(posting, store) {
     jobs = mergePostingBullets(jobs, posting, store);
     jobs = projectEntryLines(jobs, store);
     jobs = reorder(jobs, variant.jobOrder);
-    credentials = mergeLocalRows(normalizeCredentials(store?.credentials), variant.localCredentials);
-    education = mergeLocalRows(normalizeEducation(store?.education), variant.localEducation);
-    additional = mergeLocalRows(normalizeAdditional(store?.additional), variant.localAdditional);
+    credentials = omitHiddenRows(
+      mergeLocalRows(normalizeCredentials(store?.credentials), variant.localCredentials),
+      variant.excludedCredentialIds,
+    );
+    education = omitHiddenRows(
+      mergeLocalRows(normalizeEducation(store?.education), variant.localEducation),
+      variant.excludedEducationIds,
+    );
+    additional = omitHiddenRows(
+      mergeLocalRows(normalizeAdditional(store?.additional), variant.localAdditional),
+      variant.excludedAdditionalIds,
+    );
   }
 
   return {

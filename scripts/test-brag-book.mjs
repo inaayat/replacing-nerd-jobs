@@ -99,6 +99,9 @@ import {
   toggleId,
   clearBulletOverride,
   clearJobTitle,
+  hideResumeRow,
+  restoreHiddenResumeRows,
+  hiddenResumeRowCount,
   tidyResumeJobs,
   updateCareerJob,
   libraryBulletChoices,
@@ -1306,6 +1309,51 @@ picked = updateCareerJob(picked, 'rj_pick', {
 }, clock);
 assert.equal(picked.jobs[0].groups[0].heading, 'Renamed subheader');
 
+let sharedRows = addEducationItem(emptyStore(), {
+  id: 'ed_uw',
+  school: 'University of Washington',
+  degree: 'Bachelor of Arts in Business Administration',
+}, clock);
+sharedRows = addCredentialItem(sharedRows, { id: 'cr_cpa', name: 'Certified Public Accountant (CPA)' }, clock);
+sharedRows = addAdditionalRow(sharedRows, {
+  id: 'ad_reg',
+  label: 'Regulatory Knowledge',
+  items: ['Sarbanes Oxley (SOX)'],
+}, clock);
+sharedRows = addCareerJob(sharedRows, { id: 'rj_keep', company: 'PwC', title: 'Manager' }, clock);
+sharedRows = addPosting(sharedRows, { id: 'job_hide', title: 'Stripe' }, clock);
+sharedRows = addPosting(sharedRows, { id: 'job_show', title: 'Other posting' }, clock);
+sharedRows = replacePostingResume(sharedRows, 'job_hide', hideResumeRow(postingById(sharedRows, 'job_hide').resume, 'education', 'ed_uw'), clock);
+sharedRows = replacePostingResume(sharedRows, 'job_hide', hideResumeRow(postingById(sharedRows, 'job_hide').resume, 'credential', 'cr_cpa'), clock);
+sharedRows = replacePostingResume(sharedRows, 'job_hide', hideResumeRow(postingById(sharedRows, 'job_hide').resume, 'additional', 'ad_reg'), clock);
+assert.equal(hiddenResumeRowCount(postingById(sharedRows, 'job_hide').resume), 3);
+assert.equal(sharedRows.education.find((row) => row.id === 'ed_uw').school, 'University of Washington');
+assert.equal(sharedRows.credentials.find((row) => row.id === 'cr_cpa').name, 'Certified Public Accountant (CPA)');
+assert.equal(sharedRows.additional.find((row) => row.id === 'ad_reg').label, 'Regulatory Knowledge');
+assert.equal(sharedRows.jobs.find((job) => job.id === 'rj_keep').company, 'PwC');
+const hiddenDoc = compileResumeDoc(postingById(sharedRows, 'job_hide'), sharedRows);
+assert.equal(hiddenDoc.sections.education.items.some((row) => row.id === 'ed_uw'), false);
+assert.equal(hiddenDoc.sections.credentials.items.some((row) => row.id === 'cr_cpa'), false);
+assert.equal(hiddenDoc.sections.additional.rows.some((row) => row.id === 'ad_reg'), false);
+const hiddenHtml = renderResumeHtml(hiddenDoc, { droppedBulletIds: [] });
+assert.doesNotMatch(hiddenHtml, /University of Washington/);
+assert.doesNotMatch(hiddenHtml, /Regulatory Knowledge/);
+const otherRows = compileResumeDoc(postingById(sharedRows, 'job_show'), sharedRows);
+assert.equal(otherRows.sections.education.items.some((row) => row.id === 'ed_uw'), true);
+assert.equal(otherRows.sections.additional.rows.some((row) => row.id === 'ad_reg'), true);
+const basicsRows = compileResumeDoc(null, sharedRows);
+assert.equal(basicsRows.sections.education.items.some((row) => row.id === 'ed_uw'), true);
+assert.equal(basicsRows.sections.credentials.items.some((row) => row.id === 'cr_cpa'), true);
+sharedRows = replacePostingResume(sharedRows, 'job_hide', restoreHiddenResumeRows(postingById(sharedRows, 'job_hide').resume), clock);
+assert.equal(hiddenResumeRowCount(postingById(sharedRows, 'job_hide').resume), 0);
+assert.equal(compileResumeDoc(postingById(sharedRows, 'job_hide'), sharedRows).sections.education.items.some((row) => row.id === 'ed_uw'), true);
+const basicsOnly = deleteEducationItem(sharedRows, 'ed_uw');
+assert.equal(basicsOnly.education.some((row) => row.id === 'ed_uw'), false);
+assert.equal(basicsOnly.credentials.length, sharedRows.credentials.length);
+assert.equal(basicsOnly.additional.length, sharedRows.additional.length);
+assert.equal(basicsOnly.jobs.find((job) => job.id === 'rj_keep').company, 'PwC');
+assert.equal(compileResumeDoc(postingById(basicsOnly, 'job_show'), basicsOnly).sections.education.items.some((row) => row.id === 'ed_uw'), false);
+
 const strayBullet = {
   lead: 'Migration of Manual Journal Prep',
   body: 'Created auto**mated journals, ** Created a review, closed c**ases annually**, and gener**al controls.',
@@ -1992,6 +2040,9 @@ assert.match(appSource, /experienceRowSpec\(/);
 assert.match(appSource, /homeStartCards\(/);
 assert.match(appSource, /tailored for this posting/);
 assert.match(appSource, /Reset to job title/);
+assert.match(appSource, /Restore hidden rows/);
+assert.match(appSource, /Delete from Resume basics too/);
+assert.doesNotMatch(appSource, /Start fresh to hide shared/);
 assert.match(appSource, /Search resume bullets/);
 assert.match(appSource, /placeLibraryBullet/);
 assert.match(appSource, /\bInclude\b/);
