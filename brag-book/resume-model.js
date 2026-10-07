@@ -597,16 +597,50 @@ export function resumeBulletParts(bullet) {
   return { lead, body };
 }
 
+// Well-formed *phrase* markers are italic. A * glued inside a word is stray:
+// drop it, the same way ** is dropped, so it does not italicize the rest of the line.
+function inlineMarkerSpans(text, { bold = false } = {}) {
+  const raw = String(text ?? '').replace(/\*\*/g, '');
+  const italics = [];
+  const marked = raw.replace(/(?<![\p{L}\p{N}])\*([^*\n]+)\*(?![\p{L}\p{N}])/gu, (_match, inner) => {
+    const token = `\uE000${italics.length}\uE001`;
+    italics.push(inner);
+    return token;
+  }).replace(/\*/g, '').replace(/[^\S\n]{2,}/g, ' ').trim();
+  if (!marked) return [];
+  const spans = [];
+  const push = (value, italic) => {
+    if (!value) return;
+    const last = spans[spans.length - 1];
+    if (last && last.bold === bold && Boolean(last.italic) === italic) last.text += value;
+    else {
+      const span = { text: value, bold };
+      if (italic) span.italic = true;
+      spans.push(span);
+    }
+  };
+  const re = /\uE000(\d+)\uE001/g;
+  let last = 0;
+  let match;
+  while ((match = re.exec(marked))) {
+    push(marked.slice(last, match.index), false);
+    push(italics[Number(match[1])], true);
+    last = match.index + match[0].length;
+  }
+  push(marked.slice(last), false);
+  return spans;
+}
+
 export function resumeBulletSpans(bullet) {
   const { lead, body } = resumeBulletParts(bullet);
+  const leadSpans = inlineMarkerSpans(lead, { bold: true });
+  const bodySpans = inlineMarkerSpans(body, { bold: false });
   if (lead && body) {
-    return [
-      { text: `${lead}:`, bold: true },
-      { text: ` ${body}`, bold: false },
-    ];
+    const titled = inlineMarkerSpans(`${lead}:`, { bold: true });
+    return [...titled, { text: ' ', bold: false }, ...bodySpans];
   }
-  if (lead) return [{ text: lead, bold: true }];
-  return [{ text: body, bold: false }];
+  if (lead) return leadSpans.length ? leadSpans : [{ text: lead, bold: true }];
+  return bodySpans.length ? bodySpans : [{ text: body, bold: false }];
 }
 
 export function bulletFromLine(text) {

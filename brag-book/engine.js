@@ -309,18 +309,22 @@ function normalizeLines(value, clock) {
 
 function normalizeRichSpans(value, fallback) {
   const spans = [];
-  const push = (text, bold) => {
+  const push = (text, bold, italic) => {
     if (!text) return;
     const last = spans[spans.length - 1];
-    if (last && last.bold === Boolean(bold)) last.text += text;
-    else spans.push({ text, bold: Boolean(bold) });
+    if (last && last.bold === Boolean(bold) && Boolean(last.italic) === Boolean(italic)) last.text += text;
+    else {
+      const span = { text, bold: Boolean(bold) };
+      if (italic) span.italic = true;
+      spans.push(span);
+    }
   };
   if (Array.isArray(value)) {
     for (const span of value) {
       if (!span || typeof span !== 'object') continue;
       let text = String(span.text ?? '').replace(/\u00a0/g, ' ').replace(/\r\n/g, '\n');
       if (text.length > TEXT_MAX) text = text.slice(0, TEXT_MAX);
-      push(text, span.bold);
+      push(text, span.bold, span.italic);
     }
   }
   while (spans.length) {
@@ -342,7 +346,11 @@ function normalizeRichSpans(value, fallback) {
       if (left <= 0) break;
       const text = span.text.length > left ? span.text.slice(0, left) : span.text;
       left -= text.length;
-      if (text) capped.push({ text, bold: span.bold });
+      if (text) {
+        const spanOut = { text, bold: span.bold };
+        if (span.italic) spanOut.italic = true;
+        capped.push(spanOut);
+      }
     }
     return { text: capped.map((span) => span.text).join(''), rich: capped };
   }
@@ -624,7 +632,11 @@ function sameRich(a, b) {
   const left = Array.isArray(a) ? a : [];
   const right = Array.isArray(b) ? b : [];
   if (left.length !== right.length) return false;
-  return left.every((span, index) => span.text === right[index].text && Boolean(span.bold) === Boolean(right[index].bold));
+  return left.every((span, index) => (
+    span.text === right[index].text
+    && Boolean(span.bold) === Boolean(right[index].bold)
+    && Boolean(span.italic) === Boolean(right[index].italic)
+  ));
 }
 
 // One experience has one line: the entry. Requirement bullets keep a copy for
@@ -1818,8 +1830,9 @@ export function bulletConsistency(store) {
           const entry = entryId ? entryById(store, entryId) : null;
           if (!entry) continue;
           if (bullet.hasOverride) continue;
-          const compiled = ignoreBoldMarkers(bulletLineText(bullet)).replace(/\s+/g, ' ').trim();
-          const library = ignoreBoldMarkers(entry.title || '').replace(/\s+/g, ' ').trim();
+          const plainLine = (text) => ignoreBoldMarkers(text).replace(/\*/g, '').replace(/[^\S\n]{2,}/g, ' ').trim();
+          const compiled = plainLine(bulletLineText(bullet));
+          const library = plainLine(entry.title || '');
           if (compiled === library) continue;
           issues.push({
             kind: 'resume',

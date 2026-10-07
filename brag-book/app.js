@@ -2812,6 +2812,7 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0, gro
   }, {
     text: lineText,
     rich: shownSpans,
+    italic: true,
     onChange: commitWording,
   });
   const wrap = el('div', {
@@ -2919,17 +2920,7 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0, gro
         },
       }) : null,
     ]),
-    el('div', { class: 'bb-rb-line-head' }, [
-      field('Bullet', line),
-      btn('Bold', {
-        class: 'btn ghost compact-action',
-        onClick: () => {
-          line.focus();
-          document.execCommand('bold');
-          commitWording(readRich(line));
-        },
-      }),
-    ]),
+    field('Bullet', line),
     canEdit ? sharedBulletForm(
       store.entries.find((item) => item.id === (bullet.sourceEntryIds || [])[0])
         || { jobId: career.jobId && career.jobId !== career.id ? career.jobId : career.id },

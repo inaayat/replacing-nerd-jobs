@@ -3,7 +3,7 @@
  * Preview and print/PDF share this renderer.
  */
 
-import { additionalValueSpans, resumeBulletParts } from './resume-model.js';
+import { additionalValueSpans, resumeBulletSpans } from './resume-model.js';
 
 export const TOKENS = {
   page: { width: '8.5in', height: '11in', margin: '0.5in' },
@@ -49,11 +49,9 @@ const SECTIONS = {
       ));
       if (!bullets.length) return '';
       const heading = group.heading ? `<div class="subhead">${esc(group.heading)}</div>` : '';
-      const items = bullets.map((b) => {
-        const parts = resumeBulletParts(b);
-        const lead = parts.lead ? `<b>${esc(parts.lead)}:</b> ` : '';
-        return `<li data-bullet-id="${esc(b.id)}" data-job-id="${esc(job.id)}" data-priority="${b.priority ?? 1}" data-pinned="${b.pinned ? '1' : '0'}">${lead}${esc(parts.body)}</li>`;
-      }).join('');
+      const items = bullets.map((b) => (
+        `<li data-bullet-id="${esc(b.id)}" data-job-id="${esc(job.id)}" data-priority="${b.priority ?? 1}" data-pinned="${b.pinned ? '1' : '0'}">${formatSpans(resumeBulletSpans(b))}</li>`
+      )).join('');
       return `${heading}<ul>${items}</ul>`;
     }).join('');
     return `<div class="job" data-job-id="${esc(job.id)}">

@@ -1626,6 +1626,94 @@ const strayBodyRun = strayDocx.match(/<w:rPr>(?:(?!<\/w:rPr>)[\s\S])*?<\/w:rPr><
 assert.ok(strayBodyRun);
 assert.doesNotMatch(strayBodyRun[0], /<w:b\/>/);
 
+const strayStarBullet = {
+  lead: 'Migration of Manual Journal Prep',
+  body: 'Created auto*mated journals, * Created a review, closed c*ases annually*, and gener*al controls.',
+};
+const strayStarDoc = {
+  header: { name: 'Ada' },
+  sectionOrder: ['experience'],
+  sections: {
+    experience: {
+      title: 'Work Experience',
+      jobs: [{
+        id: 'job_star',
+        company: 'GoDaddy',
+        title: 'Manager',
+        included: true,
+        groups: [{ bullets: [{ id: 'b_star', ...strayStarBullet, included: true }] }],
+      }],
+    },
+  },
+};
+const strayStarHtml = renderResumeHtml(strayStarDoc, { droppedBulletIds: [] });
+assert.match(strayStarHtml, /<b>Migration of Manual Journal Prep:<\/b> Created automated journals, Created a review, closed cases annually, and general controls\./);
+assert.doesNotMatch(strayStarHtml, /\*/);
+assert.doesNotMatch(strayStarHtml, /<i>/);
+const strayStarDocx = new TextDecoder().decode(resumeDocxBytes(strayStarDoc));
+assert.match(strayStarDocx, /Created automated journals, Created a review, closed cases annually, and general controls\./);
+assert.doesNotMatch(strayStarDocx, /\*/);
+assert.doesNotMatch(strayStarDocx, /<w:i\/>/);
+
+let italicBook = addEntry(emptyStore(), {
+  id: 'en_italic',
+  title: 'Leading Enterprise AI Governance Maturity Assessment: Designing the model',
+}, clock);
+italicBook = addCareerJob(italicBook, {
+  id: 'rj_italic',
+  company: 'GoDaddy',
+  title: 'Manager',
+  groups: [{
+    id: 'rg_italic',
+    bullets: [{
+      id: 'rb_italic',
+      lead: 'Leading Enterprise AI Governance Maturity Assessment',
+      body: 'Designing the model',
+      sourceEntryIds: ['en_italic'],
+    }],
+  }],
+}, clock);
+italicBook = addPosting(italicBook, { id: 'job_italic', title: 'Italic posting' }, clock);
+const italicSpans = [
+  { text: 'Leading Enterprise AI Governance Maturity Assessment: ', bold: false },
+  { text: 'Designing', bold: false, italic: true },
+  { text: ' the model', bold: false },
+];
+italicBook = applyResumeBulletEdit(italicBook, {
+  postingId: null,
+  jobId: 'rj_italic',
+  groupId: 'rg_italic',
+  bullet: { id: 'rb_italic', sourceEntryIds: ['en_italic'] },
+  spans: italicSpans,
+}, clock);
+const italicEntry = italicBook.entries.find((entry) => entry.id === 'en_italic');
+assert.equal(italicEntry.rich.find((span) => span.text === 'Designing').italic, true);
+assert.equal(italicEntry.title.includes('*'), false);
+const italicBasics = compileResumeDoc(null, italicBook);
+const italicPosting = compileResumeDoc(postingById(italicBook, 'job_italic'), italicBook);
+for (const italicDoc of [italicBasics, italicPosting]) {
+  const italicHtml = renderResumeHtml(italicDoc, { droppedBulletIds: [] });
+  assert.match(italicHtml, /<b>Leading Enterprise AI Governance Maturity Assessment:<\/b> <i>Designing<\/i> the model/);
+  assert.doesNotMatch(italicHtml, /\*/);
+  const italicDocx = new TextDecoder().decode(resumeDocxBytes(italicDoc));
+  const designingRun = italicDocx.match(/<w:rPr>(?:(?!<\/w:rPr>)[\s\S])*?<\/w:rPr><w:t[^>]*>Designing<\/w:t>/);
+  assert.ok(designingRun);
+  assert.match(designingRun[0], /<w:i\/>/);
+  assert.doesNotMatch(designingRun[0], /<w:b\/>/);
+  assert.doesNotMatch(italicDocx, /\*/);
+}
+const italicBullet = italicBasics.sections.experience.jobs
+  .flatMap((job) => job.groups.flatMap((group) => group.bullets))
+  .find((bullet) => bullet.id === 'rb_italic');
+const italicShown = resumeBulletSpans(italicBullet);
+assert.equal(italicShown.find((span) => span.text === 'Designing').italic, true);
+assert.equal(italicShown[0].bold, true);
+assert.equal(italicShown.map((span) => span.text).join('').includes('*'), false);
+assert.equal(bulletConsistency(italicBook).some((issue) => issue.bulletId === 'rb_italic'), false);
+const reloadedItalic = normalizeStore(JSON.parse(serializeBook(italicBook).json), clock);
+assert.equal(reloadedItalic.entries.find((entry) => entry.id === 'en_italic').rich.find((span) => span.text === 'Designing').italic, true);
+assert.match(renderResumeHtml(compileResumeDoc(null, reloadedItalic), { droppedBulletIds: [] }), /<i>Designing<\/i>/);
+
 const bytes = resumeDocxBytes(resumeDoc);
 assert.equal(bytes[0], 0x50);
 assert.equal(bytes[1], 0x4b);
@@ -2782,6 +2870,13 @@ assert.match(addlEditor, /rich: spans/);
 const addlChange = addlEditor.slice(addlEditor.indexOf('onChange:'), addlEditor.indexOf('const stampLabel'));
 assert.doesNotMatch(addlChange, /render\(/);
 assert.match(addlChange, /scheduleResumePreview\(posting\)/);
+assert.doesNotMatch(appSource, /btn\('Bold'/);
+const richKeys = appSource.slice(appSource.indexOf('function bindRichKeys'), appSource.indexOf('function richLine'));
+assert.match(richKeys, /key === 'b'/);
+assert.match(richKeys, /key === 'i'/);
+assert.match(richKeys, /event\.preventDefault\(\)/);
+assert.match(richKeys, /execCommand\('bold'\)/);
+assert.match(richKeys, /execCommand\('italic'\)/);
 const stampLabelSource = appSource.slice(appSource.indexOf('const stampLabel'), appSource.indexOf('label.addEventListener', appSource.indexOf('const stampLabel')));
 assert.doesNotMatch(stampLabelSource, /render\(/);
 assert.match(stampLabelSource, /scheduleResumePreview\(posting\)/);
@@ -2839,6 +2934,11 @@ const bulletEditorSrc = appSource.slice(
 );
 assert.doesNotMatch(bulletEditorSrc, /btn\('Reset to source'/);
 assert.doesNotMatch(bulletEditorSrc, /btn\('Save back to source'/);
+assert.doesNotMatch(bulletEditorSrc, /btn\('Bold'/);
+assert.match(bulletEditorSrc, /italic: true/);
+const bulletCommit = bulletEditorSrc.slice(bulletEditorSrc.indexOf('const commitWording'), bulletEditorSrc.indexOf('const line ='));
+assert.doesNotMatch(bulletCommit, /render\(/);
+assert.match(bulletCommit, /scheduleResumePreview\(posting\)/);
 assert.match(bulletEditorSrc, /bullet\.hasOverride \? el\('span', \{ class: 'tiny' \}, 'This posting only'\)/);
 assert.doesNotMatch(bulletEditorSrc, /localBullet \? el\('span', \{ class: 'tiny' \}, 'This posting only'\)/);
 assert.doesNotMatch(appSource, /experienceIsOpen/);
