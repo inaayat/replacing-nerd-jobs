@@ -435,7 +435,7 @@ export function normalizeAdditionalRow(raw, clock = Date.now) {
     seen.add(group.id);
     groups.push(group);
   }
-  const items = asStringList(raw.items);
+  const items = asStringList(raw.items, { max: LIST_MAX, itemMax: TEXT_MAX });
   const updatedAt = asString(raw.updatedAt, 40);
   return {
     id: asId(raw.id, clock, 'ad'),
@@ -568,15 +568,48 @@ export function bulletFromLine(text) {
 export function markdownToSpans(text) {
   const raw = String(text || '');
   const spans = [];
-  const re = /\*\*(.+?)\*\*/g;
-  let last = 0;
-  let match;
-  while ((match = re.exec(raw))) {
-    if (match.index > last) spans.push({ text: raw.slice(last, match.index), bold: false });
-    spans.push({ text: match[1], bold: true });
-    last = match.index + match[0].length;
+  const push = (value, bold, italic) => {
+    if (!value) return;
+    const last = spans[spans.length - 1];
+    if (last && last.bold === bold && Boolean(last.italic) === italic) {
+      last.text += value;
+      return;
+    }
+    const span = { text: value, bold };
+    if (italic) span.italic = true;
+    spans.push(span);
+  };
+  let i = 0;
+  while (i < raw.length) {
+    if (raw.startsWith('***', i)) {
+      const end = raw.indexOf('***', i + 3);
+      if (end !== -1) {
+        push(raw.slice(i + 3, end), true, true);
+        i = end + 3;
+        continue;
+      }
+    }
+    if (raw.startsWith('**', i)) {
+      const end = raw.indexOf('**', i + 2);
+      if (end !== -1) {
+        push(raw.slice(i + 2, end), true, false);
+        i = end + 2;
+        continue;
+      }
+    }
+    if (raw[i] === '*') {
+      const end = raw.indexOf('*', i + 1);
+      if (end !== -1) {
+        push(raw.slice(i + 1, end), false, true);
+        i = end + 1;
+        continue;
+      }
+    }
+    const next = raw.indexOf('*', i);
+    const take = next === -1 ? raw.length : next;
+    push(raw.slice(i, take), false, false);
+    i = take;
   }
-  if (last < raw.length) spans.push({ text: raw.slice(last), bold: false });
   return spans.length ? spans : [{ text: '', bold: false }];
 }
 
@@ -584,8 +617,49 @@ export function spansToMarkdown(spans) {
   return (spans || []).map((span) => {
     const text = String(span?.text || '');
     if (!text) return '';
-    return span.bold ? `**${text}**` : text;
+    if (span.bold && span.italic) return `***${text}***`;
+    if (span.bold) return `**${text}**`;
+    if (span.italic) return `*${text}*`;
+    return text;
   }).join('');
+}
+
+export function additionalItemsMarkdown(row) {
+  if (row?.groups?.length) {
+    return row.groups.map((group) => {
+      const items = (group.items || []).join(', ');
+      return group.label ? `*${group.label}*: ${items}` : items;
+    }).join(' · ');
+  }
+  return (row?.items || []).join(' · ');
+}
+
+export function additionalValueSpans(row) {
+  if (row?.groups?.length) {
+    const spans = [];
+    row.groups.forEach((group, index) => {
+      if (index) spans.push({ text: ' · ', bold: false });
+      spans.push({ text: group.label || '', italic: true });
+      spans.push({ text: `: ${(group.items || []).join(', ')}` });
+    });
+    return spans;
+  }
+  const spans = [];
+  (row?.items || []).forEach((item, index) => {
+    if (index) spans.push({ text: ' · ', bold: false });
+    for (const span of markdownToSpans(item)) spans.push(span);
+  });
+  return spans.length ? spans : [{ text: '', bold: false }];
+}
+
+export function additionalValuePlain(row) {
+  return additionalValueSpans(row)
+    .map((span) => String(span?.text || ''))
+    .join('')
+    .replace(/\*\*/g, '')
+    .replace(/\*/g, '')
+    .replace(/[^\S\n]{2,}/g, ' ')
+    .trim();
 }
 
 export function bulletPlainText(bullet) {
