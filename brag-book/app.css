@@ -1883,14 +1883,30 @@ a:focus-visible {
     font-size: 16px;
   }
 }
-.bb-new-job,
-.bb-job-catalog-row {
+.bb-new-job {
   display: grid;
-  grid-template-columns: 1.2fr 1.2fr 1fr 1fr auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
   gap: 6px;
   align-items: center;
 }
+.bb-jobs-catalog,
+.bb-job-catalog-list { min-width: 0; max-width: 100%; }
 .bb-job-catalog-list { display: grid; gap: 8px; }
+.bb-job-catalog-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 0.85fr) minmax(0, 0.8fr) auto;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+}
+.bb-job-catalog-row > input,
+.bb-new-job > input {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
 .bb-job-setup-row { display: flex; gap: 8px; align-items: baseline; margin: 6px 0; }
 .bb-add-role { max-width: 16rem; }
 @media (max-width: 720px) {

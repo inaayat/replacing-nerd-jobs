@@ -37,6 +37,25 @@ export function bookPagePlan(view) {
   };
 }
 
+export const JOB_CATALOG_SAVE_MS = 300;
+
+export function jobCatalogFocusKeys(jobId) {
+  const id = String(jobId || '');
+  return {
+    company: `job-co-${id}`,
+    title: `job-title-${id}`,
+    dates: `job-dates-${id}`,
+    location: `job-loc-${id}`,
+  };
+}
+
+// Typing and leaving a Jobs field save the row. They do not render, and they
+// do not hand a focus key back to restoreFocus — that loop traps the caret.
+export function jobCatalogEditEffects(eventType) {
+  if (eventType !== 'input' && eventType !== 'blur') return { save: false, render: false };
+  return { save: true, render: false };
+}
+
 export function experienceRowSpec(entry) {
   const row = entry || {};
   return {

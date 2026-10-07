@@ -152,7 +152,7 @@ import { renderResumeHtml, resumeDocument } from './resume-template.js';
 import { fitOnePage, dropOrderFromDoc, applyDroppedIds, droppedBulletLabels, fitStatusLine, PAGE_HEIGHT_PX } from './resume-fit.js';
 import { resumeDocxBlob } from './resume-docx.js';
 import { parseViewHash, viewHash, viewTitle } from './routes.js';
-import { bookPagePlan, experienceRowSpec, homeStartCards } from './book-view.js';
+import { bookPagePlan, experienceRowSpec, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys } from './book-view.js';
 import { loadBook, saveBook } from './store.js';
 import { initAuth, refreshToken, renderBragSignIn, wireAuthLink } from './auth.js';
 
@@ -2893,29 +2893,30 @@ function resumeJobEditor(posting, career) {
 }
 
 function jobCatalogRow(job) {
+  const keys = jobCatalogFocusKeys(job.id);
   const company = el('input', {
     value: job.company || '',
     placeholder: 'Company',
     'aria-label': 'Company',
-    'data-focus-key': `job-co-${job.id}`,
+    'data-focus-key': keys.company,
   });
   const title = el('input', {
     value: job.title || '',
     placeholder: 'Title',
     'aria-label': 'Job title',
-    'data-focus-key': `job-title-${job.id}`,
+    'data-focus-key': keys.title,
   });
   const dates = el('input', {
     value: [job.start, job.end].filter(Boolean).join(' – '),
     placeholder: 'October 2021 – Present',
     'aria-label': 'Dates',
-    'data-focus-key': `job-dates-${job.id}`,
+    'data-focus-key': keys.dates,
   });
   const location = el('input', {
     value: job.location || '',
     placeholder: 'Location',
     'aria-label': 'Location',
-    'data-focus-key': `job-loc-${job.id}`,
+    'data-focus-key': keys.location,
   });
   const stamp = () => {
     const [start, end] = dates.value.split(/\s+[–-]\s+/);
@@ -2928,9 +2929,25 @@ function jobCatalogRow(job) {
     });
     saveStore();
   };
+  let saveTimer = null;
+  const flush = () => {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = null;
+    stamp();
+  };
   [company, title, dates, location].forEach((node) => {
-    node.addEventListener('input', stamp);
-    node.addEventListener('blur', () => render({ focusKey: node.getAttribute('data-focus-key') }));
+    node.addEventListener('input', () => {
+      const plan = jobCatalogEditEffects('input');
+      if (!plan.save) return;
+      if (saveTimer) clearTimeout(saveTimer);
+      saveTimer = setTimeout(flush, JOB_CATALOG_SAVE_MS);
+      if (plan.render) render();
+    });
+    node.addEventListener('blur', () => {
+      const plan = jobCatalogEditEffects('blur');
+      if (saveTimer) flush();
+      if (plan.render) render();
+    });
   });
   return el('div', { class: 'bb-job-catalog-row' }, [
     company,
