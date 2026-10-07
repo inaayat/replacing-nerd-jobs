@@ -1326,6 +1326,10 @@ export function toggleId(list, id) {
   return [...items, id];
 }
 
+export function visibleResumeBullets(bullets) {
+  return (bullets || []).filter((bullet) => bullet && bullet.included !== false);
+}
+
 export function findResumeBullet(doc, bulletId) {
   for (const job of doc?.sections?.experience?.jobs || []) {
     for (const group of job.groups || []) {

@@ -126,6 +126,7 @@ import {
   applyJobSetup,
   dismissJobSetup,
   resumeTakenEntryIds,
+  visibleResumeBullets,
   adoptCompiledJob,
   resumeBulletSpans,
   bulletFromLine,
@@ -2668,7 +2669,7 @@ function libraryBulletPicker(posting, career, group) {
       list.hidden = false;
       return;
     }
-    const taken = resumeTakenEntryIds(store, posting || null);
+    const taken = resumeTakenEntryIds(store, posting || null, { includeExcluded: !posting });
     const linkedJobId = career.jobId && career.jobId !== career.id ? career.jobId : career.id;
     const choices = libraryBulletChoices(store, { query: q, takenIds: taken, jobId: linkedJobId });
     list.replaceChildren(...(choices.length
@@ -2792,7 +2793,7 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0, gro
         index: bulletIndex,
         length: group.bullets.length,
         ...(posting
-          ? resumeBulletArrows(bulletIndex, group.bullets.length)
+          ? resumeBulletArrows(bulletIndex, visibleResumeBullets(group.bullets).length)
           : {
             disableUp: bulletIndex <= 0 && groups.findIndex((item) => item.id === group.id) <= 0,
             disableDown: bulletIndex >= group.bullets.length - 1
@@ -3246,7 +3247,8 @@ function resumeJobEditor(posting, career) {
             },
           }) : null,
         ]),
-        ...group.bullets.map((bullet, bulletIndex) => resumeBulletEditor(posting, career, group, bullet, bulletIndex, groups)),
+        ...(posting ? visibleResumeBullets(group.bullets) : group.bullets)
+          .map((bullet, bulletIndex) => resumeBulletEditor(posting, career, group, bullet, bulletIndex, groups)),
         allowStructure ? el('div', { class: 'bb-add-row' }, [
           libraryBulletPicker(posting, career, group),
           addSubheadingButton(posting, career, { afterId: group.id }),
