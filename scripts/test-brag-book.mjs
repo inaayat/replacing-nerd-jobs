@@ -165,6 +165,11 @@ import {
   moveResumeGroup,
   moveResumeBullet,
   stepResumeBullet,
+  applyResumeDrag,
+  resumeDragRows,
+  moveDragRow,
+  dropIndexAtY,
+  placementFromDragRows,
   neighborGroupForBullet,
   moveAdditionalGroup,
   insertKeyAfter,
@@ -4147,3 +4152,151 @@ assert.deepEqual(compiledGroupIds(moveReloaded, 'job_move', 'rj_move').map((grou
 assert.equal(compileResumeDoc(postingById(moveReloaded, 'job_move_other'), moveReloaded)
   .sections.experience.jobs.find((job) => job.id === 'rj_move')
   .groups.find((group) => group.id === 'rg_move_train').bullets[0].id, 'rb_move_b');
+
+const dragGroups = [
+  { id: 'h1', heading: 'One', bullets: [{ id: 'b1', lead: 'First', pinned: true }, { id: 'b2', lead: 'Second' }, { id: 'hid', lead: 'Hidden', included: false }] },
+  { id: 'h2', heading: 'Two', bullets: [{ id: 'b3', lead: 'Third' }] },
+  { id: 'h3', heading: 'Empty', bullets: [] },
+];
+const dragRows = resumeDragRows(dragGroups, { visibleOnly: true });
+assert.deepEqual(dragRows.map((row) => row.id), ['h1', 'b1', 'b2', 'h2', 'b3', 'h3']);
+assert.deepEqual(moveDragRow(dragRows, 1, 1).map((row) => row.id), dragRows.map((row) => row.id));
+assert.deepEqual(moveDragRow(dragRows, 1, 2).map((row) => row.id), dragRows.map((row) => row.id));
+assert.deepEqual(moveDragRow(dragRows, 1, 0).map((row) => row.id), ['b1', 'h1', 'b2', 'h2', 'b3', 'h3']);
+assert.deepEqual(moveDragRow(dragRows, 1, dragRows.length).map((row) => row.id), ['h1', 'b2', 'h2', 'b3', 'h3', 'b1']);
+assert.equal(dropIndexAtY([{ top: 0, height: 20 }, { top: 20, height: 20 }], 5), 0);
+assert.equal(dropIndexAtY([{ top: 0, height: 20 }, { top: 20, height: 20 }], 15), 1);
+assert.equal(dropIndexAtY([{ top: 0, height: 20 }, { top: 20, height: 20 }], 40), 2);
+
+const intoGroup = placementFromDragRows(dragGroups, moveDragRow(dragRows, dragRows.findIndex((row) => row.id === 'b3'), dragRows.findIndex((row) => row.id === 'b2')));
+assert.deepEqual(intoGroup.bulletOrder.h1, ['b1', 'b3', 'b2', 'hid']);
+assert.deepEqual(intoGroup.bulletOrder.h2, []);
+assert.deepEqual(intoGroup.bulletOrder.h3, []);
+assert.equal(intoGroup.bulletGroup.b3, 'h1');
+assert.deepEqual(intoGroup.leadingBulletIds, []);
+assert.ok(intoGroup.groupOrder.includes('h3'));
+
+const shifted = placementFromDragRows(dragGroups, moveDragRow(dragRows, dragRows.findIndex((row) => row.id === 'b1'), dragRows.findIndex((row) => row.id === 'h2')));
+assert.deepEqual(shifted.bulletOrder.h1.filter((id) => id !== 'hid'), ['b2', 'b1']);
+assert.equal(shifted.bulletGroup.b1, undefined);
+
+const headingPast = placementFromDragRows(dragGroups, moveDragRow(dragRows, dragRows.findIndex((row) => row.id === 'h2'), dragRows.findIndex((row) => row.id === 'b2')));
+assert.deepEqual(headingPast.bulletOrder.h1.filter((id) => id !== 'hid'), ['b1']);
+assert.deepEqual(headingPast.bulletOrder.h2, ['b2', 'b3']);
+assert.equal(headingPast.bulletGroup.b2, 'h2');
+assert.equal(headingPast.bulletGroup.b3, undefined);
+assert.deepEqual(headingPast.groupOrder.filter((id) => id !== 'h3'), ['h1', 'h2']);
+assert.ok(headingPast.groupOrder.includes('h3'));
+
+const headingFirst = placementFromDragRows(dragGroups, moveDragRow(dragRows, dragRows.findIndex((row) => row.id === 'h2'), 0));
+assert.equal(headingFirst.groupOrder[0], 'h2');
+assert.deepEqual(headingFirst.bulletOrder.h2, []);
+assert.deepEqual(headingFirst.bulletOrder.h1.filter((id) => id !== 'hid'), ['b1', 'b2', 'b3']);
+assert.equal(headingFirst.bulletGroup.b3, 'h1');
+
+const aboveHead = placementFromDragRows(dragGroups, moveDragRow(dragRows, dragRows.findIndex((row) => row.id === 'b2'), 0));
+assert.deepEqual(aboveHead.leadingBulletIds, ['b2']);
+assert.equal(aboveHead.leadingIndex, 0);
+assert.equal(aboveHead.bulletGroup.b2, undefined);
+
+const unheaded = [
+  { id: 'u', heading: '', bullets: [{ id: 'bu', lead: 'Loose' }] },
+  { id: 'h', heading: 'Named', bullets: [{ id: 'bh', lead: 'Named bullet' }] },
+];
+const unheadedRows = resumeDragRows(unheaded, { showHeading: (group) => Boolean(String(group.heading || '').trim()) });
+const unheadedPlace = placementFromDragRows(unheaded, unheadedRows);
+assert.deepEqual(unheadedPlace.groupOrder, ['u', 'h']);
+assert.deepEqual(unheadedPlace.bulletOrder.u, ['bu']);
+assert.deepEqual(unheadedPlace.bulletOrder.h, ['bh']);
+assert.deepEqual(unheadedPlace.bulletGroup, {});
+assert.deepEqual(unheadedPlace.leadingBulletIds, []);
+
+let dragBook = addCareerJob(emptyStore(), {
+  id: 'rj_drag',
+  company: 'Drag Co',
+  title: 'Analyst',
+  onResume: true,
+  groups: [
+    { id: 'h1', heading: 'One', bullets: [{ id: 'b1', lead: 'First', body: 'alpha', pinned: true }, { id: 'b2', lead: 'Second', body: 'beta' }] },
+    { id: 'h2', heading: 'Two', bullets: [{ id: 'b3', lead: 'Third', body: 'gamma' }] },
+    { id: 'h3', heading: '', bullets: [] },
+  ],
+}, clock, random);
+const dragJob = dragBook.jobs.find((job) => job.id === 'rj_drag');
+const dragBasicsRows = resumeDragRows(dragJob.groups);
+const basicsMoved = moveDragRow(dragBasicsRows, dragBasicsRows.findIndex((row) => row.id === 'h2'), dragBasicsRows.findIndex((row) => row.id === 'b2'));
+dragBook = applyResumeDrag(dragBook, null, dragJob, basicsMoved, clock, random);
+const basicsGroups = dragBook.jobs.find((job) => job.id === 'rj_drag').groups;
+assert.deepEqual(basicsGroups.map((group) => [group.id, group.bullets.map((bullet) => bullet.id)]), [
+  ['h1', ['b1']],
+  ['h2', ['b2', 'b3']],
+  ['h3', []],
+]);
+assert.equal(basicsGroups[0].bullets[0].pinned, true);
+assert.equal(basicsGroups[1].heading, 'Two');
+const basicsHtml = renderResumeHtml(compileResumeDoc(null, dragBook));
+assert.ok(basicsHtml.indexOf('First') < basicsHtml.indexOf('>Two<') || basicsHtml.indexOf('One') < basicsHtml.indexOf('Second'));
+assert.ok(basicsHtml.indexOf('Second') < basicsHtml.indexOf('Third'));
+const basicsDocx = new TextDecoder().decode(resumeDocxBytes(compileResumeDoc(null, dragBook)));
+assert.ok(basicsDocx.indexOf('Second') < basicsDocx.indexOf('Third'));
+
+const leadRows = moveDragRow(dragBasicsRows, dragBasicsRows.findIndex((row) => row.id === 'b1'), 0);
+const leadBook = applyResumeDrag(dragBook, null, dragBook.jobs.find((job) => job.id === 'rj_drag'), leadRows, clock, random);
+const leadGroups = leadBook.jobs.find((job) => job.id === 'rj_drag').groups;
+assert.equal(leadGroups[0].heading, '');
+assert.deepEqual(leadGroups[0].bullets.map((bullet) => bullet.id), ['b1']);
+assert.equal(leadGroups[0].bullets[0].pinned, true);
+
+let postDrag = addCareerJob(emptyStore(), {
+  id: 'rj_drag',
+  company: 'Drag Co',
+  title: 'Analyst',
+  onResume: true,
+  groups: [
+    { id: 'h1', heading: 'One', bullets: [{ id: 'b1', lead: 'First', body: 'alpha', pinned: true }, { id: 'b2', lead: 'Second', body: 'beta' }] },
+    { id: 'h2', heading: 'Two', bullets: [{ id: 'b3', lead: 'Third', body: 'gamma' }] },
+    { id: 'h3', heading: 'Empty', bullets: [] },
+  ],
+}, clock, random);
+postDrag = addPosting(postDrag, { id: 'job_drag', title: 'Drag posting' }, clock);
+postDrag = addPosting(postDrag, { id: 'job_drag_other', title: 'Other drag posting' }, clock);
+postDrag = updatePostingResume(postDrag, 'job_drag', {
+  includedJobIds: ['rj_drag'],
+  pinnedBulletIds: ['b1'],
+}, clock);
+const dragPosting = postDrag.postings.find((job) => job.id === 'job_drag');
+const dragCompiled = compileResumeDoc(dragPosting, postDrag).sections.experience.jobs.find((job) => job.id === 'rj_drag');
+const postingRows = resumeDragRows(dragCompiled.groups, { visibleOnly: true });
+const postingMoved = moveDragRow(postingRows, postingRows.findIndex((row) => row.id === 'b3'), postingRows.findIndex((row) => row.id === 'b2'));
+const jobsBeforeDrag = JSON.stringify(postDrag.jobs);
+const pinsBeforeDrag = JSON.stringify(postingById(postDrag, 'job_drag').resume.pinnedBulletIds);
+const otherBeforeDrag = JSON.stringify(postingById(postDrag, 'job_drag_other').resume);
+postDrag = applyResumeDrag(postDrag, 'job_drag', { id: 'rj_drag' }, postingMoved, clock, random);
+assert.equal(JSON.stringify(postDrag.jobs), jobsBeforeDrag);
+assert.equal(JSON.stringify(postingById(postDrag, 'job_drag').resume.pinnedBulletIds), pinsBeforeDrag);
+assert.equal(JSON.stringify(postingById(postDrag, 'job_drag_other').resume), otherBeforeDrag);
+assert.equal(postingById(postDrag, 'job_drag').resume.bulletGroup.b3, 'h1');
+const draggedDoc = compileResumeDoc(postingById(postDrag, 'job_drag'), postDrag).sections.experience.jobs.find((job) => job.id === 'rj_drag');
+assert.deepEqual(draggedDoc.groups.find((group) => group.id === 'h1').bullets.map((bullet) => bullet.id), ['b1', 'b3', 'b2']);
+assert.deepEqual(draggedDoc.groups.find((group) => group.id === 'h3').bullets, []);
+assert.equal(draggedDoc.groups.flatMap((group) => group.bullets).find((bullet) => bullet.id === 'b1').pinned, true);
+const draggedHtml = renderResumeHtml(compileResumeDoc(postingById(postDrag, 'job_drag'), postDrag));
+assert.ok(draggedHtml.indexOf('Third') < draggedHtml.indexOf('Second'));
+
+const dragOver = appSource.slice(appSource.indexOf("addEventListener('dragover'"), appSource.indexOf("addEventListener('drop'"));
+const dragMove = appSource.slice(appSource.indexOf("addEventListener('pointermove'"), appSource.indexOf("addEventListener('pointerup'"));
+assert.doesNotMatch(dragOver, /render\(/);
+assert.doesNotMatch(dragMove, /render\(/);
+assert.match(appSource, /function dragHandleBlocked/);
+assert.match(appSource, /input, textarea, select, \[contenteditable="true"\]/);
+assert.match(appSource, /closest\('\.bb-drag-handle'\)/);
+assert.match(appSource, /function bindResumeRowDrag/);
+assert.match(appSource, /addEventListener\('pointerdown'/);
+assert.match(appSource, /applyResumeDrag\(/);
+assert.match(appSource, /resumeMoveBtns\('bullet'/);
+assert.match(appSource, /resumeMoveBtns\('sub-heading'/);
+assert.match(appSource, /Move bullet to sub-heading/);
+assert.match(appSource, /bb-drag-handle/);
+assert.match(appSource, /⠇/);
+assert.match(bookCss, /\.bb-drop-line \{[^}]*height:\s*2px/);
+assert.match(bookCss, /\.bb-drag-handle \{[^}]*cursor:\s*grab/);

@@ -27,6 +27,7 @@ import {
   moveListItem,
   relocateBullet,
   neighborGroupForBullet,
+  placementFromDragRows,
   groupBulletOrders,
   moveKey,
   insertKeyAfter,
@@ -115,6 +116,10 @@ export {
   moveListItem,
   relocateBullet,
   neighborGroupForBullet,
+  resumeDragRows,
+  moveDragRow,
+  dropIndexAtY,
+  placementFromDragRows,
   groupBulletOrders,
   moveKey,
   insertKeyAfter,
@@ -1207,6 +1212,78 @@ export function moveResumeGroup(store, postingId, jobId, groupId, delta, clock =
   const ids = compiledJobGroups(store, postingId, jobId);
   return updatePostingResume(store, postingId, {
     groupOrder: { [jobId]: moveKey(ids, groupId, delta) },
+  }, clock);
+}
+
+function dragBulletSnapshot(bullet) {
+  return {
+    id: bullet.id,
+    lead: bullet.lead || '',
+    body: bullet.body || '',
+    priority: bullet.priority,
+    pinned: Boolean(bullet.pinned),
+    sourceBulletIds: bullet.sourceBulletIds || [],
+    sourceEntryIds: bullet.sourceEntryIds || [],
+  };
+}
+
+function groupsFromDragPlacement(groups, placement, leadingId) {
+  const byId = new Map((groups || []).map((group) => [group.id, group]));
+  const bulletById = new Map();
+  for (const group of groups || []) {
+    for (const bullet of group.bullets || []) {
+      if (bullet?.id) bulletById.set(bullet.id, bullet);
+    }
+  }
+  const order = placement.groupOrder.slice();
+  const bulletOrder = { ...placement.bulletOrder };
+  if (leadingId && placement.leadingBulletIds?.length) {
+    const at = placement.leadingIndex < 0 ? order.length : placement.leadingIndex;
+    order.splice(at, 0, leadingId);
+    bulletOrder[leadingId] = placement.leadingBulletIds;
+  }
+  return order.map((id) => {
+    const group = byId.get(id);
+    const bullets = (bulletOrder[id] || []).map((bulletId) => bulletById.get(bulletId)).filter(Boolean).map(dragBulletSnapshot);
+    if (group) return { ...group, id: group.id, heading: group.heading || '', bullets };
+    return { id, heading: '', bullets };
+  });
+}
+
+export function applyResumeDrag(store, postingId, career, rows, clock = Date.now, random = Math.random) {
+  const jobId = career?.id;
+  if (!jobId || !Array.isArray(rows)) return store;
+  if (!postingId) {
+    const job = (store?.jobs || []).find((item) => item.id === jobId);
+    if (!job) return store;
+    const placement = placementFromDragRows(job.groups, rows);
+    const leadingId = placement.leadingBulletIds.length ? newId('rg', clock, random) : '';
+    const groups = groupsFromDragPlacement(job.groups, placement, leadingId);
+    return mapCareerJob(store, jobId, (current) => ({ ...current, groups }), clock);
+  }
+  const compiled = compiledExperienceJob(store, postingId, jobId);
+  if (!compiled) return store;
+  const placement = placementFromDragRows(compiled.groups, rows);
+  let next = store;
+  let leadingId = '';
+  if (placement.leadingBulletIds.length) {
+    leadingId = newId('rg', clock, random);
+    next = addPostingLocalGroup(next, postingId, jobId, { id: leadingId, heading: '' }, clock, random);
+  }
+  const groupOrder = placement.groupOrder.slice();
+  const bulletOrder = { ...placement.bulletOrder };
+  const bulletGroup = { ...(placement.bulletGroup || {}) };
+  if (leadingId) {
+    const at = placement.leadingIndex < 0 ? groupOrder.length : placement.leadingIndex;
+    groupOrder.splice(at, 0, leadingId);
+    bulletOrder[leadingId] = placement.leadingBulletIds.slice();
+    for (const id of placement.leadingBulletIds) bulletGroup[id] = leadingId;
+  }
+  const posting = postingById(next, postingId);
+  return updatePostingResume(next, postingId, {
+    groupOrder: { [jobId]: groupOrder },
+    bulletOrder,
+    bulletGroup: { ...(posting?.resume?.bulletGroup || {}), ...bulletGroup },
   }, clock);
 }
 

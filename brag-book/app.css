@@ -1528,6 +1528,34 @@ a:focus-visible {
   text-align: left;
   white-space: normal;
 }
+.bb-drag-list { display: flex; flex-direction: column; gap: 2px; }
+.bb-drag-row {
+  display: grid;
+  grid-template-columns: 1.75rem minmax(0, 1fr);
+  gap: 4px;
+  align-items: start;
+}
+.bb-drag-row > :last-child { min-width: 0; }
+.bb-drag-row.is-dragging { opacity: 0.45; }
+.bb-drag-handle {
+  cursor: grab;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.15rem;
+  line-height: 1;
+  padding: 8px 0;
+  touch-action: none;
+  user-select: none;
+}
+.bb-drag-handle:active { cursor: grabbing; }
+.bb-drop-line {
+  height: 2px;
+  margin: 1px 0;
+  background: var(--ink, #1c1915);
+  border-radius: 1px;
+  pointer-events: none;
+}
 .bb-group-head {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
@@ -1934,6 +1962,8 @@ a:focus-visible {
   .field .bb-addl-items {
     font-size: 16px;
   }
+  .bb-drag-handle { min-width: 44px; min-height: 44px; }
+  .bb-drag-row { grid-template-columns: 44px minmax(0, 1fr); }
 }
 .bb-new-job {
   display: grid;

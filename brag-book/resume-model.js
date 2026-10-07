@@ -1506,6 +1506,155 @@ export function neighborGroupForBullet(groups, groupId, bulletId, delta) {
   return null;
 }
 
+// Visual order of one role: a heading row, then its bullets, with unnamed
+// posting groups flushed immediately before the next shown heading.
+export function resumeDragRows(groups, { showHeading, visibleOnly = false } = {}) {
+  const list = Array.isArray(groups) ? groups : [];
+  const show = typeof showHeading === 'function' ? showHeading : (() => true);
+  const rows = [];
+  const bulletsOf = (group) => (group?.bullets || []).filter((bullet) => {
+    if (!bullet?.id) return false;
+    if (visibleOnly && bullet.included === false) return false;
+    return true;
+  });
+  let pending = [];
+  const flush = () => {
+    for (const group of pending) {
+      for (const bullet of bulletsOf(group)) rows.push({ kind: 'bullet', id: bullet.id });
+    }
+    pending = [];
+  };
+  for (const group of list) {
+    if (!group?.id) continue;
+    if (show(group)) {
+      flush();
+      rows.push({ kind: 'heading', id: group.id });
+      for (const bullet of bulletsOf(group)) rows.push({ kind: 'bullet', id: bullet.id });
+    } else pending.push(group);
+  }
+  flush();
+  return rows;
+}
+
+// `toIndex` is the gap in the list before the row is removed (0..length).
+// Dropping on the same gap leaves the list alone.
+export function moveDragRow(rows, fromIndex, toIndex) {
+  const list = Array.isArray(rows) ? rows.slice() : [];
+  const from = Number(fromIndex);
+  const to = Number(toIndex);
+  if (!Number.isInteger(from) || from < 0 || from >= list.length) return Array.isArray(rows) ? rows : [];
+  if (!Number.isInteger(to) || to < 0 || to > list.length) return Array.isArray(rows) ? rows : [];
+  if (to === from || to === from + 1) return Array.isArray(rows) ? rows : [];
+  const [row] = list.splice(from, 1);
+  list.splice(to > from ? to - 1 : to, 0, row);
+  return list;
+}
+
+export function dropIndexAtY(rects, y) {
+  const rows = Array.isArray(rects) ? rects : [];
+  const point = Number(y);
+  for (let i = 0; i < rows.length; i += 1) {
+    const rect = rows[i] || {};
+    const top = Number(rect.top) || 0;
+    const height = rect.height != null ? Number(rect.height) : (Number(rect.bottom) || 0) - top;
+    if (point < top + height / 2) return i;
+  }
+  return rows.length;
+}
+
+// Bullets stay in their group unless a heading row crossed them. A crossed
+// bullet belongs to the heading now above it. Bullets left above every
+// heading are `leadingBulletIds` (a blank group inserted at `leadingIndex`).
+// Hidden bullets that never appear in `rows` stay on their original group.
+export function placementFromDragRows(groups, rows) {
+  const list = (Array.isArray(groups) ? groups : []).filter((group) => group?.id);
+  const nextRows = (Array.isArray(rows) ? rows : []).filter((row) => (
+    row && (row.kind === 'heading' || row.kind === 'bullet') && row.id
+  ));
+  const originalGroup = new Map();
+  const hidden = new Map();
+  for (const group of list) {
+    hidden.set(group.id, []);
+    for (const bullet of group.bullets || []) {
+      if (bullet?.id) originalGroup.set(bullet.id, group.id);
+    }
+  }
+  const rowBullets = new Set(nextRows.filter((row) => row.kind === 'bullet').map((row) => row.id));
+  for (const group of list) {
+    for (const bullet of group.bullets || []) {
+      if (!bullet?.id || rowBullets.has(bullet.id)) continue;
+      hidden.get(group.id).push(bullet.id);
+    }
+  }
+  const shown = new Set(nextRows.filter((row) => row.kind === 'heading').map((row) => row.id));
+  const originalRows = resumeDragRows(list, {
+    showHeading: (group) => shown.has(group.id),
+  }).filter((row) => row.kind === 'heading' || rowBullets.has(row.id));
+  const precedingOf = (source) => {
+    const map = new Map();
+    let current = null;
+    for (const row of source) {
+      if (row.kind === 'heading') current = row.id;
+      else if (row.kind === 'bullet') map.set(row.id, current);
+    }
+    return map;
+  };
+  const beforeHeading = precedingOf(originalRows);
+  const afterHeading = precedingOf(nextRows);
+  const finalGroup = new Map();
+  const leadingBulletIds = [];
+  for (const row of nextRows) {
+    if (row.kind !== 'bullet' || !originalGroup.has(row.id)) continue;
+    const prev = beforeHeading.get(row.id) ?? null;
+    const next = afterHeading.get(row.id) ?? null;
+    if (prev === next) finalGroup.set(row.id, originalGroup.get(row.id));
+    else if (next && shown.has(next)) finalGroup.set(row.id, next);
+    else leadingBulletIds.push(row.id);
+  }
+  const bulletOrder = {};
+  for (const group of list) bulletOrder[group.id] = [];
+  const groupOrder = [];
+  const seen = new Set();
+  const emit = (id) => {
+    if (!id || seen.has(id) || !Object.prototype.hasOwnProperty.call(bulletOrder, id)) return;
+    seen.add(id);
+    groupOrder.push(id);
+  };
+  let leadingIndex = -1;
+  const leadingSet = new Set(leadingBulletIds);
+  for (const row of nextRows) {
+    if (row.kind === 'heading') {
+      emit(row.id);
+      continue;
+    }
+    if (leadingSet.has(row.id)) {
+      if (leadingIndex < 0) leadingIndex = groupOrder.length;
+      continue;
+    }
+    const gid = finalGroup.get(row.id);
+    if (!gid) continue;
+    emit(gid);
+    bulletOrder[gid].push(row.id);
+  }
+  for (const group of list) {
+    for (const id of hidden.get(group.id) || []) {
+      if (!bulletOrder[group.id].includes(id)) bulletOrder[group.id].push(id);
+    }
+    emit(group.id);
+  }
+  const bulletGroup = {};
+  for (const [id, gid] of finalGroup) {
+    if (gid !== originalGroup.get(id)) bulletGroup[id] = gid;
+  }
+  return {
+    groupOrder,
+    bulletOrder,
+    bulletGroup,
+    leadingBulletIds,
+    leadingIndex: leadingBulletIds.length ? leadingIndex : -1,
+  };
+}
+
 export function groupBulletOrders(groups) {
   const order = {};
   for (const group of groups || []) {

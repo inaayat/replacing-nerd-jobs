@@ -62,6 +62,9 @@ import {
   moveCareerGroup,
   moveResumeBullet,
   stepResumeBullet,
+  applyResumeDrag,
+  moveDragRow,
+  dropIndexAtY,
   addResumeGroup,
   removeResumeGroup,
   moveResumeGroup,
@@ -200,6 +203,7 @@ let statusNote = '';
 let expandedBulletKey = '';
 let expandedAdderKey = '';
 let draftResumeGroupId = '';
+let resumeRowDrag = null;
 let collapsedResumeRoles = [];
 let pendingJobEntryId = '';
 let questionComposerKey = '';
@@ -3025,13 +3029,174 @@ function resumeGroupHeadingInput(posting, career, group, { shared, localOnly }) 
   return heading;
 }
 
+function dragEventElement(target) {
+  if (!target) return null;
+  return target.nodeType === 1 ? target : target.parentElement;
+}
+
+function dragHandleBlocked(target) {
+  const node = dragEventElement(target);
+  if (!node?.closest) return true;
+  if (node.closest('.bb-drag-handle')) return false;
+  return Boolean(node.closest('input, textarea, select, [contenteditable="true"]'));
+}
+
+function resumeDragHandle(label) {
+  return el('button', {
+    type: 'button',
+    class: 'bb-drag-handle',
+    draggable: 'true',
+    title: `Drag ${label}`,
+    'aria-label': `Drag ${label}`,
+  }, '⠇');
+}
+
+function resumeDragRow(kind, id, label, child) {
+  return el('div', {
+    class: 'bb-drag-row',
+    dataset: { dragKind: kind, dragId: id },
+  }, [resumeDragHandle(label), child]);
+}
+
+function resumeDragRowsIn(list) {
+  return [...list.querySelectorAll(':scope > .bb-drag-row')];
+}
+
+function placeResumeDropLine(list, clientY) {
+  const items = resumeDragRowsIn(list);
+  const index = dropIndexAtY(items.map((node) => {
+    const rect = node.getBoundingClientRect();
+    return { top: rect.top, height: rect.height };
+  }), clientY);
+  const line = list.querySelector(':scope > .bb-drop-line');
+  if (!line) return index;
+  line.hidden = false;
+  const anchor = items[index] || null;
+  if (anchor) list.insertBefore(line, anchor);
+  else list.append(line);
+  return index;
+}
+
+function clearResumeRowDrag(list) {
+  const line = list.querySelector(':scope > .bb-drop-line');
+  if (line) line.hidden = true;
+  list.querySelectorAll('.bb-drag-row.is-dragging').forEach((node) => node.classList.remove('is-dragging'));
+  if (resumeRowDrag?.list === list) resumeRowDrag = null;
+}
+
+function commitResumeRowDrag(list, posting, career, toIndex) {
+  const session = resumeRowDrag;
+  if (!session || session.list !== list || session.committed) return;
+  session.committed = true;
+  const items = resumeDragRowsIn(list);
+  const fromIndex = items.indexOf(session.row);
+  const current = items.map((node) => ({ kind: node.dataset.dragKind, id: node.dataset.dragId }));
+  const next = fromIndex < 0 ? current : moveDragRow(current, fromIndex, toIndex);
+  const same = next.length === current.length && next.every((row, index) => (
+    row.kind === current[index].kind && row.id === current[index].id
+  ));
+  const focusKey = session.row?.dataset?.dragKind === 'heading'
+    ? `rg-${session.row.dataset.dragId}-heading`
+    : `rb-${session.row?.dataset?.dragId}-line`;
+  clearResumeRowDrag(list);
+  if (same || fromIndex < 0) return;
+  store = applyResumeDrag(store, posting?.id || null, career, next);
+  saveStore();
+  render({ focusKey });
+}
+
+function bindResumeRowDrag(list, { posting, career }) {
+  list.append(el('div', { class: 'bb-drop-line', hidden: true, 'aria-hidden': 'true' }));
+  list.addEventListener('dragstart', (event) => {
+    const node = dragEventElement(event.target);
+    const handle = node?.closest?.('.bb-drag-handle');
+    if (!handle || !list.contains(handle) || dragHandleBlocked(event.target)) {
+      event.preventDefault();
+      return;
+    }
+    if (resumeRowDrag?.active && resumeRowDrag.kind === 'pointer' && resumeRowDrag.list === list) {
+      event.preventDefault();
+      return;
+    }
+    const row = handle.closest('.bb-drag-row');
+    if (!row) {
+      event.preventDefault();
+      return;
+    }
+    resumeRowDrag = { kind: 'native', list, row, active: true, committed: false };
+    row.classList.add('is-dragging');
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', `${row.dataset.dragKind}:${row.dataset.dragId}`);
+  });
+  list.addEventListener('dragover', (event) => {
+    if (!resumeRowDrag || resumeRowDrag.list !== list || resumeRowDrag.kind !== 'native') return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    placeResumeDropLine(list, event.clientY);
+  });
+  list.addEventListener('drop', (event) => {
+    if (!resumeRowDrag || resumeRowDrag.kind !== 'native' || resumeRowDrag.list !== list) return;
+    event.preventDefault();
+    commitResumeRowDrag(list, posting, career, placeResumeDropLine(list, event.clientY));
+  });
+  list.addEventListener('dragend', () => {
+    if (resumeRowDrag?.kind === 'native' && resumeRowDrag.list === list) clearResumeRowDrag(list);
+  });
+  list.addEventListener('pointerdown', (event) => {
+    if (event.button > 0) return;
+    const node = dragEventElement(event.target);
+    const handle = node?.closest?.('.bb-drag-handle');
+    if (!handle || !list.contains(handle) || dragHandleBlocked(event.target)) return;
+    const row = handle.closest('.bb-drag-row');
+    if (!row) return;
+    resumeRowDrag = {
+      kind: 'pointer',
+      list,
+      row,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      active: false,
+      committed: false,
+    };
+    if (handle.setPointerCapture) handle.setPointerCapture(event.pointerId);
+  });
+  list.addEventListener('pointermove', (event) => {
+    const session = resumeRowDrag;
+    if (!session || session.kind !== 'pointer' || session.list !== list || session.pointerId !== event.pointerId) return;
+    const dx = event.clientX - session.startX;
+    const dy = event.clientY - session.startY;
+    if (!session.active && dx * dx + dy * dy < 16) return;
+    session.active = true;
+    session.row.classList.add('is-dragging');
+    placeResumeDropLine(list, event.clientY);
+    event.preventDefault();
+  });
+  list.addEventListener('pointerup', (event) => {
+    const session = resumeRowDrag;
+    if (!session || session.kind !== 'pointer' || session.list !== list || session.pointerId !== event.pointerId) return;
+    if (!session.active) {
+      clearResumeRowDrag(list);
+      return;
+    }
+    commitResumeRowDrag(list, posting, career, placeResumeDropLine(list, event.clientY));
+  });
+  list.addEventListener('pointercancel', () => {
+    if (resumeRowDrag?.kind === 'pointer' && resumeRowDrag.list === list) clearResumeRowDrag(list);
+  });
+}
+
 function resumeJobGroupBlocks(posting, career, groups, { allowStructure, shared, localOnly }) {
   const chrome = resumeGroupChrome(groups, draftResumeGroupId, Boolean(posting));
   const paintBullets = (group) => (
     (posting ? visibleResumeBullets(group.bullets) : group.bullets)
-      .map((bullet, bulletIndex) => resumeBulletEditor(posting, career, group, bullet, bulletIndex, groups))
+      .map((bullet, bulletIndex) => {
+        const editor = resumeBulletEditor(posting, career, group, bullet, bulletIndex, groups);
+        return allowStructure ? resumeDragRow('bullet', bullet.id, 'bullet', editor) : editor;
+      })
   );
-  const paintHeading = (group, groupIndex) => el('div', { class: 'bb-group-head' }, [
+  const paintHeading = (group, groupIndex) => {
+    const head = el('div', { class: 'bb-group-head' }, [
     field('Sub-heading', resumeGroupHeadingInput(posting, career, group, { shared, localOnly })),
     allowStructure ? resumeMoveBtns('sub-heading', {
       index: groupIndex,
@@ -3080,6 +3245,8 @@ function resumeJobGroupBlocks(posting, career, groups, { allowStructure, shared,
       },
     }) : null,
   ]);
+    return allowStructure ? resumeDragRow('heading', group.id, 'sub-heading', head) : head;
+  };
 
   if (!posting) {
     return [
@@ -3128,6 +3295,13 @@ function resumeJobGroupBlocks(posting, career, groups, { allowStructure, shared,
     ]));
   }
   return parts;
+}
+
+function resumeRoleRows(posting, career, groups, options) {
+  const blocks = resumeJobGroupBlocks(posting, career, groups, options);
+  const list = el('div', { class: 'bb-drag-list' }, blocks);
+  if (options.allowStructure) bindResumeRowDrag(list, { posting, career });
+  return list;
 }
 
 function resumeJobEditor(posting, career) {
@@ -3327,7 +3501,7 @@ function resumeJobEditor(posting, career) {
       ]),
       field('Location', location),
     ]),
-    ...resumeJobGroupBlocks(posting, career, groups, { allowStructure, shared, localOnly }),
+    resumeRoleRows(posting, career, groups, { allowStructure, shared, localOnly }),
     ]),
   ]);
 }
