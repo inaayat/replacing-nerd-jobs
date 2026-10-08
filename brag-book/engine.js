@@ -45,6 +45,7 @@ import {
   compileResumeDoc,
   projectExperienceOntoJobs,
   resumeFieldsFromExperience,
+  resumeBulletSpans,
   bulletPlainText,
   bulletLineText,
   ignoreBoldMarkers,
@@ -472,6 +473,11 @@ function normalizeLegacyVersions(value) {
       rich: rich || [{ text, bold: false }],
       source: asString(item.source, 120),
       recoveredAt: asString(item.recoveredAt, 40),
+      situation: asString(item.situation, TEXT_MAX),
+      task: asString(item.task, TEXT_MAX),
+      action: asString(item.action, TEXT_MAX),
+      result: asString(item.result, TEXT_MAX),
+      notes: asString(item.notes, TEXT_MAX),
     });
   }
   return out;
@@ -583,10 +589,15 @@ export function normalizePosting(raw, clock = Date.now) {
 export function normalizeStore(raw, clock = Date.now) {
   const store = emptyStore();
   if (!raw || typeof raw !== 'object') return store;
+  const migrationTimestamps = {
+    entries: new Set(),
+    postings: new Set(),
+  };
   const seenEntries = new Set();
   for (const item of Array.isArray(raw.entries) ? raw.entries : []) {
     const entry = normalizeEntry(item, clock);
     if (!entry || seenEntries.has(entry.id)) continue;
+    if (item?.updatedAt || item?.createdAt) migrationTimestamps.entries.add(entry.id);
     seenEntries.add(entry.id);
     store.entries.push(entry);
   }
@@ -601,6 +612,7 @@ export function normalizeStore(raw, clock = Date.now) {
   for (const item of Array.isArray(raw.postings) ? raw.postings : []) {
     const posting = normalizePosting(item, clock);
     if (!posting || seenJobs.has(posting.id)) continue;
+    if (item?.updatedAt || item?.createdAt) migrationTimestamps.postings.add(posting.id);
     seenJobs.add(posting.id);
     posting.requirements = posting.requirements.map((req) => ({
       ...req,
@@ -625,7 +637,7 @@ export function normalizeStore(raw, clock = Date.now) {
   store.basicsBackup = normalizeBasicsBackup(raw.basicsBackup, clock);
   store.jobSetup = normalizeJobSetup(raw.jobSetup);
   store.v = Number(raw.v) === SCHEMA ? SCHEMA : SCHEMA;
-  return migrateCanonicalBullets(store, clock);
+  return migrateCanonicalBullets(store, clock, migrationTimestamps);
 }
 
 function recordInstant(iso) {
@@ -645,16 +657,34 @@ function careerBulletIndex(store) {
   return map;
 }
 
-function appendLegacyVersion(entry, text, rich, source, clock) {
+function appendLegacyVersion(entry, text, rich, source, clock, detail = {}) {
   const plain = asString(text, TEXT_MAX);
-  if (!plain || plain === entry.title) return entry;
+  if (!plain) return entry;
+  const detailFields = ['situation', 'task', 'action', 'result', 'notes'];
+  const hasDetailDifference = detailFields.some(
+    (field) => asString(detail[field], TEXT_MAX)
+      && asString(detail[field], TEXT_MAX) !== asString(entry[field], TEXT_MAX),
+  );
+  const hasRichDifference = Array.isArray(rich) && rich.length && !sameRich(entry.rich, rich);
+  if (plain === entry.title && !hasDetailDifference && !hasRichDifference) return entry;
   const legacyVersions = [...(entry.legacyVersions || [])];
-  if (legacyVersions.some((row) => row.text === plain)) return entry;
+  if (legacyVersions.some((row) => (
+    row.text === plain
+    && (!hasRichDifference || sameRich(row.rich, rich))
+    && detailFields.every(
+      (field) => asString(row[field], TEXT_MAX) === asString(detail[field], TEXT_MAX),
+    )
+  ))) return entry;
   legacyVersions.push({
     text: plain,
     rich: rich || [{ text: plain, bold: false }],
     source: asString(source, 120),
     recoveredAt: nowIso(clock),
+    situation: asString(detail.situation, TEXT_MAX),
+    task: asString(detail.task, TEXT_MAX),
+    action: asString(detail.action, TEXT_MAX),
+    result: asString(detail.result, TEXT_MAX),
+    notes: asString(detail.notes, TEXT_MAX),
   });
   return { ...entry, legacyVersions };
 }
@@ -699,50 +729,202 @@ function syncCareerBulletsFromEntries(store) {
   return { ...store, jobs };
 }
 
-export function migrateCanonicalBullets(store, clock = Date.now) {
+export function migrateCanonicalBullets(store, clock = Date.now, migrationTimestamps = null) {
   let next = { ...store, v: SCHEMA };
   let entries = [...(next.entries || [])];
+  const entryFor = (id) => entries.find((entry) => entry.id === id) || null;
   const replaceEntryInList = (entry) => {
-    entries = entries.map((row) => (row.id === entry.id ? entry : row));
-    next = { ...next, entries };
+    const index = entries.findIndex((row) => row.id === entry.id);
+    if (index < 0) entries.push(entry);
+    else entries[index] = entry;
+  };
+  const createCanonicalEntry = (candidate, source, jobId = '') => {
+    const text = asString(candidate?.text, TEXT_MAX);
+    if (!text) return null;
+    const created = normalizeEntry({
+      id: newId('en', clock),
+      title: text,
+      rich: candidate?.rich,
+      jobId,
+      situation: candidate?.situation,
+      task: candidate?.task,
+      action: candidate?.action,
+      result: candidate?.result,
+      notes: candidate?.notes,
+      legacyVersions: [],
+      createdAt: candidate?.updatedAt || nowIso(clock),
+      updatedAt: candidate?.updatedAt || nowIso(clock),
+    }, clock);
+    if (!created) return null;
+    replaceEntryInList(created);
+    return created;
+  };
+  const mergeRequirementCandidate = (entry, line, source) => {
+    let merged = entry;
+    const patch = {};
+    let hasDetailConflict = false;
+    for (const field of ['situation', 'task', 'action', 'result', 'notes']) {
+      const candidate = asString(line?.[field], TEXT_MAX);
+      if (!candidate) continue;
+      if (!merged[field]) patch[field] = candidate;
+      else if (merged[field] !== candidate) hasDetailConflict = true;
+    }
+    if (Object.keys(patch).length) {
+      merged = normalizeEntry({ ...merged, ...patch }, clock) || merged;
+    }
+    const candidateText = asString(line?.text, TEXT_MAX);
+    if ((candidateText && candidateText !== merged.title) || hasDetailConflict) {
+      merged = appendLegacyVersion(
+        merged,
+        candidateText || merged.title,
+        line?.rich,
+        source,
+        clock,
+        line,
+      );
+    }
+    replaceEntryInList(merged);
+    return merged;
   };
 
-  const byBulletId = careerBulletIndex(next);
-  let postingsChanged = false;
-  const postings = (next.postings || []).map((posting) => {
-    const overrides = posting.resume?.overrides;
-    if (!overrides || !Object.keys(overrides).length) return posting;
-    let nextOverrides = { ...overrides };
-    let changed = false;
+  const lineEntries = new Map();
+  let postings = (next.postings || []).map((posting) => ({
+    ...posting,
+    requirements: (posting.requirements || []).map((req) => {
+      const linkedIds = new Set(req.entryIds || []);
+      const bullets = (req.bullets || []).map((line) => {
+        let entry = line.entryId ? entryFor(line.entryId) : null;
+        if (!entry) {
+          entry = createCanonicalEntry(line, `requirement:${posting.id}:${req.id}:${line.id}`);
+        } else {
+          entry = mergeRequirementCandidate(
+            entry,
+            line,
+            `requirement:${posting.id}:${req.id}:${line.id}`,
+          );
+        }
+        if (!entry) return line;
+        lineEntries.set(line.id, entry.id);
+        linkedIds.add(entry.id);
+        return { ...line, entryId: entry.id };
+      });
+      return withBullets({ ...req, entryIds: [...linkedIds] }, bullets);
+    }),
+  }));
+
+  const titleMatches = (text) => {
+    const key = String(text || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    return key ? entries.filter((entry) => entry.title.replace(/\s+/g, ' ').trim().toLowerCase() === key) : [];
+  };
+  const canonicalizeJobs = (jobs, sourcePrefix) => (jobs || []).map((job) => ({
+    ...job,
+    groups: (job.groups || []).map((group) => ({
+      ...group,
+      bullets: (group.bullets || []).map((bullet) => {
+        let entry = (bullet.sourceEntryIds || []).map(entryFor).find(Boolean) || null;
+        if (!entry) {
+          entry = (bullet.sourceBulletIds || []).map((id) => entryFor(lineEntries.get(id))).find(Boolean) || null;
+        }
+        const copiedText = bulletPlainText(bullet);
+        if (!entry) {
+          const matches = titleMatches(copiedText);
+          if (matches.length === 1) entry = matches[0];
+        }
+        if (!entry && String(bullet.lead || '').trim().length >= 12) {
+          const leadKey = String(bullet.lead).trim().toLowerCase();
+          const matches = entries.filter((candidate) => (
+            resumeFieldsFromExperience(candidate.title, candidate.rich).lead.trim().toLowerCase() === leadKey
+          ));
+          if (matches.length === 1) entry = matches[0];
+        }
+        if (!entry) {
+          entry = createCanonicalEntry(
+            { text: copiedText, rich: resumeBulletSpans(bullet) },
+            `${sourcePrefix}:${job.id}:${group.id}:${bullet.id}`,
+            job.jobId || job.id,
+          );
+        } else if (copiedText && copiedText !== entry.title) {
+          entry = appendLegacyVersion(
+            entry,
+            copiedText,
+            resumeBulletSpans(bullet),
+            `${sourcePrefix}:${job.id}:${group.id}:${bullet.id}`,
+            clock,
+          );
+          replaceEntryInList(entry);
+        }
+        return entry ? { ...bullet, sourceEntryIds: [entry.id] } : bullet;
+      }),
+    })),
+  }));
+
+  const jobs = canonicalizeJobs(next.jobs, 'career');
+  postings = postings.map((posting) => ({
+    ...posting,
+    resume: normalizeResumeVariant({
+      ...posting.resume,
+      localJobs: canonicalizeJobs(posting.resume?.localJobs, `local:${posting.id}`),
+    }),
+  }));
+
+  const sharedBullets = careerBulletIndex({ ...next, jobs });
+  postings = postings.map((posting) => {
+    const localBullets = careerBulletIndex({ jobs: posting.resume?.localJobs || [] });
+    const overrides = posting.resume?.overrides || {};
     for (const [bulletId, over] of Object.entries(overrides)) {
-      if (over?.edited !== true) continue;
-      const careerBullet = byBulletId.get(bulletId);
-      const entryId = (careerBullet?.sourceEntryIds || [])[0] || '';
-      const entry = entryId ? entryById({ ...next, entries }, entryId) : null;
-      if (!entry) continue;
-      if (recordInstant(entry.updatedAt) <= recordInstant(posting.updatedAt)) continue;
-      const stalePlain = resumePlain({ lead: over.lead || '', body: over.body || '' });
-      if (stalePlain) {
-        replaceEntryInList(appendLegacyVersion(
+      const careerBullet = localBullets.get(bulletId) || sharedBullets.get(bulletId);
+      let entry = (careerBullet?.sourceEntryIds || []).map(entryFor).find(Boolean) || null;
+      const candidateText = bulletPlainText({ lead: over?.lead || '', body: over?.body || '' });
+      const candidateRich = resumeBulletSpans({ lead: over?.lead || '', body: over?.body || '' });
+      if (!entry && candidateText) {
+        entry = createCanonicalEntry(
+          { text: candidateText, rich: candidateRich, updatedAt: posting.updatedAt },
+          `override:${posting.id}:${bulletId}`,
+        );
+      }
+      if (!entry || !candidateText) continue;
+      const hasRealTimestamps = !migrationTimestamps || (
+        migrationTimestamps.entries.has(entry.id)
+        && migrationTimestamps.postings.has(posting.id)
+      );
+      const overrideWins = over?.edited === true
+        && hasRealTimestamps
+        && recordInstant(posting.updatedAt) > recordInstant(entry.updatedAt);
+      if (overrideWins) {
+        const previous = entry;
+        entry = normalizeEntry({
+          ...entry,
+          title: candidateText,
+          rich: candidateRich,
+          updatedAt: posting.updatedAt,
+        }, clock) || entry;
+        entry = appendLegacyVersion(
           entry,
-          stalePlain,
-          null,
+          previous.title,
+          previous.rich,
+          `entry-before-override:${posting.id}:${bulletId}`,
+          clock,
+          previous,
+        );
+      } else {
+        entry = appendLegacyVersion(
+          entry,
+          candidateText,
+          candidateRich,
           `override:${posting.id}:${bulletId}`,
           clock,
-        ));
+        );
       }
-      delete nextOverrides[bulletId];
-      changed = true;
+      replaceEntryInList(entry);
     }
-    if (!changed) return posting;
-    postingsChanged = true;
     return {
       ...posting,
-      resume: normalizeResumeVariant({ ...posting.resume, overrides: nextOverrides }),
+      resume: normalizeResumeVariant({ ...posting.resume, overrides: {} }),
     };
   });
-  if (postingsChanged) next = { ...next, postings };
-  next = syncRequirementLinesFromEntries({ ...next, entries }, clock);
+
+  next = { ...next, entries, jobs, postings };
+  next = syncRequirementLinesFromEntries(next, clock);
   next = syncCareerBulletsFromEntries(next);
   return projectResumeStore({ ...next, v: SCHEMA });
 }
@@ -1964,10 +2146,8 @@ export function mergeJobs(store, keepId, dropId, clock = Date.now) {
   return next;
 }
 
-// Going forward, a resume wording edit updates the one shared library record.
-// Existing edited: true overrides still render as stored; this does not write
-// a new override and does not rewrite stored bullets on load. Editing a leftover
-// override writes the shared record and then drops only that line's override.
+// Every resume wording edit updates the one shared library record. Schema-v2
+// normalization has already folded legacy posting overrides into that entry.
 export function applyResumeBulletEdit(store, {
   postingId = null,
   jobId,
@@ -2005,8 +2185,7 @@ export function applyResumeBulletEdit(store, {
   if (!postingId) return nextStore;
   const variant = postingById(nextStore, postingId)?.resume;
   const over = variant?.overrides?.[bullet.id];
-  // A later edit of a leftover edited:true line writes the shared record
-  // and drops only that line's override. Untouched overrides stay stored.
+  // Be defensive when called with a not-yet-normalized legacy object.
   if (over?.edited === true) {
     nextStore = replacePostingResume(nextStore, postingId, clearBulletOverride(variant, bullet.id), clock);
   }

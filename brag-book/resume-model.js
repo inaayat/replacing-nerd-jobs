@@ -812,6 +812,29 @@ export function resumeFieldsFromExperience(text, rich) {
     }));
     const plain = spans.map((span) => span.text).join('');
     const parsed = parseBulletText(plain);
+    if (!parsed.lead) {
+      const colon = plain.indexOf(':');
+      if (colon > 0) {
+        let offset = 0;
+        let markedLead = true;
+        for (const span of spans) {
+          const end = offset + span.text.length;
+          if (offset <= colon && !span.bold) {
+            markedLead = false;
+            break;
+          }
+          offset = end;
+          if (end > colon) break;
+        }
+        if (markedLead) {
+          return {
+            lead: plain.slice(0, colon),
+            body: plain.slice(colon + 1).replace(/^\s/, ''),
+            rich: spans,
+          };
+        }
+      }
+    }
     return { ...parsed, body: parsed.body || plain, rich: spans };
   }
   const markdown = asString(text, TEXT_MAX);
@@ -873,20 +896,8 @@ function applyVariantBulletOrder(jobs, variant) {
   }));
 }
 
-function recordInstant(iso) {
-  const t = Date.parse(String(iso || ''));
-  return Number.isFinite(t) ? t : 0;
-}
-
-function postingOverrideLive(entry, postingUpdatedAt, over) {
-  if (over?.edited !== true) return false;
-  if (!entry) return true;
-  return recordInstant(postingUpdatedAt) >= recordInstant(entry.updatedAt);
-}
-
 function applyBulletVariant(bullet, jobId, variant, ctx = {}) {
   const store = ctx.store;
-  const postingUpdatedAt = ctx.postingUpdatedAt || '';
   const entryId = (bullet.sourceEntryIds || [])[0] || '';
   const entry = store && entryId ? entryById(store, entryId) : null;
   let lead = bullet.lead;
@@ -896,11 +907,8 @@ function applyBulletVariant(bullet, jobId, variant, ctx = {}) {
     lead = fields.lead;
     body = fields.body;
   }
-  const over = variant.overrides?.[bullet.id] || {};
   const excludedJob = variant.excludedJobIds.includes(jobId);
   const excludedBullet = variant.excludedBulletIds.includes(bullet.id);
-  const applied = postingOverrideLive(entry, postingUpdatedAt, over)
-    && (over.lead != null || over.body != null);
   const rich = entry?.rich && entry.title
     ? entry.rich.map((span) => ({
       text: String(span?.text ?? ''),
@@ -912,12 +920,12 @@ function applyBulletVariant(bullet, jobId, variant, ctx = {}) {
     ...bullet,
     originalLead: lead,
     originalBody: body,
-    lead: applied && over.lead != null ? over.lead : lead,
-    body: applied && over.body != null ? over.body : body,
+    lead,
+    body,
     rich,
     pinned: Boolean(bullet.pinned || variant.pinnedBulletIds.includes(bullet.id)),
     included: !excludedJob && !excludedBullet,
-    hasOverride: applied,
+    hasOverride: false,
   };
 }
 

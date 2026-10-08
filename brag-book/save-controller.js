@@ -99,7 +99,7 @@ export function mergeConcurrentBooks(base, local, remote) {
   const conflicts = [];
   const entries = mergeRecordLists(base?.entries, local?.entries, remote?.entries, mergeEntryRecord);
   book.entries = entries.list;
-  conflicts.push(...entries.conflicts);
+  conflicts.push(...entries.conflicts.map((conflict) => ({ ...conflict, collection: 'entries' })));
   const knowledge = mergeRecordLists(base?.knowledge, local?.knowledge, remote?.knowledge, (b, l, r) => {
     if (!l && !r) return { record: null, conflicts: [] };
     if (!l) return { record: r, conflicts: [] };
@@ -117,7 +117,7 @@ export function mergeConcurrentBooks(base, local, remote) {
     };
   });
   book.knowledge = knowledge.list;
-  conflicts.push(...knowledge.conflicts);
+  conflicts.push(...knowledge.conflicts.map((conflict) => ({ ...conflict, collection: 'knowledge' })));
   for (const key of ['postings', 'jobs', 'education', 'credentials', 'additional']) {
     const merged = mergeRecordLists(base?.[key], local?.[key], remote?.[key], (b, l, r) => {
       if (!l && !r) return { record: null, conflicts: [] };
@@ -136,7 +136,7 @@ export function mergeConcurrentBooks(base, local, remote) {
       };
     });
     book[key] = merged.list;
-    conflicts.push(...merged.conflicts);
+    conflicts.push(...merged.conflicts.map((conflict) => ({ ...conflict, collection: key })));
   }
   book.profile = mergePlainObject(base?.profile, local?.profile, remote?.profile);
   book.resumeSettings = mergePlainObject(base?.resumeSettings, local?.resumeSettings, remote?.resumeSettings);
@@ -146,12 +146,35 @@ export function mergeConcurrentBooks(base, local, remote) {
   return { book, conflicts };
 }
 
+export function retainLocalConflictValues(book, conflicts = []) {
+  const next = clone(book || {});
+  for (const conflict of conflicts) {
+    const key = conflict?.collection;
+    if (!key || !Array.isArray(next[key]) || !conflict?.id) continue;
+    const index = next[key].findIndex((record) => record?.id === conflict.id);
+    if (index < 0) continue;
+    if (!Array.isArray(conflict.fields) || !conflict.fields.length) {
+      next[key][index] = clone(conflict.local);
+      continue;
+    }
+    const record = { ...next[key][index] };
+    for (const field of conflict.fields) {
+      if (!field?.field) continue;
+      if (field.local === undefined) delete record[field.field];
+      else record[field.field] = clone(field.local);
+    }
+    next[key][index] = record;
+  }
+  return next;
+}
+
 export function createBookSaveController({
   initialRevision = null,
   save,
   persistPending,
   clearPending,
   onStatus,
+  onConflict,
 } = {}) {
   let revision = initialRevision;
   let localVersion = 0;
@@ -223,11 +246,36 @@ export function createBookSaveController({
     } catch (error) {
       if (activeRequest?.requestId !== snapshot.requestId) throw error;
       activeRequest = null;
+      if (error?.conflict || error?.status === 409) {
+        if (retryTimer) {
+          clearTimeout(retryTimer);
+          retryTimer = null;
+        }
+        if (error.revision != null) revision = error.revision;
+        const candidate = clone(currentBook ?? queuedSnapshot?.book ?? snapshot.book);
+        const reconciliation = onConflict?.(error, candidate) || {};
+        currentBook = clone(reconciliation.book ?? error.pendingBook ?? candidate);
+        queuedSnapshot = null;
+        persistPending?.(clone(buildSnapshot(currentBook)));
+        if (reconciliation.retry === true && !(reconciliation.conflicts || []).length) {
+          emit('retrying', 'Reconciled with the saved copy — saving…');
+          return runSave(buildSnapshot(currentBook, { keepalive: snapshot.keepalive }));
+        }
+        emit(
+          'conflict',
+          error.message || 'This book changed in another tab. Your edits are kept on this device.',
+        );
+        throw error;
+      }
       const errMessage = error?.message && /retry/i.test(error.message)
         ? error.message
         : 'Couldn\'t save — retrying…';
-      emit('error', errMessage);
-      scheduleRetry(snapshot);
+      const permanent = [400, 401, 403, 413, 428].includes(Number(error?.status));
+      emit(
+        'error',
+        permanent ? (error?.message || 'Couldn\'t save. Your edits are kept on this device.') : errMessage,
+      );
+      if (!permanent) scheduleRetry(snapshot);
       resolveIdle();
       throw error;
     }
@@ -264,13 +312,25 @@ export function createBookSaveController({
       if (localVersion > confirmedVersion) emit('dirty');
       scheduleDebounce();
     },
+    restorePending(book, {
+      nextRevision = revision,
+      restoredVersion = 1,
+      conflictMessage = '',
+    } = {}) {
+      currentBook = clone(book);
+      revision = nextRevision;
+      localVersion = Math.max(localVersion + 1, Number(restoredVersion) || 1);
+      persistPending?.(clone(buildSnapshot(currentBook)));
+      if (conflictMessage) emit('conflict', conflictMessage);
+      else emit('dirty');
+    },
     flush(reason, book, { keepalive = false } = {}) {
       if (debounceTimer) {
         clearTimeout(debounceTimer);
         debounceTimer = null;
       }
       if (book) currentBook = clone(book);
-      if (!currentBook && !queuedSnapshot && !activeRequest && localVersion <= confirmedVersion) {
+      if (!queuedSnapshot && !activeRequest && localVersion <= confirmedVersion) {
         return Promise.resolve(true);
       }
       const snapshot = buildSnapshot(currentBook ?? queuedSnapshot?.book ?? activeRequest?.book, { keepalive });

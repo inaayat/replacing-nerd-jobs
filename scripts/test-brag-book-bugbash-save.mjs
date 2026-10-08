@@ -12,6 +12,7 @@ import {
   SAVE_FLUSH_EVENTS,
   createBookSaveController,
   mergeConcurrentBooks,
+  retainLocalConflictValues,
 } from '../brag-book/save-controller.js';
 
 function deferred() {
@@ -84,6 +85,8 @@ assert.equal(maxActive, 1, 'out-of-order responses are prevented by a single-fli
 assert.equal(controller.state.revision, 'rev-2');
 assert.equal(controller.state.status, 'saved');
 assert.equal(pendingSnapshot, null);
+await controller.flush('blur');
+assert.equal(requests.length, 2, 'a clean blur must not replay an already acknowledged snapshot');
 
 const retryRequests = [];
 const retryStatuses = [];
@@ -136,5 +139,45 @@ const disjoint = mergeConcurrentBooks(
 );
 assert.equal(disjoint.conflicts.length, 0);
 assert.deepEqual(new Set(disjoint.book.entries.map((entry) => entry.id)), new Set(['local', 'remote']));
+
+const conflictRequests = [];
+let conflictPending = null;
+const conflicting = createBookSaveController({
+  initialRevision: 1,
+  save: (request) => {
+    const wait = deferred();
+    conflictRequests.push({ request: structuredClone(request), ...wait });
+    return wait.promise;
+  },
+  persistPending: (snapshot) => { conflictPending = structuredClone(snapshot); },
+  clearPending: () => { conflictPending = null; },
+  onConflict: (error, newestLocal) => {
+    const merged = mergeConcurrentBooks(error.baseBook, newestLocal, error.book);
+    return {
+      book: retainLocalConflictValues(merged.book, merged.conflicts),
+      conflicts: merged.conflicts,
+      retry: false,
+    };
+  },
+});
+conflicting.markDirty(local);
+const conflictFlush = conflicting.flush('blur');
+conflictRequests[0].reject(Object.assign(new Error('conflict'), {
+  status: 409,
+  conflict: true,
+  revision: 2,
+  baseBook: base,
+  book: remote,
+}));
+assert.equal(await conflictFlush, false);
+assert.equal(conflicting.state.status, 'conflict');
+assert.equal(conflicting.state.revision, 2);
+assert.equal(conflictPending.book.entries[0].title, 'local unsaved');
+assert.equal(conflictRequests.length, 1, 'field conflicts must stop automatic retries');
+const keepLocal = conflicting.retryNow();
+assert.equal(conflictRequests[1].request.revision, 2);
+assert.equal(conflictRequests[1].request.book.entries[0].title, 'local unsaved');
+conflictRequests[1].resolve({ book: local, revision: 3 });
+assert.equal(await keepLocal, true);
 
 console.log('Brag Book save-controller bug-bash regression passed.');

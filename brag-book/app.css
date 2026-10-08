@@ -1706,10 +1706,16 @@ a:focus-visible {
   border-bottom: 1px solid var(--line);
 }
 .bb-exp-row:last-child { border-bottom: 0; }
-.bb-exp-lead { display: grid; gap: 4px; min-width: 0; overflow: clip; }
+.bb-exp-lead { display: grid; gap: 4px; min-width: 0; }
 .bb-exp-lead .experience-compose {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   min-height: 0;
   padding: 3px 6px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .bb-exp-jobrole {
   display: grid;
@@ -1972,18 +1978,27 @@ a:focus-visible {
 .bb-jobs-catalog > .empty { padding: 12px 14px 14px; }
 .bb-job-catalog-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 0.85fr) minmax(0, 0.8fr) auto;
+  grid-template-columns: minmax(0, 0.9fr) minmax(16rem, 1.8fr) minmax(0, 0.8fr) minmax(0, 0.7fr) auto;
   gap: 10px;
   align-items: center;
   width: 100%;
   min-width: 0;
 }
 .bb-job-catalog-row > input,
+.bb-job-catalog-row > textarea,
 .bb-new-job > input {
   width: 100%;
   max-width: 100%;
   min-width: 0;
   box-sizing: border-box;
+}
+.bb-job-title {
+  min-height: 2.5em;
+  resize: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
 }
 .bb-job-setup-row { display: flex; gap: 8px; align-items: baseline; margin: 6px 0; }
 .bb-add-role { max-width: 16rem; }

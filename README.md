@@ -197,13 +197,13 @@ bullet text currently in the editor, so an edit replaces older wording on
 that bullet. Stray ** markers are ignored: only the title before the first
 colon is bold in the editor, the preview, and Word/PDF. A bullet linked to a
 library entry shows that entry’s current text. A wording edit writes that
-shared library record; leftover `edited: true` posting overrides still render
-as stored until that line is edited. On a posting, the role title can be tailored for that posting only; the company stays on the shared job, and the editor shows “tailored for this posting” with Reset to job title. Each resume role is one you add (company, dates, title, location). Under a role you can add, rename, reorder, and remove italic sub-headings, then pick resume bullets from the library. A picked bullet stays linked to that library entry, so it is not copied. Each Additional info row is a label plus one Items box. The items text is shown as typed, with bold and italic from Cmd/Ctrl+B and Cmd/Ctrl+I. On a posting, editing a row stays on that resume and does not change Resume basics. On a posting, Delete hides a shared education, credential, or additional-info row from that resume only. Restore hidden rows brings them back. Delete from Resume basics too asks first and leaves the shared row. Replace Resume basics with this posting’s resume copies that posting’s layout into the shared template after a confirmation, keeps a snapshot of the previous basics, and Restore previous basics puts that snapshot back. Other postings keep their own resume edits. Fit tightens spacing and will not shrink below 9.5pt, then hides
+one shared library record. Schema-v2 migration folds older posting wording
+into that entry and keeps losing legacy text in `legacyVersions`; posting
+overrides no longer render as a second live copy. On a posting, the role title can be tailored for that posting only; the company stays on the shared job, and the editor shows “tailored for this posting” with Reset to job title. Each resume role is one you add (company, dates, title, location). Under a role you can add, rename, reorder, and remove italic sub-headings, then pick resume bullets from the library. A picked bullet stays linked to that library entry, so it is not copied. Each Additional info row is a label plus one Items box. The items text is shown as typed, with bold and italic from Cmd/Ctrl+B and Cmd/Ctrl+I. On a posting, editing a row stays on that resume and does not change Resume basics. On a posting, Delete hides a shared education, credential, or additional-info row from that resume only. Restore hidden rows brings them back. Delete from Resume basics too asks first and leaves the shared row. Replace Resume basics with this posting’s resume copies that posting’s layout into the shared template after a confirmation, keeps a snapshot of the previous basics, and Restore previous basics puts that snapshot back. Other postings keep their own resume edits. Fit tightens spacing and will not shrink below 9.5pt, then hides
 included bullets that are not pinned.
 A pinned bullet stays. If those pins still run past one page, the status and
 the preview say so and name any bullets that were hidden. Print/PDF uses that preview; **Download Word** writes a
-real `.docx`. Wording edits update the shared library record. Leftover
-posting-local wording stays as stored until that line is edited. Roles and
+real `.docx`. Wording edits update the shared library record. Roles and
 bullets added on a posting stay on that posting (`posting.resume.localJobs`).
 New postings
 choose **Start from Resume basics** or **Start fresh** (header only for that
@@ -234,10 +234,13 @@ Knowledge pages are a white sheet that fills the tan editor — headings, bold, 
 
 Signing in is required — the signed-out view is a centered log-in gate. One
 JSONB row per user (`brag_books`) via `api/brag-book.js` (`/api/bb-book`).
-Saves send the `updatedAt` loaded with the book; a stale tab gets 409 and
-reloads the newer server copy instead of overwriting it. Rows that predate
-`rev` still load, and clients that omit `updatedAt` can still save. Focus /
-visibility refetch when there are no unsaved local edits.
+Saves use the numeric `rev` loaded with the book and a durable,
+account-scoped browser outbox. A stale tab gets 409, merges independent
+changes, and keeps same-field local text visible until the user chooses which
+copy to keep. Old timestamp-guarded clients remain safe during rollout, while
+unguarded writes receive 428. The old unscoped browser cache is never uploaded
+automatically; Home offers it as a downloadable recovery copy. Focus /
+visibility refetch only when there are no unsaved local edits.
 `brag-book/engine.js` is the document model (browser + `lib/brag-book.js`);
 keep it dependency-free ESM and out of `/lib/`. Resume render/fit/docx live in
 `resume-template.js`, `resume-fit.js`, and `resume-docx.js`. Static-server UI

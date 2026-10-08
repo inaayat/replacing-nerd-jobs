@@ -175,7 +175,11 @@ import {
   setKnowledgeHeading,
 } from './knowledge-doc.js';
 import { loadBook, saveBook } from './store.js';
-import { createBookSaveController, mergeConcurrentBooks } from './save-controller.js';
+import {
+  createBookSaveController,
+  mergeConcurrentBooks,
+  retainLocalConflictValues,
+} from './save-controller.js';
 import { initAuth, refreshToken, renderBragSignIn, wireAuthLink } from './auth.js';
 
 const root = document.getElementById('app');
@@ -200,6 +204,8 @@ let saveController = null;
 let bookPushing = false;
 let cacheUserId = '';
 let outboxBaseBook = null;
+let syncConflict = null;
+let legacyBrowserBackup = null;
 let saveStatusNote = '';
 let query = '';
 let knowledgeQuery = '';
@@ -228,6 +234,16 @@ function loadCached() {
     return normalizeStore(JSON.parse(raw || 'null'));
   } catch {
     return emptyStore();
+  }
+}
+
+function loadLegacyBrowserBackup() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    const backup = normalizeStore(JSON.parse(raw || 'null'));
+    return bookIsEmpty(backup) ? null : backup;
+  } catch {
+    return null;
   }
 }
 
@@ -267,13 +283,20 @@ function writeOutbox(snapshot) {
 
 function clearOutboxStorage() {
   const key = accountOutboxKey(cacheUserId);
-  if (key) localStorage.removeItem(key);
+  if (!key) return;
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    setNote('Saved to the cloud, but could not clear the browser recovery copy.');
+  }
 }
 
 function rememberServerBook(data) {
   bookRevision = data?.revision ?? normalizeBookRevision(data?.updatedAt);
-  if (data?.book) lastServerBook = normalizeStore(data.book);
-  if (!outboxBaseBook && lastServerBook) outboxBaseBook = lastServerBook;
+  if (data?.book) {
+    lastServerBook = normalizeStore(data.book);
+    outboxBaseBook = lastServerBook;
+  }
   saveController?.setRevision(bookRevision);
 }
 
@@ -285,8 +308,13 @@ function paintSaveStatus(payload) {
   } else if (status === 'saving' || status === 'dirty') {
     paintKnowledgeStatus('Saving…');
   } else if (status === 'retrying' || status === 'error') {
-    paintKnowledgeStatus('Couldn\'t save — retrying…');
-    saveStatusNote = payload?.message || 'Couldn\'t save — retrying…';
+    const message = payload?.message || 'Couldn\'t save — retrying…';
+    paintKnowledgeStatus(message);
+    saveStatusNote = message;
+  } else if (status === 'conflict') {
+    paintKnowledgeStatus('Not saved — review conflict');
+    saveStatusNote = payload?.message || 'Another tab saved different text. Your edits are kept on this device.';
+    paintSyncConflictNotice();
   }
   const legal = document.querySelector('.legal');
   if (legal && !localMode && auth?.token) {
@@ -314,15 +342,49 @@ function ensureSaveController() {
     },
     clearPending: clearOutboxStorage,
     onStatus: paintSaveStatus,
+    onConflict: reconcileSaveConflict,
   });
   return saveController;
+}
+
+function reconcileSaveConflict(error, localBook) {
+  const remote = normalizeStore(error.book);
+  const base = error.baseBook ? normalizeStore(error.baseBook) : (outboxBaseBook || lastServerBook || remote);
+  const merged = mergeConcurrentBooks(base, localBook, remote);
+  rememberServerBook({
+    book: remote,
+    revision: error.revision,
+    updatedAt: error.updatedAt,
+  });
+  if (!merged.conflicts.length) {
+    syncConflict = null;
+    store = normalizeStore(merged.book);
+    cacheStore({ warnOnFailure: true });
+    return { book: store, conflicts: [], retry: true };
+  }
+  store = normalizeStore(retainLocalConflictValues(merged.book, merged.conflicts));
+  syncConflict = {
+    remote,
+    revision: error.revision,
+    updatedAt: error.updatedAt,
+    conflicts: merged.conflicts,
+  };
+  cacheStore({ warnOnFailure: true });
+  return { book: store, conflicts: merged.conflicts, retry: false };
 }
 
 async function performCloudSave(request) {
   if (localMode || !auth?.token) return { revision: bookRevision, book: store };
   if (shouldBlockEmptyOverwrite(request.book, lastServerBook)) {
     const latest = await loadBook(auth.token);
-    throw Object.assign(new Error('Save blocked — reloaded the account copy.'), { status: 409, book: latest.book });
+    throw Object.assign(new Error('Save blocked because the account copy is not empty. Your local copy is preserved.'), {
+      status: 409,
+      conflict: true,
+      book: latest.book,
+      updatedAt: latest.updatedAt,
+      revision: latest.revision,
+      baseBook: outboxBaseBook || lastServerBook || normalizeStore(latest.book),
+    });
   }
   let token = auth.token;
   const attempt = async () => saveBook(token, request.book, {
@@ -351,24 +413,14 @@ async function performCloudSave(request) {
         : await loadBook(auth.token);
       const remote = normalizeStore(latest.book);
       const base = outboxBaseBook || lastServerBook || remote;
-      const merged = mergeConcurrentBooks(base, request.book, remote);
-      if (merged.conflicts.length) {
-        store = normalizeStore(merged.book);
-        cacheStore({ warnOnFailure: true });
-        throw Object.assign(new Error('This book changed in another tab. Review the highlighted conflicts.'), {
-          status: 409,
-          book: latest.book,
-          conflicts: merged.conflicts,
-        });
-      }
-      store = normalizeStore(merged.book);
-      cacheStore({ warnOnFailure: true });
-      const data = await saveBook(auth.token, store, {
-        keepalive: request.keepalive,
+      throw Object.assign(new Error('Another tab saved different text. Your edits are kept on this device.'), {
+        status: 409,
+        conflict: true,
+        book: latest.book,
+        updatedAt: latest.updatedAt,
         revision: latest.revision,
+        baseBook: base,
       });
-      rememberServerBook(data);
-      return { revision: data.revision, book: data.book };
     }
     throw err;
   }
@@ -441,11 +493,29 @@ function resumeOutboxAfterBoot(remote, data) {
   if (!outbox?.book || outbox.userId !== cacheUserId) return remote;
   const base = outbox.baseBook ? normalizeStore(outbox.baseBook) : remote;
   const merged = mergeConcurrentBooks(base, outbox.book, remote);
-  outboxBaseBook = base;
-  store = normalizeStore(merged.book);
+  outboxBaseBook = remote;
+  store = normalizeStore(
+    merged.conflicts.length
+      ? retainLocalConflictValues(merged.book, merged.conflicts)
+      : merged.book,
+  );
   bookRevision = data.revision ?? bookRevision;
-  ensureSaveController().markDirty(store);
-  void flushSave('navigation');
+  if (merged.conflicts.length) {
+    syncConflict = {
+      remote,
+      revision: bookRevision,
+      updatedAt: data.updatedAt,
+      conflicts: merged.conflicts,
+    };
+    ensureSaveController().restorePending(store, {
+      nextRevision: bookRevision,
+      restoredVersion: outbox.localVersion,
+      conflictMessage: 'Another tab saved different text. Your edits are kept on this device.',
+    });
+  } else {
+    ensureSaveController().markDirty(store);
+    void flushSave('navigation');
+  }
   return store;
 }
 
@@ -661,7 +731,7 @@ function tidySpans(spans) {
         push('\n', false, false);
         broke = false;
       }
-      push(bit.replace(/[ \t]{2,}/g, ' '), Boolean(span.bold), Boolean(span.italic));
+      push(bit, Boolean(span.bold), Boolean(span.italic));
     }
   }
   while (out.length && /\n$/.test(out[out.length - 1].text)) {
@@ -731,7 +801,53 @@ function richLine(attrs, { text, rich, onChange, onSubmit, italic = false } = {}
 function setNote(text) {
   statusNote = text;
   const node = document.getElementById('status-note');
-  if (node) node.textContent = text;
+  if (node) {
+    node.textContent = text;
+    if (syncConflict) paintSyncConflictNotice();
+  }
+}
+
+function statusLine() {
+  const node = el('p', { class: 'status', id: 'status-note' }, statusNote || '');
+  if (syncConflict) fillSyncConflictNotice(node);
+  return node;
+}
+
+function fillSyncConflictNotice(node) {
+  node.replaceChildren(
+    document.createTextNode('Another tab saved different text. Your edits are still here on this device. '),
+    btn('Keep my edits', {
+      class: 'btn ghost compact-action',
+      onClick: async () => {
+        const kept = syncConflict;
+        syncConflict = null;
+        setNote('Saving your kept edits…');
+        const saved = await ensureSaveController().retryNow();
+        if (saved) setNote('Saved your kept edits to your account.');
+        else if (kept) syncConflict = kept;
+      },
+    }),
+    document.createTextNode(' '),
+    btn('Use saved copy', {
+      class: 'btn ghost compact-action',
+      onClick: () => {
+        const conflict = syncConflict;
+        syncConflict = null;
+        if (!conflict) return;
+        void adoptServerBook({
+          book: conflict.remote,
+          revision: conflict.revision,
+          updatedAt: conflict.updatedAt,
+        }, 'Loaded the copy already saved by the other tab.');
+      },
+    }),
+  );
+}
+
+function paintSyncConflictNotice() {
+  statusNote = 'Another tab saved different text. Your edits are still here on this device.';
+  const node = document.getElementById('status-note');
+  if (node) fillSyncConflictNotice(node);
 }
 
 function exportStore() {
@@ -743,6 +859,16 @@ function exportStore() {
   a.remove();
   URL.revokeObjectURL(url);
   setNote('Downloaded a JSON copy.');
+}
+
+function downloadLegacyBrowserBackup() {
+  if (!legacyBrowserBackup) return;
+  downloadText(
+    'brag-book-browser-backup.json',
+    JSON.stringify(legacyBrowserBackup, null, 2),
+    'application/json',
+  );
+  setNote('Downloaded the older browser backup. Review it, then use Import book if it contains missing edits.');
 }
 
 function importStore(file) {
@@ -856,7 +982,7 @@ function toolbar(view) {
           }),
         ]),
       ]),
-      statusNote ? el('p', { class: 'status', id: 'status-note' }, statusNote) : el('p', { class: 'status', id: 'status-note' }, ''),
+      statusLine(),
     ]);
   }
   const hasRecord = view.kind === 'jobs' && Boolean(view.id && view.id !== 'new');
@@ -882,7 +1008,7 @@ function toolbar(view) {
           : null,
       ]),
     ]),
-    statusNote ? el('p', { class: 'status', id: 'status-note' }, statusNote) : el('p', { class: 'status', id: 'status-note' }, ''),
+    statusLine(),
   ]);
 }
 
@@ -893,7 +1019,7 @@ function homeHero() {
     markSvg(),
     el('p', { class: 'lede' }, 'Paste a job posting. Turn each requirement into a resume bullet, a question they might ask, and a STAR answer. Then copy a resume and walk the cue cards.'),
     countRow(),
-    statusNote ? el('p', { class: 'status', id: 'status-note' }, statusNote) : el('p', { class: 'status', id: 'status-note' }, ''),
+    statusLine(),
   ]);
 }
 
@@ -995,6 +1121,12 @@ function homeView() {
       btn('Export', { class: 'btn ghost', onClick: exportStore }),
       btn('Import book', { class: 'btn ghost', onClick: () => fileInput.click() }),
       btn('Import resume (JSON)', { class: 'btn ghost', onClick: () => resumeFileInput.click() }),
+      legacyBrowserBackup
+        ? btn('Download older browser backup', {
+          class: 'btn ghost',
+          onClick: downloadLegacyBrowserBackup,
+        })
+        : null,
     ]),
   ]);
 }
@@ -3555,12 +3687,15 @@ function jobCatalogRow(job) {
     'aria-label': 'Company',
     'data-focus-key': keys.company,
   });
-  const title = el('input', {
+  const title = el('textarea', {
+    class: 'bb-job-title',
+    rows: '2',
     value: job.title || '',
     placeholder: 'Title',
     'aria-label': 'Job title',
     'data-focus-key': keys.title,
   });
+  fitArea(title);
   const dates = el('input', {
     value: [job.start, job.end].filter(Boolean).join(' – '),
     placeholder: 'October 2021 – Present',
@@ -4408,17 +4543,15 @@ async function boot() {
     const data = await loadBook(auth.token);
     const remote = normalizeStore(data.book);
     rememberServerBook(data);
-    outboxBaseBook = lastServerBook;
-    if (data.created && bookIsEmpty(remote) && !bookIsEmpty(cached) && cached !== remote) {
-      const legacy = normalizeStore(JSON.parse(localStorage.getItem(STORE_KEY) || 'null'));
-      if (!bookIsEmpty(legacy) && legacy !== cached) {
-        showBook('An older browser backup exists. Import it from account settings when you are ready.');
-      }
-    }
+    const legacy = loadLegacyBrowserBackup();
+    legacyBrowserBackup = legacy && JSON.stringify(legacy) !== JSON.stringify(remote) ? legacy : null;
     store = withStarterCareer(resumeOutboxAfterBoot(remote, data));
     cacheStore();
     ensureSaveController();
-    showBook(data.created ? 'New book — John Doe starter is only on this device until you edit.' : 'Saved to your account.');
+    const bootNote = legacyBrowserBackup
+      ? 'An older browser backup exists. Download it from Home before importing any missing edits.'
+      : (data.created ? 'New book — John Doe starter is only on this device until you edit.' : 'Saved to your account.');
+    showBook(bootNote);
   } catch (err) {
     if (err.status === 401) {
       auth.needsReauth = true;

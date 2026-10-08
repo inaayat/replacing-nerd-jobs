@@ -61,8 +61,8 @@ async function handleBook(req, res) {
       });
       res.status(200).json(data);
     } catch (err) {
-      if (err.status === 409) {
-        res.status(409).json({
+      if (err.status === 409 || err.status === 428) {
+        res.status(err.status).json({
           error: err.message,
           conflict: true,
           updatedAt: err.updatedAt,

@@ -22,6 +22,8 @@ async function check(name, fn) {
 }
 
 const appSource = readFileSync(new URL('../brag-book/app.js', import.meta.url), 'utf8');
+const apiSource = readFileSync(new URL('../api/brag-book.js', import.meta.url), 'utf8');
+const libSource = readFileSync(new URL('../lib/brag-book.js', import.meta.url), 'utf8');
 
 await check('in-app navigation flushes pending saves', () => {
   const hashHandler = appSource.match(/window\.addEventListener\('hashchange',[\s\S]*?\n\}\);/)?.[0] || '';
@@ -115,6 +117,19 @@ await check('same-entry edits from two tabs are not overwritten by client timest
     'remote committed',
     'the current merge silently chooses the client-clock winner and overwrites confirmed remote text',
   );
+});
+
+await check('deployment guards preserve old clients and browser-only edits', () => {
+  assert.match(
+    libSource,
+    /hasLegacyTimestamp[\s\S]*bookSaveGuard/,
+    'timestamp-guarded old clients must remain safe during the revision rollout',
+  );
+  assert.match(apiSource, /err\.status === 428/);
+  assert.match(apiSource, /res\.status\(err\.status\)/, 'missing revisions must be returned as 428, not hidden as 502');
+  assert.match(appSource, /Download older browser backup/);
+  assert.match(appSource, /retainLocalConflictValues/, 'reload conflicts must keep local text visible');
+  assert.match(appSource, /restorePending/, 'a conflicted outbox must not be rewritten as a clean remote snapshot');
 });
 
 if (failures.length) {

@@ -5,6 +5,7 @@
  *   node scripts/test-brag-book-bugbash-rich-text.mjs
  */
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   resumeBulletSpans,
   resumeFieldsFromExperience,
@@ -74,5 +75,16 @@ assert.match(li, /<i> italic <\/i>/, 'the preview must retain mid-line italic');
 const docx = new TextDecoder().decode(resumeDocxBytes(resume));
 assert.match(docx, /<w:b\/>[\s\S]*?<w:t xml:space="preserve"> bold <\/w:t>/);
 assert.match(docx, /<w:i\/>[\s\S]*?<w:t xml:space="preserve"> italic <\/w:t>/);
+
+const appSource = readFileSync(new URL('../brag-book/app.js', import.meta.url), 'utf8');
+const tidySource = appSource.slice(
+  appSource.indexOf('function tidySpans'),
+  appSource.indexOf('function flattenEditable'),
+);
+assert.doesNotMatch(
+  tidySource,
+  /replace\(\/\[ \\t\]\{2,\}\/g,\s*' '\)/,
+  'normalizing a contenteditable DOM must not collapse user-authored spaces',
+);
 
 console.log('Brag Book rich-text bug-bash regression passed.');

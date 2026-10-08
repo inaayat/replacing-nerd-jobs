@@ -622,8 +622,11 @@ forked = updatePostingResume(forked, forkJob, {
 forked = updateBullet(forked, forkJob, forkReq, forked.postings[0].requirements[0].bullets[0].id, 'Shared lead in: the posting changed', clock);
 const forkDoc = compileResumeDoc(forked.postings[0], forked);
 const forkBullet = forkDoc.sections.experience.jobs[0].groups[0].bullets.find((bullet) => bullet.id === forkBulletId);
-assert.equal(forkBullet.lead, 'Resume only');
-assert.equal(forkBullet.hasOverride, true);
+assert.equal(forkBullet.lead, 'Shared lead in');
+assert.equal(forkBullet.hasOverride, false);
+const migratedFork = normalizeStore(forked, clock);
+assert.deepEqual(migratedFork.postings[0].resume.overrides, {});
+assert.ok(migratedFork.entries[0].legacyVersions.some((version) => /tailored fork/.test(version.text)));
 assert.match(forked.jobs[0].groups[0].bullets[0].body, /posting changed/);
 const reloadedProp = normalizeStore(JSON.parse(JSON.stringify(propagated)), clock);
 assert.equal(reloadedProp.entries.length, propCount);
@@ -673,7 +676,9 @@ const staleShared = normalizeStore({
   entries: [],
   postings: [{ title: 'Stale', requirements: [{ text: 'Need it', bullets: [{ text: 'Keep the line', entryId: 'missing' }] }] }],
 }, clock);
-assert.equal(staleShared.postings[0].requirements[0].bullets[0].entryId, '');
+const recoveredEntryId = staleShared.postings[0].requirements[0].bullets[0].entryId;
+assert.ok(recoveredEntryId);
+assert.equal(staleShared.entries.find((entry) => entry.id === recoveredEntryId)?.title, 'Keep the line');
 shared = deleteEntry(shared, sharedEntry.id);
 assert.equal(shared.entries.length, 0);
 assert.equal(shared.postings[0].requirements[0].bullets.length, 0);
@@ -836,13 +841,13 @@ assert.equal(tailored.sectionOrder[0], 'education');
 assert.equal(tailored.sections.credentials.enabled, false);
 assert.equal(tailored.sections.experience.jobs.find((job) => job.id === 'job_alaska').included, false);
 const rfp = tailored.sections.experience.jobs[0].groups.flatMap((g) => g.bullets).find((b) => b.id === 'b_pwc_rfp');
-assert.equal(rfp.lead, 'Won new work');
-assert.equal(rfp.hasOverride, true);
+assert.equal(rfp.lead, 'Secured New Business of $5.8M');
+assert.equal(rfp.hasOverride, false);
 assert.equal(seeded.jobs[0].groups[2].bullets.find((b) => b.id === 'b_pwc_rfp').lead, 'Secured New Business of $5.8M');
 const hidden = renderResumeHtml(tailored, { droppedBulletIds: [] });
 assert.doesNotMatch(hidden, /Alaska Airlines/);
 assert.doesNotMatch(hidden, /Issued May 2024/);
-assert.match(hidden, /Won new work/);
+assert.match(hidden, /Secured New Business/);
 
 const sourceLead = seeded.jobs[0].groups[2].bullets.find((b) => b.id === 'b_pwc_rfp').lead;
 seeded = replacePostingResume(seeded, seedJobId, clearBulletOverride(postingById(seeded, seedJobId).resume, 'b_pwc_rfp'));
@@ -855,7 +860,7 @@ seeded = updatePostingResume(seeded, seedJobId, { overrides: { b_pwc_rfp: { lead
 const live = compileResumeDoc(postingById(seeded, seedJobId), seeded).sections.experience.jobs[0].groups
   .flatMap((g) => g.bullets).find((b) => b.id === 'b_pwc_rfp');
 seeded = writeBulletBackToSource(seeded, seedJobId, live);
-assert.equal(seeded.jobs[0].groups[2].bullets.find((b) => b.id === 'b_pwc_rfp').lead, 'Saved back');
+assert.equal(seeded.jobs[0].groups[2].bullets.find((b) => b.id === 'b_pwc_rfp').lead, sourceLead);
 
 assert.deepEqual(parseBulletText('Led 11-person team: Built **100+ controls**'), {
   lead: 'Led 11-person team',
@@ -1179,9 +1184,9 @@ const tailoredDoc = compileResumeDoc(postingById(libraryBook, libraryPostingId),
 const tailoredBullet = tailoredDoc.sections.experience.jobs
   .flatMap((job) => job.groups.flatMap((group) => group.bullets))
   .find((bullet) => bullet.id === 'rb_live');
-assert.equal(tailoredBullet.hasOverride, true);
-assert.equal(tailoredBullet.lead, 'Posting title');
-assert.match(renderResumeHtml(tailoredDoc), /Tailored only on this posting/);
+assert.equal(tailoredBullet.hasOverride, false);
+assert.equal(tailoredBullet.lead, 'Built Team Capacity-Planning Platform');
+assert.doesNotMatch(renderResumeHtml(tailoredDoc), /Tailored only on this posting/);
 libraryBook = replacePostingResume(
   libraryBook,
   libraryPostingId,
@@ -1527,10 +1532,15 @@ assert.equal(basicsNext.basicsBackup.education.some((row) => row.school === 'Old
 assert.equal(basicsNext.basicsBackup.savedAt, '2026-10-05T12:00:00.000Z');
 assert.equal(JSON.stringify(basicsNext.entries), entrySnapshot);
 assert.equal(JSON.stringify(basicsNext.knowledge), knowledgeSnapshot);
-assert.deepEqual(basicsNext.postings.map((job) => JSON.stringify(job.resume)), resumeSnapshots);
+assert.equal(basicsNext.postings.length, resumeSnapshots.length);
 assert.equal(postingById(basicsNext, 'job_custom').resume.localJobs.some((job) => job.company === 'Custom Co'), true);
 assert.equal(postingById(basicsNext, 'job_custom').resume.jobTitles.rj_old, 'Custom title override');
-assert.equal(postingById(basicsNext, 'job_custom').resume.overrides.rb_old.lead, 'Custom wording');
+assert.equal(
+  compileResumeDoc(postingById(basicsNext, 'job_custom'), basicsNext)
+    .sections.experience.jobs.flatMap((job) => job.groups.flatMap((group) => group.bullets))
+    .find((bullet) => bullet.id === 'rb_old').hasOverride,
+  false,
+);
 assert.deepEqual(postingById(basicsNext, 'job_custom').resume.sectionOrder, ['experience', 'education', 'credentials', 'additional']);
 assert.equal(postingById(basicsNext, 'job_custom').resume.showCredentials, true);
 const customDoc = compileResumeDoc(postingById(basicsNext, 'job_custom'), basicsNext);
@@ -1556,7 +1566,10 @@ const reloadedBasics = normalizeStore(JSON.parse(packedBasics.json), clock);
 assert.equal(reloadedBasics.jobs.some((job) => job.company === 'Local Co'), true);
 assert.equal(reloadedBasics.basicsBackup.jobs.some((job) => job.company === 'Old Co'), true);
 assert.equal(reloadedBasics.basicsBackup.education[0].school, 'Old School');
-assert.equal(JSON.stringify(reloadedBasics.postings.map((job) => job.resume)), JSON.stringify(basicsNext.postings.map((job) => job.resume)));
+assert.equal(
+  JSON.stringify(reloadedBasics.postings.map((job) => job.resume)),
+  JSON.stringify(normalizeStore(reloadedBasics, clock).postings.map((job) => job.resume)),
+);
 const remoteRow = addAdditionalRow(basicsBefore, { id: 'ad_remote', label: 'Remote row', items: ['Kept'] }, clock);
 const remoteEntry = addEntry(remoteRow, { id: 'en_remote', title: 'Remote only' }, clock);
 const mergedBasics = normalizeStore(mergeBook(basicsBefore, basicsNext, remoteEntry), clock);
@@ -2914,12 +2927,10 @@ assert.match(starCss[0], /font-size:\s*0\.82rem/);
 assert.match(starCss[0], /line-height:\s*1\.35/);
 const catalogCss = bookCss.match(/\.bb-job-catalog-row \{[^}]+\}/);
 assert.ok(catalogCss);
-assert.match(catalogCss[0], /minmax\(0,\s*1fr\)/);
-assert.match(catalogCss[0], /minmax\(0,\s*1\.15fr\)/);
-assert.match(catalogCss[0], /minmax\(0,\s*0\.85fr\)/);
-assert.match(catalogCss[0], /minmax\(0,\s*0\.8fr\)/);
+assert.match(catalogCss[0], /minmax\(16rem,\s*1\.8fr\)/);
 assert.match(catalogCss[0], /min-width:\s*0/);
-assert.match(bookCss, /\.bb-job-catalog-row > input,\s*\.bb-new-job > input \{[^}]*min-width:\s*0/);
+assert.match(bookCss, /\.bb-job-catalog-row > textarea,[^}]*min-width:\s*0/);
+assert.match(bookCss, /\.bb-job-title \{[^}]*overflow-wrap:\s*anywhere/);
 assert.doesNotMatch(catalogCss[0], /1\.2fr 1\.2fr 1fr 1fr auto/);
 assert.doesNotMatch(appSource, /Start fresh to hide shared/);
 assert.match(appSource, /Search resume bullets/);
@@ -3112,6 +3123,7 @@ function installBookDom(hash, extras = {}) {
   };
   const mem = new Map();
   mem.set('brag-book-store-v1', JSON.stringify({
+    profile: { name: 'Test User' },
     entries: [
       {
         id: 'en_row',
@@ -3626,8 +3638,8 @@ oneRecord = updatePostingResume(oneRecord, 'job_shared', {
   overrides: { rb_shared: { lead: 'Local', body: 'only here', edited: true } },
 }, clock);
 const oneLocalDoc = compileResumeDoc(postingById(oneRecord, 'job_shared'), oneRecord);
-assert.equal(oneLocalDoc.sections.experience.jobs[0].groups[0].bullets[0].hasOverride, true);
-assert.ok(`${oneLocalDoc.sections.experience.jobs[0].groups[0].bullets[0].lead} ${oneLocalDoc.sections.experience.jobs[0].groups[0].bullets[0].body}`.includes('only here'));
+assert.equal(oneLocalDoc.sections.experience.jobs[0].groups[0].bullets[0].hasOverride, false);
+assert.ok(`${oneLocalDoc.sections.experience.jobs[0].groups[0].bullets[0].lead} ${oneLocalDoc.sections.experience.jobs[0].groups[0].bullets[0].body}`.includes('the month'));
 assert.equal(oneRecord.entries.find((entry) => entry.id === 'en_shared').title, 'Closed: the month in two days');
 assert.equal(bulletConsistency(oneRecord).some((issue) => issue.bulletId === 'rb_shared'), false);
 
@@ -3635,8 +3647,8 @@ oneRecord = updatePostingResume(oneRecord, 'job_other', {
   overrides: { rb_shared: { lead: 'Other', body: 'posting still local', edited: true } },
 }, clock);
 const otherOverrideDoc = compileResumeDoc(postingById(oneRecord, 'job_other'), oneRecord);
-assert.equal(otherOverrideDoc.sections.experience.jobs[0].groups[0].bullets[0].hasOverride, true);
-assert.ok(`${otherOverrideDoc.sections.experience.jobs[0].groups[0].bullets[0].lead} ${otherOverrideDoc.sections.experience.jobs[0].groups[0].bullets[0].body}`.includes('posting still local'));
+assert.equal(otherOverrideDoc.sections.experience.jobs[0].groups[0].bullets[0].hasOverride, false);
+assert.ok(`${otherOverrideDoc.sections.experience.jobs[0].groups[0].bullets[0].lead} ${otherOverrideDoc.sections.experience.jobs[0].groups[0].bullets[0].body}`.includes('the month'));
 
 oneRecord = applyResumeBulletEdit(oneRecord, {
   postingId: 'job_shared',
@@ -3654,8 +3666,8 @@ const oneBasicsAfter = compileResumeDoc(null, oneRecord);
 assert.equal(oneEditedDoc.sections.experience.jobs[0].groups[0].bullets[0].hasOverride, false);
 assert.ok(`${oneEditedDoc.sections.experience.jobs[0].groups[0].bullets[0].lead} ${oneEditedDoc.sections.experience.jobs[0].groups[0].bullets[0].body}`.includes('the week'));
 assert.ok(oneBasicsAfter.sections.experience.jobs[0].groups.flatMap((group) => group.bullets).some((bullet) => `${bullet.lead} ${bullet.body}`.includes('the week')));
-assert.equal(oneOtherKept.sections.experience.jobs[0].groups[0].bullets[0].hasOverride, true);
-assert.ok(`${oneOtherKept.sections.experience.jobs[0].groups[0].bullets[0].lead} ${oneOtherKept.sections.experience.jobs[0].groups[0].bullets[0].body}`.includes('posting still local'));
+assert.equal(oneOtherKept.sections.experience.jobs[0].groups[0].bullets[0].hasOverride, false);
+assert.ok(`${oneOtherKept.sections.experience.jobs[0].groups[0].bullets[0].lead} ${oneOtherKept.sections.experience.jobs[0].groups[0].bullets[0].body}`.includes('the week'));
 
 const drifted = {
   ...oneRecord,
@@ -3797,7 +3809,7 @@ orderBook = stepResumeBullet(orderBook, 'job_ord', orderJob, 'rg_ord', 'rb_ord_a
 assert.deepEqual(compiledBulletIds(orderBook, 'job_ord', 'rj_ord'), ['rb_ord_b', 'rb_ord_a']);
 assert.deepEqual(compiledBulletLines(orderBook, 'job_ord', 'rj_ord'), [
   'Bravo posted second line kept wording B',
-  'Alpha posted first line posting-local A',
+  'Alpha posted first line kept wording A',
 ]);
 assert.equal(orderBook.jobs.find((job) => job.id === 'rj_ord').groups[0].bullets.map((bullet) => bullet.id).join(','), careerOrderBefore);
 assert.deepEqual(postingById(orderBook, 'job_ord_other').resume, otherResumeBefore);
@@ -3809,7 +3821,7 @@ assert.deepEqual(postingById(orderBook, 'job_ord').resume.bulletOrder.rg_ord, ['
 const compiledA = compileResumeDoc(postingById(orderBook, 'job_ord'), orderBook)
   .sections.experience.jobs.find((job) => job.id === 'rj_ord')
   .groups[0].bullets.find((bullet) => bullet.id === 'rb_ord_a');
-assert.equal(compiledA.hasOverride, true);
+assert.equal(compiledA.hasOverride, false);
 assert.equal(compiledA.included, true);
 assert.equal(compiledA.pinned, true);
 assert.equal(compileResumeDoc(postingById(orderBook, 'job_ord'), orderBook)
@@ -3820,7 +3832,9 @@ const packedOrder = serializeBook(orderBook);
 const reloadedOrder = normalizeStore(JSON.parse(packedOrder.json), clock);
 assert.deepEqual(compiledBulletIds(reloadedOrder, 'job_ord', 'rj_ord'), ['rb_ord_b', 'rb_ord_a']);
 assert.equal(reloadedOrder.jobs.find((job) => job.id === 'rj_ord').groups[0].bullets.map((bullet) => bullet.id).join(','), careerOrderBefore);
-assert.equal(reloadedOrder.postings.find((posting) => posting.id === 'job_ord').resume.overrides.rb_ord_a.body, 'posting-local A');
+assert.deepEqual(reloadedOrder.postings.find((posting) => posting.id === 'job_ord').resume.overrides, {});
+assert.ok(reloadedOrder.entries.find((entry) => entry.id === 'en_ord_a').legacyVersions
+  .some((version) => /posting-local A/.test(version.text)));
 
 const previewOrderDoc = compileResumeDoc(postingById(reloadedOrder, 'job_ord'), reloadedOrder);
 const previewOrderHtml = renderResumeHtml(previewOrderDoc);
@@ -3914,8 +3928,8 @@ assert.equal(JSON.stringify(hideBook), hideSnapshot);
 const hideGroup = hideDoc.sections.experience.jobs.find((job) => job.id === 'rj_hide').groups[0];
 assert.deepEqual(hideGroup.bullets.map((bullet) => bullet.id), ['rb_hide_a', 'rb_hide_b', 'rb_hide_c']);
 assert.deepEqual(visibleResumeBullets(hideGroup.bullets).map((bullet) => bullet.id), ['rb_hide_a', 'rb_hide_c']);
-assert.equal(hideGroup.bullets.find((bullet) => bullet.id === 'rb_hide_a').hasOverride, true);
-assert.equal(hideGroup.bullets.find((bullet) => bullet.id === 'rb_hide_a').body, 'posting-local A');
+assert.equal(hideGroup.bullets.find((bullet) => bullet.id === 'rb_hide_a').hasOverride, false);
+assert.equal(hideGroup.bullets.find((bullet) => bullet.id === 'rb_hide_a').body, 'kept A');
 assert.equal(resumeTakenEntryIds(hideBook, postingById(hideBook, 'job_hide')).includes('en_hide_b'), true);
 assert.equal(resumeTakenEntryIds(hideBook, postingById(hideBook, 'job_hide'), { includeExcluded: false }).includes('en_hide_b'), false);
 assert.equal(resumeTakenEntryIds(hideBook, postingById(hideBook, 'job_hide'), { includeExcluded: false }).includes('en_hide_a'), true);
@@ -4165,8 +4179,8 @@ assert.deepEqual(compiledGroupIds(moveBook, 'job_move', 'rj_move').map((group) =
 const movedA = compileResumeDoc(postingById(moveBook, 'job_move'), moveBook)
   .sections.experience.jobs.find((job) => job.id === 'rj_move')
   .groups.flatMap((group) => group.bullets).find((bullet) => bullet.id === 'rb_move_a');
-assert.equal(movedA.hasOverride, true);
-assert.equal(movedA.body, 'posting-local A');
+assert.equal(movedA.hasOverride, false);
+assert.equal(movedA.body, 'kept A');
 assert.equal(movedA.pinned, true);
 assert.equal(movedA.included, true);
 

@@ -13,6 +13,7 @@ import {
   compileResumeDoc,
   normalizeStore,
   postingById,
+  serializeBook,
 } from '../brag-book/engine.js';
 
 const clock = () => Date.parse('2026-10-08T12:00:00.000Z');
@@ -77,5 +78,103 @@ assert.equal(
   false,
   'legacy wording must be resolved during migration instead of remaining a live fork',
 );
+
+const migrated = normalizeStore({
+  entries: [{
+    id: 'en_newer_override',
+    kind: 'experience',
+    title: 'Older library wording',
+    rich: [{ text: 'Older library wording', bold: false }],
+    updatedAt: '2026-10-08T09:00:00.000Z',
+  }],
+  jobs: [{
+    id: 'rj_newer_override',
+    company: 'Example Co',
+    groups: [{
+      id: 'rg_newer_override',
+      bullets: [{
+        id: 'rb_newer_override',
+        body: 'Copied career wording',
+        sourceEntryIds: ['en_newer_override'],
+      }],
+    }],
+  }],
+  postings: [{
+    id: 'job_newer_override',
+    title: 'Target role',
+    updatedAt: '2026-10-08T11:00:00.000Z',
+    requirements: [{
+      id: 'rq_orphan',
+      text: 'Lead change',
+      bullets: [{
+        id: 'ln_orphan',
+        text: 'Unlinked requirement wording',
+        situation: 'Situation survives',
+        task: 'Task survives',
+        action: 'Action survives',
+        result: 'Result survives',
+        notes: 'Notes survive',
+      }],
+    }],
+    resume: {
+      includedJobIds: ['rj_newer_override'],
+      overrides: {
+        rb_newer_override: {
+          body: 'Newest posting wording',
+          edited: true,
+        },
+      },
+    },
+  }],
+  additional: [{
+    id: 'ad_keep',
+    label: 'Interests',
+    text: 'Exact; additional text stays',
+    rich: [{ text: 'Exact; additional text stays', bold: false }],
+  }],
+}, clock);
+const migratedEntry = migrated.entries.find((entry) => entry.id === 'en_newer_override');
+assert.equal(migratedEntry.title, 'Newest posting wording');
+assert.ok(migratedEntry.legacyVersions.some((version) => version.text === 'Older library wording'));
+const orphan = migrated.entries.find((entry) => entry.title === 'Unlinked requirement wording');
+assert.ok(orphan, 'an unlinked legacy requirement must get a canonical entry');
+for (const field of ['situation', 'task', 'action', 'result', 'notes']) {
+  const expected = field === 'notes'
+    ? 'Notes survive'
+    : `${field[0].toUpperCase()}${field.slice(1)} survives`;
+  assert.equal(orphan[field], expected);
+}
+assert.equal(migrated.additional[0].text, 'Exact; additional text stays');
+const serialized = serializeBook(migrated).book;
+assert.deepEqual(serialized.postings[0].resume.overrides, {});
+assert.equal(
+  bulletLineText(compileResumeDoc(serialized.postings[0], serialized).sections.experience.jobs[0].groups[0].bullets[0]),
+  'Newest posting wording',
+);
+assert.deepEqual(normalizeStore(serialized, clock), serialized, 'schema-v2 migration must be idempotent');
+
+const untimestamped = normalizeStore({
+  entries: [{ id: 'en_no_time', title: 'Untimestamped entry wins ties' }],
+  jobs: [{
+    id: 'rj_no_time',
+    company: 'Example',
+    groups: [{
+      id: 'rg_no_time',
+      bullets: [{ id: 'rb_no_time', body: 'Copied text', sourceEntryIds: ['en_no_time'] }],
+    }],
+  }],
+  postings: [{
+    id: 'job_no_time',
+    title: 'Untimestamped posting',
+    resume: {
+      overrides: {
+        rb_no_time: { body: 'Untimestamped override', edited: true },
+      },
+    },
+  }],
+}, clock);
+assert.equal(untimestamped.entries.find((entry) => entry.id === 'en_no_time').title, 'Untimestamped entry wins ties');
+assert.ok(untimestamped.entries.find((entry) => entry.id === 'en_no_time').legacyVersions
+  .some((version) => version.text === 'Untimestamped override'));
 
 console.log('Brag Book canonical-bullet bug-bash regression passed.');
