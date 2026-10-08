@@ -39,22 +39,60 @@ for (const [key, value] of Object.entries(exactStar)) {
 // mutation above. Pin the containment rules that prevent the left editor or a
 // content-sized textarea from painting across that boundary.
 const css = readFileSync(new URL('../brag-book/app.css', import.meta.url), 'utf8');
+const listRule = css.match(/\.bb-exp-list\s*\{[^}]*\}/)?.[0] || '';
+const rowRule = css.match(/\.bb-exp-row\s*\{[^}]*\}/)?.[0] || '';
 const leadRule = css.match(/\.bb-exp-lead\s*\{[^}]*\}/)?.[0] || '';
 const starGridRule = css.match(/\.bb-exp-stargrid\s*\{[^}]*\}/)?.[0] || '';
+const starLabelRule = css.match(/\.bb-star-cell > span\s*\{[^}]*\}/)?.[0] || '';
 const areaRule = css.match(/\.bb-inline-area\s*\{[^}]*\}/)?.[0] || '';
 const leadEditorRule = css.match(/\.bb-exp-lead \.experience-compose\s*\{[^}]*\}/)?.[0] || '';
+const jobRowRule = css.match(/\.bb-job-catalog-row\s*\{[^}]*\}/)?.[0] || '';
+const jobFieldRule = css.match(
+  /\.bb-job-field > input,\s*\.bb-job-field > textarea,\s*\.bb-new-job > input\s*\{[^}]*\}/,
+)?.[0] || '';
 const jobTitleRule = css.match(/\.bb-job-title\s*\{[^}]*\}/)?.[0] || '';
 
+assert.match(listRule, /gap:\s*12px/, 'bullet cards need a consistent gutter');
+assert.match(rowRule, /min-width:\s*0/);
+assert.match(rowRule, /border:\s*1px solid var\(--line-strong\)/);
+assert.match(rowRule, /border-radius:\s*10px/);
+assert.doesNotMatch(rowRule, /overflow:\s*(?:clip|hidden)/, 'the bullet card must not clip either column');
 assert.doesNotMatch(leadRule, /overflow:\s*(?:clip|hidden)/, 'the lead editor content must not be clipped');
 assert.match(leadEditorRule, /max-width:\s*100%/);
+assert.match(leadEditorRule, /font-size:\s*16px/);
+assert.match(leadEditorRule, /font-weight:\s*550/);
+assert.match(leadEditorRule, /line-height:\s*1\.55/);
 assert.match(leadEditorRule, /white-space:\s*pre-wrap/);
 assert.match(leadEditorRule, /overflow-wrap:\s*anywhere/);
 assert.match(starGridRule, /isolation:\s*isolate/, 'the STAR grid must own an isolated paint layer');
+assert.match(starGridRule, /repeat\(2,\s*minmax\(0,\s*1fr\)\)/, 'STAR columns must be allowed to shrink evenly');
+assert.match(starGridRule, /gap:\s*12px/, 'STAR fields need a consistent readable gutter');
+assert.match(starLabelRule, /font-size:\s*12px/);
+assert.match(starLabelRule, /line-height:\s*1\.3/);
+assert.doesNotMatch(starLabelRule, /text-transform:\s*uppercase/, 'STAR labels should read as labels, not tiny metadata');
 assert.match(areaRule, /min-width:\s*0/);
 assert.match(areaRule, /max-width:\s*100%/);
+assert.match(areaRule, /font-size:\s*14px/);
+assert.match(areaRule, /line-height:\s*1\.5/);
+assert.match(areaRule, /white-space:\s*pre-wrap/);
+assert.match(areaRule, /overflow-wrap:\s*anywhere/);
 assert.doesNotMatch(areaRule, /field-sizing:\s*content/, 'content sizing must not widen STAR textareas');
+assert.match(jobRowRule, /min-width:\s*0/);
+assert.match(jobRowRule, /border:\s*1px solid var\(--line-strong\)/);
+assert.doesNotMatch(jobRowRule, /overflow:\s*(?:clip|hidden)/, 'Jobs cards must not clip long values');
+assert.match(jobFieldRule, /max-width:\s*100%/);
 assert.match(jobTitleRule, /white-space:\s*pre-wrap/);
 assert.match(jobTitleRule, /overflow-wrap:\s*anywhere/);
+assert.match(
+  css,
+  /@media \(max-width:\s*980px\)[\s\S]*?\.bb-exp-row\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\)/,
+  'the lead and STAR columns must stack before they become cramped',
+);
+assert.match(
+  css,
+  /@media \(max-width:\s*620px\)[\s\S]*?\.bb-exp-stargrid\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\)/,
+  'STAR fields must become one column on narrow screens',
+);
 
 const longBullet = 'AI Decision Framework: Built a framework to help 25+ non-technical colleagues choose between automated and agentic solutions and pick the right approach';
 const longTitle = 'Senior Associate | Data Analytics & Technology Consulting';
@@ -96,5 +134,11 @@ assert.equal(leadEditor?.textContent, longBullet, 'the real lead editor DOM must
 const titleEditor = dom.window.document.querySelector('[aria-label="Job title"]');
 assert.equal(titleEditor?.tagName, 'TEXTAREA', 'long job titles need a wrapping editor');
 assert.equal(titleEditor?.value, longTitle, 'the real Jobs editor DOM must contain the complete title');
+assert.equal(titleEditor?.closest('.bb-job-field')?.querySelector('span')?.textContent, 'Title');
+assert.deepEqual(
+  [...dom.window.document.querySelectorAll('.bb-job-field > span')].map((node) => node.textContent),
+  ['Company', 'Title', 'Dates', 'Location'],
+  'the real Jobs card must label each aligned field',
+);
 
 console.log('Brag Book STAR-layout bug-bash regression passed.');
