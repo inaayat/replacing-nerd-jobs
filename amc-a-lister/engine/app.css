@@ -4368,7 +4368,6 @@ table.al-table {
 
 .al-watchlist-card-title {
   margin: 8px 0 0;
-  height: 2.5em;
   font-size: 0.88rem;
   font-weight: 600;
   line-height: 1.25;
@@ -4380,7 +4379,7 @@ table.al-table {
 }
 
 .al-watchlist-card-date {
-  margin: 4px 0 0;
+  margin: 1px 0 0;
   font-family: var(--al-font-mono);
   font-size: 0.75rem;
   font-weight: 500;

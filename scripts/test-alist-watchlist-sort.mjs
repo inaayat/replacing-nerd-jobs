@@ -276,6 +276,10 @@ assert(gridCss.includes('repeat(2, minmax(0, 1fr))'), 'phones use two poster col
 assert(gridCss.includes('repeat(3, minmax(0, 1fr))'), 'wider phones use three poster columns');
 assert(gridCss.includes('repeat(auto-fill, minmax(160px, 1fr))'), 'desktop poster grid fills the row');
 assert(gridCss.includes('.al-watchlist-card-date'), 'release date has its own line under the title');
+const titleRule = gridCss.slice(gridCss.indexOf('.al-watchlist-card-title {'), gridCss.indexOf('.al-watchlist-card-date {'));
+assert(!/height:\s*2\.5em/.test(titleRule), 'title does not reserve a blank second line above the date');
+const dateRule = gridCss.slice(gridCss.indexOf('.al-watchlist-card-date {'), gridCss.indexOf('.al-watchlist-card-notes'));
+assert(/margin:\s*1px 0 0/.test(dateRule), 'release date sits tight under the title');
 
 const expandedSoon = watchlistLogTableHtml(expandItems, detailsState({ expandedId: 'cs1' }), { view: 'coming-soon' });
 assert(expandedSoon.includes('is-expanded'), 'Coming Soon expanded row is marked');
