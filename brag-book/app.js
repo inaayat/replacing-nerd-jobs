@@ -152,7 +152,16 @@ import {
   isRoleHeaderToggleTarget,
 } from './engine.js';
 import { renderResumeHtml, resumeDocument } from './resume-template.js';
-import { fitOnePage, dropOrderFromDoc, applyDroppedIds, droppedBulletLabels, fitStatusLine, PAGE_HEIGHT_PX } from './resume-fit.js';
+import {
+  fitOnePage,
+  dropOrderFromDoc,
+  applyDroppedIds,
+  droppedBulletLabels,
+  fitStatusLine,
+  PAGE_HEIGHT_PX,
+  resumePreviewScale,
+  resumePreviewWrapHeight,
+} from './resume-fit.js';
 import { resumeDocxBlob } from './resume-docx.js';
 import { parseViewHash, viewHash, viewTitle } from './routes.js';
 import { bookPagePlan, experienceRowSpec, sharedBulletSpec, SHARED_BULLET_FIELDS, STAR_FIELDS, experienceAdderChrome, nextExperienceAdderOpen, resumeBulletArrows, resumeGroupChrome, visibleNodes, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys } from './book-view.js';
@@ -2638,7 +2647,7 @@ function prepView(job) {
         onClick: () => go({ kind: 'jobs', id: job.id }),
       }),
     ]),
-    el('p', { class: 'tiny' }, '← → on the keyboard walks the cards.'),
+    el('p', { class: 'tiny prep-keyboard-hint' }, '← → on the keyboard walks the cards.'),
     el('div', { class: 'prep-nav' }, [
       btn('Previous', { class: 'btn ghost', disabled: index <= 0, onClick: () => step(index - 1) }),
       btn('Next', { class: 'btn ghost', disabled: index >= cards.length - 1, onClick: () => step(index + 1) }),
@@ -2691,10 +2700,9 @@ function paintPreviewFitWarning(page) {
 
 function scaleResumeFrame(wrap, frame) {
   if (!wrap || !frame) return;
-  const page = 8.5 * 96;
-  const scale = Math.max(0.28, Math.min(1, (wrap.clientWidth - 8) / page));
+  const scale = resumePreviewScale(wrap.clientWidth);
   frame.style.transform = `scale(${scale})`;
-  wrap.style.height = `${11 * 96 * scale + 12}px`;
+  wrap.style.height = `${resumePreviewWrapHeight(scale)}px`;
 }
 
 async function refreshResumePreview(posting) {

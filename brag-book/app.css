@@ -2229,3 +2229,237 @@ a:focus-visible {
 @media (max-width: 720px) {
   .bb-choose-cards { grid-template-columns: 1fr; }
 }
+
+/* --- Brag Book mobile/tablet (plan: docs/brag-book-mobile-plan.md) --- */
+
+@media (max-width: 1023px) {
+  .bb-resume-split { grid-template-columns: 1fr; }
+  .bb-resume-preview { position: static; top: auto; }
+  .bb-exp-row { grid-template-columns: minmax(0, 1fr); }
+  .bb-resume-preview-wrap {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .shell,
+  .panel,
+  .panel-head,
+  .panel-head .actions,
+  .job-table-wrap,
+  .job-table td,
+  .bb-shared-bullet,
+  .bb-exp-lead,
+  .bb-exp-stargrid {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 860px) {
+  html,
+  body,
+  .shell {
+    overflow-x: clip;
+    max-width: 100%;
+  }
+  .nav {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    row-gap: 6px;
+  }
+  .nav-brand { flex: 1 1 auto; min-width: 0; }
+  .nav-links {
+    flex: 1 1 100%;
+    flex-wrap: nowrap;
+    gap: 10px;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+  }
+  .nav-links a { flex: none; white-space: nowrap; }
+  .panel-head {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .panel-head .actions {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .panel-head .actions .btn {
+    flex: 1 1 auto;
+    min-width: min(100%, 8.5rem);
+  }
+  .status {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+  .legal { overflow-wrap: anywhere; }
+  .bb-resume-editor {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+  }
+  .bb-exp-tools {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .bb-exp-tools .search,
+  .bb-exp-tools .bb-kind {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .bb-exp-tools .btn { align-self: flex-start; }
+  .bb-job-catalog-row,
+  .bb-new-job {
+    grid-template-columns: 1fr;
+  }
+  .bb-kb-list {
+    max-height: 32dvh;
+    overflow-y: auto;
+    min-height: 0;
+  }
+  .layout .panel .list {
+    max-height: 42dvh;
+    overflow-y: auto;
+  }
+  .job-table-wrap { overflow-x: visible; padding-left: 0; padding-right: 0; }
+  .job-table tr {
+    margin-left: 0;
+    margin-right: 0;
+  }
+  .job-table td,
+  .table-bullets,
+  .experience-editor,
+  .requirement-questions {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .experience-matches {
+    max-height: min(40dvh, 260px);
+    overflow-y: auto;
+  }
+  .prep-nav { flex-wrap: wrap; }
+  .prep-nav .btn { flex: 1 1 calc(50% - 5px); }
+  .start-grid.is-focus ~ .actions .btn {
+    flex: 1 1 calc(50% - 4px);
+  }
+}
+
+@media (max-width: 620px) {
+  .panel-head .actions .btn { flex: 1 1 100%; min-width: 0; }
+}
+
+@media (pointer: coarse) {
+  .field input,
+  .field textarea,
+  .field select,
+  .search,
+  .bb-input,
+  .table-req-text,
+  .bullet-copy,
+  .experience-compose,
+  .requirement-questions input,
+  .requirement-questions textarea,
+  .table-add-input,
+  .req-text,
+  .resume,
+  .field .bb-rb-line,
+  .field .bb-addl-items {
+    font-size: 16px;
+  }
+  .nav-links a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 10px 6px;
+  }
+  .bb-book-tab {
+    min-height: 44px;
+    padding: 10px 14px;
+  }
+  .icon-quiet {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .bullet-open {
+    min-height: 44px;
+    padding: 10px 12px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .row-text-action {
+    min-height: 44px;
+    padding: 10px 8px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .compact-action {
+    min-height: 44px;
+    padding: 10px 12px;
+  }
+  .question-add .btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .utility-box summary {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+  .prep-nav .btn { min-height: 44px; }
+  .prep-keyboard-hint { display: none; }
+  .bb-kb-mark {
+    min-height: 44px;
+    padding: 10px 12px;
+  }
+  .bb-order-btns .btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .bb-job-fold { min-height: 44px; }
+  #status-note .btn,
+  #status-note .compact-action {
+    min-height: 44px;
+  }
+  .panel-head .actions .btn,
+  .actions .btn {
+    min-height: 44px;
+  }
+  .start-card,
+  .plot-card {
+    min-height: 44px;
+  }
+}
+
+@media (hover: none) {
+  .table-req-text {
+    border-color: var(--line);
+    background: #fff;
+  }
+  .table-req-text:focus {
+    border-color: var(--gold);
+    background: #fff;
+  }
+  .bullet-link:focus-visible {
+    border-color: var(--gold);
+    background: rgba(232, 196, 122, 0.08);
+  }
+  .bb-job-fold:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+  }
+  .icon-quiet:focus-visible {
+    background: rgba(12, 11, 9, 0.06);
+    color: var(--ink);
+  }
+}

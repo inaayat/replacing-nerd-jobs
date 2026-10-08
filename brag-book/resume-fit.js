@@ -8,6 +8,21 @@
 
 export const PAGE_HEIGHT_IN = 10;
 export const PAGE_HEIGHT_PX = PAGE_HEIGHT_IN * 96;
+export const RESUME_PAGE_WIDTH_PX = 8.5 * 96;
+export const RESUME_PAGE_HEIGHT_PX = 11 * 96;
+
+/** Preview iframe scale from wrapper width (matches scaleResumeFrame in app.js). */
+export function resumePreviewScale(wrapClientWidth) {
+  const w = Number(wrapClientWidth);
+  if (!Number.isFinite(w) || w <= 0) return 0.28;
+  return Math.max(0.28, Math.min(1, (w - 8) / RESUME_PAGE_WIDTH_PX));
+}
+
+export function resumePreviewWrapHeight(scale) {
+  const s = Number(scale);
+  if (!Number.isFinite(s)) return RESUME_PAGE_HEIGHT_PX * 0.28 + 12;
+  return RESUME_PAGE_HEIGHT_PX * s + 12;
+}
 export const FONT_FLOOR_PT = 9.5;
 
 export const FIT_STEPS = [
