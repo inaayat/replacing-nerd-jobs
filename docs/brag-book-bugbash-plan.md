@@ -82,6 +82,8 @@ state; call those commit callbacks before navigation/lifecycle flush.
   sends on the next boot.
 - Simulate `localStorage.setItem` throwing; a visible warning appears and the
   server request still runs.
+- `node scripts/test-brag-book-bugbash-save-current.mjs` no longer reproduces
+  missing lifecycle hooks or overlapping PUTs.
 - `node scripts/test-brag-book-bugbash-save.mjs` passes.
 
 ### P0.2 — Overlapping full-book PUTs can acknowledge stale state out of order
@@ -532,7 +534,8 @@ accounted for. No save-controller work is required in this phase.
 3. Route every model edit and lifecycle event through the controller.
 4. Change API/lib writes to require numeric revision.
 5. Add global confirmed save status, retry, and conflict resolution.
-6. Turn on `test-brag-book-bugbash-save.mjs`.
+6. Turn on `test-brag-book-bugbash-save-current.mjs` and
+   `test-brag-book-bugbash-save.mjs`.
 
 Ship criterion: no overlapping PUTs, no false Saved state, no discarded local
 value, and reload recovers an interrupted edit.
@@ -572,6 +575,7 @@ Run after the relevant phase:
 
 ```sh
 node scripts/test-brag-book-bugbash-canonical.mjs
+node scripts/test-brag-book-bugbash-save-current.mjs
 node scripts/test-brag-book-bugbash-save.mjs
 node scripts/test-brag-book-bugbash-rich-text.mjs
 node scripts/test-brag-book-bugbash-star-layout.mjs
