@@ -272,8 +272,8 @@ const gridCss = gridCssStart.slice(
   gridCssStart.indexOf('/* Coming Soon / Watch at Home'),
   gridCssStart.indexOf('.al-watchlist-edit-fields'),
 );
-assert(gridCss.includes('repeat(2, minmax(0, 1fr))'), 'phones use two poster columns');
-assert(gridCss.includes('repeat(3, minmax(0, 1fr))'), 'wider phones use three poster columns');
+assert(gridCss.includes('repeat(3, minmax(0, 1fr))'), 'phones use three poster columns');
+assert(!/repeat\(2,\s*minmax\(0,\s*1fr\)\)/.test(gridCss), 'the phone grid is not two across');
 assert(gridCss.includes('repeat(auto-fill, minmax(160px, 1fr))'), 'desktop poster grid fills the row');
 assert(gridCss.includes('.al-watchlist-card-date'), 'release date has its own line under the title');
 const titleRule = gridCss.slice(gridCss.indexOf('.al-watchlist-card-title {'), gridCss.indexOf('.al-watchlist-card-date {'));
