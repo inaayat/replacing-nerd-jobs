@@ -3698,7 +3698,7 @@ function jobCatalogRow(job) {
   });
   const title = el('textarea', {
     class: 'bb-job-title',
-    rows: '2',
+    rows: '1',
     value: job.title || '',
     placeholder: 'Title',
     'aria-label': 'Job title',

@@ -1765,7 +1765,6 @@ a:focus-visible {
   max-width: 100%;
   box-sizing: border-box;
   min-height: 2.75rem;
-  margin-top: var(--bb-star-stack-offset);
   padding: 8px 10px;
   border-radius: 8px;
   font-size: var(--bb-star-body-size);
@@ -2180,9 +2179,9 @@ a:focus-visible {
   font-family: var(--content-font);
   font-size: 13px;
   line-height: 1.45;
+  min-height: calc(16px + 1.45 * 13px);
 }
 .bb-job-title {
-  min-height: 3.25rem;
   resize: none;
   overflow-x: hidden;
   overflow-y: auto;
