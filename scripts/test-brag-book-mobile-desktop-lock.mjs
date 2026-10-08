@@ -12,6 +12,7 @@ import { parseViewHash, viewHash } from '../brag-book/routes.js';
 import {
   resumePreviewScale,
   resumePreviewWrapHeight,
+  resumeEditorMaxHeight,
   RESUME_PAGE_HEIGHT_PX,
 } from '../brag-book/resume-fit.js';
 
@@ -256,6 +257,16 @@ assert.equal(resumePreviewScale(900), 1);
 assert.equal(
   resumePreviewWrapHeight(resumePreviewScale(360)),
   RESUME_PAGE_HEIGHT_PX * resumePreviewScale(360) + 12,
+);
+assert.equal(resumeEditorMaxHeight(900, { sideBySide: true }), '900px');
+assert.equal(resumeEditorMaxHeight(900.4, { sideBySide: true }), '900px');
+assert.equal(resumeEditorMaxHeight(900, { sideBySide: false }), '');
+assert.equal(resumeEditorMaxHeight(0, { sideBySide: true }), '');
+assert.match(app, /resumeEditorMaxHeight\(preview\.offsetHeight/);
+assert.doesNotMatch(
+  cssRule(/\.bb-resume-editor\s*\{[^}]*\}/, 'resume editor'),
+  /max-height:\s*calc\(100dvh - 150px\)/,
+  'the editor scrollport tracks the resume preview, not a shorter viewport cap',
 );
 
 console.log('Brag Book mobile desktop/DOM lock passed.');
