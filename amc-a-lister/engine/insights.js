@@ -247,7 +247,7 @@ function renderCastCategory(actors) {
       <p class="al-muted al-insight-lede">Top 10 by unique films.</p>
       ${actorRankTable(actors.slice(0, 10))}
     `
-    : '<div class="al-empty">No cast data yet — link movies to TMDB when logging or expand a row in your log.</div>';
+    : '<div class="al-empty">No cast data yet — link movies to TMDB when logging or open a title in your log.</div>';
   const highestRated = topActorsByRating(actors, { minRated: 2, limit: 10 });
   const bestRated = highestRated.length
     ? `

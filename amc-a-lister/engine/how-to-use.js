@@ -11,8 +11,9 @@ function howToUseSteps() {
       </li>
       <li>
         <strong><a href="/amc-a-lister/">Watch log</a></strong>
-        is your full history. Search, filter by theater or rating, and expand a row to
-        edit details or add a star rating later.
+        is your full history. Search and filter by theater or rating. Each poster
+        shows the date, theater, cost, and stars; tap it to open format, seat,
+        who you went with, and the movie details.
       </li>
       <li>
         <strong><a href="/amc-a-lister/what-to-watch.html">Coming Soon</a></strong>

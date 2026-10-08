@@ -4482,6 +4482,244 @@ table.al-table {
   min-width: 0;
 }
 
+/* Watch log: poster grid. Phones are two across; wider screens fill the row.
+   Extra screening and movie details open inside the same card. */
+.al-log-list-wrap:has(> .al-watch-grid) {
+  overflow-x: visible;
+}
+
+.al-watch-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 12px;
+  width: 100%;
+  min-width: 0;
+  align-items: start;
+}
+
+.al-watch-grid > .al-log-entry {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  width: auto;
+}
+
+.al-watch-grid-item--editing {
+  grid-column: 1 / -1;
+  padding: 12px;
+  background: var(--al-panel-2);
+  border: 1px solid var(--al-line);
+  border-radius: 12px;
+}
+
+.al-watch-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.al-watch-card:focus-visible {
+  outline: 2px solid var(--al-burgundy);
+  outline-offset: 4px;
+  border-radius: 12px;
+}
+
+.al-watch-card-poster {
+  position: relative;
+  aspect-ratio: 2 / 3;
+  border-radius: 10px;
+  background: #efeae3;
+}
+
+.al-watch-card-poster .al-poster,
+.al-watch-card-poster .al-poster--empty {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  border-radius: 10px;
+  object-fit: cover;
+  box-shadow: 0 2px 8px rgba(28, 28, 28, 0.1);
+}
+
+.al-watch-card:hover .al-watch-card-poster .al-poster,
+.al-watch-card.is-expanded .al-watch-card-poster .al-poster {
+  box-shadow: 0 8px 18px rgba(28, 28, 28, 0.16);
+}
+
+.al-watch-card.is-expanded .al-watch-card-poster .al-poster {
+  box-shadow: 0 0 0 2px var(--al-panel), 0 0 0 4px var(--al-burgundy);
+}
+
+.al-watch-card-title {
+  margin: 8px 0 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: break-word;
+}
+
+.al-watch-card-facts,
+.al-watch-more-facts {
+  display: grid;
+  gap: 2px;
+  margin: 6px 0 0;
+}
+
+.al-watch-card-fact {
+  display: grid;
+  grid-template-columns: 3.35rem minmax(0, 1fr);
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+  margin: 0;
+}
+
+.al-watch-card-fact dt {
+  margin: 0;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--al-muted);
+}
+
+.al-watch-card-fact dd {
+  margin: 0;
+  min-width: 0;
+  font-size: 0.78rem;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.al-watch-card-fact--rating dd {
+  overflow: visible;
+}
+
+.al-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  color: #b26a00;
+  line-height: 0;
+}
+
+.al-stars--dnf {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--al-muted);
+  line-height: 1.2;
+}
+
+.al-star {
+  position: relative;
+  flex: 0 0 13px;
+  width: 13px;
+  height: 13px;
+}
+
+.al-star-glyph {
+  display: block;
+  width: 13px;
+  height: 13px;
+}
+
+.al-star.is-full .al-star-glyph {
+  fill: currentColor;
+}
+
+.al-star.is-empty {
+  color: rgba(28, 28, 28, 0.22);
+}
+
+.al-star.is-empty .al-star-glyph {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linejoin: round;
+}
+
+.al-star.is-half .al-star-glyph.is-outline {
+  fill: none;
+  stroke: rgba(28, 28, 28, 0.28);
+  stroke-width: 1.7;
+  stroke-linejoin: round;
+}
+
+.al-star.is-half .al-star-glyph.is-fill {
+  position: absolute;
+  inset: 0;
+  fill: currentColor;
+  clip-path: inset(0 50% 0 0);
+}
+
+.al-watch-card-more {
+  margin-top: 8px;
+  padding-top: 2px;
+  border-top: 1px solid var(--al-line);
+}
+
+.al-watch-more-facts .al-watch-card-fact dd {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+}
+
+.al-watch-more-note {
+  margin: 8px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.al-watch-grid .al-add-viewer {
+  margin: 8px 0 0;
+  padding: 10px;
+  border: 1px solid var(--al-line);
+  border-radius: 12px;
+  background: var(--al-panel);
+  width: auto;
+}
+
+.al-watch-grid .al-add-viewer-row {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.al-watch-grid .al-add-viewer-row .al-input,
+.al-watch-grid .al-add-viewer-row .al-btn {
+  max-width: none;
+  width: 100%;
+}
+
+.al-watch-grid .al-log-detail-overview-wrap {
+  margin-top: 10px;
+  padding-top: 10px;
+}
+
+@media (min-width: 768px) {
+  .al-watch-grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 22px 16px;
+  }
+}
+
 .al-tv-airing-segment {
   margin-top: 12px;
 }

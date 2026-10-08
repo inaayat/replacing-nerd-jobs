@@ -1,7 +1,8 @@
 import { bootPage, renderShell, requireSignIn, populateSidebarStats } from './nav.js';
 import { watchesApi, movieApi, showingInvitesApi } from './api.js';
-import { money, shortDate, ratingLabel, escapeHtml, posterHtml } from './format.js';
-import { renderWatchEditForm, wireWatchEditForm } from './watch-form.js';
+import { money, shortDate, escapeHtml, posterHtml } from './format.js';
+import { watchLogListHtml } from './watch-log-grid.js';
+import { wireWatchEditForm } from './watch-form.js';
 import { ratingStarBucket } from './billing.js';
 import { wireUserSuggest } from './user-suggest.js';
 
@@ -278,18 +279,6 @@ function showLogStatus(message) {
   el.textContent = message || '';
 }
 
-function watchedWithNames(watch) {
-  if (watch.in_theaters === false) return [];
-  return (watch.companions || []).map((c) => c.username).filter(Boolean);
-}
-
-function watchedWithCell(watch) {
-  const names = watchedWithNames(watch);
-  if (!names.length) return { html: '—', title: '', empty: true };
-  const text = names.join(', ');
-  return { html: escapeHtml(text), title: text, empty: false };
-}
-
 function renderInvitesPanel(auth, state, render) {
   const panel = document.getElementById('showing-invites-panel');
   if (!panel) return;
@@ -443,190 +432,7 @@ function inviteCardHtml(invite, kind) {
 }
 
 function tableHtml(state) {
-  const { filtered, editingId } = state;
-  // "No matches" is wrong for someone who has never logged anything.
-  if (!state.watches.length) {
-    return `
-      <div class="al-empty al-empty--first-run">
-        <p><strong>No screenings yet.</strong></p>
-        <p class="al-muted">
-          Use the bar above to log one — a title and a date is enough, and the
-          rest of the fields appear once you start typing.
-        </p>
-        <p class="al-muted">
-          Already have a spreadsheet? <a href="/amc-a-lister/settings.html">Import it from Settings</a>.
-        </p>
-      </div>
-    `;
-  }
-  if (!filtered.length) return '<div class="al-empty">No matches.</div>';
-  return `
-    <div class="al-log-list">
-      <div class="al-log-head" role="row">
-        <span class="al-log-col al-col-poster"></span>
-        <span class="al-log-col al-log-col--date">Date</span>
-        <span class="al-log-col">Title</span>
-        <span class="al-log-col al-log-col--with-head">With</span>
-        <span class="al-log-col">Location</span>
-        <span class="al-log-col al-log-col--format">Format</span>
-        <span class="al-log-col al-log-col--seat">Seat</span>
-        <span class="al-log-col">Charge</span>
-        <span class="al-log-col">Rating</span>
-        <span class="al-log-col">Actions</span>
-      </div>
-      ${filtered.map((w) => (
-        w.id === editingId ? editRowHtml(w) : viewEntryHtml(w, state)
-      )).join('')}
-    </div>
-  `;
-}
-
-function mobileLogMeta(w) {
-  const withNames = watchedWithNames(w);
-  const primary = [
-    shortDate(w.watched_on),
-    w.in_theaters === false ? 'Off-theater' : (w.format || 'Standard'),
-    w.in_theaters === false ? null : money(w.ticket_cents),
-    ratingLabel(w),
-  ].filter(Boolean).map((part) => escapeHtml(String(part))).join(' · ');
-  const location = escapeHtml(w.in_theaters === false ? 'Not in theaters' : (w.location || '—'));
-  const withLine = withNames.length
-    ? `<span class="al-log-meta-with">with ${escapeHtml(withNames.join(', '))}</span>`
-    : '';
-  return `
-    <span class="al-log-meta-primary">${primary}</span>
-    <span class="al-log-meta-location">${location}</span>
-    ${withLine}
-  `;
-}
-
-function viewEntryHtml(w, state) {
-  const expanded = w.id === state.expandedId;
-  const adding = w.id === state.addingId;
-  const canAdd = w.in_theaters !== false;
-  const withCell = watchedWithCell(w);
-  return `
-    <div class="al-log-entry ${expanded ? 'is-expanded' : ''}" data-entry-id="${w.id}">
-      <article class="al-log-row al-log-row--clickable ${expanded ? 'is-expanded' : ''}" data-expand-row tabindex="0" aria-expanded="${expanded}" aria-label="Toggle details">
-        <div class="al-log-col al-col-poster">${posterHtml(w)}</div>
-        <div class="al-log-col al-log-col--desktop al-log-col--date">${shortDate(w.watched_on)}</div>
-        <div class="al-log-col--body">
-          <div class="al-log-col al-log-col--title">
-            ${escapeHtml(w.title)}
-            ${w.in_theaters === false ? '<span class="al-badge al-badge--muted">Off-theater</span>' : ''}
-          </div>
-          <div class="al-log-col al-log-col--mobile-meta al-only-mobile">${mobileLogMeta(w)}</div>
-        </div>
-        <div class="al-log-col al-log-col--desktop al-log-col--with ${withCell.empty ? 'al-muted' : ''}"${withCell.title ? ` title="${escapeHtml(withCell.title)}"` : ''}>${withCell.html}</div>
-        <div class="al-log-col al-log-col--desktop al-muted">${escapeHtml(w.in_theaters === false ? 'Not in theaters' : (w.location || '—'))}</div>
-        <div class="al-log-col al-log-col--desktop al-log-col--format">${w.in_theaters === false ? '—' : (w.format ? escapeHtml(w.format) : '—')}</div>
-        <div class="al-log-col al-log-col--desktop al-log-col--seat al-muted">${w.in_theaters === false ? '—' : escapeHtml([w.auditorium, w.seat].filter(Boolean).join(' · ') || '—')}</div>
-        <div class="al-log-col al-log-col--desktop al-log-col--num">${w.in_theaters === false ? '—' : money(w.ticket_cents)}</div>
-        <div class="al-log-col al-log-col--desktop">${ratingLabel(w)}</div>
-        <div class="al-log-col al-row-actions">
-          ${canAdd ? `<button type="button" class="al-link-btn" data-add-viewer="${w.id}">Add</button>` : ''}
-          <button type="button" class="al-link-btn" data-edit="${w.id}">Edit</button>
-          <button type="button" class="al-link-btn" data-delete="${w.id}">Delete</button>
-        </div>
-      </article>
-      ${adding ? addViewerFormHtml(w) : ''}
-      ${expanded ? detailPanelHtml(w, state) : ''}
-    </div>
-  `;
-}
-
-function addViewerFormHtml(watch) {
-  return `
-    <div class="al-add-viewer" data-add-viewer-panel="${watch.id}">
-      <form class="al-add-viewer-form" data-add-viewer-form="${watch.id}">
-        <label class="al-add-viewer-label" for="add-viewer-${watch.id}">
-          Add someone to <strong>${escapeHtml(watch.title)}</strong>
-          at ${escapeHtml(watch.location || 'this theater')}
-        </label>
-        <div class="al-add-viewer-row">
-          <div class="al-search-wrap al-add-viewer-search">
-            <input class="al-input" id="add-viewer-${watch.id}" name="username" type="text"
-                   placeholder="Search username…" autocomplete="off" required maxlength="24" />
-            <div class="al-search-results" id="add-viewer-results-${watch.id}" hidden></div>
-          </div>
-          <button class="al-btn al-btn-primary" type="submit">Send</button>
-          <button class="al-btn" type="button" data-cancel-add-viewer>Cancel</button>
-        </div>
-        <p class="al-muted al-add-viewer-hint">
-          If they already logged the same movie on ${shortDate(watch.watched_on)},
-          both entries are tagged as watched together (no duplicate). Otherwise they
-          get an invite with movie, theater, and ticket cost (${money(watch.ticket_cents)})
-          to accept or deny.
-        </p>
-      </form>
-    </div>
-  `;
-}
-
-function detailPanelHtml(watch, state) {
-  const wrap = (content) => `
-    <div class="al-log-detail">
-      <div class="al-log-detail-inner">${content}</div>
-    </div>
-  `;
-
-  if (!watch.tmdb_id) {
-    return wrap('<p class="al-muted">No TMDB match for this title. Use <strong>Edit</strong> and pick the movie from search to load details.</p>');
-  }
-
-  if (state.detailsLoading === watch.id) {
-    return wrap('<p class="al-muted">Loading movie details…</p>');
-  }
-
-  if (state.detailsError && state.expandedId === watch.id) {
-    return wrap(`<p class="al-error">${escapeHtml(state.detailsError)}</p>`);
-  }
-
-  const movie = state.detailsCache.get(watch.id);
-  if (!movie) {
-    return wrap('<p class="al-muted">Loading movie details…</p>');
-  }
-
-  const genres = movie.genres?.length ? movie.genres.join(', ') : '—';
-  const runtime = movie.runtime_min ? `${movie.runtime_min} min` : '—';
-  const director = movie.director || '—';
-  const cast = movie.cast?.length ? movie.cast.join(', ') : '—';
-  const titleLine = `${escapeHtml(movie.title)}${movie.year ? ` <span class="al-muted">(${movie.year})</span>` : ''}`;
-  const together = (watch.companions || []).length
-    ? `<div class="al-log-detail-fact"><dt>With</dt><dd>${escapeHtml(watch.companions.map((c) => c.username).join(', '))}</dd></div>`
-    : '';
-
-  return wrap(`
-    <h3 class="al-log-detail-title serif">${titleLine}</h3>
-    <div class="al-log-detail-body">
-      ${movie.poster_path ? posterHtml(movie, { size: 'w185', width: 88, height: 132, className: 'al-poster al-poster--detail' }) : ''}
-      <div class="al-log-detail-meta">
-        <dl class="al-log-detail-facts">
-          <div class="al-log-detail-fact"><dt>Runtime</dt><dd>${escapeHtml(runtime)}</dd></div>
-          <div class="al-log-detail-fact"><dt>Genre</dt><dd>${escapeHtml(genres)}</dd></div>
-          <div class="al-log-detail-fact"><dt>Director</dt><dd>${escapeHtml(director)}</dd></div>
-          <div class="al-log-detail-fact"><dt>Cast</dt><dd>${escapeHtml(cast)}</dd></div>
-          ${together}
-        </dl>
-      </div>
-    </div>
-    <section class="al-log-detail-overview-wrap">
-      <h4 class="al-log-detail-subhead">Overview</h4>
-      ${movie.overview
-    ? `<p class="al-log-detail-overview">${escapeHtml(movie.overview)}</p>`
-    : '<p class="al-muted">No overview available.</p>'}
-    </section>
-  `);
-}
-
-function editRowHtml(w) {
-  return `
-    <div class="al-log-entry al-log-entry--editing" data-entry-id="${w.id}">
-      <article class="al-log-row al-log-row--editing" data-id="${w.id}">
-        ${renderWatchEditForm(w, `edit-${w.id}`)}
-      </article>
-    </div>
-  `;
+  return watchLogListHtml(state);
 }
 
 async function loadMovieDetails(auth, state, watchId, render) {
