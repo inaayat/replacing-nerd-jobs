@@ -2898,37 +2898,6 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0, gro
       }) : null,
     ]),
     field('Bullet', line),
-    canEdit ? sharedBulletForm(
-      store.entries.find((item) => item.id === (bullet.sourceEntryIds || [])[0])
-        || { jobId: career.jobId && career.jobId !== career.id ? career.jobId : career.id },
-      {
-        focusPrefix: `rb-${bullet.id}`,
-        showLine: false,
-        onPatch: (patch) => {
-          const entryId = (bullet.sourceEntryIds || [])[0];
-          if (entryId) {
-            store = saveSharedBullet(store, entryId, patch);
-          } else {
-            store = adoptCompiledJob(store, posting?.id || null, career);
-            const adoptedLocal = Boolean(posting && localJobById(livePosting(posting.id)?.resume, career.id) && !isSharedJob(career.id));
-            store = applyResumeBulletEdit(store, {
-              postingId: posting?.id || null,
-              jobId: career.id,
-              groupId: group.id,
-              bullet,
-              spans: readRich(line),
-              local: localBullet || adoptedLocal,
-            });
-            const linkedId = compileResumeDoc(posting || null, store).sections.experience.jobs
-              .flatMap((job) => (job.groups || []).flatMap((item) => item.bullets || []))
-              .find((item) => item.id === bullet.id)?.sourceEntryIds?.[0];
-            if (linkedId) store = saveSharedBullet(store, linkedId, patch);
-          }
-          saveStore();
-          scheduleResumePreview(posting);
-        },
-      },
-    ) : null,
   ]);
   return wrap;
 }

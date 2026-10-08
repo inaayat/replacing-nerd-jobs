@@ -2957,6 +2957,11 @@ assert.doesNotMatch(bulletCommit, /render\(/);
 assert.match(bulletCommit, /scheduleResumePreview\(posting\)/);
 assert.match(bulletEditorSrc, /bullet\.hasOverride \? el\('span', \{ class: 'tiny' \}, 'This posting only'\)/);
 assert.doesNotMatch(bulletEditorSrc, /localBullet \? el\('span', \{ class: 'tiny' \}, 'This posting only'\)/);
+assert.doesNotMatch(bulletEditorSrc, /sharedBulletForm\(/);
+assert.doesNotMatch(bulletEditorSrc, /saveSharedBullet/);
+assert.doesNotMatch(bulletEditorSrc, /Situation/);
+assert.doesNotMatch(bulletEditorSrc, /placeholder: 'Extra color/);
+assert.match(appSource.slice(0, appSource.indexOf('function resumeBulletEditor')), /sharedBulletForm\(/);
 assert.doesNotMatch(appSource, /experienceIsOpen/);
 assert.doesNotMatch(appSource, /toggleExperience/);
 assert.doesNotMatch(appSource, /Expand experience/);
@@ -3523,6 +3528,44 @@ const sharedSpec = sharedBulletSpec({
 });
 assert.equal(sharedSpec.fields.length, SHARED_BULLET_FIELDS.length);
 assert.equal(sharedSpec.fields.find((field) => field.key === 'jobId').value, 'rj_form');
+
+let wordingOnly = addCareerJob(emptyStore(), {
+  id: 'rj_star',
+  company: 'Acme',
+  title: 'Analyst',
+  onResume: true,
+  groups: [{
+    id: 'rg_star',
+    heading: '',
+    bullets: [{ id: 'rb_star', lead: 'Closed', body: 'the books', sourceEntryIds: ['en_star'] }],
+  }],
+}, clock);
+wordingOnly = addEntry(wordingOnly, {
+  id: 'en_star',
+  title: 'Closed: the books',
+  jobId: 'rj_star',
+  situation: 'Books were late',
+  task: 'Close faster',
+  action: 'Rebuilt the checklist',
+  result: 'Cut two days',
+  notes: 'Keep this color',
+}, clock);
+wordingOnly = addPosting(wordingOnly, { id: 'job_star', title: 'STAR posting' }, clock);
+wordingOnly = applyResumeBulletEdit(wordingOnly, {
+  postingId: 'job_star',
+  jobId: 'rj_star',
+  groupId: 'rg_star',
+  bullet: { id: 'rb_star', sourceEntryIds: ['en_star'] },
+  spans: [{ text: 'Closed: the month in two days', bold: false }],
+}, clock);
+const wordingEntry = wordingOnly.entries.find((entry) => entry.id === 'en_star');
+assert.equal(wordingEntry.title, 'Closed: the month in two days');
+assert.equal(wordingEntry.jobId, 'rj_star');
+assert.equal(wordingEntry.situation, 'Books were late');
+assert.equal(wordingEntry.task, 'Close faster');
+assert.equal(wordingEntry.action, 'Rebuilt the checklist');
+assert.equal(wordingEntry.result, 'Cut two days');
+assert.equal(wordingEntry.notes, 'Keep this color');
 
 let oneRecord = addCareerJob(emptyStore(), {
   id: 'rj_shared',
