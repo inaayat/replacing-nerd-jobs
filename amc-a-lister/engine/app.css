@@ -5019,7 +5019,15 @@ table.al-table {
 .al-rank-unranked {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+}
+
+.al-rank-unranked-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
 }
 
 .al-rank-unranked-label {
@@ -5093,6 +5101,107 @@ table.al-table {
 .al-rank-row-actions .al-link-btn {
   min-height: 32px;
   padding: 4px 0;
+}
+
+/* Rank stack and unranked titles: poster grid. Phones are three across. */
+.al-rank-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px 10px;
+  width: 100%;
+  min-width: 0;
+  align-items: start;
+}
+
+.al-rank-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  appearance: none;
+}
+
+article.al-rank-tile {
+  cursor: default;
+}
+
+.al-rank-tile:focus-visible {
+  outline: 2px solid var(--al-burgundy);
+  outline-offset: 4px;
+  border-radius: 12px;
+}
+
+.al-rank-tile-poster {
+  position: relative;
+  aspect-ratio: 2 / 3;
+  border-radius: 10px;
+  background: #efeae3;
+}
+
+.al-rank-tile-poster .al-poster,
+.al-rank-tile-poster .al-poster--empty {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  border-radius: 10px;
+  object-fit: cover;
+  box-shadow: 0 2px 8px rgba(28, 28, 28, 0.1);
+}
+
+.al-rank-tile-num {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 1;
+  min-width: 1.5rem;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(250, 243, 227, 0.94);
+  color: var(--al-burgundy);
+  font-family: var(--al-font-display);
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.al-rank-tile-title {
+  margin: 8px 0 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: break-word;
+}
+
+.al-rank-tile-year {
+  display: block;
+  margin: 1px 0 0;
+  font-family: var(--al-font-mono);
+  font-size: 0.75rem;
+  line-height: 1.3;
+  color: var(--al-text);
+}
+
+@media (min-width: 768px) {
+  .al-rank-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 22px 16px;
+  }
 }
 
 .al-rank-modal,

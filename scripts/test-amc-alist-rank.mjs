@@ -3,6 +3,8 @@
  * Run: node scripts/test-amc-alist-rank.mjs
  */
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { rankStackHtml, unrankedGridHtml } from '../amc-a-lister/engine/rank-view.js';
 import {
   createInsertSearch,
   applyInsertAnswer,
@@ -222,6 +224,46 @@ function placeWithAnswers(rankedLength, answers) {
   ];
   assert.equal(unlinkedTvShowCount(watches), 1);
   assert.equal(unlinkedTvShowCount([]), 0);
+}
+
+// The stack and the unranked set are poster grids, and every unranked title is included.
+{
+  const ranked = [
+    { tmdb_id: 1, title: 'Sinners', year: 2025, poster_path: '/s.jpg' },
+    { tmdb_id: 2, title: 'Dune', year: 2024 },
+  ];
+  const stack = rankStackHtml(ranked);
+  assert.match(stack, /class="al-rank-grid"/);
+  assert.match(stack, /al-rank-tile-num">1</);
+  assert.match(stack, /al-rank-tile-num">2</);
+  assert.match(stack, /Sinners/);
+  assert.match(stack, /aria-label="Re-rank"/);
+  assert.match(stack, /aria-label="Remove"/);
+  assert.match(stack, /data-rerank="1"/);
+  assert.match(stack, /data-unrank="2"/);
+  assert.equal(rankStackHtml([]), '<p class="al-empty">Nothing ranked yet.</p>');
+
+  const unranked = Array.from({ length: 13 }, (_, i) => ({
+    tmdb_id: 100 + i,
+    title: `Unranked ${i + 1}`,
+    year: 2020,
+  }));
+  const grid = unrankedGridHtml(unranked);
+  assert.match(grid, /al-rank-grid--unranked/);
+  assert.equal((grid.match(/data-add-logged="/g) || []).length, 13);
+  assert.match(grid, /data-add-logged="112"/);
+  assert.equal(unrankedGridHtml([]), '');
+
+  const rankSource = readFileSync(new URL('../amc-a-lister/engine/rank.js', import.meta.url), 'utf8');
+  assert.equal(rankSource.includes('slice(0, 12)'), false);
+  assert.match(rankSource, /id="rank-unranked"/);
+  assert.match(rankSource, /state\.runQueue\(unranked\)/);
+
+  const css = readFileSync(new URL('../amc-a-lister/engine/app.css', import.meta.url), 'utf8');
+  const gridCss = css.slice(css.indexOf('/* Rank stack and unranked'), css.indexOf('.al-rank-modal,'));
+  const phoneCss = gridCss.slice(0, gridCss.indexOf('@media (min-width: 768px)'));
+  assert.match(phoneCss, /repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
+  assert.match(gridCss, /repeat\(auto-fill, minmax\(150px, 1fr\)\)/);
 }
 
 console.log('amc alist rank tests passed');

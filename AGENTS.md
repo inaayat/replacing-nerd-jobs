@@ -48,7 +48,7 @@ This repo is a no-build Vercel site (see `README.md` for structure/deploy). Non-
   - `node scripts/test-alist-watch-log.mjs` — Watch log poster grid: two columns on phones, date/theater/cost/half-star rating on the card, expand in place for the rest, icon actions
   - `node scripts/test-alist-watchlist-sort.mjs` — Coming Soon watchlist ordering and poster-grid markup. Coming Soon, Watch at Home, and the TV want-list share `watchlistLogTableHtml`: a poster grid with the release date under the title (three columns on phones, auto-fill from 768px). Card actions are one nowrap row of icon buttons (log, Watch at home / Use automatic, Edit, Remove) with `aria-label`s. The watched TV log stays a table.
   - `node scripts/test-alist-showing.mjs` — watched-together / showing-invite match rules, Seen with member list, PRIME and VistaVision formats
-  - `node scripts/test-amc-alist-rank.mjs` — A-Lister Beli-style movie and TV stack insertion
+  - `node scripts/test-amc-alist-rank.mjs` — A-Lister Beli-style movie and TV stack insertion. The stack and unranked titles are poster grids (three across on phones). Rank unranked queues every logged title that is not in the stack.
   - `node scripts/test-ai-buildout.mjs` — AI buildout extractor, iceberg math, 424B/8-K watch list
   - `node scripts/test-world-in-nyc.mjs` — World in NYC enclave catalog, election-district join, origin-country map, 2025 mayor ED join
  - `node scripts/test-never-ending-internet-lore.mjs` — lore data integrity, filters, deep links, graph layout, YouTube ids

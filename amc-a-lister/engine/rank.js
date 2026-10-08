@@ -16,6 +16,7 @@ import {
   dropIneligibleTvRanks,
   unlinkedTvShowCount,
 } from './rank-insert.js';
+import { rankStackHtml, unrankedGridHtml } from './rank-view.js';
 
 const RANK_KIND_KEY = 'alist.rank.kind';
 
@@ -28,7 +29,8 @@ const KIND_CONFIG = {
     dropIneligible: dropIneligibleRanks,
     eligibleIds: eligibleTmdbIds,
     searchPlaceholder: 'Add a theater movie from your log',
-    unrankedLabel: 'Theater movies from your log, not yet ranked',
+    unrankedLabel: 'Not ranked yet',
+    rankUnrankedButton: (n) => `Rank ${n} unranked movie${n === 1 ? '' : 's'}`,
     firstRunIntro: 'First setup ranks all theater movies you\'ve watched (DNFs count). Home and streaming stay out.',
     emptyFirstRun: 'No theater movies in your log yet. Rank only includes titles you watched in theaters (including DNFs).',
     stackLabel: (n) => `${n} movie${n === 1 ? '' : 's'}`,
@@ -45,7 +47,8 @@ const KIND_CONFIG = {
     dropIneligible: dropIneligibleTvRanks,
     eligibleIds: eligibleTvTmdbIds,
     searchPlaceholder: 'Add a show from your log',
-    unrankedLabel: 'Shows from your log, not yet ranked',
+    unrankedLabel: 'Not ranked yet',
+    rankUnrankedButton: (n) => `Rank ${n} unranked show${n === 1 ? '' : 's'}`,
     firstRunIntro: 'First setup ranks every show you\'ve logged (DNFs count).',
     emptyFirstRun: 'No TV shows in your log yet. Rank only includes titles on your TV watch log.',
     emptyUnlinked: (n) => `You have ${n} show${n === 1 ? '' : 's'} on your TV log, but Rank needs each one linked to TMDB. We tried to match them automatically — edit any remaining titles on the TV page and pick from the search dropdown.`,
@@ -335,7 +338,6 @@ function firstRunHtml(state, cfg, kind) {
 
 function listHtml(state, cfg) {
   const unranked = cfg.uniqueLogged(state.watches, state.ranks.map((r) => r.tmdb_id));
-  const rows = state.ranks.map((item, i) => rankRowHtml(item, i + 1)).join('');
 
   return `
     <section class="al-panel al-rank-panel">
@@ -353,14 +355,15 @@ function listHtml(state, cfg) {
       </div>
       ${unranked.length ? `
         <div class="al-rank-unranked">
-          <p class="al-rank-unranked-label">${cfg.unrankedLabel}</p>
-          <div class="al-rank-unranked-list">
-            ${unranked.slice(0, 12).map(unrankedChipHtml).join('')}
+          <div class="al-rank-unranked-head">
+            <p class="al-rank-unranked-label">${cfg.unrankedLabel} · ${unranked.length}</p>
+            <button type="button" class="al-btn al-btn-primary" id="rank-unranked">${cfg.rankUnrankedButton(unranked.length)}</button>
           </div>
+          ${unrankedGridHtml(unranked)}
         </div>
       ` : ''}
-      <div class="al-rank-list" id="rank-list">
-        ${rows || '<p class="al-empty">Nothing ranked yet.</p>'}
+      <div id="rank-list">
+        ${rankStackHtml(state.ranks)}
       </div>
     </section>
   `;
@@ -374,32 +377,6 @@ function searchFieldHtml(placeholder) {
         <div class="al-search-results" id="rank-search-results" hidden></div>
       </div>
     </form>
-  `;
-}
-
-function unrankedChipHtml(item) {
-  return `
-    <button type="button" class="al-rank-chip" data-add-logged="${item.tmdb_id}">
-      ${posterHtml(item, { size: 'w92', width: 28, height: 42, className: 'al-poster al-rank-chip-poster' })}
-      <span>${escapeHtml(item.title)}</span>
-    </button>
-  `;
-}
-
-function rankRowHtml(item, position) {
-  return `
-    <article class="al-rank-row">
-      <div class="al-rank-num" aria-hidden="true">${position}</div>
-      ${posterHtml(item, { size: 'w154', width: 56, height: 84, className: 'al-poster al-rank-poster' })}
-      <div class="al-rank-meta">
-        <div class="al-rank-title">${escapeHtml(item.title)}</div>
-        <div class="al-muted">${item.year || ''}</div>
-        <div class="al-rank-row-actions">
-          <button type="button" class="al-link-btn" data-rerank="${item.tmdb_id}">Re-rank</button>
-          <button type="button" class="al-link-btn" data-unrank="${item.tmdb_id}">Remove</button>
-        </div>
-      </div>
-    </article>
   `;
 }
 
@@ -577,6 +554,11 @@ function wireStart(page) {
 function wireList(auth, page, render) {
   const cfg = kindConfig(page.kind);
   const state = activeState(page);
+
+  document.getElementById('rank-unranked')?.addEventListener('click', () => {
+    const unranked = cfg.uniqueLogged(state.watches, state.ranks.map((r) => r.tmdb_id));
+    if (unranked.length) state.runQueue(unranked);
+  });
 
   document.querySelectorAll('[data-add-logged]').forEach((btn) => {
     btn.addEventListener('click', () => {
