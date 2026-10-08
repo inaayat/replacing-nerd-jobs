@@ -556,11 +556,9 @@ export function parseBulletText(text) {
   if (!raw) return { lead: '', body: '' };
   const colon = raw.indexOf(':');
   if (colon > 0 && colon <= 80) {
-    let rest = raw.slice(colon + 1);
-    if (raw.slice(0, colon).includes('**') && rest.startsWith('*')) rest = rest.replace(/^\*+/, '');
     return {
       lead: raw.slice(0, colon).replace(/\*\*/g, '').trim(),
-      body: boldMetrics(rest.trim()),
+      body: boldMetrics(raw.slice(colon + 1).trim()),
     };
   }
   return { lead: '', body: boldMetrics(raw) };
@@ -633,61 +631,16 @@ function inlineMarkerSpans(text, { bold = false } = {}) {
   return spans;
 }
 
-function bodyMarkerSpans(text) {
-  const raw = String(text ?? '');
-  const bolds = [];
-  const marked = raw.replace(/(?<![\p{L}\p{N}])\*\*([^*]+)\*\*(?![\p{L}\p{N}])/gu, (_match, inner) => {
-    const token = `\uE002${bolds.length}\uE003`;
-    bolds.push(inner);
-    return token;
-  });
-  const spans = [];
-  const push = (value, bold, italic) => {
-    if (!value) return;
-    const last = spans[spans.length - 1];
-    if (last && last.bold === bold && Boolean(last.italic) === italic) last.text += value;
-    else {
-      const span = { text: value, bold };
-      if (italic) span.italic = true;
-      spans.push(span);
-    }
-  };
-  const re = /\uE002(\d+)\uE003/g;
-  let last = 0;
-  let match;
-  while ((match = re.exec(marked))) {
-    for (const span of inlineMarkerSpans(marked.slice(last, match.index), { bold: false })) {
-      push(span.text, false, Boolean(span.italic));
-    }
-    for (const span of inlineMarkerSpans(bolds[Number(match[1])], { bold: true })) {
-      push(span.text, true, Boolean(span.italic));
-    }
-    last = match.index + match[0].length;
-  }
-  for (const span of inlineMarkerSpans(marked.slice(last), { bold: false })) {
-    push(span.text, false, Boolean(span.italic));
-  }
-  return spans;
-}
-
 export function resumeBulletSpans(bullet) {
-  let lead = ignoreBoldMarkers(asString(bullet?.lead, LEAD_MAX));
-  let body = asString(bullet?.body, BODY_MAX);
-  if (!lead) {
-    const parts = parseBulletText(body);
-    if (parts.lead) {
-      lead = parts.lead;
-      body = parts.body;
-    }
-  }
+  const { lead, body } = resumeBulletParts(bullet);
   const leadSpans = inlineMarkerSpans(lead, { bold: true });
-  const bodySpans = bodyMarkerSpans(body);
+  const bodySpans = inlineMarkerSpans(body, { bold: false });
   if (lead && body) {
     const titled = inlineMarkerSpans(`${lead}:`, { bold: true });
     return [...titled, { text: ' ', bold: false }, ...bodySpans];
   }
   if (lead) return leadSpans.length ? leadSpans : [{ text: lead, bold: true }];
-  return bodySpans.length ? bodySpans : [{ text: ignoreBoldMarkers(body), bold: false }];
+  return bodySpans.length ? bodySpans : [{ text: body, bold: false }];
 }
 
 export function bulletFromLine(text) {
@@ -733,8 +686,6 @@ export function markdownToSpans(text) {
         i = end + 1;
         continue;
       }
-      i += 1;
-      continue;
     }
     const next = raw.indexOf('*', i);
     const take = next === -1 ? raw.length : next;
