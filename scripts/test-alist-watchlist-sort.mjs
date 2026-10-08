@@ -251,7 +251,8 @@ for (const view of ['coming-soon', 'watch-at-home']) {
 
 const tvWantHtml = watchlistLogTableHtml(expandItems, detailsState(), { logLabel: 'Log watched' });
 assert(tvWantHtml.includes('class="al-watchlist-grid"'), 'TV want-list uses the same poster grid');
-assert(tvWantHtml.includes('>Log watched</button>'), 'TV card keeps its log action');
+assert(tvWantHtml.includes('aria-label="Log watched"'), 'TV card keeps its log action');
+assert(tvWantHtml.includes('al-watchlist-icon-btn'), 'TV card actions are icon buttons');
 assert(tvWantHtml.includes('Already out'), 'already-aired TV titles keep their badge on the poster');
 const tvCard = tvWantHtml.slice(tvWantHtml.indexOf('data-entry-id="cs1"'));
 assert(
@@ -280,6 +281,8 @@ const titleRule = gridCss.slice(gridCss.indexOf('.al-watchlist-card-title {'), g
 assert(!/height:\s*2\.5em/.test(titleRule), 'title does not reserve a blank second line above the date');
 const dateRule = gridCss.slice(gridCss.indexOf('.al-watchlist-card-date {'), gridCss.indexOf('.al-watchlist-card-notes'));
 assert(/margin:\s*1px 0 0/.test(dateRule), 'release date sits tight under the title');
+const actionRule = gridCss.slice(gridCss.indexOf('.al-watchlist-card-actions {'), gridCss.indexOf('.al-watchlist-grid .al-log-detail'));
+assert(/flex-wrap:\s*nowrap/.test(actionRule), 'card actions stay on one line');
 
 const expandedSoon = watchlistLogTableHtml(expandItems, detailsState({ expandedId: 'cs1' }), { view: 'coming-soon' });
 assert(expandedSoon.includes('is-expanded'), 'Coming Soon expanded row is marked');
@@ -300,7 +303,10 @@ assert(
   comingSoonActions.includes('data-watchlist-home-override="true"'),
   'Coming Soon row has an in-place Watch at Home action',
 );
-assert(comingSoonActions.includes('Watch at home</button>'), 'home override action has a clear label');
+assert(comingSoonActions.includes('aria-label="Watch at home"'), 'home override action has a clear label');
+assert(comingSoonActions.includes('aria-label="Edit"'), 'edit action keeps its name on the icon');
+assert(comingSoonActions.includes('aria-label="Remove"'), 'remove action keeps its name on the icon');
+assert(comingSoonActions.includes('al-watchlist-icon'), 'card actions draw icons instead of text labels');
 
 const overriddenHomeActions = watchlistLogTableHtml(
   [overriddenFuture],
@@ -311,7 +317,7 @@ assert(
   overriddenHomeActions.includes('data-watchlist-home-override="false"'),
   'overridden Watch at Home row can return to automatic sorting',
 );
-assert(overriddenHomeActions.includes('Use automatic</button>'), 'undo action has a clear label');
+assert(overriddenHomeActions.includes('aria-label="Use automatic"'), 'undo action has a clear label');
 
 const automaticHomeActions = watchlistLogTableHtml(
   [bucketItems[4]],

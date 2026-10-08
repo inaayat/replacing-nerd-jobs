@@ -526,6 +526,22 @@ function watchlistDetailPanelHtml(item, state, { detailsKind = 'movie', detailCl
   `);
 }
 
+function watchlistActionIcon(name) {
+  const paths = {
+    log: '<path d="M4.8 9.2h14.4v9a1.4 1.4 0 0 1-1.4 1.4H6.2a1.4 1.4 0 0 1-1.4-1.4v-9z"/><path d="M4.8 9.2 8 5.6h8l3.2 3.6"/><path d="M9.2 5.6v3.6M14.8 5.6v3.6"/>',
+    home: '<path d="M4.2 11.2 12 4.4l7.8 6.8"/><path d="M6.6 10.4V19h10.8v-8.6"/><path d="M10.2 19v-4.4h3.6V19"/>',
+    auto: '<path d="M19.2 12a7.2 7.2 0 1 1-2.1-5.1"/><path d="M19.4 4.2v4.2h-4.2"/>',
+    edit: '<path d="M13.6 5.6 18.4 10.4"/><path d="M4.6 19.4 5.8 15 15 5.8a1.5 1.5 0 0 1 2.1 0l1.1 1.1a1.5 1.5 0 0 1 0 2.1L9 18.2l-4.4 1.2z"/>',
+    remove: '<path d="M5.2 7.6h13.6"/><path d="M9.2 7.5V5.8h5.6v1.7"/><path d="M7.4 7.6l.8 11.2h7.6l.8-11.2"/><path d="M10.4 10.6v5.2M13.6 10.6v5.2"/>',
+  };
+  return `<svg class="al-watchlist-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[name]}</svg>`;
+}
+
+function watchlistIconButton(attrs, label, icon) {
+  const name = escapeHtml(label);
+  return `<button type="button" class="al-link-btn al-watchlist-icon-btn" ${attrs} aria-label="${name}" title="${name}">${watchlistActionIcon(icon)}</button>`;
+}
+
 function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detailsKind = 'movie', view = null, hideLog = false } = {}) {
   const expanded = sameWatchlistId(item.id, state.expandedId);
   const bucket = view ? watchlistBucket(item) : null;
@@ -540,11 +556,11 @@ function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detai
   const out = view
     ? (bucket === 'in-theaters' || bucket === 'watch-at-home')
     : isAlreadyOut(item);
-  const logBtn = hideLog ? '' : `<button type="button" class="al-link-btn" data-log-watchlist="${item.id}">${escapeHtml(logLabel)}</button>`;
+  const logBtn = hideLog ? '' : watchlistIconButton(`data-log-watchlist="${item.id}"`, logLabel, 'log');
   const bucketBtn = view === 'coming-soon'
-    ? `<button type="button" class="al-link-btn" data-watchlist-home-override="true" data-watchlist-id="${item.id}">Watch at home</button>`
+    ? watchlistIconButton(`data-watchlist-home-override="true" data-watchlist-id="${item.id}"`, 'Watch at home', 'home')
     : (view === 'watch-at-home' && item.watch_at_home_override === true
-      ? `<button type="button" class="al-link-btn" data-watchlist-home-override="false" data-watchlist-id="${item.id}">Use automatic</button>`
+      ? watchlistIconButton(`data-watchlist-home-override="false" data-watchlist-id="${item.id}"`, 'Use automatic', 'auto')
       : '');
   const badge = badgeText
     ? `<span class="al-badge al-badge--muted al-watchlist-card-badge">${escapeHtml(badgeText)}</span>`
@@ -565,8 +581,8 @@ function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detai
         <div class="al-row-actions al-watchlist-card-actions">
           ${logBtn}
           ${bucketBtn}
-          <button type="button" class="al-link-btn" data-edit-watchlist="${item.id}">Edit</button>
-          <button type="button" class="al-link-btn" data-remove-watchlist="${item.id}">Remove</button>
+          ${watchlistIconButton(`data-edit-watchlist="${item.id}"`, 'Edit', 'edit')}
+          ${watchlistIconButton(`data-remove-watchlist="${item.id}"`, 'Remove', 'remove')}
         </div>
       </article>
       ${expanded ? watchlistDetailPanelHtml(item, state, { detailsKind }) : ''}
