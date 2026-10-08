@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   buildDayStats,
   buildFormatStats,
@@ -95,5 +96,20 @@ assert.equal(value.positiveMonths, 1);
 assert.equal(value.activeMonths, 2);
 assert.equal(value.avgVisitsPerActiveMonth, 2);
 assert.equal(value.bestMonth.month, '2026-08-01');
+
+const statsCss = readFileSync(new URL('../amc-a-lister/engine/app.css', import.meta.url), 'utf8');
+const primaryRule = statsCss.slice(
+  statsCss.indexOf('.al-stats-table .al-card-primary {'),
+  statsCss.indexOf('.al-stats-table .al-card-primary .al-hover-target'),
+);
+assert.match(primaryRule, /overflow-wrap:\s*break-word/);
+assert.doesNotMatch(primaryRule, /overflow-wrap:\s*anywhere/);
+assert.match(statsCss, /\.al-stats-table:not\(\.al-stats-table--rewatch\) \.al-card-primary \{\s*width:\s*100%;/);
+const rewatchDates = statsCss.slice(
+  statsCss.indexOf('.al-stats-table--rewatch th:nth-child(3)'),
+  statsCss.indexOf('.al-insight .al-rank-table'),
+);
+assert.match(rewatchDates, /overflow-wrap:\s*break-word/);
+assert.doesNotMatch(rewatchDates, /overflow-wrap:\s*anywhere/);
 
 console.log('A-Lister statistics tests passed');

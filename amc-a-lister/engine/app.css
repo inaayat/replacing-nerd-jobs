@@ -1459,8 +1459,10 @@ a { color: var(--al-burgundy); }
 .al-theater-rating-top > .al-hover-target,
 .al-theater-rating-top > span:first-child,
 .al-format-name {
+  flex: 1 1 auto;
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .al-theater-rating-score,
@@ -2810,6 +2812,10 @@ table.al-table {
   vertical-align: middle;
 }
 
+.al-stats-table th {
+  white-space: normal;
+}
+
 .al-stats-table .al-rank-col {
   width: 2rem;
   padding-right: 4px;
@@ -2821,8 +2827,14 @@ table.al-table {
   font-variant-numeric: tabular-nums;
 }
 
+.al-stats-table:not(.al-stats-table--rewatch) .al-card-primary {
+  width: 100%;
+}
+
 .al-stats-table .al-card-primary {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  word-break: normal;
+  white-space: normal;
   font-weight: 600;
   line-height: 1.3;
 }
@@ -2856,7 +2868,8 @@ table.al-table {
 .al-stats-table--rewatch td:nth-child(3) {
   width: 48%;
   white-space: normal;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .al-insight .al-rank-table {
@@ -3132,6 +3145,7 @@ table.al-table {
 
   .al-insight .al-card-table .al-card-primary {
     grid-column: 1 / -1;
+    width: auto;
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
@@ -3142,6 +3156,8 @@ table.al-table {
     font-family: var(--al-font-display);
     font-size: 1rem;
     font-weight: 600;
+    overflow-wrap: break-word;
+    word-break: normal;
   }
 
   .al-insight .al-card-table tr.al-ranked-row {
