@@ -41,6 +41,36 @@ await check('visibility/page lifecycle flush all dirty states', () => {
   );
 });
 
+await check('editable fields enter the model on input, before blur or local timers', () => {
+  const jobCatalog = appSource.slice(
+    appSource.indexOf('function jobCatalogRow'),
+    appSource.indexOf('function jobCatalogSection'),
+  );
+  assert.doesNotMatch(
+    jobCatalog,
+    /let saveTimer\s*=\s*null/,
+    'job catalog text currently lives only in a component timer for 300 ms',
+  );
+  const jobMeta = appSource.slice(
+    appSource.indexOf('function jobMeta'),
+    appSource.indexOf('function pasteMore'),
+  );
+  assert.match(
+    jobMeta,
+    /onInput:[\s\S]*updatePosting/,
+    'posting role/company/link currently enter the model only on change/blur',
+  );
+  const requirement = appSource.slice(
+    appSource.indexOf('function requirementTableRow'),
+    appSource.indexOf('function requirementTable'),
+  );
+  assert.match(
+    requirement,
+    /onInput:[\s\S]*updateRequirement/,
+    'requirement text currently enters the model only on change/blur',
+  );
+});
+
 await check('the PUT path is single-flight', () => {
   const push = appSource.slice(
     appSource.indexOf('async function pushStore'),

@@ -32,6 +32,12 @@ The production database was not accessed or changed.
 - `brag-book/app.js:saveStore` writes `localStorage`, marks one global
   `bookDirty` boolean, and starts a 500 ms timer. It does not flush on blur or
   in-app navigation.
+- `app.js:jobCatalogRow` keeps company/title/dates/location only in DOM plus a
+  private 300 ms timer. Until `stamp()` runs, the shared store is still “clean,”
+  so focus/visibility pull can replace it and pagehide cannot flush it.
+- `app.js:jobMeta` and the requirement textarea in `requirementTableRow` use
+  `change` rather than `input`; closing or navigating without blur leaves their
+  newest value only in the DOM.
 - `app.js` handles `pagehide` only when `persistTimer` is non-null. A previous
   failed save has `bookDirty === true` but no timer, so pagehide does nothing.
 - The pagehide handler calls `saveBook` without awaiting or catching it and
@@ -78,6 +84,8 @@ state; call those commit callbacks before navigation/lifecycle flush.
 
 - Type and immediately blur, switch tabs/routes, hide the page, dispatch
   pagehide/beforeunload, or reload. The exact edit is present after boot.
+- Repeat that matrix for job catalog fields, posting role/company/link, and
+  requirement text before their old blur/timer paths would have run.
 - Simulate a rejected keepalive request; the account-scoped outbox survives and
   sends on the next boot.
 - Simulate `localStorage.setItem` throwing; a visible warning appears and the
@@ -508,6 +516,21 @@ the data-loss fixes.
 several copies and may clear overrides. A read therefore performs undocumented
 conflict resolution based on iteration order. Replace it with the explicit,
 idempotent schema migration above and keep ordinary normalization shape-only.
+
+### P2.4 — Save errors do not recover an expired auth token
+
+`store.js:saveBook` surfaces a 401, but `app.js:pushStore` does not call
+`refreshToken` as boot does. The controller should refresh once, retry with the
+same immutable snapshot/revision, then retain the outbox and require sign-in if
+the refresh fails. Never treat a 401 as a successful local save.
+
+### P2.5 — Existing consistency checks cannot detect formatting drift
+
+`engine.js:bulletConsistency` compares normalized plain text, skips active
+overrides, and does not compare rich spans. Extend the diagnostic during phase 1
+to report unresolved legacy versions, missing entry references, and rich-span
+drift. Remove the copy-drift cases after v2 serialization makes those copies
+impossible.
 
 ## Implementation phases
 
