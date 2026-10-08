@@ -21,6 +21,7 @@ import {
   watchlistLogTableHtml,
 } from '../amc-a-lister/engine/watchlist-ui.js';
 import { monthsBeforeISO } from '../amc-a-lister/engine/dates.js';
+import { shortDate } from '../amc-a-lister/engine/format.js';
 
 let passed = 0;
 let failed = 0;
@@ -237,7 +238,44 @@ for (const view of ['coming-soon', 'watch-at-home']) {
   assert(row.includes('aria-label="Toggle details"'), `${view} row uses the log toggle label`);
   assert(!row.includes('role="button"'), `${view} row is not role=button (action buttons live inside it)`);
   assert(!html.includes('al-log-detail'), `${view} collapsed row has no detail panel`);
+  assert(html.includes('class="al-watchlist-grid"'), `${view} renders a poster grid`);
+  assert(!html.includes('al-log-head'), `${view} grid has no table header`);
+  const card = html.slice(html.indexOf('data-entry-id="cs1"'));
+  const titleAt = card.indexOf('al-watchlist-card-title');
+  const dateAt = card.indexOf('al-watchlist-card-date');
+  assert(titleAt !== -1 && dateAt > titleAt, `${view} release date sits below the title`);
+  assert(card.includes(shortDate('2026-09-01')), `${view} card prints the release date`);
+  assert(card.includes('al-watchlist-card-poster'), `${view} card leads with the poster`);
+  assert(card.indexOf('al-watchlist-card-poster') < titleAt, `${view} poster sits above the title`);
 }
+
+const tvWantHtml = watchlistLogTableHtml(expandItems, detailsState(), { logLabel: 'Log watched' });
+assert(tvWantHtml.includes('class="al-watchlist-grid"'), 'TV want-list uses the same poster grid');
+assert(tvWantHtml.includes('>Log watched</button>'), 'TV card keeps its log action');
+assert(tvWantHtml.includes('Already out'), 'already-aired TV titles keep their badge on the poster');
+const tvCard = tvWantHtml.slice(tvWantHtml.indexOf('data-entry-id="cs1"'));
+assert(
+  tvCard.indexOf('al-watchlist-card-title') < tvCard.indexOf('al-watchlist-card-date'),
+  'TV release date sits below the title',
+);
+
+const editingGrid = watchlistLogTableHtml(
+  expandItems,
+  detailsState({ editingId: 'cs1' }),
+  { view: 'coming-soon' },
+);
+assert(editingGrid.includes('al-watchlist-grid-item--editing'), 'edit form spans the poster grid');
+assert(editingGrid.includes('data-watchlist-edit-form="cs1"'), 'edit form stays wired inside the grid');
+
+const gridCssStart = readFileSync(new URL('../amc-a-lister/engine/app.css', import.meta.url), 'utf8');
+const gridCss = gridCssStart.slice(
+  gridCssStart.indexOf('/* Coming Soon / Watch at Home'),
+  gridCssStart.indexOf('.al-watchlist-edit-fields'),
+);
+assert(gridCss.includes('repeat(2, minmax(0, 1fr))'), 'phones use two poster columns');
+assert(gridCss.includes('repeat(3, minmax(0, 1fr))'), 'wider phones use three poster columns');
+assert(gridCss.includes('repeat(auto-fill, minmax(160px, 1fr))'), 'desktop poster grid fills the row');
+assert(gridCss.includes('.al-watchlist-card-date'), 'release date has its own line under the title');
 
 const expandedSoon = watchlistLogTableHtml(expandItems, detailsState({ expandedId: 'cs1' }), { view: 'coming-soon' });
 assert(expandedSoon.includes('is-expanded'), 'Coming Soon expanded row is marked');

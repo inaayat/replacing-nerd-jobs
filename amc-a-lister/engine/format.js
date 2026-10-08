@@ -40,12 +40,14 @@ export function posterUrl(posterPath, size = 'w92') {
   return `${TMDB_IMG_BASE}/${size}${posterPath}`;
 }
 
-export function posterHtml(watch, { size = 'w92', width = 28, height = 42, className = 'al-poster' } = {}) {
+export function posterHtml(watch, { size = 'w92', width = 28, height = 42, className = 'al-poster', fluid = false } = {}) {
   const url = posterUrl(watch.poster_path, size);
   if (url) {
-    return `<img class="${className}" src="${url}" alt="" width="${width}" height="${height}" loading="lazy">`;
+    const dims = fluid ? '' : ` width="${width}" height="${height}"`;
+    return `<img class="${className}" src="${url}" alt=""${dims} loading="lazy">`;
   }
-  return `<span class="${className} al-poster--empty" style="width:${width}px;height:${height}px" aria-hidden="true"></span>`;
+  const style = fluid ? '' : ` style="width:${width}px;height:${height}px"`;
+  return `<span class="${className} al-poster--empty"${style} aria-hidden="true"></span>`;
 }
 
 export function parseMoneyInput(value) {

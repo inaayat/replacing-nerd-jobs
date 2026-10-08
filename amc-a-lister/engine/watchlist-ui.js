@@ -361,31 +361,21 @@ export function wireWatchlistList(auth, state, {
   return render;
 }
 
-function mobileWatchlistMeta(item) {
-  const primary = [releaseLabel(item), item.notes ? 'Has notes' : null]
-    .filter(Boolean)
-    .map((part) => escapeHtml(String(part)))
-    .join(' · ');
-  return `<span class="al-log-meta-primary">${primary}</span>`;
-}
-
 function watchlistEditRowHtml(item) {
   return `
-    <div class="al-log-entry al-log-entry--editing" data-entry-id="${item.id}">
-      <article class="al-log-row al-log-row--watchlist al-log-row--editing" data-id="${item.id}">
-        <form class="al-watchlist-edit-form" data-watchlist-edit-form="${item.id}">
-          <div class="al-watchlist-edit-fields">
-            <div class="al-search-wrap al-watchlist-edit-search">
-              <input class="al-input" name="title" type="text" value="${escapeHtml(item.title)}" required autocomplete="off" />
-              <div class="al-search-results" id="watchlist-edit-results-${item.id}" hidden></div>
-            </div>
-            <input class="al-input" name="notes" type="text" value="${escapeHtml(item.notes || '')}" placeholder="Notes (optional)" />
-            <input type="hidden" name="tmdb_id" value="${item.tmdb_id ?? ''}" />
-            <button class="al-btn al-btn-primary" type="submit">Save</button>
-            <button class="al-btn" type="button" data-cancel-watchlist="${item.id}">Cancel</button>
+    <div class="al-watchlist-grid-item al-watchlist-grid-item--editing" data-entry-id="${item.id}">
+      <form class="al-watchlist-edit-form" data-watchlist-edit-form="${item.id}">
+        <div class="al-watchlist-edit-fields">
+          <div class="al-search-wrap al-watchlist-edit-search">
+            <input class="al-input" name="title" type="text" value="${escapeHtml(item.title)}" required autocomplete="off" />
+            <div class="al-search-results" id="watchlist-edit-results-${item.id}" hidden></div>
           </div>
-        </form>
-      </article>
+          <input class="al-input" name="notes" type="text" value="${escapeHtml(item.notes || '')}" placeholder="Notes (optional)" />
+          <input type="hidden" name="tmdb_id" value="${item.tmdb_id ?? ''}" />
+          <button class="al-btn al-btn-primary" type="submit">Save</button>
+          <button class="al-btn" type="button" data-cancel-watchlist="${item.id}">Cancel</button>
+        </div>
+      </form>
     </div>
   `;
 }
@@ -539,13 +529,13 @@ function watchlistDetailPanelHtml(item, state, { detailsKind = 'movie', detailCl
 function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detailsKind = 'movie', view = null, hideLog = false } = {}) {
   const expanded = sameWatchlistId(item.id, state.expandedId);
   const bucket = view ? watchlistBucket(item) : null;
-  let badge = '';
+  let badgeText = '';
   if (!view && isAlreadyOut(item)) {
-    badge = ' <span class="al-badge al-badge--muted">Already out</span>';
+    badgeText = 'Already out';
   } else if (view === 'coming-soon' && bucket === 'in-theaters') {
-    badge = ' <span class="al-badge al-badge--muted">In theaters</span>';
+    badgeText = 'In theaters';
   } else if (view === 'watch-at-home') {
-    badge = ' <span class="al-badge al-badge--muted">Watch at home</span>';
+    badgeText = 'Watch at home';
   }
   const out = view
     ? (bucket === 'in-theaters' || bucket === 'watch-at-home')
@@ -556,17 +546,23 @@ function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detai
     : (view === 'watch-at-home' && item.watch_at_home_override === true
       ? `<button type="button" class="al-link-btn" data-watchlist-home-override="false" data-watchlist-id="${item.id}">Use automatic</button>`
       : '');
+  const badge = badgeText
+    ? `<span class="al-badge al-badge--muted al-watchlist-card-badge">${escapeHtml(badgeText)}</span>`
+    : '';
+  const notes = item.notes
+    ? `<p class="al-watchlist-card-notes">${escapeHtml(item.notes)}</p>`
+    : '';
   return `
-    <div class="al-log-entry ${expanded ? 'is-expanded' : ''}${out ? ' is-already-out' : ''}" data-entry-id="${item.id}">
-      <article class="al-log-row al-log-row--watchlist al-log-row--clickable ${expanded ? 'is-expanded' : ''}" data-expand-row data-entry-id="${item.id}" tabindex="0" aria-expanded="${expanded}" aria-label="Toggle details">
-        <div class="al-log-col al-col-poster">${posterHtml(item, { size: 'w92', width: 28, height: 42 })}</div>
-        <div class="al-log-col al-log-col--desktop">${escapeHtml(releaseLabel(item))}</div>
-        <div class="al-log-col--body">
-          <div class="al-log-col al-log-col--title">${escapeHtml(item.title)}${badge}</div>
-          <div class="al-log-col al-log-col--mobile-meta al-only-mobile">${mobileWatchlistMeta(item)}</div>
+    <div class="al-watchlist-grid-item${expanded ? ' is-expanded' : ''}${out ? ' is-already-out' : ''}" data-entry-id="${item.id}">
+      <article class="al-watchlist-card al-log-row--clickable${expanded ? ' is-expanded' : ''}" data-expand-row data-entry-id="${item.id}" tabindex="0" aria-expanded="${expanded}" aria-label="Toggle details">
+        <div class="al-watchlist-card-poster">
+          ${posterHtml(item, { size: 'w342', className: 'al-poster al-poster--grid', fluid: true })}
+          ${badge}
         </div>
-        <div class="al-log-col al-log-col--desktop al-muted">${escapeHtml(item.notes || '—')}</div>
-        <div class="al-log-col al-row-actions">
+        <h3 class="al-watchlist-card-title" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</h3>
+        <p class="al-watchlist-card-date">${escapeHtml(releaseLabel(item))}</p>
+        ${notes}
+        <div class="al-row-actions al-watchlist-card-actions">
           ${logBtn}
           ${bucketBtn}
           <button type="button" class="al-link-btn" data-edit-watchlist="${item.id}">Edit</button>
@@ -583,14 +579,7 @@ export function watchlistLogTableHtml(items, state, { emptyMessage, logLabel, de
     return `<div class="al-empty">${emptyMessage || 'Nothing here yet.'}</div>`;
   }
   return `
-    <div class="al-log-list al-log-list--watchlist">
-      <div class="al-log-head al-log-head--watchlist" role="row">
-        <span class="al-log-col al-col-poster"></span>
-        <span class="al-log-col">Release</span>
-        <span class="al-log-col">Title</span>
-        <span class="al-log-col">Notes</span>
-        <span class="al-log-col">Actions</span>
-      </div>
+    <div class="al-watchlist-grid">
       ${items.map((item) => (
         item.id === state.editingId
           ? watchlistEditRowHtml(item)

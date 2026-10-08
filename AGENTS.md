@@ -45,7 +45,7 @@ This repo is a no-build Vercel site (see `README.md` for structure/deploy). Non-
  - `node scripts/test-financial-modeler-information.mjs` — Filings reference search, series, and EDGAR links
   - `node scripts/test-public-imports.mjs` — no browser-loaded file imports server-only `/lib/` code
   - `node scripts/test-alist-statistics.mjs` — A-Lister theater, format, day, habit, and value summaries
-  - `node scripts/test-alist-watchlist-sort.mjs` — Coming Soon watchlist ordering
+  - `node scripts/test-alist-watchlist-sort.mjs` — Coming Soon watchlist ordering and poster-grid markup. Coming Soon, Watch at Home, and the TV want-list share `watchlistLogTableHtml`: a poster grid with the release date under the title (two columns on phones, three on wider phones, auto-fill from 768px). The watched TV log stays a table.
   - `node scripts/test-alist-showing.mjs` — watched-together / showing-invite match rules
   - `node scripts/test-amc-alist-rank.mjs` — A-Lister Beli-style movie and TV stack insertion
   - `node scripts/test-ai-buildout.mjs` — AI buildout extractor, iceberg math, 424B/8-K watch list
