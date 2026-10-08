@@ -2092,6 +2092,7 @@ function requirementQuestions(job, req) {
       action: el('textarea', { rows: '2', placeholder: 'What did you do?', 'aria-label': 'Action' }, question.action),
       result: el('textarea', { rows: '2', placeholder: 'What changed?', 'aria-label': 'Result' }, question.result),
     };
+    Object.values(fields).forEach(fitArea);
     const save = () => {
       if (!text.value.trim()) return;
       store = updateQuestion(store, job.id, req.id, question.id, {
@@ -3731,27 +3732,33 @@ function jobCatalogRow(job) {
       if (plan.render) render();
     });
   });
+  const jobField = (label, control) => el('label', { class: 'bb-job-field' }, [
+    el('span', {}, label),
+    control,
+  ]);
   return el('div', { class: 'bb-job-catalog-row' }, [
-    company,
-    title,
-    dates,
-    location,
-    job.onResume === false ? el('span', { class: 'tiny' }, 'Not on Resume basics') : null,
-    btn('Delete', {
-      class: 'btn ghost compact-action is-danger',
-      onClick: () => {
-        const linked = (store.entries || []).filter((entry) => entry.jobId === job.id).length;
-        if (!confirm(linked
-          ? `Delete this job? ${linked} resume bullet${linked === 1 ? '' : 's'} will become Unassigned.`
-          : 'Delete this job?')) return;
-        for (const entry of store.entries || []) {
-          if (entry.jobId === job.id) store = assignEntryJob(store, entry.id, '');
-        }
-        store = deleteCareerJob(store, job.id);
-        saveStore();
-        render();
-      },
-    }),
+    jobField('Company', company),
+    jobField('Title', title),
+    jobField('Dates', dates),
+    jobField('Location', location),
+    el('div', { class: 'bb-job-row-actions' }, [
+      job.onResume === false ? el('span', { class: 'tiny' }, 'Not on Resume basics') : null,
+      btn('Delete', {
+        class: 'btn ghost compact-action is-danger',
+        onClick: () => {
+          const linked = (store.entries || []).filter((entry) => entry.jobId === job.id).length;
+          if (!confirm(linked
+            ? `Delete this job? ${linked} resume bullet${linked === 1 ? '' : 's'} will become Unassigned.`
+            : 'Delete this job?')) return;
+          for (const entry of store.entries || []) {
+            if (entry.jobId === job.id) store = assignEntryJob(store, entry.id, '');
+          }
+          store = deleteCareerJob(store, job.id);
+          saveStore();
+          render();
+        },
+      }),
+    ]),
   ]);
 }
 
