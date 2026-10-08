@@ -889,7 +889,7 @@ a:focus-visible {
 
 .experience-editor {
   display: grid;
-  gap: 8px;
+  gap: 5px;
   margin-top: -6px;
   padding: 10px;
   border: 1px solid var(--gold);
@@ -907,7 +907,12 @@ a:focus-visible {
   gap: 8px;
 }
 .experience-editor-head p { margin: 2px 0 0; }
-.experience-editor .field { gap: 3px; }
+.experience-editor .field { gap: 2px; margin-bottom: 0; }
+.experience-editor .bb-shared-bullet {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
 .experience-editor .field > span,
 .experience-star label > span {
   color: var(--muted);
@@ -933,25 +938,15 @@ a:focus-visible {
 .experience-star {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 10px;
+  gap: 0;
   align-items: start;
   min-width: 0;
 }
 .experience-star label {
   display: grid;
   align-content: start;
-  gap: 6px;
+  gap: 2px;
   min-width: 0;
-}
-.experience-star textarea {
-  min-width: 0;
-  max-width: 100%;
-  min-height: 64px;
-  padding: 9px 10px;
-  font-size: 14px;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
 }
 .experience-actions { padding-top: 2px; }
 
@@ -1731,6 +1726,20 @@ a:focus-visible {
   padding: 14px;
   background: rgba(12, 11, 9, 0.018);
 }
+.bb-exp-row,
+.experience-editor {
+  --bb-star-body-size: 14px;
+  --bb-star-body-lh: 1.5;
+  --bb-star-seg-label-size: 11px;
+  --bb-star-seg-label-lh: 1.25;
+  --bb-star-seg-gap: 2px;
+  --bb-star-seg-pad-y: 5px;
+  --bb-star-stack-offset: calc(
+    var(--bb-star-seg-pad-y)
+    + var(--bb-star-seg-label-size) * var(--bb-star-seg-label-lh)
+    + var(--bb-star-seg-gap)
+  );
+}
 .bb-exp-row {
   display: grid;
   grid-template-columns: minmax(15rem, 0.85fr) minmax(0, 1.35fr);
@@ -1746,24 +1755,32 @@ a:focus-visible {
 .bb-exp-lead {
   display: grid;
   align-content: start;
-  gap: 10px;
+  gap: 7px;
   min-width: 0;
 }
 .bb-exp-lead .experience-compose {
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
-  min-height: 3.4rem;
-  padding: 11px 12px;
+  min-height: 2.75rem;
+  margin-top: var(--bb-star-stack-offset);
+  padding: 8px 10px;
   border-radius: 8px;
-  font-size: 16px;
-  font-weight: 550;
-  line-height: 1.55;
+  font-size: var(--bb-star-body-size);
+  font-weight: 400;
+  line-height: var(--bb-star-body-lh);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: normal;
   box-shadow: inset 3px 0 0 rgba(143, 107, 31, 0.48);
 }
+.bb-exp-lead .experience-compose strong { font-weight: 700; }
+.experience-editor .bb-shared-bullet .experience-compose {
+  font-size: var(--bb-star-body-size);
+  font-weight: 400;
+  line-height: var(--bb-star-body-lh);
+}
+.experience-editor .bb-shared-bullet .experience-compose strong { font-weight: 700; }
 .bb-exp-jobrole {
   display: grid;
   grid-template-columns: 1fr;
@@ -1786,7 +1803,7 @@ a:focus-visible {
 .bb-exp-stargrid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 12px;
+  gap: 0;
   align-items: start;
   min-width: 0;
   isolation: isolate;
@@ -1794,17 +1811,77 @@ a:focus-visible {
 .bb-star-cell {
   display: grid;
   align-content: start;
-  gap: 6px;
+  gap: var(--bb-star-seg-gap, 2px);
   margin: 0;
   min-width: 0;
 }
 .bb-star-cell > span {
   font-family: var(--content-font);
-  font-size: 12px;
+  font-size: var(--bb-star-seg-label-size, 11px);
   font-weight: 650;
-  line-height: 1.3;
+  line-height: var(--bb-star-seg-label-lh, 1.25);
   letter-spacing: 0.02em;
   color: var(--muted);
+}
+.bb-star-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+}
+.bb-star-stack > .bb-star-cell,
+.bb-star-stack > .field {
+  display: grid;
+  gap: var(--bb-star-seg-gap, 2px);
+  margin: 0;
+  padding: var(--bb-star-seg-pad-y, 5px) 10px 6px;
+  border-top: 1px solid var(--line);
+  min-width: 0;
+}
+.bb-star-stack > .bb-star-cell:first-child,
+.bb-star-stack > .field:first-child {
+  border-top: 0;
+}
+.bb-star-stack .field > span,
+.bb-star-stack .bb-star-cell > span {
+  font-size: var(--bb-star-seg-label-size, 11px);
+  line-height: var(--bb-star-seg-label-lh, 1.25);
+}
+.bb-star-stack .bb-inline-area,
+.bb-star-stack textarea {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 2.35rem;
+  resize: none;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  border: 0;
+  border-radius: 4px;
+  padding: 1px 0 3px;
+  font-family: var(--content-font);
+  font-size: var(--bb-star-body-size, 14px);
+  font-weight: 400;
+  line-height: var(--bb-star-body-lh, 1.5);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: transparent;
+  color: var(--ink);
+  box-shadow: none;
+}
+.bb-star-stack .bb-inline-area:hover,
+.bb-star-stack textarea:hover {
+  background: var(--panel);
+}
+.bb-star-stack .bb-inline-area:focus,
+.bb-star-stack textarea:focus {
+  background: #fff;
+  border-color: transparent;
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  outline: none;
 }
 .bb-inline-area {
   width: 100%;
@@ -2028,7 +2105,10 @@ a:focus-visible {
   .bb-job-field > input,
   .bb-job-field > textarea,
   .bb-inline-area,
+  .bb-star-stack .bb-inline-area,
+  .bb-star-stack textarea,
   .bb-exp-lead .experience-compose,
+  .experience-editor .bb-shared-bullet .experience-compose,
   .field .bb-addl-items {
     font-size: 16px;
   }

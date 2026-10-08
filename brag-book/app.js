@@ -1364,7 +1364,7 @@ function sharedBulletForm(entry, {
       pendingKey: spec.id || prefix,
       onChange: (value) => patch({ jobId: value }),
     })),
-    el('div', { class: 'experience-star' }, star),
+    el('div', { class: 'experience-star bb-star-stack' }, star),
     notes ? field('Notes', notes) : null,
   ]);
 }
@@ -1404,7 +1404,7 @@ function experienceRow(entry) {
       el('div', { class: 'bb-exp-jobrole' }, lead.map((control) => experienceControl(entry, control))),
       experienceMore(entry),
     ]),
-    el('div', { class: 'bb-exp-stargrid' }, star.map((control) => experienceControl(entry, control))),
+    el('div', { class: 'bb-exp-stargrid bb-star-stack' }, star.map((control) => experienceControl(entry, control))),
   ]);
 }
 

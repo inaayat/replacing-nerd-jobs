@@ -44,10 +44,13 @@ const listRule = css.match(/\.bb-exp-list\s*\{[^}]*\}/)?.[0] || '';
 const rowRule = css.match(/\.bb-exp-row\s*\{[^}]*\}/)?.[0] || '';
 const leadRule = css.match(/\.bb-exp-lead\s*\{[^}]*\}/)?.[0] || '';
 const starGridRule = css.match(/\.bb-exp-stargrid\s*\{[^}]*\}/)?.[0] || '';
+const starStackRule = css.match(/\.bb-star-stack\s*\{[^}]*\}/)?.[0] || '';
+const starStackAreaRule = css.match(/\.bb-star-stack \.bb-inline-area,\s*\n\.bb-star-stack textarea\s*\{[^}]*\}/)?.[0] || '';
 const starLabelRule = css.match(/\.bb-star-cell > span\s*\{[^}]*\}/)?.[0] || '';
 const sharedStarRule = css.match(/\.experience-star\s*\{[^}]*\}/)?.[0] || '';
 const sharedStarLabelRule = css.match(/\.experience-star label\s*\{[^}]*\}/)?.[0] || '';
-const sharedStarAreaRule = css.match(/\.experience-star textarea\s*\{[^}]*\}/)?.[0] || '';
+const sharedLeadRule = css.match(/\.experience-editor \.bb-shared-bullet \.experience-compose\s*\{[^}]*\}/)?.[0] || '';
+const starBodyTokenRule = css.match(/\.bb-exp-row,\s*\n\.experience-editor\s*\{[^}]*\}/)?.[0] || '';
 const questionStarRule = css.match(/\.table-question-star\s*\{[^}]*\}/)?.[0] || '';
 const detailStarRule = css.match(/\.detail-star\s*\{[^}]*\}/)?.[0] || '';
 const areaRule = css.match(/\.bb-inline-area\s*\{[^}]*\}/)?.[0] || '';
@@ -65,25 +68,31 @@ assert.match(rowRule, /border-radius:\s*10px/);
 assert.doesNotMatch(rowRule, /overflow:\s*(?:clip|hidden)/, 'the bullet card must not clip either column');
 assert.doesNotMatch(leadRule, /overflow:\s*(?:clip|hidden)/, 'the lead editor content must not be clipped');
 assert.match(leadEditorRule, /max-width:\s*100%/);
-assert.match(leadEditorRule, /font-size:\s*16px/);
-assert.match(leadEditorRule, /font-weight:\s*550/);
-assert.match(leadEditorRule, /line-height:\s*1\.55/);
+assert.match(starBodyTokenRule, /--bb-star-body-size:\s*14px/);
+assert.match(starBodyTokenRule, /--bb-star-body-lh:\s*1\.5/);
+assert.match(leadEditorRule, /font-size:\s*var\(--bb-star-body-size\)/);
+assert.match(leadEditorRule, /font-weight:\s*400/);
+assert.match(leadEditorRule, /line-height:\s*var\(--bb-star-body-lh\)/);
 assert.match(leadEditorRule, /white-space:\s*pre-wrap/);
 assert.match(leadEditorRule, /overflow-wrap:\s*anywhere/);
+assert.match(sharedLeadRule, /font-size:\s*var\(--bb-star-body-size\)/);
+assert.match(sharedLeadRule, /line-height:\s*var\(--bb-star-body-lh\)/);
 assert.match(starGridRule, /isolation:\s*isolate/, 'the STAR grid must own an isolated paint layer');
 assert.match(starGridRule, /grid-template-columns:\s*minmax\(0,\s*1fr\)/);
 assert.doesNotMatch(starGridRule, /1fr\s+1fr|repeat\(2/, 'Resume bullet STAR fields must be one row per field');
-assert.match(starGridRule, /gap:\s*12px/, 'STAR fields need a consistent readable gutter');
+assert.match(starGridRule, /gap:\s*0/);
+assert.match(starStackRule, /flex-direction:\s*column/);
+assert.match(starStackRule, /border:\s*1px solid var\(--line-strong\)/);
+assert.match(starStackAreaRule, /max-width:\s*100%/);
+assert.match(starStackAreaRule, /font-size:\s*var\(--bb-star-body-size/);
+assert.match(starStackAreaRule, /line-height:\s*var\(--bb-star-body-lh/);
 assert.match(sharedStarRule, /grid-template-columns:\s*minmax\(0,\s*1fr\)/);
 assert.match(sharedStarRule, /align-items:\s*start/);
 assert.match(sharedStarLabelRule, /align-content:\s*start/);
-assert.match(sharedStarAreaRule, /max-width:\s*100%/);
-assert.match(sharedStarAreaRule, /font-size:\s*14px/);
-assert.match(sharedStarAreaRule, /line-height:\s*1\.5/);
 assert.match(questionStarRule, /grid-template-columns:\s*minmax\(0,\s*1fr\)/);
 assert.match(detailStarRule, /grid-template-columns:\s*minmax\(0,\s*1fr\)/);
-assert.match(starLabelRule, /font-size:\s*12px/);
-assert.match(starLabelRule, /line-height:\s*1\.3/);
+assert.match(starLabelRule, /font-size:\s*var\(--bb-star-seg-label-size/);
+assert.match(starLabelRule, /line-height:\s*var\(--bb-star-seg-label-lh/);
 assert.doesNotMatch(starLabelRule, /text-transform:\s*uppercase/, 'STAR labels should read as labels, not tiny metadata');
 assert.match(areaRule, /min-width:\s*0/);
 assert.match(areaRule, /max-width:\s*100%/);
@@ -117,12 +126,18 @@ const rowControlSource = appSource.slice(
   appSource.indexOf('function experienceControl'),
   appSource.indexOf('function experienceRow'),
 );
+const rowSource = appSource.slice(
+  appSource.indexOf('function experienceRow'),
+  appSource.indexOf('function experienceTable'),
+);
 const questionSource = appSource.slice(
   appSource.indexOf('function requirementQuestions'),
   appSource.indexOf('function requirementTableRow'),
 );
 assert.match(sharedFormSource, /fitArea\(area\)/, 'Shared experience STAR boxes must keep auto-growing');
 assert.match(rowControlSource, /fitArea\(area\)/, 'Resume bullet STAR boxes must keep auto-growing');
+assert.match(rowSource, /bb-star-stack/, 'Resume bullet STAR fields use the compact divider stack');
+assert.match(sharedFormSource, /bb-star-stack/, 'Shared experience STAR fields use the compact divider stack');
 assert.match(questionSource, /Object\.values\(fields\)\.forEach\(fitArea\)/, 'Question STAR boxes must keep auto-growing');
 
 const longBullet = 'AI Decision Framework: Built a framework to help 25+ non-technical colleagues choose between automated and agentic solutions and pick the right approach';
