@@ -323,6 +323,14 @@ a { color: var(--al-burgundy); }
   min-height: 0;
 }
 
+/* The height animation clips overflow while collapsed. Once the extras are
+   open, the Seen with list has to paint past the bar or the names never show
+   on the first log (editing a saved row is outside this clip). */
+.al-quicklog.is-expanded .al-quicklog-expand,
+.al-quicklog.is-expanded .al-quicklog-expand-inner {
+  overflow: visible;
+}
+
 .al-quicklog-extra {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

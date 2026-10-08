@@ -4,11 +4,10 @@ import { loadUserTheaters, rememberTheater, wireTheaterSuggest } from './theater
 import { todayISO } from './dates.js';
 import { wireComboboxKeys } from './combobox.js';
 import { wireSeenWithPicker } from './user-suggest.js';
-
-const FORMATS = ['', 'IMAX', 'Dolby', 'IMAX 3D', '70MM', 'Q&A'];
+import { WATCH_FORMATS } from './watch-form.js';
 
 export function renderQuickLogBar() {
-  const formatOptions = FORMATS.map((f) => `<option value="${f}">${f || 'Standard'}</option>`).join('');
+  const formatOptions = WATCH_FORMATS.map((f) => `<option value="${f}">${f || 'Standard'}</option>`).join('');
   const today = todayISO();
 
   return `

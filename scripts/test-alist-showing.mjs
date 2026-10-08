@@ -2,6 +2,7 @@
  * Pure-function tests for A-Lister watched-together matching.
  * Run: node scripts/test-alist-showing.mjs
  */
+import { readFileSync } from 'node:fs';
 import {
   watchesMatchForTogether,
   watchesMatchSameMovieNight,
@@ -12,6 +13,8 @@ import {
   normalizeSeenWithUsernames,
   missingWatchFieldsFromInvite,
 } from '../lib/a-list-showing.js';
+import { WATCH_FORMATS, renderWatchEditForm } from '../amc-a-lister/engine/watch-form.js';
+import { renderQuickLogBar } from '../amc-a-lister/engine/quick-log.js';
 
 let passed = 0;
 let failed = 0;
@@ -181,6 +184,48 @@ assertDeep(
   normalizeSeenWithUsernames('karan, aditi  other_user'),
   ['karan', 'aditi', 'other_user'],
   'seen-with accepts comma/space strings',
+);
+
+assert(
+  WATCH_FORMATS.includes('PRIME') && WATCH_FORMATS.includes('VistaVision'),
+  'movie formats include PRIME and VistaVision',
+);
+assert(
+  WATCH_FORMATS.indexOf('70MM') < WATCH_FORMATS.indexOf('PRIME')
+    && WATCH_FORMATS.indexOf('PRIME') < WATCH_FORMATS.indexOf('VistaVision')
+    && WATCH_FORMATS.indexOf('VistaVision') < WATCH_FORMATS.indexOf('Q&A'),
+  'PRIME and VistaVision sit with the other projection formats',
+);
+
+const quickLogHtml = renderQuickLogBar();
+const editHtml = renderWatchEditForm({
+  id: 'w1',
+  title: 'Test',
+  watched_on: '2026-10-08',
+  format: 'PRIME',
+  in_theaters: true,
+});
+for (const [label, html] of [['quick log', quickLogHtml], ['edit form', editHtml]]) {
+  assert(html.includes('value="PRIME"'), `${label} offers PRIME`);
+  assert(html.includes('value="VistaVision"'), `${label} offers VistaVision`);
+}
+assert(editHtml.includes('value="PRIME" selected'), 'edit form keeps a saved PRIME screening selected');
+
+const searchSource = readFileSync(new URL('../lib/a-list.js', import.meta.url), 'utf8');
+const emptySearch = searchSource.slice(
+  searchSource.indexOf('if (!needle)'),
+  searchSource.indexOf('const pattern = `%${needle}%`'),
+);
+assert(emptySearch.includes('FROM alist_membership m'), 'empty seen-with search lists members, not only past companions');
+assert(emptySearch.includes('prior_companion DESC'), 'people you have already watched with lead the full list');
+assert(!emptySearch.includes('if (!excludeUserId) return []'), 'an empty query no longer returns nobody');
+
+const css = readFileSync(new URL('../amc-a-lister/engine/app.css', import.meta.url), 'utf8');
+const expandCss = css.slice(css.indexOf('.al-quicklog.is-expanded .al-quicklog-expand,'));
+assert(
+  expandCss.startsWith('.al-quicklog.is-expanded .al-quicklog-expand,')
+    && expandCss.slice(0, 220).includes('overflow: visible'),
+  'the open quick-log bar does not clip the Seen with menu',
 );
 
 console.log(`${passed} passed, ${failed} failed`);

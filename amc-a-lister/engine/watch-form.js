@@ -4,7 +4,7 @@ import { loadUserTheaters, wireTheaterSuggest } from './theater-suggest.js';
 import { wireComboboxKeys } from './combobox.js';
 import { wireSeenWithPicker } from './user-suggest.js';
 
-export const WATCH_FORMATS = ['', 'IMAX', 'Dolby', 'IMAX 3D', '70MM', 'Q&A'];
+export const WATCH_FORMATS = ['', 'IMAX', 'Dolby', 'IMAX 3D', '70MM', 'PRIME', 'VistaVision', 'Q&A'];
 
 export function renderWatchEditForm(watch, prefix = 'edit') {
   const ticketVal = watch.ticket_cents != null ? (watch.ticket_cents / 100).toFixed(2) : '';
