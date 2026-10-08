@@ -23,6 +23,13 @@ export function resumePreviewWrapHeight(scale) {
   if (!Number.isFinite(s)) return RESUME_PAGE_HEIGHT_PX * 0.28 + 12;
   return RESUME_PAGE_HEIGHT_PX * s + 12;
 }
+
+/** Editor scrollport matching the preview column. Empty when the columns are stacked. */
+export function resumeEditorMaxHeight(previewHeightPx, { sideBySide = true } = {}) {
+  const height = Number(previewHeightPx);
+  if (!sideBySide || !Number.isFinite(height) || height <= 0) return '';
+  return `${Math.round(height)}px`;
+}
 export const FONT_FLOOR_PT = 9.5;
 
 export const FIT_STEPS = [

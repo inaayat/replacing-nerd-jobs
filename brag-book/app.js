@@ -161,6 +161,7 @@ import {
   PAGE_HEIGHT_PX,
   resumePreviewScale,
   resumePreviewWrapHeight,
+  resumeEditorMaxHeight,
 } from './resume-fit.js';
 import { resumeDocxBlob } from './resume-docx.js';
 import { parseViewHash, viewHash, viewTitle } from './routes.js';
@@ -2703,6 +2704,13 @@ function scaleResumeFrame(wrap, frame) {
   const scale = resumePreviewScale(wrap.clientWidth);
   frame.style.transform = `scale(${scale})`;
   wrap.style.height = `${resumePreviewWrapHeight(scale)}px`;
+  const preview = wrap.closest('.bb-resume-preview');
+  const editor = preview?.parentElement?.querySelector('.bb-resume-editor');
+  if (!editor) return;
+  const sideBySide = window.matchMedia?.('(min-width: 1024px)')?.matches === true;
+  const locked = resumeEditorMaxHeight(preview.offsetHeight, { sideBySide });
+  editor.style.height = locked;
+  editor.style.maxHeight = locked;
 }
 
 async function refreshResumePreview(posting) {
