@@ -87,11 +87,35 @@ function mergeRecordLists(baseList, localList, remoteList, mergeFn) {
   };
 }
 
-function mergePlainObject(base, local, remote) {
-  if (sameValue(local, remote)) return local ?? remote ?? null;
-  if (sameValue(base, local)) return remote ?? null;
-  if (sameValue(base, remote)) return local ?? null;
-  return remote ?? local ?? null;
+function mergePlainObject(base, local, remote, id) {
+  if (sameValue(local, remote)) return { value: local ?? remote ?? null, conflict: null };
+  if (sameValue(base, local)) return { value: remote ?? null, conflict: null };
+  if (sameValue(base, remote)) return { value: local ?? null, conflict: null };
+  const objects = [base, local, remote].every(
+    (value) => value == null || (typeof value === 'object' && !Array.isArray(value)),
+  );
+  if (!objects || local == null || remote == null) {
+    return {
+      value: remote ?? local ?? null,
+      conflict: { id, local, remote, fields: [], replace: true },
+    };
+  }
+  const value = {};
+  const fields = [];
+  const keys = new Set([
+    ...Object.keys(base || {}),
+    ...Object.keys(local || {}),
+    ...Object.keys(remote || {}),
+  ]);
+  for (const field of keys) {
+    const merged = mergeScalarField(base, local, remote, field);
+    if (merged.value !== undefined) value[field] = merged.value;
+    if (merged.conflict) fields.push(merged.conflict);
+  }
+  return {
+    value,
+    conflict: fields.length ? { id, local, remote, fields } : null,
+  };
 }
 
 export function mergeConcurrentBooks(base, local, remote) {
@@ -138,10 +162,11 @@ export function mergeConcurrentBooks(base, local, remote) {
     book[key] = merged.list;
     conflicts.push(...merged.conflicts.map((conflict) => ({ ...conflict, collection: key })));
   }
-  book.profile = mergePlainObject(base?.profile, local?.profile, remote?.profile);
-  book.resumeSettings = mergePlainObject(base?.resumeSettings, local?.resumeSettings, remote?.resumeSettings);
-  book.basicsBackup = mergePlainObject(base?.basicsBackup, local?.basicsBackup, remote?.basicsBackup);
-  book.jobSetup = mergePlainObject(base?.jobSetup, local?.jobSetup, remote?.jobSetup);
+  for (const key of ['profile', 'resumeSettings', 'basicsBackup', 'jobSetup']) {
+    const merged = mergePlainObject(base?.[key], local?.[key], remote?.[key], key);
+    book[key] = merged.value;
+    if (merged.conflict) conflicts.push({ ...merged.conflict, collection: 'root' });
+  }
   book.v = remote?.v ?? local?.v ?? base?.v;
   return { book, conflicts };
 }
@@ -150,6 +175,20 @@ export function retainLocalConflictValues(book, conflicts = []) {
   const next = clone(book || {});
   for (const conflict of conflicts) {
     const key = conflict?.collection;
+    if (key === 'root' && conflict?.id) {
+      if (conflict.replace) {
+        next[conflict.id] = clone(conflict.local);
+        continue;
+      }
+      const record = { ...(next[conflict.id] || {}) };
+      for (const field of conflict.fields || []) {
+        if (!field?.field) continue;
+        if (field.local === undefined) delete record[field.field];
+        else record[field.field] = clone(field.local);
+      }
+      next[conflict.id] = record;
+      continue;
+    }
     if (!key || !Array.isArray(next[key]) || !conflict?.id) continue;
     const index = next[key].findIndex((record) => record?.id === conflict.id);
     if (index < 0) continue;

@@ -929,6 +929,43 @@ export function migrateCanonicalBullets(store, clock = Date.now, migrationTimest
   return projectResumeStore({ ...next, v: SCHEMA });
 }
 
+function legacyVersionIdentity(version) {
+  return JSON.stringify([
+    version?.text || '',
+    version?.rich || [],
+    version?.situation || '',
+    version?.task || '',
+    version?.action || '',
+    version?.result || '',
+    version?.notes || '',
+  ]);
+}
+
+// Recovery history is append-only server data. Older clients do not know about
+// legacyVersions and strip it during their normalize/save round trip, so fold
+// the saved archive back into their otherwise valid timestamp-guarded write.
+export function preserveLegacyVersions(incoming, current, clock = Date.now) {
+  const next = normalizeStore(incoming, clock);
+  const saved = normalizeStore(current, clock);
+  const savedById = new Map(saved.entries.map((entry) => [entry.id, entry]));
+  return {
+    ...next,
+    entries: next.entries.map((entry) => {
+      const archived = savedById.get(entry.id)?.legacyVersions || [];
+      if (!archived.length) return entry;
+      const legacyVersions = [...(entry.legacyVersions || [])];
+      const seen = new Set(legacyVersions.map(legacyVersionIdentity));
+      for (const version of archived) {
+        const key = legacyVersionIdentity(version);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        legacyVersions.push(version);
+      }
+      return { ...entry, legacyVersions };
+    }),
+  };
+}
+
 function normalizeJobSetup(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const status = raw.status === 'done' || raw.status === 'later' ? raw.status : '';

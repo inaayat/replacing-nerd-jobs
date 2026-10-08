@@ -323,11 +323,13 @@ export function normalizeResumeBullet(raw, clock = Date.now) {
   const lead = asString(raw.lead, LEAD_MAX);
   const body = asString(raw.body, BODY_MAX);
   const id = asString(raw.id, ID_MAX);
+  const rich = normalizeInlineSpans(raw.rich);
   if (!lead && !body && !id) return null;
   return {
     id: asId(raw.id, clock, 'rb'),
     lead,
     body,
+    ...(rich ? { rich } : {}),
     priority: asPriority(raw.priority),
     pinned: Boolean(raw.pinned),
     sourceBulletIds: asIdList(raw.sourceBulletIds),

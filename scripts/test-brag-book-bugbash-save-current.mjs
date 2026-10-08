@@ -125,6 +125,11 @@ await check('deployment guards preserve old clients and browser-only edits', () 
     /hasLegacyTimestamp[\s\S]*bookSaveGuard/,
     'timestamp-guarded old clients must remain safe during the revision rollout',
   );
+  assert.match(
+    libSource,
+    /preserveLegacyVersions\(raw,\s*current\.book\)/,
+    'timestamp-compatible writes must retain schema-v2 recovery history that old clients strip',
+  );
   assert.match(apiSource, /err\.status === 428/);
   assert.match(apiSource, /res\.status\(err\.status\)/, 'missing revisions must be returned as 428, not hidden as 502');
   assert.match(appSource, /Download older browser backup/);

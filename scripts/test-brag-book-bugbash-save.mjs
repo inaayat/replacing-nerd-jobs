@@ -140,6 +140,27 @@ const disjoint = mergeConcurrentBooks(
 assert.equal(disjoint.conflicts.length, 0);
 assert.deepEqual(new Set(disjoint.book.entries.map((entry) => entry.id)), new Set(['local', 'remote']));
 
+const disjointProfile = mergeConcurrentBooks(
+  { profile: { name: 'Base Name', email: 'base@example.com', phone: '' } },
+  { profile: { name: 'Local Name', email: 'base@example.com', phone: '' } },
+  { profile: { name: 'Base Name', email: 'remote@example.com', phone: '' } },
+);
+assert.equal(disjointProfile.conflicts.length, 0);
+assert.equal(disjointProfile.book.profile.name, 'Local Name');
+assert.equal(disjointProfile.book.profile.email, 'remote@example.com');
+
+const profileConflict = mergeConcurrentBooks(
+  { profile: { name: 'Base Name' } },
+  { profile: { name: 'Local Name' } },
+  { profile: { name: 'Remote Name' } },
+);
+assert.equal(profileConflict.conflicts.length, 1);
+assert.equal(
+  retainLocalConflictValues(profileConflict.book, profileConflict.conflicts).profile.name,
+  'Local Name',
+  'same-field profile conflicts must preserve the local value visibly',
+);
+
 const conflictRequests = [];
 let conflictPending = null;
 const conflicting = createBookSaveController({

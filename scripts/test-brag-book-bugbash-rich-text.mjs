@@ -7,6 +7,11 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
+  applyImportedResume,
+  compileResumeDoc,
+  emptyStore,
+} from '../brag-book/engine.js';
+import {
   resumeBulletSpans,
   resumeFieldsFromExperience,
   spansToMarkdown,
@@ -75,6 +80,42 @@ assert.match(li, /<i> italic <\/i>/, 'the preview must retain mid-line italic');
 const docx = new TextDecoder().decode(resumeDocxBytes(resume));
 assert.match(docx, /<w:b\/>[\s\S]*?<w:t xml:space="preserve"> bold <\/w:t>/);
 assert.match(docx, /<w:i\/>[\s\S]*?<w:t xml:space="preserve"> italic <\/w:t>/);
+
+const imported = applyImportedResume(emptyStore(), {
+  header: { name: 'Import Test', locations: [], links: [] },
+  sectionOrder: ['experience'],
+  sections: {
+    experience: {
+      jobs: [{
+        id: 'rj_import_rich',
+        company: 'Example Co',
+        groups: [{
+          id: 'rg_import_rich',
+          heading: '',
+          bullets: [{
+            id: 'rb_import_rich',
+            lead: '',
+            body: editorText,
+            rich: editorSpans,
+          }],
+        }],
+      }],
+    },
+  },
+});
+const importedDoc = compileResumeDoc(null, imported);
+const importedBullet = importedDoc.sections.experience.jobs[0].groups[0].bullets[0];
+assert.deepEqual(
+  resumeBulletSpans(importedBullet),
+  editorSpans,
+  'resume JSON import must preserve the bullet rich spans used by the editor',
+);
+const importedHtml = renderResumeHtml(importedDoc);
+assert.match(importedHtml, /<b> bold <\/b>/, 'imported mid-line bold must reach the preview');
+assert.match(importedHtml, /<i> italic <\/i>/, 'imported mid-line italic must reach the preview');
+const importedDocx = new TextDecoder().decode(resumeDocxBytes(importedDoc));
+assert.match(importedDocx, /<w:b\/>[\s\S]*?<w:t xml:space="preserve"> bold <\/w:t>/);
+assert.match(importedDocx, /<w:i\/>[\s\S]*?<w:t xml:space="preserve"> italic <\/w:t>/);
 
 const appSource = readFileSync(new URL('../brag-book/app.js', import.meta.url), 'utf8');
 const tidySource = appSource.slice(

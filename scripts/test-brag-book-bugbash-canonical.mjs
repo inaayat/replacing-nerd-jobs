@@ -13,7 +13,9 @@ import {
   compileResumeDoc,
   normalizeStore,
   postingById,
+  preserveLegacyVersions,
   serializeBook,
+  updatePosting,
 } from '../brag-book/engine.js';
 
 const clock = () => Date.parse('2026-10-08T12:00:00.000Z');
@@ -176,5 +178,60 @@ const untimestamped = normalizeStore({
 assert.equal(untimestamped.entries.find((entry) => entry.id === 'en_no_time').title, 'Untimestamped entry wins ties');
 assert.ok(untimestamped.entries.find((entry) => entry.id === 'en_no_time').legacyVersions
   .some((version) => version.text === 'Untimestamped override'));
+
+const oldClientCopy = structuredClone(serialized);
+oldClientCopy.v = 1;
+oldClientCopy.entries = oldClientCopy.entries.map(({ legacyVersions: _unknown, ...entry }) => entry);
+const preserved = preserveLegacyVersions(oldClientCopy, serialized, clock);
+assert.ok(
+  preserved.entries.find((entry) => entry.id === 'en_newer_override').legacyVersions
+    .some((version) => version.text === 'Older library wording'),
+  'a timestamp-guarded old client must not erase the server recovery archive',
+);
+
+const localJobMigrated = normalizeStore({
+  entries: [{
+    id: 'en_local',
+    title: 'Current Local Wording',
+    updatedAt: '2026-10-08T11:00:00.000Z',
+  }],
+  postings: [{
+    id: 'job_local',
+    title: 'Target',
+    updatedAt: '2026-10-08T10:00:00.000Z',
+    resume: {
+      localJobs: [{
+        id: 'rj_local',
+        company: 'Example',
+        groups: [{
+          id: 'rg_local',
+          bullets: [{
+            id: 'rb_local',
+            body: 'Prior Proper Noun: Kept $5M Outcome',
+            sourceEntryIds: ['en_local'],
+          }],
+        }],
+      }],
+      overrides: {
+        rb_local: {
+          body: 'Stale Local Override',
+          edited: true,
+        },
+      },
+    },
+  }],
+}, clock);
+assert.deepEqual(localJobMigrated.postings[0].resume.overrides, {});
+assert.ok(localJobMigrated.entries[0].legacyVersions
+  .some((version) => version.text === 'Prior Proper Noun: Kept $5M Outcome'));
+const touchedLocalJob = updatePosting(
+  localJobMigrated,
+  'job_local',
+  { notes: 'Unrelated posting edit' },
+  () => Date.parse('2026-10-08T13:00:00.000Z'),
+);
+const reloadedLocalJob = normalizeStore(touchedLocalJob, clock);
+assert.deepEqual(reloadedLocalJob.postings[0].resume.overrides, {});
+assert.equal(reloadedLocalJob.entries[0].title, 'Current Local Wording');
 
 console.log('Brag Book canonical-bullet bug-bash regression passed.');
