@@ -810,19 +810,40 @@ function applyVariantBulletOrder(jobs, variant) {
   }));
 }
 
-function applyBulletVariant(bullet, jobId, variant) {
+function recordInstant(iso) {
+  const t = Date.parse(String(iso || ''));
+  return Number.isFinite(t) ? t : 0;
+}
+
+function postingOverrideLive(entry, postingUpdatedAt, over) {
+  if (over?.edited !== true) return false;
+  if (!entry) return true;
+  return recordInstant(postingUpdatedAt) >= recordInstant(entry.updatedAt);
+}
+
+function applyBulletVariant(bullet, jobId, variant, ctx = {}) {
+  const store = ctx.store;
+  const postingUpdatedAt = ctx.postingUpdatedAt || '';
+  const entryId = (bullet.sourceEntryIds || [])[0] || '';
+  const entry = store && entryId ? entryById(store, entryId) : null;
+  let lead = bullet.lead;
+  let body = bullet.body;
+  if (entry?.title) {
+    const fields = resumeFieldsFromExperience(entry.title, entry.rich);
+    lead = fields.lead;
+    body = fields.body;
+  }
   const over = variant.overrides?.[bullet.id] || {};
   const excludedJob = variant.excludedJobIds.includes(jobId);
   const excludedBullet = variant.excludedBulletIds.includes(bullet.id);
-  // Existing posting-local wording (edited: true) still renders as stored.
-  // New edits do not write overrides; they update the shared library line.
-  const applied = over.edited === true && (over.lead != null || over.body != null);
+  const applied = postingOverrideLive(entry, postingUpdatedAt, over)
+    && (over.lead != null || over.body != null);
   return {
     ...bullet,
-    originalLead: bullet.lead,
-    originalBody: bullet.body,
-    lead: applied && over.lead != null ? over.lead : bullet.lead,
-    body: applied && over.body != null ? over.body : bullet.body,
+    originalLead: lead,
+    originalBody: body,
+    lead: applied && over.lead != null ? over.lead : lead,
+    body: applied && over.body != null ? over.body : body,
     pinned: Boolean(bullet.pinned || variant.pinnedBulletIds.includes(bullet.id)),
     included: !excludedJob && !excludedBullet,
     hasOverride: applied,
@@ -872,13 +893,13 @@ export function postingTiedJobIds(store, posting) {
   return ids;
 }
 
-function decorateJob(job, variant, { local = false } = {}) {
+function decorateJob(job, variant, { local = false, compileCtx = {} } = {}) {
   const groups = (job.groups || []).map((group) => {
     const heading = Object.prototype.hasOwnProperty.call(variant.groupHeadings, group.id)
       ? variant.groupHeadings[group.id]
       : group.heading;
     const bullets = reorder(group.bullets, variant.bulletOrder[group.id]).map((bullet) => ({
-      ...applyBulletVariant(bullet, job.id, variant),
+      ...applyBulletVariant(bullet, job.id, variant, compileCtx),
       local: Boolean(bullet.local || local),
     }));
     return { ...group, heading, bullets, local: Boolean(group.local || local) };
@@ -914,7 +935,7 @@ function overlayCatalogIdentity(job, store) {
   };
 }
 
-function jobsFromCareer(store, variant, posting, { pinnedOnly = false } = {}) {
+function jobsFromCareer(store, variant, posting, { pinnedOnly = false, compileCtx = {} } = {}) {
   const included = new Set(variant?.includedJobIds || []);
   const tied = postingTiedJobIds(store, posting);
   return normalizeCareerJobs(store?.jobs)
@@ -923,16 +944,16 @@ function jobsFromCareer(store, variant, posting, { pinnedOnly = false } = {}) {
       if (pinnedOnly) return false;
       return job.onResume !== false;
     })
-    .map((job) => decorateJob(overlayCatalogIdentity(job, store), variant));
+    .map((job) => decorateJob(overlayCatalogIdentity(job, store), variant, { compileCtx }));
 }
 
-function jobsFromLocal(variant, store) {
+function jobsFromLocal(variant, store, compileCtx = {}) {
   return normalizeCareerJobs(variant?.localJobs).map((job) => (
-    decorateJob(overlayCatalogIdentity(job, store), variant, { local: true })
+    decorateJob(overlayCatalogIdentity(job, store), variant, { local: true, compileCtx })
   ));
 }
 
-function mergeGroupLists(hostGroups, overlayGroups, variant, jobId) {
+function mergeGroupLists(hostGroups, overlayGroups, variant, jobId, compileCtx = {}) {
   const groups = (hostGroups || []).map((group) => ({
     ...group,
     bullets: (group.bullets || []).slice(),
@@ -945,7 +966,7 @@ function mergeGroupLists(hostGroups, overlayGroups, variant, jobId) {
       for (const bullet of overlay.bullets || []) {
         if (seen.has(bullet.id)) continue;
         host.bullets.push({
-          ...applyBulletVariant(bullet, jobId, variant),
+          ...applyBulletVariant(bullet, jobId, variant, compileCtx),
           local: true,
         });
         seen.add(bullet.id);
@@ -955,7 +976,7 @@ function mergeGroupLists(hostGroups, overlayGroups, variant, jobId) {
         ...overlay,
         local: true,
         bullets: (overlay.bullets || []).map((bullet) => ({
-          ...applyBulletVariant(bullet, jobId, variant),
+          ...applyBulletVariant(bullet, jobId, variant, compileCtx),
           local: true,
         })),
       });
@@ -971,7 +992,7 @@ function mergeGroupLists(hostGroups, overlayGroups, variant, jobId) {
   })), variant.groupOrder?.[jobId]);
 }
 
-function mergeLocalJobs(jobs, variant, store) {
+function mergeLocalJobs(jobs, variant, store, compileCtx = {}) {
   const out = jobs.map((job) => ({
     ...job,
     groups: (job.groups || []).map((group) => ({
@@ -984,10 +1005,10 @@ function mergeLocalJobs(jobs, variant, store) {
     const overlaid = overlayCatalogIdentity(local, store);
     const host = byId.get(overlaid.id);
     if (host) {
-      host.groups = mergeGroupLists(host.groups, overlaid.groups, variant, host.id);
+      host.groups = mergeGroupLists(host.groups, overlaid.groups, variant, host.id, compileCtx);
       host.hasLocalExtras = true;
     } else {
-      const job = decorateJob(overlaid, variant, { local: true });
+      const job = decorateJob(overlaid, variant, { local: true, compileCtx });
       out.push(job);
       byId.set(job.id, job);
     }
@@ -1246,7 +1267,7 @@ export function projectExperienceOntoJobs(jobs, store) {
   return changed ? copy : (jobs || []);
 }
 
-function mergePostingBullets(jobs, posting, store) {
+function mergePostingBullets(jobs, posting, store, compileCtx = {}) {
   // Requirement lines update a bullet that is already on a role, or land on
   // the catalog job they are tied to. They never invent a company or dates.
   const out = (jobs || []).map((job) => ({
@@ -1283,7 +1304,7 @@ function mergePostingBullets(jobs, posting, store) {
       });
       if (!drafted) continue;
       groups[groups.length - 1].bullets.push({
-        ...applyBulletVariant(drafted, host.id, variant),
+        ...applyBulletVariant(drafted, host.id, variant, compileCtx),
         local: true,
       });
       out[index] = { ...host, groups, hasLocalExtras: true };
@@ -1340,6 +1361,7 @@ function projectEntryLines(jobs, store) {
 }
 
 export function compileResumeDoc(posting, store) {
+  const compileCtx = { store, postingUpdatedAt: posting?.updatedAt || '' };
   const settings = normalizeResumeSettings(store?.resumeSettings);
   const variant = normalizeResumeVariant(posting?.resume);
   const sectionOrder = variant.sectionOrder.length ? variant.sectionOrder : settings.sectionOrder;
@@ -1351,8 +1373,13 @@ export function compileResumeDoc(posting, store) {
   let education;
   let additional;
   if (fresh) {
-    jobs = mergeLocalJobs(jobsFromCareer(store, variant, posting, { pinnedOnly: true }), variant, store);
-    jobs = mergePostingBullets(jobs, posting, store);
+    jobs = mergeLocalJobs(
+      jobsFromCareer(store, variant, posting, { pinnedOnly: true, compileCtx }),
+      variant,
+      store,
+      compileCtx,
+    );
+    jobs = mergePostingBullets(jobs, posting, store, compileCtx);
     jobs = projectEntryLines(jobs, store);
     jobs = applyVariantBulletGroups(jobs, variant);
     jobs = applyVariantBulletOrder(jobs, variant);
@@ -1361,8 +1388,8 @@ export function compileResumeDoc(posting, store) {
     education = normalizeEducation(variant.localEducation);
     additional = normalizeAdditional(variant.localAdditional);
   } else {
-    jobs = mergeLocalJobs(jobsFromCareer(store, variant, posting), variant, store);
-    jobs = mergePostingBullets(jobs, posting, store);
+    jobs = mergeLocalJobs(jobsFromCareer(store, variant, posting, { compileCtx }), variant, store, compileCtx);
+    jobs = mergePostingBullets(jobs, posting, store, compileCtx);
     jobs = projectEntryLines(jobs, store);
     jobs = applyVariantBulletGroups(jobs, variant);
     jobs = applyVariantBulletOrder(jobs, variant);

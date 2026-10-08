@@ -8,7 +8,7 @@
  * contact / summary / skills.
  */
 
-export const SCHEMA = 1;
+export const SCHEMA = 2;
 export const STORE_KEY = 'brag-book-store-v1';
 export const BOOK_MAX_CHARS = 1_500_000;
 
@@ -442,7 +442,28 @@ export function normalizeEntry(raw, clock = Date.now) {
     notes: asString(raw.notes, TEXT_MAX),
     createdAt,
     updatedAt: asString(raw.updatedAt, 40) || createdAt,
+    legacyVersions: normalizeLegacyVersions(raw.legacyVersions),
   };
+}
+
+function normalizeLegacyVersions(value) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue;
+    const text = asString(item.text, TEXT_MAX);
+    if (!text) continue;
+    const rich = Array.isArray(item.rich) && item.rich.length
+      ? normalizeRichSpans(item.rich, text)?.rich
+      : [{ text, bold: false }];
+    out.push({
+      text,
+      rich: rich || [{ text, bold: false }],
+      source: asString(item.source, 120),
+      recoveredAt: asString(item.recoveredAt, 40),
+    });
+  }
+  return out;
 }
 
 export function normalizeKnowledge(raw, clock = Date.now) {
@@ -592,7 +613,127 @@ export function normalizeStore(raw, clock = Date.now) {
   store.resumeSettings = normalizeResumeSettings(raw.resumeSettings);
   store.basicsBackup = normalizeBasicsBackup(raw.basicsBackup, clock);
   store.jobSetup = normalizeJobSetup(raw.jobSetup);
-  return alignExperienceLines(store, clock);
+  store.v = Number(raw.v) === SCHEMA ? SCHEMA : SCHEMA;
+  return migrateCanonicalBullets(store, clock);
+}
+
+function recordInstant(iso) {
+  const t = Date.parse(String(iso || ''));
+  return Number.isFinite(t) ? t : 0;
+}
+
+function careerBulletIndex(store) {
+  const map = new Map();
+  for (const job of store.jobs || []) {
+    for (const group of job.groups || []) {
+      for (const bullet of group.bullets || []) {
+        if (bullet?.id) map.set(bullet.id, bullet);
+      }
+    }
+  }
+  return map;
+}
+
+function appendLegacyVersion(entry, text, rich, source, clock) {
+  const plain = asString(text, TEXT_MAX);
+  if (!plain || plain === entry.title) return entry;
+  const legacyVersions = [...(entry.legacyVersions || [])];
+  if (legacyVersions.some((row) => row.text === plain)) return entry;
+  legacyVersions.push({
+    text: plain,
+    rich: rich || [{ text: plain, bold: false }],
+    source: asString(source, 120),
+    recoveredAt: nowIso(clock),
+  });
+  return { ...entry, legacyVersions };
+}
+
+function syncRequirementLinesFromEntries(store, clock) {
+  return {
+    ...store,
+    postings: (store.postings || []).map((posting) => ({
+      ...posting,
+      requirements: (posting.requirements || []).map((req) => {
+        let changed = false;
+        const bullets = (req.bullets || []).map((line) => {
+          if (!line.entryId) return line;
+          const entry = entryById(store, line.entryId);
+          if (!entry) return line;
+          if (line.text === entry.title && sameRich(line.rich, entry.rich)) return line;
+          changed = true;
+          return normalizeBullet({ ...line, text: entry.title, rich: entry.rich, id: line.id }, clock) || line;
+        });
+        return changed ? withBullets(req, bullets) : req;
+      }),
+    })),
+  };
+}
+
+function syncCareerBulletsFromEntries(store) {
+  const jobs = (store.jobs || []).map((job) => ({
+    ...job,
+    groups: (job.groups || []).map((group) => ({
+      ...group,
+      bullets: (group.bullets || []).map((bullet) => {
+        const entryId = (bullet.sourceEntryIds || [])[0] || '';
+        const entry = entryId ? entryById(store, entryId) : null;
+        if (!entry?.title) return bullet;
+        const fields = resumeFieldsFromExperience(entry.title, entry.rich);
+        if (bullet.lead === fields.lead && bullet.body === fields.body) return bullet;
+        return { ...bullet, lead: fields.lead, body: fields.body };
+      }),
+    })),
+  }));
+  if (jobs === store.jobs) return store;
+  return { ...store, jobs };
+}
+
+export function migrateCanonicalBullets(store, clock = Date.now) {
+  let next = { ...store, v: SCHEMA };
+  let entries = [...(next.entries || [])];
+  const replaceEntryInList = (entry) => {
+    entries = entries.map((row) => (row.id === entry.id ? entry : row));
+    next = { ...next, entries };
+  };
+
+  const byBulletId = careerBulletIndex(next);
+  let postingsChanged = false;
+  const postings = (next.postings || []).map((posting) => {
+    const overrides = posting.resume?.overrides;
+    if (!overrides || !Object.keys(overrides).length) return posting;
+    let nextOverrides = { ...overrides };
+    let changed = false;
+    for (const [bulletId, over] of Object.entries(overrides)) {
+      if (over?.edited !== true) continue;
+      const careerBullet = byBulletId.get(bulletId);
+      const entryId = (careerBullet?.sourceEntryIds || [])[0] || '';
+      const entry = entryId ? entryById({ ...next, entries }, entryId) : null;
+      if (!entry) continue;
+      if (recordInstant(entry.updatedAt) <= recordInstant(posting.updatedAt)) continue;
+      const stalePlain = resumePlain({ lead: over.lead || '', body: over.body || '' });
+      if (stalePlain) {
+        replaceEntryInList(appendLegacyVersion(
+          entry,
+          stalePlain,
+          null,
+          `override:${posting.id}:${bulletId}`,
+          clock,
+        ));
+      }
+      delete nextOverrides[bulletId];
+      changed = true;
+    }
+    if (!changed) return posting;
+    postingsChanged = true;
+    return {
+      ...posting,
+      resume: normalizeResumeVariant({ ...posting.resume, overrides: nextOverrides }),
+    };
+  });
+  if (postingsChanged) next = { ...next, postings };
+  next = syncRequirementLinesFromEntries({ ...next, entries }, clock);
+  next = syncCareerBulletsFromEntries(next);
+  return projectResumeStore({ ...next, v: SCHEMA });
 }
 
 function normalizeJobSetup(raw) {

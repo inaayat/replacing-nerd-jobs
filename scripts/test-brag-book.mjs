@@ -220,9 +220,9 @@ const random = () => {
   return rand % 1;
 };
 
-assert.equal(SCHEMA, 1);
+assert.equal(SCHEMA, 2);
 assert.deepEqual(emptyStore(), {
-  v: 1,
+  v: 2,
   entries: [],
   knowledge: [],
   postings: [],
@@ -726,7 +726,7 @@ assert.equal(listingSummary(store).entries, 2);
 assert.equal(bookIsEmpty(emptyStore()), true);
 assert.equal(bookIsEmpty(store), false);
 const packed = serializeBook(store);
-assert.equal(packed.book.v, 1);
+assert.equal(packed.book.v, 2);
 assert.throws(() => serializeBook(store, { maxChars: 8 }), /too large/);
 
 assert.deepEqual(defaultView(), { kind: 'home' });
