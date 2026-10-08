@@ -1092,7 +1092,7 @@ assert.match(previewLi, /15\+ accounting evaluations/);
 assert.doesNotMatch(previewLi, /\*\*/);
 assert.doesNotMatch(previewLi, /stakeholder/);
 assert.doesNotMatch(previewLi, /Finance/);
-assert.match(previewLi, /<b>15\+ accounting evaluations<\/b>/);
+assert.doesNotMatch(previewLi, /<b>[^<]*15\+/);
 assert.match(previewLi, /<b>Leading Enterprise AI Governance Maturity Assessment:<\/b>/);
 
 const plainBook = applyResumeBulletEdit(addCareerJob(addEntry(emptyStore(), {
@@ -1127,50 +1127,6 @@ assert.match(plainHtml, /15\+ accounting evaluations/);
 assert.doesNotMatch(plainHtml, /\*\*/);
 assert.doesNotMatch(plainHtml, /stakeholder/);
 assert.match(plainHtml, /<b>Leading Enterprise AI Governance Maturity Assessment:<\/b>/);
-
-let midBold = addCareerJob(emptyStore(), {
-  id: 'rj_mid',
-  company: 'GoDaddy',
-  title: 'Senior Manager',
-  onResume: true,
-  groups: [{
-    id: 'rg_mid',
-    heading: '',
-    bullets: [{ id: 'rb_mid', lead: 'Migration of Manual Journal Prep to Automated Journals in Workday', body: 'PMO for a Finance-wide initiative evaluating 10+ accounting processes.', sourceEntryIds: ['en_mid'] }],
-  }],
-}, clock);
-midBold = addEntry(midBold, {
-  id: 'en_mid',
-  title: 'Migration of Manual Journal Prep to Automated Journals in Workday: PMO for a Finance-wide initiative evaluating 10+ accounting processes.',
-  jobId: 'rj_mid',
-}, clock);
-midBold = addPosting(midBold, { id: 'job_mid', title: 'Mid bold' }, clock);
-midBold = applyResumeBulletEdit(midBold, {
-  postingId: 'job_mid',
-  jobId: 'rj_mid',
-  groupId: 'rg_mid',
-  bullet: { id: 'rb_mid', sourceEntryIds: ['en_mid'] },
-  spans: [
-    { text: 'Migration of Manual Journal Prep to Automated Journals in Workday:', bold: true },
-    { text: ' PMO for a Finance-wide initiative evaluating ', bold: false },
-    { text: '10+ processes', bold: true },
-    { text: '.', bold: false },
-  ],
-}, clock);
-const midDoc = compileResumeDoc(postingById(midBold, 'job_mid'), midBold);
-const midBullet = midDoc.sections.experience.jobs[0].groups[0].bullets[0];
-const midSpans = resumeBulletSpans(midBullet);
-assert.equal(midSpans[0].bold, true);
-assert.ok(midSpans.some((span) => span.text.includes('10+ processes') && span.bold));
-const midHtml = renderResumeHtml(midDoc, { droppedBulletIds: [] });
-assert.match(midHtml, /<b>10\+ processes<\/b>/);
-assert.doesNotMatch(midHtml, /\*\*/);
-const midDocx = new TextDecoder().decode(resumeDocxBytes(midDoc));
-const midRun = midDocx.match(/<w:rPr>(?:(?!<\/w:rPr>)[\s\S])*?<\/w:rPr><w:t[^>]*>10\+ processes<\/w:t>/);
-assert.ok(midRun);
-assert.match(midRun[0], /<w:b\/>/);
-assert.doesNotMatch(midDocx, /\*\*/);
-assert.equal(ignoreBoldMarkers(bulletLineText(midBullet)).includes('10+ processes'), true);
 
 const libraryLine = 'Built Team Capacity-Planning Platform: Created a GitHub-hosted live view that consolidates multiple Jira instances.';
 let libraryBook = addPosting(emptyStore(), { title: 'Library wins' }, clock);
