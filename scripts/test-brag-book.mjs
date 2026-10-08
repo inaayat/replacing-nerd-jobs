@@ -1910,7 +1910,7 @@ assert.equal(normalizeBookRevision(null), null);
 assert.equal(normalizeBookRevision(''), null);
 assert.deepEqual(bookSaveGuard(new Date(loadedAt), loadedAt), { ok: true, reason: 'match' });
 assert.deepEqual(bookSaveGuard(null, null), { ok: true, reason: 'create' });
-assert.deepEqual(bookSaveGuard(loadedAt, undefined), { ok: true, reason: 'legacy' });
+assert.deepEqual(bookSaveGuard(loadedAt, undefined), { ok: false, status: 428, reason: 'missing' });
 assert.deepEqual(bookSaveGuard(loadedAt, null), { ok: false, status: 409, reason: 'stale' });
 assert.deepEqual(bookSaveGuard(loadedAt, '2026-01-02T00:00:00.000Z'), { ok: false, status: 409, reason: 'stale' });
 assert.deepEqual(bookSaveGuard(loadedAt, 'not-a-date'), { ok: false, status: 409, reason: 'stale' });
@@ -1922,11 +1922,8 @@ assert.equal(created.record.updatedAt, loadedAt);
 
 const legacyRow = { book: emptyStore(), updatedAt: loadedAt };
 const legacySave = applyBookWrite(legacyRow, undefined, applyImportedResume(emptyStore(), sampleResume, clock), Date.parse('2026-01-01T01:00:00.000Z'));
-assert.equal(legacySave.ok, true);
-assert.equal(legacySave.reason, 'legacy');
-assert.ok(legacySave.record.book.jobs.length > 0);
-assert.ok(legacySave.record.book.education.length > 0);
-assert.ok(legacySave.record.book.credentials.length > 0);
+assert.equal(legacySave.ok, false);
+assert.equal(legacySave.reason, 'missing');
 
 let server = { book: emptyStore(), updatedAt: loadedAt };
 const tabB = applyBookWrite(

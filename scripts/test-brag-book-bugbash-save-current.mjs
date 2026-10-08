@@ -62,7 +62,7 @@ await check('editable fields enter the model on input, before blur or local time
   );
   const requirement = appSource.slice(
     appSource.indexOf('function requirementTableRow'),
-    appSource.indexOf('function requirementTable'),
+    appSource.indexOf('function requirementTable(job'),
   );
   assert.match(
     requirement,
@@ -72,12 +72,13 @@ await check('editable fields enter the model on input, before blur or local time
 });
 
 await check('the PUT path is single-flight', () => {
-  const push = appSource.slice(
-    appSource.indexOf('async function pushStore'),
-    appSource.indexOf('async function pullBookIfClean'),
+  assert.match(appSource, /createBookSaveController/, 'cloud saves must use the single-flight save controller');
+  assert.match(appSource, /performCloudSave[\s\S]*revision/, 'each PUT must carry the expected revision');
+  assert.doesNotMatch(
+    appSource.slice(appSource.indexOf('async function pushStore'), appSource.indexOf('async function pullBookIfClean')),
+    /bookPushing\s*=\s*true[\s\S]*saveBook\(/,
+    'pushStore must not run overlapping saveBook calls',
   );
-  assert.match(push, /if\s*\(bookPushing\)\s*(?:return|\{)/, 'bookPushing is set but never used as a request lock');
-  assert.match(push, /localVersion|requestId/, 'responses are not tied to the local version they acknowledge');
 });
 
 await check('same-entry edits from two tabs are not overwritten by client timestamps', () => {

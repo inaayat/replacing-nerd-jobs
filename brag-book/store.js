@@ -19,7 +19,7 @@ export async function loadBook(token) {
   return data;
 }
 
-export async function saveBook(token, book, { keepalive = false, updatedAt = null } = {}) {
+export async function saveBook(token, book, { keepalive = false, updatedAt = null, revision = null } = {}) {
   const res = await fetch(PATH, {
     method: 'PUT',
     keepalive,
@@ -27,7 +27,7 @@ export async function saveBook(token, book, { keepalive = false, updatedAt = nul
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ book, updatedAt }),
+    body: JSON.stringify({ book, updatedAt, revision }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw asError(res, data);

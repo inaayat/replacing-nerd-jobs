@@ -1706,7 +1706,7 @@ a:focus-visible {
   border-bottom: 1px solid var(--line);
 }
 .bb-exp-row:last-child { border-bottom: 0; }
-.bb-exp-lead { display: grid; gap: 4px; min-width: 0; }
+.bb-exp-lead { display: grid; gap: 4px; min-width: 0; overflow: clip; }
 .bb-exp-lead .experience-compose {
   min-height: 0;
   padding: 3px 6px;
@@ -1734,6 +1734,7 @@ a:focus-visible {
   grid-template-columns: 1fr 1fr;
   gap: 4px;
   min-width: 0;
+  isolation: isolate;
 }
 .bb-star-cell {
   display: grid;
@@ -1750,8 +1751,9 @@ a:focus-visible {
 .bb-inline-area {
   width: 100%;
   box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
   min-height: 2.5em;
-  field-sizing: content;
   resize: none;
   overflow: hidden;
   border: 1px solid var(--line);

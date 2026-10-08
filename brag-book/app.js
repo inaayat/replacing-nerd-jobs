@@ -141,6 +141,9 @@ import {
   hostFromJobUrl,
   updateProfile,
   normalizeBookRevision,
+  accountStoreKey,
+  accountOutboxKey,
+  LOCAL_STORE_KEY,
   shouldPullRemoteBook,
   shouldBlockEmptyOverwrite,
   roleIsCollapsed,
@@ -172,6 +175,7 @@ import {
   setKnowledgeHeading,
 } from './knowledge-doc.js';
 import { loadBook, saveBook } from './store.js';
+import { createBookSaveController, mergeConcurrentBooks } from './save-controller.js';
 import { initAuth, refreshToken, renderBragSignIn, wireAuthLink } from './auth.js';
 
 const root = document.getElementById('app');
@@ -190,11 +194,13 @@ document.body.appendChild(resumeFileInput);
 let store = emptyStore();
 let auth = null;
 let unlocked = false;
-let persistTimer = null;
 let bookRevision = null;
-let bookDirty = false;
-let bookPushing = false;
 let lastServerBook = null;
+let saveController = null;
+let bookPushing = false;
+let cacheUserId = '';
+let outboxBaseBook = null;
+let saveStatusNote = '';
 let query = '';
 let knowledgeQuery = '';
 let knowledgeSaveState = null;
@@ -210,9 +216,16 @@ const openQuestionIds = new Set();
 let resumeFit = { fits: true, fontPt: 10, bulletLineHeight: 1.32, droppedBulletIds: [], droppedLabels: [], pinnedBlocked: false, overflowPx: 0, vars: {} };
 let resumePreviewTimer = null;
 
+function storeCacheKey() {
+  if (localMode) return LOCAL_STORE_KEY;
+  return accountStoreKey(cacheUserId);
+}
+
 function loadCached() {
   try {
-    return normalizeStore(JSON.parse(localStorage.getItem(STORE_KEY) || 'null'));
+    let raw = localStorage.getItem(storeCacheKey());
+    if (!raw && localMode) raw = localStorage.getItem(STORE_KEY);
+    return normalizeStore(JSON.parse(raw || 'null'));
   } catch {
     return emptyStore();
   }
@@ -222,86 +235,173 @@ function withStarterCareer(next) {
   return careerNeedsSeed(next) ? seedStarterResume(next) : next;
 }
 
-function cacheStore() {
-  localStorage.setItem(STORE_KEY, JSON.stringify(store));
+function cacheStore({ warnOnFailure = false } = {}) {
+  const payload = JSON.stringify(store);
+  try {
+    localStorage.setItem(storeCacheKey(), payload);
+    if (localMode) localStorage.setItem(STORE_KEY, payload);
+  } catch {
+    if (warnOnFailure) setNote('Could not mirror this edit in browser storage. Cloud save will continue.');
+  }
+}
+
+function readOutbox() {
+  const key = accountOutboxKey(cacheUserId);
+  if (!key) return null;
+  try {
+    return JSON.parse(localStorage.getItem(key) || 'null');
+  } catch {
+    return null;
+  }
+}
+
+function writeOutbox(snapshot) {
+  const key = accountOutboxKey(cacheUserId);
+  if (!key || !snapshot) return;
+  try {
+    localStorage.setItem(key, JSON.stringify(snapshot));
+  } catch {
+    setNote('Could not mirror this edit in browser storage. Cloud save will continue.');
+  }
+}
+
+function clearOutboxStorage() {
+  const key = accountOutboxKey(cacheUserId);
+  if (key) localStorage.removeItem(key);
 }
 
 function rememberServerBook(data) {
-  bookRevision = normalizeBookRevision(data?.updatedAt);
-  bookDirty = false;
+  bookRevision = data?.revision ?? normalizeBookRevision(data?.updatedAt);
   if (data?.book) lastServerBook = normalizeStore(data.book);
+  if (!outboxBaseBook && lastServerBook) outboxBaseBook = lastServerBook;
+  saveController?.setRevision(bookRevision);
+}
+
+function paintSaveStatus(payload) {
+  const status = typeof payload === 'string' ? payload : payload?.status;
+  if (status === 'saved') {
+    paintKnowledgeStatus('Saved');
+    saveStatusNote = 'Saved to your account.';
+  } else if (status === 'saving' || status === 'dirty') {
+    paintKnowledgeStatus('Saving…');
+  } else if (status === 'retrying' || status === 'error') {
+    paintKnowledgeStatus('Couldn\'t save — retrying…');
+    saveStatusNote = payload?.message || 'Couldn\'t save — retrying…';
+  }
+  const legal = document.querySelector('.legal');
+  if (legal && !localMode && auth?.token) {
+    legal.textContent = status === 'saved'
+      ? 'Saved to your account.'
+      : (saveStatusNote || 'Saving to your account…');
+  }
+}
+
+function ensureSaveController() {
+  if (saveController) return saveController;
+  saveController = createBookSaveController({
+    initialRevision: bookRevision,
+    save: performCloudSave,
+    persistPending: (snapshot) => {
+      writeOutbox({
+        userId: cacheUserId,
+        baseRevision: bookRevision,
+        baseBook: outboxBaseBook || lastServerBook || store,
+        book: snapshot.book,
+        localVersion: snapshot.localVersion,
+        updatedAt: new Date().toISOString(),
+      });
+      cacheStore({ warnOnFailure: true });
+    },
+    clearPending: clearOutboxStorage,
+    onStatus: paintSaveStatus,
+  });
+  return saveController;
+}
+
+async function performCloudSave(request) {
+  if (localMode || !auth?.token) return { revision: bookRevision, book: store };
+  if (shouldBlockEmptyOverwrite(request.book, lastServerBook)) {
+    const latest = await loadBook(auth.token);
+    throw Object.assign(new Error('Save blocked — reloaded the account copy.'), { status: 409, book: latest.book });
+  }
+  let token = auth.token;
+  const attempt = async () => saveBook(token, request.book, {
+    keepalive: request.keepalive,
+    revision: request.revision,
+    updatedAt: normalizeBookRevision(request.revision) ? null : bookRevision,
+  });
+  try {
+    const data = await attempt();
+    rememberServerBook(data);
+    return { revision: data.revision, book: data.book };
+  } catch (err) {
+    if (err.status === 401 && auth?.client) {
+      await refreshToken(auth);
+      token = auth.token;
+      const data = await saveBook(token, request.book, {
+        keepalive: request.keepalive,
+        revision: request.revision,
+      });
+      rememberServerBook(data);
+      return { revision: data.revision, book: data.book };
+    }
+    if (err.status === 409) {
+      const latest = err.book
+        ? { book: err.book, updatedAt: err.updatedAt, revision: err.revision }
+        : await loadBook(auth.token);
+      const remote = normalizeStore(latest.book);
+      const base = outboxBaseBook || lastServerBook || remote;
+      const merged = mergeConcurrentBooks(base, request.book, remote);
+      if (merged.conflicts.length) {
+        store = normalizeStore(merged.book);
+        cacheStore({ warnOnFailure: true });
+        throw Object.assign(new Error('This book changed in another tab. Review the highlighted conflicts.'), {
+          status: 409,
+          book: latest.book,
+          conflicts: merged.conflicts,
+        });
+      }
+      store = normalizeStore(merged.book);
+      cacheStore({ warnOnFailure: true });
+      const data = await saveBook(auth.token, store, {
+        keepalive: request.keepalive,
+        revision: latest.revision,
+      });
+      rememberServerBook(data);
+      return { revision: data.revision, book: data.book };
+    }
+    throw err;
+  }
 }
 
 function saveStore() {
-  cacheStore();
-  bookDirty = true;
+  cacheStore({ warnOnFailure: true });
   if (localMode || !auth?.token) return;
-  if (persistTimer) clearTimeout(persistTimer);
-  persistTimer = setTimeout(() => {
-    persistTimer = null;
-    pushStore();
-  }, 500);
+  ensureSaveController().markDirty(store);
+}
+
+async function flushSave(reason = 'blur', { keepalive = false } = {}) {
+  if (localMode || !auth?.token) return true;
+  return ensureSaveController().flush(reason, store, { keepalive });
 }
 
 async function adoptServerBook(data, note) {
-  if (persistTimer) {
-    clearTimeout(persistTimer);
-    persistTimer = null;
-  }
   store = normalizeStore(data.book);
   rememberServerBook(data);
+  outboxBaseBook = lastServerBook;
   cacheStore();
+  saveController?.setConfirmed(store, bookRevision);
   render();
   if (note) setNote(note);
 }
 
-async function pushStore({ keepalive = false, quiet = false } = {}) {
-  if (localMode || !auth?.token) return;
-  if (shouldBlockEmptyOverwrite(store, lastServerBook)) {
-    try {
-      const latest = await loadBook(auth.token);
-      await adoptServerBook(
-        latest,
-        'Save blocked — this tab was missing logged experiences or bullets. Reloaded the account copy.'
-      );
-    } catch {
-      setNote('Save blocked: this tab is missing logged experiences or bullets from the account.');
-    }
-    return;
+async function pushStore(options = {}) {
+  if (bookPushing) {
+    return flushSave(options.keepalive ? 'pagehide' : 'blur', { keepalive: options.keepalive });
   }
   bookPushing = true;
   try {
-    const data = await saveBook(auth.token, store, { keepalive, updatedAt: bookRevision });
-    rememberServerBook(data);
-    paintKnowledgeStatus('Saved');
-    if (!quiet) setNote('Saved to your account.');
-  } catch (err) {
-    if (err.status === 409) {
-      try {
-        const latest = err.book
-          ? { book: err.book, updatedAt: err.updatedAt }
-          : await loadBook(auth.token);
-        const remote = normalizeStore(latest.book);
-        const base = lastServerBook || remote;
-        store = normalizeStore(mergeBook(base, store, remote));
-        cacheStore();
-        const data = await saveBook(auth.token, store, { keepalive, updatedAt: latest.updatedAt });
-        rememberServerBook(data);
-        paintKnowledgeStatus('Saved');
-        if (!quiet) setNote('Saved to your account.');
-      } catch (again) {
-        if (again?.book) {
-          await adoptServerBook(
-            { book: again.book, updatedAt: again.updatedAt },
-            'This book was saved in another tab or browser. Reloaded the latest copy — the edit from this tab was not saved.'
-          );
-        } else {
-          setNote(again?.message || err.message || 'Could not save to your account.');
-        }
-      }
-      return;
-    }
-    setNote(err.message || 'Could not save to your account.');
+    return await flushSave(options.keepalive ? 'pagehide' : 'blur', { keepalive: options.keepalive });
   } finally {
     bookPushing = false;
   }
@@ -309,29 +409,44 @@ async function pushStore({ keepalive = false, quiet = false } = {}) {
 
 async function pullBookIfClean() {
   if (localMode || !auth?.token || !unlocked) return;
+  const controller = saveController;
+  const dirty = controller ? controller.state.localVersion > controller.state.confirmedVersion : false;
   const visible = !document.visibilityState || document.visibilityState === 'visible';
   if (!shouldPullRemoteBook({
-    dirty: bookDirty,
-    persistPending: persistTimer != null,
-    pushing: bookPushing,
+    dirty,
+    persistPending: dirty || controller?.state.status === 'saving',
+    pushing: controller?.state.status === 'saving',
     visible,
   })) return;
   try {
     const data = await loadBook(auth.token);
     if (!shouldPullRemoteBook({
-      dirty: bookDirty,
-      persistPending: persistTimer != null,
-      pushing: bookPushing,
+      dirty,
+      persistPending: dirty || controller?.state.status === 'saving',
+      pushing: controller?.state.status === 'saving',
       visible: !document.visibilityState || document.visibilityState === 'visible',
     })) return;
     if (data.created) return;
-    const remoteRev = normalizeBookRevision(data.updatedAt);
-    if (remoteRev && remoteRev === bookRevision) return;
-    if (!remoteRev && bookRevision == null) return;
+    const remoteRev = data.revision ?? normalizeBookRevision(data.updatedAt);
+    if (remoteRev != null && remoteRev === bookRevision) return;
+    if (remoteRev == null && bookRevision == null) return;
     await adoptServerBook(data, 'Loaded a newer copy saved elsewhere.');
   } catch {
     /* keep the local copy if the cloud is unavailable */
   }
+}
+
+function resumeOutboxAfterBoot(remote, data) {
+  const outbox = readOutbox();
+  if (!outbox?.book || outbox.userId !== cacheUserId) return remote;
+  const base = outbox.baseBook ? normalizeStore(outbox.baseBook) : remote;
+  const merged = mergeConcurrentBooks(base, outbox.book, remote);
+  outboxBaseBook = base;
+  store = normalizeStore(merged.book);
+  bookRevision = data.revision ?? bookRevision;
+  ensureSaveController().markDirty(store);
+  void flushSave('navigation');
+  return store;
 }
 
 function currentView() {
@@ -343,6 +458,7 @@ function currentView() {
 }
 
 function go(view) {
+  void flushSave('navigation');
   const hash = viewHash(view);
   if (location.hash === hash) render();
   else location.hash = hash;
@@ -1288,22 +1404,9 @@ function paintKnowledgeStatus(text) {
 
 function scheduleKnowledgeSave(noteId, patch) {
   store = updateKnowledge(store, noteId, patch);
-  cacheStore();
-  bookDirty = true;
   knowledgeSaveState = noteKnowledgeInput(knowledgeSaveState, noteId, patch, Date.now());
   paintKnowledgeStatus('Saving…');
-  if (persistTimer) clearTimeout(persistTimer);
-  persistTimer = setTimeout(() => {
-    persistTimer = null;
-    knowledgeSaveState = knowledgeSaveState
-      ? { ...knowledgeSaveState, status: 'saved', patch: null }
-      : null;
-    if (localMode || !auth?.token) {
-      paintKnowledgeStatus('Saved');
-      return;
-    }
-    pushStore({ quiet: true });
-  }, KNOWLEDGE_SAVE_MS);
+  saveStore();
 }
 
 function createKnowledgePage() {
@@ -1774,11 +1877,11 @@ function jobMeta(job) {
     el('div', { class: 'grid-2' }, [
       field('Role', el('input', {
         value: job.title,
-        onChange: (event) => { store = updatePosting(store, job.id, { title: event.target.value }); saveStore(); },
+        onInput: (event) => { store = updatePosting(store, job.id, { title: event.target.value }); saveStore(); },
       })),
       field('Company', el('input', {
         value: job.company,
-        onChange: (event) => { store = updatePosting(store, job.id, { company: event.target.value }); saveStore(); },
+        onInput: (event) => { store = updatePosting(store, job.id, { company: event.target.value }); saveStore(); },
       })),
     ]),
     el('div', { class: 'grid-2' }, [
@@ -1786,7 +1889,7 @@ function jobMeta(job) {
         type: 'url',
         value: job.url,
         placeholder: 'https://',
-        onChange: (event) => { store = updatePosting(store, job.id, { url: event.target.value }); saveStore(); },
+        onInput: (event) => { store = updatePosting(store, job.id, { url: event.target.value }); saveStore(); },
         onBlur: () => render(),
       })),
       field('Status', el('select', {
@@ -2179,7 +2282,13 @@ function requirementTableRow(job, req) {
     rows: '1',
     'aria-label': 'Requirement',
     title: 'Edit requirement — saves when you leave the field',
-    onChange: (event) => {
+    onInput: (event) => {
+      const text = event.target.value;
+      if (text === req.text) return;
+      store = updateRequirement(store, job.id, req.id, { text: text.trim() ? text : req.text });
+      saveStore();
+    },
+    onBlur: (event) => {
       const text = event.target.value.trim();
       if (!text || text === req.text) return;
       store = updateRequirement(store, job.id, req.id, { text });
@@ -3475,23 +3584,15 @@ function jobCatalogRow(job) {
     });
     saveStore();
   };
-  let saveTimer = null;
-  const flush = () => {
-    if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = null;
-    stamp();
-  };
   [company, title, dates, location].forEach((node) => {
     node.addEventListener('input', () => {
       const plan = jobCatalogEditEffects('input');
       if (!plan.save) return;
-      if (saveTimer) clearTimeout(saveTimer);
-      saveTimer = setTimeout(flush, JOB_CATALOG_SAVE_MS);
+      stamp();
       if (plan.render) render();
     });
     node.addEventListener('blur', () => {
       const plan = jobCatalogEditEffects('blur');
-      if (saveTimer) flush();
       if (plan.render) render();
     });
   });
@@ -4300,21 +4401,23 @@ async function boot() {
     return;
   }
 
+  cacheUserId = auth.user?.id || '';
   const cached = loadCached();
 
   try {
     const data = await loadBook(auth.token);
     const remote = normalizeStore(data.book);
-    if (data.created && bookIsEmpty(remote) && !bookIsEmpty(cached)) {
-      store = withStarterCareer(cached);
-      rememberServerBook(data);
-      showBook('Moved this browser’s book onto your account.');
-      await pushStore();
-      return;
-    }
-    store = withStarterCareer(remote);
     rememberServerBook(data);
+    outboxBaseBook = lastServerBook;
+    if (data.created && bookIsEmpty(remote) && !bookIsEmpty(cached) && cached !== remote) {
+      const legacy = normalizeStore(JSON.parse(localStorage.getItem(STORE_KEY) || 'null'));
+      if (!bookIsEmpty(legacy) && legacy !== cached) {
+        showBook('An older browser backup exists. Import it from account settings when you are ready.');
+      }
+    }
+    store = withStarterCareer(resumeOutboxAfterBoot(remote, data));
     cacheStore();
+    ensureSaveController();
     showBook(data.created ? 'New book — John Doe starter is only on this device until you edit.' : 'Saved to your account.');
   } catch (err) {
     if (err.status === 401) {
@@ -4347,6 +4450,7 @@ window.addEventListener('resize', () => {
 });
 
 window.addEventListener('hashchange', () => {
+  void flushSave('navigation');
   if (unlocked) render();
 });
 
@@ -4374,14 +4478,17 @@ window.addEventListener('keydown', (event) => {
 });
 
 window.addEventListener('pagehide', () => {
-  if (!persistTimer) return;
-  clearTimeout(persistTimer);
-  persistTimer = null;
   if (!auth?.token || shouldBlockEmptyOverwrite(store, lastServerBook)) return;
-  saveBook(auth.token, store, { keepalive: true, updatedAt: bookRevision });
+  void flushSave('pagehide', { keepalive: true });
+});
+
+window.addEventListener('beforeunload', () => {
+  if (!auth?.token) return;
+  void flushSave('beforeunload', { keepalive: true });
 });
 
 document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') void flushSave('visibilitychange:hidden', { keepalive: true });
   if (document.visibilityState === 'visible') pullBookIfClean();
 });
 

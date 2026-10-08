@@ -57,6 +57,7 @@ async function handleBook(req, res) {
     try {
       const data = await putBook(session.userId, req.body?.book, {
         expectedUpdatedAt: req.body?.updatedAt,
+        expectedRevision: req.body?.revision,
       });
       res.status(200).json(data);
     } catch (err) {

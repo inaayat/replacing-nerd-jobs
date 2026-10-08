@@ -8,8 +8,19 @@
  * contact / summary / skills.
  */
 
+import { mergeConcurrentBooks } from './save-controller.js';
+
 export const SCHEMA = 2;
 export const STORE_KEY = 'brag-book-store-v1';
+export const LOCAL_STORE_KEY = 'brag-book-store-local';
+export function accountStoreKey(userId) {
+  const id = String(userId || '').trim();
+  return id ? `brag-book-store-v2:${id}` : STORE_KEY;
+}
+export function accountOutboxKey(userId) {
+  const id = String(userId || '').trim();
+  return id ? `brag-book-outbox-v2:${id}` : '';
+}
 export const BOOK_MAX_CHARS = 1_500_000;
 
 import {
@@ -3356,6 +3367,7 @@ export const STALE_BOOK_MESSAGE = 'This book was saved somewhere else. Reload to
 
 export function normalizeBookRevision(value) {
   if (value == null || value === '') return null;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (value instanceof Date) {
     const t = value.getTime();
     return Number.isFinite(t) ? value.toISOString() : null;
@@ -3370,8 +3382,21 @@ export function bookSaveGuard(serverUpdatedAt, expectedUpdatedAt) {
   const server = normalizeBookRevision(serverUpdatedAt);
   const expected = normalizeBookRevision(expectedUpdatedAt);
   if (!server) return { ok: true, reason: 'create' };
-  if (expectedUpdatedAt === undefined) return { ok: true, reason: 'legacy' };
+  if (expectedUpdatedAt === undefined) return { ok: false, status: 428, reason: 'missing' };
   if (!expected || server !== expected) return { ok: false, status: 409, reason: 'stale' };
+  return { ok: true, reason: 'match' };
+}
+
+export function bookRevisionGuard(serverRevision, expectedRevision) {
+  if (serverRevision == null) return { ok: true, reason: 'create' };
+  if (expectedRevision == null || expectedRevision === undefined) {
+    return { ok: false, status: 428, reason: 'missing' };
+  }
+  const server = Number(serverRevision);
+  const expected = Number(expectedRevision);
+  if (!Number.isFinite(expected) || server !== expected) {
+    return { ok: false, status: 409, reason: 'stale' };
+  }
   return { ok: true, reason: 'match' };
 }
 
@@ -3517,15 +3542,7 @@ const BOOK_LIST_KEYS = ['entries', 'knowledge', 'postings', 'jobs', 'education',
 // Three-way merge for a full-book save. A debounced knowledge edit keeps its
 // page, and a newer entry written in another tab stays on the book.
 export function mergeBook(base, local, remote) {
-  const out = { ...(remote || {}) };
-  for (const key of BOOK_LIST_KEYS) {
-    out[key] = mergeRecords(base?.[key], local?.[key], remote?.[key]);
-  }
-  out.profile = mergePlain(base?.profile, local?.profile, remote?.profile);
-  out.resumeSettings = mergePlain(base?.resumeSettings, local?.resumeSettings, remote?.resumeSettings);
-  out.basicsBackup = mergePlain(base?.basicsBackup, local?.basicsBackup, remote?.basicsBackup);
-  out.jobSetup = mergePlain(base?.jobSetup, local?.jobSetup, remote?.jobSetup);
-  return out;
+  return mergeConcurrentBooks(base, local, remote).book;
 }
 
 export function shouldBlockEmptyOverwrite(next, previous) {

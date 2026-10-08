@@ -631,7 +631,62 @@ function inlineMarkerSpans(text, { bold = false } = {}) {
   return spans;
 }
 
+function normalizeDisplaySpans(spans) {
+  return (spans || []).map((span) => {
+    const out = { text: String(span?.text ?? ''), bold: Boolean(span?.bold) };
+    if (span?.italic) out.italic = true;
+    return out;
+  }).filter((span) => span.text);
+}
+
+function withBoldLeadBeforeColon(spans) {
+  const normalized = normalizeDisplaySpans(spans);
+  const plain = normalized.map((span) => span.text).join('');
+  const colon = plain.indexOf(':');
+  if (colon <= 0 || colon > 80) return normalized;
+  const boldEnd = colon + 1;
+  let pos = 0;
+  const split = [];
+  for (const span of normalized) {
+    const start = pos;
+    const end = pos + span.text.length;
+    pos = end;
+    if (end <= boldEnd) {
+      split.push({ ...span, bold: true });
+      continue;
+    }
+    if (start >= boldEnd) {
+      split.push(span);
+      continue;
+    }
+    const cut = boldEnd - start;
+    split.push({ text: span.text.slice(0, cut), bold: true, ...(span.italic ? { italic: true } : {}) });
+    split.push({
+      text: span.text.slice(cut),
+      bold: span.bold,
+      ...(span.italic ? { italic: true } : {}),
+    });
+  }
+  const out = [];
+  for (const span of split) {
+    if (!span.text) continue;
+    const last = out[out.length - 1];
+    if (last && last.bold === span.bold && Boolean(last.italic) === Boolean(span.italic)) {
+      last.text += span.text;
+    } else {
+      out.push({ ...span });
+    }
+  }
+  return out;
+}
+
 export function resumeBulletSpans(bullet) {
+  if (Array.isArray(bullet?.rich) && bullet.rich.some((span) => span && String(span.text ?? '').length)) {
+    const hasMarks = bullet.rich.some((span) => span?.bold || span?.italic);
+    if (hasMarks) {
+      return withBoldLeadBeforeColon(bullet.rich);
+    }
+  }
   const { lead, body } = resumeBulletParts(bullet);
   const leadSpans = inlineMarkerSpans(lead, { bold: true });
   const bodySpans = inlineMarkerSpans(body, { bold: false });
@@ -749,9 +804,17 @@ export function bulletPlainText(bullet) {
 // posting editor shows. Resume lead/body is that same line, split on the
 // first colon the way the one-page layout always has.
 export function resumeFieldsFromExperience(text, rich) {
-  const markdown = Array.isArray(rich) && rich.some((span) => span && String(span.text || '').length)
-    ? spansToMarkdown(rich)
-    : asString(text, TEXT_MAX);
+  if (Array.isArray(rich) && rich.some((span) => span && String(span.text ?? '').length)) {
+    const spans = rich.map((span) => ({
+      text: String(span?.text ?? ''),
+      bold: Boolean(span?.bold),
+      ...(span?.italic ? { italic: true } : {}),
+    }));
+    const plain = spans.map((span) => span.text).join('');
+    const parsed = parseBulletText(plain);
+    return { ...parsed, body: parsed.body || plain, rich: spans };
+  }
+  const markdown = asString(text, TEXT_MAX);
   return parseBulletText(markdown);
 }
 
@@ -838,12 +901,20 @@ function applyBulletVariant(bullet, jobId, variant, ctx = {}) {
   const excludedBullet = variant.excludedBulletIds.includes(bullet.id);
   const applied = postingOverrideLive(entry, postingUpdatedAt, over)
     && (over.lead != null || over.body != null);
+  const rich = entry?.rich && entry.title
+    ? entry.rich.map((span) => ({
+      text: String(span?.text ?? ''),
+      bold: Boolean(span?.bold),
+      ...(span?.italic ? { italic: true } : {}),
+    }))
+    : bullet.rich;
   return {
     ...bullet,
     originalLead: lead,
     originalBody: body,
     lead: applied && over.lead != null ? over.lead : lead,
     body: applied && over.body != null ? over.body : body,
+    rich,
     pinned: Boolean(bullet.pinned || variant.pinnedBulletIds.includes(bullet.id)),
     included: !excludedJob && !excludedBullet,
     hasOverride: applied,
