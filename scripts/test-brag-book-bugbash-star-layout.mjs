@@ -49,7 +49,11 @@ const starStackAreaRule = css.match(/\.bb-star-stack \.bb-inline-area,\s*\n\.bb-
 const starLabelRule = css.match(/\.bb-star-cell > span\s*\{[^}]*\}/)?.[0] || '';
 const sharedStarRule = css.match(/\.experience-star\s*\{[^}]*\}/)?.[0] || '';
 const sharedStarLabelRule = css.match(/\.experience-star label\s*\{[^}]*\}/)?.[0] || '';
+const sharedBulletShellRule = css.match(/\.experience-editor \.bb-shared-bullet\s*\{[^}]*\}/)?.[0] || '';
 const sharedLeadRule = css.match(/\.experience-editor \.bb-shared-bullet \.experience-compose\s*\{[^}]*\}/)?.[0] || '';
+const starStackSegmentRule = css.match(
+  /\.bb-star-stack > \.bb-star-cell,\s*\n\.bb-star-stack > \.field\s*\{[^}]*\}/,
+)?.[0] || '';
 const starBodyTokenRule = css.match(/\.bb-exp-row,\s*\n\.experience-editor\s*\{[^}]*\}/)?.[0] || '';
 const questionStarRule = css.match(/\.table-question-star\s*\{[^}]*\}/)?.[0] || '';
 const detailStarRule = css.match(/\.detail-star\s*\{[^}]*\}/)?.[0] || '';
@@ -82,8 +86,13 @@ assert.match(starGridRule, /grid-template-columns:\s*minmax\(0,\s*1fr\)/);
 assert.doesNotMatch(starGridRule, /1fr\s+1fr|repeat\(2/, 'Resume bullet STAR fields must be one row per field');
 assert.match(starGridRule, /gap:\s*0/);
 assert.match(starStackRule, /flex-direction:\s*column/);
+assert.match(starStackRule, /align-items:\s*stretch/, 'STAR stack must stretch segments to full width (not shrink-to-fit)');
+assert.match(starStackRule, /width:\s*100%/, 'Resume bullets STAR stack must fill the card column');
 assert.match(starStackRule, /border:\s*1px solid var\(--line-strong\)/);
+assert.match(starStackSegmentRule, /width:\s*100%/);
+assert.match(starStackAreaRule, /width:\s*100%/);
 assert.match(starStackAreaRule, /max-width:\s*100%/);
+assert.match(sharedBulletShellRule, /width:\s*100%/, 'Shared experience editor shell must allow full-width STAR stack');
 assert.match(starStackAreaRule, /font-size:\s*var\(--bb-star-body-size/);
 assert.match(starStackAreaRule, /line-height:\s*var\(--bb-star-body-lh/);
 assert.match(sharedStarRule, /grid-template-columns:\s*minmax\(0,\s*1fr\)/);

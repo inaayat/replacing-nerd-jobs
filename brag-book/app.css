@@ -912,6 +912,8 @@ a:focus-visible {
   display: grid;
   gap: 5px;
   min-width: 0;
+  width: 100%;
+  max-width: 100%;
 }
 .experience-editor .field > span,
 .experience-star label > span {
@@ -1826,8 +1828,12 @@ a:focus-visible {
 .bb-star-stack {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 0;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
+  box-sizing: border-box;
   border: 1px solid var(--line-strong);
   border-radius: 8px;
   background: #fff;
@@ -1840,7 +1846,10 @@ a:focus-visible {
   margin: 0;
   padding: var(--bb-star-seg-pad-y, 5px) 10px 6px;
   border-top: 1px solid var(--line);
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
+  box-sizing: border-box;
 }
 .bb-star-stack > .bb-star-cell:first-child,
 .bb-star-stack > .field:first-child {
@@ -1853,6 +1862,8 @@ a:focus-visible {
 }
 .bb-star-stack .bb-inline-area,
 .bb-star-stack textarea {
+  width: 100%;
+  box-sizing: border-box;
   min-width: 0;
   max-width: 100%;
   min-height: 2.35rem;
