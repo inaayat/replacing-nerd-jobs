@@ -127,7 +127,7 @@ await check('deployment guards preserve old clients and browser-only edits', () 
   );
   assert.match(
     libSource,
-    /preserveLegacyVersions\(raw,\s*current\.book\)/,
+    /preserveServerHistory\(raw,\s*current\.book\)/,
     'timestamp-compatible writes must retain schema-v2 recovery history that old clients strip',
   );
   assert.match(apiSource, /err\.status === 428/);

@@ -3,6 +3,8 @@
  * Browser-safe ESM — no node: imports.
  */
 
+import { mergeResumeSnapshotLists } from './resume-snapshots.js';
+
 export const SAVE_FLUSH_EVENTS = new Set([
   'blur',
   'navigation',
@@ -167,6 +169,11 @@ export function mergeConcurrentBooks(base, local, remote) {
     book[key] = merged.value;
     if (merged.conflict) conflicts.push({ ...merged.conflict, collection: 'root' });
   }
+  book.resumeSnapshots = mergeResumeSnapshotLists(
+    base?.resumeSnapshots,
+    local?.resumeSnapshots,
+    remote?.resumeSnapshots,
+  );
   book.v = remote?.v ?? local?.v ?? base?.v;
   return { book, conflicts };
 }

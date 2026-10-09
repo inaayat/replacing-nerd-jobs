@@ -136,6 +136,15 @@ import {
   listingSummary,
   starFill,
   bookIsEmpty,
+  BOOK_MAX_CHARS,
+  serializeBook,
+  saveResumeSnapshot,
+  renameResumeSnapshot,
+  deleteResumeSnapshot,
+  resumeSnapshotById,
+  activeResumeSnapshots,
+  resumeSnapshotToDoc,
+  defaultResumeSnapshotName,
   asUrl,
   titleFromJobUrl,
   hostFromJobUrl,
@@ -231,6 +240,9 @@ let questionComposerKey = '';
 const openQuestionIds = new Set();
 let resumeFit = { fits: true, fontPt: 10, bulletLineHeight: 1.32, droppedBulletIds: [], droppedLabels: [], pinnedBlocked: false, overflowPx: 0, vars: {} };
 let resumePreviewTimer = null;
+let resumeFitPostingId = null;
+let resumeSnapshotSaveOpen = null;
+let resumeSnapshotRenameOpen = null;
 
 function storeCacheKey() {
   if (localMode) return LOCAL_STORE_KEY;
@@ -534,6 +546,7 @@ function currentView() {
     entryIds: store.entries.map((entry) => entry.id),
     postingIds: store.postings.map((job) => job.id),
     knowledgeIds: (store.knowledge || []).map((note) => note.id),
+    snapshotIds: (store.resumeSnapshots || []).map((row) => row.id),
   });
 }
 
@@ -986,10 +999,26 @@ function toolbar(view) {
           el('strong', { class: 'page-title' }, 'Resume basics'),
         ]),
         el('div', { class: 'actions' }, [
+          btn('Saved resumes', { class: 'btn ghost compact-action', onClick: () => go({ kind: 'snapshots' }) }),
           btn('Import resume (JSON)', {
             class: 'btn ghost compact-action',
             onClick: () => resumeFileInput.click(),
           }),
+        ]),
+      ]),
+      statusLine(),
+    ]);
+  }
+  if (view.kind === 'snapshots') {
+    return el('header', { class: 'hero is-compact' }, [
+      el('div', { class: 'hero-row' }, [
+        el('div', { class: 'crumb' }, [
+          el('button', {
+            type: 'button',
+            class: 'context-back',
+            onClick: () => go(view.id ? { kind: 'snapshots' } : { kind: 'home' }),
+          }, view.id ? '← Saved resumes' : '← Start'),
+          el('strong', { class: 'page-title' }, viewTitle(view, store)),
         ]),
       ]),
       statusLine(),
@@ -2735,6 +2764,7 @@ async function refreshResumePreview(posting) {
     ...result,
     droppedLabels: droppedBulletLabels(doc, result.droppedBulletIds),
   };
+  resumeFitPostingId = current?.id || 'basics';
   paintPreviewFitWarning(page);
   if (current?.id) {
     store = updatePostingResume(store, current.id, {
@@ -2818,6 +2848,247 @@ function exportResumeDocx(posting) {
   const name = (posting?.title || store.profile?.name || 'resume').replace(/[^\w.-]+/g, '_');
   downloadBlob(`${name}.docx`, resumeDocxBlob(doc));
   setNote('Downloaded a Word resume.');
+}
+
+function snapshotFitPayload() {
+  return {
+    fontPt: resumeFit.fontPt,
+    bulletLineHeight: resumeFit.bulletLineHeight,
+    droppedBulletIds: resumeFit.droppedBulletIds || [],
+    droppedLabels: resumeFit.droppedLabels || [],
+    fits: resumeFit.fits,
+    pinnedBlocked: resumeFit.pinnedBlocked,
+    vars: { ...(resumeFit.vars || {}) },
+  };
+}
+
+function resumeFitReadyForPosting(postingId) {
+  return resumeFitPostingId === postingId
+    && resumeFit.vars
+    && Object.keys(resumeFit.vars).length > 0;
+}
+
+function bookPayloadUsage() {
+  try {
+    return serializeBook(store).json.length;
+  } catch {
+    return JSON.stringify(store).length;
+  }
+}
+
+function snapshotFileBase(snapshot) {
+  return (snapshot?.name || snapshot?.initialName || 'saved_resume').replace(/[^\w.-]+/g, '_');
+}
+
+function exportResumeSnapshotPdf(snapshot) {
+  const frame = document.getElementById('resume-snapshot-frame');
+  if (frame?.contentWindow) {
+    frame.contentWindow.focus();
+    frame.contentWindow.print();
+    setNote('Use the print dialog → Save as PDF.');
+    return;
+  }
+  const doc = resumeSnapshotToDoc(snapshot);
+  const html = resumeDocument(
+    renderResumeHtml(doc, { droppedBulletIds: snapshot.fit.droppedBulletIds }),
+    { fittedVars: snapshot.fit.vars, print: true },
+  );
+  const win = window.open('', '_blank');
+  if (!win) {
+    downloadText(`${snapshotFileBase(snapshot)}.html`, html, 'text/html');
+    setNote('Download the HTML and print it.');
+    return;
+  }
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  win.print();
+}
+
+function exportResumeSnapshotDocx(snapshot) {
+  downloadBlob(`${snapshotFileBase(snapshot)}.docx`, resumeDocxBlob(resumeSnapshotToDoc(snapshot)));
+  setNote('Downloaded a Word resume.');
+}
+
+async function refreshResumeSnapshotPreview(snapshot) {
+  const frame = document.getElementById('resume-snapshot-frame');
+  const wrap = document.getElementById('resume-snapshot-wrap');
+  if (!frame || !snapshot) return;
+  const doc = resumeSnapshotToDoc(snapshot);
+  const html = resumeDocument(
+    renderResumeHtml(doc, { droppedBulletIds: snapshot.fit.droppedBulletIds }),
+    { fittedVars: snapshot.fit.vars },
+  );
+  await new Promise((resolve) => {
+    frame.onload = () => resolve();
+    frame.srcdoc = html;
+  });
+  try { await frame.contentDocument?.fonts?.ready; } catch { /* ignore */ }
+  scaleResumeFrame(wrap, frame);
+}
+
+function savedResumesBank() {
+  const rows = activeResumeSnapshots(store);
+  const usage = bookPayloadUsage();
+  const capWarn = usage >= BOOK_MAX_CHARS * 0.8;
+  const list = el('div', { class: 'bb-snapshot-list' }, rows.length
+    ? rows.map((row) => {
+      const source = [row.sourcePosting?.company, row.sourcePosting?.title].filter(Boolean).join(' · ');
+      const saved = row.savedAt ? new Date(row.savedAt).toLocaleDateString() : '';
+      return el('div', { class: 'bb-snapshot-row' }, [
+        el('div', { class: 'bb-snapshot-meta' }, [
+          el('strong', {}, row.name || row.initialName),
+          el('span', { class: 'tiny mono' }, [saved, source ? ` · ${source}` : ''].filter(Boolean).join('')),
+        ]),
+        el('div', { class: 'bb-snapshot-actions' }, [
+          btn('Open', {
+            class: 'btn ghost compact-action',
+            onClick: () => go({ kind: 'snapshots', id: row.id }),
+          }),
+        ]),
+      ]);
+    })
+    : [el('p', { class: 'empty tiny' }, 'No saved copies yet. On a posting’s Resume page, use Save a copy.')]);
+  return el('section', { class: 'panel bb-snapshot-bank' }, [
+    el('div', { class: 'panel-head' }, [
+      el('div', {}, [
+        el('h2', {}, 'Saved resumes'),
+        el('p', { class: 'tiny' }, 'Immutable copies of posting resumes — what you saved is what you get.'),
+      ]),
+      btn('Back', { class: 'btn ghost', onClick: () => go({ kind: 'home' }) }),
+    ]),
+    capWarn ? el('p', { class: 'tiny bb-snapshot-cap-warn' }, 'This book is getting large. Saved copies count toward the 1.5 MB account limit — export or delete older snapshots if saves start failing.') : null,
+    el('div', { class: 'panel-body' }, [list]),
+  ]);
+}
+
+function savedResumeDetail(snapshotId) {
+  const snapshot = resumeSnapshotById(store, snapshotId, { includeDeleted: true });
+  if (!snapshot || snapshotIsDeleted(snapshot)) {
+    queueMicrotask(() => go({ kind: 'snapshots' }));
+    return el('section', { class: 'panel' }, [
+      el('div', { class: 'panel-body empty' }, 'That saved resume is no longer in the bank.'),
+    ]);
+  }
+  const source = [snapshot.sourcePosting?.company, snapshot.sourcePosting?.title].filter(Boolean).join(' · ');
+  const saved = snapshot.savedAt ? new Date(snapshot.savedAt).toLocaleString() : '';
+  const renameOpen = resumeSnapshotRenameOpen === snapshot.id;
+  const renameInput = el('input', {
+    class: 'bb-snapshot-rename-input',
+    value: snapshot.name || snapshot.initialName,
+    'aria-label': 'Saved resume name',
+  });
+  const frame = el('iframe', {
+    id: 'resume-snapshot-frame',
+    class: 'bb-resume-frame',
+    title: 'Saved resume preview',
+  });
+  const preview = el('div', { class: 'bb-resume-preview' }, [
+    el('div', { class: 'bb-resume-preview-wrap', id: 'resume-snapshot-wrap' }, [frame]),
+  ]);
+  return el('section', { class: 'panel bb-snapshot-detail' }, [
+    el('div', { class: 'panel-head' }, [
+      el('div', {}, [
+        el('h2', {}, snapshot.name || snapshot.initialName),
+        el('p', { class: 'tiny' }, [saved, source ? ` · ${source}` : ''].filter(Boolean).join(' · ')),
+      ]),
+      el('div', { class: 'bb-snapshot-actions' }, [
+        btn('Back to saved resumes', { class: 'btn ghost', onClick: () => go({ kind: 'snapshots' }) }),
+        btn('Print / PDF', { class: 'btn', onClick: () => exportResumeSnapshotPdf(snapshot) }),
+        btn('Download Word', { class: 'btn ghost', onClick: () => exportResumeSnapshotDocx(snapshot) }),
+        renameOpen
+          ? null
+          : btn('Rename', { class: 'btn ghost', onClick: () => { resumeSnapshotRenameOpen = snapshot.id; render(); } }),
+        btn('Delete', {
+          class: 'btn ghost',
+          onClick: () => {
+            if (!confirm('Delete this saved copy from the bank? The frozen data stays in your book for recovery.')) return;
+            store = deleteResumeSnapshot(store, snapshot.id);
+            saveStore();
+            resumeSnapshotRenameOpen = null;
+            go({ kind: 'snapshots' });
+            setNote('Removed from saved resumes.');
+          },
+        }),
+      ]),
+    ]),
+    renameOpen ? el('div', { class: 'bb-snapshot-save' }, [
+      field('Name', renameInput),
+      el('div', { class: 'actions' }, [
+        btn('Save name', {
+          class: 'btn',
+          onClick: () => {
+            const name = renameInput.value.trim();
+            if (!name) {
+              setNote('Name is required.');
+              return;
+            }
+            store = renameResumeSnapshot(store, snapshot.id, name);
+            saveStore();
+            resumeSnapshotRenameOpen = null;
+            render();
+            setNote('Renamed saved resume.');
+          },
+        }),
+        btn('Cancel', {
+          class: 'btn ghost',
+          onClick: () => {
+            resumeSnapshotRenameOpen = null;
+            render();
+          },
+        }),
+      ]),
+    ]) : null,
+    el('div', { class: 'panel-body' }, [preview]),
+  ]);
+}
+
+function snapshotIsDeleted(snapshot) {
+  return (snapshot?.events || []).some((event) => event.kind === 'delete');
+}
+
+function snapshotSaveForm(posting) {
+  const input = el('input', {
+    class: 'bb-snapshot-name-input',
+    value: defaultResumeSnapshotName(posting, new Date()),
+    'aria-label': 'Saved resume name',
+  });
+  return el('div', { class: 'bb-snapshot-save' }, [
+    el('p', { class: 'tiny' }, 'Saves a point-in-time copy of this resume layout and one-page fit. Live edits will not change it.'),
+    field('Name', input),
+    el('div', { class: 'actions' }, [
+      btn('Save copy', {
+        class: 'btn',
+        onClick: () => {
+          const name = input.value.trim();
+          if (!name) {
+            setNote('Name is required.');
+            return;
+          }
+          try {
+            const result = saveResumeSnapshot(store, posting.id, {
+              name,
+              fit: snapshotFitPayload(),
+            });
+            store = result.store;
+            saveStore();
+            resumeSnapshotSaveOpen = null;
+            go({ kind: 'snapshots', id: result.snapshot.id });
+            setNote('Saved a copy of this resume.');
+          } catch (err) {
+            setNote(err?.message || 'Could not save this copy.');
+          }
+        },
+      }),
+      btn('Cancel', {
+        class: 'btn ghost',
+        onClick: () => {
+          resumeSnapshotSaveOpen = null;
+          render();
+        },
+      }),
+    ]),
+  ]);
 }
 
 function resumePreviewPane() {
@@ -4173,6 +4444,15 @@ function resumeWorkspace(posting) {
         btn('Import resume (JSON)', { class: 'btn ghost', onClick: () => resumeFileInput.click() }),
         btn('Print / PDF', { class: 'btn', onClick: () => exportResumePdf(posting) }),
         btn('Download Word', { class: 'btn ghost', onClick: () => exportResumeDocx(posting) }),
+        posting ? btn('Save a copy', {
+          class: 'btn',
+          disabled: !resumeFitReadyForPosting(posting.id),
+          onClick: () => {
+            resumeSnapshotSaveOpen = posting.id;
+            render();
+          },
+        }) : null,
+        btn('Saved resumes', { class: 'btn ghost', onClick: () => go({ kind: 'snapshots' }) }),
         posting ? btn('Replace Resume basics with this posting’s resume', {
           class: 'btn ghost',
           onClick: () => {
@@ -4216,6 +4496,7 @@ function resumeWorkspace(posting) {
         posting ? btn('Back to posting', { class: 'btn ghost', onClick: () => go({ kind: 'jobs', id: posting.id }) }) : null,
       ]),
     ]),
+    posting && resumeSnapshotSaveOpen === posting.id ? snapshotSaveForm(posting) : null,
     el('div', { class: 'bb-resume-split' }, [
       resumeEditorPane(posting, doc),
       resumePreviewPane(),
@@ -4418,6 +4699,19 @@ function render(options = {}) {
 
   if (view.kind === 'profile') {
     root.replaceChildren(el('div', {}, [toolbar(view), profileView()]));
+    finishRender(captured, options, scroll);
+    return;
+  }
+
+  if (view.kind === 'snapshots') {
+    const body = view.id ? savedResumeDetail(view.id) : savedResumesBank();
+    root.replaceChildren(el('div', {}, [toolbar(view), body]));
+    if (view.id) {
+      const snap = resumeSnapshotById(store, view.id);
+      if (snap && !snapshotIsDeleted(snap)) {
+        queueMicrotask(() => refreshResumeSnapshotPreview(snap));
+      }
+    }
     finishRender(captured, options, scroll);
     return;
   }

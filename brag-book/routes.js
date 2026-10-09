@@ -19,6 +19,10 @@ export function viewHash(view) {
     return '#kb';
   }
   if (view.kind === 'profile') return '#profile';
+  if (view.kind === 'snapshots') {
+    if (view.id) return `#saved-resumes/${encodeURIComponent(view.id)}`;
+    return '#saved-resumes';
+  }
   if (view.kind === 'jobs') {
     if (view.id === 'new') return '#jobs/new';
     if (view.id && view.mode === 'prep') return `#jobs/${encodeURIComponent(view.id)}/prep`;
@@ -39,10 +43,21 @@ export function viewHash(view) {
   return '#home';
 }
 
-export function parseViewHash(raw, { entryIds = [], postingIds = [], knowledgeIds = [] } = {}) {
+export function parseViewHash(raw, {
+  entryIds = [],
+  postingIds = [],
+  knowledgeIds = [],
+  snapshotIds = [],
+} = {}) {
   const hash = String(raw || '').replace(/^#/, '').trim();
   if (!hash || hash === 'home' || hash === 'start' || hash === 'pick') return { kind: 'home' };
   if (hash === 'profile' || hash === 'resume-basics') return { kind: 'profile' };
+  if (hash === 'saved-resumes') return { kind: 'snapshots' };
+  if (hash.startsWith('saved-resumes/')) {
+    const id = decodeURIComponent(hash.slice('saved-resumes/'.length));
+    if (snapshotIds.includes(id)) return { kind: 'snapshots', id };
+    return { kind: 'snapshots' };
+  }
   if (hash === 'log' || hash === 'brag' || hash === 'bullets' || hash === 'experiences') return { kind: 'log' };
   if (hash === 'log/new' || hash === 'experiences/new') return { kind: 'log', id: 'new' };
   if (hash.startsWith('log/') || hash.startsWith('experiences/')) {
@@ -85,6 +100,14 @@ export function parseViewHash(raw, { entryIds = [], postingIds = [], knowledgeId
 export function viewTitle(view, store) {
   if (!view || view.kind === 'home') return 'Brag Book';
   if (view.kind === 'profile') return 'Resume basics';
+  if (view.kind === 'snapshots') {
+    if (view.id) {
+      const row = (store?.resumeSnapshots || []).find((item) => item.id === view.id);
+      const name = row?.name || row?.initialName || 'Saved resume';
+      return `${name} · Saved resume`;
+    }
+    return 'Saved resumes';
+  }
   if (view.kind === 'log' && view.id === 'new') return 'Add a resume line';
   if (view.kind === 'log' || view.kind === 'kb') return 'Resume bullets & knowledge';
   if (view.kind === 'jobs' && view.id === 'new') return 'New job posting';
@@ -113,6 +136,7 @@ export function logLayout(view) {
 
 export function hideBookRail(view, store) {
   if (!view) return true;
+  if (view.kind === 'snapshots') return true;
   if (view.kind === 'jobs') return Boolean(view.id) || !(store?.postings || []).length;
   if (view.kind === 'log' || view.kind === 'kb') return false;
   return true;

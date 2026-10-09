@@ -2440,6 +2440,92 @@ a:focus-visible {
   }
 }
 
+.bb-snapshot-save {
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 10px 12px;
+  margin: 0 0 8px;
+  font-family: var(--content-font);
+}
+
+.bb-snapshot-save .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.bb-snapshot-bank .panel-body,
+.bb-snapshot-detail .panel-body {
+  padding-top: 0;
+}
+
+.bb-snapshot-list {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line);
+}
+
+.bb-snapshot-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--content-font);
+}
+
+.bb-snapshot-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.bb-snapshot-meta strong {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.bb-snapshot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.bb-snapshot-detail .bb-resume-preview {
+  margin-top: 8px;
+}
+
+.bb-snapshot-cap-warn {
+  margin: 0 12px 8px;
+  color: var(--muted);
+}
+
+.bb-snapshot-name-input,
+.bb-snapshot-rename-input {
+  width: 100%;
+  max-width: 36rem;
+}
+
+@media (max-width: 860px) {
+  .bb-snapshot-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .bb-snapshot-actions {
+    width: 100%;
+  }
+  .bb-snapshot-actions .btn {
+    flex: 1 1 auto;
+  }
+  .bb-snapshot-save .actions .btn {
+    width: 100%;
+  }
+}
+
 @media (hover: none) {
   .table-req-text {
     border-color: var(--line);

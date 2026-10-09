@@ -10,7 +10,7 @@
 
 import { mergeConcurrentBooks } from './save-controller.js';
 
-export const SCHEMA = 2;
+export const SCHEMA = 3;
 export const STORE_KEY = 'brag-book-store-v1';
 export const LOCAL_STORE_KEY = 'brag-book-store-local';
 export function accountStoreKey(userId) {
@@ -92,7 +92,23 @@ import {
   knowledgeSearchText,
 } from './knowledge-doc.js';
 
+import {
+  RESUME_SNAPSHOT_SCHEMA,
+  activeResumeSnapshots,
+  defaultResumeSnapshotName,
+  deleteResumeSnapshotRecord,
+  freezeResumeSnapshot,
+  mergeResumeSnapshotLists,
+  normalizeResumeSnapshot,
+  normalizeResumeSnapshots,
+  preserveResumeSnapshotLists,
+  renameResumeSnapshotRecord,
+  resumeSnapshotById as snapshotById,
+  resumeSnapshotToDoc,
+} from './resume-snapshots.js';
+
 export { STARTER_RESUME_DOC } from './starter-resume.js';
+export { RESUME_SNAPSHOT_SCHEMA, defaultResumeSnapshotName, resumeSnapshotToDoc } from './resume-snapshots.js';
 
 export {
   RESUME_SECTION_KEYS,
@@ -191,6 +207,7 @@ export function emptyStore() {
     resumeSettings: emptyResumeSettings(),
     basicsBackup: null,
     jobSetup: null,
+    resumeSnapshots: [],
   };
 }
 
@@ -636,6 +653,7 @@ export function normalizeStore(raw, clock = Date.now) {
   store.resumeSettings = normalizeResumeSettings(raw.resumeSettings);
   store.basicsBackup = normalizeBasicsBackup(raw.basicsBackup, clock);
   store.jobSetup = normalizeJobSetup(raw.jobSetup);
+  store.resumeSnapshots = normalizeResumeSnapshots(raw.resumeSnapshots, clock);
   store.v = Number(raw.v) === SCHEMA ? SCHEMA : SCHEMA;
   return migrateCanonicalBullets(store, clock, migrationTimestamps);
 }
@@ -965,6 +983,63 @@ export function preserveLegacyVersions(incoming, current, clock = Date.now) {
     }),
   };
 }
+
+export function preserveResumeSnapshots(incoming, current, clock = Date.now) {
+  const next = normalizeStore(incoming, clock);
+  const saved = normalizeStore(current, clock);
+  return {
+    ...next,
+    resumeSnapshots: preserveResumeSnapshotLists(next.resumeSnapshots, saved.resumeSnapshots),
+  };
+}
+
+export function preserveServerHistory(incoming, current, clock = Date.now) {
+  return preserveResumeSnapshots(preserveLegacyVersions(incoming, current, clock), current, clock);
+}
+
+export function saveResumeSnapshot(store, postingId, { name, fit }, clock = Date.now, random = Math.random) {
+  const posting = postingById(store, postingId);
+  if (!posting) throw new Error('Posting not found.');
+  const snapshot = freezeResumeSnapshot(store, posting, { name, fit }, clock, random);
+  const next = normalizeStore({
+    ...store,
+    resumeSnapshots: [...(store?.resumeSnapshots || []), snapshot],
+  }, clock);
+  serializeBook(next);
+  return { store: next, snapshot: snapshotById(next, snapshot.id, { includeDeleted: true }) };
+}
+
+export function renameResumeSnapshot(store, snapshotId, name, clock = Date.now, random = Math.random) {
+  const list = store?.resumeSnapshots || [];
+  const index = list.findIndex((row) => row.id === snapshotId);
+  if (index < 0) return store;
+  const nextList = list.slice();
+  nextList[index] = normalizeResumeSnapshot(
+    renameResumeSnapshotRecord(list[index], name, clock, random),
+    clock,
+    random,
+  );
+  return normalizeStore({ ...store, resumeSnapshots: nextList }, clock);
+}
+
+export function deleteResumeSnapshot(store, snapshotId, clock = Date.now, random = Math.random) {
+  const list = store?.resumeSnapshots || [];
+  const index = list.findIndex((row) => row.id === snapshotId);
+  if (index < 0) return store;
+  const nextList = list.slice();
+  nextList[index] = normalizeResumeSnapshot(
+    deleteResumeSnapshotRecord(list[index], clock, random),
+    clock,
+    random,
+  );
+  return normalizeStore({ ...store, resumeSnapshots: nextList }, clock);
+}
+
+export function resumeSnapshotById(store, id, options) {
+  return snapshotById(store, id, options);
+}
+
+export { activeResumeSnapshots };
 
 function normalizeJobSetup(raw) {
   if (!raw || typeof raw !== 'object') return null;
@@ -3779,7 +3854,8 @@ export function bookIsEmpty(store) {
     && !book.postings?.length
     && !book.jobs?.length
     && !book.education?.length
-    && !book.credentials?.length;
+    && !book.credentials?.length
+    && !activeResumeSnapshots(book).length;
 }
 
 export function listingSummary(store) {
