@@ -439,10 +439,21 @@ function actorRankTable(actors, { sortByRating = false } = {}) {
   });
 }
 
+function statsColClass(header) {
+  const cls = header.className || '';
+  if (cls.includes('al-rank-col')) return 'al-stats-col-rank';
+  if (cls.includes('al-stat-col--count')) return 'al-stats-col-count';
+  if (cls.includes('al-stat-col--percent')) return 'al-stats-col-percent';
+  if (cls.includes('al-stat-col--money')) return 'al-stats-col-money';
+  if (cls.includes('al-stat-col--rating')) return 'al-stats-col-rating';
+  return 'al-stats-col-name';
+}
+
 function rankTable({ headers, rows, className = '' }) {
   return `
     <div class="al-table-wrap al-table-wrap--cards">
       <table class="al-table al-rank-table al-card-table al-stats-table ${className}">
+        <colgroup>${headers.map((header) => `<col class="${statsColClass(header)}">`).join('')}</colgroup>
         <thead>
           <tr>${headers.map((header) => `<th${header.className ? ` class="${header.className}"` : ''}>${header.label}</th>`).join('')}</tr>
         </thead>

@@ -1301,8 +1301,8 @@ a { color: var(--al-burgundy); }
   font-weight: 600;
   line-height: 1.15;
   color: var(--al-black);
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .al-insights-spot-note {
@@ -2806,6 +2806,13 @@ table.al-table {
   table-layout: fixed;
 }
 
+/* Stats scorecards reuse al-rank-row on <tr>. Rank's old list CSS set
+   display:flex on that class, which blockifies the tds and collapses names. */
+.al-stats-table tr.al-rank-row,
+.al-card-table tr.al-rank-row {
+  display: table-row;
+}
+
 .al-stats-table th,
 .al-stats-table td {
   box-sizing: border-box;
@@ -2814,6 +2821,10 @@ table.al-table {
 
 .al-stats-table th {
   white-space: normal;
+}
+
+.al-stats-table th.num {
+  white-space: nowrap;
 }
 
 .al-stats-table .al-rank-col {
@@ -2827,8 +2838,19 @@ table.al-table {
   font-variant-numeric: tabular-nums;
 }
 
+/* Column widths live on <col>, not tbody tds. A percentage width on
+   .al-card-primary (PR #433's width:100%) does not stretch the column in
+   Chrome — it shrink-wraps to min-width (~1ch / 8rem) so letters stack
+   and thead no longer matches tbody. */
+.al-stats-table col.al-stats-col-rank { width: 2.25rem; }
+.al-stats-table col.al-stats-col-name { width: 42%; }
+.al-stats-table col.al-stats-col-count { width: 4.25rem; }
+.al-stats-table col.al-stats-col-percent { width: 4.5rem; }
+.al-stats-table col.al-stats-col-money { width: 6.5rem; }
+.al-stats-table col.al-stats-col-rating { width: 5.5rem; }
+
 .al-stats-table:not(.al-stats-table--rewatch) .al-card-primary {
-  width: 100%;
+  min-width: 8rem;
 }
 
 .al-stats-table .al-card-primary {
@@ -2840,7 +2862,11 @@ table.al-table {
 }
 
 .al-stats-table .al-card-primary .al-hover-target {
+  display: block;
+  width: 100%;
   max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .al-stats-table .al-stat-col--count {
@@ -3008,7 +3034,7 @@ table.al-table {
   font-variant-numeric: tabular-nums;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 899px) {
   .al-by-month .al-table-wrap--month {
     overflow: hidden;
     margin: 0 -2px;
@@ -3091,8 +3117,13 @@ table.al-table {
   .al-insight .al-card-table {
     width: 100%;
     min-width: 0;
+    table-layout: auto;
     border-collapse: separate;
     border-spacing: 0;
+  }
+
+  .al-insight .al-card-table col {
+    display: none;
   }
 
   .al-insight .al-card-table thead {
@@ -3146,6 +3177,7 @@ table.al-table {
   .al-insight .al-card-table .al-card-primary {
     grid-column: 1 / -1;
     width: auto;
+    min-width: 0;
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
@@ -5077,52 +5109,6 @@ table.al-table {
   cursor: pointer;
 }
 
-.al-rank-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.al-rank-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 88px;
-  padding: 10px 4px;
-  border-bottom: 1px solid var(--al-line);
-}
-
-.al-rank-num {
-  flex: 0 0 2rem;
-  font-family: var(--al-font-display);
-  font-size: 1.35rem;
-  font-weight: 600;
-  color: var(--al-burgundy);
-  text-align: center;
-}
-
-.al-rank-meta {
-  flex: 1;
-  min-width: 0;
-}
-
-.al-rank-title {
-  font-weight: 650;
-  font-size: 1.02rem;
-  line-height: 1.25;
-}
-
-.al-rank-row-actions {
-  display: flex;
-  gap: 12px;
-  margin-top: 6px;
-}
-
-.al-rank-row-actions .al-link-btn {
-  min-height: 32px;
-  padding: 4px 0;
-}
-
 /* Rank stack and unranked titles: poster grid. Phones are three across. */
 .al-rank-grid {
   display: grid;
@@ -5392,15 +5378,6 @@ body.al-log-filters-open .al-mobile-nav {
 }
 
 @media (max-width: 767px) {
-  .al-rank-row {
-    min-height: 96px;
-    padding: 12px 2px;
-  }
-
-  .al-rank-title {
-    font-size: 1.05rem;
-  }
-
   .al-rank-compare-prompt {
     font-size: 1.25rem;
   }
