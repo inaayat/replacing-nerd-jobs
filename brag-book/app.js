@@ -2718,6 +2718,12 @@ function paintFitChip() {
   });
 }
 
+function paintResumeSnapshotSaveButton(postingId) {
+  const node = document.getElementById('resume-save-copy');
+  if (!node) return;
+  node.disabled = !resumeFitReadyForPosting(postingId);
+}
+
 function paintPreviewFitWarning(page) {
   if (!page?.ownerDocument) return;
   page.querySelector('.bb-fit-warn')?.remove();
@@ -2765,6 +2771,7 @@ async function refreshResumePreview(posting) {
     droppedLabels: droppedBulletLabels(doc, result.droppedBulletIds),
   };
   resumeFitPostingId = current?.id || 'basics';
+  paintResumeSnapshotSaveButton(current?.id);
   paintPreviewFitWarning(page);
   if (current?.id) {
     store = updatePostingResume(store, current.id, {
@@ -4432,8 +4439,7 @@ function resumeEditorPane(posting, doc) {
 function resumeWorkspace(posting) {
   const doc = compileResumeDoc(posting, store);
   const wrap = el('section', { class: 'panel bb-resume' });
-  wrap.append(
-    el('div', { class: 'panel-head' }, [
+  const header = el('div', { class: 'panel-head' }, [
       el('div', {}, [
         el('h2', {}, posting ? 'Resume' : 'Resume basics'),
         el('p', { class: 'tiny' }, posting
@@ -4445,6 +4451,7 @@ function resumeWorkspace(posting) {
         btn('Print / PDF', { class: 'btn', onClick: () => exportResumePdf(posting) }),
         btn('Download Word', { class: 'btn ghost', onClick: () => exportResumeDocx(posting) }),
         posting ? btn('Save a copy', {
+          id: 'resume-save-copy',
           class: 'btn',
           disabled: !resumeFitReadyForPosting(posting.id),
           onClick: () => {
@@ -4495,13 +4502,16 @@ function resumeWorkspace(posting) {
         }) : null,
         posting ? btn('Back to posting', { class: 'btn ghost', onClick: () => go({ kind: 'jobs', id: posting.id }) }) : null,
       ]),
-    ]),
-    posting && resumeSnapshotSaveOpen === posting.id ? snapshotSaveForm(posting) : null,
-    el('div', { class: 'bb-resume-split' }, [
+    ]);
+  const split = el('div', { class: 'bb-resume-split' }, [
       resumeEditorPane(posting, doc),
       resumePreviewPane(),
-    ])
-  );
+    ]);
+  wrap.append(header);
+  if (posting && resumeSnapshotSaveOpen === posting.id) {
+    wrap.append(snapshotSaveForm(posting));
+  }
+  wrap.append(split);
   queueMicrotask(() => refreshResumePreview(posting));
   return wrap;
 }

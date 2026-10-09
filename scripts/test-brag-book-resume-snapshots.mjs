@@ -8,6 +8,7 @@ const engine = await import('../brag-book/engine.js');
 const save = await import('../brag-book/save-controller.js');
 const template = await import('../brag-book/resume-template.js');
 const docx = await import('../brag-book/resume-docx.js');
+const storeApi = await import('../brag-book/store.js');
 
 const REQUIRED = [
   'RESUME_SNAPSHOT_SCHEMA',
@@ -42,6 +43,7 @@ const {
   activeResumeSnapshots,
   resumeSnapshotToDoc,
   preserveResumeSnapshots,
+  preserveServerHistory,
 } = engine;
 const { mergeConcurrentBooks } = save;
 const { renderResumeHtml, resumeDocument } = template;
@@ -246,20 +248,67 @@ assert.match(
   /--fs: 9\.5pt/,
 );
 
-// Pending UI/source contract: additive routes and compact responsive bank.
+// Exercise the browser API contract through PUT and GET while using the same
+// server preservation/normalization boundary as lib/brag-book.js.
+const apiBook = capture(fixture(), 'API round trip', fit).store;
+let serverPayload = emptyStore();
+let serverRevision = 1;
+const originalFetch = globalThis.fetch;
+globalThis.fetch = async (path, options = {}) => {
+  assert.equal(path, '/api/bb-book');
+  if (options.method === 'PUT') {
+    const body = JSON.parse(options.body);
+    serverPayload = JSON.parse(serializeBook(
+      preserveServerHistory(body.book, serverPayload, clock),
+    ).json);
+    serverRevision += 1;
+  }
+  return new Response(JSON.stringify({
+    book: serverPayload,
+    updatedAt: ISO,
+    revision: serverRevision,
+    created: false,
+  }), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
+};
+try {
+  await storeApi.saveBook('test-token', JSON.parse(serializeBook(apiBook).json), {
+    revision: 1,
+  });
+  const loaded = await storeApi.loadBook('test-token');
+  const loadedBook = normalizeStore(loaded.book, clock);
+  assert.deepEqual(
+    activeResumeSnapshots(loadedBook).map((row) => row.name),
+    ['API round trip'],
+    'resumeSnapshots survive the PUT/GET JSON boundary',
+  );
+} finally {
+  globalThis.fetch = originalFetch;
+}
+
+// UI/source contract: additive routes and compact responsive bank.
 const appSource = readFileSync(new URL('../brag-book/app.js', import.meta.url), 'utf8');
 const routeSource = readFileSync(new URL('../brag-book/routes.js', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../brag-book/app.css', import.meta.url), 'utf8');
+const apiSource = readFileSync(new URL('../api/brag-book.js', import.meta.url), 'utf8');
+const serverSource = readFileSync(new URL('../lib/brag-book.js', import.meta.url), 'utf8');
 assert.match(appSource, /Save a copy/);
 assert.match(appSource, /Saved resumes/);
 assert.match(appSource, /function savedResumesBank/);
 assert.match(appSource, /function refreshResumeSnapshotPreview/);
+assert.match(appSource, /paintResumeSnapshotSaveButton\(current\?\.id\)/);
 const frozenPreviewSource = appSource.slice(
   appSource.indexOf('function refreshResumeSnapshotPreview'),
   appSource.indexOf('\nfunction ', appSource.indexOf('function refreshResumeSnapshotPreview') + 9),
 );
 assert.doesNotMatch(frozenPreviewSource, /fitOnePage|updatePostingResume|saveStore/);
 assert.match(routeSource, /saved-resumes/);
+assert.match(apiSource, /req\.method === 'PUT'[\s\S]*putBook/);
+assert.match(apiSource, /req\.method === 'GET'[\s\S]*getBook/);
+assert.match(serverSource, /serializeBook\(preserveServerHistory\(raw,\s*current\.book\)\)/);
+assert.match(serverSource, /book:\s*serializeBook\(row\.payload\)\.book/);
 assert.match(cssSource, /\.bb-snapshot-list\s*\{/);
 assert.match(cssSource, /\.bb-snapshot-row\s*\{/);
 assert.match(cssSource, /@media \(max-width:\s*860px\)[\s\S]*?\.bb-snapshot-row/);

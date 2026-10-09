@@ -2979,6 +2979,7 @@ assert.doesNotMatch(appSource, /Expand experience/);
 await renderBookPage('#kb');
 await renderBookPage('#knowledge');
 await renderBookPage('#experiences');
+await renderResumeSnapshotFlow();
 const reqApp = await renderRequirementsPage();
 const reqHtml = nodeMarkup(reqApp);
 const reqText = reqApp.textContent;
@@ -3011,6 +3012,7 @@ function installBookDom(hash, extras = {}) {
       this.value = '';
       this.parentNode = null;
       this.nodeValue = '';
+      this.listeners = new Map();
     }
     get classList() {
       return { toggle() {}, add() {}, remove() {}, contains() { return false; } };
@@ -3020,7 +3022,12 @@ function installBookDom(hash, extras = {}) {
       if (key === 'id') this.id = String(value);
     }
     getAttribute(key) { return this.attrs[key] ?? null; }
-    addEventListener() {}
+    addEventListener(type, listener) {
+      const key = String(type);
+      const listeners = this.listeners.get(key) || [];
+      listeners.push(listener);
+      this.listeners.set(key, listeners);
+    }
     append(...nodes) {
       for (const node of nodes) {
         let child = node;
@@ -3058,7 +3065,12 @@ function installBookDom(hash, extras = {}) {
       return out;
     }
     focus() {}
-    click() {}
+    click() {
+      if (this.disabled) return;
+      for (const listener of this.listeners.get('click') || []) {
+        listener({ target: this, currentTarget: this, preventDefault() {} });
+      }
+    }
     remove() {}
     contains() { return false; }
   }
@@ -3124,7 +3136,7 @@ function installBookDom(hash, extras = {}) {
     location: globalThis.location,
   };
   const mem = new Map();
-  mem.set('brag-book-store-v1', JSON.stringify({
+  const defaultBook = {
     profile: { name: 'Test User' },
     entries: [
       {
@@ -3151,13 +3163,14 @@ function installBookDom(hash, extras = {}) {
     ],
     knowledge: [{ id: 'note_1', title: 'Neon notes', body: 'JWT lives in localStorage' }],
     postings: extras.postings || [],
-  }));
+  };
+  mem.set('brag-book-store-v1', JSON.stringify(extras.book || defaultBook));
   globalThis.localStorage = {
     getItem: (key) => (mem.has(key) ? mem.get(key) : null),
     setItem: (key, value) => mem.set(key, String(value)),
     removeItem: (key) => mem.delete(key),
   };
-  return { app };
+  return { app, mem };
 }
 
 async function renderBookPage(hash) {
@@ -3227,6 +3240,52 @@ async function renderRequirementsPage() {
   const href = new URL('../brag-book/app.js?hash=%23jobs%2Fjob_req_map', import.meta.url);
   await import(href);
   return app;
+}
+
+function buttonWithText(app, text) {
+  return app.querySelectorAll('button').find((node) => node.textContent === text) || null;
+}
+
+async function renderResumeSnapshotFlow() {
+  const posting = {
+    id: 'job_snapshot_dom',
+    title: 'AI Solutions Program Manager, Finance',
+    company: 'Stripe',
+    resume: { mode: 'basics' },
+    requirements: [],
+  };
+  const first = installBookDom('#jobs/job_snapshot_dom/resume', {
+    book: {
+      profile: { name: 'Test User', email: 'test@example.com' },
+      postings: [posting],
+    },
+  });
+  const href = new URL('../brag-book/app.js?resume-snapshot-flow=1', import.meta.url);
+  await import(href);
+  assert.doesNotMatch(first.app.textContent, /\b(?:null|undefined)\b/);
+
+  const open = buttonWithText(first.app, 'Save a copy');
+  assert.ok(open, 'posting resume renders Save a copy');
+  // Fit completion enables this button in the browser. This lightweight DOM
+  // has no iframe layout engine, so emulate that completed state.
+  open.disabled = false;
+  open.click();
+  const name = first.app.querySelector('[aria-label="Saved resume name"]');
+  assert.ok(name, 'Save a copy opens its inline naming form');
+  name.value = 'Stripe finance snapshot';
+  const saveCopy = buttonWithText(first.app, 'Save copy');
+  assert.ok(saveCopy);
+  saveCopy.click();
+
+  const serialized = first.mem.get('brag-book-store-v1');
+  const reloaded = normalizeStore(JSON.parse(serialized));
+  assert.equal(reloaded.resumeSnapshots.length, 1);
+  assert.equal(reloaded.resumeSnapshots[0].name, 'Stripe finance snapshot');
+
+  const second = installBookDom('#saved-resumes', { book: reloaded });
+  const reloadHref = new URL('../brag-book/app.js?resume-snapshot-flow=2', import.meta.url);
+  await import(reloadHref);
+  assert.match(second.app.textContent, /Stripe finance snapshot/);
 }
 
 const looseJobs = normalizeStore({
