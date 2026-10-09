@@ -4,7 +4,7 @@
  */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { rankStackHtml, unrankedGridHtml } from '../amc-a-lister/engine/rank-view.js';
+import { rankStackHtml, rankStackWithUnrankedHtml, unrankedGridHtml } from '../amc-a-lister/engine/rank-view.js';
 import {
   createInsertSearch,
   applyInsertAnswer,
@@ -143,6 +143,30 @@ function placeWithAnswers(rankedLength, answers) {
   assert.deepEqual(unique.map((m) => m.tmdb_id), [11, 22]);
   assert.equal(unique[0].title, 'Dune');
   assert.equal(unique[1].year, 1995);
+
+  // Missing watch list (the Rank page bug) must not throw, and yields nothing to rank.
+  assert.deepEqual(uniqueLoggedMovies(undefined, [11]), []);
+  assert.deepEqual(uniqueLoggedShows(null, [100]), []);
+
+  // 110 theater screenings / 92 ranked unique titles: leftover unique movies stay unranked.
+  const rankedWatches = [];
+  for (let i = 1; i <= 92; i += 1) rankedWatches.push({ tmdb_id: i, title: `R${i}`, in_theaters: true });
+  const extraUnranked = [];
+  for (let i = 93; i <= 110; i += 1) extraUnranked.push({ tmdb_id: i, title: `U${i}`, in_theaters: true });
+  const leftover = uniqueLoggedMovies(
+    rankedWatches.concat(extraUnranked),
+    rankedWatches.map((w) => w.tmdb_id),
+  );
+  assert.equal(leftover.length, 18);
+  assert.equal(leftover[0].tmdb_id, 93);
+  assert.equal(
+    uniqueLoggedMovies(
+      rankedWatches.concat(rankedWatches.slice(0, 18)),
+      rankedWatches.map((w) => w.tmdb_id),
+    ).length,
+    0,
+    'rewatches of ranked titles are not unranked',
+  );
 }
 
 // Theater-only: home/streaming excluded, DNFs included, rewatches once.
@@ -256,14 +280,48 @@ function placeWithAnswers(rankedLength, answers) {
 
   const rankSource = readFileSync(new URL('../amc-a-lister/engine/rank.js', import.meta.url), 'utf8');
   assert.equal(rankSource.includes('slice(0, 12)'), false);
-  assert.match(rankSource, /id="rank-unranked"/);
+  assert.match(rankSource, /rankStackWithUnrankedHtml/);
   assert.match(rankSource, /state\.runQueue\(unranked\)/);
+  assert.match(rankSource, /getElementById\('rank-unranked'\)/);
+  // Kind state must keep the watch log. Passing only pruneRanks(...) left
+  // state.watches undefined, so uniqueLogged was always [] and the button never rendered.
+  assert.match(
+    rankSource,
+    /createKindState\(\s*await pruneRanks\('movies'[\s\S]*?auth\),\s*movieWatches/,
+  );
+  assert.match(
+    rankSource,
+    /createKindState\(\s*await pruneRanks\('tv'[\s\S]*?auth\),\s*tvWatches/,
+  );
+  assert.equal(rankSource.includes("createKindState(await pruneRanks('movies'"), false);
+
+  const withUnranked = rankStackWithUnrankedHtml(
+    ranked,
+    unranked,
+    { buttonLabel: 'Rank 13 unranked movies', unrankedLabel: 'Not ranked yet' },
+  );
+  const buttonAt = withUnranked.indexOf('id="rank-unranked"');
+  const listAt = withUnranked.indexOf('id="rank-list"');
+  const gridAt = withUnranked.indexOf('al-rank-grid--unranked');
+  assert.ok(buttonAt >= 0 && listAt > buttonAt, 'Rank unranked button sits above the ranked grid');
+  assert.ok(gridAt > listAt, 'unranked posters stay below the ranked grid');
+  assert.match(withUnranked, /Rank 13 unranked movies/);
+  assert.equal((withUnranked.match(/data-add-logged="/g) || []).length, 13);
+
+  const noneUnranked = rankStackWithUnrankedHtml(ranked, [], {
+    buttonLabel: 'Rank 0 unranked movies',
+    unrankedLabel: 'Not ranked yet',
+  });
+  assert.equal(noneUnranked.includes('id="rank-unranked"'), false);
+  assert.match(noneUnranked, /id="rank-list"/);
+  assert.equal(noneUnranked.includes('al-rank-grid--unranked'), false);
 
   const css = readFileSync(new URL('../amc-a-lister/engine/app.css', import.meta.url), 'utf8');
   const gridCss = css.slice(css.indexOf('/* Rank stack and unranked'), css.indexOf('.al-rank-modal,'));
   const phoneCss = gridCss.slice(0, gridCss.indexOf('@media (min-width: 768px)'));
   assert.match(phoneCss, /repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
   assert.match(gridCss, /repeat\(auto-fill, minmax\(150px, 1fr\)\)/);
+  assert.match(css, /\.al-rank-unranked-bar/);
 }
 
 console.log('amc alist rank tests passed');

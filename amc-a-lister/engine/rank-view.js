@@ -58,3 +58,23 @@ export function rankStackHtml(ranks) {
   if (!ranks?.length) return '<p class="al-empty">Nothing ranked yet.</p>';
   return `<div class="al-rank-grid">${ranks.map((item, i) => rankedTileHtml(item, i + 1)).join('')}</div>`;
 }
+
+/**
+ * Rank-unranked control sits above the ranked grid. Hidden when nothing is unranked.
+ * Individual unranked posters stay below the stack so they don't push #1 off screen.
+ */
+export function rankStackWithUnrankedHtml(ranks, unranked, { buttonLabel, unrankedLabel } = {}) {
+  const items = unranked || [];
+  const bar = items.length
+    ? `<div class="al-rank-unranked-bar">
+        <button type="button" class="al-btn al-btn-primary" id="rank-unranked">${escapeHtml(buttonLabel || '')}</button>
+      </div>`
+    : '';
+  const below = items.length
+    ? `<div class="al-rank-unranked">
+        <p class="al-rank-unranked-label">${escapeHtml(unrankedLabel || 'Not ranked yet')} · ${items.length}</p>
+        ${unrankedGridHtml(items)}
+      </div>`
+    : '';
+  return `${bar}<div id="rank-list">${rankStackHtml(ranks)}</div>${below}`;
+}

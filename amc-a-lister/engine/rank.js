@@ -16,7 +16,7 @@ import {
   dropIneligibleTvRanks,
   unlinkedTvShowCount,
 } from './rank-insert.js';
-import { rankStackHtml, unrankedGridHtml } from './rank-view.js';
+import { rankStackWithUnrankedHtml } from './rank-view.js';
 
 const RANK_KIND_KEY = 'alist.rank.kind';
 
@@ -121,7 +121,7 @@ function storeKind(kind) {
 function createKindState(ranks, watches) {
   return {
     ranks,
-    watches,
+    watches: watches || [],
     pending: null,
     candidate: null,
     insertState: null,
@@ -156,11 +156,18 @@ async function loadPage(auth, tvEnabled, initialKind) {
     tvWatches = await linkTvWatchesForRank(auth, results[3]?.watches || []);
   }
 
+  const movieWatches = watches || [];
   const page = {
     kind: initialKind === 'tv' && tvEnabled ? 'tv' : 'movies',
     tvEnabled,
-    movies: createKindState(await pruneRanks('movies', movieRanks || [], watches || [], auth)),
-    tv: createKindState(await pruneRanks('tv', tvRanks, tvWatches, auth)),
+    movies: createKindState(
+      await pruneRanks('movies', movieRanks || [], movieWatches, auth),
+      movieWatches,
+    ),
+    tv: createKindState(
+      await pruneRanks('tv', tvRanks, tvWatches, auth),
+      tvWatches,
+    ),
   };
 
   const render = () => {
@@ -353,18 +360,10 @@ function listHtml(state, cfg) {
       <div class="al-rank-add">
         ${searchFieldHtml(cfg.searchPlaceholder)}
       </div>
-      ${unranked.length ? `
-        <div class="al-rank-unranked">
-          <div class="al-rank-unranked-head">
-            <p class="al-rank-unranked-label">${cfg.unrankedLabel} · ${unranked.length}</p>
-            <button type="button" class="al-btn al-btn-primary" id="rank-unranked">${cfg.rankUnrankedButton(unranked.length)}</button>
-          </div>
-          ${unrankedGridHtml(unranked)}
-        </div>
-      ` : ''}
-      <div id="rank-list">
-        ${rankStackHtml(state.ranks)}
-      </div>
+      ${rankStackWithUnrankedHtml(state.ranks, unranked, {
+        buttonLabel: cfg.rankUnrankedButton(unranked.length),
+        unrankedLabel: cfg.unrankedLabel,
+      })}
     </section>
   `;
 }

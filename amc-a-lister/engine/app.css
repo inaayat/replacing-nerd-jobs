@@ -5068,6 +5068,17 @@ table.al-table {
   margin: 0;
 }
 
+.al-rank-unranked-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.al-rank-unranked-bar .al-btn {
+  min-height: 44px;
+}
+
 .al-rank-unranked {
   display: flex;
   flex-direction: column;
