@@ -339,11 +339,13 @@ assert(!collapsedAgain.includes('al-log-detail'), 'collapsed Coming Soon hides t
 // ran the tab handler, which sets expandedId = null and re-renders.
 const wtwSource = readFileSync(new URL('../amc-a-lister/engine/what-to-watch.js', import.meta.url), 'utf8');
 const navSource = readFileSync(new URL('../amc-a-lister/engine/nav.js', import.meta.url), 'utf8');
-assert(wtwSource.includes("label: 'To watch'"), 'watchlist page title/tab is To watch');
-assert(wtwSource.includes('To watch <span class="al-segment-count"'), 'in-page tab is labeled To watch');
+assert(wtwSource.includes("label: 'Watch',"), 'watchlist page title/tab is Watch');
+assert(wtwSource.includes('Watch <span class="al-segment-count"'), 'in-page tab is labeled Watch');
 assert(!/label: 'Coming Soon'/.test(wtwSource), 'Coming Soon is no longer the watchlist tab label');
-assert(navSource.includes("label: 'To watch'"), 'nav tab is labeled To watch');
+assert(!/label: 'To watch'/.test(wtwSource), 'To watch is no longer the watchlist tab label');
+assert(navSource.includes("label: 'Watch',"), 'nav tab is labeled Watch');
 assert(!/label: 'Coming Soon'/.test(navSource), 'Coming Soon is no longer the nav tab label');
+assert(!/label: 'To watch'/.test(navSource), 'To watch is no longer the nav tab label');
 
 const listWrapTag = wtwSource.match(/<div[^>]*id="watchlist-list"[^>]*>/)?.[0] || '';
 assert(listWrapTag !== '', 'what-to-watch renders a #watchlist-list wrapper');

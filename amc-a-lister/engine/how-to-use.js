@@ -16,9 +16,9 @@ function howToUseSteps() {
         who you went with, and the movie details.
       </li>
       <li>
-        <strong><a href="/amc-a-lister/what-to-watch.html">To watch</a></strong>
+        <strong><a href="/amc-a-lister/what-to-watch.html">Watch</a></strong>
         tracks movies you want to see. Add titles from search; they sort by US release date
-        when TMDB has one. Tap a poster on To watch or Watch at Home for the same movie
+        when TMDB has one. Tap a poster on Watch or Watch at Home for the same movie
         details you get in your watch log. Logging a film removes it from this list.
       </li>
       <li>

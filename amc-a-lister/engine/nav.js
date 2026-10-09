@@ -10,7 +10,7 @@ const RANK_BETA_KEY = 'alist.beta.rank';
 
 const PAGES = [
   { href: '/amc-a-lister/', label: 'Log', id: 'log' },
-  { href: '/amc-a-lister/what-to-watch.html', label: 'To watch', id: 'what-to-watch' },
+  { href: '/amc-a-lister/what-to-watch.html', label: 'Watch', id: 'what-to-watch' },
   { href: '/amc-a-lister/tv.html', label: 'TV', id: 'tv', beta: 'tv' },
   { href: '/amc-a-lister/rank.html', label: 'Rank', id: 'rank', beta: 'rank' },
   { href: '/amc-a-lister/statistics.html', label: 'Stats', id: 'statistics' },
