@@ -10,7 +10,7 @@ import {
 } from './watchlist-ui.js';
 
 const VIEWS = {
-  'coming-soon': { label: 'Coming Soon', logLabel: 'Log screening' },
+  'coming-soon': { label: 'Watch', logLabel: 'Log screening' },
   'watch-at-home': { label: 'Watch at Home', logLabel: 'Log at home' },
 };
 
@@ -18,7 +18,7 @@ bootPage(async ({ root, auth }) => {
   if (!requireSignIn(auth, root)) return;
 
   root.innerHTML = renderShell({
-    title: 'Coming Soon',
+    title: 'Watch',
     subtitle: "What's next and what's at home — tap a poster for details.",
     body: `<main class="al-main" id="wtw-main"><p class="al-muted">Loading…</p></main>`,
     signedIn: true,
@@ -86,7 +86,7 @@ async function loadPage(auth) {
       </div>
       <div class="al-segment al-watchlist-segment" role="tablist" aria-label="Watchlist view">
         <button type="button" class="al-segment-btn is-active" data-wtw-view="coming-soon" role="tab" aria-selected="true">
-          Coming Soon <span class="al-segment-count" id="wtw-soon-count">${soonCount}</span>
+          Watch <span class="al-segment-count" id="wtw-soon-count">${soonCount}</span>
         </button>
         <button type="button" class="al-segment-btn" data-wtw-view="watch-at-home" role="tab" aria-selected="false">
           Watch at Home <span class="al-segment-count" id="wtw-home-count">${homeCount}</span>
