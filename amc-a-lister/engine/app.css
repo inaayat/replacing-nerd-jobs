@@ -5336,6 +5336,7 @@ article.al-rank-tile {
 }
 
 .al-rank-card-poster {
+  display: block;
   width: 100%;
   height: auto;
   max-height: 100%;
@@ -5343,6 +5344,7 @@ article.al-rank-tile {
   border-radius: 10px;
   object-fit: cover;
   background: var(--al-panel-2);
+  flex-shrink: 1;
 }
 
 .al-rank-card-title {
@@ -5375,6 +5377,59 @@ article.al-rank-tile {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+/* Desktop: cap posters and center the whole head-to-head so it fits the viewport. */
+@media (min-width: 768px) {
+  .al-rank-compare {
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    gap: 10px;
+    padding: 20px 24px;
+  }
+
+  .al-rank-compare-kicker,
+  .al-rank-compare-prompt,
+  .al-rank-compare-hint {
+    max-width: 36rem;
+    text-align: center;
+  }
+
+  .al-rank-compare-cards {
+    flex: 0 1 auto;
+    width: auto;
+    max-width: 100%;
+    justify-content: center;
+    gap: 16px;
+  }
+
+  .al-rank-card {
+    width: min(240px, calc((100vw - 5rem) / 2));
+    max-width: 240px;
+    align-items: center;
+    text-align: center;
+  }
+
+  .al-rank-card-badge {
+    align-self: center;
+  }
+
+  .al-rank-card-poster {
+    width: auto;
+    max-width: 100%;
+    height: min(42vh, 320px);
+    max-height: min(42vh, 320px);
+  }
+
+  .al-rank-card-cta {
+    width: 100%;
+  }
+
+  .al-rank-compare-actions {
+    justify-content: center;
+    flex-shrink: 0;
+  }
 }
 
 body.al-rank-comparing,

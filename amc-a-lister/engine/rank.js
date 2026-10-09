@@ -418,14 +418,14 @@ function compareHtml(state, cfg) {
       <div class="al-rank-compare-cards">
         <button type="button" class="al-rank-card" data-compare="worse" id="rank-card-pivot">
           <span class="al-rank-card-badge">#${pivot.position || state.insertState.pivotIndex + 1}</span>
-          ${posterHtml(pivot, { size: 'w342', width: 220, height: 330, className: 'al-poster al-rank-card-poster' })}
+          ${posterHtml(pivot, { size: 'w342', className: 'al-poster al-rank-card-poster', fluid: true })}
           <span class="al-rank-card-title">${escapeHtml(pivot.title)}</span>
           <span class="al-muted">${pivot.year || ''}</span>
           <span class="al-rank-card-cta">This one</span>
         </button>
         <button type="button" class="al-rank-card al-rank-card--new" data-compare="better" id="rank-card-new">
           <span class="al-rank-card-badge is-new">New</span>
-          ${posterHtml(candidate, { size: 'w342', width: 220, height: 330, className: 'al-poster al-rank-card-poster' })}
+          ${posterHtml(candidate, { size: 'w342', className: 'al-poster al-rank-card-poster', fluid: true })}
           <span class="al-rank-card-title">${escapeHtml(candidate.title)}</span>
           <span class="al-muted">${candidate.year || ''}</span>
           <span class="al-rank-card-cta">This one</span>

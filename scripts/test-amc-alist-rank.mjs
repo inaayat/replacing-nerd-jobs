@@ -322,6 +322,22 @@ function placeWithAnswers(rankedLength, answers) {
   assert.match(phoneCss, /repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
   assert.match(gridCss, /repeat\(auto-fill, minmax\(150px, 1fr\)\)/);
   assert.match(css, /\.al-rank-unranked-bar/);
+
+  // Desktop compare: capped, centered posters so header + cards + skip/finish fit the viewport.
+  const desktopCompare = css.slice(
+    css.indexOf('/* Desktop: cap posters'),
+    css.indexOf('body.al-rank-comparing'),
+  );
+  assert.match(desktopCompare, /@media \(min-width: 768px\)/);
+  assert.match(desktopCompare, /overflow: hidden/);
+  assert.match(desktopCompare, /align-items: center/);
+  assert.match(desktopCompare, /justify-content: center/);
+  assert.match(desktopCompare, /min\(42vh, 320px\)/);
+  assert.match(desktopCompare, /max-width: 240px/);
+  const phoneCompare = css.slice(css.lastIndexOf('@media (max-width: 767px)'));
+  assert.equal(phoneCompare.includes('min(42vh, 320px)'), false);
+
+  assert.match(rankSource, /al-rank-card-poster', fluid: true/);
 }
 
 console.log('amc alist rank tests passed');
