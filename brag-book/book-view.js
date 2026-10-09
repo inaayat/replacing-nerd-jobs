@@ -52,6 +52,7 @@ export function homeStartCards() {
   return [
     { key: 'postings', view: { kind: 'jobs' } },
     { key: 'resume', view: { kind: 'profile' } },
+    { key: 'snapshots', view: { kind: 'snapshots' } },
     { key: 'book', view: { kind: 'log' }, combined: true },
   ];
 }
