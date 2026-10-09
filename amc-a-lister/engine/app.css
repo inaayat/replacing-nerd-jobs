@@ -4605,6 +4605,10 @@ table.al-table {
   margin: 0;
 }
 
+.al-watch-card-facts--tv .al-watch-card-fact {
+  grid-template-columns: 3.85rem minmax(0, 1fr);
+}
+
 .al-watch-card-fact dt {
   margin: 0;
   font-size: 0.62rem;

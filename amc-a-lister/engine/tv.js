@@ -8,7 +8,8 @@ import {
   wireWatchlistLogList,
   wireWatchlistAddForm,
 } from './watchlist-ui.js';
-import { escapeHtml, posterHtml, shortDate, ratingLabel } from './format.js';
+import { escapeHtml, posterHtml } from './format.js';
+import { tvWatchListHtml } from './tv-watch-grid.js';
 
 const VIEWS = {
   watched: { label: 'Watched', segment: 'Watched' },
@@ -197,28 +198,7 @@ async function loadPage(auth) {
 
   const renderWatchedList = () => {
     const listEl = document.getElementById('tv-watched-list');
-    if (!state.watches.length) {
-      listEl.innerHTML = '<div class="al-empty">No shows logged yet. Add one above.</div>';
-      refreshHeader();
-      return;
-    }
-
-    listEl.innerHTML = `
-      <div class="al-log-list al-log-list--tv">
-        <div class="al-log-head al-log-head--tv" aria-hidden="true">
-          <span class="al-log-col al-col-poster"></span>
-          <span class="al-log-col">Date</span>
-          <span class="al-log-col">Title</span>
-          <span class="al-log-col">Episode</span>
-          <span class="al-log-col">Rating</span>
-          <span class="al-log-col">Actions</span>
-        </div>
-        ${state.watches.map((w) => (
-          w.id === state.watchedEditingId ? tvEditRowHtml(w) : tvViewRowHtml(w)
-        )).join('')}
-      </div>
-    `;
-
+    listEl.innerHTML = tvWatchListHtml(state);
     wireWatchedActions(auth, state, renderWatchedList);
     refreshHeader();
   };
@@ -283,10 +263,16 @@ async function loadPage(auth) {
 
   document.querySelectorAll('[data-tv-view]').forEach((btn) => {
     btn.addEventListener('click', () => {
+      const previousView = state.view;
       state.view = btn.dataset.tvView;
       if (state.view === 'watched') {
         state.expandedId = null;
+        state.detailsError = null;
         state.editingId = null;
+      } else if (previousView === 'watched') {
+        state.watchedEditingId = null;
+        state.expandedId = null;
+        state.detailsError = null;
       } else {
         state.watchedEditingId = null;
       }
@@ -305,82 +291,98 @@ async function loadPage(auth) {
   renderWatchedList();
 }
 
-function episodeLabel(w) {
-  if (w.season != null && w.episode != null) return `S${w.season}E${w.episode}`;
-  if (w.season != null) return `Season ${w.season}`;
-  return '—';
-}
+async function loadTvWatchDetails(auth, state, watchId, render) {
+  const watch = state.watches.find((w) => String(w.id) === String(watchId));
+  if (!watch?.tmdb_id) return;
+  if (state.detailsCache.has(watchId) || state.detailsCache.has(watch.id)) return;
 
-function tvViewRowHtml(w) {
-  return `
-    <article class="al-log-row al-log-row--tv" data-tv-id="${w.id}">
-      <div class="al-log-col al-col-poster">${posterHtml(w, { size: 'w92', width: 28, height: 42 })}</div>
-      <div class="al-log-col al-log-col--desktop">${shortDate(w.watched_on)}</div>
-      <div class="al-log-col al-log-col--title">${escapeHtml(w.title)}</div>
-      <div class="al-log-col al-log-col--desktop al-muted">${escapeHtml(episodeLabel(w))}</div>
-      <div class="al-log-col al-log-col--desktop">${ratingLabel(w)}</div>
-      <div class="al-log-col al-row-actions">
-        <button type="button" class="al-link-btn" data-tv-edit="${w.id}">Edit</button>
-        <button type="button" class="al-link-btn" data-tv-delete="${w.id}">Delete</button>
-      </div>
-    </article>
-  `;
-}
+  state.detailsLoading = watchId;
+  state.detailsError = null;
+  if (state.view === 'watched') render();
 
-function tvEditRowHtml(w) {
-  const ratingVal = w.dnf ? 'dnf' : (w.rating != null ? String(w.rating) : '');
-  return `
-    <article class="al-log-row al-log-row--tv al-log-row--editing" data-tv-id="${w.id}">
-      <form class="al-tv-edit-form" data-tv-edit-form="${w.id}">
-        <div class="al-tv-add-row">
-          <input class="al-input" name="title" type="text" value="${escapeHtml(w.title)}" required />
-          <input class="al-input al-tv-add-date" name="watched_on" type="date" value="${w.watched_on}" required aria-label="Date watched" />
-          <input class="al-input al-tv-add-season" name="season" type="number" min="1" placeholder="S" value="${w.season ?? ''}" inputmode="numeric" aria-label="Season" />
-          <input class="al-input al-tv-add-episode" name="episode" type="number" min="1" placeholder="E" value="${w.episode ?? ''}" inputmode="numeric" aria-label="Episode" />
-          <select class="al-select al-tv-add-rating" name="rating" aria-label="Rating">
-            <option value="">Rating</option>
-            <option value="5" ${ratingVal === '5' ? 'selected' : ''}>5★</option>
-            <option value="4" ${ratingVal === '4' ? 'selected' : ''}>4★</option>
-            <option value="3" ${ratingVal === '3' ? 'selected' : ''}>3★</option>
-            <option value="2" ${ratingVal === '2' ? 'selected' : ''}>2★</option>
-            <option value="1" ${ratingVal === '1' ? 'selected' : ''}>1★</option>
-            <option value="dnf" ${ratingVal === 'dnf' ? 'selected' : ''}>DNF</option>
-          </select>
-          <button class="al-btn al-btn-primary" type="submit">Save</button>
-          <button class="al-btn" type="button" data-tv-cancel="${w.id}">Cancel</button>
-        </div>
-        <input type="hidden" name="tmdb_id" value="${w.tmdb_id ?? ''}" />
-      </form>
-    </article>
-  `;
+  try {
+    const { show } = await tvApi.details(auth.token, watch.tmdb_id);
+    if (!show) throw new Error('TV show not found on TMDB.');
+    state.detailsCache.set(watchId, show);
+    if (show?.poster_path && !watch.poster_path) {
+      const withPoster = { ...watch, poster_path: show.poster_path };
+      state.watches = state.watches.map((w) => (String(w.id) === String(watchId) ? withPoster : w));
+    }
+  } catch (err) {
+    state.detailsError = err.message || 'Could not load show details.';
+  } finally {
+    state.detailsLoading = null;
+    if (state.view === 'watched') render();
+  }
 }
 
 function wireWatchedActions(auth, state, render) {
-  document.querySelectorAll('[data-tv-edit]').forEach((btn) => {
-    btn.addEventListener('click', () => {
+  const root = document.getElementById('tv-watched-list');
+  if (!root) return;
+
+  root.querySelectorAll('[data-expand-row]').forEach((row) => {
+    const toggle = (e) => {
+      if (e.target.closest('.al-row-actions')) return;
+      const entry = row.closest('.al-log-entry');
+      const id = entry?.dataset.entryId;
+      if (!id) return;
+
+      if (String(state.expandedId) === id) {
+        state.expandedId = null;
+        state.detailsError = null;
+        render();
+        return;
+      }
+
+      state.expandedId = id;
+      state.watchedEditingId = null;
+      state.detailsError = null;
+      const watch = state.watches.find((w) => String(w.id) === id);
+      if (watch?.tmdb_id && !state.detailsCache.has(id) && !state.detailsCache.has(watch.id)) {
+        loadTvWatchDetails(auth, state, id, render);
+      } else {
+        render();
+      }
+    };
+
+    row.addEventListener('click', toggle);
+    row.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggle(e);
+      }
+    });
+  });
+
+  root.querySelectorAll('[data-tv-edit]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
       state.watchedEditingId = btn.dataset.tvEdit;
+      state.expandedId = null;
       render();
     });
   });
 
-  document.querySelectorAll('[data-tv-cancel]').forEach((btn) => {
+  root.querySelectorAll('[data-tv-cancel]').forEach((btn) => {
     btn.addEventListener('click', () => {
       state.watchedEditingId = null;
       render();
     });
   });
 
-  document.querySelectorAll('[data-tv-delete]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
+  root.querySelectorAll('[data-tv-delete]').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
       if (!confirm('Delete this entry?')) return;
       await tvWatchesApi.remove(auth.token, btn.dataset.tvDelete);
       state.watches = state.watches.filter((w) => w.id !== btn.dataset.tvDelete);
       if (state.watchedEditingId === btn.dataset.tvDelete) state.watchedEditingId = null;
+      if (String(state.expandedId) === btn.dataset.tvDelete) state.expandedId = null;
       render();
     });
   });
 
-  document.querySelectorAll('[data-tv-edit-form]').forEach((form) => {
+  root.querySelectorAll('[data-tv-edit-form]').forEach((form) => {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const id = form.dataset.tvEditForm;
@@ -399,6 +401,7 @@ function wireWatchedActions(auth, state, render) {
       };
       const { watch } = await tvWatchesApi.update(auth.token, payload);
       const prev = state.watches.find((w) => w.id === id);
+      state.detailsCache.delete(id);
       state.watches = state.watches.map((w) => (w.id === id ? { ...watch, poster_path: watch.poster_path || prev?.poster_path } : w));
       state.watchedEditingId = null;
       render();
