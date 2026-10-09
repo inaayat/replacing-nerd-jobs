@@ -43,6 +43,7 @@ function actionIcon(name) {
     person: '<path d="M12 12.2a3.1 3.1 0 1 0-3.1-3.1 3.1 3.1 0 0 0 3.1 3.1z"/><path d="M5.5 19.4v-.6a4.2 4.2 0 0 1 4.2-4.2h4.6a4.2 4.2 0 0 1 4.2 4.2v.6"/>',
     edit: '<path d="M13.6 5.6 18.4 10.4"/><path d="M4.6 19.4 5.8 15 15 5.8a1.5 1.5 0 0 1 2.1 0l1.1 1.1a1.5 1.5 0 0 1 0 2.1L9 18.2l-4.4 1.2z"/>',
     remove: '<path d="M5.2 7.6h13.6"/><path d="M9.2 7.5V5.8h5.6v1.7"/><path d="M7.4 7.6l.8 11.2h7.6l.8-11.2"/><path d="M10.4 10.6v5.2M13.6 10.6v5.2"/>',
+    close: '<path d="M6.2 6.2 17.8 17.8"/><path d="M17.8 6.2 6.2 17.8"/>',
   };
   return `<svg class="al-watchlist-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[name]}</svg>`;
 }
@@ -74,55 +75,183 @@ function fact(label, value) {
   return `<div class="al-watch-card-fact"><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`;
 }
 
-function screeningMoreHtml(watch) {
-  const format = watch.in_theaters === false ? '—' : (watch.format || 'Standard');
-  const seat = watch.in_theaters === false
-    ? '—'
-    : ([watch.auditorium, watch.seat].filter(Boolean).join(' · ') || '—');
-  const notes = watch.notes
-    ? fact('Notes', watch.notes)
-    : '';
+export function watchVtName(id) {
+  return `w${String(id ?? '').replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+}
+
+export function prefersReducedMotion() {
+  try {
+    return typeof matchMedia === 'function'
+      && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  } catch {
+    return false;
+  }
+}
+
+/** FLIP the grid after a DOM swap. View Transitions win when the browser has them. */
+export function withWatchGridTransition(container, apply) {
+  if (typeof apply !== 'function') return;
+  if (prefersReducedMotion() || !container) {
+    apply();
+    return;
+  }
+  if (typeof document !== 'undefined' && typeof document.startViewTransition === 'function') {
+    document.startViewTransition(() => { apply(); });
+    return;
+  }
+  flipWatchGrid(container, apply);
+}
+
+export function flipWatchGrid(container, apply) {
+  const first = new Map();
+  container.querySelectorAll('[data-entry-id]').forEach((el) => {
+    first.set(el.dataset.entryId, el.getBoundingClientRect());
+  });
+  apply();
+  container.querySelectorAll('[data-entry-id]').forEach((el) => {
+    const prev = first.get(el.dataset.entryId);
+    if (!prev || typeof el.animate !== 'function') return;
+    const last = el.getBoundingClientRect();
+    const dx = prev.left - last.left;
+    const dy = prev.top - last.top;
+    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
+    el.animate(
+      [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }],
+      { duration: 320, easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)' },
+    );
+  });
+  const more = container.querySelector('.al-watch-grid-item.is-expanded .al-watch-card-more');
+  more?.animate?.(
+    [{ opacity: 0 }, { opacity: 1 }],
+    { duration: 240, easing: 'ease-out' },
+  );
+}
+
+function detailRow(label, valueHtml) {
+  return `<div class="al-watch-detail-row"><dt>${escapeHtml(label)}</dt><dd>${valueHtml}</dd></div>`;
+}
+
+function textRow(label, value) {
+  return detailRow(label, escapeHtml(value));
+}
+
+export function castChipsHtml(names) {
+  if (!names?.length) return escapeHtml('—');
+  return `<ul class="al-watch-cast">${names.map((name) => (
+    `<li class="al-watch-cast-chip">${escapeHtml(name)}</li>`
+  )).join('')}</ul>`;
+}
+
+function formatLabel(watch) {
+  if (watch.in_theaters === false) return '—';
+  return watch.format || 'Standard';
+}
+
+function seatLabel(watch) {
+  if (watch.in_theaters === false) return '—';
+  return [watch.auditorium, watch.seat].filter(Boolean).join(' · ') || '—';
+}
+
+function screeningGroupHtml(watch) {
+  const notes = watch.notes ? textRow('Notes', watch.notes) : '';
   return `
-    <dl class="al-watch-more-facts">
-      ${fact('Format', format)}
-      ${fact('Seat', seat)}
-      ${fact('With', withLabel(watch))}
-      ${notes}
-    </dl>
+    <section class="al-watch-detail-group">
+      <h4 class="al-watch-detail-kicker">Screening</h4>
+      <dl class="al-watch-detail-list">
+        ${textRow('Date', shortDate(watch.watched_on))}
+        ${textRow('Theater', theaterLabel(watch))}
+        ${textRow('Format', formatLabel(watch))}
+        ${textRow('Seat', seatLabel(watch))}
+        ${textRow('With', withLabel(watch))}
+        ${textRow('Cost', costLabel(watch))}
+        ${detailRow('Rating', ratingStarsHtml(watch))}
+        ${notes}
+      </dl>
+    </section>
   `;
 }
 
 function movieDetailsHtml(watch, state) {
   if (!watch.tmdb_id) {
-    return '<p class="al-muted al-watch-more-note">No TMDB match for this title. Use Edit and pick the movie from search to load details.</p>';
+    return `
+      <section class="al-watch-detail-group">
+        <h4 class="al-watch-detail-kicker">Film</h4>
+        <p class="al-muted al-watch-more-note">No TMDB match for this title. Use Edit and pick the movie from search to load details.</p>
+      </section>
+    `;
   }
   if (state.detailsLoading === watch.id) {
-    return '<p class="al-muted al-watch-more-note">Loading movie details…</p>';
+    return `
+      <section class="al-watch-detail-group">
+        <h4 class="al-watch-detail-kicker">Film</h4>
+        <p class="al-muted al-watch-more-note">Loading movie details…</p>
+      </section>
+    `;
   }
   if (state.detailsError && state.expandedId === watch.id) {
-    return `<p class="al-error al-watch-more-note">${escapeHtml(state.detailsError)}</p>`;
+    return `
+      <section class="al-watch-detail-group">
+        <h4 class="al-watch-detail-kicker">Film</h4>
+        <p class="al-error al-watch-more-note">${escapeHtml(state.detailsError)}</p>
+      </section>
+    `;
   }
   const movie = state.detailsCache?.get(watch.id);
   if (!movie) {
-    return '<p class="al-muted al-watch-more-note">Loading movie details…</p>';
+    return `
+      <section class="al-watch-detail-group">
+        <h4 class="al-watch-detail-kicker">Film</h4>
+        <p class="al-muted al-watch-more-note">Loading movie details…</p>
+      </section>
+    `;
   }
   const genres = movie.genres?.length ? movie.genres.join(', ') : '—';
   const runtime = movie.runtime_min ? `${movie.runtime_min} min` : '—';
   const director = movie.director || '—';
-  const cast = movie.cast?.length ? movie.cast.join(', ') : '—';
   return `
-    <dl class="al-watch-more-facts">
-      ${fact('Runtime', runtime)}
-      ${fact('Genre', genres)}
-      ${fact('Director', director)}
-      ${fact('Cast', cast)}
-    </dl>
-    <section class="al-log-detail-overview-wrap">
-      <h4 class="al-log-detail-subhead">Overview</h4>
+    <section class="al-watch-detail-group">
+      <h4 class="al-watch-detail-kicker">Film</h4>
+      <dl class="al-watch-detail-list">
+        ${textRow('Runtime', runtime)}
+        ${textRow('Genre', genres)}
+        ${textRow('Director', director)}
+        ${detailRow('Cast', castChipsHtml(movie.cast))}
+      </dl>
+    </section>
+    <section class="al-watch-overview">
+      <h4 class="al-watch-detail-kicker">Overview</h4>
       ${movie.overview
-    ? `<p class="al-log-detail-overview">${escapeHtml(movie.overview)}</p>`
+    ? `<p class="al-watch-overview-body">${escapeHtml(movie.overview)}</p>`
     : '<p class="al-muted">No overview available.</p>'}
     </section>
+  `;
+}
+
+function cardActionsHtml(watch) {
+  const canAdd = watch.in_theaters !== false;
+  return `
+    <div class="al-row-actions al-watchlist-card-actions">
+      ${canAdd ? iconButton(`data-add-viewer="${watch.id}"`, 'Add someone', 'person') : ''}
+      ${iconButton(`data-edit="${watch.id}"`, 'Edit', 'edit')}
+      ${iconButton(`data-delete="${watch.id}"`, 'Delete', 'remove')}
+    </div>
+  `;
+}
+
+function expandedPanelHtml(watch, state, adding) {
+  return `
+    <div class="al-watch-card-more">
+      <div class="al-watch-detail-head">
+        <h3 class="al-watch-detail-title">${escapeHtml(watch.title)}</h3>
+        <div class="al-watch-detail-tools">
+          ${cardActionsHtml(watch)}
+          ${iconButton('data-collapse-card', 'Close details', 'close')}
+        </div>
+      </div>
+      ${adding
+    ? addViewerFormHtml(watch)
+    : `<div class="al-watch-detail-groups">${screeningGroupHtml(watch)}${movieDetailsHtml(watch, state)}</div>`}
+    </div>
   `;
 }
 
@@ -157,16 +286,8 @@ function addViewerFormHtml(watch) {
 function viewCardHtml(watch, state) {
   const expanded = watch.id === state.expandedId;
   const adding = watch.id === state.addingId;
-  const canAdd = watch.in_theaters !== false;
-  const more = expanded || adding
-    ? `<div class="al-watch-card-more">${adding ? addViewerFormHtml(watch) : `${screeningMoreHtml(watch)}${movieDetailsHtml(watch, state)}`}</div>`
-    : '';
-  return `
-    <div class="al-log-entry al-watch-grid-item${expanded ? ' is-expanded' : ''}${adding ? ' is-adding' : ''}" data-entry-id="${watch.id}">
-      <article class="al-watch-card al-log-row--clickable${expanded ? ' is-expanded' : ''}" data-expand-row tabindex="0" aria-expanded="${expanded}" aria-label="Toggle details">
-        <div class="al-watch-card-poster">
-          ${posterHtml(watch, { size: 'w342', className: 'al-poster al-poster--grid', fluid: true })}
-        </div>
+  const open = expanded || adding;
+  const face = open ? '' : `
         <h3 class="al-watch-card-title" title="${escapeHtml(watch.title)}">${escapeHtml(watch.title)}</h3>
         <dl class="al-watch-card-facts">
           ${fact('Date', shortDate(watch.watched_on))}
@@ -174,13 +295,17 @@ function viewCardHtml(watch, state) {
           ${fact('Cost', costLabel(watch))}
           <div class="al-watch-card-fact al-watch-card-fact--rating"><dt>Rating</dt><dd>${ratingStarsHtml(watch)}</dd></div>
         </dl>
-        <div class="al-row-actions al-watchlist-card-actions">
-          ${canAdd ? iconButton(`data-add-viewer="${watch.id}"`, 'Add someone', 'person') : ''}
-          ${iconButton(`data-edit="${watch.id}"`, 'Edit', 'edit')}
-          ${iconButton(`data-delete="${watch.id}"`, 'Delete', 'remove')}
+        ${cardActionsHtml(watch)}
+  `;
+  return `
+    <div class="al-log-entry al-watch-grid-item${open ? ' is-expanded' : ''}${adding ? ' is-adding' : ''}" data-entry-id="${watch.id}" style="view-transition-name:${watchVtName(watch.id)}">
+      <article class="al-watch-card al-log-row--clickable${open ? ' is-expanded' : ''}" data-expand-row tabindex="0" aria-expanded="${open}" aria-label="Toggle details">
+        <div class="al-watch-card-poster">
+          ${posterHtml(watch, { size: 'w342', className: 'al-poster al-poster--grid', fluid: true })}
         </div>
+        ${face}
       </article>
-      ${more}
+      ${open ? expandedPanelHtml(watch, state, adding) : ''}
     </div>
   `;
 }

@@ -3,7 +3,13 @@
  * Run: node scripts/test-alist-watch-log.mjs
  */
 import { readFileSync } from 'node:fs';
-import { watchLogListHtml, ratingStarsHtml, ratingHalfSteps } from '../amc-a-lister/engine/watch-log-grid.js';
+import {
+  watchLogListHtml,
+  ratingStarsHtml,
+  ratingHalfSteps,
+  watchVtName,
+  castChipsHtml,
+} from '../amc-a-lister/engine/watch-log-grid.js';
 import { money, shortDate } from '../amc-a-lister/engine/format.js';
 
 let passed = 0;
@@ -152,8 +158,20 @@ assert(expanded.includes('<dt>Notes</dt><dd>Front row</dd>'), 'the open card sho
 assert(expanded.includes('215 min'), 'the open card shows runtime');
 assert(expanded.includes('A long concrete movie.'), 'the open card shows the overview');
 assert(expanded.includes('al-watch-card-more'), 'details open inside the same grid card');
+assert(expanded.includes('al-watch-detail-groups'), 'open details split screening and film');
+assert(expanded.includes('>Screening<'), 'screening facts are grouped');
+assert(expanded.includes('>Film<'), 'film facts are grouped');
+assert(expanded.includes('al-watch-cast-chip'), 'cast is a set of chips');
+assert(expanded.includes('Adrien Brody'), 'cast chips keep the names');
+assert(expanded.includes('data-collapse-card'), 'the open card has a close control');
+assert(expanded.includes('aria-label="Close details"'), 'close is named for assistive tech');
+assert(expanded.includes('aria-label="Add someone"'), 'actions stay on the open card');
+assert(expanded.includes(`view-transition-name:${watchVtName('w1')}`), 'cards have a view-transition name for FLIP');
+assert(expanded.includes('grid-column') === false, 'span is CSS, not inline');
 const more = expanded.slice(expanded.indexOf('al-watch-card-more'));
 assert(!more.includes('al-poster'), 'the open details do not repeat the poster');
+assert(castChipsHtml(['A', 'B']).includes('al-watch-cast-chip'), 'castChipsHtml paints chips');
+assert(watchVtName('a b/c') === 'wa_b_c', 'view-transition names strip unsafe characters');
 
 const adding = watchLogListHtml(state({ addingId: 'w1' }));
 assert(adding.includes('data-add-viewer-form="w1"'), 'the person icon opens the add-someone form on the card');
@@ -191,9 +209,15 @@ assert(/repeat\(2,\s*minmax\(0,\s*1fr\)\)/.test(phoneCss), 'phones show the watc
 assert(gridCss.includes('repeat(auto-fill, minmax(180px, 1fr))'), 'wider screens fill the watch log row');
 assert(phoneCss.includes('clip-path: inset(0 50% 0 0)'), 'half stars clip the filled glyph');
 assert(phoneCss.includes('.al-watch-card-more'), 'opened details stay attached to the card');
+assert(gridCss.includes('grid-column: 1 / -1'), 'an open card spans the full grid row');
+assert(gridCss.includes('al-watch-detail-groups'), 'the open card uses a two-group detail layout');
+assert(gridCss.includes('prefers-reduced-motion'), 'the expand animation respects reduced motion');
+assert(gridCss.includes('al-watch-cast-chip'), 'cast chips are styled');
 
 const logSource = readFileSync(new URL('../amc-a-lister/engine/log.js', import.meta.url), 'utf8');
 assert(logSource.includes('watchLogListHtml'), 'the watch log page renders the poster grid');
+assert(logSource.includes('withWatchGridTransition'), 'expand and collapse animate through the grid');
+assert(logSource.includes('data-collapse-card'), 'the close control is wired');
 
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

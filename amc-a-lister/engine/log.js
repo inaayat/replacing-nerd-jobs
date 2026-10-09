@@ -1,7 +1,7 @@
 import { bootPage, renderShell, requireSignIn, populateSidebarStats } from './nav.js';
 import { watchesApi, movieApi, showingInvitesApi } from './api.js';
 import { money, shortDate, escapeHtml, posterHtml } from './format.js';
-import { watchLogListHtml } from './watch-log-grid.js';
+import { watchLogListHtml, withWatchGridTransition } from './watch-log-grid.js';
 import { wireWatchEditForm } from './watch-form.js';
 import { ratingStarBucket } from './billing.js';
 import { wireUserSuggest } from './user-suggest.js';
@@ -206,11 +206,19 @@ async function loadLog(auth) {
     detailsError: null,
   };
 
-  const render = () => {
+  const renderNow = () => {
     document.getElementById('log-count').textContent = `${state.filtered.length} of ${state.watches.length}`;
     renderInvitesPanel(auth, state, render);
     document.getElementById('log-table').innerHTML = tableHtml(state);
     wireRowActions(auth, state, render);
+  };
+
+  const render = (opts = {}) => {
+    if (opts.transition) {
+      withWatchGridTransition(document.getElementById('log-table'), renderNow);
+      return;
+    }
+    renderNow();
   };
 
   const includeHomeOn = () => includeHomeEl.getAttribute('aria-pressed') === 'true';
@@ -443,7 +451,6 @@ async function loadMovieDetails(auth, state, watchId, render) {
 
   state.detailsLoading = watchId;
   state.detailsError = null;
-  render();
 
   try {
     const { movie } = await movieApi.details(auth.token, watch.tmdb_id);
@@ -473,7 +480,7 @@ function wireRowActions(auth, state, render) {
       if (state.expandedId === id) {
         state.expandedId = null;
         state.detailsError = null;
-        render();
+        render({ transition: true });
         return;
       }
 
@@ -483,10 +490,9 @@ function wireRowActions(auth, state, render) {
       state.detailsError = null;
 
       const watch = state.watches.find((w) => w.id === id);
+      render({ transition: true });
       if (watch?.tmdb_id && !state.detailsCache.has(id)) {
         loadMovieDetails(auth, state, id, render);
-      } else {
-        render();
       }
     };
 
@@ -496,6 +502,16 @@ function wireRowActions(auth, state, render) {
         e.preventDefault();
         toggle(e);
       }
+    });
+  });
+
+  document.querySelectorAll('[data-collapse-card]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      state.expandedId = null;
+      state.addingId = null;
+      state.detailsError = null;
+      render({ transition: true });
     });
   });
 
