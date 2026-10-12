@@ -358,6 +358,7 @@ function placeWithAnswers(rankedLength, answers) {
   assert.match(profileFn, /alist_movie_ranks/, 'public profiles include the movie rank stack');
   const memberSource = readFileSync(new URL('../amc-a-lister/engine/member.js', import.meta.url), 'utf8');
   assert.match(memberSource, /publicRankStackHtml/, 'member profiles render the public rank grid');
+  assert.match(memberSource, /al-member-book/, 'public rank is a flip page next to the watch log');
 }
 
 console.log('amc alist rank tests passed');

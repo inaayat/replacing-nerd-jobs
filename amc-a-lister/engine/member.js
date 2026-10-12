@@ -5,6 +5,13 @@ import { money, escapeHtml, monthLabel } from './format.js';
 import { ratingStarBucket } from './billing.js';
 import { watchLogListHtml, withWatchGridTransition } from './watch-log-grid.js';
 import { publicRankStackHtml } from './rank-view.js';
+import {
+  memberProfilePage,
+  memberProfileUrl,
+  flipMemberPage,
+  memberPageIndex,
+  memberPageLabel,
+} from './member-pages.js';
 
 bootPage(async ({ root, auth }) => {
   const params = new URLSearchParams(location.search);
@@ -38,7 +45,7 @@ bootPage(async ({ root, auth }) => {
       ? (profile.isPublic
         ? 'This is exactly what other people see.'
         : 'Private — only you can see this. Turn on your public profile in Settings.')
-      : 'Public watch log and A-List stats.';
+      : 'Public rank and watch log.';
     document.title = `${profile.displayName} — AMC A-Lister`;
     renderProfile(main, profile, { currentUserId, auth });
   } catch (err) {
@@ -67,6 +74,9 @@ function renderProfile(main, profile, { currentUserId, auth }) {
   const formats = [...new Set(watches.map((w) => w.format).filter(Boolean))].sort();
   const periodLabel = stats.periodMonth ? monthLabel(`${stats.periodMonth}-01`) : 'This month';
   const isYou = currentUserId === profile.userId;
+  const page = memberProfilePage(location.search);
+  const rankCount = (profile.ranks || []).length;
+  const logCount = watches.length;
 
   main.innerHTML = `
     <p class="al-member-back"><a class="al-link-btn" href="/amc-a-lister/leaderboard.html">← Leaderboard</a></p>
@@ -92,41 +102,71 @@ function renderProfile(main, profile, { currentUserId, auth }) {
       </div>
     </section>
 
-    <section class="al-panel al-member-ranks">
-      <h2 class="al-section-title">Rank</h2>
-      <p class="al-muted al-member-ranks-note">Theater stack, best first. Separate from star ratings.</p>
-      ${publicRankStackHtml(profile.ranks)}
-    </section>
-
-    <section class="al-panel al-panel--log al-member-log">
-      <div class="al-toolbar al-toolbar--log">
-        <input class="al-input al-toolbar-search" id="member-search" type="search" placeholder="Search title or theater…" />
-        ${showTheaters ? `
-          <select class="al-select al-toolbar-filter" id="member-theater">
-            <option value="">All theaters</option>
-            ${theaters.map((t) => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('')}
-          </select>
-        ` : ''}
-        <select class="al-select al-toolbar-filter al-toolbar-filter--format" id="member-format">
-          <option value="">All formats</option>
-          ${formats.map((f) => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('')}
-        </select>
-        <select class="al-select al-toolbar-filter" id="member-rating">
-          <option value="">All ratings</option>
-          <option value="5">5★</option>
-          <option value="4">4★</option>
-          <option value="3">3★</option>
-          <option value="2">2★</option>
-          <option value="1">1★</option>
-          <option value="dnf">DNF</option>
-          <option value="unrated">Unrated</option>
-        </select>
-        ${isYou ? `
-          <button type="button" class="al-toggle-btn" id="member-include-home" aria-pressed="false">Include watched at home</button>
-        ` : ''}
-        <span class="al-muted" id="member-count"></span>
+    <section class="al-panel al-panel--log al-member-book" data-member-book>
+      <div class="al-member-book-toolbar">
+        <div class="al-segment al-watchlist-segment" role="tablist" aria-label="Rank or watch log">
+          <button type="button" class="al-segment-btn${page === 'rank' ? ' is-active' : ''}"
+            data-member-page="rank" role="tab" aria-selected="${page === 'rank' ? 'true' : 'false'}"
+            aria-controls="member-page-rank" id="member-tab-rank">
+            Rank <span class="al-segment-count">${rankCount}</span>
+          </button>
+          <button type="button" class="al-segment-btn${page === 'log' ? ' is-active' : ''}"
+            data-member-page="log" role="tab" aria-selected="${page === 'log' ? 'true' : 'false'}"
+            aria-controls="member-page-log" id="member-tab-log">
+            Log <span class="al-segment-count">${logCount}</span>
+          </button>
+        </div>
+        <div class="al-member-flip-nav">
+          <button type="button" class="al-member-flip" data-member-flip="prev" aria-label="Previous page">${flipChevron('prev')}</button>
+          <span class="al-member-folio" id="member-folio">${memberPageIndex(page)} / 2</span>
+          <button type="button" class="al-member-flip" data-member-flip="next" aria-label="Next page">${flipChevron('next')}</button>
+        </div>
       </div>
-      <div class="al-log-list-wrap" id="member-table"></div>
+
+      <div class="al-member-book-stage">
+        <div class="al-member-pages">
+          <div class="al-member-page${page === 'rank' ? ' is-active' : ''}" id="member-page-rank"
+            role="tabpanel" aria-labelledby="member-tab-rank" data-page="rank"
+            ${page === 'rank' ? '' : 'hidden'}>
+            <h2 class="al-section-title">Rank</h2>
+            <p class="al-muted al-member-ranks-note">Theater stack, best first. Separate from star ratings.</p>
+            ${publicRankStackHtml(profile.ranks)}
+          </div>
+          <div class="al-member-page al-member-log${page === 'log' ? ' is-active' : ''}" id="member-page-log"
+            role="tabpanel" aria-labelledby="member-tab-log" data-page="log"
+            ${page === 'log' ? '' : 'hidden'}>
+            <h2 class="al-section-title">Watch log</h2>
+            <div class="al-toolbar al-toolbar--log">
+              <input class="al-input al-toolbar-search" id="member-search" type="search" placeholder="Search title or theater…" />
+              ${showTheaters ? `
+                <select class="al-select al-toolbar-filter" id="member-theater">
+                  <option value="">All theaters</option>
+                  ${theaters.map((t) => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('')}
+                </select>
+              ` : ''}
+              <select class="al-select al-toolbar-filter al-toolbar-filter--format" id="member-format">
+                <option value="">All formats</option>
+                ${formats.map((f) => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('')}
+              </select>
+              <select class="al-select al-toolbar-filter" id="member-rating">
+                <option value="">All ratings</option>
+                <option value="5">5★</option>
+                <option value="4">4★</option>
+                <option value="3">3★</option>
+                <option value="2">2★</option>
+                <option value="1">1★</option>
+                <option value="dnf">DNF</option>
+                <option value="unrated">Unrated</option>
+              </select>
+              ${isYou ? `
+                <button type="button" class="al-toggle-btn" id="member-include-home" aria-pressed="false">Include watched at home</button>
+              ` : ''}
+              <span class="al-muted" id="member-count"></span>
+            </div>
+            <div class="al-log-list-wrap" id="member-table"></div>
+          </div>
+        </div>
+      </div>
     </section>
 
     ${!isYou && auth.signedIn ? `
@@ -207,6 +247,150 @@ function renderProfile(main, profile, { currentUserId, auth }) {
   });
 
   render();
+
+  const bookState = {
+    page,
+    userId: profile.userId,
+    displayName: profile.displayName,
+    flipping: false,
+  };
+  syncMemberPageChrome(bookState);
+  wireMemberBook(bookState);
+}
+
+function flipChevron(direction) {
+  const points = direction === 'prev' ? '15 6 9 12 15 18' : '9 6 15 12 9 18';
+  return `<svg class="al-member-flip-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="${points}"/></svg>`;
+}
+
+function syncMemberPageChrome(state) {
+  const folio = document.getElementById('member-folio');
+  if (folio) folio.textContent = `${memberPageIndex(state.page)} / 2`;
+  document.querySelectorAll('[data-member-page]').forEach((btn) => {
+    const active = btn.dataset.memberPage === state.page;
+    btn.classList.toggle('is-active', active);
+    btn.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+  if (state.displayName) {
+    document.title = `${state.displayName} — ${memberPageLabel(state.page)} — AMC A-Lister`;
+  }
+}
+
+function showMemberPage(state, page, { animate = true, historyMode = 'push' } = {}) {
+  const next = page === 'rank' ? 'rank' : 'log';
+  if (next === state.page) return;
+  const book = document.querySelector('[data-member-book]');
+  const fromEl = document.getElementById(`member-page-${state.page}`);
+  const toEl = document.getElementById(`member-page-${next}`);
+  if (!book || !fromEl || !toEl) return;
+
+  const goingNext = (state.page === 'rank' && next === 'log');
+  state.page = next;
+
+  fromEl.classList.remove('is-active');
+  toEl.classList.add('is-active');
+  fromEl.hidden = true;
+  toEl.hidden = false;
+  syncMemberPageChrome(state);
+
+  if (animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    state.flipping = true;
+    book.classList.toggle('is-flip-next', goingNext);
+    book.classList.toggle('is-flip-prev', !goingNext);
+    fromEl.hidden = false;
+    fromEl.classList.add('is-leaving');
+    toEl.classList.add('is-entering');
+    window.setTimeout(() => {
+      fromEl.classList.remove('is-leaving');
+      toEl.classList.remove('is-entering');
+      fromEl.hidden = true;
+      book.classList.remove('is-flip-next', 'is-flip-prev');
+      state.flipping = false;
+    }, 320);
+  }
+
+  if (historyMode === 'push') {
+    window.history.pushState({ memberPage: next }, '', memberProfileUrl(state.userId, next));
+  } else if (historyMode === 'replace') {
+    window.history.replaceState({ memberPage: next }, '', memberProfileUrl(state.userId, next));
+  }
+}
+
+function wireMemberBook(state) {
+  const book = document.querySelector('[data-member-book]');
+  if (!book) return;
+
+  const go = (page, opts) => {
+    if (state.flipping) return;
+    showMemberPage(state, page, opts);
+  };
+
+  book.querySelectorAll('[data-member-page]').forEach((btn) => {
+    btn.addEventListener('click', () => go(btn.dataset.memberPage));
+  });
+  book.querySelector('[data-member-flip="prev"]')?.addEventListener('click', () => {
+    go(flipMemberPage(state.page, 'prev'));
+  });
+  book.querySelector('[data-member-flip="next"]')?.addEventListener('click', () => {
+    go(flipMemberPage(state.page, 'next'));
+  });
+
+  window.addEventListener('popstate', () => {
+    go(memberProfilePage(location.search), { historyMode: 'none' });
+  });
+
+  const onKey = (e) => {
+    if (e.target.closest('input, select, textarea, [contenteditable]')) return;
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      go(flipMemberPage(state.page, 'next'));
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      go(flipMemberPage(state.page, 'prev'));
+    }
+  };
+  document.addEventListener('keydown', onKey);
+
+  wirePageSwipe(book.querySelector('.al-member-book-stage'), {
+    onLeft: () => go(flipMemberPage(state.page, 'next')),
+    onRight: () => go(flipMemberPage(state.page, 'prev')),
+  });
+}
+
+function wirePageSwipe(el, { onLeft, onRight }) {
+  if (!el) return;
+  let startX = 0;
+  let startY = 0;
+  let tracking = false;
+  let locked = null;
+
+  el.addEventListener('touchstart', (e) => {
+    const t = e.changedTouches[0];
+    startX = t.clientX;
+    startY = t.clientY;
+    tracking = true;
+    locked = null;
+  }, { passive: true });
+  el.addEventListener('touchmove', (e) => {
+    if (!tracking) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - startX;
+    const dy = t.clientY - startY;
+    if (locked == null && Math.hypot(dx, dy) > 10) {
+      locked = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
+    }
+    if (locked === 'h') e.preventDefault();
+  }, { passive: false });
+  el.addEventListener('touchend', (e) => {
+    if (!tracking) return;
+    tracking = false;
+    const dx = e.changedTouches[0].clientX - startX;
+    if (locked === 'h' && Math.abs(dx) >= 56) {
+      if (dx < 0) onLeft();
+      else onRight();
+    }
+    locked = null;
+  });
 }
 
 function wireMemberLogExpand(auth, state, render, listEl) {

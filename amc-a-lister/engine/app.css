@@ -1773,6 +1773,137 @@ table.al-table {
   margin-top: 12px;
 }
 
+.al-member-book {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.al-member-book-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+}
+
+.al-member-book-toolbar .al-watchlist-segment {
+  margin-bottom: 0;
+  flex: 1 1 12rem;
+}
+
+.al-member-flip-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.al-member-folio {
+  min-width: 3.2em;
+  text-align: center;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--al-muted);
+}
+
+.al-member-flip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--al-line);
+  border-radius: 10px;
+  background: var(--al-panel-2);
+  color: inherit;
+  cursor: pointer;
+}
+
+.al-member-flip:hover {
+  border-color: var(--al-burgundy);
+}
+
+.al-member-flip-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.al-member-book-stage {
+  position: relative;
+  perspective: 1400px;
+}
+
+.al-member-pages {
+  min-height: 8rem;
+}
+
+.al-member-page {
+  display: none;
+}
+
+.al-member-page.is-active,
+.al-member-page.is-leaving,
+.al-member-page.is-entering {
+  display: block;
+}
+
+.al-member-page.is-leaving {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.al-member-book.is-flip-next .al-member-page.is-entering {
+  transform-origin: right center;
+  animation: al-member-page-in-next 320ms ease both;
+}
+
+.al-member-book.is-flip-next .al-member-page.is-leaving {
+  transform-origin: left center;
+  animation: al-member-page-out-next 320ms ease both;
+}
+
+.al-member-book.is-flip-prev .al-member-page.is-entering {
+  transform-origin: left center;
+  animation: al-member-page-in-prev 320ms ease both;
+}
+
+.al-member-book.is-flip-prev .al-member-page.is-leaving {
+  transform-origin: right center;
+  animation: al-member-page-out-prev 320ms ease both;
+}
+
+@keyframes al-member-page-in-next {
+  from { transform: rotateY(-55deg); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+@keyframes al-member-page-out-next {
+  from { transform: none; opacity: 1; }
+  to { transform: rotateY(55deg); opacity: 0; }
+}
+
+@keyframes al-member-page-in-prev {
+  from { transform: rotateY(55deg); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+@keyframes al-member-page-out-prev {
+  from { transform: none; opacity: 1; }
+  to { transform: rotateY(-55deg); opacity: 0; }
+}
+
+.al-member-page > .al-section-title {
+  margin: 0 0 8px;
+}
+
+.al-member-ranks-note {
+  margin: 0 0 12px;
+}
+
 .al-log-list--readonly {
   grid-template-columns:
     36px
