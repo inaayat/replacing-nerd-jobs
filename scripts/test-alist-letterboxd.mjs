@@ -159,6 +159,15 @@ assert(
 const dbSrc = readFileSync(new URL('../lib/db.js', import.meta.url), 'utf8');
 assert(dbSrc.includes('alist_letterboxd_items'), 'schema creates alist_letterboxd_items');
 assert(dbSrc.includes('letterboxd_username'), 'schema adds letterboxd_username');
+const css = readFileSync(new URL('../amc-a-lister/engine/app.css', import.meta.url), 'utf8');
+assert(
+  /\.al-panel--letterboxd\[hidden\][^{]*\{\s*display:\s*none/.test(css),
+  'the empty Letterboxd banner stays hidden (its display:flex would otherwise beat [hidden])',
+);
+assert(
+  /#letterboxd-form \[hidden\][^{]*\{\s*display:\s*none/.test(css),
+  'Disconnect / Review inbox stay hidden before connecting (.al-btn is inline-flex)',
+);
 const letterboxdSrc = readFileSync(new URL('../amc-a-lister/engine/letterboxd.js', import.meta.url), 'utf8');
 assert(!/^import /m.test(letterboxdSrc), 'letterboxd.js stays dependency-free');
 

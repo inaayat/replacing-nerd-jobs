@@ -5632,6 +5632,9 @@ body.al-log-filters-open .al-mobile-nav {
   margin-bottom: 16px;
   padding: 14px 18px;
 }
+.al-panel--letterboxd[hidden],
+#letterboxd-form [hidden],
+.al-lb-list [hidden] { display: none; }
 .al-panel--letterboxd p { margin: 0; }
 
 .al-lb-list {
