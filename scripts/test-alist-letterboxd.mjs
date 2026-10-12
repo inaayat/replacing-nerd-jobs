@@ -171,6 +171,12 @@ assert(
   /#letterboxd-form \[hidden\][^{]*\{\s*display:\s*none/.test(css),
   'Disconnect / Review inbox stay hidden before connecting (.al-btn is inline-flex)',
 );
+const { renderHowToUseSection } = await import('../amc-a-lister/engine/how-to-use.js');
+const howTo = renderHowToUseSection();
+assert(
+  howTo.includes('Use Letterboxd?') && howTo.includes('#letterboxd-form') && howTo.includes('letterboxd.html'),
+  'How to use A-Lister explains Letterboxd and links to Settings and the inbox',
+);
 const letterboxdSrc = readFileSync(new URL('../amc-a-lister/engine/letterboxd.js', import.meta.url), 'utf8');
 assert(!/^import /m.test(letterboxdSrc), 'letterboxd.js stays dependency-free');
 

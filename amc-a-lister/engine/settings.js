@@ -24,7 +24,7 @@ bootPage(async ({ root, auth }) => {
     title: 'Settings',
     subtitle: needsRateSetup
       ? 'Welcome — learn the basics below, then set your monthly rate to finish setup.'
-      : 'Membership pricing, beta features, and spreadsheet import.',
+      : 'Membership pricing, Letterboxd, beta features, and spreadsheet import.',
     signedIn: true,
     body: `
     <main class="al-main">

@@ -37,6 +37,15 @@ function howToUseSteps() {
         see a movie in theaters — not per ticket.
       </li>
       <li>
+        <strong>Use Letterboxd?</strong>
+        Add your username under <a href="/amc-a-lister/settings.html#letterboxd-form"><em>Letterboxd</em></a> below.
+        New films from your Letterboxd diary show up in a
+        <a href="/amc-a-lister/letterboxd.html">review inbox</a> — choose <em>In theaters</em> or
+        <em>At home</em>, check the date and rating, and save. A banner on your Watch log tells you
+        when something is waiting; it checks at most every 15 minutes, or press
+        <em>Check Letterboxd now</em>. Films already in your log are skipped.
+      </li>
+      <li>
         <strong>Already have a spreadsheet?</strong>
         Scroll down to import your <code>A-List Tracking.xlsx</code> or paste JSON.
         Duplicates (same date, title, and theater) are skipped.
