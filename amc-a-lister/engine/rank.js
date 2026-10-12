@@ -1,4 +1,4 @@
-import { bootPage, renderShell, requireSignIn, isRankBetaEnabled, isTvBetaEnabled } from './nav.js';
+import { bootPage, renderShell, requireSignIn, isTvBetaEnabled } from './nav.js';
 import { ranksApi, tvRanksApi, watchesApi, tvWatchesApi, movieApi, tvApi, invalidateReadCache } from './api.js';
 import { escapeHtml, posterHtml } from './format.js';
 import { wireComboboxKeys } from './combobox.js';
@@ -61,26 +61,6 @@ const KIND_CONFIG = {
 };
 
 bootPage(async ({ root, auth }) => {
-  if (!isRankBetaEnabled()) {
-    root.innerHTML = renderShell({
-      title: 'Rank',
-      subtitle: 'This one is still in beta.',
-      signedIn: auth.signedIn,
-      hideLogBar: true,
-      body: `
-        <main class="al-main">
-          <section class="al-panel">
-            <p class="al-muted">Stack rank is off for your account.</p>
-            <p style="margin-top:12px">
-              <a class="al-btn al-btn-primary" href="/amc-a-lister/settings.html">Turn it on in Settings</a>
-            </p>
-          </section>
-        </main>
-      `,
-    });
-    return;
-  }
-
   if (!requireSignIn(auth, root)) return;
 
   const tvEnabled = isTvBetaEnabled();

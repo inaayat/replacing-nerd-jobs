@@ -1,4 +1,4 @@
-import { bootPage, renderShell, requireSignIn, populateSidebarStats, isTvBetaEnabled, setTvBetaEnabled, isRankBetaEnabled, setRankBetaEnabled } from './nav.js';
+import { bootPage, renderShell, requireSignIn, populateSidebarStats, isTvBetaEnabled, setTvBetaEnabled } from './nav.js';
 import { membershipApi, importApi, backfillApi, letterboxdApi } from './api.js';
 import { parseXlsxFile } from './import-xlsx.js';
 import { escapeHtml, parseMoneyInput } from './format.js';
@@ -128,12 +128,7 @@ bootPage(async ({ root, auth }) => {
           <input type="checkbox" id="beta-tv" ${isTvBetaEnabled() ? 'checked' : ''} />
           TV Shows — track series separately from theater movies
         </label>
-        <label class="al-check al-check--block">
-          <input type="checkbox" id="beta-rank" ${isRankBetaEnabled() ? 'checked' : ''} />
-          Rank — Beli-style stack rank for movies and TV (beta)
-        </label>
         <p class="al-muted" id="beta-tv-status" style="margin-top:8px"></p>
-        <p class="al-muted" id="beta-rank-status" style="margin-top:8px"></p>
       </section>
 
       <section class="al-panel">
@@ -189,13 +184,6 @@ bootPage(async ({ root, auth }) => {
     document.getElementById('beta-tv-status').textContent = e.target.checked
       ? 'TV Shows enabled. It appears in the nav on your next page load.'
       : 'TV Shows hidden from the nav.';
-  });
-
-  document.getElementById('beta-rank').addEventListener('change', (e) => {
-    setRankBetaEnabled(e.target.checked);
-    document.getElementById('beta-rank-status').textContent = e.target.checked
-      ? 'Rank enabled. It appears in the nav on your next page load.'
-      : 'Rank hidden from the nav.';
   });
 
   const setStatus = (msg) => { document.getElementById('import-status').textContent = msg; };

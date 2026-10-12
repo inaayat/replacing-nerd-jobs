@@ -6,13 +6,12 @@ import { escapeHtml } from './format.js';
 
 const NAV_ACTIVE = document.body.dataset.page || '';
 const TV_BETA_KEY = 'alist.beta.tv';
-const RANK_BETA_KEY = 'alist.beta.rank';
 
 const PAGES = [
   { href: '/amc-a-lister/', label: 'Log', id: 'log' },
   { href: '/amc-a-lister/what-to-watch.html', label: 'Watch', id: 'what-to-watch' },
   { href: '/amc-a-lister/tv.html', label: 'TV', id: 'tv', beta: 'tv' },
-  { href: '/amc-a-lister/rank.html', label: 'Rank', id: 'rank', beta: 'rank' },
+  { href: '/amc-a-lister/rank.html', label: 'Rank', id: 'rank' },
   { href: '/amc-a-lister/statistics.html', label: 'Stats', id: 'statistics' },
   { href: '/amc-a-lister/leaderboard.html', label: 'Leaderboard', id: 'leaderboard' },
   { href: '/amc-a-lister/settings.html', label: 'Settings', id: 'settings', mobileIcon: 'settings' },
@@ -34,25 +33,8 @@ export function setTvBetaEnabled(enabled) {
   }
 }
 
-export function isRankBetaEnabled() {
-  try {
-    return localStorage.getItem(RANK_BETA_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-export function setRankBetaEnabled(enabled) {
-  try {
-    localStorage.setItem(RANK_BETA_KEY, enabled ? '1' : '0');
-  } catch {
-    // ignore storage failures
-  }
-}
-
 /** After logging a theater watch (DNF included), offer to put it on the Rank stack. */
 function offerRankAfterLog(logged) {
-  if (!isRankBetaEnabled()) return;
   if (!logged || logged.in_theaters === false) return;
   const tmdbId = Number(logged.tmdb_id);
   if (!tmdbId) return;
@@ -88,7 +70,6 @@ function offerRankAfterLog(logged) {
 function visiblePages() {
   return PAGES.filter((p) => {
     if (p.beta === 'tv') return isTvBetaEnabled();
-    if (p.beta === 'rank') return isRankBetaEnabled();
     return true;
   });
 }
