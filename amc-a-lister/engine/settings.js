@@ -1,5 +1,5 @@
 import { bootPage, renderShell, requireSignIn, populateSidebarStats, isTvBetaEnabled, setTvBetaEnabled, isRankBetaEnabled, setRankBetaEnabled } from './nav.js';
-import { membershipApi, importApi, backfillApi } from './api.js';
+import { membershipApi, importApi, backfillApi, letterboxdApi } from './api.js';
 import { parseXlsxFile } from './import-xlsx.js';
 import { escapeHtml, parseMoneyInput } from './format.js';
 import { todayISO } from './dates.js';
@@ -98,6 +98,26 @@ bootPage(async ({ root, auth }) => {
         <div class="al-toolbar" style="margin-top:12px">
           <button class="al-btn al-btn-primary" type="submit">${needsRateSetup ? 'Save and continue' : 'Save membership'}</button>
           <p class="al-muted" id="membership-status" style="margin:0"></p>
+        </div>
+      </form>
+
+      <form class="al-panel" id="letterboxd-form">
+        <h2>Letterboxd</h2>
+        <p class="al-muted">
+          Connect your Letterboxd diary. New films you log there show up in a review inbox where you
+          choose <strong>In theaters</strong> or <strong>At home</strong>, check the date and rating,
+          and save. Films already in your A-Lister log are skipped.
+        </p>
+        <div class="al-field">
+          <label for="letterboxd-username">Letterboxd username</label>
+          <input class="al-input" id="letterboxd-username" maxlength="80" placeholder="letterboxd.com/your_name"
+                 autocomplete="off" autocapitalize="off" spellcheck="false" />
+        </div>
+        <div class="al-toolbar" style="margin-top:12px">
+          <button class="al-btn al-btn-primary" type="submit" id="letterboxd-save">Connect</button>
+          <button class="al-btn" type="button" id="letterboxd-clear" hidden>Disconnect</button>
+          <a class="al-btn" href="/amc-a-lister/letterboxd.html" id="letterboxd-review" hidden>Review inbox</a>
+          <p class="al-muted" id="letterboxd-status" style="margin:0" aria-live="polite"></p>
         </div>
       </form>
 
@@ -243,6 +263,8 @@ bootPage(async ({ root, auth }) => {
     }
   });
 
+  wireLetterboxdSettings(auth);
+
   /**
    * Import has no undo and there is no bulk delete to recover with, so show
    * what was parsed and make the user confirm before anything is written.
@@ -319,6 +341,55 @@ bootPage(async ({ root, auth }) => {
     }
   });
 }, { quickLogOnSuccess: (auth) => populateSidebarStats(auth) });
+
+function wireLetterboxdSettings(auth) {
+  const form = document.getElementById('letterboxd-form');
+  const input = document.getElementById('letterboxd-username');
+  const saveBtn = document.getElementById('letterboxd-save');
+  const clearBtn = document.getElementById('letterboxd-clear');
+  const reviewLink = document.getElementById('letterboxd-review');
+  const status = document.getElementById('letterboxd-status');
+
+  const show = (state) => {
+    const connected = Boolean(state.username);
+    input.value = state.username || '';
+    clearBtn.hidden = !connected;
+    reviewLink.hidden = !connected;
+    saveBtn.textContent = connected ? 'Save' : 'Connect';
+    const waiting = state.items?.length || 0;
+    reviewLink.textContent = waiting ? `Review inbox (${waiting})` : 'Review inbox';
+  };
+
+  letterboxdApi.get(auth.token).then(show).catch((err) => {
+    status.textContent = err.message || 'Could not load Letterboxd settings.';
+  });
+
+  const save = async (username) => {
+    saveBtn.disabled = true;
+    clearBtn.disabled = true;
+    status.textContent = username ? 'Checking Letterboxd…' : 'Disconnecting…';
+    try {
+      const state = await letterboxdApi.setUsername(auth.token, username);
+      show(state);
+      if (!state.username) status.textContent = 'Disconnected.';
+      else if (state.items.length) {
+        status.textContent = `Connected. ${state.items.length} film${state.items.length === 1 ? '' : 's'} to review.`;
+      } else status.textContent = 'Connected. Nothing new to review.';
+    } catch (err) {
+      status.textContent = err.message || 'Could not save.';
+      input.focus();
+    } finally {
+      saveBtn.disabled = false;
+      clearBtn.disabled = false;
+    }
+  };
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    save(input.value.trim() || null);
+  });
+  clearBtn.addEventListener('click', () => save(null));
+}
 
 function resolveTiers(membership, needsRateSetup) {
   if (Array.isArray(membership.price_tiers) && membership.price_tiers.length) {

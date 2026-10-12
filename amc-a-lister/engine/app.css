@@ -5621,3 +5621,91 @@ body.al-log-filters-open .al-mobile-nav {
   }
 }
 
+
+/* Letterboxd import: dashboard banner + review inbox */
+.al-panel--letterboxd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding: 14px 18px;
+}
+.al-panel--letterboxd p { margin: 0; }
+
+.al-lb-list {
+  display: grid;
+  gap: 12px;
+}
+.al-lb-card {
+  border: 1px solid var(--al-line);
+  border-radius: 14px;
+  background: var(--al-panel);
+  padding: 12px;
+}
+.al-lb-card.is-open {
+  background: var(--al-panel-2);
+  border-color: rgba(131, 15, 16, 0.35);
+}
+.al-lb-card-main {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.al-lb-poster {
+  flex: 0 0 auto;
+  width: 70px;
+  height: 105px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+.al-lb-card-body { min-width: 0; flex: 1; }
+.al-lb-title {
+  margin: 0 0 2px;
+  font-family: var(--al-font-display);
+  font-weight: 500;
+  font-size: 1.1rem;
+}
+.al-lb-title .al-badge { margin-left: 6px; vertical-align: middle; }
+.al-lb-meta { margin: 0 0 6px; font-size: 0.85rem; }
+.al-lb-stars { color: #00a454; letter-spacing: 1px; }
+.al-lb-review {
+  margin: 0 0 8px;
+  white-space: pre-line;
+  font-size: 0.92rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.al-lb-card.is-open .al-lb-review { -webkit-line-clamp: unset; }
+.al-lb-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.al-lb-ask {
+  font-family: var(--al-font-mono);
+  font-size: 0.8rem;
+  color: var(--al-muted);
+  margin-right: 4px;
+}
+.al-lb-form {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--al-line);
+}
+.al-lb-form-head {
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+@media (max-width: 767px) {
+  .al-lb-poster { width: 54px; height: 81px; }
+  .al-lb-actions .al-btn { flex: 1 1 auto; }
+  .al-lb-ask { flex-basis: 100%; }
+  .al-lb-form input,
+  .al-lb-form select,
+  .al-lb-form textarea { font-size: 16px; }
+}

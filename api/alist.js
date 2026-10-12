@@ -46,6 +46,15 @@ import {
   pickBestMatch,
   PP_SCHEMA,
 } from '../lib/tmdb.js';
+import {
+  normalizeLetterboxdUsername,
+  letterboxdRssUrl,
+  letterboxdProfileUrl,
+  parseLetterboxdRss,
+  classifyLetterboxdItem,
+  isReviewable,
+  LETTERBOXD_SYNC_INTERVAL_MS,
+} from '../amc-a-lister/engine/letterboxd.js';
 
 export default async function handler(req, res) {
   const route = String(req.query?.route || '').trim();
@@ -88,6 +97,8 @@ export default async function handler(req, res) {
       return handleRanks(req, res);
     case 'tv-ranks':
       return handleTvRanks(req, res);
+    case 'letterboxd':
+      return handleLetterboxd(req, res);
     default:
       res.status(404).json({ error: 'Unknown A-List route.' });
   }
@@ -348,6 +359,53 @@ async function handleBackfill(req, res) {
   }
 }
 
+/**
+ * Insert one validated watch (normalizeBody output). Shared by quick-log and
+ * the Letterboxd import so both tag companions and clear the want-list.
+ */
+async function createWatch(userId, data) {
+  const id = randomUUID();
+  const sawAlone = data.seen_with.length ? false : data.saw_alone;
+  const rows = await db()`
+    INSERT INTO alist_watches (
+      id, user_id, watched_on, title, tmdb_id, location, format,
+      saw_alone, auditorium, seat, ticket_cents, rating, dnf, notes, in_theaters
+    ) VALUES (
+      ${id}, ${userId}, ${data.watched_on}, ${data.title}, ${data.tmdb_id},
+      ${data.location}, ${data.format}, ${sawAlone}, ${data.auditorium},
+      ${data.seat}, ${data.ticket_cents}, ${data.rating}, ${data.dnf}, ${data.notes},
+      ${data.in_theaters}
+    )
+    RETURNING id, watched_on::text AS watched_on, title, tmdb_id, location, format,
+              saw_alone, auditorium, seat, ticket_cents, rating::float AS rating,
+              dnf, notes, in_theaters, created_at, updated_at
+  `;
+  await getMembership(userId);
+  let seen_with = null;
+  if (data.in_theaters !== false && data.seen_with.length) {
+    seen_with = await applySeenWith(userId, id, data.seen_with);
+  }
+  const watch = watchFromRow({ ...rows[0], companions: [] });
+  if (seen_with?.results?.some((r) => r.linked)) {
+    // Refresh companions after tagging matches.
+    const refreshed = await listWatches(userId);
+    const match = refreshed.find((w) => w.id === id);
+    if (match) Object.assign(watch, watchFromRow(match));
+  }
+  // Logging a film means you no longer "want" it — clear matching Coming Soon
+  // / Watch at Home rows for every entry path (quick-log, any page).
+  let removed_watchlist = [];
+  try {
+    removed_watchlist = await clearWatchlistForLoggedMovie(userId, {
+      tmdbId: data.tmdb_id,
+      title: data.title,
+    });
+  } catch {
+    // Watch already saved; leaving the want-list row is a soft failure.
+  }
+  return { watch, seen_with, removed_watchlist };
+}
+
 async function handleWatches(req, res) {
   if (!requireDb(res)) return;
   const session = await requireUser(req, res);
@@ -372,48 +430,8 @@ async function handleWatches(req, res) {
       res.status(400).json({ error: parsed.error });
       return;
     }
-    const { data } = parsed;
-    const id = randomUUID();
-    const sawAlone = data.seen_with.length ? false : data.saw_alone;
     try {
-      const rows = await db()`
-        INSERT INTO alist_watches (
-          id, user_id, watched_on, title, tmdb_id, location, format,
-          saw_alone, auditorium, seat, ticket_cents, rating, dnf, notes, in_theaters
-        ) VALUES (
-          ${id}, ${userId}, ${data.watched_on}, ${data.title}, ${data.tmdb_id},
-          ${data.location}, ${data.format}, ${sawAlone}, ${data.auditorium},
-          ${data.seat}, ${data.ticket_cents}, ${data.rating}, ${data.dnf}, ${data.notes},
-          ${data.in_theaters}
-        )
-        RETURNING id, watched_on::text AS watched_on, title, tmdb_id, location, format,
-                  saw_alone, auditorium, seat, ticket_cents, rating::float AS rating,
-                  dnf, notes, in_theaters, created_at, updated_at
-      `;
-      await getMembership(userId);
-      let seen_with = null;
-      if (data.in_theaters !== false && data.seen_with.length) {
-        seen_with = await applySeenWith(userId, id, data.seen_with);
-      }
-      const watch = watchFromRow({ ...rows[0], companions: [] });
-      if (seen_with?.results?.some((r) => r.linked)) {
-        // Refresh companions after tagging matches.
-        const refreshed = await listWatches(userId);
-        const match = refreshed.find((w) => w.id === id);
-        if (match) Object.assign(watch, watchFromRow(match));
-      }
-      // Logging a film means you no longer "want" it — clear matching Coming Soon
-      // / Watch at Home rows for every entry path (quick-log, any page).
-      let removed_watchlist = [];
-      try {
-        removed_watchlist = await clearWatchlistForLoggedMovie(userId, {
-          tmdbId: data.tmdb_id,
-          title: data.title,
-        });
-      } catch {
-        // Watch already saved; leaving the want-list row is a soft failure.
-      }
-      res.status(201).json({ watch, seen_with, removed_watchlist });
+      res.status(201).json(await createWatch(userId, parsed.data));
     } catch (err) {
       res.status(502).json({ error: err.message });
     }
@@ -970,6 +988,301 @@ const IMPORT_BATCH_SIZE = 100;
 
 function watchKey(w) {
   return `${w.watched_on}|${(w.title || '').toLowerCase()}|${(w.location || '').toLowerCase()}`;
+}
+
+const LETTERBOXD_FEED_MAX_BYTES = 2_000_000;
+
+/**
+ * Server-side fetch: Letterboxd sends no CORS header, so the browser cannot
+ * read the feed itself. The URL is only ever built from a validated username.
+ * @returns {Promise<{ items: object[] } | { notFound: true }>}
+ */
+async function fetchLetterboxdFeed(username) {
+  const res = await fetch(letterboxdRssUrl(username), {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; AMC-A-Lister/1.0; +https://inaayat.xyz/amc-a-lister/)',
+      Accept: 'application/rss+xml, application/xml;q=0.9, */*;q=0.1',
+    },
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (res.status === 404) return { notFound: true };
+  if (!res.ok) throw new Error(`Letterboxd returned ${res.status}. Try again in a bit.`);
+  const xml = (await res.text()).slice(0, LETTERBOXD_FEED_MAX_BYTES);
+  if (!xml.includes('<rss')) throw new Error('Letterboxd did not return a feed. Try again in a bit.');
+  return { items: parseLetterboxdRss(xml) };
+}
+
+function letterboxdItemFromRow(row, classification = null) {
+  return {
+    guid: row.guid,
+    title: row.title,
+    film_year: row.film_year,
+    tmdb_id: row.tmdb_id,
+    watched_on: row.watched_on,
+    rating: row.rating != null ? Number(row.rating) : null,
+    rewatch: row.rewatch === true,
+    review: row.review,
+    poster_url: row.poster_url,
+    link: row.link,
+    status: row.status,
+    classification,
+  };
+}
+
+async function letterboxdSettings(userId) {
+  await getMembership(userId);
+  const rows = await db()`
+    SELECT letterboxd_username, letterboxd_synced_at
+    FROM alist_membership WHERE user_id = ${userId}
+  `;
+  return {
+    username: rows[0]?.letterboxd_username || null,
+    synced_at: rows[0]?.letterboxd_synced_at || null,
+  };
+}
+
+/** Store entries the feed has not shown before; duplicates are recorded as such. */
+async function storeLetterboxdItems(userId, username, items) {
+  if (!items.length) return 0;
+  const known = await db()`
+    SELECT guid FROM alist_letterboxd_items WHERE user_id = ${userId}
+  `;
+  const seen = new Set(known.map((r) => r.guid));
+  const fresh = items.filter((i) => !seen.has(i.guid));
+  if (!fresh.length) return 0;
+
+  const watches = await listWatches(userId);
+  let added = 0;
+  for (const item of fresh) {
+    const status = isReviewable(classifyLetterboxdItem(item, watches)) ? 'pending' : 'duplicate';
+    const rows = await db()`
+      INSERT INTO alist_letterboxd_items (
+        user_id, guid, username, tmdb_id, title, film_year, watched_on, rating,
+        rewatch, review, poster_url, link, status
+      ) VALUES (
+        ${userId}, ${item.guid}, ${username}, ${item.tmdb_id}, ${item.title.slice(0, 300)},
+        ${item.film_year}, ${item.watched_on}, ${item.rating}, ${item.rewatch},
+        ${item.review ? item.review.slice(0, 4000) : null}, ${item.poster_url},
+        ${item.link ? item.link.slice(0, 500) : null}, ${status}
+      )
+      ON CONFLICT (user_id, guid) DO NOTHING
+      RETURNING status
+    `;
+    if (rows[0]?.status === 'pending') added += 1;
+  }
+  return added;
+}
+
+/**
+ * Pending entries, re-checked against the current log: a film logged by hand
+ * since the last sync drops out of the inbox instead of being imported twice.
+ */
+async function pendingLetterboxdItems(userId, username) {
+  if (!username) return [];
+  const rows = await db()`
+    SELECT guid, title, film_year, tmdb_id, watched_on::text AS watched_on,
+           rating::float AS rating, rewatch, review, poster_url, link, status
+    FROM alist_letterboxd_items
+    WHERE user_id = ${userId} AND status = 'pending' AND username = ${username}
+    ORDER BY watched_on DESC, guid DESC
+  `;
+  if (!rows.length) return [];
+  const watches = await listWatches(userId);
+  const keep = [];
+  const stale = [];
+  for (const row of rows) {
+    const classification = classifyLetterboxdItem(row, watches);
+    if (isReviewable(classification)) keep.push(letterboxdItemFromRow(row, classification));
+    else stale.push(row.guid);
+  }
+  if (stale.length) {
+    await db()`
+      UPDATE alist_letterboxd_items SET status = 'duplicate', updated_at = now()
+      WHERE user_id = ${userId} AND guid = ANY(${stale})
+    `;
+  }
+  return keep;
+}
+
+async function letterboxdState(userId, extra = {}) {
+  const settings = await letterboxdSettings(userId);
+  return {
+    username: settings.username,
+    synced_at: settings.synced_at,
+    profile_url: settings.username ? letterboxdProfileUrl(settings.username) : null,
+    items: await pendingLetterboxdItems(userId, settings.username),
+    ...extra,
+  };
+}
+
+async function syncLetterboxd(userId, username, { items } = {}) {
+  let feedItems = items;
+  if (!feedItems) {
+    const feed = await fetchLetterboxdFeed(username);
+    if (feed.notFound) {
+      const err = new Error(`Letterboxd has no member called ${username}.`);
+      err.status = 404;
+      throw err;
+    }
+    feedItems = feed.items;
+  }
+  const added = await storeLetterboxdItems(userId, username, feedItems);
+  await db()`
+    UPDATE alist_membership SET letterboxd_synced_at = now()
+    WHERE user_id = ${userId}
+  `;
+  return added;
+}
+
+/**
+ * GET   → { username, synced_at, items: pending entries }
+ * PUT   { username }                → connect (verified against the live feed) or clear
+ * POST  { action: 'sync', force }    → refresh from the feed (throttled unless forced)
+ * POST  { action: 'import', guid, watch } → log it through createWatch, editable fields first
+ * POST  { action: 'skip', guid }     → never show it again
+ */
+async function handleLetterboxd(req, res) {
+  if (!requireDb(res)) return;
+  const session = await requireUser(req, res);
+  if (!session) return;
+  const { userId } = session;
+
+  try {
+    if (req.method === 'GET') {
+      res.status(200).json(await letterboxdState(userId));
+      return;
+    }
+
+    if (req.method === 'PUT') {
+      const parsed = normalizeLetterboxdUsername(req.body?.username);
+      if (parsed.error) {
+        res.status(400).json({ error: parsed.error });
+        return;
+      }
+      const { username } = parsed;
+      const current = await letterboxdSettings(userId);
+
+      let feedItems = null;
+      if (username && username !== current.username) {
+        const feed = await fetchLetterboxdFeed(username);
+        if (feed.notFound) {
+          res.status(404).json({ error: `Letterboxd has no member called ${username}.` });
+          return;
+        }
+        feedItems = feed.items;
+      }
+
+      if (username !== current.username) {
+        await db()`
+          UPDATE alist_membership SET
+            letterboxd_username = ${username},
+            letterboxd_synced_at = NULL,
+            updated_at = now()
+          WHERE user_id = ${userId}
+        `;
+        // Entries waiting from another account are no longer this user's inbox;
+        // imported and skipped rows stay so they are never offered again.
+        await db()`
+          DELETE FROM alist_letterboxd_items
+          WHERE user_id = ${userId} AND status = 'pending'
+            AND username IS DISTINCT FROM ${username}
+        `;
+      }
+
+      let added = 0;
+      if (username && feedItems) added = await syncLetterboxd(userId, username, { items: feedItems });
+      res.status(200).json(await letterboxdState(userId, { added }));
+      return;
+    }
+
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Use GET, PUT or POST.' });
+      return;
+    }
+
+    const body = req.body || {};
+    const action = String(body.action || '');
+
+    if (action === 'sync') {
+      const settings = await letterboxdSettings(userId);
+      if (!settings.username) {
+        res.status(400).json({ error: 'Add your Letterboxd username in Settings first.' });
+        return;
+      }
+      const last = settings.synced_at ? new Date(settings.synced_at).getTime() : 0;
+      const fresh = Date.now() - last < LETTERBOXD_SYNC_INTERVAL_MS;
+      let added = 0;
+      let synced = false;
+      if (body.force === true || !fresh) {
+        added = await syncLetterboxd(userId, settings.username);
+        synced = true;
+      }
+      res.status(200).json(await letterboxdState(userId, { added, synced }));
+      return;
+    }
+
+    const guid = String(body.guid || '').slice(0, 200);
+    if (!guid) {
+      res.status(400).json({ error: 'guid is required.' });
+      return;
+    }
+    const rows = await db()`
+      SELECT guid, tmdb_id, status FROM alist_letterboxd_items
+      WHERE user_id = ${userId} AND guid = ${guid}
+    `;
+    const item = rows[0];
+    if (!item) {
+      res.status(404).json({ error: 'That Letterboxd entry is not in your inbox.' });
+      return;
+    }
+    if (item.status === 'imported') {
+      res.status(409).json({ error: 'Already in your log.' });
+      return;
+    }
+
+    if (action === 'skip') {
+      await db()`
+        UPDATE alist_letterboxd_items SET status = 'dismissed', updated_at = now()
+        WHERE user_id = ${userId} AND guid = ${guid}
+      `;
+      res.status(200).json({ ok: true, guid });
+      return;
+    }
+
+    if (action === 'import') {
+      const watchBody = body.watch && typeof body.watch === 'object' ? body.watch : {};
+      const parsed = normalizeBody({
+        ...watchBody,
+        tmdb_id: watchBody.tmdb_id !== undefined ? watchBody.tmdb_id : item.tmdb_id,
+      });
+      if (parsed.error) {
+        res.status(400).json({ error: parsed.error });
+        return;
+      }
+      const result = await createWatch(userId, parsed.data);
+      await db()`
+        UPDATE alist_letterboxd_items SET
+          status = 'imported', watch_id = ${result.watch.id}, updated_at = now()
+        WHERE user_id = ${userId} AND guid = ${guid}
+      `;
+      // Best effort: cache the film so the log shows a poster straight away.
+      const apiKey = getTmdbApiKey();
+      if (parsed.data.tmdb_id && apiKey && !result.watch.poster_path) {
+        try {
+          const movie = await getMovieDetails(parsed.data.tmdb_id, { apiKey });
+          if (movie?.poster_path) result.watch.poster_path = movie.poster_path;
+        } catch {
+          // The watch is saved; Settings → Backfill posters can catch it up.
+        }
+      }
+      res.status(201).json({ ...result, guid });
+      return;
+    }
+
+    res.status(400).json({ error: 'Unknown action.' });
+  } catch (err) {
+    res.status(err.status || 502).json({ error: err.message });
+  }
 }
 
 async function handleImport(req, res) {

@@ -168,6 +168,10 @@
       "destination": "/api/alist?route=tv-ranks"
     },
     {
+      "source": "/api/alist-letterboxd",
+      "destination": "/api/alist?route=letterboxd"
+    },
+    {
       "source": "/api/pc-cubes",
       "destination": "/api/packing-cubes"
     },

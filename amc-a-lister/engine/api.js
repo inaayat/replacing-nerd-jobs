@@ -91,6 +91,22 @@ export const backfillApi = {
   run: (token) => mutate(apiFetch('/api/alist-backfill-posters', { method: 'POST', token })),
 };
 
+export const letterboxdApi = {
+  get: (token) => apiFetch('/api/alist-letterboxd', { token }),
+  setUsername: (token, username) => apiFetch('/api/alist-letterboxd', { method: 'PUT', body: { username }, token }),
+  sync: (token, { force = false } = {}) => apiFetch('/api/alist-letterboxd', {
+    method: 'POST',
+    body: { action: 'sync', force },
+    token,
+  }),
+  importItem: (token, guid, watch) => mutate(apiFetch('/api/alist-letterboxd', {
+    method: 'POST',
+    body: { action: 'import', guid, watch },
+    token,
+  })),
+  skip: (token, guid) => apiFetch('/api/alist-letterboxd', { method: 'POST', body: { action: 'skip', guid }, token }),
+};
+
 export const importApi = {
   run: (token, watches) => mutate(apiFetch('/api/alist-import', { method: 'POST', body: { watches }, token })),
 };

@@ -1,5 +1,5 @@
 import { bootPage, renderShell, requireSignIn, populateSidebarStats } from './nav.js';
-import { watchesApi, movieApi, showingInvitesApi } from './api.js';
+import { watchesApi, movieApi, showingInvitesApi, letterboxdApi } from './api.js';
 import { money, shortDate, escapeHtml, posterHtml } from './format.js';
 import { watchLogListHtml, withWatchGridTransition } from './watch-log-grid.js';
 import { wireWatchEditForm } from './watch-form.js';
@@ -121,9 +121,40 @@ bootPage(async ({ root, auth }) => {
 
   reloadLog = () => loadLog(auth);
   await loadLog(auth);
+  syncLetterboxdBanner(auth);
 }, { quickLogOnSuccess: async (auth) => {
   await Promise.all([reloadLog?.(), populateSidebarStats(auth)]);
 }});
+
+let letterboxdPending = 0;
+
+function renderLetterboxdBanner() {
+  const el = document.getElementById('letterboxd-banner');
+  if (!el) return;
+  el.hidden = letterboxdPending === 0;
+  if (!letterboxdPending) return;
+  el.innerHTML = `
+    <p>
+      <strong>${letterboxdPending} new from Letterboxd.</strong>
+      <span class="al-muted">Tell us which you saw in theaters and which at home.</span>
+    </p>
+    <a class="al-btn al-btn-primary" href="/amc-a-lister/letterboxd.html">Review</a>
+  `;
+}
+
+/**
+ * Background, once per page load: the server only refetches the feed when the
+ * last sync is stale, so this is one cheap call for most visits.
+ */
+async function syncLetterboxdBanner(auth) {
+  try {
+    const state = await letterboxdApi.sync(auth.token);
+    letterboxdPending = state.items?.length || 0;
+    renderLetterboxdBanner();
+  } catch {
+    // Not connected (400) or Letterboxd unreachable — the log works without it.
+  }
+}
 
 async function loadLog(auth) {
   const main = document.getElementById('log-main');
@@ -138,6 +169,7 @@ async function loadLog(auth) {
   const formats = [...new Set(watches.map((w) => w.format).filter(Boolean))].sort();
 
   main.innerHTML = `
+    <section class="al-panel al-panel--letterboxd" id="letterboxd-banner" hidden></section>
     <section class="al-panel al-panel--invites" id="showing-invites-panel" hidden></section>
     <section class="al-panel al-panel--log">
       <div class="al-toolbar al-toolbar--log">
@@ -188,6 +220,7 @@ async function loadLog(auth) {
     </section>
   `;
 
+  renderLetterboxdBanner();
   const includeHomeEl = document.getElementById('log-include-home');
 
   const state = {
