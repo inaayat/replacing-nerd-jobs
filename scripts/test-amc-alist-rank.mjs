@@ -4,7 +4,7 @@
  */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { rankStackHtml, rankStackWithUnrankedHtml, unrankedGridHtml } from '../amc-a-lister/engine/rank-view.js';
+import { rankStackHtml, rankStackWithUnrankedHtml, unrankedGridHtml, publicRankStackHtml } from '../amc-a-lister/engine/rank-view.js';
 import {
   createInsertSearch,
   applyInsertAnswer,
@@ -338,6 +338,26 @@ function placeWithAnswers(rankedLength, answers) {
   assert.equal(phoneCompare.includes('min(42vh, 320px)'), false);
 
   assert.match(rankSource, /al-rank-card-poster', fluid: true/);
+
+  const publicStack = publicRankStackHtml([
+    { tmdb_id: 1, title: 'Best', year: 2024, poster_path: '/a.jpg' },
+    { tmdb_id: 2, title: 'Next', year: null },
+  ]);
+  assert.match(publicStack, /al-rank-grid--public/);
+  assert.match(publicStack, /al-rank-tile-num">1</);
+  assert.match(publicStack, />Best</);
+  assert.equal(publicStack.includes('data-rerank'), false, 'public rank tiles cannot re-rank');
+  assert.equal(publicStack.includes('data-unrank'), false, 'public rank tiles cannot be removed');
+  assert.equal(publicRankStackHtml([]).includes('Nothing ranked yet'), true);
+
+  const profileSource = readFileSync(new URL('../lib/a-list.js', import.meta.url), 'utf8');
+  const profileFn = profileSource.slice(
+    profileSource.indexOf('export async function getUserPublicProfile'),
+    profileSource.indexOf('export async function getLeaderboard'),
+  );
+  assert.match(profileFn, /alist_movie_ranks/, 'public profiles include the movie rank stack');
+  const memberSource = readFileSync(new URL('../amc-a-lister/engine/member.js', import.meta.url), 'utf8');
+  assert.match(memberSource, /publicRankStackHtml/, 'member profiles render the public rank grid');
 }
 
 console.log('amc alist rank tests passed');

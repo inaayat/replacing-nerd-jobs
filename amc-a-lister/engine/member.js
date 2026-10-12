@@ -4,6 +4,7 @@ import { leaderboardApi, movieApi } from './api.js';
 import { money, escapeHtml, monthLabel } from './format.js';
 import { ratingStarBucket } from './billing.js';
 import { watchLogListHtml, withWatchGridTransition } from './watch-log-grid.js';
+import { publicRankStackHtml } from './rank-view.js';
 
 bootPage(async ({ root, auth }) => {
   const params = new URLSearchParams(location.search);
@@ -89,6 +90,12 @@ function renderProfile(main, profile, { currentUserId, auth }) {
           ${statCard('Net savings', stats.periodSavings, 'money-signed')}
         </div>
       </div>
+    </section>
+
+    <section class="al-panel al-member-ranks">
+      <h2 class="al-section-title">Rank</h2>
+      <p class="al-muted al-member-ranks-note">Theater stack, best first. Separate from star ratings.</p>
+      ${publicRankStackHtml(profile.ranks)}
     </section>
 
     <section class="al-panel al-panel--log al-member-log">

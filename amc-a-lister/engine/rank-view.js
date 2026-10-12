@@ -48,6 +48,18 @@ export function rankedTileHtml(item, position) {
   `;
 }
 
+/** Read-only stack for a public member profile — no re-rank or remove. */
+export function publicRankedTileHtml(item, position) {
+  const year = item.year ? `<span class="al-rank-tile-year">${escapeHtml(item.year)}</span>` : '';
+  return `
+    <article class="al-rank-tile">
+      ${posterBlock(item, `<span class="al-rank-tile-num">${position}</span>`)}
+      <h3 class="al-rank-tile-title">${escapeHtml(item.title)}</h3>
+      ${year}
+    </article>
+  `;
+}
+
 /** Every unranked title, not a short sample. */
 export function unrankedGridHtml(items) {
   if (!items?.length) return '';
@@ -57,6 +69,11 @@ export function unrankedGridHtml(items) {
 export function rankStackHtml(ranks) {
   if (!ranks?.length) return '<p class="al-empty">Nothing ranked yet.</p>';
   return `<div class="al-rank-grid">${ranks.map((item, i) => rankedTileHtml(item, i + 1)).join('')}</div>`;
+}
+
+export function publicRankStackHtml(ranks) {
+  if (!ranks?.length) return '<p class="al-empty">Nothing ranked yet.</p>';
+  return `<div class="al-rank-grid al-rank-grid--public">${ranks.map((item, i) => publicRankedTileHtml(item, i + 1)).join('')}</div>`;
 }
 
 /**
