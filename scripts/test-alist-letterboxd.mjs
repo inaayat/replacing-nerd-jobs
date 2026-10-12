@@ -14,6 +14,7 @@ import {
   draftWatchFromItem,
   defaultTicketCents,
   decodeEntities,
+  LETTERBOXD_SYNC_INTERVAL_MS,
 } from '../amc-a-lister/engine/letterboxd.js';
 
 let passed = 0;
@@ -146,6 +147,8 @@ const priced = [
 eq(defaultTicketCents(priced, 'amc lincoln square 13'), 2499, 'last price at that theater');
 eq(defaultTicketCents(priced, 'AMC 34th Street'), 1999, 'falls back to the latest theater price');
 eq(defaultTicketCents([], ''), null, 'no history → no default');
+
+eq(LETTERBOXD_SYNC_INTERVAL_MS, 15 * 60 * 1000, 'feed refetches at most every 15 minutes per user');
 
 // --- wiring guards ---
 const api = readFileSync(new URL('../api/alist.js', import.meta.url), 'utf8');

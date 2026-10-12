@@ -14,8 +14,12 @@ const AUTO_WATCH_NOTE = /^Watched on \w+,? \w+ \d{1,2},? \d{4}\.?$/i;
 /** Days either side of a Letterboxd date that still count as the same screening. */
 export const SAME_WATCH_WINDOW_DAYS = 1;
 
-/** Re-fetch the feed at most this often unless the user asks. */
-export const LETTERBOXD_SYNC_INTERVAL_MS = 6 * 60 * 60 * 1000;
+/**
+ * Re-fetch the feed at most this often per user unless they ask. Short enough
+ * that any real visit picks up new entries; long enough that refreshes and tab
+ * hops don't each hit Letterboxd, whose feed is uncached (no-store).
+ */
+export const LETTERBOXD_SYNC_INTERVAL_MS = 15 * 60 * 1000;
 
 /**
  * Accepts `name`, `@name`, or a pasted profile/RSS URL.
