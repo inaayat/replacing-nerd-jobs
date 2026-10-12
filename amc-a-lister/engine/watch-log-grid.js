@@ -171,12 +171,15 @@ function screeningGroupHtml(watch) {
   `;
 }
 
-function movieDetailsHtml(watch, state) {
+function movieDetailsHtml(watch, state, { readonly = false } = {}) {
   if (!watch.tmdb_id) {
+    const hint = readonly
+      ? 'No TMDB match for this title.'
+      : 'No TMDB match for this title. Use Edit and pick the movie from search to load details.';
     return `
       <section class="al-watch-detail-group">
         <h4 class="al-watch-detail-kicker">Film</h4>
-        <p class="al-muted al-watch-more-note">No TMDB match for this title. Use Edit and pick the movie from search to load details.</p>
+        <p class="al-muted al-watch-more-note">${hint}</p>
       </section>
     `;
   }
@@ -227,7 +230,8 @@ function movieDetailsHtml(watch, state) {
   `;
 }
 
-function cardActionsHtml(watch) {
+function cardActionsHtml(watch, { readonly = false } = {}) {
+  if (readonly) return '';
   const canAdd = watch.in_theaters !== false;
   return `
     <div class="al-row-actions al-watchlist-card-actions">
@@ -238,19 +242,19 @@ function cardActionsHtml(watch) {
   `;
 }
 
-function expandedPanelHtml(watch, state, adding) {
+function expandedPanelHtml(watch, state, adding, { readonly = false } = {}) {
   return `
     <div class="al-watch-card-more">
       <div class="al-watch-detail-head">
         <h3 class="al-watch-detail-title">${escapeHtml(watch.title)}</h3>
         <div class="al-watch-detail-tools">
-          ${cardActionsHtml(watch)}
+          ${cardActionsHtml(watch, { readonly })}
           ${iconButton('data-collapse-card', 'Close details', 'close')}
         </div>
       </div>
-      ${adding
+      ${adding && !readonly
     ? addViewerFormHtml(watch)
-    : `<div class="al-watch-detail-groups">${screeningGroupHtml(watch)}${movieDetailsHtml(watch, state)}</div>`}
+    : `<div class="al-watch-detail-groups">${screeningGroupHtml(watch)}${movieDetailsHtml(watch, state, { readonly })}</div>`}
     </div>
   `;
 }
@@ -283,9 +287,9 @@ function addViewerFormHtml(watch) {
   `;
 }
 
-function viewCardHtml(watch, state) {
+function viewCardHtml(watch, state, { readonly = false } = {}) {
   const expanded = watch.id === state.expandedId;
-  const adding = watch.id === state.addingId;
+  const adding = !readonly && watch.id === state.addingId;
   const open = expanded || adding;
   const face = open ? '' : `
         <h3 class="al-watch-card-title" title="${escapeHtml(watch.title)}">${escapeHtml(watch.title)}</h3>
@@ -295,7 +299,7 @@ function viewCardHtml(watch, state) {
           ${fact('Cost', costLabel(watch))}
           <div class="al-watch-card-fact al-watch-card-fact--rating"><dt>Rating</dt><dd>${ratingStarsHtml(watch)}</dd></div>
         </dl>
-        ${cardActionsHtml(watch)}
+        ${cardActionsHtml(watch, { readonly })}
   `;
   return `
     <div class="al-log-entry al-watch-grid-item${open ? ' is-expanded' : ''}${adding ? ' is-adding' : ''}" data-entry-id="${watch.id}" style="view-transition-name:${watchVtName(watch.id)}">
@@ -305,7 +309,7 @@ function viewCardHtml(watch, state) {
         </div>
         ${face}
       </article>
-      ${open ? expandedPanelHtml(watch, state, adding) : ''}
+      ${open ? expandedPanelHtml(watch, state, adding, { readonly }) : ''}
     </div>
   `;
 }
@@ -320,9 +324,10 @@ function editCardHtml(watch) {
   `;
 }
 
-export function watchLogListHtml(state) {
+export function watchLogListHtml(state, { readonly = false } = {}) {
   const filtered = state.filtered || [];
   if (!state.watches?.length) {
+    if (readonly) return '<div class="al-empty">No screenings logged yet.</div>';
     return `
       <div class="al-empty al-empty--first-run">
         <p><strong>No screenings yet.</strong></p>
@@ -338,9 +343,11 @@ export function watchLogListHtml(state) {
   }
   if (!filtered.length) return '<div class="al-empty">No matches.</div>';
   return `
-    <div class="al-watch-grid">
+    <div class="al-watch-grid${readonly ? ' al-watch-grid--readonly' : ''}">
       ${filtered.map((watch) => (
-        watch.id === state.editingId ? editCardHtml(watch) : viewCardHtml(watch, state)
+        !readonly && watch.id === state.editingId
+          ? editCardHtml(watch)
+          : viewCardHtml(watch, state, { readonly })
       )).join('')}
     </div>
   `;

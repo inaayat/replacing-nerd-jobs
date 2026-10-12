@@ -1,8 +1,9 @@
 import { bootPage, renderShell, populateSidebarStats } from './nav.js';
 import { loginUrl } from './auth.js';
-import { leaderboardApi } from './api.js';
-import { money, shortDate, ratingLabel, escapeHtml, posterHtml, monthLabel } from './format.js';
+import { leaderboardApi, movieApi } from './api.js';
+import { money, escapeHtml, monthLabel } from './format.js';
 import { ratingStarBucket } from './billing.js';
+import { watchLogListHtml, withWatchGridTransition } from './watch-log-grid.js';
 
 bootPage(async ({ root, auth }) => {
   const params = new URLSearchParams(location.search);
@@ -130,11 +131,25 @@ function renderProfile(main, profile, { currentUserId, auth }) {
     ` : ''}
   `;
 
-  const state = { watches, filtered: watches };
+  const listEl = document.getElementById('member-table');
+  const state = {
+    watches,
+    filtered: watches,
+    expandedId: null,
+    detailsCache: new Map(),
+    detailsLoading: null,
+    detailsError: null,
+  };
 
-  const render = () => {
+  const render = ({ transition = false } = {}) => {
     document.getElementById('member-count').textContent = `${state.filtered.length} of ${state.watches.length}`;
-    document.getElementById('member-table').innerHTML = tableHtml(state.filtered);
+    const html = watchLogListHtml(state, { readonly: true });
+    const apply = () => {
+      listEl.innerHTML = html;
+      wireMemberLogExpand(auth, state, render, listEl);
+    };
+    if (transition) withWatchGridTransition(listEl, apply);
+    else apply();
   };
 
   const applyFilters = () => {
@@ -187,6 +202,76 @@ function renderProfile(main, profile, { currentUserId, auth }) {
   render();
 }
 
+function wireMemberLogExpand(auth, state, render, listEl) {
+  listEl.querySelectorAll('[data-expand-row]').forEach((row) => {
+    const toggle = (e) => {
+      if (e.target.closest('.al-row-actions')) return;
+      const entry = row.closest('.al-log-entry');
+      const id = entry?.dataset.entryId;
+      if (!id) return;
+
+      if (state.expandedId === id) {
+        state.expandedId = null;
+        state.detailsError = null;
+        render({ transition: true });
+        return;
+      }
+
+      state.expandedId = id;
+      state.detailsError = null;
+      render({ transition: true });
+
+      const watch = state.watches.find((w) => w.id === id);
+      if (watch?.tmdb_id && !state.detailsCache.has(id)) {
+        loadMemberMovieDetails(auth, state, id, render);
+      }
+    };
+
+    row.addEventListener('click', toggle);
+    row.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggle(e);
+      }
+    });
+  });
+
+  listEl.querySelectorAll('[data-collapse-card]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      state.expandedId = null;
+      state.detailsError = null;
+      render({ transition: true });
+    });
+  });
+}
+
+async function loadMemberMovieDetails(auth, state, watchId, render) {
+  const watch = state.watches.find((w) => w.id === watchId);
+  if (!watch?.tmdb_id) return;
+  if (state.detailsCache.has(watchId)) return;
+
+  state.detailsLoading = watchId;
+  state.detailsError = null;
+  render();
+
+  try {
+    const token = auth?.signedIn ? auth.token : undefined;
+    const { movie } = await movieApi.details(token, watch.tmdb_id);
+    state.detailsCache.set(watchId, movie);
+    if (movie.poster_path && !watch.poster_path) {
+      const withPoster = { ...watch, poster_path: movie.poster_path };
+      state.watches = state.watches.map((w) => (w.id === watchId ? withPoster : w));
+      state.filtered = state.filtered.map((w) => (w.id === watchId ? withPoster : w));
+    }
+  } catch (err) {
+    state.detailsError = err.message || 'Could not load movie details.';
+  } finally {
+    state.detailsLoading = null;
+    render();
+  }
+}
+
 function statCard(label, value, kind) {
   let display = '—';
   let extraClass = '';
@@ -207,57 +292,6 @@ function statCard(label, value, kind) {
     <div class="al-stat">
       <div class="al-stat-label">${escapeHtml(label)}</div>
       <div class="al-stat-value ${extraClass}">${escapeHtml(display)}</div>
-    </div>
-  `;
-}
-
-function tableHtml(watches) {
-  if (!watches.length) return '<div class="al-empty">No screenings logged yet.</div>';
-  return `
-    <div class="al-log-list al-log-list--readonly">
-      <div class="al-log-head" role="row">
-        <span class="al-log-col al-col-poster"></span>
-        <span class="al-log-col">Date</span>
-        <span class="al-log-col">Title</span>
-        <span class="al-log-col">Location</span>
-        <span class="al-log-col">Format</span>
-        <span class="al-log-col">Charge</span>
-        <span class="al-log-col">Rating</span>
-      </div>
-      ${watches.map((w) => viewRowHtml(w)).join('')}
-    </div>
-  `;
-}
-
-function mobileLogMeta(w) {
-  const primary = [
-    shortDate(w.watched_on),
-    w.in_theaters === false ? 'Off-theater' : (w.format || 'Standard'),
-    w.in_theaters === false ? null : money(w.ticket_cents),
-    ratingLabel(w),
-  ].filter(Boolean).map((part) => escapeHtml(String(part))).join(' · ');
-  const location = escapeHtml(w.in_theaters === false ? 'Not in theaters' : (w.location || '—'));
-  return `<span class="al-log-meta-primary">${primary}</span><span class="al-log-meta-location">${location}</span>`;
-}
-
-function viewRowHtml(w) {
-  return `
-    <div class="al-log-entry">
-      <article class="al-log-row">
-        <div class="al-log-col al-col-poster">${posterHtml(w)}</div>
-        <div class="al-log-col al-log-col--desktop">${shortDate(w.watched_on)}</div>
-        <div class="al-log-col--body">
-          <div class="al-log-col al-log-col--title">
-            ${escapeHtml(w.title)}
-            ${w.in_theaters === false ? '<span class="al-badge al-badge--muted">Off-theater</span>' : ''}
-          </div>
-          <div class="al-log-col al-log-col--mobile-meta al-only-mobile">${mobileLogMeta(w)}</div>
-        </div>
-        <div class="al-log-col al-log-col--desktop al-muted">${escapeHtml(w.in_theaters === false ? 'Not in theaters' : (w.location || '—'))}</div>
-        <div class="al-log-col al-log-col--desktop">${w.in_theaters === false ? '—' : (w.format ? escapeHtml(w.format) : '—')}</div>
-        <div class="al-log-col al-log-col--desktop al-log-col--num">${w.in_theaters === false ? '—' : money(w.ticket_cents)}</div>
-        <div class="al-log-col al-log-col--desktop">${ratingLabel(w)}</div>
-      </article>
     </div>
   `;
 }

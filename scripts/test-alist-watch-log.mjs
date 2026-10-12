@@ -219,5 +219,61 @@ assert(logSource.includes('watchLogListHtml'), 'the watch log page renders the p
 assert(logSource.includes('withWatchGridTransition'), 'expand and collapse animate through the grid');
 assert(logSource.includes('data-collapse-card'), 'the close control is wired');
 
+const readonlyCollapsed = watchLogListHtml(state(), { readonly: true });
+assert(readonlyCollapsed.includes('class="al-watch-grid al-watch-grid--readonly"'), 'public logs use the readonly poster grid');
+assert(!readonlyCollapsed.includes('aria-label="Edit"'), 'readonly cards hide edit');
+assert(!readonlyCollapsed.includes('aria-label="Delete"'), 'readonly cards hide delete');
+assert(!readonlyCollapsed.includes('aria-label="Add someone"'), 'readonly cards hide add-someone');
+assert(readonlyCollapsed.includes('data-expand-row'), 'readonly cards still expand');
+
+const readonlyExpanded = watchLogListHtml(state({
+  expandedId: 'w1',
+  detailsCache: new Map([['w1', {
+    title: 'The Brutalist',
+    runtime_min: 215,
+    genres: ['Drama'],
+    director: 'Brady Corbet',
+    cast: ['Adrien Brody'],
+    overview: 'A long concrete movie.',
+  }]]),
+}), { readonly: true });
+assert(readonlyExpanded.includes('data-collapse-card'), 'readonly open cards can close');
+assert(readonlyExpanded.includes('A long concrete movie.'), 'readonly open cards still show the overview');
+assert(!readonlyExpanded.includes('aria-label="Edit"'), 'readonly open cards keep edit hidden');
+
+assert(
+  watchLogListHtml({ watches: [], filtered: [] }, { readonly: true }).includes('No screenings logged yet'),
+  'an empty public log uses a short empty note',
+);
+
+const aloneReadonly = watchLogListHtml({
+  ...state(),
+  watches: [alone],
+  filtered: [alone],
+  expandedId: 'alone',
+}, { readonly: true });
+assert(aloneReadonly.includes('No TMDB match for this title.'), 'readonly TMDB miss skips the Edit hint');
+assert(!aloneReadonly.includes('Use Edit'), 'readonly TMDB miss does not mention Edit');
+
+const memberSource = readFileSync(new URL('../amc-a-lister/engine/member.js', import.meta.url), 'utf8');
+assert(memberSource.includes('watchLogListHtml'), 'member profiles render the poster grid');
+assert(memberSource.includes('readonly: true'), 'member profiles render the grid read-only');
+assert(memberSource.includes('withWatchGridTransition'), 'member profiles animate expand like the log');
+assert(!memberSource.includes('al-log-list--readonly'), 'member profiles no longer use the table list');
+
+const apiSource = readFileSync(new URL('../api/alist.js', import.meta.url), 'utf8');
+const movieDetailsFn = apiSource.slice(
+  apiSource.indexOf('async function handleMovieDetails'),
+  apiSource.indexOf('async function handleMovieLookup'),
+);
+assert(
+  movieDetailsFn.includes('Public member profiles'),
+  'movie details stay available without a session for public profile expands',
+);
+assert(
+  !movieDetailsFn.includes('Not signed in'),
+  'movie details no longer 401 anonymous viewers',
+);
+
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

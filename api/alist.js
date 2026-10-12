@@ -1391,12 +1391,8 @@ async function handleMovieDetails(req, res) {
     return;
   }
 
-  const auth = await getAuth(req);
-  if (!auth) {
-    res.status(401).json({ error: 'Not signed in.' });
-    return;
-  }
-
+  // Public member profiles expand cards without a session; TMDB payloads are
+  // cached server-side and are not account-private.
   const tmdbId = Number(req.query?.tmdb_id);
   if (!tmdbId) {
     res.status(400).json({ error: 'tmdb_id is required.' });
