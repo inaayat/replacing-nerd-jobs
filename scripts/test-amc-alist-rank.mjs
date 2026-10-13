@@ -356,6 +356,13 @@ function placeWithAnswers(rankedLength, answers) {
   );
   assert.match(saveRank, /aria-label="Want to watch"/);
   assert.match(saveRank, /data-tmdb-id="9"/);
+  const rankPoster = saveRank.slice(saveRank.indexOf('al-rank-tile-poster'), saveRank.indexOf('al-rank-tile-title'));
+  assert.match(rankPoster, /al-poster-save/, 'the rank save control overlays the poster');
+  const saveCss = css.slice(css.indexOf('.al-poster-save {'));
+  assert.equal(saveCss.startsWith('.al-poster-save {'), true);
+  assert.match(saveCss.slice(0, 700), /opacity:\s*0/);
+  assert.match(saveCss, /\.al-rank-tile-poster:hover > \.al-poster-save/);
+  assert.match(saveCss, /\.al-watch-card-poster:hover > \.al-poster-save/);
   const savedRank = publicRankStackHtml(
     [{ tmdb_id: 9, title: 'Nope', year: 2022 }],
     { saveWatchlist: true, isSaved: () => true },

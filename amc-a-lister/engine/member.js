@@ -418,6 +418,9 @@ function markSavedButtons(movie) {
     btn.disabled = true;
     btn.title = 'On your list';
     btn.setAttribute('aria-label', 'On your list');
+    btn.classList.add('is-saved');
+    const label = btn.querySelector('.al-poster-save-label');
+    if (label) label.textContent = 'On your list';
   });
 }
 
@@ -464,7 +467,7 @@ function wireSaveWatchlist(auth, savedItems, isSaved) {
 function wireMemberLogExpand(auth, state, render, listEl) {
   listEl.querySelectorAll('[data-expand-row]').forEach((row) => {
     const toggle = (e) => {
-      if (e.target.closest('.al-row-actions')) return;
+      if (e.target.closest('.al-row-actions, .al-poster-save')) return;
       const entry = row.closest('.al-log-entry');
       const id = entry?.dataset.entryId;
       if (!id) return;

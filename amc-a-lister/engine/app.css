@@ -5550,11 +5550,77 @@ article.al-rank-tile {
   box-shadow: 0 2px 8px rgba(28, 28, 28, 0.1);
 }
 
+.al-poster-save {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0;
+  padding: 12px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(28, 24, 22, 0.62);
+  color: #fff;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.al-rank-tile-poster:hover > .al-poster-save,
+.al-watch-card-poster:hover > .al-poster-save,
+.al-poster-save:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.al-poster-save:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: -4px;
+}
+
+.al-poster-save-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.al-poster-save.is-saved,
+.al-poster-save:disabled {
+  cursor: default;
+}
+
+@media (hover: none) {
+  .al-poster-save {
+    inset: auto 8px 8px auto;
+    width: auto;
+    max-width: calc(100% - 16px);
+    padding: 6px 8px;
+    border-radius: 999px;
+    opacity: 1;
+    pointer-events: auto;
+    flex-direction: row;
+    gap: 4px;
+    background: rgba(28, 24, 22, 0.82);
+  }
+
+  .al-poster-save-icon {
+    width: 16px;
+    height: 16px;
+  }
+}
+
 .al-rank-tile-num {
   position: absolute;
   top: 6px;
   left: 6px;
-  z-index: 1;
+  z-index: 3;
   min-width: 1.5rem;
   padding: 1px 6px;
   border-radius: 999px;

@@ -1,5 +1,6 @@
 import { escapeHtml, money, posterHtml, shortDate } from './format.js';
 import { renderWatchEditForm } from './watch-form.js';
+import { saveWatchlistOverlayHtml } from './save-watchlist.js';
 
 const STAR_PATH = 'M12 2.7 14.7 8.2l6.1.9-4.4 4.3 1 6.1L12 16.6 6.6 19.5l1-6.1L3.2 9.1l6.1-.9L12 2.7z';
 
@@ -44,7 +45,6 @@ function actionIcon(name) {
     edit: '<path d="M13.6 5.6 18.4 10.4"/><path d="M4.6 19.4 5.8 15 15 5.8a1.5 1.5 0 0 1 2.1 0l1.1 1.1a1.5 1.5 0 0 1 0 2.1L9 18.2l-4.4 1.2z"/>',
     remove: '<path d="M5.2 7.6h13.6"/><path d="M9.2 7.5V5.8h5.6v1.7"/><path d="M7.4 7.6l.8 11.2h7.6l.8-11.2"/><path d="M10.4 10.6v5.2M13.6 10.6v5.2"/>',
     close: '<path d="M6.2 6.2 17.8 17.8"/><path d="M17.8 6.2 6.2 17.8"/>',
-    bookmark: '<path d="M7 4.5h10a1 1 0 0 1 1 1V20l-6-3.2L6 20V5.5a1 1 0 0 1 1-1z"/>',
   };
   return `<svg class="al-watchlist-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[name]}</svg>`;
 }
@@ -231,25 +231,8 @@ function movieDetailsHtml(watch, state, { readonly = false } = {}) {
   `;
 }
 
-function saveWatchlistButton(watch, saved) {
-  const tmdb = watch.tmdb_id != null && watch.tmdb_id !== '' ? String(watch.tmdb_id) : '';
-  const label = saved ? 'On your list' : 'Want to watch';
-  return iconButton(
-    `data-save-watchlist data-tmdb-id="${escapeHtml(tmdb)}" data-title="${escapeHtml(watch.title || '')}"${saved ? ' disabled' : ''}`,
-    label,
-    'bookmark',
-  );
-}
-
-function cardActionsHtml(watch, { readonly = false, saveWatchlist = false, saved = false } = {}) {
-  if (readonly) {
-    if (!saveWatchlist) return '';
-    return `
-      <div class="al-row-actions al-watchlist-card-actions">
-        ${saveWatchlistButton(watch, saved)}
-      </div>
-    `;
-  }
+function cardActionsHtml(watch, { readonly = false } = {}) {
+  if (readonly) return '';
   const canAdd = watch.in_theaters !== false;
   return `
     <div class="al-row-actions al-watchlist-card-actions">
@@ -326,6 +309,7 @@ function viewCardHtml(watch, state, actionOpts = {}) {
       <article class="al-watch-card al-log-row--clickable${open ? ' is-expanded' : ''}" data-expand-row tabindex="0" aria-expanded="${open}" aria-label="Toggle details">
         <div class="al-watch-card-poster">
           ${posterHtml(watch, { size: 'w342', className: 'al-poster al-poster--grid', fluid: true })}
+          ${actionOpts.saveWatchlist ? saveWatchlistOverlayHtml(watch, actionOpts.saved) : ''}
         </div>
         ${face}
       </article>

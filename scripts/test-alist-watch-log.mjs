@@ -241,6 +241,9 @@ assert(!saveHtml.includes('aria-label="Edit"'), 'saving from a profile does not 
 const savedHtml = watchLogListHtml(state(), { readonly: true, saveWatchlist: true, isSaved: () => true });
 assert(savedHtml.includes('aria-label="On your list"'), 'a film already on the list is labeled that way');
 assert(savedHtml.includes('disabled'), 'a film already on the list cannot be added again');
+const posterChunk = saveHtml.slice(saveHtml.indexOf('al-watch-card-poster'), saveHtml.indexOf('al-watch-card-title'));
+assert(posterChunk.includes('al-poster-save'), 'want to watch is an overlay on the poster');
+assert(!saveHtml.slice(saveHtml.indexOf('al-watch-card-title')).includes('data-save-watchlist'), 'the poster overlay is the only save control');
 
 const readonlyExpanded = watchLogListHtml(state({
   expandedId: 'w1',
