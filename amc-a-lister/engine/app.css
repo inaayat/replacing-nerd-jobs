@@ -1921,14 +1921,6 @@ table.al-table {
   }
 
   body[data-page="leaderboard"] .al-page-header {
-    margin-bottom: 8px;
-  }
-
-  body[data-page="leaderboard"] .al-page-title {
-    font-size: 1.5rem;
-  }
-
-  body[data-page="leaderboard"] .al-page-sub {
     display: none;
   }
 

@@ -406,6 +406,7 @@ function placeWithAnswers(rankedLength, answers) {
   assert.match(boardMobile, /repeat\(4,\s*minmax\(0,\s*1fr\)\)/, 'phone board stats stay a four-up strip');
   assert.match(boardMobile, /body\[data-page="leaderboard"\] \.page-main/, 'phone leaderboard clears the sticky nav');
   assert.match(boardMobile, /padding-bottom: calc\(108px/, 'phone leaderboard leaves room under the last card');
+  assert.match(boardMobile, /body\[data-page="leaderboard"\] \.al-page-header/, 'phone leaderboard drops the duplicate page title');
   assert.match(boardMobile, /\.al-board-posters \{/, 'phone board keeps the poster strip');
   assert.match(boardSource, /al-board-row/, 'leaderboard is a ranked list, not a beige card grid');
   assert.match(boardSource, /al-board-poster/, 'leaderboard rows still render posters');
