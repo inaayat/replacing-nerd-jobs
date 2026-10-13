@@ -2844,8 +2844,9 @@ table.al-table {
 }
 
 .al-howto-summary::before {
-  content: '▸ ';
+  content: '▸';
   display: inline-block;
+  margin-right: 0.4em;
   transition: transform 0.15s ease;
 }
 
@@ -5939,7 +5940,7 @@ table.al-table {
 }
 
 .al-main--settings .al-tier-table {
-  max-width: none;
+  max-width: 26rem;
 }
 
 .al-main--settings .al-tier-row,
