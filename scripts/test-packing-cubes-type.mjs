@@ -24,7 +24,7 @@ assert.match(cube, /--accent: #e8c47a/, 'dark mode keeps Plotmaniac gold');
 assert.match(cube, /html\[data-theme="light"\][\s\S]*--accent: #2f6b4f/, 'light mode uses original packing green');
 assert.match(cube, /html\[data-theme="light"\][\s\S]*--bg: #f3f4f6/, 'light mode uses the original pale ground');
 assert.match(cube, /html\[data-theme="light"\][\s\S]*--ink: #23282d/, 'light mode ink is the original dark grey');
-assert.match(cube, /#pc-theme-toggle/, 'theme toggle is styled');
+assert.match(cube, /\.pc-theme-toggle/, 'theme toggle is styled');
 assert.doesNotMatch(cube, /background-size:\s*72px 72px/, 'no Plotmaniac grid background');
 assert.doesNotMatch(cube, /Atkinson Hyperlegible/, 'Atkinson is no longer the packing face');
 
