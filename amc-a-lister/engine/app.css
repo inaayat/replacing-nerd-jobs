@@ -1860,6 +1860,16 @@ table.al-table {
   font-variant-numeric: tabular-nums;
 }
 
+.al-board-stats dd.is-savings,
+.al-member-hero-stats dd.is-savings {
+  color: #0d7a42;
+}
+
+.al-board-stats dd.is-cost,
+.al-member-hero-stats dd.is-cost {
+  color: var(--al-burgundy);
+}
+
 .al-board-view {
   justify-self: end;
   color: var(--al-burgundy);

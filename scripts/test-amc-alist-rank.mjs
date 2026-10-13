@@ -396,6 +396,8 @@ function placeWithAnswers(rankedLength, answers) {
   assert.equal(memberSource.includes('Compare with'), false, 'profiles do not have a Compare with this user button');
 
   const boardSource = readFileSync(new URL('../amc-a-lister/engine/leaderboard.js', import.meta.url), 'utf8');
+  assert.match(css, /\.al-board-stats dd\.is-savings/, 'leaderboard savings use a plus color');
+  assert.match(css, /\.al-board-stats dd\.is-cost/, 'leaderboard overage uses a minus color');
   assert.match(boardSource, /al-board-row/, 'leaderboard is a ranked list, not a beige card grid');
   assert.match(boardSource, /View log/, 'leaderboard still links to member logs');
   assert.match(boardSource, /profile-sort/, 'leaderboard still has the sort control');
