@@ -44,7 +44,12 @@ import {
   searchMovies,
   PP_SCHEMA,
 } from '../lib/tmdb.js';
-import { backfillMovieArtwork, uniqueExactSearchMatch } from '../lib/a-list-posters.js';
+import {
+  backfillMovieArtwork,
+  uniqueExactSearchMatch,
+  resolveAndCacheMovies,
+  resolveMovieTmdbId,
+} from '../lib/a-list-posters.js';
 import {
   normalizeLetterboxdUsername,
   letterboxdRssUrl,
@@ -500,12 +505,17 @@ async function handleBackfill(req, res) {
 async function createWatch(userId, data) {
   const id = randomUUID();
   const sawAlone = data.seen_with.length ? false : data.saw_alone;
+  const tmdbId = await resolveMovieTmdbId({
+    title: data.title,
+    tmdbId: data.tmdb_id,
+    watchedOn: data.watched_on,
+  }) || data.tmdb_id || null;
   const rows = await db()`
     INSERT INTO alist_watches (
       id, user_id, watched_on, title, tmdb_id, location, format,
       saw_alone, auditorium, seat, ticket_cents, rating, dnf, notes, in_theaters
     ) VALUES (
-      ${id}, ${userId}, ${data.watched_on}, ${data.title}, ${data.tmdb_id},
+      ${id}, ${userId}, ${data.watched_on}, ${data.title}, ${tmdbId},
       ${data.location}, ${data.format}, ${sawAlone}, ${data.auditorium},
       ${data.seat}, ${data.ticket_cents}, ${data.rating}, ${data.dnf}, ${data.notes},
       ${data.in_theaters}
@@ -520,6 +530,14 @@ async function createWatch(userId, data) {
     seen_with = await applySeenWith(userId, id, data.seen_with);
   }
   const watch = watchFromRow({ ...rows[0], companions: [] });
+  if (tmdbId && !watch.poster_path) {
+    try {
+      const movie = await getMovieDetails(tmdbId);
+      if (movie?.poster_path) watch.poster_path = movie.poster_path;
+    } catch {
+      // Cached on a later read / backfill.
+    }
+  }
   if (seen_with?.results?.some((r) => r.linked)) {
     // Refresh companions after tagging matches.
     const refreshed = await listWatches(userId);
@@ -531,7 +549,7 @@ async function createWatch(userId, data) {
   let removed_watchlist = [];
   try {
     removed_watchlist = await clearWatchlistForLoggedMovie(userId, {
-      tmdbId: data.tmdb_id,
+      tmdbId,
       title: data.title,
     });
   } catch {
@@ -601,11 +619,34 @@ async function handleWatches(req, res) {
     const { data } = parsed;
     const sawAlone = data.seen_with.length ? false : data.saw_alone;
     try {
+      const existing = await db()`
+        SELECT tmdb_id FROM alist_watches WHERE id = ${id} AND user_id = ${userId}
+      `;
+      if (!existing.length) {
+        res.status(404).json({ error: 'Watch not found.' });
+        return;
+      }
+      const incomingTmdb = data.tmdb_id && Number(data.tmdb_id) > 0 ? Number(data.tmdb_id) : null;
+      let tmdbId = existing[0].tmdb_id ? Number(existing[0].tmdb_id) : null;
+      if (incomingTmdb && incomingTmdb !== tmdbId) {
+        tmdbId = incomingTmdb;
+      } else if (!tmdbId) {
+        tmdbId = await resolveMovieTmdbId({
+          title: data.title,
+          watchedOn: data.watched_on,
+        });
+      } else {
+        await resolveMovieTmdbId({
+          title: data.title,
+          tmdbId,
+          watchedOn: data.watched_on,
+        });
+      }
       const rows = await db()`
         UPDATE alist_watches SET
           watched_on = ${data.watched_on},
           title = ${data.title},
-          tmdb_id = ${data.tmdb_id},
+          tmdb_id = ${tmdbId},
           location = ${data.location},
           format = ${data.format},
           saw_alone = ${sawAlone},
@@ -749,12 +790,10 @@ async function handleWatchlist(req, res) {
         return;
       }
 
-      if (tmdbId && getTmdbApiKey()) {
-        await getMovieDetails(tmdbId);
-      }
+      const resolvedTmdb = await resolveMovieTmdbId({ title, tmdbId }) || tmdbId;
       await db()`
         INSERT INTO alist_watchlist (id, user_id, title, tmdb_id, notes)
-        VALUES (${id}, ${userId}, ${title}, ${tmdbId}, ${notes})
+        VALUES (${id}, ${userId}, ${title}, ${resolvedTmdb}, ${notes})
       `;
       const rows = await enrichWatchlistRows(await db()`
         SELECT
@@ -798,9 +837,14 @@ async function handleWatchlist(req, res) {
         return;
       }
       const row = existing[0];
-      const nextTmdbId = tmdbId !== undefined ? tmdbId : row.tmdb_id;
-      if (nextTmdbId && getTmdbApiKey()) {
-        await getMovieDetails(nextTmdbId);
+      const incomingTmdb = tmdbId !== undefined && Number(tmdbId) > 0 ? Number(tmdbId) : null;
+      let nextTmdbId = row.tmdb_id ? Number(row.tmdb_id) : null;
+      if (incomingTmdb && incomingTmdb !== nextTmdbId) {
+        nextTmdbId = incomingTmdb;
+      } else if (!nextTmdbId) {
+        nextTmdbId = await resolveMovieTmdbId({ title: title ?? row.title });
+      } else {
+        await resolveMovieTmdbId({ title: title ?? row.title, tmdbId: nextTmdbId });
       }
       await db()`
         UPDATE alist_watchlist SET
@@ -1399,16 +1443,6 @@ async function handleLetterboxd(req, res) {
           status = 'imported', watch_id = ${result.watch.id}, updated_at = now()
         WHERE user_id = ${userId} AND guid = ${guid}
       `;
-      // Best effort: cache the film so the log shows a poster straight away.
-      const apiKey = getTmdbApiKey();
-      if (parsed.data.tmdb_id && apiKey && !result.watch.poster_path) {
-        try {
-          const movie = await getMovieDetails(parsed.data.tmdb_id, { apiKey });
-          if (movie?.poster_path) result.watch.poster_path = movie.poster_path;
-        } catch {
-          // The watch is saved; Settings → Backfill posters can catch it up.
-        }
-      }
       res.status(201).json({ ...result, guid });
       return;
     }
@@ -1489,11 +1523,14 @@ async function handleImport(req, res) {
       pending.push(data);
     }
 
+    const linked = await resolveAndCacheMovies(pending);
+    const toInsert = linked.items;
+
     // Batched rather than one awaited INSERT per row: a 100-row sheet was 100
     // sequential round trips inside a single function invocation.
     let inserted = 0;
-    for (let i = 0; i < pending.length; i += IMPORT_BATCH_SIZE) {
-      const batch = pending.slice(i, i + IMPORT_BATCH_SIZE);
+    for (let i = 0; i < toInsert.length; i += IMPORT_BATCH_SIZE) {
+      const batch = toInsert.slice(i, i + IMPORT_BATCH_SIZE);
       await db()`
         INSERT INTO alist_watches (
           id, user_id, watched_on, title, tmdb_id, location, format,
@@ -1513,7 +1550,13 @@ async function handleImport(req, res) {
       inserted += batch.length;
     }
 
-    res.status(200).json({ inserted, skipped, total: watches.length });
+    res.status(200).json({
+      inserted,
+      skipped,
+      total: watches.length,
+      linked: linked.linked,
+      deferred: linked.deferred,
+    });
   } catch (err) {
     res.status(502).json({ error: err.message });
   }
