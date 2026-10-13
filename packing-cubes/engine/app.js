@@ -1574,9 +1574,8 @@ function outfitDressCodePreview(text, max = 56) {
   return s.length > max ? `${s.slice(0, max).trimEnd()}…` : s;
 }
 
-function outfitMetaBits(outfit, suitcase) {
-  const when = outfit?.date ? dayLabel(suitcase, outfit.date) : '';
-  return [when, outfitDressCodePreview(outfit?.dressCode)].filter(Boolean);
+function outfitHeaderDate(outfit) {
+  return outfit?.date ? weekdayDateLabel(outfit.date) : '';
 }
 
 function outfitDressCodeHtml(outfit) {
@@ -1998,7 +1997,7 @@ function renderCubeGroups(mount, suitcase, cubeMap) {
     const isAddOnGroup = !!group.addOnId;
     const isOutfitGroup = !!group.outfitId;
     const outfit = isOutfitGroup ? (suitcase.outfits || []).find((o) => o.id === group.outfitId) : null;
-    const outfitMeta = isOutfitGroup ? outfitMetaBits(outfit, suitcase).join(' · ') : '';
+    const outfitDate = isOutfitGroup ? outfitHeaderDate(outfit) : '';
     if (!organizeMode && group.items.length && !items.length) return '';
     anyVisible = true;
     const collapsed = collapsedGroups.has(group.key) && !organizeMode;
@@ -2026,7 +2025,10 @@ function renderCubeGroups(mount, suitcase, cubeMap) {
             : `<span class="pc-group-drag pc-group-drag-slot" aria-hidden="true"></span>`}
           <button type="button" class="pc-group-header">
             <span class="chevron">${CHEVRON_SVG}</span>
-            <span class="pc-group-title">${escapeHtml(group.title)}${outfitMeta ? ` <span class="pc-muted">${escapeHtml(outfitMeta)}</span>` : ''}</span>
+            <span class="pc-group-heading">
+              <span class="pc-group-title">${escapeHtml(group.title)}</span>
+              ${outfitDate ? `<span class="pc-group-date">${escapeHtml(outfitDate)}</span>` : ''}
+            </span>
             <span class="pc-group-count">${group.items.filter((i) => i.packed).length}/${group.items.length}</span>
           </button>
           ${isOutfitGroup ? outfitWornButtonHtml(suitcase, outfit, { compact: true }) : ''}

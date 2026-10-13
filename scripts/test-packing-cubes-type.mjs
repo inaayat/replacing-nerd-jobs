@@ -34,6 +34,15 @@ assert.doesNotMatch(cube, /Atkinson Hyperlegible/, 'Atkinson is no longer the pa
 
 assert.match(app, /initThemeToggle/, 'app wires the header toggle');
 assert.match(builderJs, /initThemeToggle/, 'builder page wires the header toggle');
+const headerStart = app.indexOf('<button type="button" class="pc-group-header">');
+const headerHtml = app.slice(headerStart, app.indexOf('</button>', headerStart + 1) + 9);
+assert.match(headerHtml, /pc-group-heading/, 'By cube header stacks name and date');
+assert.match(headerHtml, /class="pc-group-title">\$\{escapeHtml\(group.title\)\}<\/span>/, 'By cube header is the cube/outfit name only');
+assert.match(headerHtml, /pc-group-date/, 'By cube header keeps the date on a small line');
+assert.doesNotMatch(headerHtml, /dressCode|blurb|outfitDressCodePreview/, 'By cube headers do not render dress code or cube blurb');
+assert.match(app, /function outfitHeaderDate/, 'date line uses the weekday label, not the dress code');
+assert.doesNotMatch(app, /outfitMetaBits/, 'old dress-code-in-header helper is gone');
+assert.match(appCss, /\.pc-group-date/, 'date line is styled small');
 assert.match(app, /placeholder="Add an item…"/, 'quick-add placeholder is short enough for a phone');
 assert.match(app, /pc-toolbar-actions/, 'toolbar chips are grouped so they wrap as a set');
 assert.match(appCss, /@media \(max-width: 640px\)[\s\S]*grid-template-columns: 1fr 1fr/, 'phone stacks trip controls');
