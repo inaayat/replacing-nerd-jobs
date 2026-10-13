@@ -227,9 +227,8 @@ async function loadLog(auth) {
     watches,
     filtered: watches,
     invites,
-    // An invite you have to respond to is the only thing on this page with a
-    // deadline, so it opens with Accept/Deny already on screen. Outgoing-only
-    // ("waiting on them") has nothing to act on and stays collapsed.
+    // Only invites you received appear here. Ones you sent stay off this page,
+    // so a screening nobody accepts does not sit above the log.
     invitesExpanded: (invites?.incoming || []).length > 0,
     editingId: null,
     expandedId: null,
@@ -324,19 +323,14 @@ function renderInvitesPanel(auth, state, render) {
   const panel = document.getElementById('showing-invites-panel');
   if (!panel) return;
   const incoming = state.invites?.incoming || [];
-  const outgoing = state.invites?.outgoing || [];
-  if (!incoming.length && !outgoing.length) {
+  if (!incoming.length) {
     panel.hidden = true;
     panel.innerHTML = '';
     return;
   }
 
   const expanded = !!state.invitesExpanded;
-  const total = incoming.length + outgoing.length;
-  const summaryBits = [];
-  if (incoming.length) summaryBits.push(`${incoming.length} to respond`);
-  if (outgoing.length) summaryBits.push(`${outgoing.length} waiting`);
-  const summary = summaryBits.join(' · ') || `${total} invite${total === 1 ? '' : 's'}`;
+  const summary = `${incoming.length} to respond`;
 
   panel.hidden = false;
   panel.classList.toggle('is-collapsed', !expanded);
@@ -350,53 +344,15 @@ function renderInvitesPanel(auth, state, render) {
     </button>
     <div class="al-invites-body" ${expanded ? '' : 'hidden'}>
       <p class="al-muted al-invites-help">Accept to add it to your log, or tag an existing same-date/movie entry — never a duplicate. Deny to dismiss.</p>
-      ${incoming.length ? `
-        <div class="al-invites-list" id="incoming-invites">
-          ${incoming.map((invite) => inviteCardHtml(invite, 'incoming')).join('')}
-        </div>
-      ` : ''}
-      ${outgoing.length ? `
-        <div class="al-invites-outgoing">
-          <h3 class="al-invites-subhead">Waiting on</h3>
-          <ul class="al-invites-outgoing-list">
-            ${outgoing.map((invite) => `
-              <li class="al-invites-outgoing-item">
-                <span class="al-invites-outgoing-text">
-                  <strong>${escapeHtml(invite.to_username || 'Member')}</strong>
-                  · ${escapeHtml(invite.title)}
-                  · ${shortDate(invite.watched_on)}
-                  · ${escapeHtml(invite.location || '—')}
-                </span>
-                <button type="button" class="al-link-btn al-invites-cancel" data-invite-cancel="${invite.id}">Delete</button>
-              </li>
-            `).join('')}
-          </ul>
-        </div>
-      ` : ''}
+      <div class="al-invites-list" id="incoming-invites">
+        ${incoming.map((invite) => inviteCardHtml(invite, 'incoming')).join('')}
+      </div>
     </div>
   `;
 
   panel.querySelector('[data-invites-toggle]')?.addEventListener('click', () => {
     state.invitesExpanded = !state.invitesExpanded;
     render();
-  });
-
-  panel.querySelectorAll('[data-invite-cancel]').forEach((btn) => {
-    btn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const id = btn.dataset.inviteCancel;
-      if (!id) return;
-      btn.disabled = true;
-      try {
-        await showingInvitesApi.cancel(auth.token, id);
-        state.invites.outgoing = (state.invites.outgoing || []).filter((i) => i.id !== id);
-        showLogStatus('Invite deleted.');
-        render();
-      } catch (err) {
-        showLogError(err.message || 'Could not delete invite.');
-        btn.disabled = false;
-      }
-    });
   });
 
   panel.querySelectorAll('[data-invite-accept], [data-invite-deny]').forEach((btn) => {

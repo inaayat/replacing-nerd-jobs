@@ -2136,6 +2136,10 @@ table.al-table {
   color: var(--al-muted);
 }
 
+.al-main--bulk-ratings .al-bulk-ratings-head .al-bulk-ratings-col {
+  text-align: center;
+}
+
 .al-bulk-ratings-row {
   padding: 8px;
   border-radius: 10px;
@@ -2174,6 +2178,10 @@ table.al-table {
   gap: 6px;
   font-size: 0.78rem;
   font-weight: 600;
+}
+
+.al-main--bulk-ratings .al-bulk-ratings-row .al-bulk-ratings-col--flag {
+  justify-content: center;
 }
 
 .al-main--bulk-ratings .al-bulk-ratings-row.is-off-theater .al-bulk-control:disabled {
