@@ -20,3 +20,25 @@ export function watchlistItemMatchesLogged(item, logged = {}) {
   const itemTitle = String(item.title || '').trim().toLowerCase();
   return Boolean(loggedTitle && itemTitle && loggedTitle === itemTitle);
 }
+
+/** Titles that appear on both want lists (TMDB id, else exact title). */
+export function sharedWatchlistItems(yours, theirs) {
+  const out = [];
+  const seen = new Set();
+  for (const theirsItem of theirs || []) {
+    const match = (yours || []).find((item) => watchlistItemMatchesLogged(item, theirsItem));
+    if (!match) continue;
+    const key = match.tmdb_id
+      ? `tmdb:${Number(match.tmdb_id)}`
+      : `title:${String(match.title || '').trim().toLowerCase()}`;
+    if (!key.endsWith(':') && !seen.has(key)) {
+      seen.add(key);
+      out.push({
+        title: theirsItem.title || match.title,
+        tmdb_id: theirsItem.tmdb_id || match.tmdb_id || null,
+        poster_path: theirsItem.poster_path || match.poster_path || null,
+      });
+    }
+  }
+  return out.sort((a, b) => String(a.title).localeCompare(String(b.title)));
+}

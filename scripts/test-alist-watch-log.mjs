@@ -283,7 +283,13 @@ assert(memberSource.includes('al-member-book'), 'member rank and log live in a p
 assert(memberSource.includes('data-member-page="rank"'), 'Rank is a flip page');
 assert(memberSource.includes('data-member-page="stats"'), 'Stats is a flip page');
 assert(memberSource.includes('data-member-page="log"'), 'Log is a flip page');
+assert(memberSource.includes('data-member-page="want"'), 'Want is a flip page');
 assert(memberSource.includes('renderInsightsHtml'), 'member Stats tab reuses the Stats page view');
+assert(memberSource.includes('renderCompareResults'), 'another member’s log auto-loads comparison');
+assert(memberSource.includes('wireMemberCompare'), 'comparison loads without a Compare button');
+assert(!memberSource.includes('Compare with'), 'profiles no longer have a Compare with this user action');
+assert(memberSource.includes('member-want-list'), 'Want to Watch is a profile page');
+assert(memberSource.includes('You both want to watch'), 'Want tab surfaces titles both members want');
 assert(memberSource.includes('data-member-flip="next"'), 'the book has a next-page control');
 assert(memberSource.includes('data-member-flip="prev"'), 'the book has a previous-page control');
 assert(css.includes('.al-member-book'), 'member book layout is styled');
@@ -294,17 +300,20 @@ assert(memberProfilePage('') === 'log', 'a profile URL with no page opens the wa
 assert(memberProfilePage('user=abc') === 'log', 'user-only query opens the watch log');
 assert(memberProfilePage('?user=abc&page=rank') === 'rank', 'page=rank opens the rank page');
 assert(memberProfilePage('?user=abc&page=stats') === 'stats', 'page=stats opens the stats page');
+assert(memberProfilePage('?user=abc&page=want') === 'want', 'page=want opens the want list');
 assert(memberProfilePage('page=nope') === 'log', 'an unknown page falls back to the log');
 assert(memberProfileUrl('abc', 'log') === '/amc-a-lister/member.html?user=abc', 'log URLs omit the page param');
 assert(memberProfileUrl('abc', 'rank').includes('page=rank'), 'rank URLs keep page=rank');
 assert(memberProfileUrl('abc', 'stats').includes('page=stats'), 'stats URLs keep page=stats');
-assert(flipMemberPage('rank', 'next') === 'stats', 'next from rank is stats');
-assert(flipMemberPage('stats', 'next') === 'log', 'next from stats is the log');
-assert(flipMemberPage('log', 'prev') === 'stats', 'previous from the log is stats');
-assert(flipMemberPage('rank', 'prev') === 'log', 'three pages wrap backward');
-assert(flipMemberPage('log', 'next') === 'rank', 'three pages wrap forward');
-assert(memberPageIndex('rank') === 1 && memberPageIndex('stats') === 2 && memberPageIndex('log') === 3, 'folio is 1/3 then 2/3 then 3/3');
-assert(memberPageLabel('rank') === 'Rank' && memberPageLabel('stats') === 'Stats' && memberPageLabel('log') === 'Log', 'page labels');
+assert(memberProfileUrl('abc', 'want').includes('page=want'), 'want URLs keep page=want');
+assert(flipMemberPage('rank', 'next') === 'log', 'next from rank is the log');
+assert(flipMemberPage('log', 'next') === 'want', 'next from the log is want');
+assert(flipMemberPage('want', 'next') === 'stats', 'next from want is stats');
+assert(flipMemberPage('stats', 'next') === 'rank', 'four pages wrap forward');
+assert(flipMemberPage('log', 'prev') === 'rank', 'previous from the log is rank');
+assert(flipMemberPage('rank', 'prev') === 'stats', 'four pages wrap backward');
+assert(memberPageIndex('rank') === 1 && memberPageIndex('log') === 2 && memberPageIndex('want') === 3 && memberPageIndex('stats') === 4, 'folio is 1/4 through 4/4');
+assert(memberPageLabel('rank') === 'Rank' && memberPageLabel('log') === 'Log' && memberPageLabel('want') === 'Want' && memberPageLabel('stats') === 'Stats', 'page labels');
 
 const apiSource = readFileSync(new URL('../api/alist.js', import.meta.url), 'utf8');
 const movieDetailsFn = apiSource.slice(

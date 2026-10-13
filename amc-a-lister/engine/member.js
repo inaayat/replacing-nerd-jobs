@@ -7,6 +7,8 @@ import { ratingStarBucket } from './billing.js';
 import { watchLogListHtml, withWatchGridTransition } from './watch-log-grid.js';
 import { publicRankStackHtml } from './rank-view.js';
 import { renderInsightsHtml, wireInsights } from './insights-view.js';
+import { renderCompareResults, renderCompareSection } from './compare-view.js';
+import { wireWatchlistLogList } from './watchlist-ui.js';
 import {
   MEMBER_PAGES,
   normalizeMemberPage,
@@ -58,7 +60,7 @@ bootPage(async ({ root, auth }) => {
       ? (profile.isPublic
         ? 'This is exactly what other people see.'
         : 'Private — only you can see this. Turn on your public profile in Settings.')
-      : 'Public rank and watch log.';
+      : 'Public rank, watch log, want list, and stats.';
     document.title = `${profile.displayName} — AMC A-Lister`;
     renderProfile(main, profile, { currentUserId, auth, watchlistItems });
   } catch (err) {
@@ -93,8 +95,11 @@ function renderProfile(main, profile, { currentUserId, auth, watchlistItems = []
   const page = memberProfilePage(location.search);
   const rankCount = (profile.ranks || []).length;
   const logCount = watches.length;
+  const wantItems = Array.isArray(profile.watchlist) ? profile.watchlist : [];
+  const wantCount = wantItems.length;
   const insights = profile.insights || {};
   const voice = isYou ? 'you' : 'they';
+  const showCompare = !isYou && auth.signedIn;
 
   main.innerHTML = `
     <p class="al-member-back"><a class="al-link-btn" href="/amc-a-lister/leaderboard.html">← Leaderboard</a></p>
@@ -119,21 +124,26 @@ function renderProfile(main, profile, { currentUserId, auth, watchlistItems = []
 
     <section class="al-panel al-panel--log al-member-book" data-member-book>
       <div class="al-member-book-toolbar">
-        <div class="al-segment al-watchlist-segment" role="tablist" aria-label="Rank, stats, or watch log">
+        <div class="al-segment al-watchlist-segment" role="tablist" aria-label="Rank, log, want, or stats">
           <button type="button" class="al-segment-btn${page === 'rank' ? ' is-active' : ''}"
             data-member-page="rank" role="tab" aria-selected="${page === 'rank' ? 'true' : 'false'}"
             aria-controls="member-page-rank" id="member-tab-rank">
             Rank <span class="al-segment-count">${rankCount}</span>
           </button>
-          <button type="button" class="al-segment-btn${page === 'stats' ? ' is-active' : ''}"
-            data-member-page="stats" role="tab" aria-selected="${page === 'stats' ? 'true' : 'false'}"
-            aria-controls="member-page-stats" id="member-tab-stats">
-            Stats
-          </button>
           <button type="button" class="al-segment-btn${page === 'log' ? ' is-active' : ''}"
             data-member-page="log" role="tab" aria-selected="${page === 'log' ? 'true' : 'false'}"
             aria-controls="member-page-log" id="member-tab-log">
             Log <span class="al-segment-count">${logCount}</span>
+          </button>
+          <button type="button" class="al-segment-btn${page === 'want' ? ' is-active' : ''}"
+            data-member-page="want" role="tab" aria-selected="${page === 'want' ? 'true' : 'false'}"
+            aria-controls="member-page-want" id="member-tab-want">
+            Want <span class="al-segment-count">${wantCount}</span>
+          </button>
+          <button type="button" class="al-segment-btn${page === 'stats' ? ' is-active' : ''}"
+            data-member-page="stats" role="tab" aria-selected="${page === 'stats' ? 'true' : 'false'}"
+            aria-controls="member-page-stats" id="member-tab-stats">
+            Stats
           </button>
         </div>
         <div class="al-member-flip-nav">
@@ -152,27 +162,6 @@ function renderProfile(main, profile, { currentUserId, auth, watchlistItems = []
             <h2 class="al-section-title">Rank</h2>
             <p class="al-muted al-member-ranks-note">Theater stack, best first. Separate from star ratings.</p>
             ${publicRankStackHtml(profile.ranks, { saveWatchlist: canSaveWatchlist, isSaved })}
-          </div>
-          <div class="al-member-page al-member-stats-page${page === 'stats' ? ' is-active' : ''}" id="member-page-stats"
-            role="tabpanel" aria-labelledby="member-tab-stats" data-page="stats"
-            ${page === 'stats' ? '' : 'hidden'}>
-            <h2 class="al-section-title">Stats</h2>
-            <p class="al-muted al-member-ranks-note">${
-              isYou
-                ? 'The same membership value, theaters, formats, cast, and habits as your Stats page.'
-                : 'Membership value, theaters, formats, cast, and watching habits from their public log.'
-            }</p>
-            <div class="al-main--insights al-member-insights" id="member-insights">
-              ${renderInsightsHtml({
-                summary: insights.summary || {},
-                watches: insights.watches || [],
-                ratings: insights.ratings || {},
-                actors: insights.actors || [],
-                rewatches: insights.rewatches || [],
-                hideTheaters: profile.hideTheaters === true,
-                voice,
-              })}
-            </div>
           </div>
           <div class="al-member-page al-member-log${page === 'log' ? ' is-active' : ''}" id="member-page-log"
             role="tabpanel" aria-labelledby="member-tab-log" data-page="log"
@@ -206,18 +195,51 @@ function renderProfile(main, profile, { currentUserId, auth, watchlistItems = []
               <span class="al-muted" id="member-count"></span>
             </div>
             <div class="al-log-list-wrap" id="member-table"></div>
+            ${showCompare ? `
+              <section class="al-member-compare-block" id="member-compare-block">
+                <p class="al-board-kicker">Side by side</p>
+                <h2 class="al-section-title">You vs ${escapeHtml(profile.displayName)}</h2>
+                <p class="al-muted al-member-ranks-note">Shared movies, gaps, disagreements, and titles you both want to watch.</p>
+                <div id="member-compare"><p class="al-muted">Loading comparison…</p></div>
+              </section>
+            ` : ''}
+          </div>
+          <div class="al-member-page al-member-want${page === 'want' ? ' is-active' : ''}" id="member-page-want"
+            role="tabpanel" aria-labelledby="member-tab-want" data-page="want"
+            ${page === 'want' ? '' : 'hidden'}>
+            <h2 class="al-section-title">Want to watch</h2>
+            <p class="al-muted al-member-ranks-note">${
+              isYou
+                ? 'Titles on your public Want to Watch list.'
+                : 'Titles they want to see. Shared picks show above the list when you are signed in.'
+            }</p>
+            ${showCompare ? '<div class="al-member-shared-want" id="member-shared-want"></div>' : ''}
+            <div class="al-log-list-wrap" id="member-want-list"></div>
+          </div>
+          <div class="al-member-page al-member-stats-page${page === 'stats' ? ' is-active' : ''}" id="member-page-stats"
+            role="tabpanel" aria-labelledby="member-tab-stats" data-page="stats"
+            ${page === 'stats' ? '' : 'hidden'}>
+            <h2 class="al-section-title">Stats</h2>
+            <p class="al-muted al-member-ranks-note">${
+              isYou
+                ? 'The same membership value, theaters, formats, cast, and habits as your Stats page.'
+                : 'Membership value, theaters, formats, cast, and watching habits from their public log.'
+            }</p>
+            <div class="al-main--insights al-member-insights" id="member-insights">
+              ${renderInsightsHtml({
+                summary: insights.summary || {},
+                watches: insights.watches || [],
+                ratings: insights.ratings || {},
+                actors: insights.actors || [],
+                rewatches: insights.rewatches || [],
+                hideTheaters: profile.hideTheaters === true,
+                voice,
+              })}
+            </div>
           </div>
         </div>
       </div>
     </section>
-
-    ${!isYou && auth.signedIn ? `
-      <p class="al-member-compare">
-        <a class="al-btn al-btn-primary" href="/amc-a-lister/leaderboard.html?compare=${encodeURIComponent(profile.userId)}">
-          Compare with ${escapeHtml(profile.displayName)}
-        </a>
-      </p>
-    ` : ''}
   `;
 
   const listEl = document.getElementById('member-table');
@@ -291,6 +313,29 @@ function renderProfile(main, profile, { currentUserId, auth, watchlistItems = []
   render();
   if (canSaveWatchlist) wireSaveWatchlist(auth, savedItems, isSaved);
 
+  const wantListEl = document.getElementById('member-want-list');
+  if (wantListEl) {
+    const wantState = {
+      watchlist: wantItems,
+      expandedId: null,
+      editingId: null,
+      detailsCache: new Map(),
+      detailsLoading: null,
+      detailsError: null,
+    };
+    wireWatchlistLogList(auth, wantState, {
+      listEl: wantListEl,
+      getItems: () => wantState.watchlist,
+      emptyMessage: isYou
+        ? 'Nothing on your Want to Watch list yet.'
+        : 'Nothing on their Want to Watch list yet.',
+      readonly: true,
+      hideLog: true,
+    });
+  }
+
+  if (showCompare) wireMemberCompare(auth, profile);
+
   const insightsRoot = document.getElementById('member-insights');
   if (insightsRoot) {
     wireInsights(insightsRoot, {
@@ -307,6 +352,35 @@ function renderProfile(main, profile, { currentUserId, auth, watchlistItems = []
   };
   syncMemberPageChrome(bookState);
   wireMemberBook(bookState);
+}
+
+function wireMemberCompare(auth, profile) {
+  const root = document.getElementById('member-compare');
+  const sharedRoot = document.getElementById('member-shared-want');
+  if (!root && !sharedRoot) return;
+
+  leaderboardApi.compare({ token: auth.token, withUserId: profile.userId })
+    .then((comparison) => {
+      const youName = comparison.you?.displayName || 'You';
+      const themName = comparison.them?.displayName || profile.displayName;
+      if (root) {
+        root.innerHTML = renderCompareResults(comparison, { youName, themName });
+      }
+      if (sharedRoot) {
+        const bothWant = Array.isArray(comparison.bothWant) ? comparison.bothWant : [];
+        sharedRoot.innerHTML = bothWant.length
+          ? renderCompareSection('You both want to watch', bothWant, {
+            hint: 'Titles on both want lists.',
+            labelFn: () => 'On both lists',
+          })
+          : '';
+      }
+    })
+    .catch((err) => {
+      if (root) {
+        root.innerHTML = `<p class="al-error">${escapeHtml(err.message || 'Could not load comparison.')}</p>`;
+      }
+    });
 }
 
 function flipChevron(direction) {

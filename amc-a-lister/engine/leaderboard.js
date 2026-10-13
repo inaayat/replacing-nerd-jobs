@@ -2,6 +2,7 @@ import { bootPage, renderShell, populateSidebarStats } from './nav.js';
 import { loginUrl } from './auth.js';
 import { leaderboardApi } from './api.js';
 import { money, escapeHtml, posterHtml } from './format.js';
+import { renderCompareResults } from './compare-view.js';
 
 const SORT_COLUMNS = [
   { key: 'totalSeen', label: 'Movies seen', kind: 'count' },
@@ -227,62 +228,7 @@ function renderCompareBody(youEntry, withEntry) {
 
   const youName = youEntry?.displayName || comparison.you.displayName;
   const themName = withEntry?.displayName || comparison.them.displayName;
-
-  return `
-    <p class="al-muted al-compare-status">
-      ${escapeHtml(youName)} vs ${escapeHtml(themName)} ·
-      ${comparison.bothSeen.length} shared ·
-      ${comparison.onlyYou.length} only ${escapeHtml(youName)} ·
-      ${comparison.onlyThem.length} only ${escapeHtml(themName)}
-    </p>
-    <div class="al-compare-results">
-    ${renderCompareSection('Both seen', comparison.bothSeen, {
-      hint: 'Movies both members have logged at least once.',
-      labelFn: (movie) => compareRatingLabel(movie, youName, themName),
-    })}
-    ${renderCompareSection(`Only ${youName}`, comparison.onlyYou, {
-      hint: `Movies in ${youName}'s log that ${themName} has not seen.`,
-      labelFn: (movie) => singleRatingLabel(movie.rating),
-    })}
-    ${renderCompareSection(`Only ${themName}`, comparison.onlyThem, {
-      hint: `Movies in ${themName}'s log that ${youName} has not seen.`,
-      labelFn: (movie) => singleRatingLabel(movie.rating),
-    })}
-    ${renderCompareSection('Disagreed (1★+ apart)', comparison.disagreed, {
-      hint: 'Shared movies where ratings differ by at least one star.',
-      labelFn: (movie) => `${formatRating(movie.yourRating)} vs ${formatRating(movie.theirRating)}`,
-    })}
-    ${renderCompareSection('Both loved (4★+)', comparison.bothLoved, {
-      hint: 'Shared movies both rated 4 stars or higher.',
-      labelFn: (movie) => `${formatRating(movie.yourRating)} · ${formatRating(movie.theirRating)}`,
-    })}
-    </div>
-  `;
-}
-
-function renderCompareSection(title, movies, { hint, labelFn }) {
-  return `
-    <section class="al-compare-section">
-      <div class="al-compare-section-head">
-        <h3>${escapeHtml(title)}</h3>
-        <span class="al-compare-count">${movies.length}</span>
-      </div>
-      <p class="al-muted">${escapeHtml(hint)}</p>
-      ${movies.length
-    ? `<div class="al-poster-strip">${movies.map((movie) => renderPosterItem(movie, labelFn(movie))).join('')}</div>`
-    : '<div class="al-empty">Nothing here yet.</div>'}
-    </section>
-  `;
-}
-
-function renderPosterItem(movie, label) {
-  return `
-    <div class="al-poster-strip-item">
-      ${posterHtml(movie, { size: 'w154', width: 72, height: 108, className: 'al-poster al-poster--strip' })}
-      <span class="al-poster-strip-label" title="${escapeHtml(movie.title)}">${escapeHtml(movie.title)}</span>
-      <span class="al-poster-strip-meta">${escapeHtml(label)}</span>
-    </div>
-  `;
+  return renderCompareResults(comparison, { youName, themName });
 }
 
 function wireProfileControls(main) {
@@ -360,22 +306,6 @@ function formatStat(entry, stat) {
     return value > 0 ? `${value} min` : '—';
   }
   return value ?? 0;
-}
-
-function compareRatingLabel(movie, youName, themName) {
-  const yours = formatRating(movie.yourRating);
-  const theirs = formatRating(movie.theirRating);
-  if (yours === '—' && theirs === '—') return 'No ratings';
-  return `${youName} ${yours} · ${themName} ${theirs}`;
-}
-
-function singleRatingLabel(rating) {
-  return rating != null ? formatRating(rating) : 'No rating';
-}
-
-function formatRating(rating) {
-  if (rating == null) return '—';
-  return `${rating}★`;
 }
 
 function savingsClass(cents) {

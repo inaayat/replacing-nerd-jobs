@@ -1,15 +1,15 @@
 /**
- * Rank / Stats / watch-log pages on a public member profile.
+ * Rank / Log / Want / Stats pages on a public member profile.
  * Browser-safe ESM — no node: imports.
  *
- * Display order is Rank → Stats → Log. Default URLs stay on the log so
+ * Display order is Rank → Log → Want → Stats. Default URLs stay on the log so
  * existing `member.html?user=` links keep working.
  */
 
-export const MEMBER_PAGES = ['rank', 'stats', 'log'];
+export const MEMBER_PAGES = ['rank', 'log', 'want', 'stats'];
 
 export function normalizeMemberPage(page) {
-  if (page === 'rank' || page === 'stats' || page === 'log') return page;
+  if (MEMBER_PAGES.includes(page)) return page;
   return 'log';
 }
 
@@ -42,6 +42,6 @@ export function memberPageIndex(page) {
 }
 
 export function memberPageLabel(page) {
-  const labels = { rank: 'Rank', stats: 'Stats', log: 'Log' };
+  const labels = { rank: 'Rank', log: 'Log', want: 'Want', stats: 'Stats' };
   return labels[normalizeMemberPage(page)];
 }

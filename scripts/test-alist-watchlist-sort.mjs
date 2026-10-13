@@ -20,6 +20,7 @@ import {
   watchlistMatchesLogged,
   watchlistLogTableHtml,
 } from '../amc-a-lister/engine/watchlist-ui.js';
+import { sharedWatchlistItems } from '../amc-a-lister/engine/watchlist-match.js';
 import { monthsBeforeISO } from '../amc-a-lister/engine/dates.js';
 import { shortDate } from '../amc-a-lister/engine/format.js';
 
@@ -327,6 +328,34 @@ const automaticHomeActions = watchlistLogTableHtml(
 assert(
   !automaticHomeActions.includes('data-watchlist-home-override'),
   'naturally aged Watch at Home title does not show a redundant override action',
+);
+
+const readonlyWant = watchlistLogTableHtml(expandItems, detailsState(), { readonly: true });
+assert(!readonlyWant.includes('data-edit-watchlist'), 'readonly want grid hides edit');
+assert(!readonlyWant.includes('data-remove-watchlist'), 'readonly want grid hides remove');
+assert(!readonlyWant.includes('data-log-watchlist'), 'readonly want grid hides log');
+assert(readonlyWant.includes('al-watchlist-card-title'), 'readonly want grid still shows titles');
+
+assertEqual(
+  sharedWatchlistItems(
+    [{ id: 'a', title: 'Dune', tmdb_id: 1, poster_path: '/you.jpg' }],
+    [{ id: 'b', title: 'Dune', tmdb_id: 1, poster_path: '/them.jpg' }, { id: 'c', title: 'Heat' }],
+  ).map((item) => item.title),
+  ['Dune'],
+  'shared want lists match on TMDB id',
+);
+assertEqual(
+  sharedWatchlistItems(
+    [{ title: 'The Guest' }, { title: 'Dune' }],
+    [{ title: 'the guest', poster_path: '/g.jpg' }],
+  ).map((item) => item.title),
+  ['the guest'],
+  'shared want lists fall back to exact title',
+);
+assertEqual(
+  sharedWatchlistItems([{ title: 'Dune' }], [{ title: 'Dune Part Two' }]).length,
+  0,
+  'shared want lists do not substring-match titles',
 );
 
 const collapsedAgain = watchlistLogTableHtml(expandItems, detailsState({ expandedId: null }), { view: 'coming-soon' });

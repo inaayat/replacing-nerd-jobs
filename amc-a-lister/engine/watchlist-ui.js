@@ -542,7 +542,7 @@ function watchlistIconButton(attrs, label, icon) {
   return `<button type="button" class="al-link-btn al-watchlist-icon-btn" ${attrs} aria-label="${name}" title="${name}">${watchlistActionIcon(icon)}</button>`;
 }
 
-function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detailsKind = 'movie', view = null, hideLog = false } = {}) {
+function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detailsKind = 'movie', view = null, hideLog = false, readonly = false } = {}) {
   const expanded = sameWatchlistId(item.id, state.expandedId);
   const bucket = view ? watchlistBucket(item) : null;
   let badgeText = '';
@@ -578,28 +578,29 @@ function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detai
         <h3 class="al-watchlist-card-title" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</h3>
         <p class="al-watchlist-card-date">${escapeHtml(releaseLabel(item))}</p>
         ${notes}
+        ${readonly ? '' : `
         <div class="al-row-actions al-watchlist-card-actions">
           ${logBtn}
           ${bucketBtn}
           ${watchlistIconButton(`data-edit-watchlist="${item.id}"`, 'Edit', 'edit')}
           ${watchlistIconButton(`data-remove-watchlist="${item.id}"`, 'Remove', 'remove')}
-        </div>
+        </div>`}
       </article>
       ${expanded ? watchlistDetailPanelHtml(item, state, { detailsKind }) : ''}
     </div>
   `;
 }
 
-export function watchlistLogTableHtml(items, state, { emptyMessage, logLabel, detailsKind, view = null, hideLog = false } = {}) {
+export function watchlistLogTableHtml(items, state, { emptyMessage, logLabel, detailsKind, view = null, hideLog = false, readonly = false } = {}) {
   if (!items.length) {
     return `<div class="al-empty">${emptyMessage || 'Nothing here yet.'}</div>`;
   }
   return `
     <div class="al-watchlist-grid">
       ${items.map((item) => (
-        item.id === state.editingId
+        !readonly && item.id === state.editingId
           ? watchlistEditRowHtml(item)
-          : watchlistViewEntryHtml(item, state, { logLabel, detailsKind, view, hideLog })
+          : watchlistViewEntryHtml(item, state, { logLabel, detailsKind, view, hideLog, readonly })
       )).join('')}
     </div>
   `;
@@ -616,7 +617,7 @@ async function loadWatchlistDetails(auth, state, itemId, render, { detailsApi, d
   render();
 
   try {
-    const data = await detailsApi.details(auth.token, item.tmdb_id);
+    const data = await detailsApi.details(auth?.token, item.tmdb_id);
     const details = detailsKind === 'tv' ? data.show : data.movie;
     state.detailsCache.set(item.id, details);
     if (details?.poster_path && !item.poster_path) {
@@ -644,6 +645,7 @@ export function wireWatchlistLogList(auth, state, {
   logLabel = 'Log screening',
   view = null,
   hideLog = false,
+  readonly = false,
 }) {
   if (!state.detailsCache) state.detailsCache = new Map();
 
@@ -659,6 +661,7 @@ export function wireWatchlistLogList(auth, state, {
       detailsKind,
       view: resolvedView,
       hideLog: resolvedHideLog,
+      readonly,
     });
     onChange?.();
     wireWatchlistLogActions(auth, state, render, {

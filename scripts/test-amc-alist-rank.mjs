@@ -377,20 +377,34 @@ function placeWithAnswers(rankedLength, answers) {
   assert.match(profileFn, /alist_movie_ranks/, 'public profiles include the movie rank stack');
   assert.match(profileFn, /insights:/, 'public profiles include Stats-tab insights');
   assert.match(profileFn, /hideTheaters \? null : watch\.location/, 'insights respect public_hide_theaters');
+  assert.match(profileFn, /watchlist:/, 'public profiles include the want-to-watch list');
+  assert.equal(profileFn.includes('notes'), false, 'public want lists do not expose notes');
+  const compareFn = profileSource.slice(
+    profileSource.indexOf('export async function compareUsers'),
+    profileSource.indexOf('export function publicWatchFromRow'),
+  );
+  assert.match(compareFn, /bothWant/, 'comparison includes titles both members want');
+  assert.match(compareFn, /sharedWatchlistItems/, 'both-want overlap uses the shared watchlist matcher');
   const memberSource = readFileSync(new URL('../amc-a-lister/engine/member.js', import.meta.url), 'utf8');
   assert.match(memberSource, /publicRankStackHtml/, 'member profiles render the public rank grid');
   assert.match(memberSource, /saveWatchlist: canSaveWatchlist/, 'another member’s rank can be saved to want to watch');
   assert.match(memberSource, /watchlistApi\.create/, 'saving from a profile writes the viewer’s watchlist');
   assert.match(memberSource, /al-member-book/, 'public rank is a flip page next to the watch log');
   assert.match(memberSource, /data-member-page="stats"/, 'member profiles have a Stats tab');
+  assert.match(memberSource, /data-member-page="want"/, 'member profiles have a Want tab');
+  assert.match(memberSource, /showCompare/, 'comparison is only for another member while signed in');
+  assert.equal(memberSource.includes('Compare with'), false, 'profiles do not have a Compare with this user button');
 
   const boardSource = readFileSync(new URL('../amc-a-lister/engine/leaderboard.js', import.meta.url), 'utf8');
   assert.match(boardSource, /al-board-row/, 'leaderboard is a ranked list, not a beige card grid');
   assert.match(boardSource, /View log/, 'leaderboard still links to member logs');
   assert.match(boardSource, /profile-sort/, 'leaderboard still has the sort control');
   assert.match(boardSource, /Compare stats/, 'compare stats section remains');
+  assert.match(boardSource, /renderCompareResults/, 'leaderboard reuses the shared comparison renderer');
   const boardFn = profileSource.slice(profileSource.indexOf('export async function getLeaderboard'));
   assert.match(boardFn, /recentPosters/, 'leaderboard rows include recent posters');
+  const compareView = readFileSync(new URL('../amc-a-lister/engine/compare-view.js', import.meta.url), 'utf8');
+  assert.match(compareView, /You both want to watch/, 'comparison UI includes the shared want-list section');
 }
 
 console.log('amc alist rank tests passed');

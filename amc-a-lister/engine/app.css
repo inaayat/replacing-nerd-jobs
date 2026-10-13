@@ -1976,6 +1976,28 @@ table.al-table {
   margin-top: 12px;
 }
 
+.al-member-compare-block {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--al-line);
+}
+
+.al-member-compare-block .al-section-title {
+  margin-bottom: 4px;
+}
+
+.al-member-shared-want {
+  margin: 0 0 18px;
+}
+
+.al-member-shared-want:empty {
+  display: none;
+}
+
+.al-member-want .al-watchlist-grid {
+  margin-top: 4px;
+}
+
 .al-member-book {
   display: flex;
   flex-direction: column;
@@ -1993,6 +2015,12 @@ table.al-table {
 .al-member-book-toolbar .al-watchlist-segment {
   margin-bottom: 0;
   flex: 1 1 12rem;
+  flex-wrap: wrap;
+}
+
+.al-member-book-toolbar .al-segment-btn {
+  padding-left: 8px;
+  padding-right: 8px;
 }
 
 .al-member-flip-nav {
