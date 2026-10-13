@@ -5764,6 +5764,190 @@ table.al-table {
   opacity: 1;
 }
 
+.al-main--settings {
+  max-width: 40rem;
+  padding-bottom: 32px;
+}
+
+.al-settings-kicker {
+  margin: 0 0 4px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--al-burgundy);
+}
+
+.al-settings-title,
+.al-panel h2.al-settings-title {
+  margin: 0 0 4px;
+  font-size: 1.22rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.al-settings-lead {
+  margin: 0 0 12px;
+  font-size: 0.88rem;
+}
+
+.al-settings-sub {
+  margin: 18px 0 4px;
+  font-family: var(--al-font-display);
+  font-size: 0.98rem;
+  font-weight: 600;
+}
+
+.al-settings-card {
+  padding: 14px 16px;
+}
+
+.al-main--settings .al-howto {
+  padding: 12px 16px;
+}
+
+.al-main--settings .al-howto-summary {
+  font-size: 1.08rem;
+}
+
+.al-settings-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.al-settings-field {
+  max-width: 22rem;
+}
+
+.al-main--settings .al-tier-section {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.al-main--settings .al-privacy-section {
+  margin-top: 14px;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.al-main--settings .al-privacy-detail {
+  padding-left: 28px;
+}
+
+.al-main--settings .al-tier-table {
+  max-width: 28rem;
+}
+
+.al-main--settings .al-tier-row {
+  grid-template-columns: minmax(0, 1fr) 7.5rem 4.75rem;
+}
+
+.al-settings-actions,
+.al-settings-save {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.al-settings-save {
+  margin: 0 0 10px;
+  padding: 10px 16px;
+  background: var(--al-panel);
+  border: 1px solid var(--al-line);
+  border-radius: var(--al-radius);
+}
+
+.al-settings-save .al-muted,
+.al-settings-actions .al-muted {
+  margin: 0;
+}
+
+.al-settings-actions--file {
+  align-items: center;
+}
+
+.al-main--settings .al-check--block {
+  margin-top: 6px;
+  padding: 6px 0;
+  gap: 10px;
+}
+
+.al-main--settings .al-check--block input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.al-main--settings #beta-tv-status {
+  margin: 4px 0 0;
+}
+
+@media (max-width: 767px) {
+  body[data-page="settings"] .page-main {
+    padding-bottom: calc(108px + env(safe-area-inset-bottom, 0px));
+  }
+
+  body[data-page="settings"] .al-page-header {
+    margin-bottom: 8px;
+  }
+
+  .al-main--settings {
+    padding-bottom: 16px;
+  }
+
+  .al-settings-card,
+  .al-settings-save {
+    padding: 12px;
+    border-radius: 12px;
+  }
+
+  .al-main--settings .al-tier-row--head {
+    display: grid;
+  }
+
+  .al-main--settings .al-btn,
+  .al-main--settings .al-input,
+  .al-main--settings .al-textarea {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .al-main--settings .al-check--block {
+    min-height: 44px;
+    align-items: center;
+    padding: 8px 0;
+  }
+
+  .al-main--settings .tier-remove {
+    min-height: 44px;
+    padding: 0 8px;
+  }
+
+  .al-settings-actions,
+  .al-settings-save {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .al-settings-actions .al-btn,
+  .al-settings-save .al-btn {
+    width: 100%;
+  }
+
+  .al-settings-actions--file input[type="file"] {
+    width: 100%;
+  }
+
+  .al-main--settings .al-invites-cancel {
+    min-height: 44px;
+    padding: 0 8px;
+  }
+}
+
 .al-field-hint {
   margin-top: 4px;
   font-size: 0.72em;

@@ -28,32 +28,61 @@ bootPage(async ({ root, auth }) => {
       : 'Membership pricing, Letterboxd, beta features, and spreadsheet import.',
     signedIn: true,
     body: `
-    <main class="al-main">
+    <main class="al-main al-main--settings">
       ${renderHowToUseSection({ setup: needsRateSetup })}
 
       ${needsRateSetup ? `
-        <section class="al-panel al-panel--setup">
-          <h2 class="serif">Set your monthly rate</h2>
-          <p class="al-muted">
+        <section class="al-panel al-panel--setup al-settings-card">
+          <p class="al-settings-kicker">Setup</p>
+          <h2 class="serif al-settings-title">Set your monthly rate</h2>
+          <p class="al-muted al-settings-lead">
             Enter what A-List charges you each month. If your price changes later — or was different
             in earlier periods — you can add price changes below (or anytime from this settings panel).
           </p>
         </section>
       ` : ''}
 
-      <form class="al-panel" id="membership-form">
-        <div class="al-form-grid">
-          <div class="al-field">
+      <form id="membership-form" class="al-settings-form">
+        <section class="al-panel al-settings-card">
+          <p class="al-settings-kicker">Profile</p>
+          <h2 class="serif al-settings-title">Name &amp; visibility</h2>
+          <p class="al-muted al-settings-lead">How you appear in A-Lister. Public sharing stays off until you opt in.</p>
+          <div class="al-field al-settings-field">
             <label for="display_name">Display name</label>
             <input class="al-input" id="display_name" value="${escapeHtml(membership.display_name || '')}" />
           </div>
-        </div>
-
-        <div class="al-tier-section">
-          <div class="al-tier-header">
-            <h2>Monthly rates</h2>
-            <p class="al-muted">One A-List charge per calendar month you see a movie. Add a row for each price increase.</p>
+          <div class="al-privacy-section">
+            <label class="al-check al-check--block">
+              <input type="checkbox" id="public_profile" ${membership.public_profile ? 'checked' : ''} />
+              Show me on the public leaderboard
+            </label>
+            <div class="al-privacy-detail" id="public-profile-detail">
+              <p class="al-muted">
+                Anyone can see your name, how many films you've seen, your savings and
+                your average rating. They never see your email, your surname, your seat or
+                auditorium numbers, or anything you watched at home.
+              </p>
+              <div class="al-field al-settings-field">
+                <label for="username">Username <span class="al-muted">(optional)</span></label>
+                <input class="al-input" id="username" maxlength="24" placeholder="letterboxd_lurker"
+                       value="${escapeHtml(membership.username || '')}" />
+                <p class="al-muted al-field-hint">
+                  3–24 characters, letters, numbers and underscores. Leave it blank and
+                  you'll show as <strong>${escapeHtml(membership.public_name_without_username || 'Member')}</strong> instead.
+                </p>
+              </div>
+              <label class="al-check al-check--block">
+                <input type="checkbox" id="public_hide_theaters" ${membership.public_hide_theaters ? 'checked' : ''} />
+                Hide which theaters I go to
+              </label>
+            </div>
           </div>
+        </section>
+
+        <section class="al-panel al-settings-card al-tier-section">
+          <p class="al-settings-kicker">Billing</p>
+          <h2 class="serif al-settings-title">Monthly rates</h2>
+          <p class="al-muted al-settings-lead">One A-List charge per calendar month you see a movie. Add a row for each price increase.</p>
           <div class="al-tier-table" id="price-tiers">
             <div class="al-tier-row al-tier-row--head">
               <span>Effective date</span>
@@ -63,112 +92,88 @@ bootPage(async ({ root, auth }) => {
             ${tiers.map((tier, index) => tierRowHtml(tier, index)).join('')}
           </div>
           <button class="al-btn" type="button" id="add-tier">+ Add price change</button>
-        </div>
+        </section>
 
-        <div class="al-privacy-section">
-          <div class="al-tier-header">
-            <h2>Public profile</h2>
-            <p class="al-muted">Off by default. Nothing about your log is visible to anyone else until you turn this on.</p>
-          </div>
-          <label class="al-check al-check--block">
-            <input type="checkbox" id="public_profile" ${membership.public_profile ? 'checked' : ''} />
-            Show me on the public leaderboard
-          </label>
-          <div class="al-privacy-detail" id="public-profile-detail">
-            <p class="al-muted">
-              Anyone can see your name, how many films you've seen, your savings and
-              your average rating. They never see your email, your surname, your seat or
-              auditorium numbers, or anything you watched at home.
-            </p>
-            <div class="al-field">
-              <label for="username">Username <span class="al-muted">(optional)</span></label>
-              <input class="al-input" id="username" maxlength="24" placeholder="letterboxd_lurker"
-                     value="${escapeHtml(membership.username || '')}" />
-              <p class="al-muted al-field-hint">
-                3–24 characters, letters, numbers and underscores. Leave it blank and
-                you'll show as <strong>${escapeHtml(membership.public_name_without_username || 'Member')}</strong> instead.
-              </p>
-            </div>
-            <label class="al-check al-check--block">
-              <input type="checkbox" id="public_hide_theaters" ${membership.public_hide_theaters ? 'checked' : ''} />
-              Hide which theaters I go to
-            </label>
-          </div>
-        </div>
-
-        <div class="al-toolbar" style="margin-top:12px">
+        <div class="al-settings-save">
           <button class="al-btn al-btn-primary" type="submit">${needsRateSetup ? 'Save and continue' : 'Save membership'}</button>
-          <p class="al-muted" id="membership-status" style="margin:0"></p>
+          <p class="al-muted" id="membership-status"></p>
         </div>
       </form>
 
-      <section class="al-panel" id="sent-invites">
-        <h2>Invites you sent</h2>
-        <p class="al-muted">
+      <section class="al-panel al-settings-card" id="sent-invites">
+        <p class="al-settings-kicker">Sharing</p>
+        <h2 class="serif al-settings-title">Invites you sent</h2>
+        <p class="al-muted al-settings-lead">
           Showings still waiting on someone else. They can accept or deny from their watch log.
         </p>
         <div id="sent-invites-list"><p class="al-muted">Loading…</p></div>
         <p class="al-error" id="sent-invites-status" role="alert" hidden></p>
       </section>
 
-      <form class="al-panel" id="letterboxd-form">
-        <h2>Letterboxd</h2>
-        <p class="al-muted">
+      <form class="al-panel al-settings-card" id="letterboxd-form">
+        <p class="al-settings-kicker">Sharing</p>
+        <h2 class="serif al-settings-title">Letterboxd</h2>
+        <p class="al-muted al-settings-lead">
           Connect your Letterboxd diary. New films you log there show up in a review inbox where you
           choose <strong>In theaters</strong> or <strong>At home</strong>, check the date and rating,
           and save. Films already in your A-Lister log are skipped.
         </p>
-        <div class="al-field">
+        <div class="al-field al-settings-field">
           <label for="letterboxd-username">Letterboxd username</label>
           <input class="al-input" id="letterboxd-username" maxlength="80" placeholder="letterboxd.com/your_name"
                  autocomplete="off" autocapitalize="off" spellcheck="false" />
         </div>
-        <div class="al-toolbar" style="margin-top:12px">
+        <div class="al-settings-actions">
           <button class="al-btn al-btn-primary" type="submit" id="letterboxd-save">Connect</button>
           <button class="al-btn" type="button" id="letterboxd-clear" hidden>Disconnect</button>
           <a class="al-btn" href="/amc-a-lister/letterboxd.html" id="letterboxd-review" hidden>Review inbox</a>
-          <p class="al-muted" id="letterboxd-status" style="margin:0" aria-live="polite"></p>
+          <p class="al-muted" id="letterboxd-status" aria-live="polite"></p>
         </div>
       </form>
 
-      <section class="al-panel">
-        <h2>Beta features</h2>
-        <p class="al-muted">Optional experiments. Turn these on when you want them in the nav.</p>
+      <section class="al-panel al-settings-card">
+        <p class="al-settings-kicker">Features</p>
+        <h2 class="serif al-settings-title">Beta</h2>
+        <p class="al-muted al-settings-lead">Optional experiments. Turn these on when you want them in the nav.</p>
         <label class="al-check al-check--block">
           <input type="checkbox" id="beta-tv" ${isTvBetaEnabled() ? 'checked' : ''} />
           TV Shows — track series separately from theater movies
         </label>
-        <p class="al-muted" id="beta-tv-status" style="margin-top:8px"></p>
+        <p class="al-muted" id="beta-tv-status"></p>
       </section>
 
-      <section class="al-panel">
-        <h2>Posters &amp; movie data</h2>
-        <p class="al-muted">
-          Fills missing posters and TMDB ids for every A-Lister watch log, watchlist,
+      <section class="al-panel al-settings-card" id="settings-data">
+        <p class="al-settings-kicker">Library</p>
+        <h2 class="serif al-settings-title">Posters &amp; imports</h2>
+        <p class="al-muted al-settings-lead">
+          Backfill fills missing posters and TMDB ids for every A-Lister watch log, watchlist,
           rank, and cache — all accounts. Never changes theater, cost, rating, or date.
-          Keeps going in batches until everything that can be matched is filled.
         </p>
-        <div class="al-toolbar">
+        <div class="al-settings-actions">
           <button class="al-btn" type="button" id="backfill-btn">Backfill posters</button>
-          <p class="al-muted" id="backfill-status" style="margin:0"></p>
+          <p class="al-muted" id="backfill-status"></p>
         </div>
-      </section>
-
-      <section class="al-panel">
-        <h2>Import from A-List Tracking.xlsx</h2>
-        <p class="al-muted">Upload your spreadsheet (Movies sheet). Duplicates by date + title + location are skipped.</p>
-        <div class="al-toolbar">
+        <h3 class="al-settings-sub">Import spreadsheet</h3>
+        <p class="al-muted al-settings-lead">Upload your A-List Tracking.xlsx (Movies sheet). Duplicates by date + title + location are skipped.</p>
+        <div class="al-settings-actions al-settings-actions--file">
           <input type="file" id="xlsx-file" accept=".xlsx,.xls" />
           <button class="al-btn al-btn-primary" type="button" id="xlsx-import-btn">Upload spreadsheet</button>
+        </div>
+        <h3 class="al-settings-sub">Import JSON</h3>
+        <textarea class="al-textarea" id="import-json" rows="4" placeholder='[{"watched_on":"2025-01-15","title":"Dune: Part Two","ticket_cents":2495}]'></textarea>
+        <div class="al-settings-actions">
+          <button class="al-btn" type="button" id="import-btn">Import JSON</button>
         </div>
         <p class="al-muted" id="import-status"></p>
       </section>
 
-      <section class="al-panel">
-        <h2>Import from JSON</h2>
-        <textarea class="al-textarea" id="import-json" rows="5" placeholder='[{"watched_on":"2025-01-15","title":"Dune: Part Two","ticket_cents":2495}]'></textarea>
-        <div class="al-toolbar" style="margin-top:8px">
-          <button class="al-btn" type="button" id="import-btn">Import JSON</button>
+      <section class="al-panel al-settings-card" id="settings-account">
+        <p class="al-settings-kicker">Account</p>
+        <h2 class="serif al-settings-title">Sign in</h2>
+        <p class="al-muted al-settings-lead">Manage email and password, or log out of this device.</p>
+        <div class="al-settings-actions">
+          <a class="al-btn" href="/account.html">Account</a>
+          <a class="al-btn" href="/account.html" data-nav-auth>Log out</a>
         </div>
       </section>
     </main>
