@@ -398,7 +398,17 @@ function placeWithAnswers(rankedLength, answers) {
   const boardSource = readFileSync(new URL('../amc-a-lister/engine/leaderboard.js', import.meta.url), 'utf8');
   assert.match(css, /\.al-board-stats dd\.is-savings/, 'leaderboard savings use a plus color');
   assert.match(css, /\.al-board-stats dd\.is-cost/, 'leaderboard overage uses a minus color');
+  const boardCss = css.slice(css.indexOf('.al-board-kicker'), css.indexOf('.al-leaderboard-table .num'));
+  const boardDesktop = boardCss.slice(0, boardCss.indexOf('@media (max-width: 767px)'));
+  const boardMobile = boardCss.slice(boardCss.indexOf('@media (max-width: 767px)'));
+  assert.match(boardDesktop, /grid-template-columns: 2\.6rem minmax\(0, 1\.2fr\) minmax\(0, 1\.4fr\) auto/, 'desktop board rows stay four columns');
+  assert.match(boardMobile, /grid-template-columns: 1\.75rem minmax\(0, 1fr\) auto/, 'phone board rows keep rank, identity, and view on one line');
+  assert.match(boardMobile, /repeat\(4,\s*minmax\(0,\s*1fr\)\)/, 'phone board stats stay a four-up strip');
+  assert.match(boardMobile, /body\[data-page="leaderboard"\] \.page-main/, 'phone leaderboard clears the sticky nav');
+  assert.match(boardMobile, /padding-bottom: calc\(108px/, 'phone leaderboard leaves room under the last card');
+  assert.match(boardMobile, /\.al-board-posters \{/, 'phone board keeps the poster strip');
   assert.match(boardSource, /al-board-row/, 'leaderboard is a ranked list, not a beige card grid');
+  assert.match(boardSource, /al-board-poster/, 'leaderboard rows still render posters');
   assert.match(boardSource, /View log/, 'leaderboard still links to member logs');
   assert.match(boardSource, /profile-sort/, 'leaderboard still has the sort control');
   assert.match(boardSource, /Compare stats/, 'compare stats section remains');
