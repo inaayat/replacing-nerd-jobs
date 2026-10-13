@@ -138,6 +138,10 @@ assert(editing.includes('data-tv-cancel="tv1"'), 'edit can cancel');
 assert(editing.includes('value="4.5"') === false, 'a half rating is not forced into the integer dropdown');
 assert(editing.includes('>Save<'), 'edit still saves');
 assert(!editing.includes('data-expand-row'), 'the edit form is not an expandable poster');
+assert(!editing.includes('name="season"'), 'edit does not offer a season input');
+assert(!editing.includes('name="episode"'), 'edit does not offer an episode input');
+assert(!editing.includes('aria-label="Season"'), 'edit has no season field');
+assert(!editing.includes('aria-label="Episode"'), 'edit has no episode field');
 
 const dnfEdit = tvWatchListHtml(state({
   watchedEditingId: 'dnf',
@@ -156,6 +160,25 @@ const tvSource = readFileSync(new URL('../amc-a-lister/engine/tv.js', import.met
 assert(tvSource.includes('tvWatchListHtml'), 'the TV page renders the poster grid');
 assert(!tvSource.includes('al-log-list--tv'), 'the TV page no longer builds the watched table');
 assert(tvSource.includes('loadTvWatchDetails'), 'opening a card loads show details');
+assert(!tvSource.includes('tv-add-season'), 'the add form has no season input');
+assert(!tvSource.includes('tv-add-episode'), 'the add form has no episode input');
+assert(!/seasonInput/.test(tvSource), 'add does not read a season field');
+assert(!/episodeInput/.test(tvSource), 'add does not read an episode field');
+assert(!tvSource.includes('season: fd.get'), 'edit save does not send season from a form field');
+assert(!tvSource.includes('episode: fd.get'), 'edit save does not send episode from a form field');
+
+const apiSource = readFileSync(new URL('../api/alist.js', import.meta.url), 'utf8');
+const tvWatchesFn = apiSource.slice(
+  apiSource.indexOf('async function handleTvWatches'),
+  apiSource.indexOf('async function handleTvWatchlist'),
+);
+assert(tvWatchesFn.includes("hasOwnProperty.call(body, 'season')"), 'TV edits keep stored season unless sent');
+assert(tvWatchesFn.includes("hasOwnProperty.call(body, 'episode')"), 'TV edits keep stored episode unless sent');
+assert(tvWatchesFn.includes("hasOwnProperty.call(body, 'notes')"), 'TV edits keep stored notes unless sent');
+
+const dbSource = readFileSync(new URL('../lib/db.js', import.meta.url), 'utf8');
+assert(/season\s+INT/.test(dbSource), 'season stays on alist_tv_watches');
+assert(/episode\s+INT/.test(dbSource), 'episode stays on alist_tv_watches');
 
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

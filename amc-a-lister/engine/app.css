@@ -4679,13 +4679,6 @@ table.al-table {
   width: 9.5rem;
 }
 
-.al-tv-add-season,
-.al-tv-add-episode {
-  flex: 0 0 auto;
-  width: 4.5rem;
-  text-align: center;
-}
-
 .al-tv-add-ep {
   flex: 0 0 auto;
   width: 4.5rem;
@@ -5406,20 +5399,13 @@ table.al-table {
 
   .al-tv-add-field,
   .al-tv-add-date,
+  .al-tv-add-rating,
   .al-tv-add-row .al-btn {
     grid-column: 1 / -1;
     width: 100%;
     flex: none;
     min-width: 0;
     margin-left: 0;
-  }
-
-  .al-tv-add-season,
-  .al-tv-add-episode,
-  .al-tv-add-rating {
-    width: 100%;
-    flex: none;
-    min-width: 0;
   }
 
   .al-tv-edit-form .al-tv-add-row {
@@ -5430,6 +5416,7 @@ table.al-table {
 
   .al-tv-edit-form .al-tv-add-row > .al-input:first-child,
   .al-tv-edit-form .al-tv-add-row .al-tv-add-date,
+  .al-tv-edit-form .al-tv-add-row .al-tv-add-rating,
   .al-tv-edit-form .al-tv-add-row .al-btn-primary {
     grid-column: 1 / -1;
   }

@@ -1894,22 +1894,36 @@ async function handleTvWatches(req, res) {
       res.status(400).json({ error: 'id is required.' });
       return;
     }
-    const data = normalizeTvBody(req.body || {});
+    const body = req.body || {};
+    const data = normalizeTvBody(body);
     if (!data.watched_on || !data.title) {
       res.status(400).json({ error: 'watched_on and title are required.' });
       return;
     }
     try {
+      const existingRows = await db()`
+        SELECT season, episode, notes
+        FROM alist_tv_watches
+        WHERE id = ${id} AND user_id = ${userId}
+      `;
+      if (!existingRows.length) {
+        res.status(404).json({ error: 'Watch not found.' });
+        return;
+      }
+      const existing = existingRows[0];
+      const season = Object.prototype.hasOwnProperty.call(body, 'season') ? data.season : existing.season;
+      const episode = Object.prototype.hasOwnProperty.call(body, 'episode') ? data.episode : existing.episode;
+      const notes = Object.prototype.hasOwnProperty.call(body, 'notes') ? data.notes : existing.notes;
       const rows = await db()`
         UPDATE alist_tv_watches SET
           watched_on = ${data.watched_on},
           title = ${data.title},
           tmdb_id = ${data.tmdb_id},
-          season = ${data.season},
-          episode = ${data.episode},
+          season = ${season},
+          episode = ${episode},
           rating = ${data.rating},
           dnf = ${data.dnf},
-          notes = ${data.notes},
+          notes = ${notes},
           updated_at = now()
         WHERE id = ${id} AND user_id = ${userId}
         RETURNING id, watched_on::text AS watched_on, title, tmdb_id, season, episode,

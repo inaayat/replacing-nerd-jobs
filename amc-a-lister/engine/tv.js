@@ -91,8 +91,6 @@ async function loadPage(auth) {
               <div class="al-search-results" id="tv-add-results" hidden></div>
             </div>
             <input class="al-input al-tv-add-date" id="tv-add-date" type="date" required value="${todayISO()}" aria-label="Date watched" />
-            <input class="al-input al-tv-add-season" id="tv-add-season" type="number" min="1" placeholder="S" aria-label="Season" inputmode="numeric" />
-            <input class="al-input al-tv-add-episode" id="tv-add-episode" type="number" min="1" placeholder="E" aria-label="Episode" inputmode="numeric" />
             <select class="al-select al-tv-add-rating" id="tv-add-rating" aria-label="Rating">
               <option value="">Rating</option>
               <option value="5">5★</option>
@@ -254,8 +252,6 @@ async function loadPage(auth) {
     resultsEl: document.getElementById('tv-add-results'),
     tmdbInput: document.getElementById('tv-add-tmdb_id'),
     dateInput: document.getElementById('tv-add-date'),
-    seasonInput: document.getElementById('tv-add-season'),
-    episodeInput: document.getElementById('tv-add-episode'),
     ratingInput: document.getElementById('tv-add-rating'),
     statusEl: watchedStatusEl,
     onAdded: renderWatchedList,
@@ -394,8 +390,6 @@ function wireWatchedActions(auth, state, render) {
         title: String(fd.get('title') || '').trim(),
         watched_on: String(fd.get('watched_on') || ''),
         tmdb_id: fd.get('tmdb_id') ? Number(fd.get('tmdb_id')) : null,
-        season: fd.get('season') ? Number(fd.get('season')) : null,
-        episode: fd.get('episode') ? Number(fd.get('episode')) : null,
         rating: dnf || !ratingRaw ? null : Number(ratingRaw),
         dnf,
       };
@@ -415,8 +409,6 @@ function wireTvAddForm(auth, state, {
   resultsEl,
   tmdbInput,
   dateInput,
-  seasonInput,
-  episodeInput,
   ratingInput,
   statusEl,
   onAdded,
@@ -475,8 +467,6 @@ function wireTvAddForm(auth, state, {
       title,
       watched_on: dateInput.value,
       tmdb_id: tmdbId,
-      season: seasonInput.value ? Number(seasonInput.value) : null,
-      episode: episodeInput.value ? Number(episodeInput.value) : null,
       rating: dnf || !ratingRaw ? null : Number(ratingRaw),
       dnf,
     };

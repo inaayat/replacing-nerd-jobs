@@ -112,8 +112,6 @@ function editCardHtml(watch) {
           <div class="al-tv-add-row">
             <input class="al-input" name="title" type="text" value="${escapeHtml(watch.title)}" required />
             <input class="al-input al-tv-add-date" name="watched_on" type="date" value="${escapeHtml(watch.watched_on)}" required aria-label="Date watched" />
-            <input class="al-input al-tv-add-season" name="season" type="number" min="1" placeholder="S" value="${watch.season ?? ''}" inputmode="numeric" aria-label="Season" />
-            <input class="al-input al-tv-add-episode" name="episode" type="number" min="1" placeholder="E" value="${watch.episode ?? ''}" inputmode="numeric" aria-label="Episode" />
             <select class="al-select al-tv-add-rating" name="rating" aria-label="Rating">
               <option value="">Rating</option>
               <option value="5" ${ratingVal === '5' ? 'selected' : ''}>5★</option>
