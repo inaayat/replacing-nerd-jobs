@@ -2,80 +2,54 @@
 
 function howToUseSteps() {
   return `
-    <ol class="al-howto-steps">
-      <li>
-        <strong>Log a screening.</strong>
-        Use the quick-log bar at the top of every page. Pick a date and movie title —
-        theater, format, and ticket price are optional but help savings math.
-        Switch to <em>Not in theaters</em> for streams or discs you still want in your diary.
+    <ul class="al-howto-list">
+      <li class="al-howto-item">
+        <h3 class="al-howto-item-title">Log a screening</h3>
+        <p>Use the bar at the top of every page. Date and title are enough; theater and ticket price help savings math.</p>
       </li>
-      <li>
-        <strong><a href="/amc-a-lister/">Watch log</a></strong>
-        is your full history. Search and filter by theater or rating. Each poster
-        shows the date, theater, cost, and stars; tap it to open format, seat,
-        who you went with, and the movie details.
+      <li class="al-howto-item">
+        <h3 class="al-howto-item-title">Watch log</h3>
+        <p>Your full history. Search and filter, then tap a poster for format, seat, who you went with, and movie details.</p>
       </li>
-      <li>
-        <strong><a href="/amc-a-lister/what-to-watch.html">Watch</a></strong>
-        tracks movies you want to see. Add titles from search; they sort by US release date
-        when TMDB has one. Tap a poster on Watch or Watch at Home for the same movie
-        details you get in your watch log. Logging a film removes it from this list.
+      <li class="al-howto-item">
+        <h3 class="al-howto-item-title">Watch</h3>
+        <p>Movies you want to see, sorted by US release date. Logging a film removes it from this list.</p>
       </li>
-      <li>
-        <strong><a href="/amc-a-lister/statistics.html">Stats</a></strong>
-        shows where you watch, what you rate highly, and whether A-List is paying for itself.
-        Sidebar totals update as you log.
+      <li class="al-howto-item">
+        <h3 class="al-howto-item-title">Stats</h3>
+        <p>Where you watch, what you rate highly, and whether A-List is paying for itself.</p>
       </li>
-      <li>
-        <strong><a href="/amc-a-lister/leaderboard.html">Leaderboard</a></strong>
-        compares opted-in members. Your profile stays private until you turn on
-        <em>Public profile</em> below.
+      <li class="al-howto-item">
+        <h3 class="al-howto-item-title">Leaderboard</h3>
+        <p>Compares members who opt in. Your profile stays private until you turn on Public profile.</p>
       </li>
-      <li>
-        <strong>Monthly rate (below)</strong>
-        powers billed-vs-ticket savings. One A-List charge applies per calendar month you
-        see a movie in theaters — not per ticket.
+      <li class="al-howto-item">
+        <h3 class="al-howto-item-title">Monthly rate</h3>
+        <p>One A-List charge per calendar month you see a movie in theaters — not per ticket.</p>
       </li>
-      <li>
-        <strong>Use Letterboxd?</strong>
-        Add your username under <a href="/amc-a-lister/settings.html#letterboxd-form"><em>Letterboxd</em></a> below.
-        New films from your Letterboxd diary show up in a
-        <a href="/amc-a-lister/letterboxd.html">review inbox</a> — choose <em>In theaters</em> or
-        <em>At home</em>, check the date and rating, and save. A banner on your Watch log tells you
-        when something is waiting; it checks at most every 15 minutes, or press
-        <em>Check Letterboxd now</em>. Films already in your log are skipped.
+      <li class="al-howto-item">
+        <h3 class="al-howto-item-title">Letterboxd</h3>
+        <p>Connect your username above. New diary films land in a review inbox so you can mark In theaters or At home.</p>
       </li>
-      <li>
-        <strong>Already have a spreadsheet?</strong>
-        Scroll down to import your <code>A-List Tracking.xlsx</code> or paste JSON.
-        Duplicates (same date, title, and theater) are skipped.
+      <li class="al-howto-item">
+        <h3 class="al-howto-item-title">Spreadsheet</h3>
+        <p>Import A-List Tracking.xlsx or paste JSON. Duplicates with the same date, title, and theater are skipped.</p>
       </li>
-    </ol>
+    </ul>
   `;
 }
 
 export function renderHowToUseSection({ setup = false } = {}) {
   const intro = setup
-    ? `<p class="al-muted al-howto-intro">
-         Welcome! Read this once, then set your monthly rate to finish account setup.
-       </p>`
+    ? `<p class="al-muted al-howto-intro">Welcome. Read this once, then set your monthly rate above to finish setup.</p>`
     : '';
 
-  if (setup) {
-    return `
-      <section class="al-panel al-panel--setup al-howto" id="how-to-use">
-        <h2 class="al-howto-title">How to use A-Lister</h2>
-        ${intro}
-        ${howToUseSteps()}
-      </section>
-    `;
-  }
-
   return `
-    <section class="al-panel al-howto" id="how-to-use">
+    <section class="al-panel al-howto al-settings-card" id="how-to-use">
       <details class="al-howto-details">
         <summary class="al-howto-summary">How to use A-Lister</summary>
         <div class="al-howto-body">
+          ${intro}
           ${howToUseSteps()}
         </div>
       </details>

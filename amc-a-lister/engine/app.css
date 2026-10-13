@@ -2857,34 +2857,29 @@ table.al-table {
   margin-top: 12px;
 }
 
-.al-howto-steps {
+.al-howto-list {
   margin: 0;
-  padding-left: 1.25rem;
+  padding: 0;
+  list-style: none;
   display: grid;
-  gap: 10px;
+  gap: 12px;
+}
+
+.al-howto-item-title {
+  margin: 0 0 2px;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--al-charcoal);
+}
+
+.al-howto-item p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.4;
   color: var(--al-text);
-  font-size: 0.92rem;
-  line-height: 1.5;
-}
-
-.al-howto-steps li::marker {
-  color: var(--al-burgundy);
-  font-weight: 600;
-}
-
-.al-howto-steps a {
-  color: var(--al-burgundy);
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.al-howto-steps a:hover {
-  text-decoration: underline;
-}
-
-.al-howto-steps code {
-  font-family: var(--al-font-mono);
-  font-size: 0.85em;
 }
 
 .al-toggle-btn {
@@ -4036,7 +4031,7 @@ table.al-table {
 
 .al-tier-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) 44px;
   gap: 8px;
   align-items: center;
 }
@@ -4045,6 +4040,79 @@ table.al-table {
   font-size: 0.75rem;
   font-weight: 500;
   color: var(--al-muted);
+}
+
+.al-tier-date,
+.al-tier-price {
+  min-width: 0;
+}
+
+.al-tier-date {
+  overflow: hidden;
+}
+
+.al-tier-date .al-input {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.al-tier-date input[type="date"] {
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.al-tier-date input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+  min-width: 0;
+}
+
+.al-tier-price {
+  display: flex;
+  align-items: stretch;
+}
+
+.al-tier-price-prefix {
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  border: 1px solid var(--al-line);
+  border-right: 0;
+  border-radius: 8px 0 0 8px;
+  background: var(--al-panel-2);
+  color: var(--al-muted);
+  font-weight: 600;
+  line-height: 1;
+}
+
+.al-tier-price .al-input {
+  flex: 1;
+  min-width: 0;
+  border-radius: 0 8px 8px 0;
+}
+
+.al-tier-remove-spacer,
+.al-tier-row .tier-remove {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  text-decoration: none;
+  color: var(--al-muted);
+}
+
+.al-tier-remove-icon {
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+}
+
+.al-tier-row .tier-remove:hover {
+  color: var(--al-burgundy);
 }
 
 @media (max-width: 520px) {
@@ -5748,14 +5816,14 @@ table.al-table {
 
 /* Public profile panel in Settings. */
 .al-privacy-section {
-  margin-top: 24px;
-  padding-top: 20px;
+  margin-top: 8px;
+  padding-top: 8px;
   border-top: 1px solid var(--al-rule, rgba(0, 0, 0, 0.12));
 }
 
 .al-privacy-detail {
-  margin-top: 10px;
-  padding-left: 26px;
+  margin-top: 0;
+  padding-left: 0;
   opacity: 0.5;
   transition: opacity 0.2s ease;
 }
@@ -5770,7 +5838,7 @@ table.al-table {
 }
 
 .al-settings-kicker {
-  margin: 0 0 4px;
+  margin: 0 0 2px;
   font-size: 0.68rem;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -5780,15 +5848,15 @@ table.al-table {
 
 .al-settings-title,
 .al-panel h2.al-settings-title {
-  margin: 0 0 4px;
-  font-size: 1.22rem;
+  margin: 0 0 8px;
+  font-size: 1.12rem;
   font-weight: 600;
   line-height: 1.2;
 }
 
 .al-settings-lead {
-  margin: 0 0 12px;
-  font-size: 0.88rem;
+  margin: 0 0 10px;
+  font-size: 0.84rem;
 }
 
 .al-settings-sub {
@@ -5799,15 +5867,45 @@ table.al-table {
 }
 
 .al-settings-card {
-  padding: 14px 16px;
-}
-
-.al-main--settings .al-howto {
   padding: 12px 16px;
 }
 
+.al-settings-profile {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.al-settings-compact {
+  display: grid;
+  gap: 8px;
+}
+
+.al-settings-compact .al-field label {
+  margin-bottom: 2px;
+}
+
+.al-settings-compact .al-input {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.al-lb-connect-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.al-lb-connect-row .al-btn {
+  white-space: nowrap;
+}
+
+.al-main--settings .al-howto {
+  padding: 10px 16px;
+}
+
 .al-main--settings .al-howto-summary {
-  font-size: 1.08rem;
+  font-size: 1.05rem;
 }
 
 .al-settings-form {
@@ -5816,7 +5914,7 @@ table.al-table {
 }
 
 .al-settings-field {
-  max-width: 22rem;
+  max-width: none;
 }
 
 .al-main--settings .al-tier-section {
@@ -5826,21 +5924,39 @@ table.al-table {
 }
 
 .al-main--settings .al-privacy-section {
-  margin-top: 14px;
-  padding-top: 0;
-  border-top: 0;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--al-line);
 }
 
 .al-main--settings .al-privacy-detail {
-  padding-left: 28px;
+  padding-left: 0;
+}
+
+.al-main--settings .al-privacy-section .al-check--block {
+  margin-top: 0;
+  padding: 4px 0;
 }
 
 .al-main--settings .al-tier-table {
-  max-width: 28rem;
+  max-width: none;
 }
 
-.al-main--settings .al-tier-row {
-  grid-template-columns: minmax(0, 1fr) 7.5rem 4.75rem;
+.al-main--settings .al-tier-row,
+.al-main--settings .al-tier-row--head {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) 44px;
+  gap: 8px;
+}
+
+.al-main--settings .al-btn-primary {
+  background: var(--al-burgundy);
+  border-color: var(--al-burgundy);
+}
+
+.al-main--settings .al-btn-primary:hover {
+  background: #6e0c0d;
+  border-color: #6e0c0d;
 }
 
 .al-settings-actions,
@@ -5850,6 +5966,11 @@ table.al-table {
   gap: 8px 12px;
   align-items: center;
   margin-top: 12px;
+}
+
+.al-settings-actions--lb {
+  margin-top: 0;
+  min-height: 0;
 }
 
 .al-settings-save {
@@ -5887,8 +6008,12 @@ table.al-table {
 }
 
 @media (max-width: 767px) {
+  body[data-page="settings"] {
+    scroll-padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  }
+
   body[data-page="settings"] .page-main {
-    padding-bottom: calc(108px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
   }
 
   body[data-page="settings"] .al-page-header {
@@ -5896,17 +6021,23 @@ table.al-table {
   }
 
   .al-main--settings {
-    padding-bottom: 16px;
+    padding-bottom: 24px;
   }
 
   .al-settings-card,
   .al-settings-save {
-    padding: 12px;
+    padding: 10px 12px;
     border-radius: 12px;
   }
 
+  .al-settings-profile {
+    padding: 10px 12px;
+  }
+
+  .al-main--settings .al-tier-row,
   .al-main--settings .al-tier-row--head {
     display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) 44px;
   }
 
   .al-main--settings .al-btn,
@@ -5922,9 +6053,13 @@ table.al-table {
     padding: 8px 0;
   }
 
-  .al-main--settings .tier-remove {
+  .al-main--settings .tier-remove,
+  .al-main--settings .al-tier-remove-spacer {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
     min-height: 44px;
-    padding: 0 8px;
+    padding: 0;
   }
 
   .al-settings-actions,
@@ -5936,6 +6071,16 @@ table.al-table {
   .al-settings-actions .al-btn,
   .al-settings-save .al-btn {
     width: 100%;
+  }
+
+  .al-settings-profile .al-settings-actions--lb {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .al-settings-profile .al-settings-actions--lb .al-btn {
+    width: auto;
   }
 
   .al-settings-actions--file input[type="file"] {

@@ -174,9 +174,10 @@ assert(
 const { renderHowToUseSection } = await import('../amc-a-lister/engine/how-to-use.js');
 const howTo = renderHowToUseSection();
 assert(
-  howTo.includes('Use Letterboxd?') && howTo.includes('#letterboxd-form') && howTo.includes('letterboxd.html'),
-  'How to use A-Lister explains Letterboxd and links to Settings and the inbox',
+  howTo.includes('Letterboxd') && howTo.includes('review inbox') && howTo.includes('<details'),
+  'How to use A-Lister explains Letterboxd and stays collapsed',
 );
+assert(!/<a |<em>|<code>|<strong>/.test(howTo), 'How to use items stay plain text');
 const letterboxdSrc = readFileSync(new URL('../amc-a-lister/engine/letterboxd.js', import.meta.url), 'utf8');
 assert(!/^import /m.test(letterboxdSrc), 'letterboxd.js stays dependency-free');
 
