@@ -55,6 +55,7 @@ import {
   isReviewable,
   LETTERBOXD_SYNC_INTERVAL_MS,
 } from '../amc-a-lister/engine/letterboxd.js';
+import { normalizeBulkUpdate } from '../amc-a-lister/engine/bulk-edit.js';
 
 export default async function handler(req, res) {
   const route = String(req.query?.route || '').trim();
@@ -148,31 +149,48 @@ async function requireUser(req, res) {
   }
 }
 
-function normalizeRatingUpdate(entry) {
-  if (!entry?.id) return null;
-  const dnf = !!entry.dnf;
-  const rating = dnf ? null : (entry.rating != null && entry.rating !== '' ? Number(entry.rating) : null);
-  return { id: String(entry.id), rating, dnf };
-}
-
 async function applyBulkRatingUpdates(userId, rawUpdates) {
-  const updates = (Array.isArray(rawUpdates) ? rawUpdates : [])
-    .map(normalizeRatingUpdate)
-    .filter(Boolean);
+  const updates = [];
+  for (const raw of Array.isArray(rawUpdates) ? rawUpdates : []) {
+    const parsed = normalizeBulkUpdate(raw);
+    if (!parsed) continue;
+    if (parsed.error) {
+      const err = new Error(parsed.error);
+      err.status = 400;
+      throw err;
+    }
+    updates.push(parsed.data);
+  }
   if (!updates.length) return [];
 
   const updated = [];
   for (const u of updates) {
-    const rows = await db()`
-      UPDATE alist_watches SET
-        rating = ${u.rating},
-        dnf = ${u.dnf},
-        updated_at = now()
-      WHERE id = ${u.id} AND user_id = ${userId}
-      RETURNING id, watched_on::text AS watched_on, title, tmdb_id, location, format,
-                saw_alone, auditorium, seat, ticket_cents, rating::float AS rating,
-                dnf, notes, in_theaters, created_at, updated_at
-    `;
+    const rows = u.screening
+      ? await db()`
+        UPDATE alist_watches SET
+          rating = ${u.rating},
+          dnf = ${u.dnf},
+          in_theaters = ${u.in_theaters},
+          location = ${u.location},
+          format = ${u.format},
+          seat = ${u.seat},
+          ticket_cents = ${u.ticket_cents},
+          updated_at = now()
+        WHERE id = ${u.id} AND user_id = ${userId}
+        RETURNING id, watched_on::text AS watched_on, title, tmdb_id, location, format,
+                  saw_alone, auditorium, seat, ticket_cents, rating::float AS rating,
+                  dnf, notes, in_theaters, created_at, updated_at
+      `
+      : await db()`
+        UPDATE alist_watches SET
+          rating = ${u.rating},
+          dnf = ${u.dnf},
+          updated_at = now()
+        WHERE id = ${u.id} AND user_id = ${userId}
+        RETURNING id, watched_on::text AS watched_on, title, tmdb_id, location, format,
+                  saw_alone, auditorium, seat, ticket_cents, rating::float AS rating,
+                  dnf, notes, in_theaters, created_at, updated_at
+      `;
     if (rows.length) updated.push(watchFromRow(rows[0]));
   }
   return updated;
@@ -449,7 +467,7 @@ async function handleWatches(req, res) {
         const watches = await enrichMissingPosters(userId, updated);
         res.status(200).json({ watches, updated: watches.length });
       } catch (err) {
-        res.status(502).json({ error: err.message });
+        res.status(err.status || 502).json({ error: err.message });
       }
       return;
     }

@@ -210,7 +210,7 @@ async function loadLog(auth) {
             </div>
           </div>
         </div>
-        <a href="/amc-a-lister/bulk-ratings.html" class="al-btn">Bulk edit ratings</a>
+        <a href="/amc-a-lister/bulk-ratings.html" class="al-btn">Bulk edit</a>
         <a href="/amc-a-lister/bulk-add.html" class="al-btn">Bulk add viewer</a>
         <span class="al-muted" id="log-count"></span>
       </div>

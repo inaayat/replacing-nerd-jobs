@@ -1,6 +1,13 @@
 import { bootPage, renderShell, requireSignIn, populateSidebarStats } from './nav.js';
 import { watchesApi } from './api.js';
 import { shortDate, escapeHtml, posterHtml } from './format.js';
+import { theatersFromWatches } from './theater-suggest.js';
+import { WATCH_FORMATS } from './watch-form.js';
+import {
+  screeningDraft,
+  persistedScreening,
+  screeningsMatch,
+} from './bulk-edit.js';
 
 const RATING_VALUES = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5];
 
@@ -8,8 +15,8 @@ bootPage(async ({ root, auth }) => {
   if (!requireSignIn(auth, root)) return;
 
   root.innerHTML = renderShell({
-    title: 'Bulk edit ratings',
-    subtitle: 'Update ratings for your whole watch log in one place. Only changed rows are saved.',
+    title: 'Bulk edit',
+    subtitle: 'Update rating, theater, format, seat, and ticket price for the whole log. Only changed rows are saved.',
     signedIn: true,
     hideLogBar: true,
     body: `<main class="al-main" id="bulk-ratings-main"><p class="al-muted">Loading…</p></main>`,
@@ -18,29 +25,16 @@ bootPage(async ({ root, auth }) => {
   await loadPage(auth);
 });
 
-function ratingSelectValue(watch) {
-  if (watch.dnf) return 'dnf';
-  if (watch.rating == null) return '';
-  return String(watch.rating);
+function ratingSelectValue(draft) {
+  if (draft.dnf) return 'dnf';
+  if (draft.rating == null) return '';
+  return String(draft.rating);
 }
 
 function parseRatingSelect(value) {
   if (value === 'dnf') return { rating: null, dnf: true };
   if (!value) return { rating: null, dnf: false };
   return { rating: Number(value), dnf: false };
-}
-
-function ratingMatches(a, b) {
-  return !!a.dnf === !!b.dnf && normalizeRating(a.rating) === normalizeRating(b.rating);
-}
-
-function normalizeRating(rating) {
-  if (rating == null || rating === '') return null;
-  return Number(rating);
-}
-
-function ratingState(watch) {
-  return { rating: normalizeRating(watch.rating), dnf: !!watch.dnf };
 }
 
 function ratingOptionsHtml(selected) {
@@ -54,11 +48,19 @@ function ratingOptionsHtml(selected) {
   )).join('');
 }
 
+function formatOptionsHtml(selected) {
+  const values = WATCH_FORMATS.includes(selected) ? WATCH_FORMATS : [...WATCH_FORMATS, selected];
+  return values.map((f) => (
+    `<option value="${escapeHtml(f)}"${f === selected ? ' selected' : ''}>${escapeHtml(f || 'Standard')}</option>`
+  )).join('');
+}
+
 async function loadPage(auth) {
   const main = document.getElementById('bulk-ratings-main');
   if (!main) return;
 
   const { watches } = await watchesApi.list(auth.token);
+  const theaters = theatersFromWatches(watches);
 
   const state = {
     watches,
@@ -79,24 +81,27 @@ async function loadPage(auth) {
         <a href="/amc-a-lister/" class="al-btn">← Watch log</a>
         <span class="al-muted" id="bulk-count"></span>
       </div>
+      <datalist id="bulk-theaters">
+        ${theaters.map((name) => `<option value="${escapeHtml(name)}"></option>`).join('')}
+      </datalist>
       <div class="al-bulk-ratings-list" id="bulk-list"></div>
     </section>
     <div class="al-bulk-ratings-bar" id="bulk-bar" hidden>
       <span class="al-muted" id="bulk-bar-count"></span>
       <div class="al-bulk-ratings-bar-actions">
         <button type="button" class="al-btn" id="bulk-discard">Discard</button>
-        <button type="button" class="al-btn al-btn-primary" id="bulk-save">Save ratings</button>
+        <button type="button" class="al-btn al-btn-primary" id="bulk-save">Save changes</button>
       </div>
     </div>
     <p class="al-error" id="bulk-error" hidden></p>
     <p class="al-muted" id="bulk-message" hidden></p>
   `;
 
-  const getOriginal = (watch) => ratingState(watch);
+  const getOriginal = (watch) => screeningDraft(watch);
 
   const getCurrent = (watch) => state.edits.get(watch.id) || getOriginal(watch);
 
-  const isChanged = (watch) => !ratingMatches(getOriginal(watch), getCurrent(watch));
+  const isChanged = (watch) => !screeningsMatch(getOriginal(watch), getCurrent(watch));
 
   const changedWatches = () => state.watches.filter(isChanged);
 
@@ -112,6 +117,18 @@ async function loadPage(auth) {
       if (changedOnly && !isChanged(w)) return false;
       return true;
     });
+  };
+
+  const showError = (message) => {
+    const el = document.getElementById('bulk-error');
+    el.textContent = message || '';
+    el.hidden = !message;
+  };
+
+  const showMessage = (message) => {
+    const el = document.getElementById('bulk-message');
+    el.textContent = message || '';
+    el.hidden = !message;
   };
 
   const updateBar = () => {
@@ -135,38 +152,74 @@ async function loadPage(auth) {
     updateBar();
   };
 
+  const rememberEdit = (watch, next) => {
+    if (screeningsMatch(getOriginal(watch), next)) state.edits.delete(watch.id);
+    else state.edits.set(watch.id, next);
+  };
+
   document.getElementById('bulk-search').addEventListener('input', render);
   document.getElementById('bulk-unrated').addEventListener('change', render);
   document.getElementById('bulk-changed').addEventListener('change', render);
 
-  // The page counts unsaved changes but nothing stopped a stray back-navigation
-  // from throwing them away.
   window.addEventListener('beforeunload', (event) => {
     if (!changedWatches().length || state.saving) return;
     event.preventDefault();
     event.returnValue = '';
   });
 
-  document.getElementById('bulk-list').addEventListener('change', (event) => {
-    const select = event.target.closest('.al-bulk-rating-select');
-    if (!select) return;
-    const watch = state.watches.find((w) => w.id === select.dataset.id);
+  // Text fields must not re-render the list: a new input would drop the caret.
+  document.getElementById('bulk-list').addEventListener('input', (event) => {
+    const field = event.target.closest('[data-bulk-field]');
+    if (!field || field.tagName === 'SELECT') return;
+    const watch = state.watches.find((w) => w.id === field.dataset.id);
     if (!watch) return;
-    const next = parseRatingSelect(select.value);
-    if (ratingMatches(getOriginal(watch), next)) {
-      state.edits.delete(watch.id);
+    const next = { ...getCurrent(watch) };
+    if (field.dataset.bulkField === 'location') next.location = field.value;
+    else if (field.dataset.bulkField === 'seat') next.seat = field.value;
+    else if (field.dataset.bulkField === 'ticket') next.ticket = field.value;
+    else return;
+    rememberEdit(watch, next);
+    field.closest('.al-bulk-ratings-row')?.classList.toggle('is-changed', isChanged(watch));
+    updateBar();
+  });
+
+  document.getElementById('bulk-list').addEventListener('change', (event) => {
+    const field = event.target.closest('[data-bulk-field]');
+    if (!field) return;
+    const watch = state.watches.find((w) => w.id === field.dataset.id);
+    if (!watch) return;
+    const next = { ...getCurrent(watch) };
+    const kind = field.dataset.bulkField;
+
+    if (kind === 'rating') {
+      Object.assign(next, parseRatingSelect(field.value));
+    } else if (kind === 'format') {
+      next.format = field.value;
+    } else if (kind === 'in_theaters') {
+      next.in_theaters = field.checked;
+    } else if (kind === 'location') {
+      next.location = field.value;
+    } else if (kind === 'seat') {
+      next.seat = field.value;
+    } else if (kind === 'ticket') {
+      next.ticket = field.value;
     } else {
-      state.edits.set(watch.id, next);
+      return;
     }
-    render();
+
+    rememberEdit(watch, next);
+    const row = field.closest('.al-bulk-ratings-row');
+    row?.classList.toggle('is-changed', isChanged(watch));
+    if (kind === 'in_theaters') syncTheaterFields(row, next.in_theaters);
+    updateBar();
   });
 
   document.getElementById('bulk-discard').addEventListener('click', () => {
     state.edits.clear();
     state.error = '';
     state.message = '';
-    document.getElementById('bulk-error').hidden = true;
-    document.getElementById('bulk-message').hidden = true;
+    showError('');
+    showMessage('');
     render();
   });
 
@@ -174,38 +227,42 @@ async function loadPage(auth) {
     const changed = changedWatches();
     if (!changed.length || state.saving) return;
 
+    const rating_updates = [];
+    for (const watch of changed) {
+      const parsed = persistedScreening(getCurrent(watch));
+      if (parsed.error) {
+        showMessage('');
+        showError(`${watch.title}: ${parsed.error}`);
+        return;
+      }
+      rating_updates.push({ id: watch.id, ...parsed.data });
+    }
+
     state.saving = true;
     state.error = '';
     state.message = '';
-    document.getElementById('bulk-error').hidden = true;
-    document.getElementById('bulk-message').hidden = true;
+    showError('');
+    showMessage('');
     document.getElementById('bulk-save').disabled = true;
     document.getElementById('bulk-discard').disabled = true;
 
     try {
-      const rating_updates = changed.map((w) => {
-        const { rating, dnf } = getCurrent(w);
-        return { id: w.id, rating, dnf };
-      });
       const { watches: updated = [] } = await watchesApi.bulkUpdateRatings(auth.token, rating_updates);
       if (!updated.length) {
-        throw new Error('No ratings were saved. Try again.');
+        throw new Error('No changes were saved. Try again.');
       }
       const byId = new Map(updated.map((w) => [w.id, w]));
       state.watches = state.watches.map((w) => {
         const row = byId.get(w.id);
-        return row ? { ...w, ...row } : w;
+        if (!row) return w;
+        return { ...w, ...row, poster_path: row.poster_path || w.poster_path };
       });
       state.edits.clear();
-      state.message = `Saved ${updated.length} rating${updated.length === 1 ? '' : 's'}.`;
-      document.getElementById('bulk-message').textContent = state.message;
-      document.getElementById('bulk-message').hidden = false;
+      showMessage(`Saved ${updated.length} screening${updated.length === 1 ? '' : 's'}.`);
       await populateSidebarStats(auth);
       render();
     } catch (err) {
-      state.error = err.message || 'Save failed.';
-      document.getElementById('bulk-error').textContent = state.error;
-      document.getElementById('bulk-error').hidden = false;
+      showError(err.message || 'Save failed.');
     } finally {
       state.saving = false;
       document.getElementById('bulk-save').disabled = false;
@@ -216,6 +273,14 @@ async function loadPage(auth) {
   render();
 }
 
+function syncTheaterFields(row, inTheaters) {
+  if (!row) return;
+  row.querySelectorAll('[data-theater-only]').forEach((el) => {
+    el.disabled = !inTheaters;
+  });
+  row.classList.toggle('is-off-theater', !inTheaters);
+}
+
 function listHtml(watches, getCurrent, isChanged) {
   if (!watches.length) return '<div class="al-empty">No matches.</div>';
   return `
@@ -223,6 +288,11 @@ function listHtml(watches, getCurrent, isChanged) {
       <span class="al-bulk-ratings-col al-col-poster"></span>
       <span class="al-bulk-ratings-col">Date</span>
       <span class="al-bulk-ratings-col">Title</span>
+      <span class="al-bulk-ratings-col">In theaters</span>
+      <span class="al-bulk-ratings-col">Theater</span>
+      <span class="al-bulk-ratings-col">Format</span>
+      <span class="al-bulk-ratings-col">Seat</span>
+      <span class="al-bulk-ratings-col">Ticket</span>
       <span class="al-bulk-ratings-col">Rating</span>
     </div>
     ${watches.map((w) => rowHtml(w, getCurrent(w), isChanged(w))).join('')}
@@ -231,20 +301,40 @@ function listHtml(watches, getCurrent, isChanged) {
 
 function rowHtml(watch, current, changed) {
   const selected = ratingSelectValue(current);
+  const disabled = current.in_theaters ? '' : ' disabled';
   return `
-    <div class="al-bulk-ratings-row${changed ? ' is-changed' : ''}" data-id="${watch.id}">
+    <div class="al-bulk-ratings-row${changed ? ' is-changed' : ''}${current.in_theaters ? '' : ' is-off-theater'}" data-id="${watch.id}">
       <div class="al-bulk-ratings-col al-col-poster">${posterHtml(watch)}</div>
       <div class="al-bulk-ratings-col al-bulk-ratings-col--date">${shortDate(watch.watched_on)}</div>
-      <div class="al-bulk-ratings-col al-bulk-ratings-col--title">
-        ${escapeHtml(watch.title)}
-        ${watch.in_theaters === false ? '<span class="al-badge al-badge--muted">Off-theater</span>' : ''}
-      </div>
-      <div class="al-bulk-ratings-col al-bulk-ratings-col--rating">
-        <label class="sr-only" for="rating-${watch.id}">Rating for ${escapeHtml(watch.title)}</label>
-        <select class="al-select al-bulk-rating-select" id="rating-${watch.id}" data-id="${watch.id}">
+      <div class="al-bulk-ratings-col al-bulk-ratings-col--title">${escapeHtml(watch.title)}</div>
+      <label class="al-bulk-ratings-col al-bulk-ratings-col--flag al-check">
+        <input type="checkbox" data-bulk-field="in_theaters" data-id="${watch.id}" ${current.in_theaters ? 'checked' : ''} />
+        <span class="al-bulk-label">In theaters</span>
+      </label>
+      <label class="al-bulk-ratings-col al-bulk-ratings-col--theater">
+        <span class="al-bulk-label">Theater</span>
+        <input class="al-input al-bulk-control" data-bulk-field="location" data-theater-only data-id="${watch.id}" list="bulk-theaters" value="${escapeHtml(current.location)}"${disabled} />
+      </label>
+      <label class="al-bulk-ratings-col al-bulk-ratings-col--format">
+        <span class="al-bulk-label">Format</span>
+        <select class="al-select al-bulk-control" data-bulk-field="format" data-theater-only data-id="${watch.id}"${disabled}>
+          ${formatOptionsHtml(current.format)}
+        </select>
+      </label>
+      <label class="al-bulk-ratings-col al-bulk-ratings-col--seat">
+        <span class="al-bulk-label">Seat</span>
+        <input class="al-input al-bulk-control" data-bulk-field="seat" data-theater-only data-id="${watch.id}" value="${escapeHtml(current.seat)}" maxlength="40"${disabled} />
+      </label>
+      <label class="al-bulk-ratings-col al-bulk-ratings-col--ticket">
+        <span class="al-bulk-label">Ticket ($)</span>
+        <input class="al-input al-bulk-control" data-bulk-field="ticket" data-theater-only data-id="${watch.id}" inputmode="decimal" value="${escapeHtml(current.ticket)}"${disabled} />
+      </label>
+      <label class="al-bulk-ratings-col al-bulk-ratings-col--rating">
+        <span class="al-bulk-label">Rating</span>
+        <select class="al-select al-bulk-control" data-bulk-field="rating" data-id="${watch.id}" aria-label="Rating for ${escapeHtml(watch.title)}">
           ${ratingOptionsHtml(selected)}
         </select>
-      </div>
+      </label>
     </div>
   `;
 }

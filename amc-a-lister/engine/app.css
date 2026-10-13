@@ -2105,6 +2105,20 @@ table.al-table {
   gap: 4px;
 }
 
+.al-main--bulk-ratings .al-bulk-ratings-list {
+  overflow-x: auto;
+}
+
+.al-main--bulk-ratings .al-bulk-ratings-head,
+.al-main--bulk-ratings .al-bulk-ratings-row {
+  display: grid;
+  grid-template-columns:
+    44px 88px minmax(140px, 1.3fr) 92px minmax(140px, 1fr) 108px 72px 84px 108px;
+  gap: 8px;
+  align-items: center;
+  min-width: 980px;
+}
+
 .al-bulk-ratings-head,
 .al-bulk-ratings-row {
   display: grid;
@@ -2145,10 +2159,25 @@ table.al-table {
   color: var(--al-muted);
 }
 
-.al-bulk-rating-select {
+.al-bulk-rating-select,
+.al-bulk-control {
   min-width: 0;
   padding: 6px 8px;
   font-size: 0.82rem;
+}
+
+.al-bulk-label {
+  display: none;
+}
+
+.al-bulk-ratings-col--flag {
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.al-main--bulk-ratings .al-bulk-ratings-row.is-off-theater .al-bulk-control:disabled {
+  opacity: 0.55;
 }
 
 .al-main--bulk-ratings.has-bulk-bar {
@@ -2203,18 +2232,59 @@ table.al-table {
 @media (max-width: 640px) {
   .al-bulk-ratings-head { display: none; }
 
-  .al-bulk-ratings-row {
+  .al-main--bulk-ratings .al-bulk-ratings-list {
+    overflow-x: visible;
+  }
+
+  .al-main--bulk-ratings .al-bulk-ratings-head,
+  .al-main--bulk-ratings .al-bulk-ratings-row {
+    min-width: 0;
     grid-template-columns: 40px minmax(0, 1fr);
     grid-template-areas:
       "poster title"
-      "poster rating";
-    gap: 6px 10px;
+      "poster date"
+      "flag flag"
+      "theater theater"
+      "format seat"
+      "ticket rating";
+    gap: 8px 10px;
   }
 
-  .al-bulk-ratings-row .al-col-poster { grid-area: poster; }
-  .al-bulk-ratings-col--title { grid-area: title; }
-  .al-bulk-ratings-col--date { display: none; }
-  .al-bulk-ratings-col--rating { grid-area: rating; }
+  .al-main--bulk-ratings .al-bulk-ratings-row .al-col-poster { grid-area: poster; }
+  .al-main--bulk-ratings .al-bulk-ratings-col--title { grid-area: title; }
+  .al-main--bulk-ratings .al-bulk-ratings-col--date {
+    display: block;
+    grid-area: date;
+  }
+  .al-main--bulk-ratings .al-bulk-ratings-col--flag { grid-area: flag; }
+  .al-main--bulk-ratings .al-bulk-ratings-col--theater { grid-area: theater; }
+  .al-main--bulk-ratings .al-bulk-ratings-col--format { grid-area: format; }
+  .al-main--bulk-ratings .al-bulk-ratings-col--seat { grid-area: seat; }
+  .al-main--bulk-ratings .al-bulk-ratings-col--ticket { grid-area: ticket; }
+  .al-main--bulk-ratings .al-bulk-ratings-col--rating { grid-area: rating; }
+
+  .al-main--bulk-ratings .al-bulk-label {
+    display: block;
+    margin-bottom: 2px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--al-muted);
+  }
+
+  .al-main--bulk-ratings .al-bulk-ratings-col--flag .al-bulk-label {
+    display: inline;
+    margin: 0;
+    font-size: 0.82rem;
+    letter-spacing: 0;
+    text-transform: none;
+    color: inherit;
+  }
+
+  .al-main--bulk-ratings .al-bulk-control {
+    font-size: 16px;
+  }
 }
 
 .al-main--bulk-add.has-bulk-bar {
