@@ -4,6 +4,7 @@
 // Exported as initBuilder() so it can run standalone on builder.html or
 // inline inside a modal on the main packing-cubes page.
 import { initAuth, wireAuthLink, refreshToken, renderPackingSignIn } from './auth.js';
+import { initThemeToggle } from './theme.js';
 import { cubesApi } from './api.js';
 import { officialCubeFromApi, normalizeDefinitionItems, uniqueDefinitionItems } from './model.js';
 
@@ -403,6 +404,7 @@ export function initBuilder({ root, editId = null, auth: passedAuth = null, onSa
 // #builder-root and reads ?edit= from the page URL.
 const standaloneRoot = document.getElementById('builder-root');
 if (standaloneRoot) {
+  initThemeToggle();
   initBuilder({
     root: standaloneRoot,
     editId: new URLSearchParams(location.search).get('edit'),

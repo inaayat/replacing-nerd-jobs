@@ -7,6 +7,20 @@
     <title>Create a cube — Packing Cubes</title>
     <link rel="icon" type="image/svg+xml" href="/packing-cubes/icon.svg" />
     <meta name="theme-color" content="#0c0b09" />
+    <script>
+      (function () {
+        var KEY = 'packing-cubes-theme';
+        var saved = null;
+        try { saved = localStorage.getItem(KEY); } catch (e) {}
+        var theme = (saved === 'light' || saved === 'dark')
+          ? saved
+          : (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', theme === 'light' ? '#f3f4f6' : '#0c0b09');
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -26,6 +40,10 @@
       <div class="pc-nav-links">
         <a href="/packing-cubes/">All cubes</a>
         <a href="#pc-auth" id="nav-auth-link">Log in</a>
+        <button type="button" class="pc-theme-toggle" id="pc-theme-toggle" aria-label="Switch to light mode" title="Light mode">
+          <svg class="pc-theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 3v1.5M12 19.5V21M4.9 4.9l1.1 1.1M18 18l1.1 1.1M3 12h1.5M19.5 12H21M4.9 19.1 6 18M18 6l1.1-1.1"/></svg>
+          <svg class="pc-theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A7.5 7.5 0 1 1 9.5 4 6 6 0 0 0 20 14.5z"/></svg>
+        </button>
       </div>
     </nav>
 

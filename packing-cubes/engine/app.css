@@ -278,13 +278,13 @@
 .pc-cube-quick-add.added {
   background: var(--accent);
   border-color: var(--accent);
-  color: var(--bg);
+  color: var(--on-accent);
 }
 
 .pc-cube-quick-add.added:hover {
   background: var(--accent-strong);
   border-color: var(--accent-strong);
-  color: var(--bg);
+  color: var(--on-accent);
 }
 
 @media (pointer: coarse) {
@@ -1007,7 +1007,7 @@ html.pc-reordering * {
 .pc-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(12, 11, 9, 0.72);
+  background: var(--overlay);
   z-index: 200;
   display: flex;
   align-items: center;

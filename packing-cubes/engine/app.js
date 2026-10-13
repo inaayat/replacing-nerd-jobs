@@ -6,6 +6,7 @@
 // All list/cube semantics live in the pure module ./model.js (tested by
 // scripts/test-packing-cubes-model.mjs); this file is fetch + DOM only.
 import { initBuilder } from './builder.js';
+import { initThemeToggle } from './theme.js';
 import { initAuth, wireAuthLink, refreshToken, renderPackingSignIn, focusPackingAuthForm } from './auth.js';
 import { cubesApi, suitcasesApi } from './api.js';
 import {
@@ -124,20 +125,20 @@ const PIN_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" str
 // travel stickers, and a handle. Decorative only.
 const SUITCASE_ART = `
 <svg class="pc-gate-art" viewBox="0 0 120 110" width="132" height="121" role="img" aria-label="A packed suitcase">
-  <ellipse cx="60" cy="99" rx="38" ry="5" fill="#e8c47a" opacity="0.12"/>
-  <path d="M46 26v-6a8 8 0 0 1 8-8h12a8 8 0 0 1 8 8v6" fill="none" stroke="#e8c47a" stroke-width="3.5" stroke-linecap="round"/>
-  <rect x="18" y="26" width="84" height="66" rx="11" fill="#e8c47a"/>
-  <rect x="18" y="26" width="84" height="66" rx="11" fill="none" stroke="#f4efe6" stroke-width="2.5"/>
-  <rect x="27" y="35" width="66" height="48" rx="6" fill="#141310" opacity="0.94"/>
-  <rect x="34" y="43" width="24" height="15" rx="3" fill="#e8c47a" opacity="0.28"/>
-  <rect x="62" y="43" width="24" height="15" rx="3" fill="#f4efe6" opacity="0.14"/>
-  <path d="M36 68h20" stroke="#f4efe6" stroke-width="3" stroke-linecap="round" opacity="0.32"/>
-  <path d="M36 75h32" stroke="#f4efe6" stroke-width="3" stroke-linecap="round" opacity="0.18"/>
-  <circle cx="79" cy="72" r="7" fill="#e8c47a"/>
-  <path d="M76 72.2l2.2 2.2 4-4.4" fill="none" stroke="#0c0b09" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-  <rect x="14" y="46" width="8" height="16" rx="3" fill="#f4efe6" opacity="0.85"/>
-  <circle cx="36" cy="97" r="5" fill="#e8c47a"/>
-  <circle cx="84" cy="97" r="5" fill="#e8c47a"/>
+  <ellipse cx="60" cy="99" rx="38" ry="5" fill="var(--accent)" opacity="0.12"/>
+  <path d="M46 26v-6a8 8 0 0 1 8-8h12a8 8 0 0 1 8 8v6" fill="none" stroke="var(--accent)" stroke-width="3.5" stroke-linecap="round"/>
+  <rect x="18" y="26" width="84" height="66" rx="11" fill="var(--accent)"/>
+  <rect x="18" y="26" width="84" height="66" rx="11" fill="none" stroke="var(--ink)" stroke-width="2.5"/>
+  <rect x="27" y="35" width="66" height="48" rx="6" fill="var(--card)" opacity="0.94"/>
+  <rect x="34" y="43" width="24" height="15" rx="3" fill="var(--accent)" opacity="0.28"/>
+  <rect x="62" y="43" width="24" height="15" rx="3" fill="var(--ink)" opacity="0.14"/>
+  <path d="M36 68h20" stroke="var(--ink)" stroke-width="3" stroke-linecap="round" opacity="0.32"/>
+  <path d="M36 75h32" stroke="var(--ink)" stroke-width="3" stroke-linecap="round" opacity="0.18"/>
+  <circle cx="79" cy="72" r="7" fill="var(--accent)"/>
+  <path d="M76 72.2l2.2 2.2 4-4.4" fill="none" stroke="var(--on-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="14" y="46" width="8" height="16" rx="3" fill="var(--ink)" opacity="0.85"/>
+  <circle cx="36" cy="97" r="5" fill="var(--accent)"/>
+  <circle cx="84" cy="97" r="5" fill="var(--accent)"/>
 </svg>`;
 
 // ---------------------------------------------------------------------------
@@ -2225,6 +2226,7 @@ function renderSignInGate() {
   wireAuthLink(auth || { configured: true, signedIn: false });
 }
 
+initThemeToggle();
 boot();
 
 async function boot() {
