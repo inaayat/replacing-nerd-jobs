@@ -1,8 +1,10 @@
 /* Packing Cubes — Plotmaniac type (archive/lore.css): Fraunces headings,
-   IBM Plex Mono UI, gold on warm ink. No checkbox/grid background. */
+   Nunito for packing copy/inputs, IBM Plex Mono on small labels.
+   No checkbox/grid background. */
 
 :root {
   --pc-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --pc-text: "Nunito", ui-rounded, "Segoe UI", sans-serif;
   --pc-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --radius: 4px;
   --radius-sm: 2px;
@@ -85,7 +87,7 @@ html[data-theme="light"] { color-scheme: light; }
 }
 
 body.pc-body {
-  font-family: var(--pc-mono);
+  font-family: var(--pc-text);
   font-weight: 400;
   font-synthesis: none;
   background: var(--bg);
@@ -131,6 +133,7 @@ body.pc-body h3,
 .pc-addon-chip,
 .pc-group-action,
 .pc-group-count {
+  font-family: var(--pc-mono);
   font-weight: 500;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -376,8 +379,9 @@ button:focus-visible {
   gap: 8px;
   padding: 5px 8px;
   border-bottom: 1px solid var(--chip);
-  font-size: 0.85rem;
-  line-height: 1.35;
+  font-family: var(--pc-text);
+  font-size: 0.95rem;
+  line-height: 1.4;
   color: var(--ink);
 }
 
@@ -405,8 +409,9 @@ button:focus-visible {
 .b-field input[type="date"],
 .b-field select,
 .b-field textarea {
-  font: inherit;
-  font-size: 0.85rem;
+  font-family: var(--pc-text);
+  font-size: 0.95rem;
+  font-weight: 400;
   padding: 7px 10px;
   border: var(--outline);
   border-radius: var(--radius-sm);
@@ -432,6 +437,7 @@ button:focus-visible {
    happen on touch devices. */
 @media (pointer: coarse) {
   .pc-input,
+  .pc-input.sm,
   .b-mini-input,
   .pc-search-input,
   .b-field input[type="text"],
@@ -526,8 +532,9 @@ button:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-family: var(--pc-text);
+  font-size: 0.85rem;
+  font-weight: 600;
   color: var(--muted);
   white-space: nowrap;
   cursor: pointer;

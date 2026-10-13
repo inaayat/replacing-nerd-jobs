@@ -909,7 +909,7 @@ function renderListPanel() {
     <div class="pc-list-body">
       <form class="pc-quick-add" id="quick-add-form">
         <label class="pc-sr-only" for="quick-add-input">Add an item to the list</label>
-        <input type="text" id="quick-add-input" class="pc-input" placeholder="Add an item — passport, chargers, that one hat…" autocomplete="off">
+        <input type="text" id="quick-add-input" class="pc-input" placeholder="Add an item…" autocomplete="off">
         <button type="submit" class="pc-btn primary">Add</button>
       </form>
 
@@ -930,20 +930,22 @@ function renderListPanel() {
           ${betaOn() ? `<button type="button" data-view="day" class="${listView === 'day' ? 'selected' : ''}">By day</button>` : ''}
           <button type="button" data-view="outfits" class="${listView === 'outfits' ? 'selected' : ''}">Outfits</button>
         </div>
-        <button type="button" class="pc-beta-badge ${betaOn() ? 'on' : ''}" id="beta-toggle"
-          aria-pressed="${betaOn()}">${betaOn() ? 'Beta · on' : 'Beta'}</button>
-        ${listView === 'list' || listView === 'cube' ? `
-          <label class="pc-toggle-chip"><input type="checkbox" id="hide-packed-toggle" ${hidePacked ? 'checked' : ''}> Hide packed</label>
-          <label class="pc-toggle-chip"><input type="checkbox" id="worn-only-toggle" ${wornOnly ? 'checked' : ''}> Worn</label>
-          <button type="button" class="pc-btn sm ${organizeMode ? 'primary' : ''}" id="organize-btn"></button>
-        ` : ''}
-        ${listView === 'outfits' ? `
-          <label class="pc-toggle-chip"><input type="checkbox" id="worn-only-toggle" ${wornOnly ? 'checked' : ''}> Worn</label>
-        ` : ''}
-        ${listView === 'cube' ? `
-          <button type="button" class="pc-btn sm" id="collapse-all-groups">Collapse all</button>
-          <button type="button" class="pc-btn sm" id="expand-all-groups">Expand all</button>
-        ` : ''}
+        <div class="pc-toolbar-actions">
+          <button type="button" class="pc-beta-badge ${betaOn() ? 'on' : ''}" id="beta-toggle"
+            aria-pressed="${betaOn()}">${betaOn() ? 'Beta · on' : 'Beta'}</button>
+          ${listView === 'list' || listView === 'cube' ? `
+            <label class="pc-toggle-chip"><input type="checkbox" id="hide-packed-toggle" ${hidePacked ? 'checked' : ''}> Hide packed</label>
+            <label class="pc-toggle-chip"><input type="checkbox" id="worn-only-toggle" ${wornOnly ? 'checked' : ''}> Worn</label>
+            <button type="button" class="pc-btn sm ${organizeMode ? 'primary' : ''}" id="organize-btn"></button>
+          ` : ''}
+          ${listView === 'outfits' ? `
+            <label class="pc-toggle-chip"><input type="checkbox" id="worn-only-toggle" ${wornOnly ? 'checked' : ''}> Worn</label>
+          ` : ''}
+          ${listView === 'cube' ? `
+            <button type="button" class="pc-btn sm" id="collapse-all-groups">Collapse all</button>
+            <button type="button" class="pc-btn sm" id="expand-all-groups">Expand all</button>
+          ` : ''}
+        </div>
       </div>
 
       <div id="pack-list"></div>
@@ -1868,7 +1870,7 @@ function openOutfitModal(editId) {
     <p class="pc-section-label">Items</p>
     <form class="pc-quick-add pc-outfit-add" id="outfit-quick-add">
       <label class="pc-sr-only" for="outfit-new-item">Add an item to this outfit</label>
-      <input type="text" id="outfit-new-item" class="pc-input" placeholder="Add an item — navy suit, dress shoes…" autocomplete="off">
+      <input type="text" id="outfit-new-item" class="pc-input" placeholder="Add an item…" autocomplete="off">
       <button type="submit" class="pc-btn sm">Add</button>
     </form>
     <div class="pc-outfit-picks" id="outfit-picks">

@@ -515,18 +515,48 @@
   align-items: center;
 }
 
-.pc-list-controls .pc-input { width: auto; min-width: 120px; }
+.pc-list-controls .pc-input { width: auto; min-width: 140px; flex: 1 1 160px; }
 
 .pc-list-controls select {
-  font: inherit;
-  font-size: 0.8rem;
-  font-weight: 700;
+  font-family: var(--pc-text);
+  font-size: 0.95rem;
+  font-weight: 600;
   padding: 7px 8px;
   border: var(--outline);
   border-radius: var(--radius-sm);
   background: var(--card);
   color: var(--ink);
-  max-width: 150px;
+  min-width: 0;
+  max-width: 220px;
+  flex: 1 1 160px;
+}
+
+@media (max-width: 640px) {
+  .pc-list-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pc-list-head h2 { flex: none; min-width: 0; }
+
+  .pc-list-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .pc-list-controls .pc-input,
+  .pc-list-controls select {
+    grid-column: 1 / -1;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    flex: none;
+    font-size: 16px;
+  }
+
+  .pc-list-controls .pc-btn { width: 100%; }
 }
 
 .pc-list-body { padding: 12px 14px 14px; }
@@ -536,9 +566,10 @@
   display: flex;
   gap: 8px;
   margin-bottom: 10px;
+  min-width: 0;
 }
 
-.pc-quick-add .pc-input { flex: 1; }
+.pc-quick-add .pc-input { flex: 1; min-width: 0; }
 
 .pc-addon-add.in-group {
   margin: 8px 10px 0;
@@ -606,6 +637,13 @@
   margin-bottom: 8px;
 }
 
+.pc-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
 .pc-view-toggle {
   display: inline-flex;
   flex-wrap: wrap;
@@ -655,6 +693,32 @@
 @media (pointer: coarse) {
   .pc-view-toggle button { min-height: 38px; }
   .pc-list-toolbar .pc-btn.sm { min-height: 38px; }
+}
+
+@media (max-width: 640px) {
+  .pc-quick-add .pc-input,
+  .pc-list-toolbar .pc-input,
+  .pc-list-toolbar .pc-input.sm {
+    font-size: 16px;
+  }
+
+  .pc-list-toolbar .pc-input.grow {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .pc-list-toolbar .pc-view-toggle {
+    flex: 1 1 100%;
+    width: 100%;
+    display: flex;
+  }
+
+  .pc-list-toolbar .pc-view-toggle button { flex: 1; }
+
+  .pc-toolbar-actions {
+    flex: 1 1 100%;
+  }
 }
 
 /* List rows */
@@ -775,9 +839,9 @@
 }
 
 .pc-item-cube-select {
-  font: inherit;
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-family: var(--pc-text);
+  font-size: 0.9rem;
+  font-weight: 600;
   padding: 6px 8px;
   border: var(--outline);
   border-radius: var(--radius-sm);
