@@ -1,12 +1,16 @@
 /**
- * Rank / watch-log pages on a public member profile.
+ * Rank / Stats / watch-log pages on a public member profile.
  * Browser-safe ESM — no node: imports.
+ *
+ * Display order is Rank → Stats → Log. Default URLs stay on the log so
+ * existing `member.html?user=` links keep working.
  */
 
-export const MEMBER_PAGES = ['rank', 'log'];
+export const MEMBER_PAGES = ['rank', 'stats', 'log'];
 
 export function normalizeMemberPage(page) {
-  return page === 'rank' ? 'rank' : 'log';
+  if (page === 'rank' || page === 'stats' || page === 'log') return page;
+  return 'log';
 }
 
 export function memberProfilePage(search) {
@@ -20,20 +24,24 @@ export function memberProfilePage(search) {
 export function memberProfileUrl(userId, page) {
   const params = new URLSearchParams();
   params.set('user', String(userId || ''));
-  if (normalizeMemberPage(page) === 'rank') params.set('page', 'rank');
+  const normalized = normalizeMemberPage(page);
+  if (normalized !== 'log') params.set('page', normalized);
   return `/amc-a-lister/member.html?${params}`;
 }
 
 export function flipMemberPage(page, direction) {
   const current = normalizeMemberPage(page);
-  if (direction === 'prev') return current === 'log' ? 'rank' : 'log';
-  return current === 'rank' ? 'log' : 'rank';
+  const index = MEMBER_PAGES.indexOf(current);
+  const delta = direction === 'prev' ? -1 : 1;
+  const next = (index + delta + MEMBER_PAGES.length) % MEMBER_PAGES.length;
+  return MEMBER_PAGES[next];
 }
 
 export function memberPageIndex(page) {
-  return normalizeMemberPage(page) === 'rank' ? 1 : 2;
+  return MEMBER_PAGES.indexOf(normalizeMemberPage(page)) + 1;
 }
 
 export function memberPageLabel(page) {
-  return normalizeMemberPage(page) === 'rank' ? 'Rank' : 'Log';
+  const labels = { rank: 'Rank', stats: 'Stats', log: 'Log' };
+  return labels[normalizeMemberPage(page)];
 }

@@ -375,11 +375,22 @@ function placeWithAnswers(rankedLength, answers) {
     profileSource.indexOf('export async function getLeaderboard'),
   );
   assert.match(profileFn, /alist_movie_ranks/, 'public profiles include the movie rank stack');
+  assert.match(profileFn, /insights:/, 'public profiles include Stats-tab insights');
+  assert.match(profileFn, /hideTheaters \? null : watch\.location/, 'insights respect public_hide_theaters');
   const memberSource = readFileSync(new URL('../amc-a-lister/engine/member.js', import.meta.url), 'utf8');
   assert.match(memberSource, /publicRankStackHtml/, 'member profiles render the public rank grid');
   assert.match(memberSource, /saveWatchlist: canSaveWatchlist/, 'another member’s rank can be saved to want to watch');
   assert.match(memberSource, /watchlistApi\.create/, 'saving from a profile writes the viewer’s watchlist');
   assert.match(memberSource, /al-member-book/, 'public rank is a flip page next to the watch log');
+  assert.match(memberSource, /data-member-page="stats"/, 'member profiles have a Stats tab');
+
+  const boardSource = readFileSync(new URL('../amc-a-lister/engine/leaderboard.js', import.meta.url), 'utf8');
+  assert.match(boardSource, /al-board-row/, 'leaderboard is a ranked list, not a beige card grid');
+  assert.match(boardSource, /View log/, 'leaderboard still links to member logs');
+  assert.match(boardSource, /profile-sort/, 'leaderboard still has the sort control');
+  assert.match(boardSource, /Compare stats/, 'compare stats section remains');
+  const boardFn = profileSource.slice(profileSource.indexOf('export async function getLeaderboard'));
+  assert.match(boardFn, /recentPosters/, 'leaderboard rows include recent posters');
 }
 
 console.log('amc alist rank tests passed');

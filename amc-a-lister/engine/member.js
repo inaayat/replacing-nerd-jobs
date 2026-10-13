@@ -6,7 +6,10 @@ import { money, escapeHtml, monthLabel } from './format.js';
 import { ratingStarBucket } from './billing.js';
 import { watchLogListHtml, withWatchGridTransition } from './watch-log-grid.js';
 import { publicRankStackHtml } from './rank-view.js';
+import { renderInsightsHtml, wireInsights } from './insights-view.js';
 import {
+  MEMBER_PAGES,
+  normalizeMemberPage,
   memberProfilePage,
   memberProfileUrl,
   flipMemberPage,
@@ -90,38 +93,42 @@ function renderProfile(main, profile, { currentUserId, auth, watchlistItems = []
   const page = memberProfilePage(location.search);
   const rankCount = (profile.ranks || []).length;
   const logCount = watches.length;
+  const insights = profile.insights || {};
+  const voice = isYou ? 'you' : 'they';
 
   main.innerHTML = `
     <p class="al-member-back"><a class="al-link-btn" href="/amc-a-lister/leaderboard.html">← Leaderboard</a></p>
 
-    <section class="al-panel al-member-stats">
-      <h2 class="al-section-title">All-time stats</h2>
-      <div class="al-hud al-hud-6">
-        ${statCard('Seen', stats.totalSeen, 'count')}
-        ${statCard('Savings', stats.totalSavings, 'money-signed')}
-        ${statCard('Billed', stats.totalBilled, 'money')}
-        ${statCard('Cost / movie', stats.costPerMovie, 'money')}
-        ${statCard('Avg ticket', stats.avgTicket, 'money')}
-        ${statCard('Avg runtime', stats.avgRuntimeMin, 'runtime')}
-        ${statCard('Avg rating', stats.avgRating, 'rating')}
-        ${statCard('DNFs', stats.dnfCount, 'count')}
+    <section class="al-panel al-member-hero">
+      <div class="al-member-hero-copy">
+        <p class="al-member-kicker">Member profile</p>
+        <h2 class="serif al-member-hero-name">${escapeHtml(profile.displayName)}</h2>
+        <p class="al-muted">${
+          stats.totalSeen
+            ? `${stats.totalSeen} theater ${stats.totalSeen === 1 ? 'movie' : 'movies'}`
+            : 'No theater movies logged yet.'
+        }</p>
       </div>
-      <div class="al-member-period">
-        <h3 class="al-member-period-title">${escapeHtml(periodLabel)}</h3>
-        <div class="al-hud">
-          ${statCard('Movies', stats.periodMovies, 'count')}
-          ${statCard('Net savings', stats.periodSavings, 'money-signed')}
-        </div>
-      </div>
+      <dl class="al-board-stats al-member-hero-stats">
+        ${heroStat('Seen', stats.totalSeen, 'count')}
+        ${heroStat('Savings', stats.totalSavings, 'money-signed')}
+        ${heroStat('Avg rating', stats.avgRating, 'rating')}
+        ${heroStat(periodLabel, stats.periodMovies, 'count')}
+      </dl>
     </section>
 
     <section class="al-panel al-panel--log al-member-book" data-member-book>
       <div class="al-member-book-toolbar">
-        <div class="al-segment al-watchlist-segment" role="tablist" aria-label="Rank or watch log">
+        <div class="al-segment al-watchlist-segment" role="tablist" aria-label="Rank, stats, or watch log">
           <button type="button" class="al-segment-btn${page === 'rank' ? ' is-active' : ''}"
             data-member-page="rank" role="tab" aria-selected="${page === 'rank' ? 'true' : 'false'}"
             aria-controls="member-page-rank" id="member-tab-rank">
             Rank <span class="al-segment-count">${rankCount}</span>
+          </button>
+          <button type="button" class="al-segment-btn${page === 'stats' ? ' is-active' : ''}"
+            data-member-page="stats" role="tab" aria-selected="${page === 'stats' ? 'true' : 'false'}"
+            aria-controls="member-page-stats" id="member-tab-stats">
+            Stats
           </button>
           <button type="button" class="al-segment-btn${page === 'log' ? ' is-active' : ''}"
             data-member-page="log" role="tab" aria-selected="${page === 'log' ? 'true' : 'false'}"
@@ -131,7 +138,7 @@ function renderProfile(main, profile, { currentUserId, auth, watchlistItems = []
         </div>
         <div class="al-member-flip-nav">
           <button type="button" class="al-member-flip" data-member-flip="prev" aria-label="Previous page">${flipChevron('prev')}</button>
-          <span class="al-member-folio" id="member-folio">${memberPageIndex(page)} / 2</span>
+          <span class="al-member-folio" id="member-folio">${memberPageIndex(page)} / ${MEMBER_PAGES.length}</span>
           <button type="button" class="al-member-flip" data-member-flip="next" aria-label="Next page">${flipChevron('next')}</button>
         </div>
       </div>
@@ -145,6 +152,27 @@ function renderProfile(main, profile, { currentUserId, auth, watchlistItems = []
             <h2 class="al-section-title">Rank</h2>
             <p class="al-muted al-member-ranks-note">Theater stack, best first. Separate from star ratings.</p>
             ${publicRankStackHtml(profile.ranks, { saveWatchlist: canSaveWatchlist, isSaved })}
+          </div>
+          <div class="al-member-page al-member-stats-page${page === 'stats' ? ' is-active' : ''}" id="member-page-stats"
+            role="tabpanel" aria-labelledby="member-tab-stats" data-page="stats"
+            ${page === 'stats' ? '' : 'hidden'}>
+            <h2 class="al-section-title">Stats</h2>
+            <p class="al-muted al-member-ranks-note">${
+              isYou
+                ? 'The same membership value, theaters, formats, cast, and habits as your Stats page.'
+                : 'Membership value, theaters, formats, cast, and watching habits from their public log.'
+            }</p>
+            <div class="al-main--insights al-member-insights" id="member-insights">
+              ${renderInsightsHtml({
+                summary: insights.summary || {},
+                watches: insights.watches || [],
+                ratings: insights.ratings || {},
+                actors: insights.actors || [],
+                rewatches: insights.rewatches || [],
+                hideTheaters: profile.hideTheaters === true,
+                voice,
+              })}
+            </div>
           </div>
           <div class="al-member-page al-member-log${page === 'log' ? ' is-active' : ''}" id="member-page-log"
             role="tabpanel" aria-labelledby="member-tab-log" data-page="log"
@@ -263,6 +291,14 @@ function renderProfile(main, profile, { currentUserId, auth, watchlistItems = []
   render();
   if (canSaveWatchlist) wireSaveWatchlist(auth, savedItems, isSaved);
 
+  const insightsRoot = document.getElementById('member-insights');
+  if (insightsRoot) {
+    wireInsights(insightsRoot, {
+      summary: insights.summary || {},
+      watches: insights.watches || [],
+    });
+  }
+
   const bookState = {
     page,
     userId: profile.userId,
@@ -280,7 +316,7 @@ function flipChevron(direction) {
 
 function syncMemberPageChrome(state) {
   const folio = document.getElementById('member-folio');
-  if (folio) folio.textContent = `${memberPageIndex(state.page)} / 2`;
+  if (folio) folio.textContent = `${memberPageIndex(state.page)} / ${MEMBER_PAGES.length}`;
   document.querySelectorAll('[data-member-page]').forEach((btn) => {
     const active = btn.dataset.memberPage === state.page;
     btn.classList.toggle('is-active', active);
@@ -292,14 +328,14 @@ function syncMemberPageChrome(state) {
 }
 
 function showMemberPage(state, page, { animate = true, historyMode = 'push' } = {}) {
-  const next = page === 'rank' ? 'rank' : 'log';
+  const next = normalizeMemberPage(page);
   if (next === state.page) return;
   const book = document.querySelector('[data-member-book]');
   const fromEl = document.getElementById(`member-page-${state.page}`);
   const toEl = document.getElementById(`member-page-${next}`);
   if (!book || !fromEl || !toEl) return;
 
-  const goingNext = (state.page === 'rank' && next === 'log');
+  const goingNext = flipMemberPage(state.page, 'next') === next;
   state.page = next;
 
   fromEl.classList.remove('is-active');
@@ -534,26 +570,22 @@ async function loadMemberMovieDetails(auth, state, watchId, render) {
   }
 }
 
-function statCard(label, value, kind) {
+function heroStat(label, value, kind) {
   let display = '—';
   let extraClass = '';
   if (kind === 'count') {
     display = String(value ?? 0);
-  } else if (kind === 'money') {
-    display = money(value);
   } else if (kind === 'money-signed') {
     extraClass = value > 0 ? 'is-savings' : (value < 0 ? 'is-cost' : '');
     display = value > 0 ? `+${money(value)}` : money(value);
-  } else if (kind === 'runtime') {
-    display = value > 0 ? `${value} min` : '—';
   } else if (kind === 'rating') {
     display = value != null ? `${value}★` : '—';
   }
 
   return `
-    <div class="al-stat">
-      <div class="al-stat-label">${escapeHtml(label)}</div>
-      <div class="al-stat-value ${extraClass}">${escapeHtml(display)}</div>
+    <div>
+      <dt>${escapeHtml(label)}</dt>
+      <dd class="${extraClass}">${escapeHtml(display)}</dd>
     </div>
   `;
 }

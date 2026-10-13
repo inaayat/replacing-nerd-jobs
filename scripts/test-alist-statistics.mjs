@@ -6,7 +6,9 @@ import {
   buildHabitStats,
   buildTheaterStats,
   buildValueStats,
+  recentWatchPosters,
 } from '../amc-a-lister/engine/statistics.js';
+import { renderInsightsHtml } from '../amc-a-lister/engine/insights-view.js';
 
 const watches = [
   {
@@ -145,9 +147,38 @@ const rewatchDates = statsCss.slice(
 assert.match(rewatchDates, /overflow-wrap:\s*break-word/);
 assert.doesNotMatch(rewatchDates, /overflow-wrap:\s*anywhere/);
 
-const insightsSource = readFileSync(new URL('../amc-a-lister/engine/insights.js', import.meta.url), 'utf8');
+const insightsSource = readFileSync(new URL('../amc-a-lister/engine/insights-view.js', import.meta.url), 'utf8');
 assert.match(insightsSource, /<colgroup>/);
 assert.match(insightsSource, /statsColClass/);
 assert.match(insightsSource, /al-stats-col-name/);
+
+const pageSource = readFileSync(new URL('../amc-a-lister/engine/insights.js', import.meta.url), 'utf8');
+assert.match(pageSource, /renderInsightsHtml/, 'Stats page reuses the shared insights view');
+
+const posters = recentWatchPosters([
+  { title: 'New', watched_on: '2026-10-02', poster_path: '/n.jpg', in_theaters: true },
+  { title: 'New again', watched_on: '2026-10-01', poster_path: '/n.jpg', in_theaters: true },
+  { title: 'Home', watched_on: '2026-10-03', poster_path: '/h.jpg', in_theaters: false },
+  { title: 'Old', watched_on: '2026-09-01', poster_path: '/o.jpg', in_theaters: true },
+  { title: 'No art', watched_on: '2026-10-04', poster_path: null, in_theaters: true },
+], 3);
+assert.equal(posters.length, 2);
+assert.equal(posters[0].poster_path, '/n.jpg');
+assert.equal(posters[1].poster_path, '/o.jpg');
+assert.equal(recentWatchPosters([], 3).length, 0);
+
+const hiddenTheaters = renderInsightsHtml({
+  summary: { totalSeen: 1, totalSavings: 0, totalBilled: 0, totalCharged: 0, costPerMovie: 0, byMonth: [] },
+  watches: [{ title: 'Dune', watched_on: '2026-10-01', location: 'Secret Theater', format: 'IMAX', in_theaters: true }],
+  ratings: { buckets: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }, rated: 0, dnf: 0, total: 1 },
+  actors: [],
+  rewatches: [],
+  hideTheaters: true,
+  voice: 'they',
+});
+assert.equal(hiddenTheaters.includes('Secret Theater'), false, 'hidden theaters are omitted from public stats');
+assert.equal(hiddenTheaters.includes('Theater scorecard'), false, 'theater category is dropped when theaters are private');
+assert.match(hiddenTheaters, /Format scorecard/);
+assert.match(hiddenTheaters, /their tickets were worth/);
 
 console.log('A-Lister statistics tests passed');

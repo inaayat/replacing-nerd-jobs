@@ -281,7 +281,9 @@ assert(memberSource.includes('withWatchGridTransition'), 'member profiles animat
 assert(!memberSource.includes('al-log-list--readonly'), 'member profiles no longer use the table list');
 assert(memberSource.includes('al-member-book'), 'member rank and log live in a page book');
 assert(memberSource.includes('data-member-page="rank"'), 'Rank is a flip page');
+assert(memberSource.includes('data-member-page="stats"'), 'Stats is a flip page');
 assert(memberSource.includes('data-member-page="log"'), 'Log is a flip page');
+assert(memberSource.includes('renderInsightsHtml'), 'member Stats tab reuses the Stats page view');
 assert(memberSource.includes('data-member-flip="next"'), 'the book has a next-page control');
 assert(memberSource.includes('data-member-flip="prev"'), 'the book has a previous-page control');
 assert(css.includes('.al-member-book'), 'member book layout is styled');
@@ -291,14 +293,18 @@ assert(css.includes('al-member-page-out-prev'), 'flipping back animates the outg
 assert(memberProfilePage('') === 'log', 'a profile URL with no page opens the watch log');
 assert(memberProfilePage('user=abc') === 'log', 'user-only query opens the watch log');
 assert(memberProfilePage('?user=abc&page=rank') === 'rank', 'page=rank opens the rank page');
+assert(memberProfilePage('?user=abc&page=stats') === 'stats', 'page=stats opens the stats page');
 assert(memberProfilePage('page=nope') === 'log', 'an unknown page falls back to the log');
 assert(memberProfileUrl('abc', 'log') === '/amc-a-lister/member.html?user=abc', 'log URLs omit the page param');
 assert(memberProfileUrl('abc', 'rank').includes('page=rank'), 'rank URLs keep page=rank');
-assert(flipMemberPage('log', 'prev') === 'rank', 'previous from the log is rank');
-assert(flipMemberPage('rank', 'next') === 'log', 'next from rank is the log');
-assert(flipMemberPage('log', 'next') === 'rank', 'two pages wrap');
-assert(memberPageIndex('rank') === 1 && memberPageIndex('log') === 2, 'folio is 1/2 then 2/2');
-assert(memberPageLabel('rank') === 'Rank' && memberPageLabel('log') === 'Log', 'page labels');
+assert(memberProfileUrl('abc', 'stats').includes('page=stats'), 'stats URLs keep page=stats');
+assert(flipMemberPage('rank', 'next') === 'stats', 'next from rank is stats');
+assert(flipMemberPage('stats', 'next') === 'log', 'next from stats is the log');
+assert(flipMemberPage('log', 'prev') === 'stats', 'previous from the log is stats');
+assert(flipMemberPage('rank', 'prev') === 'log', 'three pages wrap backward');
+assert(flipMemberPage('log', 'next') === 'rank', 'three pages wrap forward');
+assert(memberPageIndex('rank') === 1 && memberPageIndex('stats') === 2 && memberPageIndex('log') === 3, 'folio is 1/3 then 2/3 then 3/3');
+assert(memberPageLabel('rank') === 'Rank' && memberPageLabel('stats') === 'Stats' && memberPageLabel('log') === 'Log', 'page labels');
 
 const apiSource = readFileSync(new URL('../api/alist.js', import.meta.url), 'utf8');
 const movieDetailsFn = apiSource.slice(

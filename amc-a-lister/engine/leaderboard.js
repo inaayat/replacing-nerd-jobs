@@ -38,7 +38,7 @@ bootPage(async ({ root, auth }) => {
   pageState.auth = auth;
   root.innerHTML = renderShell({
     title: 'Leaderboard',
-    subtitle: 'Every A-Lister profile, stats, and watch logs.',
+    subtitle: 'Public A-Lister ranks, recent posters, and watch logs.',
     hideLogBar: !auth.signedIn,
     signedIn: auth.signedIn,
     body: `<main class="al-main" id="leaderboard-main"><p class="al-muted">Loading…</p></main>`,
@@ -76,13 +76,14 @@ function renderPage(main) {
   const signedIn = !!currentUserId;
 
   main.innerHTML = `
-    <section class="al-panel al-profiles-panel">
-      <div class="al-profile-toolbar">
+    <section class="al-panel al-board-panel">
+      <div class="al-board-toolbar">
         <div>
-          <h2>User profiles</h2>
+          <p class="al-board-kicker">Public ranks</p>
+          <h2 class="serif al-board-title">Leaderboard</h2>
           <p class="al-muted">Sorted by ${escapeHtml(col?.label || 'Movies seen')}.</p>
         </div>
-        <div class="al-field al-profile-sort-field">
+        <div class="al-field al-board-sort-field">
           <label for="profile-sort">Sort by</label>
           <select class="al-input al-profile-sort" id="profile-sort">
             ${SORT_COLUMNS.map((column) => `
@@ -93,9 +94,9 @@ function renderPage(main) {
           </select>
         </div>
       </div>
-      <div class="al-profile-grid">
-        ${sorted.map((entry, index) => renderProfileCard(entry, index + 1, currentUserId)).join('')}
-      </div>
+      <ol class="al-board-list">
+        ${sorted.map((entry, index) => renderBoardRow(entry, index + 1, currentUserId)).join('')}
+      </ol>
     </section>
     ${renderComparePanel(entries, signedIn)}
   `;
@@ -108,30 +109,42 @@ function memberProfileUrl(userId) {
   return `/amc-a-lister/member.html?user=${encodeURIComponent(userId)}`;
 }
 
-function renderProfileCard(entry, rank, currentUserId) {
+function renderBoardRow(entry, rank, currentUserId) {
   const isYou = entry.userId === currentUserId;
+  const posters = Array.isArray(entry.recentPosters) ? entry.recentPosters : [];
+  const podium = rank <= 3 ? ` is-podium is-place-${rank}` : '';
 
   return `
-    <article class="al-profile-card${isYou ? ' is-you' : ''}">
-      <div class="al-profile-card-head">
-        <span class="al-profile-rank">#${rank}</span>
-        <h3 class="al-profile-name">
-          <a href="${memberProfileUrl(entry.userId)}">${escapeHtml(entry.displayName)}</a>
-        </h3>
-        ${isYou ? '<span class="al-you-badge">you</span>' : ''}
+    <li class="al-board-row${isYou ? ' is-you' : ''}${podium}">
+      <span class="al-board-place serif" aria-label="Rank ${rank}">${rank}</span>
+      <div class="al-board-identity">
+        <div class="al-board-name-row">
+          <a class="al-board-name serif" href="${memberProfileUrl(entry.userId)}">${escapeHtml(entry.displayName)}</a>
+          ${isYou ? '<span class="al-you-badge">you</span>' : ''}
+        </div>
+        <div class="al-board-posters" aria-hidden="${posters.length ? 'false' : 'true'}">
+          ${posters.length
+            ? posters.map((movie) => posterHtml(movie, {
+              size: 'w92',
+              width: 40,
+              height: 60,
+              className: 'al-poster al-board-poster',
+            })).join('')
+            : '<span class="al-board-empty-posters">No movies yet</span>'}
+        </div>
       </div>
-      <dl class="al-profile-stats">
+      <dl class="al-board-stats">
         ${CARD_STATS.map((stat) => `
-          <div class="al-profile-stat">
-            <dt>${stat.label}</dt>
+          <div>
+            <dt>${escapeHtml(stat.label)}</dt>
             <dd class="${stat.kind === 'money' && stat.signed ? savingsClass(entry[stat.key]) : ''}">
               ${formatStat(entry, stat)}
             </dd>
           </div>
         `).join('')}
       </dl>
-      <a class="al-profile-view" href="${memberProfileUrl(entry.userId)}">View log →</a>
-    </article>
+      <a class="al-board-view" href="${memberProfileUrl(entry.userId)}">View log →</a>
+    </li>
   `;
 }
 
@@ -139,7 +152,8 @@ function renderComparePanel(entries, signedIn) {
   if (entries.length < 2) {
     return `
       <section class="al-panel al-compare-panel">
-        <h2>Compare stats</h2>
+        <p class="al-board-kicker">Side by side</p>
+        <h2 class="serif">Compare stats</h2>
         <p class="al-muted">You need at least two accounts to compare watch logs.</p>
       </section>
     `;
@@ -151,7 +165,8 @@ function renderComparePanel(entries, signedIn) {
   if (!signedIn) {
     return `
       <section class="al-panel al-compare-panel">
-        <h2>Compare stats</h2>
+        <p class="al-board-kicker">Side by side</p>
+        <h2 class="serif">Compare stats</h2>
         <p class="al-muted">Sign in to compare your log against another member's.</p>
         <p style="margin-top:12px">
           <a class="al-btn al-btn-primary" href="${loginUrl()}">Sign in to compare</a>
@@ -168,7 +183,8 @@ function renderComparePanel(entries, signedIn) {
 
   return `
     <section class="al-panel al-compare-panel" id="al-compare-panel">
-      <h2>Compare your stats</h2>
+      <p class="al-board-kicker">Side by side</p>
+      <h2 class="serif">Compare your stats</h2>
       <p class="al-muted al-compare-lead">See shared movies, gaps, disagreements, and mutual favorites.</p>
       <form class="al-toolbar al-compare-toolbar" id="al-compare-form">
         <div class="al-field al-compare-field">

@@ -82,6 +82,28 @@ export function buildHabitStats(watches) {
   };
 }
 
+/** Latest unique posters from theater watches, newest first. */
+export function recentWatchPosters(watches, limit = 3) {
+  const cap = Math.max(0, Number(limit) || 0);
+  const out = [];
+  const seen = new Set();
+  const sorted = [...(watches || [])]
+    .filter((watch) => watch && watch.in_theaters !== false)
+    .sort((a, b) => String(b.watched_on || '').localeCompare(String(a.watched_on || '')));
+  for (const watch of sorted) {
+    const path = watch.poster_path;
+    if (!path || seen.has(path)) continue;
+    seen.add(path);
+    out.push({
+      title: watch.title || '',
+      tmdb_id: watch.tmdb_id || null,
+      poster_path: path,
+    });
+    if (out.length >= cap) break;
+  }
+  return out;
+}
+
 export function buildValueStats(summary = {}) {
   const months = Array.isArray(summary.byMonth) ? summary.byMonth : [];
   const positiveMonths = months.filter((month) => Number(month.savings) > 0);
