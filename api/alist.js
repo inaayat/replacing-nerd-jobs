@@ -42,10 +42,9 @@ import {
   getTmdbApiKey,
   getMovieDetails,
   searchMovies,
-  normalizeTitle,
-  pickBestMatch,
   PP_SCHEMA,
 } from '../lib/tmdb.js';
+import { backfillMovieArtwork, uniqueExactSearchMatch } from '../lib/a-list-posters.js';
 import {
   normalizeLetterboxdUsername,
   letterboxdRssUrl,
@@ -294,66 +293,179 @@ async function enrichMissingPosters(userId, watches) {
 
 /**
  * Bounded, explicit backfill: link untagged titles to TMDB and cache their
- * artwork. Reports what it did so the caller can run it again for the rest.
+ * artwork across watches, watchlists, ranks, and caches. Default scope is
+ * every account. Only fills missing tmdb_id / poster_path — never theater,
+ * cost, rating, or dates. Reports remaining so the client can loop.
  */
-async function backfillPosters(userId, limit = 20) {
+async function backfillPosters(userId, { limit = 30, scope = 'all' } = {}) {
   const apiKey = getTmdbApiKey();
-  if (!apiKey) return { linked: 0, cached: 0, remaining: 0 };
+  if (!apiKey) return { linked: 0, cached: 0, ranks: 0, remaining: 0 };
 
-  await ensureSchema();
-  const rows = await listWatches(userId);
-  const watches = rows.map(watchFromRow);
+  const uid = scope === 'user' ? userId : null;
+  const cap = Math.max(1, Math.min(50, Number(limit) || 30));
+  const movie = await backfillMovieArtwork({ userId: uid, limit: cap });
+  const tvBudget = Math.max(0, cap - (movie.tmdbCalls || 0));
+  const tv = tvBudget > 0
+    ? await backfillTvArtwork({ userId: uid, limit: tvBudget, apiKey })
+    : { linked: 0, cached: 0, remaining: 0 };
 
-  const uncachedIds = [...new Set(
-    watches.filter((w) => w.tmdb_id && !w.poster_path).map((w) => Number(w.tmdb_id)),
-  )];
-  const untitled = [];
-  const seenTitles = new Set();
-  for (const w of watches) {
-    if (w.tmdb_id) continue;
-    const key = normalizeTitle(w.title);
-    if (!key || seenTitles.has(key)) continue;
-    seenTitles.add(key);
-    untitled.push(w);
-  }
+  return {
+    linked: movie.linked + tv.linked,
+    cached: movie.cached + tv.cached,
+    ranks: movie.ranks,
+    remaining: movie.remaining + tv.remaining,
+  };
+}
+
+async function backfillTvArtwork({ userId = null, limit = 20, apiKey } = {}) {
+  const uid = userId || null;
+  const cap = Math.max(1, Math.min(50, Number(limit) || 20));
+
+  const linkedFromKnown = await db()`
+    WITH known AS (
+      SELECT lower(trim(title)) AS k, (array_agg(DISTINCT tmdb_id))[1] AS tmdb_id
+      FROM (
+        SELECT title, tmdb_id FROM alist_tv_watches WHERE tmdb_id IS NOT NULL
+        UNION
+        SELECT title, tmdb_id FROM alist_tv_watchlist WHERE tmdb_id IS NOT NULL
+        UNION
+        SELECT title, tmdb_id FROM alist_tv_cache WHERE tmdb_id IS NOT NULL
+      ) src
+      GROUP BY 1
+      HAVING count(DISTINCT tmdb_id) = 1
+    )
+    UPDATE alist_tv_watches w
+    SET tmdb_id = known.tmdb_id, updated_at = now()
+    FROM known
+    WHERE w.tmdb_id IS NULL
+      AND lower(trim(w.title)) = known.k
+      AND (${uid}::text IS NULL OR w.user_id = ${uid})
+    RETURNING w.id
+  `;
+  const linkedWatchlist = await db()`
+    WITH known AS (
+      SELECT lower(trim(title)) AS k, (array_agg(DISTINCT tmdb_id))[1] AS tmdb_id
+      FROM (
+        SELECT title, tmdb_id FROM alist_tv_watches WHERE tmdb_id IS NOT NULL
+        UNION
+        SELECT title, tmdb_id FROM alist_tv_watchlist WHERE tmdb_id IS NOT NULL
+        UNION
+        SELECT title, tmdb_id FROM alist_tv_cache WHERE tmdb_id IS NOT NULL
+      ) src
+      GROUP BY 1
+      HAVING count(DISTINCT tmdb_id) = 1
+    )
+    UPDATE alist_tv_watchlist w
+    SET tmdb_id = known.tmdb_id, updated_at = now()
+    FROM known
+    WHERE w.tmdb_id IS NULL
+      AND lower(trim(w.title)) = known.k
+      AND (${uid}::text IS NULL OR w.user_id = ${uid})
+    RETURNING w.id
+  `;
+
+  const missing = await db()`
+    SELECT DISTINCT src.tmdb_id
+    FROM (
+      SELECT tmdb_id FROM alist_tv_watches
+        WHERE tmdb_id IS NOT NULL AND (${uid}::text IS NULL OR user_id = ${uid})
+      UNION
+      SELECT tmdb_id FROM alist_tv_watchlist
+        WHERE tmdb_id IS NOT NULL AND (${uid}::text IS NULL OR user_id = ${uid})
+      UNION
+      SELECT tmdb_id FROM alist_tv_ranks
+        WHERE tmdb_id IS NOT NULL AND (${uid}::text IS NULL OR user_id = ${uid})
+    ) src
+    LEFT JOIN alist_tv_cache c ON c.tmdb_id = src.tmdb_id
+    WHERE c.tmdb_id IS NULL OR c.poster_path IS NULL
+  `;
+  const untitled = await db()`
+    SELECT MIN(title) AS title
+    FROM alist_tv_watches
+    WHERE tmdb_id IS NULL
+      AND (${uid}::text IS NULL OR user_id = ${uid})
+    GROUP BY lower(trim(title))
+  `;
 
   let cached = 0;
-  let linked = 0;
-  let budget = limit;
+  let linked = linkedFromKnown.length + linkedWatchlist.length;
+  let budget = cap;
 
-  for (const tmdbId of uncachedIds) {
+  for (const row of missing) {
     if (budget <= 0) break;
     budget -= 1;
     try {
-      const movie = await getMovieDetails(tmdbId, { apiKey });
-      if (movie?.poster_path) cached += 1;
+      const show = await getTvDetails(Number(row.tmdb_id));
+      if (show?.poster_path) cached += 1;
     } catch {
-      // A failed lookup just means no poster; the row still works.
+      // Retry on a later pass.
     }
   }
 
-  for (const w of untitled) {
+  for (const row of untitled) {
     if (budget <= 0) break;
     budget -= 1;
     try {
-      const results = await searchMovies(w.title, { apiKey });
-      const match = pickBestMatch(results, w.title);
-      if (!match) continue;
-      await getMovieDetails(match.tmdb_id, { apiKey });
-      const updated = await db()`
-        UPDATE alist_watches
+      const results = await searchTvShows(apiKey, row.title);
+      const match = uniqueExactSearchMatch(results, row.title);
+      if (!match?.tmdb_id) continue;
+      await getTvDetails(match.tmdb_id);
+      const watches = await db()`
+        UPDATE alist_tv_watches
         SET tmdb_id = ${match.tmdb_id}, updated_at = now()
-        WHERE user_id = ${userId} AND tmdb_id IS NULL AND lower(title) = ${w.title.toLowerCase()}
+        WHERE tmdb_id IS NULL
+          AND lower(trim(title)) = ${String(row.title).trim().toLowerCase()}
+          AND (${uid}::text IS NULL OR user_id = ${uid})
         RETURNING id
       `;
-      linked += updated.length;
+      const watchlist = await db()`
+        UPDATE alist_tv_watchlist
+        SET tmdb_id = ${match.tmdb_id}, updated_at = now()
+        WHERE tmdb_id IS NULL
+          AND lower(trim(title)) = ${String(row.title).trim().toLowerCase()}
+          AND (${uid}::text IS NULL OR user_id = ${uid})
+        RETURNING id
+      `;
+      linked += watches.length + watchlist.length;
     } catch {
       // Skip failed title lookups.
     }
   }
 
-  const remaining = Math.max(0, uncachedIds.length + untitled.length - limit);
-  return { linked, cached, remaining };
+  const stillMissing = await db()`
+    SELECT DISTINCT src.tmdb_id
+    FROM (
+      SELECT tmdb_id FROM alist_tv_watches
+        WHERE tmdb_id IS NOT NULL AND (${uid}::text IS NULL OR user_id = ${uid})
+      UNION
+      SELECT tmdb_id FROM alist_tv_watchlist
+        WHERE tmdb_id IS NOT NULL AND (${uid}::text IS NULL OR user_id = ${uid})
+    ) src
+    LEFT JOIN alist_tv_cache c ON c.tmdb_id = src.tmdb_id
+    WHERE c.tmdb_id IS NULL OR c.poster_path IS NULL
+  `;
+  const stillUntitled = await db()`
+    SELECT 1
+    FROM alist_tv_watches
+    WHERE tmdb_id IS NULL
+      AND (${uid}::text IS NULL OR user_id = ${uid})
+    LIMIT 1
+  `;
+  const remainingUntitled = stillUntitled.length
+    ? (await db()`
+      SELECT count(*)::int AS n FROM (
+        SELECT 1 FROM alist_tv_watches
+        WHERE tmdb_id IS NULL AND (${uid}::text IS NULL OR user_id = ${uid})
+        GROUP BY lower(trim(title))
+      ) x
+    `)[0].n
+    : 0;
+
+  return {
+    linked,
+    cached,
+    remaining: stillMissing.length + remainingUntitled,
+  };
 }
 
 async function handleBackfill(req, res) {
@@ -370,8 +482,11 @@ async function handleBackfill(req, res) {
     return;
   }
 
+  const scope = req.body?.scope === 'user' ? 'user' : 'all';
+  const limit = Number(req.body?.limit) || 30;
+
   try {
-    res.status(200).json(await backfillPosters(session.userId));
+    res.status(200).json(await backfillPosters(session.userId, { limit, scope }));
   } catch (err) {
     res.status(502).json({ error: err.message });
   }
@@ -1580,7 +1695,7 @@ async function getTvDetails(tmdbId) {
       FROM alist_tv_cache
       WHERE tmdb_id = ${tmdbId}
     `;
-    if (rows.length && tvCacheHasFullDetails(rows[0])) {
+    if (rows.length && tvCacheHasFullDetails(rows[0]) && rows[0].poster_path) {
       return tvDetailsFromCacheRow(rows[0]);
     }
   }
@@ -2121,10 +2236,13 @@ function rankFromRow(row) {
 
 async function listMovieRanks(userId) {
   const rows = await db()`
-    SELECT tmdb_id, position, title, year, poster_path, updated_at
-    FROM alist_movie_ranks
-    WHERE user_id = ${userId}
-    ORDER BY position ASC, updated_at ASC
+    SELECT r.tmdb_id, r.position, r.title, r.year,
+           COALESCE(NULLIF(r.poster_path, ''), c.poster_path) AS poster_path,
+           r.updated_at
+    FROM alist_movie_ranks r
+    LEFT JOIN alist_movie_cache c ON c.tmdb_id = r.tmdb_id
+    WHERE r.user_id = ${userId}
+    ORDER BY r.position ASC, r.updated_at ASC
   `;
   return rows.map(rankFromRow);
 }
@@ -2269,10 +2387,13 @@ async function handleRanks(req, res) {
 
 async function listTvRanks(userId) {
   const rows = await db()`
-    SELECT tmdb_id, position, title, year, poster_path, updated_at
-    FROM alist_tv_ranks
-    WHERE user_id = ${userId}
-    ORDER BY position ASC, updated_at ASC
+    SELECT r.tmdb_id, r.position, r.title, r.year,
+           COALESCE(NULLIF(r.poster_path, ''), c.poster_path) AS poster_path,
+           r.updated_at
+    FROM alist_tv_ranks r
+    LEFT JOIN alist_tv_cache c ON c.tmdb_id = r.tmdb_id
+    WHERE r.user_id = ${userId}
+    ORDER BY r.position ASC, r.updated_at ASC
   `;
   return rows.map(rankFromRow);
 }

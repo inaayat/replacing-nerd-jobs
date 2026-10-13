@@ -88,7 +88,11 @@ export const membershipApi = {
 };
 
 export const backfillApi = {
-  run: (token) => mutate(apiFetch('/api/alist-backfill-posters', { method: 'POST', token })),
+  run: (token, body = { scope: 'all' }) => mutate(apiFetch('/api/alist-backfill-posters', {
+    method: 'POST',
+    body,
+    token,
+  })),
 };
 
 export const letterboxdApi = {

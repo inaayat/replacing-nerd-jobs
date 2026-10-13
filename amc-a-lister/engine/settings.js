@@ -134,8 +134,9 @@ bootPage(async ({ root, auth }) => {
       <section class="al-panel">
         <h2>Posters &amp; movie data</h2>
         <p class="al-muted">
-          Links any screenings that aren't matched to TMDB yet and caches their artwork.
-          Runs in batches — press again if it reports more to go.
+          Fills missing posters and TMDB ids for every A-Lister watch log, watchlist,
+          rank, and cache — all accounts. Never changes theater, cost, rating, or date.
+          Keeps going in batches until everything that can be matched is filled.
         </p>
         <div class="al-toolbar">
           <button class="al-btn" type="button" id="backfill-btn">Backfill posters</button>
@@ -316,12 +317,22 @@ bootPage(async ({ root, auth }) => {
   backfillBtn.addEventListener('click', async () => {
     const status = document.getElementById('backfill-status');
     backfillBtn.disabled = true;
-    status.textContent = 'Looking up titles on TMDB…';
+    status.textContent = 'Looking up titles on TMDB for every account…';
+    const totals = { linked: 0, cached: 0, ranks: 0 };
     try {
-      const { linked, cached, remaining } = await backfillApi.run(auth.token);
-      status.textContent = remaining > 0
-        ? `Linked ${linked}, cached ${cached} posters. ${remaining} still to go — run it again.`
-        : `Linked ${linked} titles and cached ${cached} posters. All caught up.`;
+      for (let i = 0; i < 50; i += 1) {
+        const { linked = 0, cached = 0, ranks = 0, remaining = 0 } = await backfillApi.run(
+          auth.token,
+          { scope: 'all', limit: 30 },
+        );
+        totals.linked += linked;
+        totals.cached += cached;
+        totals.ranks += ranks;
+        status.textContent = remaining > 0
+          ? `Linked ${totals.linked}, cached ${totals.cached} posters, filled ${totals.ranks} ranks. ${remaining} still to go…`
+          : `Linked ${totals.linked} titles, cached ${totals.cached} posters, filled ${totals.ranks} ranks. All caught up.`;
+        if (!remaining) break;
+      }
     } catch (err) {
       status.textContent = err.message || 'Backfill failed.';
     } finally {
