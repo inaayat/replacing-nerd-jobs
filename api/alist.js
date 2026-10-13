@@ -172,6 +172,7 @@ async function applyBulkRatingUpdates(userId, rawUpdates) {
           in_theaters = ${u.in_theaters},
           location = ${u.location},
           format = ${u.format},
+          auditorium = ${u.auditorium},
           seat = ${u.seat},
           ticket_cents = ${u.ticket_cents},
           updated_at = now()

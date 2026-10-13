@@ -1,6 +1,6 @@
 /**
- * Shared bulk-edit draft for a screening: rating plus theater, format, seat,
- * and ticket price. The browser editor and the watch PATCH handler both use
+ * Shared bulk-edit draft for a screening: rating plus theater, format,
+ * auditorium, seat, and ticket price. The browser editor and the watch PATCH handler both use
  * this so a row is "changed" only when the saved values would actually differ.
  */
 
@@ -44,6 +44,7 @@ export function screeningDraft(watch) {
     in_theaters: inTheaters,
     location: inTheaters ? String(watch?.location || '').trim() : '',
     format: String(watch?.format || ''),
+    auditorium: inTheaters ? String(watch?.auditorium || '') : '',
     seat: inTheaters ? String(watch?.seat || '') : '',
     ticket: inTheaters ? ticketInputFromCents(watch?.ticket_cents) : '',
   };
@@ -68,6 +69,7 @@ export function persistedScreening(draft) {
   if (ticket.error) return { error: ticket.error };
 
   const location = String(draft?.location || '').trim().slice(0, 200);
+  const auditorium = String(draft?.auditorium || '').trim().slice(0, 40);
   const seat = String(draft?.seat || '').trim().slice(0, 40);
 
   return {
@@ -77,6 +79,7 @@ export function persistedScreening(draft) {
       in_theaters: inTheaters,
       location: inTheaters ? (location || null) : OFF_THEATER_LOCATION,
       format: inTheaters ? String(draft?.format || '').trim().slice(0, 40) : '',
+      auditorium: inTheaters ? (auditorium || null) : null,
       seat: inTheaters ? (seat || null) : null,
       ticket_cents: inTheaters ? ticket.cents : null,
     },
@@ -87,7 +90,7 @@ export function screeningsMatch(a, b) {
   const left = persistedScreening(a);
   const right = persistedScreening(b);
   if (left.error || right.error) return false;
-  const keys = ['rating', 'dnf', 'in_theaters', 'location', 'format', 'seat', 'ticket_cents'];
+  const keys = ['rating', 'dnf', 'in_theaters', 'location', 'format', 'auditorium', 'seat', 'ticket_cents'];
   return keys.every((key) => left.data[key] === right.data[key]);
 }
 
@@ -99,7 +102,7 @@ export function screeningsMatch(a, b) {
  */
 export function normalizeBulkUpdate(entry) {
   if (!entry?.id) return null;
-  const screeningKeys = ['in_theaters', 'location', 'format', 'seat', 'ticket_cents', 'ticket'];
+  const screeningKeys = ['in_theaters', 'location', 'format', 'auditorium', 'seat', 'ticket_cents', 'ticket'];
   const hasScreening = screeningKeys.some((key) => Object.prototype.hasOwnProperty.call(entry, key));
 
   if (!hasScreening) {
@@ -120,6 +123,7 @@ export function normalizeBulkUpdate(entry) {
     in_theaters: entry.in_theaters,
     location: entry.location === OFF_THEATER_LOCATION ? '' : entry.location,
     format: entry.format,
+    auditorium: entry.auditorium,
     seat: entry.seat,
     ticket: Object.prototype.hasOwnProperty.call(entry, 'ticket')
       ? entry.ticket

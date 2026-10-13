@@ -28,6 +28,7 @@ const theater = {
   in_theaters: true,
   location: 'AMC Lincoln Square 13',
   format: 'IMAX',
+  auditorium: '3',
   seat: 'J38',
   ticket_cents: 2149,
 };
@@ -48,11 +49,11 @@ const home = screeningDraft({
   seat: 'J38',
   ticket_cents: 2149,
 });
-assert(home.location === '' && home.seat === '' && home.ticket === '', 'off-theater draft hides theater fields');
+assert(home.location === '' && home.auditorium === '' && home.seat === '' && home.ticket === '', 'off-theater draft hides theater fields');
 const homeSaved = persistedScreening(home).data;
 assert(homeSaved.in_theaters === false, 'off-theater stays off');
 assert(homeSaved.location === 'Not in theaters', 'off-theater location is the stored label');
-assert(homeSaved.seat == null && homeSaved.ticket_cents == null && homeSaved.format === '', 'off-theater clears seat, price, and format');
+assert(homeSaved.auditorium == null && homeSaved.seat == null && homeSaved.ticket_cents == null && homeSaved.format === '', 'off-theater clears auditorium, seat, price, and format');
 assert(screeningsMatch(home, screeningDraft({
   in_theaters: false,
   location: 'Not in theaters',
@@ -74,11 +75,12 @@ const full = normalizeBulkUpdate({
   in_theaters: true,
   location: 'AMC Empire 25',
   format: 'Dolby',
+  auditorium: '7',
   seat: 'F12',
   ticket_cents: 1999,
 });
 assert(full.data.screening === true, 'theater fields mark a full screening update');
-assert(full.data.location === 'AMC Empire 25' && full.data.seat === 'F12', 'theater and seat are kept');
+assert(full.data.location === 'AMC Empire 25' && full.data.auditorium === '7' && full.data.seat === 'F12', 'theater, auditorium, and seat are kept');
 assert(full.data.ticket_cents === 1999, 'integer cents pass through');
 
 const cleared = normalizeBulkUpdate({
@@ -88,11 +90,12 @@ const cleared = normalizeBulkUpdate({
   in_theaters: false,
   location: 'AMC Empire 25',
   format: 'Dolby',
+  auditorium: '7',
   seat: 'F12',
   ticket_cents: 1999,
 });
 assert(cleared.data.dnf === true && cleared.data.rating == null, 'DNF clears the rating');
-assert(cleared.data.seat == null && cleared.data.ticket_cents == null, 'leaving theaters clears seat and price');
+assert(cleared.data.auditorium == null && cleared.data.seat == null && cleared.data.ticket_cents == null, 'leaving theaters clears auditorium, seat, and price');
 assert(normalizeBulkUpdate({ id: 'w4', rating: 0, dnf: false }).error, 'a zero rating is rejected');
 
 console.log(`${passed} passed, ${failed} failed`);

@@ -2113,10 +2113,10 @@ table.al-table {
 .al-main--bulk-ratings .al-bulk-ratings-row {
   display: grid;
   grid-template-columns:
-    44px 88px minmax(140px, 1.3fr) 92px minmax(140px, 1fr) 108px 72px 84px 108px;
+    44px 88px minmax(140px, 1.3fr) 92px minmax(140px, 1fr) 108px 72px 72px 84px 108px;
   gap: 8px;
   align-items: center;
-  min-width: 980px;
+  min-width: 1060px;
 }
 
 .al-bulk-ratings-head,
@@ -2245,8 +2245,9 @@ table.al-table {
       "poster date"
       "flag flag"
       "theater theater"
-      "format seat"
-      "ticket rating";
+      "format auditorium"
+      "seat ticket"
+      "rating rating";
     gap: 8px 10px;
   }
 
@@ -2259,6 +2260,7 @@ table.al-table {
   .al-main--bulk-ratings .al-bulk-ratings-col--flag { grid-area: flag; }
   .al-main--bulk-ratings .al-bulk-ratings-col--theater { grid-area: theater; }
   .al-main--bulk-ratings .al-bulk-ratings-col--format { grid-area: format; }
+  .al-main--bulk-ratings .al-bulk-ratings-col--auditorium { grid-area: auditorium; }
   .al-main--bulk-ratings .al-bulk-ratings-col--seat { grid-area: seat; }
   .al-main--bulk-ratings .al-bulk-ratings-col--ticket { grid-area: ticket; }
   .al-main--bulk-ratings .al-bulk-ratings-col--rating { grid-area: rating; }

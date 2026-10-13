@@ -16,7 +16,7 @@ bootPage(async ({ root, auth }) => {
 
   root.innerHTML = renderShell({
     title: 'Bulk edit',
-    subtitle: 'Update rating, theater, format, seat, and ticket price for the whole log. Only changed rows are saved.',
+    subtitle: 'Update rating, theater, format, auditorium, seat, and ticket price for the whole log. Only changed rows are saved.',
     signedIn: true,
     hideLogBar: true,
     body: `<main class="al-main" id="bulk-ratings-main"><p class="al-muted">Loading…</p></main>`,
@@ -175,6 +175,7 @@ async function loadPage(auth) {
     if (!watch) return;
     const next = { ...getCurrent(watch) };
     if (field.dataset.bulkField === 'location') next.location = field.value;
+    else if (field.dataset.bulkField === 'auditorium') next.auditorium = field.value;
     else if (field.dataset.bulkField === 'seat') next.seat = field.value;
     else if (field.dataset.bulkField === 'ticket') next.ticket = field.value;
     else return;
@@ -199,6 +200,8 @@ async function loadPage(auth) {
       next.in_theaters = field.checked;
     } else if (kind === 'location') {
       next.location = field.value;
+    } else if (kind === 'auditorium') {
+      next.auditorium = field.value;
     } else if (kind === 'seat') {
       next.seat = field.value;
     } else if (kind === 'ticket') {
@@ -291,6 +294,7 @@ function listHtml(watches, getCurrent, isChanged) {
       <span class="al-bulk-ratings-col">In theaters</span>
       <span class="al-bulk-ratings-col">Theater</span>
       <span class="al-bulk-ratings-col">Format</span>
+      <span class="al-bulk-ratings-col">Auditorium</span>
       <span class="al-bulk-ratings-col">Seat</span>
       <span class="al-bulk-ratings-col">Ticket</span>
       <span class="al-bulk-ratings-col">Rating</span>
@@ -320,6 +324,10 @@ function rowHtml(watch, current, changed) {
         <select class="al-select al-bulk-control" data-bulk-field="format" data-theater-only data-id="${watch.id}"${disabled}>
           ${formatOptionsHtml(current.format)}
         </select>
+      </label>
+      <label class="al-bulk-ratings-col al-bulk-ratings-col--auditorium">
+        <span class="al-bulk-label">Auditorium</span>
+        <input class="al-input al-bulk-control" data-bulk-field="auditorium" data-theater-only data-id="${watch.id}" value="${escapeHtml(current.auditorium)}" maxlength="40"${disabled} />
       </label>
       <label class="al-bulk-ratings-col al-bulk-ratings-col--seat">
         <span class="al-bulk-label">Seat</span>
