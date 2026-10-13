@@ -1,4 +1,4 @@
-import { chargeMonth, topActorsByRating, ratingStarBucket } from './billing.js';
+import { chargeMonth, topActorsByRating, ratingMovies, ratingStarBucket } from './billing.js';
 import { money, escapeHtml, monthLabel, shortDate } from './format.js';
 import {
   buildDayStats,
@@ -26,8 +26,8 @@ export function renderInsightsHtml({
   const byMonth = summary.byMonth || [];
   const moviesByMonth = groupMovies(watchList, (watch) => chargeMonth(watch.watched_on));
   const moviesByRating = groupMovies(
-    watchList.filter((watch) => !watch.dnf && watch.rating != null),
-    (watch) => ratingStarBucket(watch.rating),
+    ratingMovies(watchList).filter((movie) => movie.rating != null),
+    (movie) => ratingStarBucket(movie.rating),
   );
   const moviesByTheater = hideTheaters
     ? new Map()
@@ -365,7 +365,7 @@ function renderRatingSection(ratings, ratingBuckets, moviesByRating, watches) {
       <div><span>Walk-out rate</span><strong>${formatPercent(walkoutRate)}</strong></div>
     </div>
     <p class="al-muted al-insight-hint">
-      Ratings round down to whole-star groups.
+      Each movie counts once. A repeat uses the higher rating. Ratings round down to whole-star groups.
       <span class="al-hint-hover">Hover a row to see films.</span>
       <span class="al-hint-touch">Tap a row to see films.</span>
     </p>
@@ -606,9 +606,9 @@ function wireInsightSections(root) {
 }
 
 function averageWatchRating(watches) {
-  const rated = watches.filter((watch) => !watch.dnf && watch.rating != null);
+  const rated = ratingMovies(watches).filter((movie) => movie.rating != null);
   if (!rated.length) return null;
-  const sum = rated.reduce((total, watch) => total + Number(watch.rating), 0);
+  const sum = rated.reduce((total, movie) => total + Number(movie.rating), 0);
   return Math.round((sum / rated.length) * 10) / 10;
 }
 

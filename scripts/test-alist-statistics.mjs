@@ -181,4 +181,21 @@ assert.equal(hiddenTheaters.includes('Theater scorecard'), false, 'theater categ
 assert.match(hiddenTheaters, /Format scorecard/);
 assert.match(hiddenTheaters, /their tickets were worth/);
 
+const repeatRatings = renderInsightsHtml({
+  summary: { totalSeen: 2, totalSavings: 0, totalBilled: 0, totalCharged: 0, costPerMovie: 0, byMonth: [] },
+  watches: [
+    { title: 'Digger', tmdb_id: 8, watched_on: '2026-01-01', rating: 3, dnf: false, in_theaters: true },
+    { title: 'Digger', tmdb_id: 8, watched_on: '2026-02-01', rating: 5, dnf: false, in_theaters: true },
+  ],
+  ratings: { buckets: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 1 }, rated: 1, dnf: 0, total: 1 },
+  actors: [],
+  rewatches: [],
+});
+assert.match(repeatRatings, /<strong>5★<\/strong>/, 'a repeat screening uses the higher rating in the average');
+const fiveBar = repeatRatings.slice(repeatRatings.indexOf('>5★<'), repeatRatings.indexOf('>4★<'));
+const threeBar = repeatRatings.slice(repeatRatings.indexOf('>3★<'), repeatRatings.indexOf('>2★<'));
+assert.equal((fiveBar.match(/Digger/g) || []).length, 1, 'the higher rating is the only bar that lists the film');
+assert.equal((threeBar.match(/Digger/g) || []).length, 0, 'the lower repeat rating does not list the film');
+assert.match(repeatRatings, /Each movie counts once/);
+
 console.log('A-Lister statistics tests passed');

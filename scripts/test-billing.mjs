@@ -12,6 +12,7 @@ import {
   topTheatersByRating,
   foldPromoIntoTiers,
   ratingDistribution,
+  ratingMovies,
   ratingStarBucket,
 } from '../lib/a-list-billing.js';
 
@@ -160,5 +161,30 @@ const ratings = ratingDistribution([
 ]);
 assert.equal(ratings.buckets[4], 2);
 assert.equal(ratings.buckets[3], 1);
+
+const repeats = ratingDistribution([
+  { title: 'Digger', tmdb_id: 1, rating: 3, dnf: false, watched_on: '2026-01-01' },
+  { title: 'Digger', tmdb_id: 1, rating: 5, dnf: false, watched_on: '2026-02-01' },
+  { title: 'Digger', tmdb_id: 1, rating: 4, dnf: false, watched_on: '2026-03-01' },
+  { title: 'Other', tmdb_id: 2, rating: 2, dnf: false },
+  { title: 'Walkout', tmdb_id: 3, dnf: true, rating: null },
+  { title: 'Walkout', tmdb_id: 3, dnf: true, rating: null },
+  { title: 'Nope', tmdb_id: 4, dnf: true, rating: null },
+  { title: 'Nope', tmdb_id: 4, rating: 4, dnf: false },
+]);
+assert.equal(repeats.buckets[5], 1, 'the higher of two ratings is the one that counts');
+assert.equal(repeats.buckets[3], 0, 'the lower repeat rating is dropped');
+assert.equal(repeats.buckets[4], 1);
+assert.equal(repeats.buckets[2], 1);
+assert.equal(repeats.rated, 3);
+assert.equal(repeats.dnf, 1, 'two walk-outs of one film count once');
+assert.equal(repeats.total, 4);
+const kept = ratingMovies([
+  { title: 'Digger', tmdb_id: 1, rating: 3, dnf: false, watched_on: '2026-01-01' },
+  { title: 'Digger', tmdb_id: 1, rating: 4.5, dnf: false, watched_on: '2026-04-01' },
+]);
+assert.equal(kept.length, 1);
+assert.equal(kept[0].rating, 4.5);
+assert.equal(kept[0].watched_on, '2026-04-01');
 
 console.log('billing tests passed');

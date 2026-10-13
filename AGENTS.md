@@ -27,7 +27,7 @@ This repo is a no-build Vercel site (see `README.md` for structure/deploy). Non-
 - Vercel's Hobby plan allows at most 12 serverless functions per deployment; this repo currently uses **12 of 12**. Do not add another `api/*.js` file. Add a `?route=` branch to an existing handler plus a rewrite in `vercel.json`. (This is why all Plot Points endpoints live in `api/plot-points.js`, all Sticky Notes endpoints in `api/sticky-notes.js`, and Brag Book is the single `api/brag-book.js` router.)
 - Auth is Neon Auth only (`account.html` → JWT → `/api/*`). The old `SITE_PASSWORD` / `/private/` cookie gate was retired.
 - Tests (all pure functions, no deps/secrets; there is no `npm test` wrapper):
-  - `node scripts/test-billing.mjs` — A-List billing (`lib/a-list-billing.js`)
+  - `node scripts/test-billing.mjs` — A-List billing (`lib/a-list-billing.js`). The ratings chart counts each movie once and keeps the higher rating
   - `node scripts/test-tmdb.mjs` — shared TMDB helpers (`lib/tmdb.js`)
   - `node scripts/test-plot-points.mjs` — legacy Plot Points presets (`lib/plot-points.js`)
   - `node scripts/test-plot-points-query.mjs` — Plot Points query engine (`plot-points/query-engine.js`)

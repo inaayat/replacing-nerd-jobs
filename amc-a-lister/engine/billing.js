@@ -303,14 +303,66 @@ export function ratingStarBucket(rating) {
   return Math.min(5, Math.max(1, Math.floor(Number(rating))));
 }
 
+function watchMovieKey(watch, index) {
+  if (watch?.tmdb_id) return `tmdb:${watch.tmdb_id}`;
+  const title = String(watch?.title || '').trim().toLowerCase();
+  if (title) return `title:${title}`;
+  return `row:${index}`;
+}
+
+function numericRating(watch) {
+  if (!watch || watch.dnf || watch.rating == null || watch.rating === '') return null;
+  const rating = Number(watch.rating);
+  return Number.isFinite(rating) ? rating : null;
+}
+
+/**
+ * One row per movie for the ratings chart. A repeat screening keeps the
+ * higher rating. A movie that has any rating is not counted as a DNF.
+ */
+export function ratingMovies(watches) {
+  const movies = new Map();
+  (watches || []).forEach((watch, index) => {
+    const key = watchMovieKey(watch, index);
+    const rating = numericRating(watch);
+    const existing = movies.get(key);
+    if (!existing) {
+      movies.set(key, {
+        title: watch.title,
+        tmdb_id: watch.tmdb_id || null,
+        watched_on: watch.watched_on || '',
+        rating,
+        dnf: !!watch.dnf && rating == null,
+      });
+      return;
+    }
+    if (rating != null && (existing.rating == null || rating > existing.rating)) {
+      existing.rating = rating;
+      existing.dnf = false;
+      existing.watched_on = watch.watched_on || existing.watched_on;
+      if (watch.title) existing.title = watch.title;
+      if (watch.tmdb_id) existing.tmdb_id = watch.tmdb_id;
+    } else if (rating == null && existing.rating == null && watch.dnf) {
+      existing.dnf = true;
+    }
+  });
+  return [...movies.values()];
+}
+
 export function ratingDistribution(watches) {
-  const rated = watches.filter((w) => !w.dnf && w.rating != null);
-  const dnfCount = watches.filter((w) => w.dnf).length;
+  const movies = ratingMovies(watches);
+  const rated = movies.filter((movie) => movie.rating != null);
+  const dnfCount = movies.filter((movie) => movie.dnf && movie.rating == null).length;
   const buckets = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-  for (const w of rated) {
-    buckets[ratingStarBucket(w.rating)] += 1;
+  for (const movie of rated) {
+    buckets[ratingStarBucket(movie.rating)] += 1;
   }
-  return { buckets, rated: rated.length, dnf: dnfCount, total: watches.length };
+  return {
+    buckets,
+    rated: rated.length,
+    dnf: dnfCount,
+    total: rated.length + dnfCount,
+  };
 }
 
 export function actorStats(watches, castByTmdbId) {
