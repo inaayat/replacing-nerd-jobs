@@ -30,17 +30,18 @@
 }
 
 .pc-app-title {
-  font-size: clamp(1.3rem, 3vw, 1.6rem);
-  font-weight: 700;
+  font-size: clamp(1.85rem, 5vw, 2.6rem);
   color: var(--ink);
   margin: 0;
-  line-height: 1.1;
+  line-height: 0.92;
 }
 
 .pc-app-subtitle {
-  font-size: 0.82rem;
+  font-size: 0.92rem;
+  line-height: 1.7;
   color: var(--muted);
-  margin: 4px 0 0;
+  margin: 8px 0 0;
+  max-width: 46ch;
 }
 
 /* Pane tabs (phone/tablet only) */
@@ -54,8 +55,7 @@
 
 .pc-pane-tabs button {
   font: inherit;
-  font-weight: 700;
-  font-size: 0.85rem;
+  font-size: 0.66rem;
   padding: 10px 14px;
   border: none;
   background: transparent;
@@ -65,8 +65,9 @@
 }
 
 .pc-pane-tabs button[aria-selected="true"] {
-  background: var(--ink);
-  color: var(--card);
+  background: transparent;
+  color: var(--ink);
+  box-shadow: inset 0 -2px 0 var(--gold);
 }
 
 @media (max-width: 899px) {
@@ -111,10 +112,10 @@
 }
 
 .pc-panel-head h2 {
-  font-size: 0.95rem;
-  font-weight: 700;
+  font-size: 1.35rem;
   margin: 0;
   color: var(--ink);
+  line-height: 1.05;
 }
 
 .pc-cube-list {
@@ -191,10 +192,9 @@
 }
 
 .pc-cube-info .title {
-  font-size: 0.84rem;
-  font-weight: 700;
+  font-size: 1.05rem;
   color: var(--ink);
-  line-height: 1.2;
+  line-height: 1.1;
   display: flex;
   align-items: center;
   gap: 5px;
@@ -278,13 +278,13 @@
 .pc-cube-quick-add.added {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--bg);
 }
 
 .pc-cube-quick-add.added:hover {
   background: var(--accent-strong);
   border-color: var(--accent-strong);
-  color: #fff;
+  color: var(--bg);
 }
 
 @media (pointer: coarse) {
@@ -501,11 +501,11 @@
 }
 
 .pc-list-head h2 {
-  font-size: 1.05rem;
-  font-weight: 700;
+  font-size: 1.45rem;
   margin: 0;
   flex: 1;
   min-width: 100px;
+  line-height: 1.1;
 }
 
 .pc-list-controls {
@@ -558,18 +558,18 @@
 }
 
 .pc-hud .pc-stat b {
-  font-size: 1.05rem;
-  font-weight: 700;
+  font-family: var(--pc-display);
+  font-optical-sizing: auto;
+  font-size: 1.25rem;
+  font-weight: 500;
+  letter-spacing: -0.04em;
   color: var(--ink);
 }
 
 .pc-hud .pc-stat span {
-  font-size: 0.68rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--muted);
-  margin-left: 3px;
+  font-size: 0.58rem;
+  color: var(--gold);
+  margin-left: 4px;
 }
 
 .pc-hud .pc-spacer { flex: 1; }
@@ -638,8 +638,7 @@
 
 .pc-view-toggle button {
   font: inherit;
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-size: 0.66rem;
   padding: 6px 10px;
   border: none;
   background: transparent;
@@ -648,8 +647,9 @@
 }
 
 .pc-view-toggle button.selected {
-  background: var(--ink);
-  color: var(--card);
+  background: transparent;
+  color: var(--ink);
+  box-shadow: inset 0 -2px 0 var(--gold);
 }
 
 @media (pointer: coarse) {
@@ -956,8 +956,7 @@ html.pc-reordering * {
 
 .pc-group-title {
   flex: 1;
-  font-size: 0.82rem;
-  font-weight: 700;
+  font-size: 1.05rem;
   color: var(--ink);
 }
 
@@ -1008,7 +1007,7 @@ html.pc-reordering * {
 .pc-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(35, 40, 45, 0.45);
+  background: rgba(12, 11, 9, 0.72);
   z-index: 200;
   display: flex;
   align-items: center;

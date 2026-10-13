@@ -1,40 +1,25 @@
-/* Packing Cubes — functional, neutral UI.
-   Local Atkinson Hyperlegible (same fonts the rest of the site ships),
-   one green accent, plain surfaces. Legacy token names (--gold, --brown, …)
-   are kept as aliases so builder.css and inline styles keep working. */
-
-@font-face {
-  font-family: 'Atkinson Hyperlegible';
-  src: url('/fonts/atkinson-regular.woff') format('woff');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Atkinson Hyperlegible';
-  src: url('/fonts/atkinson-bold.woff') format('woff');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
+/* Packing Cubes — Plotmaniac type (archive/lore.css): Fraunces headings,
+   IBM Plex Mono UI, gold on warm ink. No checkbox/grid background. */
 
 :root {
-  /* semantic tokens */
-  --ink: #23282d;
-  --muted: #5b636b;
-  --faint: #8a929a;
-  --bg: #f3f4f6;
-  --card: #ffffff;
-  --border-c: #d9dde1;
-  --accent: #2f6b4f;
-  --accent-strong: #275a42;
-  --accent-soft: #e3efe8;
-  --info: #3d6c96;
-  --info-soft: #e3ecf4;
-  --danger: #b2452f;
-  --danger-soft: #f4e4df;
-  --chip: #eaedef;
+  --pc-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --pc-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* semantic tokens — Plotmaniac archive palette */
+  --ink: #f4efe6;
+  --muted: #9b9488;
+  --faint: #6e685e;
+  --bg: #0c0b09;
+  --card: #141310;
+  --border-c: rgba(244, 239, 230, 0.28);
+  --accent: #e8c47a;
+  --accent-strong: #f0d49a;
+  --accent-soft: rgba(232, 196, 122, 0.16);
+  --info: #e8c47a;
+  --info-soft: rgba(232, 196, 122, 0.12);
+  --danger: #f07a6e;
+  --danger-soft: rgba(194, 59, 46, 0.18);
+  --chip: rgba(244, 239, 230, 0.06);
 
   /* legacy aliases (builder.css + older markup) */
   --cream: var(--bg);
@@ -53,11 +38,11 @@
   --grey-soft: var(--chip);
 
   --outline: 1px solid var(--border-c);
-  --outline-strong: 1px solid var(--ink);
-  --radius: 10px;
-  --radius-sm: 7px;
-  --shadow: 0 1px 2px rgba(35, 40, 45, 0.05), 0 3px 8px rgba(35, 40, 45, 0.05);
-  --shadow-sm: 0 1px 2px rgba(35, 40, 45, 0.08);
+  --outline-strong: 1px solid var(--accent);
+  --radius: 4px;
+  --radius-sm: 2px;
+  --shadow: 0 0 0 1px rgba(232, 196, 122, 0.08), 0 18px 36px rgba(0, 0, 0, 0.45);
+  --shadow-sm: 0 8px 18px rgba(0, 0, 0, 0.28);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -75,11 +60,56 @@
 }
 
 body.pc-body {
-  font-family: 'Atkinson Hyperlegible', system-ui, -apple-system, sans-serif;
+  font-family: var(--pc-mono);
+  font-weight: 400;
+  font-synthesis: none;
   background: var(--bg);
   color: var(--ink);
   margin: 0;
   min-height: 100vh;
+  color-scheme: dark;
+}
+
+body.pc-body h1,
+body.pc-body h2,
+body.pc-body h3,
+.pc-app-title,
+.pc-gate-title,
+.b-h1,
+.b-h2,
+.pc-card h1,
+.pc-list-head h2,
+.pc-panel-head h2,
+.pc-cube-info .title,
+.pc-group-title,
+.pc-nav-section span {
+  font-family: var(--pc-display);
+  font-optical-sizing: auto;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+}
+
+.pc-eyebrow,
+.pc-section-label,
+.b-field label,
+.b-optional,
+.pc-auth-field span,
+.pc-hud .pc-stat span,
+.pc-cube-badge,
+.pc-tag,
+.pc-worn-toggle,
+.pc-beta-badge,
+.pc-view-toggle button,
+.pc-pane-tabs button,
+.pc-nav-links a,
+.pc-btn,
+.pc-auth-tab,
+.pc-addon-chip,
+.pc-group-action,
+.pc-group-count {
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 /* Nav */
@@ -91,8 +121,8 @@ body.pc-body {
   row-gap: 6px;
   column-gap: 12px;
   padding: 10px 20px;
-  background: var(--card);
-  border-bottom: var(--outline);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border-c);
   position: sticky;
   top: 0;
   z-index: 50;
@@ -108,13 +138,16 @@ body.pc-body {
 }
 
 .pc-nav-logo {
-  font-weight: 700;
-  font-size: 0.9rem;
-  color: var(--card);
-  background: var(--ink);
+  font-family: var(--pc-mono);
+  font-weight: 500;
+  font-size: 0.66rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--bg);
+  background: var(--accent);
   border: none;
   border-radius: var(--radius-sm);
-  padding: 4px 10px;
+  padding: 6px 10px;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
@@ -135,8 +168,8 @@ html.pc-standalone .pc-nav-logo { display: none; }
 }
 
 .pc-nav-section span {
-  font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 1.15rem;
+  line-height: 1;
 }
 
 .pc-nav-links {
@@ -147,8 +180,7 @@ html.pc-standalone .pc-nav-logo { display: none; }
 }
 
 .pc-nav-links a {
-  font-weight: 700;
-  font-size: 0.85rem;
+  font-size: 0.66rem;
   color: var(--muted);
   text-decoration: none;
   transition: color 0.15s;
@@ -166,15 +198,14 @@ html.pc-standalone .pc-nav-logo { display: none; }
 /* Buttons */
 .pc-btn {
   font: inherit;
-  font-weight: 700;
-  font-size: 0.85rem;
+  font-size: 0.66rem;
   cursor: pointer;
-  border: var(--outline);
+  border: 1px solid var(--border-c);
   border-radius: var(--radius-sm);
-  padding: 8px 16px;
-  background: var(--card);
-  color: var(--ink);
-  transition: background 0.12s ease, border-color 0.12s ease;
+  padding: 8px 14px;
+  background: transparent;
+  color: var(--muted);
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
@@ -182,32 +213,33 @@ html.pc-standalone .pc-nav-logo { display: none; }
   gap: 6px;
 }
 
-.pc-btn:hover { background: var(--chip); border-color: var(--faint); }
+.pc-btn:hover { color: var(--ink); border-color: var(--accent); }
 .pc-btn:active { background: var(--chip); }
 .pc-btn:disabled { opacity: 0.45; cursor: default; }
 
 .pc-btn.primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--bg);
 }
 
 .pc-btn.primary:hover {
   background: var(--accent-strong);
   border-color: var(--accent-strong);
+  color: var(--bg);
 }
 
 .pc-btn.green {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--bg);
 }
 
-.pc-btn.green:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+.pc-btn.green:hover { background: var(--accent-strong); border-color: var(--accent-strong); color: var(--bg); }
 
 .pc-btn.sm {
-  font-size: 0.78rem;
-  padding: 5px 10px;
+  font-size: 0.62rem;
+  padding: 6px 10px;
 }
 
 /* Focus */
@@ -216,8 +248,8 @@ html.pc-standalone .pc-nav-logo { display: none; }
 input:focus-visible,
 select:focus-visible,
 button:focus-visible {
-  outline: 2px solid var(--info);
-  outline-offset: 1px;
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 /* Cards (cube.html detail page) */
@@ -230,22 +262,25 @@ button:focus-visible {
 }
 
 .pc-card h1 {
-  font-size: 1.35rem;
-  font-weight: 700;
+  font-size: clamp(1.6rem, 4vw, 2.2rem);
+  line-height: 0.95;
   color: var(--ink);
   margin: 0 0 6px;
 }
 
 .pc-card p.blurb {
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.92rem;
+  line-height: 1.7;
   margin: 0 0 12px;
 }
 
 .pc-card .pc-meta {
-  font-size: 0.8rem;
-  color: var(--muted);
-  font-weight: 700;
+  font-size: 0.72rem;
+  color: var(--gold);
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
   margin-bottom: 16px;
 }
 
@@ -301,6 +336,7 @@ button:focus-visible {
   flex-shrink: 0;
   accent-color: var(--accent);
   cursor: pointer;
+  color-scheme: dark;
 }
 
 .pc-checklist li.packed .pc-item-label {
@@ -377,11 +413,8 @@ button:focus-visible {
 }
 
 .b-field label {
-  font-size: 0.68rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--muted);
+  font-size: 0.62rem;
+  color: var(--gold);
 }
 
 .b-item-row {
@@ -432,11 +465,8 @@ button:focus-visible {
 .b-add-row-btn:hover { background: var(--chip); border-color: var(--faint); }
 
 .pc-section-label {
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--muted);
+  font-size: 0.62rem;
+  color: var(--gold);
   margin: 10px 0 6px;
 }
 
@@ -473,11 +503,11 @@ button:focus-visible {
 
 .pc-gate-card {
   background: var(--card);
-  border: var(--outline);
+  border: 1px solid var(--border-c);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  padding: 32px 28px 26px;
-  max-width: 400px;
+  padding: 36px 28px 28px;
+  max-width: 420px;
   width: 100%;
   text-align: center;
 }
@@ -490,16 +520,16 @@ button:focus-visible {
 }
 
 .pc-gate-title {
-  font-size: 1.4rem;
-  font-weight: 700;
+  font-size: clamp(2.1rem, 8vw, 3.2rem);
+  line-height: 0.9;
   color: var(--ink);
-  margin: 0 0 8px;
+  margin: 0 0 12px;
 }
 
 .pc-gate-copy {
-  font-size: 0.88rem;
+  font-size: 0.92rem;
   color: var(--muted);
-  line-height: 1.55;
+  line-height: 1.7;
   margin: 0 0 20px;
 }
 
@@ -528,7 +558,7 @@ button:focus-visible {
   line-height: 1.45;
 }
 
-.pc-gate-small a { color: var(--ink); }
+.pc-gate-small a { color: var(--gold); }
 
 .pc-auth { text-align: left; }
 
@@ -544,8 +574,7 @@ button:focus-visible {
 .pc-auth-tab {
   flex: 1;
   font: inherit;
-  font-weight: 700;
-  font-size: 0.85rem;
+  font-size: 0.66rem;
   padding: 10px 12px;
   border: none;
   background: transparent;
@@ -555,8 +584,9 @@ button:focus-visible {
 }
 
 .pc-auth-tab.is-active {
-  background: var(--ink);
-  color: var(--card);
+  background: transparent;
+  color: var(--ink);
+  box-shadow: inset 0 -2px 0 var(--gold);
 }
 
 .pc-auth-form {
@@ -573,9 +603,8 @@ button:focus-visible {
 }
 
 .pc-auth-field span {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--muted);
+  font-size: 0.62rem;
+  color: var(--gold);
 }
 
 .pc-auth-error {
@@ -593,13 +622,15 @@ button:focus-visible {
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%) translateY(80px);
-  background: var(--ink);
-  color: #fff;
-  font-weight: 700;
-  font-size: 0.875rem;
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 500;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   padding: 10px 20px;
   border-radius: var(--radius-sm);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow);
   z-index: 300;
   opacity: 0;
   transition: transform 0.3s ease, opacity 0.3s ease;

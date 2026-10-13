@@ -6,8 +6,8 @@
   "scope": "/packing-cubes/",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#f3f4f6",
-  "theme_color": "#ffffff",
+  "background_color": "#0c0b09",
+  "theme_color": "#0c0b09",
   "categories": ["travel", "productivity", "utilities"],
   "icons": [
     {

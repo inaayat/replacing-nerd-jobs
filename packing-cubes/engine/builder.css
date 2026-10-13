@@ -9,24 +9,24 @@
 }
 
 .b-h1 {
-  font-size: 1.2rem;
-  font-weight: 700;
+  font-size: clamp(1.7rem, 4vw, 2.3rem);
+  line-height: 0.95;
   color: var(--ink);
   margin: 0;
 }
 
 .b-h2 {
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: 1.2rem;
+  line-height: 1.1;
   color: var(--ink);
   margin: 0;
 }
 
 .b-lede {
-  font-size: 0.85rem;
+  font-size: 0.92rem;
   color: var(--muted);
-  margin: 4px 0 16px;
-  line-height: 1.45;
+  margin: 8px 0 16px;
+  line-height: 1.7;
 }
 
 .b-block {
@@ -46,11 +46,8 @@
 .b-count { font-weight: 400; color: var(--faint); font-size: 0.82rem; }
 
 .b-optional {
-  font-size: 0.68rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--faint);
+  font-size: 0.62rem;
+  color: var(--gold);
 }
 
 .b-hint {
