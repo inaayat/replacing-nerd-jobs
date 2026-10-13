@@ -4,6 +4,7 @@ function actionIcon(name) {
   const paths = {
     rerank: '<path d="M19.2 12a7.2 7.2 0 1 1-2.1-5.1"/><path d="M19.4 4.2v4.2h-4.2"/>',
     remove: '<path d="M5.2 7.6h13.6"/><path d="M9.2 7.5V5.8h5.6v1.7"/><path d="M7.4 7.6l.8 11.2h7.6l.8-11.2"/><path d="M10.4 10.6v5.2M13.6 10.6v5.2"/>',
+    bookmark: '<path d="M7 4.5h10a1 1 0 0 1 1 1V20l-6-3.2L6 20V5.5a1 1 0 0 1 1-1z"/>',
   };
   return `<svg class="al-watchlist-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[name]}</svg>`;
 }
@@ -48,14 +49,28 @@ export function rankedTileHtml(item, position) {
   `;
 }
 
+function saveWatchlistButton(item, saved) {
+  const tmdb = item.tmdb_id != null && item.tmdb_id !== '' ? String(item.tmdb_id) : '';
+  const label = saved ? 'On your list' : 'Want to watch';
+  return iconButton(
+    `data-save-watchlist data-tmdb-id="${escapeHtml(tmdb)}" data-title="${escapeHtml(item.title || '')}"${saved ? ' disabled' : ''}`,
+    label,
+    'bookmark',
+  );
+}
+
 /** Read-only stack for a public member profile — no re-rank or remove. */
-export function publicRankedTileHtml(item, position) {
+export function publicRankedTileHtml(item, position, { saveWatchlist = false, saved = false } = {}) {
   const year = item.year ? `<span class="al-rank-tile-year">${escapeHtml(item.year)}</span>` : '';
+  const save = saveWatchlist
+    ? `<div class="al-row-actions al-watchlist-card-actions">${saveWatchlistButton(item, saved)}</div>`
+    : '';
   return `
     <article class="al-rank-tile">
       ${posterBlock(item, `<span class="al-rank-tile-num">${position}</span>`)}
       <h3 class="al-rank-tile-title">${escapeHtml(item.title)}</h3>
       ${year}
+      ${save}
     </article>
   `;
 }
@@ -71,9 +86,12 @@ export function rankStackHtml(ranks) {
   return `<div class="al-rank-grid">${ranks.map((item, i) => rankedTileHtml(item, i + 1)).join('')}</div>`;
 }
 
-export function publicRankStackHtml(ranks) {
+export function publicRankStackHtml(ranks, { saveWatchlist = false, isSaved = () => false } = {}) {
   if (!ranks?.length) return '<p class="al-empty">Nothing ranked yet.</p>';
-  return `<div class="al-rank-grid al-rank-grid--public">${ranks.map((item, i) => publicRankedTileHtml(item, i + 1)).join('')}</div>`;
+  return `<div class="al-rank-grid al-rank-grid--public">${ranks.map((item, i) => publicRankedTileHtml(item, i + 1, {
+    saveWatchlist,
+    saved: saveWatchlist && isSaved(item),
+  })).join('')}</div>`;
 }
 
 /**

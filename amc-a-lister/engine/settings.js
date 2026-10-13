@@ -1,5 +1,6 @@
 import { bootPage, renderShell, requireSignIn, populateSidebarStats, isTvBetaEnabled, setTvBetaEnabled } from './nav.js';
-import { membershipApi, importApi, backfillApi, letterboxdApi } from './api.js';
+import { membershipApi, importApi, backfillApi, letterboxdApi, showingInvitesApi } from './api.js';
+import { sentInvitesListHtml } from './sent-invites.js';
 import { parseXlsxFile } from './import-xlsx.js';
 import { escapeHtml, parseMoneyInput } from './format.js';
 import { todayISO } from './dates.js';
@@ -100,6 +101,15 @@ bootPage(async ({ root, auth }) => {
           <p class="al-muted" id="membership-status" style="margin:0"></p>
         </div>
       </form>
+
+      <section class="al-panel" id="sent-invites">
+        <h2>Invites you sent</h2>
+        <p class="al-muted">
+          Showings still waiting on someone else. They can accept or deny from their watch log.
+        </p>
+        <div id="sent-invites-list"><p class="al-muted">Loading…</p></div>
+        <p class="al-error" id="sent-invites-status" role="alert" hidden></p>
+      </section>
 
       <form class="al-panel" id="letterboxd-form">
         <h2>Letterboxd</h2>
@@ -253,6 +263,7 @@ bootPage(async ({ root, auth }) => {
   });
 
   wireLetterboxdSettings(auth);
+  wireSentInvites(auth);
 
   /**
    * Import has no undo and there is no bulk delete to recover with, so show
@@ -340,6 +351,46 @@ bootPage(async ({ root, auth }) => {
     }
   });
 }, { quickLogOnSuccess: (auth) => populateSidebarStats(auth) });
+
+function wireSentInvites(auth) {
+  const list = document.getElementById('sent-invites-list');
+  const status = document.getElementById('sent-invites-status');
+  if (!list) return;
+
+  const showError = (message) => {
+    if (!status) return;
+    status.textContent = message || '';
+    status.hidden = !message;
+  };
+
+  const paint = (outgoing) => {
+    list.innerHTML = sentInvitesListHtml(outgoing);
+  };
+
+  list.addEventListener('click', async (event) => {
+    const btn = event.target.closest('[data-invite-cancel]');
+    if (!btn || !list.contains(btn)) return;
+    const id = btn.dataset.inviteCancel;
+    if (!id) return;
+    btn.disabled = true;
+    showError('');
+    try {
+      await showingInvitesApi.cancel(auth.token, id);
+      btn.closest('.al-invites-outgoing-item')?.remove();
+      if (!list.querySelector('.al-invites-outgoing-item')) paint([]);
+    } catch (err) {
+      btn.disabled = false;
+      showError(err.message || 'Could not delete invite.');
+    }
+  });
+
+  showingInvitesApi.list(auth.token)
+    .then(({ outgoing = [] }) => paint(outgoing))
+    .catch((err) => {
+      list.innerHTML = '';
+      showError(err.message || 'Could not load invites.');
+    });
+}
 
 function wireLetterboxdSettings(auth) {
   const form = document.getElementById('letterboxd-form');

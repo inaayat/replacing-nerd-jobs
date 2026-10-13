@@ -231,7 +231,16 @@ assert(readonlyCollapsed.includes('class="al-watch-grid al-watch-grid--readonly"
 assert(!readonlyCollapsed.includes('aria-label="Edit"'), 'readonly cards hide edit');
 assert(!readonlyCollapsed.includes('aria-label="Delete"'), 'readonly cards hide delete');
 assert(!readonlyCollapsed.includes('aria-label="Add someone"'), 'readonly cards hide add-someone');
+assert(!readonlyCollapsed.includes('Want to watch'), 'a public log hides want-to-watch until the viewer can save');
 assert(readonlyCollapsed.includes('data-expand-row'), 'readonly cards still expand');
+
+const saveHtml = watchLogListHtml(state(), { readonly: true, saveWatchlist: true, isSaved: () => false });
+assert(saveHtml.includes('aria-label="Want to watch"'), 'another member’s log can save a film to want to watch');
+assert(saveHtml.includes('data-save-watchlist'), 'the save control is marked for the profile page');
+assert(!saveHtml.includes('aria-label="Edit"'), 'saving from a profile does not expose edit');
+const savedHtml = watchLogListHtml(state(), { readonly: true, saveWatchlist: true, isSaved: () => true });
+assert(savedHtml.includes('aria-label="On your list"'), 'a film already on the list is labeled that way');
+assert(savedHtml.includes('disabled'), 'a film already on the list cannot be added again');
 
 const readonlyExpanded = watchLogListHtml(state({
   expandedId: 'w1',

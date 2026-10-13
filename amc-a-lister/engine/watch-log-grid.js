@@ -44,6 +44,7 @@ function actionIcon(name) {
     edit: '<path d="M13.6 5.6 18.4 10.4"/><path d="M4.6 19.4 5.8 15 15 5.8a1.5 1.5 0 0 1 2.1 0l1.1 1.1a1.5 1.5 0 0 1 0 2.1L9 18.2l-4.4 1.2z"/>',
     remove: '<path d="M5.2 7.6h13.6"/><path d="M9.2 7.5V5.8h5.6v1.7"/><path d="M7.4 7.6l.8 11.2h7.6l.8-11.2"/><path d="M10.4 10.6v5.2M13.6 10.6v5.2"/>',
     close: '<path d="M6.2 6.2 17.8 17.8"/><path d="M17.8 6.2 6.2 17.8"/>',
+    bookmark: '<path d="M7 4.5h10a1 1 0 0 1 1 1V20l-6-3.2L6 20V5.5a1 1 0 0 1 1-1z"/>',
   };
   return `<svg class="al-watchlist-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[name]}</svg>`;
 }
@@ -230,8 +231,25 @@ function movieDetailsHtml(watch, state, { readonly = false } = {}) {
   `;
 }
 
-function cardActionsHtml(watch, { readonly = false } = {}) {
-  if (readonly) return '';
+function saveWatchlistButton(watch, saved) {
+  const tmdb = watch.tmdb_id != null && watch.tmdb_id !== '' ? String(watch.tmdb_id) : '';
+  const label = saved ? 'On your list' : 'Want to watch';
+  return iconButton(
+    `data-save-watchlist data-tmdb-id="${escapeHtml(tmdb)}" data-title="${escapeHtml(watch.title || '')}"${saved ? ' disabled' : ''}`,
+    label,
+    'bookmark',
+  );
+}
+
+function cardActionsHtml(watch, { readonly = false, saveWatchlist = false, saved = false } = {}) {
+  if (readonly) {
+    if (!saveWatchlist) return '';
+    return `
+      <div class="al-row-actions al-watchlist-card-actions">
+        ${saveWatchlistButton(watch, saved)}
+      </div>
+    `;
+  }
   const canAdd = watch.in_theaters !== false;
   return `
     <div class="al-row-actions al-watchlist-card-actions">
@@ -242,19 +260,20 @@ function cardActionsHtml(watch, { readonly = false } = {}) {
   `;
 }
 
-function expandedPanelHtml(watch, state, adding, { readonly = false } = {}) {
+function expandedPanelHtml(watch, state, adding, actionOpts = {}) {
+  const readonly = !!actionOpts.readonly;
   return `
     <div class="al-watch-card-more">
       <div class="al-watch-detail-head">
         <h3 class="al-watch-detail-title">${escapeHtml(watch.title)}</h3>
         <div class="al-watch-detail-tools">
-          ${cardActionsHtml(watch, { readonly })}
+          ${cardActionsHtml(watch, actionOpts)}
           ${iconButton('data-collapse-card', 'Close details', 'close')}
         </div>
       </div>
       ${adding && !readonly
     ? addViewerFormHtml(watch)
-    : `<div class="al-watch-detail-groups">${screeningGroupHtml(watch)}${movieDetailsHtml(watch, state, { readonly })}</div>`}
+    : `<div class="al-watch-detail-groups">${screeningGroupHtml(watch)}${movieDetailsHtml(watch, state, { readonly: actionOpts.readonly })}</div>`}
     </div>
   `;
 }
@@ -287,7 +306,8 @@ function addViewerFormHtml(watch) {
   `;
 }
 
-function viewCardHtml(watch, state, { readonly = false } = {}) {
+function viewCardHtml(watch, state, actionOpts = {}) {
+  const readonly = !!actionOpts.readonly;
   const expanded = watch.id === state.expandedId;
   const adding = !readonly && watch.id === state.addingId;
   const open = expanded || adding;
@@ -299,7 +319,7 @@ function viewCardHtml(watch, state, { readonly = false } = {}) {
           ${fact('Cost', costLabel(watch))}
           <div class="al-watch-card-fact al-watch-card-fact--rating"><dt>Rating</dt><dd>${ratingStarsHtml(watch)}</dd></div>
         </dl>
-        ${cardActionsHtml(watch, { readonly })}
+        ${cardActionsHtml(watch, actionOpts)}
   `;
   return `
     <div class="al-log-entry al-watch-grid-item${open ? ' is-expanded' : ''}${adding ? ' is-adding' : ''}" data-entry-id="${watch.id}" style="view-transition-name:${watchVtName(watch.id)}">
@@ -309,7 +329,7 @@ function viewCardHtml(watch, state, { readonly = false } = {}) {
         </div>
         ${face}
       </article>
-      ${open ? expandedPanelHtml(watch, state, adding, { readonly }) : ''}
+      ${open ? expandedPanelHtml(watch, state, adding, actionOpts) : ''}
     </div>
   `;
 }
@@ -324,7 +344,7 @@ function editCardHtml(watch) {
   `;
 }
 
-export function watchLogListHtml(state, { readonly = false } = {}) {
+export function watchLogListHtml(state, { readonly = false, saveWatchlist = false, isSaved = () => false } = {}) {
   const filtered = state.filtered || [];
   if (!state.watches?.length) {
     if (readonly) return '<div class="al-empty">No screenings logged yet.</div>';
@@ -347,7 +367,11 @@ export function watchLogListHtml(state, { readonly = false } = {}) {
       ${filtered.map((watch) => (
         !readonly && watch.id === state.editingId
           ? editCardHtml(watch)
-          : viewCardHtml(watch, state, { readonly })
+          : viewCardHtml(watch, state, {
+            readonly,
+            saveWatchlist,
+            saved: saveWatchlist && isSaved(watch),
+          })
       )).join('')}
     </div>
   `;

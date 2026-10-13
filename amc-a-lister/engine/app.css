@@ -4686,6 +4686,11 @@ table.al-table {
   white-space: nowrap;
 }
 
+.al-watchlist-icon-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .al-watchlist-card-actions .al-watchlist-icon-btn:hover,
 .al-watchlist-card-actions .al-watchlist-icon-btn:focus-visible {
   color: var(--al-burgundy);

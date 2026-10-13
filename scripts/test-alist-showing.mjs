@@ -3,6 +3,8 @@
  * Run: node scripts/test-alist-showing.mjs
  */
 import { readFileSync } from 'node:fs';
+import { sentInvitesListHtml } from '../amc-a-lister/engine/sent-invites.js';
+import { shortDate } from '../amc-a-lister/engine/format.js';
 import {
   watchesMatchForTogether,
   watchesMatchSameMovieNight,
@@ -227,6 +229,26 @@ assert(
     && expandCss.slice(0, 220).includes('overflow: visible'),
   'the open quick-log bar does not clip the Seen with menu',
 );
+
+const sentHtml = sentInvitesListHtml([{
+  id: 'inv-1',
+  to_username: 'ani<script>',
+  title: 'Digger',
+  watched_on: '2026-10-08',
+  location: 'AMC Lincoln Square 13',
+}]);
+assert(sentHtml.includes('ani&lt;script&gt;'), 'a sent invite escapes the recipient name');
+assert(sentHtml.includes('Digger'), 'a sent invite shows the film');
+assert(sentHtml.includes(shortDate('2026-10-08')), 'a sent invite shows the screening date');
+assert(sentHtml.includes('AMC Lincoln Square 13'), 'a sent invite shows the theater');
+assert(sentHtml.includes('data-invite-cancel="inv-1"'), 'a sent invite can be deleted');
+assert(sentInvitesListHtml([]).includes('None waiting'), 'an empty sent list says none are waiting');
+
+const settingsSource = readFileSync(new URL('../amc-a-lister/engine/settings.js', import.meta.url), 'utf8');
+assert(settingsSource.includes('id="sent-invites"'), 'Settings has a sent-invites section');
+assert(settingsSource.includes('wireSentInvites'), 'Settings loads invites you sent');
+const logSource = readFileSync(new URL('../amc-a-lister/engine/log.js', import.meta.url), 'utf8');
+assert(!logSource.includes('al-invites-outgoing'), 'the watch log does not list invites you sent');
 
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

@@ -1,6 +1,7 @@
 import { bootPage, renderShell, populateSidebarStats } from './nav.js';
 import { loginUrl } from './auth.js';
-import { leaderboardApi, movieApi } from './api.js';
+import { leaderboardApi, movieApi, watchlistApi } from './api.js';
+import { watchlistItemMatchesLogged } from './watchlist-match.js';
 import { money, escapeHtml, monthLabel } from './format.js';
 import { ratingStarBucket } from './billing.js';
 import { watchLogListHtml, withWatchGridTransition } from './watch-log-grid.js';
@@ -40,6 +41,15 @@ bootPage(async ({ root, auth }) => {
     const token = auth.signedIn ? auth.token : undefined;
     const { profile, currentUserId } = await leaderboardApi.profile(userId, token);
     const isSelf = currentUserId === profile.userId;
+    let watchlistItems = [];
+    if (auth.signedIn && !isSelf) {
+      try {
+        const data = await watchlistApi.list(auth.token);
+        watchlistItems = data.items || [];
+      } catch {
+        watchlistItems = [];
+      }
+    }
     document.querySelector('.al-page-title').textContent = profile.displayName;
     document.querySelector('.al-page-sub').textContent = isSelf
       ? (profile.isPublic
@@ -47,7 +57,7 @@ bootPage(async ({ root, auth }) => {
         : 'Private — only you can see this. Turn on your public profile in Settings.')
       : 'Public rank and watch log.';
     document.title = `${profile.displayName} — AMC A-Lister`;
-    renderProfile(main, profile, { currentUserId, auth });
+    renderProfile(main, profile, { currentUserId, auth, watchlistItems });
   } catch (err) {
     const isPrivate = err.status === 404;
     main.innerHTML = `
@@ -66,7 +76,7 @@ bootPage(async ({ root, auth }) => {
   }
 }, { quickLogOnSuccess: (auth) => populateSidebarStats(auth) });
 
-function renderProfile(main, profile, { currentUserId, auth }) {
+function renderProfile(main, profile, { currentUserId, auth, watchlistItems = [] }) {
   const { stats, watches } = profile;
   // Absent when the member chose to withhold theaters — drop the filter too.
   const theaters = [...new Set(watches.map((w) => w.location).filter(Boolean))].sort();
@@ -74,6 +84,9 @@ function renderProfile(main, profile, { currentUserId, auth }) {
   const formats = [...new Set(watches.map((w) => w.format).filter(Boolean))].sort();
   const periodLabel = stats.periodMonth ? monthLabel(`${stats.periodMonth}-01`) : 'This month';
   const isYou = currentUserId === profile.userId;
+  const canSaveWatchlist = !isYou && auth.signedIn;
+  const savedItems = [...watchlistItems];
+  const isSaved = (movie) => savedItems.some((item) => watchlistItemMatchesLogged(item, movie));
   const page = memberProfilePage(location.search);
   const rankCount = (profile.ranks || []).length;
   const logCount = watches.length;
@@ -122,6 +135,7 @@ function renderProfile(main, profile, { currentUserId, auth }) {
           <button type="button" class="al-member-flip" data-member-flip="next" aria-label="Next page">${flipChevron('next')}</button>
         </div>
       </div>
+      <p class="al-muted" id="member-save-status" aria-live="polite"></p>
 
       <div class="al-member-book-stage">
         <div class="al-member-pages">
@@ -130,7 +144,7 @@ function renderProfile(main, profile, { currentUserId, auth }) {
             ${page === 'rank' ? '' : 'hidden'}>
             <h2 class="al-section-title">Rank</h2>
             <p class="al-muted al-member-ranks-note">Theater stack, best first. Separate from star ratings.</p>
-            ${publicRankStackHtml(profile.ranks)}
+            ${publicRankStackHtml(profile.ranks, { saveWatchlist: canSaveWatchlist, isSaved })}
           </div>
           <div class="al-member-page al-member-log${page === 'log' ? ' is-active' : ''}" id="member-page-log"
             role="tabpanel" aria-labelledby="member-tab-log" data-page="log"
@@ -190,7 +204,7 @@ function renderProfile(main, profile, { currentUserId, auth }) {
 
   const render = ({ transition = false } = {}) => {
     document.getElementById('member-count').textContent = `${state.filtered.length} of ${state.watches.length}`;
-    const html = watchLogListHtml(state, { readonly: true });
+    const html = watchLogListHtml(state, { readonly: true, saveWatchlist: canSaveWatchlist, isSaved });
     const apply = () => {
       listEl.innerHTML = html;
       wireMemberLogExpand(auth, state, render, listEl);
@@ -247,6 +261,7 @@ function renderProfile(main, profile, { currentUserId, auth }) {
   });
 
   render();
+  if (canSaveWatchlist) wireSaveWatchlist(auth, savedItems, isSaved);
 
   const bookState = {
     page,
@@ -390,6 +405,59 @@ function wirePageSwipe(el, { onLeft, onRight }) {
       else onRight();
     }
     locked = null;
+  });
+}
+
+function markSavedButtons(movie) {
+  const title = String(movie.title || '').trim().toLowerCase();
+  document.querySelectorAll('[data-save-watchlist]').forEach((btn) => {
+    const sameTmdb = movie.tmdb_id && btn.dataset.tmdbId
+      && Number(btn.dataset.tmdbId) === Number(movie.tmdb_id);
+    const sameTitle = title && String(btn.dataset.title || '').trim().toLowerCase() === title;
+    if (!sameTmdb && !sameTitle) return;
+    btn.disabled = true;
+    btn.title = 'On your list';
+    btn.setAttribute('aria-label', 'On your list');
+  });
+}
+
+function wireSaveWatchlist(auth, savedItems, isSaved) {
+  const book = document.querySelector('[data-member-book]');
+  const status = document.getElementById('member-save-status');
+  if (!book) return;
+
+  book.addEventListener('click', async (event) => {
+    const btn = event.target.closest('[data-save-watchlist]');
+    if (!btn || btn.disabled || !book.contains(btn)) return;
+    event.stopPropagation();
+    const title = btn.dataset.title || '';
+    const tmdbId = btn.dataset.tmdbId ? Number(btn.dataset.tmdbId) : null;
+    const movie = { title, tmdb_id: Number.isFinite(tmdbId) ? tmdbId : null };
+    if (!title) return;
+    if (isSaved(movie)) {
+      markSavedButtons(movie);
+      return;
+    }
+    btn.disabled = true;
+    if (status) status.textContent = '';
+    try {
+      await watchlistApi.create(auth.token, {
+        title,
+        tmdb_id: movie.tmdb_id,
+      });
+      savedItems.push(movie);
+      markSavedButtons(movie);
+      if (status) status.textContent = `Added ${title} to Want to watch.`;
+    } catch (err) {
+      if (err.status === 409) {
+        savedItems.push(movie);
+        markSavedButtons(movie);
+        if (status) status.textContent = `${title} is already on your Want to watch list.`;
+        return;
+      }
+      btn.disabled = false;
+      if (status) status.textContent = err.message || 'Could not add that movie.';
+    }
   });
 }
 

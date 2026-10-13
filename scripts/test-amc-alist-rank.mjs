@@ -348,7 +348,19 @@ function placeWithAnswers(rankedLength, answers) {
   assert.match(publicStack, />Best</);
   assert.equal(publicStack.includes('data-rerank'), false, 'public rank tiles cannot re-rank');
   assert.equal(publicStack.includes('data-unrank'), false, 'public rank tiles cannot be removed');
+  assert.equal(publicStack.includes('Want to watch'), false, 'public rank stays read-only until saving is turned on');
   assert.equal(publicRankStackHtml([]).includes('Nothing ranked yet'), true);
+  const saveRank = publicRankStackHtml(
+    [{ tmdb_id: 9, title: 'Nope', year: 2022 }],
+    { saveWatchlist: true, isSaved: () => false },
+  );
+  assert.match(saveRank, /aria-label="Want to watch"/);
+  assert.match(saveRank, /data-tmdb-id="9"/);
+  const savedRank = publicRankStackHtml(
+    [{ tmdb_id: 9, title: 'Nope', year: 2022 }],
+    { saveWatchlist: true, isSaved: () => true },
+  );
+  assert.match(savedRank, /aria-label="On your list"/);
 
   const profileSource = readFileSync(new URL('../lib/a-list.js', import.meta.url), 'utf8');
   const profileFn = profileSource.slice(
@@ -358,6 +370,8 @@ function placeWithAnswers(rankedLength, answers) {
   assert.match(profileFn, /alist_movie_ranks/, 'public profiles include the movie rank stack');
   const memberSource = readFileSync(new URL('../amc-a-lister/engine/member.js', import.meta.url), 'utf8');
   assert.match(memberSource, /publicRankStackHtml/, 'member profiles render the public rank grid');
+  assert.match(memberSource, /saveWatchlist: canSaveWatchlist/, 'another member’s rank can be saved to want to watch');
+  assert.match(memberSource, /watchlistApi\.create/, 'saving from a profile writes the viewer’s watchlist');
   assert.match(memberSource, /al-member-book/, 'public rank is a flip page next to the watch log');
 }
 
