@@ -117,34 +117,36 @@ function renderBoardRow(entry, rank, currentUserId) {
 
   return `
     <li class="al-board-row${isYou ? ' is-you' : ''}${podium}">
-      <span class="al-board-place serif" aria-label="Rank ${rank}">${rank}</span>
-      <div class="al-board-identity">
-        <div class="al-board-name-row">
-          <a class="al-board-name serif" href="${memberProfileUrl(entry.userId)}">${escapeHtml(entry.displayName)}</a>
-          ${isYou ? '<span class="al-you-badge">you</span>' : ''}
-        </div>
-        <div class="al-board-posters" aria-hidden="${posters.length ? 'false' : 'true'}">
-          ${posters.length
-            ? posters.map((movie) => posterHtml(movie, {
-              size: 'w92',
-              width: 40,
-              height: 60,
-              className: 'al-poster al-board-poster',
-            })).join('')
-            : '<span class="al-board-empty-posters">No movies yet</span>'}
-        </div>
-      </div>
-      <dl class="al-board-stats">
-        ${CARD_STATS.map((stat) => `
-          <div>
-            <dt>${escapeHtml(stat.label)}</dt>
-            <dd class="${stat.kind === 'money' && stat.signed ? savingsClass(entry[stat.key]) : ''}">
-              ${formatStat(entry, stat)}
-            </dd>
+      <a class="al-board-hit" href="${memberProfileUrl(entry.userId)}">
+        <span class="al-board-place serif" aria-label="Rank ${rank}">${rank}</span>
+        <div class="al-board-identity">
+          <div class="al-board-name-row">
+            <span class="al-board-name serif">${escapeHtml(entry.displayName)}</span>
+            ${isYou ? '<span class="al-you-badge">you</span>' : ''}
           </div>
-        `).join('')}
-      </dl>
-      <a class="al-board-view" href="${memberProfileUrl(entry.userId)}">View log →</a>
+          <div class="al-board-posters" aria-hidden="${posters.length ? 'false' : 'true'}">
+            ${posters.length
+              ? posters.map((movie) => posterHtml(movie, {
+                size: 'w92',
+                width: 40,
+                height: 60,
+                className: 'al-poster al-board-poster',
+              })).join('')
+              : '<span class="al-board-empty-posters">No movies yet</span>'}
+          </div>
+        </div>
+        <dl class="al-board-stats">
+          ${CARD_STATS.map((stat) => `
+            <div>
+              <dt>${escapeHtml(stat.label)}</dt>
+              <dd class="${stat.kind === 'money' && stat.signed ? savingsClass(entry[stat.key]) : ''}">
+                ${formatStat(entry, stat)}
+              </dd>
+            </div>
+          `).join('')}
+        </dl>
+        <span class="al-board-view">View log →</span>
+      </a>
     </li>
   `;
 }

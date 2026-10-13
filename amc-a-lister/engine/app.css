@@ -1767,14 +1767,30 @@ table.al-table {
 }
 
 .al-board-row {
+  border: 1px solid var(--al-line);
+  border-radius: calc(var(--al-radius) - 4px);
+  background: var(--al-white);
+}
+
+.al-board-hit {
   display: grid;
   grid-template-columns: 2.6rem minmax(0, 1.2fr) minmax(0, 1.4fr) auto;
   gap: 12px 16px;
   align-items: center;
   padding: 12px 14px;
-  border: 1px solid var(--al-line);
-  border-radius: calc(var(--al-radius) - 4px);
-  background: var(--al-white);
+  color: inherit;
+  text-decoration: none;
+  border-radius: inherit;
+}
+
+.al-board-hit:hover .al-board-name,
+.al-board-hit:hover .al-board-view {
+  color: var(--al-burgundy);
+}
+
+.al-board-hit:focus-visible {
+  outline: 2px solid var(--al-burgundy);
+  outline-offset: -2px;
 }
 
 .al-board-row.is-you {
@@ -1964,64 +1980,100 @@ table.al-table {
   }
 
   .al-board-list {
-    gap: 8px;
+    gap: 6px;
   }
 
   .al-board-row {
-    grid-template-columns: 1.75rem minmax(0, 1fr) auto;
-    gap: 6px 10px;
-    align-items: start;
-    padding: 10px;
     border-radius: 12px;
   }
 
+  .al-board-hit {
+    grid-template-columns: 1.35rem minmax(0, 1fr) auto;
+    grid-template-areas:
+      "place name posters"
+      "place stats posters";
+    gap: 2px 8px;
+    align-items: center;
+    padding: 8px 10px;
+  }
+
   .al-board-place {
-    font-size: 1.32rem;
-    padding-top: 2px;
+    grid-area: place;
+    align-self: start;
+    font-size: 1.05rem;
+    padding-top: 4px;
   }
 
   .al-board-identity {
+    display: contents;
+  }
+
+  .al-board-name-row {
+    grid-area: name;
     min-width: 0;
+    flex-wrap: nowrap;
   }
 
   .al-board-name {
-    font-size: 1.02rem;
+    font-size: 1rem;
     overflow-wrap: anywhere;
   }
 
   .al-board-posters {
-    margin-top: 6px;
+    grid-area: posters;
+    margin-top: 0;
     min-height: 0;
     gap: 3px;
+    align-self: center;
   }
 
   .al-board-stats {
-    grid-column: 1 / -1;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 4px 6px;
-    padding-top: 8px;
-    margin-top: 2px;
-    border-top: 1px solid var(--al-line);
+    grid-area: stats;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: baseline;
+    gap: 0;
+    min-width: 0;
+    padding: 0;
+    margin: 0;
+    border: 0;
+  }
+
+  .al-board-stats > div {
+    display: inline-flex;
+    align-items: baseline;
+    flex: 0 0 auto;
+  }
+
+  .al-board-stats > div:not(:last-child)::after {
+    content: "·";
+    margin: 0 0.28em;
+    color: var(--al-muted);
+    font-weight: 500;
   }
 
   .al-board-stats dt {
-    font-size: 0.58rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   .al-board-stats dd {
-    font-size: 0.82rem;
+    font-size: 0.74rem;
   }
 
   .al-board-view {
-    grid-column: 3;
-    grid-row: 1;
-    justify-self: end;
-    align-self: start;
-    padding-top: 4px;
-    font-size: 0.72rem;
+    display: none;
+  }
+
+  .al-board-hit:active {
+    background: rgba(131, 15, 16, 0.04);
   }
 
   .al-member-hero-stats {
