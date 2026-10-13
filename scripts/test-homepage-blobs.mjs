@@ -199,4 +199,10 @@ assert.ok(minDist(nick, nickedPath) > 12, 'path still hugs the collapsed nick');
 
 assert.equal(piecePath([{ x: 0, y: 0 }, { x: 1, y: 0 }], 1, 0, 0), '');
 
+assert.doesNotMatch(
+  html,
+  /plotmaniac/i,
+  'Plotmaniac archive is not on the public homepage or Projects panel'
+);
+
 console.log('homepage blob corners ok');
