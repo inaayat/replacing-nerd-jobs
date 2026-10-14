@@ -143,7 +143,20 @@ assert.equal(manifest.theme_color, '#830f10');
 assert.ok(manifest.icons.some((i) => i.sizes === '192x192'), 'manifest has a 192 icon');
 assert.ok(manifest.icons.some((i) => i.sizes === '512x512'), 'manifest has a 512 icon');
 
-for (const page of ['index.html', 'tv.html', 'settings.html']) {
+for (const page of [
+  'index.html',
+  'tv.html',
+  'settings.html',
+  'sign-in.html',
+  'rank.html',
+  'what-to-watch.html',
+  'statistics.html',
+  'leaderboard.html',
+  'member.html',
+  'letterboxd.html',
+  'bulk-add.html',
+  'bulk-ratings.html',
+]) {
   const html = readFileSync(new URL(`../amc-a-lister/${page}`, import.meta.url), 'utf8');
   assert.match(html, /rel="manifest" href="\.\/manifest\.webmanifest"/, `${page} links the manifest`);
   assert.match(html, /rel="apple-touch-icon" href="\.\/icons\/icon-192\.png"/, `${page} has an apple-touch-icon`);
