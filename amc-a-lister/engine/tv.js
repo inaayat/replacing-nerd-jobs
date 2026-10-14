@@ -90,20 +90,20 @@ async function loadPage(auth) {
               <input class="al-input" id="tv-add-title" type="text" placeholder="Show title…" required />
               <div class="al-search-results" id="tv-add-results" hidden></div>
             </div>
-            <div class="al-tv-add-expand" id="tv-add-expand" inert>
-              <div class="al-tv-add-expand-inner">
-                <input class="al-input al-tv-add-date" id="tv-add-date" type="date" required value="${todayISO()}" aria-label="Date watched" />
-                <select class="al-select al-tv-add-rating" id="tv-add-rating" aria-label="Rating">
-                  <option value="">Rating</option>
-                  <option value="5">5★</option>
-                  <option value="4">4★</option>
-                  <option value="3">3★</option>
-                  <option value="2">2★</option>
-                  <option value="1">1★</option>
-                  <option value="dnf">DNF</option>
-                </select>
-                <button class="al-btn al-btn-primary" type="submit">Add</button>
-              </div>
+          </div>
+          <div class="al-tv-add-expand" id="tv-add-expand" inert>
+            <div class="al-tv-add-expand-inner">
+              <input class="al-input al-tv-add-date" id="tv-add-date" type="date" required value="${todayISO()}" aria-label="Date watched" />
+              <select class="al-select al-tv-add-rating" id="tv-add-rating" aria-label="Rating">
+                <option value="">Rating</option>
+                <option value="5">5★</option>
+                <option value="4">4★</option>
+                <option value="3">3★</option>
+                <option value="2">2★</option>
+                <option value="1">1★</option>
+                <option value="dnf">DNF</option>
+              </select>
+              <button class="al-btn al-btn-primary" type="submit">Add</button>
             </div>
           </div>
           <input type="hidden" id="tv-add-tmdb_id" value="" />

@@ -4954,14 +4954,13 @@ table.al-table {
 .al-tv-add-expand {
   display: grid;
   grid-template-rows: 0fr;
-  flex: 1 1 100%;
   transition: grid-template-rows 0.35s ease, margin-top 0.35s ease;
   margin-top: 0;
 }
 
 .al-tv-add.is-expanded .al-tv-add-expand {
   grid-template-rows: 1fr;
-  margin-top: 2px;
+  margin-top: 8px;
 }
 
 .al-tv-add-expand-inner {
@@ -5712,7 +5711,6 @@ table.al-table {
   }
 
   .al-tv-add-field,
-  .al-tv-add-expand,
   .al-tv-add-date,
   .al-tv-add-rating,
   .al-tv-add-row .al-btn {
