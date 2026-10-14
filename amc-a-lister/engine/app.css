@@ -2856,6 +2856,8 @@ table.al-table {
 
 .al-howto-body {
   margin-top: 12px;
+  display: grid;
+  gap: 16px;
 }
 
 .al-howto-list {
@@ -2866,8 +2868,9 @@ table.al-table {
   gap: 12px;
 }
 
-.al-howto-item-title {
-  margin: 0 0 2px;
+.al-howto-item-title,
+.al-faq-section-title {
+  margin: 0 0 6px;
   font-family: inherit;
   font-size: 0.82rem;
   font-weight: 700;
@@ -2876,10 +2879,65 @@ table.al-table {
   color: var(--al-charcoal);
 }
 
-.al-howto-item p {
+.al-howto-item p,
+.al-faq-a {
   margin: 0;
   font-size: 0.88rem;
   line-height: 1.4;
+  color: var(--al-text);
+}
+
+.al-faq-section {
+  display: grid;
+  gap: 4px;
+}
+
+.al-faq-item {
+  border-top: 1px solid var(--al-line);
+}
+
+.al-faq-item:first-of-type {
+  border-top: 0;
+}
+
+.al-faq-q {
+  cursor: pointer;
+  list-style: none;
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--al-black);
+  padding: 8px 0;
+}
+
+.al-faq-q::-webkit-details-marker {
+  display: none;
+}
+
+.al-faq-q::before {
+  content: '▸';
+  display: inline-block;
+  margin-right: 0.4em;
+  transition: transform 0.15s ease;
+}
+
+.al-faq-item[open] > .al-faq-q::before {
+  transform: rotate(90deg);
+}
+
+.al-faq-item[open] .al-faq-a {
+  padding: 0 0 10px;
+}
+
+.al-import-example {
+  margin: 0 0 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--al-line);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
   color: var(--al-text);
 }
 
@@ -5905,8 +5963,31 @@ table.al-table {
   padding: 10px 16px;
 }
 
+.al-main--settings .al-howto-kicker,
+.al-main--settings .al-howto .al-settings-kicker {
+  margin-bottom: 4px;
+}
+
 .al-main--settings .al-howto-summary {
   font-size: 1.05rem;
+}
+
+.al-main--settings .al-howto-summary.al-settings-title,
+.al-main--settings .al-howto-summary {
+  margin: 0;
+  font-family: var(--al-font-display);
+  font-weight: 600;
+}
+
+#bug-report-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+#bug-report-form .al-settings-actions {
+  margin-top: 4px;
 }
 
 .al-settings-form {
@@ -6043,7 +6124,8 @@ table.al-table {
 
   .al-main--settings .al-btn,
   .al-main--settings .al-input,
-  .al-main--settings .al-textarea {
+  .al-main--settings .al-textarea,
+  .al-main--settings input[type="file"] {
     min-height: 44px;
     font-size: 16px;
   }
@@ -6091,6 +6173,13 @@ table.al-table {
   .al-main--settings .al-invites-cancel {
     min-height: 44px;
     padding: 0 8px;
+  }
+
+  .al-main--settings .al-faq-q,
+  .al-main--settings .al-howto-summary {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
   }
 }
 

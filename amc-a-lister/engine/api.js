@@ -115,6 +115,10 @@ export const importApi = {
   run: (token, watches) => mutate(apiFetch('/api/alist-import', { method: 'POST', body: { watches }, token })),
 };
 
+export const bugReportApi = {
+  create: (token, body) => apiFetch('/api/alist-bug-reports', { method: 'POST', body, token }),
+};
+
 /** Trim, casefold, and drop punctuation/articles so "The Odyssey" == "odyssey". */
 function normalizeTitle(s) {
   return String(s || '')

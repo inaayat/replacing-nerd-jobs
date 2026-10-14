@@ -340,7 +340,7 @@ export function watchLogListHtml(state, { readonly = false, saveWatchlist = fals
           rest of the fields appear once you start typing.
         </p>
         <p class="al-muted">
-          Already have a spreadsheet? <a href="/amc-a-lister/settings.html">Import it from Settings</a>.
+          Already have a spreadsheet? <a href="/amc-a-lister/settings.html">Download a template in Settings and upload it</a>.
         </p>
       </div>
     `;

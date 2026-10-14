@@ -22,11 +22,15 @@ export function lastDayOfChargeMonth(chargeMonthStr) {
 export function normalizePriceTiers(raw) {
   if (!Array.isArray(raw) || !raw.length) return null;
   return raw
-    .map((tier) => ({
-      effective_on: String(tier.effective_on || '').slice(0, 10),
-      cents: Math.round(Number(tier.cents)),
-    }))
-    .filter((tier) => tier.effective_on && tier.cents > 0)
+    .map((tier) => {
+      if (!tier || typeof tier !== 'object') return null;
+      if (tier.cents == null || tier.cents === '') return null;
+      const cents = Math.round(Number(tier.cents));
+      const effective_on = String(tier.effective_on || '').slice(0, 10);
+      if (!effective_on || !Number.isFinite(cents) || cents < 0) return null;
+      return { effective_on, cents };
+    })
+    .filter(Boolean)
     .sort((a, b) => a.effective_on.localeCompare(b.effective_on));
 }
 

@@ -1,10 +1,14 @@
 import { bootPage, renderShell, requireSignIn, populateSidebarStats, isTvBetaEnabled, setTvBetaEnabled } from './nav.js';
-import { membershipApi, importApi, backfillApi, letterboxdApi, showingInvitesApi } from './api.js';
+import { membershipApi, importApi, backfillApi, letterboxdApi, showingInvitesApi, bugReportApi, watchesApi } from './api.js';
 import { sentInvitesListHtml } from './sent-invites.js';
 import { parseXlsxFile } from './import-xlsx.js';
+import { downloadImportTemplate, downloadWatchLogExport } from './import-template.js';
+import { EXAMPLE_IMPORT_JSON } from './import-watch.js';
+import { theatersFromWatches } from './theater-suggest.js';
 import { escapeHtml, parseMoneyInput } from './format.js';
 import { todayISO } from './dates.js';
 import { renderHowToUseSection } from './how-to-use.js';
+import { captureBugContext, BUG_SCREENSHOT_MAX } from './bug-report.js';
 
 const DEFAULT_TIERS = [
   { effective_on: '2018-06-01', cents: 2495 },
@@ -25,10 +29,12 @@ bootPage(async ({ root, auth }) => {
     title: 'Settings',
     subtitle: needsRateSetup
       ? 'Welcome — set your monthly rate to finish setup.'
-      : 'Membership pricing, Letterboxd, beta features, and spreadsheet import.',
+      : 'Membership pricing, Letterboxd, import and export, and account.',
     signedIn: true,
     body: `
     <main class="al-main al-main--settings">
+      ${renderHowToUseSection({ setup: needsRateSetup })}
+
       ${needsRateSetup ? `
         <section class="al-panel al-panel--setup al-settings-card">
           <p class="al-settings-kicker">Setup</p>
@@ -87,7 +93,7 @@ bootPage(async ({ root, auth }) => {
         <section class="al-panel al-settings-card al-tier-section">
           <p class="al-settings-kicker">Billing</p>
           <h2 class="serif al-settings-title">Monthly rates</h2>
-          <p class="al-muted al-settings-lead">One A-List charge per calendar month you see a movie.</p>
+          <p class="al-muted al-settings-lead">One monthly charge from your first theater screening through this month. Add a row when the price changes. Use $0 to pause.</p>
           <div class="al-tier-table" id="price-tiers">
             <div class="al-tier-row al-tier-row--head">
               <span>Date</span>
@@ -126,30 +132,61 @@ bootPage(async ({ root, auth }) => {
 
       <section class="al-panel al-settings-card" id="settings-data">
         <p class="al-settings-kicker">Library</p>
-        <h2 class="serif al-settings-title">Posters &amp; imports</h2>
+        <h2 class="serif al-settings-title">Watch log import &amp; export</h2>
         <p class="al-muted al-settings-lead">
-          Backfill fills missing posters and TMDB ids for every A-Lister watch log, watchlist,
-          rank, and cache — all accounts. Never changes theater, cost, rating, or date.
+          Download the template, fill the Watches sheet, then upload. Export uses the same file.
+          Same date, title, and theater are skipped. Backfill fills missing posters and TMDB ids
+          for every A-Lister watch log — never theater, cost, rating, or date.
         </p>
+        <div class="al-settings-actions">
+          <button class="al-btn" type="button" id="template-download-btn">Download import template</button>
+          <button class="al-btn" type="button" id="export-log-btn">Export my watch log</button>
+        </div>
+        <div class="al-settings-actions al-settings-actions--file">
+          <input type="file" id="xlsx-file" accept=".xlsx,.xls" />
+          <button class="al-btn al-btn-primary" type="button" id="xlsx-import-btn">Upload filled template</button>
+        </div>
         <div class="al-settings-actions">
           <button class="al-btn" type="button" id="backfill-btn">Backfill posters</button>
           <p class="al-muted" id="backfill-status"></p>
         </div>
-        <h3 class="al-settings-sub">Import spreadsheet</h3>
-        <p class="al-muted al-settings-lead">Upload your A-List Tracking.xlsx (Movies sheet). Duplicates by date + title + location are skipped.</p>
-        <div class="al-settings-actions al-settings-actions--file">
-          <input type="file" id="xlsx-file" accept=".xlsx,.xls" />
-          <button class="al-btn al-btn-primary" type="button" id="xlsx-import-btn">Upload spreadsheet</button>
-        </div>
         <h3 class="al-settings-sub">Import JSON</h3>
-        <textarea class="al-textarea" id="import-json" rows="4" placeholder='[{"watched_on":"2025-01-15","title":"Dune: Part Two","ticket_cents":2495}]'></textarea>
+        <p class="al-muted al-settings-lead" id="import-json-help">
+          Advanced. Same fields as the template. theater / theatre / location, ticket_price / cost / $15.99, format, seat, companions, rating.
+        </p>
+        <p class="al-import-example" id="import-json-example">${escapeHtml(EXAMPLE_IMPORT_JSON)}</p>
+        <textarea class="al-textarea" id="import-json" rows="6" placeholder='Paste a JSON array of screenings'></textarea>
         <div class="al-settings-actions">
           <button class="al-btn" type="button" id="import-btn">Import JSON</button>
         </div>
         <p class="al-muted" id="import-status"></p>
       </section>
 
-      ${renderHowToUseSection({ setup: needsRateSetup })}
+      <section class="al-panel al-settings-card" id="bug-report">
+        <p class="al-settings-kicker">Help</p>
+        <h2 class="serif al-settings-title">Report a bug</h2>
+        <p class="al-muted al-settings-lead">A short note is enough. This page, device, and account are attached automatically. Nothing is emailed.</p>
+        <form id="bug-report-form">
+          <div class="al-field al-settings-field">
+            <label for="bug-message">What happened</label>
+            <input class="al-input" id="bug-message" maxlength="500" required
+                   placeholder="Posters disappeared after I filtered the log" />
+          </div>
+          <div class="al-field al-settings-field">
+            <label for="bug-details">Steps or details <span class="al-muted">(optional)</span></label>
+            <textarea class="al-textarea" id="bug-details" rows="3" maxlength="4000"
+                      placeholder="I tapped Filter, chose Dolby, then the grid went blank."></textarea>
+          </div>
+          <div class="al-field al-settings-field">
+            <label for="bug-screenshot">Screenshot <span class="al-muted">(optional)</span></label>
+            <input class="al-input" type="file" id="bug-screenshot" accept="image/*" />
+          </div>
+          <div class="al-settings-actions">
+            <button class="al-btn al-btn-primary" type="submit" id="bug-report-submit">Send report</button>
+            <p class="al-muted" id="bug-report-status" role="status" aria-live="polite"></p>
+          </div>
+        </form>
+      </section>
 
       <section class="al-panel al-settings-card" id="settings-account">
         <p class="al-settings-kicker">Account</p>
@@ -188,6 +225,31 @@ bootPage(async ({ root, auth }) => {
   });
 
   const setStatus = (msg) => { document.getElementById('import-status').textContent = msg; };
+
+  const knownTheatersForImport = async () => {
+    try {
+      const { watches } = await watchesApi.list(auth.token);
+      return theatersFromWatches(watches);
+    } catch {
+      return [];
+    }
+  };
+
+  document.getElementById('template-download-btn').addEventListener('click', () => {
+    downloadImportTemplate();
+    setStatus('Template downloaded. Fill the Watches sheet, delete the sample rows, then upload.');
+  });
+
+  document.getElementById('export-log-btn').addEventListener('click', async () => {
+    setStatus('Preparing export…');
+    try {
+      const { watches } = await watchesApi.list(auth.token);
+      downloadWatchLogExport(watches || []);
+      setStatus(`Exported ${(watches || []).length} screening${(watches || []).length === 1 ? '' : 's'}.`);
+    } catch (err) {
+      setStatus(err.message || 'Could not export the watch log.');
+    }
+  });
 
   const publicToggle = document.getElementById('public_profile');
   const usernameInput = document.getElementById('username');
@@ -253,6 +315,7 @@ bootPage(async ({ root, auth }) => {
 
   wireLetterboxdSettings(auth);
   wireSentInvites(auth);
+  wireBugReport(auth);
 
   /**
    * Import has no undo and there is no bulk delete to recover with, so show
@@ -283,7 +346,8 @@ bootPage(async ({ root, auth }) => {
     }
     setStatus('Reading spreadsheet…');
     try {
-      await runImport(await parseXlsxFile(file), file.name);
+      const knownTheaters = await knownTheatersForImport();
+      await runImport(await parseXlsxFile(file, { knownTheaters }), file.name);
     } catch (err) {
       setStatus(err.message);
     }
@@ -480,7 +544,7 @@ function collectTiers() {
     if (!effective_on && !raw) return;
 
     const cents = parseMoneyInput(raw);
-    if (!effective_on || cents == null || cents <= 0) {
+    if (!effective_on || cents == null || cents < 0) {
       invalid.push(i + 1);
       return;
     }
@@ -489,4 +553,50 @@ function collectTiers() {
 
   tiers.sort((a, b) => a.effective_on.localeCompare(b.effective_on));
   return { tiers, invalid };
+}
+
+function readScreenshotFile(file) {
+  if (!file) return Promise.resolve('');
+  if (!String(file.type || '').startsWith('image/')) {
+    return Promise.reject(new Error('Choose an image file.'));
+  }
+  // Data URLs are ~4/3 the file size. Stay under BUG_SCREENSHOT_MAX.
+  if (file.size > Math.floor(BUG_SCREENSHOT_MAX * 0.72)) {
+    return Promise.reject(new Error('Keep the screenshot under 250 KB, or skip it.'));
+  }
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Could not read that screenshot.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function wireBugReport(auth) {
+  const form = document.getElementById('bug-report-form');
+  if (!form) return;
+  const status = document.getElementById('bug-report-status');
+  const submit = document.getElementById('bug-report-submit');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    status.textContent = 'Sending…';
+    submit.disabled = true;
+    try {
+      const screenshot = await readScreenshotFile(document.getElementById('bug-screenshot').files[0]);
+      await bugReportApi.create(auth.token, {
+        message: document.getElementById('bug-message').value,
+        details: document.getElementById('bug-details').value,
+        url: location.href,
+        user_agent: navigator.userAgent || '',
+        screenshot,
+        context: { ...captureBugContext(), tv_beta: isTvBetaEnabled() },
+      });
+      form.reset();
+      status.textContent = 'Thanks — report sent.';
+    } catch (err) {
+      status.textContent = err.message || 'Could not send the report.';
+    } finally {
+      submit.disabled = false;
+    }
+  });
 }

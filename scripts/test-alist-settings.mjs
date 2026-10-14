@@ -27,12 +27,22 @@ for (const id of [
   'beta-tv-status',
   'backfill-btn',
   'backfill-status',
+  'template-download-btn',
+  'export-log-btn',
   'xlsx-file',
   'xlsx-import-btn',
   'import-json',
+  'import-json-example',
   'import-btn',
   'import-status',
   'settings-account',
+  'bug-report',
+  'bug-report-form',
+  'bug-message',
+  'bug-details',
+  'bug-screenshot',
+  'bug-report-submit',
+  'bug-report-status',
 ]) {
   assert.match(settings, new RegExp(`id="${id}"`), `settings still has #${id}`);
 }
@@ -44,9 +54,15 @@ assert.match(settings, /Invites you sent/, 'sent invites stay');
 assert.match(settings, /Letterboxd username/, 'Letterboxd stays in profile');
 assert.match(settings, /Beta/, 'beta features stay');
 assert.match(settings, /Backfill posters/, 'poster backfill stays');
-assert.match(settings, /Upload spreadsheet/, 'xlsx import stays');
+assert.match(settings, /Download import template/, 'template download stays');
+assert.match(settings, /Upload filled template/, 'xlsx upload stays');
+assert.match(settings, /Export my watch log/, 'watch log export stays');
 assert.match(settings, /Import JSON/, 'JSON import stays');
+assert.doesNotMatch(settings, /A-List Tracking/, 'legacy tracking spreadsheet UI is gone');
+assert.doesNotMatch(settings, /Upload spreadsheet/, 'legacy upload label is gone');
 assert.match(settings, /data-nav-auth/, 'account / logout is on the page');
+assert.match(settings, /bugReportApi\.create/, 'bug reports still post through the authenticated API');
+assert.match(settings, /wireBugReport/, 'bug report form still wires');
 assert.match(settings, /href="\/account.html"/, 'Account still links to account.html');
 assert.match(settings, /scope: 'all'/, 'backfill still runs for every account');
 assert.match(settings, /i < 50/, 'backfill still loops batches');
@@ -58,13 +74,16 @@ assert.match(settings, /al-tier-remove-spacer/, 'every rate row keeps a remove c
 assert.match(settings, /form="membership-form"/, 'profile fields still submit with membership');
 
 {
+  const howTo = settings.indexOf('renderHowToUseSection');
+  const profile = settings.indexOf('al-settings-profile');
   const letterboxd = settings.indexOf('id="letterboxd-form"');
   const membership = settings.indexOf('id="membership-form"');
-  const howTo = settings.lastIndexOf('renderHowToUseSection');
   const library = settings.indexOf('id="settings-data"');
+  const bug = settings.indexOf('id="bug-report"');
   const account = settings.indexOf('id="settings-account"');
+  assert.ok(howTo > -1 && howTo < profile, 'FAQ sits at the top of Settings');
   assert.ok(letterboxd > -1 && letterboxd < membership, 'Letterboxd sits in the top profile card');
-  assert.ok(howTo > library && howTo < account, 'How to use sits below settings, above account');
+  assert.ok(bug > library && bug < account, 'Report a bug sits above account');
 }
 
 assert.match(css, /\.al-main--settings \{[\s\S]*max-width: 40rem/, 'desktop settings are not full-bleed');
@@ -74,10 +93,38 @@ assert.match(css, /\.al-main--settings \.al-btn[\s\S]*min-height: 44px/, 'phone 
 assert.match(css, /#letterboxd-form \[hidden\]/, 'Letterboxd disconnect stays hidden until connected');
 assert.match(css, /\.al-main--settings \.al-btn-primary \{[\s\S]*var\(--al-burgundy\)/, 'Save membership uses site maroon');
 assert.match(css, /\.al-main--settings \.al-tier-row[\s\S]*minmax\(0, 1\.15fr\) minmax\(0, 1fr\) 44px/, 'rate rows stay a 3-column grid');
+assert.match(css, /\.al-faq-q/, 'FAQ questions are styled');
+assert.match(css, /\.al-faq-section-title/, 'FAQ section headings match how-to titles');
+assert.match(css, /\.al-import-example/, 'JSON example uses the page font, not a code block');
 
 const howToSrc = readFileSync(new URL('../amc-a-lister/engine/how-to-use.js', import.meta.url), 'utf8');
-assert.match(howToSrc, /al-howto-item-title/, 'how-to uses one heading style per item');
+assert.match(howToSrc, /id="how-to-use"/, 'FAQ section keeps its anchor');
+assert.match(howToSrc, /FAQ &amp; Set Up Instructions/, 'FAQ section uses the new title');
+assert.match(howToSrc, /al-faq-section-title/, 'FAQ groups questions into sections');
+assert.match(howToSrc, /al-faq-q/, 'FAQ questions are expandable');
+assert.match(howToSrc, /Getting started/, 'FAQ has Getting started');
+assert.match(howToSrc, /Logging &amp; watch log/, 'FAQ has Logging');
+assert.match(howToSrc, /Membership pricing/, 'FAQ has pricing');
+assert.match(howToSrc, /Import \/ export/, 'FAQ has import/export');
+assert.match(howToSrc, /Sharing &amp; friends/, 'FAQ has sharing');
+assert.match(howToSrc, /Leaderboard &amp; privacy/, 'FAQ has leaderboard');
+assert.match(howToSrc, /Letterboxd/, 'FAQ has Letterboxd');
+assert.match(howToSrc, /faqSection\('TV'/, 'FAQ has TV');
+assert.match(howToSrc, /report a bug/, 'FAQ has troubleshooting');
+assert.match(howToSrc, /\$0 row/, 'FAQ explains pause with a $0 row');
+assert.match(howToSrc, /falsely high/, 'FAQ warns that pausing with logged movies inflates savings');
+assert.match(howToSrc, /every calendar month from your first theater screening/, 'FAQ describes billed months as the code does');
 assert.doesNotMatch(howToSrc, /<a |<em>|<code>|<strong>/, 'how-to copy is not mixed links/italics/code');
 assert.doesNotMatch(howToSrc, /<details[^>]*\sopen/, 'how-to stays collapsed by default');
+
+const dbSrc = readFileSync(new URL('../lib/db.js', import.meta.url), 'utf8');
+assert.match(dbSrc, /CREATE TABLE IF NOT EXISTS alist_bug_reports/, 'schema creates alist_bug_reports safely');
+const api = readFileSync(new URL('../api/alist.js', import.meta.url), 'utf8');
+assert.match(api, /case 'bug-reports':/, 'bug-reports route is on api/alist.js');
+const vercel = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
+assert.ok(
+  vercel.rewrites.some((r) => r.source === '/api/alist-bug-reports' && r.destination === '/api/alist?route=bug-reports'),
+  'rewrite for /api/alist-bug-reports',
+);
 
 console.log('alist settings layout tests passed');

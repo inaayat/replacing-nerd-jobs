@@ -60,6 +60,8 @@ import {
   LETTERBOXD_SYNC_INTERVAL_MS,
 } from '../amc-a-lister/engine/letterboxd.js';
 import { normalizeBulkUpdate } from '../amc-a-lister/engine/bulk-edit.js';
+import { normalizeBugReport } from '../amc-a-lister/engine/bug-report.js';
+import { normalizeImportWatch } from '../amc-a-lister/engine/import-watch.js';
 
 export default async function handler(req, res) {
   const route = String(req.query?.route || '').trim();
@@ -104,6 +106,8 @@ export default async function handler(req, res) {
       return handleTvRanks(req, res);
     case 'letterboxd':
       return handleLetterboxd(req, res);
+    case 'bug-reports':
+      return handleBugReports(req, res);
     default:
       res.status(404).json({ error: 'Unknown A-List route.' });
   }
@@ -1486,30 +1490,15 @@ async function handleImport(req, res) {
       SELECT watched_on::text AS watched_on, title, location
       FROM alist_watches WHERE user_id = ${userId}
     `;
+    const knownTheaters = [...new Set(existing.map((row) => row.location).filter(Boolean))];
     const seen = new Set(existing.map(watchKey));
 
     let skipped = 0;
     const pending = [];
 
     for (const raw of watches) {
-      const data = {
-        watched_on: String(raw.watched_on || raw.date || '').slice(0, 10),
-        title: String(raw.title || raw.movie || '').trim(),
-        location: raw.location ? String(raw.location).trim() : null,
-        format: raw.format ? String(raw.format).trim() : '',
-        saw_alone: raw.saw_alone === true || raw.saw_alone === 'X' || raw.saw_alone === 'x',
-        auditorium: raw.auditorium ? String(raw.auditorium).trim() : null,
-        seat: raw.seat ? String(raw.seat).trim() : null,
-        ticket_cents: raw.ticket_cents != null
-          ? Number(raw.ticket_cents)
-          : parseMoney(raw.charge ?? raw.ticket),
-        rating: raw.dnf ? null : parseRating(raw.rating ?? raw.personal_rating),
-        dnf: raw.dnf === true || String(raw.rating || raw.personal_rating || '').toUpperCase() === 'DNF',
-        notes: raw.notes ? String(raw.notes).trim() : null,
-        tmdb_id: raw.tmdb_id != null ? Number(raw.tmdb_id) : null,
-      };
-
-      if (!data.watched_on || !data.title) {
+      const data = normalizeImportWatch(raw, { knownTheaters });
+      if (!data) {
         skipped += 1;
         continue;
       }
@@ -1524,30 +1513,61 @@ async function handleImport(req, res) {
     }
 
     const linked = await resolveAndCacheMovies(pending);
-    const toInsert = linked.items;
+    const toInsert = linked.items.map((row) => ({
+      watched_on: row.watched_on,
+      title: row.title,
+      tmdb_id: row.tmdb_id,
+      location: row.location,
+      format: row.format || '',
+      saw_alone: !!row.saw_alone,
+      auditorium: row.auditorium,
+      seat: row.seat,
+      ticket_cents: row.ticket_cents,
+      rating: row.rating,
+      dnf: !!row.dnf,
+      notes: row.notes,
+      in_theaters: row.in_theaters !== false,
+    }));
 
     // Batched rather than one awaited INSERT per row: a 100-row sheet was 100
     // sequential round trips inside a single function invocation.
     let inserted = 0;
+    const insertedKeys = [];
     for (let i = 0; i < toInsert.length; i += IMPORT_BATCH_SIZE) {
       const batch = toInsert.slice(i, i + IMPORT_BATCH_SIZE);
-      await db()`
+      const rows = await db()`
         INSERT INTO alist_watches (
           id, user_id, watched_on, title, tmdb_id, location, format,
-          saw_alone, auditorium, seat, ticket_cents, rating, dnf, notes
+          saw_alone, auditorium, seat, ticket_cents, rating, dnf, notes, in_theaters
         )
         SELECT
           gen_random_uuid()::text, ${userId}, r.watched_on::date, r.title,
           r.tmdb_id::int, r.location, r.format, r.saw_alone::boolean,
           r.auditorium, r.seat, r.ticket_cents::int, r.rating::numeric(2,1),
-          r.dnf::boolean, r.notes
+          r.dnf::boolean, r.notes, COALESCE(r.in_theaters, true)
         FROM jsonb_to_recordset(${JSON.stringify(batch)}::jsonb) AS r(
           watched_on text, title text, tmdb_id int, location text, format text,
           saw_alone boolean, auditorium text, seat text, ticket_cents int,
-          rating numeric, dnf boolean, notes text
+          rating numeric, dnf boolean, notes text, in_theaters boolean
         )
+        RETURNING id, watched_on::text AS watched_on, title, location
       `;
       inserted += batch.length;
+      insertedKeys.push(...rows);
+    }
+
+    const companionsByKey = new Map();
+    for (const row of linked.items) {
+      if (row.in_theaters !== false && row.companions?.length) {
+        companionsByKey.set(watchKey(row), row.companions);
+      }
+    }
+    if (companionsByKey.size) {
+      const byKey = new Map(insertedKeys.map((row) => [watchKey(row), row.id]));
+      for (const [key, usernames] of companionsByKey) {
+        const id = byKey.get(key);
+        if (id) await applySeenWith(userId, id, usernames);
+      }
     }
 
     res.status(200).json({
@@ -2594,16 +2614,42 @@ async function handleTvRanks(req, res) {
   res.status(405).json({ error: 'Method not allowed.' });
 }
 
-function parseMoney(value) {
-  if (value == null || value === '') return null;
-  const n = Number(String(value).replace(/[^0-9.]/g, ''));
-  return Number.isNaN(n) ? null : Math.round(n * 100);
-}
+async function handleBugReports(req, res) {
+  if (!requireDb(res)) return;
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed.' });
+    return;
+  }
+  const session = await requireUser(req, res);
+  if (!session) return;
 
-function parseRating(value) {
-  if (value == null || value === '') return null;
-  const s = String(value).toUpperCase();
-  if (s === 'DNF') return null;
-  const n = Number(value);
-  return Number.isNaN(n) ? null : n;
+  const parsed = normalizeBugReport(req.body || {});
+  if (parsed.error) {
+    res.status(400).json({ error: parsed.error });
+    return;
+  }
+
+  try {
+    await ensureSchema();
+    const id = randomUUID();
+    const { message, details, url, user_agent, screenshot, context } = parsed.data;
+    await db()`
+      INSERT INTO alist_bug_reports (
+        id, user_id, message, details, url, user_agent, screenshot, context, status
+      ) VALUES (
+        ${id},
+        ${session.userId},
+        ${message},
+        ${details},
+        ${url || null},
+        ${user_agent || null},
+        ${screenshot || null},
+        ${JSON.stringify(context)}::jsonb,
+        'open'
+      )
+    `;
+    res.status(201).json({ ok: true, id });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
 }

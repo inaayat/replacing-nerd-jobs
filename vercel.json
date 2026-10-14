@@ -172,6 +172,10 @@
       "destination": "/api/alist?route=letterboxd"
     },
     {
+      "source": "/api/alist-bug-reports",
+      "destination": "/api/alist?route=bug-reports"
+    },
+    {
       "source": "/api/pc-cubes",
       "destination": "/api/packing-cubes"
     },

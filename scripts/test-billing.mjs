@@ -5,6 +5,7 @@ import {
   monthlyRateForMonth,
   computeSummary,
   membershipPriceTiers,
+  normalizePriceTiers,
   billingChargeMonths,
   actorStats,
   topActorsByRating,
@@ -186,5 +187,30 @@ const kept = ratingMovies([
 assert.equal(kept.length, 1);
 assert.equal(kept[0].rating, 4.5);
 assert.equal(kept[0].watched_on, '2026-04-01');
+
+const paused = normalizePriceTiers([
+  { effective_on: '2025-01-01', cents: 2495 },
+  { effective_on: '2025-03-01', cents: 0 },
+  { effective_on: '2025-06-01', cents: 2495 },
+]);
+assert.equal(paused.length, 3);
+assert.equal(paused[1].cents, 0);
+assert.equal(monthlyRateForMonth('2025-02-01', { price_tiers: paused }), 2495);
+assert.equal(monthlyRateForMonth('2025-03-01', { price_tiers: paused }), 0);
+assert.equal(monthlyRateForMonth('2025-05-01', { price_tiers: paused }), 0);
+assert.equal(monthlyRateForMonth('2025-06-01', { price_tiers: paused }), 2495);
+assert.deepEqual(
+  normalizePriceTiers([{ effective_on: '2025-01-01', cents: '' }]),
+  [],
+  'blank cents is not a $0 pause',
+);
+
+const pauseWatches = [
+  { watched_on: '2025-01-10', ticket_cents: 1800, title: 'A' },
+  { watched_on: '2025-04-10', ticket_cents: 2200, title: 'B' },
+];
+const pauseSummary = computeSummary(pauseWatches, { price_tiers: paused, promo_folded: true }, { asOf: '2025-06-30' });
+assert.equal(pauseSummary.byMonth.find((row) => row.month === '2025-04-01').bill, 0);
+assert.equal(pauseSummary.byMonth.find((row) => row.month === '2025-01-01').bill, 2495);
 
 console.log('billing tests passed');
