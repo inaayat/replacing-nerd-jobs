@@ -155,11 +155,19 @@ const css = readFileSync(new URL('../amc-a-lister/engine/app.css', import.meta.u
 const gridCss = css.slice(css.indexOf('/* Watch log:'), css.indexOf('.al-tv-airing-segment'));
 assert(gridCss.includes('.al-watch-card-facts--tv'), 'episode labels get room on the TV card');
 assert(/repeat\(2,\s*minmax\(0,\s*1fr\)\)/.test(gridCss.slice(0, gridCss.indexOf('@media (min-width: 768px)'))), 'phones show watched TV two across');
+assert(css.includes('.al-tv-add-expand'), 'TV add extras use the quick-log height animation');
+assert(css.includes('grid-template-rows: 0fr'), 'collapsed TV add extras take no height');
+assert(/\.al-tv-add \.al-btn-primary \{[\s\S]*var\(--al-burgundy\)/.test(css), 'TV add uses the site maroon');
 
 const tvSource = readFileSync(new URL('../amc-a-lister/engine/tv.js', import.meta.url), 'utf8');
 assert(tvSource.includes('tvWatchListHtml'), 'the TV page renders the poster grid');
 assert(!tvSource.includes('al-log-list--tv'), 'the TV page no longer builds the watched table');
 assert(tvSource.includes('loadTvWatchDetails'), 'opening a card loads show details');
+assert(tvSource.includes('placeholder="Show title…"'), 'add starts with the title field');
+assert(tvSource.includes('al-tv-add-expand'), 'date, rating, and Add sit in the expand panel');
+assert(tvSource.includes('syncExpand'), 'typing a title reveals the rest of the add form');
+assert(tvSource.includes("form.classList.toggle('has-title'"), 'the add form uses the same has-title class as quick-log');
+assert(tvSource.includes("form.classList.toggle('is-expanded'"), 'the add form uses the same is-expanded class as quick-log');
 assert(!tvSource.includes('tv-add-season'), 'the add form has no season input');
 assert(!tvSource.includes('tv-add-episode'), 'the add form has no episode input');
 assert(!/seasonInput/.test(tvSource), 'add does not read a season field');

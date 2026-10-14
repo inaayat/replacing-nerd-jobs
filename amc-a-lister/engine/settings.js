@@ -8,7 +8,7 @@ import { theatersFromWatches } from './theater-suggest.js';
 import { escapeHtml, parseMoneyInput } from './format.js';
 import { todayISO } from './dates.js';
 import { renderHowToUseSection } from './how-to-use.js';
-import { captureBugContext, BUG_SCREENSHOT_MAX } from './bug-report.js';
+import { captureBugContext, BUG_MESSAGE_MAX } from './bug-report.js';
 
 const DEFAULT_TIERS = [
   { effective_on: '2018-06-01', cents: 2495 },
@@ -164,25 +164,18 @@ bootPage(async ({ root, auth }) => {
 
       <section class="al-panel al-settings-card" id="bug-report">
         <p class="al-settings-kicker">Help</p>
-        <h2 class="serif al-settings-title">Report a bug</h2>
+        <h2 class="serif al-settings-title">Report a bug or suggestion</h2>
         <p class="al-muted al-settings-lead">A short note is enough. This page, device, and account are attached automatically. Nothing is emailed.</p>
         <form id="bug-report-form">
-          <div class="al-field al-settings-field">
-            <label for="bug-message">What happened</label>
-            <input class="al-input" id="bug-message" maxlength="500" required
-                   placeholder="Posters disappeared after I filtered the log" />
+          <div class="al-segment al-feedback-kind" role="tablist" aria-label="Report type">
+            <button type="button" class="al-segment-btn is-active" data-bug-kind="bug" role="tab" aria-selected="true">Bug</button>
+            <button type="button" class="al-segment-btn" data-bug-kind="suggestion" role="tab" aria-selected="false">Suggestion</button>
           </div>
-          <div class="al-field al-settings-field">
-            <label for="bug-details">Steps or details <span class="al-muted">(optional)</span></label>
-            <textarea class="al-textarea" id="bug-details" rows="3" maxlength="4000"
-                      placeholder="I tapped Filter, chose Dolby, then the grid went blank."></textarea>
-          </div>
-          <div class="al-field al-settings-field">
-            <label for="bug-screenshot">Screenshot <span class="al-muted">(optional)</span></label>
-            <input class="al-input" type="file" id="bug-screenshot" accept="image/*" />
-          </div>
+          <input type="hidden" id="bug-kind" name="kind" value="bug" />
+          <textarea class="al-textarea al-feedback-note" id="bug-note" rows="6" maxlength="${BUG_MESSAGE_MAX}" required
+                    aria-label="Note" placeholder="What happened?"></textarea>
           <div class="al-settings-actions">
-            <button class="al-btn al-btn-primary" type="submit" id="bug-report-submit">Send report</button>
+            <button class="al-btn al-btn-primary" type="submit" id="bug-report-submit">Send</button>
             <p class="al-muted" id="bug-report-status" role="status" aria-live="polite"></p>
           </div>
         </form>
@@ -555,21 +548,10 @@ function collectTiers() {
   return { tiers, invalid };
 }
 
-function readScreenshotFile(file) {
-  if (!file) return Promise.resolve('');
-  if (!String(file.type || '').startsWith('image/')) {
-    return Promise.reject(new Error('Choose an image file.'));
-  }
-  // Data URLs are ~4/3 the file size. Stay under BUG_SCREENSHOT_MAX.
-  if (file.size > Math.floor(BUG_SCREENSHOT_MAX * 0.72)) {
-    return Promise.reject(new Error('Keep the screenshot under 250 KB, or skip it.'));
-  }
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ''));
-    reader.onerror = () => reject(new Error('Could not read that screenshot.'));
-    reader.readAsDataURL(file);
-  });
+function growFeedbackNote(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = `${Math.max(el.scrollHeight, 144)}px`;
 }
 
 function wireBugReport(auth) {
@@ -577,24 +559,49 @@ function wireBugReport(auth) {
   if (!form) return;
   const status = document.getElementById('bug-report-status');
   const submit = document.getElementById('bug-report-submit');
+  const kindInput = document.getElementById('bug-kind');
+  const note = document.getElementById('bug-note');
+  const kindBtns = [...form.querySelectorAll('[data-bug-kind]')];
+
+  const setKind = (kind) => {
+    const next = kind === 'suggestion' ? 'suggestion' : 'bug';
+    kindInput.value = next;
+    kindBtns.forEach((btn) => {
+      const on = btn.dataset.bugKind === next;
+      btn.classList.toggle('is-active', on);
+      btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    note.placeholder = next === 'suggestion'
+      ? 'What would you like to see?'
+      : 'What happened?';
+  };
+
+  kindBtns.forEach((btn) => {
+    btn.addEventListener('click', () => setKind(btn.dataset.bugKind));
+  });
+
+  note.addEventListener('input', () => growFeedbackNote(note));
+  growFeedbackNote(note);
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     status.textContent = 'Sending…';
     submit.disabled = true;
+    const kind = kindInput.value === 'suggestion' ? 'suggestion' : 'bug';
     try {
-      const screenshot = await readScreenshotFile(document.getElementById('bug-screenshot').files[0]);
       await bugReportApi.create(auth.token, {
-        message: document.getElementById('bug-message').value,
-        details: document.getElementById('bug-details').value,
+        kind,
+        message: note.value,
         url: location.href,
         user_agent: navigator.userAgent || '',
-        screenshot,
         context: { ...captureBugContext(), tv_beta: isTvBetaEnabled() },
       });
       form.reset();
-      status.textContent = 'Thanks — report sent.';
+      setKind('bug');
+      growFeedbackNote(note);
+      status.textContent = kind === 'suggestion' ? 'Thanks — suggestion sent.' : 'Thanks — report sent.';
     } catch (err) {
-      status.textContent = err.message || 'Could not send the report.';
+      status.textContent = err.message || 'Could not send.';
     } finally {
       submit.disabled = false;
     }

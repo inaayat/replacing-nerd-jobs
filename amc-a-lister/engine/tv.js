@@ -90,17 +90,21 @@ async function loadPage(auth) {
               <input class="al-input" id="tv-add-title" type="text" placeholder="Show title…" required />
               <div class="al-search-results" id="tv-add-results" hidden></div>
             </div>
-            <input class="al-input al-tv-add-date" id="tv-add-date" type="date" required value="${todayISO()}" aria-label="Date watched" />
-            <select class="al-select al-tv-add-rating" id="tv-add-rating" aria-label="Rating">
-              <option value="">Rating</option>
-              <option value="5">5★</option>
-              <option value="4">4★</option>
-              <option value="3">3★</option>
-              <option value="2">2★</option>
-              <option value="1">1★</option>
-              <option value="dnf">DNF</option>
-            </select>
-            <button class="al-btn al-btn-primary" type="submit">Add</button>
+            <div class="al-tv-add-expand" id="tv-add-expand" inert>
+              <div class="al-tv-add-expand-inner">
+                <input class="al-input al-tv-add-date" id="tv-add-date" type="date" required value="${todayISO()}" aria-label="Date watched" />
+                <select class="al-select al-tv-add-rating" id="tv-add-rating" aria-label="Rating">
+                  <option value="">Rating</option>
+                  <option value="5">5★</option>
+                  <option value="4">4★</option>
+                  <option value="3">3★</option>
+                  <option value="2">2★</option>
+                  <option value="1">1★</option>
+                  <option value="dnf">DNF</option>
+                </select>
+                <button class="al-btn al-btn-primary" type="submit">Add</button>
+              </div>
+            </div>
           </div>
           <input type="hidden" id="tv-add-tmdb_id" value="" />
         </form>
@@ -221,8 +225,10 @@ async function loadPage(auth) {
         b.classList.toggle('is-active', active);
         b.setAttribute('aria-selected', active ? 'true' : 'false');
       });
-      document.getElementById('tv-add-title').value = item.title;
+      const addTitle = document.getElementById('tv-add-title');
+      addTitle.value = item.title;
       document.getElementById('tv-add-tmdb_id').value = item.tmdb_id ? String(item.tmdb_id) : '';
+      addTitle.dispatchEvent(new Event('input'));
       document.getElementById('tv-add-date').focus();
       refreshHeader();
       renderWatchedList();
@@ -414,8 +420,17 @@ function wireTvAddForm(auth, state, {
   onAdded,
 }) {
   let searchTimer = null;
+  const expandEl = form.querySelector('.al-tv-add-expand');
+
+  const syncExpand = () => {
+    const on = Boolean(titleInput.value.trim());
+    form.classList.toggle('has-title', on);
+    form.classList.toggle('is-expanded', on);
+    expandEl?.toggleAttribute('inert', !on);
+  };
 
   titleInput.addEventListener('input', () => {
+    syncExpand();
     clearTimeout(searchTimer);
     const q = titleInput.value.trim();
     if (q.length < 2) {
@@ -441,6 +456,7 @@ function wireTvAddForm(auth, state, {
             titleInput.value = btn.dataset.title;
             tmdbInput.value = btn.dataset.id;
             resultsEl.hidden = true;
+            syncExpand();
           });
         });
       } catch {
@@ -476,6 +492,7 @@ function wireTvAddForm(auth, state, {
       form.reset();
       tmdbInput.value = '';
       dateInput.value = todayISO();
+      syncExpand();
       statusEl.textContent = `Added ${title}`;
       onAdded?.();
       setTimeout(() => { statusEl.textContent = ''; }, 2000);
