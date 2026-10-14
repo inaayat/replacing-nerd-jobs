@@ -38,9 +38,8 @@ for (const id of [
   'settings-account',
   'bug-report',
   'bug-report-form',
-  'bug-message',
-  'bug-details',
-  'bug-screenshot',
+  'bug-kind',
+  'bug-note',
   'bug-report-submit',
   'bug-report-status',
 ]) {
@@ -83,7 +82,7 @@ assert.match(settings, /form="membership-form"/, 'profile fields still submit wi
   const account = settings.indexOf('id="settings-account"');
   assert.ok(howTo > -1 && howTo < profile, 'FAQ sits at the top of Settings');
   assert.ok(letterboxd > -1 && letterboxd < membership, 'Letterboxd sits in the top profile card');
-  assert.ok(bug > library && bug < account, 'Report a bug sits above account');
+  assert.ok(bug > library && bug < account, 'Report a bug or suggestion sits above account');
 }
 
 assert.match(css, /\.al-main--settings \{[\s\S]*max-width: 40rem/, 'desktop settings are not full-bleed');
@@ -103,6 +102,12 @@ assert.match(howToSrc, /FAQ &amp; Set Up Instructions/, 'FAQ section uses the ne
 assert.match(howToSrc, /al-faq-section-title/, 'FAQ groups questions into sections');
 assert.match(howToSrc, /al-faq-q/, 'FAQ questions are expandable');
 assert.match(howToSrc, /Getting started/, 'FAQ has Getting started');
+assert.match(howToSrc, /Can I use A-Lister like an app/, 'FAQ covers home-screen install');
+assert.match(howToSrc, /Add to Home Screen/, 'FAQ has iPhone Safari steps');
+assert.match(howToSrc, /iOS 26/, 'FAQ mentions the iOS 26 Share menu');
+assert.match(howToSrc, /Add to Home screen/, 'FAQ has Android Chrome steps');
+assert.match(howToSrc, /install icon in the address bar/, 'FAQ has desktop Chrome\/Edge steps');
+assert.match(howToSrc, /Report a bug or suggestion/, 'FAQ points at the feedback form');
 assert.match(howToSrc, /Logging &amp; watch log/, 'FAQ has Logging');
 assert.match(howToSrc, /Membership pricing/, 'FAQ has pricing');
 assert.match(howToSrc, /Import \/ export/, 'FAQ has import/export');
@@ -119,6 +124,7 @@ assert.doesNotMatch(howToSrc, /<details[^>]*\sopen/, 'how-to stays collapsed by 
 
 const dbSrc = readFileSync(new URL('../lib/db.js', import.meta.url), 'utf8');
 assert.match(dbSrc, /CREATE TABLE IF NOT EXISTS alist_bug_reports/, 'schema creates alist_bug_reports safely');
+assert.match(dbSrc, /ADD COLUMN IF NOT EXISTS kind/, 'existing bug-report tables gain kind');
 const api = readFileSync(new URL('../api/alist.js', import.meta.url), 'utf8');
 assert.match(api, /case 'bug-reports':/, 'bug-reports route is on api/alist.js');
 const vercel = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
@@ -126,5 +132,20 @@ assert.ok(
   vercel.rewrites.some((r) => r.source === '/api/alist-bug-reports' && r.destination === '/api/alist?route=bug-reports'),
   'rewrite for /api/alist-bug-reports',
 );
+
+const manifest = JSON.parse(readFileSync(new URL('../amc-a-lister/manifest.webmanifest', import.meta.url), 'utf8'));
+assert.equal(manifest.display, 'standalone', 'installed A-Lister opens full-screen');
+assert.equal(manifest.short_name, 'A-Lister');
+assert.equal(manifest.theme_color, '#830f10');
+assert.ok(manifest.icons.some((i) => i.sizes === '192x192'), 'manifest has a 192 icon');
+assert.ok(manifest.icons.some((i) => i.sizes === '512x512'), 'manifest has a 512 icon');
+
+for (const page of ['index.html', 'tv.html', 'settings.html']) {
+  const html = readFileSync(new URL(`../amc-a-lister/${page}`, import.meta.url), 'utf8');
+  assert.match(html, /rel="manifest" href="\.\/manifest\.webmanifest"/, `${page} links the manifest`);
+  assert.match(html, /rel="apple-touch-icon" href="\.\/icons\/icon-192\.png"/, `${page} has an apple-touch-icon`);
+  assert.match(html, /apple-mobile-web-app-title" content="A-Lister"/, `${page} names the home-screen app A-Lister`);
+  assert.match(html, /apple-mobile-web-app-capable" content="yes"/, `${page} can open full-screen on iOS`);
+}
 
 console.log('alist settings layout tests passed');

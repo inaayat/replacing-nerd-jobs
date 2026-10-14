@@ -1,9 +1,10 @@
 /**
- * A-Lister bug reports (browser + API).
+ * A-Lister bug / suggestion reports (browser + API).
  * Keep this file dependency-free — imported by settings.js and api/alist.js.
  */
 
-export const BUG_MESSAGE_MAX = 500;
+export const BUG_KINDS = ['bug', 'suggestion'];
+export const BUG_MESSAGE_MAX = 4000;
 export const BUG_DETAILS_MAX = 4000;
 export const BUG_URL_MAX = 2048;
 export const BUG_UA_MAX = 512;
@@ -25,7 +26,7 @@ function safeUrl(raw) {
 
 function normalizeScreenshot(raw) {
   const s = String(raw ?? '').trim();
-  if (!s) return '';
+  if (!s) return { value: '' };
   if (s.length > BUG_SCREENSHOT_MAX) {
     return { error: 'Keep the screenshot under 250 KB, or skip it.' };
   }
@@ -50,23 +51,36 @@ function normalizeContext(raw) {
   return out;
 }
 
+export function normalizeBugKind(raw) {
+  const s = String(raw ?? '').trim().toLowerCase();
+  return s === 'suggestion' ? 'suggestion' : 'bug';
+}
+
 /**
  * @returns {{ error: string } | { data: {
- *   message: string, details: string, url: string, user_agent: string,
- *   screenshot: string, context: object
+ *   kind: 'bug'|'suggestion', message: string, details: string, url: string,
+ *   user_agent: string, screenshot: string, context: object
  * } }}
  */
 export function normalizeBugReport(raw) {
   const body = raw && typeof raw === 'object' ? raw : {};
-  const message = clip(body.message, BUG_MESSAGE_MAX);
+  const kind = normalizeBugKind(body.kind);
+  const message = clip(body.message ?? body.note, BUG_MESSAGE_MAX);
   const details = clip(body.details, BUG_DETAILS_MAX);
-  if (!message) return { error: 'Describe the bug in a sentence or two.' };
+  if (!message) {
+    return {
+      error: kind === 'suggestion'
+        ? 'Write your suggestion.'
+        : 'Describe the bug in a sentence or two.',
+    };
+  }
 
   const shot = normalizeScreenshot(body.screenshot);
   if (shot.error) return { error: shot.error };
 
   return {
     data: {
+      kind,
       message,
       details,
       url: safeUrl(body.url),

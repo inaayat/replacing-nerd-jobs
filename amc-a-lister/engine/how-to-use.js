@@ -36,6 +36,10 @@ function faqBody() {
         'What is the Watch page?',
         'Movies you want to see, sorted by US release date. Logging a film removes it from this list. Watch at home is a separate flag on those titles.',
       ),
+      faqItem(
+        'Can I use A-Lister like an app?',
+        'Yes — add it to your home screen. iPhone Safari: tap Share, scroll to Add to Home Screen, name it, tap Add. On iOS 26 and later, Share may be under the ••• menu. Chrome on iPhone also offers Add to Home Screen from Share. Android Chrome: menu, then Add to Home screen or Install app. Desktop Chrome or Edge: use the install icon in the address bar. It opens full-screen as A-Lister.',
+      ),
     ]),
     faqSection('Logging &amp; watch log', [
       faqItem(
@@ -117,8 +121,8 @@ function faqBody() {
         'Refresh after a save. If posters are missing, Backfill posters in Library fills artwork and TMDB ids without changing theater, cost, rating, or date.',
       ),
       faqItem(
-        'How do I report a bug?',
-        'Use Report a bug lower on this page. A short description is enough; steps and a screenshot are optional. This page, device, and account are attached automatically. Nothing is emailed. Reports are stored for the site owner to read.',
+        'How do I report a bug or suggestion?',
+        'Use Report a bug or suggestion lower on this page. Pick Bug or Suggestion, write a note, and send. This page, device, and account are attached automatically. Nothing is emailed. Reports are stored for the site owner to read.',
       ),
     ]),
   ].join('');

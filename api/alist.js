@@ -2632,13 +2632,14 @@ async function handleBugReports(req, res) {
   try {
     await ensureSchema();
     const id = randomUUID();
-    const { message, details, url, user_agent, screenshot, context } = parsed.data;
+    const { kind, message, details, url, user_agent, screenshot, context } = parsed.data;
     await db()`
       INSERT INTO alist_bug_reports (
-        id, user_id, message, details, url, user_agent, screenshot, context, status
+        id, user_id, kind, message, details, url, user_agent, screenshot, context, status
       ) VALUES (
         ${id},
         ${session.userId},
+        ${kind},
         ${message},
         ${details},
         ${url || null},
