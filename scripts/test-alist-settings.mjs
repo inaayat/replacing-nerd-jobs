@@ -119,6 +119,9 @@ assert.match(howToSrc, /report a bug/, 'FAQ has troubleshooting');
 assert.match(howToSrc, /\$0 row/, 'FAQ explains pause with a $0 row');
 assert.match(howToSrc, /falsely high/, 'FAQ warns that pausing with logged movies inflates savings');
 assert.match(howToSrc, /every calendar month from your first theater screening/, 'FAQ describes billed months as the code does');
+assert.match(howToSrc, /do not go on the movie Rank stack/, 'FAQ does not put at-home watches on movie Rank');
+assert.match(howToSrc, /Where do I see savings and habits/, 'FAQ covers Stats');
+assert.match(howToSrc, /on or before the last day of that month/, 'FAQ matches monthlyRateForMonth');
 assert.doesNotMatch(howToSrc, /<a |<em>|<code>|<strong>/, 'how-to copy is not mixed links/italics/code');
 assert.doesNotMatch(howToSrc, /<details[^>]*\sopen/, 'how-to stays collapsed by default');
 

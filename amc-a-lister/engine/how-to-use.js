@@ -48,17 +48,21 @@ function faqBody() {
       ),
       faqItem(
         'In theaters vs at home?',
-        'Uncheck In theaters when you watched at home. At-home entries stay in the log and Rank, but they do not use a theater, ticket price, or Seen with, and they do not count toward A-List savings.',
+        'Uncheck In theaters when you watched at home. At-home entries stay in the log, but they do not use a theater, ticket price, or Seen with, they do not go on the movie Rank stack, and they do not count toward A-List savings.',
+      ),
+      faqItem(
+        'Where do I see savings and habits?',
+        'Stats is theater screenings only: savings, theaters, formats, days, ratings, and cast. At-home watches stay off that page. The sidebar totals use the same theater-only math.',
       ),
       faqItem(
         'How does Rank work?',
-        'Rank is a stack of titles you have already logged. Unranked queues every logged title that is not in the stack. Compare two posters to insert a new one.',
+        'Rank is a stack of theater movies you have already logged. At-home watches stay out. Unranked queues every theater title that is not in the stack. Compare two posters to insert a new one. If TV Shows is on, Rank has a separate TV stack from your TV log.',
       ),
     ]),
     faqSection('Membership pricing &amp; savings', [
       faqItem(
         'What if my A-List price changes?',
-        'Add a new row in Membership pricing with the effective date and the new price. Older months keep the old rate. Stats picks the last row whose date falls in that calendar month.',
+        'Add a new row in Membership pricing with the effective date and the new price. Older months keep the old rate. Stats uses the latest row whose date is on or before the last day of that month.',
       ),
       faqItem(
         'How do I pause membership?',
