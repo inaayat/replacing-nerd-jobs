@@ -9,8 +9,13 @@
       name="description"
       content="Paste a job posting, add a resume bullet and STAR answer on each requirement, then copy a resume and walk cue cards. In beta."
     />
+    <link rel="manifest" href="./manifest.webmanifest" />
     <meta name="theme-color" content="#ffffff" />
-    <link rel="icon" type="image/png" href="/ugly-dog-images/dog-3.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Brag Book" />
+    <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -42,6 +47,13 @@
         <a href="#bb-auth" id="nav-auth-link">Log in</a>
       </div>
     </nav>
+
+    <div class="bb-pwa-status" id="pwa-status" role="status" aria-live="polite" hidden>
+      <span id="pwa-offline" hidden>You're offline. Reconnect to keep editing.</span>
+      <span id="pwa-update" hidden>
+        Update available — <button type="button" id="pwa-reload">Reload</button>
+      </span>
+    </div>
 
     <main class="shell" id="app">
       <p class="quiet">Opening the book…</p>

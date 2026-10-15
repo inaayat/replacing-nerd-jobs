@@ -126,7 +126,7 @@ a:focus-visible {
 .shell {
   width: 100%;
   margin: 0;
-  padding: 14px clamp(14px, 2vw, 24px) 40px;
+  padding: 14px clamp(14px, 2vw, 24px) max(40px, calc(16px + env(safe-area-inset-bottom)));
   padding-left: max(clamp(14px, 2vw, 24px), env(safe-area-inset-left));
   padding-right: max(clamp(14px, 2vw, 24px), env(safe-area-inset-right));
 }
@@ -134,7 +134,7 @@ a:focus-visible {
 .legal {
   width: 100%;
   margin: 0;
-  padding: 0 max(clamp(20px, 3vw, 40px), env(safe-area-inset-right)) 40px max(clamp(20px, 3vw, 40px), env(safe-area-inset-left));
+  padding: 0 max(clamp(20px, 3vw, 40px), env(safe-area-inset-right)) max(40px, calc(16px + env(safe-area-inset-bottom))) max(clamp(20px, 3vw, 40px), env(safe-area-inset-left));
   color: var(--muted);
   font-size: 0.66rem;
   letter-spacing: 0.08em;
@@ -2557,6 +2557,58 @@ a:focus-visible {
     min-height: 44px;
     padding: 12px 14px;
   }
+}
+
+html.bb-offline-readonly .shell input,
+html.bb-offline-readonly .shell textarea,
+html.bb-offline-readonly .shell select,
+html.bb-offline-readonly .shell [contenteditable="true"],
+html.bb-offline-readonly .shell button:not(#pwa-reload) {
+  pointer-events: none;
+  cursor: default;
+}
+html.bb-offline-readonly .shell input,
+html.bb-offline-readonly .shell textarea,
+html.bb-offline-readonly .shell select {
+  opacity: 0.72;
+}
+
+.bb-pwa-status {
+  position: fixed;
+  left: max(8px, env(safe-area-inset-left));
+  right: max(8px, env(safe-area-inset-right));
+  bottom: max(8px, env(safe-area-inset-bottom));
+  z-index: 40;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 12px;
+  pointer-events: none;
+}
+.bb-pwa-status[hidden] { display: none !important; }
+.bb-pwa-status span {
+  pointer-events: auto;
+  font-family: var(--mono, 'IBM Plex Mono', monospace);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+  background: var(--panel, #f5f0e6);
+  border: 1px solid var(--line-strong, rgba(12, 11, 9, 0.18));
+  border-radius: 999px;
+  padding: 8px 14px;
+  box-shadow: 0 4px 16px rgba(12, 11, 9, 0.08);
+}
+.bb-pwa-status #pwa-reload {
+  font: inherit;
+  letter-spacing: inherit;
+  color: var(--ink);
+  background: transparent;
+  border: none;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0 2px;
+  min-height: 44px;
+  min-width: 44px;
 }
 
 @media (hover: none) {

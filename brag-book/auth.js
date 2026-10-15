@@ -65,9 +65,19 @@ export async function initAuth() {
   let url = null;
   try {
     const res = await fetch('/api/auth-config');
-    url = (await res.json()).url;
+    if (!res.ok) {
+      return { configured: false, signedIn: false, user: null, token: null };
+    }
+    const body = await res.json();
+    url = body.url;
   } catch {
-    return { configured: false, signedIn: false, user: null, token: null };
+    return {
+      configured: false,
+      signedIn: false,
+      user: null,
+      token: null,
+      needsConnection: true,
+    };
   }
   if (!url) return { configured: false, signedIn: false, user: null, token: null };
 

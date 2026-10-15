@@ -1,0 +1,33 @@
+{
+  "id": "/brag-book/",
+  "name": "Brag Book",
+  "short_name": "Brag Book",
+  "description": "Resume tailoring and interview preparation from your saved experience.",
+  "start_url": "/brag-book/",
+  "scope": "/brag-book/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "categories": ["productivity", "business"],
+  "icons": [
+    {
+      "src": "/brag-book/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/brag-book/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/brag-book/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

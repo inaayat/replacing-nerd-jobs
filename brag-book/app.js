@@ -201,6 +201,11 @@ import {
   retainLocalConflictValues,
 } from './save-controller.js';
 import { initAuth, refreshToken, renderBragSignIn, wireAuthLink } from './auth.js';
+import './engine/pwa.js';
+import { initBragBookPwa } from './pwa.js';
+
+/** False while offline — editor is read-only; mid-save outbox still flushes on reconnect. */
+let networkOnlineForEdits = true;
 
 const root = document.getElementById('app');
 const localMode = new URLSearchParams(location.search).has('local');
@@ -452,6 +457,7 @@ async function performCloudSave(request) {
 function saveStore() {
   cacheStore({ warnOnFailure: true });
   if (localMode || !auth?.token) return;
+  if (!networkOnlineForEdits) return;
   ensureSaveController().markDirty(store);
 }
 
@@ -4817,7 +4823,9 @@ function renderSignInGate() {
   unlocked = false;
   setAppNav(false);
   const note = !auth?.configured
-    ? '<p class="bb-gate-error">Sign-in isn’t configured on this server yet. Open <a href="/brag-book/?local=1">?local=1</a> to use this browser only.</p>'
+    ? (auth?.needsConnection
+      ? '<p class="bb-gate-error">Sign-in needs an internet connection. Brag Book loads your book from the server whenever you are online.</p>'
+      : '<p class="bb-gate-error">Sign-in isn’t configured on this server yet. Open <a href="/brag-book/?local=1">?local=1</a> to use this browser only.</p>')
     : (auth?.needsReauth
       ? '<p class="bb-gate-error">Your session expired. Sign in again to open your book.</p>'
       : '');
@@ -4849,6 +4857,32 @@ function showBook(note) {
   if (!location.hash) location.hash = '#home';
   render();
   if (note) setNote(note);
+}
+
+let reconnectFlight = null;
+
+async function reconnectBook() {
+  if (localMode || !auth?.token) return;
+  if (reconnectFlight) return reconnectFlight;
+  reconnectFlight = (async () => {
+    try {
+      const controller = ensureSaveController();
+      const outbox = readOutbox();
+      const dirty = controller.state.localVersion > controller.state.confirmedVersion;
+      if (!dirty && !outbox?.book) return;
+      const data = await loadBook(auth.token);
+      const remote = normalizeStore(data.book);
+      rememberServerBook(data);
+      store = withStarterCareer(resumeOutboxAfterBoot(remote, data));
+      cacheStore();
+      await flushSave('reconnect');
+    } catch {
+      /* keep local pending state */
+    } finally {
+      reconnectFlight = null;
+    }
+  })();
+  return reconnectFlight;
 }
 
 async function boot() {
@@ -4967,6 +5001,14 @@ document.addEventListener('visibilitychange', () => {
 
 window.addEventListener('focus', () => {
   pullBookIfClean();
+});
+
+initBragBookPwa({
+  flushBeforeReload: () => flushSave('navigation'),
+  onReconnect: reconnectBook,
+  onNetworkChange: (online) => {
+    networkOnlineForEdits = online;
+  },
 });
 
 boot();
