@@ -1345,6 +1345,31 @@ a:focus-visible {
     letter-spacing: 0.1em;
     text-transform: uppercase;
   }
+  .requirement-line {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+  }
+  .requirement-line .table-req-text {
+    flex: none;
+    width: 100%;
+  }
+  .requirement-line .row-icons {
+    align-self: flex-end;
+    justify-content: flex-end;
+    padding: 0 0 2px;
+    gap: 0;
+  }
+  .requirement-line .row-icons .icon-quiet {
+    width: auto;
+    height: auto;
+    min-width: 28px;
+    min-height: 28px;
+    padding: 4px 8px;
+    font-size: 11px;
+    line-height: 1;
+    color: rgba(12, 11, 9, 0.42);
+  }
   .nav-links { font-size: 12px; }
   .experience-star,
   .table-question-star { grid-template-columns: 1fr; }
@@ -2523,6 +2548,14 @@ a:focus-visible {
   }
   .bb-snapshot-save .actions .btn {
     width: 100%;
+  }
+}
+
+@media (max-width: 860px) and (pointer: coarse) {
+  .requirement-line .row-icons .icon-quiet {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 12px 14px;
   }
 }
 
