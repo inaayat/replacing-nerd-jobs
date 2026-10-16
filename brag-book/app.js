@@ -2424,6 +2424,9 @@ function experienceAdder(job, req) {
   fresh.addEventListener('focus', () => {
     activeIndex = -1;
     showMatches();
+    if (window.matchMedia?.('(max-width: 860px)')?.matches) {
+      fresh.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
   });
   wrap.addEventListener('focusout', () => {
     window.setTimeout(() => {

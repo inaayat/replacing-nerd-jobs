@@ -241,6 +241,16 @@ assert.match(
   /@media \(max-width:\s*860px\)[\s\S]*?\.nav-links\s*\{[^}]*overflow-x:\s*auto/,
   'phone nav horizontal scroll strip',
 );
+assert.match(
+  css,
+  /@media \(max-width:\s*860px\)[\s\S]*?\.job-table tr\s*\{[^}]*overflow:\s*visible/,
+  'phone job row does not clip experience picker dropdown',
+);
+assert.match(
+  css,
+  /@media \(max-width:\s*860px\)[\s\S]*?\.experience-matches[\s\S]*?overflow-y:\s*auto/,
+  'phone experience matches list scrolls',
+);
 const coarseBlocks = css.match(/@media \(pointer:\s*coarse\)\s*\{[\s\S]*?\n\}/g) || [];
 const coarseCss = coarseBlocks.join('\n');
 assert.match(coarseCss, /\.field input,/);
