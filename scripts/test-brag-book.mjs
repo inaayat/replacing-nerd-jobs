@@ -132,7 +132,6 @@ import {
   updateEducationItem,
   libraryBulletChoices,
   placeLibraryBullet,
-  addResumeBulletFromSearch,
   resumeTakenEntryIds,
   visibleResumeBullets,
   writeBulletBackToSource,
@@ -1373,35 +1372,26 @@ const pickedLive = compileResumeDoc(postingById(picked, 'job_pick'), picked)
 assert.match(pickedLive.body, /rewritten in the library/);
 assert.equal(libraryBulletChoices(picked, { query: 'picked', takenIds: ['en_pick'] }).some((entry) => entry.id === 'en_pick'), false);
 
-const beforeSearchCreate = picked.entries.length;
-const noCreateEmpty = addResumeBulletFromSearch(picked, {
+const searchQuery = 'Brand new search line: typed from the box';
+const searchTaken = resumeTakenEntryIds(picked, postingById(picked, 'job_pick'));
+assert.equal(libraryBulletChoices(picked, { query: '   ', takenIds: searchTaken, jobId: 'rj_pick' }).length, 0);
+assert.ok(libraryBulletChoices(picked, { query: 'Another library line', takenIds: searchTaken, jobId: 'rj_pick' }).length);
+assert.equal(libraryBulletChoices(picked, { query: searchQuery, takenIds: searchTaken, jobId: 'rj_pick' }).length, 0);
+const createdSearch = createSharedBullet(picked, { title: searchQuery, jobId: 'rj_pick' }, clock);
+assert.ok(createdSearch.entryId);
+picked = placeLibraryBullet(createdSearch.store, {
   postingId: 'job_pick',
   jobId: 'rj_pick',
   groupId: 'rg_pick',
-  query: '   ',
+  entryId: createdSearch.entryId,
 }, clock, random);
-assert.equal(noCreateEmpty.entries.length, beforeSearchCreate);
-const noCreateMatch = addResumeBulletFromSearch(picked, {
-  postingId: 'job_pick',
-  jobId: 'rj_pick',
-  groupId: 'rg_pick',
-  query: 'Another library line',
-}, clock, random);
-assert.equal(noCreateMatch.entries.length, beforeSearchCreate);
-assert.equal(noCreateMatch.entries.some((entry) => entry.title === 'Another library line' && entry.id !== 'en_other'), false);
-picked = addResumeBulletFromSearch(picked, {
-  postingId: 'job_pick',
-  jobId: 'rj_pick',
-  groupId: 'rg_pick',
-  query: 'Brand new search line: typed from the box',
-}, clock, random);
-const createdSearch = picked.entries.find((entry) => entry.title === 'Brand new search line: typed from the box');
-assert.ok(createdSearch);
-assert.equal(createdSearch.jobId, 'rj_pick');
+const searchEntry = picked.entries.find((entry) => entry.id === createdSearch.entryId);
+assert.equal(searchEntry.title, searchQuery);
+assert.equal(searchEntry.jobId, 'rj_pick');
 const searchPlaced = compileResumeDoc(postingById(picked, 'job_pick'), picked)
   .sections.experience.jobs.find((job) => job.id === 'rj_pick').groups
   .flatMap((group) => group.bullets || []);
-const searchBullet = searchPlaced.find((bullet) => (bullet.sourceEntryIds || []).includes(createdSearch.id));
+const searchBullet = searchPlaced.find((bullet) => (bullet.sourceEntryIds || []).includes(createdSearch.entryId));
 assert.ok(searchBullet);
 assert.equal(searchBullet.included, true);
 assert.match(`${searchBullet.lead} ${searchBullet.body}`, /typed from the box/);
@@ -2981,7 +2971,9 @@ const pickerSrc = appSource.slice(
   appSource.indexOf('function addSubheadingButton'),
 );
 assert.match(pickerSrc, /Type to search resume bullets/);
-assert.match(pickerSrc, /addResumeBulletFromSearch/);
+assert.match(pickerSrc, /createSharedBullet/);
+assert.match(pickerSrc, /placeLibraryBullet/);
+assert.match(pickerSrc, /if \(!q \|\| choices\.length\) return/);
 assert.match(pickerSrc, /event\.key !== 'Enter'/);
 assert.match(pickerSrc, /\+ New/);
 assert.doesNotMatch(pickerSrc, /addEventListener\('focus'/);

@@ -117,7 +117,6 @@ import {
   hasBasicsBackup,
   libraryBulletChoices,
   placeLibraryBullet,
-  addResumeBulletFromSearch,
   assignEntryJob,
   placeJobOnResume,
   addPostingResumeJob,
@@ -3360,20 +3359,23 @@ function libraryBulletPicker(posting, career, group) {
     if (!posting) return;
     const { q, choices } = searchChoices();
     if (!q || choices.length) return;
-    store = addResumeBulletFromSearch(store, {
-      postingId: posting.id,
-      jobId: career.id,
-      groupId: group?.id || '',
-      query: q,
-    });
+    const created = createSharedBullet(store, { title: q, jobId: career.id });
+    store = created.store;
+    if (created.entryId) {
+      store = placeLibraryBullet(store, {
+        postingId: posting.id,
+        jobId: career.id,
+        groupId: group?.id || '',
+        entryId: created.entryId,
+      });
+    }
     query.value = '';
     saveStore();
-    const created = store.entries.find((entry) => entry.title === q);
     const added = compileResumeDoc(posting, store).sections.experience.jobs
       .find((job) => job.id === career.id);
     const bullets = (added?.groups || []).flatMap((item) => item.bullets || []);
-    const linked = created
-      ? bullets.find((bullet) => (bullet.sourceEntryIds || []).includes(created.id))
+    const linked = created.entryId
+      ? bullets.find((bullet) => (bullet.sourceEntryIds || []).includes(created.entryId))
       : null;
     render({ focusKey: linked ? `rb-${linked.id}-line` : `pick-${group?.id || career.id}` });
   };

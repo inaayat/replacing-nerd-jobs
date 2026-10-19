@@ -1942,29 +1942,6 @@ export function placeLibraryBullet(store, {
   return addCareerBullet(store, jobId, groupId, draft, clock, random);
 }
 
-export function addResumeBulletFromSearch(store, {
-  postingId = null,
-  jobId,
-  groupId,
-  query,
-} = {}, clock = Date.now, random = Math.random) {
-  const q = String(query || '').trim();
-  if (!q || !postingId || !jobId) return store;
-  const posting = postingById(store, postingId);
-  if (!posting) return store;
-  const taken = resumeTakenEntryIds(store, posting);
-  const choices = libraryBulletChoices(store, { query: q, takenIds: taken, jobId });
-  if (choices.length) return store;
-  const created = createSharedBullet(store, { title: q, jobId }, clock);
-  if (!created.entryId) return created.store;
-  return placeLibraryBullet(created.store, {
-    postingId,
-    jobId,
-    groupId,
-    entryId: created.entryId,
-  }, clock, random);
-}
-
 function jobIdentityChanged(before, after) {
   return ['company', 'title', 'location', 'start', 'end', 'current'].some((key) => before?.[key] !== after?.[key]);
 }
