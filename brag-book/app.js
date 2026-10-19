@@ -3371,13 +3371,7 @@ function libraryBulletPicker(posting, career, group) {
     }
     query.value = '';
     saveStore();
-    const added = compileResumeDoc(posting, store).sections.experience.jobs
-      .find((job) => job.id === career.id);
-    const bullets = (added?.groups || []).flatMap((item) => item.bullets || []);
-    const linked = created.entryId
-      ? bullets.find((bullet) => (bullet.sourceEntryIds || []).includes(created.entryId))
-      : null;
-    render({ focusKey: linked ? `rb-${linked.id}-line` : `pick-${group?.id || career.id}` });
+    render({ focusKey: `pick-${group?.id || career.id}` });
   };
   const paint = () => {
     const { q, choices } = searchChoices();

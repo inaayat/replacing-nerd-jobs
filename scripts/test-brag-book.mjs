@@ -2976,6 +2976,15 @@ assert.match(pickerSrc, /placeLibraryBullet/);
 assert.match(pickerSrc, /if \(!q \|\| choices\.length\) return/);
 assert.match(pickerSrc, /event\.key !== 'Enter'/);
 assert.match(pickerSrc, /\+ New/);
+const createSrc = pickerSrc.slice(
+  pickerSrc.indexOf('const createFromSearch'),
+  pickerSrc.indexOf('const paint ='),
+);
+assert.match(createSrc, /saveStore\(\)/);
+assert.match(createSrc, /render\(\{ focusKey: `pick-/);
+assert.doesNotMatch(createSrc, /rb-\$\{linked/);
+assert.doesNotMatch(createSrc, /expandedBulletKey/);
+assert.doesNotMatch(createSrc, /sharedBulletForm/);
 assert.doesNotMatch(pickerSrc, /addEventListener\('focus'/);
 assert.match(appSource, /\bInclude\b/);
 assert.match(appSource, /\bPin\b/);
