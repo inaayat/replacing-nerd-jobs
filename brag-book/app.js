@@ -2412,7 +2412,7 @@ function experienceAdder(job, req) {
     },
     onSubmit: (spans) => {
       if (activeIndex >= 0 && choices[activeIndex]) addExisting(choices[activeIndex]);
-      else if (chrome.open) addNew(spans);
+      else if (chrome.open || (plain() && !choices.length)) addNew(spans);
       else openForm();
     },
   });
@@ -2520,7 +2520,7 @@ function experienceAdder(job, req) {
       fresh,
       btn(chrome.addLabel, {
         class: 'btn ghost',
-        onClick: () => chrome.open ? addNew() : openForm(),
+        onClick: () => chrome.open || (plain() && !choices.length) ? addNew() : openForm(),
       }),
       chrome.showCancel ? btn('Cancel', { class: 'btn ghost', onClick: closeForm }) : null,
     ]),
