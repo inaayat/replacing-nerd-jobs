@@ -1,6 +1,6 @@
 /**
  * Knowledge page document. Browser-safe ESM. No innerHTML.
- * Blocks are paragraphs, h1–h3 headings, or bullets. Inline marks are bold and italic.
+ * Blocks are paragraphs, h1–h3 headings, bullets, or GFM tables. Inline marks are bold, italic, and code.
  * `body` stays the plain-text projection so search never sees markup.
  */
 
@@ -18,8 +18,16 @@ function mergeSpans(spans) {
   for (const span of spans) {
     if (!span?.text) continue;
     const last = out[out.length - 1];
-    if (last && last.bold === span.bold && last.italic === span.italic) last.text += span.text;
-    else out.push({ text: span.text, bold: span.bold === true, italic: span.italic === true });
+    if (last && last.bold === span.bold && last.italic === span.italic && last.code === span.code) {
+      last.text += span.text;
+    } else {
+      out.push({
+        text: span.text,
+        bold: span.bold === true,
+        italic: span.italic === true,
+        code: span.code === true,
+      });
+    }
   }
   return out;
 }
@@ -29,7 +37,252 @@ function cleanSpan(raw) {
   let text = String(raw.text ?? '').replace(/\u00a0/g, ' ').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   text = text.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
   if (!text) return null;
-  return { text, bold: raw.bold === true, italic: raw.italic === true };
+  return {
+    text,
+    bold: raw.bold === true,
+    italic: raw.italic === true,
+    code: raw.code === true,
+  };
+}
+
+const TABLE_ALIGNMENTS = new Set(['left', 'center', 'right']);
+
+function normalizeTableAlign(value) {
+  const align = String(value || 'left').toLowerCase();
+  return TABLE_ALIGNMENTS.has(align) ? align : 'left';
+}
+
+/** Split one GFM table row into cell strings (supports escaped \\|). */
+export function splitGfmTableCells(line) {
+  const raw = String(line ?? '').trim();
+  if (!raw.includes('|')) return null;
+  let body = raw;
+  if (body.startsWith('|')) body = body.slice(1);
+  if (body.endsWith('|')) body = body.slice(0, -1);
+  const cells = [];
+  let cell = '';
+  for (let i = 0; i < body.length; i += 1) {
+    const ch = body[i];
+    if (ch === '\\' && body[i + 1] === '|') {
+      cell += '|';
+      i += 1;
+      continue;
+    }
+    if (ch === '|') {
+      cells.push(cell);
+      cell = '';
+      continue;
+    }
+    cell += ch;
+  }
+  cells.push(cell);
+  return cells.length >= 2 ? cells : null;
+}
+
+function isGfmTableSeparatorLine(line) {
+  const cells = splitGfmTableCells(line);
+  if (!cells?.length) return false;
+  return cells.every((cell) => /^:?-{3,}:?$/.test(cell.trim()));
+}
+
+function alignmentFromSeparatorCell(cell) {
+  const trimmed = String(cell || '').trim();
+  const left = trimmed.startsWith(':');
+  const right = trimmed.endsWith(':');
+  if (left && right) return 'center';
+  if (right) return 'right';
+  if (left) return 'left';
+  return 'left';
+}
+
+function isGfmTableRowLine(line) {
+  return Boolean(splitGfmTableCells(line));
+}
+
+function tableRowFromLine(line) {
+  const cells = splitGfmTableCells(line);
+  if (!cells) return null;
+  return { cells: cells.map((text) => ({ spans: parseInlineMarkdown(text.trim()) })) };
+}
+
+/** Parse a contiguous GFM table from markdown lines; returns null if not a table. */
+export function parseGfmTableFromLines(lines) {
+  const rows = Array.isArray(lines) ? lines.map((line) => String(line ?? '')) : [];
+  if (rows.length < 2) return null;
+  const header = tableRowFromLine(rows[0]);
+  if (!header || !isGfmTableSeparatorLine(rows[1])) return null;
+  const sepCells = splitGfmTableCells(rows[1]);
+  const align = sepCells.map((cell) => alignmentFromSeparatorCell(cell));
+  const colCount = header.cells.length;
+  const normalizedAlign = align.slice(0, colCount);
+  while (normalizedAlign.length < colCount) normalizedAlign.push('left');
+  const body = [];
+  for (let i = 2; i < rows.length; i += 1) {
+    const line = rows[i];
+    if (!line.trim()) break;
+    if (!isGfmTableRowLine(line)) break;
+    const row = tableRowFromLine(line);
+    if (!row) break;
+    while (row.cells.length < colCount) row.cells.push({ spans: [] });
+    if (row.cells.length > colCount) row.cells.length = colCount;
+    body.push(row);
+  }
+  return {
+    type: 'table',
+    align: normalizedAlign,
+    rows: [header, ...body],
+  };
+}
+
+function normalizeTableBlock(raw, budgetRef) {
+  const alignIn = Array.isArray(raw.align) ? raw.align : [];
+  const rowsIn = Array.isArray(raw.rows) ? raw.rows : [];
+  const rows = [];
+  let colCount = 0;
+  for (const rowRaw of rowsIn) {
+    if (!rowRaw || typeof rowRaw !== 'object') continue;
+    const cellsIn = Array.isArray(rowRaw.cells) ? rowRaw.cells : [];
+    const cells = [];
+    for (const cellRaw of cellsIn) {
+      if (budgetRef.value <= 0) break;
+      const spans = [];
+      for (const item of Array.isArray(cellRaw?.spans) ? cellRaw.spans : []) {
+        const span = cleanSpan(item);
+        if (span) spans.push(span);
+      }
+      const merged = mergeSpans(spans);
+      let length = merged.reduce((sum, span) => sum + span.text.length, 0);
+      if (length > budgetRef.value) {
+        const fitted = [];
+        for (const span of merged) {
+          if (budgetRef.value <= 0) break;
+          const text = span.text.length > budgetRef.value ? span.text.slice(0, budgetRef.value) : span.text;
+          budgetRef.value -= text.length;
+          if (text) fitted.push({ ...span, text });
+        }
+        cells.push({ spans: fitted });
+      } else {
+        budgetRef.value -= length;
+        cells.push({ spans: merged });
+      }
+    }
+    if (cells.length) {
+      colCount = Math.max(colCount, cells.length);
+      rows.push({ cells });
+    }
+  }
+  if (!rows.length) return null;
+  for (const row of rows) {
+    while (row.cells.length < colCount) row.cells.push({ spans: [] });
+    if (row.cells.length > colCount) row.cells.length = colCount;
+  }
+  const align = alignIn.slice(0, colCount).map(normalizeTableAlign);
+  while (align.length < colCount) align.push('left');
+  return { type: 'table', align, rows };
+}
+
+function blockLineText(block) {
+  if (!block) return '';
+  if (block.type === 'table') return '';
+  return spanText(block.spans || []);
+}
+
+function tryInferTableFromParagraphBlock(block) {
+  if (!block || block.type !== 'p') return null;
+  const text = blockLineText(block);
+  if (!text.includes('|') || !text.includes('\n')) return null;
+  const lines = text.split('\n');
+  const run = collectMarkdownTableLines(lines, 0);
+  if (!run) return null;
+  const tailLines = lines.slice(run.nextIndex).join('\n').trim();
+  return {
+    table: run.table,
+    tail: tailLines ? [{ type: 'p', indent: 0, spans: parseInlineMarkdown(tailLines) }] : [],
+  };
+}
+
+function tryInferTableRun(blocks, start) {
+  if (!blocks[start] || blocks[start].type !== 'p') return null;
+  const fromOne = tryInferTableFromParagraphBlock(blocks[start]);
+  if (fromOne) {
+    return { table: fromOne.table, extra: fromOne.tail, nextIndex: start + 1 };
+  }
+  const lines = [];
+  let index = start;
+  while (index < blocks.length) {
+    const block = blocks[index];
+    if (block.type !== 'p') break;
+    const line = blockLineText(block);
+    if (!line.trim()) break;
+    if (!lines.length) {
+      if (!isGfmTableRowLine(line)) break;
+      lines.push(line);
+      index += 1;
+      continue;
+    }
+    if (lines.length === 1) {
+      if (!isGfmTableSeparatorLine(line)) break;
+      lines.push(line);
+      index += 1;
+      continue;
+    }
+    if (!isGfmTableRowLine(line)) break;
+    lines.push(line);
+    index += 1;
+  }
+  if (lines.length < 2) return null;
+  const parsed = parseGfmTableFromLines(lines);
+  if (!parsed) return null;
+  return { table: parsed, extra: [], nextIndex: index };
+}
+
+function collectMarkdownTableLines(lines, start) {
+  const chunk = [];
+  for (let i = start; i < lines.length; i += 1) {
+    const line = lines[i];
+    if (!line.trim()) break;
+    if (!chunk.length) {
+      if (!isGfmTableRowLine(line)) break;
+      chunk.push(line);
+      continue;
+    }
+    if (chunk.length === 1) {
+      if (!isGfmTableSeparatorLine(line)) break;
+      chunk.push(line);
+      continue;
+    }
+    if (!isGfmTableRowLine(line)) break;
+    chunk.push(line);
+  }
+  if (chunk.length < 2) return null;
+  const parsed = parseGfmTableFromLines(chunk);
+  if (!parsed) return null;
+  return { table: parsed, nextIndex: start + chunk.length };
+}
+
+/** Promote raw markdown table text in paragraph blocks to table blocks (display/search only until saved). */
+export function inferKnowledgeTables(doc) {
+  const blocks = normalizeKnowledgeDoc(doc, { keepEmpty: true });
+  const out = [];
+  let index = 0;
+  while (index < blocks.length) {
+    const run = tryInferTableRun(blocks, index);
+    if (run) {
+      out.push(run.table);
+      out.push(...run.extra);
+      index = run.nextIndex;
+      continue;
+    }
+    out.push(blocks[index]);
+    index += 1;
+  }
+  return out;
+}
+
+export function applyKnowledgeMarkdownTables(doc) {
+  const base = normalizeKnowledgeDoc(doc, { keepEmpty: true });
+  const inferred = inferKnowledgeTables(base);
+  return { doc: inferred, changed: JSON.stringify(inferred) !== JSON.stringify(base) };
 }
 
 function expandNewlines(type, indent, spans) {
@@ -51,6 +304,13 @@ export function normalizeKnowledgeDoc(value, { keepEmpty = false } = {}) {
   for (const raw of value) {
     if (out.length >= BLOCK_MAX || budget <= 0) break;
     if (!raw || typeof raw !== 'object') continue;
+    if (raw.type === 'table') {
+      const budgetRef = { value: budget };
+      const table = normalizeTableBlock(raw, budgetRef);
+      budget = budgetRef.value;
+      if (table) out.push(table);
+      continue;
+    }
     if (raw.type !== 'p' && raw.type !== 'li' && !HEADING_TYPES.has(raw.type)) continue;
     const type = raw.type;
     const indent = type === 'li'
@@ -107,8 +367,16 @@ export function knowledgeDocFromLegacy(body, rich) {
   return normalizeKnowledgeDoc([{ type: 'p', indent: 0, spans: source }]);
 }
 
-export function knowledgePlainText(doc) {
-  return normalizeKnowledgeDoc(doc, { keepEmpty: true }).map((block) => spanText(block.spans)).join('\n');
+function tablePlainText(block) {
+  return (block.rows || []).map((row) => (row.cells || []).map((cell) => spanText(cell.spans || [])).join('\t')).join('\n');
+}
+
+export function knowledgePlainText(doc, { inferTables = false } = {}) {
+  const blocks = inferTables ? inferKnowledgeTables(doc) : normalizeKnowledgeDoc(doc, { keepEmpty: true });
+  return blocks.map((block) => {
+    if (block.type === 'table') return tablePlainText(block);
+    return spanText(block.spans);
+  }).join('\n');
 }
 
 export function knowledgeRichSpans(doc) {
@@ -122,19 +390,28 @@ export function knowledgeRichSpans(doc) {
   };
   blocks.forEach((block, index) => {
     if (index) push('\n', false);
+    if (block.type === 'table') {
+      push(tablePlainText(block), false);
+      return;
+    }
     for (const span of block.spans) push(span.text, span.bold === true);
   });
   return spans;
 }
 
 export function knowledgeDocForEditor(doc) {
-  const blocks = normalizeKnowledgeDoc(doc, { keepEmpty: true });
+  const blocks = inferKnowledgeTables(normalizeKnowledgeDoc(doc, { keepEmpty: true }));
   return blocks.length ? blocks : [{ type: 'p', indent: 0, spans: [] }];
 }
 
 export function knowledgeSearchText(note) {
-  if (Array.isArray(note?.doc)) return knowledgePlainText(note.doc);
-  return String(note?.body || '').replace(/\*\*/g, '');
+  if (Array.isArray(note?.doc)) return knowledgePlainText(note.doc, { inferTables: true });
+  const body = String(note?.body || '').replace(/\*\*/g, '');
+  if (body.includes('|')) {
+    const inferred = knowledgePlainText(knowledgeDocFromMarkdown(body), { inferTables: true });
+    if (inferred) return inferred;
+  }
+  return body;
 }
 
 export function knowledgeEditEffects(eventType) {
@@ -260,18 +537,28 @@ function findInlineMarker(text, from, marker) {
 
 function parseInlineMarkdown(text) {
   const spans = [];
-  const push = (value, bold, italic) => {
+  const push = (value, bold, italic, code = false) => {
     if (!value) return;
     const last = spans[spans.length - 1];
-    if (last && last.bold === bold && last.italic === italic) last.text += value;
-    else spans.push({ text: value, bold, italic });
+    if (last && last.bold === bold && last.italic === italic && last.code === code) last.text += value;
+    else spans.push({ text: value, bold, italic, code });
   };
   let i = 0;
   while (i < text.length) {
+    if (text[i] === '`') {
+      const end = text.indexOf('`', i + 1);
+      if (end > i + 1) {
+        push(text.slice(i + 1, end), false, false, true);
+        i = end + 1;
+        continue;
+      }
+    }
     if (text.startsWith('**', i)) {
       const end = text.indexOf('**', i + 2);
       if (end > i + 2) {
-        for (const span of parseInlineMarkdown(text.slice(i + 2, end))) push(span.text, true, span.italic);
+        for (const span of parseInlineMarkdown(text.slice(i + 2, end))) {
+          push(span.text, true, span.italic, span.code);
+        }
         i = end + 2;
         continue;
       }
@@ -283,15 +570,19 @@ function parseInlineMarkdown(text) {
       if (!isMdWord(prev) && next && next !== ' ' && next !== ch) {
         const end = findInlineMarker(text, i + 1, ch);
         if (end > i + 1) {
-          for (const span of parseInlineMarkdown(text.slice(i + 1, end))) push(span.text, span.bold, true);
+          for (const span of parseInlineMarkdown(text.slice(i + 1, end))) {
+            push(span.text, span.bold, true, span.code);
+          }
           i = end + 1;
           continue;
         }
       }
     }
     let j = i + 1;
-    while (j < text.length && !text.startsWith('**', j) && text[j] !== '*' && text[j] !== '_') j += 1;
-    push(text.slice(i, j), false, false);
+    while (j < text.length && text[j] !== '`' && !text.startsWith('**', j) && text[j] !== '*' && text[j] !== '_') {
+      j += 1;
+    }
+    push(text.slice(i, j), false, false, false);
     i = j;
   }
   return spans;
@@ -302,9 +593,17 @@ export function knowledgeDocFromMarkdown(value) {
   if (text.endsWith('\n')) text = text.slice(0, -1);
   if (!text) return [];
   const blocks = [];
-  for (const line of text.split('\n')) {
+  const lines = text.split('\n');
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const line = lines[lineIndex];
     if (!line.trim()) {
       blocks.push({ type: 'p', indent: 0, spans: [] });
+      continue;
+    }
+    const tableRun = collectMarkdownTableLines(lines, lineIndex);
+    if (tableRun) {
+      blocks.push(tableRun.table);
+      lineIndex = tableRun.nextIndex - 1;
       continue;
     }
     const heading = /^(#{1,3})[ \t]+(.*)$/.exec(line);
@@ -377,7 +676,7 @@ function htmlHasRealBold(html) {
 
 function htmlHasKnowledgeFormatting(html) {
   if (!html) return false;
-  if (/<(h[1-3]|ul|ol|li|em|i)\b/i.test(html)) return true;
+  if (/<(h[1-3]|ul|ol|li|em|i|table|th|td)\b/i.test(html)) return true;
   if (/font-style\s*:\s*italic/i.test(html)) return true;
   if (/font-weight\s*:\s*(bold|[6-9]00)/i.test(html)) return true;
   return htmlHasRealBold(html);
@@ -388,10 +687,30 @@ const HTML_SKIP = new Set(['script', 'style', 'iframe', 'object', 'noscript', 's
 function knowledgeBlocksFromHtml(html) {
   const blocks = [];
   let block = null;
-  const marks = [{ bold: false, italic: false }];
+  const marks = [{ bold: false, italic: false, code: false }];
   const skip = [];
   let listDepth = 0;
+  let tableDepth = 0;
+  let tableRows = [];
+  let tableAlign = [];
+  let tableRow = null;
+  let tableCell = null;
+  let tableCellTag = '';
   const mark = () => marks[marks.length - 1];
+  const flushTable = () => {
+    if (!tableRows.length) return;
+    const colCount = tableRows.reduce((max, row) => Math.max(max, row.length), 0);
+    const align = tableAlign.slice(0, colCount);
+    while (align.length < colCount) align.push('left');
+    const rows = tableRows.map((cells) => ({
+      cells: cells.slice(0, colCount).concat(Array.from({ length: Math.max(0, colCount - cells.length) }, () => ({ spans: [] }))),
+    }));
+    blocks.push({ type: 'table', align, rows });
+    tableRows = [];
+    tableAlign = [];
+    tableRow = null;
+    tableCell = null;
+  };
   const closeBlock = () => {
     if (!block) return;
     const spans = mergeSpans(block.spans);
@@ -416,7 +735,11 @@ function knowledgeBlocksFromHtml(html) {
     }
     ensure(listDepth ? 'li' : 'p', listDepth ? Math.max(0, listDepth - 1) : 0);
     const current = mark();
-    block.spans.push({ text: value, bold: current.bold, italic: current.italic });
+    if (tableDepth && tableCell) {
+      tableCell.spans.push({ text: value, bold: current.bold, italic: current.italic, code: current.code });
+      return;
+    }
+    block.spans.push({ text: value, bold: current.bold, italic: current.italic, code: current.code });
   };
   const tokens = String(html || '').match(/<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>|<\/?[a-zA-Z][^>]*>|[^<]+/g) || [];
   for (const token of tokens) {
@@ -440,6 +763,52 @@ function knowledgeBlocksFromHtml(html) {
     }
     if (name === 'br' || name === 'hr') {
       closeBlock();
+      continue;
+    }
+    if (!closing && name === 'table') {
+      closeBlock();
+      tableDepth += 1;
+      tableRows = [];
+      tableAlign = [];
+      continue;
+    }
+    if (closing && name === 'table') {
+      flushTable();
+      tableDepth = Math.max(0, tableDepth - 1);
+      continue;
+    }
+    if (tableDepth && !closing && (name === 'thead' || name === 'tbody' || name === 'tfoot')) {
+      continue;
+    }
+    if (tableDepth && closing && (name === 'thead' || name === 'tbody' || name === 'tfoot')) {
+      continue;
+    }
+    if (tableDepth && !closing && name === 'tr') {
+      tableRow = [];
+      continue;
+    }
+    if (tableDepth && closing && name === 'tr') {
+      if (tableRow?.length) tableRows.push(tableRow.map((cell) => ({ spans: mergeSpans(cell.spans) })));
+      tableRow = null;
+      continue;
+    }
+    if (tableDepth && !closing && (name === 'th' || name === 'td')) {
+      tableCell = { spans: [] };
+      tableCellTag = name;
+      const alignMatch = /align\s*=\s*["']?(left|center|right)/i.exec(token);
+      if (alignMatch && tableRow?.length === tableAlign.length) {
+        tableAlign.push(normalizeTableAlign(alignMatch[1]));
+      }
+      continue;
+    }
+    if (tableDepth && closing && (name === 'th' || name === 'td')) {
+      if (tableRow && tableCell) {
+        tableRow.push({ spans: mergeSpans(tableCell.spans) });
+        if (tableCellTag === 'th' && tableAlign.length < tableRow.length) {
+          tableAlign.push('left');
+        }
+      }
+      tableCell = null;
       continue;
     }
     if (!closing && (name === 'ul' || name === 'ol')) {
@@ -478,24 +847,27 @@ function knowledgeBlocksFromHtml(html) {
       closeBlock();
       continue;
     }
-    if (!closing && (name === 'b' || name === 'strong' || name === 'i' || name === 'em' || name === 'span' || name === 'font' || name === 'a')) {
+    if (!closing && (name === 'b' || name === 'strong' || name === 'i' || name === 'em' || name === 'code' || name === 'span' || name === 'font' || name === 'a')) {
       const current = mark();
       let bold = current.bold;
       let italic = current.italic;
+      let code = current.code;
       const weight = weightFlag(token);
       const slant = italicFlag(token);
       if (name === 'b' || name === 'strong') bold = weight === false ? false : true;
       else if (weight !== null) bold = weight;
       if (name === 'i' || name === 'em') italic = slant === false ? false : true;
       else if (slant !== null) italic = slant;
-      marks.push({ bold, italic });
+      if (name === 'code') code = true;
+      marks.push({ bold, italic, code });
       continue;
     }
-    if (closing && (name === 'b' || name === 'strong' || name === 'i' || name === 'em' || name === 'span' || name === 'font' || name === 'a')) {
+    if (closing && (name === 'b' || name === 'strong' || name === 'i' || name === 'em' || name === 'code' || name === 'span' || name === 'font' || name === 'a')) {
       if (marks.length > 1) marks.pop();
     }
   }
   closeBlock();
+  flushTable();
   return normalizeKnowledgeDoc(blocks, { keepEmpty: true });
 }
 
@@ -654,6 +1026,16 @@ export function groupKnowledgeBlocks(doc) {
   };
   while (cursor < blocks.length) {
     const block = blocks[cursor];
+    if (block.type === 'table') {
+      out.push({
+        kind: 'table',
+        index: block.index,
+        align: block.align || [],
+        rows: block.rows || [],
+      });
+      cursor += 1;
+      continue;
+    }
     if (block.type !== 'li') {
       out.push({ kind: 'p', type: block.type, index: block.index, spans: block.spans, text: spanText(block.spans) });
       cursor += 1;

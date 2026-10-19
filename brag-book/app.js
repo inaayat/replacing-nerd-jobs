@@ -181,6 +181,7 @@ import {
   applyKnowledgeHeadingBreak,
   applyKnowledgeHeadingMarker,
   applyKnowledgeListMarker,
+  applyKnowledgeMarkdownTables,
   applyKnowledgeTab,
   groupKnowledgeBlocks,
   insertKnowledgeBlocks,
@@ -1612,6 +1613,11 @@ function appendKnowledgeSpans(parent, spans) {
   }
   for (const span of spans) {
     let node = document.createTextNode(span.text);
+    if (span.code) {
+      const code = document.createElement('code');
+      code.append(node);
+      node = code;
+    }
     if (span.italic) {
       const em = document.createElement('em');
       em.append(node);
@@ -1624,6 +1630,31 @@ function appendKnowledgeSpans(parent, spans) {
     }
     parent.append(node);
   }
+}
+
+function paintKnowledgeTable(block) {
+  const wrap = document.createElement('div');
+  wrap.className = 'bb-kb-table-scroll';
+  wrap.dataset.kbBlock = String(block.index);
+  const table = document.createElement('table');
+  table.className = 'bb-kb-table';
+  const aligns = block.align || [];
+  for (let rowIndex = 0; rowIndex < (block.rows || []).length; rowIndex += 1) {
+    const row = block.rows[rowIndex];
+    const tr = document.createElement('tr');
+    for (let colIndex = 0; colIndex < (row.cells || []).length; colIndex += 1) {
+      const cell = row.cells[colIndex];
+      const tag = rowIndex === 0 ? 'th' : 'td';
+      const node = document.createElement(tag);
+      const align = aligns[colIndex] || 'left';
+      if (align !== 'left') node.setAttribute('align', align);
+      appendKnowledgeSpans(node, cell.spans || []);
+      tr.append(node);
+    }
+    table.append(tr);
+  }
+  wrap.append(table);
+  return wrap;
 }
 
 function paintKnowledgeList(items) {
@@ -1642,6 +1673,7 @@ function paintKnowledgeDoc(node, doc) {
   const grouped = groupKnowledgeBlocks(knowledgeDocForEditor(doc));
   const children = grouped.map((block) => {
     if (block.kind === 'ul') return paintKnowledgeList(block.items);
+    if (block.kind === 'table') return paintKnowledgeTable(block);
     const tag = block.type === 'h1' || block.type === 'h2' || block.type === 'h3' ? block.type : 'p';
     const node = document.createElement(tag);
     node.dataset.kbBlock = String(block.index);
@@ -1661,16 +1693,16 @@ function knowledgeBrIsBreak(node) {
 
 function readKnowledgeInline(node) {
   const spans = [];
-  const push = (text, bold, italic) => {
+  const push = (text, bold, italic, code = false) => {
     const value = String(text || '').replace(/\u00a0/g, ' ');
     if (!value) return;
     const last = spans[spans.length - 1];
-    if (last && last.bold === bold && last.italic === italic) last.text += value;
-    else spans.push({ text: value, bold, italic });
+    if (last && last.bold === bold && last.italic === italic && last.code === code) last.text += value;
+    else spans.push({ text: value, bold, italic, code });
   };
-  const walk = (parent, bold, italic) => {
+  const walk = (parent, bold, italic, code = false) => {
     for (const child of parent.childNodes) {
-      if (child.nodeType === 3) push(child.nodeValue, bold, italic);
+      if (child.nodeType === 3) push(child.nodeValue, bold, italic, code);
       else if (child.nodeType === 1) {
         const tag = child.tagName;
         if (tag === 'UL' || tag === 'OL' || tag === 'SCRIPT' || tag === 'STYLE' || tag === 'IFRAME' || tag === 'OBJECT') continue;
@@ -1678,18 +1710,36 @@ function readKnowledgeInline(node) {
         // empty block. Treating it as a newline would save a blank paragraph
         // on every keystroke. A break with text after it is a real line split.
         if (tag === 'BR') {
-          if (knowledgeBrIsBreak(child)) push('\n', bold, italic);
+          if (knowledgeBrIsBreak(child)) push('\n', bold, italic, code);
         } else {
           const weight = child.style?.fontWeight;
           const nextBold = bold || tag === 'B' || tag === 'STRONG' || weight === 'bold' || Number(weight) >= 600;
           const nextItalic = italic || tag === 'I' || tag === 'EM' || child.style?.fontStyle === 'italic';
-          walk(child, nextBold, nextItalic);
+          const nextCode = code || tag === 'CODE';
+          walk(child, nextBold, nextItalic, nextCode);
         }
       }
     }
   };
-  walk(node, false, false);
+  walk(node, false, false, false);
   return spans;
+}
+
+function readKnowledgeTable(tableEl) {
+  const align = [];
+  const rows = [];
+  for (const tr of tableEl.querySelectorAll('tr')) {
+    const cells = [];
+    for (const cell of tr.querySelectorAll('th, td')) {
+      if (!rows.length) {
+        const raw = String(cell.getAttribute('align') || 'left').toLowerCase();
+        align.push(raw === 'center' || raw === 'right' ? raw : 'left');
+      }
+      cells.push({ spans: readKnowledgeInline(cell) });
+    }
+    if (cells.length) rows.push({ cells });
+  }
+  return { type: 'table', align, rows };
 }
 
 function readKnowledgeDoc(root) {
@@ -1706,6 +1756,15 @@ function readKnowledgeDoc(root) {
       if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'IFRAME' || tag === 'OBJECT') continue;
       if (tag === 'H1' || tag === 'H2' || tag === 'H3') {
         blocks.push({ type: tag.toLowerCase(), indent: 0, spans: readKnowledgeInline(child) });
+        continue;
+      }
+      if (tag === 'DIV' && child.classList?.contains('bb-kb-table-scroll')) {
+        const table = child.querySelector('table');
+        if (table) blocks.push(readKnowledgeTable(table));
+        continue;
+      }
+      if (tag === 'TABLE') {
+        blocks.push(readKnowledgeTable(child));
         continue;
       }
       if (tag === 'UL' || tag === 'OL') {
@@ -1804,7 +1863,9 @@ function knowledgeEditor(note) {
     const plan = knowledgeEditEffects('input');
     if (!plan.save) return;
     const blocks = normalizeKnowledgeDoc(doc, { keepEmpty: true });
-    const stored = blocks.some((block) => block.type === 'li' || (block.spans || []).some((span) => span.text))
+    const hasTableText = (block) => block.type === 'table'
+      && (block.rows || []).some((row) => (row.cells || []).some((cell) => (cell.spans || []).some((span) => span.text)));
+    const stored = blocks.some((block) => block.type === 'li' || hasTableText(block) || (block.spans || []).some((span) => span.text))
       ? blocks
       : [];
     scheduleKnowledgeSave(note.id, {
@@ -1867,6 +1928,11 @@ function knowledgeEditor(note) {
   body.addEventListener('input', () => {
     const caret = knowledgeCaret(body);
     const doc = readKnowledgeDoc(body);
+    const tabled = applyKnowledgeMarkdownTables(doc);
+    if (tabled.changed) {
+      applyStructural({ ...tabled, caret });
+      return;
+    }
     const headed = applyKnowledgeHeadingMarker(doc, caret);
     if (headed.changed) {
       applyStructural(headed);

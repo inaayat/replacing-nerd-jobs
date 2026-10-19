@@ -64,7 +64,8 @@ This repo is a no-build Vercel site (see `README.md` for structure/deploy). Non-
  - `node scripts/test-takeout-workbook.mjs` — Takeout Excel download (`takeout/workbook.js`)
  - `node scripts/test-takeout-catalog.mjs` — Takeout source catalog (`takeout/catalog.js`)
  - `node scripts/test-asc-606.mjs` — ASC 606 decision tree, citations, and quiz paths (`asc-606/engine.js`, `tree.js`)
- - `node scripts/test-brag-book.mjs` — Brag Book store, JD parse, STAR compile, hash routes, combined book page, stale-save guards, role collapse (`brag-book/engine.js`, `routes.js`, `book-view.js`)
+  - `node scripts/test-brag-book.mjs` — Brag Book store, JD parse, STAR compile, hash routes, combined book page, stale-save guards, role collapse (`brag-book/engine.js`, `routes.js`, `book-view.js`)
+  - `node scripts/test-brag-book-knowledge-tables.mjs` — Knowledge GFM tables: parse, infer on load, paste/HTML, search, save round-trip (`brag-book/knowledge-doc.js`)
  - `node scripts/test-brag-book-drag-dom.mjs` — Resume basics and posting drag handles in jsdom: HTML5 drag and pointer fallback, preview and DOCX order, reload (`brag-book/app.js`)
  - `node scripts/test-brag-book-pwa.mjs` — Brag Book manifest, A-Lister–style service worker, PWA status/update UI (`brag-book/pwa.js`, `service-worker.js`)
  - `node scripts/test-brag-book-pwa-sync-guarantees.mjs` — online PUT, in-flight save reconnect, 409 merge, flush/outbox, SW vs localStorage, bullet ids, offline read-only
