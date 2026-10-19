@@ -132,6 +132,7 @@ import {
   updateEducationItem,
   libraryBulletChoices,
   placeLibraryBullet,
+  addResumeBulletFromSearch,
   resumeTakenEntryIds,
   visibleResumeBullets,
   writeBulletBackToSource,
@@ -1371,6 +1372,39 @@ const pickedLive = compileResumeDoc(postingById(picked, 'job_pick'), picked)
   .sections.experience.jobs.find((job) => job.id === 'rj_pick').groups[0].bullets[0];
 assert.match(pickedLive.body, /rewritten in the library/);
 assert.equal(libraryBulletChoices(picked, { query: 'picked', takenIds: ['en_pick'] }).some((entry) => entry.id === 'en_pick'), false);
+
+const beforeSearchCreate = picked.entries.length;
+const noCreateEmpty = addResumeBulletFromSearch(picked, {
+  postingId: 'job_pick',
+  jobId: 'rj_pick',
+  groupId: 'rg_pick',
+  query: '   ',
+}, clock, random);
+assert.equal(noCreateEmpty.entries.length, beforeSearchCreate);
+const noCreateMatch = addResumeBulletFromSearch(picked, {
+  postingId: 'job_pick',
+  jobId: 'rj_pick',
+  groupId: 'rg_pick',
+  query: 'Another library line',
+}, clock, random);
+assert.equal(noCreateMatch.entries.length, beforeSearchCreate);
+assert.equal(noCreateMatch.entries.some((entry) => entry.title === 'Another library line' && entry.id !== 'en_other'), false);
+picked = addResumeBulletFromSearch(picked, {
+  postingId: 'job_pick',
+  jobId: 'rj_pick',
+  groupId: 'rg_pick',
+  query: 'Brand new search line: typed from the box',
+}, clock, random);
+const createdSearch = picked.entries.find((entry) => entry.title === 'Brand new search line: typed from the box');
+assert.ok(createdSearch);
+assert.equal(createdSearch.jobId, 'rj_pick');
+const searchPlaced = compileResumeDoc(postingById(picked, 'job_pick'), picked)
+  .sections.experience.jobs.find((job) => job.id === 'rj_pick').groups
+  .flatMap((group) => group.bullets || []);
+const searchBullet = searchPlaced.find((bullet) => (bullet.sourceEntryIds || []).includes(createdSearch.id));
+assert.ok(searchBullet);
+assert.equal(searchBullet.included, true);
+assert.match(`${searchBullet.lead} ${searchBullet.body}`, /typed from the box/);
 picked = updateCareerJob(picked, 'rj_pick', {
   groups: [{ id: 'rg_pick', heading: 'Renamed subheader', bullets: [] }],
 }, clock);
@@ -2947,6 +2981,9 @@ const pickerSrc = appSource.slice(
   appSource.indexOf('function addSubheadingButton'),
 );
 assert.match(pickerSrc, /Type to search resume bullets/);
+assert.match(pickerSrc, /addResumeBulletFromSearch/);
+assert.match(pickerSrc, /event\.key !== 'Enter'/);
+assert.match(pickerSrc, /\+ New/);
 assert.doesNotMatch(pickerSrc, /addEventListener\('focus'/);
 assert.match(appSource, /\bInclude\b/);
 assert.match(appSource, /\bPin\b/);

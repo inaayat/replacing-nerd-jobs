@@ -117,6 +117,7 @@ import {
   hasBasicsBackup,
   libraryBulletChoices,
   placeLibraryBullet,
+  addResumeBulletFromSearch,
   assignEntryJob,
   placeJobOnResume,
   addPostingResumeJob,
@@ -3348,16 +3349,41 @@ function libraryBulletPicker(posting, career, group) {
     'data-focus-key': `pick-${group?.id || career.id}`,
   });
   const list = el('div', { class: 'bb-lib-picks', hidden: true });
-  const paint = () => {
+  const linkedJobId = career.jobId && career.jobId !== career.id ? career.jobId : career.id;
+  const searchChoices = () => {
     const q = query.value.trim();
+    if (!q) return { q, choices: [] };
+    const taken = resumeTakenEntryIds(store, posting || null, { includeExcluded: !posting });
+    return { q, choices: libraryBulletChoices(store, { query: q, takenIds: taken, jobId: linkedJobId }) };
+  };
+  const createFromSearch = () => {
+    if (!posting) return;
+    const { q, choices } = searchChoices();
+    if (!q || choices.length) return;
+    store = addResumeBulletFromSearch(store, {
+      postingId: posting.id,
+      jobId: career.id,
+      groupId: group?.id || '',
+      query: q,
+    });
+    query.value = '';
+    saveStore();
+    const created = store.entries.find((entry) => entry.title === q);
+    const added = compileResumeDoc(posting, store).sections.experience.jobs
+      .find((job) => job.id === career.id);
+    const bullets = (added?.groups || []).flatMap((item) => item.bullets || []);
+    const linked = created
+      ? bullets.find((bullet) => (bullet.sourceEntryIds || []).includes(created.id))
+      : null;
+    render({ focusKey: linked ? `rb-${linked.id}-line` : `pick-${group?.id || career.id}` });
+  };
+  const paint = () => {
+    const { q, choices } = searchChoices();
     if (!q) {
       list.replaceChildren(el('p', { class: 'tiny' }, 'Type to search resume bullets.'));
       list.hidden = false;
       return;
     }
-    const taken = resumeTakenEntryIds(store, posting || null, { includeExcluded: !posting });
-    const linkedJobId = career.jobId && career.jobId !== career.id ? career.jobId : career.id;
-    const choices = libraryBulletChoices(store, { query: q, takenIds: taken, jobId: linkedJobId });
     list.replaceChildren(...(choices.length
       ? choices.map((entry) => btn(entry.title, {
         class: 'btn ghost compact-action bb-lib-choice',
@@ -3381,11 +3407,20 @@ function libraryBulletPicker(posting, career, group) {
     list.hidden = false;
   };
   query.addEventListener('input', paint);
+  query.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    createFromSearch();
+  });
   query.addEventListener('blur', () => {
     list.hidden = true;
   });
   return el('div', { class: 'bb-lib-pick' }, [
     query,
+    btn('+ New', {
+      class: 'btn ghost compact-action',
+      onClick: createFromSearch,
+    }),
     list,
   ]);
 }
