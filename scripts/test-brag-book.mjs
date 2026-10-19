@@ -3826,6 +3826,28 @@ bulkJob = addEntries(bulkJob, [
 assert.equal(bulkJob.entries.length, 2);
 assert.ok(bulkJob.entries.every((entry) => entry.jobId === 'rj_bulk' && entry.company === 'Bulk Co'));
 
+const adderSrc = appSource.slice(
+  appSource.indexOf('function experienceAdder'),
+  appSource.indexOf('function requirementTableRow'),
+);
+assert.match(adderSrc, /Search experiences, or type a new one/);
+assert.match(adderSrc, /createEntryBullet/);
+assert.match(adderSrc, /chrome\.open \|\| \(plain\(\) && !choices\.length\)/);
+assert.match(adderSrc, /onSubmit/);
+assert.doesNotMatch(adderSrc, /expandedBulletKey/);
+let reqSearch = addPosting(emptyStore(), { id: 'job_req_search', title: 'Req Search' }, clock);
+reqSearch = addRequirement(reqSearch, 'job_req_search', 'Need a unique line', clock);
+const reqSearchId = reqSearch.postings[0].requirements[0].id;
+const beforeReqSearch = reqSearch.entries.length;
+reqSearch = createEntryBullet(reqSearch, 'job_req_search', reqSearchId, 'Brand new requirement line', clock);
+const createdReq = reqSearch.entries.find((entry) => entry.title === 'Brand new requirement line');
+assert.ok(createdReq);
+assert.equal(reqSearch.entries.length, beforeReqSearch + 1);
+const mappedReq = postingById(reqSearch, 'job_req_search').requirements
+  .find((req) => req.id === reqSearchId).bullets
+  .find((bullet) => bullet.entryId === createdReq.id);
+assert.ok(mappedReq);
+assert.equal(mappedReq.text, 'Brand new requirement line');
 assert.deepEqual(experienceAdderChrome(false), {
   open: false,
   showForm: false,
