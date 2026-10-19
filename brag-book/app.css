@@ -1565,11 +1565,16 @@ a:focus-visible {
 }
 .bb-lib-pick {
   position: relative;
+  display: flex;
   flex: 1 1 220px;
+  gap: 6px;
   min-width: 180px;
+  align-items: center;
 }
 .bb-lib-pick input {
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
 }
 .bb-lib-picks {
   position: absolute;
