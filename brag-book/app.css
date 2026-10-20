@@ -1706,6 +1706,10 @@ a:focus-visible {
   gap: 6px;
   min-width: 180px;
   align-items: center;
+  z-index: 1;
+}
+.bb-lib-pick:focus-within {
+  z-index: 40;
 }
 .bb-lib-pick input {
   flex: 1 1 auto;
@@ -1713,24 +1717,72 @@ a:focus-visible {
   width: auto;
 }
 .bb-lib-picks {
-  position: absolute;
-  z-index: 5;
-  left: 0;
-  right: 0;
-  top: calc(100% + 4px);
+  position: fixed;
+  z-index: 120;
+  margin: 0;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 6px;
-  background: var(--panel, #fff);
-  border: 1px solid var(--line, rgba(12, 11, 9, 0.16));
-  border-radius: 6px;
-  max-height: 240px;
-  overflow: auto;
+  gap: 0;
+  padding: 4px 0;
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid var(--line-strong, rgba(12, 11, 9, 0.22));
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(12, 11, 9, 0.14);
+  max-height: 320px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.bb-lib-picks-hint {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: var(--muted);
+  text-transform: none;
 }
 .bb-lib-choice {
+  width: 100%;
+  margin: 0;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid rgba(12, 11, 9, 0.08);
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.82rem;
+  line-height: 1.35;
   text-align: left;
+  text-transform: none;
+  letter-spacing: normal;
   white-space: normal;
+  cursor: pointer;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+.bb-lib-choice:last-child {
+  border-bottom: 0;
+}
+.bb-lib-choice:hover,
+.bb-lib-choice.is-active {
+  background: rgba(12, 11, 9, 0.04);
+}
+.bb-lib-choice:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: -2px;
+}
+.bb-lib-mark {
+  background: rgba(184, 134, 11, 0.22);
+  color: inherit;
+  font-weight: 600;
+  padding: 0 1px;
+  border-radius: 2px;
 }
 .bb-drag-list { display: flex; flex-direction: column; gap: 2px; }
 .bb-drag-row {

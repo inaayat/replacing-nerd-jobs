@@ -3654,21 +3654,133 @@ function resumeMoveBtns(label, { index, length, onMove, disableUp, disableDown }
   ]);
 }
 
+const LIB_PICK_MAX_HEIGHT_PX = 320;
+
+function libraryPickHighlightFragment(text, query) {
+  const hay = String(text || '');
+  const needle = String(query || '').trim();
+  if (!needle) return document.createTextNode(hay);
+  const frag = document.createDocumentFragment();
+  const lower = hay.toLowerCase();
+  const nLower = needle.toLowerCase();
+  let i = 0;
+  while (i < hay.length) {
+    const at = lower.indexOf(nLower, i);
+    if (at < 0) {
+      frag.append(document.createTextNode(hay.slice(i)));
+      break;
+    }
+    if (at > i) frag.append(document.createTextNode(hay.slice(i, at)));
+    frag.append(el('mark', { class: 'bb-lib-mark' }, hay.slice(at, at + needle.length)));
+    i = at + needle.length;
+  }
+  return frag;
+}
+
 function libraryBulletPicker(posting, career, group) {
+  const wrap = el('div', { class: 'bb-lib-pick' });
+  const listId = `lib-picks-${group?.id || career.id}`;
   const query = el('input', {
     type: 'search',
     placeholder: 'Search resume bullets',
     'aria-label': 'Search resume bullets',
+    'aria-autocomplete': 'list',
+    'aria-expanded': 'false',
+    'aria-controls': listId,
     'data-focus-key': `pick-${group?.id || career.id}`,
   });
-  const list = el('div', { class: 'bb-lib-picks', hidden: true });
+  const list = el('div', {
+    class: 'bb-lib-picks',
+    id: listId,
+    role: 'listbox',
+    hidden: true,
+  });
+  let activeIndex = -1;
+  let docCloseListener = null;
+  let scrollListener = null;
   const linkedJobId = career.jobId && career.jobId !== career.id ? career.jobId : career.id;
+  const anchorEl = () => query.closest('.bb-job-card') || wrap;
+
   const searchChoices = () => {
     const q = query.value.trim();
     if (!q) return { q, choices: [] };
     const taken = resumeTakenEntryIds(store, posting || null, { includeExcluded: !posting });
     return { q, choices: libraryBulletChoices(store, { query: q, takenIds: taken, jobId: linkedJobId }) };
   };
+
+  const detachOpenListeners = () => {
+    if (docCloseListener) {
+      document.removeEventListener('pointerdown', docCloseListener, true);
+      docCloseListener = null;
+    }
+    if (scrollListener) {
+      scrollListener.target?.removeEventListener('scroll', scrollListener.fn);
+      scrollListener = null;
+    }
+  };
+
+  const positionList = () => {
+    if (list.hidden) return;
+    const inputRect = query.getBoundingClientRect();
+    const cardRect = anchorEl().getBoundingClientRect();
+    const spaceBelow = window.innerHeight - inputRect.bottom;
+    const spaceAbove = inputRect.top;
+    const openUp = spaceBelow < Math.min(LIB_PICK_MAX_HEIGHT_PX, 180) && spaceAbove > spaceBelow;
+    list.classList.toggle('is-above', openUp);
+    list.style.left = `${cardRect.left}px`;
+    list.style.width = `${cardRect.width}px`;
+    if (openUp) {
+      list.style.top = 'auto';
+      list.style.bottom = `${window.innerHeight - inputRect.top + 4}px`;
+    } else {
+      list.style.top = `${inputRect.bottom + 4}px`;
+      list.style.bottom = 'auto';
+    }
+  };
+
+  const closeList = () => {
+    list.hidden = true;
+    query.setAttribute('aria-expanded', 'false');
+    activeIndex = -1;
+    detachOpenListeners();
+  };
+
+  const openList = () => {
+    list.hidden = false;
+    query.setAttribute('aria-expanded', 'true');
+    positionList();
+    if (!docCloseListener) {
+      docCloseListener = (event) => {
+        if (wrap.contains(event.target) || list.contains(event.target)) return;
+        closeList();
+      };
+      document.addEventListener('pointerdown', docCloseListener, true);
+    }
+    const scrollRoot = query.closest('.bb-resume-editor');
+    if (scrollRoot && !scrollListener) {
+      const fn = () => positionList();
+      scrollRoot.addEventListener('scroll', fn, { passive: true });
+      scrollListener = { target: scrollRoot, fn };
+    }
+  };
+
+  const pickEntry = (entry) => {
+    store = placeLibraryBullet(store, {
+      postingId: posting?.id || null,
+      jobId: career.id,
+      groupId: group?.id || '',
+      entryId: entry.id,
+    });
+    query.value = '';
+    closeList();
+    saveStore();
+    const added = compileResumeDoc(posting || null, store).sections.experience.jobs
+      .find((job) => job.id === career.id);
+    const bullets = (added?.groups || []).flatMap((item) => item.bullets || []);
+    const linked = bullets.find((bullet) => (bullet.sourceEntryIds || []).includes(entry.id));
+    render({ focusKey: linked ? `rb-${linked.id}-line` : `pick-${group?.id || career.id}` });
+  };
+
   const createFromSearch = () => {
     if (!posting) return;
     const { q, choices } = searchChoices();
@@ -3684,55 +3796,92 @@ function libraryBulletPicker(posting, career, group) {
       });
     }
     query.value = '';
+    closeList();
     saveStore();
     render({ focusKey: `pick-${group?.id || career.id}` });
   };
-  const paint = () => {
-    const { q, choices } = searchChoices();
-    if (!q) {
-      list.replaceChildren(el('p', { class: 'tiny' }, 'Type to search resume bullets.'));
-      list.hidden = false;
+
+  const setActive = (next, { choices = [] } = {}) => {
+    const max = choices.length - 1;
+    if (max < 0) {
+      activeIndex = -1;
       return;
     }
-    list.replaceChildren(...(choices.length
-      ? choices.map((entry) => btn(entry.title, {
-        class: 'btn ghost compact-action bb-lib-choice',
+    activeIndex = Math.max(0, Math.min(next, max));
+    list.querySelectorAll('.bb-lib-choice').forEach((node, index) => {
+      const on = index === activeIndex;
+      node.classList.toggle('is-active', on);
+      node.setAttribute('aria-selected', on ? 'true' : 'false');
+      if (on) node.scrollIntoView({ block: 'nearest' });
+    });
+  };
+
+  const paint = () => {
+    const { q, choices } = searchChoices();
+    activeIndex = -1;
+    if (!q) {
+      list.replaceChildren(el('p', { class: 'bb-lib-picks-hint' }, 'Type to search resume bullets.'));
+      openList();
+      return;
+    }
+    if (!choices.length) {
+      list.replaceChildren(el('p', { class: 'bb-lib-picks-hint' }, 'No matching resume bullets.'));
+      openList();
+      return;
+    }
+    list.replaceChildren(...choices.map((entry, index) => {
+      const row = el('button', {
+        type: 'button',
+        class: 'bb-lib-choice',
+        role: 'option',
+        id: `${listId}-opt-${index}`,
+        'aria-selected': 'false',
         onPointerdown: (event) => {
           event.preventDefault();
-          store = placeLibraryBullet(store, {
-            postingId: posting?.id || null,
-            jobId: career.id,
-            groupId: group?.id || '',
-            entryId: entry.id,
-          });
-          saveStore();
-          const added = compileResumeDoc(posting || null, store).sections.experience.jobs
-            .find((job) => job.id === career.id);
-          const bullets = (added?.groups || []).flatMap((item) => item.bullets || []);
-          const linked = bullets.find((bullet) => (bullet.sourceEntryIds || []).includes(entry.id));
-          render({ focusKey: linked ? `rb-${linked.id}-line` : `pick-${group?.id || career.id}` });
+          pickEntry(entry);
         },
-      }))
-      : [el('p', { class: 'tiny' }, 'No matching resume bullets.')]));
-    list.hidden = false;
+      }, libraryPickHighlightFragment(displayExperienceLine(entry.title), q));
+      return row;
+    }));
+    openList();
   };
+
   query.addEventListener('input', paint);
+  query.addEventListener('focus', paint);
   query.addEventListener('keydown', (event) => {
-    if (event.key !== 'Enter') return;
-    event.preventDefault();
-    createFromSearch();
+    const { q, choices } = searchChoices();
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeList();
+      return;
+    }
+    if (event.key === 'ArrowDown' && choices.length) {
+      event.preventDefault();
+      if (list.hidden) openList();
+      setActive(activeIndex + 1, { choices });
+      return;
+    }
+    if (event.key === 'ArrowUp' && choices.length) {
+      event.preventDefault();
+      if (list.hidden) openList();
+      setActive(activeIndex <= 0 ? choices.length - 1 : activeIndex - 1, { choices });
+      return;
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      if (activeIndex >= 0 && choices[activeIndex]) pickEntry(choices[activeIndex]);
+      else createFromSearch();
+    }
   });
-  query.addEventListener('blur', () => {
-    list.hidden = true;
-  });
-  return el('div', { class: 'bb-lib-pick' }, [
+  wrap.append(
     query,
     btn('+ New', {
       class: 'btn ghost compact-action',
       onClick: createFromSearch,
     }),
     list,
-  ]);
+  );
+  return wrap;
 }
 
 function addSubheadingButton(posting, career, { afterId } = {}) {

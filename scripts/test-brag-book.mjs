@@ -2977,7 +2977,9 @@ assert.match(pickerSrc, /Type to search resume bullets/);
 assert.match(pickerSrc, /createSharedBullet/);
 assert.match(pickerSrc, /placeLibraryBullet/);
 assert.match(pickerSrc, /if \(!q \|\| choices\.length\) return/);
-assert.match(pickerSrc, /event\.key !== 'Enter'/);
+assert.match(pickerSrc, /event\.key === 'Enter'/);
+assert.match(pickerSrc, /ArrowDown/);
+assert.match(pickerSrc, /Escape/);
 assert.match(pickerSrc, /\+ New/);
 const createSrc = pickerSrc.slice(
   pickerSrc.indexOf('const createFromSearch'),
@@ -2988,7 +2990,7 @@ assert.match(createSrc, /render\(\{ focusKey: `pick-/);
 assert.doesNotMatch(createSrc, /rb-\$\{linked/);
 assert.doesNotMatch(createSrc, /expandedBulletKey/);
 assert.doesNotMatch(createSrc, /sharedBulletForm/);
-assert.doesNotMatch(pickerSrc, /addEventListener\('focus'/);
+assert.match(pickerSrc, /addEventListener\('focus', paint\)/);
 assert.match(appSource, /\bInclude\b/);
 assert.match(appSource, /\bPin\b/);
 assert.doesNotMatch(appSource, /Reset to source/);
