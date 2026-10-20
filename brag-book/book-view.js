@@ -145,12 +145,17 @@ export function resumeGroupChrome(groups, draftGroupId = '', posting = true) {
   };
 }
 
+/** STAR on Resume bullets is collapsed until the user expands it (session-only). */
+export function experienceStarDefaultExpanded() {
+  return false;
+}
+
 export function experienceRowSpec(entry) {
   const spec = sharedBulletSpec(entry);
   return {
     id: spec.id,
     bullet: spec.title,
-    requiresInteraction: false,
+    requiresInteraction: true,
     controls: spec.fields
       .filter((field) => field.kind === 'job' || field.kind === 'star')
       .map((field) => ({

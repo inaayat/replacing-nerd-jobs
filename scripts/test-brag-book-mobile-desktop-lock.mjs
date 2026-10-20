@@ -128,7 +128,7 @@ assert.match(resumeFrameRule, /height:\s*11in/);
 const experienceRule = cssRule(/\.bb-exp-row\s*\{[^}]*\}/, 'Resume bullets card');
 assert.match(
   experienceRule,
-  /grid-template-columns:\s*minmax\(15rem,\s*0\.85fr\)\s+minmax\(0,\s*1\.35fr\)/,
+  /grid-template-columns:\s*minmax\(0,\s*1fr\)/,
 );
 assert.match(experienceRule, /align-items:\s*start/);
 
@@ -168,10 +168,8 @@ assert.match(
   css,
   /@media \(max-width:\s*1100px\)\s*\{[^}]*\.bb-job-catalog-row\s*\{\s*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/,
 );
-assert.match(
-  css,
-  /@media \(max-width:\s*980px\)\s*\{[^}]*\.bb-exp-row\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\)/,
-);
+assert.match(css, /\.bb-exp-star-toggle/);
+assert.match(css, /\.bb-exp-star-panel/);
 assert.match(
   css,
   /@media \(max-width:\s*860px\)[\s\S]*?\.bb-resume-split\s*\{\s*grid-template-columns:\s*1fr/,
@@ -189,6 +187,8 @@ assert.match(sharedForm, /class:\s*'experience-star bb-star-stack'/);
 const experienceRow = sourceSection('function experienceRow', 'function experienceTable');
 assert.match(experienceRow, /class:\s*'bb-exp-row'/);
 assert.match(experienceRow, /class:\s*'bb-exp-lead'/);
+assert.match(experienceRow, /experienceStarToggle/);
+assert.match(experienceRow, /class:\s*'bb-exp-star-panel'/);
 assert.match(experienceRow, /class:\s*'bb-exp-stargrid bb-star-stack'/);
 
 const requirementTable = sourceSection('function requirementTable', 'function jobDetailsDisclosure');

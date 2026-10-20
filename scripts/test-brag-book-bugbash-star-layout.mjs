@@ -118,8 +118,8 @@ assert.match(jobTitleRule, /white-space:\s*pre-wrap/);
 assert.match(jobTitleRule, /overflow-wrap:\s*anywhere/);
 assert.match(
   css,
-  /@media \(max-width:\s*980px\)[\s\S]*?\.bb-exp-row\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\)/,
-  'the lead and STAR columns must stack before they become cramped',
+  /\.bb-exp-row\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/,
+  'Resume bullet cards use a single full-width column',
 );
 assert.deepEqual(
   STAR_FIELDS.map((field) => field.label),
@@ -183,6 +183,10 @@ dom.window.scrollTo = () => {};
 dom.window.open = () => null;
 dom.window.localStorage.setItem(STORE_KEY, JSON.stringify(layoutBook));
 await import(new URL(`../brag-book/app.js?layout=${Date.now()}`, import.meta.url));
+await new Promise((resolve) => setTimeout(resolve, 20));
+const starToggle = dom.window.document.querySelector('.bb-exp-star-toggle');
+assert.ok(starToggle, 'STAR toggle must render on Resume bullets');
+starToggle.click();
 await new Promise((resolve) => setTimeout(resolve, 20));
 const leadEditor = dom.window.document.querySelector('[aria-label="Resume line"]');
 assert.equal(leadEditor?.textContent, longBullet, 'the real lead editor DOM must contain the complete bullet');

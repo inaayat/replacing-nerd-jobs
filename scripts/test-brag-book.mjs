@@ -2788,7 +2788,7 @@ const beforeCount = inlineRows.entries.length;
 const beforeIds = inlineRows.entries.map((entry) => entry.id).sort();
 for (const entry of inlineRows.entries) {
   const spec = experienceRowSpec(entry);
-  assert.equal(spec.requiresInteraction, false);
+  assert.equal(spec.requiresInteraction, true);
   assert.deepEqual(spec.controls.map((control) => control.key), ['jobId', 'situation', 'task', 'action', 'result']);
   assert.equal(spec.controls.find((control) => control.key === 'jobId').label, 'Job');
   assert.equal(spec.controls.find((control) => control.key === 'jobId').kind, 'job');
@@ -2820,7 +2820,7 @@ assert.equal(edited.role, 'Analyst');
 assert.equal(edited.kind === 'skillset', false);
 assert.equal(edited.when === '1999', false);
 const editedSpec = experienceRowSpec(edited);
-assert.equal(editedSpec.requiresInteraction, false);
+assert.equal(editedSpec.requiresInteraction, true);
 assert.equal(edited.jobId, 'rj_row');
 assert.equal(editedSpec.controls.find((control) => control.key === 'jobId').value, 'rj_row');
 assert.equal(editedSpec.controls.some((control) => control.key === 'company' || control.key === 'role'), false);
@@ -3014,7 +3014,7 @@ assert.doesNotMatch(bulletEditorSrc, /Situation/);
 assert.doesNotMatch(bulletEditorSrc, /placeholder: 'Extra color/);
 assert.match(appSource.slice(0, appSource.indexOf('function resumeBulletEditor')), /sharedBulletForm\(/);
 assert.doesNotMatch(appSource, /experienceIsOpen/);
-assert.doesNotMatch(appSource, /toggleExperience/);
+assert.doesNotMatch(appSource, /toggleExperience(?!Star)/);
 assert.doesNotMatch(appSource, /Expand experience/);
 
 await renderBookPage('#kb');
@@ -3243,13 +3243,18 @@ async function renderBookPage(hash) {
     const placeholders = app.querySelectorAll('input').map((node) => node.getAttribute('placeholder'));
     assert.equal(placeholders.includes('Search resume bullets, companies, STAR…'), true);
     assert.equal(placeholders.includes('Search pages'), false);
-    for (const label of ['Job', 'Situation', 'Task', 'Action', 'Result']) {
-      assert.equal(labels.filter((item) => item === label).length, 2, `${hash} ${label}`);
-    }
+    assert.equal(labels.filter((item) => item === 'Job').length, 2, `${hash} Job`);
+    const starPanels = [...app.querySelectorAll('.bb-exp-star-panel')];
+    assert.equal(starPanels.length, 2, `${hash} STAR panels`);
+    assert.ok(starPanels.every((node) => node.hidden === true || node.attrs?.hidden != null), `${hash} STAR panels collapsed`);
     assert.equal(labels.filter((item) => item === 'Role').length, 0);
     assert.match(text, /Unassigned/);
     assert.match(text, /Set up your jobs/);
-    assert.equal(app.querySelectorAll('[data-star="always"]').length, 2);
+    assert.equal(app.querySelectorAll('[data-star="always"]').length, 0);
+    assert.equal(app.querySelectorAll('[data-star="hidden"]').length, 2);
+    const starToggles = app.querySelectorAll('.bb-exp-star-toggle');
+    assert.equal(starToggles.length, 2);
+    assert.ok(starToggles.every((node) => node.getAttribute('aria-expanded') === 'false'), `${hash} STAR toggles collapsed`);
     assert.match(text, /Books were late/);
     assert.match(text, /Second result/);
     assert.equal(app.querySelector('#book-experiences') != null, true);

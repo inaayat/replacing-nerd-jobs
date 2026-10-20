@@ -265,6 +265,8 @@ let resumeSnapshotApplyToPostingId = null;
 let resumeSnapshotRenameOpen = null;
 /** Posting ids with the unmapped resume panel expanded this session (not persisted). */
 const unmappedResumePanelExpanded = new Set();
+/** Resume bullet entry ids with STAR expanded this session (not persisted). */
+const expandedExperienceStar = new Set();
 
 function storeCacheKey() {
   if (localMode) return LOCAL_STORE_KEY;
@@ -1451,21 +1453,75 @@ function experienceControl(entry, control) {
   ]);
 }
 
+function flushExperienceStarEdits(entry, article) {
+  if (!entry || !article) return;
+  const patch = {};
+  for (const key of ['situation', 'task', 'action', 'result']) {
+    const field = article.querySelector(`[data-focus-key="exp-${key}-${entry.id}"]`);
+    if (!field) continue;
+    const value = String(field.value ?? '');
+    if (value !== String(entry[key] || '')) patch[key] = value;
+  }
+  if (Object.keys(patch).length) patchEntry(entry.id, patch);
+  void flushSave('blur');
+}
+
+function toggleExperienceStar(entry, article) {
+  const open = expandedExperienceStar.has(entry.id);
+  if (open) {
+    flushExperienceStarEdits(entry, article);
+    expandedExperienceStar.delete(entry.id);
+  } else {
+    expandedExperienceStar.add(entry.id);
+  }
+  const scroll = captureScroll();
+  render();
+  restoreScroll(scroll);
+}
+
+function experienceStarToggle(entry, { expanded, panelId }) {
+  const fill = starFill(entry);
+  return el('button', {
+    type: 'button',
+    class: `bb-exp-star-toggle${fill.ready ? ' is-ready' : ''}`,
+    'aria-expanded': expanded ? 'true' : 'false',
+    'aria-controls': panelId,
+    onClick: (event) => {
+      event.preventDefault();
+      const article = event.currentTarget.closest('.bb-exp-row');
+      toggleExperienceStar(entry, article);
+    },
+  }, [
+    el('span', { class: 'bb-exp-star-toggle-label' }, 'STAR'),
+    el('span', { class: 'bb-exp-star-chevron', 'aria-hidden': 'true' }),
+  ]);
+}
+
 function experienceRow(entry) {
   const spec = experienceRowSpec(entry);
   const lead = spec.controls.filter((control) => control.column === 'lead');
   const star = spec.controls.filter((control) => control.column === 'star');
+  const expanded = expandedExperienceStar.has(entry.id);
+  const panelId = `exp-star-${entry.id}`;
+  const starPanel = el('div', {
+    class: 'bb-exp-star-panel',
+    id: panelId,
+    hidden: expanded ? undefined : true,
+  }, [
+    el('div', { class: 'bb-exp-stargrid bb-star-stack' }, star.map((control) => experienceControl(entry, control))),
+  ]);
   return el('article', {
     class: 'bb-exp-row',
     'data-entry-id': spec.id,
-    'data-star': spec.requiresInteraction ? 'hidden' : 'always',
+    'data-star': expanded ? 'always' : 'hidden',
   }, [
     el('div', { class: 'bb-exp-lead' }, [
       experienceLineCell(entry),
       el('div', { class: 'bb-exp-jobrole' }, lead.map((control) => experienceControl(entry, control))),
       experienceMore(entry),
+      experienceStarToggle(entry, { expanded, panelId }),
+      starPanel,
     ]),
-    el('div', { class: 'bb-exp-stargrid bb-star-stack' }, star.map((control) => experienceControl(entry, control))),
   ]);
 }
 

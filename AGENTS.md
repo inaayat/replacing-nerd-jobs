@@ -66,6 +66,7 @@ This repo is a no-build Vercel site (see `README.md` for structure/deploy). Non-
  - `node scripts/test-asc-606.mjs` — ASC 606 decision tree, citations, and quiz paths (`asc-606/engine.js`, `tree.js`)
   - `node scripts/test-brag-book.mjs` — Brag Book store, JD parse, STAR compile, hash routes, combined book page, stale-save guards, role collapse (`brag-book/engine.js`, `routes.js`, `book-view.js`)
   - `node scripts/test-brag-book-export.mjs` — full-book JSON export round-trip and print HTML sections (`brag-book/book-export.js`)
+  - `node scripts/test-brag-book-star-collapsed.mjs` — Resume bullets STAR collapsed by default, session expand, collapse flush (`book-view.js`, `app.js`)
   - `node scripts/test-brag-book-knowledge-tables.mjs` — Knowledge GFM tables: parse, infer on load, paste/HTML, search, save round-trip (`brag-book/knowledge-doc.js`)
   - `node scripts/test-brag-book-resume-snapshots.mjs` — immutable saved resume bank, merge, PUT/GET preservation (`brag-book/resume-snapshots.js`)
   - `node scripts/test-brag-book-start-from-snapshot.mjs` — start posting resume from saved copy, auto-backup, persist/reload, posting-only edits (`resume-snapshots.js`, save controller)
