@@ -34,6 +34,7 @@ import {
   searchEntries,
   searchKnowledge,
   experienceCatalog,
+  experienceCatalogGroups,
   experienceDetailPatch,
   postingsUsingEntry,
   KNOWLEDGE_SAVE_MS,
@@ -1226,7 +1227,12 @@ function experienceTools(view) {
       value: query,
       'aria-label': 'Search resume bullets',
       'data-focus-key': 'book-search',
-      onInput: (event) => { query = event.target.value; render(); },
+      onInput: (event) => {
+        query = event.target.value;
+        const scroll = captureScroll();
+        render({ focusKey: 'book-search' });
+        restoreScroll(scroll);
+      },
     }),
     btn(addingLine ? 'Close' : '+ Add resume bullet', {
       class: 'btn ghost compact-action',
@@ -1525,15 +1531,27 @@ function experienceRow(entry) {
   ]);
 }
 
+function experienceGroupHeader(group) {
+  const title = [group.label, group.dates].filter(Boolean).join(' · ');
+  return el('header', { class: 'bb-exp-group-head', 'data-job-id': group.jobId || '__none__' }, [
+    el('h2', { class: 'bb-exp-group-title' }, title),
+    el('span', { class: 'bb-exp-group-count' }, `${group.count}`),
+  ]);
+}
+
 function experienceTable(view) {
-  const rows = experienceCatalog(store, { query });
+  const groups = experienceCatalogGroups(store, { query });
+  const total = groups.reduce((sum, group) => sum + group.count, 0);
   return el('section', { class: 'panel bb-book-catalog' }, [
     experienceTools(view),
-    rows.length
-      ? el('div', { class: 'bb-exp-list' }, rows.map((row) => {
-        const entry = store.entries.find((item) => item.id === row.id);
-        return entry ? experienceRow(entry) : null;
-      }))
+    total
+      ? el('div', { class: 'bb-exp-list' }, groups.flatMap((group) => [
+        experienceGroupHeader(group),
+        ...group.rows.map((row) => {
+          const entry = store.entries.find((item) => item.id === row.id);
+          return entry ? experienceRow(entry) : null;
+        }),
+      ]))
       : el('p', { class: 'empty' }, query
         ? 'Nothing matches that.'
         : 'No resume bullets yet. Add a resume bullet — pick a job, and STAR sits on the row.'),

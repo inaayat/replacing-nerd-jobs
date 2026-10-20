@@ -3346,6 +3346,77 @@ export function experienceCatalog(store, { query = '' } = {}) {
     .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
 }
 
+/** Sort key for career jobs — higher is more recent (Present / latest year wins). */
+export function careerJobRecencyKey(job) {
+  if (!job) return 0;
+  const blob = [job.end, job.start, job.title, job.company].filter(Boolean).join(' ');
+  const years = [...String(blob).matchAll(/\b(?:19|20)\d{2}\b/g)].map((match) => Number(match[0]));
+  const hasPresent = /\bpresent\b/i.test(String(job.end || '')) || /\bpresent\b/i.test(String(job.start || ''));
+  const maxYear = years.length ? Math.max(...years) : 0;
+  return (hasPresent ? 1_000_000 : 0) + maxYear;
+}
+
+export function careerJobGroupLabel(job) {
+  if (!job) return 'No role';
+  return [job.company, job.title].filter(Boolean).join(' · ') || 'Untitled role';
+}
+
+export function careerJobGroupDates(job) {
+  if (!job) return '';
+  return [job.start, job.end].filter(Boolean).join(' \u2013 ');
+}
+
+/**
+ * Display-only grouping for Resume bullets: one group per assigned job (recent first),
+ * then unassigned entries under "No role". Filtered catalog rows omit empty groups.
+ */
+export function experienceCatalogGroups(store, { query = '' } = {}) {
+  const rows = experienceCatalog(store, { query });
+  const byJobId = new Map();
+  const unassigned = [];
+  const jobsById = new Map((store?.jobs || []).map((job) => [job.id, job]));
+
+  for (const row of rows) {
+    const entry = (store?.entries || []).find((item) => item.id === row.id);
+    const jobId = asString(entry?.jobId, 64);
+    if (!jobId || !jobsById.has(jobId)) {
+      unassigned.push(row);
+      continue;
+    }
+    if (!byJobId.has(jobId)) byJobId.set(jobId, []);
+    byJobId.get(jobId).push(row);
+  }
+
+  const jobGroups = [...byJobId.entries()]
+    .map(([jobId, groupRows]) => ({ job: jobsById.get(jobId), rows: groupRows }))
+    .sort((a, b) => {
+      const diff = careerJobRecencyKey(b.job) - careerJobRecencyKey(a.job);
+      if (diff !== 0) return diff;
+      return careerJobGroupLabel(a.job).localeCompare(careerJobGroupLabel(b.job));
+    })
+    .map(({ job, rows: groupRows }) => ({
+      kind: 'job',
+      jobId: job.id,
+      label: careerJobGroupLabel(job),
+      dates: careerJobGroupDates(job),
+      count: groupRows.length,
+      rows: groupRows,
+    }));
+
+  const groups = [...jobGroups];
+  if (unassigned.length) {
+    groups.push({
+      kind: 'none',
+      jobId: '',
+      label: 'No role',
+      dates: '',
+      count: unassigned.length,
+      rows: unassigned,
+    });
+  }
+  return groups;
+}
+
 export const KNOWLEDGE_SAVE_MS = 600;
 
 export function noteKnowledgeInput(state, noteId, patch, now, delay = KNOWLEDGE_SAVE_MS) {
