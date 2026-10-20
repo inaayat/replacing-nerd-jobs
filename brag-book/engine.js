@@ -3589,6 +3589,60 @@ export function compilePrep(store, posting) {
   });
 }
 
+export function postingRequirementResumeLinks(posting) {
+  const entryIds = new Set();
+  const lineIds = new Set();
+  for (const req of posting?.requirements || []) {
+    for (const line of req.bullets || []) {
+      if (line?.id) lineIds.add(line.id);
+      if (line?.entryId) entryIds.add(line.entryId);
+    }
+  }
+  return { entryIds, lineIds };
+}
+
+export function resumeBulletMappedToPostingRequirements(bullet, links) {
+  if (!bullet || !links) return false;
+  for (const id of bullet.sourceEntryIds || []) {
+    if (links.entryIds.has(id)) return true;
+  }
+  for (const id of bullet.sourceBulletIds || []) {
+    if (links.lineIds.has(id)) return true;
+  }
+  return false;
+}
+
+/** Visible on-posting resume bullets with no requirement row link (derived only). */
+export function unmappedPostingResumeBullets(store, posting) {
+  if (!posting) return [];
+  const doc = compileResumeDoc(posting, store);
+  const links = postingRequirementResumeLinks(posting);
+  const dropped = new Set([
+    ...(posting.resume?.fit?.droppedBulletIds || []),
+    ...(doc?.fit?.droppedBulletIds || []),
+  ]);
+  const out = [];
+  for (const job of doc.sections?.experience?.jobs || []) {
+    if (job?.included === false) continue;
+    const roleLabel = [job.company, job.title].filter(Boolean).join(' · ') || 'Role';
+    for (const group of job.groups || []) {
+      for (const bullet of visibleResumeBullets(group.bullets)) {
+        if (dropped.has(bullet.id) || bullet.fitDropped) continue;
+        if (resumeBulletMappedToPostingRequirements(bullet, links)) continue;
+        const text = resumeBulletSpans(bullet).map((span) => span.text).join('').trim();
+        if (!text) continue;
+        out.push({
+          id: bullet.id,
+          jobId: job.id,
+          roleLabel,
+          text,
+        });
+      }
+    }
+  }
+  return out;
+}
+
 export function prepCoverage(store, posting) {
   const cards = compilePrep(store, posting);
   const total = cards.length;

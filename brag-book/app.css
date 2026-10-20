@@ -587,6 +587,50 @@ a:focus-visible {
 .workspace-status { padding: 10px 12px 0; }
 .workspace-status .banner { margin: 0; }
 
+.bb-unmapped-resume {
+  padding: 10px 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.bb-unmapped-title {
+  margin: 0 0 4px;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.bb-unmapped-lede {
+  margin: 0 0 8px;
+  color: var(--muted);
+}
+.bb-unmapped-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.bb-unmapped-row {
+  display: grid;
+  gap: 2px 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  grid-template-columns: minmax(0, 1fr);
+}
+.bb-unmapped-row:last-child { border-bottom: 0; }
+@media (min-width: 640px) {
+  .bb-unmapped-row {
+    grid-template-columns: minmax(9rem, 28%) minmax(0, 1fr);
+    align-items: baseline;
+  }
+}
+.bb-unmapped-role {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.bb-unmapped-text {
+  font-family: var(--content-font);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .banner-progress {
   display: grid;
   gap: 8px;

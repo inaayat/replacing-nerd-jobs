@@ -133,6 +133,7 @@ import {
   DEFAULT_SECTION_ORDER,
   compilePrep,
   prepCoverage,
+  unmappedPostingResumeBullets,
   listingSummary,
   starFill,
   bookIsEmpty,
@@ -2651,6 +2652,19 @@ function requirementTable(job) {
   return el('div', { class: 'job-table-wrap' }, [table]);
 }
 
+function unmappedResumeBulletsPanel(job) {
+  const rows = unmappedPostingResumeBullets(store, job);
+  if (!rows.length) return null;
+  return el('section', { class: 'bb-unmapped-resume', 'aria-label': 'Unmapped resume bullets' }, [
+    el('h3', { class: 'bb-unmapped-title' }, 'Unmapped resume bullets'),
+    el('p', { class: 'tiny bb-unmapped-lede' }, 'On this posting’s resume but not tied to any requirement row.'),
+    el('ul', { class: 'bb-unmapped-list' }, rows.map((row) => el('li', { class: 'bb-unmapped-row' }, [
+      el('span', { class: 'bb-unmapped-role' }, row.roleLabel),
+      el('span', { class: 'bb-unmapped-text' }, row.text),
+    ]))),
+  ]);
+}
+
 function jobDetailsDisclosure(job) {
   return el('details', { class: 'utility-box' }, [
     el('summary', {}, 'Job details'),
@@ -2680,6 +2694,7 @@ function pasteMoreDisclosure(job) {
 
 function jobDetail(job) {
   const wrap = el('section', { class: 'panel job-workspace' });
+  const unmappedPanel = unmappedResumeBulletsPanel(job);
   wrap.append(
     el('div', { class: 'panel-head' }, [
       el('div', {}, [
@@ -2691,6 +2706,7 @@ function jobDetail(job) {
         btn('Resume', { class: 'btn', onClick: () => go({ kind: 'jobs', id: job.id, mode: 'resume' }) }),
       ]),
     ]),
+    ...(unmappedPanel ? [unmappedPanel] : []),
     el('div', { class: 'workspace-status' }, [coverageBanner(job)]),
     job.requirements.length
       ? requirementTable(job)
