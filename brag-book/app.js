@@ -2860,6 +2860,8 @@ async function refreshResumePreview(posting) {
   const frame = document.getElementById('resume-preview-frame');
   const wrap = document.getElementById('resume-preview-wrap');
   if (!frame) return;
+  const scrollBeforePreview = pendingResumeScrollRestore
+    || (isResumeEditorView() ? captureScroll() : null);
   const current = posting?.id ? livePosting(posting.id) : posting;
   const doc = compileResumeDoc(current, store);
   const html = resumeDocument(renderResumeHtml(doc, { droppedBulletIds: [] }));
@@ -2894,6 +2896,8 @@ async function refreshResumePreview(posting) {
   }
   paintFitChip();
   scaleResumeFrame(wrap, frame);
+  if (scrollBeforePreview) restoreScroll(scrollBeforePreview);
+  scheduleResumeScrollRestore(scrollBeforePreview);
   frame.contentDocument?.addEventListener('click', (event) => {
     const li = event.target.closest?.('li[data-bullet-id]');
     const jobNode = event.target.closest?.('[data-job-id]');
@@ -4879,8 +4883,15 @@ function restoreFocus(captured, focusKey) {
   node.setSelectionRange(Math.min(captured.start, max), Math.min(captured.end, max));
 }
 
-const SCROLL_PANES = ['.bb-resume-editor'];
+const SCROLL_PANES = ['.bb-resume-editor', '#resume-preview-wrap'];
 let lastRenderHash = '';
+/** Pre-replace scroll snapshot for the resume editor; reapplied after preview reflow. */
+let pendingResumeScrollRestore = null;
+
+function isResumeEditorView(view = currentView()) {
+  return view.kind === 'profile'
+    || (view.kind === 'jobs' && view.id && view.mode === 'resume');
+}
 
 function captureScroll() {
   const panes = {};
@@ -4888,21 +4899,44 @@ function captureScroll() {
     const node = document.querySelector(sel);
     if (node) panes[sel] = node.scrollTop;
   }
-  return { windowX: window.scrollX, windowY: window.scrollY, panes };
+  const docEl = document.documentElement;
+  const body = document.body;
+  return {
+    windowX: window.scrollX,
+    windowY: window.scrollY,
+    docY: docEl?.scrollTop ?? window.scrollY,
+    bodyY: body?.scrollTop ?? window.scrollY,
+    panes,
+  };
 }
 
 function restoreScroll(snapshot) {
   if (!snapshot) return;
   window.scrollTo(snapshot.windowX, snapshot.windowY);
+  const docY = snapshot.docY ?? snapshot.windowY;
+  const bodyY = snapshot.bodyY ?? snapshot.windowY;
+  if (document.documentElement) document.documentElement.scrollTop = docY;
+  if (document.body) document.body.scrollTop = bodyY;
   for (const [sel, top] of Object.entries(snapshot.panes || {})) {
     const node = document.querySelector(sel);
     if (node) node.scrollTop = top;
   }
 }
 
+function scheduleResumeScrollRestore(snapshot) {
+  if (!snapshot || !isResumeEditorView()) return;
+  pendingResumeScrollRestore = snapshot;
+  queueMicrotask(() => restoreScroll(snapshot));
+  const raf = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (fn) => setTimeout(fn, 0);
+  raf(() => restoreScroll(snapshot));
+  raf(() => raf(() => restoreScroll(snapshot)));
+}
+
 function finishRender(captured, options, scroll) {
+  if (scroll && isResumeEditorView()) pendingResumeScrollRestore = scroll;
   restoreScroll(scroll);
   restoreFocus(captured, options.focusKey);
+  scheduleResumeScrollRestore(scroll);
 }
 
 function render(options = {}) {
@@ -5208,5 +5242,13 @@ initBragBookPwa({
     networkOnlineForEdits = online;
   },
 });
+
+if (globalThis.__BB_TEST_RESUME_SCROLL__) {
+  globalThis.__bbTestResumeScroll = {
+    captureScroll,
+    restoreScroll,
+    SCROLL_PANES,
+  };
+}
 
 boot();
