@@ -6,7 +6,7 @@ An **experience** is a light folder for resume bullets that describe the same pi
 
 Existing books do not need a migration that rewrites bullets. Until someone groups anything, every existing bullet behaves as its own one-bullet experience and every screen renders the same content it does now. Grouping adds a stable experience id and a short experience title; ungrouping removes only that relationship.
 
-On desktop, both Resume bullets and an individual job posting use a wide working panel plus a narrow sticky experience index. The index is searchable, filterable by role, shows version counts, and scrolls independently. It supports drag-and-drop with complete non-drag alternatives. On mobile, the same index is a slide-out drawer. On a posting, the user can check several versions of one experience and add them to a chosen resume role and sub-heading in one safe, idempotent action. Experiences and bullets remain many-to-many with requirements, while each stable bullet appears at most once on the generated posting resume.
+On desktop, both Resume bullets and an individual job posting use a wide working panel plus a narrow sticky experience index. The index is searchable, filterable by role, shows version counts, and scrolls independently. It supports drag-and-drop with complete non-drag alternatives. On mobile, the same index is a slide-out drawer. On a posting, the user can check several versions of one experience and add them to a chosen resume role and sub-heading in one safe, idempotent action. Experiences and bullets remain many-to-many with requirements, while each stable bullet appears at most once on the generated posting resume. A bullet written directly in the posting resume is saved there and in the Resume bullets library, starts as its own implicit experience, and remains Unmapped until the user connects it to a requirement.
 
 The first release should be additive and reversible. It should add experience metadata inside the existing Brag Book JSON document, preserve old clients and old imports, keep saved resumes immutable, and continue using the existing revision guard, three-way merge, account-scoped cache, and durable outbox. It must not add a database table or touch the database directly.
 
@@ -201,6 +201,21 @@ versions (3)
 
 Adding still selects concrete bullet versions, never an abstract experience. It supports the same checkbox multi-add, stable-id dedupe, role/sub-heading/order confirmation, and atomic placement rules as the posting side panel.
 
+#### Bullet written directly in the posting resume
+
+Keep today’s direct-add behavior and make its library effect explicit:
+
+1. In the posting resume’s Add from library field, when the user types new wording with no selected existing match and chooses `+ New`, create one canonical `entries[]` bullet with a new stable entry id.
+2. Assign its `jobId` when the destination is a shared career role, then create one posting-resume placement in the chosen role/sub-heading with `sourceEntryIds: [newEntryId]`.
+3. Save the entry and placement in one in-memory book mutation and one outbox/save snapshot. Do not first save an unlinked text row and later try to match it by wording.
+4. The new entry appears immediately on the Resume bullets page. It has no explicit `experienceId`, so it is its own implicit one-bullet experience by default.
+5. The resume placement alone does not map it to a requirement. It appears in this posting’s Unmapped resume experiences panel until at least one requirement maps that stable entry id.
+6. Its row and Unmapped detail offer `Add to experience…`, which moves the library entry into an explicit experience without changing wording, placement, requirement links, or resume-row id.
+
+This matches the current canonicalization path: direct `+ New` creates a shared library entry before `placeLibraryBullet` creates the posting-local placement; editing a genuinely old/unlinked local resume row causes `applyResumeBulletEdit` to create and attach a shared entry on its first valid wording save. Under the new model, that recovery behavior also creates an implicit one-bullet experience, never text-matches an existing experience, and records the new stable source id on the same resume row.
+
+The combined create-and-place helper must accept pre-generated entry and resume-row ids and be idempotent. Replaying the same pending operation after a retry/409 may restore either missing half, but must never create a second entry or placement. If validation or placement fails before commit, neither half is added. Deleting/removing the posting placement does not delete the library entry; deleting the library entry remains the separate destructive flow with explicit handling for the linked resume row.
+
 ### 5. Mobile behavior
 
 At the existing mobile breakpoint, the Resume bullets list keeps the full content width. The experience index becomes a slide-out drawer opened by a small experience icon in the list toolbar. The drawer contains the same `+ New experience`, search, role filter, selected state, and version counts as desktop; closing it returns focus to the opener and preserves list scroll.
@@ -250,6 +265,7 @@ Each bullet is presented as an implicit one-bullet experience using its bullet i
 - **Implicit experience:** a bullet with no `experienceId`; its effective id is `entry:<entry.id>`, title is its current bullet title, and version count is one. It is derived and never persisted merely by reading.
 - **Explicit experience:** an `experiences[]` record referenced by one or more bullets.
 - **Resume selection:** always one concrete bullet/version, referenced by stable entry id. An experience is never rendered as resume content.
+- **Direct posting-resume draft:** one atomic create-and-place operation with a pre-generated library entry id and resume-row id. New drafts never live only as anonymous text after commit.
 - No operation matches or joins bullets, experiences, jobs, requirements, or resume rows by text. Text may rank search results only.
 - No experience operation edits or deletes a bullet. Bullet deletion remains an independent operation.
 - Referential repair may clear an invalid experience relationship, but must preserve the bullet and report/recover the relationship.
@@ -321,6 +337,7 @@ The implementation should use this as a checklist. A code search for `entries`, 
 | Unmapped panel (`postingRequirementResumeLinks`, `resumeBulletMappedToPostingRequirements`, `unmappedPostingResumeBullets`) | `sourceEntryIds`/`sourceBulletIds` | Replace output/count with effective-experience rows using the precise coverage rule above. No text fallback. |
 | Posting resume editor (`resumeBulletEditor`) | resume bullet id, `sourceEntryIds` | Add in-place swap among entries sharing effective experience. Several siblings may coexist; swapping one row never changes another. Preserve row id/order/group/include/pin/fit state and scroll. |
 | Add from library (`libraryBulletPicker`, `libraryBulletChoices`, `resumeTakenEntryIds`, `placeLibraryBullet`) | selected entry ids | Group choices by experience; checkbox-select one or several concrete versions, then place them atomically into an explicit role/sub-heading/order. Taken detection and idempotency are stable-id based. |
+| Direct new bullet in posting resume (`libraryBulletPicker` `+ New`, `createSharedBullet`, `placeLibraryBullet`, `applyResumeBulletEdit`) | new entry id + linked posting resume-row id | Preserve today’s library-first canonical behavior: atomically create one entry and one linked posting placement. Default to an implicit experience, show it in Unmapped until requirement-linked, and offer explicit `Add to experience…`. Retry by ids, never text. |
 | Posting resume compilation (`compileResumeDoc`, projection/claim helpers) | entry/source ids, with legacy text fallbacks | Carry effective experience metadata for editor use only and union multiply mapped bullets by stable entry id so each appears once. New paths must use ids. Retain text fallback solely for reading genuinely old unlinked data; never use it to group, swap, dedupe, or claim a new experience relationship. |
 | Resume preview and one-page fit (`renderResumeHtml`, `resume-fit.js`) | compiled bullet rows | No experience labels in output. Swaps preserve row id so drop/pin results stay attached; rerun fit and maintain existing pinned-overflow warnings. |
 | Word / posting Print-PDF (`resume-docx.js`, preview print path) | compiled visible doc | Output selected wording only. No chips, experience titles, or alternate versions. |
@@ -424,6 +441,7 @@ Conflict cases and expected outcomes:
 | Tab A ungroups; Tab B edits wording | Merge ungrouping and wording because only one side changed each field. |
 | Tab A tombstones an experience; Tab B adds/moves a bullet into it | Keep every bullet; tombstone wins for the label, assignment is repaired to implicit/unassigned and logged as a conflict/recovery item. Never drop the new bullet. |
 | Both tabs draft a version | Both new entry ids survive; deterministic list order is local then remote as in the existing id-list merge. |
+| Direct create-and-place save races or retries | The pre-generated entry id and resume-row id identify one logical operation. Merge/replay restores a missing entry or placement but never creates a second copy; an unlinked placement remains recoverable and visible rather than being discarded. |
 | Tab A multi-adds versions A/B; Tab B multi-adds B/C to the same posting resume | Reconcile nested resume bullets by stable source entry id so A/B/C each appear exactly once. Preserve non-conflicting placement; if B has conflicting destinations, retain one B and require a placement choice rather than duplicate or drop it. |
 | Offline/in-flight save reconnects after remote grouping | Merge from the recorded outbox base, preserve both independent changes, retry only when conflict-free. |
 | Old client saves after v4 grouping | Server preservation restores unknown v4 metadata by stable ids while retaining old-client edits. |
@@ -497,7 +515,7 @@ Each phase should be one or a few reviewable commits; avoid combining model, syn
 6. **Experience-level unmapped panel**
    - Implement the exact coverage rule and stable-id-only derivation.
 7. **Resume editor**
-   - Add checkbox multi-add with explicit role/sub-heading/order placement, grouped library picker, and in-place version swap with stable-id dedupe, override reset, fit, focus, and scroll guarantees.
+   - Add checkbox multi-add with explicit role/sub-heading/order placement, grouped library picker, direct create-and-place implicit experiences, and in-place version swap with stable-id dedupe, override reset, fit, focus, and scroll guarantees.
    - Apply to posting resumes and Resume basics where linked.
 8. **Snapshots/import/export/recovery**
    - Add snapshot provenance schema 2, start-from-snapshot behavior, full-book JSON/PDF grouping, and restore UI.
@@ -542,6 +560,10 @@ No phase requires direct SQL or a new API route.
 - Multi-add places selected versions contiguously in the confirmed role/sub-heading/order and preserves checklist order.
 - Repeating identical multi-add is idempotent: already-present stable entry ids stay checked/`Added`, and no source entry appears twice, including excluded rows.
 - Removing one multi-added version leaves its siblings, requirement mappings, and experience membership unchanged.
+- Direct `+ New` creates exactly one linked library entry and posting placement, starts as an implicit experience, and appears in Unmapped until requirement-linked.
+- Direct-create retry, reload, and 409 replay with the same pre-generated ids are idempotent; tests simulate entry-only and placement-only interrupted states and recover without loss or duplication.
+- `Add to experience…` changes only the direct-created entry’s `experienceId`; its resume row, wording, and Unmapped/mapping state remain stable.
+- Removing the posting placement leaves the library entry intact; deleting the library entry follows the separate destructive-link handling.
 - Resume basics and posting-local overlays remain isolated.
 - Duplicate company/title roles are never collapsed or duplicated by text; extend `test-brag-book-duplicate-role.mjs`.
 - Editor/window/preview scroll remain stable; extend the existing resume-scroll test.
@@ -572,6 +594,7 @@ These must pass before any UI writer is enabled:
 - Two tabs multi-add overlapping sets (A/B and B/C) to one posting resume; merge/retry yields A/B/C once each, or one explicit placement conflict for B, with no lost or duplicated version.
 - Two tabs remove one sibling and add another; the untouched sibling placement survives unchanged.
 - Two tabs add/remove different requirement mappings for the same bullet; reconciliation preserves independent mappings, resume compilation still emits one stable-id bullet, and removing one mapping cannot erase the other.
+- A direct create-and-place outbox replay and a concurrent tab edit reconcile to one entry/placement for the operation ids plus the unrelated edit; interrupted entry-only and placement-only fixtures repair without text matching.
 - in-flight save plus a second local edit drains in order.
 - reconnect merges account-scoped outbox against its recorded base and retries only when conflict-free.
 - 409, 428, stale timestamp client, numeric revision client, and server history preservation all retain experiences, snapshots, and `legacyVersions`.
