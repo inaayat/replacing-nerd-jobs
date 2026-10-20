@@ -165,12 +165,12 @@ Precise coverage rule:
 
 1. Consider only included, visible posting-resume bullets after fit drops, exactly as today.
 2. Resolve each resume row to a live library bullet by stable `sourceEntryIds`.
-3. If the library bullet has a valid active `experienceId`, group visible sibling rows under that named experience. The experience is **covered** when at least one requirement maps at least one version in it.
-4. If the library bullet has no `experienceId`, it is a **loose bullet**. It is covered only when a requirement maps that exact stable entry id. A mapped sibling or equal text cannot cover it.
+3. If the library bullet has a valid active `experienceId`, that does **not** change Unmapped: each visible resume row is listed on its own until that row’s stable entry id is linked on a requirement.
+4. If the library bullet has no `experienceId`, it is a **loose bullet** for library grouping only. Unmapped still keys off the resume row’s stable entry id (or resume-only row id). A mapped sibling or equal text cannot cover it.
 5. A genuinely unlinked local/import/snapshot resume row is a separate **resume-only item**, keyed by its stable resume-row id. It is not a library experience or loose library bullet. Mapping it first promotes/attaches one canonical library entry by stable ids, then maps that entry.
 6. Multiple visible versions from one uncovered named experience produce one row with a version count. Each uncovered loose bullet produces its own row. No text matching is allowed.
 
-The expanded experience row lists every visible version with its mapped/unmapped marker. If one of three versions is mapped, the experience is covered and leaves the Unmapped list, while detail can still say `1 of 3 versions directly mapped`. A loose bullet leaves the list only when that exact bullet is mapped. Requirement coverage counts a requirement once even when several versions map to it. Removing one resume version recalculates counts but cannot change sibling or requirement links. The collapsed count is the number of uncovered named experiences + uncovered loose bullets + resume-only items.
+Each unmapped row is one visible resume bullet whose stable entry id (or resume-only row id) has no requirement link. If one of three sibling versions is mapped and two remain on the resume unlinked, Unmapped shows **two rows** (plus zero for the mapped one). Experience-level “covers N requirements” is side-panel/chip metadata only. Requirement coverage counts a requirement once even when several versions map to it. Removing one resume version recalculates counts but cannot change sibling or requirement links. The collapsed count is the number of unmapped resume rows.
 
 ### 4. Posting resume editor and preview
 
@@ -352,7 +352,7 @@ The implementation should use this as a checklist. A code search for `entries`, 
 | Prep cue cards (`compilePrep`, posting prep view) | requirement line id + entry id | Show the chosen version and its STAR data. If several versions in one experience are mapped, keep them as separate cue-card evidence rather than merging their STAR fields. |
 | Posting suggestions (`scoreEntry`, `suggestEntries`) | entry content/id | Rank at experience level using all versions, then show versions. Text affects rank only, never identity. |
 | Coverage banner / prep counts (`prepCoverage`) | requirements with bullet lines | “Resume bullets” remains count of requirements with ≥1 mapped version. Experience grouping does not inflate it. |
-| Unmapped panel (`postingRequirementResumeLinks`, `resumeBulletMappedToPostingRequirements`, `unmappedPostingResumeBullets`) | `sourceEntryIds`/`sourceBulletIds` | Return mixed units: uncovered named experiences, uncovered loose entries, and legacy resume-only rows, using the precise coverage rule above. No text fallback. |
+| Unmapped panel (`postingRequirementResumeLinks`, `resumeBulletMappedToPostingRequirements`, `unmappedPostingResumeBullets`) | `sourceEntryIds`/`sourceBulletIds` | One row per visible resume bullet with no requirement link for that stable entry id (or resume-only row id). Never group by experience or hide siblings when one version is mapped. No text fallback. |
 | Posting resume editor (`resumeBulletEditor`) | resume bullet id, `sourceEntryIds` | Show swap only when the linked entry has a valid named experience. Several siblings may coexist; swapping one row never changes another. Loose bullets show `Add to experience…`. |
 | Add from library (`libraryBulletPicker`, `libraryBulletChoices`, `resumeTakenEntryIds`, `placeLibraryBullet`) | selected entry ids | Group choices by experience; checkbox-select one or several concrete versions, then place them atomically into an explicit role/sub-heading/order. Taken detection and idempotency are stable-id based. |
 | Direct new bullet in posting resume (`libraryBulletPicker` `+ New`, `createSharedBullet`, `placeLibraryBullet`, `applyResumeBulletEdit`) | new entry id + linked posting resume-row id | Preserve today’s library-first canonical behavior: atomically create one loose entry under its job and one linked posting placement. Show it in Unmapped until exact requirement-linking and offer `Add to experience…`. Retry by ids, never text. |
@@ -565,11 +565,10 @@ No phase requires direct SQL or a new API route.
 - The same stable bullet id maps to two or more requirements, each mapping renders and can be removed independently, and the side panel reports the correct distinct `covers N requirements` count.
 - Posting resume compilation includes a multiply mapped bullet exactly once by stable entry id, even when requirement wording and line ids differ.
 - Unmapping from one requirement leaves the resume placement and every other requirement mapping intact.
-- One mapped sibling covers the experience in the experience-level unmapped panel.
-- A loose resume bullet remains Unmapped until that exact stable entry id is mapped; mapping a similarly worded bullet or an experience sibling cannot cover it.
-- Two visible uncovered siblings produce one unmapped row and correct version count.
-- Mixed Unmapped counts equal uncovered named experiences + uncovered loose bullets + resume-only rows.
-- Several visible siblings with one directly mapped version leave the experience-level Unmapped list while detail reports the exact directly mapped fraction.
+- A mapped sibling does **not** remove other versions from Unmapped; only that entry id’s requirement link counts.
+- A resume bullet remains Unmapped until that exact stable entry id is mapped; mapping a similarly worded bullet or an experience sibling cannot cover it.
+- Two visible sibling versions on the resume with only one mapped produce **two** Unmapped rows if both lack links, or **one** row if exactly one is unlinked.
+- Unmapped count equals unmapped resume rows (per stable id), not experience groups.
 - Fit-dropped, excluded, and empty bullets stay excluded as today.
 - Unlinked local/import/snapshot rows are resume-only items and never covered by equal text.
 - Prep and coverage counts do not inflate when several versions from one experience are mapped.
@@ -650,7 +649,7 @@ After implementation, update root `README.md`, `AGENTS.md`, and `CURSOR.md` if p
 ## Open questions for the user
 
 1. When drafting a new version, should copying STAR/notes from an existing version be opt-in (recommended) or automatic?
-2. Should mapping any sibling mark the entire named experience covered in the Unmapped panel? This plan says yes, while loose bullets always require exact-id mapping and experience detail still shows the exact mapped fraction.
+2. ~~Should mapping any sibling mark the entire named experience covered in the Unmapped panel?~~ **User decision:** no — Unmapped stays per resume bullet / exact entry id; experience coverage is side-panel/chips only.
 3. Should an empty named experience remain available in pickers, or be hidden until it has a version? The recommendation is to hide empty/tombstoned records and never persist a cancelled empty creation.
 4. Should version swapping also be exposed in Resume basics in the first release, or only posting resumes? The data model supports both; posting resumes are the required first path.
 5. Should full-book PDF print every version under an experience and loose bullets in separate subsections (recommended), or only selected/preferred bullets? This plan does not add a preferred-version field.

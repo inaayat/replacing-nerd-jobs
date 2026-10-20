@@ -3895,7 +3895,12 @@ export function unmappedResumeBulletCount(store, posting) {
   return unmappedPostingResumeBullets(store, posting).length;
 }
 
-/** Visible on-posting resume bullets with no requirement row link (derived only). */
+/**
+ * Visible on-posting resume bullets with no requirement row link (derived only).
+ * Per resume row / stable entry id only — mapping a sibling version of the same
+ * experience does not remove other versions from this list. Experience-level
+ * "covers N requirements" belongs in the side panel and chips, not here.
+ */
 export function unmappedPostingResumeBullets(store, posting) {
   if (!posting) return [];
   const doc = compileResumeDoc(posting, store);

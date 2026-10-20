@@ -30,7 +30,7 @@ Priority: desktop web first, then mobile.
 ### What "loose bullets" changes in the plan
 
 - The plan's `effectiveExperienceId = entry:<id>` can stay as an **internal** key for coverage math. The UI must never call a loose bullet an experience, count it as one, or give it an experience title.
-- The Unmapped panel lists **two row kinds**: experiences and loose bullets (see §7.4).
+- The Unmapped panel lists **one row per visible resume bullet** (exact stable entry id). Experience-level coverage never suppresses sibling versions (see §5.3).
 - An experience needs to live under one job. The plan stores no job on the experience record, so it should either add `experience.jobId` or derive the job from its versions and block mixed jobs. Recommended: block cross-job grouping in v1 (`These bullets are under different jobs. Move them to one job first.`). If someone changes a grouped bullet's job, take it out of the experience into the new job's loose section, and show a toast with Undo.
 - First-run state = every bullet loose. The "group them as an experience" hint appears only in a loose section that has two or more bullets.
 
@@ -279,19 +279,18 @@ If two different versions of the same experience are mapped to one requirement, 
 
 ### 5.3 Unmapped panel (bottom of left column)
 
-The title stays `Unmapped resume bullets`, because loose bullets are bullets. Rows come in two kinds:
+The title stays `Unmapped resume bullets`. **One row per resume bullet** that is visible on this posting’s compiled resume and has no requirement link for its stable entry id (`sourceEntryIds` / requirement `entryId`). Sibling versions of the same experience are listed separately; mapping one version does not clear the others from Unmapped.
 
 ```text
 ▾ Unmapped resume bullets                                         2
   On this posting's resume but not mapped to any requirement.
-  ▸ GoDaddy · Access-review program        2 versions on resume   [Map…]
-  ◦ PwC · Built a SOX testing calendar…                           [Map…]
+  ◦ GoDaddy · Launched a risk program covering 12 teams…          [Map…]
+  ◦ PwC · Built a SOX testing calendar…                             [Map…]
 ```
 
-- **Experience row**: no version of this experience is mapped to any requirement on this posting, and at least one version is visible on the resume. It shows one row with `N versions on resume` and expands to list them.
-- **Loose bullet row**: a visible resume bullet that is loose (or unlinked, such as fresh local text or an imported line) with no requirement link.
-- The count is the number of rows: experiences plus loose bullets. The `aria-label` reads `2 unmapped: 1 experience, 1 bullet`.
-- `Map…` makes that item the "source" and turns the requirement table into the picker: each requirement row shows `Map here` until you pick one or press Esc. That is the mirror image of the target model, with no modal.
+- The count equals the number of unmapped resume rows (not “experiences”).
+- Experience-level facts (`covers N requirements`, `On resume ✓`) live in the Experiences side panel and requirement chips only.
+- `Map…` makes that bullet the "source" and turns the requirement table into the picker: each requirement row shows `Map here` until you pick one or press Esc.
 
 ---
 
@@ -658,7 +657,7 @@ Principles: full width, small icons with 44px hit areas, no STAR anywhere, no dr
 | 7 | Mapping and resume membership are never contrasted in the UI | The user worries unmapping removes the bullet from the resume | §6: separate facts, `covers N`, and toasts that say what stayed |
 | 8 | Draft version "may offer to copy STAR/notes" | It adds a decision at the moment of writing | Blank draft. A later `Copy STAR from…` in details (desktop) |
 | 9 | Version swap in Resume basics "where linked" | It doubles the test surface for little gain | Posting resumes only in v1 (plan open question 5) |
-| 10 | Unmapped panel renamed "Unmapped resume experiences" | Loose bullets are not experiences under the new model | Keep `Unmapped resume bullets`, with experience rows and loose rows |
+| 10 | Unmapped panel grouped by experience | Mapping one version hid siblings; user wants exact-id rows | Keep `Unmapped resume bullets`, **one row per resume bullet**; never experience-level suppression |
 | 11 | Mobile wireframe uses `★` and `↔` icons with no legend; STAR implied | Unclear meaning, and STAR doesn't fit on a phone | `↔ N` with `aria-label`, no `★`, no STAR on mobile |
 | 12 | `+ New experience` from inside the requirement picker | It creates and maps in one nested popover | Create from the panel's `+ New`. With a target set, the first drafted version has `☑ Map to R3` |
 | 13 | A right column that changes "experience-first" on the posting page plus the existing per-requirement adder | Two ways to add from inside each cell | Keep the cell's existing `+ Add` for **typing a new bullet**. The panel is for **existing** bullets. |
@@ -675,5 +674,5 @@ Principles: full width, small icons with 44px hit areas, no STAR anywhere, no dr
 ## 14. Implementation notes for the UI agent (non-binding)
 
 - Build the panel once (`experiencesPanel({ page, target, selection })`) and render it on Resume bullets and Job posting. Feed it from one pure grouping helper in `engine.js` (Job › Experience › versions plus loose plus No role) so the left catalog, panel, `Add from library`, and export share it.
-- Put coverage in one pure helper (`postingCoverage(store, posting)` → per-bullet requirement ids, per-experience distinct counts), used by chips, the panel, the editor tag, and the Unmapped panel.
+- Put coverage in one pure helper (`postingCoverage(store, posting)` → per-bullet requirement ids, per-experience distinct counts), used by chips, the side panel, and the editor tag. **Unmapped** uses only the per-bullet requirement link check (`unmappedPostingResumeBullets`), never experience rollup.
 - Keep target, selection, highlight, and panel collapsed state as session UI state (like `collapsedResumeRoles`), never on the book.
