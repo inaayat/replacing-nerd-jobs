@@ -76,6 +76,7 @@ This repo is a no-build Vercel site (see `README.md` for structure/deploy). Non-
   - `node scripts/test-brag-book-duplicate-role.mjs` — posting resume + Add role must not place the same catalog job twice when a posting-only copy already represents it (`catalogJobIdsOnPostingResume`, `placeJobOnResume`)
   - `node scripts/test-brag-book-duplicate-role-hardening.mjs` — snapshot local roles keep catalog `jobId`, preview dedupes duplicates, warnings (`postingVariantFromSnapshot`, `compileResumePreviewDoc`)
   - `node scripts/test-brag-book-lib-picker.mjs` — posting resume library bullet typeahead panel (`libraryBulletPicker`, `app.css`)
+  - `node scripts/test-brag-book-experiences-preservation.mjs` — experience metadata pass-through and old-client server preservation (phase 1)
   - `node scripts/test-brag-book-unmapped-resume.mjs` — posting workspace unmapped resume bullets (compile vs requirement links, exclude, live mapping)
   - `node scripts/test-brag-book-unmapped-panel.mjs` — collapsible unmapped panel default collapsed, count badge (`app.js` session expand state)
   - `node scripts/test-brag-book-resume-editor-scroll.mjs` — posting resume editor preserves window/editor/preview scroll on include, pin, remove, sub-heading, reorder (`app.js` scroll restore)

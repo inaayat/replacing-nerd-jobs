@@ -11,6 +11,9 @@
 import { mergeConcurrentBooks } from './save-controller.js';
 
 export const SCHEMA = 3;
+/** Book schema once experiences metadata ships (additive fields may exist before this version). */
+export const EXPERIENCE_SCHEMA = 4;
+export const EXPERIENCE_GROUPING_BACKUP_MAX = 5;
 export const STORE_KEY = 'brag-book-store-v1';
 export const LOCAL_STORE_KEY = 'brag-book-store-local';
 export function accountStoreKey(userId) {
@@ -233,7 +236,81 @@ export function emptyStore() {
     basicsBackup: null,
     jobSetup: null,
     resumeSnapshots: [],
+    experiences: [],
+    experienceGroupingBackups: [],
   };
+}
+
+export function bookSchemaVersion(raw) {
+  if (!raw || typeof raw !== 'object') return SCHEMA;
+  const v = Number(raw.v);
+  return Number.isFinite(v) && v >= 1 ? Math.floor(v) : SCHEMA;
+}
+
+function normalizeExperienceRecord(raw, clock = Date.now) {
+  if (!raw || typeof raw !== 'object') return null;
+  const title = asString(raw.title, TITLE_MAX);
+  const id = asString(raw.id, 64);
+  if (!id || !title) return null;
+  const createdAt = asString(raw.createdAt, 40) || nowIso(clock);
+  return {
+    id,
+    jobId: asString(raw.jobId, 64),
+    title,
+    createdAt,
+    updatedAt: asString(raw.updatedAt, 40) || createdAt,
+    deletedAt: asString(raw.deletedAt, 40),
+  };
+}
+
+function normalizeExperiences(raw, clock = Date.now) {
+  const out = [];
+  const seen = new Set();
+  for (const item of Array.isArray(raw) ? raw : []) {
+    const row = normalizeExperienceRecord(item, clock);
+    if (!row || seen.has(row.id)) continue;
+    seen.add(row.id);
+    out.push(row);
+  }
+  return out;
+}
+
+function normalizeExperienceGroupingBackup(raw, clock = Date.now) {
+  if (!raw || typeof raw !== 'object') return null;
+  const id = asString(raw.id, 64);
+  const kind = asString(raw.kind, 80);
+  if (!id || !kind) return null;
+  const placements = [];
+  for (const item of Array.isArray(raw.placements) ? raw.placements : []) {
+    if (!item || typeof item !== 'object') continue;
+    const entryId = asString(item.entryId, 64);
+    if (!entryId) continue;
+    placements.push({
+      entryId,
+      jobId: asString(item.jobId, 64),
+      experienceId: asString(item.experienceId, 64),
+    });
+  }
+  const experiences = normalizeExperiences(raw.experiences, clock);
+  return {
+    id,
+    kind,
+    createdAt: asString(raw.createdAt, 40) || nowIso(clock),
+    experiences,
+    placements,
+  };
+}
+
+function normalizeExperienceGroupingBackups(raw, clock = Date.now) {
+  const out = [];
+  const seen = new Set();
+  for (const item of Array.isArray(raw) ? raw : []) {
+    const row = normalizeExperienceGroupingBackup(item, clock);
+    if (!row || seen.has(row.id)) continue;
+    seen.add(row.id);
+    out.push(row);
+  }
+  return out.slice(-EXPERIENCE_GROUPING_BACKUP_MAX);
 }
 
 export function normalizeProfile(raw) {
@@ -497,6 +574,7 @@ export function normalizeEntry(raw, clock = Date.now) {
     createdAt,
     updatedAt: asString(raw.updatedAt, 40) || createdAt,
     legacyVersions: normalizeLegacyVersions(raw.legacyVersions),
+    experienceId: asString(raw.experienceId, 64),
   };
 }
 
@@ -679,6 +757,11 @@ export function normalizeStore(raw, clock = Date.now) {
   store.basicsBackup = normalizeBasicsBackup(raw.basicsBackup, clock);
   store.jobSetup = normalizeJobSetup(raw.jobSetup);
   store.resumeSnapshots = normalizeResumeSnapshots(raw.resumeSnapshots, clock);
+  store.experiences = normalizeExperiences(raw.experiences, clock);
+  store.experienceGroupingBackups = normalizeExperienceGroupingBackups(
+    raw.experienceGroupingBackups,
+    clock,
+  );
   store.v = Number(raw.v) === SCHEMA ? SCHEMA : SCHEMA;
   return migrateCanonicalBullets(store, clock, migrationTimestamps);
 }
@@ -1021,8 +1104,99 @@ export function preserveResumeSnapshots(incoming, current, clock = Date.now) {
   };
 }
 
+function resumeBulletProvenanceById(store) {
+  const map = new Map();
+  const visitBullet = (bullet) => {
+    if (!bullet?.id) return;
+    const prov = asString(bullet.sourceExperienceId, 64);
+    if (prov) map.set(bullet.id, prov);
+  };
+  const visitJobs = (jobs) => {
+    for (const job of jobs || []) {
+      for (const group of job.groups || []) {
+        for (const bullet of group.bullets || []) visitBullet(bullet);
+      }
+    }
+  };
+  visitJobs(store?.jobs);
+  for (const posting of store?.postings || []) {
+    visitJobs(posting.resume?.localJobs);
+    const variant = posting.resume;
+    if (!variant) continue;
+    for (const group of variant.groups || []) {
+      for (const bullet of group.bullets || []) visitBullet(bullet);
+    }
+  }
+  for (const snap of store?.resumeSnapshots || []) {
+    const doc = snap?.doc;
+    if (!doc?.jobs) continue;
+    for (const job of doc.jobs) {
+      for (const group of job.groups || []) {
+        for (const bullet of group.bullets || []) visitBullet(bullet);
+      }
+    }
+  }
+  return map;
+}
+
+function overlayResumeBulletProvenance(next, saved) {
+  const provenance = resumeBulletProvenanceById(saved);
+  if (!provenance.size) return next;
+  const applyBullet = (bullet) => {
+    if (!bullet?.id) return bullet;
+    const sourceExperienceId = provenance.get(bullet.id);
+    if (!sourceExperienceId) return bullet;
+    if (asString(bullet.sourceExperienceId, 64) === sourceExperienceId) return bullet;
+    return { ...bullet, sourceExperienceId };
+  };
+  const applyJobs = (jobs) => (jobs || []).map((job) => ({
+    ...job,
+    groups: (job.groups || []).map((group) => ({
+      ...group,
+      bullets: (group.bullets || []).map(applyBullet),
+    })),
+  }));
+  const jobs = applyJobs(next.jobs);
+  const postings = (next.postings || []).map((posting) => {
+    const resume = posting.resume;
+    if (!resume?.localJobs?.length) return posting;
+    return {
+      ...posting,
+      resume: { ...resume, localJobs: applyJobs(resume.localJobs) },
+    };
+  });
+  return { ...next, jobs, postings };
+}
+
+/** Restore v4 experience metadata when an older client saves (incoming book.v < EXPERIENCE_SCHEMA). */
+export function preserveExperienceMetadataForOldClient(next, saved, incomingVersion) {
+  const savedBook = saved || emptyStore();
+  if (incomingVersion >= EXPERIENCE_SCHEMA) return next;
+  const savedByEntry = new Map((savedBook.entries || []).map((entry) => [entry.id, entry]));
+  const entries = (next.entries || []).map((entry) => {
+    const prior = savedByEntry.get(entry.id);
+    if (!prior?.experienceId) return entry;
+    return { ...entry, experienceId: prior.experienceId };
+  });
+  return overlayResumeBulletProvenance({
+    ...next,
+    experiences: normalizeExperiences(savedBook.experiences),
+    experienceGroupingBackups: normalizeExperienceGroupingBackups(
+      savedBook.experienceGroupingBackups,
+    ),
+    entries,
+  }, savedBook);
+}
+
 export function preserveServerHistory(incoming, current, clock = Date.now) {
-  return preserveResumeSnapshots(preserveLegacyVersions(incoming, current, clock), current, clock);
+  const incomingVersion = bookSchemaVersion(incoming);
+  let next = preserveLegacyVersions(incoming, current, clock);
+  next = preserveExperienceMetadataForOldClient(
+    next,
+    normalizeStore(current, clock),
+    incomingVersion,
+  );
+  return preserveResumeSnapshots(next, current, clock);
 }
 
 export function saveResumeSnapshot(store, postingId, { name, fit }, clock = Date.now, random = Math.random) {
@@ -4033,7 +4207,9 @@ export function shouldBlockEmptyOverwrite(next, previous) {
   if (!previous) return false;
   const hadLog = (previous.entries || []).length > 0
     || postingBulletCount(previous) > 0
-    || (previous.knowledge || []).length > 0;
+    || (previous.knowledge || []).length > 0
+    || (previous.experiences || []).length > 0
+    || (previous.experienceGroupingBackups || []).length > 0;
   if (!hadLog) return false;
   return (next?.entries || []).length === 0
     && postingBulletCount(next) === 0

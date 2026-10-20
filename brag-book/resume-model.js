@@ -334,6 +334,7 @@ export function normalizeResumeBullet(raw, clock = Date.now) {
     pinned: Boolean(raw.pinned),
     sourceBulletIds: asIdList(raw.sourceBulletIds),
     sourceEntryIds: asIdList(raw.sourceEntryIds),
+    sourceExperienceId: asString(raw.sourceExperienceId, ID_MAX),
   };
 }
 

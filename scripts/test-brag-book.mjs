@@ -236,6 +236,8 @@ assert.deepEqual(emptyStore(), {
   basicsBackup: null,
   jobSetup: null,
   resumeSnapshots: [],
+  experiences: [],
+  experienceGroupingBackups: [],
 });
 assert.deepEqual(normalizeStore(null), emptyStore());
 assert.equal(normalizeEntry({ title: '   ' }), null);

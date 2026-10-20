@@ -1,0 +1,85 @@
+{
+  "v": 4,
+  "experiences": [
+    {
+      "id": "xp_embedded",
+      "jobId": "job_godaddy",
+      "title": "Embedded-risk launch",
+      "createdAt": "2026-03-01T00:00:00.000Z",
+      "updatedAt": "2026-03-01T00:00:00.000Z",
+      "deletedAt": ""
+    }
+  ],
+  "experienceGroupingBackups": [
+    {
+      "id": "bk_group_1",
+      "kind": "group.selected",
+      "createdAt": "2026-03-01T00:00:00.000Z",
+      "experiences": [
+        {
+          "id": "xp_embedded",
+          "jobId": "job_godaddy",
+          "title": "Embedded-risk launch",
+          "createdAt": "2026-03-01T00:00:00.000Z",
+          "updatedAt": "2026-03-01T00:00:00.000Z",
+          "deletedAt": ""
+        }
+      ],
+      "placements": [
+        { "entryId": "en_fixture_a", "jobId": "job_godaddy", "experienceId": "xp_embedded" },
+        { "entryId": "en_fixture_b", "jobId": "job_godaddy", "experienceId": "" }
+      ]
+    }
+  ],
+  "entries": [
+    {
+      "id": "en_fixture_a",
+      "kind": "experience",
+      "title": "Built an embedded-risk process across twelve teams",
+      "jobId": "job_godaddy",
+      "experienceId": "xp_embedded",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "en_fixture_b",
+      "kind": "experience",
+      "title": "Launched a risk program covering twelve teams",
+      "jobId": "job_godaddy",
+      "experienceId": "xp_embedded",
+      "createdAt": "2026-01-02T00:00:00.000Z",
+      "updatedAt": "2026-01-02T00:00:00.000Z"
+    }
+  ],
+  "jobs": [
+    {
+      "id": "job_godaddy",
+      "company": "GoDaddy",
+      "title": "Manager",
+      "start": "2021",
+      "end": "Present",
+      "current": true,
+      "groups": [
+        {
+          "id": "grp_1",
+          "title": "",
+          "bullets": [
+            {
+              "id": "rb_basics_1",
+              "lead": "Built an embedded-risk process across twelve teams",
+              "body": "",
+              "sourceEntryIds": ["en_fixture_a"],
+              "sourceExperienceId": "xp_embedded"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "postings": [],
+  "knowledge": [],
+  "profile": { "name": "Fixture User" },
+  "education": [],
+  "credentials": [],
+  "additional": []
+}

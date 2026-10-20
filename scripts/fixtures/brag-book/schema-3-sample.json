@@ -1,0 +1,38 @@
+{
+  "v": 3,
+  "entries": [
+    {
+      "id": "en_fixture_a",
+      "kind": "experience",
+      "title": "Built an embedded-risk process across twelve teams",
+      "jobId": "job_godaddy",
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "en_fixture_b",
+      "kind": "experience",
+      "title": "Built an embedded-risk process across twelve teams",
+      "jobId": "job_godaddy",
+      "createdAt": "2026-01-02T00:00:00.000Z",
+      "updatedAt": "2026-01-02T00:00:00.000Z"
+    }
+  ],
+  "jobs": [
+    {
+      "id": "job_godaddy",
+      "company": "GoDaddy",
+      "title": "Manager",
+      "start": "2021",
+      "end": "Present",
+      "current": true,
+      "groups": []
+    }
+  ],
+  "postings": [],
+  "knowledge": [],
+  "profile": { "name": "Fixture User" },
+  "education": [],
+  "credentials": [],
+  "additional": []
+}
