@@ -69,6 +69,7 @@ This repo is a no-build Vercel site (see `README.md` for structure/deploy). Non-
   - `node scripts/test-brag-book-resume-snapshots.mjs` — immutable saved resume bank, merge, PUT/GET preservation (`brag-book/resume-snapshots.js`)
   - `node scripts/test-brag-book-start-from-snapshot.mjs` — start posting resume from saved copy, auto-backup, persist/reload, posting-only edits (`resume-snapshots.js`, save controller)
   - `node scripts/test-brag-book-unmapped-resume.mjs` — posting workspace unmapped resume bullets (compile vs requirement links, exclude, live mapping)
+  - `node scripts/test-brag-book-unmapped-panel.mjs` — collapsible unmapped panel default collapsed, count badge (`app.js` session expand state)
   - `node scripts/test-brag-book-resume-editor-scroll.mjs` — posting resume editor preserves window/editor/preview scroll on include, pin, remove, sub-heading, reorder (`app.js` scroll restore)
   - `node scripts/test-brag-book-resume-choose-snapshot.mjs` — first-time posting resume chooser: start from saved copy, persist, basics/snapshot unchanged (`resume-snapshots.js`, save controller)
   - `node scripts/test-brag-book-home-recent.mjs` — home recent postings sort by last activity; no recent bullets/knowledge sections (`postingLastChangedMs`, `postingsByRecentActivity`)

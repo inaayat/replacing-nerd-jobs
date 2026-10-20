@@ -3612,6 +3612,11 @@ export function resumeBulletMappedToPostingRequirements(bullet, links) {
   return false;
 }
 
+/** Count of derived unmapped bullets (for home/posting chrome). */
+export function unmappedResumeBulletCount(store, posting) {
+  return unmappedPostingResumeBullets(store, posting).length;
+}
+
 /** Visible on-posting resume bullets with no requirement row link (derived only). */
 export function unmappedPostingResumeBullets(store, posting) {
   if (!posting) return [];

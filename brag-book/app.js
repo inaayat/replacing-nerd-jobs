@@ -258,6 +258,8 @@ let resumeSnapshotStartOpen = null;
 let resumeSnapshotChooserOpen = null;
 let resumeSnapshotApplyToPostingId = null;
 let resumeSnapshotRenameOpen = null;
+/** Posting ids with the unmapped resume panel expanded this session (not persisted). */
+const unmappedResumePanelExpanded = new Set();
 
 function storeCacheKey() {
   if (localMode) return LOCAL_STORE_KEY;
@@ -2627,14 +2629,41 @@ function requirementTable(job) {
 
 function unmappedResumeBulletsPanel(job) {
   const rows = unmappedPostingResumeBullets(store, job);
-  if (!rows.length) return null;
+  const count = rows.length;
+  const open = unmappedResumePanelExpanded.has(job.id);
+  const bodyId = `bb-unmapped-body-${job.id}`;
+  const toggle = () => {
+    if (unmappedResumePanelExpanded.has(job.id)) unmappedResumePanelExpanded.delete(job.id);
+    else unmappedResumePanelExpanded.add(job.id);
+    render();
+  };
   return el('section', { class: 'bb-unmapped-resume', 'aria-label': 'Unmapped resume bullets' }, [
-    el('h3', { class: 'bb-unmapped-title' }, 'Unmapped resume bullets'),
-    el('p', { class: 'tiny bb-unmapped-lede' }, 'On this posting’s resume but not tied to any requirement row.'),
-    el('ul', { class: 'bb-unmapped-list' }, rows.map((row) => el('li', { class: 'bb-unmapped-row' }, [
-      el('span', { class: 'bb-unmapped-role' }, row.roleLabel),
-      el('span', { class: 'bb-unmapped-text' }, row.text),
-    ]))),
+    el('button', {
+      type: 'button',
+      class: `bb-unmapped-toggle${open ? ' is-open' : ''}`,
+      'aria-expanded': open ? 'true' : 'false',
+      'aria-controls': bodyId,
+      onClick: toggle,
+    }, [
+      el('span', { class: 'bb-unmapped-chevron', 'aria-hidden': 'true' }, '▸'),
+      el('span', { class: 'bb-unmapped-title' }, 'Unmapped resume bullets'),
+      el('span', {
+        class: `bb-unmapped-count${count ? '' : ' is-zero'}`,
+        'aria-label': `${count} unmapped`,
+      }, String(count)),
+    ]),
+    el('div', {
+      class: 'bb-unmapped-body',
+      id: bodyId,
+      hidden: !open,
+    }, [
+      el('p', { class: 'tiny bb-unmapped-lede' }, 'On this posting’s resume but not tied to any requirement row.'),
+      el('ul', { class: 'bb-unmapped-list' }, rows.map((row) => el('li', { class: 'bb-unmapped-row' }, [
+        el('span', { class: 'bb-unmapped-role-icon', 'aria-hidden': 'true' }, '◦'),
+        el('span', { class: 'bb-unmapped-role' }, row.roleLabel),
+        el('span', { class: 'bb-unmapped-text' }, row.text),
+      ]))),
+    ]),
   ]);
 }
 
@@ -2667,7 +2696,6 @@ function pasteMoreDisclosure(job) {
 
 function jobDetail(job) {
   const wrap = el('section', { class: 'panel job-workspace' });
-  const unmappedPanel = unmappedResumeBulletsPanel(job);
   wrap.append(
     el('div', { class: 'panel-head' }, [
       el('div', {}, [
@@ -2679,7 +2707,7 @@ function jobDetail(job) {
         btn('Resume', { class: 'btn', onClick: () => go({ kind: 'jobs', id: job.id, mode: 'resume' }) }),
       ]),
     ]),
-    ...(unmappedPanel ? [unmappedPanel] : []),
+    unmappedResumeBulletsPanel(job),
     el('div', { class: 'workspace-status' }, [coverageBanner(job)]),
     job.requirements.length
       ? requirementTable(job)
@@ -5282,6 +5310,13 @@ if (globalThis.__BB_TEST_RESUME_SCROLL__) {
     captureScroll,
     restoreScroll,
     SCROLL_PANES,
+  };
+}
+
+if (globalThis.__BB_TEST_UNMAPPED_PANEL__) {
+  globalThis.__bbTestUnmappedPanel = {
+    isExpanded: (postingId) => unmappedResumePanelExpanded.has(postingId),
+    resetExpanded: () => unmappedResumePanelExpanded.clear(),
   };
 }
 
