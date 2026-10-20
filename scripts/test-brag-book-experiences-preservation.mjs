@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   EXPERIENCE_SCHEMA,
+  LEGACY_SCHEMA,
   bookSchemaVersion,
   emptyStore,
   normalizeStore,
@@ -22,7 +23,7 @@ const clock = () => Date.parse('2026-10-20T12:00:00.000Z');
 
 assert.equal(bookSchemaVersion({ v: 3 }), 3);
 assert.equal(bookSchemaVersion({ v: 4 }), EXPERIENCE_SCHEMA);
-assert.equal(bookSchemaVersion({}), 3);
+assert.equal(bookSchemaVersion({}), LEGACY_SCHEMA);
 
 const server = normalizeStore(schema4Server, clock);
 assert.equal(server.experiences.length, 1);

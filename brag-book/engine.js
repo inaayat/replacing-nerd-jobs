@@ -10,8 +10,26 @@
 
 import { mergeConcurrentBooks } from './save-controller.js';
 
-export const SCHEMA = 3;
-/** Book schema once experiences metadata ships (additive fields may exist before this version). */
+export {
+  appendGroupingBackup,
+  captureGroupingPlacements,
+  createExperience,
+  draftExperienceVersion,
+  effectiveExperienceKeyForEntry,
+  entryIsLoose,
+  experienceById,
+  experienceForEntry,
+  experienceVersions,
+  groupEntriesAsExperience,
+  moveEntryToExperience,
+  removeEntryFromExperience,
+  renameExperience,
+  ungroupExperience,
+} from './experiences.js';
+
+export const SCHEMA = 4;
+/** Legacy books without experience metadata normalize as schema 3 payloads. */
+export const LEGACY_SCHEMA = 3;
 export const EXPERIENCE_SCHEMA = 4;
 export const EXPERIENCE_GROUPING_BACKUP_MAX = 5;
 export const STORE_KEY = 'brag-book-store-v1';
@@ -242,9 +260,9 @@ export function emptyStore() {
 }
 
 export function bookSchemaVersion(raw) {
-  if (!raw || typeof raw !== 'object') return SCHEMA;
+  if (!raw || typeof raw !== 'object') return LEGACY_SCHEMA;
   const v = Number(raw.v);
-  return Number.isFinite(v) && v >= 1 ? Math.floor(v) : SCHEMA;
+  return Number.isFinite(v) && v >= 1 ? Math.floor(v) : LEGACY_SCHEMA;
 }
 
 function normalizeExperienceRecord(raw, clock = Date.now) {
@@ -762,7 +780,7 @@ export function normalizeStore(raw, clock = Date.now) {
     raw.experienceGroupingBackups,
     clock,
   );
-  store.v = Number(raw.v) === SCHEMA ? SCHEMA : SCHEMA;
+  store.v = SCHEMA;
   return migrateCanonicalBullets(store, clock, migrationTimestamps);
 }
 

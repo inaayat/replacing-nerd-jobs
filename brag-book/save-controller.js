@@ -54,7 +54,7 @@ function mergeEntryRecord(base, local, remote) {
   const fields = [
     'title', 'rich', 'role', 'company', 'jobId', 'when', 'tags',
     'situation', 'task', 'action', 'result', 'notes', 'kind',
-    'createdAt', 'updatedAt', 'legacyVersions',
+    'createdAt', 'updatedAt', 'legacyVersions', 'experienceId',
   ];
   const record = { ...remote };
   const conflicts = [];
@@ -174,8 +174,54 @@ export function mergeConcurrentBooks(base, local, remote) {
     local?.resumeSnapshots,
     remote?.resumeSnapshots,
   );
-  book.v = remote?.v ?? local?.v ?? base?.v;
+  const experiences = mergeRecordLists(
+    base?.experiences,
+    local?.experiences,
+    remote?.experiences,
+    (b, l, r) => mergeExperienceRecord(b, l, r),
+  );
+  book.experiences = experiences.list;
+  conflicts.push(...experiences.conflicts.map((conflict) => ({ ...conflict, collection: 'experiences' })));
+  const backups = mergeRecordLists(
+    base?.experienceGroupingBackups,
+    local?.experienceGroupingBackups,
+    remote?.experienceGroupingBackups,
+    (b, l, r) => {
+      if (!l && !r) return { record: null, conflicts: [] };
+      if (!l) return { record: r, conflicts: [] };
+      if (!r) return { record: l, conflicts: [] };
+      if (sameValue(l, r)) return { record: l, conflicts: [] };
+      if (sameValue(b, l)) return { record: r, conflicts: [] };
+      if (sameValue(b, r)) return { record: l, conflicts: [] };
+      const lv = Date.parse(l.createdAt || '') || 0;
+      const rv = Date.parse(r.createdAt || '') || 0;
+      const winner = rv >= lv ? r : l;
+      return { record: winner, conflicts: [{ id: l.id, local: l, remote: r }] };
+    },
+  );
+  book.experienceGroupingBackups = backups.list.slice(-5);
+  conflicts.push(...backups.conflicts.map((conflict) => ({ ...conflict, collection: 'experienceGroupingBackups' })));
+  book.v = remote?.v ?? local?.v ?? base?.v ?? 4;
   return { book, conflicts };
+}
+
+function mergeExperienceRecord(base, local, remote) {
+  if (!local && !remote) return { record: null, conflicts: [] };
+  if (!local) return { record: remote, conflicts: [] };
+  if (!remote) return { record: local, conflicts: [] };
+  const fields = ['jobId', 'title', 'createdAt', 'updatedAt', 'deletedAt'];
+  const record = { ...remote };
+  const rowConflicts = [];
+  for (const field of fields) {
+    const { value, conflict } = mergeScalarField(base, local, remote, field);
+    if (conflict) rowConflicts.push(conflict);
+    if (value !== undefined) record[field] = value;
+  }
+  if (!record.id) record.id = local.id || remote.id;
+  return {
+    record,
+    conflicts: rowConflicts.length ? [{ id: record.id, local, remote, fields: rowConflicts }] : [],
+  };
 }
 
 export function retainLocalConflictValues(book, conflicts = []) {
