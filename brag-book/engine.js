@@ -103,12 +103,25 @@ import {
   normalizeResumeSnapshots,
   preserveResumeSnapshotLists,
   renameResumeSnapshotRecord,
+  autoSaveBeforeOverwriteSnapshotName,
+  postingResumeMatchesSnapshot,
+  postingResumeOverwriteConfirm,
+  postingVariantFromSnapshot,
   resumeSnapshotById as snapshotById,
   resumeSnapshotToDoc,
+  snapshotDisplayName,
 } from './resume-snapshots.js';
 
 export { STARTER_RESUME_DOC } from './starter-resume.js';
-export { RESUME_SNAPSHOT_SCHEMA, defaultResumeSnapshotName, resumeSnapshotToDoc } from './resume-snapshots.js';
+export {
+  RESUME_SNAPSHOT_SCHEMA,
+  autoSaveBeforeOverwriteSnapshotName,
+  defaultResumeSnapshotName,
+  postingResumeMatchesSnapshot,
+  postingResumeOverwriteConfirm,
+  postingVariantFromSnapshot,
+  resumeSnapshotToDoc,
+} from './resume-snapshots.js';
 
 export {
   RESUME_SECTION_KEYS,
@@ -877,11 +890,14 @@ export function migrateCanonicalBullets(store, clock = Date.now, migrationTimest
   }));
 
   const jobs = canonicalizeJobs(next.jobs, 'career');
+  // Posting-local jobs are a private copy (fresh posting or saved-snapshot template).
+  // Do not canonicalize them into shared library entries — that would link sourceEntryIds
+  // and duplicate bullets on every normalize/reload.
   postings = postings.map((posting) => ({
     ...posting,
     resume: normalizeResumeVariant({
       ...posting.resume,
-      localJobs: canonicalizeJobs(posting.resume?.localJobs, `local:${posting.id}`),
+      localJobs: normalizeCareerJobs(posting.resume?.localJobs, clock),
     }),
   }));
 
@@ -1007,6 +1023,38 @@ export function saveResumeSnapshot(store, postingId, { name, fit }, clock = Date
   }, clock);
   serializeBook(next);
   return { store: next, snapshot: snapshotById(next, snapshot.id, { includeDeleted: true }) };
+}
+
+export function startPostingResumeFromSnapshot(
+  store,
+  postingId,
+  snapshotId,
+  { fit } = {},
+  clock = Date.now,
+  random = Math.random,
+) {
+  const posting = postingById(store, postingId);
+  const snapshot = snapshotById(store, snapshotId);
+  if (!posting || !snapshot) return { store, changed: false };
+  const fitPayload = fit || snapshot.fit || {};
+  const backup = saveResumeSnapshot(
+    store,
+    postingId,
+    {
+      name: autoSaveBeforeOverwriteSnapshotName(snapshot, clock),
+      fit: fitPayload,
+    },
+    clock,
+    random,
+  );
+  const variant = postingVariantFromSnapshot(snapshot, clock, random);
+  const next = replacePostingResume(backup.store, postingId, variant, clock);
+  return {
+    store: next,
+    changed: true,
+    backupSnapshotId: backup.snapshot?.id,
+    sourceSnapshotId: snapshot.id,
+  };
 }
 
 export function renameResumeSnapshot(store, snapshotId, name, clock = Date.now, random = Math.random) {

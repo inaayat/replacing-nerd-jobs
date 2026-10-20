@@ -139,6 +139,8 @@ import {
   BOOK_MAX_CHARS,
   serializeBook,
   saveResumeSnapshot,
+  startPostingResumeFromSnapshot,
+  postingResumeOverwriteConfirm,
   renameResumeSnapshot,
   deleteResumeSnapshot,
   resumeSnapshotById,
@@ -249,6 +251,8 @@ let resumeFit = { fits: true, fontPt: 10, bulletLineHeight: 1.32, droppedBulletI
 let resumePreviewTimer = null;
 let resumeFitPostingId = null;
 let resumeSnapshotSaveOpen = null;
+let resumeSnapshotStartOpen = null;
+let resumeSnapshotApplyToPostingId = null;
 let resumeSnapshotRenameOpen = null;
 
 function storeCacheKey() {
@@ -3067,6 +3071,9 @@ function savedResumeDetail(snapshotId) {
   }
   const source = [snapshot.sourcePosting?.company, snapshot.sourcePosting?.title].filter(Boolean).join(' · ');
   const saved = snapshot.savedAt ? new Date(snapshot.savedAt).toLocaleString() : '';
+  const applyPosting = resumeSnapshotApplyToPostingId
+    ? (store.postings || []).find((row) => row.id === resumeSnapshotApplyToPostingId)
+    : null;
   const renameOpen = resumeSnapshotRenameOpen === snapshot.id;
   const renameInput = el('input', {
     class: 'bb-snapshot-rename-input',
@@ -3088,6 +3095,13 @@ function savedResumeDetail(snapshotId) {
         el('p', { class: 'tiny' }, [saved, source ? ` · ${source}` : ''].filter(Boolean).join(' · ')),
       ]),
       el('div', { class: 'bb-snapshot-actions' }, [
+        applyPosting ? btn('Use as starting point', {
+          class: 'btn',
+          onClick: () => {
+            applySnapshotToPosting(applyPosting, snapshot.id);
+            go({ kind: 'jobs', id: applyPosting.id, mode: 'resume' });
+          },
+        }) : null,
         btn('Back to saved resumes', { class: 'btn ghost', onClick: () => go({ kind: 'snapshots' }) }),
         btn('Print / PDF', { class: 'btn', onClick: () => exportResumeSnapshotPdf(snapshot) }),
         btn('Download Word', { class: 'btn ghost', onClick: () => exportResumeSnapshotDocx(snapshot) }),
@@ -3140,6 +3154,63 @@ function savedResumeDetail(snapshotId) {
 
 function snapshotIsDeleted(snapshot) {
   return (snapshot?.events || []).some((event) => event.kind === 'delete');
+}
+
+function applySnapshotToPosting(posting, snapshotId) {
+  const snapshot = resumeSnapshotById(store, snapshotId);
+  if (!snapshot || !posting) return;
+  if (!confirm(postingResumeOverwriteConfirm(snapshot, posting))) return;
+  try {
+    const result = startPostingResumeFromSnapshot(store, posting.id, snapshotId, {
+      fit: snapshotFitPayload(),
+    });
+    if (!result.changed) {
+      setNote('Could not load that saved resume.');
+      return;
+    }
+    store = result.store;
+    saveStore();
+    void flushSave('navigation');
+    resumeSnapshotStartOpen = null;
+    resumeSnapshotApplyToPostingId = null;
+    render();
+    setNote('Loaded the saved resume onto this posting. Your previous version was saved in Saved resumes.');
+  } catch (err) {
+    setNote(err?.message || 'Could not load that saved resume.');
+  }
+}
+
+function resumeSnapshotStartPanel(posting) {
+  const rows = activeResumeSnapshots(store);
+  return el('div', { class: 'bb-snapshot-save bb-snapshot-start' }, [
+    el('p', { class: 'tiny' }, 'Pick a saved resume to copy onto this posting. The current resume is auto-saved first.'),
+    rows.length
+      ? el('div', { class: 'bb-snapshot-list bb-snapshot-start-list' }, rows.map((row) => el('div', { class: 'bb-snapshot-row' }, [
+        el('div', { class: 'bb-snapshot-meta' }, [
+          el('strong', {}, row.name || row.initialName),
+          el('span', { class: 'tiny' }, [
+            row.sourcePosting?.company,
+            row.savedAt ? new Date(row.savedAt).toLocaleDateString() : '',
+          ].filter(Boolean).join(' · ')),
+        ]),
+        el('div', { class: 'bb-snapshot-actions' }, [
+          btn('Use as starting point', {
+            class: 'btn compact-action',
+            onClick: () => applySnapshotToPosting(posting, row.id),
+          }),
+        ]),
+      ])))
+      : el('p', { class: 'empty tiny' }, 'No saved resumes yet. Use Save a copy first.'),
+    el('div', { class: 'actions' }, [
+      btn('Cancel', {
+        class: 'btn ghost compact-action',
+        onClick: () => {
+          resumeSnapshotStartOpen = null;
+          render();
+        },
+      }),
+    ]),
+  ]);
 }
 
 function snapshotSaveForm(posting) {
@@ -4619,6 +4690,14 @@ function resumeWorkspace(posting) {
             setNote('This posting’s resume again starts from Resume basics.');
           },
         }) : null,
+        posting ? btn('Start from saved resume', {
+          class: 'btn ghost compact-action',
+          onClick: () => {
+            resumeSnapshotStartOpen = posting.id;
+            resumeSnapshotApplyToPostingId = posting.id;
+            render();
+          },
+        }) : null,
         posting ? btn('Back to posting', { class: 'btn ghost', onClick: () => go({ kind: 'jobs', id: posting.id }) }) : null,
       ]),
     ]);
@@ -4629,6 +4708,9 @@ function resumeWorkspace(posting) {
   wrap.append(header);
   if (posting && resumeSnapshotSaveOpen === posting.id) {
     wrap.append(snapshotSaveForm(posting));
+  }
+  if (posting && resumeSnapshotStartOpen === posting.id) {
+    wrap.append(resumeSnapshotStartPanel(posting));
   }
   wrap.append(split);
   queueMicrotask(() => refreshResumePreview(posting));

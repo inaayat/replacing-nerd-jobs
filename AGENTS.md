@@ -66,6 +66,8 @@ This repo is a no-build Vercel site (see `README.md` for structure/deploy). Non-
  - `node scripts/test-asc-606.mjs` — ASC 606 decision tree, citations, and quiz paths (`asc-606/engine.js`, `tree.js`)
   - `node scripts/test-brag-book.mjs` — Brag Book store, JD parse, STAR compile, hash routes, combined book page, stale-save guards, role collapse (`brag-book/engine.js`, `routes.js`, `book-view.js`)
   - `node scripts/test-brag-book-knowledge-tables.mjs` — Knowledge GFM tables: parse, infer on load, paste/HTML, search, save round-trip (`brag-book/knowledge-doc.js`)
+  - `node scripts/test-brag-book-resume-snapshots.mjs` — immutable saved resume bank, merge, PUT/GET preservation (`brag-book/resume-snapshots.js`)
+  - `node scripts/test-brag-book-start-from-snapshot.mjs` — start posting resume from saved copy, auto-backup, persist/reload, posting-only edits (`resume-snapshots.js`, save controller)
  - `node scripts/test-brag-book-drag-dom.mjs` — Resume basics and posting drag handles in jsdom: HTML5 drag and pointer fallback, preview and DOCX order, reload (`brag-book/app.js`)
  - `node scripts/test-brag-book-pwa.mjs` — Brag Book manifest, A-Lister–style service worker, PWA status/update UI (`brag-book/pwa.js`, `service-worker.js`)
  - `node scripts/test-brag-book-pwa-sync-guarantees.mjs` — online PUT, in-flight save reconnect, 409 merge, flush/outbox, SW vs localStorage, bullet ids, offline read-only

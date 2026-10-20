@@ -2519,6 +2519,11 @@ a:focus-visible {
   }
 }
 
+.bb-snapshot-start-list {
+  margin: 0.35rem 0 0.5rem;
+  max-height: 14rem;
+  overflow-y: auto;
+}
 .bb-snapshot-save {
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);

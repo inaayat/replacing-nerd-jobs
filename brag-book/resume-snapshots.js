@@ -5,6 +5,13 @@
 import {
   additionalValueSpans,
   compileResumeDoc,
+  emptyResumeVariant,
+  groupBulletOrders,
+  normalizeAdditional,
+  normalizeCareerJobs,
+  normalizeCredentials,
+  normalizeEducation,
+  normalizeResumeVariant,
   resumeBulletSpans,
 } from './resume-model.js';
 import { CALADEA_HREF, TOKENS } from './resume-template.js';
@@ -403,4 +410,218 @@ export function preserveResumeSnapshotLists(incoming, current) {
   const next = Array.isArray(incoming) ? incoming : [];
   if (!saved.length) return next;
   return mergeResumeSnapshotLists([], next, saved);
+}
+
+function remapSnapshotFitIds(fit, oldToNewBullet) {
+  const normalized = normalizeFit(fit);
+  return {
+    ...normalized,
+    droppedBulletIds: normalized.droppedBulletIds
+      .map((id) => oldToNewBullet.get(id))
+      .filter(Boolean),
+  };
+}
+
+/** Copy a frozen snapshot into a posting-only resume variant (new ids, no basics links). */
+export function postingVariantFromSnapshot(snapshot, clock = Date.now, random = Math.random) {
+  const doc = resumeSnapshotToDoc(snapshot);
+  if (!doc?.sections) throw new Error('Snapshot has no resume document.');
+  const oldToNewBullet = new Map();
+  const localJobs = [];
+  const jobOrder = [];
+  const groupOrder = {};
+  const groupHeadings = {};
+  const jobTitles = {};
+  const excludedJobIds = [];
+  const excludedBulletIds = [];
+  const pinnedBulletIds = [];
+  const bulletOrder = {};
+
+  for (const job of doc.sections.experience?.jobs || []) {
+    const newJobId = makeId('job', clock, random);
+    jobOrder.push(newJobId);
+    if (job.included === false) excludedJobIds.push(newJobId);
+    const groupIds = [];
+    const groups = [];
+    for (const group of job.groups || []) {
+      const newGroupId = makeId('rg', clock, random);
+      groupIds.push(newGroupId);
+      const heading = asString(group.heading, 160);
+      if (heading) groupHeadings[newGroupId] = heading;
+      const bullets = [];
+      for (const bullet of group.bullets || []) {
+        const newBulletId = makeId('rb', clock, random);
+        oldToNewBullet.set(bullet.id, newBulletId);
+        if (bullet.included === false) excludedBulletIds.push(newBulletId);
+        if (bullet.pinned) pinnedBulletIds.push(newBulletId);
+        const rich = cloneSpans(bullet.rich?.length ? bullet.rich : resumeBulletSpans(bullet));
+        bullets.push({
+          id: newBulletId,
+          lead: asString(bullet.lead, 8000),
+          body: asString(bullet.body, 8000),
+          rich,
+          priority: bullet.priority,
+          pinned: Boolean(bullet.pinned),
+          sourceBulletIds: [],
+          sourceEntryIds: [],
+        });
+      }
+      groups.push({ id: newGroupId, heading, bullets });
+      bulletOrder[newGroupId] = groupBulletOrders([{ id: newGroupId, heading, bullets }])[newGroupId]
+        || bullets.map((row) => row.id);
+    }
+    groupOrder[newJobId] = groupIds;
+    const title = asString(job.title, 160);
+    if (title) jobTitles[newJobId] = title;
+    localJobs.push({
+      id: newJobId,
+      company: asString(job.company, 160),
+      title,
+      location: asString(job.location, 160),
+      start: asString(job.start, 40),
+      end: asString(job.end, 40),
+      current: Boolean(job.current),
+      groups,
+    });
+  }
+
+  const localEducation = normalizeEducation(
+    (doc.sections.education?.items || []).map((row) => ({
+      ...row,
+      id: makeId('ed', clock, random),
+    })),
+    clock,
+  );
+  const localCredentials = normalizeCredentials(
+    (doc.sections.credentials?.items || []).map((row) => ({
+      ...row,
+      id: makeId('cr', clock, random),
+    })),
+    clock,
+  );
+  const localAdditional = normalizeAdditional(
+    (doc.sections.additional?.rows || []).map((row) => ({
+      ...row,
+      id: makeId('ad', clock, random),
+      rich: cloneSpans(row.rich?.length ? row.rich : additionalValueSpans(row)),
+    })),
+    clock,
+  );
+  const remappedFit = remapSnapshotFitIds(snapshot?.fit, oldToNewBullet);
+  const showCredentials = doc.sections.credentials?.enabled === false ? false : null;
+  return normalizeResumeVariant({
+    ...emptyResumeVariant(),
+    mode: 'fresh',
+    sectionOrder: Array.isArray(doc.sectionOrder) && doc.sectionOrder.length
+      ? doc.sectionOrder.slice()
+      : [],
+    showCredentials,
+    localJobs: normalizeCareerJobs(localJobs, clock),
+    localEducation,
+    localCredentials,
+    localAdditional,
+    jobOrder,
+    groupOrder,
+    groupHeadings,
+    jobTitles,
+    bulletOrder,
+    excludedJobIds,
+    excludedBulletIds,
+    pinnedBulletIds,
+    fit: {
+      fontPt: remappedFit.fontPt,
+      bulletLineHeight: remappedFit.bulletLineHeight,
+      droppedBulletIds: remappedFit.droppedBulletIds,
+      fits: remappedFit.fits,
+    },
+  });
+}
+
+export function postingResumeOverwriteConfirm(snapshot, posting) {
+  const name = snapshotDisplayName(snapshot) || 'this saved resume';
+  const title = asString(posting?.title, SNAPSHOT_NAME_MAX) || 'this posting';
+  return `Replace ${title}’s current resume with “${name}”? A snapshot of the current resume is saved first. Resume basics and the saved copy you picked stay unchanged.`;
+}
+
+export function autoSaveBeforeOverwriteSnapshotName(sourceSnapshot, clock = Date.now) {
+  const label = snapshotDisplayName(sourceSnapshot) || 'saved resume';
+  const when = new Date(clock()).toISOString().slice(0, 10);
+  return asString(`Before overwrite – ${label} – ${when}`, SNAPSHOT_NAME_MAX);
+}
+
+function spanSig(spans) {
+  return (spans || []).map((span) => ({
+    text: String(span?.text ?? ''),
+    bold: Boolean(span?.bold),
+    italic: Boolean(span?.italic),
+  }));
+}
+
+function bulletSig(bullet) {
+  return {
+    lead: asString(bullet?.lead, 8000),
+    body: asString(bullet?.body, 8000),
+    included: bullet?.included !== false,
+    pinned: Boolean(bullet?.pinned),
+    rich: spanSig(bullet?.rich),
+  };
+}
+
+function experienceSig(doc) {
+  return (doc?.sections?.experience?.jobs || []).map((job) => ({
+    company: asString(job?.company, 160),
+    title: asString(job?.title, 160),
+    location: asString(job?.location, 160),
+    start: asString(job?.start, 40),
+    end: asString(job?.end, 40),
+    current: Boolean(job?.current),
+    included: job?.included !== false,
+    groups: (job?.groups || []).map((group) => ({
+      heading: asString(group?.heading, 160),
+      bullets: (group?.bullets || []).map(bulletSig),
+    })),
+  }));
+}
+
+function educationSig(doc) {
+  return (doc?.sections?.education?.items || []).map((row) => ({
+    school: asString(row?.school, 160),
+    degree: asString(row?.degree, 160),
+    field: asString(row?.field, 160),
+    end: asString(row?.end, 40),
+  }));
+}
+
+function credentialsSig(doc) {
+  return (doc?.sections?.credentials?.items || []).map((row) => ({
+    name: asString(row?.name, 160),
+    issuer: asString(row?.issuer, 160),
+    end: asString(row?.end, 40),
+  }));
+}
+
+function additionalSig(doc) {
+  return (doc?.sections?.additional?.rows || []).map((row) => ({
+    label: asString(row?.label, 160),
+    rich: spanSig(row?.rich?.length ? row.rich : additionalValueSpans(row)),
+  }));
+}
+
+/** Compare visible resume sections (ignores ids/header). Used after apply + reload tests. */
+export function resumeLayoutSignature(doc) {
+  return JSON.stringify({
+    experience: experienceSig(doc),
+    education: educationSig(doc),
+    credentials: credentialsSig(doc),
+    additional: additionalSig(doc),
+    sectionOrder: Array.isArray(doc?.sectionOrder) ? doc.sectionOrder.slice() : [],
+    showCredentials: doc?.sections?.credentials?.enabled !== false,
+  });
+}
+
+export function postingResumeMatchesSnapshot(store, posting, snapshot) {
+  if (!store || !posting || !snapshot) return false;
+  const live = compileResumeDoc(posting, store);
+  const frozen = resumeSnapshotToDoc(snapshot);
+  return resumeLayoutSignature(live) === resumeLayoutSignature(frozen);
 }
