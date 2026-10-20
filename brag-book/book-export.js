@@ -11,6 +11,7 @@ import {
   starFill,
   activeResumeSnapshots,
   resumeSnapshotToDoc,
+  libraryCatalogGroups,
 } from './engine.js';
 import { esc, renderResumeHtml } from './resume-template.js';
 import { knowledgeDocForEditor } from './knowledge-doc.js';
@@ -147,10 +148,53 @@ function renderJobsSection(store) {
   }).join('<hr class="bb-export-rule">');
 }
 
+function renderResumeBulletArticle(store, entry) {
+  const star = starFill(entry);
+  const job = (store.jobs || []).find((row) => row.id === entry.jobId);
+  const meta = [jobLabel(job), entry.when].filter(Boolean).join(' · ');
+  return `<article class="bb-export-entry">
+    <h3>${esc(entry.title || 'Untitled')}</h3>
+    <p class="bb-export-meta">${esc(meta)}${star.ready ? '' : ` · STAR ${star.filled}/${star.total}`}</p>
+    ${renderStarFields(entry)}
+  </article>`;
+}
+
 function renderResumeBulletsSection(store) {
   const entries = store?.entries || [];
   if (!entries.length) return '<p class="bb-export-quiet">No resume bullets in the library.</p>';
-  return entries.map((entry) => {
+  const groups = libraryCatalogGroups(store);
+  if (!groups.length) return renderResumeBulletsSectionFlat(store);
+  return groups.map((group) => {
+    const dates = group.dates ? ` · ${esc(group.dates)}` : '';
+    const sections = (group.sections || []).map((section) => {
+      if (section.kind === 'experience') {
+        const bullets = section.rows.map((row) => {
+          const entry = entries.find((item) => item.id === row.id);
+          return entry ? renderResumeBulletArticle(store, entry) : '';
+        }).join('');
+        return `<div class="bb-export-xp">
+          <h3>${esc(section.label)} <span class="bb-export-meta">(${section.versionCount} version${section.versionCount === 1 ? '' : 's'})</span></h3>
+          ${bullets}
+        </div>`;
+      }
+      const loose = section.rows.map((row) => {
+        const entry = entries.find((item) => item.id === row.id);
+        return entry ? renderResumeBulletArticle(store, entry) : '';
+      }).join('');
+      const label = section.label
+        ? `<p class="bb-export-meta">${esc(section.label)}</p>`
+        : '';
+      return `${label}${loose}`;
+    }).join('');
+    return `<article class="bb-export-job-group">
+      <h2>${esc(group.label)}${dates}</h2>
+      ${sections || '<p class="bb-export-quiet">No bullets.</p>'}
+    </article>`;
+  }).join('<hr class="bb-export-rule">');
+}
+
+function renderResumeBulletsSectionFlat(store) {
+  return (store?.entries || []).map((entry) => {
     const star = starFill(entry);
     const job = (store.jobs || []).find((row) => row.id === entry.jobId);
     const meta = [jobLabel(job), entry.when].filter(Boolean).join(' · ');
