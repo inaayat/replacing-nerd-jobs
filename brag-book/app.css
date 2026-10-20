@@ -3166,7 +3166,7 @@ html.bb-offline-readonly .shell select {
 }
 .bb-exp-index-line1 {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
   min-width: 0;
@@ -3174,13 +3174,17 @@ html.bb-offline-readonly .shell select {
 .bb-exp-index-title {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  max-width: 100%;
   font-weight: 600;
   font-size: 14px;
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 .bb-exp-index-count {
   flex: none;
+  align-self: flex-start;
   font-family: var(--content-font);
   font-size: 13px;
   font-weight: 400;
@@ -3188,6 +3192,7 @@ html.bb-offline-readonly .shell select {
   white-space: nowrap;
   letter-spacing: normal;
   text-transform: none;
+  line-height: 1.35;
 }
 .bb-exp-index-preview {
   margin: 4px 0 0;
@@ -3205,6 +3210,8 @@ html.bb-offline-readonly .shell select {
 .bb-exp-picker-wrap {
   position: relative;
   display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
 }
 .bb-exp-picker-menu {
   position: absolute;
@@ -3237,24 +3244,25 @@ html.bb-offline-readonly .shell select {
   margin-top: 2px;
 }
 .bb-exp-picker-chip {
+  display: block;
+  width: 100%;
   max-width: 100%;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.bb-exp-picker-wrap {
-  min-width: 0;
-  max-width: 100%;
+  height: auto;
+  white-space: normal;
+  text-align: left;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  line-height: 1.35;
 }
 .bb-posting-bullet-actions .bb-exp-picker-wrap,
 .bb-unmapped-actions .bb-exp-picker-wrap {
   flex: 1 1 8rem;
-  max-width: min(100%, 16rem);
+  max-width: 100%;
 }
 .bb-exp-actions .bb-exp-picker-wrap {
   flex: 1 1 8rem;
-  max-width: min(100%, 16rem);
+  max-width: 100%;
 }
 .bb-exp-actions {
   width: 100%;
@@ -3505,7 +3513,7 @@ html.bb-offline-readonly .shell select {
 .bb-exp-section-row-toggle {
   flex: 1;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   min-width: 0;
   min-height: 44px;
@@ -3524,6 +3532,8 @@ html.bb-offline-readonly .shell select {
 }
 .bb-exp-section-chevron {
   flex: none;
+  align-self: flex-start;
+  margin-top: 0.35em;
   width: 0.4rem;
   height: 0.4rem;
   border-right: 1.5px solid var(--muted);
@@ -3537,6 +3547,7 @@ html.bb-offline-readonly .shell select {
 .bb-exp-section-row-title {
   flex: 1;
   min-width: 0;
+  max-width: 100%;
   font-family: var(--content-font);
   font-size: 15px;
   font-weight: 600;
@@ -3544,14 +3555,19 @@ html.bb-offline-readonly .shell select {
   color: var(--ink);
   letter-spacing: normal;
   text-transform: none;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 .bb-exp-section-row-meta {
   flex: none;
+  align-self: flex-start;
   font-family: var(--content-font);
   font-size: 13px;
   font-weight: 400;
   color: var(--muted);
   white-space: nowrap;
+  line-height: 1.35;
 }
 .bb-exp-section-menu-wrap {
   position: relative;
@@ -3746,7 +3762,7 @@ html.bb-offline-readonly .shell select {
 }
 .bb-post-map-bucket-head-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 4px;
   margin: 0;
   padding: 0;
@@ -3754,9 +3770,10 @@ html.bb-offline-readonly .shell select {
 .bb-post-map-bucket-head {
   flex: 1;
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 6px;
   min-width: 0;
+  max-width: 100%;
   margin: 0;
   padding: 0;
   border: none;
@@ -3776,6 +3793,8 @@ html.bb-offline-readonly .shell select {
 }
 .bb-post-map-bucket-chevron {
   flex: none;
+  align-self: flex-start;
+  margin-top: 0.35em;
   width: 0.35rem;
   height: 0.35rem;
   border-right: 1px solid var(--muted);
@@ -3786,11 +3805,20 @@ html.bb-offline-readonly .shell select {
   transform: rotate(-135deg);
 }
 .bb-post-map-bucket-title {
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
   font-weight: 500;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  line-height: 1.35;
 }
 .bb-post-map-bucket-meta {
   flex: none;
+  align-self: flex-start;
   white-space: nowrap;
+  line-height: 1.35;
 }
 .bb-post-map-bucket-included {
   display: grid;
@@ -3890,8 +3918,14 @@ html.bb-offline-readonly .shell select {
   cursor: pointer;
 }
 .bb-post-map-choice-title {
+  min-width: 0;
+  max-width: 100%;
   font-size: 14px;
   color: var(--ink);
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 .bb-post-map-choice-meta {
   font-size: 12px;

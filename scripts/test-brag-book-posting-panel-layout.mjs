@@ -42,7 +42,26 @@ assert.match(indexCountRule, /text-transform:\s*none/);
 assert.match(css, /\.bullet-link > \.bb-posting-bullet-actions[\s\S]*grid-column:\s*1 \/ -1/);
 assert.match(css, /\.bb-post-map-bullet-line[\s\S]*grid-column:\s*1 \/ -1/);
 assert.match(css, /\.bb-unmapped-actions[\s\S]*grid-column:\s*1 \/ -1/);
-assert.match(css, /\.bb-exp-picker-chip[\s\S]*text-overflow:\s*ellipsis/);
+function ruleBlock(selector) {
+  return css.match(new RegExp(`${selector.replace('.', '\\.')}\\s*\\{[^}]+\\}`))?.[0] || '';
+}
+const wrapSelectors = [
+  '.bb-exp-picker-chip',
+  '.bb-exp-index-title',
+  '.bb-exp-section-row-title',
+  '.bb-post-map-bucket-title',
+];
+for (const sel of wrapSelectors) {
+  const block = ruleBlock(sel);
+  assert.ok(block, `missing rule ${sel}`);
+  assert.match(block, /max-width:\s*100%/);
+  assert.match(block, /white-space:\s*normal/);
+  assert.match(block, /overflow-wrap:\s*anywhere/);
+  assert.doesNotMatch(block, /text-overflow:\s*ellipsis/);
+  assert.doesNotMatch(block, /word-break:\s*break-all/);
+}
+assert.match(ruleBlock('.bb-exp-index-line1'), /align-items:\s*flex-start/);
+assert.match(ruleBlock('.bb-post-map-bucket-head'), /align-items:\s*flex-start/);
 assert.match(app, /experiencesDualInlineMediaQuery/);
 
 assert.equal(EXPERIENCES_DUAL_INLINE_MIN_PX, 920);
