@@ -1,4 +1,9 @@
 import { buildExperiencesPanel } from './experiences-panel.js';
+import { buildExperiencePicker } from './experience-picker.js';
+import {
+  pruneOrphanExperiences,
+  forgetSessionEmptyExperience,
+} from './experiences-index.js';
 import {
   experiencesUiEnabled,
   readPanelCollapsed,
@@ -49,6 +54,10 @@ import {
   ungroupExperience,
   swapPostingResumeExperienceVersion,
   experienceVersionSwapMenu,
+  experienceById,
+  createExperience,
+  moveEntryToExperience,
+  removeEntryFromExperience,
   experienceDetailPatch,
   postingsUsingEntry,
   KNOWLEDGE_SAVE_MS,
@@ -300,6 +309,12 @@ let experiencesPanelQuery = '';
 let experiencesPanelJobFilter = '';
 /** Entry id chosen in Experiences panel for requirement mapping on a posting. */
 let postingMapTargetEntryId = '';
+let catalogBulkSelectMode = false;
+let openExperiencePickerEntryId = '';
+let experiencePickerSearch = '';
+let experiencePickerCreating = false;
+let activePanelExperienceId = '';
+let panelDragOverExperienceId = '';
 /** Jobs catalog on Resume bullets expanded this session (not persisted). */
 let jobsCatalogExpanded = false;
 let experiencesMobileDrawerOpen = false;
@@ -323,7 +338,7 @@ function loadCached() {
   try {
     let raw = localStorage.getItem(storeCacheKey());
     if (!raw && localMode) raw = localStorage.getItem(STORE_KEY);
-    return normalizeStore(JSON.parse(raw || 'null'));
+    return pruneOrphanExperiences(normalizeStore(JSON.parse(raw || 'null')));
   } catch {
     return emptyStore();
   }
@@ -1264,9 +1279,9 @@ function cellInput(label, value, focusKey, onValue) {
 
 function experienceTools(view) {
   const addingLine = view.kind === 'log' && view.id === 'new';
-  return el('div', { class: 'bb-exp-tools' }, [
+  return el('div', { class: 'bb-exp-tools bb-action-row' }, [
     el('input', {
-      class: 'search',
+      class: 'search bb-exp-tools-search',
       type: 'search',
       placeholder: 'Search resume bullets, companies, STAR…',
       value: query,
@@ -1275,10 +1290,21 @@ function experienceTools(view) {
       onInput: (event) => {
         query = event.target.value;
         const scroll = captureScroll();
-        render({ focusKey: 'book-search' });
+        render({ focusKey: 'book-search', preserveScroll: true });
         restoreScroll(scroll);
       },
     }),
+    experiencesUiEnabled()
+      ? btn(catalogBulkSelectMode ? 'Done' : 'Select', {
+        type: 'button',
+        class: 'btn ghost compact-action',
+        onClick: () => {
+          catalogBulkSelectMode = !catalogBulkSelectMode;
+          if (!catalogBulkSelectMode) selectedCatalogEntryIds.clear();
+          render({ preserveScroll: true });
+        },
+      })
+      : null,
     btn(addingLine ? 'Close' : '+ Add resume bullet', {
       class: 'btn ghost compact-action',
       onClick: () => go(addingLine ? { kind: 'log' } : { kind: 'log', id: 'new' }),
@@ -1603,6 +1629,27 @@ function experienceNotesPanel(entry, { expanded, panelId }) {
   }, [field('Notes', notes)]);
 }
 
+function experienceMembershipPicker(entry) {
+  if (!experiencesUiEnabled()) return null;
+  return buildExperiencePicker({
+    el,
+    btn,
+    store,
+    entry,
+    anchorFocusKey: `exp-xp-${entry.id}`,
+    openEntryId: openExperiencePickerEntryId,
+    pickerSearch: experiencePickerSearch,
+    pickerCreating: experiencePickerCreating,
+    onOpenPicker: (id) => { openExperiencePickerEntryId = id || ''; },
+    onPickerSearch: (value) => { experiencePickerSearch = value; },
+    onPickerCreating: (value) => { experiencePickerCreating = value; },
+    onStore: (next) => { store = next; },
+    onSave: () => saveStore(),
+    onRender: (opts) => render(opts),
+    setNote,
+  });
+}
+
 function experienceRow(entry) {
   const spec = experienceRowSpec(entry);
   const starControls = spec.controls.filter((control) => control.column === 'star');
@@ -1614,13 +1661,16 @@ function experienceRow(entry) {
   const notesPanelId = `exp-notes-${entry.id}`;
   const fill = starFill(entry);
   const starLabel = fill.ready ? 'STAR' : `STAR ${fill.filled}/${fill.total}`;
+  const highlight = activePanelExperienceId && entry.experienceId === activePanelExperienceId;
   return el('article', {
-    class: 'bb-exp-row',
+    class: `bb-exp-row${highlight ? ' is-xp-highlight' : ''}`,
     'data-entry-id': spec.id,
+    'data-experience-id': entry.experienceId || '',
     'data-star': starOpen ? 'always' : 'hidden',
   }, [
     experienceLineCell(entry),
-    el('div', { class: 'bb-exp-actions row-icons' }, [
+    el('div', { class: 'bb-exp-actions bb-action-row row-icons' }, [
+      experienceMembershipPicker(entry),
       experienceTextAction(detailsOpen ? 'Details ↑' : 'Details ↓', {
         expanded: detailsOpen,
         controls: detailsPanelId,
@@ -1760,44 +1810,116 @@ function experienceSectionHeader(jobKey, section) {
 }
 
 function catalogSelectionBar() {
+  if (!catalogBulkSelectMode || !experiencesUiEnabled()) return null;
   const count = selectedCatalogEntryIds.size;
-  if (!count || !experiencesUiEnabled()) return null;
-  return el('div', { class: 'bb-exp-catalog-selection' }, [
+  if (!count) return null;
+  return el('div', { class: 'bb-exp-catalog-selection bb-action-row' }, [
     el('span', {}, `${count} selected`),
-    count >= 2
-      ? btn('Group as experience', {
-        type: 'button',
-        class: 'btn',
-        onClick: () => {
-          const ids = [...selectedCatalogEntryIds];
-          const title = window.prompt('Name this experience');
-          if (!title?.trim()) return;
-          const first = store.entries.find((item) => item.id === ids[0]);
-          try {
-            const grouped = groupEntriesAsExperience(store, ids, {
-              jobId: first?.jobId,
-              title: title.trim(),
-            });
-            store = grouped.store;
-            selectedCatalogEntryIds.clear();
-            saveStore();
-            setNote('Grouped bullets into an experience.');
-            render();
-          } catch (error) {
-            setNote(error.message || 'Could not group those bullets.');
+    btn('Move to experience…', {
+      type: 'button',
+      class: 'btn',
+      onClick: () => {
+        const ids = [...selectedCatalogEntryIds];
+        const jobs = new Set(ids.map((id) => store.entries.find((e) => e.id === id)?.jobId).filter(Boolean));
+        if (jobs.size !== 1) {
+          setNote('Selected bullets must share one job.');
+          return;
+        }
+        const jobId = [...jobs][0];
+        const title = window.prompt('Move selected bullets into which experience? (type a new name to create)');
+        if (!title?.trim()) return;
+        const existing = (store.experiences || []).find((row) => !row.deletedAt && row.jobId === jobId && row.title === title.trim());
+        try {
+          let next = store;
+          let xpId = existing?.id;
+          if (!xpId) {
+            const created = createExperience(next, { jobId, title: title.trim() });
+            next = created.store;
+            xpId = created.changedExperienceIds[0];
           }
-        },
-      })
-      : null,
+          for (const id of ids) {
+            next = moveEntryToExperience(next, id, xpId).store;
+            forgetSessionEmptyExperience(xpId);
+          }
+          store = next;
+          selectedCatalogEntryIds.clear();
+          catalogBulkSelectMode = false;
+          saveStore();
+          setNote('Moved selected bullets.');
+          render({ preserveScroll: true });
+        } catch (error) {
+          setNote(error.message || 'Could not move those bullets.');
+        }
+      },
+    }),
+    btn('Remove from experience', {
+      type: 'button',
+      class: 'btn ghost',
+      onClick: () => {
+        let next = store;
+        for (const id of selectedCatalogEntryIds) {
+          next = removeEntryFromExperience(next, id).store;
+        }
+        store = next;
+        selectedCatalogEntryIds.clear();
+        saveStore();
+        setNote('Removed selected bullets from their experiences.');
+        render({ preserveScroll: true });
+      },
+    }),
     btn('Clear', {
       type: 'button',
       class: 'btn ghost',
       onClick: () => {
         selectedCatalogEntryIds.clear();
-        render();
+        render({ preserveScroll: true });
       },
     }),
   ]);
+}
+
+function selectPanelExperience(experienceId) {
+  if (!experienceId) {
+    activePanelExperienceId = '';
+    render({ preserveScroll: true });
+    return;
+  }
+  if (activePanelExperienceId === experienceId) {
+    activePanelExperienceId = '';
+    render({ preserveScroll: true });
+    return;
+  }
+  activePanelExperienceId = experienceId;
+  const xp = experienceById(store, experienceId);
+  if (xp?.jobId) {
+    const jobKey = xp.jobId;
+    collapsedExperienceGroups.delete(jobKey);
+    collapsedLibrarySections.delete(librarySectionKey(jobKey, {
+      kind: 'experience',
+      experienceId,
+    }));
+  } else if (xp && !xp.jobId) {
+    collapsedExperienceGroups.delete('__none__');
+  }
+  render({ preserveScroll: true });
+}
+
+function dropEntryOnExperience(experienceId, event) {
+  panelDragOverExperienceId = '';
+  const entryId = event?.dataTransfer?.getData?.('text/brag-entry-id') || '';
+  if (!entryId || !experienceId) return;
+  const entry = store.entries.find((item) => item.id === entryId);
+  const xp = experienceById(store, experienceId);
+  if (!entry || !xp || entry.jobId !== xp.jobId) {
+    setNote('That bullet and experience must share the same job.');
+    render({ preserveScroll: true });
+    return;
+  }
+  store = moveEntryToExperience(store, entryId, experienceId).store;
+  forgetSessionEmptyExperience(experienceId);
+  saveStore();
+  setNote('Moved bullet to that experience.');
+  render({ focusKey: `exp-xp-${entryId}`, preserveScroll: true });
 }
 
 function addLibraryEntriesToPostingResume(posting, entryIds) {
@@ -1836,7 +1958,7 @@ function experiencesPanelForPage(page, posting = null) {
     'aria-label': 'Expand Experiences panel',
     onClick: () => {
       writePanelCollapsed(false);
-      render();
+      render({ preserveScroll: true });
     },
   }, '▸ Experiences');
   if (collapsed && mediaMatches('(min-width: 1100px)')) {
@@ -1847,29 +1969,24 @@ function experiencesPanelForPage(page, posting = null) {
     btn,
     store,
     posting,
-    page,
-    collapsedPanelJobs: collapsedExpPanelJobs,
-    collapsedPanelExperiences: collapsedExpPanelExperiences,
-    collapsedLooseSummary: collapsedExpPanelLooseSummary,
-    selectedEntryIds: selectedCatalogEntryIds,
-    mapTargetEntryId: postingMapTargetEntryId,
     panelQuery: experiencesPanelQuery,
-    panelJobFilter: experiencesPanelJobFilter,
-    onRender: (opts) => render(opts?.focusEntryId ? { focusKey: `exp-line-${opts.focusEntryId}` } : undefined),
+    activeExperienceId: activePanelExperienceId,
+    dragOverExperienceId: panelDragOverExperienceId,
+    onRender: (opts) => render(opts || { preserveScroll: true }),
     onSave: () => saveStore(),
     setNote,
     setStore: (next) => { store = next; },
     displayExperienceLine,
-    onSetMapTarget: (entryId) => { postingMapTargetEntryId = entryId || ''; },
     onPanelQueryChange: (value) => {
       experiencesPanelQuery = value;
-      render();
+      render({ preserveScroll: true, focusKey: 'exp-panel-search' });
     },
-    onPanelJobFilterChange: (value) => {
-      experiencesPanelJobFilter = value;
-      render();
+    onSelectExperience: selectPanelExperience,
+    onDragOverExperience: (id) => {
+      panelDragOverExperienceId = id || '';
+      render({ preserveScroll: true });
     },
-    onAddEntriesToResume: (ids) => addLibraryEntriesToPostingResume(posting, ids),
+    onDropOnExperience: dropEntryOnExperience,
   });
   const close = btn('×', {
     type: 'button',
@@ -1881,34 +1998,47 @@ function experiencesPanelForPage(page, posting = null) {
       } else {
         writePanelCollapsed(true);
       }
-      render();
+      render({ preserveScroll: true });
     },
   });
   const panelHead = typeof panel.querySelector === 'function'
-    ? panel.querySelector('.bb-exp-panel-head')
+    ? panel.querySelector('.bb-exp-panel-head-actions')
     : null;
   if (panelHead?.append) panelHead.append(close);
   return panel;
 }
 
 function experienceCatalogRow(entry) {
-  const selectable = experiencesUiEnabled();
-  const selected = selectedCatalogEntryIds.has(entry.id);
   const row = experienceRow(entry);
-  if (!selectable) return row;
-  const check = el('label', { class: 'bb-exp-row-check' }, [
-    el('input', {
-      type: 'checkbox',
-      checked: selected,
-      'aria-label': 'Select for grouping',
-      onChange: (event) => {
-        if (event.target.checked) selectedCatalogEntryIds.add(entry.id);
-        else selectedCatalogEntryIds.delete(entry.id);
-        render();
-      },
-    }),
-  ]);
-  return el('div', { class: 'bb-exp-row-wrap' }, [check, row]);
+  if (!experiencesUiEnabled()) return row;
+  const children = [];
+  if (catalogBulkSelectMode) {
+    const selected = selectedCatalogEntryIds.has(entry.id);
+    children.push(el('label', { class: 'bb-exp-row-check' }, [
+      el('input', {
+        type: 'checkbox',
+        checked: selected,
+        'aria-label': 'Select for bulk move',
+        onChange: (event) => {
+          if (event.target.checked) selectedCatalogEntryIds.add(entry.id);
+          else selectedCatalogEntryIds.delete(entry.id);
+          render({ preserveScroll: true });
+        },
+      }),
+    ]));
+  }
+  children.push(row);
+  return el('div', {
+    class: 'bb-exp-row-wrap',
+    draggable: 'true',
+    'data-entry-id': entry.id,
+    onDragstart: (event) => {
+      if (event.dataTransfer) {
+        event.dataTransfer.setData('text/brag-entry-id', entry.id);
+        event.dataTransfer.effectAllowed = 'move';
+      }
+    },
+  }, children);
 }
 
 function experienceTable(view) {
@@ -3077,17 +3207,41 @@ function requirementTableRow(job, req) {
         saveStore();
       },
     });
-    bullets.append(el('div', { class: `bullet-link${isOpen ? ' is-open' : ''}` }, [
+    const entry = bulletEntry(store, bullet);
+    const highlight = entry && activePanelExperienceId && entry.experienceId === activePanelExperienceId;
+    bullets.append(el('div', {
+      class: `bullet-link bb-posting-bullet${highlight ? ' is-xp-highlight' : ''}`,
+      'data-entry-id': entry?.id || '',
+      draggable: entry && experiencesUiEnabled() ? 'true' : undefined,
+      onDragstart: entry ? (event) => {
+        if (event.dataTransfer) {
+          event.dataTransfer.setData('text/brag-entry-id', entry.id);
+          event.dataTransfer.effectAllowed = 'move';
+        }
+      } : undefined,
+    }, [
       el('span', { class: 'bullet-mark', 'aria-hidden': 'true' }, '•'),
       line,
-      btn(isOpen ? 'Close ↑' : 'Details ↓', {
-        class: 'bullet-open',
-        'aria-expanded': String(isOpen),
-        onClick: () => {
-          expandedBulletKey = isOpen ? '' : bulletKey;
-          render();
-        },
-      }),
+      el('div', { class: 'bb-posting-bullet-actions bb-action-row' }, [
+        entry ? experienceMembershipPicker(entry) : null,
+        btn(isOpen ? 'Close ↑' : 'Details ↓', {
+          class: 'bullet-open',
+          'aria-expanded': String(isOpen),
+          onClick: () => {
+            expandedBulletKey = isOpen ? '' : bulletKey;
+            render({ preserveScroll: true });
+          },
+        }),
+        btn('Unmap', {
+          class: 'btn ghost compact-action',
+          onClick: () => {
+            if (!confirm('Remove this experience from this requirement? It will stay in the Brag Book.')) return;
+            store = deleteBullet(store, job.id, req.id, bullet.id);
+            saveStore();
+            render({ preserveScroll: true });
+          },
+        }),
+      ]),
     ]));
     if (isOpen) bullets.append(experienceEditor(job, req, bullet));
   }
@@ -3197,11 +3351,37 @@ function unmappedResumeBulletsPanel(job) {
       hidden: !open,
     }, [
       el('p', { class: 'tiny bb-unmapped-lede' }, 'On this posting’s resume but not tied to any requirement row.'),
-      el('ul', { class: 'bb-unmapped-list' }, rows.map((row) => el('li', { class: 'bb-unmapped-row' }, [
-        el('span', { class: 'bb-unmapped-role-icon', 'aria-hidden': 'true' }, '◦'),
-        el('span', { class: 'bb-unmapped-role' }, row.roleLabel),
-        el('span', { class: 'bb-unmapped-text' }, row.text),
-      ]))),
+      el('ul', { class: 'bb-unmapped-list' }, rows.map((row) => {
+        const entry = row.entryId
+          ? store.entries.find((item) => item.id === row.entryId)
+          : null;
+        return el('li', {
+          class: 'bb-unmapped-row',
+          draggable: entry && experiencesUiEnabled() ? 'true' : undefined,
+          onDragstart: entry ? (event) => {
+            if (event.dataTransfer) {
+              event.dataTransfer.setData('text/brag-entry-id', entry.id);
+              event.dataTransfer.effectAllowed = 'move';
+            }
+          } : undefined,
+        }, [
+          el('span', { class: 'bb-unmapped-role-icon', 'aria-hidden': 'true' }, '◦'),
+          el('span', { class: 'bb-unmapped-text' }, row.text),
+          el('div', { class: 'bb-unmapped-actions bb-action-row' }, [
+            entry ? experienceMembershipPicker(entry) : null,
+            btn('Map to requirement', {
+              type: 'button',
+              class: 'btn ghost compact-action',
+              onClick: () => {
+                if (!entry?.id) return;
+                postingMapTargetEntryId = entry.id;
+                setNote('Pick a requirement row and tap Map here.');
+                render({ preserveScroll: true });
+              },
+            }),
+          ]),
+        ]);
+      })),
     ]),
   ]);
 }
@@ -5844,7 +6024,9 @@ function render(options = {}) {
   const captured = options.focusKey ? null : captureFocus();
   const view = currentView();
   const nextHash = viewHash(view);
-  const scroll = lastRenderHash && lastRenderHash === nextHash ? captureScroll() : null;
+  const scroll = options.preserveScroll || (lastRenderHash && lastRenderHash === nextHash)
+    ? captureScroll()
+    : null;
   lastRenderHash = nextHash;
   document.title = `${viewTitle(view, store)} — Brag Book`;
   document.body.dataset.view = view.kind;

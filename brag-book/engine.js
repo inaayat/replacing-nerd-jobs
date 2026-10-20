@@ -4033,6 +4033,7 @@ export function unmappedPostingResumeBullets(store, posting) {
         if (!text) continue;
         out.push({
           id: bullet.id,
+          entryId: (bullet.sourceEntryIds || [])[0] || '',
           jobId: job.id,
           roleLabel,
           text,
