@@ -140,7 +140,7 @@ const serializedPosting = JSON.parse(serializeBook(reloaded).json).postings
   .find((row) => row.id === 'posting_a');
 assert.ok(serializedPosting?.resume?.localJobs?.length, 'Serialized book carries posting resume on posting id');
 
-const variant = postingVariantFromSnapshot(sourceSnapshot, clock, random);
+const variant = postingVariantFromSnapshot(sourceSnapshot, book, clock, random);
 assert.equal(variant.mode, 'fresh');
 assert.ok(variant.localJobs.length);
 

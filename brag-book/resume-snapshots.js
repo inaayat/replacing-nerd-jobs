@@ -4,6 +4,7 @@
 
 import {
   additionalValueSpans,
+  catalogJobIdForSnapshotJob,
   compileResumeDoc,
   emptyResumeVariant,
   groupBulletOrders,
@@ -422,8 +423,8 @@ function remapSnapshotFitIds(fit, oldToNewBullet) {
   };
 }
 
-/** Copy a frozen snapshot into a posting-only resume variant (new ids, no basics links). */
-export function postingVariantFromSnapshot(snapshot, clock = Date.now, random = Math.random) {
+/** Copy a frozen snapshot into a posting-only resume variant (new ids, linked catalog jobId when known). */
+export function postingVariantFromSnapshot(snapshot, store, clock = Date.now, random = Math.random) {
   const doc = resumeSnapshotToDoc(snapshot);
   if (!doc?.sections) throw new Error('Snapshot has no resume document.');
   const oldToNewBullet = new Map();
@@ -473,6 +474,7 @@ export function postingVariantFromSnapshot(snapshot, clock = Date.now, random = 
     groupOrder[newJobId] = groupIds;
     const title = asString(job.title, 160);
     if (title) jobTitles[newJobId] = title;
+    const catalogJobId = catalogJobIdForSnapshotJob(job, store);
     localJobs.push({
       id: newJobId,
       company: asString(job.company, 160),
@@ -481,6 +483,7 @@ export function postingVariantFromSnapshot(snapshot, clock = Date.now, random = 
       start: asString(job.start, 40),
       end: asString(job.end, 40),
       current: Boolean(job.current),
+      ...(catalogJobId && catalogJobId !== newJobId ? { jobId: catalogJobId } : {}),
       groups,
     });
   }

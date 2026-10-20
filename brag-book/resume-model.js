@@ -982,6 +982,71 @@ export function catalogJobIdsOnPostingResume(posting, store) {
   return ids;
 }
 
+/** Catalog job id for a frozen snapshot / import role row (explicit jobId, shared id, or unique title match). */
+export function catalogJobIdForSnapshotJob(job, store) {
+  if (!job) return '';
+  const catalog = normalizeCareerJobs(store?.jobs);
+  const linked = job.jobId && job.jobId !== job.id ? String(job.jobId) : '';
+  if (linked && catalog.some((row) => row.id === linked)) return linked;
+  const rowId = String(job.id || '').trim();
+  if (rowId && catalog.some((row) => row.id === rowId)) return rowId;
+  return inferEntryJobId({ company: job.company, role: job.title, jobId: '' }, store);
+}
+
+/** Catalog job ids that appear on more than one compiled role row (read-time; stored JSON unchanged). */
+export function duplicateCatalogRoleIds(posting, store) {
+  const counts = new Map();
+  for (const job of compileResumeDoc(posting, store)?.sections?.experience?.jobs || []) {
+    if (job.included === false) continue;
+    const catalogId = resolvedCatalogJobIdForCompiledJob(job, store);
+    if (!catalogId) continue;
+    counts.set(catalogId, (counts.get(catalogId) || 0) + 1);
+  }
+  const dupes = new Set();
+  for (const [catalogId, count] of counts) {
+    if (count > 1) dupes.add(catalogId);
+  }
+  return dupes;
+}
+
+export function compiledRoleShowsDuplicateWarning(job, posting, store) {
+  if (!posting || !job || job.included === false) return false;
+  const catalogId = resolvedCatalogJobIdForCompiledJob(job, store);
+  return Boolean(catalogId && duplicateCatalogRoleIds(posting, store).has(catalogId));
+}
+
+function dedupeCompiledJobsForPreview(jobs, store) {
+  const seen = new Set();
+  const out = [];
+  for (const job of jobs || []) {
+    if (job.included === false) {
+      out.push(job);
+      continue;
+    }
+    const catalogId = resolvedCatalogJobIdForCompiledJob(job, store);
+    if (catalogId && seen.has(catalogId)) continue;
+    if (catalogId) seen.add(catalogId);
+    out.push(job);
+  }
+  return out;
+}
+
+/** Preview / PDF / Word: one visible row per catalog job; editor still shows every stored row. */
+export function compileResumePreviewDoc(posting, store) {
+  const doc = compileResumeDoc(posting, store);
+  const jobs = doc?.sections?.experience?.jobs || [];
+  return {
+    ...doc,
+    sections: {
+      ...doc.sections,
+      experience: {
+        ...(doc.sections?.experience || {}),
+        jobs: dedupeCompiledJobsForPreview(jobs, store),
+      },
+    },
+  };
+}
+
 export function postingTiedJobIds(store, posting) {
   const ids = new Set();
   for (const req of posting?.requirements || []) {
@@ -1104,7 +1169,8 @@ function mergeLocalJobs(jobs, variant, store, compileCtx = {}) {
   const byId = new Map(out.map((job) => [job.id, job]));
   for (const local of normalizeCareerJobs(variant?.localJobs)) {
     const overlaid = overlayCatalogIdentity(local, store);
-    const host = byId.get(overlaid.id);
+    let host = byId.get(overlaid.id);
+    if (!host && overlaid.jobId) host = byId.get(overlaid.jobId);
     if (host) {
       host.groups = mergeGroupLists(host.groups, overlaid.groups, variant, host.id, compileCtx);
       host.hasLocalExtras = true;

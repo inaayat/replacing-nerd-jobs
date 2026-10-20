@@ -79,6 +79,10 @@ import {
   findLocalBullet,
   inferEntryJobId,
   catalogJobIdsOnPostingResume,
+  catalogJobIdForSnapshotJob,
+  compileResumePreviewDoc,
+  duplicateCatalogRoleIds,
+  compiledRoleShowsDuplicateWarning,
   resolvedCatalogJobIdForCompiledJob,
   insertJobOrder,
   visibleResumeBullets,
@@ -183,6 +187,10 @@ export {
   insertJobOrder,
   inferEntryJobId,
   catalogJobIdsOnPostingResume,
+  catalogJobIdForSnapshotJob,
+  compileResumePreviewDoc,
+  duplicateCatalogRoleIds,
+  compiledRoleShowsDuplicateWarning,
   resolvedCatalogJobIdForCompiledJob,
   postingTiedJobIds,
 } from './resume-model.js';
@@ -1051,7 +1059,7 @@ export function startPostingResumeFromSnapshot(
     clock,
     random,
   );
-  const variant = postingVariantFromSnapshot(snapshot, clock, random);
+  const variant = postingVariantFromSnapshot(snapshot, backup.store, clock, random);
   const next = replacePostingResume(backup.store, postingId, variant, clock);
   return {
     store: next,

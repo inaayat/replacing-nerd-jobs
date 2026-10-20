@@ -47,6 +47,8 @@ import {
   compileResumeText,
   resumeTextToWordHtml,
   compileResumeDoc,
+  compileResumePreviewDoc,
+  compiledRoleShowsDuplicateWarning,
   applyImportedResume,
   careerNeedsSeed,
   seedStarterResume,
@@ -3080,7 +3082,7 @@ async function refreshResumePreview(posting) {
   const scrollBeforePreview = pendingResumeScrollRestore
     || (isResumeEditorView() ? captureScroll() : null);
   const current = posting?.id ? livePosting(posting.id) : posting;
-  const doc = compileResumeDoc(current, store);
+  const doc = posting?.id ? compileResumePreviewDoc(current, store) : compileResumeDoc(current, store);
   const html = resumeDocument(renderResumeHtml(doc, { droppedBulletIds: [] }));
   await new Promise((resolve) => {
     frame.onload = () => resolve();
@@ -3152,7 +3154,7 @@ function exportResumePdf(posting) {
     setNote('Use the print dialog → Save as PDF.');
     return;
   }
-  const doc = compileResumeDoc(posting, store);
+  const doc = posting ? compileResumePreviewDoc(posting, store) : compileResumeDoc(posting, store);
   const html = resumeDocument(renderResumeHtml(doc, { droppedBulletIds: resumeFit.droppedBulletIds }), {
     fittedVars: resumeFit.vars,
     print: true,
@@ -3170,7 +3172,7 @@ function exportResumePdf(posting) {
 }
 
 function exportResumeDocx(posting) {
-  const compiled = compileResumeDoc(posting, store);
+  const compiled = posting ? compileResumePreviewDoc(posting, store) : compileResumeDoc(posting, store);
   const doc = applyDroppedIds(
     visibleResumeDoc(compiled, { includeFitDrops: true }),
     resumeFit.droppedBulletIds || []
@@ -4337,6 +4339,9 @@ function resumeJobEditor(posting, career) {
           ' Include this role',
         ]),
         localOnly ? el('span', { class: 'tiny' }, 'This posting only') : null,
+        posting && compiledRoleShowsDuplicateWarning(career, posting, store)
+          ? el('span', { class: 'tiny bb-role-dup-warn' }, 'This role appears twice')
+          : null,
         allowStructure ? resumeMoveBtns('role', {
           index: jobIndex,
           length: jobs.length,
