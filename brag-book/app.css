@@ -663,6 +663,12 @@ a:focus-visible {
   border-bottom: 1px solid var(--line);
   grid-template-columns: auto minmax(0, 1fr);
   grid-template-rows: auto auto;
+  min-width: 0;
+}
+.bb-unmapped-actions {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
 }
 .bb-unmapped-row:last-child { border-bottom: 0; }
 .bb-unmapped-role-icon {
@@ -882,16 +888,40 @@ a:focus-visible {
 .table-bullets { display: grid; gap: 4px; }
 
 .bullet-link {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 8px;
+  align-items: start;
   width: 100%;
+  min-width: 0;
   padding: 2px 8px;
   text-align: left;
   color: var(--ink);
   border: 1px solid var(--line-strong);
   border-radius: 7px;
   background: #fff;
+  box-sizing: border-box;
+}
+.bullet-link > .bullet-mark {
+  grid-column: 1;
+  grid-row: 1;
+}
+.bullet-link > .bullet-copy,
+.bullet-link > .experience-compose,
+.bullet-link > .bullet-copy.is-marked {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+.bullet-link > .bb-posting-bullet-actions {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+  margin-top: 2px;
 }
 
 .bullet-link:hover,
@@ -914,9 +944,8 @@ a:focus-visible {
 }
 .bullet-copy,
 .experience-compose {
-  flex: 1;
   min-width: 0;
-  align-self: flex-start;
+  align-self: start;
   height: auto;
   margin: 0;
   font-family: var(--content-font);
@@ -3140,17 +3169,25 @@ html.bb-offline-readonly .shell select {
   align-items: baseline;
   justify-content: space-between;
   gap: 8px;
+  min-width: 0;
 }
 .bb-exp-index-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-weight: 600;
   font-size: 14px;
 }
 .bb-exp-index-count {
-  font-family: var(--mono, monospace);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  flex: none;
+  font-family: var(--content-font);
+  font-size: 13px;
+  font-weight: 400;
   color: var(--muted);
+  white-space: nowrap;
+  letter-spacing: normal;
+  text-transform: none;
 }
 .bb-exp-index-preview {
   margin: 4px 0 0;
@@ -3196,37 +3233,84 @@ html.bb-offline-readonly .shell select {
 .bb-exp-picker-choice.is-on {
   background: rgba(232, 196, 122, 0.12);
 }
-.bb-posting-bullet-actions,
-.bb-unmapped-actions {
-  margin-top: 6px;
+.bb-posting-bullet-actions {
+  margin-top: 2px;
+}
+.bb-exp-picker-chip {
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bb-exp-picker-wrap {
+  min-width: 0;
+  max-width: 100%;
+}
+.bb-posting-bullet-actions .bb-exp-picker-wrap,
+.bb-unmapped-actions .bb-exp-picker-wrap {
+  flex: 1 1 8rem;
+  max-width: min(100%, 16rem);
+}
+.bb-exp-actions .bb-exp-picker-wrap {
+  flex: 1 1 8rem;
+  max-width: min(100%, 16rem);
+}
+.bb-exp-actions {
+  width: 100%;
+  min-width: 0;
 }
 
-/* Experiences two-panel layout */
+/* Experiences two-panel layout (inline column when .bb-book-dual is wide enough) */
 .bb-book-dual {
+  container-type: inline-size;
+  container-name: bb-book-dual;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 0;
   align-items: start;
+  width: 100%;
+  min-width: 0;
 }
-@media (min-width: 1100px) {
+.bb-book-dual > .job-workspace,
+.bb-book-dual > .bb-book-catalog-wrap,
+.bb-book-dual > .bb-exp-side-panel,
+.bb-book-dual > .bb-exp-panel-rail {
+  min-width: 0;
+  max-width: 100%;
+}
+.bb-exp-side-panel {
+  display: none;
+  box-sizing: border-box;
+  margin: 0;
+  transform: none;
+}
+@container bb-book-dual (min-width: 920px) {
   .bb-book-dual {
-    grid-template-columns: minmax(0, 1fr) minmax(300px, 320px);
-    column-gap: 0;
-    border-left: 1px solid var(--line);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 320px);
+    column-gap: 12px;
+    align-items: start;
   }
   .bb-exp-side-panel {
-    position: sticky;
-    top: calc(var(--nav-h, 52px) + 8px);
-    max-height: calc(100vh - var(--nav-h, 52px) - 16px);
-    overflow: hidden;
     display: flex;
     flex-direction: column;
-    padding: 0 0 0 12px;
+    position: sticky;
+    top: calc(var(--nav-h, 52px) + 8px);
+    align-self: start;
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100vh - var(--nav-h, 52px) - 16px);
+    overflow: hidden;
+    padding: 0;
     background: var(--bg, #f6f1e8);
   }
   .bb-exp-panel-rail {
     position: sticky;
     top: calc(var(--nav-h, 52px) + 8px);
+    align-self: start;
+    justify-self: end;
+    width: 100%;
+    max-width: 320px;
     writing-mode: vertical-rl;
     transform: rotate(180deg);
     border: 1px solid var(--line);
@@ -3237,6 +3321,10 @@ html.bb-offline-readonly .shell select {
     letter-spacing: 0.08em;
     text-transform: uppercase;
     cursor: pointer;
+    box-sizing: border-box;
+  }
+  .bb-exp-mobile-toggle {
+    display: none !important;
   }
 }
 .bb-exp-panel-head {
@@ -3598,28 +3686,12 @@ html.bb-offline-readonly .shell select {
 .bb-exp-mobile-toggle {
   display: none;
 }
-@media (max-width: 1099px) {
-  .bb-exp-side-panel {
-    display: none;
-  }
-  .bb-book-dual.is-drawer-open .bb-exp-side-panel {
-    display: flex;
-    flex-direction: column;
-    position: fixed;
-    z-index: 40;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: min(360px, 92vw);
-    padding: 12px;
-    background: var(--bg, #f6f1e8);
-    box-shadow: -8px 0 24px rgba(12, 11, 9, 0.15);
-  }
+@container bb-book-dual (max-width: 919px) {
   .bb-exp-mobile-toggle {
     display: inline-flex;
     position: fixed;
     z-index: 35;
-    right: 12px;
+    right: max(12px, env(safe-area-inset-right, 0));
     bottom: calc(12px + env(safe-area-inset-bottom, 0));
     border: 1px solid var(--line);
     border-radius: 999px;
@@ -3629,13 +3701,29 @@ html.bb-offline-readonly .shell select {
     font-weight: 650;
     box-shadow: 0 4px 16px rgba(12, 11, 9, 0.12);
   }
+  .bb-book-dual.is-drawer-open .bb-exp-side-panel {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    z-index: 40;
+    inset: 0 0 0 auto;
+    width: min(360px, 100vw);
+    max-width: 100vw;
+    margin: 0;
+    transform: none;
+    padding: max(12px, env(safe-area-inset-top, 0)) max(12px, env(safe-area-inset-right, 0)) max(12px, env(safe-area-inset-bottom, 0)) 12px;
+    background: var(--bg, #f6f1e8);
+    box-shadow: -8px 0 24px rgba(12, 11, 9, 0.15);
+    overflow: hidden;
+    box-sizing: border-box;
+  }
 }
 @media (max-width: 720px) {
   .bb-book-dual.is-drawer-open .bb-exp-side-panel {
-    left: 0;
-    right: 0;
+    inset: auto 0 0 0;
     top: auto;
-    width: auto;
+    width: 100%;
+    max-width: 100%;
     max-height: min(72vh, 520px);
     border-radius: 12px 12px 0 0;
     box-shadow: 0 -8px 32px rgba(12, 11, 9, 0.18);

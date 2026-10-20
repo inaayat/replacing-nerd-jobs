@@ -17,6 +17,7 @@ import {
   writePanelCollapsed,
   librarySectionKey,
 } from './experiences-ui.js';
+import { experiencesDualInlineMediaQuery } from './experiences-layout.js';
 import {
   STORE_KEY,
   POSTING_STATUSES,
@@ -2210,7 +2211,7 @@ function experiencesPanelForPage(page, posting = null) {
       render({ preserveScroll: true });
     },
   }, '▸ Experiences');
-  if (collapsed && mediaMatches('(min-width: 1100px)')) {
+  if (collapsed && mediaMatches(experiencesDualInlineMediaQuery())) {
     return rail;
   }
   const panel = buildExperiencesPanel({
@@ -6596,6 +6597,10 @@ resumeFileInput.addEventListener('change', () => {
 
 window.addEventListener('resize', () => {
   scaleResumeFrame(document.getElementById('resume-preview-wrap'), document.getElementById('resume-preview-frame'));
+  if (experiencesMobileDrawerOpen && mediaMatches(experiencesDualInlineMediaQuery())) {
+    experiencesMobileDrawerOpen = false;
+    render({ preserveScroll: true });
+  }
 });
 
 window.addEventListener('hashchange', () => {
