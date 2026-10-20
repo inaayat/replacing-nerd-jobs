@@ -1,8 +1,15 @@
 import { buildExperiencesPanel } from './experiences-panel.js';
 import { buildExperiencePicker } from './experience-picker.js';
 import {
+  buildExperienceCreateForm,
+  buildBulkExperienceBar,
+  bulkAssignEntriesToExperience,
+} from './experiences-forms.js';
+import {
   pruneOrphanExperiences,
   forgetSessionEmptyExperience,
+  rememberSessionEmptyExperience,
+  selectedEntriesJobIds,
 } from './experiences-index.js';
 import {
   experiencesUiEnabled,
@@ -315,6 +322,14 @@ let experiencePickerSearch = '';
 let experiencePickerCreating = false;
 let activePanelExperienceId = '';
 let panelDragOverExperienceId = '';
+let panelExperienceCreateOpen = false;
+let experienceRenameId = '';
+let experienceUngroupPendingId = '';
+let bulkAddMenuOpen = false;
+let bulkAddSearch = '';
+let bulkAddCreateOpen = false;
+/** @type {{ postingId: string, bulletId: string, toEntryId: string } | null} */
+let versionSwapTransferPick = null;
 /** Jobs catalog on Resume bullets expanded this session (not persisted). */
 let jobsCatalogExpanded = false;
 let experiencesMobileDrawerOpen = false;
@@ -650,6 +665,7 @@ function el(tag, attrs = {}, children = []) {
     if (key === 'class') node.className = value;
     else if (key === 'dataset') Object.assign(node.dataset, value);
     else if (key.startsWith('on') && typeof value === 'function') node.addEventListener(key.slice(2).toLowerCase(), value);
+    else if (key === 'ref' && typeof value === 'function') value(node);
     else if (key === 'checked' || key === 'hidden' || key === 'disabled' || key === 'selected') node[key] = Boolean(value);
     else if (key === 'value' && 'value' in node) node.value = value;
     else node.setAttribute(key, value);
@@ -1300,7 +1316,12 @@ function experienceTools(view) {
         class: 'btn ghost compact-action',
         onClick: () => {
           catalogBulkSelectMode = !catalogBulkSelectMode;
-          if (!catalogBulkSelectMode) selectedCatalogEntryIds.clear();
+          if (!catalogBulkSelectMode) {
+            selectedCatalogEntryIds.clear();
+            bulkAddMenuOpen = false;
+            bulkAddCreateOpen = false;
+            bulkAddSearch = '';
+          }
           render({ preserveScroll: true });
         },
       })
@@ -1629,6 +1650,65 @@ function experienceNotesPanel(entry, { expanded, panelId }) {
   }, [field('Notes', notes)]);
 }
 
+function experienceCreateFormUi({
+  jobId = '',
+  lockJob = false,
+  defaultName = '',
+  focusKey = 'xp-inline-name',
+  submitLabel = 'Save',
+  onSubmit,
+  onCancel,
+}) {
+  return buildExperienceCreateForm({
+    el,
+    btn,
+    store,
+    jobId,
+    lockJob,
+    defaultName,
+    focusKey,
+    submitLabel,
+    onSubmit,
+    onCancel,
+    onRender: (opts) => render(opts),
+  });
+}
+
+function assignExperienceCreate({
+  title,
+  jobId,
+  entryIds = [],
+  experienceId = '',
+  rememberEmpty = false,
+}) {
+  try {
+    if (experienceId && entryIds.length) {
+      const result = bulkAssignEntriesToExperience(store, entryIds, { experienceId, jobId });
+      store = result.store;
+      saveStore();
+      return result;
+    }
+    if (!entryIds.length) {
+      const created = createExperience(store, { jobId, title });
+      store = created.store;
+      const xpId = created.changedExperienceIds[0];
+      if (rememberEmpty) rememberSessionEmptyExperience(xpId);
+      saveStore();
+      return { store, experienceId: xpId, entryIds: [] };
+    }
+    const result = bulkAssignEntriesToExperience(store, entryIds, {
+      newTitle: title,
+      jobId,
+    });
+    store = result.store;
+    saveStore();
+    return result;
+  } catch (error) {
+    setNote(error.message || 'Could not save that experience.');
+    return null;
+  }
+}
+
 function experienceMembershipPicker(entry) {
   if (!experiencesUiEnabled()) return null;
   return buildExperiencePicker({
@@ -1647,6 +1727,35 @@ function experienceMembershipPicker(entry) {
     onSave: () => saveStore(),
     onRender: (opts) => render(opts),
     setNote,
+    renderCreateForm: () => experienceCreateFormUi({
+      jobId: entry.jobId || '',
+      lockJob: Boolean(entry.jobId),
+      focusKey: `xp-create-${entry.id}`,
+      onSubmit: ({ title, jobId }) => {
+        const result = assignExperienceCreate({
+          title,
+          jobId,
+          entryIds: [entry.id],
+        });
+        if (!result) return;
+        openExperiencePickerEntryId = '';
+        experiencePickerCreating = false;
+        setNote('Created experience and assigned this bullet.');
+        render({ focusKey: `exp-xp-${entry.id}`, preserveScroll: true });
+      },
+      onCancel: () => {
+        experiencePickerCreating = false;
+        render({ focusKey: `exp-xp-${entry.id}`, preserveScroll: true });
+      },
+    }),
+    onCreateAndAssign: ({ title, jobId, entryId }) => {
+      const result = assignExperienceCreate({ title, jobId, entryIds: [entryId] });
+      if (!result) return;
+      openExperiencePickerEntryId = '';
+      experiencePickerCreating = false;
+      setNote('Created experience and assigned this bullet.');
+      render({ focusKey: `exp-xp-${entryId}`, preserveScroll: true });
+    },
   });
 }
 
@@ -1739,7 +1848,28 @@ function experienceSectionHeader(jobKey, section) {
   const expanded = !collapsedLibrarySections.has(sectionKey);
   const bodyId = `exp-section-${sectionKey.replace(/[^a-z0-9_-]/gi, '-')}`;
   if (section.kind === 'loose' && section.label) {
-    return el('header', { class: 'bb-exp-section-head bb-exp-section-loose' }, [
+    const looseIds = section.rows.map((row) => row.id);
+    const allLooseSelected = looseIds.length > 0 && looseIds.every((id) => selectedCatalogEntryIds.has(id));
+    const someLooseSelected = looseIds.some((id) => selectedCatalogEntryIds.has(id));
+    return el('header', { class: 'bb-exp-section-head bb-exp-section-loose bb-action-row' }, [
+      catalogBulkSelectMode && looseIds.length
+        ? el('label', { class: 'bb-exp-loose-select-all' }, [
+          el('input', {
+            type: 'checkbox',
+            checked: allLooseSelected,
+            ref: (node) => {
+              if (node) node.indeterminate = !allLooseSelected && someLooseSelected;
+            },
+            'aria-label': 'Select all loose bullets in this section',
+            onChange: () => {
+              if (allLooseSelected) looseIds.forEach((id) => selectedCatalogEntryIds.delete(id));
+              else looseIds.forEach((id) => selectedCatalogEntryIds.add(id));
+              render({ preserveScroll: true });
+            },
+          }),
+          el('span', { class: 'tiny' }, 'Select all'),
+        ])
+        : null,
       el('button', {
         type: 'button',
         class: 'bb-exp-section-toggle',
@@ -1750,7 +1880,7 @@ function experienceSectionHeader(jobKey, section) {
           if (expanded) collapsedLibrarySections.add(sectionKey);
           else collapsedLibrarySections.delete(sectionKey);
           const scroll = captureScroll();
-          render();
+          render({ preserveScroll: true });
           restoreScroll(scroll);
         },
       }, [
@@ -1780,102 +1910,190 @@ function experienceSectionHeader(jobKey, section) {
       el('span', { class: 'bb-exp-section-title' }, section.label),
       el('span', { class: 'bb-exp-group-count' }, `${section.versionCount} version${section.versionCount === 1 ? '' : 's'}`),
     ]),
-    xp && experiencesUiEnabled()
+    xp && experiencesUiEnabled() && experienceRenameId === xp.id
+      ? el('div', { class: 'bb-exp-inline-rename bb-action-row' }, (() => {
+        const input = el('input', {
+          type: 'text',
+          class: 'bb-exp-inline-name',
+          value: xp.title || '',
+          'aria-label': 'Experience name',
+          'data-focus-key': `xp-rename-${xp.id}`,
+        });
+        const saveRename = () => {
+          const name = String(input.value || '').trim();
+          if (!name || name === xp.title) {
+            experienceRenameId = '';
+            render({ preserveScroll: true });
+            return;
+          }
+          store = renameExperience(store, xp.id, name).store;
+          experienceRenameId = '';
+          saveStore();
+          render({ preserveScroll: true });
+        };
+        input.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter') { event.preventDefault(); saveRename(); }
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            experienceRenameId = '';
+            render({ preserveScroll: true });
+          }
+        });
+        return [
+          input,
+          btn('Save', { type: 'button', class: 'btn compact-action', onClick: saveRename }),
+          btn('Cancel', {
+            type: 'button',
+            class: 'btn ghost compact-action',
+            onClick: () => {
+              experienceRenameId = '';
+              render({ preserveScroll: true });
+            },
+          }),
+        ];
+      })())
+      : null,
+    xp && experiencesUiEnabled() && experienceRenameId !== xp.id
       ? btn('Rename', {
         type: 'button',
         class: 'btn ghost compact-action',
         onClick: () => {
-          const name = window.prompt('Experience name', xp.title || '');
-          if (!name?.trim() || name.trim() === xp.title) return;
-          store = renameExperience(store, xp.id, name.trim()).store;
-          saveStore();
-          render();
+          experienceRenameId = xp.id;
+          experienceUngroupPendingId = '';
+          render({ preserveScroll: true, focusKey: `xp-rename-${xp.id}` });
         },
       })
       : null,
-    xp && experiencesUiEnabled()
+    xp && experiencesUiEnabled() && experienceUngroupPendingId === xp.id
+      ? el('div', { class: 'bb-exp-ungroup-confirm bb-action-row' }, [
+        el('span', { class: 'tiny' }, 'Ungroup? Bullets stay loose under the same job.'),
+        btn('Ungroup', {
+          type: 'button',
+          class: 'btn compact-action',
+          onClick: () => {
+            store = ungroupExperience(store, xp.id).store;
+            experienceUngroupPendingId = '';
+            saveStore();
+            setNote('Ungrouped. Bullets are loose under the same job.');
+            render({ preserveScroll: true });
+          },
+        }),
+        btn('Cancel', {
+          type: 'button',
+          class: 'btn ghost compact-action',
+          onClick: () => {
+            experienceUngroupPendingId = '';
+            render({ preserveScroll: true });
+          },
+        }),
+      ])
+      : null,
+    xp && experiencesUiEnabled() && experienceUngroupPendingId !== xp.id && experienceRenameId !== xp.id
       ? btn('Ungroup', {
         type: 'button',
         class: 'btn ghost compact-action',
         onClick: () => {
-          if (!confirm('Ungroup this experience? Bullets stay in the library as loose lines.')) return;
-          store = ungroupExperience(store, xp.id).store;
-          saveStore();
-          setNote('Ungrouped. Bullets are loose under the same job.');
-          render();
+          experienceUngroupPendingId = xp.id;
+          experienceRenameId = '';
+          render({ preserveScroll: true });
         },
       })
       : null,
   ]);
 }
 
-function catalogSelectionBar() {
+function bulkExperienceBar() {
   if (!catalogBulkSelectMode || !experiencesUiEnabled()) return null;
-  const count = selectedCatalogEntryIds.size;
-  if (!count) return null;
-  return el('div', { class: 'bb-exp-catalog-selection bb-action-row' }, [
-    el('span', {}, `${count} selected`),
-    btn('Move to experience…', {
-      type: 'button',
-      class: 'btn',
-      onClick: () => {
+  const selectedIds = [...selectedCatalogEntryIds];
+  if (!selectedIds.length) return null;
+  const jobIds = [...selectedEntriesJobIds(store, selectedIds)];
+  const singleJobId = jobIds.length === 1 ? jobIds[0] : '';
+  return buildBulkExperienceBar({
+    el,
+    btn,
+    store,
+    selectedEntryIds: selectedCatalogEntryIds,
+    menuOpen: bulkAddMenuOpen,
+    menuSearch: bulkAddSearch,
+    createOpen: bulkAddCreateOpen,
+    onToggleMenu: () => {
+      bulkAddMenuOpen = !bulkAddMenuOpen;
+      if (!bulkAddMenuOpen) {
+        bulkAddCreateOpen = false;
+        bulkAddSearch = '';
+      }
+      render({
+        preserveScroll: true,
+        focusKey: bulkAddMenuOpen && singleJobId ? 'bulk-xp-search' : undefined,
+      });
+    },
+    onMenuSearch: (value) => {
+      bulkAddSearch = value;
+      render({ preserveScroll: true, focusKey: 'bulk-xp-search' });
+    },
+    onOpenCreate: () => {
+      bulkAddCreateOpen = true;
+      render({ preserveScroll: true, focusKey: 'xp-bulk-create-name' });
+    },
+    onCloseCreate: () => {
+      bulkAddCreateOpen = false;
+      render({ preserveScroll: true, focusKey: 'bulk-xp-search' });
+    },
+    onAssignExisting: (experienceId) => {
+      const ids = [...selectedCatalogEntryIds];
+      const result = assignExperienceCreate({
+        jobId: singleJobId,
+        entryIds: ids,
+        experienceId,
+      });
+      if (!result) return;
+      selectedCatalogEntryIds.clear();
+      bulkAddMenuOpen = false;
+      bulkAddCreateOpen = false;
+      bulkAddSearch = '';
+      setNote('Added selected bullets to that experience.');
+      render({ preserveScroll: true });
+    },
+    onCreateAndAssign: ({ title, jobId }) => {
+      const ids = [...selectedCatalogEntryIds];
+      const result = assignExperienceCreate({ title, jobId, entryIds: ids });
+      if (!result) return;
+      selectedCatalogEntryIds.clear();
+      bulkAddMenuOpen = false;
+      bulkAddCreateOpen = false;
+      bulkAddSearch = '';
+      setNote('Created experience and assigned selected bullets.');
+      render({ preserveScroll: true });
+    },
+    onCancelBulk: () => {
+      selectedCatalogEntryIds.clear();
+      bulkAddMenuOpen = false;
+      bulkAddCreateOpen = false;
+      bulkAddSearch = '';
+      render({ preserveScroll: true });
+    },
+    renderCreateForm: () => experienceCreateFormUi({
+      jobId: singleJobId,
+      lockJob: Boolean(singleJobId),
+      focusKey: 'xp-bulk-create-name',
+      submitLabel: 'Create & assign',
+      onSubmit: ({ title, jobId }) => {
         const ids = [...selectedCatalogEntryIds];
-        const jobs = new Set(ids.map((id) => store.entries.find((e) => e.id === id)?.jobId).filter(Boolean));
-        if (jobs.size !== 1) {
-          setNote('Selected bullets must share one job.');
-          return;
-        }
-        const jobId = [...jobs][0];
-        const title = window.prompt('Move selected bullets into which experience? (type a new name to create)');
-        if (!title?.trim()) return;
-        const existing = (store.experiences || []).find((row) => !row.deletedAt && row.jobId === jobId && row.title === title.trim());
-        try {
-          let next = store;
-          let xpId = existing?.id;
-          if (!xpId) {
-            const created = createExperience(next, { jobId, title: title.trim() });
-            next = created.store;
-            xpId = created.changedExperienceIds[0];
-          }
-          for (const id of ids) {
-            next = moveEntryToExperience(next, id, xpId).store;
-            forgetSessionEmptyExperience(xpId);
-          }
-          store = next;
-          selectedCatalogEntryIds.clear();
-          catalogBulkSelectMode = false;
-          saveStore();
-          setNote('Moved selected bullets.');
-          render({ preserveScroll: true });
-        } catch (error) {
-          setNote(error.message || 'Could not move those bullets.');
-        }
-      },
-    }),
-    btn('Remove from experience', {
-      type: 'button',
-      class: 'btn ghost',
-      onClick: () => {
-        let next = store;
-        for (const id of selectedCatalogEntryIds) {
-          next = removeEntryFromExperience(next, id).store;
-        }
-        store = next;
+        const result = assignExperienceCreate({ title, jobId, entryIds: ids });
+        if (!result) return;
         selectedCatalogEntryIds.clear();
-        saveStore();
-        setNote('Removed selected bullets from their experiences.');
+        bulkAddMenuOpen = false;
+        bulkAddCreateOpen = false;
+        bulkAddSearch = '';
+        setNote('Created experience and assigned selected bullets.');
         render({ preserveScroll: true });
       },
-    }),
-    btn('Clear', {
-      type: 'button',
-      class: 'btn ghost',
-      onClick: () => {
-        selectedCatalogEntryIds.clear();
-        render({ preserveScroll: true });
+      onCancel: () => {
+        bulkAddCreateOpen = false;
+        render({ preserveScroll: true, focusKey: 'bulk-xp-search' });
       },
     }),
-  ]);
+  });
 }
 
 function selectPanelExperience(experienceId) {
@@ -1987,6 +2205,34 @@ function experiencesPanelForPage(page, posting = null) {
       render({ preserveScroll: true });
     },
     onDropOnExperience: dropEntryOnExperience,
+    onStartPanelCreate: () => {
+      panelExperienceCreateOpen = true;
+      render({ preserveScroll: true, focusKey: 'xp-panel-create-name' });
+    },
+    renderPanelCreateForm: () => experienceCreateFormUi({
+      jobId: '',
+      lockJob: false,
+      focusKey: 'xp-panel-create-name',
+      submitLabel: 'Create',
+      onSubmit: ({ title, jobId }) => {
+        const result = assignExperienceCreate({
+          title,
+          jobId,
+          entryIds: [],
+          rememberEmpty: true,
+        });
+        if (!result) return;
+        panelExperienceCreateOpen = false;
+        activePanelExperienceId = result.experienceId;
+        setNote('Created experience. Drag or assign bullets from the list.');
+        render({ preserveScroll: true, focusKey: 'exp-panel-search' });
+      },
+      onCancel: () => {
+        panelExperienceCreateOpen = false;
+        render({ preserveScroll: true, focusKey: 'exp-panel-search' });
+      },
+    }),
+    panelCreateOpen: panelExperienceCreateOpen,
   });
   const close = btn('×', {
     type: 'button',
@@ -2091,13 +2337,15 @@ function experienceTable(view) {
       : el('p', { class: 'empty' }, query
         ? 'Nothing matches that.'
         : 'No resume bullets yet. Add a resume bullet — pick a job, and STAR sits on the row.'),
-    catalogSelectionBar(),
   ]);
   const panel = experiencesPanelForPage('catalog');
-  if (!panel) return catalog;
+  const bulkBar = bulkExperienceBar();
+  if (!panel) {
+    return el('div', { class: 'bb-book-catalog-wrap' }, [catalog, bulkBar].filter(Boolean));
+  }
   const mobileOpen = experiencesMobileDrawerOpen;
   return el('div', { class: `bb-book-dual${mobileOpen ? ' is-drawer-open' : ''}` }, [
-    catalog,
+    el('div', { class: 'bb-book-catalog-wrap' }, [catalog, bulkBar].filter(Boolean)),
     panel,
     el('button', {
       type: 'button',
@@ -4435,49 +4683,84 @@ function resumeExperienceVersionMenu(posting, bullet) {
     },
   });
   if (!open) return toggle;
+  const pendingPick = versionSwapTransferPick
+    && versionSwapTransferPick.postingId === posting.id
+    && versionSwapTransferPick.bulletId === bullet.id
+    ? versionSwapTransferPick
+    : null;
+  const applyVersionSwap = (transferRequirementLinks) => {
+    if (!pendingPick?.toEntryId) return;
+    const swapped = swapPostingResumeExperienceVersion(store, {
+      postingId: posting.id,
+      resumeBulletId: bullet.id,
+      toEntryId: pendingPick.toEntryId,
+      transferRequirementLinks,
+    });
+    if (!swapped.ok) {
+      setNote(swapped.note || 'That version is already on this resume.');
+      return;
+    }
+    store = swapped.store;
+    expandedVersionSwapBulletId = '';
+    versionSwapTransferPick = null;
+    saveStore();
+    scheduleResumePreview(posting);
+    render({ focusKey: `rb-${bullet.id}-line`, preserveScroll: true });
+    setNote(transferRequirementLinks
+      ? 'Swapped version and moved requirement links for this row.'
+      : 'Swapped version on this resume row.');
+  };
+  const listBody = pendingPick
+    ? [
+      el('p', { class: 'tiny bb-version-swap-prompt' }, 'Move this row’s requirement links to the chosen version? Other on-resume versions stay as they are.'),
+      btn('Yes, move links', {
+        type: 'button',
+        class: 'bb-version-swap-choice',
+        onClick: () => applyVersionSwap(true),
+      }),
+      btn('No, swap only', {
+        type: 'button',
+        class: 'bb-version-swap-choice',
+        onClick: () => applyVersionSwap(false),
+      }),
+      btn('Cancel', {
+        type: 'button',
+        class: 'bb-version-swap-choice',
+        onClick: () => {
+          versionSwapTransferPick = null;
+          render({ preserveScroll: true, focusKey: `rb-${bullet.id}-line` });
+        },
+      }),
+    ]
+    : menu.choices.map((choice) => {
+      const disabled = choice.onResume && choice.onResumeBulletId !== bullet.id;
+      return btn(choice.onResume ? `${choice.title} · On resume` : choice.title, {
+        type: 'button',
+        class: `bb-version-swap-choice${disabled ? ' is-disabled' : ''}`,
+        disabled,
+        onClick: () => {
+          if (disabled) {
+            setNote('That version is already on this resume.');
+            return;
+          }
+          if (choice.entryId === entryId) {
+            close();
+            return;
+          }
+          versionSwapTransferPick = {
+            postingId: posting.id,
+            bulletId: bullet.id,
+            toEntryId: choice.entryId,
+          };
+          render({ preserveScroll: true, focusKey: `rb-${bullet.id}-line` });
+        },
+      });
+    });
   const list = el('div', {
     class: 'bb-version-swap-menu',
     id: popoverId,
     role: 'menu',
-  }, menu.choices.map((choice) => {
-    const disabled = choice.onResume && choice.onResumeBulletId !== bullet.id;
-    return btn(choice.onResume ? `${choice.title} · On resume` : choice.title, {
-      type: 'button',
-      class: `bb-version-swap-choice${disabled ? ' is-disabled' : ''}`,
-      disabled,
-      onClick: () => {
-        if (disabled) {
-          setNote('That version is already on this resume.');
-          return;
-        }
-        if (choice.entryId === entryId) {
-          close();
-          return;
-        }
-        const transfer = window.confirm(
-          'Move this row’s requirement links to the chosen version? Other on-resume versions stay as they are.',
-        );
-        const swapped = swapPostingResumeExperienceVersion(store, {
-          postingId: posting.id,
-          resumeBulletId: bullet.id,
-          toEntryId: choice.entryId,
-          transferRequirementLinks: transfer,
-        });
-        if (!swapped.ok) {
-          setNote(swapped.note || 'That version is already on this resume.');
-          return;
-        }
-        store = swapped.store;
-        expandedVersionSwapBulletId = '';
-        saveStore();
-        scheduleResumePreview(posting);
-        render({ focusKey: `rb-${bullet.id}-line` });
-        setNote(transfer
-          ? 'Swapped version and moved requirement links for this row.'
-          : 'Swapped version on this resume row.');
-      },
-    });
-  }));
+  }, listBody);
   return el('div', { class: 'bb-version-swap-wrap' }, [toggle, list]);
 }
 

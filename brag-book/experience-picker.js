@@ -3,12 +3,12 @@
  */
 
 import {
-  createExperience,
   moveEntryToExperience,
   removeEntryFromExperience,
   experienceForEntry,
 } from './engine.js';
 import { compactExperienceIndex, forgetSessionEmptyExperience } from './experiences-index.js';
+import { buildExperienceCreateForm } from './experiences-forms.js';
 
 export function experiencePickerLabel(store, entry) {
   const xp = experienceForEntry(store, entry.id);
@@ -32,6 +32,7 @@ export function buildExperiencePicker(deps) {
     onSave,
     onRender,
     setNote,
+    renderCreateForm,
   } = deps;
 
   const jobId = entry.jobId || '';
@@ -74,65 +75,45 @@ export function buildExperiencePicker(deps) {
     .filter((row) => row.jobId === jobId);
   const current = experienceForEntry(store, entry.id);
 
+  const createBody = pickerCreating
+    ? (renderCreateForm
+      ? renderCreateForm()
+      : buildExperienceCreateForm({
+        el,
+        btn,
+        store,
+        jobId,
+        lockJob: Boolean(jobId),
+        focusKey: `xp-create-${entry.id}`,
+        onSubmit: ({ title, jobId: resolvedJobId }) => {
+          deps.onCreateAndAssign({ title, jobId: resolvedJobId, entryId: entry.id });
+        },
+        onCancel: () => {
+          onPickerCreating(false);
+          onRender({ focusKey: anchorFocusKey, preserveScroll: true });
+        },
+        onRender,
+      }))
+    : null;
+
   const menu = el('div', {
     class: 'bb-exp-picker-menu',
     role: 'dialog',
     'aria-label': 'Choose experience',
   }, [
-    pickerCreating
-      ? el('div', { class: 'bb-exp-picker-create' }, [
-        el('input', {
-          type: 'text',
-          class: 'bb-exp-picker-create-input',
-          placeholder: 'Experience title',
-          'aria-label': 'New experience title',
-          'data-focus-key': `xp-create-${entry.id}`,
-          onKeydown: (event) => {
-            if (event.key === 'Escape') {
-              onPickerCreating(false);
-              onRender({ focusKey: anchorFocusKey, preserveScroll: true });
-            }
-          },
-        }),
-        el('div', { class: 'bb-exp-picker-create-actions bb-action-row' }, [
-          btn('Save', {
-            type: 'button',
-            class: 'btn',
-            onClick: (event) => {
-              const title = event.target.closest('.bb-exp-picker-create')
-                ?.querySelector('input')?.value?.trim();
-              if (!title || !jobId) {
-                setNote('Assign a job to this bullet first.');
-                return;
-              }
-              const created = createExperience(store, { jobId, title });
-              let next = moveEntryToExperience(created.store, entry.id, created.changedExperienceIds[0]).store;
-              forgetSessionEmptyExperience(created.changedExperienceIds[0]);
-              applyMembership(next, 'Created experience and assigned this bullet.');
-            },
-          }),
-          btn('Cancel', {
-            type: 'button',
-            class: 'btn ghost',
-            onClick: () => {
-              onPickerCreating(false);
-              onRender({ focusKey: anchorFocusKey, preserveScroll: true });
-            },
-          }),
-        ]),
-      ])
-      : el('input', {
-        type: 'search',
-        class: 'search bb-exp-picker-search',
-        placeholder: 'Search experiences for this job…',
-        'aria-label': 'Search experiences',
-        value: pickerSearch,
-        onInput: (event) => {
-          onPickerSearch(event.target.value);
-          onRender({ focusKey: `xp-search-${entry.id}`, preserveScroll: true });
-        },
-        'data-focus-key': `xp-search-${entry.id}`,
-      }),
+    createBody,
+    pickerCreating ? null : el('input', {
+      type: 'search',
+      class: 'search bb-exp-picker-search',
+      placeholder: 'Search experiences for this job…',
+      'aria-label': 'Search experiences',
+      value: pickerSearch,
+      onInput: (event) => {
+        onPickerSearch(event.target.value);
+        onRender({ focusKey: `xp-search-${entry.id}`, preserveScroll: true });
+      },
+      'data-focus-key': `xp-search-${entry.id}`,
+    }),
     pickerCreating ? null : el('div', { class: 'bb-exp-picker-list', role: 'listbox' },
       choices.map((row) => {
         const selected = current?.id === row.id;

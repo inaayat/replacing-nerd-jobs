@@ -3,12 +3,7 @@
  */
 
 import {
-  createExperience,
-  renameExperience,
-} from './engine.js';
-import {
   compactExperienceIndex,
-  rememberSessionEmptyExperience,
 } from './experiences-index.js';
 
 /**
@@ -23,15 +18,14 @@ export function buildExperiencesPanel(deps) {
     panelQuery = '',
     activeExperienceId = '',
     dragOverExperienceId = '',
-    onRender,
-    onSave,
-    setNote,
-    setStore,
-    displayExperienceLine,
     onPanelQueryChange,
     onSelectExperience,
     onDragOverExperience,
     onDropOnExperience,
+    onStartPanelCreate,
+    renderPanelCreateForm,
+    panelCreateOpen = false,
+    displayExperienceLine,
   } = deps;
 
   const rows = compactExperienceIndex(store, {
@@ -43,35 +37,19 @@ export function buildExperiencesPanel(deps) {
   const head = el('div', { class: 'bb-exp-panel-head bb-action-row' }, [
     el('h2', { class: 'bb-exp-panel-title' }, 'Experiences'),
     el('div', { class: 'bb-exp-panel-head-actions' }, [
-      btn('+ New', {
-        type: 'button',
-        class: 'btn ghost compact-action',
-        onClick: () => {
-          const title = window.prompt('Experience title');
-          if (!title?.trim()) return;
-          const jobs = store.jobs || [];
-          let jobId = jobs[0]?.id || '';
-          if (jobs.length > 1) {
-            const pick = window.prompt(
-              `Job id for this experience (${jobs.map((j) => `${j.company || j.title}:${j.id}`).join(', ')})`,
-              jobId,
-            );
-            if (pick?.trim()) jobId = pick.trim();
-          }
-          if (!jobId) {
-            setNote('Add a job on Resume basics first.');
-            return;
-          }
-          const created = createExperience(store, { jobId, title: title.trim() });
-          rememberSessionEmptyExperience(created.changedExperienceIds[0]);
-          setStore(created.store);
-          onSave();
-          setNote('Empty experience — assign a bullet before you leave this session.');
-          onRender();
-        },
-      }),
+      panelCreateOpen
+        ? null
+        : btn('+ New', {
+          type: 'button',
+          class: 'btn ghost compact-action',
+          onClick: () => onStartPanelCreate(),
+        }),
     ]),
   ]);
+
+  const createSlot = panelCreateOpen && renderPanelCreateForm
+    ? el('div', { class: 'bb-exp-panel-create-slot' }, [renderPanelCreateForm()])
+    : null;
 
   const search = el('input', {
     type: 'search',
@@ -126,6 +104,7 @@ export function buildExperiencesPanel(deps) {
 
   return el('aside', { class: 'bb-exp-side-panel', 'aria-label': 'Experiences' }, [
     head,
+    createSlot,
     search,
     scroll,
   ]);

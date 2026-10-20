@@ -127,6 +127,15 @@ export function forgetSessionEmptyExperience(id) {
 }
 
 /** Soft-delete memberless experiences except ids kept for this browser session. */
+export function selectedEntriesJobIds(store, entryIds) {
+  const jobs = new Set();
+  for (const id of entryIds || []) {
+    const entry = store?.entries?.find((row) => row.id === id);
+    if (entry?.jobId) jobs.add(entry.jobId);
+  }
+  return jobs;
+}
+
 export function pruneOrphanExperiences(store, { keepExperienceIds = readSessionEmptyExperienceIds() } = {}, clock = Date.now) {
   const used = new Set(
     (store?.entries || [])
