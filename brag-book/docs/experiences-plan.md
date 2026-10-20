@@ -517,6 +517,7 @@ Each phase should be one or a few reviewable commits; avoid combining model, syn
    - Commit representative schema-3 books, old exports, schema-1 snapshots, duplicate wording, duplicate role labels, two-tab bases, and outbox fixtures.
    - Add server preservation for future v4 fields while UI remains unchanged.
    - Add mixed-client and round-trip tests.
+   - **Backward-compat gate (every phase):** pre-Experiences posting resumes, Resume basics, and saved snapshots must keep byte-identical editor compile + preview/print HTML across upgrade and load/save; stored resume slices unchanged; grouping bullets must not alter resume content or order. See `brag-book/docs/experiences-backward-compat.md` and `node scripts/test-brag-book-experiences-backward-compat.mjs`.
 2. **Pure experience model**
    - Add normalization, named-experience/loose lookup helpers, Job → Experience → Bullet grouping, tombstones, immutable group/move/ungroup operations, and recovery backups.
    - Add `experienceId` to field-aware entry merge and `experiences`/backups to id-list merge.
