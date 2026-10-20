@@ -2852,7 +2852,9 @@ assert.doesNotMatch(appSource, /function experienceEditor[\s\S]*aria-label': 'Ro
 assert.match(appSource, /homeStartCards\(/);
 assert.match(appSource, /Resume bullets & knowledge/);
 assert.doesNotMatch(appSource, /Experiences & knowledge/);
-assert.match(appSource, /Recent resume bullets/);
+assert.doesNotMatch(appSource, /Recent resume bullets/);
+assert.doesNotMatch(appSource, /Recent knowledge/);
+assert.match(appSource, /postingsByRecentActivity\(/);
 assert.match(appSource, /Search resume bullets, companies, STAR/);
 assert.match(appSource, /aria-label': 'Search resume bullets'/);
 assert.doesNotMatch(appSource, /aria-label': 'Search experiences'/);

@@ -3960,6 +3960,38 @@ export function bookIsEmpty(store) {
     && !activeResumeSnapshots(book).length;
 }
 
+function postingActivityInstant(posting, entryById) {
+  if (!posting) return 0;
+  let max = Math.max(recordStamp(posting), recordStamp({ updatedAt: posting.createdAt }));
+  max = Math.max(max, recordStamp({ updatedAt: posting.resume?.updatedAt }));
+  for (const req of posting.requirements || []) {
+    for (const entryId of req.entryIds || []) {
+      const entry = entryById.get(entryId);
+      if (entry) max = Math.max(max, recordStamp(entry));
+    }
+    for (const line of req.bullets || []) {
+      if (!line?.entryId) continue;
+      const entry = entryById.get(line.entryId);
+      if (entry) max = Math.max(max, recordStamp(entry));
+    }
+  }
+  return max;
+}
+
+/** Latest activity on a posting (posting row, resume variant, requirement mappings). Read-time only. */
+export function postingLastChangedMs(posting, store) {
+  const entryById = new Map((store?.entries || []).map((entry) => [entry.id, entry]));
+  return postingActivityInstant(posting, entryById);
+}
+
+export function postingsByRecentActivity(store, limit = 4) {
+  const list = store?.postings || [];
+  if (!list.length) return [];
+  return [...list]
+    .sort((a, b) => postingLastChangedMs(b, store) - postingLastChangedMs(a, store))
+    .slice(0, Math.max(0, limit));
+}
+
 export function listingSummary(store) {
   return {
     entries: store.entries.length,

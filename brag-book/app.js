@@ -135,6 +135,7 @@ import {
   prepCoverage,
   unmappedPostingResumeBullets,
   listingSummary,
+  postingsByRecentActivity,
   starFill,
   bookIsEmpty,
   BOOK_MAX_CHARS,
@@ -1079,12 +1080,10 @@ function homeHero() {
 
 function homeView() {
   const summary = listingSummary(store);
-  const recentWins = experienceCatalog(store).slice(0, 4);
-  const recentJobs = store.postings.slice(0, 4);
+  const recentJobs = postingsByRecentActivity(store, 4);
   const lineCount = summary.entries;
   const noteCount = summary.knowledge || 0;
   const snapshotCount = activeResumeSnapshots(store).length;
-  const recentNotes = (store.knowledge || []).slice(0, 4);
   const cards = homeStartCards();
   const cardBody = {
     postings: {
@@ -1152,34 +1151,6 @@ function homeView() {
           el('p', {}, [job.company, cover.hints[0] || `${cover.withAnswer}/${cover.total || 0} answered`].filter(Boolean).join(' · ')),
         ]);
       })),
-    ]) : null,
-    recentWins.length ? el('section', { class: 'recent' }, [
-      el('h2', {}, 'Recent resume bullets'),
-      el('div', { class: 'plot-cards' }, recentWins.map((row) => {
-        const entry = store.entries.find((item) => item.id === row.id);
-        if (!entry) return null;
-        return el('button', {
-          type: 'button',
-          class: 'plot-card',
-          onClick: () => go({ kind: 'log', id: entry.id }),
-        }, [
-          el('span', { class: 'kicker' }, starFill(entry).ready ? 'STAR ready' : 'Resume line'),
-          richPreview('bb-card-line', entry.title, entry.rich),
-          el('p', {}, [entry.company, entry.role, starFill(entry).ready ? 'STAR ready' : 'STAR on the line'].filter(Boolean).join(' · ')),
-        ]);
-      })),
-    ]) : null,
-    recentNotes.length ? el('section', { class: 'recent' }, [
-      el('h2', {}, 'Recent knowledge'),
-      el('div', { class: 'plot-cards' }, recentNotes.map((note) => el('button', {
-        type: 'button',
-        class: 'plot-card',
-        onClick: () => go({ kind: 'kb', id: note.id }),
-      }, [
-        el('span', { class: 'kicker' }, 'Page'),
-        el('strong', {}, note.title || 'Untitled'),
-        el('p', {}, note.body || 'Open to write'),
-      ]))),
     ]) : null,
     el('div', { class: 'actions' }, [
       btn('Export', { class: 'btn ghost', onClick: exportStore }),
