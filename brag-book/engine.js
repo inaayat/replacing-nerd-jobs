@@ -3641,6 +3641,101 @@ export function experienceCatalogGroups(store, { query = '' } = {}) {
   return groups;
 }
 
+function catalogSectionsForJobGroup(store, jobGroup) {
+  if (jobGroup.kind === 'none') {
+    return [{
+      kind: 'loose',
+      label: '',
+      experienceId: '',
+      versionCount: 0,
+      rows: jobGroup.rows,
+    }];
+  }
+  const byExperience = new Map();
+  const loose = [];
+  for (const row of jobGroup.rows) {
+    const entry = (store?.entries || []).find((item) => item.id === row.id);
+    const xp = entry ? experienceById(store, entry.experienceId) : null;
+    if (!xp) {
+      loose.push(row);
+      continue;
+    }
+    if (!byExperience.has(xp.id)) {
+      byExperience.set(xp.id, { experience: xp, rows: [] });
+    }
+    byExperience.get(xp.id).rows.push(row);
+  }
+  const sections = [...byExperience.values()]
+    .sort((a, b) => String(a.experience.title || '').localeCompare(String(b.experience.title || '')))
+    .map(({ experience, rows }) => ({
+      kind: 'experience',
+      label: experience.title || 'Experience',
+      experienceId: experience.id,
+      versionCount: rows.length,
+      rows,
+    }));
+  if (loose.length) {
+    sections.push({
+      kind: 'loose',
+      label: 'Not in an experience',
+      experienceId: '',
+      versionCount: 0,
+      rows: loose,
+    });
+  }
+  return sections;
+}
+
+/**
+ * Resume bullets catalog: Job → Experience → versions, plus loose under each job.
+ * Search/filter uses the same flat row set as {@link experienceCatalogGroups}.
+ */
+export function libraryCatalogGroups(store, { query = '' } = {}) {
+  return experienceCatalogGroups(store, { query }).map((jobGroup) => ({
+    ...jobGroup,
+    sections: catalogSectionsForJobGroup(store, jobGroup),
+  }));
+}
+
+/** Side-panel rows: named experiences (optional job filter), sorted by title. */
+export function experiencesPanelRows(store, { jobId = '', postingId = '' } = {}) {
+  const jobFilter = asString(jobId, 64);
+  const posting = postingId
+    ? (store?.postings || []).find((row) => row.id === postingId)
+    : null;
+  const rows = (store?.experiences || [])
+    .filter((row) => row && !row.deletedAt)
+    .filter((row) => !jobFilter || asString(row.jobId, 64) === jobFilter)
+    .map((row) => ({
+      id: row.id,
+      name: row.title || 'Experience',
+      jobId: row.jobId || '',
+      versionCount: experienceVersions(store, row.id).length,
+      coversRequirements: posting
+        ? experienceRequirementCoverageCount(store, posting, row.id)
+        : 0,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  return rows;
+}
+
+/** How many requirement rows on this posting link any version of the experience. */
+export function experienceRequirementCoverageCount(store, posting, experienceId) {
+  const xpId = asString(experienceId, 64);
+  if (!xpId || !posting?.requirements?.length) return 0;
+  const versionIds = new Set(
+    experienceVersions(store, xpId).map((entry) => entry.id).filter(Boolean),
+  );
+  if (!versionIds.size) return 0;
+  let count = 0;
+  for (const req of posting.requirements) {
+    const linked = (req.bullets || []).some((line) => versionIds.has(line.entryId))
+      || (req.entryIds || []).some((id) => versionIds.has(id));
+    if (linked) count += 1;
+  }
+  return count;
+}
+
 export const KNOWLEDGE_SAVE_MS = 600;
 
 export function noteKnowledgeInput(state, noteId, patch, now, delay = KNOWLEDGE_SAVE_MS) {
