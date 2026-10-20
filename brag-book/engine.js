@@ -10,7 +10,7 @@
 
 import { mergeConcurrentBooks } from './save-controller.js';
 
-export {
+import {
   appendGroupingBackup,
   captureGroupingPlacements,
   createExperience,
@@ -26,6 +26,23 @@ export {
   renameExperience,
   ungroupExperience,
 } from './experiences.js';
+
+export {
+  appendGroupingBackup,
+  captureGroupingPlacements,
+  createExperience,
+  draftExperienceVersion,
+  effectiveExperienceKeyForEntry,
+  entryIsLoose,
+  experienceById,
+  experienceForEntry,
+  experienceVersions,
+  groupEntriesAsExperience,
+  moveEntryToExperience,
+  removeEntryFromExperience,
+  renameExperience,
+  ungroupExperience,
+};
 
 export const SCHEMA = 4;
 /** Legacy books without experience metadata normalize as schema 3 payloads. */
@@ -3929,6 +3946,218 @@ export function unmappedPostingResumeBullets(store, posting) {
     }
   }
   return out;
+}
+
+export const VERSION_SWAP_NOTE_ALREADY_ON_RESUME = 'That version is already on this resume.';
+
+function findCompiledResumeBulletPlacement(store, posting, resumeBulletId) {
+  if (!posting || !resumeBulletId) return null;
+  const doc = compileResumeDoc(posting, store);
+  for (const job of doc?.sections?.experience?.jobs || []) {
+    for (const group of job.groups || []) {
+      for (const bullet of group.bullets || []) {
+        if (bullet.id === resumeBulletId) {
+          return {
+            jobId: job.id,
+            groupId: group.id,
+            bullet,
+            entryId: (bullet.sourceEntryIds || [])[0] || '',
+          };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/** entry id → resume row id for compiled posting resume (first row wins). */
+export function postingResumeRowByEntryId(store, posting) {
+  const map = new Map();
+  if (!posting) return map;
+  const doc = compileResumeDoc(posting, store);
+  for (const job of doc?.sections?.experience?.jobs || []) {
+    for (const group of job.groups || []) {
+      for (const bullet of group.bullets || []) {
+        for (const entryId of bullet.sourceEntryIds || []) {
+          if (entryId && !map.has(entryId)) {
+            map.set(entryId, { resumeBulletId: bullet.id, jobId: job.id, groupId: group.id });
+          }
+        }
+      }
+    }
+  }
+  return map;
+}
+
+/** Menu rows for swapping one posting resume bullet within its experience. */
+export function experienceVersionSwapMenu(store, postingId, resumeBulletId) {
+  const posting = postingById(store, postingId);
+  const placement = findCompiledResumeBulletPlacement(store, posting, resumeBulletId);
+  if (!placement?.entryId) {
+    return { ok: false, reason: 'not-linked', choices: [] };
+  }
+  const experience = experienceForEntry(store, placement.entryId);
+  if (!experience) {
+    return { ok: false, reason: 'loose-bullet', choices: [] };
+  }
+  const onResume = postingResumeRowByEntryId(store, posting);
+  const choices = experienceVersions(store, experience.id).map((entry) => {
+    const row = onResume.get(entry.id);
+    return {
+      entryId: entry.id,
+      title: entry.title,
+      isCurrent: entry.id === placement.entryId,
+      onResume: Boolean(row && row.resumeBulletId !== resumeBulletId),
+      onResumeBulletId: row?.resumeBulletId || '',
+    };
+  });
+  return {
+    ok: true,
+    experienceId: experience.id,
+    resumeBulletId,
+    fromEntryId: placement.entryId,
+    choices,
+  };
+}
+
+function writePostingResumeBulletSource(store, {
+  postingId,
+  jobId,
+  groupId,
+  resumeBulletId,
+  entryId,
+}, clock) {
+  const entry = entryById(store, entryId);
+  if (!entry) return store;
+  const fields = resumeFieldsFromExperience(entry.title, entry.rich);
+  const posting = postingById(store, postingId);
+  const variant = normalizeResumeVariant(posting?.resume);
+  const local = findLocalBullet(variant, resumeBulletId);
+  const patch = {
+    sourceEntryIds: [entryId],
+    sourceBulletIds: [],
+    lead: fields.lead,
+    body: fields.body,
+  };
+  let next = store;
+  if (local) {
+    next = updatePostingLocalBullet(next, postingId, jobId, groupId, resumeBulletId, patch, clock);
+  } else {
+    const job = (next.jobs || []).find((item) => item.id === jobId);
+    if (!job) return store;
+    next = updateCareerJob(next, jobId, {
+      groups: (job.groups || []).map((group) => (
+        group.id === groupId
+          ? {
+            ...group,
+            bullets: (group.bullets || []).map((row) => (
+              row.id === resumeBulletId ? { ...row, ...patch } : row
+            )),
+          }
+          : group
+      )),
+    }, clock);
+  }
+  const refreshed = postingById(next, postingId);
+  return replacePostingResume(
+    next,
+    postingId,
+    clearBulletOverride(refreshed?.resume, resumeBulletId),
+    clock,
+  );
+}
+
+function transferRequirementLinksForEntry(store, postingId, fromEntryId, toEntryId, clock) {
+  const target = entryById(store, toEntryId);
+  if (!fromEntryId || !toEntryId || fromEntryId === toEntryId) return store;
+  return {
+    ...store,
+    postings: (store.postings || []).map((posting) => {
+      if (posting.id !== postingId) return posting;
+      return {
+        ...posting,
+        requirements: (posting.requirements || []).map((req) => {
+          const bullets = (req.bullets || []).map((line) => {
+            if (line.entryId !== fromEntryId) return line;
+            return {
+              ...line,
+              entryId: toEntryId,
+              text: target?.title || line.text,
+              rich: target?.rich?.length ? target.rich : line.rich,
+            };
+          });
+          const seen = new Set();
+          const deduped = bullets.filter((line) => {
+            if (!line.entryId) return true;
+            if (seen.has(line.entryId)) return false;
+            seen.add(line.entryId);
+            return true;
+          });
+          return {
+            ...req,
+            bullets: deduped,
+            experiences: deduped,
+            entryIds: [...new Set(deduped.map((line) => line.entryId).filter(Boolean))],
+          };
+        }),
+      };
+    }),
+  };
+}
+
+/**
+ * Swap one posting resume row to another version in the same experience.
+ * transferRequirementLinks moves only this row's former entry requirement links.
+ */
+export function swapPostingResumeExperienceVersion(
+  store,
+  {
+    postingId,
+    resumeBulletId,
+    toEntryId,
+    transferRequirementLinks = false,
+  },
+  clock = Date.now,
+) {
+  const menu = experienceVersionSwapMenu(store, postingId, resumeBulletId);
+  if (!menu.ok) return { store, ok: false, reason: menu.reason };
+  const posting = postingById(store, postingId);
+  const placement = findCompiledResumeBulletPlacement(store, posting, resumeBulletId);
+  const fromEntryId = placement?.entryId;
+  if (!fromEntryId || !toEntryId) return { store, ok: false, reason: 'missing-entry' };
+  if (fromEntryId === toEntryId) return { store, ok: true, noop: true, fromEntryId, toEntryId };
+
+  const targetVersion = menu.choices.find((row) => row.entryId === toEntryId);
+  if (!targetVersion) return { store, ok: false, reason: 'wrong-experience' };
+  if (targetVersion.onResume) {
+    return {
+      store,
+      ok: false,
+      reason: 'already-on-resume',
+      note: VERSION_SWAP_NOTE_ALREADY_ON_RESUME,
+      existingResumeBulletId: targetVersion.onResumeBulletId,
+    };
+  }
+
+  let next = writePostingResumeBulletSource(store, {
+    postingId,
+    jobId: placement.jobId,
+    groupId: placement.groupId,
+    resumeBulletId,
+    entryId: toEntryId,
+  }, clock);
+
+  if (transferRequirementLinks) {
+    next = transferRequirementLinksForEntry(next, postingId, fromEntryId, toEntryId, clock);
+  }
+
+  return {
+    store: next,
+    ok: true,
+    fromEntryId,
+    toEntryId,
+    transferRequirementLinks: Boolean(transferRequirementLinks),
+  };
 }
 
 export function prepCoverage(store, posting) {

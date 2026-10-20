@@ -190,8 +190,9 @@ versions (3)
 - Choosing another version updates the stable library-bullet link; it does not create a duplicate resume row.
 - Preserve the resume bullet row id where possible so fit state, drag order, pins, exclusions, focus, editor scroll, and preview scroll remain stable.
 - The control may coexist on several resume rows from the same experience. It shows which versions are on this resume (`2 of 3 on resume`) and identifies the current row separately.
-- If the destination version is already elsewhere on this same resume, mark it `Already on resume`, disable it as a swap destination, and offer `Go to existing bullet`; do not silently duplicate, merge, or remove either row.
-- Swapping one row affects only that row. Other versions from the experience retain their placement, wording, include/pin state, and requirement mappings.
+- If the destination version is already elsewhere on this same resume, mark it `On resume`, disable it as a swap destination, and show a note (no duplicate row). Offer `Go to existing bullet` when helpful.
+- Swapping row A→C affects only that row. Sibling row B (same experience) keeps its placement, wording, include/pin state, and requirement mappings.
+- Optional **transfer requirement links** on swap moves only A's requirement `entryId` links to C — never B's.
 - The preview, Print/PDF, and Word output show only the selected wording. Experience titles and version controls are editor metadata and do not appear on the resume.
 - The picker opens as a popover anchored to the current row and closes without a full-page jump. Reuse the existing scroll snapshot/restore path and add a focused regression test.
 
@@ -650,6 +651,7 @@ After implementation, update root `README.md`, `AGENTS.md`, and `CURSOR.md` if p
 
 1. When drafting a new version, should copying STAR/notes from an existing version be opt-in (recommended) or automatic?
 2. ~~Should mapping any sibling mark the entire named experience covered in the Unmapped panel?~~ **User decision:** no — Unmapped stays per resume bullet / exact entry id; experience coverage is side-panel/chips only.
+3. **Version swap + requirements:** per resume row; optional transfer copies **only that row's** former entry links to the new version; siblings unchanged (`swapPostingResumeExperienceVersion`, `experienceVersionSwapMenu`).
 3. Should an empty named experience remain available in pickers, or be hidden until it has a version? The recommendation is to hide empty/tombstoned records and never persist a cancelled empty creation.
 4. Should version swapping also be exposed in Resume basics in the first release, or only posting resumes? The data model supports both; posting resumes are the required first path.
 5. Should full-book PDF print every version under an experience and loose bullets in separate subsections (recommended), or only selected/preferred bullets? This plan does not add a preferred-version field.

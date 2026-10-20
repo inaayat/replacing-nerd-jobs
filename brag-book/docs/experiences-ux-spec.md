@@ -404,9 +404,10 @@ GODADDY · Senior Manager · 2021–Now        ▾      │ ┌─────�
 
 - `Versions N ▾` appears **only** on rows linked to a bullet in an experience with two or more versions. Loose rows, single-version rows, and unlinked rows show nothing (progressive disclosure).
 - It is a popover anchored to the row with radio semantics. Each option shows its own coverage (`R1 · R3 · R6`) so the user can see that swapping changes wording, **not** mapping.
-- Picking a version swaps in place: same row id, position, include, and pin state, and editor and preview scroll restore (plan §Version swap). Toast: `Swapped wording. Requirement mapping didn't change. [Undo]`.
-- If the chosen version is already elsewhere on this resume, the option is disabled with `Already on this resume · Go to it`.
-- Should mapping follow the swap? **No** in v1 (keep it explicit). The toast includes `Map new wording to R1, R3, R6?` as a second action only when the old version had mappings and the new one has none. One click copies those links. The default stays explicit.
+- Picking a version swaps **this row only**: same resume row id, position, include, and pin state; sibling rows on the resume (and their requirement links) stay unchanged.
+- Versions already on this posting resume show `On resume` in the menu and cannot be chosen (no duplicate). The UI shows a note instead of swapping (`That version is already on this resume.`).
+- Requirement links do not move by default. An optional post-swap action may **transfer only this row's former entry links** to the new version — never a sibling version's links.
+- Default toast when links stay put: `Swapped wording. Requirement mapping didn't change. [Undo]`.
 
 ### 7.2 `Add from library` popover
 
