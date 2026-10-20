@@ -1,3 +1,10 @@
+import { buildExperiencesPanel } from './experiences-panel.js';
+import {
+  experiencesUiEnabled,
+  readPanelCollapsed,
+  writePanelCollapsed,
+  librarySectionKey,
+} from './experiences-ui.js';
 import {
   STORE_KEY,
   POSTING_STATUSES,
@@ -35,6 +42,13 @@ import {
   searchKnowledge,
   experienceCatalog,
   experienceCatalogGroups,
+  libraryCatalogGroups,
+  experienceRequirementCoverageCount,
+  groupEntriesAsExperience,
+  renameExperience,
+  ungroupExperience,
+  swapPostingResumeExperienceVersion,
+  experienceVersionSwapMenu,
   experienceDetailPatch,
   postingsUsingEntry,
   KNOWLEDGE_SAVE_MS,
@@ -275,8 +289,22 @@ const expandedExperienceDetails = new Set();
 const expandedExperienceNotes = new Set();
 /** Role group keys collapsed this session (`jobId` or `__none__`). */
 const collapsedExperienceGroups = new Set();
+/** Experience / loose subsection keys within a job group (Experiences UI). */
+const collapsedLibrarySections = new Set();
+/** Multi-select for Group as experience / panel add-to-resume. */
+const selectedCatalogEntryIds = new Set();
+const collapsedExpPanelJobs = new Set();
+const collapsedExpPanelExperiences = new Set();
+const collapsedExpPanelLooseSummary = new Set();
+let experiencesPanelQuery = '';
+let experiencesPanelJobFilter = '';
+/** Entry id chosen in Experiences panel for requirement mapping on a posting. */
+let postingMapTargetEntryId = '';
 /** Jobs catalog on Resume bullets expanded this session (not persisted). */
 let jobsCatalogExpanded = false;
+let experiencesMobileDrawerOpen = false;
+/** Resume bullet id with the Versions ▾ menu open (session only). */
+let expandedVersionSwapBulletId = '';
 
 function storeCacheKey() {
   if (localMode) return LOCAL_STORE_KEY;
@@ -1648,33 +1676,297 @@ function experienceGroupHeader(group) {
   ]);
 }
 
+function experienceSectionHeader(jobKey, section) {
+  const sectionKey = librarySectionKey(jobKey, section);
+  const expanded = !collapsedLibrarySections.has(sectionKey);
+  const bodyId = `exp-section-${sectionKey.replace(/[^a-z0-9_-]/gi, '-')}`;
+  if (section.kind === 'loose' && section.label) {
+    return el('header', { class: 'bb-exp-section-head bb-exp-section-loose' }, [
+      el('button', {
+        type: 'button',
+        class: 'bb-exp-section-toggle',
+        'aria-expanded': expanded ? 'true' : 'false',
+        'aria-controls': bodyId,
+        onClick: (event) => {
+          event.preventDefault();
+          if (expanded) collapsedLibrarySections.add(sectionKey);
+          else collapsedLibrarySections.delete(sectionKey);
+          const scroll = captureScroll();
+          render();
+          restoreScroll(scroll);
+        },
+      }, [
+        el('span', { class: 'bb-exp-group-chevron', 'aria-hidden': 'true' }),
+        el('span', {}, `${section.label} · ${section.rows.length}`),
+      ]),
+    ]);
+  }
+  if (section.kind !== 'experience') return null;
+  const xp = (store.experiences || []).find((row) => row.id === section.experienceId);
+  return el('header', { class: 'bb-exp-section-head bb-exp-section-xp' }, [
+    el('button', {
+      type: 'button',
+      class: 'bb-exp-section-toggle',
+      'aria-expanded': expanded ? 'true' : 'false',
+      'aria-controls': bodyId,
+      onClick: (event) => {
+        event.preventDefault();
+        if (expanded) collapsedLibrarySections.add(sectionKey);
+        else collapsedLibrarySections.delete(sectionKey);
+        const scroll = captureScroll();
+        render();
+        restoreScroll(scroll);
+      },
+    }, [
+      el('span', { class: 'bb-exp-group-chevron', 'aria-hidden': 'true' }),
+      el('span', { class: 'bb-exp-section-title' }, section.label),
+      el('span', { class: 'bb-exp-group-count' }, `${section.versionCount} version${section.versionCount === 1 ? '' : 's'}`),
+    ]),
+    xp && experiencesUiEnabled()
+      ? btn('Rename', {
+        type: 'button',
+        class: 'btn ghost compact-action',
+        onClick: () => {
+          const name = window.prompt('Experience name', xp.title || '');
+          if (!name?.trim() || name.trim() === xp.title) return;
+          store = renameExperience(store, xp.id, name.trim()).store;
+          saveStore();
+          render();
+        },
+      })
+      : null,
+    xp && experiencesUiEnabled()
+      ? btn('Ungroup', {
+        type: 'button',
+        class: 'btn ghost compact-action',
+        onClick: () => {
+          if (!confirm('Ungroup this experience? Bullets stay in the library as loose lines.')) return;
+          store = ungroupExperience(store, xp.id).store;
+          saveStore();
+          setNote('Ungrouped. Bullets are loose under the same job.');
+          render();
+        },
+      })
+      : null,
+  ]);
+}
+
+function catalogSelectionBar() {
+  const count = selectedCatalogEntryIds.size;
+  if (!count || !experiencesUiEnabled()) return null;
+  return el('div', { class: 'bb-exp-catalog-selection' }, [
+    el('span', {}, `${count} selected`),
+    count >= 2
+      ? btn('Group as experience', {
+        type: 'button',
+        class: 'btn',
+        onClick: () => {
+          const ids = [...selectedCatalogEntryIds];
+          const title = window.prompt('Name this experience');
+          if (!title?.trim()) return;
+          const first = store.entries.find((item) => item.id === ids[0]);
+          try {
+            const grouped = groupEntriesAsExperience(store, ids, {
+              jobId: first?.jobId,
+              title: title.trim(),
+            });
+            store = grouped.store;
+            selectedCatalogEntryIds.clear();
+            saveStore();
+            setNote('Grouped bullets into an experience.');
+            render();
+          } catch (error) {
+            setNote(error.message || 'Could not group those bullets.');
+          }
+        },
+      })
+      : null,
+    btn('Clear', {
+      type: 'button',
+      class: 'btn ghost',
+      onClick: () => {
+        selectedCatalogEntryIds.clear();
+        render();
+      },
+    }),
+  ]);
+}
+
+function addLibraryEntriesToPostingResume(posting, entryIds) {
+  if (!posting?.id || !entryIds?.length) return;
+  let next = store;
+  let placed = 0;
+  for (const entryId of entryIds) {
+    const entry = next.entries.find((item) => item.id === entryId);
+    if (!entry?.jobId) continue;
+    const before = JSON.stringify(next);
+    next = placeLibraryBullet(next, {
+      postingId: posting.id,
+      jobId: entry.jobId,
+      groupId: '',
+      entryId,
+    });
+    if (JSON.stringify(next) !== before) placed += 1;
+  }
+  if (placed) {
+    store = next;
+    selectedCatalogEntryIds.clear();
+    saveStore();
+    setNote(`Added ${placed} bullet${placed === 1 ? '' : 's'} to this posting’s resume.`);
+    render();
+  } else {
+    setNote('Those bullets are already on the resume or could not be placed.');
+  }
+}
+
+function experiencesPanelForPage(page, posting = null) {
+  if (!experiencesUiEnabled()) return null;
+  const collapsed = readPanelCollapsed();
+  const rail = el('button', {
+    type: 'button',
+    class: 'bb-exp-panel-rail',
+    'aria-label': 'Expand Experiences panel',
+    onClick: () => {
+      writePanelCollapsed(false);
+      render();
+    },
+  }, '▸ Experiences');
+  if (collapsed && window.matchMedia('(min-width: 1100px)').matches) {
+    return rail;
+  }
+  const panel = buildExperiencesPanel({
+    el,
+    btn,
+    store,
+    posting,
+    page,
+    collapsedPanelJobs: collapsedExpPanelJobs,
+    collapsedPanelExperiences: collapsedExpPanelExperiences,
+    collapsedLooseSummary: collapsedExpPanelLooseSummary,
+    selectedEntryIds: selectedCatalogEntryIds,
+    mapTargetEntryId: postingMapTargetEntryId,
+    panelQuery: experiencesPanelQuery,
+    panelJobFilter: experiencesPanelJobFilter,
+    onRender: (opts) => render(opts?.focusEntryId ? { focusKey: `exp-line-${opts.focusEntryId}` } : undefined),
+    onSave: () => saveStore(),
+    setNote,
+    setStore: (next) => { store = next; },
+    displayExperienceLine,
+    onSetMapTarget: (entryId) => { postingMapTargetEntryId = entryId || ''; },
+    onPanelQueryChange: (value) => {
+      experiencesPanelQuery = value;
+      render();
+    },
+    onPanelJobFilterChange: (value) => {
+      experiencesPanelJobFilter = value;
+      render();
+    },
+    onAddEntriesToResume: (ids) => addLibraryEntriesToPostingResume(posting, ids),
+  });
+  const close = btn('×', {
+    type: 'button',
+    class: 'bb-exp-panel-close',
+    'aria-label': 'Collapse Experiences panel',
+    onClick: () => {
+      if (window.matchMedia('(max-width: 720px)').matches) {
+        experiencesMobileDrawerOpen = false;
+      } else {
+        writePanelCollapsed(true);
+      }
+      render();
+    },
+  });
+  panel.querySelector('.bb-exp-panel-head')?.append(close);
+  return panel;
+}
+
+function experienceCatalogRow(entry) {
+  const selectable = experiencesUiEnabled();
+  const selected = selectedCatalogEntryIds.has(entry.id);
+  const row = experienceRow(entry);
+  if (!selectable) return row;
+  const check = el('label', { class: 'bb-exp-row-check' }, [
+    el('input', {
+      type: 'checkbox',
+      checked: selected,
+      'aria-label': 'Select for grouping',
+      onChange: (event) => {
+        if (event.target.checked) selectedCatalogEntryIds.add(entry.id);
+        else selectedCatalogEntryIds.delete(entry.id);
+        render();
+      },
+    }),
+  ]);
+  row.prepend(check);
+  return row;
+}
+
 function experienceTable(view) {
-  const groups = experienceCatalogGroups(store, { query });
+  const grouped = experiencesUiEnabled();
+  const groups = grouped
+    ? libraryCatalogGroups(store, { query })
+    : experienceCatalogGroups(store, { query });
   const total = groups.reduce((sum, group) => sum + group.count, 0);
-  return el('section', { class: 'panel bb-book-catalog' }, [
+  const catalog = el('section', { class: 'panel bb-book-catalog' }, [
     experienceTools(view),
     total
       ? el('div', { class: 'bb-exp-list' }, groups.flatMap((group) => {
         const groupKey = group.jobId || '__none__';
         const groupExpanded = !collapsedExperienceGroups.has(groupKey);
         const bodyId = `exp-group-${groupKey}`;
+        const renderRows = (rows) => rows.map((row) => {
+          const entry = store.entries.find((item) => item.id === row.id);
+          return entry ? experienceCatalogRow(entry) : null;
+        });
+        if (!grouped) {
+          return [
+            experienceGroupHeader(group),
+            groupExpanded
+              ? el('div', { class: 'bb-exp-group-body', id: bodyId, 'data-group-id': groupKey }, renderRows(group.rows))
+              : null,
+          ];
+        }
         return [
           experienceGroupHeader(group),
           groupExpanded
-            ? el('div', {
-              class: 'bb-exp-group-body',
-              id: bodyId,
-              'data-group-id': groupKey,
-            }, group.rows.map((row) => {
-              const entry = store.entries.find((item) => item.id === row.id);
-              return entry ? experienceRow(entry) : null;
-            }))
+            ? el('div', { class: 'bb-exp-group-body', id: bodyId, 'data-group-id': groupKey },
+              (group.sections || []).flatMap((section) => {
+                const sectionKey = librarySectionKey(groupKey, section);
+                const sectionExpanded = !collapsedLibrarySections.has(sectionKey);
+                const sectionBodyId = `exp-section-${sectionKey.replace(/[^a-z0-9_-]/gi, '-')}`;
+                const head = experienceSectionHeader(groupKey, section);
+                if (section.kind === 'loose' && !section.label) {
+                  return renderRows(section.rows);
+                }
+                return [
+                  head,
+                  sectionExpanded
+                    ? el('div', { class: 'bb-exp-section-body', id: sectionBodyId }, renderRows(section.rows))
+                    : null,
+                ];
+              }))
             : null,
         ];
       }))
       : el('p', { class: 'empty' }, query
         ? 'Nothing matches that.'
         : 'No resume bullets yet. Add a resume bullet — pick a job, and STAR sits on the row.'),
+    catalogSelectionBar(),
+  ]);
+  const panel = experiencesPanelForPage('catalog');
+  if (!panel) return catalog;
+  const mobileOpen = experiencesMobileDrawerOpen;
+  return el('div', { class: `bb-book-dual${mobileOpen ? ' is-drawer-open' : ''}` }, [
+    catalog,
+    panel,
+    el('button', {
+      type: 'button',
+      class: 'bb-exp-mobile-toggle',
+      onClick: () => {
+        experiencesMobileDrawerOpen = !experiencesMobileDrawerOpen;
+        render();
+      },
+    }, 'Experiences'),
   ]);
 }
 
@@ -2795,6 +3087,25 @@ function requirementTableRow(job, req) {
     el('td', { class: 'requirement-cell', 'data-label': 'Requirement' }, [
       el('div', { class: 'requirement-line' }, [
         requirement,
+        postingMapTargetEntryId && experiencesUiEnabled()
+          ? btn('Map here', {
+            type: 'button',
+            class: 'btn ghost compact-action bb-req-map-here',
+            onClick: () => {
+              const entryId = postingMapTargetEntryId;
+              const already = req.bullets.some((line) => line.entryId === entryId);
+              if (already) {
+                setNote('That bullet is already on this requirement.');
+                return;
+              }
+              store = addEntryBullet(store, job.id, req.id, entryId);
+              postingMapTargetEntryId = '';
+              saveStore();
+              render();
+              setNote('Mapped resume bullet to this requirement.');
+            },
+          })
+          : null,
         el('div', { class: 'row-icons' }, [
           btn('?', {
             class: 'icon-quiet',
@@ -2913,8 +3224,8 @@ function pasteMoreDisclosure(job) {
 }
 
 function jobDetail(job) {
-  const wrap = el('section', { class: 'panel job-workspace' });
-  wrap.append(
+  const workspace = el('section', { class: 'panel job-workspace' });
+  workspace.append(
     el('div', { class: 'panel-head' }, [
       el('div', {}, [
         el('h2', {}, job.title),
@@ -2938,7 +3249,21 @@ function jobDetail(job) {
       jobDetailsDisclosure(job),
     ])
   );
-  return wrap;
+  if (!experiencesUiEnabled()) return workspace;
+  const panel = experiencesPanelForPage('posting', job);
+  if (!panel) return workspace;
+  return el('div', { class: `bb-book-dual bb-posting-dual${experiencesMobileDrawerOpen ? ' is-drawer-open' : ''}` }, [
+    workspace,
+    panel,
+    el('button', {
+      type: 'button',
+      class: 'bb-exp-mobile-toggle',
+      onClick: () => {
+        experiencesMobileDrawerOpen = !experiencesMobileDrawerOpen;
+        render();
+      },
+    }, 'Experiences'),
+  ]);
 }
 
 function prepKey(jobId) {
@@ -3897,6 +4222,75 @@ function addSubheadingButton(posting, career, { afterId } = {}) {
   });
 }
 
+function resumeExperienceVersionMenu(posting, bullet) {
+  if (!posting?.id || !experiencesUiEnabled()) return null;
+  const entryId = (bullet.sourceEntryIds || [])[0];
+  if (!entryId) return null;
+  const menu = experienceVersionSwapMenu(store, posting.id, bullet.id);
+  if (!menu?.choices?.length || menu.choices.length < 2) return null;
+  const popoverId = `bb-version-menu-${bullet.id}`;
+  let open = expandedVersionSwapBulletId === bullet.id;
+  const close = () => {
+    expandedVersionSwapBulletId = '';
+    render();
+  };
+  const toggle = btn(`Versions ${menu.choices.length} ▾`, {
+    type: 'button',
+    class: 'btn ghost compact-action bb-version-swap',
+    'aria-expanded': open ? 'true' : 'false',
+    'aria-controls': popoverId,
+    onClick: () => {
+      expandedVersionSwapBulletId = open ? '' : bullet.id;
+      render();
+    },
+  });
+  if (!open) return toggle;
+  const list = el('div', {
+    class: 'bb-version-swap-menu',
+    id: popoverId,
+    role: 'menu',
+  }, menu.choices.map((choice) => {
+    const disabled = choice.onResume && choice.onResumeBulletId !== bullet.id;
+    return btn(choice.onResume ? `${choice.title} · On resume` : choice.title, {
+      type: 'button',
+      class: `bb-version-swap-choice${disabled ? ' is-disabled' : ''}`,
+      disabled,
+      onClick: () => {
+        if (disabled) {
+          setNote('That version is already on this resume.');
+          return;
+        }
+        if (choice.entryId === entryId) {
+          close();
+          return;
+        }
+        const transfer = window.confirm(
+          'Move this row’s requirement links to the chosen version? Other on-resume versions stay as they are.',
+        );
+        const swapped = swapPostingResumeExperienceVersion(store, {
+          postingId: posting.id,
+          resumeBulletId: bullet.id,
+          toEntryId: choice.entryId,
+          transferRequirementLinks: transfer,
+        });
+        if (!swapped.ok) {
+          setNote(swapped.note || 'That version is already on this resume.');
+          return;
+        }
+        store = swapped.store;
+        expandedVersionSwapBulletId = '';
+        saveStore();
+        scheduleResumePreview(posting);
+        render({ focusKey: `rb-${bullet.id}-line` });
+        setNote(transfer
+          ? 'Swapped version and moved requirement links for this row.'
+          : 'Swapped version on this resume row.');
+      },
+    });
+  }));
+  return el('div', { class: 'bb-version-swap-wrap' }, [toggle, list]);
+}
+
 function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0, groups = []) {
   const dropped = (resumeFit.droppedBulletIds || []).includes(bullet.id);
   const shared = isSharedJob(career.id);
@@ -3970,6 +4364,7 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0, gro
       ]),
       dropped ? el('span', { class: 'tiny' }, 'Hidden to fit') : null,
       bullet.hasOverride ? el('span', { class: 'tiny' }, 'This posting only') : null,
+      posting ? resumeExperienceVersionMenu(posting, bullet) : null,
       canEdit ? resumeMoveBtns('bullet', {
         index: bulletIndex,
         length: group.bullets.length,
