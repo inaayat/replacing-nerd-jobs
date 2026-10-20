@@ -26,6 +26,7 @@ export function buildExperiencesPanel(deps) {
     renderPanelCreateForm,
     panelCreateOpen = false,
     displayExperienceLine,
+    renderPanelQueryResults = null,
   } = deps;
 
   const rows = compactExperienceIndex(store, {
@@ -54,14 +55,17 @@ export function buildExperiencesPanel(deps) {
   const search = el('input', {
     type: 'search',
     class: 'search bb-exp-panel-search',
-    placeholder: 'Search experiences…',
+    placeholder: posting ? 'Search experiences and bullets…' : 'Search experiences…',
     value: panelQuery,
     'aria-label': 'Search experiences',
     'data-focus-key': 'exp-panel-search',
     onInput: (event) => onPanelQueryChange(event.target.value),
   });
 
-  const scroll = el('div', { class: 'bb-exp-panel-scroll' }, rows.map((row) => {
+  const queryTrimmed = String(panelQuery || '').trim();
+  const scroll = el('div', { class: 'bb-exp-panel-scroll' }, queryTrimmed && renderPanelQueryResults
+    ? [renderPanelQueryResults]
+    : rows.map((row) => {
     const active = activeExperienceId === row.id;
     const dragOver = dragOverExperienceId === row.id;
     return el('button', {
@@ -96,10 +100,8 @@ export function buildExperiencesPanel(deps) {
     ]);
   }));
 
-  if (!rows.length) {
-    scroll.append(el('p', { class: 'empty tiny' }, panelQuery
-      ? 'No experiences match that search.'
-      : 'No experiences yet. Use + New or assign from a bullet.'));
+  if (!queryTrimmed && !rows.length) {
+    scroll.append(el('p', { class: 'empty tiny' }, 'No experiences yet. Use + New or assign from a bullet.'));
   }
 
   return el('aside', { class: 'bb-exp-side-panel', 'aria-label': 'Experiences' }, [

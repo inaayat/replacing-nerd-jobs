@@ -19,6 +19,15 @@ import {
 } from './experiences-ui.js';
 import { experiencesDualInlineMediaQuery } from './experiences-layout.js';
 import {
+  buildRequirementMappingStack,
+  buildPostingMapSearchResults,
+  requirementBucketKey,
+  mapExperienceBucketToRequirement,
+  mapEntryToRequirement,
+  searchPostingMapTargets,
+} from './posting-requirement-mapping-ui.js';
+import { idempotentAddEntryToPostingResume } from './posting-requirement-mapping.js';
+import {
   STORE_KEY,
   POSTING_STATUSES,
   SAMPLE_JD,
@@ -317,6 +326,10 @@ let experiencesPanelQuery = '';
 let experiencesPanelJobFilter = '';
 /** Entry id chosen in Experiences panel for requirement mapping on a posting. */
 let postingMapTargetEntryId = '';
+/** @type {{ kind: 'experience', experienceId: string } | { kind: 'bullet', entryId: string } | null} */
+let postingMapPick = null;
+const requirementMapSearchByKey = new Map();
+const expandedRequirementBuckets = new Set();
 let catalogBulkSelectMode = false;
 let openExperiencePickerEntryId = '';
 let experiencePickerSearch = '';
@@ -2265,6 +2278,24 @@ function experiencesPanelForPage(page, posting = null) {
       },
     }),
     panelCreateOpen: panelExperienceCreateOpen,
+    renderPanelQueryResults: posting && String(experiencesPanelQuery || '').trim()
+      ? buildPostingMapSearchResults({
+        el,
+        btn,
+        onPickExperience: (experienceId) => {
+          postingMapPick = { kind: 'experience', experienceId };
+          postingMapTargetEntryId = '';
+          setNote('Choose a requirement and tap Map here.');
+          render({ preserveScroll: true, focusKey: 'exp-panel-search' });
+        },
+        onPickBullet: (entryId) => {
+          postingMapPick = { kind: 'bullet', entryId };
+          postingMapTargetEntryId = entryId;
+          setNote('Choose a requirement and tap Map here.');
+          render({ preserveScroll: true, focusKey: 'exp-panel-search' });
+        },
+      }, searchPostingMapTargets(store, experiencesPanelQuery))
+      : null,
   });
   const close = btn('×', {
     type: 'button',
@@ -3457,6 +3488,146 @@ function experienceAdder(job, req) {
   return wrap;
 }
 
+function requirementExperiencesCell(job, req) {
+  if (!experiencesUiEnabled()) {
+    const bullets = el('div', { class: 'table-bullets' });
+    for (const bullet of req.bullets) {
+      const bulletKey = `${job.id}:${req.id}:${bullet.id}`;
+      const isOpen = expandedBulletKey === bulletKey;
+      const linked = linkedBulletLine(store, bullet);
+      const shown = displayExperienceLine(linked.text);
+      const line = richLine({
+        class: 'bullet-copy is-marked',
+        'aria-label': 'Experience',
+      }, {
+        text: shown,
+        rich: shown === String(linked.text || '').trim() ? linked.rich : null,
+        onChange: (spans) => {
+          const text = spans.map((span) => span.text).join('');
+          if (!text.trim()) return;
+          store = updateBullet(store, job.id, req.id, bullet.id, { text, rich: spans });
+          saveStore();
+        },
+      });
+      const entry = bulletEntry(store, bullet);
+      bullets.append(el('div', { class: 'bullet-link bb-posting-bullet' }, [
+        el('span', { class: 'bullet-mark', 'aria-hidden': 'true' }, '•'),
+        line,
+        el('div', { class: 'bb-posting-bullet-actions bb-action-row' }, [
+          entry ? experienceMembershipPicker(entry) : null,
+          btn(isOpen ? 'Close ↑' : 'Details ↓', {
+            class: 'bullet-open',
+            'aria-expanded': String(isOpen),
+            onClick: () => {
+              expandedBulletKey = isOpen ? '' : bulletKey;
+              render({ preserveScroll: true });
+            },
+          }),
+          btn('Unmap', {
+            class: 'btn ghost compact-action',
+            onClick: () => {
+              if (!confirm('Remove this experience from this requirement? It will stay in the Brag Book.')) return;
+              store = deleteBullet(store, job.id, req.id, bullet.id);
+              saveStore();
+              render({ preserveScroll: true });
+            },
+          }),
+        ]),
+      ]));
+      if (isOpen) bullets.append(experienceEditor(job, req, bullet));
+    }
+    bullets.append(experienceAdder(job, req));
+    return el('div', { class: 'bullets-stack' }, [bullets]);
+  }
+
+  const mapKey = `${job.id}:${req.id}`;
+  const searchValue = requirementMapSearchByKey.get(mapKey) || '';
+  const mappingDeps = {
+    el,
+    btn,
+    store,
+    searchValue,
+    linkedBulletLine,
+    displayExperienceLine,
+    richLine,
+    experienceEditor,
+    expandedBulletKey,
+    updateBullet,
+    onSearchChange: (value) => {
+      requirementMapSearchByKey.set(mapKey, value);
+      render({ preserveScroll: true, focusKey: `post-map-${req.id}` });
+    },
+    focusKey: `post-map-${req.id}`,
+    setExpandedBulletKey: (key) => { expandedBulletKey = key; },
+    onSave: (next) => {
+      store = next;
+      saveStore();
+    },
+    onRender: (opts) => render(opts),
+    isBucketExpanded: (bKey) => expandedRequirementBuckets.has(bKey),
+    toggleBucketExpanded: (bKey) => {
+      if (expandedRequirementBuckets.has(bKey)) expandedRequirementBuckets.delete(bKey);
+      else expandedRequirementBuckets.add(bKey);
+    },
+    onPickExperience: (experienceId) => {
+      store = mapExperienceBucketToRequirement(store, job.id, req.id, experienceId);
+      expandedRequirementBuckets.delete(requirementBucketKey(job.id, req.id, experienceId));
+      requirementMapSearchByKey.set(mapKey, '');
+      saveStore();
+      render({ preserveScroll: true, focusKey: `post-map-${req.id}` });
+      setNote('Experience added. Expand the row to pick versions.');
+    },
+    onPickBullet: (entryId) => {
+      store = mapEntryToRequirement(store, job.id, req.id, entryId);
+      store = idempotentAddEntryToPostingResume(store, job.id, entryId);
+      const entry = store.entries.find((row) => row.id === entryId);
+      if (entry?.experienceId) {
+        expandedRequirementBuckets.delete(requirementBucketKey(job.id, req.id, entry.experienceId));
+      }
+      requirementMapSearchByKey.set(mapKey, '');
+      saveStore();
+      render({ preserveScroll: true, focusKey: `post-map-${req.id}` });
+      setNote('Bullet mapped to this requirement.');
+    },
+  };
+  return el('div', { class: 'bullets-stack' }, [
+    buildRequirementMappingStack(mappingDeps, job, req),
+  ]);
+}
+
+function applyPostingMapPickToRequirement(job, req) {
+  if (!postingMapPick) return false;
+  if (postingMapPick.kind === 'bullet') {
+    const entryId = postingMapPick.entryId;
+    if (req.bullets.some((line) => line.entryId === entryId)) {
+      setNote('That bullet is already on this requirement.');
+      return true;
+    }
+    store = mapEntryToRequirement(store, job.id, req.id, entryId);
+    store = idempotentAddEntryToPostingResume(store, job.id, entryId);
+    const entry = store.entries.find((row) => row.id === entryId);
+    if (entry?.experienceId) {
+      expandedRequirementBuckets.delete(requirementBucketKey(job.id, req.id, entry.experienceId));
+    }
+    postingMapPick = null;
+    postingMapTargetEntryId = '';
+    saveStore();
+    render({ preserveScroll: true });
+    setNote('Mapped resume bullet to this requirement.');
+    return true;
+  }
+  if (postingMapPick.kind === 'experience') {
+    store = mapExperienceBucketToRequirement(store, job.id, req.id, postingMapPick.experienceId);
+    expandedRequirementBuckets.delete(requirementBucketKey(job.id, req.id, postingMapPick.experienceId));
+    postingMapPick = null;
+    saveStore();
+    render({ preserveScroll: true });
+    setNote('Experience added to this requirement.');
+    return true;
+  }
+  return false;
+}
+
 function requirementTableRow(job, req) {
   const requirement = el('textarea', {
     class: 'table-req-text',
@@ -3479,86 +3650,33 @@ function requirementTableRow(job, req) {
   }, req.text);
   requirement.value = req.text;
   const composerKey = `${job.id}:${req.id}`;
-  const bullets = el('div', { class: 'table-bullets' });
-  for (const bullet of req.bullets) {
-    const bulletKey = `${job.id}:${req.id}:${bullet.id}`;
-    const isOpen = expandedBulletKey === bulletKey;
-    const linked = linkedBulletLine(store, bullet);
-    const shown = displayExperienceLine(linked.text);
-    const line = richLine({
-      class: 'bullet-copy is-marked',
-      'aria-label': 'Experience',
-    }, {
-      text: shown,
-      rich: shown === String(linked.text || '').trim() ? linked.rich : null,
-      onChange: (spans) => {
-        const text = spans.map((span) => span.text).join('');
-        if (!text.trim()) return;
-        // Patch the existing bullet. A linked row updates that entry in place
-        // and does not add another experience.
-        store = updateBullet(store, job.id, req.id, bullet.id, { text, rich: spans });
-        saveStore();
-      },
-    });
-    const entry = bulletEntry(store, bullet);
-    const highlight = entry && activePanelExperienceId && entry.experienceId === activePanelExperienceId;
-    bullets.append(el('div', {
-      class: `bullet-link bb-posting-bullet${highlight ? ' is-xp-highlight' : ''}`,
-      'data-entry-id': entry?.id || '',
-      draggable: entry && experiencesUiEnabled() ? 'true' : undefined,
-      onDragstart: entry ? (event) => {
-        if (event.dataTransfer) {
-          event.dataTransfer.setData('text/brag-entry-id', entry.id);
-          event.dataTransfer.effectAllowed = 'move';
-        }
-      } : undefined,
-    }, [
-      el('span', { class: 'bullet-mark', 'aria-hidden': 'true' }, '•'),
-      line,
-      el('div', { class: 'bb-posting-bullet-actions bb-action-row' }, [
-        entry ? experienceMembershipPicker(entry) : null,
-        btn(isOpen ? 'Close ↑' : 'Details ↓', {
-          class: 'bullet-open',
-          'aria-expanded': String(isOpen),
-          onClick: () => {
-            expandedBulletKey = isOpen ? '' : bulletKey;
-            render({ preserveScroll: true });
-          },
-        }),
-        btn('Unmap', {
-          class: 'btn ghost compact-action',
-          onClick: () => {
-            if (!confirm('Remove this experience from this requirement? It will stay in the Brag Book.')) return;
-            store = deleteBullet(store, job.id, req.id, bullet.id);
-            saveStore();
-            render({ preserveScroll: true });
-          },
-        }),
-      ]),
-    ]));
-    if (isOpen) bullets.append(experienceEditor(job, req, bullet));
-  }
-  bullets.append(experienceAdder(job, req));
+  const showMapHere = experiencesUiEnabled()
+    && (postingMapPick || postingMapTargetEntryId);
 
   return el('tr', { class: 'job-table-row' }, [
     el('td', { class: 'requirement-cell', 'data-label': 'Requirement' }, [
       el('div', { class: 'requirement-line' }, [
         requirement,
-        postingMapTargetEntryId && experiencesUiEnabled()
+        showMapHere
           ? btn('Map here', {
             type: 'button',
             class: 'btn ghost compact-action bb-req-map-here',
             onClick: () => {
+              if (postingMapPick) {
+                applyPostingMapPickToRequirement(job, req);
+                return;
+              }
               const entryId = postingMapTargetEntryId;
               const already = req.bullets.some((line) => line.entryId === entryId);
               if (already) {
                 setNote('That bullet is already on this requirement.');
                 return;
               }
-              store = addEntryBullet(store, job.id, req.id, entryId);
+              store = mapEntryToRequirement(store, job.id, req.id, entryId);
+              store = idempotentAddEntryToPostingResume(store, job.id, entryId);
               postingMapTargetEntryId = '';
               saveStore();
-              render();
+              render({ preserveScroll: true });
               setNote('Mapped resume bullet to this requirement.');
             },
           })
@@ -3592,7 +3710,7 @@ function requirementTableRow(job, req) {
         : null,
     ]),
     el('td', { class: 'bullets-cell', 'data-label': 'Experiences' }, [
-      el('div', { class: 'bullets-stack' }, [bullets]),
+      requirementExperiencesCell(job, req),
     ]),
   ]);
 }

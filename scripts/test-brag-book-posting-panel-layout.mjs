@@ -40,6 +40,7 @@ assert.doesNotMatch(indexCountRule, /text-transform:\s*uppercase/);
 assert.match(indexCountRule, /text-transform:\s*none/);
 
 assert.match(css, /\.bullet-link > \.bb-posting-bullet-actions[\s\S]*grid-column:\s*1 \/ -1/);
+assert.match(css, /\.bb-post-map-bullet-line[\s\S]*grid-column:\s*1 \/ -1/);
 assert.match(css, /\.bb-unmapped-actions[\s\S]*grid-column:\s*1 \/ -1/);
 assert.match(css, /\.bb-exp-picker-chip[\s\S]*text-overflow:\s*ellipsis/);
 assert.match(app, /experiencesDualInlineMediaQuery/);
@@ -123,12 +124,28 @@ assert.ok(
   'panel follows workspace in DOM',
 );
 
-const bullet = document.querySelector('.bb-posting-bullet');
-assert.ok(bullet, 'mapped posting bullet renders');
-const copy = bullet.querySelector('.bullet-copy, .experience-compose, .is-marked');
-const actions = bullet.querySelector('.bb-posting-bullet-actions');
-assert.ok(copy && actions, 'bullet has text and action row');
-assert.ok(copy.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING, 'actions follow bullet text in DOM');
+assert.ok(document.querySelector('.bb-post-map-stack'), 'experiences mapping stack renders');
+const mapBullet = document.querySelector('.bb-post-map-bucket-included .bb-post-map-bullet')
+  || document.querySelector('.bb-post-map-loose-bullets .bb-post-map-bullet');
+if (mapBullet) {
+  const line = mapBullet.querySelector('.bb-post-map-bullet-line');
+  const control = mapBullet.querySelector('.bb-post-map-details, .bb-post-map-unmap');
+  assert.ok(line && control, 'mapped bucket bullet has text and controls');
+  assert.ok(
+    line.compareDocumentPosition(control) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING,
+    'controls follow bullet text in DOM',
+  );
+}
+const legacyBullet = document.querySelector('.bb-posting-bullet');
+if (legacyBullet) {
+  const copy = legacyBullet.querySelector('.bullet-copy, .experience-compose, .is-marked');
+  const actions = legacyBullet.querySelector('.bb-posting-bullet-actions');
+  assert.ok(copy && actions, 'legacy bullet has text and action row');
+  assert.ok(
+    copy.compareDocumentPosition(actions) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING,
+    'legacy actions follow bullet text in DOM',
+  );
+}
 
 const unmappedActions = document.querySelector('.bb-unmapped-actions');
 if (unmappedActions) {

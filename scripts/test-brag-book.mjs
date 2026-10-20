@@ -3033,7 +3033,10 @@ const reqText = reqApp.textContent;
 assert.match(reqText, /Need close experience/);
 assert.match(reqText, /Need a second row/);
 assert.match(reqText, /\+ New/);
-assert.equal(reqApp.querySelectorAll('.experience-add').length, 2);
+const reqMapSearchCount = reqApp.querySelectorAll('.bb-post-map-search').length;
+const reqLegacyAddCount = reqApp.querySelectorAll('.experience-add').length;
+assert.equal(reqMapSearchCount || reqLegacyAddCount, 2);
+assert.equal(reqMapSearchCount, 2);
 assert.equal(reqApp.querySelectorAll('.bb-shared-bullet').length, 0);
 assert.doesNotMatch(reqHtml, /null/);
 assert.doesNotMatch(reqHtml, /undefined/);
@@ -3172,7 +3175,7 @@ function installBookDom(hash, extras = {}) {
   globalThis.confirm = () => false;
   globalThis.location = {
     hash,
-    search: '?local=1',
+    search: '?local=1&experiences=1',
     href: `http://127.0.0.1:8080/brag-book/?local=1${hash}`,
   };
   globalThis.window = {
@@ -3861,7 +3864,7 @@ assert.ok(bulkJob.entries.every((entry) => entry.jobId === 'rj_bulk' && entry.co
 
 const adderSrc = appSource.slice(
   appSource.indexOf('function experienceAdder'),
-  appSource.indexOf('function requirementTableRow'),
+  appSource.indexOf('function requirementExperiencesCell'),
 );
 assert.match(adderSrc, /Search experiences, or type a new one/);
 assert.match(adderSrc, /createEntryBullet/);

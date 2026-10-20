@@ -699,6 +699,9 @@ export function normalizeRequirement(raw, clock = Date.now) {
   const entryIds = Array.isArray(raw.entryIds)
     ? [...new Set(raw.entryIds.map((id) => asString(id, 64)).filter(Boolean))]
     : [];
+  const coveredExperienceIds = Array.isArray(raw.coveredExperienceIds)
+    ? [...new Set(raw.coveredExperienceIds.map((id) => asString(id, 64)).filter(Boolean))]
+    : [];
   const source = Array.isArray(raw.experiences) && raw.experiences.length ? raw.experiences : raw.bullets;
   const bullets = normalizeBullets(source, clock);
   return {
@@ -708,6 +711,7 @@ export function normalizeRequirement(raw, clock = Date.now) {
     experiences: bullets,
     questions: normalizeQuestions(raw.questions, clock),
     entryIds,
+    coveredExperienceIds,
   };
 }
 
@@ -3392,6 +3396,38 @@ export function unlinkEntry(store, postingId, requirementId, entryId, clock = Da
     requirementId,
     (req) => ({ ...req, entryIds: req.entryIds.filter((id) => id !== entryId) }),
     clock
+  );
+}
+
+export function addExperienceCoverage(store, postingId, requirementId, experienceId, clock = Date.now) {
+  const xpId = asString(experienceId, 64);
+  if (!xpId || !experienceById(store, xpId)) return store;
+  return mapRequirement(
+    store,
+    postingId,
+    requirementId,
+    (req) => {
+      const ids = new Set(req.coveredExperienceIds || []);
+      if (ids.has(xpId)) return req;
+      ids.add(xpId);
+      return { ...req, coveredExperienceIds: [...ids] };
+    },
+    clock,
+  );
+}
+
+export function removeExperienceCoverage(store, postingId, requirementId, experienceId, clock = Date.now) {
+  const xpId = asString(experienceId, 64);
+  if (!xpId) return store;
+  return mapRequirement(
+    store,
+    postingId,
+    requirementId,
+    (req) => ({
+      ...req,
+      coveredExperienceIds: (req.coveredExperienceIds || []).filter((id) => id !== xpId),
+    }),
+    clock,
   );
 }
 
