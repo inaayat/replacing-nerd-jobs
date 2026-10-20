@@ -325,6 +325,7 @@ let panelDragOverExperienceId = '';
 let panelExperienceCreateOpen = false;
 let experienceRenameId = '';
 let experienceUngroupPendingId = '';
+let experienceSectionMenuId = '';
 let bulkAddMenuOpen = false;
 let bulkAddSearch = '';
 let bulkAddCreateOpen = false;
@@ -1843,15 +1844,135 @@ function experienceGroupHeader(group) {
   ]);
 }
 
-function experienceSectionHeader(jobKey, section) {
+function toggleLibrarySection(sectionKey, expanded) {
+  if (expanded) collapsedLibrarySections.add(sectionKey);
+  else collapsedLibrarySections.delete(sectionKey);
+  const scroll = captureScroll();
+  render({ preserveScroll: true });
+  restoreScroll(scroll);
+}
+
+function experienceSectionRenameRow(xp) {
+  const input = el('input', {
+    type: 'text',
+    class: 'bb-exp-section-rename-input',
+    value: xp.title || '',
+    'aria-label': 'Experience name',
+    'data-focus-key': `xp-rename-${xp.id}`,
+  });
+  const saveRename = () => {
+    const name = String(input.value || '').trim();
+    if (!name || name === xp.title) {
+      experienceRenameId = '';
+      render({ preserveScroll: true });
+      return;
+    }
+    store = renameExperience(store, xp.id, name).store;
+    experienceRenameId = '';
+    experienceSectionMenuId = '';
+    saveStore();
+    render({ preserveScroll: true });
+  };
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') { event.preventDefault(); saveRename(); }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      experienceRenameId = '';
+      render({ preserveScroll: true });
+    }
+  });
+  return el('div', { class: 'bb-exp-section-rename bb-action-row' }, [
+    input,
+    btn('Save', { type: 'button', class: 'btn compact-action', onClick: saveRename }),
+    btn('Cancel', {
+      type: 'button',
+      class: 'btn ghost compact-action',
+      onClick: () => {
+        experienceRenameId = '';
+        render({ preserveScroll: true });
+      },
+    }),
+  ]);
+}
+
+function experienceSectionOverflowMenu(xp) {
+  if (!xp || !experiencesUiEnabled()) return null;
+  const menuOpen = experienceSectionMenuId === xp.id;
+  const more = btn('⋯', {
+    type: 'button',
+    class: 'btn ghost bb-exp-section-more compact-action',
+    title: 'Experience actions',
+    'aria-label': 'Experience actions',
+    'aria-expanded': menuOpen ? 'true' : 'false',
+    onClick: (event) => {
+      event.stopPropagation();
+      experienceSectionMenuId = menuOpen ? '' : xp.id;
+      if (!menuOpen) experienceUngroupPendingId = '';
+      render({ preserveScroll: true });
+    },
+  });
+  if (!menuOpen) return el('div', { class: 'bb-exp-section-menu-wrap' }, [more]);
+  const menuItems = experienceUngroupPendingId === xp.id
+    ? [
+      el('p', { class: 'tiny bb-exp-section-menu-hint' }, 'Ungroup? Bullets stay loose under the same job.'),
+      btn('Ungroup', {
+        type: 'button',
+        class: 'bb-exp-section-menu-item',
+        onClick: () => {
+          store = ungroupExperience(store, xp.id).store;
+          experienceUngroupPendingId = '';
+          experienceSectionMenuId = '';
+          saveStore();
+          setNote('Ungrouped. Bullets are loose under the same job.');
+          render({ preserveScroll: true });
+        },
+      }),
+      btn('Cancel', {
+        type: 'button',
+        class: 'bb-exp-section-menu-item',
+        onClick: () => {
+          experienceUngroupPendingId = '';
+          render({ preserveScroll: true });
+        },
+      }),
+    ]
+    : [
+      btn('Rename', {
+        type: 'button',
+        class: 'bb-exp-section-menu-item',
+        onClick: () => {
+          experienceSectionMenuId = '';
+          experienceRenameId = xp.id;
+          experienceUngroupPendingId = '';
+          render({ preserveScroll: true, focusKey: `xp-rename-${xp.id}` });
+        },
+      }),
+      btn('Ungroup…', {
+        type: 'button',
+        class: 'bb-exp-section-menu-item',
+        onClick: () => {
+          experienceUngroupPendingId = xp.id;
+          render({ preserveScroll: true });
+        },
+      }),
+    ];
+  const menu = el('div', {
+    class: 'bb-exp-section-menu',
+    role: 'menu',
+    'aria-label': 'Experience actions',
+  }, menuItems);
+  return el('div', { class: 'bb-exp-section-menu-wrap' }, [more, menu]);
+}
+
+function experienceSectionHeader(jobKey, section, { bodyId = '' } = {}) {
   const sectionKey = librarySectionKey(jobKey, section);
   const expanded = !collapsedLibrarySections.has(sectionKey);
-  const bodyId = `exp-section-${sectionKey.replace(/[^a-z0-9_-]/gi, '-')}`;
+  const resolvedBodyId = bodyId || `exp-section-${sectionKey.replace(/[^a-z0-9_-]/gi, '-')}`;
   if (section.kind === 'loose' && section.label) {
     const looseIds = section.rows.map((row) => row.id);
     const allLooseSelected = looseIds.length > 0 && looseIds.every((id) => selectedCatalogEntryIds.has(id));
     const someLooseSelected = looseIds.some((id) => selectedCatalogEntryIds.has(id));
-    return el('header', { class: 'bb-exp-section-head bb-exp-section-loose bb-action-row' }, [
+    return el('header', { class: 'bb-exp-section-row bb-exp-section-loose' }, [
       catalogBulkSelectMode && looseIds.length
         ? el('label', { class: 'bb-exp-loose-select-all' }, [
           el('input', {
@@ -1867,138 +1988,48 @@ function experienceSectionHeader(jobKey, section) {
               render({ preserveScroll: true });
             },
           }),
-          el('span', { class: 'tiny' }, 'Select all'),
+          el('span', { class: 'bb-exp-loose-select-label' }, 'Select all'),
         ])
         : null,
       el('button', {
         type: 'button',
-        class: 'bb-exp-section-toggle',
+        class: 'bb-exp-section-row-toggle',
         'aria-expanded': expanded ? 'true' : 'false',
-        'aria-controls': bodyId,
+        'aria-controls': resolvedBodyId,
         onClick: (event) => {
           event.preventDefault();
-          if (expanded) collapsedLibrarySections.add(sectionKey);
-          else collapsedLibrarySections.delete(sectionKey);
-          const scroll = captureScroll();
-          render({ preserveScroll: true });
-          restoreScroll(scroll);
+          toggleLibrarySection(sectionKey, expanded);
         },
       }, [
-        el('span', { class: 'bb-exp-group-chevron', 'aria-hidden': 'true' }),
-        el('span', {}, `${section.label} · ${section.rows.length}`),
+        el('span', { class: 'bb-exp-section-chevron', 'aria-hidden': 'true' }),
+        el('span', { class: 'bb-exp-section-row-title' }, section.label),
+        el('span', { class: 'bb-exp-section-row-meta' }, `${section.rows.length} bullet${section.rows.length === 1 ? '' : 's'}`),
       ]),
     ]);
   }
   if (section.kind !== 'experience') return null;
   const xp = (store.experiences || []).find((row) => row.id === section.experienceId);
-  return el('header', { class: 'bb-exp-section-head bb-exp-section-xp' }, [
-    el('button', {
-      type: 'button',
-      class: 'bb-exp-section-toggle',
-      'aria-expanded': expanded ? 'true' : 'false',
-      'aria-controls': bodyId,
-      onClick: (event) => {
-        event.preventDefault();
-        if (expanded) collapsedLibrarySections.add(sectionKey);
-        else collapsedLibrarySections.delete(sectionKey);
-        const scroll = captureScroll();
-        render();
-        restoreScroll(scroll);
-      },
-    }, [
-      el('span', { class: 'bb-exp-group-chevron', 'aria-hidden': 'true' }),
-      el('span', { class: 'bb-exp-section-title' }, section.label),
-      el('span', { class: 'bb-exp-group-count' }, `${section.versionCount} version${section.versionCount === 1 ? '' : 's'}`),
-    ]),
-    xp && experiencesUiEnabled() && experienceRenameId === xp.id
-      ? el('div', { class: 'bb-exp-inline-rename bb-action-row' }, (() => {
-        const input = el('input', {
-          type: 'text',
-          class: 'bb-exp-inline-name',
-          value: xp.title || '',
-          'aria-label': 'Experience name',
-          'data-focus-key': `xp-rename-${xp.id}`,
-        });
-        const saveRename = () => {
-          const name = String(input.value || '').trim();
-          if (!name || name === xp.title) {
-            experienceRenameId = '';
-            render({ preserveScroll: true });
-            return;
-          }
-          store = renameExperience(store, xp.id, name).store;
-          experienceRenameId = '';
-          saveStore();
-          render({ preserveScroll: true });
-        };
-        input.addEventListener('keydown', (event) => {
-          if (event.key === 'Enter') { event.preventDefault(); saveRename(); }
-          if (event.key === 'Escape') {
+  const renaming = xp && experienceRenameId === xp.id;
+  return el('div', { class: 'bb-exp-section-row-wrap', 'data-experience-id': section.experienceId || '' }, [
+    el('header', { class: 'bb-exp-section-row bb-exp-section-xp' }, [
+      renaming
+        ? experienceSectionRenameRow(xp)
+        : el('button', {
+          type: 'button',
+          class: 'bb-exp-section-row-toggle',
+          'aria-expanded': expanded ? 'true' : 'false',
+          'aria-controls': resolvedBodyId,
+          onClick: (event) => {
             event.preventDefault();
-            experienceRenameId = '';
-            render({ preserveScroll: true });
-          }
-        });
-        return [
-          input,
-          btn('Save', { type: 'button', class: 'btn compact-action', onClick: saveRename }),
-          btn('Cancel', {
-            type: 'button',
-            class: 'btn ghost compact-action',
-            onClick: () => {
-              experienceRenameId = '';
-              render({ preserveScroll: true });
-            },
-          }),
-        ];
-      })())
-      : null,
-    xp && experiencesUiEnabled() && experienceRenameId !== xp.id
-      ? btn('Rename', {
-        type: 'button',
-        class: 'btn ghost compact-action',
-        onClick: () => {
-          experienceRenameId = xp.id;
-          experienceUngroupPendingId = '';
-          render({ preserveScroll: true, focusKey: `xp-rename-${xp.id}` });
-        },
-      })
-      : null,
-    xp && experiencesUiEnabled() && experienceUngroupPendingId === xp.id
-      ? el('div', { class: 'bb-exp-ungroup-confirm bb-action-row' }, [
-        el('span', { class: 'tiny' }, 'Ungroup? Bullets stay loose under the same job.'),
-        btn('Ungroup', {
-          type: 'button',
-          class: 'btn compact-action',
-          onClick: () => {
-            store = ungroupExperience(store, xp.id).store;
-            experienceUngroupPendingId = '';
-            saveStore();
-            setNote('Ungrouped. Bullets are loose under the same job.');
-            render({ preserveScroll: true });
+            toggleLibrarySection(sectionKey, expanded);
           },
-        }),
-        btn('Cancel', {
-          type: 'button',
-          class: 'btn ghost compact-action',
-          onClick: () => {
-            experienceUngroupPendingId = '';
-            render({ preserveScroll: true });
-          },
-        }),
-      ])
-      : null,
-    xp && experiencesUiEnabled() && experienceUngroupPendingId !== xp.id && experienceRenameId !== xp.id
-      ? btn('Ungroup', {
-        type: 'button',
-        class: 'btn ghost compact-action',
-        onClick: () => {
-          experienceUngroupPendingId = xp.id;
-          experienceRenameId = '';
-          render({ preserveScroll: true });
-        },
-      })
-      : null,
+        }, [
+          el('span', { class: 'bb-exp-section-chevron', 'aria-hidden': 'true' }),
+          el('span', { class: 'bb-exp-section-row-title' }, section.label),
+          el('span', { class: 'bb-exp-section-row-meta' }, `${section.versionCount} version${section.versionCount === 1 ? '' : 's'}`),
+        ]),
+      renaming ? null : experienceSectionOverflowMenu(xp),
+    ]),
   ]);
 }
 
@@ -2315,22 +2346,35 @@ function experienceTable(view) {
         return [
           experienceGroupHeader(group),
           groupExpanded
-            ? el('div', { class: 'bb-exp-group-body', id: bodyId, 'data-group-id': groupKey },
-              (group.sections || []).flatMap((section) => {
+            ? el('div', { class: 'bb-exp-group-body', id: bodyId, 'data-group-id': groupKey }, (() => {
+              const sections = group.sections || [];
+              const experienceSections = sections.filter((section) => section.kind === 'experience');
+              const looseSections = sections.filter((section) => section.kind !== 'experience');
+              const renderSection = (section) => {
                 const sectionKey = librarySectionKey(groupKey, section);
                 const sectionExpanded = !collapsedLibrarySections.has(sectionKey);
                 const sectionBodyId = `exp-section-${sectionKey.replace(/[^a-z0-9_-]/gi, '-')}`;
-                const head = experienceSectionHeader(groupKey, section);
                 if (section.kind === 'loose' && !section.label) {
                   return renderRows(section.rows);
                 }
+                const head = experienceSectionHeader(groupKey, section, { bodyId: sectionBodyId });
                 return [
                   head,
                   sectionExpanded
                     ? el('div', { class: 'bb-exp-section-body', id: sectionBodyId }, renderRows(section.rows))
                     : null,
                 ];
-              }))
+              };
+              const nodes = [];
+              if (experienceSections.length) {
+                nodes.push(el('div', { class: 'bb-exp-section-list' },
+                  experienceSections.flatMap((section) => renderSection(section))));
+              }
+              for (const section of looseSections) {
+                nodes.push(...renderSection(section));
+              }
+              return nodes;
+            })())
             : null,
         ];
       }))
