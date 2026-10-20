@@ -269,6 +269,10 @@ let resumeSnapshotRenameOpen = null;
 const unmappedResumePanelExpanded = new Set();
 /** Resume bullet entry ids with STAR expanded this session (not persisted). */
 const expandedExperienceStar = new Set();
+const expandedExperienceDetails = new Set();
+const expandedExperienceNotes = new Set();
+/** Role group keys collapsed this session (`jobId` or `__none__`). */
+const collapsedExperienceGroups = new Set();
 /** Jobs catalog on Resume bullets expanded this session (not persisted). */
 let jobsCatalogExpanded = false;
 
@@ -1269,40 +1273,81 @@ function experienceLineCell(entry) {
   });
 }
 
-function experienceMore(entry) {
-  const star = starFill(entry);
-  const links = postingsUsingEntry(store, entry.id);
-  const notes = el('textarea', {
-    class: 'bb-inline-area',
-    rows: '2',
-    'aria-label': 'Notes',
-    placeholder: 'Extra color, links, or a longer version.',
-    'data-focus-key': `exp-notes-${entry.id}`,
-    onInput: (event) => patchEntry(entry.id, { notes: event.target.value }),
-  }, entry.notes || '');
-  fitArea(notes);
-  return el('details', { class: 'bb-exp-more' }, [
-    el('summary', {}, 'Notes & tags'),
-    field('Notes', notes),
-    field('Tags', cellInput('Tags', (entry.tags || []).join(', '), `exp-tags-${entry.id}`, (value) => patchEntry(entry.id, { tags: value }))),
-    el('p', { class: 'tiny' }, star.ready ? 'STAR is filled in.' : `${star.filled} of 4 STAR fields filled.`),
-    links.length ? el('div', { class: 'bb-exp-links' }, [
-      el('span', { class: 'tiny' }, 'Used on'),
-      ...links.map((job) => btn([job.title, job.company].filter(Boolean).join(' · '), {
-        class: 'btn ghost compact-action',
-        onClick: () => go({ kind: 'jobs', id: job.id }),
-      })),
-    ]) : el('p', { class: 'tiny' }, 'Not pinned on a posting yet.'),
-    btn('Delete', {
-      class: 'btn danger',
-      onClick: () => {
-        if (!confirm('Remove this resume bullet? Postings that used it will drop the link.')) return;
-        store = deleteEntry(store, entry.id);
-        saveStore();
-        go({ kind: 'log' });
-      },
-    }),
-  ]);
+function experienceTextAction(label, { expanded, controls, className = '', onClick }) {
+  return btn(label, {
+    type: 'button',
+    class: `row-text-action bb-exp-action${expanded ? ' is-on' : ''}${className ? ` ${className}` : ''}`,
+    'aria-expanded': expanded ? 'true' : 'false',
+    'aria-controls': controls,
+    onClick: (event) => {
+      event.preventDefault();
+      onClick(event);
+    },
+  });
+}
+
+function flushExperienceNotesEdits(entry, article) {
+  if (!entry || !article) return;
+  const notes = article.querySelector(`[data-focus-key="exp-notes-${entry.id}"]`);
+  if (!notes) return;
+  const value = String(notes.value ?? '');
+  if (value !== String(entry.notes || '')) patchEntry(entry.id, { notes: value });
+}
+
+function flushExperienceDetailsEdits(entry, article) {
+  if (!entry || !article) return;
+  const tags = article.querySelector(`[data-focus-key="exp-tags-${entry.id}"]`);
+  if (tags) {
+    const value = String(tags.value ?? '');
+    const current = (entry.tags || []).join(', ');
+    if (value !== current) patchEntry(entry.id, { tags: value });
+  }
+  const select = article.querySelector(`[data-focus-key="exp-jobId-${entry.id}"]`);
+  if (select) {
+    const value = String(select.value ?? '');
+    if (value !== String(entry.jobId || '')) {
+      store = saveSharedBullet(store, entry.id, { jobId: value });
+      saveStore();
+    }
+  }
+}
+
+function flushExperienceEntryEdits(entry, article) {
+  flushExperienceStarEdits(entry, article);
+  flushExperienceNotesEdits(entry, article);
+  flushExperienceDetailsEdits(entry, article);
+}
+
+function flushExperienceGroupEntries(group) {
+  for (const row of group.rows || []) {
+    const entry = (store.entries || []).find((item) => item.id === row.id);
+    if (!entry) continue;
+    const article = document.querySelector(`.bb-exp-row[data-entry-id="${entry.id}"]`);
+    flushExperienceEntryEdits(entry, article);
+  }
+}
+
+function toggleExperiencePanel(entry, article, kind) {
+  const map = {
+    star: expandedExperienceStar,
+    details: expandedExperienceDetails,
+    notes: expandedExperienceNotes,
+  };
+  const set = map[kind];
+  if (!set) return;
+  const open = set.has(entry.id);
+  if (open) {
+    if (kind === 'star') flushExperienceStarEdits(entry, article);
+    else if (kind === 'notes') flushExperienceNotesEdits(entry, article);
+    else flushExperienceDetailsEdits(entry, article);
+    void flushSave('blur');
+    set.delete(entry.id);
+  } else {
+    set.add(entry.id);
+  }
+  const scroll = captureScroll();
+  render();
+  restoreScroll(scroll);
 }
 
 function jobOptionLabel(job) {
@@ -1475,70 +1520,129 @@ function flushExperienceStarEdits(entry, article) {
   void flushSave('blur');
 }
 
-function toggleExperienceStar(entry, article) {
-  const open = expandedExperienceStar.has(entry.id);
-  if (open) {
-    flushExperienceStarEdits(entry, article);
-    expandedExperienceStar.delete(entry.id);
-  } else {
-    expandedExperienceStar.add(entry.id);
-  }
-  const scroll = captureScroll();
-  render();
-  restoreScroll(scroll);
+function experienceDetailsPanel(entry, { expanded, panelId }) {
+  const links = postingsUsingEntry(store, entry.id);
+  return el('div', {
+    class: 'bb-exp-panel bb-exp-panel-details',
+    id: panelId,
+    hidden: expanded ? undefined : true,
+  }, [
+    field('Job', experienceJobSelect(entry)),
+    field('Tags', cellInput('Tags', (entry.tags || []).join(', '), `exp-tags-${entry.id}`, (value) => patchEntry(entry.id, { tags: value }))),
+    links.length ? el('div', { class: 'bb-exp-links' }, [
+      el('span', { class: 'tiny' }, 'Used on'),
+      ...links.map((job) => btn([job.title, job.company].filter(Boolean).join(' · '), {
+        class: 'btn ghost compact-action',
+        onClick: () => go({ kind: 'jobs', id: job.id }),
+      })),
+    ]) : el('p', { class: 'tiny' }, 'Not pinned on a posting yet.'),
+    btn('Delete bullet', {
+      class: 'row-text-action is-danger',
+      onClick: () => {
+        if (!confirm('Remove this resume bullet? Postings that used it will drop the link.')) return;
+        store = deleteEntry(store, entry.id);
+        saveStore();
+        go({ kind: 'log' });
+      },
+    }),
+  ]);
 }
 
-function experienceStarToggle(entry, { expanded, panelId }) {
-  const fill = starFill(entry);
-  return el('button', {
-    type: 'button',
-    class: `bb-exp-star-toggle${fill.ready ? ' is-ready' : ''}`,
-    'aria-expanded': expanded ? 'true' : 'false',
-    'aria-controls': panelId,
-    onClick: (event) => {
-      event.preventDefault();
-      const article = event.currentTarget.closest('.bb-exp-row');
-      toggleExperienceStar(entry, article);
-    },
-  }, [
-    el('span', { class: 'bb-exp-star-toggle-label' }, 'STAR'),
-    el('span', { class: 'bb-exp-star-chevron', 'aria-hidden': 'true' }),
-  ]);
+function experienceNotesPanel(entry, { expanded, panelId }) {
+  const notes = el('textarea', {
+    class: 'bb-inline-area',
+    rows: '2',
+    'aria-label': 'Notes',
+    placeholder: 'Extra color, links, or a longer version.',
+    'data-focus-key': `exp-notes-${entry.id}`,
+    onInput: (event) => patchEntry(entry.id, { notes: event.target.value }),
+  }, entry.notes || '');
+  fitArea(notes);
+  return el('div', {
+    class: 'bb-exp-panel bb-exp-panel-notes',
+    id: panelId,
+    hidden: expanded ? undefined : true,
+  }, [field('Notes', notes)]);
 }
 
 function experienceRow(entry) {
   const spec = experienceRowSpec(entry);
-  const lead = spec.controls.filter((control) => control.column === 'lead');
-  const star = spec.controls.filter((control) => control.column === 'star');
-  const expanded = expandedExperienceStar.has(entry.id);
-  const panelId = `exp-star-${entry.id}`;
-  const starPanel = el('div', {
-    class: 'bb-exp-star-panel',
-    id: panelId,
-    hidden: expanded ? undefined : true,
-  }, [
-    el('div', { class: 'bb-exp-stargrid bb-star-stack' }, star.map((control) => experienceControl(entry, control))),
-  ]);
+  const starControls = spec.controls.filter((control) => control.column === 'star');
+  const starOpen = expandedExperienceStar.has(entry.id);
+  const detailsOpen = expandedExperienceDetails.has(entry.id);
+  const notesOpen = expandedExperienceNotes.has(entry.id);
+  const starPanelId = `exp-star-${entry.id}`;
+  const detailsPanelId = `exp-details-${entry.id}`;
+  const notesPanelId = `exp-notes-${entry.id}`;
+  const fill = starFill(entry);
+  const starLabel = fill.ready ? 'STAR' : `STAR ${fill.filled}/${fill.total}`;
   return el('article', {
     class: 'bb-exp-row',
     'data-entry-id': spec.id,
-    'data-star': expanded ? 'always' : 'hidden',
+    'data-star': starOpen ? 'always' : 'hidden',
   }, [
-    el('div', { class: 'bb-exp-lead' }, [
-      experienceLineCell(entry),
-      el('div', { class: 'bb-exp-jobrole' }, lead.map((control) => experienceControl(entry, control))),
-      experienceMore(entry),
-      experienceStarToggle(entry, { expanded, panelId }),
-      starPanel,
+    experienceLineCell(entry),
+    el('div', { class: 'bb-exp-actions row-icons' }, [
+      experienceTextAction(detailsOpen ? 'Details ↑' : 'Details ↓', {
+        expanded: detailsOpen,
+        controls: detailsPanelId,
+        className: 'bb-exp-action-details',
+        onClick: (event) => toggleExperiencePanel(entry, event.currentTarget.closest('.bb-exp-row'), 'details'),
+      }),
+      experienceTextAction(starOpen ? 'STAR ↑' : starLabel, {
+        expanded: starOpen,
+        controls: starPanelId,
+        className: `bb-exp-action-star${fill.ready ? ' is-ready' : ''}`,
+        onClick: (event) => toggleExperiencePanel(entry, event.currentTarget.closest('.bb-exp-row'), 'star'),
+      }),
+      experienceTextAction(notesOpen ? 'Notes ↑' : 'Notes', {
+        expanded: notesOpen,
+        controls: notesPanelId,
+        className: 'bb-exp-action-notes',
+        onClick: (event) => toggleExperiencePanel(entry, event.currentTarget.closest('.bb-exp-row'), 'notes'),
+      }),
     ]),
+    experienceDetailsPanel(entry, { expanded: detailsOpen, panelId: detailsPanelId }),
+    el('div', {
+      class: 'bb-exp-panel bb-exp-panel-star',
+      id: starPanelId,
+      hidden: starOpen ? undefined : true,
+    }, [
+      el('div', { class: 'bb-exp-stargrid bb-star-stack' }, starControls.map((control) => experienceControl(entry, control))),
+    ]),
+    experienceNotesPanel(entry, { expanded: notesOpen, panelId: notesPanelId }),
   ]);
 }
 
 function experienceGroupHeader(group) {
+  const groupKey = group.jobId || '__none__';
+  const expanded = !collapsedExperienceGroups.has(groupKey);
   const title = [group.label, group.dates].filter(Boolean).join(' · ');
-  return el('header', { class: 'bb-exp-group-head', 'data-job-id': group.jobId || '__none__' }, [
-    el('h2', { class: 'bb-exp-group-title' }, title),
-    el('span', { class: 'bb-exp-group-count' }, `${group.count}`),
+  const bodyId = `exp-group-${groupKey}`;
+  return el('header', { class: 'bb-exp-group-head', 'data-job-id': groupKey }, [
+    el('button', {
+      type: 'button',
+      class: 'bb-exp-group-toggle',
+      'aria-expanded': expanded ? 'true' : 'false',
+      'aria-controls': bodyId,
+      onClick: (event) => {
+        event.preventDefault();
+        if (expanded) {
+          flushExperienceGroupEntries(group);
+          void flushSave('blur');
+          collapsedExperienceGroups.add(groupKey);
+        } else {
+          collapsedExperienceGroups.delete(groupKey);
+        }
+        const scroll = captureScroll();
+        render();
+        restoreScroll(scroll);
+      },
+    }, [
+      el('span', { class: 'bb-exp-group-chevron', 'aria-hidden': 'true' }),
+      el('span', { class: 'bb-exp-group-title' }, title),
+      el('span', { class: 'bb-exp-group-count' }, `${group.count}`),
+    ]),
   ]);
 }
 
@@ -1548,13 +1652,24 @@ function experienceTable(view) {
   return el('section', { class: 'panel bb-book-catalog' }, [
     experienceTools(view),
     total
-      ? el('div', { class: 'bb-exp-list' }, groups.flatMap((group) => [
-        experienceGroupHeader(group),
-        ...group.rows.map((row) => {
-          const entry = store.entries.find((item) => item.id === row.id);
-          return entry ? experienceRow(entry) : null;
-        }),
-      ]))
+      ? el('div', { class: 'bb-exp-list' }, groups.flatMap((group) => {
+        const groupKey = group.jobId || '__none__';
+        const groupExpanded = !collapsedExperienceGroups.has(groupKey);
+        const bodyId = `exp-group-${groupKey}`;
+        return [
+          experienceGroupHeader(group),
+          groupExpanded
+            ? el('div', {
+              class: 'bb-exp-group-body',
+              id: bodyId,
+              'data-group-id': groupKey,
+            }, group.rows.map((row) => {
+              const entry = store.entries.find((item) => item.id === row.id);
+              return entry ? experienceRow(entry) : null;
+            }))
+            : null,
+        ];
+      }))
       : el('p', { class: 'empty' }, query
         ? 'Nothing matches that.'
         : 'No resume bullets yet. Add a resume bullet — pick a job, and STAR sits on the row.'),

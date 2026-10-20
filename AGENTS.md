@@ -69,6 +69,7 @@ This repo is a no-build Vercel site (see `README.md` for structure/deploy). Non-
   - `node scripts/test-brag-book-star-collapsed.mjs` — Resume bullets STAR collapsed by default, session expand, collapse flush (`book-view.js`, `app.js`)
   - `node scripts/test-brag-book-exp-groups.mjs` — Resume bullets grouped by career job, recency order, search hides empty groups (`engine.js` `experienceCatalogGroups`)
   - `node scripts/test-brag-book-jobs-collapsed.mjs` — Jobs catalog collapsed by default on Resume bullets, + New job expands (`app.js` `jobsCatalogExpanded`)
+  - `node scripts/test-brag-book-exp-concise.mjs` — concise bullet cards, role group collapse, Details/STAR/Notes inline actions (`app.js`)
   - `node scripts/test-brag-book-knowledge-tables.mjs` — Knowledge GFM tables: parse, infer on load, paste/HTML, search, save round-trip (`brag-book/knowledge-doc.js`)
   - `node scripts/test-brag-book-resume-snapshots.mjs` — immutable saved resume bank, merge, PUT/GET preservation (`brag-book/resume-snapshots.js`)
   - `node scripts/test-brag-book-start-from-snapshot.mjs` — start posting resume from saved copy, auto-backup, persist/reload, posting-only edits (`resume-snapshots.js`, save controller)

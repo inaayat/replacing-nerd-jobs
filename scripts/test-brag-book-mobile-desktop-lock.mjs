@@ -186,10 +186,15 @@ assert.match(sharedForm, /class:\s*'experience-star bb-star-stack'/);
 
 const experienceRow = sourceSection('function experienceRow', 'function experienceTable');
 assert.match(experienceRow, /class:\s*'bb-exp-row'/);
-assert.match(experienceRow, /class:\s*'bb-exp-lead'/);
-assert.match(experienceRow, /experienceStarToggle/);
-assert.match(experienceRow, /class:\s*'bb-exp-star-panel'/);
+assert.match(experienceRow, /bb-exp-actions/);
+assert.match(experienceRow, /experienceTextAction/);
+assert.match(
+  sourceSection('function experienceTextAction', 'function flushExperienceNotesEdits'),
+  /row-text-action bb-exp-action/,
+);
+assert.match(experienceRow, /class:\s*'bb-exp-panel bb-exp-panel-star'/);
 assert.match(experienceRow, /class:\s*'bb-exp-stargrid bb-star-stack'/);
+assert.doesNotMatch(experienceRow, /bb-exp-jobrole/);
 
 const requirementTable = sourceSection('function requirementTable', 'function jobDetailsDisclosure');
 assert.match(requirementTable, /el\('table',\s*\{\s*class:\s*'job-table'/);

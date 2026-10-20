@@ -155,6 +155,15 @@ export function jobsCatalogDefaultExpanded() {
   return false;
 }
 
+/** Role groups on Resume bullets start expanded (session-only collapse). */
+export function experienceGroupDefaultExpanded() {
+  return true;
+}
+
+export function experiencePanelDefaultExpanded() {
+  return false;
+}
+
 export function experienceRowSpec(entry) {
   const spec = sharedBulletSpec(entry);
   return {

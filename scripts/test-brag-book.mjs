@@ -3015,7 +3015,7 @@ assert.doesNotMatch(bulletEditorSrc, /Situation/);
 assert.doesNotMatch(bulletEditorSrc, /placeholder: 'Extra color/);
 assert.match(appSource.slice(0, appSource.indexOf('function resumeBulletEditor')), /sharedBulletForm\(/);
 assert.doesNotMatch(appSource, /experienceIsOpen/);
-assert.doesNotMatch(appSource, /toggleExperience(?!Star)/);
+assert.doesNotMatch(appSource, /toggleExperience(?!Star|Panel)/);
 assert.doesNotMatch(appSource, /Expand experience/);
 
 await renderBookPage('#kb');
@@ -3244,18 +3244,24 @@ async function renderBookPage(hash) {
     const placeholders = app.querySelectorAll('input').map((node) => node.getAttribute('placeholder'));
     assert.equal(placeholders.includes('Search resume bullets, companies, STAR…'), true);
     assert.equal(placeholders.includes('Search pages'), false);
-    assert.equal(labels.filter((item) => item === 'Job').length, 2, `${hash} Job`);
-    const starPanels = [...app.querySelectorAll('.bb-exp-star-panel')];
+    const visibleJobSelects = [...app.querySelectorAll('.bb-exp-row [aria-label="Job"]')]
+      .filter((node) => {
+        const panel = node.closest('.bb-exp-panel-details');
+        return !panel || panel.hidden !== true;
+      });
+    assert.equal(visibleJobSelects.length, 0, `${hash} Job select only inside collapsed Details`);
+    const starPanels = [...app.querySelectorAll('.bb-exp-panel-star')];
     assert.equal(starPanels.length, 2, `${hash} STAR panels`);
     assert.ok(starPanels.every((node) => node.hidden === true || node.attrs?.hidden != null), `${hash} STAR panels collapsed`);
     assert.equal(labels.filter((item) => item === 'Role').length, 0);
-    assert.match(text, /Unassigned/);
     assert.match(text, /Set up your jobs/);
     assert.equal(app.querySelectorAll('[data-star="always"]').length, 0);
     assert.equal(app.querySelectorAll('[data-star="hidden"]').length, 2);
-    const starToggles = app.querySelectorAll('.bb-exp-star-toggle');
+    const starToggles = app.querySelectorAll('.bb-exp-action-star');
     assert.equal(starToggles.length, 2);
     assert.ok(starToggles.every((node) => node.getAttribute('aria-expanded') === 'false'), `${hash} STAR toggles collapsed`);
+    assert.equal(app.querySelectorAll('.bb-exp-jobrole').length, 0);
+    assert.equal(app.querySelectorAll('.bb-exp-row').length, 2);
     assert.match(text, /Books were late/);
     assert.match(text, /Second result/);
     assert.equal(app.querySelector('#book-experiences') != null, true);

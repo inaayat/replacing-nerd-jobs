@@ -67,23 +67,23 @@ await new Promise((resolve) => window.setTimeout(resolve, 25));
 const row = window.document.querySelector('.bb-exp-row[data-entry-id="en_coll"]');
 assert.ok(row, 'resume bullet row renders');
 assert.equal(row.getAttribute('data-star'), 'hidden');
-const toggle = row.querySelector('.bb-exp-star-toggle');
+const toggle = row.querySelector('.bb-exp-action-star');
 assert.ok(toggle, 'STAR toggle renders');
 assert.equal(toggle.getAttribute('aria-expanded'), 'false');
-const panel = row.querySelector('.bb-exp-star-panel');
+const panel = row.querySelector('.bb-exp-panel-star');
 assert.ok(panel?.hasAttribute('hidden'), 'STAR panel hidden by default');
 
 toggle.click();
 await new Promise((resolve) => window.setTimeout(resolve, 25));
 
 const rowAfter = window.document.querySelector('.bb-exp-row[data-entry-id="en_coll"]');
-const toggleAfter = rowAfter.querySelector('.bb-exp-star-toggle');
-const panelAfter = rowAfter.querySelector('.bb-exp-star-panel');
+const toggleAfter = rowAfter.querySelector('.bb-exp-action-star');
+const panelAfter = rowAfter.querySelector('.bb-exp-panel-star');
 assert.equal(toggleAfter.getAttribute('aria-expanded'), 'true');
 assert.equal(panelAfter.hasAttribute('hidden'), false);
 assert.equal(rowAfter.getAttribute('data-star'), 'always');
 assert.equal(window.document.querySelectorAll('[aria-label="Situation"]').length, 1);
-assert.match(appSource, /toggleExperienceStar[\s\S]*captureScroll\(\)[\s\S]*render\(\)[\s\S]*restoreScroll\(scroll\)/);
+assert.match(appSource, /toggleExperiencePanel[\s\S]*captureScroll\(\)[\s\S]*render\(\)[\s\S]*restoreScroll\(scroll\)/);
 
 const situation = window.document.querySelector('[data-focus-key="exp-situation-en_coll"]');
 assert.ok(situation);
