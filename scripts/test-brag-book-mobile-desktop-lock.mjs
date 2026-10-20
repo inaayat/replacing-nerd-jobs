@@ -185,7 +185,7 @@ assert.match(sharedForm, /class:\s*'bb-shared-bullet'/);
 assert.match(sharedForm, /class:\s*'experience-star bb-star-stack'/);
 
 const experienceRow = sourceSection('function experienceRow', 'function experienceTable');
-assert.match(experienceRow, /class:\s*'bb-exp-row'/);
+assert.match(experienceRow, /class:\s*`bb-exp-row/);
 assert.match(experienceRow, /bb-exp-actions/);
 assert.match(experienceRow, /experienceTextAction/);
 assert.match(
