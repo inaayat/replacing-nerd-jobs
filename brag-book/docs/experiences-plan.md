@@ -6,6 +6,8 @@ An **experience** is a light folder for resume bullets that describe the same pi
 
 Existing books do not need a migration that rewrites bullets. Until someone groups anything, every existing bullet behaves as its own one-bullet experience and every screen renders the same content it does now. Grouping adds a stable experience id and a short experience title; ungrouping removes only that relationship.
 
+On desktop, both Resume bullets and an individual job posting use a wide working panel plus a narrow sticky experience index. The index is searchable, filterable by role, shows version counts, and scrolls independently. It supports drag-and-drop with complete non-drag alternatives. On mobile, the same index is a slide-out drawer. On a posting, the user can check several versions of one experience and add them to a chosen resume role and sub-heading in one safe, idempotent action. Experiences and bullets remain many-to-many with requirements, while each stable bullet appears at most once on the generated posting resume.
+
 The first release should be additive and reversible. It should add experience metadata inside the existing Brag Book JSON document, preserve old clients and old imports, keep saved resumes immutable, and continue using the existing revision guard, three-way merge, account-scoped cache, and durable outbox. It must not add a database table or touch the database directly.
 
 The central safety rule is:
@@ -18,67 +20,126 @@ The visual treatment should stay consistent with Brag Book: compact system type,
 
 ### 1. Resume bullets page
 
-The page remains grouped by role, with experiences inserted between the role and bullet versions. An experience row shows a title and version count. It expands in place.
+On desktop, use a two-panel workspace. The wide left panel remains the current Resume bullets list grouped by role; it is still where bullets are read and edited. A narrow right panel is the experience index. It is sticky within the workspace, has its own scroll container, and never changes the left panel’s scroll position.
 
 ```text
-Resume bullets                                      [ + Add ]
-[ Search bullets, experiences, STAR…                         ]
+┌────────────────────────────────────────────────────┬────────────────────────┐
+│ Resume bullets                           [ + Add ] │ EXPERIENCES            │
+│ [ Search bullets, STAR, tags…                   ] │ [ + New experience ]   │
+│                                                    │ [ Search experiences… ]│
+│ GO DADDY · SENIOR MANAGER                 8  [▾] │ [Role: All          ▾] │
+│ ──────────────────────────────────────────────── │ ────────────────────── │
+│ • Built an embedded-risk process across… [STAR] │ Rebuilt access reviews │
+│   [Embedded-risk launch] [versions (2)]     [⋯] │              3 versions │
+│ ──────────────────────────────────────────────── │                        │
+│ • Launched a risk program covering 12 teams…    │ Embedded-risk launch ● │
+│   [Embedded-risk launch] [versions (2)]     [⋯] │              2 versions │
+│ ──────────────────────────────────────────────── │                        │
+│ ▸ PWC · MANAGER                            5     │ Controls automation     │
+│                                                    │              1 version  │
+└────────────────────────────────────────────────────┴────────────────────────┘
 
-GO DADDY · SENIOR MANAGER                         8 bullets
-─────────────────────────────────────────────────────────────
-▸ Rebuilt access-review program                    3 versions
-─────────────────────────────────────────────────────────────
-▾ Launched embedded-risk process                   2 versions
-    • Built an embedded-risk process across…        [STAR ▸] [⋯]
-    • Launched a risk program covering 12 teams…    [STAR ▸] [⋯]
-                                      [ + Draft another version ]
-─────────────────────────────────────────────────────────────
-▸ Reduced audit preparation time                   1 version
+Drag from left ───────────────────────────────► drop on an experience
 ```
 
 Actions:
 
-- **Create an experience:** select one or more bullets and choose `Group as experience`, or use `+ New experience` and then add/move versions into it. The proposed default title is derived for display only and is not used as identity.
+- **Select/filter:** clicking an experience in the right panel applies it as a left-panel filter and shows only its versions under their role group(s). Clicking the selected experience again clears the filter. The selected row gets a quiet dot/highlight and the left search shows a removable `Experience: …` filter chip.
+- **Create an experience:** `+ New experience` stays at the top of the right panel. It creates the label, then invites the user to drag or move versions into it. A cancelled empty draft is not persisted. Multi-select `Group as experience` may remain as a convenience. The proposed default title is display copy only and is not identity.
 - **Rename:** the experience title is edited inline. Renaming never edits version wording.
-- **Group:** multi-select bullets within the same role by default. Cross-role grouping should be blocked in v1 unless the user confirms which job owns the experience; every version retains its own `jobId`.
+- **Group by drag:** drag a bullet row from the left and drop it on an experience in the right panel. The drop target highlights before release. The mutation uses the dragged entry id and destination experience id; text is never drag payload identity. Moving creates the grouping backup before changing membership.
+- **Group without drag:** `⋯ → Move to experience…` opens the same searchable experience list. This is the keyboard, screen-reader, and mobile path, not a secondary capability.
+- **Cross-role grouping:** block it in v1 unless the user confirms which job owns the experience; every version retains its own `jobId`.
 - **Ungroup one version:** `⋯ → Remove from experience` returns that bullet to an implicit one-bullet experience.
 - **Ungroup the whole experience:** `⋯ → Ungroup all versions` removes the relationships and leaves every bullet visible as its own implicit experience.
-- **Move a version:** `⋯ → Move to experience…` opens a searchable picker. Moving changes only the relationship.
 - **Delete an experience:** use the safer wording `Ungroup and remove label`. It tombstones the experience metadata and never deletes bullets. Bullet deletion remains a separate, explicit action with the existing warning.
 - **Draft another version:** creates a new bullet record with a new stable bullet id inside the experience. It may offer to copy STAR/notes from a chosen version, but copying is opt-in and creates independent fields.
 
-Search matches experience titles and every version’s wording, STAR, tags, role, and notes. A match keeps the role and experience headers visible and expands the matching experience; it does not flatten versions into an ambiguous list.
+The two searches are deliberately independent:
 
-### 2. Job posting requirement
+- The **left search** filters bullet/version content (wording, STAR, tags, role, and notes). If an experience is selected, results are the intersection of that experience and the left query. A zero-result state names both filters and offers `Clear experience` and `Clear search`; it never silently clears either.
+- The **right search** filters experience titles and the searchable content of their versions. Matching experiences retain their version counts. `Filter by role` narrows the right panel by stable `jobId`, not company/title text.
+- Selecting an experience temporarily expands each role containing one of its versions. Clearing the experience restores the role’s prior session-only collapsed state. The app must not persist collapse changes caused by filtering.
+- A manually collapsed role remains collapsed during ordinary left search and displays its match count. Selecting a specific experience may temporarily reveal that experience’s versions, with a quiet `Filtered` label explaining why it opened.
+- Right-panel scrolling, searching, role filtering, creating, and selecting must not jump or reset the left panel scroll. Left rerenders use the existing capture/restore mechanism.
 
-The existing right-hand column becomes experience-first. `Map experience` searches experience titles and all version content. After choosing an experience, the user checks one or more relevant versions or drafts a new version inside it.
+### 2. Individual job posting page and requirement mapping
+
+An individual posting uses the same two-panel pattern as Resume bullets. The wide left panel keeps the posting details, requirements, mapped experience chips, questions, and Unmapped resume experiences panel. The narrow sticky right panel indexes all experiences and scrolls independently without moving the requirements.
 
 ```text
-JOB REQUIREMENT              EXPERIENCES
-─────────────────────────────────────────────────────────────
-Lead cross-functional risk   [ Map experience ▾ ]
-programs                     ┌───────────────────────────────┐
-                             │ Search experiences…           │
-                             │ Rebuilt access reviews   (3)  │
-                             │ Embedded-risk launch     (2)  │
-                             │ + New experience              │
-                             └───────────────────────────────┘
+┌───────────────────────────────────────────────────┬─────────────────────────┐
+│ Product Risk Lead · Target Co                    │ EXPERIENCES             │
+│                                                   │ [ + New experience ]    │
+│ REQUIREMENTS                                      │ [ Search experiences… ] │
+│ ──────────────────────────────────────────────── │ [Role: All          ▾] │
+│ Lead cross-functional risk programs              │ [Mapped here        ▾] │
+│ [Embedded-risk launch ✓] [2 versions]            │ ─────────────────────── │
+│ • Built an embedded-risk process…                │ ✓ Embedded-risk launch │
+│ [ Map experience ] [ + question ]                │   2 versions · 2 reqs  │
+│                                                   │                         │
+│ Automate evidence collection       ◀ drop here   │ ✓ Controls automation  │
+│ [ Map experience ]                               │   3 versions · 1 req   │
+│                                                   │                         │
+│ ▸ Unmapped resume experiences                 2  │   Audit readiness       │
+│                                                   │   1 version · not used │
+└───────────────────────────────────────────────────┴─────────────────────────┘
 
-                             Embedded-risk launch
-                             ☑ Built an embedded-risk…
-                             ☐ Launched a risk program…
-                             [ + Draft new version ]
+Drag experience from right ───────────────► drop on a requirement
 
-                             [Embedded-risk launch] [2 versions]
-                             • Built an embedded-risk…
+After drop or “Map experience”:
+
+  Embedded-risk launch
+  ☑ Built an embedded-risk process across 12 teams…
+  ☐ Launched a risk program covering 12 teams…
+  [ + Draft new version ]
 ```
 
-- `+ New experience` asks for a short title, then immediately offers `+ Draft new version`; an empty experience is not persisted when the picker is cancelled.
-- Checking a version maps that bullet’s stable id to the requirement through the existing requirement bullet-link structure.
-- Unchecking removes only that requirement link.
-- The mapped result uses quiet chips such as `[Embedded-risk launch]` and `[2 versions]`; chips supplement the full bullet text and are not primary buttons.
-- The existing details panel still edits the selected bullet’s own job, STAR, notes, and tags. An experience title edit is a separate action.
-- The picker excludes versions already mapped to that requirement and clearly marks versions used elsewhere. It never deduplicates by wording.
+Panel behavior:
+
+- The panel has independent **experience search**, **role filter**, and usage filter: `All`, `Mapped here`, or `Not used yet`.
+- “Mapped here” means at least one concrete version from the experience is mapped to at least one requirement on this posting. It is derived from stable entry ids.
+- A mapped experience shows a small check and the number of distinct requirements it covers, for example `✓ · covers 2 requirements`. An experience is never marked mapped because its text resembles a requirement or another bullet.
+- Clicking an experience highlights every requirement it covers and its mapped chips; clicking it again clears the highlight. It does not hide unrelated requirements or change their order.
+- Highlighting temporarily opens a collapsed requirement/disclosure only when needed to reveal the mapped chip, marks it `Highlighted`, and restores its previous session-only state when cleared. The posting’s left scroll position does not jump.
+- `+ New experience` is pinned at the top. `+ Draft new version` is available on the selected experience and in each panel-row action menu. A new version remains an independent bullet record.
+
+Mapping behavior:
+
+- Dragging an experience from the panel onto a requirement opens the inline version checklist shown above. The drop itself does **not** persist an abstract experience mapping; checking at least one concrete version creates the existing entry-based requirement link.
+- `Map experience` under the requirement opens the same searchable list and is the keyboard, screen-reader, and mobile alternative. Every experience picker in the app uses this same experience-first search, role context, version count, and nested concrete-version selection.
+- Checking a version maps that bullet’s stable id through the existing requirement bullet-link structure. Unchecking removes only that requirement link.
+- The same experience—and the same concrete bullet version—may be mapped to several requirements on one posting, exactly as today. Mapping is many-to-many: each requirement can reference several versions/experiences, and each version/experience can cover several requirements.
+- Unmapping a bullet from one requirement removes only that one requirement-line relationship. It must not remove the bullet from the posting resume, from the library/experience, or from any other requirement.
+- `+ Draft new version` inside the inline chooser creates a new stable entry in that experience and checks it only after the draft has valid wording.
+- The mapped result uses quiet chips such as `[Embedded-risk launch ✓]` and `[2 versions]`; chips supplement the full selected bullet text and are not primary buttons.
+- The existing details panel still edits the selected bullet’s own job, STAR, notes, and tags. An experience title edit is separate.
+- The picker clearly marks versions already mapped to this requirement or used on another requirement. It never deduplicates by wording.
+
+Posting-resume multi-add is available from the posting page’s selected experience, the sticky side panel, and the posting resume editor’s Add from library:
+
+```text
+Embedded-risk launch                              2 of 3 on resume
+☑ Built an embedded-risk process…                 Added
+☑ Launched a risk program covering 12 teams…      Added
+☐ Cut review time by embedding risk…
+
+Add selected to:
+Role          [ GoDaddy · Senior Manager       ▾ ]
+Sub-heading   [ Risk programs                  ▾ ]
+Order         [ End of Risk programs           ▾ ]
+                                      [ Add 1 to resume ]
+```
+
+- Checkboxes represent concrete entry ids. A version already anywhere on this posting’s resume is checked and labelled `Added`; it is not queued again.
+- The user must confirm a destination **role** and may choose a named **sub-heading** or the role’s unheaded group. The picker defaults to the version’s stable `jobId` when that role is already on the posting resume; otherwise it asks the user to add/choose a role.
+- Order defaults to the end of the chosen sub-heading. The user may choose `Start of group` or `After <existing bullet>`. Newly added versions are contiguous in the picker’s displayed order; a confirmation list permits reordering before the write.
+- From a resume row, Add from library defaults to that row’s role and sub-heading and inserts after that row. From the posting page or side panel, it defaults to the inferred role and end of group.
+- `Add selected` is one atomic book mutation and one save/outbox snapshot. Before changing the posting resume, create the required bulk-operation recovery backup.
+- Deduplicate only by stable entry id across every visible and excluded resume row (`sourceEntryIds` and any explicit local source link). Repeating the action is idempotent even after a retry, reload, 409 reconciliation, or two-tab merge.
+- Removing one added resume row removes/hides only that concrete resume bullet placement. It does not uncheck, remove, relink, or rewrite sibling versions on the resume, in requirements, or in the experience.
+
+On mobile, the posting’s experience panel is a slide-out drawer opened by the same small experience icon used on Resume bullets. Requirements remain full width behind it. Choosing or dragging is replaced by `Map to requirement…`, which closes the drawer into a full-width requirement/version sheet; closing or completing it returns to the same requirement and scroll offset.
 
 ### 3. Unmapped panel
 
@@ -102,7 +163,7 @@ Precise coverage rule:
 5. A resume bullet with no live library link (fresh local text, an old imported resume line, or an unlinked snapshot copy) is its own synthetic one-bullet experience, keyed by the stable resume-bullet id. It is covered only by its existing stable line/source link; never by equal text.
 6. Multiple visible versions from one uncovered experience produce one row with a version count. No text matching is allowed.
 
-The expanded row may list the visible versions and offer `Map to requirement…`, but the collapsed count remains experience-level.
+The expanded row lists every visible resume version with its own mapped/unmapped marker and may offer `Map to requirement…`. If one of three visible versions is mapped, the experience is covered and leaves the Unmapped list, while its detail can still say `1 of 3 versions directly mapped`. Requirement coverage still counts a requirement once even when several sibling versions map to it. Removing one resume version recalculates the count but cannot change sibling links. The collapsed Unmapped count remains experience-level.
 
 ### 4. Posting resume editor and preview
 
@@ -121,7 +182,9 @@ versions (3)
 
 - Choosing another version updates the stable library-bullet link; it does not create a duplicate resume row.
 - Preserve the resume bullet row id where possible so fit state, drag order, pins, exclusions, focus, editor scroll, and preview scroll remain stable.
-- If the destination version is already elsewhere on this same resume, block the swap and offer `Go to existing bullet`; do not silently duplicate or merge rows.
+- The control may coexist on several resume rows from the same experience. It shows which versions are on this resume (`2 of 3 on resume`) and identifies the current row separately.
+- If the destination version is already elsewhere on this same resume, mark it `Already on resume`, disable it as a swap destination, and offer `Go to existing bullet`; do not silently duplicate, merge, or remove either row.
+- Swapping one row affects only that row. Other versions from the experience retain their placement, wording, include/pin state, and requirement mappings.
 - The preview, Print/PDF, and Word output show only the selected wording. Experience titles and version controls are editor metadata and do not appear on the resume.
 - The picker opens as a popover anchored to the current row and closes without a full-page jump. Reuse the existing scroll snapshot/restore path and add a focused regression test.
 
@@ -136,26 +199,34 @@ versions (3)
     + Automated evidence collection…
 ```
 
-Adding still selects one concrete bullet version. It never adds an abstract experience or every version at once.
+Adding still selects concrete bullet versions, never an abstract experience. It supports the same checkbox multi-add, stable-id dedupe, role/sub-heading/order confirmation, and atomic placement rules as the posting side panel.
 
 ### 5. Mobile behavior
 
-At the existing mobile breakpoint, all controls use the full content width and the app’s small icon language.
+At the existing mobile breakpoint, the Resume bullets list keeps the full content width. The experience index becomes a slide-out drawer opened by a small experience icon in the list toolbar. The drawer contains the same `+ New experience`, search, role filter, selected state, and version counts as desktop; closing it returns focus to the opener and preserves list scroll.
 
 ```text
+Resume bullets              [experiences icon]
+[ Search bullets…                            ]
 GO DADDY · SENIOR MANAGER
-─────────────────────────
-▾ Embedded-risk launch
-  2 versions          [⋯]
+• Built an embedded-risk…      [↔ 2] [⋯]
 
-  Built an embedded-risk…
-  [★] [↔ versions] [⋯]
-─────────────────────────
-[ + Draft version ]
+                          ┌──────────────────────┐
+                          │ EXPERIENCES      [×]│
+                          │ [+ New experience]  │
+                          │[Search experiences…]│
+                          │[Role: All        ▾] │
+                          │──────────────────────│
+                          │Embedded-risk launch │
+                          │          2 versions │
+                          │Controls automation  │
+                          │           1 version │
+                          └──────────────────────┘
 ```
 
 - Role and experience headers stack; no horizontal table scrolling is introduced.
 - `Map experience`, version selection, move, and add-from-library open full-width sheets/popovers with search first and 44px touch targets.
+- Drag-and-drop is not required on touch. `Move to experience` provides the full grouping flow in the drawer/sheet.
 - Use small visible icons (`↔` versions, `⋯` actions, chevrons for disclosure) plus full `aria-label` text. Do not rely on icon meaning alone.
 - Requirement rows keep the requirement above the mapped experiences, as the current responsive table does.
 - Expanding versions preserves the focused row and scroll position. The posting resume stays editor-first; the preview remains below/behind its existing mobile disclosure.
@@ -242,15 +313,15 @@ The implementation should use this as a checklist. A code search for `entries`, 
 | Bulk add / `#experiences/new` (`parseExperiences`, `addEntries`) | new entry ids | Default to implicit experiences. Optional post-create multi-select grouping is a separate, backed-up action. Never auto-group equal lines. |
 | Resume-bullet routes/deep links (`routes.js`, `#experiences/:entryId`, legacy `#log`/`#bullets`/`#brag`) | entry id allowlist | Keep entry-version deep links valid. An experience disclosure may open around the requested entry, but URLs continue to identify the concrete bullet. Add a separate experience route only if a stable group-detail page is later needed. |
 | Resume-bullet search (`searchEntries`, posting picker, library picker) | entry records | Search experience title plus all existing entry fields; return grouped results but select concrete entry ids. |
-| Posting requirements (`requirements[].bullets[].entryId`, `entryIds`) | requirement-line id + entry id | Keep concrete mapped versions in existing arrays. Group display by effective experience. Multiple versions from one experience may be checked. Do not add a second experience-only requirement mapping. |
+| Posting requirements (`requirements[].bullets[].entryId`, `entryIds`) | requirement-line id + entry id | Keep concrete mapped versions in existing arrays. Preserve many-to-many mapping: the same entry id may have distinct line links on several requirements. Group display by effective experience. Do not add a second experience-only requirement mapping. |
 | Requirement details and questions (`linkedEntries`, `linkedBulletLine`, `compilePrep`) | entry id | STAR/notes come from the checked version. Experience chip is context only. “Use experience” for an answer must require choosing a version when there are several. |
 | Prep cue cards (`compilePrep`, posting prep view) | requirement line id + entry id | Show the chosen version and its STAR data. If several versions in one experience are mapped, keep them as separate cue-card evidence rather than merging their STAR fields. |
 | Posting suggestions (`scoreEntry`, `suggestEntries`) | entry content/id | Rank at experience level using all versions, then show versions. Text affects rank only, never identity. |
 | Coverage banner / prep counts (`prepCoverage`) | requirements with bullet lines | “Resume bullets” remains count of requirements with ≥1 mapped version. Experience grouping does not inflate it. |
 | Unmapped panel (`postingRequirementResumeLinks`, `resumeBulletMappedToPostingRequirements`, `unmappedPostingResumeBullets`) | `sourceEntryIds`/`sourceBulletIds` | Replace output/count with effective-experience rows using the precise coverage rule above. No text fallback. |
-| Posting resume editor (`resumeBulletEditor`) | resume bullet id, `sourceEntryIds` | Add in-place swap among entries sharing effective experience. Preserve row id/order/group/include/pin/fit state and scroll. |
-| Add from library (`libraryBulletPicker`, `libraryBulletChoices`, `resumeTakenEntryIds`, `placeLibraryBullet`) | selected entry id | Group choices by experience; add one concrete version. Taken detection remains stable-id based. |
-| Posting resume compilation (`compileResumeDoc`, projection/claim helpers) | entry/source ids, with legacy text fallbacks | Carry effective experience metadata for editor use only. New paths must use ids. Retain text fallback solely for reading genuinely old unlinked data; never use it to group, swap, dedupe, or claim a new experience relationship. |
+| Posting resume editor (`resumeBulletEditor`) | resume bullet id, `sourceEntryIds` | Add in-place swap among entries sharing effective experience. Several siblings may coexist; swapping one row never changes another. Preserve row id/order/group/include/pin/fit state and scroll. |
+| Add from library (`libraryBulletPicker`, `libraryBulletChoices`, `resumeTakenEntryIds`, `placeLibraryBullet`) | selected entry ids | Group choices by experience; checkbox-select one or several concrete versions, then place them atomically into an explicit role/sub-heading/order. Taken detection and idempotency are stable-id based. |
+| Posting resume compilation (`compileResumeDoc`, projection/claim helpers) | entry/source ids, with legacy text fallbacks | Carry effective experience metadata for editor use only and union multiply mapped bullets by stable entry id so each appears once. New paths must use ids. Retain text fallback solely for reading genuinely old unlinked data; never use it to group, swap, dedupe, or claim a new experience relationship. |
 | Resume preview and one-page fit (`renderResumeHtml`, `resume-fit.js`) | compiled bullet rows | No experience labels in output. Swaps preserve row id so drop/pin results stay attached; rerun fit and maintain existing pinned-overflow warnings. |
 | Word / posting Print-PDF (`resume-docx.js`, preview print path) | compiled visible doc | Output selected wording only. No chips, experience titles, or alternate versions. |
 | Resume basics (`#profile`, shared `jobs[].groups[].bullets`) | career bullet ids and `sourceEntryIds` | Resolve group from linked entry. Add-from-library is grouped by experience; optional version swap follows the same stable-row rule. Grouping bullets never changes basics content. |
@@ -283,6 +354,8 @@ The implementation should use this as a checklist. A code search for `entries`, 
 The requirement continues to own concrete version links. The UI may say “Map experience,” but persistence remains `req.bullets[].entryId` plus stable line ids. This avoids an abstract mapping that cannot say which wording and STAR data the user chose.
 
 The same experience may be mapped to multiple requirements, and one requirement may map multiple versions from the same experience. `compilePrep` should preserve each selected version. Coverage counts the requirement once.
+
+Requirement mapping and resume placement are independent many-to-many relationships. The generated posting resume must project each concrete library bullet at most once, keyed by stable entry id, even if five requirements map to it. Requirement-line ids remain distinct so each mapping can be removed independently; resume compilation unions mapped entry ids and never deduplicates by text. Unmapping one requirement does not remove an existing explicit resume placement and does not affect another requirement’s link.
 
 ### Version swap
 
@@ -351,6 +424,7 @@ Conflict cases and expected outcomes:
 | Tab A ungroups; Tab B edits wording | Merge ungrouping and wording because only one side changed each field. |
 | Tab A tombstones an experience; Tab B adds/moves a bullet into it | Keep every bullet; tombstone wins for the label, assignment is repaired to implicit/unassigned and logged as a conflict/recovery item. Never drop the new bullet. |
 | Both tabs draft a version | Both new entry ids survive; deterministic list order is local then remote as in the existing id-list merge. |
+| Tab A multi-adds versions A/B; Tab B multi-adds B/C to the same posting resume | Reconcile nested resume bullets by stable source entry id so A/B/C each appear exactly once. Preserve non-conflicting placement; if B has conflicting destinations, retain one B and require a placement choice rather than duplicate or drop it. |
 | Offline/in-flight save reconnects after remote grouping | Merge from the recorded outbox base, preserve both independent changes, retry only when conflict-free. |
 | Old client saves after v4 grouping | Server preservation restores unknown v4 metadata by stable ids while retaining old-client edits. |
 
@@ -369,14 +443,16 @@ Every operation should return an explicit change set in tests (`changedEntryIds`
 
 ## Recovery backup before bulk operations
 
-Before `Group selected`, `Ungroup all`, bulk move, restore-grouping, or any future automatic grouping, create a bounded recovery record with:
+Before `Group selected`, `Ungroup all`, bulk move, posting-resume multi-add, restore-grouping, or any future automatic grouping, create a bounded recovery record with:
 
 - stable backup id, operation kind, timestamp, and affected ids;
 - the pre-operation experience metadata records;
 - `{ entryId, experienceId }` membership for all affected entries;
 - no copied bullet wording/STAR payload, because those fields are not changed by grouping.
 
-Keep at least the latest five grouping backups and merge them by backup id. `Restore grouping` restores relationships only and first creates another backup, making undo itself reversible. A full-book import/replace must continue to require the existing JSON export/recovery flow and must not be smuggled into a grouping operation.
+For posting-resume multi-add, the recovery record instead captures the affected posting’s pre-operation resume variant, placement maps, and fit metadata. It does not copy or rewrite library bullet content. Restore returns that posting resume to its prior placements and first creates another recovery record.
+
+Keep at least the latest five operation backups and merge them by backup id. `Restore grouping` restores relationships only and first creates another backup, making undo itself reversible. A full-book import/replace must continue to require the existing JSON export/recovery flow and must not be smuggled into a grouping operation.
 
 This focused backup is smaller and safer than recursively embedding whole-book copies. Full-book JSON export remains the lossless user-controlled backup.
 
@@ -410,18 +486,18 @@ Each phase should be one or a few reviewable commits; avoid combining model, syn
    - Add `experienceId` to field-aware entry merge and `experiences`/backups to id-list merge.
    - No UI behavior yet.
 3. **Read-only grouped catalog**
-   - Render role → experience → versions and grouped search, initially behind a local feature flag.
+   - Render the Resume bullets and posting two-panel layouts, independent sticky-panel scrolling, role/usage filters, selection/highlighting, collapsed-group restoration, and grouped search, initially behind a local feature flag.
    - Existing implicit data must produce the same visible bullet order/content.
 4. **Catalog mutations**
    - Add create, rename, group, ungroup, move, draft-version, and restore-grouping controls.
    - Enable writes only after backup and sync tests pass.
 5. **Posting requirement mapping**
-   - Add experience picker, version checkboxes, draft version, chips, grouped prep/export output.
+   - Add the posting experience side panel, requirement drop targets, experience picker, version checkboxes, draft version, chips, mapped/unused counts, and grouped prep/export output.
    - Keep requirement persistence entry-based.
 6. **Experience-level unmapped panel**
    - Implement the exact coverage rule and stable-id-only derivation.
 7. **Resume editor**
-   - Add grouped library picker and in-place version swap with dedupe, override reset, fit, focus, and scroll guarantees.
+   - Add checkbox multi-add with explicit role/sub-heading/order placement, grouped library picker, and in-place version swap with stable-id dedupe, override reset, fit, focus, and scroll guarantees.
    - Apply to posting resumes and Resume basics where linked.
 8. **Snapshots/import/export/recovery**
    - Add snapshot provenance schema 2, start-from-snapshot behavior, full-book JSON/PDF grouping, and restore UI.
@@ -447,8 +523,12 @@ No phase requires direct SQL or a new API route.
 ### Mapping and coverage tests
 
 - Requirement picker maps one or several concrete versions.
+- The same stable bullet id maps to two or more requirements, each mapping renders and can be removed independently, and the side panel reports the correct distinct `covers N requirements` count.
+- Posting resume compilation includes a multiply mapped bullet exactly once by stable entry id, even when requirement wording and line ids differ.
+- Unmapping from one requirement leaves the resume placement and every other requirement mapping intact.
 - One mapped sibling covers the experience in the experience-level unmapped panel.
 - Two visible uncovered siblings produce one unmapped row and correct version count.
+- Several visible siblings with one directly mapped version leave the experience-level Unmapped list while detail reports the exact directly mapped fraction.
 - Fit-dropped, excluded, and empty bullets stay excluded as today.
 - Unlinked local/import/snapshot bullets are synthetic and never covered by equal text.
 - Prep and coverage counts do not inflate when several versions from one experience are mapped.
@@ -458,7 +538,10 @@ No phase requires direct SQL or a new API route.
 - Swap keeps resume row id, job, group, order, include, pin, fit/drop identity, and rich formatting.
 - Swap clears/handles stale overrides and preview/Word/PDF show the newly selected wording.
 - Swap to an already-present version is blocked by stable entry id.
-- Grouped add-from-library selects one version and never duplicates an existing source entry.
+- Several sibling versions can coexist; swapping or removing one leaves every other sibling unchanged.
+- Multi-add places selected versions contiguously in the confirmed role/sub-heading/order and preserves checklist order.
+- Repeating identical multi-add is idempotent: already-present stable entry ids stay checked/`Added`, and no source entry appears twice, including excluded rows.
+- Removing one multi-added version leaves its siblings, requirement mappings, and experience membership unchanged.
 - Resume basics and posting-local overlays remain isolated.
 - Duplicate company/title roles are never collapsed or duplicated by text; extend `test-brag-book-duplicate-role.mjs`.
 - Editor/window/preview scroll remain stable; extend the existing resume-scroll test.
@@ -485,6 +568,10 @@ These must pass before any UI writer is enabled:
 - ungroup + wording edit merge.
 - tombstone + concurrent new version preserves the version as implicit and reports recovery.
 - simultaneous drafts preserve both ids.
+- Multi-add A/B followed by the same multi-add after retry/reload still yields exactly one placement per stable entry id.
+- Two tabs multi-add overlapping sets (A/B and B/C) to one posting resume; merge/retry yields A/B/C once each, or one explicit placement conflict for B, with no lost or duplicated version.
+- Two tabs remove one sibling and add another; the untouched sibling placement survives unchanged.
+- Two tabs add/remove different requirement mappings for the same bullet; reconciliation preserves independent mappings, resume compilation still emits one stable-id bullet, and removing one mapping cannot erase the other.
 - in-flight save plus a second local edit drains in order.
 - reconnect merges account-scoped outbox against its recorded base and retries only when conflict-free.
 - 409, 428, stale timestamp client, numeric revision client, and server history preservation all retain experiences, snapshots, and `legacyVersions`.
@@ -497,6 +584,8 @@ These must pass before any UI writer is enabled:
 Run every `scripts/test-brag-book*.mjs` test, especially canonical wording, save/current save, rich text, duplicate role, experience groups, export, snapshots/start-from-snapshot/chooser, unmapped resume/panel, resume scroll, drag DOM, mobile lock, PWA, and PWA sync guarantees. Also run `node scripts/test-public-imports.mjs`.
 
 No browser automation is required. Manual responsive review may happen later, but it is not a substitute for the pure sync and identity tests.
+
+Add DOM-level tests for both two-panel views: independent side-panel/left scroll, click-again clearing, left-search intersection, temporary role/requirement expansion and collapse restoration, mapped/unused counts, stable-id drag payloads, keyboard `Move/Map experience` alternatives, drawer focus return, and no scroll jump after multi-add.
 
 ## Documentation and naming follow-up
 
