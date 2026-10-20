@@ -3201,16 +3201,16 @@ html.bb-offline-readonly .shell select {
 .bb-exp-section-body {
   padding-left: 8px;
 }
+.bb-exp-row-wrap {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
 .bb-exp-row-check {
   display: flex;
   align-items: flex-start;
   padding-top: 4px;
-}
-.bb-exp-row-check + .bb-exp-row,
-.bb-exp-row:has(.bb-exp-row-check) {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 8px;
 }
 .bb-version-swap-wrap {
   position: relative;

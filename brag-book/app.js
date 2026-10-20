@@ -306,6 +306,14 @@ let experiencesMobileDrawerOpen = false;
 /** Resume bullet id with the Versions ▾ menu open (session only). */
 let expandedVersionSwapBulletId = '';
 
+function mediaMatches(query) {
+  try {
+    return window.matchMedia(query).matches;
+  } catch {
+    return false;
+  }
+}
+
 function storeCacheKey() {
   if (localMode) return LOCAL_STORE_KEY;
   return accountStoreKey(cacheUserId);
@@ -1831,7 +1839,7 @@ function experiencesPanelForPage(page, posting = null) {
       render();
     },
   }, '▸ Experiences');
-  if (collapsed && window.matchMedia('(min-width: 1100px)').matches) {
+  if (collapsed && mediaMatches('(min-width: 1100px)')) {
     return rail;
   }
   const panel = buildExperiencesPanel({
@@ -1868,7 +1876,7 @@ function experiencesPanelForPage(page, posting = null) {
     class: 'bb-exp-panel-close',
     'aria-label': 'Collapse Experiences panel',
     onClick: () => {
-      if (window.matchMedia('(max-width: 720px)').matches) {
+      if (mediaMatches('(max-width: 720px)')) {
         experiencesMobileDrawerOpen = false;
       } else {
         writePanelCollapsed(true);
@@ -1876,7 +1884,10 @@ function experiencesPanelForPage(page, posting = null) {
       render();
     },
   });
-  panel.querySelector('.bb-exp-panel-head')?.append(close);
+  const panelHead = typeof panel.querySelector === 'function'
+    ? panel.querySelector('.bb-exp-panel-head')
+    : null;
+  if (panelHead?.append) panelHead.append(close);
   return panel;
 }
 
@@ -1897,8 +1908,7 @@ function experienceCatalogRow(entry) {
       },
     }),
   ]);
-  row.prepend(check);
-  return row;
+  return el('div', { class: 'bb-exp-row-wrap' }, [check, row]);
 }
 
 function experienceTable(view) {
