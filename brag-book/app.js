@@ -268,6 +268,8 @@ let resumeSnapshotRenameOpen = null;
 const unmappedResumePanelExpanded = new Set();
 /** Resume bullet entry ids with STAR expanded this session (not persisted). */
 const expandedExperienceStar = new Set();
+/** Jobs catalog on Resume bullets expanded this session (not persisted). */
+let jobsCatalogExpanded = false;
 
 function storeCacheKey() {
   if (localMode) return LOCAL_STORE_KEY;
@@ -4343,7 +4345,7 @@ function jobCatalogRow(job) {
     el('span', {}, label),
     control,
   ]);
-  return el('div', { class: 'bb-job-catalog-row' }, [
+  return el('div', { class: 'bb-job-catalog-row', dataset: { jobId: job.id } }, [
     jobField('Company', company),
     jobField('Title', title),
     jobField('Dates', dates),
@@ -4369,26 +4371,96 @@ function jobCatalogRow(job) {
   ]);
 }
 
+function flushJobCatalogEdits(section) {
+  if (!section) return;
+  for (const row of section.querySelectorAll('.bb-job-catalog-row')) {
+    const jobId = row.dataset?.jobId;
+    const job = (store.jobs || []).find((item) => item.id === jobId);
+    if (!job) continue;
+    const keys = jobCatalogFocusKeys(job.id);
+    const company = row.querySelector(`[data-focus-key="${keys.company}"]`);
+    const title = row.querySelector(`[data-focus-key="${keys.title}"]`);
+    const dates = row.querySelector(`[data-focus-key="${keys.dates}"]`);
+    const location = row.querySelector(`[data-focus-key="${keys.location}"]`);
+    if (!company || !title || !dates || !location) continue;
+    const [start, end] = String(dates.value || '').split(/\s+[–-]\s+/);
+    const patch = {
+      company: company.value,
+      title: title.value,
+      location: location.value,
+      start: (start || dates.value).trim(),
+      end: (end || '').trim(),
+    };
+    const same = patch.company === (job.company || '')
+      && patch.title === (job.title || '')
+      && patch.location === (job.location || '')
+      && patch.start === (job.start || '')
+      && patch.end === (job.end || '');
+    if (!same) {
+      store = updateCareerJob(store, job.id, patch);
+      saveStore();
+    }
+  }
+}
+
+function toggleJobsCatalog(section) {
+  if (jobsCatalogExpanded) {
+    flushJobCatalogEdits(section);
+    void flushSave('blur');
+    jobsCatalogExpanded = false;
+  } else {
+    jobsCatalogExpanded = true;
+  }
+  const scroll = captureScroll();
+  render();
+  restoreScroll(scroll);
+}
+
 function jobCatalogSection() {
-  return el('section', { class: 'panel bb-jobs-catalog' }, [
-    el('div', { class: 'panel-head' }, [
-      el('div', {}, [
-        el('h2', {}, 'Jobs'),
-        el('p', { class: 'tiny' }, 'Company and title, plus optional dates and location. Resume bullets and resume roles use this list.'),
-      ]),
-      btn('+ New job', {
-        class: 'btn ghost compact-action',
-        onClick: () => {
-          store = addCareerJob(store, { onResume: false });
-          const added = store.jobs[store.jobs.length - 1];
-          saveStore();
-          render({ focusKey: added ? `job-co-${added.id}` : undefined });
-        },
-      }),
-    ]),
+  const expanded = jobsCatalogExpanded;
+  const panelId = 'bb-jobs-catalog-body';
+  const jobCount = (store.jobs || []).length;
+  const catalogToggle = el('button', {
+    type: 'button',
+    class: 'bb-jobs-catalog-toggle',
+    'aria-expanded': expanded ? 'true' : 'false',
+    'aria-controls': panelId,
+    onClick: (event) => {
+      event.preventDefault();
+      toggleJobsCatalog(event.currentTarget.closest('.bb-jobs-catalog'));
+    },
+  }, [
+    el('span', { class: 'bb-jobs-catalog-chevron', 'aria-hidden': 'true' }),
+    el('span', { class: 'bb-jobs-catalog-title' }, 'Jobs'),
+    el('span', { class: 'bb-jobs-catalog-count' }, String(jobCount)),
+  ]);
+  const catalogBody = el('div', {
+    class: 'bb-jobs-catalog-body',
+    id: panelId,
+    hidden: expanded ? undefined : true,
+  }, [
+    el('p', { class: 'tiny bb-jobs-catalog-lede' }, 'Company and title, plus optional dates and location. Resume bullets and resume roles use this list.'),
     store.jobs.length
       ? el('div', { class: 'bb-job-catalog-list' }, store.jobs.map((job) => jobCatalogRow(job)))
       : el('p', { class: 'empty' }, 'No jobs yet. Add one before you tie a resume bullet to it.'),
+  ]);
+  return el('section', { class: 'panel bb-jobs-catalog' }, [
+    el('div', { class: 'panel-head bb-jobs-catalog-head' }, [
+      catalogToggle,
+      btn('+ New job', {
+        class: 'btn ghost compact-action',
+        onClick: () => {
+          jobsCatalogExpanded = true;
+          store = addCareerJob(store, { onResume: false });
+          const added = store.jobs[store.jobs.length - 1];
+          saveStore();
+          const scroll = captureScroll();
+          render({ focusKey: added ? `job-co-${added.id}` : undefined });
+          restoreScroll(scroll);
+        },
+      }),
+    ]),
+    catalogBody,
   ]);
 }
 

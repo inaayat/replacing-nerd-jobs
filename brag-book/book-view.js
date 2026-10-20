@@ -150,6 +150,11 @@ export function experienceStarDefaultExpanded() {
   return false;
 }
 
+/** Jobs catalog on Resume bullets is collapsed until the user expands it (session-only). */
+export function jobsCatalogDefaultExpanded() {
+  return false;
+}
+
 export function experienceRowSpec(entry) {
   const spec = sharedBulletSpec(entry);
   return {
