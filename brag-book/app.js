@@ -166,6 +166,11 @@ import {
 } from './engine.js';
 import { renderResumeHtml, resumeDocument } from './resume-template.js';
 import {
+  buildBookExportDocument,
+  exportBookJsonFilename,
+  exportBookJsonText,
+} from './book-export.js';
+import {
   fitOnePage,
   dropOrderFromDoc,
   applyDroppedIds,
@@ -891,15 +896,28 @@ function paintSyncConflictNotice() {
   if (node) fillSyncConflictNotice(node);
 }
 
-function exportStore() {
-  const blob = new Blob([JSON.stringify(store, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = el('a', { href: url, download: 'brag-book.json' });
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-  setNote('Downloaded a JSON copy.');
+function exportBookJson() {
+  try {
+    downloadText(exportBookJsonFilename(store), exportBookJsonText(store), 'application/json');
+    setNote('Downloaded a JSON copy you can re-import with Import book.');
+  } catch (err) {
+    setNote(err?.message || 'Could not export JSON.');
+  }
+}
+
+function exportBookPdf() {
+  const html = buildBookExportDocument(store);
+  const win = window.open('', '_blank');
+  if (!win) {
+    downloadText(`${exportBookJsonFilename(store).replace(/\.json$/i, '')}-export.html`, html, 'text/html');
+    setNote('Download the HTML and use Print → Save as PDF.');
+    return;
+  }
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  win.print();
+  setNote('Use the print dialog → Save as PDF.');
 }
 
 function downloadLegacyBrowserBackup() {
@@ -1155,7 +1173,13 @@ function homeView() {
       })),
     ]) : null,
     el('div', { class: 'actions' }, [
-      btn('Export', { class: 'btn ghost', onClick: exportStore }),
+      el('details', { class: 'bb-export-menu' }, [
+        el('summary', { class: 'btn ghost' }, 'Export book'),
+        el('div', { class: 'bb-export-menu-panel' }, [
+          btn('Export as JSON', { class: 'btn ghost', onClick: (event) => { event.preventDefault(); exportBookJson(); } }),
+          btn('Export as PDF', { class: 'btn ghost', onClick: (event) => { event.preventDefault(); exportBookPdf(); } }),
+        ]),
+      ]),
       btn('Import book', { class: 'btn ghost', onClick: () => fileInput.click() }),
       btn('Import resume (JSON)', { class: 'btn ghost', onClick: () => resumeFileInput.click() }),
       legacyBrowserBackup

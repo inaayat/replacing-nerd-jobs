@@ -1195,6 +1195,20 @@ a:focus-visible {
 }
 
 .utility-box[open] summary { border-bottom: 1px solid var(--line); }
+.bb-export-menu { display: inline-block; vertical-align: middle; }
+.bb-export-menu summary { list-style: none; }
+.bb-export-menu summary::-webkit-details-marker { display: none; }
+.bb-export-menu-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  margin-top: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  min-width: 10rem;
+}
 .utility-body { padding: 10px; }
 .utility-body .paste-more { margin: 0; }
 
