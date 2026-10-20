@@ -253,6 +253,8 @@ let resumePreviewTimer = null;
 let resumeFitPostingId = null;
 let resumeSnapshotSaveOpen = null;
 let resumeSnapshotStartOpen = null;
+/** Posting still on the first-time resume chooser: pick a saved copy inline. */
+let resumeSnapshotChooserOpen = null;
 let resumeSnapshotApplyToPostingId = null;
 let resumeSnapshotRenameOpen = null;
 
@@ -3176,10 +3178,11 @@ function snapshotIsDeleted(snapshot) {
   return (snapshot?.events || []).some((event) => event.kind === 'delete');
 }
 
-function applySnapshotToPosting(posting, snapshotId) {
+function applySnapshotToPosting(posting, snapshotId, { fromChooser = false } = {}) {
   const snapshot = resumeSnapshotById(store, snapshotId);
   if (!snapshot || !posting) return;
-  if (!confirm(postingResumeOverwriteConfirm(snapshot, posting))) return;
+  const onChooseScreen = fromChooser || posting.resume?.mode === 'choose';
+  if (!onChooseScreen && !confirm(postingResumeOverwriteConfirm(snapshot, posting))) return;
   try {
     const result = startPostingResumeFromSnapshot(store, posting.id, snapshotId, {
       fit: snapshotFitPayload(),
@@ -3192,9 +3195,12 @@ function applySnapshotToPosting(posting, snapshotId) {
     saveStore();
     void flushSave('navigation');
     resumeSnapshotStartOpen = null;
+    resumeSnapshotChooserOpen = null;
     resumeSnapshotApplyToPostingId = null;
     render();
-    setNote('Loaded the saved resume onto this posting. Your previous version was saved in Saved resumes.');
+    setNote(onChooseScreen
+      ? 'This posting’s resume now starts from your saved copy. The header still comes from Resume basics.'
+      : 'Loaded the saved resume onto this posting. Your previous version was saved in Saved resumes.');
   } catch (err) {
     setNote(err?.message || 'Could not load that saved resume.');
   }
@@ -4737,22 +4743,59 @@ function resumeWorkspace(posting) {
   return wrap;
 }
 
+function resumeChooserSnapshotList(posting) {
+  const rows = activeResumeSnapshots(store);
+  return el('div', { class: 'bb-snapshot-save bb-snapshot-start bb-choose-snapshot-list' }, [
+    el('p', { class: 'tiny' }, 'Pick a saved resume to copy onto this posting. Resume basics and the saved copy you pick stay unchanged.'),
+    el('div', { class: 'bb-snapshot-list bb-snapshot-start-list' }, rows.map((row) => el('div', { class: 'bb-snapshot-row' }, [
+      el('div', { class: 'bb-snapshot-meta' }, [
+        el('strong', {}, row.name || row.initialName),
+        el('span', { class: 'tiny' }, [
+          row.sourcePosting?.company,
+          row.savedAt ? new Date(row.savedAt).toLocaleDateString() : '',
+        ].filter(Boolean).join(' · ')),
+      ]),
+      el('div', { class: 'bb-snapshot-actions' }, [
+        btn('Use this copy', {
+          class: 'btn compact-action',
+          onClick: () => applySnapshotToPosting(posting, row.id, { fromChooser: true }),
+        }),
+      ]),
+    ]))),
+    el('div', { class: 'actions' }, [
+      btn('Cancel', {
+        class: 'btn ghost compact-action',
+        onClick: () => {
+          resumeSnapshotChooserOpen = null;
+          render();
+        },
+      }),
+    ]),
+  ]);
+}
+
 function resumeChooser(job) {
+  const snapshots = activeResumeSnapshots(store);
+  const chooserOpen = resumeSnapshotChooserOpen === job.id;
   return el('section', { class: 'panel bb-resume-choose' }, [
     el('div', { class: 'panel-head' }, [
       el('div', {}, [
         el('h2', {}, 'Start this posting’s resume'),
         el('p', { class: 'tiny' }, [job.title, job.company].filter(Boolean).join(' · ')),
       ]),
-      btn('Back to posting', { class: 'btn ghost', onClick: () => go({ kind: 'jobs', id: job.id }) }),
+      btn('Back to posting', { class: 'btn ghost', onClick: () => {
+        resumeSnapshotChooserOpen = null;
+        go({ kind: 'jobs', id: job.id });
+      } }),
     ]),
     el('div', { class: 'panel-body' }, [
-      el('p', { class: 'lede' }, 'The header (name, contact, links) always comes from Resume basics. Choose whether this posting starts from that shared career history or from a blank page.'),
+      el('p', { class: 'lede' }, 'The header (name, contact, links) always comes from Resume basics. Start from that shared career history, a saved resume copy, or a blank page on this posting.'),
       el('div', { class: 'bb-choose-cards' }, [
         el('button', {
           type: 'button',
           class: 'start-card is-primary',
           onClick: () => {
+            resumeSnapshotChooserOpen = null;
             store = choosePostingResumeMode(store, job.id, 'basics');
             saveStore();
             render();
@@ -4761,10 +4804,29 @@ function resumeChooser(job) {
           el('strong', {}, 'Start from Resume basics'),
           el('p', {}, 'Copy in your shared roles, education, credentials, and additional info. You can still hide items and add posting-only roles.'),
         ]),
+        snapshots.length ? el('button', {
+          type: 'button',
+          class: `start-card${chooserOpen ? ' is-primary' : ''}`,
+          onClick: () => {
+            resumeSnapshotChooserOpen = chooserOpen ? null : job.id;
+            render();
+          },
+        }, [
+          el('strong', {}, 'Start from a saved resume'),
+          el('p', {}, 'Copy a saved resume layout onto this posting only. The header still comes from Resume basics; later edits stay on this posting.'),
+        ]) : el('button', {
+          type: 'button',
+          class: 'start-card is-disabled',
+          disabled: true,
+        }, [
+          el('strong', {}, 'Start from a saved resume'),
+          el('p', {}, 'No saved resumes yet. Save a copy from another posting’s resume, then return here.'),
+        ]),
         el('button', {
           type: 'button',
           class: 'start-card',
           onClick: () => {
+            resumeSnapshotChooserOpen = null;
             store = choosePostingResumeMode(store, job.id, 'fresh');
             saveStore();
             render();
@@ -4774,6 +4836,7 @@ function resumeChooser(job) {
           el('p', {}, 'Keep the header. Empty Work Experience, Education, Credentials, and Additional Info on this posting only, then build with + Add role.'),
         ]),
       ]),
+      chooserOpen && snapshots.length ? resumeChooserSnapshotList(job) : null,
     ]),
   ]);
 }

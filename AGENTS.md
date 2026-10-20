@@ -70,6 +70,7 @@ This repo is a no-build Vercel site (see `README.md` for structure/deploy). Non-
   - `node scripts/test-brag-book-start-from-snapshot.mjs` — start posting resume from saved copy, auto-backup, persist/reload, posting-only edits (`resume-snapshots.js`, save controller)
   - `node scripts/test-brag-book-unmapped-resume.mjs` — posting workspace unmapped resume bullets (compile vs requirement links, exclude, live mapping)
   - `node scripts/test-brag-book-resume-editor-scroll.mjs` — posting resume editor preserves window/editor/preview scroll on include, pin, remove, sub-heading, reorder (`app.js` scroll restore)
+  - `node scripts/test-brag-book-resume-choose-snapshot.mjs` — first-time posting resume chooser: start from saved copy, persist, basics/snapshot unchanged (`resume-snapshots.js`, save controller)
  - `node scripts/test-brag-book-drag-dom.mjs` — Resume basics and posting drag handles in jsdom: HTML5 drag and pointer fallback, preview and DOCX order, reload (`brag-book/app.js`)
  - `node scripts/test-brag-book-pwa.mjs` — Brag Book manifest, A-Lister–style service worker, PWA status/update UI (`brag-book/pwa.js`, `service-worker.js`)
  - `node scripts/test-brag-book-pwa-sync-guarantees.mjs` — online PUT, in-flight save reconnect, 409 merge, flush/outbox, SW vs localStorage, bullet ids, offline read-only
