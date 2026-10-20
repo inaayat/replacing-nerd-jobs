@@ -121,6 +121,7 @@ import {
   assignEntryJob,
   placeJobOnResume,
   addPostingResumeJob,
+  catalogJobIdsOnPostingResume,
   suggestJobSetup,
   applyJobSetup,
   dismissJobSetup,
@@ -3754,13 +3755,7 @@ function resumeBulletEditor(posting, career, group, bullet, bulletIndex = 0, gro
 }
 
 function resumeJobIds(posting) {
-  const jobs = compileResumeDoc(posting || null, store).sections?.experience?.jobs || [];
-  const ids = new Set();
-  for (const job of jobs) {
-    if (job.included === false) continue;
-    ids.add(job.jobId && job.jobId !== job.id ? job.jobId : job.id);
-  }
-  return ids;
+  return catalogJobIdsOnPostingResume(posting || null, store);
 }
 
 function addRoleButton(posting, { afterId } = {}) {

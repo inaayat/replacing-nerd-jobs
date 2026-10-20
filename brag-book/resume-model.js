@@ -962,6 +962,26 @@ export function inferEntryJobId(entry, store) {
   return both.length === 1 ? both[0].id : '';
 }
 
+/** Catalog job id represented by one compiled resume role row (shared id, jobId link, or company/title match). */
+export function resolvedCatalogJobIdForCompiledJob(job, store) {
+  if (!job || job.included === false) return '';
+  const catalog = normalizeCareerJobs(store?.jobs);
+  const linked = job.jobId && job.jobId !== job.id ? job.jobId : '';
+  if (linked && catalog.some((row) => row.id === linked)) return linked;
+  if (catalog.some((row) => row.id === job.id)) return job.id;
+  return inferEntryJobId({ company: job.company, role: job.title, jobId: '' }, store);
+}
+
+/** Set of catalog `store.jobs` ids already on this posting’s compiled Work Experience. */
+export function catalogJobIdsOnPostingResume(posting, store) {
+  const ids = new Set();
+  for (const job of compileResumeDoc(posting, store)?.sections?.experience?.jobs || []) {
+    const catalogId = resolvedCatalogJobIdForCompiledJob(job, store);
+    if (catalogId) ids.add(catalogId);
+  }
+  return ids;
+}
+
 export function postingTiedJobIds(store, posting) {
   const ids = new Set();
   for (const req of posting?.requirements || []) {

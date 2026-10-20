@@ -121,6 +121,7 @@ import {
   updateCareerJob,
   assignEntryJob,
   placeJobOnResume,
+  catalogJobIdsOnPostingResume,
   addPostingResumeJob,
   attachPostingJobBullets,
   inferEntryJobId,
@@ -3463,12 +3464,21 @@ assert.equal(compileResumeDoc(null, linked).sections.experience.jobs.some((job) 
 linked = updateCareerJob(linked, 'rj_cat', { onResume: false }, clock);
 const resumeBefore = linked.postings.find((posting) => posting.id === 'job_b').resume;
 linked = placeJobOnResume(linked, 'job_a', 'rj_cat', clock);
-assert.ok(linked.postings.find((posting) => posting.id === 'job_a').resume.includedJobIds.includes('rj_cat'));
-assert.equal(linked.postings.find((posting) => posting.id === 'job_a').resume.localJobs.some((job) => job.company === 'Acme Inc' && job.id !== 'rj_local'), false);
+const postingA = linked.postings.find((posting) => posting.id === 'job_a');
+assert.ok(catalogJobIdsOnPostingResume(postingA, linked).has('rj_cat'));
+assert.equal(
+  postingA.resume.includedJobIds.includes('rj_cat'),
+  !postingA.resume.localJobs.some((job) => job.jobId === 'rj_cat'),
+  'includedJobIds only when no posting-local row already links that catalog job',
+);
+assert.equal(postingA.resume.localJobs.some((job) => job.company === 'Acme Inc' && job.id !== 'rj_local'), false);
 assert.deepEqual(linked.postings.find((posting) => posting.id === 'job_b').resume, resumeBefore);
 assert.deepEqual(linked.postings.find((posting) => posting.id === 'job_b').resume, otherResume);
-shown = compileResumeDoc(linked.postings.find((posting) => posting.id === 'job_a'), linked);
-assert.equal(shown.sections.experience.jobs.some((job) => job.id === 'rj_cat'), true);
+shown = compileResumeDoc(postingA, linked);
+assert.equal(
+  shown.sections.experience.jobs.some((job) => job.id === 'rj_cat' || job.jobId === 'rj_cat'),
+  true,
+);
 assert.equal(compileResumeDoc(linked.postings.find((posting) => posting.id === 'job_b'), linked).sections.experience.jobs.some((job) => job.id === 'rj_cat'), false);
 
 const choices = libraryBulletChoices(linked, { jobId: 'rj_cat' });
@@ -3549,7 +3559,13 @@ assert.equal(compileResumeDoc(null, mapped).sections.experience.jobs.some((job) 
 const quietBefore = mapped.postings.find((posting) => posting.id === 'job_quiet').resume;
 const entryCount = mapped.entries.length;
 mapped = addPostingResumeJob(mapped, 'job_mapped', 'rj_mapped', {}, clock, random);
-assert.ok(mapped.postings.find((posting) => posting.id === 'job_mapped').resume.includedJobIds.includes('rj_mapped'));
+const mappedPosting = postingById(mapped, 'job_mapped');
+assert.ok(catalogJobIdsOnPostingResume(mappedPosting, mapped).has('rj_mapped'));
+assert.equal(
+  compileResumeDoc(mappedPosting, mapped).sections.experience.jobs.filter((job) => job.id === 'rj_mapped').length,
+  1,
+  'Explicit add must not duplicate a requirement-tied catalog role',
+);
 assert.equal(mapped.jobs.find((job) => job.id === 'rj_mapped').onResume, false);
 assert.equal(mapped.entries.length, entryCount);
 assert.deepEqual(mapped.postings.find((posting) => posting.id === 'job_quiet').resume, quietBefore);

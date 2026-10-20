@@ -78,6 +78,8 @@ import {
   additionalValuePlain,
   findLocalBullet,
   inferEntryJobId,
+  catalogJobIdsOnPostingResume,
+  resolvedCatalogJobIdForCompiledJob,
   insertJobOrder,
   visibleResumeBullets,
   clearBulletOverride,
@@ -180,6 +182,8 @@ export {
   localJobById,
   insertJobOrder,
   inferEntryJobId,
+  catalogJobIdsOnPostingResume,
+  resolvedCatalogJobIdForCompiledJob,
   postingTiedJobIds,
 } from './resume-model.js';
 
@@ -2053,6 +2057,9 @@ export function placeJobOnResume(store, postingId, jobId, clock = Date.now) {
   if (!postingId) return updateCareerJob(store, jobId, { onResume: true }, clock);
   const posting = postingById(store, postingId);
   if (!posting) return store;
+  if (catalogJobIdsOnPostingResume(posting, store).has(jobId)) {
+    return attachPostingJobBullets(store, postingId, jobId, clock);
+  }
   const variant = normalizeResumeVariant(posting.resume);
   const excludedJobIds = (variant.excludedJobIds || []).filter((id) => id !== jobId);
   const includedJobIds = variant.includedJobIds.slice();
