@@ -11,6 +11,12 @@ export function formatCreateExperienceLabel(query) {
   return '+ Create experience';
 }
 
+export function formatAddLooseBulletLabel(query) {
+  const trimmed = String(query || '').trim();
+  if (trimmed) return `+ Add as a new bullet "${trimmed}"`;
+  return '+ Add as a new bullet';
+}
+
 /** Arrow / Enter navigation for a search field over `[data-exp-picker-option]` rows. */
 export function wireExperienceSearchListKeyboard(searchInput, {
   getOptionCount,
@@ -59,6 +65,30 @@ export function paintExperienceSearchOptions(listEl, activeIndex) {
   });
 }
 
+export function buildAddLooseBulletOption(deps, {
+  query,
+  activeIndex,
+  optionIndex,
+  jobId,
+  onAddLooseBulletFromQuery,
+  choiceClass = 'bb-exp-picker-choice',
+}) {
+  const { el, btn } = deps;
+  return btn(formatAddLooseBulletLabel(query), {
+    type: 'button',
+    class: `${choiceClass} bb-post-map-add-loose-row${optionIndex === activeIndex ? ' is-active' : ''}`,
+    role: 'option',
+    'data-exp-picker-option': '1',
+    'aria-selected': optionIndex === activeIndex ? 'true' : 'false',
+    onMouseDown: (event) => event.preventDefault(),
+    onClick: () => {
+      const title = String(query || '').trim();
+      if (!jobId || !title) return;
+      onAddLooseBulletFromQuery({ title, jobId });
+    },
+  });
+}
+
 export function buildCreateExperienceOption(deps, { query, activeIndex, optionIndex, jobId, onCreateFromQuery, onOpenCreateForm, choiceClass = 'bb-exp-picker-choice' }) {
   const { el, btn } = deps;
   return btn(formatCreateExperienceLabel(query), {
@@ -68,15 +98,15 @@ export function buildCreateExperienceOption(deps, { query, activeIndex, optionIn
     'data-exp-picker-option': '1',
     'aria-selected': optionIndex === activeIndex ? 'true' : 'false',
     onMouseDown: (event) => event.preventDefault(),
-    onClick: () => {
-      const title = String(query || '').trim();
-      if (!jobId) {
-        if (typeof onOpenCreateForm === 'function') onOpenCreateForm();
-        return;
-      }
-      if (!title) return;
-      onCreateFromQuery({ title, jobId });
-    },
+      onClick: () => {
+        const title = String(query || '').trim();
+        if (!title) return;
+        if (!jobId && typeof onOpenCreateForm === 'function') {
+          onOpenCreateForm();
+          return;
+        }
+        onCreateFromQuery({ title, jobId });
+      },
   });
 }
 

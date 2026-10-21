@@ -47,12 +47,15 @@ export function buildExperiencePicker(deps) {
   const open = openEntryId === entry.id;
   const overlayId = experiencePickerOverlayId(entry.id);
 
-  const close = () => {
+  const close = ({ refocusAnchor = true } = {}) => {
     onOpenPicker('');
     onPickerCreateFormOpen(false);
     onPickerSearch('');
     onPickerActiveIndex(-1);
-    onRender({ focusKey: anchorFocusKey, preserveScroll: true });
+    onRender({
+      preserveScroll: true,
+      ...(refocusAnchor ? { focusKey: anchorFocusKey } : {}),
+    });
   };
 
   const applyMembership = (nextStore, message) => {
@@ -142,7 +145,7 @@ export function buildExperiencePicker(deps) {
     pickerParts.foot,
   ]);
 
-  registerOverlayClose(menu, close);
+  registerOverlayClose(menu, () => close({ refocusAnchor: false }));
   if (typeof pickerParts.afterMount === 'function') {
     queueMicrotask(() => pickerParts.afterMount());
   }

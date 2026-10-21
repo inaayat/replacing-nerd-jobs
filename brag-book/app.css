@@ -3846,6 +3846,12 @@ html.bb-offline-readonly .shell select {
   display: grid;
   gap: 6px;
 }
+.bb-post-map-stack.is-search-only .bb-post-map-search-wrap {
+  margin: 0;
+}
+.bb-post-map-stack.is-search-only .bb-post-map-search {
+  margin: 0;
+}
 .bb-post-map-bucket,
 .bb-post-map-loose-group {
   margin: 0;

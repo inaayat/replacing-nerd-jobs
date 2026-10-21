@@ -5,7 +5,7 @@
  * are network-first so deploys take effect on the next load; cache is fallback
  * only when fetch fails. API and auth are never intercepted.
  */
-const BUILD_ID = '2026-10-15a';
+const BUILD_ID = '2026-10-21b';
 const CACHE = `brag-book-${BUILD_ID}`;
 
 const PRECACHE = [

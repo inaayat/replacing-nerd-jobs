@@ -1,6 +1,5 @@
 import { buildExperiencesPanel } from './experiences-panel.js';
 import { buildExperiencePicker } from './experience-picker.js';
-import { buildCreateExperienceOption } from './experience-search-picker.js';
 import {
   buildExperienceCreateForm,
   buildBulkExperienceBar,
@@ -31,6 +30,7 @@ import { experiencesDualInlineMediaQuery } from './experiences-layout.js';
 import {
   buildRequirementMappingStack,
   buildPostingMapSearchResults,
+  appendPostingMapSearchCreateRows,
   requirementBucketKey,
   postingMapAddBulletFocusKey,
   mapExperienceBucketToRequirement,
@@ -344,6 +344,14 @@ let postingMapTargetEntryId = '';
 let postingMapPick = null;
 const requirementMapSearchByKey = new Map();
 const requirementMapSearchActiveByKey = new Map();
+
+function clearOtherRequirementMapSearches(keepKey) {
+  for (const key of requirementMapSearchByKey.keys()) {
+    if (key === keepKey) continue;
+    requirementMapSearchByKey.set(key, '');
+    requirementMapSearchActiveByKey.set(key, -1);
+  }
+}
 let experiencesPanelSearchActiveIndex = -1;
 const expandedRequirementBuckets = new Set();
 /** After + Add bullet, focus the new version editor (`post-map-version-<entryId>`). */
@@ -2365,34 +2373,64 @@ function experiencesPanelForPage(page, posting = null) {
     }, targets, { activeIndex: experiencesPanelSearchActiveIndex });
     const createRowIndex = built.optionIndex;
     const listChildren = [...built.nodes];
-    if (panelJobId && q) {
-      listChildren.push(buildCreateExperienceOption(
-        { el, btn },
-        {
-          query: experiencesPanelQuery,
-          activeIndex: experiencesPanelSearchActiveIndex,
-          optionIndex: createRowIndex,
-          jobId: panelJobId,
-          onCreateFromQuery: ({ title, jobId }) => {
-            const created = createExperience(store, { jobId, title });
-            store = created.store;
-            const xpId = created.changedExperienceIds[0];
-            rememberSessionEmptyExperience(xpId);
-            saveStore();
-            if (posting) {
-              postingMapPick = { kind: 'experience', experienceId: xpId };
-              postingMapTargetEntryId = '';
-              setNote('Experience created. Choose a requirement and tap Map here.');
-            } else {
-              selectPanelExperience(xpId);
-              setNote('Created experience.');
-            }
-            experiencesPanelSearchActiveIndex = -1;
-            render({ preserveScroll: true, focusKey: 'exp-panel-search' });
-          },
-          choiceClass: 'bb-post-map-choice',
+    if (q) {
+      appendPostingMapSearchCreateRows({ el, btn }, listChildren, {
+        query: experiencesPanelQuery,
+        activeIndex: experiencesPanelSearchActiveIndex,
+        startIndex: createRowIndex,
+        jobId: panelJobId,
+        onCreateExperienceFromQuery: ({ title, jobId }) => {
+          const resolvedJobId = jobId || panelJobId;
+          if (!resolvedJobId) {
+            setNote('Link this posting to a job before creating an experience.');
+            return;
+          }
+          const trimmed = String(title || '').trim();
+          if (!trimmed) return;
+          const created = createExperience(store, { jobId: resolvedJobId, title: trimmed });
+          store = created.store;
+          const xpId = created.changedExperienceIds[0];
+          rememberSessionEmptyExperience(xpId);
+          saveStore();
+          if (posting) {
+            postingMapPick = { kind: 'experience', experienceId: xpId };
+            postingMapTargetEntryId = '';
+            setNote('Experience created. Choose a requirement and tap Map here.');
+          } else {
+            selectPanelExperience(xpId);
+            setNote('Created experience.');
+          }
+          experiencesPanelSearchActiveIndex = -1;
+          render({ preserveScroll: true, focusKey: 'exp-panel-search' });
         },
-      ));
+        onAddLooseBulletFromQuery: ({ title, jobId }) => {
+          if (!posting) {
+            setNote('Open a job posting to add a bullet from here.');
+            return;
+          }
+          const resolvedJobId = jobId || panelJobId;
+          if (!resolvedJobId) {
+            setNote('Link this posting to a job before adding a bullet.');
+            return;
+          }
+          const trimmed = String(title || '').trim();
+          if (!trimmed) return;
+          let next = addEntry(store, {
+            title: trimmed,
+            jobId: resolvedJobId,
+            rich: [{ text: trimmed, bold: false }],
+          });
+          const entryId = next.entries[next.entries.length - 1]?.id;
+          if (!entryId) return;
+          store = next;
+          saveStore();
+          postingMapPick = { kind: 'bullet', entryId };
+          postingMapTargetEntryId = entryId;
+          experiencesPanelSearchActiveIndex = -1;
+          setNote('Bullet created. Choose a requirement and tap Map here.');
+          render({ preserveScroll: true, focusKey: 'exp-panel-search' });
+        },
+      });
     }
     return el('div', { class: 'bb-post-map-results', role: 'listbox' }, listChildren);
   }
@@ -2473,7 +2511,8 @@ function experiencesPanelForPage(page, posting = null) {
     },
     onClosePanelSearch: () => {
       experiencesPanelQuery = '';
-      render({ preserveScroll: true, focusKey: 'exp-panel-search' });
+      experiencesPanelSearchActiveIndex = -1;
+      render({ preserveScroll: true });
     },
     onSelectExperience: selectPanelExperience,
     onSelectLooseEntry: selectPanelLooseEntry,
@@ -3802,6 +3841,38 @@ function requirementExperiencesCell(job, req) {
       });
       setNote('Created experience on this requirement.');
     },
+    onAddLooseBulletFromQuery: ({ title, jobId }) => {
+      const resolvedJobId = jobId || postingPrimaryCatalogJobId(store, job);
+      if (!resolvedJobId) {
+        setNote('Link this posting to a job before adding a bullet.');
+        return;
+      }
+      const trimmed = String(title || '').trim();
+      if (!trimmed) return;
+      let next = addEntry(store, {
+        title: trimmed,
+        jobId: resolvedJobId,
+        rich: [{ text: trimmed, bold: false }],
+      });
+      const entryId = next.entries[next.entries.length - 1]?.id;
+      if (!entryId) return;
+      next = mapEntryToRequirement(next, job.id, req.id, entryId);
+      next = idempotentAddEntryToPostingResume(next, job.id, entryId);
+      store = next;
+      const liveReq = store.postings.find((p) => p.id === job.id)?.requirements
+        ?.find((row) => row.id === req.id);
+      const bulletLine = liveReq?.bullets?.find((line) => line.entryId === entryId);
+      if (bulletLine) {
+        expandedBulletKey = `${job.id}:${req.id}:${bulletLine.id}`;
+      }
+      requirementMapSearchActiveByKey.set(mapKey, -1);
+      saveStore();
+      render({
+        preserveScroll: true,
+        focusKey: `post-map-version-${entryId}`,
+      });
+      setNote('Added loose bullet to this requirement.');
+    },
     linkedBulletLine,
     displayExperienceLine,
     richLine,
@@ -3857,10 +3928,18 @@ function requirementExperiencesCell(job, req) {
         setNote(error.message || 'Could not add that bullet.');
       }
     },
-    onSearchChange: (value) => {
+    onSearchFocus: () => {
+      clearOtherRequirementMapSearches(mapKey);
+      render({ preserveScroll: true });
+    },
+    onSearchChange: (value, { focusSearch = true } = {}) => {
+      clearOtherRequirementMapSearches(mapKey);
       requirementMapSearchByKey.set(mapKey, value);
       requirementMapSearchActiveByKey.set(mapKey, -1);
-      render({ preserveScroll: true, focusKey: `post-map-${req.id}` });
+      render({
+        preserveScroll: true,
+        ...(focusSearch ? { focusKey: `post-map-${req.id}` } : {}),
+      });
     },
     focusKey: `post-map-${req.id}`,
     setExpandedBulletKey: (key) => { expandedBulletKey = key; },

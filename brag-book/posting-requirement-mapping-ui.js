@@ -4,6 +4,7 @@
 
 import { registerOverlayClose } from './floating-overlay.js';
 import {
+  buildAddLooseBulletOption,
   buildCreateExperienceOption,
   paintExperienceSearchOptions,
   wireExperienceSearchListKeyboard,
@@ -76,10 +77,41 @@ export function buildPostingMapSearchResults(deps, targets, { activeIndex = -1 }
       ]));
     }
   }
-  if (!nodes.length) {
-    nodes.push(el('p', { class: 'tiny bb-post-map-empty' }, 'No matches.'));
-  }
   return { nodes, optionIndex, list: el('div', { class: 'bb-post-map-results', role: 'listbox' }, nodes) };
+}
+
+/** Create rows always trail map search results when the query is non-empty. */
+export function appendPostingMapSearchCreateRows(deps, listChildren, {
+  query,
+  activeIndex,
+  startIndex,
+  jobId = '',
+  onCreateExperienceFromQuery,
+  onAddLooseBulletFromQuery,
+}) {
+  const { el, btn } = deps;
+  listChildren.push(buildCreateExperienceOption(
+    { el, btn },
+    {
+      query,
+      activeIndex,
+      optionIndex: startIndex,
+      jobId,
+      onCreateFromQuery: onCreateExperienceFromQuery,
+      choiceClass: 'bb-post-map-choice',
+    },
+  ));
+  listChildren.push(buildAddLooseBulletOption(
+    { el, btn },
+    {
+      query,
+      activeIndex,
+      optionIndex: startIndex + 1,
+      jobId,
+      onAddLooseBulletFromQuery,
+      choiceClass: 'bb-post-map-choice',
+    },
+  ));
 }
 
 function buildMapEntryEditor(deps, entry, { className = 'bb-post-map-bullet-line', ariaLabel = 'Resume bullet', focusKey = '' }) {
@@ -280,37 +312,45 @@ export function buildRequirementMappingStack(deps, job, req) {
     searchActiveIndex = -1,
     onSearchActiveIndexChange,
     onSearchChange,
+    onSearchFocus,
     focusKey,
     onPickExperience,
     onPickBullet,
     onCreateExperienceFromQuery,
+    onAddLooseBulletFromQuery,
     createExperienceJobId = '',
     expandedBulletKey,
   } = deps;
 
-  const stack = el('div', { class: 'bb-post-map-stack' });
   const liveReq = (store.postings || []).find((p) => p.id === job.id)?.requirements
     ?.find((row) => row.id === req.id) || req;
   const { experienceBuckets, otherBullets } = requirementMappingBuckets(store, liveReq);
+  const hasLooseMapped = otherBullets.length > 0;
+  const stack = el('div', {
+    class: `bb-post-map-stack${!experienceBuckets.length && !hasLooseMapped ? ' is-search-only' : ''}`,
+  });
 
   for (const bucket of experienceBuckets) {
     stack.append(buildExperienceBucket(deps, job, liveReq, bucket, {}));
   }
 
-  stack.append(el('div', { class: 'bb-post-map-loose-group' }, [
-    el('p', { class: 'bb-post-map-loose-label' }, 'No experience'),
-    el('div', { class: 'bb-post-map-loose-bullets' }, [
-      ...otherBullets.map((row) => buildIncludedBulletRow(deps, job, liveReq, row)),
-      buildAddBulletRow(deps, job, liveReq, { experienceId: '' }),
-    ]),
-  ]));
+  if (hasLooseMapped) {
+    stack.append(el('div', { class: 'bb-post-map-loose-group' }, [
+      el('p', { class: 'bb-post-map-loose-label' }, 'No experience'),
+      el('div', { class: 'bb-post-map-loose-bullets' }, [
+        ...otherBullets.map((row) => buildIncludedBulletRow(deps, job, liveReq, row)),
+      ]),
+    ]));
+  }
 
   const overlayId = postingMapSearchOverlayId(job.id, req.id);
   const q = String(searchValue || '').trim();
   const targets = q ? searchPostingMapTargets(store, q) : { experiences: [], bullets: [] };
   const built = buildPostingMapSearchResults(deps, targets, { activeIndex: searchActiveIndex });
-  const createRowIndex = built.optionIndex;
-  const optionCount = createRowIndex + (createExperienceJobId ? 1 : 0);
+  const experienceCreateIndex = built.optionIndex;
+  const looseBulletCreateIndex = q ? experienceCreateIndex + 1 : -1;
+  const createRowCount = q ? 2 : 0;
+  const optionCount = built.optionIndex + createRowCount;
 
   const commitSearchIndex = (index) => {
     if (index < 0) return;
@@ -329,8 +369,12 @@ export function buildRequirementMappingStack(deps, job, req) {
       }
       cursor += 1;
     }
-    if (index === createRowIndex && createExperienceJobId && q) {
+    if (index === experienceCreateIndex && q) {
       onCreateExperienceFromQuery({ title: q, jobId: createExperienceJobId });
+      return;
+    }
+    if (index === looseBulletCreateIndex && q) {
+      onAddLooseBulletFromQuery({ title: q, jobId: createExperienceJobId });
     }
   };
 
@@ -346,6 +390,10 @@ export function buildRequirementMappingStack(deps, job, req) {
     'data-bb-overlay-anchor': overlayId,
   });
 
+  searchInput.addEventListener('focus', () => {
+    if (typeof onSearchFocus === 'function') onSearchFocus();
+  });
+
   searchInput.addEventListener('input', (event) => {
     onSearchChange(event.target.value);
     if (typeof onSearchActiveIndexChange === 'function') onSearchActiveIndexChange(-1);
@@ -359,9 +407,7 @@ export function buildRequirementMappingStack(deps, job, req) {
     },
     onCommitIndex: commitSearchIndex,
     onEnterWithText: (title) => {
-      if (createExperienceJobId && title) {
-        onCreateExperienceFromQuery({ title, jobId: createExperienceJobId });
-      }
+      if (title) onCreateExperienceFromQuery({ title, jobId: createExperienceJobId });
     },
   });
 
@@ -369,19 +415,14 @@ export function buildRequirementMappingStack(deps, job, req) {
 
   if (q) {
     const listChildren = [...built.nodes];
-    if (createExperienceJobId) {
-      listChildren.push(buildCreateExperienceOption(
-        { el, btn },
-        {
-          query: searchValue,
-          activeIndex: searchActiveIndex,
-          optionIndex: createRowIndex,
-          jobId: createExperienceJobId,
-          onCreateFromQuery: onCreateExperienceFromQuery,
-          choiceClass: 'bb-post-map-choice',
-        },
-      ));
-    }
+    appendPostingMapSearchCreateRows({ el, btn }, listChildren, {
+      query: searchValue,
+      activeIndex: searchActiveIndex,
+      startIndex: experienceCreateIndex,
+      jobId: createExperienceJobId,
+      onCreateExperienceFromQuery,
+      onAddLooseBulletFromQuery,
+    });
     const resultsInner = el('div', { class: 'bb-post-map-results', role: 'listbox' }, listChildren);
     const results = el('div', {
       class: 'bb-float-overlay-panel bb-post-map-results-overlay',
@@ -389,7 +430,7 @@ export function buildRequirementMappingStack(deps, job, req) {
     }, [
       el('div', { class: 'bb-float-overlay-body' }, [resultsInner]),
     ]);
-    registerOverlayClose(results, () => onSearchChange(''));
+    registerOverlayClose(results, () => onSearchChange('', { focusSearch: false }));
     searchWrap.append(results);
     queueMicrotask(() => paintExperienceSearchOptions(resultsInner, searchActiveIndex));
   }
