@@ -26,7 +26,7 @@ import {
   writeCollapsedLibrarySectionsToSession,
   catalogSectionsAllCollapsed,
 } from './experiences-ui.js';
-import { experiencesDualInlineMediaQuery } from './experiences-layout.js';
+import { experiencesDualColumnMediaQuery } from './experiences-layout.js';
 import {
   buildRequirementMappingStack,
   buildPostingMapSearchResults,
@@ -2359,7 +2359,7 @@ function experiencesPanelForPage(page, posting = null) {
       render({ preserveScroll: true });
     },
   }, '▸ Experiences');
-  if (collapsed && mediaMatches(experiencesDualInlineMediaQuery())) {
+  if (collapsed && mediaMatches(experiencesDualColumnMediaQuery())) {
     return rail;
   }
   const loosePageKey = panelLooseSectionPageKey(posting);
@@ -7254,7 +7254,7 @@ resumeFileInput.addEventListener('change', () => {
 
 window.addEventListener('resize', () => {
   scaleResumeFrame(document.getElementById('resume-preview-wrap'), document.getElementById('resume-preview-frame'));
-  if (experiencesMobileDrawerOpen && mediaMatches(experiencesDualInlineMediaQuery())) {
+  if (experiencesMobileDrawerOpen && mediaMatches(experiencesDualColumnMediaQuery())) {
     experiencesMobileDrawerOpen = false;
     render({ preserveScroll: true });
   }

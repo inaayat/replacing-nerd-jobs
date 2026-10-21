@@ -3,12 +3,24 @@
  * Browser-safe ESM.
  */
 
-/** Minimum inline width of `.bb-book-dual` before the side panel gets its own grid column. */
-export const EXPERIENCES_DUAL_INLINE_MIN_PX = 920;
+/** Viewport min width for catalog/posting + Experiences side-by-side column. */
+export const EXPERIENCES_DUAL_VIEWPORT_MIN_PX = 1100;
+
+/** @deprecated alias — use viewport dual breakpoint */
+export const EXPERIENCES_DUAL_INLINE_MIN_PX = EXPERIENCES_DUAL_VIEWPORT_MIN_PX;
 
 /** Viewport max width where the panel uses the overlay drawer instead of inline column. */
-export const EXPERIENCES_DRAWER_VIEWPORT_MAX_PX = 1099;
+export const EXPERIENCES_DRAWER_VIEWPORT_MAX_PX = EXPERIENCES_DUAL_VIEWPORT_MIN_PX - 1;
 
+export function experiencesDualColumnMediaQuery() {
+  return `(min-width: ${EXPERIENCES_DUAL_VIEWPORT_MIN_PX}px)`;
+}
+
+/** @deprecated use experiencesDualColumnMediaQuery */
 export function experiencesDualInlineMediaQuery() {
-  return `(min-width: ${EXPERIENCES_DUAL_INLINE_MIN_PX}px)`;
+  return experiencesDualColumnMediaQuery();
+}
+
+export function experiencesDrawerMediaQuery() {
+  return `(max-width: ${EXPERIENCES_DRAWER_VIEWPORT_MAX_PX}px)`;
 }

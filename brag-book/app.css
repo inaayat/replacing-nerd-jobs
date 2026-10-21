@@ -3372,10 +3372,8 @@ html.bb-offline-readonly .shell select {
   overflow-y: auto;
 }
 
-/* Experiences two-panel layout (inline column when .bb-book-dual is wide enough) */
+/* Experiences two-panel layout (viewport dual column; drawer below — never in catalog flow) */
 .bb-book-dual {
-  container-type: inline-size;
-  container-name: bb-book-dual;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 0;
@@ -3391,19 +3389,30 @@ html.bb-offline-readonly .shell select {
   max-width: 100%;
 }
 .bb-exp-side-panel {
-  display: none;
+  display: none !important;
   box-sizing: border-box;
   margin: 0;
+  padding: 0;
   transform: none;
 }
-@container bb-book-dual (min-width: 920px) {
+@media (min-width: 1100px) {
   .bb-book-dual {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 320px);
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
     column-gap: 12px;
     align-items: start;
   }
+  .bb-book-dual > .bb-book-catalog-wrap,
+  .bb-book-dual > .job-workspace {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .bb-book-dual > .bb-exp-side-panel,
+  .bb-book-dual > .bb-exp-panel-rail {
+    grid-column: 2;
+    grid-row: 1;
+  }
   .bb-exp-side-panel {
-    display: flex;
+    display: flex !important;
     flex-direction: column;
     position: sticky;
     top: calc(var(--nav-h, 52px) + 8px);
@@ -3412,7 +3421,6 @@ html.bb-offline-readonly .shell select {
     max-width: 100%;
     max-height: calc(100vh - var(--nav-h, 52px) - 16px);
     overflow: hidden;
-    padding: 0;
     background: var(--bg, #f6f1e8);
   }
   .bb-exp-panel-rail {
@@ -3793,7 +3801,7 @@ html.bb-offline-readonly .shell select {
 .bb-exp-mobile-toggle {
   display: none;
 }
-@container bb-book-dual (max-width: 919px) {
+@media (max-width: 1099px) {
   .bb-exp-mobile-toggle {
     display: inline-flex;
     position: fixed;
@@ -3802,14 +3810,15 @@ html.bb-offline-readonly .shell select {
     bottom: calc(12px + env(safe-area-inset-bottom, 0));
     border: 1px solid var(--line);
     border-radius: 999px;
-    padding: 10px 14px;
+    padding: 8px 12px;
     background: #fff;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 650;
+    letter-spacing: 0.04em;
     box-shadow: 0 4px 16px rgba(12, 11, 9, 0.12);
   }
-  .bb-book-dual.is-drawer-open .bb-exp-side-panel {
-    display: flex;
+  .bb-book-dual.is-drawer-open > .bb-exp-side-panel {
+    display: flex !important;
     flex-direction: column;
     position: fixed;
     z-index: 40;
