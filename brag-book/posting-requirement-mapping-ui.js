@@ -114,7 +114,7 @@ export function appendPostingMapSearchCreateRows(deps, listChildren, {
   ));
 }
 
-function buildMapEntryEditor(deps, entry, { className = 'bb-post-map-bullet-line', ariaLabel = 'Resume bullet', focusKey = '' }) {
+export function buildMapEntryEditor(deps, entry, { className = 'bb-post-map-bullet-line', ariaLabel = 'Resume bullet', focusKey = '' }) {
   const {
     store, displayExperienceLine, richLine, updateEntry, onSave,
   } = deps;
@@ -135,7 +135,7 @@ function buildMapEntryEditor(deps, entry, { className = 'bb-post-map-bullet-line
   });
 }
 
-function buildIncludedBulletRow(deps, job, req, { bullet, entry }) {
+export function buildIncludedBulletRow(deps, job, req, { bullet, entry }) {
   const {
     el, store, expandedBulletKey, setExpandedBulletKey, onSave, onRender,
     experienceEditor,
@@ -185,7 +185,7 @@ function buildIncludedBulletRow(deps, job, req, { bullet, entry }) {
   return row;
 }
 
-function buildAddBulletRow(deps, job, req, { experienceId = '' }) {
+export function buildAddBulletRow(deps, job, req, { experienceId = '' }) {
   const { el, onAddBullet, addBulletFocusKey } = deps;
   const focusKey = postingMapAddBulletFocusKey(job.id, req.id, experienceId);
   return el('button', {

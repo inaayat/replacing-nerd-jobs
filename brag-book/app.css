@@ -3841,6 +3841,121 @@ html.bb-offline-readonly .shell select {
   }
 }
 
+/* Posting requirements view toggle + By experience cards */
+.bb-posting-requirements-wrap {
+  display: grid;
+  gap: 12px;
+}
+.bb-posting-view-toggle {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(12, 11, 9, 0.03);
+  gap: 2px;
+}
+.bb-seg-btn {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--content-font);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.bb-seg-btn.is-on {
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgba(12, 11, 9, 0.08);
+}
+.bb-post-xp-view {
+  display: grid;
+  gap: 12px;
+}
+.bb-post-xp-card {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line-strong, rgba(12, 11, 9, 0.22));
+  border-radius: 12px;
+  background: #fff;
+  display: grid;
+  gap: 10px;
+}
+.bb-post-xp-card-head {
+  display: grid;
+  gap: 2px;
+}
+.bb-post-xp-card-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.bb-post-xp-card-meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.bb-post-xp-req-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.bb-post-xp-req-link {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  max-width: 100%;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(12, 11, 9, 0.02);
+  font-family: var(--content-font);
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+  color: var(--ink);
+}
+.bb-post-xp-req-ordinal {
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 11px;
+  color: var(--muted);
+  flex: 0 0 auto;
+}
+.bb-post-xp-req-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.bb-post-xp-on-resume {
+  flex: 0 0 auto;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0 4px;
+}
+.bb-post-xp-loose-body {
+  display: grid;
+  gap: 10px;
+}
+.bb-post-xp-loose-section {
+  display: grid;
+  gap: 6px;
+}
+tr.job-table-row.is-req-highlight {
+  outline: 2px solid rgba(232, 196, 122, 0.85);
+  outline-offset: -2px;
+  background: rgba(232, 196, 122, 0.08);
+}
+
 /* Posting requirement mapping */
 .bb-post-map-stack {
   display: grid;

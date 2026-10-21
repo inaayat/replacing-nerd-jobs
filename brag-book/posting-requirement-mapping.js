@@ -229,3 +229,101 @@ export function unmapEntryFromRequirement(
   if (!line) return store;
   return deleteBullet(store, postingId, requirementId, line.id, clock);
 }
+
+/** Display ordinals R1, R2, … for a posting's requirements (stable order). */
+export function requirementOrdinalsForPosting(posting) {
+  const map = new Map();
+  for (const [index, req] of (posting?.requirements || []).entries()) {
+    if (req?.id) map.set(req.id, { ordinal: `R${index + 1}`, index, req });
+  }
+  return map;
+}
+
+export function requirementShortLabel(text, maxLen = 52) {
+  const trimmed = String(text || '').trim().replace(/\s+/g, ' ');
+  if (!trimmed) return 'Requirement';
+  if (trimmed.length <= maxLen) return trimmed;
+  return `${trimmed.slice(0, maxLen - 1)}…`;
+}
+
+/** True when the requirement has at least one mapped bullet or experience coverage. */
+export function requirementHasMapping(req) {
+  if ((req?.bullets || []).length > 0) return true;
+  if ((req?.coveredExperienceIds || []).length > 0) return true;
+  return false;
+}
+
+/**
+ * By-experience view: one group per mapped experience (plus optional loose bucket).
+ * Sorted by number of requirements covered, descending.
+ */
+export function postingExperienceViewGroups(store, posting) {
+  const ordinals = requirementOrdinalsForPosting(posting);
+  /** @type {Map<string, { experienceId: string, title: string, jobId: string, requirements: Array<{ req, ordinal: string, text: string }>, bucketsByReq: Map<string, object> }>} */
+  const byExperience = new Map();
+  /** @type {Array<{ req, bullet, entry }>} */
+  const looseRows = [];
+
+  for (const req of posting?.requirements || []) {
+    const { experienceBuckets, otherBullets } = requirementMappingBuckets(store, req);
+    for (const bucket of experienceBuckets) {
+      let group = byExperience.get(bucket.experienceId);
+      if (!group) {
+        group = {
+          experienceId: bucket.experienceId,
+          title: bucket.title,
+          jobId: bucket.jobId,
+          requirements: [],
+          bucketsByReq: new Map(),
+        };
+        byExperience.set(bucket.experienceId, group);
+      }
+      const meta = ordinals.get(req.id);
+      if (meta && !group.requirements.some((row) => row.req.id === req.id)) {
+        group.requirements.push({
+          req,
+          ordinal: meta.ordinal,
+          text: req.text || '',
+        });
+      }
+      group.bucketsByReq.set(req.id, bucket);
+    }
+    for (const row of otherBullets) {
+      if (row.entry) looseRows.push({ req, bullet: row.bullet, entry: row.entry });
+    }
+  }
+
+  const experienceGroups = [...byExperience.values()]
+    .map((group) => {
+      group.requirements.sort((a, b) => a.ordinal.localeCompare(b.ordinal, undefined, { numeric: true }));
+      return {
+        ...group,
+        coversCount: group.requirements.length,
+      };
+    })
+    .sort((a, b) => (
+      b.coversCount - a.coversCount
+      || a.title.localeCompare(b.title)
+    ));
+
+  return { experienceGroups, looseRows };
+}
+
+export function entryMappedOnRequirement(req, entryId) {
+  return (req?.bullets || []).some((line) => line.entryId === entryId);
+}
+
+export function setEntryMappedAcrossRequirements(
+  store,
+  postingId,
+  requirements,
+  entryId,
+  mapped,
+  clock = Date.now,
+) {
+  let next = store;
+  for (const req of requirements) {
+    next = setRequirementEntryMapped(next, postingId, req.id, entryId, mapped, clock);
+  }
+  return next;
+}

@@ -23,7 +23,7 @@ export function experienceRepresentativeEntry(store, experienceId) {
   });
 }
 
-function entryOnPostingResume(store, posting, entryId) {
+export function entryOnPostingResume(store, posting, entryId) {
   if (!posting?.id || !entryId) return false;
   const jobs = [...(store.jobs || []), ...((posting.resume?.localJobs) || [])];
   for (const job of jobs) {

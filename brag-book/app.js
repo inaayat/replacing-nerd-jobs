@@ -38,6 +38,7 @@ import {
   searchPostingMapTargets,
 } from './posting-requirement-mapping-ui.js';
 import { idempotentAddEntryToPostingResume } from './posting-requirement-mapping.js';
+import { buildPostingExperienceView } from './posting-experience-view-ui.js';
 import { refreshFloatingOverlays } from './floating-overlay.js';
 import {
   STORE_KEY,
@@ -344,6 +345,31 @@ let postingMapTargetEntryId = '';
 let postingMapPick = null;
 const requirementMapSearchByKey = new Map();
 const requirementMapSearchActiveByKey = new Map();
+const POSTING_REQ_VIEW_MODE_KEY = 'bb-posting-req-view';
+/** Requirement row to scroll/highlight after jumping from By experience view. */
+let postingRequirementHighlightReqId = '';
+
+function readPostingRequirementViewMode(postingId) {
+  try {
+    return sessionStorage.getItem(`${POSTING_REQ_VIEW_MODE_KEY}:${postingId}`) === 'experience'
+      ? 'experience'
+      : 'requirement';
+  } catch {
+    return 'requirement';
+  }
+}
+
+function writePostingRequirementViewMode(postingId, mode) {
+  try {
+    sessionStorage.setItem(`${POSTING_REQ_VIEW_MODE_KEY}:${postingId}`, mode);
+  } catch { /* ignore */ }
+}
+
+function jumpToRequirementFromExperienceView(postingId, reqId) {
+  writePostingRequirementViewMode(postingId, 'requirement');
+  postingRequirementHighlightReqId = reqId;
+  render({ preserveScroll: true });
+}
 
 function clearOtherRequirementMapSearches(keepKey) {
   for (const key of requirementMapSearchByKey.keys()) {
@@ -4037,7 +4063,10 @@ function requirementTableRow(job, req) {
   const showMapHere = experiencesUiEnabled()
     && (postingMapPick || postingMapTargetEntryId);
 
-  return el('tr', { class: 'job-table-row' }, [
+  return el('tr', {
+    class: 'job-table-row',
+    'data-requirement-id': req.id,
+  }, [
     el('td', { class: 'requirement-cell', 'data-label': 'Requirement' }, [
       el('div', { class: 'requirement-line' }, [
         requirement,
@@ -4099,7 +4128,106 @@ function requirementTableRow(job, req) {
   ]);
 }
 
+function postingRequirementViewToggle(job) {
+  const mode = readPostingRequirementViewMode(job.id);
+  const setMode = (next) => {
+    writePostingRequirementViewMode(job.id, next);
+    render({ preserveScroll: true });
+  };
+  return el('div', {
+    class: 'bb-posting-view-toggle',
+    role: 'group',
+    'aria-label': 'Requirements table view',
+  }, [
+    btn('By requirement', {
+      type: 'button',
+      class: `bb-seg-btn${mode === 'requirement' ? ' is-on' : ''}`,
+      'aria-pressed': mode === 'requirement' ? 'true' : 'false',
+      onClick: () => setMode('requirement'),
+    }),
+    btn('By experience', {
+      type: 'button',
+      class: `bb-seg-btn${mode === 'experience' ? ' is-on' : ''}`,
+      'aria-pressed': mode === 'experience' ? 'true' : 'false',
+      onClick: () => setMode('experience'),
+    }),
+  ]);
+}
+
+function postingExperienceViewPanel(job) {
+  const primaryJobId = postingPrimaryCatalogJobId(store, job);
+  return buildPostingExperienceView({
+    el,
+    btn,
+    store,
+    displayExperienceLine,
+    richLine,
+    experienceEditor,
+    expandedBulletKey,
+    setExpandedBulletKey: (key) => { expandedBulletKey = key; },
+    updateEntry,
+    linkedBulletLine,
+    onSave: (next) => {
+      store = next;
+      saveStore();
+    },
+    onRender: (opts) => render(opts),
+    onJumpToRequirement: (reqId) => jumpToRequirementFromExperienceView(job.id, reqId),
+    onAddBullet: (postingJob, liveReq, { experienceId }) => {
+      let next = store;
+      try {
+        if (experienceId) {
+          const versions = experienceVersions(next, experienceId);
+          const copyFromEntryId = versions[0]?.id || '';
+          const drafted = draftExperienceVersion(
+            next,
+            experienceId,
+            copyFromEntryId ? { copyFromEntryId } : {},
+          );
+          next = drafted.store;
+          const entryId = drafted.changedEntryIds[0];
+          next = mapEntryToRequirement(next, postingJob.id, liveReq.id, entryId);
+          next = idempotentAddEntryToPostingResume(next, postingJob.id, entryId);
+          postingMapFocusVersionEntryId = entryId;
+          expandedRequirementBuckets.add(requirementBucketKey(postingJob.id, liveReq.id, experienceId));
+        } else if (!primaryJobId) {
+          setNote('Link this posting to a job before adding a loose bullet.');
+          return;
+        } else {
+          next = addEntry(next, {
+            title: 'New bullet',
+            jobId: primaryJobId,
+            rich: [{ text: 'New bullet', bold: false }],
+          });
+          const entryId = next.entries[next.entries.length - 1]?.id;
+          if (!entryId) return;
+          next = mapEntryToRequirement(next, postingJob.id, liveReq.id, entryId);
+          next = idempotentAddEntryToPostingResume(next, postingJob.id, entryId);
+          postingMapFocusVersionEntryId = entryId;
+        }
+        store = next;
+        saveStore();
+        render({
+          preserveScroll: true,
+          focusKey: `post-map-version-${postingMapFocusVersionEntryId}`,
+        });
+        postingMapFocusVersionEntryId = '';
+      } catch (error) {
+        setNote(error.message || 'Could not add that bullet.');
+      }
+    },
+  }, job);
+}
+
 function requirementTable(job) {
+  const wrap = el('div', { class: 'bb-posting-requirements-wrap' });
+  if (experiencesUiEnabled()) {
+    wrap.append(postingRequirementViewToggle(job));
+    if (readPostingRequirementViewMode(job.id) === 'experience') {
+      wrap.append(postingExperienceViewPanel(job));
+      return wrap;
+    }
+  }
   const table = el('table', { class: 'job-table' });
   table.append(el('thead', {}, [
     el('tr', {}, [
@@ -4112,7 +4240,8 @@ function requirementTable(job) {
     body.append(requirementTableRow(job, req));
   }
   table.append(body);
-  return el('div', { class: 'job-table-wrap' }, [table]);
+  wrap.append(el('div', { class: 'job-table-wrap' }, [table]));
+  return wrap;
 }
 
 function unmappedResumeBulletsPanel(job) {
@@ -6849,6 +6978,17 @@ function finishRender(captured, options, scroll) {
   restoreFocus(captured, options.focusKey);
   scheduleResumeScrollRestore(scroll);
   refreshFloatingOverlays();
+  if (postingRequirementHighlightReqId) {
+    const reqId = postingRequirementHighlightReqId;
+    postingRequirementHighlightReqId = '';
+    queueMicrotask(() => {
+      const row = document.querySelector(`tr[data-requirement-id="${reqId}"]`);
+      if (!row) return;
+      row.scrollIntoView({ block: 'nearest' });
+      row.classList.add('is-req-highlight');
+      window.setTimeout(() => row.classList.remove('is-req-highlight'), 2400);
+    });
+  }
 }
 
 function render(options = {}) {
