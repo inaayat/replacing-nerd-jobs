@@ -261,12 +261,27 @@ export function selectedEntriesJobIds(store, entryIds) {
   return jobs;
 }
 
+/** Every experience id referenced on a posting requirement (coverage-only buckets). */
+export function coveredExperienceIdsFromPostings(store) {
+  const ids = new Set();
+  for (const posting of store?.postings || []) {
+    for (const req of posting?.requirements || []) {
+      for (const id of req?.coveredExperienceIds || []) {
+        const xpId = String(id || '').trim();
+        if (xpId) ids.add(xpId);
+      }
+    }
+  }
+  return ids;
+}
+
 export function pruneOrphanExperiences(store, { keepExperienceIds = readSessionEmptyExperienceIds() } = {}, clock = Date.now) {
   const used = new Set(
     (store?.entries || [])
       .map((entry) => String(entry.experienceId || '').trim())
       .filter(Boolean),
   );
+  for (const xpId of coveredExperienceIdsFromPostings(store)) used.add(xpId);
   let changed = false;
   const experiences = (store.experiences || []).map((row) => {
     if (!row?.id || row.deletedAt) return row;

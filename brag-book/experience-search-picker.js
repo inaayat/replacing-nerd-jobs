@@ -11,6 +11,75 @@ export function formatCreateExperienceLabel(query) {
   return '+ Create experience';
 }
 
+/** Arrow / Enter navigation for a search field over `[data-exp-picker-option]` rows. */
+export function wireExperienceSearchListKeyboard(searchInput, {
+  getOptionCount,
+  getActiveIndex,
+  onActiveIndexChange,
+  onCommitIndex,
+  onEnterWithText,
+}) {
+  if (!searchInput) return;
+  searchInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') return;
+    const optionCount = typeof getOptionCount === 'function' ? getOptionCount() : 0;
+    if (!optionCount) return;
+    const activeIndex = typeof getActiveIndex === 'function' ? getActiveIndex() : -1;
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      const next = activeIndex < 0 ? 0 : Math.min(activeIndex + 1, optionCount - 1);
+      if (typeof onActiveIndexChange === 'function') onActiveIndexChange(next);
+      return;
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      const next = activeIndex <= 0 ? optionCount - 1 : activeIndex - 1;
+      if (typeof onActiveIndexChange === 'function') onActiveIndexChange(next);
+      return;
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      if (activeIndex >= 0 && typeof onCommitIndex === 'function') {
+        onCommitIndex(activeIndex);
+      } else if (typeof onEnterWithText === 'function') {
+        onEnterWithText(String(searchInput.value || '').trim());
+      }
+    }
+  });
+}
+
+export function paintExperienceSearchOptions(listEl, activeIndex) {
+  if (!listEl) return;
+  const buttons = listEl.querySelectorAll('[data-exp-picker-option]');
+  buttons.forEach((node, i) => {
+    const on = i === activeIndex;
+    node.classList.toggle('is-active', on);
+    node.setAttribute('aria-selected', on ? 'true' : 'false');
+    if (on) node.scrollIntoView({ block: 'nearest' });
+  });
+}
+
+export function buildCreateExperienceOption(deps, { query, activeIndex, optionIndex, jobId, onCreateFromQuery, onOpenCreateForm, choiceClass = 'bb-exp-picker-choice' }) {
+  const { el, btn } = deps;
+  return btn(formatCreateExperienceLabel(query), {
+    type: 'button',
+    class: `${choiceClass} bb-exp-picker-create-row${optionIndex === activeIndex ? ' is-active' : ''}`,
+    role: 'option',
+    'data-exp-picker-option': '1',
+    'aria-selected': optionIndex === activeIndex ? 'true' : 'false',
+    onMouseDown: (event) => event.preventDefault(),
+    onClick: () => {
+      const title = String(query || '').trim();
+      if (!jobId) {
+        if (typeof onOpenCreateForm === 'function') onOpenCreateForm();
+        return;
+      }
+      if (!title) return;
+      onCreateFromQuery({ title, jobId });
+    },
+  });
+}
+
 function experienceRowsForJob(store, jobId, query) {
   return compactExperienceIndex(store, { query, includeEmpty: true })
     .filter((row) => row.jobId === jobId);
@@ -47,17 +116,6 @@ export function buildExperienceSearchPickerBody(deps) {
   const optionCount = choices.length + (jobId || createFormOpen ? 1 : 0);
   const createRowIndex = choices.length;
 
-  const paintActive = (listEl, index) => {
-    if (!listEl) return;
-    const buttons = listEl.querySelectorAll('[data-exp-picker-option]');
-    buttons.forEach((node, i) => {
-      const on = i === index;
-      node.classList.toggle('is-active', on);
-      node.setAttribute('aria-selected', on ? 'true' : 'false');
-      if (on) node.scrollIntoView({ block: 'nearest' });
-    });
-  };
-
   const commitActive = () => {
     if (activeIndex < 0) return;
     if (activeIndex < choices.length) {
@@ -92,28 +150,14 @@ export function buildExperienceSearchPickerBody(deps) {
     if (typeof onActiveIndexChange === 'function') onActiveIndexChange(-1);
   });
 
-  searchInput.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') return;
-    if (!optionCount) return;
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      const next = activeIndex < 0 ? 0 : Math.min(activeIndex + 1, optionCount - 1);
-      if (typeof onActiveIndexChange === 'function') onActiveIndexChange(next);
-      return;
-    }
-    if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      const next = activeIndex <= 0 ? optionCount - 1 : activeIndex - 1;
-      if (typeof onActiveIndexChange === 'function') onActiveIndexChange(next);
-      return;
-    }
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      if (activeIndex >= 0) commitActive();
-      else if (jobId && String(query || '').trim()) {
-        onCreateFromQuery({ title: String(query).trim(), jobId });
-      }
-    }
+  wireExperienceSearchListKeyboard(searchInput, {
+    getOptionCount: () => optionCount,
+    getActiveIndex: () => activeIndex,
+    onActiveIndexChange,
+    onCommitIndex: () => commitActive(),
+    onEnterWithText: (title) => {
+      if (jobId && title) onCreateFromQuery({ title, jobId });
+    },
   });
 
   const head = el('div', { class: 'bb-float-overlay-head' }, [searchInput]);
@@ -141,22 +185,14 @@ export function buildExperienceSearchPickerBody(deps) {
   });
 
   if (jobId || typeof onOpenCreateForm === 'function') {
-    listNodes.push(btn(formatCreateExperienceLabel(query), {
-      type: 'button',
-      class: `${choiceClass} bb-exp-picker-create-row${createRowIndex === activeIndex ? ' is-active' : ''}`,
-      role: 'option',
-      'data-exp-picker-option': '1',
-      'aria-selected': createRowIndex === activeIndex ? 'true' : 'false',
-      onMouseDown: (event) => event.preventDefault(),
-      onClick: () => {
-        const title = String(query || '').trim();
-        if (!jobId) {
-          if (typeof onOpenCreateForm === 'function') onOpenCreateForm();
-          return;
-        }
-        if (!title) return;
-        onCreateFromQuery({ title, jobId });
-      },
+    listNodes.push(buildCreateExperienceOption(deps, {
+      query,
+      activeIndex,
+      optionIndex: createRowIndex,
+      jobId,
+      onCreateFromQuery,
+      onOpenCreateForm,
+      choiceClass,
     }));
   }
 
@@ -182,7 +218,7 @@ export function buildExperienceSearchPickerBody(deps) {
     head,
     body: listBody,
     foot,
-    afterMount: () => paintActive(listBody, activeIndex),
+    afterMount: () => paintExperienceSearchOptions(listBody, activeIndex),
   };
 }
 
