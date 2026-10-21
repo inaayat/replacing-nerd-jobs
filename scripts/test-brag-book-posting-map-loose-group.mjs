@@ -12,6 +12,9 @@ import {
   emptyStore,
   groupEntriesAsExperience,
 } from '../brag-book/engine.js';
+import {
+  postingMapShowsLooseGroup,
+} from '../brag-book/posting-requirement-mapping.js';
 
 const clock = () => Date.parse('2026-10-21T20:30:00.000Z');
 
@@ -59,6 +62,10 @@ Object.assign(globalThis, {
 });
 window.scrollTo = () => {};
 window.localStorage.setItem(STORE_KEY, JSON.stringify(store));
+
+const posting = store.postings[0];
+assert.equal(postingMapShowsLooseGroup(store, posting.requirements[0]), false);
+assert.equal(postingMapShowsLooseGroup(store, posting.requirements[1]), true);
 
 await import(new URL(`../brag-book/app.js?map-loose-group=${Date.now()}`, import.meta.url));
 await new Promise((resolve) => window.setTimeout(resolve, 120));

@@ -253,6 +253,16 @@ export function requirementHasMapping(req) {
   return false;
 }
 
+/** Loose mapped bullets (no experience) that warrant the \"No experience\" group in the UI. */
+export function requirementLooseMappedBullets(store, req) {
+  const { otherBullets } = requirementMappingBuckets(store, req);
+  return otherBullets.filter((row) => row.entry?.id);
+}
+
+export function postingMapShowsLooseGroup(store, req) {
+  return requirementLooseMappedBullets(store, req).length > 0;
+}
+
 /**
  * By-experience view: one group per mapped experience (plus optional loose bucket).
  * Sorted by number of requirements covered, descending.

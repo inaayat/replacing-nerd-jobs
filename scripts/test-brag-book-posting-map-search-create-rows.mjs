@@ -15,7 +15,7 @@ assert.doesNotMatch(uiSrc, /No matches\./);
 assert.match(uiSrc, /appendPostingMapSearchCreateRows/);
 
 const swSrc = readFileSync(new URL('../brag-book/service-worker.js', import.meta.url), 'utf8');
-assert.match(swSrc, /BUILD_ID = '2026-10-21b'/);
+assert.match(swSrc, /BUILD_ID = '2026-10-21c'/);
 
 const clock = () => Date.parse('2026-10-21T20:00:00.000Z');
 

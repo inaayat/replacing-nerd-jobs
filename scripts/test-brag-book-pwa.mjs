@@ -94,7 +94,7 @@ const fakeCaches = {
       add: (url) => Promise.resolve(url),
     });
   },
-  keys: () => Promise.resolve(['brag-book-old', 'brag-book-2026-10-15a', 'brag-book-2026-10-21b', 'other-app']),
+  keys: () => Promise.resolve(['brag-book-old', 'brag-book-2026-10-15a', 'brag-book-2026-10-21b', 'brag-book-2026-10-21c', 'other-app']),
   delete(key) {
     deleted.push(key);
     return Promise.resolve(true);
@@ -127,7 +127,7 @@ assert(opened.some((n) => n.startsWith('brag-book-')));
 assert(!skipWaitingCalled, 'install must not auto skipWaiting (flush-gated updates)');
 
 await activateHandlers[0]({ waitUntil: async (p) => { await p; } });
-assert.deepEqual(deleted.sort(), ['brag-book-2026-10-15a', 'brag-book-old'].sort());
+assert.deepEqual(deleted.sort(), ['brag-book-2026-10-15a', 'brag-book-2026-10-21b', 'brag-book-old'].sort());
 assert(workerSrc.includes('clients.claim'));
 
 messageHandlers[0]({ data: { type: 'SKIP_WAITING' } });

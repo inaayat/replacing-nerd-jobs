@@ -12,6 +12,7 @@ import {
 import {
   searchPostingMapTargets,
   requirementMappingBuckets,
+  postingMapShowsLooseGroup,
   mapExperienceBucketToRequirement,
   mapEntryToRequirement,
   setRequirementEntryMapped,
@@ -325,7 +326,10 @@ export function buildRequirementMappingStack(deps, job, req) {
   const liveReq = (store.postings || []).find((p) => p.id === job.id)?.requirements
     ?.find((row) => row.id === req.id) || req;
   const { experienceBuckets, otherBullets } = requirementMappingBuckets(store, liveReq);
-  const hasLooseMapped = otherBullets.length > 0;
+  const hasLooseMapped = postingMapShowsLooseGroup(store, liveReq);
+  const looseBullets = hasLooseMapped
+    ? otherBullets.filter((row) => row.entry?.id)
+    : [];
   const stack = el('div', {
     class: `bb-post-map-stack${!experienceBuckets.length && !hasLooseMapped ? ' is-search-only' : ''}`,
   });
@@ -338,7 +342,7 @@ export function buildRequirementMappingStack(deps, job, req) {
     stack.append(el('div', { class: 'bb-post-map-loose-group' }, [
       el('p', { class: 'bb-post-map-loose-label' }, 'No experience'),
       el('div', { class: 'bb-post-map-loose-bullets' }, [
-        ...otherBullets.map((row) => buildIncludedBulletRow(deps, job, liveReq, row)),
+        ...looseBullets.map((row) => buildIncludedBulletRow(deps, job, liveReq, row)),
       ]),
     ]));
   }
