@@ -37,7 +37,10 @@ import {
   mapEntryToRequirement,
   searchPostingMapTargets,
 } from './posting-requirement-mapping-ui.js';
-import { idempotentAddEntryToPostingResume } from './posting-requirement-mapping.js';
+import {
+  idempotentAddEntryToPostingResume,
+  requirementHasMapping,
+} from './posting-requirement-mapping.js';
 import { buildPostingExperienceView } from './posting-experience-view-ui.js';
 import { refreshFloatingOverlays } from './floating-overlay.js';
 import {
@@ -4063,9 +4066,11 @@ function requirementTableRow(job, req) {
   const showMapHere = experiencesUiEnabled()
     && (postingMapPick || postingMapTargetEntryId);
 
+  const mapped = requirementHasMapping(req);
   return el('tr', {
-    class: 'job-table-row',
+    class: `job-table-row${mapped ? ' is-requirement-mapped' : ''}`,
     'data-requirement-id': req.id,
+    'data-requirement-mapped': mapped ? 'true' : 'false',
   }, [
     el('td', { class: 'requirement-cell', 'data-label': 'Requirement' }, [
       el('div', { class: 'requirement-line' }, [

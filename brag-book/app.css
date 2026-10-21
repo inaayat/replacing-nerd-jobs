@@ -3955,6 +3955,14 @@ tr.job-table-row.is-req-highlight {
   outline-offset: -2px;
   background: rgba(232, 196, 122, 0.08);
 }
+tr.job-table-row.is-requirement-mapped > .requirement-cell,
+tr.job-table-row.is-requirement-mapped > .bullets-cell {
+  background: rgba(122, 148, 118, 0.12);
+}
+tr.job-table-row.is-requirement-mapped.is-req-highlight > .requirement-cell,
+tr.job-table-row.is-requirement-mapped.is-req-highlight > .bullets-cell {
+  background: rgba(122, 148, 118, 0.16);
+}
 
 /* Posting requirement mapping */
 .bb-post-map-stack {
