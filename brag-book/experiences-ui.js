@@ -2,7 +2,10 @@
  * Experiences UI helpers (browser-safe ESM).
  */
 
+import { libraryCatalogGroups } from './engine.js';
+
 export const EXP_PANEL_COLLAPSED_KEY = 'brag-book-exp-panel-collapsed';
+export const CATALOG_COLLAPSED_SECTIONS_KEY = 'brag-book-collapsed-library-sections';
 export const EXP_PANEL_FILTER_KEY = 'brag-book-exp-panel-filter-v1';
 export const EXP_UI_DISABLED_KEY = 'brag-book-experiences-v1';
 
@@ -57,4 +60,44 @@ export function writePanelCollapsed(collapsed) {
   } catch {
     /* ignore */
   }
+}
+
+/** Experience headers and labeled loose sections (not unlabeled loose rows). */
+export function libraryCollapsibleSectionKeys(store) {
+  const keys = [];
+  for (const group of libraryCatalogGroups(store, { query: '' })) {
+    const jobKey = group.jobId || '__none__';
+    for (const section of group.sections || []) {
+      if (section.kind === 'experience') {
+        keys.push(librarySectionKey(jobKey, section));
+      } else if (section.kind === 'loose' && section.label) {
+        keys.push(librarySectionKey(jobKey, section));
+      }
+    }
+  }
+  return keys;
+}
+
+export function readCollapsedLibrarySectionsFromSession() {
+  try {
+    const raw = sessionStorage.getItem(CATALOG_COLLAPSED_SECTIONS_KEY);
+    const list = raw ? JSON.parse(raw) : [];
+    return new Set(Array.isArray(list) ? list.filter(Boolean) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+export function writeCollapsedLibrarySectionsToSession(keys) {
+  try {
+    sessionStorage.setItem(CATALOG_COLLAPSED_SECTIONS_KEY, JSON.stringify([...keys]));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function catalogSectionsAllCollapsed(store, collapsedSet) {
+  const keys = libraryCollapsibleSectionKeys(store);
+  if (!keys.length) return false;
+  return keys.every((key) => collapsedSet.has(key));
 }

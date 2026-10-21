@@ -21,6 +21,10 @@ import {
   readPanelCollapsed,
   writePanelCollapsed,
   librarySectionKey,
+  libraryCollapsibleSectionKeys,
+  readCollapsedLibrarySectionsFromSession,
+  writeCollapsedLibrarySectionsToSession,
+  catalogSectionsAllCollapsed,
 } from './experiences-ui.js';
 import { experiencesDualInlineMediaQuery } from './experiences-layout.js';
 import {
@@ -1322,6 +1326,8 @@ function cellInput(label, value, focusKey, onValue) {
 
 function experienceTools(view) {
   const addingLine = view.kind === 'log' && view.id === 'new';
+  const allSectionsCollapsed = experiencesUiEnabled()
+    && catalogSectionsAllCollapsed(store, collapsedLibrarySections);
   return el('div', { class: 'bb-exp-tools bb-action-row' }, [
     el('input', {
       class: 'search bb-exp-tools-search',
@@ -1351,6 +1357,13 @@ function experienceTools(view) {
           }
           render({ preserveScroll: true });
         },
+      })
+      : null,
+    experiencesUiEnabled() && libraryCollapsibleSectionKeys(store).length
+      ? btn(allSectionsCollapsed ? 'Expand all' : 'Collapse all', {
+        type: 'button',
+        class: 'row-text-action bb-exp-catalog-collapse-all',
+        onClick: () => setAllCatalogSectionsCollapsed(!allSectionsCollapsed),
       })
       : null,
     btn(addingLine ? 'Close' : '+ Add resume bullet', {
@@ -1864,17 +1877,45 @@ function experienceGroupHeader(group) {
         restoreScroll(scroll);
       },
     }, [
-      el('span', { class: 'bb-exp-group-chevron', 'aria-hidden': 'true' }),
+      el('span', { class: 'bb-chevron bb-exp-group-chevron', 'aria-hidden': 'true' }),
       el('span', { class: 'bb-exp-group-title' }, title),
       el('span', { class: 'bb-exp-group-count' }, `${group.count}`),
     ]),
   ]);
 }
 
+function persistCollapsedLibrarySections() {
+  writeCollapsedLibrarySectionsToSession(collapsedLibrarySections);
+}
+
+function hydrateCollapsedLibrarySectionsFromSession() {
+  const saved = readCollapsedLibrarySectionsFromSession();
+  if (!saved.size) return;
+  collapsedLibrarySections.clear();
+  for (const key of saved) collapsedLibrarySections.add(key);
+}
+
 function toggleLibrarySection(sectionKey, expanded) {
   if (expanded) collapsedLibrarySections.add(sectionKey);
   else collapsedLibrarySections.delete(sectionKey);
+  persistCollapsedLibrarySections();
   const scroll = captureScroll();
+  render({ preserveScroll: true });
+  restoreScroll(scroll);
+}
+
+function setAllCatalogSectionsCollapsed(collapsed) {
+  const scroll = captureScroll();
+  const keys = libraryCollapsibleSectionKeys(store);
+  if (collapsed) {
+    for (const key of keys) collapsedLibrarySections.add(key);
+  } else {
+    for (const key of keys) collapsedLibrarySections.delete(key);
+  }
+  for (const group of libraryCatalogGroups(store, { query: '' })) {
+    collapsedExperienceGroups.delete(group.jobId || '__none__');
+  }
+  persistCollapsedLibrarySections();
   render({ preserveScroll: true });
   restoreScroll(scroll);
 }
@@ -2028,7 +2069,7 @@ function experienceSectionHeader(jobKey, section, { bodyId = '' } = {}) {
           toggleLibrarySection(sectionKey, expanded);
         },
       }, [
-        el('span', { class: 'bb-exp-section-chevron', 'aria-hidden': 'true' }),
+        el('span', { class: 'bb-chevron bb-exp-section-chevron', 'aria-hidden': 'true' }),
         el('span', { class: 'bb-exp-section-row-title' }, section.label),
         el('span', { class: 'bb-exp-section-row-meta' }, `${section.rows.length} bullet${section.rows.length === 1 ? '' : 's'}`),
       ]),
@@ -2051,7 +2092,7 @@ function experienceSectionHeader(jobKey, section, { bodyId = '' } = {}) {
             toggleLibrarySection(sectionKey, expanded);
           },
         }, [
-          el('span', { class: 'bb-exp-section-chevron', 'aria-hidden': 'true' }),
+          el('span', { class: 'bb-chevron bb-exp-section-chevron', 'aria-hidden': 'true' }),
           el('span', { class: 'bb-exp-section-row-title' }, section.label),
           el('span', { class: 'bb-exp-section-row-meta' }, `${section.versionCount} version${section.versionCount === 1 ? '' : 's'}`),
         ]),
@@ -6791,6 +6832,7 @@ function escapeHtml(value) {
 
 function showBook(note) {
   unlocked = true;
+  hydrateCollapsedLibrarySectionsFromSession();
   setAppNav(true);
   if (!location.hash) location.hash = '#home';
   render();

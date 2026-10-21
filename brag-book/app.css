@@ -2007,6 +2007,7 @@ a:focus-visible {
   box-shadow: 0 0 0 2px rgba(143, 107, 31, 0.18);
   border-radius: 4px;
 }
+.bb-chevron,
 .bb-exp-group-chevron {
   flex: none;
   width: 0.4rem;
@@ -2017,7 +2018,12 @@ a:focus-visible {
   transform: rotate(-45deg);
   transition: transform 0.15s ease;
 }
-.bb-exp-group-toggle[aria-expanded="false"] .bb-exp-group-chevron {
+.bb-exp-group-toggle[aria-expanded="false"] .bb-chevron,
+.bb-exp-group-toggle[aria-expanded="false"] .bb-exp-group-chevron,
+.bb-exp-section-row-toggle[aria-expanded="false"] .bb-chevron,
+.bb-exp-section-row-toggle[aria-expanded="false"] .bb-exp-section-chevron,
+.bb-post-map-bucket-head[aria-expanded="false"] .bb-chevron,
+.bb-post-map-bucket-head[aria-expanded="false"] .bb-post-map-bucket-chevron {
   transform: rotate(-135deg);
 }
 .bb-exp-group-title {
@@ -2183,15 +2189,14 @@ a:focus-visible {
 .bb-exp-star-toggle.is-ready { color: var(--ink); }
 .bb-exp-star-chevron {
   display: inline-block;
-  width: 0.45rem;
-  height: 0.45rem;
-  border-right: 1.5px solid currentColor;
-  border-bottom: 1.5px solid currentColor;
-  transform: rotate(-45deg);
-  transition: transform 0.15s ease;
+  margin-left: 2px;
 }
-.bb-exp-star-toggle[aria-expanded="true"] .bb-exp-star-chevron {
-  transform: rotate(45deg);
+.bb-exp-tools .bb-exp-catalog-collapse-all {
+  flex: 0 0 auto;
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 6px;
 }
 .bb-exp-star-panel[hidden] { display: none !important; }
 .bb-exp-star-panel { width: 100%; min-width: 0; }
@@ -3623,15 +3628,6 @@ html.bb-offline-readonly .shell select {
   flex: none;
   align-self: flex-start;
   margin-top: 0.35em;
-  width: 0.4rem;
-  height: 0.4rem;
-  border-right: 1.5px solid var(--muted);
-  border-bottom: 1.5px solid var(--muted);
-  transform: rotate(-45deg);
-  transition: transform 0.15s ease;
-}
-.bb-exp-section-row-toggle[aria-expanded="false"] .bb-exp-section-chevron {
-  transform: rotate(-135deg);
 }
 .bb-exp-section-row-title {
   flex: 1;
@@ -3888,14 +3884,6 @@ html.bb-offline-readonly .shell select {
   flex: none;
   align-self: flex-start;
   margin-top: 0.35em;
-  width: 0.35rem;
-  height: 0.35rem;
-  border-right: 1px solid var(--muted);
-  border-bottom: 1px solid var(--muted);
-  transform: rotate(-45deg);
-}
-.bb-post-map-bucket-head[aria-expanded="false"] .bb-post-map-bucket-chevron {
-  transform: rotate(-135deg);
 }
 .bb-post-map-bucket-title {
   flex: 1;

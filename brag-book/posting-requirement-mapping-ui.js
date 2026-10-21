@@ -208,7 +208,7 @@ function buildExperienceBucket(deps, job, req, bucket, { expanded }) {
       onRender({ preserveScroll: true });
     },
   }, [
-    el('span', { class: 'bb-post-map-bucket-chevron', 'aria-hidden': 'true' }),
+    el('span', { class: 'bb-chevron bb-post-map-bucket-chevron', 'aria-hidden': 'true' }),
     el('span', { class: 'bb-post-map-bucket-title' }, title),
     el('span', { class: 'bb-post-map-bucket-meta' }, headerMeta),
   ]);
