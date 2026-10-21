@@ -125,18 +125,16 @@ assert.ok(addBtn);
 addBtn.click();
 await new Promise((resolve) => window.setTimeout(resolve, 20));
 
-const createBtn = [...window.document.querySelectorAll('button')].find((node) => node.textContent === 'Create new experience…');
-assert.ok(createBtn, 'create new in bulk menu');
-createBtn.click();
-await new Promise((resolve) => window.setTimeout(resolve, 20));
+const bulkSearch = window.document.querySelector('.bb-exp-bulk-menu input[type="search"]');
+assert.ok(bulkSearch, 'bulk menu search');
+bulkSearch.value = 'Bulk grouped';
+bulkSearch.dispatchEvent(new window.Event('input', { bubbles: true }));
+await new Promise((resolve) => window.setTimeout(resolve, 40));
 
-const nameInput = window.document.querySelector('.bb-exp-bulk-menu .bb-exp-inline-name');
-assert.ok(nameInput, 'inline create form in bulk menu');
-nameInput.value = 'Bulk grouped';
-nameInput.dispatchEvent(new window.Event('input', { bubbles: true }));
-const saveBtn = [...window.document.querySelectorAll('.bb-exp-bulk-menu button')].find((node) => node.textContent === 'Create & assign');
-assert.ok(saveBtn);
-saveBtn.click();
+const createBtn = window.document.querySelector('.bb-exp-bulk-menu .bb-exp-picker-create-row');
+assert.ok(createBtn, 'create row in bulk menu');
+assert.match(createBtn.textContent, /Bulk grouped/);
+createBtn.click();
 await new Promise((resolve) => window.setTimeout(resolve, 40));
 
 const book = JSON.parse(window.localStorage.getItem(STORE_KEY));

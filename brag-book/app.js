@@ -348,7 +348,8 @@ let postingMapFocusVersionEntryId = '';
 let catalogBulkSelectMode = false;
 let openExperiencePickerEntryId = '';
 let experiencePickerSearch = '';
-let experiencePickerCreating = false;
+let experiencePickerActiveIndex = -1;
+let experiencePickerCreateFormOpen = false;
 let activePanelExperienceId = '';
 let activePanelLooseEntryId = '';
 let panelDragOverExperienceId = '';
@@ -358,6 +359,7 @@ let experienceUngroupPendingId = '';
 let experienceSectionMenuId = '';
 let bulkAddMenuOpen = false;
 let bulkAddSearch = '';
+let bulkAddActiveIndex = -1;
 let bulkAddCreateOpen = false;
 /** @type {{ postingId: string, bulletId: string, toEntryId: string } | null} */
 let versionSwapTransferPick = null;
@@ -1759,10 +1761,15 @@ function experienceMembershipPicker(entry) {
     anchorFocusKey: `exp-xp-${entry.id}`,
     openEntryId: openExperiencePickerEntryId,
     pickerSearch: experiencePickerSearch,
-    pickerCreating: experiencePickerCreating,
+    pickerActiveIndex: experiencePickerActiveIndex,
+    pickerCreateFormOpen: experiencePickerCreateFormOpen,
     onOpenPicker: (id) => { openExperiencePickerEntryId = id || ''; },
-    onPickerSearch: (value) => { experiencePickerSearch = value; },
-    onPickerCreating: (value) => { experiencePickerCreating = value; },
+    onPickerSearch: (value) => {
+      experiencePickerSearch = value;
+      experiencePickerActiveIndex = -1;
+    },
+    onPickerActiveIndex: (index) => { experiencePickerActiveIndex = index; },
+    onPickerCreateFormOpen: (open) => { experiencePickerCreateFormOpen = open; },
     onStore: (next) => { store = next; },
     onSave: () => saveStore(),
     onRender: (opts) => render(opts),
@@ -1770,6 +1777,7 @@ function experienceMembershipPicker(entry) {
     renderCreateForm: () => experienceCreateFormUi({
       jobId: entry.jobId || '',
       lockJob: Boolean(entry.jobId),
+      defaultName: experiencePickerSearch,
       focusKey: `xp-create-${entry.id}`,
       onSubmit: ({ title, jobId }) => {
         const result = assignExperienceCreate({
@@ -1779,20 +1787,22 @@ function experienceMembershipPicker(entry) {
         });
         if (!result) return;
         openExperiencePickerEntryId = '';
-        experiencePickerCreating = false;
+        experiencePickerCreateFormOpen = false;
+        experiencePickerActiveIndex = -1;
         setNote('Created experience and assigned this bullet.');
         render({ focusKey: `exp-xp-${entry.id}`, preserveScroll: true });
       },
       onCancel: () => {
-        experiencePickerCreating = false;
-        render({ focusKey: `exp-xp-${entry.id}`, preserveScroll: true });
+        experiencePickerCreateFormOpen = false;
+        render({ focusKey: `xp-search-${entry.id}`, preserveScroll: true });
       },
     }),
     onCreateAndAssign: ({ title, jobId, entryId }) => {
       const result = assignExperienceCreate({ title, jobId, entryIds: [entryId] });
       if (!result) return;
       openExperiencePickerEntryId = '';
-      experiencePickerCreating = false;
+      experiencePickerCreateFormOpen = false;
+      experiencePickerActiveIndex = -1;
       setNote('Created experience and assigned this bullet.');
       render({ focusKey: `exp-xp-${entryId}`, preserveScroll: true });
     },
@@ -2114,12 +2124,14 @@ function bulkExperienceBar() {
     selectedEntryIds: selectedCatalogEntryIds,
     menuOpen: bulkAddMenuOpen,
     menuSearch: bulkAddSearch,
+    menuActiveIndex: bulkAddActiveIndex,
     createOpen: bulkAddCreateOpen,
     onToggleMenu: () => {
       bulkAddMenuOpen = !bulkAddMenuOpen;
       if (!bulkAddMenuOpen) {
         bulkAddCreateOpen = false;
         bulkAddSearch = '';
+        bulkAddActiveIndex = -1;
       }
       render({
         preserveScroll: true,
@@ -2128,6 +2140,11 @@ function bulkExperienceBar() {
     },
     onMenuSearch: (value) => {
       bulkAddSearch = value;
+      bulkAddActiveIndex = -1;
+      render({ preserveScroll: true, focusKey: 'bulk-xp-search' });
+    },
+    onMenuActiveIndex: (index) => {
+      bulkAddActiveIndex = index;
       render({ preserveScroll: true, focusKey: 'bulk-xp-search' });
     },
     onOpenCreate: () => {
@@ -2174,6 +2191,7 @@ function bulkExperienceBar() {
     renderCreateForm: () => experienceCreateFormUi({
       jobId: singleJobId,
       lockJob: Boolean(singleJobId),
+      defaultName: bulkAddSearch,
       focusKey: 'xp-bulk-create-name',
       submitLabel: 'Create & assign',
       onSubmit: ({ title, jobId }) => {

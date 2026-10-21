@@ -3317,6 +3317,12 @@ html.bb-offline-readonly .shell select {
   line-height: 1.35;
   cursor: pointer;
 }
+.bb-exp-picker-choice.is-active {
+  background: rgba(232, 196, 122, 0.2);
+}
+.bb-exp-picker-create-row {
+  font-weight: 500;
+}
 .bb-exp-picker-choice.is-on {
   background: rgba(232, 196, 122, 0.12);
 }

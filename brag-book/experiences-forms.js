@@ -7,7 +7,8 @@ import {
   moveEntryToExperience,
   careerJobGroupLabel,
 } from './engine.js';
-import { compactExperienceIndex, forgetSessionEmptyExperience } from './experiences-index.js';
+import { forgetSessionEmptyExperience } from './experiences-index.js';
+import { buildExperienceSearchPickerBody } from './experience-search-picker.js';
 import { registerOverlayClose } from './floating-overlay.js';
 
 export const BULK_EXP_OVERLAY_ID = 'bulk-add-to-experience';
@@ -151,9 +152,11 @@ export function buildBulkExperienceBar(deps) {
     selectedEntryIds,
     menuOpen,
     menuSearch,
+    menuActiveIndex = -1,
     createOpen,
     onToggleMenu,
     onMenuSearch,
+    onMenuActiveIndex,
     onOpenCreate,
     onCloseCreate,
     onAssignExisting,
@@ -182,52 +185,42 @@ export function buildBulkExperienceBar(deps) {
     onClick: () => onToggleMenu(),
   });
 
+  let menuChildren = [];
+  if (jobs.size > 1) {
+    menuChildren.push(el('p', { class: 'tiny bb-exp-bulk-hint' }, 'Selected bullets span more than one job. Narrow the selection to one job to add them to an experience.'));
+  } else if (singleJob) {
+    const pickerParts = buildExperienceSearchPickerBody({
+      el,
+      btn,
+      store,
+      jobId: singleJob,
+      query: menuSearch,
+      onQueryChange: (value) => onMenuSearch(value),
+      searchFocusKey: 'bulk-xp-search',
+      activeIndex: menuActiveIndex,
+      onActiveIndexChange: (index) => {
+        if (typeof onMenuActiveIndex === 'function') onMenuActiveIndex(index);
+      },
+      onSelectExperience: (experienceId) => onAssignExisting(experienceId),
+      onCreateFromQuery: ({ title, jobId }) => onCreateAndAssign({ title, jobId }),
+      createFormOpen: createOpen,
+      onOpenCreateForm: () => onOpenCreate(),
+      renderCreateForm: createOpen && renderCreateForm ? renderCreateForm : null,
+      listClass: 'bb-exp-bulk-menu-list',
+    });
+    menuChildren = [pickerParts.head, pickerParts.body, pickerParts.foot].filter(Boolean);
+    if (typeof pickerParts.afterMount === 'function') {
+      queueMicrotask(() => pickerParts.afterMount());
+    }
+  }
+
   const menu = menuOpen
     ? el('div', {
       class: 'bb-exp-bulk-menu bb-float-overlay-panel',
       role: 'dialog',
       'aria-label': 'Add to experience',
       'data-bb-overlay-panel': BULK_EXP_OVERLAY_ID,
-    }, [
-      jobs.size > 1
-        ? el('p', { class: 'tiny bb-exp-bulk-hint' }, 'Selected bullets span more than one job. Narrow the selection to one job to add them to an experience.')
-        : null,
-      !createOpen && singleJob
-        ? el('div', { class: 'bb-float-overlay-head' }, [
-          el('input', {
-            type: 'search',
-            class: 'search',
-            placeholder: 'Search experiences…',
-            value: menuSearch,
-            'aria-label': 'Search experiences',
-            'data-focus-key': 'bulk-xp-search',
-            onInput: (event) => onMenuSearch(event.target.value),
-          }),
-        ])
-        : null,
-      !createOpen && singleJob
-        ? el('div', { class: 'bb-float-overlay-body bb-exp-bulk-menu-list' },
-          compactExperienceIndex(store, { query: menuSearch, includeEmpty: true })
-            .filter((row) => row.jobId === singleJob)
-            .map((row) => btn(row.title, {
-              type: 'button',
-              class: 'bb-exp-picker-choice',
-              onClick: () => onAssignExisting(row.id),
-            })))
-        : null,
-      !createOpen && singleJob
-        ? el('div', { class: 'bb-float-overlay-foot bb-action-row' }, [
-          btn('Create new experience…', {
-            type: 'button',
-            class: 'btn ghost compact-action',
-            onClick: () => onOpenCreate(),
-          }),
-        ])
-        : null,
-      createOpen && singleJob && renderCreateForm
-        ? el('div', { class: 'bb-float-overlay-body' }, [renderCreateForm()])
-        : null,
-    ])
+    }, menuChildren)
     : null;
 
   if (menu) registerOverlayClose(menu, () => onToggleMenu());

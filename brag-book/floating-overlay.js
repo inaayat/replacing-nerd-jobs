@@ -5,6 +5,12 @@
 export const FLOAT_OVERLAY_MAX_HEIGHT_PX = 320;
 export const FLOAT_OVERLAY_Z = 120;
 
+function escapeAttrValue(value) {
+  const raw = String(value || '');
+  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') return CSS.escape(raw);
+  return raw.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
 const closeByPanel = new WeakMap();
 const wired = new WeakMap();
 
@@ -63,7 +69,7 @@ function attachOne(anchor, panel) {
   const reposition = () => {
     if (!document.body.contains(panel) || panel.hidden) return;
     const liveAnchor = document.querySelector(
-      `[data-bb-overlay-anchor="${CSS.escape(panel.getAttribute('data-bb-overlay-panel') || '')}"]`,
+      `[data-bb-overlay-anchor="${escapeAttrValue(panel.getAttribute('data-bb-overlay-panel') || '')}"]`,
     );
     if (liveAnchor) positionPanel(liveAnchor, panel);
   };
@@ -109,6 +115,7 @@ function attachOne(anchor, panel) {
 /** Move registered overlay panels to body and position them (call after each render). */
 export function refreshFloatingOverlays() {
   if (typeof document === 'undefined') return;
+  const liveById = new Map();
   for (const panel of document.querySelectorAll('[data-bb-overlay-panel]')) {
     if (panel.hidden) {
       detachOne(panel);
@@ -116,7 +123,18 @@ export function refreshFloatingOverlays() {
     }
     const id = panel.getAttribute('data-bb-overlay-panel');
     if (!id) continue;
-    const anchor = document.querySelector(`[data-bb-overlay-anchor="${CSS.escape(id)}"]`);
+    const inApp = Boolean(panel.closest('#app'));
+    const prev = liveById.get(id);
+    if (!prev || inApp) liveById.set(id, panel);
+  }
+  for (const [id, panel] of liveById) {
+    for (const dup of document.querySelectorAll(`[data-bb-overlay-panel="${escapeAttrValue(id)}"]`)) {
+      if (dup !== panel) {
+        detachOne(dup);
+        dup.remove();
+      }
+    }
+    const anchor = document.querySelector(`[data-bb-overlay-anchor="${escapeAttrValue(id)}"]`);
     if (!anchor) {
       panel.remove();
       detachOne(panel);

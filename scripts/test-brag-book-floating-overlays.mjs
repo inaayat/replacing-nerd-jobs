@@ -18,7 +18,7 @@ assert.match(css, /\.bb-float-overlay-body[\s\S]*overflow-y:\s*auto/);
 assert.match(css, /\.bb-exp-picker-chip[\s\S]*width:\s*auto/);
 const chipRule = css.match(/\.bb-exp-picker-chip\s*\{[^}]+\}/)?.[0] || '';
 assert.match(chipRule, /width:\s*auto/);
-assert.doesNotMatch(chipRule, /(?<!max-)width:\s*100%/);
+assert.ok(!chipRule.split('\n').some((line) => /^\s*width:\s*100%/.test(line)), 'chip is not full width');
 
 const pickerSrc = readFileSync(new URL('../brag-book/experience-picker.js', import.meta.url), 'utf8');
 assert.match(pickerSrc, /data-bb-overlay-panel/);

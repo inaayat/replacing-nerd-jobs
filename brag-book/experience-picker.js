@@ -7,8 +7,8 @@ import {
   removeEntryFromExperience,
   experienceForEntry,
 } from './engine.js';
-import { compactExperienceIndex, forgetSessionEmptyExperience } from './experiences-index.js';
-import { buildExperienceCreateForm } from './experiences-forms.js';
+import { forgetSessionEmptyExperience } from './experiences-index.js';
+import { buildExperienceSearchPickerBody } from './experience-search-picker.js';
 import { registerOverlayClose } from './floating-overlay.js';
 
 export function experiencePickerOverlayId(entryId) {
@@ -29,15 +29,18 @@ export function buildExperiencePicker(deps) {
     anchorFocusKey,
     openEntryId,
     pickerSearch,
-    pickerCreating,
+    pickerActiveIndex = -1,
+    pickerCreateFormOpen = false,
     onOpenPicker,
     onPickerSearch,
-    onPickerCreating,
+    onPickerActiveIndex,
+    onPickerCreateFormOpen,
     onStore,
     onSave,
     onRender,
     setNote,
     renderCreateForm,
+    onCreateAndAssign,
   } = deps;
 
   const jobId = entry.jobId || '';
@@ -46,8 +49,9 @@ export function buildExperiencePicker(deps) {
 
   const close = () => {
     onOpenPicker('');
-    onPickerCreating(false);
+    onPickerCreateFormOpen(false);
     onPickerSearch('');
+    onPickerActiveIndex(-1);
     onRender({ focusKey: anchorFocusKey, preserveScroll: true });
   };
 
@@ -78,52 +82,54 @@ export function buildExperiencePicker(deps) {
 
   if (!open) return chip;
 
-  const choices = compactExperienceIndex(store, { query: pickerSearch, includeEmpty: true })
-    .filter((row) => row.jobId === jobId);
   const current = experienceForEntry(store, entry.id);
 
-  const createBody = pickerCreating
-    ? (renderCreateForm
-      ? renderCreateForm()
-      : buildExperienceCreateForm({
-        el,
-        btn,
-        store,
-        jobId,
-        lockJob: Boolean(jobId),
-        focusKey: `xp-create-${entry.id}`,
-        onSubmit: ({ title, jobId: resolvedJobId }) => {
-          deps.onCreateAndAssign({ title, jobId: resolvedJobId, entryId: entry.id });
-        },
-        onCancel: () => {
-          onPickerCreating(false);
-          onRender({ focusKey: anchorFocusKey, preserveScroll: true });
-        },
-        onRender,
-      }))
-    : null;
-
-  const listBody = pickerCreating
-    ? null
-    : el('div', { class: 'bb-float-overlay-body bb-exp-picker-list', role: 'listbox' },
-      choices.map((row) => {
-        const selected = current?.id === row.id;
-        return btn(`${selected ? '✓ ' : ''}${row.title} · ${row.versionCount} bullet${row.versionCount === 1 ? '' : 's'}`, {
-          type: 'button',
-          class: `bb-exp-picker-choice${selected ? ' is-on' : ''}`,
-          role: 'option',
-          onClick: () => {
-            if (selected) { close(); return; }
-            if (!jobId) {
-              setNote('Assign a job to this bullet first.');
-              return;
-            }
-            const moved = moveEntryToExperience(store, entry.id, row.id);
-            forgetSessionEmptyExperience(row.id);
-            applyMembership(moved.store, 'Moved bullet to that experience.');
-          },
-        });
-      }));
+  const pickerParts = buildExperienceSearchPickerBody({
+    el,
+    btn,
+    store,
+    jobId,
+    query: pickerSearch,
+    onQueryChange: (value) => {
+      onPickerSearch(value);
+      onRender({ focusKey: `xp-search-${entry.id}`, preserveScroll: true });
+    },
+    searchFocusKey: `xp-search-${entry.id}`,
+    activeIndex: pickerActiveIndex,
+    onActiveIndexChange: (index) => {
+      onPickerActiveIndex(index);
+      onRender({ focusKey: `xp-search-${entry.id}`, preserveScroll: true });
+    },
+    currentExperienceId: current?.id || '',
+    onSelectExperience: (experienceId) => {
+      if (current?.id === experienceId) {
+        close();
+        return;
+      }
+      if (!jobId) {
+        setNote('Assign a job to this bullet first.');
+        return;
+      }
+      const moved = moveEntryToExperience(store, entry.id, experienceId);
+      forgetSessionEmptyExperience(experienceId);
+      applyMembership(moved.store, 'Moved bullet to that experience.');
+    },
+    onCreateFromQuery: ({ title, jobId: resolvedJobId }) => {
+      if (typeof onCreateAndAssign === 'function') {
+        onCreateAndAssign({ title, jobId: resolvedJobId, entryId: entry.id });
+      }
+    },
+    onRemoveFromExperience: current
+      ? () => applyMembership(removeEntryFromExperience(store, entry.id).store, 'Bullet is loose under the same job.')
+      : null,
+    showRemove: Boolean(current),
+    createFormOpen: pickerCreateFormOpen,
+    onOpenCreateForm: () => {
+      onPickerCreateFormOpen(true);
+      onRender({ focusKey: `xp-create-${entry.id}`, preserveScroll: true });
+    },
+    renderCreateForm: pickerCreateFormOpen && renderCreateForm ? renderCreateForm : null,
+  });
 
   const menu = el('div', {
     class: 'bb-exp-picker-menu bb-float-overlay-panel',
@@ -131,45 +137,15 @@ export function buildExperiencePicker(deps) {
     'aria-label': 'Choose experience',
     'data-bb-overlay-panel': overlayId,
   }, [
-    createBody
-      ? el('div', { class: 'bb-float-overlay-body' }, [createBody])
-      : el('div', { class: 'bb-float-overlay-head' }, [
-        el('input', {
-          type: 'search',
-          class: 'search bb-exp-picker-search',
-          placeholder: 'Search experiences for this job…',
-          'aria-label': 'Search experiences',
-          value: pickerSearch,
-          onInput: (event) => {
-            onPickerSearch(event.target.value);
-            onRender({ focusKey: `xp-search-${entry.id}`, preserveScroll: true });
-          },
-          'data-focus-key': `xp-search-${entry.id}`,
-        }),
-      ]),
-    listBody,
-    pickerCreating ? null : el('div', { class: 'bb-float-overlay-foot bb-exp-picker-footer bb-action-row' }, [
-      btn('+ Create new experience', {
-        type: 'button',
-        class: 'btn ghost compact-action',
-        onClick: () => {
-          onPickerCreating(true);
-          onRender({ focusKey: `xp-create-${entry.id}`, preserveScroll: true });
-        },
-      }),
-      current
-        ? btn('Remove from experience', {
-          type: 'button',
-          class: 'btn ghost compact-action',
-          onClick: () => {
-            applyMembership(removeEntryFromExperience(store, entry.id).store, 'Bullet is loose under the same job.');
-          },
-        })
-        : null,
-    ]),
+    pickerParts.head,
+    pickerParts.body,
+    pickerParts.foot,
   ]);
 
   registerOverlayClose(menu, close);
+  if (typeof pickerParts.afterMount === 'function') {
+    queueMicrotask(() => pickerParts.afterMount());
+  }
 
   return el('div', { class: 'bb-exp-picker-wrap' }, [chip, menu]);
 }
