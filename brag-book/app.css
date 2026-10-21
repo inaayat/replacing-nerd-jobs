@@ -3158,6 +3158,20 @@ html.bb-offline-readonly .shell select {
   cursor: pointer;
   font-family: var(--content-font);
 }
+.bb-exp-panel-scroll .bb-exp-index-row {
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: none;
+}
+.bb-exp-panel-scroll .bb-exp-index-row.is-active {
+  background: rgba(232, 196, 122, 0.14);
+  border-color: rgba(143, 107, 31, 0.35);
+}
+.bb-exp-panel-scroll .bb-exp-index-row.is-drop-target {
+  background: rgba(232, 196, 122, 0.22);
+}
 .bb-exp-index-row.is-active {
   background: rgba(232, 196, 122, 0.14);
 }
@@ -3349,6 +3363,9 @@ html.bb-offline-readonly .shell select {
   text-transform: uppercase;
 }
 .bb-exp-panel-scroll {
+  display: grid;
+  gap: 6px;
+  align-content: start;
   overflow-y: auto;
   flex: 1;
   min-height: 0;
@@ -3753,12 +3770,16 @@ html.bb-offline-readonly .shell select {
 /* Posting requirement mapping */
 .bb-post-map-stack {
   display: grid;
-  gap: 10px;
+  gap: 6px;
 }
-.bb-post-map-bucket {
+.bb-post-map-bucket,
+.bb-post-map-loose-group {
   margin: 0;
-  padding: 0;
-  border: none;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: none;
 }
 .bb-post-map-bucket-head-row {
   display: flex;
@@ -3822,14 +3843,25 @@ html.bb-offline-readonly .shell select {
 }
 .bb-post-map-bucket-included {
   display: grid;
-  gap: 4px;
-  padding-left: 1rem;
-  margin: 2px 0 0;
+  gap: 0;
+  padding-left: 0.65rem;
+  margin: 4px 0 0;
+  border-top: 1px solid var(--line);
+  padding-top: 4px;
+}
+.bb-post-map-bucket-included .bb-post-map-bullet + .bb-post-map-bullet,
+.bb-post-map-bucket-included .bb-post-map-bullet-block + .bb-post-map-bullet,
+.bb-post-map-bucket-included .bb-post-map-bullet + .bb-post-map-bullet-block {
+  border-top: 1px solid var(--line);
+  margin-top: 4px;
+  padding-top: 4px;
 }
 .bb-post-map-bucket-versions {
   display: grid;
   gap: 4px;
-  padding: 4px 0 0 1rem;
+  padding: 4px 0 0 0.65rem;
+  margin-top: 4px;
+  border-top: 1px solid var(--line);
 }
 .bb-post-map-version {
   display: flex;
@@ -3878,26 +3910,46 @@ html.bb-offline-readonly .shell select {
   .bb-post-map-bucket-clear {
     opacity: 1;
   }
+  .bb-post-map-bucket,
+  .bb-post-map-loose-group,
+  .bb-exp-panel-scroll .bb-exp-index-row {
+    padding: 6px 8px;
+  }
 }
 .bb-post-map-details {
   font-size: 12px;
 }
 .bb-post-map-loose-label,
 .bb-post-map-group-label {
-  margin: 8px 0 2px;
+  margin: 0 0 2px;
   font-family: var(--content-font);
   font-size: 12px;
   color: var(--muted);
+  line-height: 1.35;
 }
 .bb-post-map-loose-bullets {
   display: grid;
-  gap: 4px;
-  padding-left: 1rem;
+  gap: 0;
+  padding-left: 0.65rem;
+  margin-top: 4px;
+  border-top: 1px solid var(--line);
+  padding-top: 4px;
+}
+.bb-post-map-loose-bullets .bb-post-map-bullet + .bb-post-map-bullet,
+.bb-post-map-loose-bullets .bb-post-map-bullet-block + .bb-post-map-bullet,
+.bb-post-map-loose-bullets .bb-post-map-bullet + .bb-post-map-bullet-block {
+  border-top: 1px solid var(--line);
+  margin-top: 4px;
+  padding-top: 4px;
 }
 .bb-post-map-search-wrap {
   display: grid;
   gap: 6px;
-  margin-top: 6px;
+  margin-top: 8px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 0;
 }
 .bb-post-map-results {
   display: grid;

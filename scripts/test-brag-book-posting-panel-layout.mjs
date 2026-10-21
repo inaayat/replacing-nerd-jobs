@@ -62,6 +62,14 @@ for (const sel of wrapSelectors) {
 }
 assert.match(ruleBlock('.bb-exp-index-line1'), /align-items:\s*flex-start/);
 assert.match(ruleBlock('.bb-post-map-bucket-head'), /align-items:\s*flex-start/);
+assert.match(ruleBlock('.bb-post-map-stack'), /gap:\s*6px/);
+assert.match(
+  css,
+  /\.bb-post-map-bucket,\s*\n\.bb-post-map-loose-group\s*\{[^}]*border:\s*1px solid var\(--line\)[^}]*border-radius:\s*8px/s,
+);
+assert.match(css, /\.bb-exp-panel-scroll \.bb-exp-index-row[\s\S]*border-radius:\s*8px/);
+assert.match(css, /\.bb-post-map-bucket-included \.bb-post-map-bullet \+ \.bb-post-map-bullet[\s\S]*border-top/);
+assert.doesNotMatch(ruleBlock('.bb-post-map-search-wrap'), /border:\s*1px solid var\(--line\)/);
 assert.match(app, /experiencesDualInlineMediaQuery/);
 
 assert.equal(EXPERIENCES_DUAL_INLINE_MIN_PX, 920);
