@@ -5,6 +5,9 @@
 import {
   compactExperienceIndex,
 } from './experiences-index.js';
+import { registerOverlayClose } from './floating-overlay.js';
+
+export const EXP_PANEL_SEARCH_OVERLAY_ID = 'exp-panel-search';
 
 /**
  * @param {object} deps — DOM helpers and session callbacks from app.js
@@ -29,6 +32,7 @@ export function buildExperiencesPanel(deps) {
     panelCreateOpen = false,
     displayExperienceLine,
     renderPanelQueryResults = null,
+    onClosePanelSearch,
     looseSection = null,
     renderLooseBulletRow,
   } = deps;
@@ -63,15 +67,28 @@ export function buildExperiencesPanel(deps) {
     value: panelQuery,
     'aria-label': 'Search experiences',
     'data-focus-key': 'exp-panel-search',
+    'data-bb-overlay-anchor': EXP_PANEL_SEARCH_OVERLAY_ID,
     onInput: (event) => onPanelQueryChange(event.target.value),
   });
 
   const queryTrimmed = String(panelQuery || '').trim();
+  const searchBlock = el('div', { class: 'bb-exp-panel-search-block' }, [search]);
+  if (queryTrimmed && renderPanelQueryResults) {
+    const overlay = el('div', {
+      class: 'bb-float-overlay-panel bb-post-map-results-overlay',
+      'data-bb-overlay-panel': EXP_PANEL_SEARCH_OVERLAY_ID,
+    }, [
+      el('div', { class: 'bb-float-overlay-body' }, [renderPanelQueryResults]),
+    ]);
+    registerOverlayClose(overlay, () => {
+      if (typeof onClosePanelSearch === 'function') onClosePanelSearch();
+    });
+    searchBlock.append(overlay);
+  }
+
   const scrollChildren = [];
 
-  if (queryTrimmed && renderPanelQueryResults) {
-    scrollChildren.push(renderPanelQueryResults);
-  } else {
+  if (!queryTrimmed) {
     for (const row of rows) {
       const active = activeExperienceId === row.id;
       const dragOver = dragOverExperienceId === row.id;
@@ -150,7 +167,7 @@ export function buildExperiencesPanel(deps) {
   return el('aside', { class: 'bb-exp-side-panel', 'aria-label': 'Experiences' }, [
     head,
     createSlot,
-    search,
+    searchBlock,
     scroll,
   ]);
 }

@@ -33,6 +33,7 @@ import {
   searchPostingMapTargets,
 } from './posting-requirement-mapping-ui.js';
 import { idempotentAddEntryToPostingResume } from './posting-requirement-mapping.js';
+import { refreshFloatingOverlays } from './floating-overlay.js';
 import {
   STORE_KEY,
   POSTING_STATUSES,
@@ -2368,6 +2369,10 @@ function experiencesPanelForPage(page, posting = null) {
     displayExperienceLine,
     onPanelQueryChange: (value) => {
       experiencesPanelQuery = value;
+      render({ preserveScroll: true, focusKey: 'exp-panel-search' });
+    },
+    onClosePanelSearch: () => {
+      experiencesPanelQuery = '';
       render({ preserveScroll: true, focusKey: 'exp-panel-search' });
     },
     onSelectExperience: selectPanelExperience,
@@ -6635,6 +6640,7 @@ function finishRender(captured, options, scroll) {
   restoreScroll(scroll);
   restoreFocus(captured, options.focusKey);
   scheduleResumeScrollRestore(scroll);
+  refreshFloatingOverlays();
 }
 
 function render(options = {}) {

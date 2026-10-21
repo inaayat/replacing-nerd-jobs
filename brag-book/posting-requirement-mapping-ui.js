@@ -2,6 +2,7 @@
  * Posting requirement mapping UI (browser-safe ESM).
  */
 
+import { registerOverlayClose } from './floating-overlay.js';
 import {
   searchPostingMapTargets,
   requirementMappingBuckets,
@@ -15,6 +16,10 @@ import {
 
 export function requirementBucketKey(postingId, requirementId, experienceId) {
   return `${postingId}:${requirementId}:xp:${experienceId}`;
+}
+
+export function postingMapSearchOverlayId(postingId, requirementId) {
+  return `post-map-search-${postingId}-${requirementId}`;
 }
 
 export function postingMapAddBulletFocusKey(postingId, requirementId, experienceId = '') {
@@ -277,22 +282,32 @@ export function buildRequirementMappingStack(deps, job, req) {
     ]),
   ]));
 
-  const searchWrap = el('div', { class: 'bb-post-map-search-wrap' }, [
-    el('input', {
-      type: 'search',
-      class: 'search bb-post-map-search',
-      placeholder: 'Search experiences and bullets…',
-      value: searchValue,
-      'aria-label': 'Search experiences and bullets',
-      'data-focus-key': focusKey,
-      onInput: (event) => onSearchChange(event.target.value),
-    }),
-  ]);
+  const overlayId = postingMapSearchOverlayId(job.id, req.id);
+  const searchInput = el('input', {
+    type: 'search',
+    class: 'search bb-post-map-search',
+    placeholder: 'Search experiences and bullets…',
+    value: searchValue,
+    'aria-label': 'Search experiences and bullets',
+    'data-focus-key': focusKey,
+    'data-bb-overlay-anchor': overlayId,
+    onInput: (event) => onSearchChange(event.target.value),
+  });
+
+  const searchWrap = el('div', { class: 'bb-post-map-search-wrap' }, [searchInput]);
 
   const q = String(searchValue || '').trim();
   if (q) {
     const targets = searchPostingMapTargets(store, q);
-    searchWrap.append(buildPostingMapSearchResults(deps, targets));
+    const resultsInner = buildPostingMapSearchResults(deps, targets);
+    const results = el('div', {
+      class: 'bb-float-overlay-panel bb-post-map-results-overlay',
+      'data-bb-overlay-panel': overlayId,
+    }, [
+      el('div', { class: 'bb-float-overlay-body' }, [resultsInner]),
+    ]);
+    registerOverlayClose(results, () => onSearchChange(''));
+    searchWrap.append(results);
   }
 
   stack.append(searchWrap);

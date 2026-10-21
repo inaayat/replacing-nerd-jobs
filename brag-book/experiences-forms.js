@@ -8,6 +8,9 @@ import {
   careerJobGroupLabel,
 } from './engine.js';
 import { compactExperienceIndex, forgetSessionEmptyExperience } from './experiences-index.js';
+import { registerOverlayClose } from './floating-overlay.js';
+
+export const BULK_EXP_OVERLAY_ID = 'bulk-add-to-experience';
 
 export function jobDisplayLabel(job) {
   if (!job) return 'Untitled job';
@@ -170,27 +173,40 @@ export function buildBulkExperienceBar(deps) {
   }
   const singleJob = jobs.size === 1 ? [...jobs][0] : '';
 
+  const addBtn = btn('Add to experience ▾', {
+    type: 'button',
+    class: 'btn',
+    disabled: !singleJob,
+    'aria-expanded': menuOpen ? 'true' : 'false',
+    'data-bb-overlay-anchor': BULK_EXP_OVERLAY_ID,
+    onClick: () => onToggleMenu(),
+  });
+
   const menu = menuOpen
-    ? el('div', { class: 'bb-exp-bulk-menu', role: 'dialog', 'aria-label': 'Add to experience' }, [
+    ? el('div', {
+      class: 'bb-exp-bulk-menu bb-float-overlay-panel',
+      role: 'dialog',
+      'aria-label': 'Add to experience',
+      'data-bb-overlay-panel': BULK_EXP_OVERLAY_ID,
+    }, [
       jobs.size > 1
         ? el('p', { class: 'tiny bb-exp-bulk-hint' }, 'Selected bullets span more than one job. Narrow the selection to one job to add them to an experience.')
         : null,
-      createOpen && singleJob && renderCreateForm
-        ? renderCreateForm()
+      !createOpen && singleJob
+        ? el('div', { class: 'bb-float-overlay-head' }, [
+          el('input', {
+            type: 'search',
+            class: 'search',
+            placeholder: 'Search experiences…',
+            value: menuSearch,
+            'aria-label': 'Search experiences',
+            'data-focus-key': 'bulk-xp-search',
+            onInput: (event) => onMenuSearch(event.target.value),
+          }),
+        ])
         : null,
       !createOpen && singleJob
-        ? el('input', {
-          type: 'search',
-          class: 'search',
-          placeholder: 'Search experiences…',
-          value: menuSearch,
-          'aria-label': 'Search experiences',
-          'data-focus-key': 'bulk-xp-search',
-          onInput: (event) => onMenuSearch(event.target.value),
-        })
-        : null,
-      !createOpen && singleJob
-        ? el('div', { class: 'bb-exp-bulk-menu-list' },
+        ? el('div', { class: 'bb-float-overlay-body bb-exp-bulk-menu-list' },
           compactExperienceIndex(store, { query: menuSearch, includeEmpty: true })
             .filter((row) => row.jobId === singleJob)
             .map((row) => btn(row.title, {
@@ -200,24 +216,25 @@ export function buildBulkExperienceBar(deps) {
             })))
         : null,
       !createOpen && singleJob
-        ? btn('Create new experience…', {
-          type: 'button',
-          class: 'btn ghost compact-action',
-          onClick: () => onOpenCreate(),
-        })
+        ? el('div', { class: 'bb-float-overlay-foot bb-action-row' }, [
+          btn('Create new experience…', {
+            type: 'button',
+            class: 'btn ghost compact-action',
+            onClick: () => onOpenCreate(),
+          }),
+        ])
+        : null,
+      createOpen && singleJob && renderCreateForm
+        ? el('div', { class: 'bb-float-overlay-body' }, [renderCreateForm()])
         : null,
     ])
     : null;
 
+  if (menu) registerOverlayClose(menu, () => onToggleMenu());
+
   return el('div', { class: 'bb-exp-bulk-bar bb-action-row', role: 'region', 'aria-label': 'Bulk actions' }, [
     el('span', { class: 'bb-exp-bulk-count' }, `${count} selected`),
-    btn('Add to experience ▾', {
-      type: 'button',
-      class: 'btn',
-      disabled: !singleJob,
-      'aria-expanded': menuOpen ? 'true' : 'false',
-      onClick: () => onToggleMenu(),
-    }),
+    addBtn,
     btn('Cancel', {
       type: 'button',
       class: 'btn ghost',

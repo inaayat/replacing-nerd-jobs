@@ -9,6 +9,11 @@ import {
 } from './engine.js';
 import { compactExperienceIndex, forgetSessionEmptyExperience } from './experiences-index.js';
 import { buildExperienceCreateForm } from './experiences-forms.js';
+import { registerOverlayClose } from './floating-overlay.js';
+
+export function experiencePickerOverlayId(entryId) {
+  return `exp-picker-${entryId}`;
+}
 
 export function experiencePickerLabel(store, entry) {
   const xp = experienceForEntry(store, entry.id);
@@ -37,6 +42,7 @@ export function buildExperiencePicker(deps) {
 
   const jobId = entry.jobId || '';
   const open = openEntryId === entry.id;
+  const overlayId = experiencePickerOverlayId(entry.id);
 
   const close = () => {
     onOpenPicker('');
@@ -53,12 +59,13 @@ export function buildExperiencePicker(deps) {
   };
 
   const label = experiencePickerLabel(store, entry);
-  const chip = btn(`Experience: ${label} ▾`, {
+  const chip = el('button', {
     type: 'button',
-    class: 'btn ghost compact-action bb-exp-picker-chip',
+    class: 'row-text-action bb-exp-picker-chip',
     title: `Experience: ${label}`,
     'aria-expanded': open ? 'true' : 'false',
     'data-focus-key': anchorFocusKey,
+    'data-bb-overlay-anchor': overlayId,
     onClick: (event) => {
       event.stopPropagation();
       if (open) close();
@@ -67,7 +74,7 @@ export function buildExperiencePicker(deps) {
         onRender({ focusKey: `xp-search-${entry.id}`, preserveScroll: true });
       }
     },
-  });
+  }, `Experience: ${label} ▾`);
 
   if (!open) return chip;
 
@@ -96,25 +103,9 @@ export function buildExperiencePicker(deps) {
       }))
     : null;
 
-  const menu = el('div', {
-    class: 'bb-exp-picker-menu',
-    role: 'dialog',
-    'aria-label': 'Choose experience',
-  }, [
-    createBody,
-    pickerCreating ? null : el('input', {
-      type: 'search',
-      class: 'search bb-exp-picker-search',
-      placeholder: 'Search experiences for this job…',
-      'aria-label': 'Search experiences',
-      value: pickerSearch,
-      onInput: (event) => {
-        onPickerSearch(event.target.value);
-        onRender({ focusKey: `xp-search-${entry.id}`, preserveScroll: true });
-      },
-      'data-focus-key': `xp-search-${entry.id}`,
-    }),
-    pickerCreating ? null : el('div', { class: 'bb-exp-picker-list', role: 'listbox' },
+  const listBody = pickerCreating
+    ? null
+    : el('div', { class: 'bb-float-overlay-body bb-exp-picker-list', role: 'listbox' },
       choices.map((row) => {
         const selected = current?.id === row.id;
         return btn(`${selected ? '✓ ' : ''}${row.title} · ${row.versionCount} bullet${row.versionCount === 1 ? '' : 's'}`, {
@@ -132,8 +123,32 @@ export function buildExperiencePicker(deps) {
             applyMembership(moved.store, 'Moved bullet to that experience.');
           },
         });
-      })),
-    pickerCreating ? null : el('div', { class: 'bb-exp-picker-footer bb-action-row' }, [
+      }));
+
+  const menu = el('div', {
+    class: 'bb-exp-picker-menu bb-float-overlay-panel',
+    role: 'dialog',
+    'aria-label': 'Choose experience',
+    'data-bb-overlay-panel': overlayId,
+  }, [
+    createBody
+      ? el('div', { class: 'bb-float-overlay-body' }, [createBody])
+      : el('div', { class: 'bb-float-overlay-head' }, [
+        el('input', {
+          type: 'search',
+          class: 'search bb-exp-picker-search',
+          placeholder: 'Search experiences for this job…',
+          'aria-label': 'Search experiences',
+          value: pickerSearch,
+          onInput: (event) => {
+            onPickerSearch(event.target.value);
+            onRender({ focusKey: `xp-search-${entry.id}`, preserveScroll: true });
+          },
+          'data-focus-key': `xp-search-${entry.id}`,
+        }),
+      ]),
+    listBody,
+    pickerCreating ? null : el('div', { class: 'bb-float-overlay-foot bb-exp-picker-footer bb-action-row' }, [
       btn('+ Create new experience', {
         type: 'button',
         class: 'btn ghost compact-action',
@@ -153,6 +168,8 @@ export function buildExperiencePicker(deps) {
         : null,
     ]),
   ]);
+
+  registerOverlayClose(menu, close);
 
   return el('div', { class: 'bb-exp-picker-wrap' }, [chip, menu]);
 }
