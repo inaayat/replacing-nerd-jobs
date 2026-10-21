@@ -3958,6 +3958,14 @@ function requirementExperiencesCell(job, req) {
       }
     },
     onSearchFocus: () => {
+      let otherOpen = false;
+      for (const key of requirementMapSearchByKey.keys()) {
+        if (key !== mapKey && String(requirementMapSearchByKey.get(key) || '').trim()) {
+          otherOpen = true;
+          break;
+        }
+      }
+      if (!otherOpen) return;
       clearOtherRequirementMapSearches(mapKey);
       render({ preserveScroll: true });
     },
