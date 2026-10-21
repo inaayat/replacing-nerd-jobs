@@ -17,6 +17,12 @@ export function requirementBucketKey(postingId, requirementId, experienceId) {
   return `${postingId}:${requirementId}:xp:${experienceId}`;
 }
 
+export function postingMapAddBulletFocusKey(postingId, requirementId, experienceId = '') {
+  return experienceId
+    ? `${postingId}:${requirementId}:add:${experienceId}`
+    : `${postingId}:${requirementId}:add:loose`;
+}
+
 export function buildPostingMapSearchResults(deps, targets) {
   const { el, btn, onPickExperience, onPickBullet } = deps;
   const { experiences, bullets } = targets;
@@ -53,27 +59,38 @@ export function buildPostingMapSearchResults(deps, targets) {
   return el('div', { class: 'bb-post-map-results' }, nodes);
 }
 
+function buildMapEntryEditor(deps, entry, { className = 'bb-post-map-bullet-line', ariaLabel = 'Resume bullet', focusKey = '' }) {
+  const {
+    store, displayExperienceLine, richLine, updateEntry, onSave,
+  } = deps;
+  if (!entry?.id) return null;
+  const shown = displayExperienceLine(entry.title);
+  return richLine({
+    class: className,
+    'aria-label': ariaLabel,
+    ...(focusKey ? { 'data-focus-key': focusKey } : {}),
+  }, {
+    text: shown,
+    rich: shown === String(entry.title || '').trim() ? entry.rich : null,
+    onChange: (spans) => {
+      const text = spans.map((span) => span.text).join('');
+      if (!text.trim()) return;
+      onSave(updateEntry(store, entry.id, { title: text, rich: spans }));
+    },
+  });
+}
+
 function buildIncludedBulletRow(deps, job, req, { bullet, entry }) {
   const {
-    el, btn, store, linkedBulletLine, displayExperienceLine, richLine,
-    updateBullet, expandedBulletKey, setExpandedBulletKey, onSave, onRender,
+    el, store, expandedBulletKey, setExpandedBulletKey, onSave, onRender,
     experienceEditor,
   } = deps;
   const bulletKey = `${job.id}:${req.id}:${bullet.id}`;
   const isOpen = expandedBulletKey === bulletKey;
-  const linked = linkedBulletLine(store, bullet);
-  const shown = displayExperienceLine(linked.text);
-  const line = richLine({
-    class: 'bb-post-map-bullet-line',
-    'aria-label': 'Resume bullet',
-  }, {
-    text: shown,
-    rich: shown === String(linked.text || '').trim() ? linked.rich : null,
-    onChange: (spans) => {
-      const text = spans.map((span) => span.text).join('');
-      if (!text.trim()) return;
-      onSave(updateBullet(store, job.id, req.id, bullet.id, { text, rich: spans }));
-    },
+  const line = buildMapEntryEditor(deps, entry, {
+    className: 'bb-post-map-bullet-line',
+    ariaLabel: 'Resume bullet',
+    focusKey: entry?.id ? `post-map-version-${entry.id}` : '',
   });
   const actions = el('div', { class: 'bb-post-map-bullet-actions bb-action-row' }, [
     el('button', {
@@ -111,6 +128,58 @@ function buildIncludedBulletRow(deps, job, req, { bullet, entry }) {
     ]);
   }
   return row;
+}
+
+function buildAddBulletRow(deps, job, req, { experienceId = '' }) {
+  const { el, onAddBullet, addBulletFocusKey } = deps;
+  const focusKey = postingMapAddBulletFocusKey(job.id, req.id, experienceId);
+  return el('button', {
+    type: 'button',
+    class: 'row-text-action bb-post-map-add-bullet',
+    'data-focus-key': focusKey,
+    onClick: () => onAddBullet(job, req, { experienceId: experienceId || '' }),
+  }, '+ Add bullet');
+}
+
+function buildVersionRow(deps, job, req, { entry, selected }) {
+  const { el, store, onSave, onRender } = deps;
+  const focusKey = `post-map-version-${entry.id}`;
+  const editor = buildMapEntryEditor(deps, entry, {
+    className: 'bb-post-map-version-line bb-post-map-version-edit',
+    ariaLabel: 'Resume bullet version',
+    focusKey,
+  });
+  const pencil = el('button', {
+    type: 'button',
+    class: 'row-text-action bb-post-map-version-pencil',
+    title: 'Edit version text',
+    'aria-label': 'Edit version text',
+    onClick: (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const field = event.currentTarget.parentElement?.querySelector('.bb-post-map-version-edit');
+      field?.focus?.();
+    },
+  }, '✎');
+  return el('div', { class: 'bb-post-map-version' }, [
+    el('label', { class: 'bb-post-map-version-check' }, [
+      el('input', {
+        type: 'checkbox',
+        checked: selected,
+        onChange: (event) => {
+          onSave(setRequirementEntryMapped(
+            store,
+            job.id,
+            req.id,
+            entry.id,
+            event.target.checked,
+          ));
+          onRender({ preserveScroll: true });
+        },
+      }),
+    ]),
+    el('div', { class: 'bb-post-map-version-body' }, [editor, pencil]),
+  ]);
 }
 
 function buildExperienceBucket(deps, job, req, bucket, { expanded }) {
@@ -168,27 +237,10 @@ function buildExperienceBucket(deps, job, req, bucket, { expanded }) {
     }, children);
   }
 
-  children.push(el('div', { class: 'bb-post-map-bucket-versions' },
-    versions.map(({ entry, selected }) => {
-      const label = displayMapLine(entry.title);
-      return el('label', { class: 'bb-post-map-version' }, [
-        el('input', {
-          type: 'checkbox',
-          checked: selected,
-          onChange: (event) => {
-            onSave(setRequirementEntryMapped(
-              store,
-              job.id,
-              req.id,
-              entry.id,
-              event.target.checked,
-            ));
-            onRender({ preserveScroll: true });
-          },
-        }),
-        el('span', { class: 'bb-post-map-version-line' }, label),
-      ]);
-    })));
+  children.push(el('div', { class: 'bb-post-map-bucket-versions' }, [
+    ...versions.map((row) => buildVersionRow(deps, job, req, row)),
+    buildAddBulletRow(deps, job, req, { experienceId }),
+  ]));
   return el('div', {
     class: 'bb-post-map-bucket is-expanded',
     'data-experience-id': experienceId,
@@ -217,13 +269,13 @@ export function buildRequirementMappingStack(deps, job, req) {
     stack.append(buildExperienceBucket(deps, job, liveReq, bucket, {}));
   }
 
-  if (otherBullets.length) {
-    stack.append(el('div', { class: 'bb-post-map-loose-group' }, [
-      el('p', { class: 'bb-post-map-loose-label' }, 'No experience'),
-      el('div', { class: 'bb-post-map-loose-bullets' },
-        otherBullets.map((row) => buildIncludedBulletRow(deps, job, liveReq, row))),
-    ]));
-  }
+  stack.append(el('div', { class: 'bb-post-map-loose-group' }, [
+    el('p', { class: 'bb-post-map-loose-label' }, 'No experience'),
+    el('div', { class: 'bb-post-map-loose-bullets' }, [
+      ...otherBullets.map((row) => buildIncludedBulletRow(deps, job, liveReq, row)),
+      buildAddBulletRow(deps, job, liveReq, { experienceId: '' }),
+    ]),
+  ]));
 
   const searchWrap = el('div', { class: 'bb-post-map-search-wrap' }, [
     el('input', {

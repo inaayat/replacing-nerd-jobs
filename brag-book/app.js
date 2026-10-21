@@ -27,6 +27,7 @@ import {
   buildRequirementMappingStack,
   buildPostingMapSearchResults,
   requirementBucketKey,
+  postingMapAddBulletFocusKey,
   mapExperienceBucketToRequirement,
   mapEntryToRequirement,
   searchPostingMapTargets,
@@ -78,6 +79,8 @@ import {
   experienceVersionSwapMenu,
   experienceById,
   createExperience,
+  draftExperienceVersion,
+  experienceVersions,
   moveEntryToExperience,
   removeEntryFromExperience,
   experienceDetailPatch,
@@ -335,6 +338,8 @@ let postingMapTargetEntryId = '';
 let postingMapPick = null;
 const requirementMapSearchByKey = new Map();
 const expandedRequirementBuckets = new Set();
+/** After + Add bullet, focus the new version editor (`post-map-version-<entryId>`). */
+let postingMapFocusVersionEntryId = '';
 let catalogBulkSelectMode = false;
 let openExperiencePickerEntryId = '';
 let experiencePickerSearch = '';
@@ -3669,7 +3674,56 @@ function requirementExperiencesCell(job, req) {
     richLine,
     experienceEditor,
     expandedBulletKey,
+    updateEntry,
     updateBullet,
+    addBulletFocusKey: postingMapFocusVersionEntryId
+      ? `post-map-version-${postingMapFocusVersionEntryId}`
+      : '',
+    onAddBullet: (postingJob, liveReq, { experienceId }) => {
+      let next = store;
+      const primaryJobId = postingPrimaryCatalogJobId(next, postingJob);
+      try {
+        if (experienceId) {
+          const versions = experienceVersions(next, experienceId);
+          const copyFromEntryId = versions[0]?.id || '';
+          const drafted = draftExperienceVersion(
+            next,
+            experienceId,
+            copyFromEntryId ? { copyFromEntryId } : {},
+          );
+          next = drafted.store;
+          const entryId = drafted.changedEntryIds[0];
+          next = mapEntryToRequirement(next, postingJob.id, liveReq.id, entryId);
+          next = idempotentAddEntryToPostingResume(next, postingJob.id, entryId);
+          postingMapFocusVersionEntryId = entryId;
+          expandedRequirementBuckets.add(requirementBucketKey(postingJob.id, liveReq.id, experienceId));
+        } else {
+          if (!primaryJobId) {
+            setNote('Link this posting to a job before adding a loose bullet.');
+            return;
+          }
+          next = addEntry(next, {
+            title: 'New bullet',
+            jobId: primaryJobId,
+            rich: [{ text: 'New bullet', bold: false }],
+          });
+          const entryId = next.entries[next.entries.length - 1]?.id;
+          if (!entryId) return;
+          next = mapEntryToRequirement(next, postingJob.id, liveReq.id, entryId);
+          next = idempotentAddEntryToPostingResume(next, postingJob.id, entryId);
+          postingMapFocusVersionEntryId = entryId;
+        }
+        store = next;
+        saveStore();
+        render({
+          preserveScroll: true,
+          focusKey: `post-map-version-${postingMapFocusVersionEntryId}`,
+        });
+        postingMapFocusVersionEntryId = '';
+      } catch (error) {
+        setNote(error.message || 'Could not add that bullet.');
+      }
+    },
     onSearchChange: (value) => {
       requirementMapSearchByKey.set(mapKey, value);
       render({ preserveScroll: true, focusKey: `post-map-${req.id}` });
