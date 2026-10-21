@@ -40,7 +40,8 @@ assert.doesNotMatch(indexCountRule, /text-transform:\s*uppercase/);
 assert.match(indexCountRule, /text-transform:\s*none/);
 
 assert.match(css, /\.bullet-link > \.bb-posting-bullet-actions[\s\S]*grid-column:\s*1 \/ -1/);
-assert.match(css, /\.bb-post-map-bullet-line[\s\S]*grid-column:\s*1 \/ -1/);
+assert.match(css, /\.bb-post-map-bullet-actions[\s\S]*justify-content:\s*flex-start/);
+assert.match(css, /\.bb-post-map-bullet-actions \.row-text-action[\s\S]*width:\s*auto/);
 assert.match(css, /\.bb-unmapped-actions[\s\S]*grid-column:\s*1 \/ -1/);
 function ruleBlock(selector) {
   return css.match(new RegExp(`${selector.replace('.', '\\.')}\\s*\\{[^}]+\\}`))?.[0] || '';
@@ -71,6 +72,7 @@ assert.match(css, /\.bb-exp-panel-scroll \.bb-exp-index-row[\s\S]*border-radius:
 assert.match(css, /\.bb-post-map-bucket-included \.bb-post-map-bullet \+ \.bb-post-map-bullet[\s\S]*border-top/);
 assert.doesNotMatch(ruleBlock('.bb-post-map-search-wrap'), /border:\s*1px solid var\(--line\)/);
 assert.match(app, /experiencesDualInlineMediaQuery/);
+assert.match(css, /\.bb-exp-panel-loose-section/);
 
 assert.equal(EXPERIENCES_DUAL_INLINE_MIN_PX, 920);
 
@@ -156,7 +158,7 @@ const mapBullet = document.querySelector('.bb-post-map-bucket-included .bb-post-
   || document.querySelector('.bb-post-map-loose-bullets .bb-post-map-bullet');
 if (mapBullet) {
   const line = mapBullet.querySelector('.bb-post-map-bullet-line');
-  const control = mapBullet.querySelector('.bb-post-map-details, .bb-post-map-unmap');
+  const control = mapBullet.querySelector('.bb-post-map-bullet-actions .bb-post-map-details, .bb-post-map-bullet-actions .bb-post-map-unmap');
   assert.ok(line && control, 'mapped bucket bullet has text and controls');
   assert.ok(
     line.compareDocumentPosition(control) & dom.window.Node.DOCUMENT_POSITION_FOLLOWING,

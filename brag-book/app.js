@@ -10,6 +10,11 @@ import {
   forgetSessionEmptyExperience,
   rememberSessionEmptyExperience,
   selectedEntriesJobIds,
+  compactLooseBulletPanelGroups,
+  postingPrimaryCatalogJobId,
+  panelLooseSectionPageKey,
+  readPanelLooseSectionOpen,
+  writePanelLooseSectionOpen,
 } from './experiences-index.js';
 import {
   experiencesUiEnabled,
@@ -335,6 +340,7 @@ let openExperiencePickerEntryId = '';
 let experiencePickerSearch = '';
 let experiencePickerCreating = false;
 let activePanelExperienceId = '';
+let activePanelLooseEntryId = '';
 let panelDragOverExperienceId = '';
 let panelExperienceCreateOpen = false;
 let experienceRenameId = '';
@@ -1785,7 +1791,8 @@ function experienceRow(entry) {
   const notesPanelId = `exp-notes-${entry.id}`;
   const fill = starFill(entry);
   const starLabel = fill.ready ? 'STAR' : `STAR ${fill.filled}/${fill.total}`;
-  const highlight = activePanelExperienceId && entry.experienceId === activePanelExperienceId;
+  const highlight = (activePanelExperienceId && entry.experienceId === activePanelExperienceId)
+    || activePanelLooseEntryId === entry.id;
   return el('article', {
     class: `bb-exp-row${highlight ? ' is-xp-highlight' : ''}`,
     'data-entry-id': spec.id,
@@ -2141,6 +2148,28 @@ function bulkExperienceBar() {
   });
 }
 
+function selectPanelLooseEntry(entryId) {
+  if (!entryId) {
+    activePanelLooseEntryId = '';
+    render({ preserveScroll: true });
+    return;
+  }
+  if (activePanelLooseEntryId === entryId) {
+    activePanelLooseEntryId = '';
+    render({ preserveScroll: true });
+    return;
+  }
+  activePanelLooseEntryId = entryId;
+  activePanelExperienceId = '';
+  const entry = store.entries.find((row) => row.id === entryId);
+  if (entry?.jobId) {
+    collapsedExperienceGroups.delete(entry.jobId);
+  } else {
+    collapsedExperienceGroups.delete('__none__');
+  }
+  render({ preserveScroll: true });
+}
+
 function selectPanelExperience(experienceId) {
   if (!experienceId) {
     activePanelExperienceId = '';
@@ -2153,6 +2182,7 @@ function selectPanelExperience(experienceId) {
     return;
   }
   activePanelExperienceId = experienceId;
+  activePanelLooseEntryId = '';
   const xp = experienceById(store, experienceId);
   if (xp?.jobId) {
     const jobKey = xp.jobId;
@@ -2227,6 +2257,96 @@ function experiencesPanelForPage(page, posting = null) {
   if (collapsed && mediaMatches(experiencesDualInlineMediaQuery())) {
     return rail;
   }
+  const loosePageKey = panelLooseSectionPageKey(posting);
+  const primaryJobId = posting ? postingPrimaryCatalogJobId(store, posting) : '';
+  const looseGroups = compactLooseBulletPanelGroups(store, {
+    posting,
+    primaryJobId,
+  });
+  const looseOpen = readPanelLooseSectionOpen(loosePageKey, { count: looseGroups.totalCount });
+
+  function panelMapSearchResults() {
+    return buildPostingMapSearchResults({
+      el,
+      btn,
+      onPickExperience: (experienceId) => {
+        if (posting) {
+          postingMapPick = { kind: 'experience', experienceId };
+          postingMapTargetEntryId = '';
+          setNote('Choose a requirement and tap Map here.');
+        } else {
+          selectPanelExperience(experienceId);
+        }
+        render({ preserveScroll: true, focusKey: 'exp-panel-search' });
+      },
+      onPickBullet: (entryId) => {
+        if (posting) {
+          postingMapPick = { kind: 'bullet', entryId };
+          postingMapTargetEntryId = entryId;
+          setNote('Choose a requirement and tap Map here.');
+        } else {
+          selectPanelLooseEntry(entryId);
+        }
+        render({ preserveScroll: true, focusKey: 'exp-panel-search' });
+      },
+    }, searchPostingMapTargets(store, experiencesPanelQuery));
+  }
+
+  function renderPanelLooseBulletRow(row) {
+    const entry = store.entries.find((item) => item.id === row.entryId);
+    if (!entry) return null;
+    const active = activePanelLooseEntryId === entry.id;
+    return el('div', {
+      class: `bb-exp-index-row bb-exp-loose-row${active ? ' is-active' : ''}`,
+      draggable: 'true',
+      'data-entry-id': entry.id,
+      onDragstart: (event) => {
+        if (event.dataTransfer) {
+          event.dataTransfer.setData('text/brag-entry-id', entry.id);
+          event.dataTransfer.effectAllowed = 'move';
+        }
+      },
+      onClick: (event) => {
+        if (event.target.closest('button, a, select, input, label')) return;
+        selectPanelLooseEntry(entry.id);
+      },
+    }, [
+      el('div', { class: 'bb-exp-index-line1' }, [
+        el('span', { class: 'bb-exp-index-title' }, displayExperienceLine(row.line)),
+      ]),
+      row.postingFact
+        ? el('p', { class: 'tiny bb-exp-index-fact' }, row.postingFact)
+        : null,
+      el('div', {
+        class: 'bb-exp-panel-loose-actions bb-action-row',
+        onClick: (event) => event.stopPropagation(),
+      }, [
+        experienceMembershipPicker(entry),
+        posting
+          ? btn('+ Map', {
+            type: 'button',
+            class: 'btn ghost compact-action',
+            onClick: () => {
+              postingMapPick = { kind: 'bullet', entryId: entry.id };
+              postingMapTargetEntryId = entry.id;
+              setNote('Choose a requirement and tap Map here.');
+              render({ preserveScroll: true });
+            },
+          })
+          : null,
+        posting
+          ? (row.onResume
+            ? el('span', { class: 'tiny bb-exp-panel-loose-on-resume' }, 'On resume ✓')
+            : btn('+ Add to resume', {
+              type: 'button',
+              class: 'btn ghost compact-action',
+              onClick: () => addLibraryEntriesToPostingResume(posting, [entry.id]),
+            }))
+          : null,
+      ]),
+    ]);
+  }
+
   const panel = buildExperiencesPanel({
     el,
     btn,
@@ -2234,6 +2354,7 @@ function experiencesPanelForPage(page, posting = null) {
     posting,
     panelQuery: experiencesPanelQuery,
     activeExperienceId: activePanelExperienceId,
+    activeLooseEntryId: activePanelLooseEntryId,
     dragOverExperienceId: panelDragOverExperienceId,
     onRender: (opts) => render(opts || { preserveScroll: true }),
     onSave: () => saveStore(),
@@ -2245,6 +2366,7 @@ function experiencesPanelForPage(page, posting = null) {
       render({ preserveScroll: true, focusKey: 'exp-panel-search' });
     },
     onSelectExperience: selectPanelExperience,
+    onSelectLooseEntry: selectPanelLooseEntry,
     onDragOverExperience: (id) => {
       panelDragOverExperienceId = id || '';
       render({ preserveScroll: true });
@@ -2278,24 +2400,19 @@ function experiencesPanelForPage(page, posting = null) {
       },
     }),
     panelCreateOpen: panelExperienceCreateOpen,
-    renderPanelQueryResults: posting && String(experiencesPanelQuery || '').trim()
-      ? buildPostingMapSearchResults({
-        el,
-        btn,
-        onPickExperience: (experienceId) => {
-          postingMapPick = { kind: 'experience', experienceId };
-          postingMapTargetEntryId = '';
-          setNote('Choose a requirement and tap Map here.');
-          render({ preserveScroll: true, focusKey: 'exp-panel-search' });
-        },
-        onPickBullet: (entryId) => {
-          postingMapPick = { kind: 'bullet', entryId };
-          postingMapTargetEntryId = entryId;
-          setNote('Choose a requirement and tap Map here.');
-          render({ preserveScroll: true, focusKey: 'exp-panel-search' });
-        },
-      }, searchPostingMapTargets(store, experiencesPanelQuery))
+    renderPanelQueryResults: String(experiencesPanelQuery || '').trim()
+      ? panelMapSearchResults()
       : null,
+    looseSection: {
+      totalCount: looseGroups.totalCount,
+      groups: looseGroups.groups,
+      open: looseOpen,
+      onToggleOpen: () => {
+        writePanelLooseSectionOpen(loosePageKey, !looseOpen);
+        render({ preserveScroll: true });
+      },
+    },
+    renderLooseBulletRow: renderPanelLooseBulletRow,
   });
   const close = btn('×', {
     type: 'button',

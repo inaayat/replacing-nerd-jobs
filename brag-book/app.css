@@ -3172,6 +3172,35 @@ html.bb-offline-readonly .shell select {
 .bb-exp-panel-scroll .bb-exp-index-row.is-drop-target {
   background: rgba(232, 196, 122, 0.22);
 }
+.bb-exp-panel-loose-section {
+  display: grid;
+  gap: 6px;
+  margin-top: 2px;
+}
+.bb-exp-panel-loose-head {
+  cursor: pointer;
+}
+.bb-exp-panel-loose-body {
+  display: grid;
+  gap: 6px;
+}
+.bb-exp-panel-loose-job {
+  margin: 2px 0 0;
+  padding: 0 2px;
+  color: var(--muted);
+}
+.bb-exp-loose-row {
+  cursor: default;
+}
+.bb-exp-panel-loose-actions {
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  margin-top: 4px;
+}
+.bb-exp-panel-loose-on-resume {
+  color: var(--muted);
+  align-self: center;
+}
 .bb-exp-index-row.is-active {
   background: rgba(232, 196, 122, 0.14);
 }
@@ -3878,8 +3907,8 @@ html.bb-offline-readonly .shell select {
 .bb-post-map-bullet {
   position: relative;
   display: grid;
-  grid-template-columns: auto auto;
-  gap: 4px 8px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
   align-items: start;
   padding: 2px 0;
   font-family: var(--content-font);
@@ -3888,11 +3917,29 @@ html.bb-offline-readonly .shell select {
   min-width: 0;
 }
 .bb-post-map-bullet-line {
-  grid-column: 1 / -1;
   min-width: 0;
-  width: 100%;
   overflow-wrap: break-word;
   word-break: normal;
+}
+.bb-post-map-bullet-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+  justify-content: flex-start;
+  margin-top: 2px;
+  padding: 0 1px;
+}
+.bb-post-map-bullet-actions .row-text-action {
+  flex: 0 0 auto;
+  width: auto;
+  max-width: none;
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.bb-post-map-bullet-actions .row-text-action.is-on {
+  color: var(--gold);
 }
 .bb-post-map-unmap,
 .bb-post-map-bucket-clear {
@@ -3915,9 +3962,16 @@ html.bb-offline-readonly .shell select {
   .bb-exp-panel-scroll .bb-exp-index-row {
     padding: 6px 8px;
   }
+  .bb-post-map-bullet-actions .row-text-action {
+    min-height: 32px;
+    padding: 6px 8px;
+  }
 }
-.bb-post-map-details {
-  font-size: 12px;
+.bb-action-row .row-text-action,
+.bb-action-row .icon-quiet {
+  flex: 0 0 auto;
+  width: auto;
+  max-width: max-content;
 }
 .bb-post-map-loose-label,
 .bb-post-map-group-label {

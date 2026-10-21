@@ -75,14 +75,19 @@ function buildIncludedBulletRow(deps, job, req, { bullet, entry }) {
       onSave(updateBullet(store, job.id, req.id, bullet.id, { text, rich: spans }));
     },
   });
-  const row = el('div', {
-    class: 'bb-post-map-bullet',
-    'data-entry-id': entry?.id || '',
-  }, [
-    line,
-    btn('×', {
+  const actions = el('div', { class: 'bb-post-map-bullet-actions bb-action-row' }, [
+    el('button', {
       type: 'button',
-      class: 'bb-post-map-unmap icon-quiet is-danger',
+      class: `row-text-action bb-post-map-details bb-exp-action${isOpen ? ' is-on' : ''}`,
+      'aria-expanded': isOpen ? 'true' : 'false',
+      onClick: () => {
+        setExpandedBulletKey(isOpen ? '' : bulletKey);
+        onRender({ preserveScroll: true });
+      },
+    }, isOpen ? 'Details ↑' : 'Details ↓'),
+    el('button', {
+      type: 'button',
+      class: 'row-text-action bb-post-map-unmap is-danger',
       title: 'Unmap from this requirement',
       'aria-label': 'Unmap from this requirement',
       onClick: () => {
@@ -90,15 +95,14 @@ function buildIncludedBulletRow(deps, job, req, { bullet, entry }) {
         onSave(unmapEntryFromRequirement(store, job.id, req.id, entry.id));
         onRender({ preserveScroll: true });
       },
-    }),
-    btn(isOpen ? 'Details ↑' : 'Details', {
-      type: 'button',
-      class: 'bb-post-map-details btn ghost compact-action',
-      onClick: () => {
-        setExpandedBulletKey(isOpen ? '' : bulletKey);
-        onRender({ preserveScroll: true });
-      },
-    }),
+    }, '×'),
+  ]);
+  const row = el('div', {
+    class: 'bb-post-map-bullet',
+    'data-entry-id': entry?.id || '',
+  }, [
+    line,
+    actions,
   ]);
   if (isOpen) {
     return el('div', { class: 'bb-post-map-bullet-block' }, [
