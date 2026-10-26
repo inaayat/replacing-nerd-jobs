@@ -46,6 +46,9 @@ import { refreshFloatingOverlays } from './floating-overlay.js';
 import {
   STORE_KEY,
   POSTING_STATUSES,
+  postingStatus,
+  postingStatusLabel,
+  sortPostingsByStatus,
   SAMPLE_JD,
   emptyStore,
   normalizeStore,
@@ -1318,7 +1321,7 @@ function homeView() {
           class: 'plot-card',
           onClick: () => go({ kind: 'jobs', id: job.id }),
         }, [
-          el('span', { class: 'kicker' }, job.status),
+          el('span', { class: 'kicker' }, postingStatusLabel(job.status)),
           el('strong', {}, job.title),
           el('p', {}, [job.company, cover.hints[0] || `${cover.withAnswer}/${cover.total || 0} answered`].filter(Boolean).join(' · ')),
         ]);
@@ -2785,15 +2788,34 @@ function jobList(selectedId) {
       el('span', { class: 'tiny' }, `${store.postings.length}`),
     ]),
     store.postings.length
-      ? el('div', { class: 'list' }, store.postings.map((job) => {
+      ? el('div', { class: 'list' }, sortPostingsByStatus(store.postings).map((job) => {
         const cover = prepCoverage(store, job);
-        return el('button', {
-          type: 'button',
-          class: `row${selectedId === job.id ? ' is-on' : ''}`,
-          onClick: () => go({ kind: 'jobs', id: job.id }),
+        return el('div', {
+          class: `row is-job${selectedId === job.id ? ' is-on' : ''}`,
         }, [
-          el('div', { class: 'row-title' }, job.title),
-          el('div', { class: 'row-meta' }, [job.company, `${cover.withAnswer}/${cover.total || 0} answered`].filter(Boolean).join(' · ')),
+          el('button', {
+            type: 'button',
+            class: 'row-main',
+            onClick: () => go({ kind: 'jobs', id: job.id }),
+          }, [
+            el('div', { class: 'row-title' }, job.title),
+            el('div', { class: 'row-meta' }, [job.company, `${cover.withAnswer}/${cover.total || 0} answered`].filter(Boolean).join(' · ')),
+          ]),
+          el('select', {
+            class: 'row-status',
+            'aria-label': `Status for ${job.title}`,
+            onClick: (event) => event.stopPropagation(),
+            onChange: (event) => {
+              store = updatePosting(store, job.id, { status: event.target.value });
+              saveStore();
+              render();
+            },
+          }, POSTING_STATUSES.map((status) =>
+            el('option', {
+              value: status,
+              selected: postingStatus(job.status) === status || undefined,
+            }, postingStatusLabel(status))
+          )),
         ]);
       }))
       : el('p', { class: 'empty' }, 'No postings yet. Paste a job description — that is the start of the loop.'),
@@ -3309,7 +3331,7 @@ function pullRequirements(job, text, { replace = false } = {}) {
     for (const req of [...job.requirements]) store = deleteRequirement(store, job.id, req.id);
   }
   store = addRequirements(store, job.id, lines);
-  store = updatePosting(store, job.id, { sourceText: text, status: job.status === 'draft' ? 'prepping' : job.status });
+  store = updatePosting(store, job.id, { sourceText: text });
   saveStore();
   return lines.length;
 }
@@ -3398,7 +3420,7 @@ function jobMeta(job) {
       field('Status', el('select', {
         onChange: (event) => { store = updatePosting(store, job.id, { status: event.target.value }); saveStore(); render(); },
       }, POSTING_STATUSES.map((status) =>
-        el('option', { value: status, selected: job.status === status || undefined }, status)
+        el('option', { value: status, selected: postingStatus(job.status) === status || undefined }, postingStatusLabel(status))
       ))),
     ]),
   ]);
@@ -4356,7 +4378,7 @@ function jobDetail(job) {
     el('div', { class: 'panel-head' }, [
       el('div', {}, [
         el('h2', {}, job.title),
-        el('p', { class: 'tiny' }, [job.company, hostFromJobUrl(job.url), job.status].filter(Boolean).join(' · ')),
+        el('p', { class: 'tiny' }, [job.company, hostFromJobUrl(job.url), postingStatusLabel(job.status)].filter(Boolean).join(' · ')),
       ]),
       el('div', { class: 'actions' }, [
         btn('Prep', { class: 'btn ghost', onClick: () => go({ kind: 'jobs', id: job.id, mode: 'prep' }) }),

@@ -441,6 +441,30 @@ a:focus-visible {
 .row:last-child { border-bottom: 0; }
 .row:hover { background: var(--panel-hover); }
 .row.is-on { box-shadow: inset 3px 0 0 var(--gold); background: var(--panel-hover); }
+.row.is-job {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: default;
+}
+.row-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: block;
+  width: auto;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+.row-status {
+  flex: 0 0 auto;
+  max-width: 7.5rem;
+  margin-top: 1px;
+  font-size: 0.72rem;
+}
 
 .row-title {
   font-family: inherit;
