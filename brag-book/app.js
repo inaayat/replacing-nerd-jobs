@@ -2802,7 +2802,7 @@ function jobList(selectedId) {
             el('div', { class: 'row-meta' }, [job.company, `${cover.withAnswer}/${cover.total || 0} answered`].filter(Boolean).join(' · ')),
           ]),
           el('select', {
-            class: 'row-status',
+            class: `row-status is-${postingStatus(job.status)}`,
             'aria-label': `Status for ${job.title}`,
             onClick: (event) => event.stopPropagation(),
             onChange: (event) => {

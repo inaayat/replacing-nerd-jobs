@@ -3007,8 +3007,11 @@ const jobListSrc = appSource.slice(
 assert.match(jobListSrc, /sortPostingsByStatus/);
 assert.match(jobListSrc, /postingStatusLabel/);
 assert.match(jobListSrc, /To apply|postingStatusLabel\(status\)/);
-assert.match(jobListSrc, /row-status/);
-assert.match(bookCss, /\.row-status/);
+assert.match(jobListSrc, /row-status is-\$\{postingStatus\(job\.status\)\}/);
+assert.match(bookCss, /\.row-status\.is-to_apply/);
+assert.match(bookCss, /\.row-status\.is-applied/);
+assert.match(bookCss, /\.row-status\.is-interview/);
+assert.match(bookCss, /\.row-status\.is-denied/);
 assert.match(appSource, /Type to search resume bullets/);
 assert.match(appSource, /placeLibraryBullet/);
 assert.match(appSource, /addPostingResumeJob/);

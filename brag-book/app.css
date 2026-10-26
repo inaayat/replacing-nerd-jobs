@@ -463,7 +463,26 @@ a:focus-visible {
   flex: 0 0 auto;
   max-width: 7.5rem;
   margin-top: 1px;
+  padding: 2px 4px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
   font-size: 0.72rem;
+}
+.row-status.is-to_apply {
+  background: #eceae6;
+  color: #5c574f;
+}
+.row-status.is-applied {
+  background: #f8e8b8;
+  color: #6b5414;
+}
+.row-status.is-interview {
+  background: #d7eedc;
+  color: #1f6a45;
+}
+.row-status.is-denied {
+  background: #f6d6d4;
+  color: #8a2d28;
 }
 
 .row-title {
