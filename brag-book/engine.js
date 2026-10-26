@@ -234,7 +234,13 @@ export {
 } from './resume-model.js';
 
 export const ENTRY_KINDS = ['experience', 'project', 'skillset'];
-export const POSTING_STATUSES = ['draft', 'prepping', 'applied', 'archived'];
+export const POSTING_STATUSES = ['to_apply', 'applied', 'interview', 'denied'];
+export const POSTING_STATUS_LABELS = {
+  to_apply: 'To apply',
+  applied: 'Applied',
+  interview: 'Interview',
+  denied: 'Denied',
+};
 
 const TITLE_MAX = 160;
 const TEXT_MAX = 4000;
@@ -451,8 +457,29 @@ function asKind(value) {
   return ENTRY_KINDS.includes(value) ? value : 'experience';
 }
 
+export function postingStatus(value) {
+  return POSTING_STATUSES.includes(value) ? value : 'to_apply';
+}
+
+export function postingStatusLabel(value) {
+  const status = postingStatus(value);
+  return POSTING_STATUS_LABELS[status];
+}
+
+export function sortPostingsByStatus(postings) {
+  const list = Array.isArray(postings) ? postings : [];
+  const top = [];
+  const bottom = [];
+  for (const job of list) {
+    const status = postingStatus(job?.status);
+    if (status === 'to_apply' || status === 'interview') top.push(job);
+    else bottom.push(job);
+  }
+  return [...top, ...bottom];
+}
+
 function asStatus(value) {
-  return POSTING_STATUSES.includes(value) ? value : 'draft';
+  return postingStatus(value);
 }
 
 function normalizeLine(item, clock) {

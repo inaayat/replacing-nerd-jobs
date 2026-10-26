@@ -140,6 +140,10 @@ import {
   compilePrep,
   prepCoverage,
   listingSummary,
+  POSTING_STATUSES,
+  postingStatus,
+  postingStatusLabel,
+  sortPostingsByStatus,
   entryById,
   postingById,
   serializeBook,
@@ -284,7 +288,37 @@ assert.equal(hostFromJobUrl('https://www.example.com/jobs/1'), 'example.com');
 const fromLink = addPosting(emptyStore(), { url: 'https://boards.example.com/jobs/product-engineer' }, clock);
 assert.equal(fromLink.postings[0].title, 'product engineer · boards.example.com');
 assert.equal(fromLink.postings[0].url, 'https://boards.example.com/jobs/product-engineer');
+assert.equal(fromLink.postings[0].status, 'to_apply');
 assert.equal(addPosting(emptyStore(), { url: 'not-a-url' }, clock).postings.length, 0);
+assert.deepEqual(POSTING_STATUSES, ['to_apply', 'applied', 'interview', 'denied']);
+assert.equal(postingStatus(), 'to_apply');
+assert.equal(postingStatus('draft'), 'to_apply');
+assert.equal(postingStatus('open'), 'to_apply');
+assert.equal(postingStatusLabel('to_apply'), 'To apply');
+assert.equal(postingStatusLabel('applied'), 'Applied');
+const legacyStatus = normalizeStore({
+  postings: [
+    { id: 'job_legacy', title: 'Legacy' },
+    { id: 'job_draft', title: 'Old draft', status: 'draft' },
+    { id: 'job_bad', title: 'Bad', status: 'nope' },
+  ],
+}, clock);
+assert.ok(legacyStatus.postings.every((job) => job.status === 'to_apply'));
+let statusBook = addPosting(emptyStore(), { id: 'job_1', title: 'First' }, clock);
+statusBook = addPosting(statusBook, { id: 'job_2', title: 'Second' }, clock);
+statusBook = addPosting(statusBook, { id: 'job_3', title: 'Third' }, clock);
+statusBook = addPosting(statusBook, { id: 'job_4', title: 'Fourth' }, clock);
+statusBook = updatePosting(statusBook, 'job_2', { status: 'applied' }, clock);
+statusBook = updatePosting(statusBook, 'job_4', { status: 'denied' }, clock);
+statusBook = updatePosting(statusBook, 'job_3', { status: 'interview' }, clock);
+assert.equal(postingById(statusBook, 'job_1').status, 'to_apply');
+assert.equal(postingById(statusBook, 'job_2').status, 'applied');
+assert.deepEqual(sortPostingsByStatus(statusBook.postings).map((job) => job.id), [
+  'job_3',
+  'job_1',
+  'job_4',
+  'job_2',
+]);
 
 store = addPosting(store, { title: 'Product engineer', company: 'Beep boop', url: 'https://example.com/jobs/1' }, clock);
 const jobId = store.postings[0].id;
@@ -2966,6 +3000,15 @@ assert.match(bookCss, /\.bb-job-title \{[^}]*overflow-wrap:\s*anywhere/);
 assert.doesNotMatch(catalogCss[0], /1\.2fr 1\.2fr 1fr 1fr auto/);
 assert.doesNotMatch(appSource, /Start fresh to hide shared/);
 assert.match(appSource, /Search resume bullets/);
+const jobListSrc = appSource.slice(
+  appSource.indexOf('function jobList'),
+  appSource.indexOf('function bulkKnowledgeForm'),
+);
+assert.match(jobListSrc, /sortPostingsByStatus/);
+assert.match(jobListSrc, /postingStatusLabel/);
+assert.match(jobListSrc, /To apply|postingStatusLabel\(status\)/);
+assert.match(jobListSrc, /row-status/);
+assert.match(bookCss, /\.row-status/);
 assert.match(appSource, /Type to search resume bullets/);
 assert.match(appSource, /placeLibraryBullet/);
 assert.match(appSource, /addPostingResumeJob/);
