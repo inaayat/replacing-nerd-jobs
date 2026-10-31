@@ -164,6 +164,53 @@ export function experiencePanelDefaultExpanded() {
   return false;
 }
 
+export const REQUIREMENT_PAGER_MAX_PX = 719;
+
+export function requirementPagerQuery() {
+  return `(max-width: ${REQUIREMENT_PAGER_MAX_PX}px)`;
+}
+
+function requirementNeedsBullets(req) {
+  return !((req?.bullets || []).length || (req?.coveredExperienceIds || []).length);
+}
+
+export function clampRequirementIndex(index, total) {
+  const n = Math.max(0, Number(total) || 0);
+  if (!n) return 0;
+  const i = Number(index);
+  if (!Number.isFinite(i)) return 0;
+  return Math.min(Math.max(Math.trunc(i), 0), n - 1);
+}
+
+export function nextRequirementIndex(index, total) {
+  return clampRequirementIndex((Number(index) || 0) + 1, total);
+}
+
+export function prevRequirementIndex(index, total) {
+  return clampRequirementIndex((Number(index) || 0) - 1, total);
+}
+
+export function visibleRequirementRows(requirements, { mobile = false, index = 0 } = {}) {
+  const list = Array.isArray(requirements) ? requirements : [];
+  if (!mobile) return list;
+  if (!list.length) return [];
+  return [list[clampRequirementIndex(index, list.length)]];
+}
+
+export function requirementPager(requirements, index = 0) {
+  const list = Array.isArray(requirements) ? requirements : [];
+  const total = list.length;
+  const i = clampRequirementIndex(index, total);
+  return {
+    index: i,
+    total,
+    current: total ? list[i] : null,
+    label: total ? `${i + 1} of ${total}` : '0 of 0',
+    empty: list.map((req) => requirementNeedsBullets(req)),
+    rows: visibleRequirementRows(list, { mobile: true, index: i }),
+  };
+}
+
 export function experienceRowSpec(entry) {
   const spec = sharedBulletSpec(entry);
   return {

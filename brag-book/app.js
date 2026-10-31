@@ -249,7 +249,7 @@ import {
 } from './resume-fit.js';
 import { resumeDocxBlob } from './resume-docx.js';
 import { parseViewHash, viewHash, viewTitle } from './routes.js';
-import { bookPagePlan, experienceRowSpec, sharedBulletSpec, SHARED_BULLET_FIELDS, STAR_FIELDS, experienceAdderChrome, nextExperienceAdderOpen, resumeBulletArrows, resumeGroupChrome, visibleNodes, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys } from './book-view.js';
+import { bookPagePlan, experienceRowSpec, sharedBulletSpec, SHARED_BULLET_FIELDS, STAR_FIELDS, experienceAdderChrome, nextExperienceAdderOpen, resumeBulletArrows, resumeGroupChrome, visibleNodes, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys, requirementPager, visibleRequirementRows, nextRequirementIndex, prevRequirementIndex, clampRequirementIndex, requirementPagerQuery } from './book-view.js';
 import {
   applyKnowledgeEnter,
   applyKnowledgeHeadingBreak,
@@ -354,6 +354,8 @@ const requirementMapSearchActiveByKey = new Map();
 const POSTING_REQ_VIEW_MODE_KEY = 'bb-posting-req-view';
 /** Requirement row to scroll/highlight after jumping from By experience view. */
 let postingRequirementHighlightReqId = '';
+/** Last viewed requirement index per posting (session only). */
+const requirementPagerIndexByJob = {};
 
 function readPostingRequirementViewMode(postingId) {
   try {
@@ -374,6 +376,9 @@ function writePostingRequirementViewMode(postingId, mode) {
 function jumpToRequirementFromExperienceView(postingId, reqId) {
   writePostingRequirementViewMode(postingId, 'requirement');
   postingRequirementHighlightReqId = reqId;
+  const job = store.postings.find((item) => item.id === postingId);
+  const index = job?.requirements?.findIndex((req) => req.id === reqId);
+  if (index >= 0) requirementPagerIndexByJob[postingId] = index;
   render({ preserveScroll: true });
 }
 
@@ -4254,6 +4259,82 @@ function postingExperienceViewPanel(job) {
   }, job);
 }
 
+function setRequirementPagerIndex(job, index) {
+  requirementPagerIndexByJob[job.id] = clampRequirementIndex(index, (job.requirements || []).length);
+}
+
+function bindRequirementPagerSwipe(node, job, page) {
+  let startX = 0;
+  let startY = 0;
+  node.addEventListener('touchstart', (event) => {
+    const touch = event.changedTouches?.[0];
+    if (!touch) return;
+    startX = touch.clientX;
+    startY = touch.clientY;
+  }, { passive: true });
+  node.addEventListener('touchend', (event) => {
+    const touch = event.changedTouches?.[0];
+    if (!touch) return;
+    if (event.target?.closest?.('input, textarea, select, button, a, [contenteditable="true"]')) return;
+    const dx = touch.clientX - startX;
+    const dy = touch.clientY - startY;
+    if (Math.abs(dx) < 48 || Math.abs(dx) < Math.abs(dy)) return;
+    const next = dx < 0
+      ? nextRequirementIndex(page.index, page.total)
+      : prevRequirementIndex(page.index, page.total);
+    if (next === page.index) return;
+    setRequirementPagerIndex(job, next);
+    render({ preserveScroll: true });
+  }, { passive: true });
+}
+
+function requirementPagerBar(job, page) {
+  const goTo = (index) => {
+    setRequirementPagerIndex(job, index);
+    render({ preserveScroll: true });
+  };
+  return el('div', { class: 'bb-req-pager', 'aria-label': 'Requirement pager' }, [
+    el('div', { class: 'bb-req-pager-nav' }, [
+      btn('Previous', {
+        class: 'btn ghost compact-action',
+        disabled: page.index <= 0,
+        onClick: () => goTo(prevRequirementIndex(page.index, page.total)),
+      }),
+      el('span', { class: 'bb-req-pager-label', 'aria-live': 'polite' }, page.label),
+      btn('Next', {
+        class: 'btn ghost compact-action',
+        disabled: page.index >= page.total - 1,
+        onClick: () => goTo(nextRequirementIndex(page.index, page.total)),
+      }),
+    ]),
+    el('select', {
+      class: 'bb-req-pager-jump',
+      'aria-label': 'Jump to requirement',
+      onChange: (event) => goTo(Number(event.target.value)),
+    }, (job.requirements || []).map((req, index) =>
+      el('option', {
+        value: String(index),
+        selected: index === page.index || undefined,
+      }, `${index + 1}. ${String(req.text || 'Requirement').slice(0, 48)}`)
+    )),
+    el('div', { class: 'bb-req-pager-dots', role: 'tablist', 'aria-label': 'Requirements' },
+      (job.requirements || []).map((req, index) =>
+        el('button', {
+          type: 'button',
+          class: `bb-req-dot${index === page.index ? ' is-on' : ''}${page.empty[index] ? ' is-empty' : ''}`,
+          role: 'tab',
+          'aria-selected': index === page.index ? 'true' : 'false',
+          title: page.empty[index] ? `${req.text || 'Requirement'} — no bullets` : (req.text || 'Requirement'),
+          'aria-label': page.empty[index]
+            ? `Requirement ${index + 1}, no bullets assigned`
+            : `Requirement ${index + 1}`,
+          onClick: () => goTo(index),
+        })
+      )
+    ),
+  ]);
+}
+
 function requirementTable(job) {
   const wrap = el('div', { class: 'bb-posting-requirements-wrap' });
   if (experiencesUiEnabled()) {
@@ -4263,6 +4344,15 @@ function requirementTable(job) {
       return wrap;
     }
   }
+  const mobile = mediaMatches(requirementPagerQuery());
+  const highlightId = postingRequirementHighlightReqId;
+  if (highlightId) {
+    const jump = (job.requirements || []).findIndex((req) => req.id === highlightId);
+    if (jump >= 0) setRequirementPagerIndex(job, jump);
+  }
+  const page = requirementPager(job.requirements, requirementPagerIndexByJob[job.id] || 0);
+  if (mobile) requirementPagerIndexByJob[job.id] = page.index;
+  const shown = visibleRequirementRows(job.requirements, { mobile, index: page.index });
   const table = el('table', { class: 'job-table' });
   table.append(el('thead', {}, [
     el('tr', {}, [
@@ -4271,11 +4361,16 @@ function requirementTable(job) {
     ]),
   ]));
   const body = el('tbody');
-  for (const req of job.requirements) {
+  for (const req of shown) {
     body.append(requirementTableRow(job, req));
   }
   table.append(body);
-  wrap.append(el('div', { class: 'job-table-wrap' }, [table]));
+  const tableWrap = el('div', { class: 'job-table-wrap' }, [table]);
+  if (mobile && page.total) {
+    bindRequirementPagerSwipe(tableWrap, job, page);
+    wrap.append(requirementPagerBar(job, page));
+  }
+  wrap.append(tableWrap);
   return wrap;
 }
 
