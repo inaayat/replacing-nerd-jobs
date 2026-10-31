@@ -1640,7 +1640,7 @@ a:focus-visible {
   .nav-links { font-size: 12px; }
   .experience-star,
   .table-question-star { grid-template-columns: 1fr; }
-  .bb-resume-split { grid-template-columns: 1fr; }
+  .bb-resume-split { grid-template-columns: minmax(0, 1fr); }
   .bb-resume-preview { position: static; }
 }
 
@@ -1678,6 +1678,7 @@ a:focus-visible {
   transform-origin: top left;
   background: #fff;
 }
+.bb-resume-mobile-export { display: none; }
 .bb-fit-chip {
   margin: 0 0 8px;
   font-size: 0.72rem;
@@ -2820,13 +2821,35 @@ a:focus-visible {
 /* --- Brag Book mobile/tablet (plan: docs/brag-book-mobile-plan.md) --- */
 
 @media (max-width: 1023px) {
-  .bb-resume-split { grid-template-columns: 1fr; }
-  .bb-resume-preview { position: static; top: auto; }
-  .bb-exp-row { grid-template-columns: minmax(0, 1fr); }
-  .bb-resume-preview-wrap {
+  .bb-resume-split { grid-template-columns: minmax(0, 1fr); }
+  .bb-resume,
+  .bb-resume-split,
+  .bb-resume-preview {
     width: 100%;
     max-width: 100%;
     min-width: 0;
+  }
+  .bb-resume-preview { position: static; top: auto; overflow: hidden; }
+  .bb-exp-row { grid-template-columns: minmax(0, 1fr); }
+  .bb-resume-preview-wrap {
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .bb-resume-frame {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+  .bb-resume-mobile-export {
+    display: flex;
+    gap: 8px;
+    margin: 0 0 8px;
+  }
+  .bb-resume-mobile-export .btn {
+    flex: 1 1 auto;
+    min-height: 44px;
   }
   .shell,
   .panel,
