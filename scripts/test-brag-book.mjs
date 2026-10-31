@@ -193,7 +193,7 @@ import {
   hostFromJobUrl,
 } from '../brag-book/engine.js';
 import { parseViewHash, viewHash, viewTitle, defaultView, logLayout, hideBookRail } from '../brag-book/routes.js';
-import { bookPagePlan, experienceRowSpec, sharedBulletSpec, SHARED_BULLET_FIELDS, STAR_FIELDS, experienceAdderChrome, nextExperienceAdderOpen, resumeBulletArrows, resumeGroupChrome, visibleNodes, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys } from '../brag-book/book-view.js';
+import { bookPagePlan, experienceRowSpec, sharedBulletSpec, SHARED_BULLET_FIELDS, STAR_FIELDS, experienceAdderChrome, nextExperienceAdderOpen, resumeBulletArrows, resumeGroupChrome, visibleNodes, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys, requirementPager, visibleRequirementRows, nextRequirementIndex, prevRequirementIndex } from '../brag-book/book-view.js';
 import {
   applyKnowledgeEnter,
   applyKnowledgeHeadingBreak,
@@ -3930,6 +3930,35 @@ const mappedReq = postingById(reqSearch, 'job_req_search').requirements
   .find((bullet) => bullet.entryId === createdReq.id);
 assert.ok(mappedReq);
 assert.equal(mappedReq.text, 'Brand new requirement line');
+const pagerReqs = [
+  { id: 'r1', text: 'Ship it', bullets: [] },
+  { id: 'r2', text: 'Own the join', bullets: [{ id: 'b1' }] },
+  { id: 'r3', text: 'Talk to finance', coveredExperienceIds: ['xp1'] },
+];
+assert.deepEqual(visibleRequirementRows(pagerReqs).map((req) => req.id), ['r1', 'r2', 'r3']);
+assert.deepEqual(visibleRequirementRows(pagerReqs, { mobile: true, index: 0 }).map((req) => req.id), ['r1']);
+assert.deepEqual(visibleRequirementRows(pagerReqs, { mobile: true, index: 1 }).map((req) => req.id), ['r2']);
+assert.equal(visibleRequirementRows(pagerReqs, { mobile: true, index: 0 }).length, 1);
+assert.equal(nextRequirementIndex(0, 3), 1);
+assert.equal(nextRequirementIndex(2, 3), 2);
+assert.equal(prevRequirementIndex(1, 3), 0);
+assert.equal(prevRequirementIndex(0, 3), 0);
+const firstPage = requirementPager(pagerReqs, 0);
+assert.equal(firstPage.label, '1 of 3');
+assert.equal(firstPage.current.id, 'r1');
+assert.deepEqual(firstPage.empty, [true, false, false]);
+const nextPage = requirementPager(pagerReqs, nextRequirementIndex(firstPage.index, firstPage.total));
+assert.equal(nextPage.label, '2 of 3');
+assert.equal(nextPage.current.id, 'r2');
+const tableSrc = appSource.slice(
+  appSource.indexOf('function requirementTable'),
+  appSource.indexOf('function unmappedResumeBulletsPanel'),
+);
+assert.match(tableSrc, /visibleRequirementRows/);
+assert.match(tableSrc, /requirementPager/);
+assert.match(tableSrc, /bb-req-pager/);
+assert.match(bookCss, /\.bb-req-pager/);
+assert.match(bookCss, /\.bb-req-dot\.is-empty/);
 assert.deepEqual(experienceAdderChrome(false), {
   open: false,
   showForm: false,
