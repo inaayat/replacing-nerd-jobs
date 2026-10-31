@@ -11,10 +11,19 @@ export const PAGE_HEIGHT_PX = PAGE_HEIGHT_IN * 96;
 export const RESUME_PAGE_WIDTH_PX = 8.5 * 96;
 export const RESUME_PAGE_HEIGHT_PX = 11 * 96;
 
+/** Narrowest finite positive width so a blown-out wrap cannot keep scale at 1. */
+export function resumePreviewFitWidth(wrapClientWidth, viewportWidth) {
+  const widths = [wrapClientWidth, viewportWidth]
+    .map((value) => Number(value))
+    .filter((w) => Number.isFinite(w) && w > 0);
+  if (!widths.length) return 0;
+  return Math.min(...widths);
+}
+
 /** Preview iframe scale from wrapper width (matches scaleResumeFrame in app.js). */
-export function resumePreviewScale(wrapClientWidth) {
-  const w = Number(wrapClientWidth);
-  if (!Number.isFinite(w) || w <= 0) return 0.28;
+export function resumePreviewScale(wrapClientWidth, viewportWidth) {
+  const w = resumePreviewFitWidth(wrapClientWidth, viewportWidth);
+  if (w <= 0) return 0.28;
   return Math.max(0.28, Math.min(1, (w - 8) / RESUME_PAGE_WIDTH_PX));
 }
 

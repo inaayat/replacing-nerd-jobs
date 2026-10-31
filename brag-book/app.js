@@ -244,6 +244,7 @@ import {
   PAGE_HEIGHT_PX,
   RESUME_PAGE_WIDTH_PX,
   resumePreviewScale,
+  resumePreviewFitWidth,
   resumePreviewWrapHeight,
   resumeEditorMaxHeight,
 } from './resume-fit.js';
@@ -4628,13 +4629,22 @@ function paintPreviewFitWarning(page) {
   page.prepend(banner);
 }
 
+function resumePreviewViewportWidth() {
+  if (window.matchMedia?.('(min-width: 1024px)')?.matches === true) return undefined;
+  const raw = Number(window.visualViewport?.width || window.innerWidth);
+  return Number.isFinite(raw) && raw > 0 ? raw : undefined;
+}
+
 function scaleResumeFrame(wrap, frame) {
   if (!wrap || !frame) return;
-  const scale = resumePreviewScale(wrap.clientWidth);
+  const viewportWidth = resumePreviewViewportWidth();
+  const width = resumePreviewFitWidth(wrap.clientWidth, viewportWidth);
+  const scale = resumePreviewScale(width);
   const scaledWidth = RESUME_PAGE_WIDTH_PX * scale;
-  const offset = Math.max(0, (wrap.clientWidth - scaledWidth) / 2);
+  const offset = Math.max(0, (width - scaledWidth) / 2);
   frame.style.transform = `translateX(${offset}px) scale(${scale})`;
   wrap.style.height = `${resumePreviewWrapHeight(scale)}px`;
+  wrap.classList.toggle('is-mobile-fit', viewportWidth != null);
   const preview = wrap.closest('.bb-resume-preview');
   const editor = preview?.parentElement?.querySelector('.bb-resume-editor');
   if (!editor) return;
@@ -5069,15 +5079,27 @@ function snapshotSaveForm(posting) {
   ]);
 }
 
-function resumePreviewPane() {
+function resumePreviewPane(posting) {
   const chip = el('p', { class: 'bb-fit-chip', id: 'resume-fit-chip' }, 'Measuring one page…');
+  const exports = el('div', { class: 'bb-resume-mobile-export' }, [
+    btn('Save PDF', {
+      class: 'btn',
+      id: 'resume-save-pdf',
+      onClick: () => exportResumePdf(posting),
+    }),
+    btn('Download Word', {
+      class: 'btn ghost',
+      id: 'resume-download-word',
+      onClick: () => exportResumeDocx(posting),
+    }),
+  ]);
   const frame = el('iframe', {
     id: 'resume-preview-frame',
     class: 'bb-resume-frame',
     title: 'Resume preview',
   });
   const wrap = el('div', { class: 'bb-resume-preview-wrap', id: 'resume-preview-wrap' }, [frame]);
-  return el('div', { class: 'bb-resume-preview' }, [chip, wrap]);
+  return el('div', { class: 'bb-resume-preview' }, [chip, exports, wrap]);
 }
 
 function resumeSectionOrder(posting) {
@@ -6836,7 +6858,7 @@ function resumeWorkspace(posting) {
     ]);
   const split = el('div', { class: 'bb-resume-split' }, [
       resumeEditorPane(posting, doc),
-      resumePreviewPane(),
+      resumePreviewPane(posting),
     ]);
   wrap.append(header);
   if (posting && resumeSnapshotSaveOpen === posting.id) {

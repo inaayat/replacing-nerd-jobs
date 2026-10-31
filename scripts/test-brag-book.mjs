@@ -212,7 +212,7 @@ import {
   toggleKnowledgeMark,
 } from '../brag-book/knowledge-doc.js';
 import { renderResumeHtml } from '../brag-book/resume-template.js';
-import { dropOrderFromDoc, droppedBulletLabels, fitStatusLine, fitOnePage, FONT_FLOOR_PT, FIT_STEPS } from '../brag-book/resume-fit.js';
+import { dropOrderFromDoc, droppedBulletLabels, fitStatusLine, fitOnePage, FONT_FLOOR_PT, FIT_STEPS, resumePreviewScale, resumePreviewFitWidth } from '../brag-book/resume-fit.js';
 import { resumeDocxBytes } from '../brag-book/resume-docx.js';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -4658,3 +4658,15 @@ assert.ok(phantomDocx.indexOf('Loose one') < phantomDocx.indexOf('Finance line')
 assert.ok(phantomDocx.indexOf('Finance line') < phantomDocx.indexOf('Stale middle'));
 assert.ok(phantomDocx.indexOf('Stale middle') < phantomDocx.indexOf('Agent line'));
 assert.equal(JSON.stringify(phantomBook), phantomBefore);
+
+assert.equal(resumePreviewFitWidth(816, 360), 360);
+assert.ok(Math.abs(resumePreviewScale(816, 360) - resumePreviewScale(360)) < 1e-9);
+const mobilePreview = appSource.slice(
+  appSource.indexOf('function resumePreviewPane'),
+  appSource.indexOf('function resumeSectionOrder'),
+);
+assert.match(mobilePreview, /bb-resume-mobile-export/);
+assert.match(mobilePreview, /Save PDF/);
+assert.match(mobilePreview, /exportResumePdf\(posting\)/);
+assert.match(mobilePreview, /exportResumeDocx\(posting\)/);
+assert.match(appSource, /wrap\.classList\.toggle\('is-mobile-fit'/);

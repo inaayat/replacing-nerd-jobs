@@ -304,7 +304,8 @@ const scaleSource = appSource.slice(
   appSource.indexOf('\nasync function ', appSource.indexOf('function scaleResumeFrame')),
 );
 assert.match(scaleSource, /RESUME_PAGE_WIDTH_PX \* scale/);
-assert.match(scaleSource, /\(wrap\.clientWidth - scaledWidth\) \/ 2/);
+assert.match(scaleSource, /resumePreviewFitWidth\(wrap\.clientWidth,\s*viewportWidth\)/);
+assert.match(scaleSource, /\(width - scaledWidth\) \/ 2/);
 assert.match(scaleSource, /translateX\(\$\{offset\}px\) scale\(\$\{scale\}\)/);
 const frozenPreviewSource = appSource.slice(
   appSource.indexOf('function refreshResumeSnapshotPreview'),

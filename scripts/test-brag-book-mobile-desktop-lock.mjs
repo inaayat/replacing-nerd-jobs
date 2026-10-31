@@ -11,6 +11,7 @@ import { JSDOM } from 'jsdom';
 import { parseViewHash, viewHash } from '../brag-book/routes.js';
 import {
   resumePreviewScale,
+  resumePreviewFitWidth,
   resumePreviewWrapHeight,
   resumeEditorMaxHeight,
   RESUME_PAGE_HEIGHT_PX,
@@ -172,7 +173,7 @@ assert.match(css, /\.bb-exp-star-toggle/);
 assert.match(css, /\.bb-exp-star-panel/);
 assert.match(
   css,
-  /@media \(max-width:\s*860px\)[\s\S]*?\.bb-resume-split\s*\{\s*grid-template-columns:\s*1fr/,
+  /@media \(max-width:\s*860px\)[\s\S]*?\.bb-resume-split\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\)/,
 );
 assert.match(
   css,
@@ -204,7 +205,7 @@ assert.match(requirementTable, /'Experiences'/);
 const resumeWorkspace = sourceSection('function resumeWorkspace', 'function resumeChooser');
 assert.match(resumeWorkspace, /class:\s*'bb-resume-split'/);
 assert.match(resumeWorkspace, /resumeEditorPane\(posting,\s*doc\)/);
-assert.match(resumeWorkspace, /resumePreviewPane\(\)/);
+assert.match(resumeWorkspace, /resumePreviewPane\(posting\)/);
 assert.match(resumeWorkspace, /exportResumePdf\(posting\)/);
 assert.match(resumeWorkspace, /exportResumeDocx\(posting\)/);
 
@@ -212,6 +213,12 @@ const previewPane = sourceSection('function resumePreviewPane', 'function resume
 assert.match(previewPane, /id:\s*'resume-preview-frame'/);
 assert.match(previewPane, /class:\s*'bb-resume-frame'/);
 assert.match(previewPane, /id:\s*'resume-preview-wrap'/);
+assert.match(previewPane, /class:\s*'bb-resume-mobile-export'/);
+assert.match(previewPane, /Save PDF/);
+assert.match(previewPane, /id:\s*'resume-save-pdf'/);
+assert.match(previewPane, /onClick:\s*\(\)\s*=>\s*exportResumePdf\(posting\)/);
+assert.match(previewPane, /Download Word/);
+assert.match(previewPane, /onClick:\s*\(\)\s*=>\s*exportResumeDocx\(posting\)/);
 
 const knowledgeWorkspace = sourceSection('function knowledgeWorkspace', 'function jobForm');
 assert.match(knowledgeWorkspace, /class:\s*'bb-kb'/);
@@ -238,8 +245,23 @@ assert.match(app, /document\.addEventListener\('visibilitychange'/);
 // Mobile overrides must live in narrow/coarse queries, not in base desktop rules.
 assert.match(
   css,
-  /@media \(max-width:\s*1023px\)[\s\S]*?\.bb-resume-split\s*\{\s*grid-template-columns:\s*1fr/,
+  /@media \(max-width:\s*1023px\)[\s\S]*?\.bb-resume-split\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\)/,
   'tablet resume stack at 1023px',
+);
+assert.match(
+  css,
+  /\.bb-resume-mobile-export\s*\{\s*display:\s*none/,
+  'mobile resume export row hidden on desktop',
+);
+assert.match(
+  css,
+  /@media \(max-width:\s*1023px\)[\s\S]*?\.bb-resume-mobile-export\s*\{[^}]*display:\s*flex/,
+  'mobile resume export row shown under 1023px',
+);
+assert.match(
+  css,
+  /@media \(max-width:\s*1023px\)[\s\S]*?\.bb-resume-frame\s*\{[^}]*position:\s*absolute/,
+  'mobile resume iframe is out of flow so 8.5in cannot widen the wrap',
 );
 assert.match(
   css,
@@ -269,6 +291,13 @@ assert.ok(Math.abs(resumePreviewScale(390) - 0.468) < 0.02);
 assert.ok(Math.abs(resumePreviewScale(430) - 0.517) < 0.02);
 assert.ok(resumePreviewScale(816) >= 0.98);
 assert.equal(resumePreviewScale(900), 1);
+assert.equal(resumePreviewFitWidth(816, 360), 360);
+assert.equal(resumePreviewFitWidth(338, 390), 338);
+assert.ok(Math.abs(resumePreviewScale(816, 360) - resumePreviewScale(360)) < 1e-9);
+assert.ok(resumePreviewScale(816, 360) < 0.5);
+assert.match(app, /resumePreviewViewportWidth/);
+assert.match(app, /is-mobile-fit/);
+assert.match(app, /resumePreviewFitWidth\(wrap\.clientWidth,\s*viewportWidth\)/);
 assert.equal(
   resumePreviewWrapHeight(resumePreviewScale(360)),
   RESUME_PAGE_HEIGHT_PX * resumePreviewScale(360) + 12,
