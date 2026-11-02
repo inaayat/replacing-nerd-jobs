@@ -4567,7 +4567,11 @@ function jobDetail(job) {
       jobDetailsDisclosure(job),
     ])
   );
-  if (!experiencesUiEnabled()) return workspace;
+  // Split view already lists the bullets, so the Experiences side panel is a third column.
+  const splitMapping = experiencesUiEnabled()
+    && job.requirements.length
+    && readPostingRequirementViewMode(job.id) === 'split';
+  if (!experiencesUiEnabled() || splitMapping) return workspace;
   const panel = experiencesPanelForPage('posting', job);
   if (!panel) return workspace;
   return el('div', { class: `bb-book-dual bb-posting-dual${experiencesMobileDrawerOpen ? ' is-drawer-open' : ''}` }, [

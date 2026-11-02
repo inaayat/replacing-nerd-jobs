@@ -64,6 +64,8 @@ async function bootPostingPage(window, { wide }) {
   const postingId = store.postings[0].id;
   store = addRequirement(store, postingId, 'Lead programs', clock);
   window.localStorage.setItem(STORE_KEY, JSON.stringify(store));
+  // Split view hides the Experiences panel; this test covers the table layout that still has it.
+  window.sessionStorage.setItem(`bb-posting-req-view:${postingId}`, 'requirement');
   window.location.hash = `#jobs/${postingId}`;
   await import(new URL(`../brag-book/app.js?post-dual-${wide}-${Date.now()}`, import.meta.url));
   await new Promise((resolve) => window.setTimeout(resolve, 100));

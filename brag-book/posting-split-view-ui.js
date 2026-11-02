@@ -1,8 +1,8 @@
 /**
  * Posting split view UI (browser-safe ESM).
  *
- * Left: this posting's job requirements. Right: the resume bullets on this
- * posting, each wearing the requirements it addresses. Drag a requirement
+ * Left: the resume bullets on this posting, each wearing the requirements it
+ * addresses. Right: this posting's job requirements. Drag a requirement
  * onto a bullet (or a bullet onto a requirement) to put it under that bullet;
  * the "+ Requirement" picker and a selected requirement's "+ R1" buttons are
  * the keyboard and touch path to the same link.
@@ -738,9 +738,9 @@ function paneTabs(deps, model, pane) {
     },
   });
   const open = model.unaddressedRequirementIds.length;
-  return el('div', { class: 'bb-split-pane-tabs', role: 'tablist', 'aria-label': 'Requirements or bullets' }, [
-    tab('requirements', `Requirements · ${model.counts.requirements}${open ? ` (${open} open)` : ''}`),
+  return el('div', { class: 'bb-split-pane-tabs', role: 'tablist', 'aria-label': 'Bullets or requirements' }, [
     tab('bullets', `Bullets · ${model.counts.bullets}`),
+    tab('requirements', `Requirements · ${model.counts.requirements}${open ? ` (${open} open)` : ''}`),
   ]);
 }
 
@@ -849,7 +849,7 @@ export function buildPostingSplitView(deps, posting) {
     ].filter(Boolean).join(' '),
     'data-posting-id': posting.id,
     'data-pane': pane,
-  }, [paneTabs(deps, model, pane), requirementsColumn, bulletsColumn]);
+  }, [paneTabs(deps, model, pane), bulletsColumn, requirementsColumn]);
 }
 
 export { postingSplitViewModel };

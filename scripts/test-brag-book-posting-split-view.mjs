@@ -43,7 +43,7 @@ import { emptySplitViewState, splitPaneFor } from '../brag-book/posting-split-vi
 
 const css = readFileSync(new URL('../brag-book/app.css', import.meta.url), 'utf8');
 assert.match(css, /\.bb-split-view\s*\{/);
-assert.match(css, /@media \(min-width: 861px\)[\s\S]*?\.bb-split-view\s*\{[^}]*grid-template-columns:\s*minmax\(260px, 2fr\) minmax\(0, 3fr\)/, 'two columns on desktop');
+assert.match(css, /@media \(min-width: 861px\)[\s\S]*?\.bb-split-view\s*\{[^}]*grid-template-columns:\s*minmax\(0, 3fr\) minmax\(260px, 2fr\)/, 'bullets left, requirements right on desktop');
 assert.match(css, /\.bb-split-bullet\.is-drop-target/, 'drop target styling');
 const coarseStart = css.indexOf('/* Touch targets and no-zoom inputs on any coarse pointer');
 assert.ok(coarseStart > 0, 'split view coarse-pointer block');
@@ -291,6 +291,12 @@ const toggle = document.querySelector('.bb-posting-view-toggle');
 assert.ok(toggle, 'view toggle');
 assert.match(toggle.querySelector('.bb-seg-btn.is-on').textContent, /Split view/, 'split view is the default');
 assert.ok(document.querySelector('.bb-split-view'), 'split view rendered');
+assert.equal(document.querySelector('.bb-exp-side-panel'), null, 'Experiences panel is not a third column');
+assert.equal(document.querySelector('.bb-exp-mobile-toggle'), null, 'no Experiences button on the split view');
+assert.equal(document.querySelector('.bb-posting-dual'), null, 'split view is one workspace, not the dual shell');
+const splitCols = [...document.querySelectorAll('.bb-split-col')];
+assert.ok(splitCols[0]?.classList.contains('bb-split-bullets'), 'bullets column is on the left');
+assert.ok(splitCols[1]?.classList.contains('bb-split-requirements'), 'requirements column is on the right');
 assert.equal(document.querySelector('.bb-unmapped-resume'), null, 'Unmapped panel folded into the split filter');
 assert.equal(document.querySelectorAll('.bb-split-req').length, 3);
 const e1Card = () => document.querySelector('.bb-split-bullet[data-entry-id="e1"]');
@@ -417,14 +423,14 @@ assert.equal(e1Card().querySelector(`.bb-split-chip[data-requirement-id="${r3.id
 const splitRoot = () => document.querySelector('.bb-split-view');
 assert.equal(splitRoot().dataset.pane, 'bullets', 'defaults to the bullets pane when the resume has bullets');
 const paneTabs = () => [...document.querySelectorAll('.bb-split-pane-tab')];
-assert.deepEqual(paneTabs().map((node) => node.dataset.pane), ['requirements', 'bullets']);
-assert.match(paneTabs()[0].textContent, /Requirements · 3/);
-assert.match(paneTabs()[1].textContent, /Bullets · \d+/);
-assert.equal(paneTabs()[1].getAttribute('aria-selected'), 'true');
-paneTabs()[0].click();
+assert.deepEqual(paneTabs().map((node) => node.dataset.pane), ['bullets', 'requirements']);
+assert.match(paneTabs()[0].textContent, /Bullets · \d+/);
+assert.match(paneTabs()[1].textContent, /Requirements · 3/);
+assert.equal(paneTabs()[0].getAttribute('aria-selected'), 'true');
+paneTabs()[1].click();
 await tick();
 assert.ok(splitRoot().classList.contains('is-pane-requirements'));
-assert.equal(paneTabs()[0].getAttribute('aria-selected'), 'true');
+assert.equal(paneTabs()[1].getAttribute('aria-selected'), 'true');
 assert.ok(document.querySelector('.bb-split-requirements'), 'requirements column still rendered');
 assert.ok(document.querySelector('.bb-split-bullets'), 'bullets column still rendered (CSS hides it on phones)');
 

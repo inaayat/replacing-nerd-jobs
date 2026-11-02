@@ -187,8 +187,9 @@ human-readable filing; calculated values fall back to the filing viewer.
 
 Interview prep on the same Neon Auth account as Packing Cubes. Currently
 **beta**. **New job posting** is the main path: paste a description, then work
-in the **split view**: the posting's requirements on one side and the resume
-bullets on this posting on the other. Drag a requirement onto a bullet (or a
+in the **split view**: the resume bullets on this posting on the left and the
+posting's requirements on the right. The Experiences side panel stays off this
+view. Drag a requirement onto a bullet (or a
 bullet onto a requirement) and that requirement appears as a chip under the
 bullet — the chips are the bullet's purpose, and a bullet can carry several.
 Chip × removes one link only; **+ Requirement** on a bullet and **Add to

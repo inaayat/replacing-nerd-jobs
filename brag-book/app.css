@@ -4073,7 +4073,7 @@ html.bb-offline-readonly .shell select {
   display: grid;
   gap: 6px;
 }
-/* Posting split view: requirements | bullets, drag either onto the other */
+/* Posting split view: bullets | requirements, drag either onto the other */
 .bb-split-view {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -4083,7 +4083,7 @@ html.bb-offline-readonly .shell select {
 }
 @media (min-width: 861px) {
   .bb-split-view {
-    grid-template-columns: minmax(260px, 2fr) minmax(0, 3fr);
+    grid-template-columns: minmax(0, 3fr) minmax(260px, 2fr);
     column-gap: 18px;
   }
   .bb-split-purpose-empty::after { content: ' — drag one here'; }
