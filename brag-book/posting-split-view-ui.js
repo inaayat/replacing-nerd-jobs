@@ -56,7 +56,19 @@ export function emptySplitViewState() {
     deleteRequirementPendingId: '',
     expandedDetailsEntryId: '',
     questionsOpenReqId: '',
+    expandedChipKey: '',
+    /** Phone pane ('requirements' | 'bullets'); empty = pick from the model. Desktop shows both. */
+    pane: '',
   };
+}
+
+/**
+ * Which pane a phone shows. Both columns are always in the DOM; CSS hides the
+ * other one below 720px, so this is harmless on desktop.
+ */
+export function splitPaneFor(state, model) {
+  if (state.pane === 'requirements' || state.pane === 'bullets') return state.pane;
+  return model.counts.bullets || !model.counts.requirements ? 'bullets' : 'requirements';
 }
 
 function dragTypes(event) {
@@ -108,7 +120,12 @@ export function wireSplitDragSource(node, { handle, type, id }) {
   const arm = () => node.setAttribute('draggable', 'true');
   const disarm = () => node.removeAttribute('draggable');
   if (handle) {
+    // pointerdown covers a tablet finger (iPadOS drags draggable elements); mousedown stays for
+    // browsers without pointer events. Arming twice is harmless.
+    handle.addEventListener('pointerdown', arm);
     handle.addEventListener('mousedown', arm);
+    handle.addEventListener('pointerup', disarm);
+    handle.addEventListener('pointercancel', disarm);
     handle.addEventListener('mouseup', disarm);
   } else {
     arm();
@@ -172,8 +189,13 @@ function requirementCard(deps, posting, model, row) {
     'aria-pressed': selected ? 'true' : 'false',
     title: selected ? 'Stop adding this requirement to bullets' : 'Pick bullets for this requirement',
     onClick: () => {
-      setState({ selectedRequirementId: selected ? '' : row.id, openRequirementPickerEntryId: '' });
-      onRender({ preserveScroll: true });
+      // Selecting also moves a phone to the Bullets pane, where the + Rn buttons are.
+      setState({
+        selectedRequirementId: selected ? '' : row.id,
+        openRequirementPickerEntryId: '',
+        pane: selected ? state.pane : 'bullets',
+      });
+      onRender({ preserveScroll: true, focusKey: selected ? undefined : 'split-selected-done' });
     },
   }, selected ? 'Done' : 'Add to bullets…');
 
@@ -261,14 +283,30 @@ function requirementCard(deps, posting, model, row) {
 }
 
 function requirementChip(deps, posting, bullet, reqRow) {
-  const { el, store, onSave, onRender, setNote } = deps;
+  const {
+    el, store, state, setState, onSave, onRender, setNote,
+  } = deps;
+  const chipKey = `${bullet.key}:${reqRow.id}`;
+  const expanded = state.expandedChipKey === chipKey;
   return el('span', {
-    class: 'bb-split-chip',
+    class: `bb-split-chip${expanded ? ' is-expanded' : ''}`,
     'data-requirement-id': reqRow.id,
     title: reqRow.text,
   }, [
-    el('span', { class: 'bb-split-chip-ordinal' }, reqRow.ordinal),
-    el('span', { class: 'bb-split-chip-text' }, reqRow.short),
+    // Tap the chip to read the whole requirement: there is no hover title on touch.
+    el('button', {
+      type: 'button',
+      class: 'bb-split-chip-body',
+      'aria-expanded': expanded ? 'true' : 'false',
+      'aria-label': `${reqRow.ordinal}: ${reqRow.text}`,
+      onClick: () => {
+        setState({ expandedChipKey: expanded ? '' : chipKey });
+        onRender({ preserveScroll: true });
+      },
+    }, [
+      el('span', { class: 'bb-split-chip-ordinal' }, reqRow.ordinal),
+      el('span', { class: 'bb-split-chip-text' }, expanded ? reqRow.text : reqRow.short),
+    ]),
     el('button', {
       type: 'button',
       class: 'bb-split-chip-remove',
@@ -287,31 +325,84 @@ function requirementChip(deps, posting, bullet, reqRow) {
   ]);
 }
 
+/**
+ * The "+ Requirement" picker. Inline under the bullet on desktop; on a phone
+ * the same element is a bottom sheet with a backdrop (CSS ≤720px), so the
+ * list is reachable with a thumb and closes on backdrop tap, Close, or Escape.
+ */
 function requirementPickerMenu(deps, posting, model, bullet) {
-  const { el, store, setState, onSave, onRender, setNote } = deps;
+  const { el, btn, store, setState, onSave, onRender, setNote } = deps;
   const available = requirementsAvailableForBullet(model, bullet.entryId);
-  if (!available.length) {
-    return el('div', { class: 'bb-split-req-menu', role: 'listbox' }, [
-      el('p', { class: 'tiny empty' }, 'Every requirement is already under this bullet.'),
-    ]);
+  const close = () => {
+    setState({ openRequirementPickerEntryId: '' });
+    onRender({ preserveScroll: true, focusKey: `split-add-req-${bullet.entryId}` });
+  };
+  const head = el('div', { class: 'bb-split-req-menu-head' }, [
+    el('span', { class: 'bb-split-req-menu-title' }, 'Add a requirement to this bullet'),
+    btn('Close', { class: 'btn ghost compact-action bb-split-req-menu-close', onClick: close }),
+  ]);
+  const menu = el('div', {
+    class: 'bb-split-req-menu',
+    role: 'dialog',
+    'aria-label': 'Add a requirement to this bullet',
+    'data-entry-id': bullet.entryId,
+    onKeydown: (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        close();
+      }
+    },
+  }, [
+    head,
+    available.length
+      ? el('div', { class: 'bb-split-req-options', role: 'listbox' }, available.map((req) => el('button', {
+        type: 'button',
+        class: 'bb-split-req-option',
+        role: 'option',
+        'aria-selected': 'false',
+        'data-requirement-id': req.id,
+        onClick: () => {
+          onSave(linkRequirementToBullet(store, posting.id, req.id, bullet.entryId));
+          setState({ openRequirementPickerEntryId: '' });
+          onRender({ preserveScroll: true, focusKey: `split-add-req-${bullet.entryId}` });
+          setNote(`${req.ordinal} added under this bullet.`);
+        },
+      }, [
+        el('span', { class: 'bb-split-chip-ordinal' }, req.ordinal),
+        el('span', { class: 'bb-split-req-option-text' }, req.text),
+      ])))
+      : el('p', { class: 'tiny empty' }, 'Every requirement is already under this bullet.'),
+  ]);
+  const backdrop = el('div', {
+    class: 'bb-split-sheet-backdrop',
+    'aria-hidden': 'true',
+    onClick: close,
+  });
+  return el('div', { class: 'bb-split-req-menu-wrap' }, [backdrop, menu]);
+}
+
+/** Read the sticky nav height the stylesheet publishes, so a reveal lands under it. */
+function navOffsetPx() {
+  try {
+    const raw = getComputedStyle(document.documentElement).getPropertyValue('--nav-h');
+    const n = Number.parseFloat(raw);
+    return Number.isFinite(n) ? n : 48;
+  } catch {
+    return 48;
   }
-  return el('div', { class: 'bb-split-req-menu', role: 'listbox', 'aria-label': 'Add a requirement to this bullet' },
-    available.map((req) => el('button', {
-      type: 'button',
-      class: 'bb-split-req-option',
-      role: 'option',
-      'aria-selected': 'false',
-      'data-requirement-id': req.id,
-      onClick: () => {
-        onSave(linkRequirementToBullet(store, posting.id, req.id, bullet.entryId));
-        setState({ openRequirementPickerEntryId: '' });
-        onRender({ preserveScroll: true, focusKey: `split-add-req-${bullet.entryId}` });
-        setNote(`${req.ordinal} added under this bullet.`);
-      },
-    }, [
-      el('span', { class: 'bb-split-chip-ordinal' }, req.ordinal),
-      el('span', { class: 'bb-split-req-option-text' }, req.text),
-    ])));
+}
+
+/**
+ * After a phone pane switch the other pane may be much shorter than where the
+ * user had scrolled, so bring the split view's top back under the nav when it
+ * has gone above the viewport. Never scrolls when the top is already visible.
+ */
+export function revealSplitTop(root) {
+  if (typeof window === 'undefined' || !root || typeof root.getBoundingClientRect !== 'function') return;
+  const top = root.getBoundingClientRect().top;
+  const offset = navOffsetPx() + 8;
+  if (top >= offset) return;
+  window.scrollTo({ top: Math.max(0, (window.scrollY || 0) + top - offset) });
 }
 
 function bulletCard(deps, posting, model, bullet) {
@@ -603,6 +694,56 @@ function requirementAddForm(deps, posting) {
   ]);
 }
 
+function selectedRequirementBar(deps, model, selectedReq) {
+  const { el, btn, setState, onRender, setNote } = deps;
+  const remaining = model.bullets.filter((bullet) => bullet.entryId && !bullet.requirementIds.includes(selectedReq.id)).length;
+  return el('div', {
+    class: 'bb-split-selected-bar',
+    role: 'status',
+    'data-requirement-id': selectedReq.id,
+  }, [
+    el('span', { class: 'bb-split-chip-ordinal' }, selectedReq.ordinal),
+    el('span', { class: 'bb-split-selected-text' }, [
+      el('strong', {}, `Adding ${selectedReq.ordinal}`),
+      ` · ${selectedReq.short}`,
+      el('span', { class: 'tiny bb-split-selected-sub' }, remaining
+        ? ` Tap + ${selectedReq.ordinal} on each bullet it fits.`
+        : ' Every bullet here already addresses it.'),
+    ]),
+    btn('Done', {
+      class: 'btn compact-action bb-split-selected-done',
+      'data-focus-key': 'split-selected-done',
+      onClick: () => {
+        setState({ selectedRequirementId: '' });
+        onRender({ preserveScroll: true });
+        setNote(`${selectedReq.ordinal} done.`);
+      },
+    }),
+  ]);
+}
+
+/** Phone-only (CSS ≤720px) Requirements | Bullets switch. Desktop shows both columns. */
+function paneTabs(deps, model, pane) {
+  const { el, btn, setState, onRender } = deps;
+  const tab = (key, label) => btn(label, {
+    class: `bb-seg-btn bb-split-pane-tab${pane === key ? ' is-on' : ''}`,
+    role: 'tab',
+    'aria-selected': pane === key ? 'true' : 'false',
+    'data-pane': key,
+    onClick: () => {
+      if (pane === key) return;
+      setState({ pane: key });
+      onRender({ preserveScroll: true });
+      queueMicrotask(() => revealSplitTop(document.querySelector(`.bb-split-view[data-posting-id="${model.postingId}"]`)));
+    },
+  });
+  const open = model.unaddressedRequirementIds.length;
+  return el('div', { class: 'bb-split-pane-tabs', role: 'tablist', 'aria-label': 'Requirements or bullets' }, [
+    tab('requirements', `Requirements · ${model.counts.requirements}${open ? ` (${open} open)` : ''}`),
+    tab('bullets', `Bullets · ${model.counts.bullets}`),
+  ]);
+}
+
 export function buildPostingSplitView(deps, posting) {
   const {
     el, btn, store, state, setState, onRender,
@@ -612,6 +753,7 @@ export function buildPostingSplitView(deps, posting) {
     ? model.requirements.find((row) => row.id === state.selectedRequirementId)
     : null;
   const shownBullets = filterSplitBullets(model.bullets, state.bulletFilter);
+  const pane = splitPaneFor(state, model);
 
   const requirementsColumn = el('section', {
     class: 'bb-split-col bb-split-requirements',
@@ -637,7 +779,10 @@ export function buildPostingSplitView(deps, posting) {
     state.requirementAddOpen ? requirementAddForm(deps, posting) : null,
     selectedReq
       ? el('p', { class: 'tiny bb-split-hint' }, `Adding ${selectedReq.ordinal} — tap + ${selectedReq.ordinal} on each bullet it fits, then Done.`)
-      : el('p', { class: 'tiny bb-split-hint' }, 'Drag a requirement onto a bullet to show what that bullet is for.'),
+      : el('p', { class: 'tiny bb-split-hint' }, [
+        el('span', { class: 'bb-split-hint-pointer' }, 'Drag a requirement onto a bullet to show what that bullet is for, or tap Add to bullets….'),
+        el('span', { class: 'bb-split-hint-touch' }, 'Tap Add to bullets… on a requirement, then tap + on each bullet it fits.'),
+      ]),
     el('div', { class: 'bb-split-list bb-split-req-list' }, model.requirements.length
       ? model.requirements.map((row) => requirementCard(deps, posting, model, row))
       : [el('p', { class: 'empty' }, 'Paste the job description below to add requirements.')]),
@@ -685,6 +830,7 @@ export function buildPostingSplitView(deps, posting) {
         },
       }),
     ]),
+    selectedReq ? selectedRequirementBar(deps, model, selectedReq) : null,
     state.composeOpen ? composeBulletForm(deps, posting, model) : null,
     bankSearch(deps, posting),
     filterBar,
@@ -696,9 +842,14 @@ export function buildPostingSplitView(deps, posting) {
   ]);
 
   return el('div', {
-    class: `bb-split-view${selectedReq ? ' has-selected-requirement' : ''}`,
+    class: [
+      'bb-split-view',
+      `is-pane-${pane}`,
+      selectedReq ? 'has-selected-requirement' : '',
+    ].filter(Boolean).join(' '),
     'data-posting-id': posting.id,
-  }, [requirementsColumn, bulletsColumn]);
+    'data-pane': pane,
+  }, [paneTabs(deps, model, pane), requirementsColumn, bulletsColumn]);
 }
 
 export { postingSplitViewModel };

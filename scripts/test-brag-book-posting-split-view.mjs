@@ -39,13 +39,29 @@ import {
   splitDropAccepts,
   unlinkRequirementFromBullet,
 } from '../brag-book/posting-split-view.js';
-import { emptySplitViewState } from '../brag-book/posting-split-view-ui.js';
+import { emptySplitViewState, splitPaneFor } from '../brag-book/posting-split-view-ui.js';
 
 const css = readFileSync(new URL('../brag-book/app.css', import.meta.url), 'utf8');
 assert.match(css, /\.bb-split-view\s*\{/);
 assert.match(css, /@media \(min-width: 861px\)[\s\S]*?\.bb-split-view\s*\{[^}]*grid-template-columns:\s*minmax\(260px, 2fr\) minmax\(0, 3fr\)/, 'two columns on desktop');
 assert.match(css, /\.bb-split-bullet\.is-drop-target/, 'drop target styling');
-assert.match(css, /@media \(pointer: coarse\)[\s\S]*\.bb-split-compose-text,\s*\.bb-split-bank-search \{ font-size: 16px; \}/, '16px inputs on touch');
+const coarseStart = css.indexOf('/* Touch targets and no-zoom inputs on any coarse pointer');
+assert.ok(coarseStart > 0, 'split view coarse-pointer block');
+const coarseBlock = css.slice(coarseStart, css.indexOf('tr.job-table-row.is-req-highlight'));
+assert.match(coarseBlock, /\.bb-split-bullet-line,\s*\.bb-split-req-text,\s*\.bb-split-compose-text,\s*\.bb-split-bank-search \{ font-size: 16px; \}/, '16px editable text on touch (no iOS zoom)');
+assert.match(coarseBlock, /\.bb-split-add-req,[\s\S]*?\.bb-split-selected-done,[\s\S]*?\{ min-height: 44px; \}/, '44px touch targets');
+assert.match(coarseBlock, /\.bb-split-chip-remove::after \{ content: ''; position: absolute; inset: -8px; \}/, 'chip × has hit slop');
+const phoneStart = css.indexOf('@media (max-width: 720px) {\n  .bb-split-pane-tabs');
+assert.ok(phoneStart > 0, 'split view phone block');
+const phoneBlock = css.slice(phoneStart, coarseStart);
+assert.match(phoneBlock, /\.bb-split-pane-tabs \{\s*position: sticky;/, 'phone pane switch is sticky');
+assert.match(phoneBlock, /\.bb-split-view\.is-pane-requirements \.bb-split-bullets,\s*\.bb-split-view\.is-pane-bullets \.bb-split-requirements \{ display: none; \}/, 'phone shows one pane');
+assert.match(phoneBlock, /\.bb-split-req-menu \{\s*position: fixed;\s*inset: auto 0 0 0;/, 'requirement picker is a bottom sheet on phones');
+assert.match(phoneBlock, /\.bb-split-sheet-backdrop \{\s*display: block;\s*position: fixed;/, 'sheet backdrop on phones');
+assert.match(css, /\.bb-split-pane-tabs \{ display: none; \}/, 'pane tabs hidden on desktop');
+assert.match(css, /\.bb-split-sheet-backdrop \{ display: none; \}/, 'backdrop hidden on desktop');
+assert.match(css, /@media \(max-width: 860px\) \{\s*\.bb-split-handle \{ display: none; \}/, 'no drag handles when stacked');
+assert.match(css, /\.bb-split-selected-bar \{\s*position: sticky;/, 'selected requirement bar sticks');
 
 const ui = readFileSync(new URL('../brag-book/posting-split-view-ui.js', import.meta.url), 'utf8');
 assert.doesNotMatch(ui, /\b(window\.)?(prompt|confirm|alert)\s*\(/, 'no native dialogs');
@@ -230,9 +246,15 @@ assert.deepEqual(orphanRow.requirements.map((row) => row.ordinal), ['R1']);
 assert.equal(orphanRow.entryId, '');
 
 assert.deepEqual(Object.keys(emptySplitViewState()).sort(), [
-  'bankQuery', 'bulletFilter', 'composeJobId', 'composeOpen', 'deleteRequirementPendingId',
-  'expandedDetailsEntryId', 'openRequirementPickerEntryId', 'questionsOpenReqId', 'requirementAddOpen', 'selectedRequirementId',
+  'bankQuery', 'bulletFilter', 'composeJobId', 'composeOpen', 'deleteRequirementPendingId', 'expandedChipKey',
+  'expandedDetailsEntryId', 'openRequirementPickerEntryId', 'pane', 'questionsOpenReqId', 'requirementAddOpen', 'selectedRequirementId',
 ]);
+
+// Phone pane default: bullets when the resume has any, requirements when it only has requirements.
+assert.equal(splitPaneFor(emptySplitViewState(), model), 'bullets');
+assert.equal(splitPaneFor({ ...emptySplitViewState(), pane: 'requirements' }, model), 'requirements');
+assert.equal(splitPaneFor(emptySplitViewState(), { counts: { bullets: 0, requirements: 2 } }), 'requirements');
+assert.equal(splitPaneFor(emptySplitViewState(), { counts: { bullets: 0, requirements: 0 } }), 'bullets');
 
 // ---------- DOM ----------
 const dom = new JSDOM('<!doctype html><html><body><main id="app"></main></body></html>', {
@@ -363,10 +385,60 @@ saved = readStore();
 assert.equal(saved.postings[0].requirements.find((row) => row.id === r2.id).bullets.some((line) => line.entryId === 'e1'), true);
 assert.equal(e1Card().querySelector('.bb-split-req-menu'), null, 'picker closes after a pick');
 
+// Picker is a dialog with Close + Escape + backdrop (a bottom sheet on phones).
+e1Card().querySelector('.bb-split-add-req').click();
+await tick();
+const sheet = e1Card().querySelector('.bb-split-req-menu');
+assert.equal(sheet.getAttribute('role'), 'dialog');
+assert.ok(sheet.querySelector('.bb-split-req-menu-close'), 'Close button');
+sheet.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+await tick();
+assert.equal(e1Card().querySelector('.bb-split-req-menu'), null, 'Escape closes the picker');
+assert.equal(document.activeElement?.dataset?.focusKey, 'split-add-req-e1', 'focus returns to + Requirement');
+e1Card().querySelector('.bb-split-add-req').click();
+await tick();
+e1Card().querySelector('.bb-split-sheet-backdrop').click();
+await tick();
+assert.equal(e1Card().querySelector('.bb-split-req-menu'), null, 'backdrop tap closes the picker');
+
+// Tapping a chip shows the whole requirement (no hover title on touch).
+const r3ChipBody = e1Card().querySelector(`.bb-split-chip[data-requirement-id="${r3.id}"] .bb-split-chip-body`);
+assert.equal(r3ChipBody.getAttribute('aria-expanded'), 'false');
+r3ChipBody.click();
+await tick();
+const r3ChipOpen = e1Card().querySelector(`.bb-split-chip[data-requirement-id="${r3.id}"]`);
+assert.ok(r3ChipOpen.classList.contains('is-expanded'));
+assert.equal(r3ChipOpen.querySelector('.bb-split-chip-text').textContent, r3.text, 'full text once expanded');
+r3ChipOpen.querySelector('.bb-split-chip-body').click();
+await tick();
+assert.equal(e1Card().querySelector(`.bb-split-chip[data-requirement-id="${r3.id}"]`).classList.contains('is-expanded'), false);
+
+// Phone pane switch: both panes are in the DOM; the root carries the active pane.
+const splitRoot = () => document.querySelector('.bb-split-view');
+assert.equal(splitRoot().dataset.pane, 'bullets', 'defaults to the bullets pane when the resume has bullets');
+const paneTabs = () => [...document.querySelectorAll('.bb-split-pane-tab')];
+assert.deepEqual(paneTabs().map((node) => node.dataset.pane), ['requirements', 'bullets']);
+assert.match(paneTabs()[0].textContent, /Requirements · 3/);
+assert.match(paneTabs()[1].textContent, /Bullets · \d+/);
+assert.equal(paneTabs()[1].getAttribute('aria-selected'), 'true');
+paneTabs()[0].click();
+await tick();
+assert.ok(splitRoot().classList.contains('is-pane-requirements'));
+assert.equal(paneTabs()[0].getAttribute('aria-selected'), 'true');
+assert.ok(document.querySelector('.bb-split-requirements'), 'requirements column still rendered');
+assert.ok(document.querySelector('.bb-split-bullets'), 'bullets column still rendered (CSS hides it on phones)');
+
 // Selected requirement → "+ R1" buttons on bullets that do not address it (touch/keyboard path).
+// Selecting from the requirements pane moves a phone to the bullets pane with a sticky Done bar.
 r1Card.querySelector('.bb-split-req-select').click();
 await tick();
 assert.ok(document.querySelector('.bb-split-view.has-selected-requirement'));
+assert.ok(splitRoot().classList.contains('is-pane-bullets'), 'Add to bullets… switches to the bullets pane');
+const selectedBar = document.querySelector('.bb-split-selected-bar');
+assert.ok(selectedBar, 'sticky selected bar');
+assert.equal(selectedBar.dataset.requirementId, r1.id);
+assert.match(selectedBar.textContent, /Adding R1/);
+assert.ok(selectedBar.querySelector('.bb-split-selected-done'), 'Done on the bar');
 const addChips = [...document.querySelectorAll('.bb-split-chip-add')];
 assert.ok(addChips.length >= 1, 'add chips offered');
 const e1Add = e1Card().querySelector('.bb-split-chip-add');
@@ -375,6 +447,14 @@ e1Add.click();
 await tick();
 assert.equal(e1Card().querySelector('.bb-split-chip-add'), null, 'e1 now addresses R1');
 assert.ok(e1Card().classList.contains('is-addressing'));
+document.querySelector('.bb-split-selected-done').click();
+await tick();
+assert.equal(document.querySelector('.bb-split-selected-bar'), null, 'Done clears the selection');
+assert.equal(document.querySelector('.bb-split-view.has-selected-requirement'), null);
+// Re-select so the compose test below still starts under R1.
+document.querySelector(`.bb-split-req[data-requirement-id="${r1.id}"] .bb-split-req-select`).click();
+await tick();
+assert.ok(document.querySelector('.bb-split-selected-bar'));
 
 // Compose a new bullet while R1 is selected: bank + resume + under R1.
 document.querySelector('.bb-split-new-bullet').click();

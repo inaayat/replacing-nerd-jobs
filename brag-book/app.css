@@ -4241,11 +4241,27 @@ html.bb-offline-readonly .shell select {
   line-height: 1.3;
   color: var(--ink);
 }
+.bb-split-chip-body {
+  appearance: none;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.bb-split-chip.is-expanded { border-color: var(--gold); background: rgba(232, 196, 122, 0.1); }
 .bb-split-chip-text {
   min-width: 0;
   overflow-wrap: anywhere;
 }
 .bb-split-chip-remove {
+  position: relative;
   appearance: none;
   border: 0;
   background: transparent;
@@ -4272,6 +4288,8 @@ html.bb-offline-readonly .shell select {
   text-transform: uppercase;
 }
 .bb-split-add-req.is-on { color: var(--gold); }
+.bb-split-req-menu-wrap { display: contents; }
+.bb-split-sheet-backdrop { display: none; }
 .bb-split-req-menu {
   display: grid;
   gap: 2px;
@@ -4281,6 +4299,43 @@ html.bb-offline-readonly .shell select {
   border-radius: 8px;
   background: #fff;
 }
+.bb-split-req-menu-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 4px 4px 8px;
+}
+.bb-split-req-menu-title {
+  font-family: var(--content-font);
+  font-size: 12px;
+  color: var(--muted);
+}
+.bb-split-req-options { display: grid; gap: 2px; }
+.bb-split-selected-bar {
+  position: sticky;
+  top: calc(var(--nav-h, 48px) + env(safe-area-inset-top) + 6px);
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--gold);
+  border-radius: 10px;
+  background: rgba(250, 243, 228, 0.98);
+  box-shadow: 0 4px 14px rgba(12, 11, 9, 0.08);
+}
+.bb-split-selected-text {
+  min-width: 0;
+  flex: 1;
+  font-family: var(--content-font);
+  font-size: 13px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.bb-split-selected-sub { color: var(--muted); }
+.bb-split-selected-done { flex: 0 0 auto; }
+.bb-split-pane-tabs { display: none; }
 .bb-split-req-option {
   display: flex;
   align-items: baseline;
@@ -4387,6 +4442,13 @@ html.bb-offline-readonly .shell select {
 .bb-split-bank-option:hover,
 .bb-split-bank-option:focus-visible { background: rgba(232, 196, 122, 0.16); }
 .bb-split-bank-meta { color: var(--muted); }
+/* Hints: the pointer wording mentions dragging; the touch wording does not. */
+.bb-split-hint-touch { display: none; }
+@media (hover: none) and (pointer: coarse) {
+  .bb-split-hint-pointer { display: none; }
+  .bb-split-hint-touch { display: inline; }
+}
+/* Stacked (one column): no drag handles, the pickers are the way to link. */
 @media (max-width: 860px) {
   .bb-split-handle { display: none; }
   .bb-split-req-head { grid-template-columns: auto minmax(0, 1fr); }
@@ -4396,13 +4458,81 @@ html.bb-offline-readonly .shell select {
   .bb-split-req-menu,
   .bb-split-bullet-meta { padding-left: 0; margin-left: 0; }
   .bb-split-purpose-empty::after { content: ' — tap + Requirement'; }
+  .bb-split-hint-pointer { display: none; }
+  .bb-split-hint-touch { display: inline; }
 }
+/* Phone: one pane at a time behind a sticky Requirements | Bullets switch; the
+   requirement picker becomes a bottom sheet. */
+@media (max-width: 720px) {
+  .bb-split-pane-tabs {
+    position: sticky;
+    top: calc(var(--nav-h, 48px) + env(safe-area-inset-top));
+    z-index: 5;
+    display: flex;
+    gap: 4px;
+    padding: 6px 0;
+    background: var(--bg, #f6f1e8);
+  }
+  .bb-split-pane-tab {
+    flex: 1 1 0;
+    min-height: 44px;
+    border: 1px solid var(--line);
+  }
+  .bb-split-pane-tab.is-on { border-color: var(--gold); }
+  .bb-split-view.is-pane-requirements .bb-split-bullets,
+  .bb-split-view.is-pane-bullets .bb-split-requirements { display: none; }
+  /* Three segments (Split view / By requirement / By experience) must not overflow a 360px phone. */
+  .bb-posting-view-toggle { display: flex; align-self: stretch; }
+  .bb-posting-view-toggle .bb-seg-btn { flex: 1 1 0; min-height: 40px; padding: 6px 4px; font-size: 11px; }
+  .bb-split-selected-bar {
+    top: calc(var(--nav-h, 48px) + env(safe-area-inset-top) + 58px);
+    border-radius: 8px;
+  }
+  .bb-split-col-head { flex-wrap: wrap; }
+  .bb-split-col-head .btn { min-height: 44px; }
+  .bb-split-filter { display: flex; }
+  .bb-split-filter .bb-seg-btn { flex: 1 1 0; min-height: 44px; }
+  .bb-split-sheet-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: rgba(12, 11, 9, 0.35);
+  }
+  .bb-split-req-menu {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 41;
+    max-height: min(70vh, 560px);
+    overflow: auto;
+    margin: 0;
+    padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+    border-radius: 14px 14px 0 0;
+    border-bottom: 0;
+    box-shadow: 0 -8px 32px rgba(12, 11, 9, 0.18);
+    -webkit-overflow-scrolling: touch;
+  }
+  .bb-split-req-menu-head { position: sticky; top: 0; background: #fff; padding-bottom: 8px; }
+  .bb-split-req-option { padding: 10px 10px; font-size: 15px; }
+  .bb-split-bank-option { padding: 10px 10px; }
+}
+/* Touch targets and no-zoom inputs on any coarse pointer (phone or tablet). */
 @media (pointer: coarse) {
-  .bb-split-chip-remove,
   .bb-split-add-req,
   .bb-split-req-select,
   .bb-split-details,
-  .bb-split-add-resume { min-height: 32px; }
+  .bb-split-add-resume,
+  .bb-split-chip-add,
+  .bb-split-req-option,
+  .bb-split-bank-option,
+  .bb-split-req-menu-close,
+  .bb-split-selected-done,
+  .bb-split-compose-row .btn { min-height: 44px; }
+  .bb-split-chip-body { min-height: 32px; align-items: center; }
+  .bb-split-chip-remove { min-width: 32px; min-height: 32px; }
+  .bb-split-chip-remove::after { content: ''; position: absolute; inset: -8px; }
+  .bb-split-bullet-line,
+  .bb-split-req-text,
   .bb-split-compose-text,
   .bb-split-bank-search { font-size: 16px; }
 }
