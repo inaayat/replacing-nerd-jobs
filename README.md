@@ -186,10 +186,23 @@ human-readable filing; calculated values fall back to the filing viewer.
 ### Brag Book — `/brag-book`
 
 Interview prep on the same Neon Auth account as Packing Cubes. Currently
-**beta**. **New job posting** is the main path: paste a description, then use
-one compact table with requirements on the left and resume bullets / experiences
-on the right. Clicking a bullet opens its longer notes, STAR fields, optional
-book story, and potential questions + answers. **Resume** (`#jobs/:id/resume`)
+**beta**. **New job posting** is the main path: paste a description, then work
+in the **split view**: the posting's requirements on one side and the resume
+bullets on this posting on the other. Drag a requirement onto a bullet (or a
+bullet onto a requirement) and that requirement appears as a chip under the
+bullet — the chips are the bullet's purpose, and a bullet can carry several.
+Chip × removes one link only; **+ Requirement** on a bullet and **Add to
+bullets…** on a requirement are the keyboard and touch paths to the same
+link. **+ New bullet** writes to the bank and places the bullet on this
+resume in one step (under the selected requirement, if any); the bank search
+brings an existing bullet onto the posting without copying it. Linking never
+removes anything: a bullet with no requirement stays on the resume and in
+the bank (the **No requirement** filter lists them). The older **By
+requirement** / **By experience** tables stay one toggle away. On a phone
+the view is one pane at a time behind a sticky Requirements | Bullets switch,
+the requirement picker is a bottom sheet, and chips expand on tap to show the
+whole requirement. Clicking a bullet's STAR opens its longer notes and
+fields; a requirement's ? adds potential questions + answers. **Resume** (`#jobs/:id/resume`)
 is a side-by-side editor: structured jobs, bullets (bold lead + body),
 include/exclude, pin, and section order on the left; a live one-page
 classic-serif preview (Cambria/Caladea) on the right. The preview renders the
@@ -243,7 +256,9 @@ automatically; Home offers it as a downloadable recovery copy. Focus /
 visibility refetch only when there are no unsaved local edits.
 `brag-book/engine.js` is the document model (browser + `lib/brag-book.js`);
 keep it dependency-free ESM and out of `/lib/`. Resume render/fit/docx live in
-`resume-template.js`, `resume-fit.js`, and `resume-docx.js`. Static-server UI
+`resume-template.js`, `resume-fit.js`, and `resume-docx.js`; the posting split
+view is `posting-split-view.js` (pure model) + `posting-split-view-ui.js`
+(DOM), both browser ESM. Static-server UI
 work uses `/brag-book/?local=1`. Export/import JSON is the backup.
 
 ### ASC 606 — `/asc-606`
@@ -897,6 +912,7 @@ node scripts/test-takeout-workbook.mjs
 node scripts/test-takeout-catalog.mjs
 node scripts/test-asc-606.mjs
 node scripts/test-brag-book.mjs
+node scripts/test-brag-book-posting-split-view.mjs
 node scripts/test-seattle-property-taxes.mjs
 node scripts/test-im-filmin-here.mjs
 node scripts/test-packing-cubes-model.mjs
