@@ -62,6 +62,7 @@ Object.assign(globalThis, {
 });
 window.scrollTo = () => {};
 window.localStorage.setItem(STORE_KEY, JSON.stringify(store));
+window.sessionStorage.setItem(`bb-posting-req-view:${postingId}`, 'requirement');
 
 const posting = store.postings[0];
 assert.equal(postingMapShowsLooseGroup(store, posting.requirements[0]), false);

@@ -42,6 +42,8 @@ import {
   requirementHasMapping,
 } from './posting-requirement-mapping.js';
 import { buildPostingExperienceView } from './posting-experience-view-ui.js';
+import { buildPostingSplitView, emptySplitViewState } from './posting-split-view-ui.js';
+import { normalizePostingViewMode } from './posting-split-view.js';
 import { refreshFloatingOverlays } from './floating-overlay.js';
 import {
   STORE_KEY,
@@ -358,14 +360,20 @@ let postingRequirementHighlightReqId = '';
 /** Last viewed requirement index per posting (session only). */
 const requirementPagerIndexByJob = {};
 
+/** Default is the split view (bullets ↔ requirements); the table views stay one tap away. */
 function readPostingRequirementViewMode(postingId) {
   try {
-    return sessionStorage.getItem(`${POSTING_REQ_VIEW_MODE_KEY}:${postingId}`) === 'experience'
-      ? 'experience'
-      : 'requirement';
+    return normalizePostingViewMode(sessionStorage.getItem(`${POSTING_REQ_VIEW_MODE_KEY}:${postingId}`));
   } catch {
-    return 'requirement';
+    return normalizePostingViewMode('');
   }
+}
+
+/** Split view session state per posting (selection, open pickers, filter — never stored on the book). */
+const splitViewStateByPosting = new Map();
+function splitViewState(postingId) {
+  if (!splitViewStateByPosting.has(postingId)) splitViewStateByPosting.set(postingId, emptySplitViewState());
+  return splitViewStateByPosting.get(postingId);
 }
 
 function writePostingRequirementViewMode(postingId, mode) {
@@ -2458,7 +2466,7 @@ function experiencesPanelForPage(page, posting = null) {
             jobId: resolvedJobId,
             rich: [{ text: trimmed, bold: false }],
           });
-          const entryId = next.entries[next.entries.length - 1]?.id;
+          const entryId = next.entries[0]?.id;
           if (!entryId) return;
           store = next;
           saveStore();
@@ -3911,7 +3919,7 @@ function requirementExperiencesCell(job, req) {
         jobId: resolvedJobId,
         rich: [{ text: trimmed, bold: false }],
       });
-      const entryId = next.entries[next.entries.length - 1]?.id;
+      const entryId = next.entries[0]?.id;
       if (!entryId) return;
       next = mapEntryToRequirement(next, job.id, req.id, entryId);
       next = idempotentAddEntryToPostingResume(next, job.id, entryId);
@@ -3968,7 +3976,7 @@ function requirementExperiencesCell(job, req) {
             jobId: primaryJobId,
             rich: [{ text: 'New bullet', bold: false }],
           });
-          const entryId = next.entries[next.entries.length - 1]?.id;
+          const entryId = next.entries[0]?.id;
           if (!entryId) return;
           next = mapEntryToRequirement(next, postingJob.id, liveReq.id, entryId);
           next = idempotentAddEntryToPostingResume(next, postingJob.id, entryId);
@@ -4077,6 +4085,27 @@ function applyPostingMapPickToRequirement(job, req) {
   return false;
 }
 
+/** "Map here" from the Experiences panel pick (bullet or experience) onto one requirement. */
+function mapPendingPickToRequirement(job, req) {
+  if (postingMapPick) {
+    applyPostingMapPickToRequirement(job, req);
+    return;
+  }
+  const entryId = postingMapTargetEntryId;
+  if (!entryId) return;
+  const already = req.bullets.some((line) => line.entryId === entryId);
+  if (already) {
+    setNote('That bullet is already on this requirement.');
+    return;
+  }
+  store = mapEntryToRequirement(store, job.id, req.id, entryId);
+  store = idempotentAddEntryToPostingResume(store, job.id, entryId);
+  postingMapTargetEntryId = '';
+  saveStore();
+  render({ preserveScroll: true });
+  setNote('Mapped resume bullet to this requirement.');
+}
+
 function requirementTableRow(job, req) {
   const requirement = el('textarea', {
     class: 'table-req-text',
@@ -4115,24 +4144,7 @@ function requirementTableRow(job, req) {
           ? btn('Map here', {
             type: 'button',
             class: 'btn ghost compact-action bb-req-map-here',
-            onClick: () => {
-              if (postingMapPick) {
-                applyPostingMapPickToRequirement(job, req);
-                return;
-              }
-              const entryId = postingMapTargetEntryId;
-              const already = req.bullets.some((line) => line.entryId === entryId);
-              if (already) {
-                setNote('That bullet is already on this requirement.');
-                return;
-              }
-              store = mapEntryToRequirement(store, job.id, req.id, entryId);
-              store = idempotentAddEntryToPostingResume(store, job.id, entryId);
-              postingMapTargetEntryId = '';
-              saveStore();
-              render({ preserveScroll: true });
-              setNote('Mapped resume bullet to this requirement.');
-            },
+            onClick: () => mapPendingPickToRequirement(job, req),
           })
           : null,
         el('div', { class: 'row-icons' }, [
@@ -4180,6 +4192,12 @@ function postingRequirementViewToggle(job) {
     role: 'group',
     'aria-label': 'Requirements table view',
   }, [
+    btn('Split view', {
+      type: 'button',
+      class: `bb-seg-btn${mode === 'split' ? ' is-on' : ''}`,
+      'aria-pressed': mode === 'split' ? 'true' : 'false',
+      onClick: () => setMode('split'),
+    }),
     btn('By requirement', {
       type: 'button',
       class: `bb-seg-btn${mode === 'requirement' ? ' is-on' : ''}`,
@@ -4240,7 +4258,7 @@ function postingExperienceViewPanel(job) {
             jobId: primaryJobId,
             rich: [{ text: 'New bullet', bold: false }],
           });
-          const entryId = next.entries[next.entries.length - 1]?.id;
+          const entryId = next.entries[0]?.id;
           if (!entryId) return;
           next = mapEntryToRequirement(next, postingJob.id, liveReq.id, entryId);
           next = idempotentAddEntryToPostingResume(next, postingJob.id, entryId);
@@ -4256,6 +4274,52 @@ function postingExperienceViewPanel(job) {
       } catch (error) {
         setNote(error.message || 'Could not add that bullet.');
       }
+    },
+  }, job);
+}
+
+function postingSplitViewPanel(job) {
+  const state = splitViewState(job.id);
+  return buildPostingSplitView({
+    el,
+    btn,
+    store,
+    state,
+    setState: (patch) => Object.assign(state, patch),
+    onSave: (next) => {
+      store = next;
+      saveStore();
+    },
+    onRender: (opts) => render(opts),
+    setNote,
+    richLine,
+    displayExperienceLine,
+    updateEntry,
+    fitArea,
+    primaryJobId: postingPrimaryCatalogJobId(store, job) || '',
+    renderExperiencePicker: (entry) => experienceMembershipPicker(entry),
+    renderBulletDetails: (entry) => el('div', { class: 'experience-editor bb-split-details-body' }, [
+      sharedBulletForm(entry, {
+        focusPrefix: `split-${entry.id}`,
+        showLine: false,
+        onPatch: (patch) => {
+          store = saveSharedBullet(store, entry.id, patch);
+          saveStore();
+        },
+      }),
+    ]),
+    renderRequirementQuestions: (req) => requirementQuestions(job, req),
+    onToggleQuestions: (req) => {
+      const composerKey = `${job.id}:${req.id}`;
+      const opening = questionComposerKey !== composerKey;
+      questionComposerKey = opening ? composerKey : '';
+      state.questionsOpenReqId = opening ? req.id : '';
+      render(opening ? { preserveScroll: true, focusKey: `add-q-${req.id}` } : { preserveScroll: true });
+    },
+    onAddToResume: (entry) => addLibraryEntriesToPostingResume(job, [entry.id]),
+    mapPick: {
+      active: Boolean(postingMapPick || postingMapTargetEntryId),
+      onMapHere: (req) => mapPendingPickToRequirement(job, req),
     },
   }, job);
 }
@@ -4340,7 +4404,12 @@ function requirementTable(job) {
   const wrap = el('div', { class: 'bb-posting-requirements-wrap' });
   if (experiencesUiEnabled()) {
     wrap.append(postingRequirementViewToggle(job));
-    if (readPostingRequirementViewMode(job.id) === 'experience') {
+    const mode = readPostingRequirementViewMode(job.id);
+    if (mode === 'split') {
+      wrap.append(postingSplitViewPanel(job));
+      return wrap;
+    }
+    if (mode === 'experience') {
       wrap.append(postingExperienceViewPanel(job));
       return wrap;
     }
@@ -4481,7 +4550,11 @@ function jobDetail(job) {
         btn('Resume', { class: 'btn', onClick: () => go({ kind: 'jobs', id: job.id, mode: 'resume' }) }),
       ]),
     ]),
-    unmappedResumeBulletsPanel(job),
+    // The split view already lists bullets without a requirement (its filter), so the
+    // separate Unmapped panel only shows on the table views.
+    experiencesUiEnabled() && job.requirements.length && readPostingRequirementViewMode(job.id) === 'split'
+      ? null
+      : unmappedResumeBulletsPanel(job),
     el('div', { class: 'workspace-status' }, [coverageBanner(job)]),
     job.requirements.length
       ? requirementTable(job)

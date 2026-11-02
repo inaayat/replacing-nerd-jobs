@@ -81,6 +81,7 @@ async function openPosting(book) {
   globalThis.cancelAnimationFrame = (id) => window.clearTimeout(id);
   window.confirm = () => false;
   dom.window.localStorage.setItem(STORE_KEY, JSON.stringify(book));
+  dom.window.sessionStorage.setItem('bb-posting-req-view:job_um', 'requirement');
   const href = new URL('../brag-book/app.js', import.meta.url);
   await import(`${href.href}?unmapped-panel=${Date.now()}`);
   await new Promise((resolve) => dom.window.setTimeout(resolve, 60));

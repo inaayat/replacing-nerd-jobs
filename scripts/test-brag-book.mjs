@@ -3266,6 +3266,14 @@ function installBookDom(hash, extras = {}) {
     setItem: (key, value) => mem.set(key, String(value)),
     removeItem: (key) => mem.delete(key),
   };
+  // These pages assert on the requirement table; the split view is the default, so pin the table here.
+  const session = new Map();
+  for (const posting of extras.postings || []) session.set(`bb-posting-req-view:${posting.id}`, 'requirement');
+  globalThis.sessionStorage = {
+    getItem: (key) => (session.has(key) ? session.get(key) : null),
+    setItem: (key, value) => session.set(key, String(value)),
+    removeItem: (key) => session.delete(key),
+  };
   return { app, mem };
 }
 

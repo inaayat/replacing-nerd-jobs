@@ -71,6 +71,7 @@ Object.assign(globalThis, {
 });
 window.scrollTo = () => {};
 window.localStorage.setItem(STORE_KEY, JSON.stringify(store));
+window.sessionStorage.setItem(`bb-posting-req-view:${postingId}`, 'requirement');
 
 await import(new URL(`../brag-book/app.js?map-inline=${Date.now()}`, import.meta.url));
 await new Promise((resolve) => window.setTimeout(resolve, 100));

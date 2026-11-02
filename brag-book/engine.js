@@ -3271,11 +3271,16 @@ export function addEntryBullet(store, postingId, requirementId, entryId, text = 
   const req = requirementById(job, requirementId);
   if (!entry || !req || req.bullets.some((bullet) => bullet.entryId === entryId)) return store;
   const sibling = firstBulletForEntry(store, entryId);
+  const explicitText = asString(text, TEXT_MAX);
+  // A bare link (no text, no spans) must carry the entry's own formatting;
+  // rebuilding plain spans here would write them back over the bank record
+  // and strip its bold lead.
+  const lineRich = sibling ? sibling.rich : (rich || (!explicitText ? entry.rich : undefined));
   const line = normalizeBullet({
     id: newId('ln', clock),
     entryId,
-    text: sibling?.text || asString(text, TEXT_MAX) || entry.title,
-    rich: sibling ? sibling.rich : rich,
+    text: sibling?.text || explicitText || entry.title,
+    rich: lineRich,
   }, clock);
   if (!line) return store;
   let next = mapRequirement(
