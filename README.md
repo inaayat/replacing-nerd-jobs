@@ -192,6 +192,8 @@ posting's requirements on the right. The Experiences side panel stays off this
 view. Drag a requirement onto a bullet (or a
 bullet onto a requirement) and that requirement appears as a chip under the
 bullet — the chips are the bullet's purpose, and a bullet can carry several.
+Dragging a chip onto another bullet tags that requirement there too and leaves
+it on the first bullet.
 Chip × removes one link only; **+ Requirement** on a bullet and **Add to
 bullets…** on a requirement are the keyboard and touch paths to the same
 link. **+ New bullet** writes to the bank and places the bullet on this

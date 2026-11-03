@@ -4330,6 +4330,9 @@ html.bb-offline-readonly .shell select {
   text-align: left;
   cursor: pointer;
 }
+.bb-split-chip-body[draggable="true"] { cursor: grab; }
+.bb-split-chip-body[draggable="true"]:active { cursor: grabbing; }
+.bb-split-chip.is-dragging { opacity: 0.45; }
 .bb-split-chip.is-expanded { border-color: var(--gold); background: rgba(232, 196, 122, 0.1); }
 .bb-split-chip-text {
   min-width: 0;

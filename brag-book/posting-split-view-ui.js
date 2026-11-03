@@ -3,9 +3,10 @@
  *
  * Left: the resume bullets on this posting, each wearing the requirements it
  * addresses. Right: this posting's job requirements. Drag a requirement
- * onto a bullet (or a bullet onto a requirement) to put it under that bullet;
- * the "+ Requirement" picker and a selected requirement's "+ R1" buttons are
- * the keyboard and touch path to the same link.
+ * onto a bullet (or a bullet onto a requirement) to put it under that bullet.
+ * Dragging a requirement chip onto another bullet tags it there as well and
+ * leaves it on the first. The "+ Requirement" picker and a selected
+ * requirement's "+ R1" buttons are the keyboard and touch path to the same link.
  *
  * Everything persists through the caller's `onSave` (the debounced,
  * merge-safe book save). No bullet is copied: the editor on each card edits
@@ -295,20 +296,45 @@ function requirementChip(deps, posting, bullet, reqRow) {
   } = deps;
   const chipKey = `${bullet.key}:${reqRow.id}`;
   const expanded = state.expandedChipKey === chipKey;
+  // A drag that ends in a drop also fires click. Skip the expand that would follow.
+  let dragged = false;
   return el('span', {
     class: `bb-split-chip${expanded ? ' is-expanded' : ''}`,
     'data-requirement-id': reqRow.id,
     title: reqRow.text,
   }, [
     // Tap the chip to read the whole requirement: there is no hover title on touch.
+    // Drag it onto another bullet to tag that requirement there too. The source
+    // chip stays; this is the same additive link as dragging the requirement card.
     el('button', {
       type: 'button',
       class: 'bb-split-chip-body',
+      draggable: 'true',
+      title: 'Drag onto another bullet. It stays on this one too.',
       'aria-expanded': expanded ? 'true' : 'false',
       'aria-label': `${reqRow.ordinal}: ${reqRow.text}`,
-      onClick: () => {
+      onClick: (event) => {
+        if (dragged) {
+          dragged = false;
+          event.preventDefault();
+          return;
+        }
         setState({ expandedChipKey: expanded ? '' : chipKey });
         onRender({ preserveScroll: true });
+      },
+      onDragstart: (event) => {
+        // The bullet card cancels a drag that did not start on its handle.
+        // Stop here so that listener never sees this chip drag.
+        event.stopPropagation();
+        dragged = true;
+        if (!event.dataTransfer) return;
+        event.dataTransfer.setData(SPLIT_DRAG_REQUIREMENT_TYPE, reqRow.id);
+        event.dataTransfer.setData('text/plain', reqRow.id);
+        event.dataTransfer.effectAllowed = 'link';
+        event.currentTarget.closest('.bb-split-chip')?.classList.add('is-dragging');
+      },
+      onDragend: (event) => {
+        event.currentTarget.closest('.bb-split-chip')?.classList.remove('is-dragging');
       },
     }, [
       el('span', { class: 'bb-split-chip-ordinal' }, reqRow.ordinal),
@@ -646,10 +672,20 @@ function bulletCard(deps, posting, model, bullet) {
       targetId: entry.id,
       onDrop: (payload, target) => {
         const req = model.requirements.find((row) => row.id === payload.id);
+        const alreadyHere = bullet.requirementIds.includes(payload.id);
+        const staysOnOthers = (req?.bulletCount || 0) > (alreadyHere ? 1 : 0);
         commitMappedChange(() => {
           onSave(applySplitDrop(store, posting.id, payload, target));
           onRender({ preserveScroll: true });
-          setNote(req ? `${req.ordinal} added under this bullet.` : 'Requirement added under this bullet.');
+          if (alreadyHere) {
+            setNote(req ? `${req.ordinal} is already on this bullet.` : 'Already on this bullet.');
+          } else if (staysOnOthers) {
+            setNote(req
+              ? `${req.ordinal} added under this bullet. It stays on the other bullets too.`
+              : 'Requirement added under this bullet. It stays on the other bullets too.');
+          } else {
+            setNote(req ? `${req.ordinal} added under this bullet.` : 'Requirement added under this bullet.');
+          }
         });
       },
     });

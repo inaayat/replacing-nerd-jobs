@@ -1,7 +1,8 @@
 /**
  * Posting split view: requirements | bullets. Model (links, add bullet, drop
  * reduction, resume order) and the real page in jsdom (default mode, drag a
- * requirement onto a bullet, chip remove, picker, compose, bank search, map
+ * requirement onto a bullet, drag a chip onto a second bullet without
+ * untagging the first, chip remove, picker, compose, bank search, map
  * pick from the Experiences panel). The stored shape never changes: a
  * requirement under a bullet is the same `req.bullets[]` link the table wrote.
  */
@@ -54,6 +55,7 @@ assert.match(css, /\.bb-split-requirements \{\s*border-left: 1px solid var\(--li
 assert.match(css, /\.bb-split-req\.is-addressed \{\s*background: rgba\(31, 122, 77, 0\.12\);/, 'mapped requirements are light green');
 assert.match(css, /\.hero\.is-compact \{\s*padding: 8px 8px 10px 16px;/, 'page title sits in from the left edge');
 assert.match(css, /\.bb-split-bullet\.is-drop-target/, 'drop target styling');
+assert.match(css, /\.bb-split-chip-body\[draggable="true"\] \{ cursor: grab; \}/, 'a requirement chip can be dragged');
 const coarseStart = css.indexOf('/* Touch targets and no-zoom inputs on any coarse pointer');
 assert.ok(coarseStart > 0, 'split view coarse-pointer block');
 const coarseBlock = css.slice(coarseStart, css.indexOf('tr.job-table-row.is-req-highlight'));
@@ -117,6 +119,13 @@ store = linkRequirementToBullet(store, postingId, r2.id, 'e1');
 const sameTwice = linkRequirementToBullet(store, postingId, r2.id, 'e1');
 const linksOf = (s) => s.postings[0].requirements.map((req) => (req.bullets || []).map((line) => line.entryId));
 assert.deepEqual(linksOf(sameTwice), linksOf(store), 'linking twice is one link');
+const shared = linkRequirementToBullet(store, postingId, r1.id, 'e2');
+assert.deepEqual(
+  shared.postings[0].requirements.find((row) => row.id === r1.id).bullets.map((line) => line.entryId),
+  ['e1', 'e2'],
+  'the same requirement stays tagged to both bullets',
+);
+assert.deepEqual(linksOf(store)[0], ['e1'], 'sharing does not unlink the first bullet');
 assert.deepEqual(sameTwice.postings[0].resume.localJobs, store.postings[0].resume.localJobs, 'no second resume row');
 let liveR1 = store.postings[0].requirements.find((row) => row.id === r1.id);
 assert.equal(liveR1.bullets.filter((line) => line.entryId === 'e1').length, 1);
@@ -443,6 +452,54 @@ assert.equal(
   saved.postings[0].requirements.find((row) => row.id === r2.id).bullets.some((line) => line.entryId === 'e3'),
   true,
   'bullet dropped on a requirement links too',
+);
+
+// Dragging a chip onto another bullet copies the tag. The source bullet keeps it.
+const r1ChipBody = e1Card().querySelector(`.bb-split-chip[data-requirement-id="${r1.id}"] .bb-split-chip-body`);
+assert.equal(r1ChipBody.getAttribute('draggable'), 'true');
+assert.equal(e1Card().getAttribute('draggable'), null, 'the bullet card stays undraggable');
+payload.clear();
+transfer.types = [];
+const chipDrag = fire(r1ChipBody, 'dragstart');
+assert.equal(chipDrag.defaultPrevented, false, 'the bullet card does not cancel a chip drag');
+assert.equal(payload.get(SPLIT_DRAG_REQUIREMENT_TYPE), r1.id);
+assert.equal(e1Card().classList.contains('is-dragging'), false, 'dragging a chip does not drag the bullet');
+assert.ok(r1ChipBody.closest('.bb-split-chip').classList.contains('is-dragging'));
+const e3CardAgain = document.querySelector('.bb-split-bullet[data-entry-id="e3"]');
+assert.equal(fire(e3CardAgain, 'dragover').defaultPrevented, true, 'another bullet accepts the chip');
+fire(e3CardAgain, 'drop');
+await tick();
+saved = readStore();
+const r1AfterCopy = saved.postings[0].requirements.find((row) => row.id === r1.id);
+assert.deepEqual(
+  r1AfterCopy.bullets.map((line) => line.entryId).filter((id) => id === 'e1' || id === 'e3').sort(),
+  ['e1', 'e3'],
+  'R1 stays on the first bullet and is tagged to the second',
+);
+assert.equal(r1AfterCopy.bullets.filter((line) => line.entryId === 'e1').length, 1, 'the source link is not duplicated');
+assert.ok(e1Card().querySelector(`.bb-split-chip[data-requirement-id="${r1.id}"]`), 'source chip remains');
+assert.ok(document.querySelector(`.bb-split-bullet[data-entry-id="e3"] .bb-split-chip[data-requirement-id="${r1.id}"]`), 'target chip appears');
+assert.match(document.getElementById('status-note')?.textContent || '', /stays on the other bullets too/);
+payload.clear();
+transfer.types = [];
+fire(e1Card().querySelector(`.bb-split-chip[data-requirement-id="${r1.id}"] .bb-split-chip-body`), 'dragstart');
+fire(e1Card(), 'drop');
+await tick();
+saved = readStore();
+assert.equal(
+  saved.postings[0].requirements.find((row) => row.id === r1.id).bullets.filter((line) => line.entryId === 'e1').length,
+  1,
+  'dropping a chip on its own bullet does not add a second link',
+);
+assert.match(document.getElementById('status-note')?.textContent || '', /already on this bullet/);
+document.querySelector(`.bb-split-bullet[data-entry-id="e3"] .bb-split-chip[data-requirement-id="${r1.id}"] .bb-split-chip-remove`).click();
+await tick();
+saved = readStore();
+assert.equal(saved.postings[0].requirements.find((row) => row.id === r1.id).bullets.some((line) => line.entryId === 'e3'), false);
+assert.equal(
+  saved.postings[0].requirements.find((row) => row.id === r1.id).bullets.some((line) => line.entryId === 'e1'),
+  true,
+  'removing the copy leaves the original tag',
 );
 
 // Chip × removes one link and leaves the bullet on the resume.
