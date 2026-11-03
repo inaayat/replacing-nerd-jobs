@@ -201,8 +201,8 @@ one line each, with no requirement yet. **Remove from posting** takes a
 bullet off this posting only; it stays in the bank. The bank search
 brings an existing bullet onto the posting without copying it. Linking never
 removes anything: a bullet with no requirement stays on the resume and in
-the bank (the **No requirement** filter lists them, and those bullets stay
-at the top). A requirement that already has a bullet turns light green and
+the bank (the **No requirement** filter lists them). Bullets stay in resume
+order. A requirement that already has a bullet turns light green and
 moves to the end of the list, under **Mapped**, so the open ones stay in front. The older **By
 requirement** / **By experience** tables stay one toggle away. On a phone
 the view is one pane at a time behind a sticky Requirements | Bullets switch,

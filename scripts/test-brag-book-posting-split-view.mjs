@@ -38,7 +38,6 @@ import {
   requirementsAvailableForBullet,
   searchBankBulletsForPosting,
   setBulletRequirements,
-  splitBulletDisplayOrder,
   splitDropAccepts,
   splitRequirementDisplayOrder,
   unlinkRequirementFromBullet,
@@ -211,9 +210,13 @@ assert.equal(
   removed.postings[0].requirements.some((req) => (req.bullets || []).some((line) => line.entryId === pasted.entryIds[0])),
   false,
 );
-// e1 is mapped (R3). A pasted bullet with no requirement sorts ahead of it.
-const displayBullets = splitBulletDisplayOrder(postingSplitViewModel(pasted.store, pasted.store.postings[0]).bullets);
-assert.equal(displayBullets.findIndex((row) => row.entryId === pasted.entryIds[1]) < displayBullets.findIndex((row) => row.entryId === 'e1'), true);
+// Mapping a requirement does not reorder bullets. They stay in resume order.
+const bulletRows = postingSplitViewModel(pasted.store, pasted.store.postings[0]).bullets;
+assert.deepEqual(
+  bulletRows.map((row) => row.entryId),
+  postingResumeEntryOrder(pasted.store, pasted.store.postings[0]),
+  'bullets stay in resume order when some already have a requirement',
+);
 
 // Bank search excludes bullets already on the posting; bringing one in is resume-only.
 const found = searchBankBulletsForPosting(store, store.postings[0], 'bank-only');
@@ -381,6 +384,7 @@ const over = fire(e1Card(), 'dragover');
 assert.equal(over.defaultPrevented, true, 'bullet accepts a requirement drag');
 assert.ok(e1Card().classList.contains('is-drop-target'));
 const scrollBefore = window.scrollY;
+const bulletOrderBefore = [...document.querySelectorAll('.bb-split-bullet')].map((node) => node.dataset.entryId);
 fire(e1Card(), 'drop');
 await tick();
 assert.equal(window.scrollY, scrollBefore);
@@ -399,6 +403,12 @@ assert.deepEqual(
 );
 assert.ok(document.querySelector(`.bb-split-req[data-requirement-id="${r1.id}"]`).classList.contains('is-addressed'));
 assert.equal(document.querySelector(`.bb-split-req[data-requirement-id="${r2.id}"]`).classList.contains('is-addressed'), false);
+assert.deepEqual(
+  [...document.querySelectorAll('.bb-split-bullet')].map((node) => node.dataset.entryId),
+  bulletOrderBefore,
+  'mapping a requirement does not move the bullet',
+);
+assert.equal([...document.querySelectorAll('.bb-split-group-label')].some((node) => /Has a requirement/.test(node.textContent)), false);
 
 // A bullet drag onto a requirement is rejected on another bullet, accepted on a requirement card.
 const e3Card = document.querySelector('.bb-split-bullet[data-entry-id="e3"]');

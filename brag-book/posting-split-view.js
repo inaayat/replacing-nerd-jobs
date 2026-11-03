@@ -338,22 +338,12 @@ export function removeBulletFromPosting(store, postingId, entryId, clock = Date.
   return next;
 }
 
-/** Open requirements first, then ones that already have a bullet. Stored order is kept inside each group, so R-numbers do not change. */
+/** Open requirements first, then ones that already have a bullet. Stored order is kept inside each group, so R-numbers do not change. Bullets keep resume order. */
 export function splitRequirementDisplayOrder(requirements) {
   const open = [];
   const mapped = [];
   for (const row of requirements || []) {
     (row.bulletCount > 0 ? mapped : open).push(row);
-  }
-  return [...open, ...mapped];
-}
-
-/** Bullets with no requirement first, so the ones still to map stay at the top. */
-export function splitBulletDisplayOrder(bullets) {
-  const open = [];
-  const mapped = [];
-  for (const row of bullets || []) {
-    (row.requirements?.length ? mapped : open).push(row);
   }
   return [...open, ...mapped];
 }

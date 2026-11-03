@@ -34,7 +34,6 @@ import {
   removeBulletFromPosting,
   requirementsAvailableForBullet,
   searchBankBulletsForPosting,
-  splitBulletDisplayOrder,
   splitRequirementDisplayOrder,
   splitDropAccepts,
   unlinkRequirementFromBullet,
@@ -910,13 +909,11 @@ export function buildPostingSplitView(deps, posting) {
   const selectedReq = state.selectedRequirementId
     ? model.requirements.find((row) => row.id === state.selectedRequirementId)
     : null;
-  const shownBullets = splitBulletDisplayOrder(filterSplitBullets(model.bullets, state.bulletFilter));
+  const shownBullets = filterSplitBullets(model.bullets, state.bulletFilter);
   const shownRequirements = splitRequirementDisplayOrder(model.requirements);
   const pane = splitPaneFor(state, model);
   const openRequirements = shownRequirements.filter((row) => row.bulletCount === 0);
   const mappedRequirements = shownRequirements.filter((row) => row.bulletCount > 0);
-  const openBullets = shownBullets.filter((row) => !row.requirements.length);
-  const mappedBullets = shownBullets.filter((row) => row.requirements.length);
   const groupLabel = (text) => el('h4', { class: 'bb-split-group-label' }, text);
 
   const requirementsColumn = el('section', {
@@ -1016,12 +1013,7 @@ export function buildPostingSplitView(deps, posting) {
     bankSearch(deps, posting),
     filterBar,
     el('div', { class: 'bb-split-list bb-split-bullet-list' }, shownBullets.length
-      ? [
-        openBullets.length && mappedBullets.length ? groupLabel(`No requirement yet · ${openBullets.length}`) : null,
-        ...openBullets.map((bullet) => bulletCard(deps, posting, model, bullet)),
-        mappedBullets.length && openBullets.length ? groupLabel(`Has a requirement · ${mappedBullets.length}`) : null,
-        ...mappedBullets.map((bullet) => bulletCard(deps, posting, model, bullet)),
-      ]
+      ? shownBullets.map((bullet) => bulletCard(deps, posting, model, bullet))
       : [el('p', { class: 'empty' }, state.bulletFilter === 'without-requirement'
         ? 'Every bullet on this resume addresses at least one requirement.'
         : 'No bullets on this posting yet. Paste some, or write one.')]),
