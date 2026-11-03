@@ -203,7 +203,10 @@ brings an existing bullet onto the posting without copying it. Linking never
 removes anything: a bullet with no requirement stays on the resume and in
 the bank (the **No requirement** filter lists them). Bullets stay in resume
 order. A requirement that already has a bullet turns light green and
-moves to the end of the list, under **Mapped**, so the open ones stay in front. The older **By
+moves to the end of the list, under **Mapped**, so the open ones stay in front.
+On a wide screen the two columns fill the rest of the window and each list
+scrolls on its own, so you can drag between them without the other column
+leaving the screen. The older **By
 requirement** / **By experience** tables stay one toggle away. On a phone
 the view is one pane at a time behind a sticky Requirements | Bullets switch,
 the requirement picker is a bottom sheet, and chips expand on tap to show the

@@ -47,6 +47,8 @@ import { emptySplitViewState, splitPaneFor } from '../brag-book/posting-split-vi
 const css = readFileSync(new URL('../brag-book/app.css', import.meta.url), 'utf8');
 assert.match(css, /\.bb-split-view\s*\{/);
 assert.match(css, /@media \(min-width: 861px\)[\s\S]*?\.bb-split-view\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1\.4fr\) minmax\(280px, 0\.9fr\)/, 'bullets left, requirements right on desktop');
+assert.match(css, /@media \(min-width: 861px\)[\s\S]*?\.bb-split-view\s*\{[^}]*height: calc\(100dvh - var\(--nav-h\) - 200px\)/, 'split panes fill the screen');
+assert.match(css, /\.bb-split-list \{[^}]*overflow-y: auto/, 'each list scrolls inside its pane');
 assert.match(css, /\.bb-split-requirements \{\s*border-left: 1px solid var\(--line-strong\);/, 'a rule splits the two halves');
 assert.match(css, /\.bb-split-req\.is-addressed \{\s*background: rgba\(31, 122, 77, 0\.12\);/, 'mapped requirements are light green');
 assert.match(css, /\.hero\.is-compact \{\s*padding: 8px 8px 10px 16px;/, 'page title sits in from the left edge');
@@ -327,6 +329,9 @@ const toggle = document.querySelector('.bb-posting-view-toggle');
 assert.ok(toggle, 'view toggle');
 assert.match(toggle.querySelector('.bb-seg-btn.is-on').textContent, /Split view/, 'split view is the default');
 assert.ok(document.querySelector('.bb-split-view'), 'split view rendered');
+assert.match(document.querySelector('.bb-split-view').style.height, /^\d+px$/, 'panes are given a fixed height');
+assert.equal(document.querySelector('.bb-split-bullet-list')?.dataset.splitScrollWired, '1');
+assert.equal(document.querySelector('.bb-split-req-list')?.dataset.splitScrollWired, '1');
 assert.equal(document.querySelector('.bb-exp-side-panel'), null, 'Experiences panel is not a third column');
 assert.equal(document.querySelector('.bb-exp-mobile-toggle'), null, 'no Experiences button on the split view');
 assert.equal(document.querySelector('.bb-posting-dual'), null, 'split view is one workspace, not the dual shell');

@@ -42,7 +42,7 @@ import {
   requirementHasMapping,
 } from './posting-requirement-mapping.js';
 import { buildPostingExperienceView } from './posting-experience-view-ui.js';
-import { buildPostingSplitView, emptySplitViewState } from './posting-split-view-ui.js';
+import { buildPostingSplitView, emptySplitViewState, fitSplitColumns } from './posting-split-view-ui.js';
 import { addBulletsToPosting, normalizePostingViewMode } from './posting-split-view.js';
 import { refreshFloatingOverlays } from './floating-overlay.js';
 import {
@@ -7210,7 +7210,7 @@ function restoreFocus(captured, focusKey) {
   node.setSelectionRange(Math.min(captured.start, max), Math.min(captured.end, max));
 }
 
-const SCROLL_PANES = ['.bb-resume-editor', '#resume-preview-wrap'];
+const SCROLL_PANES = ['.bb-resume-editor', '#resume-preview-wrap', '.bb-split-bullet-list', '.bb-split-req-list'];
 let lastRenderHash = '';
 /** Pre-replace scroll snapshot for the resume editor; reapplied after preview reflow. */
 let pendingResumeScrollRestore = null;
@@ -7262,6 +7262,7 @@ function scheduleResumeScrollRestore(snapshot) {
 function finishRender(captured, options, scroll) {
   if (scroll && isResumeEditorView()) pendingResumeScrollRestore = scroll;
   restoreScroll(scroll);
+  fitSplitColumns();
   restoreFocus(captured, options.focusKey);
   scheduleResumeScrollRestore(scroll);
   refreshFloatingOverlays();
@@ -7580,6 +7581,9 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('focus', () => {
   pullBookIfClean();
 });
+
+window.addEventListener('resize', () => fitSplitColumns());
+window.visualViewport?.addEventListener('resize', () => fitSplitColumns());
 
 initBragBookPwa({
   flushBeforeReload: () => flushSave('navigation'),

@@ -406,6 +406,45 @@ function navOffsetPx() {
 }
 
 /**
+ * Size the side-by-side panes to the space left under the posting header, so
+ * both lists stay on screen and scroll inside themselves.
+ */
+export function fitSplitColumns() {
+  const view = document.querySelector('.bb-split-view');
+  if (!view || typeof window === 'undefined') return;
+  let wide = (window.innerWidth || 0) >= 861;
+  try {
+    if (typeof window.matchMedia === 'function') wide = window.matchMedia('(min-width: 861px)').matches;
+  } catch {
+    wide = (window.innerWidth || 0) >= 861;
+  }
+  if (!wide) {
+    view.style.height = '';
+    return;
+  }
+  const viewport = window.visualViewport?.height || window.innerHeight || 0;
+  if (!viewport || typeof view.getBoundingClientRect !== 'function') return;
+  const docTop = view.getBoundingClientRect().top + (window.scrollY || 0);
+  const height = Math.max(420, Math.round(viewport - docTop - 12));
+  view.style.height = `${height}px`;
+}
+
+/** Scroll a list when a drag sits near its top or bottom edge, so the other pane can stay put. */
+export function wireSplitListScroll(list) {
+  if (!list || list.dataset.splitScrollWired === '1') return;
+  list.dataset.splitScrollWired = '1';
+  list.addEventListener('dragover', (event) => {
+    if (typeof list.getBoundingClientRect !== 'function') return;
+    const rect = list.getBoundingClientRect();
+    const edge = 48;
+    const y = event.clientY;
+    if (!Number.isFinite(y) || !rect.height) return;
+    if (y < rect.top + edge) list.scrollTop -= 18;
+    else if (y > rect.bottom - edge) list.scrollTop += 18;
+  });
+}
+
+/**
  * After a phone pane switch the other pane may be much shorter than where the
  * user had scrolled, so bring the split view's top back under the nav when it
  * has gone above the viewport. Never scrolls when the top is already visible.
@@ -944,7 +983,7 @@ export function buildPostingSplitView(deps, posting) {
         el('span', { class: 'bb-split-hint-pointer' }, 'Open requirements stay on top. Drag one onto a bullet, or tap Add to bullets….'),
         el('span', { class: 'bb-split-hint-touch' }, 'Open requirements stay on top. Tap Add to bullets…, then tap + on each bullet it fits.'),
       ]),
-    el('div', { class: 'bb-split-list bb-split-req-list' }, shownRequirements.length
+    el('div', { class: 'bb-split-list bb-split-req-list', ref: wireSplitListScroll }, shownRequirements.length
       ? [
         openRequirements.length && mappedRequirements.length ? groupLabel(`Still open · ${openRequirements.length}`) : null,
         ...openRequirements.map((row) => requirementCard(deps, posting, model, row)),
@@ -1012,7 +1051,7 @@ export function buildPostingSplitView(deps, posting) {
     state.composeOpen ? composeBulletForm(deps, posting, model) : null,
     bankSearch(deps, posting),
     filterBar,
-    el('div', { class: 'bb-split-list bb-split-bullet-list' }, shownBullets.length
+    el('div', { class: 'bb-split-list bb-split-bullet-list', ref: wireSplitListScroll }, shownBullets.length
       ? shownBullets.map((bullet) => bulletCard(deps, posting, model, bullet))
       : [el('p', { class: 'empty' }, state.bulletFilter === 'without-requirement'
         ? 'Every bullet on this resume addresses at least one requirement.'
