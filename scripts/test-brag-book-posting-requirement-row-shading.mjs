@@ -67,13 +67,15 @@ window.sessionStorage.setItem(`bb-posting-req-view:${postingId}`, 'requirement')
 await import(new URL(`../brag-book/app.js?row-shade=${Date.now()}`, import.meta.url));
 await new Promise((resolve) => window.setTimeout(resolve, 120));
 
-const mappedRow = window.document.querySelector(`tr[data-requirement-id="${mappedReq.id}"]`);
-const emptyRow = window.document.querySelector(`tr[data-requirement-id="${emptyReq.id}"]`);
-assert.ok(mappedRow?.classList.contains('is-requirement-mapped'), 'mapped row shaded');
+const mappedRow = window.document.querySelector(`[data-requirement-id="${mappedReq.id}"]`);
+const emptyRow = window.document.querySelector(`[data-requirement-id="${emptyReq.id}"]`);
+assert.ok(mappedRow?.classList.contains('bb-req-card'), 'mapped requirement is a card');
+assert.ok(mappedRow?.classList.contains('is-requirement-mapped'), 'mapped card shaded');
 assert.equal(mappedRow?.getAttribute('data-requirement-mapped'), 'true');
-assert.ok(!emptyRow?.classList.contains('is-requirement-mapped'), 'unmapped row plain');
+assert.ok(emptyRow?.classList.contains('bb-req-card'), 'unmapped requirement is a card');
+assert.ok(!emptyRow?.classList.contains('is-requirement-mapped'), 'unmapped card plain');
 assert.equal(emptyRow?.getAttribute('data-requirement-mapped'), 'false');
-assert.ok(mappedRow.querySelector('.requirement-cell'), 'requirement cell present');
-assert.ok(mappedRow.querySelector('.bullets-cell'), 'experiences cell present');
+assert.ok(mappedRow.querySelector('.table-req-text'), 'requirement text present');
+assert.ok(mappedRow.querySelector('.bb-req-card-count'), 'mapped count present');
 
 console.log('test-brag-book-posting-requirement-row-shading.mjs: ok');

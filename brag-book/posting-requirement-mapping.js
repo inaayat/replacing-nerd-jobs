@@ -122,7 +122,15 @@ export function requirementMappingBuckets(store, req) {
         lines,
       };
     })
-    .sort((a, b) => a.title.localeCompare(b.title));
+    .sort((a, b) => {
+      const indexOf = (bucket) => {
+        const first = (bucket.lines || []).find((row) => row.bullet?.id);
+        if (!first) return Number.MAX_SAFE_INTEGER;
+        const at = (req.bullets || []).findIndex((line) => line.id === first.bullet.id);
+        return at < 0 ? Number.MAX_SAFE_INTEGER : at;
+      };
+      return indexOf(a) - indexOf(b) || a.title.localeCompare(b.title);
+    });
   return { experienceBuckets, otherBullets };
 }
 

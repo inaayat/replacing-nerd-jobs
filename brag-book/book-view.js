@@ -197,6 +197,29 @@ export function visibleRequirementRows(requirements, { mobile = false, index = 0
   return [list[clampRequirementIndex(index, list.length)]];
 }
 
+export function requirementCardKey(postingId, reqId) {
+  return `${postingId}:${reqId}`;
+}
+
+export function requirementBulletCountLabel(count) {
+  const n = Math.max(0, Number(count) || 0);
+  return n === 1 ? '1 bullet' : `${n} bullets`;
+}
+
+/** Session expand/collapse-all for stacked requirement cards. Default is all collapsed. */
+export function requirementExpandToggle(expandedKeys, requirements, postingId) {
+  const keys = (Array.isArray(requirements) ? requirements : [])
+    .map((req) => requirementCardKey(postingId, req?.id))
+    .filter((key) => key && !key.endsWith(':'));
+  const set = expandedKeys instanceof Set ? expandedKeys : new Set(expandedKeys || []);
+  const allExpanded = keys.length > 0 && keys.every((key) => set.has(key));
+  return {
+    allExpanded,
+    label: allExpanded ? 'Collapse all' : 'Expand all',
+    nextKeys: allExpanded ? [] : keys,
+  };
+}
+
 export function requirementPager(requirements, index = 0) {
   const list = Array.isArray(requirements) ? requirements : [];
   const total = list.length;

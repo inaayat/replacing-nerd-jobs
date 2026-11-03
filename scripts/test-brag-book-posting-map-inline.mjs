@@ -76,6 +76,12 @@ window.sessionStorage.setItem(`bb-posting-req-view:${postingId}`, 'requirement')
 await import(new URL(`../brag-book/app.js?map-inline=${Date.now()}`, import.meta.url));
 await new Promise((resolve) => window.setTimeout(resolve, 100));
 
+const expandAllInline = [...window.document.querySelectorAll('button')]
+  .find((node) => node.textContent.includes('Expand all'));
+assert.ok(expandAllInline, 'Expand all');
+expandAllInline.click();
+await new Promise((resolve) => window.setTimeout(resolve, 30));
+
 const bucket = window.document.querySelector('.bb-post-map-bucket.is-collapsed');
 assert.ok(bucket, 'experience bucket');
 bucket.querySelector('.bb-post-map-bucket-head').click();

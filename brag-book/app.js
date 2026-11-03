@@ -73,6 +73,8 @@ import {
   createEntryBullet,
   updateBullet,
   deleteBullet,
+  moveRequirementBullet,
+  reorderRequirementBullets,
   addQuestion,
   updateQuestion,
   deleteQuestion,
@@ -252,7 +254,7 @@ import {
 } from './resume-fit.js';
 import { resumeDocxBlob } from './resume-docx.js';
 import { parseViewHash, viewHash, viewTitle } from './routes.js';
-import { bookPagePlan, experienceRowSpec, sharedBulletSpec, SHARED_BULLET_FIELDS, STAR_FIELDS, experienceAdderChrome, nextExperienceAdderOpen, resumeBulletArrows, resumeGroupChrome, visibleNodes, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys, requirementPager, visibleRequirementRows, nextRequirementIndex, prevRequirementIndex, clampRequirementIndex, requirementPagerQuery } from './book-view.js';
+import { bookPagePlan, experienceRowSpec, sharedBulletSpec, SHARED_BULLET_FIELDS, STAR_FIELDS, experienceAdderChrome, nextExperienceAdderOpen, resumeBulletArrows, resumeGroupChrome, visibleNodes, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys, requirementPager, visibleRequirementRows, nextRequirementIndex, prevRequirementIndex, clampRequirementIndex, requirementPagerQuery, requirementCardKey, requirementExpandToggle, requirementBulletCountLabel } from './book-view.js';
 import {
   applyKnowledgeEnter,
   applyKnowledgeHeadingBreak,
@@ -359,6 +361,8 @@ const POSTING_REQ_VIEW_MODE_KEY = 'bb-posting-req-view';
 let postingRequirementHighlightReqId = '';
 /** Last viewed requirement index per posting (session only). */
 const requirementPagerIndexByJob = {};
+/** Expanded requirement cards (`postingId:reqId`). Default is collapsed. */
+let expandedRequirementCards = new Set();
 
 /** Default is the split view (bullets ↔ requirements); the table views stay one tap away. */
 function readPostingRequirementViewMode(postingId) {
@@ -3821,54 +3825,7 @@ function experienceAdder(job, req) {
 
 function requirementExperiencesCell(job, req) {
   if (!experiencesUiEnabled()) {
-    const bullets = el('div', { class: 'table-bullets' });
-    for (const bullet of req.bullets) {
-      const bulletKey = `${job.id}:${req.id}:${bullet.id}`;
-      const isOpen = expandedBulletKey === bulletKey;
-      const linked = linkedBulletLine(store, bullet);
-      const shown = displayExperienceLine(linked.text);
-      const line = richLine({
-        class: 'bullet-copy is-marked',
-        'aria-label': 'Experience',
-      }, {
-        text: shown,
-        rich: shown === String(linked.text || '').trim() ? linked.rich : null,
-        onChange: (spans) => {
-          const text = spans.map((span) => span.text).join('');
-          if (!text.trim()) return;
-          store = updateBullet(store, job.id, req.id, bullet.id, { text, rich: spans });
-          saveStore();
-        },
-      });
-      const entry = bulletEntry(store, bullet);
-      bullets.append(el('div', { class: 'bullet-link bb-posting-bullet' }, [
-        el('span', { class: 'bullet-mark', 'aria-hidden': 'true' }, '•'),
-        line,
-        el('div', { class: 'bb-posting-bullet-actions bb-action-row' }, [
-          entry ? experienceMembershipPicker(entry) : null,
-          btn(isOpen ? 'Close ↑' : 'Details ↓', {
-            class: 'bullet-open',
-            'aria-expanded': String(isOpen),
-            onClick: () => {
-              expandedBulletKey = isOpen ? '' : bulletKey;
-              render({ preserveScroll: true });
-            },
-          }),
-          btn('Unmap', {
-            class: 'btn ghost compact-action',
-            onClick: () => {
-              if (!confirm('Remove this experience from this requirement? It will stay in the Brag Book.')) return;
-              store = deleteBullet(store, job.id, req.id, bullet.id);
-              saveStore();
-              render({ preserveScroll: true });
-            },
-          }),
-        ]),
-      ]));
-      if (isOpen) bullets.append(experienceEditor(job, req, bullet));
-    }
-    bullets.append(experienceAdder(job, req));
-    return el('div', { class: 'bullets-stack' }, [bullets]);
+    return requirementCardBullets(job, req);
   }
 
   const mapKey = `${job.id}:${req.id}`;
@@ -3876,6 +3833,11 @@ function requirementExperiencesCell(job, req) {
   const mappingDeps = {
     el,
     btn,
+    onMoveRequirementBullet: (bulletId, delta) => {
+      store = moveRequirementBullet(store, job.id, req.id, bulletId, delta);
+      saveStore();
+      render({ preserveScroll: true });
+    },
     store,
     searchValue,
     searchActiveIndex: requirementMapSearchActiveByKey.get(mapKey) ?? -1,
@@ -4106,6 +4068,125 @@ function mapPendingPickToRequirement(job, req) {
   setNote('Mapped resume bullet to this requirement.');
 }
 
+function bindRequirementBulletDrag(row, job, req, bulletId) {
+  const handle = row.querySelector('.bb-req-drag-handle');
+  if (!handle) return;
+  handle.draggable = true;
+  handle.addEventListener('dragstart', (event) => {
+    event.stopPropagation();
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', bulletId);
+    event.dataTransfer.setData('text/bb-req-bullet', JSON.stringify({
+      postingId: job.id,
+      requirementId: req.id,
+      bulletId,
+    }));
+    row.classList.add('is-dragging');
+  });
+  handle.addEventListener('dragend', () => row.classList.remove('is-dragging'));
+  row.addEventListener('dragover', (event) => {
+    const types = Array.from(event.dataTransfer?.types || []);
+    if (!types.includes('text/bb-req-bullet') && !types.includes('text/plain')) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    row.classList.add('is-drop');
+  });
+  row.addEventListener('dragleave', () => row.classList.remove('is-drop'));
+  row.addEventListener('drop', (event) => {
+    event.preventDefault();
+    row.classList.remove('is-drop');
+    let payload = {};
+    try {
+      payload = JSON.parse(event.dataTransfer.getData('text/bb-req-bullet') || '{}');
+    } catch {
+      payload = { postingId: job.id, requirementId: req.id, bulletId: event.dataTransfer.getData('text/plain') };
+    }
+    if (payload.postingId !== job.id || payload.requirementId !== req.id || !payload.bulletId) return;
+    if (payload.bulletId === bulletId) return;
+    const ids = (req.bullets || []).map((line) => line.id);
+    const from = ids.indexOf(payload.bulletId);
+    const to = ids.indexOf(bulletId);
+    if (from < 0 || to < 0) return;
+    ids.splice(from, 1);
+    ids.splice(to, 0, payload.bulletId);
+    store = reorderRequirementBullets(store, job.id, req.id, ids);
+    saveStore();
+    render({ preserveScroll: true });
+  });
+}
+
+function requirementCardBullets(job, req) {
+  const bullets = el('div', { class: 'table-bullets bb-req-card-bullets' });
+  const list = req.bullets || [];
+  list.forEach((bullet, index) => {
+    const bulletKey = `${job.id}:${req.id}:${bullet.id}`;
+    const isOpen = expandedBulletKey === bulletKey;
+    const linked = linkedBulletLine(store, bullet);
+    const shown = displayExperienceLine(linked.text);
+    const line = richLine({
+      class: 'bullet-copy is-marked',
+      'aria-label': 'Experience',
+    }, {
+      text: shown,
+      rich: shown === String(linked.text || '').trim() ? linked.rich : null,
+      onChange: (spans) => {
+        const text = spans.map((span) => span.text).join('');
+        if (!text.trim()) return;
+        store = updateBullet(store, job.id, req.id, bullet.id, { text, rich: spans });
+        saveStore();
+      },
+    });
+    const entry = bulletEntry(store, bullet);
+    const row = el('div', {
+      class: 'bullet-link bb-posting-bullet bb-req-bullet-row',
+      'data-bullet-id': bullet.id,
+    }, [
+      el('button', {
+        type: 'button',
+        class: 'bb-drag-handle bb-req-drag-handle',
+        title: 'Drag to reorder',
+        'aria-label': 'Drag to reorder bullet',
+      }, '⠇'),
+      el('span', { class: 'bullet-mark', 'aria-hidden': 'true' }, '•'),
+      line,
+      el('div', { class: 'bb-posting-bullet-actions bb-action-row' }, [
+        resumeMoveBtns('bullet', {
+          index,
+          length: list.length,
+          onMove: (delta) => {
+            store = moveRequirementBullet(store, job.id, req.id, bullet.id, delta);
+            saveStore();
+            render({ preserveScroll: true });
+          },
+        }),
+        entry ? experienceMembershipPicker(entry) : null,
+        btn(isOpen ? 'Close ↑' : 'Details ↓', {
+          class: 'bullet-open',
+          'aria-expanded': String(isOpen),
+          onClick: () => {
+            expandedBulletKey = isOpen ? '' : bulletKey;
+            render({ preserveScroll: true });
+          },
+        }),
+        btn('Unmap', {
+          class: 'btn ghost compact-action',
+          onClick: () => {
+            if (!confirm('Remove this experience from this requirement? It will stay in the Brag Book.')) return;
+            store = deleteBullet(store, job.id, req.id, bullet.id);
+            saveStore();
+            render({ preserveScroll: true });
+          },
+        }),
+      ]),
+    ]);
+    bindRequirementBulletDrag(row, job, req, bullet.id);
+    bullets.append(row);
+    if (isOpen) bullets.append(experienceEditor(job, req, bullet));
+  });
+  bullets.append(experienceAdder(job, req));
+  return el('div', { class: 'bullets-stack' }, [bullets]);
+}
+
 function requirementTableRow(job, req) {
   const requirement = el('textarea', {
     class: 'table-req-text',
@@ -4128,18 +4209,34 @@ function requirementTableRow(job, req) {
   }, req.text);
   requirement.value = req.text;
   const composerKey = `${job.id}:${req.id}`;
+  const cardKey = requirementCardKey(job.id, req.id);
+  const open = expandedRequirementCards.has(cardKey);
   const showMapHere = experiencesUiEnabled()
     && (postingMapPick || postingMapTargetEntryId);
-
   const mapped = requirementHasMapping(req);
-  return el('tr', {
-    class: `job-table-row${mapped ? ' is-requirement-mapped' : ''}`,
+  const count = (req.bullets || []).length;
+  return el('article', {
+    class: `bb-req-card${mapped ? ' is-requirement-mapped' : ''}${open ? ' is-open' : ''}`,
     'data-requirement-id': req.id,
     'data-requirement-mapped': mapped ? 'true' : 'false',
+    'data-bullet-count': String(count),
   }, [
-    el('td', { class: 'requirement-cell', 'data-label': 'Requirement' }, [
+    el('div', { class: 'bb-req-card-head' }, [
+      btn(open ? '▾' : '▸', {
+        type: 'button',
+        class: 'bb-req-card-toggle',
+        'aria-expanded': open ? 'true' : 'false',
+        'aria-label': open ? 'Collapse requirement' : 'Expand requirement',
+        title: open ? 'Collapse' : 'Expand',
+        onClick: () => {
+          if (expandedRequirementCards.has(cardKey)) expandedRequirementCards.delete(cardKey);
+          else expandedRequirementCards.add(cardKey);
+          render({ preserveScroll: true });
+        },
+      }),
       el('div', { class: 'requirement-line' }, [
         requirement,
+        el('span', { class: 'bb-req-card-count' }, requirementBulletCountLabel(count)),
         showMapHere
           ? btn('Map here', {
             type: 'button',
@@ -4171,13 +4268,15 @@ function requirementTableRow(job, req) {
           }),
         ]),
       ]),
-      req.questions.length || questionComposerKey === composerKey
-        ? requirementQuestions(job, req)
-        : null,
     ]),
-    el('td', { class: 'bullets-cell', 'data-label': 'Experiences' }, [
-      requirementExperiencesCell(job, req),
-    ]),
+    open
+      ? el('div', { class: 'bb-req-card-body' }, [
+        req.questions.length || questionComposerKey === composerKey
+          ? requirementQuestions(job, req)
+          : null,
+        experiencesUiEnabled() ? requirementExperiencesCell(job, req) : requirementCardBullets(job, req),
+      ])
+      : null,
   ]);
 }
 
@@ -4425,24 +4524,27 @@ function requirementTable(job) {
   const page = requirementPager(job.requirements, requirementPagerIndexByJob[job.id] || 0);
   if (mobile) requirementPagerIndexByJob[job.id] = page.index;
   const shown = visibleRequirementRows(job.requirements, { mobile, index: page.index });
-  const table = el('table', { class: 'job-table' });
-  table.append(el('thead', {}, [
-    el('tr', {}, [
-      el('th', {}, 'Job requirement'),
-      el('th', {}, 'Experiences'),
-    ]),
-  ]));
-  const body = el('tbody');
+  const expand = requirementExpandToggle(expandedRequirementCards, job.requirements || [], job.id);
+  const toolbar = el('div', { class: 'bb-req-card-toolbar' }, [
+    btn(expand.label, {
+      class: 'btn ghost compact-action',
+      id: 'req-expand-all',
+      onClick: () => {
+        expandedRequirementCards = new Set(expand.nextKeys);
+        render({ preserveScroll: true });
+      },
+    }),
+  ]);
+  const cards = el('div', { class: 'bb-req-cards' });
   for (const req of shown) {
-    body.append(requirementTableRow(job, req));
+    cards.append(requirementTableRow(job, req));
   }
-  table.append(body);
-  const tableWrap = el('div', { class: 'job-table-wrap' }, [table]);
   if (mobile && page.total) {
-    bindRequirementPagerSwipe(tableWrap, job, page);
+    bindRequirementPagerSwipe(cards, job, page);
     wrap.append(requirementPagerBar(job, page));
   }
-  wrap.append(tableWrap);
+  wrap.append(toolbar);
+  wrap.append(cards);
   return wrap;
 }
 
@@ -7285,7 +7387,7 @@ function finishRender(captured, options, scroll) {
     const reqId = postingRequirementHighlightReqId;
     postingRequirementHighlightReqId = '';
     queueMicrotask(() => {
-      const row = document.querySelector(`tr[data-requirement-id="${reqId}"]`);
+      const row = document.querySelector(`[data-requirement-id="${reqId}"]`);
       if (!row) return;
       row.scrollIntoView({ block: 'nearest' });
       row.classList.add('is-req-highlight');

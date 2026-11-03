@@ -137,6 +137,10 @@ async function openPostingDom(book) {
   const href = new URL('../brag-book/app.js', import.meta.url);
   await import(`${href.href}?layout=${Date.now()}`);
   await new Promise((resolve) => window.setTimeout(resolve, 80));
+  const expandAll = [...window.document.querySelectorAll('button')]
+    .find((node) => node.textContent.includes('Expand all'));
+  expandAll?.click();
+  await new Promise((resolve) => window.setTimeout(resolve, 30));
   return dom;
 }
 

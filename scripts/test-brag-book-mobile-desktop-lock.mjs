@@ -198,9 +198,11 @@ assert.match(experienceRow, /class:\s*'bb-exp-stargrid bb-star-stack'/);
 assert.doesNotMatch(experienceRow, /bb-exp-jobrole/);
 
 const requirementTable = sourceSection('function requirementTable', 'function jobDetailsDisclosure');
-assert.match(requirementTable, /el\('table',\s*\{\s*class:\s*'job-table'/);
-assert.match(requirementTable, /'Job requirement'/);
-assert.match(requirementTable, /'Experiences'/);
+assert.match(requirementTable, /class:\s*'bb-req-cards'/);
+assert.match(requirementTable, /requirementTableRow\(job,\s*req\)/);
+assert.match(requirementTable, /requirementExpandToggle/);
+assert.match(requirementTable, /req-expand-all/);
+assert.match(requirementTable, /bb-req-pager/);
 
 const resumeWorkspace = sourceSection('function resumeWorkspace', 'function resumeChooser');
 assert.match(resumeWorkspace, /class:\s*'bb-resume-split'/);

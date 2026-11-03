@@ -3348,6 +3348,55 @@ export function deleteBullet(store, postingId, requirementId, bulletId, clock = 
   );
 }
 
+/** Reorder a mapped bullet on one requirement. Does not touch resume.bulletOrder. */
+export function moveRequirementBullet(store, postingId, requirementId, bulletId, delta, clock = Date.now) {
+  return mapRequirement(
+    store,
+    postingId,
+    requirementId,
+    (req) => {
+      const bullets = (req.bullets || []).slice();
+      const index = bullets.findIndex((line) => line.id === bulletId);
+      if (index < 0) return req;
+      const nextIndex = index + Number(delta || 0);
+      if (nextIndex < 0 || nextIndex >= bullets.length) return req;
+      const [row] = bullets.splice(index, 1);
+      bullets.splice(nextIndex, 0, row);
+      return withBullets(req, bullets);
+    },
+    clock
+  );
+}
+
+/** Apply an explicit mapped-bullet id list. Unknown ids are skipped; leftovers keep current order. */
+export function reorderRequirementBullets(store, postingId, requirementId, orderedIds, clock = Date.now) {
+  return mapRequirement(
+    store,
+    postingId,
+    requirementId,
+    (req) => {
+      const current = req.bullets || [];
+      const byId = new Map(current.map((line) => [line.id, line]));
+      const seen = new Set();
+      const next = [];
+      for (const id of Array.isArray(orderedIds) ? orderedIds : []) {
+        const row = byId.get(id);
+        if (!row || seen.has(id)) continue;
+        seen.add(id);
+        next.push(row);
+      }
+      for (const row of current) {
+        if (!seen.has(row.id)) next.push(row);
+      }
+      if (next.length === current.length && next.every((row, index) => row.id === current[index].id)) {
+        return req;
+      }
+      return withBullets(req, next);
+    },
+    clock
+  );
+}
+
 export function addQuestion(store, postingId, requirementId, draft, clock = Date.now) {
   const question = normalizeQuestion(
     typeof draft === 'string' ? { text: draft, id: newId('ln', clock) } : { ...draft, id: draft?.id || newId('ln', clock) },
