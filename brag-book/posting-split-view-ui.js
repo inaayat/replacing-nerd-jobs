@@ -165,7 +165,9 @@ function requirementCard(deps, posting, model, row) {
   const textArea = el('textarea', {
     class: 'table-req-text bb-split-req-text',
     rows: '1',
-    'aria-label': `Requirement ${row.ordinal}`,
+    'aria-label': unaddressed
+      ? `Requirement ${row.ordinal}, no bullet yet`
+      : `Requirement ${row.ordinal}, ${row.bulletCount} bullet${row.bulletCount === 1 ? '' : 's'}`,
     'data-focus-key': splitRequirementFocusKey(row.id),
     onInput: (event) => {
       const text = event.target.value;
@@ -182,11 +184,9 @@ function requirementCard(deps, posting, model, row) {
   textArea.value = row.text;
   if (typeof deps.fitArea === 'function') deps.fitArea(textArea);
 
-  const coverage = el('span', {
-    class: `bb-split-req-count${unaddressed ? ' is-unaddressed' : ''}`,
-  }, unaddressed
-    ? 'No bullet yet'
-    : `${row.bulletCount} bullet${row.bulletCount === 1 ? '' : 's'}`);
+  const coverage = row.bulletCount > 0
+    ? el('span', { class: 'bb-split-req-count' }, `${row.bulletCount} bullet${row.bulletCount === 1 ? '' : 's'}`)
+    : null;
 
   const selectBtn = el('button', {
     type: 'button',
@@ -268,8 +268,8 @@ function requirementCard(deps, posting, model, row) {
       handle,
       el('span', { class: 'bb-split-ordinal' }, row.ordinal),
       textArea,
+      actions,
     ]),
-    actions,
     questionsOpen && typeof renderRequirementQuestions === 'function'
       ? renderRequirementQuestions(row.req)
       : null,
@@ -523,7 +523,7 @@ function commitMappedChange(run) {
   queueMicrotask(() => settleSplitRequirements(before));
 }
 
-function bulletCard(deps, posting, model, bullet) {
+function bulletCard(deps, posting, model, bullet, { showJobLabel = true } = {}) {
   const {
     el, btn, store, state, setState, onSave, onRender, setNote,
     renderExperiencePicker, renderBulletDetails, onAddToResume,
@@ -544,54 +544,56 @@ function bulletCard(deps, posting, model, bullet) {
     })
     : el('div', { class: 'bb-split-bullet-line is-legacy' }, bullet.line);
 
-  const purposeChips = el('div', { class: 'bb-split-purpose' }, [
-    ...bullet.requirements.map((reqRow) => requirementChip(deps, posting, bullet, reqRow)),
-    !bullet.requirements.length
-      ? el('span', { class: 'bb-split-purpose-empty' }, 'No requirement yet')
-      : null,
-    entry && selectedReq && !addressesSelected
-      ? el('button', {
-        type: 'button',
-        class: 'bb-split-chip bb-split-chip-add',
-        title: `Add ${selectedReq.ordinal}: ${selectedReq.text}`,
-        onClick: () => {
-          commitMappedChange(() => {
-            onSave(linkRequirementToBullet(store, posting.id, selectedReq.id, entry.id));
-            onRender({ preserveScroll: true });
-            setNote(`${selectedReq.ordinal} added under this bullet.`);
-          });
-        },
-      }, [
-        el('span', { class: 'bb-split-chip-ordinal' }, `+ ${selectedReq.ordinal}`),
-        el('span', { class: 'bb-split-chip-text' }, selectedReq.short),
-      ])
-      : null,
-    entry
-      ? el('button', {
-        type: 'button',
-        class: `row-text-action bb-split-add-req${pickerOpen ? ' is-on' : ''}`,
-        'aria-expanded': pickerOpen ? 'true' : 'false',
-        'data-focus-key': `split-add-req-${entry.id}`,
-        onClick: () => {
-          setState({ openRequirementPickerEntryId: pickerOpen ? '' : entry.id });
-          onRender({ preserveScroll: true, focusKey: `split-add-req-${entry.id}` });
-        },
-      }, '+ Requirement')
-      : null,
-  ]);
+  const addSelected = entry && selectedReq && !addressesSelected
+    ? el('button', {
+      type: 'button',
+      class: 'bb-split-chip bb-split-chip-add',
+      title: `Add ${selectedReq.ordinal}: ${selectedReq.text}`,
+      onClick: () => {
+        commitMappedChange(() => {
+          onSave(linkRequirementToBullet(store, posting.id, selectedReq.id, entry.id));
+          onRender({ preserveScroll: true });
+          setNote(`${selectedReq.ordinal} added under this bullet.`);
+        });
+      },
+    }, [
+      el('span', { class: 'bb-split-chip-ordinal' }, `+ ${selectedReq.ordinal}`),
+      el('span', { class: 'bb-split-chip-text' }, selectedReq.short),
+    ])
+    : null;
+  const purposeChips = bullet.requirements.length || addSelected
+    ? el('div', { class: 'bb-split-purpose' }, [
+      ...bullet.requirements.map((reqRow) => requirementChip(deps, posting, bullet, reqRow)),
+      addSelected,
+    ])
+    : null;
+  const addRequirement = entry
+    ? el('button', {
+      type: 'button',
+      class: `row-text-action bb-split-add-req${pickerOpen ? ' is-on' : ''}`,
+      'aria-expanded': pickerOpen ? 'true' : 'false',
+      'data-focus-key': `split-add-req-${entry.id}`,
+      onClick: () => {
+        setState({ openRequirementPickerEntryId: pickerOpen ? '' : entry.id });
+        onRender({ preserveScroll: true, focusKey: `split-add-req-${entry.id}` });
+      },
+    }, '+ Requirement')
+    : null;
 
   const meta = el('div', { class: 'bb-split-bullet-meta bb-action-row' }, [
     entry && typeof renderExperiencePicker === 'function' ? renderExperiencePicker(entry) : null,
-    bullet.jobLabel ? el('span', { class: 'tiny bb-split-bullet-job' }, bullet.jobLabel) : null,
-    entry
-      ? (bullet.onResume
-        ? el('span', { class: 'tiny bb-split-on-resume' }, 'On resume ✓')
-        : btn('+ Add to resume', {
-          type: 'button',
-          class: 'row-text-action bb-split-add-resume',
-          onClick: () => onAddToResume(entry),
-        }))
-      : el('span', { class: 'tiny bb-split-bullet-job' }, 'Older line saved only on this requirement'),
+    showJobLabel && bullet.jobLabel ? el('span', { class: 'tiny bb-split-bullet-job' }, bullet.jobLabel) : null,
+    entry && !bullet.onResume
+      ? btn('+ Add to resume', {
+        type: 'button',
+        class: 'row-text-action bb-split-add-resume',
+        onClick: () => onAddToResume(entry),
+      })
+      : null,
+    !entry && bullet.legacy
+      ? el('span', { class: 'tiny bb-split-bullet-job' }, 'Older line saved only on this requirement')
+      : null,
+    addRequirement,
     entry || bullet.legacy
       ? (state.deleteBulletPendingId === bullet.key
         ? el('span', { class: 'bb-split-confirm' }, [
@@ -957,9 +959,6 @@ export function buildPostingSplitView(deps, posting) {
     el('header', { class: 'bb-split-col-head' }, [
       el('div', { class: 'bb-split-col-title' }, [
         el('h3', {}, 'Job requirements'),
-        el('p', { class: 'tiny' }, model.counts.requirements
-          ? `${openRequirements.length} still open`
-          : 'No requirements yet'),
       ]),
       btn('+ Requirement', {
         class: 'btn ghost compact-action bb-split-add-requirement',
@@ -972,17 +971,11 @@ export function buildPostingSplitView(deps, posting) {
       }),
     ]),
     state.requirementAddOpen ? requirementAddForm(deps, posting) : null,
-    selectedReq
-      ? el('p', { class: 'tiny bb-split-hint' }, `Adding ${selectedReq.ordinal} — tap + ${selectedReq.ordinal} on each bullet it fits, then Done.`)
-      : el('p', { class: 'tiny bb-split-hint' }, [
-        el('span', { class: 'bb-split-hint-pointer' }, 'Open requirements stay on top. Drag one onto a bullet, or tap Add to bullets….'),
-        el('span', { class: 'bb-split-hint-touch' }, 'Open requirements stay on top. Tap Add to bullets…, then tap + on each bullet it fits.'),
-      ]),
     el('div', { class: 'bb-split-list bb-split-req-list', ref: wireSplitListScroll }, shownRequirements.length
       ? [
-        openRequirements.length && mappedRequirements.length ? groupLabel(`Still open · ${openRequirements.length}`) : null,
+        openRequirements.length && mappedRequirements.length ? groupLabel('Still open') : null,
         ...openRequirements.map((row) => requirementCard(deps, posting, model, row)),
-        mappedRequirements.length && openRequirements.length ? groupLabel(`Mapped · ${mappedRequirements.length}`) : null,
+        mappedRequirements.length && openRequirements.length ? groupLabel('Mapped') : null,
         ...mappedRequirements.map((row) => requirementCard(deps, posting, model, row)),
       ]
       : [el('p', { class: 'empty' }, 'Paste the job description below to add requirements.')]),
@@ -1019,7 +1012,6 @@ export function buildPostingSplitView(deps, posting) {
     el('header', { class: 'bb-split-col-head' }, [
       el('div', { class: 'bb-split-col-title' }, [
         el('h3', {}, 'Bullets'),
-        el('p', { class: 'tiny' }, 'On this posting and in your bank. Edits update the shared record.'),
       ]),
       btn('+ New bullet', {
         class: 'btn compact-action bb-split-new-bullet',
@@ -1033,10 +1025,14 @@ export function buildPostingSplitView(deps, posting) {
     ]),
     selectedReq ? selectedRequirementBar(deps, model, selectedReq) : null,
     state.composeOpen ? composeBulletForm(deps, posting, model) : null,
-    bankSearch(deps, posting),
-    filterBar,
+    el('div', { class: 'bb-split-bullet-tools' }, [
+      filterBar,
+      bankSearch(deps, posting),
+    ]),
     el('div', { class: 'bb-split-list bb-split-bullet-list', ref: wireSplitListScroll }, shownBullets.length
-      ? shownBullets.map((bullet) => bulletCard(deps, posting, model, bullet))
+      ? shownBullets.map((bullet, index) => bulletCard(deps, posting, model, bullet, {
+        showJobLabel: Boolean(bullet.jobLabel) && bullet.jobId !== shownBullets[index - 1]?.jobId,
+      }))
       : [el('p', { class: 'empty' }, state.bulletFilter === 'without-requirement'
         ? 'Every bullet on this resume addresses at least one requirement.'
         : 'No bullets on this posting yet. Paste some, or write one.')]),

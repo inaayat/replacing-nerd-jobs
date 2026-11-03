@@ -379,7 +379,17 @@ assert.deepEqual(
   ['R3'],
 );
 assert.ok(e1Card().querySelector('.bb-split-bullet-line[contenteditable="true"]'), 'bullet text is editable in place');
-assert.ok(e1Card().querySelector('.bb-split-on-resume'), 'On resume shown');
+assert.equal(e1Card().querySelector('.bb-split-on-resume'), null, 'on resume is not repeated on every bullet');
+assert.equal(e1Card().querySelector('.bb-split-add-resume'), null, 'a bullet already on the resume has no add button');
+assert.equal(document.querySelector('.banner-progress'), null, 'split view skips the coverage stats');
+assert.equal(document.querySelector('.job-workspace h2'), null, 'the posting title is not repeated under the page heading');
+assert.match(document.querySelector('.page-title')?.textContent || '', /Senior Manager/);
+assert.match(document.querySelector('.bb-split-posting-meta')?.textContent || '', /GoDaddy/);
+assert.equal(document.querySelector('.bb-split-purpose-empty'), null, 'empty bullets do not repeat "no requirement yet"');
+assert.equal([...document.querySelectorAll('.bb-split-req')].some((node) => /No bullet yet/.test(node.textContent)), false, 'open requirements do not each say no bullet yet');
+assert.ok(document.querySelector('.bb-split-req-head .bb-split-req-select'), 'requirement actions sit on the requirement line');
+assert.equal(document.querySelector('.bb-split-hint'), null, 'the column does not restate how to drag');
+assert.equal(document.querySelector('.bb-split-col-title .tiny'), null, 'column heads are a single line');
 
 // Drag R1 onto e1.
 const r1Card = document.querySelector(`.bb-split-req[data-requirement-id="${r1.id}"]`);
@@ -508,8 +518,7 @@ r1Chip.click();
 await tick();
 saved = readStore();
 assert.equal(saved.postings[0].requirements.find((row) => row.id === r1.id).bullets.some((line) => line.entryId === 'e1'), false);
-assert.ok(e1Card().querySelector('.bb-split-on-resume'), 'still on the resume after removing a chip');
-assert.equal(postingResumeEntryOrder(saved, saved.postings[0]).includes('e1'), true);
+assert.equal(postingResumeEntryOrder(saved, saved.postings[0]).includes('e1'), true, 'still on the resume after removing a chip');
 
 // + Requirement picker lists only requirements not yet under the bullet.
 e1Card().querySelector('.bb-split-add-req').click();

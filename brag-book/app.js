@@ -4605,20 +4605,31 @@ function jobDetail(job) {
     && job.requirements.length
     && readPostingRequirementViewMode(job.id) === 'split';
   const showUnmapped = !splitMapping;
+  const postingActions = el('div', { class: 'actions' }, [
+    btn('Prep', { class: 'btn ghost', onClick: () => go({ kind: 'jobs', id: job.id, mode: 'prep' }) }),
+    btn('Resume', { class: 'btn', onClick: () => go({ kind: 'jobs', id: job.id, mode: 'resume' }) }),
+  ]);
+  const postingMeta = [job.company, hostFromJobUrl(job.url), postingStatusLabel(job.status)].filter(Boolean).join(' · ');
   workspace.append(...[
-    el('div', { class: 'panel-head' }, [
-      el('div', { class: 'panel-head-titles' }, [
-        el('h2', {}, job.title),
-        el('p', { class: 'tiny' }, [job.company, hostFromJobUrl(job.url), postingStatusLabel(job.status)].filter(Boolean).join(' · ')),
+    // The page heading already shows the posting title. Split view keeps
+    // the company line and Prep / Resume, and skips the second title.
+    splitMapping
+      ? el('div', { class: 'panel-head' }, [
+        postingMeta ? el('p', { class: 'tiny bb-split-posting-meta' }, postingMeta) : null,
+        postingActions,
+      ])
+      : el('div', { class: 'panel-head' }, [
+        el('div', { class: 'panel-head-titles' }, [
+          el('h2', {}, job.title),
+          postingMeta ? el('p', { class: 'tiny' }, postingMeta) : null,
+        ]),
+        postingActions,
       ]),
-      el('div', { class: 'actions' }, [
-        btn('Prep', { class: 'btn ghost', onClick: () => go({ kind: 'jobs', id: job.id, mode: 'prep' }) }),
-        btn('Resume', { class: 'btn', onClick: () => go({ kind: 'jobs', id: job.id, mode: 'resume' }) }),
-      ]),
-    ]),
     el('div', { class: 'bb-job-details' }, [jobDetailsDisclosure(job)]),
     showUnmapped ? unmappedResumeBulletsPanel(job) : null,
-    el('div', { class: 'workspace-status' }, [coverageBanner(job)]),
+    // Split view already shows which requirements are open. The coverage
+    // counts stay on Prep and the table views.
+    splitMapping ? null : el('div', { class: 'workspace-status' }, [coverageBanner(job)]),
     job.requirements.length
       ? requirementTable(job)
       : el('div', { class: 'panel-body empty-posting' }, [

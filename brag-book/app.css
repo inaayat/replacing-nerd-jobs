@@ -4138,11 +4138,22 @@ html.bb-offline-readonly .shell select {
 }
 .bb-split-col-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding-bottom: 6px;
+  padding-bottom: 4px;
   border-bottom: 1px solid var(--line-strong);
+}
+.bb-split-posting-meta { margin: 0; min-width: 0; }
+.bb-split-bullet-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+.bb-split-bullet-tools .bb-split-bank {
+  flex: 1 1 180px;
+  min-width: 0;
 }
 .bb-split-col-title { min-width: 0; }
 .bb-split-col-title h3 {
@@ -4159,7 +4170,7 @@ html.bb-offline-readonly .shell select {
   gap: 6px;
 }
 .bb-split-group-label {
-  margin: 8px 0 0;
+  margin: 2px 0 0;
   font-family: var(--content-font);
   font-size: 12px;
   font-weight: 650;
@@ -4232,6 +4243,7 @@ html.bb-offline-readonly .shell select {
   align-items: start;
   min-width: 0;
 }
+.bb-split-req-head { grid-template-columns: auto auto minmax(0, 1fr) auto; }
 .bb-split-bullet-head { grid-template-columns: auto minmax(0, 1fr); }
 .bb-split-handle {
   align-self: start;
@@ -4259,6 +4271,11 @@ html.bb-offline-readonly .shell select {
   align-items: center;
   gap: 2px 8px;
   padding-left: 22px;
+}
+.bb-split-req-head .bb-split-req-actions {
+  padding-left: 0;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
 }
 .bb-split-req-actions .row-icons { margin-left: auto; }
 .bb-split-req-count {
@@ -4536,7 +4553,8 @@ html.bb-offline-readonly .shell select {
     max-height: calc(100dvh - var(--nav-h) - 120px);
     overflow: hidden;
   }
-  .bb-split-req-head { grid-template-columns: auto minmax(0, 1fr); }
+  .bb-split-req-head { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .bb-split-req-head .bb-split-req-actions { flex-wrap: wrap; }
   .bb-split-bullet-head { grid-template-columns: minmax(0, 1fr); }
   .bb-split-req-actions,
   .bb-split-purpose,
