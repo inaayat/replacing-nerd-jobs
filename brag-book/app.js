@@ -43,7 +43,7 @@ import {
 } from './posting-requirement-mapping.js';
 import { buildPostingExperienceView } from './posting-experience-view-ui.js';
 import { buildPostingSplitView, emptySplitViewState } from './posting-split-view-ui.js';
-import { normalizePostingViewMode } from './posting-split-view.js';
+import { addBulletsToPosting, normalizePostingViewMode } from './posting-split-view.js';
 import { refreshFloatingOverlays } from './floating-overlay.js';
 import {
   STORE_KEY,
@@ -4537,11 +4537,72 @@ function pasteMoreDisclosure(job) {
   ]);
 }
 
+function pasteBullets(job, text, jobId) {
+  const titles = parseExperiences(text).map((row) => row.title).filter(Boolean);
+  if (!titles.length) {
+    setNote('Paste resume bullets, one per line.');
+    return 0;
+  }
+  const targetJob = jobId || postingPrimaryCatalogJobId(store, job) || ((store.jobs || []).length === 1 ? store.jobs[0].id : '');
+  if (!targetJob) {
+    setNote('Pick the job these bullets belong to first.');
+    return 0;
+  }
+  const result = addBulletsToPosting(store, job.id, titles, { jobId: targetJob });
+  if (!result.entryIds.length) return 0;
+  store = result.store;
+  saveStore();
+  return result.entryIds.length;
+}
+
+function pasteBulletsDisclosure(job) {
+  const source = el('textarea', {
+    class: 'tall',
+    placeholder: 'One resume bullet per line.\n**Bold lead:** then the result.',
+    'aria-label': 'Resume bullets to add',
+  });
+  const jobs = store.jobs || [];
+  const primary = postingPrimaryCatalogJobId(store, job) || '';
+  let chosenJob = primary || (jobs.length === 1 ? jobs[0].id : '');
+  return el('details', { class: 'utility-box' }, [
+    el('summary', {}, '+ Paste more bullets'),
+    el('div', { class: 'utility-body' }, [
+      el('p', { class: 'tiny' }, 'Each line is saved to your bullet bank and added to this posting. It is not tied to a requirement yet.'),
+      !primary && jobs.length > 1
+        ? field('Job', el('select', {
+          'aria-label': 'Job for these bullets',
+          onChange: (event) => { chosenJob = event.target.value; },
+        }, [
+          el('option', { value: '' }, 'Job…'),
+          ...jobs.map((row) => el('option', { value: row.id }, [row.company, row.title].filter(Boolean).join(' · ') || 'Untitled role')),
+        ]))
+        : null,
+      field('Bullets', source),
+      el('div', { class: 'actions' }, [
+        btn('Add bullets', {
+          class: 'btn',
+          onClick: () => {
+            const count = pasteBullets(job, source.value, chosenJob);
+            if (count) {
+              render();
+              setNote(`Added ${count} bullet${count === 1 ? '' : 's'} to this posting. They stay in your bank.`);
+            }
+          },
+        }),
+      ]),
+    ]),
+  ]);
+}
+
 function jobDetail(job) {
   const workspace = el('section', { class: 'panel job-workspace' });
-  workspace.append(
+  // The split view already lists bullets without a requirement (its filter), so the
+  // separate Unmapped panel only shows on the table views. Do not append a null
+  // child here: element.append turns null into the text "null".
+  const showUnmapped = !(experiencesUiEnabled() && job.requirements.length && readPostingRequirementViewMode(job.id) === 'split');
+  workspace.append(...[
     el('div', { class: 'panel-head' }, [
-      el('div', {}, [
+      el('div', { class: 'panel-head-titles' }, [
         el('h2', {}, job.title),
         el('p', { class: 'tiny' }, [job.company, hostFromJobUrl(job.url), postingStatusLabel(job.status)].filter(Boolean).join(' · ')),
       ]),
@@ -4550,11 +4611,7 @@ function jobDetail(job) {
         btn('Resume', { class: 'btn', onClick: () => go({ kind: 'jobs', id: job.id, mode: 'resume' }) }),
       ]),
     ]),
-    // The split view already lists bullets without a requirement (its filter), so the
-    // separate Unmapped panel only shows on the table views.
-    experiencesUiEnabled() && job.requirements.length && readPostingRequirementViewMode(job.id) === 'split'
-      ? null
-      : unmappedResumeBulletsPanel(job),
+    showUnmapped ? unmappedResumeBulletsPanel(job) : null,
     el('div', { class: 'workspace-status' }, [coverageBanner(job)]),
     job.requirements.length
       ? requirementTable(job)
@@ -4564,9 +4621,10 @@ function jobDetail(job) {
       ]),
     el('div', { class: 'workspace-utilities' }, [
       job.requirements.length ? pasteMoreDisclosure(job) : null,
+      pasteBulletsDisclosure(job),
       jobDetailsDisclosure(job),
-    ])
-  );
+    ]),
+  ].filter((node) => node != null));
   // Split view already lists the bullets, so the Experiences side panel is a third column.
   const splitMapping = experiencesUiEnabled()
     && job.requirements.length

@@ -25,6 +25,7 @@ import {
   SPLIT_DRAG_ENTRY_TYPE,
   SPLIT_DRAG_REQUIREMENT_TYPE,
   addBulletToPosting,
+  addBulletsToPosting,
   addLibraryBulletToPosting,
   applySplitDrop,
   filterSplitBullets,
@@ -33,17 +34,23 @@ import {
   postingResumeEntryOrder,
   postingSplitViewModel,
   readSplitDragPayload,
+  removeBulletFromPosting,
   requirementsAvailableForBullet,
   searchBankBulletsForPosting,
   setBulletRequirements,
+  splitBulletDisplayOrder,
   splitDropAccepts,
+  splitRequirementDisplayOrder,
   unlinkRequirementFromBullet,
 } from '../brag-book/posting-split-view.js';
 import { emptySplitViewState, splitPaneFor } from '../brag-book/posting-split-view-ui.js';
 
 const css = readFileSync(new URL('../brag-book/app.css', import.meta.url), 'utf8');
 assert.match(css, /\.bb-split-view\s*\{/);
-assert.match(css, /@media \(min-width: 861px\)[\s\S]*?\.bb-split-view\s*\{[^}]*grid-template-columns:\s*minmax\(0, 3fr\) minmax\(260px, 2fr\)/, 'bullets left, requirements right on desktop');
+assert.match(css, /@media \(min-width: 861px\)[\s\S]*?\.bb-split-view\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1\.4fr\) minmax\(280px, 0\.9fr\)/, 'bullets left, requirements right on desktop');
+assert.match(css, /\.bb-split-requirements \{\s*border-left: 1px solid var\(--line-strong\);/, 'a rule splits the two halves');
+assert.match(css, /\.bb-split-req\.is-addressed \{\s*background: rgba\(31, 122, 77, 0\.12\);/, 'mapped requirements are light green');
+assert.match(css, /\.hero\.is-compact \{\s*padding: 8px 8px 10px 16px;/, 'page title sits in from the left edge');
 assert.match(css, /\.bb-split-bullet\.is-drop-target/, 'drop target styling');
 const coarseStart = css.indexOf('/* Touch targets and no-zoom inputs on any coarse pointer');
 assert.ok(coarseStart > 0, 'split view coarse-pointer block');
@@ -182,6 +189,32 @@ assert.deepEqual(newRow.requirements.map((row) => row.ordinal), ['R3']);
 assert.equal(newRow.onResume, true);
 assert.equal(addBulletToPosting(store, postingId, { title: '   ', jobId: 'j1' }).entryId, '', 'blank is ignored');
 
+// Paste-many lands on the posting and the bank, with no requirement.
+const pasted = addBulletsToPosting(store, postingId, ['Owned the close calendar', '   ', 'Cut the audit cycle'], { jobId: 'j1' });
+assert.equal(pasted.entryIds.length, 2);
+for (const id of pasted.entryIds) {
+  assert.ok(pasted.store.entries.find((row) => row.id === id), 'pasted bullet is in the bank');
+  assert.equal(postingResumeEntryOrder(pasted.store, pasted.store.postings[0]).includes(id), true, 'pasted bullet is on the posting');
+  assert.equal(pasted.store.postings[0].requirements.some((req) => (req.bullets || []).some((line) => line.entryId === id)), false, 'paste does not map a requirement');
+}
+
+// Mapped requirements display after open ones. R-numbers stay on the stored order.
+model = postingSplitViewModel(store, store.postings[0]);
+assert.deepEqual(
+  splitRequirementDisplayOrder(model.requirements).map((row) => row.ordinal),
+  ['R1', 'R2', 'R3'],
+);
+const removed = removeBulletFromPosting(pasted.store, postingId, pasted.entryIds[0]);
+assert.ok(removed.entries.find((row) => row.id === pasted.entryIds[0]), 'removing from the posting keeps the bank record');
+assert.equal(postingResumeEntryOrder(removed, removed.postings[0]).includes(pasted.entryIds[0]), false, 'gone from this posting resume');
+assert.equal(
+  removed.postings[0].requirements.some((req) => (req.bullets || []).some((line) => line.entryId === pasted.entryIds[0])),
+  false,
+);
+// e1 is mapped (R3). A pasted bullet with no requirement sorts ahead of it.
+const displayBullets = splitBulletDisplayOrder(postingSplitViewModel(pasted.store, pasted.store.postings[0]).bullets);
+assert.equal(displayBullets.findIndex((row) => row.entryId === pasted.entryIds[1]) < displayBullets.findIndex((row) => row.entryId === 'e1'), true);
+
 // Bank search excludes bullets already on the posting; bringing one in is resume-only.
 const found = searchBankBulletsForPosting(store, store.postings[0], 'bank-only');
 assert.deepEqual(found.map((row) => row.entryId), ['e3']);
@@ -246,7 +279,7 @@ assert.deepEqual(orphanRow.requirements.map((row) => row.ordinal), ['R1']);
 assert.equal(orphanRow.entryId, '');
 
 assert.deepEqual(Object.keys(emptySplitViewState()).sort(), [
-  'bankQuery', 'bulletFilter', 'composeJobId', 'composeOpen', 'deleteRequirementPendingId', 'expandedChipKey',
+  'bankQuery', 'bulletFilter', 'bulletPasteOpen', 'composeJobId', 'composeOpen', 'deleteBulletPendingId', 'deleteRequirementPendingId', 'expandedChipKey',
   'expandedDetailsEntryId', 'openRequirementPickerEntryId', 'pane', 'questionsOpenReqId', 'requirementAddOpen', 'selectedRequirementId',
 ]);
 
@@ -298,7 +331,18 @@ const splitCols = [...document.querySelectorAll('.bb-split-col')];
 assert.ok(splitCols[0]?.classList.contains('bb-split-bullets'), 'bullets column is on the left');
 assert.ok(splitCols[1]?.classList.contains('bb-split-requirements'), 'requirements column is on the right');
 assert.equal(document.querySelector('.bb-unmapped-resume'), null, 'Unmapped panel folded into the split filter');
+assert.equal([...document.querySelector('.job-workspace').childNodes].some((node) => node.nodeType === window.Node.TEXT_NODE && node.textContent.includes('null')), false, 'split view does not print null');
+assert.doesNotMatch(document.querySelector('.job-workspace').textContent, /\bnull\b/);
+assert.ok(document.querySelector('.bb-split-paste-bullets'), 'paste bullets sits with the bullet list');
+assert.ok([...document.querySelectorAll('summary')].some((node) => node.textContent.includes('Paste more bullets')));
+assert.ok(document.querySelector('.bb-split-remove-posting'), 'a bullet can be removed from this posting');
 assert.equal(document.querySelectorAll('.bb-split-req').length, 3);
+assert.deepEqual(
+  [...document.querySelectorAll('.bb-split-req')].map((node) => node.dataset.requirementId),
+  [r1.id, r2.id, r3.id],
+  'open requirements stay ahead of mapped ones',
+);
+assert.ok(document.querySelector(`.bb-split-req[data-requirement-id="${r3.id}"]`).classList.contains('is-addressed'));
 const e1Card = () => document.querySelector('.bb-split-bullet[data-entry-id="e1"]');
 assert.ok(e1Card(), 'e1 bullet card');
 assert.deepEqual(
@@ -348,6 +392,13 @@ assert.deepEqual(
 let saved = readStore();
 liveR1 = saved.postings[0].requirements.find((row) => row.id === r1.id);
 assert.equal(liveR1.bullets.some((line) => line.entryId === 'e1'), true, 'persisted as the same req.bullets link');
+assert.deepEqual(
+  [...document.querySelectorAll('.bb-split-req')].map((node) => node.dataset.requirementId),
+  [r2.id, r1.id, r3.id],
+  'a newly mapped requirement moves to the end',
+);
+assert.ok(document.querySelector(`.bb-split-req[data-requirement-id="${r1.id}"]`).classList.contains('is-addressed'));
+assert.equal(document.querySelector(`.bb-split-req[data-requirement-id="${r2.id}"]`).classList.contains('is-addressed'), false);
 
 // A bullet drag onto a requirement is rejected on another bullet, accepted on a requirement card.
 const e3Card = document.querySelector('.bb-split-bullet[data-entry-id="e3"]');
@@ -509,6 +560,29 @@ assert.ok(shown.every((node) => node.classList.contains('is-without-requirement'
 filterBtns[0].click();
 await tick();
 assert.ok(document.querySelectorAll('.bb-split-bullet').length > 1);
+
+// Remove from this posting keeps the bank record.
+document.querySelector('.bb-split-bullet[data-entry-id="e3"] .bb-split-remove-posting').click();
+await tick();
+document.querySelector('.bb-split-bullet[data-entry-id="e3"] .bb-split-confirm .is-danger').click();
+await tick();
+saved = readStore();
+assert.equal(document.querySelector('.bb-split-bullet[data-entry-id="e3"]'), null, 'e3 left the posting');
+assert.ok(saved.entries.find((row) => row.id === 'e3'), 'e3 stays in the bank');
+assert.equal(postingResumeEntryOrder(saved, saved.postings[0]).includes('e3'), false);
+
+document.querySelector('.bb-split-paste-bullets').click();
+await tick();
+const pasteArea = document.querySelector('[data-focus-key="split-paste-bullets"]');
+assert.ok(pasteArea, 'paste bullets form');
+pasteArea.value = 'Shipped the close calendar\n- Cut the audit cycle';
+[...document.querySelectorAll('button')].find((node) => node.textContent === 'Add bullets').click();
+await tick();
+saved = readStore();
+const pastedTitles = saved.entries.map((row) => row.title);
+assert.ok(pastedTitles.includes('Shipped the close calendar'));
+assert.ok(pastedTitles.includes('Cut the audit cycle'));
+assert.equal(saved.postings[0].requirements.some((req) => (req.bullets || []).some((line) => line.text === 'Shipped the close calendar' || line.text === 'Cut the audit cycle')), false, 'pasted bullets start unmapped');
 
 // Delete requirement needs an inline confirm; bullets stay.
 const r3Card = document.querySelector(`.bb-split-req[data-requirement-id="${r3.id}"]`);

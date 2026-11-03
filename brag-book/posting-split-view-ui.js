@@ -16,6 +16,7 @@ import {
   addRequirement,
   deleteBullet,
   deleteRequirement,
+  parseExperiences,
   updateRequirement,
 } from './engine.js';
 import { buildMapEntryEditor } from './posting-requirement-mapping-ui.js';
@@ -23,14 +24,18 @@ import {
   SPLIT_DRAG_ENTRY_TYPE,
   SPLIT_DRAG_REQUIREMENT_TYPE,
   addBulletToPosting,
+  addBulletsToPosting,
   addLibraryBulletToPosting,
   applySplitDrop,
   filterSplitBullets,
   linkRequirementToBullet,
   postingSplitViewModel,
   readSplitDragPayload,
+  removeBulletFromPosting,
   requirementsAvailableForBullet,
   searchBankBulletsForPosting,
+  splitBulletDisplayOrder,
+  splitRequirementDisplayOrder,
   splitDropAccepts,
   unlinkRequirementFromBullet,
 } from './posting-split-view.js';
@@ -54,6 +59,8 @@ export function emptySplitViewState() {
     bankQuery: '',
     requirementAddOpen: false,
     deleteRequirementPendingId: '',
+    deleteBulletPendingId: '',
+    bulletPasteOpen: false,
     expandedDetailsEntryId: '',
     questionsOpenReqId: '',
     expandedChipKey: '',
@@ -254,6 +261,7 @@ function requirementCard(deps, posting, model, row) {
       'bb-split-req',
       selected ? 'is-selected' : '',
       unaddressed ? 'is-unaddressed' : '',
+      row.bulletCount > 0 ? 'is-addressed' : '',
     ].filter(Boolean).join(' '),
     'data-requirement-id': row.id,
     'data-bullet-count': String(row.bulletCount),
@@ -274,9 +282,11 @@ function requirementCard(deps, posting, model, row) {
     targetKind: 'requirement',
     targetId: row.id,
     onDrop: (payload, target) => {
-      onSave(applySplitDrop(store, posting.id, payload, target));
-      onRender({ preserveScroll: true });
-      setNote(`Bullet now addresses ${row.ordinal}.`);
+      commitMappedChange(() => {
+        onSave(applySplitDrop(store, posting.id, payload, target));
+        onRender({ preserveScroll: true });
+        setNote(`Bullet now addresses ${row.ordinal}.`);
+      });
     },
   });
   return card;
@@ -313,13 +323,15 @@ function requirementChip(deps, posting, bullet, reqRow) {
       title: `Remove ${reqRow.ordinal} from this bullet`,
       'aria-label': `Remove ${reqRow.ordinal} from this bullet`,
       onClick: () => {
-        if (bullet.legacy) {
-          onSave(deleteBullet(store, posting.id, bullet.legacy.reqId, bullet.legacy.bulletId));
-        } else {
-          onSave(unlinkRequirementFromBullet(store, posting.id, reqRow.id, bullet.entryId));
-        }
-        onRender({ preserveScroll: true });
-        setNote(`${reqRow.ordinal} removed from this bullet. The bullet stays in the bank and on the resume.`);
+        commitMappedChange(() => {
+          if (bullet.legacy) {
+            onSave(deleteBullet(store, posting.id, bullet.legacy.reqId, bullet.legacy.bulletId));
+          } else {
+            onSave(unlinkRequirementFromBullet(store, posting.id, reqRow.id, bullet.entryId));
+          }
+          onRender({ preserveScroll: true });
+          setNote(`${reqRow.ordinal} removed from this bullet. The bullet stays in the bank and on the resume.`);
+        });
       },
     }, '×'),
   ]);
@@ -362,10 +374,12 @@ function requirementPickerMenu(deps, posting, model, bullet) {
         'aria-selected': 'false',
         'data-requirement-id': req.id,
         onClick: () => {
-          onSave(linkRequirementToBullet(store, posting.id, req.id, bullet.entryId));
-          setState({ openRequirementPickerEntryId: '' });
-          onRender({ preserveScroll: true, focusKey: `split-add-req-${bullet.entryId}` });
-          setNote(`${req.ordinal} added under this bullet.`);
+          commitMappedChange(() => {
+            onSave(linkRequirementToBullet(store, posting.id, req.id, bullet.entryId));
+            setState({ openRequirementPickerEntryId: '' });
+            onRender({ preserveScroll: true, focusKey: `split-add-req-${bullet.entryId}` });
+            setNote(`${req.ordinal} added under this bullet.`);
+          });
         },
       }, [
         el('span', { class: 'bb-split-chip-ordinal' }, req.ordinal),
@@ -405,6 +419,48 @@ export function revealSplitTop(root) {
   window.scrollTo({ top: Math.max(0, (window.scrollY || 0) + top - offset) });
 }
 
+function captureRequirementTops() {
+  const tops = new Map();
+  if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') return tops;
+  document.querySelectorAll('.bb-split-req[data-requirement-id]').forEach((node) => {
+    const id = node.getAttribute('data-requirement-id');
+    if (!id || typeof node.getBoundingClientRect !== 'function') return;
+    tops.set(id, node.getBoundingClientRect().top);
+  });
+  return tops;
+}
+
+/** Slide a requirement card from where it was to where the resorted list put it. */
+export function settleSplitRequirements(before) {
+  if (!before?.size || typeof document === 'undefined' || typeof requestAnimationFrame !== 'function') return;
+  let reduce = false;
+  try {
+    reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+  } catch {
+    reduce = false;
+  }
+  if (reduce) return;
+  document.querySelectorAll('.bb-split-req[data-requirement-id]').forEach((node) => {
+    const id = node.getAttribute('data-requirement-id');
+    if (!before.has(id) || typeof node.getBoundingClientRect !== 'function') return;
+    const dy = before.get(id) - node.getBoundingClientRect().top;
+    if (!Number.isFinite(dy) || Math.abs(dy) < 2) return;
+    node.style.transition = 'none';
+    node.style.transform = `translateY(${dy}px)`;
+    requestAnimationFrame(() => {
+      node.style.transition = 'transform 280ms ease';
+      node.style.transform = '';
+    });
+  });
+}
+
+/** Run a mapping change, then ease requirements that moved because they gained or lost a bullet. */
+function commitMappedChange(run) {
+  const before = captureRequirementTops();
+  run();
+  queueMicrotask(() => settleSplitRequirements(before));
+}
+
 function bulletCard(deps, posting, model, bullet) {
   const {
     el, btn, store, state, setState, onSave, onRender, setNote,
@@ -437,9 +493,11 @@ function bulletCard(deps, posting, model, bullet) {
         class: 'bb-split-chip bb-split-chip-add',
         title: `Add ${selectedReq.ordinal}: ${selectedReq.text}`,
         onClick: () => {
-          onSave(linkRequirementToBullet(store, posting.id, selectedReq.id, entry.id));
-          onRender({ preserveScroll: true });
-          setNote(`${selectedReq.ordinal} added under this bullet.`);
+          commitMappedChange(() => {
+            onSave(linkRequirementToBullet(store, posting.id, selectedReq.id, entry.id));
+            onRender({ preserveScroll: true });
+            setNote(`${selectedReq.ordinal} added under this bullet.`);
+          });
         },
       }, [
         el('span', { class: 'bb-split-chip-ordinal' }, `+ ${selectedReq.ordinal}`),
@@ -472,6 +530,45 @@ function bulletCard(deps, posting, model, bullet) {
           onClick: () => onAddToResume(entry),
         }))
       : el('span', { class: 'tiny bb-split-bullet-job' }, 'Older line saved only on this requirement'),
+    entry || bullet.legacy
+      ? (state.deleteBulletPendingId === bullet.key
+        ? el('span', { class: 'bb-split-confirm' }, [
+          el('span', { class: 'tiny' }, 'Remove from this posting?'),
+          btn('Yes', {
+            class: 'btn ghost compact-action is-danger',
+            onClick: () => {
+              commitMappedChange(() => {
+                setState({ deleteBulletPendingId: '' });
+                if (bullet.legacy) {
+                  onSave(deleteBullet(store, posting.id, bullet.legacy.reqId, bullet.legacy.bulletId));
+                } else {
+                  onSave(removeBulletFromPosting(store, posting.id, bullet.entryId));
+                }
+                onRender({ preserveScroll: true });
+                setNote(bullet.legacy
+                  ? 'Removed that older line from this posting.'
+                  : 'Removed from this posting. It stays in your bullet bank.');
+              });
+            },
+          }),
+          btn('No', {
+            class: 'btn ghost compact-action',
+            onClick: () => {
+              setState({ deleteBulletPendingId: '' });
+              onRender({ preserveScroll: true });
+            },
+          }),
+        ])
+        : btn('Remove from posting', {
+          type: 'button',
+          class: 'row-text-action bb-split-remove-posting',
+          title: 'Take this bullet off this posting. It stays in your bullet bank.',
+          onClick: () => {
+            setState({ deleteBulletPendingId: bullet.key });
+            onRender({ preserveScroll: true });
+          },
+        }))
+      : null,
     entry && typeof renderBulletDetails === 'function'
       ? el('button', {
         type: 'button',
@@ -513,9 +610,11 @@ function bulletCard(deps, posting, model, bullet) {
       targetId: entry.id,
       onDrop: (payload, target) => {
         const req = model.requirements.find((row) => row.id === payload.id);
-        onSave(applySplitDrop(store, posting.id, payload, target));
-        onRender({ preserveScroll: true });
-        setNote(req ? `${req.ordinal} added under this bullet.` : 'Requirement added under this bullet.');
+        commitMappedChange(() => {
+          onSave(applySplitDrop(store, posting.id, payload, target));
+          onRender({ preserveScroll: true });
+          setNote(req ? `${req.ordinal} added under this bullet.` : 'Requirement added under this bullet.');
+        });
       },
     });
   }
@@ -694,6 +793,65 @@ function requirementAddForm(deps, posting) {
   ]);
 }
 
+function pasteBulletsForm(deps, posting) {
+  const {
+    el, btn, store, state, setState, onSave, onRender, setNote, primaryJobId,
+  } = deps;
+  const jobs = store.jobs || [];
+  const jobId = state.composeJobId || primaryJobId || (jobs.length === 1 ? jobs[0].id : '');
+  const area = el('textarea', {
+    class: 'bb-split-compose-text',
+    rows: '5',
+    placeholder: 'One resume bullet per line.\n**Bold lead:** then the result.',
+    'aria-label': 'Paste resume bullets',
+    'data-focus-key': 'split-paste-bullets',
+  });
+  const submit = () => {
+    const titles = parseExperiences(area.value).map((row) => row.title).filter(Boolean);
+    if (!titles.length) {
+      setNote('Paste at least one bullet, one per line.');
+      return;
+    }
+    if (!jobId) {
+      setNote('Pick the job these bullets belong to first.');
+      return;
+    }
+    const result = addBulletsToPosting(store, posting.id, titles, { jobId });
+    if (!result.entryIds.length) return;
+    onSave(result.store);
+    setState({ bulletPasteOpen: false });
+    onRender({ preserveScroll: true, focusKey: splitBulletFocusKey(result.entryIds[0]) });
+    setNote(`Added ${result.entryIds.length} bullet${result.entryIds.length === 1 ? '' : 's'} to this posting and your bank. None are tied to a requirement yet.`);
+  };
+  return el('div', { class: 'bb-split-compose' }, [
+    area,
+    el('p', { class: 'tiny' }, 'Each line is saved to your bank and added to this posting. It starts with no requirement.'),
+    el('div', { class: 'bb-split-compose-row' }, [
+      !primaryJobId && jobs.length
+        ? el('select', {
+          class: 'bb-split-compose-job',
+          'aria-label': 'Job for these bullets',
+          onChange: (event) => setState({ composeJobId: event.target.value }),
+        }, [
+          el('option', { value: '' }, 'Job…'),
+          ...jobs.map((job) => el('option', {
+            value: job.id,
+            selected: job.id === jobId || undefined,
+          }, [job.company, job.title].filter(Boolean).join(' · ') || 'Untitled role')),
+        ])
+        : null,
+      btn('Add bullets', { class: 'btn compact-action', onClick: submit }),
+      btn('Cancel', {
+        class: 'btn ghost compact-action',
+        onClick: () => {
+          setState({ bulletPasteOpen: false });
+          onRender({ preserveScroll: true });
+        },
+      }),
+    ]),
+  ]);
+}
+
 function selectedRequirementBar(deps, model, selectedReq) {
   const { el, btn, setState, onRender, setNote } = deps;
   const remaining = model.bullets.filter((bullet) => bullet.entryId && !bullet.requirementIds.includes(selectedReq.id)).length;
@@ -752,8 +910,14 @@ export function buildPostingSplitView(deps, posting) {
   const selectedReq = state.selectedRequirementId
     ? model.requirements.find((row) => row.id === state.selectedRequirementId)
     : null;
-  const shownBullets = filterSplitBullets(model.bullets, state.bulletFilter);
+  const shownBullets = splitBulletDisplayOrder(filterSplitBullets(model.bullets, state.bulletFilter));
+  const shownRequirements = splitRequirementDisplayOrder(model.requirements);
   const pane = splitPaneFor(state, model);
+  const openRequirements = shownRequirements.filter((row) => row.bulletCount === 0);
+  const mappedRequirements = shownRequirements.filter((row) => row.bulletCount > 0);
+  const openBullets = shownBullets.filter((row) => !row.requirements.length);
+  const mappedBullets = shownBullets.filter((row) => row.requirements.length);
+  const groupLabel = (text) => el('h4', { class: 'bb-split-group-label' }, text);
 
   const requirementsColumn = el('section', {
     class: 'bb-split-col bb-split-requirements',
@@ -763,7 +927,7 @@ export function buildPostingSplitView(deps, posting) {
       el('div', { class: 'bb-split-col-title' }, [
         el('h3', {}, 'Job requirements'),
         el('p', { class: 'tiny' }, model.counts.requirements
-          ? `${model.counts.addressedRequirements} of ${model.counts.requirements} have a bullet`
+          ? `${openRequirements.length} still open`
           : 'No requirements yet'),
       ]),
       btn('+ Requirement', {
@@ -780,11 +944,16 @@ export function buildPostingSplitView(deps, posting) {
     selectedReq
       ? el('p', { class: 'tiny bb-split-hint' }, `Adding ${selectedReq.ordinal} — tap + ${selectedReq.ordinal} on each bullet it fits, then Done.`)
       : el('p', { class: 'tiny bb-split-hint' }, [
-        el('span', { class: 'bb-split-hint-pointer' }, 'Drag a requirement onto a bullet to show what that bullet is for, or tap Add to bullets….'),
-        el('span', { class: 'bb-split-hint-touch' }, 'Tap Add to bullets… on a requirement, then tap + on each bullet it fits.'),
+        el('span', { class: 'bb-split-hint-pointer' }, 'Open requirements stay on top. Drag one onto a bullet, or tap Add to bullets….'),
+        el('span', { class: 'bb-split-hint-touch' }, 'Open requirements stay on top. Tap Add to bullets…, then tap + on each bullet it fits.'),
       ]),
-    el('div', { class: 'bb-split-list bb-split-req-list' }, model.requirements.length
-      ? model.requirements.map((row) => requirementCard(deps, posting, model, row))
+    el('div', { class: 'bb-split-list bb-split-req-list' }, shownRequirements.length
+      ? [
+        openRequirements.length && mappedRequirements.length ? groupLabel(`Still open · ${openRequirements.length}`) : null,
+        ...openRequirements.map((row) => requirementCard(deps, posting, model, row)),
+        mappedRequirements.length && openRequirements.length ? groupLabel(`Mapped · ${mappedRequirements.length}`) : null,
+        ...mappedRequirements.map((row) => requirementCard(deps, posting, model, row)),
+      ]
       : [el('p', { class: 'empty' }, 'Paste the job description below to add requirements.')]),
   ]);
 
@@ -817,28 +986,45 @@ export function buildPostingSplitView(deps, posting) {
   }, [
     el('header', { class: 'bb-split-col-head' }, [
       el('div', { class: 'bb-split-col-title' }, [
-        el('h3', {}, 'Resume bullets'),
-        el('p', { class: 'tiny' }, 'Every bullet here is in your bank and on this resume. Edits update the shared record.'),
+        el('h3', {}, 'Bullets'),
+        el('p', { class: 'tiny' }, 'On this posting and in your bank. Edits update the shared record.'),
       ]),
-      btn('+ New bullet', {
-        class: 'btn compact-action bb-split-new-bullet',
-        'aria-expanded': state.composeOpen ? 'true' : 'false',
-        onClick: () => {
-          const opening = !state.composeOpen;
-          setState({ composeOpen: opening });
-          onRender({ preserveScroll: true, focusKey: opening ? 'split-compose' : undefined });
-        },
-      }),
+      el('div', { class: 'bb-split-head-actions' }, [
+        btn('Paste bullets', {
+          class: 'btn ghost compact-action bb-split-paste-bullets',
+          'aria-expanded': state.bulletPasteOpen ? 'true' : 'false',
+          onClick: () => {
+            const opening = !state.bulletPasteOpen;
+            setState({ bulletPasteOpen: opening, composeOpen: opening ? false : state.composeOpen });
+            onRender({ preserveScroll: true, focusKey: opening ? 'split-paste-bullets' : undefined });
+          },
+        }),
+        btn('+ New bullet', {
+          class: 'btn compact-action bb-split-new-bullet',
+          'aria-expanded': state.composeOpen ? 'true' : 'false',
+          onClick: () => {
+            const opening = !state.composeOpen;
+            setState({ composeOpen: opening, bulletPasteOpen: opening ? false : state.bulletPasteOpen });
+            onRender({ preserveScroll: true, focusKey: opening ? 'split-compose' : undefined });
+          },
+        }),
+      ]),
     ]),
     selectedReq ? selectedRequirementBar(deps, model, selectedReq) : null,
+    state.bulletPasteOpen ? pasteBulletsForm(deps, posting) : null,
     state.composeOpen ? composeBulletForm(deps, posting, model) : null,
     bankSearch(deps, posting),
     filterBar,
     el('div', { class: 'bb-split-list bb-split-bullet-list' }, shownBullets.length
-      ? shownBullets.map((bullet) => bulletCard(deps, posting, model, bullet))
+      ? [
+        openBullets.length && mappedBullets.length ? groupLabel(`No requirement yet · ${openBullets.length}`) : null,
+        ...openBullets.map((bullet) => bulletCard(deps, posting, model, bullet)),
+        mappedBullets.length && openBullets.length ? groupLabel(`Has a requirement · ${mappedBullets.length}`) : null,
+        ...mappedBullets.map((bullet) => bulletCard(deps, posting, model, bullet)),
+      ]
       : [el('p', { class: 'empty' }, state.bulletFilter === 'without-requirement'
         ? 'Every bullet on this resume addresses at least one requirement.'
-        : 'No bullets on this resume yet. Write one, or bring one from the bank.')]),
+        : 'No bullets on this posting yet. Paste some, or write one.')]),
   ]);
 
   return el('div', {

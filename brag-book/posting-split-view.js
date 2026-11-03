@@ -12,10 +12,13 @@ import {
   bulletEntry,
   careerJobGroupLabel,
   createSharedBullet,
+  deleteBullet,
+  deletePostingLocalBullet,
   entryById,
   experienceForEntry,
   postingById,
   requirementById,
+  updatePostingResume,
 } from './engine.js';
 import { compileResumeDoc, visibleResumeBullets } from './resume-model.js';
 import {
@@ -268,6 +271,91 @@ export function addBulletToPosting(store, postingId, {
   }
   const onResume = postingResumeEntryOrder(next, postingById(next, postingId)).includes(created.entryId);
   return { store: next, entryId: created.entryId, placed: onResume };
+}
+
+/**
+ * Several new bullets, the same idea as pasting requirement lines: each line
+ * is saved to the bank and placed on this posting, with no requirement yet.
+ */
+export function addBulletsToPosting(store, postingId, titles, { jobId = '' } = {}, clock = Date.now) {
+  let next = store;
+  const entryIds = [];
+  for (const title of titles || []) {
+    const result = addBulletToPosting(next, postingId, { title, jobId }, clock);
+    next = result.store;
+    if (result.entryId) entryIds.push(result.entryId);
+  }
+  return { store: next, entryIds };
+}
+
+/**
+ * Take one bullet off this posting only. The bank record stays.
+ * Requirement links go too, otherwise compile would project the bullet back
+ * onto the resume. A shared basics row is excluded from this posting rather
+ * than deleted from Resume basics.
+ */
+export function removeBulletFromPosting(store, postingId, entryId, clock = Date.now) {
+  const posting = postingById(store, postingId);
+  if (!posting || !entryId || !entryById(store, entryId)) return store;
+  let next = store;
+  for (const req of posting.requirements || []) {
+    for (const line of req.bullets || []) {
+      if (line?.entryId === entryId && line.id) {
+        next = deleteBullet(next, postingId, req.id, line.id, clock);
+      }
+    }
+  }
+  const live = postingById(next, postingId);
+  for (const job of live?.resume?.localJobs || []) {
+    for (const group of job.groups || []) {
+      for (const bullet of group.bullets || []) {
+        if ((bullet.sourceEntryIds || []).includes(entryId)) {
+          next = deletePostingLocalBullet(next, postingId, job.id, group.id, bullet.id, clock);
+        }
+      }
+    }
+  }
+  const after = postingById(next, postingId);
+  let doc = null;
+  try {
+    doc = compileResumeDoc(after, next);
+  } catch {
+    doc = null;
+  }
+  const exclude = new Set(after?.resume?.excludedBulletIds || []);
+  let added = false;
+  for (const job of doc?.sections?.experience?.jobs || []) {
+    for (const group of job.groups || []) {
+      for (const bullet of visibleResumeBullets(group.bullets)) {
+        if (bullet?.id && (bullet.sourceEntryIds || []).includes(entryId) && !exclude.has(bullet.id)) {
+          exclude.add(bullet.id);
+          added = true;
+        }
+      }
+    }
+  }
+  if (added) next = updatePostingResume(next, postingId, { excludedBulletIds: [...exclude] }, clock);
+  return next;
+}
+
+/** Open requirements first, then ones that already have a bullet. Stored order is kept inside each group, so R-numbers do not change. */
+export function splitRequirementDisplayOrder(requirements) {
+  const open = [];
+  const mapped = [];
+  for (const row of requirements || []) {
+    (row.bulletCount > 0 ? mapped : open).push(row);
+  }
+  return [...open, ...mapped];
+}
+
+/** Bullets with no requirement first, so the ones still to map stay at the top. */
+export function splitBulletDisplayOrder(bullets) {
+  const open = [];
+  const mapped = [];
+  for (const row of bullets || []) {
+    (row.requirements?.length ? mapped : open).push(row);
+  }
+  return [...open, ...mapped];
 }
 
 /** Bring an existing bank bullet onto this posting (resume placement only; no requirement yet). */
