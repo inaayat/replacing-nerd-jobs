@@ -4308,6 +4308,8 @@ function postingSplitViewPanel(job) {
         },
       }),
     ]),
+    bulletFooter: pasteBulletsDisclosure(job),
+    requirementFooter: pasteMoreDisclosure(job),
     renderRequirementQuestions: (req) => requirementQuestions(job, req),
     onToggleQuestions: (req) => {
       const composerKey = `${job.id}:${req.id}`;
@@ -4599,7 +4601,10 @@ function jobDetail(job) {
   // The split view already lists bullets without a requirement (its filter), so the
   // separate Unmapped panel only shows on the table views. Do not append a null
   // child here: element.append turns null into the text "null".
-  const showUnmapped = !(experiencesUiEnabled() && job.requirements.length && readPostingRequirementViewMode(job.id) === 'split');
+  const splitMapping = experiencesUiEnabled()
+    && job.requirements.length
+    && readPostingRequirementViewMode(job.id) === 'split';
+  const showUnmapped = !splitMapping;
   workspace.append(...[
     el('div', { class: 'panel-head' }, [
       el('div', { class: 'panel-head-titles' }, [
@@ -4611,6 +4616,7 @@ function jobDetail(job) {
         btn('Resume', { class: 'btn', onClick: () => go({ kind: 'jobs', id: job.id, mode: 'resume' }) }),
       ]),
     ]),
+    el('div', { class: 'bb-job-details' }, [jobDetailsDisclosure(job)]),
     showUnmapped ? unmappedResumeBulletsPanel(job) : null,
     el('div', { class: 'workspace-status' }, [coverageBanner(job)]),
     job.requirements.length
@@ -4619,16 +4625,14 @@ function jobDetail(job) {
         el('p', { class: 'empty' }, 'Paste the job description. Each requirement becomes a row, then add an experience beside it.'),
         pasteMore(job),
       ]),
-    el('div', { class: 'workspace-utilities' }, [
+    // Split view puts paste bullets under the left column and paste requirements
+    // under the right column. The table views keep those controls below.
+    splitMapping ? null : el('div', { class: 'workspace-utilities' }, [
       job.requirements.length ? pasteMoreDisclosure(job) : null,
       pasteBulletsDisclosure(job),
-      jobDetailsDisclosure(job),
     ]),
   ].filter((node) => node != null));
   // Split view already lists the bullets, so the Experiences side panel is a third column.
-  const splitMapping = experiencesUiEnabled()
-    && job.requirements.length
-    && readPostingRequirementViewMode(job.id) === 'split';
   if (!experiencesUiEnabled() || splitMapping) return workspace;
   const panel = experiencesPanelForPage('posting', job);
   if (!panel) return workspace;

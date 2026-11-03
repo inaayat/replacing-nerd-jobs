@@ -195,9 +195,10 @@ bullet — the chips are the bullet's purpose, and a bullet can carry several.
 Chip × removes one link only; **+ Requirement** on a bullet and **Add to
 bullets…** on a requirement are the keyboard and touch paths to the same
 link. **+ New bullet** writes to the bank and places the bullet on this
-resume in one step (under the selected requirement, if any); **Paste bullets**
-(and **+ Paste more bullets**, next to paste requirements) adds a whole list,
-one line each, with no requirement yet. **Remove from posting** takes a
+resume in one step (under the selected requirement, if any); **+ Paste more bullets** sits under the bullets column, and **+ Paste more
+requirements** sits under the requirements column, each as wide as that
+column. **Job details** is at the top of the posting. Paste adds a whole
+list, one line each, with no requirement yet. **Remove from posting** takes a
 bullet off this posting only; it stays in the bank. The bank search
 brings an existing bullet onto the posting without copying it. Linking never
 removes anything: a bullet with no requirement stays on the resume and in

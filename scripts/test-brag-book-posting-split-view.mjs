@@ -284,7 +284,7 @@ assert.deepEqual(orphanRow.requirements.map((row) => row.ordinal), ['R1']);
 assert.equal(orphanRow.entryId, '');
 
 assert.deepEqual(Object.keys(emptySplitViewState()).sort(), [
-  'bankQuery', 'bulletFilter', 'bulletPasteOpen', 'composeJobId', 'composeOpen', 'deleteBulletPendingId', 'deleteRequirementPendingId', 'expandedChipKey',
+  'bankQuery', 'bulletFilter', 'composeJobId', 'composeOpen', 'deleteBulletPendingId', 'deleteRequirementPendingId', 'expandedChipKey',
   'expandedDetailsEntryId', 'openRequirementPickerEntryId', 'pane', 'questionsOpenReqId', 'requirementAddOpen', 'selectedRequirementId',
 ]);
 
@@ -341,8 +341,15 @@ assert.ok(splitCols[1]?.classList.contains('bb-split-requirements'), 'requiremen
 assert.equal(document.querySelector('.bb-unmapped-resume'), null, 'Unmapped panel folded into the split filter');
 assert.equal([...document.querySelector('.job-workspace').childNodes].some((node) => node.nodeType === window.Node.TEXT_NODE && node.textContent.includes('null')), false, 'split view does not print null');
 assert.doesNotMatch(document.querySelector('.job-workspace').textContent, /\bnull\b/);
-assert.ok(document.querySelector('.bb-split-paste-bullets'), 'paste bullets sits with the bullet list');
-assert.ok([...document.querySelectorAll('summary')].some((node) => node.textContent.includes('Paste more bullets')));
+const bulletFoot = document.querySelector('.bb-split-bullets .bb-split-col-foot');
+const requirementFoot = document.querySelector('.bb-split-requirements .bb-split-col-foot');
+assert.match(bulletFoot?.textContent || '', /Paste more bullets/, 'paste bullets sits under the bullets column');
+assert.match(requirementFoot?.textContent || '', /Paste more requirements/, 'paste requirements sits under the requirements column');
+assert.equal(document.querySelector('.workspace-utilities'), null, 'split view does not repeat the paste controls below the columns');
+const jobDetails = document.querySelector('.bb-job-details');
+const splitView = document.querySelector('.bb-split-view');
+assert.ok(jobDetails && splitView);
+assert.ok(jobDetails.compareDocumentPosition(splitView) & window.Node.DOCUMENT_POSITION_FOLLOWING, 'job details is above the split');
 assert.ok(document.querySelector('.bb-split-remove-posting'), 'a bullet can be removed from this posting');
 assert.equal(document.querySelectorAll('.bb-split-req').length, 3);
 assert.deepEqual(
@@ -586,12 +593,12 @@ assert.equal(document.querySelector('.bb-split-bullet[data-entry-id="e3"]'), nul
 assert.ok(saved.entries.find((row) => row.id === 'e3'), 'e3 stays in the bank');
 assert.equal(postingResumeEntryOrder(saved, saved.postings[0]).includes('e3'), false);
 
-document.querySelector('.bb-split-paste-bullets').click();
-await tick();
-const pasteArea = document.querySelector('[data-focus-key="split-paste-bullets"]');
-assert.ok(pasteArea, 'paste bullets form');
+const pasteBox = document.querySelector('.bb-split-bullets .bb-split-col-foot details');
+assert.ok(pasteBox, 'paste bullets form');
+pasteBox.open = true;
+const pasteArea = pasteBox.querySelector('textarea');
 pasteArea.value = 'Shipped the close calendar\n- Cut the audit cycle';
-[...document.querySelectorAll('button')].find((node) => node.textContent === 'Add bullets').click();
+[...pasteBox.querySelectorAll('button')].find((node) => node.textContent === 'Add bullets').click();
 await tick();
 saved = readStore();
 const pastedTitles = saved.entries.map((row) => row.title);

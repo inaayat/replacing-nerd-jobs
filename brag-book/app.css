@@ -4120,6 +4120,22 @@ html.bb-offline-readonly .shell select {
   padding: 12px 16px 16px;
 }
 .bb-split-col > :not(.bb-split-list) { flex: 0 0 auto; }
+.bb-job-details {
+  margin: 8px 12px 0;
+}
+.bb-job-details .utility-box { width: 100%; }
+.bb-split-col-foot {
+  width: 100%;
+  min-width: 0;
+}
+.bb-split-col-foot .utility-box,
+.bb-split-col-foot .utility-body,
+.bb-split-col-foot .field,
+.bb-split-col-foot textarea {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
 .bb-split-col-head {
   display: flex;
   align-items: flex-start;
