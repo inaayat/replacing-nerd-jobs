@@ -60,6 +60,12 @@ window.sessionStorage.setItem(`bb-posting-req-view:${postingId}`, 'requirement')
 await import(new URL(`../brag-book/app.js?post-map-create=${Date.now()}`, import.meta.url));
 await new Promise((resolve) => window.setTimeout(resolve, 100));
 
+const expandAllCreate = [...window.document.querySelectorAll('button')]
+  .find((node) => node.textContent.includes('Expand all'));
+assert.ok(expandAllCreate, 'Expand all');
+expandAllCreate.click();
+await new Promise((resolve) => window.setTimeout(resolve, 30));
+
 const mapSearch = window.document.querySelector('.bb-post-map-search');
 assert.ok(mapSearch, 'requirement map search');
 Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(mapSearch, 'DSA Control Gap');

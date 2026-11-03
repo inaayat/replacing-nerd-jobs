@@ -57,6 +57,11 @@ window.sessionStorage.setItem(`bb-posting-req-view:${postingId}`, 'requirement')
 
 await import(new URL(`../brag-book/app.js?float-dismiss=${Date.now()}`, import.meta.url));
 await new Promise((resolve) => window.setTimeout(resolve, 120));
+const expandAllOverlay = [...window.document.querySelectorAll('button')]
+  .find((node) => node.textContent.includes('Expand all'));
+assert.ok(expandAllOverlay, 'Expand all');
+expandAllOverlay.click();
+await new Promise((resolve) => window.setTimeout(resolve, 30));
 
 function setSearchValue(input, value) {
   Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set.call(input, value);

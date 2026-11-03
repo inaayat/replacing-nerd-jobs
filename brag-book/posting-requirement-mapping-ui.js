@@ -148,7 +148,32 @@ export function buildIncludedBulletRow(deps, job, req, { bullet, entry }) {
     ariaLabel: 'Resume bullet',
     focusKey: entry?.id ? `post-map-version-${entry.id}` : '',
   });
+  const bulletIds = (req.bullets || []).map((line) => line.id);
+  const bulletIndex = bulletIds.indexOf(bullet.id);
+  const moveBullet = typeof deps.onMoveRequirementBullet === 'function'
+    ? deps.onMoveRequirementBullet
+    : null;
   const actions = el('div', { class: 'bb-post-map-bullet-actions bb-action-row' }, [
+    moveBullet && bulletIndex >= 0
+      ? el('div', { class: 'actions bb-order-btns' }, [
+        el('button', {
+          type: 'button',
+          class: 'btn ghost compact-action',
+          title: 'Move bullet up',
+          'aria-label': 'Move bullet up',
+          disabled: bulletIndex <= 0 || undefined,
+          onClick: () => moveBullet(bullet.id, -1),
+        }, '↑'),
+        el('button', {
+          type: 'button',
+          class: 'btn ghost compact-action',
+          title: 'Move bullet down',
+          'aria-label': 'Move bullet down',
+          disabled: bulletIndex >= bulletIds.length - 1 || undefined,
+          onClick: () => moveBullet(bullet.id, 1),
+        }, '↓'),
+      ])
+      : null,
     el('button', {
       type: 'button',
       class: `row-text-action bb-post-map-details bb-exp-action${isOpen ? ' is-on' : ''}`,

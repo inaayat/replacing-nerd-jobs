@@ -125,6 +125,12 @@ window.sessionStorage.setItem(`bb-posting-req-view:${postingIdForDom}`, 'require
 await import(new URL(`../brag-book/app.js?post-req-map=${Date.now()}`, import.meta.url));
 await new Promise((resolve) => window.setTimeout(resolve, 80));
 
+const expandAll = [...window.document.querySelectorAll('button')]
+  .find((node) => node.textContent.includes('Expand all'));
+assert.ok(expandAll, 'requirement cards start collapsed with Expand all');
+expandAll.click();
+await new Promise((resolve) => window.setTimeout(resolve, 30));
+
 const bucket = window.document.querySelector('.bb-post-map-bucket.is-collapsed[data-selected-count="1"]');
 assert.ok(bucket, 'collapsed bucket with one selected version');
 assert.equal(bucket.querySelectorAll('.bb-post-map-bucket-included .bb-post-map-bullet').length, 1,

@@ -855,6 +855,69 @@ a:focus-visible {
   background: var(--gold);
 }
 
+.bb-req-card-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 4px 0 8px;
+}
+.bb-req-cards {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
+  max-width: 40rem;
+}
+.bb-req-card {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: #fff;
+}
+.bb-req-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 10px;
+}
+.bb-req-card-toggle {
+  flex: none;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.bb-req-card-head .requirement-line { flex: 1; min-width: 0; }
+.bb-req-card-count {
+  flex: none;
+  align-self: center;
+  color: var(--muted);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+.bb-req-card-body {
+  padding: 0 10px 10px 10px;
+  border-top: 1px solid var(--line);
+}
+.bb-req-card.is-requirement-mapped { background: rgba(122, 148, 118, 0.08); }
+.bb-req-card.is-req-highlight {
+  outline: 2px solid rgba(232, 196, 122, 0.85);
+  outline-offset: -2px;
+}
+.bb-req-bullet-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+.bb-req-bullet-row.is-drop { box-shadow: inset 0 2px 0 var(--gold); }
+.bb-req-drag-handle { cursor: grab; }
+
 .job-table {
   width: 100%;
   border-collapse: separate;

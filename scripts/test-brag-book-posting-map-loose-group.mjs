@@ -71,6 +71,12 @@ assert.equal(postingMapShowsLooseGroup(store, posting.requirements[1]), true);
 await import(new URL(`../brag-book/app.js?map-loose-group=${Date.now()}`, import.meta.url));
 await new Promise((resolve) => window.setTimeout(resolve, 120));
 
+const expandAllLoose = [...window.document.querySelectorAll('button')]
+  .find((node) => node.textContent.includes('Expand all'));
+assert.ok(expandAllLoose, 'Expand all');
+expandAllLoose.click();
+await new Promise((resolve) => window.setTimeout(resolve, 30));
+
 const stacks = [...window.document.querySelectorAll('.bb-post-map-stack')];
 assert.ok(stacks.length >= 2, 'two requirement stacks');
 

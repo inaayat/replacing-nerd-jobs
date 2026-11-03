@@ -40,6 +40,8 @@ import {
   createEntryBullet,
   updateBullet,
   deleteBullet,
+  moveRequirementBullet,
+  reorderRequirementBullets,
   addQuestion,
   updateQuestion,
   deleteQuestion,
@@ -193,7 +195,7 @@ import {
   hostFromJobUrl,
 } from '../brag-book/engine.js';
 import { parseViewHash, viewHash, viewTitle, defaultView, logLayout, hideBookRail } from '../brag-book/routes.js';
-import { bookPagePlan, experienceRowSpec, sharedBulletSpec, SHARED_BULLET_FIELDS, STAR_FIELDS, experienceAdderChrome, nextExperienceAdderOpen, resumeBulletArrows, resumeGroupChrome, visibleNodes, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys, requirementPager, visibleRequirementRows, nextRequirementIndex, prevRequirementIndex } from '../brag-book/book-view.js';
+import { bookPagePlan, experienceRowSpec, sharedBulletSpec, SHARED_BULLET_FIELDS, STAR_FIELDS, experienceAdderChrome, nextExperienceAdderOpen, resumeBulletArrows, resumeGroupChrome, visibleNodes, homeStartCards, JOB_CATALOG_SAVE_MS, jobCatalogEditEffects, jobCatalogFocusKeys, requirementPager, visibleRequirementRows, nextRequirementIndex, prevRequirementIndex, requirementCardKey, requirementExpandToggle, requirementBulletCountLabel } from '../brag-book/book-view.js';
 import {
   applyKnowledgeEnter,
   applyKnowledgeHeadingBreak,
@@ -3078,7 +3080,15 @@ const reqHtml = nodeMarkup(reqApp);
 const reqText = reqApp.textContent;
 assert.match(reqText, /Need close experience/);
 assert.match(reqText, /Need a second row/);
-assert.match(reqText, /\+ New/);
+assert.equal(reqApp.querySelectorAll('.bb-req-card').length, 2);
+assert.equal(reqApp.querySelectorAll('.bb-post-map-search').length, 0);
+assert.match(reqText, /0 bullets/);
+assert.match(reqText, /Expand all/);
+const expandAll = buttonWithText(reqApp, 'Expand all');
+assert.ok(expandAll, 'requirement cards expose Expand all');
+expandAll.click();
+assert.match(reqApp.textContent, /Collapse all/);
+assert.match(reqApp.textContent, /\+ New/);
 const reqMapSearchCount = reqApp.querySelectorAll('.bb-post-map-search').length;
 const reqLegacyAddCount = reqApp.querySelectorAll('.experience-add').length;
 assert.equal(reqMapSearchCount || reqLegacyAddCount, 2);
@@ -3341,6 +3351,15 @@ function nodeMarkup(node) {
 }
 
 async function renderRequirementsPage() {
+  if (typeof globalThis.sessionStorage === 'undefined') {
+    const mem = new Map();
+    globalThis.sessionStorage = {
+      getItem: (key) => (mem.has(key) ? mem.get(key) : null),
+      setItem: (key, value) => mem.set(String(key), String(value)),
+      removeItem: (key) => mem.delete(key),
+    };
+  }
+  sessionStorage.setItem('bb-posting-req-view:job_req_map', 'requirement');
   const { app } = installBookDom('#jobs/job_req_map', {
     postings: [{
       id: 'job_req_map',
@@ -3965,8 +3984,62 @@ const tableSrc = appSource.slice(
 assert.match(tableSrc, /visibleRequirementRows/);
 assert.match(tableSrc, /requirementPager/);
 assert.match(tableSrc, /bb-req-pager/);
+assert.match(tableSrc, /bb-req-cards/);
+assert.match(tableSrc, /requirementExpandToggle/);
+assert.match(tableSrc, /req-expand-all/);
+assert.match(appSource, /function requirementCardBullets/);
+assert.match(appSource, /moveRequirementBullet/);
+assert.match(appSource, /reorderRequirementBullets/);
+assert.match(appSource, /bb-req-drag-handle/);
 assert.match(bookCss, /\.bb-req-pager/);
 assert.match(bookCss, /\.bb-req-dot\.is-empty/);
+assert.match(bookCss, /\.bb-req-cards\s*\{[^}]*flex-direction:\s*column/);
+assert.match(bookCss, /\.bb-req-cards\s*\{[^}]*max-width:\s*40rem/);
+assert.match(bookCss, /\.bb-req-card\s*\{[^}]*width:\s*100%/);
+assert.doesNotMatch(tableSrc, /el\('table',\s*\{\s*class:\s*'job-table'/);
+assert.equal(requirementBulletCountLabel(0), '0 bullets');
+assert.equal(requirementBulletCountLabel(1), '1 bullet');
+assert.equal(requirementBulletCountLabel(3), '3 bullets');
+assert.equal(requirementCardKey('job1', 'r1'), 'job1:r1');
+const expandClosed = requirementExpandToggle(new Set(), [{ id: 'r1' }, { id: 'r2' }], 'job1');
+assert.equal(expandClosed.allExpanded, false);
+assert.equal(expandClosed.label, 'Expand all');
+assert.deepEqual(expandClosed.nextKeys, ['job1:r1', 'job1:r2']);
+const expandOpen = requirementExpandToggle(new Set(expandClosed.nextKeys), [{ id: 'r1' }, { id: 'r2' }], 'job1');
+assert.equal(expandOpen.allExpanded, true);
+assert.equal(expandOpen.label, 'Collapse all');
+assert.deepEqual(expandOpen.nextKeys, []);
+let reqOrderBook = addPosting(emptyStore(), { id: 'job_req_order', title: 'Order reqs' }, clock);
+reqOrderBook = addRequirement(reqOrderBook, 'job_req_order', 'Need ordered bullets', clock);
+const orderReqId = reqOrderBook.postings[0].requirements[0].id;
+reqOrderBook = createEntryBullet(reqOrderBook, 'job_req_order', orderReqId, 'First mapped', clock);
+reqOrderBook = createEntryBullet(reqOrderBook, 'job_req_order', orderReqId, 'Second mapped', clock);
+reqOrderBook = createEntryBullet(reqOrderBook, 'job_req_order', orderReqId, 'Third mapped', clock);
+assert.deepEqual(
+  postingById(reqOrderBook, 'job_req_order').requirements[0].bullets.map((line) => line.text),
+  ['First mapped', 'Second mapped', 'Third mapped'],
+);
+const resumeOrderBefore = JSON.stringify(postingById(reqOrderBook, 'job_req_order').resume?.bulletOrder || {});
+const secondMappedId = postingById(reqOrderBook, 'job_req_order').requirements[0].bullets[1].id;
+reqOrderBook = moveRequirementBullet(reqOrderBook, 'job_req_order', orderReqId, secondMappedId, -1, clock);
+assert.deepEqual(
+  postingById(reqOrderBook, 'job_req_order').requirements[0].bullets.map((line) => line.text),
+  ['Second mapped', 'First mapped', 'Third mapped'],
+);
+const reloadedReqOrder = normalizeStore(JSON.parse(JSON.stringify(reqOrderBook)));
+assert.deepEqual(
+  postingById(reloadedReqOrder, 'job_req_order').requirements[0].bullets.map((line) => line.text),
+  ['Second mapped', 'First mapped', 'Third mapped'],
+);
+assert.equal(
+  JSON.stringify(postingById(reqOrderBook, 'job_req_order').resume?.bulletOrder || {}),
+  resumeOrderBefore,
+);
+reqOrderBook = reorderRequirementBullets(reqOrderBook, 'job_req_order', orderReqId, ['missing-id'], clock);
+assert.deepEqual(
+  postingById(reqOrderBook, 'job_req_order').requirements[0].bullets.map((line) => line.text),
+  ['Second mapped', 'First mapped', 'Third mapped'],
+);
 assert.deepEqual(experienceAdderChrome(false), {
   open: false,
   showForm: false,
