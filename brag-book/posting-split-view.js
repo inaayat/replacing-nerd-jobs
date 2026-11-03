@@ -249,6 +249,26 @@ export function setBulletRequirements(store, postingId, entryId, requirementIds,
  * so the caller can focus it; the entry exists even when it could not be
  * placed on the resume (no job yet).
  */
+/**
+ * Which job a new bullet is filed under. The dropdown's current value wins,
+ * because choosing a job does not rebuild the form.
+ */
+export function resolveComposeJobId({
+  selectValue = '',
+  composeJobId = '',
+  primaryJobId = '',
+  jobs = [],
+} = {}) {
+  const picked = String(selectValue || '').trim();
+  if (picked) return picked;
+  const remembered = String(composeJobId || '').trim();
+  if (remembered) return remembered;
+  const primary = String(primaryJobId || '').trim();
+  if (primary) return primary;
+  if (jobs.length === 1 && jobs[0]?.id) return jobs[0].id;
+  return '';
+}
+
 export function addBulletToPosting(store, postingId, {
   title,
   rich = null,

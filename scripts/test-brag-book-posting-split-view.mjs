@@ -35,6 +35,7 @@ import {
   postingSplitViewModel,
   readSplitDragPayload,
   removeBulletFromPosting,
+  resolveComposeJobId,
   requirementsAvailableForBullet,
   searchBankBulletsForPosting,
   setBulletRequirements,
@@ -189,6 +190,10 @@ const newRow = model.bullets.find((row) => row.entryId === added.entryId);
 assert.deepEqual(newRow.requirements.map((row) => row.ordinal), ['R3']);
 assert.equal(newRow.onResume, true);
 assert.equal(addBulletToPosting(store, postingId, { title: '   ', jobId: 'j1' }).entryId, '', 'blank is ignored');
+assert.equal(resolveComposeJobId({ selectValue: 'j2', jobs: [{ id: 'j1' }, { id: 'j2' }] }), 'j2', 'the job showing in the dropdown is the one that saves');
+assert.equal(resolveComposeJobId({ selectValue: '', jobs: [{ id: 'j1' }, { id: 'j2' }] }), '', 'a blank dropdown does not guess among several jobs');
+assert.equal(resolveComposeJobId({ selectValue: '', primaryJobId: 'j1', jobs: [{ id: 'j1' }, { id: 'j2' }] }), 'j1');
+assert.equal(resolveComposeJobId({ jobs: [{ id: 'j9' }] }), 'j9');
 
 // Paste-many lands on the posting and the bank, with no requirement.
 const pasted = addBulletsToPosting(store, postingId, ['Owned the close calendar', '   ', 'Cut the audit cycle'], { jobId: 'j1' });
@@ -592,6 +597,23 @@ saved = readStore();
 assert.equal(document.querySelector('.bb-split-bullet[data-entry-id="e3"]'), null, 'e3 left the posting');
 assert.ok(saved.entries.find((row) => row.id === 'e3'), 'e3 stays in the bank');
 assert.equal(postingResumeEntryOrder(saved, saved.postings[0]).includes('e3'), false);
+
+document.querySelector('.bb-split-new-bullet').click();
+await tick();
+const saveForm = document.querySelector('.bb-split-compose');
+assert.ok(saveForm, 'new bullet form');
+const saveArea = saveForm.querySelector('textarea');
+saveArea.value = 'Saved from the split form';
+const saveJob = saveForm.querySelector('select');
+const pickedJob = saveJob ? saveJob.options[saveJob.options.length - 1].value : '';
+if (saveJob) saveJob.value = pickedJob;
+[...saveForm.querySelectorAll('button')].find((node) => node.textContent === 'Save bullet').click();
+await tick();
+saved = readStore();
+const savedBullet = saved.entries.find((row) => row.title === 'Saved from the split form');
+assert.ok(savedBullet, 'Save bullet writes the bank');
+if (pickedJob) assert.equal(savedBullet.jobId, pickedJob);
+assert.equal(document.querySelector('.bb-split-compose'), null, 'the form closes after a save');
 
 const pasteBox = document.querySelector('.bb-split-bullets .bb-split-col-foot details');
 assert.ok(pasteBox, 'paste bullets form');

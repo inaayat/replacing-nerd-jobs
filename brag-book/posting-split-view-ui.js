@@ -24,6 +24,7 @@ import {
   SPLIT_DRAG_REQUIREMENT_TYPE,
   addBulletToPosting,
   addLibraryBulletToPosting,
+  resolveComposeJobId,
   applySplitDrop,
   filterSplitBullets,
   linkRequirementToBullet,
@@ -661,7 +662,11 @@ function composeBulletForm(deps, posting, model) {
     el, btn, store, state, setState, onSave, onRender, setNote, primaryJobId,
   } = deps;
   const jobs = store.jobs || [];
-  const jobId = state.composeJobId || primaryJobId || (jobs.length === 1 ? jobs[0].id : '');
+  const initialJobId = resolveComposeJobId({
+    composeJobId: state.composeJobId,
+    primaryJobId,
+    jobs,
+  });
   const selectedReq = state.selectedRequirementId
     ? model.requirements.find((row) => row.id === state.selectedRequirementId)
     : null;
@@ -672,9 +677,31 @@ function composeBulletForm(deps, posting, model) {
     'aria-label': 'New resume bullet',
     'data-focus-key': 'split-compose',
   });
+  const jobSelect = !primaryJobId && jobs.length
+    ? el('select', {
+      class: 'bb-split-compose-job',
+      'aria-label': 'Job for this bullet',
+      onChange: (event) => setState({ composeJobId: event.target.value }),
+    }, [
+      el('option', { value: '' }, 'Job…'),
+      ...jobs.map((job) => el('option', {
+        value: job.id,
+        selected: job.id === initialJobId || undefined,
+      }, [job.company, job.title].filter(Boolean).join(' · ') || 'Untitled role')),
+    ])
+    : null;
   const submit = () => {
     const title = area.value.trim();
-    if (!title) return;
+    if (!title) {
+      setNote('Write the bullet first.');
+      return;
+    }
+    const jobId = resolveComposeJobId({
+      selectValue: jobSelect?.value,
+      composeJobId: state.composeJobId,
+      primaryJobId,
+      jobs,
+    });
     if (!jobId) {
       setNote('Pick the job this bullet belongs to first.');
       return;
@@ -684,9 +711,12 @@ function composeBulletForm(deps, posting, model) {
       jobId,
       requirementIds: selectedReq ? [selectedReq.id] : [],
     });
-    if (!result.entryId) return;
+    if (!result.entryId) {
+      setNote('Could not save that bullet.');
+      return;
+    }
     onSave(result.store);
-    setState({ composeOpen: false });
+    setState({ composeOpen: false, composeJobId: jobId });
     onRender({ preserveScroll: true, focusKey: splitBulletFocusKey(result.entryId) });
     setNote(selectedReq
       ? `Bullet saved to the bank, placed on this resume, under ${selectedReq.ordinal}.`
@@ -705,21 +735,7 @@ function composeBulletForm(deps, posting, model) {
   return el('div', { class: 'bb-split-compose' }, [
     area,
     el('div', { class: 'bb-split-compose-row' }, [
-      !primaryJobId && jobs.length
-        ? el('select', {
-          class: 'bb-split-compose-job',
-          'aria-label': 'Job for this bullet',
-          onChange: (event) => {
-            setState({ composeJobId: event.target.value });
-          },
-        }, [
-          el('option', { value: '' }, 'Job…'),
-          ...jobs.map((job) => el('option', {
-            value: job.id,
-            selected: job.id === jobId || undefined,
-          }, [job.company, job.title].filter(Boolean).join(' · ') || 'Untitled role')),
-        ])
-        : null,
+      jobSelect,
       selectedReq
         ? el('span', { class: 'tiny bb-split-compose-under' }, `Starts under ${selectedReq.ordinal}`)
         : null,
