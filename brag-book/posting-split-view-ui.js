@@ -342,7 +342,7 @@ function requirementChip(deps, posting, bullet, reqRow) {
       },
     }, [
       el('span', { class: 'bb-split-chip-ordinal' }, reqRow.ordinal),
-      el('span', { class: 'bb-split-chip-text' }, expanded ? reqRow.text : reqRow.short),
+      el('span', { class: 'bb-split-chip-text' }, reqRow.text),
     ]),
     el('button', {
       type: 'button',
@@ -580,7 +580,7 @@ function bulletCard(deps, posting, model, bullet, { showJobLabel = true } = {}) 
       },
     }, [
       el('span', { class: 'bb-split-chip-ordinal' }, `+ ${selectedReq.ordinal}`),
-      el('span', { class: 'bb-split-chip-text' }, selectedReq.short),
+      el('span', { class: 'bb-split-chip-text' }, selectedReq.text),
     ])
     : null;
   const purposeChips = bullet.requirements.length || addSelected

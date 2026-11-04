@@ -193,8 +193,9 @@ view. Drag a requirement onto a bullet (or a
 bullet onto a requirement) and that requirement appears as a chip under the
 bullet — the chips are the bullet's purpose, and a bullet can carry several.
 Dragging a chip onto another bullet tags that requirement there too and leaves
-it on the first bullet. Those chips stack in one column, the same width, and
-**Expand all** shows the full text of every mapped requirement. Drag a bullet
+it on the first bullet. Those chips stack in one column, the same width. The requirement text runs
+to the end of the pill and only cuts off when it does not fit. **Expand all**
+wraps every pill. Drag a bullet
 onto another bullet to start a **Blank bullet** you can draft from both; the
 originals stay, and dropping another bullet on that blank adds it as another
 source.

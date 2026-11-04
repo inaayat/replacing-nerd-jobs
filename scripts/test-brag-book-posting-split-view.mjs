@@ -63,6 +63,8 @@ assert.match(css, /\.bb-posting-view-toggle\s*\{[^}]*width:\s*max-content/, 'vie
 assert.match(css, /\.bb-posting-view-toggle \.bb-seg-btn\.is-on\s*\{[^}]*box-shadow:\s*inset/, 'selected view segment stays inside the track');
 assert.match(css, /\.bb-split-purpose \{[^}]*flex-direction:\s*column/, 'mapped requirement pills stack');
 assert.match(css, /\.bb-split-chip \{[^}]*width:\s*100%/, 'mapped requirement pills share one width');
+assert.match(css, /\.bb-split-chip \{[^}]*min-width:\s*0/, 'a pill shrinks to its column so the text can use that width');
+assert.match(css, /\.bb-split-chip-text \{[^}]*text-overflow:\s*ellipsis/, 'pill text ellipsizes at the pill edge');
 assert.match(css, /\.bb-split-chip-body\[draggable="true"\] \{ cursor: grab; \}/, 'a requirement chip can be dragged');
 const coarseStart = css.indexOf('/* Touch targets and no-zoom inputs on any coarse pointer');
 assert.ok(coarseStart > 0, 'split view coarse-pointer block');
@@ -113,7 +115,7 @@ store = addPosting(store, { title: 'Senior Manager', company: 'GoDaddy' }, clock
 const postingId = store.postings[0].id;
 store = addRequirement(store, postingId, 'Lead cross-functional programs', clock);
 store = addRequirement(store, postingId, 'Automate evidence collection', clock);
-store = addRequirement(store, postingId, 'Partner with auditors', clock);
+store = addRequirement(store, postingId, 'Partner with auditors on a control program that spans the close, SOX testing, and the operating reviews', clock);
 const [r1, r2, r3] = store.postings[0].requirements;
 
 let model = postingSplitViewModel(store, store.postings[0]);
@@ -581,6 +583,12 @@ await tick();
 e1Card().querySelector('.bb-split-sheet-backdrop').click();
 await tick();
 assert.equal(e1Card().querySelector('.bb-split-req-menu'), null, 'backdrop tap closes the picker');
+
+// Collapsed pills keep the whole requirement. The line ellipsizes in CSS only
+// when it does not fit the pill, instead of stopping at a fixed character count.
+const r3ChipText = e1Card().querySelector(`.bb-split-chip[data-requirement-id="${r3.id}"] .bb-split-chip-text`);
+assert.equal(r3ChipText.textContent, r3.text, 'pill text is the full requirement');
+assert.ok(r3.text.length > 52, 'fixture is longer than the old fixed cutoff');
 
 // Tapping a chip shows the whole requirement (no hover title on touch).
 const r3ChipBody = e1Card().querySelector(`.bb-split-chip[data-requirement-id="${r3.id}"] .bb-split-chip-body`);
