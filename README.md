@@ -195,10 +195,11 @@ bullet — the chips are the bullet's purpose, and a bullet can carry several.
 Dragging a chip onto another bullet tags that requirement there too and leaves
 it on the first bullet. Those chips stack in one column, the same width. The requirement text runs
 to the end of the pill and only cuts off when it does not fit. **Expand all**
-wraps every pill. Drag a bullet
-onto another bullet to start a **Blank bullet** you can draft from both; the
-originals stay, and dropping another bullet on that blank adds it as another
-source.
+wraps every pill. Drag a bullet onto another bullet and the one you drop onto becomes a
+**Blank bullet** with both lines under Drafting from. The dragged bullet
+leaves this posting and stays in the bank. Requirements that were on either
+bullet are on the blank. Dropping another bullet onto that blank adds it the
+same way, without a second blank.
 Chip × removes one link only; **+ Requirement** on a bullet and **Add to
 bullets…** on a requirement are the keyboard and touch paths to the same
 link. **+ New bullet** writes to the bank and places the bullet on this

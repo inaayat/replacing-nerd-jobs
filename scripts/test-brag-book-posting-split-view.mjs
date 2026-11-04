@@ -184,29 +184,46 @@ assert.deepEqual(
   ['R2', 'R3'],
 );
 assert.equal(applySplitDrop(store, postingId, { kind: 'entry', id: 'e1' }, { kind: 'bullet', id: 'e1' }), store, 'dropping a bullet on itself is a no-op');
-const drafted = draftBulletFromBullets(store, postingId, 'e2', 'e1');
+const e1Title = store.entries.find((row) => row.id === 'e1').title;
+const linkedForDraft = linkRequirementToBullet(store, postingId, r1.id, 'e2');
+const drafted = draftBulletFromBullets(linkedForDraft, postingId, 'e2', 'e1');
 assert.equal(drafted.created, true);
-assert.equal(drafted.store.entries.find((row) => row.id === drafted.entryId).title, BLANK_BULLET_TITLE);
-assert.deepEqual(
-  drafted.store.entries.find((row) => row.id === drafted.entryId).draftSourceIds.slice().sort(),
-  ['e1', 'e2'],
-);
-assert.equal(drafted.store.entries.find((row) => row.id === 'e1').title, store.entries.find((row) => row.id === 'e1').title);
+assert.equal(drafted.entryId, 'e1', 'the bullet you drop onto becomes the blank');
+assert.equal(drafted.store.entries.length, linkedForDraft.entries.length, 'combining does not add a bullet');
+const blankEntry = drafted.store.entries.find((row) => row.id === 'e1');
+assert.equal(blankEntry.title, BLANK_BULLET_TITLE);
+assert.deepEqual(blankEntry.draftSourceIds, ['e2']);
+assert.ok(blankEntry.draftLines.includes(e1Title), 'the blank keeps the wording it replaced');
 assert.equal(drafted.store.entries.find((row) => row.id === 'e2').title, store.entries.find((row) => row.id === 'e2').title);
+const draftedModel = postingSplitViewModel(drafted.store, drafted.store.postings[0]);
+assert.deepEqual(
+  draftedModel.bullets.find((row) => row.entryId === 'e1').requirementIds.slice().sort(),
+  [r1.id, r3.id].sort(),
+  'requirements from both bullets are on the blank',
+);
+assert.equal(draftedModel.bullets.some((row) => row.entryId === 'e2'), false, 'the dragged bullet leaves this posting');
+assert.deepEqual(
+  drafted.store.postings[0].requirements.find((row) => row.id === r1.id).bullets.map((line) => line.entryId),
+  ['e1'],
+);
 const extended = draftBulletFromBullets(drafted.store, postingId, 'e3', drafted.entryId);
 assert.equal(extended.created, false);
 assert.equal(extended.entryId, drafted.entryId);
 assert.ok(extended.store.entries.find((row) => row.id === drafted.entryId).draftSourceIds.includes('e3'));
-assert.equal(extended.store.entries.filter((row) => row.title === BLANK_BULLET_TITLE).length, 1, 'dropping onto a blank adds a source');
+assert.equal(extended.store.entries.filter((row) => row.title === BLANK_BULLET_TITLE).length, 1, 'dropping onto a blank does not create a second one');
 const cleared = clearDraftSources(extended.store, drafted.entryId);
 assert.deepEqual(cleared.entries.find((row) => row.id === drafted.entryId).draftSourceIds, []);
+assert.deepEqual(cleared.entries.find((row) => row.id === drafted.entryId).draftLines, []);
 const oldClient = JSON.parse(JSON.stringify(extended.store));
 delete oldClient.entries.find((row) => row.id === drafted.entryId).draftSourceIds;
+delete oldClient.entries.find((row) => row.id === drafted.entryId).draftLines;
 const kept = preserveServerHistory(oldClient, extended.store);
-assert.ok(kept.entries.find((row) => row.id === drafted.entryId).draftSourceIds.includes('e1'), 'an older client save keeps the draft sources');
+assert.ok(kept.entries.find((row) => row.id === drafted.entryId).draftSourceIds.includes('e2'), 'an older client save keeps the draft sources');
+assert.ok(kept.entries.find((row) => row.id === drafted.entryId).draftLines.includes(e1Title), 'an older client save keeps the replaced line');
 const explicitClear = JSON.parse(JSON.stringify(cleared));
 const honored = preserveServerHistory(explicitClear, extended.store);
 assert.deepEqual(honored.entries.find((row) => row.id === drafted.entryId).draftSourceIds, [], 'Done drafting is not restored');
+assert.deepEqual(honored.entries.find((row) => row.id === drafted.entryId).draftLines, [], 'Done drafting clears the replaced line');
 const fakeTransfer = (type, value) => ({
   types: [type, 'text/plain'],
   getData: (t) => (t === type || t === 'text/plain' ? value : ''),
@@ -750,7 +767,7 @@ assert.ok(pastedTitles.includes('Shipped the close calendar'));
 assert.ok(pastedTitles.includes('Cut the audit cycle'));
 assert.equal(saved.postings[0].requirements.some((req) => (req.bullets || []).some((line) => line.text === 'Shipped the close calendar' || line.text === 'Cut the audit cycle')), false, 'pasted bullets start unmapped');
 
-// Dragging one bullet onto another starts a blank draft and leaves both originals.
+// Dragging one bullet onto another turns the target into the blank and takes the dragged bullet off this posting.
 const closeId = saved.entries.find((row) => row.title === 'Shipped the close calendar').id;
 const cycleId = saved.entries.find((row) => row.title === 'Cut the audit cycle').id;
 payload.clear();
@@ -762,11 +779,13 @@ assert.equal(fire(cycleCard, 'dragover').defaultPrevented, true);
 fire(cycleCard, 'drop');
 await tick();
 saved = readStore();
-const blank = saved.entries.find((row) => row.title === BLANK_BULLET_TITLE);
-assert.ok(blank, 'blank bullet created');
-assert.deepEqual(blank.draftSourceIds.slice().sort(), [closeId, cycleId].sort());
+const blank = saved.entries.find((row) => row.id === cycleId);
+assert.equal(blank.title, BLANK_BULLET_TITLE);
+assert.deepEqual(blank.draftSourceIds, [closeId]);
+assert.ok(blank.draftLines.includes('Cut the audit cycle'));
 assert.equal(saved.entries.find((row) => row.id === closeId).title, 'Shipped the close calendar');
-assert.equal(saved.entries.find((row) => row.id === cycleId).title, 'Cut the audit cycle');
+assert.equal(saved.entries.filter((row) => row.title === BLANK_BULLET_TITLE).length, 1, 'no extra blank');
+assert.equal(document.querySelector(`.bb-split-bullet[data-entry-id="${closeId}"]`), null, 'dragged bullet left the posting');
 const blankCard = document.querySelector(`.bb-split-bullet[data-entry-id="${blank.id}"]`);
 assert.ok(blankCard.classList.contains('is-draft'));
 assert.equal(blankCard.querySelectorAll('.bb-split-draft-sources li').length, 2);
@@ -780,6 +799,7 @@ await tick();
 saved = readStore();
 assert.equal(saved.entries.filter((row) => row.title === BLANK_BULLET_TITLE).length, 1);
 assert.ok(saved.entries.find((row) => row.id === blank.id).draftSourceIds.includes('e1'));
+assert.equal(document.querySelector('.bb-split-bullet[data-entry-id="e1"]'), null, 'the added bullet left the posting');
 document.querySelector(`.bb-split-bullet[data-entry-id="${blank.id}"] .bb-split-draft-done`).click();
 await tick();
 saved = readStore();

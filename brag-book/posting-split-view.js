@@ -17,6 +17,7 @@ import {
   entryById,
   experienceForEntry,
   postingById,
+  removeExperienceCoverage,
   requirementById,
   updateEntry,
   updatePostingResume,
@@ -279,15 +280,24 @@ export const BLANK_BULLET_TITLE = 'Blank bullet';
 
 /** A bullet opened so you can tailor new wording from bullets you already wrote. */
 export function entryIsDraftBullet(entry) {
-  return Array.isArray(entry?.draftSourceIds) && entry.draftSourceIds.length > 0;
+  return (Array.isArray(entry?.draftSourceIds) && entry.draftSourceIds.length > 0)
+    || (Array.isArray(entry?.draftLines) && entry.draftLines.length > 0);
 }
 
 function draftSourceLines(store, entry) {
   const out = [];
+  const seen = new Set();
+  const push = (entryId, line) => {
+    const text = displayMapLine(line);
+    if (!text || text === BLANK_BULLET_TITLE || seen.has(text)) return;
+    seen.add(text);
+    out.push({ entryId: entryId || '', line: text });
+  };
+  for (const line of entry?.draftLines || []) push('', line);
   for (const id of entry?.draftSourceIds || []) {
     const src = entryById(store, id);
     if (!src) continue;
-    out.push({ entryId: id, line: displayMapLine(src.title) });
+    push(id, src.title);
   }
   return out;
 }
@@ -295,14 +305,24 @@ function draftSourceLines(store, entry) {
 /** The written bullets a draft is drawing from. A draft contributes its sources, not itself. */
 function materialEntryIds(entry) {
   if (!entry?.id) return [];
-  if (entryIsDraftBullet(entry)) return entry.draftSourceIds.filter((id) => id !== entry.id);
+  if (entryIsDraftBullet(entry)) return (entry.draftSourceIds || []).filter((id) => id !== entry.id);
   return [entry.id];
 }
 
+function requirementIdsForEntry(posting, entryId) {
+  const ids = [];
+  for (const req of posting?.requirements || []) {
+    if ((req?.bullets || []).some((line) => line?.entryId === entryId) && req.id) ids.push(req.id);
+  }
+  return ids;
+}
+
 /**
- * Dragging one bullet onto another starts a blank bullet you can draft, and
- * leaves both originals in place. Dropping onto a blank adds another source
- * instead of nesting a second blank.
+ * Dragging one bullet onto another combines them into one blank. The bullet
+ * you drop onto becomes that blank — no extra bullet is added. The dragged
+ * bullet leaves this posting and stays in the bank, listed under Drafting
+ * from. Requirements from both end up on the blank. Dropping onto a blank
+ * folds the next bullet in the same way.
  */
 export function draftBulletFromBullets(store, postingId, sourceEntryId, targetEntryId, clock = Date.now) {
   const source = entryById(store, sourceEntryId);
@@ -311,41 +331,58 @@ export function draftBulletFromBullets(store, postingId, sourceEntryId, targetEn
   if (!source || !target || !posting || source.id === target.id) {
     return { store, entryId: '', created: false };
   }
-  if (entryIsDraftBullet(target)) {
-    const ids = [...new Set([...target.draftSourceIds, ...materialEntryIds(source)])].filter((id) => id !== target.id);
-    const same = ids.length === target.draftSourceIds.length
-      && ids.every((id, index) => id === target.draftSourceIds[index]);
-    if (same) return { store, entryId: target.id, created: false };
-    return {
-      store: updateEntry(store, target.id, { draftSourceIds: ids }, clock),
-      entryId: target.id,
-      created: false,
-    };
+  const container = entryIsDraftBullet(target) || !entryIsDraftBullet(source) ? target : source;
+  const folded = container.id === target.id ? source : target;
+  const started = !entryIsDraftBullet(container);
+  const ids = [...new Set([
+    ...(container.draftSourceIds || []),
+    ...materialEntryIds(folded),
+  ])].filter((id) => id && id !== container.id);
+  const lines = [];
+  const pushLine = (line) => {
+    const text = displayMapLine(line);
+    if (!text || text === BLANK_BULLET_TITLE || lines.includes(text)) return;
+    lines.push(text);
+  };
+  for (const line of container.draftLines || []) pushLine(line);
+  if (started) pushLine(container.title);
+  if (entryIsDraftBullet(folded)) {
+    for (const line of folded.draftLines || []) pushLine(line);
+    pushLine(folded.title);
   }
-  if (entryIsDraftBullet(source)) {
-    const ids = [...new Set([...source.draftSourceIds, ...materialEntryIds(target)])].filter((id) => id !== source.id);
-    const same = ids.length === source.draftSourceIds.length
-      && ids.every((id, index) => id === source.draftSourceIds[index]);
-    if (same) return { store, entryId: source.id, created: false };
-    return {
-      store: updateEntry(store, source.id, { draftSourceIds: ids }, clock),
-      entryId: source.id,
-      created: false,
-    };
+  const liveLines = new Set(ids.map((id) => displayMapLine(entryById(store, id)?.title)).filter(Boolean));
+  const snapshots = lines.filter((line) => !liveLines.has(line));
+  const requirementIds = requirementIdsForEntry(posting, folded.id);
+  let next = store;
+  for (const requirementId of requirementIds) {
+    next = mapEntryToRequirement(next, postingId, requirementId, container.id, clock);
   }
-  const jobId = target.jobId || source.jobId || postingPrimaryCatalogJobId(store, posting);
-  const created = addBulletToPosting(store, postingId, {
-    title: BLANK_BULLET_TITLE,
-    jobId,
-    draftSourceIds: [...new Set([...materialEntryIds(source), ...materialEntryIds(target)])],
+  next = updateEntry(next, container.id, {
+    ...(started ? { title: BLANK_BULLET_TITLE, rich: [{ text: BLANK_BULLET_TITLE }] } : {}),
+    draftSourceIds: ids,
+    draftLines: snapshots,
   }, clock);
-  return { store: created.store, entryId: created.entryId, created: Boolean(created.entryId) };
+  const foldedExperienceId = experienceForEntry(next, folded.id)?.id || '';
+  next = removeBulletFromPosting(next, postingId, folded.id, clock);
+  if (foldedExperienceId) {
+    const livePosting = postingById(next, postingId);
+    for (const requirementId of requirementIds) {
+      const req = (livePosting?.requirements || []).find((row) => row.id === requirementId);
+      const stillCovered = (req?.bullets || []).some((line) => (
+        line?.entryId && experienceForEntry(next, line.entryId)?.id === foldedExperienceId
+      ));
+      if (!stillCovered) {
+        next = removeExperienceCoverage(next, postingId, requirementId, foldedExperienceId, clock);
+      }
+    }
+  }
+  return { store: next, entryId: container.id, created: started };
 }
 
 /** Keep the drafted wording and stop showing the source bullets under it. */
 export function clearDraftSources(store, entryId, clock = Date.now) {
   if (!entryById(store, entryId)) return store;
-  return updateEntry(store, entryId, { draftSourceIds: [] }, clock);
+  return updateEntry(store, entryId, { draftSourceIds: [], draftLines: [] }, clock);
 }
 
 export function addBulletToPosting(store, postingId, {

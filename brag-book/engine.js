@@ -639,6 +639,7 @@ export function normalizeEntry(raw, clock = Date.now) {
     legacyVersions: normalizeLegacyVersions(raw.legacyVersions),
     experienceId: asString(raw.experienceId, 64),
     draftSourceIds: normalizeDraftSourceIds(raw.draftSourceIds, id),
+    draftLines: normalizeDraftLines(raw.draftLines),
   };
 }
 
@@ -652,6 +653,20 @@ function normalizeDraftSourceIds(value, selfId) {
     if (!id || id === selfId || seen.has(id)) continue;
     seen.add(id);
     out.push(id);
+  }
+  return out;
+}
+
+/** Wording kept under a blank after that bullet's own line was replaced. */
+function normalizeDraftLines(value) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  const seen = new Set();
+  for (const item of value) {
+    const line = asString(item, TEXT_MAX).replace(/\s+/g, ' ').trim();
+    if (!line || seen.has(line)) continue;
+    seen.add(line);
+    out.push(line);
   }
   return out;
 }
@@ -1271,9 +1286,9 @@ export function preserveExperienceMetadataForOldClient(next, saved, incomingVers
 }
 
 /**
- * A client that does not know about drafts omits `draftSourceIds`. Keep the
- * saved list. A client that sends the key, including `[]` after Done drafting,
- * is writing the list on purpose.
+ * A client that does not know about drafts omits `draftSourceIds` and
+ * `draftLines`. Keep the saved lists. A client that sends a key, including
+ * `[]` after Done drafting, is writing that list on purpose.
  */
 function preserveDraftSourceIds(incomingRaw, next, current) {
   const rawById = new Map();
@@ -1288,10 +1303,17 @@ function preserveDraftSourceIds(incomingRaw, next, current) {
     ...next,
     entries: (next.entries || []).map((entry) => {
       const raw = rawById.get(entry.id);
-      if (raw && Object.prototype.hasOwnProperty.call(raw, 'draftSourceIds')) return entry;
-      const prior = normalizeDraftSourceIds(savedById.get(entry.id)?.draftSourceIds, entry.id);
-      if (!prior.length) return entry;
-      return { ...entry, draftSourceIds: prior };
+      const saved = savedById.get(entry.id);
+      let nextEntry = entry;
+      if (!(raw && Object.prototype.hasOwnProperty.call(raw, 'draftSourceIds'))) {
+        const prior = normalizeDraftSourceIds(saved?.draftSourceIds, entry.id);
+        if (prior.length) nextEntry = { ...nextEntry, draftSourceIds: prior };
+      }
+      if (!(raw && Object.prototype.hasOwnProperty.call(raw, 'draftLines'))) {
+        const priorLines = normalizeDraftLines(saved?.draftLines);
+        if (priorLines.length) nextEntry = { ...nextEntry, draftLines: priorLines };
+      }
+      return nextEntry;
     }),
   };
 }

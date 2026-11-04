@@ -709,8 +709,8 @@ function bulletCard(deps, posting, model, bullet, { showJobLabel = true } = {}) 
             focusKey: result.created ? splitBulletFocusKey(result.entryId) : undefined,
           });
           setNote(result.created
-            ? 'Blank bullet added. Draft it from the bullets you dropped — they stay as they were.'
-            : 'Added that bullet to the draft.');
+            ? 'Combined into a blank bullet. The other bullet is underneath, and both sets of requirements are on this one.'
+            : 'Added that bullet under this blank. Its requirements came along too.');
           return;
         }
         const req = model.requirements.find((row) => row.id === payload.id);
