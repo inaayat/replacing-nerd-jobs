@@ -196,6 +196,7 @@ import {
   visibleResumeBullets,
   adoptCompiledJob,
   resumeBulletSpans,
+  postingBulletEditorSpans,
   applyResumeBulletEdit,
   createSharedBullet,
   saveSharedBullet,
@@ -4134,13 +4135,14 @@ function requirementCardBullets(job, req) {
     const bulletKey = `${job.id}:${req.id}:${bullet.id}`;
     const isOpen = expandedBulletKey === bulletKey;
     const linked = linkedBulletLine(store, bullet);
-    const shown = displayExperienceLine(linked.text);
+    const shownSpans = postingBulletEditorSpans(linked.text, linked.rich);
     const line = richLine({
       class: 'bullet-copy is-marked',
       'aria-label': 'Experience',
     }, {
-      text: shown,
-      rich: shown === String(linked.text || '').trim() ? linked.rich : null,
+      text: shownSpans.map((span) => span.text).join(''),
+      rich: shownSpans,
+      italic: true,
       onChange: (spans) => {
         const text = spans.map((span) => span.text).join('');
         if (!text.trim()) return;

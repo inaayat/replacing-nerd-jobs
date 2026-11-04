@@ -21,6 +21,8 @@ assert.match(uiSource, /updateEntry/);
 assert.match(uiSource, /bb-post-map-add-bullet/);
 assert.match(uiSource, /bb-post-map-version-edit/);
 assert.match(uiSource, /buildMapEntryEditor/);
+assert.match(uiSource, /postingBulletEditorSpans/);
+assert.match(uiSource, /italic: true/);
 
 const clock = () => Date.parse('2026-10-21T14:00:00.000Z');
 

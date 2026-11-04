@@ -190,6 +190,7 @@ export {
   ignoreBoldMarkers,
   resumeBulletParts,
   resumeBulletSpans,
+  postingBulletEditorSpans,
   bulletFromLine,
   markdownToSpans,
   spansToMarkdown,

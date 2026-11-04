@@ -204,7 +204,7 @@ posting. A bullet you add on a posting is saved in the book, and the posting's
 bank search still finds it, marked **On this posting**.
 Chip × removes one link only; **+ Requirement** on a bullet and **Add to
 bullets…** on a requirement are the keyboard and touch paths to the same
-link. **+ New bullet** writes to the bank and places the bullet on this
+link. Editing a bullet there keeps bold and italic (Cmd/Ctrl+B and Cmd/Ctrl+I), including the bold title before the colon. **+ New bullet** writes to the bank and places the bullet on this
 resume in one step (under the selected requirement, if any); **+ Paste more bullets** sits under the bullets column, and **+ Paste more
 requirements** sits under the requirements column, each as wide as that
 column. **Job details** is at the top of the posting. The page heading is the posting title, so the split view does not repeat it, and it skips the coverage counts (those stay on Prep and the table views). Paste adds a whole

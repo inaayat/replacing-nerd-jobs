@@ -184,6 +184,7 @@ import {
   bulletLineText,
   ignoreBoldMarkers,
   resumeBulletSpans,
+  postingBulletEditorSpans,
   bulletFromLine,
   markdownToSpans,
   spansToMarkdown,
@@ -1793,6 +1794,19 @@ assert.equal(italicShown.find((span) => span.text === 'Designing').italic, true)
 assert.equal(italicShown[0].bold, true);
 assert.equal(italicShown.map((span) => span.text).join('').includes('*'), false);
 assert.equal(bulletConsistency(italicBook).some((issue) => issue.bulletId === 'rb_italic'), false);
+const postingEditorSpans = postingBulletEditorSpans(italicEntry.title, italicEntry.rich);
+assert.equal(postingEditorSpans.find((span) => span.text === 'Designing').italic, true, 'a posting editor keeps italic stored on the bullet');
+assert.equal(postingEditorSpans[0].bold, true, 'a posting editor bolds the title before the colon');
+const markerKept = postingBulletEditorSpans('• Built the close: cut it by 4 days', [
+  { text: '• Built the close: ', bold: true },
+  { text: 'cut it by 4 days', bold: false, italic: true },
+]);
+assert.equal(markerKept.map((span) => span.text).join(''), 'Built the close: cut it by 4 days');
+assert.equal(markerKept[0].bold, true);
+assert.equal(markerKept.find((span) => span.text === 'cut it by 4 days').italic, true, 'dropping a list marker does not drop italic');
+const plainLead = postingBulletEditorSpans('Partner with auditors: own the program', [{ text: 'Partner with auditors: own the program', bold: false }]);
+assert.equal(plainLead[0].bold, true);
+assert.match(plainLead[0].text, /^Partner with auditors:/);
 const reloadedItalic = normalizeStore(JSON.parse(serializeBook(italicBook).json), clock);
 assert.equal(reloadedItalic.entries.find((entry) => entry.id === 'en_italic').rich.find((span) => span.text === 'Designing').italic, true);
 assert.match(renderResumeHtml(compileResumeDoc(null, reloadedItalic), { droppedBulletIds: [] }), /<i>Designing<\/i>/);

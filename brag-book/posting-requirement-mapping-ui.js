@@ -20,6 +20,7 @@ import {
   unmapEntryFromRequirement,
   displayMapLine,
 } from './posting-requirement-mapping.js';
+import { postingBulletEditorSpans } from './resume-model.js';
 
 export function requirementBucketKey(postingId, requirementId, experienceId) {
   return `${postingId}:${requirementId}:xp:${experienceId}`;
@@ -117,21 +118,23 @@ export function appendPostingMapSearchCreateRows(deps, listChildren, {
 
 export function buildMapEntryEditor(deps, entry, { className = 'bb-post-map-bullet-line', ariaLabel = 'Resume bullet', focusKey = '' }) {
   const {
-    store, displayExperienceLine, richLine, updateEntry, onSave,
+    store, richLine, updateEntry, onSave,
   } = deps;
   if (!entry?.id) return null;
-  const shown = displayExperienceLine(entry.title);
+  const spans = postingBulletEditorSpans(entry.title, entry.rich);
+  const shown = spans.map((span) => span.text).join('');
   return richLine({
     class: className,
     'aria-label': ariaLabel,
     ...(focusKey ? { 'data-focus-key': focusKey } : {}),
   }, {
     text: shown,
-    rich: shown === String(entry.title || '').trim() ? entry.rich : null,
-    onChange: (spans) => {
-      const text = spans.map((span) => span.text).join('');
+    rich: spans,
+    italic: true,
+    onChange: (next) => {
+      const text = next.map((span) => span.text).join('');
       if (!text.trim()) return;
-      onSave(updateEntry(store, entry.id, { title: text, rich: spans }));
+      onSave(updateEntry(store, entry.id, { title: text, rich: next }));
     },
   });
 }

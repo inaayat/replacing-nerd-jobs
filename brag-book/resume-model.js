@@ -683,6 +683,44 @@ function withBoldLeadBeforeColon(spans) {
   return out;
 }
 
+const LEADING_BULLET_MARK = /^\s*[-*•–—●▪‣∙]\s+/;
+
+function dropSpanPrefix(spans, count) {
+  let left = count;
+  const out = [];
+  for (const span of spans) {
+    if (!span?.text) continue;
+    if (left <= 0) {
+      out.push(span);
+      continue;
+    }
+    if (span.text.length <= left) {
+      left -= span.text.length;
+      continue;
+    }
+    const text = span.text.slice(left);
+    left = 0;
+    const next = { text, bold: Boolean(span.bold) };
+    if (span.italic) next.italic = true;
+    out.push(next);
+  }
+  return out;
+}
+
+/**
+ * Spans for a bullet edited on a job posting. Same marks as the resume
+ * editor (the title before the first colon is bold; stored bold and italic
+ * stay). A leading list marker is left off the line so it is not saved back
+ * as plain text in place of those marks.
+ */
+export function postingBulletEditorSpans(text, rich) {
+  const spans = resumeBulletSpans({ lead: '', body: String(text || ''), rich });
+  const plain = spans.map((span) => span.text).join('');
+  const marker = plain.match(LEADING_BULLET_MARK);
+  const shown = marker ? dropSpanPrefix(spans, marker[0].length) : spans;
+  return shown.length ? shown : spans;
+}
+
 export function resumeBulletSpans(bullet) {
   if (Array.isArray(bullet?.rich) && bullet.rich.some((span) => span && String(span.text ?? '').length)) {
     const hasMarks = bullet.rich.some((span) => span?.bold || span?.italic);
