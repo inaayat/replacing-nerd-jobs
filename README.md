@@ -193,7 +193,11 @@ view. Drag a requirement onto a bullet (or a
 bullet onto a requirement) and that requirement appears as a chip under the
 bullet — the chips are the bullet's purpose, and a bullet can carry several.
 Dragging a chip onto another bullet tags that requirement there too and leaves
-it on the first bullet.
+it on the first bullet. Those chips stack in one column, the same width, and
+**Expand all** shows the full text of every mapped requirement. Drag a bullet
+onto another bullet to start a **Blank bullet** you can draft from both; the
+originals stay, and dropping another bullet on that blank adds it as another
+source.
 Chip × removes one link only; **+ Requirement** on a bullet and **Add to
 bullets…** on a requirement are the keyboard and touch paths to the same
 link. **+ New bullet** writes to the bank and places the bullet on this

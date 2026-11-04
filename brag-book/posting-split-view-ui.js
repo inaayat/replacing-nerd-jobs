@@ -23,8 +23,11 @@ import { buildMapEntryEditor } from './posting-requirement-mapping-ui.js';
 import {
   SPLIT_DRAG_ENTRY_TYPE,
   SPLIT_DRAG_REQUIREMENT_TYPE,
+  BLANK_BULLET_TITLE,
   addBulletToPosting,
   addLibraryBulletToPosting,
+  clearDraftSources,
+  draftBulletFromBullets,
   resolveComposeJobId,
   applySplitDrop,
   filterSplitBullets,
@@ -62,6 +65,7 @@ export function emptySplitViewState() {
     expandedDetailsEntryId: '',
     questionsOpenReqId: '',
     expandedChipKey: '',
+    expandAllChips: false,
     /** Phone pane ('requirements' | 'bullets'); empty = pick from the model. Desktop shows both. */
     pane: '',
   };
@@ -295,7 +299,7 @@ function requirementChip(deps, posting, bullet, reqRow) {
     el, store, state, setState, onSave, onRender, setNote,
   } = deps;
   const chipKey = `${bullet.key}:${reqRow.id}`;
-  const expanded = state.expandedChipKey === chipKey;
+  const expanded = Boolean(state.expandAllChips) || state.expandedChipKey === chipKey;
   // A drag that ends in a drop also fires click. Skip the expand that would follow.
   let dragged = false;
   return el('span', {
@@ -538,11 +542,29 @@ function bulletCard(deps, posting, model, bullet, { showJobLabel = true } = {}) 
 
   const line = entry
     ? buildMapEntryEditor(deps, entry, {
-      className: 'bb-split-bullet-line',
-      ariaLabel: 'Resume bullet',
+      className: `bb-split-bullet-line${entry.title === BLANK_BULLET_TITLE ? ' is-blank' : ''}`,
+      ariaLabel: entry.title === BLANK_BULLET_TITLE ? 'Blank bullet' : 'Resume bullet',
       focusKey: splitBulletFocusKey(entry.id),
     })
     : el('div', { class: 'bb-split-bullet-line is-legacy' }, bullet.line);
+  const draftSources = bullet.draftSources || [];
+  const draftBlock = draftSources.length
+    ? el('div', { class: 'bb-split-draft-sources' }, [
+      el('p', { class: 'bb-split-draft-label' }, 'Drafting from'),
+      el('ul', {}, draftSources.map((source) => el('li', {
+        'data-entry-id': source.entryId,
+      }, source.line))),
+      btn('Done drafting', {
+        type: 'button',
+        class: 'row-text-action bb-split-draft-done',
+        onClick: () => {
+          onSave(clearDraftSources(store, entry.id));
+          onRender({ preserveScroll: true });
+          setNote('Draft kept. The bullets you wrote from stay as they were.');
+        },
+      }),
+    ])
+    : null;
 
   const addSelected = entry && selectedReq && !addressesSelected
     ? el('button', {
@@ -646,13 +668,14 @@ function bulletCard(deps, posting, model, bullet, { showJobLabel = true } = {}) 
       : null,
   ]);
 
-  const handle = el('span', { class: 'bb-split-handle', 'aria-hidden': 'true', title: 'Drag onto a requirement' }, '⠇');
+  const handle = el('span', { class: 'bb-split-handle', 'aria-hidden': 'true', title: 'Drag onto a requirement, or onto another bullet to start a blank' }, '⠇');
   const card = el('article', {
     class: [
       'bb-split-bullet',
       addressesSelected ? 'is-addressing' : '',
       !bullet.requirements.length ? 'is-without-requirement' : '',
       bullet.legacy ? 'is-legacy' : '',
+      draftSources.length ? 'is-draft' : '',
     ].filter(Boolean).join(' '),
     'data-entry-id': bullet.entryId,
     'data-requirement-ids': bullet.requirementIds.join(' '),
@@ -661,6 +684,7 @@ function bulletCard(deps, posting, model, bullet, { showJobLabel = true } = {}) 
       handle,
       line,
     ]),
+    draftBlock,
     purposeChips,
     pickerOpen ? requirementPickerMenu(deps, posting, model, bullet) : null,
     meta,
@@ -673,6 +697,22 @@ function bulletCard(deps, posting, model, bullet, { showJobLabel = true } = {}) 
       targetKind: 'bullet',
       targetId: entry.id,
       onDrop: (payload, target) => {
+        if (payload.kind === 'entry') {
+          const result = draftBulletFromBullets(store, posting.id, payload.id, target.id);
+          if (!result.entryId) {
+            setNote('Drop a bullet onto a different bullet to start a blank.');
+            return;
+          }
+          onSave(result.store);
+          onRender({
+            preserveScroll: true,
+            focusKey: result.created ? splitBulletFocusKey(result.entryId) : undefined,
+          });
+          setNote(result.created
+            ? 'Blank bullet added. Draft it from the bullets you dropped — they stay as they were.'
+            : 'Added that bullet to the draft.');
+          return;
+        }
         const req = model.requirements.find((row) => row.id === payload.id);
         const alreadyHere = bullet.requirementIds.includes(payload.id);
         const staysOnOthers = (req?.bulletCount || 0) > (alreadyHere ? 1 : 0);
@@ -1013,7 +1053,18 @@ export function buildPostingSplitView(deps, posting) {
       el('div', { class: 'bb-split-col-title' }, [
         el('h3', {}, 'Bullets'),
       ]),
-      btn('+ New bullet', {
+      el('div', { class: 'bb-split-head-actions' }, [
+        model.bullets.some((row) => row.requirements.length)
+          ? btn(state.expandAllChips ? 'Collapse' : 'Expand all', {
+            class: 'btn ghost compact-action bb-split-expand-all',
+            'aria-pressed': state.expandAllChips ? 'true' : 'false',
+            onClick: () => {
+              setState({ expandAllChips: !state.expandAllChips, expandedChipKey: '' });
+              onRender({ preserveScroll: true });
+            },
+          })
+          : null,
+        btn('+ New bullet', {
         class: 'btn compact-action bb-split-new-bullet',
         'aria-expanded': state.composeOpen ? 'true' : 'false',
         onClick: () => {
@@ -1022,6 +1073,7 @@ export function buildPostingSplitView(deps, posting) {
           onRender({ preserveScroll: true, focusKey: opening ? 'split-compose' : undefined });
         },
       }),
+      ]),
     ]),
     selectedReq ? selectedRequirementBar(deps, model, selectedReq) : null,
     state.composeOpen ? composeBulletForm(deps, posting, model) : null,

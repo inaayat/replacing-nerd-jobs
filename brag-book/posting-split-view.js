@@ -18,8 +18,10 @@ import {
   experienceForEntry,
   postingById,
   requirementById,
+  updateEntry,
   updatePostingResume,
 } from './engine.js';
+import { postingPrimaryCatalogJobId } from './experiences-index.js';
 import { compileResumeDoc, visibleResumeBullets } from './resume-model.js';
 import {
   displayMapLine,
@@ -141,6 +143,8 @@ export function postingSplitViewModel(store, posting) {
       experienceTitle: xp?.title || '',
       jobId: entry.jobId || '',
       jobLabel: job ? careerJobGroupLabel(job) : '',
+      draftSourceIds: entry.draftSourceIds || [],
+      draftSources: draftSourceLines(store, entry),
       legacy: null,
     });
   }
@@ -160,6 +164,8 @@ export function postingSplitViewModel(store, posting) {
       experienceTitle: '',
       jobId: '',
       jobLabel: '',
+      draftSourceIds: [],
+      draftSources: [],
       legacy: { reqId, bulletId: bullet.id },
     });
   }
@@ -269,11 +275,85 @@ export function resolveComposeJobId({
   return '';
 }
 
+export const BLANK_BULLET_TITLE = 'Blank bullet';
+
+/** A bullet opened so you can tailor new wording from bullets you already wrote. */
+export function entryIsDraftBullet(entry) {
+  return Array.isArray(entry?.draftSourceIds) && entry.draftSourceIds.length > 0;
+}
+
+function draftSourceLines(store, entry) {
+  const out = [];
+  for (const id of entry?.draftSourceIds || []) {
+    const src = entryById(store, id);
+    if (!src) continue;
+    out.push({ entryId: id, line: displayMapLine(src.title) });
+  }
+  return out;
+}
+
+/** The written bullets a draft is drawing from. A draft contributes its sources, not itself. */
+function materialEntryIds(entry) {
+  if (!entry?.id) return [];
+  if (entryIsDraftBullet(entry)) return entry.draftSourceIds.filter((id) => id !== entry.id);
+  return [entry.id];
+}
+
+/**
+ * Dragging one bullet onto another starts a blank bullet you can draft, and
+ * leaves both originals in place. Dropping onto a blank adds another source
+ * instead of nesting a second blank.
+ */
+export function draftBulletFromBullets(store, postingId, sourceEntryId, targetEntryId, clock = Date.now) {
+  const source = entryById(store, sourceEntryId);
+  const target = entryById(store, targetEntryId);
+  const posting = postingById(store, postingId);
+  if (!source || !target || !posting || source.id === target.id) {
+    return { store, entryId: '', created: false };
+  }
+  if (entryIsDraftBullet(target)) {
+    const ids = [...new Set([...target.draftSourceIds, ...materialEntryIds(source)])].filter((id) => id !== target.id);
+    const same = ids.length === target.draftSourceIds.length
+      && ids.every((id, index) => id === target.draftSourceIds[index]);
+    if (same) return { store, entryId: target.id, created: false };
+    return {
+      store: updateEntry(store, target.id, { draftSourceIds: ids }, clock),
+      entryId: target.id,
+      created: false,
+    };
+  }
+  if (entryIsDraftBullet(source)) {
+    const ids = [...new Set([...source.draftSourceIds, ...materialEntryIds(target)])].filter((id) => id !== source.id);
+    const same = ids.length === source.draftSourceIds.length
+      && ids.every((id, index) => id === source.draftSourceIds[index]);
+    if (same) return { store, entryId: source.id, created: false };
+    return {
+      store: updateEntry(store, source.id, { draftSourceIds: ids }, clock),
+      entryId: source.id,
+      created: false,
+    };
+  }
+  const jobId = target.jobId || source.jobId || postingPrimaryCatalogJobId(store, posting);
+  const created = addBulletToPosting(store, postingId, {
+    title: BLANK_BULLET_TITLE,
+    jobId,
+    draftSourceIds: [...new Set([...materialEntryIds(source), ...materialEntryIds(target)])],
+  }, clock);
+  return { store: created.store, entryId: created.entryId, created: Boolean(created.entryId) };
+}
+
+/** Keep the drafted wording and stop showing the source bullets under it. */
+export function clearDraftSources(store, entryId, clock = Date.now) {
+  if (!entryById(store, entryId)) return store;
+  return updateEntry(store, entryId, { draftSourceIds: [] }, clock);
+}
+
 export function addBulletToPosting(store, postingId, {
   title,
   rich = null,
   jobId = '',
   requirementIds = [],
+  draftSourceIds = [],
 } = {}, clock = Date.now) {
   const text = String(title || '').trim();
   if (!text || !postingById(store, postingId)) return { store, entryId: '', placed: false };
@@ -283,6 +363,7 @@ export function addBulletToPosting(store, postingId, {
     ...(Array.isArray(rich) && rich.length ? { rich } : {}),
     jobId: jobId || '',
     kind: 'experience',
+    ...(draftSourceIds.length ? { draftSourceIds } : {}),
   }, clock);
   if (!created.entryId) return { store, entryId: '', placed: false };
   let next = idempotentAddEntryToPostingResume(created.store, postingId, created.entryId, clock);
@@ -431,15 +512,23 @@ export function readSplitDragPayload(dataTransfer) {
   return null;
 }
 
-/** Whether a drag hovering over a row may drop there (requirement onto bullet, bullet onto requirement). */
+/** Whether a drag hovering over a row may drop there. */
 export function splitDropAccepts(payloadKind, targetKind) {
   return (payloadKind === 'requirement' && targetKind === 'bullet')
-    || (payloadKind === 'entry' && targetKind === 'requirement');
+    || (payloadKind === 'entry' && targetKind === 'requirement')
+    || (payloadKind === 'entry' && targetKind === 'bullet');
 }
 
-/** Reduce a drop to the one link operation. Both drop directions write the same link. */
+/**
+ * A requirement drop links that requirement to the bullet. A bullet dropped
+ * on a bullet starts (or extends) a blank draft. A bullet dropped on a
+ * requirement links, the same as the other direction.
+ */
 export function applySplitDrop(store, postingId, payload, target, clock = Date.now) {
   if (!payload || !target || !splitDropAccepts(payload.kind, target.kind)) return store;
+  if (payload.kind === 'entry' && target.kind === 'bullet') {
+    return draftBulletFromBullets(store, postingId, payload.id, target.id, clock).store;
+  }
   if (payload.kind === 'requirement') {
     return linkRequirementToBullet(store, postingId, payload.id, target.id, clock);
   }

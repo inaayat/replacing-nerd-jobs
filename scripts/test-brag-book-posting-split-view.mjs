@@ -19,16 +19,20 @@ import {
   createExperience,
   emptyStore,
   normalizeStore,
+  preserveServerHistory,
   unmappedPostingResumeBullets,
 } from '../brag-book/engine.js';
 import { compileResumeDoc } from '../brag-book/resume-model.js';
 import {
   SPLIT_DRAG_ENTRY_TYPE,
   SPLIT_DRAG_REQUIREMENT_TYPE,
+  BLANK_BULLET_TITLE,
   addBulletToPosting,
   addBulletsToPosting,
   addLibraryBulletToPosting,
   applySplitDrop,
+  clearDraftSources,
+  draftBulletFromBullets,
   filterSplitBullets,
   linkRequirementToBullet,
   normalizePostingViewMode,
@@ -55,6 +59,8 @@ assert.match(css, /\.bb-split-requirements \{\s*border-left: 1px solid var\(--li
 assert.match(css, /\.bb-split-req\.is-addressed \{\s*background: rgba\(31, 122, 77, 0\.12\);/, 'mapped requirements are light green');
 assert.match(css, /\.hero\.is-compact \{\s*padding: 8px 8px 10px 16px;/, 'page title sits in from the left edge');
 assert.match(css, /\.bb-split-bullet\.is-drop-target/, 'drop target styling');
+assert.match(css, /\.bb-split-purpose \{[^}]*flex-direction:\s*column/, 'mapped requirement pills stack');
+assert.match(css, /\.bb-split-chip \{[^}]*width:\s*100%/, 'mapped requirement pills share one width');
 assert.match(css, /\.bb-split-chip-body\[draggable="true"\] \{ cursor: grab; \}/, 'a requirement chip can be dragged');
 const coarseStart = css.indexOf('/* Touch targets and no-zoom inputs on any coarse pointer');
 assert.ok(coarseStart > 0, 'split view coarse-pointer block');
@@ -162,7 +168,7 @@ assert.deepEqual(model.bullets[0].requirements.map((row) => row.ordinal), ['R3']
 assert.equal(splitDropAccepts('requirement', 'bullet'), true);
 assert.equal(splitDropAccepts('entry', 'requirement'), true);
 assert.equal(splitDropAccepts('requirement', 'requirement'), false);
-assert.equal(splitDropAccepts('entry', 'bullet'), false);
+assert.equal(splitDropAccepts('entry', 'bullet'), true);
 const viaReqDrop = applySplitDrop(store, postingId, { kind: 'requirement', id: r2.id }, { kind: 'bullet', id: 'e1' });
 const viaBulletDrop = applySplitDrop(store, postingId, { kind: 'entry', id: 'e1' }, { kind: 'requirement', id: r2.id });
 assert.deepEqual(
@@ -173,7 +179,30 @@ assert.deepEqual(
   postingSplitViewModel(viaBulletDrop, viaBulletDrop.postings[0]).bullets[0].requirements.map((row) => row.ordinal),
   ['R2', 'R3'],
 );
-assert.equal(applySplitDrop(store, postingId, { kind: 'entry', id: 'e1' }, { kind: 'bullet', id: 'e1' }), store, 'rejected drop is a no-op');
+assert.equal(applySplitDrop(store, postingId, { kind: 'entry', id: 'e1' }, { kind: 'bullet', id: 'e1' }), store, 'dropping a bullet on itself is a no-op');
+const drafted = draftBulletFromBullets(store, postingId, 'e2', 'e1');
+assert.equal(drafted.created, true);
+assert.equal(drafted.store.entries.find((row) => row.id === drafted.entryId).title, BLANK_BULLET_TITLE);
+assert.deepEqual(
+  drafted.store.entries.find((row) => row.id === drafted.entryId).draftSourceIds.slice().sort(),
+  ['e1', 'e2'],
+);
+assert.equal(drafted.store.entries.find((row) => row.id === 'e1').title, store.entries.find((row) => row.id === 'e1').title);
+assert.equal(drafted.store.entries.find((row) => row.id === 'e2').title, store.entries.find((row) => row.id === 'e2').title);
+const extended = draftBulletFromBullets(drafted.store, postingId, 'e3', drafted.entryId);
+assert.equal(extended.created, false);
+assert.equal(extended.entryId, drafted.entryId);
+assert.ok(extended.store.entries.find((row) => row.id === drafted.entryId).draftSourceIds.includes('e3'));
+assert.equal(extended.store.entries.filter((row) => row.title === BLANK_BULLET_TITLE).length, 1, 'dropping onto a blank adds a source');
+const cleared = clearDraftSources(extended.store, drafted.entryId);
+assert.deepEqual(cleared.entries.find((row) => row.id === drafted.entryId).draftSourceIds, []);
+const oldClient = JSON.parse(JSON.stringify(extended.store));
+delete oldClient.entries.find((row) => row.id === drafted.entryId).draftSourceIds;
+const kept = preserveServerHistory(oldClient, extended.store);
+assert.ok(kept.entries.find((row) => row.id === drafted.entryId).draftSourceIds.includes('e1'), 'an older client save keeps the draft sources');
+const explicitClear = JSON.parse(JSON.stringify(cleared));
+const honored = preserveServerHistory(explicitClear, extended.store);
+assert.deepEqual(honored.entries.find((row) => row.id === drafted.entryId).draftSourceIds, [], 'Done drafting is not restored');
 const fakeTransfer = (type, value) => ({
   types: [type, 'text/plain'],
   getData: (t) => (t === type || t === 'text/plain' ? value : ''),
@@ -298,7 +327,7 @@ assert.deepEqual(orphanRow.requirements.map((row) => row.ordinal), ['R1']);
 assert.equal(orphanRow.entryId, '');
 
 assert.deepEqual(Object.keys(emptySplitViewState()).sort(), [
-  'bankQuery', 'bulletFilter', 'composeJobId', 'composeOpen', 'deleteBulletPendingId', 'deleteRequirementPendingId', 'expandedChipKey',
+  'bankQuery', 'bulletFilter', 'composeJobId', 'composeOpen', 'deleteBulletPendingId', 'deleteRequirementPendingId', 'expandAllChips', 'expandedChipKey',
   'expandedDetailsEntryId', 'openRequirementPickerEntryId', 'pane', 'questionsOpenReqId', 'requirementAddOpen', 'selectedRequirementId',
 ]);
 
@@ -452,7 +481,7 @@ payload.clear();
 transfer.types = [];
 e3Card.querySelector('.bb-split-handle').dispatchEvent(new window.MouseEvent('mousedown', { bubbles: true }));
 fire(e3Card, 'dragstart');
-assert.equal(fire(e1Card(), 'dragover').defaultPrevented, false, 'bullet on bullet is not a drop');
+assert.equal(fire(e1Card(), 'dragover').defaultPrevented, true, 'a bullet can drop on another bullet');
 const r2Card = document.querySelector(`.bb-split-req[data-requirement-id="${r2.id}"]`);
 assert.equal(fire(r2Card, 'dragover').defaultPrevented, true);
 fire(r2Card, 'drop');
@@ -562,6 +591,23 @@ assert.equal(r3ChipOpen.querySelector('.bb-split-chip-text').textContent, r3.tex
 r3ChipOpen.querySelector('.bb-split-chip-body').click();
 await tick();
 assert.equal(e1Card().querySelector(`.bb-split-chip[data-requirement-id="${r3.id}"]`).classList.contains('is-expanded'), false);
+
+// Expand all shows the full text of every mapped requirement pill, stacked in the column.
+const expandAll = document.querySelector('.bb-split-expand-all');
+assert.equal(expandAll.textContent, 'Expand all');
+expandAll.click();
+await tick();
+const expandedChips = [...document.querySelectorAll('.bb-split-chip[data-requirement-id]')];
+assert.ok(expandedChips.length > 1);
+assert.ok(expandedChips.every((node) => node.classList.contains('is-expanded')));
+assert.equal(
+  e1Card().querySelector(`.bb-split-chip[data-requirement-id="${r3.id}"] .bb-split-chip-text`).textContent,
+  r3.text,
+);
+document.querySelector('.bb-split-expand-all').click();
+await tick();
+assert.equal(document.querySelector('.bb-split-chip.is-expanded'), null);
+assert.equal(document.querySelector('.bb-split-expand-all').textContent, 'Expand all');
 
 // Phone pane switch: both panes are in the DOM; the root carries the active pane.
 const splitRoot = () => document.querySelector('.bb-split-view');
@@ -693,6 +739,43 @@ const pastedTitles = saved.entries.map((row) => row.title);
 assert.ok(pastedTitles.includes('Shipped the close calendar'));
 assert.ok(pastedTitles.includes('Cut the audit cycle'));
 assert.equal(saved.postings[0].requirements.some((req) => (req.bullets || []).some((line) => line.text === 'Shipped the close calendar' || line.text === 'Cut the audit cycle')), false, 'pasted bullets start unmapped');
+
+// Dragging one bullet onto another starts a blank draft and leaves both originals.
+const closeId = saved.entries.find((row) => row.title === 'Shipped the close calendar').id;
+const cycleId = saved.entries.find((row) => row.title === 'Cut the audit cycle').id;
+payload.clear();
+transfer.types = [];
+document.querySelector(`.bb-split-bullet[data-entry-id="${closeId}"] .bb-split-handle`).dispatchEvent(new window.MouseEvent('mousedown', { bubbles: true }));
+fire(document.querySelector(`.bb-split-bullet[data-entry-id="${closeId}"]`), 'dragstart');
+const cycleCard = document.querySelector(`.bb-split-bullet[data-entry-id="${cycleId}"]`);
+assert.equal(fire(cycleCard, 'dragover').defaultPrevented, true);
+fire(cycleCard, 'drop');
+await tick();
+saved = readStore();
+const blank = saved.entries.find((row) => row.title === BLANK_BULLET_TITLE);
+assert.ok(blank, 'blank bullet created');
+assert.deepEqual(blank.draftSourceIds.slice().sort(), [closeId, cycleId].sort());
+assert.equal(saved.entries.find((row) => row.id === closeId).title, 'Shipped the close calendar');
+assert.equal(saved.entries.find((row) => row.id === cycleId).title, 'Cut the audit cycle');
+const blankCard = document.querySelector(`.bb-split-bullet[data-entry-id="${blank.id}"]`);
+assert.ok(blankCard.classList.contains('is-draft'));
+assert.equal(blankCard.querySelectorAll('.bb-split-draft-sources li').length, 2);
+assert.ok(blankCard.querySelector('.bb-split-bullet-line.is-blank'));
+payload.clear();
+transfer.types = [];
+e1Card().querySelector('.bb-split-handle').dispatchEvent(new window.MouseEvent('mousedown', { bubbles: true }));
+fire(e1Card(), 'dragstart');
+fire(document.querySelector(`.bb-split-bullet[data-entry-id="${blank.id}"]`), 'drop');
+await tick();
+saved = readStore();
+assert.equal(saved.entries.filter((row) => row.title === BLANK_BULLET_TITLE).length, 1);
+assert.ok(saved.entries.find((row) => row.id === blank.id).draftSourceIds.includes('e1'));
+document.querySelector(`.bb-split-bullet[data-entry-id="${blank.id}"] .bb-split-draft-done`).click();
+await tick();
+saved = readStore();
+assert.deepEqual(saved.entries.find((row) => row.id === blank.id).draftSourceIds, []);
+assert.equal(saved.entries.find((row) => row.id === blank.id).title, BLANK_BULLET_TITLE);
+assert.equal(document.querySelector('.bb-split-draft-sources'), null);
 
 // Delete requirement needs an inline confirm; bullets stay.
 const r3Card = document.querySelector(`.bb-split-req[data-requirement-id="${r3.id}"]`);

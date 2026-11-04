@@ -618,8 +618,9 @@ export function normalizeEntry(raw, clock = Date.now) {
     : richFromText(title);
   if (!formatted?.text) return null;
   const createdAt = asString(raw.createdAt, 40) || nowIso(clock);
+  const id = asString(raw.id, 64) || newId('en', clock);
   return {
-    id: asString(raw.id, 64) || newId('en', clock),
+    id,
     kind: asKind(raw.kind),
     title: formatted.text,
     rich: formatted.rich,
@@ -637,7 +638,22 @@ export function normalizeEntry(raw, clock = Date.now) {
     updatedAt: asString(raw.updatedAt, 40) || createdAt,
     legacyVersions: normalizeLegacyVersions(raw.legacyVersions),
     experienceId: asString(raw.experienceId, 64),
+    draftSourceIds: normalizeDraftSourceIds(raw.draftSourceIds, id),
   };
+}
+
+/** Entry ids a blank draft was tailored from. Empty when this bullet is not a draft. */
+function normalizeDraftSourceIds(value, selfId) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  const seen = new Set();
+  for (const item of value) {
+    const id = asString(item, 64);
+    if (!id || id === selfId || seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+  return out;
 }
 
 function normalizeLegacyVersions(value) {
@@ -1254,9 +1270,36 @@ export function preserveExperienceMetadataForOldClient(next, saved, incomingVers
   }, savedBook);
 }
 
+/**
+ * A client that does not know about drafts omits `draftSourceIds`. Keep the
+ * saved list. A client that sends the key, including `[]` after Done drafting,
+ * is writing the list on purpose.
+ */
+function preserveDraftSourceIds(incomingRaw, next, current) {
+  const rawById = new Map();
+  for (const entry of incomingRaw?.entries || []) {
+    if (entry?.id) rawById.set(entry.id, entry);
+  }
+  const savedById = new Map();
+  for (const entry of current?.entries || []) {
+    if (entry?.id) savedById.set(entry.id, entry);
+  }
+  return {
+    ...next,
+    entries: (next.entries || []).map((entry) => {
+      const raw = rawById.get(entry.id);
+      if (raw && Object.prototype.hasOwnProperty.call(raw, 'draftSourceIds')) return entry;
+      const prior = normalizeDraftSourceIds(savedById.get(entry.id)?.draftSourceIds, entry.id);
+      if (!prior.length) return entry;
+      return { ...entry, draftSourceIds: prior };
+    }),
+  };
+}
+
 export function preserveServerHistory(incoming, current, clock = Date.now) {
   const incomingVersion = bookSchemaVersion(incoming);
   let next = preserveLegacyVersions(incoming, current, clock);
+  next = preserveDraftSourceIds(incoming, next, current);
   next = preserveExperienceMetadataForOldClient(
     next,
     normalizeStore(current, clock),

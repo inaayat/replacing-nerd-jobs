@@ -4366,12 +4366,36 @@ html.bb-offline-readonly .shell select {
   outline: 1px solid rgba(143, 107, 31, 0.35);
   background: rgba(232, 196, 122, 0.08);
 }
-.bb-split-bullet-line.is-legacy { color: var(--muted); }
+.bb-split-bullet-line.is-legacy,
+.bb-split-bullet-line.is-blank { color: var(--muted); }
+.bb-split-bullet-line.is-blank { font-style: italic; }
+.bb-split-draft-sources {
+  display: grid;
+  gap: 2px;
+  margin: 0 0 0 22px;
+  padding: 4px 8px;
+  border-left: 2px solid var(--gold);
+  font-family: var(--content-font);
+  font-size: 12px;
+  color: var(--muted);
+}
+.bb-split-draft-label {
+  margin: 0;
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.bb-split-draft-sources ul {
+  margin: 0;
+  padding-left: 1.1em;
+}
+.bb-split-draft-sources li { overflow-wrap: anywhere; }
+.bb-split-bullet.is-draft { border-color: rgba(143, 107, 31, 0.45); }
 .bb-split-purpose {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px 6px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
   min-height: 22px;
   padding: 4px 6px 2px 22px;
   border-radius: 8px;
@@ -4383,10 +4407,12 @@ html.bb-offline-readonly .shell select {
   font-style: italic;
 }
 .bb-split-chip {
-  display: inline-flex;
-  align-items: baseline;
+  display: flex;
+  align-items: center;
   gap: 5px;
+  width: 100%;
   max-width: 100%;
+  box-sizing: border-box;
   padding: 3px 4px 3px 8px;
   border: 1px solid var(--line-strong);
   border-radius: 999px;
@@ -4398,9 +4424,10 @@ html.bb-offline-readonly .shell select {
 }
 .bb-split-chip-body {
   appearance: none;
-  display: inline-flex;
-  align-items: baseline;
+  display: flex;
+  align-items: center;
   gap: 5px;
+  flex: 1 1 auto;
   min-width: 0;
   padding: 0;
   border: 0;
@@ -4415,7 +4442,16 @@ html.bb-offline-readonly .shell select {
 .bb-split-chip.is-dragging { opacity: 0.45; }
 .bb-split-chip.is-expanded { border-color: var(--gold); background: rgba(232, 196, 122, 0.1); }
 .bb-split-chip-text {
+  flex: 1 1 auto;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bb-split-chip.is-expanded .bb-split-chip-text {
+  overflow: visible;
+  text-overflow: unset;
+  white-space: normal;
   overflow-wrap: anywhere;
 }
 .bb-split-chip-remove {
@@ -4622,7 +4658,8 @@ html.bb-offline-readonly .shell select {
   .bb-split-req-actions,
   .bb-split-purpose,
   .bb-split-req-menu,
-  .bb-split-bullet-meta { padding-left: 0; margin-left: 0; }
+  .bb-split-bullet-meta,
+  .bb-split-draft-sources { padding-left: 0; margin-left: 0; }
   .bb-split-purpose-empty::after { content: ' — tap + Requirement'; }
   .bb-split-hint-pointer { display: none; }
   .bb-split-hint-touch { display: inline; }
