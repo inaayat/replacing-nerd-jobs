@@ -4407,6 +4407,11 @@ html.bb-offline-readonly .shell select {
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
+.bb-split-draft-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
 .bb-split-draft-sources ul {
   margin: 0;
   padding-left: 1.1em;

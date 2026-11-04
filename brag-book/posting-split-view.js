@@ -281,7 +281,8 @@ export const BLANK_BULLET_TITLE = 'Blank bullet';
 /** A bullet opened so you can tailor new wording from bullets you already wrote. */
 export function entryIsDraftBullet(entry) {
   return (Array.isArray(entry?.draftSourceIds) && entry.draftSourceIds.length > 0)
-    || (Array.isArray(entry?.draftLines) && entry.draftLines.length > 0);
+    || (Array.isArray(entry?.draftLines) && entry.draftLines.length > 0)
+    || (Array.isArray(entry?.draftMoves) && entry.draftMoves.length > 0);
 }
 
 function draftSourceLines(store, entry) {
@@ -353,6 +354,7 @@ export function draftBulletFromBullets(store, postingId, sourceEntryId, targetEn
   const liveLines = new Set(ids.map((id) => displayMapLine(entryById(store, id)?.title)).filter(Boolean));
   const snapshots = lines.filter((line) => !liveLines.has(line));
   const requirementIds = requirementIdsForEntry(posting, folded.id);
+  const moves = draftMovesAfterFold(container, folded, posting, ids);
   let next = store;
   for (const requirementId of requirementIds) {
     next = mapEntryToRequirement(next, postingId, requirementId, container.id, clock);
@@ -361,6 +363,7 @@ export function draftBulletFromBullets(store, postingId, sourceEntryId, targetEn
     ...(started ? { title: BLANK_BULLET_TITLE, rich: [{ text: BLANK_BULLET_TITLE }] } : {}),
     draftSourceIds: ids,
     draftLines: snapshots,
+    draftMoves: moves,
   }, clock);
   const foldedExperienceId = experienceForEntry(next, folded.id)?.id || '';
   next = removeBulletFromPosting(next, postingId, folded.id, clock);
@@ -379,10 +382,78 @@ export function draftBulletFromBullets(store, postingId, sourceEntryId, targetEn
   return { store: next, entryId: container.id, created: started };
 }
 
+function draftMovesAfterFold(container, folded, posting, sourceIds) {
+  const keep = new Set(sourceIds);
+  const byId = new Map();
+  for (const move of container.draftMoves || []) {
+    if (keep.has(move.entryId)) byId.set(move.entryId, move);
+  }
+  if (entryIsDraftBullet(folded)) {
+    for (const move of folded.draftMoves || []) {
+      if (keep.has(move.entryId)) byId.set(move.entryId, move);
+    }
+    return [...byId.values()];
+  }
+  const requirementIds = requirementIdsForEntry(posting, folded.id);
+  const already = new Set(requirementIdsForEntry(posting, container.id));
+  byId.set(folded.id, {
+    entryId: folded.id,
+    requirementIds,
+    addedIds: requirementIds.filter((id) => !already.has(id)),
+  });
+  return [...byId.values()];
+}
+
 /** Keep the drafted wording and stop showing the source bullets under it. */
 export function clearDraftSources(store, entryId, clock = Date.now) {
   if (!entryById(store, entryId)) return store;
-  return updateEntry(store, entryId, { draftSourceIds: [], draftLines: [] }, clock);
+  return updateEntry(store, entryId, { draftSourceIds: [], draftLines: [], draftMoves: [] }, clock);
+}
+
+/**
+ * Split a blank back into the bullets it was combined from. Each one stays
+ * on this posting. Requirements that were moved onto the blank go back to
+ * the bullet they came from. A blank that is still the placeholder returns
+ * to the wording it had before the drop.
+ */
+export function ungroupDraftBullet(store, postingId, entryId, clock = Date.now) {
+  const entry = entryById(store, entryId);
+  const posting = postingById(store, postingId);
+  if (!entry || !posting || !entryIsDraftBullet(entry)) return store;
+  let next = store;
+  const originalLine = (entry.draftLines || []).find((line) => displayMapLine(line) && displayMapLine(line) !== BLANK_BULLET_TITLE) || '';
+  const restorePlaceholder = entry.title === BLANK_BULLET_TITLE && originalLine;
+  if (restorePlaceholder) {
+    next = updateEntry(next, entry.id, {
+      title: originalLine,
+      rich: [{ text: originalLine }],
+    }, clock);
+  }
+  const keptTitle = displayMapLine(restorePlaceholder ? originalLine : entry.title);
+  const sourceTitles = new Set((entry.draftSourceIds || []).map((id) => displayMapLine(entryById(store, id)?.title)));
+  for (const line of entry.draftLines || []) {
+    const text = displayMapLine(line);
+    if (!text || text === BLANK_BULLET_TITLE || text === keptTitle || sourceTitles.has(text)) continue;
+    const created = addBulletToPosting(next, postingId, { title: text, jobId: entry.jobId || '' }, clock);
+    next = created.store;
+  }
+  const moved = new Set();
+  for (const move of entry.draftMoves || []) {
+    if (!move?.entryId || !entryById(next, move.entryId)) continue;
+    moved.add(move.entryId);
+    for (const requirementId of move.requirementIds || []) {
+      next = mapEntryToRequirement(next, postingId, requirementId, move.entryId, clock);
+    }
+    for (const requirementId of move.addedIds || []) {
+      next = unmapEntryFromRequirement(next, postingId, requirementId, entry.id, clock);
+    }
+    next = addLibraryBulletToPosting(next, postingId, move.entryId, clock).store;
+  }
+  for (const id of entry.draftSourceIds || []) {
+    if (moved.has(id) || !entryById(next, id)) continue;
+    next = addLibraryBulletToPosting(next, postingId, id, clock).store;
+  }
+  return updateEntry(next, entry.id, { draftSourceIds: [], draftLines: [], draftMoves: [] }, clock);
 }
 
 export function addBulletToPosting(store, postingId, {
@@ -498,7 +569,7 @@ export function addLibraryBulletToPosting(store, postingId, entryId, clock = Dat
   return { store: next, placed, reason: placed ? '' : 'not-placed' };
 }
 
-/** Bank bullets that are not on this posting yet, for the "From bank" search. */
+/** Bank bullets matching a query, including ones already on this posting. */
 export function searchBankBulletsForPosting(store, posting, query = '', { limit = 12 } = {}) {
   const q = String(query || '').trim().toLowerCase();
   if (!q) return [];
@@ -507,13 +578,13 @@ export function searchBankBulletsForPosting(store, posting, query = '', { limit 
   const jobsById = new Map((store?.jobs || []).map((job) => [job.id, job]));
   const out = [];
   for (const entry of store?.entries || []) {
-    if (!entry?.id || onPosting.has(entry.id)) continue;
+    if (!entry?.id) continue;
     const line = displayMapLine(entry.title);
     if (!line) continue;
     const xp = experienceForEntry(store, entry.id);
     const job = jobsById.get(entry.jobId);
     const jobLabel = job ? careerJobGroupLabel(job) : 'No role';
-    const hay = [line, xp?.title || '', jobLabel].join(' ').toLowerCase();
+    const hay = [line, ...(entry.draftLines || []), xp?.title || '', jobLabel].join(' ').toLowerCase();
     if (!hay.includes(q)) continue;
     out.push({
       entryId: entry.id,
@@ -521,6 +592,7 @@ export function searchBankBulletsForPosting(store, posting, query = '', { limit 
       jobId: entry.jobId || '',
       jobLabel,
       experienceTitle: xp?.title || '',
+      onPosting: onPosting.has(entry.id),
     });
     if (out.length >= limit) break;
   }

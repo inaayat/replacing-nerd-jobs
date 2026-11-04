@@ -28,6 +28,7 @@ import {
   addLibraryBulletToPosting,
   clearDraftSources,
   draftBulletFromBullets,
+  ungroupDraftBullet,
   resolveComposeJobId,
   applySplitDrop,
   filterSplitBullets,
@@ -554,15 +555,26 @@ function bulletCard(deps, posting, model, bullet, { showJobLabel = true } = {}) 
       el('ul', {}, draftSources.map((source) => el('li', {
         'data-entry-id': source.entryId,
       }, source.line))),
-      btn('Done drafting', {
-        type: 'button',
-        class: 'row-text-action bb-split-draft-done',
-        onClick: () => {
-          onSave(clearDraftSources(store, entry.id));
-          onRender({ preserveScroll: true });
-          setNote('Draft kept. The bullets you wrote from stay as they were.');
-        },
-      }),
+      el('div', { class: 'bb-split-draft-actions' }, [
+        btn('Ungroup', {
+          type: 'button',
+          class: 'row-text-action bb-split-draft-ungroup',
+          onClick: () => {
+            onSave(ungroupDraftBullet(store, posting.id, entry.id));
+            onRender({ preserveScroll: true });
+            setNote('Ungrouped. Each bullet is back on this posting.');
+          },
+        }),
+        btn('Done drafting', {
+          type: 'button',
+          class: 'row-text-action bb-split-draft-done',
+          onClick: () => {
+            onSave(clearDraftSources(store, entry.id));
+            onRender({ preserveScroll: true });
+            setNote('Draft kept. The bullets you wrote from stay in the book.');
+          },
+        }),
+      ]),
     ])
     : null;
 
@@ -838,7 +850,7 @@ function bankSearch(deps, posting) {
   const input = el('input', {
     type: 'search',
     class: 'search bb-split-bank-search',
-    placeholder: 'Bring a bullet from the bank…',
+    placeholder: 'Search the bullet bank…',
     'aria-label': 'Search the bullet bank',
     value: state.bankQuery || '',
     'data-focus-key': 'split-bank-search',
@@ -857,6 +869,11 @@ function bankSearch(deps, posting) {
           role: 'option',
           'data-entry-id': row.entryId,
           onClick: () => {
+            if (row.onPosting) {
+              setNote('That bullet is already on this posting.');
+              onRender({ preserveScroll: true, focusKey: splitBulletFocusKey(row.entryId) });
+              return;
+            }
             const result = addLibraryBulletToPosting(store, posting.id, row.entryId);
             if (result.reason === 'no-job') {
               setNote('Give that bullet a job on Resume bullets first, then it can go on this resume.');
@@ -869,9 +886,13 @@ function bankSearch(deps, posting) {
           },
         }, [
           el('span', { class: 'bb-split-bank-line' }, row.line),
-          el('span', { class: 'tiny bb-split-bank-meta' }, [row.experienceTitle, row.jobLabel].filter(Boolean).join(' · ')),
+          el('span', { class: 'tiny bb-split-bank-meta' }, [
+            row.onPosting ? 'On this posting' : '',
+            row.experienceTitle,
+            row.jobLabel,
+          ].filter(Boolean).join(' · ')),
         ]))
-        : [el('p', { class: 'tiny empty' }, 'No bank bullet matches. Write it as a new bullet instead.')])
+        : [el('p', { class: 'tiny empty' }, 'No bullet in the book matches. Write it as a new bullet instead.')])
       : null,
   ]);
 }

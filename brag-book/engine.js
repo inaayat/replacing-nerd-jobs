@@ -640,6 +640,7 @@ export function normalizeEntry(raw, clock = Date.now) {
     experienceId: asString(raw.experienceId, 64),
     draftSourceIds: normalizeDraftSourceIds(raw.draftSourceIds, id),
     draftLines: normalizeDraftLines(raw.draftLines),
+    draftMoves: normalizeDraftMoves(raw.draftMoves, id),
   };
 }
 
@@ -667,6 +668,37 @@ function normalizeDraftLines(value) {
     if (!line || seen.has(line)) continue;
     seen.add(line);
     out.push(line);
+  }
+  return out;
+}
+
+/** Which requirements a grouped bullet should get back when the blank is ungrouped. */
+function normalizeDraftMoves(value, selfId) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  const seen = new Set();
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue;
+    const entryId = asString(item.entryId, 64);
+    if (!entryId || entryId === selfId || seen.has(entryId)) continue;
+    seen.add(entryId);
+    const requirementIds = [];
+    const addedIds = [];
+    const reqSeen = new Set();
+    const addedSeen = new Set();
+    for (const reqId of item.requirementIds || []) {
+      const id = asString(reqId, 64);
+      if (!id || reqSeen.has(id)) continue;
+      reqSeen.add(id);
+      requirementIds.push(id);
+    }
+    for (const reqId of item.addedIds || []) {
+      const id = asString(reqId, 64);
+      if (!id || !reqSeen.has(id) || addedSeen.has(id)) continue;
+      addedSeen.add(id);
+      addedIds.push(id);
+    }
+    out.push({ entryId, requirementIds, addedIds });
   }
   return out;
 }
@@ -1286,9 +1318,9 @@ export function preserveExperienceMetadataForOldClient(next, saved, incomingVers
 }
 
 /**
- * A client that does not know about drafts omits `draftSourceIds` and
- * `draftLines`. Keep the saved lists. A client that sends a key, including
- * `[]` after Done drafting, is writing that list on purpose.
+ * A client that does not know about drafts omits `draftSourceIds`,
+ * `draftLines`, and `draftMoves`. Keep the saved lists. A client that sends
+ * a key, including `[]` after Done drafting, is writing that list on purpose.
  */
 function preserveDraftSourceIds(incomingRaw, next, current) {
   const rawById = new Map();
@@ -1312,6 +1344,10 @@ function preserveDraftSourceIds(incomingRaw, next, current) {
       if (!(raw && Object.prototype.hasOwnProperty.call(raw, 'draftLines'))) {
         const priorLines = normalizeDraftLines(saved?.draftLines);
         if (priorLines.length) nextEntry = { ...nextEntry, draftLines: priorLines };
+      }
+      if (!(raw && Object.prototype.hasOwnProperty.call(raw, 'draftMoves'))) {
+        const priorMoves = normalizeDraftMoves(saved?.draftMoves, entry.id);
+        if (priorMoves.length) nextEntry = { ...nextEntry, draftMoves: priorMoves };
       }
       return nextEntry;
     }),
@@ -3695,6 +3731,7 @@ export function searchEntries(store, query) {
       entry.action,
       entry.result,
       ...(entry.tags || []),
+      ...(entry.draftLines || []),
     ]
       .join(' ')
       .toLowerCase();

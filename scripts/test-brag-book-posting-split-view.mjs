@@ -20,6 +20,7 @@ import {
   emptyStore,
   normalizeStore,
   preserveServerHistory,
+  searchEntries,
   unmappedPostingResumeBullets,
 } from '../brag-book/engine.js';
 import { compileResumeDoc } from '../brag-book/resume-model.js';
@@ -33,6 +34,7 @@ import {
   applySplitDrop,
   clearDraftSources,
   draftBulletFromBullets,
+  ungroupDraftBullet,
   filterSplitBullets,
   linkRequirementToBullet,
   normalizePostingViewMode,
@@ -202,6 +204,20 @@ assert.deepEqual(
   'requirements from both bullets are on the blank',
 );
 assert.equal(draftedModel.bullets.some((row) => row.entryId === 'e2'), false, 'the dragged bullet leaves this posting');
+assert.ok(searchEntries(drafted.store, e1Title).some((row) => row.id === 'e1'), 'the replaced line stays searchable in the book');
+const ungrouped = ungroupDraftBullet(drafted.store, postingId, 'e1');
+const restored = ungrouped.entries.find((row) => row.id === 'e1');
+assert.equal(restored.title, e1Title, 'ungroup puts the original wording back');
+assert.deepEqual(restored.draftSourceIds, []);
+assert.deepEqual(restored.draftMoves, []);
+const ungroupedModel = postingSplitViewModel(ungrouped, ungrouped.postings[0]);
+assert.ok(ungroupedModel.bullets.some((row) => row.entryId === 'e1'), 'the blank stays on the posting');
+assert.ok(ungroupedModel.bullets.some((row) => row.entryId === 'e2'), 'the grouped bullet comes back onto the posting');
+assert.deepEqual(
+  ungrouped.postings[0].requirements.find((row) => row.id === r1.id).bullets.map((line) => line.entryId),
+  ['e2'],
+  'a requirement that came from the grouped bullet goes back to it',
+);
 assert.deepEqual(
   drafted.store.postings[0].requirements.find((row) => row.id === r1.id).bullets.map((line) => line.entryId),
   ['e1'],
@@ -214,16 +230,20 @@ assert.equal(extended.store.entries.filter((row) => row.title === BLANK_BULLET_T
 const cleared = clearDraftSources(extended.store, drafted.entryId);
 assert.deepEqual(cleared.entries.find((row) => row.id === drafted.entryId).draftSourceIds, []);
 assert.deepEqual(cleared.entries.find((row) => row.id === drafted.entryId).draftLines, []);
+assert.deepEqual(cleared.entries.find((row) => row.id === drafted.entryId).draftMoves, []);
 const oldClient = JSON.parse(JSON.stringify(extended.store));
 delete oldClient.entries.find((row) => row.id === drafted.entryId).draftSourceIds;
 delete oldClient.entries.find((row) => row.id === drafted.entryId).draftLines;
+delete oldClient.entries.find((row) => row.id === drafted.entryId).draftMoves;
 const kept = preserveServerHistory(oldClient, extended.store);
 assert.ok(kept.entries.find((row) => row.id === drafted.entryId).draftSourceIds.includes('e2'), 'an older client save keeps the draft sources');
 assert.ok(kept.entries.find((row) => row.id === drafted.entryId).draftLines.includes(e1Title), 'an older client save keeps the replaced line');
+assert.ok(kept.entries.find((row) => row.id === drafted.entryId).draftMoves.some((row) => row.entryId === 'e2'), 'an older client save keeps the ungroup map');
 const explicitClear = JSON.parse(JSON.stringify(cleared));
 const honored = preserveServerHistory(explicitClear, extended.store);
 assert.deepEqual(honored.entries.find((row) => row.id === drafted.entryId).draftSourceIds, [], 'Done drafting is not restored');
 assert.deepEqual(honored.entries.find((row) => row.id === drafted.entryId).draftLines, [], 'Done drafting clears the replaced line');
+assert.deepEqual(honored.entries.find((row) => row.id === drafted.entryId).draftMoves, [], 'Done drafting clears the ungroup map');
 const fakeTransfer = (type, value) => ({
   types: [type, 'text/plain'],
   getData: (t) => (t === type || t === 'text/plain' ? value : ''),
@@ -284,10 +304,14 @@ assert.deepEqual(
   'bullets stay in resume order when some already have a requirement',
 );
 
-// Bank search excludes bullets already on the posting; bringing one in is resume-only.
+// Bank search finds bullets in the book, including ones already on this posting.
 const found = searchBankBulletsForPosting(store, store.postings[0], 'bank-only');
 assert.deepEqual(found.map((row) => row.entryId), ['e3']);
-assert.equal(searchBankBulletsForPosting(store, store.postings[0], 'risk program').length, 0, 'already on posting');
+assert.equal(found[0].onPosting, false);
+const alreadyListed = searchBankBulletsForPosting(store, store.postings[0], 'risk program');
+assert.equal(alreadyListed.length, 1, 'a bullet on the posting is still searchable');
+assert.equal(alreadyListed[0].entryId, 'e1');
+assert.equal(alreadyListed[0].onPosting, true);
 const brought = addLibraryBulletToPosting(store, postingId, 'e3');
 assert.equal(brought.placed, true);
 store = brought.store;
@@ -704,7 +728,9 @@ bankInput.value = 'Audit partner';
 bankInput.dispatchEvent(new window.Event('input', { bubbles: true }));
 await tick();
 assert.ok(document.querySelector('.bb-split-bank-results'), 'results panel');
-assert.equal(document.querySelector('.bb-split-bank-option'), null, 'bullet already on the posting is not offered');
+const bankHit = document.querySelector('.bb-split-bank-option');
+assert.ok(bankHit, 'a bullet already on the posting still shows up in search');
+assert.match(bankHit.textContent, /On this posting/);
 assert.equal(document.activeElement?.dataset?.focusKey, 'split-bank-search', 'typing keeps focus in the search');
 bankInput.value = '';
 bankInput.dispatchEvent(new window.Event('input', { bubbles: true }));
@@ -788,6 +814,7 @@ assert.equal(saved.entries.filter((row) => row.title === BLANK_BULLET_TITLE).len
 assert.equal(document.querySelector(`.bb-split-bullet[data-entry-id="${closeId}"]`), null, 'dragged bullet left the posting');
 const blankCard = document.querySelector(`.bb-split-bullet[data-entry-id="${blank.id}"]`);
 assert.ok(blankCard.classList.contains('is-draft'));
+assert.ok(blankCard.querySelector('.bb-split-draft-ungroup'), 'ungroup stays on the posting');
 assert.equal(blankCard.querySelectorAll('.bb-split-draft-sources li').length, 2);
 assert.ok(blankCard.querySelector('.bb-split-bullet-line.is-blank'));
 payload.clear();

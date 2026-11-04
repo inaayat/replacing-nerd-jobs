@@ -1923,9 +1923,21 @@ function experienceRow(entry) {
   ]);
 }
 
+function catalogSearchOpen() {
+  return Boolean(String(query || '').trim());
+}
+
+function experienceGroupExpanded(groupKey) {
+  return catalogSearchOpen() || !collapsedExperienceGroups.has(groupKey);
+}
+
+function librarySectionExpanded(sectionKey) {
+  return catalogSearchOpen() || !collapsedLibrarySections.has(sectionKey);
+}
+
 function experienceGroupHeader(group) {
   const groupKey = group.jobId || '__none__';
-  const expanded = !collapsedExperienceGroups.has(groupKey);
+  const expanded = experienceGroupExpanded(groupKey);
   const title = [group.label, group.dates].filter(Boolean).join(' · ');
   const bodyId = `exp-group-${groupKey}`;
   return el('header', { class: 'bb-exp-group-head', 'data-job-id': groupKey }, [
@@ -2105,7 +2117,7 @@ function experienceSectionOverflowMenu(xp) {
 
 function experienceSectionHeader(jobKey, section, { bodyId = '' } = {}) {
   const sectionKey = librarySectionKey(jobKey, section);
-  const expanded = !collapsedLibrarySections.has(sectionKey);
+  const expanded = librarySectionExpanded(sectionKey);
   const resolvedBodyId = bodyId || `exp-section-${sectionKey.replace(/[^a-z0-9_-]/gi, '-')}`;
   if (section.kind === 'loose' && section.label) {
     const looseIds = section.rows.map((row) => row.id);
@@ -2677,7 +2689,7 @@ function experienceTable(view) {
     total
       ? el('div', { class: 'bb-exp-list' }, groups.flatMap((group) => {
         const groupKey = group.jobId || '__none__';
-        const groupExpanded = !collapsedExperienceGroups.has(groupKey);
+        const groupExpanded = experienceGroupExpanded(groupKey);
         const bodyId = `exp-group-${groupKey}`;
         const renderRows = (rows) => rows.map((row) => {
           const entry = store.entries.find((item) => item.id === row.id);
@@ -2700,7 +2712,7 @@ function experienceTable(view) {
               const looseSections = sections.filter((section) => section.kind !== 'experience');
               const renderSection = (section) => {
                 const sectionKey = librarySectionKey(groupKey, section);
-                const sectionExpanded = !collapsedLibrarySections.has(sectionKey);
+                const sectionExpanded = librarySectionExpanded(sectionKey);
                 const sectionBodyId = `exp-section-${sectionKey.replace(/[^a-z0-9_-]/gi, '-')}`;
                 if (section.kind === 'loose' && !section.label) {
                   return renderRows(section.rows);

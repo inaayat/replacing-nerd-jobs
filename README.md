@@ -199,7 +199,9 @@ wraps every pill. Drag a bullet onto another bullet and the one you drop onto be
 **Blank bullet** with both lines under Drafting from. The dragged bullet
 leaves this posting and stays in the bank. Requirements that were on either
 bullet are on the blank. Dropping another bullet onto that blank adds it the
-same way, without a second blank.
+same way, without a second blank. **Ungroup** puts those bullets back on this
+posting. A bullet you add on a posting is saved in the book, and the posting's
+bank search still finds it, marked **On this posting**.
 Chip × removes one link only; **+ Requirement** on a bullet and **Add to
 bullets…** on a requirement are the keyboard and touch paths to the same
 link. **+ New bullet** writes to the bank and places the bullet on this
