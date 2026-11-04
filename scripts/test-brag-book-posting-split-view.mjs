@@ -794,7 +794,7 @@ assert.equal(postingResumeEntryOrder(saved, saved.postings[0]).includes(added.en
 const byReq = [...toggle.querySelectorAll('.bb-seg-btn')].find((node) => /By requirement/.test(node.textContent));
 byReq.click();
 await tick();
-assert.ok(document.querySelector('.job-table'), 'table view reachable');
+assert.ok(document.querySelector('.bb-req-cards'), 'by-requirement view reachable');
 assert.ok(document.querySelector('.bb-unmapped-resume'), 'Unmapped panel back on the table view');
 assert.equal(window.sessionStorage.getItem(`bb-posting-req-view:${postingId}`), 'requirement');
 
