@@ -59,6 +59,8 @@ assert.match(css, /\.bb-split-requirements \{\s*border-left: 1px solid var\(--li
 assert.match(css, /\.bb-split-req\.is-addressed \{\s*background: rgba\(31, 122, 77, 0\.12\);/, 'mapped requirements are light green');
 assert.match(css, /\.hero\.is-compact \{\s*padding: 8px 8px 10px 16px;/, 'page title sits in from the left edge');
 assert.match(css, /\.bb-split-bullet\.is-drop-target/, 'drop target styling');
+assert.match(css, /\.bb-posting-view-toggle\s*\{[^}]*width:\s*max-content/, 'view toggle hugs its three labels');
+assert.match(css, /\.bb-posting-view-toggle \.bb-seg-btn\.is-on\s*\{[^}]*box-shadow:\s*inset/, 'selected view segment stays inside the track');
 assert.match(css, /\.bb-split-purpose \{[^}]*flex-direction:\s*column/, 'mapped requirement pills stack');
 assert.match(css, /\.bb-split-chip \{[^}]*width:\s*100%/, 'mapped requirement pills share one width');
 assert.match(css, /\.bb-split-chip-body\[draggable="true"\] \{ cursor: grab; \}/, 'a requirement chip can be dragged');

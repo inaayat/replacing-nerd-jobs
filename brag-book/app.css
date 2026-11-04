@@ -4040,12 +4040,34 @@ html.bb-offline-readonly .shell select {
 }
 .bb-posting-view-toggle {
   display: inline-flex;
-  align-self: flex-start;
-  padding: 2px;
-  border: 1px solid var(--line);
+  justify-self: start;
+  align-self: start;
+  align-items: center;
+  width: max-content;
+  max-width: calc(100% - 24px);
+  margin: 8px 12px 0;
+  padding: 3px;
+  border: 1px solid var(--line-strong);
   border-radius: 999px;
-  background: rgba(12, 11, 9, 0.03);
+  background: var(--panel);
   gap: 2px;
+}
+.bb-posting-view-toggle .bb-seg-btn {
+  flex: 0 0 auto;
+  margin: 0;
+  line-height: 1.15;
+  min-height: 30px;
+  padding: 6px 14px;
+  white-space: nowrap;
+  box-shadow: none;
+}
+.bb-posting-view-toggle .bb-seg-btn.is-on {
+  background: #fff;
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px rgba(12, 11, 9, 0.08);
+}
+.bb-posting-view-toggle .bb-seg-btn:focus-visible {
+  outline-offset: 0;
 }
 .bb-seg-btn {
   border: none;
@@ -4684,9 +4706,25 @@ html.bb-offline-readonly .shell select {
   .bb-split-pane-tab.is-on { border-color: var(--gold); }
   .bb-split-view.is-pane-requirements .bb-split-bullets,
   .bb-split-view.is-pane-bullets .bb-split-requirements { display: none; }
-  /* Three segments (Split view / By requirement / By experience) must not overflow a 360px phone. */
-  .bb-posting-view-toggle { display: flex; align-self: stretch; }
-  .bb-posting-view-toggle .bb-seg-btn { flex: 1 1 0; min-height: 40px; padding: 6px 4px; font-size: 11px; }
+  /* Three segments (Split view / By requirement / By experience) share one row on a phone. */
+  .bb-posting-view-toggle {
+    display: flex;
+    justify-self: stretch;
+    align-self: stretch;
+    align-items: stretch;
+    width: auto;
+    max-width: none;
+    margin: 8px 0 0;
+  }
+  .bb-posting-view-toggle .bb-seg-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 40px;
+    padding: 6px 4px;
+    font-size: 11px;
+    letter-spacing: 0.02em;
+    white-space: normal;
+  }
   .bb-split-selected-bar {
     top: calc(var(--nav-h, 48px) + env(safe-area-inset-top) + 58px);
     border-radius: 8px;
