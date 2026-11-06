@@ -121,6 +121,7 @@ assert.match(howToSrc, /falsely high/, 'FAQ warns that pausing with logged movie
 assert.match(howToSrc, /every calendar month from your first theater screening/, 'FAQ describes billed months as the code does');
 assert.match(howToSrc, /do not go on the movie Rank stack/, 'FAQ does not put at-home watches on movie Rank');
 assert.match(howToSrc, /Where do I see savings and habits/, 'FAQ covers Stats');
+assert.match(howToSrc, /This year is screenings in the current calendar year/, 'FAQ explains This year');
 assert.match(howToSrc, /on or before the last day of that month/, 'FAQ matches monthlyRateForMonth');
 assert.doesNotMatch(howToSrc, /<a |<em>|<code>|<strong>/, 'how-to copy is not mixed links/italics/code');
 assert.doesNotMatch(howToSrc, /<details[^>]*\sopen/, 'how-to stays collapsed by default');

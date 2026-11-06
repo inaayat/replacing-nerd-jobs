@@ -155,6 +155,29 @@ function enumerateChargeMonths(startMonth, endMonth) {
   return months;
 }
 
+/**
+ * Theater screenings per calendar year of `watched_on` (YYYY-MM-DD).
+ * Same rules as SEEN: callers pass theater-only rows, and each screening
+ * counts (rewatches and DNFs included). The header picks the user's local
+ * year from this map so New Year's Eve in the US does not depend on UTC.
+ */
+export function countSeenByYear(watches) {
+  const map = {};
+  for (const watch of watches || []) {
+    const year = String(watch?.watched_on || '').slice(0, 4);
+    if (!/^\d{4}$/.test(year)) continue;
+    map[year] = (map[year] || 0) + 1;
+  }
+  return map;
+}
+
+export function countSeenInYear(watches, yearInput = new Date()) {
+  const year = yearInput instanceof Date
+    ? String(yearInput.getFullYear())
+    : String(yearInput).slice(0, 4);
+  return countSeenByYear(watches)[year] || 0;
+}
+
 export function computeSummary(watches, membership, options = {}) {
   const months = billingChargeMonths(watches, options.asOf);
   const totalBilled = months.reduce(
@@ -208,6 +231,7 @@ export function computeSummary(watches, membership, options = {}) {
     totalCharged,
     totalSavings,
     totalSeen,
+    seenByYear: countSeenByYear(watches),
     costPerMovie,
     avgTicket,
     avgRuntimeMin,

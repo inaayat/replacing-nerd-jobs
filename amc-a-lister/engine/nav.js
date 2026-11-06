@@ -154,7 +154,7 @@ function sidebarStatsPlaceholder() {
       <p class="al-sidebar-stats-heading">All time</p>
       ${sidebarStat('Seen', 'seen')}
       ${sidebarStat('Savings', 'savings', 'is-savings')}
-      ${sidebarStat('Billed', 'billed', 'is-cost')}
+      ${sidebarStat('This year', 'this-year')}
       ${sidebarStat('Cost / movie', 'cost')}
       ${sidebarStat('Avg ticket', 'avg-ticket')}
       ${sidebarStat('Avg runtime', 'avg-runtime')}
@@ -167,7 +167,7 @@ function mobileStatsPlaceholder() {
     <div class="al-mobile-stats-inner">
       ${mobileStat('Seen', 'seen')}
       ${mobileStat('Savings', 'savings', 'is-savings')}
-      ${mobileStat('Billed', 'billed', 'is-cost')}
+      ${mobileStat('This year', 'this-year')}
       ${mobileStat('$/movie', 'cost')}
     </div>
   `;
@@ -201,10 +201,11 @@ export async function populateSidebarStats(auth) {
     const data = await summaryApi.get(auth.token);
     const summary = data?.summary || {};
 
+    const localYear = String(new Date().getFullYear());
     const values = {
       seen: { v: summary.totalSeen ?? 0, kind: 'count' },
       savings: { v: summary.totalSavings ?? 0, kind: 'money' },
-      billed: { v: summary.totalBilled ?? 0, kind: 'money' },
+      'this-year': { v: summary.seenByYear?.[localYear] ?? 0, kind: 'count' },
       cost: { v: summary.costPerMovie ?? 0, kind: 'money' },
       'avg-ticket': { v: summary.avgTicket ?? 0, kind: 'money' },
       'avg-runtime': { v: summary.avgRuntimeMin ?? 0, kind: 'runtime' },

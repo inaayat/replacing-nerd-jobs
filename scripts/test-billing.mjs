@@ -15,7 +15,11 @@ import {
   ratingDistribution,
   ratingMovies,
   ratingStarBucket,
+  countSeenByYear,
+  countSeenInYear,
 } from '../lib/a-list-billing.js';
+import * as engineBilling from '../amc-a-lister/engine/billing.js';
+import { readFileSync } from 'node:fs';
 
 const legacyMembership = {
   promo_cents: 99,
@@ -88,6 +92,8 @@ assert.equal(summary.totalSavings, summary.totalCharged - summary.totalBilled);
 assert.equal(summary.avgTicket, summary.totalCharged / summary.totalSeen);
 assert.equal(summary.avgRuntimeMin, 0);
 assert.equal(summary.byMonth.length, 7);
+assert.deepEqual(summary.seenByYear, { 2025: 4 });
+assert.equal(summary.costPerMovie, summary.totalBilled / summary.totalSeen);
 
 const june = summary.byMonth.find((row) => row.month === '2025-06-01');
 assert.equal(june.movies, 0);
@@ -212,5 +218,40 @@ const pauseWatches = [
 const pauseSummary = computeSummary(pauseWatches, { price_tiers: paused, promo_folded: true }, { asOf: '2025-06-30' });
 assert.equal(pauseSummary.byMonth.find((row) => row.month === '2025-04-01').bill, 0);
 assert.equal(pauseSummary.byMonth.find((row) => row.month === '2025-01-01').bill, 2495);
+
+const yearWatches = [
+  { watched_on: '2025-12-31', ticket_cents: 1000, title: 'Old' },
+  { watched_on: '2026-01-01', ticket_cents: 1800, title: 'New', dnf: true },
+  { watched_on: '2026-08-15', ticket_cents: 2200, title: 'New' },
+];
+assert.deepEqual(countSeenByYear(yearWatches), { 2025: 1, 2026: 2 });
+assert.equal(countSeenInYear(yearWatches, 2025), 1);
+assert.equal(countSeenInYear(yearWatches, 2026), 2);
+assert.equal(countSeenInYear(yearWatches, '2027'), 0);
+assert.equal(countSeenInYear(yearWatches, new Date(2026, 0, 1)), 2);
+assert.equal(countSeenInYear(yearWatches, new Date(2027, 0, 1)), 0);
+assert.equal(countSeenInYear([], 2026), 0);
+assert.equal(engineBilling.countSeenInYear(yearWatches, 2026), 2);
+
+const billedBeforeYear = summary.totalBilled;
+const seenBeforeYear = summary.totalSeen;
+const costBeforeYear = summary.costPerMovie;
+const yearSummary = computeSummary(yearWatches, legacyMembership, { asOf: '2026-08-31' });
+assert.equal(summary.totalBilled, billedBeforeYear, 'existing summary billed is unchanged');
+assert.equal(summary.totalSeen, seenBeforeYear, 'existing summary seen is unchanged');
+assert.equal(summary.costPerMovie, costBeforeYear, 'existing summary cost/movie is unchanged');
+assert.equal(yearSummary.totalSeen, 3);
+assert.equal(yearSummary.seenByYear[2026], 2);
+assert.equal(yearSummary.costPerMovie, yearSummary.totalBilled / yearSummary.totalSeen);
+
+const navSrc = readFileSync(new URL('../amc-a-lister/engine/nav.js', import.meta.url), 'utf8');
+assert.match(navSrc, /mobileStat\('This year', 'this-year'\)/, 'phone header shows This year');
+assert.match(navSrc, /sidebarStat\('This year', 'this-year'\)/, 'desktop sidebar shows This year');
+assert.match(navSrc, /seenByYear\?\.\[localYear\]/, 'This year uses the local calendar year');
+assert.match(navSrc, /totalSeen \?\? 0/, 'Seen still reads totalSeen');
+assert.match(navSrc, /totalSavings \?\? 0/, 'Savings still reads totalSavings');
+assert.match(navSrc, /costPerMovie \?\? 0/, '$/movie still reads costPerMovie');
+assert.doesNotMatch(navSrc, /mobileStat\('Billed'/, 'phone header no longer shows Billed');
+assert.doesNotMatch(navSrc, /sidebarStat\('Billed'/, 'desktop sidebar no longer shows Billed');
 
 console.log('billing tests passed');
