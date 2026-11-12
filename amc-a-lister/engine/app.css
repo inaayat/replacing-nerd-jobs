@@ -4383,22 +4383,22 @@ table.al-table {
 
   .al-mobile-stats-inner {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 4px;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 2px;
   }
 
   .al-mobile-stat {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1px;
+    gap: 0;
     min-width: 0;
     text-align: center;
   }
 
   .al-mobile-stat-label {
-    font-size: 0.58rem;
-    letter-spacing: 0.01em;
+    font-size: 0.48rem;
+    letter-spacing: 0;
     text-transform: uppercase;
     opacity: 0.72;
     white-space: nowrap;
@@ -4408,7 +4408,7 @@ table.al-table {
 
   .al-mobile-stat-value {
     font-family: var(--al-font-mono);
-    font-size: 0.78rem;
+    font-size: 0.68rem;
     font-weight: 500;
     line-height: 1.2;
     white-space: nowrap;
@@ -6443,6 +6443,7 @@ article.al-rank-tile {
 
 .al-rank-tile-poster:hover > .al-poster-save,
 .al-watch-card-poster:hover > .al-poster-save,
+.al-watchlist-card-poster:hover > .al-poster-save,
 .al-poster-save:focus-visible {
   opacity: 1;
   pointer-events: auto;

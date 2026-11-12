@@ -3,6 +3,7 @@ import { todayISO, monthsBeforeISO } from './dates.js';
 import { prefillQuickLog } from './quick-log.js';
 import { watchlistApi, movieApi } from './api.js';
 import { wireComboboxKeys } from './combobox.js';
+import { saveWatchlistOverlayHtml } from './save-watchlist.js';
 
 export { todayISO };
 
@@ -542,7 +543,7 @@ function watchlistIconButton(attrs, label, icon) {
   return `<button type="button" class="al-link-btn al-watchlist-icon-btn" ${attrs} aria-label="${name}" title="${name}">${watchlistActionIcon(icon)}</button>`;
 }
 
-function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detailsKind = 'movie', view = null, hideLog = false, readonly = false } = {}) {
+function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detailsKind = 'movie', view = null, hideLog = false, readonly = false, saveWatchlist = false, saved = false } = {}) {
   const expanded = sameWatchlistId(item.id, state.expandedId);
   const bucket = view ? watchlistBucket(item) : null;
   let badgeText = '';
@@ -574,6 +575,7 @@ function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detai
         <div class="al-watchlist-card-poster">
           ${posterHtml(item, { size: 'w342', className: 'al-poster al-poster--grid', fluid: true })}
           ${badge}
+          ${saveWatchlist ? saveWatchlistOverlayHtml(item, saved) : ''}
         </div>
         <h3 class="al-watchlist-card-title" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</h3>
         <p class="al-watchlist-card-date">${escapeHtml(releaseLabel(item))}</p>
@@ -591,7 +593,7 @@ function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detai
   `;
 }
 
-export function watchlistLogTableHtml(items, state, { emptyMessage, logLabel, detailsKind, view = null, hideLog = false, readonly = false } = {}) {
+export function watchlistLogTableHtml(items, state, { emptyMessage, logLabel, detailsKind, view = null, hideLog = false, readonly = false, saveWatchlist = false, isSaved = () => false } = {}) {
   if (!items.length) {
     return `<div class="al-empty">${emptyMessage || 'Nothing here yet.'}</div>`;
   }
@@ -600,7 +602,15 @@ export function watchlistLogTableHtml(items, state, { emptyMessage, logLabel, de
       ${items.map((item) => (
         !readonly && item.id === state.editingId
           ? watchlistEditRowHtml(item)
-          : watchlistViewEntryHtml(item, state, { logLabel, detailsKind, view, hideLog, readonly })
+          : watchlistViewEntryHtml(item, state, {
+            logLabel,
+            detailsKind,
+            view,
+            hideLog,
+            readonly,
+            saveWatchlist,
+            saved: saveWatchlist && isSaved(item),
+          })
       )).join('')}
     </div>
   `;
@@ -646,6 +656,8 @@ export function wireWatchlistLogList(auth, state, {
   view = null,
   hideLog = false,
   readonly = false,
+  saveWatchlist = false,
+  isSaved = () => false,
 }) {
   if (!state.detailsCache) state.detailsCache = new Map();
 
@@ -662,6 +674,8 @@ export function wireWatchlistLogList(auth, state, {
       view: resolvedView,
       hideLog: resolvedHideLog,
       readonly,
+      saveWatchlist,
+      isSaved,
     });
     onChange?.();
     wireWatchlistLogActions(auth, state, render, {
@@ -710,7 +724,7 @@ export function wireWatchlistLogList(auth, state, {
 function wireWatchlistRowExpand(listEl, toggleExpand) {
   listEl.querySelectorAll('[data-expand-row]').forEach((row) => {
     const toggle = (e) => {
-      if (e.target instanceof Element && e.target.closest('.al-row-actions')) return;
+      if (e.target instanceof Element && e.target.closest('.al-row-actions, .al-poster-save')) return;
       const id = row.dataset.entryId || row.closest('.al-log-entry')?.dataset.entryId;
       if (!id) return;
       toggleExpand(id);

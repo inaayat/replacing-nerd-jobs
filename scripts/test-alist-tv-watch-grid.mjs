@@ -161,6 +161,14 @@ assert(/\.al-tv-add \.al-btn-primary \{[\s\S]*var\(--al-burgundy\)/.test(css), '
 
 const tvSource = readFileSync(new URL('../amc-a-lister/engine/tv.js', import.meta.url), 'utf8');
 assert(tvSource.includes('tvWatchListHtml'), 'the TV page renders the poster grid');
+{
+  const wantBtn = tvSource.indexOf('data-tv-view="want"');
+  const watchedBtn = tvSource.indexOf('data-tv-view="watched"');
+  assert(wantBtn > -1 && watchedBtn > -1 && wantBtn < watchedBtn, 'Want to watch is the first TV segment');
+}
+assert(tvSource.includes("view: 'want'"), 'TV opens on Want to watch');
+assert(tvSource.includes('id="tv-want-panel">'), 'Want to watch is visible on load');
+assert(tvSource.includes('id="tv-watched-panel" hidden'), 'Watched starts hidden');
 assert(!tvSource.includes('al-log-list--tv'), 'the TV page no longer builds the watched table');
 assert(tvSource.includes('loadTvWatchDetails'), 'opening a card loads show details');
 assert(tvSource.includes('placeholder="Show title…"'), 'add starts with the title field');

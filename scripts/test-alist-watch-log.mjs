@@ -10,7 +10,7 @@ import {
   watchVtName,
   castChipsHtml,
 } from '../amc-a-lister/engine/watch-log-grid.js';
-import { money, shortDate } from '../amc-a-lister/engine/format.js';
+import { money, shortDate, hudMoney } from '../amc-a-lister/engine/format.js';
 import {
   memberProfilePage,
   memberProfileUrl,
@@ -290,6 +290,11 @@ assert(memberSource.includes('wireMemberCompare'), 'comparison loads without a C
 assert(!memberSource.includes('Compare with'), 'profiles no longer have a Compare with this user action');
 assert(memberSource.includes('member-want-list'), 'Want to Watch is a profile page');
 assert(memberSource.includes('You both want to watch'), 'Want tab surfaces titles both members want');
+{
+  const wantWire = memberSource.slice(memberSource.indexOf('member-want-list'));
+  assert(wantWire.includes('saveWatchlist: canSaveWatchlist'), 'Want tab reuses the watch-log save overlay');
+  assert(wantWire.includes('wireSaveWatchlist') || memberSource.includes('wireSaveWatchlist(auth, savedItems, isSaved)'), 'Want saves go through the same handler as the log');
+}
 assert(memberSource.includes('data-member-flip="next"'), 'the book has a next-page control');
 assert(memberSource.includes('data-member-flip="prev"'), 'the book has a previous-page control');
 assert(css.includes('.al-member-book'), 'member book layout is styled');
@@ -328,6 +333,12 @@ assert(
   !movieDetailsFn.includes('Not signed in'),
   'movie details no longer 401 anonymous viewers',
 );
+
+assert(hudMoney(12.4) === '$12.4', 'header money under $100 keeps tenths');
+assert(hudMoney(1240) === '$1,240', 'header money in the thousands stays in dollars');
+assert(hudMoney(12345) === '$12.3k', 'header money at $10k+ uses a compact k');
+assert(hudMoney(-16000) === '-$16k', 'negative compact header money keeps the sign');
+assert(css.includes('repeat(5, minmax(0, 1fr))'), 'the phone header is five stats on one row');
 
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

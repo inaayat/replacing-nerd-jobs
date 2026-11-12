@@ -331,6 +331,8 @@ function renderProfile(main, profile, { currentUserId, auth, watchlistItems = []
         : 'Nothing on their Want to Watch list yet.',
       readonly: true,
       hideLog: true,
+      saveWatchlist: canSaveWatchlist,
+      isSaved,
     });
   }
 

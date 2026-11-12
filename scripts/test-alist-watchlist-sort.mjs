@@ -335,6 +335,23 @@ assert(!readonlyWant.includes('data-edit-watchlist'), 'readonly want grid hides 
 assert(!readonlyWant.includes('data-remove-watchlist'), 'readonly want grid hides remove');
 assert(!readonlyWant.includes('data-log-watchlist'), 'readonly want grid hides log');
 assert(readonlyWant.includes('al-watchlist-card-title'), 'readonly want grid still shows titles');
+assert(!readonlyWant.includes('data-save-watchlist'), 'readonly want hides save until the viewer can add');
+
+const saveWant = watchlistLogTableHtml(expandItems, detailsState(), {
+  readonly: true,
+  saveWatchlist: true,
+  isSaved: () => false,
+});
+assert(saveWant.includes('data-save-watchlist'), 'another member’s Want list can save to yours');
+assert(saveWant.includes('aria-label="Want to watch"'), 'unsaved Want titles use the same overlay label as the log');
+assert(!saveWant.includes('data-edit-watchlist'), 'saving from a Want list does not expose edit');
+const savedWant = watchlistLogTableHtml(expandItems, detailsState(), {
+  readonly: true,
+  saveWatchlist: true,
+  isSaved: () => true,
+});
+assert(savedWant.includes('aria-label="On your list"'), 'a Want title already on your list is labeled that way');
+assert(savedWant.includes('disabled'), 'a Want title already on your list cannot be added again');
 
 assertEqual(
   sharedWatchlistItems(

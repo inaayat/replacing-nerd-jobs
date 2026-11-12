@@ -52,7 +52,7 @@ function faqBody() {
       ),
       faqItem(
         'Where do I see savings and habits?',
-        'Stats is theater screenings only: savings, theaters, formats, days, ratings, and cast. At-home watches stay off that page. Header totals use the same theater-only math. This year is screenings in the current calendar year and resets on January 1.',
+        'Stats is theater screenings only: savings, theaters, formats, days, ratings, and cast. At-home watches stay off that page. Header totals use the same theater-only math: Seen, This year, Savings, Billed, and cost per movie. This year is screenings in the current calendar year and resets on January 1.',
       ),
       faqItem(
         'How does Rank work?',

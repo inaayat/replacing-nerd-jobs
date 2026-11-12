@@ -7,6 +7,20 @@ export function money(cents) {
   }).format(cents / 100);
 }
 
+/** Compact dollar string for the five-stat phone header (dollars, not cents). */
+export function hudMoney(dollars) {
+  const n = Number(dollars) || 0;
+  const sign = n < 0 ? '-' : '';
+  const abs = Math.abs(n);
+  if (abs >= 10000) {
+    const k = abs / 1000;
+    const rounded = k >= 100 ? Math.round(k) : Math.round(k * 10) / 10;
+    return `${sign}$${rounded}k`;
+  }
+  if (abs >= 100) return `${sign}$${Math.round(abs).toLocaleString('en-US')}`;
+  return `${sign}$${(Math.round(abs * 100) / 100).toLocaleString('en-US')}`;
+}
+
 export function shortDate(iso) {
   if (!iso) return '—';
   const d = new Date(`${iso.slice(0, 10)}T12:00:00`);

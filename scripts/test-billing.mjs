@@ -245,13 +245,28 @@ assert.equal(yearSummary.seenByYear[2026], 2);
 assert.equal(yearSummary.costPerMovie, yearSummary.totalBilled / yearSummary.totalSeen);
 
 const navSrc = readFileSync(new URL('../amc-a-lister/engine/nav.js', import.meta.url), 'utf8');
+assert.match(navSrc, /mobileStat\('Seen', 'seen'\)/, 'phone header shows Seen');
 assert.match(navSrc, /mobileStat\('This year', 'this-year'\)/, 'phone header shows This year');
+assert.match(navSrc, /mobileStat\('Savings', 'savings'/, 'phone header shows Savings');
+assert.match(navSrc, /mobileStat\('Billed', 'billed'/, 'phone header shows Billed');
+assert.match(navSrc, /mobileStat\('\$\/movie', 'cost'\)/, 'phone header shows $/movie');
 assert.match(navSrc, /sidebarStat\('This year', 'this-year'\)/, 'desktop sidebar shows This year');
+assert.match(navSrc, /sidebarStat\('Billed', 'billed'/, 'desktop sidebar shows Billed');
 assert.match(navSrc, /seenByYear\?\.\[localYear\]/, 'This year uses the local calendar year');
 assert.match(navSrc, /totalSeen \?\? 0/, 'Seen still reads totalSeen');
 assert.match(navSrc, /totalSavings \?\? 0/, 'Savings still reads totalSavings');
+assert.match(navSrc, /totalBilled \?\? 0/, 'Billed still reads totalBilled');
 assert.match(navSrc, /costPerMovie \?\? 0/, '$/movie still reads costPerMovie');
-assert.doesNotMatch(navSrc, /mobileStat\('Billed'/, 'phone header no longer shows Billed');
-assert.doesNotMatch(navSrc, /sidebarStat\('Billed'/, 'desktop sidebar no longer shows Billed');
+{
+  const phoneOrder = [
+    navSrc.indexOf("mobileStat('Seen'"),
+    navSrc.indexOf("mobileStat('This year'"),
+    navSrc.indexOf("mobileStat('Savings'"),
+    navSrc.indexOf("mobileStat('Billed'"),
+    navSrc.indexOf("mobileStat('$/movie'"),
+  ];
+  assert.ok(phoneOrder.every((i) => i > -1), 'phone header has all five stats');
+  assert.deepEqual([...phoneOrder].sort((a, b) => a - b), phoneOrder, 'phone order is Seen / This year / Savings / Billed / $/movie');
+}
 
 console.log('billing tests passed');

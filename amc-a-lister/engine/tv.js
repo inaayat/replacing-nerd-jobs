@@ -71,19 +71,19 @@ async function loadPage(auth) {
     <section class="al-panel al-panel--tv">
       <p class="al-muted al-tv-stats-note">TV shows are not counted in A-List savings, statistics, or leaderboard — only theater movie screenings are.</p>
       <div class="al-watchlist-header al-watchlist-header--compact">
-        <h2 class="al-section-title" id="tv-section-title">${VIEWS.watched.label}</h2>
+        <h2 class="al-section-title" id="tv-section-title">${VIEWS.want.label}</h2>
         <span class="al-muted" id="tv-count"></span>
       </div>
       <div class="al-segment al-watchlist-segment" role="tablist" aria-label="TV view">
-        <button type="button" class="al-segment-btn is-active" data-tv-view="watched" role="tab" aria-selected="true">
-          Watched <span class="al-segment-count" id="tv-watched-count">${watches.length}</span>
-        </button>
-        <button type="button" class="al-segment-btn" data-tv-view="want" role="tab" aria-selected="false">
+        <button type="button" class="al-segment-btn is-active" data-tv-view="want" role="tab" aria-selected="true">
           Want to watch <span class="al-segment-count" id="tv-want-count">${watchlist.length}</span>
+        </button>
+        <button type="button" class="al-segment-btn" data-tv-view="watched" role="tab" aria-selected="false">
+          Watched <span class="al-segment-count" id="tv-watched-count">${watches.length}</span>
         </button>
       </div>
 
-      <div id="tv-watched-panel">
+      <div id="tv-watched-panel" hidden>
         <form class="al-tv-add" id="tv-add-form" autocomplete="off">
           <div class="al-tv-add-row">
             <div class="al-search-wrap al-tv-add-field">
@@ -112,7 +112,7 @@ async function loadPage(auth) {
         <div class="al-log-list-wrap" id="tv-watched-list"></div>
       </div>
 
-      <div id="tv-want-panel" hidden>
+      <div id="tv-want-panel">
         <form class="al-watchlist-add" id="tv-watchlist-add-form" autocomplete="off">
           <div class="al-watchlist-add-field al-search-wrap">
             <input class="al-input" id="tv-watchlist-title" type="text" placeholder="Add a show…" required />
@@ -135,7 +135,7 @@ async function loadPage(auth) {
   const state = {
     watches,
     watchlist,
-    view: 'watched',
+    view: 'want',
     watchlistSearch: '',
     watchedEditingId: null,
     editingId: null,

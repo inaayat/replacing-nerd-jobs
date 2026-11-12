@@ -2,7 +2,7 @@ import './pwa.js';
 import { initAuth, wireAuthLink, refreshToken, loginUrl } from './auth.js';
 import { summaryApi, membershipApi } from './api.js';
 import { renderQuickLogBar, wireQuickLog } from './quick-log.js';
-import { escapeHtml } from './format.js';
+import { escapeHtml, hudMoney } from './format.js';
 
 const NAV_ACTIVE = document.body.dataset.page || '';
 const TV_BETA_KEY = 'alist.beta.tv';
@@ -153,8 +153,9 @@ function sidebarStatsPlaceholder() {
     <div class="al-sidebar-stats-block">
       <p class="al-sidebar-stats-heading">All time</p>
       ${sidebarStat('Seen', 'seen')}
-      ${sidebarStat('Savings', 'savings', 'is-savings')}
       ${sidebarStat('This year', 'this-year')}
+      ${sidebarStat('Savings', 'savings', 'is-savings')}
+      ${sidebarStat('Billed', 'billed', 'is-cost')}
       ${sidebarStat('Cost / movie', 'cost')}
       ${sidebarStat('Avg ticket', 'avg-ticket')}
       ${sidebarStat('Avg runtime', 'avg-runtime')}
@@ -166,8 +167,9 @@ function mobileStatsPlaceholder() {
   return `
     <div class="al-mobile-stats-inner">
       ${mobileStat('Seen', 'seen')}
-      ${mobileStat('Savings', 'savings', 'is-savings')}
       ${mobileStat('This year', 'this-year')}
+      ${mobileStat('Savings', 'savings', 'is-savings')}
+      ${mobileStat('Billed', 'billed', 'is-cost')}
       ${mobileStat('$/movie', 'cost')}
     </div>
   `;
@@ -204,8 +206,9 @@ export async function populateSidebarStats(auth) {
     const localYear = String(new Date().getFullYear());
     const values = {
       seen: { v: summary.totalSeen ?? 0, kind: 'count' },
-      savings: { v: summary.totalSavings ?? 0, kind: 'money' },
       'this-year': { v: summary.seenByYear?.[localYear] ?? 0, kind: 'count' },
+      savings: { v: summary.totalSavings ?? 0, kind: 'money' },
+      billed: { v: summary.totalBilled ?? 0, kind: 'money' },
       cost: { v: summary.costPerMovie ?? 0, kind: 'money' },
       'avg-ticket': { v: summary.avgTicket ?? 0, kind: 'money' },
       'avg-runtime': { v: summary.avgRuntimeMin ?? 0, kind: 'runtime' },
@@ -215,7 +218,7 @@ export async function populateSidebarStats(auth) {
       const cfg = values[el.dataset.sidebar];
       if (!cfg) return;
       if (cfg.kind === 'money') {
-        countUp(el, cfg.v / 100, { prefix: '$' });
+        countUp(el, cfg.v / 100, { format: hudMoney });
       } else if (cfg.kind === 'runtime') {
         if (cfg.v > 0) countUp(el, cfg.v, { suffix: ' min' });
         else el.textContent = '—';
@@ -344,15 +347,17 @@ export function requireSignIn(auth, root) {
   return false;
 }
 
-export function countUp(el, target, { prefix = '', suffix = '', duration = 700 } = {}) {
+export function countUp(el, target, { prefix = '', suffix = '', format, duration = 700 } = {}) {
   const end = Number(target) || 0;
   const start = performance.now();
   const from = 0;
+  const paint = (val) => {
+    el.textContent = format ? format(val) : `${prefix}${formatHudNumber(val)}${suffix}`;
+  };
   const step = (now) => {
     const t = Math.min(1, (now - start) / duration);
     const eased = 1 - (1 - t) ** 3;
-    const val = from + (end - from) * eased;
-    el.textContent = `${prefix}${formatHudNumber(val)}${suffix}`;
+    paint(from + (end - from) * eased);
     if (t < 1) requestAnimationFrame(step);
   };
   requestAnimationFrame(step);

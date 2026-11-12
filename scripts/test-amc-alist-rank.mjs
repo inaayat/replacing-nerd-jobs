@@ -363,6 +363,7 @@ function placeWithAnswers(rankedLength, answers) {
   assert.match(saveCss.slice(0, 700), /opacity:\s*0/);
   assert.match(saveCss, /\.al-rank-tile-poster:hover > \.al-poster-save/);
   assert.match(saveCss, /\.al-watch-card-poster:hover > \.al-poster-save/);
+  assert.match(saveCss, /\.al-watchlist-card-poster:hover > \.al-poster-save/);
   const savedRank = publicRankStackHtml(
     [{ tmdb_id: 9, title: 'Nope', year: 2022 }],
     { saveWatchlist: true, isSaved: () => true },
