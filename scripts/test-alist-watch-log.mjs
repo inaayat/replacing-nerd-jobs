@@ -10,7 +10,7 @@ import {
   watchVtName,
   castChipsHtml,
 } from '../amc-a-lister/engine/watch-log-grid.js';
-import { money, shortDate, hudMoney } from '../amc-a-lister/engine/format.js';
+import { money, shortDate, hudMoney, unitMoney, hudUnitMoney } from '../amc-a-lister/engine/format.js';
 import {
   memberProfilePage,
   memberProfileUrl,
@@ -338,6 +338,11 @@ assert(hudMoney(12.4) === '$12.4', 'header money under $100 keeps tenths');
 assert(hudMoney(1240) === '$1,240', 'header money in the thousands stays in dollars');
 assert(hudMoney(12345) === '$12.3k', 'header money at $10k+ uses a compact k');
 assert(hudMoney(-16000) === '-$16k', 'negative compact header money keeps the sign');
+assert(money(1200) === '$12', 'totals still drop .00');
+assert(unitMoney(720) === '$7.20', 'per-movie cost keeps two decimals');
+assert(unitMoney(1200) === '$12.00', 'per-movie cost keeps .00');
+assert(hudUnitMoney(7.2) === '$7.20', 'HUD $/movie formats 7.2 as $7.20');
+assert(hudUnitMoney(12) === '$12.00', 'HUD $/movie formats 12 as $12.00');
 assert(css.includes('repeat(5, minmax(0, 1fr))'), 'the phone header is five stats on one row');
 
 console.log(`${passed} passed, ${failed} failed`);

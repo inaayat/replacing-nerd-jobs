@@ -2,7 +2,7 @@ import './pwa.js';
 import { initAuth, wireAuthLink, refreshToken, loginUrl } from './auth.js';
 import { summaryApi, membershipApi } from './api.js';
 import { renderQuickLogBar, wireQuickLog } from './quick-log.js';
-import { escapeHtml, hudMoney } from './format.js';
+import { escapeHtml, hudMoney, hudUnitMoney } from './format.js';
 
 const NAV_ACTIVE = document.body.dataset.page || '';
 const TV_BETA_KEY = 'alist.beta.tv';
@@ -209,8 +209,8 @@ export async function populateSidebarStats(auth) {
       'this-year': { v: summary.seenByYear?.[localYear] ?? 0, kind: 'count' },
       savings: { v: summary.totalSavings ?? 0, kind: 'money' },
       billed: { v: summary.totalBilled ?? 0, kind: 'money' },
-      cost: { v: summary.costPerMovie ?? 0, kind: 'money' },
-      'avg-ticket': { v: summary.avgTicket ?? 0, kind: 'money' },
+      cost: { v: summary.costPerMovie ?? 0, kind: 'unit-money' },
+      'avg-ticket': { v: summary.avgTicket ?? 0, kind: 'unit-money' },
       'avg-runtime': { v: summary.avgRuntimeMin ?? 0, kind: 'runtime' },
     };
 
@@ -219,6 +219,8 @@ export async function populateSidebarStats(auth) {
       if (!cfg) return;
       if (cfg.kind === 'money') {
         countUp(el, cfg.v / 100, { format: hudMoney });
+      } else if (cfg.kind === 'unit-money') {
+        countUp(el, cfg.v / 100, { format: hudUnitMoney });
       } else if (cfg.kind === 'runtime') {
         if (cfg.v > 0) countUp(el, cfg.v, { suffix: ' min' });
         else el.textContent = '—';

@@ -397,6 +397,8 @@ function placeWithAnswers(rankedLength, answers) {
   assert.equal(memberSource.includes('Compare with'), false, 'profiles do not have a Compare with this user button');
 
   const boardSource = readFileSync(new URL('../amc-a-lister/engine/leaderboard.js', import.meta.url), 'utf8');
+  assert.match(boardSource, /key: 'costPerMovie', label: 'Cost per movie', kind: 'unit-money'/, 'leaderboard cost per movie uses two-decimal USD');
+  assert.match(boardSource, /key: 'avgTicket', label: 'Avg ticket', kind: 'unit-money'/, 'leaderboard avg ticket uses two-decimal USD');
   assert.match(css, /\.al-board-stats dd\.is-savings/, 'leaderboard savings use a plus color');
   assert.match(css, /\.al-board-stats dd\.is-cost/, 'leaderboard overage uses a minus color');
   const boardCss = css.slice(css.indexOf('.al-board-kicker'), css.indexOf('.al-leaderboard-table .num'));

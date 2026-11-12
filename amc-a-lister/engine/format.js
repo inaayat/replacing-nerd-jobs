@@ -7,6 +7,24 @@ export function money(cents) {
   }).format(cents / 100);
 }
 
+const USD_TWO = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+/** Per-movie cost and avg ticket (cents in): always `$7.20`, never `$7.2` or `$12`. */
+export function unitMoney(cents) {
+  if (cents == null || Number.isNaN(Number(cents))) return '—';
+  return USD_TWO.format(Number(cents) / 100);
+}
+
+/** Same two-decimal USD for HUD count-up (dollars in, not cents). */
+export function hudUnitMoney(dollars) {
+  return USD_TWO.format(Number(dollars) || 0);
+}
+
 /** Compact dollar string for the five-stat phone header (dollars, not cents). */
 export function hudMoney(dollars) {
   const n = Number(dollars) || 0;

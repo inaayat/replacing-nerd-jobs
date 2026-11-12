@@ -151,6 +151,11 @@ const insightsSource = readFileSync(new URL('../amc-a-lister/engine/insights-vie
 assert.match(insightsSource, /<colgroup>/);
 assert.match(insightsSource, /statsColClass/);
 assert.match(insightsSource, /al-stats-col-name/);
+assert.match(insightsSource, /unitMoney\(summary\.costPerMovie\)/, 'effective cost / visit uses two-decimal USD');
+assert.match(insightsSource, /unitMoney\(summary\.avgTicket\)/, 'avg ticket value uses two-decimal USD');
+assert.match(insightsSource, /unitMoney\(theater\.avgTicket\)/, 'theater avg ticket uses two-decimal USD');
+assert.match(insightsSource, /unitMoney\(format\.avgTicket\)/, 'format avg ticket uses two-decimal USD');
+assert.match(insightsSource, /money\(summary\.totalBilled/, 'billed totals still use money()');
 
 const pageSource = readFileSync(new URL('../amc-a-lister/engine/insights.js', import.meta.url), 'utf8');
 assert.match(pageSource, /renderInsightsHtml/, 'Stats page reuses the shared insights view');

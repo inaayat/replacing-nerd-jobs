@@ -1,5 +1,5 @@
 import { chargeMonth, topActorsByRating, ratingMovies, ratingStarBucket } from './billing.js';
-import { money, escapeHtml, monthLabel, shortDate } from './format.js';
+import { money, unitMoney, escapeHtml, monthLabel, shortDate } from './format.js';
 import {
   buildDayStats,
   buildFormatStats,
@@ -145,12 +145,12 @@ function renderValueCategory(summary, valueStats, voice = 'you') {
   })}
       ${metricCard({
     label: 'Effective cost / visit',
-    value: summary.totalSeen ? money(summary.costPerMovie) : '—',
+    value: summary.totalSeen ? unitMoney(summary.costPerMovie) : '—',
     note: `${money(summary.totalBilled || 0)} billed`,
   })}
       ${metricCard({
     label: 'Avg ticket value',
-    value: summary.totalSeen ? money(summary.avgTicket) : '—',
+    value: summary.totalSeen ? unitMoney(summary.avgTicket) : '—',
     note: `${money(summary.totalCharged || 0)} total value`,
   })}
       ${metricCard({
@@ -192,7 +192,7 @@ function renderTheaterCategory(theaters, moviesByTheater, voice = 'you') {
               </span>
             </td>
             <td class="num al-stat-col--count" data-label="Visits">${theater.count}</td>
-            <td class="num al-stat-col--money" data-label="Avg ticket">${theater.avgTicket == null ? '—' : money(theater.avgTicket)}</td>
+            <td class="num al-stat-col--money" data-label="Avg ticket">${theater.avgTicket == null ? '—' : unitMoney(theater.avgTicket)}</td>
             <td class="num al-stat-col--rating" data-label="Avg rating">${theater.avgRating == null ? '—' : `${theater.avgRating}★`}</td>
             <td class="num al-stat-col--money" data-label="Ticket value">${money(theater.charged)}</td>
           </tr>
@@ -241,7 +241,7 @@ function renderFormatCategory(formats, moviesByFormat, voice = 'you') {
             </td>
             <td class="num al-stat-col--count" data-label="Visits">${format.count}</td>
             <td class="num al-stat-col--percent" data-label="Share">${formatPercent(format.share)}</td>
-            <td class="num al-stat-col--money" data-label="Avg ticket">${format.avgTicket == null ? '—' : money(format.avgTicket)}</td>
+            <td class="num al-stat-col--money" data-label="Avg ticket">${format.avgTicket == null ? '—' : unitMoney(format.avgTicket)}</td>
             <td class="num al-stat-col--rating" data-label="Avg rating">${format.avgRating == null ? '—' : `${format.avgRating}★`}</td>
           </tr>
         `),

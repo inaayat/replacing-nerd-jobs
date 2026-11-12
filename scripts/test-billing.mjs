@@ -257,6 +257,9 @@ assert.match(navSrc, /totalSeen \?\? 0/, 'Seen still reads totalSeen');
 assert.match(navSrc, /totalSavings \?\? 0/, 'Savings still reads totalSavings');
 assert.match(navSrc, /totalBilled \?\? 0/, 'Billed still reads totalBilled');
 assert.match(navSrc, /costPerMovie \?\? 0/, '$/movie still reads costPerMovie');
+assert.match(navSrc, /kind: 'unit-money'/, 'cost per movie and avg ticket use two-decimal USD');
+assert.match(navSrc, /format: hudUnitMoney/, 'HUD $/movie and avg ticket use two-decimal USD');
+assert.match(navSrc, /format: hudMoney/, 'savings and billed keep compact HUD money');
 {
   const phoneOrder = [
     navSrc.indexOf("mobileStat('Seen'"),

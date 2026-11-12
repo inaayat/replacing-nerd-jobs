@@ -1,7 +1,7 @@
 import { bootPage, renderShell, populateSidebarStats } from './nav.js';
 import { loginUrl } from './auth.js';
 import { leaderboardApi } from './api.js';
-import { money, escapeHtml, posterHtml } from './format.js';
+import { money, unitMoney, escapeHtml, posterHtml } from './format.js';
 import { renderCompareResults } from './compare-view.js';
 
 const SORT_COLUMNS = [
@@ -9,8 +9,8 @@ const SORT_COLUMNS = [
   { key: 'totalSavings', label: 'Savings', kind: 'money', signed: true },
   { key: 'totalCharged', label: 'Ticket value', kind: 'money' },
   { key: 'totalBilled', label: 'Billed', kind: 'money' },
-  { key: 'costPerMovie', label: 'Cost per movie', kind: 'money' },
-  { key: 'avgTicket', label: 'Avg ticket', kind: 'money' },
+  { key: 'costPerMovie', label: 'Cost per movie', kind: 'unit-money' },
+  { key: 'avgTicket', label: 'Avg ticket', kind: 'unit-money' },
   { key: 'avgRuntimeMin', label: 'Avg runtime', kind: 'runtime' },
   { key: 'avgRating', label: 'Avg rating', kind: 'rating' },
   { key: 'periodMovies', label: 'This month', kind: 'count' },
@@ -300,6 +300,9 @@ function formatStat(entry, stat) {
   const value = entry[stat.key];
   if (stat.kind === 'money') {
     return stat.signed ? formatSignedMoney(value) : money(value);
+  }
+  if (stat.kind === 'unit-money') {
+    return unitMoney(value);
   }
   if (stat.kind === 'rating') {
     return value != null ? `${value}★` : '—';
