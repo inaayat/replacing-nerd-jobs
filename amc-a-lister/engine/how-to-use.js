@@ -94,7 +94,7 @@ function faqBody() {
     faqSection('Sharing &amp; friends', [
       faqItem(
         'How do I add someone to a movie?',
-        'On a theater log entry, type their A-Lister username in Seen with. If they already logged the same movie on the same date, you are tagged as watched together immediately. Otherwise they get a pending showing invite with the movie, theater, and ticket cost.',
+        'On a theater log entry, type their A-Lister username in Seen with. Public profiles with no username can also be added by the first name shown on the leaderboard. If they already logged the same movie on the same date, you are tagged as watched together immediately. Otherwise they get a pending showing invite with the movie, theater, and ticket cost.',
       ),
       faqItem(
         'What happens when someone invites me?',

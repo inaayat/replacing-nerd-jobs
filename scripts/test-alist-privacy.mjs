@@ -2,7 +2,8 @@
  * Pure-function tests for the A-Lister public-identity rules.
  * Run: node scripts/test-alist-privacy.mjs
  */
-import { publicDisplayName, isPublicProfile, normalizeUsername, firstNameOf } from '../lib/a-list-identity.js';
+import { readFileSync } from 'node:fs';
+import { publicDisplayName, isPublicProfile, normalizeUsername, firstNameOf, firstNameHandle, inviteHandleOf } from '../lib/a-list-identity.js';
 import { todayISO, toLocalISO, currentMonthISO } from '../amc-a-lister/engine/dates.js';
 
 let passed = 0;
@@ -55,6 +56,26 @@ assertEqual(
 );
 assertEqual(publicDisplayName({}, {}), 'Member', 'empty everything yields Member');
 
+assertEqual(firstNameHandle('Inaayat Gill'), 'inaayat', 'public first names are searchable handles');
+assertEqual(firstNameHandle('Karan Narula'), 'karan', 'Karan is a valid first-name handle');
+assertEqual(firstNameHandle('Al'), null, 'two-letter first names are not handles');
+assertEqual(firstNameHandle('me@example.com'), null, 'emails are not handles');
+assertEqual(
+  inviteHandleOf({ username: 'reel_lurker', public_profile: true }, { name: 'Inaayat Gill' }),
+  'reel_lurker',
+  'a stored username still wins for invites',
+);
+assertEqual(
+  inviteHandleOf({ username: null, public_profile: true }, { name: 'Inaayat Gill' }),
+  'inaayat',
+  'a public member with no username is invited as their first name',
+);
+assertEqual(
+  inviteHandleOf({ username: null, public_profile: false }, { name: 'Inaayat Gill' }),
+  null,
+  'a private member with no username stays unsearchable',
+);
+
 assertEqual(firstNameOf('Inaayat Gill'), 'Inaayat', 'surname is dropped');
 assertEqual(firstNameOf('  Karan  Narula '), 'Karan', 'extra whitespace handled');
 assertEqual(firstNameOf('Aditi'), 'Aditi', 'single-word name works');
@@ -94,6 +115,11 @@ assertEqual(currentMonthISO(lateMonthEnd), '2026-08-01', 'current month holds on
 
 const earlyMorning = new Date(2026, 0, 1, 0, 5, 0);
 assertEqual(toLocalISO(earlyMorning), '2026-01-01', 'just after midnight stays on the new day');
+
+const aListSrc = readFileSync(new URL('../lib/a-list.js', import.meta.url), 'utf8');
+assert(aListSrc.includes('m.public_profile = true'), 'Seen with search includes public profiles without a username');
+assert(aListSrc.includes("split_part(trim(u.name), ' ', 1)"), 'Seen with matches the public first name');
+assert(aListSrc.includes('inviteHandleOf'), 'search results return a handle others can submit');
 
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
