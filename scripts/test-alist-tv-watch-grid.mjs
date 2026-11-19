@@ -167,6 +167,10 @@ assert(tvSource.includes('tvWatchListHtml'), 'the TV page renders the poster gri
   assert(wantBtn > -1 && watchedBtn > -1 && wantBtn < watchedBtn, 'Want to watch is the first TV segment');
 }
 assert(tvSource.includes("view: 'want'"), 'TV opens on Want to watch');
+assert(tvSource.includes('sortWantList'), 'TV want list is drag-ranked, not release-date only');
+assert(tvSource.includes('id="tv-watchlist-reorder"'), 'TV want list keeps the grid and uses a Reorder control');
+assert(tvSource.includes('state.reordering'), 'TV drag is a mode on the existing grid');
+assert(!tvSource.includes('Which do you like'), 'TV want ranking is not pairwise compare');
 assert(tvSource.includes('id="tv-want-panel">'), 'Want to watch is visible on load');
 assert(tvSource.includes('id="tv-watched-panel" hidden'), 'Watched starts hidden');
 assert(!tvSource.includes('al-log-list--tv'), 'the TV page no longer builds the watched table');

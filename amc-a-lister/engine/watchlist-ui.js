@@ -4,6 +4,13 @@ import { prefillQuickLog } from './quick-log.js';
 import { watchlistApi, movieApi } from './api.js';
 import { wireComboboxKeys } from './combobox.js';
 import { saveWatchlistOverlayHtml } from './save-watchlist.js';
+import {
+  isWantRanked,
+  sortByWantPriority,
+  applyWantDragOrder,
+  mergeWantPriorities,
+  wantRanksPayload,
+} from './want-order.js';
 
 export { todayISO };
 
@@ -96,8 +103,8 @@ export function sortComingSoonTab(items, today = todayISO()) {
     });
 }
 
-/** Left theaters; most recently released first. */
-export function sortWatchAtHome(items, today = todayISO()) {
+/** Left theaters; most recently released first. Used when nothing is ranked yet. */
+export function sortWatchAtHomeByRelease(items, today = todayISO()) {
   return items
     .filter((item) => isWatchAtHome(item, today))
     .sort((a, b) => {
@@ -106,6 +113,28 @@ export function sortWatchAtHome(items, today = todayISO()) {
       if (aDate !== bDate) return bDate.localeCompare(aDate);
       return String(a.title || '').localeCompare(String(b.title || ''));
     });
+}
+
+/** Watch at Home: ranked (drag order) first, unranked last in release order. */
+export function sortWatchAtHome(items, today = todayISO()) {
+  const home = items.filter((item) => isWatchAtHome(item, today));
+  return sortByWantPriority(home, sortWatchAtHomeByRelease(home, today));
+}
+
+/** TV want list: ranked first, unranked last in the previous combined order. */
+export function sortWantList(items, today = todayISO()) {
+  return sortByWantPriority(items, combinedWatchlistItems(items, today));
+}
+
+/**
+ * Public/own Want tab: in-theater + coming soon keep release order, then
+ * Watch at Home in the owner's priority order.
+ */
+export function sortWantMoviesForProfile(items, today = todayISO()) {
+  return [
+    ...sortComingSoonTab(items, today),
+    ...sortWatchAtHome(items, today),
+  ];
 }
 
 export function itemsForWatchlistView(items, view, today = todayISO()) {
@@ -543,7 +572,24 @@ function watchlistIconButton(attrs, label, icon) {
   return `<button type="button" class="al-link-btn al-watchlist-icon-btn" ${attrs} aria-label="${name}" title="${name}">${watchlistActionIcon(icon)}</button>`;
 }
 
-function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detailsKind = 'movie', view = null, hideLog = false, readonly = false, saveWatchlist = false, saved = false } = {}) {
+function wantDragHandleHtml(item) {
+  const ranked = isWantRanked(item);
+  const label = ranked ? 'Drag to reorder' : 'Drag to rank';
+  return `<button type="button" class="al-want-drag-handle" data-want-drag="${item.id}" aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}">${WANT_GRIP_SVG}</button>`;
+}
+
+const WANT_GRIP_SVG = `<svg class="al-want-drag-grip" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="currentColor"><circle cx="9" cy="6" r="1.7"/><circle cx="15" cy="6" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="18" r="1.7"/><circle cx="15" cy="18" r="1.7"/></svg>`;
+
+function watchlistViewEntryHtml(item, state, {
+  logLabel = 'Log screening',
+  detailsKind = 'movie',
+  view = null,
+  hideLog = false,
+  readonly = false,
+  saveWatchlist = false,
+  saved = false,
+  reorderable = false,
+} = {}) {
   const expanded = sameWatchlistId(item.id, state.expandedId);
   const bucket = view ? watchlistBucket(item) : null;
   let badgeText = '';
@@ -569,12 +615,14 @@ function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detai
   const notes = item.notes
     ? `<p class="al-watchlist-card-notes">${escapeHtml(item.notes)}</p>`
     : '';
+  const canReorder = reorderable && !readonly;
   return `
     <div class="al-watchlist-grid-item${expanded ? ' is-expanded' : ''}${out ? ' is-already-out' : ''}" data-entry-id="${item.id}">
       <article class="al-watchlist-card al-log-row--clickable${expanded ? ' is-expanded' : ''}" data-expand-row data-entry-id="${item.id}" tabindex="0" aria-expanded="${expanded}" aria-label="Toggle details">
         <div class="al-watchlist-card-poster">
           ${posterHtml(item, { size: 'w342', className: 'al-poster al-poster--grid', fluid: true })}
           ${badge}
+          ${canReorder ? wantDragHandleHtml(item) : ''}
           ${saveWatchlist ? saveWatchlistOverlayHtml(item, saved) : ''}
         </div>
         <h3 class="al-watchlist-card-title" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</h3>
@@ -593,7 +641,17 @@ function watchlistViewEntryHtml(item, state, { logLabel = 'Log screening', detai
   `;
 }
 
-export function watchlistLogTableHtml(items, state, { emptyMessage, logLabel, detailsKind, view = null, hideLog = false, readonly = false, saveWatchlist = false, isSaved = () => false } = {}) {
+export function watchlistLogTableHtml(items, state, {
+  emptyMessage,
+  logLabel,
+  detailsKind,
+  view = null,
+  hideLog = false,
+  readonly = false,
+  saveWatchlist = false,
+  isSaved = () => false,
+  reorderable = false,
+} = {}) {
   if (!items.length) {
     return `<div class="al-empty">${emptyMessage || 'Nothing here yet.'}</div>`;
   }
@@ -610,6 +668,7 @@ export function watchlistLogTableHtml(items, state, { emptyMessage, logLabel, de
             readonly,
             saveWatchlist,
             saved: saveWatchlist && isSaved(item),
+            reorderable,
           })
       )).join('')}
     </div>
@@ -658,6 +717,7 @@ export function wireWatchlistLogList(auth, state, {
   readonly = false,
   saveWatchlist = false,
   isSaved = () => false,
+  reorderable = false,
 }) {
   if (!state.detailsCache) state.detailsCache = new Map();
 
@@ -667,6 +727,7 @@ export function wireWatchlistLogList(auth, state, {
     const resolvedLogLabel = typeof logLabel === 'function' ? logLabel() : logLabel;
     const resolvedView = typeof view === 'function' ? view() : view;
     const resolvedHideLog = typeof hideLog === 'function' ? hideLog() : hideLog;
+    const resolvedReorderable = typeof reorderable === 'function' ? reorderable() : reorderable;
     listEl.innerHTML = watchlistLogTableHtml(items, state, {
       emptyMessage: message,
       logLabel: resolvedLogLabel,
@@ -676,6 +737,7 @@ export function wireWatchlistLogList(auth, state, {
       readonly,
       saveWatchlist,
       isSaved,
+      reorderable: resolvedReorderable && !readonly,
     });
     onChange?.();
     wireWatchlistLogActions(auth, state, render, {
@@ -688,6 +750,9 @@ export function wireWatchlistLogList(auth, state, {
       statusEl,
     });
     wireWatchlistRowExpand(listEl, toggleExpand);
+    if (resolvedReorderable && !readonly) {
+      wireWantReorder(listEl, state, render, { api, statusEl, getItems, auth });
+    }
   };
 
   const toggleExpand = (id) => {
@@ -724,7 +789,7 @@ export function wireWatchlistLogList(auth, state, {
 function wireWatchlistRowExpand(listEl, toggleExpand) {
   listEl.querySelectorAll('[data-expand-row]').forEach((row) => {
     const toggle = (e) => {
-      if (e.target instanceof Element && e.target.closest('.al-row-actions, .al-poster-save')) return;
+      if (e.target instanceof Element && e.target.closest('.al-row-actions, .al-poster-save, .al-want-drag-handle')) return;
       const id = row.dataset.entryId || row.closest('.al-log-entry')?.dataset.entryId;
       if (!id) return;
       toggleExpand(id);
@@ -734,6 +799,118 @@ function wireWatchlistRowExpand(listEl, toggleExpand) {
       if (e.key !== 'Enter' && e.key !== ' ') return;
       e.preventDefault();
       toggle(e);
+    });
+  });
+}
+
+function wantGridItems(grid) {
+  return [...grid.querySelectorAll(':scope > .al-watchlist-grid-item')];
+}
+
+function wantCardRect(itemEl) {
+  const card = itemEl.querySelector('.al-watchlist-card');
+  return (card || itemEl).getBoundingClientRect();
+}
+
+function gridInsertBeforeEl(grid, moving, x, y) {
+  const items = wantGridItems(grid).filter((el) => el !== moving);
+  for (const other of items) {
+    const box = wantCardRect(other);
+    if (y < box.top) return other;
+    if (y <= box.bottom && x < box.left + box.width / 2) return other;
+  }
+  return null;
+}
+
+function maybeWantAutoScroll(y) {
+  const edge = 48;
+  const vv = window.visualViewport;
+  const top = vv ? vv.offsetTop : 0;
+  const height = vv ? vv.height : window.innerHeight;
+  if (y < top + edge) window.scrollBy(0, -16);
+  else if (y > top + height - edge) window.scrollBy(0, 16);
+}
+
+/**
+ * Pointer drag on a handle — mouse on desktop, touch on phones. HTML5 drag
+ * is skipped because iOS Safari does not fire it. The handle uses
+ * touch-action: none so the page does not scroll while ranking.
+ */
+function wireWantReorder(listEl, state, render, { api, statusEl, getItems, auth }) {
+  const grid = listEl.querySelector('.al-watchlist-grid');
+  if (!grid) return;
+
+  grid.querySelectorAll('[data-want-drag]').forEach((handle) => {
+    handle.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    handle.addEventListener('pointerdown', (e) => {
+      if (e.button) return;
+      const moving = handle.closest('.al-watchlist-grid-item');
+      if (!moving) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const pointerId = e.pointerId;
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const slop = e.pointerType === 'touch' ? 8 : 4;
+      let dragging = false;
+      const draggedId = moving.dataset.entryId;
+
+      const onMove = (ev) => {
+        if (ev.pointerId !== pointerId) return;
+        if (!dragging) {
+          if (Math.hypot(ev.clientX - startX, ev.clientY - startY) < slop) return;
+          dragging = true;
+          if (state.expandedId) {
+            state.expandedId = null;
+            moving.classList.remove('is-expanded');
+            moving.querySelector('.al-log-detail')?.remove();
+            moving.querySelector('.al-watchlist-card')?.classList.remove('is-expanded');
+          }
+          moving.classList.add('is-dragging');
+          document.documentElement.classList.add('al-reordering');
+          try { handle.setPointerCapture(pointerId); } catch { /* ignore */ }
+        }
+        ev.preventDefault();
+        maybeWantAutoScroll(ev.clientY);
+        const before = gridInsertBeforeEl(grid, moving, ev.clientX, ev.clientY);
+        if (before) grid.insertBefore(moving, before);
+        else grid.appendChild(moving);
+      };
+
+      const finish = async (ev) => {
+        if (ev.pointerId !== pointerId) return;
+        handle.removeEventListener('pointermove', onMove);
+        handle.removeEventListener('pointerup', finish);
+        handle.removeEventListener('pointercancel', finish);
+        try { handle.releasePointerCapture(pointerId); } catch { /* ignore */ }
+        document.documentElement.classList.remove('al-reordering');
+        moving.classList.remove('is-dragging');
+        if (!dragging) return;
+
+        const ids = wantGridItems(grid).map((el) => el.dataset.entryId).filter(Boolean);
+        const displayItems = getItems();
+        const visual = ids
+          .map((id) => displayItems.find((item) => sameWatchlistId(item.id, id)))
+          .filter(Boolean);
+        const nextDisplay = applyWantDragOrder(visual, draggedId);
+        const previous = state.watchlist;
+        state.watchlist = mergeWantPriorities(state.watchlist, nextDisplay);
+        render();
+        try {
+          await api.update(auth.token, { ranks: wantRanksPayload(nextDisplay) });
+        } catch (err) {
+          state.watchlist = previous;
+          render();
+          if (statusEl) statusEl.textContent = err.message || 'Could not save order.';
+        }
+      };
+
+      handle.addEventListener('pointermove', onMove);
+      handle.addEventListener('pointerup', finish);
+      handle.addEventListener('pointercancel', finish);
     });
   });
 }

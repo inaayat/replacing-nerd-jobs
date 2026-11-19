@@ -34,7 +34,7 @@ function faqBody() {
       ),
       faqItem(
         'What is the Watch page?',
-        'Movies you want to see, sorted by US release date. Logging a film removes it from this list. Watch at home is a separate flag on those titles.',
+        'Movies you want to see. Watch (in theaters and coming soon) stays in US release-date order. Watch at Home uses the same poster grid; tap Reorder, then drag to rank, and Done returns to the grid. Titles you have not ranked sit at the bottom. Logging a film removes it from this list.',
       ),
       faqItem(
         'Can I use A-Lister like an app?',
@@ -116,7 +116,7 @@ function faqBody() {
     faqSection('TV', [
       faqItem(
         'How do I track TV?',
-        'Turn on TV Shows under Beta on this page. It adds a TV nav item for series, separate from theater movies. TV does not use A-List savings, theaters, or showing invites.',
+        'Turn on TV Shows under Beta on this page. It adds a TV nav item for series, separate from theater movies. TV does not use A-List savings, theaters, or showing invites. Want to watch keeps the same poster grid; tap Reorder, then drag to rank. Shows you have not ranked sit at the bottom.',
       ),
     ]),
     faqSection('Troubleshooting / report a bug', [

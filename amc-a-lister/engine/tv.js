@@ -3,7 +3,7 @@ import { tvWatchesApi, tvWatchlistApi, tvApi } from './api.js';
 import {
   sortAlreadyOut,
   sortComingSoon,
-  combinedWatchlistItems,
+  sortWantList,
   todayISO,
   wireWatchlistLogList,
   wireWatchlistAddForm,
@@ -125,6 +125,7 @@ async function loadPage(auth) {
         <p class="al-muted al-watchlist-summary" id="tv-watchlist-summary"></p>
         <div class="al-toolbar al-toolbar--log">
           <input class="al-input al-toolbar-search" id="tv-watchlist-search" type="search" placeholder="Search title or notes…" />
+          <button type="button" class="al-btn" id="tv-watchlist-reorder" hidden>Reorder</button>
           <span class="al-muted" id="tv-watchlist-filter-count"></span>
         </div>
         <div class="al-log-list-wrap" id="tv-watchlist-list"></div>
@@ -143,6 +144,7 @@ async function loadPage(auth) {
     detailsCache: new Map(),
     detailsLoading: null,
     detailsError: null,
+    reordering: false,
   };
 
   const watchedPanel = document.getElementById('tv-watched-panel');
@@ -154,8 +156,9 @@ async function loadPage(auth) {
   const watchedStatusEl = document.getElementById('tv-watched-status');
   const watchlistSummaryEl = document.getElementById('tv-watchlist-summary');
   const watchlistFilterCountEl = document.getElementById('tv-watchlist-filter-count');
+  const reorderBtn = document.getElementById('tv-watchlist-reorder');
 
-  const getAllWatchlistItems = () => combinedWatchlistItems(state.watchlist);
+  const getAllWatchlistItems = () => sortWantList(state.watchlist);
 
   const getFilteredWatchlistItems = () => {
     const q = state.watchlistSearch.trim().toLowerCase();
@@ -196,6 +199,14 @@ async function loadPage(auth) {
           : `${filtered.length} of ${total}`;
       }
     }
+
+    const canReorder = state.view === 'want' && !state.watchlistSearch.trim() && state.watchlist.length > 0;
+    if (!canReorder) state.reordering = false;
+    if (reorderBtn) {
+      reorderBtn.hidden = state.view !== 'want' || (!canReorder && !state.reordering);
+      reorderBtn.textContent = state.reordering ? 'Done' : 'Reorder';
+      reorderBtn.setAttribute('aria-pressed', state.reordering ? 'true' : 'false');
+    }
   };
 
   const renderWatchedList = () => {
@@ -213,6 +224,7 @@ async function loadPage(auth) {
     detailsKind: 'tv',
     logLabel: 'Log watched',
     getItems: getFilteredWatchlistItems,
+    reorderable: () => state.reordering && !state.watchlistSearch.trim(),
     emptyMessage: () => (state.watchlistSearch.trim()
       ? 'No matches.'
       : 'Nothing on your list yet. Add a show above.'),
@@ -238,6 +250,14 @@ async function loadPage(auth) {
 
   document.getElementById('tv-watchlist-search').addEventListener('input', (e) => {
     state.watchlistSearch = e.target.value;
+    if (state.watchlistSearch.trim()) state.reordering = false;
+    renderWatchlist();
+  });
+
+  reorderBtn?.addEventListener('click', () => {
+    state.reordering = !state.reordering;
+    state.expandedId = null;
+    state.editingId = null;
     renderWatchlist();
   });
 

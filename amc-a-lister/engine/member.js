@@ -8,7 +8,7 @@ import { watchLogListHtml, withWatchGridTransition } from './watch-log-grid.js';
 import { publicRankStackHtml } from './rank-view.js';
 import { renderInsightsHtml, wireInsights } from './insights-view.js';
 import { renderCompareResults, renderCompareSection } from './compare-view.js';
-import { wireWatchlistLogList } from './watchlist-ui.js';
+import { wireWatchlistLogList, sortWantMoviesForProfile } from './watchlist-ui.js';
 import {
   MEMBER_PAGES,
   normalizeMemberPage,
@@ -95,7 +95,9 @@ function renderProfile(main, profile, { currentUserId, auth, watchlistItems = []
   const page = memberProfilePage(location.search);
   const rankCount = (profile.ranks || []).length;
   const logCount = watches.length;
-  const wantItems = Array.isArray(profile.watchlist) ? profile.watchlist : [];
+  const wantItems = sortWantMoviesForProfile(
+    Array.isArray(profile.watchlist) ? profile.watchlist : [],
+  );
   const wantCount = wantItems.length;
   const insights = profile.insights || {};
   const voice = isYou ? 'you' : 'they';

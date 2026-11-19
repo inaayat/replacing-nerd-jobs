@@ -10,6 +10,8 @@ import {
   getMembership,
   watchFromRow,
   watchlistFromRow,
+  saveWatchlistRanks,
+  saveTvWatchlistRanks,
   clearWatchlistForLoggedMovie,
   tvWatchFromRow,
   tvWatchlistFromRow,
@@ -801,7 +803,7 @@ async function handleWatchlist(req, res) {
       `;
       const rows = await enrichWatchlistRows(await db()`
         SELECT
-          w.id, w.title, w.tmdb_id, w.notes, w.watch_at_home_override,
+          w.id, w.title, w.tmdb_id, w.notes, w.watch_at_home_override, w.priority,
           w.created_at, w.updated_at,
           c.poster_path, c.year, c.release_date,
           COALESCE(c.release_date::text, c.raw->>'release_date') AS release_date_raw,
@@ -818,6 +820,15 @@ async function handleWatchlist(req, res) {
   }
 
   if (req.method === 'PATCH') {
+    if (Array.isArray(req.body?.ranks)) {
+      try {
+        const items = await saveWatchlistRanks(userId, req.body.ranks);
+        res.status(200).json({ ok: true, items });
+      } catch (err) {
+        res.status(502).json({ error: err.message });
+      }
+      return;
+    }
     const id = req.body?.id;
     if (!id) {
       res.status(400).json({ error: 'id is required.' });
@@ -863,7 +874,7 @@ async function handleWatchlist(req, res) {
       `;
       const rows = await enrichWatchlistRows(await db()`
         SELECT
-          w.id, w.title, w.tmdb_id, w.notes, w.watch_at_home_override,
+          w.id, w.title, w.tmdb_id, w.notes, w.watch_at_home_override, w.priority,
           w.created_at, w.updated_at,
           c.poster_path, c.year, c.release_date,
           COALESCE(c.release_date::text, c.raw->>'release_date') AS release_date_raw,
@@ -2022,7 +2033,7 @@ async function handleTvWatchlist(req, res) {
       `;
       const rows = await enrichTvWatchlistRows(await db()`
         SELECT
-          w.id, w.title, w.tmdb_id, w.notes, w.created_at, w.updated_at,
+          w.id, w.title, w.tmdb_id, w.notes, w.priority, w.created_at, w.updated_at,
           c.poster_path, c.year, c.first_air_date,
           COALESCE(c.first_air_date::text, c.raw->>'first_air_date') AS first_air_date_raw
         FROM alist_tv_watchlist w
@@ -2037,6 +2048,15 @@ async function handleTvWatchlist(req, res) {
   }
 
   if (req.method === 'PATCH') {
+    if (Array.isArray(req.body?.ranks)) {
+      try {
+        const items = await saveTvWatchlistRanks(userId, req.body.ranks);
+        res.status(200).json({ ok: true, items });
+      } catch (err) {
+        res.status(502).json({ error: err.message });
+      }
+      return;
+    }
     const id = req.body?.id;
     if (!id) {
       res.status(400).json({ error: 'id is required.' });
@@ -2064,7 +2084,7 @@ async function handleTvWatchlist(req, res) {
           notes = ${notes !== undefined ? notes : row.notes},
           updated_at = now()
         WHERE id = ${id} AND user_id = ${userId}
-        RETURNING id, title, tmdb_id, notes, created_at, updated_at
+        RETURNING id, title, tmdb_id, notes, priority, created_at, updated_at
       `;
       res.status(200).json({ item: tvWatchlistFromRow(rows[0]) });
     } catch (err) {
