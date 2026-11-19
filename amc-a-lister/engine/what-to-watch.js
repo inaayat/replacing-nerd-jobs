@@ -104,6 +104,7 @@ async function loadPage(auth) {
       <p class="al-muted al-watchlist-status" id="watchlist-status" aria-live="polite"></p>
       <div class="al-toolbar al-toolbar--log">
         <input class="al-input al-toolbar-search" id="wtw-search" type="search" placeholder="Search title or notes…" />
+        <button type="button" class="al-btn" id="wtw-reorder" hidden>Reorder</button>
         <span class="al-muted" id="wtw-filter-count"></span>
       </div>
       <div class="al-log-list-wrap" id="watchlist-list" data-wtw-list-view="coming-soon"></div>
@@ -119,6 +120,7 @@ async function loadPage(auth) {
     detailsCache: new Map(),
     detailsLoading: null,
     detailsError: null,
+    reordering: false,
     rerender: null,
   };
   pageState = state;
@@ -130,6 +132,7 @@ async function loadPage(auth) {
   const filterCountEl = document.getElementById('wtw-filter-count');
   const soonCountEl = document.getElementById('wtw-soon-count');
   const homeCountEl = document.getElementById('wtw-home-count');
+  const reorderBtn = document.getElementById('wtw-reorder');
 
   const getViewItems = () => itemsForWatchlistView(state.watchlist, state.view);
 
@@ -172,6 +175,14 @@ async function loadPage(auth) {
         ? `${total} title${total === 1 ? '' : 's'}`
         : `${filtered.length} of ${total}`;
     }
+
+    const canReorder = state.view === 'watch-at-home' && !state.search.trim() && viewItems.length > 0;
+    if (!canReorder) state.reordering = false;
+    if (reorderBtn) {
+      reorderBtn.hidden = !canReorder && !state.reordering;
+      reorderBtn.textContent = state.reordering ? 'Done' : 'Reorder';
+      reorderBtn.setAttribute('aria-pressed', state.reordering ? 'true' : 'false');
+    }
   };
 
   const onLogItem = (item) => {
@@ -188,6 +199,7 @@ async function loadPage(auth) {
     onLogItem,
     logLabel: () => VIEWS[state.view].logLabel,
     view: () => state.view,
+    reorderable: () => state.reordering && state.view === 'watch-at-home' && !state.search.trim(),
   });
   state.rerender = renderList;
 
@@ -202,6 +214,14 @@ async function loadPage(auth) {
 
   document.getElementById('wtw-search').addEventListener('input', (e) => {
     state.search = e.target.value;
+    if (state.search.trim()) state.reordering = false;
+    renderList();
+  });
+
+  reorderBtn?.addEventListener('click', () => {
+    state.reordering = !state.reordering;
+    state.expandedId = null;
+    state.editingId = null;
     renderList();
   });
 

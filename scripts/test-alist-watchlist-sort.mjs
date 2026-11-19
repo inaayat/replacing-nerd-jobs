@@ -14,12 +14,23 @@ import {
   isWatchAtHome,
   sortInTheaters,
   sortWatchAtHome,
+  sortWatchAtHomeByRelease,
   sortComingSoonTab,
+  sortWantList,
+  sortWantMoviesForProfile,
   itemsForWatchlistView,
   theatricalCutoffISO,
   watchlistMatchesLogged,
   watchlistLogTableHtml,
 } from '../amc-a-lister/engine/watchlist-ui.js';
+import {
+  isWantRanked,
+  sortByWantPriority,
+  applyWantDragOrder,
+  mergeWantPriorities,
+  wantRanksPayload,
+  normalizeWantRanks,
+} from '../amc-a-lister/engine/want-order.js';
 import { sharedWatchlistItems } from '../amc-a-lister/engine/watchlist-match.js';
 import { monthsBeforeISO } from '../amc-a-lister/engine/dates.js';
 import { shortDate } from '../amc-a-lister/engine/format.js';
@@ -406,14 +417,243 @@ for (const attr of bareAttrSelectors) {
 }
 
 const uiSource = readFileSync(new URL('../amc-a-lister/engine/watchlist-ui.js', import.meta.url), 'utf8');
+const apiSource = readFileSync(new URL('../api/alist.js', import.meta.url), 'utf8');
+const listSource = readFileSync(new URL('../lib/a-list.js', import.meta.url), 'utf8');
+const dbSource = readFileSync(new URL('../lib/db.js', import.meta.url), 'utf8');
 assert(
   /wireWatchlistRowExpand\(listEl, toggleExpand\);/.test(uiSource),
   'watchlist rows rebind expand after every render, like the watch log',
 );
 
-const apiSource = readFileSync(new URL('../api/alist.js', import.meta.url), 'utf8');
-const listSource = readFileSync(new URL('../lib/a-list.js', import.meta.url), 'utf8');
-const dbSource = readFileSync(new URL('../lib/db.js', import.meta.url), 'utf8');
+assert(isWantRanked({ priority: 0 }) === true, 'priority 0 is ranked');
+assert(isWantRanked({ priority: null }) === false, 'null priority is unranked');
+assert(isWantRanked({ title: 'x' }) === false, 'missing priority is unranked');
+
+assertEqual(
+  sortByWantPriority(
+    [
+      { id: 'a', title: 'A' },
+      { id: 'b', title: 'B', priority: 1 },
+      { id: 'c', title: 'C', priority: 0 },
+    ],
+    [{ id: 'a' }, { id: 'b' }, { id: 'c' }],
+  ).map((i) => i.id),
+  ['c', 'b', 'a'],
+  'ranked titles lead; unranked stay at the bottom',
+);
+
+const homeRanked = [
+  { id: 'old', title: 'Old', release_date: '2026-06-10', priority: 1 },
+  { id: 'classic', title: 'Classic', release_date: '2020-01-01', priority: 0 },
+];
+assertEqual(
+  sortWatchAtHome(homeRanked, today).map((i) => i.id),
+  ['classic', 'old'],
+  'Watch at Home shows drag order instead of release date once ranked',
+);
+
+const unrankedNew = { id: 'new-home', title: 'New home', release_date: '2010-01-01' };
+assertEqual(
+  sortWatchAtHome([...homeRanked, unrankedNew], today).map((i) => i.id),
+  ['classic', 'old', 'new-home'],
+  'a new unranked at-home title sits at the bottom',
+);
+
+assertEqual(
+  sortWatchAtHomeByRelease(bucketItems, today).map((i) => i.title),
+  ['Old', 'Classic'],
+  'unranked Watch at Home fallback is still newest first',
+);
+
+const comingSoonWithPriority = [
+  { id: 'edge', title: 'Edge', release_date: '2026-06-11', priority: 0 },
+  { id: 'recent', title: 'Recent', release_date: '2026-07-01', priority: 99 },
+  { id: 'future', title: 'Future', release_date: '2026-09-01', priority: 1 },
+  { id: 'undated', title: 'Undated', priority: 2 },
+  { id: 'old', title: 'Old', release_date: '2026-06-10', priority: 0 },
+];
+assertEqual(
+  itemsForWatchlistView(comingSoonWithPriority, 'coming-soon', today).map((i) => i.id),
+  ['edge', 'recent', 'future', 'undated'],
+  'in-theater / coming soon order ignores want priority',
+);
+
+assertEqual(
+  sortWantMoviesForProfile(comingSoonWithPriority, today).map((i) => i.id),
+  ['edge', 'recent', 'future', 'undated', 'old'],
+  'member Want tab keeps in-theater release order, then at-home priority',
+);
+
+const tvWant = [
+  { id: 'aired', title: 'Aired', release_date: '2020-01-01' },
+  { id: 'soon', title: 'Soon', release_date: '2027-01-01' },
+  { id: 'fav', title: 'Fav', release_date: '2018-01-01', priority: 0 },
+];
+assertEqual(
+  sortWantList(tvWant, today).map((i) => i.id),
+  ['fav', 'aired', 'soon'],
+  'TV want list ranks dragged shows above unranked release order',
+);
+
+const dragVisual = [
+  { id: 'a', title: 'A' },
+  { id: 'b', title: 'B' },
+  { id: 'c', title: 'C' },
+];
+assertEqual(
+  applyWantDragOrder([dragVisual[2], dragVisual[0], dragVisual[1]], 'c').map((i) => ({
+    id: i.id,
+    priority: i.priority,
+  })),
+  [{ id: 'c', priority: 0 }, { id: 'a', priority: null }, { id: 'b', priority: null }],
+  'dragging an unranked title to the top ranks only that title',
+);
+
+const rankedThenUnrank = applyWantDragOrder(
+  [
+    { id: 'a', priority: 0 },
+    { id: 'c' },
+    { id: 'b', priority: 1 },
+  ],
+  'b',
+);
+assertEqual(
+  rankedThenUnrank.map((i) => ({ id: i.id, priority: i.priority })),
+  [{ id: 'a', priority: 0 }, { id: 'c', priority: null }, { id: 'b', priority: null }],
+  'dragging a ranked title below the ranked block unranks it',
+);
+
+const reranked = applyWantDragOrder(
+  [
+    { id: 'b', priority: 1 },
+    { id: 'a', priority: 0 },
+    { id: 'c' },
+  ],
+  'b',
+);
+assertEqual(
+  reranked.map((i) => ({ id: i.id, priority: i.priority })),
+  [{ id: 'b', priority: 0 }, { id: 'a', priority: 1 }, { id: 'c', priority: null }],
+  'dragging among ranked titles rewrites dense order and leaves the rest unranked',
+);
+
+assertEqual(
+  mergeWantPriorities(
+    [{ id: 'a', priority: null }, { id: 'keep', priority: 9 }],
+    [{ id: 'a', priority: 0 }],
+  ).map((i) => i.priority),
+  [0, 9],
+  'saving an at-home order does not rewrite unrelated rows',
+);
+
+assertEqual(
+  wantRanksPayload([{ id: 'a', priority: 0 }, { id: 'b' }]),
+  [{ id: 'a', priority: 0 }, { id: 'b', priority: null }],
+  'PATCH payload sends null for unranked rows',
+);
+assertEqual(
+  normalizeWantRanks([{ id: 'a', priority: 0 }, { id: 'a', priority: 2 }, { id: '', priority: 1 }]),
+  [{ id: 'a', priority: 0 }],
+  'rank payloads drop blanks and duplicate ids',
+);
+
+const homeGridHtml = watchlistLogTableHtml(
+  [{ id: 'home1', title: 'Old Film', release_date: '2020-01-01' }],
+  detailsState(),
+  { view: 'watch-at-home' },
+);
+assert(!homeGridHtml.includes('data-want-drag'), 'the default Watch at Home grid has no drag handle');
+assert(!homeGridHtml.includes('al-want-drag-handle'), 'the default Watch at Home grid keeps its existing card chrome');
+assert(homeGridHtml.includes('class="al-watchlist-grid"'), 'Watch at Home still uses the same poster grid');
+assert(!homeGridHtml.includes('al-watchlist-grid--reorder'), 'reorder mode does not swap in a different grid class');
+
+const homeReorderHtml = watchlistLogTableHtml(
+  [{ id: 'home1', title: 'Old Film', release_date: '2020-01-01' }],
+  detailsState(),
+  { view: 'watch-at-home', reorderable: true },
+);
+assert(homeReorderHtml.includes('data-want-drag="home1"'), 'Reorder mode adds a drag handle on the existing posters');
+assert(homeReorderHtml.includes('al-want-drag-handle'), 'the handle uses the grab control class');
+assert(homeReorderHtml.includes('Drag to rank'), 'unranked at-home titles explain that dragging ranks them');
+assert(homeReorderHtml.includes('class="al-watchlist-grid"'), 'Reorder mode keeps the same poster grid');
+assert(!homeReorderHtml.includes('Which do you like'), 'want ranking is not the pairwise compare flow');
+
+const comingSoonNoDrag = watchlistLogTableHtml(
+  [{ id: 'cs1', title: 'Future Film', release_date: '2026-09-01' }],
+  detailsState(),
+  { view: 'coming-soon', reorderable: false },
+);
+assert(!comingSoonNoDrag.includes('data-want-drag'), 'in-theater Watch cards have no drag handle');
+
+const tvReorderHtml = watchlistLogTableHtml(
+  [{ id: 'show1', title: 'The Pitt', release_date: '2025-01-01', priority: 0 }],
+  detailsState(),
+  { reorderable: true, logLabel: 'Log watched' },
+);
+assert(tvReorderHtml.includes('data-want-drag="show1"'), 'TV want cards get a drag handle');
+assert(tvReorderHtml.includes('Drag to reorder'), 'ranked TV titles keep a drag handle');
+assert(tvReorderHtml.includes('aria-label="Log watched"'), 'TV drag does not drop the log action');
+
+const readonlyNoDrag = watchlistLogTableHtml(expandItems, detailsState(), {
+  readonly: true,
+  reorderable: true,
+});
+assert(!readonlyNoDrag.includes('data-want-drag'), 'someone else’s Want tab is not editable');
+
+assert(uiSource.includes('wireWantReorder'), 'want lists bind pointer drag, not stack compare');
+assert(uiSource.includes("addEventListener('pointerdown'"), 'drag starts on pointerdown for mouse and touch');
+assert(uiSource.includes('setPointerCapture'), 'drag captures the pointer so iOS does not scroll the page');
+assert(!uiSource.includes('Which do you like'), 'watchlist UI does not use pairwise compare copy');
+assert(!/draggable\s*=\s*['"]true['"]/.test(uiSource), 'want ranking does not use HTML5 drag-and-drop');
+
+const wtwReorder = readFileSync(new URL('../amc-a-lister/engine/what-to-watch.js', import.meta.url), 'utf8');
+assert(wtwReorder.includes('id="wtw-reorder"'), 'Watch at Home has a Reorder control outside the grid');
+assert(wtwReorder.includes('state.reordering'), 'Watch at Home drag lives in a Reorder mode');
+assert(
+  wtwReorder.includes("state.view === 'watch-at-home'") && wtwReorder.includes('reorderable:'),
+  'Watch at Home is the only movie want list that enables drag',
+);
+assert(!wtwReorder.includes('rank-view'), 'Watch page does not load the liked-movie compare UI');
+
+const tvWantSource = readFileSync(new URL('../amc-a-lister/engine/tv.js', import.meta.url), 'utf8');
+assert(tvWantSource.includes('sortWantList'), 'TV want list uses want priority order');
+assert(tvWantSource.includes('id="tv-watchlist-reorder"'), 'TV want list has a Reorder control outside the grid');
+assert(tvWantSource.includes('state.reordering'), 'TV drag lives in a Reorder mode');
+assert(tvWantSource.includes('reorderable:'), 'TV want list enables drag-to-rank');
+assert(!tvWantSource.includes('combinedWatchlistItems'), 'TV want list is no longer release-date-only');
+
+const memberWantSource = readFileSync(new URL('../amc-a-lister/engine/member.js', import.meta.url), 'utf8');
+assert(memberWantSource.includes('sortWantMoviesForProfile'), 'other people see your want priority');
+
+const gridCssAfter = readFileSync(new URL('../amc-a-lister/engine/app.css', import.meta.url), 'utf8');
+assert(gridCssAfter.includes('.al-want-drag-handle'), 'drag handle has styles');
+assert(gridCssAfter.includes('touch-action: none'), 'the handle opts out of page scroll on touch');
+assert(gridCssAfter.includes('width: 44px'), 'the handle is 44px on coarse pointers');
+assert(gridCssAfter.includes('html.al-reordering'), 'dragging locks page scroll and cursor');
+
+assert(
+  apiSource.includes('req.body?.ranks') && apiSource.includes('saveWatchlistRanks'),
+  'movie watchlist PATCH accepts a drag-order ranks array',
+);
+assert(
+  apiSource.includes('saveTvWatchlistRanks'),
+  'TV watchlist PATCH accepts a drag-order ranks array',
+);
+assert(
+  listSource.includes('saveWatchlistRanks') && listSource.includes('saveTvWatchlistRanks'),
+  'rank writes stay on the existing watchlist tables',
+);
+assert(
+  /ALTER TABLE alist_watchlist[\s\S]*ADD COLUMN IF NOT EXISTS priority INT/.test(dbSource),
+  'movie want list migrates a nullable priority column',
+);
+assert(
+  /ALTER TABLE alist_tv_watchlist[\s\S]*ADD COLUMN IF NOT EXISTS priority INT/.test(dbSource),
+  'TV want list migrates a nullable priority column',
+);
+assert(listSource.includes('priority: row.priority != null ? Number(row.priority) : null'), 'API rows expose priority');
+assert(listSource.includes('watch_at_home_override: row.watch_at_home_override === true'), 'public Want tab still knows at-home overrides');
+
 assert(
   apiSource.includes('watch_at_home_override'),
   'watchlist API accepts and persists the home override',

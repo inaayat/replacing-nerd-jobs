@@ -5134,6 +5134,68 @@ table.al-table {
   background: #efeae3;
 }
 
+.al-want-drag-handle {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--al-panel) 88%, transparent);
+  color: var(--al-muted);
+  cursor: grab;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.al-want-drag-handle:hover,
+.al-want-drag-handle:focus-visible {
+  color: var(--al-burgundy);
+  background: var(--al-panel);
+  outline: none;
+}
+
+.al-want-drag-handle:active {
+  cursor: grabbing;
+}
+
+.al-want-drag-grip {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+.al-watchlist-grid-item.is-dragging .al-watchlist-card {
+  opacity: 0.55;
+}
+
+html.al-reordering {
+  user-select: none;
+  cursor: grabbing;
+  overflow: hidden;
+  touch-action: none;
+}
+
+html.al-reordering * {
+  cursor: grabbing !important;
+}
+
+@media (pointer: coarse) {
+  .al-want-drag-handle {
+    width: 44px;
+    height: 44px;
+  }
+}
+
 .al-watchlist-card-poster .al-poster,
 .al-watchlist-card-poster .al-poster--empty {
   position: absolute;
