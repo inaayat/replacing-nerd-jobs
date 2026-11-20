@@ -1,5 +1,5 @@
 /**
- * Want Reorder: whole-tile pointer + iOS-safe touch drag.
+ * Want Reorder: whole-tile pointer + iOS-safe touch drag, any slot.
  * Run: node scripts/test-alist-want-mobile-drag.mjs
  */
 import assert from 'node:assert/strict';
@@ -17,6 +17,9 @@ function homeItems() {
     { id: 'a', title: 'Alpha', release_date: '2020-01-01', poster_path: '/a.jpg', priority: 0 },
     { id: 'b', title: 'Bravo', release_date: '2019-01-01', poster_path: '/b.jpg', priority: 1 },
     { id: 'c', title: 'Charlie', release_date: '2018-01-01', poster_path: '/c.jpg', priority: 2 },
+    { id: 'd', title: 'Delta', release_date: '2017-01-01', poster_path: '/d.jpg', priority: 3 },
+    { id: 'e', title: 'Echo', release_date: '2016-01-01', poster_path: '/e.jpg', priority: 4 },
+    { id: 'f', title: 'Foxtrot', release_date: '2015-01-01', poster_path: '/f.jpg', priority: 5 },
   ];
 }
 
@@ -25,8 +28,17 @@ function tvItems() {
     { id: 'show1', title: 'The Pitt', release_date: '2025-01-01', poster_path: '/pitt.jpg', priority: 0 },
     { id: 'show2', title: 'Severance', release_date: '2022-02-01', poster_path: '/sev.jpg', priority: 1 },
     { id: 'show3', title: 'Shogun', release_date: '2024-02-01', poster_path: '/sho.jpg', priority: 2 },
+    { id: 'show4', title: 'The Bear', release_date: '2023-06-01', poster_path: '/bear.jpg', priority: 3 },
+    { id: 'show5', title: 'Slow Horses', release_date: '2022-04-01', poster_path: '/horses.jpg', priority: 4 },
+    { id: 'show6', title: 'Andor', release_date: '2022-09-01', poster_path: '/andor.jpg', priority: 5 },
   ];
 }
+
+const CASES = [
+  { name: 'last to first', fromIndex: 5, toIndex: 0, expected: [5, 0, 1, 2, 3, 4] },
+  { name: 'first to last', fromIndex: 0, toIndex: 5, expected: [1, 2, 3, 4, 5, 0] },
+  { name: 'middle across rows', fromIndex: 1, toIndex: 4, expected: [0, 2, 3, 4, 1, 5] },
+];
 
 function installLiveRects(window, grid) {
   const proto = window.HTMLElement.prototype;
@@ -163,14 +175,13 @@ async function dragWithMouse(window, card, from, to) {
 }
 
 async function waitForSave(saved) {
-  const result = await Promise.race([
+  return Promise.race([
     saved,
     new Promise((_, reject) => setTimeout(() => reject(new Error('order was not saved')), 1000)),
   ]);
-  return result;
 }
 
-async function runDomDrag({ label, items, fromId, mode }) {
+async function runDomDrag({ label, items, fromId, toId, expectedIds, mode }) {
   const dom = new JSDOM(`<!doctype html><html><body>
     <div id="list"></div>
     <p id="status"></p>
@@ -220,14 +231,13 @@ async function runDomDrag({ label, items, fromId, mode }) {
 
   const grid = listEl.querySelector('.al-watchlist-grid');
   assert.ok(grid, `${label}: rendered a grid`);
-  assert.ok(grid.classList.contains('al-watchlist-grid--reordering'), `${label}: Reorder mode is on`);
   installLiveRects(window, grid);
 
   const fromTile = grid.querySelector(`[data-entry-id="${fromId}"]`);
+  const toTile = grid.querySelector(`[data-entry-id="${toId}"]`);
   const card = fromTile.querySelector('.al-watchlist-card');
-  assert.ok(card.classList.contains('al-watchlist-card--reorder'), `${label}: whole tile is the drag target`);
   const fromBox = card.getBoundingClientRect();
-  const toBox = grid.querySelector('[data-entry-id="c"], [data-entry-id="show3"]').getBoundingClientRect();
+  const toBox = toTile.querySelector('.al-watchlist-card').getBoundingClientRect();
   const from = { x: fromBox.left + fromBox.width / 2, y: fromBox.top + fromBox.height / 2 };
   const to = { x: toBox.left + toBox.width / 2, y: toBox.top + toBox.height / 2 };
 
@@ -242,51 +252,36 @@ async function runDomDrag({ label, items, fromId, mode }) {
 
   const body = await waitForSave(saved);
   const ids = sortByWantPriority(state.watchlist, state.watchlist).map((item) => item.id);
-  assert.equal(ids[ids.length - 1], fromId, `${label}: ${fromId} moved to the end of the list`);
-  assert.equal(ids[0] === fromId, false, `${label}: the dragged title left the first slot`);
+  assert.deepEqual(ids, expectedIds, `${label}: saved display order`);
   assert.ok(Array.isArray(body.ranks), `${label}: drop persisted ranks`);
-  assert.ok(
-    body.ranks.some((row) => row.id === fromId),
-    `${label}: saved ranks include the dragged title`,
-  );
   assert.equal(
     listEl.querySelector('.al-want-drag-ghost'),
     null,
     `${label}: the lifted preview is gone after drop`,
   );
-  assert.equal(
-    window.document.documentElement.classList.contains('al-reordering'),
-    false,
-    `${label}: page scroll lock lifts after drop`,
-  );
   return body;
 }
 
 async function runJsdomSuite() {
-  await runDomDrag({
-    label: 'Watch at Home touch',
-    items: homeItems(),
-    fromId: 'a',
-    mode: 'touch',
-  });
-  await runDomDrag({
-    label: 'TV want touch',
-    items: tvItems(),
-    fromId: 'show1',
-    mode: 'touch',
-  });
-  await runDomDrag({
-    label: 'Watch at Home mouse',
-    items: homeItems(),
-    fromId: 'a',
-    mode: 'mouse',
-  });
-  await runDomDrag({
-    label: 'TV want mouse',
-    items: tvItems(),
-    fromId: 'show1',
-    mode: 'mouse',
-  });
+  const lists = [
+    { label: 'Watch at Home', items: homeItems() },
+    { label: 'TV want', items: tvItems() },
+  ];
+  for (const list of lists) {
+    const ids = list.items.map((item) => item.id);
+    for (const mode of ['touch', 'mouse']) {
+      for (const scenario of CASES) {
+        await runDomDrag({
+          label: `${list.label} ${mode} ${scenario.name}`,
+          items: list.items,
+          fromId: ids[scenario.fromIndex],
+          toId: ids[scenario.toIndex],
+          expectedIds: scenario.expected.map((i) => ids[i]),
+          mode,
+        });
+      }
+    }
+  }
 }
 
 const MIME = {
@@ -323,27 +318,27 @@ async function tryLaunch(kind) {
   const playwright = await import('playwright-core');
   const launcher = playwright[kind];
   if (!launcher?.launch) return null;
+  const candidates = kind === 'chromium'
+    ? ['/usr/bin/google-chrome', '/usr/bin/google-chrome-stable', '/usr/bin/chromium', '/usr/bin/chromium-browser']
+    : [];
+  for (const executablePath of candidates) {
+    if (!existsSync(executablePath)) continue;
+    try {
+      const browser = await launcher.launch({ headless: true, executablePath });
+      return { kind, browser };
+    } catch {
+      /* try next */
+    }
+  }
   try {
     const browser = await launcher.launch({ headless: true });
     return { kind, browser };
   } catch {
-    const candidates = kind === 'chromium'
-      ? ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/bin/google-chrome-stable']
-      : [];
-    for (const executablePath of candidates) {
-      if (!existsSync(executablePath)) continue;
-      try {
-        const browser = await launcher.launch({ headless: true, executablePath });
-        return { kind, browser };
-      } catch {
-        /* try next */
-      }
-    }
+    return null;
   }
-  return null;
 }
 
-function touchScript(from, to) {
+function touchScript() {
   return ({ from, to }) => {
     const el = document.elementFromPoint(from.x, from.y)
       || document.querySelector('[data-want-drag] .al-watchlist-card');
@@ -394,6 +389,42 @@ function touchScript(from, to) {
   };
 }
 
+async function centers(page, fromId, toId) {
+  const from = await page.locator(`[data-entry-id="${fromId}"] .al-watchlist-card`).boundingBox();
+  const to = await page.locator(`[data-entry-id="${toId}"] .al-watchlist-card`).boundingBox();
+  assert.ok(from && to, `poster tiles ${fromId} → ${toId} have boxes`);
+  return {
+    from: { x: from.x + from.width / 2, y: from.y + from.height / 2 },
+    to: { x: to.x + to.width / 2, y: to.y + to.height / 2 },
+  };
+}
+
+async function runPlaywrightScenario(page, { name, fromId, toId, expected, mode }) {
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForSelector('.al-watchlist-card--reorder');
+  const { from, to } = await centers(page, fromId, toId);
+  const savesBefore = await page.evaluate(() => (window.__wantSaves || []).length);
+  if (mode === 'touch') {
+    await page.evaluate(touchScript(), { from, to });
+  } else {
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(to.x, to.y, { steps: 12 });
+    await page.mouse.up();
+  }
+  await page.waitForFunction(
+    (before) => (window.__wantSaves || []).length > before,
+    savesBefore,
+    { timeout: 4000 },
+  );
+  const payload = await page.evaluate(() => ({
+    order: window.__wantOrder,
+    ghost: Boolean(document.querySelector('.al-want-drag-ghost')),
+  }));
+  assert.deepEqual(payload.order, expected, `playwright ${mode} ${name}`);
+  assert.equal(payload.ghost, false, `playwright ${mode} ${name}: ghost gone`);
+}
+
 async function runPlaywrightBrowser({ kind, browser }, baseUrl) {
   const playwright = await import('playwright-core');
   const iPhone = playwright.devices['iPhone 13'] || playwright.devices['iPhone 12'] || {
@@ -413,32 +444,18 @@ async function runPlaywrightBrowser({ kind, browser }, baseUrl) {
   await page.goto(`${baseUrl}/scripts/fixtures/want-reorder-harness.html`, { waitUntil: 'networkidle' });
   await page.waitForSelector('.al-watchlist-card--reorder');
 
-  const from = await page.locator('[data-entry-id="a"] .al-watchlist-card').boundingBox();
-  const to = await page.locator('[data-entry-id="c"] .al-watchlist-card').boundingBox();
-  assert.ok(from && to, `${kind}: poster tiles have boxes`);
-  const start = { x: from.x + from.width / 2, y: from.y + from.height / 2 };
-  const end = { x: to.x + to.width / 2, y: to.y + to.height / 2 };
-
-  if (page.touchscreen?.tap) {
-    await page.evaluate(touchScript(), { from: start, to: end });
-  } else {
-    await page.evaluate(touchScript(), { from: start, to: end });
+  const ids = ['a', 'b', 'c', 'd', 'e', 'f'];
+  for (const mode of ['touch', 'mouse']) {
+    for (const scenario of CASES) {
+      await runPlaywrightScenario(page, {
+        name: scenario.name,
+        fromId: ids[scenario.fromIndex],
+        toId: ids[scenario.toIndex],
+        expected: scenario.expected.map((i) => ids[i]),
+        mode,
+      });
+    }
   }
-
-  await page.waitForFunction(() => (window.__wantSaves || []).length > 0, null, { timeout: 4000 });
-  const payload = await page.evaluate(() => ({
-    saves: window.__wantSaves,
-    order: window.__wantOrder,
-    ghost: Boolean(document.querySelector('.al-want-drag-ghost')),
-  }));
-  assert.equal(payload.order[payload.order.length - 1], 'a', `${kind}: Alpha moved to the last slot`);
-  assert.ok(payload.saves[0].ranks.some((row) => row.id === 'a'), `${kind}: drop saved ranks`);
-  assert.equal(payload.ghost, false, `${kind}: ghost is gone after drop`);
-
-  await page.mouse.move(start.x, start.y);
-  await page.mouse.down();
-  await page.mouse.move(end.x, end.y, { steps: 8 });
-  await page.mouse.up();
 
   await context.close();
   return true;

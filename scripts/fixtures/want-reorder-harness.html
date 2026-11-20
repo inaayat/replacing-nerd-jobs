@@ -22,6 +22,9 @@
       { id: 'a', title: 'Alpha', release_date: '2020-01-01', poster_path: '/a.jpg', priority: 0 },
       { id: 'b', title: 'Bravo', release_date: '2019-01-01', poster_path: '/b.jpg', priority: 1 },
       { id: 'c', title: 'Charlie', release_date: '2018-01-01', poster_path: '/c.jpg', priority: 2 },
+      { id: 'd', title: 'Delta', release_date: '2017-01-01', poster_path: '/d.jpg', priority: 3 },
+      { id: 'e', title: 'Echo', release_date: '2016-01-01', poster_path: '/e.jpg', priority: 4 },
+      { id: 'f', title: 'Foxtrot', release_date: '2015-01-01', poster_path: '/f.jpg', priority: 5 },
     ];
     const state = { watchlist: items.map((item) => ({ ...item })), expandedId: null, detailsCache: new Map() };
     const displayOrder = () => [...state.watchlist].sort((a, b) => {
