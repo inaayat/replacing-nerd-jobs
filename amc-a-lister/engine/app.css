@@ -5134,6 +5134,26 @@ table.al-table {
   background: #efeae3;
 }
 
+.al-watchlist-grid--reordering,
+.al-watchlist-card--reorder,
+.al-watchlist-grid--reordering .al-watchlist-card-poster,
+.al-watchlist-grid--reordering .al-poster {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.al-watchlist-card--reorder {
+  cursor: grab;
+}
+
+.al-watchlist-grid--reordering img,
+.al-watchlist-grid--reordering .al-poster {
+  -webkit-user-drag: none;
+  pointer-events: none;
+}
+
 .al-want-drag-handle {
   position: absolute;
   top: 6px;
@@ -5150,22 +5170,10 @@ table.al-table {
   border-radius: 10px;
   background: color-mix(in srgb, var(--al-panel) 88%, transparent);
   color: var(--al-muted);
-  cursor: grab;
-  touch-action: none;
+  pointer-events: none;
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
-}
-
-.al-want-drag-handle:hover,
-.al-want-drag-handle:focus-visible {
-  color: var(--al-burgundy);
-  background: var(--al-panel);
-  outline: none;
-}
-
-.al-want-drag-handle:active {
-  cursor: grabbing;
 }
 
 .al-want-drag-grip {
@@ -5174,12 +5182,24 @@ table.al-table {
   height: 16px;
 }
 
-.al-watchlist-grid-item.is-dragging .al-watchlist-card {
-  opacity: 0.55;
+.al-watchlist-grid-item.is-dragging .al-watchlist-card:not(.al-want-drag-ghost) {
+  opacity: 0.35;
+}
+
+.al-want-drag-ghost {
+  position: fixed;
+  z-index: 10000;
+  margin: 0;
+  pointer-events: none;
+  transform: scale(1.04);
+  box-shadow: 0 12px 28px rgba(28, 28, 28, 0.28);
+  opacity: 0.96;
+  touch-action: none;
 }
 
 html.al-reordering {
   user-select: none;
+  -webkit-user-select: none;
   cursor: grabbing;
   overflow: hidden;
   touch-action: none;

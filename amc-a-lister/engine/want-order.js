@@ -71,6 +71,45 @@ export function wantRanksPayload(items) {
   }));
 }
 
+/**
+ * New index for the moving tile from pointer/touch coordinates vs each
+ * tile's box. Uses centers (not pointerenter) so captured touch still
+ * reorders when the finger is over the dragged preview.
+ *
+ * `rects` is current DOM order. Returns the index the moving item should
+ * occupy (0..n-1) in that list after the move.
+ */
+export function wantDragInsertIndex(rects, movingIndex, x, y) {
+  const boxes = Array.isArray(rects) ? rects : [];
+  const n = boxes.length;
+  if (n === 0) return 0;
+  const from = Number(movingIndex);
+  if (!Number.isInteger(from) || from < 0 || from >= n) return 0;
+
+  const others = [];
+  for (let i = 0; i < n; i++) {
+    if (i === from) continue;
+    others.push(boxes[i]);
+  }
+
+  let slot = others.length;
+  for (let i = 0; i < others.length; i++) {
+    const r = others[i] || {};
+    const left = Number(r.left) || 0;
+    const top = Number(r.top) || 0;
+    const width = Number(r.width) || 0;
+    const height = Number(r.height) || 0;
+    const cx = left + width / 2;
+    const cy = top + height / 2;
+    const sameRow = y >= top && y <= top + height;
+    if (y < cy || (sameRow && x < cx)) {
+      slot = i;
+      break;
+    }
+  }
+  return slot;
+}
+
 export function normalizeWantRanks(raw) {
   if (!Array.isArray(raw)) return [];
   const seen = new Set();
