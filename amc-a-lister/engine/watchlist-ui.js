@@ -11,6 +11,7 @@ import {
   mergeWantPriorities,
   wantRanksPayload,
   wantDragInsertIndex,
+  wantReorderItems,
 } from './want-order.js';
 
 export { todayISO };
@@ -835,24 +836,34 @@ function eventClientPoint(e, id) {
   return { x: e.clientX, y: e.clientY, id: e.pointerId };
 }
 
-function applyWantDragAtPoint(grid, moving, x, y) {
-  const items = wantGridItems(grid);
-  const from = items.indexOf(moving);
-  if (from < 0) return;
-  const rects = items.map((el) => {
-    const box = wantCardRect(el);
-    return {
-      left: box.left,
-      top: box.top,
-      width: box.width,
-      height: box.height,
-    };
-  });
-  const slot = wantDragInsertIndex(rects, from, x, y);
-  const without = items.filter((el) => el !== moving);
-  const before = without[slot] || null;
-  if (before) grid.insertBefore(moving, before);
-  else grid.appendChild(moving);
+function wantPageRect(itemEl) {
+  const box = wantCardRect(itemEl);
+  const sx = window.scrollX || 0;
+  const sy = window.scrollY || 0;
+  return {
+    left: box.left + sx,
+    top: box.top + sy,
+    width: box.width,
+    height: box.height,
+  };
+}
+
+function snapshotWantSlots(grid) {
+  return wantGridItems(grid).map((el) => ({
+    el,
+    id: el.dataset.entryId,
+    ...wantPageRect(el),
+  }));
+}
+
+function applyWantDragToSlot(grid, session, x, y) {
+  const sx = window.scrollX || 0;
+  const sy = window.scrollY || 0;
+  const to = wantDragInsertIndex(session.slotRects, x + sx, y + sy);
+  if (to === session.dropIndex) return;
+  session.dropIndex = to;
+  const next = wantReorderItems(session.startEls, session.startIndex, to);
+  for (const el of next) grid.appendChild(el);
 }
 
 function maybeWantAutoScroll(y) {
@@ -961,7 +972,7 @@ export function wireWantReorder(listEl, state, render, { api, statusEl, getItems
     }
     moveWantDragGhost(session, x, y);
     maybeWantAutoScroll(y);
-    applyWantDragAtPoint(grid, session.moving, x, y);
+    applyWantDragToSlot(grid, session, x, y);
   };
 
   const bindSession = (kind, pointerId, captureEl) => {
@@ -1016,6 +1027,10 @@ export function wireWantReorder(listEl, state, render, { api, statusEl, getItems
 
   const beginDrag = ({ moving, x, y, kind, pointerId, captureEl }) => {
     if (session || !moving) return;
+    const slots = snapshotWantSlots(grid);
+    const startEls = slots.map((slot) => slot.el);
+    const startIndex = startEls.indexOf(moving);
+    if (startIndex < 0) return;
     session = {
       moving,
       draggedId: moving.dataset.entryId,
@@ -1029,6 +1044,10 @@ export function wireWantReorder(listEl, state, render, { api, statusEl, getItems
       ghost: null,
       offsetX: 0,
       offsetY: 0,
+      startEls,
+      startIndex,
+      dropIndex: startIndex,
+      slotRects: slots.map(({ left, top, width, height }) => ({ left, top, width, height })),
       unbind: bindSession(kind, pointerId, captureEl),
     };
   };

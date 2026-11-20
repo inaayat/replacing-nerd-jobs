@@ -31,6 +31,7 @@ import {
   wantRanksPayload,
   normalizeWantRanks,
   wantDragInsertIndex,
+  wantReorderItems,
 } from '../amc-a-lister/engine/want-order.js';
 import { sharedWatchlistItems } from '../amc-a-lister/engine/watchlist-match.js';
 import { monthsBeforeISO } from '../amc-a-lister/engine/dates.js';
@@ -564,19 +565,46 @@ const threeAcross = [
   { left: 200, top: 0, width: 100, height: 150 },
 ];
 assertEqual(
-  wantDragInsertIndex(threeAcross, 0, 250, 75),
+  wantDragInsertIndex(threeAcross, 250, 75),
   2,
-  'a finger over the third poster’s center inserts there',
+  'a finger over the third poster’s center targets the last slot',
 );
 assertEqual(
-  wantDragInsertIndex(threeAcross, 2, 20, 75),
+  wantDragInsertIndex(threeAcross, 20, 75),
   0,
-  'dragging the last poster onto the first slot’s left half moves it to the front',
+  'a finger over the first poster targets the first slot',
 );
 assertEqual(
-  wantDragInsertIndex(threeAcross, 1, 150, 75),
+  wantDragInsertIndex(threeAcross, 150, 75),
   1,
-  'resting on the moving tile’s own center keeps its slot',
+  'a finger over the middle poster keeps the middle slot',
+);
+
+const twoRows = [
+  { left: 0, top: 0, width: 100, height: 150 },
+  { left: 110, top: 0, width: 100, height: 150 },
+  { left: 220, top: 0, width: 100, height: 150 },
+  { left: 0, top: 170, width: 100, height: 150 },
+  { left: 110, top: 170, width: 100, height: 150 },
+  { left: 220, top: 170, width: 100, height: 150 },
+];
+assertEqual(wantDragInsertIndex(twoRows, 50, 75), 0, 'row-1 col-1 is slot 0');
+assertEqual(wantDragInsertIndex(twoRows, 270, 245), 5, 'row-2 col-3 is the last slot');
+assertEqual(wantDragInsertIndex(twoRows, 160, 245), 4, 'middle of the second row is slot 4');
+assertEqual(
+  wantReorderItems(['a', 'b', 'c', 'd', 'e', 'f'], 5, 0),
+  ['f', 'a', 'b', 'c', 'd', 'e'],
+  'last item can move to first',
+);
+assertEqual(
+  wantReorderItems(['a', 'b', 'c', 'd', 'e', 'f'], 0, 5),
+  ['b', 'c', 'd', 'e', 'f', 'a'],
+  'first item can move to last',
+);
+assertEqual(
+  wantReorderItems(['a', 'b', 'c', 'd', 'e', 'f'], 1, 4),
+  ['a', 'c', 'd', 'e', 'b', 'f'],
+  'a first-row middle item can move to the second row',
 );
 
 const homeGridHtml = watchlistLogTableHtml(
@@ -634,7 +662,9 @@ assert(uiSource.includes('passive: false'), 'touchmove is non-passive so iOS can
 assert(uiSource.includes("pointerType === 'touch'"), 'touch does not wait on PointerEvent capture');
 assert(uiSource.includes('setPointerCapture'), 'mouse drag captures the pointer');
 assert(uiSource.includes('al-want-drag-ghost'), 'a lifted preview follows the finger');
-assert(uiSource.includes('wantDragInsertIndex'), 'live reorder uses card rect centers, not pointerenter');
+assert(uiSource.includes('wantDragInsertIndex'), 'drop targets use frozen slot geometry, not pointerenter');
+assert(uiSource.includes('wantReorderItems'), 'live DOM order is a splice from the drag-start snapshot');
+assert(uiSource.includes('slotRects'), 'slot boxes are captured once so live reflow cannot oscillate');
 assert(!uiSource.includes('Which do you like'), 'watchlist UI does not use pairwise compare copy');
 assert(!/draggable\s*=\s*['"]true['"]/.test(uiSource), 'want ranking does not use HTML5 drag-and-drop');
 
