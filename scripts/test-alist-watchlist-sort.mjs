@@ -30,6 +30,7 @@ import {
   mergeWantPriorities,
   wantRanksPayload,
   normalizeWantRanks,
+  wantDragInsertIndex,
 } from '../amc-a-lister/engine/want-order.js';
 import { sharedWatchlistItems } from '../amc-a-lister/engine/watchlist-match.js';
 import { monthsBeforeISO } from '../amc-a-lister/engine/dates.js';
@@ -557,6 +558,27 @@ assertEqual(
   'rank payloads drop blanks and duplicate ids',
 );
 
+const threeAcross = [
+  { left: 0, top: 0, width: 100, height: 150 },
+  { left: 100, top: 0, width: 100, height: 150 },
+  { left: 200, top: 0, width: 100, height: 150 },
+];
+assertEqual(
+  wantDragInsertIndex(threeAcross, 0, 250, 75),
+  2,
+  'a finger over the third poster’s center inserts there',
+);
+assertEqual(
+  wantDragInsertIndex(threeAcross, 2, 20, 75),
+  0,
+  'dragging the last poster onto the first slot’s left half moves it to the front',
+);
+assertEqual(
+  wantDragInsertIndex(threeAcross, 1, 150, 75),
+  1,
+  'resting on the moving tile’s own center keeps its slot',
+);
+
 const homeGridHtml = watchlistLogTableHtml(
   [{ id: 'home1', title: 'Old Film', release_date: '2020-01-01' }],
   detailsState(),
@@ -564,19 +586,24 @@ const homeGridHtml = watchlistLogTableHtml(
 );
 assert(!homeGridHtml.includes('data-want-drag'), 'the default Watch at Home grid has no drag handle');
 assert(!homeGridHtml.includes('al-want-drag-handle'), 'the default Watch at Home grid keeps its existing card chrome');
+assert(!homeGridHtml.includes('al-watchlist-card--reorder'), 'the default grid does not mark cards as draggable tiles');
 assert(homeGridHtml.includes('class="al-watchlist-grid"'), 'Watch at Home still uses the same poster grid');
 assert(!homeGridHtml.includes('al-watchlist-grid--reorder'), 'reorder mode does not swap in a different grid class');
+assert(!homeGridHtml.includes('al-watchlist-grid--reordering'), 'the default grid does not lock touch scrolling');
 
 const homeReorderHtml = watchlistLogTableHtml(
-  [{ id: 'home1', title: 'Old Film', release_date: '2020-01-01' }],
+  [{ id: 'home1', title: 'Old Film', release_date: '2020-01-01', poster_path: '/old.jpg' }],
   detailsState(),
   { view: 'watch-at-home', reorderable: true },
 );
 assert(homeReorderHtml.includes('data-want-drag="home1"'), 'Reorder mode adds a drag handle on the existing posters');
 assert(homeReorderHtml.includes('al-want-drag-handle'), 'the handle uses the grab control class');
+assert(homeReorderHtml.includes('al-watchlist-card--reorder'), 'Reorder mode makes the whole poster tile the drag target');
+assert(homeReorderHtml.includes('al-watchlist-grid--reordering'), 'Reorder mode marks the grid so CSS can disable touch scrolling');
 assert(homeReorderHtml.includes('Drag to rank'), 'unranked at-home titles explain that dragging ranks them');
-assert(homeReorderHtml.includes('class="al-watchlist-grid"'), 'Reorder mode keeps the same poster grid');
+assert(homeReorderHtml.includes('class="al-watchlist-grid'), 'Reorder mode keeps the same poster grid');
 assert(!homeReorderHtml.includes('Which do you like'), 'want ranking is not the pairwise compare flow');
+assert(homeReorderHtml.includes('draggable="false"'), 'poster images cannot start an HTML5 drag or iOS callout');
 
 const comingSoonNoDrag = watchlistLogTableHtml(
   [{ id: 'cs1', title: 'Future Film', release_date: '2026-09-01' }],
@@ -601,8 +628,13 @@ const readonlyNoDrag = watchlistLogTableHtml(expandItems, detailsState(), {
 assert(!readonlyNoDrag.includes('data-want-drag'), 'someone else’s Want tab is not editable');
 
 assert(uiSource.includes('wireWantReorder'), 'want lists bind pointer drag, not stack compare');
-assert(uiSource.includes("addEventListener('pointerdown'"), 'drag starts on pointerdown for mouse and touch');
-assert(uiSource.includes('setPointerCapture'), 'drag captures the pointer so iOS does not scroll the page');
+assert(uiSource.includes("addEventListener('pointerdown'"), 'desktop drag starts on pointerdown');
+assert(uiSource.includes("addEventListener('touchstart'"), 'phones own the gesture with touchstart');
+assert(uiSource.includes('passive: false'), 'touchmove is non-passive so iOS cannot steal the scroll');
+assert(uiSource.includes("pointerType === 'touch'"), 'touch does not wait on PointerEvent capture');
+assert(uiSource.includes('setPointerCapture'), 'mouse drag captures the pointer');
+assert(uiSource.includes('al-want-drag-ghost'), 'a lifted preview follows the finger');
+assert(uiSource.includes('wantDragInsertIndex'), 'live reorder uses card rect centers, not pointerenter');
 assert(!uiSource.includes('Which do you like'), 'watchlist UI does not use pairwise compare copy');
 assert(!/draggable\s*=\s*['"]true['"]/.test(uiSource), 'want ranking does not use HTML5 drag-and-drop');
 
@@ -627,9 +659,13 @@ assert(memberWantSource.includes('sortWantMoviesForProfile'), 'other people see 
 
 const gridCssAfter = readFileSync(new URL('../amc-a-lister/engine/app.css', import.meta.url), 'utf8');
 assert(gridCssAfter.includes('.al-want-drag-handle'), 'drag handle has styles');
-assert(gridCssAfter.includes('touch-action: none'), 'the handle opts out of page scroll on touch');
+assert(gridCssAfter.includes('.al-watchlist-card--reorder'), 'the whole tile opts out of page scroll on touch');
+assert(gridCssAfter.includes('touch-action: none'), 'reorder tiles opt out of page scroll on touch');
+assert(gridCssAfter.includes('-webkit-touch-callout: none'), 'iOS cannot long-press a poster into a callout');
+assert(gridCssAfter.includes('pointer-events: none'), 'the grip is a visual cue; the tile receives the gesture');
 assert(gridCssAfter.includes('width: 44px'), 'the handle is 44px on coarse pointers');
 assert(gridCssAfter.includes('html.al-reordering'), 'dragging locks page scroll and cursor');
+assert(gridCssAfter.includes('.al-want-drag-ghost'), 'the lifted preview is a fixed overlay');
 
 assert(
   apiSource.includes('req.body?.ranks') && apiSource.includes('saveWatchlistRanks'),

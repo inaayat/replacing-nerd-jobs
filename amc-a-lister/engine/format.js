@@ -76,7 +76,7 @@ export function posterHtml(watch, { size = 'w92', width = 28, height = 42, class
   const url = posterUrl(watch.poster_path, size);
   if (url) {
     const dims = fluid ? '' : ` width="${width}" height="${height}"`;
-    return `<img class="${className}" src="${url}" alt=""${dims} loading="lazy">`;
+    return `<img class="${className}" src="${url}" alt=""${dims} loading="lazy" draggable="false">`;
   }
   const style = fluid ? '' : ` style="width:${width}px;height:${height}px"`;
   return `<span class="${className} al-poster--empty"${style} aria-hidden="true"></span>`;

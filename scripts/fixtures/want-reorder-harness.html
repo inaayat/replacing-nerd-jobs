@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Want reorder harness</title>
+  <link rel="stylesheet" href="/amc-a-lister/engine/app.css">
+  <style>
+    body { margin: 0; font-family: sans-serif; background: #f4efe6; }
+    #list { padding: 12px; max-width: 420px; }
+    .al-watchlist-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  </style>
+</head>
+<body>
+  <div id="list"></div>
+  <p id="status"></p>
+  <pre id="out"></pre>
+  <script type="module">
+    import { wireWatchlistLogList } from '/amc-a-lister/engine/watchlist-ui.js';
+
+    const items = [
+      { id: 'a', title: 'Alpha', release_date: '2020-01-01', poster_path: '/a.jpg', priority: 0 },
+      { id: 'b', title: 'Bravo', release_date: '2019-01-01', poster_path: '/b.jpg', priority: 1 },
+      { id: 'c', title: 'Charlie', release_date: '2018-01-01', poster_path: '/c.jpg', priority: 2 },
+    ];
+    const state = { watchlist: items.map((item) => ({ ...item })), expandedId: null, detailsCache: new Map() };
+    const displayOrder = () => [...state.watchlist].sort((a, b) => {
+      const ar = a.priority == null ? Infinity : Number(a.priority);
+      const br = b.priority == null ? Infinity : Number(b.priority);
+      return ar - br;
+    });
+    window.__wantSaves = [];
+    const watchlistApi = {
+      update: async (_token, body) => {
+        window.__wantSaves.push(body);
+        window.__wantOrder = displayOrder().map((item) => item.id);
+        document.getElementById('out').textContent = JSON.stringify({
+          saves: window.__wantSaves,
+          order: window.__wantOrder,
+        });
+        return {};
+      },
+    };
+    wireWatchlistLogList({ token: 't' }, state, {
+      listEl: document.getElementById('list'),
+      statusEl: document.getElementById('status'),
+      getItems: displayOrder,
+      emptyMessage: 'empty',
+      watchlistApi,
+      reorderable: true,
+    });
+    window.__wantState = state;
+  </script>
+</body>
+</html>

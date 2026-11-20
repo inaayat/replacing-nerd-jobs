@@ -10,6 +10,7 @@ import {
   applyWantDragOrder,
   mergeWantPriorities,
   wantRanksPayload,
+  wantDragInsertIndex,
 } from './want-order.js';
 
 export { todayISO };
@@ -575,7 +576,7 @@ function watchlistIconButton(attrs, label, icon) {
 function wantDragHandleHtml(item) {
   const ranked = isWantRanked(item);
   const label = ranked ? 'Drag to reorder' : 'Drag to rank';
-  return `<button type="button" class="al-want-drag-handle" data-want-drag="${item.id}" aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}">${WANT_GRIP_SVG}</button>`;
+  return `<span class="al-want-drag-handle" data-want-drag="${item.id}" aria-hidden="true" title="${escapeHtml(label)}">${WANT_GRIP_SVG}</span>`;
 }
 
 const WANT_GRIP_SVG = `<svg class="al-want-drag-grip" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="currentColor"><circle cx="9" cy="6" r="1.7"/><circle cx="15" cy="6" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="18" r="1.7"/><circle cx="15" cy="18" r="1.7"/></svg>`;
@@ -617,8 +618,8 @@ function watchlistViewEntryHtml(item, state, {
     : '';
   const canReorder = reorderable && !readonly;
   return `
-    <div class="al-watchlist-grid-item${expanded ? ' is-expanded' : ''}${out ? ' is-already-out' : ''}" data-entry-id="${item.id}">
-      <article class="al-watchlist-card al-log-row--clickable${expanded ? ' is-expanded' : ''}" data-expand-row data-entry-id="${item.id}" tabindex="0" aria-expanded="${expanded}" aria-label="Toggle details">
+    <div class="al-watchlist-grid-item${expanded ? ' is-expanded' : ''}${out ? ' is-already-out' : ''}${canReorder ? ' al-watchlist-grid-item--reorder' : ''}" data-entry-id="${item.id}"${canReorder ? ` data-want-drag="${item.id}"` : ''}>
+      <article class="al-watchlist-card al-log-row--clickable${expanded ? ' is-expanded' : ''}${canReorder ? ' al-watchlist-card--reorder' : ''}" data-expand-row data-entry-id="${item.id}" tabindex="${canReorder ? '-1' : '0'}" aria-expanded="${expanded}" aria-label="${canReorder ? escapeHtml(isWantRanked(item) ? 'Drag to reorder' : 'Drag to rank') : 'Toggle details'}">
         <div class="al-watchlist-card-poster">
           ${posterHtml(item, { size: 'w342', className: 'al-poster al-poster--grid', fluid: true })}
           ${badge}
@@ -656,7 +657,7 @@ export function watchlistLogTableHtml(items, state, {
     return `<div class="al-empty">${emptyMessage || 'Nothing here yet.'}</div>`;
   }
   return `
-    <div class="al-watchlist-grid">
+    <div class="al-watchlist-grid${reorderable ? ' al-watchlist-grid--reordering' : ''}">
       ${items.map((item) => (
         !readonly && item.id === state.editingId
           ? watchlistEditRowHtml(item)
@@ -787,8 +788,10 @@ export function wireWatchlistLogList(auth, state, {
  * buttons. Do not use role="button" on the row — action buttons live inside it.
  */
 function wireWatchlistRowExpand(listEl, toggleExpand) {
+  const reordering = Boolean(listEl.querySelector('.al-watchlist-grid--reordering'));
   listEl.querySelectorAll('[data-expand-row]').forEach((row) => {
     const toggle = (e) => {
+      if (reordering) return;
       if (e.target instanceof Element && e.target.closest('.al-row-actions, .al-poster-save, .al-want-drag-handle')) return;
       const id = row.dataset.entryId || row.closest('.al-log-entry')?.dataset.entryId;
       if (!id) return;
@@ -812,14 +815,44 @@ function wantCardRect(itemEl) {
   return (card || itemEl).getBoundingClientRect();
 }
 
-function gridInsertBeforeEl(grid, moving, x, y) {
-  const items = wantGridItems(grid).filter((el) => el !== moving);
-  for (const other of items) {
-    const box = wantCardRect(other);
-    if (y < box.top) return other;
-    if (y <= box.bottom && x < box.left + box.width / 2) return other;
+function wantDragIgnoredTarget(target) {
+  return target instanceof Element && target.closest('.al-row-actions, .al-poster-save, a, input, textarea, select, button');
+}
+
+function eventClientPoint(e, id) {
+  if (e.changedTouches && e.changedTouches.length) {
+    const match = id == null
+      ? e.changedTouches[0]
+      : [...e.changedTouches].find((t) => t.identifier === id) || e.changedTouches[0];
+    return { x: match.clientX, y: match.clientY, id: match.identifier };
   }
-  return null;
+  if (e.touches && e.touches.length) {
+    const match = id == null
+      ? e.touches[0]
+      : [...e.touches].find((t) => t.identifier === id) || e.touches[0];
+    return { x: match.clientX, y: match.clientY, id: match.identifier };
+  }
+  return { x: e.clientX, y: e.clientY, id: e.pointerId };
+}
+
+function applyWantDragAtPoint(grid, moving, x, y) {
+  const items = wantGridItems(grid);
+  const from = items.indexOf(moving);
+  if (from < 0) return;
+  const rects = items.map((el) => {
+    const box = wantCardRect(el);
+    return {
+      left: box.left,
+      top: box.top,
+      width: box.width,
+      height: box.height,
+    };
+  });
+  const slot = wantDragInsertIndex(rects, from, x, y);
+  const without = items.filter((el) => el !== moving);
+  const before = without[slot] || null;
+  if (before) grid.insertBefore(moving, before);
+  else grid.appendChild(moving);
 }
 
 function maybeWantAutoScroll(y) {
@@ -831,87 +864,220 @@ function maybeWantAutoScroll(y) {
   else if (y > top + height - edge) window.scrollBy(0, 16);
 }
 
+function liftWantDragGhost(moving, x, y) {
+  const card = moving.querySelector('.al-watchlist-card') || moving;
+  const rect = card.getBoundingClientRect();
+  const ghost = card.cloneNode(true);
+  ghost.removeAttribute('data-expand-row');
+  ghost.removeAttribute('tabindex');
+  ghost.setAttribute('aria-hidden', 'true');
+  ghost.classList.add('al-want-drag-ghost');
+  ghost.querySelectorAll('button, a, input, textarea, select').forEach((el) => el.remove());
+  ghost.style.position = 'fixed';
+  ghost.style.left = `${rect.left}px`;
+  ghost.style.top = `${rect.top}px`;
+  ghost.style.width = `${rect.width}px`;
+  ghost.style.height = `${rect.height}px`;
+  ghost.style.margin = '0';
+  ghost.style.zIndex = '10000';
+  ghost.style.pointerEvents = 'none';
+  document.body.appendChild(ghost);
+  return {
+    ghost,
+    offsetX: x - rect.left,
+    offsetY: y - rect.top,
+  };
+}
+
+function moveWantDragGhost(session, x, y) {
+  if (!session.ghost) return;
+  session.ghost.style.left = `${x - session.offsetX}px`;
+  session.ghost.style.top = `${y - session.offsetY}px`;
+}
+
+function clearWantDragGhost(session) {
+  session.ghost?.remove();
+  session.ghost = null;
+}
+
 /**
- * Pointer drag on a handle — mouse on desktop, touch on phones. HTML5 drag
- * is skipped because iOS Safari does not fire it. The handle uses
- * touch-action: none so the page does not scroll while ranking.
+ * Whole-tile reorder: mouse PointerEvents on desktop, TouchEvents on phones.
+ * HTML5 drag is skipped because iOS Safari does not fire it. Touch owns the
+ * iOS path so pointercancel cannot abort the gesture, and a non-passive
+ * touchmove preventDefault keeps Safari from stealing it for scrolling.
  */
-function wireWantReorder(listEl, state, render, { api, statusEl, getItems, auth }) {
+export function wireWantReorder(listEl, state, render, { api, statusEl, getItems, auth }) {
   const grid = listEl.querySelector('.al-watchlist-grid');
   if (!grid) return;
 
-  grid.querySelectorAll('[data-want-drag]').forEach((handle) => {
-    handle.addEventListener('click', (e) => {
+  let session = null;
+
+  const endSession = async ({ save }) => {
+    const current = session;
+    session = null;
+    if (!current) return;
+    current.unbind();
+    document.documentElement.classList.remove('al-reordering');
+    current.moving.classList.remove('is-dragging');
+    try { current.captureEl?.releasePointerCapture?.(current.pointerId); } catch { /* ignore */ }
+    clearWantDragGhost(current);
+    if (!save || !current.moved) return;
+
+    const ids = wantGridItems(grid).map((el) => el.dataset.entryId).filter(Boolean);
+    const displayItems = getItems();
+    const visual = ids
+      .map((id) => displayItems.find((item) => sameWatchlistId(item.id, id)))
+      .filter(Boolean);
+    const nextDisplay = applyWantDragOrder(visual, current.draggedId);
+    const previous = state.watchlist;
+    state.watchlist = mergeWantPriorities(state.watchlist, nextDisplay);
+    render();
+    try {
+      await api.update(auth?.token, { ranks: wantRanksPayload(nextDisplay) });
+    } catch (err) {
+      state.watchlist = previous;
+      render();
+      if (statusEl) statusEl.textContent = err.message || 'Could not save order.';
+    }
+  };
+
+  const stepSession = (x, y) => {
+    if (!session) return;
+    if (!session.moved) {
+      if (Math.hypot(x - session.startX, y - session.startY) < session.slop) return;
+      session.moved = true;
+      if (state.expandedId) {
+        state.expandedId = null;
+        session.moving.classList.remove('is-expanded');
+        session.moving.querySelector('.al-log-detail')?.remove();
+        session.moving.querySelector('.al-watchlist-card')?.classList.remove('is-expanded');
+      }
+      session.moving.classList.add('is-dragging');
+      document.documentElement.classList.add('al-reordering');
+      const lifted = liftWantDragGhost(session.moving, session.startX, session.startY);
+      session.ghost = lifted.ghost;
+      session.offsetX = lifted.offsetX;
+      session.offsetY = lifted.offsetY;
+    }
+    moveWantDragGhost(session, x, y);
+    maybeWantAutoScroll(y);
+    applyWantDragAtPoint(grid, session.moving, x, y);
+  };
+
+  const bindSession = (kind, pointerId, captureEl) => {
+    const onPointerMove = (ev) => {
+      if (kind !== 'pointer' || ev.pointerId !== pointerId) return;
+      ev.preventDefault();
+      stepSession(ev.clientX, ev.clientY);
+    };
+    const onPointerUp = (ev) => {
+      if (kind !== 'pointer' || ev.pointerId !== pointerId) return;
+      endSession({ save: true });
+    };
+    const onPointerCancel = (ev) => {
+      if (kind !== 'pointer' || ev.pointerId !== pointerId) return;
+      endSession({ save: true });
+    };
+    const onTouchMove = (ev) => {
+      if (kind !== 'touch') return;
+      const point = eventClientPoint(ev, pointerId);
+      ev.preventDefault();
+      stepSession(point.x, point.y);
+    };
+    const onTouchEnd = (ev) => {
+      if (kind !== 'touch') return;
+      const ended = [...(ev.changedTouches || [])].some((t) => t.identifier === pointerId);
+      if (!ended && ev.touches?.length) return;
+      endSession({ save: true });
+    };
+    const onTouchCancel = (ev) => {
+      if (kind !== 'touch') return;
+      const ended = [...(ev.changedTouches || [])].some((t) => t.identifier === pointerId);
+      if (!ended && ev.touches?.length) return;
+      endSession({ save: true });
+    };
+    const pointerOpts = { capture: true };
+    const touchOpts = { capture: true, passive: false };
+    window.addEventListener('pointermove', onPointerMove, pointerOpts);
+    window.addEventListener('pointerup', onPointerUp, pointerOpts);
+    window.addEventListener('pointercancel', onPointerCancel, pointerOpts);
+    window.addEventListener('touchmove', onTouchMove, touchOpts);
+    window.addEventListener('touchend', onTouchEnd, pointerOpts);
+    window.addEventListener('touchcancel', onTouchCancel, pointerOpts);
+    return () => {
+      window.removeEventListener('pointermove', onPointerMove, pointerOpts);
+      window.removeEventListener('pointerup', onPointerUp, pointerOpts);
+      window.removeEventListener('pointercancel', onPointerCancel, pointerOpts);
+      window.removeEventListener('touchmove', onTouchMove, touchOpts);
+      window.removeEventListener('touchend', onTouchEnd, pointerOpts);
+      window.removeEventListener('touchcancel', onTouchCancel, pointerOpts);
+    };
+  };
+
+  const beginDrag = ({ moving, x, y, kind, pointerId, captureEl }) => {
+    if (session || !moving) return;
+    session = {
+      moving,
+      draggedId: moving.dataset.entryId,
+      kind,
+      pointerId,
+      captureEl,
+      startX: x,
+      startY: y,
+      slop: kind === 'touch' ? 6 : 4,
+      moved: false,
+      ghost: null,
+      offsetX: 0,
+      offsetY: 0,
+      unbind: bindSession(kind, pointerId, captureEl),
+    };
+  };
+
+  grid.querySelectorAll(':scope > .al-watchlist-grid-item[data-want-drag]').forEach((tile) => {
+    const card = tile.querySelector('.al-watchlist-card') || tile;
+    card.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
     });
-    handle.addEventListener('pointerdown', (e) => {
+    card.addEventListener('dragstart', (e) => {
+      e.preventDefault();
+    });
+    card.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+    });
+    card.addEventListener('pointerdown', (e) => {
       if (e.button) return;
-      const moving = handle.closest('.al-watchlist-grid-item');
-      if (!moving) return;
+      if (e.pointerType === 'touch') return;
+      if (wantDragIgnoredTarget(e.target)) return;
+      const moving = e.currentTarget.closest('.al-watchlist-grid-item') || tile;
       e.preventDefault();
       e.stopPropagation();
-      const pointerId = e.pointerId;
-      const startX = e.clientX;
-      const startY = e.clientY;
-      const slop = e.pointerType === 'touch' ? 8 : 4;
-      let dragging = false;
-      const draggedId = moving.dataset.entryId;
-
-      const onMove = (ev) => {
-        if (ev.pointerId !== pointerId) return;
-        if (!dragging) {
-          if (Math.hypot(ev.clientX - startX, ev.clientY - startY) < slop) return;
-          dragging = true;
-          if (state.expandedId) {
-            state.expandedId = null;
-            moving.classList.remove('is-expanded');
-            moving.querySelector('.al-log-detail')?.remove();
-            moving.querySelector('.al-watchlist-card')?.classList.remove('is-expanded');
-          }
-          moving.classList.add('is-dragging');
-          document.documentElement.classList.add('al-reordering');
-          try { handle.setPointerCapture(pointerId); } catch { /* ignore */ }
-        }
-        ev.preventDefault();
-        maybeWantAutoScroll(ev.clientY);
-        const before = gridInsertBeforeEl(grid, moving, ev.clientX, ev.clientY);
-        if (before) grid.insertBefore(moving, before);
-        else grid.appendChild(moving);
-      };
-
-      const finish = async (ev) => {
-        if (ev.pointerId !== pointerId) return;
-        handle.removeEventListener('pointermove', onMove);
-        handle.removeEventListener('pointerup', finish);
-        handle.removeEventListener('pointercancel', finish);
-        try { handle.releasePointerCapture(pointerId); } catch { /* ignore */ }
-        document.documentElement.classList.remove('al-reordering');
-        moving.classList.remove('is-dragging');
-        if (!dragging) return;
-
-        const ids = wantGridItems(grid).map((el) => el.dataset.entryId).filter(Boolean);
-        const displayItems = getItems();
-        const visual = ids
-          .map((id) => displayItems.find((item) => sameWatchlistId(item.id, id)))
-          .filter(Boolean);
-        const nextDisplay = applyWantDragOrder(visual, draggedId);
-        const previous = state.watchlist;
-        state.watchlist = mergeWantPriorities(state.watchlist, nextDisplay);
-        render();
-        try {
-          await api.update(auth.token, { ranks: wantRanksPayload(nextDisplay) });
-        } catch (err) {
-          state.watchlist = previous;
-          render();
-          if (statusEl) statusEl.textContent = err.message || 'Could not save order.';
-        }
-      };
-
-      handle.addEventListener('pointermove', onMove);
-      handle.addEventListener('pointerup', finish);
-      handle.addEventListener('pointercancel', finish);
+      try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+      beginDrag({
+        moving,
+        x: e.clientX,
+        y: e.clientY,
+        kind: 'pointer',
+        pointerId: e.pointerId,
+        captureEl: e.currentTarget,
+      });
     });
+    card.addEventListener('touchstart', (e) => {
+      if (wantDragIgnoredTarget(e.target)) return;
+      if (e.touches && e.touches.length > 1) return;
+      const point = eventClientPoint(e);
+      const moving = e.currentTarget.closest('.al-watchlist-grid-item') || tile;
+      e.preventDefault();
+      e.stopPropagation();
+      beginDrag({
+        moving,
+        x: point.x,
+        y: point.y,
+        kind: 'touch',
+        pointerId: point.id,
+        captureEl: e.currentTarget,
+      });
+    }, { passive: false });
   });
 }
 

@@ -911,6 +911,7 @@ node scripts/test-plot-points-query.mjs
 node scripts/test-public-imports.mjs   # guards against browser code importing /lib/
 node scripts/test-alist-statistics.mjs
 node scripts/test-alist-watchlist-sort.mjs
+node scripts/test-alist-want-mobile-drag.mjs
 node scripts/test-alist-showing.mjs
 node scripts/test-amc-alist-rank.mjs
 node scripts/test-fortune500-extract.mjs
